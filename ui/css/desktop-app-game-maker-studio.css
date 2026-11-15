@@ -304,10 +304,39 @@
    semantics: a list item may not be a button itself. */
 .gm-project-item {
     display: flex;
+    align-items: stretch;
+    gap: 4px;
 }
 
 .gm-project-item > .gm-project-card {
     flex: 1;
+}
+
+/* Every game carries its own delete control: removing a game must not
+   require opening it first. */
+.gm-project-delete {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 30px;
+    min-height: 30px;
+    padding: 0;
+    color: var(--gm-muted);
+    border: 1px solid transparent;
+    border-radius: var(--vd-mat-card-radius, 6px);
+    background: transparent;
+    cursor: pointer;
+}
+
+.gm-project-delete:hover:not(:disabled) {
+    color: var(--gm-tone-bad);
+    border-color: var(--vd-mat-card-border, var(--gm-line));
+    background: var(--vd-mat-hover, rgba(139, 124, 246, 0.14));
+}
+
+.gm-project-delete:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .gm-studio .gm-project-card {

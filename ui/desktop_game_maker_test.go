@@ -130,6 +130,8 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.create_disabled_notice",
 		"game_maker.restore_confirm",
 		"game_maker.delete_confirm",
+		"game_maker.delete_notice",
+		"game_maker.deleted_notice",
 		"game_maker.gameplay_checks",
 		"game_maker.visual_checks",
 		"game_maker.visual_review",
@@ -216,6 +218,7 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 			"game_maker.check_help_role":          {"{{id}}"},
 			"game_maker.check_prompt_role":        {"{{id}}"},
 			"game_maker.revision_paths_truncated": {"{{count}}"},
+			"game_maker.deleted_notice":           {"{{name}}"},
 		} {
 			for _, placeholder := range placeholders {
 				if !strings.Contains(values[key], placeholder) {

@@ -289,7 +289,8 @@
                 fullscreen: () => preview && preview.toggleFullscreen(state),
                 open_tab: () => preview && preview.openTab(state),
                 rename: () => renameProject(state),
-                delete: () => deleteProject(state)
+                delete: () => deleteProject(state),
+                'delete-project': () => deleteProject(state, button.dataset.gmProject)
             };
             const action = actions[button.dataset.gmAction];
             if (action) action();
@@ -438,8 +439,28 @@
                 <span><strong title="${esc(project.name)}">${esc(project.name)}</strong><small>${esc(statusLabel(state, project.status))}${updated ? ' · ' + esc(updated) : ''}</small></span>
                 <span class="gm-project-revision">v${Number(project.current_revision || 0)}</span>
                 ${running ? `<span class="gm-project-running" title="${esc(t('game_maker.status_working'))}"></span>` : ''}
-            </button></div>`;
+            </button>
+            <button type="button" class="gm-project-delete" data-gm-action="delete-project" data-gm-project="${esc(project.id)}"
+                aria-label="${esc(deleteLabel)}"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="M6 7l1 13h10l1-13"/></svg></button>
+            </div>`;
         }).join('');
+        syncDeleteControls(state);
+    }
+
+    // Deleting a game is an explicit admin grant, not a side effect of the
+    // studio being writable. Every delete control therefore states the real
+    // reason when the grant is missing instead of blaming read-only mode.
+    function syncDeleteControls(state) {
+        const capabilities = state.capabilities || {};
+        const allowed = Boolean(capabilities.allow_delete);
+        const reasonKey = capabilities.readonly ? 'game_maker.readonly_notice' : 'game_maker.delete_notice';
+        const reason = allowed ? '' : state.context.t(reasonKey);
+        state.container.querySelectorAll('[data-gm-action="delete"], [data-gm-action="delete-project"]').forEach(button => {
+            button.disabled = !allowed;
+            if (reason) button.title = reason;
+            else button.removeAttribute('title');
+        });
     }
 
     function statusLabel(state, status) {
@@ -1514,33 +1535,40 @@
         }
     }
 
-    async function deleteProject(state) {
-        if (!state.project || !state.capabilities.allow_delete) return;
+    async function deleteProject(state, projectID) {
+        // The library deletes a chosen game; the toolbar deletes the open one.
+        const target = (projectID && state.projects.find(item => item.id === projectID)) || state.project;
+        if (!target || !state.capabilities || !state.capabilities.allow_delete) return;
         const confirmed = await confirmAction(state, state.context.t('game_maker.delete_title'),
-            state.context.t('game_maker.delete_confirm', { name: state.project.name }));
+            state.context.t('game_maker.delete_confirm', { name: target.name }));
         if (!confirmed) return;
         try {
-            const removedID = state.project.id;
+            const removedID = target.id;
             await state.api.deleteProject(removedID);
             if (window.GameMakerStudioAssets?.forgetAssetSelection) window.GameMakerStudioAssets.forgetAssetSelection(removedID);
             state.projects = state.projects.filter(item => item.id !== removedID);
-            if (state.knowledgeClose) state.knowledgeClose();
-            setButton(state, 'knowledge', false);
-            state.project = null;
-            state.job = null;
-            state.drift = null;
-            state.planSummary = null;
-            state.latestJob = null;
-            stopElapsed(state);
-            closeEvents(state);
-            state.activity?.dispose();
-            state.container.innerHTML = shell(state);
-            state.activity = window.GameMakerStudioActivity?.create(state);
-            bindShell(state);
-            applyCapabilities(state);
-            renderProjects(state);
-            syncJobControls(state);
-            updateStatus(state, state.capabilities.enabled ? 'ready' : 'disabled');
+            if (state.project && state.project.id === removedID) {
+                if (state.knowledgeClose) state.knowledgeClose();
+                setButton(state, 'knowledge', false);
+                state.project = null;
+                state.job = null;
+                state.drift = null;
+                state.planSummary = null;
+                state.latestJob = null;
+                stopElapsed(state);
+                closeEvents(state);
+                state.activity?.dispose();
+                state.container.innerHTML = shell(state);
+                state.activity = window.GameMakerStudioActivity?.create(state);
+                bindShell(state);
+                applyCapabilities(state);
+                renderProjects(state);
+                syncJobControls(state);
+                updateStatus(state, state.capabilities.enabled ? 'ready' : 'disabled');
+            } else {
+                renderProjects(state);
+            }
+            showNotice(state, state.context.t('game_maker.deleted_notice', { name: target.name }), 'success');
         } catch (error) {
             fail(state, error);
         }

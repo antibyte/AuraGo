@@ -6141,6 +6141,12 @@ registration lives in `internal/desktop/types.go`.
   closed. Replay and live job events may replace the current job only with a newer
   queued job; old terminal/preview events cannot finish a newer job. Project-only
   revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
+  Every library entry carries its own `.gm-project-delete` control: a game is
+  deleted from the list without opening it first, and the toolbar entry keeps
+  deleting the open project. Both follow `capabilities.allow_delete`; a
+  missing grant disables them with `game_maker.delete_notice` (the delete
+  grant, never the read-only notice), and a finished deletion reports
+  `game_maker.deleted_notice`. Verify `TestGameMakerLibraryDeleteBrowser`.
   No child DOX file needed.
 - `pixel*.js`, `pixel-lib-*.js` (incl. `pixel-worker.js`) - Pixel image editor, structure in `## Pixel`:
   shell and core, the DOM-free libraries (filters, generators, cutout, inpaint), the worker, and the feature
