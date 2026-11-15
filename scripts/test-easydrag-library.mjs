@@ -232,14 +232,15 @@ export async function run({ sandbox, eq, guardAsync, settle }) {
     });
 
     await guardAsync('library pause refuses a new POST when the operation deadline expires after precheck', async () => {
-        const started = Date.now();
         const calls = [], api = {
             enabledStatus: async id => { calls.push('GET ' + id); return { mission_state: 'enabled' }; },
             setEnabled: async id => { calls.push('POST ' + id); return {}; }
         };
+        // The 100 ms wait starts at the pause stage, after execute has started its 50 ms deadline: a clock started
+        // before harness() was already past 100 ms when loading the modules took that long under load.
         const result = await harness().ED.home.pauseOps.execute(api, [{ id: 'a', name: 'Alpha', state: 'enabled' }], {
             totalMs: 50, requestMs: 5000,
-            onProgress(_current, _total, _target, stage) { if (stage === 'pause') while (Date.now() < started + 100) {} }
+            onProgress(_current, _total, _target, stage) { if (stage === 'pause') { const until = Date.now() + 100; while (Date.now() < until) {} } }
         });
         eq('library pause deadline check immediately before the mutation leaves it unsent', [calls, result.rows[0].outcome, result.stopped], [['GET a'], 'not_attempted', true]);
     });
