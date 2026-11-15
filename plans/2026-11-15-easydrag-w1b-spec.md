@@ -359,5 +359,5 @@ The plan README's 29 amendments (`plans/2026-11-15-easydrag-w1b/README.md`, "Ame
 - **Open follow-ups**
   - A native-speaker check of the 14 other locales (error texts, rename, reasons, limit and copy keys), in the Wave 1 sessions.
   - Red for risky entries in the desktop window menu bar (a desktop core change).
-  - Timing checks that fail under load: `c1d02 strip_html takes under 100 ms`, `TestBlockChildHonorsParentCancellationAndDeadline` in `internal/flows`, and a short re-render race in `TestDesktopEasyDragDurableBrowser`'s Stop click.
+  - Done on 2026-11-15 (3bdeab246, a171d0cc4, 04d1550e6): the timing checks that failed under load. `c1d02 strip_html grows linearly` compares CPU time per call between 25 KB and 200 KB, `TestBlockChildHonorsParentCancellationAndDeadline` cancels inside the child's first `Done` read, and `TestDesktopEasyDragDurableBrowser` clicks through `clickSettled`.
   - `goalCounter()` and `goal_counter` can go once another test covers the code-point count; the header name's limit note has no test of its own.
