@@ -709,7 +709,8 @@ export async function run(env) {
         const btn = cmd => editor.el.querySelector('[data-ed-cmd="' + cmd + '"]');
         const flowMenu = h.menus.find(m => m.id === 'flow');
         const del = flowMenu && flowMenu.items.find(i => i.id === 'delete');
-        const before = [!btn('stop-viewed').hidden, btn('test').disabled, btn('publish').disabled, btn('active').disabled, !!(del && del.disabled)];
+        const off = button => button.getAttribute('aria-disabled') === 'true';
+        const before = [!btn('stop-viewed').hidden, off(btn('test')), off(btn('publish')), off(btn('active')), !!(del && del.disabled)];
         btn('stop-viewed').fire('click');
         await settle();
         const cancels = h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/runs/r2/cancel').length;
@@ -804,9 +805,9 @@ export async function run(env) {
         liveBtn.fire('click');
         await settle();
         eq('ux a published flow shows Run now and starts it',
-            [liveBtn.hidden, liveBtn.disabled, liveBtn.getAttribute('title'), on.editor.el.querySelector('[data-ed-revision]').textContent,
+            [liveBtn.hidden, liveBtn.getAttribute('aria-disabled') === 'true', liveBtn.getAttribute('title'), on.editor.el.querySelector('[data-ed-revision]').textContent,
                 on.h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/run').length],
-            [false, false, null, 'revision_live:1', 1]);
+            [false, false, 'run_now', 'revision_live:1', 1]);
 
         const paused = publishedEditor({ exists: true, enabled: false });
         await settle();
@@ -814,17 +815,17 @@ export async function run(env) {
         pausedBtn.fire('click');
         await settle();
         eq('ux a paused live flow keeps Run now visible and disabled with the reason',
-            [pausedBtn.hidden, pausedBtn.disabled, pausedBtn.getAttribute('title') || pausedBtn.title,
+            [pausedBtn.hidden, pausedBtn.getAttribute('aria-disabled') === 'true', pausedBtn.getAttribute('title'),
                 paused.h.requests.filter(r => r.url === '/api/desktop/flows/f1/run').length],
-            [false, true, 'error_flow_disabled', 0]);
+            [false, true, 'run_now ' + String.fromCodePoint(0x2013) + ' reason_paused', 0]);
 
         const ro = sandbox(() => undefined);
         const roEditor = openEditor(ro, { readonly: true, flow: { live: flowDoc(), live_revision: 3, published_draft_revision: 3 }, enabled: true });
         await settle();
         const roBtn = cmdBtn(roEditor.el, 'run-now');
         eq('ux read-only still shows Run now, disabled, with its reason',
-            [roBtn.hidden, roBtn.disabled, roBtn.getAttribute('title') || roBtn.title],
-            [false, true, 'run_readonly']);
+            [roBtn.hidden, roBtn.getAttribute('aria-disabled') === 'true', roBtn.getAttribute('title')],
+            [false, true, 'run_now ' + String.fromCodePoint(0x2013) + ' reason_readonly']);
 
         const ahead = openEditor(sandbox(() => undefined), { flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 2, draft_revision: 5 }, enabled: true });
         await settle();
@@ -837,16 +838,16 @@ export async function run(env) {
         ahead.ed.bus.emit('enabled');
         const viewBtn = cmdBtn(ahead.el, 'run-now');
         eq('ux the run view keeps Run now visible and disabled',
-            [viewBtn.hidden, viewBtn.disabled, viewBtn.getAttribute('title') || viewBtn.title],
-            [false, true, 'state_run_view']);
+            [viewBtn.hidden, viewBtn.getAttribute('aria-disabled') === 'true', viewBtn.getAttribute('title')],
+            [false, true, 'run_now ' + String.fromCodePoint(0x2013) + ' reason_run_view']);
         // A run view that knows its start time names it in the tooltip instead of repeating the chip (S0c A7).
         ahead.ed.runView = { run: { id: 'r9', status: 'success', revision: 2, started_at: '2026-10-25T10:00:00Z' } };
         ahead.ed.bus.emit('enabled');
         const timedBtn = cmdBtn(ahead.el, 'run-now');
-        const timedTitle = timedBtn.getAttribute('title') || timedBtn.title;
-        eq('ux the run view tooltip names the start time, not the chip text again',
-            [timedTitle.startsWith('state_run_view_started:'), timedTitle.length > 'state_run_view_started:'.length, timedTitle === 'state_run_view'],
-            [true, true, false]);
+        const timedTitle = timedBtn.getAttribute('title');
+        eq('ux the run view tooltip gives the registry reason, not the chip text again (the start time is in the banner)',
+            [timedTitle.endsWith('reason_run_view'), timedTitle === 'state_run_view', timedBtn.getAttribute('aria-description')],
+            [true, false, 'reason_run_view']);
 
         draft.dispose();
         on.editor.dispose();

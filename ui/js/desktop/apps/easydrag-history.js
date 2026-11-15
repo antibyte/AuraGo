@@ -16,10 +16,9 @@
         const { t, esc } = ed;
         const bag = core.bag();
         const host = opts.host;
-        const hint = key => ' (' + core.shortcut(key) + ')';
         host.setAttribute('aria-label', t('easydrag.ui.history_label'));
-        host.innerHTML = '<button type="button" class="ed-icon-btn" data-ed-history="undo" aria-label="' + esc(t('easydrag.ui.undo')) + '" title="' + esc(t('easydrag.ui.undo') + hint('Ctrl+Z')) + '">' + core.icon('undo') + '</button>' +
-            '<button type="button" class="ed-icon-btn" data-ed-history="redo" aria-label="' + esc(t('easydrag.ui.redo')) + '" title="' + esc(t('easydrag.ui.redo') + hint('Ctrl+Shift+Z')) + '">' + core.icon('redo') + '</button>';
+        host.innerHTML = '<button type="button" class="ed-icon-btn" data-ed-history="undo">' + core.icon('undo') + '</button>' +
+            '<button type="button" class="ed-icon-btn" data-ed-history="redo">' + core.icon('redo') + '</button>';
         const undoBtn = host.querySelector('[data-ed-history="undo"]');
         const redoBtn = host.querySelector('[data-ed-history="redo"]');
         // toastVersion is the model version right after the deletion: the toast's Undo acts only on that one.
@@ -34,20 +33,17 @@
             onHide: ({ hadFocus }) => { if (hadFocus) opts.focusCanvas(); }
         });
 
-        // Disabled buttons would drop the focus to the page: the buttons say aria-disabled instead,
-        // and a click on them does nothing.
-        function setOff(button, off) {
-            if (off) button.setAttribute('aria-disabled', 'true');
-            else button.removeAttribute('aria-disabled');
-        }
-
-        // sync follows the model shown: off in the run view and while there is nothing to undo or
-        // redo; a read-only desktop shows no group at all.
-        function sync() {
-            const ro = !!(ed.readonly || ed.runView);
+        // sync follows the registry's edit.undo and edit.redo: label, shortcut, and aria-disabled with the reason (a disabled
+        // button would drop the focus to the page); a read-only desktop shows no group at all. A drag moves the model on every
+        // frame: the buttons are painted only when what they say may have changed (the editor forces it when an overlay opens or closes).
+        let shown = '';
+        function sync(force) {
             host.hidden = !!ed.readonly;
-            setOff(undoBtn, ro || !ed.model.canUndo());
-            setOff(redoBtn, ro || !ed.model.canRedo());
+            const now = [ed.readonly, !!ed.runView, ed.model.canUndo(), ed.model.canRedo()].join();
+            if (!force && now === shown) return;
+            shown = now;
+            ED.actions.paint(undoBtn, 'edit.undo', { host: ed }, { name: true });
+            ED.actions.paint(redoBtn, 'edit.redo', { host: ed }, { name: true });
         }
 
         function hideToast() { toast.hide(); toastVersion = -1; }
@@ -65,7 +61,7 @@
         bag.listen(host, 'click', (event) => {
             const b = event.target.closest('[data-ed-history]');
             if (!b || b.getAttribute('aria-disabled') === 'true') return;
-            if (b.dataset.edHistory === 'undo') opts.undo(); else opts.redo();
+            ED.actions.run(b.dataset.edHistory === 'undo' ? 'edit.undo' : 'edit.redo', { host: ed });
             sync();
         });
         bag.add(ed.bus.on('model', () => {

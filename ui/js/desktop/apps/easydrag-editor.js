@@ -48,6 +48,7 @@
         let deleting = false;
         let disposed = false;
 
+        const lab = id => esc(t(ED.actions.row(id).label));
         const el = core.el('<div class="ed-editor">' +
             '<header class="ed-head">' +
             '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('back') + '</button>' +
@@ -55,12 +56,12 @@
             '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<div class="ed-head-actions">' +
             '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + ED.icons.of('runs') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
-            '<button type="button" class="ed-btn" data-ed-cmd="test" title="' + esc(t('easydrag.ui.test_draft') + ' (' + core.shortcut('Ctrl+Enter') + ')') + '">' + ED.icons.of('test') + '<span>' + esc(t('easydrag.ui.test_draft')) + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="test">' + ED.icons.of('test') + '<span>' + lab('flow.test') + '</span></button>' +
             // Below 900 px the text of Stop and of the Active switch (below) is hidden: the name and the tooltip say the same words.
-            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" title="' + esc(t('easydrag.ui.run_cancel')) + '" aria-label="' + esc(t('easydrag.ui.run_cancel')) + '" hidden>' + ED.icons.of('stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + ED.icons.of('publish') + '<span>' + esc(t('easydrag.ui.publish')) + '</span></button>' +
-            '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + ED.icons.of('run') + '<span>' + esc(t('easydrag.ui.run_now')) + '</span></button>' +
-            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active" title="' + esc(t('easydrag.ui.active')) + '" aria-label="' + esc(t('easydrag.ui.active')) + '"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + esc(t('easydrag.ui.active')) + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" aria-label="' + lab('flow.stop') + '" hidden>' + ED.icons.of('stop') + '<span>' + lab('flow.stop') + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + ED.icons.of('publish') + '<span>' + lab('flow.publish') + '</span></button>' +
+            '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + ED.icons.of('run') + '<span>' + lab('flow.run_now') + '</span></button>' +
+            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active" aria-label="' + lab('flow.active') + '"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + lab('flow.active') + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + ED.icons.of('more') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + ED.icons.of('runs') + '<span data-ed-runview-text></span>' +
@@ -519,7 +520,7 @@
         // Dialogs, the detail view, quick-add and the run drawer open as children of the editor:
         // the menus follow them (disabled edits, checked drawer).
         if (typeof MutationObserver === 'function') {
-            const overlays = new MutationObserver(() => setMenusSoon());
+            const overlays = new MutationObserver(() => { setMenusSoon(); headerView.paintActions(); history.sync(true); });
             overlays.observe(el, { childList: true });
             bag.add(() => overlays.disconnect());
         }

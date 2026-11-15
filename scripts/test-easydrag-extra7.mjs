@@ -217,11 +217,12 @@ export async function run(env) {
             await settle();
             h.sources[0].emit('snapshot', { run: { id: 'r1', status: 'running' }, steps: [] });
             const testBtn = editor.el.querySelector('[data-ed-cmd="test"]');
-            const running = testBtn.disabled;
+            const off = button => button.getAttribute('aria-disabled') === 'true';
+            const running = off(testBtn);
             h.sources[0].emit('end', {});
             await settle();
             let used = 0;
-            for (; used < rounds && testBtn.disabled; used++) {
+            for (; used < rounds && off(testBtn); used++) {
                 h.runTimers();
                 await settle();
                 const last = h.sources[h.sources.length - 1];
@@ -229,7 +230,7 @@ export async function run(env) {
                 await settle();
             }
             const fetches = h.requests.filter(r => r.method === 'GET' && r.url === '/api/desktop/flows/runs/r1').length;
-            const row = [running, testBtn.disabled, editor.ed.run.status, !!editor.ed.run.stale, fetches, h.notes.map(n => n.title), h.logged];
+            const row = [running, off(testBtn), editor.ed.run.status, !!editor.ed.run.stale, fetches, h.notes.map(n => n.title), h.logged];
             editor.dispose();
             return { row, used };
         }

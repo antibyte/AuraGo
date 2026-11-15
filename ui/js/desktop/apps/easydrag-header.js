@@ -27,15 +27,6 @@
             return { cls: 'ok', key: 'easydrag.ui.state_published' };
         }
 
-        // runNowState: Run now starts the published version, and only while the flow is switched on
-        // (a paused flow is refused with FLOW_DISABLED, as Mission Control refuses a paused mission).
-        // A paused flow's item says to switch it on first.
-        function runNowState() {
-            const ro = !!(ed.readonly || ed.runView);
-            const paused = !!ed.flow.live && !ed.flowEnabled;
-            return { disabled: ro || !ed.flow.live || paused, hint: paused && !ro ? t('easydrag.ui.error_flow_disabled') : '' };
-        }
-
         // revisionText is the persistent draft-versus-live line. Partial publish stays on the state chip.
         function revisionText() {
             // The run view's chip says "Past run" already; the line stays empty and hidden there.
@@ -46,16 +37,15 @@
             return t('easydrag.ui.revision_live', { n: liveN });
         }
 
-        function runNowTitle() {
-            const state = runNowState();
-            if (state.hint) return state.hint;
-            if (ed.runView) {
-                // The chip beside it says "Past run"; the tooltip names which run, by its start time.
-                const started = core.fmt.dateTime(ed.runView.run && ed.runView.run.started_at);
-                return started ? t('easydrag.ui.state_run_view_started', { time: started }) : t('easydrag.ui.state_run_view');
-            }
-            if (ed.readonly) return t('easydrag.ui.run_readonly');
-            return '';
+        // paintActions draws the action buttons from the registry: the title (label and shortcut), and for an unavailable button
+        // aria-disabled with its reason in the title and in aria-description. A button never says "disabled": a keyboard user can
+        // still reach it and read why, and the click handler (and ED.actions.run) refuse it.
+        function paintActions() {
+            const c = { host: ed };
+            [['test', 'flow.test'], ['cancel', 'flow.stop'], ['publish', 'flow.publish'], ['run-now', 'flow.run_now'], ['active', 'flow.active']].forEach(([cmd, id]) => {
+                const button = el.querySelector('[data-ed-cmd="' + cmd + '"]');
+                if (button) ED.actions.paint(button, id, c);
+            });
         }
 
         function paintRevision() {
@@ -108,32 +98,19 @@
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
             if (isBlock) {
-                btn('test').querySelector('span').textContent = t('easydrag.ui.block_simulate');
-                btn('test').title = t('easydrag.ui.block_simulate');
+                btn('test').querySelector('span').textContent = ED.actions.label('flow.test', { host: ed });
                 btn('runs').hidden = true; btn('active').hidden = true;
                 el.querySelector('[data-ed-cmd="templates"]').hidden = true;
                 nameInput.setAttribute('aria-label', t('easydrag.ui.block_name'));
             }
-            btn('test').disabled = ro || running;
             btn('test').classList.toggle('is-busy', running);
             btn('test').classList.toggle('ed-btn--primary', !ed.flow.live && !ro);
             btn('cancel').hidden = !running;
-            btn('cancel').disabled = !!ed.run?.durableStatusError || btn('cancel').getAttribute('aria-busy') === 'true';
-            btn('publish').disabled = ro;
             btn('publish').classList.toggle('has-changes', s.cls !== 'ok' && !ro);
             btn('publish').classList.toggle('ed-btn--primary', !!ed.flow.live && !ro);
-            const runBtn = btn('run-now');
-            if (runBtn) {
-                const run = runNowState();
-                const reason = runNowTitle();
-                runBtn.hidden = isBlock || !ed.flow.live;
-                runBtn.disabled = !!run.disabled;
-                if (reason && ed.flow.live) { runBtn.title = reason; runBtn.setAttribute('title', reason); }
-                else { runBtn.title = ''; runBtn.removeAttribute('title'); }
-            }
-            const sw = btn('active');
-            sw.setAttribute('aria-checked', String(!!ed.flowEnabled));
-            sw.disabled = !!ed.readonly || !!ed.runView;
+            btn('run-now').hidden = isBlock || !ed.flow.live;
+            btn('active').setAttribute('aria-checked', String(!!ed.flowEnabled));
+            paintActions();
             btn('runs').setAttribute('aria-pressed', String(runs.drawerOpen()));
             btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
             // The run view keeps the palette hidden: a stored run takes no new steps.
@@ -216,7 +193,7 @@
             text.parentElement.title = text.textContent;
         }
 
-        return { renderHeader, renderSaveState, renderIssues, renderLastRun, runNowState };
+        return { renderHeader, renderSaveState, renderIssues, renderLastRun, paintActions };
     }
 
     ED.header = { create };

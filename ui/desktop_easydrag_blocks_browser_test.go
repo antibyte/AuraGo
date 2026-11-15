@@ -190,7 +190,7 @@ func TestDesktopEasyDragBlocksBrowser(t *testing.T) {
 	s.wait(`()=>document.querySelectorAll('[data-ed-block-version]').length===2`)
 	p.MustElement(`[data-ed-block-version="1"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();return ed && ed.isBlock && ed.readonly && ed.model.doc.nodes.find(n=>n.type==='block.output').params.values.greeting==='Hello {{block_input.data.name}}';}`)
-	s.wait(`()=>document.querySelector('[data-ed-cmd="publish"]').disabled && document.querySelector('[data-ed-cmd="test"]').disabled`)
+	s.wait(`()=>document.querySelector('[data-ed-cmd="publish"]').getAttribute('aria-disabled')==='true' && document.querySelector('[data-ed-cmd="test"]').getAttribute('aria-disabled')==='true'`)
 	moreAction("easydrag.ui.block_open_draft")
 	s.wait(`()=>{const ed=edFixture.editor();return ed && ed.isBlock && !ed.readonly && ed.model.doc.nodes.find(n=>n.type==='block.output').params.values.greeting==='Welcome {{block_input.data.name}}';}`)
 
