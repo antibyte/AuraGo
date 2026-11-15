@@ -129,6 +129,12 @@ export async function run(env) {
             pos: id => Object.assign({}, model.node(id).position),
             pe: (id, x, y, extra) => Object.assign({ pointerId: id, clientX: x, clientY: y, button: 0, buttons: 1, pointerType: 'mouse', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false }, extra),
             key: (k, target, extra) => Object.assign({ key: k, target: target || canvas.el, repeat: false, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false }, extra),
+            // press sends a key the way onKeyDown does: the registry first, then handleKey.
+            press(event) {
+                const target = event.target || canvas.el;
+                const where = { host: ed, editable: ED.core.isEditable(target), quickAdd: false, onCanvas: true, control: target !== canvas.el && !!target.closest && !!target.closest('button, a, input, textarea, select') };
+                return ED.actions.key(Object.assign({ preventDefault() {} }, event), where) || interact.handleKey(event);
+            },
             flushFrames() {
                 for (let i = 0; frames.size && i < 20; i++) {
                     const [id, fn] = frames.entries().next().value;
@@ -221,7 +227,7 @@ export async function run(env) {
         interact.select([]);
         const inMiddle = interact.handleKey(key('Tab', el, { shiftKey: true }));
         const field = h.ED.core.el('<textarea></textarea>');
-        const inField = interact.handleKey(key('Delete', field));
+        const inField = h.press(key('Delete', field));
         eq('c1d04 Tab and Shift+Tab on the canvas move focus on and add no step',
             [afterStep, inMiddle, inField, h.quickAdds.length, h.model.doc.nodes.length], [false, false, false, 0, 2]);
         interact.select([A]);
@@ -229,7 +235,7 @@ export async function run(env) {
         h.card(A).querySelector('[data-ed-node-tool="connect"]').fire('click');
         eq('c1d04 Add opens quick-add from the first output and Connect opens the picker',
             [h.quickAdds.map(q => [q.x, q.y, q.from]), h.connects], [[[8, 0, { node: A, port: 'out' }]], [{ nodeId: A }]]);
-        eq('c1d04 Space and Enter on the canvas keep their shortcuts', [interact.handleKey(key(' ')), el.classList.contains('is-space'), interact.handleKey(key('Enter')), h.details.length], [true, true, true, 1]);
+        eq('c1d04 Space and Enter on the canvas keep their shortcuts', [interact.handleKey(key(' ')), el.classList.contains('is-space'), h.press(key('Enter')), h.details.length], [true, true, true, 1]);
         interact.handleKeyUp(key(' '));
         eq('c1d04 the keyboard checks log no errors', h.logged, []);
     });
@@ -464,7 +470,7 @@ export async function run(env) {
     await guardAsync('c1d04 selection cost', async () => {
         const h = harness(twoNodes());
         const rebuilt = h.counts.cards;
-        h.interact.handleKey(h.key('a', h.el, { ctrlKey: true }));
+        h.press(h.key('a', h.el, { ctrlKey: true }));
         const marked = [h.card(A).classList.contains('is-selected'), h.card(B).classList.contains('is-selected')];
         h.interact.handleKey(h.key('Escape'));
         eq('c1d04 Ctrl+A and Escape rebuild no card markup', [h.counts.cards - rebuilt, marked, h.card(A).classList.contains('is-selected')], [0, [true, true], false]);

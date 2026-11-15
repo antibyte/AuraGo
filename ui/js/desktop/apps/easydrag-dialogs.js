@@ -5,59 +5,31 @@
 
     const ED = window.EasyDrag = window.EasyDrag || {};
 
-    // SHORTCUTS lists [keys, label key] per group; "Ctrl" becomes ⌘ on macOS.
-    const SHORTCUTS = [
-        ['easydrag.ui.keys_group_canvas', [
-            ['Enter', 'easydrag.ui.keys_open'],
-            ['C', 'easydrag.ui.keys_connect'],
-            ['D', 'easydrag.ui.keys_disable'],
-            ['Delete', 'easydrag.ui.keys_delete'],
-            ['← → ↑ ↓', 'easydrag.ui.keys_navigate'],
-            ['Shift+← → ↑ ↓', 'easydrag.ui.keys_nudge'],
-            ['Space', 'easydrag.ui.keys_pan'],
-            ['Shift+1', 'easydrag.ui.keys_fit'],
-            ['+ / −', 'easydrag.ui.keys_zoom'],
-            ['Ctrl+0', 'easydrag.ui.keys_zoom_reset']
-        ]],
-        ['easydrag.ui.keys_group_edit', [
-            ['Ctrl+Z', 'easydrag.ui.undo'],
-            ['Ctrl+Shift+Z', 'easydrag.ui.redo'],
-            ['Ctrl+C', 'easydrag.ui.copy'],
-            ['Ctrl+X', 'easydrag.ui.cut'],
-            ['Ctrl+V', 'easydrag.ui.paste'],
-            ['Ctrl+D', 'easydrag.ui.duplicate'],
-            ['Ctrl+A', 'easydrag.ui.select_all']
-        ]],
-        ['easydrag.ui.keys_group_flow', [
-            ['Ctrl+S', 'easydrag.ui.save_now'],
-            ['Ctrl+Enter', 'easydrag.ui.test'],
-            ['Ctrl+K', 'easydrag.ui.keys_search'],
-            ['Ctrl+F', 'easydrag.ui.find_step'],
-            ['Alt+Shift+F', 'easydrag.ui.auto_layout'],
-            ['?', 'easydrag.ui.keys_help'],
-            ['Esc', 'easydrag.ui.keys_escape']
-        ]]
+    // LAYOUT is the shortcut table ("Tasten"): the registry's actions that have a shortcut, in the dialog's groups, and the
+    // gestures that are no action (arrows, Space, Esc), written out. ED.actions.table adds the keys and the labels.
+    const LAYOUT = [
+        ['easydrag.ui.keys_group_canvas', ['step.open', 'step.connect', 'step.toggle', 'edit.delete',
+            ['← → ↑ ↓', 'easydrag.ui.keys_navigate'], ['Shift+← → ↑ ↓', 'easydrag.ui.keys_nudge'], ['Space', 'easydrag.ui.keys_pan'],
+            'view.zoom_fit', 'view.zoom_in', 'view.zoom_out', 'view.zoom_reset']],
+        ['easydrag.ui.keys_group_edit', ['edit.undo', 'edit.redo', 'edit.copy', 'edit.cut', 'edit.paste', 'edit.duplicate', 'edit.select_all']],
+        ['easydrag.ui.keys_group_flow', ['flow.save', 'flow.test', 'view.search', 'view.find_step', 'edit.auto_layout', 'view.shortcuts', ['Esc', 'easydrag.ui.keys_escape']]]
     ];
 
     // kbd draws one key per part of keys: "+" joins keys ("Ctrl+S"), but a leading "+" is a key
-    // itself ("+ / −" must not become an empty key and " / −").
-    function kbd(esc, keys) {
-        const text = ED.core.shortcut(keys);
+    // itself ("+" alone must not become an empty key). ED.actions.display names Delete and draws ⌘ and ⇧ on macOS.
+    function kbd(esc, keys, t) {
+        const text = ED.actions.display(keys, t);
         return (text.startsWith('+') ? [text] : text.split('+')).map(k => '<kbd>' + esc(k) + '</kbd>').join('<span class="ed-kbd-plus">+</span>');
     }
 
-    // Ctrl+K adds from one selected step. Otherwise it searches. Tab does not add.
-    function shortcutRows(ed) {
-        const adding = !!(ed && ed.selection && ed.selection.size === 1 && !ed.quickAdd);
-        return SHORTCUTS.map(([group, rows]) => [group, rows.map(([keys, label]) =>
-            (keys === 'Ctrl+K' ? [keys, adding ? 'easydrag.ui.keys_add' : 'easydrag.ui.keys_search'] : [keys, label]))]);
-    }
+    // Ctrl+K reads "Add a step" while one step is selected: view.search's bound label.
+    function shortcutRows(ed) { return ED.actions.table(LAYOUT, { host: ed }); }
 
     function shortcuts(ed) {
         const { t, esc } = ed;
         const body = '<div class="ed-keys">' + shortcutRows(ed).map(([group, rows]) =>
             '<section><h4 class="ed-section-title">' + esc(t(group)) + '</h4><dl>' +
-            rows.map(([keys, label]) => '<div class="ed-keys-row"><dt>' + kbd(esc, keys) + '</dt><dd>' + esc(t(label)) + '</dd></div>').join('') +
+            rows.map(([keys, label]) => '<div class="ed-keys-row"><dt>' + kbd(esc, keys, t) + '</dt><dd>' + esc(t(label)) + '</dd></div>').join('') +
             '</dl></section>').join('') +
             '<p class="ed-hint" data-ed-keys-tab>' + esc(t('easydrag.ui.keys_tab_note')) + '</p></div>';
         return ED.core.modal(ed.root, { title: t('easydrag.ui.keys_title'), closeLabel: t('easydrag.ui.close'), className: 'ed-modal--keys', body });
@@ -305,5 +277,5 @@
         return dialog.done.then(result => (result === 'restore' || result === 'discard' ? result : null));
     }
 
-    ED.dialogs = { shortcuts, findStep, connectPicker, flowSettings, conflict, restore, SHORTCUTS };
+    ED.dialogs = { shortcuts, findStep, connectPicker, flowSettings, conflict, restore, get SHORTCUTS() { return ED.actions.table(LAYOUT, {}); } };
 })();

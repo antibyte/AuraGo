@@ -694,15 +694,14 @@
             const dialogOpen = !!el.querySelector('.ed-modal-backdrop');
             if (dialogOpen && mod && (key === 'k' || key === 'f' || event.key === 'Enter')) event.preventDefault();
             if (dialogOpen || document.querySelector('.vd-context-menu')) return;
-            if (mod && key === 's') { if (!restoring) saveNow(); return; }
-            if (mod && event.key === 'Enter') { event.preventDefault(); test(); return; }
-            if (mod && key === 'k') { event.preventDefault(); searchPalette(); return; }
-            if (mod && key === 'f') { event.preventDefault(); ED.dialogs.findStep(ed, canvas, interact); return; }
-            if (event.altKey && event.shiftKey && key === 'f' && !core.isEditable(target)) { event.preventDefault(); canvas.autoLayout(); return; }
-            if (core.isEditable(target) || ed.quickAdd) return;
+            // The registry's shortcuts (ED.actions.key) keep the rules each key had: Ctrl+S, Ctrl+Enter, Ctrl+K and Ctrl+F also
+            // work from a text field, Alt+Shift+F from outside one, and the rest only while the canvas or a card has the focus
+            // and quick-add is closed. A refused action (read-only, a run in progress ...) still takes its key.
             const active = document.activeElement;
             const onCanvas = canvas.el.contains(active) || active === document.body || active === el;
-            if (event.key === '?' && onCanvas) { event.preventDefault(); ED.dialogs.shortcuts(ed); return; }
+            const control = !!(event.target && event.target !== canvas.el && event.target.closest && event.target.closest('button, a, input, textarea, select'));
+            if (ED.actions.key(event, { host: ed, editable: core.isEditable(target), quickAdd: !!ed.quickAdd, onCanvas, control })) return;
+            if (core.isEditable(target) || ed.quickAdd) return;
             if (event.key === 'Escape' && ed.runView) { event.preventDefault(); exitRunView(); return; }
             if (onCanvas && interact.handleKey(event)) event.preventDefault();
         }

@@ -622,7 +622,8 @@
             return next ? next.id : null;
         }
 
-        // handleKey processes canvas shortcuts; it returns true when the event was used.
+        // handleKey processes the canvas keys that are no action (Space, Escape, the arrows, the active group's Delete
+        // and Enter); the actions' shortcuts are ED.actions.key's. It returns true when the event was used.
         function handleKey(event) {
             const key = event.key;
             const target = event.target;
@@ -632,31 +633,15 @@
             // default: the button is pressed or focus moves on, so the canvas is no keyboard trap.
             if ((key === 'Tab' || key === ' ' || key === 'Enter') && target && target !== el && target.closest && target.closest('button, a, input, textarea, select')) return false;
             if (key === 'Tab') return false;
-            const mod = core.isMod(event);
             const one = ed.selection.size === 1 ? Array.from(ed.selection)[0] : null;
             if (key === ' ' && !event.repeat) { spaceDown = true; el.classList.add('is-space'); return true; }
-            if (mod && key.toLowerCase() === 'z' && !event.shiftKey) { undo(); return true; }
-            if (mod && (key.toLowerCase() === 'y' || (key.toLowerCase() === 'z' && event.shiftKey))) { redo(); return true; }
-            if (mod && key.toLowerCase() === 'a') { selectAll(); return true; }
-            if (mod && key.toLowerCase() === 'c') return copySelection();
-            if (mod && key.toLowerCase() === 'x') { if (copySelection()) removeSelection({ quiet: true }); return true; }
-            if (mod && key.toLowerCase() === 'v') { pasteAt(null); return true; }
-            if (mod && key.toLowerCase() === 'd') { if (!readonly() && ed.selection.size) duplicateSteps(Array.from(ed.selection)); return true; }
-            if (mod && key === '0') { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); return true; }
-            if (mod) return false;
+            if (core.isMod(event)) return false;
             if (ed.groups && ed.groups.active && (key === 'Delete' || key === 'Backspace' || key === 'Enter')) {
                 if (key === 'Enter') ed.groups.open(ed.groups.active);
                 else if (!event.repeat && !readonly() && (!ed.flushPendingEdits || ed.flushPendingEdits())) { ed.model.ungroup(ed.groups.active); select([]); }
                 return true;
             }
-            if (key === 'Delete' || key === 'Backspace') { removeSelection(); return true; }
             if (key === 'Escape') { select([]); wires.highlight(null); return true; }
-            if (key === '!' || (key === '1' && event.shiftKey)) { canvas.fit({ animate: true }); return true; }
-            if (key === '+' || key === '=') { canvas.zoomBy(1.2); return true; }
-            if (key === '-') { canvas.zoomBy(1 / 1.2); return true; }
-            if ((key === 'd' || key === 'D') && ed.selection.size) { if (!readonly()) toggleSteps(Array.from(ed.selection)); return true; }
-            if (key === 'Enter' && one) { ed.bus.emit('open-detail', { nodeId: one }); return true; }
-            if ((key === 'c' || key === 'C') && one && !readonly()) { ed.bus.emit('connect-picker', { nodeId: one }); return true; }
             if (key.startsWith('Arrow')) {
                 if (event.shiftKey && ed.selection.size && !readonly()) {
                     const d = event.altKey ? 1 : G.GRID;

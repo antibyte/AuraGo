@@ -381,8 +381,8 @@ export async function run(env) {
         const dialog = h.ED.dialogs.shortcuts(editor.ed);
         const html = dialog.el.parentNode.html;
         const kbds = html.match(/<kbd>[^<]*<\/kbd>/g) || [];
-        eq('c1d07 the shortcuts dialog draws "+ / −" as one key and no empty key',
-            [kbds.includes('<kbd>+ / −</kbd>'), kbds.includes('<kbd></kbd>'), kbds.includes('<kbd>Ctrl</kbd>'), kbds.includes('<kbd>S</kbd>')], [true, false, true, true]);
+        eq('c1d07 the shortcuts dialog draws "+" and "−" as keys of their own and no empty key',
+            [kbds.includes('<kbd>+</kbd>'), kbds.includes('<kbd>−</kbd>'), kbds.includes('<kbd></kbd>'), kbds.includes('<kbd>Ctrl</kbd>'), kbds.includes('<kbd>S</kbd>')], [true, true, false, true, true]);
         dialog.close(null);
         h.runTimers(140);
         const event = h.fireDoc('keydown', { target: editor.el.querySelector('.ed-canvas'), key: undefined, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false });
