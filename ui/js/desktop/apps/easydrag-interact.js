@@ -713,14 +713,14 @@
         bindAction('view.zoom_out', { run: () => canvas.zoomBy(1 / 1.2) });
         bindAction('view.zoom_fit', { run: () => canvas.fit({ animate: true }) });
         bindAction('view.zoom_reset', { run: () => { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); } });
-        // A card's tools are painted when its markup is built; a run, a dialog or quick-add changes which may act: every card repaints its own.
+        // A dialog, quick-add or a run starting or ending (not its progress) changes which tools may act: every card repaints its own, from one fresh read of the facts.
         function paintTools() {
-            ed.model.doc.nodes.forEach(n => {
+            ED.actions.refresh(ed); ed.model.doc.nodes.forEach(n => {
                 const card = canvas.nodeEl(n.id);
-                if (card) card.querySelectorAll('[data-ed-node-tool]').forEach(button => ED.actions.TOOLS.filter(([tool]) => tool === button.dataset.edNodeTool).forEach(([, action]) => ED.actions.paint(button, action, { host: ed, node: n.id }, { name: true })));
+                if (card) card.querySelectorAll('[data-ed-node-tool]').forEach(button => ED.actions.TOOLS.filter(([tool]) => tool === button.dataset.edNodeTool).forEach(([, action]) => ED.actions.paint(button, action, { host: ed, node: n.id, cached: true }, { name: true })));
             });
         }
-        bag.add(ed.bus.on('run', paintTools));
+        let toolsRunning = null; bag.add(ed.bus.on('run', () => { const now = !!(ed.actionFacts && ed.actionFacts().running); if (now !== toolsRunning) { toolsRunning = now; paintTools(); } }));
 
         // An expired fragment goes as soon as an editor opens, not only at the next paste.
         storedFragment();

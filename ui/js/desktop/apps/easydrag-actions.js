@@ -161,6 +161,10 @@
     let epoch = 0;
     let ticking = false;
 
+    // refresh drops the facts kept for host: the next cached read is fresh. A caller that paints many buttons in one go calls it
+    // first, so facts kept earlier in the same turn (a card drawn while quick-add was still open) are not reused.
+    function refresh(host) { if (host) kept.delete(host); }
+
     function facts(host, cached) {
         const old = cached && host ? kept.get(host) : null;
         if (old && old.epoch === epoch) return old.value;
@@ -383,5 +387,5 @@
         }).filter(Boolean)]);
     }
 
-    ED.actions = { ROWS, REASONS, CHECKS, TOOLS, bind, state, run, items, button, paint, attrString, key, row, label, display, table, observe };
+    ED.actions = { ROWS, REASONS, CHECKS, TOOLS, bind, state, run, items, button, paint, attrString, key, row, label, display, table, observe, refresh };
 })();

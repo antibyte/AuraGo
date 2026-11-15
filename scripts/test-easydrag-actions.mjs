@@ -86,6 +86,15 @@ function bindAll(host, calls) {
     host.actionFacts = () => ({ dialog: true });
     assert.equal(A.state('edit.delete', c).reason, words.en['easydrag.ui.reason_dialog_open']);
     assert.equal(A.state('flow.save', c).reason, words.en['easydrag.ui.reason_dialog_open']);
+    // cached reads keep the facts for the turn; refresh drops them, so the next cached read sees the new ones
+    host.actionFacts = () => ({ dialog: false });
+    const kept = { host, cached: true };
+    assert.equal(A.state('flow.save', kept).enabled, true);
+    host.actionFacts = () => ({ dialog: true });
+    assert.equal(A.state('flow.save', kept).enabled, true, 'a cached read reuses the facts of this turn');
+    A.refresh(host);
+    assert.equal(A.state('flow.save', kept).reason, words.en['easydrag.ui.reason_dialog_open'], 'refresh makes the next cached read fresh');
+    A.refresh(host);
     host.actionFacts = null;
     host.quickAdd = {};
     assert.equal(A.state('edit.delete', c).reason, words.en['easydrag.ui.reason_dialog_open'], 'edits wait for quick-add');
