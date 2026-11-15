@@ -686,7 +686,7 @@
             check: () => (navigator.clipboard && navigator.clipboard.readText) || storedFragment() ? '' : 'easydrag.ui.reason_nothing_to_paste'
         });
         bindAction('edit.duplicate', { run: () => duplicateSteps(Array.from(ed.selection)) });
-        bindAction('edit.delete', { run: () => removeSelection(), accepts: () => !grouped(), check: () => (ed.selection.size || ed.selectedEdge ? '' : 'easydrag.ui.reason_no_selection') });
+        bindAction('edit.delete', { run: () => removeSelection(), accepts: () => !grouped(), check: c => (c.node || ed.selection.size || ed.selectedEdge ? '' : 'easydrag.ui.reason_no_selection') });
         bindAction('edit.select_all', { run: () => selectAll() });
         bindAction('edit.group', { run: () => ed.groups.createFromSelection(), show: () => !!ed.groups });
         bindAction('edit.add_step', { run: c => ed.bus.emit('quick-add', { x: c.x, y: c.y }) });
