@@ -194,6 +194,7 @@
             return ED.blocks.contractMarkup(ed, r) + (r.inputs.concat(r.outputs).some(field => field.name.includes('[redacted]')) ? '<p class="ed-hint">' + esc(t('easydrag.ui.metadata_hidden')) + '</p>' : '') + '<p>' + esc(t('easydrag.ui.extraction_groups', { moved: r.groups_moved, shrunk: r.groups_shrunk })) + '</p><p class="ed-callout">' + esc(t('easydrag.ui.extraction_budget', { nodes: r.extra_nodes, edges: r.extra_edges })) + '</p><p class="ed-hint">' + esc(t('easydrag.ui.extraction_undo_hint')) + '</p>';
         }
         bag.add(ed.bus.on('extract-selection', open));
+        ED.actions.bind('edit.extract', { run: () => open() }, ed);
         bag.listen(banner.querySelector('[data-ed-extract-check]'), 'click', open);
         bag.listen(banner.querySelector('[data-ed-extract-recover]'), 'click', recover);
         return {

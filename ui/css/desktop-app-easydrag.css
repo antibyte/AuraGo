@@ -851,6 +851,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-node-tool { display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--ed-muted); cursor: pointer; }
 .ed-node-tool:hover { background: var(--ed-control-hover); color: var(--ed-text); }
 .ed-node-tool[data-ed-node-tool="delete"]:hover { color: var(--ed-danger); }
+.ed-node-tool[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+.ed-node-tool[aria-disabled="true"]:hover { background: transparent; color: var(--ed-muted); }
 .ed-node-tool .ed-icon { width: 15px; height: 15px; }
 
 .ed-canvas.is-zoomed-out .ed-port-label, .ed-canvas.is-zoomed-out .ed-node-tools { visibility: hidden; }

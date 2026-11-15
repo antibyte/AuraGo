@@ -462,20 +462,13 @@
             runNodeTool(tool.dataset.edNodeTool, tool.closest('.ed-node').dataset.nodeId);
         }
 
-        function runNodeTool(action, id) {
-            if (readonly()) return;
-            if (action === 'add') {
-                const n = ed.model.node(id);
-                const outs = n ? ed.model.outputs(n) : [];
-                const card = canvas.nodeEl(id);
-                if (!n || !outs.length || !card) return;
-                const rect = card.getBoundingClientRect();
-                ed.bus.emit('quick-add', { x: rect.right + 8, y: rect.top, from: { node: id, port: outs[0] } });
-            } else if (action === 'connect') ed.bus.emit('connect-picker', { nodeId: id });
-            else if (action === 'test') ed.bus.emit('node-test', { nodeId: id });
-            else if (action === 'disable') toggleSteps([id]);
-            else if (action === 'duplicate') duplicateSteps([id]);
-            else if (action === 'delete') removeSteps([id]);
+        // runNodeTool: a card tool selects its card (unless it is the only one selected) and runs the registry action
+        // the card menu runs; run() checks the state again, so a tool that looks unavailable does nothing.
+        function runNodeTool(tool, id) {
+            const found = ED.actions.TOOLS.find(([name]) => name === tool);
+            if (!found || !ED.actions.state(found[1], { host: ed, node: id }).enabled) return;
+            if (!(ed.selection.size === 1 && ed.selection.has(id))) select([id]);
+            ED.actions.run(found[1], { host: ed, node: id });
         }
 
         // ── commands that say what they did ─────────────────────────────────────
@@ -526,45 +519,14 @@
         function openNodeMenu(id, x, y) {
             if (typeof ed.ctx.showContextMenu !== 'function') return;
             if (!ed.selection.has(id)) select([id]);
-            const n = ed.model.node(id);
-            const ro = readonly();
-            const items = [
-                { icon: 'edit', label: t('easydrag.ui.menu_open_node'), action: () => ed.bus.emit('open-detail', { nodeId: id }) },
-                ...(!ed.isBlock ? [{ icon: 'play', label: t('easydrag.ui.node_test'), disabled: ro, action: () => ed.bus.emit('node-test', { nodeId: id }) }] : []),
-                { separator: true },
-                { icon: 'copy', label: t('easydrag.ui.node_duplicate'), disabled: ro, action: () => duplicateSteps(Array.from(ed.selection)) },
-                { icon: 'copy', label: t('easydrag.ui.menu_copy'), action: () => copySelection() },
-                ...(ed.groups ? [{ icon: 'grid', label: t('easydrag.ui.group_create'), disabled: ro, action: () => ed.groups.createFromSelection() }] : []),
-                ...(!ed.isBlock && ED.extraction ? [{ icon: 'grid', label: t('easydrag.ui.extraction_title'), disabled: ro, action: () => ed.bus.emit('extract-selection') }] : []),
-                { icon: 'pause', label: n && n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable'), disabled: ro, action: () => toggleSteps(Array.from(ed.selection)) }
-            ];
-            if (ed.selection.size >= 2) {
-                items.push(
-                    { separator: true },
-                    { icon: 'sliders', label: t('easydrag.ui.align_horizontal'), disabled: ro, action: () => canvas.alignSelection('horizontal') },
-                    { icon: 'sliders', label: t('easydrag.ui.align_vertical'), disabled: ro, action: () => canvas.alignSelection('vertical') }
-                );
-            }
-            items.push(
-                { separator: true },
-                { icon: 'trash', label: t('easydrag.ui.node_delete'), disabled: ro, action: () => removeSelection() }
-            );
-            ed.ctx.showContextMenu(x, y, items);
+            ed.ctx.showContextMenu(x, y, ED.actions.items(['step.open', 'step.test', '-', 'edit.duplicate', 'edit.copy', 'edit.group', 'edit.extract', 'step.toggle', '-',
+                'step.align_horizontal', 'step.align_vertical', '-', 'edit.delete'], { host: ed, node: id }));
         }
 
+        // The canvas menu pastes and adds at the pointer (x and y are client coordinates).
         function openCanvasMenu(x, y) {
             if (typeof ed.ctx.showContextMenu !== 'function') return;
-            const ro = readonly();
-            ed.ctx.showContextMenu(x, y, [
-                { icon: 'plus', label: t('easydrag.ui.menu_add_node'), disabled: ro, action: () => ed.bus.emit('quick-add', { x, y }) },
-                { icon: 'copy', label: t('easydrag.ui.menu_paste'), disabled: ro, action: () => pasteAt(canvas.clientToWorld(x, y)) },
-                ...(!ed.isBlock && ED.extraction ? [{ icon: 'grid', label: t('easydrag.ui.extraction_title'), disabled: ro || !ed.selection.size, action: () => ed.bus.emit('extract-selection') }] : []),
-                { separator: true },
-                { icon: 'search', label: t('easydrag.ui.find_step'), disabled: !ed.model.doc.nodes.length, action: () => ed.bus.emit('find-step') },
-                { icon: 'sparkles', label: t('easydrag.ui.auto_layout'), disabled: ro || ed.model.doc.nodes.length < 2, action: () => canvas.autoLayout() },
-                { icon: 'list', label: t('easydrag.ui.menu_select_all'), action: selectAll },
-                { icon: 'refresh', label: t('easydrag.ui.zoom_fit'), action: () => canvas.fit({ animate: true }) }
-            ]);
+            ed.ctx.showContextMenu(x, y, ED.actions.items(['edit.add_step', 'edit.paste', 'edit.extract', '-', 'view.find_step', 'edit.auto_layout', 'edit.select_all', 'view.zoom_fit'], { host: ed, x, y }));
         }
 
         function onContextMenu(event) {
@@ -721,6 +683,56 @@
         function handleKeyUp(event) {
             if (event.key === ' ') { spaceDown = false; el.classList.remove('is-space'); }
         }
+
+        // ── actions ─────────────────────────────────────────────────────────────
+
+        // The registry (easydrag-actions.js) holds every action's label, shortcut and reasons; the editing actions
+        // are bound here. The context's node is the card a menu or tool belongs to, else the one selected step.
+        const stepOf = c => (c && c.node) || (ed.selection.size === 1 ? Array.from(ed.selection)[0] : '');
+        const noStep = c => (stepOf(c) ? '' : 'easydrag.ui.reason_no_selection');
+        const grouped = () => !!(ed.groups && ed.groups.active);
+        const bindAction = (id, impl) => ED.actions.bind(id, impl, ed);
+        bindAction('edit.undo', { run: () => undo(), check: () => (ed.model.canUndo() ? '' : 'easydrag.ui.reason_nothing_to_undo') });
+        bindAction('edit.redo', { run: () => redo(), check: () => (ed.model.canRedo() ? '' : 'easydrag.ui.reason_nothing_to_redo') });
+        bindAction('edit.cut', { run: () => { if (copySelection()) removeSelection({ quiet: true }); } });
+        bindAction('edit.copy', { run: () => copySelection() });
+        bindAction('edit.paste', {
+            run: c => pasteAt(c.x === undefined ? null : canvas.clientToWorld(c.x, c.y)),
+            check: () => (navigator.clipboard && navigator.clipboard.readText) || storedFragment() ? '' : 'easydrag.ui.reason_nothing_to_paste'
+        });
+        bindAction('edit.duplicate', { run: () => duplicateSteps(Array.from(ed.selection)) });
+        bindAction('edit.delete', { run: () => removeSelection(), accepts: () => !grouped(), check: () => (ed.selection.size || ed.selectedEdge ? '' : 'easydrag.ui.reason_no_selection') });
+        bindAction('edit.select_all', { run: () => selectAll() });
+        bindAction('edit.group', { run: () => ed.groups.createFromSelection(), show: () => !!ed.groups });
+        bindAction('edit.add_step', { run: c => ed.bus.emit('quick-add', { x: c.x, y: c.y }) });
+        bindAction('edit.auto_layout', { run: () => canvas.autoLayout() });
+        bindAction('step.open', { run: c => ed.bus.emit('open-detail', { nodeId: stepOf(c) }), check: noStep, accepts: (event, where) => !grouped() && !where.control });
+        bindAction('step.connect', { run: c => ed.bus.emit('connect-picker', { nodeId: stepOf(c) }), check: noStep });
+        bindAction('step.toggle', {
+            run: () => toggleSteps(Array.from(ed.selection)),
+            label: c => { const n = ed.model.node(stepOf(c)); return n ? (n.settings.disabled ? 'easydrag.ui.node_enable' : 'easydrag.ui.node_disable') : ''; }
+        });
+        bindAction('step.test', { run: c => ed.bus.emit('node-test', { nodeId: stepOf(c) }), show: () => !ed.isBlock });
+        bindAction('step.add_next', {
+            run: c => {
+                const id = stepOf(c), card = canvas.nodeEl(id), n = ed.model.node(id), outs = n ? ed.model.outputs(n) : [];
+                if (!card || !outs.length) return;
+                const rect = card.getBoundingClientRect();
+                ed.bus.emit('quick-add', { x: rect.right + 8, y: rect.top, from: { node: id, port: outs[0] } });
+            },
+            check: c => { const n = ed.model.node(stepOf(c)); return n && ed.model.outputs(n).length ? '' : 'easydrag.ui.reason_no_output'; }
+        });
+        bindAction('step.align_horizontal', { run: () => canvas.alignSelection('horizontal'), show: () => ed.selection.size >= 2 });
+        bindAction('step.align_vertical', { run: () => canvas.alignSelection('vertical'), show: () => ed.selection.size >= 2 });
+        bindAction('view.zoom_in', { run: () => canvas.zoomBy(1.2) });
+        bindAction('view.zoom_out', { run: () => canvas.zoomBy(1 / 1.2) });
+        bindAction('view.zoom_fit', { run: () => canvas.fit({ animate: true }) });
+        bindAction('view.zoom_reset', { run: () => { const s = canvas.size(); canvas.setView(G.zoomAt(ed.view, 1, { x: s.w / 2, y: s.h / 2 }), { animate: true }); } });
+        // A run starting or ending changes which tools may act (Test this step): the selected cards repaint theirs.
+        bag.add(ed.bus.on('run', () => ed.selection.forEach(id => {
+            const card = canvas.nodeEl(id);
+            if (card) card.querySelectorAll('[data-ed-node-tool]').forEach(button => ED.actions.TOOLS.filter(([tool]) => tool === button.dataset.edNodeTool).forEach(([, action]) => ED.actions.paint(button, action, { host: ed, node: id }, { name: true })));
+        })));
 
         // An expired fragment goes as soon as an editor opens, not only at the next paste.
         storedFragment();

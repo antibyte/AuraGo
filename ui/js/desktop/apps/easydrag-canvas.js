@@ -476,12 +476,7 @@
             }).join('');
             const ro = ed.readonly || ed.runView;
             const tools = ro ? '' : '<div class="ed-node-tools" role="toolbar" aria-label="' + esc(t('easydrag.ui.node_tools', { name: n.label || (i && i.label) || n.type })) + '">' +
-                toolButton('add', 'plus', t('easydrag.ui.port_add')) +
-                toolButton('connect', 'link', t('easydrag.ui.keys_connect')) +
-                (ed.isBlock ? '' : toolButton('test', 'flask', t('easydrag.ui.node_test'))) +
-                toolButton('disable', 'eye-off', n.settings.disabled ? t('easydrag.ui.node_enable') : t('easydrag.ui.node_disable')) +
-                toolButton('duplicate', 'copy', t('easydrag.ui.node_duplicate')) +
-                toolButton('delete', 'trash', t('easydrag.ui.node_delete')) + '</div>';
+                ED.actions.TOOLS.map(([tool, action]) => toolButton(tool, action, n.id)).join('') + '</div>';
             // Without a summary the second line names the type, or, while the step still carries the
             // type's own label, describes it: the card does not say the same thing twice.
             const typeLine = !i ? n.type : n.label && n.label !== i.label ? i.label : (i.description || '');
@@ -492,9 +487,11 @@
         }
 
         // Tool buttons start outside the tab order: one stop per action on every card would bury
-        // the canvas. syncTools makes the selected card's tools tab stops.
-        function toolButton(id, iconName, label) {
-            return '<button type="button" class="ed-node-tool" tabindex="-1" data-ed-node-tool="' + id + '" title="' + esc(label) + '" aria-label="' + esc(label) + '">' + core.icon(iconName) + '</button>';
+        // the canvas. syncTools makes the selected card's tools tab stops. Each tool is a registry action: its
+        // label, shortcut and the reason it is unavailable come from ED.actions.button (null: not bound here).
+        function toolButton(tool, action, id) {
+            const attrs = ED.actions.button(action, { host: ed, node: id, cached: true });
+            return attrs ? '<button type="button" class="ed-node-tool" tabindex="-1" data-ed-node-tool="' + tool + '"' + ED.actions.attrString(attrs) + '>' + core.icon(ED.actions.row(action).glyph) + '</button>' : '';
         }
 
         function syncTools(card, id) {
