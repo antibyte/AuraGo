@@ -1150,3 +1150,20 @@ In "Build and verification", name the new node test next to the others: `the obj
 - [ ] **Step 3: DOX pass and commit**
 
 Re-read the `AGENTS.md` chain of every touched path and check that no statement about table borders, the picture panel or the style list is stale (`git grep -n "no_borders\|image_width\|styles.style" -- '*.md'`). Commit as `docs(writer): borders, pictures and the style list`.
+
+---
+
+## Changes after the branch review (2026-11-15)
+
+One review of the whole branch found nothing critical. These findings were fixed in one round; the code blocks above show the state before it:
+
+- **"Replace image…" in the Format panel follows the command's state.** `update()` in `writer-panels.js` disables the button without a selected picture, in a read-only window and while changes are tracked, and `case 'imageReplace'` in `writer.js` checks `commands.state('imageReplace')` before it opens the file picker. Before, the picker opened and the refusal came after the file was chosen.
+- **The height after a replacement goes to the replaced picture only.** `replaceImage` checks once more, after the engine has answered, that the window is alive, the editor is the same and the same picture is still selected.
+- **The height respects a crop.** `fitHeight` takes the picture's crop: the frame keeps the proportions of the part that is shown.
+- **Refusals read as sentences.** A file the engine cannot take in any of the three formats is answered with `image_format` instead of the engine's code, and a picture beyond the browser's canvas limits no longer ends in a script error.
+- **The browser check covers the panel button**: off without a picture, on for a selected one.
+
+Seen and left as they are:
+
+- A rotated picture keeps the plain width-to-height rule after a replacement; how the engine reads width and height of a rotated picture was not probed.
+- The four crop fields are sent together from the panel. They are refreshed with every panel update; nothing else in Writer changes a crop.
