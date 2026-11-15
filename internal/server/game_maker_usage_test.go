@@ -93,42 +93,18 @@ func summarizeGameMakerPromptUsage(events []gamemaker.Event, complete bool) *gam
 }
 
 func TestGameMakerPromptProfiles(t *testing.T) {
-	for _, dimension := range []string{"2d", "3d"} {
-		planning, err := gameMakerPromptProfile("planning", dimension)
-		if err != nil {
-			t.Fatal(err)
-		}
-		building, err := gameMakerPromptProfile("building", dimension)
-		if err != nil {
-			t.Fatal(err)
-		}
-		repair, err := gameMakerPromptProfile("repair", dimension)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(planning.Tools()) != 3 || len(building.Tools()) != 4 {
-			t.Fatal("profile tool scope changed")
-		}
-		if building.Revision() != repair.Revision() || building.SystemPrompt() != repair.SystemPrompt() || !reflect.DeepEqual(building.Tools(), repair.Tools()) {
-			t.Fatal("repair changes creation prefix")
-		}
-		if planning.Revision() == building.Revision() {
-			t.Fatal("phase revision missing")
-		}
-		// Design direction must reach the model; curated skill text is not injected into runs.
-		if !strings.Contains(planning.SystemPrompt(), gamemaker.DesignCraftGuide) || !strings.Contains(building.SystemPrompt(), gamemaker.BuildCraftGuide) {
-			t.Fatal("craft guides missing from the prepared profiles")
-		}
-		if schema, _ := json.Marshal(planning.Tools()); !strings.Contains(string(schema), `"stages"`) {
-			t.Fatal("set_design does not offer design.stages")
-		}
-		for _, run := range []gamemaker.JobRun{
-			{Stage: "building", Job: gamemaker.Job{ID: "job-one"}, Project: gamemaker.Project{Dimension: dimension}},
-			{Stage: "repair", Job: gamemaker.Job{ID: "job-two"}, Project: gamemaker.Project{Dimension: dimension}, Diagnostics: []gamemaker.Diagnostic{{Message: "different failure"}}},
-		} {
-			profile, _ := gameMakerPromptProfile(run.Stage, run.Project.Dimension)
-			if profile.Revision() != building.Revision() {
-				t.Fatal("job data changed instructions")
+	reference, _ := gameMakerPromptProfile("building", "2d")
+	for _, stage := range []string{"planning", "building", "repair"} {
+		for _, dimension := range []string{"2d", "3d"} {
+			profile, err := gameMakerPromptProfile(stage, dimension)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(profile.Tools()) != 4 || profile.Revision() != reference.Revision() || profile.SystemPrompt() != reference.SystemPrompt() || !reflect.DeepEqual(profile.Tools(), reference.Tools()) {
+				t.Fatal("catalog or prompt changes with legacy phase/framework")
+			}
+			if !strings.Contains(profile.SystemPrompt(), "finish") {
+				t.Fatal("completion contract missing")
 			}
 		}
 	}

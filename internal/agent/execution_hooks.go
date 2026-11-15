@@ -13,6 +13,7 @@ import (
 // ExecutionHooks are trusted server callbacks, never model-supplied policy.
 // Nil preserves the ordinary agent's dispatch and accounting behavior.
 type ExecutionHooks struct {
+	BeforeContext   func(context.Context, *openai.ChatCompletionRequest) error
 	OnAcquire       func(context.Context) (context.Context, context.CancelFunc, error)
 	BeforeIteration func(context.Context) error
 	BeforeRequest   func(context.Context, *openai.ChatCompletionRequest, int) error

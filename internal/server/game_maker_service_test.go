@@ -22,9 +22,9 @@ func TestGameMakerPhaseSchemasExposeOnlyPhaseTools(t *testing.T) {
 		stage string
 		want  []string
 	}{
-		{"planning", []string{"game_maker_project", "game_maker_file", "game_maker_asset"}},
-		{"building", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate"}},
-		{"repair", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate"}},
+		{"planning", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_preview"}},
+		{"building", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_preview"}},
+		{"repair", []string{"game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_preview"}},
 	} {
 		profile, err := gameMakerPromptProfile(tc.stage, "2d")
 		if err != nil {
@@ -251,7 +251,7 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 	broker := &gameMakerBroker{service: service, projectID: project.ID, jobID: "job-1"}
 	broker.SendTokenUpdate(-1, 20_000_000, 42, 0, 0, true, true, "unexpected")
 	broker.Send("tool_start", "game_maker_project")
-	broker.Send("tool_start", "game_maker_validate")
+	broker.Send("tool_start", "game_maker_preview")
 	broker.Send("tool_start", "unknown-tool-with-private-arguments")
 	broker.Send("thinking", "private model reasoning")
 	broker.Send("model_progress", "waiting")
@@ -279,7 +279,7 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 				t.Fatal("tool arguments leaked", event.Payload)
 			}
 			if metricCalls < 3 {
-				if len(event.Payload) != 2 || (event.Payload["tool"] != "game_maker_project" && event.Payload["tool"] != "game_maker_validate") {
+				if len(event.Payload) != 2 || (event.Payload["tool"] != "game_maker_project" && event.Payload["tool"] != "game_maker_preview") {
 					t.Fatal("missing allowlisted tool name", event.Payload)
 				}
 			} else if len(event.Payload) != 1 {

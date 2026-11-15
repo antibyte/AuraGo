@@ -33,7 +33,7 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 		{"provider and model", "selected", "chosen-model", "selected", "chosen-model"},
 		{"system default", "", "", "system", "system-model"},
 	} {
-		for _, phase := range []string{"planning", "building", "repair", "source"} {
+		for _, phase := range []string{"building"} {
 			t.Run(selection.name+"/"+phase, func(t *testing.T) {
 				root := t.TempDir()
 				service, err := gamemaker.NewService(gamemaker.Options{DBPath: filepath.Join(root, "games.db"), WorkspacePath: filepath.Join(root, "games"), Enabled: true, AllowCreate: true, AllowEdit: true})
@@ -68,6 +68,7 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 				}))
 				defer provider.Close()
 				cfg := &config.Config{}
+				cfg.LLM.UseNativeFunctions = true
 				cfg.LLM.Provider, cfg.LLM.ProviderType, cfg.LLM.Model = "system", "openai", "system-model"
 				cfg.LLM.BaseURL = provider.URL + "/system"
 				cfg.Providers = []config.ProviderEntry{
@@ -94,9 +95,6 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 				runner := &gameMakerAgentRunner{server: srv, service: service}
 				finished := make(chan error, 1)
 				service.SetRunner(implementationTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
-					if phase != "planning" && run.Stage == "planning" {
-						return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Model routing","features":["Use the selected model"]}`))
-					}
 					if phase == "source" {
 						code, readErr := service.ReadJobFile(ctx, run.Job.ID, "src/main.ts")
 						if readErr != nil {
@@ -123,8 +121,8 @@ func TestGameMakerSelectedModelReachesProvider(t *testing.T) {
 				}
 				select {
 				case err := <-finished:
-					if err != nil {
-						t.Fatal(err)
+					if err == nil || !strings.Contains(err.Error(), "without finish") {
+						t.Fatalf("unfinished routing probe: %v", err)
 					}
 				case <-time.After(20 * time.Second):
 					t.Fatal("model selection fixture timed out")

@@ -3,6 +3,7 @@ package gamemaker
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 )
@@ -20,38 +21,14 @@ type gameManifest struct {
 func WriteScaffold(projectDir string, project Project) error {
 	for _, dir := range []string{"src", "assets", "dist"} {
 		if err := os.MkdirAll(filepath.Join(projectDir, dir), 0o750); err != nil {
-			return fmt.Errorf("create game scaffold directory: %w", err)
+			return err
 		}
 	}
-	if err := installRuntime(projectDir, project.Dimension, project.Variant); err != nil {
-		return err
-	}
-	engine := "phaser"
-	version := PhaserVersion
-	source := phaserScaffold
-	if project.Dimension == "3d" {
-		engine = "three"
-		version = ThreeVersion
-		source = threeScaffold
-	}
-	manifest, _ := json.MarshalIndent(gameManifest{
-		Name:        project.Name,
-		Dimension:   project.Dimension,
-		Variant:     project.Variant,
-		Engine:      engine,
-		Version:     version,
-		Entry:       "src/main.ts",
-		Description: project.Description,
-	}, "", "  ")
-	files := map[string][]byte{
-		"game.json":   append(manifest, '\n'),
-		"index.html":  []byte(scaffoldHTML(project.Dimension, project.Name)),
-		"src/main.ts": []byte(source),
-	}
-	for name, data := range files {
-		path := filepath.Join(projectDir, filepath.FromSlash(name))
-		if err := os.WriteFile(path, data, 0o640); err != nil {
-			return fmt.Errorf("write game scaffold %s: %w", name, err)
+	manifest, _ := json.MarshalIndent(gameManifest{Name: project.Name, Dimension: project.Dimension, Engine: "html", Entry: "index.html", Description: project.Description}, "", "  ")
+	page := `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>` + html.EscapeString(project.Name) + `</title><style>html,body{margin:0;min-height:100%;background:#151923;color:#eee;font:16px system-ui}main{padding:2rem}</style></head><body><main id="game"></main></body></html>`
+	for name, data := range map[string][]byte{"game.json": append(manifest, '\n'), "index.html": []byte(page)} {
+		if err := os.WriteFile(filepath.Join(projectDir, name), data, 0o640); err != nil {
+			return fmt.Errorf("write scaffold %s: %w", name, err)
 		}
 	}
 	return nil

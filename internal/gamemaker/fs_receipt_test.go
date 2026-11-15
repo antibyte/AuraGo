@@ -15,7 +15,7 @@ func TestFilesystemReceiptRecoversEveryPublicationBoundary(t *testing.T) {
 			s := newTestService(t)
 			project := createTestProject(t, s, "2d")
 			initial := filepath.Join(s.stagingDir, "initial")
-			if err := os.MkdirAll(initial, 0700); err != nil {
+			if err := WriteScaffold(initial, project); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.WriteFile(filepath.Join(initial, "marker"), []byte("old"), 0600); err != nil {

@@ -161,6 +161,22 @@ func handleGameMakerProjectPath(s *Server) http.HandlerFunc {
 				return
 			}
 			jsonError(w, "Game Maker route not found", http.StatusNotFound)
+		case "agent-captures":
+			if len(parts) != 4 || r.Method != http.MethodGet {
+				http.NotFound(w, r)
+				return
+			}
+			if !requireDesktopPermission(s, w, r, desktopScopeRead) {
+				return
+			}
+			data, err := s.GameMaker.AgentCaptureImage(r.Context(), projectID, parts[2], parts[3])
+			if err != nil {
+				handleGameMakerError(w, err)
+				return
+			}
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Header().Set("Cache-Control", "no-store")
+			_, _ = w.Write(data)
 		case "preview-token":
 			handleGameMakerPreviewToken(w, r, s, projectID)
 		case "play-state":
@@ -175,8 +191,6 @@ func handleGameMakerProjectPath(s *Server) http.HandlerFunc {
 				return
 			}
 			handleGameMakerPlayer(w, r, s, projectID)
-		case "visual-review":
-			handleGameMakerVisualReview(w, r, s, projectID)
 		case "preview-report":
 			handleGameMakerPreviewReport(w, r, s, projectID)
 		case "export":
@@ -296,27 +310,6 @@ func handleGameMakerStartJob(w http.ResponseWriter, r *http.Request, s *Server, 
 			return
 		}
 	}
-	if cfg := s.ConfigSnapshot(); cfg != nil {
-		model := strings.TrimSpace(request.Model)
-		if model == "" {
-			if project, err := s.GameMaker.GetProject(r.Context(), projectID); err == nil {
-				model = strings.TrimSpace(project.Model)
-			}
-		}
-		if contextWindow, blocked := gameMakerModelLimitBlocked(cfg, providerID, model, request.AllowSmallModel); blocked {
-			writeGameMakerJSON(w, http.StatusBadRequest, map[string]any{
-				"status":                 "error",
-				"code":                   "model_context_too_small",
-				"message":                fmt.Sprintf("the selected model reports %d tokens of context; Game Maker needs at least %d. Choose a larger model or opt in explicitly.", contextWindow, gameMakerMinContextWindow),
-				"context_window":         contextWindow,
-				"minimum_context_window": gameMakerMinContextWindow,
-			})
-			return
-		}
-		// Record the small-model decision once, before the job exists: the explicit
-		// client opt-in wins, automatic detection still applies to an explicit false.
-		request.SmallModel = gameMakerSmallModelDecision(cfg, providerID, model, request.SmallModel)
-	}
 	job, err := s.GameMaker.StartJob(r.Context(), projectID, request)
 	if err != nil {
 		handleGameMakerError(w, err)
@@ -335,8 +328,12 @@ func handleGameMakerJobPath(s *Server) http.HandlerFunc {
 			return
 		}
 		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/game-maker/jobs/"), "/"), "/")
-		if len(parts) != 2 || parts[1] != "cancel" || r.Method != http.MethodPost {
+		if len(parts) != 2 || (parts[1] != "cancel" && parts[1] != "build") || r.Method != http.MethodPost {
 			jsonError(w, "Game Maker route not found", http.StatusNotFound)
+			return
+		}
+		if parts[1] == "build" {
+			writeGameMakerJSON(w, http.StatusOK, s.GameMaker.BuildJob(r.Context(), parts[0]))
 			return
 		}
 		if err := s.GameMaker.CancelJob(r.Context(), parts[0]); err != nil {

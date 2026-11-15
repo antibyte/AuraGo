@@ -16,6 +16,11 @@ func (s *Service) BuildJob(ctx context.Context, jobID string) BuildResult {
 }
 
 func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult {
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	if err := s.CheckJobMutation(ctx, jobID); err != nil {
+		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
+	}
 	s.buildMu.Lock()
 	defer s.buildMu.Unlock()
 	stage, err := s.JobDirectory(jobID)
@@ -23,38 +28,38 @@ func (s *Service) buildJob(ctx context.Context, jobID, scope string) BuildResult
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
 	job, _ := s.GetJob(context.Background(), jobID)
-	// Even a failed replacement build invalidates prior test evidence/errors.
+	buildID := randomID("build")
+	// Even a failed replacement build invalidates earlier diagnostics.
 	s.mu.Lock()
 	s.previewCheck = nil
 	s.mu.Unlock()
-	_, _ = s.emit(context.Background(), job.ProjectID, jobID, "validation_reset", map[string]any{})
+	_, _ = s.emit(context.Background(), job.ProjectID, jobID, "build_started", map[string]any{"build_id": buildID})
 	result := buildDirectory(ctx, stage, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes)
+	result.BuildID = buildID
 	for i := range result.Diagnostics {
 		// Compiler and filesystem messages may quote the resolved staging path.
 		result.Diagnostics[i].Message = s.RedactHostPaths(result.Diagnostics[i].Message)
 	}
 	for _, diagnostic := range result.Diagnostics {
 		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "diagnostic", map[string]any{
-			"level": diagnostic.Level, "message": diagnostic.Message,
+			"level": diagnostic.Level, "message": diagnostic.Message, "build_id": buildID,
 			"file": diagnostic.File, "line": diagnostic.Line, "column": diagnostic.Column,
 		})
 	}
 	if result.OK {
+		result.fingerprint, err = validationFingerprint(stage)
+		if err != nil {
+			return BuildResult{BuildID: buildID, Diagnostics: []Diagnostic{{Level: "error", Message: s.RedactHostPaths(err.Error())}}}
+		}
 		s.mu.Lock()
 		s.previewJobs[job.ProjectID] = jobID
-		s.previewCheck = &previewCheck{ID: randomID("validation"), JobID: jobID, SourceMap: result.sourceMap}
+		s.previewCheck = &previewCheck{ID: buildID, JobID: jobID, SourceMap: result.sourceMap}
 		result.check = s.previewCheck
-		if scope == "full" || scope == "gameplay" {
-			// Read the plan before serving any grant for this new build.
-			data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(gamePlanPath)))
-			var plan GamePlan
-			if err == nil && json.Unmarshal(data, &plan) == nil {
-				s.previewCheck.Scenarios = validationScenarios(stage, &plan)
-			}
-		}
+		result.BuildID = s.previewCheck.ID
+
 		s.mu.Unlock()
 		result.RuntimeStatus = "unverified"
-		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "preview_reload", map[string]any{"staging": true})
+		_, _ = s.emit(context.Background(), job.ProjectID, jobID, "preview_reload", map[string]any{"staging": true, "build_id": result.BuildID})
 	}
 	return result
 }
@@ -63,7 +68,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	if err := ctx.Err(); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
-	for _, required := range []string{"game.json", "index.html", filepath.Join("src", "main.ts")} {
+	for _, required := range []string{"game.json", "index.html"} {
 		if _, err := os.Stat(filepath.Join(projectDir, required)); err != nil {
 			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: filepath.ToSlash(required), Message: "Required game file is missing"}}}
 		}
@@ -79,40 +84,20 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 	if manifest.Dimension != "2d" && manifest.Dimension != "3d" {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "game.json", Message: "Manifest dimension must be 2d or 3d"}}}
 	}
-	sceneDiagnostics := checkBuilderScene(projectDir)
-	if err := checkVoxelProject(projectDir); err != nil {
-		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "src/voxel.json", Message: err.Error()}}}
+	if manifest.Variant != "" && (manifest.Variant != "voxel" || manifest.Dimension != "3d") {
+		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "game.json", Message: "Manifest variant must be empty or voxel in 3d"}}}
 	}
-	for _, diagnostic := range sceneDiagnostics {
-		if diagnostic.Level == "error" {
-			return BuildResult{Diagnostics: sceneDiagnostics}
+	mainPath := filepath.Join(projectDir, "src", "main.ts")
+	if _, err := os.Stat(mainPath); os.IsNotExist(err) {
+		if err := validateTreeLimits(projectDir, maxFiles, maxBytes); err != nil {
+			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 		}
-	}
-	if err := installRuntime(projectDir, manifest.Dimension, manifest.Variant); err != nil {
+		return BuildResult{OK: true}
+	} else if err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
 	if err := os.MkdirAll(filepath.Join(projectDir, "dist"), 0o750); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
-	}
-	mainPath := filepath.Join(projectDir, "src", "main.ts")
-	source, err := os.ReadFile(mainPath)
-	if err != nil {
-		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
-	}
-	// Ensure the AuraGo diagnostic interface is always present, even if the
-	// agent's rewrite of src/main.ts omitted it. The prelude is idempotent as
-	// long as the agent did not define its own diagnostic() function.
-	if !strings.Contains(string(source), "__AURAGO_GAME_DIAGNOSTICS__") && !strings.Contains(string(source), "diagnostic(") {
-		if err := os.WriteFile(mainPath, []byte(diagnosticsPrelude+"\n"+string(source)), 0o640); err != nil {
-			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
-		}
-	}
-	banner := ""
-	plugins := []api.Plugin{projectImportBounds(projectDir)}
-	if manifest.Dimension == "2d" {
-		banner = phaserSpriteGuard
-	} else {
-		plugins = append(plugins, threeObservationPlugin(projectDir))
 	}
 	build := api.Build(api.BuildOptions{
 		AbsWorkingDir:  projectDir,
@@ -130,8 +115,7 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 		Metafile:       true,
 		LogLevel:       api.LogLevelSilent,
 		LegalComments:  api.LegalCommentsLinked,
-		Banner:         map[string]string{"js": banner},
-		Plugins:        plugins,
+		Plugins:        []api.Plugin{projectImportBounds(projectDir)},
 	})
 	if len(build.Errors) > 0 {
 		diagnostics := make([]Diagnostic, 0, len(build.Errors))
@@ -171,81 +155,11 @@ func buildDirectory(ctx context.Context, projectDir string, maxFiles int, maxByt
 			return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 		}
 	}
-	if err := checkBuilderBuildGraph(projectDir, build.Metafile); err != nil {
-		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: SceneFilePath, Message: err.Error()}}}
-	}
-	if manifest.Variant == "voxel" {
-		if err := checkVoxelBuildGraph(build.Metafile); err != nil {
-			return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: "src/main.ts", Message: err.Error()}}}
-		}
-	}
-	if err := checkPresentationBuild(projectDir, manifest.Dimension, build.Metafile); err != nil {
-		return BuildResult{Diagnostics: []Diagnostic{{Level: "implementation", File: "src/presentation.json", Message: err.Error()}}}
-	}
-	source, err = os.ReadFile(filepath.Join(projectDir, "src", "main.ts"))
-	if err != nil {
-		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
-	}
-	if !strings.Contains(string(source), "__AURAGO_GAME_DIAGNOSTICS__") && !strings.Contains(string(source), "diagnostic(") {
-		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", File: "src/main.ts", Message: "Required AuraGo diagnostic interface is missing"}}}
-	}
 	if err := validateTreeLimits(projectDir, maxFiles, maxBytes); err != nil {
 		return BuildResult{Diagnostics: []Diagnostic{{Level: "error", Message: err.Error()}}}
 	}
-	return BuildResult{OK: true, Diagnostics: sceneDiagnostics, sourceMap: sourceMap}
+	return BuildResult{OK: true, sourceMap: sourceMap}
 }
-
-// Guard the common loader boundary, including variable URLs and config arrays.
-// The guard travels with the built game; pinned vendor files remain unchanged.
-const phaserSpriteGuard = `(function () {
-  const loader = globalThis.Phaser && Phaser.Loader.LoaderPlugin.prototype;
-  if (!loader || loader.__auragoSpriteGuard) return;
-  const arcade = Phaser.Physics && Phaser.Physics.Arcade;
-  if (arcade && Phaser.GameObjects) {
-    for (const method of ['collider', 'overlap']) {
-      const original = arcade.Factory.prototype[method];
-      arcade.Factory.prototype[method] = function (a, b) {
-        for (const input of [a, b]) {
-          for (const object of Array.isArray(input) ? input : [input]) {
-            if (object && object.body instanceof Phaser.GameObjects.GameObject) {
-              throw new Error('Arcade Physics '+method+': received a wrapper whose body is a GameObject. Pass the actual physics GameObjects, not records like {body, art}. For spawned balls/powerups, add each physics object to a persistent group and register the collider/overlap once. Keep the current sprites and pack imports.');
-            }
-          }
-        }
-        return original.apply(this, arguments);
-      };
-    }
-  }
-  const textures = Phaser.Textures && Phaser.Textures.TextureManager.prototype;
-  if (textures) {
-    const get = textures.get;
-    textures.get = function (key) {
-      if (key && typeof key === 'object' && Array.isArray(key.assets) && typeof key.id === 'string') {
-        throw new Error('Game assets: pack JSON is not a Phaser texture key. Replace this.add.sprite(x,y,meta,assetID) with createAsset(this,meta,assetID,x,y), or retain the installed template body(...,role). preloadPack must run in preload().');
-      }
-      if (typeof key === 'string' && !this.exists(key)) {
-        throw new Error('Game assets: texture '+key+' is not loaded. Call preloadPack in preload(); use createAsset(this,meta,assetID,x,y) for library IDs.');
-      }
-      return get.apply(this, arguments);
-    };
-  }
-  const addFile = loader.addFile;
-  loader.addFile = function (input) {
-    for (const file of Array.isArray(input) ? input : [input]) {
-      let url = typeof file.url === 'string' ? file.url : '';
-      try { url = decodeURIComponent(url); } catch (_) {}
-      if (!/(^|\/)assets\/builtin\/[a-z0-9-]+\/[^/]+\/sheet\.png(?:[?#]|$)/.test(url)) continue;
-      const config = file.config || {};
-      if (file.type !== 'spritesheet' || config.frameWidth !== 64 ||
-          (config.frameHeight !== undefined && config.frameHeight !== 64) ||
-          (config.margin || 0) !== 0 || (config.spacing || 0) !== 0 || (config.startFrame || 0) !== 0) {
-        throw new Error('Built-in sprite packs require this.load.spritesheet(key, url, {frameWidth:64, frameHeight:64}) with no margin, spacing or startFrame offset. Do not use load.image/load.atlas: they display the entire sheet. Select numeric frames from sheet.json.');
-      }
-    }
-    return addFile.apply(this, arguments);
-  };
-  loader.__auragoSpriteGuard = true;
-})();`
 
 func validateTreeLimits(root string, maxFiles int, maxBytes int64) error {
 	var files int

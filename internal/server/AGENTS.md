@@ -498,6 +498,20 @@ Server-owned HTTP and cross-component integration contracts.
   `TestCodeStudioGitCommitStagesOnlyGivenPaths` and
   `TestCodeStudioGitIdentityIsLocal`.
 
+### Game Maker agent run
+
+- One continuous tool-enabled run retains provider selection, continuation, stop
+  and usage accounting. No model floor, mandatory design, source-only generation,
+  separate repair budget or gameplay/visual publication phase.
+- Explicit project finish builds and marks completion; the service publishes only
+  if the run succeeds and that source/build snapshot is still current.
+- Agent preview is independent Chromium. Screenshot pixels enter BeforeContext
+  before fitting; text models use one configured vision description through the
+  ordinary budget-aware minimal loop. Failure is a tool error, not a quality gate.
+- Agent image HTTP routes require Desktop read permission and matching project,
+  job and capture IDs. Images are bounded, private, no-store and job-lifetime only.
+- Context source/error data is isolated. Conversation checkpoints discard pixels.
+
 ### Game Maker Voxel persistence
 
 - `game_maker_play_state.go` owns authenticated project `/play-state` GET/PUT/DELETE
@@ -981,7 +995,7 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - Agent jobs (plan 3; job rules in `internal/cydcreator/AGENTS.md`): `initCYDCreator` purges leftover
   `cyd-creator-<job>` short-term-memory sessions (`sweepCYDCreatorAgentSessions` via `memory.TransientSessionIDs`,
   keeping those of queued or running jobs) and installs the runner (`SetRunner`) before it publishes the default
-  service. `cydCreatorAgentRunner` (`cyd_creator_runner.go`) runs each phase like Game Maker's runner:
+  service. `cydCreatorAgentRunner` (`cyd_creator_runner.go`) uses the shared Desktop run and streaming contracts:
   `agent.ExecuteAgentLoop` under `beginDesktopRun` in fresh session `cyd-creator-<job>:<run>` (permanently purged after each phase) with the
   prepared profile `cyd-creator/v1/{planning,layout,coding}` (repairing uses coding; `cyd_creator_prompt_profile.go`:
   shared ground rules, every workflow reads API reference topic overview first), `AllowedTools` exactly

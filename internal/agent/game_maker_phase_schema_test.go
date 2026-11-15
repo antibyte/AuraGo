@@ -2,200 +2,50 @@ package agent
 
 import (
 	"encoding/json"
-	"slices"
 	"strings"
 	"testing"
-
-	"aurago/internal/gamemaker"
 )
 
-func TestGameMakerPhaseSchemasRemainStrictObjects(t *testing.T) {
+func TestGameMakerFreeSchemasAreStableAndStrict(t *testing.T) {
+	var reference string
 	for _, stage := range []string{"planning", "building", "repair"} {
 		for _, dimension := range []string{"2d", "3d"} {
-			definitions := GameMakerPhaseToolSchemas(stage, dimension)
-			strict := newNativeToolSchemaSnapshot(definitions).StrictSchemas()
-			for _, tool := range strict {
-				params := tool.Function.Parameters.(map[string]interface{})
-				var violations []string
-				collectStrictOpenAISchemaViolations(tool.Function.Name, params, &violations)
-				if len(violations) > 0 {
-					t.Fatal(strings.Join(violations, "\n"))
+			for _, variant := range []string{"", "voxel"} {
+				definitions := GameMakerPhaseToolSchemas(stage, dimension, variant)
+				encoded, _ := json.Marshal(definitions)
+				if reference == "" {
+					reference = string(encoded)
 				}
-				props := params["properties"].(map[string]interface{})
-				if stage == "planning" {
-					if tool.Function.Name == "game_maker_validate" {
-						t.Fatal("validation in planning")
+				if string(encoded) != reference {
+					t.Fatal("tool catalog depends on a retired phase or framework")
+				}
+				strict := newNativeToolSchemaSnapshot(definitions).StrictSchemas()
+				if len(strict) != 4 {
+					t.Fatalf("tools = %d", len(strict))
+				}
+				for _, tool := range strict {
+					params := tool.Function.Parameters.(map[string]interface{})
+					var violations []string
+					collectStrictOpenAISchemaViolations(tool.Function.Name, params, &violations)
+					if len(violations) > 0 {
+						t.Fatal(strings.Join(violations, "\n"))
 					}
-					if tool.Function.Name == "game_maker_project" {
-						design := props["design"].(map[string]interface{})
-						if _, ok := design["properties"]; !ok {
-							t.Fatalf("compact design was converted to string: %+v", design)
-						}
-						if _, ok := props["plan"]; ok {
-							t.Fatal("full plan exposed to isolated planner")
-						}
-					}
-					if tool.Function.Name == "game_maker_file" {
-						if _, ok := props["content"]; ok {
-							t.Fatal("planning write exposed")
+					props := params["properties"].(map[string]interface{})
+					for _, removed := range []string{"job_id", "design", "plan", "scenarios"} {
+						if _, exists := props[removed]; exists {
+							t.Fatalf("%s exposes %s", tool.Function.Name, removed)
 						}
 					}
-				} else if tool.Function.Name == "game_maker_project" {
-					if _, ok := props["design"]; ok {
-						t.Fatal("design mutation exposed after acceptance")
-					}
 				}
 			}
 		}
 	}
-	// Building schemas must not mutate a previous planning snapshot.
-	for _, tool := range GameMakerPhaseToolSchemas("planning", "3d") {
-		if tool.Function.Name == "game_maker_project" && tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})["design"] == nil {
-			t.Fatal("shared mutable schema")
+	for _, required := range []string{"game_maker_preview", `"build"`, `"finish"`, `"use_template"`, `"reference"`, `"content"`} {
+		if !strings.Contains(reference, required) {
+			t.Fatalf("catalog lacks %s", required)
 		}
 	}
-}
-
-// Invented metrics ("wave", "distance") and lowercase keys ("f") cost whole
-// planning corrections; the schema must offer only what validation accepts.
-func TestGameMakerScenarioSchemaEnumeratesMetricsAndKeys(t *testing.T) {
-	for _, variant := range [][]string{nil, {"voxel"}} {
-		for _, dimension := range []string{"2d", "3d"} {
-			if variant != nil && dimension == "2d" {
-				continue
-			}
-			for _, tool := range GameMakerPhaseToolSchemas("planning", dimension, variant...) {
-				if tool.Function.Name != "game_maker_project" {
-					continue
-				}
-				props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
-				design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
-				scenario := design["scenarios"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
-				metrics, _ := scenario["metric"].(map[string]interface{})["enum"].([]string)
-				if !slices.Equal(metrics, gamemaker.GameMetrics()) {
-					t.Fatalf("%s %v metric enum = %v, want validation metrics", dimension, variant, metrics)
-				}
-				step := scenario["steps"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
-				keys, _ := step["key"].(map[string]interface{})["enum"].([]string)
-				if !slices.Equal(keys, gamemaker.GameKeys()) {
-					t.Fatalf("%s %v key enum = %v, want validation keys", dimension, variant, keys)
-				}
-			}
-		}
-	}
-}
-
-func TestGameMakerVoxelScenarioSchemaNamesBuiltInChecks(t *testing.T) {
-	for _, tool := range GameMakerPhaseToolSchemas("planning", "3d", "voxel") {
-		if tool.Function.Name != "game_maker_project" {
-			continue
-		}
-		props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
-		design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
-		scenarios := design["scenarios"].(map[string]interface{})
-		description, _ := scenarios["description"].(string)
-		for _, want := range []string{"mine", "craft", "place", "combat", "omit"} {
-			if !strings.Contains(strings.ToLower(description), want) {
-				t.Fatalf("voxel scenarios description %q lacks %q", description, want)
-			}
-		}
-		// The voxel driver executes only key, wait and observe steps.
-		step := scenarios["items"].(map[string]interface{})["properties"].(map[string]interface{})["steps"].(map[string]interface{})["items"].(map[string]interface{})["properties"].(map[string]interface{})
-		actions, _ := step["action"].(map[string]interface{})["enum"].([]string)
-		if !slices.Equal(actions, []string{"key", "wait", "observe"}) {
-			t.Fatalf("voxel step actions = %v", actions)
-		}
-		for _, removed := range []string{"target", "mode", "x", "y"} {
-			if _, ok := step[removed]; ok {
-				t.Fatalf("voxel step still advertises %s", removed)
-			}
-		}
-	}
-}
-
-func TestGameMakerSettingsSchemaExplainsFreeBaseCorrection(t *testing.T) {
-	for _, dimension := range []string{"2d", "3d"} {
-		for _, tool := range newNativeToolSchemaSnapshot(GameMakerPhaseToolSchemas("planning", dimension)).StrictSchemas() {
-			if tool.Function.Name != "game_maker_project" {
-				continue
-			}
-			props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
-			design := props["design"].(map[string]interface{})["properties"].(map[string]interface{})
-			settings, exists := design["settings"]
-			if dimension == "2d" {
-				if exists {
-					t.Fatal("2D planning advertises guided settings")
-				}
-				continue
-			}
-			encoded, err := json.Marshal(settings)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, want := range []string{"fps/exploration/transport/flight/space", "null", "three", "failed draft", "Keep the requested base", "0 disables countdown"} {
-				if !strings.Contains(string(encoded), want) {
-					t.Errorf("strict provider lost %q: %s", want, encoded)
-				}
-			}
-		}
-	}
-}
-
-func TestGameMaker3DPlanningBasePrefersGuidedTemplates(t *testing.T) {
-	const want = "Prefer fps, exploration, transport, flight or space when that loop fits a new game. Use three only for a custom or procedural engine those bases cannot express. Keep an existing base. Free three leaves gameplay unverified."
-	for _, variant := range [][]string{nil, {"voxel"}} {
-		for _, tool := range newNativeToolSchemaSnapshot(GameMakerPhaseToolSchemas("planning", "3d", variant...)).StrictSchemas() {
-			if tool.Function.Name != "game_maker_project" {
-				continue
-			}
-			props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
-			base := props["design"].(map[string]interface{})["properties"].(map[string]interface{})["base"].(map[string]interface{})
-			description, _ := base["description"].(string)
-			if variant != nil {
-				if description != "" {
-					t.Fatalf("voxel base description = %q", description)
-				}
-				continue
-			}
-			if description != want {
-				t.Fatalf("strict 3D base description = %q", description)
-			}
-			enum, _ := base["enum"].([]string)
-			if !slices.Equal(enum, []string{"fps", "exploration", "transport", "flight", "space", "three"}) {
-				t.Fatalf("3D base enum = %v", enum)
-			}
-		}
-	}
-	for _, tool := range newNativeToolSchemaSnapshot(GameMakerPhaseToolSchemas("planning", "2d")).StrictSchemas() {
-		if tool.Function.Name != "game_maker_project" {
-			continue
-		}
-		props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
-		base := props["design"].(map[string]interface{})["properties"].(map[string]interface{})["base"].(map[string]interface{})
-		if description, _ := base["description"].(string); description != "" {
-			t.Fatalf("2D base description = %q", description)
-		}
-	}
-}
-
-func TestGameMakerPhaseSchemasOmitBoundIdentityAndDuplicateScene(t *testing.T) {
-	for _, stage := range []string{"planning", "building", "repair"} {
-		schemas := GameMakerPhaseToolSchemas(stage, "3d")
-		for _, tool := range schemas {
-			props := tool.Function.Parameters.(map[string]interface{})["properties"].(map[string]interface{})
-			if _, exists := props["job_id"]; exists {
-				t.Fatal("bound job identity must not be model input")
-			}
-			if tool.Function.Name == "game_maker_project" && stage != "planning" {
-				patch := props["patch"].(map[string]interface{})["properties"].(map[string]interface{})
-				if patch["replace"] != nil || props["scene"] == nil || strings.Contains(tool.Function.Description, "set_design") {
-					t.Fatal("duplicate scene or planning instructions in implementation phase")
-				}
-			}
-		}
-		data, _ := json.Marshal(schemas)
-		if stage != "planning" && len(data) > 25000 {
-			t.Fatalf("implementation schemas regressed to %d bytes", len(data))
-		}
+	if strings.Contains(reference, "game_maker_validate") {
+		t.Fatal("legacy validator remains advertised")
 	}
 }

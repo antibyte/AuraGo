@@ -16,9 +16,7 @@ type countingRunner struct {
 
 func (r *countingRunner) RunGameMakerJob(ctx context.Context, run JobRun) error {
 	r.calls++
-	if run.Stage == "planning" {
-		r.drift = run.WorkspaceDrift
-	}
+	r.drift = run.WorkspaceDrift
 	return (testRunner{service: r.service}).RunGameMakerJob(ctx, run)
 }
 
@@ -67,7 +65,7 @@ func TestAdoptPublishesWorkspaceEditsWithoutAModel(t *testing.T) {
 	if finished.Kind != "adopt" || finished.ResultRevision != published+1 {
 		t.Fatalf("adopt job = %+v", finished)
 	}
-	if finished.RepairPasses == nil || *finished.RepairPasses != 0 || finished.ChecksPassed == nil {
+	if finished.RepairPasses != nil || finished.ChecksPassed != nil {
 		t.Fatalf("adopt outcome = passes %v checks %v", finished.RepairPasses, finished.ChecksPassed)
 	}
 	revisions, err := service.ListRevisions(ctx, project.ID)
@@ -90,12 +88,12 @@ func TestAdoptPublishesWorkspaceEditsWithoutAModel(t *testing.T) {
 		}
 	}
 	summary, err := service.LatestPlanSummary(ctx, project.ID)
-	if err != nil || summary["template"] == "" {
+	if err != nil || len(summary) != 0 {
 		t.Fatalf("plan summary = %#v err %v", summary, err)
 	}
 }
 
-func TestAdoptStopsOnACorruptPlanWithoutPublishing(t *testing.T) {
+func TestAdoptIgnoresHistoricalPlanForPublication(t *testing.T) {
 	service, project, runner, calls := publishTestGame(t)
 	root := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(project.ProjectKey))
 	writeDriftFile(t, root, "notes.txt", "visible drift")
@@ -106,7 +104,7 @@ func TestAdoptStopsOnACorruptPlanWithoutPublishing(t *testing.T) {
 		t.Fatal(err)
 	}
 	finished := waitJob(t, service, job.ID)
-	if finished.Status != "failed" || finished.ErrorCode != "planning" {
+	if finished.Status != "ready" {
 		t.Fatalf("status %s code %s error %s", finished.Status, finished.ErrorCode, finished.Error)
 	}
 	if runner.calls != calls {
@@ -116,7 +114,7 @@ func TestAdoptStopsOnACorruptPlanWithoutPublishing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloaded.CurrentRevision != before {
+	if reloaded.CurrentRevision != before+1 {
 		t.Fatalf("revision changed to %d", reloaded.CurrentRevision)
 	}
 	if finished.ChecksPassed != nil || finished.RepairPasses != nil {
@@ -124,7 +122,7 @@ func TestAdoptStopsOnACorruptPlanWithoutPublishing(t *testing.T) {
 	}
 }
 
-func TestAdoptKeepsTheRevisionWhenValidationFails(t *testing.T) {
+func TestAdoptKeepsTheRevisionWhenBuildFails(t *testing.T) {
 	service, project, runner, calls := publishTestGame(t)
 	root := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(project.ProjectKey))
 	writeDriftFile(t, root, "src/main.ts", "<<<\n")
@@ -134,13 +132,13 @@ func TestAdoptKeepsTheRevisionWhenValidationFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	finished := waitJob(t, service, job.ID)
-	if finished.Status != "failed" || finished.ErrorCode != "validation" {
+	if finished.Status != "failed" || !strings.Contains(finished.Error, "build failed") {
 		t.Fatalf("status %s code %s error %s", finished.Status, finished.ErrorCode, finished.Error)
 	}
 	if runner.calls != calls {
 		t.Fatal("validation failure called the model")
 	}
-	if finished.RepairPasses == nil || *finished.RepairPasses != 0 {
+	if finished.RepairPasses != nil {
 		t.Fatalf("repair passes = %v", finished.RepairPasses)
 	}
 	reloaded, err := service.GetProject(context.Background(), project.ID)
@@ -152,7 +150,7 @@ func TestAdoptKeepsTheRevisionWhenValidationFails(t *testing.T) {
 	}
 }
 
-func TestEditPlanningContextNamesWorkspaceDrift(t *testing.T) {
+func TestEditContextNamesWorkspaceDrift(t *testing.T) {
 	service, project, runner, calls := publishTestGame(t)
 	root := filepath.Join(service.opts.WorkspacePath, filepath.FromSlash(project.ProjectKey))
 	writeDriftFile(t, root, "notes.txt", "carry this into the next edit")
@@ -168,7 +166,7 @@ func TestEditPlanningContextNamesWorkspaceDrift(t *testing.T) {
 		t.Fatal("edit did not call the model")
 	}
 	if runner.drift == nil || runner.drift.AddedCount != 1 || len(runner.drift.Added) != 1 || runner.drift.Added[0] != "notes.txt" {
-		t.Fatalf("planning drift = %+v", runner.drift)
+		t.Fatalf("workspace drift = %+v", runner.drift)
 	}
 }
 

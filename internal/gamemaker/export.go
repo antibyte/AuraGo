@@ -57,7 +57,11 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 	if err := rows.Close(); err != nil {
 		return "", fmt.Errorf("close exported revision files: %w", err)
 	}
-	for _, required := range []string{"game.json", "index.html", "src/main.ts", "dist/game.js"} {
+	requiredFiles := []string{"game.json", "index.html"}
+	if included["src/main.ts"] {
+		requiredFiles = append(requiredFiles, "dist/game.js")
+	}
+	for _, required := range requiredFiles {
 		if !included[required] {
 			return "", fmt.Errorf("published revision is incomplete: missing %s", required)
 		}
@@ -100,6 +104,9 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 		}
 	}
 	assets := bundledRuntimeAssets(project.Dimension, project.Variant)
+	if !included["src/main.ts"] {
+		assets = nil
+	}
 	if included[legacyThreeRuntimeAssets[0].projectPath] && included["vendor/three-"+ThreeVersion+".module.min.js"] {
 		assets = append(assets, legacyThreeRuntimeAssets...)
 	}

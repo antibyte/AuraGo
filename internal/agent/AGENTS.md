@@ -714,7 +714,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
   tracking see `discover_tools`. It skips builtin names and exact run-catalog
   entries and sets no `TransportAction`: a run without `discover_tools` still
   denies the call. Verify `TestUnknownToolNamesRouteOrGuide`.
-- `canonicalizeGameMakerOperationCall` runs first in `canonicalizeLeafCall` and only when `dc.Ctx` carries a bound Game Maker job: an operation name used as a tool name (`set_design`, `get_plan`, `search_assets`, `search`, `validate`) or an operation sent to the wrong Game Maker tool (`game_maker_file` `list_files`) is rewritten to the owning tool, and flat `set_design` fields are wrapped into `design`. The operation-to-tool map comes from the schema enums (disjoint, tested). It never widens scope (an owner outside `AllowedTools` keeps the ordinary denial) and skips builtin or run-catalog names; rewritten JSON results carry `normalized_call`. Verify `TestGameMakerOperation*`.
+- `canonicalizeGameMakerOperationCall` runs first in `canonicalizeLeafCall` and only when `dc.Ctx` carries a bound Game Maker job: an operation name used as a tool name (`build`, `finish`, `search_assets`, `search`, `screenshot`) or an operation sent to the wrong Game Maker tool (`game_maker_file` `list_files`) is rewritten to the owning tool. The operation-to-tool map comes from the schema enums (disjoint, tested). It never widens scope (an owner outside `AllowedTools` keeps the ordinary denial) and skips builtin or run-catalog names; rewritten JSON results carry `normalized_call`. Verify `TestGameMakerOperation*`.
 - A `tool_scope_denied` refusal of a restricted run (`toolScopeDeniedFor` in `dispatchInner`/`prepareToolCall`, `scopeDeniedRefusal` in `checkDispatchActionPolicy`) keeps `status`/`code`/`message` and adds `allowed_tools` (sorted `dc.AllowedTools`, at most 12 names, then `"…"`) and a `hint`; a Game Maker operation name whose owning tool is out of scope names that owner. An unrestricted run keeps the byte-identical refusal. Verify `TestScopeRefusal*`.
 - In a Studio run (restricted, non-empty tool scope holding `game_maker_*` tools plus at most the Studio's own `code_graph`; the main agent and mixed scopes stay generic) the text-only and XML-format recovery nudges come from `game_maker_recovery_nudge.go`: the run's tools, the exact call shape for the mode and what a text-only reply does in that phase; no `<done/>`, `discover_tools` or `file_editor`. `FormatAnnouncementFeedback` stays unchanged for every other run. Verify `TestGameMaker*Nudge*`.
 - A name outside the effective catalog answers `unknown_tool` with discovery
@@ -834,15 +834,13 @@ Tools are defined in `internal/tools/`:
   in `prompts/rules/homepage/DESIGN.md`. Preserve the unslop attribution in the rule.
   Verify existing task-rule selection, embedded catalog, and prompt injection tests.
 
-- Game Maker's Voxel variant has its own prepared planning/editing/source
-  profiles; build and repair share the same ordered four tools. Planning retains
-  three tools. `design.voxel` is a bounded JSON-encoded definition in native calls,
-  parsed by the same validator as source edits; no chunk/save payloads in prompts.
-  Keep non-Voxel schemas compatible and regenerate the training catalog without
-  replacing curated operation examples or tool tiers when optional fields change.
-  3D planning `design.base` describes the guided-base preference and still allows
-  `three`. 2D and voxel base fields stay without that description. The shared
-  catalog schema is unchanged.
+- Game Maker uses one stable prepared profile and ordered project/file/asset/preview
+  tools for the complete job. Project build and finish replace mandatory plans and
+  validation. Legacy validate dispatch is build-only and absent from current schemas.
+  Operation normalization remains server-job-bound and cannot widen tool scope.
+- ExecutionHooks.BeforeContext runs before history fitting and token accounting;
+  Game Maker uses it for actual image messages. AfterTool may return a configured
+  vision description for text-only models. Nil hooks preserve all other callers.
 
 - Optional `RunConfig.PreparedPrompt` (also in `MinimalLoopOptions`) owns a
   complete immutable system prompt and ordered schemas. Its revision covers
@@ -853,11 +851,9 @@ Tools are defined in `internal/tools/`:
   hard tool scope and live dispatch authorization still apply on every send.
 - Native loop initialization preserves explicit request `ToolChoice`; only an
   omitted choice defaults to `auto`. Tool-free finalization and missing-schema
-  cleanup retain their existing overrides. Native Studio planning requires tools
-  and permits one text-only correction, independent of prose length, completion
-  markers or the general announcement retry setting. Other phases keep their
-  recovery rules. Verify `TestInitAgentLoopStatePreservesToolChoice`,
-  `TestGameMakerPlanningTextOnlyRecoveryIsBounded` and the provider-wire tests.
+  cleanup retain their existing overrides. Studio completion requires explicit finish and permits one text-only reminder;
+  prose never publishes a draft. Other callers keep their recovery rules. Verify `TestInitAgentLoopStatePreservesToolChoice`,
+  `TestGameMakerTextOnlyRecoveryIsBounded` and the provider-wire tests.
 - Prepared runs use bounded request-view compaction without helper LLM calls;
   private checkpoints retain full history and required reasoning. The optional
   `PromptUsageObserver` stores metadata/hashes only, distinguishes local prompt

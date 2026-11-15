@@ -66,6 +66,10 @@ func installNightlyStarter(t *testing.T, dimension, template string) (*Service, 
 	if err := WriteScaffold(root, project); err != nil {
 		t.Fatal(err)
 	}
+	if err := installRuntime(root, dimension, ""); err != nil {
+		t.Fatal(err)
+	}
+	writeNightlyFile(t, root, "index.html", []byte(scaffoldHTML(dimension, project.Name)))
 	plan := ExampleGamePlan(project)
 	plan.Template = template
 	plan.Assets = nil

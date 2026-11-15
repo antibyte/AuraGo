@@ -3,12 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"math"
-	"os"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +14,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/gamemaker"
 	"aurago/internal/llm"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 	"aurago/internal/uid"
 
@@ -125,283 +123,6 @@ type gameMakerAgentRunner struct {
 	usage      *agent.PromptUsageObserver
 }
 
-func compactGameMakerImports(packs []gamemaker.ImportedAssetPack) []map[string]any {
-	out := make([]map[string]any, 0, len(packs))
-	for _, pack := range packs {
-		entry := map[string]any{"id": pack.ID, "version": pack.Version, "kind": pack.Kind}
-		if pack.Image != "" {
-			entry["image"] = pack.Image
-		}
-		if pack.Metadata != "" {
-			entry["metadata"] = pack.Metadata
-		}
-		if len(pack.AssetIDs) > 0 {
-			limit := len(pack.AssetIDs)
-			if limit > 64 {
-				limit = 64
-			}
-			entry["asset_ids"] = pack.AssetIDs[:limit]
-		}
-		if len(pack.Manifests) > 0 {
-			manifests := make(map[string]string, min(64, len(pack.Manifests)))
-			for _, assetID := range pack.AssetIDs {
-				if len(manifests) >= 64 {
-					break
-				}
-				if path := pack.Manifests[assetID]; path != "" {
-					manifests[assetID] = path
-				}
-			}
-			if len(manifests) > 0 {
-				entry["manifests"] = manifests
-			}
-		}
-		if pack.Example != "" {
-			entry["example"] = pack.Example
-		}
-		if pack.PhaserExample != "" {
-			entry["phaser_example"] = pack.PhaserExample
-		}
-		if pack.ThreeExample != "" {
-			entry["three_example"] = pack.ThreeExample
-		}
-		out = append(out, entry)
-	}
-	return out
-}
-
-func compactGameMakerCatalog(packs []gamemaker.AssetPackSummary) []map[string]any {
-	out := make([]map[string]any, 0, min(32, len(packs)))
-	for _, pack := range packs {
-		if len(out) >= 32 {
-			break
-		}
-		tags := pack.Tags
-		if len(tags) > 8 {
-			tags = tags[:8]
-		}
-		out = append(out, map[string]any{
-			"id": pack.ID, "version": pack.Version, "kind": pack.Kind,
-			"name": pack.Name, "description": pack.Description, "tags": tags,
-		})
-	}
-	return out
-}
-
-func compactGameMakerScene(scene *gamemaker.Scene) map[string]any {
-	if scene == nil {
-		return nil
-	}
-	activeLevel := ""
-	levels := make([]string, 0, min(16, len(scene.Levels)))
-	for _, level := range scene.Levels {
-		if len(levels) >= 16 {
-			break
-		}
-		levels = append(levels, level.ID)
-		if level.Active {
-			activeLevel = level.ID
-		}
-	}
-	nodeIDs := make([]string, 0, min(64, len(scene.Nodes)))
-	for _, node := range scene.Nodes {
-		if len(nodeIDs) >= 64 {
-			break
-		}
-		nodeIDs = append(nodeIDs, node.ID)
-	}
-	regionIDs := make([]string, 0, min(64, len(scene.Regions)))
-	for _, region := range scene.Regions {
-		if len(regionIDs) >= 64 {
-			break
-		}
-		regionIDs = append(regionIDs, region.ID)
-	}
-	zoneIDs := make([]string, 0, min(64, len(scene.Zones)))
-	for _, zone := range scene.Zones {
-		if len(zoneIDs) >= 64 {
-			break
-		}
-		zoneIDs = append(zoneIDs, zone.ID)
-	}
-	bindings := make([]map[string]any, 0, min(64, len(scene.Placements)))
-	for _, placement := range scene.Placements {
-		if len(bindings) >= 64 {
-			break
-		}
-		bindings = append(bindings, map[string]any{
-			"id": placement.ID, "node_id": placement.NodeID, "asset_id": placement.AssetID,
-			"asset_role": placement.AssetRole, "behavior": placement.Behavior,
-		})
-	}
-	return map[string]any{
-		"schema_version": scene.SchemaVersion, "dimension": scene.Dimension, "navigation": scene.Navigation,
-		"seed": scene.Seed, "active_level": activeLevel, "levels": levels,
-		"node_ids": nodeIDs, "region_ids": regionIDs, "zone_ids": zoneIDs,
-		"node_count": len(scene.Nodes), "region_count": len(scene.Regions),
-		"placement_count": len(scene.Placements), "collider_count": len(scene.Colliders),
-		"attachment_count": len(scene.Attachments), "zone_count": len(scene.Zones),
-		"route_count": len(scene.Routes), "bindings": bindings,
-	}
-}
-
-func compactGameMakerPlan(plan *gamemaker.GamePlan) map[string]any {
-	if plan == nil {
-		return nil
-	}
-	out := map[string]any{
-		"schema_version": plan.SchemaVersion, "template": plan.Template, "objective": plan.Objective,
-		"core_loop": plan.CoreLoop, "scope": plan.Scope, "perspective": plan.Perspective,
-		"width": plan.Width, "height": plan.Height, "camera": plan.Camera, "controls": plan.Controls,
-		"states": plan.States, "rules": plan.Rules, "assets": plan.Assets, "scenarios": plan.Scenarios,
-		"fallback": plan.Fallback, "preserve": plan.Preserve,
-	}
-	if plan.Gameplay != nil {
-		out["gameplay"] = plan.Gameplay
-	}
-	if plan.Voxel != nil {
-		out["voxel"] = plan.Voxel
-	}
-	if plan.Presentation != nil {
-		out["presentation"] = plan.Presentation
-	}
-	if plan.Mechanics != nil {
-		out["mechanics"] = plan.Mechanics
-	}
-	if plan.Scene != nil {
-		out["scene_summary"] = compactGameMakerScene(plan.Scene)
-	}
-	return out
-}
-
-func compactGameMakerChecks(checks []gamemaker.CheckResult) []map[string]any {
-	out := make([]map[string]any, 0, min(32, len(checks)))
-	for _, check := range checks {
-		if len(out) >= 32 {
-			break
-		}
-		entry := map[string]any{
-			"id": check.ID, "status": check.Status, "expected": check.Expected, "observed": check.Observed,
-		}
-		if check.Status != "passed" && len(check.Steps) > 0 {
-			entry["steps"] = check.Steps[:min(8, len(check.Steps))]
-		}
-		if check.Repairable {
-			entry["repairable"] = true
-		}
-		out = append(out, entry)
-	}
-	return out
-}
-
-func compactGameMakerDiagnostics(diagnostics []gamemaker.Diagnostic) []gamemaker.Diagnostic {
-	if len(diagnostics) > 32 {
-		return diagnostics[:32]
-	}
-	return diagnostics
-}
-
-func gameMakerRepairPacket(run gamemaker.JobRun) map[string]any {
-	packet := map[string]any{"rules_status": "unverified"}
-	if run.Result != nil && run.Result.RulesStatus != "" {
-		packet["rules_status"] = run.Result.RulesStatus
-	}
-	addDiagnostic := func(diagnostic gamemaker.Diagnostic) {
-		if packet["first_failure"] != nil || diagnostic.Level == "info" || diagnostic.Level == "warning" {
-			return
-		}
-		packet["first_failure"] = map[string]any{
-			"kind": "technical", "level": diagnostic.Level, "file": diagnostic.File,
-			"line": diagnostic.Line, "column": diagnostic.Column, "message": diagnostic.Message,
-			"source_sha256": diagnostic.SourceSHA256, "excerpt": diagnostic.Excerpt,
-		}
-	}
-	for _, diagnostic := range run.Diagnostics {
-		addDiagnostic(diagnostic)
-	}
-	if run.Result != nil {
-		for _, diagnostic := range run.Result.Diagnostics {
-			addDiagnostic(diagnostic)
-		}
-	}
-	for _, check := range run.Checks {
-		if check.Status == "passed" {
-			passed, _ := packet["preserve_passing_checks"].([]string)
-			if len(passed) < 32 {
-				packet["preserve_passing_checks"] = append(passed, check.ID)
-			}
-			continue
-		}
-		if packet["first_failure"] == nil {
-			packet["first_failure"] = map[string]any{
-				"kind": "gameplay_check", "id": check.ID, "status": check.Status,
-				"expected": check.Expected, "observed": check.Observed,
-				"steps":      check.Steps[:min(8, len(check.Steps))],
-				"repairable": check.Repairable,
-			}
-		}
-		if strings.Contains(strings.ToLower(check.ID), "rule") && packet["rules_status"] == "unverified" {
-			packet["rules_status"] = check.Status
-		}
-	}
-	if packet["first_failure"] == nil {
-		packet["first_failure"] = "No actionable failure was supplied; request a bounded validation result before changing source."
-	}
-	return packet
-}
-
-func compactGameMakerContext(run gamemaker.JobRun) map[string]any {
-	contextData := map[string]any{"stage": run.Stage}
-	if len(run.AssetSelections) > 0 {
-		contextData["user_selected_assets"] = run.AssetSelections[:min(64, len(run.AssetSelections))]
-	}
-	switch run.Stage {
-	case "planning":
-		if run.Plan != nil {
-			contextData["existing_plan"] = compactGameMakerPlan(run.Plan)
-		}
-		contextData["design_example"] = gamemaker.ExampleGameDesign(run.Project)
-		if run.Project.Variant == "voxel" {
-			contextData["planning_contract"] = "Choose base voxel and only the requested features. design.voxel must be a JSON-encoded VoxelDefinition string matching design_example.voxel (version 1; schema 5 is server-owned). Voxel validation already checks movement, jump, mining, crafting, placement and pause; survival with enemies also checks combat. Omit custom scenarios to use these built-in checks; if needed, custom steps support only key, wait and observe. For a peaceful request remove enemies but retain the wood-to-stone-to-metal progression unless asked to change it."
-		} else {
-			contextData["planning_contract"] = "Choose only the requested base and features. Optional scene/mechanics fields use schema version 4 and stay style-neutral; custom source remains available after acceptance. base_checks lists what each base's server-owned checks drive and measure: the finished game must offer those target roles as real objects. Declared scenarios replace the base input/primary/rules check they cover; lifecycle checks (timer, end, assets, restart) always remain."
-			contextData["base_checks"] = gamemaker.BaseChecks(run.Project.Dimension)
-			contextData["target_test_example"] = gamemaker.GameScenario{ID: "collect_crystal", Metric: "pickup_events", Compare: "increased", Steps: []gamemaker.GameTestStep{{Action: "target", Mode: "reach", Target: "crystal", MS: 4000}}}
-		}
-		if len(run.AssetPacks) > 0 {
-			contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)
-		}
-		if run.Presentation != nil {
-			contextData["user_selected_presentation"] = run.Presentation
-		}
-		if len(run.ModelAssetIDs) > 0 {
-			contextData["user_selected_model_ids"] = run.ModelAssetIDs[:min(64, len(run.ModelAssetIDs))]
-		}
-		if run.WorkspaceDrift != nil && !run.WorkspaceDrift.Empty() {
-			contextData["workspace_drift"] = run.WorkspaceDrift.PromptView()
-		}
-	case "building":
-		contextData["plan"] = compactGameMakerPlan(run.Plan)
-		contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)
-		if run.Presentation != nil {
-			contextData["user_selected_presentation"] = run.Presentation
-		}
-		if len(run.ModelAssetIDs) > 0 {
-			contextData["user_selected_model_ids"] = run.ModelAssetIDs[:min(64, len(run.ModelAssetIDs))]
-		}
-	default:
-		contextData["plan"] = compactGameMakerPlan(run.Plan)
-		contextData["checks"] = compactGameMakerChecks(run.Checks)
-		contextData["diagnostics"] = compactGameMakerDiagnostics(run.Diagnostics)
-		contextData["imported_packs"] = compactGameMakerImports(run.AssetPacks)
-		contextData["repair_packet"] = gameMakerRepairPacket(run)
-		if run.Result != nil {
-			contextData["next_action"] = gamemaker.ValidationNextAction(*run.Result)
-		}
-	}
-	return contextData
-}
-
 // gameMakerBudget tells the agent how much room this round has. Values are
 // rounded so that an unchanged situation keeps an unchanged context packet.
 func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) map[string]any {
@@ -409,16 +130,6 @@ func gameMakerBudget(ctx context.Context, toolCalls int, run gamemaker.JobRun) m
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := int(time.Until(deadline).Seconds())
 		budget["seconds_remaining"] = max(0, remaining/30*30)
-	}
-	switch {
-	case run.Stage == "planning":
-		budget["guidance"] = "Plan with few discovery calls; an accepted set_design ends this round."
-	case run.Stage == "repair":
-		budget["guidance"] = "One focused repair: use current_sources when supplied; read affected ranges of omitted_sources first. Edit, check build.ok, validate once."
-	case run.Job.BaseRevision == 0:
-		budget["guidance"] = "Implement from current_sources when supplied; read affected ranges of omitted_sources first. A new game whose starter is still unchanged after about five minutes of reading is handed to the bounded source generation instead."
-	default:
-		budget["guidance"] = "Edit from current_sources when supplied; read affected ranges of omitted_sources and other changed files first. Check build.ok, then validate the completed change."
 	}
 	return budget
 }
@@ -433,35 +144,7 @@ const (
 	// MiniMax-M3.1-Flash reasoned 23-33K tokens before writing main.ts; the 16K
 	// allowance cut 9 of 10 building replies on aurago-test (2026-11-08/09).
 	gameMakerWideReasoningTokens = 49152
-	// Default sampling for the isolated agent. Planning benefits from variety;
-	// code phases need schema and syntax fidelity, so they run near-deterministic.
-	gameMakerPlanningTemperature = 0.6
-	gameMakerBuildingTemperature = 0.2
 )
-
-// gameMakerPhaseTemperature resolves the configured sampling temperature for one
-// phase. The value is clamped to the range the agent loop applies itself.
-func gameMakerPhaseTemperature(cfg *config.Config, stage string) float32 {
-	value := gameMakerBuildingTemperature
-	if stage == "planning" {
-		value = gameMakerPlanningTemperature
-	}
-	if cfg != nil {
-		if stage == "planning" && cfg.GameMaker.PlanningTemperature != nil {
-			value = *cfg.GameMaker.PlanningTemperature
-		}
-		if stage != "planning" && cfg.GameMaker.BuildingTemperature != nil {
-			value = *cfg.GameMaker.BuildingTemperature
-		}
-	}
-	if value < 0.05 {
-		value = 0.05
-	}
-	if value > 1.5 {
-		value = 1.5
-	}
-	return float32(value)
-}
 
 // gameMakerStreamThroughput lets a slow model that keeps streaming outlast the
 // fixed per-call timeout. The LLM timeout stays the base until output is
@@ -518,87 +201,6 @@ func gameMakerRouteLimits(cfg *config.Config) llm.ModelLimits {
 	return llm.ResolveModelLimitsCached(route, cfg.Agent.ContextWindow)
 }
 
-// gameMakerCurrentSourceMaxBytes matches one interactive read window, so a
-// handed-over file is never larger than a single read could return.
-const gameMakerCurrentSourceMaxBytes = 24000
-
-// gameMakerCompactSourceMaxBytes is the small-model window. A compact run keeps
-// the first call an edit without spending 24 KB of the request on the entry.
-const gameMakerCompactSourceMaxBytes = 12000
-
-// gameMakerCompactAPIReferenceMaxBytes bounds the small-model cheat sheet.
-const gameMakerCompactAPIReferenceMaxBytes = 2000
-
-// gameMakerCurrentSources hands the agent its editable entry files once. Real
-// runs spent many reads before the first edit; with content and sha256 in the
-// context the first call can be the edit itself. Larger files carry metadata
-// and bounded read guidance instead of silently disappearing.
-func gameMakerCurrentSources(ctx context.Context, service *gamemaker.Service, jobID string) ([]gamemaker.SourceRead, []map[string]any) {
-	return gameMakerCurrentSourcesWithin(ctx, service, jobID, gameMakerCurrentSourceMaxBytes)
-}
-
-// gameMakerCurrentSourcesWithin applies an explicit window; the compact profile
-// passes a smaller bound.
-func gameMakerCurrentSourcesWithin(ctx context.Context, service *gamemaker.Service, jobID string, maxBytes int) ([]gamemaker.SourceRead, []map[string]any) {
-	if maxBytes <= 0 {
-		maxBytes = gameMakerCurrentSourceMaxBytes
-	}
-	var sources []gamemaker.SourceRead
-	var omitted []map[string]any
-	for _, path := range []string{"src/main.ts", "src/voxel.json"} {
-		// The service's file-size limit still applies; this cap bounds the prompt.
-		source, err := service.ReadJobSource(ctx, jobID, path, math.MaxInt)
-		if err != nil {
-			if path != "src/voxel.json" || !os.IsNotExist(err) {
-				omitted = append(omitted, map[string]any{"path": path, "reason": "unavailable", "message": service.RedactHostPaths(err.Error()), "next_action": "Inspect or read this file before editing; its content was not supplied."})
-			}
-			continue
-		}
-		if len(source.Content) <= maxBytes {
-			sources = append(sources, source)
-			continue
-		}
-		entry := map[string]any{"path": path, "sha256": source.SHA256, "bytes": len(source.Content), "total_lines": source.TotalLines, "reason": "exceeds_context_limit", "max_content_bytes": maxBytes,
-			"next_action": "Content was omitted. Search for the affected code or use the supplied hook/diagnostic lines, then read bounded ranges before replacing. Do not overwrite unread source."}
-		bytes, end := 0, 0
-		for _, line := range strings.Split(source.Content, "\n") {
-			separator := 0
-			if end > 0 {
-				separator = 1
-			}
-			if end == 120 || bytes+separator+len(line) > maxBytes {
-				break
-			}
-			bytes += separator + len(line)
-			end++
-		}
-		if end > 0 {
-			entry["suggested_read"] = map[string]any{"operation": "read", "path": path, "start_line": 1, "end_line": end}
-		}
-		omitted = append(omitted, entry)
-	}
-	return sources, omitted
-}
-
-// gameMakerCompactRuntime keeps the same runtime context but replaces the complete
-// api_reference with a bounded cheat sheet derived from it. Everything else
-// (helper version, file hashes, hook locations, warning codes) is unchanged.
-func gameMakerCompactRuntime(runtime map[string]any) map[string]any {
-	if runtime == nil {
-		return nil
-	}
-	reference, _ := runtime["api_reference"].(string)
-	if strings.TrimSpace(reference) == "" {
-		return runtime
-	}
-	copied := make(map[string]any, len(runtime))
-	for key, value := range runtime {
-		copied[key] = value
-	}
-	copied["api_reference"] = gamemaker.CompactRuntimeReference(reference, gameMakerCompactAPIReferenceMaxBytes)
-	return copied
-}
-
 func gameMakerToolCallLimit(systemLimit int) int {
 	base := max(0, systemLimit)
 	bonus := base / 4
@@ -645,93 +247,25 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		cfg.FallbackLLM.Enabled = false
 		client = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(&cfg, cfg.LLM.ProviderType, cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.AccountID, cfg.LLM.GatewayID))
 	}
-	if run.Stage == "visual" {
-		return r.reviewGameImages(ctx, &cfg, client, run)
-	}
-	if run.Stage == "planning" && run.Plan == nil {
-		// A continued draft or published project already contains its plan.
-		run.Plan, _ = r.service.GetPlan(ctx, run.Job.ID)
-	}
-	if run.Stage == "building" && run.Plan != nil {
-		ready, err := r.service.StarterGenerationReady(ctx, run.Job)
-		if err != nil {
-			return fmt.Errorf("check Game Maker starter generation: %w", err)
-		}
-		if ready {
-			return r.implementGameStarter(ctx, &cfg, client, run)
-		}
-	}
-	// A small model runs the compact v3 profile and, on a plan-bound starter, the
-	// adapt building mode. Voxel keeps its own compact definition contract, so it
-	// only moves to the v3 name.
-	small := run.Job.SmallModel
-	compact := small && run.Project.Variant != "voxel"
-	if run.Stage == "repair" && run.Job.BaseRevision == 0 && run.Job.BuildingMode != gamemaker.BuildingModeAdapt && slices.ContainsFunc(run.Diagnostics, func(d gamemaker.Diagnostic) bool { return d.Level == "implementation" }) {
-		return r.implementGameStarter(ctx, &cfg, client, run)
-	}
-	cfg.LLM.UseNativeFunctions = true
-	// Game Maker pins sampling per phase so code phases stay far from the
-	// provider default; the agent loop still clamps the value.
-	cfg.LLM.Temperature = float64(gameMakerPhaseTemperature(&cfg, run.Stage))
-	var variant []string
-	if run.Project.Variant == "voxel" {
-		variant = append(variant, "voxel")
-	}
-	if small {
-		variant = append(variant, "compact")
-	}
-	profile, err := gameMakerPromptProfile(run.Stage, run.Project.Dimension, variant...)
+	profile, err := gameMakerPromptProfile("building", run.Project.Dimension)
 	if err != nil {
 		return err
 	}
-	contextData := compactGameMakerContext(run)
-	contextData["job_id"], contextData["stage"], contextData["dimension"] = run.Job.ID, run.Stage, run.Project.Dimension
-	contextData["visual_repair"] = run.Stage == "repair" && len(run.Captures) > 0
-	contextData["remaining_repair_passes"] = r.service.RemainingRepairs(run.Job.ID)
-	if run.Stage != "planning" {
-		runtimeContext := r.service.RuntimeContext(ctx, run.Job.ID)
-		if compact {
-			runtimeContext = gameMakerCompactRuntime(runtimeContext)
-		}
-		contextData["runtime"] = runtimeContext
-		// Disclose the exact checks up front so the game is built toward them
-		// instead of discovering each one through a failed validation.
-		if plan := r.service.ValidationPlan(ctx, run.Job.ID); plan != nil {
-			contextData["validation_plan"] = plan
-		}
-		sourceWindow := gameMakerCurrentSourceMaxBytes
-		if compact {
-			sourceWindow = gameMakerCompactSourceMaxBytes
-		}
-		sources, omitted := gameMakerCurrentSourcesWithin(ctx, r.service, run.Job.ID, sourceWindow)
-		if len(sources) > 0 {
-			contextData["current_sources"] = sources
-		}
-		if len(omitted) > 0 {
-			contextData["omitted_sources"] = omitted
-		}
-		// Adapt mode anchors stay untrusted context next to current_sources; they
-		// never enter the prepared system prompt or its fingerprint.
-		if run.Job.BuildingMode == gamemaker.BuildingModeAdapt {
-			if targets := r.service.AdaptJobTargets(ctx, run.Job.ID); len(targets) > 0 {
-				contextData["edit_targets"] = targets
-			}
-		}
+	files, err := r.service.ListJobFiles(ctx, run.Job.ID)
+	if err != nil {
+		return err
 	}
+	contextData := map[string]any{"project": run.Project, "files": files, "diagnostics": run.Diagnostics, "selected_model_assets": run.ModelAssetIDs, "selected_assets": run.AssetSelections, "presentation": run.Presentation}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)
 	if err != nil {
 		return err
 	}
 	contextData["previous_user_requests"] = gameMakerPreviousRequests(requests)
 	contextData["working_copy_restored"] = run.Job.ResumeFrom != ""
+	contextData["workspace_changes"] = run.WorkspaceDrift
 	history, checkpoint, err := r.gameConversation(ctx, &cfg, run, true)
 	if err != nil {
 		return err
-	}
-	if run.Stage == "planning" {
-		if packs, err := r.service.ListAssetPacks(); err == nil {
-			contextData["catalog"] = compactGameMakerCatalog(packs)
-		}
 	}
 	sessionID := "game-maker-" + run.Job.ID + ":" + uid.New()
 	runCfg := buildDesktopRunConfigForSession(s, &cfg, client, sessionID, "game_maker")
@@ -763,14 +297,11 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	runCfg.RequireCompleteStream = true
 	runCfg.RetryStreamIdle = true
 	runCfg.StreamThroughput = &gameMakerStreamThroughput
-	runCfg.ToolCallLimit = gameMakerToolCallLimit(cfg.CircuitBreaker.MaxToolCalls)
+	runCfg.ToolCallLimit = cfg.CircuitBreaker.MaxToolCalls
 	runCfg.AllowedAgentSkills = gamemaker.CuratedSkillNames()
 	runCfg.SuppressTurnSideEffects = true
-	if run.Stage == "planning" {
-		runCfg.RunComplete = func() bool { return r.service.PlanningComplete(run.Job.ID) }
-	} else {
-		runCfg.RunComplete = r.service.StopAfterValidation(run.Job.ID, run.Stage == "repair")
-	}
+	runCfg.RunComplete = func() bool { return r.service.JobFinished(run.Job.ID) }
+	r.attachGamePreviewImages(&runCfg, &cfg, run.Job.ID)
 	runCfg.IsMission = true
 	runCfg.VoiceOutputActive = false
 
@@ -782,27 +313,9 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		Model: cfg.LLM.Model,
 		Messages: []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleUser,
-			Content: gameMakerUserIntent(run) + "\n\nJob context (data):\n<external_data>\n" + string(data) + "\n</external_data>",
+			Content: gameMakerUserIntent(run) + "\n\nJob context (data):\n" + security.IsolateExternalData(string(data)),
 		}},
 		Stream: true,
-	}
-	answerTokens := gameMakerBuildAnswerTokens
-	if run.Stage == "planning" {
-		req.ToolChoice = "required"
-		answerTokens = llm.ConservativeOutputTokens
-	}
-	if tokens := gameMakerOutputTokens(gameMakerRouteLimits(&cfg), answerTokens); tokens > 0 {
-		req.MaxTokens = tokens
-	}
-	if run.Stage == "repair" && len(run.Captures) > 0 {
-		if route, ok := gameVisualPrimaryRoute(&cfg); ok && route.ID == cfg.LLM.Provider {
-			text := req.Messages[0].Content
-			req.Messages[0].Content = ""
-			req.Messages[0].MultiContent = []openai.ChatMessagePart{{Type: openai.ChatMessagePartTypeText, Text: text}}
-			for _, capture := range run.Captures[:min(2, len(run.Captures))] {
-				req.Messages[0].MultiContent = append(req.Messages[0].MultiContent, openai.ChatMessagePart{Type: openai.ChatMessagePartTypeImageURL, ImageURL: &openai.ChatMessageImageURL{URL: capture.Image, Detail: openai.ImageURLDetailLow}})
-			}
-		}
 	}
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
 	req.Messages = append(history, req.Messages...)
@@ -813,54 +326,19 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 			}
 		}
 	}()
-	sourceBefore, sourceErr := r.service.LastSourceWriteID(ctx, run.Job.ID)
 	callCtx := llm.WithStreamAttemptTimeout(gamemaker.WithJobContext(ctx, run.Job.ID), time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
 	response, err := agent.ExecuteAgentLoop(callCtx, req, runCfg, true, broker)
 	if err != nil {
-		var incomplete *agent.IncompleteCompletionError
-		if ctx.Err() == nil && run.Stage == "building" && run.Job.BaseRevision == 0 && run.Plan != nil &&
-			errors.As(err, &incomplete) && (incomplete.FinishReason == openai.FinishReasonLength || incomplete.FinishReason == "") && incomplete.ReasoningOnly {
-			// A length cut has already used its one bounded in-loop continuation;
-			// a stream that ended without a finish reason goes straight to bounded
-			// source generation. The unchanged-starter gate may now request source;
-			// compiler/browser checks still own success and publication.
-			broker.Send("model_progress", "recovering")
-			return nil
-		}
-		if agent.IsToolLimitFinalResponseInvalid(err) && ctx.Err() == nil && (run.Stage == "building" || run.Stage == "repair") {
-			// The rejected extra call stays unexecuted. The orchestrator validates
-			// the saved source and owns the remaining repair budget, not final prose.
-			slog.Info("game maker tool limit reached; validating saved source", "job_id", run.Job.ID, "stage", run.Stage)
-			return nil
-		}
 		return fmt.Errorf("Game Maker agent loop: %w", err)
 	}
-	// A server-owned phase boundary may finish without model prose. An empty
-	// provider completion otherwise means no successful agent completion.
-	completed := runCfg.RunComplete != nil && runCfg.RunComplete()
-	if !completed && (len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" || strings.TrimSpace(response.Choices[0].Message.Content) == "[Empty Response]") {
-		if ctx.Err() == nil && run.Stage == "building" && run.Job.BaseRevision == 0 && run.Plan != nil {
-			// The unchanged-starter check owns a bounded, tool-free implementation
-			// repair. Reaching it is not success and must not publish the starter.
-			broker.Send("model_progress", "recovering")
-			slog.Info("game maker empty building response; checking source before bounded implementation recovery", "job_id", run.Job.ID)
-			return nil
-		}
-		if ctx.Err() == nil && sourceErr == nil && (run.Stage == "building" || run.Stage == "repair") {
-			if sourceAfter, err := r.service.LastSourceWriteID(ctx, run.Job.ID); err == nil && sourceAfter > sourceBefore {
-				// Saved work still needs the orchestrator's normal validation. Never
-				// publish an unchanged older revision merely because prose is absent.
-				slog.Info("game maker empty final response; validating saved source", "job_id", run.Job.ID, "stage", run.Stage)
-				return nil
-			}
-		}
-		return fmt.Errorf("Game Maker model returned an empty response after retry; the job was not completed")
+	if !r.service.JobFinished(run.Job.ID) {
+		return fmt.Errorf("agent stopped without finish; draft retained")
 	}
 	answer := strings.TrimSpace(broker.text())
 	if answer == "" && len(response.Choices) > 0 {
 		answer = strings.TrimSpace(response.Choices[0].Message.Content)
 	}
-	if answer != "" && answer != "[Empty Response]" && run.Stage != "planning" {
+	if answer != "" && answer != "[Empty Response]" {
 		r.service.HoldAgentSummary(run.Job.ID, answer)
 	}
 	return nil
@@ -909,7 +387,7 @@ func (b *gameMakerBroker) Send(event, message string) {
 		// Progress may name known tools, but never retain arguments or model text.
 		payload := map[string]any{"attempted": true}
 		switch message {
-		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_validate", "activate_agent_skill":
+		case "game_maker_project", "game_maker_file", "game_maker_asset", "game_maker_preview":
 			payload["tool"] = message
 		}
 		_ = b.service.EmitAgentEvent(context.Background(), b.projectID, b.jobID, "tool_call", payload)

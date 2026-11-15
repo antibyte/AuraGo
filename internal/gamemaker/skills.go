@@ -22,7 +22,7 @@ var bundledSkills embed.FS
 var curatedSkills = []SkillInfo{
 	{
 		Name:        "aurago-game-maker-director",
-		Description: "Plans the game loop, coordinates implementation phases, and keeps the result playable.",
+		Description: "Supports free development with files, builds and independent preview tools.",
 		Source:      "AuraGo synthesis",
 		Commit:      ThreeSkillsCommit + " + " + PhaserSkillsCommit,
 		License:     "MIT",
@@ -50,7 +50,7 @@ var curatedSkills = []SkillInfo{
 	},
 	{
 		Name:        "aurago-game-qa",
-		Description: "Validates load state, canvas readiness, runtime errors, frame rate, controls, and game feel.",
+		Description: "Optional browser feedback and gameplay inspection guidance.",
 		Source:      "AuraGo clean-room synthesis; TinySwords concepts only",
 		Commit:      TinySwordsCommit,
 		License:     "AuraGo original; no TinySwords code or assets",
@@ -123,69 +123,6 @@ func CuratedSkillNames() []string {
 }
 
 // Keep the same concise quality contract in planning and implementation context.
-const gameplayExperienceGuidance = `## Player experience
-- Specify feedback, recovery or results, world/camera and progression to match the request. Hits need feedback; death needs recovery or defeat; endings need restart/continue when the game has them.
-- Vary areas or challenges when requested; single boards and peaceful worlds are valid.
-- Show instructions once before Start and freeze play until then. Keep only compact status during play; help and restart live in pause/results.
-- No desktop movement/action buttons; touch uses a left stick and the relevant right actions.
-- Keep the installed helpers; passing startup proves no gameplay quality.`
-
-// PhaseGuidance uses only the embedded, reviewed source, never a project file or
-// a locally replaced skill. Startup still verifies the curated skill registry.
-// Workflow steps live in the prepared profile; this text carries phase rules.
-func PhaseGuidance(stage, dimension string) string {
-	if stage == "planning" {
-		rules := gameplayExperienceGuidance + `
-
-## Design rules
-- Describe the player objective and 1–12 concrete features with set_design on a supported base.
-- Optional helpers belong inside design.mechanics, for example "mechanics":{"outcomes":["won","lost"],"lives":3}; blocks and events belong there too. Omit them for continuous play or implement custom rules in source.
-- Leave scenarios empty when base_checks cover the rules. Custom rules use bounded target steps with exact runtime roles/IDs. Replacing a starter check requires input-driven increased/decreased/changed metrics; equals/at_least checks stay additive.
-- A shooting check measures actions; hits need target aim at a real enemy and projectile travel time, not blind SPACE presses.
-- The server fills version, geometry, controls and validation defaults.`
-		if dimension == "2d" {
-			return rules + `
-- Supply exact asset role/pack/asset IDs from search_assets only where the request needs specific artwork.
-- 2D bases take no settings: omit them and describe tuning in features, source or mechanics.blocks[].params.
-- A grid game such as snake stays on base minimal: movement, food, growth, collision and restart live in source.`
-		}
-		return rules + `
-- Guided 3D bases bring catalog-checked default models when assets is empty; resolve user-selected models into the matching roles.
-- Only fps/exploration/transport/flight/space accept settings (goal/speed/duration). For three omit settings; omitting them or sending settings:null clears incompatible draft settings after an error.
-- three is free Three.js code without a helper: startup checks only (gameplay stays unverified) and planned effects/sounds need manual wiring. Prefer a guided base unless the request needs a custom engine.`
-	}
-	rules := gameplayExperienceGuidance + `
-
-## Source rules
-- Implement the accepted design in src/main.ts; keep the common.ts lifecycle and asset bindings.
-- One game clock; clear input on blur, reset on restart, dispose on pagehide. Local runtime only: no remote imports, eval or services.`
-	if dimension == "2d" {
-		return rules + `
-
-## Phaser 4 rules
-- Use the GameScene hooks setup/step(dt)/action/tick/paintHUD; inherit create/update.
-- Reset cooldowns and timers in setup(): scene.restart() reuses the instance; elapsed resets but class initializers do not.
-- Assign this.player; preserve jump in action and call super.step(dt) when extending movement. Spawn the whole collider above ground. A stomp proves target damage/removal, not the game outcome.
-- body(x,y,w,h,color,fixed,role) fits, follows and animates art; its collider stays w×h, so match the art footprint. Never add another sprite to it; manual art needs an empty role and no super.setup creating another player.
-- Mark targets with exact roles via body(..., role) or object.__gmRole (player, enemy, projectile, item, obstacle, goal or custom).
-- Use real GameObjects in collider/overlap and fixed=false for movers. Neither Arcade body type has setPosition: use object.setPosition plus body.reset(x,y), or updateFromGameObject for static proxies.
-- Register persistent groups and overlaps once; never load a sheet as one image.
-- Stages: configureLevels([{id,title},...]) plus layouts chosen by this.levelIndex in setup; configureWorld(width,height) follows the created player.
-- setCheckpoint(x,y) and damagePlayer() consume a life on real harmful contact with protected respawn; builder health rules remain their own authority. feedback(name,object,material) supplies contact feedback; end(won) shows result/Continue; restartGame() resets the campaign.
-- If validation reports no_target, bind its exact ID/role to a real object via body(..., role) or __gmRole; never fake evidence.`
-	}
-	return rules + `
-
-## Three.js rules
-- Guided 3D: startGame(config) in main.ts uses the common.ts lifecycle; keep the renderer, asset bindings and the FPS arms/weapon group.
-- Stages: config.levels:[{id,title,objects,goal,...},...] or scene.json levels with distinct layouts; config.worldBounds:{min:[x,y,z],max:[x,y,z]} bounds the world.
-- config.lives, api.levelIndex, api.setCheckpoint([x,y,z]), api.damagePlayer(amount), api.event(name,point) and api.win()/lose() provide recovery, feedback, results and Continue.
-- Builder health rules own scene-driven damage; feedback never manufactures damage. Implement custom mechanics in hooks or source.
-- Keep fire() and observeTargets() on the same aimRay(caster), including the read-only aim_ray origin/direction (observer x/y = ground, z = altitude).
-- Tests use normal inputs; never invent hits or verdicts. Guided bases validate with scope=full; free three has startup checks only and gameplay stays unverified.
-- If validation reports no_target, add the exact target ID/role to a real config.objects entry or authored scene node and bind checks to it; never invent observations or metrics.`
-}
-
 func equalSHA256(left, right []byte) bool {
 	leftHash := sha256.Sum256(left)
 	rightHash := sha256.Sum256(right)

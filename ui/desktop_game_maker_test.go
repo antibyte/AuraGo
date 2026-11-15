@@ -53,10 +53,7 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`window.removeEventListener('message'`,
 		`confirmDialog`,
 		`preview_reload`,
-		`validation_reset`,
 		`state.previewGrant === grant`,
-		`observations.length > 16`,
-		`type: 'run-tests'`,
 		`'polishing', 'cancelling'`,
 		`const modal = layer.querySelector('.gm-modal');`,
 		`const editable = Boolean(state.project && !active`,
@@ -68,25 +65,12 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		// cannot settle before the loading overlay is attached.
 		`window.GameMakerStudioPreview.showLoading(state, shell, frame)`,
 		`frame.src = grant.url + '#gm-channel=' + encodeURIComponent(channelID)`,
-		// Model limits, retry with another model, repair extension and the
-		// open-check failure card.
+		// Model choice and retry remain available.
 		`api.modelLimits(providerID, modelID)`,
 		`limitsState.limits`,
-		`game_maker.small_model_confirm`,
-		`allow_small_model: allowSmallModel`,
-		`allow_small_model: smallModelFlag(limitsState.limits)`,
-		`small_model: compactOptIn(layer)`,
-		`data-gm-compact-opt-in`,
-		`data-gm-guided-base`,
-		`data-gm-unverified`,
-		`String(id).startsWith('role_')`,
-		`data-gm-model-warning`,
 		`data-gm-retry-model`,
-		`data-gm-extend-repairs`,
-		`Math.min(6, used + 3)`,
-		`max_repair_passes: count`,
-		`Array.isArray(job.open_checks)`,
-		`check.next_action`,
+		`showAgentCapture`,
+		`game_maker.agent_view`,
 	} {
 		if !strings.Contains(app+modals+preview, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
@@ -123,6 +107,7 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		t.Fatalf("desktop locales = %d, want 16", len(files))
 	}
 	required := []string{
+		"game_maker.agent_view", "game_maker.draft_retained", "game_maker.framework_optional", "game_maker.terminal_preview",
 		"game_maker.voxel", "game_maker.voxel_description", "game_maker.example_idea_14", "game_maker.example_idea_15",
 		"game_maker.save_failed_title", "game_maker.leave_unsaved",
 		"game_maker.terminal_queued", "game_maker.terminal_planning", "game_maker.terminal_building",
@@ -175,7 +160,6 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.failure_hint_preview", "game_maker.failure_hint_planning", "game_maker.failure_hint_planning_protocol",
 		// Model limits, retry with another model and the repair extension.
 		"game_maker.model_limits_line", "game_maker.model_limits_warning",
-		"game_maker.small_model_title", "game_maker.small_model_confirm", "game_maker.small_model_blocked",
 		"game_maker.retry_model", "game_maker.retry_model_title", "game_maker.retry_model_note",
 		"game_maker.retry_model_start", "game_maker.extend_repairs", "game_maker.extend_repairs_note",
 		"game_maker.open_checks_title", "game_maker.open_check_next",
@@ -225,7 +209,6 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		for key, placeholders := range map[string][]string{
 			"game_maker.model_limits_line":        {"{{context}}", "{{output}}"},
 			"game_maker.model_limits_warning":     {"{{minimum}}"},
-			"game_maker.small_model_confirm":      {"{{context}}", "{{minimum}}"},
 			"game_maker.extend_repairs":           {"{{extra}}"},
 			"game_maker.extend_repairs_note":      {"{{model}}", "{{passes}}"},
 			"game_maker.check_help_generic":       {"{{id}}"},

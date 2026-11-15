@@ -21,7 +21,7 @@ type SourceReplacement struct {
 type SourceBatchWrite struct {
 	Written bool            `json:"written"`
 	Files   []SourceVersion `json:"files"`
-	Build   BuildResult     `json:"build"`
+	Build   BuildResult     `json:"-"`
 }
 
 type SourceVersion struct {
@@ -31,7 +31,7 @@ type SourceVersion struct {
 
 // ReplaceJobFiles checks every precondition before changing any existing file.
 // It publishes source under the file/build locks, rolls back IO failures, then
-// builds once. Preview evidence is never produced for a half-applied edit.
+// saves the draft. Compilation is requested separately.
 func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []SourceReplacement) (SourceBatchWrite, error) {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
@@ -112,12 +112,6 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 		if int64(len(after)) > s.opts.MaxFileBytes {
 			return SourceBatchWrite{}, fmt.Errorf("%s: file exceeds configured limit", rel)
 		}
-		if err := validateBuilderSource(stage, rel, after); err != nil {
-			return SourceBatchWrite{}, err
-		}
-		if err := s.validateScriptAssetImports(ctx, jobID, rel, after); err != nil {
-			return SourceBatchWrite{}, err
-		}
 		growth += int64(len(after) - len(f.before))
 		f.after = after
 	}
@@ -186,8 +180,7 @@ func (s *Service) ReplaceJobFiles(ctx context.Context, jobID string, edits []Sou
 	for _, f := range files {
 		_, _ = s.emit(ctx, job.ProjectID, jobID, "file_changed", map[string]any{"path": f.rel})
 	}
-	result := SourceBatchWrite{Written: true, Build: s.BuildJob(ctx, jobID)}
-	result.Build.Diagnostics = result.Build.Diagnostics[:min(12, len(result.Build.Diagnostics))]
+	result := SourceBatchWrite{Written: true}
 	for _, f := range files {
 		current, err := s.ReadJobFile(ctx, jobID, f.rel)
 		if err != nil {

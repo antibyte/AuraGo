@@ -7,11 +7,11 @@
         'project_created', 'project_updated', 'job_status', 'phase', 'text_delta',
         'skill_activation', 'file_changed', 'asset_changed', 'preview_reload', 'tool_call', 'model_progress',
         'diagnostic', 'revision', 'validation_reset', 'validation_result', 'visual_result', 'visual_observation', 'visual_progress',
-        'plan_summary', 'stream_ready'
+        'plan_summary', 'stream_ready', 'build_started', 'agent_capture', 'preview_diagnostic'
     ];
     const activeStatuses = new Set(['queued', 'planning', 'building', 'validating', 'waiting_preview', 'polishing', 'cancelling']);
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
-    const phases = ['planning', 'building', 'validating', 'polishing', 'ready'];
+    const phases = ['building', 'ready'];
 
     function render(container, windowId, context) {
         dispose(windowId);
@@ -44,9 +44,9 @@
             activeJob: null,
             jobStartedAt: 0,
             elapsedTimer: null,
-            repairCount: 0,
+
             lastPhase: '',
-            validationPreviewDismissed: false,
+
             busyPoll: null,
             previewLoadTimer: null,
             previewLoadClear: null,
@@ -73,7 +73,6 @@
         bindShell(state);
         window.addEventListener('message', state.previewListener = event => handlePreviewMessage(state, event));
         context.setWindowBeforeClose?.(windowId, async () => {
-            if (!await confirmLeaveValidating(state)) return false;
             return await window.GameMakerStudioPreview.flush(state)
                 || await confirmAction(state, context.t('game_maker.save_failed_title'), context.t('game_maker.leave_unsaved'));
         });
@@ -145,7 +144,6 @@
                                 <div class="gm-job-banner-text">
                                     <strong>${esc(t('game_maker.job_banner_title'))}</strong>
                                     <span data-gm-job-phase></span>
-                                    <span data-gm-validating-hint hidden></span>
                                 </div>
                                 <span class="gm-job-elapsed" data-gm-job-elapsed></span>
                                 <button type="button" class="gm-danger" data-gm-action="stop">${esc(t('game_maker.stop'))}</button>
@@ -178,7 +176,6 @@
                                 <div><span class="gm-kicker">${esc(t('game_maker.live_preview'))}</span><h2>${esc(t('game_maker.play_here'))}</h2></div>
                                 <div class="gm-preview-tools">
                                     <button type="button" data-gm-action="scene_debug" aria-pressed="false" aria-label="${esc(t('game_maker.scene_debug'))}" title="${esc(t('game_maker.scene_debug'))}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
-                                    <button type="button" data-gm-action="visual_review" disabled>${esc(t('game_maker.visual_review'))}</button>
                                     <button type="button" data-gm-action="reload" disabled>${esc(t('game_maker.reload'))}</button>
                                     <button type="button" data-gm-action="fullscreen" disabled
                                         aria-label="${esc(t('game_maker.fullscreen'))}" title="${esc(t('game_maker.fullscreen'))}">⛶</button>
@@ -197,7 +194,7 @@
                                     <span>${esc(t('game_maker.preview_waiting_hint'))}</span>
                                 </div>
                             </div>
-                            <div class="gm-visual-strip" data-gm-visual hidden aria-live="polite"><span data-gm-visual-status></span></div>
+                            <div class="gm-visual-strip" data-gm-visual hidden aria-live="polite"><span data-gm-visual-status>${esc(t('game_maker.agent_view'))}</span></div>
                             <details class="gm-diagnostics" data-gm-diagnostics>
                                 <summary>${esc(t('game_maker.diagnostics'))} <span data-gm-diagnostic-count>0</span></summary>
                                 <ul data-gm-diagnostic-list></ul>
@@ -255,31 +252,6 @@
                 showRetryModelModal(state);
                 return;
             }
-            const applyCheck = event.target.closest('[data-gm-apply-check]');
-            if (applyCheck) {
-                const input = state.container.querySelector('[data-gm-change-form] textarea');
-                if (input && !input.disabled) {
-                    input.value = checkPrompt(state, applyCheck.dataset.gmApplyCheck || '');
-                    autoGrow(input);
-                    input.focus();
-                }
-                return;
-            }
-            const guidedBase = event.target.closest('[data-gm-guided-base]');
-            if (guidedBase) {
-                const input = state.container.querySelector('[data-gm-change-form] textarea');
-                if (input && !input.disabled) {
-                    input.value = state.context.t('game_maker.guided_base_change');
-                    autoGrow(input);
-                    input.focus();
-                }
-                return;
-            }
-            const extendButton = event.target.closest('[data-gm-extend-repairs]');
-            if (extendButton) {
-                extendRepairsAction(state, extendButton.dataset.gmExtendRepairs);
-                return;
-            }
             const stepButton = event.target.closest('[data-gm-steps] [data-gm-step]');
             if (stepButton) {
                 setStudioStep(state, stepButton.dataset.gmStep);
@@ -303,8 +275,15 @@
                 code: () => openInCodeStudio(state),
                 export: () => exportProject(state),
                 stop: () => stopJob(state),
-                visual_review: () => preview && preview.requestCapture(state),
-                reload: () => refreshLatestPreview(state, { force: true }),
+                reload: async () => {
+                    try {
+                        if (state.job && activeStatuses.has(state.job.status)) {
+                            const result = await state.api.buildJob(state.job.id);
+                            if (!result.ok) { (result.diagnostics || []).forEach(d => addDiagnostic(state, d)); return; }
+                        }
+                        return await refreshLatestPreview(state, { force: true });
+                    } catch (error) { addDiagnostic(state, { level: 'error', message: error.message }); }
+                },
                 adopt: () => adoptWorkspace(state),
                 scene_debug: () => preview && preview.setSceneDebug(state, !state.sceneDebug),
                 fullscreen: () => preview && preview.toggleFullscreen(state),
@@ -431,9 +410,6 @@
         if (!cap.allow_create) {
             return { status: 'create-disabled', messageKey: 'game_maker.create_disabled_notice' };
         }
-        if (!cap.skills_ready) {
-            return { status: 'skills-blocked', messageKey: 'game_maker.skills_blocked_notice' };
-        }
         return { status: 'ready', messageKey: '' };
     }
 
@@ -499,16 +475,15 @@
         if (!projectID || state.disposed) return;
         const requestID = state.projectRequestID = (state.projectRequestID || 0) + 1;
         const switching = state.project?.id && state.project.id !== projectID;
-        if (switching && !await confirmLeaveValidating(state)) return;
         if (state.disposed || state.projectRequestID !== requestID) return;
         if (state.project?.id !== projectID && await window.GameMakerStudioPreview?.flush(state) === false) return;
         if (state.disposed || state.projectRequestID !== requestID) return;
         if (state.project?.id !== projectID) state.lastRevisionRefreshAttempt = null;
         closeEvents(state);
         stopElapsed(state);
-        state.repairCount = 0;
+
         state.lastPhase = '';
-        state.validationPreviewDismissed = false;
+
         state.gameplayStatus = '';
         state.previewStale = false;
         if (switching) {
@@ -528,6 +503,11 @@
                 state.activity?.reset();
             }
             if (state.knowledgeClose && state.project?.id !== body.project.id) state.knowledgeClose();
+            if (state.project?.id !== body.project.id) {
+                const images = state.container.querySelector('[data-gm-visual]');
+                images?.querySelectorAll('img').forEach(image => image.remove());
+                if (images) images.hidden = true;
+            }
             state.project = body.project;
             state.messages = body.messages || [];
             if (body.plan_summary) state.planSummary = body.plan_summary;
@@ -549,7 +529,7 @@
                 };
                 state.jobStartedAt = jobStartMillis(state.job) || Date.now();
                 state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, state.activeJob.phase);
-                if ((state.activeJob.phase || state.activeJob.status) === 'validating') setStudioStep(state, 'preview');
+
             } else if (state.latestJob && terminalStatuses.has(state.latestJob.status)) {
                 state.job = state.latestJob;
             }
@@ -580,8 +560,6 @@
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit), 'game_maker.readonly_notice');
         setButton(state, 'delete', Boolean(state.capabilities.allow_delete), 'game_maker.readonly_notice');
         setButton(state, 'export', revisionReady, 'game_maker.no_revision_yet');
-        setButton(state, 'visual_review', revisionReady && !state.jobActive && !!state.capabilities.allow_edit,
-            revisionReady ? '' : 'game_maker.no_revision_yet');
         setButton(state, 'reload', revisionReady, 'game_maker.no_revision_yet');
         setButton(state, 'fullscreen', revisionReady, 'game_maker.no_revision_yet');
         setButton(state, 'open_tab', revisionReady, 'game_maker.no_revision_yet');
@@ -729,21 +707,15 @@
             renderPlanCard(state);
             break;
         case 'phase': {
-            // waiting_preview stays on the validating step: the job is parked,
-            // not finished, and needs no extra locale keys.
-            const step = payload.phase === 'waiting_preview' ? 'validating' : payload.phase;
-            if (state.lastPhase === 'validating' && payload.phase === 'building') state.repairCount += 1;
-            if (step !== 'validating') state.validationPreviewDismissed = false;
-            const showValidationPreview = step === 'validating' && state.lastPhase !== 'validating' && !state.validationPreviewDismissed;
+            const step = payload.phase;
             state.lastPhase = step;
             if (!state.job) state.job = { id: event.job_id };
-            state.job.phase = payload.phase;
-            state.job.status = payload.phase;
-            updateStatus(state, payload.phase);
+            state.job.phase = step;
+            state.job.status = step;
+            updateStatus(state, step);
             if (!state.jobStartedAt) state.jobStartedAt = jobStartMillis(state.job) || Date.now();
             state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, step);
             syncJobControls(state);
-            if (showValidationPreview) setStudioStep(state, 'preview');
             break;
         }
         case 'text_delta':
@@ -752,34 +724,18 @@
         case 'diagnostic':
             addDiagnostic(state, payload);
             break;
-        case 'validation_reset':
-            window.GameMakerStudioPreview?.cancelVisual(state);
+        case 'build_started':
+            state.buildID = payload.build_id;
             clearDiagnostics(state);
-            state.previewGrant = null;
-            state.channelID = '';
-            state.previewRequestID = (state.previewRequestID || 0) + 1;
             break;
-        case 'validation_result': {
-            const result = payload.result || {};
-            noteGameplay(state, event);
-            appendActivity(state, state.context.t('game_maker.gameplay_checks') + ': ' + state.context.t('game_maker.check_' + (result.gameplay_status || 'unavailable')));
-            appendActivity(state, state.context.t('game_maker.rules_checks') + ': ' + state.context.t('game_maker.check_' + (result.rules_status || 'unverified')));
-            for (const check of result.checks || []) {
-                if (check.status !== 'passed') addDiagnostic(state, { level: check.status === 'failed' ? 'error' : 'info', message: check.id + ': ' + check.expected + ' — ' + check.observed });
-            }
+        case 'agent_capture':
+            window.GameMakerStudioPreview?.showAgentCapture(state, payload);
             break;
-        }
-        case 'visual_progress':
-            window.GameMakerStudioPreview?.visualStatus(state,payload.status);
-            break;
-        case 'visual_result':
-            window.GameMakerStudioPreview?.showReview(state,payload);
-            appendActivity(state, state.context.t('game_maker.visual_checks') + ': ' + state.context.t('game_maker.check_' + (payload.status || 'skipped')));
-            break;
-        case 'visual_observation':
-            appendActivity(state, state.context.t('game_maker.visual_advisory') + ': ' + String(payload.message || '').slice(0, 2000));
+        case 'preview_diagnostic':
+            if (payload.build_id === state.buildID) addDiagnostic(state, { ...payload.diagnostic, build_id: payload.build_id });
             break;
         case 'preview_reload':
+            if (payload.build_id) state.buildID = payload.build_id;
             if (state.revisionMutationInProgress === state.project?.id) break;
             if (state.project?.variant === 'voxel' && payload.revision != null) {
                 refreshLatestPreview(state, { revision: payload.revision });
@@ -828,9 +784,9 @@
         const status = payload.status;
         const job = state.job;
         state.latestJob = Object.assign({}, job || {});
-        state.repairCount = 0;
+
         state.lastPhase = '';
-        state.validationPreviewDismissed = false;
+
         state.container.querySelector('[data-gm-phases]').innerHTML = phaseMarkup(state, status);
         reloadProjectRecord(state).then(() => {
             if (state.disposed || state.job !== job) return;
@@ -922,104 +878,17 @@
         const card = document.createElement('div');
         card.className = `gm-result-card is-${kind}`;
         card.setAttribute('data-gm-outcome', '');
-        const counts = checksMarkup(state, job) + repairMarkup(state, job) + usageMarkup(state, job);
+        const usage = usageMarkup(state, job);
         if (kind === 'success') {
-            const unverified = state.project && state.project.dimension === '3d' && state.project.variant !== 'voxel'
-                && job && job.gameplay_status === 'unverified';
-            const lead = unverified ? `<p data-gm-unverified>${esc(t('game_maker.gameplay_unverified'))}</p>` : '';
-            const guided = unverified
-                ? `<button type="button" data-gm-guided-base>${esc(t('game_maker.use_guided_base'))}</button>` : '';
-            card.innerHTML = `<strong>${esc(message)}</strong>${lead}${counts}
-                <button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>${guided}`;
-            return card;
+            card.innerHTML = `<strong>${esc(message)}</strong>${usage}<button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
+        } else {
+            card.setAttribute('role', 'alert');
+            card.innerHTML = `<strong>${esc(t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title'))}</strong>${usage}
+                <p>${esc(message)}</p><p>${esc(t('game_maker.draft_retained'))}</p>
+                <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>
+                <button type="button" data-gm-retry-model>${esc(t('game_maker.retry_model'))}</button>`;
         }
-        // Prefer the server code. English substring matching stays only for
-        // older jobs that have no error_code.
-        const code = job && job.error_code;
-        const cause = code || failureKind(kind, message);
-        const hint = cause ? `<p class="gm-result-hint">${esc(t('game_maker.failure_hint_' + cause))}</p>` : '';
-        const title = t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title');
-        const checks = job && Array.isArray(job.open_checks) ? job.open_checks : [];
-        const observations = checks.filter(Boolean).slice(0, 6).map(check => {
-            const detail = [check.expected, check.observed].filter(Boolean).join(' → ');
-            return detail ? String(check.id || '') + ': ' + detail : '';
-        }).filter(Boolean).join('\n');
-        const technical = [String(message || '').trim(), observations].filter(Boolean).join('\n');
-        const open = openChecksMarkup(state, job);
-        const next = job && Array.isArray(job.open_checks)
-            ? job.open_checks.map(check => String(check && check.next_action || '').trim()).find(Boolean)
-            : '';
-        const instruction = next
-            ? `<p data-gm-model-instruction>${esc(t('game_maker.model_instruction'))}: ${esc(next)}</p>`
-            : '';
-        const used = Number(job && job.repair_passes);
-        // Only a failed job that actually spent repair passes can extend them,
-        // and the shared ceiling of six passes applies here too.
-        const extend = kind === 'error' && Number.isFinite(used) && used > 0 && used < 6
-            ? `<button type="button" data-gm-extend-repairs="${Math.min(6, used + 3)}">${esc(t('game_maker.extend_repairs', { extra: 3 }))}</button>`
-            : '';
-        const retryModel = kind === 'error'
-            ? `<button type="button" data-gm-retry-model>${esc(t('game_maker.retry_model'))}</button>`
-            : '';
-        card.setAttribute('role', 'alert');
-        const details = technical && technical !== title || instruction
-            ? `<details><summary>${esc(t('game_maker.failure_details'))}</summary>${technical && technical !== title ? `<p>${esc(technical)}</p>` : ''}${instruction}</details>`
-            : '';
-        const pendingSelection = job && (job.error_code === 'planning' || job.error_code === 'planning_protocol');
-        card.innerHTML = `<strong>${esc(title)}</strong>${hint}${open}${counts}
-            ${details}
-            <p class="gm-result-hint" data-gm-retry-bindings>${esc(t(pendingSelection ? 'game_maker.retry_keeps_pending_selection' : 'game_maker.retry_keeps_bindings'))}</p>
-            <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>${retryModel}${extend}`;
         return card;
-    }
-
-    // Translated help stays on the card. The model-facing next step stays in
-    // the technical details, and the apply button only fills the change field.
-    function openChecksMarkup(state, job) {
-        const raw = job && Array.isArray(job.open_checks) ? job.open_checks : [];
-        const checks = raw.filter(check => check && String(check.id || '').trim()).slice(0, 6);
-        if (!checks.length) return '';
-        const { esc, t } = state.context;
-        const items = checks.map(check => {
-            const status = t('game_maker.check_' + (check.status === 'unavailable' ? 'unavailable' : 'failed'));
-            return `<li data-gm-open-check="${esc(check.id)}"><strong>${esc(check.id)}</strong>
-                <span>${esc(status)}</span><p>${esc(checkHelp(state, check.id))}</p>
-                <button type="button" data-gm-apply-check="${esc(check.id)}">${esc(t('game_maker.check_apply'))}</button></li>`;
-        }).join('');
-        return `<div class="gm-open-checks" data-gm-open-checks><strong>${esc(t('game_maker.open_checks_title'))}</strong>
-            <ul>${items}</ul></div>`;
-    }
-
-    function localizedCheckText(state, prefix, id) {
-        const specific = prefix + id;
-        const label = state.context.t(specific);
-        if (label && label !== specific) return label;
-        if (String(id).startsWith('role_')) {
-            const roleKey = prefix + 'role';
-            const roleLabel = state.context.t(roleKey, { id });
-            if (roleLabel && roleLabel !== roleKey) return roleLabel;
-        }
-        return state.context.t(prefix + 'generic', { id });
-    }
-
-    function checkHelp(state, id) {
-        return localizedCheckText(state, 'game_maker.check_help_', id);
-    }
-
-    function checkPrompt(state, id) {
-        return localizedCheckText(state, 'game_maker.check_prompt_', id);
-    }
-
-    function checksMarkup(state, job) {
-        if (!job || job.checks_passed == null || job.checks_failed == null) return '';
-        return `<p>${state.context.esc(state.context.t('game_maker.checks_summary', {
-            passed: job.checks_passed, failed: job.checks_failed
-        }))}</p>`;
-    }
-
-    function repairMarkup(state, job) {
-        if (!job || job.repair_passes == null || Number(job.repair_passes) <= 0) return '';
-        return `<p>${state.context.esc(state.context.t('game_maker.repair_passes', { count: job.repair_passes }))}</p>`;
     }
 
     function usageMarkup(state, job) {
@@ -1041,16 +910,6 @@
         return n.toFixed(digits).replace(/\.?0+$/, '');
     }
 
-    function failureKind(kind, message) {
-        const text = String(message || '').toLowerCase();
-        if (/time limit|timed out|timeout|deadline exceeded/.test(text)) return 'timeout';
-        if (kind === 'cancelled') return '';
-        if (/preview|browser|chrom/.test(text) && /unavailable|not available|not installed|could not start/.test(text)) return 'preview';
-        if (/validation failed/.test(text)) return 'validation';
-        if (/planning failed|accepted plan|^plan:/.test(text)) return 'planning';
-        if (/llm|provider|model|agent loop|api key|rate limit|quota/.test(text)) return 'model';
-        return 'generic';
-    }
 
     function stepBarShown(state) {
         const bar = state.container.querySelector('[data-gm-steps]');
@@ -1061,14 +920,6 @@
         if (step !== 'agent' && step !== 'preview') return false;
         const root = state.container.querySelector('.gm-studio');
         if (!root) return false;
-        const current = root.getAttribute('data-gm-step') || 'agent';
-        if (current !== step && step === 'agent' && stepBarShown(state)) {
-            if (!await confirmLeaveValidating(state)) return false;
-            if (state.disposed) return false;
-            const phase = state.job && (state.job.phase || state.job.status);
-            if (phase === 'validating') state.validationPreviewDismissed = true;
-        }
-        if (step === 'preview') state.validationPreviewDismissed = false;
         root.setAttribute('data-gm-step', step);
         state.container.querySelectorAll('[data-gm-steps] [data-gm-step]').forEach(button => {
             button.setAttribute('aria-pressed', button.dataset.gmStep === step ? 'true' : 'false');
@@ -1098,54 +949,14 @@
         });
     }
 
-    function modelLimitWarning(state, limits) {
-        if (!limits || !limits.below_minimum) return '';
-        return state.context.t('game_maker.model_limits_warning', {
-            minimum: Number(limits.minimum_context_window) || 0
-        });
-    }
 
     function applyModelLimits(state, layer, limits) {
         const line = layer.querySelector('[data-gm-model-limits]');
-        if (line) {
-            line.textContent = modelLimitText(state, limits);
-            line.hidden = !line.textContent;
-        }
-        const warning = layer.querySelector('[data-gm-model-warning]');
-        if (warning) {
-            warning.textContent = modelLimitWarning(state, limits);
-            warning.hidden = !warning.textContent;
-        }
-        const holder = layer.querySelector('[data-gm-model-state]');
-        if (holder) holder.setAttribute('data-below-minimum', limits && limits.below_minimum ? 'true' : 'false');
-        const compact = layer.querySelector('[data-gm-compact-mode]');
-        if (compact) {
-            const show = Boolean(limits && limits.small_model);
-            compact.hidden = !show;
-            compact.textContent = show
-                ? state.context.t('game_maker.compact_mode_title') + ' — ' + state.context.t('game_maker.compact_mode_body')
-                : '';
-        }
-        const optIn = layer.querySelector('[data-gm-compact-opt-in]');
-        if (optIn) {
-            const show = Boolean(limits && limits.known === false);
-            optIn.hidden = !show;
-            if (!show) {
-                const box = optIn.querySelector('[name="small_model"]');
-                if (box) box.checked = false;
-            }
-        }
+        if (line) { line.textContent = modelLimitText(state, limits); line.hidden = !line.textContent; }
     }
 
-    function compactOptIn(layer) {
-        const box = layer && layer.querySelector('[name="small_model"]');
-        const holder = box && box.closest('[data-gm-compact-opt-in]');
-        return Boolean(box && holder && !holder.hidden && box.checked);
-    }
 
-    // Debounced limit probe bound to a modal's provider/model fields. The
-    // cached result decides the confirmation and the `allow_small_model` flag;
-    // a failed probe degrades to "unknown" and never blocks the dialog.
+    // Provider limits are informational; model selection has no Studio floor.
     function bindModelLimits(state, layer, form, limitsState) {
         const provider = form.querySelector('[name="provider_id"]');
         const model = form.querySelector('[name="model"]');
@@ -1185,28 +996,12 @@
         refresh();
     }
 
-    async function confirmSmallModel(state, limits) {
-        if (!limits || !limits.below_minimum) return true;
-        return confirmAction(state, state.context.t('game_maker.small_model_title'),
-            state.context.t('game_maker.small_model_confirm', {
-                context: Number(limits.context_window) || 0,
-                minimum: Number(limits.minimum_context_window) || 0
-            }));
-    }
-
-    function smallModelFlag(limits) {
-        return Boolean(limits && limits.below_minimum);
-    }
-
-    function apiErrorCode(error) {
-        return error && error.body ? String(error.body.code || '') : '';
-    }
 
     function applyStartedJob(state, job) {
         state.jobStartedAt = jobStartMillis(job) || Date.now();
-        state.repairCount = 0;
+
         state.lastPhase = '';
-        state.validationPreviewDismissed = false;
+
         state.gameplayStatus = '';
         state.previewStale = true;
         state.activeJob = { job_id: job.id, project_id: state.project.id, status: job.status, phase: job.phase, started_at: job.started_at };
@@ -1226,7 +1021,6 @@
             const job = await state.api.startJob(state.project.id, Object.assign({
                 prompt: '',
                 resume: true,
-                validate_restored_draft: true,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: selection.asset_pack_ids,
                 model_asset_ids: selection.model_asset_ids,
@@ -1254,17 +1048,6 @@
         }
     }
 
-    async function extendRepairsAction(state, passes) {
-        if (!state.project || !passes) return;
-        const count = Math.min(6, Math.max(1, Number(passes) || 0));
-        const confirmed = await confirmAction(state, state.context.t('game_maker.extend_repairs'),
-            state.context.t('game_maker.extend_repairs_note', {
-                passes: count,
-                model: state.project.model || state.latestJob?.model || ''
-            }));
-        if (!confirmed || state.disposed) return;
-        await startResumedJob(state, { max_repair_passes: count });
-    }
 
     function showRetryModelModal(state) {
         if (!state.project || state.jobActive) return;
@@ -1288,11 +1071,8 @@
                     <label>${esc(t('game_maker.model'))}<input name="model" value="${esc(currentModel)}" required></label>
                 </div>
                 <p class="gm-field-help" data-gm-model-limits hidden></p>
-                <p class="gm-model-warning" data-gm-model-warning role="status" hidden></p>
-                <p class="gm-compact-mode" data-gm-compact-mode hidden></p>
-                <label class="gm-checkline" data-gm-compact-opt-in hidden>
-                    <input type="checkbox" name="small_model"> ${esc(t('game_maker.compact_opt_in'))}
-                </label>
+
+
                 <footer><button type="button" data-modal-close>${esc(t('game_maker.cancel'))}</button>
                     <button type="submit" class="gm-primary">${esc(t('game_maker.retry_model_start'))}</button></footer>
             </form>`, layer => {
@@ -1307,8 +1087,7 @@
                 event.preventDefault();
                 if (submitting) return;
                 submitting = true;
-                const allowed = await confirmSmallModel(state, limitsState.limits);
-                if (!allowed || state.disposed) {
+                if (state.disposed) {
                     submitting = false;
                     return;
                 }
@@ -1316,8 +1095,8 @@
                 const started = await startResumedJob(state, {
                     provider_id: String(form.elements.provider_id.value || ''),
                     model: String(form.elements.model.value || '').trim(),
-                    allow_small_model: smallModelFlag(limitsState.limits),
-                    small_model: compactOptIn(layer)
+
+
                 });
                 if (!started) submitting = false;
             });
@@ -1430,7 +1209,6 @@
             state.previewProjectID = projectID;
             state.playStateBusy = false;
             state.playStateRevisionInvalid = false;
-            clearDiagnostics(state);
             const channelID = crypto.getRandomValues(new Uint32Array(4)).join('-');
             state.channelID = channelID;
             const frame = document.createElement('iframe');
@@ -1540,8 +1318,8 @@
                     <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
                 <label>${esc(t('game_maker.project_name'))}<input name="name" maxlength="120" required autofocus></label>
                 <fieldset><legend>${esc(t('game_maker.dimension'))}</legend>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${prefer3D ? '' : 'checked'}><strong>2D</strong><span>Phaser ${esc(cap.phaser_version)}</span></label>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${prefer3D ? 'checked' : ''}><strong>3D</strong><span>Three.js ${esc(cap.three_version)}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${prefer3D ? '' : 'checked'}><strong>2D</strong><span>${esc(t('game_maker.framework_optional'))}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${prefer3D ? 'checked' : ''}><strong>3D</strong><span>${esc(t('game_maker.framework_optional'))}</span></label>
                     <label class="gm-dimension-card"><input type="radio" name="dimension" value="voxel"><strong>${esc(t('game_maker.voxel'))}</strong><span>${esc(t('game_maker.voxel_description'))}</span></label>
                 </fieldset>
                 <label>${esc(t('game_maker.description'))}<textarea name="description" rows="5" maxlength="12000" required
@@ -1555,11 +1333,8 @@
                     <label>${esc(t('game_maker.model'))}<input name="model" value="${esc(cap.default_model || '')}" required></label>
                 </div>
                 <p class="gm-field-help" data-gm-model-limits hidden></p>
-                <p class="gm-model-warning" data-gm-model-warning role="status" hidden></p>
-                <p class="gm-compact-mode" data-gm-compact-mode hidden></p>
-                <label class="gm-checkline" data-gm-compact-opt-in hidden>
-                    <input type="checkbox" name="small_model"> ${esc(t('game_maker.compact_opt_in'))}
-                </label>
+
+
                 <div class="gm-media-options">
                     ${mediaToggle(state, 'use_image_generation', 'image_generation', 'image_assets')}
                     ${mediaToggle(state, 'use_music_generation', 'music_generation', 'music_assets')}
@@ -1611,13 +1386,6 @@
                     use_image_generation: data.get('use_image_generation') === 'on',
                     use_music_generation: data.get('use_music_generation') === 'on'
                 };
-                // A known route below the Studio floor starts only after an
-                // explicit confirmation; the server enforces the same rule.
-                const allowSmallModel = smallModelFlag(limitsState.limits);
-                if (!await confirmSmallModel(state, limitsState.limits)) {
-                    creating = false;
-                    return;
-                }
                 setModalBusy(layer, true);
                 let createdProject = null;
                 try {
@@ -1639,8 +1407,8 @@
                         model: request.model,
                         image_generation: request.use_image_generation,
                         music_generation: request.use_music_generation,
-                        allow_small_model: allowSmallModel,
-                        small_model: compactOptIn(layer)
+
+
                     });
                     closeModal(state);
                     state.projects.unshift(createdProject);
@@ -1658,9 +1426,7 @@
                         fail(state, error);
                     } else {
                         setModalBusy(layer, false);
-                        modalError(layer, apiErrorCode(error) === 'model_context_too_small'
-                            ? t('game_maker.small_model_blocked')
-                            : (error.message || String(error)));
+                        modalError(layer, error.message || String(error));
                     }
                 }
             });
@@ -1697,7 +1463,6 @@
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 resume,
-                validate_restored_draft: resume,
                 preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
                 asset_pack_ids: selection.asset_pack_ids,
                 model_asset_ids: selection.model_asset_ids,
@@ -1795,11 +1560,6 @@
         link.click();
     }
 
-    async function confirmLeaveValidating(state) {
-        const phase = state.job && (state.job.phase || state.job.status);
-        if (phase !== 'validating') return true;
-        return confirmAction(state, state.context.t('game_maker.leave_validating_title'), state.context.t('game_maker.leave_validating'));
-    }
 
     function driftCount(drift) {
         if (!drift || !Array.isArray(drift.changed) || !Array.isArray(drift.added) || !Array.isArray(drift.removed)) return 0;
@@ -1856,9 +1616,9 @@
             syncJobControls(state);
             state.job = await state.api.startJob(state.project.id, { adopt_workspace: true });
             state.jobStartedAt = jobStartMillis(state.job) || Date.now();
-            state.repairCount = 0;
+
             state.lastPhase = '';
-            state.validationPreviewDismissed = false;
+
             state.gameplayStatus = '';
             state.previewStale = true;
             state.activeJob = { job_id: state.job.id, project_id: state.project.id, status: state.job.status, phase: state.job.phase, started_at: state.job.started_at };
@@ -1966,16 +1726,7 @@
         const phase = (state.job && (state.job.phase || state.job.status)) || '';
         const labelPhase = phase === 'waiting_preview' ? 'validating' : phase;
         let label = state.context.t('game_maker.phase_' + labelPhase);
-        if (state.repairCount > 0 && phase === 'building') {
-            label = state.context.t('game_maker.repair_attempt', { n: state.repairCount });
-        }
         banner.querySelector('[data-gm-job-phase]').textContent = label;
-        const validating = banner.querySelector('[data-gm-validating-hint]');
-        if (validating) {
-            const needsPreview = phase === 'validating' || phase === 'waiting_preview';
-            validating.hidden = !needsPreview;
-            if (needsPreview) validating.textContent = state.context.t('game_maker.validating_preview_hint');
-        }
         const cancelling = Boolean(state.job && state.job.status === 'cancelling');
         state.container.querySelectorAll('[data-gm-action="stop"]').forEach(stop => {
             stop.disabled = cancelling;

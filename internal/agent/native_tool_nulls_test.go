@@ -172,28 +172,26 @@ func TestStrictCheatsheetNullTagsKeepAndEmptyTagsClear(t *testing.T) {
 	}
 }
 
-func TestStrictGameMakerSettingsNullRetained(t *testing.T) {
-	definitions := GameMakerPhaseToolSchemas("planning", "3d")
+func TestStrictGameMakerPreviewOmitsSyntheticNulls(t *testing.T) {
+	definitions := GameMakerPhaseToolSchemas("building", "3d")
 	dc := &DispatchContext{Cfg: &config.Config{}, SessionID: t.Name()}
 	SetDiscoverToolsState(dc.SessionID, definitions, definitions, "")
 	t.Cleanup(func() { ClearDiscoverToolsState(dc.SessionID) })
 	for _, wrapped := range []bool{false, true} {
-		args := `{"operation":"set_design","design":{"settings":null,"presentation":null}}`
-		name := "game_maker_project"
+		args := `{"operation":"input","actions":[{"type":"key_press","key":"Space","x":null,"y":null,"button":null,"milliseconds":null}]}`
+		name := "game_maker_preview"
 		if wrapped {
 			raw, _ := json.Marshal(map[string]interface{}{"tool_name": name, "arguments": args})
 			name, args = "invoke_tool", string(raw)
 		}
 		tc := prepareToolCall(NativeToolCallToToolCall(openai.ToolCall{Function: openai.FunctionCall{Name: name, Arguments: args}}, nil), dc)
-		design, ok := tc.Params["design"].(map[string]interface{})
-		if !ok || tc.PreparationError != "" {
+		actions, ok := tc.Params["actions"].([]interface{})
+		if !ok || len(actions) != 1 || tc.PreparationError != "" {
 			t.Fatalf("%+v", tc)
 		}
-		if settings, exists := design["settings"]; !exists || settings != nil {
-			t.Fatal("settings:null lost its clearing semantics")
-		}
-		if _, exists := design["presentation"]; exists {
-			t.Fatal("synthetic presentation null survived")
+		action, ok := actions[0].(map[string]interface{})
+		if !ok || len(action) != 2 || action["type"] != "key_press" || action["key"] != "Space" {
+			t.Fatalf("synthetic input nulls survived: %+v", actions)
 		}
 	}
 }

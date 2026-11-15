@@ -24,6 +24,13 @@ func voxelFixture(t *testing.T, s *Service) (Project, string, *VoxelDefinition) 
 	if err := WriteScaffold(dir, p); err != nil {
 		t.Fatal(err)
 	}
+	if err := installRuntime(dir, p.Dimension, p.Variant); err != nil {
+		t.Fatal(err)
+	}
+	manifest, _ := json.Marshal(gameManifest{Name: p.Name, Dimension: p.Dimension, Variant: p.Variant, Engine: "three", Entry: "index.html"})
+	if err := os.WriteFile(filepath.Join(dir, "game.json"), manifest, 0600); err != nil {
+		t.Fatal(err)
+	}
 	plan := ExampleGamePlan(p)
 	if err := s.checkPlan(p, plan); err != nil {
 		t.Fatal(err)
@@ -81,8 +88,8 @@ func TestVoxelDefinitionAndBuild(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "src", "main.ts"), []byte(`console.log("voxel name only");`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if buildDirectory(context.Background(), dir, 100, 32<<20).OK {
-		t.Fatal("disconnected voxel definition accepted as implementation")
+	if !buildDirectory(context.Background(), dir, 100, 32<<20).OK {
+		t.Fatal("optional voxel definition constrained authored source")
 	}
 	if node, err := exec.LookPath("node"); err == nil {
 		definition := filepath.Join(t.TempDir(), "voxel.json")

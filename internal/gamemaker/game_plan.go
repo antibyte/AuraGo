@@ -1,15 +1,12 @@
 package gamemaker
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -87,21 +84,6 @@ func templateNames() []string {
 	return []string{"shooter", "platformer", "topdown", "blocks", "board", "minimal", "three", "fps", "exploration", "transport", "flight", "space", "voxel"}
 }
 
-// PlanningComplete ends the internal agent round; the orchestrator alone decides
-// whether the accepted plan advances to building or exhausted corrections fail.
-func (s *Service) PlanningComplete(jobID string) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	if s.activeJobID != jobID {
-		return false
-	}
-	if s.acceptedPlans[jobID] {
-		return true
-	}
-	budget := s.planBudgets[jobID]
-	return budget != nil && budget.charged >= planChargedLimit
-}
-
 func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) {
 	stage, err := s.JobDirectory(jobID)
 	if err != nil {
@@ -126,252 +108,6 @@ func (s *Service) GetPlan(ctx context.Context, jobID string) (*GamePlan, error) 
 		return nil, fmt.Errorf("decode game plan: %w", err)
 	}
 	return &plan, nil
-}
-
-// acceptPublishedPlan installs the plan already stored with this revision.
-// Structural checks still run. A preserve list is required only when a model
-// proposes an edit, so the plan from the first publication stays acceptable.
-func (s *Service) acceptPublishedPlan(ctx context.Context, jobID string) (*GamePlan, error) {
-	project, job, err := s.ProjectForJob(ctx, jobID)
-	if err != nil {
-		return nil, err
-	}
-	if job.Phase != "planning" {
-		return nil, fmt.Errorf("plan is locked during %s; follow the accepted plan", job.Phase)
-	}
-	plan, err := s.GetPlan(ctx, jobID)
-	if err != nil {
-		return nil, err
-	}
-	if plan == nil {
-		return nil, fmt.Errorf("stored game plan is missing")
-	}
-	published := project
-	published.CurrentRevision = 0
-	if err := s.checkPlan(published, *plan); err != nil {
-		return nil, err
-	}
-	if err := s.validatePlanSelections(jobID, *plan, false); err != nil {
-		return nil, err
-	}
-	s.mu.Lock()
-	s.acceptedPlans[jobID] = true
-	s.mu.Unlock()
-	return plan, nil
-}
-
-func (s *Service) SetPlan(ctx context.Context, jobID string, plan GamePlan) error {
-	data, err := json.Marshal(plan)
-	if err != nil {
-		return fmt.Errorf("encode game plan: %w", err)
-	}
-	return s.SetPlanJSON(ctx, jobID, data)
-}
-
-// SetPlanJSON accepts an object or its single JSON-string transport wrapper and
-// validates model input before unknown fields can be discarded.
-// Syntax and schema failures consume the same bounded corrections as rule errors.
-func (s *Service) SetPlanJSON(ctx context.Context, jobID string, data []byte) error {
-	return s.setPlanJSON(ctx, jobID, data, false, false)
-}
-
-func (s *Service) SetDesignJSON(ctx context.Context, jobID string, data []byte) error {
-	return s.setPlanJSON(ctx, jobID, data, true, false)
-}
-
-// PreviewDesignJSON validates a compact design without consuming a correction or
-// writing .aurago/game-plan.json. The canonical plan is available through
-// DesignPreview until the next preview or the job ends.
-func (s *Service) PreviewDesignJSON(ctx context.Context, jobID string, data []byte) error {
-	return s.setPlanJSON(ctx, jobID, data, true, true)
-}
-
-// DesignPreview returns the canonical plan produced by the last dry run.
-func (s *Service) DesignPreview(jobID string) []byte {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return append([]byte(nil), s.designPreviews[jobID]...)
-}
-
-// TakeDesignWarnings returns and clears the deterministic repair notes of the
-// last planning submission so the model can see what the server normalized.
-func (s *Service) TakeDesignWarnings(jobID string) []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	warnings := s.designWarnings[jobID]
-	delete(s.designWarnings, jobID)
-	return warnings
-}
-
-func (s *Service) setPlanJSON(ctx context.Context, jobID string, data []byte, compact, dryRun bool) (err error) {
-	s.policyMu.RLock()
-	defer s.policyMu.RUnlock()
-	if !s.policy.Enabled {
-		return ErrDisabled
-	}
-	if s.policy.ReadOnly || !s.policy.AllowEdit {
-		return ErrReadOnly
-	}
-	project, job, err := s.ProjectForJob(ctx, jobID)
-	if err != nil {
-		return err
-	}
-	if job.Phase != "planning" {
-		return fmt.Errorf("plan is locked during %s; follow the accepted plan", job.Phase)
-	}
-	if dryRun {
-		if err := s.takeDesignPreview(jobID); err != nil {
-			return err
-		}
-	} else {
-		if s.planBudgetExhausted(jobID) {
-			return fmt.Errorf("plan correction limit reached (initial plan plus two charged corrections)")
-		}
-		if err := s.takePlanSubmission(jobID); err != nil {
-			return err
-		}
-	}
-	// Preserve the actual field error across fresh planning rounds. A subsequent
-	// correction-limit rejection must not replace it with a generic message.
-	defer func() {
-		if dryRun {
-			return
-		}
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if err == nil {
-			delete(s.planErrors, jobID)
-			return
-		}
-		// Every failed submission is charged unless it reduced the independent
-		// issue count. Legacy full plans keep the same charged budget.
-		s.chargePlanAttemptLocked(jobID, designIssueCount(err))
-		if compact {
-			var detail *DesignValidationError
-			if errors.As(err, &detail) {
-				detail.RemainingAttempts = s.remainingPlanAttemptsLocked(jobID)
-			} else {
-				err = &DesignValidationError{Issues: []DesignIssue{{Path: "design", Code: "invalid", Message: err.Error()}}, RemainingAttempts: s.remainingPlanAttemptsLocked(jobID)}
-			}
-		}
-		s.planErrors[jobID] = err
-	}()
-	if len(data) > 32768 || int64(len(data)) > s.opts.MaxFileBytes {
-		return fmt.Errorf("game plan exceeds allowed size")
-	}
-	// Some tool transports leave the advertised JSON string intact, including
-	// malformed inner JSON. Decode it here so every caller gets the real error.
-	data = bytes.TrimSpace(data)
-	if bytes.HasPrefix(data, []byte(`"`)) {
-		var encoded string
-		if err := json.Unmarshal(data, &encoded); err != nil {
-			return fmt.Errorf("plan: invalid JSON string: %w", err)
-		}
-		data = bytes.TrimSpace([]byte(encoded))
-	}
-	if !bytes.HasPrefix(data, []byte("{")) {
-		return fmt.Errorf("plan: submit one JSON object, optionally JSON-encoded once as a string; no Markdown or extra encoding")
-	}
-	if compact {
-		data, err = s.expandDesign(ctx, jobID, project, data)
-		if err != nil {
-			return err
-		}
-	}
-	var plan GamePlan
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&plan); err != nil {
-		var syntaxErr *json.SyntaxError
-		if errors.As(err, &syntaxErr) {
-			return fmt.Errorf("plan: invalid JSON at byte %d: %w. Fix the syntax in the plan value and resubmit the complete plan", syntaxErr.Offset, err)
-		}
-		if errors.Is(err, io.ErrUnexpectedEOF) {
-			return fmt.Errorf("plan: incomplete JSON object. Close all strings, arrays and objects and resubmit the complete plan")
-		}
-		hint := "Use the exact fields in inspect.plan_example."
-		switch err.Error() {
-		case `json: unknown field "pack_ids"`, `json: unknown field "asset_ids"`:
-			hint = "Each assets entry accepts one pack_id and one asset_id (or assembly_id). Split variants into separate entries with unique roles; do not use pack_ids/asset_ids."
-		case `json: unknown field "view"`:
-			hint = "Asset view is read-only catalog metadata. Set the scene's plan.perspective to match it; do not add view to plan assets."
-		}
-		return fmt.Errorf("plan: %w. %s", err, hint)
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		return fmt.Errorf("plan: submit exactly one JSON object")
-	}
-	if err := normalizePlanBindings(&plan); err != nil {
-		return err
-	}
-	data, err = json.MarshalIndent(plan, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode game plan: %w", err)
-	}
-	if len(data) > 32768 || int64(len(data)) > s.opts.MaxFileBytes {
-		return fmt.Errorf("game plan exceeds allowed size")
-	}
-	if err := s.checkPlan(project, plan); err != nil {
-		return err
-	}
-	if err := s.validatePlanSelections(jobID, plan, compact); err != nil {
-		return err
-	}
-	if dryRun {
-		s.mu.Lock()
-		if s.designPreviews == nil {
-			s.designPreviews = map[string][]byte{}
-		}
-		s.designPreviews[jobID] = append([]byte(nil), data...)
-		s.mu.Unlock()
-		return nil
-	}
-	stage, err := s.JobDirectory(jobID)
-	if err != nil {
-		return err
-	}
-	path, _, err := secureJoin(stage, gamePlanPath, true)
-	if err != nil {
-		return err
-	}
-	oldBytes := int64(0)
-	extraFiles := 1
-	if info, err := os.Stat(path); err == nil {
-		oldBytes = info.Size()
-		extraFiles = 0
-	}
-	if err := validateTreeLimits(stage, s.opts.MaxFilesPerProject-extraFiles, s.opts.MaxProjectBytes-int64(len(data)+1)+oldBytes); err != nil {
-		return fmt.Errorf("plan exceeds project limits: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("create plan directory: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".plan-*")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	_, writeErr := tmp.Write(append(data, '\n'))
-	if writeErr == nil {
-		writeErr = tmp.Sync()
-	}
-	closeErr := tmp.Close()
-	if writeErr != nil {
-		return fmt.Errorf("write plan: %w", writeErr)
-	}
-	if closeErr != nil {
-		return closeErr
-	}
-	if err := os.Rename(name, path); err != nil {
-		return fmt.Errorf("publish plan: %w", err)
-	}
-	s.mu.Lock()
-	s.acceptedPlans[jobID] = true
-	delete(s.planBudgets, jobID)
-	delete(s.planErrors, jobID)
-	s.mu.Unlock()
-	return nil
 }
 
 func (s *Service) checkPlan(project Project, p GamePlan) error {
@@ -445,7 +181,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 	}
 	for key, value := range map[string]string{"objective": p.Objective, "core_loop": p.CoreLoop, "camera": p.Camera, "fallback": p.Fallback} {
 		if strings.TrimSpace(value) == "" || len(value) > 2000 {
-			return bad(key, "provide 1–2000 characters")
+			return bad(key, "provide 1-2000 characters")
 		}
 	}
 	if !slices.Contains([]string{"side", "top", "board", "3d", "isometric"}, p.Perspective) {
@@ -461,10 +197,10 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		return bad("perspective", "must match the project dimension")
 	}
 	if p.Width < 320 || p.Width > 1920 || p.Height < 240 || p.Height > 1080 {
-		return bad("resolution", "width 320–1920 and height 240–1080 required; default 960×540")
+		return bad("resolution", "width 320-1920 and height 240-1080 required; default 960x540")
 	}
 	if len(p.Scope) == 0 || len(p.Scope) > 12 {
-		return bad("scope", "list 1–12 concrete features")
+		return bad("scope", "list 1-12 concrete features")
 	}
 	if err := validateStages(p.Stages); err != nil {
 		return bad("stages", err.Error())
@@ -503,7 +239,7 @@ func (s *Service) checkPlan(project Project, p GamePlan) error {
 		maxAssets = 64
 	}
 	if len(p.Assets) < 1 || len(p.Assets) > maxAssets || len(p.Assumptions) > 12 {
-		return bad("assets", fmt.Sprintf("map 1–%d visual roles, including procedural graphics; limit assumptions to 12", maxAssets))
+		return bad("assets", fmt.Sprintf("map 1-%d visual roles, including procedural graphics; limit assumptions to 12", maxAssets))
 	}
 	roles := map[string]bool{}
 	var assetErrors []error
@@ -696,11 +432,10 @@ func validOrigin(p Point) bool {
 // CheckJobMutation is shared by code writes, imports and media dispatch. Internal
 // preselected imports use importAssetPack directly before the planner starts.
 func (s *Service) CheckJobMutation(ctx context.Context, jobID string) error {
-	if _, err := s.JobDirectory(jobID); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	_, job, err := s.ProjectForJob(ctx, jobID)
-	if err != nil {
+	if _, err := s.JobDirectory(jobID); err != nil {
 		return err
 	}
 	s.policyMu.RLock()
@@ -712,15 +447,8 @@ func (s *Service) CheckJobMutation(ctx context.Context, jobID string) error {
 	if policy.ReadOnly || !policy.AllowEdit {
 		return ErrReadOnly
 	}
-	s.mu.RLock()
-	accepted := s.acceptedPlans[jobID]
-	exhausted := s.validationFailures[jobID] >= s.repairLimitLocked(jobID)+1
-	s.mu.RUnlock()
-	if exhausted {
-		return ErrRepairLimit
-	}
-	if job.Phase == "planning" || !accepted {
-		return fmt.Errorf("planning_required: submit a valid plan with game_maker_project set_plan before writing code or generating/importing assets")
+	if s.JobFinished(jobID) {
+		return fmt.Errorf("job already finished")
 	}
 	return nil
 }

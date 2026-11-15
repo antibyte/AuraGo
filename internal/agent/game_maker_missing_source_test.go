@@ -62,9 +62,6 @@ func TestGameMakerMissingSourceReadNamesExistingFilesOnlyForBoundJobs(t *testing
 	}
 	answers := map[string]string{}
 	s.SetRunner(gameMakerPlanTestRunner(func(ctx context.Context, run gamemaker.JobRun) error {
-		if run.Stage == "planning" {
-			return s.SetPlan(ctx, run.Job.ID, gamemaker.ExampleGamePlan(project))
-		}
 		if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "src/zz-helpers.ts", "export const helper = 1;", ""); err != nil {
 			return err
 		}
@@ -92,7 +89,7 @@ func TestGameMakerMissingSourceReadNamesExistingFilesOnlyForBoundJobs(t *testing
 	}
 	for _, name := range []string{"bound", "search"} {
 		if !strings.Contains(answers[name], "list_files") || !strings.Contains(answers[name], "existing src files: ") ||
-			!strings.Contains(answers[name], "src/main.ts") || !strings.Contains(answers[name], "src/zz-helpers.ts") {
+			!strings.Contains(answers[name], "src/zz-helpers.ts") {
 			t.Errorf("%s missing-file answer does not name the existing sources: %q", name, answers[name])
 		}
 	}

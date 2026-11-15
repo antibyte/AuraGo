@@ -45,7 +45,7 @@ func decodeBuildSourceMap(root string, data []byte) (*buildSourceMap, error) {
 	result := &buildSourceMap{root: root, sources: raw.Sources, contents: raw.SourcesContent}
 	for i, source := range raw.Sources {
 		rel := filepath.ToSlash(filepath.Clean(filepath.Join("dist", filepath.FromSlash(source))))
-		if safe, err := safeRelativePath(rel, false); err == nil && strings.HasPrefix(safe, "src/") {
+		if safe, err := safeRelativePath(rel, false); err == nil {
 			result.sources[i] = safe
 		} else {
 			result.sources[i] = ""

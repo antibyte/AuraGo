@@ -68,15 +68,12 @@ func TestPhaserReferenceListsExactlyTheRegisteredKeys(t *testing.T) {
 	}
 }
 
-func TestRuntimeContextCarriesReferenceForInstalledHelper(t *testing.T) {
+func TestFrameworkReferenceWorksWithoutPlan(t *testing.T) {
 	service := newTestService(t)
 	project := createTestProject(t, service, "2d")
 	var runtime map[string]any
 	service.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage == "planning" {
-			return service.SetDesignJSON(ctx, run.Job.ID, []byte(`{"base":"platformer","objective":"Reach the flag","features":["Jump between ledges"]}`))
-		}
-		runtime = service.RuntimeContext(ctx, run.Job.ID)
+		runtime = service.FrameworkReference(ctx, run.Job.ID, "phaser")
 		return errors.New("context captured")
 	}))
 	job, err := service.StartJob(context.Background(), project.ID, StartJobRequest{})
@@ -85,7 +82,7 @@ func TestRuntimeContextCarriesReferenceForInstalledHelper(t *testing.T) {
 	}
 	waitJob(t, service, job.ID)
 	reference, _ := runtime["api_reference"].(string)
-	if runtime["version"] != "phaser-2" || !strings.Contains(reference, "class Main extends GameScene") {
-		t.Fatalf("runtime context lacks the phaser-2 reference: version=%v", runtime["version"])
+	if runtime["bundled_helper_version"] != "phaser-2" || !strings.Contains(reference, "class Main extends GameScene") {
+		t.Fatalf("runtime context lacks the phaser-2 reference: version=%v", runtime["bundled_helper_version"])
 	}
 }

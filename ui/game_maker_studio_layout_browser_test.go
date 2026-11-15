@@ -137,7 +137,7 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.job={id:'job',status:'building',phase:'building'};s.jobStartedAt=Date.now()-75000;s.activeJob={job_id:'job',project_id:'forest',status:'building',phase:'building'};}`)
 	send(1, "phase", map[string]any{"phase": "building"})
 	send(2, "file_changed", map[string]any{"path": "src/main.ts"})
-	send(3, "tool_call", map[string]any{"attempted": true, "tool": "game_maker_validate"})
+	send(3, "tool_call", map[string]any{"attempted": true, "tool": "game_maker_preview"})
 	page.MustWait(`()=>!document.querySelector('[data-gm-job-banner]').hidden&&!document.querySelector('[data-gm-job-feed]').hidden&&document.querySelector('[data-gm-job-feed-lines]').textContent.includes('src/main.ts')`)
 	layout("running")
 	check("running: stop stays reachable and the form is locked", `()=>{const stop=document.querySelector('[data-gm-action="stop"]').getBoundingClientRect();return stop.width>30&&stop.right<=innerWidth&&document.querySelector('[data-gm-change-form] textarea').disabled}`)
@@ -146,27 +146,20 @@ func TestGameMakerStudioLayoutBrowser(t *testing.T) {
 	page.MustEval(`()=>{const notice=document.querySelector('[data-gm-capability-notice]');notice.hidden=false;notice.querySelector('[data-gm-capability-title]').textContent='Fixture notice'}`)
 	check("running: an additional notice does not displace the conversation", `()=>{const pane=document.querySelector('.gm-agent-pane').getBoundingClientRect(),phases=document.querySelector('[data-gm-phases]').getBoundingClientRect(),log=document.querySelector('[data-gm-conversation]').getBoundingClientRect(),form=document.querySelector('[data-gm-change-form]').getBoundingClientRect();return phases.height<90&&log.height>pane.height/3&&Math.abs(form.bottom-pane.bottom)<2&&Math.abs(log.bottom-form.top)<2}`)
 	page.MustEval(`()=>{document.querySelector('[data-gm-capability-notice]').hidden=true}`)
-	send(35, "phase", map[string]any{"phase": "validating"})
-	page.MustWait(`()=>{const hint=document.querySelector('[data-gm-validating-hint]');return hint&&!hint.hidden&&hint.textContent===fixtureLang['game_maker.validating_preview_hint']}`)
-
-	send(4, "validation_result", map[string]any{"result": map[string]any{"gameplay_status": "unavailable", "rules_status": "unverified", "repairable": true, "checks": []map[string]any{{"id": "required_rules", "status": "unavailable", "repairable": true, "expected": "pickup_events increased", "observed": "before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"}}}})
-	send(5, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)", "usage": map[string]any{"calls": 2, "tokens": 110}})
+	send(5, "job_status", map[string]any{"status": "failed", "error": "build failed: src/main.ts:12: Unexpected end of file", "usage": map[string]any{"calls": 2, "tokens": 110}})
 	page.MustWait(`()=>!!document.querySelector('.gm-result-card.is-error')`)
 	layout("failed")
 	check("failed: the result card offers a retry inside the conversation", `()=>{const card=document.querySelector('.gm-result-card.is-error'),log=document.querySelector('[data-gm-conversation]').getBoundingClientRect(),r=card.getBoundingClientRect();return !!card.querySelector('[data-gm-retry]')&&r.left>=log.left-1&&r.right<=log.right+1}`)
 	check("failed: long technical errors wrap instead of overflowing", `()=>{const card=document.querySelector('.gm-result-card.is-error');return card.scrollWidth<=card.clientWidth+1}`)
-	check("failed: the card explains the failure and keeps the report one click away", `()=>{const card=document.querySelector('.gm-result-card.is-error'),details=card.querySelector('details');return card.querySelector('.gm-result-hint').textContent===fixtureLang['game_maker.failure_hint_validation']&&!details.open&&details.querySelector('summary').textContent===fixtureLang['game_maker.failure_details']&&details.querySelector('p').textContent.includes('required_rules: expected pickup_events increased')}`)
+	check("failed: the error and retained draft are visible", `()=>{const card=document.querySelector(".gm-result-card.is-error");return card.textContent.includes("src/main.ts:12")&&card.textContent.includes(fixtureLang["game_maker.draft_retained"])}`)
 	check("failed: the card shows measured calls and tokens and an unknown price", `()=>{const line=document.querySelector('.gm-result-card.is-error .gm-result-usage');const tokens=fixtureLang['game_maker.usage_tokens'].replaceAll('{{count}}','110');const expected=fixtureLang['game_maker.usage_line'].replaceAll('{{calls}}','2').replaceAll('{{tokens}}',tokens).replaceAll('{{cost}}',fixtureLang['game_maker.usage_cost_unknown']);return !!line&&line.textContent===expected&&line.scrollWidth<=line.clientWidth+1}`)
 	snapshot("studio-03-failed")
-	page.MustElement(`.gm-result-card.is-error summary`).MustClick()
-	check("failed: the opened report stays inside the conversation", `()=>{const card=document.querySelector('.gm-result-card.is-error'),report=card.querySelector('details p').getBoundingClientRect(),box=card.getBoundingClientRect();return card.querySelector('details').open&&report.height>10&&report.right<=box.right+1&&card.scrollWidth<=card.clientWidth+1}`)
-	snapshot("studio-03b-failed-details")
 	page.MustEval(`()=>{window.fixtureDrift={revision:3,changed:['src/main.ts'],added:[],removed:[],changed_count:1,added_count:0,removed_count:0,truncated:false}}`)
-	send(40, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"})
+	send(40, "job_status", map[string]any{"status": "failed", "error": "build failed: src/main.ts:12: Unexpected end of file"})
 	page.MustWait(`()=>{const badge=document.querySelector('[data-gm-drift]');const adopt=badge&&badge.querySelector('[data-gm-action="adopt"]');return badge&&!badge.hidden&&adopt&&!adopt.hidden}`)
 	check("drift: the badge stays inside the preview", `()=>{const shell=document.querySelector('.gm-preview-shell').getBoundingClientRect(),badge=document.querySelector('[data-gm-drift]').getBoundingClientRect(),studio=document.querySelector('.gm-studio');return badge.width>20&&badge.left>=shell.left-1&&badge.right<=shell.right+1&&studio.scrollWidth<=studio.clientWidth+1}`)
 	page.MustEval(`()=>{window.fixtureDrift={revision:3,changed:[],added:[],removed:[],changed_count:0,added_count:0,removed_count:0,truncated:false}}`)
-	send(41, "job_status", map[string]any{"status": "failed", "error": "game validation failed: required_rules: expected pickup_events increased; observed before=0, after=0; target=item no_target (inputs=0, contacts=0, effects=0)"})
+	send(41, "job_status", map[string]any{"status": "failed", "error": "build failed: src/main.ts:12: Unexpected end of file"})
 	page.MustWait(`()=>document.querySelector('[data-gm-drift]').hidden&&document.querySelector('[data-gm-drift-hint]').hidden`)
 
 	page.MustElement(`[data-gm-action="new"]`).MustClick()
@@ -225,27 +218,16 @@ return m.top>=s.top-1&&m.bottom<=s.bottom+1&&m.left>=s.left-1&&m.right<=s.right+
 		await new Promise(r=>setTimeout(r,40));
 		if (studio.getAttribute('data-gm-step')!=='preview' || !preview.offsetParent || agent.offsetParent) fail('preview step did not replace the agent');
 		if (studio.scrollWidth>studio.clientWidth+1) fail('preview step overflows');
-		state.job=Object.assign({}, state.job||{}, {id:'job', phase:'validating', status:'validating'});
-		const saved=state.context.confirmDialog;
-		let asks=0;
-		state.context.confirmDialog=async()=>{asks++; return false};
-		agentBtn.click();
-		await new Promise(r=>setTimeout(r,40));
-		if (asks!==1 || studio.getAttribute('data-gm-step')!=='preview' || !preview.offsetParent) fail('a declined check left the preview');
-		state.context.confirmDialog=async()=>{asks++; return true};
-		agentBtn.click();
-		await new Promise(r=>setTimeout(r,40));
-		if (asks!==2 || studio.getAttribute('data-gm-step')!=='agent' || preview.offsetParent) fail('confirming the check did not return to the agent');
-		state.context.confirmDialog=saved;
-		state.lastPhase='building';
-		state.validationPreviewDismissed=true;
+        state.job=Object.assign({}, state.job||{}, {id:'job', phase:'building', status:'building'});
+        const saved=state.context.confirmDialog;
+        let asks=0;
+        state.context.confirmDialog=async()=>{asks++; return false};
+        agentBtn.click();
+        await new Promise(r=>setTimeout(r,40));
+        if (asks!==0 || studio.getAttribute('data-gm-step')!=='agent' || preview.offsetParent) fail('agent tab depends on preview permission');
+        state.context.confirmDialog=saved;
 		return true;
 	}`)
-	send(42, "phase", map[string]any{"phase": "validating"})
-	page.MustWait(`()=>{const s=GameMakerStudioApp.instances.get('fixture');return s.lastPhase==='validating'&&document.querySelector('.gm-studio').getAttribute('data-gm-step')==='agent'}`)
-	page.MustEval(`()=>{const s=GameMakerStudioApp.instances.get('fixture');s.validationPreviewDismissed=false;s.lastPhase='building'}`)
-	send(43, "phase", map[string]any{"phase": "validating"})
-	page.MustWait(`()=>document.querySelector('.gm-studio').getAttribute('data-gm-step')==='preview'&&!!document.querySelector('.gm-preview-pane').offsetParent`)
 	page.MustEval(`()=>{
 		const s=GameMakerStudioApp.instances.get('fixture');
 		s.validationPreviewDismissed=false;

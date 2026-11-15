@@ -1821,6 +1821,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.BeforeContext != nil {
+			if err := runCfg.ExecutionHooks.BeforeContext(ctx, &req); err != nil {
+				return openai.ChatCompletionResponse{}, err
+			}
+		}
+
 		// Repair tool-call integrity before trimming so conversation groups are
 		// formed from the exact request that can be sent to the provider.
 		anchorOccurrence := genuineUserOccurrence(req.Messages, currentUserIndex)

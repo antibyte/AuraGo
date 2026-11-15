@@ -41,14 +41,6 @@ func prepareModelReference(t *testing.T, mode, destination string) {
 		if run.Stage == "visual" {
 			return nil
 		}
-		if run.Stage == "planning" {
-			plan := ExampleGamePlan(run.Project)
-			plan.Assets = nil
-			for _, id := range ids {
-				plan.Assets = append(plan.Assets, PlanAsset{Role: id, PackID: ModelPackID, Version: "1.0.0", AssetID: id, Scale: 1, Collider: "catalog"})
-			}
-			return s.SetPlan(ctx, run.Job.ID, plan)
-		}
 		pack, err := s.ImportAssetPack(ctx, run.Job.ID, ModelPackID, ids...)
 		if err != nil {
 			return err

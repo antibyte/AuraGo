@@ -114,7 +114,7 @@ func diffRevisionPaths(current, parent map[string]string) ([]string, int, bool) 
 // Keep the admission check and filesystem commit under the same file, policy,
 // and build locks. Preserve that order to match policy-guarded asset imports,
 // which acquire the build lock while holding the policy read lock.
-// Cancellation, a new build or late diagnostics revoke publication.
+// Cancellation or a new build revokes publication; runtime observations do not.
 func (s *Service) publishValidated(ctx context.Context, stage string, project Project, job Job, result BuildResult) (Revision, error) {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
@@ -134,43 +134,26 @@ func (s *Service) publishValidated(ctx context.Context, stage string, project Pr
 		return Revision{}, err
 	}
 	if !result.OK || result.check == nil || result.check != s.previewCheck || s.activeJobID != job.ID {
-		return Revision{}, fmt.Errorf("publication requires the current validated build")
-	}
-	if len(result.check.Diagnostics) > 0 {
-		return Revision{}, fmt.Errorf("preview failed before publication: %s", diagnosticsText(result.check.Diagnostics))
-	}
-	var plan GamePlan
-	if project.Dimension == "3d" {
-		data, err := os.ReadFile(filepath.Join(stage, filepath.FromSlash(gamePlanPath)))
-		if err != nil {
-			return Revision{}, fmt.Errorf("read publication plan: %w", err)
-		}
-		if err = json.Unmarshal(data, &plan); err != nil {
-			return Revision{}, fmt.Errorf("decode publication plan: %w", err)
-		}
-	}
-	sceneBacked := project.Dimension == "3d" && sceneBackedCurrentAt(stage, &plan)
-	if result.TargetedChecks {
-		return Revision{}, fmt.Errorf("targeted check validation cannot be published")
-	}
-	if (project.Dimension == "2d" || sceneBacked) && (result.GameplayStatus != "passed" || !result.check.GameplayReceived) {
-		return Revision{}, fmt.Errorf("publication requires full gameplay observations")
+		return Revision{}, fmt.Errorf("publication requires the current successful build")
 	}
 	fingerprint, err := validationFingerprint(stage)
 	if err != nil {
 		return Revision{}, fmt.Errorf("verify publication files: %w", err)
 	}
 	if result.fingerprint == "" || result.fingerprint != fingerprint {
-		return Revision{}, fmt.Errorf("project files changed after validation; validate the current project before publication")
-	}
-	if err := writeValidationReport(stage, result, s.opts.MaxFilesPerProject, s.opts.MaxFileBytes, s.opts.MaxProjectBytes); err != nil {
-		return Revision{}, err
+		return Revision{}, fmt.Errorf("project files changed after build; build the current project before publication")
 	}
 	source, summary := "agent", job.Prompt
 	if job.Kind == "adopt" {
 		source, summary = "adopt", adoptPublicationSummary
 	}
-	return s.publish(ctx, stage, project, job, source, summary)
+	revision, err := s.publish(ctx, stage, project, job, source, summary)
+	if err == nil {
+		job.Status = "ready"
+		s.finishWorkingCopy(job)
+		s.releaseJobLocked(job.ID)
+	}
+	return revision, err
 }
 
 func (s *Service) publish(ctx context.Context, stage string, project Project, job Job, source, summary string) (Revision, error) {
@@ -182,6 +165,20 @@ func (s *Service) publish(ctx context.Context, stage string, project Project, jo
 		return Revision{}, fmt.Errorf("resolve publication stage: %w", err)
 	}
 	stage = absStage
+	manifestData, err := os.ReadFile(filepath.Join(stage, "game.json"))
+	var manifest gameManifest
+	if err != nil {
+		return Revision{}, fmt.Errorf("read publication manifest: %w", err)
+	}
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		return Revision{}, fmt.Errorf("read publication manifest: %w", err)
+	}
+	if manifest.Dimension != "2d" && manifest.Dimension != "3d" {
+		return Revision{}, fmt.Errorf("invalid publication dimension")
+	}
+	if manifest.Variant != "" && (manifest.Variant != "voxel" || manifest.Dimension != "3d") {
+		return Revision{}, fmt.Errorf("invalid publication variant")
+	}
 	files, total, err := s.snapshotFiles(stage)
 	if err != nil {
 		return Revision{}, err
@@ -226,9 +223,18 @@ func (s *Service) publish(ctx context.Context, stage string, project Project, jo
 			return Revision{}, fmt.Errorf("insert game maker revision file: %w", err)
 		}
 	}
-	if _, err := tx.Exec(`UPDATE gm_projects SET status='ready',current_revision=?,updated_at=? WHERE id=?`,
-		next, now, project.ID); err != nil {
+	if _, err := tx.Exec(`UPDATE gm_projects SET status='ready',current_revision=?,updated_at=?,dimension=?,variant=? WHERE id=?`,
+		next, now, manifest.Dimension, manifest.Variant, project.ID); err != nil {
 		return Revision{}, fmt.Errorf("update game maker published revision: %w", err)
+	}
+	if source == "agent" || source == "adopt" {
+		updated, err := tx.Exec(`UPDATE gm_jobs SET status='ready',phase='ready',result_revision=?,finished_at=?,error='',error_code='' WHERE id=? AND project_id=?`, next, now, job.ID, project.ID)
+		if err != nil {
+			return Revision{}, fmt.Errorf("store game maker completion: %w", err)
+		}
+		if count, err := updated.RowsAffected(); err != nil || count != 1 {
+			return Revision{}, fmt.Errorf("publication job is unavailable")
+		}
 	}
 	receipt := filesystemReceipt{Version: 1, ID: randomID("publish"), Kind: "publish", ProjectID: project.ID, ProjectKey: project.ProjectKey,
 		Stage: filepath.Base(stage), PreviousRevision: project.CurrentRevision, Revision: next}

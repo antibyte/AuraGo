@@ -1,13 +1,7 @@
 package gamemaker
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -124,88 +118,5 @@ func TestShooterScenarioInputCapsTargetWindow(t *testing.T) {
 	want := []GameTestStep{{Action: "target", Target: "enemy", Mode: "aim", MS: 4000}, {Action: "wait", MS: 2000}}
 	if !reflect.DeepEqual(got.Steps, want) {
 		t.Fatalf("per-command/overall budget changed: %+v", got.Steps)
-	}
-}
-
-func TestShooterScenarioInputOnResumedBuild(t *testing.T) {
-	s := newTestService(t)
-	project := createTestProject(t, s, "2d")
-	plan := ExampleGamePlan(project)
-	plan.SchemaVersion, plan.Template = 4, "shooter"
-	plan.Scenarios = []GameScenario{blindShooterScenario()}
-	var originalPlan, originalSource []byte
-	stop := errors.New("fixture stopped before publication")
-	s.SetRunner(continuationRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage == "planning" {
-			return s.SetPlan(ctx, run.Job.ID, plan)
-		}
-		root, err := s.JobDirectory(run.Job.ID)
-		if err != nil {
-			return err
-		}
-		// A failed validation has already built the draft and installed the
-		// existing diagnostic prelude. Capture that actual resume baseline.
-		if build := s.buildJob(ctx, run.Job.ID, "full"); !build.OK {
-			return errors.New("initial fixture did not compile")
-		}
-		originalPlan, err = os.ReadFile(filepath.Join(root, filepath.FromSlash(gamePlanPath)))
-		if err != nil {
-			return err
-		}
-		originalSource, err = os.ReadFile(filepath.Join(root, "src/main.ts"))
-		if err != nil {
-			return err
-		}
-		return stop
-	}))
-	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{Prompt: "Build a space shooter"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := waitJob(t, s, job.ID); got.Status != "failed" || !strings.Contains(got.Error, stop.Error()) {
-		t.Fatal(got)
-	}
-	waitContinuationIdle(t, s)
-	checked := false
-	s.SetRunner(continuationRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage != "building" || run.Job.ResumeFrom != job.ID {
-			return errors.New("resume replanned instead of retaining the failed draft")
-		}
-		build := s.buildJob(ctx, run.Job.ID, "full")
-		if !build.OK {
-			return errors.New("resumed fixture did not compile")
-		}
-		grant, err := s.CreatePreviewGrant(project.ID)
-		if err != nil {
-			return err
-		}
-		if len(grant.Scenarios) == 0 {
-			return errors.New("missing build-bound tests")
-		}
-		last := grant.Scenarios[len(grant.Scenarios)-1]
-		if last.ID != "laser_hits" || len(last.Steps) != 2 || last.Steps[1].Mode != "aim" || last.inputNote == "" {
-			return errors.New("resumed preview still received blind firing")
-		}
-		root, err := s.JobDirectory(run.Job.ID)
-		if err != nil {
-			return err
-		}
-		for name, original := range map[string][]byte{gamePlanPath: originalPlan, "src/main.ts": originalSource} {
-			got, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-			if err != nil || !bytes.Equal(got, original) {
-				return fmt.Errorf("resumed build changed %s (original=%d, current=%d bytes; read error=%v)", name, len(original), len(got), err)
-			}
-		}
-		checked = true
-		return stop
-	}))
-	resumed, err := s.StartJob(context.Background(), project.ID, StartJobRequest{Resume: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := waitJob(t, s, resumed.ID)
-	waitContinuationIdle(t, s)
-	if !checked || got.Status != "failed" || !strings.Contains(got.Error, stop.Error()) {
-		t.Fatalf("resumed build did not preserve the source and use targeted input: %+v", got)
 	}
 }

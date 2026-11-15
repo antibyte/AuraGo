@@ -38,6 +38,7 @@
                 body
             }),
             cancelJob: id => request('/jobs/' + encodeURIComponent(id) + '/cancel', { method: 'POST' }),
+            buildJob: id => request('/jobs/' + encodeURIComponent(id) + '/build', { method: 'POST' }),
             revisions: id => request('/projects/' + encodeURIComponent(id) + '/revisions'),
             restore: (id, revision) => request('/projects/' + encodeURIComponent(id) + '/revisions/' +
                 encodeURIComponent(revision) + '/restore', { method: 'POST' }),
@@ -55,7 +56,6 @@
                 return response.json();
             },
             playURL: id => base + '/projects/' + encodeURIComponent(id) + '/play',
-            reviewVisual: (id, body, signal) => request('/projects/' + encodeURIComponent(id) + '/visual-review', {method:'POST',body,signal}),
             reportPreview: (id, body) => request('/projects/' + encodeURIComponent(id) + '/preview-report', {
                 method: 'POST', body, signal: AbortSignal.timeout(5000)
             }),

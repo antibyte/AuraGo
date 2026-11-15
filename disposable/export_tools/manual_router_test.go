@@ -28,13 +28,13 @@ func TestManualRouterCanonicalBindingsAndSources(t *testing.T) {
 			}
 		}
 	}
-	for tool, want := range map[string]string{"send_email": "email", "fetch_email": "email", "mqtt_publish": "mqtt", "mqtt_subscribe": "mqtt", "mcp_call": "mcp", "manage_memory": "core_memory"} {
+	for tool, want := range map[string]string{"game_maker_project": "game_maker", "game_maker_file": "game_maker", "game_maker_asset": "game_maker", "game_maker_preview": "game_maker", "send_email": "email", "fetch_email": "email", "mqtt_publish": "mqtt", "mqtt_subscribe": "mqtt", "mcp_call": "mcp", "manage_memory": "core_memory"} {
 		if bindings[tool] != want {
 			t.Errorf("%s manual = %q, want %q", tool, bindings[tool], want)
 		}
 	}
-	if absent != 5 {
-		t.Errorf("documented manual absences = %d, want 5", absent)
+	if absent != 1 {
+		t.Errorf("documented manual absences = %d, want 1", absent)
 	}
 	for _, manual := range catalog.Manuals {
 		if routingDigest([]byte(manual.Body)) != manual.SHA256 || strings.TrimSpace(manual.Body) == "" {

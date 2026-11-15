@@ -851,6 +851,9 @@ func isTextModeToolResult(message openai.ChatCompletionMessage) bool {
 	if message.Role != openai.ChatMessageRoleUser {
 		return false
 	}
+	if message.Name == "game_maker_preview" {
+		return true
+	}
 	content := strings.TrimSpace(messageText(message))
 	return strings.HasPrefix(content, "Tool Output:") || strings.HasPrefix(content, "[Tool Output]") || strings.HasPrefix(content, "Tool Result:")
 }

@@ -103,7 +103,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"game_maker_project", "Inspect the isolated Game Maker project manifest, state, and file tree"},
 		{"game_maker_file", "Read or atomically update files in the current Game Maker staging area"},
 		{"game_maker_asset", "Generate project-bound image or music assets with procedural fallbacks"},
-		{"game_maker_validate", "Build and validate the current Game Maker staging area"},
+		{"game_maker_preview", "Control the independent Game Maker browser"},
 		{"run_tool", "Run a saved custom Python tool"},
 		{"save_tool", "Save a custom executable tool"},
 		{"list_skill_templates", "List templates for creating reusable skills"},

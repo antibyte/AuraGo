@@ -76,9 +76,6 @@ func TestContinuationRestoresPrivateContextAndWorkingCopy(t *testing.T) {
 			payload := json.RawMessage(`[{"role":"assistant","reasoning_content":"keep the unusual mechanic","content":"progress"}]`)
 			const source = "// original mechanic must survive\nexport const mechanic = 13;"
 			s.SetRunner(continuationRunner(func(ctx context.Context, run JobRun) error {
-				if run.Stage == "planning" {
-					return s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(p))
-				}
 				firstID = run.Job.ID
 				if err := os.WriteFile(filepath.Join(s.stagingDir, run.Job.ID, "src", "main.ts"), []byte(source), 0600); err != nil {
 					return err
@@ -142,9 +139,6 @@ func TestContinuationRestoresPrivateContextAndWorkingCopy(t *testing.T) {
 					return errors.New("original task lost")
 				}
 				checked++
-				if run.Stage == "planning" {
-					return s.SetPlan(ctx, run.Job.ID, ExampleGamePlan(p))
-				}
 				return errors.New("fixture stopped after resumed building")
 			}))
 			job, err = s.StartJob(context.Background(), p.ID, StartJobRequest{Resume: true})

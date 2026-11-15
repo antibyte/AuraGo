@@ -21,7 +21,7 @@ type SourceWrite struct {
 	Path    string      `json:"path"`
 	Written bool        `json:"written"`
 	SHA256  string      `json:"sha256"`
-	Build   BuildResult `json:"build"`
+	Build   BuildResult `json:"-"`
 }
 
 func sourceHash(content string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(content))) }
@@ -53,36 +53,9 @@ func (s *Service) ReadJobFileRange(ctx context.Context, jobID, path string, star
 	return SourceRead{path, selected, sourceHash(content), start, end, len(lines)}, nil
 }
 
-// SourceGenerationMaxBytes bounds each complete file supplied to tool-free
-// source generation, including the entry file and helper references.
-const SourceGenerationMaxBytes = 96000
-
-// ReadJobSource returns one complete text file for tool-free generation. The
-// interactive 240-line window does not apply; only the explicit byte bound does.
-func (s *Service) ReadJobSource(ctx context.Context, jobID, path string, maxBytes int) (SourceRead, error) {
-	content, err := s.ReadJobFile(ctx, jobID, path)
-	if err != nil {
-		return SourceRead{}, err
-	}
-	if !utf8.ValidString(content) || strings.ContainsRune(content, 0) {
-		return SourceRead{}, fmt.Errorf("read source text or JSON metadata, not binary assets")
-	}
-	if len(content) > maxBytes {
-		return SourceRead{}, fmt.Errorf("%s has %d bytes; source generation accepts at most %d", path, len(content), maxBytes)
-	}
-	lines := strings.Count(content, "\n") + 1
-	return SourceRead{path, content, sourceHash(content), 1, lines, lines}, nil
-}
-
 func (s *Service) WriteJobFileChecked(ctx context.Context, jobID, path, content, expected string) (SourceWrite, error) {
 	s.fileMu.Lock()
 	defer s.fileMu.Unlock()
-	// Adapt-mode jobs must edit the installed starter, not replace it. The
-	// rejection is a plain tool error: replace/replace_many, new files under src/
-	// and the blank base stay available, and no repair pass is consumed.
-	if err := s.adaptWriteRejected(ctx, jobID, path); err != nil {
-		return SourceWrite{}, err
-	}
 	if expected != "" {
 		old, err := s.ReadJobFile(ctx, jobID, path)
 		if err != nil {
@@ -125,13 +98,5 @@ func (s *Service) saveSource(ctx context.Context, jobID, path, content string) (
 	if err := s.writeJobFile(ctx, jobID, path, content); err != nil {
 		return SourceWrite{}, err
 	}
-	result := SourceWrite{Path: path, Written: true, Build: s.BuildJob(ctx, jobID)}
-	// A build may inject the diagnostic prelude into main.ts.
-	current, err := s.ReadJobFile(ctx, jobID, path)
-	if err != nil {
-		return result, err
-	}
-	result.SHA256 = sourceHash(current)
-	result.Build.Diagnostics = result.Build.Diagnostics[:min(12, len(result.Build.Diagnostics))]
-	return result, nil
+	return SourceWrite{Path: path, Written: true, SHA256: sourceHash(content)}, nil
 }

@@ -11,7 +11,7 @@ import (
 	"aurago/internal/gamemaker"
 )
 
-func TestGameMakerDescriptionResolvesAcceptedPackOnly(t *testing.T) {
+func TestGameMakerDescriptionUsesExplicitPack(t *testing.T) {
 	for _, dimension := range []string{"2d", "3d"} {
 		t.Run(dimension, func(t *testing.T) {
 			root := t.TempDir()
@@ -38,19 +38,9 @@ func TestGameMakerDescriptionResolvesAcceptedPackOnly(t *testing.T) {
 					out, _ := dispatchGameMaker(bound, ToolCall{Action: "game_maker_asset", Params: map[string]any{"operation": "describe_asset", "asset_id": assetID, "pack_id": packID}}, nil)
 					return out
 				}
-				if run.Stage == "planning" {
-					if out := describe("", asset); !strings.Contains(out, "requires pack_id") {
-						return fmt.Errorf("missing binding has no actionable error: %s", out)
-					}
-					base, role := "platformer", "item"
-					if dimension == "3d" {
-						base, role = "fps", "weapon"
-					}
-					return s.SetDesignJSON(ctx, run.Job.ID, []byte(fmt.Sprintf(`{"base":%q,"objective":"Use exact assets","features":["custom gameplay"],"assets":[{"role":%q,"pack_id":%q,"asset_id":%q}]}`, base, role, pack, asset)))
-				}
-				out := describe("", asset)
+				out := describe(pack, asset)
 				if !strings.Contains(out, `"status":"ok"`) || !strings.Contains(out, `"pack_id":"`+pack+`"`) {
-					return fmt.Errorf("accepted binding not resolved: %s", out)
+					return fmt.Errorf("explicit asset not resolved: %s", out)
 				}
 				if out := describe("missing-pack", asset); !strings.Contains(out, `"status":"error"`) {
 					return fmt.Errorf("explicit invalid pack was replaced: %s", out)

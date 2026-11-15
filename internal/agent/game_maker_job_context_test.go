@@ -42,13 +42,6 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 		lastStep.Store(run.Stage)
 		bound := gamemaker.WithJobContext(ctx, run.Job.ID)
 		write := native(map[string]any{"path": "src/probe.ts", "content": "export const probe = 7;"})
-		if run.Stage == "planning" {
-			out, _ := dispatchGameMaker(bound, write, nil)
-			if !strings.Contains(out, "planning_required") {
-				return fmt.Errorf("implicit write bypassed planning: %s", out)
-			}
-			return s.SetPlan(ctx, run.Job.ID, gamemaker.ExampleGamePlan(project))
-		}
 		lastStep.Store("building: native/XML writes")
 		for _, tc := range []ToolCall{
 			write,
@@ -62,7 +55,7 @@ func TestGameMakerBoundWritesPreserveScopeAcrossTransports(t *testing.T) {
 			}
 		}
 		lastStep.Store("building: foreign job identity checks")
-		for _, action := range []string{"game_maker_file", "game_maker_project", "game_maker_asset", "game_maker_validate"} {
+		for _, action := range []string{"game_maker_file", "game_maker_project", "game_maker_asset", "game_maker_preview", "game_maker_validate"} {
 			out, _ := dispatchGameMaker(bound, ToolCall{Action: action, Params: map[string]any{"job_id": "foreign-job"}}, nil)
 			if !strings.Contains(out, "does not match") {
 				return fmt.Errorf("%s admitted a foreign job: %s", action, out)

@@ -60,6 +60,12 @@ func TestExportUsesPublishedRevision(t *testing.T) {
 	if err := WriteScaffold(dir, p); err != nil {
 		t.Fatal(err)
 	}
+	if err := installRuntime(dir, p.Dimension, p.Variant); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src/main.ts"), []byte("console.log('fixture');"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	if result := buildDirectory(context.Background(), dir, 100, 20<<20); !result.OK {
 		t.Fatal(result.Diagnostics)
 	}
@@ -94,6 +100,12 @@ func TestExportRejectsInvalidRevision(t *testing.T) {
 			p := createTestProject(t, s, "2d")
 			dir := filepath.Join(s.opts.WorkspacePath, p.ProjectKey)
 			if err := WriteScaffold(dir, p); err != nil {
+				t.Fatal(err)
+			}
+			if err := installRuntime(dir, p.Dimension, p.Variant); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "src/main.ts"), []byte("console.log('fixture');"), 0600); err != nil {
 				t.Fatal(err)
 			}
 			if result := buildDirectory(context.Background(), dir, 100, 20<<20); !result.OK {
@@ -140,6 +152,12 @@ func TestExportLegacyRuntimeAndPrivateFiles(t *testing.T) {
 	p := createTestProject(t, s, "3d")
 	dir := filepath.Join(s.opts.WorkspacePath, p.ProjectKey)
 	if err := WriteScaffold(dir, p); err != nil {
+		t.Fatal(err)
+	}
+	if err := installRuntime(dir, p.Dimension, p.Variant); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src/main.ts"), []byte("console.log('fixture');"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if result := buildDirectory(context.Background(), dir, 100, 20<<20); !result.OK {

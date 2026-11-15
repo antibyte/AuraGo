@@ -122,12 +122,8 @@ func TestWorldAtlasImportIsAtomicAndPreservesEdits(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "2d")
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage == "visual" {
-			return nil
-		}
-		if run.Stage == "planning" {
-			p := ExampleGamePlan(run.Project)
-			return s.SetPlan(ctx, run.Job.ID, p)
+		if err := s.UseTemplate(ctx, run.Job.ID, "minimal"); err != nil {
+			return err
 		}
 		pack, err := s.ImportAssetPack(ctx, run.Job.ID, "aurago-pirates-side", "people-diver-brass")
 		if err != nil {
@@ -175,7 +171,13 @@ func TestWorldAtlasImportIsAtomicAndPreservesEdits(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "import meta from '../"+pack.Metadata+"';\nconsole.info(meta.id);\n"+content)
+		if err := s.WriteJobFile(ctx, run.Job.ID, "src/main.ts", "import meta from '../"+pack.Metadata+"';\nconsole.info(meta.id);\n"+content); err != nil {
+			return err
+		}
+		if result := s.FinishJob(ctx, run.Job.ID); !result.OK {
+			return fmt.Errorf("finish: %v", result.Diagnostics)
+		}
+		return nil
 	}))
 	job, err := s.StartJob(context.Background(), project.ID, StartJobRequest{})
 	if err != nil {

@@ -9,19 +9,19 @@ import (
 	"testing"
 )
 
-func TestResumeReplaysSelectionBeforePlanAcceptance(t *testing.T) {
+func TestResumeReplaysModelSelection(t *testing.T) {
 	s := newTestService(t)
 	project := createTestProject(t, s, "3d")
 	selection := []string{"road-sedan"}
 	s.SetRunner(planningRunner(func(ctx context.Context, run JobRun) error {
-		if run.Stage != "planning" {
-			return errors.New("selection replay entered building")
+		if run.Stage != "building" {
+			return errors.New("unexpected stage")
 		}
 		if !slices.Equal(run.ModelAssetIDs, selection) {
 			return fmt.Errorf("model selection = %v", run.ModelAssetIDs)
 		}
 		if run.Job.ResumeFrom == "" {
-			return errors.New("planning failed before a plan")
+			return errors.New("agent stopped before finish")
 		}
 		return errors.New("replayed pending selection")
 	}))
@@ -30,7 +30,7 @@ func TestResumeReplaysSelectionBeforePlanAcceptance(t *testing.T) {
 		t.Fatal(err)
 	}
 	finished := waitJob(t, s, first.ID)
-	if !strings.Contains(finished.Error, "planning failed before a plan") || finished.PlanAccepted {
+	if !strings.Contains(finished.Error, "agent stopped before finish") || finished.PlanAccepted {
 		t.Fatalf("first job = %+v", finished)
 	}
 	resumed, err := s.StartJob(context.Background(), project.ID, StartJobRequest{Resume: true})
