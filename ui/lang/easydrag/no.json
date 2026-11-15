@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Webserveren svarte med en feil, så trinnet mislyktes. Sjekk adressen og serveren, og kjør deretter på nytt.",
   "easydrag.ui.error_flow_internal": "Noe gikk galt inne i AuraGo. Prøv igjen; hvis det fortsetter, se AuraGo-loggen.",
   "easydrag.ui.error_flow_invalid": "Flyten har feil som må rettes først. Rett problemene som er listet i editoren, og prøv igjen.",
-  "easydrag.ui.error_flow_locked": "Flyten ble ikke slettet fordi oppdraget er låst i Oppdragskontroll. Lås det opp der, og slett flyten på nytt.",
+  "easydrag.ui.error_flow_locked": "Endringen ble avvist fordi oppdraget til denne flyten er låst i Oppdragskontroll. Lås det opp der, og prøv på nytt.",
   "easydrag.ui.error_flow_mission_ambiguous": "Flere flyter er knyttet til samme oppdrag i Oppdragskontroll, så AuraGo kan ikke vite hvilken som menes. Slett den overflødige flyten og prøv igjen.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Oppdragskontroll er ikke tilgjengelig akkurat nå. Prøv igjen om litt.",
   "easydrag.ui.error_flow_mission_missing": "Flytens oppføring i Oppdragskontroll mangler. Bruk “Reparer koblingen til Mission Control”, og prøv deretter igjen.",

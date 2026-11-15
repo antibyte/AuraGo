@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Der Webserver hat mit einem Fehler geantwortet, deshalb ist der Schritt fehlgeschlagen. Prüfe die Adresse und den Server und starte dann neu.",
   "easydrag.ui.error_flow_internal": "In AuraGo ist etwas schiefgelaufen. Versuche es noch einmal; passiert es weiter, schau ins AuraGo-Log.",
   "easydrag.ui.error_flow_invalid": "Der Flow hat Fehler, die zuerst behoben werden müssen. Behebe die im Editor aufgelisteten Probleme und versuche es dann noch einmal.",
-  "easydrag.ui.error_flow_locked": "Der Flow wurde nicht gelöscht, weil seine Mission in Mission Control gesperrt ist. Entsperre sie dort und lösche den Flow dann noch einmal.",
+  "easydrag.ui.error_flow_locked": "Die Änderung wurde abgelehnt, weil die Mission dieses Flows in Mission Control gesperrt ist. Entsperre sie dort und versuche es dann noch einmal.",
   "easydrag.ui.error_flow_mission_ambiguous": "Mehrere Flows sind mit derselben Mission in Mission Control verknüpft, deshalb ist unklar, welcher gemeint ist. Lösche den überzähligen Flow und versuche es dann noch einmal.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Mission Control ist gerade nicht verfügbar. Versuche es in einem Moment noch einmal.",
   "easydrag.ui.error_flow_mission_missing": "Der Mission-Control-Eintrag des Flows fehlt. Nutze „Mission-Control-Verknüpfung reparieren“ und versuche es dann noch einmal.",

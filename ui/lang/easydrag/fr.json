@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Le serveur web a répondu par une erreur, l’étape a donc échoué. Vérifie l’adresse et le serveur, puis relance.",
   "easydrag.ui.error_flow_internal": "Un problème est survenu dans AuraGo. Réessaie ; s’il persiste, consulte le journal d’AuraGo.",
   "easydrag.ui.error_flow_invalid": "Le flux contient des erreurs qu’il faut d’abord corriger. Corrige les problèmes listés dans l’éditeur, puis réessaie.",
-  "easydrag.ui.error_flow_locked": "Le flux n’a pas été supprimé, car sa mission est verrouillée dans Contrôle de mission. Déverrouille-la là-bas, puis supprime à nouveau le flux.",
+  "easydrag.ui.error_flow_locked": "La modification a été refusée, car la mission de ce flux est verrouillée dans Contrôle de mission. Déverrouille-la là-bas, puis réessaie.",
   "easydrag.ui.error_flow_mission_ambiguous": "Plusieurs flux sont liés à la même mission de Contrôle de mission, AuraGo ne peut donc pas savoir lequel est visé. Supprime le flux en trop, puis réessaie.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Contrôle de mission n’est pas disponible pour le moment. Réessaie dans un instant.",
   "easydrag.ui.error_flow_mission_missing": "L’entrée du flux dans Contrôle de mission est manquante. Utilise « Réparer le lien avec Mission Control », puis réessaie.",

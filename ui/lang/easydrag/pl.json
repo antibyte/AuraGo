@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Serwer WWW odpowiedział błędem, więc krok się nie powiódł. Sprawdź adres i serwer, a potem uruchom ponownie.",
   "easydrag.ui.error_flow_internal": "Wewnątrz AuraGo coś poszło nie tak. Spróbuj ponownie; jeśli problem się powtarza, zajrzyj do logu AuraGo.",
   "easydrag.ui.error_flow_invalid": "Przepływ zawiera błędy, które trzeba najpierw naprawić. Napraw problemy wymienione w edytorze i spróbuj ponownie.",
-  "easydrag.ui.error_flow_locked": "Przepływ nie został usunięty, ponieważ jego misja jest zablokowana w Kontrola misji. Odblokuj ją tam i usuń przepływ ponownie.",
+  "easydrag.ui.error_flow_locked": "Zmiana została odrzucona, ponieważ misja tego przepływu jest zablokowana w Kontrola misji. Odblokuj ją tam i spróbuj ponownie.",
   "easydrag.ui.error_flow_mission_ambiguous": "Z tą samą misją w Kontrola misji powiązano kilka przepływów, więc AuraGo nie wie, o który chodzi. Usuń zbędny przepływ i spróbuj ponownie.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Kontrola misji jest teraz niedostępna. Spróbuj ponownie za chwilę.",
   "easydrag.ui.error_flow_mission_missing": "Brakuje wpisu przepływu w Kontrola misji. Użyj “Napraw powiązanie z Mission Control” i spróbuj ponownie.",

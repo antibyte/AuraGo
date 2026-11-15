@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "De webserver antwoordde met een fout, dus de stap is mislukt. Controleer het adres en de server en voer daarna opnieuw uit.",
   "easydrag.ui.error_flow_internal": "Er is iets misgegaan binnen AuraGo. Probeer het opnieuw; blijft het gebeuren, kijk dan in het AuraGo-logboek.",
   "easydrag.ui.error_flow_invalid": "De flow bevat fouten die eerst opgelost moeten worden. Los de problemen in de editor op en probeer het daarna opnieuw.",
-  "easydrag.ui.error_flow_locked": "De flow is niet verwijderd omdat zijn missie is vergrendeld in Missiecontrole. Ontgrendel haar daar en verwijder de flow daarna opnieuw.",
+  "easydrag.ui.error_flow_locked": "De wijziging is geweigerd omdat de missie van deze flow is vergrendeld in Missiecontrole. Ontgrendel haar daar en probeer het daarna opnieuw.",
   "easydrag.ui.error_flow_mission_ambiguous": "Meerdere flows zijn gekoppeld aan dezelfde missie in Missiecontrole, dus AuraGo kan niet weten welke bedoeld is. Verwijder de overbodige flow en probeer het opnieuw.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Missiecontrole is op dit moment niet beschikbaar. Probeer het zo meteen opnieuw.",
   "easydrag.ui.error_flow_mission_missing": "De vermelding van de flow in Missiecontrole ontbreekt. Gebruik “Koppeling met Mission Control herstellen” en probeer het daarna opnieuw.",

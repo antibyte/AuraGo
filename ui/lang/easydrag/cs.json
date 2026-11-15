@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Webový server odpověděl chybou, a krok proto selhal. Zkontroluj adresu a server a spusť znovu.",
   "easydrag.ui.error_flow_internal": "V AuraGo se něco pokazilo. Zkus to znovu; pokud se to opakuje, podívej se do logu AuraGo.",
   "easydrag.ui.error_flow_invalid": "Tok obsahuje chyby, které je nutné nejdřív opravit. Oprav problémy uvedené v editoru a zkus to znovu.",
-  "easydrag.ui.error_flow_locked": "Tok nebyl smazán, protože jeho mise je v Mission Control zamčená. Odemkni ji tam a pak tok smaž znovu.",
+  "easydrag.ui.error_flow_locked": "Změna byla odmítnuta, protože mise tohoto toku je v Mission Control zamčená. Odemkni ji tam a zkus to znovu.",
   "easydrag.ui.error_flow_mission_ambiguous": "S toutéž misí v Mission Control je propojeno více toků, takže AuraGo nepozná, který je myšlen. Smaž nadbytečný tok a zkus to znovu.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Mission Control teď není k dispozici. Zkus to za chvíli znovu.",
   "easydrag.ui.error_flow_mission_missing": "Záznam toku v Mission Control chybí. Použij “Opravit propojení s Mission Control” a zkus to znovu.",

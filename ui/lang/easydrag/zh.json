@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "网络服务器返回了错误，因此步骤失败。请检查地址和服务器，然后重新运行。",
   "easydrag.ui.error_flow_internal": "AuraGo 内部出了问题。请重试；如果持续出现，请查看 AuraGo 日志。",
   "easydrag.ui.error_flow_invalid": "流程有错误，必须先修复。请修复编辑器中列出的问题，然后重试。",
-  "easydrag.ui.error_flow_locked": "流程没有被删除，因为它的任务在任务控制中已锁定。请先在那里解锁，然后再次删除该流程。",
+  "easydrag.ui.error_flow_locked": "更改被拒绝，因为此流程的任务在任务控制中已锁定。请先在那里解锁，然后再试一次。",
   "easydrag.ui.error_flow_mission_ambiguous": "有多个流程关联到任务控制中的同一个任务，AuraGo 无法判断指的是哪一个。请删除多余的流程，然后重试。",
   "easydrag.ui.error_flow_mission_control_unavailable": "任务控制目前不可用。请稍后重试。",
   "easydrag.ui.error_flow_mission_missing": "流程在任务控制中的条目缺失。请使用“修复 Mission Control 关联”，然后重试。",

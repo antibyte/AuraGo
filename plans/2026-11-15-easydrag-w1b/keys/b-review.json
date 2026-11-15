@@ -1,0 +1,20 @@
+{
+  "easydrag.ui.error_flow_locked": {
+    "cs": "Změna byla odmítnuta, protože mise tohoto toku je v Mission Control zamčená. Odemkni ji tam a zkus to znovu.",
+    "da": "Ændringen blev afvist, fordi dette flows mission er låst i Missionskontrol. Lås den op der, og prøv igen.",
+    "de": "Die Änderung wurde abgelehnt, weil die Mission dieses Flows in Mission Control gesperrt ist. Entsperre sie dort und versuche es dann noch einmal.",
+    "el": "Η αλλαγή απορρίφθηκε, επειδή η αποστολή αυτής της ροής είναι κλειδωμένη στο Κέντρο ελέγχου. Ξεκλείδωσέ την εκεί και δοκίμασε ξανά.",
+    "en": "The change was refused because this flow's mission is locked in Mission Control. Unlock it there, then try again.",
+    "es": "Se rechazó el cambio porque la misión de este flujo está bloqueada en Mission Control. Desbloquéala allí y vuelve a intentarlo.",
+    "fr": "La modification a été refusée, car la mission de ce flux est verrouillée dans Contrôle de mission. Déverrouille-la là-bas, puis réessaie.",
+    "hi": "बदलाव अस्वीकार कर दिया गया, क्योंकि इस फ़्लो का मिशन मिशन नियंत्रण में लॉक है। उसे वहाँ अनलॉक करें, फिर दोबारा कोशिश करें।",
+    "it": "La modifica è stata rifiutata perché la missione di questo flusso è bloccata in Mission Control. Sbloccala lì, poi riprova.",
+    "ja": "このフローのミッションがミッションコントロールでロックされているため、変更は拒否されました。そこでロックを解除してから、もう一度お試しください。",
+    "nl": "De wijziging is geweigerd omdat de missie van deze flow is vergrendeld in Missiecontrole. Ontgrendel haar daar en probeer het daarna opnieuw.",
+    "no": "Endringen ble avvist fordi oppdraget til denne flyten er låst i Oppdragskontroll. Lås det opp der, og prøv på nytt.",
+    "pl": "Zmiana została odrzucona, ponieważ misja tego przepływu jest zablokowana w Kontrola misji. Odblokuj ją tam i spróbuj ponownie.",
+    "pt": "A alteração foi recusada porque a missão deste fluxo está bloqueada no Controlo de missão. Desbloqueie-a lá e tente de novo.",
+    "sv": "Ändringen avvisades eftersom det här flödets uppdrag är låst i Mission Control. Lås upp det där och försök sedan igen.",
+    "zh": "更改被拒绝，因为此流程的任务在任务控制中已锁定。请先在那里解锁，然后再试一次。"
+  }
+}

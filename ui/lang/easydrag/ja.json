@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Web サーバーがエラーを返したため、ステップが失敗しました。アドレスとサーバーを確認してから、もう一度実行してください。",
   "easydrag.ui.error_flow_internal": "AuraGo の内部で問題が発生しました。もう一度お試しください。繰り返す場合は AuraGo のログを確認してください。",
   "easydrag.ui.error_flow_invalid": "フローにエラーがあり、先に修正する必要があります。エディターに表示された問題を修正してから、もう一度お試しください。",
-  "easydrag.ui.error_flow_locked": "このフローのミッションがミッションコントロールでロックされているため、フローは削除されませんでした。そこでロックを解除してから、もう一度削除してください。",
+  "easydrag.ui.error_flow_locked": "このフローのミッションがミッションコントロールでロックされているため、変更は拒否されました。そこでロックを解除してから、もう一度お試しください。",
   "easydrag.ui.error_flow_mission_ambiguous": "複数のフローがミッションコントロールの同じミッションに関連付けられているため、AuraGo はどれを指すのか判断できません。余分なフローを削除してから、もう一度お試しください。",
   "easydrag.ui.error_flow_mission_control_unavailable": "ミッションコントロールは現在利用できません。しばらくしてから、もう一度お試しください。",
   "easydrag.ui.error_flow_mission_missing": "フローのミッションコントロールのエントリがありません。「Mission Controlとの連携を修復」を実行してから、もう一度お試しください。",

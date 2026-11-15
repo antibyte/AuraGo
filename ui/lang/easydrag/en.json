@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "The web server answered with an error, so the step failed. Check the address and the server, then run again.",
   "easydrag.ui.error_flow_internal": "Something went wrong inside AuraGo. Try again; if it keeps happening, see the AuraGo log.",
   "easydrag.ui.error_flow_invalid": "The flow has errors that must be fixed first. Fix the problems listed in the editor, then try again.",
-  "easydrag.ui.error_flow_locked": "The flow was not deleted because its mission is locked in Mission Control. Unlock it there, then delete the flow again.",
+  "easydrag.ui.error_flow_locked": "The change was refused because this flow's mission is locked in Mission Control. Unlock it there, then try again.",
   "easydrag.ui.error_flow_mission_ambiguous": "Several flows are linked to the same Mission Control mission, so AuraGo cannot tell which one is meant. Delete the extra flow, then try again.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Mission Control is not available right now. Try again in a moment.",
   "easydrag.ui.error_flow_mission_missing": "The flow’s Mission Control entry is missing. Use “Repair Mission Control connection”, then try again.",

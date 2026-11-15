@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "O servidor web respondeu com um erro, por isso a etapa falhou. Verifique o endereço e o servidor e execute de novo.",
   "easydrag.ui.error_flow_internal": "Algo deu errado dentro do AuraGo. Tente de novo; se continuar, consulte o log do AuraGo.",
   "easydrag.ui.error_flow_invalid": "O fluxo tem erros que precisam ser corrigidos primeiro. Corrija os problemas listados no editor e tente de novo.",
-  "easydrag.ui.error_flow_locked": "O fluxo não foi excluído porque a sua missão está bloqueada no Controlo de missão. Desbloqueie-a lá e exclua o fluxo de novo.",
+  "easydrag.ui.error_flow_locked": "A alteração foi recusada porque a missão deste fluxo está bloqueada no Controlo de missão. Desbloqueie-a lá e tente de novo.",
   "easydrag.ui.error_flow_mission_ambiguous": "Vários fluxos estão vinculados à mesma missão no Controlo de missão, por isso o AuraGo não sabe qual deles é o pretendido. Exclua o fluxo extra e tente de novo.",
   "easydrag.ui.error_flow_mission_control_unavailable": "O Controlo de missão não está disponível neste momento. Tente de novo daqui a pouco.",
   "easydrag.ui.error_flow_mission_missing": "A entrada do fluxo no Controlo de missão está em falta. Use “Reparar ligação ao Mission Control” e tente de novo.",

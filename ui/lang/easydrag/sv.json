@@ -492,7 +492,7 @@
   "easydrag.ui.error_flow_http_status": "Webbservern svarade med ett fel, så steget misslyckades. Kontrollera adressen och servern och kör sedan igen.",
   "easydrag.ui.error_flow_internal": "Något gick fel inuti AuraGo. Försök igen; om det fortsätter, titta i AuraGo-loggen.",
   "easydrag.ui.error_flow_invalid": "Flödet har fel som måste rättas först. Rätta problemen som visas i redigeraren och försök igen.",
-  "easydrag.ui.error_flow_locked": "Flödet togs inte bort eftersom dess uppdrag är låst i Mission Control. Lås upp det där och ta sedan bort flödet igen.",
+  "easydrag.ui.error_flow_locked": "Ändringen avvisades eftersom det här flödets uppdrag är låst i Mission Control. Lås upp det där och försök sedan igen.",
   "easydrag.ui.error_flow_mission_ambiguous": "Flera flöden är kopplade till samma uppdrag i Mission Control, så AuraGo kan inte avgöra vilket som avses. Ta bort det överflödiga flödet och försök igen.",
   "easydrag.ui.error_flow_mission_control_unavailable": "Mission Control är inte tillgängligt just nu. Försök igen om en stund.",
   "easydrag.ui.error_flow_mission_missing": "Flödets post i Mission Control saknas. Använd “Reparera kopplingen till Mission Control” och försök sedan igen.",
