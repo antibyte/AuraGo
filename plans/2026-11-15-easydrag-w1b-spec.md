@@ -1,6 +1,11 @@
 # EasyDrag W1b "Voice and actions": design spec
 
-- **Status:** design spec, 2026-11-15. The owner approved the design in the brainstorming session on 2026-11-14/15. Implementation plan: [`plans/2026-11-15-easydrag-w1b/README.md`](2026-11-15-easydrag-w1b/README.md). Its "Amendments found while planning" take precedence until they are copied in here.
+- **Status:** design spec, 2026-11-15. The owner approved the design in the brainstorming session on 2026-11-14/15. Implementation plan: [`plans/2026-11-15-easydrag-w1b/README.md`](2026-11-15-easydrag-w1b/README.md). Its "Amendments found while planning" are copied into §11.
+- **Landed 2026-11-15 on main, not pushed or deployed:**
+  - Part C: 22ede3b8f to 3a189497c (3 commits).
+  - Part A: 99c2425e6 to 345c61ce6 (16 commits).
+  - Part B: 331d63392 to dadaa8299 (14 commits). W1b is complete.
+  - §11 lists what implementation and review changed.
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - §6, Wave 1 "Readable and honest" (lines 1412-1449);
   - E2 "One visual language" (lines 350-416): the action registry (line 371), UX-18 and CS-20 (line 377), CS-17 (line 380);
@@ -315,3 +320,44 @@ The budget test itself, plus a T0 check that the table is well formed (every tar
 - W1f: enforces the home and card targets, adds the hero actions ("Neu ▾", "Importieren…") as registry rows, rewrites home copy.
 - E4: the canvas selection bar reads the registry.
 - Wave 4: Ctrl+K command mode (">" commands) reads the registry.
+
+## 11. Changes from implementation and review
+
+The plan README's 29 amendments (`plans/2026-11-15-easydrag-w1b/README.md`, "Amendments found while planning") apply as written. The main ones, and what implementation and the three reviews changed:
+
+- **Part C**
+  - The measured ceilings are header 10, footer 2, "⋯" 12, home 15 and card 4. The home is 15, not about 13: the building-block library link counts (amendment 4), and so do both disclosure heads. No row is enforced yet; W1c and W1f switch theirs.
+  - The counting helper copies the visibility rules of the target scanner (amendment 1); "no target" is `Target: 0` with no gate (amendment 2); the "⋯" menu is counted in the wide window only (amendment 3).
+  - A test-only fix rode along: the library pause deadline check started its busy-wait clock before the harness loaded and failed under load (3a189497c).
+  - Review: no Critical or Important finding.
+- **Part A**
+  - Rows carry `icon`, `glyph` and the legacy window-menu id `menu` (amendments 6, 7); four rows were added for the start-page menu and the block editor (amendment 8); the checks `unlocked` and `quiet` were added (amendment 9); `bind` takes the host (amendment 10).
+  - `reason_locked` and `reason_restoring` say what the code means (amendment 11). Edit shortcuts stay canvas-only, as before (amendment 13); the desktop shell keeps Ctrl+S, Ctrl+Enter and Ctrl+K, and `ED.actions.key` fires the rest.
+  - Red marks risky entries in context menus only; the window menu bar cannot show it (amendment 15). Where surfaces disagreed the stricter condition won (amendment 16). Test reads "Entwurf testen" everywhere (amendment 17).
+  - Implementation found that the delete tool ignored the step it belongs to (dba6ebae5): its own check looked at the selection only.
+  - Review, all fixed with failing-first tests:
+    - Critical: context-menu actions were refused while the menu closed with animation, because the closing menu counted as an open dialog. The check skips `.vd-context-menu-closing`; `TestEasyDragActionsMenuClicksBrowser` clicks real entries with motion on.
+    - Ctrl+K opened the desktop search over an EasyDrag dialog; a capture-phase guard swallows it while a dialog or the restore offer is open.
+    - The window menus were not rebuilt when a run started or ended.
+    - Card tools kept the facts of the moment their markup was built. They repaint when a dialog or quick-add changes and when "running" flips; `ED.actions.refresh(host)` makes that one read fresh. The first version repainted on every run event and made the render baseline ten times slower (216 s); the final one takes about 17 s.
+    - The S0 seam test pins `paintActions` in the header instead of `runNowState`.
+- **Part B**
+  - `secret_deleted` stays, because it warns of a consequence the list does not show (amendment 20). The goal limit is 4,000 code points (amendment 21). `ED.kit.limit` takes `t` and `after`, and `ED.kit.flash` shows "Kopiert" (amendment 22).
+  - The limit note does not speak on every keystroke: the input points to it, and a separate live region speaks when the counter appears, the cap is reached, the text goes over and the note hides (amendment 23).
+  - The lints are stricter than §4 (amendment 24). The manuals follow the ledger and the "du" rule (amendment 25, task B.8). The rename touches 20 keys (amendment 26).
+  - Implementation found two checks that pinned the old English error texts; they pin the new ones. The cap note in the header title and the home search sits in the row after the field, because a floating note covered the toolbar.
+  - Review, all fixed:
+    - A note went stale when code wrote the value (navigating steps, undo, loading a flow); `kit.limit` keeps its handle on the input (`input.edLimit`) and the writers call `update()`.
+    - In counter mode reaching the cap was never announced; the live region now speaks at the cap.
+    - "Kopiert" showed even when nothing was copied; it shows only after the clipboard took the JSON, and a missing or refused clipboard shows `copy_json_failed`.
+    - `error_flow_locked` assumed a delete, but the same code comes from the Mission Control repair and a pack-import cleanup; it now says the change was refused because the mission is locked.
+    - The German manual's pack section still said "Block"; it says "Baustein".
+- **Landing**
+  - The full browser runs: A 65 top-level PASS, B 68 top-level PASS (128 with subtests), 2 SKIP, 0 FAIL, the W1a lab with zero findings in all 16 contexts; T0 48 of 48.
+  - Ten leftover headless test browsers from 12 to 14 November used about 11 of 16 cores; with the owner's approval they were stopped before the final runs.
+  - Part A landed while another session had an uncommitted edit in `ui/js/desktop/apps/AGENTS.md`; with the owner's approval A's hunk was applied next to it and that edit stayed byte for byte.
+- **Open follow-ups**
+  - A native-speaker check of the 14 other locales (error texts, rename, reasons, limit and copy keys), in the Wave 1 sessions.
+  - Red for risky entries in the desktop window menu bar (a desktop core change).
+  - Timing checks that fail under load: `c1d02 strip_html takes under 100 ms`, `TestBlockChildHonorsParentCancellationAndDeadline` in `internal/flows`, and a short re-render race in `TestDesktopEasyDragDurableBrowser`'s Stop click.
+  - `goalCounter()` and `goal_counter` can go once another test covers the code-point count; the header name's limit note has no test of its own.

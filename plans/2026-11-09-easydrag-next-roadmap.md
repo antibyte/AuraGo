@@ -1424,7 +1424,11 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
     - B, the kit (disclosure, callout, chip, toast, toolbar), the bottom sheet, the type scale 11/12/14/16/18/24 and the literal ratchets: 54d854d21 to 55becb497 (landed 2026-11-14).
     - E, the lab: six scenes in 16 theme contexts plus a pseudo-locale run, 64f238545 to e1c988e6a (landed 2026-11-14).
   - Next: W1b to W1f, each with its own spec and plan.
-  - **Where W1b is.** Spec `plans/2026-11-15-easydrag-w1b-spec.md`, plan `plans/2026-11-15-easydrag-w1b/` (2026-11-15): C, the control budgets, lands first; A, the action registry, and B, the voice, run in parallel. Nothing is implemented yet.
+  - **Where W1b is.** Spec `plans/2026-11-15-easydrag-w1b-spec.md`, plan `plans/2026-11-15-easydrag-w1b/`. All three parts landed on main on 2026-11-15 and are not pushed, so W1b is complete:
+    - C, the control budgets (ceilings header 10, home 15, card 4; targets 8, 6, 3 for W1c and W1f): 22ede3b8f to 3a189497c;
+    - A, the action registry (54 rows; every menu, card tool, header button, the shortcut table and the keyboard): 99c2425e6 to 345c61ce6;
+    - B, the voice (guide and ledger, "du" and ledger lints, 135 error texts, "Schritte", own-action notifications, length notes, manuals): 331d63392 to dadaa8299.
+  - Next: W1c to W1f, each with its own spec and plan.
   - S0c ledger rows 23 (plurals) and 24 (status-map "stopped") are closed by W1a C and A.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;
