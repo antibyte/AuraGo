@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Styr inbyggda program",
+  "desktop.virtual_computers_native_check": "Kontrollera styrning",
+  "desktop.virtual_computers_native_disabled": "Inaktiverat",
+  "desktop.virtual_computers_native_ready": "Klart",
+  "desktop.virtual_computers_native_repair": "Reparation och ny arbetsyta krävs",
+  "desktop.virtual_computers_native_unreachable": "Sessionen kan inte nås",
+  "desktop.virtual_computers_native_unchecked": "Inte kontrollerat än",
+  "desktop.virtual_computers_native_checking": "Kontrollerar …",
   "desktop.chat_question_request_failed": "Begäran misslyckades. Försök igen eller avbryt.",
   "desktop.pet_action_wave": "Vinka",
   "desktop.pet_action_nod": "Nicka",

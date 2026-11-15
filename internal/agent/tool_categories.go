@@ -285,6 +285,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"virtual_desktop_apps", "Open, inspect, and diagnose browser desktop apps"},
 		{"virtual_desktop_widgets", "Manage browser desktop widgets and notifications"},
 		{"virtual_computers", "Launch and operate short-lived private virtual computers through AuraGo"},
+		{"virtual_computer_ui", "Control native applications and dialogs in visible Agent Workspaces using accessibility and private image fallback"},
 		{"virtual_workspace", "Create and control stateful agent workspaces inside Firecracker virtual machines"},
 		{"virtual_browser", "Interactive website navigation in visible Chromium; watch via Virtual Computers Agent Workspaces"},
 		{"qr_code", "Generate, style, scan, and batch-export QR codes for Writer, spreadsheets, and Pixel"},

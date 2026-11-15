@@ -445,3 +445,11 @@ noncommercial) are pinned local asset selections. See `THIRD_PARTY_NOTICES.md`,
 `documentation/desktop-icon-themes.md` and the packaged per-file provenance and
 license texts under `ui/img/{tela,candy,fluent,buuf-nestort}/`. Original AuraGo
 supplements are identified separately as MIT.
+
+## Optional native application automation
+
+`vercel-labs/agent-desktop` v1.3.1 (Apache-2.0) supplies the unmodified CLI and
+Linux clipboard helper in the managed Debian desktop guest. Both architecture
+archives have fixed size/SHA-256 pins; AT-SPI packages come from Debian. No npm
+runtime dependency is added. See `THIRD_PARTY_NOTICES.md` and the embedded
+`internal/virtualcomputers/guest_workspace_agent/agent-desktop-LICENSE.txt`.

@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "Ovládat nativní aplikace",
+  "help.virtual_computers.native_apps": "Umožní hlavnímu agentovi ovládat nativní aplikace a dialogy ve viditelném pracovním prostoru agenta. Ve výchozím stavu vypnuto. Po instalaci nebo opravě vytvoř nový pracovní prostor s plochou. Webové stránky nadále používají ovládání prohlížeče.",
   "config.section.virtual_computers.label": "Virtuální počítače",
   "config.section.virtual_computers.desc": "Poskytuje jednorázové počítače microVM s terminálem, plochou a přístupem agenta.",
   "config.virtual_computers.enabled_label": "Zapnout virtuální počítače",

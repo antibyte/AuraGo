@@ -1361,6 +1361,7 @@ virtual_computers:
     allow_agent_tasks: false
     agent_provider: ""                                    # ID of an Anthropic provider; its Vault key is used only when agent tasks are enabled
     agent_control:
+        native_apps_enabled: false # optional native apps in verified desktop Agent Workspaces
         enabled: false                                     # enable stateful AuraGo-controlled workspaces only after setup verifies the guest protocol
         default_template: desktop                          # desktop for shell+browser; python for shell-only work
         max_active_workspaces: 2

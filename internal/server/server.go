@@ -2027,6 +2027,9 @@ func newServerFromOptions(opts StartOptions) *Server {
 	s.RetroGames = newRetroGamesService(cfg, logger)
 	publishRetroGamesTool(s.RetroGames)
 	publishStorymakerAgentFacade(s)
+	if manager := virtualWorkspaceManager(s); manager != nil {
+		manager.SetGUIConfigSource(func() virtualcomputers.ToolConfig { return virtualcomputers.FromAuraConfig(s.ConfigSnapshot()) })
+	}
 	return s
 }
 

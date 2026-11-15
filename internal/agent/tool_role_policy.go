@@ -8,6 +8,9 @@ import (
 
 // roleToolRestriction is shared by dispatch and discovery.
 func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
+	if tc.Action == "virtual_computer_ui" && dc != nil && (dc.IsCoAgent || isA2ARun(dc)) {
+		return `Tool Output: {"status":"policy_denied","message":"Native workspace control is reserved for the main agent."}`
+	}
 	// Discovery also calls this before transport preparation.
 	tc.Operation = toolCallSnapshotOperation(tc)
 	// Model-written maintenance is limited to inspecting the stores maintained
@@ -70,7 +73,7 @@ func roleToolRestriction(tc ToolCall, dc *DispatchContext) string {
 			}
 		case "co_agent", "co_agents":
 			return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot spawn sub-agents."}`
-		case "virtual_workspace", "virtual_browser":
+		case "virtual_workspace", "virtual_browser", "virtual_computer_ui":
 			return `Tool Output: {"status": "policy_denied", "message": "Agent Workspaces are controlled only by the AuraGo main agent."}`
 		case "follow_up":
 			return `Tool Output: {"status": "policy_denied", "message": "Co-Agents cannot schedule follow-ups."}`

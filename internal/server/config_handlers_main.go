@@ -11,6 +11,7 @@ import (
 	"aurago/internal/services/optimizer"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/virtualcomputers"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1672,6 +1673,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Logger.Info("[Config UI] Configuration hot-reloaded successfully")
 		}
 		s.CfgMu.Unlock()
+		var guiGateErr error
+		if loadErr == nil && newCfg != nil {
+			if manager := virtualWorkspaceManager(s); manager != nil {
+				gateCtx, gateCancel := context.WithTimeout(context.Background(), 45*time.Second)
+				guiGateErr = manager.ApplyGUIConfig(gateCtx, virtualcomputers.FromAuraConfig(&oldCfg), virtualcomputers.FromAuraConfig(newCfg))
+				gateCancel()
+			}
+		}
 		// Vault-POST side effects, only now that the save went through.
 		if effectErr := s.applyConfigSecretSideEffects(secretEffects, loadErr == nil); effectErr != nil {
 			s.Logger.Error("[Config] Credential refresh failed", "error", effectErr)
@@ -1797,6 +1806,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		if guiGateErr != nil {
+			jsonError(w, "Configuration saved; workspace input cancellation is not yet confirmed", http.StatusServiceUnavailable)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if newCfg != nil && oldCfg.Server.HTTPS.Enabled && !newCfg.Server.HTTPS.Enabled && r.TLS != nil {
 			w.Header().Set("Strict-Transport-Security", "max-age=0")

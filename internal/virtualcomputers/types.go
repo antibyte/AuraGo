@@ -55,6 +55,7 @@ type ControlPlaneConfig struct {
 }
 
 type ToolConfig struct {
+	NativeArtifactDir   string
 	Enabled             bool
 	Provider            string
 	AutoSetup           bool
@@ -84,6 +85,7 @@ type ToolConfig struct {
 }
 
 type AgentControlConfig struct {
+	NativeAppsEnabled           bool
 	Enabled                     bool
 	DefaultTemplate             string
 	MaxActiveWorkspaces         int

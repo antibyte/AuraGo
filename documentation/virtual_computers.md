@@ -67,6 +67,7 @@ virtual_computers:
   allow_internet: true
   agent_control:
     enabled: false
+    native_apps_enabled: false
     default_template: desktop
     max_active_workspaces: 2
     idle_ttl_seconds: 600
@@ -93,7 +94,7 @@ Legacy `/root` volumes are never attached to Agent Workspaces or migrated automa
 
 Credential metadata becomes visible to the agent only when the credential has `allow_virtual_computers`. A grant remains pending until an authenticated administrator approves it in the Agent Workspaces UI. Shell grants bind to one queued job and enter only that process environment; revocation or expiry cancels the job. Browser grants bind to one exact HTTP(S) origin and one fill action. Secret values never appear in tool output, workspace events, audit records, or checkpoints.
 
-The administrative API is rooted at `/api/virtual-computers/workspaces`, with job, browser-session, credential-grant, checkpoint, control, and event-WebSocket subresources. Human takeover pauses structured browser input for two minutes or until control is explicitly returned to the agent. Startup reconciliation keeps a job only when the same guest instance confirms it; missing machines, changed instance nonces, and unconfirmed jobs become explicit lost/interrupted records.
+The administrative API is rooted at `/api/virtual-computers/workspaces`, with job, browser-session, credential-grant, checkpoint, control, and event-WebSocket subresources. Human takeover cancels and drains structured browser/native input for two minutes or until control is explicitly returned to the agent. Startup reconciliation keeps a job only when the same guest instance confirms it; missing machines, changed instance nonces, and unconfirmed jobs become explicit lost/interrupted records.
 
 ## Browser access
 
@@ -243,3 +244,44 @@ When available ledger volumes still bind the previous store, config save returns
 3. Save config with header `X-AuraGo-Storage-Switch-Token: <token>`.
 
 Authorized switch-without-migration marks volumes `previous_store` (kept visible, not auto-deleted on JSON 404) and stops managed Garage when leaving that mode. Automated object-copy migration is not implemented yet; copy data externally before switching if you need it on the new store.
+
+## Optional native application control
+
+Enable **Native Anwendungen steuern** under Agent Control only after Install /
+Repair succeeds and a new desktop Agent Workspace has been created. The separate
+`virtual_computers.agent_control.native_apps_enabled` switch defaults to false.
+Use **Steuerung prüfen** on a workspace to read disabled, ready, repair required
+or session unreachable, plus the guest version and capabilities. This diagnostic
+does not launch or change applications. The authenticated endpoint is
+`GET /api/virtual-computers/workspaces/{id}/desktop/status`.
+
+The main agent uses `virtual_computer_ui` for applications, windows and native
+dialogs; `virtual_browser` retains web navigation and its credential grants. Both
+operate on VNC display `:0` and share the existing control lease. Take control,
+disabling or closing a workspace blocks new input and waits for active input to
+stop. If cancellation cannot be confirmed, the operation reports failure and
+input stays blocked; restore connectivity and retry the control change. After
+returning control the agent must obtain fresh observations.
+
+The Debian 13 desktop image includes AT-SPI 2.52 or later. Openbox, GUI apps and
+the guest service share one D-Bus session. Image construction installs the
+size/SHA-256-pinned agent-desktop v1.3.1 binaries for amd64 or arm64; no runtime
+npm, downloads, extra MCP service or separate LLM is needed. A candidate image
+boots without network and must pass the real Mousepad accessibility/input test
+before replacing the desktop image. A failed candidate leaves the old desktop
+image in place. Existing VMs always retain their original image.
+
+Accessibility is preferred. Screenshot fallback uses the existing VM capture and
+private, bounded image handles consumed by `analyze_image`. Captures expire after
+30 seconds; input, takeover or changed window geometry/resolution invalidates
+them. No public media URL is created. Without a compatible private-image Vision
+route or budget, semantic control remains available; inaccessible controls need
+user intervention. Accessibility quality varies by application. Unknown action
+outcomes are never automatically retried.
+
+Guest references and helper state live under `/run/aurago/native-desktop`; host
+captures live privately under the configured data directory and are deleted
+after expiry or invalidation. They are excluded from `/workspace` checkpoints.
+Activity stores operation/outcome only. Window content and image analysis are
+untrusted input. Native control is limited to the owning main-agent chat/mission;
+manual VMs, Python workspaces, co-agents and A2A peers are excluded.

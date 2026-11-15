@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "Controlla le applicazioni native",
+  "help.virtual_computers.native_apps": "Consente all’agente principale di gestire applicazioni native e finestre di dialogo nel suo spazio di lavoro visibile. Disattivato per impostazione predefinita. Crea un nuovo spazio con desktop dopo installazione o riparazione. Le pagine web continuano a usare il controllo del browser.",
   "config.section.virtual_computers.label": "Computer virtuali",
   "config.section.virtual_computers.desc": "Offre computer microVM usa e getta con accesso a terminale, desktop e agente.",
   "config.virtual_computers.enabled_label": "Abilita computer virtuali",

@@ -1120,6 +1120,13 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			identity := virtualcomputers.WorkspaceIdentity{SessionID: dc.SessionID, MissionID: dc.MissionID, Actor: "agent"}
 			return "Tool Output: " + tools.ExecuteVirtualWorkspace(ctx, cfg, identity, tc.Params)
 
+		case "virtual_computer_ui":
+			if denial := nativeDesktopVisionGate(tc, dc); denial != "" {
+				return denial
+			}
+			identity := virtualcomputers.WorkspaceIdentity{SessionID: dc.SessionID, MissionID: dc.MissionID, Actor: "agent"}
+			return externalToolOutput(ctx, tools.ExecuteVirtualComputerUI(ctx, cfg, identity, tc.Params))
+
 		case "virtual_browser":
 			logger.Info("LLM requested virtual workspace browser operation",
 				"operation", tc.Operation,

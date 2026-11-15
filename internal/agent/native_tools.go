@@ -226,6 +226,7 @@ type ToolFeatureFlags struct {
 	GameMakerEnabled             bool
 	VirtualComputersEnabled      bool
 	VirtualWorkspaceEnabled      bool
+	VirtualComputerUIEnabled     bool
 	OpenSCADEnabled              bool
 	QRCodeEnabled                bool
 	OfficeDocumentEnabled        bool

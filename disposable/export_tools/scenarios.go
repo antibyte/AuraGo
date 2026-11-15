@@ -2,6 +2,7 @@ package main
 
 import (
 	"aurago/internal/kaggle"
+	"aurago/internal/virtualcomputers"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -431,7 +432,7 @@ func makeErrorScenario(
 	}
 	errorResult := `{"status":"error","error":"temporary service failure"}`
 	if kaggleMutationFixture(choice) {
-		errorResult = `{"status":"unknown","error":"Kaggle mutation outcome is unknown; do not replay it. Inspect the existing job receipt."}`
+		errorResult = `{"status":"unknown","error":"Mutation outcome is unknown; do not replay it. Inspect fresh state and the existing receipt."}`
 		if language == "de" {
 			final = "Der Ausgang ist unbekannt. Ich wiederhole die Änderung nicht; der bestehende Auftrag muss geprüft werden."
 		} else {
@@ -487,6 +488,10 @@ func makeErrorScenario(
 }
 
 func kaggleMutationFixture(choice fixtureChoice) bool {
+	if choice.Tool.Name == "virtual_computer_ui" {
+		op, _ := choice.Arguments["operation"].(string)
+		return virtualcomputers.DesktopInput(op)
+	}
 	if !strings.HasPrefix(choice.Tool.Name, "kaggle_") {
 		return false
 	}
@@ -755,6 +760,9 @@ func naturalTaskClause(choice fixtureChoice, language string) string {
 	details := argumentSummaryExcluding(choice.Arguments, choice.Selector, "operation", "action", "mode")
 	if choice.Tool.Name == "ecalc" || choice.Tool.Name == "co_agent" {
 		return auditTrainingTask(choice.Tool.Name, operation, language, choice.Arguments)
+	}
+	if choice.Tool.Name == "virtual_computer_ui" {
+		return nativeDesktopTrainingTask(operation, language, choice.Arguments)
 	}
 	if choice.Tool.Name == "findit" {
 		return findItTrainingTask(operation, language, choice.Arguments)

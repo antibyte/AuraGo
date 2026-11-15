@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "控制原生应用",
+  "desktop.virtual_computers_native_check": "检查控制功能",
+  "desktop.virtual_computers_native_disabled": "已禁用",
+  "desktop.virtual_computers_native_ready": "就绪",
+  "desktop.virtual_computers_native_repair": "需要修复并新建工作区",
+  "desktop.virtual_computers_native_unreachable": "无法连接会话",
+  "desktop.virtual_computers_native_unchecked": "尚未检查",
+  "desktop.virtual_computers_native_checking": "正在检查…",
   "desktop.chat_question_request_failed": "请求失败。请重试或取消。",
   "desktop.pet_action_wave": "挥手",
   "desktop.pet_action_nod": "点头",

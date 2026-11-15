@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Έλεγχος εγγενών εφαρμογών",
+  "desktop.virtual_computers_native_check": "Έλεγχος χειρισμού",
+  "desktop.virtual_computers_native_disabled": "Απενεργοποιημένο",
+  "desktop.virtual_computers_native_ready": "Έτοιμο",
+  "desktop.virtual_computers_native_repair": "Απαιτούνται επισκευή και νέος χώρος εργασίας",
+  "desktop.virtual_computers_native_unreachable": "Η συνεδρία δεν είναι προσβάσιμη",
+  "desktop.virtual_computers_native_unchecked": "Δεν έχει ελεγχθεί ακόμη",
+  "desktop.virtual_computers_native_checking": "Γίνεται έλεγχος …",
   "desktop.chat_question_request_failed": "Το αίτημα απέτυχε. Δοκίμασε ξανά ή ακύρωσε.",
   "desktop.pet_action_wave": "Χαιρετισμός",
   "desktop.pet_action_nod": "Νεύμα",

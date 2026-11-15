@@ -195,27 +195,28 @@ type LegacyVolumeImportPreview struct {
 }
 
 type BrowserActionRequest struct {
-	Operation  string                 `json:"operation"`
-	SessionID  string                 `json:"session_id,omitempty"`
-	PageID     string                 `json:"page_id,omitempty"`
-	URL        string                 `json:"url,omitempty"`
-	ElementRef string                 `json:"element_ref,omitempty"`
-	Selector   string                 `json:"selector,omitempty"`
-	Text       string                 `json:"text,omitempty"`
-	Value      string                 `json:"value,omitempty"`
-	Key        string                 `json:"key,omitempty"`
-	TimeoutMS  int                    `json:"timeout_ms,omitempty"`
-	FullPage   bool                   `json:"full_page,omitempty"`
-	X          float64                `json:"x,omitempty"`
-	Y          float64                `json:"y,omitempty"`
-	DeltaX     float64                `json:"delta_x,omitempty"`
-	DeltaY     float64                `json:"delta_y,omitempty"`
-	ToX        float64                `json:"to_x,omitempty"`
-	ToY        float64                `json:"to_y,omitempty"`
-	Path       string                 `json:"path,omitempty"`
-	GrantID    string                 `json:"grant_id,omitempty"`
-	Fields     map[string]string      `json:"fields,omitempty"`
-	Options    map[string]interface{} `json:"options,omitempty"`
+	ControlToken string                 `json:"control_token,omitempty"`
+	Operation    string                 `json:"operation"`
+	SessionID    string                 `json:"session_id,omitempty"`
+	PageID       string                 `json:"page_id,omitempty"`
+	URL          string                 `json:"url,omitempty"`
+	ElementRef   string                 `json:"element_ref,omitempty"`
+	Selector     string                 `json:"selector,omitempty"`
+	Text         string                 `json:"text,omitempty"`
+	Value        string                 `json:"value,omitempty"`
+	Key          string                 `json:"key,omitempty"`
+	TimeoutMS    int                    `json:"timeout_ms,omitempty"`
+	FullPage     bool                   `json:"full_page,omitempty"`
+	X            float64                `json:"x,omitempty"`
+	Y            float64                `json:"y,omitempty"`
+	DeltaX       float64                `json:"delta_x,omitempty"`
+	DeltaY       float64                `json:"delta_y,omitempty"`
+	ToX          float64                `json:"to_x,omitempty"`
+	ToY          float64                `json:"to_y,omitempty"`
+	Path         string                 `json:"path,omitempty"`
+	GrantID      string                 `json:"grant_id,omitempty"`
+	Fields       map[string]string      `json:"fields,omitempty"`
+	Options      map[string]interface{} `json:"options,omitempty"`
 }
 
 type BrowserActionResult struct {

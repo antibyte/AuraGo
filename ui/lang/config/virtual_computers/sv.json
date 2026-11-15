@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "Styr inbyggda program",
+  "help.virtual_computers.native_apps": "Låter huvudagenten styra inbyggda program och dialogrutor i den synliga agentarbetsytan. Av som standard. Skapa en ny skrivbordsarbetsyta efter installation eller reparation. Webbsidor använder fortsatt webbläsarstyrning.",
   "config.section.virtual_computers.label": "Virtuella datorer",
   "config.section.virtual_computers.desc": "Erbjuder engångsdatorer i form av microVM med terminal-, skrivbords- och agentåtkomst.",
   "config.virtual_computers.enabled_label": "Aktivera virtuella datorer",

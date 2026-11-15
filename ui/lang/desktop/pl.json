@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Steruj aplikacjami natywnymi",
+  "desktop.virtual_computers_native_check": "Sprawdź sterowanie",
+  "desktop.virtual_computers_native_disabled": "Wyłączone",
+  "desktop.virtual_computers_native_ready": "Gotowe",
+  "desktop.virtual_computers_native_repair": "Wymagana naprawa i nowa przestrzeń robocza",
+  "desktop.virtual_computers_native_unreachable": "Sesja niedostępna",
+  "desktop.virtual_computers_native_unchecked": "Jeszcze nie sprawdzono",
+  "desktop.virtual_computers_native_checking": "Sprawdzanie …",
   "desktop.chat_question_request_failed": "Żądanie nie powiodło się. Spróbuj ponownie lub anuluj.",
   "desktop.pet_action_wave": "Pomachaj",
   "desktop.pet_action_nod": "Przytaknij",
