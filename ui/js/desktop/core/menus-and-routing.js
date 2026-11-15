@@ -95,51 +95,21 @@
         return entry;
     }
 
+    function desktopAssociationCandidates(entry) {
+        const associations = window.AuraDesktopFileAssociations;
+        const candidates = associations.resolveCandidates(entry, {
+            isViewerFile, isWriterFile, isSheetsFile, allApps,
+            isImageFile: desktopIsImageFile, isMediaFile: desktopIsMediaFile, isArchiveFile: desktopIsArchiveFile
+        });
+        return associations.availableCandidates(candidates, allApps()).map(app => Object.assign({}, app, {
+            label: app.label || t(app.labelKey)
+        }));
+    }
+
     function buildDesktopOpenWithSubmenu(entry) {
         if (!entry || entry.type !== 'file') return [];
-        const name = entry.name || pathBaseName(entry.path);
-        const apps = [];
-        const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
-        const isImage = desktopIsImageFile(name);
-        const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
-        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
-        if (isText) {
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.ora$/i.test(name)) {
-            // OpenRaster projects are Pixel documents: Gallery and Viewer cannot draw them.
-            apps.push({ label: t('desktop.app_pixel'), appId: 'pixel' });
-        } else if (isImage) {
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        } else if (isMedia) {
-            const ext = desktopFileExtension(name);
-            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' }, { label: t('desktop.app_music_player'), appId: 'music-player' });
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
-            apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
-            apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.lyl$/i.test(name)) {
-            apps.push({ label: 'Layerling', appId: 'layerling' });
-        } else if (/\.aurasynth$/i.test(name)) {
-            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(name || '').toLowerCase().endsWith('.md')) {
-            apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (desktopIsArchiveFile(name)) {
-            apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
-        } else {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        }
-        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
-        if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
-        const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
-        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
+        const apps = desktopAssociationCandidates(entry);
+        const ext = window.AuraDesktopFileAssociations.extensionForName(entry.name || entry.path);
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -149,9 +119,14 @@
         }));
         const defaultItems = apps.map(app => ({
             label: t('desktop.set_default_app_for', { app: app.label }),
-            action: () => {
-                setDefaultAppForExtension(ext, app.appId);
-                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+            disabled: desktopReadonly() || !ext,
+            action: async () => {
+                try {
+                    await setDefaultAppForExtension(ext, app.appId);
+                    showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+                } catch (err) {
+                    showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                }
             }
         }));
         return openItems.concat([{ separator: true }]).concat(defaultItems);
@@ -625,11 +600,12 @@
         const item = state.windows.get(id);
         if (!item) return;
         const items = [
-            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
+            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => { restoreWindowFromSnap(id); focusWindow(id); } },
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
         if (!item.isGadget) {
+            items.push({ label: t('desktop.window_layouts'), icon: 'grid', action: () => openWindowLayoutMenu(id) });
             const onTop = !!item.alwaysOnTop;
             items.push({
                 label: t('desktop.context_always_on_top'),
@@ -671,6 +647,7 @@
         }
         items.push(
             { separator: true },
+            ...windowBatchMenuItems(id).map(entry => ({ label: t(entry.labelKey), action: entry.action, disabled: entry.disabled })),
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
         );
         showContextMenu(event.clientX, event.clientY, items);
@@ -954,6 +931,7 @@
     }
 
     async function emptyTrash() {
+        if (desktopReadonly()) return;
         try {
             const entries = await listTrashEntries();
             if (entries.length === 0) {
@@ -1368,6 +1346,18 @@
             .filter(menu => menu.items.length);
     }
 
+    function windowBatchMenuItems(windowId) {
+        const item = state.windows.get(windowId);
+        if (!item || item.isGadget) return [];
+        const eligible = Array.from(state.windows.values()).filter(win => !win.isGadget && !win.closing);
+        const others = eligible.filter(win => win.id !== windowId && windowSpaceId(win) === windowSpaceId(item)).map(win => win.id);
+        const sameApp = eligible.filter(win => win.appId === item.appId).map(win => win.id);
+        return [
+            { id: 'close-others', labelKey: 'desktop.close_other_windows', disabled: !others.length, action: () => closeDesktopWindowBatch(others) },
+            { id: 'close-app', labelKey: 'desktop.close_app_windows', disabled: !sameApp.length, action: () => closeDesktopWindowBatch(sameApp) }
+        ];
+    }
+
     function automaticWindowMenu(windowId) {
         const item = state.windows.get(windowId);
         const hasMaximize = !!(item && item.element && item.element.querySelector('[data-action="maximize"]'));
@@ -1385,6 +1375,9 @@
                     action: () => hasMaximize && toggleMaximizeWindow(windowId)
                 },
                 { type: 'separator' },
+                ...(item && !item.isGadget ? [{ id: 'layouts', labelKey: 'desktop.window_layouts', action: () => openWindowLayoutMenu(windowId) },
+                    { id: 'restore-layout', labelKey: 'desktop.restore', disabled: !windowLayoutCanRestore(windowId), action: () => restoreWindowFromSnap(windowId) },
+                    ...windowBatchMenuItems(windowId)] : []),
                 { id: 'close', labelKey: 'desktop.menu_close_window', icon: 'x', shortcut: 'Alt+F4', action: () => closeWindow(windowId) }
             ]
         };
@@ -1616,7 +1609,7 @@
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }

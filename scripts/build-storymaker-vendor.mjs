@@ -34,7 +34,8 @@ const result = await build({ absWorkingDir: root, entryPoints: ['assets/storymak
 const bytes = result.outputFiles[0].contents;
 const packages=new Set();
 for(const input of Object.keys(result.metafile.inputs)){
-    const match=/^node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(input.replaceAll('\\','/'));
+    // Linked worktree dependencies can appear outside the build root in esbuild's inputs.
+    const match=/(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(input.replaceAll('\\','/'));
     if(match&&!versions[match[1]])packages.add(match[1]);
 }
 for(const name of [...packages].sort()){

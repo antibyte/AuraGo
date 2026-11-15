@@ -3,6 +3,7 @@
         if (!item) return;
         if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
+        closeWindowLayoutPopupFor(id);
         emitDesktopWindowEffect('minimize', id);
         desktopSound('window.minimize');
         item.minimizing = true;
@@ -129,6 +130,286 @@
         if (flush && pending) pending();
     }
 
+    let activeDesktopWindowLayoutPopup = null;
+
+    function wireWindowLayoutControl(button, id) {
+        let holdTimer = 0;
+        let suppressNextClick = false;
+        button.setAttribute('aria-haspopup', 'menu');
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', 'vd-window-layout-menu');
+        button.addEventListener('click', event => {
+            if (suppressNextClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                suppressNextClick = false;
+                return;
+            }
+            toggleMaximizeWindow(id);
+        });
+        button.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            openWindowLayoutMenu(id);
+        });
+        button.addEventListener('keydown', event => {
+            if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+            event.preventDefault();
+            openWindowLayoutMenu(id);
+        });
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            if (holdTimer) window.clearTimeout(holdTimer);
+            holdTimer = window.setTimeout(() => {
+                holdTimer = 0;
+                suppressNextClick = true;
+                openWindowLayoutMenu(id);
+            }, 550);
+        });
+        const cancelHold = () => {
+            if (holdTimer) window.clearTimeout(holdTimer);
+            holdTimer = 0;
+        };
+        button.addEventListener('pointerup', () => {
+            cancelHold();
+            window.setTimeout(() => { suppressNextClick = false; }, 0);
+        });
+        button.addEventListener('pointercancel', () => { cancelHold(); suppressNextClick = false; });
+        button.addEventListener('pointerleave', () => { cancelHold(); suppressNextClick = false; });
+    }
+
+    function windowLayoutZones() {
+        return DESKTOP_WINDOW_LAYOUT_ZONES.slice();
+    }
+
+    function windowLayoutOptions(id) {
+        const item = state.windows.get(id);
+        if (!item || !item.element || item.isGadget) return [];
+        const limits = windowLayoutLimits(item.element);
+        return windowLayoutZones().map(zone => {
+            const rect = desktopWindowLayoutRect(zone, limits.width, limits.height);
+            return { zone, rect, fits: desktopWindowLayoutFits(rect, limits) };
+        });
+    }
+
+    function windowLayoutCanRestore(id) {
+        const item = state.windows.get(id);
+        return !!(item && !item.isGadget && item.restoreBounds);
+    }
+
+    function closeWindowLayoutPopup(restoreFocus) {
+        const popup = activeDesktopWindowLayoutPopup;
+        if (!popup) return;
+        activeDesktopWindowLayoutPopup = null;
+        document.removeEventListener('pointerdown', popup.onPointerDown, true);
+        document.removeEventListener('keydown', popup.onKeyDown, true);
+        popup.element.remove();
+        if (popup.opener) popup.opener.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && popup.opener && popup.opener.isConnected) popup.opener.focus({ preventScroll: true });
+    }
+
+    function closeWindowLayoutPopupFor(id) {
+        const popup = activeDesktopWindowLayoutPopup;
+        if (popup && (popup.windowId === id || popup.candidateIds.includes(id))) closeWindowLayoutPopup(false);
+    }
+
+    function positionWindowLayoutPopup(popup, anchor) {
+        const rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+        const margin = 8;
+        const width = popup.offsetWidth || 280;
+        const height = popup.offsetHeight || 360;
+        let left = rect ? rect.left : margin;
+        let top = rect ? rect.bottom + 6 : window.innerHeight - height - margin;
+        left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+        if (top + height > window.innerHeight - margin) top = rect ? rect.top - height - 6 : margin;
+        top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+        popup.style.left = Math.round(left) + 'px';
+        popup.style.top = Math.round(top) + 'px';
+    }
+
+    function wireWindowLayoutPopup(popup, opener, windowId, candidateIds) {
+        const onPointerDown = event => {
+            if (popup.contains(event.target) || event.target === opener) return;
+            closeWindowLayoutPopup(false);
+        };
+        const onKeyDown = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeWindowLayoutPopup(true);
+                return;
+            }
+            if (event.key === 'Tab') {
+                closeWindowLayoutPopup(true);
+                return;
+            }
+            const items = [...popup.querySelectorAll('button:not(:disabled)')];
+            if (!items.length) return;
+            const index = items.indexOf(document.activeElement);
+            let next = null;
+            if (event.key === 'ArrowDown') next = items[index < 0 ? 0 : (index + 1) % items.length];
+            else if (event.key === 'ArrowUp') next = items[index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length];
+            else if (event.key === 'Home') next = items[0];
+            else if (event.key === 'End') next = items[items.length - 1];
+            if (!next) return;
+            event.preventDefault();
+            next.focus({ preventScroll: true });
+        };
+        activeDesktopWindowLayoutPopup = { element: popup, opener, windowId, candidateIds: candidateIds || [], onPointerDown, onKeyDown };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown, true);
+    }
+
+    function openWindowLayoutMenu(id) {
+        const item = state.windows.get(id);
+        const opener = item && item.element && item.element.querySelector('[data-action="maximize"]');
+        if (!item || item.isGadget || !opener) return false;
+        closeWindowLayoutPopup(false);
+        if (state.contextMenu) closeContextMenu(true);
+        const menu = document.createElement('div');
+        menu.id = 'vd-window-layout-menu';
+        menu.className = 'vd-context-menu vd-window-layout-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', t('desktop.window_layouts'));
+        const layoutLabels = {
+            maximize: 'desktop.maximize',
+            'left-half': 'desktop.snap_left',
+            'right-half': 'desktop.snap_right',
+            'top-half': 'desktop.snap_top_half',
+            'bottom-half': 'desktop.snap_bottom_half',
+            'top-left': 'desktop.snap_top_left',
+            'top-right': 'desktop.snap_top_right',
+            'bottom-left': 'desktop.snap_bottom_left',
+            'bottom-right': 'desktop.snap_bottom_right'
+        };
+        const addButton = (labelKey, icon, action, disabled, checked, title) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-context-item vd-window-layout-item';
+            button.setAttribute('role', action === 'restore' ? 'menuitem' : 'menuitemradio');
+            if (action !== 'restore') button.setAttribute('aria-checked', checked ? 'true' : 'false');
+            const glyph = document.createElement('span');
+            glyph.className = 'vd-context-icon';
+            glyph.setAttribute('aria-hidden', 'true');
+            glyph.textContent = icon;
+            const label = document.createElement('span');
+            label.className = 'vd-context-label';
+            label.textContent = t(labelKey);
+            button.append(glyph, label);
+            if (disabled) {
+                button.disabled = true;
+                button.title = t('desktop.snap_layout_too_small');
+                button.setAttribute('aria-description', t('desktop.snap_layout_too_small'));
+            } else {
+                button.addEventListener('click', () => {
+                    closeWindowLayoutPopup(true);
+                    if (action === 'restore') restoreWindowFromSnap(id);
+                    else applyWindowSnap(item.element, action);
+                });
+            }
+            if (title) button.title = title;
+            menu.appendChild(button);
+        };
+        if (windowLayoutCanRestore(id)) addButton('desktop.restore', '↶', 'restore', false, false);
+        windowLayoutOptions(id).forEach(option => {
+            addButton(layoutLabels[option.zone], option.zone === 'maximize' ? '□' : '▦', option.zone,
+                !option.fits, item.snapped === option.zone || (option.zone === 'maximize' && item.maximized));
+        });
+        document.body.appendChild(menu);
+        positionWindowLayoutPopup(menu, opener);
+        opener.setAttribute('aria-expanded', 'true');
+        wireWindowLayoutPopup(menu, opener, id);
+        const first = menu.querySelector('button:not(:disabled)');
+        if (first) first.focus({ preventScroll: true });
+        return true;
+    }
+
+    function desktopWindowSnapPartnerZone(zone) {
+        if (zone === 'left-half') return 'right-half';
+        if (zone === 'right-half') return 'left-half';
+        return '';
+    }
+
+    function showWindowSnapPartnerChooser(windowId, partnerZone) {
+        const source = state.windows.get(windowId);
+        if (!source || !source.element) return false;
+        const sameSpace = candidate => typeof windowSpaceId === 'function'
+            ? windowSpaceId(candidate) === windowSpaceId(source)
+            : String(candidate.spaceId || '') === String(source.spaceId || '');
+        const candidates = [...state.windows.values()].filter(candidate => {
+            if (candidate === source || candidate.isGadget || candidate.closing || candidate.checkingClose || !candidate.element) return false;
+            if (candidate.element.style.display === 'none' || candidate.element.classList.contains('vd-space-hidden') || candidate.minimizing) return false;
+            if (!sameSpace(candidate)) return false;
+            const bounds = windowLayoutLimits(candidate.element);
+            return desktopWindowLayoutFits(desktopWindowLayoutRect(partnerZone, bounds.width, bounds.height), bounds);
+        });
+        const occupiedSide = partnerZone === 'left-half' ? 'left' : 'right';
+        const occupied = candidates.some(candidate => desktopWindowLayoutOccupiesHalf(candidate, occupiedSide));
+        if (!candidates.length || occupied) return false;
+        closeWindowLayoutPopup(false);
+        const popup = document.createElement('section');
+        popup.className = 'vd-context-menu vd-snap-partner-chooser';
+        popup.setAttribute('role', 'dialog');
+        popup.setAttribute('aria-modal', 'false');
+        popup.setAttribute('aria-label', t('desktop.snap_partner_title'));
+        const header = document.createElement('header');
+        header.className = 'vd-snap-partner-header';
+        const heading = document.createElement('h2');
+        heading.textContent = t('desktop.snap_partner_title');
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'vd-snap-partner-dismiss';
+        dismiss.setAttribute('aria-label', t('desktop.snap_partner_dismiss'));
+        dismiss.textContent = '×';
+        header.append(heading, dismiss);
+        popup.appendChild(header);
+        const grid = document.createElement('div');
+        grid.className = 'vd-snap-partner-grid';
+        candidates.forEach(candidate => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-snap-partner-card';
+            button.setAttribute('aria-label', t('desktop.snap_partner_select', { name: candidate.title }));
+            const preview = document.createElement('div');
+            preview.className = 'vd-snap-partner-preview';
+            preview.innerHTML = typeof windowPreviewMarkup === 'function'
+                ? windowPreviewMarkup(candidate, {
+                    maxW: 224, maxH: 118,
+                    titleClass: 'vd-snap-partner-preview-title', labelClass: 'vd-snap-partner-preview-label',
+                    iconClass: 'vd-snap-partner-preview-icon', viewportClass: 'vd-snap-partner-preview-viewport',
+                    scaleClass: 'vd-snap-partner-preview-scale', fallbackClass: 'vd-snap-partner-preview-fallback',
+                    fallbackIconClass: 'vd-snap-partner-preview-fallback-icon', fallbackIconSize: 30
+                }) : esc(candidate.title);
+            button.appendChild(preview);
+            button.addEventListener('click', () => {
+                if (state.windows.get(windowId) !== source || source.element.style.display === 'none'
+                    || source.element.classList.contains('vd-space-hidden') || source.minimizing || source.closing || source.checkingClose
+                    || desktopWindowSnapPartnerZone(source.snapped) !== partnerZone) {
+                    closeWindowLayoutPopup(false);
+                    return;
+                }
+                if (state.windows.get(candidate.id) !== candidate || candidate.element.style.display === 'none'
+                    || candidate.element.classList.contains('vd-space-hidden') || candidate.minimizing || candidate.closing
+                    || candidate.checkingClose || !sameSpace(candidate)) return;
+                if (!applyWindowSnap(candidate.element, partnerZone, { showPartnerChooser: false })) return;
+                closeWindowLayoutPopup(false);
+                focusWindow(candidate.id);
+                const target = candidate.element.querySelector('[data-action="maximize"]');
+                if (target) target.focus({ preventScroll: true });
+            });
+            grid.appendChild(button);
+        });
+        popup.appendChild(grid);
+        document.body.appendChild(popup);
+        positionWindowLayoutPopup(popup, source.element);
+        const opener = source.element.querySelector('[data-action="maximize"]');
+        wireWindowLayoutPopup(popup, opener, windowId, candidates.map(candidate => candidate.id));
+        dismiss.addEventListener('click', () => closeWindowLayoutPopup(true));
+        const first = grid.querySelector('button');
+        if (first) first.focus({ preventScroll: true });
+        return true;
+    }
+
 function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
         wireWindowContextMenu(win, id);
@@ -136,20 +417,19 @@ function wireWindow(win, id) {
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
         const aiBtn = win.querySelector('[data-action="ai-context"]'); if (aiBtn) aiBtn.addEventListener('click', () => openAgentChatForWindow(id));
         const maximizeBtn = win.querySelector('[data-action="maximize"]');
-        if (maximizeBtn) maximizeBtn.addEventListener('click', () => toggleMaximizeWindow(id));
+        if (maximizeBtn) wireWindowLayoutControl(maximizeBtn, id);
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
             if (event.target.closest('button, .vd-window-menu-popover')) return;
             if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
-            const dragItem = state.windows.get(id);
-            if (dragItem) dragItem.snapped = '';
             drag = {
                 x: event.clientX,
                 y: event.clientY,
                 left: parseInt(win.style.left, 10) || 0,
                 top: parseInt(win.style.top, 10) || 0,
+                moved: false,
                 raf: 0,
                 pendingFrame: null,
                 snapZone: null
@@ -171,10 +451,11 @@ function wireWindow(win, id) {
                 const maxTop = Math.max(0, window.innerHeight - taskbarReserve - win.offsetHeight);
                 const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
+                if (!activeDrag.moved && (Math.abs(activeDrag.clientX - activeDrag.x) > 2 || Math.abs(activeDrag.clientY - activeDrag.y) > 2)) activeDrag.moved = true;
                 win.style.left = newLeft + 'px';
                 win.style.top = newTop + 'px';
                 emitDesktopWindowEffect('drag', id);
-                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
+                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight, win);
                 scheduleFruityDockOcclusionCheck();
             });
         });
@@ -182,6 +463,10 @@ function wireWindow(win, id) {
             cancelWindowPointerFrame(drag, true);
             if (drag) emitDesktopWindowEffect('drag-end', id);
             if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
+            else if (drag && drag.moved) {
+                const item = state.windows.get(id);
+                if (item) { item.snapped = ''; item.restoreBounds = null; }
+            }
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
@@ -209,18 +494,22 @@ function wireWindow(win, id) {
     const SNAP_EDGE = 4;
     const SNAP_TOP_SIDE_EDGE = 96;
 
-    function updateSnapZone(drag, left, top, width, height) {
-        const workspace = $('vd-workspace') || document.body;
-        const ww = workspace.clientWidth;
-        const wh = workspace.clientHeight;
+    function updateSnapZone(drag, left, top, width, height, win) {
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width;
+        const wh = limits.height;
         const nearLeftEdge = left <= SNAP_TOP_SIDE_EDGE;
         const nearRightEdge = left + width >= ww - SNAP_TOP_SIDE_EDGE;
+        const nearBottomEdge = top + height >= wh - SNAP_EDGE;
         let zone = null;
         if (top <= SNAP_EDGE && nearLeftEdge) zone = 'top-left';
         else if (top <= SNAP_EDGE && nearRightEdge) zone = 'top-right';
         else if (top <= SNAP_EDGE) zone = 'maximize';
+        else if (nearBottomEdge && nearLeftEdge) zone = 'bottom-left';
+        else if (nearBottomEdge && nearRightEdge) zone = 'bottom-right';
         else if (left <= SNAP_EDGE) zone = 'left-half';
         else if (left + width >= ww - SNAP_EDGE) zone = 'right-half';
+        if (zone && !desktopWindowLayoutFits(desktopWindowLayoutRect(zone, ww, wh), limits)) zone = null;
         drag.snapZone = zone;
         showSnapOverlay(zone, ww, wh);
     }
@@ -235,15 +524,8 @@ function wireWindow(win, id) {
             $('vd-window-layer').appendChild(overlay);
         }
         overlay.hidden = false;
-        const positions = {
-            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
-            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
-            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
-            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 },
-            'maximize': { left: 0, top: 0, width: ww, height: wh }
-        };
-        const p = positions[zone];
+        const p = desktopWindowLayoutRect(zone, ww, wh);
+        if (!p) { hideSnapOverlay(); return; }
         overlay.style.left = p.left + 'px';
         overlay.style.top = p.top + 'px';
         overlay.style.width = p.width + 'px';
@@ -256,54 +538,52 @@ function wireWindow(win, id) {
         if (overlay) overlay.hidden = true;
     }
 
-    function applyWindowSnap(win, zone) {
-        const limits = windowLayoutLimits(win);
-        const ww = limits.width, wh = limits.height;
-        const positions = {
-            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
-            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
-            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
-            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
-        };
+    function applyWindowSnap(win, zone, options) {
         const windowId = win.dataset.windowId;
         const item = state.windows.get(windowId);
-        if (!item) return;
+        if (!item || item.isGadget) return false;
+        closeWindowLayoutPopupFor(windowId);
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width, wh = limits.height;
+        const p = desktopWindowLayoutRect(zone, ww, wh);
+        if (!desktopWindowLayoutFits(p, limits)) return false;
         if (zone === 'maximize') {
             item.snapped = '';
             if (!item.maximized) toggleMaximizeWindow(windowId);
-            return;
+            return true;
         }
-        const p = positions[zone];
-        if (!p) return;
+        if (!p) return false;
         animateWindowBounds(win, () => {
+            desktopWindowRememberRestoreBounds(item, windowBounds(win));
             if (item.maximized) {
                 item.maximized = false;
                 win.classList.remove('maximized');
             }
-            item.restoreBounds = windowBounds(win);
             item.snapped = zone;
-            const width = Math.min(ww, Math.max(limits.minWidth, p.width));
-            const height = Math.min(wh, Math.max(limits.minHeight, p.height));
-            win.style.left = Math.min(p.left, ww - width) + 'px';
-            win.style.top = Math.min(p.top, wh - height) + 'px';
-            win.style.width = width + 'px';
-            win.style.height = height + 'px';
+            win.style.left = p.left + 'px';
+            win.style.top = p.top + 'px';
+            win.style.width = p.width + 'px';
+            win.style.height = p.height + 'px';
         });
         emitDesktopWindowEffect('snap', windowId);
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
+        const partnerZone = desktopWindowSnapPartnerZone(zone);
+        if (partnerZone && (!options || options.showPartnerChooser !== false)) showWindowSnapPartnerChooser(windowId, partnerZone);
+        return true;
     }
 
     function restoreWindowFromSnap(id) {
         const item = state.windows.get(id);
         if (!item || !item.element || item.isGadget) return;
+        closeWindowLayoutPopupFor(id);
         if (item.maximized) {
             toggleMaximizeWindow(id);
             return;
         }
         const bounds = item.restoreBounds;
-        if (item.snapped && bounds) {
+        if (bounds) {
             animateWindowBounds(item.element, () => {
                 item.element.classList.remove('maximized');
                 item.element.style.left = bounds.left + 'px';
@@ -312,9 +592,11 @@ function wireWindow(win, id) {
                 item.element.style.height = bounds.height + 'px';
                 item.maximized = false;
                 item.snapped = '';
+                item.restoreBounds = null;
             });
             emitDesktopWindowEffect('restore', id);
             scheduleFruityDockOcclusionCheck();
+            scheduleSessionPersist();
             return;
         }
         minimizeWindow(id);
@@ -327,10 +609,9 @@ function wireWindow(win, id) {
         const item = state.windows.get(state.activeWindowId);
         if (!item || !item.element || item.isGadget) return false;
         event.preventDefault();
-        if (event.key === 'ArrowLeft') applyWindowSnap(item.element, 'left-half');
-        else if (event.key === 'ArrowRight') applyWindowSnap(item.element, 'right-half');
-        else if (event.key === 'ArrowUp') applyWindowSnap(item.element, 'maximize');
-        else restoreWindowFromSnap(item.id);
+        const zone = desktopWindowKeyboardLayout(item.snapped, event.key);
+        if (zone === 'restore') restoreWindowFromSnap(item.id);
+        else if (zone) applyWindowSnap(item.element, zone);
         return true;
     }
 
@@ -406,6 +687,7 @@ function wireWindow(win, id) {
     function toggleMaximizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
+        closeWindowLayoutPopupFor(id);
         const win = item.element;
         desktopSound(item.maximized ? 'window.restore' : 'window.maximize');
         animateWindowBounds(win, () => {
@@ -417,14 +699,18 @@ function wireWindow(win, id) {
                 win.style.width = b.width + 'px';
                 win.style.height = b.height + 'px';
                 item.maximized = false;
+                item.snapped = '';
+                item.restoreBounds = null;
             } else {
-                item.restoreBounds = windowBounds(win);
+                desktopWindowRememberRestoreBounds(item, windowBounds(win));
+                item.snapped = '';
                 const bounds = windowLayoutLimits(win);
+                const rect = desktopWindowLayoutRect('maximize', bounds.width, bounds.height);
                 win.classList.add('maximized');
-                win.style.left = '0';
-                win.style.top = '0';
-                win.style.width = bounds.width + 'px';
-                win.style.height = bounds.height + 'px';
+                win.style.left = rect.left + 'px';
+                win.style.top = rect.top + 'px';
+                win.style.width = rect.width + 'px';
+                win.style.height = rect.height + 'px';
                 item.maximized = true;
             }
         });
@@ -450,6 +736,9 @@ function wireWindow(win, id) {
                     x: event.clientX,
                     y: event.clientY,
                     bounds: windowBounds(win),
+                    style: { left: win.style.left, top: win.style.top, width: win.style.width, height: win.style.height },
+                    snapped: item && item.snapped || '',
+                    restoreBounds: item && item.restoreBounds ? { ...item.restoreBounds } : null,
                     raf: 0,
                     pendingFrame: null
                 };
@@ -472,8 +761,11 @@ function wireWindow(win, id) {
             });
             handle.addEventListener('pointerup', event => {
                 if (!resize) return;
+                const activeResize = resize;
                 handle.releasePointerCapture(event.pointerId);
                 cancelWindowPointerFrame(resize, true);
+                const item = state.windows.get(id), current = windowBounds(win), start = activeResize.bounds;
+                if (item && (current.left !== start.left || current.top !== start.top || current.width !== start.width || current.height !== start.height)) { item.snapped = ''; item.restoreBounds = null; }
                 emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
@@ -482,6 +774,12 @@ function wireWindow(win, id) {
             handle.addEventListener('pointercancel', event => {
                 if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
                     handle.releasePointerCapture(event.pointerId);
+                }
+                if (resize) {
+                    const item = state.windows.get(id), start = resize;
+                    Object.assign(win.style, start.style);
+                    if (item) { item.snapped = start.snapped; item.restoreBounds = start.restoreBounds; }
+                    scheduleFruityDockOcclusionCheck();
                 }
                 cancelWindowPointerFrame(resize);
                 if (resize) emitDesktopWindowEffect('resize-end', id);
@@ -497,9 +795,12 @@ function wireWindow(win, id) {
         const minimum = appWindowMinSize(win.dataset.appId);
         const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
         const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);
+        const cssLimits = window.getComputedStyle ? window.getComputedStyle(win) : win.style;
         win.style.minWidth = minWidth + 'px';
         win.style.minHeight = minHeight + 'px';
-        return { ...workspace, minWidth, minHeight };
+        return { ...workspace, minWidth, minHeight,
+            maxWidth: desktopWindowLayoutMaxLimit(cssLimits && cssLimits.maxWidth, workspace.width),
+            maxHeight: desktopWindowLayoutMaxLimit(cssLimits && cssLimits.maxHeight, workspace.height) };
     }
 
     function applyResize(win, edge, start, dx, dy) {
@@ -562,6 +863,24 @@ function wireWindow(win, id) {
                 if (item.maximized) {
                     win.style.width = bounds.width + 'px';
                     win.style.height = bounds.height + 'px';
+                }
+                return;
+            }
+            if (item.snapped) {
+                const bounds = windowLayoutLimits(win);
+                const rect = desktopWindowLayoutRect(item.snapped, bounds.width, bounds.height);
+                if (desktopWindowLayoutFits(rect, bounds)) {
+                    win.style.left = rect.left + 'px';
+                    win.style.top = rect.top + 'px';
+                    win.style.width = rect.width + 'px';
+                    win.style.height = rect.height + 'px';
+                    return;
+                }
+                item.snapped = '';
+                if (!mobile) {
+                    const before = `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+                    applyResize(win, 'se', item.restoreBounds || windowBounds(win), 0, 0);
+                    changed ||= before !== `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
                 }
                 return;
             }
@@ -647,16 +966,17 @@ function wireWindow(win, id) {
 
     async function closeWindow(id) {
         const win = state.windows.get(id);
-        if (!win) return;
-        if (win.isGadget) return; // gadgets are closed via their own context menu
-        if (win.closing || win.checkingClose) return;
+        if (!win) return 'skipped';
+        if (win.isGadget) return 'skipped'; // gadgets are closed via their own context menu
+        if (win.closing || win.checkingClose) return 'skipped';
         if (typeof win.beforeClose === 'function') {
             win.checkingClose = true;
-            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return; } }
-            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return; }
+            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return 'cancelled'; } }
+            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return 'cancelled'; }
             finally { win.checkingClose = false; }
-            if (!state.windows.has(id)) return;
+            if (state.windows.get(id) !== win || win.closing || win.checkingClose) return 'skipped';
         }
+        closeWindowLayoutPopupFor(id);
         win.closing = true;
         emitDesktopWindowEffect('close', id);
         desktopSound('window.close');
@@ -672,6 +992,14 @@ function wireWindow(win, id) {
             scheduleFruityDockOcclusionCheck();
             scheduleSessionPersist();
         });
+        return 'accepted';
+    }
+
+    async function closeDesktopWindowBatch(ids) {
+        return desktopCloseWindowBatch(ids, id => {
+            const item = state.windows.get(id);
+            return !!(item && !item.isGadget);
+        }, closeWindow);
     }
 
     function closeContextMenu(immediate) {

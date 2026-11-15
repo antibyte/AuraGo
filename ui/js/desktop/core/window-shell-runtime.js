@@ -1004,15 +1004,12 @@
         const host = $('vd-start-apps');
         if (!host) return;
         const query = state.startQuery.trim().toLowerCase();
+        if (query) { renderStartSearch(query); return; }
+        cancelStartSearch();
         let title = '';
         let count = 0;
         let html = '';
-        if (query) {
-            const matches = model.allApps.filter(app => appName(app).toLowerCase().includes(query)).sort(compareAppsByName);
-            title = t('desktop.start_results');
-            count = matches.length;
-            html = matches.length ? startSectionMarkup('', matches.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_no_results'));
-        } else if (active === 'recent') {
+        if (active === 'recent') {
             title = t('desktop.recent_apps');
             count = model.recentApps.length + model.recentFiles.length;
             if (model.recentApps.length) html += startSectionMarkup(t('desktop.recent_apps'), model.recentApps.map((app, index) => startAppItemMarkup(app, index, 'vd-start-recent-item')).join(''));
@@ -1665,6 +1662,12 @@
             }
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (appId === 'calculator' && context && typeof context.expression === 'string') {
+                if (window.CalculatorApp) window.CalculatorApp.openExpression?.(existing.id, context.expression);
+                else window.AuraDesktopModules.loadAppScript('calculator')
+                    .then(() => window.CalculatorApp?.openExpression?.(existing.id, context.expression))
+                    .catch(() => {}); // The original lazy renderer reports load failures.
+            }
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (appId === 'software-store' && context && context.app_id) {
                 updateWindowContext(existing.id, { app_id: context.app_id });
@@ -1809,7 +1812,8 @@
         animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
-        else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        else if (sessionRestore && sessionRestore.snapped) applyWindowSnap(win, sessionRestore.snapped, { showPartnerChooser: false });
+        else if (!sessionRestore && shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
         if (sessionRestore && sessionRestore.minimized) {

@@ -323,6 +323,8 @@
         'appearance.theme': 'standard',
         'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
+        'accessibility.text_size': '100',
+        'accessibility.high_contrast': 'false',
         'appearance.icon_theme': 'papirus',
         'appearance.tela_folder_color': 'standard',
         'appearance.fluent_folder_color': 'standard',
@@ -722,6 +724,7 @@
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
+        window.AuraDesktopAccessibility?.apply(desktopSettings());
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
         body.dataset.animations = settingValue('windows.animations');
         body.dataset.widgets = settingValue('desktop.show_widgets');
@@ -1358,6 +1361,7 @@
     }
 
     function closeStartMenu() {
+        cancelStartSearch();
         const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing';
         menu.style.transition = ''; menu.style.transform = '';
         const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'false'; startButton.setAttribute('aria-expanded', 'false'); }

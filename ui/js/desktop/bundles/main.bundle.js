@@ -266,6 +266,1345 @@
 }());
 
 ;
+/* ui/js/desktop/shared/calculator-expression.js */
+(function () {
+    'use strict';
+
+    function tokenize(expression) {
+        const tokens = [];
+        let index = 0;
+        while (index < expression.length) {
+            const char = expression[index];
+            if (/\s/.test(char)) {
+                index += 1;
+                continue;
+            }
+            if ((char >= '0' && char <= '9') || char === '.') {
+                const start = index;
+                let hasDigit = false;
+                let hasDot = false;
+                while (index < expression.length) {
+                    const current = expression[index];
+                    if (current >= '0' && current <= '9') {
+                        hasDigit = true;
+                        index += 1;
+                    } else if (current === '.' && !hasDot) {
+                        hasDot = true;
+                        index += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if (!hasDigit) throw new Error('Invalid expression');
+                const value = Number(expression.slice(start, index));
+                if (!Number.isFinite(value)) throw new Error('Invalid expression');
+                tokens.push({ type: 'number', value });
+                continue;
+            }
+            if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
+                const start = index;
+                while (index < expression.length) {
+                    const current = expression[index];
+                    if ((current >= 'a' && current <= 'z') || (current >= 'A' && current <= 'Z')) index += 1;
+                    else break;
+                }
+                tokens.push({ type: 'identifier', value: expression.slice(start, index) });
+                continue;
+            }
+            if ('+-*/%^()!'.includes(char)) {
+                tokens.push({ type: 'operator', value: char });
+                index += 1;
+                continue;
+            }
+            throw new Error('Invalid expression');
+        }
+        tokens.push({ type: 'eof', value: '' });
+        return tokens;
+    }
+
+    function factorial(value) {
+        if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value) || value > 170) throw new Error('Invalid expression');
+        let result = 1;
+        for (let index = 2; index <= value; index += 1) result *= index;
+        return result;
+    }
+
+    function applyOperation(name, value) {
+        switch (name) {
+            case 'sin': return Math.sin(value);
+            case 'cos': return Math.cos(value);
+            case 'tan': return Math.tan(value);
+            case 'sqrt': return Math.sqrt(value);
+            case 'log': return Math.log10(value);
+            case 'ln': return Math.log(value);
+            case 'abs': return Math.abs(value);
+            case 'factorial': return factorial(value);
+            default: throw new Error('Invalid expression');
+        }
+    }
+
+    function parse(tokens) {
+        let position = 0;
+        const peek = () => tokens[position] || { type: 'eof', value: '' };
+        const consume = () => tokens[position++] || { type: 'eof', value: '' };
+        const expectOperator = value => {
+            const token = consume();
+            if (token.type !== 'operator' || token.value !== value) throw new Error('Invalid expression');
+        };
+        const parseExpression = () => parseAdditiveExpression();
+        const parseAdditiveExpression = () => {
+            let value = parseMultiplicativeExpression();
+            while (peek().type === 'operator' && (peek().value === '+' || peek().value === '-')) {
+                const operator = consume().value;
+                const right = parseMultiplicativeExpression();
+                value = operator === '+' ? value + right : value - right;
+            }
+            return value;
+        };
+        const parseMultiplicativeExpression = () => {
+            let value = parseUnaryExpression();
+            while (peek().type === 'operator' && (peek().value === '*' || peek().value === '/' || peek().value === '%')) {
+                const operator = consume().value;
+                const right = parseUnaryExpression();
+                if ((operator === '/' || operator === '%') && right === 0) throw new Error('Invalid expression');
+                if (operator === '*') value *= right;
+                else if (operator === '/') value /= right;
+                else value %= right;
+            }
+            return value;
+        };
+        const parseUnaryExpression = () => {
+            if (peek().type === 'operator' && (peek().value === '+' || peek().value === '-')) {
+                const operator = consume().value;
+                const value = parseUnaryExpression();
+                return operator === '-' ? -value : value;
+            }
+            return parsePowerExpression();
+        };
+        const parsePowerExpression = () => {
+            let value = parsePostfixExpression();
+            if (peek().type === 'operator' && peek().value === '^') {
+                consume();
+                value = Math.pow(value, parseUnaryExpression());
+            }
+            return value;
+        };
+        const parsePostfixExpression = () => {
+            let value = parsePrimaryExpression();
+            while (peek().type === 'operator' && peek().value === '!') {
+                consume();
+                value = factorial(value);
+            }
+            return value;
+        };
+        const parsePrimaryExpression = () => {
+            const token = consume();
+            if (token.type === 'number') return token.value;
+            if (token.type === 'operator' && token.value === '(') {
+                const value = parseExpression();
+                expectOperator(')');
+                return value;
+            }
+            if (token.type === 'identifier') {
+                const name = token.value.toLowerCase();
+                if (name === 'pi') return Math.PI;
+                if (name === 'e') return Math.E;
+                expectOperator('(');
+                return applyOperation(name, parseExpressionAfterOpen());
+            }
+            throw new Error('Invalid expression');
+        };
+        const parseExpressionAfterOpen = () => {
+            const value = parseExpression();
+            expectOperator(')');
+            return value;
+        };
+
+        const value = parseExpression();
+        if (peek().type !== 'eof' || !Number.isFinite(value)) throw new Error('Invalid expression');
+        return value;
+    }
+
+    function evaluate(expression) {
+        return parse(tokenize(String(expression || '')));
+    }
+
+    window.AuraCalculatorExpression = Object.freeze({ evaluate });
+}());
+
+;
+/* ui/js/desktop/core/accessibility-runtime.js */
+(function () {
+    'use strict';
+
+    const TEXT_SIZES = new Set(['100', '125', '150']);
+    let current = { textSize: '100', highContrast: false };
+
+    function normalize(settings) {
+        settings = settings && typeof settings === 'object' ? settings : {};
+        const requestedSize = String(settings['accessibility.text_size'] ?? settings.textSize ?? '100');
+        const requestedContrast = settings['accessibility.high_contrast'] ?? settings.highContrast;
+        return {
+            textSize: TEXT_SIZES.has(requestedSize) ? requestedSize : '100',
+            highContrast: requestedContrast === true || requestedContrast === 1 || String(requestedContrast).toLowerCase() === 'true' || String(requestedContrast) === '1'
+        };
+    }
+
+    function apply(settings) {
+        current = normalize(settings);
+        const body = document.body;
+        if (!body) return Object.assign({}, current);
+        body.dataset.textSize = current.textSize;
+        body.dataset.highContrast = String(current.highContrast);
+        body.style.setProperty('--vd-accessibility-text-scale', String(Number(current.textSize) / 100));
+        return Object.assign({}, current);
+    }
+
+    window.AuraDesktopAccessibility = {
+        apply,
+        current: () => Object.assign({}, current),
+        normalize
+    };
+}());
+
+;
+/* ui/js/desktop/core/notification-center-runtime.js */
+(function () {
+    'use strict';
+
+    const HISTORY_KEY = 'aurago.desktop.notifications.v1';
+    const POLICY_KEY = 'aurago.desktop.notification-policy.v1';
+    const VERSION = 1;
+    const MAX_HISTORY = 40;
+    const MAX_TITLE = 160;
+    const MAX_MESSAGE = 280;
+    const MAX_STORAGE_CHARS = 100000;
+    const APP_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+    const SESSION_SCOPE = /^[a-f0-9]{64}$/;
+    const listeners = new Set();
+    const policyListeners = new Set();
+    let items = [];
+    let currentPolicy = { dnd: false, apps: Object.create(null) };
+    let ready = false;
+    let initPromise = null;
+    let authMode = 'pending';
+    let sessionScope = '';
+    let historyStorage = 'checking';
+    let policyStorage = 'checking';
+    let authEnded = false;
+    let authRefreshing = false;
+    let authRefreshPromise = null;
+    let authStatusCheckedAt = 0;
+    let recordsDuringRefresh = [];
+    const AUTH_RECHECK_DEBOUNCE_MS = 2000;
+    const AUTH_STATUS_TIMEOUT_MS = 5000;
+
+    function cloneEntry(entry) {
+        return {
+            id: entry.id,
+            title: entry.title,
+            message: entry.message,
+            appId: entry.appId,
+            context: entry.context ? Object.assign({}, entry.context) : undefined,
+            ts: entry.ts,
+            read: entry.read
+        };
+    }
+
+    function history() {
+        return ready && !authRefreshing ? items.map(cloneEntry) : [];
+    }
+
+    function status() {
+        return {
+            ready,
+            authMode,
+            storage: historyStorage,
+            policyStorage,
+            tabOnly: historyStorage === 'memory',
+            storageFallback: historyStorage === 'memory' || policyStorage === 'memory'
+        };
+    }
+
+    function emit() {
+        const snapshot = history();
+        const currentStatus = status();
+        listeners.forEach(listener => { try { listener(snapshot, currentStatus); } catch (_) {} });
+    }
+
+    function emitPolicy() {
+        const snapshot = policy();
+        const currentStatus = status();
+        policyListeners.forEach(listener => { try { listener(snapshot, currentStatus); } catch (_) {} });
+    }
+
+    function storageArea(name) {
+        try { return window[name] || null; } catch (_) { return null; }
+    }
+
+    function cleanText(value, limit) {
+        if (typeof value !== 'string') return '';
+        const clean = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+        return Array.from(clean).slice(0, limit).join('');
+    }
+
+    function cleanAppId(value) {
+        return typeof value === 'string' && APP_ID.test(value) ? value : '';
+    }
+
+    function cleanContext(appId, context) {
+        if (!context || typeof context !== 'object' || Array.isArray(context)) return undefined;
+        if (appId === 'meshcore' && typeof context.conversation_id === 'string' && /^[a-f0-9]{64}$/.test(context.conversation_id)) {
+            return { conversation_id: context.conversation_id };
+        }
+        if (appId === 'storymaker' && typeof (context.projectId || context.project_id) === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(context.projectId || context.project_id)) {
+            return { projectId: context.projectId || context.project_id };
+        }
+        if (appId === 'easydrag' && typeof context.flow_id === 'string' && /^flow_[a-z0-9]{10}$/.test(context.flow_id)) {
+            return /^run_[a-z0-9]{12}$/.test(context.run_id || '')
+                ? { flow_id: context.flow_id, run_id: context.run_id }
+                : { flow_id: context.flow_id };
+        }
+        if (appId === 'network-cameras' && Number.isSafeInteger(context.event_id) && context.event_id > 0) {
+            return typeof context.camera_id === 'string' && /^[a-z0-9_-]{1,64}$/.test(context.camera_id)
+                ? { event_id: context.event_id, camera_id: context.camera_id }
+                : { event_id: context.event_id };
+        }
+        return undefined;
+    }
+
+    function makeId() {
+        return 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+    }
+
+    function normalizeEntry(raw) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        if (typeof raw.id !== 'string' || !/^n-\d{1,16}-[a-z0-9]{1,12}$/.test(raw.id)) return null;
+        if (!Number.isSafeInteger(raw.ts) || raw.ts <= 0 || raw.ts > Date.now() + 86400000) return null;
+        const appId = cleanAppId(raw.appId);
+        const title = cleanText(raw.title, MAX_TITLE);
+        if (!title) return null;
+        return {
+            id: raw.id,
+            title,
+            message: cleanText(raw.message, MAX_MESSAGE),
+            appId,
+            context: cleanContext(appId, raw.context),
+            ts: raw.ts,
+            read: raw.read === true,
+            persist: raw.persist !== false
+        };
+    }
+
+    function serializeEntry(entry) {
+        return {
+            id: entry.id,
+            title: entry.title,
+            message: entry.message,
+            appId: entry.appId,
+            context: entry.context,
+            ts: entry.ts,
+            read: entry.read
+        };
+    }
+
+    function normalizedPolicy(raw) {
+        const result = { dnd: !!(raw && raw.dnd === true), apps: Object.create(null) };
+        const apps = raw && raw.apps;
+        if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return result;
+        for (const id of Object.keys(apps).slice(0, 128)) {
+            if (!APP_ID.test(id)) continue;
+            const app = apps[id];
+            if (!app || typeof app !== 'object' || Array.isArray(app)) continue;
+            result.apps[id] = {
+                toast: app.toast !== false,
+                sound: app.sound !== false
+            };
+        }
+        return result;
+    }
+
+    function policy() {
+        return { dnd: currentPolicy.dnd, apps: Object.fromEntries(Object.entries(currentPolicy.apps).map(([id, value]) => [id, { toast: value.toast, sound: value.sound }])) };
+    }
+
+    function readPolicy() {
+        const storage = storageArea('localStorage');
+        if (!storage || typeof storage.getItem !== 'function') {
+            policyStorage = 'memory';
+            return;
+        }
+        try {
+            const value = storage.getItem(POLICY_KEY);
+            policyStorage = 'localStorage';
+            if (value === null) return;
+            if (value.length > 20000) throw new Error('notification policy is too large');
+            const parsed = JSON.parse(value);
+            if (!parsed || parsed.version !== VERSION) throw new Error('unsupported notification policy');
+            currentPolicy = normalizedPolicy(parsed);
+        } catch (_) {
+            currentPolicy = { dnd: false, apps: Object.create(null) };
+            try { storage.removeItem(POLICY_KEY); } catch (_) { policyStorage = 'memory'; }
+        }
+    }
+
+    function writePolicy() {
+        const storage = storageArea('localStorage');
+        if (!storage || typeof storage.setItem !== 'function') {
+            policyStorage = 'memory';
+            return;
+        }
+        try {
+            storage.setItem(POLICY_KEY, JSON.stringify({ version: VERSION, dnd: currentPolicy.dnd, apps: currentPolicy.apps }));
+            policyStorage = 'localStorage';
+        } catch (_) {
+            policyStorage = 'memory';
+        }
+    }
+
+    function setPolicy(next) {
+        if (!next || typeof next !== 'object' || Array.isArray(next)) return policy();
+        const merged = policy();
+        if (typeof next.dnd === 'boolean') merged.dnd = next.dnd;
+        if (next.apps && typeof next.apps === 'object' && !Array.isArray(next.apps)) {
+            for (const id of Object.keys(next.apps).slice(0, 128)) {
+                if (!APP_ID.test(id)) continue;
+                const app = next.apps[id];
+                if (app === null) { delete merged.apps[id]; continue; }
+                if (!app || typeof app !== 'object' || Array.isArray(app)) continue;
+                const previous = merged.apps[id] || { toast: true, sound: true };
+                merged.apps[id] = {
+                    toast: typeof app.toast === 'boolean' ? app.toast : previous.toast,
+                    sound: typeof app.sound === 'boolean' ? app.sound : previous.sound
+                };
+            }
+        }
+        currentPolicy = normalizedPolicy(merged);
+        writePolicy();
+        emitPolicy();
+        return policy();
+    }
+
+    function delivery(payload) {
+        const app = currentPolicy.apps[cleanAppId(payload && payload.appId) || 'desktop'] || { toast: true, sound: true };
+        return {
+            toast: !currentPolicy.dnd && app.toast,
+            sound: !currentPolicy.dnd && app.sound
+        };
+    }
+
+    function persistHistory() {
+        if (!ready || authRefreshing || historyStorage !== 'session' || (authMode !== 'disabled' && authMode !== 'authenticated')) return;
+        const storage = storageArea('sessionStorage');
+        if (!storage || typeof storage.setItem !== 'function') {
+            historyStorage = 'memory';
+            emit();
+            return;
+        }
+        const records = items.filter(item => item.persist).slice(0, MAX_HISTORY).map(serializeEntry);
+        if (!records.length) {
+            removeStoredHistory();
+            return;
+        }
+        try {
+            storage.setItem(HISTORY_KEY, JSON.stringify({ version: VERSION, scope: sessionScope, records }));
+        } catch (_) {
+            historyStorage = 'memory';
+            emit();
+        }
+    }
+
+    function removeStoredHistory() {
+        const storage = storageArea('sessionStorage');
+        if (storage && typeof storage.removeItem === 'function') {
+            try { storage.removeItem(HISTORY_KEY); } catch (_) { historyStorage = 'memory'; }
+        }
+    }
+
+    function readStoredHistory(scope) {
+        const storage = storageArea('sessionStorage');
+        if (!storage || typeof storage.getItem !== 'function') {
+            historyStorage = 'memory';
+            return [];
+        }
+        try {
+            const raw = storage.getItem(HISTORY_KEY);
+            historyStorage = 'session';
+            if (raw === null) return [];
+            if (raw.length > MAX_STORAGE_CHARS) throw new Error('notification history is too large');
+            const parsed = JSON.parse(raw);
+            if (!parsed || parsed.version !== VERSION || parsed.scope !== scope || !Array.isArray(parsed.records)) {
+                removeStoredHistory();
+                return [];
+            }
+            return parsed.records.slice(0, MAX_HISTORY).map(normalizeEntry).filter(Boolean);
+        } catch (_) {
+            removeStoredHistory();
+            return [];
+        }
+    }
+
+    function uniqueRecords(records) {
+        const seen = new Set();
+        return records.filter(item => {
+            if (!item || seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+        }).slice(0, MAX_HISTORY);
+    }
+
+    function record(payload, safeContext) {
+        payload = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+        if (authEnded || authMode === 'expired') return null;
+        let fallbackTitle = 'Notification';
+        try { if (typeof t === 'function') fallbackTitle = t('desktop.notification') || fallbackTitle; } catch (_) {}
+        const appId = cleanAppId(payload.appId);
+        const entry = {
+            id: makeId(),
+            title: cleanText(payload.title, MAX_TITLE) || cleanText(fallbackTitle, MAX_TITLE),
+            message: cleanText(payload.message, MAX_MESSAGE),
+            appId,
+            context: cleanContext(appId, safeContext || payload.context),
+            ts: Date.now(),
+            read: false,
+            persist: payload.persist !== false
+        };
+        if (authRefreshing) recordsDuringRefresh = uniqueRecords([entry, ...recordsDuringRefresh]);
+        else items = uniqueRecords([entry, ...items]);
+        if (ready) {
+            if (!authRefreshing) persistHistory();
+            emit();
+        }
+        return cloneEntry(entry);
+    }
+
+    function markRead(id) {
+        const entry = items.find(item => item.id === id);
+        if (!entry || entry.read) return false;
+        entry.read = true;
+        persistHistory();
+        emit();
+        return true;
+    }
+
+    function markAllRead() {
+        let changed = false;
+        items.forEach(item => { if (!item.read) { item.read = true; changed = true; } });
+        if (changed) {
+            persistHistory();
+            emit();
+        }
+        return changed;
+    }
+
+    function remove(id) {
+        const next = items.filter(item => item.id !== id);
+        if (next.length === items.length) return false;
+        items = next;
+        persistHistory();
+        emit();
+        return true;
+    }
+
+    function clear() {
+        items = [];
+        if (authRefreshing) recordsDuringRefresh = [];
+        removeStoredHistory();
+        emit();
+    }
+
+    function onAuthEnded() {
+        authEnded = true;
+        authMode = 'expired';
+        sessionScope = '';
+        authRefreshing = false;
+        recordsDuringRefresh = [];
+        items = [];
+        removeStoredHistory();
+        ready = true;
+        emit();
+    }
+
+    function requestAuthStatus() {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        let timeout = 0;
+        const request = window.fetch('/api/auth/status', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            ...(controller ? { signal: controller.signal } : {})
+        }).then(async response => ({
+            response,
+            auth: response && response.ok ? await response.json() : null
+        }));
+        const deadline = new Promise((_, reject) => {
+            timeout = window.setTimeout(() => {
+                controller?.abort();
+                reject(new Error('auth status timed out'));
+            }, AUTH_STATUS_TIMEOUT_MS);
+        });
+        return Promise.race([request, deadline]).finally(() => {
+            if (timeout) window.clearTimeout(timeout);
+        });
+    }
+
+    function subscribe(listener) {
+        if (typeof listener !== 'function') return function () {};
+        listeners.add(listener);
+        try { listener(history(), status()); } catch (_) {}
+        return () => listeners.delete(listener);
+    }
+
+    function subscribePolicy(listener) {
+        if (typeof listener !== 'function') return function () {};
+        policyListeners.add(listener);
+        try { listener(policy(), status()); } catch (_) {}
+        return () => policyListeners.delete(listener);
+    }
+
+    async function init() {
+        if (initPromise) return initPromise;
+        initPromise = (async function () {
+            const fresh = items.slice();
+            authRefreshing = true;
+            recordsDuringRefresh = [];
+            readPolicy();
+            emitPolicy();
+            authStatusCheckedAt = Date.now();
+            try {
+                const { response, auth } = await requestAuthStatus();
+                if (!response || !response.ok) throw new Error('auth status unavailable');
+                if (!auth || typeof auth.enabled !== 'boolean' || typeof auth.authenticated !== 'boolean') throw new Error('invalid auth status');
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else if (!auth.enabled) {
+                    authMode = 'disabled';
+                    sessionScope = 'local';
+                    items = uniqueRecords([...recordsDuringRefresh, ...fresh, ...readStoredHistory(sessionScope)]);
+                } else if (auth.authenticated && typeof auth.session_scope === 'string' && SESSION_SCOPE.test(auth.session_scope)) {
+                    authMode = 'authenticated';
+                    sessionScope = auth.session_scope;
+                    items = uniqueRecords([...recordsDuringRefresh, ...fresh, ...readStoredHistory(sessionScope)]);
+                } else {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                }
+            } catch (_) {
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else {
+                    authMode = 'unknown';
+                    sessionScope = '';
+                    historyStorage = 'memory';
+                    items = uniqueRecords([...recordsDuringRefresh, ...fresh]);
+                }
+            }
+            authRefreshing = false;
+            recordsDuringRefresh = [];
+            ready = true;
+            persistHistory();
+            emit();
+            emitPolicy();
+            return history();
+        })();
+        return initPromise;
+    }
+
+    function refreshAuthScope(force) {
+        if (!ready) return init();
+        if (authEnded) return Promise.resolve([]);
+        if (authRefreshPromise) return authRefreshPromise;
+        const now = Date.now();
+        if (!force && now - authStatusCheckedAt < AUTH_RECHECK_DEBOUNCE_MS) return Promise.resolve(history());
+
+        const previousItems = items.slice();
+        const previousMode = authMode;
+        const previousScope = sessionScope;
+        recordsDuringRefresh = [];
+        authRefreshing = true;
+        authMode = 'pending';
+        items = [];
+        authStatusCheckedAt = now;
+        emit();
+
+        authRefreshPromise = (async function () {
+            try {
+                const { response, auth } = await requestAuthStatus();
+                if (!response || !response.ok) throw new Error('auth status unavailable');
+                if (!auth || typeof auth.enabled !== 'boolean' || typeof auth.authenticated !== 'boolean') throw new Error('invalid auth status');
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else if (!auth.enabled) {
+                    authMode = 'disabled';
+                    sessionScope = 'local';
+                    const previous = previousMode === authMode && previousScope === sessionScope ? previousItems : [];
+                    items = uniqueRecords([...recordsDuringRefresh, ...previous, ...readStoredHistory(sessionScope)]);
+                } else if (auth.authenticated && typeof auth.session_scope === 'string' && SESSION_SCOPE.test(auth.session_scope)) {
+                    authMode = 'authenticated';
+                    sessionScope = auth.session_scope;
+                    const previous = previousMode === authMode && previousScope === sessionScope ? previousItems : [];
+                    items = uniqueRecords([...recordsDuringRefresh, ...previous, ...readStoredHistory(sessionScope)]);
+                } else {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                }
+            } catch (_) {
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else {
+                    authMode = 'unknown';
+                    sessionScope = '';
+                    historyStorage = 'memory';
+                    items = uniqueRecords(recordsDuringRefresh);
+                }
+            }
+            authRefreshing = false;
+            recordsDuringRefresh = [];
+            ready = true;
+            persistHistory();
+            emit();
+            emitPolicy();
+            return history();
+        })().finally(() => { authRefreshPromise = null; });
+        return authRefreshPromise;
+    }
+
+    function onStorage(event) {
+        if (!event || event.key !== POLICY_KEY) return;
+        if (event.newValue === null) {
+            currentPolicy = { dnd: false, apps: Object.create(null) };
+            policyStorage = 'localStorage';
+            emitPolicy();
+            return;
+        }
+        try {
+            if (event.newValue.length > 20000) return;
+            const parsed = JSON.parse(event.newValue);
+            if (!parsed || parsed.version !== VERSION) return;
+            currentPolicy = normalizedPolicy(parsed);
+            policyStorage = 'localStorage';
+            emitPolicy();
+        } catch (_) {}
+    }
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('pageshow', event => {
+        if (event && event.persisted) return refreshAuthScope(true);
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') return refreshAuthScope(false);
+    });
+    document.addEventListener('aurago:auth-ended', onAuthEnded);
+    window.AuraDesktopNotificationCenter = {
+        init,
+        history,
+        subscribe,
+        record,
+        markRead,
+        markAllRead,
+        remove,
+        clear,
+        delivery,
+        policy,
+        setPolicy,
+        subscribePolicy,
+        status
+    };
+}());
+
+;
+/* ui/js/desktop/core/settings-catalog-runtime.js */
+(function () {
+    'use strict';
+
+    const SCHEME_MODE_LABELS = Object.freeze({
+        'appearance.fruity_mode': 'desktop.settings_fruity_mode',
+        'appearance.minimal_mode': 'desktop.settings_minimal_mode'
+    });
+
+    function settingSelect(key, label, desc, options) {
+        return { type: 'select', key, label, desc, options };
+    }
+
+    function settingToggle(key, label, desc) {
+        return { type: 'toggle', key, label, desc };
+    }
+
+    function settingInfo(label, value) {
+        return { type: 'info', label, value };
+    }
+
+    function settingRange(key, label, desc, min, max, step) {
+        return { type: 'range', key, label, desc, min, max, step };
+    }
+
+    function settingSoundThemes(ctx) {
+        return {
+            type: 'sound_theme',
+            key: 'sound.theme',
+            label: 'desktop.settings_sound_theme',
+            desc: 'desktop.settings_sound_theme_desc',
+            themes: [
+                { id: 'desktop', label: 'desktop.settings_sound_theme_desktop', desc: 'desktop.settings_sound_theme_desktop_desc' },
+                ...(typeof ctx.desktopThemes === 'function' ? ctx.desktopThemes().filter(theme => theme.cursorTheme).map(theme => ({
+                    id: theme.soundTheme, label: theme.labelKey, desc: 'desktop.settings_sound_theme_' + theme.soundTheme + '_desc', art: theme.cursorTheme
+                })) : []),
+                { id: 'crystal', label: 'desktop.settings_sound_theme_crystal', desc: 'desktop.settings_sound_theme_crystal_desc' },
+                { id: 'wood', label: 'desktop.settings_sound_theme_wood', desc: 'desktop.settings_sound_theme_wood_desc' },
+                { id: 'analog', label: 'desktop.settings_sound_theme_analog', desc: 'desktop.settings_sound_theme_analog_desc' },
+                { id: 'workshop', label: 'desktop.settings_sound_theme_workshop', desc: 'desktop.settings_sound_theme_workshop_desc' },
+                { id: 'water', label: 'desktop.settings_sound_theme_water', desc: 'desktop.settings_sound_theme_water_desc' }
+            ]
+        };
+    }
+
+    function settingDesktopThemes() {
+        return { type: 'desktop_theme', key: 'appearance.theme', label: 'desktop.settings_theme', desc: 'desktop.settings_theme_desc' };
+    }
+
+    function settingScreensaverThemes() {
+        return {
+            type: 'screensaver_theme',
+            key: 'screensaver.theme',
+            label: 'desktop.settings_screensaver_theme',
+            desc: 'desktop.settings_screensaver_theme_desc',
+            themes: ['abyss', 'event_horizon', 'aurora', 'ink', 'stardust', 'random'].map(id => ({
+                id,
+                label: 'desktop.settings_screensaver_' + id,
+                desc: 'desktop.settings_screensaver_' + id + '_desc'
+            }))
+        };
+    }
+
+    function desktopAgentProviderOptions(boot) {
+        const providers = Array.isArray(boot.providers) ? boot.providers : [];
+        const options = [{ value: '', labelKey: 'desktop.settings_agent_provider_default' }];
+        providers.forEach(provider => {
+            if (!provider || !provider.id) return;
+            const name = provider.name || provider.id;
+            const model = provider.model ? ` (${provider.model})` : '';
+            options.push({ value: provider.id, label: `${name}${model}` });
+        });
+        return options;
+    }
+
+    function sections(ctx) {
+        const context = ctx || {};
+        const boot = (context.state && context.state.bootstrap) || {};
+        const workspace = boot.workspace || {};
+        const activeTheme = typeof context.currentDesktopTheme === 'function' ? context.currentDesktopTheme() : null;
+        const showSchemeMode = !activeTheme || !!activeTheme.schemeSetting;
+        const schemeSetting = activeTheme && activeTheme.schemeSetting ? activeTheme.schemeSetting : 'appearance.fruity_mode';
+        const schemeLabel = SCHEME_MODE_LABELS[schemeSetting] || 'desktop.settings_fruity_mode';
+        const showAccent = !activeTheme || activeTheme.accent === 'user';
+        const settingValue = typeof context.settingValue === 'function' ? context.settingValue : () => '';
+        const iconTheme = settingValue('appearance.icon_theme');
+        const iconThemeManifests = context.state && context.state.iconThemeManifests || {};
+        const iconManifest = iconThemeManifests[iconTheme];
+
+        return [
+            {
+                id: 'appearance', icon: 'settings-symbolic', fallback: 'A', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
+                    settingSelect('appearance.wallpaper', 'desktop.settings_wallpaper', 'desktop.settings_wallpaper_desc', [
+                        ['groupshoot', 'desktop.settings_wallpaper_groupshoot'],
+                        ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest'],
+                        ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
+                        ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
+                        ['silk_flow', 'desktop.settings_wallpaper_silk_flow'], ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
+                        ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip'],
+                        ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
+                        ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
+                    ]),
+                    settingDesktopThemes(),
+                    settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
+                    activeTheme && activeTheme.cursorTheme ? { type: 'cursor_preview', theme: activeTheme.cursorTheme } : null,
+                    showSchemeMode ? settingSelect(schemeSetting, schemeLabel, schemeLabel + '_desc', [
+                        ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
+                    ]) : null,
+                    showAccent ? settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
+                        ['theme', 'desktop.settings_accent_theme'], ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
+                    ]) : null,
+                    settingSelect('appearance.density', 'desktop.settings_density', 'desktop.settings_density_desc', [
+                        ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
+                    ]),
+                    settingSelect('accessibility.text_size', 'desktop.settings_text_size', 'desktop.settings_text_size_desc', [
+                        ['100', 'desktop.settings_text_size_100'], ['125', 'desktop.settings_text_size_125'], ['150', 'desktop.settings_text_size_150']
+                    ]),
+                    settingToggle('accessibility.high_contrast', 'desktop.settings_high_contrast', 'desktop.settings_high_contrast_desc'),
+                    settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
+                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur'], ['windows_xp', 'desktop.settings_icon_theme_windows_xp'],
+                        ['tela', 'desktop.settings_icon_theme_tela'], ['candy', 'desktop.settings_icon_theme_candy'], ['fluent', 'desktop.settings_icon_theme_fluent'], ['buuf_nestort', 'desktop.settings_icon_theme_buuf_nestort']
+                    ]),
+                    ['tela', 'fluent'].includes(iconTheme) ? settingSelect('appearance.' + iconTheme + '_folder_color', 'desktop.settings_folder_color', 'desktop.settings_folder_color_desc',
+                        ((iconManifest && iconManifest.folder_colors) || ['standard']).map(color => [color, 'desktop.settings_folder_color_' + color])) : null
+                ].filter(Boolean)
+            },
+            {
+                id: 'desktop', icon: 'desktop-symbolic', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                    settingToggle('desktop.open_fullscreen', 'desktop.settings_open_fullscreen', 'desktop.settings_open_fullscreen_desc'),
+                    settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
+                        ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
+                    ]),
+                    settingToggle('desktop.show_widgets', 'desktop.settings_show_widgets', 'desktop.settings_show_widgets_desc'),
+                    settingToggle('phone_gadget.enabled', 'desktop.settings_phone_gadget', 'desktop.settings_phone_gadget_desc')
+                ]
+            },
+            {
+                id: 'windows', icon: 'monitor-symbolic', fallback: 'W', title: 'desktop.settings_category_windows', desc: 'desktop.settings_category_windows_desc', items: [
+                    settingToggle('windows.restore_session', 'desktop.settings_restore_session', 'desktop.settings_restore_session_desc'),
+                    settingToggle('windows.animations', 'desktop.settings_window_animations', 'desktop.settings_window_animations_desc'),
+                    settingSelect('windows.default_size', 'desktop.settings_default_window_size', 'desktop.settings_default_window_size_desc', [
+                        ['compact', 'desktop.settings_window_size_compact'], ['balanced', 'desktop.settings_window_size_balanced'], ['large', 'desktop.settings_window_size_large']
+                    ])
+                ]
+            },
+            {
+                id: 'sound', icon: 'sound-symbolic', fallback: 'S', title: 'desktop.settings_category_sound', desc: 'desktop.settings_category_sound_desc', items: [
+                    settingToggle('sound.enabled', 'desktop.settings_sound_enabled', 'desktop.settings_sound_enabled_desc'),
+                    settingSoundThemes(context),
+                    settingRange('sound.volume', 'desktop.settings_sound_volume', 'desktop.settings_sound_volume_desc', 0, 1, 0.05),
+                    settingToggle('sound.windows', 'desktop.settings_sound_windows', 'desktop.settings_sound_windows_desc'),
+                    settingToggle('sound.notifications', 'desktop.settings_sound_notifications', 'desktop.settings_sound_notifications_desc'),
+                    settingToggle('sound.navigation', 'desktop.settings_sound_navigation', 'desktop.settings_sound_navigation_desc'),
+                    settingToggle('sound.files', 'desktop.settings_sound_files', 'desktop.settings_sound_files_desc')
+                ]
+            },
+            {
+                id: 'screensaver', icon: 'screensaver-symbolic', fallback: 'S', title: 'desktop.settings_category_screensaver', desc: 'desktop.settings_category_screensaver_desc', items: [
+                    settingToggle('screensaver.enabled', 'desktop.settings_screensaver_enabled', 'desktop.settings_screensaver_enabled_desc'),
+                    settingScreensaverThemes(),
+                    settingSelect('screensaver.idle_minutes', 'desktop.settings_screensaver_idle', 'desktop.settings_screensaver_idle_desc', [
+                        ['1', 'desktop.settings_screensaver_idle_1'], ['2', 'desktop.settings_screensaver_idle_2'], ['3', 'desktop.settings_screensaver_idle_3'], ['5', 'desktop.settings_screensaver_idle_5'],
+                        ['10', 'desktop.settings_screensaver_idle_10'], ['15', 'desktop.settings_screensaver_idle_15'], ['30', 'desktop.settings_screensaver_idle_30'], ['60', 'desktop.settings_screensaver_idle_60']
+                    ]),
+                    settingToggle('screensaver.clock', 'desktop.settings_screensaver_clock', 'desktop.settings_screensaver_clock_desc')
+                ]
+            },
+            {
+                id: 'files', icon: 'folder-symbolic', fallback: 'F', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
+                    settingToggle('files.confirm_delete', 'desktop.settings_confirm_delete', 'desktop.settings_confirm_delete_desc'),
+                    settingSelect('files.default_folder', 'desktop.settings_default_folder', 'desktop.settings_default_folder_desc', [
+                        ['Desktop', 'desktop.settings_folder_desktop'], ['Documents', 'desktop.settings_folder_documents'], ['Downloads', 'desktop.settings_folder_downloads'], ['Pictures', 'desktop.settings_folder_pictures'], ['Shared', 'desktop.settings_folder_shared']
+                    ]),
+                    { type: 'default_apps', key: 'files.default_apps', label: 'desktop.settings_default_apps', desc: 'desktop.settings_default_apps_desc' }
+                ]
+            },
+            {
+                id: 'agent', icon: 'apps-symbolic', fallback: 'A', title: 'desktop.settings_category_agent', desc: 'desktop.settings_category_agent_desc', items: [
+                    settingToggle('agent.show_chat_button', 'desktop.settings_show_agent_button', 'desktop.settings_show_agent_button_desc'),
+                    settingSelect('agent.provider', 'desktop.settings_agent_provider', 'desktop.settings_agent_provider_desc', desktopAgentProviderOptions(boot)),
+                    settingInfo('desktop.setting_agent_control', boot.allow_agent_control ? context.t && context.t('desktop.on') : context.t && context.t('desktop.off'))
+                ]
+            },
+            {
+                id: 'system', icon: 'info-symbolic', fallback: 'i', title: 'desktop.settings_category_system', desc: 'desktop.settings_category_system_desc', items: [
+                    settingInfo('desktop.setting_workspace', workspace.root || ''),
+                    settingInfo('desktop.setting_readonly', boot.readonly ? context.t && context.t('desktop.on') : context.t && context.t('desktop.off')),
+                    settingInfo('desktop.setting_apps', String((boot.installed_apps || []).length)),
+                    settingInfo('desktop.setting_widgets', String((boot.widgets || []).length))
+                ]
+            }
+        ];
+    }
+
+    function settingKeyForItem(section, item) {
+        if (item && item.key) return String(item.key);
+        const byType = { desktop_theme: 'appearance.theme', sound_theme: 'sound.theme', screensaver_theme: 'screensaver.theme' };
+        return byType[item && item.type] || '';
+    }
+
+    function optionSearchText(item, t) {
+        const options = Array.isArray(item.options) ? item.options : [];
+        const labels = options.map(option => {
+            if (Array.isArray(option)) return String(option[0] || '') + ' ' + t(option[1]);
+            return String(option && option.value || '') + ' ' + (option && option.labelKey ? t(option.labelKey) : String(option && option.label || ''));
+        });
+        const themes = Array.isArray(item.themes) ? item.themes.flatMap(theme => [theme.id, t(theme.label), t(theme.desc)]) : [];
+        return labels.concat(themes).join(' ');
+    }
+
+    function list(query, ctx) {
+        const context = ctx || {};
+        const t = typeof context.t === 'function' ? context.t : key => key;
+        const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+        const terms = normalizedQuery.split(/\s+/).filter(Boolean);
+        const result = [];
+        sections(context).forEach(section => {
+            (section.items || []).forEach(item => {
+                const key = settingKeyForItem(section, item);
+                if (!key) return;
+                if (item.type === 'desktop_theme' && typeof context.desktopThemes === 'function' && !context.desktopThemes().length) return;
+                if (typeof context.isSettingAvailable === 'function' && !context.isSettingAvailable(key, section.id, item)) return;
+                const title = t(item.label || 'desktop.settings_' + key.replace(/\./g, '_'));
+                const description = t(item.desc || '');
+                const categoryTitle = t(section.title);
+                const searchText = [key, title, description, categoryTitle, optionSearchText(item, t)].join(' ').toLocaleLowerCase();
+                if (terms.length && !terms.every(term => searchText.includes(term))) return;
+                const descriptor = {
+                    id: 'setting-' + key,
+                    type: 'setting',
+                    title,
+                    subtitle: categoryTitle,
+                    description,
+                    category: section.id,
+                    settingKey: key,
+                    searchText,
+                    setting: item
+                };
+                if (typeof context.openSetting === 'function') {
+                    descriptor.open = () => context.openSetting(section.id, key);
+                }
+                result.push(descriptor);
+            });
+        });
+        return result;
+    }
+
+    window.AuraDesktopSettingsCatalog = Object.freeze({ sections, list });
+}());
+
+;
+/* ui/js/desktop/core/search-results-runtime.js */
+(function () {
+    'use strict';
+
+    const DEFAULT_LIMIT = 50;
+    const MAX_LIMIT = 100;
+    const MAX_OFFSET = 1000;
+    const TYPE_ORDER = Object.freeze({ app: 0, setting: 1, action: 2, calculator: 3, file: 4 });
+
+    function normalizedText(value) {
+        return String(value == null ? '' : value).normalize('NFKC').toLocaleLowerCase().trim();
+    }
+
+    function queryTerms(query) {
+        return normalizedText(query).split(/\s+/).filter(Boolean);
+    }
+
+    function itemSearchText(item) {
+        return normalizedText([
+            item.title,
+            item.subtitle,
+            item.description,
+            item.category,
+            item.settingKey,
+            item.expression,
+            item.searchText,
+            Array.isArray(item.keywords) ? item.keywords.join(' ') : item.keywords
+        ].filter(Boolean).join(' '));
+    }
+
+    function searchScore(item, terms, query) {
+        if (!terms.length) return 0;
+        const title = normalizedText(item.title);
+        const haystack = itemSearchText(item);
+        if (!terms.every(term => haystack.includes(term))) return -1;
+        if (title.startsWith(query)) return 0;
+        if (title.includes(query)) return 1;
+        if (haystack.includes(query)) return 2;
+        return 3;
+    }
+
+    function sourceItems(source, query, context) {
+        if (typeof source === 'function') {
+            const items = source(query, context);
+            return Array.isArray(items) ? items : [];
+        }
+        return Array.isArray(source) ? source : [];
+    }
+
+    function arithmeticResult(query, sources) {
+        const expression = String(query || '').trim();
+        if (expression.length < 3 || expression.length > 80 || !/\d/.test(expression) || !/[+*/%^()!-]/.test(expression)) return null;
+        if (!/^[\d\s.+\-*/%^()!a-z]+$/i.test(expression)) return null;
+        const calculator = window.AuraCalculatorExpression;
+        if (!calculator || typeof calculator.evaluate !== 'function') return null;
+        try {
+            const value = calculator.evaluate(expression);
+            const rendered = String(value);
+            const t = typeof sources.t === 'function' ? sources.t : key => key;
+            return {
+                id: 'calculator-' + expression,
+                type: 'calculator',
+                title: expression + ' = ' + rendered,
+                subtitle: t('desktop.spotlight_calculator'),
+                expression,
+                value: rendered,
+                searchText: expression,
+                open: typeof sources.openCalculator === 'function' ? () => sources.openCalculator(expression) : null
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function localResults(query, sources, options) {
+        const source = sources || {};
+        const terms = queryTerms(query);
+        const normalizedQuery = normalizedText(query);
+        const groups = [
+            ['app', source.apps],
+            ['setting', source.settings],
+            ['action', source.actions],
+            ['calculator', source.calculator],
+            ['file', source.files]
+        ];
+        const ranked = [];
+        let order = 0;
+        groups.forEach(([type, entries]) => {
+            sourceItems(entries, query, source).forEach(entry => {
+                if (!entry || typeof entry !== 'object') return;
+                const item = Object.assign({}, entry, {
+                    id: String(entry.id || (type + '-' + order)),
+                    type: entry.type || type,
+                    title: String(entry.title || ''),
+                    subtitle: entry.subtitle == null ? '' : String(entry.subtitle)
+                });
+                if (!item.title) return;
+                const score = searchScore(item, terms, normalizedQuery);
+                if (score >= 0) ranked.push({ item, score, order: order++ });
+            });
+        });
+        const calc = arithmeticResult(query, source);
+        if (calc) {
+            const score = searchScore(calc, terms, normalizedQuery);
+            if (score >= 0) ranked.push({ item: calc, score: Math.min(score, 1), order: order++ });
+        }
+        ranked.sort((a, b) => a.score - b.score ||
+            (TYPE_ORDER[a.item.type] ?? 10) - (TYPE_ORDER[b.item.type] ?? 10) ||
+            a.order - b.order || a.item.id.localeCompare(b.item.id));
+        const limit = Number.isInteger(options && options.limit) ? Math.max(0, options.limit) : 100;
+        return ranked.slice(0, limit).map(entry => entry.item);
+    }
+
+    function makeSearchURL(query, options) {
+        const params = new URLSearchParams();
+        params.set('query', String(query || '').trim());
+        params.set('limit', String(options.limit));
+        params.set('offset', String(options.offset));
+        if (options.path) params.set('path', String(options.path));
+        const filters = options.filters || {};
+        const type = String(filters.type || filters.filter || 'all');
+        if (type) params.set('type', type);
+        if (filters.modifiedAfter) params.set('modified_after', String(filters.modifiedAfter));
+        if (filters.modifiedBefore) params.set('modified_before', String(filters.modifiedBefore));
+        if (filters.minSize != null && filters.minSize !== '') params.set('min_size', String(filters.minSize));
+        if (filters.maxSize != null && filters.maxSize !== '') params.set('max_size', String(filters.maxSize));
+        return '/api/desktop/search?' + params.toString();
+    }
+
+    function hasActiveFileFilters(filters) {
+        const active = filters && typeof filters === 'object' ? filters : {};
+        const type = String(active.type || active.filter || 'all').toLowerCase();
+        return type !== '' && type !== 'all' || !!(active.modifiedAfter || active.modifiedBefore) ||
+            active.minSize != null && active.minSize !== '' || active.maxSize != null && active.maxSize !== '';
+    }
+
+    async function defaultRequest(url, init) {
+        const response = await window.fetch(url, Object.assign({ credentials: 'same-origin' }, init || {}));
+        if (!response.ok) throw new Error('Desktop search failed: ' + response.status);
+        return response.json();
+    }
+
+    function createProvider(options) {
+        const config = options || {};
+        return Object.freeze({
+            local(query, sources, localOptions) {
+                return localResults(query, sources || config.sources, localOptions);
+            },
+            async files(query, requestOptions) {
+                const request = requestOptions || {};
+                const text = String(query || '').trim();
+                const filters = request.filters || {};
+                if (text.length < 2 && !hasActiveFileFilters(filters)) return { items: [], hasMore: false, truncated: false, nextOffset: 0 };
+                const limit = Math.min(MAX_LIMIT, Math.max(1, Number.isInteger(request.limit) ? request.limit : DEFAULT_LIMIT));
+                const offset = Math.min(MAX_OFFSET, Math.max(0, Number.isInteger(request.offset) ? request.offset : 0));
+                const api = typeof request.api === 'function' ? request.api : typeof config.api === 'function' ? config.api : defaultRequest;
+                const response = await api(makeSearchURL(text, {
+                    limit,
+                    offset,
+                    path: request.path,
+                    filters
+                }), { signal: request.signal });
+                const files = Array.isArray(response && response.files) ? response.files : Array.isArray(response && response.results) ? response.results : [];
+                const openFile = request.openFile || config.openFile;
+                return {
+                    items: files.map(file => ({
+                        id: 'file-' + String(file.path || file.name || ''),
+                        type: 'file',
+                        title: String(file.name || file.path || ''),
+                        subtitle: String(file.path || ''),
+                        path: String(file.path || ''),
+                        entry: file,
+                        searchText: String(file.path || ''),
+                        open: typeof openFile === 'function' ? () => openFile(file.path, file) : null
+                    })),
+                    hasMore: Boolean(response && (response.has_more ?? response.hasMore)),
+                    truncated: Boolean(response && response.truncated),
+                    nextOffset: Number.isInteger(response && response.next_offset) ? response.next_offset : Number.isInteger(response && response.nextOffset) ? response.nextOffset : offset + files.length
+                };
+            }
+        });
+    }
+
+    const defaultProvider = createProvider();
+    window.AuraDesktopSearch = Object.freeze({
+        createProvider,
+        local: (query, sources, options) => defaultProvider.local(query, sources, options),
+        files: (query, options) => defaultProvider.files(query, options),
+        makeSearchURL,
+        normalizedText
+    });
+}());
+
+;
+/* ui/js/desktop/core/file-associations-runtime.js */
+(function () {
+    'use strict';
+
+    const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus']);
+    const MEDIA_EXTENSIONS = new Set(['mp4', 'mkv', 'avi', 'mov', 'webm', ...AUDIO_EXTENSIONS]);
+
+    function extensionForName(name) {
+        const value = String(name || '').toLowerCase();
+        if (value.endsWith('.fb2.zip')) return 'fb2.zip';
+        if (value.endsWith('.txt.gz')) return 'txt.gz';
+        const base = value.split(/[\\/]/).pop() || '';
+        const dot = base.lastIndexOf('.');
+        return dot <= 0 ? '' : base.slice(dot + 1);
+    }
+
+    function parse(value) {
+        let input = value;
+        if (typeof input === 'string') {
+            try { input = JSON.parse(input); } catch (_) { return {}; }
+        }
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+        const result = {};
+        Object.keys(input).forEach(extension => {
+            const appId = input[extension];
+            if (typeof appId !== 'string' || !appId.trim()) return;
+            result[String(extension).toLowerCase().replace(/^\./, '')] = appId.trim();
+        });
+        return result;
+    }
+
+    function resolveCandidates(entry, helpers) {
+        const h = helpers || {};
+        const name = String(entry && (entry.name || entry.path) || '').split(/[\\/]/).pop() || '';
+        const lower = name.toLowerCase();
+        const extension = extensionForName(name);
+        const apps = [];
+        const add = (appId, labelKey, label) => apps.push({ appId, labelKey: labelKey || '', label: label || '' });
+        const isText = /\.(txt|log)$/i.test(name);
+        const isImage = typeof h.isImageFile === 'function' && h.isImageFile(name);
+        const mediaKind = String(entry && (entry.media_kind || entry.mediaKind) || '').toLowerCase();
+        const isMedia = (typeof h.isMediaFile === 'function' ? h.isMediaFile(name) : MEDIA_EXTENSIONS.has(extension)) || mediaKind === 'audio' || mediaKind === 'video';
+        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(name);
+
+        if (isText) {
+            add('editor', 'desktop.app_editor');
+            add('code-studio', 'desktop.app_code_studio');
+            add('viewer', 'desktop.app_viewer');
+        } else if (/\.ora$/i.test(name)) {
+            add('pixel', 'desktop.app_pixel');
+        } else if (isImage) {
+            add('gallery', 'desktop.app_gallery');
+            add('viewer', 'desktop.app_viewer');
+            add('code-studio', 'desktop.app_code_studio');
+        } else if (isMedia) {
+            if (AUDIO_EXTENSIONS.has(extension) || mediaKind === 'audio') {
+                add('audio-player', 'desktop.app_audio_player');
+                add('music-player', 'desktop.app_music_player');
+            }
+            add('gallery', 'desktop.app_gallery');
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isWriterFile === 'function' && h.isWriterFile(entry)) {
+            add('writer', 'desktop.app_writer');
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isSheetsFile === 'function' && h.isSheetsFile(entry)) {
+            add('sheets', 'desktop.app_sheets');
+            add('viewer', 'desktop.app_viewer');
+        } else if (/\.lyl$/i.test(name)) {
+            add('layerling', '', 'Layerling');
+        } else if (/\.md$/i.test(name)) {
+            add('notes', 'desktop.app_notes');
+            add('editor', 'desktop.app_editor');
+            add('viewer', 'desktop.app_viewer');
+        } else if (/\.aurasynth$/i.test(name)) {
+            add('synth-studio', 'desktop.app_synth_studio');
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isViewerFile === 'function' && h.isViewerFile(entry)) {
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isArchiveFile === 'function' && h.isArchiveFile(name)) {
+            add('zipper', 'desktop.app_zipper');
+        } else {
+            add('viewer', 'desktop.app_viewer');
+            add('code-studio', 'desktop.app_code_studio');
+        }
+
+        if (isBookshelfFile) apps.unshift({ appId: 'bookshelf', labelKey: 'desktop.app_bookshelf', label: '' });
+        if (/\.kicad_pro$/i.test(name) && String(entry && entry.path || '').startsWith('Shared/')) {
+            const allApps = typeof h.allApps === 'function' ? h.allApps() : [];
+            apps.unshift(allApps.some(app => app.id === 'store-ziro-designer')
+                ? { appId: 'store-ziro-designer', labelKey: '', label: 'Ziro Designer' }
+                : { appId: 'software-store', labelKey: 'desktop.app_software_store', label: '' });
+        }
+        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) add('layerling', '', 'Layerling');
+
+        const seen = new Set();
+        const unique = apps.filter(app => {
+            if (!app.appId || seen.has(app.appId)) return false;
+            seen.add(app.appId);
+            return true;
+        }).map(app => Object.assign({ extension }, app));
+        const availableApps = Array.isArray(h.availableApps) ? h.availableApps : typeof h.allApps === 'function' ? h.allApps() : null;
+        return availableCandidates(unique, availableApps);
+    }
+
+    function list(value, apps, candidatesForExtension) {
+        const associations = parse(value);
+        const availableApps = Array.isArray(apps) ? apps : [];
+        return Object.keys(associations).sort((a, b) => a.localeCompare(b)).map(extension => {
+            const appId = associations[extension];
+            const app = availableApps.find(candidate => candidate && candidate.id === appId) || null;
+            const candidates = availableCandidates(typeof candidatesForExtension === 'function' ? candidatesForExtension(extension) : [], availableApps);
+            return {
+                extension,
+                appId,
+                app,
+                available: Boolean(app),
+                candidates: Array.isArray(candidates) ? candidates : []
+            };
+        });
+    }
+
+    function availableCandidates(candidates, apps) {
+        if (!Array.isArray(candidates)) return [];
+        if (!Array.isArray(apps)) return candidates.slice();
+        const available = new Set(apps.filter(app => app && app.id).map(app => app.id));
+        return candidates.filter(candidate => candidate && available.has(candidate.appId));
+    }
+
+    window.AuraDesktopFileAssociations = Object.freeze({ extensionForName, parse, resolveCandidates, availableCandidates, list });
+}());
+
+;
 /* ui/js/desktop/core/desktop-foundation.js */
 // AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
@@ -592,6 +1931,8 @@
         'appearance.theme': 'standard',
         'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
+        'accessibility.text_size': '100',
+        'accessibility.high_contrast': 'false',
         'appearance.icon_theme': 'papirus',
         'appearance.tela_folder_color': 'standard',
         'appearance.fluent_folder_color': 'standard',
@@ -991,6 +2332,7 @@
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
+        window.AuraDesktopAccessibility?.apply(desktopSettings());
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
         body.dataset.animations = settingValue('windows.animations');
         body.dataset.widgets = settingValue('desktop.show_widgets');
@@ -1627,6 +2969,7 @@
     }
 
     function closeStartMenu() {
+        cancelStartSearch();
         const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing';
         menu.style.transition = ''; menu.style.transform = '';
         const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'false'; startButton.setAttribute('aria-expanded', 'false'); }
@@ -7199,15 +8542,12 @@
         const host = $('vd-start-apps');
         if (!host) return;
         const query = state.startQuery.trim().toLowerCase();
+        if (query) { renderStartSearch(query); return; }
+        cancelStartSearch();
         let title = '';
         let count = 0;
         let html = '';
-        if (query) {
-            const matches = model.allApps.filter(app => appName(app).toLowerCase().includes(query)).sort(compareAppsByName);
-            title = t('desktop.start_results');
-            count = matches.length;
-            html = matches.length ? startSectionMarkup('', matches.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_no_results'));
-        } else if (active === 'recent') {
+        if (active === 'recent') {
             title = t('desktop.recent_apps');
             count = model.recentApps.length + model.recentFiles.length;
             if (model.recentApps.length) html += startSectionMarkup(t('desktop.recent_apps'), model.recentApps.map((app, index) => startAppItemMarkup(app, index, 'vd-start-recent-item')).join(''));
@@ -7860,6 +9200,12 @@
             }
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (appId === 'calculator' && context && typeof context.expression === 'string') {
+                if (window.CalculatorApp) window.CalculatorApp.openExpression?.(existing.id, context.expression);
+                else window.AuraDesktopModules.loadAppScript('calculator')
+                    .then(() => window.CalculatorApp?.openExpression?.(existing.id, context.expression))
+                    .catch(() => {}); // The original lazy renderer reports load failures.
+            }
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (appId === 'software-store' && context && context.app_id) {
                 updateWindowContext(existing.id, { app_id: context.app_id });
@@ -8004,7 +9350,8 @@
         animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
-        else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        else if (sessionRestore && sessionRestore.snapped) applyWindowSnap(win, sessionRestore.snapped, { showPartnerChooser: false });
+        else if (!sessionRestore && shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
         if (sessionRestore && sessionRestore.minimized) {
@@ -8029,6 +9376,16 @@
     const THUMB_MAX_H = 140;
     const THUMB_SHOW_DELAY_MS = 360;
     const THUMB_HIDE_DELAY_MS = 140;
+    const SENSITIVE_PREVIEW_APPS = new Set([
+        'agent-chat', 'calendar', 'code-studio', 'contacts', 'editor', 'files', 'mailer',
+        'notes', 'quickconnect', 'settings', 'sheets', 'terminal', 'tresor', 'writer'
+    ]);
+    const PREVIEW_UNSAFE_SELECTOR = 'iframe, .vd-generated-frame, .vd-sandboxed-frame, canvas, video, audio, input, textarea, select, [type="password"], [contenteditable]';
+    const PREVIEW_REMOVE_SELECTOR = 'script, style, link, meta, base, object, embed, form, input, textarea, select, option, button, source, picture, img, audio, video, iframe, canvas, template, svg, math';
+    const PREVIEW_URL_ATTRIBUTES = new Set([
+        'action', 'background', 'cite', 'data', 'formaction', 'href', 'longdesc', 'manifest',
+        'poster', 'src', 'srcdoc', 'srcset', 'style', 'xlink:href'
+    ]);
     let thumbShowTimer = 0;
     let thumbHideTimer = 0;
     let activeThumbWindowId = '';
@@ -8129,6 +9486,33 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
+    function windowPreviewIsUnsafe(win, content) {
+        if (!content || SENSITIVE_PREVIEW_APPS.has(String(win.appId || ''))) return true;
+        if (content.matches && content.matches(PREVIEW_UNSAFE_SELECTOR)
+            || content.querySelector && content.querySelector(PREVIEW_UNSAFE_SELECTOR)) return true;
+        return !!(content.querySelectorAll && Array.from(content.querySelectorAll('*')).some(node => String(node.tagName || '').includes('-')));
+    }
+
+    function sanitizeWindowPreviewClone(content) {
+        if (!content || typeof content.cloneNode !== 'function') return null;
+        const clone = content.cloneNode(true);
+        if (windowPreviewIsUnsafe({}, clone)) return null;
+        clone.querySelectorAll(PREVIEW_REMOVE_SELECTOR).forEach(node => node.remove());
+        const nodes = [clone, ...clone.querySelectorAll('*')];
+        nodes.forEach(node => {
+            Array.from(node.attributes || []).forEach(attribute => {
+                const name = String(attribute.name || '').toLowerCase();
+                if (name.startsWith('on') || name.startsWith('data-') || PREVIEW_URL_ATTRIBUTES.has(name)
+                    || ['id', 'name', 'autofocus', 'tabindex', 'accesskey', 'contenteditable'].includes(name)) {
+                    node.removeAttribute(attribute.name);
+                }
+            });
+        });
+        clone.setAttribute('aria-hidden', 'true');
+        clone.setAttribute('inert', '');
+        return clone;
+    }
+
     function windowPreviewBodyMarkup(win, options) {
         options = options || {};
         const maxW = options.maxW || THUMB_MAX_W;
@@ -8140,15 +9524,18 @@
         const scale = Math.min(maxW / sourceW, maxH / sourceH, 1);
         const viewW = Math.max(128, Math.round(sourceW * scale));
         const viewH = Math.max(80, Math.round(sourceH * scale));
-        const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
         const viewportClass = options.viewportClass || 'vd-taskbar-thumb-viewport';
         const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
         const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
         const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
-        if (hasIframe || !content) {
+        if (windowPreviewIsUnsafe(win, content)) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        const preview = sanitizeWindowPreviewClone(content);
+        if (!preview) {
+            return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
+        }
+        return `<div class="${viewportClass}" inert aria-hidden="true" style="width:${viewW}px;height:${viewH}px;pointer-events:none"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale});pointer-events:none">${preview.innerHTML}</div></div>`;
     }
 
     function windowPreviewMarkup(win, options) {
@@ -8423,12 +9810,106 @@ function windowOverlapsFruityDock(win, dockRect) {
 }
 
 ;
+/* ui/js/desktop/core/window-layouts-runtime.js */
+    const DESKTOP_WINDOW_LAYOUT_ZONES = Object.freeze([
+        'left-half', 'right-half', 'top-half', 'bottom-half',
+        'top-left', 'top-right', 'bottom-left', 'bottom-right', 'maximize'
+    ]);
+
+    function desktopWindowLayoutRect(zone, width, height) {
+        const w = Math.max(0, Math.floor(Number(width) || 0));
+        const h = Math.max(0, Math.floor(Number(height) || 0));
+        const halfW = Math.floor(w / 2);
+        const halfH = Math.floor(h / 2);
+        const rects = {
+            'left-half': { left: 0, top: 0, width: halfW, height: h },
+            'right-half': { left: halfW, top: 0, width: w - halfW, height: h },
+            'top-half': { left: 0, top: 0, width: w, height: halfH },
+            'bottom-half': { left: 0, top: halfH, width: w, height: h - halfH },
+            'top-left': { left: 0, top: 0, width: halfW, height: halfH },
+            'top-right': { left: halfW, top: 0, width: w - halfW, height: halfH },
+            'bottom-left': { left: 0, top: halfH, width: halfW, height: h - halfH },
+            'bottom-right': { left: halfW, top: halfH, width: w - halfW, height: h - halfH },
+            maximize: { left: 0, top: 0, width: w, height: h }
+        };
+        return rects[zone] || null;
+    }
+
+    function desktopWindowLayoutFits(rect, constraints) {
+        const maxWidth = constraints && Number.isFinite(constraints.maxWidth) ? constraints.maxWidth : Infinity;
+        const maxHeight = constraints && Number.isFinite(constraints.maxHeight) ? constraints.maxHeight : Infinity;
+        return !!rect && rect.width >= (constraints && constraints.minWidth || 0)
+            && rect.height >= (constraints && constraints.minHeight || 0)
+            && rect.width <= maxWidth && rect.height <= maxHeight;
+    }
+
+    function desktopWindowLayoutMaxLimit(value, fallback) {
+        const limit = Number.parseFloat(value);
+        return Number.isFinite(limit) ? Math.min(fallback, Math.max(0, limit)) : fallback;
+    }
+
+    function desktopWindowLayoutOccupiesHalf(item, side) {
+        if (!item) return false;
+        if (item.maximized) return true;
+        const zone = String(item.snapped || '');
+        if (zone === side + '-half') return true;
+        return zone === 'top-' + side || zone === 'bottom-' + side;
+    }
+
+    function desktopWindowKeyboardLayout(zone, key) {
+        if (key === 'ArrowLeft') return 'left-half';
+        if (key === 'ArrowRight') return 'right-half';
+        const side = zone === 'left-half' || zone === 'top-left' || zone === 'bottom-left' ? 'left'
+            : zone === 'right-half' || zone === 'top-right' || zone === 'bottom-right' ? 'right' : '';
+        if (side && (key === 'ArrowUp' || key === 'ArrowDown')) {
+            return (key === 'ArrowUp' ? 'top-' : 'bottom-') + side;
+        }
+        return key === 'ArrowUp' ? 'maximize' : key === 'ArrowDown' ? 'restore' : '';
+    }
+
+    function desktopWindowRememberRestoreBounds(item, bounds) {
+        if (!item) return null;
+        if (!item.restoreBounds && bounds) item.restoreBounds = { ...bounds };
+        return item.restoreBounds;
+    }
+
+    async function desktopCloseWindowBatch(ids, hasWindow, closeWindow) {
+        const closed = [];
+        const skipped = [];
+        let cancelled = false;
+        for (const id of Array.from(ids || [])) {
+            if (typeof hasWindow === 'function' && !hasWindow(id)) {
+                skipped.push(id);
+                continue;
+            }
+            let result;
+            try { result = await closeWindow(id); }
+            catch (_) { cancelled = true; break; }
+            if (result === 'cancelled') {
+                cancelled = true;
+                break;
+            }
+            if (result !== 'accepted') {
+                skipped.push(id);
+                continue;
+            }
+            closed.push(id);
+        }
+        return {
+            status: cancelled ? 'cancelled' : closed.length ? 'accepted' : 'skipped',
+            closed,
+            skipped
+        };
+    }
+
+;
 /* ui/js/desktop/core/window-interactions-runtime.js */
     function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
         if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
+        closeWindowLayoutPopupFor(id);
         emitDesktopWindowEffect('minimize', id);
         desktopSound('window.minimize');
         item.minimizing = true;
@@ -8555,6 +10036,286 @@ function windowOverlapsFruityDock(win, dockRect) {
         if (flush && pending) pending();
     }
 
+    let activeDesktopWindowLayoutPopup = null;
+
+    function wireWindowLayoutControl(button, id) {
+        let holdTimer = 0;
+        let suppressNextClick = false;
+        button.setAttribute('aria-haspopup', 'menu');
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', 'vd-window-layout-menu');
+        button.addEventListener('click', event => {
+            if (suppressNextClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                suppressNextClick = false;
+                return;
+            }
+            toggleMaximizeWindow(id);
+        });
+        button.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            openWindowLayoutMenu(id);
+        });
+        button.addEventListener('keydown', event => {
+            if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+            event.preventDefault();
+            openWindowLayoutMenu(id);
+        });
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            if (holdTimer) window.clearTimeout(holdTimer);
+            holdTimer = window.setTimeout(() => {
+                holdTimer = 0;
+                suppressNextClick = true;
+                openWindowLayoutMenu(id);
+            }, 550);
+        });
+        const cancelHold = () => {
+            if (holdTimer) window.clearTimeout(holdTimer);
+            holdTimer = 0;
+        };
+        button.addEventListener('pointerup', () => {
+            cancelHold();
+            window.setTimeout(() => { suppressNextClick = false; }, 0);
+        });
+        button.addEventListener('pointercancel', () => { cancelHold(); suppressNextClick = false; });
+        button.addEventListener('pointerleave', () => { cancelHold(); suppressNextClick = false; });
+    }
+
+    function windowLayoutZones() {
+        return DESKTOP_WINDOW_LAYOUT_ZONES.slice();
+    }
+
+    function windowLayoutOptions(id) {
+        const item = state.windows.get(id);
+        if (!item || !item.element || item.isGadget) return [];
+        const limits = windowLayoutLimits(item.element);
+        return windowLayoutZones().map(zone => {
+            const rect = desktopWindowLayoutRect(zone, limits.width, limits.height);
+            return { zone, rect, fits: desktopWindowLayoutFits(rect, limits) };
+        });
+    }
+
+    function windowLayoutCanRestore(id) {
+        const item = state.windows.get(id);
+        return !!(item && !item.isGadget && item.restoreBounds);
+    }
+
+    function closeWindowLayoutPopup(restoreFocus) {
+        const popup = activeDesktopWindowLayoutPopup;
+        if (!popup) return;
+        activeDesktopWindowLayoutPopup = null;
+        document.removeEventListener('pointerdown', popup.onPointerDown, true);
+        document.removeEventListener('keydown', popup.onKeyDown, true);
+        popup.element.remove();
+        if (popup.opener) popup.opener.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && popup.opener && popup.opener.isConnected) popup.opener.focus({ preventScroll: true });
+    }
+
+    function closeWindowLayoutPopupFor(id) {
+        const popup = activeDesktopWindowLayoutPopup;
+        if (popup && (popup.windowId === id || popup.candidateIds.includes(id))) closeWindowLayoutPopup(false);
+    }
+
+    function positionWindowLayoutPopup(popup, anchor) {
+        const rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+        const margin = 8;
+        const width = popup.offsetWidth || 280;
+        const height = popup.offsetHeight || 360;
+        let left = rect ? rect.left : margin;
+        let top = rect ? rect.bottom + 6 : window.innerHeight - height - margin;
+        left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+        if (top + height > window.innerHeight - margin) top = rect ? rect.top - height - 6 : margin;
+        top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+        popup.style.left = Math.round(left) + 'px';
+        popup.style.top = Math.round(top) + 'px';
+    }
+
+    function wireWindowLayoutPopup(popup, opener, windowId, candidateIds) {
+        const onPointerDown = event => {
+            if (popup.contains(event.target) || event.target === opener) return;
+            closeWindowLayoutPopup(false);
+        };
+        const onKeyDown = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeWindowLayoutPopup(true);
+                return;
+            }
+            if (event.key === 'Tab') {
+                closeWindowLayoutPopup(true);
+                return;
+            }
+            const items = [...popup.querySelectorAll('button:not(:disabled)')];
+            if (!items.length) return;
+            const index = items.indexOf(document.activeElement);
+            let next = null;
+            if (event.key === 'ArrowDown') next = items[index < 0 ? 0 : (index + 1) % items.length];
+            else if (event.key === 'ArrowUp') next = items[index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length];
+            else if (event.key === 'Home') next = items[0];
+            else if (event.key === 'End') next = items[items.length - 1];
+            if (!next) return;
+            event.preventDefault();
+            next.focus({ preventScroll: true });
+        };
+        activeDesktopWindowLayoutPopup = { element: popup, opener, windowId, candidateIds: candidateIds || [], onPointerDown, onKeyDown };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown, true);
+    }
+
+    function openWindowLayoutMenu(id) {
+        const item = state.windows.get(id);
+        const opener = item && item.element && item.element.querySelector('[data-action="maximize"]');
+        if (!item || item.isGadget || !opener) return false;
+        closeWindowLayoutPopup(false);
+        if (state.contextMenu) closeContextMenu(true);
+        const menu = document.createElement('div');
+        menu.id = 'vd-window-layout-menu';
+        menu.className = 'vd-context-menu vd-window-layout-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', t('desktop.window_layouts'));
+        const layoutLabels = {
+            maximize: 'desktop.maximize',
+            'left-half': 'desktop.snap_left',
+            'right-half': 'desktop.snap_right',
+            'top-half': 'desktop.snap_top_half',
+            'bottom-half': 'desktop.snap_bottom_half',
+            'top-left': 'desktop.snap_top_left',
+            'top-right': 'desktop.snap_top_right',
+            'bottom-left': 'desktop.snap_bottom_left',
+            'bottom-right': 'desktop.snap_bottom_right'
+        };
+        const addButton = (labelKey, icon, action, disabled, checked, title) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-context-item vd-window-layout-item';
+            button.setAttribute('role', action === 'restore' ? 'menuitem' : 'menuitemradio');
+            if (action !== 'restore') button.setAttribute('aria-checked', checked ? 'true' : 'false');
+            const glyph = document.createElement('span');
+            glyph.className = 'vd-context-icon';
+            glyph.setAttribute('aria-hidden', 'true');
+            glyph.textContent = icon;
+            const label = document.createElement('span');
+            label.className = 'vd-context-label';
+            label.textContent = t(labelKey);
+            button.append(glyph, label);
+            if (disabled) {
+                button.disabled = true;
+                button.title = t('desktop.snap_layout_too_small');
+                button.setAttribute('aria-description', t('desktop.snap_layout_too_small'));
+            } else {
+                button.addEventListener('click', () => {
+                    closeWindowLayoutPopup(true);
+                    if (action === 'restore') restoreWindowFromSnap(id);
+                    else applyWindowSnap(item.element, action);
+                });
+            }
+            if (title) button.title = title;
+            menu.appendChild(button);
+        };
+        if (windowLayoutCanRestore(id)) addButton('desktop.restore', '↶', 'restore', false, false);
+        windowLayoutOptions(id).forEach(option => {
+            addButton(layoutLabels[option.zone], option.zone === 'maximize' ? '□' : '▦', option.zone,
+                !option.fits, item.snapped === option.zone || (option.zone === 'maximize' && item.maximized));
+        });
+        document.body.appendChild(menu);
+        positionWindowLayoutPopup(menu, opener);
+        opener.setAttribute('aria-expanded', 'true');
+        wireWindowLayoutPopup(menu, opener, id);
+        const first = menu.querySelector('button:not(:disabled)');
+        if (first) first.focus({ preventScroll: true });
+        return true;
+    }
+
+    function desktopWindowSnapPartnerZone(zone) {
+        if (zone === 'left-half') return 'right-half';
+        if (zone === 'right-half') return 'left-half';
+        return '';
+    }
+
+    function showWindowSnapPartnerChooser(windowId, partnerZone) {
+        const source = state.windows.get(windowId);
+        if (!source || !source.element) return false;
+        const sameSpace = candidate => typeof windowSpaceId === 'function'
+            ? windowSpaceId(candidate) === windowSpaceId(source)
+            : String(candidate.spaceId || '') === String(source.spaceId || '');
+        const candidates = [...state.windows.values()].filter(candidate => {
+            if (candidate === source || candidate.isGadget || candidate.closing || candidate.checkingClose || !candidate.element) return false;
+            if (candidate.element.style.display === 'none' || candidate.element.classList.contains('vd-space-hidden') || candidate.minimizing) return false;
+            if (!sameSpace(candidate)) return false;
+            const bounds = windowLayoutLimits(candidate.element);
+            return desktopWindowLayoutFits(desktopWindowLayoutRect(partnerZone, bounds.width, bounds.height), bounds);
+        });
+        const occupiedSide = partnerZone === 'left-half' ? 'left' : 'right';
+        const occupied = candidates.some(candidate => desktopWindowLayoutOccupiesHalf(candidate, occupiedSide));
+        if (!candidates.length || occupied) return false;
+        closeWindowLayoutPopup(false);
+        const popup = document.createElement('section');
+        popup.className = 'vd-context-menu vd-snap-partner-chooser';
+        popup.setAttribute('role', 'dialog');
+        popup.setAttribute('aria-modal', 'false');
+        popup.setAttribute('aria-label', t('desktop.snap_partner_title'));
+        const header = document.createElement('header');
+        header.className = 'vd-snap-partner-header';
+        const heading = document.createElement('h2');
+        heading.textContent = t('desktop.snap_partner_title');
+        const dismiss = document.createElement('button');
+        dismiss.type = 'button';
+        dismiss.className = 'vd-snap-partner-dismiss';
+        dismiss.setAttribute('aria-label', t('desktop.snap_partner_dismiss'));
+        dismiss.textContent = '×';
+        header.append(heading, dismiss);
+        popup.appendChild(header);
+        const grid = document.createElement('div');
+        grid.className = 'vd-snap-partner-grid';
+        candidates.forEach(candidate => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-snap-partner-card';
+            button.setAttribute('aria-label', t('desktop.snap_partner_select', { name: candidate.title }));
+            const preview = document.createElement('div');
+            preview.className = 'vd-snap-partner-preview';
+            preview.innerHTML = typeof windowPreviewMarkup === 'function'
+                ? windowPreviewMarkup(candidate, {
+                    maxW: 224, maxH: 118,
+                    titleClass: 'vd-snap-partner-preview-title', labelClass: 'vd-snap-partner-preview-label',
+                    iconClass: 'vd-snap-partner-preview-icon', viewportClass: 'vd-snap-partner-preview-viewport',
+                    scaleClass: 'vd-snap-partner-preview-scale', fallbackClass: 'vd-snap-partner-preview-fallback',
+                    fallbackIconClass: 'vd-snap-partner-preview-fallback-icon', fallbackIconSize: 30
+                }) : esc(candidate.title);
+            button.appendChild(preview);
+            button.addEventListener('click', () => {
+                if (state.windows.get(windowId) !== source || source.element.style.display === 'none'
+                    || source.element.classList.contains('vd-space-hidden') || source.minimizing || source.closing || source.checkingClose
+                    || desktopWindowSnapPartnerZone(source.snapped) !== partnerZone) {
+                    closeWindowLayoutPopup(false);
+                    return;
+                }
+                if (state.windows.get(candidate.id) !== candidate || candidate.element.style.display === 'none'
+                    || candidate.element.classList.contains('vd-space-hidden') || candidate.minimizing || candidate.closing
+                    || candidate.checkingClose || !sameSpace(candidate)) return;
+                if (!applyWindowSnap(candidate.element, partnerZone, { showPartnerChooser: false })) return;
+                closeWindowLayoutPopup(false);
+                focusWindow(candidate.id);
+                const target = candidate.element.querySelector('[data-action="maximize"]');
+                if (target) target.focus({ preventScroll: true });
+            });
+            grid.appendChild(button);
+        });
+        popup.appendChild(grid);
+        document.body.appendChild(popup);
+        positionWindowLayoutPopup(popup, source.element);
+        const opener = source.element.querySelector('[data-action="maximize"]');
+        wireWindowLayoutPopup(popup, opener, windowId, candidates.map(candidate => candidate.id));
+        dismiss.addEventListener('click', () => closeWindowLayoutPopup(true));
+        const first = grid.querySelector('button');
+        if (first) first.focus({ preventScroll: true });
+        return true;
+    }
+
 function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
         wireWindowContextMenu(win, id);
@@ -8562,20 +10323,19 @@ function wireWindow(win, id) {
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
         const aiBtn = win.querySelector('[data-action="ai-context"]'); if (aiBtn) aiBtn.addEventListener('click', () => openAgentChatForWindow(id));
         const maximizeBtn = win.querySelector('[data-action="maximize"]');
-        if (maximizeBtn) maximizeBtn.addEventListener('click', () => toggleMaximizeWindow(id));
+        if (maximizeBtn) wireWindowLayoutControl(maximizeBtn, id);
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
             if (event.target.closest('button, .vd-window-menu-popover')) return;
             if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
-            const dragItem = state.windows.get(id);
-            if (dragItem) dragItem.snapped = '';
             drag = {
                 x: event.clientX,
                 y: event.clientY,
                 left: parseInt(win.style.left, 10) || 0,
                 top: parseInt(win.style.top, 10) || 0,
+                moved: false,
                 raf: 0,
                 pendingFrame: null,
                 snapZone: null
@@ -8597,10 +10357,11 @@ function wireWindow(win, id) {
                 const maxTop = Math.max(0, window.innerHeight - taskbarReserve - win.offsetHeight);
                 const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
+                if (!activeDrag.moved && (Math.abs(activeDrag.clientX - activeDrag.x) > 2 || Math.abs(activeDrag.clientY - activeDrag.y) > 2)) activeDrag.moved = true;
                 win.style.left = newLeft + 'px';
                 win.style.top = newTop + 'px';
                 emitDesktopWindowEffect('drag', id);
-                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
+                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight, win);
                 scheduleFruityDockOcclusionCheck();
             });
         });
@@ -8608,6 +10369,10 @@ function wireWindow(win, id) {
             cancelWindowPointerFrame(drag, true);
             if (drag) emitDesktopWindowEffect('drag-end', id);
             if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
+            else if (drag && drag.moved) {
+                const item = state.windows.get(id);
+                if (item) { item.snapped = ''; item.restoreBounds = null; }
+            }
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
@@ -8635,18 +10400,22 @@ function wireWindow(win, id) {
     const SNAP_EDGE = 4;
     const SNAP_TOP_SIDE_EDGE = 96;
 
-    function updateSnapZone(drag, left, top, width, height) {
-        const workspace = $('vd-workspace') || document.body;
-        const ww = workspace.clientWidth;
-        const wh = workspace.clientHeight;
+    function updateSnapZone(drag, left, top, width, height, win) {
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width;
+        const wh = limits.height;
         const nearLeftEdge = left <= SNAP_TOP_SIDE_EDGE;
         const nearRightEdge = left + width >= ww - SNAP_TOP_SIDE_EDGE;
+        const nearBottomEdge = top + height >= wh - SNAP_EDGE;
         let zone = null;
         if (top <= SNAP_EDGE && nearLeftEdge) zone = 'top-left';
         else if (top <= SNAP_EDGE && nearRightEdge) zone = 'top-right';
         else if (top <= SNAP_EDGE) zone = 'maximize';
+        else if (nearBottomEdge && nearLeftEdge) zone = 'bottom-left';
+        else if (nearBottomEdge && nearRightEdge) zone = 'bottom-right';
         else if (left <= SNAP_EDGE) zone = 'left-half';
         else if (left + width >= ww - SNAP_EDGE) zone = 'right-half';
+        if (zone && !desktopWindowLayoutFits(desktopWindowLayoutRect(zone, ww, wh), limits)) zone = null;
         drag.snapZone = zone;
         showSnapOverlay(zone, ww, wh);
     }
@@ -8661,15 +10430,8 @@ function wireWindow(win, id) {
             $('vd-window-layer').appendChild(overlay);
         }
         overlay.hidden = false;
-        const positions = {
-            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
-            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
-            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
-            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 },
-            'maximize': { left: 0, top: 0, width: ww, height: wh }
-        };
-        const p = positions[zone];
+        const p = desktopWindowLayoutRect(zone, ww, wh);
+        if (!p) { hideSnapOverlay(); return; }
         overlay.style.left = p.left + 'px';
         overlay.style.top = p.top + 'px';
         overlay.style.width = p.width + 'px';
@@ -8682,54 +10444,52 @@ function wireWindow(win, id) {
         if (overlay) overlay.hidden = true;
     }
 
-    function applyWindowSnap(win, zone) {
-        const limits = windowLayoutLimits(win);
-        const ww = limits.width, wh = limits.height;
-        const positions = {
-            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
-            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
-            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
-            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
-        };
+    function applyWindowSnap(win, zone, options) {
         const windowId = win.dataset.windowId;
         const item = state.windows.get(windowId);
-        if (!item) return;
+        if (!item || item.isGadget) return false;
+        closeWindowLayoutPopupFor(windowId);
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width, wh = limits.height;
+        const p = desktopWindowLayoutRect(zone, ww, wh);
+        if (!desktopWindowLayoutFits(p, limits)) return false;
         if (zone === 'maximize') {
             item.snapped = '';
             if (!item.maximized) toggleMaximizeWindow(windowId);
-            return;
+            return true;
         }
-        const p = positions[zone];
-        if (!p) return;
+        if (!p) return false;
         animateWindowBounds(win, () => {
+            desktopWindowRememberRestoreBounds(item, windowBounds(win));
             if (item.maximized) {
                 item.maximized = false;
                 win.classList.remove('maximized');
             }
-            item.restoreBounds = windowBounds(win);
             item.snapped = zone;
-            const width = Math.min(ww, Math.max(limits.minWidth, p.width));
-            const height = Math.min(wh, Math.max(limits.minHeight, p.height));
-            win.style.left = Math.min(p.left, ww - width) + 'px';
-            win.style.top = Math.min(p.top, wh - height) + 'px';
-            win.style.width = width + 'px';
-            win.style.height = height + 'px';
+            win.style.left = p.left + 'px';
+            win.style.top = p.top + 'px';
+            win.style.width = p.width + 'px';
+            win.style.height = p.height + 'px';
         });
         emitDesktopWindowEffect('snap', windowId);
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
+        const partnerZone = desktopWindowSnapPartnerZone(zone);
+        if (partnerZone && (!options || options.showPartnerChooser !== false)) showWindowSnapPartnerChooser(windowId, partnerZone);
+        return true;
     }
 
     function restoreWindowFromSnap(id) {
         const item = state.windows.get(id);
         if (!item || !item.element || item.isGadget) return;
+        closeWindowLayoutPopupFor(id);
         if (item.maximized) {
             toggleMaximizeWindow(id);
             return;
         }
         const bounds = item.restoreBounds;
-        if (item.snapped && bounds) {
+        if (bounds) {
             animateWindowBounds(item.element, () => {
                 item.element.classList.remove('maximized');
                 item.element.style.left = bounds.left + 'px';
@@ -8738,9 +10498,11 @@ function wireWindow(win, id) {
                 item.element.style.height = bounds.height + 'px';
                 item.maximized = false;
                 item.snapped = '';
+                item.restoreBounds = null;
             });
             emitDesktopWindowEffect('restore', id);
             scheduleFruityDockOcclusionCheck();
+            scheduleSessionPersist();
             return;
         }
         minimizeWindow(id);
@@ -8753,10 +10515,9 @@ function wireWindow(win, id) {
         const item = state.windows.get(state.activeWindowId);
         if (!item || !item.element || item.isGadget) return false;
         event.preventDefault();
-        if (event.key === 'ArrowLeft') applyWindowSnap(item.element, 'left-half');
-        else if (event.key === 'ArrowRight') applyWindowSnap(item.element, 'right-half');
-        else if (event.key === 'ArrowUp') applyWindowSnap(item.element, 'maximize');
-        else restoreWindowFromSnap(item.id);
+        const zone = desktopWindowKeyboardLayout(item.snapped, event.key);
+        if (zone === 'restore') restoreWindowFromSnap(item.id);
+        else if (zone) applyWindowSnap(item.element, zone);
         return true;
     }
 
@@ -8832,6 +10593,7 @@ function wireWindow(win, id) {
     function toggleMaximizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
+        closeWindowLayoutPopupFor(id);
         const win = item.element;
         desktopSound(item.maximized ? 'window.restore' : 'window.maximize');
         animateWindowBounds(win, () => {
@@ -8843,14 +10605,18 @@ function wireWindow(win, id) {
                 win.style.width = b.width + 'px';
                 win.style.height = b.height + 'px';
                 item.maximized = false;
+                item.snapped = '';
+                item.restoreBounds = null;
             } else {
-                item.restoreBounds = windowBounds(win);
+                desktopWindowRememberRestoreBounds(item, windowBounds(win));
+                item.snapped = '';
                 const bounds = windowLayoutLimits(win);
+                const rect = desktopWindowLayoutRect('maximize', bounds.width, bounds.height);
                 win.classList.add('maximized');
-                win.style.left = '0';
-                win.style.top = '0';
-                win.style.width = bounds.width + 'px';
-                win.style.height = bounds.height + 'px';
+                win.style.left = rect.left + 'px';
+                win.style.top = rect.top + 'px';
+                win.style.width = rect.width + 'px';
+                win.style.height = rect.height + 'px';
                 item.maximized = true;
             }
         });
@@ -8876,6 +10642,9 @@ function wireWindow(win, id) {
                     x: event.clientX,
                     y: event.clientY,
                     bounds: windowBounds(win),
+                    style: { left: win.style.left, top: win.style.top, width: win.style.width, height: win.style.height },
+                    snapped: item && item.snapped || '',
+                    restoreBounds: item && item.restoreBounds ? { ...item.restoreBounds } : null,
                     raf: 0,
                     pendingFrame: null
                 };
@@ -8898,8 +10667,11 @@ function wireWindow(win, id) {
             });
             handle.addEventListener('pointerup', event => {
                 if (!resize) return;
+                const activeResize = resize;
                 handle.releasePointerCapture(event.pointerId);
                 cancelWindowPointerFrame(resize, true);
+                const item = state.windows.get(id), current = windowBounds(win), start = activeResize.bounds;
+                if (item && (current.left !== start.left || current.top !== start.top || current.width !== start.width || current.height !== start.height)) { item.snapped = ''; item.restoreBounds = null; }
                 emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
@@ -8908,6 +10680,12 @@ function wireWindow(win, id) {
             handle.addEventListener('pointercancel', event => {
                 if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
                     handle.releasePointerCapture(event.pointerId);
+                }
+                if (resize) {
+                    const item = state.windows.get(id), start = resize;
+                    Object.assign(win.style, start.style);
+                    if (item) { item.snapped = start.snapped; item.restoreBounds = start.restoreBounds; }
+                    scheduleFruityDockOcclusionCheck();
                 }
                 cancelWindowPointerFrame(resize);
                 if (resize) emitDesktopWindowEffect('resize-end', id);
@@ -8923,9 +10701,12 @@ function wireWindow(win, id) {
         const minimum = appWindowMinSize(win.dataset.appId);
         const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
         const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);
+        const cssLimits = window.getComputedStyle ? window.getComputedStyle(win) : win.style;
         win.style.minWidth = minWidth + 'px';
         win.style.minHeight = minHeight + 'px';
-        return { ...workspace, minWidth, minHeight };
+        return { ...workspace, minWidth, minHeight,
+            maxWidth: desktopWindowLayoutMaxLimit(cssLimits && cssLimits.maxWidth, workspace.width),
+            maxHeight: desktopWindowLayoutMaxLimit(cssLimits && cssLimits.maxHeight, workspace.height) };
     }
 
     function applyResize(win, edge, start, dx, dy) {
@@ -8988,6 +10769,24 @@ function wireWindow(win, id) {
                 if (item.maximized) {
                     win.style.width = bounds.width + 'px';
                     win.style.height = bounds.height + 'px';
+                }
+                return;
+            }
+            if (item.snapped) {
+                const bounds = windowLayoutLimits(win);
+                const rect = desktopWindowLayoutRect(item.snapped, bounds.width, bounds.height);
+                if (desktopWindowLayoutFits(rect, bounds)) {
+                    win.style.left = rect.left + 'px';
+                    win.style.top = rect.top + 'px';
+                    win.style.width = rect.width + 'px';
+                    win.style.height = rect.height + 'px';
+                    return;
+                }
+                item.snapped = '';
+                if (!mobile) {
+                    const before = `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+                    applyResize(win, 'se', item.restoreBounds || windowBounds(win), 0, 0);
+                    changed ||= before !== `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
                 }
                 return;
             }
@@ -9073,16 +10872,17 @@ function wireWindow(win, id) {
 
     async function closeWindow(id) {
         const win = state.windows.get(id);
-        if (!win) return;
-        if (win.isGadget) return; // gadgets are closed via their own context menu
-        if (win.closing || win.checkingClose) return;
+        if (!win) return 'skipped';
+        if (win.isGadget) return 'skipped'; // gadgets are closed via their own context menu
+        if (win.closing || win.checkingClose) return 'skipped';
         if (typeof win.beforeClose === 'function') {
             win.checkingClose = true;
-            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return; } }
-            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return; }
+            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return 'cancelled'; } }
+            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return 'cancelled'; }
             finally { win.checkingClose = false; }
-            if (!state.windows.has(id)) return;
+            if (state.windows.get(id) !== win || win.closing || win.checkingClose) return 'skipped';
         }
+        closeWindowLayoutPopupFor(id);
         win.closing = true;
         emitDesktopWindowEffect('close', id);
         desktopSound('window.close');
@@ -9098,6 +10898,14 @@ function wireWindow(win, id) {
             scheduleFruityDockOcclusionCheck();
             scheduleSessionPersist();
         });
+        return 'accepted';
+    }
+
+    async function closeDesktopWindowBatch(ids) {
+        return desktopCloseWindowBatch(ids, id => {
+            const item = state.windows.get(id);
+            return !!(item && !item.isGadget);
+        }, closeWindow);
     }
 
     function closeContextMenu(immediate) {
@@ -10483,7 +12291,8 @@ function wireWindow(win, id) {
             if (SESSION_SKIP_APP_IDS.has(item.appId)) return;
             const el = item.element;
             if (!el) return;
-            const bounds = (item.maximized && item.restoreBounds) || el.style;
+            const snapped = sessionSnapZone(item.snapped);
+            const bounds = ((item.maximized || snapped) && item.restoreBounds) || el.style;
             windows.push({
                 key: item.sessionKey || item.id,
                 appId: item.appId,
@@ -10492,6 +12301,7 @@ function wireWindow(win, id) {
                 width: parseInt(bounds.width, 10) || 800,
                 height: parseInt(bounds.height, 10) || 600,
                 maximized: !!item.maximized,
+                snapped,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
                 spaceId: windowSpaceId(item),
@@ -10541,6 +12351,22 @@ function wireWindow(win, id) {
         }
     }
 
+    function sessionSnapZone(value) {
+        return value !== 'maximize' && DESKTOP_WINDOW_LAYOUT_ZONES.includes(value) ? value : '';
+    }
+
+    function sessionWindowGeometry(entry) {
+        const room = windowWorkspaceSize();
+        const defaults = appWindowSize(entry.appId);
+        const minimum = appWindowMinSize(entry.appId);
+        const number = (value, fallback) => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+        const width = Math.min(room.width, Math.max(minimum.width, number(entry.width, defaults.width)));
+        const height = Math.min(room.height, Math.max(minimum.height, number(entry.height, defaults.height)));
+        return { width, height,
+            left: Math.max(0, Math.min(room.width - width, number(entry.left, 0))),
+            top: Math.max(0, Math.min(room.height - height, number(entry.top, 0))) };
+    }
+
     async function restoreDesktopSession() {
         if (!sessionRestoreEnabled() || state._sessionRestored) return;
         state._sessionRestored = true;
@@ -10559,11 +12385,9 @@ function wireWindow(win, id) {
                     forceNew: true,
                     sessionRestore: {
                         key: typeof entry.key === 'string' ? entry.key : '',
-                        left: entry.left,
-                        top: entry.top,
-                        width: entry.width,
-                        height: entry.height,
+                        ...sessionWindowGeometry(entry),
                         maximized: !!entry.maximized,
+                        snapped: sessionSnapZone(entry.snapped),
                         minimized: !!entry.minimized,
                         z: entry.z || 0,
                         spaceId: entry.spaceId,
@@ -10603,22 +12427,26 @@ function wireWindow(win, id) {
         }
     }
 
-    async function setDefaultAppForExtension(ext, appId) {
+    let defaultAppsSaveQueue = Promise.resolve();
+    function setDefaultAppForExtension(ext, appId) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
-        if (!normalized || !appId) return;
-        const map = parseDefaultAppsMap();
-        map[normalized] = appId;
-        const json = JSON.stringify(map);
-        await saveSetting('files.default_apps', json);
-        if (state.bootstrap) {
-            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'files.default_apps': json });
-        }
+        if (!/^[a-z0-9][a-z0-9_+.-]{0,31}$/.test(normalized) || desktopReadonly()) return Promise.reject(new Error(t('desktop.action_unavailable')));
+        const pending = defaultAppsSaveQueue.then(async () => {
+            if (appId && !desktopAssociationCandidates({ name: 'file.' + normalized, path: 'Shared/file.' + normalized, type: 'file' }).some(app => app.appId === appId)) throw new Error(t('desktop.action_unavailable'));
+            const map = parseDefaultAppsMap();
+            if (appId) map[normalized] = appId;
+            else delete map[normalized];
+            await saveDesktopPreference('files.default_apps', JSON.stringify(map));
+        });
+        defaultAppsSaveQueue = pending.catch(() => {});
+        return pending;
     }
 
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
+        const mapped = map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
+        return mapped && appById(mapped) ? mapped : '';
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
@@ -10668,6 +12496,60 @@ function wireWindow(win, id) {
             return entryPath !== normalized && !entryPath.startsWith(prefix);
         });
         if (filtered.length !== recent.length) writeJSONStorage(RECENT_FILES_KEY, filtered);
+    }
+
+;
+/* ui/js/desktop/core/settings-runtime.js */
+    let desktopPreferenceQueue = Promise.resolve();
+
+    function desktopSettingsContext() {
+        return { state, settingValue, settingBool, desktopSettings, t, currentDesktopTheme, desktopThemes,
+            iconThemeManifests: state.iconThemeManifests };
+    }
+    window.AuraDesktopSettingsContext = desktopSettingsContext;
+
+    function desktopPreferenceUpdates(key, value) {
+        const updates = { [key]: String(value) };
+        if (key === 'appearance.theme') {
+            const theme = desktopThemeById(value);
+            if (theme) Object.assign(updates, {
+                'appearance.icon_theme': theme.iconTheme,
+                'appearance.wallpaper': theme.wallpaper,
+                'appearance.wallpaper_by_space': '{}',
+                'appearance.theme_cursors': 'true',
+                'sound.theme': theme.soundTheme
+            });
+        }
+        return updates;
+    }
+
+    function saveDesktopPreference(key, value) {
+        if (desktopReadonly()) return Promise.reject(new Error(t('desktop.action_unavailable')));
+        const updates = desktopPreferenceUpdates(key, value);
+        const write = async () => {
+            const result = await api('/api/desktop/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: updates })
+            });
+            if (!state.bootstrap) state.bootstrap = {};
+            state.bootstrap.settings = result.settings || Object.assign({}, desktopSettings(), updates);
+            applyDesktopSettings();
+            Object.entries(updates).forEach(([setting, stored]) => applySoundSettingsChange(setting, stored));
+            if (key === 'windows.restore_session' && String(value) === 'true') await persistSessionSnapshot();
+            if (key !== 'sound.volume') {
+                renderStartButtonIcon();
+                renderIcons();
+                renderWidgets();
+                renderStartApps();
+            }
+            window.dispatchEvent(new CustomEvent('aurago:desktop-settings', { detail: { keys: Object.keys(updates) } }));
+            return result;
+        };
+        // A failed save is reported to its caller, but must not poison later saves.
+        const pending = desktopPreferenceQueue.then(write);
+        desktopPreferenceQueue = pending.catch(() => {});
+        return pending;
     }
 
 ;
@@ -11106,15 +12988,15 @@ function wireWindow(win, id) {
 
 ;
 /* ui/js/desktop/core/shell-chrome-runtime.js */
-    state.notificationHistory = state.notificationHistory || [];
-    state.notificationUnread = state.notificationUnread || 0;
     let windowSwitcherHold = null;
+    let notificationChromeSubscriptions = null;
 
     // notificationContext keeps the launch context an app receives when its notification is clicked.
     function notificationContext(payload) {
         const c = payload.context || {};
         if (payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(c.conversation_id || '')) return { conversation_id: c.conversation_id };
-        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(c.project_id || '')) return { projectId: c.project_id };
+        const projectId = c.project_id || c.projectId;
+        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(projectId || '')) return { projectId };
         if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
             return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
         }
@@ -11127,18 +13009,7 @@ function wireWindow(win, id) {
     }
 
     function pushNotificationRecord(payload) {
-        const entry = {
-            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-            title: String(payload.title || t('desktop.notification')),
-            message: String(payload.message || ''),
-            appId: payload.appId || '',
-            context: notificationContext(payload),
-            ts: Date.now(),
-            read: false
-        };
-        state.notificationHistory.unshift(entry);
-        if (state.notificationHistory.length > 40) state.notificationHistory.length = 40;
-        state.notificationUnread = Math.min(99, (state.notificationUnread || 0) + 1);
+        const entry = window.AuraDesktopNotificationCenter.record({ ...payload, title: payload.title || t('desktop.notification') }, notificationContext(payload));
         updateNotificationBadge();
         return entry;
     }
@@ -11146,15 +13017,50 @@ function wireWindow(win, id) {
     function updateNotificationBadge() {
         const badge = document.getElementById('vd-notification-badge');
         if (!badge) return;
-        const count = state.notificationUnread || 0;
+        const count = window.AuraDesktopNotificationCenter.history().filter(entry => !entry.read).length;
         badge.hidden = count <= 0;
         badge.textContent = count > 9 ? '9+' : String(count);
     }
 
     function markAllNotificationsRead() {
-        state.notificationHistory.forEach(entry => { entry.read = true; });
-        state.notificationUnread = 0;
-        updateNotificationBadge();
+        window.AuraDesktopNotificationCenter.markAllRead();
+    }
+
+    function notificationPolicyMarkup(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        const policy = center.policy();
+        const appIDs = new Set(['desktop', ...userFacingApps().map(app => app.id), ...Object.keys(policy.apps)]);
+        const selected = appIDs.has(panel.dataset.policyApp) ? panel.dataset.policyApp : 'desktop';
+        panel.dataset.policyApp = selected;
+        const appPolicy = policy.apps[selected] || { toast: true, sound: true };
+        const options = Array.from(appIDs).map(id => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(id === 'desktop' ? t('desktop.notifications_desktop') : appName(appById(id) || { id, name: id }))}</option>`).join('');
+        return `<div class="vd-notification-policy">
+            <label><input id="vd-notification-dnd" type="checkbox" ${policy.dnd ? 'checked' : ''}>${esc(t('desktop.notifications_dnd'))}</label>
+            <details ${panel.dataset.policyOpen === 'true' ? 'open' : ''}><summary>${esc(t('desktop.notifications_manage'))}</summary>
+                <label>${esc(t('desktop.notifications_source'))}<select id="vd-notification-source">${options}</select></label>
+                <label><input id="vd-notification-toasts" type="checkbox" ${appPolicy.toast ? 'checked' : ''}>${esc(t('desktop.notifications_toasts'))}</label>
+                <label><input id="vd-notification-sounds" type="checkbox" ${appPolicy.sound ? 'checked' : ''}>${esc(t('desktop.notifications_sounds'))}</label>
+            </details>
+            ${center.status().storageFallback ? `<p role="status">${esc(t('desktop.notifications_tab_only'))}</p>` : ''}
+        </div>`;
+    }
+
+    function wireNotificationPolicy(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        panel.querySelector('details').addEventListener('toggle', event => { panel.dataset.policyOpen = String(event.target.open); });
+        panel.querySelector('#vd-notification-source').addEventListener('change', event => {
+            panel.dataset.policyApp = event.target.value;
+            renderNotificationCenter();
+        });
+        panel.querySelector('#vd-notification-dnd').addEventListener('change', event => {
+            center.setPolicy({ ...center.policy(), dnd: event.target.checked });
+        });
+        ['toasts', 'sounds'].forEach(name => panel.querySelector('#vd-notification-' + name).addEventListener('change', event => {
+            const policy = center.policy();
+            const appId = panel.dataset.policyApp;
+            policy.apps[appId] = { toast: true, sound: true, ...policy.apps[appId], [name === 'toasts' ? 'toast' : 'sound']: event.target.checked };
+            center.setPolicy(policy);
+        }));
     }
 
     function closeNotificationCenter(restoreFocus = false) {
@@ -11180,36 +13086,52 @@ function wireWindow(win, id) {
             });
             document.body.appendChild(panel);
         }
+        const focusedID = panel.contains(document.activeElement) ? document.activeElement.id : '';
+        const focusedNotification = panel.contains(document.activeElement) ? document.activeElement.dataset.notificationId : '';
+        const focusedAction = panel.contains(document.activeElement) ? document.activeElement.dataset.action : '';
         panel.setAttribute('aria-label', t('desktop.notifications_title'));
-        const items = state.notificationHistory || [];
+        const center = window.AuraDesktopNotificationCenter;
+        const items = center.history();
         const list = items.length
-            ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
+            ? items.map(entry => `<article class="vd-notification-item${entry.read ? '' : ' unread'}">
                 <div class="vd-notification-item-title">${esc(entry.title)}</div>
                 ${entry.message ? `<div class="vd-notification-item-message">${esc(entry.message)}</div>` : ''}
                 <div class="vd-notification-item-time">${esc(formatNotificationTime(entry.ts))}</div>
-            </button>`).join('')
+                <div class="vd-notification-actions">
+                    <button type="button" data-action="open-notification" data-notification-id="${esc(entry.id)}" ${entry.appId !== 'desktop' && !appById(entry.appId) ? 'disabled' : ''}>${esc(t(entry.appId === 'desktop' ? 'desktop.notifications_mark_read' : 'desktop.notifications_open'))}</button>
+                    <button type="button" data-action="dismiss-notification" data-notification-id="${esc(entry.id)}">${esc(t('desktop.notifications_dismiss'))}</button>
+                </div>
+            </article>`).join('')
             : `<div class="vd-notification-empty">${esc(t('desktop.notifications_empty'))}</div>`;
         panel.innerHTML = `<div class="vd-notification-header">
             <div class="vd-notification-title">${esc(t('desktop.notifications_title'))}</div>
+            <button type="button" class="vd-notification-clear" data-action="read-notifications">${esc(t('desktop.notifications_mark_all_read'))}</button>
             <button type="button" class="vd-notification-clear" data-action="clear-notifications">${esc(t('desktop.notifications_clear'))}</button>
         </div>
-        <div class="vd-notification-list">${list}</div>`;
+        ${notificationPolicyMarkup(panel)}<div class="vd-notification-list">${list}</div>`;
+        wireNotificationPolicy(panel);
+        panel.querySelector('[data-action="read-notifications"]').addEventListener('click', markAllNotificationsRead);
         panel.querySelector('[data-action="clear-notifications"]').addEventListener('click', () => {
-            state.notificationHistory = [];
-            state.notificationUnread = 0;
-            updateNotificationBadge();
-            renderNotificationCenter();
+            center.clear();
         });
         panel.querySelectorAll('[data-notification-id]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const entry = state.notificationHistory.find(item => item.id === btn.dataset.notificationId);
-                if (entry) entry.read = true;
-                state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
-                updateNotificationBadge();
-                closeNotificationCenter();
-                if (btn.dataset.appId) openApp(btn.dataset.appId, entry?.context);
+                const entry = center.history().find(item => item.id === btn.dataset.notificationId);
+                if (!entry) return;
+                if (btn.dataset.action === 'dismiss-notification') { center.remove(entry.id); return; }
+                if (entry.appId !== 'desktop' && !appById(entry.appId)) return;
+                center.markRead(entry.id);
+                if (entry.appId !== 'desktop') {
+                    closeNotificationCenter();
+                    openApp(entry.appId, notificationContext(entry));
+                }
             });
         });
+        const focusTarget = focusedID ? panel.querySelector('#' + cssSel(focusedID)) : focusedNotification
+            ? panel.querySelector(`[data-notification-id="${cssSel(focusedNotification)}"][data-action="${cssSel(focusedAction)}"]`)
+            : focusedAction ? panel.querySelector(`[data-action="${cssSel(focusedAction)}"]`) : null;
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+        else if (focusedNotification) (panel.querySelector('[data-notification-id]:not(:disabled)') || panel.querySelector('#vd-notification-dnd') || panel).focus({ preventScroll: true });
     }
 
     function toggleNotificationCenter(anchor) {
@@ -11226,7 +13148,6 @@ function wireWindow(win, id) {
         panel._returnFocus?.setAttribute('aria-expanded', 'true');
         panel.focus();
         desktopSound('menu.open');
-        markAllNotificationsRead();
         placeTrayPopover(panel, anchor);
     }
 
@@ -11338,6 +13259,8 @@ function wireWindow(win, id) {
             ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
             ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
             ['Win / ⌘ + ←↑→↓', t('desktop.shortcuts_window_snap')],
+            ['Win / ⌘ + ← →, ↑ ↓', t('desktop.shortcuts_snap_quarter')],
+            ['Shift+F10', t('desktop.shortcuts_layout_menu')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -11345,6 +13268,7 @@ function wireWindow(win, id) {
         overlay.innerHTML = `<div class="vd-shortcuts-panel">
             <div class="vd-shortcuts-heading">${esc(t('desktop.shortcuts_title'))}</div>
             <ul class="vd-shortcuts-list">${rows.map(row => `<li><kbd>${esc(row[0])}</kbd><span>${esc(row[1])}</span></li>`).join('')}</ul>
+            <p>${esc(t('desktop.shortcuts_browser_conflicts'))}</p>
             <button type="button" class="vd-shortcuts-close">${esc(t('desktop.close'))}</button>
         </div>`;
         overlay.addEventListener('click', event => {
@@ -11463,6 +13387,19 @@ function wireWindow(win, id) {
     }
 
     function wireShellChromeControls() {
+        if (!notificationChromeSubscriptions) {
+            const refresh = () => {
+                updateNotificationBadge();
+                const panel = document.getElementById('vd-notification-center');
+                if (panel && !panel.hidden) renderNotificationCenter();
+            };
+            notificationChromeSubscriptions = [window.AuraDesktopNotificationCenter.subscribe(refresh), window.AuraDesktopNotificationCenter.subscribePolicy(refresh)];
+            window.addEventListener('pagehide', event => {
+                if (event.persisted) return;
+                notificationChromeSubscriptions?.forEach(unsubscribe => unsubscribe());
+                notificationChromeSubscriptions = null;
+            });
+        }
         const fullscreenBtn = document.getElementById('vd-fullscreen-button');
         if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
             fullscreenBtn.dataset.shellChromeWired = 'true';
@@ -11586,6 +13523,7 @@ function wireWindow(win, id) {
 /* ui/js/desktop/core/spotlight-runtime.js */
     let spotlightOpen = false;
     let spotlightInstance = null;
+    let spotlightSearchProvider = null;
 
     function closeSpotlight() {
         if (spotlightInstance) {
@@ -11602,40 +13540,106 @@ function wireWindow(win, id) {
         spotlightOpen = false;
     }
 
-    function spotlightSettingsEntries() {
-        return [
-            { id: 'settings-appearance', title: t('desktop.settings_category_appearance'), action: () => openApp('settings', { category: 'appearance' }) },
-            { id: 'settings-desktop', title: t('desktop.settings_category_desktop'), action: () => openApp('settings', { category: 'desktop' }) },
-            { id: 'settings-windows', title: t('desktop.settings_category_windows'), action: () => openApp('settings', { category: 'windows' }) },
-            { id: 'settings-files', title: t('desktop.settings_category_files'), action: () => openApp('settings', { category: 'files' }) },
-            { id: 'settings-agent', title: t('desktop.settings_category_agent'), action: () => openApp('settings', { category: 'agent' }) }
-        ];
-    }
-
-    function spotlightAppEntries(query) {
-        const q = String(query || '').trim().toLowerCase();
+    function spotlightAppEntries() {
         return startMenuApps()
-            .filter(app => !q || appName(app).toLowerCase().includes(q) || String(app.id || '').includes(q))
-            .slice(0, 8)
             .map(app => ({
                 id: 'app-' + app.id,
+                type: 'app',
                 title: appName(app),
                 subtitle: t('desktop.spotlight_apps'),
-                action: () => openApp(app.id)
+                searchText: app.id,
+                open: () => openApp(app.id)
             }));
     }
 
-    function spotlightRecentFileEntries(query) {
-        const q = String(query || '').trim().toLowerCase();
+    function spotlightRecentFileEntries() {
         return readRecentFiles()
-            .filter(entry => !q || entry.name.toLowerCase().includes(q) || entry.path.toLowerCase().includes(q))
-            .slice(0, 6)
             .map(entry => ({
                 id: 'recent-' + entry.path,
+                type: 'file',
                 title: entry.name,
                 subtitle: t('desktop.spotlight_recent_files'),
-                action: () => openDesktopPath(entry.path)
+                path: entry.path,
+                searchText: entry.path,
+                open: () => openDesktopPath(entry.path)
             }));
+    }
+
+    function spotlightSettingsContext() {
+        const provider = window.AuraDesktopSettingsContext;
+        if (typeof provider === 'function') return provider() || {};
+        return provider && typeof provider === 'object' ? provider : {};
+    }
+
+    function spotlightLocalSources(includeRecents) {
+        const settingsContext = spotlightSettingsContext();
+        const settingsCatalog = window.AuraDesktopSettingsCatalog;
+        const actionsProvider = window.AuraDesktopSearchActions;
+        const actions = typeof actionsProvider === 'function' ? actionsProvider() : Array.isArray(actionsProvider) ? actionsProvider : [];
+        return {
+            apps: spotlightAppEntries(),
+            settings: settingsCatalog && typeof settingsCatalog.list === 'function' ? settingsCatalog.list('', Object.assign({}, settingsContext, {
+                openSetting: (category, settingKey) => openApp('settings', { category, settingKey })
+            })) : [],
+            actions,
+            files: includeRecents ? spotlightRecentFileEntries() : [],
+            t: key => t(key),
+            openCalculator: expression => openApp('calculator', { expression })
+        };
+    }
+
+    function spotlightFilters(backdrop) {
+        const value = selector => backdrop.querySelector(selector)?.value || '';
+        const localDateBound = (date, endOfDay) => {
+            if (!date) return '';
+            const parsed = new Date(date + (endOfDay ? 'T23:59:59.999' : 'T00:00:00'));
+            return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+        };
+        const minValue = value('[data-spotlight-min-size]');
+        const maxValue = value('[data-spotlight-max-size]');
+        const modifiedAfter = localDateBound(value('[data-spotlight-modified-after]'), false);
+        const modifiedBefore = localDateBound(value('[data-spotlight-modified-before]'), true);
+        const minSize = minValue === '' ? null : Number(minValue);
+        const maxSize = maxValue === '' ? null : Number(maxValue);
+        let error = '';
+        if (minSize != null && (!Number.isSafeInteger(minSize) || minSize < 0) || maxSize != null && (!Number.isSafeInteger(maxSize) || maxSize < 0)) {
+            error = 'desktop.spotlight_filter_invalid_size';
+        } else if (minSize != null && maxSize != null && minSize > maxSize) {
+            error = 'desktop.spotlight_filter_invalid_size';
+        } else if (modifiedAfter && modifiedBefore && modifiedAfter > modifiedBefore) {
+            error = 'desktop.spotlight_filter_invalid_dates';
+        }
+        return {
+            type: value('[data-spotlight-filter-type]') || 'all',
+            modifiedAfter,
+            modifiedBefore,
+            minSize,
+            maxSize,
+            error
+        };
+    }
+
+    function spotlightCanShowRecents(filters) {
+        return filters.type === 'all' && !filters.modifiedAfter && !filters.modifiedBefore && filters.minSize == null && filters.maxSize == null;
+    }
+
+    function spotlightHasFileFilters(filters) {
+        return filters.type !== 'all' || !!(filters.modifiedAfter || filters.modifiedBefore) ||
+            filters.minSize != null || filters.maxSize != null;
+    }
+
+    function spotlightCurrentEntries(stateObj) {
+        const recentPaths = new Set((stateObj.recentEntries || []).map(entry => entry.path).filter(Boolean));
+        const files = (stateObj.fileEntries || []).filter(entry => !recentPaths.has(entry.path));
+        return (stateObj.localEntries || []).concat(stateObj.recentEntries || [], files);
+    }
+
+    function spotlightProvider() {
+        if (spotlightSearchProvider) return spotlightSearchProvider;
+        const search = window.AuraDesktopSearch;
+        if (!search || typeof search.createProvider !== 'function') return null;
+        spotlightSearchProvider = search.createProvider({ api, openFile: path => openDesktopPath(path) });
+        return spotlightSearchProvider;
     }
 
     async function openDesktopPath(path) {
@@ -11666,60 +13670,126 @@ function wireWindow(win, id) {
         openApp('viewer', { path: normalized });
     }
 
-    async function spotlightFileEntries(query, signal) {
-        const q = String(query || '').trim();
-        if (q.length < 2) return [];
-        try {
-            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q), { signal });
-            return (body.files || body.results || []).slice(0, 8).map(file => ({
-                id: 'file-' + file.path,
-                title: file.name || pathBaseName(file.path),
-                subtitle: t('desktop.spotlight_files'),
-                action: () => openDesktopPath(file.path)
-            }));
-        } catch (_) {
-            return [];
-        }
-    }
-
-    function renderSpotlightResults(entries, activeIndex) {
-        const host = document.querySelector('#vd-spotlight-backdrop [data-spotlight-results]');
-        if (!host) return;
+    function renderSpotlightResults(stateObj) {
+        const host = stateObj.backdrop.querySelector('[data-spotlight-results]');
+        const status = stateObj.backdrop.querySelector('[data-spotlight-status]');
+        const loadMore = stateObj.backdrop.querySelector('[data-spotlight-load-more]');
+        if (!host || !status || !loadMore) return;
+        const entries = stateObj.entries = spotlightCurrentEntries(stateObj);
+        host.setAttribute('aria-busy', String(Boolean(stateObj.loading)));
         if (!entries.length) {
-            host.innerHTML = `<div class="vd-spotlight-empty">${esc(t('desktop.spotlight_empty'))}</div>`;
-            return;
+            host.innerHTML = `<div class="vd-spotlight-empty">${esc(stateObj.loading ? t('desktop.spotlight_searching') : t('desktop.spotlight_empty'))}</div>`;
+            stateObj.backdrop.querySelector('.vd-spotlight-input')?.removeAttribute('aria-activedescendant');
+        } else {
+            host.innerHTML = entries.map((entry, index) => `<button type="button" class="vd-spotlight-item${index === stateObj.activeIndex ? ' active' : ''}" data-spotlight-index="${index}">
+                <span class="vd-spotlight-item-title">${esc(entry.title)}</span>
+                ${entry.subtitle ? `<span class="vd-spotlight-item-sub">${esc(entry.subtitle)}</span>` : ''}
+            </button>`).join('');
+            const input = stateObj.backdrop.querySelector('.vd-spotlight-input');
+            if (input) input.setAttribute('aria-activedescendant', 'vd-spotlight-result-' + stateObj.activeIndex);
+            host.querySelectorAll('[data-spotlight-index]').forEach((button, index) => {
+                button.id = 'vd-spotlight-result-' + index;
+                button.setAttribute('role', 'option');
+                button.setAttribute('aria-selected', String(index === stateObj.activeIndex));
+            });
         }
-        host.innerHTML = entries.map((entry, index) => `<button type="button" class="vd-spotlight-item${index === activeIndex ? ' active' : ''}" data-spotlight-index="${index}">
-            <span class="vd-spotlight-item-title">${esc(entry.title)}</span>
-            ${entry.subtitle ? `<span class="vd-spotlight-item-sub">${esc(entry.subtitle)}</span>` : ''}
-        </button>`).join('');
+        let message = '';
+        if (stateObj.filterError) message = t(stateObj.filterError);
+        else if (stateObj.fileError) message = t('desktop.spotlight_search_failed');
+        else if (stateObj.truncated) message = t('desktop.spotlight_results_truncated');
+        else if (stateObj.loading) message = t('desktop.spotlight_searching');
+        status.textContent = message;
+        status.hidden = !message;
+        status.setAttribute('role', stateObj.filterError || stateObj.fileError ? 'alert' : 'status');
+        loadMore.hidden = !stateObj.hasMore;
+        loadMore.textContent = t(stateObj.fileError ? 'desktop.spotlight_retry' : 'desktop.spotlight_load_more');
+        loadMore.dataset.spotlightPageAction = stateObj.fileError ? 'retry' : 'more';
+        loadMore.disabled = stateObj.loading || !stateObj.hasMore || (!stateObj.fileError && stateObj.nextOffset <= stateObj.lastOffset);
     }
 
-    async function refreshSpotlightResults(input, stateObj) {
+    function spotlightIsCurrent(stateObj, generation) {
+        return spotlightInstance === stateObj && generation === stateObj.generation && stateObj.backdrop.isConnected;
+    }
+
+    async function loadSpotlightFilePage(stateObj, generation, offset) {
+        const provider = spotlightProvider();
+        if (!provider || !spotlightIsCurrent(stateObj, generation) || stateObj.loading) return;
+        stateObj.loading = true;
+        stateObj.fileError = false;
+        stateObj.lastOffset = offset;
+        renderSpotlightResults(stateObj);
+        try {
+            const page = await provider.files(stateObj.query, {
+                signal: stateObj.controller.signal,
+                filters: stateObj.filters,
+                limit: 50,
+                offset
+            });
+            if (!spotlightIsCurrent(stateObj, generation)) return;
+            const recentPaths = new Set((stateObj.recentEntries || []).map(entry => entry.path).filter(Boolean));
+            const knownPaths = new Set((stateObj.fileEntries || []).map(entry => entry.path).filter(Boolean));
+            (page.items || []).forEach(entry => {
+                if (!entry.path || recentPaths.has(entry.path) || knownPaths.has(entry.path)) return;
+                knownPaths.add(entry.path);
+                stateObj.fileEntries.push(entry);
+            });
+            stateObj.nextOffset = page.nextOffset;
+            stateObj.hasMore = Boolean(page.hasMore) && page.nextOffset > offset;
+            stateObj.truncated = Boolean(stateObj.localTruncated || page.truncated);
+            stateObj.fileError = false;
+        } catch (error) {
+            if (!spotlightIsCurrent(stateObj, generation) || stateObj.controller.signal.aborted) return;
+            stateObj.fileError = true;
+            stateObj.hasMore = true;
+        } finally {
+            if (spotlightIsCurrent(stateObj, generation)) {
+                stateObj.loading = false;
+                renderSpotlightResults(stateObj);
+            }
+        }
+    }
+
+    function refreshSpotlightResults(input, stateObj, delay) {
         const generation = ++stateObj.generation;
         stateObj.controller?.abort();
         stateObj.controller = new AbortController();
-        const query = input.value || '';
-        const settings = spotlightSettingsEntries().filter(entry => !query || entry.title.toLowerCase().includes(query.toLowerCase()));
-        const apps = spotlightAppEntries(query);
-        const recent = spotlightRecentFileEntries(query);
-        const files = await spotlightFileEntries(query, stateObj.controller.signal);
-        if (spotlightInstance !== stateObj || generation !== stateObj.generation || !stateObj.backdrop.isConnected) return;
-        stateObj.entries = []
-            .concat(settings.map(entry => ({ id: entry.id, title: entry.title, subtitle: t('desktop.spotlight_settings'), action: entry.action })))
-            .concat(recent)
-            .concat(apps)
-            .concat(files)
-            .slice(0, 16);
-        if (stateObj.activeIndex >= stateObj.entries.length) stateObj.activeIndex = Math.max(0, stateObj.entries.length - 1);
-        renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+        window.clearTimeout(stateObj.timer);
+        stateObj.query = input.value || '';
+        stateObj.filters = spotlightFilters(stateObj.backdrop);
+        stateObj.filterError = stateObj.filters.error;
+        stateObj.fileError = false;
+        stateObj.loading = false;
+        stateObj.fileEntries = [];
+        stateObj.nextOffset = 0;
+        stateObj.lastOffset = -1;
+        stateObj.hasMore = false;
+        stateObj.truncated = false;
+        stateObj.activeIndex = 0;
+
+        const queryLength = Array.from(stateObj.query.trim()).length;
+        if (queryLength > 256) stateObj.filterError = 'desktop.spotlight_query_too_long';
+        const provider = spotlightProvider();
+        const includeRecents = spotlightCanShowRecents(stateObj.filters);
+        const localSources = stateObj.query.trim()
+            ? spotlightLocalSources(includeRecents)
+            : { files: includeRecents ? spotlightRecentFileEntries() : [], t: key => t(key) };
+        const local = provider ? provider.local(stateObj.query, localSources, { limit: 101 }) : [];
+        const visibleLocal = local.slice(0, 100);
+        stateObj.localEntries = visibleLocal.filter(entry => entry.type !== 'file');
+        stateObj.recentEntries = visibleLocal.filter(entry => entry.type === 'file');
+        stateObj.localTruncated = local.length > 100;
+        stateObj.truncated = stateObj.localTruncated;
+        renderSpotlightResults(stateObj);
+
+        if (stateObj.filterError || queryLength < 2 && !spotlightHasFileFilters(stateObj.filters) || !provider) return;
+        stateObj.timer = window.setTimeout(() => loadSpotlightFilePage(stateObj, generation, 0), Math.max(0, delay || 0));
     }
 
     function activateSpotlightIndex(stateObj) {
         const entry = stateObj.entries[stateObj.activeIndex];
-        if (!entry || typeof entry.action !== 'function') return;
+        if (!entry || typeof entry.open !== 'function' && typeof entry.action !== 'function') return;
         closeSpotlight();
-        entry.action();
+        (entry.open || entry.action)();
     }
 
     function openSpotlight() {
@@ -11730,22 +13800,50 @@ function wireWindow(win, id) {
         const backdrop = document.createElement('div');
         backdrop.id = 'vd-spotlight-backdrop';
         backdrop.className = 'vd-spotlight-backdrop';
-        backdrop.innerHTML = `<div class="vd-spotlight">
-            <label class="vd-spotlight-label">${esc(t('desktop.spotlight_title'))}</label>
-            <input type="search" class="vd-spotlight-input" placeholder="${esc(t('desktop.spotlight_placeholder'))}" autocomplete="off" spellcheck="false">
-            <div class="vd-spotlight-results" data-spotlight-results></div>
-        </div>`;
+        backdrop.innerHTML = `<section class="vd-spotlight" role="dialog" aria-modal="true" aria-labelledby="vd-spotlight-title">
+            <label id="vd-spotlight-title" for="vd-spotlight-query" class="vd-spotlight-label">${esc(t('desktop.spotlight_title'))}</label>
+            <input id="vd-spotlight-query" type="search" class="vd-spotlight-input" placeholder="${esc(t('desktop.spotlight_placeholder'))}" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="vd-spotlight-results" aria-activedescendant="">
+            <fieldset class="vd-spotlight-filters" aria-label="${esc(t('desktop.spotlight_filters'))}">
+                <label class="vd-spotlight-filter vd-spotlight-filter-type"><span>${esc(t('desktop.spotlight_filter_type'))}</span>
+                    <select data-spotlight-filter-type>
+                        <option value="all">${esc(t('desktop.spotlight_filter_all'))}</option>
+                        <option value="image">${esc(t('desktop.spotlight_filter_images'))}</option>
+                        <option value="audio">${esc(t('desktop.spotlight_filter_audio'))}</option>
+                        <option value="video">${esc(t('desktop.spotlight_filter_video'))}</option>
+                        <option value="document">${esc(t('desktop.spotlight_filter_documents'))}</option>
+                        <option value="archive">${esc(t('desktop.spotlight_filter_archives'))}</option>
+                        <option value="folder">${esc(t('desktop.spotlight_filter_folders'))}</option>
+                    </select>
+                </label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_modified_after'))}</span><input type="date" data-spotlight-modified-after></label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_modified_before'))}</span><input type="date" data-spotlight-modified-before></label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_min_size'))}</span><input type="number" min="0" step="1" inputmode="numeric" data-spotlight-min-size></label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_max_size'))}</span><input type="number" min="0" step="1" inputmode="numeric" data-spotlight-max-size></label>
+                <button type="button" class="vd-spotlight-filter-clear" data-spotlight-clear-filters>${esc(t('desktop.spotlight_clear_filters'))}</button>
+            </fieldset>
+            <div id="vd-spotlight-results" class="vd-spotlight-results" data-spotlight-results role="listbox" aria-label="${esc(t('desktop.spotlight_results_label'))}"></div>
+            <div class="vd-spotlight-status" data-spotlight-status role="status" aria-live="polite" hidden></div>
+            <button type="button" class="vd-spotlight-load-more" data-spotlight-load-more data-spotlight-page-action="more" hidden>${esc(t('desktop.spotlight_load_more'))}</button>
+        </section>`;
         document.body.appendChild(backdrop);
         const input = backdrop.querySelector('.vd-spotlight-input');
-        const stateObj = { entries: [], activeIndex: 0, generation: 0, controller: null, timer: 0, backdrop };
-        spotlightInstance = stateObj;
-        const scheduleRefresh = () => {
-            ++stateObj.generation;
-            stateObj.controller?.abort();
-            window.clearTimeout(stateObj.timer);
-            stateObj.timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
+        const stateObj = {
+            entries: [], localEntries: [], recentEntries: [], fileEntries: [], activeIndex: 0,
+            generation: 0, controller: null, timer: 0, backdrop, query: '', filters: { type: 'all' },
+            loading: false, fileError: false, filterError: '', hasMore: false, truncated: false,
+            nextOffset: 0, lastOffset: -1, localTruncated: false
         };
+        spotlightInstance = stateObj;
+        const scheduleRefresh = () => refreshSpotlightResults(input, stateObj, 120);
         input.addEventListener('input', scheduleRefresh);
+        backdrop.querySelectorAll('[data-spotlight-filter-type], [data-spotlight-modified-after], [data-spotlight-modified-before], [data-spotlight-min-size], [data-spotlight-max-size]')
+            .forEach(control => control.addEventListener('change', () => refreshSpotlightResults(input, stateObj, 0)));
+        backdrop.querySelector('[data-spotlight-clear-filters]').addEventListener('click', () => {
+            backdrop.querySelector('[data-spotlight-filter-type]').value = 'all';
+            backdrop.querySelectorAll('[data-spotlight-modified-after], [data-spotlight-modified-before], [data-spotlight-min-size], [data-spotlight-max-size]')
+                .forEach(control => { control.value = ''; });
+            refreshSpotlightResults(input, stateObj, 0);
+        });
         input.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 event.preventDefault();
@@ -11754,14 +13852,14 @@ function wireWindow(win, id) {
             }
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                stateObj.activeIndex = Math.min(stateObj.entries.length - 1, stateObj.activeIndex + 1);
-                renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+                stateObj.activeIndex = stateObj.entries.length ? Math.min(stateObj.entries.length - 1, stateObj.activeIndex + 1) : 0;
+                renderSpotlightResults(stateObj);
                 return;
             }
             if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 stateObj.activeIndex = Math.max(0, stateObj.activeIndex - 1);
-                renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+                renderSpotlightResults(stateObj);
                 return;
             }
             if (event.key === 'Enter') {
@@ -11771,13 +13869,102 @@ function wireWindow(win, id) {
         });
         backdrop.addEventListener('click', event => {
             if (event.target === backdrop) closeSpotlight();
+            const pageAction = event.target.closest('[data-spotlight-page-action]');
+            if (pageAction) {
+                const offset = stateObj.fileError ? stateObj.lastOffset : stateObj.nextOffset;
+                loadSpotlightFilePage(stateObj, stateObj.generation, offset);
+                return;
+            }
             const btn = event.target.closest('[data-spotlight-index]');
             if (!btn) return;
             stateObj.activeIndex = Number(btn.dataset.spotlightIndex);
             activateSpotlightIndex(stateObj);
         });
-        refreshSpotlightResults(input, stateObj);
+        refreshSpotlightResults(input, stateObj, 0);
         input.focus();
+    }
+
+;
+/* ui/js/desktop/core/start-search-runtime.js */
+    let startSearchRequest = null;
+
+    window.AuraDesktopSearchActions = () => [
+        { id: 'action-overview', type: 'action', title: t('desktop.spaces_overview_show'), open: () => openSpacesOverview() },
+        { id: 'action-notifications', type: 'action', title: t('desktop.notifications_title'), open: () => toggleNotificationCenter() },
+        ...(!desktopReadonly() ? [{ id: 'action-empty-trash', type: 'action', title: t('desktop.context_empty_trash'), open: () => emptyTrash() }] : [])
+    ];
+
+    function cancelStartSearch() {
+        if (!startSearchRequest) return;
+        clearTimeout(startSearchRequest.timer);
+        startSearchRequest.controller.abort();
+        startSearchRequest = null;
+    }
+
+    function renderStartSearch(query) {
+        cancelStartSearch();
+        const provider = window.AuraDesktopSearch.createProvider({ api, openFile: path => openDesktopPath(path) });
+        const tooLong = Array.from(query).length > 256;
+        const request = { query, provider, controller: new AbortController(), local: provider.local(query, spotlightLocalSources(true)),
+            files: [], offset: 0, more: false, truncated: false, loading: query.length >= 2 && !tooLong, tooLong, error: false, timer: 0 };
+        startSearchRequest = request;
+        renderStartSearchResults(request);
+        if (request.loading) request.timer = setTimeout(() => loadStartSearchPage(request), 120);
+    }
+
+    async function loadStartSearchPage(request) {
+        if (startSearchRequest !== request) return;
+        request.loading = true;
+        request.error = false;
+        renderStartSearchResults(request);
+        try {
+            const page = await request.provider.files(request.query, { signal: request.controller.signal, limit: 50, offset: request.offset });
+            if (startSearchRequest !== request || request.controller.signal.aborted) return;
+            request.files.push(...page.items);
+            request.more = Boolean(page.hasMore) && page.nextOffset > request.offset;
+            request.offset = page.nextOffset;
+            request.truncated = page.truncated;
+        } catch (error) {
+            if (startSearchRequest !== request || request.controller.signal.aborted) return;
+            request.error = true;
+        }
+        if (startSearchRequest !== request) return;
+        request.loading = false;
+        renderStartSearchResults(request);
+    }
+
+    function renderStartSearchResults(request) {
+        if (startSearchRequest !== request) return;
+        const host = $('vd-start-apps');
+        if (!host) return;
+        const focusedID = document.activeElement?.dataset.startResult;
+        const seen = new Set();
+        const entries = [...request.local, ...request.files].filter(entry => {
+            const key = entry.path ? 'file:' + entry.path : entry.id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        const head = $('vd-start-pane-head');
+        if (head) head.innerHTML = `<span class="vd-start-pane-title">${esc(t('desktop.start_results'))}</span><span class="vd-start-pane-count">${entries.length}</span>`;
+        const scroll = host.scrollTop;
+        host.innerHTML = entries.map(entry => `<button type="button" class="vd-start-item" data-start-result="${esc(entry.id)}"><span class="vd-start-item-text"><span class="vd-start-item-title">${esc(entry.title)}</span><small>${esc(entry.subtitle || '')}</small></span></button>`).join('') +
+            (!entries.length && !request.loading ? startEmptyMarkup(t('desktop.start_no_results')) : '') +
+            (request.loading ? `<p role="status">${esc(t('desktop.spotlight_searching'))}</p>` : '') +
+            (request.error ? `<p role="status">${esc(t('desktop.start_search_failed'))}</p>` : '') +
+            (request.tooLong ? `<p role="status">${esc(t('desktop.spotlight_query_too_long'))}</p>` : '') +
+            (request.truncated ? `<p role="status">${esc(t('desktop.spotlight_results_truncated'))}</p>` : '') +
+            (request.more || request.error ? `<button type="button" class="vd-button" data-search-more ${request.loading ? 'disabled' : ''}>${esc(t('desktop.start_search_more'))}</button>` : '');
+        host.scrollTop = scroll;
+        host.querySelectorAll('[data-start-result]').forEach(button => {
+            button.addEventListener('click', () => {
+                const entry = entries.find(item => item.id === button.dataset.startResult);
+                closeStartMenu();
+                Promise.resolve(entry?.open?.()).catch(error => showDesktopNotification({ message: error.message }));
+            });
+        });
+        host.querySelector('[data-search-more]')?.addEventListener('click', () => loadStartSearchPage(request));
+        if (focusedID) Array.from(host.querySelectorAll('[data-start-result]')).find(button => button.dataset.startResult === focusedID)?.focus({ preventScroll: true });
     }
 
 ;
@@ -17759,51 +19946,21 @@ function updateTaskbarSystemButtonsForMobile() {
         return entry;
     }
 
+    function desktopAssociationCandidates(entry) {
+        const associations = window.AuraDesktopFileAssociations;
+        const candidates = associations.resolveCandidates(entry, {
+            isViewerFile, isWriterFile, isSheetsFile, allApps,
+            isImageFile: desktopIsImageFile, isMediaFile: desktopIsMediaFile, isArchiveFile: desktopIsArchiveFile
+        });
+        return associations.availableCandidates(candidates, allApps()).map(app => Object.assign({}, app, {
+            label: app.label || t(app.labelKey)
+        }));
+    }
+
     function buildDesktopOpenWithSubmenu(entry) {
         if (!entry || entry.type !== 'file') return [];
-        const name = entry.name || pathBaseName(entry.path);
-        const apps = [];
-        const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
-        const isImage = desktopIsImageFile(name);
-        const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
-        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
-        if (isText) {
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.ora$/i.test(name)) {
-            // OpenRaster projects are Pixel documents: Gallery and Viewer cannot draw them.
-            apps.push({ label: t('desktop.app_pixel'), appId: 'pixel' });
-        } else if (isImage) {
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        } else if (isMedia) {
-            const ext = desktopFileExtension(name);
-            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' }, { label: t('desktop.app_music_player'), appId: 'music-player' });
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
-            apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
-            apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.lyl$/i.test(name)) {
-            apps.push({ label: 'Layerling', appId: 'layerling' });
-        } else if (/\.aurasynth$/i.test(name)) {
-            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(name || '').toLowerCase().endsWith('.md')) {
-            apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (desktopIsArchiveFile(name)) {
-            apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
-        } else {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        }
-        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
-        if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
-        const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
-        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
+        const apps = desktopAssociationCandidates(entry);
+        const ext = window.AuraDesktopFileAssociations.extensionForName(entry.name || entry.path);
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -17813,9 +19970,14 @@ function updateTaskbarSystemButtonsForMobile() {
         }));
         const defaultItems = apps.map(app => ({
             label: t('desktop.set_default_app_for', { app: app.label }),
-            action: () => {
-                setDefaultAppForExtension(ext, app.appId);
-                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+            disabled: desktopReadonly() || !ext,
+            action: async () => {
+                try {
+                    await setDefaultAppForExtension(ext, app.appId);
+                    showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+                } catch (err) {
+                    showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                }
             }
         }));
         return openItems.concat([{ separator: true }]).concat(defaultItems);
@@ -18289,11 +20451,12 @@ function updateTaskbarSystemButtonsForMobile() {
         const item = state.windows.get(id);
         if (!item) return;
         const items = [
-            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
+            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => { restoreWindowFromSnap(id); focusWindow(id); } },
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
         if (!item.isGadget) {
+            items.push({ label: t('desktop.window_layouts'), icon: 'grid', action: () => openWindowLayoutMenu(id) });
             const onTop = !!item.alwaysOnTop;
             items.push({
                 label: t('desktop.context_always_on_top'),
@@ -18335,6 +20498,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         items.push(
             { separator: true },
+            ...windowBatchMenuItems(id).map(entry => ({ label: t(entry.labelKey), action: entry.action, disabled: entry.disabled })),
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
         );
         showContextMenu(event.clientX, event.clientY, items);
@@ -18618,6 +20782,7 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     async function emptyTrash() {
+        if (desktopReadonly()) return;
         try {
             const entries = await listTrashEntries();
             if (entries.length === 0) {
@@ -19032,6 +21197,18 @@ function updateTaskbarSystemButtonsForMobile() {
             .filter(menu => menu.items.length);
     }
 
+    function windowBatchMenuItems(windowId) {
+        const item = state.windows.get(windowId);
+        if (!item || item.isGadget) return [];
+        const eligible = Array.from(state.windows.values()).filter(win => !win.isGadget && !win.closing);
+        const others = eligible.filter(win => win.id !== windowId && windowSpaceId(win) === windowSpaceId(item)).map(win => win.id);
+        const sameApp = eligible.filter(win => win.appId === item.appId).map(win => win.id);
+        return [
+            { id: 'close-others', labelKey: 'desktop.close_other_windows', disabled: !others.length, action: () => closeDesktopWindowBatch(others) },
+            { id: 'close-app', labelKey: 'desktop.close_app_windows', disabled: !sameApp.length, action: () => closeDesktopWindowBatch(sameApp) }
+        ];
+    }
+
     function automaticWindowMenu(windowId) {
         const item = state.windows.get(windowId);
         const hasMaximize = !!(item && item.element && item.element.querySelector('[data-action="maximize"]'));
@@ -19049,6 +21226,9 @@ function updateTaskbarSystemButtonsForMobile() {
                     action: () => hasMaximize && toggleMaximizeWindow(windowId)
                 },
                 { type: 'separator' },
+                ...(item && !item.isGadget ? [{ id: 'layouts', labelKey: 'desktop.window_layouts', action: () => openWindowLayoutMenu(windowId) },
+                    { id: 'restore-layout', labelKey: 'desktop.restore', disabled: !windowLayoutCanRestore(windowId), action: () => restoreWindowFromSnap(windowId) },
+                    ...windowBatchMenuItems(windowId)] : []),
                 { id: 'close', labelKey: 'desktop.menu_close_window', icon: 'x', shortcut: 'Alt+F4', action: () => closeWindow(windowId) }
             ]
         };
@@ -19280,7 +21460,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -23507,7 +25687,7 @@ if (appId === 'pixel') {
             case 'notification:show':
                 requirePermission(client, ['notifications']);
                 guard();
-                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
+                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '', appId: client.appId });
                 return { status: 'ok' };
             case 'widget:upsert': {
                 requirePermission(client, ['widgets:write']);
@@ -23802,10 +25982,15 @@ if (appId === 'pixel') {
 
     function showDesktopNotification(payload) {
         payload = payload || {};
-        if (payload.appId === 'meshcore') desktopSound('notify.message');
-        else if (payload.type === 'error') desktopSound('notify.error');
-        else desktopSound('notify.info');
+        const policy = window.AuraDesktopNotificationCenter;
+        const delivery = policy && typeof policy.delivery === 'function' ? policy.delivery(payload) : { toast: true, sound: true };
         pushNotificationRecord(payload);
+        if (delivery.sound) {
+            if (payload.appId === 'meshcore') desktopSound('notify.message');
+            else if (payload.type === 'error') desktopSound('notify.error');
+            else desktopSound('notify.info');
+        }
+        if (!delivery.toast) return;
         ringNotificationBell();
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
@@ -24213,6 +26398,9 @@ if (appId === 'pixel') {
         mark('parallel-fetch-start');
         await Promise.all([
             loadIconManifest().catch(() => null),
+            (window.AuraDesktopNotificationCenter && typeof window.AuraDesktopNotificationCenter.init === 'function'
+                ? window.AuraDesktopNotificationCenter.init().catch(() => null)
+                : Promise.resolve()),
             (async () => {
                 if (bootstrapReloadPromise) return bootstrapReloadPromise;
                 bootstrapReloadPromise = fetchBootstrapState()

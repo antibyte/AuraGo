@@ -10,6 +10,12 @@ const checkOnly = process.argv.includes('--check');
 const desktopMainParts = [
   'ui/js/shared/browser-audio-lease.js',
   'ui/js/desktop/icon-theme-resolver.js',
+  'ui/js/desktop/shared/calculator-expression.js',
+  'ui/js/desktop/core/accessibility-runtime.js',
+  'ui/js/desktop/core/notification-center-runtime.js',
+  'ui/js/desktop/core/settings-catalog-runtime.js',
+  'ui/js/desktop/core/search-results-runtime.js',
+  'ui/js/desktop/core/file-associations-runtime.js',
   'ui/js/desktop/core/desktop-foundation.js',
   'ui/js/desktop/core/icon-theme-runtime.js',
   'ui/js/desktop/core/theme-runtime.js',
@@ -27,6 +33,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/window-shell-runtime.js',
   'ui/js/desktop/core/taskbar-thumbnails-runtime.js',
   'ui/js/desktop/core/fruity-dock-scroll.js',
+  'ui/js/desktop/core/window-layouts-runtime.js',
   'ui/js/desktop/core/window-interactions-runtime.js',
   'ui/js/desktop/core/window-ai-context.js',
   'ui/js/desktop/core/lifecycle-cleanup.js',
@@ -38,11 +45,13 @@ const desktopMainParts = [
   'ui/js/desktop/core/print-runtime.js',
   'ui/js/desktop/core/media-session-runtime.js',
   'ui/js/desktop/core/session-runtime.js',
+  'ui/js/desktop/core/settings-runtime.js',
   'ui/js/desktop/core/spaces-runtime.js',
   'ui/js/desktop/core/spaces-overview-runtime.js',
   'ui/js/desktop/core/shell-chrome-runtime.js',
   'ui/js/desktop/core/polish-runtime.js',
   'ui/js/desktop/core/spotlight-runtime.js',
+  'ui/js/desktop/core/start-search-runtime.js',
   'ui/js/desktop/core/desktop-file-drops.js',
   'ui/js/desktop/core/desktop-window-file-drops.js',
   'ui/js/desktop/core/widget-drawer-runtime.js',
@@ -230,6 +239,8 @@ const cssBundles = [
       'ui/css/desktop-taskbar.css',
       'ui/css/desktop-start-menu.css',
       'ui/css/desktop-windows.css',
+      'ui/css/desktop-window-layouts.css',
+      'ui/css/desktop-search.css',
       'ui/css/desktop-icons.css',
       'ui/css/desktop-widgets.css',
       'ui/css/desktop-widget-fritzbox.css',
@@ -267,7 +278,8 @@ const cssBundles = [
       'ui/css/desktop-materials-orbit.css',
       'ui/css/desktop-materials-minimal.css',
       'ui/css/desktop-cursors.css',
-      'ui/css/desktop-polish.css'
+      'ui/css/desktop-polish.css',
+      'ui/css/desktop-accessibility.css'
     ]
   },
   {

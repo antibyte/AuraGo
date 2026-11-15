@@ -26,7 +26,7 @@ var desktopWallpaperOptions = []string{
 func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	t.Parallel()
 
-	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
+	settingsText := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
 	foundationText := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	cssText := readAllDesktopCSS(t)
 

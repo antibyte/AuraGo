@@ -2,183 +2,13 @@
     'use strict';
 
     let host, ctx, esc, t, showDesktopNotification, registerWindowCleanup, showContextMenu, wireContextMenuBoundary;
-
-    function tokenizeCalculatorExpression(expression) {
-        const tokens = [];
-        let index = 0;
-        while (index < expression.length) {
-            const char = expression[index];
-            if (/\s/.test(char)) {
-                index += 1;
-                continue;
-            }
-            if ((char >= '0' && char <= '9') || char === '.') {
-                const start = index;
-                let hasDigit = false;
-                let hasDot = false;
-                while (index < expression.length) {
-                    const current = expression[index];
-                    if (current >= '0' && current <= '9') {
-                        hasDigit = true;
-                        index += 1;
-                    } else if (current === '.' && !hasDot) {
-                        hasDot = true;
-                        index += 1;
-                    } else {
-                        break;
-                    }
-                }
-                if (!hasDigit) throw new Error('Invalid expression');
-                const value = Number(expression.slice(start, index));
-                if (!Number.isFinite(value)) throw new Error('Invalid expression');
-                tokens.push({ type: 'number', value });
-                continue;
-            }
-            if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
-                const start = index;
-                while (index < expression.length) {
-                    const current = expression[index];
-                    if ((current >= 'a' && current <= 'z') || (current >= 'A' && current <= 'Z')) {
-                        index += 1;
-                    } else {
-                        break;
-                    }
-                }
-                tokens.push({ type: 'identifier', value: expression.slice(start, index) });
-                continue;
-            }
-            if ('+-*/%^()!'.includes(char)) {
-                tokens.push({ type: 'operator', value: char });
-                index += 1;
-                continue;
-            }
-            throw new Error('Invalid expression');
-        }
-        tokens.push({ type: 'eof', value: '' });
-        return tokens;
-    }
-
-    function calculatorFactorial(value) {
-        if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) throw new Error('Invalid expression');
-        if (value > 170) throw new Error('Invalid expression');
-        let result = 1;
-        for (let i = 2; i <= value; i += 1) result *= i;
-        return result;
-    }
-
-    function ensureFiniteCalculatorResult(value) {
-        if (!Number.isFinite(value)) throw new Error('Invalid expression');
-        return value;
-    }
-
-    function rejectZeroDivisor(operator, right) {
-        if ((operator === '/' || operator === '%' || operator === 'MOD') && right === 0) throw new Error('Invalid expression');
-    }
-
-    function applyCalculatorOperation(name, value) {
-        switch (name) {
-            case 'sin':
-                return Math.sin(value);
-            case 'cos':
-                return Math.cos(value);
-            case 'tan':
-                return Math.tan(value);
-            case 'sqrt':
-                return Math.sqrt(value);
-            case 'log':
-                return Math.log10(value);
-            case 'ln':
-                return Math.log(value);
-            case 'abs':
-                return Math.abs(value);
-            case 'factorial':
-                return calculatorFactorial(value);
-            default:
-                throw new Error('Invalid expression');
-        }
-    }
-
-    function parseCalculatorExpression(tokens) {
-        let position = 0;
-        const peek = () => tokens[position] || { type: 'eof', value: '' };
-        const consume = () => tokens[position++] || { type: 'eof', value: '' };
-        const expectOperator = (value) => {
-            const token = consume();
-            if (token.type !== 'operator' || token.value !== value) throw new Error('Invalid expression');
-        };
-        const parseExpression = () => parseAdditiveExpression();
-        const parseAdditiveExpression = () => {
-            let value = parseMultiplicativeExpression();
-            while (peek().type === 'operator' && (peek().value === '+' || peek().value === '-')) {
-                const operator = consume().value;
-                const right = parseMultiplicativeExpression();
-                value = operator === '+' ? value + right : value - right;
-            }
-            return value;
-        };
-        const parseMultiplicativeExpression = () => {
-            let value = parseUnaryExpression();
-            while (peek().type === 'operator' && (peek().value === '*' || peek().value === '/' || peek().value === '%')) {
-                const operator = consume().value;
-                const right = parseUnaryExpression();
-                rejectZeroDivisor(operator, right);
-                if (operator === '*') value *= right;
-                else if (operator === '/') value /= right;
-                else value %= right;
-            }
-            return value;
-        };
-        const parseUnaryExpression = () => {
-            if (peek().type === 'operator' && (peek().value === '+' || peek().value === '-')) {
-                const operator = consume().value;
-                const value = parseUnaryExpression();
-                return operator === '-' ? -value : value;
-            }
-            return parsePowerExpression();
-        };
-        const parsePowerExpression = () => {
-            let value = parsePostfixExpression();
-            if (peek().type === 'operator' && peek().value === '^') {
-                consume();
-                value = Math.pow(value, parseUnaryExpression());
-            }
-            return value;
-        };
-        const parsePostfixExpression = () => {
-            let value = parsePrimaryExpression();
-            while (peek().type === 'operator' && peek().value === '!') {
-                consume();
-                value = calculatorFactorial(value);
-            }
-            return value;
-        };
-        const parsePrimaryExpression = () => {
-            const token = consume();
-            if (token.type === 'number') return token.value;
-            if (token.type === 'operator' && token.value === '(') {
-                const value = parseExpression();
-                expectOperator(')');
-                return value;
-            }
-            if (token.type === 'identifier') {
-                const name = token.value.toLowerCase();
-                if (name === 'pi') return Math.PI;
-                if (name === 'e') return Math.E;
-                expectOperator('(');
-                const value = parseExpression();
-                expectOperator(')');
-                return applyCalculatorOperation(name, value);
-            }
-            throw new Error('Invalid expression');
-        };
-        const value = parseExpression();
-        if (peek().type !== 'eof') throw new Error('Invalid expression');
-        return value;
-    }
+    const calculatorInstances = new Map();
 
     function evaluateCalculatorExpression(expression) {
-        const value = parseCalculatorExpression(tokenizeCalculatorExpression(expression));
-        return ensureFiniteCalculatorResult(value);
+        if (!window.AuraCalculatorExpression || typeof window.AuraCalculatorExpression.evaluate !== 'function') {
+            throw new Error('Calculator parser is unavailable');
+        }
+        return window.AuraCalculatorExpression.evaluate(expression);
     }
 
     function calculatorErrorMessage(err) {
@@ -253,16 +83,17 @@
         wireContextMenuBoundary = ctx.wireContextMenuBoundary;
         host = hostEl;
         if (!host) return;
-        renderCalculator(windowId);
+        renderCalculator(windowId, renderCtx || {});
     }
 
     function dispose(windowId) {
+        calculatorInstances.delete(windowId);
         if (host) host.innerHTML = '';
         host = null;
         ctx = null;
     }
 
-    function renderCalculator(id) {
+    function renderCalculator(id, renderCtx) {
         const keySets = {
             standard: [
                 { key: 'C', kind: 'danger' },
@@ -386,6 +217,15 @@
             <aside class="vd-calc-history"><div class="vd-calc-history-head"><span class="vd-calc-history-title">${esc(t('desktop.calc_history'))}</span><button type="button" class="vd-calc-history-clear" data-clear-history aria-label="${esc(t('desktop.calc_clear_history'))}" title="${esc(t('desktop.calc_clear_history'))}" hidden>&#215;</button></div><ol class="vd-calc-history-list" data-history-list></ol><p class="vd-calc-history-empty" data-history-empty>${esc(t('desktop.calc_history_empty'))}</p></aside>
         </div>`;
         const root = host.querySelector('.vd-calc');
+        const focusRoot = () => {
+            if (!root || typeof root.focus !== 'function' || root.isConnected === false) return;
+            const desktopWindow = root.closest('.vd-window');
+            if (desktopWindow && !desktopWindow.classList.contains('active')) return;
+            const active = typeof document !== 'undefined' ? document.activeElement : null;
+            if (active && active !== document.body && active !== document.documentElement && active.closest &&
+                active.closest('[role="menu"], [role="dialog"], [aria-modal="true"], dialog[open], .vd-context-menu')) return;
+            root.focus();
+        };
         const expressionEl = host.querySelector('[data-expression]');
         const resultEl = host.querySelector('[data-result]');
         const historyEl = host.querySelector('[data-history-list]');
@@ -503,6 +343,19 @@
             resultEl.classList.add('typing');
             setTimeout(() => resultEl.classList.remove('typing'), 150);
         };
+        const setSearchExpression = rawExpression => {
+            if (typeof rawExpression !== 'string') return false;
+            const nextExpression = rawExpression.trim();
+            if (!nextExpression || nextExpression.length > 80) return false;
+            try { evaluateCalculatorExpression(nextExpression); } catch (_) { return false; }
+            if (mode === 'programmer') selectMode('standard');
+            expression = nextExpression;
+            refresh();
+            previewExpression();
+            flashDisplay();
+            focusRoot();
+            return true;
+        };
         const validDigitForBase = ch => {
             if (ch === 'HEX_C') return progBase === 16;
             if (progBase === 2) return /[01]/.test(ch);
@@ -591,12 +444,11 @@
             const integer = Math.trunc(result);
             return integer.toString(base).toUpperCase();
         };
-        host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
-            const nextMode = btn.dataset.mode;
-            if (!nextMode || nextMode === mode) return;
+        const selectMode = nextMode => {
+            if (!['standard', 'scientific', 'programmer'].includes(nextMode) || nextMode === mode) return;
             const carried = carryCalculatorValue(expression, mode, nextMode, progBase);
             host.querySelectorAll('[data-mode]').forEach(item => {
-                const active = item === btn;
+                const active = item.dataset.mode === nextMode;
                 item.classList.toggle('active', active);
                 item.setAttribute('aria-selected', active ? 'true' : 'false');
             });
@@ -608,6 +460,9 @@
             expression = carried;
             refresh();
             previewExpression();
+        };
+        host.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => {
+            selectMode(btn.dataset.mode);
         }));
         host.querySelectorAll('[data-base]').forEach(btn => btn.addEventListener('click', () => {
             const nextBase = parseInt(btn.dataset.base, 10);
@@ -701,16 +556,30 @@
                 press(key);
             }
         });
-        root.focus();
+        focusRoot();
+        calculatorInstances.set(id, setSearchExpression);
         registerWindowCleanup(id, () => {
+            calculatorInstances.delete(id);
             if (copyTimer) clearTimeout(copyTimer);
             host.innerHTML = '';
         });
+        if (typeof renderCtx.expression === 'string') setSearchExpression(renderCtx.expression);
+    }
+
+    function openExpression(windowId, expression) {
+        const setExpression = calculatorInstances.get(windowId);
+        return typeof setExpression === 'function' ? setExpression(expression) : false;
     }
 
     function evaluateProgrammerExpression(expression, base) {
         const tokens = tokenizeProgrammerExpression(expression, base);
         return parseProgrammerExpression(tokens);
+    }
+
+    function rejectZeroDivisor(operator, right) {
+        if ((operator === '/' || operator === '%' || operator === 'MOD') && right === 0) {
+            throw new Error('Invalid expression');
+        }
     }
 
     function tokenizeProgrammerExpression(expression, base) {
@@ -852,5 +721,5 @@
         return value;
     }
 
-    window.CalculatorApp = { render, dispose };
+    window.CalculatorApp = { render, dispose, openExpression };
 }());

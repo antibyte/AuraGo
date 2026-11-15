@@ -12,6 +12,9 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- `SearchFilesPage` applies type, RFC3339 modification-time and byte-size filters before paging. Queries are bounded to 256 runes, traversal to 20,000 entries and matching results to 1,000; omitted pages default to 50 and explicit pages cannot exceed 100. Cancellation returns an error; exhausted budgets or unreadable subtrees report incomplete results. The legacy `SearchFiles` entry point retains its 1,000-result contract. Search never descends into symlinks or escapes the workspace.
+- Default-app settings are bounded extension-to-app-ID objects. New references must name available built-in or installed apps; unchanged unavailable mappings survive unrelated edits until explicitly reset. Text size accepts only 100/125/150 percent and high contrast is a boolean, both under `accessibility.*`.
+
 <!-- pinball:start -->
 - AuraPinball (`pinball`, category `games`) is a local built-in app with no capability
   gate. Keep `open_maximized=true` and app-owned `/img/desktop-icons/pinball.svg`;

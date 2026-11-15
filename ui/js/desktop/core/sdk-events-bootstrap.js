@@ -199,7 +199,7 @@
             case 'notification:show':
                 requirePermission(client, ['notifications']);
                 guard();
-                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
+                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '', appId: client.appId });
                 return { status: 'ok' };
             case 'widget:upsert': {
                 requirePermission(client, ['widgets:write']);
@@ -494,10 +494,15 @@
 
     function showDesktopNotification(payload) {
         payload = payload || {};
-        if (payload.appId === 'meshcore') desktopSound('notify.message');
-        else if (payload.type === 'error') desktopSound('notify.error');
-        else desktopSound('notify.info');
+        const policy = window.AuraDesktopNotificationCenter;
+        const delivery = policy && typeof policy.delivery === 'function' ? policy.delivery(payload) : { toast: true, sound: true };
         pushNotificationRecord(payload);
+        if (delivery.sound) {
+            if (payload.appId === 'meshcore') desktopSound('notify.message');
+            else if (payload.type === 'error') desktopSound('notify.error');
+            else desktopSound('notify.info');
+        }
+        if (!delivery.toast) return;
         ringNotificationBell();
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
@@ -905,6 +910,9 @@
         mark('parallel-fetch-start');
         await Promise.all([
             loadIconManifest().catch(() => null),
+            (window.AuraDesktopNotificationCenter && typeof window.AuraDesktopNotificationCenter.init === 'function'
+                ? window.AuraDesktopNotificationCenter.init().catch(() => null)
+                : Promise.resolve()),
             (async () => {
                 if (bootstrapReloadPromise) return bootstrapReloadPromise;
                 bootstrapReloadPromise = fetchBootstrapState()

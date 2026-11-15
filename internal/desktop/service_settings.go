@@ -24,6 +24,9 @@ func (s *Service) SetSetting(ctx context.Context, key, value, source string) err
 	if err := validateDesktopSetting(key, value); err != nil {
 		return err
 	}
+	if err := s.validateDefaultAppSetting(ctx, map[string]string{key: value}); err != nil {
+		return err
+	}
 	db := s.getDB()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err := db.ExecContext(ctx, `INSERT INTO desktop_settings(key, value, updated_at)
@@ -50,6 +53,9 @@ func (s *Service) compareAndSetSetting(ctx context.Context, key, old, value, sou
 	old = strings.TrimSpace(old)
 	value = strings.TrimSpace(value)
 	if err := validateDesktopSetting(key, value); err != nil {
+		return false, err
+	}
+	if err := s.validateDefaultAppSetting(ctx, map[string]string{key: value}); err != nil {
 		return false, err
 	}
 	db := s.getDB()
@@ -93,10 +99,20 @@ func (s *Service) SetSettings(ctx context.Context, values map[string]string, sou
 	if len(values) == 0 {
 		return nil
 	}
+	normalized := make(map[string]string, len(values))
 	for key, value := range values {
-		if err := validateDesktopSetting(strings.TrimSpace(key), strings.TrimSpace(value)); err != nil {
+		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
+		if _, duplicate := normalized[key]; duplicate {
+			return fmt.Errorf("duplicate desktop setting %s", key)
+		}
+		if err := validateDesktopSetting(key, value); err != nil {
 			return err
 		}
+		normalized[key] = value
+	}
+	values = normalized
+	if err := s.validateDefaultAppSetting(ctx, values); err != nil {
+		return err
 	}
 	db := s.getDB()
 	tx, err := db.BeginTx(ctx, nil)
@@ -218,7 +234,10 @@ func validateFreeformDesktopSetting(key, value string) error {
 		return validateSerialProfiles(value)
 	case retronet.EntriesSetting:
 		return retronet.ValidateEntriesDocument(value)
-	case "appearance.dock_pins", "files.default_apps", "session.windows":
+	case "files.default_apps":
+		_, err := parseDefaultAppAssociations(value)
+		return err
+	case "appearance.dock_pins", "session.windows":
 		if len(value) > 65536 {
 			return fmt.Errorf("invalid desktop setting value for %s", key)
 		}

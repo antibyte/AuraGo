@@ -1,6 +1,12 @@
 # Virtual Desktop everyday workflow roadmap
 
-Status: proposed implementation plan, 2026-11-15. No runtime changes are included.
+Status: implementation in `codex/desktop-shell-everyday`, based on committed
+`6d753d4e1127447f4e953dc9a71244891648195a`. The first delivery implements complete
+snap/guarded window actions, shared search/default apps, browser-local notification
+policy/history and shell text size/high contrast. Wave 1 passed focused Node, Go,
+browser, encoding and deterministic bundle checks locally on Windows, including
+snap/session restoration and notification storage boundaries. Later deliveries
+remain pending; full Linux CI and real assistive-technology acceptance are separate.
 
 Improve frequent desktop interactions by extending the existing shell. Preserve the
 distinct Standard taskbar and Fruity dock, the vanilla JavaScript architecture,
@@ -351,6 +357,7 @@ inside one page native multi-monitor placement.
   Capture/clipboard permission dialogs, real assistive technology and browser/OS
   shortcut conflicts require explicit real-client acceptance beyond local fixtures.
 
-DOX disposition for this planning change: owning guides remain unchanged because
-no runtime behavior, permission, persisted contract or ownership boundary changes.
-This file remains under the root guide's existing `plans/` responsibility.
+Implementation updates the owning UI, Desktop service, server and script guides
+with the shipped contracts. The root guide retains responsibility for this plan;
+its global ownership and permission rules are unchanged. Verification evidence and
+remaining acceptance checks are recorded in ignored `reports/desktop-shell-everyday/`.

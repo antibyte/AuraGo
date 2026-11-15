@@ -5181,6 +5181,258 @@
 .desktop-body[data-theme="fruity"] .vd-window-button:focus-visible .vd-window-control-icon,
 .desktop-body[data-theme="fruity"] .vd-widget-manager:hover .vd-window-control-icon { opacity: .8; }
 
+/* ui/css/desktop-window-layouts.css */
+.vd-window-layout-menu {
+    width: min(292px, calc(100vw - 16px));
+    max-height: min(540px, calc(100dvh - 16px));
+    overflow: auto;
+}
+
+.vd-window-layout-menu .vd-window-layout-item {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 38px;
+}
+
+.vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
+    background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
+}
+
+.vd-snap-partner-chooser {
+    width: min(520px, calc(100vw - 16px));
+    max-height: min(560px, calc(100dvh - 16px));
+    overflow: auto;
+    padding: 12px;
+    color: var(--vd-text);
+}
+
+.vd-snap-partner-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 10px;
+}
+
+.vd-snap-partner-header h2 {
+    margin: 0;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.vd-snap-partner-dismiss {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.vd-snap-partner-dismiss:hover,
+.vd-snap-partner-dismiss:focus-visible {
+    background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
+}
+
+.vd-snap-partner-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.vd-snap-partner-card {
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-card, var(--ds-radius-md));
+    background: var(--vd-theme-panel-bg, var(--ds-color-bg-surface));
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vd-snap-partner-card:hover,
+.vd-snap-partner-card:focus-visible {
+    border-color: var(--vd-accent);
+    outline: 2px solid color-mix(in srgb, var(--vd-accent) 45%, transparent);
+    outline-offset: 1px;
+}
+
+.vd-snap-partner-preview-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.vd-snap-partner-preview-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-snap-partner-preview-viewport {
+    position: relative;
+    display: block;
+    width: 100% !important;
+    height: 108px !important;
+    overflow: hidden;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--vd-text) 8%, transparent);
+}
+
+.vd-snap-partner-preview-scale {
+    transform-origin: top left;
+    pointer-events: none;
+}
+
+.vd-snap-partner-preview-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 108px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--vd-text) 8%, transparent);
+    color: var(--vd-muted);
+    font-size: 12px;
+}
+
+@media (max-width: 520px) {
+    .vd-snap-partner-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (forced-colors: active) {
+    .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled),
+    .vd-snap-partner-card:hover,
+    .vd-snap-partner-card:focus-visible {
+        outline: 2px solid Highlight;
+        border-color: Highlight;
+    }
+}
+
+/* ui/css/desktop-search.css */
+/* Search controls keep the shell's native panels while giving filters their own scroll-safe grid. */
+.vd-spotlight {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+}
+
+.vd-spotlight-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-spotlight-filter {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--vd-text);
+    font-size: 0.76rem;
+}
+
+.vd-spotlight-filter > span {
+    overflow: hidden;
+    color: var(--vd-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-spotlight-filter :is(input, select),
+.vd-spotlight-filter-clear {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, var(--ds-radius-sm));
+    background: var(--vd-theme-control-bg, var(--ds-color-control-bg));
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-spotlight-filter-clear {
+    align-self: end;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.vd-spotlight-results {
+    flex: 1 1 auto;
+    min-height: 72px;
+    max-height: min(44vh, 420px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.vd-spotlight-status {
+    padding: 8px 14px;
+    color: var(--vd-muted);
+    font-size: 0.82rem;
+}
+
+.vd-spotlight-status[role="alert"] {
+    color: var(--vd-danger, #c33);
+}
+
+.vd-spotlight-load-more {
+    align-self: stretch;
+    min-height: 40px;
+    margin: 0 14px 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, var(--ds-radius-sm));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: var(--vd-text);
+    cursor: pointer;
+}
+
+.vd-spotlight-load-more:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+@media (max-width: 560px) {
+    .vd-spotlight-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vd-spotlight-filter-type,
+    .vd-spotlight-filter-clear {
+        grid-column: 1 / -1;
+    }
+
+    .vd-spotlight-results {
+        max-height: min(38vh, 320px);
+    }
+}
+
+@media (pointer: coarse) {
+    .vd-spotlight-filter :is(input, select),
+    .vd-spotlight-filter-clear,
+    .vd-spotlight-load-more {
+        min-height: 44px;
+    }
+}
+
 /* ui/css/desktop-icons.css */
 /* desktop-icons.css — desktop icons, sprites, theme icons, labels, workspace */
 
@@ -10546,6 +10798,20 @@
     overflow: auto;
 }
 
+.vd-notification-center { max-height: calc(100dvh - 80px); overflow: auto; }
+.vd-notification-header { flex-wrap: wrap; }
+.vd-notification-policy { padding: 10px 12px; border-bottom: 1px solid var(--vd-theme-border, var(--vd-border)); }
+.vd-notification-policy label { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.vd-notification-policy select { flex: 1; min-width: 0; max-width: 100%; color: var(--vd-text); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); }
+.vd-notification-policy summary { cursor: pointer; padding: 8px 0; }
+.vd-notification-policy p { margin: 6px 0; font-size: .85em; }
+.vd-notification-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.vd-notification-actions button { min-height: 36px; padding: 5px 10px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); cursor: pointer; }
+.vd-notification-actions button:disabled { opacity: .5; cursor: default; }
+@media (pointer: coarse) {
+    .vd-notification-policy label, .vd-notification-policy summary, .vd-notification-actions button, .vd-notification-clear { min-height: 44px; }
+}
+
 .vd-notification-item {
     position: relative;
     display: block;
@@ -11410,6 +11676,9 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-global-menus="true"] .vd-window-titlebar > .vd-window-menubar { display: none; }
 
 .desktop-body[data-theme="fruity"] { --vd-font-ui: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif; }
+.vd-default-app-row { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; width: 100%; }
+.vd-default-app-row label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vd-default-app-row input, .vd-default-app-row select { max-width: 100%; min-height: 36px; color: var(--vd-text); background: var(--vd-surface); border: 1px solid var(--vd-border); border-radius: 6px; padding: 6px; }
 
 /* ui/css/desktop-wallpaper-live.css */
 /* desktop-wallpaper-live.css — animated wallpapers (js/desktop/live-wallpapers.js). The WebGL
@@ -22235,4 +22504,149 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* ---- Closed widget drawer: its skin shadows would bleed into the viewport from the parked position ---- */
 .desktop-body[data-theme]:not([data-theme="standard"]):not([data-theme="fruity"]) .vd-widget-drawer:not(.open) {
     box-shadow: none;
+}
+
+/* ui/css/desktop-accessibility.css */
+/* Shared accessibility tokens for Desktop chrome and its native Settings app. */
+.desktop-body {
+    --vd-accessibility-text-scale: 1;
+    --vd-accessibility-focus: #ffcf70;
+}
+
+.desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+    .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+    .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+    .vd-shortcuts-help) :focus-visible,
+.desktop-body .vd-settings-app :focus-visible,
+.desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+.desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+    outline: 3px solid var(--vd-accessibility-focus);
+    outline-offset: 2px;
+}
+
+.desktop-body[data-text-size="125"] { --vd-shell-text-size: 17.5px; }
+.desktop-body[data-text-size="150"] { --vd-shell-text-size: 21px; }
+
+/* Include div/span-based shell copy such as notification titles and timestamps. */
+.desktop-body[data-text-size="125"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app)
+    :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app)
+    :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
+    font-size: var(--vd-shell-text-size) !important;
+}
+
+/* Body-mounted dialogs are Desktop chrome; window/app documents stay independent. */
+.desktop-body[data-text-size="125"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="125"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
+    font-size: var(--vd-shell-text-size) !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app),
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app) :is(button, a, input, select, textarea, [role="button"]),
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, input, select, textarea, [role="button"]),
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, input, select, textarea, [role="button"]) {
+    color: CanvasText !important;
+    background-color: Canvas !important;
+    border: 2px solid CanvasText !important;
+    box-shadow: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] .vd-settings-app
+    :is(.vd-settings-sidebar, .vd-settings-pane, .vd-settings-pane-head, .vd-setting-row,
+        .vd-settings-nav, .vd-settings-search-input, .vd-setting-select, .vd-default-app-row) {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+    outline-color: Highlight;
+}
+
+.desktop-body :is(.vd-notification-center, .vd-start-menu, .vd-tray-popover, .vd-spotlight) {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+.desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+}
+
+@media (forced-colors: active) {
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-shortcuts-help, .vd-settings-app),
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
+        color: CanvasText !important;
+        background: Canvas !important;
+        border-color: CanvasText !important;
+        forced-color-adjust: auto;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+    }
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+        outline-color: Highlight;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-shortcuts-help, .vd-settings-app),
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog,
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-shortcuts-help) *,
+    .desktop-body .vd-settings-app *,
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) *,
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }

@@ -205,11 +205,24 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 	spotlight := readDesktopAssetText(t, "js/desktop/core/spotlight-runtime.js")
 	for _, want := range []string{
 		"function openSpotlight()",
-		"/api/desktop/search?query=",
+		"const search = window.AuraDesktopSearch;",
+		"search.createProvider({ api, openFile: path => openDesktopPath(path) })",
+		"provider.files(stateObj.query",
 		"spotlightRecentFileEntries",
 	} {
 		if !strings.Contains(spotlight, want) {
 			t.Fatalf("spotlight runtime missing %q", want)
+		}
+	}
+
+	searchResults := readDesktopAssetText(t, "js/desktop/core/search-results-runtime.js")
+	for _, want := range []string{
+		"function makeSearchURL(query, options)",
+		"params.set('query', String(query || '').trim())",
+		"return '/api/desktop/search?' + params.toString()",
+	} {
+		if !strings.Contains(searchResults, want) {
+			t.Fatalf("shared search runtime missing query builder marker %q", want)
 		}
 	}
 

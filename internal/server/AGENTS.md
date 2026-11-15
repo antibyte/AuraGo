@@ -88,6 +88,9 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Auth status is `no-store` and exposes `session_scope` only for a validated authenticated session: a non-secret SHA-256 digest of its nonce, stable across renewal and changed for a new session. It is a browser history partition, never an authorization credential. Disabled/invalid sessions omit it. Verify `TestAuthStatusSessionScopeTracksValidatedSessionIdentity` and `TestAuthStatusOmitsSessionScopeWhenDisabledOrInvalid`.
+- Desktop search keeps legacy callers without filters/paging on `SearchFiles`; optional `type`, `modified_after`, `modified_before`, `min_size`, `max_size`, `offset` and `limit` use `SearchFilesPage` and return `files`, `has_more`, `truncated`, `next_offset`. Validate before traversal and retain Desktop read permission. Verify `TestDesktopSearchPaged*`.
+
 - `GET|HEAD /api/desktop/synth-studio/strudel` requires Desktop read access and
   an enabled Desktop. It serves the local Strudel evaluator with an opaque
   `sandbox allow-scripts` origin, no network access, no hardware grants and only

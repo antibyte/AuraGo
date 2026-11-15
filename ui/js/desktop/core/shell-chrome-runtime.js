@@ -1,12 +1,12 @@
-    state.notificationHistory = state.notificationHistory || [];
-    state.notificationUnread = state.notificationUnread || 0;
     let windowSwitcherHold = null;
+    let notificationChromeSubscriptions = null;
 
     // notificationContext keeps the launch context an app receives when its notification is clicked.
     function notificationContext(payload) {
         const c = payload.context || {};
         if (payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(c.conversation_id || '')) return { conversation_id: c.conversation_id };
-        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(c.project_id || '')) return { projectId: c.project_id };
+        const projectId = c.project_id || c.projectId;
+        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(projectId || '')) return { projectId };
         if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
             return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
         }
@@ -19,18 +19,7 @@
     }
 
     function pushNotificationRecord(payload) {
-        const entry = {
-            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-            title: String(payload.title || t('desktop.notification')),
-            message: String(payload.message || ''),
-            appId: payload.appId || '',
-            context: notificationContext(payload),
-            ts: Date.now(),
-            read: false
-        };
-        state.notificationHistory.unshift(entry);
-        if (state.notificationHistory.length > 40) state.notificationHistory.length = 40;
-        state.notificationUnread = Math.min(99, (state.notificationUnread || 0) + 1);
+        const entry = window.AuraDesktopNotificationCenter.record({ ...payload, title: payload.title || t('desktop.notification') }, notificationContext(payload));
         updateNotificationBadge();
         return entry;
     }
@@ -38,15 +27,50 @@
     function updateNotificationBadge() {
         const badge = document.getElementById('vd-notification-badge');
         if (!badge) return;
-        const count = state.notificationUnread || 0;
+        const count = window.AuraDesktopNotificationCenter.history().filter(entry => !entry.read).length;
         badge.hidden = count <= 0;
         badge.textContent = count > 9 ? '9+' : String(count);
     }
 
     function markAllNotificationsRead() {
-        state.notificationHistory.forEach(entry => { entry.read = true; });
-        state.notificationUnread = 0;
-        updateNotificationBadge();
+        window.AuraDesktopNotificationCenter.markAllRead();
+    }
+
+    function notificationPolicyMarkup(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        const policy = center.policy();
+        const appIDs = new Set(['desktop', ...userFacingApps().map(app => app.id), ...Object.keys(policy.apps)]);
+        const selected = appIDs.has(panel.dataset.policyApp) ? panel.dataset.policyApp : 'desktop';
+        panel.dataset.policyApp = selected;
+        const appPolicy = policy.apps[selected] || { toast: true, sound: true };
+        const options = Array.from(appIDs).map(id => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(id === 'desktop' ? t('desktop.notifications_desktop') : appName(appById(id) || { id, name: id }))}</option>`).join('');
+        return `<div class="vd-notification-policy">
+            <label><input id="vd-notification-dnd" type="checkbox" ${policy.dnd ? 'checked' : ''}>${esc(t('desktop.notifications_dnd'))}</label>
+            <details ${panel.dataset.policyOpen === 'true' ? 'open' : ''}><summary>${esc(t('desktop.notifications_manage'))}</summary>
+                <label>${esc(t('desktop.notifications_source'))}<select id="vd-notification-source">${options}</select></label>
+                <label><input id="vd-notification-toasts" type="checkbox" ${appPolicy.toast ? 'checked' : ''}>${esc(t('desktop.notifications_toasts'))}</label>
+                <label><input id="vd-notification-sounds" type="checkbox" ${appPolicy.sound ? 'checked' : ''}>${esc(t('desktop.notifications_sounds'))}</label>
+            </details>
+            ${center.status().storageFallback ? `<p role="status">${esc(t('desktop.notifications_tab_only'))}</p>` : ''}
+        </div>`;
+    }
+
+    function wireNotificationPolicy(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        panel.querySelector('details').addEventListener('toggle', event => { panel.dataset.policyOpen = String(event.target.open); });
+        panel.querySelector('#vd-notification-source').addEventListener('change', event => {
+            panel.dataset.policyApp = event.target.value;
+            renderNotificationCenter();
+        });
+        panel.querySelector('#vd-notification-dnd').addEventListener('change', event => {
+            center.setPolicy({ ...center.policy(), dnd: event.target.checked });
+        });
+        ['toasts', 'sounds'].forEach(name => panel.querySelector('#vd-notification-' + name).addEventListener('change', event => {
+            const policy = center.policy();
+            const appId = panel.dataset.policyApp;
+            policy.apps[appId] = { toast: true, sound: true, ...policy.apps[appId], [name === 'toasts' ? 'toast' : 'sound']: event.target.checked };
+            center.setPolicy(policy);
+        }));
     }
 
     function closeNotificationCenter(restoreFocus = false) {
@@ -72,36 +96,52 @@
             });
             document.body.appendChild(panel);
         }
+        const focusedID = panel.contains(document.activeElement) ? document.activeElement.id : '';
+        const focusedNotification = panel.contains(document.activeElement) ? document.activeElement.dataset.notificationId : '';
+        const focusedAction = panel.contains(document.activeElement) ? document.activeElement.dataset.action : '';
         panel.setAttribute('aria-label', t('desktop.notifications_title'));
-        const items = state.notificationHistory || [];
+        const center = window.AuraDesktopNotificationCenter;
+        const items = center.history();
         const list = items.length
-            ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
+            ? items.map(entry => `<article class="vd-notification-item${entry.read ? '' : ' unread'}">
                 <div class="vd-notification-item-title">${esc(entry.title)}</div>
                 ${entry.message ? `<div class="vd-notification-item-message">${esc(entry.message)}</div>` : ''}
                 <div class="vd-notification-item-time">${esc(formatNotificationTime(entry.ts))}</div>
-            </button>`).join('')
+                <div class="vd-notification-actions">
+                    <button type="button" data-action="open-notification" data-notification-id="${esc(entry.id)}" ${entry.appId !== 'desktop' && !appById(entry.appId) ? 'disabled' : ''}>${esc(t(entry.appId === 'desktop' ? 'desktop.notifications_mark_read' : 'desktop.notifications_open'))}</button>
+                    <button type="button" data-action="dismiss-notification" data-notification-id="${esc(entry.id)}">${esc(t('desktop.notifications_dismiss'))}</button>
+                </div>
+            </article>`).join('')
             : `<div class="vd-notification-empty">${esc(t('desktop.notifications_empty'))}</div>`;
         panel.innerHTML = `<div class="vd-notification-header">
             <div class="vd-notification-title">${esc(t('desktop.notifications_title'))}</div>
+            <button type="button" class="vd-notification-clear" data-action="read-notifications">${esc(t('desktop.notifications_mark_all_read'))}</button>
             <button type="button" class="vd-notification-clear" data-action="clear-notifications">${esc(t('desktop.notifications_clear'))}</button>
         </div>
-        <div class="vd-notification-list">${list}</div>`;
+        ${notificationPolicyMarkup(panel)}<div class="vd-notification-list">${list}</div>`;
+        wireNotificationPolicy(panel);
+        panel.querySelector('[data-action="read-notifications"]').addEventListener('click', markAllNotificationsRead);
         panel.querySelector('[data-action="clear-notifications"]').addEventListener('click', () => {
-            state.notificationHistory = [];
-            state.notificationUnread = 0;
-            updateNotificationBadge();
-            renderNotificationCenter();
+            center.clear();
         });
         panel.querySelectorAll('[data-notification-id]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const entry = state.notificationHistory.find(item => item.id === btn.dataset.notificationId);
-                if (entry) entry.read = true;
-                state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
-                updateNotificationBadge();
-                closeNotificationCenter();
-                if (btn.dataset.appId) openApp(btn.dataset.appId, entry?.context);
+                const entry = center.history().find(item => item.id === btn.dataset.notificationId);
+                if (!entry) return;
+                if (btn.dataset.action === 'dismiss-notification') { center.remove(entry.id); return; }
+                if (entry.appId !== 'desktop' && !appById(entry.appId)) return;
+                center.markRead(entry.id);
+                if (entry.appId !== 'desktop') {
+                    closeNotificationCenter();
+                    openApp(entry.appId, notificationContext(entry));
+                }
             });
         });
+        const focusTarget = focusedID ? panel.querySelector('#' + cssSel(focusedID)) : focusedNotification
+            ? panel.querySelector(`[data-notification-id="${cssSel(focusedNotification)}"][data-action="${cssSel(focusedAction)}"]`)
+            : focusedAction ? panel.querySelector(`[data-action="${cssSel(focusedAction)}"]`) : null;
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+        else if (focusedNotification) (panel.querySelector('[data-notification-id]:not(:disabled)') || panel.querySelector('#vd-notification-dnd') || panel).focus({ preventScroll: true });
     }
 
     function toggleNotificationCenter(anchor) {
@@ -118,7 +158,6 @@
         panel._returnFocus?.setAttribute('aria-expanded', 'true');
         panel.focus();
         desktopSound('menu.open');
-        markAllNotificationsRead();
         placeTrayPopover(panel, anchor);
     }
 
@@ -230,6 +269,8 @@
             ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
             ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
             ['Win / ⌘ + ←↑→↓', t('desktop.shortcuts_window_snap')],
+            ['Win / ⌘ + ← →, ↑ ↓', t('desktop.shortcuts_snap_quarter')],
+            ['Shift+F10', t('desktop.shortcuts_layout_menu')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -237,6 +278,7 @@
         overlay.innerHTML = `<div class="vd-shortcuts-panel">
             <div class="vd-shortcuts-heading">${esc(t('desktop.shortcuts_title'))}</div>
             <ul class="vd-shortcuts-list">${rows.map(row => `<li><kbd>${esc(row[0])}</kbd><span>${esc(row[1])}</span></li>`).join('')}</ul>
+            <p>${esc(t('desktop.shortcuts_browser_conflicts'))}</p>
             <button type="button" class="vd-shortcuts-close">${esc(t('desktop.close'))}</button>
         </div>`;
         overlay.addEventListener('click', event => {
@@ -355,6 +397,19 @@
     }
 
     function wireShellChromeControls() {
+        if (!notificationChromeSubscriptions) {
+            const refresh = () => {
+                updateNotificationBadge();
+                const panel = document.getElementById('vd-notification-center');
+                if (panel && !panel.hidden) renderNotificationCenter();
+            };
+            notificationChromeSubscriptions = [window.AuraDesktopNotificationCenter.subscribe(refresh), window.AuraDesktopNotificationCenter.subscribePolicy(refresh)];
+            window.addEventListener('pagehide', event => {
+                if (event.persisted) return;
+                notificationChromeSubscriptions?.forEach(unsubscribe => unsubscribe());
+                notificationChromeSubscriptions = null;
+            });
+        }
         const fullscreenBtn = document.getElementById('vd-fullscreen-button');
         if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
             fullscreenBtn.dataset.shellChromeWired = 'true';

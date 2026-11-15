@@ -2,6 +2,16 @@
     const THUMB_MAX_H = 140;
     const THUMB_SHOW_DELAY_MS = 360;
     const THUMB_HIDE_DELAY_MS = 140;
+    const SENSITIVE_PREVIEW_APPS = new Set([
+        'agent-chat', 'calendar', 'code-studio', 'contacts', 'editor', 'files', 'mailer',
+        'notes', 'quickconnect', 'settings', 'sheets', 'terminal', 'tresor', 'writer'
+    ]);
+    const PREVIEW_UNSAFE_SELECTOR = 'iframe, .vd-generated-frame, .vd-sandboxed-frame, canvas, video, audio, input, textarea, select, [type="password"], [contenteditable]';
+    const PREVIEW_REMOVE_SELECTOR = 'script, style, link, meta, base, object, embed, form, input, textarea, select, option, button, source, picture, img, audio, video, iframe, canvas, template, svg, math';
+    const PREVIEW_URL_ATTRIBUTES = new Set([
+        'action', 'background', 'cite', 'data', 'formaction', 'href', 'longdesc', 'manifest',
+        'poster', 'src', 'srcdoc', 'srcset', 'style', 'xlink:href'
+    ]);
     let thumbShowTimer = 0;
     let thumbHideTimer = 0;
     let activeThumbWindowId = '';
@@ -102,6 +112,33 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
+    function windowPreviewIsUnsafe(win, content) {
+        if (!content || SENSITIVE_PREVIEW_APPS.has(String(win.appId || ''))) return true;
+        if (content.matches && content.matches(PREVIEW_UNSAFE_SELECTOR)
+            || content.querySelector && content.querySelector(PREVIEW_UNSAFE_SELECTOR)) return true;
+        return !!(content.querySelectorAll && Array.from(content.querySelectorAll('*')).some(node => String(node.tagName || '').includes('-')));
+    }
+
+    function sanitizeWindowPreviewClone(content) {
+        if (!content || typeof content.cloneNode !== 'function') return null;
+        const clone = content.cloneNode(true);
+        if (windowPreviewIsUnsafe({}, clone)) return null;
+        clone.querySelectorAll(PREVIEW_REMOVE_SELECTOR).forEach(node => node.remove());
+        const nodes = [clone, ...clone.querySelectorAll('*')];
+        nodes.forEach(node => {
+            Array.from(node.attributes || []).forEach(attribute => {
+                const name = String(attribute.name || '').toLowerCase();
+                if (name.startsWith('on') || name.startsWith('data-') || PREVIEW_URL_ATTRIBUTES.has(name)
+                    || ['id', 'name', 'autofocus', 'tabindex', 'accesskey', 'contenteditable'].includes(name)) {
+                    node.removeAttribute(attribute.name);
+                }
+            });
+        });
+        clone.setAttribute('aria-hidden', 'true');
+        clone.setAttribute('inert', '');
+        return clone;
+    }
+
     function windowPreviewBodyMarkup(win, options) {
         options = options || {};
         const maxW = options.maxW || THUMB_MAX_W;
@@ -113,15 +150,18 @@
         const scale = Math.min(maxW / sourceW, maxH / sourceH, 1);
         const viewW = Math.max(128, Math.round(sourceW * scale));
         const viewH = Math.max(80, Math.round(sourceH * scale));
-        const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
         const viewportClass = options.viewportClass || 'vd-taskbar-thumb-viewport';
         const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
         const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
         const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
-        if (hasIframe || !content) {
+        if (windowPreviewIsUnsafe(win, content)) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        const preview = sanitizeWindowPreviewClone(content);
+        if (!preview) {
+            return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
+        }
+        return `<div class="${viewportClass}" inert aria-hidden="true" style="width:${viewW}px;height:${viewH}px;pointer-events:none"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale});pointer-events:none">${preview.innerHTML}</div></div>`;
     }
 
     function windowPreviewMarkup(win, options) {

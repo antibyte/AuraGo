@@ -5707,8 +5707,16 @@ registration lives in `internal/desktop/types.go`.
 - `settings.js` implements the Settings app, a virtual desktop configuration
   panel with sidebar navigation, global search, hamburger menu on mobile,
   and full desktop shell re-render on changes (icons, widgets, start menu,
-  start button). Loaded lazily by `module-loader.js`. Exposes
-  `window.SettingsApp`. Info and editable rows share inset spacing; bounded
+  start button). A closed mobile sidebar is hidden from rendering and keyboard
+  focus; translating it beyond the window is insufficient. Loaded lazily by `module-loader.js`. Exposes
+  `window.SettingsApp`. Descriptors come from `core/settings-catalog-runtime.js`, also used by shell
+  search. A `{category, settingKey}` launch focuses the exact setting row.
+  Writes use the shell's serialized `saveDesktopPreference`; read-only controls
+  remain disabled. Default-app choices use the same candidates as Open With,
+  show unavailable stored mappings and support explicit reset. The shared
+  calculator parser lives in `shared/calculator-expression.js` and is reused by
+  Calculator and shell search; preserve scientific mode semantics when changing it.
+  Info and editable rows share inset spacing; bounded
   control columns must not let long provider/model names squeeze their labels.
   Keep full workspace paths wrappable and Info values at normal text weight.
   The theme picker is a card grid (`renderDesktopThemes`, `data-desktop-theme`)
