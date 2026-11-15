@@ -295,12 +295,32 @@ guard('c1d02 template review fixes', () => {
     // renameRoots replaces each expression root at most once, so a rename chain cannot apply twice.
     eq('c1d02 renameRoots renames each root once', T.renameRoots('{{a.r}} + {{ a_2 | json}} {{ab}}', new Map([['a', 'a_2'], ['a_2', 'a_2_2']])), '{{a_2.r}} + {{ a_2_2 | json}} {{ab}}');
     // filterStripHTML (filters.go): the preview scanner stays linear on hostile input and keeps Go's output.
+    // Linearity is the growth of main-thread CPU time per call from 25 KB to 200 KB of each hostile
+    // unit: linear code grows about 8x (measured 5-12x, idle and with every core busy), a quadratic
+    // stripper about 64x (lazy regex strippers measured 53-70x), and 25 leaves room on both sides.
+    // CPU time leaves out the time the thread waits for a core, so a busy machine does not move the
+    // ratio the way it moved a wall-clock budget. Each size runs until it has used 200 ms of CPU,
+    // because Windows counts thread CPU time in 15.6 ms ticks.
+    const cpuSince = process.threadCpuUsage ? start => process.threadCpuUsage(start) : start => process.cpuUsage(start);
+    const cpuMsPerCall = s => {
+        const start = cpuSince();
+        let calls = 0;
+        let used = 0;
+        do {
+            T.applyFilter('strip_html', s, []);
+            calls++;
+            const d = cpuSince(start);
+            used = (d.user + d.system) / 1000;
+        } while (used < 200);
+        return used / calls;
+    };
     for (const unit of ['<a ', '<?', '<!D', '<script ', '<!--']) {
-        const s = unit.repeat(Math.ceil(200000 / unit.length));
-        const t0 = performance.now();
-        T.applyFilter('strip_html', s, []);
-        const ms = performance.now() - t0;
-        check('c1d02 strip_html takes under 100 ms for 200 KB of ' + JSON.stringify(unit), ms < 100, ms.toFixed(1) + ' ms');
+        const small = unit.repeat(Math.ceil(25000 / unit.length));
+        const large = unit.repeat(Math.ceil(200000 / unit.length));
+        T.applyFilter('strip_html', small, []);
+        T.applyFilter('strip_html', large, []);
+        const growth = cpuMsPerCall(large) / cpuMsPerCall(small);
+        check('c1d02 strip_html grows linearly from 25 KB to 200 KB of ' + JSON.stringify(unit), growth < 25, growth.toFixed(1) + 'x (linear about 8x, quadratic about 64x)');
     }
     eq('c1d02 strip_html keeps Go results', ['<SCRIPT type="x">bad()</SCRIPT >ok', 'a<b and c>d', '<!DOCTYPE html><p>x', '<?xml v?>z', '<a href="x>y">link</a>'].map(s => T.applyFilter('strip_html', s, [])), ['ok', 'a d', 'x', 'z', 'y">link']);
     // toTime (values.go) accepts only Go's layouts; filterDate (filters.go) says "not a date" for the rest.
