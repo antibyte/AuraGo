@@ -632,14 +632,22 @@ func TestBlockCannotBeStartedAsIndependentFlow(t *testing.T) {
 	}
 }
 
+// observedBlockContext cancels its parent the first time the child engine reads Done (the run
+// context derives from it), so the cancel lands after the child started and before its first
+// node, whatever the scheduler does. A cancel from the test goroutine lost that race on a busy
+// machine: one that arrives 5 ms late finds the whole child finished and successful.
 type observedBlockContext struct {
 	context.Context
-	seen chan struct{}
-	once sync.Once
+	cancel context.CancelFunc
+	seen   chan struct{}
+	once   sync.Once
 }
 
 func (c *observedBlockContext) Done() <-chan struct{} {
-	c.once.Do(func() { close(c.seen) })
+	c.once.Do(func() {
+		c.cancel()
+		close(c.seen)
+	})
 	return c.Context.Done()
 }
 
@@ -647,24 +655,32 @@ func TestBlockChildHonorsParentCancellationAndDeadline(t *testing.T) {
 	s, _ := newServiceFixture(t, nil)
 	block := publishedGreetingBlock(t, s)
 	parent, cancel := context.WithCancel(context.Background())
-	observed := &observedBlockContext{Context: parent, seen: make(chan struct{})}
+	defer cancel()
+	observed := &observedBlockContext{Context: parent, cancel: cancel, seen: make(chan struct{})}
 	result := make(chan RunResult, 1)
+	// A small input: the cancel no longer needs a slow trigger to land in time.
 	go func() {
-		result <- executePureBlock(observed, block.Live, map[string]any{"name": strings.Repeat("x", 3<<20)}, &Services{}, discardLogger(), ModeTest, block.LiveRevision, "", &blockRunScope{})
+		result <- executePureBlock(observed, block.Live, map[string]any{"name": "Ada"}, &Services{}, discardLogger(), ModeTest, block.LiveRevision, "", &blockRunScope{})
 	}()
-	select {
-	case <-observed.seen:
-		cancel()
-	case <-time.After(3 * time.Second):
-		cancel()
-		t.Fatal("child did not start")
-	}
+	// A hang guard, not a speed limit: the outcome proves the cancellation. It stays below the
+	// engine's 30 s abandon grace (defaultAbandonAfter), and the step check rules out a child
+	// that was only abandoned.
 	select {
 	case got := <-result:
-		if got.Status == RunSuccess {
-			t.Fatalf("cancelled child succeeded: %+v", got)
+		select {
+		case <-observed.seen:
+		default:
+			t.Fatal("child never read the parent context")
 		}
-	case <-time.After(5 * time.Second):
+		if got.Status != RunCancelled || got.ErrorCode != "FLOW_CANCELLED" {
+			t.Fatalf("cancelled child: %+v", got)
+		}
+		for _, step := range got.Steps {
+			if step.ErrorCode == "FLOW_NODE_ABANDONED" {
+				t.Fatalf("child was abandoned instead of stopping: %+v", step)
+			}
+		}
+	case <-time.After(20 * time.Second):
 		t.Fatal("child ignored cancellation")
 	}
 	expired, stop := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
