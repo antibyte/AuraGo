@@ -797,8 +797,15 @@ button.cs-sidebar-crumb:focus-visible {
 
 .cs-file-icon,
 .cs-file-meta,
-.cs-tabs-empty,
+.cs-tabs-empty {
+    color: var(--cs-muted);
+    font-size: 12px;
+}
+
+/* Empty states must keep a gutter so the text never touches the panel edge
+   (outline, search results, problems and output panels). */
 .cs-empty {
+    padding: 12px 10px;
     color: var(--cs-muted);
     font-size: 12px;
 }
