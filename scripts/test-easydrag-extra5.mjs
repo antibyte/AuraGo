@@ -763,10 +763,10 @@ export async function run(env) {
         const core = sandbox(() => undefined).ED.core;
         eq('a1008 1.2 en: errorText names the cause',
             A1008_CODES.map(code => core.errorText(realT, apiError(code))), [
-                'Mission Control is not available right now.',
-                'EasyDrag is shutting down or restarting. Try again in a moment.',
-                'The Vault is not available, so flow secrets cannot be used.',
-                'The request was cancelled.'
+                'Mission Control is not available right now. Try again in a moment.',
+                'EasyDrag is shutting down or restarting and refused this request. Try again in a moment.',
+                'The Vault is not available, so secrets and saved scenarios cannot be used right now. Flows that need no secrets still work. Check the Vault, then try again.',
+                'The request was cancelled before AuraGo answered. Reload to see the current state, then try again if needed.'
             ]);
         const missing = [];
         for (const locale of LOCALES) {

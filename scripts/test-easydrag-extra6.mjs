@@ -542,7 +542,7 @@ export async function run(env) {
         eq('a1008 1.6 en: the preview says what is wrong', got.rows.slice(0, 2).map(r => r[1]).concat(got.rows[got.rows.length - 1][1]), [
             'Not computable: There is no filter “nope”.',
             'Not computable: Filter “default”: each argument must be a text in quotes, a number, true, false or null.',
-            'Not computable: Something went wrong.'
+            'Not computable: AuraGo reported an error that EasyDrag does not recognise. Try again; if it keeps happening, the AuraGo log has the details.'
         ]);
     });
 
