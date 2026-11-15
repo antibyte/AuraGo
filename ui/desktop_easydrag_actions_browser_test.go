@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -369,6 +370,20 @@ func TestEasyDragActionsMenuClicksBrowser(t *testing.T) {
 	s.settle()
 	if p.MustEval(`()=>document.querySelector('.ed-head [data-ed-history="undo"]').getAttribute('aria-disabled')==='true'`).Bool() {
 		t.Fatal("Undo is unavailable after the card menu's Duplicate")
+	}
+
+	// Ctrl+K under an open EasyDrag dialog does not open the desktop's Spotlight.
+	p.MustEval(`()=>{window.EasyDrag.dialogs.shortcuts(edFixture.editor());}`)
+	s.wait(`()=>!!document.querySelector('.ed-modal-backdrop:not(.is-closing)')`)
+	// The window menus follow the dialog 120 ms later: wait until Search shows as unavailable, as a user's key would find it.
+	s.wait(`()=>{const ed=edFixture.editor();const A=window.EasyDrag.actions;return !A.state('view.search',{host:ed}).enabled && aurora.state.windowMenus.get(ed.windowId).renderedMenus.some(m=>m.items.some(i=>i.shortcut==='Ctrl+K'&&i.disabled));}`)
+	p.KeyActions().Press(input.ControlLeft).Type('k').MustDo()
+	p.MustEval(`()=>new Promise(r=>setTimeout(r,400))`)
+	if p.MustEval(`()=>!!document.getElementById('vd-spotlight-backdrop')`).Bool() {
+		t.Fatal("Ctrl+K opened the desktop Spotlight over an EasyDrag dialog")
+	}
+	if !p.MustEval(`()=>!!document.querySelector('.ed-modal-backdrop:not(.is-closing)')`).Bool() {
+		t.Fatal("the dialog closed on Ctrl+K")
 	}
 	s.failOnPageErrors("actions menu clicks")
 }
