@@ -1424,6 +1424,7 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
     - B, the kit (disclosure, callout, chip, toast, toolbar), the bottom sheet, the type scale 11/12/14/16/18/24 and the literal ratchets: 54d854d21 to 55becb497 (landed 2026-11-14).
     - E, the lab: six scenes in 16 theme contexts plus a pseudo-locale run, 64f238545 to e1c988e6a (landed 2026-11-14).
   - Next: W1b to W1f, each with its own spec and plan.
+  - **Where W1b is.** Spec `plans/2026-11-15-easydrag-w1b-spec.md`, plan `plans/2026-11-15-easydrag-w1b/` (2026-11-15): C, the control budgets, lands first; A, the action registry, and B, the voice, run in parallel. Nothing is implemented yet.
   - S0c ledger rows 23 (plurals) and 24 (status-map "stopped") are closed by W1a C and A.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;

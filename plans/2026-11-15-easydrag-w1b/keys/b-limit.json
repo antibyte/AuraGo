@@ -1,0 +1,25 @@
+{
+  "_delete": [
+    "easydrag.ui.block_fields_hint",
+    "easydrag.ui.flow_max_run_hint"
+  ],
+  "easydrag.ui.limit_counter": "{count} / {max}",
+  "easydrag.ui.limit_reached": {
+    "cs": "Nejvýše {max} znaků.",
+    "da": "Højst {max} tegn.",
+    "de": "Höchstens {max} Zeichen.",
+    "el": "Έως {max} χαρακτήρες.",
+    "en": "At most {max} characters.",
+    "es": "Máximo {max} caracteres.",
+    "fr": "{max} caractères au maximum.",
+    "hi": "अधिकतम {max} वर्ण।",
+    "it": "Al massimo {max} caratteri.",
+    "ja": "最大{max}文字です。",
+    "nl": "Maximaal {max} tekens.",
+    "no": "Maks {max} tegn.",
+    "pl": "Najwyżej {max} znaków.",
+    "pt": "No máximo {max} caracteres.",
+    "sv": "Högst {max} tecken.",
+    "zh": "最多 {max} 个字符。"
+  }
+}

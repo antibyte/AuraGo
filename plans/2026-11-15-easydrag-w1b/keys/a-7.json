@@ -1,0 +1,15 @@
+{
+  "_delete": [
+    "easydrag.ui.menu_copy",
+    "easydrag.ui.menu_paste",
+    "easydrag.ui.menu_select_all",
+    "easydrag.ui.node_duplicate",
+    "easydrag.ui.node_delete",
+    "easydrag.ui.keys_open",
+    "easydrag.ui.keys_delete",
+    "easydrag.ui.keys_fit",
+    "easydrag.ui.keys_zoom",
+    "easydrag.ui.keys_help",
+    "easydrag.ui.test"
+  ]
+}

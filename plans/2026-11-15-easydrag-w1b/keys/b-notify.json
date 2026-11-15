@@ -1,0 +1,24 @@
+{
+  "_delete": [
+    "easydrag.ui.copied_json"
+  ],
+  "easydrag.ui.copy_json_done": {
+    "_after": "easydrag.ui.copy_json",
+    "cs": "Zkopírováno",
+    "da": "Kopieret",
+    "de": "Kopiert",
+    "el": "Αντιγράφηκε",
+    "en": "Copied",
+    "es": "Copiado",
+    "fr": "Copié",
+    "hi": "कॉपी किया गया",
+    "it": "Copiato",
+    "ja": "コピーしました",
+    "nl": "Gekopieerd",
+    "no": "Kopiert",
+    "pl": "Skopiowano",
+    "pt": "Copiado",
+    "sv": "Kopierat",
+    "zh": "已复制"
+  }
+}

@@ -1,6 +1,6 @@
 # EasyDrag W1b "Voice and actions": design spec
 
-- **Status:** design spec, 2026-11-15. The owner approved the design in the brainstorming session on 2026-11-14/15. Implementation plan: to follow in `plans/2026-11-15-easydrag-w1b/`.
+- **Status:** design spec, 2026-11-15. The owner approved the design in the brainstorming session on 2026-11-14/15. Implementation plan: [`plans/2026-11-15-easydrag-w1b/README.md`](2026-11-15-easydrag-w1b/README.md). Its "Amendments found while planning" take precedence until they are copied in here.
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - §6, Wave 1 "Readable and honest" (lines 1412-1449);
   - E2 "One visual language" (lines 350-416): the action registry (line 371), UX-18 and CS-20 (line 377), CS-17 (line 380);
