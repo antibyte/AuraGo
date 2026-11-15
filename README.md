@@ -28,7 +28,6 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 
 - **Storymaker.** An illustrated explainer-video studio: stage scenes with cartoon people, props and environments, write the narration, pick a voice and music, then export an MP4 with sound, captions and separate audio tracks. Its AI author writes the film from a topic — in the app or from chat. [Guide](documentation/storymaker.md) · [Chapter 34](documentation/manuals/en/34-storymaker.md)
 - **Aura Drift.** An offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and eighteen weapons. [Guide](documentation/aura-drift.md) · [Chapter 33](documentation/manuals/en/33-aura-drift.md)
-- **Please Do Not Feed the Universe.** A painted point-and-click adventure with sixteen rooms, LucasArts-style controls, a verb bar and one original song per room. [Chapter 35](documentation/manuals/en/35-goldfish-adventure.md)
 - **Synth Studio, rebuilt.** Five workspace modes with a library drawer, 3D knobs and faders, a master knob with a dB readout, live EQ and filter response curves, vertical ADSR faders, groove and song generators, stem export — plus a Strudel live-coding mode. [Guide](documentation/synth-studio.md) · [Chapter 36](documentation/manuals/en/36-synth-studio.md)
 - **WhatsApp as a first-class channel.** A linked device with owner-only sending, inbound voice notes, images and documents, read receipts, notifications and newspaper delivery. [Setup](documentation/whatsapp_setup.md)
 - **FindIt, ECalc and Kaggle.** An inventory app for parts, equipment and storage locations; an electronics formula collection with schematics, live results and pinouts; and a Kaggle workspace with a stateful notebook IDE. [FindIt](documentation/findit.md) · [ECalc](documentation/manuals/en/32-ecalc.md) · [Kaggle](documentation/kaggle.md)
@@ -106,7 +105,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 | **Dev** | Code, shells, remote machines and tiny hardware | Code Studio · Terminal · Quick Connect · Virtual Computers · CYD Creator · ECalc · Log Viewer |
 | **System** | The machine, the store and your home lab | Files · Settings · Zipper · Launchpad · Software Store · Docker Manager · Infra · System World |
 | **Comms** | People, mail, radios and cameras | Phone · Mailer · MeshCore · Network Cameras · Bluetooth · RuView · HA Switchboard |
-| **Games** | Short breaks, and the desktop pets | Galaxa Deluxe · Aura Drift · Please Do Not Feed the Universe · AuraGolf · Chess · Retro Games · Pet Picker |
+| **Games** | Short breaks, and the desktop pets | Galaxa Deluxe · Aura Drift · AuraGolf · Chess · Retro Games · Pet Picker |
 | **Installed** | Managed Docker apps from the Software Store | Homarr · n8n · Node-RED · Open WebUI · code-server · Dozzle · God's Eye View and more |
 
 </details>
@@ -138,7 +137,6 @@ Take a break. The desktop comes with a small arcade, a chess board and a few pla
 
 - **Galaxa Deluxe.** Arcade shooter with 50 animated motifs, weapon evolutions, alien attack patterns and a synthwave soundtrack. [Guide](documentation/galaxa-expansion.md)
 - **Aura Drift.** Offline 3D racer with a 2D fallback: eight tracks and cars, seven modes, live weather, style scoring and eighteen weapons. [Guide](documentation/aura-drift.md)
-- **Please Do Not Feed the Universe.** A painted point-and-click adventure about robots, memories, a melancholy ape and three outspoken goldfish. Sixteen rooms, LucasArts-style controls, one original song per room. [Chapter 35](documentation/manuals/en/35-goldfish-adventure.md)
 - **AuraGolf.** 18 low-poly 3D minigolf holes for 1–4 players on one device. [Guide](documentation/minigolf.md)
 - **Chess.** Play against an agent opponent.
 - **Retro Games.** An archive.org player with about 72,500 titles, a 46-game Hall of Fame and favorites. [Guide](documentation/retro-games.md)
@@ -281,7 +279,7 @@ Copy `config_template.yaml` to `config.yaml`. Set a persistent, random 64-charac
 
 [English manual](documentation/manuals/en/README.md) · [Deutsches Handbuch](documentation/manuals/de/README.md) · [Local models](documentation/local_llm_aurago_qwen.md) · [Speech Lab](documentation/s2s_speech_lab.md) · [SIP](documentation/sip_telephony.md) · [Skills](documentation/manuals/en/19-skills.md) · [API](documentation/manuals/en/21-api-reference.md) · [Troubleshooting](documentation/manuals/en/16-troubleshooting.md) · [Release notes](documentation/release-notes-2026-10-runtime-fixes.md)
 
-[Video Studio](documentation/video-studio.md) · [Synth Studio](documentation/synth-studio.md) · [Storymaker](documentation/storymaker.md) · [Aura Drift](documentation/aura-drift.md) · [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md) · [Infra](documentation/infra.md) · [RuView](documentation/ruview.md) · [Decisions](documentation/decisions.md) · [LLM router](documentation/llm-router.md) · [Retro-Net](documentation/retro-net.md) · [Retro Games](documentation/retro-games.md) · [Layerling](documentation/layerling.md) · [Tresor](documentation/tresor.md) · [Detective](documentation/detective.md) · [FindIt](documentation/findit.md) · [Kaggle](documentation/kaggle.md) · [Please Do Not Feed the Universe](documentation/goldfish-adventure.md) · [Punk 3D pet](documentation/desktop-punk-pet.md)
+[Video Studio](documentation/video-studio.md) · [Synth Studio](documentation/synth-studio.md) · [Storymaker](documentation/storymaker.md) · [Aura Drift](documentation/aura-drift.md) · [Bookshelf](documentation/bookshelf.md) · [Mailer](documentation/mailer.md) · [Infra](documentation/infra.md) · [RuView](documentation/ruview.md) · [Decisions](documentation/decisions.md) · [LLM router](documentation/llm-router.md) · [Retro-Net](documentation/retro-net.md) · [Retro Games](documentation/retro-games.md) · [Layerling](documentation/layerling.md) · [Tresor](documentation/tresor.md) · [Detective](documentation/detective.md) · [FindIt](documentation/findit.md) · [Kaggle](documentation/kaggle.md) · [Punk 3D pet](documentation/desktop-punk-pet.md)
 
 [Releases](https://github.com/antibyte/AuraGo/releases) · [Website](https://antibyte.github.io/aurago-web/) · [AgoDesk for Windows and Linux](https://github.com/antibyte/agodesk)
 

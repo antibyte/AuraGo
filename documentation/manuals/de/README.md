@@ -134,7 +134,6 @@ Daten liegen bei deiner Installation. **Gehostete Modelle sehen trotzdem ihre Re
 32. [ECalc](32-ecalc.md) — Elektronik-Formelsammlung: Rechner mit Schaltplänen, Live-Ergebnissen und E-Reihen-Werten für Widerstände
 33. [Aura Drift](33-aura-drift.md) — 3D-Rennspiel mit 2D-Ersatzansicht: deterministische Reifenphysik, acht Strecken und Autos, sieben Modi, Live-Wetter, Style-Punkte und Waffen
 34. [Storymaker](34-storymaker.md) — Illustrierte Erklärvideos: Szenen inszenieren, Sprechtext schreiben, MP4 mit Untertiteln und Tonspuren exportieren und den Film vom KI-Autor schreiben lassen
-35. [Please Do Not Feed the Universe](35-goldfish-adventure.md) — Gemaltes Point-and-Click-Adventure in sechzehn Räumen, mit Verb-Leiste, LucasArts-Steuerung und einem eigenen Song pro Raum
 36. [Synth Studio](36-synth-studio.md) — Fünf Arbeitsmodi, Library-Drawer, 3D-Knobs und Fader, Live-EQ- und Filterkurven, Stem-Export und ein Strudel-Livecoding-Modus
 
 [FAQ](faq.md) · [Handbuch-Start](../README.md) · [Release Notes](../../release-notes-2026-10-audit-remediation.md)

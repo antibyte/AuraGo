@@ -216,4 +216,4 @@ Das Export-Menü bietet WAV, MIDI und Spuren.
 
 ---
 
-**Vorheriges Kapitel:** [Kapitel 35: Bitte nicht das Universum füttern](./35-goldfish-adventure.md)
+**Vorheriges Kapitel:** [Kapitel 34: Storymaker](./34-storymaker.md)

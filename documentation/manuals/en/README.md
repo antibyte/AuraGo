@@ -134,7 +134,6 @@ Your data stays with the installation. **Hosted models still see their request i
 32. [ECalc](32-ecalc.md) — Electronics formula collection: calculators with schematics, live results and E-series values for resistors
 33. [Aura Drift](33-aura-drift.md) — Offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and weapons
 34. [Storymaker](34-storymaker.md) — Illustrated explainer videos: stage scenes, write the narration, export an MP4 with captions and stems, and let the AI author write the film from a topic
-35. [Please Do Not Feed the Universe](35-goldfish-adventure.md) — A painted point-and-click adventure in sixteen rooms, with a verb bar, LucasArts-style controls and one original song per room
 36. [Synth Studio](36-synth-studio.md) — Five workspace modes, a library drawer, 3D knobs and faders, live EQ and filter response curves, stem export and a Strudel live-coding mode
 
 [FAQ](faq.md) · [Handbook hub](../README.md) · [Release notes: audit remediation](../../release-notes-2026-10-audit-remediation.md)

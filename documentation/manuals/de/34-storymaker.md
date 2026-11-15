@@ -215,4 +215,4 @@ offenen Video-Studio-Projekt wird zuerst gesichert.
 ---
 
 **Vorheriges Kapitel:** [Kapitel 33: Aura Drift](./33-aura-drift.md)
-**Nächstes Kapitel:** [Kapitel 35: Bitte nicht das Universum füttern](./35-goldfish-adventure.md)
+**Nächstes Kapitel:** [Kapitel 36: Synth Studio](./36-synth-studio.md)

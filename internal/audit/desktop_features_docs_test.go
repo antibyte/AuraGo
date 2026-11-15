@@ -76,9 +76,8 @@ func TestManualHubChapterCountMatchesTheFiles(t *testing.T) {
 func TestNewManualChaptersAreIndexed(t *testing.T) {
 	t.Parallel()
 	chapters := map[string]string{
-		"34-storymaker.md":        "34-storymaker.md",
-		"35-goldfish-adventure.md": "35-goldfish-adventure.md",
-		"36-synth-studio.md":       "36-synth-studio.md",
+		"34-storymaker.md":   "34-storymaker.md",
+		"36-synth-studio.md": "36-synth-studio.md",
 	}
 	for file := range chapters {
 		readRepoFile(t, "documentation/manuals/en/"+file)
@@ -108,7 +107,6 @@ func TestStorymakerAndDesktopAppsAreDocumented(t *testing.T) {
 		"| **Retro Games** |",
 		"| **CYD Creator** |",
 		"| **Docker Manager** |",
-		"| **Please Do Not Feed the Universe** |",
 		"| **Wikipedia** |",
 		// The newer features of rows that already existed.
 		"pet.always_on_top",
@@ -122,7 +120,6 @@ func TestStorymakerAndDesktopAppsAreDocumented(t *testing.T) {
 		"| **Retro Games** |",
 		"| **CYD Creator** |",
 		"| **Docker Manager** |",
-		"| **Please Do Not Feed the Universe** |",
 		"| **Wikipedia** |",
 		"pet.always_on_top",
 		"Punk 3D",
@@ -206,16 +203,13 @@ func TestReadmeMentionsTheNovemberFeatures(t *testing.T) {
 		"*November 2026*",
 		"**Storymaker.**",
 		"**Aura Drift.**",
-		"**Please Do Not Feed the Universe.**",
 		"**FindIt, ECalc and Kaggle.**",
 		"(documentation/manuals/en/34-storymaker.md)",
-		"(documentation/manuals/en/35-goldfish-adventure.md)",
 		"(documentation/manuals/en/36-synth-studio.md)",
 		"(documentation/storymaker.md)",
 		"(documentation/aura-drift.md)",
 		"(documentation/findit.md)",
 		"(documentation/kaggle.md)",
-		"(documentation/goldfish-adventure.md)",
 	})
 }
 
@@ -238,11 +232,8 @@ func TestDocumentationLinksResolve(t *testing.T) {
 		"documentation/manuals/de/22-internal-tools.md",
 		"documentation/manuals/en/34-storymaker.md",
 		"documentation/manuals/de/34-storymaker.md",
-		"documentation/manuals/en/35-goldfish-adventure.md",
-		"documentation/manuals/de/35-goldfish-adventure.md",
 		"documentation/manuals/en/36-synth-studio.md",
 		"documentation/manuals/de/36-synth-studio.md",
-		"documentation/goldfish-adventure.md",
 	}
 	link := regexp.MustCompile(`\]\(([^)\s]+)\)`)
 	for _, file := range files {

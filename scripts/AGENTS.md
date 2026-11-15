@@ -95,11 +95,6 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   reproduces the meshopt companion from its hash-pinned BSD-3-Clause source;
   `node scripts/test-system-world-companion.mjs` checks its patrol, provenance,
   licence texts and the 12 MiB model budget.
-- Goldfish Adventure: `node scripts/test-goldfish-state.mjs`,
-  `node scripts/test-goldfish-animation.mjs`, `node scripts/test-goldfish-save.mjs`,
-  `node scripts/test-goldfish-app.mjs` and `node scripts/verify-goldfish-assets.mjs`.
-  Save/app tests use a real isolated Chrome/Edge profile and local loopback;
-  state/animation/asset checks require no service or provider credentials.
 
 - Run `bash -n <path>` for each changed shell script.
 - Parse changed PowerShell with `System.Management.Automation.Language.Parser`.

@@ -175,7 +175,6 @@
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
         'aura-drift': 'aura-drift',
-        'goldfish-adventure': 'goldfish-adventure',
         layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
@@ -184,7 +183,6 @@
     };
     appIconKeys['code-studio'] = 'code-studio';
     const appLogoPaths = {
-        'goldfish-adventure': '/img/goldfish-adventure/icon.png',
         detective: '/img/desktop-icons/detective.svg',
         kaggle: '/img/desktop-icons/kaggle.svg',
         'pet-picker': '/img/desktop-icons/pet-picker.svg',
@@ -647,7 +645,6 @@
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
             'aura-drift': 'AuraDriftApp',
-            'goldfish-adventure': 'GoldfishAdventureApp',
             'minigolf': 'MinigolfApp',
             'pinball': 'PinballApp',
             layerling: 'LayerlingApp',

@@ -176,22 +176,22 @@ jobs:
         include:
           - name: General A-M
             run: '^Test[A-M]'
-            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)'
           - name: General remaining
             run: '.'
-            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish|^Test[A-M]'
+            skip: '^TestConfigRefresh(Populated|RealSections)Browser$|^TestDesktop|^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^Test[A-M]'
           - name: Desktop A-D
             run: '^TestDesktop[A-D]'
-            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)'
           - name: Desktop E-G
             run: '^TestDesktop[E-G]'
-            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)'
           - name: Desktop H-R
             run: '^TestDesktop[H-R]'
-            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)'
           - name: Desktop S-Z
             run: '^TestDesktop[S-Z]'
-            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)|^TestGoldfish'
+            skip: '^Test(Desktop)?(AuraDrift|Pinball)|^TestDesktop(Leafy|Minigolf|Orbit)'
           - name: Populated config
             run: '^TestConfigRefreshPopulatedBrowser$'
             skip: '^$'
@@ -215,15 +215,6 @@ jobs:
             skip: '^$'
           - name: Orbit
             run: '^TestDesktopOrbit'
-            skip: '^$'
-          - name: Goldfish core
-            run: '^TestGoldfish'
-            skip: '^TestGoldfishAdventureHotspot(Actions|CinematicRecovery)Browser$'
-          - name: Goldfish actions
-            run: '^TestGoldfishAdventureHotspotActionsBrowser$'
-            skip: '^$'
-          - name: Goldfish cinematics
-            run: '^TestGoldfishAdventureHotspotCinematicRecoveryBrowser$'
             skip: '^$'
     permissions:
       contents: read

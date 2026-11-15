@@ -102,10 +102,6 @@ New app-scoped prefixes must contain no `ad` substring; verify
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in
   the server-owned sandbox document, with no external assets or API bridge.
   Follow `js/desktop/apps/AGENTS.md` for scratchpad, transport and lifecycle rules.
-- Goldfish Adventure (`goldfish-adventure`) owns its local Canvas scene, semantic
-  controls, IndexedDB saves and `goldfish`/`goldfish-interface` locale sections.
-  Follow `js/desktop/apps/goldfish-adventure/AGENTS.md` for shared shell changes
-  too. Its images and audio stay under `img/goldfish-adventure/`.
 
 - Aura Drift (`aura-drift`, category `games`) is a first-party offline Virtual Desktop racer
   with a three.js 3D view (default) and a Canvas 2D fallback. Its three.js runtime
@@ -1399,7 +1395,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   not stale its velocity samples. Scene, coverage and quality assertions retain quality 1.
 - Browser contracts (Chrome or Edge):
   `$env:AURAGO_RUN_BROWSER_SMOKE='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='../disposable/browser-artifacts'; go test -count=1 ./ui/... -run 'Precision.*Browser|Config.*Browser'`.
-- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. The central launcher requires this opt-in before discovery or process creation, including the shared EasyDrag browser. Security Gates partitions the full UI package into populated-config, config-layout, General A–M/remaining, four Desktop name ranges (`A-D`, `E-G`, `H-R`, `S-Z`), dedicated Aura Drift quality/controls and other flows, Leafy/Minigolf/Pinball/Orbit shards, and Goldfish core/actions/cinematics. Every test (including special names) belongs to exactly one shard; each has a 30-minute test and 60-minute job budget with fail-fast disabled.
+- Browser discovery honors `CHROME_BIN`, then PATH and standard Windows/macOS locations. An explicit override must be executable; it never silently falls back. With `AURAGO_RUN_BROWSER_SMOKE=1`, missing browsers and launch failures fail the test. The central launcher requires this opt-in before discovery or process creation, including the shared EasyDrag browser. Security Gates partitions the full UI package into populated-config, config-layout, General A–M/remaining, four Desktop name ranges (`A-D`, `E-G`, `H-R`, `S-Z`), dedicated Aura Drift quality/controls and other flows, Leafy/Minigolf/Pinball/Orbit shards. Every test (including special names) belongs to exactly one shard; each has a 30-minute test and 60-minute job budget with fail-fast disabled.
 - The shared Rod browser helper disables its leakless wrapper on Windows because the wrapper can hang before publishing the child PID; it registers `launcher.Kill` for explicit process cleanup. Linux retains Rod's default leakless behavior.
 - Config refresh browser coverage uses the real lazy renderers with local API
   fixtures, every section at five widths in both themes/densities, plus draft,
@@ -1522,8 +1518,6 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - `../assets/desktop-pets/AGENTS.md` — Desktop 3D pet authoring, pinned animation sources, runtime model budgets and interaction verification.
 
 - `js/storymaker/AGENTS.md` and `../assets/storymaker/AGENTS.md` — Shared PixiJS/GSAP player, catalog v2 ImageGen masters, texture transport and deterministic bitmap production. Delivered payloads live in `img/storymaker/` and `js/vendor/storymaker/`.
-- `js/desktop/apps/goldfish-adventure/AGENTS.md` — Authored adventure content,
-  bounded browser saves, scene animation, localization and lifecycle checks.
 
 - `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
   integrity manifests and OFL notices; runtime schema/rendering belongs to

@@ -217,4 +217,4 @@ The export menu offers WAV, MIDI and stems.
 
 ---
 
-**Previous Chapter:** [Chapter 35: Please Do Not Feed the Universe](./35-goldfish-adventure.md)
+**Previous Chapter:** [Chapter 34: Storymaker](./34-storymaker.md)

@@ -217,4 +217,4 @@ new one is created, so your edits stay. Unsaved work is saved first.
 ---
 
 **Previous Chapter:** [Chapter 33: Aura Drift](./33-aura-drift.md)
-**Next Chapter:** [Chapter 35: Please Do Not Feed the Universe](./35-goldfish-adventure.md)
+**Next Chapter:** [Chapter 36: Synth Studio](./36-synth-studio.md)

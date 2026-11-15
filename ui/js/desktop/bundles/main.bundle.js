@@ -444,7 +444,6 @@
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
         'aura-drift': 'aura-drift',
-        'goldfish-adventure': 'goldfish-adventure',
         layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
@@ -453,7 +452,6 @@
     };
     appIconKeys['code-studio'] = 'code-studio';
     const appLogoPaths = {
-        'goldfish-adventure': '/img/goldfish-adventure/icon.png',
         detective: '/img/desktop-icons/detective.svg',
         kaggle: '/img/desktop-icons/kaggle.svg',
         'pet-picker': '/img/desktop-icons/pet-picker.svg',
@@ -916,7 +914,6 @@
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
             'aura-drift': 'AuraDriftApp',
-            'goldfish-adventure': 'GoldfishAdventureApp',
             'minigolf': 'MinigolfApp',
             'pinball': 'PinballApp',
             layerling: 'LayerlingApp',
@@ -7570,7 +7567,6 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             'aura-drift': { width: 1120, height: 720 },
-            'goldfish-adventure': { width: 1200, height: 820 },
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
@@ -19554,17 +19550,6 @@ if (appId === 'pixel') {
                 promptDialog,
                 openApp,
                 fileOps: window.AuraDesktopFileOps
-            }));
-        }
-        if (appId === 'goldfish-adventure') {
-            if (!window.GoldfishAdventureApp) {
-                window.AuraDesktopModules.loadAppScript('goldfish-adventure').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
-                return;
-            }
-            return window.GoldfishAdventureApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc, t, api, confirmDialog, promptDialog,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
-                isActive: () => state.activeWindowId === id
             }));
         }
         if (appId === 'aura-drift') {
