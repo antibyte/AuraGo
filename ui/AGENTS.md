@@ -118,6 +118,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
   checks green; regenerate `js/desktop/bundles/main.bundle.js` whenever the shell registration
   changes.
 
+- Leuchtfeuer (`leuchtfeuer`, category `games`) is an offline harbour walk. It reads Game Maker
+  `aurago-pirates-3d` lod0 plus the coast presentation through the existing asset route and does
+  not copy those models into `ui/`. Runtime: `js/desktop/apps/leuchtfeuer/AGENTS.md`. Operator
+  guide: `../documentation/leuchtfeuer.md`. Verify `node scripts/test-leuchtfeuer-sim.mjs`,
+  `TestLeuchtfeuerRegistration` and `TestLeuchtfeuerBrowser`.
+
 - AgentMail exposes default-off `allow_delete` separately from readonly. Connection
   tests render only translated fixed error codes, with all sixteen email/AgentMail
   locale sets aligned. HTTPS help matches the backend base-URL and redirect rules.
@@ -1533,5 +1539,6 @@ New app-scoped prefixes must contain no `ad` substring; verify
   in the separate sibling `personas` project.
 - `js/desktop/apps/AGENTS.md` - Built-in Virtual Desktop application modules
   and their lifecycle, asset, and app-specific contracts.
+- `js/desktop/apps/leuchtfeuer/AGENTS.md` — Harbour walk runtime, session save and locale contract.
 - `js/desktop/screensavers/AGENTS.md` - Screensaver overlay host, scene
   lifecycle, idle/wake rules and verification.

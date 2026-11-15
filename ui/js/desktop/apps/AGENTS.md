@@ -5471,6 +5471,7 @@ registration lives in `internal/desktop/types.go`.
 - `pinball/AGENTS.md` — Three-table pinball runtime, scene/physics/rules separation, input, local persistence and verification.
 <!-- pinball:end -->
 
+- `leuchtfeuer/AGENTS.md` — Harbour walk on Game Maker lod0 models: simulation, camera frame, coast presentation, session save and sixteen `leuchtfeuer.*` locales.
 
 - `looper.js` / `looper-monitor.js` own Looper v2 (`window.LooperApp` +
   `window.LooperMonitor`). A loop is goal + work + evaluate + optional finish.

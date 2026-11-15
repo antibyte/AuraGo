@@ -29,6 +29,11 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   locale keys and tests belong to `../../ui/js/desktop/apps/AGENTS.md`.
   Verify `TestAuraDriftAppRegistration` and `go test ./internal/desktop -run TestBuiltinAppsCarryStartMenuCategories`.
 
+- Leuchtfeuer (`leuchtfeuer`, category `games`) is a built-in offline harbour walk with no
+  capability gate. Its app-owned icon is `logo_path` `/img/leuchtfeuer/icon.svg`. Runtime,
+  lod0 loading and locales belong to `../../ui/js/desktop/apps/leuchtfeuer/AGENTS.md`.
+  Verify `go test ./ui -run TestLeuchtfeuerRegistration -count=1`.
+
 - The WebAmp launcher (`music-player`) declares app-owned `logo_path` `/img/desktop-icons/music-player.svg`; keep it visually distinct from the native `audio-player` and preserve their existing icon aliases.
 
 - FindIt is a built-in optional physical inventory app with app-owned artwork at `/img/findit`. Its backend/storage/agent contract belongs to `../findit/AGENTS.md`; its large component atlas never changes the global Desktop sprite grid.

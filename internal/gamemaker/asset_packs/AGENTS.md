@@ -57,6 +57,8 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
   Empty outer assembly cells are omitted. Parts of a moving vehicle share
   timing and start together; an individual part may remain visually static.
 
+- Desktop game Leuchtfeuer reads `aurago-pirates-3d` lod0, `aurago-effects` and `aurago-sounds` through the existing asset route. It does not copy those files into `ui/`.
+
 # Work Guidance
 
 - Follow `production/README.md`. Use Pillow 12.2 and nearest-neighbor scaling;
