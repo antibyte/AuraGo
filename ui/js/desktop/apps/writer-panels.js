@@ -15,6 +15,11 @@
         const length=(label,key)=>'<label class="writer-field"><span>'+esc(tr(label)+' · '+unitName)+'</span>'+input(key,'','text','inputmode="decimal" maxlength="8"')+'</label>';
         // Opens the dialog that holds everything a section's quick fields leave out.
         const more=action=>'<div class="writer-buttonrow"><button type="button" data-action="'+action+'">'+esc(tr('more'))+'</button></div>';
+        // Tables and pictures: the pen draws every border until it is changed; lock keeps a picture's proportions.
+        const O=window.WriterObjects;
+        let pen=O.pen(), lock=true;
+        const percent=(label,key)=>'<label class="writer-field"><span>'+esc(tr(label)+' · %')+'</span>'+input(key,0,'number','min="0" max="99" step="1"')+'</label>';
+        const options=(key,items)=>'<select data-field="'+key+'">'+items.map(([value,text])=>'<option value="'+esc(value)+'">'+esc(text)+'</option>').join('')+'</select>';
         function show(which,name) {
             const node=find('[data-'+which+']');node.hidden=!name;
             if(!name){node.replaceChildren();return;}
@@ -44,13 +49,21 @@
                     ['Top','Bottom','Left','Right'].map(x=>length('margin_'+x.toLowerCase(),'margin'+x)).join('')+more('pageSetup'))+
                     section('table','<p class="writer-hint">'+esc(tr('table_resize_hint'))+'</p>'+
                     field('cell_fill',input('cellFill','#ffffff','color'))+
-                    '<div class="writer-buttonrow">'+commandButton({type:'setTableBorders',scope:'all',spec:{style:'single',size:4,color:{kind:'hex',value:'64748B'}}},'borders')+
-                    commandButton({type:'setTableBorders',scope:'none',target:'all'},'no_borders')+'</div>'+
+                    '<p class="writer-hint">'+esc(tr('border_hint'))+'</p>'+
+                    field('border_line',options('borderStyle',O.styles.map(style=>[style,tr('border_'+style)])))+
+                    field('border_width',options('borderWidth',O.widths.map(size=>[size,O.widthLabel(size,app.commands.format)])))+
+                    field('border_color',input('borderColor','#'+pen.color.toLowerCase(),'color'))+
+                    '<div class="writer-buttonrow">'+O.edges.map(edge=>'<button type="button" data-border="'+edge+'">'+esc(tr(O.edgeLabel(edge)))+'</button>').join('')+'</div>'+
                     '<div class="writer-buttonrow">'+commandButton({type:'insertRow',where:'below'},'row_add')+commandButton({type:'deleteRow'},'row_delete')+
                     commandButton({type:'insertColumn',where:'right'},'column_add')+commandButton({type:'deleteColumn'},'column_delete')+
                     commandButton({type:'mergeCells'},'merge_cells')+commandButton({type:'splitCell',rows:1,cols:2},'split_cell')+'</div>')+
-                    section('image',length('image_width','imageWidth')+field('alt_text',input('imageAlt','','text'))+
-                    field('image_wrap',select('imageWrap',[['inline','inline'],['squareLeft','wrap_left'],['squareRight','wrap_right'],['topAndBottom','wrap_top']])));
+                    section('image',length('image_width','imageWidth')+length('image_height','imageHeight')+
+                    '<div class="writer-checks"><label><input type="checkbox" data-field="imageLock"'+(lock?' checked':'')+'>'+esc(tr('image_lock'))+'</label></div>'+
+                    field('alt_text',input('imageAlt','','text'))+
+                    field('image_wrap',select('imageWrap',[['inline','inline'],['squareLeft','wrap_left'],['squareRight','wrap_right'],['topAndBottom','wrap_top']]))+
+                    '<div class="writer-buttonrow"><button type="button" data-action="imageReplace">'+esc(tr('image_replace'))+'</button></div>')+
+                    section('crop',percent('margin_left','cropLeft')+percent('margin_top','cropTop')+percent('margin_right','cropRight')+percent('margin_bottom','cropBottom')+
+                    '<div class="writer-buttonrow">'+commandButton({type:'setImageProperties',crop:{left:0,top:0,right:0,bottom:0}},'crop_reset')+'</div>');
                 case 'insert':return section('content','<div class="writer-buttonrow">'+textButton('table_insert','table')+'<button data-action="image">'+esc(tr('image'))+'</button>'+
                     commandButton({type:'insertBreak',kind:'page'},'page_break')+commandButton({type:'insertNote',noteKind:'footnote'},'footnote')+
                     commandButton({type:'insertToc'},'toc')+textButton('hyperlink')+'</div>')+
@@ -127,10 +140,13 @@
                 const color=app.colorHex(fmt.color), highlight=app.highlightHex(fmt.highlight);
                 if(color)fields['text.color']=color;
                 if(highlight)fields['text.highlight']=highlight;
+                fields.borderStyle=pen.style;fields.borderWidth=pen.size;fields.borderColor='#'+pen.color.toLowerCase();
                 if(image) {
                     const selected=editor.getSelectedImage();
                     if(selected) {
                         if(Number.isFinite(selected.widthEmu) && selected.widthEmu>0)fields.imageWidth=u.show(selected.widthEmu/635);
+                        if(Number.isFinite(selected.heightEmu) && selected.heightEmu>0)fields.imageHeight=u.show(selected.heightEmu/635);
+                        for(const side of ['Left','Top','Right','Bottom'])fields['crop'+side]=Math.round((selected.crop?.[side.toLowerCase()] || 0)*10)/10;
                         fields.imageAlt=selected.description || '';
                         if(['inline','squareLeft','squareRight','topAndBottom'].includes(selected.wrap))fields.imageWrap=selected.wrap;
                     }
@@ -141,12 +157,15 @@
                 }
                 // The engine command each field sends decides whether tracking refuses it.
                 const fieldCommands={paper:'setPageSetup',orientation:'setPageSetup',marginTop:'setPageSetup',marginBottom:'setPageSetup',marginLeft:'setPageSetup',marginRight:'setPageSetup',
-                    cellFill:'setCellFill',imageWidth:'setImageProperties',imageAlt:'setImageProperties',imageWrap:'setImageWrapType'};
+                    cellFill:'setCellFill',borderStyle:'setTableBorders',borderWidth:'setTableBorders',borderColor:'setTableBorders',
+                    imageWidth:'setImageProperties',imageHeight:'setImageProperties',imageAlt:'setImageProperties',imageWrap:'setImageWrapType',
+                    cropLeft:'setImageProperties',cropTop:'setImageProperties',cropRight:'setImageProperties',cropBottom:'setImageProperties'};
                 for(const el of root.querySelectorAll('.writer-right input,.writer-right select')){
                     const key=el.dataset.field,type=fieldCommands[key];
-                    el.disabled=app.readonly || !!(type && app.blocked(type)) || (key==='cellFill' && !editor.getSelectedTable()) || (!!key?.startsWith('image') && !image);
+                    el.disabled=app.readonly || !!(type && app.blocked(type)) || (key==='cellFill' && !editor.getSelectedTable()) || (/^(image|crop)/.test(key || '') && !image) || (key==='imageWrap' && !image?.canChangeWrap);
                     el.title=el.disabled?tr('command_unavailable'):'';
                 }
+                for(const el of root.querySelectorAll('.writer-right [data-border]'))el.disabled=app.readonly || !!app.blocked('setTableBorders') || !snapshot.table;
             }
             if(right==='format')for(const id of ['pageSetup','paragraphFormat']) {
                 const el=root.querySelector('.writer-right [data-action="'+id+'"]'),state=app.commands.state(id);
@@ -269,10 +288,13 @@
             if(key==='tracking'){app.run({type:'setEditingMode',mode:v});return;}
             if(key==='author'){if(v.trim())app.author=v.trim().slice(0,100);return;}
             if(key==='text.color' || key==='text.highlight'){app.run(app.markCommand(key,v));return;}
+            // The pen is a setting of the window, not a change to the document.
+            if(key==='borderStyle' || key==='borderWidth' || key==='borderColor'){pen=O.pen({...pen,[key==='borderStyle'?'style':key==='borderWidth'?'size':'color']:v});return;}
+            if(key==='imageLock'){lock=el.checked;return;}
             if(key==='lineSpacing')app.run({type:'setLineSpacing',rule:'multiple',value:n});
             if(key==='beforePt' || key==='afterPt')app.run({type:'setParagraphSpacing',[key]:n});
             const twips=u.read(v);
-            if((['leftIndent','firstIndent','imageWidth'].includes(key) || key?.startsWith('margin')) && !Number.isFinite(twips)){app.notice(tr('length_invalid'),true);return;}
+            if((['leftIndent','firstIndent','imageWidth','imageHeight'].includes(key) || key?.startsWith('margin')) && !Number.isFinite(twips)){app.notice(tr('length_invalid'),true);return;}
             if(key==='leftIndent' || key==='firstIndent')app.run({type:'setIndent',[key==='leftIndent'?'left':'firstLine']:twips});
             if(key?.startsWith('margin'))app.run({type:'setPageSetup',[key]:twips,scope:'document'});
             if(key==='orientation')app.run({type:'setPageSetup',orientation:v});
@@ -286,14 +308,20 @@
             if(key==='cellFill')app.run({type:'setCellFill',color:{kind:'hex',value:v.replace('#','')}});
             if(key==='imageWrap')app.run({type:'setImageWrapType',target:v});
             if(key==='imageAlt')app.run({type:'setImageProperties',alt:v,description:v});
-            if(key==='imageWidth') {
-                const image=editor.getSelectedImage();
-                if(image && twips>0)app.run({type:'setImageProperties',widthEmu:twips*635,heightEmu:Math.round(twips*635*image.heightEmu/image.widthEmu)});
+            if(key==='imageWidth' || key==='imageHeight') {
+                const image=editor.getSelectedImage(),size=image && O.sizeCommand(image,key==='imageWidth'?'width':'height',twips*635,lock);
+                if(size)app.run(size);
+            }
+            if(key?.startsWith('crop')) {
+                const crop=O.crop(Object.fromEntries(['Left','Top','Right','Bottom'].map(side=>[side.toLowerCase(),Number(find('[data-field="crop'+side+'"]').value)])));
+                if(crop.error){app.notice(tr('crop_invalid'),true);return;}
+                app.run(crop.command);
             }
         }
         root.addEventListener('click',event=>{
-            const target=event.target.closest('[data-command],[data-panel-command],[data-review-op],[data-block]');if(!target || target.disabled)return;
+            const target=event.target.closest('[data-command],[data-panel-command],[data-review-op],[data-block],[data-border]');if(!target || target.disabled)return;
             if(target.dataset.command)app.run(JSON.parse(target.dataset.command));
+            if(target.dataset.border)app.run(O.borderCommand(target.dataset.border,pen));
             if(target.dataset.block)app.editor?.scrollToBlock(target.dataset.block);
             if(target.dataset.panelCommand)command(target.dataset.panelCommand).catch(error=>app.notice(error.message,true));
             if(target.dataset.reviewOp)reviewAction(target).catch(error=>app.notice(error.message,true));
@@ -343,7 +371,7 @@
             try {return await window.WriterPdf.pack(job.document,fonts,title);} finally {job.dispose();}
         }
         function reset(){aiRequest?.abort();suggestion=null;renderSuggestion();matches=[];reviewSignature=outlineSignature=searchSignature='';outlineActive='';}
-        return {show,update,print,pdf,reset,dispose(){life.abort();reset();printFrame?.dispose();}};
+        return {show,update,print,pdf,pen:()=>O.spec(pen),reset,dispose(){life.abort();reset();printFrame?.dispose();}};
     }
     window.WriterPanels={create};
 })();

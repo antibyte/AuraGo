@@ -13,7 +13,7 @@
     // their label instead of an icon. A header or footer bar is titled by what is being edited.
     const BARS = {
         table: {items: ['rowAbove', 'rowBelow', 'columnLeft', 'columnRight', '|', 'deleteRow', 'deleteColumn', 'deleteTable', '|', 'mergeCells', 'splitCell', '|', 'borders', 'noBorders']},
-        image: {items: ['rotateLeft', 'rotateRight', '|', 'deleteImage', 'format'], text: ['deleteImage', 'format']},
+        image: {items: ['rotateLeft', 'rotateRight', '|', 'imageReplace', 'deleteImage', 'format'], text: ['imageReplace', 'deleteImage', 'format']},
         headerFooter: {items: ['backDocument', '|', 'fieldPage', 'pageNumber', 'fieldPages', 'insertDate', '|', 'headerFirstPage', 'headerOddEven'],
             text: ['fieldPage', 'pageNumber', 'fieldPages', 'insertDate', 'headerFirstPage', 'headerOddEven', 'backDocument']}
     };
@@ -27,7 +27,7 @@
             ['comment'],
             ['paragraphFormat'],
             target.table ? [{submenu: 'table', items: BARS.table.items}] : [],
-            target.image ? ['rotateLeft', 'rotateRight', 'deleteImage'] : [],
+            target.image ? ['rotateLeft', 'rotateRight', 'imageReplace', 'deleteImage'] : [],
             target.toc ? ['@updateToc'] : [],
             target.scope === 'headerFooter' ? ['backDocument'] : [],
             ['assist']

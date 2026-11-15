@@ -48,4 +48,6 @@ assert.equal(submenu.items.join(), WriterContext.bars.table.items.join(), 'the t
 const noImage = WriterContext.sections({review: '', link: false, table: false, image: false, toc: '', scope: 'body'});
 assert.ok(!flatten(noImage).includes('rotateRight'), 'image commands appear for a selected image only');
 assert.ok(flatten(everything).includes('deleteImage'));
+assert.ok(flatten(everything).includes('imageReplace') && !flatten(noImage).includes('imageReplace'), 'replace image appears for a selected image only');
+assert.equal(WriterContext.bars.image.items.join(), 'rotateLeft,rotateRight,|,imageReplace,deleteImage,format');
 console.log('Writer context: bar kinds, bar contents and right-click sections pass');

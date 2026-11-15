@@ -38,7 +38,8 @@ function harness(options = {}) {
         act: id => { log.acted.push(id); return true; }, active: id => (options.open || []).includes(id),
         notice: (message, error) => log.notices.push({message, error}),
         refresh: () => { log.refreshed++; },
-        clipboard: kind => options.clipboard ? options.clipboard[kind] : true
+        clipboard: kind => options.clipboard ? options.clipboard[kind] : true,
+        pen: options.pen && (() => options.pen)
     });
     return {commands, editor, log, state};
 }
@@ -258,6 +259,20 @@ function harness(options = {}) {
     assert.equal(log.exec.map(command => command.type + ':' + (command.action || command.scope || '')).join(), 'transformImage:rotateCCW,transformImage:rotateCW,deleteImage:,setTableBorders:all,setTableBorders:none');
     assert.equal(log.exec[3].spec.style, 'single');
     assert.equal(log.exec[4].target, 'all');
+    // Borders draws with the window's pen; without one the registry's own line stays.
+    const drawn = harness({pen: {style: 'double', size: 12, color: {kind: 'hex', value: 'FF0000'}}});
+    assert.equal(drawn.commands.invoke('borders'), true);
+    assert.equal(JSON.stringify(drawn.log.exec[0]), JSON.stringify({type: 'setTableBorders', scope: 'all', spec: {style: 'double', size: 12, color: {kind: 'hex', value: 'FF0000'}}}));
+    assert.equal(drawn.commands.invoke('noBorders'), true);
+    assert.equal(drawn.log.exec[1].spec, undefined);
+    // Replace image is an app action that needs a selected picture.
+    assert.equal(harness().commands.state('imageReplace').enabled, false);
+    const chosen = harness({snapshot: {image: {id: 'p1'}}});
+    assert.equal(chosen.commands.state('imageReplace').enabled, true);
+    assert.equal(chosen.commands.invoke('imageReplace'), true);
+    assert.equal(chosen.log.acted[0], 'imageReplace');
+    assert.equal(harness({snapshot: {image: {id: 'p1'}}, readonly: true}).commands.state('imageReplace').enabled, false);
+    assert.equal(harness({snapshot: {image: {id: 'p1'}}, mode: 'suggesting'}).commands.state('imageReplace').enabled, false);
     assert.equal(commands.state('comment').enabled, true);
     assert.equal(harness({readonly: true}).commands.state('comment').enabled, false);
     for (const id of ['rowAbove', 'rowBelow', 'columnLeft', 'columnRight', 'deleteRow', 'deleteColumn', 'deleteTable', 'mergeCells', 'splitCell', 'borders', 'noBorders', 'rotateLeft', 'rotateRight'])

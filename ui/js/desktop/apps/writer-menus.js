@@ -25,7 +25,7 @@
                 {id:'paragraph',label:tr('paragraph'),items:[item('alignLeft'),item('alignCenter'),item('alignRight'),item('alignJustify'),SEP,
                     item('bullets'),item('numbering'),SEP,item('indent'),item('outdent')]},
                 {id:'spacing',label:tr('line_spacing'),items:[item('spacing100'),item('spacing115'),item('spacing150'),item('spacing200')]},
-                {id:'image',label:tr('image'),items:[item('rotateLeft'),item('rotateRight'),SEP,item('deleteImage')]},SEP,
+                {id:'image',label:tr('image'),items:[item('rotateLeft'),item('rotateRight'),SEP,item('imageReplace'),item('deleteImage')]},SEP,
                 item('paragraphFormat'),item('pageSetup'),SEP,
                 item('copyFormat'),item('pasteFormat'),item('clearFormat')]},
             {id:'table',label:tr('table'),items:[item('table'),SEP,item('rowAbove'),item('rowBelow'),item('columnLeft'),item('columnRight'),SEP,

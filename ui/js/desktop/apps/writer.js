@@ -21,7 +21,8 @@
         const commands = window.WriterCommands.create({tr, t: (key, params) => ctx.t?.(key, params) || key, readonly: !!ctx.readonly,
             editor: () => editor, lib: () => lib, loading: () => loading, act: id => act(id), notice, refresh: () => refresh(),
             format: value => Number(value).toLocaleString(locale), active: id => activeAction(id),
-            clipboard: kind => kind === 'write' ? !!navigator.clipboard?.writeText : !!navigator.clipboard?.readText});
+            clipboard: kind => kind === 'write' ? !!navigator.clipboard?.writeText : !!navigator.clipboard?.readText,
+            pen: () => panels.pen()});
         const {can, run} = commands, colors = window.WriterCommands.colors;
         const icon = window.WriterToolbar.icons(ctx, esc);
         const button = id => '<button type="button" data-action="' + id + '" title="' + esc(commands.tooltip(id)) + '" aria-label="' + esc(commands.label(id)) + '">' + icon(commands.get(id).icon, commands.get(id).fallback) + '</button>';
@@ -37,7 +38,7 @@
             '<footer class="writer-statusbar"><button data-action="page" data-page></button><span data-count></span><span class="writer-status-spacer"></span><span data-language title="' + esc(tr('language_unknown')) + '"></span>' +
             button('focus') + '<button data-action="zoomOut" aria-label="' + esc(tr('zoom_out')) + '">−</button><button data-action="zoomMenu" data-zoom aria-haspopup="menu" title="' + esc(tr('zoom')) + '">100%</button><button data-action="zoomIn" aria-label="' + esc(tr('zoom_in')) + '">+</button></footer>' +
             '<button class="writer-focus-exit" data-action="focus" hidden title="' + esc(tr('focus_exit')) + '" aria-label="' + esc(tr('focus_exit')) + '">' + icon('restore','⛶') + '</button>' +
-            '<input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
+            '<input data-image type="file" accept="image/png,image/jpeg,image/webp" hidden><input data-image-replace type="file" accept="image/png,image/jpeg,image/webp" hidden></div>';
         const root = host.firstElementChild, find = selector => root.querySelector(selector), mount = find('[data-editor]');
         // The page box moves with the canvas and the zoom, so the ruler follows the engine's layout.
         const rulerResize=new ResizeObserver(()=>{rulerSignature='';if(editor&&!loading)syncRuler(editor.snapshot().pageSetup);});
@@ -527,6 +528,38 @@
             }
             const result=await editor.executeImageCommand(command);if(!result.ok)throw new Error(result.reason || tr('command_unavailable'));
         }
+        // Replaces the selected picture's file. The engine takes only the format the picture already has, so a file in
+        // another format is tried as PNG and as JPEG. The width stays and the height follows the new picture.
+        async function replaceImage(file) {
+            if(!editor || ctx.readonly || !/^image\/(png|jpeg|webp)$/.test(file.type))throw new Error(tr('image_format'));
+            const refusal=commands.blocked('setImageProperties');if(refusal)throw new Error(refusal);
+            if(file.size>20*1024*1024)throw new Error(tr('image_large'));
+            const active=editor,selected=editor.getSelectedImage();
+            if(!selected)throw new Error(tr('command_unavailable'));
+            const bitmap=await createImageBitmap(file),width=bitmap.width,height=bitmap.height;
+            const encoded=async type=>{
+                const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+                const paint=canvas.getContext('2d');
+                if(type==='image/jpeg'){paint.fillStyle='#fff';paint.fillRect(0,0,width,height);}
+                paint.drawImage(bitmap,0,0);
+                const blob=await new Promise(resolve=>canvas.toBlob(resolve,type,.92));
+                return blob?new Uint8Array(await blob.arrayBuffer()):null;
+            };
+            let result=null;
+            try {
+                for(const bytes of [async()=>new Uint8Array(await file.arrayBuffer()),()=>encoded('image/png'),()=>encoded('image/jpeg')]) {
+                    const data=await bytes();
+                    if(disposed || editor!==active || editor.getSelectedImage()?.id!==selected.id)return;
+                    if(!data)continue;
+                    result=await editor.executeImageCommand({type:'replaceImage',data});
+                    if(result.ok || result.code!=='invalidArgs')break;
+                }
+            } finally {bitmap.close();}
+            if(!result?.ok)throw new Error(result?.reason || tr('command_unavailable'));
+            const now=editor.getSelectedImage();
+            if(now?.widthEmu>0 && width>0 && height>0)run({type:'setImageProperties',heightEmu:window.WriterObjects.fitHeight(now.widthEmu,width,height)});
+            else refresh();
+        }
         let qrOpening=false;
         async function insertQR() {
             if(qrOpening || !editor || ctx.readonly)return;
@@ -603,6 +636,7 @@
                     case 'wordCount':await dialogs.wordCount();break;
                     case 'shortcuts':await dialogs.shortcuts();break;
                     case 'image':find('[data-image]').click();break;
+                    case 'imageReplace':find('[data-image-replace]').click();break;
                     case 'qr':await insertQR();break;
                     // One print frame serves Print and the PDF, so they take turns.
                     case 'print':if(editor && !pdfBusy){pdfBusy=true;try{await panels.print(await editor.save(),lib,documentFonts,basename(path).replace(/\.docx$/i,''));}finally{pdfBusy=false;}}break;
@@ -769,6 +803,7 @@
             void act(control.dataset.action);
         },{signal:lifecycle.signal});
         find('[data-image]').addEventListener('change',event=>{const file=event.target.files[0];if(file)insertImage(file).catch(fail);event.target.value='';},{signal:lifecycle.signal});
+        find('[data-image-replace]').addEventListener('change',event=>{const file=event.target.files[0];if(file)replaceImage(file).catch(fail);event.target.value='';},{signal:lifecycle.signal});
         for(const type of ['paste','drop'])mount.addEventListener(type,event=>{
             const files=[...(event.clipboardData?.files || event.dataTransfer?.files || [])].filter(x=>x.type.startsWith('image/'));
             if(!files.length){

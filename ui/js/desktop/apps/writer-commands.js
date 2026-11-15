@@ -145,10 +145,11 @@
         {id: 'deleteTable', command: {type: 'deleteTable'}, label: 'table_delete', glyph: 'table-delete', fallback: '⊠'},
         {id: 'mergeCells', command: {type: 'mergeCells'}, label: 'merge_cells', glyph: 'merge-cells', fallback: '⧉'},
         {id: 'splitCell', command: {type: 'splitCell', rows: 1, cols: 2}, label: 'split_cell', glyph: 'split-cell', fallback: '◫'},
-        {id: 'borders', command: {type: 'setTableBorders', scope: 'all', spec: {style: 'single', size: 4, color: {kind: 'hex', value: '64748B'}}}, label: 'borders', glyph: 'borders-all', fallback: '▦'},
+        {id: 'borders', command: {type: 'setTableBorders', scope: 'all', spec: {style: 'single', size: 4, color: {kind: 'hex', value: '64748B'}}}, pen: true, label: 'borders', glyph: 'borders-all', fallback: '▦'},
         {id: 'noBorders', command: {type: 'setTableBorders', scope: 'none', target: 'all'}, label: 'no_borders', glyph: 'borders-none', fallback: '▢'},
         {id: 'rotateLeft', command: {type: 'transformImage', action: 'rotateCCW'}, label: 'rotate_left', glyph: 'rotate-left', fallback: '↺'},
         {id: 'rotateRight', command: {type: 'transformImage', action: 'rotateCW'}, label: 'rotate_right', glyph: 'rotate-right', fallback: '↻'},
+        {id: 'imageReplace', label: 'image_replace', icon: 'image', write: true, needsEditor: true, needsImage: true, untracked: 'setImageProperties'},
         {id: 'deleteImage', command: {type: 'deleteImage'}, label: 'image_delete', icon: 'trash'},
         {id: 'comment', label: 'comment', icon: 'chat', write: true, needsEditor: true},
         {id: 'headerFirstPage', label: 'header_first_page', write: true, needsEditor: true, scope: 'headerFooter'},
@@ -161,7 +162,8 @@
     ];
     // host: {tr, t, readonly, editor(), lib(), loading(), act(id), notice(message, error), refresh(),
     //        active(id)?: whether an app action is switched on, format(number)?: a number in the user's locale,
-    //        clipboard(kind)?: whether the system clipboard can be read or written}
+    //        clipboard(kind)?: whether the system clipboard can be read or written,
+    //        pen()?: the border line of the window, for the entries marked `pen`}
     function create(host) {
         const byId = new Map(DEFINITIONS.map(definition => [definition.id, definition]));
         const get = id => byId.get(id);
@@ -200,7 +202,7 @@
         // The engine command behind an entry; null for value slots and app actions.
         function command(id) {
             const definition = get(id);
-            if (definition?.command) return definition.command;
+            if (definition?.command) return definition.pen && host.pen ? {...definition.command, spec: host.pen()} : definition.command;
             return definition?.slot && host.lib() ? host.lib().commandForSlot(definition.slot) : null;
         }
         function state(id) {
@@ -217,6 +219,7 @@
             }
             if ((definition.write && host.readonly) || (definition.needsEditor && !editor)) return off;
             if (definition.scope && editor.snapshot().scope?.kind !== definition.scope) return off;
+            if (definition.needsImage && !editor.snapshot().image) return off;
             const reason = definition.untracked ? blocked(definition.untracked) : '';
             return {enabled: !reason, active: !!host.active?.(id), reason};
         }
