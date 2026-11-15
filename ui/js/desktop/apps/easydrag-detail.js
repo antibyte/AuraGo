@@ -264,7 +264,7 @@
             info = ed.model.info(node.type);
             el.querySelector('.ed-detail-tile').innerHTML = core.icon(info ? info.icon : 'tool');
             el.querySelector('.ed-detail-tile').dataset.cat = core.catOf(info);
-            if (document.activeElement !== labelInput) labelInput.value = node.label || '';
+            if (document.activeElement !== labelInput) labelInput.value = node.label || ''; if (labelInput.edLimit) labelInput.edLimit.update();
             labelInput.disabled = !!(ed.readonly || ed.runView);
             // A step that still carries its type's label names only its key (the label above says the type).
             el.querySelector('.ed-detail-type').innerHTML = info && node.label === info.label

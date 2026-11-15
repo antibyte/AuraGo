@@ -241,15 +241,18 @@
         const events = ['input', 'change', 'blur'];
         events.forEach(name => input.addEventListener(name, update));
         update();
-        return {
+        // The handle sits on the input: code that writes the value (renderHead, renderHeader) calls input.edLimit.update().
+        input.edLimit = {
             update,
             detach() {
+                input.edLimit = null;
                 events.forEach(name => input.removeEventListener(name, update));
                 note.remove();
                 live.remove();
                 if (described) input.setAttribute('aria-describedby', described); else input.toggleAttribute('aria-describedby', false);
             }
         };
+        return input.edLimit;
     }
 
     ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar, flash, limit };

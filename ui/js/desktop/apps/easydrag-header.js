@@ -86,7 +86,7 @@
             // A save answered after dispose must not point the window context at this flow again.
             if (host.isDisposed()) return;
             renderBanner();
-            if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || '';
+            if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || ''; if (nameInput.edLimit) nameInput.edLimit.update();
             nameInput.readOnly = !!(ed.readonly || ed.runView);
             const s = stateOf();
             const inactive = !isBlock && ed.flow.live && !ed.flowEnabled && !ed.runView;

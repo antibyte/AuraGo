@@ -439,6 +439,20 @@ export async function run(env) {
             [afterNav, h.model.node(A).settings.notes, h.model.node(B).settings.notes], [[B, 'for alpha', undefined], 'for alpha', 'for beta']);
     });
 
+    // W1b review: a length note follows what code writes into the input (renderHead on navigation), not only typing.
+    await guardAsync('c1d06 review length note follows the step label after navigation', async () => {
+        const h = harness(() => { throw apiError('FLOW_NOT_FOUND'); });
+        h.model.setLabel(A, 'x'.repeat(80));
+        h.ED.detail.open(h.ed, A);
+        const root = h.ed.root;
+        const note = () => root.querySelector('.ed-detail [data-ed-limit]').getAttribute('data-ed-limit');
+        const onA = note();
+        // A click on the arrow moves the focus off the label first (renderHead leaves a focused input alone).
+        root.querySelector('[data-ed-nav="1"]').focus();
+        root.querySelector('[data-ed-nav="1"]').fire('click');
+        eq('c1d06 the note of an 80-character label hides when navigation writes a short label', [h.ed.detail.nodeId(), onA, note()], [B, 'cap', 'none']);
+    });
+
     await guardAsync('c1d06 review finish race', async () => {
         const late = deferred();
         const slow = deferred();
