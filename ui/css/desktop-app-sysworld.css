@@ -281,10 +281,6 @@
     .sw-info-head { padding: 12px 14px 10px; }
     .sw-info-head h2 { font-size: 17px; margin: 4px 30px 4px 0; }
     .sw-bottom { flex-wrap: wrap; gap: 6px; bottom: 8px; left: 8px; right: 8px; min-height: 90px; }
-    /* The email export rides along in the bar; on a phone it keeps only its glyph so the
-       controls stay on two rows and the bar does not eat the view. */
-    .sw-bottom .vd-email-export-button { font-size: 0 !important; overflow: hidden; }
-    .sw-bottom .vd-email-export-button::before { content: '✉'; font-size: 15px; line-height: 1; }
     .sw-modes { width: 100%; justify-content: space-around; }
     .sw-modes .sw-btn { flex: 1; min-height: 40px; font-size: 11px; padding: 5px; gap: 4px; }
     .sw-live { margin-left: 6px; margin-right: auto; }

@@ -108,6 +108,7 @@
 ## Email exports
 
 - First-party file producers/viewers register `AuraDesktopEmail.attach(windowId, toolbar, getOptions[, scope])`. The main-bundle owner is `core/email-export-runtime.js`; app contexts also expose `emailExport`. Store apps and Tresor are excluded. A scoped dialog binding must dispose with its dialog. Native modal dialogs pass `dialogHost` so format/setup choices remain in their active focus scope; QR closes through `onHandoff` after the Mailer owns the files, or `onSetup` after explicit settings navigation.
+- The shared toolbar control is an envelope icon. `desktop.email_export` and `desktop.email_preparing` stay its accessible name and tooltip; format and setup dialogs keep those strings as titles. EasyDrag's overflow menu keeps the label beside its mail icon.
 - Apps supply formats and `createFiles(format, signal): Promise<File[] | false>`, preserving existing validation, loss warnings, editor snapshots, report revisions and source permissions. A false result means cancelled. Bind `key` to the active document/output and pass its lifetime signal. Do not implement sending in apps.
 - The shared action checks fresh Mailer activation, Desktop readonly and send-capable accounts before export and before handoff. It opens a separate composer with empty recipients/body, consumes transient `exportFiles` exactly once, and uses the existing private draft upload queue. Send remains explicit; failed uploads keep Send blocked. Session snapshots must never contain export bytes.
 - `AuraDesktopEmail.file/files` reads only existing same-origin authorized file endpoints with redirect refusal and bounded actual bytes; no server path/URL import API exists. `/api/desktop/mailer/state.attachment_limits` retains the existing per-file budget and 25 MiB outgoing aggregate cap.
@@ -3614,8 +3615,8 @@ buttons and menu popovers remain excluded from those gestures.
   `.sw-btn.active` in a bridge group of `desktop-app-common.css`.
 - The narrow Sysworld layout measures the control bar and publishes its height
   as `--sw-bar-h`; the inspector, plan, tour, message, street help and the rail
-  height derive from it. Do not hard-code a bottom offset for those panels, and
-  keep the email export glyph-only inside the bar there.
+  height derive from it. Do not hard-code a bottom offset for those panels.
+  The email export in that bar is the same envelope icon as in every other app.
 - Galaxa and SIP-phone hardware chrome remain excluded.
 
 ### Desktop Phase 3 contract

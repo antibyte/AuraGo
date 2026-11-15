@@ -1,23 +1,28 @@
 /* desktop-app-common.css - shared app controls and primitives */
-/* Export actions keep a readable label in compact, theme-native app toolbars. */
+/* Export actions are an envelope icon. The translated name stays on aria-label and the tooltip. */
 .desktop-body .vd-email-export-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    width: auto;
-    min-width: 0;
-    max-width: 100%;
-    padding: 6px 10px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    max-width: 32px;
+    padding: 0;
     font: inherit;
-    font-size: 12px;
-    line-height: 1.4;
-    white-space: nowrap;
+    line-height: 1;
     border: 1px solid var(--vd-theme-border, var(--vd-border));
     border-radius: var(--vd-theme-radius-control, 6px);
     background: var(--vd-theme-control-bg, var(--vd-surface));
     color: var(--vd-text);
     cursor: pointer;
+}
+.desktop-body .vd-email-export-button .vd-email-export-icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    pointer-events: none;
 }
 .desktop-body .vd-email-export-button:disabled { opacity: .5; cursor: default; }
 .desktop-body .vd-email-export-button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }

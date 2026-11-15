@@ -10145,6 +10145,10 @@ function wireWindow(win, id) {
         return new File(chunks, filename || 'attachment', { type: response.headers.get('Content-Type') || 'application/octet-stream' });
     }
 
+    function emailExportIconMarkup() {
+        return '<svg class="vd-email-export-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    }
+
     function attachEmailExport(windowId, toolbar, getOptions, scope) {
         const host = scope || contentEl(windowId);
         if (!host) return;
@@ -10153,7 +10157,6 @@ function wireWindow(win, id) {
         button.type = 'button';
         button.className = 'vd-button vd-email-export-button';
         button.dataset.emailExport = '';
-        button.textContent = t('desktop.email_export');
         let disposed = false, scheduled = false, working = false, activeKey;
         const options = () => { try { return getOptions() || {}; } catch (_) { return {}; } };
         const refresh = () => {
@@ -10165,10 +10168,13 @@ function wireWindow(win, id) {
             const target = typeof toolbar === 'function' ? toolbar() : host.querySelector(toolbar);
             if (target && button.parentNode !== target) target.appendChild(button);
             const disabled = desktopReadonly() || opts.disabled || !opts.formats?.length;
-            button.disabled = !!(disabled || win?.emailExportBusy);
-            const label = t(win?.emailExportBusy ? 'desktop.email_preparing' : 'desktop.email_export');
-            if (button.textContent !== label) button.textContent = label;
-            button.title = disabled ? opts.disabledReason || t(desktopReadonly() ? 'desktop.email_readonly' : 'desktop.email_empty') : t('desktop.email_export');
+            const busy = !!win?.emailExportBusy;
+            button.disabled = !!(disabled || busy);
+            const label = t(busy ? 'desktop.email_preparing' : 'desktop.email_export');
+            if (!button.querySelector('.vd-email-export-icon')) button.innerHTML = emailExportIconMarkup();
+            button.setAttribute('aria-label', label);
+            button.setAttribute('aria-busy', busy ? 'true' : 'false');
+            button.title = disabled ? opts.disabledReason || t(desktopReadonly() ? 'desktop.email_readonly' : 'desktop.email_empty') : label;
         };
         const schedule = () => { if (!scheduled) { scheduled = true; queueMicrotask(refresh); } };
         button.addEventListener('click', async () => {

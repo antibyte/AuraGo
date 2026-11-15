@@ -144,7 +144,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Kaggle's passive configured state is not proof of connectivity. Credential acknowledgements belong to their mounted section and submitted value, never a new draft. Its native switch buttons retain Config switch geometry. Verify `TestKaggleConfigBrowser`; `AURAGO_KAGGLE_CONFIG_AUDIT_URL_FILE` exposes the same local fixture for a bounded review, ended through `<file>.stop`.
 - Kaggle numeric limits use the Config catalog validation rules in both inputs and draft validation, matching backend normalization. Verify `TestKaggleConfigLimits*`, including boundary saves and reloads.
 
-- Desktop file email actions use the common Mailer draft handoff and app-owned exporters defined in `js/desktop/apps/AGENTS.md`. Keep all sixteen `desktop.email_*` locale sets, native dialog accessibility, theme controls and version-bound delivery aligned.
+- Desktop file email actions use the common Mailer draft handoff and app-owned exporters defined in `js/desktop/apps/AGENTS.md`. The shared toolbar control is an envelope icon; the sixteen `desktop.email_*` strings stay its accessible name, tooltip and dialog titles. Keep native dialog accessibility, theme controls and version-bound delivery aligned.
 
 - The Guardian local-protection card keeps download and saved activation separate.
   Passive status cannot install/start work. Only verified readiness permits enablement;

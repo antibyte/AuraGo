@@ -7,7 +7,7 @@ Mailer window is closed.
 
 ## Attach files from Desktop apps
 
-Choose **Email …** beside a Desktop app's export controls. Select its format and
+Choose the envelope button beside a Desktop app's export controls (its tooltip is **Email …**). Select its format and
 review a separate Mailer draft with the generated file already attached. Recipients
 and body remain empty, and sending is explicit. Current unsaved editor contents
 are used where the app supports direct snapshots. Existing outgoing limits apply;

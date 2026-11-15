@@ -79,7 +79,11 @@ try {
                 format==='txt'?new File([document.querySelector('#a textarea').value],'Überblick.txt',{type:'text/plain;charset=utf-8'}):new File([new Uint8Array([0,255,80,75])],'Model.3mf',{type:'model/3mf'})
             ]}));
         });
-        const button=page.locator('#a [data-email-export]');await button.click();
+        const button=page.locator('#a [data-email-export]');
+        assert.equal((await button.innerText()).trim(),'');
+        assert.equal(await button.getAttribute('aria-label'),words['desktop.email_export']);
+        assert.equal(await button.locator('.vd-email-export-icon').count(),1);
+        await button.click();
         await page.locator('.vd-modal select').selectOption('bin');await page.locator('.vd-modal button[type="submit"]').click();
         await page.waitForFunction(()=>composers[0]?.draft.attachments.length===1&&!composers[0].attachmentBusy);
         assert.deepEqual(uploads[0],{name:'Model.3mf',type:'model/3mf',bytes:[0,255,80,75]});

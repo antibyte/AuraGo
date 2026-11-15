@@ -1,6 +1,6 @@
 # Email files from Desktop apps
 
-Choose **Email …** beside an app's export actions, choose an available format,
+Choose the envelope button beside an app's export actions (its tooltip is **Email …**), choose an available format,
 and review the new Mailer draft. The file is already attached; recipients and
 message text are empty. Nothing is sent until you choose **Send** in Mailer.
 
@@ -9,7 +9,7 @@ must allow sending. The last selected sending account is preferred when it is
 still available. Otherwise the first usable sending account is selected.
 If setup is missing, the action offers to open Mailer's settings. Enabling or
 connecting an account remains an explicit action; return to the source app and
-choose Email again afterwards.
+choose the envelope button again afterwards.
 
 ## Supported outputs and verification matrix
 
