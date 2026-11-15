@@ -710,9 +710,9 @@
         // Search is disabled while a dialog or the restore offer is open, so the desktop would take Ctrl+K for its own
         // Spotlight: the capture listener swallows the key first (the menus still say why Search is off).
         bag.listen(document, 'keydown', event => {
-            if (disposed || !el.isConnected || typeof event.key !== 'string' || !core.isMod(event) || event.key.toLowerCase() !== 'k') return;
+            if (disposed || !el.isConnected || typeof event.key !== 'string' || event.key.toLowerCase() !== 'k') return;
             if (typeof ctx.isActive === 'function' && !ctx.isActive()) return;
-            if (modalOpen() || restoring) { event.preventDefault(); event.stopPropagation(); }
+            if ((modalOpen() || restoring) && core.isMod(event)) { event.preventDefault(); event.stopPropagation(); }
         }, true);
         bag.listen(document, 'keyup', event => interact.handleKeyUp(event));
         // Deletes and switches from Mission Control and the missions page name the flow (flow_id).
