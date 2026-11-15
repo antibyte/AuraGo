@@ -62,6 +62,14 @@
         return hidden;
     }
     const STYLE_LABELS ={normal: 'style_normal', title: 'style_title', subtitle: 'style_subtitle', quote: 'style_quote', caption: 'style_caption', nospacing: 'style_no_spacing', listparagraph: 'style_list_paragraph'};
+    // The engine's preview of a paragraph style as the inline style of its list entry. The size is in px, between
+    // 13 and 22, so that a 28 pt title still fits a list; a name or colour that is not plain is dropped.
+    function stylePreview(preview) {
+        if (!preview) return '';
+        const family = String(preview.fontFamily || '').replace(/[^\w .-]/g, ''), size = Math.min(22, Math.max(13, Math.round((Number(preview.fontSizePt) || 11) * 4 / 3)));
+        return (family ? 'font-family:"' + family + '",sans-serif;' : '') + 'font-size:' + size + 'px;' + (preview.bold ? 'font-weight:700;' : '') + (preview.italic ? 'font-style:italic;' : '')
+            + (/^[0-9a-f]{6}$/i.test(preview.color || '') ? 'color:#' + preview.color + ';' : '');
+    }
     // app: the state facade of writer.js ({root, tr, esc, ctx, commands, editor, ...}).
     function create(app) {
         const {root, tr, esc, ctx, commands} = app, icon = icons(ctx, esc), colors = window.WriterCommands.colors, life = new AbortController();
@@ -132,8 +140,11 @@
         }
         // The style and font lists come from the loaded document.
         function fill() {
-            const editor = app.editor, option = (value, text) => '<option value="' + esc(value) + '">' + esc(text) + '</option>';
-            wrap.querySelector('[data-slot="styles.style"]').innerHTML = editor.getDocumentStyles().filter(style => style.type === 'paragraph').map(style => option(style.styleId, styleLabel(style))).join('');
+            const editor = app.editor, option = (value, text, look) => '<option value="' + esc(value) + '"' + (look ? ' style="' + esc(look) + '"' : '') + '>' + esc(text) + '</option>';
+            // Where the browser draws a customizable select, every style shows the way it looks; elsewhere the list stays plain.
+            const rich = !!window.CSS?.supports?.('appearance', 'base-select');
+            wrap.querySelector('[data-slot="styles.style"]').innerHTML = editor.getDocumentStyles().filter(style => style.type === 'paragraph')
+                .map(style => option(style.styleId, styleLabel(style), rich ? stylePreview(style.preview) : '')).join('');
             wrap.querySelector('[data-slot="font.family"]').innerHTML = editor.getAvailableFonts().map(font => option(font, font)).join('');
         }
         // A spacing that is not one of the steps is shown in the select's hidden first option.
@@ -223,5 +234,5 @@
         }
         return {fill, refresh, escape, dispose() { life.abort(); observer.disconnect(); cancelAnimationFrame(frame); }};
     }
-    window.WriterToolbar = {create, icons, groups: GROUPS, fit};
+    window.WriterToolbar = {create, icons, groups: GROUPS, fit, stylePreview};
 })();

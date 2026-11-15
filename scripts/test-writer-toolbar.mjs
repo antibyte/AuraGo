@@ -37,4 +37,10 @@ assert.equal(fit(951), 'lists');
 assert.equal(fit(700), 'lists,alignment,colors');
 assert.equal(fit(420), 'lists,alignment,colors,insert,marks');
 assert.equal(fit(100), 'lists,alignment,colors,insert,marks,fonts', 'one group always stays');
-console.log('Writer toolbar: groups, glyphs and overflow fit pass');
+// A style's preview as the inline style of its option: the size capped, nothing but declarations.
+assert.equal(WriterToolbar.stylePreview({fontFamily: 'Calibri', fontSizePt: 28, bold: false, italic: false, color: null}), 'font-family:"Calibri",sans-serif;font-size:22px;');
+assert.equal(WriterToolbar.stylePreview({fontFamily: 'Calibri', fontSizePt: 16, bold: true, italic: true, color: '2F5496'}), 'font-family:"Calibri",sans-serif;font-size:21px;font-weight:700;font-style:italic;color:#2F5496;');
+assert.equal(WriterToolbar.stylePreview({fontFamily: 'Calibri', fontSizePt: 9, bold: false, italic: true, color: '404040'}), 'font-family:"Calibri",sans-serif;font-size:13px;font-style:italic;color:#404040;');
+assert.equal(WriterToolbar.stylePreview({fontFamily: 'A";color:red;}<b>', fontSizePt: 'x', color: 'red;'}), 'font-family:"Acolorredb",sans-serif;font-size:15px;');
+assert.equal(WriterToolbar.stylePreview(null), '');
+console.log('Writer toolbar: groups, glyphs, overflow fit and style previews pass');

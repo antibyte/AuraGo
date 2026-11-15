@@ -42,6 +42,16 @@
 .writer-toolbar-wrap .writer-color input[type=color]{width:26px;height:26px;min-height:26px;padding:2px;border:1px solid var(--writer-border);border-radius:5px;background:var(--writer-field);cursor:pointer}
 .writer-fonts select{width:118px;height:30px;padding:3px 7px}
 .writer-fonts select[data-slot="font.family"]{width:125px}
+/* The style list as a gallery: a customizable select where the browser has one. The entries stand on paper, in the styles' own colours, whatever the theme. */
+@supports (appearance:base-select){
+.writer-app select[data-slot="styles.style"],.writer-app select[data-slot="styles.style"]::picker(select){appearance:base-select}
+.writer-app select[data-slot="styles.style"]{display:inline-flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap;overflow:hidden}
+.writer-app select[data-slot="styles.style"]::picker(select){margin-top:4px;padding:4px;min-width:240px;max-height:min(70vh,520px);overflow:auto;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#172033;box-shadow:0 12px 32px rgba(15,23,42,.28)}
+.writer-app select[data-slot="styles.style"] option{display:block;padding:5px 10px;border-radius:5px;background:transparent;color:#172033;line-height:1.3;white-space:nowrap}
+.writer-app select[data-slot="styles.style"] option::checkmark{display:none}
+.writer-app select[data-slot="styles.style"] option:hover,.writer-app select[data-slot="styles.style"] option:focus-visible{background:#e2e8f0;outline:none}
+.writer-app select[data-slot="styles.style"] option:checked{background:#dbeafe}
+}
 .writer-fonts input{width:54px;height:30px;padding:3px 5px;font-variant-numeric:tabular-nums}
 .writer-toolbar-wrap select[data-slot="list.lineSpacing"]{width:64px;height:30px;padding:3px 6px;font-variant-numeric:tabular-nums}
 .writer-workspace{display:flex;position:relative;flex:1;min-height:0;overflow:hidden}
