@@ -1650,9 +1650,14 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   only (the `.ed-sr-only` pattern, not `display: none`). Both carry the same words as `aria-label`
   and `title`, so the visible label is part of the name; Stop's name follows its text to "Stopping…"
   (`setStopPending`). A new header button that loses its text needs the same.
-- Run now is off while a published flow is paused (`runNowState`), in the ⋯ menu, the Flow menu
-  and a card's menu, with `disabledHint` (`error_flow_disabled`), a menu-item field the desktop
-  draws as the disabled item's tooltip; a stale click gets the server's 409 `FLOW_DISABLED`.
+- Every menu entry, card tool, header button and registry shortcut goes through the action
+  registry (`easydrag-actions.js`, `ED.actions`, W1b): one row per action (label key, icon, glyph,
+  shortcut, scope, risk, shared checks), the owning module binds it with `ED.actions.bind(id, impl,
+  host)`, and `items`, `button`, `run` and `key` render or run it. A check that fails gives one fixed
+  reason (`easydrag.ui.reason_*`), drawn as `disabledHint` in menus and as title plus
+  `aria-description` on `aria-disabled` buttons; Run now of a paused flow says `reason_paused`, and a
+  stale click gets the server's 409 `FLOW_DISABLED`. `TestEasyDragMenusUseTheActionRegistry` fails on
+  a menu entry with its own label or shortcut.
 - Undo affordances live in `easydrag-history.js` (`ED.history.create(ed, {host, toastHost, undo, redo, focusCanvas})`): the header group `[data-ed-history-host]` holds Undo/Redo (`data-ed-history`, `aria-disabled`, never `disabled`, hidden on a read-only desktop) and `.ed-toast` offers Undo after `interact.removeSteps` emits `steps-deleted` ({names}); the toast is no live region (the canvas announced the delete), closes after 8 s or on any other model change, and its Undo acts only on the version right after the delete. No delete confirmation.
 - At an editor width of 560 px or less (`@container`), Runs and Run now are hidden in the header, Test stays visible, and `moreMenu` lists Runs and Test first (`headerNarrow`). The state chip goes, but the Paused chip (`[data-ed-paused]`), "Republish needed" (`[data-ed-live-outdated]`) and the timers warning (`[data-ed-timers-off]`) stay: the CSS exception lists all three. A skipped Run now (202 `{status: "skipped"}`) notifies `run_now_skipped`. The run view hides the revision line and a "Saved" chip; other save states explicitly say they belong to the draft, retaining the same saver and all failure warnings. Its banner offers `rerun-viewed` (Test again with this data: the run's `trigger_data` prefills the test dialog, which still lists effects and asks; nothing is remembered unless ticked). `canRerun` hides that button for stub trigger data (the store keeps oversized data as `{_preview}` or `{_preview: "", _omitted}`: a test would run real effects on the stub) and while a run is going (the viewed run is active, or a live run is parked: `runs.hasParked()`); a click that still finds a run going keeps the run view and notifies `run_going`. `GET runs/{id}?include=doc` without `doc` carries `doc_missing` (`version_pruned` shows `run_view_pruned`).
 - The JSON editor (`fields.jsonEditor`) keeps `aria-invalid` live on every input but writes the `role="alert"` text only when the error appears and never rewrites identical text (a screen reader would read it on every keystroke); change and blur announce a standing error afresh.
