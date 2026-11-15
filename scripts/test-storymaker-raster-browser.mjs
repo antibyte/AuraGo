@@ -8,6 +8,7 @@ import { transformSync } from 'esbuild';
 import { buildOutputs } from '../assets/storymaker/lib/catalog.mjs';
 import { decodePNG, encodePNG } from '../assets/storymaker/lib/png.mjs';
 const root=path.resolve(import.meta.dirname,'..'),ui=path.join(root,'ui');
+function writeArtifact(file,bytes){fs.writeFileSync(file+'.tmp',bytes);fs.renameSync(file+'.tmp',file);}
 const fixture=path.join(ui,'reports/storymaker-raster/prototype');
 const reviewIndex=process.argv.indexOf('--review'),previews=process.argv.includes('--previews')||reviewIndex>=0;
 const installed=path.join(ui,'img/storymaker');
@@ -52,13 +53,16 @@ window.addEventListener('message',async event=>{
      }
      fixture.states=states;
     }
-    if(params.has('speech'))story.scenes=[{id:'speech',environment:'env.plain-stage',duration:3,silent:true,narration:'',camera:{framing:'close',target:'anna'},actors:[{cast:'anna',at:'center',facing:params.get('facing'),pose:'stand'}],beats:[]}];
+    if(params.has('speech'))story.scenes=[{id:'speech',environment:'env.plain-stage',duration:3,silent:false,narration:'Hallo, wir erklären neue Technik.',speaker:'anna',camera:{framing:'close',target:'anna'},actors:[{cast:'anna',at:'center',facing:params.get('facing'),pose:'stand'}],beats:[]}];
    }
    if(params.has('environment')){story.scenes[0].environment=params.get('environment');story.scenes[0].variant=params.get('variant');story.scenes[0].beats=[{do:'show',text:'Storymaker',style:'title',at:{x:50,y:15},entry:'none'}];}
    if(entry){
+    fixture.previewFace=['expression','mouth'].includes(entry.kind);
     story.cast=story.cast.slice(0,1);story.scenes=story.scenes.slice(0,1);story.scenes[0].actors=story.scenes[0].actors.slice(0,1);
     story.format.aspect='1:1';const scene=story.scenes[0];scene.environment='env.plain-stage';scene.duration=3;scene.beats=[];scene.props=[];scene.actors[0].at='center';scene.camera={framing:'medium',target:'anna'};
     if(entry.kind==='character')story.cast[0].character=entry.id;
+    if(entry.kind==='expression')scene.actors[0].expression=entry.name;
+    if(entry.kind==='mouth'){scene.actors[0].expression='qa-mouth-'+entry.name;catalog.entries.push({id:'expr.qa-mouth-'+entry.name,name:'qa-mouth-'+entry.name,kind:'expression'});}
     if(entry.kind==='pose')scene.beats=[{do:'pose',who:'anna',pose:entry.name,duration:0.25}];
     if(entry.kind==='gesture')scene.beats=[{do:'gesture',who:'anna',gesture:entry.name,duration:1.5}];
     if(entry.kind==='cycle'&&entry.name==='walk'){scene.actors[0].at='left';scene.beats=[{do:'walk',who:'anna',to:'right',duration:3}];}
@@ -71,14 +75,17 @@ window.addEventListener('message',async event=>{
     code_bundles.code=await fetch('/fixture-code.js').then(r=>r.text());
     story.scenes.unshift({id:'code',kind:'code',duration:5,silent:true,narration:''});
    }
-   fixture.story=story;post({type:'load',story,catalog,assets,fonts,code_bundles,format:params.has('matrix')?{width:512}:undefined});
+   const audio_info=params.has('speech')?{narration:{speech:{blocks:[{id:'speech:n',kind:'narration',speaker:'anna',duration_ms:3000,spans:[[0,3000]],speech_ok:true,levels:Array.from({length:90},(_,i)=>[0,105,155,205,140,30,140,190,0][Math.floor(i/10)]),pieces:[{hash:'a'.repeat(64),ext:'wav',at_ms:0,in_ms:0,out_ms:3000,chars:32}]}]}}}:{};
+   fixture.story=story;post({type:'load',story,catalog,assets,fonts,code_bundles,audio_info,format:entry?{width:fixture.previewFace?1024:256}:params.has('matrix')?{width:512}:undefined});
   }
   if(m.type==='need_assets'){
+   fixture.pendingAssets=m.keys.slice();
    const assets={};await Promise.all(m.keys.map(async key=>{
     const colon=key.indexOf(':'),type=key.slice(0,colon),file=key.slice(colon+1);
     if(type==='catalog')assets[key]=await fetch('/img/storymaker/'+file).then(r=>r.json());
-    else if(type==='texture')assets[key]=await fetch('/img/storymaker/'+file).then(r=>r.arrayBuffer());
+    else if(type==='texture'||type==='model')assets[key]=await fetch('/img/storymaker/'+file).then(r=>r.arrayBuffer());
     else throw new Error('Unexpected asset '+key);
+    fixture.pendingAssets=fixture.pendingAssets.filter(k=>k!==key);
    }));post({type:'assets',req:m.req,assets,missing:[]});
   }
   if(m.type==='time')fixture.frame=m.frame;
@@ -88,6 +95,7 @@ window.addEventListener('message',async event=>{
 });
 window.seek=frame=>{fixture.frame=-1;document.querySelector('iframe').contentWindow.postMessage({sm:1,type:'seek',frame},'*');};
 `;
+const fileCache=new Map();
 const server=http.createServer((request,response)=>{
     try{
         const address='http://127.0.0.1:'+server.address().port,url=new URL(request.url,address);
@@ -109,18 +117,20 @@ const server=http.createServer((request,response)=>{
         if(!file.startsWith(base+path.sep))throw new Error('Unsafe fixture path');
         response.setHeader('Access-Control-Allow-Origin','*');response.setHeader('X-Content-Type-Options','nosniff');
         response.setHeader('Content-Type',{'.js':'text/javascript','.json':'application/json','.css':'text/css','.png':'image/png','.woff2':'font/woff2','.ttf':'font/ttf'}[path.extname(file)]||'application/octet-stream');
-        let contents=previousBundles.get(decoded)||legacy&&decoded.startsWith('/img/storymaker/')&&legacy.files.get(relative)||fs.readFileSync(file);contents=Buffer.from(contents);
+        let contents=previousBundles.get(decoded)||legacy&&decoded.startsWith('/img/storymaker/')&&legacy.files.get(relative);
+        if(!contents){if(!fileCache.has(file))fileCache.set(file,fs.readFileSync(file));contents=fileCache.get(file);}contents=Buffer.from(contents);
+        // Visual production tolerates cold shader compilation; normal smoke/export keep production deadlines.
+        if(decoded==='/js/storymaker/host.bundle.js'&&(matrix||previews))contents=Buffer.from(contents.toString().replace('helloDeadlineMs: 5000, assetsDeadlineMs: 20000','helloDeadlineMs: 60000, assetsDeadlineMs: 120000').replace('warmupDeadlineMs: 4000','warmupDeadlineMs: 60000').replace('frameDeadlineMs: 250','frameDeadlineMs: 30000'));
         // Test-only instrumentation observes the real renderer without adding a product diagnostics API.
         if(decoded==='/js/storymaker/player.bundle.js'&&process.argv.includes('--webgl'))contents=Buffer.concat([contents,Buffer.from("\nStorymakerCore.raster.softwareGL = function(){return false;};\n")]);
-        if(decoded==='/js/storymaker/player.bundle.js'&&matrix)contents=Buffer.concat([contents,Buffer.from("\n;(function(){const original=StorymakerCore.render.rigState;StorymakerCore.render.rigState=function(state){const result=original.apply(this,arguments);if(state.expression.indexOf('qa-mouth-')===0){result.mouth=state.expression.slice(9);result.expression='neutral';}return result;};})();\n")]);
-        if(decoded==='/js/storymaker/player.bundle.js'&&speech)contents=Buffer.concat([contents,Buffer.from("\n;(function(){const original=StorymakerCore.render.rigState;StorymakerCore.render.rigState=function(){const result=original.apply(this,arguments);result.mouth=['rest','ai','e','o','u','mbp','fv'][Math.floor(arguments[1]*10)%7];return result;};})();\n")]);
+        if(decoded==='/js/storymaker/player.bundle.js'&&(matrix||previews))contents=Buffer.concat([contents,Buffer.from("\n;(function(){const original=StorymakerCore.render.rigState;StorymakerCore.render.rigState=function(state){const result=original.apply(this,arguments);if(state.expression.indexOf('qa-mouth-')===0){result.mouth=state.expression.slice(9);result.expression='neutral';}return result;};})();\n")]);
         if(decoded==='/js/storymaker/player.bundle.js'&&process.argv.includes('--canvas')&&!baseline)contents=Buffer.concat([contents,Buffer.from("\nStorymakerVendor.WebGLRenderer.prototype.init = async function(){throw new Error('Test: WebGL is unavailable');};\n")]);
         if(decoded==='/js/storymaker/player.bundle.js')contents=Buffer.concat([contents,Buffer.from(`
-;(function(){for(const name of ['workerPlayer','workerScene']){const p=StorymakerCore[name].Runtime.prototype,original=p.handle;p.handle=async function(m){const result=await original.call(this,m);if((m.type==='render'||m.type==='frame')&&!m.prepareOnly){const d=this.renderers&&Object.values(this.renderers)[0];result.payload.backend=d?(d.renderer instanceof StorymakerVendor.WebGLRenderer?'webgl':'canvas'):'legacy';${process.argv.includes('--loss')?"if(m.n===120&&!this.__lostOnce&&d&&d.renderer.gl){this.__lostOnce=true;d.renderer.gl.getExtension('WEBGL_lose_context').loseContext();}":''}}return result;};}})();
+;(function(){for(const name of ['workerPlayer','workerScene']){const p=StorymakerCore[name].Runtime.prototype,original=p.handle;p.handle=async function(m){const result=await original.call(this,m);if((m.type==='render'||m.type==='frame')&&!m.prepareOnly){const d=this.renderers&&Object.values(this.renderers)[0];result.payload.backend=d?(d.renderer instanceof StorymakerVendor.WebGLRenderer?'webgl':'canvas'):'legacy';${process.argv.includes('--loss')?"if(m.n===120&&!this.__lostOnce&&d){const gl=d.models?d.models.renderer.getContext():d.renderer.gl;if(gl){this.__lostOnce=true;gl.getExtension('WEBGL_lose_context').loseContext();}}":''}}return result;};}})();
 `)]);
         if(decoded==='/js/storymaker/host.bundle.js')contents=Buffer.concat([contents,Buffer.from(`
 ;(function(){const p=StorymakerHost.Channel.prototype,original=p.call;p.call=async function(){const result=await original.apply(this,arguments);if(result.backend)parent.postMessage({sm:1,type:'renderer_info',backend:result.backend},'*');return result;};})();
-window.addEventListener('message',function(event){if(event.source!==parent||!event.data?.qaCapture)return;event.stopImmediatePropagation();const m=event.data,source=document.getElementById('sm-stage');let canvas=source;if(m.width>0){canvas=document.createElement('canvas');canvas.width=m.width;canvas.height=m.height;const ctx=canvas.getContext('2d');ctx.imageSmoothingQuality='high';ctx.drawImage(source,0,0,canvas.width,canvas.height);}canvas.toBlob(async function(blob){const data=await blob.arrayBuffer();parent.postMessage({sm:1,type:'qa_capture',req:m.req,data,width:canvas.width,height:canvas.height},'*',[data]);},'image/png');},true);
+window.addEventListener('message',function(event){if(event.source!==parent||!event.data?.qaCapture)return;event.stopImmediatePropagation();const m=event.data,source=document.getElementById('sm-stage');let canvas=source;if(m.width>0){canvas=document.createElement('canvas');canvas.width=m.width;canvas.height=m.height;const ctx=canvas.getContext('2d');ctx.imageSmoothingQuality='high';if(m.head)ctx.drawImage(source,source.width*.36,source.height*.24,source.width*.28,source.height*.28,0,0,canvas.width,canvas.height);else ctx.drawImage(source,0,0,canvas.width,canvas.height);}canvas.toBlob(async function(blob){const data=await blob.arrayBuffer();parent.postMessage({sm:1,type:'qa_capture',req:m.req,data,width:canvas.width,height:canvas.height},'*',[data]);},'image/png');},true);
 `)]);
         response.end(contents);
     }catch(e){response.statusCode=404;response.end();}
@@ -128,12 +138,12 @@ window.addEventListener('message',function(event){if(event.source!==parent||!eve
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 fs.mkdirSync(fixture,{recursive:true});
 const profile=fs.mkdtempSync(path.join(fixture,'profile-'));
-const graphics=process.argv.includes('--canvas')?['--disable-gpu','--disable-webgl','--disable-webgl2']:process.argv.includes('--webgl')||process.argv.includes('--software')?['--use-gl=angle','--use-angle=swiftshader']:['--disable-gpu'];
+const graphics=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'];
 const child=spawn(browser,['--headless=new','--no-first-run',...graphics,'--remote-debugging-port=0','--window-size=1000,650','--user-data-dir='+profile,'about:blank'],{windowsHide:true,stdio:['ignore','ignore','pipe']});
 let socket,closeBrowser,failure;
 try{
     const endpoint=await new Promise((resolve,reject)=>{
-        let output='';const timeout=setTimeout(()=>reject(new Error('Browser launch timed out')),20000);
+        let output='';const timeout=setTimeout(()=>reject(new Error('Browser launch timed out')),120000);
         child.stderr.on('data',bytes=>{output+=bytes;const match=/DevTools listening on (ws:\/\/\S+)/.exec(output);if(match){clearTimeout(timeout);resolve(match[1]);}});
         child.once('error',e=>{clearTimeout(timeout);reject(e);});
         child.once('exit',code=>{clearTimeout(timeout);reject(new Error('Browser exited '+code+': '+output.slice(-1200)));});
@@ -142,23 +152,23 @@ try{
     socket=new WebSocket(endpoint);await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});});
     let id=0,pageSession;const pending=new Map();
     socket.addEventListener('message',event=>{const reply=JSON.parse(event.data),entry=pending.get(reply.id);if(!entry)return;pending.delete(reply.id);clearTimeout(entry.timer);reply.error?entry.reject(new Error(JSON.stringify(reply.error))):entry.resolve(reply.result);});
-    const call=(method,params={})=>new Promise((resolve,reject)=>{const next=++id,timer=setTimeout(()=>reject(new Error(method+' timed out')),45000);pending.set(next,{resolve,reject,timer});const message={id:next,method,params};if(pageSession&&!/^(?:Browser|SystemInfo|Target)\./.test(method))message.sessionId=pageSession;socket.send(JSON.stringify(message));});
+    const call=(method,params={})=>new Promise((resolve,reject)=>{const next=++id,timer=setTimeout(()=>reject(new Error(method+' timed out')),120000);pending.set(next,{resolve,reject,timer});const message={id:next,method,params};if(pageSession&&!/^(?:Browser|SystemInfo|Target)\./.test(method))message.sessionId=pageSession;socket.send(JSON.stringify(message));});
     closeBrowser=()=>call('Browser.close');
     pageSession=(await call('Target.attachToTarget',{targetId:target.id,flatten:true})).sessionId;
     const evaluate=async expression=>{const result=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw new Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
     await call('Page.enable');await call('Runtime.enable');await call('Emulation.setDeviceMetricsOverride',{width:1000,height:650,deviceScaleFactor:1,mobile:false});
     await call('Page.bringToFront');
     const address='http://127.0.0.1:'+server.address().port;
-    const wait=frame=>evaluate(`(async()=>{for(let i=0;i<600;i++){if(window.fixture?.errors.length)throw new Error(JSON.stringify(fixture));if(window.fixture?.frame===${frame})return fixture;await new Promise(r=>setTimeout(r,50));}throw new Error(JSON.stringify(window.fixture));})()`);
-    const seekOnly=frame=>evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>{window.removeEventListener('message',on);reject(new Error('Seek timed out'));},30000);const on=e=>{if(e.source!==document.querySelector('iframe').contentWindow)return;const m=e.data;if(m?.type==='error'||m?.type==='time'&&m.frame===${frame}){clearTimeout(timer);window.removeEventListener('message',on);m.type==='error'?reject(new Error(JSON.stringify(m))):resolve();}};window.addEventListener('message',on);seek(${frame});})`);let captureRequest=0;
+    const wait=frame=>evaluate(`(async()=>{for(let i=0;i<2400;i++){if(window.fixture?.errors.length)throw new Error(JSON.stringify(fixture));if(window.fixture?.frame===${frame})return fixture;await new Promise(r=>setTimeout(r,50));}throw new Error(JSON.stringify(window.fixture));})()`);
+    const seekOnly=frame=>evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>{window.removeEventListener('message',on);reject(new Error('Seek timed out'));},90000);const on=e=>{if(e.source!==document.querySelector('iframe').contentWindow)return;const m=e.data;if(m?.type==='error'||m?.type==='time'&&m.frame===${frame}){clearTimeout(timer);window.removeEventListener('message',on);m.type==='error'?reject(new Error(JSON.stringify(m))):resolve();}};window.addEventListener('message',on);seek(${frame});})`);let captureRequest=0;
     const capture=async(frame,width=0,height=0)=>{
         await seekOnly(frame);const request=++captureRequest;
-        return evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Canvas capture timed out')),15000);const on=event=>{const m=event.data;if(event.source!==document.querySelector('iframe').contentWindow||m?.type!=='qa_capture'||m.req!==${request})return;clearTimeout(timer);window.removeEventListener('message',on);const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(new Blob([m.data],{type:'image/png'}));};window.addEventListener('message',on);document.querySelector('iframe').contentWindow.postMessage({qaCapture:true,req:${request},width:${width},height:${height}},'*');})`);
+        return evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Canvas capture timed out')),60000);const on=event=>{const m=event.data;if(event.source!==document.querySelector('iframe').contentWindow||m?.type!=='qa_capture'||m.req!==${request})return;clearTimeout(timer);window.removeEventListener('message',on);const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(new Blob([m.data],{type:'image/png'}));};window.addEventListener('message',on);document.querySelector('iframe').contentWindow.postMessage({qaCapture:true,head:fixture.previewFace,req:${request},width:${width},height:${height}},'*');})`);
     };
     const sameFrame=(actual,expected,label)=>{
         const a=decodePNG(Buffer.from(actual,'base64')),b=decodePNG(Buffer.from(expected,'base64'));
         if(a.width===b.width&&a.height===b.height&&a.pixels.equals(b.pixels))return;
-        fs.writeFileSync(path.join(fixture,'parity-first.png'),Buffer.from(expected,'base64'));fs.writeFileSync(path.join(fixture,'parity-second.png'),Buffer.from(actual,'base64'));
+        writeArtifact(path.join(fixture,'parity-first.png'),Buffer.from(expected,'base64'));writeArtifact(path.join(fixture,'parity-second.png'),Buffer.from(actual,'base64'));
         throw new Error(label+'; saved parity-first.png and parity-second.png');
     };
     if(speech){
@@ -166,25 +176,25 @@ try{
         for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
             await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(selectedCharacter)+'&view='+view+'&facing='+facing+'&speech=1'});await wait(0);
             const directory=path.join(fixture,'speech-'+selectedCharacter+'-'+view+'-'+facing);fs.mkdirSync(directory,{recursive:true});
-            for(let n=0;n<60;n++)fs.writeFileSync(path.join(directory,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(n,512,512),'base64'));
+            for(let n=0;n<60;n++)writeArtifact(path.join(directory,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(n,512,512),'base64'));
             execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-framerate','30','-i',path.join(directory,'%03d.png'),'-frames:v','60','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','-y',directory+'.mp4'],{windowsHide:true});
             console.log(JSON.stringify({character:selectedCharacter,view,facing,frames:60,status:'passed'}));
         }
     }else if(matrix){
         const catalog=JSON.parse(fs.readFileSync(path.join(catalogDir,'catalog.json'))),directory=path.join(fixture,'rig-matrix');fs.mkdirSync(directory,{recursive:true});
-        const cellSize=selectedCharacter?512:256;
+        const cellSize=512;
         const characters=catalog.entries.filter(e=>e.kind==='character'&&(!selectedCharacter||e.id===selectedCharacter));
         assert.ok(characters.length,'Unknown matrix character');
         for(const character of characters)for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
             await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(character.id)+'&view='+view+'&facing='+facing+(combinations?'&combinations=1':'')});await wait(0);
             const states=await evaluate('fixture.states'),sheet={width:cellSize*6,height:Math.ceil(states.length/6)*cellSize,pixels:Buffer.alloc(cellSize*6*Math.ceil(states.length/6)*cellSize*4)};
-            for(let i=0;i<states.length;i++){const bytes=await capture(i*60+18,cellSize,cellSize),png=decodePNG(Buffer.from(bytes,'base64'));for(let y=0;y<cellSize;y++)png.pixels.copy(sheet.pixels,((Math.floor(i/6)*cellSize+y)*sheet.width+(i%6)*cellSize)*4,y*cellSize*4,(y+1)*cellSize*4);if(selectedCharacter&&i<19)fs.writeFileSync(path.join(directory,character.id+'-'+view+'-'+facing+'-'+states[i]+'.png'),Buffer.from(bytes,'base64'));}
-            fs.writeFileSync(path.join(directory,character.name+'-'+view+'-'+facing+'.png'),encodePNG(sheet));
-            fs.writeFileSync(path.join(directory,character.name+'-'+view+'-'+facing+'.json'),JSON.stringify({states,story:await evaluate('fixture.story')},null,2)+'\n');
+            for(let i=0;i<states.length;i++){const bytes=await capture(i*60+18,cellSize,cellSize),png=decodePNG(Buffer.from(bytes,'base64'));for(let y=0;y<cellSize;y++)png.pixels.copy(sheet.pixels,((Math.floor(i/6)*cellSize+y)*sheet.width+(i%6)*cellSize)*4,y*cellSize*4,(y+1)*cellSize*4);if(selectedCharacter&&i<19)writeArtifact(path.join(directory,character.id+'-'+view+'-'+facing+'-'+states[i]+'.png'),Buffer.from(bytes,'base64'));}
+            writeArtifact(path.join(directory,character.name+'-'+view+'-'+facing+'.png'),encodePNG(sheet));
+            writeArtifact(path.join(directory,character.name+'-'+view+'-'+facing+'.json'),JSON.stringify({states,story:await evaluate('fixture.story')},null,2)+'\n');
             if(combinations&&view==='three_quarter'&&facing==='right'){
                 const motion=path.join(fixture,'pose-motion');fs.mkdirSync(motion,{recursive:true});
                 const index=states.indexOf('pose.present+gesture.present');assert.ok(index>=0);
-                for(let n=0;n<60;n++)fs.writeFileSync(path.join(motion,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(index*60+n,512,512),'base64'));
+                for(let n=0;n<60;n++)writeArtifact(path.join(motion,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(index*60+n,512,512),'base64'));
                 execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-framerate','30','-i',path.join(motion,'%03d.png'),'-frames:v','60','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','-y',path.join(fixture,'pose-present.mp4')],{windowsHide:true});
             }
             console.log(JSON.stringify({character:character.id,view,facing,states:states.length,status:'passed'}));
@@ -194,22 +204,22 @@ try{
         for(const environment of catalog.entries.filter(e=>e.kind==='environment'))for(const variant of ['day','night'])for(const aspect of ['16:9','9:16','1:1']){
             await call('Page.navigate',{url:address+'/?environment='+encodeURIComponent(environment.id)+'&variant='+variant+'&aspect='+encodeURIComponent(aspect)});await wait(0);
             const png=Buffer.from(await capture(30),'base64'),size=decodePNG(png);assert.ok(png.length<Math.max(4*1048576,size.width*size.height*4*1.01+65536),'Export frame must fit the bounded PNG transport');
-            fs.writeFileSync(path.join(directory,environment.name+'-'+variant+'-'+aspect.replace(':','x')+'.png'),png);console.log(JSON.stringify({environment:environment.id,variant,aspect,bytes:png.length,status:'passed'}));
+            writeArtifact(path.join(directory,environment.name+'-'+variant+'-'+aspect.replace(':','x')+'.png'),png);console.log(JSON.stringify({environment:environment.id,variant,aspect,bytes:png.length,status:'passed'}));
         }
     }else if(previews){
         const catalog=JSON.parse(fs.readFileSync(path.join(catalogDir,'catalog.json'))),directory=reviewIndex>=0?path.resolve(process.argv[reviewIndex+1]):path.join(root,'assets/storymaker/masters/previews');fs.mkdirSync(directory,{recursive:true});
-        for(const entry of catalog.entries.filter(e=>['character','pose','gesture','cycle','text_style','transition'].includes(e.kind))){
+        for(const entry of catalog.entries.filter(e=>['character','pose','gesture','expression','mouth','cycle','text_style','transition'].includes(e.kind))){
             await call('Page.navigate',{url:address+'/?preview='+encodeURIComponent(entry.id)});await wait(0);
-            const png=await capture(await evaluate('fixture.previewFrame'),256,256);fs.writeFileSync(path.join(directory,entry.id+'.png'),Buffer.from(png,'base64'));console.log('Preview '+entry.id);
+            const png=await capture(await evaluate('fixture.previewFrame'),256,256);writeArtifact(path.join(directory,entry.id+'.png'),Buffer.from(png,'base64'));console.log('Preview '+entry.id);
         }
-        fs.writeFileSync(path.join(directory,'manifest.json'),JSON.stringify({schema:'storymaker-previews/1',renderer:'PixiJS 8.22.0',animation:'GSAP 3.15.1',source_catalog:catalog.version},null,2)+'\n');
+        writeArtifact(path.join(directory,'manifest.json'),JSON.stringify({schema:'storymaker-previews/1',renderer:'PixiJS 8.22.0',animation:'GSAP 3.15.1',source_catalog:catalog.version},null,2)+'\n');
     }else{
         for(const code of [false,true])for(const aspect of ['16:9','9:16','1:1']){
             await call('Page.navigate',{url:address+'/?aspect='+encodeURIComponent(aspect)+(code?'&code=1':'' )});await wait(0);
             const frame=code?45:60,first=await capture(frame);for(const n of code?[300,3,87,13]:[120,3,87,30,119,0])await seekOnly(n);const second=await capture(frame);sameFrame(second,first,'Seek/reload parity for '+aspect+'/'+code);
             if(aspect==='16:9'){await call('Page.reload',{ignoreCache:true});await wait(0);sameFrame(await capture(frame),first,'Fresh project parity');}
             const backend=baseline?'legacy':process.argv.includes('--webgl')?'webgl':'canvas';
-            fs.writeFileSync(path.join(fixture,backend+'-'+(code?'code-':'reference-')+aspect.replace(':','x')+'.png'),Buffer.from(first,'base64'));
+            writeArtifact(path.join(fixture,backend+'-'+(code?'code-':'reference-')+aspect.replace(':','x')+'.png'),Buffer.from(first,'base64'));
             const state=await evaluate('fixture');assert.ok(state.backends.length,'The renderer must be observed');
             if(baseline||process.argv.includes('--canvas')||process.argv.includes('--webgl')||process.argv.includes('--software'))assert.ok(state.backends.every(b=>b===backend),JSON.stringify(state));
             console.log(JSON.stringify({status:'passed',aspect,code,backend:state.backends[0],errors:state.errors}));
@@ -219,14 +229,21 @@ try{
                 sample();const sampler=setInterval(sample,500);let measured;
                 try{measured=await evaluate(`(async()=>{const send=n=>new Promise(resolve=>{const on=e=>{if(e.source===document.querySelector('iframe').contentWindow&&e.data?.type==='time'&&e.data.frame===n){window.removeEventListener('message',on);resolve();}};window.addEventListener('message',on);seek(n);});const start=performance.now();for(let n=60;n<150;n++)await send(n);return{frames:90,seconds:(performance.now()-start)/1000};})()`);}finally{clearInterval(sampler);sample();}
                 const mode=process.argv.includes('--software')?'software-fallback':backend;
-                const metric={backend,mode,platform:process.platform,...measured,fps:measured.frames/measured.seconds,browser_peak_rss_mib:peak/1048576};fs.writeFileSync(path.join(fixture,'benchmark-'+process.platform+'-'+mode+'.json'),JSON.stringify(metric,null,2)+'\n');console.log(JSON.stringify(metric));
+                const metric={backend,mode,platform:process.platform,...measured,fps:measured.frames/measured.seconds,browser_peak_rss_mib:peak/1048576};writeArtifact(path.join(fixture,'benchmark-'+process.platform+'-'+mode+'.json'),JSON.stringify(metric,null,2)+'\n');console.log(JSON.stringify(metric));
             }
         }
     }
 }catch(error){failure=error;throw error;}finally{
-    if(closeBrowser)await closeBrowser().catch(()=>{});
+    // Kill the Windows tree while its parent still exists; Browser.close can orphan the model utility.
+    if(process.platform==='win32'&&child.exitCode===null){try{execFileSync('taskkill',['/pid',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});}catch{}}
+    else if(closeBrowser)await closeBrowser().catch(()=>{});
     socket?.close();await new Promise(resolve=>server.close(resolve));
     if(child.exitCode===null)await new Promise(resolve=>{const timer=setTimeout(()=>{child.kill();resolve();},5000);child.once('exit',()=>{clearTimeout(timer);resolve();});});
     assert.ok(path.resolve(profile).startsWith(path.resolve(fixture)+path.sep));
-    try{fs.rmSync(profile,{recursive:true,force:true,maxRetries:20,retryDelay:200});}catch(error){if(!failure)throw error;console.warn('Profile cleanup failed: '+profile);}
+    try{fs.rmSync(profile,{recursive:true,force:true,maxRetries:50,retryDelay:200});}
+    catch(error){
+        // Windows scanners can retain cache handles after Chrome exits; the ignored profile is safe to retry later.
+        if(!failure&&!(process.platform==='win32'&&['EPERM','EBUSY','EACCES'].includes(error.code)))throw error;
+        console.warn('Profile cleanup deferred: '+profile);
+    }
 }

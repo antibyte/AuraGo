@@ -5,11 +5,12 @@ import { parsePath } from './pathdata.mjs';
 import { versionOf, PALETTES } from './catalog.mjs';
 import { NAMES as ALL_NAMES, LANGS, nameKey } from './names.mjs';
 import { RASTER_NAMES } from './raster-names.mjs';
+import { MODEL_NAMES } from './model-characters.mjs';
 import { Ctx, characterSvg } from './svg.mjs';
 import { MOUTH_NAMES } from './face.mjs';
 import { GLYPHS_SCHEMA, decodeRanges, rangesCover } from './glyphs.mjs';
 
-const NAMES = Object.fromEntries(Object.entries(ALL_NAMES).filter(([id]) => !Object.hasOwn(RASTER_NAMES, id)));
+const NAMES = Object.fromEntries(Object.entries(ALL_NAMES).filter(([id]) => !Object.hasOwn(RASTER_NAMES, id) && !Object.hasOwn(MODEL_NAMES, id)));
 
 export const REQUIRED = {
   character: ['char.office-woman-1', 'char.office-man-1', 'char.it-tech-1', 'char.senior-man-1'],

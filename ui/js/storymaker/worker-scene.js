@@ -60,7 +60,7 @@
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;
-                for (k in assets) if (k.indexOf('texture:') === 0) this.textureData[k] = assets[k];
+                for (k in assets) if (/^(texture|model):/.test(k)) this.textureData[k] = assets[k];
                 for (k in assets) if (k.indexOf('catalog:') === 0) this.files[k.slice(8)] = assets[k];
                 var fonts = msg.fonts || [], env = this.env, generation = this.graphicsGeneration;
                 for (var i = 0; i < fonts.length; i++) {
@@ -114,6 +114,8 @@
                 Object.keys(this.renderers).forEach(function (k) { this.renderers[k].dispose(); }, this);
                 this.renderers = {};
                 SM.textures.dispose(this.bitmaps);
+                Object.values(this.modelAssets || {}).forEach(SM.models.dispose);
+                this.modelAssets = {};
                 Object.keys(this.canvases).forEach(function (k) { this.canvases[k].canvas.width = this.canvases[k].canvas.height = 1; }, this);
                 this.canvases = {};
                 return { payload: {} };

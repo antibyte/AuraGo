@@ -26,7 +26,7 @@ var storymakerPaletteTokens = []string{"bg", "bg2", "fg", "accent", "accent2", "
 var storymakerCharacterTokens = []string{"skin", "hair", "top", "bottom", "shoes", "outline", "eye_white", "iris", "lip"}
 
 var storymakerRequired = map[string][]string{
-	"character":   {"char.office-woman-1", "char.office-man-1", "char.it-tech-1", "char.senior-man-1"},
+	"character":   {"char.hoodie", "char.professor", "char.punk"},
 	"prop":        {"prop.laptop", "prop.phone", "prop.monitor", "prop.server", "prop.router", "prop.cloud", "prop.database", "prop.lock", "prop.key", "prop.shield", "prop.mail", "prop.document", "prop.coffee-cup", "prop.desk", "prop.chair", "prop.plant", "prop.check", "prop.cross", "prop.warning", "prop.idea", "prop.question", "prop.arrow-right", "prop.gear"},
 	"environment": {"env.plain-stage", "env.office", "env.home-office", "env.abstract-tech"},
 	"pose":        {"pose.stand", "pose.sit", "pose.typing", "pose.point-left", "pose.point-right", "pose.wave", "pose.think", "pose.present", "pose.arms-crossed", "pose.hands-on-hips"},

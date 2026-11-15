@@ -1,3 +1,4 @@
+import { MODEL_NAMES } from './model-characters.mjs';
 // Display names of the catalog entries in the 16 desktop locales.
 // Order of every row: cs da de el en es fr hi it ja nl no pl pt sv zh
 // The build script writes them to ui/lang/storymaker_catalog/<lang>.json as storymaker.catalog.<id with "." -> "_">.
@@ -6,6 +7,7 @@ import { RASTER_NAMES } from './raster-names.mjs';
 export const LANGS = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 
 export const NAMES = {
+  ...MODEL_NAMES,
   ...RASTER_NAMES,
   // characters
   'char.office-woman-1': ['Kancelářská pracovnice', 'Kontoransat (kvinde)', 'Büroangestellte', 'Υπάλληλος γραφείου (γυναίκα)', 'Office woman', 'Oficinista (mujer)', 'Employée de bureau', 'ऑफिस कर्मचारी (महिला)', 'Impiegata', 'オフィスの女性', 'Kantoormedewerkster', 'Kontordame', 'Pracownica biurowa', 'Funcionária de escritório', 'Kontorsanställd (kvinna)', '办公室女职员'],
@@ -113,11 +115,11 @@ export const NAMES = {
 export const nameKey = (id) => `storymaker.catalog.${id.replace('.', '_')}`;
 
 /** {lang: {key: name}} for every language, keys in the order of NAMES. */
-export function localeTables() {
+export function localeTables(ids) {
   const out = {};
   LANGS.forEach((lang, i) => {
     const table = {};
-    for (const [id, row] of Object.entries(NAMES)) table[nameKey(id)] = row[i];
+    for (const [id, row] of Object.entries(NAMES)) if (!ids || ids.has(id)) table[nameKey(id)] = row[i];
     out[lang] = table;
   });
   return out;

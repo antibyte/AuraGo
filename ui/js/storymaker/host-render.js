@@ -123,9 +123,9 @@
                         var res = await doFetch(assetsBase + rel, { cache: 'no-store' });
                         if (!res.ok) throw H.fail('readiness', 'Asset ' + rel + ' answered ' + res.status);
                         assets[key] = await res.json();
-                    } else if (key.indexOf('texture:') === 0) {
-                        var imagePath = key.slice(8);
-                        var image = (catalog.files || []).find(function (f) { return f.path === imagePath && ['image/png','image/webp','image/jpeg'].indexOf(f.type) >= 0; });
+                    } else if (/^(texture|model):/.test(key)) {
+                        var imagePath = key.slice(key.indexOf(':') + 1);
+                        var image = (catalog.files || []).find(function (f) { return f.path === imagePath && (key.indexOf('model:') === 0 ? f.type === 'model/gltf-binary' : ['image/png','image/webp','image/jpeg'].indexOf(f.type) >= 0); });
                         if (!image || !/^[A-Za-z0-9_./-]+$/.test(imagePath) || imagePath.split('/').some(function (s) { return !s || s === '.' || s === '..'; }) || image.bytes < 1 || image.bytes > 8 * 1048576) throw H.fail('readiness', 'Invalid texture dependency');
                         var imageResponse = await doFetch(assetsBase + imagePath, { cache: 'no-store' });
                         if (!imageResponse.ok) throw H.fail('readiness', 'Texture could not be fetched');

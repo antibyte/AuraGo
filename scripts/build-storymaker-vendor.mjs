@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
 const directory = path.join(root, 'ui/js/vendor/storymaker');
-const versions = { 'pixi.js': '8.22.0', gsap: '3.15.1' };
+const versions = { 'pixi.js': '8.22.0', gsap: '3.15.1', three: '0.186.1' };
 const notices = [];
 for (const [name, version] of Object.entries(versions)) {
     const base = path.join(root, 'node_modules', name);

@@ -19,6 +19,7 @@
             var e = entries[i];
             if (!e || !e.id) continue;
             idx.byId[e.id] = e;
+            (e.aliases || []).forEach(function (alias) { if (/^char\.[a-z0-9-]+$/.test(alias)) idx.byId[alias] = e; });
             var bare = e.name && e.name !== e.id ? e.name : String(e.id).replace(/^[a-z]+\./, '');
             if (e.kind === 'pose') idx.poses[bare] = e;
             else if (e.kind === 'gesture') idx.gestures[bare] = e;

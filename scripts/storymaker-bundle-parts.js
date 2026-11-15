@@ -14,6 +14,9 @@ export const storymakerHostParts = [
 
 export const storymakerPlayerParts = [
   'ui/js/storymaker/textures.js',
+  'ui/js/storymaker/models.js',
+  'ui/js/storymaker/model-rig.js',
+  'ui/js/storymaker/model-render.js',
   'ui/js/storymaker/ease.js',
   'ui/js/storymaker/seed.js',
   'ui/js/storymaker/ranges.js',
@@ -41,7 +44,6 @@ export const storymakerPlayerParts = [
   'ui/js/storymaker/transitions.js',
   'ui/js/storymaker/render.js',
   'ui/js/storymaker/layout.js',
-  'ui/js/storymaker/raster-rig.js',
   'ui/js/storymaker/raster.js',
   'ui/js/storymaker/codescene.js',
   'ui/js/storymaker/determinism.js',

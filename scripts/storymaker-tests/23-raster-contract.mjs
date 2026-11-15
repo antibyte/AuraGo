@@ -18,10 +18,10 @@ t.check('app texture stream: invalid size metadata is refused before fetching an
     assert.equal(cancelled,1);assert.equal(released,1);
 });
 
-t.check('production catalog: all legacy IDs survive among twelve identities, twelve places and eighty props',()=>{
+t.check('production catalog: all legacy IDs survive as aliases of three 3D pets, twelve places and eighty props',()=>{
     const catalog=realCatalog();assert.equal(catalog.schema,'storymaker-catalog/2');
-    for(const [kind,count]of Object.entries({character:12,environment:12,prop:80}))assert.equal(catalog.entries.filter(e=>e.kind===kind).length,count);
-    const ids=new Set(catalog.entries.map(e=>e.id));for(const e of legacyCatalog().entries)assert.ok(ids.has(e.id),'Missing legacy ID '+e.id);
+    for(const [kind,count]of Object.entries({character:3,environment:12,prop:80}))assert.equal(catalog.entries.filter(e=>e.kind===kind).length,count);
+    const ids=new Set(catalog.entries.flatMap(e=>[e.id,...(e.aliases||[])]));for(const e of legacyCatalog().entries)assert.ok(ids.has(e.id),'Missing legacy ID '+e.id);
     for(const language of ['cs','da','de','el','en','es','fr','hi','it','ja','nl','no','pl','pt','sv','zh']){
         const names=readJSON('ui/lang/storymaker_catalog/'+language+'.json');for(const e of catalog.entries)assert.ok(names[e.name_key],language+'/'+e.name_key);
     }
@@ -38,10 +38,10 @@ t.check('production catalog: compiler timing stays compatible and every bitmap n
     }
 });
 
-t.check('production provenance: all 123 original masters and their reference relationships verify',()=>{
+t.check('production provenance: retained original masters and their reference relationships verify',()=>{
     const production=readJSON('assets/storymaker/production.json'),base=path.join(root,'assets/storymaker');
-    assert.equal(production.schema,'storymaker-production/1');assert.equal(production.images.length,123);
-    const files=new Set(production.images.map(e=>e.file));assert.equal(files.size,123);
+    assert.equal(production.schema,'storymaker-production/1');assert.ok(production.images.length>25);
+    const files=new Set(production.images.map(e=>e.file));assert.equal(files.size,production.images.length);
     const originals=fs.readdirSync(path.join(base,'masters'),{recursive:true}).filter(file=>file.endsWith('.png')&&!file.startsWith('previews'+path.sep)).map(file=>'masters/'+file.replaceAll(path.sep,'/'));
     assert.deepEqual(new Set(originals),files,'Every retained original needs a production record');
     for(const source of production.images){
@@ -201,27 +201,4 @@ t.check('raster preparation: decoder readiness does not invoke the frame rendere
     await player.handle({type:'prepare_frame',n:4});
     const scene=new core.workerScene.Runtime(env,{});scene.catalog=catalog;scene.opts={catalog,width:10,height:10,fps:30};scene.built={entities:[]};
     await scene.handle({type:'prepare_frame',t:1});assert.equal(prepared,2);assert.equal(drawn,0);
-});
-
-t.check('sprite gait: planted heels stay at the same ground point for every body type and either walking direction',()=>{
-    const context=loadPlayer({navigator:{userAgent:'Storymaker gait test'}});vm.runInContext(read('ui/js/vendor/storymaker/runtime.js'),context);const core=context.StorymakerCore;
-    for(const body of ['average','broad','slim','elder','child'])for(const facing of [1,-1]){
-        const catalog=legacyCatalog();catalog.entries.find(e=>e.id==='char.office-woman-1').params.body=body;
-        const out=core.compile({format:{aspect:'16:9',fps:30},cast:[{id:'a',character:'char.office-woman-1'}],scenes:[{id:'walk',environment:'env.plain-stage',duration:12,actors:[{cast:'a',at:facing>0?'left':'right'}],beats:[{do:'walk',who:'a',to:facing>0?'right':'left',duration:10}]}]}, {},catalog);
-        const sc=out.timeline.scenes[0],entity=sc.entities.find(e=>e.type==='actor'),assets=legacyAssets(),rig=assets.rig;
-        const rc=core.render.makeContext(out.timeline,assets,1920,1080),stage=core.render.stageFor(sc,rc),b=core.rig.bodyOf(rig,body),rest=core.rig.boneMatrices(rig,'profile',b,{});
-        const first=Math.hypot(rest.lower_leg_r[4]-rest.upper_leg_r[4],rest.lower_leg_r[5]-rest.upper_leg_r[5]);
-        const start=core.scene.evalEntity(entity,0),scale=core.rig.scaleFor(rig,1080,stage.depthScale(start.y,start.depth),start.scale,b),stride=(first+205)*0.7*scale;
-        const speed=Math.abs(entity.x.at(10)-entity.x.at(0))/10;let planted;
-        for(const phase of [0.2,0.3,0.45,0.3,0.2]){
-            const time=phase*stride/speed,state=core.scene.evalEntity(entity,time),pose=core.render.rigState(state,time,rc,rig);
-            core.rasterRig.adjust(pose,state,entity,time,rc,stage);
-            const world=core.rig.boneMatrices(rig,'profile',b,pose.offsets),ankle=core.rasterRig.slotMatrix(world.lower_leg_r,{pivot:[0,205],upright:true});
-            const x=state.x+scale*facing*ankle[4],y=state.y+scale*(pose.offsetY+ankle[5]+20);
-            if(planted===undefined)planted=x;assert.ok(Math.abs(x-planted)<0.001,`${body}/${facing}: heel slid by ${x-planted}`);
-            assert.ok(Math.abs(y-state.y)<0.001,`${body}/${facing}: heel left the floor by ${y-state.y}`);
-            assert.ok(Math.abs(ankle[1])<0.000001,'the shoe sole stays horizontal');
-        }
-        const idle=core.scene.evalEntity(entity,11),pose=core.render.rigState(idle,11,rc,rig);core.rasterRig.adjust(pose,idle,entity,11,rc,stage);assert.equal(pose.offsetY,0);
-    }
 });

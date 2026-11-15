@@ -1,6 +1,6 @@
 # Storyboard animation reference
 
-Use storyboard scenes for staged people, dialogue and narrated explanations. Search/describe the current catalog for exact IDs and usage examples: twelve fixed characters, twelve day/night environments and eighty props. Never invent assets or change a character's clothing with unsupported parameters.
+Use storyboard scenes for staged characters, dialogue and narrated explanations. Search/describe the current catalog for exact IDs and usage examples: three 3D characters (char.hoodie, char.professor, char.punk), twelve day/night environments and eighty props. Never invent assets or change a character's clothing with unsupported parameters. Old human IDs resolve saved stories to these pets; choose the canonical IDs for new casts. Models have continuous joints and localized mouth/expression morphs. The original Desktop pets stay unchanged.
 
 ## Stage and composition
 
@@ -17,7 +17,7 @@ Use storyboard scenes for staged people, dialogue and narrated explanations. Sea
 | Beat do | Fields and purpose |
 | --- | --- |
 | enter / exit | enter needs who, from and to; exit needs who and to |
-| walk | who, to; use planted walking for people |
+| walk | who, to; use the character walking cycle |
 | move | who, to; move props or slide an element without walking |
 | pose | who, pose; stand, sit, typing, pointing and other catalog poses |
 | gesture | who, gesture, optional count; a short action that returns to the base pose |
@@ -31,7 +31,7 @@ Use storyboard scenes for staged people, dialogue and narrated explanations. Sea
 | sfx | sound (sfx.* catalog ID); align a catalog sound with the visual event |
 | wait | seconds; leave room to understand what changed |
 
-Never substitute move for a person's walk. Combine a meaningful gesture with a matching expression; do not repeat the same wave or entry in every scene. Breathing, blinking, rig articulation, planted feet and storyboard lip-sync are automatic. Perspective follows supported poses/look controls; do not invent a view field. Separate environment layers provide parallax during camera movement automatically.
+Never substitute move for a person's walk. Combine a meaningful gesture with a matching expression; do not repeat the same wave or entry in every scene. Breathing, blinking, rig articulation, ground contact and storyboard lip-sync are automatic. Perspective follows supported poses/look controls; do not invent a view field. Separate environment layers provide parallax during camera movement automatically.
 
 ## Timing
 

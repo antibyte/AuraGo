@@ -39,6 +39,9 @@ Authoring sources and reproducible animation assets for optional real-time deskt
 - Aura Drift reuses nine active model GLBs without changing these sources or the
   Desktop pet behaviour. Stationary motion subsets and resource limits belong
   to `../../ui/3d/aura-drift/pets/AGENTS.md`.
+- Storymaker derives Hoodie, Professor and Punk with local facial morphs and
+  additional poses. `../storymaker/AGENTS.md` owns those outputs; the original
+  pet meshes, motions and runtime behaviour stay unchanged.
 - Runtime files live in `ui/3d/pets/<folder>/`; `ui/js/desktop/core/pet-3d.js` owns rendering and interactive pose layers. The shared pet runtime owns placement, settings, notifications and drag physics.
 
 ## Local Contracts

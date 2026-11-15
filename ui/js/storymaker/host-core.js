@@ -348,12 +348,12 @@
         if (id !== this.loadId) throw fail('cancelled', 'superseded');
         var fonts = Object.keys(fontsHave).filter(function (k) { return all[k]; }).map(function (k) { return fontsHave[k]; });
         var catalogAssets = {};
-        wanted.forEach(function (k) { if (k.indexOf('catalog:') === 0 || k.indexOf('texture:') === 0) catalogAssets[k] = have[k]; });
+        wanted.forEach(function (k) { if (k.indexOf('catalog:') === 0 || /^(texture|model):/.test(k)) catalogAssets[k] = have[k]; });
         var reply = await this.send({ type: 'assets', assets: catalogAssets, fonts: fonts }, env.limits.assetsDeadlineMs);
         if (reply.missing && reply.missing.length) throw fail('readiness', 'Missing assets: ' + reply.missing.join(', '));
         await Promise.all(Object.keys(sceneNeeds).map(function (cid) {
             var sceneAssets = {};
-            sceneNeeds[cid].forEach(function (k) { if (k.indexOf('catalog:') === 0 || k.indexOf('texture:') === 0) sceneAssets[k] = have[k]; });
+            sceneNeeds[cid].forEach(function (k) { if (k.indexOf('catalog:') === 0 || /^(texture|model):/.test(k)) sceneAssets[k] = have[k]; });
             var sceneFonts = sceneNeeds[cid].filter(function (k) { return k.indexOf('font:') === 0 && fontsHave[k]; }).map(function (k) { return fontsHave[k]; });
             self.sceneAssets[cid] = { type: 'assets', assets: sceneAssets, fonts: sceneFonts };
             var channel = self.sceneChannels[cid];

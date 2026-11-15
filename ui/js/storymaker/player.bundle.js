@@ -67,7 +67,7 @@
         var files = Object.create(null), total = 0;
         (catalog.files || []).forEach(function (f) {
             if (!safePath(f.path) || f.path === 'catalog.json' || files[f.path] || !Number.isInteger(f.bytes) || f.bytes < 1 || f.bytes > LIMIT || !/^[a-f0-9]{64}$/.test(f.sha256)) throw new Error('Invalid catalog dependency');
-            if (['image/png','image/webp','image/jpeg','application/json','audio/wav'].indexOf(f.type) < 0) throw new Error('Invalid catalog media type');
+            if (['image/png','image/webp','image/jpeg','application/json','audio/wav','model/gltf-binary','text/plain'].indexOf(f.type) < 0) throw new Error('Invalid catalog media type');
             total += f.bytes; files[f.path] = f;
             var background = f.path.indexOf('textures/environments/') === 0 && f.path.split('/').pop().indexOf('foreground-') !== 0;
             var maxW = background ? 3840 : 2048, maxH = background ? 2160 : 2048;
@@ -86,7 +86,7 @@
             var e = key.indexOf('catalog:') === 0 && byFile[key.slice(8)];
             if (e) (e.resources || []).forEach(function (p) {
                 if (!files[p]) throw new Error('Unlisted catalog resource');
-                set.add((files[p].type.indexOf('image/') === 0 ? 'texture:' : 'catalog:') + p);
+                set.add((files[p].type === 'model/gltf-binary' ? 'model:' : files[p].type.indexOf('image/') === 0 ? 'texture:' : 'catalog:') + p);
             });
         });
         return Array.from(set).sort();
@@ -112,6 +112,239 @@
     function dispose(bitmaps) { Object.keys(bitmaps).forEach(function (p) { bitmaps[p].close(); delete bitmaps[p]; }); }
     SM.textures = { sha256: sha256, safePath: safePath, imageSize: imageSize, index: index, expand: expand, decode: decode, dispose: dispose, limit: LIMIT };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
+/* ui/js/storymaker/models.js */
+// Only self-contained, catalog-verified GLBs enter the isolated player. No model URL is ever fetched here.
+(function (root) {
+    'use strict';
+    var SM = root.StorymakerCore || (root.StorymakerCore = {});
+    function glb(data) {
+        if (Object.prototype.toString.call(data) !== '[object ArrayBuffer]' || data.byteLength < 28 || data.byteLength > SM.textures.limit) throw new Error('Invalid model size');
+        var v = new DataView(data), length = v.getUint32(12, true), start = 28 + length;
+        if (v.getUint32(0, true) !== 0x46546c67 || v.getUint32(4, true) !== 2 || v.getUint32(8, true) !== data.byteLength || v.getUint32(16, true) !== 0x4e4f534a || length > 1048576 || start > data.byteLength || length % 4) throw new Error('Invalid GLB header');
+        if (v.getUint32(24 + length, true) !== 0x004e4942 || start + v.getUint32(20 + length, true) !== data.byteLength) throw new Error('Invalid GLB binary chunk');
+        var json = JSON.parse(new TextDecoder().decode(new Uint8Array(data, 20, length))), binary = data.slice(start);
+        if (json.asset.version !== '2.0' || json.buffers.length !== 1 || json.buffers[0].byteLength > binary.byteLength || json.buffers[0].byteLength < binary.byteLength - 3) throw new Error('Invalid model buffer');
+        var pending = [json], fields = 0;
+        while (pending.length) {
+            var item = pending.pop();
+            Object.keys(item).forEach(function (key) {
+                if (++fields > 50000 || key === 'uri' || key === '__proto__' || key === 'extensionsRequired') throw new Error('External or unsupported model resource');
+                if (typeof item[key] === 'number' && !Number.isFinite(item[key])) throw new Error('Invalid model number');
+                if (item[key] && typeof item[key] === 'object') pending.push(item[key]);
+            });
+        }
+        if (!json.nodes || json.nodes.length > 128 || !json.meshes || json.meshes.length > 16 || !json.skins || json.skins.length > 4 || (json.images || []).length > 8 || (json.accessors || []).length > 512 || (json.bufferViews || []).length > 512) throw new Error('Model exceeds structural limits');
+        json.bufferViews.forEach(function (b) {
+            if (b.buffer !== 0 || !Number.isInteger(b.byteLength) || b.byteLength < 1 || !Number.isInteger(b.byteOffset || 0) || (b.byteOffset || 0) < 0 || (b.byteOffset || 0) + b.byteLength > binary.byteLength) throw new Error('Invalid model buffer view');
+        });
+        var elements = 0;
+        function span(view, offset, count, size, stride) {
+            if (!view || !Number.isInteger(offset) || offset < 0 || !Number.isInteger(stride) || stride < size || stride > 252 || offset + (count-1)*stride + size > view.byteLength) throw new Error('Invalid model accessor span');
+        }
+        json.accessors.forEach(function (a) {
+            if (!Number.isInteger(a.count) || a.count < 1 || a.count > 180000 || ![5120,5121,5122,5123,5125,5126].includes(a.componentType) || !['SCALAR','VEC2','VEC3','VEC4','MAT4'].includes(a.type)) throw new Error('Invalid model accessor');
+            elements += a.count;
+            if (a.bufferView !== undefined && !json.bufferViews[a.bufferView]) throw new Error('Invalid model accessor view');
+            if (a.sparse && (!Number.isInteger(a.sparse.count) || a.sparse.count < 1 || a.sparse.count > a.count || !json.bufferViews[a.sparse.indices.bufferView] || !json.bufferViews[a.sparse.values.bufferView])) throw new Error('Invalid sparse model accessor');
+            var size = ({5120:1,5121:1,5122:2,5123:2,5125:4,5126:4})[a.componentType] * ({SCALAR:1,VEC2:2,VEC3:3,VEC4:4,MAT4:16})[a.type];
+            if (a.bufferView !== undefined) { var view=json.bufferViews[a.bufferView];span(view,a.byteOffset||0,a.count,size,view.byteStride||size); }
+            if (a.sparse) {
+                var sparse=a.sparse,indexSize=({5121:1,5123:2,5125:4})[sparse.indices.componentType];
+                if(!indexSize)throw new Error('Invalid sparse model index');
+                span(json.bufferViews[sparse.indices.bufferView],sparse.indices.byteOffset||0,sparse.count,indexSize,indexSize);
+                span(json.bufferViews[sparse.values.bufferView],sparse.values.byteOffset||0,sparse.count,size,size);
+            }
+        });
+        if (elements > 3000000) throw new Error('Model accessor budget exceeded');
+        var marks = new Set();
+        function visit(index, ancestors) {
+            if (!Number.isInteger(index) || !json.nodes[index] || ancestors.has(index)) throw new Error('Invalid model hierarchy');
+            if (marks.has(index)) return;
+            var next = new Set(ancestors); next.add(index);
+            (json.nodes[index].children || []).forEach(function (child) { visit(child, next); }); marks.add(index);
+        }
+        json.nodes.forEach(function (_, i) { visit(i, new Set()); });
+        json.skins.forEach(function (skin) { if (!skin.joints || skin.joints.length > 72 || skin.joints.some(function (i) { return !json.nodes[i]; })) throw new Error('Invalid model skeleton'); });
+        var triangles = 0;
+        json.meshes.forEach(function (mesh) { mesh.primitives.forEach(function (p) {
+            var positions = json.accessors[p.attributes.POSITION], indices = json.accessors[p.indices];
+            if (!positions || positions.count > 90000 || p.mode !== undefined && p.mode !== 4 || (p.targets || []).length > 16) throw new Error('Invalid model primitive');
+            triangles += (indices ? indices.count : positions.count) / 3;
+        }); });
+        if (triangles > 60000) throw new Error('Model triangle budget exceeded');
+        (json.images || []).forEach(function (img) {
+            var view = json.bufferViews[img.bufferView];
+            if (!view || !['image/png','image/jpeg'].includes(img.mimeType)) throw new Error('Invalid embedded model image');
+            var bytes = binary.slice(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength), size = SM.textures.imageSize(bytes, img.mimeType);
+            if (size[0] < 1 || size[1] < 1 || size[0] > 1024 || size[1] > 1024) throw new Error('Embedded model texture exceeds 1024 pixels');
+        });
+        return { json: json, binary: binary };
+    }
+    function dispose(model) {
+        var geometries = new Set(), materials = new Set(), textures = new Set(), skeletons = new Set();
+        model.traverse(function (o) {
+            if (o.geometry) geometries.add(o.geometry);
+            if (o.skeleton) skeletons.add(o.skeleton);
+            (Array.isArray(o.material) ? o.material : o.material ? [o.material] : []).forEach(function (m) { materials.add(m); Object.values(m).forEach(function (t) { if (t && t.isTexture) textures.add(t); }); });
+        });
+        geometries.forEach(function (g) { g.dispose(); }); materials.forEach(function (m) { m.dispose(); });
+        textures.forEach(function (t) { if (t.image && t.image.close) t.image.close(); t.dispose(); });
+        skeletons.forEach(function (s) { s.dispose(); });
+    }
+    async function load(catalog, path, bytes, current) {
+        var meta = SM.textures.index(catalog)[path];
+        if (!meta || meta.type !== 'model/gltf-binary' || !bytes || bytes.byteLength !== meta.bytes || SM.textures.sha256(bytes) !== meta.sha256) throw new Error('Model failed integrity verification: ' + path);
+        var parsed = glb(bytes), vendor = root.StorymakerVendor, T = vendor.THREE, bitmaps = [];
+        var loader = new vendor.GLTFLoader();
+        loader.register(function (parser) { return { name: 'STORYMAKER_EMBEDDED_IMAGES', loadTexture: async function (index) {
+            var definition = parser.json.textures[index], img = parser.json.images[definition.source], view = parser.json.bufferViews[img.bufferView];
+            var buffer = parsed.binary.slice(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength);
+            var bitmap = await root.createImageBitmap(new root.Blob([buffer], { type: img.mimeType }), { colorSpaceConversion: 'none' });
+            bitmaps.push(bitmap);
+            var expected = SM.textures.imageSize(buffer, img.mimeType);
+            if (!current() || bitmap.width !== expected[0] || bitmap.height !== expected[1]) throw new Error('Model image was disposed or has invalid dimensions');
+            var texture = new T.Texture(bitmap), sampler = parser.json.samplers && parser.json.samplers[definition.sampler] || {};
+            texture.flipY = false; texture.needsUpdate = true;
+            texture.wrapS = sampler.wrapS === 33071 ? T.ClampToEdgeWrapping : sampler.wrapS === 33648 ? T.MirroredRepeatWrapping : T.RepeatWrapping;
+            texture.wrapT = sampler.wrapT === 33071 ? T.ClampToEdgeWrapping : sampler.wrapT === 33648 ? T.MirroredRepeatWrapping : T.RepeatWrapping;
+            return texture;
+        } }; });
+        try {
+            var result = await loader.parseAsync(bytes, '');
+            if (!current()) { dispose(result.scene); throw new Error('Project was disposed'); }
+            return result.scene;
+        } catch (error) { bitmaps.forEach(function (b) { b.close(); }); throw error; }
+    }
+    SM.models = { glb: glb, load: load, dispose: dispose };
+})(typeof globalThis !== 'undefined' ? globalThis : self);
+
+;
+/* ui/js/storymaker/model-rig.js */
+// Absolute-time 3D sampling: every pose starts from authored data, including reverse and restarted seeks.
+(function (root) {
+    'use strict';
+    var SM=root.StorymakerCore||(root.StorymakerCore={});
+    function create(model,pack) {
+        var T=root.StorymakerVendor.THREE, bones=new Map(), objects=new Map(), meshes=[];
+        model.traverse(function(o){objects.set(o.name,o);if(o.isBone)bones.set(o.name,o);if(o.morphTargetInfluences)meshes.push(o);});
+        if(pack.schema!=='storymaker-model-motions/1'||!pack.poses||!pack.rest||!Array.isArray(pack.clips)||pack.clips.length>32)throw new Error('Invalid model motions');
+        Object.values(pack.poses).concat([pack.rest]).forEach(function(pose){
+            if(Object.keys(pose).length>128)throw new Error('Invalid model pose');
+            Object.values(pose).forEach(function(v){if(!v.p||v.p.length!==3||!v.q||v.q.length!==4||!v.p.concat(v.q,v.s||[]).every(Number.isFinite))throw new Error('Invalid model pose joint');});
+        });
+        var clips={},transforms=new Map();
+        pack.clips.forEach(function(item){
+            var clip=T.AnimationClip.parse(item.clip);
+            if(!(clip.duration>0&&clip.duration<30)||clip.tracks.length>256)throw new Error('Invalid model clip');
+            clips[item.id]={duration:clip.duration,tracks:clip.tracks.map(function(track){
+                var split=track.name.lastIndexOf('.'),name=track.name.slice(0,split),property=track.name.slice(split+1);
+                if(!['position','quaternion'].includes(property)||track.times.length>2048||!Array.from(track.values).every(Number.isFinite))throw new Error('Invalid model track');
+                var object=objects.get(name);if(object&&!transforms.has(name))transforms.set(name,{p:object.position.toArray(),q:object.quaternion.toArray()});
+                return {name:name,property:property,sample:track.createInterpolant()};
+            })};
+        });
+        var sole=[];
+        model.updateMatrixWorld(true);
+        model.traverse(function(mesh){if(!mesh.isSkinnedMesh)return;var pos=mesh.geometry.attributes.position,min=Infinity;
+            for(var i=0;i<pos.count;i++)min=Math.min(min,pos.getY(i));
+            for(var j=0;j<pos.count;j++)if(pos.getY(j)<min+.025)sole.push({mesh:mesh,index:j});
+        });
+        return {model:model,bones:bones,objects:objects,transforms:transforms,meshes:meshes,pack:pack,clips:clips,sole:sole,vector:new T.Vector3(),quaternion:new T.Quaternion()};
+    }
+    function smooth(x){x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);}
+    function apply(rig,state,time,presentation,entity) {
+        var T=root.StorymakerVendor.THREE, poses=rig.pack.poses, a=poses[state.pose.a]||poses.stand,b=poses[state.pose.b]||poses.stand,u=state.pose.u;
+        rig.transforms.forEach(function(v,name){var o=rig.objects.get(name);o.position.fromArray(v.p);o.quaternion.fromArray(v.q);});
+        rig.bones.forEach(function(bone,name){
+            var va=a[name]||rig.pack.rest[name],vb=b[name]||va;
+            if(!va||!vb)throw new Error('Missing model pose joint');
+            bone.position.fromArray(va.p).lerp(rig.vector.fromArray(vb.p),u);
+            bone.quaternion.fromArray(va.q).slerp(rig.quaternion.fromArray(vb.q),u);
+            bone.scale.fromArray(rig.pack.rest[name].s);
+        });
+        var walking=state.walkTime!==null&&state.walkTime!==undefined;
+        if(walking){var clip=rig.clips['walk-happy'],at=((state.walkTime%clip.duration)+clip.duration)%clip.duration;
+            var walk=entity&&entity.walks&&entity.walks.active(time),blend=walk?smooth((time-walk.t0)/.18)*smooth((walk.t1-time)/.18):1;
+            clip.tracks.forEach(function(track){var object=rig.objects.get(track.name);if(!object)return;var v=track.sample.evaluate(at);
+                if(track.property==='quaternion')object.quaternion.slerp(rig.quaternion.fromArray(v),blend);else object.position.lerp(rig.vector.fromArray(v),blend);
+            });
+        }
+        if(state.gesture){
+            var names={point:'point-right',wave:'wave',shrug:'shrug',think:'think',present:'present','thumbs-up':'thumbs-up',celebrate:'celebrate',facepalm:'facepalm',count:'count'};
+            var target=poses[names[state.gesture.name]],f=state.gesture.frac,w=smooth(f/.18)*smooth((1-f)/.22);
+            if(target)rig.bones.forEach(function(bone,name){if(/arm|hand|shoulder|thumb|f_/.test(name)){bone.quaternion.slerp(rig.quaternion.fromArray(target[name].q),w);}});
+            if(state.gesture.name==='wave'){var hand=rig.bones.get('DEF-handL');if(hand)hand.quaternion.multiply(rig.quaternion.setFromAxisAngle(rig.vector.set(0,1,0),Math.sin(f*Math.PI*8)*.22*w));}
+        }
+        var chest=rig.bones.get('DEF-spine003');
+        if(chest)chest.quaternion.multiply(rig.quaternion.setFromAxisAngle(rig.vector.set(1,0,0),Math.sin((time+(state.phase||0))*Math.PI*.7)*.006));
+        var speech=entity&&entity.speech&&entity.speech.active(time),weights={},mouth=presentation.mouth||state.mouth;
+        if(speech){
+            var block=speech.data.block,track=block.mouths||SM.lipsync.track(block),span=block.duration_ms/1000;
+            var x=(time-speech.t0)/span*track.length-.5,index=Math.floor(x),fraction=smooth(x-index);
+            [index,index+1].forEach(function(k,i){var name=track[k];if(name&&name!=='rest')weights[name]=(weights[name]||0)+(i?fraction:1-fraction);});
+        }else if(mouth&&mouth!=='rest')weights[mouth]=1;
+        var expression=state.expression;
+        if(expression&&expression!=='neutral')weights[expression]=mouth&&mouth!=='rest'?.35:1;
+        var blink=(time+(state.phase||0)*3)%3.6;
+        weights.blink=blink<.16?Math.sin(blink/.16*Math.PI):0;
+        rig.meshes.forEach(function(mesh){mesh.morphTargetInfluences.fill(0);Object.keys(weights).forEach(function(name){var index=mesh.morphTargetDictionary[name];if(index!==undefined)mesh.morphTargetInfluences[index]=weights[name];});});
+        rig.model.updateMatrixWorld(true);
+        var floor=Infinity;
+        rig.sole.forEach(function(point){var mesh=point.mesh;rig.vector.fromBufferAttribute(mesh.geometry.attributes.position,point.index);mesh.applyBoneTransform(point.index,rig.vector).applyMatrix4(mesh.matrixWorld);floor=Math.min(floor,rig.vector.y);});
+        return Number.isFinite(floor)?floor:0;
+    }
+    SM.modelRig={create:create,apply:apply};
+})(typeof globalThis!=='undefined'?globalThis:self);
+
+;
+/* ui/js/storymaker/model-render.js */
+// A shared Three.js drawing surface feeds persistent Pixi character layers in preview, thumbnails and export.
+(function(root){
+    'use strict';
+    var SM=root.StorymakerCore||(root.StorymakerCore={});
+    function Renderer(owner){
+        var T=root.StorymakerVendor.THREE;this.owner=owner;this.canvas=owner.env.makeCanvas(768,768);
+        this.renderer=new T.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:true,preserveDrawingBuffer:true,powerPreference:'low-power'});
+        this.renderer.setSize(768,768,false);this.renderer.setClearColor(0,0);this.renderer.outputColorSpace=T.SRGBColorSpace;
+        this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.1;
+        this.scene=new T.Scene();this.camera=new T.OrthographicCamera(-1.1,1.1,2.1,-.1,.1,20);this.camera.position.set(0,0,5);
+        this.scene.add(new T.HemisphereLight(0xffffff,0x7b8395,2.6));
+        var key=new T.DirectionalLight(0xfff3e8,3);key.position.set(-2,3,4);this.scene.add(key);
+        var rim=new T.DirectionalLight(0xdbe6ff,1.6);rim.position.set(2,3,-2);this.scene.add(rim);
+        this.instances=new Map();
+    }
+    Renderer.prototype.instance=function(key,descriptor){
+        var existing=this.instances.get(key);if(existing&&existing.path===descriptor.model)return existing;
+        if(existing)this.drop(key);
+        var V=root.StorymakerVendor,T=V.THREE,model=V.cloneSkeleton(this.owner.modelAssets[descriptor.model]);
+        var rig=SM.modelRig.create(model,this.owner.files[descriptor.motions]),group=new T.Group();group.add(model);this.scene.add(group);
+        var canvas=this.owner.env.makeCanvas(768,768),texture=new V.Texture({source:new V.CanvasSource({resource:canvas,autoGarbageCollect:false})});
+        var result={path:descriptor.model,group:group,model:model,rig:rig,canvas:canvas,ctx:canvas.getContext('2d'),texture:texture,sprite:new V.Sprite(texture)};
+        this.instances.set(key,result);return result;
+    };
+    Renderer.prototype.draw=function(key,descriptor,state,presentation,time,entity){
+        var instance=this.instance(key,descriptor);
+        this.instances.forEach(function(v){v.group.visible=v===instance;});
+        instance.group.position.set(0,0,0);instance.group.rotation.set(0,0,0);instance.group.scale.setScalar(2/1.75);
+        this.scene.updateMatrixWorld(true);
+        var floor=SM.modelRig.apply(instance.rig,state,time,presentation,entity);instance.group.position.y=-floor;
+        instance.group.rotation.y=(presentation.view==='front'?0:presentation.view==='profile'?Math.PI/2:.5)*(state.facing<0?-1:1);
+        this.renderer.render(this.scene,this.camera);
+        instance.ctx.clearRect(0,0,768,768);instance.ctx.drawImage(this.canvas,0,0);instance.texture.source.update();
+        return instance;
+    };
+    Renderer.prototype.drop=function(key){
+        var v=this.instances.get(key);if(!v)return;
+        v.model.traverse(function(o){if(o.skeleton)o.skeleton.dispose();});this.scene.remove(v.group);
+        v.sprite.destroy();v.texture.destroy(true);v.canvas.width=v.canvas.height=1;this.instances.delete(key);
+    };
+    Renderer.prototype.prune=function(active){var self=this;this.instances.forEach(function(v,key){if(!active.has(key.split(':')[0]))self.drop(key);});};
+    Renderer.prototype.dropModel=function(path){var self=this;this.instances.forEach(function(v,key){if(v.path===path)self.drop(key);});};
+    Renderer.prototype.dispose=function(){var self=this;Array.from(this.instances.keys()).forEach(function(k){self.drop(k);});this.renderer.dispose();this.renderer.forceContextLoss();this.canvas.width=this.canvas.height=1;};
+    SM.modelRender={Renderer:Renderer};
+})(typeof globalThis!=='undefined'?globalThis:self);
 
 ;
 /* ui/js/storymaker/ease.js */
@@ -1627,6 +1860,7 @@
             var e = entries[i];
             if (!e || !e.id) continue;
             idx.byId[e.id] = e;
+            (e.aliases || []).forEach(function (alias) { if (/^char\.[a-z0-9-]+$/.test(alias)) idx.byId[alias] = e; });
             var bare = e.name && e.name !== e.id ? e.name : String(e.id).replace(/^[a-z]+\./, '');
             if (e.kind === 'pose') idx.poses[bare] = e;
             else if (e.kind === 'gesture') idx.gestures[bare] = e;
@@ -3998,104 +4232,6 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
-/* ui/js/storymaker/raster-rig.js */
-// Sprite attachment pivots and deterministic two-bone foot placement; the compiler still owns the walk interval.
-(function (root) {
-    'use strict';
-    var SM = root.StorymakerCore || (root.StorymakerCore = {});
-    var RAD = Math.PI / 180;
-    function slotMatrix(world, slot) {
-        var R = SM.rig, m = slot.pivot ? R.mul(world, R.translate(slot.pivot[0], slot.pivot[1])) : world;
-        if (slot.upright) m = R.mul(m, R.rotate(-Math.atan2(m[1], m[0]) / RAD));
-        return slot.shear ? R.mul(m, [1, 0, slot.shear, 1, 0, 0]) : m;
-    }
-    function solve(rig, body, view, offsets, upper, lower, targetX, targetY, second) {
-        var R = SM.rig, worlds = R.boneMatrices(rig, view, body, offsets), origin = worlds[upper], joint = worlds[lower];
-        var first = Math.hypot(joint[4] - origin[4], joint[5] - origin[5]);
-        var dx = targetX - origin[4], dy = targetY - origin[5], distance = Math.hypot(dx, dy);
-        distance = Math.max(Math.abs(first - second) + 0.001, Math.min(first + second - 0.001, distance));
-        var heading = Math.atan2(-dx, dy), bend = Math.acos(Math.max(-1, Math.min(1, (distance * distance + first * first - second * second) / (2 * distance * first))));
-        var a = heading - bend, kneeX = origin[4] - Math.sin(a) * first, kneeY = origin[5] + Math.cos(a) * first;
-        var b = Math.atan2(-(targetX - kneeX), targetY - kneeY), angles = R.boneAngles(rig, view, body, offsets);
-        var parent = worlds[R.index(rig).byName[upper].parent], parentAngle = parent ? Math.atan2(parent[1], parent[0]) / RAD : 0;
-        offsets[upper] = a / RAD - parentAngle - (angles[upper] - (offsets[upper] || 0));
-        offsets[lower] = (b - a) / RAD - (angles[lower] - (offsets[lower] || 0));
-    }
-    function placeFeet(pose, state, entity, time, rc, stage) {
-        var R = SM.rig, rig = rc.assets.rig, body = R.bodyOf(rig, state.params.body);
-        var worlds = R.boneMatrices(rig, pose.view, body, pose.offsets);
-        var upper = Math.hypot(worlds.lower_leg_r[4] - worlds.upper_leg_r[4], worlds.lower_leg_r[5] - worlds.upper_leg_r[5]);
-        var seated = function (name) { return name === 'sit' || name === 'typing'; };
-        var seatWeight = (seated(state.pose.a) ? 1 - state.pose.u : 0) + (seated(state.pose.b) ? state.pose.u : 0);
-        pose.offsetY -= seatWeight * ((rig.seat_drop || 215) - upper);
-        var idle = rc.cat.cycles.idle;
-        var idleY = idle ? R.sampleKeys(idle.keys, R.cyclePhase(idle, time + state.phase)).offset_y || 0 : 0;
-        if (state.walkTime === null || state.walkTime === undefined || !entity) { pose.offsetY -= idleY; return; }
-        var interval = entity.walks.active(time), cycle = rc.cat.cycles.walk;
-        if (!interval || !cycle) return;
-        var x0 = entity.x.at(interval.t0), y0 = entity.y.at(interval.t0), x1 = entity.x.at(interval.t1), y1 = entity.y.at(interval.t1);
-        var total = Math.hypot(x1 - x0, y1 - y0);
-        if (total < 0.001) return;
-        var scale = R.scaleFor(rig, SM.stage.DESIGN_H, stage.depthScale(state.y, state.depth), state.scale, body);
-        var startScale = R.scaleFor(rig, SM.stage.DESIGN_H, stage.depthScale(y0, state.depth), entity.scale.at(interval.t0) * (entity.baseScale || 1), body);
-        if (!(scale > 0.000001) || !(startScale > 0.000001)) return;
-        var lower = R.index(rig).byName.lower_leg_r.length || 205, stride = (upper + lower) * 0.7 * startScale;
-        var travelled = Math.hypot(state.x - x0, state.y - y0), turns = travelled / stride, phase = turns - Math.floor(turns);
-        var oldCycle = R.sampleKeys(cycle.keys, R.cyclePhase(cycle, state.walkTime)), gait = R.sampleKeys(cycle.keys, phase), subtract = {};
-        Object.keys(oldCycle.bones || {}).forEach(function (bone) { subtract[bone] = -oldCycle.bones[bone]; });
-        var standing = SM.render.rigState(Object.assign({}, state, { walkTime: null }), time, rc, rig);
-        standing.offsetY -= idleY + seatWeight * ((rig.seat_drop || 215) - upper);
-        var weight = Math.max(0, Math.min(1, (time - interval.t0) / 0.12, (interval.t1 - time) / 0.12));
-        weight = weight * weight * (3 - 2 * weight);
-        pose.offsets = R.lerpBones(standing.offsets, R.addBones(pose.offsets, subtract, gait.bones), weight);
-        pose.offsetY = standing.offsetY * (1 - weight) + (pose.offsetY - (oldCycle.offset_y || 0) + 24 + 6 * Math.cos(phase * Math.PI * 4)) * weight;
-        var facing = state.facing < 0 ? -1 : 1;
-        ['r', 'l'].forEach(function (side, index) {
-            var offset = index * 0.5, turn = turns + offset, localPhase = turn - Math.floor(turn), base = Math.floor(turn) - offset;
-            var anchor = (base + 0.275) * stride, lift = 0;
-            if (localPhase > 0.55) {
-                var swing = (localPhase - 0.55) / 0.45, smooth = swing * swing * (3 - 2 * swing);
-                anchor = travelled + (-0.275 + smooth * 0.55) * stride;
-                lift = Math.sin(swing * Math.PI) * 65;
-            }
-            var along = anchor - travelled;
-            var x = along * (x1 - x0) / total / scale * facing;
-            var y = along * (y1 - y0) / total / scale - 20 - pose.offsetY - lift;
-            var a = 'upper_leg_' + side, b = 'lower_leg_' + side, priorA = standing.offsets[a] || 0, priorB = standing.offsets[b] || 0;
-            solve(rig, body, pose.view, pose.offsets, a, b, x, y, lower);
-            pose.offsets[a] = priorA * (1 - weight) + pose.offsets[a] * weight;
-            pose.offsets[b] = priorB * (1 - weight) + pose.offsets[b] * weight;
-        });
-        pose.planted = true;
-    }
-    function gesturePose(pose, state, rc) {
-        var name = state.pose.u >= 0.5 ? state.pose.b : state.pose.a;
-        pose.handViews = { l: 'edge', r: name === 'wave' ? 'palm' : 'edge' };
-        if (!state.gesture) return;
-        var gesture = rc.cat.gestures[state.gesture.name], fraction = state.gesture.frac;
-        if (!gesture || !gesture.keys || !gesture.keys.length) return;
-        ['l', 'r'].forEach(function (side) {
-            var upper = 'upper_arm_' + side, lower = 'lower_arm_' + side;
-            var keys = gesture.keys.filter(function (key) { return key.bones && (key.bones[upper] || key.bones[lower]) || key.hands && key.hands[side]; });
-            if (!keys.length) return;
-            var start = gesture.keys[0].t, end = gesture.keys[gesture.keys.length - 1].t;
-            var first = keys[0].t, last = keys[keys.length - 1].t;
-            var enter = first > start ? Math.max(0, Math.min(1, (fraction - start) / (first - start))) : 1;
-            var exit = end > last ? Math.max(0, Math.min(1, (end - fraction) / (end - last))) : 1;
-            var weight = Math.min(enter * enter * (3 - 2 * enter), exit * exit * (3 - 2 * exit));
-            // Gesture arm keys describe a canonical target, not another full turn on top of a raised arm.
-            [upper, lower].forEach(function (bone) { pose.offsets[bone] = (pose.offsets[bone] || 0) - ((pose.basePoseBones || {})[bone] || 0) * weight; });
-            if (weight >= 0.5) pose.handViews[side] = /^(wave|shrug|celebrate|count)$/.test(state.gesture.name) ? 'palm' : 'edge';
-        });
-    }
-    function adjust(pose, state, entity, time, rc, stage) {
-        placeFeet(pose, state, entity, time, rc, stage);
-        gesturePose(pose, state, rc);
-    }
-    SM.rasterRig = { slotMatrix: slotMatrix, adjust: adjust };
-})(typeof globalThis !== 'undefined' ? globalThis : self);
-
-;
 /* ui/js/storymaker/raster.js */
 // Persistent Pixi scene graph for catalog v2; the existing compiler, text layout and frame clock remain authoritative.
 (function (root) {
@@ -4119,32 +4255,8 @@
         var entry = rc.cat.byId[state.character], descriptor = entry && owner.files[entry.file];
         if (!descriptor) throw new Error('Missing character artwork: ' + state.character);
         var rigState = SM.render.rigState(state, time, rc, rc.assets.rig);
-        SM.rasterRig.adjust(rigState, state, entity, time, rc, SM.render.stageFor(scene, rc));
-        var slots = descriptor.views && descriptor.views[rigState.view];
-        if (!slots) throw new Error('Missing character view: ' + rigState.view);
-        var seated = state.walkTime === null && state.pose && state.pose.u >= 0.999 && (state.pose.b === 'sit' || state.pose.b === 'typing') && descriptor.seated && descriptor.seated[rigState.view];
-        if (seated) slots = slots.filter(function (slot) { return !/leg|shoe/.test(slot.name); }).map(function (slot) { return slot.name === 'hips' ? seated : slot; });
-        if (seated || !rigState.planted && state.walkTime !== null && state.walkTime !== undefined) {
-            var worlds = RG().boneMatrices(rc.assets.rig,rigState.view,RG().bodyOf(rc.assets.rig,state.params.body),rigState.offsets), floor = -Infinity;
-            slots.filter(function (slot) { return seated ? slot === seated : slot.name === 'shoe_l' || slot.name === 'shoe_r'; }).forEach(function (slot) {
-                var m = SM.rasterRig.slotMatrix(worlds[slot.bone], slot), b = slot.box;
-                [b[0],b[0]+b[2]].forEach(function (x) { [b[1],b[1]+b[3]].forEach(function (y) { floor = Math.max(floor,m[1]*x+m[3]*y+m[5]); }); });
-            });
-            if (Number.isFinite(floor)) rigState.offsetY = -floor;
-        }
-        return { descriptor: descriptor, state: rigState, slots: slots };
-    }
-    function slotImage(slot, state) {
-        if (slot.variants) {
-            var pick = slot.kind === 'head' ? (state.blink ? 'blink' : state.mouth && state.mouth !== 'rest' ? 'mouth.'+state.mouth : state.expression || 'neutral')
-                : slot.kind === 'mouth' ? (state.mouth || state.expr.mouth || 'rest')
-                : slot.kind === 'eyes' ? (state.blink ? 'blink' : state.expr.eyes || 'neutral')
-                : slot.kind === 'brows' ? state.expr.brows || 'neutral'
-                : slot.kind === 'hand' ? state.hands[slot.side] || 'open' : 'default';
-            var variants = slot.kind === 'hand' && state.handViews && state.handViews[slot.side] === 'edge' && slot.edgeVariants || slot.variants;
-            return variants[pick] || variants.default || variants.rest || variants.neutral;
-        }
-        return slot.image;
+        if (descriptor.schema !== 'storymaker-character-3d/1') throw new Error('Unsupported character artwork');
+        return { descriptor: descriptor, state: rigState };
     }
     function required(owner, draws, rc) {
         var wanted = new Set();
@@ -4158,7 +4270,7 @@
                 if (!(state.alpha > 0)) return;
                 if (state.type === 'actor') {
                     var actor = character(owner,state,draw.t,rc,entity,sc);
-                    actor.slots.forEach(function (slot) { var image=slotImage(slot,actor.state); if(image)wanted.add(image.file); });
+                    wanted.add(actor.descriptor.model);
                 }
                 if (state.type === 'prop') {
                     var entry = rc.cat.byId[state.item], prop = entry && owner.files[entry.file];
@@ -4170,11 +4282,13 @@
     }
     async function prepare(owner, draws, rc) {
         var generation = owner.graphicsGeneration;
-        var wanted = required(owner, draws, rc), meta = SM.textures.index(owner.catalog), budget = 0, assets = {};
+        var wanted = required(owner, draws, rc), meta = SM.textures.index(owner.catalog), budget = 0, assets = {}, models = [];
+        owner.modelAssets = owner.modelAssets || {};
         var active = new Set(draws.map(function (draw) { return draw.scene.id || rc.sceneId || 'code'; }));
         Object.keys(owner.renderers).forEach(function (k) { owner.renderers[k].prune(active); });
         wanted.forEach(function (p) {
             if (!meta[p]) throw new Error('Unlisted scene texture');
+            if (meta[p].type === 'model/gltf-binary') { models.push(p); return; }
             budget += meta[p].width * meta[p].height * 4;
             if (!owner.bitmaps[p]) assets['texture:' + p] = owner.textureData['texture:' + p];
         });
@@ -4185,9 +4299,16 @@
             owner.bitmaps[p].close(); delete owner.bitmaps[p];
         });
         await SM.textures.decode(owner.catalog, assets, owner.bitmaps, function () { return owner.graphicsGeneration === generation; });
+        Object.keys(owner.modelAssets).forEach(function (p) {
+            if (wanted.has(p)) return;
+            Object.values(owner.renderers).forEach(function (d) { if (d.models) d.models.dropModel(p); });
+            SM.models.dispose(owner.modelAssets[p]); delete owner.modelAssets[p];
+        });
+        var modelsChanged = models.some(function (p) { return !owner.modelAssets[p]; });
+        for (var p of models) if (!owner.modelAssets[p]) owner.modelAssets[p] = await SM.models.load(owner.catalog, p, owner.textureData['model:' + p], function () { return owner.graphicsGeneration === generation; });
         if (generation !== owner.graphicsGeneration) throw new Error('Project was disposed');
         var drawer = rc.assets.raster;
-        if (drawer && (!drawer.ready || Object.keys(assets).length)) {
+        if (drawer && (!drawer.ready || modelsChanged || Object.keys(assets).length)) {
             var sink = { setTransform: function () {}, drawImage: function () {} };
             draws.forEach(function (draw) {
                 if (draw.scene.kind === 'code') return;
@@ -4233,6 +4354,7 @@
     };
     Drawer.prototype.prune = function (active) {
         var self = this;
+        if (this.models) this.models.prune(active);
         this.nodes.forEach(function (node, key) { if (!active.has(key.split(':')[0])) { node.destroy(); self.nodes.delete(key); } });
     };
     Drawer.prototype.sprite = function (key, image, transform, box, alpha, z, clip) {
@@ -4265,6 +4387,7 @@
         var self = this, stage = SM.render.stageFor(sc, rc), cam = SM.camera.at(sc.camera, time);
         var win = stage.cameraWindow(cam), base = stage.baseWindow(), camera = stage.matrix(win), z = 0;
         this.used.clear(); this.root.sortableChildren = true;
+        if (this.models) this.models.instances.forEach(function (v) { v.sprite.visible = false; });
         this.renderer.background.color = rc.palette.bg;
         var environment = sc.env && this.owner.files[sc.env.file];
         var layers = environment && (environment.variants && environment.variants[sc.variant] || environment.layers) || [];
@@ -4291,13 +4414,16 @@
                 self.nodes.set(shadowKey,shadow); self.root.addChild(shadow);
             }
             self.used.add(shadowKey); shadow.visible = true; shadow.setFromMatrix(matrix(m)); shadow.alpha = s.alpha; shadow.zIndex = z++;
-            m = RG().mul(camera, RG().mul(RG().translate(s.x,s.y), RG().mul(RG().rotate(s.rot), [scale*(s.facing<0?-1:1),0,0,scale,0,0])));
-            m = RG().mul(m, RG().translate(0, actor.state.offsetY));
-            var worlds = RG().boneMatrices(rig, actor.state.view, body, actor.state.offsets);
-            actor.slots.forEach(function (slot, i) {
-                var image = slotImage(slot, actor.state);
-                if (image) self.sprite(sc.id+':'+s.id+':'+i, image, RG().mul(m, SM.rasterRig.slotMatrix(worlds[slot.bone], slot)), image.box || slot.box, s.alpha, z++, slot);
-            });
+            if (actor.descriptor.model) {
+                if (!self.models) self.models = new SM.modelRender.Renderer(self.owner);
+                var instance = self.models.draw(sc.id+':'+s.id, actor.descriptor, s, actor.state, time, s.entity), sprite = instance.sprite;
+                if (sprite.parent !== self.root) self.root.addChild(sprite);
+                m = RG().mul(camera, RG().mul(RG().translate(s.x,s.y), RG().mul(RG().rotate(s.rot), [scale,0,0,scale,0,0])));
+                sprite.setFromMatrix(matrix(RG().mul(m,[880/768,0,0,880/768,-440,-840])));
+                sprite.alpha = s.alpha; sprite.zIndex = z++; sprite.visible = true;
+                return;
+            }
+
         });
         layers.forEach(function (layer, i) { if (layer.foreground) background(layer, i); });
         states.filter(function (s) { return s.type === 'prop' && s.layer !== 'back' && s.alpha > 0; }).forEach(prop);
@@ -4321,6 +4447,7 @@
         ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1; ctx.drawImage(this.canvas,0,0);
     };
     Drawer.prototype.dispose = function () {
+        if (this.models) { this.models.dispose(); this.models = null; }
         this.root.destroy({ children: true });
         Array.from(this.textures.keys()).filter(function (k) { return k.endsWith(':source'); }).forEach(function (k) { this.dropTexture(k.slice(0,-7)); }, this);
         this.overlayTexture.destroy(true); this.renderer.destroy(); this.nodes.clear();
@@ -4330,7 +4457,7 @@
         var generation = owner.graphicsGeneration;
         var key = width + 'x' + height;
         var existing = owner.renderers[key];
-        if (existing && existing.renderer.gl && existing.renderer.gl.isContextLost()) { existing.dispose(); delete owner.renderers[key]; }
+        if (existing && (existing.renderer.gl && existing.renderer.gl.isContextLost() || existing.models && existing.models.renderer.getContext().isContextLost())) { existing.dispose(); delete owner.renderers[key]; }
         if (owner.renderers[key]) return owner.renderers[key];
         if (!V()) throw new Error('The local Storymaker renderer is unavailable');
         V().DOMAdapter.set(typeof root.document === 'undefined' ? V().WebWorkerAdapter : V().BrowserAdapter);
@@ -4753,7 +4880,7 @@
         var self = this, out = [];
         (this.needs || []).forEach(function (key) {
             if (key.indexOf('catalog:') === 0) { if (!self.files[key.slice(8)]) out.push(key); }
-            else if (key.indexOf('texture:') === 0) { if (!self.textureData[key]) out.push(key); }
+            else if (/^(texture|model):/.test(key)) { if (!self.textureData[key]) out.push(key); }
             else if (key.indexOf('font:') === 0) { if (!self.fontsLoaded[key.slice(5)]) out.push(key); }
         });
         return out;
@@ -4776,7 +4903,7 @@
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;
-                for (k in assets) if (k.indexOf('texture:') === 0) this.textureData[k] = assets[k];
+                for (k in assets) if (/^(texture|model):/.test(k)) this.textureData[k] = assets[k];
                 for (k in assets) if (k.indexOf('catalog:') === 0) this.files[k.slice(8)] = assets[k];
                 var fonts = msg.fonts || [], env = this.env, generation = this.graphicsGeneration;
                 for (var i = 0; i < fonts.length; i++) {
@@ -4859,6 +4986,8 @@
         Object.keys(this.renderers).forEach(function (k) { this.renderers[k].dispose(); }, this);
         this.renderers = {};
         SM.textures.dispose(this.bitmaps);
+        Object.values(this.modelAssets || {}).forEach(SM.models.dispose);
+        this.modelAssets = {};
         Object.keys(this.canvases).forEach(function (k) { this.canvases[k].canvas.width = this.canvases[k].canvas.height = 1; }, this);
         this.canvases = {};
         this.textureData = {};
@@ -4934,7 +5063,7 @@
             }
             case 'assets': {
                 var assets = msg.assets || {}, k;
-                for (k in assets) if (k.indexOf('texture:') === 0) this.textureData[k] = assets[k];
+                for (k in assets) if (/^(texture|model):/.test(k)) this.textureData[k] = assets[k];
                 for (k in assets) if (k.indexOf('catalog:') === 0) this.files[k.slice(8)] = assets[k];
                 var fonts = msg.fonts || [], env = this.env, generation = this.graphicsGeneration;
                 for (var i = 0; i < fonts.length; i++) {
@@ -4988,6 +5117,8 @@
                 Object.keys(this.renderers).forEach(function (k) { this.renderers[k].dispose(); }, this);
                 this.renderers = {};
                 SM.textures.dispose(this.bitmaps);
+                Object.values(this.modelAssets || {}).forEach(SM.models.dispose);
+                this.modelAssets = {};
                 Object.keys(this.canvases).forEach(function (k) { this.canvases[k].canvas.width = this.canvases[k].canvas.height = 1; }, this);
                 this.canvases = {};
                 return { payload: {} };

@@ -532,8 +532,7 @@
     function actorInScene(inst, entry) {
         const scene = currentScene(inst);
         if (!scene || !Array.isArray(scene.actors)) return false;
-        const member = (inst.story.cast || []).find(candidate => candidate && candidate.character === entry.id);
-        return !!member && scene.actors.some(actor => actor && actor.cast === member.id);
+        return (inst.story.cast || []).some(member => member && (member.character === entry.id || (entry.aliases || []).includes(member.character)) && scene.actors.some(actor => actor && actor.cast === member.id));
     }
 
     function addActor(inst, entry) {

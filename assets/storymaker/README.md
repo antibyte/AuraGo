@@ -1,30 +1,12 @@
-# Storymaker illustration library
+# Storymaker graphics library
 
-Twelve fixed characters, twelve day/night environments and eighty props, illustrated with ImageGen during development. Three-view bitmap attachments, facial/hand swaps and seated replacements share the existing thirteen-bone skeleton and animation names. The delivered catalog is `storymaker-catalog/2`; projects remain `storymaker/1`.
+Three articulated 3D Desktop pets (Hoodie, Professor and Punk), twelve day/night environments and eighty illustrated props. Separate Storymaker derivatives add facial morphs and missing explainer poses. Existing stories and the twelve retired character IDs remain supported through aliases; human bitmap sprites are no longer delivered.
 
-`AGENTS.md` owns production; [ASSET-CONTRACT.md](ASSET-CONTRACT.md) defines the exact schema, atlas conventions, budgets, rights and review workflow. `production.json` records all 123 generated originals with prompts, references, dimensions, byte sizes and hashes. Ordinary builds use retained sources offline.
+[AGENTS.md](AGENTS.md) owns production; [ASSET-CONTRACT.md](ASSET-CONTRACT.md) specifies schemas, bounds, rights and review. Original Desktop pets remain unchanged. models/ holds derived GLBs, motion packs and provenance; masters/ retains ImageGen environments/props and real player previews.
 
-## Build and review
+Build models with node scripts/build-storymaker-models.mjs, then the catalog with node scripts/build-storymaker-catalog.mjs and the runtime with npm run build:ui. Both asset builders support --check. Render library previews with node scripts/test-storymaker-raster-browser.mjs --previews --canvas and rebuild the catalog. Builds are offline and deterministic.
 
-`node scripts/build-storymaker-catalog.mjs` writes the catalog and sixteen locale tables; `--check` verifies deterministic output without writing. `--review <dir>` renders real PNG previews with local Chrome. After changing rig artwork, run `node scripts/test-storymaker-raster-browser.mjs --previews --canvas` and rebuild the catalog. Commit masters, metadata and generated output together.
-
-`node scripts/build-storymaker-vendor.mjs [--check]` bundles the exact PixiJS 8.22.0 and GSAP 3.15.1 lock versions with all included notices. Preview, code scenes and export share the renderer. The renderer prefers WebGL and falls back to Pixi Canvas; GSAP is advanced only by explicit frame-time sampling.
-
-## Source layout
-
-| Path | Responsibility |
-| --- | --- |
-| `masters/`, `production.json` | Unmodified ImageGen originals, references, prompts and rendered previews |
-| `lib/raster-catalog.mjs`, `raster-validate.mjs` | Catalog v2 assembly, calibrated regions, bounds and integrity |
-| `lib/png.mjs` | Deterministic CRC-checked PNG decoding, slicing, packing and encoding |
-| `lib/raster-names.mjs`, `names.mjs` | All sixteen translated catalog tables |
-| `lib/dims.mjs`, `rig.mjs`, `motion.mjs`, `stage.mjs` | Compatible skeleton, five body types, motion and stage definitions |
-| `lib/glyphs.mjs`, `sfx.mjs`, `sfx/` | Shared font coverage and retained audio takes |
-| Remaining vector generators and `test/` | Legacy v1 fixtures and geometry/motion compatibility tests |
-
-Delivery below `ui/img/storymaker` contains JSON descriptors, transparent PNG atlases, day/night backgrounds, actual rendered PNG thumbnails and the unchanged WAV takes. Every file except `catalog.json` is listed with exact size, SHA-256 and image dimensions. Budget: 256 MiB, 2000 files, 8 MiB per file; atlases at most 2048², backgrounds at most 3840 × 2160, thumbnails at most 256². Fonts remain in the shared UI font inventory with their existing OFL notices.
-
-The original illustration masters were generated for AuraGo, without downloaded/traced third-party artwork or branded characters. Their generated status and source record must remain available. Shared font and sound rights remain separate; see below and `licences/THIRD_PARTY_LIBRARIES.md`.
+Local PixiJS 8.22.0 composes the scene, Three.js 0.186.1 draws skinned characters, and paused GSAP 3.15.1 timelines sample compiler time. Characters require WebGL2; software rendering supports headless export. See the asset contract for the test matrix. Source-pet notices are copied with each derived model; geometry and motion rights remain separate.
 
 ## Sound effects
 
@@ -90,7 +72,7 @@ Nobody has listened to this set. `error` reads synthetic (p_real 0.01) and `succ
 
 ## Verification
 
-- `npm run test:storymaker`: compiler, timing, sandbox, text, speech and v1 compatibility; real GSAP seek/disposal, bitmap trust and planted gait checks.
+- `npm run test:storymaker`: compiler, timing, sandbox, text, speech and v1 compatibility; real GSAP seek/disposal, image/model trust, rigid skulls and deterministic pose checks.
 - `node --test assets/storymaker/test/*.test.mjs`: retained skeleton/motion and v1-generator checks.
 - `go test ./ui -run TestStorymakerCatalog -count=1`: delivered v2 inventory, regions, names, bounds and hashes.
 - `node scripts/test-storymaker-raster-browser.mjs --canvas` and `--webgl --loss`: native three-format/code-scene, seek/reload and context-recovery acceptance.

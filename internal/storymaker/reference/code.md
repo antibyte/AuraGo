@@ -1,6 +1,6 @@
 # Restricted code-scene reference
 
-Use this for custom diagrams and effects that need programmed drawing. Keep ordinary dialogue and speaking actors in storyboard scenes. The API is the same isolated renderer used by the editor; it grants no filesystem, network, DOM, PixiJS or GSAP access.
+Use this for custom diagrams and effects that need programmed drawing. Keep ordinary dialogue and speaking actors in storyboard scenes. The API is the same isolated renderer used by the editor; it grants no filesystem, network, DOM, PixiJS, GSAP or Three.js access. Character handles use the same 3D rigs as the storyboard; select char.hoodie, char.professor or char.punk from the catalog.
 
 ## Save workflow
 

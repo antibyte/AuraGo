@@ -1,6 +1,6 @@
 export default function scene(api) {
     api.duration(8);
-    const actor = api.add('char.office-woman-1', { at: 'left', pose: 'present' });
+    const actor = api.add('char.punk', { at: 'left', pose: 'present' });
     const lock = api.add('prop.lock', { at: { x: 75, y: 38 }, scale: 1.2 });
     api.text('Geschützt verbunden', 'label', { at: { x: 50, y: 18 } });
     lock.fadeIn({ start: 0.6, dur: 0.5, ease: 'ease-out' });

@@ -30,7 +30,7 @@ func TestStorymakerCatalogLocalizedSearchFindsNewArtwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for query, id := range map[string]string{"Lehrerin": "char.teacher-1", "Ärztin": "char.doctor-1", "Klassenzimmer": "env.classroom", "Wasserflasche": "prop.water-bottle", "車": "prop.car"} {
+	for query, id := range map[string]string{"Professor": "char.professor", "Punk": "char.punk", "Klassenzimmer": "env.classroom", "Wasserflasche": "prop.water-bottle", "車": "prop.car"} {
 		found := false
 		for _, entry := range cat.Search(query, "", 12) {
 			if entry.ID == id {
@@ -118,74 +118,38 @@ func smCheckRasterRig(t *testing.T) {
 		case "character":
 			count++
 			id := smStr(entry, "id")
-			var d struct {
-				Schema string
-				Views  map[string][]smRasterSlot
-				Seated map[string]smRasterSlot
-			}
+			var d struct{ Schema, Model, Motions string }
 			smReadJSON(t, smStr(entry, "file"), &d)
-			if d.Schema != "storymaker-character/1" || len(d.Views) != 3 || rig.Bodies[smStr(smObj(entry, "params"), "body")] == nil {
-				t.Fatalf("invalid character %s", id)
+			if d.Schema != "storymaker-character-3d/1" || files[d.Model].Type != "model/gltf-binary" || files[d.Motions].Type != "application/json" {
+				t.Fatalf("invalid model character %s", id)
 			}
 			resources := map[string]bool{}
-			for _, r := range entry["resources"].([]any) {
-				resources[r.(string)] = true
-				f := files[r.(string)]
-				if f.Width > 2048 || f.Height > 2048 {
-					t.Errorf("atlas exceeds 2048: %s", f.Path)
-				}
+			for _, resource := range entry["resources"].([]any) {
+				resources[resource.(string)] = true
 			}
-			for _, view := range storymakerViews {
-				slots := d.Views[view]
-				if len(slots) != 15 {
-					t.Fatalf("%s/%s has %d parts", id, view, len(slots))
-				}
-				seen := map[string]bool{}
-				for _, slot := range append(append([]smRasterSlot{}, slots...), d.Seated[view]) {
-					if seen[slot.Name] || !bones[slot.Bone] || len(slot.Box) != 4 {
-						t.Fatalf("invalid attachment %s/%s/%s", id, view, slot.Name)
-					}
-					seen[slot.Name] = true
-					for _, n := range slot.Box {
-						if math.IsNaN(n) || math.IsInf(n, 0) || math.Abs(n) > 4096 {
-							t.Errorf("invalid attachment coordinates %s", id)
-						}
-					}
-					if slot.Box[2] <= 0 || slot.Box[3] <= 0 {
-						t.Errorf("empty attachment %s", id)
-					}
-					smRasterRegion(t, files, slot.Image)
-					if !resources[slot.Image.File] {
-						t.Errorf("undeclared texture dependency %s", slot.Image.File)
-					}
-					for _, image := range slot.Variants {
-						smRasterRegion(t, files, image)
-						if !resources[image.File] {
-							t.Errorf("undeclared swap dependency %s", image.File)
-						}
-					}
-					if slot.Kind == "head" {
-						for _, state := range append([]string{"blink", "default"}, append([]string{"neutral", "happy", "laugh", "sad", "angry", "surprised", "confused", "thinking", "worried", "determined"}, []string{"mouth.rest", "mouth.ai", "mouth.e", "mouth.o", "mouth.u", "mouth.mbp", "mouth.fv"}...)...) {
-							if slot.Variants[state].File == "" {
-								t.Errorf("%s/%s lacks %s", id, view, state)
-							}
-						}
-					}
-					if slot.Kind == "hand" {
-						for _, state := range []string{"open", "fist", "point", "hold"} {
-							if slot.Variants[state].File == "" {
-								t.Errorf("%s/%s lacks hand %s", id, view, state)
-							}
-						}
-					}
+			if !resources[d.Model] || !resources[d.Motions] {
+				t.Errorf("missing model dependencies: %s", id)
+			}
+			var motions struct {
+				Schema string
+				Poses  map[string]any
+				Clips  []any
+			}
+			smReadJSON(t, d.Motions, &motions)
+			if motions.Schema != "storymaker-model-motions/1" || len(motions.Poses) != 15 || len(motions.Clips) < 2 {
+				t.Errorf("incomplete model motion pack: %s", id)
+			}
+			for _, pose := range storymakerRequired["pose"] {
+				if motions.Poses[strings.TrimPrefix(pose, "pose.")] == nil {
+					t.Errorf("missing model pose: %s/%s", id, pose)
 				}
 			}
 		case "pose":
 			smCheckBones(t, smStr(entry, "id"), smObj(entry, "bones"))
 		}
 	}
-	if count != 12 {
-		t.Errorf("got %d fixed characters, want 12", count)
+	if count != 3 {
+		t.Errorf("got %d fixed characters, want 3", count)
 	}
 }
 func smCheckRasterPropsAndEnvironments(t *testing.T) {
@@ -306,6 +270,14 @@ func smCheckRasterInventory(t *testing.T) {
 		case "application/json":
 			if !json.Valid(data) {
 				t.Errorf("invalid JSON %s", file)
+			}
+		case "model/gltf-binary":
+			if len(data) < 28 || string(data[:4]) != "glTF" {
+				t.Errorf("invalid model %s", file)
+			}
+		case "text/plain":
+			if meta.Width != 0 || meta.Height != 0 {
+				t.Errorf("text has image dimensions: %s", file)
 			}
 		case "audio/wav":
 			if len(data) < 12 || string(data[:4]) != "RIFF" || string(data[8:12]) != "WAVE" {

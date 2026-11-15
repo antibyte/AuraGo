@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { buildOutputs, versionOf } from './catalog.mjs';
 import { decodePNG, encodePNG, cropPNG, cellBounds, cellRect, cellSubjectBounds, thumbnailPNG } from './png.mjs';
 import { NAMES } from './names.mjs';
-import { calibrateAttachments, fitHand, fitFaces, closeNeck, fitArmRig, RASTER_BODIES } from './raster-attachments.mjs';
+import { MODEL_CHARACTERS } from './model-characters.mjs';
 
 const root=path.resolve(import.meta.dirname,'../../..');
 export const PROP_PACKS={
@@ -18,22 +18,8 @@ export const PROP_PACKS={
     nature:['sun','moon','tree','leaf','flower','water-drop','wind-turbine','solar-panel','battery','earth'],
     symbols:['check','cross','warning','idea','question','arrow-right','gear','chart-bar','chart-line','puzzle']
 };
-export const CHARACTER_IDS=['office-woman-1','office-man-1','it-tech-1','senior-man-1','teacher-1','student-1','doctor-1','nurse-1','craftswoman-1','scientist-1','senior-woman-1','schoolboy-1'];
+export const CHARACTER_IDS=MODEL_CHARACTERS.map(c=>c.id);
 export const ENVIRONMENT_IDS=['plain-stage','office','home-office','abstract-tech','server-room','classroom','laboratory','workshop','medical-office','living-room','city-street','park'];
-const VIEWS=['front','three_quarter','profile'];
-const BODY_TYPES={'office-woman-1':'average','office-man-1':'broad','it-tech-1':'slim','senior-man-1':'elder','teacher-1':'average','student-1':'slim','doctor-1':'average','nurse-1':'broad','craftswoman-1':'broad','scientist-1':'slim','senior-woman-1':'elder','schoolboy-1':'child'};
-const FACE_STATES=['neutral','happy','laugh','sad','angry','surprised','confused','thinking','worried','determined','mouth.ai','mouth.e','mouth.o','mouth.u','mouth.mbp','mouth.fv','blink','mouth.rest'];
-const PARTS=[
-    ['head','head',[-84,-136,168,178]],['torso','torso',[-100,-290,200,305]],['hips','hips',[-90,-42,180,110]],
-    ['upper_arm_l','upper_arm_l',[-45,-25,90,190]],['lower_arm_l','lower_arm_l',[-34,-18,68,170]],
-    ['upper_arm_r','upper_arm_r',[-45,-25,90,190]],['lower_arm_r','lower_arm_r',[-34,-18,68,170]],
-    ['hand_l','lower_arm_l',[-33,120,66,104]],['hand_r','lower_arm_r',[-33,120,66,104]],
-    ['upper_leg_l','upper_leg_l',[-48,-20,96,250]],['lower_leg_l','lower_leg_l',[-42,-18,84,240]],
-    ['upper_leg_r','upper_leg_r',[-48,-20,96,250]],['lower_leg_r','lower_leg_r',[-42,-18,84,240]],
-    ['shoe_l','lower_leg_l',[-40,175,126,50]],['shoe_r','lower_leg_r',[-40,175,126,50]]
-];
-const LEGS=['upper_leg_l','lower_leg_l','shoe_l','upper_leg_r','lower_leg_r','shoe_r','hips','torso','head'];
-const ORDER={front:[...LEGS,'upper_arm_l','lower_arm_l','hand_l','upper_arm_r','lower_arm_r','hand_r'],angled:['upper_arm_l','lower_arm_l','hand_l',...LEGS,'upper_arm_r','lower_arm_r','hand_r']};
 export function buildRasterOutputs({prototype=false}={}){
     const legacy=buildOutputs(),files=new Map(), images=new Map(),entries=[];
     const put=(name,value)=>files.set(name,Buffer.isBuffer(value)?value:JSON.stringify(value)+'\n');
@@ -57,69 +43,16 @@ export function buildRasterOutputs({prototype=false}={}){
         return {...base,tags:[...new Set([...(base.tags||[]),...(NAMES[id]||[])])],...extra};
     }
     const rig={...legacy.rig,bodies:structuredClone(legacy.rig.bodies),variants:{},slots:[]};
-    fitArmRig(rig);
-    put('rig/human.json',rig);
-    for(const id of CHARACTER_IDS){
-        const available=VIEWS.every(view=>fs.existsSync(source(master(`characters/${id}-${view}.png`))));
-        if(!available){if(prototype)continue;throw new Error(`Character production incomplete: ${id}`);}
-        if(!prototype&&!fs.existsSync(source(`previews/char.${id}.png`)))throw new Error(`Missing rendered character preview: ${id}`);
-        const views={},resources=[],seated={};
-        const originalCharacter=original('char.'+id)||original('char.office-woman-1');
-        const body=RASTER_BODIES[BODY_TYPES[id]];
-        const facesPath=master(`characters/${id}-faces.png`),handsPath=master(`characters/${id}-hands.png`);
-        const faces=fs.existsSync(source(facesPath))?image(facesPath,`textures/characters/${id}-faces.png`):null;
-        const hands=fs.existsSync(source(handsPath))?image(handsPath,`textures/characters/${id}-hands.png`):null;
-        if(!prototype&&(!faces||!hands))throw new Error(`Facial/hand production incomplete: ${id}`);
-        if(faces)resources.push(`textures/characters/${id}-faces.png`);
-        if(hands)resources.push(`textures/characters/${id}-hands.png`);
-        const backPath=`characters/${id}-hands-back.png`,backFile=`textures/characters/${id}-hands-back.png`;
-        const back=fs.existsSync(source(backPath))?image(backPath,backFile):null;
-        if(back)resources.push(backFile);
-        const seatedPath=master(`characters/${id}-seated.png`),seatedFile=`textures/characters/${id}-seated.png`;
-        const bent=fs.existsSync(source(seatedPath))?image(seatedPath,seatedFile):null;
-        if(bent)resources.push(seatedFile);else if(!prototype)throw new Error(`Seated production incomplete: ${id}`);
-        let head;
-        for(const view of VIEWS){
-            const rel=master(`characters/${id}-${view}.png`),file=`textures/characters/${id}-${view}.png`;
-            const bitmap=image(rel,file);if(bitmap.width>2048||bitmap.height>2048)throw new Error('Character atlas exceeds 2048');resources.push(file);
-            const parts=PARTS.map(([name,bone,box],i)=>({name,bone,box:box.slice(),image:{file,rect:cellBounds(bitmap,i,4,4)}}));
-            parts.filter(p=>p.name.startsWith('shoe')).forEach(p=>{p.pivot=[0,205];p.upright=true;p.box[1]-=205;});
-            const torso=parts.find(p=>p.name==='torso');
-            torso.box=[-(body.shoulderX+20),-body.torsoLen-35,(body.shoulderX+20)*2,body.torsoLen+50];
-            parts.filter(p=>p.name.startsWith('upper_arm')).forEach(p=>{p.box[3]=body.upperArm+40;});
-            parts.filter(p=>p.name.startsWith('upper_leg')).forEach(p=>{p.box[3]=body.upperLeg+35;});
-            if(faces){
-                const slot=parts[0];slot.kind='head';slot.variants={};
-                // Exclude neighboring hair, then register the drawings to the neutral skull rather than the uneven grid.
-                FACE_STATES.forEach((state,i)=>{const index=VIEWS.indexOf(view)*18+i,frame=cellRect(faces,index,9,6),rect=cellSubjectBounds(faces,index,9,6),box=slot.box;
-                    slot.variants[state]={file:`textures/characters/${id}-faces.png`,rect,box:[box[0]+(rect[0]-frame[0])/frame[2]*box[2],box[1]+(rect[1]-frame[1])/frame[3]*box[3],rect[2]/frame[2]*box[2],rect[3]/frame[3]*box[3]]};});
-                fitFaces(slot.variants,faces);slot.variants.default=slot.variants.neutral;
-            }
-            if(hands)for(const side of ['l','r']){
-                const slot=parts.find(p=>p.name==='hand_'+side);slot.kind='hand';slot.side=side;slot.variants={};
-                ['open','fist','point','hold'].forEach((state,i)=>{slot.variants[state]={file:`textures/characters/${id}-hands.png`,rect:cellSubjectBounds(hands,VIEWS.indexOf(view)*8+(side==='l'?0:4)+i,4,6),box:[-33,120,66,state==='fist'||state==='hold'?72:104]};});
-            }
-            if(hands)calibrateAttachments(parts,bitmap,hands,body,view);
-            if(faces){
-                const rest=name=>({...rig.bones.find(b=>b.name===name).rest[view],...rig.bodies[BODY_TYPES[id]].bones?.[name]?.rest?.[view]});
-                const neck=rest('neck'),head=rest('head');
-                closeNeck(parts,bitmap,faces,[neck.x+head.x,neck.y+head.y],body);
-            }
-            views[view]=ORDER[view==='front'?'front':'angled'].map(name=>parts.find(p=>p.name===name));
-            if(bent){
-                const width=view==='front'?body.hipHW*2.8:body.upperLeg+145;
-                seated[view]={name:'seated_lower_body',bone:'hips',box:[view==='front'?-width/2:-90,-30,width,255],image:{file:seatedFile,rect:cellBounds(bent,VIEWS.indexOf(view),3,2)}};
-            }
-            if(view==='three_quarter')head={bitmap,rect:parts[0].image.rect};
-        }
-        if(hands)for(const view of VIEWS)for(const side of ['l','r']){
-            const slot=views[view].find(p=>p.name==='hand_'+side);
-            slot.edgeVariants={...views.profile.find(p=>p.name==='hand_'+side).variants};
-            if(back)slot.edgeVariants.open=fitHand({file:backFile,rect:cellSubjectBounds(back,VIEWS.indexOf(view)*8+(side==='l'?0:4),4,6)},back,body,'open');
-        }
-        const file=`characters/${id}.json`;put(file,{schema:'storymaker-character/1',views,seated});
-        const old=originalCharacter;
-        entries.push(entry('char.'+id,'character',{params:{...old.params,body:BODY_TYPES[id]},file,resources,thumb:thumb('char.'+id,head.bitmap,head.rect),usage_example:{character:'char.'+id}}));
+    put('rig/human.json',rig); // Retained motion vocabulary and v1 project compatibility.
+    for(const character of MODEL_CHARACTERS){
+        const {id,aliases,tags}=character,model='models/'+id+'.glb',motions='models/'+id+'-motions.json';
+        for(const file of [model,motions,'models/'+id+'-provenance.json'])put(file,fs.readFileSync(path.join(root,'assets/storymaker',file)));
+        for(const name of ['NOTICE.txt','LICENSE-CC0.txt','LICENSE-MIT.txt'])put('models/'+id+'-'+name,fs.readFileSync(path.join(root,'ui/3d/pets',id,name)));
+        const file='characters/'+id+'.json';
+        put(file,{schema:'storymaker-character-3d/1',model,motions});
+        const bitmap=decodePNG(fs.readFileSync(path.join(root,'ui/3d/pets',id,'thumbnail.png')));
+        entries.push(entry('char.'+id,'character',{params:{...original('char.office-man-1').params},file,resources:[model,motions],aliases:aliases.map(a=>'char.'+a),tags:[...tags,...NAMES['char.'+id]],
+            thumb:thumb('char.'+id,bitmap,[0,0,bitmap.width,bitmap.height]),usage_example:{character:'char.'+id}}));
     }
     for(const [pack,ids]of Object.entries(PROP_PACKS)){
         if(!fs.existsSync(source(`props/${pack}.png`))){if(prototype)continue;throw new Error(`Missing prop sheet: ${pack}`);}
@@ -161,14 +94,8 @@ export function buildRasterOutputs({prototype=false}={}){
         const e={...old};
         if(e.kind==='text_style'&&e.name==='title')e.box={fill:'$bg2',radius:0.012,pad:0.012};
         if(e.thumb){
-            if(e.kind==='expression'||e.kind==='mouth'){
-                const face=images.get('textures/characters/office-woman-1-faces.png');
-                if(face)e.thumb=thumb(e.id,face,cellSubjectBounds(face,18+FACE_STATES.indexOf(e.kind==='mouth'?'mouth.'+e.name:e.name),9,6));
-                else e.thumb=thumb(e.id,reference,cellBounds(reference,0,4,4));
-            }else{
-                if(!prototype&&!fs.existsSync(source(`previews/${e.id}.png`)))throw new Error(`Missing rendered motion preview: ${e.id}`);
-                e.thumb=thumb(e.id,reference,cellBounds(reference,0,4,4));
-            }
+            const bitmap=decodePNG(fs.readFileSync(path.join(root,'ui/3d/pets/hoodie/thumbnail.png')));
+            e.thumb=thumb(e.id,bitmap,[0,0,bitmap.width,bitmap.height]);
         }
         entries.push(e);
         if(e.kind==='sfx')for(const take of e.takes)put(take.file,legacy.files.get(take.file));
@@ -176,7 +103,7 @@ export function buildRasterOutputs({prototype=false}={}){
     put('glyphs.json',Buffer.from(legacy.files.get('glyphs.json')));
     const manifest={...legacy.manifest,schema:'storymaker-catalog/2',entries,files:[]};
     for(const [file,value]of files){
-        const bytes=Buffer.isBuffer(value)?value:Buffer.from(value),ext=path.extname(file),type=ext==='.png'?'image/png':ext==='.wav'?'audio/wav':'application/json';
+        const bytes=Buffer.isBuffer(value)?value:Buffer.from(value),ext=path.extname(file),type=ext==='.png'?'image/png':ext==='.wav'?'audio/wav':ext==='.glb'?'model/gltf-binary':ext==='.txt'?'text/plain':'application/json';
         const meta={path:file,type,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')};
         if(ext==='.png'){meta.width=bytes.readUInt32BE(16);meta.height=bytes.readUInt32BE(20);}
         manifest.files.push(meta);

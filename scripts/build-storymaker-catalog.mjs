@@ -19,14 +19,14 @@ import { validateRasterOutputs as validateOutputs } from '../assets/storymaker/l
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'ui', 'img', 'storymaker');
 const langDir = path.join(root, 'ui', 'lang', 'storymaker_catalog');
-const SUBDIRS = ['rig', 'characters', 'textures', 'props', 'environments', 'sfx', 'thumbs'];
+const SUBDIRS = ['models', 'rig', 'characters', 'textures', 'props', 'environments', 'sfx', 'thumbs'];
 
 
 function expectedFiles() {
   const built = buildOutputs();
   const files = new Map();
   for (const [p, text] of built.files) files.set(path.join(outDir, ...p.split('/')), text);
-  const tables = localeTables();
+  const tables = localeTables(new Set([...built.manifest.entries, ...built.manifest.palettes].map(e => e.id)));
   for (const lang of LANGS) files.set(path.join(langDir, `${lang}.json`), JSON.stringify(tables[lang], null, 2) + '\n');
   return { files, built };
 }
@@ -56,7 +56,10 @@ function write() {
   }
   for (const [p, text] of files) {
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, text); // a string is written as UTF-8, a Buffer byte for byte
+    const bytes = Buffer.isBuffer(text) ? text : Buffer.from(text);
+    if (fs.existsSync(p) && fs.readFileSync(p).equals(bytes)) continue;
+    fs.writeFileSync(p + '.tmp', bytes);
+    fs.renameSync(p + '.tmp', p);
   }
   for (const p of listExisting()) if (!files.has(p)) fs.rmSync(p);
   let bytes = 0;

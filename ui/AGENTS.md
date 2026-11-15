@@ -1517,7 +1517,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - `../assets/desktop-pets/AGENTS.md` — Desktop 3D pet authoring, pinned animation sources, runtime model budgets and interaction verification.
 
-- `js/storymaker/AGENTS.md` and `../assets/storymaker/AGENTS.md` — Shared PixiJS/GSAP player, catalog v2 ImageGen masters, texture transport and deterministic bitmap production. Delivered payloads live in `img/storymaker/` and `js/vendor/storymaker/`.
+- `js/storymaker/AGENTS.md` and `../assets/storymaker/AGENTS.md` — Shared PixiJS/GSAP/Three.js player, catalog v2 pet derivatives/ImageGen environments and props, bounded model/texture transport and deterministic production. Delivered payloads live in `img/storymaker/` and `js/vendor/storymaker/`.
 
 - `fonts/qr/AGENTS.md` — Fixed local QR caption/fallback fonts, source revisions,
   integrity manifests and OFL notices; runtime schema/rendering belongs to

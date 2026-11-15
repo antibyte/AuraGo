@@ -1,3 +1,4 @@
+import { MODEL_NAMES } from '../lib/model-characters.mjs';
 // Task D7: catalog assembly, the build validator and the build script.
 // The schema checks on the committed files live in ui/storymaker_catalog_test.go (task D8).
 // Run: node --test assets/storymaker/test/catalog.test.mjs
@@ -75,7 +76,7 @@ test('the validator catches missing ids, bad path data, unknown tokens and a sta
 test('locale rows have 16 real translations for every entry and palette', () => {
   const { manifest } = buildOutputs();
   const ids = [...manifest.entries.map((e) => e.id), ...manifest.palettes.map((p) => p.id)];
-  assert.deepEqual(Object.keys(NAMES).filter(id => !Object.hasOwn(RASTER_NAMES, id)).sort(), ids.sort());
+  assert.deepEqual(Object.keys(NAMES).filter(id => !Object.hasOwn(RASTER_NAMES, id) && !Object.hasOwn(MODEL_NAMES, id)).sort(), ids.sort());
   for (const row of Object.values(NAMES)) assert.equal(row.length, LANGS.length);
 });
 
@@ -139,25 +140,12 @@ test('the raster build validator refuses changed resources and invalid joint cal
   changed[changed.length - 1] ^= 1;
   built.files.set('sfx/pop_1.wav', changed);
   assert.ok(validateRasterOutputs(built).some(p => p.includes('Incorrect inventory: sfx/pop_1.wav')));
-  const file='characters/office-woman-1.json',descriptor=JSON.parse(built.files.get(file));
-  for(const shear of ['bad',null,1,-1]){
-    descriptor.views.front[0].shear=shear;
-    built.files.set(file,JSON.stringify(descriptor));
-    assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad joint calibration: char.office-woman-1/')));
-  }
-  const arm=descriptor.views.front.find(s=>s.name==='upper_arm_r');
-  for(const cap of ['bad',null,0,100]){
-    arm.shoulderCap=cap;built.files.set(file,JSON.stringify(descriptor));
-    assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad shoulder cap: char.office-woman-1/')));
-  }
-  const torso=descriptor.views.front.find(s=>s.name==='torso');
-  for(const radius of ['bad',null,0,torso.box[2]]){
-    torso.torsoCap.radius=radius;built.files.set(file,JSON.stringify(descriptor));
-    assert.ok(validateRasterOutputs(built).some(p=>p.includes('Bad torso cap: char.office-woman-1/')));
-  }
-  delete descriptor.views.front.find(s=>s.kind==='hand').edgeVariants.open;
-  built.files.set(file,JSON.stringify(descriptor));
-  assert.ok(validateRasterOutputs(built).some(p=>p.includes('Missing hand orientations: char.office-woman-1/')));
+  const file='characters/hoodie.json',descriptor=JSON.parse(built.files.get(file));
+  descriptor.model='models/unknown.glb';built.files.set(file,JSON.stringify(descriptor));
+  assert.ok(validateRasterOutputs(built).some(p=>p.includes('Unlisted model: char.hoodie')));
+  built.entries[0].aliases.push('char.professor');
+  assert.ok(validateRasterOutputs(built).some(p=>p.includes('Duplicate entry: char.professor')));
+
 });
 
 test('node scripts/build-storymaker-catalog.mjs --check is green on the committed outputs', () => {

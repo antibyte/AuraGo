@@ -390,12 +390,12 @@
         if (id !== this.loadId) throw fail('cancelled', 'superseded');
         var fonts = Object.keys(fontsHave).filter(function (k) { return all[k]; }).map(function (k) { return fontsHave[k]; });
         var catalogAssets = {};
-        wanted.forEach(function (k) { if (k.indexOf('catalog:') === 0 || k.indexOf('texture:') === 0) catalogAssets[k] = have[k]; });
+        wanted.forEach(function (k) { if (k.indexOf('catalog:') === 0 || /^(texture|model):/.test(k)) catalogAssets[k] = have[k]; });
         var reply = await this.send({ type: 'assets', assets: catalogAssets, fonts: fonts }, env.limits.assetsDeadlineMs);
         if (reply.missing && reply.missing.length) throw fail('readiness', 'Missing assets: ' + reply.missing.join(', '));
         await Promise.all(Object.keys(sceneNeeds).map(function (cid) {
             var sceneAssets = {};
-            sceneNeeds[cid].forEach(function (k) { if (k.indexOf('catalog:') === 0 || k.indexOf('texture:') === 0) sceneAssets[k] = have[k]; });
+            sceneNeeds[cid].forEach(function (k) { if (k.indexOf('catalog:') === 0 || /^(texture|model):/.test(k)) sceneAssets[k] = have[k]; });
             var sceneFonts = sceneNeeds[cid].filter(function (k) { return k.indexOf('font:') === 0 && fontsHave[k]; }).map(function (k) { return fontsHave[k]; });
             self.sceneAssets[cid] = { type: 'assets', assets: sceneAssets, fonts: sceneFonts };
             var channel = self.sceneChannels[cid];
@@ -499,7 +499,7 @@
         maxBundles: 400, maxBundleChars: 262144, maxFrame: 100000000, thumbMin: 16, thumbMax: 1920, maxKey: 240, maxReq: 64
     };
     var TYPES = ['load', 'assets', 'seek', 'play', 'pause', 'thumb', 'reset'];
-    var KEY_RE = /^(catalog|font|bundle|texture):[^\s]{1,230}$/;
+    var KEY_RE = /^(catalog|font|bundle|texture|model):[^\s]{1,230}$/;
     var ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
     function isObject(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
@@ -586,7 +586,7 @@
                     if (!isObject(msg.assets) || Object.keys(msg.assets).length > CAPS.maxAssetKeys) return 'load.assets is invalid or too large';
                     for (k in msg.assets) if (!KEY_RE.test(k)) return 'load.assets has a bad key';
                     var textureBytes = 0;
-                    for (k in msg.assets) if (k.indexOf('texture:') === 0) {
+                    for (k in msg.assets) if (/^(texture|model):/.test(k)) {
                         if (!isBuffer(msg.assets[k]) || msg.assets[k].byteLength > 8 * 1048576) return 'load.assets has an invalid texture';
                         textureBytes += msg.assets[k].byteLength;
                     }
@@ -626,8 +626,8 @@
                 for (k in msg.assets) if (!KEY_RE.test(k)) return 'assets.assets has a bad key';
                 var imageTotal = 0;
                 for (k in msg.assets) {
-                    if (k.indexOf('texture:') === 0 && (!isBuffer(msg.assets[k]) || msg.assets[k].byteLength > 8 * 1048576)) return 'assets.assets has an invalid texture';
-                    if (k.indexOf('texture:') === 0) imageTotal += msg.assets[k].byteLength;
+                    if (/^(texture|model):/.test(k) && (!isBuffer(msg.assets[k]) || msg.assets[k].byteLength > 8 * 1048576)) return 'assets.assets has an invalid texture';
+                    if (/^(texture|model):/.test(k)) imageTotal += msg.assets[k].byteLength;
                     if (k.indexOf('font:') !== 0) continue;
                     if (!isBuffer(msg.assets[k])) return 'assets.assets has a bad font';
                     if (msg.assets[k].byteLength > fontLimit(k.slice(5).replace(/\/\d+$/, ''), heldFaces)) return 'assets.assets has an oversized font';
@@ -1083,9 +1083,9 @@
                         var res = await doFetch(assetsBase + rel, { cache: 'no-store' });
                         if (!res.ok) throw H.fail('readiness', 'Asset ' + rel + ' answered ' + res.status);
                         assets[key] = await res.json();
-                    } else if (key.indexOf('texture:') === 0) {
-                        var imagePath = key.slice(8);
-                        var image = (catalog.files || []).find(function (f) { return f.path === imagePath && ['image/png','image/webp','image/jpeg'].indexOf(f.type) >= 0; });
+                    } else if (/^(texture|model):/.test(key)) {
+                        var imagePath = key.slice(key.indexOf(':') + 1);
+                        var image = (catalog.files || []).find(function (f) { return f.path === imagePath && (key.indexOf('model:') === 0 ? f.type === 'model/gltf-binary' : ['image/png','image/webp','image/jpeg'].indexOf(f.type) >= 0); });
                         if (!image || !/^[A-Za-z0-9_./-]+$/.test(imagePath) || imagePath.split('/').some(function (s) { return !s || s === '.' || s === '..'; }) || image.bytes < 1 || image.bytes > 8 * 1048576) throw H.fail('readiness', 'Invalid texture dependency');
                         var imageResponse = await doFetch(assetsBase + imagePath, { cache: 'no-store' });
                         if (!imageResponse.ok) throw H.fail('readiness', 'Texture could not be fetched');

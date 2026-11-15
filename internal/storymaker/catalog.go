@@ -119,6 +119,7 @@ type Entry struct {
 	UsageExample json.RawMessage           `json:"usage_example"`
 	File         string                    `json:"file,omitempty"`
 	Params       map[string]string         `json:"params,omitempty"`
+	Aliases      []string                  `json:"aliases,omitempty"`
 	Spots        map[string]Spot           `json:"spots,omitempty"`
 	Floor        *Floor                    `json:"floor,omitempty"`
 	Variants     []string                  `json:"variants,omitempty"`
@@ -314,6 +315,21 @@ func LoadCatalog(fsys fs.FS, path string) (*Catalog, error) {
 		add(e)
 	}
 
+	for i, e := range c.entries {
+		if len(e.Aliases) > 16 || len(e.Aliases) > 0 && e.Kind != "character" {
+			bad("invalid aliases for %s", e.ID)
+			continue
+		}
+		for _, alias := range e.Aliases {
+			if !strings.HasPrefix(alias, "char.") || len(alias) <= 5 || len(alias) > 100 || strings.IndexFunc(strings.TrimPrefix(alias, "char."), func(r rune) bool { return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') }) >= 0 {
+				bad("invalid character alias %q", alias)
+				continue
+			}
+			if !duplicate(alias) {
+				c.byID[alias] = i
+			}
+		}
+	}
 	if m.Glyphs != nil {
 		c.loadGlyphs(fsys, path, m.Glyphs.File, bad)
 	}

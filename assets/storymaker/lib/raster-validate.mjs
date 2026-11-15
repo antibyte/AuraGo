@@ -33,25 +33,12 @@ export function validateRasterOutputs({files,manifest,entries,rig}){
   check(e.name_key===nameKey(e.id)&&NAMES[e.id]?.length===16&&NAMES[e.id].every(n=>typeof n==='string'&&n.length),`Missing names: ${e.id}`);
   for(const f of [e.file,e.thumb,...(e.resources||[]),...(e.takes||[]).map(t=>t.file)].filter(Boolean))check(delivery.has(f),`Unlisted dependency: ${e.id}/${f}`);
   if(e.kind==='character'){
-   const d=json(e.file);check(d.schema==='storymaker-character/1',`Bad character schema: ${e.id}`);
-   for(const view of ['front','three_quarter','profile']){
-    region(d.seated?.[view]?.image,e.id+'/seated/'+view);
-    const slots=d.views[view];check(slots?.length===15,`Missing body parts: ${e.id}/${view}`);
-    for(const slot of slots||[]){
-     check(bones.has(slot.bone)&&slot.box.length===4&&slot.box.every(Number.isFinite),`Bad attachment: ${e.id}/${slot.name}`);
-     if(slot.pivot)check(slot.pivot.length===2&&slot.pivot.every(Number.isFinite),`Bad pivot: ${e.id}/${slot.name}`);
-     if(slot.shear!==undefined)check(Number.isFinite(slot.shear)&&Math.abs(slot.shear)<1,`Bad joint calibration: ${e.id}/${slot.name}`);
-     if(slot.shoulderCap!==undefined)check(Number.isFinite(slot.shoulderCap)&&slot.shoulderCap>0&&slot.shoulderCap<100,`Bad shoulder cap: ${e.id}/${slot.name}`);
-     if(slot.torsoCap){const c=slot.torsoCap;check([c.y,c.radius,c.neck].every(Number.isFinite)&&c.y>=slot.box[1]&&c.y<slot.box[1]+slot.box[3]&&c.radius>0&&c.radius<slot.box[2]/2&&c.neck>0&&c.neck<slot.box[2]/2,`Bad torso cap: ${e.id}/${slot.name}`);}
-     region(slot.image,e.id+'/'+slot.name);
-     const count=slot.kind==='head'?19:slot.kind==='hand'?4:0;
-     if(count)check(Object.keys(slot.variants||{}).length===count,`Missing swaps: ${e.id}/${view}/${slot.name}`);
-     for(const image of Object.values(slot.variants||{}))region(image,e.id+'/'+slot.name);
-     if(slot.kind==='hand')check(Object.keys(slot.edgeVariants||{}).length===4,`Missing hand orientations: ${e.id}/${view}/${slot.name}`);
-     for(const image of Object.values(slot.edgeVariants||{}))region(image,e.id+'/'+slot.name+'/edge');
-    }
-   }
-   for(const resource of e.resources){const m=delivery.get(resource);check(m?.width<=2048&&m?.height<=2048,`Oversized character atlas: ${resource}`);}
+   const d=json(e.file);check(d.schema==='storymaker-character-3d/1',`Bad character schema: ${e.id}`);
+   check(delivery.get(d.model)?.type==='model/gltf-binary',`Unlisted model: ${e.id}`);
+   check(e.resources.includes(d.model)&&e.resources.includes(d.motions),`Missing model dependencies: ${e.id}`);
+   const motions=json(d.motions);check(motions.schema==='storymaker-model-motions/1',`Bad motion schema: ${e.id}`);
+   for(const pose of entries.filter(e=>e.kind==='pose'))check(!!motions.poses[pose.name],`Missing model pose: ${e.id}/${pose.name}`);
+   for(const alias of e.aliases||[]){check(/^char\.[a-z0-9-]+$/.test(alias)&&!ids.has(alias),`Invalid character alias: ${alias}`);ids.add(alias);}
   }
   if(e.kind==='prop')region(json(e.file).image,e.id);
   if(e.kind==='environment')for(const variant of ['day','night']){

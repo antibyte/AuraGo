@@ -5,6 +5,8 @@ import { t } from '../storymaker-test-context.mjs';
 
 t.check('embedded agent effects example runs with GSAP and seeks deterministically in every aspect', () => {
     const catalog = legacyCatalog(), files = legacyFiles();
+    // Keep the recording Canvas fixture while exercising the current public character ID.
+    catalog.entries.push({ ...catalog.entries.find(e => e.id === 'char.office-woman-1'), id: 'char.punk' });
     const source = read('internal/storymaker/reference/effects.js');
     for (const aspect of ['16:9', '9:16', '1:1']) {
         const boot = () => {

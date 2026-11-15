@@ -231,6 +231,7 @@
         (Array.isArray(catalog.entries) ? catalog.entries : []).forEach(entry => {
             if (!entry || typeof entry.id !== 'string' || typeof entry.kind !== 'string') return;
             index.byId[entry.id] = entry;
+            (entry.aliases || []).forEach(alias => { if (/^char\.[a-z0-9-]+$/.test(alias)) index.byId[alias] = entry; });
             (index.byKind[entry.kind] = index.byKind[entry.kind] || []).push(entry);
         });
         return index;
@@ -339,7 +340,8 @@
         const scene = scenesOf(story)[sceneIndex];
         if (!scene || scene.kind === 'code' || !entry) return { ok: false, reason: 'no_scene' };
         story.cast = Array.isArray(story.cast) ? story.cast : [];
-        let member = story.cast.find(candidate => candidate && candidate.character === entry.id);
+        const matches = story.cast.filter(candidate => candidate && (candidate.character === entry.id || (entry.aliases || []).includes(candidate.character)));
+        let member = matches.find(candidate => (scene.actors || []).some(actor => actor && actor.cast === candidate.id)) || matches[0];
         if (!member) {
             member = { id: castSlug(entry), name: String(displayName || entry.name || entry.id).slice(0, 80), character: entry.id };
             let n = 2;

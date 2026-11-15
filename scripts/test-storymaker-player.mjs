@@ -13,6 +13,8 @@ import { results, pending } from './storymaker-test-context.mjs';
 const dir = path.join(import.meta.dirname, 'storymaker-tests');
 for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.mjs')).sort()) {
     await import(pathToFileURL(path.join(dir, file)).href);
+    // Synchronous catalog work in the next module must not consume worker-test deadlines.
+    await Promise.all(pending);
 }
 await Promise.all(pending);
 console.log(results.join('\n'));

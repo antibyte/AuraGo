@@ -8,7 +8,7 @@
     'use strict';
 
     const S = window.StorymakerParts = window.StorymakerParts || {};
-    const KEY_RE = /^(catalog|font|bundle|texture):(\S{1,230})$/;
+    const KEY_RE = /^(catalog|font|bundle|texture|model):(\S{1,230})$/;
     const FONT_FILE_RE = /^\/fonts\/(qr\/)?[A-Za-z0-9_.-]+$/;
 
     function createAssets(api) {
@@ -105,8 +105,9 @@
                     if (m[1] === 'catalog') {
                         if (!paths.has(m[2])) { missing.push(key); return; }
                         assets[key] = await cached(key, () => api.catalogJSON(m[2]));
-                    } else if (m[1] === 'texture') {
-                        const file = (raw.files || []).find(file => file.path === m[2] && ['image/png','image/webp','image/jpeg'].includes(file.type));
+                    } else if (m[1] === 'texture' || m[1] === 'model') {
+                        const types = m[1] === 'model' ? ['model/gltf-binary'] : ['image/png','image/webp','image/jpeg'];
+                        const file = (raw.files || []).find(file => file.path === m[2] && types.includes(file.type));
                         if (!file || !paths.has(m[2])) { missing.push(key); return; }
                         assets[key] = await cached(key, () => api.textureBuffer(file));
                     } else if (m[1] === 'font') {

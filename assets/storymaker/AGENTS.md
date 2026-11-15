@@ -2,42 +2,38 @@
 
 ## Purpose
 
-ImageGen-authored illustration masters and the deterministic built-in Storymaker catalog. Runtime ownership belongs to `../../ui/js/storymaker/AGENTS.md`; catalog validation and export belong to `../../internal/storymaker/AGENTS.md`.
+Offline production of three articulated Desktop-pet characters, illustrated environments and props. Runtime: ../../ui/js/storymaker/AGENTS.md; validation/export: ../../internal/storymaker/AGENTS.md.
 
 ## Ownership
 
-- `masters/`: original generated images, retained without destructive edits.
-- `production.json`: prompts, source paths, references and production specifications.
-- `lib/`: catalog assembly, names, skeleton and motion data.
-- `test/`: catalog, geometry, animation and provenance checks.
-- Generated delivery files belong to `../../ui/img/storymaker/`.
-- `ASSET-CONTRACT.md` owns the concrete delivery schema, bounds, production sequence and rights records.
+- masters/ and production.json: retained ImageGen environments/props, prompts, references and rendered previews.
+- models/: derived GLBs, authored motions and provenance. Original Desktop pets stay under ui/3d/pets; their owner is ../desktop-pets/AGENTS.md.
+- lib/model-characters.mjs, model-face.mjs, model-motions.mjs: selected identities, old-ID aliases, facial landmarks/morphs and explainer poses.
+- lib/ and test/: deterministic catalog assembly, names, shared motion vocabulary and checks.
+- Delivery: ../../ui/img/storymaker/. ASSET-CONTRACT.md owns schemas, bounds and workflow.
 
 ## Local Contracts
 
-- Use the agreed illustrated, textured style with softly modeled depth. Characters are fixed identities, not freely interchangeable vector parts.
-- Keep all four existing character IDs, four environment IDs, 23 prop IDs and all pose, gesture, expression and mouth names compatible.
-- The target library is twelve characters, twelve environments and eighty props. Build-time image generation is a production step only; ordinary builds must use committed masters without network access.
-- Preserve alpha, calibrated pivots, view-specific draw order and joint overlap. Atlas packing must not invent artwork or silently substitute vector placeholders.
-- `lib/raster-attachments.mjs` owns measured segment placement and wrist sizing. Validate opaque joint coverage and inspect high-resolution pose frames; small contact-sheet thumbnails alone do not establish rig quality. Keep source pixels intact when correcting placement.
-- Shoulder caps must remain round when arms rise. Use palm/side/back hand drawings according to gesture intent, with a common wrist anchor; preserve existing ImageGen originals when adding replacements. Inspect base-pose plus gesture combinations as well as standalone poses.
-- Register facial drawings to the neutral crown and upper skull, excluding the moving jaw. Generated grid cells do not establish a shared head pivot. Review fast viseme changes and blinks in rendered speech clips.
-- Calibrate a common per-view head offset against opaque painted neck pixels across every facial swap and supported head tilt. A stable skull alone does not prove neck contact. V2 body overrides and attachment boxes must agree on shortened arm lengths and wrist positions; preserve hand aspect ratios.
-- Catalog v2 names every deliverable dependency, including image dimensions, byte size and SHA-256. Maximum atlas edge: 2048; background: 3840 x 2160; delivered catalog: 256 MiB.
-- Keep prompts and reference relationships with production sources; never claim a generated turnaround is a completed rig.
+- Deliver Hoodie, Professor and Punk, twelve day/night environments and eighty props. Human bitmap sprites are retired. Never reintroduce them as a fallback or modify source Desktop pets.
+- Preserve storymaker/1, all twelve old character IDs through aliases, and pose/gesture/expression/mouth names. Aliases resolve saved stories but never add library entries.
+- Mouth geometry follows the underlying face skin weights and deformed surface depth. Speech deforms the mouth/lower face; it never swaps heads or translates the skull. Review hands, proportions, sitting and walking in rendered motion at display size.
+- Model production is deterministic and offline. Keep source hashes, copied notices and generator hashes. Geometry and motion rights remain distinct. Builds never invoke providers.
+- Inventory every delivery dependency with exact size/hash and image dimensions. Total budget: 256 MiB; per-file limit: 8 MiB. Model bounds belong to ASSET-CONTRACT.md.
 
 ## Work Guidance
 
-- Generate and inspect a reference before producing a related rig or environment variant.
-- Review standing, walking, sitting, speaking and strong gestures in motion; inspect hands, feet, facial swaps and joint seams.
-- Retain accepted image masters. Pack/copy them deterministically; do not regenerate images during build or test.
+- Reuse accepted pets as separate derivatives; author poses/mouth shapes against each actual skeleton and face.
+- Retain accepted ImageGen environment/prop originals and prompts. Regenerate models, catalog and actual player previews together after changes.
+- Inspect moving full figures and face close-ups, not only thumbnails.
 
 ## Verification
 
-- `npm run test:storymaker`.
-- `node scripts/build-storymaker-catalog.mjs --check`.
-- `go test ./ui -run TestStorymakerCatalog -count=1`.
+- node scripts/build-storymaker-models.mjs --check
+- node scripts/build-storymaker-catalog.mjs --check
+- npm run test:storymaker
+- go test ./ui -run TestStorymakerCatalog -count=1
+- Browser/MP4 procedures: ASSET-CONTRACT.md.
 
 ## Child DOX Index
 
-- `ASSET-CONTRACT.md`: catalog v2 attachments, inventories, bitmap production and validation.
+- ASSET-CONTRACT.md: model/image inventory, bounds, provenance and production verification.

@@ -62,7 +62,7 @@
         var files = Object.create(null), total = 0;
         (catalog.files || []).forEach(function (f) {
             if (!safePath(f.path) || f.path === 'catalog.json' || files[f.path] || !Number.isInteger(f.bytes) || f.bytes < 1 || f.bytes > LIMIT || !/^[a-f0-9]{64}$/.test(f.sha256)) throw new Error('Invalid catalog dependency');
-            if (['image/png','image/webp','image/jpeg','application/json','audio/wav'].indexOf(f.type) < 0) throw new Error('Invalid catalog media type');
+            if (['image/png','image/webp','image/jpeg','application/json','audio/wav','model/gltf-binary','text/plain'].indexOf(f.type) < 0) throw new Error('Invalid catalog media type');
             total += f.bytes; files[f.path] = f;
             var background = f.path.indexOf('textures/environments/') === 0 && f.path.split('/').pop().indexOf('foreground-') !== 0;
             var maxW = background ? 3840 : 2048, maxH = background ? 2160 : 2048;
@@ -81,7 +81,7 @@
             var e = key.indexOf('catalog:') === 0 && byFile[key.slice(8)];
             if (e) (e.resources || []).forEach(function (p) {
                 if (!files[p]) throw new Error('Unlisted catalog resource');
-                set.add((files[p].type.indexOf('image/') === 0 ? 'texture:' : 'catalog:') + p);
+                set.add((files[p].type === 'model/gltf-binary' ? 'model:' : files[p].type.indexOf('image/') === 0 ? 'texture:' : 'catalog:') + p);
             });
         });
         return Array.from(set).sort();

@@ -21,6 +21,7 @@ func TestRasterReferenceExportBrowser(t *testing.T) {
 	fx.settings.TimeoutSeconds = 900
 	fx.settings.Transport = TransportPNG
 	var browserPID, chromePeak, heapPeak, firstFrame, lastFrame, frameBytes atomic.Int64
+	profileRSS := os.Getenv("AURAGO_STORYMAKER_BENCHMARK") == "1"
 	fx.deps.OpenPage = func(ctx context.Context, options sessionOptions) (browserPage, error) {
 		page, err := openSession(ctx, options)
 		if session, ok := page.(*session); ok && err == nil {
@@ -36,7 +37,10 @@ func TestRasterReferenceExportBrowser(t *testing.T) {
 			lastFrame.Store(now)
 			frameBytes.Add(int64(len(data)))
 			if n%15 == 0 {
-				chromePeak.Store(max(chromePeak.Load(), treeRSS(int(browserPID.Load()))))
+				// OS process enumeration can stall frame delivery; opt in only for memory benchmarks.
+				if profileRSS {
+					chromePeak.Store(max(chromePeak.Load(), treeRSS(int(browserPID.Load()))))
+				}
 				var memory runtime.MemStats
 				runtime.ReadMemStats(&memory)
 				heapPeak.Store(max(heapPeak.Load(), int64(memory.HeapInuse)))
@@ -141,6 +145,9 @@ func TestRasterReferenceExportBrowser(t *testing.T) {
 			t.Fatal(err)
 		}
 		metrics := map[string]any{"platform": runtime.GOOS, "catalog_schema": fx.deps.Catalog.Schema, "frames": job.FramesTotal, "job_seconds": elapsed.Seconds(), "render_fps": float64(job.FramesTotal-1) / (float64(lastFrame.Load()-firstFrame.Load()) / float64(time.Second)), "chrome_peak_rss_mib": chromePeak.Load() >> 20, "go_heap_peak_mib": heapPeak.Load() >> 20, "frame_bytes_avg": frameBytes.Load() / int64(job.FramesTotal)}
+		if !profileRSS {
+			delete(metrics, "chrome_peak_rss_mib")
+		}
 		data, err := json.MarshalIndent(metrics, "", "  ")
 		if err != nil {
 			t.Fatal(err)

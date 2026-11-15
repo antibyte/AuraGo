@@ -415,7 +415,11 @@ eq(M.sceneIndexOfIssue({ scene_id: 's2', path: '' }, story), 1, 'scene of an iss
 
 // catalog and edits
 const catalog = M.indexCatalog(JSON.parse(fs.readFileSync(catalogFile, 'utf8')));
-eq(M.entriesOf(catalog, 'character').length, 12, 'twelve characters');
+eq(M.entriesOf(catalog, 'character').length, 3, 'three 3D characters');
+const retired = {cast:[{id:'old',character:'char.student-1'}],scenes:[{id:'alias',actors:[{cast:'old'}]},{id:'empty'}]};
+eq(M.insertActor(retired,0,catalog.byId['char.hoodie'],'Hoodie').reason,'already_in_scene','alias cannot duplicate pet');
+eq(M.insertActor(retired,1,catalog.byId['char.hoodie'],'Hoodie').castId,'old','alias reuses saved cast');
+eq(retired.cast.length,1,'alias never creates another cast member');
 const draft = M.cloneStory(story);
 eq(M.addScene(draft, 0, {}), 1, 'a scene after the first');
 eq(draft.scenes.map(s => s.id), ['s1', 's4', 's2', 's3'], 'scene ids');
@@ -427,7 +431,7 @@ eq(M.moveScene(draft, 0, 2), 2, 'move');
 const man = catalog.byId['char.office-man-1'];
 eq(M.insertActor(draft, 0, man, 'Office man').ok, true, 'first insert');
 eq(M.insertActor(draft, 0, man, 'Office man').reason, 'already_in_scene', 'the same person twice');
-eq(draft.cast.filter(c => c.character === 'char.office-man-1').length, 1, 'one cast member');
+eq(draft.cast.filter(c => c.character === 'char.hoodie').length, 1, 'one cast member');
 const props = M.insertProp(draft, 0, catalog.byId['prop.laptop'], catalog.byId['env.office']);
 eq([props.ok, draft.scenes[0].props[0].at], [true, 'right'], 'a prop takes a free spot');
 eq(M.insertActor(draft, M.scenesOf(draft).length - 1, man, 'x').ok, false, 'no actors in a code scene');

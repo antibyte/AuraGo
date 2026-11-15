@@ -73,7 +73,7 @@ func (c *Catalog) checkFiles(bad func(string, ...any)) {
 			if f.Width <= 0 || f.Height <= 0 || f.Width > maxWidth || f.Height > maxHeight {
 				bad("dependency %q has invalid image dimensions", f.Path)
 			}
-		case "application/json", "audio/wav":
+		case "application/json", "audio/wav", "model/gltf-binary", "text/plain":
 			if f.Width != 0 || f.Height != 0 {
 				bad("non-image dependency %q has dimensions", f.Path)
 			}
@@ -130,6 +130,17 @@ func (c *Catalog) verifyDelivery(fsys fs.FS, dir string) error {
 			closeErr = f.Close()
 			if decodeErr != nil || closeErr != nil || "image/"+format != meta.Type || config.Width != meta.Width || config.Height != meta.Height {
 				return fmt.Errorf("catalog image %s failed type or dimension verification", meta.Path)
+			}
+		}
+		if meta.Type == "model/gltf-binary" {
+			f, err = fsys.Open(path.Join(dir, meta.Path))
+			if err != nil {
+				return fmt.Errorf("catalog model %s: %w", meta.Path, err)
+			}
+			data, readErr := io.ReadAll(io.LimitReader(f, CatalogTextureLimit+1))
+			closeErr := f.Close()
+			if readErr != nil || closeErr != nil || validateCatalogModel(data) != nil {
+				return fmt.Errorf("catalog model %s failed structure or texture verification", meta.Path)
 			}
 		}
 	}
