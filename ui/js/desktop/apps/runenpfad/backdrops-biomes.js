@@ -393,7 +393,7 @@
         }
         if (L.snow) {
             const thr = L.amp * 0.5;
-            c.fillStyle = mix('#f2faff', hz, (L.mist || 0.3) * 0.5);
+            c.fillStyle = rgba(mix('#e4f4ff', hz, 0.3 + (L.mist || 0.3) * 0.5), 0.72);
             let i = 0;
             while (i < n) {
                 if (hs[i] <= thr) { i++; continue; }
@@ -402,7 +402,7 @@
                 c.beginPath();
                 for (let k = i; k < j; k++) c.lineTo(k * 4, span - hs[k]);
                 for (let k = j - 1; k >= i; k--) {
-                    const d = (hs[k] - thr) * 0.55 * (0.55 + 0.9 * pn(k * 4, L.cells * 6 + 1, L.seed + 3)) + 2;
+                    const d = Math.min(46, (hs[k] - thr) * 0.3) * (0.55 + 0.9 * pn(k * 4, L.cells * 6 + 1, L.seed + 3)) + 2;
                     c.lineTo(k * 4, span - hs[k] + d);
                 }
                 c.closePath();

@@ -166,7 +166,7 @@
         bossCard.setAttribute('aria-hidden', 'true');
         bossCard.append(bossCardName, bossCardSub);
 
-        hud.append(topbar, noticeRow, bossWrap, bossCard);
+        hud.append(topbar, noticeRow, bossWrap);
 
         // Touch controls (visible when .rp-narrow is active)
         const touch = el('div', 'rp-touch');
@@ -260,7 +260,7 @@
         const shopGrid = el('div', 'rp-shop-grid');
         shopDialog.append(shopHead, shopCoins, heroGrid, shopGrid);
 
-        shell.append(stageWrap, hud, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
+        shell.append(stageWrap, hud, bossCard, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
         host.replaceChildren(shell);
 
         function anyDialogOpen() {

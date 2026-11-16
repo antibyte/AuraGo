@@ -287,26 +287,28 @@
             const au = biome.aurora;
             if (!au) return;
             const e = cached('aurora|' + biome.id, P, 240, d, function (g) {
+                // translucent curtains: thin vertical streaks, bright lower hem fading upward
                 for (let rb = 0; rb < 3; rb++) {
                     const col = au.colors[rb % au.colors.length];
                     const f1 = 2 + rb;
                     const ph = hash1(rb, 71) * TAU;
-                    for (let x = 0; x < P; x += 12) {
-                        const yc = 110 + rb * 14 + Math.sin((x / P) * TAU * f1 + ph) * 36 + Math.sin((x / P) * TAU * (f1 * 2 + 1) + ph * 2) * 12;
-                        const ht = 70 + 40 * Math.sin((x / P) * TAU * (f1 + 2) + ph) + rb * 10;
-                        const gr = g.createLinearGradient(0, yc - ht, 0, yc + 14);
+                    for (let x = 0; x < P; x += 3) {
+                        const yc = 120 + rb * 14 + Math.sin((x / P) * TAU * f1 + ph) * 30 + Math.sin((x / P) * TAU * (f1 * 2 + 1) + ph * 2) * 10;
+                        const ht = 100 + 44 * Math.sin((x / P) * TAU * (f1 + 2) + ph) + rb * 12;
+                        const streak = 0.35 + 0.65 * hash1(Math.floor(x / 3) + rb * 977, 72);
+                        const gr = g.createLinearGradient(0, yc - ht, 0, yc + 10);
                         gr.addColorStop(0, rgba(col, 0));
-                        gr.addColorStop(0.7, rgba(col, 0.5));
-                        gr.addColorStop(0.85, rgba(mix(col, '#ffffff', 0.4), 0.7));
+                        gr.addColorStop(0.75, rgba(col, 0.7 * streak));
+                        gr.addColorStop(0.92, rgba(col, 0.88 * streak));
                         gr.addColorStop(1, rgba(col, 0));
                         g.fillStyle = gr;
-                        g.fillRect(x, yc - ht, 13, ht + 14);
+                        g.fillRect(x, yc - ht, 3, ht + 10);
                     }
                 }
             });
             ctx.save();
             ctx.globalCompositeOperation = 'lighter';
-            blit(e.canvas, d, camX * 0.015 + t * 7, viewW, Math.round(viewH * 0.02), au.alpha * (0.75 + 0.25 * Math.sin(t * 0.5)));
+            blit(e.canvas, d, camX * 0.015 + t * 7, viewW, Math.round(viewH * 0.1), au.alpha * (0.75 + 0.25 * Math.sin(t * 0.5)));
             ctx.restore();
         }
 
@@ -394,7 +396,6 @@
                 ctx.fillRect(0, 0, viewW, viewH);
             }
             paintTwinkle(biome, viewW, viewH, t);
-            paintAurora(biome, camX, viewW, viewH, t, d);
             paintClouds(biome, camX, viewW, viewH, t, d, groundY);
             const layers = getLayers(biome);
             for (let i = 0; i < layers.length; i++) {
@@ -415,6 +416,7 @@
                     if (e.smoke.length) paintDynamic(e, off, viewW, base, t);
                 }
                 if (e.tips.length) paintDynamic(e, off, viewW, 0, t);
+                if (i === 1) paintAurora(biome, camX, viewW, viewH, t, d);
                 if (i === 2) paintShafts(biome, camX, viewW, viewH, t, d);
             }
             if (biome.fog && biome.fog.alpha > 0) {

@@ -85,7 +85,7 @@
                 { style: 'icespires', base: 'flat', color: '#17385a', factor: 0.46, lift: -0.012, span: 280, amp: 10, cells: 13, seed: 149, mist: 0.1 }
             ],
             stars: { count: 95, alpha: 0.7, color: '#ffffff' },
-            aurora: { colors: ['#5eead4', '#86efac', '#a78bfa'], alpha: 0.5 },
+            aurora: { colors: ['#10e08a', '#12d6c8', '#9b6bff'], alpha: 0.4 },
             clouds: { color: '#d8efff', alpha: 0.14, speed: 5, count: 7, y: 0.3, scale: 1.2 },
             foreground: { style: 'ice', color: '#06182a', alpha: 0.7, factor: 1.25 },
             surface: { grass: { color: '#cfe9ff', color2: '#ffffff', density: 0.35 } },

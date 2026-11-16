@@ -460,7 +460,7 @@
                     drawAnimation('jump-and-run', 'spike_trap', spikeElapsed(h, nowSec), h.x, h.y + 4, TILE, TILE, false, 1.0, typeof h.phase01 === 'number');
                 } else if (h.assetId === 'stalactite') {
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y - 4, TILE, TILE);
-                } else if (h.kind === 'lava' || h.assetId === 'lava' || h.assetId === 'fire') {
+                } else if (h.assetId === 'lava' || h.assetId === 'fire') {
                     drawGlow(h.x + TILE / 2, h.y + TILE / 2, 86, 'rgba(251, 113, 133, 0.55)', 0.7);
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y + 4, TILE, TILE);
                 } else {
@@ -735,7 +735,7 @@
             });
             const half = (stage.tileSize || 48) / 2;
             stage.hazards.forEach(function (h) {
-                if (h.kind === 'lava' || h.assetId === 'lava' || h.assetId === 'fire') {
+                if (h.assetId === 'lava' || h.assetId === 'fire') {
                     lights.push({ x: h.x + half, y: h.y + half, radius: 104, intensity: 0.6, flicker: true });
                 }
             });

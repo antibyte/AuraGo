@@ -270,15 +270,16 @@
 .rp-bosscard {
     position: absolute;
     left: 50%;
-    top: 104px;
+    top: 32%;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 10px 34px;
+    padding: 12px 38px;
     border-top: 2px solid rgba(247, 201, 72, 0.85);
     border-bottom: 2px solid rgba(247, 201, 72, 0.85);
-    background: rgba(12, 8, 20, 0.72);
+    background: linear-gradient(90deg, rgba(12, 8, 20, 0) 0%, rgba(12, 8, 20, 0.88) 18%, rgba(12, 8, 20, 0.88) 82%, rgba(12, 8, 20, 0) 100%);
     text-align: center;
     pointer-events: none;
     opacity: 0;

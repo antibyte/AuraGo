@@ -229,7 +229,7 @@
                 st.prevHurt = e.hurtTimer;
                 st.prevAtk = e.attackTimer;
                 const size = Math.round(58 * e.def.scale);
-                const topLocal = -Math.round(size * (57 / 64));
+                const topLocal = -Math.round(size * (59 / 64)); // v3 sheets: feet end on cell row 59 (origin y 0.9375)
                 const attacking = !e.dead && e.attackTimer > 0 && h.hasAnim(e.def.pack, e.def.prefix + 'attack');
                 const animName = clipFor(e.def.pack, e.def.prefix, e.dead ? 'death' : e.hurtTimer > 0 ? 'hurt' : attacking ? 'attack' : e.animState === 'idle' ? 'idle' : 'move');
                 const clock = attacking ? Math.max(0, 0.45 - e.attackTimer) : e.animTime;
@@ -309,6 +309,16 @@
             ctx.restore();
         }
 
+        // Visual-only snap of the rear-view climber onto the ladder / rope centre.
+        function climbCentre(sim, p) {
+            const T = sim.stage.tileSize || 48;
+            const ropes = sim.stage.ropes || [];
+            const ladders = sim.stage.ladders || [];
+            for (let i = 0; i < ropes.length; i++) if (Math.abs(p.x - ropes[i].x) <= 14) return ropes[i].x;
+            for (let i = 0; i < ladders.length; i++) if (Math.abs(p.x - (ladders[i].x + T / 2)) < 20) return ladders[i].x + T / 2;
+            return p.x;
+        }
+
         function drawHero(sim, view) {
             step(view);
             const p = sim.player;
@@ -317,6 +327,7 @@
             let anim = clipFor(def.pack, def.prefix, p.animState);
             let clock = p.animTime;
             let flipHero = p.facing < 0;
+            let drawX = p.x;
             const hold = p.animState === 'death';
             if (p.animState === 'climb') {
                 // Rear-view climb clips never flip; the clock only runs while moving and reverses when descending.
@@ -324,6 +335,7 @@
                 if (h.hasAnim(def.pack, ck)) {
                     anim = ck;
                     flipHero = false;
+                    drawX = climbCentre(sim, p);
                     if (p.climbDir !== 0) {
                         heroVis.climbClock += (p.climbDir === 1 ? -1 : 1) * lastDt;
                         if (heroVis.climbClock < 0) heroVis.climbClock += 100;
@@ -352,7 +364,7 @@
                     if (g.life <= 0) { heroVis.ghosts.splice(i, 1); continue; }
                     ctx.save();
                     ctx.globalCompositeOperation = 'lighter';
-                    sprite(def.pack, g.anim, g.clock, false, g.x, g.y + 2, 64, -59, g.f < 0, g.life * 1.3, 1.08, 0.94, 0.6, 0);
+                    sprite(def.pack, g.anim, g.clock, false, g.x, g.y, 64, -59, g.f < 0, g.life * 1.3, 1.08, 0.94, 0.6, 0);
                     ctx.restore();
                 }
             } else {
@@ -375,7 +387,7 @@
             }
             const blink = p.invulnTimer > 0 && Math.floor(view.nowSec * 16) % 2 === 0 ? 0.45 : 1;
             const flash = p.hurtTimer > 0 ? clamp(p.hurtTimer * 5, 0, 0.8) : 0;
-            sprite(def.pack, anim, clock, hold, p.x, p.y + 2, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, heroVis.tilt);
+            sprite(def.pack, anim, clock, hold, drawX, p.y, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, heroVis.tilt);
             if (sim.heroId === 'knight' && p.attackTimer > 0) drawSwoosh(sim);
             if (sim.heroId === 'ranger' && p.attackTimer > 0) {
                 const mx = p.x + p.facing * 22;

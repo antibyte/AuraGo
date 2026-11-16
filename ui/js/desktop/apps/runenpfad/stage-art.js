@@ -219,16 +219,24 @@
 
         // ---- boss telegraphs ----
         function markRing(view, x, y, radius, t, color) {
-            const a = 0.35 + 0.45 * pulse(view, t, 18);
             ctx.save();
-            ctx.globalAlpha = a;
+            ctx.globalAlpha = 0.62 + 0.3 * pulse(view, t, 18);
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.ellipse(x, y, radius, radius * 0.28, 0, 0, TAU);
             ctx.fill();
-            ctx.globalAlpha = 0.95;
-            ctx.strokeStyle = '#fff1f2';
+            ctx.globalAlpha = 1;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#450a0a';
+            ctx.lineWidth = 7;
+            markRingPath(x, y, radius);
+            ctx.strokeStyle = '#ffd23f';
             ctx.lineWidth = 3;
+            markRingPath(x, y, radius);
+            ctx.restore();
+        }
+
+        function markRingPath(x, y, radius) {
             ctx.beginPath();
             ctx.ellipse(x, y, radius, radius * 0.28, 0, 0, TAU);
             ctx.stroke();
@@ -238,21 +246,20 @@
             ctx.moveTo(x + radius * 0.5, y - 4);
             ctx.lineTo(x - radius * 0.5, y + 4);
             ctx.stroke();
-            ctx.restore();
         }
 
         function drawTelegraph(sim, e, view) {
             const tg = e.telegraph;
             const prog = Math.max(0, Math.min(1, tg.t / tg.dur));
-            const warn = 'rgba(239, 68, 68, 0.55)';
+            const warn = '#e11d1d';
             const ground = sim.stage.groundY;
             ctx.save();
             if (tg.kind === 'charge') {
                 const x0 = tg.dir > 0 ? tg.x : tg.x - tg.len;
-                const a = 0.18 + 0.3 * pulse(view, tg.t, 18);
-                ctx.fillStyle = 'rgba(239, 68, 68, ' + a + ')';
+                const a = 0.34 + 0.26 * pulse(view, tg.t, 18);
+                ctx.fillStyle = 'rgba(225, 29, 29, ' + a + ')';
                 ctx.fillRect(x0, ground - tg.h, tg.len, tg.h);
-                ctx.strokeStyle = 'rgba(254, 226, 226, 0.9)';
+                ctx.strokeStyle = '#ffd23f';
                 ctx.lineWidth = 3;
                 ctx.strokeRect(x0, ground - tg.h, tg.len, tg.h);
                 ctx.lineWidth = 4;
@@ -267,31 +274,31 @@
                 }
             } else if (tg.kind === 'pound' || tg.kind === 'leap') {
                 markRing(view, tg.x, ground - 3, tg.w * (0.5 + 0.5 * (1 - prog)) + 24, tg.t, warn);
-                ctx.strokeStyle = 'rgba(254, 226, 226, 0.7)';
+                ctx.strokeStyle = '#ffd23f';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.moveTo(tg.x, ground - 120);
                 ctx.lineTo(tg.x, ground - 26 + prog * 20);
                 ctx.stroke();
             } else if (tg.kind === 'dive') {
-                const a = 0.12 + 0.28 * pulse(view, tg.t, 18);
-                ctx.fillStyle = 'rgba(239, 68, 68, ' + a + ')';
+                const a = 0.3 + 0.25 * pulse(view, tg.t, 18);
+                ctx.fillStyle = 'rgba(225, 29, 29, ' + a + ')';
                 ctx.fillRect(tg.x - tg.w / 2, 0, tg.w, ground);
-                ctx.strokeStyle = 'rgba(254, 226, 226, 0.85)';
+                ctx.strokeStyle = '#ffd23f';
                 ctx.setLineDash([14, 8]);
                 ctx.lineWidth = 3;
                 ctx.strokeRect(tg.x - tg.w / 2, 0, tg.w, ground);
                 ctx.setLineDash([]);
                 markRing(view, tg.x, ground - 3, tg.w * 0.5, tg.t, warn);
             } else if (tg.kind === 'volley' || tg.kind === 'missiles' || tg.kind === 'summon') {
-                const color = tg.kind === 'summon' ? 'rgba(192, 132, 252, 0.6)' : (tg.kind === 'missiles' ? 'rgba(249, 115, 22, 0.6)' : warn);
+                const color = tg.kind === 'summon' ? '#a855f7' : (tg.kind === 'missiles' ? '#ff7a00' : warn);
                 (tg.marks || []).forEach(function (m) {
                     markRing(view, m.x, ground - 3, tg.kind === 'missiles' ? 46 : 34, tg.t, color);
                 });
             } else if (tg.kind === 'ring') {
                 const r = 46 + prog * 40;
                 ctx.lineWidth = 5;
-                ctx.strokeStyle = 'rgba(248, 113, 113, ' + (0.45 + 0.5 * pulse(view, tg.t, 18)) + ')';
+                ctx.strokeStyle = 'rgba(239, 35, 35, ' + (0.7 + 0.3 * pulse(view, tg.t, 18)) + ')';
                 ctx.beginPath();
                 ctx.arc(tg.x, tg.y, r, tg.gap + Math.PI / 3, tg.gap + TAU - Math.PI / 3);
                 ctx.stroke();
@@ -301,19 +308,19 @@
                 ctx.stroke();
             } else if (tg.kind === 'beam') {
                 (tg.xs || [tg.x]).forEach(function (bx) {
-                    ctx.fillStyle = 'rgba(244, 114, 182, ' + (0.08 + 0.3 * prog) + ')';
+                    ctx.fillStyle = 'rgba(236, 40, 140, ' + (0.2 + 0.35 * prog) + ')';
                     ctx.fillRect(bx - tg.w / 2, tg.y0, tg.w, ground - tg.y0);
-                    ctx.strokeStyle = 'rgba(253, 242, 248, ' + (0.5 + 0.45 * pulse(view, tg.t, 20)) + ')';
+                    ctx.strokeStyle = 'rgba(255, 224, 80, ' + (0.75 + 0.25 * pulse(view, tg.t, 20)) + ')';
                     ctx.lineWidth = 3;
                     ctx.setLineDash([12, 8]);
                     ctx.strokeRect(bx - tg.w / 2, tg.y0, tg.w, ground - tg.y0);
                     ctx.setLineDash([]);
-                    markRing(view, bx, ground - 3, tg.w * 0.7, tg.t, 'rgba(244, 114, 182, 0.6)');
+                    markRing(view, bx, ground - 3, tg.w * 0.7, tg.t, '#ec288c');
                 });
             } else if (tg.kind === 'fire') {
-                ctx.fillStyle = 'rgba(249, 115, 22, ' + (0.15 + 0.3 * pulse(view, tg.t, 18)) + ')';
+                ctx.fillStyle = 'rgba(255, 110, 10, ' + (0.35 + 0.3 * pulse(view, tg.t, 18)) + ')';
                 ctx.fillRect(tg.x, tg.y, tg.w, tg.h);
-                ctx.strokeStyle = 'rgba(254, 215, 170, 0.95)';
+                ctx.strokeStyle = '#ffd23f';
                 ctx.lineWidth = 3;
                 ctx.setLineDash([10, 6]);
                 ctx.strokeRect(tg.x, tg.y, tg.w, tg.h);

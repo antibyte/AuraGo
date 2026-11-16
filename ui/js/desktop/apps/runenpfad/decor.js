@@ -27,7 +27,7 @@
         let lavaGrad = null;
 
         function isLava(hz) {
-            return hz.kind === 'lava' || hz.assetId === 'lava' || hz.assetId === 'fire';
+            return hz.assetId === 'lava' || hz.assetId === 'fire';
         }
 
         function prepare(stage) {
@@ -48,9 +48,14 @@
                 return ty === undefined ? null : ty * T;
             };
             // torches: beside checkpoints, the key door and the exit portal
+            const onHazard = function (x, gy) {
+                return (stage.hazards || []).some(function (hz) {
+                    return x >= hz.x - 14 && x <= hz.x + hz.w + 14 && hz.y < gy + T && hz.y + hz.h > gy - T;
+                });
+            };
             const addTorch = function (x, n) {
                 const gy = groundTopAt(x);
-                if (gy !== null) d.torches.push({ x: x, y: gy, n: n });
+                if (gy !== null && !onHazard(x, gy)) d.torches.push({ x: x, y: gy, n: n });
             };
             (stage.checkpoints || []).forEach(function (cp, i) { addTorch(cp.x - 38, i * 3); addTorch(cp.x + 38, i * 3 + 1); });
             if (stage.door) { addTorch(stage.door.x - 44, 21); }
@@ -65,6 +70,9 @@
                     const left = tops[tx - 1];
                     const right = tops[tx + 1];
                     if (left !== tops[tx] || right !== tops[tx]) return;
+                    // never inside a pit: no higher ground within two tiles, no hazard under the post
+                    for (let k = -2; k <= 2; k++) if (tops[tx + k] === undefined || tops[tx + k] < tops[tx]) return;
+                    if (onHazard((tx + 0.5) * T, tops[tx] * T)) return;
                     last = tx;
                     d.lanterns.push({ x: (tx + 0.5) * T, y: tops[tx] * T, n: tx });
                 });
