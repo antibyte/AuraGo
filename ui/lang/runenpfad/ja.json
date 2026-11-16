@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "右",
   "runenpfad.touch_jump": "跳躍",
   "runenpfad.touch_attack": "攻撃",
-  "runenpfad.touch_special": "回避"
+  "runenpfad.touch_special": "回避",
+  "runenpfad.hud_trial": "ルーン試練",
+  "runenpfad.hud_rune": "ルーンパワー",
+  "runenpfad.mod_swift": "素早い敵",
+  "runenpfad.mod_swift_desc": "敵の移動が40%速くなり、体力が増します。",
+  "runenpfad.mod_fragile": "脆い足場",
+  "runenpfad.mod_fragile_desc": "崩れる足場がずっと早く崩壊します。",
+  "runenpfad.mod_dark": "闇",
+  "runenpfad.mod_dark_desc": "光は弱まり、あなたのルーンだけが輝きます。",
+  "runenpfad.mod_greedy": "貪欲",
+  "runenpfad.mod_greedy_desc": "コインの価値は上がりますが、待ち伏せする敵も増えます。",
+  "runenpfad.mod_storm": "嵐",
+  "runenpfad.mod_storm_desc": "足場が速く流れ、風があなたを押し戻します。",
+  "runenpfad.mod_mend": "祝福",
+  "runenpfad.mod_mend_desc": "このステージでは回復ポーションとハートが増えます。"
 }

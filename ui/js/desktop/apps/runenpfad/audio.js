@@ -7,13 +7,52 @@
         'forest-day', 'forest-night', 'wind-gentle', 'wind-strong', 'industrial',
         'step-grass', 'step-stone', 'step-gravel', 'step-wood', 'step-metal',
         'jump', 'land', 'pistol', 'laser', 'impact-flesh', 'impact-metal',
-        'explosion-small', 'crate-break', 'door-wood', 'pickup', 'ui-click',
-        'victory', 'defeat'
+        'impact-stone', 'explosion-small', 'explosion-large', 'crate-break',
+        'door-wood', 'door-metal', 'pickup', 'ui-click', 'victory', 'defeat',
+        'rifle', 'shotgun', 'reload', 'electric-spark', 'fire', 'thunder',
+        'stream', 'engine', 'space-hum', 'water-splash', 'rain-light', 'rain-heavy'
     ];
     const PRELOAD_SFX = [
-        'ui-click', 'jump', 'land', 'step-grass', 'laser', 'pistol',
-        'pickup', 'crate-break', 'impact-flesh', 'impact-metal'
+        'ui-click', 'jump', 'land', 'step-grass', 'laser', 'rifle',
+        'pickup', 'crate-break', 'impact-flesh', 'impact-metal', 'impact-stone',
+        'explosion-small', 'electric-spark'
     ];
+
+    // Event -> cue table. `sound: null` means the event carries its own sound id.
+    // `rate` is the base playback rate; `vary` adds a small random detune per play.
+    const CUE_MAP = {
+        step: { sound: null, gain: 0.38, cooldown: 220, vary: 0.14 },
+        jump: { sound: 'jump', gain: 0.58, cooldown: 90, vary: 0.1 },
+        dash: { sound: 'jump', gain: 0.42, cooldown: 140, rate: 1.32, vary: 0.08 },
+        spring: { sound: 'jump', gain: 0.6, cooldown: 90, rate: 1.45, vary: 0.08 },
+        land: { sound: 'land', gain: 0.5, cooldown: 110, vary: 0.12 },
+        slam: { sound: 'shotgun', gain: 0.78, cooldown: 120, rate: 0.92 },
+        slam_land: { sound: 'impact-stone', gain: 0.74, cooldown: 120, rate: 0.95 },
+        attack_melee: { sound: 'rifle', gain: 0.42, cooldown: 110, rate: 1.16, vary: 0.12 },
+        attack_ranged: { sound: 'laser', gain: 0.5, cooldown: 90, rate: 1.05, vary: 0.1 },
+        crate_break: { sound: 'crate-break', gain: 0.65, cooldown: 80, vary: 0.16 },
+        enemy_hit: { sound: null, gain: 0.6, cooldown: 70, vary: 0.16 },
+        enemy_kill: { sound: 'explosion-small', gain: 0.7, cooldown: 100, vary: 0.14 },
+        boss_defeat: { sound: 'explosion-large', gain: 0.86, cooldown: 200 },
+        boss_phase: { sound: 'thunder', gain: 0.8, cooldown: 300 },
+        player_hurt: { sound: null, gain: 0.66, cooldown: 180, vary: 0.1 },
+        pickup_coin: { sound: 'pickup', gain: 0.5, cooldown: 55, rate: 1.12, vary: 0.14 },
+        pickup_gem: { sound: 'laser', gain: 0.6, cooldown: 90, rate: 0.92 },
+        pickup_star: { sound: 'electric-spark', gain: 0.62, cooldown: 90, rate: 1.1 },
+        pickup_heart: { sound: 'pickup', gain: 0.56, cooldown: 120, rate: 0.88 },
+        pickup_potion: { sound: 'electric-spark', gain: 0.56, cooldown: 120, rate: 0.86 },
+        pickup_key: { sound: 'electric-spark', gain: 0.72, cooldown: 140, rate: 0.94 },
+        pickup_shrine: { sound: 'electric-spark', gain: 0.75, cooldown: 200, rate: 0.8 },
+        bomb_blast: { sound: 'explosion-large', gain: 0.7, cooldown: 120, rate: 1.05 },
+        boulder_land: { sound: 'impact-stone', gain: 0.62, cooldown: 160, rate: 0.9 },
+        checkpoint: { sound: 'fire', gain: 0.55, cooldown: 200 },
+        heal: { sound: 'pickup', gain: 0.56, cooldown: 150, rate: 0.84 },
+        hazard: { sound: 'fire', gain: 0.4, cooldown: 260 },
+        cannon: { sound: 'shotgun', gain: 0.45, cooldown: 150, vary: 0.1 },
+        enemy_shot: { sound: 'pistol', gain: 0.4, cooldown: 90, vary: 0.14 },
+        portal_win: { sound: 'victory', gain: 0.8, cooldown: 500 },
+        player_defeat: { sound: 'defeat', gain: 0.75, cooldown: 500 }
+    };
 
     function validateSoundManifest(manifest) {
         if (!manifest || !Array.isArray(manifest.assets)) {
@@ -33,7 +72,7 @@
         return byId;
     }
 
-    function playFallbackTone(audioCtx, id, volume) {
+    function playFallbackTone(audioCtx, id, volume, outNode) {
         if (!audioCtx || audioCtx.state !== 'running') return;
         try {
             const now = audioCtx.currentTime;
@@ -46,7 +85,8 @@
             if (id === 'jump') { fStart = 240; fEnd = 520; dur = 0.11; }
             else if (id === 'land') { fStart = 150; fEnd = 75; dur = 0.06; }
             else if (id === 'pickup') { fStart = 587; fEnd = 880; dur = 0.12; type = 'sine'; }
-            else if (id === 'laser' || id === 'pistol') { fStart = 460; fEnd = 180; dur = 0.09; type = 'sawtooth'; }
+            else if (id === 'laser' || id === 'electric-spark') { fStart = 700; fEnd = 1200; dur = 0.13; type = 'sine'; }
+            else if (id === 'rifle' || id === 'shotgun') { fStart = 460; fEnd = 180; dur = 0.09; type = 'sawtooth'; }
             else if (id === 'victory') { fStart = 523; fEnd = 1046; dur = 0.25; type = 'sine'; }
             else if (id === 'defeat') { fStart = 280; fEnd = 110; dur = 0.25; }
             else if (id === 'ui-click') { fStart = 660; fEnd = 440; dur = 0.04; type = 'sine'; }
@@ -58,7 +98,7 @@
             gain.gain.setValueAtTime(amp, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(outNode || audioCtx.destination);
             osc.start(now);
             osc.stop(now + dur + 0.01);
         } catch (err) { /* fallback tone suppressed */ }
@@ -74,9 +114,13 @@
         let active = true;
         let disposed = false;
         let ctx = null;
-        let currentAmbienceId = '';
+        let master = null;
         let ambienceSource = null;
+        let ambienceSource2 = null;
         let ambienceGain = null;
+        let ambienceGain2 = null;
+        let ambienceSpec = { primary: '', secondary: '' };
+        let ambienceDuck = 1;
         const buffers = new Map();
         const pendingLoads = new Map();
         const lastPlayTime = new Map();
@@ -87,11 +131,26 @@
                 const AudioCtx = root.AudioContext || root.webkitAudioContext;
                 if (!AudioCtx) return null;
                 ctx = new AudioCtx();
+                // Master chain keeps overlapping cues from clipping.
+                master = ctx.createGain();
+                master.gain.value = 0.92;
+                const limiter = ctx.createDynamicsCompressor();
+                limiter.threshold.value = -14;
+                limiter.knee.value = 22;
+                limiter.ratio.value = 7;
+                limiter.attack.value = 0.004;
+                limiter.release.value = 0.2;
+                master.connect(limiter);
+                limiter.connect(ctx.destination);
             }
             if (ctx.state === 'suspended') {
                 ctx.resume().catch(function () {});
             }
             return ctx;
+        }
+
+        function outNode() {
+            return master || (ctx ? ctx.destination : null);
         }
 
         async function loadBuffer(id) {
@@ -124,49 +183,93 @@
             return promise;
         }
 
+        function stopSource(source, gain) {
+            if (source) {
+                try { source.stop(); } catch (err) { /* stopped */ }
+                try { source.disconnect(); } catch (err) { /* disconnected */ }
+            }
+            if (gain) {
+                try { gain.disconnect(); } catch (err) { /* disconnected */ }
+            }
+        }
+
         function stopAmbience() {
-            if (ambienceSource) {
-                try { ambienceSource.stop(); } catch (err) { /* stopped */ }
-                try { ambienceSource.disconnect(); } catch (err) { /* disconnected */ }
-                ambienceSource = null;
-            }
-            if (ambienceGain) {
-                try { ambienceGain.disconnect(); } catch (err) { /* disconnected */ }
-                ambienceGain = null;
-            }
+            stopSource(ambienceSource, ambienceGain);
+            stopSource(ambienceSource2, ambienceGain2);
+            ambienceSource = null;
+            ambienceSource2 = null;
+            ambienceGain = null;
+            ambienceGain2 = null;
         }
 
-        async function setAmbience(id) {
-            currentAmbienceId = id || '';
-            stopAmbience();
-            if (!enabled || !active || disposed || !currentAmbienceId || !assetsById[currentAmbienceId]) return;
-            const wanted = currentAmbienceId;
-            const buffer = await loadBuffer(wanted);
+        function applyAmbienceGain() {
+            if (ambienceGain) ambienceGain.gain.value = ambienceLevel(ambienceSpec.primary, 1) * ambienceDuck;
+            if (ambienceGain2) ambienceGain2.gain.value = ambienceLevel(ambienceSpec.secondary, 0.55) * ambienceDuck;
+        }
+
+        function ambienceLevel(id, scale) {
+            if (!id) return 0;
+            return (Number(assetsById[id].gain) || 0.6) * 0.42 * scale;
+        }
+
+        function startAmbienceLayer(id, scale, slot) {
             const audioCtx = ensureContext();
-            if (!buffer || !audioCtx || disposed || !enabled || !active || currentAmbienceId !== wanted) return;
-            const source = audioCtx.createBufferSource();
-            source.buffer = buffer;
-            source.loop = true;
-            const gain = audioCtx.createGain();
-            gain.gain.value = (Number(assetsById[wanted].gain) || 0.6) * 0.42;
-            source.connect(gain);
-            gain.connect(audioCtx.destination);
-            source.start(0);
-            ambienceSource = source;
-            ambienceGain = gain;
+            if (!audioCtx) return;
+            loadBuffer(id).then(function (buffer) {
+                if (!buffer || disposed || !enabled || !active) return;
+                if (ambienceSpec.primary !== id && ambienceSpec.secondary !== id) return;
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.loop = true;
+                const gain = audioCtx.createGain();
+                gain.gain.value = ambienceLevel(id, scale) * ambienceDuck;
+                source.connect(gain);
+                gain.connect(outNode());
+                source.start(0);
+                if (slot === 2) {
+                    stopSource(ambienceSource2, ambienceGain2);
+                    ambienceSource2 = source;
+                    ambienceGain2 = gain;
+                } else {
+                    stopSource(ambienceSource, ambienceGain);
+                    ambienceSource = source;
+                    ambienceGain = gain;
+                }
+            });
         }
 
-        function playBuffer(audioCtx, buffer, id, gainScale) {
+        // Accepts a plain id or { primary, secondary } for layered biome ambience.
+        async function setAmbience(spec) {
+            const next = typeof spec === 'string' || !spec
+                ? { primary: spec || '', secondary: '' }
+                : { primary: spec.primary || '', secondary: spec.secondary || '' };
+            const changed = next.primary !== ambienceSpec.primary || next.secondary !== ambienceSpec.secondary;
+            ambienceSpec = next;
+            if (!changed) return;
+            stopAmbience();
+            if (!enabled || !active || disposed || !ambienceSpec.primary) return;
+            startAmbienceLayer(ambienceSpec.primary, 1, 1);
+            if (ambienceSpec.secondary) startAmbienceLayer(ambienceSpec.secondary, 0.55, 2);
+        }
+
+        // Ducks the ambience bed (used while a world boss is alive).
+        function setAmbienceDuck(level) {
+            ambienceDuck = Math.max(0, Math.min(1, Number(level) || 0));
+            applyAmbienceGain();
+        }
+
+        function playBuffer(audioCtx, buffer, id, gainScale, rate) {
             const source = audioCtx.createBufferSource();
             source.buffer = buffer;
+            if (rate && rate > 0) source.playbackRate.value = rate;
             const gain = audioCtx.createGain();
             gain.gain.value = Math.min(1, (Number(assetsById[id].gain) || 0.75) * (gainScale || 0.75));
             source.connect(gain);
-            gain.connect(audioCtx.destination);
+            gain.connect(outNode());
             source.start(0);
         }
 
-        function playCue(id, gainScale, cooldownMs, allowWhilePaused) {
+        function playCue(id, gainScale, cooldownMs, allowWhilePaused, rate) {
             if (disposed || !enabled || (!active && !allowWhilePaused) || !assetsById[id]) return;
             const now = Date.now();
             const minGap = cooldownMs || 65;
@@ -177,14 +280,14 @@
 
             const cached = buffers.get(id);
             if (cached) {
-                playBuffer(audioCtx, cached, id, gainScale);
+                playBuffer(audioCtx, cached, id, gainScale, rate);
                 return;
             }
-            playFallbackTone(audioCtx, id, gainScale);
+            playFallbackTone(audioCtx, id, gainScale, outNode());
             loadBuffer(id).then(function (buffer) {
                 if (!buffer || disposed || !enabled || (!active && !allowWhilePaused)) return;
                 if (!lastPlayTime.get(id) || Date.now() - now < 250) {
-                    playBuffer(audioCtx, buffer, id, gainScale);
+                    playBuffer(audioCtx, buffer, id, gainScale, rate);
                 }
             });
         }
@@ -195,37 +298,45 @@
             if (!audioCtx) return;
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume().then(function () {
-                    if (active && currentAmbienceId && !ambienceSource) {
-                        setAmbience(currentAmbienceId);
+                    if (active && ambienceSpec.primary && !ambienceSource) {
+                        setAmbience(ambienceSpec);
                     }
                 }).catch(function () {});
             }
             PRELOAD_SFX.forEach(function (id) { loadBuffer(id); });
-            if (active && currentAmbienceId && !ambienceSource) {
-                setAmbience(currentAmbienceId);
+            if (active && ambienceSpec.primary && !ambienceSource) {
+                setAmbience(ambienceSpec);
             }
         }
 
+        function cueRate(cue, vary) {
+            const base = cue.rate || 1;
+            if (!vary) return base;
+            return base * (1 + (Math.random() * 2 - 1) * vary);
+        }
+
         function handleEvents(events, worldAmbience) {
-            if (!Array.isArray(events) || !enabled || !active) return;
-            events.forEach(function (ev) {
-                if (!ev) return;
-                if (ev.type === 'step') playCue(ev.detail && ev.detail.sound ? ev.detail.sound : 'step-grass', 0.38, 220);
-                else if (ev.type === 'jump') playCue('jump', 0.58, 90);
-                else if (ev.type === 'land') playCue('land', 0.50, 110);
-                else if (ev.type === 'attack_melee') playCue('laser', 0.45, 120);
-                else if (ev.type === 'attack_ranged') playCue('pistol', 0.52, 100);
-                else if (ev.type === 'crate_break') playCue('crate-break', 0.65, 80);
-                else if (ev.type === 'enemy_hit') playCue((ev.detail && ev.detail.sound) || 'impact-flesh', 0.60, 70);
-                else if (ev.type === 'enemy_kill' || ev.type === 'boss_defeat') playCue('explosion-small', 0.72, 100);
-                else if (ev.type === 'player_hurt') playCue('impact-metal', 0.68, 200);
-                else if (ev.type === 'pickup_coin' || ev.type === 'pickup_gem') playCue('pickup', 0.58, 60);
-                else if (ev.type === 'pickup_key' || ev.type === 'checkpoint') playCue('door-wood', 0.68, 150);
-                else if (ev.type === 'portal_win') playCue('victory', 0.80, 500);
-                else if (ev.type === 'player_defeat') playCue('defeat', 0.75, 500);
-            });
-            if (worldAmbience && currentAmbienceId !== worldAmbience && !ambienceSource) {
-                setAmbience(worldAmbience);
+            if (!Array.isArray(events)) return;
+            for (let i = 0; i < events.length; i++) {
+                const ev = events[i];
+                if (!ev) continue;
+                const cue = CUE_MAP[ev.type];
+                if (!cue) continue;
+                let id = cue.sound;
+                if (!id) {
+                    id = (ev.detail && ev.detail.sound) || null;
+                    if (!id && ev.type === 'step') id = 'step-grass';
+                    if (!id && ev.type === 'player_hurt') id = 'impact-flesh';
+                }
+                if (!id || !assetsById[id]) continue;
+                const rate = cueRate(cue, cue.vary);
+                playCue(id, cue.gain, cue.cooldown, false, rate);
+            }
+            if (worldAmbience) {
+                const spec = typeof worldAmbience === 'string' ? { primary: worldAmbience, secondary: '' } : worldAmbience;
+                if ((spec.primary !== ambienceSpec.primary || spec.secondary !== ambienceSpec.secondary) && enabled && active) {
+                    setAmbience(spec);
+                }
             }
         }
 
@@ -240,8 +351,8 @@
                 stopAmbience();
             } else {
                 ensureContext();
-                if (currentAmbienceId && !ambienceSource) {
-                    setAmbience(currentAmbienceId);
+                if (ambienceSpec.primary && !ambienceSource) {
+                    setAmbience(ambienceSpec);
                 }
             }
         }
@@ -278,6 +389,7 @@
             setActive: setActive,
             unlock: unlock,
             setAmbience: setAmbience,
+            setAmbienceDuck: setAmbienceDuck,
             playUiClick: function () { playCue('ui-click', 0.5, 50, true); },
             handleEvents: handleEvents,
             dispose: dispose
@@ -287,6 +399,7 @@
     root.RunenpfadAudio = {
         BASE_URL: BASE_URL,
         REQUIRED_SOUNDS: REQUIRED_SOUNDS,
+        CUE_MAP: CUE_MAP,
         validateSoundManifest: validateSoundManifest,
         createAudioController: createAudioController
     };

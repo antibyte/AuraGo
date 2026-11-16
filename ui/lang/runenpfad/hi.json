@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "दाएँ",
   "runenpfad.touch_jump": "कूद",
   "runenpfad.touch_attack": "प्रहार",
-  "runenpfad.touch_special": "डैश"
+  "runenpfad.touch_special": "डैश",
+  "runenpfad.hud_trial": "रून परीक्षा",
+  "runenpfad.hud_rune": "रून शक्ति",
+  "runenpfad.mod_swift": "तीव्र शत्रु",
+  "runenpfad.mod_swift_desc": "शत्रु 40% तेज़ चलते हैं और उनका स्वास्थ्य अधिक है।",
+  "runenpfad.mod_fragile": "नाज़ुक ज़मीन",
+  "runenpfad.mod_fragile_desc": "नाज़ुक प्लेटफ़ॉर्म बहुत जल्दी टूटते हैं।",
+  "runenpfad.mod_dark": "अंधेरा",
+  "runenpfad.mod_dark_desc": "प्रकाश मंद पड़ जाता है; केवल आपका रून चमकता है।",
+  "runenpfad.mod_greedy": "लालच",
+  "runenpfad.mod_greedy_desc": "सिक्के अधिक मूल्यवान हैं, पर अधिक शत्रु छिपे हैं।",
+  "runenpfad.mod_storm": "तूफ़ान",
+  "runenpfad.mod_storm_desc": "प्लेटफ़ॉर्म तेज़ दौड़ते हैं और हवा आपको पीछे धकेलती है।",
+  "runenpfad.mod_mend": "आशीर्वाद",
+  "runenpfad.mod_mend_desc": "इस स्तर पर अधिक औषधि और दिल हैं।"
 }

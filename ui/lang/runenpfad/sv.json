@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Höger",
   "runenpfad.touch_jump": "Hoppa",
   "runenpfad.touch_attack": "Slå",
-  "runenpfad.touch_special": "Rusch"
+  "runenpfad.touch_special": "Rusch",
+  "runenpfad.hud_trial": "Runprov",
+  "runenpfad.hud_rune": "Runmakt",
+  "runenpfad.mod_swift": "Snabba fiender",
+  "runenpfad.mod_swift_desc": "Fiender rör sig 40 % snabbare och har mer liv.",
+  "runenpfad.mod_fragile": "Skör mark",
+  "runenpfad.mod_fragile_desc": "De sköra plattformarna faller sönder mycket snabbare.",
+  "runenpfad.mod_dark": "Mörker",
+  "runenpfad.mod_dark_desc": "Ljuset tonar; bara din runa lyser fortfarande.",
+  "runenpfad.mod_greedy": "Girighet",
+  "runenpfad.mod_greedy_desc": "Mynten är värda mer, men fler fiender väntar.",
+  "runenpfad.mod_storm": "Storm",
+  "runenpfad.mod_storm_desc": "Plattformarna rusar förbi och vinden skjuter tillbaka dig.",
+  "runenpfad.mod_mend": "Välsignelse",
+  "runenpfad.mod_mend_desc": "Fler läkedrycker och hjärtan i det här nivån."
 }

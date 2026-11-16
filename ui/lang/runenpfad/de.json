@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Rechts",
   "runenpfad.touch_jump": "Sprung",
   "runenpfad.touch_attack": "Angriff",
-  "runenpfad.touch_special": "Rolle"
+  "runenpfad.touch_special": "Rolle",
+  "runenpfad.hud_trial": "Rune-Probe",
+  "runenpfad.hud_rune": "Runenkraft",
+  "runenpfad.mod_swift": "Flinke Gegner",
+  "runenpfad.mod_swift_desc": "Gegner bewegen sich 40 % schneller und haben mehr Leben.",
+  "runenpfad.mod_fragile": "Brüchiger Boden",
+  "runenpfad.mod_fragile_desc": "Brüchige Plattformen zerfallen deutlich schneller.",
+  "runenpfad.mod_dark": "Finsternis",
+  "runenpfad.mod_dark_desc": "Das Licht schwindet, nur deine Rune leuchtet.",
+  "runenpfad.mod_greedy": "Gier",
+  "runenpfad.mod_greedy_desc": "Münzen zählen mehr, aber mehr Gegner lauern.",
+  "runenpfad.mod_storm": "Sturm",
+  "runenpfad.mod_storm_desc": "Plattformen rasen, und der Wind treibt dich zurück.",
+  "runenpfad.mod_mend": "Segnung",
+  "runenpfad.mod_mend_desc": "Mehr Heiltränke und Herzen in diesem Level."
 }

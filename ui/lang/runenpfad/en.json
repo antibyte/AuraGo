@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Right",
   "runenpfad.touch_jump": "Jump",
   "runenpfad.touch_attack": "Strike",
-  "runenpfad.touch_special": "Dash"
+  "runenpfad.touch_special": "Dash",
+  "runenpfad.hud_trial": "Rune Trial",
+  "runenpfad.hud_rune": "Rune Power",
+  "runenpfad.mod_swift": "Swift Foes",
+  "runenpfad.mod_swift_desc": "Enemies move 40% faster and have more health.",
+  "runenpfad.mod_fragile": "Fragile Ground",
+  "runenpfad.mod_fragile_desc": "Crumbling platforms fall apart much faster.",
+  "runenpfad.mod_dark": "Darkness",
+  "runenpfad.mod_dark_desc": "The light fades; only your rune still glows.",
+  "runenpfad.mod_greedy": "Greed",
+  "runenpfad.mod_greedy_desc": "Coins are worth more, but more enemies lie in wait.",
+  "runenpfad.mod_storm": "Storm",
+  "runenpfad.mod_storm_desc": "Platforms race by and the wind pushes you back.",
+  "runenpfad.mod_mend": "Blessing",
+  "runenpfad.mod_mend_desc": "More healing potions and hearts in this stage."
 }

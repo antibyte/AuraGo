@@ -17,14 +17,14 @@
         'jump-and-run': {
             assets: [
                 'grass_block', 'grass_ledge_left', 'grass_ledge_bottom', 'grass_ledge_right', 'grass_island',
-                'earth_block', 'earth_stones', 'earth_dark', 'earth_roots', 'stone_round', 'stone_cracked', 'stone_dark', 'stone_moss',
-                'sand_block', 'sand_waves', 'sand_bricks', 'sand_cracked', 'sand_ledge', 'sand_arch',
+                'earth_block', 'earth_stones', 'earth_dark', 'earth_roots', 'earth_light', 'stone_round', 'stone_cracked', 'stone_dark', 'stone_moss',
+                'sand_block', 'sand_waves', 'sand_pebbles', 'sand_bricks', 'sand_cracked', 'sand_ledge', 'sand_arch',
                 'snow_block', 'snow_ledge', 'ice_stone', 'ice_block', 'ice_ledge', 'snow_island', 'ice_pillar',
                 'wood_platform', 'rope_platform', 'log_platform', 'stone_platform', 'chain_platform', 'grass_platform', 'earth_platform',
                 'red_mushroom_platform', 'violet_mushroom_platform', 'ice_platform',
                 'barrel', 'crate', 'ladder', 'sign', 'lantern',
-                'coin', 'red_gem', 'blue_gem', 'green_gem', 'key', 'heart', 'apple', 'potion', 'treasure',
-                'spikes', 'stalactite', 'saw', 'lava', 'fire', 'thorn', 'trapdoor', 'cannon', 'magic_platform', 'spike_trap'
+                'coin', 'red_gem', 'blue_gem', 'green_gem', 'key', 'heart', 'apple', 'potion', 'treasure', 'star',
+                'spikes', 'stalactite', 'saw', 'lava', 'fire', 'thorn', 'trapdoor', 'cannon', 'magic_platform', 'spike_trap', 'stone_weight'
             ],
             animations: ['magic_platform', 'spike_trap']
         },
@@ -278,6 +278,9 @@
         quadcopter: { id: 'quadcopter', pack: 'robots-drones-animated', prefix: 'quadcopter_', hp: 3, speed: 95, damage: 1, behavior: 'flyer', score: 140, scale: 1.0, flying: true, ranged: true, hitSound: 'impact-metal' },
         security_orb: { id: 'security_orb', pack: 'robots-drones-animated', prefix: 'security_orb_', hp: 4, speed: 80, damage: 1, behavior: 'flyer', score: 150, scale: 1.0, flying: true, ranged: true, hitSound: 'impact-metal' },
         combat_mech: { id: 'combat_mech', pack: 'robots-drones-animated', prefix: 'combat_mech_', hp: 7, speed: 78, damage: 2, behavior: 'shooter', score: 200, scale: 1.2, flying: false, ranged: true, hitSound: 'impact-metal' },
+        sentry_bot: { id: 'sentry_bot', pack: 'robots-drones-animated', prefix: 'service_robot_', hp: 6, speed: 0, damage: 1, behavior: 'turret', score: 160, scale: 1.05, flying: false, ranged: true, hitSound: 'impact-metal' },
+        bomber_drone: { id: 'bomber_drone', pack: 'robots-drones-animated', prefix: 'spider_drone_', hp: 3, speed: 150, damage: 2, behavior: 'bomber', score: 140, scale: 1.0, flying: false, ranged: false, hitSound: 'impact-metal' },
+        stalker: { id: 'stalker', pack: 'monsters-animals-animated', prefix: 'wolf_', hp: 4, speed: 168, damage: 2, behavior: 'ambusher', score: 150, scale: 1.1, flying: false, ranged: false, hitSound: 'impact-flesh' },
         boss_boar: { id: 'boss_boar', bossNameKey: 'runenpfad.boss_1', pack: 'monsters-animals-animated', prefix: 'boar_', hp: 20, speed: 135, damage: 1, behavior: 'boss_ground', score: 600, scale: 1.55, flying: false, ranged: false, boss: true, hitSound: 'impact-flesh' },
         boss_goblin: { id: 'boss_goblin', bossNameKey: 'runenpfad.boss_2', pack: 'monsters-animals-animated', prefix: 'goblin_', hp: 26, speed: 125, damage: 1, behavior: 'boss_jumper', score: 800, scale: 1.5, flying: false, ranged: true, boss: true, hitSound: 'impact-flesh' },
         boss_orb: { id: 'boss_orb', bossNameKey: 'runenpfad.boss_3', pack: 'robots-drones-animated', prefix: 'security_orb_', hp: 32, speed: 115, damage: 1, behavior: 'boss_flyer', score: 1000, scale: 1.5, flying: true, ranged: true, boss: true, hitSound: 'impact-metal' },
@@ -289,34 +292,39 @@
     const CAMPAIGN_LEVELS = [
         { id: 1, worldIndex: 0, stageInWorld: 1, nameKey: 'runenpfad.level_1', parTime: 75, zones: ['meadow', 'step_ledge', 'crate_yard', 'key_sanctum'], enemies: ['slime', 'slime', 'goblin'] },
         { id: 2, worldIndex: 0, stageInWorld: 2, nameKey: 'runenpfad.level_2', parTime: 85, zones: ['meadow', 'bridge_gap', 'mushroom_canopy', 'crate_yard', 'key_sanctum'], enemies: ['slime', 'goblin', 'wolf'] },
-        { id: 3, worldIndex: 0, stageInWorld: 3, nameKey: 'runenpfad.level_3', parTime: 95, zones: ['meadow', 'ladder_tower', 'bridge_gap', 'thorn_hollow', 'key_sanctum'], enemies: ['goblin', 'wolf', 'goblin', 'slime'] },
+        { id: 3, worldIndex: 0, stageInWorld: 3, nameKey: 'runenpfad.level_3', parTime: 95, zones: ['meadow', 'ladder_tower', 'bridge_gap', 'thorn_hollow', 'spike_gallery', 'key_sanctum'], enemies: ['goblin', 'wolf', 'goblin', 'slime'] },
         { id: 4, worldIndex: 0, stageInWorld: 4, nameKey: 'runenpfad.level_4', parTime: 105, zones: ['meadow', 'mushroom_canopy', 'moving_bridge', 'crate_yard', 'key_sanctum'], enemies: ['wolf', 'boar', 'goblin', 'wolf'] },
         { id: 5, worldIndex: 0, stageInWorld: 5, nameKey: 'runenpfad.level_5', parTime: 115, zones: ['meadow', 'step_ledge', 'boss_arena'], enemies: ['slime', 'goblin'], boss: 'boss_boar' },
 
         { id: 6, worldIndex: 1, stageInWorld: 1, nameKey: 'runenpfad.level_6', parTime: 90, zones: ['meadow', 'ladder_tower', 'crate_yard', 'mushroom_canopy', 'key_sanctum'], enemies: ['slime', 'goblin', 'spider_drone'] },
         { id: 7, worldIndex: 1, stageInWorld: 2, nameKey: 'runenpfad.level_7', parTime: 100, zones: ['meadow', 'crumble_chasm', 'step_ledge', 'thorn_hollow', 'key_sanctum'], enemies: ['goblin', 'spider_drone', 'boar'] },
-        { id: 8, worldIndex: 1, stageInWorld: 3, nameKey: 'runenpfad.level_8', parTime: 110, zones: ['meadow', 'moving_bridge', 'ladder_tower', 'crumble_chasm', 'key_sanctum'], enemies: ['spider_drone', 'boar', 'goblin', 'slime'] },
-        { id: 9, worldIndex: 1, stageInWorld: 4, nameKey: 'runenpfad.level_9', parTime: 120, zones: ['meadow', 'thorn_hollow', 'moving_bridge', 'mushroom_canopy', 'key_sanctum'], enemies: ['boar', 'spider_drone', 'wolf', 'spider_drone'] },
+        { id: 8, worldIndex: 1, stageInWorld: 3, nameKey: 'runenpfad.level_8', parTime: 110, zones: ['meadow', 'moving_bridge', 'ladder_tower', 'crumble_chasm', 'boulder_gallery', 'key_sanctum'], enemies: ['spider_drone', 'boar', 'goblin', 'slime'] },
+        { id: 9, worldIndex: 1, stageInWorld: 4, nameKey: 'runenpfad.level_9', parTime: 120, zones: ['meadow', 'thorn_hollow', 'moving_bridge', 'mushroom_canopy', 'key_sanctum'], enemies: ['boar', 'spider_drone', 'wolf', 'stalker'] },
         { id: 10, worldIndex: 1, stageInWorld: 5, nameKey: 'runenpfad.level_10', parTime: 125, zones: ['meadow', 'crumble_chasm', 'boss_arena'], enemies: ['goblin', 'spider_drone'], boss: 'boss_goblin' },
 
         { id: 11, worldIndex: 2, stageInWorld: 1, nameKey: 'runenpfad.level_11', parTime: 95, zones: ['meadow', 'bridge_gap', 'cannon_bastion', 'crate_yard', 'key_sanctum'], enemies: ['goblin', 'wolf', 'quadcopter'] },
-        { id: 12, worldIndex: 2, stageInWorld: 2, nameKey: 'runenpfad.level_12', parTime: 105, zones: ['meadow', 'crumble_chasm', 'cannon_bastion', 'step_ledge', 'key_sanctum'], enemies: ['wolf', 'boar', 'security_orb', 'quadcopter'] },
+        { id: 12, worldIndex: 2, stageInWorld: 2, nameKey: 'runenpfad.level_12', parTime: 105, zones: ['meadow', 'crumble_chasm', 'cannon_bastion', 'rune_shrine', 'step_ledge', 'key_sanctum'], enemies: ['wolf', 'boar', 'security_orb', 'quadcopter'] },
         { id: 13, worldIndex: 2, stageInWorld: 3, nameKey: 'runenpfad.level_13', parTime: 115, zones: ['meadow', 'ladder_tower', 'moving_bridge', 'cannon_bastion', 'key_sanctum'], enemies: ['boar', 'quadcopter', 'security_orb', 'wolf'] },
         { id: 14, worldIndex: 2, stageInWorld: 4, nameKey: 'runenpfad.level_14', parTime: 125, zones: ['meadow', 'thorn_hollow', 'cannon_bastion', 'moving_bridge', 'key_sanctum'], enemies: ['security_orb', 'quadcopter', 'boar', 'goblin'] },
         { id: 15, worldIndex: 2, stageInWorld: 5, nameKey: 'runenpfad.level_15', parTime: 130, zones: ['meadow', 'cannon_bastion', 'boss_arena'], enemies: ['wolf', 'quadcopter'], boss: 'boss_orb' },
 
-        { id: 16, worldIndex: 3, stageInWorld: 1, nameKey: 'runenpfad.level_16', parTime: 100, zones: ['meadow', 'ice_slide', 'step_ledge', 'crate_yard', 'key_sanctum'], enemies: ['wolf', 'service_robot', 'spider_drone'] },
+        { id: 16, worldIndex: 3, stageInWorld: 1, nameKey: 'runenpfad.level_16', parTime: 100, zones: ['meadow', 'ice_slide', 'step_ledge', 'ambush_den', 'crate_yard', 'key_sanctum'], enemies: ['wolf', 'service_robot', 'spider_drone'] },
         { id: 17, worldIndex: 3, stageInWorld: 2, nameKey: 'runenpfad.level_17', parTime: 110, zones: ['meadow', 'ice_slide', 'bridge_gap', 'mushroom_canopy', 'key_sanctum'], enemies: ['service_robot', 'quadcopter', 'wolf', 'spider_drone'] },
-        { id: 18, worldIndex: 3, stageInWorld: 3, nameKey: 'runenpfad.level_18', parTime: 120, zones: ['meadow', 'moving_bridge', 'ice_slide', 'ladder_tower', 'key_sanctum'], enemies: ['spider_drone', 'quadcopter', 'service_robot', 'wolf'] },
-        { id: 19, worldIndex: 3, stageInWorld: 4, nameKey: 'runenpfad.level_19', parTime: 130, zones: ['meadow', 'crumble_chasm', 'ice_slide', 'cannon_bastion', 'key_sanctum'], enemies: ['quadcopter', 'service_robot', 'security_orb', 'spider_drone'] },
+        { id: 18, worldIndex: 3, stageInWorld: 3, nameKey: 'runenpfad.level_18', parTime: 120, zones: ['meadow', 'moving_bridge', 'ice_slide', 'ladder_tower', 'spike_gallery', 'key_sanctum'], enemies: ['spider_drone', 'quadcopter', 'service_robot', 'wolf'] },
+        { id: 19, worldIndex: 3, stageInWorld: 4, nameKey: 'runenpfad.level_19', parTime: 130, zones: ['meadow', 'crumble_chasm', 'ice_slide', 'cannon_bastion', 'key_sanctum'], enemies: ['quadcopter', 'service_robot', 'security_orb', 'sentry_bot'] },
         { id: 20, worldIndex: 3, stageInWorld: 5, nameKey: 'runenpfad.level_20', parTime: 135, zones: ['meadow', 'ice_slide', 'boss_arena'], enemies: ['service_robot', 'spider_drone'], boss: 'boss_quad' },
 
         { id: 21, worldIndex: 4, stageInWorld: 1, nameKey: 'runenpfad.level_21', parTime: 105, zones: ['meadow', 'cannon_bastion', 'moving_bridge', 'crate_yard', 'key_sanctum'], enemies: ['service_robot', 'spider_drone', 'security_orb'] },
-        { id: 22, worldIndex: 4, stageInWorld: 2, nameKey: 'runenpfad.level_22', parTime: 115, zones: ['meadow', 'thorn_hollow', 'ladder_tower', 'cannon_bastion', 'key_sanctum'], enemies: ['spider_drone', 'quadcopter', 'combat_mech', 'security_orb'] },
-        { id: 23, worldIndex: 4, stageInWorld: 3, nameKey: 'runenpfad.level_23', parTime: 125, zones: ['meadow', 'crumble_chasm', 'moving_bridge', 'cannon_bastion', 'key_sanctum'], enemies: ['combat_mech', 'quadcopter', 'security_orb', 'service_robot'] },
-        { id: 24, worldIndex: 4, stageInWorld: 4, nameKey: 'runenpfad.level_24', parTime: 135, zones: ['meadow', 'cannon_bastion', 'thorn_hollow', 'moving_bridge', 'mushroom_canopy', 'key_sanctum'], enemies: ['combat_mech', 'security_orb', 'quadcopter', 'spider_drone', 'service_robot'] },
+        { id: 22, worldIndex: 4, stageInWorld: 2, nameKey: 'runenpfad.level_22', parTime: 115, zones: ['meadow', 'thorn_hollow', 'ladder_tower', 'cannon_bastion', 'rune_shrine', 'key_sanctum'], enemies: ['spider_drone', 'quadcopter', 'combat_mech', 'security_orb'] },
+        { id: 23, worldIndex: 4, stageInWorld: 3, nameKey: 'runenpfad.level_23', parTime: 125, zones: ['meadow', 'crumble_chasm', 'moving_bridge', 'cannon_bastion', 'key_sanctum'], enemies: ['combat_mech', 'quadcopter', 'security_orb', 'service_robot', 'bomber_drone'] },
+        { id: 24, worldIndex: 4, stageInWorld: 4, nameKey: 'runenpfad.level_24', parTime: 135, zones: ['meadow', 'cannon_bastion', 'thorn_hollow', 'moving_bridge', 'boulder_gallery', 'mushroom_canopy', 'key_sanctum'], enemies: ['combat_mech', 'security_orb', 'quadcopter', 'spider_drone', 'service_robot'] },
         { id: 25, worldIndex: 4, stageInWorld: 5, nameKey: 'runenpfad.level_25', parTime: 150, zones: ['meadow', 'moving_bridge', 'boss_arena'], enemies: ['service_robot', 'security_orb', 'quadcopter'], boss: 'boss_mech' }
     ];
+
+    // Presentation data lives in biomes.js; fall back gracefully when it is not loaded.
+    function biomeApi() {
+        return root.RunenpfadBiomes || null;
+    }
 
     function makeRng(seed) {
         let s = (Number(seed) || 1) >>> 0;
@@ -331,7 +339,7 @@
         const idx = Math.max(1, Math.floor(Number(floor) || 1));
         const rng = makeRng((seed || 9001) + idx * 7919);
         const worldIndex = (idx - 1) % WORLDS.length;
-        const pool = ['bridge_gap', 'step_ledge', 'ladder_tower', 'mushroom_canopy', 'moving_bridge', 'crumble_chasm', 'thorn_hollow', 'cannon_bastion'];
+        const pool = ['bridge_gap', 'step_ledge', 'ladder_tower', 'mushroom_canopy', 'moving_bridge', 'crumble_chasm', 'thorn_hollow', 'cannon_bastion', 'spike_gallery', 'boulder_gallery', 'rune_shrine', 'ambush_den'];
         if (worldIndex === 3) pool.push('ice_slide');
         const zones = ['meadow'];
         const count = Math.min(6, 3 + Math.floor(idx / 3));
@@ -340,11 +348,11 @@
         }
         const isBoss = idx % 3 === 0;
         zones.push(isBoss ? 'boss_arena' : 'key_sanctum');
-        const roster = worldIndex === 0 ? ['slime', 'goblin', 'wolf', 'boar']
-            : worldIndex === 1 ? ['goblin', 'spider_drone', 'boar', 'slime']
-            : worldIndex === 2 ? ['wolf', 'boar', 'quadcopter', 'security_orb']
-            : worldIndex === 3 ? ['wolf', 'service_robot', 'spider_drone', 'quadcopter']
-            : ['service_robot', 'spider_drone', 'quadcopter', 'security_orb', 'combat_mech'];
+        const roster = worldIndex === 0 ? ['slime', 'goblin', 'wolf', 'boar', 'stalker']
+            : worldIndex === 1 ? ['goblin', 'spider_drone', 'boar', 'slime', 'stalker', 'bomber_drone']
+            : worldIndex === 2 ? ['wolf', 'boar', 'quadcopter', 'security_orb', 'stalker']
+            : worldIndex === 3 ? ['wolf', 'service_robot', 'spider_drone', 'quadcopter', 'sentry_bot']
+            : ['service_robot', 'spider_drone', 'quadcopter', 'security_orb', 'combat_mech', 'sentry_bot', 'bomber_drone'];
         const enemies = [];
         const enemyCount = 3 + Math.min(5, Math.floor(idx / 2));
         for (let i = 0; i < enemyCount; i++) {
@@ -378,6 +386,8 @@
         }
 
         const world = WORLDS[cfg.worldIndex];
+        const biomeRef = biomeApi();
+        const biome = biomeRef ? biomeRef.biomeFor(cfg.worldIndex) : null;
         const rows = 16;
         const groundY = 13;
         const rng = makeRng((cfg.id || 1) * 48271 + 17);
@@ -394,6 +404,8 @@
         const cannons = [];
         const scenery = [];
         const enemies = [];
+        const boulders = [];
+        const shrines = [];
 
         function setTile(tx, ty, assetId, kind) {
             if (tx < 0 || ty < 0 || ty >= rows) return;
@@ -655,6 +667,71 @@
                 addCoinLine(cursorX + 3, 5, groundY - 3, false);
                 addEnemy(nextEnemyId(), cursorX + 9, groundY, cursorX + 7, cursorX + 11);
                 cursorX += 12;
+            } else if (zone === 'spike_gallery') {
+                // Animated spike traps force a rhythm of hops instead of a straight run.
+                fillGround(cursorX, 13, groundY);
+                for (let x = cursorX + 2; x < cursorX + 11; x += 2) {
+                    hazards.push({ kind: 'spike_trap', assetId: 'spike_trap', x: x * TILE, y: (groundY - 1) * TILE, w: TILE, h: 30 });
+                }
+                addPlatformRow(cursorX + 3, 3, groundY - 3, 'platform');
+                addPlatformRow(cursorX + 7, 3, groundY - 4, 'platform');
+                addCoinLine(cursorX + 3, 4, groundY - 4, true);
+                addEnemy(nextEnemyId(), cursorX + 11, groundY, cursorX + 9, cursorX + 12);
+                if (gemIndex < 3) placeGem(cursorX + 8, groundY - 5);
+                cursorX += 13;
+            } else if (zone === 'boulder_gallery') {
+                // Falling stones: the ceiling drops hazards right where the player walks.
+                fillGround(cursorX, 14, groundY);
+                for (let i = 0; i < 3; i++) {
+                    const bx = cursorX + 3 + i * 3;
+                    boulders.push({
+                        id: 'b_' + boulders.length,
+                        x: bx * TILE,
+                        y: (groundY - 7) * TILE,
+                        spawnY: (groundY - 7) * TILE,
+                        w: TILE,
+                        h: TILE,
+                        vy: 0,
+                        state: 'idle',
+                        timer: 0
+                    });
+                }
+                addPlatformRow(cursorX + 2, 4, groundY - 2, 'platform');
+                addCoinLine(cursorX + 3, 5, groundY - 3, false);
+                addEnemy(nextEnemyId(), cursorX + 10, groundY, cursorX + 8, cursorX + 12);
+                if (gemIndex < 3) placeGem(cursorX + 6, groundY - 3);
+                cursorX += 14;
+            } else if (zone === 'rune_shrine') {
+                // The shrine grants a rune blessing: double damage for a short window.
+                fillGround(cursorX, 13, groundY);
+                shrines.push({ id: 'sh_' + shrines.length, x: (cursorX + 5.5) * TILE, y: (groundY - 1.5) * TILE, taken: false });
+                addPlatformRow(cursorX + 2, 3, groundY - 3, 'platform');
+                addCoinLine(cursorX + 2, 4, groundY - 4, true);
+                collectibles.push({
+                    id: 'st_' + collectibles.length,
+                    kind: 'star',
+                    assetId: 'star',
+                    animated: false,
+                    x: (cursorX + 5.5) * TILE,
+                    y: (groundY - 4.5) * TILE,
+                    collected: false
+                });
+                addEnemy(nextEnemyId(), cursorX + 9, groundY, cursorX + 7, cursorX + 11);
+                if (!checkpointAdded) {
+                    checkpoints.push({ id: 'cp_' + checkpoints.length, x: (cursorX + 11.5) * TILE, y: (groundY - 1) * TILE, activated: false });
+                    checkpointAdded = true;
+                }
+                cursorX += 13;
+            } else if (zone === 'ambush_den') {
+                // Stalkers wait in the dark and only charge once the hero comes close.
+                fillGround(cursorX, 13, groundY);
+                addPlatformRow(cursorX + 3, 4, groundY - 3, 'platform');
+                hazards.push({ kind: 'spikes', assetId: cfg.worldIndex === 0 ? 'thorn' : 'spikes', x: (cursorX + 8) * TILE, y: (groundY - 1) * TILE, w: TILE, h: 32 });
+                addEnemy('stalker', cursorX + 6, groundY, cursorX + 4, cursorX + 11);
+                addEnemy(nextEnemyId(), cursorX + 10, groundY, cursorX + 8, cursorX + 11);
+                addCoinLine(cursorX + 4, 4, groundY - 4, true);
+                if (gemIndex < 3) placeGem(cursorX + 4, groundY - 5);
+                cursorX += 13;
             } else if (zone === 'key_sanctum') {
                 fillGround(cursorX, 14, groundY);
                 addPlatformRow(cursorX + 2, 4, groundY - 2, 'platform');
@@ -704,13 +781,18 @@
         for (let y = 0; y < rows; y++) setTile(cursorX, y, world.groundFill, 'solid');
         const widthTiles = cursorX + 1;
 
-        return {
+        const stage = {
             id: cfg.id,
             mode: cfg.mode || 'campaign',
             endlessFloor: cfg.endlessFloor || 0,
             worldIndex: cfg.worldIndex,
             stageInWorld: cfg.stageInWorld,
             world: world,
+            biome: biome,
+            ambience: {
+                primary: biome ? biome.ambience.primary : world.ambience,
+                secondary: biome ? biome.ambience.secondary : ''
+            },
             nameKey: cfg.nameKey,
             parTime: cfg.parTime,
             tileSize: TILE,
@@ -726,6 +808,8 @@
             movingPlatforms: movingPlatforms,
             ladders: ladders,
             hazards: hazards,
+            boulders: boulders,
+            shrines: shrines,
             crates: crates,
             collectibles: collectibles,
             checkpoints: checkpoints,
@@ -737,6 +821,34 @@
             door: doorPos,
             portal: portalPos
         };
+
+        // Rune trials layer a per-level twist on top of the generated stage.
+        const variety = root.RunenpfadVariety || null;
+        if (variety) {
+            const mod = variety.pickMod(cfg.mode === 'endless' ? 0 : cfg.id, cfg.mode === 'endless' ? cfg.endlessFloor : 0);
+            if (mod && mod.effects.extraEnemies) {
+                for (let i = 0; i < mod.effects.extraEnemies; i++) {
+                    const tx = 6 + Math.floor(rng() * Math.max(1, widthTiles - 14));
+                    addEnemy(enemyPool[Math.floor(rng() * enemyPool.length)], tx, groundY, Math.max(1, tx - 4), Math.min(widthTiles - 1, tx + 4));
+                }
+            }
+            if (mod && mod.effects.heartBonus) {
+                for (let i = 0; i < mod.effects.heartBonus; i++) {
+                    const tx = 4 + Math.floor(rng() * Math.max(1, widthTiles - 10));
+                    collectibles.push({
+                        id: 'hb_' + collectibles.length,
+                        kind: 'heart',
+                        assetId: 'heart',
+                        animated: false,
+                        x: (tx + 0.5) * TILE,
+                        y: (groundY - 1.5) * TILE,
+                        collected: false
+                    });
+                }
+            }
+            variety.applyToStage(stage, mod);
+        }
+        return stage;
     }
 
     root.RunenpfadLevels = {

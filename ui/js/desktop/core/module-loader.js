@@ -45,9 +45,15 @@
         runenpfad: {
             styles: appStyles('/css/desktop-app-runenpfad.css'),
             scripts: [
+                '/js/desktop/apps/runenpfad/biomes.js',
+                '/js/desktop/apps/runenpfad/fx.js',
+                '/js/desktop/apps/runenpfad/behaviors.js',
+                '/js/desktop/apps/runenpfad/variety.js',
+                '/js/desktop/apps/runenpfad/profile.js',
                 '/js/desktop/apps/runenpfad/levels.js',
                 '/js/desktop/apps/runenpfad/sim.js',
                 '/js/desktop/apps/runenpfad/audio.js',
+                '/js/desktop/apps/runenpfad/atmosphere.js',
                 '/js/desktop/apps/runenpfad/view.js',
                 '/js/desktop/apps/runenpfad/app.js'
             ]

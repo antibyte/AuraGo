@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Højre",
   "runenpfad.touch_jump": "Hop",
   "runenpfad.touch_attack": "Slag",
-  "runenpfad.touch_special": "Rul"
+  "runenpfad.touch_special": "Rul",
+  "runenpfad.hud_trial": "Runeprøve",
+  "runenpfad.hud_rune": "Runekraft",
+  "runenpfad.mod_swift": "Hurtige fjender",
+  "runenpfad.mod_swift_desc": "Fjenderne bevæger sig 40 % hurtigere og har flere liv.",
+  "runenpfad.mod_fragile": "Skrøbelig jord",
+  "runenpfad.mod_fragile_desc": "De sammenstyrtende platforme bryder sammen langt hurtigere.",
+  "runenpfad.mod_dark": "Mørke",
+  "runenpfad.mod_dark_desc": "Lyset svækkes, og kun din run lyser.",
+  "runenpfad.mod_greedy": "Grådig",
+  "runenpfad.mod_greedy_desc": "Mønterne er mere værd, men flere fjender venter.",
+  "runenpfad.mod_storm": "Storm",
+  "runenpfad.mod_storm_desc": "Platforme bevæger sig hurtigere, og vinden skubber dig bagud.",
+  "runenpfad.mod_mend": "Velsignelse",
+  "runenpfad.mod_mend_desc": "Flere helbredende potions og hjerter i dette niveau."
 }

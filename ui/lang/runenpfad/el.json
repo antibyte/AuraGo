@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Δεξιά",
   "runenpfad.touch_jump": "Άλμα",
   "runenpfad.touch_attack": "Χτύπημα",
-  "runenpfad.touch_special": "Ελιγμός"
+  "runenpfad.touch_special": "Ελιγμός",
+  "runenpfad.hud_trial": "Δοκιμή Ρούνων",
+  "runenpfad.hud_rune": "Δύναμη Ρούνων",
+  "runenpfad.mod_swift": "Γρήγοροι εχθροί",
+  "runenpfad.mod_swift_desc": "Οι εχθροί κινούνται 40% γρηγορότερα και έχουν περισσότερες ζωές.",
+  "runenpfad.mod_fragile": "Εύθραυστο έδαφος",
+  "runenpfad.mod_fragile_desc": "Οι εύθραυστες πλατφόρμες καταρρέουν πολύ πιο γρήγορα.",
+  "runenpfad.mod_dark": "Σκοτάδα",
+  "runenpfad.mod_dark_desc": "Το φως εξασθενεί, μόνο η ρούνα σου λάμπει.",
+  "runenpfad.mod_greedy": "Απληστία",
+  "runenpfad.mod_greedy_desc": "Τα νομίσματα αξίζουν περισσότερα, αλλά περιμένουν περισσότεροι εχθροί.",
+  "runenpfad.mod_storm": "Καταιγίδα",
+  "runenpfad.mod_storm_desc": "Οι πλατφόρμες κινούνται γρηγορότερα και ο άνεμος σε σπρώχνει πίσω.",
+  "runenpfad.mod_mend": "Ευλογία",
+  "runenpfad.mod_mend_desc": "Περισσότερα φαρμακευτικά και καρδιές σε αυτό το επίπεδο."
 }

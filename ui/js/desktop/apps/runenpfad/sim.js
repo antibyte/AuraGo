@@ -3,8 +3,6 @@
     'use strict';
 
     const STEP = 1 / 60;
-    const STORAGE_KEY = 'aurago.runenpfad.v1';
-    const SAVE_VERSION = 1;
     const GRAVITY = 1480;
     const MAX_FALL = 760;
 
@@ -12,138 +10,61 @@
         return root.RunenpfadLevels;
     }
 
-    function createDefaultProfile() {
-        return {
-            v: SAVE_VERSION,
-            hero: 'knight',
-            sound: true,
-            unlockedLevel: 1,
-            endlessBestFloor: 0,
-            coins: 25,
-            totalScore: 0,
-            upgrades: {
-                vitality: 1,
-                might: 1,
-                boots: 1,
-                alchemy: 1
-            },
-            starsByLevel: {},
-            bestTimeByLevel: {}
-        };
+    // Profile handling lives in profile.js; the simulation re-exports it for callers.
+    function profileApi() {
+        return root.RunenpfadProfile || null;
     }
 
-    function clampInt(val, min, max, fallback) {
-        const n = Number(val);
-        if (!Number.isFinite(n)) return fallback;
-        return Math.min(max, Math.max(min, Math.floor(n)));
+    function fxApi() {
+        return root.RunenpfadFx || null;
     }
 
-    function importProfile(raw) {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.v !== SAVE_VERSION) {
-            return null;
-        }
-        const levels = levelsApi();
-        const def = createDefaultProfile();
-        const hero = raw.hero === 'ranger' ? 'ranger' : 'knight';
-        const upgrades = {};
-        levels.UPGRADE_DEFS.forEach(function (track) {
-            upgrades[track.id] = clampInt(raw.upgrades && raw.upgrades[track.id], 1, track.maxLevel, 1);
-        });
-        const starsByLevel = {};
-        if (raw.starsByLevel && typeof raw.starsByLevel === 'object' && !Array.isArray(raw.starsByLevel)) {
-            Object.keys(raw.starsByLevel).forEach(function (k) {
-                const lvl = Number(k);
-                if (Number.isInteger(lvl) && lvl >= 1 && lvl <= levels.CAMPAIGN_LEVELS.length) {
-                    starsByLevel[lvl] = clampInt(raw.starsByLevel[k], 0, 3, 0);
-                }
-            });
-        }
-        const bestTimeByLevel = {};
-        if (raw.bestTimeByLevel && typeof raw.bestTimeByLevel === 'object' && !Array.isArray(raw.bestTimeByLevel)) {
-            Object.keys(raw.bestTimeByLevel).forEach(function (k) {
-                const lvl = Number(k);
-                const t = Number(raw.bestTimeByLevel[k]);
-                if (Number.isInteger(lvl) && lvl >= 1 && lvl <= levels.CAMPAIGN_LEVELS.length && Number.isFinite(t) && t > 0) {
-                    bestTimeByLevel[lvl] = Math.round(t * 10) / 10;
-                }
-            });
-        }
-        return {
-            v: SAVE_VERSION,
-            hero: hero,
-            sound: raw.sound !== false,
-            unlockedLevel: clampInt(raw.unlockedLevel, 1, levels.CAMPAIGN_LEVELS.length, def.unlockedLevel),
-            endlessBestFloor: clampInt(raw.endlessBestFloor, 0, 9999, 0),
-            coins: clampInt(raw.coins, 0, 9999999, 0),
-            totalScore: clampInt(raw.totalScore, 0, 99999999, 0),
-            upgrades: upgrades,
-            starsByLevel: starsByLevel,
-            bestTimeByLevel: bestTimeByLevel
-        };
+    function behaviorsApi() {
+        return root.RunenpfadBehaviors || null;
     }
 
-    function exportProfile(profile) {
-        return importProfile(profile) || createDefaultProfile();
+    function varietyApi() {
+        return root.RunenpfadVariety || null;
     }
 
-    function upgradeCost(trackId, currentLevel) {
-        const track = levelsApi().UPGRADE_DEFS.find(function (u) { return u.id === trackId; });
-        if (!track || currentLevel >= track.maxLevel) return null;
-        return track.baseCost + (currentLevel - 1) * track.stepCost;
+    // Particle helpers keep every effect call site short and safe when fx.js is absent.
+    function fxSpawn(sim, kind, x, y, opts) {
+        if (!sim.fx) return null;
+        return fxApi().spawn(sim.fx, kind, x, y, opts);
     }
 
-    function buyUpgrade(profile, trackId) {
-        const clean = exportProfile(profile);
-        const track = levelsApi().UPGRADE_DEFS.find(function (u) { return u.id === trackId; });
-        if (!track) return { ok: false, reason: 'unknown', profile: clean, cost: 0 };
-        const lvl = clean.upgrades[trackId] || 1;
-        if (lvl >= track.maxLevel) return { ok: false, reason: 'max', profile: clean, cost: 0 };
-        const cost = upgradeCost(trackId, lvl);
-        if (clean.coins < cost) return { ok: false, reason: 'coins', profile: clean, cost: cost };
-        clean.coins -= cost;
-        clean.upgrades[trackId] = lvl + 1;
-        return { ok: true, profile: clean, cost: cost };
+    function fxBurst(sim, kind, x, y, count, opts) {
+        if (!sim.fx) return;
+        fxApi().burst(sim.fx, kind, x, y, count, opts);
     }
 
-    function totalStars(profile) {
-        if (!profile || !profile.starsByLevel) return 0;
-        let sum = 0;
-        Object.keys(profile.starsByLevel).forEach(function (k) {
-            sum += Number(profile.starsByLevel[k]) || 0;
-        });
-        return sum;
+    function fxShake(sim, amount) {
+        if (!sim.fx) return;
+        fxApi().shake(sim.fx, amount);
     }
 
-    function heroStats(heroId, profile) {
-        const levels = levelsApi();
-        const def = levels.HERO_DEFS[heroId] || levels.HERO_DEFS.knight;
-        const upg = (profile && profile.upgrades) || {};
-        const vit = clampInt(upg.vitality, 1, 5, 1);
-        const might = clampInt(upg.might, 1, 5, 1);
-        const boots = clampInt(upg.boots, 1, 5, 1);
-        const alchemy = clampInt(upg.alchemy, 1, 5, 1);
-        return {
-            def: def,
-            maxHp: def.baseHp + (vit - 1),
-            damage: def.baseDamage + Math.floor(might / 2),
-            speed: def.speed + (boots - 1) * 14,
-            jumpVel: def.jumpVel + (boots - 1) * 16,
-            maxAirJumps: def.maxAirJumps + (boots >= 4 ? 1 : 0),
-            potions: 1 + Math.floor(alchemy / 2),
-            magnetRadius: 28 + (alchemy - 1) * 18
-        };
+    function fxFlash(sim, color, alpha, duration) {
+        if (!sim.fx) return;
+        fxApi().flash(sim.fx, color, alpha, duration);
+    }
+
+    function fxHitstop(sim, seconds) {
+        if (!sim.fx) return;
+        fxApi().hitstop(sim.fx, seconds);
     }
 
     function createSimulation(options) {
         options = options || {};
         const levels = levelsApi();
-        const profile = exportProfile(options.profile);
+        const profileRef = profileApi();
+        const profile = profileRef ? profileRef.exportProfile(options.profile) : (options.profile || {});
         const mode = options.mode === 'endless' ? 'endless' : 'campaign';
-        const levelId = clampInt(options.levelId, 1, levels.CAMPAIGN_LEVELS.length, 1);
-        const endlessFloor = clampInt(options.endlessFloor, 1, 9999, 1);
+        const levelId = Math.min(levels.CAMPAIGN_LEVELS.length, Math.max(1, Math.floor(Number(options.levelId) || 1)));
+        const endlessFloor = Math.min(9999, Math.max(1, Math.floor(Number(options.endlessFloor) || 1)));
         const heroId = options.hero === 'ranger' ? 'ranger' : (options.hero === 'knight' ? 'knight' : profile.hero);
         const stage = levels.buildStage(mode === 'endless' ? { mode: 'endless', endlessFloor: endlessFloor, seed: options.seed || 9001 } : levelId);
-        const stats = heroStats(heroId, profile);
+        const stats = profileRef ? profileRef.heroStats(heroId, profile) : levels.HERO_DEFS[heroId];
+        const fxApiRef = fxApi();
 
         return {
             mode: mode,
@@ -184,7 +105,7 @@
                 airJumpsLeft: stats.maxAirJumps,
                 hp: stats.maxHp,
                 maxHp: stats.maxHp,
-                potions: stats.potions,
+                potions: stats.potions + (stage.modEffects && stage.modEffects.potionBonus ? stage.modEffects.potionBonus : 0),
                 invulnTimer: 0,
                 attackTimer: 0,
                 attackCooldown: 0,
@@ -199,12 +120,26 @@
             projectiles: [],
             effects: [],
             floatingTexts: [],
-            events: []
+            events: [],
+            blessing: varietyApi() ? varietyApi().createBlessing() : { runePower: 0, shrineCount: 0 },
+            fx: fxApiRef ? fxApiRef.createSystem((mode === 'endless' ? endlessFloor : levelId) * 7919 + 13) : null
         };
     }
 
     function pushEvent(sim, type, detail) {
         sim.events.push({ type: type, detail: detail || null });
+    }
+
+    // Every jump shares the same kick-off dust so the feedback stays consistent.
+    function pushJump(sim) {
+        pushEvent(sim, 'jump', null);
+        fxBurst(sim, 'dust', sim.player.x, sim.player.y, 6, {
+            color: '#d9c9a8',
+            speed: 95,
+            arc: Math.PI,
+            angle: -Math.PI / 2,
+            life: 0.36
+        });
     }
 
     function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
@@ -311,7 +246,7 @@
         return undefined;
     }
 
-    function hurtPlayer(sim, amount, sourceX) {
+    function hurtPlayer(sim, amount, sourceX, sound) {
         const p = sim.player;
         if (p.invulnTimer > 0 || sim.state !== 'playing') return;
         p.hp = Math.max(0, p.hp - amount);
@@ -321,8 +256,11 @@
         p.slamActive = false;
         p.vy = -300;
         p.vx = p.x >= sourceX ? 180 : -180;
-        pushEvent(sim, 'player_hurt', { hp: p.hp });
+        pushEvent(sim, 'player_hurt', { hp: p.hp, sound: sound || 'impact-flesh' });
         sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '-' + amount, color: '#ff6b7d', timer: 0.75 });
+        fxFlash(sim, '#ff3b5c', 0.26, 0.22);
+        fxShake(sim, 5.5);
+        fxBurst(sim, 'spark', p.x, p.y - 22, 10, { color: '#ff6b7d', speed: 210, arc: Math.PI * 2, life: 0.34 });
         if (p.hp <= 0) {
             if (!sim.checkpointUsed && sim.checkpoint) {
                 sim.checkpointUsed = true;
@@ -333,11 +271,16 @@
                 p.vy = 0;
                 p.invulnTimer = 1.6;
                 sim.notice = 'runenpfad.notice.respawn';
+                fxFlash(sim, '#7ee8fa', 0.3, 0.3);
+                fxBurst(sim, 'rune', p.x, p.y - 22, 12, { color: '#7ee8fa', speed: 150, life: 0.6 });
             } else {
                 sim.state = 'lost';
                 p.animState = 'death';
                 p.animTime = 0;
                 pushEvent(sim, 'player_defeat', null);
+                fxFlash(sim, '#ff3b5c', 0.45, 0.5);
+                fxShake(sim, 9);
+                fxBurst(sim, 'shard', p.x, p.y - 22, 16, { color: '#ff6b7d', speed: 240, life: 0.7 });
             }
         }
     }
@@ -351,14 +294,33 @@
         }
         sim.floatingTexts.push({ x: enemy.x, y: enemy.y - 46, text: String(dmg), color: '#ffe066', timer: 0.6 });
         pushEvent(sim, 'enemy_hit', { sound: enemy.def.hitSound, x: enemy.x, y: enemy.y });
+        fxBurst(sim, 'spark', hitX, enemy.y - 24, 7, {
+            color: enemy.def.hitSound === 'impact-metal' ? '#cfe8ff' : '#ffe066',
+            speed: 190,
+            arc: Math.PI * 2,
+            life: 0.3
+        });
         if (enemy.hp <= 0) {
             enemy.dead = true;
             enemy.deathTimer = 0.55;
             enemy.animState = 'death';
             enemy.animTime = 0;
-            sim.stageScore += enemy.def.score;
+            sim.stageScore += enemy.score || enemy.def.score;
             sim.effects.push({ animId: 'explosion', x: enemy.x, y: enemy.y - 24, timer: 0.5 });
+            fxBurst(sim, 'shard', enemy.x, enemy.y - 24, enemy.def.boss ? 26 : 12, {
+                color: enemy.def.hitSound === 'impact-metal' ? '#cfe8ff' : '#ffd08a',
+                speed: enemy.def.boss ? 320 : 220,
+                life: 0.8
+            });
+            fxBurst(sim, 'ember', enemy.x, enemy.y - 24, enemy.def.boss ? 22 : 8, {
+                color: '#ffb347',
+                speed: 90,
+                life: 1.1
+            });
+            fxShake(sim, enemy.def.boss ? 11 : 3.6);
+            fxHitstop(sim, enemy.def.boss ? 0.12 : 0.045);
             if (enemy.def.boss) {
+                fxFlash(sim, '#fff3c4', 0.4, 0.4);
                 sim.notice = 'runenpfad.notice.boss_defeated';
                 pushEvent(sim, 'boss_defeat', { id: enemy.id });
                 if (sim.stage.key && sim.stage.key.guardedByBoss && !sim.stage.key.collected) {
@@ -369,8 +331,31 @@
             } else {
                 pushEvent(sim, 'enemy_kill', { id: enemy.defId });
             }
+            // Bomber drones detonate when killed, hurting everything close by.
+            if (enemy.def.behavior === 'bomber' && !enemy.blastDone) {
+                enemy.blastDone = true;
+                pushEvent(sim, 'bomb_blast', { x: enemy.x, y: enemy.y });
+                sim.effects.push({ animId: 'explosion', x: enemy.x, y: enemy.y - 20, timer: 0.5 });
+                fxBurst(sim, 'shard', enemy.x, enemy.y - 20, 18, { color: '#fb923c', speed: 300, life: 0.8 });
+                fxBurst(sim, 'ember', enemy.x, enemy.y - 20, 12, { color: '#fde68a', speed: 150, life: 1.0 });
+                fxShake(sim, 7);
+                fxFlash(sim, '#fb923c', 0.2, 0.24);
+                stage.enemies.forEach(function (o) {
+                    if (!o.dead && o !== enemy && Math.hypot(o.x - enemy.x, o.y - enemy.y) < 96) {
+                        damageEnemy(sim, o, sim.stats.damage + 2, enemy.x);
+                    }
+                });
+                const p = sim.player;
+                if (Math.hypot(p.x - enemy.x, p.y - enemy.y) < 96) {
+                    hurtPlayer(sim, 1, enemy.x, 'impact-metal');
+                }
+            }
         } else if (enemy.def.boss && enemy.hp <= enemy.maxHp * 0.5) {
             enemy.phase = 2;
+            pushEvent(sim, 'boss_phase', { id: enemy.id });
+            fxFlash(sim, '#fb7185', 0.32, 0.35);
+            fxShake(sim, 8);
+            fxBurst(sim, 'rune', enemy.x, enemy.y - 28, 18, { color: '#fb7185', speed: 210, life: 0.8 });
         }
     }
 
@@ -378,11 +363,14 @@
         if (crate.broken) return;
         crate.hp -= 1;
         pushEvent(sim, 'crate_break', { x: crate.x, y: crate.y });
+        fxBurst(sim, 'dust', crate.x, crate.y + 20, 5, { color: '#c9a97a', speed: 90, life: 0.4 });
         if (crate.hp <= 0) {
             crate.broken = true;
             sim.effects.push({ animId: 'smoke', x: crate.x, y: crate.y + 18, timer: 0.45 });
+            fxBurst(sim, 'shard', crate.x, crate.y + 20, 10, { color: '#c9a97a', speed: 200, life: 0.7 });
+            fxShake(sim, 2.4);
             const dropKind = crate.drop || 'coin';
-            const asset = dropKind === 'apple' ? 'apple' : dropKind === 'heart' ? 'heart' : 'coin';
+            const asset = dropKind === 'apple' ? 'apple' : dropKind === 'heart' ? 'heart' : dropKind === 'star' ? 'star' : 'coin';
             sim.stage.collectibles.push({
                 id: 'drop_' + sim.stepCount + '_' + Math.floor(crate.x),
                 kind: dropKind,
@@ -400,6 +388,9 @@
         const p = sim.player;
         const stage = sim.stage;
         const stats = sim.stats;
+        const variety = varietyApi();
+        const blessingMul = variety ? variety.damageMultiplier(sim.blessing) : 1;
+        const attackDamage = stats.damage * blessingMul;
         if (p.attackCooldown > 0) return;
 
         // Mid-air knight ground slam
@@ -410,6 +401,7 @@
             p.attackTimer = stats.def.attackDuration;
             p.animState = 'attack';
             p.animTime = 0;
+            pushEvent(sim, 'slam', null);
             pushEvent(sim, 'attack_melee', null);
             return;
         }
@@ -426,12 +418,19 @@
             const hy = p.y - p.h - 6;
             const hw = reach;
             const hh = p.h + 10;
+            fxBurst(sim, 'spark', p.x + p.facing * 30, p.y - 26, 5, {
+                color: '#7ee8fa',
+                speed: 230,
+                arc: 1.1,
+                angle: p.facing > 0 ? -0.35 : Math.PI + 0.35,
+                life: 0.24
+            });
             stage.enemies.forEach(function (e) {
                 if (!e.dead) {
                     const ew = 40 * e.def.scale;
                     const eh = 48 * e.def.scale;
                     if (rectOverlap(hx, hy, hw, hh, e.x - ew / 2, e.y - eh, ew, eh)) {
-                        damageEnemy(sim, e, stats.damage, p.x);
+                        damageEnemy(sim, e, attackDamage, p.x);
                     }
                 }
             });
@@ -445,12 +444,17 @@
                 if (proj.fromEnemy && !proj.dead && rectOverlap(hx, hy, hw, hh, proj.x - 8, proj.y - 8, 16, 16)) {
                     proj.fromEnemy = false;
                     proj.vx = -proj.vx * 1.3;
-                    proj.damage = stats.damage;
+                    proj.damage = attackDamage;
                     proj.color = '#7ee8fa';
                 }
             });
         } else {
             pushEvent(sim, 'attack_ranged', null);
+            fxBurst(sim, 'rune', p.x + p.facing * 18, p.y - 24, 4, {
+                color: '#7ee8fa',
+                speed: 110,
+                life: 0.34
+            });
             sim.projectiles.push({
                 x: p.x + p.facing * 18,
                 y: p.y - 24,
@@ -500,6 +504,8 @@
             if (c.timer <= 0) {
                 c.timer = c.interval;
                 if (Math.abs(sim.player.x - c.x) < 520) {
+                    pushEvent(sim, 'cannon', { x: c.x, y: c.y });
+                    fxBurst(sim, 'spark', c.x + c.dir * 22, c.y, 5, { color: '#fb923c', speed: 150, life: 0.26 });
                     sim.projectiles.push({
                         x: c.x + c.dir * 20,
                         y: c.y,
@@ -514,12 +520,49 @@
                 }
             }
         });
+
+        // Falling stones: they drop when the hero enters their drop lane.
+        (stage.boulders || []).forEach(function (b) {
+            if (b.state === 'idle') {
+                if (Math.abs(sim.player.x - (b.x + b.w / 2)) < 250) {
+                    b.state = 'falling';
+                    b.vy = 0;
+                }
+            } else if (b.state === 'falling') {
+                b.vy = Math.min(MAX_FALL, b.vy + GRAVITY * dt);
+                b.y += b.vy * dt;
+                if (b.y >= stage.groundY - b.h) {
+                    b.y = stage.groundY - b.h;
+                    b.state = 'landed';
+                    b.timer = 1.4;
+                    pushEvent(sim, 'boulder_land', null);
+                    fxBurst(sim, 'dust', b.x + b.w / 2, b.y + b.h, 9, { color: '#cfc3ae', speed: 180, arc: Math.PI, angle: Math.PI / 2, life: 0.5 });
+                    fxShake(sim, 4);
+                }
+            } else if (b.state === 'landed') {
+                b.timer -= dt;
+                if (b.timer <= 0) {
+                    b.state = 'idle';
+                    b.y = b.spawnY;
+                    b.vy = 0;
+                }
+            }
+        });
     }
+
+    // Tile helpers handed to the behaviour module so enemy AI stays out of the simulation core.
+    const ENEMY_API = {
+        GRAVITY: GRAVITY,
+        MAX_FALL: MAX_FALL,
+        isSolidTile: isSolidTile,
+        resolveHorizontalTiles: resolveHorizontalTiles,
+        resolveVerticalTiles: resolveVerticalTiles
+    };
 
     function stepEnemies(sim, dt) {
         const stage = sim.stage;
         const p = sim.player;
-        const TILE = stage.tileSize;
+        const behaviors = behaviorsApi();
         stage.enemies.forEach(function (e) {
             e.animTime += dt;
             if (e.dead) {
@@ -527,42 +570,12 @@
                 return;
             }
             if (e.hurtTimer > 0) e.hurtTimer -= dt;
-            const prevY = e.y;
             const speedMul = e.phase === 2 ? 1.38 : 1.0;
 
-            if (e.def.flying) {
-                e.x += e.vx * speedMul * dt;
-                if (e.x <= e.minX) { e.x = e.minX; e.vx = Math.abs(e.def.speed); }
-                if (e.x >= e.maxX) { e.x = e.maxX; e.vx = -Math.abs(e.def.speed); }
-                e.y = e.spawnY - 88 + Math.sin(e.animTime * 2.6) * 28;
-                e.facing = e.vx >= 0 ? 1 : -1;
+            if (behaviors) {
+                behaviors.update(sim, e, dt, ENEMY_API);
             } else {
-                const distToPlayer = Math.abs(p.x - e.x);
-                if (e.def.behavior === 'charger' || e.def.behavior === 'boss_ground' || e.def.behavior === 'boss_jumper') {
-                    if (distToPlayer < 240 && Math.abs(p.y - e.y) < 120) {
-                        e.vx = (p.x >= e.x ? 1 : -1) * e.def.speed * speedMul * 1.15;
-                    }
-                }
-                e.x += e.vx * dt;
-                const hitWall = resolveHorizontalTiles(stage, e, 30 * e.def.scale, 42 * e.def.scale);
-                if (hitWall || e.x <= e.minX || e.x >= e.maxX) {
-                    if (e.x < e.minX) e.x = e.minX;
-                    if (e.x > e.maxX) e.x = e.maxX;
-                    e.vx = e.x <= e.minX ? Math.abs(e.def.speed) * speedMul : (e.x >= e.maxX ? -Math.abs(e.def.speed) * speedMul : -e.vx);
-                }
-                if ((e.def.behavior === 'jumper' || e.def.behavior === 'boss_jumper') && e.onGround && distToPlayer < 260 && (sim.stepCount % 95 === 0)) {
-                    e.vy = -440;
-                    e.onGround = false;
-                }
-                e.vy = Math.min(MAX_FALL, e.vy + GRAVITY * dt);
-                e.y += e.vy * dt;
-                resolveVerticalTiles(stage, e, 30 * e.def.scale, 42 * e.def.scale, prevY, false);
-                e.facing = e.vx >= 0 ? 1 : -1;
-                const checkAheadX = Math.floor((e.x + e.facing * 20) / TILE);
-                const groundAheadY = Math.floor((e.y + 4) / TILE);
-                if (e.onGround && !isSolidTile(stage, checkAheadX, groundAheadY)) {
-                    e.vx = -e.vx;
-                }
+                e.x += e.vx * speedMul * dt;
             }
 
             if (e.def.ranged) {
@@ -570,6 +583,7 @@
                 if (e.shootTimer <= 0) {
                     e.shootTimer = e.def.boss ? 1.45 : 2.2;
                     if (Math.abs(p.x - e.x) < 420) {
+                        pushEvent(sim, 'enemy_shot', { id: e.id });
                         const dx = p.x - e.x;
                         const dy = (p.y - 22) - (e.y - 24);
                         const len = Math.max(1, Math.hypot(dx, dy));
@@ -589,11 +603,11 @@
                 }
             }
 
-            e.animState = e.hurtTimer > 0 ? 'hurt' : 'move';
+            e.animState = e.hurtTimer > 0 ? 'hurt' : (Math.abs(e.vx) < 1 ? 'idle' : 'move');
             const ew = 28 * e.def.scale;
             const eh = 38 * e.def.scale;
             if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, e.x - ew / 2, e.y - eh, ew, eh)) {
-                hurtPlayer(sim, e.def.damage, e.x);
+                hurtPlayer(sim, e.def.damage, e.x, e.def.hitSound);
             }
         });
     }
@@ -620,7 +634,7 @@
             if (proj.fromEnemy) {
                 if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, proj.x - 6, proj.y - 6, 12, 12)) {
                     proj.dead = true;
-                    hurtPlayer(sim, proj.damage, proj.x);
+                    hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
                 }
             } else {
                 stage.enemies.forEach(function (e) {
@@ -670,6 +684,9 @@
         }
         sim.profile.totalScore += sim.stageScore + stars * 150;
         pushEvent(sim, 'portal_win', { stars: stars });
+        fxFlash(sim, '#fff3c4', 0.35, 0.5);
+        fxBurst(sim, 'rune', sim.player.x, sim.player.y - 24, 24, { color: '#7ee8fa', speed: 250, life: 1.1 });
+        fxBurst(sim, 'ember', sim.player.x, sim.player.y - 24, 16, { color: '#ffe066', speed: 170, life: 1.2 });
     }
 
     function stepInteractables(sim) {
@@ -692,10 +709,12 @@
             if (dist < 30) {
                 item.collected = true;
                 if (item.kind === 'coin') {
-                    sim.stageCoins += 1;
-                    sim.profile.coins += 1;
-                    sim.stageScore += 25;
+                    const value = Math.max(1, Math.round(stage.coinValue || 1));
+                    sim.stageCoins += value;
+                    sim.profile.coins += value;
+                    sim.stageScore += 25 * value;
                     pushEvent(sim, 'pickup_coin', null);
+                    fxBurst(sim, 'ember', item.x, item.y, 3, { color: '#ffd65a', speed: 70, life: 0.4 });
                 } else if (item.kind === 'gem') {
                     if (!sim.gemsCollected[item.gemIndex]) {
                         sim.gemsCollected[item.gemIndex] = true;
@@ -704,21 +723,32 @@
                     sim.stageScore += 100;
                     pushEvent(sim, 'pickup_gem', { gemIndex: item.gemIndex });
                     sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+GEM', color: '#7ee8fa', timer: 0.85 });
+                    fxBurst(sim, 'rune', item.x, item.y, 12, { color: '#7ee8fa', speed: 165, life: 0.7 });
+                    fxFlash(sim, '#7ee8fa', 0.16, 0.2);
+                } else if (item.kind === 'star') {
+                    sim.stageScore += 150;
+                    pushEvent(sim, 'pickup_gem', null);
+                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+STAR', color: '#ffe066', timer: 0.85 });
+                    fxBurst(sim, 'rune', item.x, item.y, 10, { color: '#ffe066', speed: 150, life: 0.7 });
                 } else if (item.kind === 'heart' || item.kind === 'apple') {
                     p.hp = Math.min(p.maxHp, p.hp + 1);
                     sim.stageScore += 50;
-                    pushEvent(sim, 'pickup_coin', null);
+                    pushEvent(sim, 'pickup_heart', null);
                     sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+1 HP', color: '#86efac', timer: 0.75 });
+                    fxBurst(sim, 'ember', item.x, item.y, 6, { color: '#86efac', speed: 85, life: 0.55 });
                 } else if (item.kind === 'potion') {
                     p.potions += 1;
-                    pushEvent(sim, 'pickup_coin', null);
+                    pushEvent(sim, 'pickup_potion', null);
                     sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+POTION', color: '#c084fc', timer: 0.85 });
+                    fxBurst(sim, 'rune', item.x, item.y, 8, { color: '#c084fc', speed: 120, life: 0.6 });
                 } else if (item.kind === 'treasure') {
                     sim.stageCoins += 10;
                     sim.profile.coins += 10;
                     sim.stageScore += 250;
                     pushEvent(sim, 'pickup_gem', null);
                     sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+10', color: '#ffd65a', timer: 0.9 });
+                    fxBurst(sim, 'ember', item.x, item.y, 14, { color: '#ffd65a', speed: 130, life: 0.9 });
+                    fxFlash(sim, '#ffd65a', 0.2, 0.25);
                 }
             }
         });
@@ -730,6 +760,8 @@
                 p.hp = Math.min(p.maxHp, p.hp + 1);
                 sim.notice = 'runenpfad.notice.checkpoint';
                 pushEvent(sim, 'checkpoint', null);
+                fxBurst(sim, 'ember', cp.x, cp.y + 8, 14, { color: '#ffb347', speed: 110, life: 0.9 });
+                fxFlash(sim, '#ffb347', 0.14, 0.3);
             }
         });
 
@@ -742,13 +774,38 @@
                 sim.stageScore += 200;
                 pushEvent(sim, 'pickup_key', null);
                 sim.floatingTexts.push({ x: stage.key.x, y: stage.key.y - 16, text: 'KEY!', color: '#ffe066', timer: 1.0 });
+                fxBurst(sim, 'rune', stage.key.x, stage.key.y, 18, { color: '#ffe066', speed: 210, life: 0.9 });
+                fxFlash(sim, '#ffe066', 0.24, 0.35);
+                fxShake(sim, 3.5);
             }
         }
 
         stage.hazards.forEach(function (h) {
             const top = h.y + TILE - h.h + 4;
             if (rectOverlap(px + 2, py + 4, p.w - 4, p.h - 6, h.x + 4, top, h.w - 8, h.h - 4)) {
-                hurtPlayer(sim, 1, h.x + h.w / 2);
+                hurtPlayer(sim, 1, h.x + h.w / 2, 'impact-stone');
+            }
+        });
+
+        stage.boulders.forEach(function (b) {
+            if (b.state !== 'falling') return;
+            if (rectOverlap(px + 2, py + 4, p.w - 4, p.h - 6, b.x + 6, b.y + 6, b.w - 12, b.h - 12)) {
+                hurtPlayer(sim, 1, b.x + b.w / 2, 'impact-stone');
+            }
+        });
+
+        // Rune shrine: a short blessing that doubles the hero's damage.
+        (stage.shrines || []).forEach(function (sh) {
+            if (sh.taken) return;
+            if (rectOverlap(px, py, p.w, p.h, sh.x - 24, sh.y - 22, 48, 48)) {
+                sh.taken = true;
+                sim.blessing.runePower = varietyApi() ? varietyApi().RUNE_POWER_DURATION : 12;
+                sim.stageScore += 150;
+                pushEvent(sim, 'pickup_shrine', null);
+                sim.floatingTexts.push({ x: sh.x, y: sh.y - 26, text: 'RUNE POWER', color: '#c084fc', timer: 1.1 });
+                fxBurst(sim, 'rune', sh.x, sh.y, 18, { color: '#c084fc', speed: 220, life: 1.0 });
+                fxFlash(sim, '#c084fc', 0.28, 0.4);
+                fxShake(sim, 4);
             }
         });
 
@@ -761,6 +818,18 @@
         }
     }
 
+    // Potion heal is shared by the normal tick and the impact-freeze tick.
+    function applyPotionHeal(sim) {
+        const p = sim.player;
+        if (p.potions <= 0 || p.hp >= p.maxHp) return;
+        p.potions -= 1;
+        p.hp = Math.min(p.maxHp, p.hp + 2);
+        pushEvent(sim, 'heal', null);
+        sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+2 HP', color: '#c084fc', timer: 0.8 });
+        fxBurst(sim, 'rune', p.x, p.y - 24, 12, { color: '#c084fc', speed: 150, life: 0.7 });
+        fxFlash(sim, '#c084fc', 0.16, 0.24);
+    }
+
     function stepOneTick(sim, input) {
         if (sim.state !== 'playing') return;
         const dt = STEP;
@@ -768,6 +837,17 @@
         const stage = sim.stage;
         const stats = sim.stats;
         const TILE = stage.tileSize;
+
+        // Impact freeze: the world holds for a few frames, but the hero still reacts to input.
+        if (sim.fx && sim.fx.hitstop > 0) {
+            sim.fx.hitstop = Math.max(0, sim.fx.hitstop - dt);
+            if (input.healPressed) applyPotionHeal(sim);
+            if (input.attackPressed) performPlayerAttack(sim, input);
+            if (p.y > stage.height + 64) hurtPlayer(sim, p.maxHp, p.x, 'impact-flesh');
+            stepInteractables(sim);
+            return;
+        }
+
         sim.elapsed += dt;
         sim.stepCount += 1;
 
@@ -776,16 +856,14 @@
         if (p.attackCooldown > 0) p.attackCooldown = Math.max(0, p.attackCooldown - dt);
         if (p.dashCooldown > 0) p.dashCooldown = Math.max(0, p.dashCooldown - dt);
         if (p.hurtTimer > 0) p.hurtTimer = Math.max(0, p.hurtTimer - dt);
+        if (sim.blessing && sim.blessing.runePower > 0) {
+            sim.blessing.runePower = Math.max(0, sim.blessing.runePower - dt);
+        }
 
         stepPlatformsAndCannons(sim, dt);
 
         // Potion heal
-        if (input.healPressed && p.potions > 0 && p.hp < p.maxHp) {
-            p.potions -= 1;
-            p.hp = Math.min(p.maxHp, p.hp + 2);
-            pushEvent(sim, 'pickup_gem', null);
-            sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+2 HP', color: '#c084fc', timer: 0.8 });
-        }
+        if (input.healPressed) applyPotionHeal(sim);
 
         // Dash roll (Ranger)
         if (stats.def.dashEnabled && input.dashPressed && p.dashCooldown <= 0 && p.dashTimer <= 0) {
@@ -794,7 +872,14 @@
             p.invulnTimer = Math.max(p.invulnTimer, 0.24);
             p.vx = p.facing * 520;
             p.vy = 0;
-            pushEvent(sim, 'jump', null);
+            pushEvent(sim, 'dash', null);
+            fxBurst(sim, 'trail', p.x, p.y - 22, 8, {
+                color: '#a5f3fc',
+                speed: 70,
+                arc: Math.PI,
+                angle: p.facing > 0 ? Math.PI : 0,
+                life: 0.3
+            });
         }
 
         // Carry standing player on moving platforms
@@ -829,10 +914,10 @@
             if (input.jumpPressed) {
                 p.onLadder = false;
                 p.vy = -stats.jumpVel;
-                pushEvent(sim, 'jump', null);
+                pushJump(sim);
             }
         } else {
-            const targetVx = moveDir * stats.speed;
+            const targetVx = moveDir * stats.speed + (stage.modEffects && stage.modEffects.wind ? stage.modEffects.wind : 0);
             const accel = p.onGround ? (stage.world.friction < 1 ? 650 : 2400) : 1400;
             const diff = targetVx - p.vx;
             const stepV = accel * dt;
@@ -855,13 +940,13 @@
                     p.coyoteTimer = 0;
                     p.jumpBuffer = 0;
                     p.slamActive = false;
-                    pushEvent(sim, 'jump', null);
+                    pushJump(sim);
                 } else if (p.airJumpsLeft > 0) {
                     p.airJumpsLeft -= 1;
                     p.vy = -stats.jumpVel * 0.92;
                     p.jumpBuffer = 0;
                     p.slamActive = false;
-                    pushEvent(sim, 'jump', null);
+                    pushJump(sim);
                 }
             }
             p.vy = Math.min(MAX_FALL, p.vy + GRAVITY * dt);
@@ -878,17 +963,37 @@
         p.y += p.vy * dt;
         const landResult = resolveVerticalTiles(stage, p, p.w, p.h, prevY, !!(input.down && !p.slamActive && !nearLadder));
         if (landResult === 'spring') {
-            pushEvent(sim, 'jump', null);
+            pushJump(sim);
+            pushEvent(sim, 'spring', null);
+            fxBurst(sim, 'rune', p.x, p.y, 10, { color: '#c4b5fd', speed: 190, life: 0.55 });
+            fxShake(sim, 2.6);
         }
 
         if (!wasOnGround && p.onGround) {
             pushEvent(sim, 'land', null);
+            fxBurst(sim, 'dust', p.x, p.y, 7, {
+                color: '#d9c9a8',
+                speed: 130,
+                arc: Math.PI * 0.9,
+                angle: Math.PI / 2,
+                life: 0.38
+            });
             if (p.slamActive) {
                 p.slamActive = false;
                 sim.effects.push({ animId: 'explosion', x: p.x, y: p.y - 16, timer: 0.45 });
+                pushEvent(sim, 'slam_land', null);
+                fxBurst(sim, 'shard', p.x, p.y - 8, 18, { color: '#ffd08a', speed: 300, life: 0.7 });
+                fxBurst(sim, 'dust', p.x, p.y, 16, { color: '#e8d8b8', speed: 230, arc: Math.PI, angle: Math.PI / 2, life: 0.5 });
+                if (sim.fx) {
+                    fxApi().ring(sim.fx, p.x, p.y - 4, { color: '#ffd08a', size: 16, grow: 320, life: 0.42 });
+                }
+                fxShake(sim, 8);
+                fxHitstop(sim, 0.06);
+                fxFlash(sim, '#ffe9b0', 0.18, 0.18);
                 stage.enemies.forEach(function (e) {
                     if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 120) {
-                        damageEnemy(sim, e, stats.damage + 1, p.x);
+                        const slamMul = varietyApi() ? varietyApi().damageMultiplier(sim.blessing) : 1;
+                        damageEnemy(sim, e, (stats.damage + 1) * slamMul, p.x);
                     }
                 });
                 stage.crates.forEach(function (c) {
@@ -922,6 +1027,7 @@
         sim.effects = sim.effects.filter(function (fx) { return fx.timer > 0; });
         sim.floatingTexts.forEach(function (ft) { ft.timer -= dt; ft.y -= 28 * dt; });
         sim.floatingTexts = sim.floatingTexts.filter(function (ft) { return ft.timer > 0; });
+        if (sim.fx) fxApi().update(sim.fx, dt);
 
         // Animation state selection
         p.animTime += dt;
@@ -953,17 +1059,18 @@
         return sim.events;
     }
 
+    const profileRef = profileApi();
     root.RunenpfadSim = {
         STEP: STEP,
-        STORAGE_KEY: STORAGE_KEY,
-        SAVE_VERSION: SAVE_VERSION,
-        createDefaultProfile: createDefaultProfile,
-        importProfile: importProfile,
-        exportProfile: exportProfile,
-        upgradeCost: upgradeCost,
-        buyUpgrade: buyUpgrade,
-        totalStars: totalStars,
-        heroStats: heroStats,
+        STORAGE_KEY: profileRef ? profileRef.STORAGE_KEY : 'aurago.runenpfad.v1',
+        SAVE_VERSION: profileRef ? profileRef.SAVE_VERSION : 1,
+        createDefaultProfile: profileRef ? profileRef.createDefaultProfile : null,
+        importProfile: profileRef ? profileRef.importProfile : null,
+        exportProfile: profileRef ? profileRef.exportProfile : null,
+        upgradeCost: profileRef ? profileRef.upgradeCost : null,
+        buyUpgrade: profileRef ? profileRef.buyUpgrade : null,
+        totalStars: profileRef ? profileRef.totalStars : null,
+        heroStats: profileRef ? profileRef.heroStats : null,
         createSimulation: createSimulation,
         stepSimulation: stepSimulation
     };

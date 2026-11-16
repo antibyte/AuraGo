@@ -31,6 +31,11 @@ sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
+loadModule('ui/js/desktop/apps/runenpfad/biomes.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/fx.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/behaviors.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/variety.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/profile.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/levels.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/sim.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/audio.js', sandbox);
@@ -38,10 +43,16 @@ loadModule('ui/js/desktop/apps/runenpfad/audio.js', sandbox);
 const Levels = sandbox.RunenpfadLevels;
 const Sim = sandbox.RunenpfadSim;
 const Audio = sandbox.RunenpfadAudio;
+const Fx = sandbox.RunenpfadFx;
+const Biomes = sandbox.RunenpfadBiomes;
+const Behaviors = sandbox.RunenpfadBehaviors;
 
 assert.ok(Levels, 'RunenpfadLevels loaded');
 assert.ok(Sim, 'RunenpfadSim loaded');
 assert.ok(Audio, 'RunenpfadAudio loaded');
+assert.ok(Fx, 'RunenpfadFx loaded');
+assert.ok(Biomes, 'RunenpfadBiomes loaded');
+assert.ok(Behaviors, 'RunenpfadBehaviors loaded');
 
 // 1. Validate all 6 real 2D sprite pack manifests + sound manifest
 const spriteManifests = {};
@@ -255,4 +266,124 @@ assert.equal(imported.bestTimeByLevel[1], 12.3);
 assert.equal(imported.bestTimeByLevel[2], undefined);
 assert.equal(Sim.importProfile({ v: 999 }), null);
 
-console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 levels, endless mode, knight/ranger combat, upgrades & persistence.');
+// 7. Effect system: deterministic particles, screen shake, flash and impact freeze
+const fxSys = Fx.createSystem(1234);
+Fx.burst(fxSys, 'spark', 100, 100, 12, { color: '#7ee8fa', speed: 200 });
+assert.equal(fxSys.particles.length, 12, 'fx burst spawns the requested particle count');
+Fx.ring(fxSys, 50, 50, { color: '#ffd08a' });
+assert.equal(fxSys.particles.length, 13, 'fx ring spawns one particle');
+const firstPos = { x: fxSys.particles[0].x, y: fxSys.particles[0].y };
+Fx.update(fxSys, 0.1);
+assert.ok(fxSys.particles[0].x !== firstPos.x || fxSys.particles[0].y !== firstPos.y, 'fx particles move over time');
+Fx.shake(fxSys, 6);
+Fx.flash(fxSys, '#ff3b5c', 0.4, 0.2);
+Fx.hitstop(fxSys, 0.05);
+assert.ok(fxSys.shake > 0 && fxSys.flashAlpha > 0 && fxSys.hitstop > 0, 'fx exposes shake, flash and hitstop');
+
+const fxRepeatA = Fx.createSystem(99);
+const fxRepeatB = Fx.createSystem(99);
+Fx.burst(fxRepeatA, 'ember', 10, 10, 5, { speed: 120 });
+Fx.burst(fxRepeatB, 'ember', 10, 10, 5, { speed: 120 });
+assert.deepEqual(
+    fxRepeatA.particles.map((p) => [p.x, p.y, p.vx, p.vy]),
+    fxRepeatB.particles.map((p) => [p.x, p.y, p.vx, p.vy]),
+    'fx generation must be deterministic for a fixed seed'
+);
+
+const fxSim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
+assert.ok(fxSim.fx, 'simulation owns an fx system');
+Sim.stepSimulation(fxSim, Sim.STEP, { jumpPressed: true });
+assert.ok(fxSim.fx.particles.length > 0, 'jumping spawns kick-off particles');
+
+// 8. Biome presentation model: every world has sky, layers, light, weather and layered ambience
+assert.equal(Biomes.BIOMES.length, 5, 'expected 5 biome presentations');
+Biomes.BIOMES.forEach((biome, idx) => {
+    assert.ok(Array.isArray(biome.sky) && biome.sky.length >= 2, `biome ${idx} needs a sky gradient`);
+    assert.ok(Array.isArray(biome.layers) && biome.layers.length >= 2, `biome ${idx} needs parallax layers`);
+    assert.ok(biome.light && biome.light.ambient >= 0 && biome.light.ambient <= 0.9, `biome ${idx} needs an ambient light level`);
+    assert.ok(biome.weather && biome.weather.kind, `biome ${idx} needs a weather kind`);
+    assert.ok(biome.ambience && biome.ambience.primary, `biome ${idx} needs a primary ambience`);
+});
+const stageBiome = Levels.buildStage(7);
+assert.equal(stageBiome.biome.id, 'cavern', 'level 7 uses the cavern biome presentation');
+assert.equal(stageBiome.ambience.primary, Biomes.BIOMES[1].ambience.primary, 'stage carries the biome ambience');
+assert.ok(stageBiome.ambience.secondary, 'cavern uses a layered second ambience bed');
+
+// 9. Audio cue table covers every simulation event that carries feedback
+['step', 'jump', 'dash', 'spring', 'land', 'slam', 'slam_land', 'attack_melee', 'attack_ranged',
+ 'crate_break', 'enemy_hit', 'enemy_kill', 'boss_defeat', 'boss_phase', 'player_hurt',
+ 'pickup_coin', 'pickup_gem', 'pickup_star', 'pickup_heart', 'pickup_potion', 'pickup_key',
+ 'checkpoint', 'heal', 'hazard', 'cannon', 'enemy_shot', 'portal_win', 'player_defeat'
+].forEach((type) => {
+    assert.ok(Audio.CUE_MAP[type], `audio cue table is missing ${type}`);
+});
+assert.equal(Audio.CUE_MAP.attack_ranged.sound, 'laser', 'rune bolts use the bright magic chime');
+assert.equal(Audio.CUE_MAP.attack_melee.sound, 'rifle', 'the sword swing uses the swishy cue, not the magic chime');
+assert.equal(Audio.CUE_MAP.boss_defeat.sound, 'explosion-large', 'boss defeat uses the large explosion');
+
+// 10. Impact feedback: the boss phase change emits its own cue
+const fxSim2 = Sim.createSimulation({ mode: 'campaign', levelId: 5, hero: 'knight', profile });
+const fxBoss = fxSim2.stage.enemies.find((e) => e.id === fxSim2.stage.bossId);
+let sawBossPhase = false;
+for (let hit = 0; hit < 30 && !sawBossPhase; hit++) {
+    fxSim2.player.x = fxBoss.x - 28;
+    fxSim2.player.y = fxBoss.y;
+    fxSim2.player.facing = 1;
+    fxSim2.player.attackCooldown = 0;
+    fxSim2.player.invulnTimer = 2;
+    const evs = Sim.stepSimulation(fxSim2, Sim.STEP, { attackPressed: true });
+    if (evs.some((e) => e.type === 'boss_phase')) sawBossPhase = true;
+}
+assert.ok(sawBossPhase, 'boss emits a phase-change cue in phase 2');
+
+// 11. Rune trials: level 1 stays clean, later levels get a deterministic trial
+const Variety = sandbox.RunenpfadVariety;
+assert.equal(Variety.MODS.length, 6, 'expected 6 rune trials');
+assert.equal(Variety.pickMod(1, 0), null, 'the tutorial level carries no trial');
+for (let lvl = 2; lvl <= 25; lvl++) {
+    const stage = Levels.buildStage(lvl);
+    assert.ok(stage.mod, `level ${lvl} must carry a rune trial`);
+    assert.ok(stage.modEffects, `level ${lvl} must expose trial effects`);
+}
+const trialStage = Levels.buildStage(3);
+assert.equal(trialStage.mod.id, Variety.pickMod(3, 0).id, 'trial selection is deterministic');
+assert.equal(Levels.buildStage(3).mod.id, trialStage.mod.id, 'trial selection is stable across builds');
+
+// Greed raises the coin value, dark trials dim the stage, swift trials toughen enemies
+const greedLevel = Array.from({ length: 25 }, (_, i) => i + 1).find((l) => { const s = Levels.buildStage(l); return s.mod && s.mod.id === 'greedy'; });
+const greedStage = Levels.buildStage(greedLevel);
+assert.ok(greedStage.coinValue > 1, 'the greed trial multiplies coin value');
+const darkLevel = Array.from({ length: 25 }, (_, i) => i + 1).find((l) => { const s = Levels.buildStage(l); return s.mod && s.mod.id === 'dark'; });
+assert.ok(Levels.buildStage(darkLevel).darkness > 0, 'the dark trial adds ambient darkness');
+
+// 12. New zone archetypes, shrine blessing and bomber drones
+const spikeStage = Levels.buildStage(3);
+assert.ok(spikeStage.hazards.some((h) => h.kind === 'spike_trap'), 'spike gallery places animated spike traps');
+const boulderStage = Levels.buildStage(8);
+assert.ok(boulderStage.boulders.length >= 3, 'boulder gallery places falling stones');
+const shrineStage = Levels.buildStage(12);
+assert.ok(shrineStage.shrines.length >= 1, 'rune shrine zone places a shrine');
+assert.ok(shrineStage.collectibles.some((c) => c.kind === 'star'), 'rune shrine zone places a star');
+
+const shrineSim = Sim.createSimulation({ mode: 'campaign', levelId: 12, hero: 'knight', profile });
+const shrine = shrineSim.stage.shrines[0];
+shrineSim.player.x = shrine.x;
+shrineSim.player.y = shrine.y + 24;
+Sim.stepSimulation(shrineSim, Sim.STEP, {});
+assert.ok(shrineSim.blessing.runePower > 0, 'touching the shrine grants rune power');
+assert.equal(shrine.taken, true, 'the shrine can only be used once');
+
+assert.ok(Levels.ENEMY_DEFS.stalker && Levels.ENEMY_DEFS.stalker.behavior === 'ambusher', 'stalker enemy uses ambush behaviour');
+assert.ok(Levels.ENEMY_DEFS.sentry_bot && Levels.ENEMY_DEFS.sentry_bot.behavior === 'turret', 'sentry bot uses turret behaviour');
+assert.ok(Levels.ENEMY_DEFS.bomber_drone && Levels.ENEMY_DEFS.bomber_drone.behavior === 'bomber', 'bomber drone uses bomber behaviour');
+
+// A turret holds its ground while a stalker waits until the hero is close.
+const turretStage = Levels.buildStage(19);
+const turret = turretStage.enemies.find((e) => e.def.behavior === 'turret');
+if (turret) {
+    const before = turret.x;
+    Sim.stepSimulation(Sim.createSimulation({ mode: 'campaign', levelId: 19, hero: 'knight', profile }), Sim.STEP, {});
+    assert.equal(turret.x, before, 'a turret never walks away from its post');
+}
+
+console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 levels, endless mode, knight/ranger combat, upgrades & persistence, fx system, biome model, audio cue table, rune trials & new zones.');

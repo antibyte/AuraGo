@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Derecha",
   "runenpfad.touch_jump": "Saltar",
   "runenpfad.touch_attack": "Atacar",
-  "runenpfad.touch_special": "Impulso"
+  "runenpfad.touch_special": "Impulso",
+  "runenpfad.hud_trial": "Prueba rúnica",
+  "runenpfad.hud_rune": "Poder rúnico",
+  "runenpfad.mod_swift": "Enemigos veloces",
+  "runenpfad.mod_swift_desc": "Los enemigos se mueven un 40 % más rápido y tienen más vida.",
+  "runenpfad.mod_fragile": "Suelo frágil",
+  "runenpfad.mod_fragile_desc": "Las plataformas frágiles se rompen mucho antes.",
+  "runenpfad.mod_dark": "Oscuridad",
+  "runenpfad.mod_dark_desc": "La luz se apaga; solo tu runa sigue brillando.",
+  "runenpfad.mod_greedy": "Codicia",
+  "runenpfad.mod_greedy_desc": "Las monedas valen más, pero esperan más enemigos.",
+  "runenpfad.mod_storm": "Tormenta",
+  "runenpfad.mod_storm_desc": "Las plataformas vuelan y el viento te empuja atrás.",
+  "runenpfad.mod_mend": "Bendición",
+  "runenpfad.mod_mend_desc": "Más pociones y corazones en esta etapa."
 }

@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Vpravo",
   "runenpfad.touch_jump": "Skok",
   "runenpfad.touch_attack": "Útok",
-  "runenpfad.touch_special": "Úhyb"
+  "runenpfad.touch_special": "Úhyb",
+  "runenpfad.hud_trial": "Runová zkouška",
+  "runenpfad.hud_rune": "Runová síla",
+  "runenpfad.mod_swift": "Rychlí nepřátelé",
+  "runenpfad.mod_swift_desc": "Nepřátelé se pohybují o 40 % rychleji a mají více životů.",
+  "runenpfad.mod_fragile": "Křehká půda",
+  "runenpfad.mod_fragile_desc": "Překlápěcí plošiny se rozpadnou mnohem rychleji.",
+  "runenpfad.mod_dark": "Tma",
+  "runenpfad.mod_dark_desc": "Světlo zhasne, jen rune tě osvětlí.",
+  "runenpfad.mod_greedy": "Chytroství",
+  "runenpfad.mod_greedy_desc": "Mince jsou cennější, ale víc nepřátelů čeká.",
+  "runenpfad.mod_storm": "Bouře",
+  "runenpfad.mod_storm_desc": "Platformy se pohybují rychleji a vítr tlačí do zad.",
+  "runenpfad.mod_mend": "Požehnání",
+  "runenpfad.mod_mend_desc": "Více léčivých nápojů a srdcí v tomto levelu."
 }

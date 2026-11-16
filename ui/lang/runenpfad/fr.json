@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Droite",
   "runenpfad.touch_jump": "Saut",
   "runenpfad.touch_attack": "Attaque",
-  "runenpfad.touch_special": "Esquive"
+  "runenpfad.touch_special": "Esquive",
+  "runenpfad.hud_trial": "Épreuve runique",
+  "runenpfad.hud_rune": "Pouvoir runique",
+  "runenpfad.mod_swift": "Ennemis vifs",
+  "runenpfad.mod_swift_desc": "Les ennemis sont 40 % plus rapides et ont plus de points de vie.",
+  "runenpfad.mod_fragile": "Sol fragile",
+  "runenpfad.mod_fragile_desc": "Les plateformes friables s’effondrent bien plus vite.",
+  "runenpfad.mod_dark": "Obscurité",
+  "runenpfad.mod_dark_desc": "La lumière faiblit ; seule votre rune brille encore.",
+  "runenpfad.mod_greedy": "Cupidité",
+  "runenpfad.mod_greedy_desc": "Les pièces valent plus, mais plus d’ennemis guettent.",
+  "runenpfad.mod_storm": "Tempête",
+  "runenpfad.mod_storm_desc": "Les plateformes défilent et le vent vous repousse.",
+  "runenpfad.mod_mend": "Bénédiction",
+  "runenpfad.mod_mend_desc": "Plus de potions et de cœurs dans cette étape."
 }

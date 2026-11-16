@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Rechts",
   "runenpfad.touch_jump": "Spring",
   "runenpfad.touch_attack": "Aanval",
-  "runenpfad.touch_special": "Sprint"
+  "runenpfad.touch_special": "Sprint",
+  "runenpfad.hud_trial": "Runeproef",
+  "runenpfad.hud_rune": "Runekracht",
+  "runenpfad.mod_swift": "Snelle vijanden",
+  "runenpfad.mod_swift_desc": "Vijanden zijn 40% sneller en hebben meer levens.",
+  "runenpfad.mod_fragile": "Breekbare grond",
+  "runenpfad.mod_fragile_desc": "Breekbare platforms vallen veel sneller uiteen.",
+  "runenpfad.mod_dark": "Duisternis",
+  "runenpfad.mod_dark_desc": "Het licht vervaagt; alleen je run blijft gloeien.",
+  "runenpfad.mod_greedy": "Greed",
+  "runenpfad.mod_greedy_desc": "Munten zijn meer waard, maar er wachten meer vijanden.",
+  "runenpfad.mod_storm": "Storm",
+  "runenpfad.mod_storm_desc": "Platformen razen voorbij en de wind duwt je terug.",
+  "runenpfad.mod_mend": "Zegen",
+  "runenpfad.mod_mend_desc": "Meer helende drankjes en harten in dit level."
 }

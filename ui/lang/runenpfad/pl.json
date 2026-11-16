@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Prawo",
   "runenpfad.touch_jump": "Skok",
   "runenpfad.touch_attack": "Atak",
-  "runenpfad.touch_special": "Unik"
+  "runenpfad.touch_special": "Unik",
+  "runenpfad.hud_trial": "Próba runiczna",
+  "runenpfad.hud_rune": "Moc run",
+  "runenpfad.mod_swift": "Szybcy wrogowie",
+  "runenpfad.mod_swift_desc": "Wrogowie poruszają się o 40% szybciej i mają więcej życia.",
+  "runenpfad.mod_fragile": "Krucha ziemia",
+  "runenpfad.mod_fragile_desc": "Kruche platformy rozpadają się znacznie szybciej.",
+  "runenpfad.mod_dark": "Ciemność",
+  "runenpfad.mod_dark_desc": "Światło słabnie; świeci tylko twoja runa.",
+  "runenpfad.mod_greedy": "Chciwość",
+  "runenpfad.mod_greedy_desc": "Monety są wartejsze, ale czai się więcej wrogów.",
+  "runenpfad.mod_storm": "Burza",
+  "runenpfad.mod_storm_desc": "Platformy pędzą, a wiatr spycha cię do tyłu.",
+  "runenpfad.mod_mend": "Błogosławieństwo",
+  "runenpfad.mod_mend_desc": "Więcej mikstur i serc w tym poziomie."
 }

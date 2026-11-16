@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "Destra",
   "runenpfad.touch_jump": "Salto",
   "runenpfad.touch_attack": "Attacca",
-  "runenpfad.touch_special": "Scatto"
+  "runenpfad.touch_special": "Scatto",
+  "runenpfad.hud_trial": "Prova runica",
+  "runenpfad.hud_rune": "Potenza runica",
+  "runenpfad.mod_swift": "Nemici veloci",
+  "runenpfad.mod_swift_desc": "I nemici si muovono il 40% più in fretta e hanno più vita.",
+  "runenpfad.mod_fragile": "Terreno fragile",
+  "runenpfad.mod_fragile_desc": "Le piattaforme fragili crollano molto più in fretta.",
+  "runenpfad.mod_dark": "Oscurità",
+  "runenpfad.mod_dark_desc": "La luce cala; solo la tua runa continua a brillare.",
+  "runenpfad.mod_greedy": "Cupidità",
+  "runenpfad.mod_greedy_desc": "Le monete valgono di più, ma più nemici sono in agguato.",
+  "runenpfad.mod_storm": "Tempesta",
+  "runenpfad.mod_storm_desc": "Le piattaforme sfrecciano e il vento ti spinge indietro.",
+  "runenpfad.mod_mend": "Benedizione",
+  "runenpfad.mod_mend_desc": "Più pozioni e cuori in questo livello."
 }

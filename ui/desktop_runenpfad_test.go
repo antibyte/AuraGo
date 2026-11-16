@@ -66,7 +66,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js"}},
+		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js"}},
 		{"js/desktop/core/menus-and-routing.js", []string{"if (appId === 'runenpfad')", "RunenpfadApp.render"}},
 		{"js/desktop/core/desktop-foundation.js", []string{"runenpfad: '/img/runenpfad/icon.svg'", "runenpfad: 'RunenpfadApp'"}},
 		{"js/desktop/core/window-shell-runtime.js", []string{"runenpfad: { width: 1180, height: 740 }"}},
@@ -74,7 +74,13 @@ func TestRunenpfadRegistration(t *testing.T) {
 		{"css/desktop-app-runenpfad.css", []string{".rp-app", ".rp-canvas", ".rp-hud"}},
 		{"js/desktop/apps/runenpfad/levels.js", []string{"RunenpfadLevels", "CAMPAIGN_LEVELS", "validateSpriteManifests"}},
 		{"js/desktop/apps/runenpfad/sim.js", []string{"RunenpfadSim", "aurago.runenpfad.v1", "stepSimulation"}},
+		{"js/desktop/apps/runenpfad/profile.js", []string{"RunenpfadProfile", "aurago.runenpfad.v1", "importProfile"}},
 		{"js/desktop/apps/runenpfad/audio.js", []string{"RunenpfadAudio", "validateSoundManifest", "/api/game-maker/asset-packs/aurago-sounds/"}},
+		{"js/desktop/apps/runenpfad/fx.js", []string{"RunenpfadFx", "createSystem", "hitstop"}},
+		{"js/desktop/apps/runenpfad/biomes.js", []string{"RunenpfadBiomes", "BIOMES", "biomeFor"}},
+		{"js/desktop/apps/runenpfad/atmosphere.js", []string{"RunenpfadAtmosphere", "createAtmosphere", "paintLighting"}},
+		{"js/desktop/apps/runenpfad/behaviors.js", []string{"RunenpfadBehaviors", "ambusher", "turret"}},
+		{"js/desktop/apps/runenpfad/variety.js", []string{"RunenpfadVariety", "MODS", "pickMod"}},
 		{"js/desktop/apps/runenpfad/view.js", []string{"RunenpfadView", "createRenderer"}},
 		{"js/desktop/apps/runenpfad/app.js", []string{"RunenpfadApp", "/api/game-maker/asset-packs/"}},
 	}

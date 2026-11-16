@@ -64,20 +64,13 @@
 
     function createRenderer(canvas, sheets) {
         const ctx = canvas.getContext('2d');
+        const Atmosphere = root.RunenpfadAtmosphere;
+        const Biomes = root.RunenpfadBiomes;
+        const atmosphere = Atmosphere && Atmosphere.createAtmosphere ? Atmosphere.createAtmosphere(ctx) : null;
         let camX = 0;
         let camY = 0;
         let camInitialized = false;
         let shake = 0;
-        const particles = [];
-        for (let i = 0; i < 42; i++) {
-            particles.push({
-                x: (i * 197) % 1400,
-                y: (i * 131) % 800,
-                speed: 22 + (i % 5) * 11,
-                size: 2 + (i % 3) * 1.5,
-                phase: i * 0.7
-            });
-        }
 
         function triggerShake(amount) {
             if (!prefersReducedMotion()) {
@@ -100,7 +93,35 @@
             magic_platform: { sx: 8, sy: 35, sw: 48, sh: 24 }
         };
 
+        // Fill tiles pick a neighbouring texture so long walls stop looking like wallpaper.
+        const TILE_VARIANTS = {
+            earth_block: ['earth_block', 'earth_light', 'earth_stones'],
+            earth_light: ['earth_light', 'earth_block', 'earth_stones'],
+            earth_stones: ['earth_stones', 'earth_block', 'earth_light'],
+            earth_dark: ['earth_dark', 'earth_roots', 'earth_block'],
+            earth_roots: ['earth_roots', 'earth_dark', 'earth_block'],
+            stone_round: ['stone_round', 'stone_moss', 'stone_cracked'],
+            stone_cracked: ['stone_cracked', 'stone_dark', 'stone_round'],
+            stone_dark: ['stone_dark', 'stone_round', 'stone_moss'],
+            stone_moss: ['stone_moss', 'stone_round', 'stone_dark'],
+            sand_block: ['sand_block', 'sand_pebbles', 'sand_waves'],
+            sand_pebbles: ['sand_pebbles', 'sand_block', 'sand_waves'],
+            sand_waves: ['sand_waves', 'sand_block', 'sand_pebbles'],
+            sand_bricks: ['sand_bricks', 'sand_block', 'sand_cracked'],
+            sand_cracked: ['sand_cracked', 'sand_block', 'sand_bricks'],
+            snow_block: ['snow_block', 'ice_block', 'ice_stone'],
+            ice_stone: ['ice_stone', 'ice_block', 'snow_block'],
+            ice_block: ['ice_block', 'ice_stone', 'snow_block']
+        };
+
         const WORLD_BACKING = ['#3b2313', '#271e38', '#6e4720', '#2c4a63', '#252c3d'];
+
+        function tileVariant(assetId, tx, ty, seed) {
+            const list = TILE_VARIANTS[assetId];
+            if (!list || list.length < 2) return assetId;
+            const h = (tx * 73856093) ^ (ty * 19349663) ^ ((seed || 0) * 83492791);
+            return list[Math.abs(h) % list.length];
+        }
 
         function drawCroppedFrame(packId, frameIdx, sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha) {
             const sheet = sheets[packId];
@@ -184,59 +205,75 @@
             drawFrameIndex(packId, anim.frames[idx], dx, dy, dw, dh, flipX, alpha);
         }
 
-        function renderBackdrop(sim, viewW, viewH, nowSec) {
-            const w = sim.stage.world;
-            const sky = ctx.createLinearGradient(0, 0, 0, viewH);
-            sky.addColorStop(0, w.skyTop);
-            sky.addColorStop(1, w.skyBottom);
-            ctx.fillStyle = sky;
-            ctx.fillRect(0, 0, viewW, viewH);
-
-            // Celestial orb
+        // Soft emissive halo behind light sources and collectibles.
+        function drawGlow(cx, cy, radius, color, alpha) {
+            if (!radius || radius <= 0) return;
             ctx.save();
-            ctx.globalAlpha = 0.24;
-            ctx.fillStyle = '#fff5cc';
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+            g.addColorStop(0, color);
+            g.addColorStop(0.5, color.replace(/[\d.]+\)$/, '0.18)'));
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.globalAlpha = alpha == null ? 0.6 : alpha;
+            ctx.fillStyle = g;
             ctx.beginPath();
-            ctx.arc(viewW * 0.82 - camX * 0.04, viewH * 0.22, 46, 0, Math.PI * 2);
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
+        }
 
-            // Far & near parallax hills
-            [
-                { color: w.hillBack, factor: 0.16, base: viewH * 0.62, amp: 58, freq: 0.0045 },
-                { color: w.hillFront, factor: 0.34, base: viewH * 0.74, amp: 42, freq: 0.0072 }
-            ].forEach(function (layer) {
-                ctx.fillStyle = layer.color;
-                ctx.beginPath();
-                ctx.moveTo(0, viewH);
-                for (let x = 0; x <= viewW + 32; x += 32) {
-                    const wx = x + camX * layer.factor;
-                    const y = layer.base + Math.sin(wx * layer.freq) * layer.amp + Math.cos(wx * layer.freq * 0.5) * 18;
-                    ctx.lineTo(x, y);
-                }
-                ctx.lineTo(viewW, viewH);
-                ctx.closePath();
-                ctx.fill();
-            });
-
-            // Biome weather particles
-            const reduced = prefersReducedMotion();
+        function drawParticles(sim) {
+            const fx = sim.fx;
+            if (!fx || !fx.particles.length) return;
+            const list = fx.particles;
             ctx.save();
-            ctx.fillStyle = w.weather === 'snow' ? '#e8f7ff'
-                : w.weather === 'sand' ? '#f5cf87'
-                : w.weather === 'ember' ? '#fb7185'
-                : w.weather === 'spore' ? '#a7f3d0'
-                : '#bef264';
-            particles.forEach(function (pt) {
-                const driftX = reduced ? 0 : nowSec * (w.weather === 'sand' ? 95 : 22);
-                const driftY = reduced ? 0 : nowSec * (w.weather === 'ember' ? -pt.speed : pt.speed);
-                const sx = ((pt.x + driftX) % (viewW + 40) + viewW + 40) % (viewW + 40) - 20;
-                const sy = ((pt.y + driftY) % (viewH + 40) + viewH + 40) % (viewH + 40) - 20;
-                ctx.globalAlpha = 0.52;
-                ctx.beginPath();
-                ctx.arc(sx, sy, pt.size, 0, Math.PI * 2);
-                ctx.fill();
-            });
+            for (let i = 0; i < list.length; i++) {
+                const p = list[i];
+                const t = Math.max(0, Math.min(1, p.life / p.maxLife));
+                const alpha = t * (p.fade == null ? 1 : p.fade);
+                if (alpha <= 0.01) continue;
+                ctx.globalAlpha = alpha;
+                ctx.globalCompositeOperation = p.additive ? 'lighter' : 'source-over';
+                ctx.fillStyle = p.color;
+                ctx.strokeStyle = p.color;
+                if (p.shape === 'streak') {
+                    const len = Math.min(18, Math.hypot(p.vx, p.vy) * 0.05);
+                    const nx = p.vx === 0 && p.vy === 0 ? 0 : p.vx / Math.max(0.001, Math.hypot(p.vx, p.vy));
+                    const ny = p.vx === 0 && p.vy === 0 ? 0 : p.vy / Math.max(0.001, Math.hypot(p.vx, p.vy));
+                    ctx.lineWidth = p.size;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - nx * len, p.y - ny * len);
+                    ctx.stroke();
+                } else if (p.shape === 'square') {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                } else if (p.shape === 'ring') {
+                    ctx.lineWidth = Math.max(1.5, p.size * 0.18);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (p.shape === 'rune') {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.beginPath();
+                    ctx.moveTo(0, -p.size);
+                    ctx.lineTo(p.size, 0);
+                    ctx.lineTo(0, p.size);
+                    ctx.lineTo(-p.size, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
             ctx.restore();
         }
 
@@ -255,6 +292,9 @@
             const stage = sim.stage;
             const TILE = stage.tileSize;
             const nowSec = (nowMs || 0) * 0.001;
+            const biome = (Biomes && Biomes.biomeFor(stage.worldIndex)) || { layers: [], light: { ambient: 0 }, weather: null, sky: ['#101018'] };
+            const fx = sim.fx;
+            const ambient = Math.min(0.92, (biome.light ? biome.light.ambient : 0) + (stage.darkness || 0));
 
             // Camera anchors stage bottom flush on tall screens and follows player smoothly
             const maxX = Math.max(0, stage.width - viewW);
@@ -272,15 +312,25 @@
             }
             let sx = camX;
             let sy = camY;
-            if (shake > 0.1) {
-                sx += (Math.sin(nowSec * 61) * shake);
-                sy += (Math.cos(nowSec * 53) * shake * 0.6);
-                shake *= 0.84;
+            const fxShake = fx ? fx.shake : 0;
+            const totalShake = Math.max(shake, fxShake);
+            if (totalShake > 0.1) {
+                sx += (Math.sin(nowSec * 61) * totalShake);
+                sy += (Math.cos(nowSec * 53) * totalShake * 0.6);
+                if (shake > 0.1) shake *= 0.84;
+                if (fx) fx.shake = Math.max(0, fx.shake - 0.02);
             } else {
                 shake = 0;
             }
 
-            renderBackdrop(sim, viewW, viewH, nowSec);
+            if (atmosphere) {
+                const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
+                atmosphere.paintBackdrop(biome, sx, viewW, viewH, groundScreenY);
+                atmosphere.paintWeather(biome, viewW, viewH, nowSec, prefersReducedMotion() ? 0.35 : 1);
+            } else {
+                ctx.fillStyle = biome.sky[0];
+                ctx.fillRect(0, 0, viewW, viewH);
+            }
 
             ctx.save();
             ctx.translate(-Math.round(sx), -Math.round(sy));
@@ -308,7 +358,28 @@
                 ctx.fillRect(tx, ty + (hasAbove ? 0 : 4), TILE + 1, TILE - (hasAbove ? -1 : 3));
                 const cropY = hasAbove ? 4 : 2;
                 const cropH = hasAbove ? 55 : 57;
-                drawCroppedAsset('jump-and-run', tile.assetId, 4, cropY, 56, cropH, tx, ty, TILE + 1, TILE + 1);
+                const assetId = hasAbove ? tile.assetId : tileVariant(tile.assetId, tile.tx, tile.ty, stage.worldIndex);
+                drawCroppedAsset('jump-and-run', assetId, 4, cropY, 56, cropH, tx, ty, TILE + 1, TILE + 1);
+            });
+
+            // Edge definition: sunlit rim on exposed tops, shaded flanks on exposed sides
+            stage.tiles.forEach(function (tile) {
+                const tx = tile.tx * TILE;
+                const ty = tile.ty * TILE;
+                if (tx + TILE < sx || tx > sx + viewW) return;
+                const hasAbove = !!solidMap[tile.tx + ',' + (tile.ty - 1)];
+                if (!hasAbove) {
+                    ctx.fillStyle = 'rgba(255, 246, 214, 0.16)';
+                    ctx.fillRect(tx, ty, TILE + 1, 4);
+                }
+                if (!solidMap[(tile.tx - 1) + ',' + tile.ty]) {
+                    ctx.fillStyle = 'rgba(6, 8, 16, 0.22)';
+                    ctx.fillRect(tx, ty, 4, TILE);
+                }
+                if (!solidMap[(tile.tx + 1) + ',' + tile.ty]) {
+                    ctx.fillStyle = 'rgba(6, 8, 16, 0.22)';
+                    ctx.fillRect(tx + TILE - 3, ty, 4, TILE);
+                }
             });
 
             // Static / crumbling / spring platforms (deck top sits flush at p.y, edge-to-edge tiles)
@@ -320,6 +391,8 @@
                 if (crop) {
                     const drawH = Math.round(crop.sh * (TILE / crop.sw));
                     drawCroppedAsset('jump-and-run', p.assetId, crop.sx, crop.sy, crop.sw, crop.sh, p.x + jitter, p.y - 1, TILE + 1, drawH);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+                    ctx.fillRect(p.x + jitter, p.y + Math.round(drawH) - 4, TILE + 1, 4);
                 } else {
                     drawStaticAsset('jump-and-run', p.assetId, p.x + jitter, p.y - 20, TILE, TILE);
                 }
@@ -336,6 +409,7 @@
             // Checkpoints (campfire grounded at surface)
             stage.checkpoints.forEach(function (cp) {
                 if (cp.activated) {
+                    drawGlow(cp.x, cp.y + 4, 108, 'rgba(255, 168, 76, 0.55)', 0.75);
                     drawAnimation('assets-animated', 'campfire', nowSec, cp.x - 28, cp.y + 2, 56, 56);
                 } else {
                     drawStaticAsset('assets-animated', 'campfire', cp.x - 28, cp.y + 2, 56, 56, false, 0.55);
@@ -354,6 +428,7 @@
             // Exit Portal
             if (stage.portal) {
                 const unlocked = sim.hasKey;
+                if (unlocked) drawGlow(stage.portal.x, stage.portal.y + 14, 132, 'rgba(126, 232, 250, 0.55)', 0.8);
                 drawAnimation('assets-animated', 'portal', nowSec, stage.portal.x - 32, stage.portal.y - 10, 64, 64, false, unlocked ? 1.0 : 0.45);
             }
 
@@ -362,11 +437,36 @@
                 if (h.x + h.w < sx || h.x > sx + viewW) return;
                 if (h.kind === 'saw') {
                     drawStaticAsset('jump-and-run', 'saw', h.x, h.y + (Math.sin(nowSec * 6) * 2), TILE, TILE);
+                } else if (h.kind === 'spike_trap') {
+                    drawAnimation('jump-and-run', 'spike_trap', nowSec, h.x, h.y + 4, TILE, TILE, false, 1.0, false);
                 } else if (h.assetId === 'stalactite') {
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y - 4, TILE, TILE);
+                } else if (h.kind === 'lava' || h.assetId === 'lava' || h.assetId === 'fire') {
+                    drawGlow(h.x + TILE / 2, h.y + TILE / 2, 86, 'rgba(251, 113, 133, 0.55)', 0.7);
+                    drawStaticAsset('jump-and-run', h.assetId, h.x, h.y + 4, TILE, TILE);
                 } else {
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y + 4, TILE, TILE);
                 }
+            });
+
+            // Falling stones
+            (stage.boulders || []).forEach(function (b) {
+                if (b.x + b.w < sx || b.x > sx + viewW) return;
+                if (b.state === 'falling') {
+                    drawGlow(b.x + b.w / 2, b.y + b.h / 2, 70, 'rgba(207, 195, 174, 0.5)', 0.55);
+                }
+                drawStaticAsset('jump-and-run', 'stone_weight', b.x, b.y, b.w, b.h);
+            });
+
+            // Rune shrines
+            (stage.shrines || []).forEach(function (sh) {
+                if (sh.x + 60 < sx || sh.x - 60 > sx + viewW) return;
+                if (sh.taken) {
+                    drawStaticAsset('nature-assets', 'blue_crystals', sh.x - 20, sh.y - 24, 40, 40, false, 0.4);
+                    return;
+                }
+                drawGlow(sh.x, sh.y - 4, 118, 'rgba(192, 132, 252, 0.6)', 0.8);
+                drawStaticAsset('nature-assets', 'blue_crystals', sh.x - 24, sh.y - 30, 48, 48);
             });
 
             // Cannons
@@ -386,6 +486,11 @@
             stage.collectibles.forEach(function (item) {
                 if (item.collected) return;
                 if (item.x + 32 < sx || item.x - 32 > sx + viewW) return;
+                if (item.kind === 'gem') {
+                    drawGlow(item.x, item.y, 78, 'rgba(126, 232, 250, 0.6)', 0.7);
+                } else if (item.kind === 'star') {
+                    drawGlow(item.x, item.y, 70, 'rgba(255, 224, 102, 0.6)', 0.65);
+                }
                 if (item.animated) {
                     drawAnimation('assets-animated', item.animId, nowSec, item.x - 16, item.y - 16 + bob * 0.5, 32, 32);
                 } else {
@@ -396,6 +501,7 @@
             // Runic Key
             if (stage.key && !stage.key.collected) {
                 const alpha = stage.key.guardedByBoss ? 0.35 : 1.0;
+                if (!stage.key.guardedByBoss) drawGlow(stage.key.x, stage.key.y, 96, 'rgba(255, 224, 102, 0.6)', 0.7);
                 drawStaticAsset('jump-and-run', 'key', stage.key.x - 20, stage.key.y - 20 + bob, 40, 40, false, alpha);
             }
 
@@ -417,8 +523,16 @@
                     ctx.arc(e.x, e.y - size * 0.42, size * 0.46, 0, Math.PI * 2);
                     ctx.stroke();
                     ctx.restore();
+                    drawGlow(e.x, e.y - size * 0.42, size * 0.9, e.phase === 2 ? 'rgba(251, 113, 133, 0.45)' : 'rgba(247, 201, 72, 0.4)', 0.6);
                 }
-                drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, drawTop, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.65 : 1.0, e.dead);
+                drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, drawTop, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.75 : 1.0, e.dead);
+                if (e.hurtTimer > 0 && !e.dead) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.globalAlpha = 0.35;
+                    drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, drawTop, size, size, e.facing < 0, 1.0, false);
+                    ctx.restore();
+                }
                 if (!e.dead && !e.def.boss && e.hp < e.maxHp) {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
                     ctx.fillRect(e.x - 18, drawTop - 4, 36, 5);
@@ -432,15 +546,21 @@
             if (p.onGround) {
                 drawContactShadow(p.x, p.y, 28);
             }
+            if (sim.blessing && sim.blessing.runePower > 0) {
+                drawGlow(p.x, p.y - 24, 62, 'rgba(192, 132, 252, 0.7)', 0.8);
+            }
             const blinkAlpha = p.invulnTimer > 0 && Math.floor(nowSec * 16) % 2 === 0 ? 0.45 : 1.0;
             const heroAnim = sim.stats.def.prefix + p.animState;
             drawAnimation(sim.stats.def.pack, heroAnim, p.animTime, p.x - 32, p.y - 57, 64, 64, p.facing < 0, blinkAlpha, p.animState === 'death');
 
             // Knight melee cleave crescent visual
             if (sim.heroId === 'knight' && p.attackTimer > 0) {
+                const progress = 1 - p.attackTimer / Math.max(0.01, sim.stats.def.attackDuration);
                 ctx.save();
-                ctx.strokeStyle = '#7ee8fa';
-                ctx.lineWidth = 4;
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.lineCap = 'round';
+                ctx.lineWidth = 9 - progress * 4;
+                ctx.strokeStyle = 'rgba(126, 232, 250, ' + (0.85 * (1 - progress * 0.7)).toFixed(3) + ')';
                 ctx.beginPath();
                 if (p.facing > 0) {
                     ctx.arc(p.x + 18, p.y - 24, 28, -Math.PI * 0.45, Math.PI * 0.45);
@@ -448,24 +568,56 @@
                     ctx.arc(p.x - 18, p.y - 24, 28, Math.PI * 0.55, Math.PI * 1.45);
                 }
                 ctx.stroke();
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.8 * (1 - progress)).toFixed(3) + ')';
+                ctx.stroke();
                 ctx.restore();
             }
 
-            // Projectiles
+            // Ranger rune bolt glow
+            if (sim.heroId === 'ranger' && p.attackTimer > 0) {
+                drawGlow(p.x + p.facing * 20, p.y - 24, 60, 'rgba(126, 232, 250, 0.5)', 0.7);
+            }
+
+            // Projectiles with motion trail
             sim.projectiles.forEach(function (proj) {
                 if (proj.dead) return;
+                const color = proj.color || '#7ee8fa';
                 ctx.save();
-                ctx.fillStyle = proj.color || '#7ee8fa';
+                ctx.globalCompositeOperation = 'lighter';
+                const len = Math.hypot(proj.vx, proj.vy) * 0.028;
+                const nx = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vx / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
+                const ny = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vy / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
+                const grad = ctx.createLinearGradient(proj.x, proj.y, proj.x - nx * len * 2, proj.y - ny * len * 2);
+                grad.addColorStop(0, color);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = proj.fromEnemy ? 7 : 5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(proj.x, proj.y);
+                ctx.lineTo(proj.x - nx * len * 2, proj.y - ny * len * 2);
+                ctx.stroke();
+                ctx.restore();
+                ctx.save();
+                ctx.fillStyle = color;
                 ctx.beginPath();
                 ctx.arc(proj.x, proj.y, proj.fromEnemy ? 6 : 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.beginPath();
+                ctx.arc(proj.x - 1, proj.y - 1, proj.fromEnemy ? 2.4 : 2, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             });
 
             // Transient animated explosions/smoke
-            sim.effects.forEach(function (fx) {
-                drawAnimation('assets-animated', fx.animId, 0.5 - fx.timer, fx.x - 28, fx.y - 28, 56, 56, false, 1.0, true);
+            sim.effects.forEach(function (fx2) {
+                drawAnimation('assets-animated', fx2.animId, 0.5 - fx2.timer, fx2.x - 28, fx2.y - 28, 56, 56, false, 1.0, true);
             });
+
+            // Particle layer (sparks, dust, shards, rings)
+            drawParticles(sim);
 
             // Floating feedback numbers
             ctx.save();
@@ -481,6 +633,78 @@
             ctx.restore();
 
             ctx.restore();
+
+            // Dynamic light map above the world plane
+            if (atmosphere && ambient > 0.02) {
+                atmosphere.paintLighting(biome, sx, sy, viewW, viewH, collectLights(sim, stage, biome, nowSec, ambient), nowSec);
+            }
+            if (atmosphere) {
+                atmosphere.paintGrade(biome, viewW, viewH);
+            }
+
+            // Screen flash (damage, phase change, rune surge)
+            if (fx && fx.flashAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, Math.min(1, fx.flashAlpha));
+                ctx.fillStyle = fx.flashColor || '#ffffff';
+                ctx.fillRect(0, 0, viewW, viewH);
+                ctx.restore();
+            }
+        }
+
+        // Light sources in world space for the 2D light map.
+        function collectLights(sim, stage, biome, nowSec, ambient) {
+            const lights = [];
+            const p = sim.player;
+            if (biome.light && biome.light.player > 0) {
+                lights.push({
+                    x: p.x,
+                    y: p.y - 22,
+                    radius: biome.light.radius,
+                    intensity: biome.light.player * 0.92,
+                    flicker: false
+                });
+            }
+            if (sim.blessing && sim.blessing.runePower > 0) {
+                lights.push({
+                    x: p.x,
+                    y: p.y - 24,
+                    radius: biome.light ? biome.light.radius * 0.8 : 160,
+                    intensity: 0.7,
+                    flicker: false
+                });
+            }
+            stage.checkpoints.forEach(function (cp) {
+                if (cp.activated) {
+                    lights.push({ x: cp.x, y: cp.y + 6, radius: 132, intensity: 0.78, flicker: true });
+                }
+            });
+            const half = (stage.tileSize || 48) / 2;
+            stage.hazards.forEach(function (h) {
+                if (h.kind === 'lava' || h.assetId === 'lava' || h.assetId === 'fire') {
+                    lights.push({ x: h.x + half, y: h.y + half, radius: 104, intensity: 0.6, flicker: true });
+                }
+            });
+            stage.collectibles.forEach(function (item) {
+                if (item.collected) return;
+                if (item.kind === 'gem') lights.push({ x: item.x, y: item.y, radius: 86, intensity: 0.42, flicker: false });
+            });
+            if (stage.key && !stage.key.collected && !stage.key.guardedByBoss) {
+                lights.push({ x: stage.key.x, y: stage.key.y, radius: 112, intensity: 0.6, flicker: true });
+            }
+            if (stage.portal && sim.hasKey) {
+                lights.push({ x: stage.portal.x, y: stage.portal.y + 14, radius: 150, intensity: 0.7, flicker: true });
+            }
+            stage.enemies.forEach(function (e) {
+                if (e.dead) return;
+                if (e.def.boss) {
+                    lights.push({ x: e.x, y: e.y - 26, radius: 150, intensity: e.phase === 2 ? 0.55 : 0.42, flicker: e.phase === 2 });
+                }
+            });
+            sim.projectiles.forEach(function (proj) {
+                if (!proj.dead) lights.push({ x: proj.x, y: proj.y, radius: 62, intensity: 0.4, flicker: false });
+            });
+            return lights;
         }
 
         return {

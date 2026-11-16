@@ -112,7 +112,11 @@
         const keyPill = el('span', 'rp-pill rp-pill-key');
         const starsPill = el('span', 'rp-pill rp-pill-stars');
         const timePill = el('span', 'rp-pill rp-pill-time');
-        stats.append(heartsPill, healBtn, coinsPill, gemsPill, keyPill, starsPill, timePill);
+        const modPill = el('span', 'rp-pill rp-pill-mod');
+        modPill.hidden = true;
+        const runePill = el('span', 'rp-pill rp-pill-rune');
+        runePill.hidden = true;
+        stats.append(heartsPill, healBtn, coinsPill, gemsPill, keyPill, starsPill, timePill, modPill, runePill);
 
         const actions = el('div', 'rp-actions');
         const heroBtn = el('button', 'rp-btn');
@@ -340,6 +344,23 @@
             keyPill.classList.toggle('is-on', sim.hasKey);
             starsPill.textContent = t('runenpfad.hud_stars') + ': ' + Sim.totalStars(profile) + '/75';
             timePill.textContent = Math.floor(sim.elapsed) + 's';
+
+            // Rune trial badge & rune power countdown
+            const mod = stage.mod;
+            if (mod) {
+                modPill.hidden = false;
+                modPill.textContent = t('runenpfad.hud_trial') + ': ' + t(mod.nameKey);
+                modPill.title = t(mod.descKey);
+            } else {
+                modPill.hidden = true;
+                modPill.title = '';
+            }
+            if (sim.blessing && sim.blessing.runePower > 0) {
+                runePill.hidden = false;
+                runePill.textContent = t('runenpfad.hud_rune') + ' ' + Math.ceil(sim.blessing.runePower) + 's';
+            } else {
+                runePill.hidden = true;
+            }
             heroBtn.textContent = t('runenpfad.btn_hero') + ': ' + t(Levels.HERO_DEFS[sim.heroId].nameKey);
             noticeEl.textContent = sim.notice ? t(sim.notice) : '';
 
@@ -350,8 +371,10 @@
                 bossName.textContent = t(boss.def.bossNameKey || stage.nameKey);
                 bossHpText.textContent = boss.hp + ' / ' + boss.maxHp;
                 bossFill.style.width = Math.max(0, Math.min(100, Math.round((boss.hp / boss.maxHp) * 100))) + '%';
+                if (audio) audio.setAmbienceDuck(0.55);
             } else {
                 bossWrap.hidden = true;
+                if (audio) audio.setAmbienceDuck(1);
             }
 
             // Win / Lose cards
@@ -402,7 +425,7 @@
                 profile: profile
             });
             if (audio && audio.isEnabled()) {
-                audio.setAmbience(sim.stage.world.ambience);
+                audio.setAmbience(sim.stage.ambience);
             }
             paintHud();
             syncAudioActive();
@@ -551,7 +574,7 @@
                 const prevStars = Sim.totalStars(profile);
                 const prevState = sim.state;
                 const events = Sim.stepSimulation(sim, dt, readInput());
-                if (audio) audio.handleEvents(events, sim.stage.world.ambience);
+                if (audio) audio.handleEvents(events, sim.stage.ambience);
                 if (events.some(function (e) { return e.type === 'player_hurt' || e.type === 'boss_defeat'; }) && renderer) {
                     renderer.triggerShake(7);
                 }
@@ -652,7 +675,7 @@
             audio.setEnabled(!audio.isEnabled());
             profile.sound = audio.isEnabled();
             writeProfile();
-            if (audio.isEnabled() && sim) audio.setAmbience(sim.stage.world.ambience);
+            if (audio.isEnabled() && sim) audio.setAmbience(sim.stage.ambience);
             paintSound();
             syncAudioActive();
         }

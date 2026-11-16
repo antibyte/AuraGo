@@ -97,5 +97,19 @@
   "runenpfad.touch_right": "右",
   "runenpfad.touch_jump": "跳跃",
   "runenpfad.touch_attack": "攻击",
-  "runenpfad.touch_special": "冲刺"
+  "runenpfad.touch_special": "冲刺",
+  "runenpfad.hud_trial": "符文试炼",
+  "runenpfad.hud_rune": "符文之力",
+  "runenpfad.mod_swift": "迅捷敌人",
+  "runenpfad.mod_swift_desc": "敌人移动速度提高 40%，生命值更高。",
+  "runenpfad.mod_fragile": "脆弱地面",
+  "runenpfad.mod_fragile_desc": "崩塌平台会更快瓦解。",
+  "runenpfad.mod_dark": "黑暗",
+  "runenpfad.mod_dark_desc": "光线黯淡，只有你的符文仍在发光。",
+  "runenpfad.mod_greedy": "贪婪",
+  "runenpfad.mod_greedy_desc": "金币更有价值，但潜伏的敌人也更多。",
+  "runenpfad.mod_storm": "风暴",
+  "runenpfad.mod_storm_desc": "平台飞速掠过，风将你向后推。",
+  "runenpfad.mod_mend": "祝福",
+  "runenpfad.mod_mend_desc": "本关的回复药剂与爱心更多。"
 }

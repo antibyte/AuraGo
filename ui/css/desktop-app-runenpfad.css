@@ -115,6 +115,18 @@
     color: #cfe0ef;
 }
 
+.rp-pill-mod {
+    color: #d8b4fe;
+    border-color: rgba(192, 132, 252, 0.55);
+    background: rgba(59, 33, 92, 0.72);
+}
+
+.rp-pill-rune {
+    color: #f0abfc;
+    border-color: rgba(232, 121, 249, 0.7);
+    background: rgba(76, 29, 92, 0.78);
+}
+
 .rp-actions {
     display: flex;
     flex-wrap: wrap;
