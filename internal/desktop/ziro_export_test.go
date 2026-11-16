@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,9 @@ type ziroTestDocker struct {
 func (d *ziroTestDocker) CreateContainer(ctx context.Context, req CodeDockerCreateRequest) (string, error) {
 	if req.Image != ZiroExportImage || req.NetworkMode != "none" || len(req.Ports) != 0 || !req.ReadonlyRootfs || len(req.Volumes) != 1 || req.CapDrop[0] != "ALL" || req.Resources.PidsLimit != 128 {
 		d.t.Fatal("export isolation missing")
+	}
+	if os.Getuid() >= 0 && req.User != fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()) {
+		d.t.Fatal("worker must preserve host ownership for cleanup")
 	}
 	if d.create != nil {
 		d.create(req)

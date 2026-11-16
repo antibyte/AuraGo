@@ -57,6 +57,10 @@ func (s *Service) RunZiroExport(ctx context.Context, docker CodeContainerDocker,
 		return nil, "", errors.New("KiCad export image unavailable; install the versioned export image or update AuraGo")
 	}
 	name := "aurago-ziro-export-" + strings.ToLower(rand.Text())
+	user := "0:0"
+	if os.Getuid() >= 0 && os.Getgid() >= 0 {
+		user = fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
+	}
 	// Register cleanup before create: a lost create response can still leave a container.
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -66,7 +70,7 @@ func (s *Service) RunZiroExport(ctx context.Context, docker CodeContainerDocker,
 	}()
 	_, err = docker.CreateContainer(ctx, CodeDockerCreateRequest{Name: name, Image: ZiroExportImage,
 		Volumes: []string{job + ":/job"}, Env: []string{"HOME=/tmp", "XDG_CONFIG_HOME=/tmp/config"},
-		Cmd: []string{"python3", "/opt/aurago/export.py"}, User: "0:0", Restart: "no", NetworkMode: "none",
+		Cmd: []string{"python3", "/opt/aurago/export.py"}, User: user, Restart: "no", NetworkMode: "none",
 		ReadonlyRootfs: true, SecurityOpt: []string{"no-new-privileges:true"}, CapDrop: []string{"ALL"},
 		Resources: &CodeContainerResources{MemoryMB: 2048, CPUCores: 2, PidsLimit: 128}, Tmpfs: map[string]string{"/tmp": "rw,nosuid,nodev,size=256m"}})
 	if err != nil {

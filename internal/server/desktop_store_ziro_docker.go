@@ -85,7 +85,7 @@ func (d *ziroDocker) CreateContainer(ctx context.Context, req desktop.CodeDocker
 			mount["Source"] = path.Join(d.mountSource, subpath)
 		}
 	}
-	payload := map[string]any{"Image": desktop.ZiroExportImage, "Cmd": req.Cmd, "Env": req.Env, "User": "0:0", "HostConfig": map[string]any{
+	payload := map[string]any{"Image": desktop.ZiroExportImage, "Cmd": req.Cmd, "Env": req.Env, "User": req.User, "HostConfig": map[string]any{
 		"Mounts": []any{mount}, "NetworkMode": "none", "ReadonlyRootfs": true, "SecurityOpt": []string{"no-new-privileges:true"}, "CapDrop": []string{"ALL"},
 		"Tmpfs": req.Tmpfs, "Memory": int64(2048) << 20, "MemorySwap": int64(2048) << 20, "NanoCpus": int64(2e9), "PidsLimit": 128, "RestartPolicy": map[string]any{"Name": "no"}}}
 	var created struct {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -123,9 +124,9 @@ func TestOliveTinValidatesDefinitionsAndExecutionOwnership(t *testing.T) {
 }
 
 func TestStoreAppMutationIsNotReplayedAfterDisconnect(t *testing.T) {
-	calls := 0
+	var calls atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
+		calls.Add(1)
 		conn, _, err := w.(http.Hijacker).Hijack()
 		if err != nil {
 			t.Error(err)
@@ -135,7 +136,7 @@ func TestStoreAppMutationIsNotReplayedAfterDisconnect(t *testing.T) {
 	}))
 	defer server.Close()
 	c := Connection{URL: server.URL, Credential: "token"}
-	if err := c.request(context.Background(), "POST", "/action", map[string]string{"input": "value"}, true, nil); err != ErrUncertain || calls != 1 {
-		t.Fatalf("uncertain action: %v, calls=%d", err, calls)
+	if err := c.request(context.Background(), "POST", "/action", map[string]string{"input": "value"}, true, nil); err != ErrUncertain || calls.Load() != 1 {
+		t.Fatalf("uncertain action: %v, calls=%d", err, calls.Load())
 	}
 }

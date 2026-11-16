@@ -16,7 +16,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   directory (2048 entries, 32 levels, at most 64 MiB). Relative libraries stay in
   the snapshot; links and special files are refused. One cancellable export runs
   at a time in the fixed KiCad image, network none, read-only root, dropped caps,
-  2 GiB RAM/two CPUs/128 PIDs. Cleanup kills/removes the container before removing
+  2 GiB RAM/two CPUs/128 PIDs. Unix workers retain AuraGo’s UID/GID so job
+  cleanup can remove their files. Cleanup kills/removes the container before removing
   its private job directory. Sources never become container mounts. Verify
   `TestZiroExport*`; worker/image contracts: `../../deploy/docker/kicad-export/AGENTS.md`.
 
