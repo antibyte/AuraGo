@@ -105,6 +105,8 @@
                 facing: 1,
                 onGround: false,
                 onLadder: false,
+                climbKind: null,
+                climbDir: 0,
                 onPlatformRide: null,
                 coyoteTimer: 0,
                 jumpBuffer: 0,
@@ -578,11 +580,25 @@
 
         // Check ladder overlap
         let nearLadder = false;
+        let nearKind = null;
+        let nearRope = null;
         for (let i = 0; i < stage.ladders.length; i++) {
             const l = stage.ladders[i];
             if (Math.abs(p.x - (l.x + TILE / 2)) < 20 && p.y > l.y && p.y - p.h < l.y + TILE) {
                 nearLadder = true;
+                nearKind = 'ladder';
                 break;
+            }
+        }
+        if (!nearLadder && stage.ropes) {
+            for (let i = 0; i < stage.ropes.length; i++) {
+                const r = stage.ropes[i];
+                if (Math.abs(p.x - r.x) <= 14 && p.y > r.top && p.y - p.h < r.bottom) {
+                    nearLadder = true;
+                    nearKind = 'rope';
+                    nearRope = r;
+                    break;
+                }
             }
         }
         if (nearLadder && (input.up || input.down)) {
@@ -592,14 +608,18 @@
             p.onLadder = false;
         }
 
+        p.climbKind = p.onLadder ? (nearKind || p.climbKind) : null;
+        p.climbDir = 0;
         const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
         if (moveDir !== 0 && p.dashTimer <= 0) p.facing = moveDir;
 
         if (p.dashTimer > 0) {
             p.dashTimer -= dt;
         } else if (p.onLadder) {
-            p.vx = moveDir * stats.speed * 0.65;
+            p.vx = moveDir * stats.speed * (p.climbKind === 'rope' ? 0.4 : 0.65);
             p.vy = input.up ? -190 : input.down ? 190 : 0;
+            p.climbDir = input.up ? -1 : input.down ? 1 : 0;
+            if (nearRope && moveDir === 0) p.x += (nearRope.x - p.x) * 0.3;
             if (input.jumpPressed) {
                 p.onLadder = false;
                 p.vy = -stats.jumpVel;
@@ -721,6 +741,7 @@
         // Animation state selection
         p.animTime += dt;
         if (p.hurtTimer > 0) p.animState = 'hurt';
+        else if (p.onLadder) p.animState = 'climb';
         else if (p.attackTimer > 0) p.animState = 'attack';
         else if (!p.onGround) p.animState = 'jump';
         else if (Math.abs(p.vx) > 150) p.animState = 'run';

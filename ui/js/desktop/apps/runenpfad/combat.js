@@ -19,6 +19,24 @@
     function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) { return P().rectOverlap(ax, ay, aw, ah, bx, by, bw, bh); }
     function isSolidTile(stage, tx, ty) { return P().isSolidTile(stage, tx, ty); }
 
+    function zonesApi() {
+        return root.RunenpfadZones || null;
+    }
+
+    // Kills chain into a combo: every kill inside the 2.5 s window raises the score multiplier.
+    function registerKill(sim, enemy) {
+        const c = sim.combo;
+        if (!c) return 1;
+        c.count += 1;
+        c.timer = 2.5;
+        const mul = 1 + 0.5 * Math.min(4, Math.floor(c.count / 3));
+        const rose = mul > c.mul;
+        c.mul = mul;
+        if (c.count >= 2) pushEvent(sim, 'combo', { count: c.count, mul: mul, x: enemy.x, y: enemy.y });
+        if (rose) sim.floatingTexts.push({ x: enemy.x, y: enemy.y - 70, text: 'x' + mul, color: '#fde68a', timer: 0.9 });
+        return mul;
+    }
+
     function hurtPlayer(sim, amount, sourceX, sound) {
         const p = sim.player;
         if (p.invulnTimer > 0 || sim.state !== 'playing') return;
@@ -78,7 +96,7 @@
             enemy.deathTimer = 0.55;
             enemy.animState = 'death';
             enemy.animTime = 0;
-            sim.stageScore += enemy.score || enemy.def.score;
+            sim.stageScore += Math.round((enemy.score || enemy.def.score) * registerKill(sim, enemy));
             sim.effects.push({ animId: 'explosion', x: enemy.x, y: enemy.y - 24, timer: 0.5 });
             fxBurst(sim, 'shard', enemy.x, enemy.y - 24, enemy.def.boss ? 26 : 12, {
                 color: enemy.def.hitSound === 'impact-metal' ? '#cfe8ff' : '#ffd08a',
@@ -213,9 +231,11 @@
                     breakCrate(sim, c);
                 }
             });
-            // Knight slash deflects enemy projectiles
+            const zones = zonesApi();
+            if (zones && typeof zones.hitRect === 'function') zones.hitRect(sim, hx, hy, hw, hh, 1);
+            // Knight slash deflects enemy projectiles (boss missiles and shock waves are too heavy)
             sim.projectiles.forEach(function (proj) {
-                if (proj.fromEnemy && !proj.dead && rectOverlap(hx, hy, hw, hh, proj.x - 8, proj.y - 8, 16, 16)) {
+                if (proj.fromEnemy && !proj.dead && !proj.noDeflect && rectOverlap(hx, hy, hw, hh, proj.x - 8, proj.y - 8, 16, 16)) {
                     proj.fromEnemy = false;
                     proj.vx = -proj.vx * 1.3;
                     proj.damage = attackDamage;
@@ -243,12 +263,25 @@
         }
     }
 
+    // Missile impact: a small blast that hurts the hero when close.
+    function projectileBlast(sim, proj) {
+        const p = sim.player;
+        const radius = proj.blast;
+        pushEvent(sim, 'bomb_blast', { x: proj.x, y: proj.y });
+        sim.effects.push({ animId: 'explosion', x: proj.x, y: proj.y - 8, timer: 0.5 });
+        fxBurst(sim, 'shard', proj.x, proj.y, 10, { color: '#fb923c', speed: 230, life: 0.6 });
+        fxShake(sim, 4);
+        if (Math.hypot(p.x - proj.x, (p.y - 22) - proj.y) < radius) hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
+    }
+
     function stepProjectiles(sim, dt) {
         const stage = sim.stage;
         const p = sim.player;
         const TILE = stage.tileSize;
+        const zones = zonesApi();
         sim.projectiles.forEach(function (proj) {
             if (proj.dead) return;
+            if (proj.gravity) proj.vy += proj.gravity * dt;
             proj.x += proj.vx * dt;
             proj.y += proj.vy * dt;
             proj.life -= dt;
@@ -256,16 +289,28 @@
                 proj.dead = true;
                 return;
             }
+            const r = proj.radius || 6;
+            if (!proj.fromEnemy && zones && typeof zones.hitRect === 'function' && zones.hitRect(sim, proj.x - r, proj.y - r, r * 2, r * 2, 1)) {
+                proj.dead = true;
+                return;
+            }
             const tx = Math.floor(proj.x / TILE);
             const ty = Math.floor(proj.y / TILE);
             if (isSolidTile(stage, tx, ty)) {
                 proj.dead = true;
+                if (proj.blast) projectileBlast(sim, proj);
+                return;
+            }
+            // Shock waves hug the floor and fade out where the ground ends.
+            if (proj.groundHug && !isSolidTile(stage, tx, Math.floor((proj.y + r + 6) / TILE))) {
+                proj.dead = true;
                 return;
             }
             if (proj.fromEnemy) {
-                if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, proj.x - 6, proj.y - 6, 12, 12)) {
+                if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, proj.x - r, proj.y - r, r * 2, r * 2)) {
                     proj.dead = true;
-                    hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
+                    if (proj.blast) projectileBlast(sim, proj);
+                    else hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
                 }
             } else {
                 stage.enemies.forEach(function (e) {
@@ -286,12 +331,28 @@
                 });
             }
         });
-        if (sim.projectiles.length > 48) {
+        if (sim.projectiles.length > 64) {
             sim.projectiles = sim.projectiles.filter(function (pr) { return !pr.dead; });
         }
     }
 
-    // Per-tick combat bookkeeping: the combo window decays here (kills extend it in B5).
+    // Timed hazards (boss lasers, fire strips) burn the hero while they are active.
+    function stepTempHazards(sim, dt) {
+        const list = sim.tempHazards;
+        if (!list || !list.length) return;
+        const p = sim.player;
+        list.forEach(function (th) {
+            th.t -= dt;
+            if (th.t <= 0 || p.invulnTimer > 0 || sim.state !== 'playing') return;
+            if (rectOverlap(p.x - p.w / 2 + 2, p.y - p.h + 4, p.w - 4, p.h - 6, th.x, th.y, th.w, th.h)) {
+                pushEvent(sim, 'hazard', { kind: th.kind, x: th.x + th.w / 2, y: th.y + th.h / 2 });
+                hurtPlayer(sim, th.damage || 1, th.x + th.w / 2, 'impact-metal');
+            }
+        });
+        sim.tempHazards = list.filter(function (th) { return th.t > 0; });
+    }
+
+    // Per-tick combat bookkeeping: combo window, boss intro banner and timed hazards.
     function tick(sim, dt) {
         const c = sim.combo;
         if (c && c.timer > 0) {
@@ -301,6 +362,11 @@
                 c.mul = 1;
             }
         }
+        if (sim.bossIntro) {
+            sim.bossIntro.timer -= dt;
+            if (sim.bossIntro.timer <= 0) sim.bossIntro = null;
+        }
+        stepTempHazards(sim, dt);
     }
 
     root.RunenpfadCombat = {

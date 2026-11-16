@@ -108,6 +108,7 @@
         const tRight = Math.floor(right / TILE);
         entity.onGround = false;
         entity.onPlatformRide = null;
+        if (entity.conveyorPush) entity.conveyorPush = 0;
 
         if (entity.vy >= 0) {
             const tBot = Math.floor(entity.y / TILE);
@@ -127,10 +128,12 @@
                         if (prevY <= p.y + 8 && entity.y >= p.y) {
                             entity.y = p.y;
                             if (p.kind === 'spring') {
-                                entity.vy = -790;
+                                entity.vy = -(p.bounce || 790);
                                 entity.onGround = false;
+                                if (p.bounce) entity.bouncePlat = p;
                                 return 'spring';
                             }
+                            if (p.kind === 'conveyor') entity.conveyorPush = p.conveyor || 0;
                             if (p.kind === 'trapdoor' && p.crumbleTimer === 0) {
                                 p.crumbleTimer = p.crumbleTime || 0.45;
                             }
