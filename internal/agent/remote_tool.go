@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -109,7 +110,10 @@ func resolveRemoteDevice(hub *remote.RemoteHub, tc ToolCall) (string, error) {
 	}
 	device, err := remote.GetDeviceByName(hub.DB(), name)
 	if err != nil {
-		return "", fmt.Errorf("device not found by name '%s'", name)
+		if errors.Is(err, remote.ErrAmbiguousDeviceName) {
+			return "", fmt.Errorf("device name %q is ambiguous; specify device_id: %w", name, err)
+		}
+		return "", fmt.Errorf("device not found by name %q: %w", name, err)
 	}
 	return device.ID, nil
 }

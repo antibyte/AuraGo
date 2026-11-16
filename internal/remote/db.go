@@ -208,13 +208,30 @@ func GetDevice(db *sql.DB, id string) (DeviceRecord, error) {
 	return scanDevice(row)
 }
 
-// GetDeviceByName retrieves a device by name (case-insensitive).
+// ErrAmbiguousDeviceName requires callers to select an explicit device ID.
+var ErrAmbiguousDeviceName = errors.New("ambiguous device name")
+
+// GetDeviceByName retrieves exactly one device by name (case-insensitive).
 func GetDeviceByName(db *sql.DB, name string) (DeviceRecord, error) {
-	row := db.QueryRow(`SELECT id, name, hostname, os, arch, ip_address, status,
+	rows, err := db.Query(`SELECT id, name, hostname, os, arch, ip_address, status,
 		read_only, allowed_paths, shared_key_hash, enrollment_token,
 		last_seen, created_at, version, tags
-		FROM remote_devices WHERE LOWER(name) = LOWER(?)`, name)
-	return scanDevice(row)
+		FROM remote_devices WHERE LOWER(name) = LOWER(?) LIMIT 2`, name)
+	if err != nil {
+		return DeviceRecord{}, err
+	}
+	defer rows.Close()
+	devices, err := scanDevices(rows)
+	if err != nil {
+		return DeviceRecord{}, err
+	}
+	if len(devices) == 0 {
+		return DeviceRecord{}, sql.ErrNoRows
+	}
+	if len(devices) > 1 {
+		return DeviceRecord{}, ErrAmbiguousDeviceName
+	}
+	return devices[0], nil
 }
 
 // ListDevices returns all device records.
