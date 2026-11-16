@@ -1421,13 +1421,6 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - EasyDrag metadata journeys select active dialogs for native close clicks and
   await removal of closing overlays; a saved editor remains in the DOM during
   its 140 ms exit animation and must not become the next click target.
-- EasyDrag run-view clicks (results disclosure, durable panel and its Stop
-  dialog) use `clickSettled`: it waits until the same node keeps one box over two
-  frames and queries it right before a native press, because the run view
-  re-renders on its own and a stale node has no shape for rod. The header Stop
-  goes through `clickStop` (it retries a click that found no box), and
-  `pillEntry` opens the pill's panel and presses its entry (Run now, Runs,
-  Active) through `clickSettled`.
 - Synth Studio library clicks await the sidebar's rendered viewport bounds, not
   visibility alone during its slide-in transition. Master-chain changes keep the
   `TestDesktopSynthStudioAudioBrowser` offline ceiling and neutral-width transfer
