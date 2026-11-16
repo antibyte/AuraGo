@@ -8,7 +8,8 @@
     const MAX_RINGS = 4;
     const RING_LIFE = 0.6;
     const WATCH_FRAMES = 120;
-    const WATCH_LIMIT_MS = 22;
+    const WATCH_LIMIT_MS = 6;
+    const WATCH_SPIKE_MS = 250;
 
     // lift (rgb), gain (rgb), gamma, saturation per biome; deliberately subtle.
     const GRADES = {
@@ -116,7 +117,7 @@
         let fboB = null;
         const rings = [];
         const frames = [];
-        let lastNow = 0;
+        let slowRun = 0;
         let sinceMedian = 0;
         let lastMs = 0;
         const api = {
@@ -125,7 +126,7 @@
             setEnabled: function (on) {
                 enabled = !!on;
                 if (canvas) canvas.style.display = enabled && !failed ? '' : 'none';
-                lastNow = 0;
+                slowRun = 0;
             },
             resize: function () { /* backing size follows the source canvas every frame */ },
             pushShockwave: function (x, y, strength) {
@@ -253,21 +254,20 @@
             return pr;
         }
 
-        function watch(now) {
-            if (lastNow) {
-                const d = now - lastNow;
-                if (d > 0 && d < 250) {
-                    frames.push(d);
-                    if (frames.length > WATCH_FRAMES) frames.shift();
-                    if (++sinceMedian >= 15 || frames.length === WATCH_FRAMES) {
-                        sinceMedian = 0;
-                        lastMs = median(frames);
-                        api.frameMs = Math.round(lastMs * 10) / 10;
-                        if (frames.length >= WATCH_FRAMES && lastMs > WATCH_LIMIT_MS) fail('slow-frames ' + api.frameMs + 'ms');
-                    }
-                }
+        // Watches the CPU time spent inside render() (upload + draw calls; GPU backpressure blocks
+        // there). The rAF interval is ignored so throttled pages do not look slow.
+        function watch(cost) {
+            if (!(cost >= 0)) return;
+            slowRun = cost > WATCH_SPIKE_MS ? slowRun + 1 : 0;
+            if (slowRun >= 3) { fail('slow-frames ' + Math.round(cost) + 'ms'); return; }
+            frames.push(cost);
+            if (frames.length > WATCH_FRAMES) frames.shift();
+            if (++sinceMedian >= 15 || frames.length === WATCH_FRAMES) {
+                sinceMedian = 0;
+                lastMs = median(frames);
+                api.frameMs = Math.round(lastMs * 10) / 10;
+                if (frames.length >= WATCH_FRAMES && lastMs > WATCH_LIMIT_MS) fail('slow-frames ' + api.frameMs + 'ms');
             }
-            lastNow = now;
         }
 
         function render(frame) {
@@ -278,8 +278,7 @@
                 const h = source.height | 0;
                 if (w < 2 || h < 2) return;
                 if (gl.isContextLost()) { fail('context-lost'); return; }
-                watch(root.performance.now());
-                if (failed) return;
+                const t0 = root.performance.now();
                 if (w !== srcW || h !== srcH) {
                     allocTargets(w, h);
                     gl.activeTexture(gl.TEXTURE0);
@@ -360,6 +359,7 @@
                 gl.uniform1f(p.u('uSat'), g.sat);
                 gl.drawArrays(gl.TRIANGLES, 0, 3);
                 if (!shown) { shown = true; canvas.style.visibility = ''; }
+                watch(root.performance.now() - t0);
             } catch (err) {
                 fail('render-error');
             }

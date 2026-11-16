@@ -781,4 +781,43 @@ console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 lev
     ladderSim.player.x = lad.x + 24; ladderSim.player.y = lad.y + 40;
     Sim.stepSimulation(ladderSim, STEP, { up: true });
     assert.equal(ladderSim.player.climbKind, 'ladder', 'ladders report their climb kind');
+
+    // rope_chasm is completable at base upgrades: a scripted hero hops rope to rope without touching spikes.
+    // plan[i] = ticks to climb on rope i before jumping off sideways (right + jump).
+    const crossChasm = (hero, plan) => {
+        const cs = mk(9, hero);
+        const ropes = cs.stage.ropes;
+        const T = cs.stage.tileSize;
+        const edge = ropes[0].x - 2 * T;
+        const goalX = ropes[ropes.length - 1].x + 3 * T;
+        const p = cs.player;
+        p.x = edge - 30; p.y = cs.stage.groundY; p.vx = 0; p.vy = 0;
+        let phase = 'run', climbed = 0, skip = null, launchVx = 0, launched = 0;
+        for (let i = 0; i < 900; i++) {
+            const inp = {};
+            const onRope = p.onLadder && p.climbKind === 'rope';
+            if (onRope) {
+                if (phase !== 'rope') { phase = 'rope'; climbed = 0; }
+                const idx = Math.max(0, ropes.findIndex((r) => Math.abs(p.x - r.x) <= 14));
+                if (climbed < plan[idx]) { inp.up = true; climbed++; }
+                else { inp.jumpPressed = true; inp.right = true; phase = 'air'; skip = ropes[idx]; launched = i; }
+            } else if (phase === 'run') {
+                inp.right = true;
+                if (p.x >= edge - 10) { inp.jumpPressed = true; phase = 'air'; }
+            } else {
+                inp.right = true;
+                if (skip && Math.abs(p.x - skip.x) > 30) skip = null;
+                if (ropes.some((r) => r !== skip && Math.abs(p.x - r.x) <= 12)) inp.up = true;
+            }
+            Sim.stepSimulation(cs, STEP, inp);
+            if (launched && i === launched + 12 && !launchVx) launchVx = p.vx;
+            assert.equal(p.hp, p.maxHp, `${hero} must not touch spikes (tick ${i})`);
+            if (p.onGround && p.x >= goalX && i > 30) return { i, launchVx };
+        }
+        return null;
+    };
+    const kRes = crossChasm('knight', [0, 0, 12]);
+    assert.ok(kRes, 'the knight (no air jump) can cross rope_chasm via the ropes');
+    assert.ok(kRes.launchVx > 150, 'jumping off a rope sideways gives a usable horizontal launch');
+    assert.ok(crossChasm('ranger', [0, 0, 3]), 'the ranger can cross rope_chasm via the ropes');
 }

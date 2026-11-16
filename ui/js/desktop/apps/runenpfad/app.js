@@ -71,11 +71,16 @@
             });
         }
 
+        let rejectedRaw = null; // stored value that failed to import; backed up before the first overwrite
+
         function readProfile() {
             try {
                 const raw = root.localStorage.getItem(Sim.STORAGE_KEY);
-                if (!raw || raw.length > 16384) return Sim.createDefaultProfile();
-                return Sim.importProfile(JSON.parse(raw)) || Sim.createDefaultProfile();
+                if (!raw) return Sim.createDefaultProfile();
+                rejectedRaw = raw;
+                const imported = raw.length > 16384 ? null : Sim.importProfile(JSON.parse(raw));
+                if (imported) rejectedRaw = null;
+                return imported || Sim.createDefaultProfile();
             } catch (err) {
                 return Sim.createDefaultProfile();
             }
@@ -84,6 +89,11 @@
         function writeProfile() {
             if (!profile) return;
             try {
+                if (rejectedRaw !== null) {
+                    const bak = Sim.STORAGE_KEY + '.bak';
+                    if (rejectedRaw.length <= 16384 && root.localStorage.getItem(bak) === null) root.localStorage.setItem(bak, rejectedRaw);
+                    rejectedRaw = null;
+                }
                 root.localStorage.setItem(Sim.STORAGE_KEY, JSON.stringify(Sim.exportProfile(profile)));
             } catch (err) { /* ignore storage quota/private mode */ }
         }
@@ -633,7 +643,7 @@
             });
         }
 
-        function readInput() {
+        function readInput(consume) {
             const left = !!(keyState.ArrowLeft || keyState.KeyA || touchState.ArrowLeft);
             const right = !!(keyState.ArrowRight || keyState.KeyD || touchState.ArrowRight);
             const up = !!(keyState.ArrowUp || keyState.KeyW || touchState.ArrowUp);
@@ -648,11 +658,22 @@
                 dashPressed: edgeState.dashPressed,
                 healPressed: edgeState.healPressed
             };
+            // Edges survive frames without a simulation substep (high refresh rates).
+            if (consume) clearEdges();
+            return inp;
+        }
+
+        function clearEdges() {
             edgeState.jumpPressed = false;
             edgeState.attackPressed = false;
             edgeState.dashPressed = false;
             edgeState.healPressed = false;
-            return inp;
+        }
+
+        function resetInputs() {
+            Object.keys(keyState).forEach(function (k) { keyState[k] = false; });
+            Object.keys(touchState).forEach(function (k) { touchState[k] = false; });
+            clearEdges();
         }
 
         function tick(nowMs) {
@@ -667,7 +688,9 @@
                 const prevStars = Sim.totalStars(before);
                 const prevState = sim.state;
                 const slow = sim.fx && sim.fx.slowmo > 0;
-                const events = Sim.stepSimulation(sim, dt * (slow ? 0.35 : 1), readInput());
+                const simDt = dt * (slow ? 0.35 : 1);
+                const willStep = sim.accum + Math.min(0.1, Math.max(0, simDt)) >= Sim.STEP;
+                const events = Sim.stepSimulation(sim, simDt, readInput(willStep));
                 if (slow) sim.fx.slowmo = Math.max(0, sim.fx.slowmo - dt);
                 const camera = renderer ? renderer.getCamera() : null;
                 if (renderer) renderer.handleEvents(events, sim);
@@ -679,6 +702,8 @@
                     adoptSimProfile();
                 }
                 paintHud();
+            } else if (sim && (document.hidden || (ctx.isActive && !ctx.isActive()))) {
+                resetInputs();
             }
             if (renderer && sim) {
                 renderer.render(sim, nowMs);
@@ -827,7 +852,11 @@
         root.addEventListener('keydown', onKeyDown, { signal: controller.signal });
         root.addEventListener('keyup', onKeyUp, { signal: controller.signal });
         shell.addEventListener('pointerdown', function () { if (audio) audio.unlock(); }, { signal: controller.signal });
-        document.addEventListener('visibilitychange', syncAudioActive, { signal: controller.signal });
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) resetInputs();
+            syncAudioActive();
+        }, { signal: controller.signal });
+        root.addEventListener('blur', resetInputs, { signal: controller.signal });
 
         const ro = typeof ResizeObserver === 'function'
             ? new ResizeObserver(function () {
