@@ -108,8 +108,8 @@ const server=http.createServer((request,response)=>{
             response.end('<!doctype html><html data-sm-mode="app" data-sm-base="'+address+'"><link rel="stylesheet" href="/css/storymaker-player.css"><canvas id="sm-stage"></canvas><script src="/js/storymaker/host.bundle.js"></script></html>');return;
         }
         if(url.pathname==='/fixture-code.js'){
-            const reference=process.argv.includes('--agent-reference');
-            const code=reference?transformSync(fs.readFileSync(path.join(root,'internal/storymaker/reference/effects.js'),'utf8'),{format:'iife',globalName:'__smSceneModule',target:'es2020',legalComments:'none'}).code+'\nself.__smScene=__smSceneModule.default;':fs.readFileSync(path.join(root,'internal/storymaker/testdata/scenes/s3.bundle.js'));
+            const reference=process.argv.includes('--svg-reference')?'svg-assets':process.argv.includes('--agent-reference')?'effects':null;
+            const code=reference?transformSync(fs.readFileSync(path.join(root,'internal/storymaker/reference/'+reference+'.js'),'utf8'),{format:'iife',globalName:'__smSceneModule',target:'es2020',legalComments:'none'}).code+'\nself.__smScene=__smSceneModule.default;':fs.readFileSync(path.join(root,'internal/storymaker/testdata/scenes/s3.bundle.js'));
             response.setHeader('Content-Type','text/javascript');response.end(code);return;
         }
         const decoded=decodeURIComponent(url.pathname),base=decoded.startsWith('/img/storymaker/')?catalogDir:ui;
@@ -216,7 +216,7 @@ try{
     }else{
         for(const code of [false,true])for(const aspect of ['16:9','9:16','1:1']){
             await call('Page.navigate',{url:address+'/?aspect='+encodeURIComponent(aspect)+(code?'&code=1':'' )});await wait(0);
-            const frame=code?45:60,first=await capture(frame);for(const n of code?[300,3,87,13]:[120,3,87,30,119,0])await seekOnly(n);const second=await capture(frame);sameFrame(second,first,'Seek/reload parity for '+aspect+'/'+code);
+            const frame=code?(process.argv.includes('--svg-reference')?120:45):60,first=await capture(frame);for(const n of code?[300,3,87,13]:[120,3,87,30,119,0])await seekOnly(n);const second=await capture(frame);sameFrame(second,first,'Seek/reload parity for '+aspect+'/'+code);
             if(aspect==='16:9'){await call('Page.reload',{ignoreCache:true});await wait(0);sameFrame(await capture(frame),first,'Fresh project parity');}
             const backend=baseline?'legacy':process.argv.includes('--webgl')?'webgl':'canvas';
             writeArtifact(path.join(fixture,backend+'-'+(code?'code-':'reference-')+aspect.replace(':','x')+'.png'),Buffer.from(first,'base64'));

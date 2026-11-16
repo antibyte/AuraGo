@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	catalogVoiceKind      = "voice"
-	catalogMissNextAction = "Use the nearest alternative, or a show beat with text."
-	catalogKindList       = "character, prop, environment, pose, gesture, expression, transition, text_style, sfx or voice"
+	catalogVoiceKind          = "voice"
+	catalogMissNextAction     = "Search a concrete English concept or synonym in the appropriate kind. Use an alternative only when its meaning fits; never invent an ID."
+	catalogPropMissNextAction = "Search one concrete English synonym with kind prop. If no asset fits, read storymaker_catalog reference topic code, then create the missing motif as SVG paths with g.path and combine it with fitting catalog props. Use get_code, put_code and put_scene kind code as documented. Keep speaking-actor scenes and their lip-sync; use off-screen narration for custom illustration scenes. Alternatives are spelling suggestions, not semantic matches."
+	catalogKindList           = "character, prop, environment, pose, gesture, expression, transition, text_style, sfx or voice"
 )
 
 // catalogModelKinds are the kinds a miss may suggest when the call named no kind.
@@ -109,6 +110,10 @@ func (s *Studio) catalogHitOf(e Entry) catalogHit {
 }
 
 func (s *Studio) catalogMiss(op, query, kind string) StudioResult {
+	nextAction := catalogMissNextAction
+	if kind == "prop" || (kind == "" && strings.HasPrefix(query, "prop.")) {
+		nextAction = catalogPropMissNextAction
+	}
 	var pool []string
 	if s.deps.Catalog != nil {
 		for _, e := range s.deps.Catalog.Entries() {
@@ -118,7 +123,7 @@ func (s *Studio) catalogMiss(op, query, kind string) StudioResult {
 		}
 	}
 	return catalogOpAnswer(op, "ok", map[string]any{
-		"results": []catalogHit{}, "alternatives": closestNames(query, pool, 5), "next_action": catalogMissNextAction,
+		"results": []catalogHit{}, "alternatives": closestNames(query, pool, 5), "next_action": nextAction,
 	})
 }
 

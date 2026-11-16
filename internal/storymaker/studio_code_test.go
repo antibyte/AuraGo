@@ -124,6 +124,9 @@ func TestStudioReferenceAndMetaAnimationControls(t *testing.T) {
 		if r.Status != "ok" || len(a["guide"].(string)) > 20000 {
 			t.Fatal(a)
 		}
+		if !strings.Contains(a["guide"].(string), "SVG") || (topic == "code" && !strings.Contains(a["guide"].(string), svgReferenceExample)) {
+			t.Fatalf("%s reference lacks the supported SVG workflow/example", topic)
+		}
 	}
 	meta := s.Call(context.Background(), StudioCall{Tool: ToolStory, Operation: "set_meta", Args: map[string]any{"data": map[string]any{"cast": []any{map[string]any{"id": "anna", "name": "Anna", "character": "char.office-woman-1"}}, "style": map[string]any{"rhythm": "calm", "auto_sfx": true}}}})
 	if meta.Status != "ok" {
@@ -134,8 +137,10 @@ func TestStudioReferenceAndMetaAnimationControls(t *testing.T) {
 	if err != nil || story.Style.Rhythm != "calm" || !story.Style.AutoSFX {
 		t.Fatal(err, string(data))
 	}
-	if res := BundleCodeScene([]byte(codeReferenceExample), "s1", StudioCodeBytes); len(res.Errors) != 0 {
-		t.Fatal(res.Errors)
+	for _, source := range []string{codeReferenceExample, svgReferenceExample} {
+		if res := BundleCodeScene([]byte(source), "s1", StudioCodeBytes); len(res.Errors) != 0 {
+			t.Fatal(res.Errors)
+		}
 	}
 	start := strings.Index(animationReference, "```json\n") + len("```json\n")
 	end := strings.Index(animationReference[start:], "\n```") + start

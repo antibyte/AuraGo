@@ -28,7 +28,8 @@ const storymakerHouseRules = `## House rules
 5. Never place a prop or text card on the same spot ("at") as an on-stage actor; use a free spot (for example actor at "left" or "desk", prop/text at "right", "center" or "board").
 6. On-screen text is at most five words and never repeats the narration. No bullet lists, no three equal cards in a row.
 7. Vary the entries (pop, fade, slide) across scenes. Text stops moving after it lands.
-8. Never fade between different environments: use wipe, slide-left or cut. Inside one environment use fade or cut.`
+8. Never fade between different environments: use wipe, slide-left or cut. Inside one environment use fade or cut.
+9. Plan a meaningful visual for each idea: a relevant catalog asset plus only the supporting objects needed to show the relationship. If no asset fits, create the missing motif as SVG paths through the code reference; a label alone is not the default substitute.`
 
 const storymakerHouseStyle = `## House style
 - A product or concept explainer opens on a person and reveals each part on the cue that names it.
@@ -39,7 +40,8 @@ const storymakerHouseStyle = `## House style
 - Banned: stacked bullet points as on-screen text; three cards or labels in a row with the same entry; a narrator reading the on-screen text word for word; every element fading in and sliding up; glow, neon and glass-card looks; a title that keeps moving after it has landed.
 - Write one idea per scene and keep on-screen text to a few words. Let actors act: pair a cue-bound show or walk beat with simultaneous ("with":"prev") look, gesture, expression, emote or highlight beats.
 - Vary the show entries (pop, fade, slide) across scenes (check used_entries in the context). Use the camera for a reason: framing medium follows the speaker.
-- A film looks alike when every scene has the same environment, the same framing, the same gesture and the same person. Plan the film as three acts (hook and problem, solution and how, benefit and close) and change the environment between acts.`
+- A film looks alike when every scene has the same environment, the same framing, the same gesture and the same person. Plan the film as three acts (hook and problem, solution and how, benefit and close) and change the environment between acts.
+- Plan a meaningful visual for each idea: use a relevant catalog asset as the focal point and supporting objects only to explain a relationship, process or comparison. Show what changes, where it moves or how the objects relate. If no asset fits, create the missing motif as SVG paths through the code reference; a label alone is not the default substitute.`
 
 const storymakerOutlineWorkflow = `## Outline
 1. Choose one template: product_explainer, how_to, concept_explainer, dialogue_story, data_story or onboarding.
@@ -63,7 +65,8 @@ The context names one scene, plus previous_scene, next_scene, suggested_props an
 - The context has a direction for this scene: its role, a suggested environment, framing, pose, gesture, entry, actor and the spots of the actor and the prop. Follow it unless the narration needs something else. The example in the context is built from it.
 - Keep the same environment only while the scene's role stays the same, and do not repeat the gesture of previous_scene. The server checks the whole film: at least three environments in a long film, a framing other than wide in at least one scene, varied gestures, and every cast member on stage in some scene.
 - Use spot names from the context for at, from and to. Keep actors and shown props/text on separate spots so they never overlap.
-- Prefer suggested_props from the context or search storymaker_catalog once or twice for props the narration names. If nothing fits, use the nearest alternative, or a show beat with short text. Vary show entry styles against used_entries and layer actor reactions with "with":"prev".
+- Choose the scene's visual explanation before writing beats: identify its main object and the relationship or change to show. Search storymaker_catalog for concrete English concepts or synonyms, not the whole narration. suggested_props and the direction example are suggestions, not a mandatory motif. Use a matching catalog asset, usually with one or two meaningful supporting objects; avoid unrelated decoration and scenes made only of a talking person and labels.
+- If no prop fits after a focused search and a synonym search, read reference topic code and draw the missing motif with g.path SVG paths. Combine it with fitting catalog props in a code scene, following the save workflow below. Preserve speaking-actor scenes and their lip-sync; use custom illustration scenes with off-screen narration where appropriate. Never invent an asset ID or use a misleading nearest match. Vary show entries against used_entries and layer actor reactions with "with":"prev".
 - If the answer is a draft, fix the listed issues with patch_scene and the same scene_id. An optional dry_run checks without saving.
 A saved scene ends this phase: stop.`
 
@@ -72,7 +75,8 @@ const storymakerAnimationGuide = `## Animation and custom effects
 - Explain through motion: walk for people, move for props; pair a gesture with a fitting expression and look. Use cue markers to align reveals with words; with prev overlaps actions. Control delay, duration, ease and count deliberately. A camera move should direct attention, not decorate every scene.
 - Characters, environments and props are illustrated fixed identities. Rig articulation, breathing, blinking, planted walking and storyboard lip-sync are automatic. Environment layers supply parallax during camera movement. No unsupported view, clothing, shader or filter parameters.
 - In cast/revise, set_meta supports style.rhythm calm/standard/lively and style.auto_sfx. Keep text short and check portrait/square composition. The check measures the layout of every storyboard scene: fix the layout findings it reports.
-- Prefer storyboard for dialogue. For a custom diagram or repeated drawing effect, read reference topic code. get_code reads the bound scene's source and code rev. put_code takes expected_rev from that answer and data.source only, within 8 KiB. Invalid code keeps the saved source/bundle; stale revisions require a fresh read.
+- Prefer storyboard for dialogue. For a missing visual motif, custom diagram or repeated drawing effect, read reference topic code: it includes an executable SVG asset example combining catalog props with g.path SVG path data (not raw SVG markup or an imported .svg file). Use coherent colours, readable silhouettes, layered detail and cue-bound motion. Keep labels as real text. Do not replace a speaking-actor scene merely to add decoration; code scenes support off-screen narration but have no dialogue/lip-sync binding.
+- get_code reads the bound scene's source and code rev. put_code takes expected_rev from that answer and data.source only, within 8 KiB. Invalid code keeps the saved source/bundle; stale revisions require a fresh read.
 - To create a code scene, bundle its source with put_code first, then activate it with put_scene and data.kind code. Omit actors/props/beats/environment and keep the narration. Use the story rev from get for scene writes; it is different from the code rev. Existing code scenes need only a source update.
 - Code uses export default function scene(api), handles/tweens and the restricted onFrame(t,g) drawing facade. Use explicit scene time and fixed seeded constants, never counters or mutable state across frames, clocks, timers, imports, DOM/network, raw PixiJS or GSAP. Keep loops bounded. chart/diagram helpers are unsupported; use shapes/text/drawing. See the reference for the executable example and speech limitations.
 - After changes run storymaker_check and repair its errors. A compile failure is fixed in source; never bypass isolation or relax deadlines. Preserve unrelated scenes and user code.`
@@ -180,7 +184,7 @@ func storymakerAgentProfile(phase string, compact, text bool, names agent.Storym
 	if compact {
 		house, variant = storymakerHouseRules, "compact"
 	}
-	name := "storymaker/v3/" + phase + "/" + variant
+	name := "storymaker/v4/" + phase + "/" + variant
 	sections := []string{storymakerGroundRules, house}
 	if phase == storymaker.PhaseFill || phase == storymaker.PhaseCheck || phase == storymaker.PhaseRevise {
 		sections = append(sections, storymakerAnimationGuide)

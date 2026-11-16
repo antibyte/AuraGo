@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { read, loadPlayer, FakeCanvas, legacyCatalog, legacyFiles, plain } from '../storymaker-test-support.mjs';
+import { read, loadPlayer, FakeCanvas, legacyCatalog, legacyFiles, realCatalog, plain } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
-t.check('embedded agent effects example runs with GSAP and seeks deterministically in every aspect', () => {
+for (const example of ['effects', 'svg-assets']) t.check('embedded agent ' + example + ' example runs with GSAP and seeks deterministically in every aspect', () => {
     const catalog = legacyCatalog(), files = legacyFiles();
     // Keep the recording Canvas fixture while exercising the current public character ID.
     catalog.entries.push({ ...catalog.entries.find(e => e.id === 'char.office-woman-1'), id: 'char.punk' });
-    const source = read('internal/storymaker/reference/effects.js');
+    // The recording v1 fixture predates these props; the native browser check uses their real artwork.
+    for (const [id, fixture] of [['prop.solar-panel', 'prop.laptop'], ['prop.battery', 'prop.server']]) {
+        assert.ok(realCatalog().entries.some(e => e.id === id && e.kind === 'prop'));
+        catalog.entries.push({ ...catalog.entries.find(e => e.id === fixture), id });
+    }
+    const source = read('internal/storymaker/reference/' + example + '.js');
     for (const aspect of ['16:9', '9:16', '1:1']) {
         const boot = () => {
             const ctx = loadPlayer({ navigator: { userAgent: 'Storymaker reference test' } });
@@ -35,6 +40,10 @@ t.check('embedded agent effects example runs with GSAP and seeks deterministical
         const times = [0, 0.5, 1.7, 3, 4.5, 7.9];
         const expected = times.map(draw);
         assert.notEqual(expected[0], expected[3], 'the effect must move');
+        if (example === 'svg-assets') {
+            assert.ok(expected[3].includes('path(M-104-78'), 'the custom SVG body must be drawn');
+            assert.ok(expected[3].includes('path(M960 345'), 'SVG stroke paths must also render');
+        }
         for (const index of [5, 4, 3, 2, 1, 0, 3, 0, 5, 2, 4, 1]) {
             assert.equal(draw(times[index]), expected[index], aspect + ' reverse/random seek');
             assert.equal(fresh(times[index]), expected[index], aspect + ' restarted scene');

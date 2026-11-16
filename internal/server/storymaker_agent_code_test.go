@@ -12,7 +12,7 @@ import (
 )
 
 func TestStorymakerAgentScriptedCodeCreateAndRevise(t *testing.T) {
-	source, err := os.ReadFile("../storymaker/reference/effects.js")
+	source, err := os.ReadFile("../storymaker/reference/svg-assets.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +27,7 @@ func TestStorymakerAgentScriptedCodeCreateAndRevise(t *testing.T) {
 			turns[storymaker.PhaseFill] = []smScriptTurn{
 				{tool: storymaker.ToolCatalog, args: map[string]any{"operation": "reference", "topic": "animation"}},
 				smScriptStoryCall("put_scene", "s1", smScriptSceneOne()),
+				{tool: storymaker.ToolCatalog, args: map[string]any{"operation": "search", "kind": "prop", "query": "charge-controller"}},
 				{tool: storymaker.ToolCatalog, args: map[string]any{"operation": "reference", "topic": "code"}},
 				smScriptStoryCall("get_code", "s2", nil), put,
 				smScriptStoryCall("put_scene", "s2", map[string]any{"kind": "code"}),
@@ -46,7 +47,7 @@ func TestStorymakerAgentScriptedCodeCreateAndRevise(t *testing.T) {
 			if _, err := env.rt.projects.LoadCodeBundle(context.Background(), env.id, "s2"); err != nil {
 				t.Fatal(err)
 			}
-			for _, delivered := range []string{"Storyboard animation reference", "Restricted code-scene reference", "protected-packets", "max_bytes"} {
+			for _, delivered := range []string{"Storyboard animation reference", "Restricted code-scene reference", "SVG paths with g.path", "prop.solar-panel", "Laderegler", "max_bytes"} {
 				if !client.saw(delivered) {
 					t.Errorf("model never received %q", delivered)
 				}
@@ -55,7 +56,7 @@ func TestStorymakerAgentScriptedCodeCreateAndRevise(t *testing.T) {
 				t.Fatal("code authoring was blocked by phase/scope")
 			}
 			// Change only source, leaving the story document untouched.
-			revision := smScriptStoryCall("put_code", "s2", map[string]any{"source": strings.Replace(string(source), "Geschützt verbunden", "Daten geschützt", 1)})
+			revision := smScriptStoryCall("put_code", "s2", map[string]any{"source": strings.Replace(string(source), "Sonnenstrom speichern", "Energie speichern", 1)})
 			revision.args["expected_rev"] = strings.Trim(etag, `"`)[:12]
 			client.mu.Lock()
 			client.turns[storymaker.PhaseRevise] = []smScriptTurn{

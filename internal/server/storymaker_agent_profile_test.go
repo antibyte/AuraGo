@@ -31,9 +31,9 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s compact=%v text=%v: %v", phase, compact, text, err)
 				}
-				wantName, house, otherHouse := "storymaker/v3/"+phase+"/normal", "## House style", "## House rules"
+				wantName, house, otherHouse := "storymaker/v4/"+phase+"/normal", "## House style", "## House rules"
 				if compact {
-					wantName, house, otherHouse = "storymaker/v3/"+phase+"/compact", "## House rules", "## House style"
+					wantName, house, otherHouse = "storymaker/v4/"+phase+"/compact", "## House rules", "## House style"
 				}
 				if text {
 					wantName += "/text"
@@ -56,11 +56,17 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 
 				system := profile.SystemPrompt()
 				if phase == storymaker.PhaseFill || phase == storymaker.PhaseCheck || phase == storymaker.PhaseRevise {
-					for _, instruction := range []string{"operation reference", "topic animation", "topic code", "get_code", "put_code", "expected_rev", "onFrame"} {
+					for _, instruction := range []string{"operation reference", "topic animation", "topic code", "get_code", "put_code", "expected_rev", "onFrame", "g.path", "SVG path data", "off-screen narration", "Keep labels as real text"} {
 						if !strings.Contains(system, instruction) {
 							t.Errorf("%s lacks animation instruction %q", wantName, instruction)
 						}
 					}
+				}
+				if !strings.Contains(system, "Plan a meaningful visual for each idea") || strings.Contains(system, "use the nearest alternative, or a show beat") {
+					t.Errorf("%s lacks catalog-first visual planning or retains the text-only fallback", wantName)
+				}
+				if phase == storymaker.PhaseFill && !strings.Contains(system, "concrete English concepts or synonyms") {
+					t.Errorf("%s lacks focused asset discovery", wantName)
 				}
 				if strings.Contains(system, otherHouse) {
 					t.Fatalf("%s holds %s", wantName, otherHouse)

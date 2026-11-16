@@ -2,7 +2,7 @@
 
 Use `storymaker` when the user wants an explainer video from a topic. An isolated agent writes the story in the background in the Storymaker desktop app. This tool starts and follows that job; you never write scenes yourself.
 
-Pass visual requirements in topic/instruction: the isolated author has bundled references for movement, speech cues, camera, timing/easing, highlights and sound, plus restricted code-scene effects with revision-safe source editing. It uses the existing catalog and sandbox; raw PixiJS/GSAP, unsupported filters and code-scene dialogue/lip-sync are unavailable. Do not promise those effects or verified pixel layout.
+Pass visual requirements in topic/instruction: the isolated author plans relevant catalog assets and supporting objects, searches concrete motifs and, when none fits, creates SVG path illustrations with the restricted drawing API. Its bundled references include executable asset-composition and effects examples, speech cues, camera, timing/easing, highlights and sound. Custom SVG paths are saved in revision-bound scene source, not imported as arbitrary SVG files. Speaking actors retain storyboard lip-sync; custom illustration scenes use off-screen narration. Raw PixiJS/GSAP, unsupported filters and code-scene dialogue/lip-sync are unavailable. Do not promise those effects or verified pixel layout.
 
 ## Operations
 

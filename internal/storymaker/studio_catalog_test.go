@@ -62,13 +62,23 @@ func TestStudioCatalogSearchMissAndVoice(t *testing.T) {
 	miss := search(map[string]any{"query": "zebra", "kind": "prop"})
 	empty, isList := miss["results"].([]any)
 	alternatives, _ := miss["alternatives"].([]any)
-	if !isList || len(empty) != 0 || len(alternatives) == 0 || miss["next_action"] != "Use the nearest alternative, or a show beat with text." {
+	if !isList || len(empty) != 0 || len(alternatives) == 0 || !strings.Contains(miss["next_action"].(string), "SVG paths with g.path") {
 		t.Fatalf("miss answer = %v", miss)
 	}
 	for _, alternative := range alternatives {
 		if !strings.HasPrefix(alternative.(string), "prop.") {
 			t.Fatalf("alternative %v is not a prop", alternative)
 		}
+	}
+	for _, kind := range []string{"character", "environment", "pose", "gesture", "expression", "transition", "sfx", ""} {
+		answer := search(map[string]any{"query": "zebra", "kind": kind})
+		if strings.Contains(answer["next_action"].(string), "g.path") {
+			t.Fatalf("non-prop miss must not suggest replacing %q with SVG: %v", kind, answer)
+		}
+	}
+	described := studio.Call(ctx, StudioCall{Tool: ToolCatalog, Operation: "describe", Args: map[string]any{"id": "prop.zebra"}})
+	if !strings.Contains(string(described.JSON), "SVG paths with g.path") {
+		t.Fatalf("a missing prop described without kind must receive the SVG workflow: %s", described.JSON)
 	}
 
 	voices := search(map[string]any{"kind": "voice"})
