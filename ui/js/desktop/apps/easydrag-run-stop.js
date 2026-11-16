@@ -47,8 +47,10 @@
     // request is out. The name follows the text, so a screen reader hears what the eye reads.
     function paint(button, t, pending, ed) {
         const name = t(pending ? 'easydrag.ui.run_stopping' : 'easydrag.ui.run_cancel');
-        button.disabled = !!pending;
-        if (pending) button.setAttribute('aria-busy', 'true'); else button.removeAttribute('aria-busy');
+        // No "disabled" while the stop is pending: Chromium takes the focus from a control that becomes disabled, so sync could not hand it
+        // on. The registry paints aria-disabled from aria-busy, and the click handler and rc.stopping refuse a second click.
+        if (pending) button.setAttribute('aria-busy', 'true');
+        else { button.removeAttribute('aria-busy'); if (button.disabled) button.disabled = false; }
         button.classList.toggle('is-busy', !!pending);
         button.setAttribute('aria-label', name);
         button.setAttribute('title', name);

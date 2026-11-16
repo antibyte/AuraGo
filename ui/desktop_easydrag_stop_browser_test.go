@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -261,4 +262,25 @@ func TestEasyDragStopClicksBrowser(t *testing.T) {
 	s.waitNoStop()
 	s.wantStops(0, "the waiting run was stopped")
 	s.failOnPageErrors("stop clicks")
+}
+
+// TestEasyDragStopKeyboardPendingBrowser stops the own test from the keyboard while the cancel answer is slow: the pending Stop is
+// aria-disabled (not disabled, which would take the focus away) and keeps the focus, and when the run ends the focus lands on the
+// canvas instead of on the body.
+func TestEasyDragStopKeyboardPendingBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	s := startEasyDragSmoke(t)
+	p := s.page
+	s.openFirstFlow()
+	s.startOwnTest(2500)
+	// A slow cancel: the request waits before the fixture answers it.
+	p.MustEval(`()=>{const f=window.fetch;window.fetch=async(url,o)=>{if(String(url).endsWith('/cancel'))await new Promise(r=>setTimeout(r,900));return f(url,o)}}`)
+	s.waitStop()
+	p.MustEval(`()=>document.querySelector('[data-ed-cmd="cancel"]').focus()`)
+	p.Keyboard.MustType(input.Enter)
+	s.wait(`()=>{const b=document.querySelector('[data-ed-cmd="cancel"]');return b.getAttribute('aria-busy')==='true' && b.getAttribute('aria-disabled')==='true' && !b.disabled && document.activeElement===b}`)
+	s.wait(`()=>{` + easyDragVisibleJS + `return !vis(document.querySelector('[data-ed-cmd="cancel"]'));}`)
+	s.wait(`()=>{const r=edFixture.editor().run;return !!r && r.status==='cancelled'}`)
+	s.wait(`()=>{const a=document.activeElement;return a===document.querySelector('.ed-canvas') || a===document.querySelector('[data-ed-cmd="exit-run-view"]')}`)
+	s.failOnPageErrors("stop keyboard pending")
 }

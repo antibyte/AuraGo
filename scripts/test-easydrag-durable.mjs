@@ -103,7 +103,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     await guardAsync('durable accepted cancellation stays pending until authoritative terminal evidence', async () => {
         const f = fixture({ readonly: true }); await f.view(); await stop(f);
         eq('durable Stop uses observed generation under the existing readonly exception', cancelPosts(f).map(req => req.body), [{ generation: 2 }]);
-        eq('durable accepted Stop is not optimistic cancelled and remains busy', [f.editor.ed.run.status, f.editor.ed.run.durableStopping, f.editor.el.querySelector('[data-ed-cmd="cancel"]').disabled], ['waiting', true, true]);
+        eq('durable accepted Stop is not optimistic cancelled and remains busy', [f.editor.ed.run.status, f.editor.ed.run.durableStopping, f.editor.el.querySelector('[data-ed-cmd="cancel"]').getAttribute('aria-disabled')], ['waiting', true, 'true']);
         f.state.run.status = 'cancelled'; f.state.phase = null;
         f.editor.ed.bus.emit('refresh-durable-run'); await settle();
         eq('durable only confirmed terminal state clears the pending control', [f.editor.ed.run.status, f.editor.ed.run.durableStopping, f.h.contexts.at(-1).run_id], ['cancelled', false, null]); f.editor.dispose();

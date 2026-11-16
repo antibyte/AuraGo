@@ -26,6 +26,13 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustElement(`.ed-flow-card h3`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-canvas')`)
 
+	// One edit and a passed test make the primary the counted Publish ("Veröffentlichen · 3 Änderungen"), the longest label of the header:
+	// it must fit at every width below, so Publish is checked everywhere and never skipped.
+	page.MustEval(`()=>{edFixture.state.changes={steps:2,connections:1};const ed=edFixture.editor();ed.model.setLabel(ed.model.doc.nodes[0].id,'Changed for the width check')}`)
+	s.wait(`()=>edFixture.editor().saver.state==='saved'`)
+	s.markTested()
+	s.wait(`()=>{const b=document.querySelector('[data-ed-cmd="publish"]');return !b.hidden && b.hasAttribute('data-ed-primary') && /3/.test(b.textContent)}`)
+
 	// Standard has one appearance; Fruity supplies the existing light/dark variants.
 	for _, theme := range []string{"standard", "fruity-light", "fruity-dark"} {
 		for _, width := range []int{320, 360, 390, 768, 1024, 1440} {
@@ -45,9 +52,9 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 				page.MustSetViewport(width, 900, 1, width < 760)
 				page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 				s.wait(`()=>{const app=document.querySelector('.ed-app'),head=document.querySelector('.ed-head'),box=head.getBoundingClientRect();return app && box.width>0 && box.left>=-1 && box.right<=innerWidth+1 && head.scrollWidth<=head.clientWidth+1 && document.querySelector('.ed-canvas').getBoundingClientRect().width>100;}`)
-				s.wait(`()=>['test','publish'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]');if(b.hidden)return cmd==='publish';const label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';})`)
+				s.wait(`()=>['test','publish'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]');const label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';})`)
 				if width < 760 {
-					s.wait(`()=>['test','publish','more'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]');if(b.hidden)return cmd==='publish';const r=b.getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
+					s.wait(`()=>['test','publish','more'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]');const r=b.getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
 				}
 				s.headerNames()
 				// Position is fixture setup; opening and closing use real keyboard/buttons.

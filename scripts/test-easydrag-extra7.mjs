@@ -287,13 +287,13 @@ export async function run(env) {
         running.dialogs[running.dialogs.length - 1].el.querySelector('[data-ed-action="run"]').fire('click');
         await settle();
         const stop = live.el.querySelector('[data-ed-cmd="cancel"]');
-        const rows = [[stop.hidden, stop.disabled, named(stop)]];
+        const rows = [[stop.hidden, stop.getAttribute('aria-disabled') === 'true', named(stop)]];
         stop.fire('click');
         await settle();
-        rows.push([stop.hidden, stop.disabled, named(stop)]);
+        rows.push([stop.hidden, stop.getAttribute('aria-disabled') === 'true', named(stop)]);
         release({});
         await settle();
-        rows.push([stop.hidden, stop.disabled, named(stop)]);
+        rows.push([stop.hidden, stop.getAttribute('aria-disabled') === 'true', named(stop)]);
         eq('a1023b U1 Stop keeps a name that matches its text while a stop is out, and after it',
             [rows, running.logged], [[[false, false, 'run_cancel'], [false, true, 'run_stopping'], [false, false, 'run_cancel']], []]);
         eq('a1023b U1 the names need no new translation', missingKeys(apps, ['easydrag.ui.run_cancel', 'easydrag.ui.active', 'easydrag.ui.run_stopping']), []);
