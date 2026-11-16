@@ -187,6 +187,20 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	waitForJSBool(t, page, `()=>{const p=document.querySelector('[data-master-panel]');return !!p&&p.hidden}`)
 	page.MustEval(`()=>{const p=synthInstance().project(),t=p.tracks[2],clip=t.clips.find(clip=>clip.length===p.ppq*4);synthInstance().editor.select(t.id,clip.id);window.generatorOriginal=JSON.stringify(synthInstance().project());window.generatorClip=()=>synthInstance().project().tracks[2].clips.find(clip=>clip.length===synthInstance().project().ppq*4);}`)
 	page.MustElement("[data-work-tab=performance]").MustClick()
+	check("performance controls keep scrolling inside the workbench", `()=>{
+        const p=document.querySelector('.ss-performance-workbench'),details=[...p.querySelectorAll('details')],opened=details.map(e=>e.open);
+        details.forEach(e=>e.open=true);
+        p.scrollTop=0;
+        let valid=true,scrolled=false;
+        for(const e of p.querySelectorAll('input,select,button')){
+            e.focus();
+            scrolled ||= p.scrollTop>0;
+            const ancestors=[p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')];
+            if(ancestors.some(a=>a.scrollTop!==0)){valid=false;break;}
+        }
+        details.forEach((e,i)=>e.open=opened[i]);p.scrollTop=0;
+        return valid&&scrolled;
+    }`)
 	check("chord and strum arp modes are offered", `()=>{const s=document.querySelector('[data-music=order]');return !!s?.querySelector('option[value=chord]')&&!!s?.querySelector('option[value=strum]');}`)
 	check("live performance effects are offered", `()=>document.querySelectorAll('[data-stage=fxFilter],[data-stage=fxStutter]').length===2`)
 	check("live performance effects are enabled", `()=>!document.querySelector('[data-stage=fxFilter]').disabled&&!document.querySelector('[data-stage=fxStutter]').disabled`)
@@ -411,6 +425,20 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 				page.MustElement("[data-action=undo]").MustClick()
 				check("note edit restores the whole project", `()=>JSON.stringify(synthInstance().project())===beforeNoteEdit`)
 				page.MustElement("[data-work-tab=performance]").MustClick()
+				// Scroll the actual workbench, then focus its last control as keyboard
+				// navigation does. Clipping ancestors must not hide the whole panel.
+				page.MustEval(`()=>{const p=document.querySelector('.ss-performance-workbench');p.scrollTop=0;}`)
+				panelBox := page.MustElement(".ss-performance-workbench").MustShape().Box()
+				page.Mouse.MustMoveTo(panelBox.X+panelBox.Width-8, panelBox.Y+panelBox.Height/2)
+				page.Mouse.MustScroll(0, 400)
+				waitForJSBool(t, page, `()=>document.querySelector('.ss-performance-workbench').scrollTop>0`)
+				page.MustEval(`()=>document.querySelector('.ss-compose [data-compose=generate]').focus()`)
+				check("scrolling and focusing keep the performance cards visible", `()=>{
+                    const p=document.querySelector('.ss-performance-workbench'),r=p.getBoundingClientRect(),footer=document.querySelector('.ss-footer').getBoundingClientRect();
+                    const cards=[...p.querySelectorAll('.ss-stage > *, .ss-compose > *')];
+                    return r.top>=document.querySelector('.ss-modes').getBoundingClientRect().bottom-1&&r.bottom<=footer.top+1&&cards.some(e=>{const c=e.getBoundingClientRect();return c.bottom>r.top&&c.top<r.bottom})&&[p.parentElement,p.closest('.ss-main'),p.closest('.ss-workspace')].every(e=>e.scrollTop===0);
+                }`)
+				page.MustEval(`()=>document.querySelector('.ss-performance-workbench').scrollTop=0`)
 				t.Log(theme, mode, width, page.MustEval(`()=>{const a=document.querySelector('.ss-app'),r=a.getBoundingClientRect(),f=document.querySelector('.ss-footer').getBoundingClientRect();return JSON.stringify({width:a.clientWidth,scrollWidth:a.scrollWidth,bottom:r.bottom,footerBottom:f.bottom,arrange:document.querySelector('.ss-arrangement').clientHeight})}`).Str())
 				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 					if err := os.MkdirAll(dir, 0755); err != nil {

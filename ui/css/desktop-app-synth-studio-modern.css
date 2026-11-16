@@ -85,6 +85,8 @@ body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
 .ss-app .ss-track-menu button.is-danger { color: var(--ss-red); }
 
 /* ---- native range hidden, dial drawn ---- */
+/* Keep native focus inside the control's scrollport instead of the outer workspace. */
+.ss-app label:has(> .ss-ctl-native) { position: relative; }
 .ss-app input[type=range].ss-ctl-native {
     position: absolute; width: 1px; height: 1px; min-width: 0; margin: 0; padding: 0;
     opacity: 0; pointer-events: none; overflow: hidden;

@@ -730,6 +730,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   the app signal colour and `--ss-meter` feeds the analyser and output meter.
   Keep the Desktop accent for the shell and hard-code no colour outside the
   token layer.
+- Hidden native range inputs stay anchored to their labels in
+  `css/desktop-app-synth-studio-modern.css`. Keyboard focus must scroll the
+  owning workbench, never the outer workspace or its clipping ancestors.
 - Verify the model/storage checks, `TestDesktopSynthStudioBrowser`,
   `TestDesktopSynthStudioAudioBrowser` and
   `TestSynthStudioMIDIPolicyOnlyAllowsDesktop`. The audio browser test measures
