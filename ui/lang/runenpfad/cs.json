@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Bouře",
   "runenpfad.mod_storm_desc": "Platformy se pohybují rychleji a vítr tlačí do zad.",
   "runenpfad.mod_mend": "Požehnání",
-  "runenpfad.mod_mend_desc": "Více léčivých nápojů a srdcí v tomto levelu."
+  "runenpfad.mod_mend_desc": "Více léčivých nápojů a srdcí v tomto levelu.",
+  "runenpfad.pause_music_on": "Hudba zapnuta",
+  "runenpfad.pause_music_off": "Hudba vypnuta",
+  "runenpfad.pause_gfx_gpu": "Grafika: efekty GPU",
+  "runenpfad.pause_gfx_canvas": "Grafika: klasické plátno",
+  "runenpfad.boss_intro_sub": "Světový boss",
+  "runenpfad.hud_combo": "Kombo {n}",
+  "runenpfad.notice.boss_enraged": "Boss zuří!",
+  "runenpfad.notice.secret_found": "Tajná komnata nalezena!",
+  "runenpfad.notice.lantern_lit": "Lucerna zapálena!"
 }

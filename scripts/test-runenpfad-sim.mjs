@@ -33,10 +33,12 @@ vm.createContext(sandbox);
 
 loadModule('ui/js/desktop/apps/runenpfad/biomes.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/fx.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/physics.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/behaviors.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/variety.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/profile.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/levels.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/combat.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/sim.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/audio.js', sandbox);
 
@@ -386,4 +388,136 @@ if (turret) {
     assert.equal(turret.x, before, 'a turret never walks away from its post');
 }
 
+// 13. B1a regressions: bomber blast, fragile trapdoors, rune power bolts, timed spikes, gunner AI, boss phase, determinism
+{
+    const Combat = sandbox.RunenpfadCombat;
+    const Physics = sandbox.RunenpfadPhysics;
+    assert.ok(Combat && Physics, 'physics and combat modules loaded');
+    const STEP = Sim.STEP;
+
+    // (1) A bomber drone dying next to another enemy must not throw and must hurt the neighbour.
+    const bombSim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
+    const [bomber, neighbour] = bombSim.stage.enemies;
+    bomber.def = Levels.ENEMY_DEFS.bomber_drone;
+    bomber.defId = 'bomber_drone';
+    bomber.hp = 1;
+    neighbour.x = bomber.x + 20;
+    neighbour.y = bomber.y;
+    neighbour.hp = neighbour.maxHp = 40;
+    bombSim.events = [];
+    Combat.damageEnemy(bombSim, bomber, 5, bomber.x - 10);
+    assert.ok(bombSim.events.some((e) => e.type === 'bomb_blast'), 'bomber emits bomb_blast');
+    assert.ok(neighbour.hp < 40, 'bomb blast hurts the neighbouring enemy');
+
+    // (2) Fragile trial shortens the trapdoor crumble time.
+    const fragSim = Sim.createSimulation({ mode: 'campaign', levelId: 7, hero: 'knight', profile });
+    Variety.applyToStage(fragSim.stage, Variety.modById('fragile'));
+    const trap = fragSim.stage.platforms.find((p) => p.kind === 'trapdoor');
+    assert.ok(trap, 'level 7 has trapdoors');
+    fragSim.player.x = trap.x + 16;
+    fragSim.player.y = trap.y - 2;
+    fragSim.player.vy = 120;
+    Sim.stepSimulation(fragSim, STEP, {});
+    assert.ok(trap.crumbleTimer > 0 && trap.crumbleTimer < 0.45, 'fragile trapdoor crumbles faster than 0.45 s');
+
+    // (3) Rune power doubles Ranger bolts.
+    const boltSim = Sim.createSimulation({ mode: 'campaign', levelId: 2, hero: 'ranger', profile });
+    boltSim.blessing.runePower = 5;
+    Sim.stepSimulation(boltSim, STEP, { attackPressed: true });
+    const bolt = boltSim.projectiles.find((pr) => !pr.fromEnemy);
+    assert.ok(bolt, 'ranger fired a bolt');
+    assert.equal(bolt.damage, 2 * boltSim.stats.damage, 'rune power applies to ranger bolts');
+
+    // (4) Spike traps only hurt while armed.
+    function spikeTrial(phase01) {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 3, hero: 'knight', profile });
+        const idx = s.stage.hazards.findIndex((h) => h.kind === 'spike_trap');
+        assert.ok(idx >= 0, 'level 3 has a spike trap');
+        const h = s.stage.hazards[idx];
+        const period = 2.2;
+        const target = phase01 * period;
+        const base = (((target - idx * 0.35) % period) + period) % period + period;
+        s.elapsed = base - STEP;
+        s.player.x = h.x + h.w / 2;
+        s.player.y = h.y + Levels.TILE;
+        s.player.invulnTimer = 0;
+        const hp = s.player.hp;
+        const evs = Sim.stepSimulation(s, STEP, {});
+        return { hurt: s.player.hp < hp, evs: evs, h: h };
+    }
+    const armed = spikeTrial(0.7);
+    assert.equal(armed.hurt, true, 'armed spike trap hurts');
+    assert.ok(armed.evs.some((e) => e.type === 'hazard' && e.detail.kind === 'spike_trap'), 'armed spike emits hazard');
+    assert.equal(spikeTrial(0.2).hurt, false, 'retracted spike trap is harmless');
+
+    // (5) Gunner mechs shoot in bursts and keep their distance from a still hero.
+    const mechSim = Sim.createSimulation({ mode: 'campaign', levelId: 23, hero: 'knight', profile });
+    const mech = mechSim.stage.enemies.find((e) => e.def.behavior === 'shooter');
+    assert.ok(mech, 'level 23 has a combat mech');
+    const holdX = mech.x + 120;
+    let mechAttacks = 0;
+    for (let i = 0; i < 300; i++) {
+        mechSim.player.x = holdX;
+        mechSim.player.y = mech.y;
+        mechSim.player.vx = 0;
+        mechSim.player.hp = mechSim.player.maxHp;
+        mechSim.player.invulnTimer = 2;
+        mechAttacks += Sim.stepSimulation(mechSim, STEP, {}).filter((e) => e.type === 'enemy_attack').length;
+    }
+    assert.ok(mechAttacks >= 3, 'combat mech fires a burst (enemy_attack events)');
+    assert.ok(Math.abs(holdX - mech.x) > 150, 'combat mech backs away from a close still hero');
+
+    // (6) Boss phase 2 triggers exactly once.
+    const phaseSim = Sim.createSimulation({ mode: 'campaign', levelId: 5, hero: 'knight', profile });
+    const phaseBoss = phaseSim.stage.enemies.find((e) => e.id === phaseSim.stage.bossId);
+    let phaseCount = 0;
+    for (let hit = 0; hit < 40 && !phaseBoss.dead; hit++) {
+        phaseSim.player.x = phaseBoss.x - 28;
+        phaseSim.player.y = phaseBoss.y;
+        phaseSim.player.facing = 1;
+        phaseSim.player.attackCooldown = 0;
+        phaseSim.player.invulnTimer = 2;
+        phaseCount += Sim.stepSimulation(phaseSim, STEP, { attackPressed: true }).filter((e) => e.type === 'boss_phase').length;
+    }
+    assert.equal(phaseCount, 1, 'boss_phase fires exactly once');
+
+    // (7) Two sims fed the same scripted input stay identical.
+    function scripted() {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 3, hero: 'ranger', profile });
+        const types = [];
+        for (let i = 0; i < 900; i++) {
+            const evs = Sim.stepSimulation(s, STEP, {
+                right: i % 300 < 220,
+                left: i % 300 >= 260,
+                jumpPressed: i % 47 === 0,
+                attackPressed: i % 31 === 0,
+                dashPressed: i % 113 === 0
+            });
+            evs.forEach((e) => types.push(e.type));
+        }
+        return { s: s, types: types };
+    }
+    const runA = scripted();
+    const runB = scripted();
+    assert.deepEqual(runA.s.player, runB.s.player, 'deterministic player state');
+    assert.deepEqual(runA.s.stage.enemies, runB.s.stage.enemies, 'deterministic enemy state');
+    assert.deepEqual(runA.s.projectiles, runB.s.projectiles, 'deterministic projectiles');
+    assert.deepEqual(runA.types, runB.types, 'deterministic event sequence');
+    assert.equal(runA.s.rngState, runB.s.rngState, 'deterministic rng state');
+}
+
 console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 levels, endless mode, knight/ranger combat, upgrades & persistence, fx system, biome model, audio cue table, rune trials & new zones.');
+
+// Profile presentation settings: music and gfx survive a round trip and are clamped.
+{
+    const defaults = Sim.createDefaultProfile();
+    assert.equal(defaults.music, true, 'music defaults to on');
+    assert.equal(defaults.gfx, 'auto', 'gfx defaults to auto');
+    const stored = Sim.importProfile({ v: 1, music: false, gfx: 'canvas' });
+    assert.equal(stored.music, false, 'music=false is kept');
+    assert.equal(stored.gfx, 'canvas', 'gfx=canvas is kept');
+    assert.deepEqual(Sim.exportProfile(stored).gfx, 'canvas', 'gfx survives export');
+    const junk = Sim.importProfile({ v: 1, music: 'loud', gfx: 'webgl9' });
+    assert.equal(junk.music, true, 'non-false music values clamp to on');
+    assert.equal(junk.gfx, 'auto', 'unknown gfx values clamp to auto');
+}

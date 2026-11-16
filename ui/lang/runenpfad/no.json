@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Storm",
   "runenpfad.mod_storm_desc": "Plattformene suser forbi, og vinden skubber deg tilbake.",
   "runenpfad.mod_mend": "Velsignelse",
-  "runenpfad.mod_mend_desc": "Flere helbredende potions og hjerter i dette nivået."
+  "runenpfad.mod_mend_desc": "Flere helbredende potions og hjerter i dette nivået.",
+  "runenpfad.pause_music_on": "Musikk på",
+  "runenpfad.pause_music_off": "Musikk av",
+  "runenpfad.pause_gfx_gpu": "Grafikk: GPU-effekter",
+  "runenpfad.pause_gfx_canvas": "Grafikk: klassisk canvas",
+  "runenpfad.boss_intro_sub": "Verdensboss",
+  "runenpfad.hud_combo": "Kombo {n}",
+  "runenpfad.notice.boss_enraged": "Sjefen er rasende!",
+  "runenpfad.notice.secret_found": "Hemmelig kammer funnet!",
+  "runenpfad.notice.lantern_lit": "Lykt tent!"
 }

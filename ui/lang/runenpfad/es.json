@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Tormenta",
   "runenpfad.mod_storm_desc": "Las plataformas vuelan y el viento te empuja atrás.",
   "runenpfad.mod_mend": "Bendición",
-  "runenpfad.mod_mend_desc": "Más pociones y corazones en esta etapa."
+  "runenpfad.mod_mend_desc": "Más pociones y corazones en esta etapa.",
+  "runenpfad.pause_music_on": "Música activada",
+  "runenpfad.pause_music_off": "Música desactivada",
+  "runenpfad.pause_gfx_gpu": "Gráficos: efectos GPU",
+  "runenpfad.pause_gfx_canvas": "Gráficos: lienzo clásico",
+  "runenpfad.boss_intro_sub": "Jefe del mundo",
+  "runenpfad.hud_combo": "Combo {n}",
+  "runenpfad.notice.boss_enraged": "¡El jefe está furioso!",
+  "runenpfad.notice.secret_found": "¡Cámara secreta encontrada!",
+  "runenpfad.notice.lantern_lit": "¡Farol encendido!"
 }

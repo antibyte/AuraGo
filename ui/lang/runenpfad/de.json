@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Sturm",
   "runenpfad.mod_storm_desc": "Plattformen rasen, und der Wind treibt dich zurück.",
   "runenpfad.mod_mend": "Segnung",
-  "runenpfad.mod_mend_desc": "Mehr Heiltränke und Herzen in diesem Level."
+  "runenpfad.mod_mend_desc": "Mehr Heiltränke und Herzen in diesem Level.",
+  "runenpfad.pause_music_on": "Musik an",
+  "runenpfad.pause_music_off": "Musik aus",
+  "runenpfad.pause_gfx_gpu": "Grafik: GPU-Effekte",
+  "runenpfad.pause_gfx_canvas": "Grafik: klassisches Canvas",
+  "runenpfad.boss_intro_sub": "Weltboss",
+  "runenpfad.hud_combo": "Kombo {n}",
+  "runenpfad.notice.boss_enraged": "Der Boss ist wütend!",
+  "runenpfad.notice.secret_found": "Geheimkammer entdeckt!",
+  "runenpfad.notice.lantern_lit": "Laterne entzündet!"
 }

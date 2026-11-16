@@ -71,6 +71,12 @@
         let camY = 0;
         let camInitialized = false;
         let shake = 0;
+        let lastNowMs = 0;
+        let hurtPulse = 0;
+        let postfx = null;
+        let disposed = false;
+        let lastCam = { x: 0, y: 0, w: 960, h: 540, dpr: 1 };
+        const SHOCKWAVE_EVENTS = { bomb_blast: 1.0, slam_land: 0.8, boss_phase: 1.2, boss_defeat: 1.4, boss_slam: 1.1, portal_win: 1.0 };
 
         function triggerShake(amount) {
             if (!prefersReducedMotion()) {
@@ -277,6 +283,120 @@
             ctx.restore();
         }
 
+        // Legacy enemy drawing, used until the actors module takes over.
+        function drawEnemiesLegacy(sim, stage, sx, viewW) {
+            stage.enemies.forEach(function (e) {
+                if (e.dead && e.deathTimer <= 0) return;
+                if (e.x + 64 < sx || e.x - 64 > sx + viewW) return;
+                const size = Math.round(58 * e.def.scale);
+                const drawTop = e.y - Math.round(size * (57 / 64));
+                const attacking = !e.dead && e.attackTimer > 0 && hasAnim(e.def.pack, e.def.prefix + 'attack');
+                const animName = e.def.prefix + (e.dead ? 'death' : e.hurtTimer > 0 ? 'hurt' : attacking ? 'attack' : e.animState === 'idle' ? 'idle' : 'move');
+                const animClock = attacking ? Math.max(0, 0.45 - e.attackTimer) : e.animTime;
+                if (!e.dead && !e.def.flying && e.onGround) {
+                    drawContactShadow(e.x, e.y, size * 0.56);
+                }
+                if (e.def.boss && !e.dead) {
+                    ctx.save();
+                    ctx.strokeStyle = e.phase === 2 ? '#fb7185' : '#f7c948';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(e.x, e.y - size * 0.42, size * 0.46, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                    drawGlow(e.x, e.y - size * 0.42, size * 0.9, e.phase === 2 ? 'rgba(251, 113, 133, 0.45)' : 'rgba(247, 201, 72, 0.4)', 0.6);
+                }
+                drawAnimation(e.def.pack, animName, animClock, e.x - size / 2, drawTop, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.75 : 1.0, e.dead || attacking);
+                if (e.hurtTimer > 0 && !e.dead) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.globalAlpha = 0.35;
+                    drawAnimation(e.def.pack, animName, animClock, e.x - size / 2, drawTop, size, size, e.facing < 0, 1.0, attacking);
+                    ctx.restore();
+                }
+                if (!e.dead && !e.def.boss && e.hp < e.maxHp) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+                    ctx.fillRect(e.x - 18, drawTop - 4, 36, 5);
+                    ctx.fillStyle = '#fb7185';
+                    ctx.fillRect(e.x - 18, drawTop - 4, 36 * (e.hp / e.maxHp), 5);
+                }
+            });
+        }
+
+        function drawHeroLegacy(sim, nowSec) {
+            // Hero sprite (feet pixel y=59 inside 64x64 frame aligns squarely on p.y + 2)
+            const p = sim.player;
+            if (p.onGround) {
+                drawContactShadow(p.x, p.y, 28);
+        }
+        if (sim.blessing && sim.blessing.runePower > 0) {
+            drawGlow(p.x, p.y - 24, 62, 'rgba(192, 132, 252, 0.7)', 0.8);
+        }
+        const blinkAlpha = p.invulnTimer > 0 && Math.floor(nowSec * 16) % 2 === 0 ? 0.45 : 1.0;
+        const heroAnim = sim.stats.def.prefix + p.animState;
+        drawAnimation(sim.stats.def.pack, heroAnim, p.animTime, p.x - 32, p.y - 57, 64, 64, p.facing < 0, blinkAlpha, p.animState === 'death');
+
+        // Knight melee cleave crescent visual
+        if (sim.heroId === 'knight' && p.attackTimer > 0) {
+            const progress = 1 - p.attackTimer / Math.max(0.01, sim.stats.def.attackDuration);
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 9 - progress * 4;
+            ctx.strokeStyle = 'rgba(126, 232, 250, ' + (0.85 * (1 - progress * 0.7)).toFixed(3) + ')';
+            ctx.beginPath();
+            if (p.facing > 0) {
+                ctx.arc(p.x + 18, p.y - 24, 28, -Math.PI * 0.45, Math.PI * 0.45);
+            } else {
+                ctx.arc(p.x - 18, p.y - 24, 28, Math.PI * 0.55, Math.PI * 1.45);
+            }
+            ctx.stroke();
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.8 * (1 - progress)).toFixed(3) + ')';
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Ranger rune bolt glow
+        if (sim.heroId === 'ranger' && p.attackTimer > 0) {
+            drawGlow(p.x + p.facing * 20, p.y - 24, 60, 'rgba(126, 232, 250, 0.5)', 0.7);
+        }
+        }
+
+        function drawProjectilesLegacy(sim) {
+            // Projectiles with motion trail
+            sim.projectiles.forEach(function (proj) {
+                if (proj.dead) return;
+                const color = proj.color || '#7ee8fa';
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const len = Math.hypot(proj.vx, proj.vy) * 0.028;
+                const nx = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vx / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
+                const ny = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vy / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
+                const grad = ctx.createLinearGradient(proj.x, proj.y, proj.x - nx * len * 2, proj.y - ny * len * 2);
+                grad.addColorStop(0, color);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = proj.fromEnemy ? 7 : 5;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(proj.x, proj.y);
+                ctx.lineTo(proj.x - nx * len * 2, proj.y - ny * len * 2);
+                ctx.stroke();
+                ctx.restore();
+                ctx.save();
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(proj.x, proj.y, proj.fromEnemy ? 6 : 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.beginPath();
+                ctx.arc(proj.x - 1, proj.y - 1, proj.fromEnemy ? 2.4 : 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
         function render(sim, nowMs) {
             if (!sim || !ctx) return;
             const dpr = Math.min(2, root.devicePixelRatio || 1);
@@ -292,6 +412,9 @@
             const stage = sim.stage;
             const TILE = stage.tileSize;
             const nowSec = (nowMs || 0) * 0.001;
+            const dt = lastNowMs ? Math.min(0.1, Math.max(0, (nowMs - lastNowMs) * 0.001)) : 1 / 60;
+            lastNowMs = nowMs || 0;
+            const reduced = prefersReducedMotion();
             const biome = (Biomes && Biomes.biomeFor(stage.worldIndex)) || { layers: [], light: { ambient: 0 }, weather: null, sky: ['#101018'] };
             const fx = sim.fx;
             const ambient = Math.min(0.92, (biome.light ? biome.light.ambient : 0) + (stage.darkness || 0));
@@ -307,26 +430,29 @@
                 camY = targetY;
                 camInitialized = true;
             } else {
-                camX += (targetX - camX) * 0.16;
-                camY = viewH >= stage.height ? targetY : camY + (targetY - camY) * 0.14;
+                camX += (targetX - camX) * (1 - Math.exp(-dt * 10.5));
+                camY = viewH >= stage.height ? targetY : camY + (targetY - camY) * (1 - Math.exp(-dt * 9));
             }
             let sx = camX;
             let sy = camY;
-            const fxShake = fx ? fx.shake : 0;
-            const totalShake = Math.max(shake, fxShake);
+            // The renderer only reads sim.fx.shake; the simulation owns its decay.
+            const totalShake = reduced ? 0 : Math.max(shake, fx ? fx.shake : 0);
             if (totalShake > 0.1) {
                 sx += (Math.sin(nowSec * 61) * totalShake);
                 sy += (Math.cos(nowSec * 53) * totalShake * 0.6);
-                if (shake > 0.1) shake *= 0.84;
-                if (fx) fx.shake = Math.max(0, fx.shake - 0.02);
-            } else {
-                shake = 0;
             }
+            if (shake > 0.1) shake *= Math.exp(-dt * 10.5);
+            else shake = 0;
+            hurtPulse = hurtPulse > 0.01 ? hurtPulse * Math.exp(-dt * 4) : 0;
+            lastCam = { x: sx, y: sy, w: viewW, h: viewH, dpr: dpr };
+            const frameView = { sx: sx, sy: sy, viewW: viewW, viewH: viewH, nowSec: nowSec, dt: dt, biome: biome, reducedMotion: reduced, ambient: ambient };
+            let sunScreen = null;
 
             if (atmosphere) {
                 const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
                 atmosphere.paintBackdrop(biome, sx, viewW, viewH, groundScreenY);
-                atmosphere.paintWeather(biome, viewW, viewH, nowSec, prefersReducedMotion() ? 0.35 : 1);
+                if (typeof atmosphere.sunPosition === 'function') sunScreen = atmosphere.sunPosition(biome, sx, viewW, viewH, groundScreenY) || null;
+                atmosphere.paintWeather(biome, viewW, viewH, nowSec, reduced ? 0.35 : 1);
             } else {
                 ctx.fillStyle = biome.sky[0];
                 ctx.fillRect(0, 0, viewW, viewH);
@@ -334,6 +460,8 @@
 
             ctx.save();
             ctx.translate(-Math.round(sx), -Math.round(sy));
+
+            callHook(decor, 'drawBehind', sim, frameView);
 
             // Scenery (nature-assets) grounded directly on terrain
             stage.scenery.forEach(function (prop) {
@@ -350,6 +478,7 @@
             const backingColor = WORLD_BACKING[stage.worldIndex] || '#3b2313';
             const solidMap = stage.solidMap || {};
             stage.tiles.forEach(function (tile) {
+                if (tile.broken) return;
                 const tx = tile.tx * TILE;
                 const ty = tile.ty * TILE;
                 if (tx + TILE < sx || tx > sx + viewW) return;
@@ -364,6 +493,7 @@
 
             // Edge definition: sunlit rim on exposed tops, shaded flanks on exposed sides
             stage.tiles.forEach(function (tile) {
+                if (tile.broken) return;
                 const tx = tile.tx * TILE;
                 const ty = tile.ty * TILE;
                 if (tx + TILE < sx || tx > sx + viewW) return;
@@ -381,6 +511,8 @@
                     ctx.fillRect(tx + TILE - 3, ty, 4, TILE);
                 }
             });
+
+            callHook(decor, 'drawSurface', sim, frameView);
 
             // Static / crumbling / spring platforms (deck top sits flush at p.y, edge-to-edge tiles)
             stage.platforms.forEach(function (p) {
@@ -438,7 +570,7 @@
                 if (h.kind === 'saw') {
                     drawStaticAsset('jump-and-run', 'saw', h.x, h.y + (Math.sin(nowSec * 6) * 2), TILE, TILE);
                 } else if (h.kind === 'spike_trap') {
-                    drawAnimation('jump-and-run', 'spike_trap', nowSec, h.x, h.y + 4, TILE, TILE, false, 1.0, false);
+                    drawAnimation('jump-and-run', 'spike_trap', spikeElapsed(h, nowSec), h.x, h.y + 4, TILE, TILE, false, 1.0, typeof h.phase01 === 'number');
                 } else if (h.assetId === 'stalactite') {
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y - 4, TILE, TILE);
                 } else if (h.kind === 'lava' || h.assetId === 'lava' || h.assetId === 'fire') {
@@ -505,111 +637,13 @@
                 drawStaticAsset('jump-and-run', 'key', stage.key.x - 20, stage.key.y - 20 + bob, 40, 40, false, alpha);
             }
 
-            // Enemies & Bosses
-            stage.enemies.forEach(function (e) {
-                if (e.dead && e.deathTimer <= 0) return;
-                if (e.x + 64 < sx || e.x - 64 > sx + viewW) return;
-                const size = Math.round(58 * e.def.scale);
-                const drawTop = e.y - Math.round(size * (57 / 64));
-                const animName = e.def.prefix + (e.dead ? 'death' : e.hurtTimer > 0 ? 'hurt' : e.animState === 'idle' ? 'idle' : 'move');
-                if (!e.dead && !e.def.flying && e.onGround) {
-                    drawContactShadow(e.x, e.y, size * 0.56);
-                }
-                if (e.def.boss && !e.dead) {
-                    ctx.save();
-                    ctx.strokeStyle = e.phase === 2 ? '#fb7185' : '#f7c948';
-                    ctx.lineWidth = 2.5;
-                    ctx.beginPath();
-                    ctx.arc(e.x, e.y - size * 0.42, size * 0.46, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                    drawGlow(e.x, e.y - size * 0.42, size * 0.9, e.phase === 2 ? 'rgba(251, 113, 133, 0.45)' : 'rgba(247, 201, 72, 0.4)', 0.6);
-                }
-                drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, drawTop, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.75 : 1.0, e.dead);
-                if (e.hurtTimer > 0 && !e.dead) {
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'lighter';
-                    ctx.globalAlpha = 0.35;
-                    drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, drawTop, size, size, e.facing < 0, 1.0, false);
-                    ctx.restore();
-                }
-                if (!e.dead && !e.def.boss && e.hp < e.maxHp) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-                    ctx.fillRect(e.x - 18, drawTop - 4, 36, 5);
-                    ctx.fillStyle = '#fb7185';
-                    ctx.fillRect(e.x - 18, drawTop - 4, 36 * (e.hp / e.maxHp), 5);
-                }
-            });
-
-            // Hero sprite (feet pixel y=59 inside 64x64 frame aligns squarely on p.y + 2)
-            const p = sim.player;
-            if (p.onGround) {
-                drawContactShadow(p.x, p.y, 28);
-            }
-            if (sim.blessing && sim.blessing.runePower > 0) {
-                drawGlow(p.x, p.y - 24, 62, 'rgba(192, 132, 252, 0.7)', 0.8);
-            }
-            const blinkAlpha = p.invulnTimer > 0 && Math.floor(nowSec * 16) % 2 === 0 ? 0.45 : 1.0;
-            const heroAnim = sim.stats.def.prefix + p.animState;
-            drawAnimation(sim.stats.def.pack, heroAnim, p.animTime, p.x - 32, p.y - 57, 64, 64, p.facing < 0, blinkAlpha, p.animState === 'death');
-
-            // Knight melee cleave crescent visual
-            if (sim.heroId === 'knight' && p.attackTimer > 0) {
-                const progress = 1 - p.attackTimer / Math.max(0.01, sim.stats.def.attackDuration);
-                ctx.save();
-                ctx.globalCompositeOperation = 'lighter';
-                ctx.lineCap = 'round';
-                ctx.lineWidth = 9 - progress * 4;
-                ctx.strokeStyle = 'rgba(126, 232, 250, ' + (0.85 * (1 - progress * 0.7)).toFixed(3) + ')';
-                ctx.beginPath();
-                if (p.facing > 0) {
-                    ctx.arc(p.x + 18, p.y - 24, 28, -Math.PI * 0.45, Math.PI * 0.45);
-                } else {
-                    ctx.arc(p.x - 18, p.y - 24, 28, Math.PI * 0.55, Math.PI * 1.45);
-                }
-                ctx.stroke();
-                ctx.lineWidth = 2.5;
-                ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.8 * (1 - progress)).toFixed(3) + ')';
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            // Ranger rune bolt glow
-            if (sim.heroId === 'ranger' && p.attackTimer > 0) {
-                drawGlow(p.x + p.facing * 20, p.y - 24, 60, 'rgba(126, 232, 250, 0.5)', 0.7);
-            }
-
-            // Projectiles with motion trail
-            sim.projectiles.forEach(function (proj) {
-                if (proj.dead) return;
-                const color = proj.color || '#7ee8fa';
-                ctx.save();
-                ctx.globalCompositeOperation = 'lighter';
-                const len = Math.hypot(proj.vx, proj.vy) * 0.028;
-                const nx = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vx / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
-                const ny = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vy / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
-                const grad = ctx.createLinearGradient(proj.x, proj.y, proj.x - nx * len * 2, proj.y - ny * len * 2);
-                grad.addColorStop(0, color);
-                grad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.strokeStyle = grad;
-                ctx.lineWidth = proj.fromEnemy ? 7 : 5;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(proj.x, proj.y);
-                ctx.lineTo(proj.x - nx * len * 2, proj.y - ny * len * 2);
-                ctx.stroke();
-                ctx.restore();
-                ctx.save();
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(proj.x, proj.y, proj.fromEnemy ? 6 : 5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-                ctx.beginPath();
-                ctx.arc(proj.x - 1, proj.y - 1, proj.fromEnemy ? 2.4 : 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
+            callHook(stageArt, 'drawWorld', sim, frameView);
+            if (actors && typeof actors.drawEnemies === 'function') actors.drawEnemies(sim, frameView);
+            else drawEnemiesLegacy(sim, stage, sx, viewW);
+            if (actors && typeof actors.drawHero === 'function') actors.drawHero(sim, frameView);
+            else drawHeroLegacy(sim, nowSec);
+            if (actors && typeof actors.drawProjectiles === 'function') actors.drawProjectiles(sim, frameView);
+            else drawProjectilesLegacy(sim);
 
             // Transient animated explosions/smoke
             sim.effects.forEach(function (fx2) {
@@ -618,6 +652,8 @@
 
             // Particle layer (sparks, dust, shards, rings)
             drawParticles(sim);
+
+            callHook(stageArt, 'drawOverlay', sim, frameView);
 
             // Floating feedback numbers
             ctx.save();
@@ -634,23 +670,133 @@
 
             ctx.restore();
 
+            if (atmosphere && typeof atmosphere.paintForeground === 'function') {
+                atmosphere.paintForeground(biome, sx, viewW, viewH, Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy)));
+            }
+
             // Dynamic light map above the world plane
             if (atmosphere && ambient > 0.02) {
-                atmosphere.paintLighting(biome, sx, sy, viewW, viewH, collectLights(sim, stage, biome, nowSec, ambient), nowSec);
+                const lights = collectLights(sim, stage, biome, nowSec, ambient);
+                callHook(decor, 'collectLights', sim, frameView, lights);
+                callHook(stageArt, 'collectLights', sim, frameView, lights);
+                atmosphere.paintLighting(biome, sx, sy, viewW, viewH, lights, nowSec, ambient);
             }
-            if (atmosphere) {
+            const gpu = !!(postfx && postfx.isEnabled());
+            if (atmosphere && !gpu) {
                 atmosphere.paintGrade(biome, viewW, viewH);
             }
 
             // Screen flash (damage, phase change, rune surge)
             if (fx && fx.flashAlpha > 0) {
+                const fade = fx.flashMax > 0 ? Math.max(0, Math.min(1, fx.flashTimer / fx.flashMax)) : 1;
                 ctx.save();
-                ctx.globalAlpha = Math.max(0, Math.min(1, fx.flashAlpha));
+                ctx.globalAlpha = Math.max(0, Math.min(1, fx.flashAlpha * fade));
                 ctx.fillStyle = fx.flashColor || '#ffffff';
                 ctx.fillRect(0, 0, viewW, viewH);
                 ctx.restore();
             }
+
+            if (gpu) {
+                const pl = sim.player;
+                postfx.render({
+                    t: nowSec,
+                    dt: dt,
+                    biomeId: biome.id || 'woodland',
+                    sun: sunScreen,
+                    hurt: hurtPulse,
+                    lowHp: pl && pl.maxHp > 0 && pl.hp > 0 && pl.hp / pl.maxHp <= 0.34 ? 1 : 0,
+                    heat: biome.id === 'desert' ? 1 : biome.id === 'citadel' ? 0.6 : 0
+                });
+            }
         }
+
+        // Spike frames: retracted, warning, rising, full extension, retracting (10-frame strip).
+        function spikeElapsed(h, nowSec) {
+            if (typeof h.phase01 !== 'number') return nowSec;
+            const ph = h.phase01;
+            let idx = 0;
+            if (h.active) {
+                const q = (ph - 0.55) / 0.38;
+                idx = q < 0.15 ? 2 : q < 0.3 ? 4 : q < 0.8 ? 5 : q < 0.9 ? 3 : 1;
+            } else if (ph >= 0.45 && ph < 0.55) {
+                idx = 1;
+            }
+            return (idx + 0.5) / 12;
+        }
+
+        function hasAnim(packId, animId) {
+            const sheet = sheets[packId];
+            return !!(sheet && sheet.pack.animationsById && sheet.pack.animationsById[animId]);
+        }
+
+        function callHook(mod, name, a, b, c) {
+            if (mod && typeof mod[name] === 'function') mod[name](a, b, c);
+        }
+
+        function worldToScreen(x, y) {
+            return { x: (x - lastCam.x) , y: (y - lastCam.y) };
+        }
+
+        function handleEvents(events, sim) {
+            if (disposed || !events || !events.length) return;
+            const pl = sim && sim.player;
+            for (let i = 0; i < events.length; i++) {
+                const ev = events[i];
+                const d = ev.detail || {};
+                const wx = typeof d.x === 'number' ? d.x : (pl ? pl.x : 0);
+                const wy = typeof d.y === 'number' ? d.y : (pl ? pl.y : 0);
+                if (ev.type === 'player_hurt') hurtPulse = 1;
+                if (ev.type === 'player_hurt' || ev.type === 'boss_defeat') triggerShake(7);
+                if (SHOCKWAVE_EVENTS[ev.type] && postfx) {
+                    const sp = worldToScreen(wx, wy);
+                    postfx.pushShockwave(sp.x, sp.y, SHOCKWAVE_EVENTS[ev.type]);
+                }
+                callHook(actors, 'onEvent', ev, sim, lastCam);
+            }
+        }
+
+        function attachPostfx(p) {
+            if (disposed || !p) {
+                if (p && typeof p.dispose === 'function') p.dispose();
+                return;
+            }
+            postfx = p;
+            if (typeof p.resize === 'function') p.resize(Math.round(lastCam.w * lastCam.dpr), Math.round(lastCam.h * lastCam.dpr));
+        }
+
+        function getCamera() {
+            return { x: lastCam.x, y: lastCam.y, w: lastCam.w, h: lastCam.h, dpr: lastCam.dpr };
+        }
+
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            // The app owns the post-processing object and disposes it itself.
+            [decor, actors, stageArt].forEach(function (m) {
+                if (m && typeof m.dispose === 'function') {
+                    try { m.dispose(); } catch (err) { /* ignore */ }
+                }
+            });
+            postfx = null;
+        }
+
+        const helper = {
+            ctx: ctx,
+            sheets: sheets,
+            drawAnimation: drawAnimation,
+            drawStaticAsset: drawStaticAsset,
+            drawCroppedAsset: drawCroppedAsset,
+            drawCroppedAnimation: drawCroppedAnimation,
+            drawGlow: drawGlow,
+            drawContactShadow: drawContactShadow,
+            get reducedMotion() { return prefersReducedMotion(); }
+        };
+        function makeHook(mod) {
+            return mod && typeof mod.create === 'function' ? mod.create(helper) : null;
+        }
+        const decor = makeHook(root.RunenpfadDecor);
+        const actors = makeHook(root.RunenpfadActors);
+        const stageArt = makeHook(root.RunenpfadStageArt);
 
         // Light sources in world space for the 2D light map.
         function collectLights(sim, stage, biome, nowSec, ambient) {
@@ -709,7 +855,11 @@
 
         return {
             render: render,
-            triggerShake: triggerShake
+            triggerShake: triggerShake,
+            handleEvents: handleEvents,
+            attachPostfx: attachPostfx,
+            getCamera: getCamera,
+            dispose: dispose
         };
     }
 

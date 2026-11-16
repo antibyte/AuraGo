@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Tempête",
   "runenpfad.mod_storm_desc": "Les plateformes défilent et le vent vous repousse.",
   "runenpfad.mod_mend": "Bénédiction",
-  "runenpfad.mod_mend_desc": "Plus de potions et de cœurs dans cette étape."
+  "runenpfad.mod_mend_desc": "Plus de potions et de cœurs dans cette étape.",
+  "runenpfad.pause_music_on": "Musique activée",
+  "runenpfad.pause_music_off": "Musique désactivée",
+  "runenpfad.pause_gfx_gpu": "Graphismes : effets GPU",
+  "runenpfad.pause_gfx_canvas": "Graphismes : canevas classique",
+  "runenpfad.boss_intro_sub": "Boss du monde",
+  "runenpfad.hud_combo": "Combo {n}",
+  "runenpfad.notice.boss_enraged": "Le boss est enragé !",
+  "runenpfad.notice.secret_found": "Chambre secrète découverte !",
+  "runenpfad.notice.lantern_lit": "Lanterne allumée !"
 }

@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Tempestade",
   "runenpfad.mod_storm_desc": "As plataformas passam depressa e o vento empurra-te para trás.",
   "runenpfad.mod_mend": "Bênção",
-  "runenpfad.mod_mend_desc": "Mais poções e corações neste nível."
+  "runenpfad.mod_mend_desc": "Mais poções e corações neste nível.",
+  "runenpfad.pause_music_on": "Música ligada",
+  "runenpfad.pause_music_off": "Música desligada",
+  "runenpfad.pause_gfx_gpu": "Gráficos: efeitos GPU",
+  "runenpfad.pause_gfx_canvas": "Gráficos: canvas clássico",
+  "runenpfad.boss_intro_sub": "Chefe do mundo",
+  "runenpfad.hud_combo": "Combo {n}",
+  "runenpfad.notice.boss_enraged": "O chefe está furioso!",
+  "runenpfad.notice.secret_found": "Câmara secreta encontrada!",
+  "runenpfad.notice.lantern_lit": "Lanterna acesa!"
 }

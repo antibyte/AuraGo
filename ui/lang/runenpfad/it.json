@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Tempesta",
   "runenpfad.mod_storm_desc": "Le piattaforme sfrecciano e il vento ti spinge indietro.",
   "runenpfad.mod_mend": "Benedizione",
-  "runenpfad.mod_mend_desc": "Più pozioni e cuori in questo livello."
+  "runenpfad.mod_mend_desc": "Più pozioni e cuori in questo livello.",
+  "runenpfad.pause_music_on": "Musica attiva",
+  "runenpfad.pause_music_off": "Musica disattiva",
+  "runenpfad.pause_gfx_gpu": "Grafica: effetti GPU",
+  "runenpfad.pause_gfx_canvas": "Grafica: canvas classico",
+  "runenpfad.boss_intro_sub": "Boss del mondo",
+  "runenpfad.hud_combo": "Combo {n}",
+  "runenpfad.notice.boss_enraged": "Il boss è su tutte le furie!",
+  "runenpfad.notice.secret_found": "Camera segreta trovata!",
+  "runenpfad.notice.lantern_lit": "Lanterna accesa!"
 }

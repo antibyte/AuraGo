@@ -47,13 +47,22 @@
             scripts: [
                 '/js/desktop/apps/runenpfad/biomes.js',
                 '/js/desktop/apps/runenpfad/fx.js',
+                '/js/desktop/apps/runenpfad/physics.js',
                 '/js/desktop/apps/runenpfad/behaviors.js',
+                '/js/desktop/apps/runenpfad/bosses.js',
                 '/js/desktop/apps/runenpfad/variety.js',
                 '/js/desktop/apps/runenpfad/profile.js',
+                '/js/desktop/apps/runenpfad/zones.js',
                 '/js/desktop/apps/runenpfad/levels.js',
+                '/js/desktop/apps/runenpfad/combat.js',
                 '/js/desktop/apps/runenpfad/sim.js',
                 '/js/desktop/apps/runenpfad/audio.js',
+                '/js/desktop/apps/runenpfad/music.js',
                 '/js/desktop/apps/runenpfad/atmosphere.js',
+                '/js/desktop/apps/runenpfad/decor.js',
+                '/js/desktop/apps/runenpfad/actors.js',
+                '/js/desktop/apps/runenpfad/stage-art.js',
+                '/js/desktop/apps/runenpfad/postfx.js',
                 '/js/desktop/apps/runenpfad/view.js',
                 '/js/desktop/apps/runenpfad/app.js'
             ]

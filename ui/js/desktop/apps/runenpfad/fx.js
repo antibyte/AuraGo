@@ -37,6 +37,7 @@
             flashTimer: 0,
             flashMax: 0,
             hitstop: 0,
+            slowmo: 0,
             time: 0
         };
     }
@@ -128,11 +129,18 @@
         sys.hitstop = Math.max(sys.hitstop, clamp(seconds == null ? 0.055 : seconds, 0, 0.2));
     }
 
+    // Slow-motion window in seconds (clamped). The app decays it by real time; fx.update does not.
+    function slowmo(sys, seconds) {
+        if (!sys) return;
+        sys.slowmo = Math.max(sys.slowmo || 0, clamp(seconds == null ? 0.6 : seconds, 0, 2));
+    }
+
     function clear(sys) {
         if (!sys) return;
         sys.particles.length = 0;
         sys.shake = 0;
         sys.hitstop = 0;
+        sys.slowmo = 0;
         sys.flashTimer = 0;
         sys.flashAlpha = 0;
     }
@@ -179,6 +187,7 @@
         flash: flash,
         shake: shake,
         hitstop: hitstop,
+        slowmo: slowmo,
         clear: clear,
         update: update
     };

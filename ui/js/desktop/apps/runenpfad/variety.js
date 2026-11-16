@@ -92,8 +92,12 @@
         const crumbleMul = mod.effects.crumbleTime || 1;
         if (crumbleMul !== 1) {
             stage.platforms.forEach(function (p) {
-                if (p.kind === 'trapdoor') p.crumbleTime = crumbleMul;
+                if (p.kind === 'trapdoor') p.crumbleTime = 0.45 * crumbleMul;
             });
+        }
+        if (mod.id === 'storm') {
+            if (stage.ambience) stage.ambience.secondary = 'rain-heavy';
+            stage.weather = 'rain';
         }
         return stage;
     }

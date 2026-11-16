@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "嵐",
   "runenpfad.mod_storm_desc": "足場が速く流れ、風があなたを押し戻します。",
   "runenpfad.mod_mend": "祝福",
-  "runenpfad.mod_mend_desc": "このステージでは回復ポーションとハートが増えます。"
+  "runenpfad.mod_mend_desc": "このステージでは回復ポーションとハートが増えます。",
+  "runenpfad.pause_music_on": "音楽オン",
+  "runenpfad.pause_music_off": "音楽オフ",
+  "runenpfad.pause_gfx_gpu": "グラフィック：GPUエフェクト",
+  "runenpfad.pause_gfx_canvas": "グラフィック：クラシックキャンバス",
+  "runenpfad.boss_intro_sub": "ワールドボス",
+  "runenpfad.hud_combo": "コンボ {n}",
+  "runenpfad.notice.boss_enraged": "ボスが激怒した！",
+  "runenpfad.notice.secret_found": "秘密の部屋を発見！",
+  "runenpfad.notice.lantern_lit": "ランタンに火が灯った！"
 }

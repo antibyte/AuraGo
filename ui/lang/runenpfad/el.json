@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Καταιγίδα",
   "runenpfad.mod_storm_desc": "Οι πλατφόρμες κινούνται γρηγορότερα και ο άνεμος σε σπρώχνει πίσω.",
   "runenpfad.mod_mend": "Ευλογία",
-  "runenpfad.mod_mend_desc": "Περισσότερα φαρμακευτικά και καρδιές σε αυτό το επίπεδο."
+  "runenpfad.mod_mend_desc": "Περισσότερα φαρμακευτικά και καρδιές σε αυτό το επίπεδο.",
+  "runenpfad.pause_music_on": "Μουσική ενεργή",
+  "runenpfad.pause_music_off": "Μουσική ανενεργή",
+  "runenpfad.pause_gfx_gpu": "Γραφικά: εφέ GPU",
+  "runenpfad.pause_gfx_canvas": "Γραφικά: κλασικό canvas",
+  "runenpfad.boss_intro_sub": "Αρχηγός κόσμου",
+  "runenpfad.hud_combo": "Κόμπο {n}",
+  "runenpfad.notice.boss_enraged": "Το αφεντικό λυσσάζει!",
+  "runenpfad.notice.secret_found": "Βρέθηκε μυστικός θάλαμος!",
+  "runenpfad.notice.lantern_lit": "Το φανάρι άναψε!"
 }

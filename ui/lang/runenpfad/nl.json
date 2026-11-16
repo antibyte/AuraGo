@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Storm",
   "runenpfad.mod_storm_desc": "Platformen razen voorbij en de wind duwt je terug.",
   "runenpfad.mod_mend": "Zegen",
-  "runenpfad.mod_mend_desc": "Meer helende drankjes en harten in dit level."
+  "runenpfad.mod_mend_desc": "Meer helende drankjes en harten in dit level.",
+  "runenpfad.pause_music_on": "Muziek aan",
+  "runenpfad.pause_music_off": "Muziek uit",
+  "runenpfad.pause_gfx_gpu": "Beeld: GPU-effecten",
+  "runenpfad.pause_gfx_canvas": "Beeld: klassiek canvas",
+  "runenpfad.boss_intro_sub": "Wereldbaas",
+  "runenpfad.hud_combo": "Combo {n}",
+  "runenpfad.notice.boss_enraged": "De baas is woedend!",
+  "runenpfad.notice.secret_found": "Geheime kamer gevonden!",
+  "runenpfad.notice.lantern_lit": "Lantaarn aangestoken!"
 }

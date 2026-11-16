@@ -43,6 +43,8 @@
         let sheets = null;
         let renderer = null;
         let audio = null;
+        let music = null;
+        let postfx = null;
         let sim = null;
         let profile = readProfile();
         let selectedWorld = Math.floor((Math.min(25, Math.max(1, profile.unlockedLevel)) - 1) / 5);
@@ -116,7 +118,9 @@
         modPill.hidden = true;
         const runePill = el('span', 'rp-pill rp-pill-rune');
         runePill.hidden = true;
-        stats.append(heartsPill, healBtn, coinsPill, gemsPill, keyPill, starsPill, timePill, modPill, runePill);
+        const comboPill = el('span', 'rp-pill rp-pill-combo');
+        comboPill.hidden = true;
+        stats.append(heartsPill, healBtn, coinsPill, gemsPill, keyPill, starsPill, timePill, modPill, runePill, comboPill);
 
         const actions = el('div', 'rp-actions');
         const heroBtn = el('button', 'rp-btn');
@@ -156,7 +160,13 @@
         bossBar.append(bossFill);
         bossWrap.append(bossLabel, bossBar);
 
-        hud.append(topbar, noticeRow, bossWrap);
+        const bossCard = el('div', 'rp-bosscard');
+        const bossCardName = el('strong');
+        const bossCardSub = el('span');
+        bossCard.setAttribute('aria-hidden', 'true');
+        bossCard.append(bossCardName, bossCardSub);
+
+        hud.append(topbar, noticeRow, bossWrap, bossCard);
 
         // Touch controls (visible when .rp-narrow is active)
         const touch = el('div', 'rp-touch');
@@ -215,9 +225,16 @@
         const soundBtn = el('button', 'rp-btn');
         soundBtn.type = 'button';
         soundBtn.setAttribute('aria-pressed', 'false');
+        const [musicBtn, gfxBtn] = [0, 1].map(function () {
+            const b = el('button', 'rp-btn');
+            b.type = 'button';
+            b.hidden = true;
+            b.setAttribute('aria-pressed', 'false');
+            return b;
+        });
         const resetBtn = el('button', 'rp-btn-danger');
         resetBtn.type = 'button';
-        pauseActions.append(resumeBtn, restartBtn, soundBtn, resetBtn);
+        pauseActions.append(resumeBtn, restartBtn, soundBtn, musicBtn, gfxBtn, resetBtn);
         pauseDialog.append(pauseHead, pauseControls, pauseActions);
 
         // World Map / Level Select dialog
@@ -256,7 +273,70 @@
         }
 
         function syncAudioActive() {
-            if (audio) audio.setActive(!isPaused());
+            const active = !isPaused();
+            if (audio) audio.setActive(active);
+            if (music && typeof music.setActive === 'function') music.setActive(active);
+        }
+
+        function paintMusic() {
+            const on = profile.music !== false;
+            musicBtn.hidden = !music;
+            musicBtn.textContent = on ? t('runenpfad.pause_music_on') : t('runenpfad.pause_music_off');
+            musicBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            shell.dataset.rpMusic = music && on ? '1' : '0';
+        }
+
+        function paintGfx() {
+            const gpu = shell.dataset.rpGfx === 'gpu';
+            gfxBtn.hidden = !postfx && profile.gfx !== 'canvas';
+            gfxBtn.textContent = gpu ? t('runenpfad.pause_gfx_gpu') : t('runenpfad.pause_gfx_canvas');
+            gfxBtn.setAttribute('aria-pressed', gpu ? 'true' : 'false');
+        }
+
+        // GPU post-processing is optional: every failure path ends in the plain canvas.
+        function initPostfx(r, ticket) {
+            const Postfx = root.RunenpfadPostfx;
+            const toCanvas = function () { shell.dataset.rpGfx = 'canvas'; paintGfx(); };
+            delete shell.dataset.rpGfxReason;
+            if (!Postfx || typeof Postfx.create !== 'function' || profile.gfx === 'canvas') { toCanvas(); return; }
+            let pending = null;
+            try {
+                pending = Postfx.create({
+                    host: stageWrap,
+                    source: canvas,
+                    reducedMotion: !!((document.body && document.body.dataset.animations === 'false') || (root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches)),
+                    onFallback: function (reason) {
+                        shell.dataset.rpGfxReason = String(reason || 'fallback').slice(0, 80);
+                        toCanvas();
+                    }
+                });
+            } catch (err) { pending = null; }
+            Promise.resolve(pending).then(function (p) {
+                const live = !disposed && renderer === r && ticket === generation;
+                if (p && live) {
+                    postfx = p;
+                    r.attachPostfx(p);
+                    if (!shell.dataset.rpGfxReason) shell.dataset.rpGfx = 'gpu';
+                } else {
+                    if (p && typeof p.dispose === 'function') p.dispose();
+                    if (live) shell.dataset.rpGfx = 'canvas';
+                }
+                if (!disposed) paintGfx();
+            }).catch(function () { if (!disposed) toCanvas(); });
+        }
+
+        function disposeVisuals() {
+            [renderer, postfx, music].forEach(function (m) {
+                try { if (m && typeof m.dispose === 'function') m.dispose(); } catch (err) { /* ignore */ }
+            });
+            renderer = postfx = music = null;
+        }
+
+        // Mid-stage progress lives in the simulation's profile clone; adopt it without losing settings.
+        function adoptSimProfile() {
+            const keep = { sound: profile.sound, music: profile.music, gfx: profile.gfx };
+            profile = Object.assign(Sim.exportProfile(sim.profile), keep);
+            writeProfile();
         }
 
         function paintSound() {
@@ -321,6 +401,8 @@
             loseBody.textContent = t('runenpfad.lose_body');
             loseRetryBtn.textContent = t('runenpfad.lose_retry');
             paintSound();
+            paintMusic();
+            paintGfx();
             paintTouchControls();
         }
 
@@ -338,7 +420,7 @@
             heartsPill.textContent = '\u2665 ' + p.hp + '/' + p.maxHp;
             healBtn.textContent = t('runenpfad.hud_heal') + ' (' + p.potions + ')';
             healBtn.disabled = p.potions <= 0 || p.hp >= p.maxHp;
-            coinsPill.textContent = t('runenpfad.hud_coins') + ': ' + profile.coins;
+            coinsPill.textContent = t('runenpfad.hud_coins') + ': ' + sim.profile.coins;
             gemsPill.textContent = t('runenpfad.hud_gems') + ': ' + sim.gemCount + '/3';
             keyPill.textContent = sim.hasKey ? t('runenpfad.hud_key_on') : t('runenpfad.hud_key_off');
             keyPill.classList.toggle('is-on', sim.hasKey);
@@ -361,6 +443,16 @@
             } else {
                 runePill.hidden = true;
             }
+            const combo = sim.combo;
+            comboPill.hidden = !(combo && combo.count >= 2);
+            if (!comboPill.hidden) comboPill.textContent = fill('runenpfad.hud_combo', { n: String.fromCharCode(215) + (Math.round((combo.mul || 1) * 10) / 10) });
+            const intro = sim.bossIntro;
+            const introOn = !!(intro && intro.timer > 0);
+            if (introOn) {
+                bossCardName.textContent = t(intro.nameKey);
+                bossCardSub.textContent = t('runenpfad.boss_intro_sub');
+            }
+            bossCard.classList.toggle('is-on', introOn);
             heroBtn.textContent = t('runenpfad.btn_hero') + ': ' + t(Levels.HERO_DEFS[sim.heroId].nameKey);
             noticeEl.textContent = sim.notice ? t(sim.notice) : '';
 
@@ -405,7 +497,7 @@
             shell.dataset.rpY = String(Math.round(p.y));
             shell.dataset.rpHp = String(p.hp);
             shell.dataset.rpMaxHp = String(p.maxHp);
-            shell.dataset.rpCoins = String(profile.coins);
+            shell.dataset.rpCoins = String(sim.profile.coins);
             shell.dataset.rpGems = String(sim.gemCount);
             shell.dataset.rpKey = sim.hasKey ? '1' : '0';
             shell.dataset.rpStars = String(Sim.totalStars(profile));
@@ -569,18 +661,22 @@
             const dt = lastFrameMs ? Math.min(0.05, (nowMs - lastFrameMs) / 1000) : 1 / 60;
             lastFrameMs = nowMs;
             if (sim && !isPaused()) {
-                const prevCoins = profile.coins;
-                const prevUnlocked = profile.unlockedLevel;
-                const prevStars = Sim.totalStars(profile);
+                const before = sim.profile;
+                const prevCoins = before.coins;
+                const prevUnlocked = before.unlockedLevel;
+                const prevStars = Sim.totalStars(before);
                 const prevState = sim.state;
-                const events = Sim.stepSimulation(sim, dt, readInput());
-                if (audio) audio.handleEvents(events, sim.stage.ambience);
-                if (events.some(function (e) { return e.type === 'player_hurt' || e.type === 'boss_defeat'; }) && renderer) {
-                    renderer.triggerShake(7);
-                }
-                if (profile.coins !== prevCoins || profile.unlockedLevel !== prevUnlocked || Sim.totalStars(profile) !== prevStars || sim.state !== prevState) {
-                    profile = Sim.exportProfile(sim.profile);
-                    writeProfile();
+                const slow = sim.fx && sim.fx.slowmo > 0;
+                const events = Sim.stepSimulation(sim, dt * (slow ? 0.35 : 1), readInput());
+                if (slow) sim.fx.slowmo = Math.max(0, sim.fx.slowmo - dt);
+                const camera = renderer ? renderer.getCamera() : null;
+                if (renderer) renderer.handleEvents(events, sim);
+                if (audio) audio.handleEvents(events, sim.stage.ambience, camera);
+                const Music = root.RunenpfadMusic;
+                if (music && Music && typeof music.update === 'function') music.update(Music.intensityFor(sim), sim);
+                const after = sim.profile;
+                if (after.coins !== prevCoins || after.unlockedLevel !== prevUnlocked || Sim.totalStars(after) !== prevStars || sim.state !== prevState) {
+                    adoptSimProfile();
                 }
                 paintHud();
             }
@@ -679,6 +775,22 @@
             paintSound();
             syncAudioActive();
         }
+        musicBtn.addEventListener('click', function () {
+            if (!music) return;
+            profile.music = profile.music === false;
+            if (typeof music.setEnabled === 'function') music.setEnabled(profile.music);
+            writeProfile();
+            paintMusic();
+        });
+        gfxBtn.addEventListener('click', function () {
+            profile.gfx = profile.gfx === 'canvas' ? 'auto' : 'canvas';
+            writeProfile();
+            const on = profile.gfx !== 'canvas';
+            if (postfx && typeof postfx.setEnabled === 'function') postfx.setEnabled(on);
+            if (on && !postfx && renderer) initPostfx(renderer, generation);
+            else shell.dataset.rpGfx = on && postfx && !shell.dataset.rpGfxReason ? 'gpu' : 'canvas';
+            paintGfx();
+        });
         soundBtn.addEventListener('click', toggleSound);
         hudSoundBtn.addEventListener('click', toggleSound);
         resetBtn.addEventListener('click', function () {
@@ -776,7 +888,14 @@
                     signal: controller.signal,
                     enabled: profile.sound !== false
                 });
+                disposeVisuals();
                 renderer = View.createRenderer(canvas, sheets);
+                const Music = root.RunenpfadMusic;
+                try {
+                    music = Music && Music.createMusicController(typeof audio.musicPort === 'function' ? audio.musicPort() : null);
+                    if (music && typeof music.setEnabled === 'function') music.setEnabled(profile.music !== false);
+                } catch (err) { music = null; }
+                initPostfx(renderer, ticket);
                 paintStaticCopy();
                 loadingCard.hidden = true;
                 shell.classList.toggle('rp-narrow', shell.clientWidth < 820);
@@ -816,6 +935,7 @@
                     rafId = 0;
                 }
                 if (ro) ro.disconnect();
+                disposeVisuals();
                 if (audio) {
                     audio.dispose();
                     audio = null;

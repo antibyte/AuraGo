@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Burza",
   "runenpfad.mod_storm_desc": "Platformy pędzą, a wiatr spycha cię do tyłu.",
   "runenpfad.mod_mend": "Błogosławieństwo",
-  "runenpfad.mod_mend_desc": "Więcej mikstur i serc w tym poziomie."
+  "runenpfad.mod_mend_desc": "Więcej mikstur i serc w tym poziomie.",
+  "runenpfad.pause_music_on": "Muzyka włączona",
+  "runenpfad.pause_music_off": "Muzyka wyłączona",
+  "runenpfad.pause_gfx_gpu": "Grafika: efekty GPU",
+  "runenpfad.pause_gfx_canvas": "Grafika: klasyczne płótno",
+  "runenpfad.boss_intro_sub": "Boss świata",
+  "runenpfad.hud_combo": "Kombo {n}",
+  "runenpfad.notice.boss_enraged": "Boss wpadł w szał!",
+  "runenpfad.notice.secret_found": "Znaleziono tajną komnatę!",
+  "runenpfad.notice.lantern_lit": "Latarnia zapalona!"
 }

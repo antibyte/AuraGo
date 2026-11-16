@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "तूफ़ान",
   "runenpfad.mod_storm_desc": "प्लेटफ़ॉर्म तेज़ दौड़ते हैं और हवा आपको पीछे धकेलती है।",
   "runenpfad.mod_mend": "आशीर्वाद",
-  "runenpfad.mod_mend_desc": "इस स्तर पर अधिक औषधि और दिल हैं।"
+  "runenpfad.mod_mend_desc": "इस स्तर पर अधिक औषधि और दिल हैं।",
+  "runenpfad.pause_music_on": "संगीत चालू",
+  "runenpfad.pause_music_off": "संगीत बंद",
+  "runenpfad.pause_gfx_gpu": "ग्राफ़िक्स: GPU इफ़ेक्ट",
+  "runenpfad.pause_gfx_canvas": "ग्राफ़िक्स: क्लासिक कैनवास",
+  "runenpfad.boss_intro_sub": "विश्व बॉस",
+  "runenpfad.hud_combo": "कॉम्बो {n}",
+  "runenpfad.notice.boss_enraged": "बॉस भड़क उठा है!",
+  "runenpfad.notice.secret_found": "गुप्त कक्ष मिल गया!",
+  "runenpfad.notice.lantern_lit": "लालटेन जल गई!"
 }

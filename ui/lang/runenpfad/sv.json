@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "Storm",
   "runenpfad.mod_storm_desc": "Plattformarna rusar förbi och vinden skjuter tillbaka dig.",
   "runenpfad.mod_mend": "Välsignelse",
-  "runenpfad.mod_mend_desc": "Fler läkedrycker och hjärtan i det här nivån."
+  "runenpfad.mod_mend_desc": "Fler läkedrycker och hjärtan i det här nivån.",
+  "runenpfad.pause_music_on": "Musik på",
+  "runenpfad.pause_music_off": "Musik av",
+  "runenpfad.pause_gfx_gpu": "Grafik: GPU-effekter",
+  "runenpfad.pause_gfx_canvas": "Grafik: klassisk canvas",
+  "runenpfad.boss_intro_sub": "Världsboss",
+  "runenpfad.hud_combo": "Kombo {n}",
+  "runenpfad.notice.boss_enraged": "Bossen är rasande!",
+  "runenpfad.notice.secret_found": "Hemligt rum hittat!",
+  "runenpfad.notice.lantern_lit": "Lykta tänd!"
 }

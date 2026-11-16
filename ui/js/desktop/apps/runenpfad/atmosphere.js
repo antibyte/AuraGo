@@ -259,8 +259,8 @@
         }
 
         // Real 2D light map: darkness is painted, then light sources punch holes out of it.
-        function paintLighting(biome, camX, camY, viewW, viewH, lights, timeSec) {
-            const amb = biome.light ? biome.light.ambient : 0;
+        function paintLighting(biome, camX, camY, viewW, viewH, lights, timeSec, ambientOverride) {
+            const amb = typeof ambientOverride === 'number' ? ambientOverride : (biome.light ? biome.light.ambient : 0);
             if (amb <= 0.02) return;
             const scale = dpr();
             const lc = ensureLightCanvas(Math.max(1, Math.round(viewW * scale)), Math.max(1, Math.round(viewH * scale)));

@@ -111,5 +111,14 @@
   "runenpfad.mod_storm": "风暴",
   "runenpfad.mod_storm_desc": "平台飞速掠过，风将你向后推。",
   "runenpfad.mod_mend": "祝福",
-  "runenpfad.mod_mend_desc": "本关的回复药剂与爱心更多。"
+  "runenpfad.mod_mend_desc": "本关的回复药剂与爱心更多。",
+  "runenpfad.pause_music_on": "音乐开",
+  "runenpfad.pause_music_off": "音乐关",
+  "runenpfad.pause_gfx_gpu": "画面：GPU 特效",
+  "runenpfad.pause_gfx_canvas": "画面：经典画布",
+  "runenpfad.boss_intro_sub": "世界首领",
+  "runenpfad.hud_combo": "连击 {n}",
+  "runenpfad.notice.boss_enraged": "首领暴怒了！",
+  "runenpfad.notice.secret_found": "发现了秘密密室！",
+  "runenpfad.notice.lantern_lit": "灯笼已点亮！"
 }
