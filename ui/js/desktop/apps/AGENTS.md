@@ -2294,6 +2294,12 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### Store app setup
 
+- Agent connection dialogs share the Store integration endpoints. Show masked
+  credential presence, connection state, explicit per-app grants and manual-binding
+  conflicts. Tests use saved settings only; closing/disposal clears credentials and
+  aborts requests. Preserve focus trapping and all sixteen `desktop.store.ig_*`
+  translations. Verify the Store disposal browser test and connection tests.
+
 - PrintGuard setup in `software-store.js` uses its admin config/test endpoints,
   CPU-first install, defined acceleration/network choices and explicit off/read/
   control grants. Never prefill tokens or test unsaved drafts. Clear credentials

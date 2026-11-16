@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	_ "modernc.org/sqlite"
 	"net"
 	"os"
 	pathpkg "path"
@@ -16,7 +17,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
 	"aurago/internal/desktop"
@@ -49,16 +49,18 @@ const appReadinessPollInterval = 500 * time.Millisecond
 
 // Config describes the desktop store service dependencies.
 type Config struct {
-	DBPath        string
-	DockerHost    string
-	DataDir       string
-	WorkspaceDir  string
-	Catalog       []CatalogEntry
-	Docker        DockerAdapter
-	Desktop       DesktopAdapter
-	Launchpad     LaunchpadAdapter
-	Secrets       SecretStore
-	NativeManaged NativeManagedRuntime
+	DBPath             string
+	DockerHost         string
+	DataDir            string
+	WorkspaceDir       string
+	Catalog            []CatalogEntry
+	Docker             DockerAdapter
+	Desktop            DesktopAdapter
+	Launchpad          LaunchpadAdapter
+	Secrets            SecretStore
+	NativeManaged      NativeManagedRuntime
+	Containerized      bool
+	IntegrationDeleted func(context.Context, string) error
 	// LLMRelay tells the DeepTutor install how its container reaches the AuraGo
 	// LLM relay; without it DeepTutor cannot be installed.
 	LLMRelay      LLMRelayProvider
@@ -1042,7 +1044,7 @@ func selectAppPort(app InstalledApp, portID string) (PortBinding, error) {
 		return ports[0], nil
 	}
 	for _, port := range ports {
-		if strings.EqualFold(port.ID, portID) {
+		if strings.EqualFold(port.ID, portID) && IsHTTPPort(port) {
 			return port, nil
 		}
 	}
@@ -1226,6 +1228,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
+	if err := s.applyIntegrationRuntime(&record, req.DockerNetwork); err != nil {
+		return err
+	}
 	if entry.ID == PrintGuardAppID {
 		if err := s.applyPrintGuardImage(&record); err != nil {
 			return err
@@ -1394,6 +1399,9 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	}
 	record.Env = env
 	record.SecretRefs = secretRefs
+	if err := s.applyIntegrationRuntime(&record, IntegrationNetwork(previous)); err != nil {
+		return err
+	}
 	autoCompanions, err := s.prepareAutoCompanions(ctx, entry, record)
 	if err != nil {
 		return fmt.Errorf("resolve companion containers: %w", err)
@@ -1691,6 +1699,17 @@ func (s *Service) uninstall(ctx context.Context, op Operation, deleteData bool) 
 		return err
 	}
 	if deleteData {
+		if HasIntegration(app.AppID) {
+			if s.cfg.IntegrationDeleted != nil {
+				if err := s.cfg.IntegrationDeleted(ctx, app.AppID); err != nil {
+					return err
+				}
+			} else if s.cfg.Secrets != nil {
+				if err := s.cfg.Secrets.DeleteSecret(IntegrationKey(app.AppID)); err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+					return err
+				}
+			}
+		}
 		if app.AppID == PrintGuardAppID && s.cfg.Secrets != nil {
 			if err := s.cfg.Secrets.DeleteSecret(printGuardVaultKey); err != nil {
 				return err
@@ -2947,6 +2966,22 @@ func isMissingStoreArtifact(err error) bool {
 
 func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, timeout time.Duration) error {
 	probeHost, probePort := app.HostIP, app.HostPort
+	if s.cfg.Containerized && IntegrationNetwork(app) != "" {
+		probeHost, probePort = app.ContainerName, app.ContainerPort
+	}
+	if app.AppID == "adguard-home" {
+		settings, err := ReadIntegration(s.cfg.Secrets, app.AppID)
+		if err == nil && settings.AdminPort == "admin" {
+			for _, p := range app.Ports {
+				if p.ID == "admin" {
+					probeHost, probePort = p.HostIP, p.HostPort
+					if s.cfg.Containerized {
+						probeHost, probePort = app.ContainerName, p.ContainerPort
+					}
+				}
+			}
+		}
+	}
 	if app.AppID == PrintGuardAppID {
 		settings, err := readPrintGuardSettings(s.cfg.Secrets)
 		if err != nil {
@@ -2979,7 +3014,7 @@ func (s *Service) waitContainerReady(ctx context.Context, app InstalledApp, time
 			lastErr = fmt.Errorf("container health is %s", health)
 		} else if state.Health != "" && health != "healthy" {
 			lastErr = fmt.Errorf("container health is %s", state.Health)
-		} else if app.Protocol != "tcp" || s.portProbe(ctx, probeHost, probePort) {
+		} else if app.Protocol != "tcp" || s.portProbe(ctx, probeHost, probePort) || s.integrationAdminReady(ctx, app) {
 			return nil
 		} else {
 			lastErr = fmt.Errorf("container web port %d is not reachable yet", probePort)
@@ -3044,15 +3079,25 @@ func containerSpecFromRecord(app InstalledApp) ContainerSpec {
 	if len(ports) == 0 && app.HostPort > 0 {
 		ports = []PortBinding{{ID: "main", Name: "Web UI", ContainerPort: app.ContainerPort, Protocol: app.Protocol, HostIP: app.HostIP, HostPort: app.HostPort}}
 	}
+	network := privateNetworkModeFromApp(app)
+	if configured := IntegrationNetwork(app); configured != "" {
+		network = configured
+	}
+	env := make([]string, 0, len(app.Env))
+	for _, value := range app.Env {
+		if !strings.HasPrefix(value, storeNetworkEnv) {
+			env = append(env, value)
+		}
+	}
 	return ContainerSpec{
 		Name:         app.ContainerName,
 		Image:        app.Image,
-		Env:          append([]string(nil), app.Env...),
+		Env:          env,
 		PortBindings: ports,
 		Volumes:      append([]VolumeBinding(nil), app.Volumes...),
 		HostBinds:    append([]HostBinding(nil), app.HostBinds...),
 		ExtraHosts:   append([]string(nil), app.ExtraHosts...),
-		NetworkMode:  privateNetworkModeFromApp(app),
+		NetworkMode:  network,
 		Restart:      "unless-stopped",
 		Labels: map[string]string{
 			"aurago.desktop_store":        "true",

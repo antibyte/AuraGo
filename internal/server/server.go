@@ -328,6 +328,7 @@ type Server struct {
 	DesktopService            *desktop.Service
 	desktopPolicyService      atomic.Pointer[desktop.Service]
 	DesktopStore              *desktopstore.Service
+	storeIntegrations         storeIntegrationRuntime
 	DesktopHub                *desktop.Hub
 	VirtualComputersDB        *virtualcomputers.Ledger
 	VirtualWorkspaceManager   *virtualcomputers.WorkspaceManager
@@ -582,6 +583,9 @@ func (s *Server) replaceConfigSnapshot(cfg *config.Config) {
 			s.Logger.Error("Rejected invalid DeepTutor login configuration", "error", err)
 		}
 		return
+	}
+	if s.revokeStoreIntegrations() {
+		defer func() { go s.refreshStoreIntegrations() }()
 	}
 	s.initConfigSnapshot()
 	if s.InjectionGuard != nil {

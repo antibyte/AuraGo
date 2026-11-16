@@ -34,9 +34,10 @@ func handleAdGuardStatus(s *Server) http.HandlerFunc {
 		}
 
 		cfg := tools.AdGuardConfig{
-			URL:      s.Cfg.AdGuard.URL,
-			Username: s.Cfg.AdGuard.Username,
-			Password: s.Cfg.AdGuard.Password,
+			StoreManaged: s.Cfg.AdGuard.StoreManaged,
+			URL:          s.Cfg.AdGuard.URL,
+			Username:     s.Cfg.AdGuard.Username,
+			Password:     s.Cfg.AdGuard.Password,
 		}
 
 		result := tools.AdGuardStatus(cfg)

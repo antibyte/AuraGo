@@ -1184,6 +1184,12 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
 - Verify mission lifecycle and Home Assistant regression tests in tools and server; run Linux CGO race tests for concurrent cancellation.
 
 ### Uptime Kuma and EvoMap
+- Store connection routes use Desktop admin, revision checks, Store operation
+  exclusion and the existing YAML/Vault transaction. Legacy AdGuard/Kuma secrets
+  retain their keys; manual connections require explicit replacement. Process-local
+  bindings cancel on lifecycle/config changes and shutdown; reconnect requires a
+  read-only probe. Every managed request checks current grants and operation state.
+  See `documentation/store-agent-connections.md`; verify `TestStoreIntegration*`.
 - Uptime Kuma uses one server-owned cancellable generation, one notification consumer, at most sixteen pending prompts and a five-minute per-turn deadline. Overflow is logged. Monitor fields are bounded external data; use a dedicated session. Config publication cancels stale generations, and shutdown drains them before database closure.
 - EvoMap registration is writable-only in the agent and API. The server callback owns network registration and serialized config/Vault publication under CfgSaveMu; never mutate captured config snapshots or save them from the agent. Persist only the node ID into current YAML, keep secrets in Vault, restore prior local state on save failure, and never retry uncertain registration automatically.
 - Verify Uptime Kuma lifecycle, EvoMap registration/revocation and configuration preservation regressions.

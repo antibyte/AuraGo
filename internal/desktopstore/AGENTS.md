@@ -417,6 +417,12 @@ Store app configuration, runtime, assets, and publication.
 
 ## Verification
 
+- `integration.go` owns per-app Vault settings, shared-network metadata and the
+  connection/lifecycle exclusion. Install alone grants no access. DNS publishing
+  is AdGuard-only, on an explicit address and exact port 53/TCP+UDP; Docker bind
+  failures use normal update rollback. `delete_data` invokes owned configuration
+  cleanup; ordinary uninstall retains settings. Verify `TestStoreIntegration*`.
+
 - Desktop Store jobs inherit the Desktop revocation context. Stop remains an
   explicit cleanup action, still subject to Docker permissions. Interrupted
   pending/running operations record a bounded cleanup failure using

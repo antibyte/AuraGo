@@ -267,9 +267,10 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			}
 			req := decodeAdGuardArgs(tc)
 			adgCfg := tools.AdGuardConfig{Context: ctx,
-				URL:      cfg.AdGuard.URL,
-				Username: cfg.AdGuard.Username,
-				Password: cfg.AdGuard.Password,
+				StoreManaged: cfg.AdGuard.StoreManaged,
+				URL:          cfg.AdGuard.URL,
+				Username:     cfg.AdGuard.Username,
+				Password:     cfg.AdGuard.Password,
 			}
 			op := strings.ToLower(strings.TrimSpace(req.Operation))
 
@@ -385,6 +386,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 			}
 			req := decodeUptimeKumaArgs(tc)
 			ukCfg := tools.UptimeKumaConfig{
+				StoreManaged:   cfg.UptimeKuma.StoreManaged,
 				BaseURL:        cfg.UptimeKuma.BaseURL,
 				APIKey:         cfg.UptimeKuma.APIKey,
 				InsecureSSL:    cfg.UptimeKuma.InsecureSSL,

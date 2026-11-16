@@ -16,6 +16,7 @@ func uptimeKumaToolConfig(s *Server) tools.UptimeKumaConfig {
 
 func uptimeKumaToolConfigFrom(u config.UptimeKumaConfig) tools.UptimeKumaConfig {
 	return tools.UptimeKumaConfig{
+		StoreManaged:   u.StoreManaged,
 		BaseURL:        u.BaseURL,
 		APIKey:         u.APIKey,
 		InsecureSSL:    u.InsecureSSL,

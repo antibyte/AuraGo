@@ -26,12 +26,13 @@ func TestSoftwareStoreDisposesSensitiveDialogsBrowser(t *testing.T) {
 window.holdCredential=false;window.holdConfig=false;window.resolveCredential=null;window.resolveConfig=null;
 const catalog={catalog:[
  {id:'credentials',name:'Credentials',generated_secrets:[{expose:true}]},
- {id:'gods-eye-view',name:'Gods Eye'}],
- installed:[{app_id:'credentials',status:'running'},{app_id:'gods-eye-view',status:'running'}]};
+ {id:'gods-eye-view',name:'Gods Eye'},{id:'uptime-kuma',name:'Uptime Kuma'}],
+ installed:[{app_id:'credentials',status:'running'},{app_id:'gods-eye-view',status:'running'},{app_id:'uptime-kuma',status:'running'}]};
 const api=url=>{
  if(url==='/api/desktop/store/catalog')return Promise.resolve(catalog);
  if(url.endsWith('/credentials'))return window.holdCredential?new Promise(resolve=>window.resolveCredential=resolve):Promise.resolve({credentials:[{label:'Key',value:'synthetic-test-secret'}]});
  if(url.endsWith('/config'))return window.holdConfig?new Promise(resolve=>window.resolveConfig=resolve):Promise.resolve({configured:{},allowed_origins:[]});
+ if(url.endsWith('/integration'))return Promise.resolve({revision:'1',url:'http://local.test',state:'setup_required',read:false,credential_stored:true});
  return Promise.resolve({});
 };
 window.mountStore=()=>SoftwareStoreApp.render(document.getElementById('host'),'audit',{api,t:key=>key,esc:value=>String(value??'')});
@@ -59,6 +60,15 @@ window.mountStore=()=>SoftwareStoreApp.render(document.getElementById('host'),'a
  const key=document.querySelector('.vd-gev-config input[name=OPENAI_API_KEY]');key.value='synthetic-config-secret';
  SoftwareStoreApp.dispose('audit');
  if(key.value||key.getAttribute('value')||key.isConnected||document.querySelector('.vd-modal-backdrop'))throw Error('config secret retained after disposal');
+ mountStore();await until(()=>!!document.querySelector('[data-action=integration]'));
+ document.querySelector('[data-action=integration]').click();await until(()=>!!document.querySelector('input[name=credential]'));
+ const token=document.querySelector('input[name=credential]');
+ if(token.value)throw Error('integration token was prefilled');
+ if(document.querySelector('input[name=notify]').checked)throw Error('new notification consent enabled');
+ token.value='synthetic-store-token';token.dispatchEvent(new Event('input',{bubbles:true}));
+ if(!document.querySelector('[data-ig-test]').disabled)throw Error('unsaved settings can be tested');
+ SoftwareStoreApp.dispose('audit');
+ if(token.value||token.getAttribute('value')||token.isConnected||document.querySelector('.vd-modal-backdrop'))throw Error('integration token retained after disposal');
  mountStore();await until(()=>!!document.querySelector('[data-action=credentials]'));
  window.holdCredential=true;document.querySelector('[data-action=credentials]').click();await until(()=>!!window.resolveCredential);
  SoftwareStoreApp.dispose('audit');window.resolveCredential({credentials:[{label:'Key',value:'late-secret'}]});

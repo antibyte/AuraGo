@@ -70,7 +70,7 @@ func (s *Server) restartUptimeKumaPoller() {
 		Interval: time.Duration(cfg.UptimeKuma.PollIntervalSeconds) * time.Second,
 		Fetch: func(ctx context.Context) (tools.UptimeKumaSnapshot, error) {
 			c := runtime.initial
-			return tools.FetchUptimeKumaSnapshot(ctx, tools.UptimeKumaConfig{BaseURL: c.BaseURL, APIKey: c.APIKey, InsecureSSL: c.InsecureSSL, RequestTimeout: c.RequestTimeout}, s.Logger)
+			return tools.FetchUptimeKumaSnapshot(ctx, uptimeKumaToolConfigFrom(c), s.Logger)
 		},
 		OnTransition: func(event tools.UptimeKumaTransition) {
 			if ctx.Err() != nil || !runtime.initial.RelayToAgent {

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/desktop"
+	"aurago/internal/security"
 )
 
 func TestDefaultCatalogContainsInitialApps(t *testing.T) {
@@ -2575,7 +2576,7 @@ func (f *fakeSecretStore) ReadSecret(key string) (string, error) {
 	}
 	value, ok := f.data[key]
 	if !ok {
-		return "", errors.New("secret not found")
+		return "", security.ErrSecretNotFound
 	}
 	return value, nil
 }

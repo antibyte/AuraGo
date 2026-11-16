@@ -2303,11 +2303,12 @@ type Config struct {
 		Token                  string `yaml:"-" vault:"token"`          // Personal Access Token (from vault)
 	} `yaml:"vercel"`
 	AdGuard struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only read status/stats/logs, block all mutations
-		URL      string `yaml:"url"`      // e.g. http://192.168.1.1:3000
-		Username string `yaml:"username"`
-		Password string `yaml:"-" vault:"adguard_password"`
+		StoreManaged bool   `yaml:"store_managed,omitempty"`
+		Enabled      bool   `yaml:"enabled"`
+		ReadOnly     bool   `yaml:"readonly"` // true = only read status/stats/logs, block all mutations
+		URL          string `yaml:"url"`      // e.g. http://192.168.1.1:3000
+		Username     string `yaml:"username"`
+		Password     string `yaml:"-" vault:"adguard_password"`
 	} `yaml:"adguard"`
 
 	MQTT struct {
@@ -2730,6 +2731,7 @@ type TrueNASConfig struct {
 
 // UptimeKumaConfig holds configuration for the read-only Uptime Kuma metrics integration.
 type UptimeKumaConfig struct {
+	StoreManaged        bool   `yaml:"store_managed,omitempty"`
 	Enabled             bool   `yaml:"enabled"`
 	BaseURL             string `yaml:"base_url"`
 	APIKey              string `yaml:"-" json:"-"`

@@ -3,6 +3,7 @@
 
     const instances = new Map();
     const retiredStoreAppIDs = new Set(['emulatorjs']);
+    const integrationApps = new Set(['adguard-home', 'uptime-kuma', 'n8n', 'node-red', 'olivetin', 'open-webui', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer']);
 
     function activeStoreCatalogEntries(items) {
         return (Array.isArray(items) ? items : []).filter(entry => !retiredStoreAppIDs.has(String(entry && entry.id || '').toLowerCase()));
@@ -28,6 +29,7 @@
         let catalog = [];
         let installed = [];
         let busy = new Map();
+        const integrationStates = new Map();
         const operationErrors = new Map();
         const pollingOperations = new Set();
         const instance = { disposed: false, onDesktopEvent: null, pollingOperations, loadDebounceTimer: null, overlays: new Set() };
@@ -161,6 +163,13 @@
                 renderCards();
                 resumeActiveOperationPolling();
                 initialCatalogLoaded = true;
+                await Promise.all(installed.filter(app => integrationApps.has(app.app_id)).map(async app => {
+                    try {
+                        const connection = await api('/api/desktop/store/apps/' + app.app_id + '/integration');
+                        if (token === loadToken && storeGridReady()) integrationStates.set(app.app_id, connection.state);
+                    } catch (_) { if (token === loadToken) integrationStates.set(app.app_id, 'error'); }
+                }));
+                if (token === loadToken && storeGridReady()) renderCards();
             } catch (err) {
                 if (token !== loadToken || !storeGridReady()) return;
                 console.error('Software store catalog load failed', err);
@@ -262,6 +271,7 @@
                     ${operation ? `<div class="vd-store-progress">${esc(statusLabel(operation.status, operation))}</div>` : ''}
                     <div class="vd-store-actions">
                         ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(storeOpenLabel(entry))}</span></button>` : ''}
+                        ${app && integrationApps.has(entry.id) ? `<button type="button" class="vd-store-btn" data-action="integration"><span>${esc(t('desktop.store.ig_connect'))} · ${esc(t('desktop.store.ig_' + (integrationStates.get(entry.id) || 'setup_required')))}</span></button>` : ''}
                         ${extraPortButtons(entry, app, actionDisabled)}
                         ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>` : ''}
                         ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop'))}</span></button>` : ''}
@@ -351,6 +361,7 @@
             if (action === 'configure-agent') return openBeszelAgentModal(appId);
             if (action === 'configure-gev') return openGodsEyeModal();
             if (action === 'configure-pg') return openPrintGuardModal(false);
+            if (action === 'integration') return openIntegrationModal(appId);
             if (action === 'uninstall') return openUninstallModal(appId);
             return startOperation(appId, action, '/api/desktop/store/apps/' + encodeURIComponent(appId) + '/' + encodeURIComponent(action), 'POST');
         }
@@ -548,6 +559,92 @@
                     if (!instance.disposed) notify({ title: t('desktop.store.title'), message: err.message });
                 }
             });
+        }
+
+        async function openIntegrationModal(appId) {
+            const loadId = instance.integrationLoadId = (instance.integrationLoadId || 0) + 1;
+            const endpoint = '/api/desktop/store/apps/' + appId + '/integration';
+            const previousFocus = document.activeElement;
+            const label = key => esc(t('desktop.store.ig_' + key));
+            try {
+                let saved = await api(endpoint);
+                if (instance.disposed || instance.integrationLoadId !== loadId) return;
+                if (instance.closeConfig) instance.closeConfig();
+                const overlay = document.createElement('div');
+                overlay.className = 'vd-modal-backdrop';
+                const grants = ['read'];
+                if (['adguard-home', 'n8n', 'node-red', 'olivetin'].includes(appId)) grants.push('execute');
+                if (appId === 'bytestash') grants.push('create');
+                if (appId === 'stirling-pdf') grants.push('process', 'sign');
+                if (appId === 'uptime-kuma') grants.push('notify');
+                const field = (name, type = 'text') => `<label class="vd-store-field"><span>${label(name)}</span><input name="${name}" type="${type}" maxlength="${type === 'password' ? 4096 : 2048}" autocomplete="${type === 'password' ? 'new-password' : 'off'}"></label>`;
+                overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true" aria-label="${label('connect')}">
+                    <div class="vd-modal-title">${esc(catalog.find(item => item.id === appId)?.name || appId)} · ${label('connect')}</div>
+                    <p class="vd-store-modal-copy">${label('intro')}</p>
+                    <button type="button" class="vd-button" data-ig-open>${esc(t('desktop.open'))}</button>
+                    ${saved.containerized ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
+                    ${field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
+                    ${field('credential', 'password')}<p data-ig-stored></p>
+                    <label class="vd-store-choice"><input type="checkbox" name="clear_credential"><span>${label('clear_credential')}</span></label>
+                    ${saved.conflict ? `<label class="vd-store-choice"><input type="checkbox" name="select_store_instance"><span>${label('conflict')}</span></label>` : ''}
+                    ${grants.map(name => `<label class="vd-store-choice"><input type="checkbox" name="${name}"><span>${label(name)}</span></label>`).join('')}
+                    ${['node-red', 'olivetin'].includes(appId) ? field('allowed_ids') : ''}
+                    ${appId === 'filebrowser-quantum' ? field('source') : ''}
+                    ${appId === 'stirling-pdf' ? field('certificate_fingerprint') : ''}
+                    ${appId === 'adguard-home' ? `<p class="vd-store-modal-copy">${label('adguard_hint')}</p><label class="vd-store-field"><span>${label('admin_port')}</span><select name="admin_port"><option value="main">3000</option><option value="admin">80</option></select></label>${field('dns_address')}<p class="vd-store-modal-copy">${label('dns_hint')}</p>` : ''}
+                    <p role="status" aria-live="polite" data-ig-status></p>
+                    <div class="vd-modal-actions"><button type="button" class="vd-button" data-ig-close>${esc(t('desktop.close'))}</button>
+                    <button type="button" class="vd-button" data-ig-disconnect>${label('disconnect')}</button>
+                    <button type="button" class="vd-button" data-ig-test>${label('test')}</button>
+                    <button type="submit" class="vd-button vd-button-primary" ${mutationsAllowed ? '' : 'disabled'}>${esc(t('desktop.save'))}</button></div>
+                </form>`;
+                const form = overlay.querySelector('form'), controller = new AbortController();
+                let submitting = false, dirty = false;
+                const alive = () => !instance.disposed && overlay.isConnected;
+                const status = form.querySelector('[data-ig-status]');
+                const test = form.querySelector('[data-ig-test]');
+                const apply = connection => {
+                    saved = connection;
+                    for (const name of ['url', 'username', 'source', 'certificate_fingerprint', 'admin_port', 'dns_address', 'docker_network']) if (form.elements[name]) form.elements[name].value = connection[name] || (name === 'admin_port' ? 'main' : '');
+                    for (const name of grants) form.elements[name].checked = !!connection[name];
+                    if (form.elements.allowed_ids) form.elements.allowed_ids.value = (connection.allowed_ids || []).join(', ');
+                    form.querySelector('[data-ig-stored]').textContent = connection.credential_stored ? t('desktop.store.ig_stored') : '';
+                    status.textContent = connection.message || t('desktop.store.ig_' + connection.state);
+                    integrationStates.set(appId, connection.state);
+                    dirty = false;
+                    test.disabled = !mutationsAllowed || !connection.revision;
+                };
+                const close = () => { controller.abort(); closeOverlay(overlay); if (instance.closeConfig === close) instance.closeConfig = null; if (previousFocus?.isConnected) previousFocus.focus(); };
+                instance.closeConfig = close;
+                form.querySelector('[data-ig-close]').onclick = close;
+                form.querySelector('[data-ig-open]').onclick = () => openStorePort(appId, saved.admin_port || '');
+                form.addEventListener('input', () => { dirty = true; test.disabled = true; status.textContent = t('desktop.store.ig_save_first'); });
+                form.addEventListener('change', () => { dirty = true; test.disabled = true; });
+                const submit = async method => {
+                    if (submitting || !mutationsAllowed || (method === 'POST' && dirty)) return;
+                    submitting = true;
+                    const payload = {revision: saved.revision, url: form.elements.url.value.trim(), credential: form.elements.credential.value, clear_credential: form.elements.clear_credential.checked, select_store_instance: !!form.elements.select_store_instance?.checked};
+                    for (const name of grants) payload[name] = form.elements[name].checked;
+                    for (const name of ['username', 'source', 'certificate_fingerprint', 'admin_port', 'dns_address', 'docker_network']) if (form.elements[name]) payload[name] = form.elements[name].value.trim();
+                    if (form.elements.allowed_ids) payload.allowed_ids = form.elements.allowed_ids.value.split(',').map(value => value.trim()).filter(Boolean);
+                    const controls = [...form.querySelectorAll('input, select, button')];
+                    controls.forEach(control => { control.disabled = true; });
+                    try {
+                        const response = await api(endpoint + (method === 'POST' ? '/test' : ''), {method, body: method === 'PUT' ? JSON.stringify(payload) : undefined, signal: controller.signal});
+                        if (alive()) { apply(response); renderCards(); }
+                    } catch (error) { if (alive()) status.textContent = error.message; }
+                    finally { delete payload.credential; if (form.elements.credential) form.elements.credential.value = ''; submitting = false; if (alive()) { controls.forEach(control => { control.disabled = false; }); test.disabled = dirty || !saved.revision; } }
+                };
+                form.addEventListener('submit', event => { event.preventDefault(); void submit('PUT'); });
+                test.onclick = () => void submit('POST');
+                form.querySelector('[data-ig-disconnect]').onclick = () => void submit('DELETE');
+                overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+                overlay.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+                    if (event.key === 'Tab') { const controls = [...form.querySelectorAll('input, select, button')].filter(el => !el.disabled); const first = controls[0], last = controls[controls.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } }
+                });
+                apply(saved); trackOverlay(overlay); form.querySelector('button').focus();
+            } catch (error) { if (!instance.disposed && instance.integrationLoadId === loadId) notify({title: t('desktop.store.ig_connect'), message: error.message}); }
         }
 
         function printGuardMessage(error) {

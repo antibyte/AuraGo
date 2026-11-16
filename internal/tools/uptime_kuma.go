@@ -22,6 +22,7 @@ import (
 
 // UptimeKumaConfig contains the connection settings for the /metrics endpoint.
 type UptimeKumaConfig struct {
+	StoreManaged   bool
 	BaseURL        string
 	APIKey         string
 	InsecureSSL    bool
@@ -109,6 +110,14 @@ func uptimeKumaHTTPClient(cfg UptimeKumaConfig) *http.Client {
 
 // FetchUptimeKumaSnapshot scrapes the metrics endpoint and maps it into a typed snapshot.
 func FetchUptimeKumaSnapshot(ctx context.Context, cfg UptimeKumaConfig, logger *slog.Logger) (UptimeKumaSnapshot, error) {
+	if cfg.StoreManaged {
+		bound, release, err := AcquireStoreAccess(ctx, "uptime-kuma", cfg.BaseURL, false)
+		if err != nil {
+			return UptimeKumaSnapshot{}, err
+		}
+		defer release()
+		ctx = bound
+	}
 	baseURL, err := normalizeUptimeKumaBaseURL(cfg.BaseURL)
 	if err != nil {
 		return UptimeKumaSnapshot{}, err

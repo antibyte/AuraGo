@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +15,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktopstore"
+	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
 )
@@ -582,7 +582,7 @@ type serverStoreSecretStore struct {
 func (s *serverStoreSecretStore) ReadSecret(key string) (string, error) {
 	value, ok := s.data[key]
 	if !ok {
-		return "", errors.New("secret not found")
+		return "", security.ErrSecretNotFound
 	}
 	return value, nil
 }

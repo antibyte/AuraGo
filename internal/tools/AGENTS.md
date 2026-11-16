@@ -10,6 +10,12 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Store-managed AdGuard/Kuma configurations acquire the server-owned Store access
+  lease before HTTP. Missing verification, revoked permissions and pending Store
+  operations fail closed; manual configurations retain their existing behavior.
+  Cancellation propagates into the request and response body. Verify
+  `TestStoreIntegration*`, AdGuard and Uptime Kuma regressions.
+
 - `question_user.go` issues a unique `question_id` for each registration. `CompleteQuestion` requires that ID plus an adapter-created `QuestionAnswerIdentity`; validate identity, option/free-text policy and ID before compare-and-delete. Untrusted/loopback sources cannot answer. Scoped identities only answer their own conversation; authenticated owners may answer their shared question across channels. Native text resolution captures the current ID. Timeout cleanup cancels by ID so it cannot remove a replacement question.
 
 - Compose file validation fails closed on path-resolution errors, including Windows junctions. Compare resolved file/workspace paths before every existing CLI entry point. Agent preflight and its final recheck read through `os.Root` with the existing regular-file, identity and 4-MiB bounds; model/host-access checks remain required.

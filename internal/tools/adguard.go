@@ -15,10 +15,11 @@ import (
 
 // AdGuardConfig holds the connection parameters for an AdGuard Home instance.
 type AdGuardConfig struct {
-	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
-	URL      string
-	Username string
-	Password string
+	StoreManaged bool
+	Context      context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	URL          string
+	Username     string
+	Password     string
 }
 
 // adguardClient is a lazily-initialized shared HTTP client.
@@ -39,6 +40,14 @@ func getAdGuardClient() *http.Client {
 
 // adguardRequest performs an HTTP request against the AdGuard Home API.
 func adguardRequest(cfg AdGuardConfig, method, endpoint string, body string) ([]byte, int, error) {
+	if cfg.StoreManaged {
+		ctx, release, err := AcquireStoreAccess(cfg.Context, "adguard-home", cfg.URL, method != http.MethodGet && endpoint != "/control/test_upstream_dns")
+		if err != nil {
+			return nil, 0, err
+		}
+		defer release()
+		cfg.Context = ctx
+	}
 	security.RegisterSensitive(cfg.Password)
 	if err := security.ValidateHTTPBaseURL(cfg.URL); err != nil {
 		return nil, 0, err

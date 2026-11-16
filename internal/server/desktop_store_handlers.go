@@ -79,19 +79,21 @@ func (s *Server) getDesktopStoreService(ctx context.Context) (*desktopstore.Serv
 		}
 	}
 	store, err := desktopstore.NewService(desktopstore.Config{
-		DBPath:           filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
-		DockerHost:       desktopCfg.DockerHost,
-		DataDir:          desktopCfg.DataDir,
-		WorkspaceDir:     desktopCfg.WorkspaceDir,
-		Docker:           desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
-		Desktop:          desktopSvc,
-		Launchpad:        launchpadAdapter,
-		Secrets:          s.Vault,
-		NativeManaged:    newDesktopStoreNativeRuntime(desktopSvc),
-		LLMRelay:         storeLLMRelayProvider{s: s},
-		Logger:           s.Logger,
-		CompanionSettle:  desktopstore.DefaultCompanionSettle,
-		CompanionRecheck: desktopstore.DefaultCompanionRecheck,
+		DBPath:             filepath.Join(desktopCfg.DataDir, "desktop_store.db"),
+		DockerHost:         desktopCfg.DockerHost,
+		DataDir:            desktopCfg.DataDir,
+		WorkspaceDir:       desktopCfg.WorkspaceDir,
+		Docker:             desktopstore.NewToolsDockerAdapter(desktopCfg.DockerHost, desktopCfg.WorkspaceDir, s.Logger),
+		Desktop:            desktopSvc,
+		Launchpad:          launchpadAdapter,
+		Secrets:            s.Vault,
+		NativeManaged:      newDesktopStoreNativeRuntime(desktopSvc),
+		Containerized:      s.ConfigSnapshot().Runtime.IsDocker,
+		IntegrationDeleted: s.deleteStoreIntegrationData,
+		LLMRelay:           storeLLMRelayProvider{s: s},
+		Logger:             s.Logger,
+		CompanionSettle:    desktopstore.DefaultCompanionSettle,
+		CompanionRecheck:   desktopstore.DefaultCompanionRecheck,
 	})
 	if err != nil {
 		return nil, err
@@ -254,6 +256,10 @@ func handleDesktopStoreAppRoute(s *Server) http.HandlerFunc {
 			return
 		}
 		appID := parts[0]
+		if len(parts) >= 2 && parts[1] == "integration" {
+			handleDesktopStoreIntegration(s, appID, parts[2:])(w, r)
+			return
+		}
 		action := ""
 		if len(parts) > 1 {
 			action = parts[1]
@@ -355,13 +361,17 @@ func handleDesktopStoreOpenURL(s *Server, appID string) http.HandlerFunc {
 			return
 		}
 		fromTailnet, tailnetDNS := s.storeTailnetRequestInfo(r)
-		openURL, app, err := store.OpenURL(r.Context(), appID, r.Host, fromTailnet, tailnetDNS, r.URL.Query().Get("port_id"))
+		selectedPort := r.URL.Query().Get("port_id")
+		if selectedPort == "" {
+			selectedPort = s.storeIntegrationAdminPort(appID)
+		}
+		openURL, app, err := store.OpenURL(r.Context(), appID, r.Host, fromTailnet, tailnetDNS, selectedPort)
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
 		if appID == desktopstore.PrintGuardAppID || s.previewRequested(r) {
-			portID := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("port_id")))
+			portID := strings.ToLower(strings.TrimSpace(selectedPort))
 			if portID == "" && len(app.Ports) > 0 {
 				portID = app.Ports[0].ID
 			}
@@ -650,10 +660,12 @@ func handleDesktopStoreDelete(s *Server, appID string) http.HandlerFunc {
 }
 
 func (s *Server) runDesktopStoreOperation(store *desktopstore.Service, operation desktopstore.Operation) {
+	s.revokeStoreIntegration(operation.AppID)
 	operationID := operation.ID
 	go func() {
 		ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 30*time.Minute)
 		defer cancel()
+		defer s.refreshStoreIntegration(store, operation.AppID)
 		if operation.AppID == desktopstore.PrintGuardAppID {
 			_ = store.RevokePrintGuardVerification()
 			_ = tools.SetManagedMCPServer(desktopstore.PrintGuardMCPName, nil)
@@ -867,7 +879,7 @@ func desktopStoreTailscaleProxySpecs(apps []desktopstore.InstalledApp) ([]tsnetn
 			ports = []desktopstore.PortBinding{{ID: "main", HostPort: app.HostPort}}
 		}
 		for i, port := range ports {
-			if port.HostPort <= 0 {
+			if port.HostPort <= 0 || !desktopstore.IsHTTPPort(port) {
 				continue
 			}
 			id := app.AppID

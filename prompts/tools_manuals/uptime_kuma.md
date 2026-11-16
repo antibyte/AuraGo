@@ -2,6 +2,11 @@
 
 Read monitor states from Uptime Kuma using the official Prometheus `/metrics` endpoint.
 
+Store installations connect through **Connect to agent** using a key created in
+Kuma. Status-change notifications need their separate grant and keep the existing
+isolated, deduplicated poller. A stopped or unverified Store binding blocks access;
+do not substitute shell or raw HTTP for a rejected connection.
+
 ## Operations
 
 | Operation | Description |

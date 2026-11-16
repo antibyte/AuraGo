@@ -2,6 +2,12 @@
 
 Manage AdGuard Home DNS server: filtering, rewrites, clients, DHCP, and statistics.
 
+Store installations connect through **Connect to agent** after AdGuard setup.
+Credentials stay in the existing Vault entry. Initial access is read-only;
+execution needs a separate grant. Disabled, unverified or stopped Store bindings
+reject calls, including older agent snapshots. Ask the administrator to test the
+connection instead of bypassing a rejected binding with shell or raw HTTP.
+
 ## Operations
 
 | Operation | Description |
