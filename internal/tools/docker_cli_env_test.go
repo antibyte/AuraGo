@@ -60,6 +60,7 @@ func TestDockerComposeResolvedConfigUsesTheMinimalRunnerOnlyWhenAsked(t *testing
 		return []byte(`{"services":{}}`), nil, nil
 	}
 	workspace := t.TempDir()
+	writeComposePathFixture(t, workspace)
 	for _, cfg := range []DockerConfig{{WorkspaceDir: workspace}, {WorkspaceDir: workspace, MinimalCLIEnvironment: true}} {
 		if _, err := DockerComposeResolvedConfigContext(context.Background(), cfg, "compose.yml", DockerComposeConfigOptions{}); err != nil {
 			t.Fatal(err)
@@ -81,6 +82,7 @@ func TestDockerComposePassesTheEnvironmentChoiceToTheCLI(t *testing.T) {
 	}
 	t.Cleanup(func() { dockerComposeCLIRunner = previous })
 	workspace := t.TempDir()
+	writeComposePathFixture(t, workspace)
 	DockerCompose(DockerConfig{WorkspaceDir: workspace}, "compose.yml", "ps")
 	DockerCompose(DockerConfig{WorkspaceDir: workspace, MinimalCLIEnvironment: true}, "compose.yml", "ps")
 	if !reflect.DeepEqual(seen, []bool{false, true}) {
@@ -118,7 +120,9 @@ func TestDockerComposeResolvedConfigReportsItsOwnTimeoutAsADeadline(t *testing.T
 		<-ctx.Done()
 		return nil, nil, errors.New("signal: killed")
 	}
-	_, err := DockerComposeResolvedConfigContext(context.Background(), DockerConfig{WorkspaceDir: t.TempDir()}, "compose.yml", DockerComposeConfigOptions{})
+	workspace := t.TempDir()
+	writeComposePathFixture(t, workspace)
+	_, err := DockerComposeResolvedConfigContext(context.Background(), DockerConfig{WorkspaceDir: workspace}, "compose.yml", DockerComposeConfigOptions{})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("error = %v, want one that wraps context.DeadlineExceeded", err)
 	}

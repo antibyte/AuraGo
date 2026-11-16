@@ -20,6 +20,7 @@ This package owns local HTTP/TLS servers, test asset packaging and storage fixtu
   custom certificates. Network grants remain explicit in each test.
 - Fixture subprocesses use `sandbox.FilterEnv`; parent credentials must not be inherited.
 - Fixtures use synthetic data and never contact live providers or mutate accounts.
+- `DirectoryLink` creates Unix directory symlinks or Windows junctions between test-owned directories. Required path-boundary tests fail rather than skip if fixture creation fails; callers own cleanup through `t.TempDir`.
 
 ## Work Guidance
 

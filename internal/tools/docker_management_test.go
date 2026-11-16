@@ -431,6 +431,7 @@ func TestDockerComposeOutputArgsStayInWorkspace(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(workspace, "rendered"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	writeComposePathFixture(t, workspace)
 	cfg := DockerConfig{WorkspaceDir: workspace}
 	resolvedWorkspace, err := secureResolveFinalPath(workspace)
 	if err != nil {
@@ -693,6 +694,7 @@ func TestDockerComposeConfigOutputIsStagedAndPublished(t *testing.T) {
 	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true, DockerReadOnly: true})
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
 	workspace := t.TempDir()
+	writeComposePathFixture(t, workspace)
 	resolvedWorkspace, err := secureResolveFinalPath(workspace)
 	if err != nil {
 		t.Fatal(err)
@@ -911,6 +913,7 @@ func TestDockerComposeOutputPublishRefusalsAreCoded(t *testing.T) {
 	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
 	t.Cleanup(func() { ConfigureRuntimePermissions(defaultRuntimePermissionsForTests()) })
 	workspace := t.TempDir()
+	writeComposePathFixture(t, workspace)
 	resolved, err := secureResolveFinalPath(workspace)
 	if err != nil {
 		t.Fatal(err)

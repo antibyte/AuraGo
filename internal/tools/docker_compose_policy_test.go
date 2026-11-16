@@ -282,6 +282,9 @@ func TestResolveDockerComposeFileMarksJailViolations(t *testing.T) {
 	if err := os.MkdirAll(workspace, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(workspace, "compose.yml"), []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	_, err := ResolveDockerComposeFile(DockerConfig{WorkspaceDir: workspace}, filepath.Join(root, "outside.yml"))
 	if !errors.Is(err, ErrDockerComposeFileOutsideWorkspace) || !strings.Contains(err.Error(), "must stay within the configured workspace") {
 		t.Fatalf("outside file error = %v, want ErrDockerComposeFileOutsideWorkspace with the jail message", err)
