@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+// durableTestWait bounds every wait in this file for something that must happen (a worker starts, a
+// slot is released, a run ends). It only limits the failure path: each select and polling loop returns
+// as soon as its condition holds. Fixed limits of 2 to 5 s failed under the load of T0, where Go
+// packages and Node suites run in parallel; alone, the tests finish in well under a second.
+const durableTestWait = 20 * time.Second
+
 type claimedBlockingKeys struct {
 	calls   atomic.Int32
 	reached chan struct{}
@@ -77,7 +83,7 @@ func durableQueuedFixtureWithHistory(t *testing.T, history func(*Store) DurableH
 		t.Fatal(err)
 	}
 	durableReviewWait(t, s.runner, store, started.RunID)
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 		time.Sleep(time.Millisecond)
 	}
@@ -92,7 +98,7 @@ func TestDurableCancelFencesStaleWakeSnapshot(t *testing.T) {
 	r.startMu.Lock()
 	done := make(chan struct{})
 	go func() { defer close(done); s.recoverDurableDue(ctx) }()
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for len(r.durableSlots) == 0 && time.Now().Before(until) {
 		time.Sleep(time.Millisecond)
 	}
@@ -107,7 +113,7 @@ func TestDurableCancelFencesStaleWakeSnapshot(t *testing.T) {
 	}
 	select {
 	case <-done:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("wake did not release admission")
 	}
 	if r.IsBusy(req.Flow.ID) || len(r.durableSlots) != 0 {
@@ -231,7 +237,7 @@ func TestDurableCancelReleasesConnectionBeforeHistoryProjection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("history projection could not acquire the only store connection")
 	}
 }
@@ -258,7 +264,7 @@ func TestDurableHeartbeatRenewsAndStopsStaleOwner(t *testing.T) {
 	stop := s.runner.startDurableHeartbeat(worker, cancel, p, control)
 	defer stop()
 	clock := s.services.Clock.(*fakeClock)
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for clock.pending() == 0 && time.Now().Before(until) {
 		time.Sleep(time.Millisecond)
 	}
@@ -287,7 +293,7 @@ func TestDurableHeartbeatRenewsAndStopsStaleOwner(t *testing.T) {
 	clock.Advance(durableLease / 3)
 	select {
 	case <-worker.Done():
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("stale lease owner kept running")
 	}
 	if err := control.renew(ctx); err == nil {
@@ -338,13 +344,13 @@ func TestDurableCancelDuringClaimDoesNotResurrectRun(t *testing.T) {
 	s.recoverDurableDue(ctx)
 	select {
 	case <-keys.reached:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("worker did not reach claimed checkpoint read")
 	}
 	if ok, err := s.CancelDurableRun(ctx, runID, 1); !ok || err != nil {
 		t.Fatalf("cancel %v %v", ok, err)
 	}
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for s.runner.IsBusy(req.Flow.ID) && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -366,7 +372,7 @@ func TestDurableShutdownDuringClaimPreservesCheckpoint(t *testing.T) {
 	s.recoverDurableDue(ctx)
 	select {
 	case <-keys.reached:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("worker did not reach claimed checkpoint read")
 	}
 	shutdown, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -391,11 +397,11 @@ func TestDurableDisableDuringClaimPreservesCheckpointAcrossReenable(t *testing.T
 	s.recoverDurableDue(ctx)
 	select {
 	case <-keys.reached:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("worker did not reach claimed checkpoint read")
 	}
 	s.InvalidateDurableProcessing()
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -410,7 +416,7 @@ func TestDurableDisableDuringClaimPreservesCheckpointAcrossReenable(t *testing.T
 	s.services.CheckpointKeys = &durableReviewKeys{}
 	s.services.Clock.(*fakeClock).Advance(durableLease + time.Second)
 	s.recoverDurableDue(ctx)
-	until = time.Now().Add(4 * time.Second)
+	until = time.Now().Add(durableTestWait)
 	for time.Now().Before(until) {
 		header, err := s.store.GetRunHeader(ctx, runID)
 		if err != nil {
@@ -435,13 +441,13 @@ func TestDurableDeleteDuringClaimStopsWorkerAndReleasesReservation(t *testing.T)
 	s.recoverDurableDue(ctx)
 	select {
 	case <-keys.reached:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("worker did not reach claimed checkpoint read")
 	}
 	if err := s.DeleteFlow(ctx, req.Flow.ID); err != nil {
 		t.Fatal(err)
 	}
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for s.runner.IsBusy(req.Flow.ID) && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -475,7 +481,7 @@ func TestDurableStaleExecutingWorkerCannotPublishOrPersist(t *testing.T) {
 	s.recoverDurableDue(ctx)
 	select {
 	case <-entered:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("real set worker did not start")
 	}
 	var generation int
@@ -486,18 +492,18 @@ func TestDurableStaleExecutingWorkerCannotPublishOrPersist(t *testing.T) {
 		t.Fatal(err)
 	}
 	clock := s.services.Clock.(*fakeClock)
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for clock.pending() == 0 && time.Now().Before(until) {
 		time.Sleep(time.Millisecond)
 	}
 	clock.Advance(durableLease / 3)
 	select {
 	case <-cancelled:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("stale executing worker was not fenced")
 	}
 	releaseOnce.Do(func() { close(release) })
-	until = time.Now().Add(3 * time.Second)
+	until = time.Now().Add(durableTestWait)
 	for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -554,7 +560,7 @@ func TestDurableExecutingWorkerRevocationAndStop(t *testing.T) {
 			s.recoverDurableDue(ctx)
 			select {
 			case <-entered:
-			case <-time.After(3 * time.Second):
+			case <-time.After(durableTestWait):
 				t.Fatal("real worker did not start")
 			}
 			var generation int
@@ -583,7 +589,7 @@ func TestDurableExecutingWorkerRevocationAndStop(t *testing.T) {
 			}()
 			select {
 			case <-revoked:
-			case <-time.After(3 * time.Second):
+			case <-time.After(durableTestWait):
 				t.Fatal("worker was not revoked")
 			}
 			once.Do(func() { close(release) })
@@ -592,10 +598,10 @@ func TestDurableExecutingWorkerRevocationAndStop(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-			case <-time.After(3 * time.Second):
+			case <-time.After(durableTestWait):
 				t.Fatal("stop did not finish")
 			}
-			until := time.Now().Add(3 * time.Second)
+			until := time.Now().Add(durableTestWait)
 			for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 				time.Sleep(10 * time.Millisecond)
 			}
@@ -657,12 +663,12 @@ func TestDurableExecutingWorkerKeyLossPreservesCheckpoint(t *testing.T) {
 	s.recoverDurableDue(ctx)
 	select {
 	case <-entered:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("real worker did not start")
 	}
 	keys.fail.Store(true)
 	once.Do(func() { close(release) })
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
 	}
@@ -686,7 +692,7 @@ func TestDurableExecutingWorkerKeyLossPreservesCheckpoint(t *testing.T) {
 	s.runner.testWrapDurableSet = nil
 	s.services.Clock.(*fakeClock).Advance(durableLease + time.Second)
 	s.recoverDurableDue(ctx)
-	until = time.Now().Add(4 * time.Second)
+	until = time.Now().Add(durableTestWait)
 	for time.Now().Before(until) {
 		header, steps, err = s.store.GetRun(ctx, runID)
 		if err != nil {
@@ -743,7 +749,7 @@ func TestDurableExecutingWorkerChangedKeyPreservesAllTerminalPaths(t *testing.T)
 				s.recoverDurableDue(ctx)
 				select {
 				case <-entered:
-				case <-time.After(3 * time.Second):
+				case <-time.After(durableTestWait):
 					t.Fatal("real worker did not start")
 				}
 				var before []byte
@@ -757,7 +763,7 @@ func TestDurableExecutingWorkerChangedKeyPreservesAllTerminalPaths(t *testing.T)
 					keys.wrong.Store(true)
 				}
 				once.Do(func() { close(release) })
-				until := time.Now().Add(3 * time.Second)
+				until := time.Now().Add(durableTestWait)
 				for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 					time.Sleep(10 * time.Millisecond)
 				}
@@ -792,7 +798,7 @@ func TestDurableExecutingWorkerChangedKeyPreservesAllTerminalPaths(t *testing.T)
 				s.runner.testWrapDurableSet = nil
 				s.services.Clock.(*fakeClock).Advance(durableLease + time.Second)
 				s.recoverDurableDue(ctx)
-				until = time.Now().Add(4 * time.Second)
+				until = time.Now().Add(durableTestWait)
 				for time.Now().Before(until) {
 					header, _, err = s.store.GetRun(ctx, runID)
 					if err != nil {
@@ -861,24 +867,24 @@ func TestDurableExecutingWorkerHonorsOriginalDeadline(t *testing.T) {
 	s.recoverDurableDue(ctx)
 	select {
 	case <-entered:
-	case <-time.After(3 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("real worker did not start")
 	}
 	select {
 	case <-expired:
-	case <-time.After(5 * time.Second):
+	case <-time.After(durableTestWait):
 		t.Fatal("original deadline did not stop worker")
 	}
 	once.Do(func() { close(release) })
 	// A late result cannot checkpoint with the expired execution context. The
 	// next owner records timeout only after the old lease has safely expired.
-	until := time.Now().Add(3 * time.Second)
+	until := time.Now().Add(durableTestWait)
 	for len(s.runner.durableSlots) != 0 && time.Now().Before(until) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	clock.Advance(durableLease + time.Second)
 	s.recoverDurableDue(ctx)
-	until = time.Now().Add(4 * time.Second)
+	until = time.Now().Add(durableTestWait)
 	for time.Now().Before(until) {
 		header, steps, err := store.GetRun(ctx, started.RunID)
 		if err != nil {
