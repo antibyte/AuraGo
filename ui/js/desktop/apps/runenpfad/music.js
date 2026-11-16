@@ -1,12 +1,671 @@
-/* Runenpfad procedural music (stub; final API, no-op until its batch lands). */
+/* Runenpfad procedural adaptive music. DOM-free, seeded: composition is pure, synthesis needs a Web Audio port. */
 (function (root) {
     'use strict';
 
-    const api = {
-        THEMES: {},
-        intensityFor: function () { return null; },
-        createMusicController: function () { return null; }
+    const SCALES = {
+        dorian: [0, 2, 3, 5, 7, 9, 10],
+        phrygian: [0, 1, 3, 5, 7, 8, 10],
+        phrygianDominant: [0, 1, 4, 5, 7, 8, 10],
+        lydian: [0, 2, 4, 6, 7, 9, 11],
+        harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
+        minor: [0, 2, 3, 5, 7, 8, 10]
+    };
+    const LAYERS = ['pad', 'bass', 'arp', 'melody', 'perc', 'boss'];
+    const BIOME_ORDER = ['woodland', 'cavern', 'desert', 'glacier', 'citadel'];
+    const VOICE_CAP = 24;
+    const CROSSFADE = 1.5;
+    const LOOKAHEAD = 0.25;
+    const BEATS = 4;
+    const ARP_PATTERNS = [[0, 1, 2, 3, 2, 1, 0, 1], [0, 2, 1, 2, 0, 2, 1, 3], [0, 1, 2, 1, 3, 2, 1, 2]];
+    const MELODY_RHYTHMS = [[0, 1, 1.5, 2.5], [0, 0.5, 1, 2], [0, 1.5, 2, 3], [0, 1, 2, 3], [0, 0.75, 1.5, 2.5, 3]];
+    const OSTINATO = [0, 0, 1, 0, 0, 2, 0, -1];
+    const EIGHTHS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5];
+
+    // Biome themes: tonic (midi), mode, tempo, two 4-bar chord loops (scale degrees), instruments, calm drum grid.
+    const BASE_SPECS = {
+        woodland: { root: 50, scale: 'dorian', bpm: 96, prog: [[0, 3, 0, 4], [5, 3, 4, 0]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS },
+        cavern: { root: 57, scale: 'phrygian', bpm: 80, prog: [[0, 1, 0, 6], [0, 3, 1, 0]], arpInstr: 'bell', melInstr: 'bell', arpGrid: [0, 1.5, 2, 3.5] },
+        desert: { root: 52, scale: 'phrygianDominant', bpm: 104, prog: [[0, 1, 0, 6], [0, 4, 1, 0]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS },
+        glacier: { root: 54, scale: 'lydian', bpm: 72, prog: [[0, 1, 0, 4], [5, 1, 4, 0]], arpInstr: 'bell', melInstr: 'bell', arpGrid: [0, 1, 2, 3] },
+        citadel: { root: 48, scale: 'harmonicMinor', bpm: 120, prog: [[0, 5, 3, 4], [0, 3, 4, 0]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS }
     };
 
-    root.RunenpfadMusic = api;
+    function buildThemes() {
+        const out = {};
+        BIOME_ORDER.forEach(function (biome) {
+            const s = BASE_SPECS[biome];
+            out[biome] = {
+                id: biome, biome: biome, boss: false, root: s.root, scaleName: s.scale, scale: SCALES[s.scale],
+                bpm: s.bpm, prog: s.prog, arpInstr: s.arpInstr, melInstr: s.melInstr, arpGrid: s.arpGrid,
+                drums: { kick: [0, 2], snare: [1, 3], hat: [0.5, 1.5, 2.5, 3.5] }
+            };
+            const bossScale = biome === 'citadel' ? 'harmonicMinor' : 'minor';
+            out['boss_' + biome] = {
+                id: 'boss_' + biome, biome: biome, boss: true, root: s.root, scaleName: bossScale, scale: SCALES[bossScale],
+                bpm: Math.round(s.bpm * 1.15), prog: [[0, 5, 3, 4], [0, 6, 5, 4]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS,
+                drums: { kick: [0, 1.5, 2, 3], snare: [1, 3], hat: EIGHTHS }
+            };
+        });
+        return out;
+    }
+    const THEMES = buildThemes();
+
+    function hash32(value) {
+        const s = String(value);
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < s.length; i++) {
+            h ^= s.charCodeAt(i);
+            h = Math.imul(h, 16777619) >>> 0;
+        }
+        h ^= h >>> 15;
+        h = Math.imul(h, 2246822519) >>> 0;
+        h ^= h >>> 13;
+        return h >>> 0;
+    }
+
+    function rngOf(seed) {
+        let a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+    // Scale degree (may exceed 6 or go negative) -> midi note; always lands on a scale tone.
+    function degMidi(theme, degree) {
+        const oct = Math.floor(degree / 7);
+        const idx = ((degree % 7) + 7) % 7;
+        return theme.root + theme.scale[idx] + 12 * oct;
+    }
+
+    function fold(midi, lo, hi) {
+        let m = midi;
+        while (m > hi) m -= 12;
+        while (m < lo) m += 12;
+        return m;
+    }
+
+    function motifFor(theme, seed) {
+        const rng = rngOf(hash32(theme.id + '|motif|' + seed));
+        const rhythm = MELODY_RHYTHMS[Math.floor(rng() * MELODY_RHYTHMS.length)];
+        let step = 2;
+        const notes = [];
+        rhythm.forEach(function (t, i) {
+            const next = i + 1 < rhythm.length ? rhythm[i + 1] : BEATS;
+            notes.push({ t: t, dur: Math.min(1.75, (next - t) * 0.95), step: step });
+            const move = [-2, -1, -1, 1, 1, 2][Math.floor(rng() * 6)];
+            step = clamp(step + move, 0, 6);
+        });
+        return notes;
+    }
+
+    // One bar of one layer as note events: {t, dur (beats), midi|null, vel, type}.
+    function composeBar(themeId, layer, bar, seed) {
+        const theme = THEMES[themeId];
+        if (!theme) return [];
+        const s = seed >>> 0;
+        const section = Math.floor(bar / 4) % 2;
+        const phrase = ((bar % 4) + 4) % 4;
+        const d = theme.prog[section][phrase];
+        const rng = rngOf(hash32(themeId + '|' + layer + '|' + bar + '|' + s));
+        const root = theme.root;
+        const out = [];
+        if (layer === 'pad') {
+            [d, d + 2, d + 4].forEach(function (deg, i) {
+                out.push({ t: 0, dur: BEATS, midi: fold(degMidi(theme, deg), root - 2, root + 14), vel: i === 0 ? 0.9 : 0.75, type: 'pad' });
+            });
+        } else if (layer === 'bass') {
+            const low = fold(degMidi(theme, d), root - 14, root - 3);
+            const fifth = fold(degMidi(theme, d + 4), root - 14, root - 3);
+            if (theme.boss) {
+                EIGHTHS.forEach(function (t, i) {
+                    out.push({ t: t, dur: 0.42, midi: i % 4 === 3 ? fold(low + 12, root - 14, root + 2) : low, vel: i % 2 === 0 ? 1 : 0.7, type: 'bass' });
+                });
+            } else if (rng() < 0.5) {
+                out.push({ t: 0, dur: 2.5, midi: low, vel: 1, type: 'bass' });
+                out.push({ t: 2.5, dur: 0.5, midi: low, vel: 0.7, type: 'bass' });
+                out.push({ t: 3, dur: 1, midi: fifth, vel: 0.8, type: 'bass' });
+            } else {
+                out.push({ t: 0, dur: 3, midi: low, vel: 1, type: 'bass' });
+                out.push({ t: 3, dur: 1, midi: fifth, vel: 0.75, type: 'bass' });
+            }
+        } else if (layer === 'arp') {
+            const pat = ARP_PATTERNS[hash32(themeId + '|arp|' + s) % ARP_PATTERNS.length];
+            const tones = [d, d + 2, d + 4, d + 7];
+            const gap = theme.arpGrid.length > 1 ? theme.arpGrid[1] - theme.arpGrid[0] : 1;
+            theme.arpGrid.forEach(function (t, i) {
+                if (!theme.boss && rng() < 0.12) return;
+                const idx = pat[i % pat.length] % 4;
+                out.push({ t: t, dur: Math.max(0.5, gap * 1.2), midi: fold(degMidi(theme, tones[idx]) + 12, root + 7, root + 24), vel: (t % 1 === 0 ? 0.85 : 0.6) + rng() * 0.15, type: theme.arpInstr });
+            });
+        } else if (layer === 'melody') {
+            if (bar % 8 === 7) {
+                out.push({ t: 0, dur: 3, midi: fold(degMidi(theme, d + 7), root + 12, root + 28), vel: 0.7, type: theme.melInstr });
+                return out;
+            }
+            const motif = motifFor(theme, s);
+            motif.forEach(function (n, i) {
+                let step = n.step;
+                if (phrase === 1) step += 1;
+                else if (phrase === 2 && i === motif.length - 1) step += 2;
+                else if (phrase === 3) step = i === motif.length - 1 ? 0 : motif[motif.length - 1 - i].step;
+                if (section === 1 && phrase === 0 && i === 1) step -= 1;
+                out.push({ t: n.t, dur: n.dur, midi: fold(degMidi(theme, d + 7 + step), root + 12, root + 28), vel: 0.75 + rng() * 0.2, type: theme.melInstr });
+            });
+        } else if (layer === 'perc') {
+            const fill = phrase === 3;
+            theme.drums.kick.forEach(function (t) { out.push({ t: t, dur: 0.3, midi: null, vel: 0.9, type: 'kick' }); });
+            theme.drums.snare.forEach(function (t) { out.push({ t: t, dur: 0.2, midi: null, vel: 0.6, type: 'snare' }); });
+            theme.drums.hat.forEach(function (t) { out.push({ t: t, dur: 0.1, midi: null, vel: 0.4 + rng() * 0.3, type: 'hat' }); });
+            if (fill) {
+                [3.25, 3.5, 3.75].forEach(function (t) { out.push({ t: t, dur: 0.15, midi: null, vel: 0.5, type: 'snare' }); });
+            }
+        } else if (layer === 'boss') {
+            if (!theme.boss) return out;
+            EIGHTHS.forEach(function (t, i) {
+                out.push({ t: t, dur: 0.4, midi: fold(degMidi(theme, d + OSTINATO[i]), root - 5, root + 12), vel: i % 2 === 0 ? 1 : 0.7, type: 'ostinato' });
+            });
+        }
+        return out;
+    }
+
+    function biomeOf(sim) {
+        const stage = sim && sim.stage;
+        if (!stage) return 'woodland';
+        if (stage.biome && THEMES[stage.biome.id]) return stage.biome.id;
+        return BIOME_ORDER[(((stage.worldIndex | 0) % 5) + 5) % 5];
+    }
+
+    function themeIdFor(sim, boss) {
+        const biome = biomeOf(sim);
+        return boss ? 'boss_' + biome : biome;
+    }
+
+    // Reads the simulation only; danger rises as the nearest live enemy closes inside 360 px.
+    function intensityFor(sim) {
+        if (!sim || !sim.stage || !sim.player) return null;
+        const p = sim.player;
+        const stage = sim.stage;
+        const enemies = stage.enemies || [];
+        let nearest = Infinity;
+        let boss = null;
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            if (!e || e.dead) continue;
+            const dist = Math.hypot(e.x - p.x, e.y - p.y);
+            if (dist < nearest) nearest = dist;
+            if (stage.bossId !== undefined && stage.bossId !== null && e.id === stage.bossId) boss = { e: e, dist: dist };
+        }
+        const danger = nearest < 360 ? clamp(1 - nearest / 360, 0, 1) : 0;
+        const engaged = !!(boss && (sim.bossIntro || boss.dist < 640 || (boss.e.ai && boss.e.ai.state && boss.e.ai.state !== 'wait')));
+        return { danger: danger, boss: engaged, bossAlive: !!boss, state: sim.state };
+    }
+
+    function createMusicController(port) {
+        if (!port || typeof port !== 'object') return null;
+        let ctx = null;
+        let out = null;
+        let send = null;
+        let stingOut = null;
+        let noise = null;
+        let enabled = true;
+        let active = true;
+        let disposed = false;
+        let fadedOut = false;
+        let curDeck = null;
+        let decks = [];
+        let voiceCount = 0;
+        let stageRef = null;
+        let stageSeed = 0;
+        let forced = null;
+        let latched = false;
+        let prevState = null;
+        let prevIntro = null;
+        let lastDanger = 0;
+
+        function teardown() {
+            decks.forEach(killDeck);
+            decks = [];
+            curDeck = null;
+            [out, send, stingOut].forEach(function (n) { if (n) { try { n.disconnect(); } catch (err) { /* closed */ } } });
+            out = send = stingOut = noise = ctx = null;
+            voiceCount = 0;
+        }
+
+        function ensureGraph() {
+            let c = null;
+            try { c = port.ctx; } catch (err) { c = null; }
+            if (!c || !port.bus) return false;
+            if (ctx === c) return true;
+            if (ctx) teardown();
+            ctx = c;
+            out = c.createGain();
+            out.gain.value = 0;
+            out.connect(port.bus);
+            send = c.createGain();
+            send.gain.value = 0.32;
+            out.connect(send);
+            if (port.reverb) send.connect(port.reverb);
+            stingOut = c.createGain();
+            stingOut.gain.value = 0.7;
+            stingOut.connect(port.bus);
+            stingOut.connect(send);
+            const len = c.sampleRate;
+            noise = c.createBuffer(1, len, c.sampleRate);
+            const data = noise.getChannelData(0);
+            const r = rngOf(0x5EED);
+            for (let i = 0; i < len; i++) data[i] = r() * 2 - 1;
+            applyOut(true);
+            return true;
+        }
+
+        function applyOut(first) {
+            if (!out || !ctx) return;
+            const level = enabled && active && !fadedOut ? 1 : 0;
+            const now = ctx.currentTime;
+            out.gain.cancelScheduledValues(now);
+            if (first) out.gain.setValueAtTime(0, now);
+            out.gain.setTargetAtTime(level, now, level ? 0.3 : 0.2);
+        }
+
+        function disc(n) { try { n.disconnect(); } catch (err) { /* already gone */ } }
+
+        function killDeck(deck) {
+            deck.queue.length = 0;
+            deck.voices.forEach(function (v) {
+                try { v.src.stop(); } catch (err) { /* stopped */ }
+                v.nodes.forEach(disc);
+                voiceCount = Math.max(0, voiceCount - 1);
+            });
+            deck.voices.clear();
+            disc(deck.gain);
+            LAYERS.forEach(function (l) { disc(deck.layers[l].node); });
+        }
+
+        function makeDeck(themeId, seed) {
+            const theme = THEMES[themeId];
+            const g = ctx.createGain();
+            g.gain.value = 0;
+            g.connect(out);
+            const layers = {};
+            LAYERS.forEach(function (l) {
+                const n = ctx.createGain();
+                n.gain.value = 0;
+                n.connect(g);
+                layers[l] = { node: n, v: -1 };
+            });
+            return { themeId: themeId, theme: theme, seed: seed, gain: g, layers: layers, bar: 0, next: null, queue: [], voices: new Set(), retireAt: null, spb: 60 / theme.bpm };
+        }
+
+        function switchTo(themeId, seed) {
+            const now = ctx.currentTime;
+            const old = curDeck;
+            if (old) {
+                old.gain.gain.cancelScheduledValues(now);
+                old.gain.gain.setValueAtTime(old.gain.gain.value, now);
+                old.gain.gain.linearRampToValueAtTime(0, now + CROSSFADE);
+                old.retireAt = now + CROSSFADE + 0.4;
+                old.queue.length = 0;
+            }
+            const deck = makeDeck(themeId, seed);
+            deck.gain.gain.setValueAtTime(0, now);
+            deck.gain.gain.linearRampToValueAtTime(1, now + (old ? CROSSFADE : 0.6));
+            decks.push(deck);
+            curDeck = deck;
+        }
+
+        function setLayers(deck, danger, now) {
+            const th = deck.theme;
+            const dd = clamp(danger, 0, 1);
+            const target = {
+                pad: 1,
+                bass: 0.9,
+                arp: th.boss ? 0.7 : 0.85 * (1 - 0.35 * dd),
+                melody: th.boss ? 0.55 : 0.8 * (1 - 0.7 * dd),
+                perc: th.boss ? 1 : (dd > 0.12 ? 0.3 + 0.7 * dd : 0),
+                boss: th.boss ? 1 : 0
+            };
+            LAYERS.forEach(function (l) {
+                const L = deck.layers[l];
+                const tv = target[l];
+                if (L.v >= 0 && Math.abs(L.v - tv) < 0.04 && (L.v === 0) === (tv === 0)) return;
+                L.v = tv;
+                L.node.gain.setTargetAtTime(tv, now, l === 'perc' ? 0.7 : 0.5);
+            });
+        }
+
+        // ---- instruments -------------------------------------------------
+        function osc(type, freq, t, detune) {
+            const o = ctx.createOscillator();
+            o.type = type;
+            o.frequency.value = freq;
+            if (detune) o.detune.value = detune;
+            o.start(t);
+            return o;
+        }
+
+        function noiseSrc(t, offset) {
+            const s = ctx.createBufferSource();
+            s.buffer = noise;
+            s.start(t, offset);
+            return s;
+        }
+
+        function filt(type, freq, q) {
+            const f = ctx.createBiquadFilter();
+            f.type = type;
+            f.frequency.value = freq;
+            if (q) f.Q.value = q;
+            return f;
+        }
+
+        function envelope(g, t, peak, atk, endT) {
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.linearRampToValueAtTime(peak, t + atk);
+            g.gain.exponentialRampToValueAtTime(0.0001, endT);
+        }
+
+        function buildVoice(ev, t, f, dur, dest) {
+            const g = ctx.createGain();
+            g.connect(dest);
+            const nodes = [g];
+            const keep = function (n) { nodes.push(n); return n; };
+            const vel = ev.vel;
+            let end = t + dur + 0.1;
+            let main;
+            if (ev.type === 'pad') {
+                const lp = keep(filt('lowpass', 850, 0.6));
+                const a = keep(osc('sawtooth', f, t, -8));
+                const b = keep(osc('sawtooth', f, t, 8));
+                const c = keep(osc('triangle', f, t, 0));
+                const lfo = keep(osc('sine', 0.09 + (ev.midi % 5) * 0.015, t, 0));
+                const lfoG = keep(ctx.createGain());
+                lfoG.gain.value = 260;
+                lfo.connect(lfoG);
+                lfoG.connect(lp.frequency);
+                [a, b, c].forEach(function (o) { o.connect(lp); });
+                lp.connect(g);
+                end = t + dur + 0.7;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.05 * vel, t + 0.55);
+                g.gain.setValueAtTime(0.05 * vel, t + dur - 0.05);
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                [a, b, lfo].forEach(function (o) { o.stop(end + 0.02); });
+                main = c;
+            } else if (ev.type === 'bell') {
+                const car = keep(osc('sine', f, t, 0));
+                const mod = keep(osc('sine', f * 3.51, t, 0));
+                const mg = keep(ctx.createGain());
+                mg.gain.setValueAtTime(f * 1.3, t);
+                mg.gain.exponentialRampToValueAtTime(f * 0.04, t + 0.9);
+                mod.connect(mg);
+                mg.connect(car.frequency);
+                car.connect(g);
+                end = t + 1.7;
+                envelope(g, t, 0.1 * vel, 0.004, end);
+                mod.stop(end + 0.02);
+                main = car;
+            } else if (ev.type === 'pluck') {
+                const lp = keep(filt('lowpass', Math.min(5000, f * 6), 0.8));
+                lp.frequency.setValueAtTime(Math.min(5000, f * 6), t);
+                lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 1.2), t + 0.3);
+                const a = keep(osc('triangle', f, t, 0));
+                const b = keep(osc('sine', f * 2, t, 3));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 0.3;
+                a.connect(lp);
+                b.connect(bg);
+                bg.connect(lp);
+                lp.connect(g);
+                end = t + Math.min(1.3, dur * 1.1 + 0.35);
+                envelope(g, t, 0.13 * vel, 0.006, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'bass') {
+                const lp = keep(filt('lowpass', ev.boss ? 420 : 320, 0.7));
+                const a = keep(osc('sine', f, t, 0));
+                const b = keep(osc(ev.boss ? 'sawtooth' : 'triangle', f, t, 0));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = ev.boss ? 0.22 : 0.3;
+                a.connect(lp);
+                b.connect(bg);
+                bg.connect(lp);
+                lp.connect(g);
+                end = t + dur + 0.12;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.26 * vel, t + 0.025);
+                g.gain.setTargetAtTime(0.16 * vel, t + 0.05, 0.4);
+                g.gain.setValueAtTime(0.16 * vel * 0.5, Math.max(t + 0.06, end - 0.12));
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'ostinato') {
+                const lp = keep(filt('lowpass', 1500, 1.1));
+                lp.frequency.setValueAtTime(1500, t);
+                lp.frequency.exponentialRampToValueAtTime(380, t + 0.28);
+                const a = keep(osc('sawtooth', f, t, 0));
+                a.connect(lp);
+                lp.connect(g);
+                end = t + 0.32;
+                envelope(g, t, 0.075 * vel, 0.005, end);
+                main = a;
+            } else if (ev.type === 'kick') {
+                const a = keep(osc('sine', 130, t, 0));
+                a.frequency.setValueAtTime(130, t);
+                a.frequency.exponentialRampToValueAtTime(44, t + 0.13);
+                a.connect(g);
+                end = t + 0.24;
+                envelope(g, t, 0.42 * vel, 0.003, end);
+                main = a;
+            } else if (ev.type === 'snare') {
+                const n = keep(noiseSrc(t, (ev.midi || 0) * 0.01 + 0.1));
+                const bp = keep(filt('bandpass', 1900, 0.9));
+                const body = keep(osc('triangle', 190, t, 0));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 0.35;
+                n.connect(bp);
+                bp.connect(g);
+                body.connect(bg);
+                bg.connect(g);
+                end = t + 0.16;
+                envelope(g, t, 0.16 * vel, 0.002, end);
+                body.stop(end + 0.02);
+                main = n;
+            } else {
+                const n = keep(noiseSrc(t, 0.3 + vel * 0.2));
+                const hp = keep(filt('highpass', 7000, 0.7));
+                n.connect(hp);
+                hp.connect(g);
+                end = t + (ev.boss ? 0.06 : 0.045);
+                envelope(g, t, 0.05 * vel, 0.002, end);
+                main = n;
+            }
+            main.stop(end + 0.03);
+            return { nodes: nodes, src: main };
+        }
+
+        function playNote(deck, ev, at) {
+            if (voiceCount >= VOICE_CAP) return;
+            const layer = ev.layer;
+            const dest = deck.layers[layer].node;
+            const f = ev.midi === null ? 0 : 440 * Math.pow(2, (ev.midi - 69) / 12);
+            let voice = null;
+            try {
+                ev.boss = deck.theme.boss;
+                voice = buildVoice(ev, at, f, ev.dur * deck.spb, dest);
+            } catch (err) { return; }
+            voiceCount++;
+            deck.voices.add(voice);
+            voice.src.onended = function () {
+                voice.nodes.forEach(disc);
+                if (deck.voices.delete(voice)) voiceCount = Math.max(0, voiceCount - 1);
+            };
+        }
+
+        function composeInto(deck) {
+            const t0 = deck.next;
+            LAYERS.forEach(function (layer) {
+                const L = deck.layers[layer];
+                if (L.v >= 0 && L.v < 0.03) return;
+                composeBar(deck.themeId, layer, deck.bar, deck.seed).forEach(function (n) {
+                    n.layer = layer;
+                    n.at = t0 + n.t * deck.spb;
+                    let i = deck.queue.length;
+                    while (i > 0 && deck.queue[i - 1].at > n.at) i--;
+                    deck.queue.splice(i, 0, n);
+                });
+            });
+            deck.next += BEATS * deck.spb;
+            deck.bar++;
+        }
+
+        function schedule(deck, now) {
+            const horizon = now + LOOKAHEAD;
+            if (deck.next === null || deck.next < now - 0.4) {
+                deck.next = now + 0.06;
+                deck.queue.length = 0;
+            }
+            while (deck.next <= horizon) composeInto(deck);
+            while (deck.queue.length && deck.queue[0].at <= horizon) {
+                const n = deck.queue.shift();
+                if (n.at >= now - 0.1) playNote(deck, n, Math.max(n.at, now));
+            }
+        }
+
+        // ---- stingers ----------------------------------------------------
+        function tone(type, freq, t, dur, peak, dest) {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = type;
+            o.frequency.value = freq;
+            envelope(g, t, peak, 0.01, t + dur);
+            o.connect(g);
+            g.connect(dest);
+            o.start(t);
+            o.stop(t + dur + 0.03);
+            o.onended = function () { disc(o); disc(g); };
+        }
+
+        function stinger(kind) {
+            if (disposed || !enabled || !ensureGraph() || ctx.state !== 'running') return;
+            const t = ctx.currentTime + 0.03;
+            const theme = curDeck ? curDeck.theme : THEMES.woodland;
+            const hz = function (m) { return 440 * Math.pow(2, (m - 69) / 12); };
+            const r = theme.root + 12;
+            try {
+                if (kind === 'victory') {
+                    [0, 4, 7, 12, 16, 19].forEach(function (s, i) {
+                        tone('triangle', hz(r + s), t + i * 0.11, 1.4, 0.12, stingOut);
+                        tone('sine', hz(r + s + 12), t + i * 0.11, 1.1, 0.05, stingOut);
+                    });
+                } else if (kind === 'defeat') {
+                    [7, 3, 0, -5].forEach(function (s, i) {
+                        tone('triangle', hz(r + s), t + i * 0.28, 1.6, 0.12, stingOut);
+                    });
+                } else if (kind === 'boss_intro') {
+                    [0, 0.45].forEach(function (dt) {
+                        const k = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        k.frequency.setValueAtTime(110, t + dt);
+                        k.frequency.exponentialRampToValueAtTime(38, t + dt + 0.4);
+                        envelope(g, t + dt, 0.5, 0.004, t + dt + 0.6);
+                        k.connect(g);
+                        g.connect(stingOut);
+                        k.start(t + dt);
+                        k.stop(t + dt + 0.65);
+                        k.onended = function () { disc(k); disc(g); };
+                    });
+                    tone('sawtooth', hz(theme.root - 12), t + 0.9, 1.8, 0.07, stingOut);
+                    tone('sawtooth', hz(theme.root - 12 + 7), t + 0.9, 1.8, 0.05, stingOut);
+                }
+            } catch (err) { /* stinger is cosmetic */ }
+        }
+
+        // ---- public ------------------------------------------------------
+        function update(intensity, sim) {
+            if (disposed || !intensity || !sim || !sim.stage) return;
+            try {
+                if (!ensureGraph()) return;
+                const state = sim.state;
+                const running = ctx.state === 'running';
+                const newStage = sim.stage !== stageRef;
+                if (newStage) {
+                    stageRef = sim.stage;
+                    stageSeed = hash32(sim.stage.id === undefined ? 0 : sim.stage.id);
+                    latched = false;
+                    if (fadedOut) { fadedOut = false; applyOut(false); }
+                    prevIntro = null;
+                } else if (prevState !== null && state !== prevState && (state === 'won' || state === 'lost')) {
+                    if (running) stinger(state === 'won' ? 'victory' : 'defeat');
+                    fadedOut = true;
+                    applyOut(false);
+                }
+                prevState = state;
+                if (sim.bossIntro && sim.bossIntro !== prevIntro && running) stinger('boss_intro');
+                prevIntro = sim.bossIntro || null;
+                if (!running || !enabled || !active || fadedOut || state !== 'playing') return;
+                if (intensity.boss) latched = true;
+                if (!intensity.bossAlive) latched = false;
+                const id = forced || themeIdFor(sim, latched);
+                const now = ctx.currentTime;
+                if (!curDeck || curDeck.themeId !== id || newStage) switchTo(id, stageSeed);
+                lastDanger = intensity.danger || 0;
+                setLayers(curDeck, lastDanger, now);
+                schedule(curDeck, now);
+                decks = decks.filter(function (d) {
+                    if (d.retireAt !== null && d.retireAt < now && d !== curDeck) { killDeck(d); return false; }
+                    return true;
+                });
+            } catch (err) { /* music must never break the game loop */ }
+        }
+
+        function setTheme(themeId) {
+            forced = themeId && THEMES[themeId] ? themeId : null;
+        }
+
+        function setEnabled(next) {
+            enabled = !!next;
+            applyOut(false);
+        }
+
+        function setActive(next) {
+            active = !!next;
+            applyOut(false);
+        }
+
+        function dispose() {
+            if (disposed) return;
+            disposed = true;
+            teardown();
+        }
+
+        return {
+            update: update,
+            stinger: stinger,
+            setTheme: setTheme,
+            setEnabled: setEnabled,
+            setActive: setActive,
+            dispose: dispose,
+            getState: function () {
+                return { theme: curDeck ? curDeck.themeId : null, voices: voiceCount, decks: decks.length, enabled: enabled, active: active, fadedOut: fadedOut, danger: lastDanger };
+            }
+        };
+    }
+
+    root.RunenpfadMusic = {
+        THEMES: THEMES,
+        SCALES: SCALES,
+        LAYERS: LAYERS,
+        VOICE_CAP: VOICE_CAP,
+        hash32: hash32,
+        composeBar: composeBar,
+        themeIdFor: themeIdFor,
+        intensityFor: intensityFor,
+        createMusicController: createMusicController
+    };
 })(typeof window !== 'undefined' ? window : globalThis);
