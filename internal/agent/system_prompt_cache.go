@@ -522,6 +522,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.StirlingPDFEnabled {
 		tools = append(tools, "stirling_pdf")
 	}
+	if flags.ZiroExportEnabled {
+		tools = append(tools, "ziro_export")
+	}
 	if flags.AdGuardEnabled {
 		tools = append(tools, "adguard")
 	}

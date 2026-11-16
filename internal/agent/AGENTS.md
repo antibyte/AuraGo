@@ -10,6 +10,11 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- `ziro_export` exposes only netlist/manufacturing for saved Shared paths. Both
+  operations mutate through isolated export/publication and are denied to A2A
+  peers. Preserve captured Docker/file/network gates and untrusted result handling;
+  keep schemas, discovery/cache, manual and training operation coverage aligned.
+
 - `beszel` is read-only telemetry. `filebrowser` results are untrusted and its binary imports obey captured/live file-write gates. Every `stirling_pdf` operation writes a new file; signing requires its separate server grant and is unavailable to A2A peers. Keep all three tools in schema/cache, discovery, manuals and training contracts.
 
 - Store `node_red` and `olivetin` tools require both captured Desktop/network grants and the current verified server binding. Inject/start operations are high-risk mutations; all returned app text is external data. Keep schema/cache, discovery, manuals and training operation contracts aligned.

@@ -573,7 +573,7 @@
                 const overlay = document.createElement('div');
                 overlay.className = 'vd-modal-backdrop';
                 const grants = ['read'];
-                if (['adguard-home', 'n8n', 'node-red', 'olivetin'].includes(appId)) grants.push('execute');
+                if (['adguard-home', 'n8n', 'node-red', 'olivetin', 'ziro-designer'].includes(appId)) grants.push('execute');
                 if (appId === 'bytestash') grants.push('create');
                 if (appId === 'stirling-pdf') grants.push('process', 'sign');
                 if (appId === 'uptime-kuma') grants.push('notify');
@@ -581,13 +581,13 @@
                 overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true" aria-label="${label('connect')}">
                     <div class="vd-modal-title">${esc(catalog.find(item => item.id === appId)?.name || appId)} · ${label('connect')}</div>
                     <p class="vd-store-modal-copy">${label('intro')}</p>
-                    ${['n8n', 'node-red', 'olivetin', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
+                    ${['n8n', 'node-red', 'olivetin', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
                     <button type="button" class="vd-button" data-ig-open>${esc(t('desktop.open'))}</button>
-                    ${saved.containerized ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
-                    ${field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
-                    ${field('credential', 'password')}<p data-ig-stored></p>
+                    ${saved.containerized && appId !== 'ziro-designer' ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
+                    ${appId === 'ziro-designer' ? '' : field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
+                    ${appId === 'ziro-designer' ? '' : field('credential', 'password')}<p data-ig-stored></p>
                     ${appId === 'open-webui' ? `<p class="vd-store-modal-copy">${label('relay_hint')}</p>${field('relay_port', 'number')}` : ''}
-                    <label class="vd-store-choice"><input type="checkbox" name="clear_credential"><span>${label('clear_credential')}</span></label>
+                    ${appId === 'ziro-designer' ? '' : `<label class="vd-store-choice"><input type="checkbox" name="clear_credential"><span>${label('clear_credential')}</span></label>`}
                     ${saved.conflict ? `<label class="vd-store-choice"><input type="checkbox" name="select_store_instance"><span>${label('conflict')}</span></label>` : ''}
                     ${grants.map(name => `<label class="vd-store-choice"><input type="checkbox" name="${name}"><span>${label(appId === 'open-webui' && name === 'read' ? 'relay_enable' : name)}</span></label>`).join('')}
                     ${['node-red', 'olivetin'].includes(appId) ? field('allowed_ids') : ''}
@@ -625,7 +625,7 @@
                 const submit = async method => {
                     if (submitting || !mutationsAllowed || (method === 'POST' && dirty)) return;
                     submitting = true;
-                    const payload = {revision: saved.revision, url: form.elements.url.value.trim(), credential: form.elements.credential.value, clear_credential: form.elements.clear_credential.checked, select_store_instance: !!form.elements.select_store_instance?.checked};
+                    const payload = {revision: saved.revision, url: form.elements.url?.value.trim() || '', credential: form.elements.credential?.value || '', clear_credential: !!form.elements.clear_credential?.checked, select_store_instance: !!form.elements.select_store_instance?.checked};
                     for (const name of grants) payload[name] = form.elements[name].checked;
                     for (const name of ['username', 'source', 'certificate_fingerprint', 'admin_port', 'dns_address', 'docker_network']) if (form.elements[name]) payload[name] = form.elements[name].value.trim();
                     if (form.elements.relay_port) payload.relay_port = Number(form.elements.relay_port.value);

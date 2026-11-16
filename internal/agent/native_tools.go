@@ -160,6 +160,7 @@ type ToolFeatureFlags struct {
 	BeszelEnabled           bool
 	FileBrowserEnabled      bool
 	StirlingPDFEnabled      bool
+	ZiroExportEnabled       bool
 	AdGuardEnabled          bool
 	UptimeKumaEnabled       bool
 	GrafanaEnabled          bool

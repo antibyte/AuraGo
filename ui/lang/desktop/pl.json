@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "Zapisz klucz API ByteStash dla oficjalnego punktu MCP. Odczyt i tworzenie mają osobne uprawnienia; zmiana i usuwanie są zablokowane.",
   "desktop.store.ig_help_beszel": "Użyj zwykłego użytkownika odczytu Beszel dla wybranych systemów, nigdy konta superużytkownika.",
   "desktop.store.ig_help_filebrowser-quantum": "Utwórz osobnego użytkownika API: jedno źródło na wolumenie Store /folder, tylko View/Download, bez udostępniania i administracji. Zapisz token API oraz nazwę źródła.",
-  "desktop.store.ig_help_stirling-pdf": "Zapisz klucz API Stirling. Podpisywanie jest osobno wyłączone: wybierz certyfikat serwera w Stirling i wpisz odcisk SHA-256. Zmiana certyfikatu blokuje podpisywanie."
+  "desktop.store.ig_help_stirling-pdf": "Zapisz klucz API Stirling. Podpisywanie jest osobno wyłączone: wybierz certyfikat serwera w Stirling i wpisz odcisk SHA-256. Zmiana certyfikatu blokuje podpisywanie.",
+  "desktop.store.ig_help_ziro-designer": "Eksportuje zapisane projekty Shared przez KiCad 10. Listy połączeń i pliki produkcyjne wymagają uruchamiania, Docker i zapisu plików. Niezapisane szkice są pomijane. Test sprawdza tylko kontener eksportu."
 }

@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "保存用于官方 MCP 端点的 ByteStash API 密钥。读取与创建分别授权；修改和删除仍被禁止。",
   "desktop.store.ig_help_beszel": "使用可读取所需系统的普通 Beszel 用户，不要使用超级用户凭据。",
   "desktop.store.ig_help_filebrowser-quantum": "创建专用 API 用户：仅允许 Store 的 /folder 卷上的一个来源，仅有 View/Download 权限，无共享或管理权限。保存 API 令牌和来源名称。",
-  "desktop.store.ig_help_stirling-pdf": "保存 Stirling API 密钥。签名需单独授权，默认关闭：在 Stirling 中选择服务器证书并输入 SHA-256 指纹。证书变化将阻止签名。"
+  "desktop.store.ig_help_stirling-pdf": "保存 Stirling API 密钥。签名需单独授权，默认关闭：在 Stirling 中选择服务器证书并输入 SHA-256 指纹。证书变化将阻止签名。",
+  "desktop.store.ig_help_ziro-designer": "使用 KiCad 10 导出已保存在 Shared 中的项目。生成网表和制造文件需要执行、Docker 和文件写入权限。不包含未保存的草稿。测试只检查导出容器。"
 }

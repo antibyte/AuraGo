@@ -42,5 +42,11 @@ func appendStoreAppSchemas(out []openai.Tool, ff ToolFeatureFlags) []openai.Tool
 		}
 		out = append(out, tool("stirling_pdf", "Process saved PDFs through the connected Stirling API. Outputs use new Shared paths; originals stay unchanged. Signing separately requires the administrator-approved server certificate; no private keys or certificate management.", schema(properties, "operation", "files")))
 	}
+	if ff.ZiroExportEnabled {
+		out = append(out, tool("ziro_export", "Export saved KiCad projects below Shared in an isolated KiCad 10 container. Produces a new KiCad netlist or a ZIP with Gerber-X2, Excellon drill files and a manifest. Never includes unsaved editor drafts or changes sources.", schema(map[string]interface{}{
+			"operation": map[string]interface{}{"type": "string", "enum": []string{"netlist", "manufacturing"}},
+			"path":      prop("string", "Saved Shared project path (.kicad_pro), or schematic for netlist / PCB for manufacturing. Keep relative libraries inside its project directory."),
+		}, "operation", "path")))
+	}
 	return out
 }

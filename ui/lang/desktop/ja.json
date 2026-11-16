@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "公式 MCP エンドポイント用の ByteStash API キーを保存します。読み取りと作成は別権限です。更新と削除は禁止されます。",
   "desktop.store.ig_help_beszel": "対象システム用の通常の Beszel 閲覧ユーザーを使用してください。スーパーユーザーの認証情報は使用しません。",
   "desktop.store.ig_help_filebrowser-quantum": "専用 API ユーザーを作成します。Store の /folder ボリューム上のソースを一つだけ許可し、View/Download のみ、共有・管理権限なしにします。API トークンとソース名を保存します。",
-  "desktop.store.ig_help_stirling-pdf": "Stirling API キーを保存します。署名は別途許可するまで無効です。Stirling でサーバー証明書を選び、SHA-256 フィンガープリントを入力します。証明書が変わると署名を停止します。"
+  "desktop.store.ig_help_stirling-pdf": "Stirling API キーを保存します。署名は別途許可するまで無効です。Stirling でサーバー証明書を選び、SHA-256 フィンガープリントを入力します。証明書が変わると署名を停止します。",
+  "desktop.store.ig_help_ziro-designer": "Shared に保存したプロジェクトを KiCad 10 でエクスポートします。ネットリストと製造データには実行、Docker、ファイル書き込みの権限が必要です。未保存の編集内容は含まれません。テストはエクスポート用コンテナのみを確認します。"
 }

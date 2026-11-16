@@ -6493,4 +6493,8 @@ registration lives in `internal/desktop/types.go`.
 
 ## Store connections
 
+- Ziro uses the same saved/revisioned connection flow with execute permission and
+  translated export guidance; omit URL, credential and network fields because its
+  worker reads saved Shared snapshots. The test only probes worker capabilities.
+
 - Store connection hints explain app-owned authentication, selected IDs, FileBrowser source rights and PDF certificate selection in all sixteen Desktop locales. Tests remain read-only; saving does not run workflows or PDF operations.

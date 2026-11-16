@@ -214,6 +214,7 @@ type ContextFlags struct {
 	BeszelEnabled            bool
 	FileBrowserEnabled       bool
 	StirlingPDFEnabled       bool
+	ZiroExportEnabled        bool
 	AdGuardEnabled           bool
 	UptimeKumaEnabled        bool
 	GrafanaEnabled           bool
@@ -2683,6 +2684,7 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"beszel", "beszel", func(f *ContextFlags) bool { return f.BeszelEnabled }},
 	{"filebrowser", "filebrowser", func(f *ContextFlags) bool { return f.FileBrowserEnabled }},
 	{"stirling_pdf", "stirling_pdf", func(f *ContextFlags) bool { return f.StirlingPDFEnabled }},
+	{"ziro_export", "ziro_export", func(f *ContextFlags) bool { return f.ZiroExportEnabled }},
 
 	{"adguard", "adguard", func(f *ContextFlags) bool { return f.AdGuardEnabled }},
 	{"uptime_kuma", "uptime_kuma", func(f *ContextFlags) bool { return f.UptimeKumaEnabled }},

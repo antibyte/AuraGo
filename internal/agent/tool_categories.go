@@ -250,6 +250,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"beszel", "Read Beszel host and container metrics"},
 		{"filebrowser", "List, search and read the connected FileBrowser source"},
 		{"stirling_pdf", "OCR, split, merge and certificate-sign saved PDFs"},
+		{"ziro_export", "Export saved Shared KiCad projects as netlists or manufacturing archives"},
 
 		{"grafana", "Read Grafana dashboards, data sources, alerts, health, and org info"},
 	},

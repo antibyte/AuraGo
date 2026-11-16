@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "Lagre en ByteStash-API-nøkkel for det offisielle MCP-endepunktet. Lesing og oppretting er adskilt; endring og sletting er blokkert.",
   "desktop.store.ig_help_beszel": "Bruk en vanlig Beszel-lesebruker for ønskede systemer, aldri superbrukertilgang.",
   "desktop.store.ig_help_filebrowser-quantum": "Opprett en egen API-bruker: én kilde på Store-volumet /folder, bare View/Download, uten deling eller administrasjon. Lagre API-token og kildenavn.",
-  "desktop.store.ig_help_stirling-pdf": "Lagre en Stirling-API-nøkkel. Signering er separat avslått: velg serversertifikatet i Stirling og oppgi SHA-256-fingeravtrykket. Sertifikatendringer blokkerer signering."
+  "desktop.store.ig_help_stirling-pdf": "Lagre en Stirling-API-nøkkel. Signering er separat avslått: velg serversertifikatet i Stirling og oppgi SHA-256-fingeravtrykket. Sertifikatendringer blokkerer signering.",
+  "desktop.store.ig_help_ziro-designer": "Eksporterer lagrede Shared-prosjekter med KiCad 10. Nettlister og produksjonsfiler krever kjøring, Docker og skrivetilgang. Ulagrede utkast utelates. Testen kontrollerer bare eksportcontaineren."
 }

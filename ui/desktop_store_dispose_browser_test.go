@@ -26,8 +26,8 @@ func TestSoftwareStoreDisposesSensitiveDialogsBrowser(t *testing.T) {
 window.holdCredential=false;window.holdConfig=false;window.resolveCredential=null;window.resolveConfig=null;
 const catalog={catalog:[
  {id:'credentials',name:'Credentials',generated_secrets:[{expose:true}]},
- {id:'gods-eye-view',name:'Gods Eye'},{id:'uptime-kuma',name:'Uptime Kuma'}],
- installed:[{app_id:'credentials',status:'running'},{app_id:'gods-eye-view',status:'running'},{app_id:'uptime-kuma',status:'running'}]};
+ {id:'gods-eye-view',name:'Gods Eye'},{id:'uptime-kuma',name:'Uptime Kuma'},{id:'ziro-designer',name:'Ziro'}],
+ installed:[{app_id:'credentials',status:'running'},{app_id:'gods-eye-view',status:'running'},{app_id:'uptime-kuma',status:'running'},{app_id:'ziro-designer',status:'running'}]};
 const api=url=>{
  if(url==='/api/desktop/store/catalog')return Promise.resolve(catalog);
  if(url.endsWith('/credentials'))return window.holdCredential?new Promise(resolve=>window.resolveCredential=resolve):Promise.resolve({credentials:[{label:'Key',value:'synthetic-test-secret'}]});
@@ -69,6 +69,15 @@ window.mountStore=()=>SoftwareStoreApp.render(document.getElementById('host'),'a
  if(!document.querySelector('[data-ig-test]').disabled)throw Error('unsaved settings can be tested');
  SoftwareStoreApp.dispose('audit');
  if(token.value||token.getAttribute('value')||token.isConnected||document.querySelector('.vd-modal-backdrop'))throw Error('integration token retained after disposal');
+ mountStore();await until(()=>document.querySelectorAll('[data-action=integration]').length===2);
+ document.querySelectorAll('[data-action=integration]')[1].click();await until(()=>!!document.querySelector('input[name=execute]'));
+ if(document.querySelector('input[name=credential],input[name=url],select[name=docker_network]'))throw Error('Ziro requested unrelated connection details');
+ const execute=document.querySelector('input[name=execute]');execute.checked=true;execute.dispatchEvent(new Event('change',{bubbles:true}));
+ document.querySelector('input[name=read]').checked=true;
+ document.querySelector('.vd-store-modal').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+ await new Promise(r=>setTimeout(r,100));
+ if(document.querySelector('[data-ig-status]').textContent.includes('undefined'))throw Error('Ziro save failed');
+ SoftwareStoreApp.dispose('audit');
  mountStore();await until(()=>!!document.querySelector('[data-action=credentials]'));
  window.holdCredential=true;document.querySelector('[data-action=credentials]').click();await until(()=>!!window.resolveCredential);
  SoftwareStoreApp.dispose('audit');window.resolveCredential({credentials:[{label:'Key',value:'late-secret'}]});

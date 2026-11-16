@@ -88,6 +88,13 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Ziro Store exports require the verified binding's execute grant plus live and
+  captured Docker write/file-write gates. Resolve containerized job storage from
+  proven self mounts: bind paths or named-volume subpaths (Docker API >=1.45).
+  Never mount the full data volume; only one job directory. Owned cleanup remains
+  possible after permission revocation. Results use create-only Shared publication.
+  Verify `TestZiroExport*` and `TestStore*`.
+
 - Store PDF processing and signing grants are independent. Saved Desktop inputs and unique Shared outputs use the existing rooted file service, total input/output caps (Desktop maximum, capped at 64 MiB), captured/live file-write gates and cancellation. FileBrowser returns small UTF-8 inline; larger/binary imports require publication permission. Sources stay unchanged.
 
 - Store workflow adapters use verified, revocable bindings. n8n/ByteStash managed MCP connections have exact read/execute/create allowlists and retain global MCP gates; missing capabilities require an update. Node-RED/OliveTin execution additionally checks selected IDs and live execute rights. Tests never start actions.

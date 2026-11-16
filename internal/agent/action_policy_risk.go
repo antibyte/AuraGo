@@ -42,6 +42,7 @@ func policyNameSet(operations ...string) map[string]struct{} {
 // neither a read, nor high-risk, nor on its explicit list of ordinary operations.
 var externalReachOperations = map[string]map[string]struct{}{
 	"stirling_pdf":             policyNameSet("ocr", "split", "merge", "cert_sign"),
+	"ziro_export":              policyNameSet("netlist", "manufacturing"),
 	"node_red":                 policyNameSet("trigger"),
 	"olivetin":                 policyNameSet("execute"),
 	"here_now_site":            policyNameSet("update", "duplicate", "update_metadata", "update_access", "set_password", "restore_version"),
@@ -356,7 +357,7 @@ func textEntropy(text string) float64 {
 // (fetchTargetsFromArguments), so a tool added later is covered without being listed.
 func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 	switch a.Tool {
-	case "api_request", "call_webhook", "telnyx_sms", "mqtt_publish", "node_red", "olivetin", "filebrowser", "stirling_pdf",
+	case "api_request", "call_webhook", "telnyx_sms", "mqtt_publish", "node_red", "olivetin", "filebrowser", "stirling_pdf", "ziro_export",
 		"send_email", "send_telegram", "send_whatsapp", "send_discord", "send_rocketchat", "send_push", "send_push_notification",
 		"send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video",
 		"dns_lookup", "network_ping", "port_scanner", "whois_lookup",

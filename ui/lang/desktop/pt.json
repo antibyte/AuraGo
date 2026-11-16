@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "Guarda uma chave API ByteStash para o ponto MCP oficial. Leitura e criação têm permissões separadas; alterar e eliminar continuam bloqueados.",
   "desktop.store.ig_help_beszel": "Usa um utilizador de leitura normal do Beszel para os sistemas pretendidos, nunca credenciais de superutilizador.",
   "desktop.store.ig_help_filebrowser-quantum": "Cria um utilizador API dedicado: uma fonte no volume Store /folder, apenas View/Download, sem partilha nem administração. Guarda o token API e o nome da fonte.",
-  "desktop.store.ig_help_stirling-pdf": "Guarda uma chave API Stirling. A assinatura está desativada separadamente: escolhe o certificado do servidor no Stirling e indica a impressão SHA-256. Uma alteração do certificado bloqueia a assinatura."
+  "desktop.store.ig_help_stirling-pdf": "Guarda uma chave API Stirling. A assinatura está desativada separadamente: escolhe o certificado do servidor no Stirling e indica a impressão SHA-256. Uma alteração do certificado bloqueia a assinatura.",
+  "desktop.store.ig_help_ziro-designer": "Exporta projetos Shared guardados com KiCad 10. As listas de ligações e ficheiros de fabrico exigem execução, Docker e escrita de ficheiros. Os rascunhos não guardados ficam excluídos. O teste verifica apenas o contentor de exportação."
 }

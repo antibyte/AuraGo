@@ -580,6 +580,8 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.FileBrowserEnabled
 	case "stirling_pdf_enabled":
 		return flags.StirlingPDFEnabled
+	case "ziro_export_enabled":
+		return flags.ZiroExportEnabled
 
 	case "adguard_enabled":
 		return flags.AdGuardEnabled

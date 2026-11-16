@@ -151,3 +151,34 @@ Connection tests inspect API capabilities/languages/public certificate only.
 Upstream: [Beszel REST API](https://beszel.dev/guide/rest-api),
 [FileBrowser users](https://filebrowserquantum.com/en/docs/configuration/users/),
 [Stirling API](https://docs.stirlingpdf.com/Developers/API/).
+
+## Ziro exports
+
+Connect Ziro and grant execution to enable `ziro_export`. No URL or app credential
+is required. The capability test prepares the fixed KiCad 10.0.8 worker image and
+checks its version/CLI without exporting. Docker write and Desktop publication
+permissions remain mandatory. Unsaved browser edits are excluded.
+
+Use a saved `.kicad_pro`, `.kicad_sch` (netlist) or `.kicad_pcb` (manufacturing)
+in its own directory below Shared. Include relative libraries and hierarchical
+sheets in that directory. The snapshot cap is 2048 entries/32 levels and the
+configured publication size limit, capped at 64 MiB. Missing/escaping references
+or incompatible formats fail with an explicit error; originals stay unchanged.
+
+The worker has no network, no host project mount, a read-only root and only its
+private job directory. One job runs at a time with a five-minute deadline. Revoke
+permissions or stop the Store app to cancel it and kill its container. Native
+Docker uses the local job path. Containerized AuraGo resolves its proven bind or
+named-volume mount and exposes only the job subdirectory (named volumes require
+Docker API 1.45). Remote engines without local snapshot access are refused.
+
+Netlists use KiCad S-expression format. Manufacturing ZIPs contain Gerber-X2,
+Excellon and a manifest with source/output SHA-256 hashes and KiCad version.
+Results appear under a new `Shared/Store/ziro/<job>/` path. Export does not certify
+electrical correctness or fabrication readiness.
+
+The worker build uses the official signed KiCad release PPA, KiCad 10.0.8 package
+checksums for amd64/arm64 and a pinned Ubuntu base. `docker-publish.yml` gates
+publication on real netlist/manufacturing smokes on both architectures. Release
+maintainers must pin the resulting verified image digest after these smokes;
+the version tag is not a claim that this new image has already been published.

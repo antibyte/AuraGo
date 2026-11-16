@@ -10,7 +10,7 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
-- Store workflow descriptions and execution output (`node_red`, `olivetin`, `filebrowser`, `stirling_pdf`) count as untrusted third-party content for session provenance. Their action arguments retain registered-secret egress protection.
+- Store workflow descriptions and execution output (`node_red`, `olivetin`, `filebrowser`, `stirling_pdf`, `ziro_export`) count as untrusted third-party content for session provenance. Their action arguments retain registered-secret egress protection.
 
 - Strict public HTTP clients use the same public-address classification as `ValidatePublicHTTPURL`, including reserved, documentation and IPv6 translation ranges; resolve once and pin that address without proxies or redirects. Configured LAN clients retain their separate policy.
 

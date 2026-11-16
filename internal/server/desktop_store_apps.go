@@ -32,7 +32,7 @@ func (s *Server) executeStoreApplication(ctx context.Context, id string, req too
 	if !exists {
 		return nil, errors.New("Verify the Store connection first")
 	}
-	mutation := (id == "node-red" && req.Operation == "trigger") || (id == "olivetin" && req.Operation == "execute") || id == "stirling-pdf"
+	mutation := (id == "node-red" && req.Operation == "trigger") || (id == "olivetin" && req.Operation == "execute") || id == "stirling-pdf" || id == "ziro-designer"
 	cfg := s.ConfigSnapshot()
 	if id == "stirling-pdf" && (cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowFilesystemWrite || (req.Operation == "cert_sign" && !b.settings.Sign) || (req.Operation != "cert_sign" && !b.settings.Process)) {
 		return nil, errors.New("PDF processing/signing or file publication permission is disabled")
@@ -43,7 +43,7 @@ func (s *Server) executeStoreApplication(ctx context.Context, id string, req too
 	}
 	defer release()
 	timeout := time.Minute
-	if id == "stirling-pdf" {
+	if id == "stirling-pdf" || id == "ziro-designer" {
 		timeout = 5 * time.Minute
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -57,6 +57,8 @@ func (s *Server) executeStoreApplication(ctx context.Context, id string, req too
 	}
 	var result any
 	switch id + ":" + req.Operation {
+	case "ziro-designer:netlist", "ziro-designer:manufacturing":
+		result, err = s.runStoreZiroExport(ctx, req.Path, req.Operation)
 	case "node-red:list_flows":
 		flows, e := client.NodeREDFlows(ctx)
 		err = e

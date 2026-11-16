@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "Salva una chiave API ByteStash per l’endpoint MCP ufficiale. Lettura e creazione hanno permessi separati; modifica ed eliminazione restano bloccate.",
   "desktop.store.ig_help_beszel": "Usa un normale utente di lettura Beszel per i sistemi desiderati, mai credenziali da superutente.",
   "desktop.store.ig_help_filebrowser-quantum": "Crea un utente API dedicato: una fonte sul volume Store /folder, solo View/Download, senza condivisione o amministrazione. Salva token API e nome della fonte.",
-  "desktop.store.ig_help_stirling-pdf": "Salva una chiave API Stirling. La firma è disattivata separatamente: scegli il certificato del server in Stirling e inserisci l’impronta SHA-256. Un cambio di certificato blocca la firma."
+  "desktop.store.ig_help_stirling-pdf": "Salva una chiave API Stirling. La firma è disattivata separatamente: scegli il certificato del server in Stirling e inserisci l’impronta SHA-256. Un cambio di certificato blocca la firma.",
+  "desktop.store.ig_help_ziro-designer": "Esporta progetti Shared salvati con KiCad 10. Netlist e file di produzione richiedono esecuzione, Docker e scrittura dei file. Le bozze non salvate sono escluse. Il test verifica solo il contenitore di esportazione."
 }

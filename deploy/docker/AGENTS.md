@@ -27,4 +27,5 @@ Update Compose, native build resolution, documentation and audit contracts toget
 
 ## Child DOX Index
 
-None. CYD Creator and Kaggle image contracts are routed through the root feature index.
+- `kicad-export/AGENTS.md` owns the versioned KiCad worker and image smoke contracts.
+- CYD Creator and Kaggle image contracts are routed through the root feature index.

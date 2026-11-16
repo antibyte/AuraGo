@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "Enregistre une clé API ByteStash pour son accès MCP officiel. Lecture et création ont des droits distincts ; modification et suppression restent bloquées.",
   "desktop.store.ig_help_beszel": "Utilise un compte lecteur Beszel normal pour les systèmes souhaités, jamais des identifiants superutilisateur.",
   "desktop.store.ig_help_filebrowser-quantum": "Crée un compte API dédié : une seule source sur le volume Store /folder, View/Download uniquement, sans partage ni administration. Enregistre son jeton API et le nom de la source.",
-  "desktop.store.ig_help_stirling-pdf": "Enregistre une clé API Stirling. La signature est désactivée séparément : sélectionne le certificat serveur dans Stirling et saisis son empreinte SHA-256. Un changement de certificat bloque la signature."
+  "desktop.store.ig_help_stirling-pdf": "Enregistre une clé API Stirling. La signature est désactivée séparément : sélectionne le certificat serveur dans Stirling et saisis son empreinte SHA-256. Un changement de certificat bloque la signature.",
+  "desktop.store.ig_help_ziro-designer": "Exporte les projets Shared enregistrés avec KiCad 10. Les listes de connexions et fichiers de fabrication nécessitent l’exécution, Docker et l’écriture de fichiers. Les brouillons non enregistrés sont exclus. Le test vérifie seulement le conteneur d’export."
 }

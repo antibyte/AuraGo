@@ -12,6 +12,14 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- `ziro_export.go` snapshots only saved KiCad files in a dedicated Shared project
+  directory (2048 entries, 32 levels, at most 64 MiB). Relative libraries stay in
+  the snapshot; links and special files are refused. One cancellable export runs
+  at a time in the fixed KiCad image, network none, read-only root, dropped caps,
+  2 GiB RAM/two CPUs/128 PIDs. Cleanup kills/removes the container before removing
+  its private job directory. Sources never become container mounts. Verify
+  `TestZiroExport*`; worker/image contracts: `../../deploy/docker/kicad-export/AGENTS.md`.
+
 - Pet ZIP and direct-map installs validate every path and destination before writing. Both use `cleanPetRelPath`, reject Windows device/stream names on every OS, duplicate normalized names, file/directory conflicts and linked components. Pin real directories through `os.Root` and publish files atomically; invalid input leaves existing pets unchanged. Keep read-only checks under the mutation lock. Verify `TestCleanPetRelPath*`, `TestInstallPet*`, `TestPetZip*` and `TestPetWrite*` on Windows and Linux.
 
 - `service_workspaces.go` stores protected `desktop.workspaces.layout` in the existing settings table: version, revision, monotonic next ID, 1–8 named ordered workspaces, and cumulative deleted-ID destinations. IDs 1/2/3 are legacy defaults. CRUD and sensitive settings writes (`session.windows`, global/by-space wallpaper) compare an expected revision and advance it atomically. Deletion remaps the latest persisted session and removes only the deleted wallpaper entry in the same transaction. Keep unrelated raw session fields. Generic settings setters cannot bypass this path; conflicts return current state without mutation. Layout metadata is bounded to 64 KiB independently of the 4096-byte wallpaper map.

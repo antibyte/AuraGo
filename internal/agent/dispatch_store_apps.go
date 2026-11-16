@@ -11,6 +11,8 @@ func dispatchStoreApplication(ctx context.Context, tc ToolCall, dc *DispatchCont
 	cfg := dc.Cfg
 	perms := tools.RuntimePermissionsFromConfig(cfg)
 	if previous, ok := tools.EffectiveRuntimePermissions(ctx); ok {
+		perms.DockerEnabled = perms.DockerEnabled && previous.DockerEnabled
+		perms.DockerReadOnly = perms.DockerReadOnly || previous.DockerReadOnly
 		perms.AllowFilesystemWrite = perms.AllowFilesystemWrite && previous.AllowFilesystemWrite
 		perms.AllowNetworkRequests = perms.AllowNetworkRequests && previous.AllowNetworkRequests
 	}
@@ -37,10 +39,13 @@ func dispatchStoreApplication(ctx context.Context, tc ToolCall, dc *DispatchCont
 	if cfg.VirtualDesktop.ReadOnly && (req.Operation == "trigger" || req.Operation == "execute") {
 		return "Tool Output: " + tools.ErrorJSON("Desktop is read-only")
 	}
-	if tc.Action == "stirling_pdf" && (cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowFilesystemWrite) {
+	if (tc.Action == "stirling_pdf" || tc.Action == "ziro_export") && (cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowFilesystemWrite) {
 		return "Tool Output: " + tools.ErrorJSON("PDF publication is disabled")
 	}
 	id := tc.Action
+	if id == "ziro_export" {
+		id = "ziro-designer"
+	}
 	if id == "node_red" {
 		id = "node-red"
 	}

@@ -12110,5 +12110,6 @@
   "desktop.store.ig_help_bytestash": "Hinterlege einen ByteStash-API-Schlüssel für den offiziellen MCP-Endpunkt. Lesen und Anlegen sind getrennt; Ändern und Löschen bleiben gesperrt.",
   "desktop.store.ig_help_beszel": "Nutze einen normalen Beszel-Lesebenutzer für die gewünschten Systeme, keine Superuser-Zugangsdaten.",
   "desktop.store.ig_help_filebrowser-quantum": "Lege einen eigenen API-Benutzer an: genau eine Quelle auf dem Store-Volume /folder, nur View/Download, keine Freigaben oder Admin-Rechte. Hinterlege seinen API-Token und den Quellnamen.",
-  "desktop.store.ig_help_stirling-pdf": "Hinterlege einen Stirling-API-Schlüssel. Signieren bleibt separat aus: Wähle das Serverzertifikat in Stirling und trage seinen SHA-256-Fingerabdruck ein. Ein Zertifikatswechsel blockiert das Signieren."
+  "desktop.store.ig_help_stirling-pdf": "Hinterlege einen Stirling-API-Schlüssel. Signieren bleibt separat aus: Wähle das Serverzertifikat in Stirling und trage seinen SHA-256-Fingerabdruck ein. Ein Zertifikatswechsel blockiert das Signieren.",
+  "desktop.store.ig_help_ziro-designer": "Exportiert gespeicherte Shared-Projekte mit KiCad 10. Für Netzlisten und Fertigungsdaten sind Ausführen, Docker und Dateischreibrechte nötig. Ungespeicherte Entwürfe bleiben außen vor. Der Test prüft nur den Export-Container."
 }

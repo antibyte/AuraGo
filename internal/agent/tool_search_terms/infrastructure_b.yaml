@@ -101,3 +101,7 @@ filebrowser:
 stirling_pdf:
   en: ["Stirling PDF OCR", "Stirling PDF split", "Stirling PDF merge", "Stirling PDF certificate signature", "Stirling server certificate", "Stirling OCR languages", "Stirling PDF processing", "Stirling signed document"]
   de: ["Stirling PDF Texterkennung", "Stirling PDF teilen", "Stirling PDF zusammenfügen", "Stirling PDF Zertifikatssignatur", "Stirling Serverzertifikat", "Stirling OCR-Sprachen", "Stirling PDF verarbeiten", "Stirling signiertes Dokument"]
+
+ziro_export:
+  de: ["Ziro exportieren", "KiCad Netzliste", "Fertigungsdaten erstellen", "Gerber Dateien", "Excellon Bohrdaten", "gespeicherte Platine", "Schaltplan exportieren", "Leiterplatte fertigen"]
+  en: ["export Ziro", "KiCad netlist", "create manufacturing files", "Gerber export", "Excellon drill data", "saved circuit board", "export schematic", "fabricate PCB"]

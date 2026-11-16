@@ -191,6 +191,9 @@ func storeLegacyConflict(cfg *config.Config, id string, settings desktopstore.In
 
 func (s *Server) storeIntegrationURL(ctx context.Context, app desktopstore.InstalledApp, settings desktopstore.IntegrationSettings) (string, error) {
 	cfg := s.ConfigSnapshot()
+	if app.AppID == "ziro-designer" {
+		return "", nil
+	}
 	if settings.URL != "" {
 		return settings.URL, security.ValidateHTTPBaseURL(settings.URL)
 	}
@@ -421,7 +424,9 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 	if err != nil {
 		return err
 	}
-	if err = security.ValidateHTTPBaseURL(next.URL); err != nil {
+	if id == "ziro-designer" {
+		next.URL, next.Credential, next.Username, next.DockerNetwork = "", "", "", ""
+	} else if err = security.ValidateHTTPBaseURL(next.URL); err != nil {
 		return err
 	}
 	if err = validateStoreIntegrationGrants(id, next); err != nil {
@@ -507,7 +512,7 @@ func validateStoreIntegrationGrants(id string, p desktopstore.IntegrationSetting
 			return errors.New("Choose a specific LAN address for DNS port 53")
 		}
 	}
-	if p.Execute && id != "adguard-home" && id != "node-red" && id != "olivetin" && id != "n8n" {
+	if p.Execute && id != "adguard-home" && id != "node-red" && id != "olivetin" && id != "n8n" && id != "ziro-designer" {
 		return errors.New("Execution is not supported by this integration")
 	}
 	if p.Create && id != "bytestash" {
@@ -557,9 +562,17 @@ func (s *Server) testStoreIntegration(ctx context.Context, store *desktopstore.S
 	if storeLegacyConflict(cfg, id, settings) {
 		return errors.New("Integration configuration has changed")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	testTimeout := 15 * time.Second
+	if id == "ziro-designer" {
+		testTimeout = 5 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(ctx, testTimeout)
 	defer cancel()
 	switch id {
+	case "ziro-designer":
+		if _, err := s.runStoreZiroExport(ctx, "", "probe"); err != nil {
+			return err
+		}
 	case "beszel":
 		if _, err := storeAppConnection(settings).BeszelSystems(ctx, 0, 1); err != nil {
 			return err
