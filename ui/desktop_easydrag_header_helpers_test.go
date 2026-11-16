@@ -8,10 +8,10 @@ package ui
 func (s *easyDragSmoke) pillEntry(name string) {
 	s.t.Helper()
 	if !s.page.MustEval(`()=>!!document.querySelector('[data-ed-pill-popover]')`).Bool() {
-		s.page.MustElement(`[data-ed-pill]`).MustClick()
+		s.clickSettled(`[data-ed-pill]`)
 		s.wait(`()=>!!document.querySelector('[data-ed-pill-popover]')`)
 	}
-	s.page.MustElement(`[data-ed-pill-popover] [data-ed-pop="` + name + `"]`).MustClick()
+	s.clickSettled(`[data-ed-pill-popover] [data-ed-pop="` + name + `"]`)
 }
 
 // markTested says that the open flow's draft passed a test, as the server would after one: the fixture answers tested=true from now
