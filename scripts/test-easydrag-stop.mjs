@@ -78,11 +78,12 @@ const exit = button('Back'), canvas = button('');
 const root = { querySelector: sel => (sel === '[data-ed-cmd="exit-run-view"]' ? exit : sel === '.ed-canvas' ? canvas : null) };
 const stop = button('Stop');
 let ed = host({ root, run: own('running') });
-assert.deepEqual([ED.runStop.sync(ed, stop, t, () => false) !== null, stop.hidden, stop.getAttribute('aria-disabled')], [true, false, null]);
+assert.deepEqual([ED.runStop.sync(ed, stop, t, () => false) !== null, stop.hidden, stop.getAttribute('aria-busy')], [true, false, null]);
 ED.runStop.sync(ed, stop, t, id => id === 'r_own');
-assert.deepEqual([stop.span.textContent, stop.getAttribute('aria-disabled'), stop.disabled], ['run_stopping', 'true', false], 'a stop in flight shows on the Stop of that run');
+// The registry turns aria-busy into aria-disabled (not loaded here; the keyboard browser test pins it); the button is never disabled.
+assert.deepEqual([stop.span.textContent, stop.getAttribute('aria-busy'), stop.disabled], ['run_stopping', 'true', false], 'a stop in flight shows on the Stop of that run');
 ED.runStop.sync(host({ root, runView: { run: viewed('waiting') }, run: own('waiting', { id: 'r_view', view: true }) }), stop, t, id => id === 'r_own');
-assert.deepEqual([stop.span.textContent, stop.getAttribute('aria-disabled'), stop.disabled], ['run_cancel', null, false], 'the pending state of another run does not show');
+assert.deepEqual([stop.span.textContent, stop.getAttribute('aria-busy'), stop.disabled], ['run_cancel', null, false], 'the pending state of another run does not show');
 stop.focus();
 ED.runStop.sync(host({ root, runView: { run: viewed('success') }, run: own('success', { id: 'r_view', view: true }) }), stop, t, () => false);
 assert.deepEqual([stop.hidden, box.document.activeElement === exit], [true, true], 'a Stop that goes away in the review hands the focus to "Back to draft"');
