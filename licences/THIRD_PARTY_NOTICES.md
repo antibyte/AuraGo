@@ -462,3 +462,12 @@ Each generated theme directory ships LICENSE.txt and NOTICE.txt; Buuf also ships
 its original README/index declarations. Original AuraGo supplements are separately
 marked MIT with their own license copy. All notices accompany the offline web
 resource package.
+
+## agent-desktop (optional Agent Workspace guest)
+
+The unmodified agent-desktop v1.3.1 CLI and Linux clipboard helper from
+[vercel-labs/agent-desktop](https://github.com/vercel-labs/agent-desktop/tree/v1.3.1)
+are installed only in the optional Linux desktop guest, under Apache-2.0.
+The verbatim upstream license is embedded at
+`internal/virtualcomputers/guest_workspace_agent/agent-desktop-LICENSE.txt`
+and installed as `/usr/share/doc/agent-desktop/LICENSE`.

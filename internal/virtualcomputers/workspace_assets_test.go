@@ -33,8 +33,8 @@ func TestWorkspaceBootReinjection(t *testing.T) {
 		name, path, before, after string
 		commands                  []string
 	}{
-		{"desktop", "sbin/boring-init", "#!/bin/sh\nstart_x\necho BORING_READY\nwait\n", "#!/bin/sh\nstart_x\nDISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", desktop},
-		{"old-desktop", "sbin/boring-init", "#!/bin/sh\nstart_x\n/usr/local/bin/aurago-workspace-agent >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", "#!/bin/sh\nstart_x\nDISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", desktop},
+		{"desktop", "sbin/boring-init", "#!/bin/sh\nstart_x\necho BORING_READY\nwait\n", "#!/bin/sh\nstart_x\nDISPLAY=:0 dbus-run-session -- /usr/local/bin/aurago-desktop-session >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", desktop},
+		{"old-desktop", "sbin/boring-init", "#!/bin/sh\nstart_x\n/usr/local/bin/aurago-workspace-agent >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", "#!/bin/sh\nstart_x\nDISPLAY=:0 dbus-run-session -- /usr/local/bin/aurago-desktop-session >>/var/log/aurago-workspace-agent.log 2>&1 &\necho BORING_READY\nwait\n", desktop},
 		{"python", "etc/inittab", "::sysinit:/bin/mount -t proc proc /proc\n::sysinit:/bin/sh -c 'echo BORING_READY > /dev/ttyS0'\nttyS0::respawn:/bin/sh -l\n", "::sysinit:/bin/mount -t proc proc /proc\nttyS0::respawn:/bin/sh -l\n::respawn:/usr/local/bin/aurago-workspace-agent --boot-ready\n", python},
 		{"old-python", "etc/inittab", "::sysinit:/bin/sh -c 'echo BORING_READY > /dev/ttyS0'\nttyS0::respawn:/bin/sh -l\n::respawn:/usr/local/bin/aurago-workspace-agent\n", "ttyS0::respawn:/bin/sh -l\n::respawn:/usr/local/bin/aurago-workspace-agent --boot-ready\n", python},
 	} {
@@ -151,7 +151,7 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	}
 
 	guestScript := workspaceGuestInstallSnippet()
-	for _, required := range []string{"go.mod", "go.sum", "aurago-workspace-agent", "/workspace", "/run/aurago", "Remove the upstream unmanaged Chromium launch", "boring-init.aurago", "DISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser"} {
+	for _, required := range []string{"go.mod", "go.sum", "aurago-workspace-agent", "/workspace", "/run/aurago", "Remove the upstream unmanaged Chromium launch", "boring-init.aurago", "DISPLAY=:0 dbus-run-session -- /usr/local/bin/aurago-desktop-session"} {
 		if !strings.Contains(guestScript, required) {
 			t.Fatalf("guest install script is missing %q", required)
 		}

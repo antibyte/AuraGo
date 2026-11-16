@@ -6458,3 +6458,7 @@ registration lives in `internal/desktop/types.go`.
   The built-in icon stays `search`: it already denotes research, and a distinct glyph
   would need new artwork in both icon families for a cosmetic change (audit 4.23 kept
   the shared key deliberately). `TestDesktopDetectiveAccessibilityMarkers` pins all of it.
+
+## Native workspace controls
+
+- Virtual Computers adds native application control only to desktop Agent Workspaces. Reuse Observe, Take control and activity UI; the check button reads the authenticated desktop status endpoint without launching apps. Keep per-workspace asynchronous diagnostics isolated and discard results after disposal. All labels/help use the 16 desktop/config locales. Domain ownership: `internal/virtualcomputers/AGENTS.md`.

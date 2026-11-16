@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "Control native applications",
+  "help.virtual_computers.native_apps": "Allows the main agent to control native applications and dialogs in the visible Agent Workspace. Off by default. Create a new desktop workspace after Install/Repair. Webpages continue to use browser control.",
   "config.section.virtual_computers.label": "Virtual Computers",
   "config.section.virtual_computers.desc": "Provides disposable microVM computers with terminal, desktop and agent access.",
   "config.virtual_computers.enabled_label": "Enable Virtual Computers",

@@ -416,11 +416,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
 			prompt, _ = tools.PrepareVisionPrompt(prompt)
+			nativeDesktopImage := strings.HasPrefix(fpath, "native-desktop:")
 			visionCfg := cfg
 			if hasFile {
 				var cleanup func()
 				var err error
-				fpath, visionCfg, cleanup, err = prepareRegisteredVisionInput(mediaRegistryDB, cfg, fpath)
+				if nativeDesktopImage {
+					fpath, visionCfg, cleanup, err = prepareNativeDesktopVision(ctx, dc, fpath)
+				} else {
+					fpath, visionCfg, cleanup, err = prepareRegisteredVisionInput(mediaRegistryDB, cfg, fpath)
+				}
 				if err != nil {
 					return "Tool Output: " + tools.ErrorJSONf("Vision input failed: %v", err)
 				}
@@ -431,6 +436,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					} else {
 						if normalized, handled := tools.NormalizeVisionAnalysis(prompt, preferredResult); handled {
 							preferredResult = normalized
+						}
+						if nativeDesktopImage {
+							return externalToolOutput(ctx, security.Scrub(preferredResult))
 						}
 						return "Tool Output: " + security.Scrub(preferredResult)
 					}
@@ -446,6 +454,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 			if err != nil {
 				return "Tool Output: " + tools.ErrorJSONf("Vision analysis failed: %v", err)
+			}
+			if nativeDesktopImage {
+				return externalToolOutput(ctx, result)
 			}
 			return fmt.Sprintf("Tool Output: %s", result)
 

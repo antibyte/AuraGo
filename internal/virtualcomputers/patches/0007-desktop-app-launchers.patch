@@ -6,7 +6,7 @@ index 45350e6..25e30de 100644
 -apt-get install -y --no-install-recommends chromium
 +# Install desktop helpers after debootstrap: GTK/dconf postinst needs the
 +# mounted /proc, /sys and /dev prepared above.
-+apt-get install -y --no-install-recommends chromium obconf pcmanfm mousepad dbus-x11 fonts-dejavu-core xdg-utils scrot
++apt-get install -y --no-install-recommends chromium obconf pcmanfm mousepad dbus-x11 dbus-system-bus-common fonts-dejavu-core xdg-utils scrot at-spi2-core libatk-adaptor x11-utils
 +
 +# Debian's generated Applications menu otherwise hard-codes an absent evte.
 +sed -i 's|^terminal_string = .*|terminal_string = "x-terminal-emulator -e"|' /usr/bin/obamenu

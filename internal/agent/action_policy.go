@@ -14,6 +14,7 @@ import (
 	"aurago/internal/kaggle"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+	"aurago/internal/virtualcomputers"
 )
 
 // ActionDescriptor is a credential-free description of one resolved action.
@@ -74,6 +75,9 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 	}
 	a.Mutating = !readActionOperation(a.Operation)
 	switch tc.Action {
+	case "virtual_computer_ui":
+		a.Mutating = virtualcomputers.DesktopInput(a.Operation)
+		a.HighRisk = a.Mutating && a.RunType != "interactive"
 	case "mqtt_publish", "mqtt_subscribe", "mqtt_unsubscribe":
 		a.Mutating, a.HighRisk = true, true
 	case "qr_code":

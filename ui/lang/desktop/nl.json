@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Native toepassingen bedienen",
+  "desktop.virtual_computers_native_check": "Bediening controleren",
+  "desktop.virtual_computers_native_disabled": "Uitgeschakeld",
+  "desktop.virtual_computers_native_ready": "Gereed",
+  "desktop.virtual_computers_native_repair": "Herstel en nieuwe werkruimte vereist",
+  "desktop.virtual_computers_native_unreachable": "Sessie niet bereikbaar",
+  "desktop.virtual_computers_native_unchecked": "Nog niet gecontroleerd",
+  "desktop.virtual_computers_native_checking": "Bezig met controleren …",
   "desktop.chat_question_request_failed": "Het verzoek is mislukt. Probeer het opnieuw of annuleer.",
   "desktop.pet_action_wave": "Zwaaien",
   "desktop.pet_action_nod": "Knikken",

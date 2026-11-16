@@ -80,3 +80,7 @@ virtual_desktop_widgets:
 virtual_workspace:
   en: ["virtual workspace", "agent workspace", "Firecracker VM", "open sandbox VM", "run command in workspace", "start background job", "workspace checkpoint", "close workspace", "isolated Linux environment"]
   de: ["virtueller Workspace", "Sandbox VM öffnen", "Befehl im Workspace ausführen", "Hintergrundjob starten", "Workspace sichern", "Workspace schließen", "isolierte Linux Umgebung"]
+
+virtual_computer_ui:
+  en: ["native app control", "desktop window", "save dialog", "Mousepad", "PCManFM", "accessibility snapshot", "click native application", "Agent Workspace screen"]
+  de: ["native Anwendung steuern", "Desktopfenster", "Speicherdialog", "Mousepad bedienen", "PCManFM öffnen", "Bedienelemente erkennen", "Anwendungsfenster anklicken", "Agent Workspace Bildschirm"]

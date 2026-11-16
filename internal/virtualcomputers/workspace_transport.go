@@ -102,6 +102,8 @@ func (t *WebSocketWorkspaceTransport) Call(ctx context.Context, machineID, metho
 		return fmt.Errorf("connect workspace agent: %w", err)
 	}
 	defer conn.Close()
+	stopCancel := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stopCancel()
 	conn.SetReadLimit(workspaceMaxWireMessageBytes)
 	requestID, err := newWorkspaceRequestID()
 	if err != nil {

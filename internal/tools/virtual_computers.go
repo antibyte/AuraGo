@@ -18,3 +18,7 @@ func ExecuteVirtualWorkspace(ctx context.Context, cfg *config.Config, identity v
 func ExecuteVirtualBrowser(ctx context.Context, cfg *config.Config, identity virtualcomputers.WorkspaceIdentity, args map[string]interface{}) string {
 	return virtualcomputers.ExecuteBrowserTool(ctx, virtualcomputers.FromAuraConfig(cfg), identity, args)
 }
+
+func ExecuteVirtualComputerUI(ctx context.Context, cfg *config.Config, identity virtualcomputers.WorkspaceIdentity, args map[string]interface{}) string {
+	return virtualcomputers.ExecuteDesktopTool(ctx, virtualcomputers.FromAuraConfig(cfg), identity, args)
+}

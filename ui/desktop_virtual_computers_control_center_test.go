@@ -31,7 +31,7 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 		`state.agentRequestDraft =`,
 		`chat_autosend: true`,
 		`chat_source_app: 'virtual-computers'`,
-		`Use virtual_workspace and virtual_browser for this request.`,
+		`Use virtual_workspace and virtual_browser for webpages; use virtual_computer_ui`,
 		`aria-live="polite"`,
 	} {
 		if !strings.Contains(app, marker) {
@@ -151,6 +151,14 @@ func TestVirtualComputersControlCenterTranslations(t *testing.T) {
 
 	languages := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
 	keys := []string{
+		"desktop.virtual_computers_native_title",
+		"desktop.virtual_computers_native_check",
+		"desktop.virtual_computers_native_disabled",
+		"desktop.virtual_computers_native_ready",
+		"desktop.virtual_computers_native_repair",
+		"desktop.virtual_computers_native_unreachable",
+		"desktop.virtual_computers_native_unchecked",
+		"desktop.virtual_computers_native_checking",
 		"desktop.agent_task_for_agent",
 		"desktop.chat_placeholder",
 		"desktop.send",

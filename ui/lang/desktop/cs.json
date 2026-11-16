@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Ovládat nativní aplikace",
+  "desktop.virtual_computers_native_check": "Ověřit ovládání",
+  "desktop.virtual_computers_native_disabled": "Vypnuto",
+  "desktop.virtual_computers_native_ready": "Připraveno",
+  "desktop.virtual_computers_native_repair": "Je nutná oprava a nový pracovní prostor",
+  "desktop.virtual_computers_native_unreachable": "Relace není dostupná",
+  "desktop.virtual_computers_native_unchecked": "Zatím neověřeno",
+  "desktop.virtual_computers_native_checking": "Ověřování …",
   "desktop.chat_question_request_failed": "Požadavek selhal. Zkus to znovu nebo ho zruš.",
   "desktop.pet_action_wave": "Zamávat",
   "desktop.pet_action_nod": "Přikývnout",

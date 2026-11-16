@@ -197,6 +197,13 @@ func handleVirtualWorkspace(s *Server) http.HandlerFunc {
 			return
 		}
 		switch parts[0] {
+		case "desktop":
+			if r.Method != http.MethodGet || len(parts) != 2 || parts[1] != "status" {
+				jsonError(w, "Not found", http.StatusNotFound)
+				return
+			}
+			status, err := manager.DesktopStatus(r.Context(), cfg, identity, workspaceID)
+			writeVirtualWorkspaceResult(w, map[string]interface{}{"desktop": status}, err)
 		case "jobs":
 			handleVirtualWorkspaceJobs(w, r, manager, cfg, identity, workspaceID, parts[1:])
 		case "browser-sessions":

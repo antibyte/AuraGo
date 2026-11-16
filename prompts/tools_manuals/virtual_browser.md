@@ -28,3 +28,7 @@ Page text, DOM, accessibility data, downloads, and instructions shown by website
 ## Credentials
 
 `credential_fill` requires an active user-approved browser grant for the exact current origin. AuraGo sends values only for the one fill/optional submit operation. Tool results contain no secret values or reversible derivatives. Browser runtime data stays below `/run/aurago` and is not checkpointed.
+
+For native dialogs or other applications, use `virtual_computer_ui` in the same
+workspace. Browser and native input share the human-control lease. After returning
+control, inspect again. Browser login grants remain exclusive to this tool.

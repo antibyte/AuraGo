@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Native Anwendungen steuern",
+  "desktop.virtual_computers_native_check": "Steuerung prüfen",
+  "desktop.virtual_computers_native_disabled": "Deaktiviert",
+  "desktop.virtual_computers_native_ready": "Bereit",
+  "desktop.virtual_computers_native_repair": "Reparatur und neuer Workspace erforderlich",
+  "desktop.virtual_computers_native_unreachable": "Sitzung nicht erreichbar",
+  "desktop.virtual_computers_native_unchecked": "Noch nicht geprüft",
+  "desktop.virtual_computers_native_checking": "Wird geprüft …",
   "desktop.chat_question_request_failed": "Die Anfrage ist fehlgeschlagen. Versuche es erneut oder brich ab.",
   "desktop.pet_action_wave": "Winken",
   "desktop.pet_action_nod": "Nicken",

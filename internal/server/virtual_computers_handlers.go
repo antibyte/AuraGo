@@ -252,7 +252,7 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"capabilities": map[string]bool{
 				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
 				"legacy_agent_tasks_ready": legacyAgentTasksReady,
-				"publish":                  cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled,
+				"publish":                  cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled, "native_apps": cfg.AgentControl.Enabled && cfg.AgentControl.NativeAppsEnabled && !cfg.ReadOnly,
 				"internet": cfg.AllowInternet,
 			},
 			"workspace_protocol":               virtualcomputers.WorkspaceProtocolVersion,

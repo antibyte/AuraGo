@@ -456,6 +456,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		GameMakerEnabled:             cfg.GameMaker.Enabled,
 		VirtualComputersEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled,
 		VirtualWorkspaceEnabled:      cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled && cfg.VirtualComputers.AgentControl.Enabled,
+		VirtualComputerUIEnabled:     cfg.VirtualComputers.Enabled && cfg.Tools.VirtualComputers.Enabled && cfg.VirtualComputers.AgentControl.Enabled && cfg.VirtualComputers.AgentControl.NativeAppsEnabled,
 		OpenSCADEnabled:              cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.VirtualDesktop.OpenSCAD.Enabled,
 		QRCodeEnabled:                cfg.Tools.QRCode.Enabled,
 		OfficeDocumentEnabled:        cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.OfficeDocument.Enabled,

@@ -797,6 +797,7 @@ type VirtualComputersConfig struct {
 // intentionally separate from AllowAgentTasks: the latter starts the legacy
 // boringd LLM agent, while agent control keeps all reasoning in AuraGo.
 type VirtualComputersAgentControl struct {
+	NativeAppsEnabled           bool                             `yaml:"native_apps_enabled" json:"native_apps_enabled"`
 	Enabled                     bool                             `yaml:"enabled" json:"enabled"`
 	DefaultTemplate             string                           `yaml:"default_template" json:"default_template"`
 	MaxActiveWorkspaces         int                              `yaml:"max_active_workspaces" json:"max_active_workspaces"`

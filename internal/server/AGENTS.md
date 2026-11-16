@@ -1348,3 +1348,7 @@ None.
 ### Invasion deployment failure
 
 - Preserve the old shared key only when the connector proves configuration was not delivered. Mark rolled_back only after a connector confirms a fresh secure predecessor was restored. After possible transfer or a failed post-deploy health check, retain the current key and failed status with operator inspection/re-hatch guidance; never automatically roll back an old binary. Verify connector delivery/recovery fixtures and Invasion shared-key tests.
+
+## Native workspace diagnostics
+
+- `GET /api/virtual-computers/workspaces/{id}/desktop/status` requires the existing authenticated Desktop/admin workspace permission and reports health without changing applications. Config save publishes live grants, then waits for the shared browser/native cancellation barrier before acknowledging disablement. Guest compatibility and verified asset markers gate enablement; domain contract: `internal/virtualcomputers/AGENTS.md`.

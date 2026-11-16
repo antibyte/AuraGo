@@ -14,7 +14,7 @@ import (
 
 const (
 	workspacePatchVersion        = "aurago-workspace-patches-v2"
-	workspaceRootfsLayoutVersion = "aurago-workspace-rootfs-v2"
+	workspaceRootfsLayoutVersion = "aurago-workspace-rootfs-v3"
 	// These hashes cover the LF-normalized files stored by Git at the pinned
 	// upstream revision. Do not calculate them from a Windows CRLF checkout.
 	workspaceServerSHA256        = "1119d90cc3932a7beba47592ccdba336b519b91e87a594e01e1f34a0b8badf14"
@@ -152,20 +152,30 @@ inject_workspace_agent() {
   install -d -m0700 "${mount_dir}/run/aurago"
   install -d -m0755 "${mount_dir}/workspace"
   if [ "${flavor}" = "desktop" ]; then
+	install -m0755 "${WORKSPACE_AGENT_SRC}/install-native-desktop.sh" "${mount_dir}/usr/local/bin/install-native-desktop"
+	install -D -m0644 "${WORKSPACE_AGENT_SRC}/agent-desktop-LICENSE.txt" "${mount_dir}/usr/local/share/agent-desktop-LICENSE.txt"
+	cp /etc/resolv.conf "${mount_dir}/etc/resolv.conf"
+	chroot "${mount_dir}" /usr/local/bin/install-native-desktop
+	rm -f "${mount_dir}/usr/local/bin/install-native-desktop"
+	install -m0755 "${WORKSPACE_AGENT_SRC}/desktop-session.sh" "${mount_dir}/usr/local/bin/aurago-desktop-session"
 	# Remove the upstream unmanaged Chromium launch. The only browser left on
 	# DISPLAY=:0 is the /run-profile instance controlled by the guest agent, so
 	# VNC and structured browser actions always refer to the same browser.
 	awk '
 	  /^CHROMIUM_BIN=\/usr\/lib\/chromium\/chromium;/ { skip=1; next }
 	  skip && /\/var\/log\/chromium\.log 2>\&1 \&$/ { skip=0; next }
+	  /^dbus-run-session -- openbox / { next }
+	  /^xterm / { terminal=1; next }
+	  terminal { if ($0 !~ /\\$/) terminal=0; next }
+	  /^xcalc / { next }
 	  !skip { print }
 	' "${mount_dir}/sbin/boring-init" > "${mount_dir}/sbin/boring-init.aurago"
 	install -m0755 "${mount_dir}/sbin/boring-init.aurago" "${mount_dir}/sbin/boring-init"
 	rm -f "${mount_dir}/sbin/boring-init.aurago"
     # Replace our previous launch as well, so reinjection enables the browser
     # without adding a second agent or restoring the unmanaged Chromium process.
-    sed -i '\|^[[:space:]]*\(DISPLAY=:0 \)\?/usr/local/bin/aurago-workspace-agent |d' "${mount_dir}/sbin/boring-init"
-    sed -i '/^echo BORING_READY/i DISPLAY=:0 /usr/local/bin/aurago-workspace-agent --desktop-browser >>/var/log/aurago-workspace-agent.log 2>\&1 \&' "${mount_dir}/sbin/boring-init"
+    sed -i '\|^[[:space:]]*\(DISPLAY=:0 \)\?/usr/local/bin/aurago-workspace-agent |d; \|^[[:space:]]*DISPLAY=:0 dbus-run-session -- /usr/local/bin/aurago-desktop-session |d' "${mount_dir}/sbin/boring-init"
+    sed -i '/^echo BORING_READY/i DISPLAY=:0 dbus-run-session -- /usr/local/bin/aurago-desktop-session >>/var/log/aurago-workspace-agent.log 2>\&1 \&' "${mount_dir}/sbin/boring-init"
   else
     # BusyBox runs sysinit before respawn: the upstream ready marker races the
     # agent and snapshots a guest that cannot accept workspace connections yet.

@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "ネイティブアプリを操作",
+  "help.virtual_computers.native_apps": "メインエージェントが表示中のエージェントワークスペース内のネイティブアプリやダイアログを操作できます。初期設定では無効です。インストールまたは修復後に新しいデスクトップワークスペースを作成してください。ウェブページには引き続きブラウザー操作を使います。",
   "config.section.virtual_computers.label": "仮想コンピューター",
   "config.section.virtual_computers.desc": "ターミナル、デスクトップ、エージェントからアクセスできる、使い捨ての microVM コンピューターを提供します。",
   "config.virtual_computers.enabled_label": "仮想コンピューターを有効化",

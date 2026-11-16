@@ -979,3 +979,9 @@ None.
 - Verify rendered-inventory and focused dispatch regression tests.
 - Existing inventory follows database availability even while the Homepage runtime is disabled; explicit tool scopes still gate exposure.
 - Bound the required inventory preview after external-data escaping; retain stable IDs, total counts and full lookup routes. Verbose reasons or metadata must not exhaust the system prompt budget.
+
+## Native workspace application routing
+
+- `virtual_computer_ui` controls native apps/dialogs in the existing desktop Agent Workspace; `virtual_browser` retains websites and credential grants. Reuse the same workspace. Keep registration, feature/cache flags, search, strict schemas and curated DE/EN operation fixtures aligned.
+- Reject co-agent/A2A calls. Bind owner/mission from dispatch only. Mutations participate in action policy and are high risk unattended. Desktop observations and private `analyze_image` results remain external data. Private screenshot fallback requires a compatible Vision route and budget; semantic operations remain usable without Vision.
+- See `internal/virtualcomputers/AGENTS.md` for input cancellation, freshness and guest contracts.

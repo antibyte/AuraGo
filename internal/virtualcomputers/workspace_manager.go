@@ -172,6 +172,9 @@ type WorkspaceOperationalIssue struct {
 }
 
 type WorkspaceManager struct {
+	guiMu             sync.Mutex
+	gui               map[string]*workspaceGUI
+	guiConfig         func() ToolConfig
 	ledger            *Ledger
 	logger            *slog.Logger
 	credentials       WorkspaceCredentialProvider
@@ -187,6 +190,10 @@ type WorkspaceManager struct {
 	lastConfig        ToolConfig
 	legacyImportMu    sync.Mutex
 	legacyImports     map[string]*pendingLegacyVolumeImport
+
+	guiClosed           bool
+	desktopArtifactDirs map[string]bool
+	guiCloseErr         error
 }
 
 var defaultWorkspaceManager struct {
@@ -248,9 +255,12 @@ func (m *WorkspaceManager) Close() error {
 	if m == nil {
 		return nil
 	}
-	m.closeOnce.Do(func() { close(m.stop) })
+	m.closeOnce.Do(func() {
+		m.guiCloseErr = m.closeDesktopGUI()
+		close(m.stop)
+	})
 	<-m.done
-	return nil
+	return m.guiCloseErr
 }
 
 func (m *WorkspaceManager) run() {
@@ -442,6 +452,11 @@ func (m *WorkspaceManager) CloseWorkspace(ctx context.Context, cfg ToolConfig, i
 	if workspace.State == WorkspaceStateClosed {
 		return nil
 	}
+	releaseGUI, gateErr := m.revokeGUI(ctx, cfg, workspace, true)
+	if gateErr != nil {
+		return gateErr
+	}
+	defer releaseGUI()
 	workspace.State = WorkspaceStateClosing
 	workspace.UpdatedAt = m.now()
 	_ = m.ledger.UpsertWorkspace(ctx, workspace)
@@ -457,14 +472,8 @@ func (m *WorkspaceManager) CloseWorkspace(ctx context.Context, cfg ToolConfig, i
 	// The guest can expire in boringd before the local lease reaper runs.
 	// Only boringd's resource-missing response confirms that cleanup is done;
 	// a proxy/router 404 must remain an error.
-	var restErr RESTError
-	if errors.As(destroyErr, &restErr) && restErr.StatusCode == http.StatusNotFound {
-		var body struct {
-			Error string `json:"error"`
-		}
-		if json.Unmarshal([]byte(restErr.Body), &body) == nil && strings.EqualFold(strings.TrimSpace(body.Error), "not found") {
-			destroyErr = nil
-		}
+	if workspaceMachineAlreadyGone(destroyErr) {
+		destroyErr = nil
 	}
 	now := m.now()
 	workspace.State = WorkspaceStateClosed
@@ -812,6 +821,12 @@ func (m *WorkspaceManager) Checkpoint(ctx context.Context, cfg ToolConfig, ident
 }
 
 func (m *WorkspaceManager) BrowserAction(ctx context.Context, cfg ToolConfig, identity WorkspaceIdentity, workspaceID string, request BrowserActionRequest) (BrowserActionResult, error) {
+	ctx, token, finish, gateErr := m.beginGUI(ctx, cfg, identity, workspaceID, false, browserActionRequiresControl(request.Operation))
+	if gateErr != nil {
+		return BrowserActionResult{}, gateErr
+	}
+	defer finish()
+	request.ControlToken = token
 	workspace, client, transport, err := m.readyWorkspace(ctx, cfg, identity, workspaceID)
 	if err != nil {
 		return BrowserActionResult{}, err
@@ -880,6 +895,11 @@ func (m *WorkspaceManager) TakeControl(ctx context.Context, identity WorkspaceId
 	if err != nil {
 		return Workspace{}, err
 	}
+	releaseGUI, gateErr := m.revokeGUI(ctx, m.liveGUIConfig(m.configSnapshot()), workspace, false)
+	if gateErr != nil {
+		return Workspace{}, gateErr
+	}
+	defer releaseGUI()
 	now := m.now()
 	workspace.ControlOwner = ControlOwnerAgent
 	workspace.ControlLeaseExpiresAt = nil
@@ -1098,6 +1118,12 @@ func (m *WorkspaceManager) RevokeCredentialGrant(ctx context.Context, cfg ToolCo
 }
 
 func (m *WorkspaceManager) UseBrowserGrant(ctx context.Context, cfg ToolConfig, identity WorkspaceIdentity, workspaceID string, request BrowserActionRequest) (BrowserActionResult, error) {
+	ctx, token, finish, gateErr := m.beginGUI(ctx, cfg, identity, workspaceID, false, browserActionRequiresControl(request.Operation))
+	if gateErr != nil {
+		return BrowserActionResult{}, gateErr
+	}
+	defer finish()
+	request.ControlToken = token
 	workspace, client, transport, err := m.readyWorkspace(ctx, cfg, identity, workspaceID)
 	if err != nil {
 		return BrowserActionResult{}, err
@@ -1818,4 +1844,15 @@ func scrubWorkspaceValue(value interface{}) interface{} {
 	default:
 		return value
 	}
+}
+
+func workspaceMachineAlreadyGone(err error) bool {
+	var restErr RESTError
+	if !errors.As(err, &restErr) || restErr.StatusCode != http.StatusNotFound {
+		return false
+	}
+	var body struct {
+		Error string `json:"error"`
+	}
+	return json.Unmarshal([]byte(restErr.Body), &body) == nil && strings.EqualFold(strings.TrimSpace(body.Error), "not found")
 }

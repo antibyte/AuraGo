@@ -213,7 +213,7 @@ func (m SetupManager) verifyWorkspaceAgent(ctx context.Context) ComponentStatus 
 		}
 		required := []string{"shell.exec", "job.pty", "file.workspace", "checkpoint.workspace_v2", "volume.legacy_import"}
 		if template == "desktop" {
-			required = append(required, "browser.headful")
+			required = append(required, "browser.headful", "desktop.control.v1", "desktop.native.v1")
 		}
 		for _, capability := range required {
 			if !containsWorkspaceCapability(capabilities.Capabilities, capability) {
@@ -225,6 +225,12 @@ func (m SetupManager) verifyWorkspaceAgent(ctx context.Context) ComponentStatus 
 			return verificationFailure("workspace root shell verification failed for " + template)
 		}
 		if template == "desktop" {
+			var nativeStatus struct {
+				State string `json:"state"`
+			}
+			if err := transport.Call(ctx, machine.ID, "desktop.status", DesktopActionRequest{}, &nativeStatus); err != nil || nativeStatus.State != "ready" {
+				return verificationFailure("workspace native desktop verification failed for desktop")
+			}
 			var browserResult BrowserActionResult
 			if err := transport.Call(ctx, machine.ID, "browser.open", BrowserActionRequest{Operation: "open", URL: "about:blank", TimeoutMS: 20000}, &browserResult); err != nil || browserResult.Session.State != BrowserStateOpen {
 				return verificationFailure("workspace headful browser verification failed for desktop")
@@ -526,8 +532,11 @@ else
 	if [ "${SKIP_DESKTOP_VALUE}" = "1" ]; then
 		log "skipping desktop image"
 	else
-		bash /root/infra/build-desktop-rootfs.sh
-		inject_workspace_agent /opt/boring/rootfs/desktop.ext4 desktop
+		DESKTOP_CANDIDATE=/opt/boring/rootfs/desktop.ext4.candidate
+		AURAGO_DESKTOP_IMAGE="${DESKTOP_CANDIDATE}" bash /root/infra/build-desktop-rootfs.sh
+		inject_workspace_agent "${DESKTOP_CANDIDATE}" desktop
+		bash "${WORKSPACE_AGENT_SRC}/verify-native-image.sh" "${DESKTOP_CANDIDATE}"
+		mv -f "${DESKTOP_CANDIDATE}" /opt/boring/rootfs/desktop.ext4
 	fi
 	if ! validate_runtime_assets; then
 		echo "Firecracker runtime asset validation failed after rebuild" >&2

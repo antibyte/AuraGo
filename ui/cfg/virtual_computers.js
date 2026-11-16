@@ -108,6 +108,7 @@ function renderVirtualComputersSection(section) {
 	if (agentControl.enabled === true) {
 		html += '<div class="cfg-note-banner cfg-note-banner-info">' + t('config.virtual_computers.agent_control_gate_note') + '</div>';
 		html += '<div class="field-grid two-cols">';
+		html += vcCfgToggleRow('config.virtual_computers.native_apps_label', 'help.virtual_computers.native_apps', agentControl.native_apps_enabled === true, 'virtual_computers.agent_control.native_apps_enabled');
 		html += vcCfgField('config.virtual_computers.agent_control_template_label', 'help.virtual_computers.agent_control_template',
 			'<select class="field-select" data-path="virtual_computers.agent_control.default_template"><option value="desktop"' + ((agentControl.default_template || 'desktop') === 'desktop' ? ' selected' : '') + '>desktop</option><option value="python"' + (agentControl.default_template === 'python' ? ' selected' : '') + '>python</option></select>');
 		html += vcCfgField('config.virtual_computers.agent_control_max_workspaces_label', 'help.virtual_computers.agent_control_max_workspaces',

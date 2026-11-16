@@ -467,6 +467,7 @@
             else if (action === 'close-workspace') workspaceMutation(state, id, '', { method: 'DELETE' });
             else if (action === 'checkpoint-workspace') workspaceMutation(state, id, '/checkpoint', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
             else if (action === 'observe-workspace') observeWorkspace(state, id, target.dataset.machineId || '', false);
+            else if (action === 'check-native-desktop') window.VirtualComputersWorkspaces.checkNativeDesktop(state, id, { request, draw });
             else if (action === 'takeover-workspace') observeWorkspace(state, id, target.dataset.machineId || '', true);
             else if (action === 'cancel-workspace-job') workspaceMutation(state, id, '/jobs/' + encodeURIComponent(target.dataset.jobId || ''), { method: 'DELETE' });
 			else if (action === 'approve-workspace-grant') workspaceMutation(state, id, '/credential-grants/' + encodeURIComponent(target.dataset.grantId || '') + '/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
@@ -534,7 +535,7 @@
                 workspace_id: workspaceId,
                 label: tx(state.context, 'desktop.virtual_computers_title'),
                 purpose: 'Control isolated Firecracker workspaces with the AuraGo main agent.',
-                guide: 'Use virtual_workspace and virtual_browser for this request. Do not use legacy agent task tools.'
+                guide: 'Use virtual_workspace and virtual_browser for webpages; use virtual_computer_ui for native applications and dialogs when enabled. Keep the same workspace. Do not use legacy agent task tools.'
             }
         });
         input.value = '';

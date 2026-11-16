@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "控制原生应用",
+  "help.virtual_computers.native_apps": "允许主代理在可见的代理工作区中操作原生应用和对话框。默认关闭。安装或修复后，请创建新的桌面工作区。网页仍使用浏览器控制。",
   "config.section.virtual_computers.label": "虚拟电脑",
   "config.section.virtual_computers.desc": "提供可随时丢弃的 microVM 计算机，支持终端、桌面和代理访问。",
   "config.virtual_computers.enabled_label": "启用虚拟电脑",

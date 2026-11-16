@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Control native applications",
+  "desktop.virtual_computers_native_check": "Check control",
+  "desktop.virtual_computers_native_disabled": "Disabled",
+  "desktop.virtual_computers_native_ready": "Ready",
+  "desktop.virtual_computers_native_repair": "Repair and a new workspace required",
+  "desktop.virtual_computers_native_unreachable": "Session unreachable",
+  "desktop.virtual_computers_native_unchecked": "Not checked yet",
+  "desktop.virtual_computers_native_checking": "Checking …",
   "desktop.chat_question_request_failed": "The request failed. Try again or cancel.",
   "desktop.pet_action_wave": "Wave",
   "desktop.pet_action_nod": "Nod",

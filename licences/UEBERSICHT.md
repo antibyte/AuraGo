@@ -409,3 +409,11 @@ Die vier Pakete enthalten ihre Lizenztexte, feste Revisionen und Nachweise je
 Motiv. Der vollständige CC-Text liegt zusätzlich in `texts/CC-BY-NC-SA-2.5.txt`.
 Eigene AuraGo-Ergänzungen sind gesondert als MIT gekennzeichnet. Einzelheiten und
 Quellen: `documentation/desktop-icon-themes.md`.
+
+## Native Anwendungen in Agent Workspaces
+
+`vercel-labs/agent-desktop` v1.3.1: Apache-2.0. Die unveränderte CLI und der
+Linux-Zwischenablagehelfer werden ausschließlich im optionalen Desktop-Gast
+installiert. Die Archive für amd64/arm64 sind per Größe und SHA-256 fixiert.
+Der ursprüngliche Lizenztext liegt im Gast unter
+`/usr/share/doc/agent-desktop/LICENSE`. AT-SPI stammt aus Debian-Paketen.

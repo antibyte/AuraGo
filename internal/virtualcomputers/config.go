@@ -2,6 +2,7 @@ package virtualcomputers
 
 import (
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"aurago/internal/config"
@@ -59,11 +60,12 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 		security.RegisterSensitive(value)
 	}
 	return ToolConfig{
-		Enabled:   vc.Enabled,
-		Provider:  vc.Provider,
-		AutoSetup: vc.AutoSetup,
-		ReadOnly:  vc.ReadOnly,
-		ToolGate:  cfg.Tools.VirtualComputers.Enabled,
+		NativeArtifactDir: filepath.Join(cfg.Directories.DataDir, "native-desktop"),
+		Enabled:           vc.Enabled,
+		Provider:          vc.Provider,
+		AutoSetup:         vc.AutoSetup,
+		ReadOnly:          vc.ReadOnly,
+		ToolGate:          cfg.Tools.VirtualComputers.Enabled,
 		ControlPlane: ControlPlaneConfig{
 			Mode:         vc.ControlPlane.Mode,
 			Host:         vc.ControlPlane.Host,
@@ -92,6 +94,7 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 		AllowVolumes:        vc.AllowVolumes,
 		AllowAgentTasks:     vc.AllowAgentTasks,
 		AgentControl: AgentControlConfig{
+			NativeAppsEnabled:           vc.AgentControl.NativeAppsEnabled,
 			Enabled:                     vc.AgentControl.Enabled,
 			DefaultTemplate:             vc.AgentControl.DefaultTemplate,
 			MaxActiveWorkspaces:         vc.AgentControl.MaxActiveWorkspaces,

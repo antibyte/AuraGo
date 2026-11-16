@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "ネイティブアプリを操作",
+  "desktop.virtual_computers_native_check": "操作機能を確認",
+  "desktop.virtual_computers_native_disabled": "無効",
+  "desktop.virtual_computers_native_ready": "準備完了",
+  "desktop.virtual_computers_native_repair": "修復と新しいワークスペースが必要",
+  "desktop.virtual_computers_native_unreachable": "セッションに接続できません",
+  "desktop.virtual_computers_native_unchecked": "未確認",
+  "desktop.virtual_computers_native_checking": "確認中 …",
   "desktop.chat_question_request_failed": "リクエストに失敗しました。再試行するかキャンセルしてください。",
   "desktop.pet_action_wave": "手を振る",
   "desktop.pet_action_nod": "うなずく",

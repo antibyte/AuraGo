@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "नेटिव ऐप नियंत्रित करें",
+  "desktop.virtual_computers_native_check": "नियंत्रण जाँचें",
+  "desktop.virtual_computers_native_disabled": "बंद",
+  "desktop.virtual_computers_native_ready": "तैयार",
+  "desktop.virtual_computers_native_repair": "मरम्मत और नया कार्यक्षेत्र आवश्यक है",
+  "desktop.virtual_computers_native_unreachable": "सत्र उपलब्ध नहीं है",
+  "desktop.virtual_computers_native_unchecked": "अभी जाँचा नहीं गया",
+  "desktop.virtual_computers_native_checking": "जाँच जारी है …",
   "desktop.chat_question_request_failed": "अनुरोध विफल हुआ। फिर कोशिश करो या रद्द करो।",
   "desktop.pet_action_wave": "हाथ हिलाएँ",
   "desktop.pet_action_nod": "सिर हिलाएँ",

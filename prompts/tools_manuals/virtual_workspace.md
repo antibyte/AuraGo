@@ -26,3 +26,8 @@ Create and control a stateful agent workspace inside a boring-computers Firecrac
 ## Safety
 
 The VM may access only the configured public/LAN network profile. Host services, metadata endpoints, other guests, and unapproved private networks remain blocked. Do not place credentials or browser profiles under `/workspace`.
+
+Native desktop apps and dialogs use the optional `virtual_computer_ui` tool in the
+same desktop workspace; websites keep using `virtual_browser`. Neither native app
+control nor VNC creates a second desktop session. Old images require Install /
+Repair and workspace recreation before native control becomes available.

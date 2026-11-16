@@ -243,27 +243,28 @@ type browserSession struct {
 }
 
 type browserRequest struct {
-	Operation  string                 `json:"operation"`
-	SessionID  string                 `json:"session_id,omitempty"`
-	PageID     string                 `json:"page_id,omitempty"`
-	URL        string                 `json:"url,omitempty"`
-	ElementRef string                 `json:"element_ref,omitempty"`
-	Selector   string                 `json:"selector,omitempty"`
-	Text       string                 `json:"text,omitempty"`
-	Value      string                 `json:"value,omitempty"`
-	Key        string                 `json:"key,omitempty"`
-	TimeoutMS  int                    `json:"timeout_ms,omitempty"`
-	FullPage   bool                   `json:"full_page,omitempty"`
-	X          float64                `json:"x,omitempty"`
-	Y          float64                `json:"y,omitempty"`
-	DeltaX     float64                `json:"delta_x,omitempty"`
-	DeltaY     float64                `json:"delta_y,omitempty"`
-	ToX        float64                `json:"to_x,omitempty"`
-	ToY        float64                `json:"to_y,omitempty"`
-	Path       string                 `json:"path,omitempty"`
-	GrantID    string                 `json:"grant_id,omitempty"`
-	Fields     map[string]string      `json:"fields,omitempty"`
-	Options    map[string]interface{} `json:"options,omitempty"`
+	ControlToken string                 `json:"control_token,omitempty"`
+	Operation    string                 `json:"operation"`
+	SessionID    string                 `json:"session_id,omitempty"`
+	PageID       string                 `json:"page_id,omitempty"`
+	URL          string                 `json:"url,omitempty"`
+	ElementRef   string                 `json:"element_ref,omitempty"`
+	Selector     string                 `json:"selector,omitempty"`
+	Text         string                 `json:"text,omitempty"`
+	Value        string                 `json:"value,omitempty"`
+	Key          string                 `json:"key,omitempty"`
+	TimeoutMS    int                    `json:"timeout_ms,omitempty"`
+	FullPage     bool                   `json:"full_page,omitempty"`
+	X            float64                `json:"x,omitempty"`
+	Y            float64                `json:"y,omitempty"`
+	DeltaX       float64                `json:"delta_x,omitempty"`
+	DeltaY       float64                `json:"delta_y,omitempty"`
+	ToX          float64                `json:"to_x,omitempty"`
+	ToY          float64                `json:"to_y,omitempty"`
+	Path         string                 `json:"path,omitempty"`
+	GrantID      string                 `json:"grant_id,omitempty"`
+	Fields       map[string]string      `json:"fields,omitempty"`
+	Options      map[string]interface{} `json:"options,omitempty"`
 }
 
 type browserResult struct {
@@ -283,6 +284,8 @@ type browserController struct {
 }
 
 type service struct {
+	ui            uiControl
+	native        nativeDesktop
 	mu            sync.Mutex
 	machineID     string
 	instanceNonce string
@@ -315,12 +318,22 @@ func newService() (*service, error) {
 }
 
 func main() {
+	nativeSmoke := flag.Bool("native-smoke", false, "verify native desktop in an isolated image test guest")
 	port := flag.Uint("vsock-port", defaultVSockPort, "guest vsock port")
 	listenTCP := flag.String("listen-tcp", "", "development-only TCP listen address")
 	desktopBrowser := flag.Bool("desktop-browser", false, "open the managed visible browser on desktop boot")
 	openBrowser := flag.Bool("open-browser", false, "open a URL in the running managed desktop browser")
 	bootReady := flag.Bool("boot-ready", false, "report guest boot readiness after the workspace listener is bound")
 	flag.Parse()
+	if *nativeSmoke {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		if err := nativeDesktopSmoke(ctx); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("AURAGO_NATIVE_DESKTOP_OK")
+		return
+	}
 	if *openBrowser {
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		defer cancel()
@@ -399,16 +412,35 @@ func (s *service) handleRPC(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 	conn.SetReadLimit(maxMessageBytes)
 	_ = conn.SetReadDeadline(time.Now().Add(initialFrameTimeout))
-	firstRequest := true
+	connectionCtx, cancelConnection := context.WithCancel(r.Context())
+	defer cancelConnection()
+	requests := make(chan rpcRequest)
+	go func() {
+		defer cancelConnection()
+		first := true
+		for {
+			var request rpcRequest
+			if err := conn.ReadJSON(&request); err != nil {
+				return
+			}
+			if first {
+				_ = conn.SetReadDeadline(time.Time{})
+				first = false
+			}
+			select {
+			case requests <- request:
+			case <-connectionCtx.Done():
+				return
+			}
+		}
+	}()
 	var lastSequence uint64
 	for {
 		var request rpcRequest
-		if err := conn.ReadJSON(&request); err != nil {
+		select {
+		case request = <-requests:
+		case <-connectionCtx.Done():
 			return
-		}
-		if firstRequest {
-			_ = conn.SetReadDeadline(time.Time{})
-			firstRequest = false
 		}
 		response := rpcResponse{JSONRPC: "2.0", Protocol: protocolVersion, ID: request.ID, Sequence: request.Sequence}
 		if request.JSONRPC != "2.0" || request.Protocol != protocolVersion {
@@ -423,7 +455,7 @@ func (s *service) handleRPC(w http.ResponseWriter, r *http.Request) {
 			lastSequence = request.Sequence
 			func() {
 				defer release(s.operations)
-				ctx := r.Context()
+				ctx := connectionCtx
 				if request.Deadline != "" {
 					deadline, err := time.Parse(time.RFC3339Nano, request.Deadline)
 					if err != nil {
@@ -483,12 +515,38 @@ func (s *service) dispatch(ctx context.Context, method string, raw json.RawMessa
 		s.machineID = request.MachineID
 		result := capabilities{
 			ProtocolVersion: protocolVersion, MachineID: s.machineID, InstanceNonce: s.instanceNonce,
-			Capabilities:    []string{"shell.exec", "job.pty", "job.stream", "file.workspace", "browser.headful", "credential.runtime", "checkpoint.workspace_v2", "volume.legacy_import"},
+			Capabilities:    []string{"shell.exec", "job.pty", "job.stream", "file.workspace", "browser.headful", "desktop.control.v1", "credential.runtime", "checkpoint.workspace_v2", "volume.legacy_import"},
 			MaxMessageBytes: maxMessageBytes,
 		}
 		s.mu.Unlock()
+		if _, err := os.Stat(nativeDesktopBinary); err == nil {
+			result.Capabilities = append(result.Capabilities, "desktop.native.v1")
+		}
 		return result, nil
+	case "desktop.control":
+		var request struct {
+			Token   string `json:"token"`
+			Blocked bool   `json:"blocked"`
+		}
+		if err := decodeParams(raw, &request); err != nil {
+			return nil, invalidParams(err)
+		}
+		if request.Token == "" {
+			return nil, invalidParams(fmt.Errorf("control token required"))
+		}
+		if err := s.ui.change(ctx, request.Token, request.Blocked); err != nil {
+			return nil, toRPCError(err)
+		}
+		if err := s.native.releaseInput(ctx); err != nil {
+			return nil, toRPCError(err)
+		}
+		s.native.reset()
+		return map[string]bool{"drained": true}, nil
 	case "workspace.close":
+		if err := s.ui.change(ctx, "closed", true); err != nil {
+			return nil, toRPCError(err)
+		}
+		s.native.invalidate()
 		s.resetRuntime("workspace closed")
 		return map[string]bool{"closed": true}, nil
 	case "workspace.prepare_checkpoint":
@@ -657,8 +715,33 @@ func (s *service) dispatch(ctx context.Context, method string, raw json.RawMessa
 				return nil, invalidParams(err)
 			}
 			request.Operation = strings.TrimPrefix(method, "browser.")
-			result, err := s.browser.perform(ctx, request)
+			actionCtx, finish, err := s.ui.enter(ctx, request.ControlToken, browserInput(request.Operation))
+			if err != nil {
+				return nil, toRPCError(err)
+			}
+			defer finish()
+			if browserInput(request.Operation) {
+				s.native.invalidate()
+			}
+			result, err := s.browser.perform(actionCtx, request)
 			clearMap(request.Fields)
+			if err != nil {
+				return nil, toRPCError(err)
+			}
+			return result, nil
+		}
+		if strings.HasPrefix(method, "desktop.") {
+			var request desktopRequest
+			if err := decodeParams(raw, &request); err != nil {
+				return nil, invalidParams(err)
+			}
+			request.Operation = strings.TrimPrefix(method, "desktop.")
+			actionCtx, finish, err := s.ui.enter(ctx, request.ControlToken, desktopInput(request.Operation))
+			if err != nil {
+				return nil, toRPCError(err)
+			}
+			defer finish()
+			result, err := s.native.perform(actionCtx, request)
 			if err != nil {
 				return nil, toRPCError(err)
 			}
@@ -1373,6 +1456,8 @@ func (b *browserController) perform(ctx context.Context, request browserRequest)
 	}
 	actionCtx, cancel := context.WithTimeout(b.tabCtx, time.Duration(request.TimeoutMS)*time.Millisecond)
 	defer cancel()
+	stopCancel := context.AfterFunc(ctx, cancel)
+	defer stopCancel()
 	data := make(map[string]interface{})
 	selector := browserSelector(request)
 	switch request.Operation {

@@ -1,4 +1,12 @@
 {
+  "desktop.virtual_computers_native_title": "Controlar aplicações nativas",
+  "desktop.virtual_computers_native_check": "Verificar controlo",
+  "desktop.virtual_computers_native_disabled": "Desativado",
+  "desktop.virtual_computers_native_ready": "Pronto",
+  "desktop.virtual_computers_native_repair": "É necessária reparação e um novo espaço",
+  "desktop.virtual_computers_native_unreachable": "Sessão inacessível",
+  "desktop.virtual_computers_native_unchecked": "Ainda não verificado",
+  "desktop.virtual_computers_native_checking": "A verificar …",
   "desktop.chat_question_request_failed": "O pedido falhou. Tenta novamente ou cancela.",
   "desktop.pet_action_wave": "Acenar",
   "desktop.pet_action_nod": "Acenar com a cabeça",

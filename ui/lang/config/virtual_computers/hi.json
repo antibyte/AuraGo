@@ -1,4 +1,6 @@
 {
+  "config.virtual_computers.native_apps_label": "नेटिव ऐप नियंत्रित करें",
+  "help.virtual_computers.native_apps": "मुख्य एजेंट को दिखाई देने वाले एजेंट कार्यक्षेत्र में नेटिव ऐप और संवाद नियंत्रित करने देता है। डिफ़ॉल्ट रूप से बंद है। इंस्टॉल या मरम्मत के बाद नया डेस्कटॉप कार्यक्षेत्र बनाएँ। वेब पृष्ठों के लिए ब्राउज़र नियंत्रण बना रहता है।",
   "config.section.virtual_computers.label": "वर्चुअल कंप्यूटर",
   "config.section.virtual_computers.desc": "टर्मिनल, डेस्कटॉप और एजेंट पहुँच वाले डिस्पोज़ेबल microVM कंप्यूटर उपलब्ध कराता है।",
   "config.virtual_computers.enabled_label": "वर्चुअल कंप्यूटर चालू करें",

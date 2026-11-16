@@ -14,6 +14,8 @@ Moving or duplicating these Go packages into an unrelated module would break Go'
 
 ECalc has paired German/English fixtures for all eight calculator, table, code and pinout operations. Storymaker covers all six asynchronous project operations with synthetic project IDs. Co-agent examples explicitly manage only the initiating session and request cancellation directly. Preserve Kaggle/FindIt and other curated contracts when refreshing; never replace a complete local training history with an older remote pin.
 
+`virtual_computer_ui` has paired German/English fixtures for all 25 operations. Fixtures bind the workspace explicitly, use qualified Accessibility references, and require a fresh screenshot plus window for coordinate actions. Preserve the native/browser routing and never generate automatic retries for uncertain UI mutations.
+
 The 500 negative examples stay balanced across five categories as the catalog grows;
 successive catalog rotations must not repeat a tool's negative-case variant.
 

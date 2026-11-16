@@ -358,7 +358,7 @@ func egressPolicyTool(a ActionDescriptor, args map[string]interface{}) bool {
 		"send_notification", "send_sms", "send_voice", "send_document", "send_image", "send_audio", "send_video",
 		"dns_lookup", "network_ping", "port_scanner", "whois_lookup",
 		"web_scraper", "web_capture", "web_performance_audit", "site_crawler", "browser_automation", "form_automation",
-		"virtual_browser", "yepapi_scrape", "composio_call", "manus", "mcp_call":
+		"virtual_browser", "virtual_computer_ui", "yepapi_scrape", "composio_call", "manus", "mcp_call":
 		return true
 	case "agentmail", "agentmail_messages", "agentmail_drafts":
 		return a.HighRisk // Only the sending operations are high-risk here.

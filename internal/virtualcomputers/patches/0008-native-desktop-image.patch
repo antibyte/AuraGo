@@ -1,0 +1,9 @@
+diff --git a/infra/latitude/build-desktop-rootfs.sh b/infra/latitude/build-desktop-rootfs.sh
+--- a/infra/latitude/build-desktop-rootfs.sh
++++ b/infra/latitude/build-desktop-rootfs.sh
+@@ -16 +16 @@
+-IMG="${ROOTFS_DIR}/desktop.ext4"
++IMG="${AURAGO_DESKTOP_IMAGE:-${ROOTFS_DIR}/desktop.ext4}"
+@@ -18 +18 @@
+-SUITE="${SUITE:-bookworm}"
++SUITE="${SUITE:-trixie}"

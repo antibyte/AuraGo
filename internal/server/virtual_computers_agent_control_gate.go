@@ -14,8 +14,11 @@ import (
 // workspace tools before a complete setup/repair verified boringd and both
 // installed guest templates for the exact embedded asset fingerprint.
 func virtualComputersEnforceAgentControlGate(s *Server, oldCfg, newCfg config.Config) error {
-	if oldCfg.VirtualComputers.AgentControl.Enabled || !newCfg.VirtualComputers.AgentControl.Enabled {
+	if (oldCfg.VirtualComputers.AgentControl.Enabled || !newCfg.VirtualComputers.AgentControl.Enabled) && (oldCfg.VirtualComputers.AgentControl.NativeAppsEnabled || !newCfg.VirtualComputers.AgentControl.NativeAppsEnabled) {
 		return nil
+	}
+	if newCfg.VirtualComputers.AgentControl.NativeAppsEnabled && !newCfg.VirtualComputers.AgentControl.Enabled {
+		return fmt.Errorf("agent control must be enabled before native applications")
 	}
 	if !newCfg.VirtualComputers.Enabled {
 		return fmt.Errorf("virtual_computers must be enabled before agent control")

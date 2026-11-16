@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Workspace leases, managed Garage storage, desktop images and guest browser lifecycle.
+Workspace leases, managed Garage storage, desktop images and shared browser/native GUI control.
 
 ## Ownership
 
@@ -58,11 +58,22 @@ Workspace leases, managed Garage storage, desktop images and guest browser lifec
   WebSocket and suppresses late event publication. Authenticated cancellation
   remains available after readonly or agent-task permissions are disabled.
 
+### Native application control
+
+- `virtual_computer_ui` is optional (`agent_control.native_apps_enabled=false`) and main-agent only, bound to the trusted chat/mission and existing desktop Workspace. No manual VM, Python, co-agent or A2A access. Keep the typed `desktop.*` allowlist and `desktop.native.v1` capability aligned with schemas and training.
+- The host admission lane and guest generation token serialize browser/native calls per workspace. Takeover, disable and close cancel and drain input before acknowledgement; failed cancellation leaves only the unconfirmed workspace blocked. Config revocation drains workspaces independently and retries blocked lanes on later config saves. Preserve existing browser operation timeouts; only native calls use the native deadline. Recheck live grants and TTL after queue admission.
+- Guest CLI arguments are fixed arrays, text input is stdin, output/deadlines are bounded, and cancellation sends SIGTERM to the CLI process group, allowing the upstream two-second input-release budget before a bounded hard fallback. Before acknowledging control, use the pinned upstream status/permission probe to recover abandoned held input and require its private input journal to be empty; otherwise fail closed. Preserve upstream error disposition; never replay uncertain mutations. Private references/state and XDG runtime/journal files remain under `/run/aurago/native-desktop`.
+- Desktop images use Debian trixie, AT-SPI >=2.52 and the size/hash-pinned agent-desktop 1.3.1 binaries plus its Apache-2.0 license. Openbox, applications and guest service share one D-Bus session on `:0`. Do not force `GTK_MODULES=gail:atk-bridge`: GTK3 has its own bridge and loading the legacy module crashes its file chooser. A disposable networkless candidate must confirm Mousepad accessibility, typing and a native Save dialog with an independent file read before atomic image replacement. Existing VMs retain their image; repair plus recreation is required. All embedded files affect the fingerprint.
+- Screenshot preparation/commit binds a <=30-second image to one guest/window/process/geometry/resolution. Inputs/control changes invalidate it. Coordinate actions require current focus and in-window coordinates; private host image handles are owner/mission scoped and go only to existing Vision. Publish captures only under the current control token while the call is live. Remove tracked host captures on shutdown and only owned capture files from the dedicated directory on startup; never follow symlinks during cleanup. No base64 in tool text or public media registration.
+- Status is observational; activity logs contain operation/outcome, no typed content or screenshot. Window content and Vision results remain externally isolated. Operator instructions: `documentation/virtual_computers.md`; agent instructions: `prompts/tools_manuals/virtual_computer_ui.md`.
+
 ## Verification
 
 - Run `go test ./internal/virtualcomputers` and the named cross-component checks in the contracts above when those paths change.
 - With Chrome or Chromium installed, run `go test ./internal/virtualcomputers/guest_workspace_agent -run TestManagedBrowser -count=20` to cover request-independent browser lifetime, repeated close and immediate profile removal.
 - Guest launcher checks: `go test ./internal/virtualcomputers/guest_workspace_agent -run TestDesktopBrowser` on Linux. The opt-in `TestDesktopBrowserReusesAndReopensManagedChromium` requires `AURAGO_DESKTOP_BROWSER_SMOKE=1` in an isolated Debian guest/rootfs with Xvfb, Chromium, writable `/run/aurago` and `/workspace`; never opt in against a live guest's profile.
+
+- Native checks: `go test ./internal/virtualcomputers ./internal/agent ./internal/server ./ui -run 'TestNativeDesktop|TestVirtualComputers|TestVirtualWorkspace|TestWorkspace|TestVirtualBrowser|Test.*Strict'`; Linux guest checks include `TestNativeDesktop` and the existing managed-browser suite. Image activation also runs `verify-native-image.sh` against a disposable guest. Verify both standalone Linux architectures and regenerate/validate the pinned training packs.
 
 ## Child DOX Index
 
