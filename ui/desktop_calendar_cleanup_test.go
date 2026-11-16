@@ -67,18 +67,21 @@ func TestDesktopCalendarWindowCleanupRemovesModals(t *testing.T) {
 
 func TestDesktopClockPopupUsesTheLocalDay(t *testing.T) {
 	t.Parallel()
-	source := readDesktopAssetText(t, "js/desktop/core/shell-chrome-runtime.js")
+	source := readDesktopAssetText(t, "js/desktop/core/clock-calendar-runtime.js")
+	views := readDesktopAssetText(t, "js/desktop/apps/calendar-views.js")
 	if strings.Contains(source, "toISOString().slice(0, 10)") {
 		t.Fatal("clock popup still treats the UTC date as today")
 	}
 	for _, marker := range []string{
-		"function clockLocalDay",
-		"clockLocalDay(now)",
-		"clockLocalDay(item.date_time)",
+		"clockCalendarSelected = isoDate(now)",
+		"return calendarDayItems(",
 	} {
 		if !strings.Contains(source, marker) {
-			t.Fatalf("shell-chrome-runtime.js missing %q", marker)
+			t.Fatalf("clock-calendar-runtime.js missing shared local-date use %q", marker)
 		}
+	}
+	if !strings.Contains(views, "const key = isoDate(date)") || !strings.Contains(views, "isoDate(new Date(item.date_time)) === key") {
+		t.Fatal("clock agenda must share Calendar's local-day comparison")
 	}
 }
 

@@ -32,6 +32,7 @@ func handleDesktopSettings(s *Server) http.HandlerFunc {
 				Key      string            `json:"key"`
 				Value    string            `json:"value"`
 				Settings map[string]string `json:"settings"`
+				Revision *int64            `json:"revision"`
 			}
 			if err := decodeDesktopJSON(w, r, &body, desktopMediumJSONBodyLimit); err != nil {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
@@ -40,8 +41,9 @@ func handleDesktopSettings(s *Server) http.HandlerFunc {
 			if body.Settings == nil {
 				body.Settings = map[string]string{body.Key: body.Value}
 			}
-			if err := svc.SetSettings(r.Context(), body.Settings, desktop.SourceUser); err != nil {
-				jsonError(w, err.Error(), http.StatusBadRequest)
+			workspace, err := svc.SetWorkspaceSettings(r.Context(), body.Revision, body.Settings, desktop.SourceUser)
+			if err != nil {
+				writeDesktopWorkspaceError(w, err, workspace)
 				return
 			}
 			payload, err := svc.Bootstrap(r.Context())
@@ -49,10 +51,10 @@ func handleDesktopSettings(s *Server) http.HandlerFunc {
 				jsonError(w, "Failed to load desktop settings", http.StatusInternalServerError)
 				return
 			}
-			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "set_settings", "settings": body.Settings}, CreatedAt: time.Now().UTC()}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "set_settings", "settings": body.Settings, "workspace": workspace}, CreatedAt: time.Now().UTC()}
 			broadcastDesktopEvent(s, hub, event)
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "settings": payload.Settings})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "settings": payload.Settings, "workspace": workspace})
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}

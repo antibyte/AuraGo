@@ -74,7 +74,7 @@ func TestDesktopThemeAccentSettingContract(t *testing.T) {
 		t.Error("desktop-foundation.js must default appearance.accent to theme, like the backend")
 	}
 
-	settings := readDesktopAssetText(t, "js/desktop/apps/settings.js")
+	settings := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
 	options := regexp.MustCompile(`\['(\w+)', 'desktop\.settings_accent_(\w+)'\]`).FindAllStringSubmatch(settings, -1)
 	var picked []string
 	for _, option := range options {

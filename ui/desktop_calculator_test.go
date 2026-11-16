@@ -29,16 +29,19 @@ func TestDesktopCalculatorDoesNotUseFunctionEval(t *testing.T) {
 		}
 	}
 	for _, marker := range []string{
-		"function tokenizeCalculatorExpression",
-		"function parseCalculatorExpression",
+		"function tokenize(expression)",
+		"function parse(tokens)",
+		"function evaluate(expression)",
+		"window.AuraCalculatorExpression = Object.freeze({ evaluate });",
 		"function evaluateCalculatorExpression",
+		"window.AuraCalculatorExpression.evaluate(expression)",
 		"case 'sin':",
 		"case 'cos':",
 		"case 'tan':",
 		"case 'sqrt':",
 		"case 'log':",
 		"case 'abs':",
-		"calculatorFactorial(value)",
+		"factorial(value)",
 		"if (name === 'pi') return Math.PI;",
 		"if (name === 'e') return Math.E;",
 		"peek().value === '*' || peek().value === '/' || peek().value === '%'",
@@ -54,11 +57,10 @@ func TestDesktopCalculatorRejectsNonFiniteResults(t *testing.T) {
 
 	script := readDesktopCalculatorScript(t)
 	for _, marker := range []string{
-		"function ensureFiniteCalculatorResult(value)",
-		"return ensureFiniteCalculatorResult(value);",
-		"if (!Number.isFinite(value)) throw new Error('Invalid expression');",
-		"if (value > 170) throw new Error('Invalid expression');",
-		"value = calculatorFactorial(value);",
+		"if (peek().type !== 'eof' || !Number.isFinite(value)) throw new Error('Invalid expression');",
+		"!Number.isInteger(value) || value > 170) throw new Error('Invalid expression');",
+		"value = factorial(value);",
+		"window.AuraCalculatorExpression.evaluate(expression)",
 		"result = Number(value.toFixed(10));",
 		"result = value;",
 	} {
@@ -276,7 +278,9 @@ func TestDesktopCalculatorUXKeysAreTranslated(t *testing.T) {
 }
 func readDesktopCalculatorScript(t *testing.T) string {
 	t.Helper()
-	return readDesktopAssetText(t, "js/desktop/apps/calculator.js")
+	parser := readDesktopAssetText(t, "js/desktop/shared/calculator-expression.js")
+	calculator := readDesktopAssetText(t, "js/desktop/apps/calculator.js")
+	return parser + "\n" + calculator
 }
 
 func assertOrderedCalculatorMarkers(t *testing.T, source string, markers []string) {

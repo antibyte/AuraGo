@@ -87,6 +87,9 @@ type Service struct {
 
 	capabilityMu sync.RWMutex
 	capabilities CapabilityProvider
+
+	fileUndoMu sync.Mutex
+	fileUndo   map[string]*fileUndoReceipt
 }
 
 type listCacheEntry struct {
@@ -272,10 +275,19 @@ func (s *Service) cleanupStaleDeletes() {
 // Close closes the desktop registry database and stops any managed Code Studio container.
 // It always attempts to close all resources even if an earlier step fails.
 func (s *Service) Close() error {
+	desktopMutationMu.Lock()
+	defer desktopMutationMu.Unlock()
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
 	s.closed = true
 	s.invalidateBootstrapCache()
+	s.mu.Unlock()
+	s.closeFileUndoReceipts()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	var closeErr error
 

@@ -95,51 +95,21 @@
         return entry;
     }
 
+    function desktopAssociationCandidates(entry) {
+        const associations = window.AuraDesktopFileAssociations;
+        const candidates = associations.resolveCandidates(entry, {
+            isViewerFile, isWriterFile, isSheetsFile, allApps,
+            isImageFile: desktopIsImageFile, isMediaFile: desktopIsMediaFile, isArchiveFile: desktopIsArchiveFile
+        });
+        return associations.availableCandidates(candidates, allApps()).map(app => Object.assign({}, app, {
+            label: app.label || t(app.labelKey)
+        }));
+    }
+
     function buildDesktopOpenWithSubmenu(entry) {
         if (!entry || entry.type !== 'file') return [];
-        const name = entry.name || pathBaseName(entry.path);
-        const apps = [];
-        const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
-        const isImage = desktopIsImageFile(name);
-        const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
-        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
-        if (isText) {
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.ora$/i.test(name)) {
-            // OpenRaster projects are Pixel documents: Gallery and Viewer cannot draw them.
-            apps.push({ label: t('desktop.app_pixel'), appId: 'pixel' });
-        } else if (isImage) {
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        } else if (isMedia) {
-            const ext = desktopFileExtension(name);
-            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' }, { label: t('desktop.app_music_player'), appId: 'music-player' });
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
-            apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
-            apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.lyl$/i.test(name)) {
-            apps.push({ label: 'Layerling', appId: 'layerling' });
-        } else if (/\.aurasynth$/i.test(name)) {
-            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(name || '').toLowerCase().endsWith('.md')) {
-            apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (desktopIsArchiveFile(name)) {
-            apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
-        } else {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        }
-        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
-        if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
-        const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
-        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
+        const apps = desktopAssociationCandidates(entry);
+        const ext = window.AuraDesktopFileAssociations.extensionForName(entry.name || entry.path);
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -149,9 +119,14 @@
         }));
         const defaultItems = apps.map(app => ({
             label: t('desktop.set_default_app_for', { app: app.label }),
-            action: () => {
-                setDefaultAppForExtension(ext, app.appId);
-                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+            disabled: desktopReadonly() || !ext,
+            action: async () => {
+                try {
+                    await setDefaultAppForExtension(ext, app.appId);
+                    showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+                } catch (err) {
+                    showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                }
             }
         }));
         return openItems.concat([{ separator: true }]).concat(defaultItems);
@@ -210,7 +185,7 @@
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
             }
         }
-        await loadBootstrap();
+        await refreshDesktopAfterFileChange();
     }
 
     async function compressDesktopPathsToZip(paths) {
@@ -232,7 +207,7 @@
                 body: JSON.stringify({ paths: cleanPaths, dest: destPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -253,7 +228,7 @@
                 body: JSON.stringify({ path: entry.path, dest })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -272,7 +247,7 @@
                 body: JSON.stringify({ target_path: entry.path, link_path: linkPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.fm.symlink_created') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -311,43 +286,31 @@
                 action: () => saveDesktopWallpaper(value)
             };
         };
-        return options.map(item).concat([{ separator: true }], animated.map(item));
+        return options.map(item).concat([{ separator: true }], animated.map(item), [{ separator: true }, { label: t('desktop.wallpaper_choose'), disabled: desktopReadonly(), action: chooseDesktopWallpaper }]);
     }
 
     async function saveDesktopWallpaper(value) {
         try {
-            const wallpaper = typeof normalizeWallpaperId === 'function' ? normalizeWallpaperId(value) : String(value || 'groupshoot');
-            const updates = [];
-            const nextSettings = Object.assign({}, desktopSettings());
-            if (typeof spacesEnabled === 'function' && spacesEnabled()) {
-                const map = typeof parseWallpaperBySpace === 'function' ? Object.assign({}, parseWallpaperBySpace()) : {};
-                const fallback = settingValue('appearance.wallpaper') || 'groupshoot';
-                SPACE_IDS.forEach(id => {
-                    if (!map[id]) map[id] = fallback;
-                });
+            const wallpaper = normalizeWallpaperId(value);
+            const reloadCustom = wallpaperForActiveSpace() === wallpaper;
+            if (spacesEnabled()) {
+                const map = Object.assign({}, parseWallpaperBySpace());
                 map[normalizeSpaceId(state.activeSpaceId)] = wallpaper;
-                const encoded = JSON.stringify(map);
-                updates.push({ key: 'appearance.wallpaper_by_space', value: encoded });
-                nextSettings['appearance.wallpaper_by_space'] = encoded;
+                await saveDesktopPreference('appearance.wallpaper_by_space', JSON.stringify(map));
             } else {
-                updates.push({ key: 'appearance.wallpaper', value: wallpaper });
-                nextSettings['appearance.wallpaper'] = wallpaper;
+                await saveDesktopPreference('appearance.wallpaper', wallpaper);
             }
-            const results = await Promise.all(updates.map(update => api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(update)
-            })));
-            const last = results[results.length - 1];
-            if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = last.settings || nextSettings;
-            Object.assign(state.bootstrap.settings, nextSettings);
-            applyDesktopSettings();
-            renderStartButtonIcon();
-            renderIcons();
-            renderWidgets();
+            if (reloadCustom && window.AuraDesktopCustomWallpaper?.isCustom(wallpaper)) {
+                desktopCustomWallpaperKey = '';
+                syncDesktopCustomWallpaper();
+            }
+            return true;
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            const code = err.body?.code || '';
+            const message = code.startsWith('wallpaper_') ? t(code === 'wallpaper_not_found' ? 'desktop.wallpaper_missing' : 'desktop.wallpaper_invalid',
+                { path: window.AuraDesktopCustomWallpaper?.path(value) || '' }) : err.message || String(err);
+            showDesktopNotification({ title: t('desktop.notification'), message });
+            return false;
         }
     }
 
@@ -366,7 +329,7 @@
 
     function contextMenuReadonlyGuard(items) {
         if (!desktopReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app', 'undo', 'redo']);
         return (items || []).map(item => {
             if (!item || item.separator) return item;
             if (!blocked.has(item.id)) return item;
@@ -477,11 +440,15 @@
         if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
         event.preventDefault();
         selectDesktopIcon(null);
+        const history = window.AuraDesktopFileHistory;
+        const historyState = history?.snapshot();
         const items = contextMenuReadonlyGuard([
             { id: 'new-sticky-note', label: t('desktop.sticky_add'), icon: 'notes', fallback: '+', disabled: desktopReadonly(), action: () => editStickyNote(null, event.clientX, event.clientY) },
             { id: 'new-file', label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
             { id: 'new-folder', label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', id: 'paste', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
+            { id: 'undo', label: t('desktop.menu_undo'), icon: 'undo', fallback: '↶', shortcut: 'Ctrl+Z', disabled: !historyState?.canUndo, action: () => history?.undo() },
+            { id: 'redo', label: t('desktop.menu_redo'), icon: 'redo', fallback: '↷', shortcut: 'Ctrl+Shift+Z', disabled: !historyState?.canRedo, action: () => history?.redo() },
             { separator: true },
             { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
             { label: t('desktop.settings_wallpaper'), icon: 'image', fallback: 'W', items: desktopWallpaperMenuItems() },
@@ -576,16 +543,23 @@
 
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
+        if (!appId) return;
+        const overviewOpener = event.target?.closest('button') || document.activeElement;
         const app = appById(appId);
         const pinned = isAppDockPinned(appId);
+        const hasWindows = windowOverviewWindows({ appId, scope: 'all' }).length > 0;
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
             { label: t('desktop.context_new_window'), icon: 'monitor', fallback: 'N', action: () => openApp(appId, { forceNew: true }) },
+            { id: 'app-windows', label: t('desktop.window_app_list'), icon: 'grid', fallback: 'W', disabled: !hasWindows,
+                action: () => openDesktopWindowOverview({ mode: 'app-group', appId, opener: overviewOpener }) },
             { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) },
             { separator: true },
             pinned
-                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', action: () => toggleDockPin(appId) }
-                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', action: () => toggleDockPin(appId) }
+                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', disabled: desktopReadonly(), action: () => toggleDockPin(appId) }
+                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', disabled: desktopReadonly(), action: () => toggleDockPin(appId) },
+            { id: 'close-app-windows', label: t('desktop.close_app_windows'), icon: 'x', fallback: 'X', disabled: !hasWindows,
+                action: () => closeDesktopWindowBatch(windowOverviewWindows({ appId, scope: 'all' }).map(win => win.id)) }
         ];
         if (!isBuiltinApp(appId)) {
             items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', danger: true, action: () => deleteDesktopApp(appId) });
@@ -625,11 +599,12 @@
         const item = state.windows.get(id);
         if (!item) return;
         const items = [
-            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
+            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => { restoreWindowFromSnap(id); focusWindow(id); } },
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
         if (!item.isGadget) {
+            items.push({ label: t('desktop.window_layouts'), icon: 'grid', action: () => openWindowLayoutMenu(id) });
             const onTop = !!item.alwaysOnTop;
             items.push({
                 label: t('desktop.context_always_on_top'),
@@ -662,7 +637,7 @@
             SPACE_IDS.forEach(spaceId => {
                 const current = windowSpaceId(item) === spaceId;
                 items.push({
-                    label: t('desktop.move_to_space').replace('{{n}}', spaceId) + (current ? ' ✓' : ''),
+                    label: t('desktop.move_to_space').replace('{{n}}', window.AuraDesktopWorkspaceManager?.name(spaceId) || spaceId) + (current ? ' ✓' : ''),
                     icon: 'grid',
                     fallback: spaceId,
                     action: () => moveWindowToSpace(id, spaceId)
@@ -671,6 +646,7 @@
         }
         items.push(
             { separator: true },
+            ...windowBatchMenuItems(id).map(entry => ({ label: t(entry.labelKey), action: entry.action, disabled: entry.disabled })),
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
         );
         showContextMenu(event.clientX, event.clientY, items);
@@ -728,6 +704,10 @@
 
     async function refreshDesktopAfterFileChange() {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) {
+            await window.FileManager.refreshLocalInstances();
+            return;
+        }
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -760,7 +740,7 @@
     function officeAppContext(context) {
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, promptDialog, confirmDialog,
             registerWindowCleanup,
-            setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
+            registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
         });
     }
 
@@ -858,9 +838,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
             openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -876,45 +854,43 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: workspaceJoinPath(basePath, name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function renamePath(path) {
-        if (!path) return;
+        if (!path || desktopReadonly()) return;
         const current = String(path).split('/').pop();
         const name = await promptDialog(t('desktop.rename'), current);
         if (!name || name === current) return;
         try {
-            await api('/api/desktop/file', {
+            const result = await api('/api/desktop/file', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ old_path: path, new_path: workspaceJoinPath(pathDir(path), name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            window.AuraDesktopFileHistory?.record(result, t('desktop.context_rename'));
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function deletePath(path) {
-        if (!path) return;
-        if (settingBool('files.confirm_delete')) {
-            const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
+        if (!path || desktopReadonly()) return;
+        const permanent = isInsideTrashPath(path);
+        if (permanent || settingBool('files.confirm_delete')) {
+            const confirmed = await confirmDialog(t(permanent ? 'desktop.app_delete_permanent' : 'desktop.confirm_delete'),
+                permanent ? t('desktop.confirm_empty_trash_msg', { count: 1 }) : t('desktop.confirm_delete_msg', { path }));
             if (!confirmed) return;
         }
         try {
+            if (!permanent) return await movePathToTrash(path);
             await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
             desktopSound('file.delete');
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -928,20 +904,26 @@
         if (desktopReadonly()) return [];
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: cleanPaths })
             });
-            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
-            desktopSound('file.trash');
-            await refreshDesktopAfterFileChange();
-            return result.moves || [];
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
-            return [];
         }
+        if (moves.length) {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.context_delete'));
+            moves.forEach(move => removeIconPosition('desktop-entry-' + move.from));
+            desktopSound('file.trash');
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+        }
+        return moves;
     }
 
     async function handleTrashDrop(btn) {
@@ -954,6 +936,8 @@
     }
 
     async function emptyTrash() {
+        if (desktopReadonly()) return;
+        let changed = false;
         try {
             const entries = await listTrashEntries();
             if (entries.length === 0) {
@@ -965,12 +949,19 @@
                 if (!confirmed) return;
             }
             for (const entry of entries) {
-                if (entry && entry.path) await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                if (entry && entry.path) {
+                    await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                    changed = true;
+                }
             }
             desktopSound('file.delete');
-            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        } finally {
+            if (changed) {
+                try { await refreshDesktopAfterFileChange(); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            }
         }
     }
 
@@ -1000,18 +991,22 @@
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        let restored = [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: unique, restore: true })
             });
-            restored = (result.moves || []).map(move => move.path);
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
+        window.AuraDesktopFileHistory?.record(moves, t('desktop.context_restore'));
+        const restored = moves.map(move => move.path);
         if (restored.length) {
-            await refreshDesktopAfterFileChange();
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             const message = restored.length === 1
                 ? t('desktop.trash_restored', { path: restored[0] })
                 : t('desktop.trash_restored_items', { count: restored.length });
@@ -1368,6 +1363,18 @@
             .filter(menu => menu.items.length);
     }
 
+    function windowBatchMenuItems(windowId) {
+        const item = state.windows.get(windowId);
+        if (!item || item.isGadget) return [];
+        const eligible = Array.from(state.windows.values()).filter(win => !win.isGadget && !win.closing);
+        const others = eligible.filter(win => win.id !== windowId && windowSpaceId(win) === windowSpaceId(item)).map(win => win.id);
+        const sameApp = eligible.filter(win => win.appId === item.appId).map(win => win.id);
+        return [
+            { id: 'close-others', labelKey: 'desktop.close_other_windows', disabled: !others.length, action: () => closeDesktopWindowBatch(others) },
+            { id: 'close-app', labelKey: 'desktop.close_app_windows', disabled: !sameApp.length, action: () => closeDesktopWindowBatch(sameApp) }
+        ];
+    }
+
     function automaticWindowMenu(windowId) {
         const item = state.windows.get(windowId);
         const hasMaximize = !!(item && item.element && item.element.querySelector('[data-action="maximize"]'));
@@ -1385,6 +1392,9 @@
                     action: () => hasMaximize && toggleMaximizeWindow(windowId)
                 },
                 { type: 'separator' },
+                ...(item && !item.isGadget ? [{ id: 'layouts', labelKey: 'desktop.window_layouts', action: () => openWindowLayoutMenu(windowId) },
+                    { id: 'restore-layout', labelKey: 'desktop.restore', disabled: !windowLayoutCanRestore(windowId), action: () => restoreWindowFromSnap(windowId) },
+                    ...windowBatchMenuItems(windowId)] : []),
                 { id: 'close', labelKey: 'desktop.menu_close_window', icon: 'x', shortcut: 'Alt+F4', action: () => closeWindow(windowId) }
             ]
         };
@@ -1616,7 +1626,7 @@
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, chooseDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -1662,7 +1672,7 @@
             if (win) { delete win.pendingCameraImport; delete win.pendingProjectId; }
             return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
@@ -1671,7 +1681,7 @@
         if (appId === 'infra' && window.InfraApp) {
             return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, confirmDialog, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 showConfirmModal: (title, message, confirmLabel) => confirmLabel
                     ? modalDialog({ title, message, choices: [{ value: 'discard', label: confirmLabel }] }).then(value => value === 'discard')
                     : confirmDialog(title, message),
@@ -1681,7 +1691,7 @@
         if (appId === 'ruview' && window.RuViewApp) {
             return window.RuViewApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, confirmDialog, modalDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'docker-manager' && window.DockerManagerApp) {
@@ -1798,7 +1808,7 @@ if (appId === 'system-info') {
             if (typeof window.StorymakerApp.render === 'function') {
                 return window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -1808,7 +1818,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {
@@ -1980,7 +1990,7 @@ if (appId === 'pixel') {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
                 registerWindowCleanup,
                 providers: (state.bootstrap || {}).providers || [],
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 closeWindow
             }), context || {});
         }
@@ -2006,7 +2016,7 @@ if (appId === 'pixel') {
             const win = state.windows.get(id);
             return window.BookshelfApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog,
-                setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
                 openApp
             }));
         }
@@ -2052,7 +2062,7 @@ if (appId === 'pixel') {
                 return window.CYDCreatorApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification,
                     readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -2072,7 +2082,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), openApp, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }
@@ -2082,7 +2092,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog, openApp,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }

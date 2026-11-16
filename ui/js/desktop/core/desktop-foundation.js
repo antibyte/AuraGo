@@ -322,9 +322,12 @@
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
         'appearance.wallpaper_by_space': '{}',
+        'appearance.wallpaper_fit': 'cover',
         'appearance.theme': 'standard',
         'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
+        'accessibility.text_size': '100',
+        'accessibility.high_contrast': 'false',
         'appearance.icon_theme': 'papirus',
         'appearance.tela_folder_color': 'standard',
         'appearance.fluent_folder_color': 'standard',
@@ -598,12 +601,14 @@
     }
 
     function dockApps() {
-        const runningIds = new Set(taskbarWindows().map(win => win.appId).filter(Boolean));
+        const windows = windowOverviewWindows({ scope: 'visible' });
+        const runningIds = new Set(windows.map(win => win.appId).filter(Boolean));
         const available = userFacingApps().filter(app => app.dock_visible !== false || runningIds.has(app.id));
         const pinned = dockPinIds().map(id => available.find(app => app.id === id)).filter(Boolean);
+        const running = windows.map(win => appById(win.appId) || { id: win.appId, name: win.title, icon: win.icon || 'monitor' });
         const seen = new Set();
         const merged = [];
-        pinned.concat(available).forEach(app => {
+        pinned.concat(available, running).forEach(app => {
             if (!app || seen.has(app.id)) return;
             seen.add(app.id);
             merged.push(app);
@@ -720,11 +725,13 @@
         body.dataset.wallpaper = (typeof wallpaperForActiveSpace === 'function')
             ? wallpaperForActiveSpace()
             : settingValue('appearance.wallpaper');
+        syncDesktopCustomWallpaper();
         body.dataset.theme = settingValue('appearance.theme');
         applyDesktopThemeAttributes(body);
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
+        window.AuraDesktopAccessibility?.apply(desktopSettings());
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
         body.dataset.animations = settingValue('windows.animations');
         body.dataset.widgets = settingValue('desktop.show_widgets');
@@ -1087,7 +1094,13 @@
             const body = shouldParseJSON ? await resp.json() : {};
             if (!resp.ok) {
                 if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
-                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                const uncertain = body.code === 'file_undo_uncertain' || body.uncertain === true;
+                if (uncertain && String(url).split('?')[0] !== '/api/desktop/file-undo') {
+                    refreshDesktopAfterFileChange().catch(() => {});
+                }
+                const message = uncertain ? t('desktop.file_history_unknown')
+                    : body.code === 'file_undo_limit' ? t('desktop.file_history_limit') : body.error || body.message || ('HTTP ' + resp.status);
+                const err = new Error(message);
                 err.body = body;
                 err.status = resp.status;
                 const retryAfter = String(resp.headers.get('retry-after') || '');
@@ -1095,6 +1108,9 @@
                 throw err;
             }
             if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            if (String(url).split('?')[0] === '/api/desktop/settings' && typeof reconcileDesktopSettingsResponse === 'function') {
+                reconcileDesktopSettingsResponse(body);
+            }
             return body;
         }
     }
@@ -1112,6 +1128,7 @@
 
     function disposeAppWindow(win) {
         if (!win) return;
+        window.AuraDesktopSessionActions?.register(win.id, null);
         const cleanup = state.windowCleanups.get(win.id);
         if (cleanup) {
             state.windowCleanups.delete(win.id);
@@ -1251,7 +1268,7 @@
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
-        state.bootstrap = await api('/api/desktop/bootstrap');
+        acceptDesktopBootstrap(await api('/api/desktop/bootstrap'));
         state.desktopFiles = await resolveDesktopFilesFromBootstrap(state.bootstrap);
         return state.bootstrap;
     }
@@ -1361,6 +1378,7 @@
     }
 
     function closeStartMenu() {
+        cancelStartSearch();
         const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing';
         menu.style.transition = ''; menu.style.transform = '';
         const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'false'; startButton.setAttribute('aria-expanded', 'false'); }

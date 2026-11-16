@@ -34,6 +34,12 @@ window.WebSocket=class extends EventTarget { close(){} };
 	// Keep the real startup sequence, including restoration and URL app routing.
 	shell = shell[:cut] + `window.sessionTest={state,openApp,closeWindow,focusWindow,minimizeWindow,toggleMaximizeWindow,assignWindowSpace,switchSpace,captureSessionSnapshot,setDockPins,setDefaultAppForExtension};` + shell[cut:]
 	settings := desktop.DesktopSettingDefaults()
+	layout := desktop.DefaultWorkspaceLayout()
+	storeLayout := func() {
+		encoded, _ := json.Marshal(layout)
+		settings[desktop.WorkspaceLayoutSettingKey] = string(encoded)
+	}
+	storeLayout()
 	for key, value := range map[string]string{"windows.restore_session": "false", "windows.animations": "false", "pet.enabled": "false", "phone_gadget.enabled": "false", "desktop.show_widgets": "false", "appearance.theme": "fruity", "appearance.fruity_mode": "dark"} {
 		settings[key] = value
 	}
@@ -54,14 +60,38 @@ window.WebSocket=class extends EventTarget { close(){} };
 			json.NewEncoder(w).Encode(map[string]interface{}{"enabled": true, "builtin_apps": desktop.BuiltinApps(), "installed_apps": []interface{}{}, "widgets": []interface{}{}, "shortcuts": []interface{}{}, "desktop_files": []interface{}{}, "workspace": map[string]interface{}{"readonly": false}, "settings": settings})
 		case "/api/desktop/settings":
 			if r.Method == http.MethodPut {
-				var update struct{ Key, Value string }
-				if err := json.NewDecoder(r.Body).Decode(&update); err != nil || update.Key == "" {
+				var update struct {
+					Key, Value string
+					Settings   map[string]string `json:"settings"`
+					Revision   *int64            `json:"revision"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&update); err != nil || (update.Key == "" && len(update.Settings) == 0) {
 					http.Error(w, `{"error":"invalid setting"}`, http.StatusBadRequest)
 					return
 				}
-				settings[update.Key] = update.Value
+				if update.Key != "" {
+					update.Settings = map[string]string{update.Key: update.Value}
+				}
+				protected := false
+				for key := range update.Settings {
+					protected = protected || key == "session.windows" || key == "appearance.wallpaper" || key == "appearance.wallpaper_by_space"
+				}
+				if protected && (update.Revision == nil || *update.Revision != layout.Revision) {
+					w.WriteHeader(http.StatusConflict)
+					json.NewEncoder(w).Encode(map[string]interface{}{"code": "workspace_revision_conflict", "state": desktop.WorkspaceState{Layout: layout, Settings: settings}})
+					return
+				}
+				for key, value := range update.Settings {
+					settings[key] = value
+				}
+				if protected {
+					layout.Revision++
+					storeLayout()
+				}
 			}
-			json.NewEncoder(w).Encode(map[string]interface{}{"settings": settings})
+			json.NewEncoder(w).Encode(map[string]interface{}{"settings": settings, "workspace": desktop.WorkspaceState{Layout: layout, Settings: settings}})
+		case "/api/desktop/workspaces":
+			json.NewEncoder(w).Encode(desktop.WorkspaceState{Layout: layout, Settings: settings})
 		default:
 			fmt.Fprint(w, `{"status":"ok","files":[],"pets":[],"settings":{},"enabled":false}`)
 		}
@@ -93,16 +123,16 @@ window.WebSocket=class extends EventTarget { close(){} };
 	waitBoot()
 	page.MustEval(`async()=>{
         await AuraDesktopModules.loadAppAssets('settings');
-        await AuraDesktopModules.loadAppAssets('calculator');
+        await AuraDesktopModules.loadAppAssets('files');
         sessionTest.openApp('settings',{category:'windows'});
-        sessionTest.openApp('calculator');
+        sessionTest.openApp('files');
         const first=[...sessionTest.state.windows.values()].at(-1);
-        Object.assign(first.element.style,{left:'120px',top:'90px',width:'470px',height:'790px'});
+        Object.assign(first.element.style,{left:'120px',top:'90px',width:'700px',height:'620px'});
         sessionTest.minimizeWindow(first.id);
         await new Promise(r=>setTimeout(r,10));
-        sessionTest.openApp('calculator',{forceNew:true});
+        sessionTest.openApp('files',{forceNew:true});
         const second=[...sessionTest.state.windows.values()].at(-1);
-        Object.assign(second.element.style,{left:'440px',top:'110px',width:'480px',height:'800px'});
+        Object.assign(second.element.style,{left:'440px',top:'110px',width:'700px',height:'600px'});
         sessionTest.assignWindowSpace(second,'2');
         sessionTest.toggleMaximizeWindow(second.id);
         sessionTest.focusWindow([...sessionTest.state.windows.keys()][0]);
@@ -114,7 +144,7 @@ window.WebSocket=class extends EventTarget { close(){} };
 	mu.Lock()
 	persisted := settings["session.windows"]
 	mu.Unlock()
-	if !strings.Contains(persisted, `"appId":"calculator"`) {
+	if !strings.Contains(persisted, `"appId":"files"`) {
 		t.Fatalf("enabling restoration did not save open windows: %s", persisted)
 	}
 	page.MustReload()
@@ -130,10 +160,10 @@ window.WebSocket=class extends EventTarget { close(){} };
 	}
 	// Reload immediately after a change, while the 800 ms debounce is pending.
 	page.MustEval(`()=>{
-        const w=[...sessionTest.state.windows.values()].find(w=>w.appId==='calculator'&&w.maximized);
+        const w=[...sessionTest.state.windows.values()].find(w=>w.appId==='files'&&w.maximized);
         sessionTest.toggleMaximizeWindow(w.id);
         if(w.element.style.left!=='440px'||w.element.style.top!=='110px')throw Error('maximized window lost its normal position');
-        Object.assign(w.element.style,{left:'360px',top:'80px',width:'490px',height:'810px'});
+        Object.assign(w.element.style,{left:'360px',top:'80px',width:'710px',height:'620px'});
         sessionTest.switchSpace('2');
     }`)
 	expected = snapshot()
@@ -158,5 +188,8 @@ window.WebSocket=class extends EventTarget { close(){} };
 	waitBoot()
 	if count := page.MustEval(`()=>sessionTest.state.windows.size`).Int(); count != 0 {
 		t.Fatalf("restore disabled but reopened %d windows", count)
+	}
+	if got := page.MustEval(`()=>JSON.stringify([...document.querySelectorAll('.vd-dock-button[data-app-id]')].slice(0,2).map(button=>button.dataset.appId))`).Str(); got != `["calculator","settings"]` {
+		t.Fatalf("reload changed the ordered dock pins: %s", got)
 	}
 }

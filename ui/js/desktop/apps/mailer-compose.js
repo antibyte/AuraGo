@@ -151,7 +151,8 @@
         if (inst.forwardSources.length) {
             inst.forwardCopyPromise = copyForwardAttachments(inst);
         }
-        ctx.setWindowBeforeClose?.(windowId, () => beforeClose(inst));
+        ctx.setWindowBeforeClose?.(windowId, () => window.MailerSessionActions.beforeClose(inst, save));
+        window.MailerSessionActions.register(ctx, windowId, inst, save);
         ctx.registerWindowCleanup?.(windowId, () => dispose(windowId));
         return inst;
     }
@@ -601,23 +602,6 @@
         inst.conflictMissingAttachments = inst.conflictMissingAttachments.filter(item => String(item.id) !== String(attachmentId));
         renderDraftConflict(inst);
         if (!inst.conflictMissingAttachments.length) setStatus(inst, t(inst.ctx, 'draft_conflict_rebased'));
-    }
-
-    async function beforeClose(inst) {
-        clearTimeout(inst.saveTimer);
-        await inst.uploadTask.catch(() => {});
-        await inst.forwardCopyPromise;
-        await inst.attachmentTask;
-        if (inst.failedUploads.size) {
-            const keep = await inst.ctx.confirmDialog(t(inst.ctx, 'upload_failed_title'), t(inst.ctx, 'upload_failed_close_confirm'));
-            if (!keep) return false;
-        }
-        if (inst.readonly || inst.committed || inst.savedGeneration === inst.editGeneration) return true;
-        try { await save(inst); return true; }
-        catch (_) {
-            const keep = await inst.ctx.confirmDialog(t(inst.ctx, 'save_failed_title'), t(inst.ctx, 'close_unsaved_confirm'));
-            return !!keep;
-        }
     }
 
     function trackUpload(inst, files) {
@@ -1095,5 +1079,5 @@
         active.delete(windowId);
     }
 
-    window.MailerCompose = { render, dispose, beforeClose };
+    window.MailerCompose = { render, dispose };
 })();

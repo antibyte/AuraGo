@@ -12,7 +12,8 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 	t.Parallel()
 
 	shellText := readDesktopAssetText(t, "js/desktop/main.js")
-	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
+	settingsCatalogText := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
+	settingsRuntimeText := readDesktopAssetText(t, "js/desktop/core/settings-runtime.js")
 	for _, want := range []string{
 		"'appearance.icon_theme': 'papirus'",
 		"body.dataset.iconTheme = settingValue('appearance.icon_theme')",
@@ -29,11 +30,14 @@ func TestDesktopIconThemeSettingAssets(t *testing.T) {
 		"desktop.settings_icon_theme_papirus",
 		"desktop.settings_icon_theme_whitesur",
 		"settingSelect('appearance.icon_theme'",
-		"const themeChange = key === 'appearance.theme';",
-		"{ key: 'appearance.icon_theme', value: nextTheme.iconTheme }",
 	} {
-		if !strings.Contains(settingsText, want) {
-			t.Fatalf("settings app is missing icon theme setting marker %q", want)
+		if !strings.Contains(settingsCatalogText, want) {
+			t.Fatalf("settings catalog is missing icon theme descriptor %q", want)
+		}
+	}
+	for _, want := range []string{"if (key === 'appearance.theme')", "'appearance.icon_theme': theme.iconTheme"} {
+		if !strings.Contains(settingsRuntimeText, want) {
+			t.Fatalf("settings runtime is missing theme preset marker %q", want)
 		}
 	}
 	for _, forbidden := range []string{

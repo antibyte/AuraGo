@@ -15,6 +15,7 @@
 
 ## EasyDrag editor and run stream
 
+- `easydrag-mapping.js` owns bounded plain-text data previews; the inspector retains `ED.detail.previewText` as the same function for existing consumers. Keep the 8,000-character cap and primary output-field selection.
 - `easydrag-core.js` owns the app-local SVG dictionary, including the library's
   pause and folder actions. Shared window/context menus use Desktop icon keys.
   `node scripts/test-desktop-icon-resolver.mjs` checks every literal `core.icon`
@@ -620,6 +621,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - `audio-player` is the native window for audio files. It is not the WebAmp launcher (`music-player`) and it never opens the gallery lightbox. Style: `css/desktop-app-audio-player.css`, prefix `vd-player`. Scripts, in order: `audio-player-tags.js`, `audio-player-visualizer.js`, `audio-player.js`.
 - The visualizer keeps the three modes `bars`, `radial` and `wave`. It only paints its canvas. Loudness reaches the shell as `onEnergy(bass, energy)` and becomes `--pl-pulse`. A readable cover swatch sets `--pl-cover` and `setCoverColor`; grey or missing art keeps the theme accent. Theme attribute changes refresh that accent only while no cover tint is active.
 - Playback, the folder queue, shuffle, repeat, speed and media-session handlers stay in `audio-player.js`. Visible copy stays on the existing `desktop.audio_player_*` keys. Verify `go test ./ui -run 'TestAudioPlayer|TestDesktopAudioPlayerWindowBrowser'`.
+- Media events publish idle/paused/playing/buffering/ended/error through the shared owner registration. Return asynchronous transport results, retain priority 60 and prevent late events or promises from claiming ownership after disposal. The shell subscribes to that state and delegates controls to the existing player.
 
 ## Synth Studio
 
@@ -3632,11 +3634,11 @@ buttons and menu popovers remain excluded from those gestures.
   previews. Dock hover must not call `findExistingAppWindow` (that switches
   spaces). Win/Meta+Arrow snaps the active window; Ctrl+Alt+Arrow keeps
   cycling spaces.
-- Thumbnails clone DOM window content when possible; iframe-heavy windows show
-  a live-window fallback instead of a blank capture.
+- Thumbnails use inert sanitized DOM when suitable; sensitive/editable content,
+  iframe-heavy windows and live canvas/media use icon/title replacement cards.
 - `AuraDesktopMediaSession` owns OS media handlers/metadata. Registrations are
-  owner-bound; disposal releases only that owner. Personal Radio has priority
-  over Webamp, then the latest active Radio/TeeVee/RTL-SDR player. Metadata
+  owner-bound; disposal releases only that owner. Priorities are Personal Radio
+  100, native Audio Player 60, WebAmp 50 and Radio/TeeVee/RTL-SDR 10. Metadata
   refreshes do not steal ownership. Radio direct streams use native no-CORS
   audio; background TeeVee playback remains intentional. No global volume control.
 - Chess disposes its AudioContext and scheduled tones. Galaxa cancels RAF while
@@ -4149,6 +4151,9 @@ Owned by this subtree. Backend integration lives in `internal/server/` and app
 registration lives in `internal/desktop/types.go`.
 
 ## Local Contracts
+
+- Apps with unsaved state register `ctx.registerSessionAction(windowId, {inspect, decide, save})` for two-stage shell logout. `inspect()` is pure and returns `{dirty, revision, label}`; revision covers document identity and editable content, not merely a resettable counter. `decide(snapshot)` uses `ctx.decideSessionAction` and returns `save`, `keep` or `cancel` without saving/discarding/cleanup. `save(expectedRevision)` returns `{revision: expectedRevision}` only after persistence acknowledges that same content and `inspect().dirty` is false. Keep means no operation and must never delete a previously saved draft. Preserve existing direct-close guards; shell disposal unregisters participants. Mailer extracts its guard and participant into `mailer-session-actions.js`, loaded before compose. The native text Editor shares its dirty tracking with direct close and logout.
+- Logout inspection includes pending cell/form/note inputs before debounce or blur. Committing those same values, acknowledging a server save, and generating derived artwork do not count as new user edits. A later input or document switch still invalidates preparation. Untitled documents use the existing Save As flow; cancelling that picker or failing a write keeps the document and its recovery draft open.
 
 - MeshCore loads `meshcore-device.js` before `meshcore.js`. The companion module
   owns Device/Settings pages and reception/contact details. Settings use topic
@@ -5713,8 +5718,16 @@ registration lives in `internal/desktop/types.go`.
 - `settings.js` implements the Settings app, a virtual desktop configuration
   panel with sidebar navigation, global search, hamburger menu on mobile,
   and full desktop shell re-render on changes (icons, widgets, start menu,
-  start button). Loaded lazily by `module-loader.js`. Exposes
-  `window.SettingsApp`. Info and editable rows share inset spacing; bounded
+  start button). A closed mobile sidebar is hidden from rendering and keyboard
+  focus; translating it beyond the window is insufficient. Loaded lazily by `module-loader.js`. Exposes
+  `window.SettingsApp`. Descriptors come from `core/settings-catalog-runtime.js`, also used by shell
+  search. A `{category, settingKey}` launch focuses the exact setting row.
+  Writes use the shell's serialized `saveDesktopPreference`; read-only controls
+  remain disabled. Default-app choices use the same candidates as Open With,
+  show unavailable stored mappings and support explicit reset. The shared
+  calculator parser lives in `shared/calculator-expression.js` and is reused by
+  Calculator and shell search; preserve scientific mode semantics when changing it.
+  Info and editable rows share inset spacing; bounded
   control columns must not let long provider/model names squeeze their labels.
   Keep full workspace paths wrappable and Info values at normal text weight.
   The theme picker is a card grid (`renderDesktopThemes`, `data-desktop-theme`)

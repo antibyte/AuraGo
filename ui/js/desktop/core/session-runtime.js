@@ -3,14 +3,63 @@
     // Keys with a fixed id shape are only saved and restored when they match it.
     const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
     let sessionPersistTimer = 0;
+    let desktopSessionEnded = false;
+
+    function registerWindowSessionAction(id, participant) {
+        if (!state.windows.has(id) && participant) return;
+        return window.AuraDesktopSessionActions?.register(id, participant);
+    }
+
+    async function decideDesktopSessionAction(options = {}) {
+        const title = options.title || t('desktop.session_controls');
+        const label = options.label || options.detail || title;
+        const choice = await modalDialog({
+            title: t('desktop.session_action_question_title'),
+            message: t('desktop.session_action_question_message', { title, label }),
+            choices: [
+                { value: 'keep', label: t('desktop.session_action_keep') },
+                { value: 'save', label: t('desktop.session_action_save') }
+            ]
+        });
+        return choice === 'save' || choice === 'keep' ? choice : 'cancel';
+    }
+
+    function syncDesktopSessionControls() {
+        const footer = document.getElementById('vd-start-session');
+        if (!footer) return;
+        const enabled = window._auragoAuthEnabled === true && !desktopSessionEnded;
+        footer.hidden = !enabled;
+        footer.setAttribute('aria-label', t('desktop.session_controls'));
+        footer.querySelector('span').textContent = t('desktop.session_signed_in');
+        const button = footer.querySelector('button');
+        button.textContent = t('desktop.session_logout');
+        button.disabled = !enabled || !!window._logoutInProgress;
+    }
+
+    function initDesktopSessionActions() {
+        window.AuraDesktopSessionActions?.configure({
+            getWindows: () => [...state.windows.values()].filter(win => !win.isGadget && !win.closing && win.element?.isConnected)
+                .map(win => ({ id: win.id, title: win.title || win.element.querySelector('.vd-window-title')?.textContent || win.appId,
+                    appId: win.appId, beforeClose: win.beforeClose })),
+            canLogout: () => window._auragoAuthEnabled === true && !desktopSessionEnded && !window._logoutInProgress,
+            logout: () => window.performAuthenticatedLogout(),
+            onProblem: async problem => {
+                if (problem.code === 'auth_disabled' || desktopSessionEnded) return;
+                if (problem.windowId && state.windows.has(problem.windowId)) focusWindow(problem.windowId);
+                const prefix = problem.code === 'unknown_guard' ? 'desktop.logout_unavailable'
+                    : problem.code === 'save_failed' ? 'desktop.logout_save_failed' : 'desktop.logout_changed';
+                await modalDialog({ title: t(prefix + '_title'), message: t(prefix + '_message', { title: problem.title || t('desktop.session_controls') }) });
+            }
+        });
+        document.getElementById('vd-start-logout')?.addEventListener('click', () => { closeStartMenu(); void window.performLogout(); });
+        document.addEventListener('aurago:auth-status', syncDesktopSessionControls);
+        document.addEventListener('aurago:auth-ended', () => { desktopSessionEnded = true; syncDesktopSessionControls(); });
+        window.addEventListener('aurago:language-changed', syncDesktopSessionControls);
+        syncDesktopSessionControls();
+    }
 
     function saveSetting(key, value, keepalive = false) {
-        return api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, value }),
-            keepalive
-        });
+        return writeDesktopSettings({ [key]: value }, keepalive);
     }
 
     function defaultDockPinIds() {
@@ -92,7 +141,8 @@
             if (SESSION_SKIP_APP_IDS.has(item.appId)) return;
             const el = item.element;
             if (!el) return;
-            const bounds = (item.maximized && item.restoreBounds) || el.style;
+            const snapped = sessionSnapZone(item.snapped);
+            const bounds = ((item.maximized || snapped) && item.restoreBounds) || el.style;
             windows.push({
                 key: item.sessionKey || item.id,
                 appId: item.appId,
@@ -101,6 +151,7 @@
                 width: parseInt(bounds.width, 10) || 800,
                 height: parseInt(bounds.height, 10) || 600,
                 maximized: !!item.maximized,
+                snapped,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
                 spaceId: windowSpaceId(item),
@@ -117,7 +168,7 @@
     }
 
     function scheduleSessionPersist() {
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
     }
@@ -125,14 +176,10 @@
     async function persistSessionSnapshot(keepalive = false) {
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = 0;
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         try {
-            const snapshot = captureSessionSnapshot();
-            const json = JSON.stringify(snapshot);
-            await saveSetting('session.windows', json, keepalive);
-            if (state.bootstrap) {
-                state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
-            }
+            await queueDesktopSettingsWrite(() => ({ settings: { 'session.windows': JSON.stringify(captureSessionSnapshot()) },
+                revision: desktopWorkspaceRevision() }), keepalive);
         } catch (err) {
             if (!keepalive) showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -148,6 +195,22 @@
         } catch (_) {
             return null;
         }
+    }
+
+    function sessionSnapZone(value) {
+        return value !== 'maximize' && DESKTOP_WINDOW_LAYOUT_ZONES.includes(value) ? value : '';
+    }
+
+    function sessionWindowGeometry(entry) {
+        const room = windowWorkspaceSize();
+        const defaults = appWindowSize(entry.appId);
+        const minimum = appWindowMinSize(entry.appId);
+        const number = (value, fallback) => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+        const width = Math.min(room.width, Math.max(minimum.width, number(entry.width, defaults.width)));
+        const height = Math.min(room.height, Math.max(minimum.height, number(entry.height, defaults.height)));
+        return { width, height,
+            left: Math.max(0, Math.min(room.width - width, number(entry.left, 0))),
+            top: Math.max(0, Math.min(room.height - height, number(entry.top, 0))) };
     }
 
     async function restoreDesktopSession() {
@@ -168,11 +231,9 @@
                     forceNew: true,
                     sessionRestore: {
                         key: typeof entry.key === 'string' ? entry.key : '',
-                        left: entry.left,
-                        top: entry.top,
-                        width: entry.width,
-                        height: entry.height,
+                        ...sessionWindowGeometry(entry),
                         maximized: !!entry.maximized,
+                        snapped: sessionSnapZone(entry.snapped),
                         minimized: !!entry.minimized,
                         z: entry.z || 0,
                         spaceId: entry.spaceId,
@@ -212,22 +273,26 @@
         }
     }
 
-    async function setDefaultAppForExtension(ext, appId) {
+    let defaultAppsSaveQueue = Promise.resolve();
+    function setDefaultAppForExtension(ext, appId) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
-        if (!normalized || !appId) return;
-        const map = parseDefaultAppsMap();
-        map[normalized] = appId;
-        const json = JSON.stringify(map);
-        await saveSetting('files.default_apps', json);
-        if (state.bootstrap) {
-            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'files.default_apps': json });
-        }
+        if (!/^[a-z0-9][a-z0-9_+.-]{0,31}$/.test(normalized) || desktopReadonly()) return Promise.reject(new Error(t('desktop.action_unavailable')));
+        const pending = defaultAppsSaveQueue.then(async () => {
+            if (appId && !desktopAssociationCandidates({ name: 'file.' + normalized, path: 'Shared/file.' + normalized, type: 'file' }).some(app => app.appId === appId)) throw new Error(t('desktop.action_unavailable'));
+            const map = parseDefaultAppsMap();
+            if (appId) map[normalized] = appId;
+            else delete map[normalized];
+            await saveDesktopPreference('files.default_apps', JSON.stringify(map));
+        });
+        defaultAppsSaveQueue = pending.catch(() => {});
+        return pending;
     }
 
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
+        const mapped = map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
+        return mapped && appById(mapped) ? mapped : '';
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';

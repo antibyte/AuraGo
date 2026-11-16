@@ -14,6 +14,7 @@ This folder owns the maintained helpers and the `start.*`, `kill_all.*`, `instal
 - `install-ci-cosign.ps1` stages the pinned Windows/Linux X64 tool through the GitHub releases API. It uses CI runner paths and exposes only size/SHA-256-verified binaries on `GITHUB_PATH`; it never manages signing keys.
 - Storymaker model/catalog builders use committed Desktop pet derivatives and image masters offline. Preserve source pets, per-model provenance and the asset contract in ../assets/storymaker/AGENTS.md; publish catalog files atomically and skip unchanged bytes.
 - Retained license inputs copied verbatim by vendor generators must be LF-pinned in `.gitattributes`. The Windows runtime CI job checks Storymaker vendor bytes after its clean npm install, before release cross-builds.
+- Storymaker's vendor input scan accepts dependency paths outside the checkout when a worktree links `node_modules`; these inputs must retain the same dependency notices as a local install. Verify `node scripts/build-ui-bundles.js --check` without changing vendor bytes.
 - `check-web-assets.mjs` caps first-party package embeds at 12 MB, including bundled speech runtimes, firmware and design templates. Full UI embedding stays forbidden; recovery assets stay below 1 MB and stripped binaries below 200 MB. Security Gates checks embeds before the Go test suite, and release CI checks them before cross-building.
 - Sibling helpers are relative to this folder; `deploy/`, `bin/`, `.env` and source inputs remain relative to the repository root.
 - Source paths may change; release asset names and installed config/notice paths stay stable. The English third-party notices come from `../licences/`.
@@ -24,6 +25,8 @@ This folder owns the maintained helpers and the `start.*`, `kill_all.*`, `instal
 Use the existing helper for each job. Check release scripts with harmless fixtures and syntax parsing; publication and real service/process operations are not verification steps.
 
 ## Verification
+
+- Everyday Desktop controls: `test-ui-regressions.mjs` runs the focused `test-desktop-{window-layouts,window-previews,search,start-search,settings-runtime,file-association-writes,notifications,accessibility,file-history,file-producers,quick-settings,clock-calendar,media-session,custom-wallpaper,workspace-settings,workspaces,session-actions,session-adapters,window-overview-runtime}.mjs` scripts. Each can also run directly with Node. Keep receipt/partial/session-clear, revision-conflict, logout save/cancel and guarded preview close tests alongside actual browser flows. `ui/desktop_window_overview_browser_test.go` covers grouped pins, workspace scope, minimized windows and shared snap selection. Browser acceptance needs the central opt-in; rebuild/check `scripts/build-ui-bundles.js` after shell/module changes.
 
 <!-- pinball:start -->
 - Pinball: `npm run build:pinball` (`build-pinball-assets.mjs` then `build-pinball.mjs`),

@@ -205,7 +205,9 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 	spotlight := readDesktopAssetText(t, "js/desktop/core/spotlight-runtime.js")
 	for _, want := range []string{
 		"function openSpotlight()",
-		"/api/desktop/search?query=",
+		"const search = window.AuraDesktopSearch;",
+		"search.createProvider({ api, openFile: path => openDesktopPath(path) })",
+		"provider.files(stateObj.query",
 		"spotlightRecentFileEntries",
 	} {
 		if !strings.Contains(spotlight, want) {
@@ -213,11 +215,21 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 		}
 	}
 
+	searchResults := readDesktopAssetText(t, "js/desktop/core/search-results-runtime.js")
+	for _, want := range []string{
+		"function makeSearchURL(query, options)",
+		"params.set('query', String(query || '').trim())",
+		"return '/api/desktop/search?' + params.toString()",
+	} {
+		if !strings.Contains(searchResults, want) {
+			t.Fatalf("shared search runtime missing query builder marker %q", want)
+		}
+	}
+
 	css := readDesktopAssetText(t, "css/desktop-chrome.css")
 	for _, want := range []string{
 		".vd-spotlight-backdrop",
 		".vd-notification-center",
-		".vd-window-switcher",
 		".vd-space-pager",
 		".vd-spaces-overview",
 		".vd-space-column",
@@ -272,11 +284,13 @@ func TestDesktopFeelingBundlesIncludeChromeModules(t *testing.T) {
 		"session-runtime.js",
 		"spaces-runtime.js",
 		"spaces-overview-runtime.js",
+		"window-overview-runtime.js",
 		"taskbar-thumbnails-runtime.js",
 		"media-keys-runtime.js",
 		"shell-chrome-runtime.js",
 		"spotlight-runtime.js",
 		"desktop-chrome.css",
+		"desktop-window-overview.css",
 	} {
 		if !strings.Contains(buildScript, want) {
 			t.Fatalf("build-ui-bundles.js must include %q", want)

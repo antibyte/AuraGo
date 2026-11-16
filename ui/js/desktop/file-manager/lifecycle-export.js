@@ -18,9 +18,20 @@
         return true;
     }
 
+    async function refreshLocalInstances() {
+        const pending = [...instances.values()];
+        for (const instance of pending) {
+            if (!isLiveInstance(instance) || isRemote(instance)) continue;
+            const path = instance.currentPath;
+            await withInstance(instance, () => navigate(path, false));
+        }
+    }
+
     function dispose(windowId) {
         const instance = instanceForWindow(windowId);
         if (!instance) return;
+        instance.fileHistoryUnsubscribe?.();
+        instance.fileHistoryUnsubscribe = null;
         instance.disposed = true;
         instance.storageLifetime.abort();
         instance.storageNavigation?.abort();
@@ -46,7 +57,7 @@
     }
 
     // Expose the module
-    window.FileManager = { render, navigateTo, dropDesktopFiles, dispose,
+    window.FileManager = { render, navigateTo, dropDesktopFiles, refreshLocalInstances, dispose,
         storageReady: id => isLiveInstance(instanceForWindow(id)),
         transferStorage: (id, entries, destination, mode, clipboard) => {
             const instance = instanceForWindow(id);

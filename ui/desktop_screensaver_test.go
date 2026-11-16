@@ -64,6 +64,7 @@ func TestDesktopScreensaverSettingsStayInSync(t *testing.T) {
 	t.Parallel()
 
 	foundation := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
+	catalog := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
 	settings := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	runtime := readDesktopAssetText(t, "js/desktop/core/screensaver-runtime.js")
 	found := 0
@@ -78,8 +79,8 @@ func TestDesktopScreensaverSettingsStayInSync(t *testing.T) {
 		switch def.Key {
 		case "screensaver.theme":
 			for _, value := range def.Values {
-				if !strings.Contains(settings, "'"+value+"'") {
-					t.Fatalf("settings scene picker is missing theme %q", value)
+				if !strings.Contains(catalog, "'"+value+"'") {
+					t.Fatalf("settings catalog is missing scene theme %q", value)
 				}
 				if value != "random" && !strings.Contains(runtime, "'"+value+"'") {
 					t.Fatalf("screensaver runtime does not know theme %q", value)
@@ -87,8 +88,8 @@ func TestDesktopScreensaverSettingsStayInSync(t *testing.T) {
 			}
 		case "screensaver.idle_minutes":
 			for _, value := range def.Values {
-				if !strings.Contains(settings, "['"+value+"', 'desktop.settings_screensaver_idle_"+value+"']") {
-					t.Fatalf("settings idle select is missing %s minutes", value)
+				if !strings.Contains(catalog, "['"+value+"', 'desktop.settings_screensaver_idle_"+value+"']") {
+					t.Fatalf("settings catalog is missing %s idle minutes", value)
 				}
 				if _, err := strconv.Atoi(value); err != nil {
 					t.Fatalf("idle choice %q must be numeric", value)
@@ -104,6 +105,12 @@ func TestDesktopScreensaverSettingsStayInSync(t *testing.T) {
 		"settingToggle('screensaver.enabled'",
 		"settingToggle('screensaver.clock'",
 		"settingSelect('screensaver.idle_minutes'",
+	} {
+		if !strings.Contains(catalog, marker) {
+			t.Fatalf("settings catalog is missing screensaver descriptor %q", marker)
+		}
+	}
+	for _, marker := range []string{
 		"data-screensaver-theme=",
 		"data-screensaver-preview=",
 		"ctx.previewDesktopScreensaver(",

@@ -189,6 +189,7 @@
         let busy = false;
         let staleMarks = false;
         let disposed = false;
+        let editRevision = 0;
 
         const fileList = el('ul', { class: 'stm-code-files', dataset: { stm: 'code-files' }, ariaLabel: t('storymaker.code.files') });
         const fileLabel = el('strong', { class: 'stm-code-file', dataset: { stm: 'code-file' } });
@@ -356,6 +357,7 @@
                 onChange(text) {
                     const file = fileFor(current);
                     if (!file.loaded) return;
+                    if (file.text !== text) editRevision++;
                     file.text = text;
                     if (!staleMarks) { staleMarks = true; paintProblems(); }
                     paintState();
@@ -400,14 +402,18 @@
             busy = true;
             paintState();
             const sent = file.text;
+            let saved = false;
             try {
                 if (file.kind === 'story') {
                     const result = await inst.saveStoryText(sent);
                     if (result.ok) {
-                        staleMarks = false;
-                        file.text = storyText();
-                        file.base = file.text;
-                        if (fileFor(current) === file && editor && editor.getText() === sent) editor.setText(file.text);
+                        const persisted = storyText();
+                        file.base = persisted;
+                        if (file.text === sent) {
+                            file.text = persisted;
+                            if (fileFor(current) === file && editor && editor.getText() === sent) editor.setText(file.text);
+                        }
+                        saved = true;
                     } else {
                         staleMarks = false;
                     }
@@ -418,6 +424,7 @@
                     file.isNew = false;
                     file.errors = result.ok ? [] : (Array.isArray(result.errors) ? result.errors : []);
                     staleMarks = false;
+                    saved = !!result.ok;
                 }
             } catch (err) {
                 inst.notify(S.errors.describe(t, err), 'error');
@@ -426,7 +433,24 @@
                 paintState();
                 paintProblems();
             }
-            return true;
+            return saved;
+        }
+
+        async function saveAll(expectedRevision) {
+            if (busy || disposed || editRevision !== expectedRevision || Array.from(files.values()).some(file => file.loading)) return false;
+            const previous = current;
+            try {
+                const pending = Array.from(files.values()).filter(isDirty);
+                for (const file of pending) {
+                    if (editRevision !== expectedRevision || disposed) return false;
+                    await show(file.key);
+                    if (disposed || editRevision !== expectedRevision || !isDirty(file)) return false;
+                    if (!await save() || editRevision !== expectedRevision || isDirty(file)) return false;
+                }
+                return true;
+            } finally {
+                if (!disposed && current !== previous) await show(previous);
+            }
         }
 
         const off = [
@@ -441,6 +465,14 @@
             hide() { root.dataset.visible = 'false'; },
             current: () => current,
             dirty: () => Array.from(files.values()).some(isDirty),
+            inspect() {
+                return {
+                    dirty: Array.from(files.values()).some(isDirty) || Array.from(files.values()).some(file => file.loading),
+                    revision: editRevision,
+                    label: fileFor(current).label
+                };
+            },
+            saveAll,
             // a save elsewhere changed the story: an untouched story.json follows, a draft stays
             storyChanged() {
                 const file = fileFor('story');

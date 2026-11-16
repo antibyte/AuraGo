@@ -86,13 +86,7 @@
         return { listKey, rows, cols, total: output[listKey].length };
     }
 
-    function previewText(output, fields) {
-        if (typeof output === 'string') return output.slice(0, 8000);
-        if (!output || typeof output !== 'object') return '';
-        const primary = (fields || []).find(f => f.primary && typeof output[f.name] === 'string');
-        const key = primary ? primary.name : ['text', 'content', 'message', 'summary', 'result'].find(k => typeof output[k] === 'string');
-        return key ? output[key].slice(0, 8000) : '';
-    }
+    const previewText = ED.mapping.previewText;
 
     // Recorded child values are inert: reuse the bounded views without file/media previews.
     function recordValueMarkup(ed, value, view) {
@@ -186,6 +180,7 @@
         let outputSubject = 'output';
         let sourceId = 'last';
         let form = null;
+        const pendingFormEdits = new Set();
         let mapping = null;
         let transformDialog = null;
         let lastField = null;
@@ -366,8 +361,17 @@
                 // id is the step the field was built for. A late blur must not write the step shown next.
                 onChange: (name, value, id) => {
                     const target = id || boundId;
-                    if (ed.model.node(target)) ed.model.setParam(target, name, value);
+                    const apply = () => { if (ed.model.node(target)) ed.model.setParam(target, name, value); };
+                    if (pendingFormEdits.has(name) && ed.sessionActionCommit) {
+                        ed.sessionActionCommit(apply);
+                        pendingFormEdits.delete(name);
+                    } else apply();
                 }
+            });
+            form.el.addEventListener('input', event => {
+                const field = event.target.closest('[data-param]');
+                if (field?.dataset.param) pendingFormEdits.add(field.dataset.param);
+                ed.sessionActionEdit?.();
             });
             host.appendChild(form.el);
             renderMappingTarget();
@@ -390,7 +394,7 @@
             const keyField = core.el('<div class="ed-field"><div class="ed-field-head"><label for="' + esc(keyId) + '">' + esc(t('easydrag.ui.settings_key')) + '</label></div>' +
                 '<input class="ed-input ed-code" id="' + esc(keyId) + '" data-ed-node="' + esc(id) + '" value="' + esc(node.key) + '"' + (ro ? ' disabled' : '') + ' spellcheck="false"><p class="ed-hint">' + esc(t('easydrag.ui.settings_key_hint')) + '</p><p class="ed-error" role="alert" hidden></p></div>');
             const keyInput = keyField.querySelector('input');
-            keyInput.addEventListener('input', () => { keyInput.dataset.edDirty = '1'; });
+            keyInput.addEventListener('input', () => { keyInput.dataset.edDirty = '1'; ed.sessionActionEdit?.(); });
             keyInput.addEventListener('change', () => { commitKey(); });
             host.appendChild(keyField);
             const onError = core.el('<div class="ed-field"><div class="ed-field-head"><label>' + esc(t('easydrag.ui.settings_on_error')) + '</label></div></div>');
@@ -526,7 +530,8 @@
             // Keep the text when the step is already gone so the caller can refuse the switch.
             if (!ed.model.node(id)) return;
             pendingNote = null;
-            ed.model.setSettings(id, { notes: value || undefined });
+            const commit = () => ed.model.setSettings(id, { notes: value || undefined });
+            if (ed.sessionActionCommit) ed.sessionActionCommit(commit); else commit();
         }
 
         // commitKey writes the key field. A refused key stays on screen and flushPendingEdits
@@ -547,7 +552,10 @@
                 if (err) { err.hidden = true; err.textContent = ''; }
                 return true;
             }
-            const res = ed.model.setKey(id, keyInput.value.trim());
+            const commit = () => ed.model.setKey(id, keyInput.value.trim());
+            const res = keyInput.dataset.edDirty === '1' && ed.sessionActionCommit
+                ? ed.sessionActionCommit(commit)
+                : commit();
             if (!res.ok) {
                 keyInput.dataset.edInvalid = '1';
                 keyInput.dataset.edDirty = '1';
@@ -569,9 +577,25 @@
             let ok = true;
             flushNote();
             if (pendingNote) ok = false;
-            if (form && typeof form.flush === 'function' && form.flush() === false) ok = false;
+            if (form && typeof form.flush === 'function') {
+                if (form.flush() === false) ok = false;
+                else pendingFormEdits.clear();
+            }
             if (!commitKey()) ok = false;
             return ok;
+        }
+
+        function hasPendingEdits() {
+            const current = ed.model.node(node.id);
+            if (!current) return !!pendingNote && pendingNote.id === node.id;
+            const settings = current.settings || {};
+            const noteInput = el.querySelector('[data-pane="note"] textarea');
+            const note = pendingNote && pendingNote.id === node.id ? pendingNote.value : noteInput?.value;
+            if (note != null && note !== String(settings.notes || '')) return true;
+            const keyInput = el.querySelector('[data-pane="settings"] input.ed-code');
+            if (keyInput && keyInput.dataset.edNode === node.id && keyInput.dataset.edDirty === '1' && keyInput.value.trim() !== current.key) return true;
+            if (labelInput && labelInput.value !== (current.label || '')) return true;
+            return pendingFormEdits.size > 0;
         }
 
         function renderNote() {
@@ -580,7 +604,7 @@
             if (host.querySelector('textarea') && document.activeElement === host.querySelector('textarea')) return;
             const id = node.id;
             host.innerHTML = '<textarea class="ed-input ed-note" rows="10" aria-label="' + esc(t('easydrag.ui.detail_note')) + '" placeholder="' + esc(t('easydrag.ui.note_placeholder')) + '"' + (ro ? ' disabled' : '') + '>' + esc((node.settings || {}).notes || '') + '</textarea>';
-            host.querySelector('textarea').addEventListener('input', (event) => { pendingNote = { id, value: event.target.value }; saveNote(); });
+            host.querySelector('textarea').addEventListener('input', (event) => { pendingNote = { id, value: event.target.value }; ed.sessionActionEdit?.(); saveNote(); });
         }
 
         function renderOutput() {
@@ -841,6 +865,7 @@
             flushNote: () => flushNote(),
             // Editor calls this before save, test, publish, switch, run view and leave.
             flushPendingEdits: () => flushPendingEdits(),
+            hasPendingEdits,
             close: () => {
                 if (closed) return;
                 closed = true;

@@ -8,7 +8,7 @@
         dispose(id);
         const t = key => ctx.t('layerling.' + key);
         const life = new AbortController();
-        const s = { id, root, ctx, life, path: ctx.path || '', version: null, readonly: !!ctx.readonly, port: null, socket: null, editorID: '', pending: new Map(), started: false, loading: true, queue: null, jobs: Promise.resolve(), draftTimer: null, lastDraft: null };
+        const s = { id, root, ctx, life, path: ctx.path || '', version: null, readonly: !!ctx.readonly, port: null, socket: null, editorID: '', pending: new Map(), started: false, loading: true, queue: null, jobs: Promise.resolve(), draftTimer: null, lastDraft: null, sessionDocumentEpoch: 0, sessionEditRevision: 0 };
         instances.set(id, s);
         window.AuraDesktopEmail?.attach(id, '.vd-layerling-toolbar', () => ({
             key:s.queue,signal:life.signal,disabled:life.signal.aborted||s.loading||!s.port,subject:s.path.split('/').pop()||'Model',
@@ -103,6 +103,7 @@
         makeQueue();
         s.changed = () => {
             if(s.loading || s.readonly || signal.aborted) return;
+            s.sessionEditRevision++;
             s.queue.changed();clearTimeout(s.draftTimer);
             s.draftTimer=setTimeout(()=>s.run(async()=>{if(s.queue.dirty) await draft(await serialize());}).catch(()=>{}),1500);
         };
@@ -130,7 +131,7 @@
             if(replacing && !await guard(true)) return false;
             const project=path ? await read(path) : {bytes:null,version:null};
             s.loading=true;clearTimeout(s.draftTimer);
-            try {await s.request('load',{bytes:project.bytes});setPath(path||'');s.version=project.version;makeQueue();}
+            try {await s.request('load',{bytes:project.bytes});setPath(path||'');s.version=project.version;s.sessionDocumentEpoch++;makeQueue();}
             finally{s.loading=false;}
             s.show(s.path||t('ready'));return true;
         }
@@ -140,6 +141,7 @@
                 let current=null;
                 if(backup.path){try{current=await read(backup.path);}catch(_){}}
                 await s.request('load',{bytes:backup.bytes});
+                s.sessionDocumentEpoch++;
                 setPath(current?.version===backup.version ? backup.path : '');s.version=current?.version===backup.version ? current.version:null;
                 makeQueue();s.lastDraft=backup;
             } finally {s.loading=false;}
@@ -241,6 +243,26 @@
         observer.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
         signal.addEventListener('abort',()=>observer.disconnect(),{once:true});
         ctx.setWindowBeforeClose?.(id,async()=>{await s.jobs;try{return await guard();}catch(error){s.show(error.message,true);return false;}});
+        const sessionRevision = () => JSON.stringify([s.sessionDocumentEpoch, s.sessionEditRevision]);
+        s.sessionActionOff = ctx.registerSessionAction?.(id, {
+            inspect: () => ({ dirty: !!s.queue?.dirty, revision: sessionRevision(), label: s.path.split('/').pop() || t('ready') }),
+            decide: snapshot => ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                if (signal.aborted || s.loading || s.readonly || !s.queue || sessionRevision() !== expectedRevision) return false;
+                if (!s.queue.dirty) return { revision: expectedRevision };
+                const queueRevision = s.queue.revision;
+                let target = s.path;
+                if (!target) {
+                    try { target = await chooseSave('Untitled.lyl'); } catch (_) { return false; }
+                    if (!target || signal.aborted || s.loading || s.readonly || !s.queue ||
+                        s.queue.revision !== queueRevision || sessionRevision() !== expectedRevision) return false;
+                }
+                try { if (!await save(target)) return false; } catch (_) { return false; }
+                return !signal.aborted && !s.loading && !s.queue.dirty && sessionRevision() === expectedRevision
+                    ? { revision: expectedRevision }
+                    : false;
+            }
+        });
         ctx.registerWindowCleanup?.(id,()=>dispose(id));
         try{
             await ctx.api(API+'state',{signal});
@@ -265,6 +287,6 @@
         },{signal});
         signal.addEventListener('abort',()=>{s.port=null;s.socket?.close();for(const p of s.pending.values()){clearTimeout(p.timer);p.reject(Error(s.ctx.t('layerling.disconnected')));}s.pending.clear();},{once:true});
     }
-    function dispose(id) {const s=instances.get(id);if(!s)return;s.life.abort();s.socket?.close();s.queue?.dispose();clearTimeout(s.draftTimer);for(const p of s.pending.values()){clearTimeout(p.timer);p.reject(Error('Layerling closed'));}s.pending.clear();instances.delete(id);}
+    function dispose(id) {const s=instances.get(id);if(!s)return;s.sessionActionOff?.();s.life.abort();s.socket?.close();s.queue?.dispose();clearTimeout(s.draftTimer);for(const p of s.pending.values()){clearTimeout(p.timer);p.reject(Error('Layerling closed'));}s.pending.clear();instances.delete(id);}
     window.LayerlingApp={render,connect,dispose,editorId:id=>instances.get(id)?.editorID||''};
 })();

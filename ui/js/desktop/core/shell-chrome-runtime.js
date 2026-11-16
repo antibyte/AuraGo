@@ -1,12 +1,12 @@
-    state.notificationHistory = state.notificationHistory || [];
-    state.notificationUnread = state.notificationUnread || 0;
     let windowSwitcherHold = null;
+    let notificationChromeSubscriptions = null;
 
     // notificationContext keeps the launch context an app receives when its notification is clicked.
     function notificationContext(payload) {
         const c = payload.context || {};
         if (payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(c.conversation_id || '')) return { conversation_id: c.conversation_id };
-        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(c.project_id || '')) return { projectId: c.project_id };
+        const projectId = c.project_id || c.projectId;
+        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(projectId || '')) return { projectId };
         if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
             return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
         }
@@ -19,18 +19,7 @@
     }
 
     function pushNotificationRecord(payload) {
-        const entry = {
-            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-            title: String(payload.title || t('desktop.notification')),
-            message: String(payload.message || ''),
-            appId: payload.appId || '',
-            context: notificationContext(payload),
-            ts: Date.now(),
-            read: false
-        };
-        state.notificationHistory.unshift(entry);
-        if (state.notificationHistory.length > 40) state.notificationHistory.length = 40;
-        state.notificationUnread = Math.min(99, (state.notificationUnread || 0) + 1);
+        const entry = window.AuraDesktopNotificationCenter.record({ ...payload, title: payload.title || t('desktop.notification') }, notificationContext(payload));
         updateNotificationBadge();
         return entry;
     }
@@ -38,15 +27,50 @@
     function updateNotificationBadge() {
         const badge = document.getElementById('vd-notification-badge');
         if (!badge) return;
-        const count = state.notificationUnread || 0;
+        const count = window.AuraDesktopNotificationCenter.history().filter(entry => !entry.read).length;
         badge.hidden = count <= 0;
         badge.textContent = count > 9 ? '9+' : String(count);
     }
 
     function markAllNotificationsRead() {
-        state.notificationHistory.forEach(entry => { entry.read = true; });
-        state.notificationUnread = 0;
-        updateNotificationBadge();
+        window.AuraDesktopNotificationCenter.markAllRead();
+    }
+
+    function notificationPolicyMarkup(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        const policy = center.policy();
+        const appIDs = new Set(['desktop', ...userFacingApps().map(app => app.id), ...Object.keys(policy.apps)]);
+        const selected = appIDs.has(panel.dataset.policyApp) ? panel.dataset.policyApp : 'desktop';
+        panel.dataset.policyApp = selected;
+        const appPolicy = policy.apps[selected] || { toast: true, sound: true };
+        const options = Array.from(appIDs).map(id => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(id === 'desktop' ? t('desktop.notifications_desktop') : appName(appById(id) || { id, name: id }))}</option>`).join('');
+        return `<div class="vd-notification-policy">
+            <label><input id="vd-notification-dnd" type="checkbox" ${policy.dnd ? 'checked' : ''}>${esc(t('desktop.notifications_dnd'))}</label>
+            <details ${panel.dataset.policyOpen === 'true' ? 'open' : ''}><summary>${esc(t('desktop.notifications_manage'))}</summary>
+                <label>${esc(t('desktop.notifications_source'))}<select id="vd-notification-source">${options}</select></label>
+                <label><input id="vd-notification-toasts" type="checkbox" ${appPolicy.toast ? 'checked' : ''}>${esc(t('desktop.notifications_toasts'))}</label>
+                <label><input id="vd-notification-sounds" type="checkbox" ${appPolicy.sound ? 'checked' : ''}>${esc(t('desktop.notifications_sounds'))}</label>
+            </details>
+            ${center.status().storageFallback ? `<p role="status">${esc(t('desktop.notifications_tab_only'))}</p>` : ''}
+        </div>`;
+    }
+
+    function wireNotificationPolicy(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        panel.querySelector('details').addEventListener('toggle', event => { panel.dataset.policyOpen = String(event.target.open); });
+        panel.querySelector('#vd-notification-source').addEventListener('change', event => {
+            panel.dataset.policyApp = event.target.value;
+            renderNotificationCenter();
+        });
+        panel.querySelector('#vd-notification-dnd').addEventListener('change', event => {
+            center.setPolicy({ ...center.policy(), dnd: event.target.checked });
+        });
+        ['toasts', 'sounds'].forEach(name => panel.querySelector('#vd-notification-' + name).addEventListener('change', event => {
+            const policy = center.policy();
+            const appId = panel.dataset.policyApp;
+            policy.apps[appId] = { toast: true, sound: true, ...policy.apps[appId], [name === 'toasts' ? 'toast' : 'sound']: event.target.checked };
+            center.setPolicy(policy);
+        }));
     }
 
     function closeNotificationCenter(restoreFocus = false) {
@@ -72,36 +96,52 @@
             });
             document.body.appendChild(panel);
         }
+        const focusedID = panel.contains(document.activeElement) ? document.activeElement.id : '';
+        const focusedNotification = panel.contains(document.activeElement) ? document.activeElement.dataset.notificationId : '';
+        const focusedAction = panel.contains(document.activeElement) ? document.activeElement.dataset.action : '';
         panel.setAttribute('aria-label', t('desktop.notifications_title'));
-        const items = state.notificationHistory || [];
+        const center = window.AuraDesktopNotificationCenter;
+        const items = center.history();
         const list = items.length
-            ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
+            ? items.map(entry => `<article class="vd-notification-item${entry.read ? '' : ' unread'}">
                 <div class="vd-notification-item-title">${esc(entry.title)}</div>
                 ${entry.message ? `<div class="vd-notification-item-message">${esc(entry.message)}</div>` : ''}
                 <div class="vd-notification-item-time">${esc(formatNotificationTime(entry.ts))}</div>
-            </button>`).join('')
+                <div class="vd-notification-actions">
+                    <button type="button" data-action="open-notification" data-notification-id="${esc(entry.id)}" ${entry.appId !== 'desktop' && !appById(entry.appId) ? 'disabled' : ''}>${esc(t(entry.appId === 'desktop' ? 'desktop.notifications_mark_read' : 'desktop.notifications_open'))}</button>
+                    <button type="button" data-action="dismiss-notification" data-notification-id="${esc(entry.id)}">${esc(t('desktop.notifications_dismiss'))}</button>
+                </div>
+            </article>`).join('')
             : `<div class="vd-notification-empty">${esc(t('desktop.notifications_empty'))}</div>`;
         panel.innerHTML = `<div class="vd-notification-header">
             <div class="vd-notification-title">${esc(t('desktop.notifications_title'))}</div>
+            <button type="button" class="vd-notification-clear" data-action="read-notifications">${esc(t('desktop.notifications_mark_all_read'))}</button>
             <button type="button" class="vd-notification-clear" data-action="clear-notifications">${esc(t('desktop.notifications_clear'))}</button>
         </div>
-        <div class="vd-notification-list">${list}</div>`;
+        ${notificationPolicyMarkup(panel)}<div class="vd-notification-list">${list}</div>`;
+        wireNotificationPolicy(panel);
+        panel.querySelector('[data-action="read-notifications"]').addEventListener('click', markAllNotificationsRead);
         panel.querySelector('[data-action="clear-notifications"]').addEventListener('click', () => {
-            state.notificationHistory = [];
-            state.notificationUnread = 0;
-            updateNotificationBadge();
-            renderNotificationCenter();
+            center.clear();
         });
         panel.querySelectorAll('[data-notification-id]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const entry = state.notificationHistory.find(item => item.id === btn.dataset.notificationId);
-                if (entry) entry.read = true;
-                state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
-                updateNotificationBadge();
-                closeNotificationCenter();
-                if (btn.dataset.appId) openApp(btn.dataset.appId, entry?.context);
+                const entry = center.history().find(item => item.id === btn.dataset.notificationId);
+                if (!entry) return;
+                if (btn.dataset.action === 'dismiss-notification') { center.remove(entry.id); return; }
+                if (entry.appId !== 'desktop' && !appById(entry.appId)) return;
+                center.markRead(entry.id);
+                if (entry.appId !== 'desktop') {
+                    closeNotificationCenter();
+                    openApp(entry.appId, notificationContext(entry));
+                }
             });
         });
+        const focusTarget = focusedID ? panel.querySelector('#' + cssSel(focusedID)) : focusedNotification
+            ? panel.querySelector(`[data-notification-id="${cssSel(focusedNotification)}"][data-action="${cssSel(focusedAction)}"]`)
+            : focusedAction ? panel.querySelector(`[data-action="${cssSel(focusedAction)}"]`) : null;
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+        else if (focusedNotification) (panel.querySelector('[data-notification-id]:not(:disabled)') || panel.querySelector('#vd-notification-dnd') || panel).focus({ preventScroll: true });
     }
 
     function toggleNotificationCenter(anchor) {
@@ -118,7 +158,6 @@
         panel._returnFocus?.setAttribute('aria-expanded', 'true');
         panel.focus();
         desktopSound('menu.open');
-        markAllNotificationsRead();
         placeTrayPopover(panel, anchor);
     }
 
@@ -130,7 +169,8 @@
         const rect = anchor.getBoundingClientRect();
         const below = rect.top + rect.height / 2 < window.innerHeight / 2;
         panel.dataset.placement = below ? 'below' : 'above';
-        panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        panel.style.right = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - panel.offsetWidth - 8)) + 'px';
+        panel.style.maxHeight = Math.max(0, below ? window.innerHeight - rect.bottom - 16 : rect.top - 16) + 'px';
         if (below) {
             panel.style.bottom = '';
             panel.style.top = Math.round(rect.bottom + 8) + 'px';
@@ -146,69 +186,19 @@
     }
 
     function closeClockPopup(restoreFocus = false) {
+        closeClockCalendarPopup(restoreFocus);
+    }
+
+    function openClockPopup(anchor) {
+        closeNotificationCenter();
+        closeQuickSettingsPopup();
+        return openClockCalendarPopup(anchor);
+    }
+
+    function toggleClockPopup(anchor) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) {
-            popup.hidden = true;
-            popup._request = (popup._request || 0) + 1;
-            popup._returnFocus?.setAttribute('aria-expanded', 'false');
-            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
-        }
-    }
-
-    function clockLocalDay(value) {
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        const pad = n => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    }
-
-    async function openClockPopup(anchor) {
-        closeClockPopup();
-        let popup = document.getElementById('vd-clock-popup');
-        if (!popup) {
-            popup = document.createElement('div');
-            popup.id = 'vd-clock-popup';
-            popup.className = 'vd-clock-popup';
-            popup.setAttribute('role', 'dialog');
-            popup.tabIndex = -1;
-            popup.addEventListener('keydown', event => {
-                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
-            });
-            document.body.appendChild(popup);
-        }
-        const request = popup._request = (popup._request || 0) + 1;
-        popup.setAttribute('aria-label', t('desktop.clock_today'));
-        popup._returnFocus = anchor || document.activeElement;
-        popup._returnFocus?.setAttribute('aria-expanded', 'true');
-        popup.hidden = false;
-        popup.focus();
-        popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
-        placeTrayPopover(popup, anchor);
-        let appointments = [];
-        try {
-            appointments = await api('/api/desktop/integrations/appointments?status=all');
-        } catch (_) {
-            appointments = [];
-        }
-        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
-        const now = new Date();
-        const todayKey = clockLocalDay(now);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
-        const events = todayItems.slice(0, 6).map(item => {
-            const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
-        }).join('');
-        popup.innerHTML = `<div class="vd-clock-popup-head">
-            <div class="vd-clock-popup-date">${esc(now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
-            <div class="vd-clock-popup-time">${esc(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</div>
-        </div>
-        <div class="vd-clock-popup-section">${esc(t('desktop.clock_today'))}</div>
-        ${events ? `<ul class="vd-clock-popup-events">${events}</ul>` : `<div class="vd-clock-popup-empty">${esc(t('desktop.clock_no_events'))}</div>`}
-        <button type="button" class="vd-clock-popup-open" data-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
-        popup.querySelector('[data-action="open-calendar"]').addEventListener('click', () => {
-            closeClockPopup();
-            openApp('calendar');
-        });
+        if (popup && !popup.hidden) closeClockPopup(true);
+        else openClockPopup(anchor);
     }
 
     function closeShortcutsHelp() {
@@ -230,6 +220,8 @@
             ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
             ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
             ['Win / ⌘ + ←↑→↓', t('desktop.shortcuts_window_snap')],
+            ['Win / ⌘ + ← →, ↑ ↓', t('desktop.shortcuts_snap_quarter')],
+            ['Shift+F10', t('desktop.shortcuts_layout_menu')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -237,6 +229,7 @@
         overlay.innerHTML = `<div class="vd-shortcuts-panel">
             <div class="vd-shortcuts-heading">${esc(t('desktop.shortcuts_title'))}</div>
             <ul class="vd-shortcuts-list">${rows.map(row => `<li><kbd>${esc(row[0])}</kbd><span>${esc(row[1])}</span></li>`).join('')}</ul>
+            <p>${esc(t('desktop.shortcuts_browser_conflicts'))}</p>
             <button type="button" class="vd-shortcuts-close">${esc(t('desktop.close'))}</button>
         </div>`;
         overlay.addEventListener('click', event => {
@@ -246,88 +239,108 @@
         document.body.appendChild(overlay);
     }
 
-    function windowSwitcherWindows() {
-        return taskbarWindows().filter(win => win && win.element && win.element.style.display !== 'none');
+    function windowOverviewWindows(options = {}) {
+        if (options.mode === 'snap-partner') return windowSnapPartnerCandidates(options.sourceId, options.partnerZone);
+        return [...state.windows.values()].filter(win => win && win.element && !win.isGadget && !win.closing
+            && (!options.appId || win.appId === options.appId)
+            && (options.scope === 'all' || (options.scope === 'visible' ? isWindowOnActiveSpace(win)
+                : windowSpaceId(win) === normalizeSpaceId(state.activeSpaceId))));
     }
 
-    function renderWindowSwitcherOverlay(nextIndex) {
-        const wins = windowSwitcherWindows();
-        if (!wins.length) return;
-        let overlay = document.getElementById('vd-window-switcher');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'vd-window-switcher';
-            overlay.className = 'vd-window-switcher';
-            document.body.appendChild(overlay);
+    function activateOverviewWindow(id) {
+        const win = state.windows.get(id);
+        if (desktopSessionEnded || !win || win.closing || win.isGadget) return false;
+        if (windowSpaceId(win) !== normalizeSpaceId(state.activeSpaceId)) {
+            if (spacesEnabled()) switchSpace(windowSpaceId(win));
+            else {
+                state.activeSpaceId = windowSpaceId(win);
+                applyActiveSpaceWallpaper();
+                renderSpacePager();
+            }
         }
-        overlay.innerHTML = wins.map((win, i) => {
-            const app = appById(win.appId);
-            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
-            const isActive = i === nextIndex;
-            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
-        }).join('');
+        focusWindow(id);
+        const target = win.element.querySelector('[data-action="maximize"]') || win.element.querySelector('[data-action="close"]');
+        target?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function initWindowOverviewRuntime() {
+        window.AuraDesktopWindowOverview?.configure({
+            getWindows: windowOverviewWindows,
+            getActiveWindowId: () => state.activeWindowId,
+            spaceName: win => workspaceName(windowSpaceId(win)),
+            appName: windowTitle,
+            previewMarkup: windowPreviewMarkup,
+            activateWindow: activateOverviewWindow,
+            chooseSnapPartner: chooseWindowSnapPartner,
+            closeWindow,
+            closeBatch: closeDesktopWindowBatch,
+            t,
+            mountDialog: mountDesktopDialog
+        });
+        document.addEventListener('aurago:auth-ended', () => endWindowSwitcherHold(false));
+    }
+
+    function hasOtherDesktopModal() {
+        return [...document.querySelectorAll('[aria-modal="true"]')]
+            .some(dialog => dialog.id !== 'vd-window-overview' && dialog.getClientRects().length);
+    }
+
+    function openDesktopWindowOverview(options = {}) {
+        if (desktopSessionEnded || hasOtherDesktopModal()) return false;
+        const requestedOpener = options.opener || document.activeElement;
+        const opener = requestedOpener && requestedOpener !== document.body && requestedOpener.isConnected
+            && requestedOpener.getClientRects().length && !requestedOpener.closest('.vd-context-menu, #vd-start-menu')
+            ? requestedOpener : [document.querySelector('[data-fruity-dock-orb]'), $('vd-start-button')].find(el => el?.getClientRects().length);
+        hideTaskbarThumbnail();
+        closeContextMenu(true);
+        closeWindowLayoutPopup(false);
+        closeStartMenu();
+        return window.AuraDesktopWindowOverview?.open({ mode: 'switcher', scope: 'current', ...options, opener }) || false;
+    }
+
+    function windowSwitcherWindows() {
+        return windowOverviewWindows({ scope: 'current' });
     }
 
     function beginWindowSwitcherHold(reverse) {
-        const wins = windowSwitcherWindows();
-        if (wins.length <= 1) {
-            if (wins.length === 1) focusWindow(wins[0].id);
-            return;
-        }
-        const currentIndex = wins.findIndex(win => win.id === state.activeWindowId);
-        const step = reverse ? -1 : 1;
-        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + wins.length) % wins.length;
-        windowSwitcherHold = { index: nextIndex, winsLength: wins.length };
-        renderWindowSwitcherOverlay(nextIndex);
+        if (!windowSwitcherWindows().length) return;
+        if (!openDesktopWindowOverview({ mode: 'switcher' })) return;
+        windowSwitcherHold = true;
+        window.AuraDesktopWindowOverview.cycle(reverse);
     }
 
     function cycleWindowSwitcherHold(reverse) {
-        if (!windowSwitcherHold) return;
-        const wins = windowSwitcherWindows();
-        if (!wins.length) {
-            endWindowSwitcherHold(false);
-            return;
-        }
-        const step = reverse ? -1 : 1;
-        windowSwitcherHold.index = (windowSwitcherHold.index + step + wins.length) % wins.length;
-        renderWindowSwitcherOverlay(windowSwitcherHold.index);
+        if (windowSwitcherHold) window.AuraDesktopWindowOverview?.cycle(reverse);
     }
 
     function endWindowSwitcherHold(applyFocus) {
-        const overlay = document.getElementById('vd-window-switcher');
-        const wins = windowSwitcherWindows();
-        if (applyFocus && windowSwitcherHold && wins[windowSwitcherHold.index]) {
-            focusWindow(wins[windowSwitcherHold.index].id);
-        }
         windowSwitcherHold = null;
-        if (overlay) overlay.remove();
+        window.AuraDesktopWindowOverview?.finish({ activate: !!applyFocus });
     }
 
     function handleWindowSwitcherKeydown(event) {
         const ctrl = event.ctrlKey || event.metaKey;
-        if (!ctrl || event.altKey) return false;
-        if (event.key === 'Tab') {
+        if (ctrl && event.altKey && event.key.toLowerCase() === 'w') {
             event.preventDefault();
-            if (!windowSwitcherHold) beginWindowSwitcherHold(event.shiftKey);
-            else cycleWindowSwitcherHold(event.shiftKey);
+            windowSwitcherHold = null;
+            openDesktopWindowOverview({ mode: 'switcher' });
             return true;
         }
-        if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
-            event.preventDefault();
-            if (!windowSwitcherHold) beginWindowSwitcherHold(false);
-            else cycleWindowSwitcherHold(false);
-            return true;
-        }
-        return false;
+        if (!ctrl || event.altKey || event.key !== 'Tab') return false;
+        event.preventDefault();
+        if (windowSwitcherHold && window.AuraDesktopWindowOverview?.isOpen('switcher')) cycleWindowSwitcherHold(event.shiftKey);
+        else beginWindowSwitcherHold(event.shiftKey);
+        return true;
     }
 
     function handleWindowSwitcherKeyup(event) {
-        if (!windowSwitcherHold) return false;
-        if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Alt') {
-            endWindowSwitcherHold(true);
-            return true;
+        if (!windowSwitcherHold || !['Control', 'Meta'].includes(event.key)) return false;
+        windowSwitcherHold = null;
+        if (!hasOtherDesktopModal() && window.AuraDesktopWindowOverview?.isOpen('switcher')) {
+            window.AuraDesktopWindowOverview.finish({ activate: true });
         }
-        return false;
+        return true;
     }
 
     function openDesktopFullscreenOnStartup() {
@@ -355,6 +368,19 @@
     }
 
     function wireShellChromeControls() {
+        if (!notificationChromeSubscriptions) {
+            const refresh = () => {
+                updateNotificationBadge();
+                const panel = document.getElementById('vd-notification-center');
+                if (panel && !panel.hidden) renderNotificationCenter();
+            };
+            notificationChromeSubscriptions = [window.AuraDesktopNotificationCenter.subscribe(refresh), window.AuraDesktopNotificationCenter.subscribePolicy(refresh)];
+            window.addEventListener('pagehide', event => {
+                if (event.persisted) return;
+                notificationChromeSubscriptions?.forEach(unsubscribe => unsubscribe());
+                notificationChromeSubscriptions = null;
+            });
+        }
         const fullscreenBtn = document.getElementById('vd-fullscreen-button');
         if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
             fullscreenBtn.dataset.shellChromeWired = 'true';
@@ -403,11 +429,11 @@
             clock.setAttribute('aria-expanded', 'false');
             clock.tabIndex = 0;
             clock.addEventListener('keydown', event => {
-                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleClockPopup(clock); }
             });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
-                openClockPopup(clock);
+                toggleClockPopup(clock);
             });
         }
         const notifyBtn = document.getElementById('vd-notification-button');
@@ -418,13 +444,35 @@
             notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
+                closeClockPopup();
+                closeQuickSettingsPopup();
                 toggleNotificationCenter(notifyBtn);
             });
         }
-        document.addEventListener('click', event => {
-            if (!event.target.closest('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button')) {
+        const quickButton = document.getElementById('vd-quick-settings-button');
+        if (quickButton && !quickButton.dataset.shellChromeWired) {
+            quickButton.dataset.shellChromeWired = 'true';
+            quickButton.addEventListener('click', event => {
+                event.stopPropagation();
                 closeClockPopup();
                 closeNotificationCenter();
+                toggleQuickSettingsPopup(quickButton);
+            });
+        }
+        document.addEventListener('click', event => {
+            // A panel may replace the clicked control before this event bubbles here.
+            if (!event.composedPath().some(node => node.matches?.('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button, #vd-quick-settings, #vd-quick-settings-button'))) {
+                closeClockPopup();
+                closeNotificationCenter();
+                closeQuickSettingsPopup();
             }
         });
+        const repositionPanels = () => {
+            for (const [panelId, anchorId] of [['vd-clock-popup', 'vd-clock'], ['vd-notification-center', 'vd-notification-button'], ['vd-quick-settings', 'vd-quick-settings-button']]) {
+                const panel = document.getElementById(panelId);
+                if (panel && !panel.hidden) placeTrayPopover(panel, document.getElementById(anchorId));
+            }
+        };
+        window.addEventListener('resize', repositionPanels);
+        window.addEventListener('aurago:desktop-settings', repositionPanels);
     }

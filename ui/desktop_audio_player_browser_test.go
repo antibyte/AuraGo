@@ -55,7 +55,15 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 
 	for _, viewport := range [][2]int{{1366, 900}, {390, 667}} {
 		page.MustSetViewport(viewport[0], viewport[1], 1, false)
-		page.MustEval(`async()=>{fixtureTheme('standard');aurora.openApp('audio-player',{path:'Music/galaga.mp3'});await new Promise(r=>setTimeout(r,600));}`)
+		page.MustEval(`async()=>{
+            if(innerWidth>800&&!window.mediaSessionProbe){
+                window.mediaSessionProbe=[];
+                window.mediaSessionUnsubscribe=AuraDesktopMediaSession.subscribe(snapshot=>mediaSessionProbe.push(snapshot));
+                window.mediaFallbackOwner={};
+                AuraDesktopMediaSession.claim(mediaFallbackOwner,{priority:10,playbackState:'paused',metadata:{title:'Fallback player'},handlers:{play:()=>{}}});
+            }
+            fixtureTheme('standard');aurora.openApp('audio-player',{path:'Music/galaga.mp3'});await new Promise(r=>setTimeout(r,600));
+        }`)
 
 		if issues := page.MustEval(`()=>{
 			const issues=[];
@@ -109,6 +117,14 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 		if !page.MustEval(`()=>!!document.querySelector('.vd-player.is-playing')`).Bool() {
 			t.Fatalf("player did not switch into the playing state at %dx%d", viewport[0], viewport[1])
 		}
+		if viewport[0] > 800 && !page.MustEval(`()=>{
+            const snapshot=AuraDesktopMediaSession.snapshot();
+            return snapshot.available&&snapshot.status==='playing'&&snapshot.metadata.title
+                &&['play','pause','previoustrack','nexttrack'].every(action=>snapshot.actions.includes(action))
+                &&mediaSessionProbe.some(item=>item.status==='playing');
+        }`).Bool() {
+			t.Fatal("the active player must publish title, transport actions and live playback status")
+		}
 
 		// The play button pauses and resumes again.
 		page.MustEval(`()=>document.querySelector('.vd-player [data-play]').click()`)
@@ -118,6 +134,26 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 		page.MustEval(`async()=>{document.querySelector('.vd-player [data-play]').click();await new Promise(r=>setTimeout(r,300));}`)
 		if !page.MustEval(`()=>{const a=document.querySelector('.vd-player audio');return !!a&&!a.paused&&a.currentTime>0;}`).Bool() {
 			t.Fatalf("play button must resume at %dx%d", viewport[0], viewport[1])
+		}
+		if viewport[0] > 800 {
+			page.MustEval(`async()=>{
+                const audio=document.querySelector('.vd-player audio');
+                audio.dispatchEvent(new Event('waiting'));
+                if(AuraDesktopMediaSession.snapshot().status!=='buffering')throw Error('waiting must publish buffering');
+                audio.dispatchEvent(new Event('playing'));
+                if(AuraDesktopMediaSession.snapshot().status!=='playing')throw Error('playing must clear buffering');
+                await AuraDesktopMediaSession.dispatch('pause');
+                if(!audio.paused||AuraDesktopMediaSession.snapshot().status!=='paused')throw Error('dispatch pause state');
+                if(!await AuraDesktopMediaSession.dispatch('play'))throw Error('dispatch play unsupported');
+                await new Promise(resolve=>setTimeout(resolve,250));
+                await AuraDesktopMediaSession.dispatch('pause');
+                audio.dispatchEvent(new Event('ended'));
+                if(AuraDesktopMediaSession.snapshot().status!=='ended')throw Error('ended state missing');
+                await AuraDesktopMediaSession.dispatch('play');
+                await new Promise(resolve=>setTimeout(resolve,250));
+                audio.dispatchEvent(new Event('error'));
+                if(AuraDesktopMediaSession.snapshot().status!=='error')throw Error('error state missing');
+            }`)
 		}
 
 		// The visualizer mode cycles through all three renderers.
@@ -137,6 +173,12 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 			page.MustScreenshot(filepath.Join(dir, fmt.Sprintf("audio-player-%dx%d.png", viewport[0], viewport[1])))
 		}
 		page.MustEval(`()=>[...aurora.state.windows.keys()].forEach(id=>aurora.closeWindow(id))`)
+		if viewport[0] > 800 {
+			page.MustWait(`()=>AudioPlayerApp.instances.size===0`)
+			if !page.MustEval(`()=>AuraDesktopMediaSession.snapshot().metadata.title==='Fallback player'`).Bool() {
+				t.Fatal("disposing the native player must release only its owner and restore the fallback owner")
+			}
+		}
 	}
 
 	// Started without a file the player falls back to the music library.
@@ -145,6 +187,8 @@ func TestDesktopAudioPlayerWindowBrowser(t *testing.T) {
 		t.Fatal("player opened without a file must show the music library")
 	}
 	page.MustEval(`()=>[...aurora.state.windows.keys()].forEach(id=>aurora.closeWindow(id))`)
+	page.MustWait(`()=>AudioPlayerApp.instances.size===0`)
+	page.MustEval(`()=>{mediaSessionUnsubscribe?.();AuraDesktopMediaSession.release(mediaFallbackOwner);}`)
 
 	if errors := page.MustEval(`()=>JSON.stringify(fixtureErrors)`).Str(); errors != "[]" {
 		t.Fatal(errors)

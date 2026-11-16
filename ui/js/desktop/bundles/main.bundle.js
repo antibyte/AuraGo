@@ -266,6 +266,3178 @@
 }());
 
 ;
+/* ui/js/desktop/shared/calculator-expression.js */
+(function () {
+    'use strict';
+
+    function tokenize(expression) {
+        const tokens = [];
+        let index = 0;
+        while (index < expression.length) {
+            const char = expression[index];
+            if (/\s/.test(char)) {
+                index += 1;
+                continue;
+            }
+            if ((char >= '0' && char <= '9') || char === '.') {
+                const start = index;
+                let hasDigit = false;
+                let hasDot = false;
+                while (index < expression.length) {
+                    const current = expression[index];
+                    if (current >= '0' && current <= '9') {
+                        hasDigit = true;
+                        index += 1;
+                    } else if (current === '.' && !hasDot) {
+                        hasDot = true;
+                        index += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if (!hasDigit) throw new Error('Invalid expression');
+                const value = Number(expression.slice(start, index));
+                if (!Number.isFinite(value)) throw new Error('Invalid expression');
+                tokens.push({ type: 'number', value });
+                continue;
+            }
+            if ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z')) {
+                const start = index;
+                while (index < expression.length) {
+                    const current = expression[index];
+                    if ((current >= 'a' && current <= 'z') || (current >= 'A' && current <= 'Z')) index += 1;
+                    else break;
+                }
+                tokens.push({ type: 'identifier', value: expression.slice(start, index) });
+                continue;
+            }
+            if ('+-*/%^()!'.includes(char)) {
+                tokens.push({ type: 'operator', value: char });
+                index += 1;
+                continue;
+            }
+            throw new Error('Invalid expression');
+        }
+        tokens.push({ type: 'eof', value: '' });
+        return tokens;
+    }
+
+    function factorial(value) {
+        if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value) || value > 170) throw new Error('Invalid expression');
+        let result = 1;
+        for (let index = 2; index <= value; index += 1) result *= index;
+        return result;
+    }
+
+    function applyOperation(name, value) {
+        switch (name) {
+            case 'sin': return Math.sin(value);
+            case 'cos': return Math.cos(value);
+            case 'tan': return Math.tan(value);
+            case 'sqrt': return Math.sqrt(value);
+            case 'log': return Math.log10(value);
+            case 'ln': return Math.log(value);
+            case 'abs': return Math.abs(value);
+            case 'factorial': return factorial(value);
+            default: throw new Error('Invalid expression');
+        }
+    }
+
+    function parse(tokens) {
+        let position = 0;
+        const peek = () => tokens[position] || { type: 'eof', value: '' };
+        const consume = () => tokens[position++] || { type: 'eof', value: '' };
+        const expectOperator = value => {
+            const token = consume();
+            if (token.type !== 'operator' || token.value !== value) throw new Error('Invalid expression');
+        };
+        const parseExpression = () => parseAdditiveExpression();
+        const parseAdditiveExpression = () => {
+            let value = parseMultiplicativeExpression();
+            while (peek().type === 'operator' && (peek().value === '+' || peek().value === '-')) {
+                const operator = consume().value;
+                const right = parseMultiplicativeExpression();
+                value = operator === '+' ? value + right : value - right;
+            }
+            return value;
+        };
+        const parseMultiplicativeExpression = () => {
+            let value = parseUnaryExpression();
+            while (peek().type === 'operator' && (peek().value === '*' || peek().value === '/' || peek().value === '%')) {
+                const operator = consume().value;
+                const right = parseUnaryExpression();
+                if ((operator === '/' || operator === '%') && right === 0) throw new Error('Invalid expression');
+                if (operator === '*') value *= right;
+                else if (operator === '/') value /= right;
+                else value %= right;
+            }
+            return value;
+        };
+        const parseUnaryExpression = () => {
+            if (peek().type === 'operator' && (peek().value === '+' || peek().value === '-')) {
+                const operator = consume().value;
+                const value = parseUnaryExpression();
+                return operator === '-' ? -value : value;
+            }
+            return parsePowerExpression();
+        };
+        const parsePowerExpression = () => {
+            let value = parsePostfixExpression();
+            if (peek().type === 'operator' && peek().value === '^') {
+                consume();
+                value = Math.pow(value, parseUnaryExpression());
+            }
+            return value;
+        };
+        const parsePostfixExpression = () => {
+            let value = parsePrimaryExpression();
+            while (peek().type === 'operator' && peek().value === '!') {
+                consume();
+                value = factorial(value);
+            }
+            return value;
+        };
+        const parsePrimaryExpression = () => {
+            const token = consume();
+            if (token.type === 'number') return token.value;
+            if (token.type === 'operator' && token.value === '(') {
+                const value = parseExpression();
+                expectOperator(')');
+                return value;
+            }
+            if (token.type === 'identifier') {
+                const name = token.value.toLowerCase();
+                if (name === 'pi') return Math.PI;
+                if (name === 'e') return Math.E;
+                expectOperator('(');
+                return applyOperation(name, parseExpressionAfterOpen());
+            }
+            throw new Error('Invalid expression');
+        };
+        const parseExpressionAfterOpen = () => {
+            const value = parseExpression();
+            expectOperator(')');
+            return value;
+        };
+
+        const value = parseExpression();
+        if (peek().type !== 'eof' || !Number.isFinite(value)) throw new Error('Invalid expression');
+        return value;
+    }
+
+    function evaluate(expression) {
+        return parse(tokenize(String(expression || '')));
+    }
+
+    window.AuraCalculatorExpression = Object.freeze({ evaluate });
+}());
+
+;
+/* ui/js/desktop/core/accessibility-runtime.js */
+(function () {
+    'use strict';
+
+    const TEXT_SIZES = new Set(['100', '125', '150']);
+    let current = { textSize: '100', highContrast: false };
+
+    function normalize(settings) {
+        settings = settings && typeof settings === 'object' ? settings : {};
+        const requestedSize = String(settings['accessibility.text_size'] ?? settings.textSize ?? '100');
+        const requestedContrast = settings['accessibility.high_contrast'] ?? settings.highContrast;
+        return {
+            textSize: TEXT_SIZES.has(requestedSize) ? requestedSize : '100',
+            highContrast: requestedContrast === true || requestedContrast === 1 || String(requestedContrast).toLowerCase() === 'true' || String(requestedContrast) === '1'
+        };
+    }
+
+    function apply(settings) {
+        current = normalize(settings);
+        const body = document.body;
+        if (!body) return Object.assign({}, current);
+        body.dataset.textSize = current.textSize;
+        body.dataset.highContrast = String(current.highContrast);
+        body.style.setProperty('--vd-accessibility-text-scale', String(Number(current.textSize) / 100));
+        return Object.assign({}, current);
+    }
+
+    window.AuraDesktopAccessibility = {
+        apply,
+        current: () => Object.assign({}, current),
+        normalize
+    };
+}());
+
+;
+/* ui/js/desktop/core/notification-center-runtime.js */
+(function () {
+    'use strict';
+
+    const HISTORY_KEY = 'aurago.desktop.notifications.v1';
+    const POLICY_KEY = 'aurago.desktop.notification-policy.v1';
+    const VERSION = 1;
+    const MAX_HISTORY = 40;
+    const MAX_TITLE = 160;
+    const MAX_MESSAGE = 280;
+    const MAX_STORAGE_CHARS = 100000;
+    const APP_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+    const SESSION_SCOPE = /^[a-f0-9]{64}$/;
+    const listeners = new Set();
+    const policyListeners = new Set();
+    let items = [];
+    let currentPolicy = { dnd: false, apps: Object.create(null) };
+    let ready = false;
+    let initPromise = null;
+    let authMode = 'pending';
+    let sessionScope = '';
+    let historyStorage = 'checking';
+    let policyStorage = 'checking';
+    let authEnded = false;
+    let authRefreshing = false;
+    let authRefreshPromise = null;
+    let authStatusCheckedAt = 0;
+    let recordsDuringRefresh = [];
+    const AUTH_RECHECK_DEBOUNCE_MS = 2000;
+    const AUTH_STATUS_TIMEOUT_MS = 5000;
+
+    function cloneEntry(entry) {
+        return {
+            id: entry.id,
+            title: entry.title,
+            message: entry.message,
+            appId: entry.appId,
+            context: entry.context ? Object.assign({}, entry.context) : undefined,
+            ts: entry.ts,
+            read: entry.read
+        };
+    }
+
+    function history() {
+        return ready && !authRefreshing ? items.map(cloneEntry) : [];
+    }
+
+    function status() {
+        return {
+            ready,
+            authMode,
+            storage: historyStorage,
+            policyStorage,
+            tabOnly: historyStorage === 'memory',
+            storageFallback: historyStorage === 'memory' || policyStorage === 'memory'
+        };
+    }
+
+    function emit() {
+        const snapshot = history();
+        const currentStatus = status();
+        listeners.forEach(listener => { try { listener(snapshot, currentStatus); } catch (_) {} });
+    }
+
+    function emitPolicy() {
+        const snapshot = policy();
+        const currentStatus = status();
+        policyListeners.forEach(listener => { try { listener(snapshot, currentStatus); } catch (_) {} });
+    }
+
+    function storageArea(name) {
+        try { return window[name] || null; } catch (_) { return null; }
+    }
+
+    function cleanText(value, limit) {
+        if (typeof value !== 'string') return '';
+        const clean = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+        return Array.from(clean).slice(0, limit).join('');
+    }
+
+    function cleanAppId(value) {
+        return typeof value === 'string' && APP_ID.test(value) ? value : '';
+    }
+
+    function cleanContext(appId, context) {
+        if (!context || typeof context !== 'object' || Array.isArray(context)) return undefined;
+        if (appId === 'meshcore' && typeof context.conversation_id === 'string' && /^[a-f0-9]{64}$/.test(context.conversation_id)) {
+            return { conversation_id: context.conversation_id };
+        }
+        if (appId === 'storymaker' && typeof (context.projectId || context.project_id) === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(context.projectId || context.project_id)) {
+            return { projectId: context.projectId || context.project_id };
+        }
+        if (appId === 'easydrag' && typeof context.flow_id === 'string' && /^flow_[a-z0-9]{10}$/.test(context.flow_id)) {
+            return /^run_[a-z0-9]{12}$/.test(context.run_id || '')
+                ? { flow_id: context.flow_id, run_id: context.run_id }
+                : { flow_id: context.flow_id };
+        }
+        if (appId === 'network-cameras' && Number.isSafeInteger(context.event_id) && context.event_id > 0) {
+            return typeof context.camera_id === 'string' && /^[a-z0-9_-]{1,64}$/.test(context.camera_id)
+                ? { event_id: context.event_id, camera_id: context.camera_id }
+                : { event_id: context.event_id };
+        }
+        return undefined;
+    }
+
+    function makeId() {
+        return 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+    }
+
+    function normalizeEntry(raw) {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+        if (typeof raw.id !== 'string' || !/^n-\d{1,16}-[a-z0-9]{1,12}$/.test(raw.id)) return null;
+        if (!Number.isSafeInteger(raw.ts) || raw.ts <= 0 || raw.ts > Date.now() + 86400000) return null;
+        const appId = cleanAppId(raw.appId);
+        const title = cleanText(raw.title, MAX_TITLE);
+        if (!title) return null;
+        return {
+            id: raw.id,
+            title,
+            message: cleanText(raw.message, MAX_MESSAGE),
+            appId,
+            context: cleanContext(appId, raw.context),
+            ts: raw.ts,
+            read: raw.read === true,
+            persist: raw.persist !== false
+        };
+    }
+
+    function serializeEntry(entry) {
+        return {
+            id: entry.id,
+            title: entry.title,
+            message: entry.message,
+            appId: entry.appId,
+            context: entry.context,
+            ts: entry.ts,
+            read: entry.read
+        };
+    }
+
+    function normalizedPolicy(raw) {
+        const result = { dnd: !!(raw && raw.dnd === true), apps: Object.create(null) };
+        const apps = raw && raw.apps;
+        if (!apps || typeof apps !== 'object' || Array.isArray(apps)) return result;
+        for (const id of Object.keys(apps).slice(0, 128)) {
+            if (!APP_ID.test(id)) continue;
+            const app = apps[id];
+            if (!app || typeof app !== 'object' || Array.isArray(app)) continue;
+            result.apps[id] = {
+                toast: app.toast !== false,
+                sound: app.sound !== false
+            };
+        }
+        return result;
+    }
+
+    function policy() {
+        return { dnd: currentPolicy.dnd, apps: Object.fromEntries(Object.entries(currentPolicy.apps).map(([id, value]) => [id, { toast: value.toast, sound: value.sound }])) };
+    }
+
+    function readPolicy() {
+        const storage = storageArea('localStorage');
+        if (!storage || typeof storage.getItem !== 'function') {
+            policyStorage = 'memory';
+            return;
+        }
+        try {
+            const value = storage.getItem(POLICY_KEY);
+            policyStorage = 'localStorage';
+            if (value === null) return;
+            if (value.length > 20000) throw new Error('notification policy is too large');
+            const parsed = JSON.parse(value);
+            if (!parsed || parsed.version !== VERSION) throw new Error('unsupported notification policy');
+            currentPolicy = normalizedPolicy(parsed);
+        } catch (_) {
+            currentPolicy = { dnd: false, apps: Object.create(null) };
+            try { storage.removeItem(POLICY_KEY); } catch (_) { policyStorage = 'memory'; }
+        }
+    }
+
+    function writePolicy() {
+        const storage = storageArea('localStorage');
+        if (!storage || typeof storage.setItem !== 'function') {
+            policyStorage = 'memory';
+            return;
+        }
+        try {
+            storage.setItem(POLICY_KEY, JSON.stringify({ version: VERSION, dnd: currentPolicy.dnd, apps: currentPolicy.apps }));
+            policyStorage = 'localStorage';
+        } catch (_) {
+            policyStorage = 'memory';
+        }
+    }
+
+    function setPolicy(next) {
+        if (!next || typeof next !== 'object' || Array.isArray(next)) return policy();
+        const merged = policy();
+        if (typeof next.dnd === 'boolean') merged.dnd = next.dnd;
+        if (next.apps && typeof next.apps === 'object' && !Array.isArray(next.apps)) {
+            for (const id of Object.keys(next.apps).slice(0, 128)) {
+                if (!APP_ID.test(id)) continue;
+                const app = next.apps[id];
+                if (app === null) { delete merged.apps[id]; continue; }
+                if (!app || typeof app !== 'object' || Array.isArray(app)) continue;
+                const previous = merged.apps[id] || { toast: true, sound: true };
+                merged.apps[id] = {
+                    toast: typeof app.toast === 'boolean' ? app.toast : previous.toast,
+                    sound: typeof app.sound === 'boolean' ? app.sound : previous.sound
+                };
+            }
+        }
+        currentPolicy = normalizedPolicy(merged);
+        writePolicy();
+        emitPolicy();
+        return policy();
+    }
+
+    function delivery(payload) {
+        const app = currentPolicy.apps[cleanAppId(payload && payload.appId) || 'desktop'] || { toast: true, sound: true };
+        return {
+            toast: !currentPolicy.dnd && app.toast,
+            sound: !currentPolicy.dnd && app.sound
+        };
+    }
+
+    function persistHistory() {
+        if (!ready || authRefreshing || historyStorage !== 'session' || (authMode !== 'disabled' && authMode !== 'authenticated')) return;
+        const storage = storageArea('sessionStorage');
+        if (!storage || typeof storage.setItem !== 'function') {
+            historyStorage = 'memory';
+            emit();
+            return;
+        }
+        const records = items.filter(item => item.persist).slice(0, MAX_HISTORY).map(serializeEntry);
+        if (!records.length) {
+            removeStoredHistory();
+            return;
+        }
+        try {
+            storage.setItem(HISTORY_KEY, JSON.stringify({ version: VERSION, scope: sessionScope, records }));
+        } catch (_) {
+            historyStorage = 'memory';
+            emit();
+        }
+    }
+
+    function removeStoredHistory() {
+        const storage = storageArea('sessionStorage');
+        if (storage && typeof storage.removeItem === 'function') {
+            try { storage.removeItem(HISTORY_KEY); } catch (_) { historyStorage = 'memory'; }
+        }
+    }
+
+    function readStoredHistory(scope) {
+        const storage = storageArea('sessionStorage');
+        if (!storage || typeof storage.getItem !== 'function') {
+            historyStorage = 'memory';
+            return [];
+        }
+        try {
+            const raw = storage.getItem(HISTORY_KEY);
+            historyStorage = 'session';
+            if (raw === null) return [];
+            if (raw.length > MAX_STORAGE_CHARS) throw new Error('notification history is too large');
+            const parsed = JSON.parse(raw);
+            if (!parsed || parsed.version !== VERSION || parsed.scope !== scope || !Array.isArray(parsed.records)) {
+                removeStoredHistory();
+                return [];
+            }
+            return parsed.records.slice(0, MAX_HISTORY).map(normalizeEntry).filter(Boolean);
+        } catch (_) {
+            removeStoredHistory();
+            return [];
+        }
+    }
+
+    function uniqueRecords(records) {
+        const seen = new Set();
+        return records.filter(item => {
+            if (!item || seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+        }).slice(0, MAX_HISTORY);
+    }
+
+    function record(payload, safeContext) {
+        payload = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload : {};
+        if (authEnded || authMode === 'expired') return null;
+        let fallbackTitle = 'Notification';
+        try { if (typeof t === 'function') fallbackTitle = t('desktop.notification') || fallbackTitle; } catch (_) {}
+        const appId = cleanAppId(payload.appId);
+        const entry = {
+            id: makeId(),
+            title: cleanText(payload.title, MAX_TITLE) || cleanText(fallbackTitle, MAX_TITLE),
+            message: cleanText(payload.message, MAX_MESSAGE),
+            appId,
+            context: cleanContext(appId, safeContext || payload.context),
+            ts: Date.now(),
+            read: false,
+            persist: payload.persist !== false
+        };
+        if (authRefreshing) recordsDuringRefresh = uniqueRecords([entry, ...recordsDuringRefresh]);
+        else items = uniqueRecords([entry, ...items]);
+        if (ready) {
+            if (!authRefreshing) persistHistory();
+            emit();
+        }
+        return cloneEntry(entry);
+    }
+
+    function markRead(id) {
+        const entry = items.find(item => item.id === id);
+        if (!entry || entry.read) return false;
+        entry.read = true;
+        persistHistory();
+        emit();
+        return true;
+    }
+
+    function markAllRead() {
+        let changed = false;
+        items.forEach(item => { if (!item.read) { item.read = true; changed = true; } });
+        if (changed) {
+            persistHistory();
+            emit();
+        }
+        return changed;
+    }
+
+    function remove(id) {
+        const next = items.filter(item => item.id !== id);
+        if (next.length === items.length) return false;
+        items = next;
+        persistHistory();
+        emit();
+        return true;
+    }
+
+    function clear() {
+        items = [];
+        if (authRefreshing) recordsDuringRefresh = [];
+        removeStoredHistory();
+        emit();
+    }
+
+    function onAuthEnded() {
+        authEnded = true;
+        authMode = 'expired';
+        sessionScope = '';
+        authRefreshing = false;
+        recordsDuringRefresh = [];
+        items = [];
+        removeStoredHistory();
+        ready = true;
+        emit();
+    }
+
+    function requestAuthStatus() {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        let timeout = 0;
+        const request = window.fetch('/api/auth/status', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            ...(controller ? { signal: controller.signal } : {})
+        }).then(async response => ({
+            response,
+            auth: response && response.ok ? await response.json() : null
+        }));
+        const deadline = new Promise((_, reject) => {
+            timeout = window.setTimeout(() => {
+                controller?.abort();
+                reject(new Error('auth status timed out'));
+            }, AUTH_STATUS_TIMEOUT_MS);
+        });
+        return Promise.race([request, deadline]).finally(() => {
+            if (timeout) window.clearTimeout(timeout);
+        });
+    }
+
+    function subscribe(listener) {
+        if (typeof listener !== 'function') return function () {};
+        listeners.add(listener);
+        try { listener(history(), status()); } catch (_) {}
+        return () => listeners.delete(listener);
+    }
+
+    function subscribePolicy(listener) {
+        if (typeof listener !== 'function') return function () {};
+        policyListeners.add(listener);
+        try { listener(policy(), status()); } catch (_) {}
+        return () => policyListeners.delete(listener);
+    }
+
+    async function init() {
+        if (initPromise) return initPromise;
+        initPromise = (async function () {
+            const fresh = items.slice();
+            authRefreshing = true;
+            recordsDuringRefresh = [];
+            readPolicy();
+            emitPolicy();
+            authStatusCheckedAt = Date.now();
+            try {
+                const { response, auth } = await requestAuthStatus();
+                if (!response || !response.ok) throw new Error('auth status unavailable');
+                if (!auth || typeof auth.enabled !== 'boolean' || typeof auth.authenticated !== 'boolean') throw new Error('invalid auth status');
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else if (!auth.enabled) {
+                    authMode = 'disabled';
+                    sessionScope = 'local';
+                    items = uniqueRecords([...recordsDuringRefresh, ...fresh, ...readStoredHistory(sessionScope)]);
+                } else if (auth.authenticated && typeof auth.session_scope === 'string' && SESSION_SCOPE.test(auth.session_scope)) {
+                    authMode = 'authenticated';
+                    sessionScope = auth.session_scope;
+                    items = uniqueRecords([...recordsDuringRefresh, ...fresh, ...readStoredHistory(sessionScope)]);
+                } else {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                }
+            } catch (_) {
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else {
+                    authMode = 'unknown';
+                    sessionScope = '';
+                    historyStorage = 'memory';
+                    items = uniqueRecords([...recordsDuringRefresh, ...fresh]);
+                }
+            }
+            authRefreshing = false;
+            recordsDuringRefresh = [];
+            ready = true;
+            persistHistory();
+            emit();
+            emitPolicy();
+            return history();
+        })();
+        return initPromise;
+    }
+
+    function refreshAuthScope(force) {
+        if (!ready) return init();
+        if (authEnded) return Promise.resolve([]);
+        if (authRefreshPromise) return authRefreshPromise;
+        const now = Date.now();
+        if (!force && now - authStatusCheckedAt < AUTH_RECHECK_DEBOUNCE_MS) return Promise.resolve(history());
+
+        const previousItems = items.slice();
+        const previousMode = authMode;
+        const previousScope = sessionScope;
+        recordsDuringRefresh = [];
+        authRefreshing = true;
+        authMode = 'pending';
+        items = [];
+        authStatusCheckedAt = now;
+        emit();
+
+        authRefreshPromise = (async function () {
+            try {
+                const { response, auth } = await requestAuthStatus();
+                if (!response || !response.ok) throw new Error('auth status unavailable');
+                if (!auth || typeof auth.enabled !== 'boolean' || typeof auth.authenticated !== 'boolean') throw new Error('invalid auth status');
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else if (!auth.enabled) {
+                    authMode = 'disabled';
+                    sessionScope = 'local';
+                    const previous = previousMode === authMode && previousScope === sessionScope ? previousItems : [];
+                    items = uniqueRecords([...recordsDuringRefresh, ...previous, ...readStoredHistory(sessionScope)]);
+                } else if (auth.authenticated && typeof auth.session_scope === 'string' && SESSION_SCOPE.test(auth.session_scope)) {
+                    authMode = 'authenticated';
+                    sessionScope = auth.session_scope;
+                    const previous = previousMode === authMode && previousScope === sessionScope ? previousItems : [];
+                    items = uniqueRecords([...recordsDuringRefresh, ...previous, ...readStoredHistory(sessionScope)]);
+                } else {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                }
+            } catch (_) {
+                if (authEnded) {
+                    authMode = 'expired';
+                    sessionScope = '';
+                    items = [];
+                    removeStoredHistory();
+                } else {
+                    authMode = 'unknown';
+                    sessionScope = '';
+                    historyStorage = 'memory';
+                    items = uniqueRecords(recordsDuringRefresh);
+                }
+            }
+            authRefreshing = false;
+            recordsDuringRefresh = [];
+            ready = true;
+            persistHistory();
+            emit();
+            emitPolicy();
+            return history();
+        })().finally(() => { authRefreshPromise = null; });
+        return authRefreshPromise;
+    }
+
+    function onStorage(event) {
+        if (!event || event.key !== POLICY_KEY) return;
+        if (event.newValue === null) {
+            currentPolicy = { dnd: false, apps: Object.create(null) };
+            policyStorage = 'localStorage';
+            emitPolicy();
+            return;
+        }
+        try {
+            if (event.newValue.length > 20000) return;
+            const parsed = JSON.parse(event.newValue);
+            if (!parsed || parsed.version !== VERSION) return;
+            currentPolicy = normalizedPolicy(parsed);
+            policyStorage = 'localStorage';
+            emitPolicy();
+        } catch (_) {}
+    }
+
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('pageshow', event => {
+        if (event && event.persisted) return refreshAuthScope(true);
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') return refreshAuthScope(false);
+    });
+    document.addEventListener('aurago:auth-ended', onAuthEnded);
+    window.AuraDesktopNotificationCenter = {
+        init,
+        history,
+        subscribe,
+        record,
+        markRead,
+        markAllRead,
+        remove,
+        clear,
+        delivery,
+        policy,
+        setPolicy,
+        subscribePolicy,
+        status
+    };
+}());
+
+;
+/* ui/js/desktop/core/settings-catalog-runtime.js */
+(function () {
+    'use strict';
+
+    const SCHEME_MODE_LABELS = Object.freeze({
+        'appearance.fruity_mode': 'desktop.settings_fruity_mode',
+        'appearance.minimal_mode': 'desktop.settings_minimal_mode'
+    });
+
+    function settingSelect(key, label, desc, options) {
+        return { type: 'select', key, label, desc, options };
+    }
+
+    function settingToggle(key, label, desc) {
+        return { type: 'toggle', key, label, desc };
+    }
+
+    function settingInfo(label, value) {
+        return { type: 'info', label, value };
+    }
+
+    function settingRange(key, label, desc, min, max, step) {
+        return { type: 'range', key, label, desc, min, max, step };
+    }
+
+    function settingSoundThemes(ctx) {
+        return {
+            type: 'sound_theme',
+            key: 'sound.theme',
+            label: 'desktop.settings_sound_theme',
+            desc: 'desktop.settings_sound_theme_desc',
+            themes: [
+                { id: 'desktop', label: 'desktop.settings_sound_theme_desktop', desc: 'desktop.settings_sound_theme_desktop_desc' },
+                ...(typeof ctx.desktopThemes === 'function' ? ctx.desktopThemes().filter(theme => theme.cursorTheme).map(theme => ({
+                    id: theme.soundTheme, label: theme.labelKey, desc: 'desktop.settings_sound_theme_' + theme.soundTheme + '_desc', art: theme.cursorTheme
+                })) : []),
+                { id: 'crystal', label: 'desktop.settings_sound_theme_crystal', desc: 'desktop.settings_sound_theme_crystal_desc' },
+                { id: 'wood', label: 'desktop.settings_sound_theme_wood', desc: 'desktop.settings_sound_theme_wood_desc' },
+                { id: 'analog', label: 'desktop.settings_sound_theme_analog', desc: 'desktop.settings_sound_theme_analog_desc' },
+                { id: 'workshop', label: 'desktop.settings_sound_theme_workshop', desc: 'desktop.settings_sound_theme_workshop_desc' },
+                { id: 'water', label: 'desktop.settings_sound_theme_water', desc: 'desktop.settings_sound_theme_water_desc' }
+            ]
+        };
+    }
+
+    function settingDesktopThemes() {
+        return { type: 'desktop_theme', key: 'appearance.theme', label: 'desktop.settings_theme', desc: 'desktop.settings_theme_desc' };
+    }
+
+    function settingScreensaverThemes() {
+        return {
+            type: 'screensaver_theme',
+            key: 'screensaver.theme',
+            label: 'desktop.settings_screensaver_theme',
+            desc: 'desktop.settings_screensaver_theme_desc',
+            themes: ['abyss', 'event_horizon', 'aurora', 'ink', 'stardust', 'random'].map(id => ({
+                id,
+                label: 'desktop.settings_screensaver_' + id,
+                desc: 'desktop.settings_screensaver_' + id + '_desc'
+            }))
+        };
+    }
+
+    function desktopAgentProviderOptions(boot) {
+        const providers = Array.isArray(boot.providers) ? boot.providers : [];
+        const options = [{ value: '', labelKey: 'desktop.settings_agent_provider_default' }];
+        providers.forEach(provider => {
+            if (!provider || !provider.id) return;
+            const name = provider.name || provider.id;
+            const model = provider.model ? ` (${provider.model})` : '';
+            options.push({ value: provider.id, label: `${name}${model}` });
+        });
+        return options;
+    }
+
+    function sections(ctx) {
+        const context = ctx || {};
+        const boot = (context.state && context.state.bootstrap) || {};
+        const workspace = boot.workspace || {};
+        const activeTheme = typeof context.currentDesktopTheme === 'function' ? context.currentDesktopTheme() : null;
+        const showSchemeMode = !activeTheme || !!activeTheme.schemeSetting;
+        const schemeSetting = activeTheme && activeTheme.schemeSetting ? activeTheme.schemeSetting : 'appearance.fruity_mode';
+        const schemeLabel = SCHEME_MODE_LABELS[schemeSetting] || 'desktop.settings_fruity_mode';
+        const showAccent = !activeTheme || activeTheme.accent === 'user';
+        const settingValue = typeof context.settingValue === 'function' ? context.settingValue : () => '';
+        const iconTheme = settingValue('appearance.icon_theme');
+        const iconThemeManifests = context.state && context.state.iconThemeManifests || {};
+        const iconManifest = iconThemeManifests[iconTheme];
+
+        return [
+            {
+                id: 'appearance', icon: 'settings-symbolic', fallback: 'A', title: 'desktop.settings_category_appearance', desc: 'desktop.settings_category_appearance_desc', items: [
+                    settingSelect('appearance.wallpaper', 'desktop.settings_wallpaper', 'desktop.settings_wallpaper_desc', [
+                        ['groupshoot', 'desktop.settings_wallpaper_groupshoot'],
+                        ['aurora', 'desktop.settings_wallpaper_aurora'], ['midnight', 'desktop.settings_wallpaper_midnight'], ['slate', 'desktop.settings_wallpaper_slate'], ['ember', 'desktop.settings_wallpaper_ember'], ['forest', 'desktop.settings_wallpaper_forest'],
+                        ['alpine_dawn', 'desktop.settings_wallpaper_alpine_dawn'], ['city_rain', 'desktop.settings_wallpaper_city_rain'], ['ocean_cliff', 'desktop.settings_wallpaper_ocean_cliff'],
+                        ['aurora_glass', 'desktop.settings_wallpaper_aurora_glass'], ['nebula_flow', 'desktop.settings_wallpaper_nebula_flow'], ['paper_waves', 'desktop.settings_wallpaper_paper_waves'],
+                        ['silk_flow', 'desktop.settings_wallpaper_silk_flow'], ['firefly_dusk', 'desktop.settings_wallpaper_firefly_dusk'],
+                        ['neon_overdrive', 'desktop.settings_wallpaper_neon_overdrive'], ['fractal_trip', 'desktop.settings_wallpaper_fractal_trip'],
+                        ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
+                        ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
+                    ]),
+                    { type: 'custom_wallpaper', key: 'appearance.wallpaper_by_space', label: 'desktop.wallpaper_choose', desc: 'desktop.wallpaper_custom_desc' },
+                    settingSelect('appearance.wallpaper_fit', 'desktop.wallpaper_fit', 'desktop.wallpaper_fit_desc', [
+                        ['cover', 'desktop.wallpaper_cover'], ['contain', 'desktop.wallpaper_contain']
+                    ]),
+                    settingDesktopThemes(),
+                    settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
+                    activeTheme && activeTheme.cursorTheme ? { type: 'cursor_preview', theme: activeTheme.cursorTheme } : null,
+                    showSchemeMode ? settingSelect(schemeSetting, schemeLabel, schemeLabel + '_desc', [
+                        ['light', 'desktop.settings_fruity_mode_light'], ['dark', 'desktop.settings_fruity_mode_dark']
+                    ]) : null,
+                    showAccent ? settingSelect('appearance.accent', 'desktop.settings_accent', 'desktop.settings_accent_desc', [
+                        ['theme', 'desktop.settings_accent_theme'], ['teal', 'desktop.settings_accent_teal'], ['orange', 'desktop.settings_accent_orange'], ['blue', 'desktop.settings_accent_blue'], ['violet', 'desktop.settings_accent_violet'], ['green', 'desktop.settings_accent_green']
+                    ]) : null,
+                    settingSelect('appearance.density', 'desktop.settings_density', 'desktop.settings_density_desc', [
+                        ['comfortable', 'desktop.settings_density_comfortable'], ['compact', 'desktop.settings_density_compact']
+                    ]),
+                    settingSelect('accessibility.text_size', 'desktop.settings_text_size', 'desktop.settings_text_size_desc', [
+                        ['100', 'desktop.settings_text_size_100'], ['125', 'desktop.settings_text_size_125'], ['150', 'desktop.settings_text_size_150']
+                    ]),
+                    settingToggle('accessibility.high_contrast', 'desktop.settings_high_contrast', 'desktop.settings_high_contrast_desc'),
+                    settingSelect('appearance.icon_theme', 'desktop.settings_icon_theme', 'desktop.settings_icon_theme_desc', [
+                        ['papirus', 'desktop.settings_icon_theme_papirus'], ['whitesur', 'desktop.settings_icon_theme_whitesur'], ['windows_xp', 'desktop.settings_icon_theme_windows_xp'],
+                        ['tela', 'desktop.settings_icon_theme_tela'], ['candy', 'desktop.settings_icon_theme_candy'], ['fluent', 'desktop.settings_icon_theme_fluent'], ['buuf_nestort', 'desktop.settings_icon_theme_buuf_nestort']
+                    ]),
+                    ['tela', 'fluent'].includes(iconTheme) ? settingSelect('appearance.' + iconTheme + '_folder_color', 'desktop.settings_folder_color', 'desktop.settings_folder_color_desc',
+                        ((iconManifest && iconManifest.folder_colors) || ['standard']).map(color => [color, 'desktop.settings_folder_color_' + color])) : null
+                ].filter(Boolean)
+            },
+            {
+                id: 'desktop', icon: 'desktop-symbolic', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                    { type: 'workspaces', key: 'desktop.workspaces.layout', label: 'desktop.workspaces_manage', desc: 'desktop.workspaces_description' },
+                    settingToggle('desktop.open_fullscreen', 'desktop.settings_open_fullscreen', 'desktop.settings_open_fullscreen_desc'),
+                    settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
+                        ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
+                    ]),
+                    settingToggle('desktop.show_widgets', 'desktop.settings_show_widgets', 'desktop.settings_show_widgets_desc'),
+                    settingToggle('phone_gadget.enabled', 'desktop.settings_phone_gadget', 'desktop.settings_phone_gadget_desc')
+                ]
+            },
+            {
+                id: 'windows', icon: 'monitor-symbolic', fallback: 'W', title: 'desktop.settings_category_windows', desc: 'desktop.settings_category_windows_desc', items: [
+                    settingToggle('windows.restore_session', 'desktop.settings_restore_session', 'desktop.settings_restore_session_desc'),
+                    settingToggle('windows.animations', 'desktop.settings_window_animations', 'desktop.settings_window_animations_desc'),
+                    settingSelect('windows.default_size', 'desktop.settings_default_window_size', 'desktop.settings_default_window_size_desc', [
+                        ['compact', 'desktop.settings_window_size_compact'], ['balanced', 'desktop.settings_window_size_balanced'], ['large', 'desktop.settings_window_size_large']
+                    ])
+                ]
+            },
+            {
+                id: 'sound', icon: 'sound-symbolic', fallback: 'S', title: 'desktop.settings_category_sound', desc: 'desktop.settings_category_sound_desc', items: [
+                    settingToggle('sound.enabled', 'desktop.settings_sound_enabled', 'desktop.settings_sound_enabled_desc'),
+                    settingSoundThemes(context),
+                    settingRange('sound.volume', 'desktop.settings_sound_volume', 'desktop.settings_sound_volume_desc', 0, 1, 0.05),
+                    settingToggle('sound.windows', 'desktop.settings_sound_windows', 'desktop.settings_sound_windows_desc'),
+                    settingToggle('sound.notifications', 'desktop.settings_sound_notifications', 'desktop.settings_sound_notifications_desc'),
+                    settingToggle('sound.navigation', 'desktop.settings_sound_navigation', 'desktop.settings_sound_navigation_desc'),
+                    settingToggle('sound.files', 'desktop.settings_sound_files', 'desktop.settings_sound_files_desc')
+                ]
+            },
+            {
+                id: 'screensaver', icon: 'screensaver-symbolic', fallback: 'S', title: 'desktop.settings_category_screensaver', desc: 'desktop.settings_category_screensaver_desc', items: [
+                    settingToggle('screensaver.enabled', 'desktop.settings_screensaver_enabled', 'desktop.settings_screensaver_enabled_desc'),
+                    settingScreensaverThemes(),
+                    settingSelect('screensaver.idle_minutes', 'desktop.settings_screensaver_idle', 'desktop.settings_screensaver_idle_desc', [
+                        ['1', 'desktop.settings_screensaver_idle_1'], ['2', 'desktop.settings_screensaver_idle_2'], ['3', 'desktop.settings_screensaver_idle_3'], ['5', 'desktop.settings_screensaver_idle_5'],
+                        ['10', 'desktop.settings_screensaver_idle_10'], ['15', 'desktop.settings_screensaver_idle_15'], ['30', 'desktop.settings_screensaver_idle_30'], ['60', 'desktop.settings_screensaver_idle_60']
+                    ]),
+                    settingToggle('screensaver.clock', 'desktop.settings_screensaver_clock', 'desktop.settings_screensaver_clock_desc')
+                ]
+            },
+            {
+                id: 'files', icon: 'folder-symbolic', fallback: 'F', title: 'desktop.settings_category_files', desc: 'desktop.settings_category_files_desc', items: [
+                    settingToggle('files.confirm_delete', 'desktop.settings_confirm_delete', 'desktop.settings_confirm_delete_desc'),
+                    settingSelect('files.default_folder', 'desktop.settings_default_folder', 'desktop.settings_default_folder_desc', [
+                        ['Desktop', 'desktop.settings_folder_desktop'], ['Documents', 'desktop.settings_folder_documents'], ['Downloads', 'desktop.settings_folder_downloads'], ['Pictures', 'desktop.settings_folder_pictures'], ['Shared', 'desktop.settings_folder_shared']
+                    ]),
+                    { type: 'default_apps', key: 'files.default_apps', label: 'desktop.settings_default_apps', desc: 'desktop.settings_default_apps_desc' }
+                ]
+            },
+            {
+                id: 'agent', icon: 'apps-symbolic', fallback: 'A', title: 'desktop.settings_category_agent', desc: 'desktop.settings_category_agent_desc', items: [
+                    settingToggle('agent.show_chat_button', 'desktop.settings_show_agent_button', 'desktop.settings_show_agent_button_desc'),
+                    settingSelect('agent.provider', 'desktop.settings_agent_provider', 'desktop.settings_agent_provider_desc', desktopAgentProviderOptions(boot)),
+                    settingInfo('desktop.setting_agent_control', boot.allow_agent_control ? context.t && context.t('desktop.on') : context.t && context.t('desktop.off'))
+                ]
+            },
+            {
+                id: 'system', icon: 'info-symbolic', fallback: 'i', title: 'desktop.settings_category_system', desc: 'desktop.settings_category_system_desc', items: [
+                    settingInfo('desktop.setting_workspace', workspace.root || ''),
+                    settingInfo('desktop.setting_readonly', boot.readonly ? context.t && context.t('desktop.on') : context.t && context.t('desktop.off')),
+                    settingInfo('desktop.setting_apps', String((boot.installed_apps || []).length)),
+                    settingInfo('desktop.setting_widgets', String((boot.widgets || []).length))
+                ]
+            }
+        ];
+    }
+
+    function settingKeyForItem(section, item) {
+        if (item && item.key) return String(item.key);
+        const byType = { desktop_theme: 'appearance.theme', sound_theme: 'sound.theme', screensaver_theme: 'screensaver.theme' };
+        return byType[item && item.type] || '';
+    }
+
+    function optionSearchText(item, t) {
+        const options = Array.isArray(item.options) ? item.options : [];
+        const labels = options.map(option => {
+            if (Array.isArray(option)) return String(option[0] || '') + ' ' + t(option[1]);
+            return String(option && option.value || '') + ' ' + (option && option.labelKey ? t(option.labelKey) : String(option && option.label || ''));
+        });
+        const themes = Array.isArray(item.themes) ? item.themes.flatMap(theme => [theme.id, t(theme.label), t(theme.desc)]) : [];
+        return labels.concat(themes).join(' ');
+    }
+
+    function list(query, ctx) {
+        const context = ctx || {};
+        const t = typeof context.t === 'function' ? context.t : key => key;
+        const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+        const terms = normalizedQuery.split(/\s+/).filter(Boolean);
+        const result = [];
+        sections(context).forEach(section => {
+            (section.items || []).forEach(item => {
+                const key = settingKeyForItem(section, item);
+                if (!key) return;
+                if (item.type === 'desktop_theme' && typeof context.desktopThemes === 'function' && !context.desktopThemes().length) return;
+                if (typeof context.isSettingAvailable === 'function' && !context.isSettingAvailable(key, section.id, item)) return;
+                const title = t(item.label || 'desktop.settings_' + key.replace(/\./g, '_'));
+                const description = t(item.desc || '');
+                const categoryTitle = t(section.title);
+                const searchText = [key, title, description, categoryTitle, optionSearchText(item, t)].join(' ').toLocaleLowerCase();
+                if (terms.length && !terms.every(term => searchText.includes(term))) return;
+                const descriptor = {
+                    id: 'setting-' + key,
+                    type: 'setting',
+                    title,
+                    subtitle: categoryTitle,
+                    description,
+                    category: section.id,
+                    settingKey: key,
+                    searchText,
+                    setting: item
+                };
+                if (typeof context.openSetting === 'function') {
+                    descriptor.open = () => context.openSetting(section.id, key);
+                }
+                result.push(descriptor);
+            });
+        });
+        return result;
+    }
+
+    window.AuraDesktopSettingsCatalog = Object.freeze({ sections, list });
+}());
+
+;
+/* ui/js/desktop/core/search-results-runtime.js */
+(function () {
+    'use strict';
+
+    const DEFAULT_LIMIT = 50;
+    const MAX_LIMIT = 100;
+    const MAX_OFFSET = 1000;
+    const TYPE_ORDER = Object.freeze({ app: 0, setting: 1, action: 2, calculator: 3, file: 4 });
+
+    function normalizedText(value) {
+        return String(value == null ? '' : value).normalize('NFKC').toLocaleLowerCase().trim();
+    }
+
+    function queryTerms(query) {
+        return normalizedText(query).split(/\s+/).filter(Boolean);
+    }
+
+    function itemSearchText(item) {
+        return normalizedText([
+            item.title,
+            item.subtitle,
+            item.description,
+            item.category,
+            item.settingKey,
+            item.expression,
+            item.searchText,
+            Array.isArray(item.keywords) ? item.keywords.join(' ') : item.keywords
+        ].filter(Boolean).join(' '));
+    }
+
+    function searchScore(item, terms, query) {
+        if (!terms.length) return 0;
+        const title = normalizedText(item.title);
+        const haystack = itemSearchText(item);
+        if (!terms.every(term => haystack.includes(term))) return -1;
+        if (title.startsWith(query)) return 0;
+        if (title.includes(query)) return 1;
+        if (haystack.includes(query)) return 2;
+        return 3;
+    }
+
+    function sourceItems(source, query, context) {
+        if (typeof source === 'function') {
+            const items = source(query, context);
+            return Array.isArray(items) ? items : [];
+        }
+        return Array.isArray(source) ? source : [];
+    }
+
+    function arithmeticResult(query, sources) {
+        const expression = String(query || '').trim();
+        if (expression.length < 3 || expression.length > 80 || !/\d/.test(expression) || !/[+*/%^()!-]/.test(expression)) return null;
+        if (!/^[\d\s.+\-*/%^()!a-z]+$/i.test(expression)) return null;
+        const calculator = window.AuraCalculatorExpression;
+        if (!calculator || typeof calculator.evaluate !== 'function') return null;
+        try {
+            const value = calculator.evaluate(expression);
+            const rendered = String(value);
+            const t = typeof sources.t === 'function' ? sources.t : key => key;
+            return {
+                id: 'calculator-' + expression,
+                type: 'calculator',
+                title: expression + ' = ' + rendered,
+                subtitle: t('desktop.spotlight_calculator'),
+                expression,
+                value: rendered,
+                searchText: expression,
+                open: typeof sources.openCalculator === 'function' ? () => sources.openCalculator(expression) : null
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function localResults(query, sources, options) {
+        const source = sources || {};
+        const terms = queryTerms(query);
+        const normalizedQuery = normalizedText(query);
+        const groups = [
+            ['app', source.apps],
+            ['setting', source.settings],
+            ['action', source.actions],
+            ['calculator', source.calculator],
+            ['file', source.files]
+        ];
+        const ranked = [];
+        let order = 0;
+        groups.forEach(([type, entries]) => {
+            sourceItems(entries, query, source).forEach(entry => {
+                if (!entry || typeof entry !== 'object') return;
+                const item = Object.assign({}, entry, {
+                    id: String(entry.id || (type + '-' + order)),
+                    type: entry.type || type,
+                    title: String(entry.title || ''),
+                    subtitle: entry.subtitle == null ? '' : String(entry.subtitle)
+                });
+                if (!item.title) return;
+                const score = searchScore(item, terms, normalizedQuery);
+                if (score >= 0) ranked.push({ item, score, order: order++ });
+            });
+        });
+        const calc = arithmeticResult(query, source);
+        if (calc) {
+            const score = searchScore(calc, terms, normalizedQuery);
+            if (score >= 0) ranked.push({ item: calc, score: Math.min(score, 1), order: order++ });
+        }
+        ranked.sort((a, b) => a.score - b.score ||
+            (TYPE_ORDER[a.item.type] ?? 10) - (TYPE_ORDER[b.item.type] ?? 10) ||
+            a.order - b.order || a.item.id.localeCompare(b.item.id));
+        const limit = Number.isInteger(options && options.limit) ? Math.max(0, options.limit) : 100;
+        return ranked.slice(0, limit).map(entry => entry.item);
+    }
+
+    function makeSearchURL(query, options) {
+        const params = new URLSearchParams();
+        params.set('query', String(query || '').trim());
+        params.set('limit', String(options.limit));
+        params.set('offset', String(options.offset));
+        if (options.path) params.set('path', String(options.path));
+        const filters = options.filters || {};
+        const type = String(filters.type || filters.filter || 'all');
+        if (type) params.set('type', type);
+        if (filters.modifiedAfter) params.set('modified_after', String(filters.modifiedAfter));
+        if (filters.modifiedBefore) params.set('modified_before', String(filters.modifiedBefore));
+        if (filters.minSize != null && filters.minSize !== '') params.set('min_size', String(filters.minSize));
+        if (filters.maxSize != null && filters.maxSize !== '') params.set('max_size', String(filters.maxSize));
+        return '/api/desktop/search?' + params.toString();
+    }
+
+    function hasActiveFileFilters(filters) {
+        const active = filters && typeof filters === 'object' ? filters : {};
+        const type = String(active.type || active.filter || 'all').toLowerCase();
+        return type !== '' && type !== 'all' || !!(active.modifiedAfter || active.modifiedBefore) ||
+            active.minSize != null && active.minSize !== '' || active.maxSize != null && active.maxSize !== '';
+    }
+
+    async function defaultRequest(url, init) {
+        const response = await window.fetch(url, Object.assign({ credentials: 'same-origin' }, init || {}));
+        if (!response.ok) throw new Error('Desktop search failed: ' + response.status);
+        return response.json();
+    }
+
+    function createProvider(options) {
+        const config = options || {};
+        return Object.freeze({
+            local(query, sources, localOptions) {
+                return localResults(query, sources || config.sources, localOptions);
+            },
+            async files(query, requestOptions) {
+                const request = requestOptions || {};
+                const text = String(query || '').trim();
+                const filters = request.filters || {};
+                if (text.length < 2 && !hasActiveFileFilters(filters)) return { items: [], hasMore: false, truncated: false, nextOffset: 0 };
+                const limit = Math.min(MAX_LIMIT, Math.max(1, Number.isInteger(request.limit) ? request.limit : DEFAULT_LIMIT));
+                const offset = Math.min(MAX_OFFSET, Math.max(0, Number.isInteger(request.offset) ? request.offset : 0));
+                const api = typeof request.api === 'function' ? request.api : typeof config.api === 'function' ? config.api : defaultRequest;
+                const response = await api(makeSearchURL(text, {
+                    limit,
+                    offset,
+                    path: request.path,
+                    filters
+                }), { signal: request.signal });
+                const files = Array.isArray(response && response.files) ? response.files : Array.isArray(response && response.results) ? response.results : [];
+                const openFile = request.openFile || config.openFile;
+                return {
+                    items: files.map(file => ({
+                        id: 'file-' + String(file.path || file.name || ''),
+                        type: 'file',
+                        title: String(file.name || file.path || ''),
+                        subtitle: String(file.path || ''),
+                        path: String(file.path || ''),
+                        entry: file,
+                        searchText: String(file.path || ''),
+                        open: typeof openFile === 'function' ? () => openFile(file.path, file) : null
+                    })),
+                    hasMore: Boolean(response && (response.has_more ?? response.hasMore)),
+                    truncated: Boolean(response && response.truncated),
+                    nextOffset: Number.isInteger(response && response.next_offset) ? response.next_offset : Number.isInteger(response && response.nextOffset) ? response.nextOffset : offset + files.length
+                };
+            }
+        });
+    }
+
+    const defaultProvider = createProvider();
+    window.AuraDesktopSearch = Object.freeze({
+        createProvider,
+        local: (query, sources, options) => defaultProvider.local(query, sources, options),
+        files: (query, options) => defaultProvider.files(query, options),
+        makeSearchURL,
+        normalizedText
+    });
+}());
+
+;
+/* ui/js/desktop/core/file-associations-runtime.js */
+(function () {
+    'use strict';
+
+    const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus']);
+    const MEDIA_EXTENSIONS = new Set(['mp4', 'mkv', 'avi', 'mov', 'webm', ...AUDIO_EXTENSIONS]);
+
+    function extensionForName(name) {
+        const value = String(name || '').toLowerCase();
+        if (value.endsWith('.fb2.zip')) return 'fb2.zip';
+        if (value.endsWith('.txt.gz')) return 'txt.gz';
+        const base = value.split(/[\\/]/).pop() || '';
+        const dot = base.lastIndexOf('.');
+        return dot <= 0 ? '' : base.slice(dot + 1);
+    }
+
+    function parse(value) {
+        let input = value;
+        if (typeof input === 'string') {
+            try { input = JSON.parse(input); } catch (_) { return {}; }
+        }
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
+        const result = {};
+        Object.keys(input).forEach(extension => {
+            const appId = input[extension];
+            if (typeof appId !== 'string' || !appId.trim()) return;
+            result[String(extension).toLowerCase().replace(/^\./, '')] = appId.trim();
+        });
+        return result;
+    }
+
+    function resolveCandidates(entry, helpers) {
+        const h = helpers || {};
+        const name = String(entry && (entry.name || entry.path) || '').split(/[\\/]/).pop() || '';
+        const lower = name.toLowerCase();
+        const extension = extensionForName(name);
+        const apps = [];
+        const add = (appId, labelKey, label) => apps.push({ appId, labelKey: labelKey || '', label: label || '' });
+        const isText = /\.(txt|log)$/i.test(name);
+        const isImage = typeof h.isImageFile === 'function' && h.isImageFile(name);
+        const mediaKind = String(entry && (entry.media_kind || entry.mediaKind) || '').toLowerCase();
+        const isMedia = (typeof h.isMediaFile === 'function' ? h.isMediaFile(name) : MEDIA_EXTENSIONS.has(extension)) || mediaKind === 'audio' || mediaKind === 'video';
+        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(name);
+
+        if (isText) {
+            add('editor', 'desktop.app_editor');
+            add('code-studio', 'desktop.app_code_studio');
+            add('viewer', 'desktop.app_viewer');
+        } else if (/\.ora$/i.test(name)) {
+            add('pixel', 'desktop.app_pixel');
+        } else if (isImage) {
+            add('gallery', 'desktop.app_gallery');
+            add('viewer', 'desktop.app_viewer');
+            add('code-studio', 'desktop.app_code_studio');
+        } else if (isMedia) {
+            if (AUDIO_EXTENSIONS.has(extension) || mediaKind === 'audio') {
+                add('audio-player', 'desktop.app_audio_player');
+                add('music-player', 'desktop.app_music_player');
+            }
+            add('gallery', 'desktop.app_gallery');
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isWriterFile === 'function' && h.isWriterFile(entry)) {
+            add('writer', 'desktop.app_writer');
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isSheetsFile === 'function' && h.isSheetsFile(entry)) {
+            add('sheets', 'desktop.app_sheets');
+            add('viewer', 'desktop.app_viewer');
+        } else if (/\.lyl$/i.test(name)) {
+            add('layerling', '', 'Layerling');
+        } else if (/\.md$/i.test(name)) {
+            add('notes', 'desktop.app_notes');
+            add('editor', 'desktop.app_editor');
+            add('viewer', 'desktop.app_viewer');
+        } else if (/\.aurasynth$/i.test(name)) {
+            add('synth-studio', 'desktop.app_synth_studio');
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isViewerFile === 'function' && h.isViewerFile(entry)) {
+            add('viewer', 'desktop.app_viewer');
+        } else if (typeof h.isArchiveFile === 'function' && h.isArchiveFile(name)) {
+            add('zipper', 'desktop.app_zipper');
+        } else {
+            add('viewer', 'desktop.app_viewer');
+            add('code-studio', 'desktop.app_code_studio');
+        }
+
+        if (isBookshelfFile) apps.unshift({ appId: 'bookshelf', labelKey: 'desktop.app_bookshelf', label: '' });
+        if (/\.kicad_pro$/i.test(name) && String(entry && entry.path || '').startsWith('Shared/')) {
+            const allApps = typeof h.allApps === 'function' ? h.allApps() : [];
+            apps.unshift(allApps.some(app => app.id === 'store-ziro-designer')
+                ? { appId: 'store-ziro-designer', labelKey: '', label: 'Ziro Designer' }
+                : { appId: 'software-store', labelKey: 'desktop.app_software_store', label: '' });
+        }
+        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) add('layerling', '', 'Layerling');
+
+        const seen = new Set();
+        const unique = apps.filter(app => {
+            if (!app.appId || seen.has(app.appId)) return false;
+            seen.add(app.appId);
+            return true;
+        }).map(app => Object.assign({ extension }, app));
+        const availableApps = Array.isArray(h.availableApps) ? h.availableApps : typeof h.allApps === 'function' ? h.allApps() : null;
+        return availableCandidates(unique, availableApps);
+    }
+
+    function list(value, apps, candidatesForExtension) {
+        const associations = parse(value);
+        const availableApps = Array.isArray(apps) ? apps : [];
+        return Object.keys(associations).sort((a, b) => a.localeCompare(b)).map(extension => {
+            const appId = associations[extension];
+            const app = availableApps.find(candidate => candidate && candidate.id === appId) || null;
+            const candidates = availableCandidates(typeof candidatesForExtension === 'function' ? candidatesForExtension(extension) : [], availableApps);
+            return {
+                extension,
+                appId,
+                app,
+                available: Boolean(app),
+                candidates: Array.isArray(candidates) ? candidates : []
+            };
+        });
+    }
+
+    function availableCandidates(candidates, apps) {
+        if (!Array.isArray(candidates)) return [];
+        if (!Array.isArray(apps)) return candidates.slice();
+        const available = new Set(apps.filter(app => app && app.id).map(app => app.id));
+        return candidates.filter(candidate => candidate && available.has(candidate.appId));
+    }
+
+    window.AuraDesktopFileAssociations = Object.freeze({ extensionForName, parse, resolveCandidates, availableCandidates, list });
+}());
+
+;
+/* ui/js/desktop/core/file-history-runtime.js */
+(function () {
+    'use strict';
+
+    const MAX_ACTIONS = 20;
+    const FILE_UNDO_ENDPOINT = '/api/desktop/file-undo';
+    const state = {
+        api: null,
+        refresh: null,
+        notify: null,
+        isReadonly: null,
+        isSessionActive: null,
+        t: null,
+        undoStack: [],
+        redoStack: [],
+        pendingRecords: [],
+        listeners: new Set(),
+        busy: false,
+        epoch: 0,
+        revision: 0,
+        nextActionId: 1
+    };
+
+    function text(key, fallback, vars) {
+        if (typeof state.t === 'function') {
+            try {
+                return state.t(key, fallback, vars) || fallback;
+            } catch (_) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    function readonly() {
+        try {
+            return typeof state.isReadonly === 'function' && !!state.isReadonly();
+        } catch (_) {
+            return true;
+        }
+    }
+
+    function sessionActive() {
+        try {
+            return typeof state.isSessionActive !== 'function' || !!state.isSessionActive();
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function snapshot() {
+        const eligible = sessionActive();
+        const undo = state.undoStack[state.undoStack.length - 1] || null;
+        const redo = state.redoStack[state.redoStack.length - 1] || null;
+        const canUndo = eligible && !state.busy && !readonly() && !!undo && undo.undoMoves.length > 0;
+        const canRedo = eligible && !state.busy && !readonly() && !!redo && redo.redoMoves.length > 0;
+        return {
+            canUndo,
+            canRedo,
+            undoLabel: canUndo ? undo.label : '',
+            redoLabel: canRedo ? redo.label : '',
+            undoCount: eligible ? state.undoStack.length : 0,
+            redoCount: eligible ? state.redoStack.length : 0,
+            busy: state.busy,
+            revision: state.revision,
+            undoId: canUndo ? undo.id : ''
+        };
+    }
+
+    function publish() {
+        state.revision++;
+        const current = snapshot();
+        for (const listener of [...state.listeners]) {
+            try { listener(current); } catch (err) { console.warn('File history subscriber failed', err); }
+        }
+        return current;
+    }
+
+    function collectMoves(value) {
+        if (Array.isArray(value)) return value;
+        if (!value || typeof value !== 'object') return [];
+        if (Array.isArray(value.moves)) return value.moves;
+        return value.undo_receipt ? [value] : [];
+    }
+
+    function allKnownReceiptTokens() {
+        const tokens = new Set();
+        for (const action of new Set([...state.undoStack, ...state.redoStack])) {
+            for (const move of action.undoMoves) if (move.undo_receipt) tokens.add(move.undo_receipt);
+            for (const move of action.redoMoves) if (move.undo_receipt) tokens.add(move.undo_receipt);
+        }
+        for (const pending of state.pendingRecords) {
+            for (const move of pending.moves) if (move.undo_receipt) tokens.add(move.undo_receipt);
+        }
+        return tokens;
+    }
+
+    function clearRedo() {
+        for (const action of state.redoStack) action.redoMoves = [];
+        state.redoStack = [];
+    }
+
+    function trimActions() {
+        const actions = [...new Set([...state.undoStack, ...state.redoStack])]
+            .sort((a, b) => a.createdAt - b.createdAt);
+        while (actions.length > MAX_ACTIONS) {
+            const oldest = actions.shift();
+            state.undoStack = state.undoStack.filter(action => action !== oldest);
+            state.redoStack = state.redoStack.filter(action => action !== oldest);
+            oldest.undoMoves = [];
+            oldest.redoMoves = [];
+        }
+    }
+
+    function newActionId() {
+        const cryptoApi = typeof crypto !== 'undefined' ? crypto : null;
+        if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID();
+        return 'file-action-' + Date.now().toString(36) + '-' + (state.nextActionId++).toString(36);
+    }
+
+    function normalizeRecord(resultOrMoves, label) {
+        const known = allKnownReceiptTokens();
+        const moves = [];
+        for (const raw of collectMoves(resultOrMoves)) {
+            if (!raw || typeof raw.undo_receipt !== 'string' || !raw.undo_receipt || known.has(raw.undo_receipt)) continue;
+            known.add(raw.undo_receipt);
+            moves.push({
+                undo_receipt: raw.undo_receipt,
+                from: typeof raw.from === 'string' ? raw.from : '',
+                path: typeof raw.path === 'string' ? raw.path : ''
+            });
+        }
+        if (!moves.length) return null;
+        return {
+            moves,
+            label: typeof label === 'string' && label ? label : text('desktop.file_history_move', 'Move')
+        };
+    }
+
+    function applyRecord(pending) {
+        clearRedo();
+        state.undoStack.push({
+            id: newActionId(),
+            label: pending.label,
+            createdAt: Date.now(),
+            undoMoves: pending.moves,
+            redoMoves: []
+        });
+        trimActions();
+        publish();
+    }
+
+    function record(resultOrMoves, label) {
+        if (!sessionActive()) return false;
+        const pending = normalizeRecord(resultOrMoves, label);
+        if (!pending) return false;
+        if (state.busy) {
+            state.pendingRecords.push(pending);
+            return true;
+        }
+        applyRecord(pending);
+        return true;
+    }
+
+    function flushPendingRecords() {
+        const pending = state.pendingRecords.splice(0);
+        if (!sessionActive()) return;
+        for (const record of pending) applyRecord(record);
+    }
+
+    function containsAction(stack, action) {
+        return stack.includes(action);
+    }
+
+    function syncActionStacks(action) {
+        if (action.undoMoves.length) {
+            if (!containsAction(state.undoStack, action)) state.undoStack.push(action);
+        } else {
+            state.undoStack = state.undoStack.filter(item => item !== action);
+        }
+        if (action.redoMoves.length) {
+            if (!containsAction(state.redoStack, action)) state.redoStack.push(action);
+        } else {
+            state.redoStack = state.redoStack.filter(item => item !== action);
+        }
+    }
+
+    function errorDetails(err) {
+        const body = err && err.body && typeof err.body === 'object' ? err.body : {};
+        const code = String(body.code || body.error || err?.code || '').toLowerCase();
+        const status = Number(err && err.status) || 0;
+        const message = String((err && err.message) || body.error || 'File operation failed');
+        const unavailable = code.includes('undo_unavailable') || code.includes('receipt_unavailable') || code.includes('expired');
+        const readOnly = code.includes('readonly') || code.includes('read_only') || code.includes('read-only') || status === 423;
+        const conflict = code.includes('conflict') || status === 409 || status === 412;
+        const retryable = !unavailable && (conflict || readOnly);
+        const conflictObject = body.conflict && typeof body.conflict === 'object' ? body.conflict : {};
+        const conflictPath = conflictObject.path || conflictObject.Path || body.path || '';
+        return { code, status, message, retryable, unavailable, readOnly, conflict, conflictPath };
+    }
+
+    function reportFailure(direction, err) {
+        if (typeof state.notify !== 'function') return;
+        const details = errorDetails(err);
+        let message;
+        if (details.unavailable) {
+            message = text('desktop.action_unavailable', 'This action is no longer available.');
+        } else if (details.readOnly) {
+            message = text('desktop.file_dialog_readonly', 'The desktop is read-only.');
+        } else if (details.conflict) {
+            message = text('desktop.file_conflict_title', 'The destination changed or is occupied.') +
+                (details.conflictPath ? ' ' + details.conflictPath : '');
+        } else if (!details.retryable) {
+            message = text('desktop.file_history_unknown', 'The result is unknown. AuraGo will not retry this action automatically.');
+        } else {
+            const key = direction === 'undo' ? 'desktop.fm.undo_error' : 'desktop.fm.redo_error';
+            message = text(key, details.message, { error: details.message });
+        }
+        try {
+            state.notify({
+                title: text('desktop.notification', 'Notification'),
+                message
+            });
+        } catch (notifyErr) {
+            console.warn('File history notification failed', notifyErr);
+        }
+    }
+
+    async function postUndoReceipt(receipt) {
+        if (typeof state.api !== 'function') throw new Error('desktop_api_unavailable');
+        return state.api(FILE_UNDO_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ receipt })
+        });
+    }
+
+    async function run(direction) {
+        if (state.busy) return { status: 'busy' };
+        if (!sessionActive()) return { status: 'inactive' };
+        if (readonly()) return { status: 'readonly' };
+        const sourceStack = direction === 'undo' ? state.undoStack : state.redoStack;
+        const targetMovesKey = direction === 'undo' ? 'undoMoves' : 'redoMoves';
+        const oppositeMovesKey = direction === 'undo' ? 'redoMoves' : 'undoMoves';
+        const action = sourceStack[sourceStack.length - 1];
+        if (!action || !action[targetMovesKey].length) return { status: 'empty' };
+
+        const epoch = state.epoch;
+        state.busy = true;
+        publish();
+        let changed = false;
+        let completed = 0;
+        let stopped = false;
+        let failedError = null;
+        try {
+            const moves = action[targetMovesKey];
+            for (let index = moves.length - 1; index >= 0; index--) {
+                if (epoch !== state.epoch) return { status: 'cleared' };
+                if (!sessionActive()) return { status: 'inactive' };
+                if (state.pendingRecords.length) {
+                    stopped = true;
+                    break;
+                }
+                const current = moves[index];
+                try {
+                    const result = await postUndoReceipt(current.undo_receipt);
+                    if (epoch !== state.epoch) return { status: 'cleared' };
+                    if (!sessionActive()) return { status: 'inactive' };
+                    if (!result || typeof result.undo_receipt !== 'string' || !result.undo_receipt) {
+                        moves.splice(index, 1);
+                        changed = true;
+                        stopped = true;
+                        failedError = new Error('Undo response did not include a redo receipt');
+                        failedError.status = 0;
+                        break;
+                    }
+                    moves.splice(index, 1);
+                    action[oppositeMovesKey].push({
+                        undo_receipt: result.undo_receipt,
+                        from: typeof result.from === 'string' ? result.from : current.path,
+                        path: typeof result.path === 'string' ? result.path : current.from
+                    });
+                    changed = true;
+                    completed++;
+                } catch (err) {
+                    if (epoch !== state.epoch) return { status: 'cleared' };
+                    if (!sessionActive()) return { status: 'inactive' };
+                    const details = errorDetails(err);
+                    if (!details.retryable) {
+                        // Semantic invalidation and uncertain transport outcomes must not be replayed.
+                        moves.splice(index, 1);
+                        changed = true;
+                    }
+                    failedError = err;
+                    stopped = true;
+                    break;
+                }
+            }
+            syncActionStacks(action);
+            trimActions();
+            if (epoch === state.epoch && sessionActive() && changed && typeof state.refresh === 'function') {
+                try { await state.refresh(); } catch (refreshError) {
+                    if (epoch === state.epoch && sessionActive()) reportFailure(direction, refreshError);
+                }
+            }
+            if (epoch !== state.epoch) return { status: 'cleared' };
+            if (!sessionActive()) return { status: 'inactive' };
+            if (failedError) reportFailure(direction, failedError);
+            return {
+                status: failedError ? (completed ? 'partial' : 'failed') : 'completed',
+                actionId: action.id,
+                label: action.label,
+                changed,
+                completed,
+                stopped
+            };
+        } finally {
+            state.busy = false;
+            if (epoch === state.epoch) flushPendingRecords();
+            publish();
+        }
+    }
+
+    function configure(options) {
+        options = options && typeof options === 'object' ? options : {};
+        state.api = typeof options.api === 'function' ? options.api : state.api;
+        state.refresh = typeof options.refresh === 'function' ? options.refresh : state.refresh;
+        state.notify = typeof options.notify === 'function' ? options.notify : state.notify;
+        state.isReadonly = typeof options.isReadonly === 'function' ? options.isReadonly : state.isReadonly;
+        if (Object.prototype.hasOwnProperty.call(options, 'isSessionActive')) {
+            state.isSessionActive = typeof options.isSessionActive === 'function' ? options.isSessionActive : null;
+        }
+        state.t = typeof options.t === 'function' ? options.t : state.t;
+        publish();
+        return snapshot();
+    }
+
+    function subscribe(callback) {
+        if (typeof callback !== 'function') return () => {};
+        state.listeners.add(callback);
+        try { callback(snapshot()); } catch (err) { console.warn('File history subscriber failed', err); }
+        return () => state.listeners.delete(callback);
+    }
+
+    function clear() {
+        state.epoch++;
+        state.undoStack = [];
+        state.redoStack = [];
+        state.pendingRecords = [];
+        publish();
+    }
+
+    window.AuraDesktopFileHistory = {
+        configure,
+        record,
+        undo: () => run('undo'),
+        redo: () => run('redo'),
+        snapshot,
+        subscribe,
+        clear
+    };
+})();
+
+;
+/* ui/js/desktop/core/session-actions-runtime.js */
+(function () {
+    'use strict';
+
+    const participants = new Map();
+    const defaults = {
+        getWindows: () => [],
+        canLogout: () => false,
+        logout: async () => false,
+        onProblem: () => {}
+    };
+    let config = { ...defaults };
+    let running = null;
+
+    function configure(options = {}) {
+        config = {
+            getWindows: typeof options.getWindows === 'function' ? options.getWindows : config.getWindows,
+            canLogout: typeof options.canLogout === 'function' ? options.canLogout : config.canLogout,
+            logout: typeof options.logout === 'function' ? options.logout : config.logout,
+            onProblem: typeof options.onProblem === 'function' ? options.onProblem : config.onProblem
+        };
+        return api;
+    }
+
+    function register(windowId, participant) {
+        const id = String(windowId || '').trim();
+        if (!id) throw new TypeError('A session action requires a window id');
+        if (participant == null) {
+            participants.delete(id);
+            return () => {};
+        }
+        if (typeof participant.inspect !== 'function' ||
+            typeof participant.decide !== 'function' ||
+            typeof participant.save !== 'function') {
+            throw new TypeError('A session action requires inspect, decide, and save functions');
+        }
+        participants.set(id, participant);
+        return () => {
+            if (participants.get(id) === participant) participants.delete(id);
+        };
+    }
+
+    function requestLogout() {
+        if (running) return running;
+        const wrapped = logoutOnce().finally(() => {
+            if (running === wrapped) running = null;
+        });
+        running = wrapped;
+        return wrapped;
+    }
+
+    async function logoutOnce() {
+        if (!await allowed()) return false;
+        let windows;
+        try {
+            windows = await currentWindows();
+        } catch (_) {
+            return problem('state_unavailable');
+        }
+
+        const records = [];
+        for (const win of windows) {
+            const participant = participants.get(win.id);
+            if (win.hasBeforeClose && !participant) {
+                return problem('unknown_guard', win);
+            }
+            if (!participant) continue;
+            let state;
+            try {
+                state = await inspect(participant);
+            } catch (_) {
+                return problem('state_unavailable', win);
+            }
+            records.push({ win, participant, state, decision: state.dirty ? null : 'keep' });
+        }
+
+        // Collect every choice before any save, draft mutation, or close-side effect.
+        for (const record of records) {
+            if (!record.state.dirty) continue;
+            let choice;
+            try {
+                choice = await record.participant.decide(publicSnapshot(record.win, record.state));
+            } catch (_) {
+                return problem('state_unavailable', record.win);
+            }
+            if (choice === 'cancel') return false;
+            if (choice !== 'save' && choice !== 'keep') return problem('state_unavailable', record.win);
+            record.decision = choice;
+        }
+
+        if (!await validate(records, windows)) return false;
+        if (!await allowed()) return false;
+
+        for (const record of records) {
+            if (record.decision !== 'save' || !record.state.dirty) continue;
+            if (!await validate(records, windows)) return false;
+            let result;
+            try {
+                result = await record.participant.save(record.state.revision);
+            } catch (_) {
+                return problem('save_failed', record.win);
+            }
+            if (!result || result.revision !== record.state.revision) {
+                return problem('save_failed', record.win);
+            }
+            let state;
+            try {
+                state = await inspect(record.participant);
+            } catch (_) {
+                return problem('state_unavailable', record.win);
+            }
+            if (state.revision !== result.revision) return problem('content_changed', record.win);
+            if (state.dirty) return problem('save_failed', record.win);
+            record.state = state;
+        }
+
+        if (!await validate(records, windows)) return false;
+        if (!await allowed()) return false;
+        try {
+            return (await config.logout()) === true;
+        } catch (_) {
+            return problem('logout_failed');
+        }
+    }
+
+    async function validate(records, expectedWindows) {
+        let windows;
+        try {
+            windows = await currentWindows();
+        } catch (_) {
+            return problem('state_unavailable');
+        }
+        if (!sameWindows(expectedWindows, windows)) return problem('window_set_changed');
+        const expectedParticipantIDs = records.map(record => record.win.id).sort();
+        const actualParticipantIDs = windows.filter(win => participants.has(win.id)).map(win => win.id).sort();
+        const staleParticipantIDs = [...participants.keys()].filter(id => !windows.some(win => win.id === id));
+        if (staleParticipantIDs.length || expectedParticipantIDs.length !== actualParticipantIDs.length ||
+            expectedParticipantIDs.some((id, index) => id !== actualParticipantIDs[index])) {
+            return problem('window_set_changed');
+        }
+
+        for (const record of records) {
+            const win = windows.find(candidate => candidate.id === record.win.id);
+            if (!win || participants.get(record.win.id) !== record.participant) {
+                return problem('window_set_changed', record.win);
+            }
+            let state;
+            try {
+                state = await inspect(record.participant);
+            } catch (_) {
+                return problem('state_unavailable', record.win);
+            }
+            if (state.revision !== record.state.revision || (!record.state.dirty && state.dirty)) {
+                return problem('content_changed', record.win);
+            }
+            // An autosave may finish while another app's decision is open. The
+            // unchanged revision proves it saved the same editable content, so
+            // accept that transition and avoid an unnecessary second save.
+            record.state = state;
+        }
+        return true;
+    }
+
+    async function inspect(participant) {
+        const value = await participant.inspect();
+        if (!value || typeof value.dirty !== 'boolean' || !validRevision(value.revision)) {
+            throw new TypeError('Session action inspect returned an invalid snapshot');
+        }
+        return {
+            dirty: value.dirty,
+            revision: value.revision,
+            label: String(value.label || ''),
+            detail: String(value.detail || '')
+        };
+    }
+
+    function validRevision(value) {
+        return value === null || typeof value === 'string' || typeof value === 'boolean' ||
+            (typeof value === 'number' && Number.isFinite(value));
+    }
+
+    function publicSnapshot(win, state) {
+        return Object.freeze({
+            id: win.id,
+            appId: win.appId,
+            title: win.title,
+            dirty: state.dirty,
+            revision: state.revision,
+            label: state.label,
+            detail: state.detail
+        });
+    }
+
+    async function currentWindows() {
+        const source = await config.getWindows();
+        if (!Array.isArray(source)) throw new TypeError('getWindows must return an array');
+        const seen = new Set();
+        return source.map(value => {
+            if (!value || typeof value !== 'object') throw new TypeError('getWindows returned an invalid window');
+            const id = String(value && value.id || '').trim();
+            if (!id || seen.has(id)) throw new TypeError('getWindows returned an invalid window id');
+            seen.add(id);
+            return {
+                id,
+                appId: String(value.appId || ''),
+                title: String(value.title || ''),
+                hasBeforeClose: typeof value.beforeClose === 'function' || value.beforeClose === true || value.hasBeforeClose === true
+            };
+        }).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    }
+
+    function sameWindows(left, right) {
+        return left.length === right.length && left.every((win, index) =>
+            win.id === right[index].id && win.appId === right[index].appId &&
+            win.hasBeforeClose === right[index].hasBeforeClose);
+    }
+
+    async function allowed() {
+        try { return await config.canLogout() === true; }
+        catch (_) { return false; }
+    }
+
+    async function problem(code, win) {
+        try {
+            await config.onProblem({ code, windowId: win?.id || '', title: win?.title || '' });
+        } catch (_) { /* Problem reporting must not turn a blocked logout into an unhandled rejection. */ }
+        return false;
+    }
+
+    const api = { configure, register, requestLogout };
+    window.AuraDesktopSessionActions = api;
+})();
+
+;
+/* ui/js/desktop/core/workspace-manager-runtime.js */
+(function () {
+    'use strict';
+
+    const MAX_WORKSPACES = 8;
+    const MAX_NAME_LENGTH = 64;
+    const MAX_SAFE_ID = Number.MAX_SAFE_INTEGER;
+    const DEFAULT_LAYOUT = Object.freeze({
+        version: 1,
+        revision: 1,
+        next_id: 4,
+        workspaces: Object.freeze([{ id: '1', name: '' }, { id: '2', name: '' }, { id: '3', name: '' }]),
+        removed_to: Object.freeze({})
+    });
+    const DEFAULT_SETTINGS = Object.freeze({
+        'session.windows': '',
+        'appearance.wallpaper_by_space': '{}',
+        'appearance.wallpaper': 'groupshoot'
+    });
+
+    const listeners = new Set();
+    let config = {
+        api: null,
+        readonly: () => false,
+        t: key => key,
+        mountDialog: null,
+        onChange: () => {},
+        onConflict: () => {}
+    };
+    let current = { layout: cloneLayout(DEFAULT_LAYOUT), settings: { ...DEFAULT_SETTINGS } };
+    let mutationPromise = null;
+    let dialog = null;
+    let dialogUnmount = null;
+    let launcherFocus = null;
+    let announcement = '';
+
+    function cloneLayout(layout) {
+        return {
+            version: layout.version,
+            revision: layout.revision,
+            next_id: layout.next_id,
+            workspaces: layout.workspaces.map(workspace => ({ id: workspace.id, name: workspace.name })),
+            removed_to: { ...layout.removed_to }
+        };
+    }
+
+    function cloneSnapshot(snapshot) {
+        return { layout: cloneLayout(snapshot.layout), settings: { ...snapshot.settings } };
+    }
+
+    function normalizeSnapshot(value) {
+        if (!value || typeof value !== 'object') throw new TypeError('Workspace state must be an object');
+        const layout = value.layout;
+        if (!layout || layout.version !== 1 || !Number.isSafeInteger(layout.revision) || layout.revision < 1 ||
+            !Number.isSafeInteger(layout.next_id) || layout.next_id < 1 || layout.next_id > MAX_SAFE_ID ||
+            !Array.isArray(layout.workspaces) || layout.workspaces.length < 1 || layout.workspaces.length > MAX_WORKSPACES) {
+            throw new TypeError('Workspace layout is invalid');
+        }
+        const seen = new Set();
+        const active = new Set();
+        let maxID = 0;
+        const workspaces = layout.workspaces.map(item => {
+            if (!item || typeof item.id !== 'string' || !/^[1-9]\d*$/.test(item.id)) throw new TypeError('Workspace id is invalid');
+            const numeric = Number(item.id);
+            if (!Number.isSafeInteger(numeric) || String(numeric) !== item.id || seen.has(item.id)) throw new TypeError('Workspace id is invalid');
+            if (typeof item.name !== 'string' || item.name !== item.name.trim() || Array.from(item.name).length > MAX_NAME_LENGTH || /[\u0000-\u001f\u007f]/u.test(item.name)) {
+                throw new TypeError('Workspace name is invalid');
+            }
+            seen.add(item.id);
+            active.add(item.id);
+            maxID = Math.max(maxID, numeric);
+            return { id: item.id, name: item.name };
+        });
+        const removed = layout.removed_to == null ? {} : layout.removed_to;
+        if (!removed || typeof removed !== 'object' || Array.isArray(removed)) throw new TypeError('Workspace redirects are invalid');
+        const removedTo = {};
+        for (const [removedID, target] of Object.entries(removed)) {
+            if (!/^[1-9]\d*$/.test(removedID) || !Number.isSafeInteger(Number(removedID)) || String(Number(removedID)) !== removedID ||
+                seen.has(removedID) || typeof target !== 'string' || !active.has(target)) throw new TypeError('Workspace redirect is invalid');
+            maxID = Math.max(maxID, Number(removedID));
+            removedTo[removedID] = target;
+        }
+        if (layout.next_id <= maxID) throw new TypeError('Workspace next id is invalid');
+        const settings = {};
+        const sourceSettings = value.settings && typeof value.settings === 'object' ? value.settings : {};
+        for (const key of Object.keys(DEFAULT_SETTINGS)) {
+            const setting = sourceSettings[key];
+            settings[key] = typeof setting === 'string' ? setting : DEFAULT_SETTINGS[key];
+        }
+        return { layout: { version: 1, revision: layout.revision, next_id: layout.next_id, workspaces, removed_to: removedTo }, settings };
+    }
+
+    function configure(options = {}) {
+        config = {
+            api: typeof options.api === 'function' ? options.api : config.api,
+            readonly: typeof options.readonly === 'function' ? options.readonly : config.readonly,
+            t: typeof options.t === 'function' ? options.t : config.t,
+            mountDialog: typeof options.mountDialog === 'function' ? options.mountDialog : config.mountDialog,
+            onChange: typeof options.onChange === 'function' ? options.onChange : config.onChange,
+            onConflict: typeof options.onConflict === 'function' ? options.onConflict : config.onConflict
+        };
+        return api;
+    }
+
+    function snapshot() {
+        return cloneSnapshot(current);
+    }
+
+    function adopt(value, reason = 'adopt') {
+        const incoming = normalizeSnapshot(value);
+        if (incoming.layout.revision < current.layout.revision) return false;
+        current = incoming;
+        notify(reason);
+        return true;
+    }
+
+    function subscribe(listener) {
+        if (typeof listener !== 'function') throw new TypeError('Workspace subscriber must be a function');
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    }
+
+    function notify(reason) {
+        const value = snapshot();
+        try { config.onChange(value, reason); } catch (_) { /* UI reconciliation cannot invalidate an accepted server snapshot. */ }
+        for (const listener of [...listeners]) {
+            try { listener(snapshot(), reason); } catch (_) { /* One subscriber must not block the others. */ }
+        }
+        if (dialog && !dialog.hidden) renderDialog({ preserve: true });
+    }
+
+    function workspace(id) {
+        const key = String(id || '');
+        const found = current.layout.workspaces.find(item => item.id === key);
+        return found ? { ...found } : null;
+    }
+
+    function resolveId(id) {
+        let key = String(id || current.layout.workspaces[0]?.id || '1');
+        const visited = new Set();
+        while (!current.layout.workspaces.some(item => item.id === key)) {
+            if (visited.has(key) || !Object.hasOwn(current.layout.removed_to, key)) return current.layout.workspaces[0]?.id || '1';
+            visited.add(key);
+            key = current.layout.removed_to[key];
+        }
+        return key;
+    }
+
+    function name(id) {
+        const record = workspace(resolveId(id));
+        return record?.name || String(config.t('desktop.space_n')).replace('{{n}}', record?.id || String(id));
+    }
+
+    function isReadonly() {
+        try { return config.readonly() === true; } catch (_) { return true; }
+    }
+
+    async function load() {
+        if (typeof config.api !== 'function') throw new Error('Workspace API is not configured');
+        const result = await config.api('/api/desktop/workspaces', { method: 'GET' });
+        const state = result && result.layout ? result : result?.state;
+        if (!adopt(state, 'load')) throw new Error('Workspace state is older than the current state');
+        return snapshot();
+    }
+
+    function add(nameValue = '') { return mutate({ operation: 'add', name: String(nameValue || '') }); }
+    function rename(id, nameValue) { return mutate({ operation: 'rename', id: String(id || ''), name: String(nameValue || '') }); }
+    function reorder(order) { return mutate({ operation: 'reorder', order: Array.isArray(order) ? order.map(String) : [] }); }
+    function remove(id, moveTo) { return mutate({ operation: 'delete', id: String(id || ''), move_to: String(moveTo || '') }); }
+
+    function mutate(command) {
+        if (isReadonly()) return Promise.reject(new Error('desktop_readonly'));
+        if (mutationPromise) return Promise.reject(new Error('workspace_mutation_busy'));
+        if (typeof config.api !== 'function') return Promise.reject(new Error('workspace_api_unavailable'));
+        const body = { ...command, revision: current.layout.revision };
+        const pending = config.api('/api/desktop/workspaces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(result => {
+            const state = result && result.layout ? result : result?.state;
+            if (!adopt(state, 'mutation')) throw new Error('Workspace response is stale');
+            return snapshot();
+        }).catch(error => {
+            if ((error?.body?.code === 'workspace_revision_conflict' || error?.body?.code === 'workspace_revision_required') && error.body.state) {
+                adopt(error.body.state, 'conflict');
+                try { config.onConflict(snapshot(), error.body); } catch (_) { /* Keep the original conflict visible to the caller. */ }
+            }
+            throw error;
+        }).finally(() => {
+            if (mutationPromise === pending) mutationPromise = null;
+            if (dialog && !dialog.hidden) renderDialog({ preserve: true });
+        });
+        mutationPromise = pending;
+        if (dialog && !dialog.hidden) renderDialog({ preserve: true });
+        return pending;
+    }
+
+    function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    }
+
+    function text(key, variables) {
+        const translated = String(config.t(key, variables));
+        return translated === key ? key : translated;
+    }
+
+    function openManager() {
+        if (!document.body) return false;
+        if (dialog && !dialog.hidden) return true;
+        launcherFocus = document.activeElement;
+        if (!dialog) {
+            dialog = document.createElement('div');
+            dialog.id = 'vd-workspace-manager';
+            dialog.className = 'vd-workspace-manager';
+            dialog.hidden = true;
+            dialog.addEventListener('click', event => {
+                if (event.target === dialog || event.target.closest('[data-workspace-dismiss]')) closeManager();
+            });
+            dialog.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeManager();
+                }
+                if (event.key === 'Tab') trapDialogFocus(event);
+                if (event.key === 'Tab') event.stopPropagation();
+            });
+            if (config.mountDialog) dialogUnmount = config.mountDialog(dialog);
+            else document.body.appendChild(dialog);
+        }
+        dialog.hidden = false;
+        renderDialog({ preserve: false });
+        dialog.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)')?.focus();
+        return true;
+    }
+
+    function closeManager() {
+        if (!dialog) return;
+        dialogUnmount?.();
+        dialogUnmount = null;
+        dialog.remove();
+        dialog = null;
+        const focus = launcherFocus;
+        launcherFocus = null;
+        if (focus?.isConnected) focus.focus();
+    }
+
+    function trapDialogFocus(event) {
+        const focusable = [...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[href],[tabindex]:not([tabindex="-1"])')]
+            .filter(element => !element.closest('[hidden]') && element.getAttribute('aria-hidden') !== 'true' &&
+                (typeof element.getClientRects !== 'function' || element.getClientRects().length > 0));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function captureDialogState() {
+        if (!dialog) return { values: {}, targets: {}, confirmations: new Set(), focus: null };
+        const values = {};
+        dialog.querySelectorAll('[data-workspace-rename]').forEach(input => { values[input.dataset.workspaceRename] = input.value; });
+        const addInput = dialog.querySelector('[data-workspace-add-name]');
+        if (addInput) values.$add = addInput.value;
+        const targets = {};
+        dialog.querySelectorAll('[data-workspace-target]').forEach(select => { targets[select.dataset.workspaceTarget] = select.value; });
+        const confirmations = new Set([...dialog.querySelectorAll('[data-workspace-confirm]:not([hidden])')].map(node => node.dataset.workspaceConfirm));
+        return { values, targets, confirmations, focus: focusDescriptor(document.activeElement) };
+    }
+
+    function focusDescriptor(element) {
+        if (!element || !dialog?.contains(element)) return null;
+        const attributes = [
+            'data-workspace-add-name', 'data-workspace-rename', 'data-workspace-save',
+            'data-workspace-up', 'data-workspace-down', 'data-workspace-delete',
+            'data-workspace-confirm-delete', 'data-workspace-target', 'data-workspace-cancel-delete', 'data-workspace-dismiss'
+        ];
+        const attribute = attributes.find(name => element.hasAttribute(name));
+        const row = element.closest('[data-workspace-row]');
+        return {
+            attribute: attribute || '',
+            value: attribute ? element.getAttribute(attribute) : '',
+            rowIndex: row ? [...dialog.querySelectorAll('[data-workspace-row]')].indexOf(row) : -1,
+            selectionStart: typeof element.selectionStart === 'number' ? element.selectionStart : null,
+            selectionEnd: typeof element.selectionEnd === 'number' ? element.selectionEnd : null
+        };
+    }
+
+    function elementByData(attribute, value) {
+        if (!dialog || !attribute) return null;
+        return [...dialog.querySelectorAll(`[${attribute}]`)].find(element => element.getAttribute(attribute) === value) || null;
+    }
+
+    function restoreDialogFocus(descriptor) {
+        if (!dialog || !descriptor) return;
+        let element = descriptor.attribute ? elementByData(descriptor.attribute, descriptor.value) : null;
+        if (!element && descriptor.rowIndex >= 0) {
+            const rows = dialog.querySelectorAll('[data-workspace-row]');
+            const row = rows[Math.min(descriptor.rowIndex, rows.length - 1)];
+            element = row?.querySelector('input:not(:disabled),button:not(:disabled),select:not(:disabled)') || null;
+        }
+        if (!element) element = dialog.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)');
+        element?.focus();
+        if (element && descriptor.selectionStart !== null && typeof element.setSelectionRange === 'function') {
+            try { element.setSelectionRange(descriptor.selectionStart, descriptor.selectionEnd); } catch (_) { /* Some input types do not expose a selection range. */ }
+        }
+    }
+
+    function renderDialog(options = {}) {
+        if (!dialog || dialog.hidden) return;
+        const previous = options.preserve === false ? null : captureDialogState();
+        const readonly = isReadonly();
+        const busy = Boolean(mutationPromise);
+        const records = current.layout.workspaces;
+        const rows = records.map((item, index) => {
+            const first = index === 0;
+            const last = index === records.length - 1;
+            const others = records.filter(other => other.id !== item.id);
+            const displayName = item.name || name(item.id);
+            const savedTarget = previous?.targets[item.id] || '';
+            const targetSelect = `<option value="">${escapeHTML(text('desktop.workspaces_delete_select_target'))}</option>` +
+                others.map(other => `<option value="${escapeHTML(other.id)}"${savedTarget === other.id ? ' selected' : ''}>${escapeHTML(name(other.id))}</option>`).join('');
+            const deleteMessage = savedTarget
+                ? text('desktop.workspaces_delete_confirm', { name: displayName, target: name(savedTarget) })
+                : text('desktop.workspaces_delete_select_target');
+            return `<li class="vd-workspace-manager-row" data-workspace-row="${escapeHTML(item.id)}">
+                <label class="vd-workspace-manager-name"><span>${escapeHTML(text('desktop.workspaces_name_label'))}</span><input type="text" aria-label="${escapeHTML(text('desktop.workspaces_name_label') + ': ' + displayName)}" maxlength="${MAX_NAME_LENGTH}" data-workspace-rename="${escapeHTML(item.id)}" value="${escapeHTML(previous?.values[item.id] ?? item.name)}" ${readonly || busy ? 'disabled' : ''}></label>
+                <div class="vd-workspace-manager-actions">
+                    <button type="button" data-workspace-save="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.rename') + ': ' + displayName)}" ${readonly || busy ? 'disabled' : ''}>${escapeHTML(text('desktop.rename'))}</button>
+                    <button type="button" data-workspace-up="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.workspaces_move_up') + ': ' + displayName)}" ${readonly || busy || first ? 'disabled' : ''}>↑</button>
+                    <button type="button" data-workspace-down="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.workspaces_move_down') + ': ' + displayName)}" ${readonly || busy || last ? 'disabled' : ''}>↓</button>
+                    ${records.length > 1 ? `<button type="button" class="vd-workspace-manager-delete" data-workspace-delete="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.delete') + ': ' + displayName)}" ${readonly || busy ? 'disabled' : ''}>${escapeHTML(text('desktop.delete'))}</button>` : ''}
+                </div>
+                <div class="vd-workspace-manager-delete-confirm" data-workspace-confirm="${escapeHTML(item.id)}"${previous?.confirmations.has(item.id) ? '' : ' hidden'}>
+                    <p data-workspace-delete-message="${escapeHTML(item.id)}">${escapeHTML(deleteMessage)}</p>
+                    <label><span>${escapeHTML(text('desktop.workspaces_move_windows_to'))}</span><select data-workspace-target="${escapeHTML(item.id)}" ${readonly || busy ? 'disabled' : ''}>${targetSelect}</select></label>
+                    <button type="button" data-workspace-confirm-delete="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.delete') + ': ' + displayName)}" ${readonly || busy ? 'disabled' : ''}>${escapeHTML(text('desktop.delete'))}</button>
+                    <button type="button" data-workspace-cancel-delete="${escapeHTML(item.id)}" ${busy ? 'disabled' : ''}>${escapeHTML(text('desktop.cancel'))}</button>
+                </div>
+            </li>`;
+        }).join('');
+        const canAdd = records.length < MAX_WORKSPACES;
+        dialog.innerHTML = `<div class="vd-workspace-manager-backdrop" data-workspace-dismiss></div>
+            <section class="vd-workspace-manager-panel" role="dialog" aria-modal="true" aria-labelledby="vd-workspace-manager-title" aria-describedby="vd-workspace-manager-description">
+                <header class="vd-workspace-manager-header"><div><h2 id="vd-workspace-manager-title">${escapeHTML(text('desktop.workspaces_manage'))}</h2><p id="vd-workspace-manager-description">${escapeHTML(text('desktop.workspaces_description'))}</p></div><button type="button" data-workspace-dismiss aria-label="${escapeHTML(text('desktop.close'))}">×</button></header>
+                ${readonly ? `<p class="vd-workspace-manager-readonly" role="status">${escapeHTML(text('desktop.file_dialog_readonly'))}</p>` : ''}
+                <ol class="vd-workspace-manager-list">${rows}</ol>
+                <form class="vd-workspace-manager-add"><label><span>${escapeHTML(text('desktop.workspaces_name_label'))}</span><input type="text" maxlength="${MAX_NAME_LENGTH}" data-workspace-add-name value="${escapeHTML(previous?.values.$add || '')}" ${readonly || busy || !canAdd ? 'disabled' : ''}></label><button type="submit" ${readonly || busy || !canAdd ? 'disabled' : ''}>${escapeHTML(text('desktop.workspaces_add'))}</button></form>
+                ${records.length <= 1 ? `<p class="vd-workspace-manager-limit" role="status">${escapeHTML(text('desktop.workspaces_minimum'))}</p>` : ''}
+                ${records.length >= MAX_WORKSPACES ? `<p class="vd-workspace-manager-limit" role="status">${escapeHTML(text('desktop.workspaces_maximum'))}</p>` : ''}
+                <p class="vd-workspace-manager-status" role="status" aria-live="polite">${escapeHTML(announcement || (busy ? text('desktop.saving') : ''))}</p>
+                <footer><button type="button" data-workspace-dismiss>${escapeHTML(text('desktop.close'))}</button></footer>
+            </section>`;
+        wireDialogEvents();
+        restoreDialogFocus(previous?.focus || null);
+    }
+
+    function wireDialogEvents() {
+        dialog.querySelector('.vd-workspace-manager-add')?.addEventListener('submit', event => {
+            event.preventDefault();
+            const input = dialog.querySelector('[data-workspace-add-name]');
+            const value = input?.value.trim() || '';
+            if (current.layout.workspaces.length >= MAX_WORKSPACES) {
+                announcement = text('desktop.workspaces_maximum');
+                dialog.querySelector('.vd-workspace-manager-status').textContent = announcement;
+                return;
+            }
+            runUIAction(() => add(value), input, { clearAdd: true });
+        });
+        dialog.querySelectorAll('[data-workspace-save]').forEach(button => button.addEventListener('click', () => {
+            const id = button.dataset.workspaceSave;
+            const input = elementByData('data-workspace-rename', id);
+            if (!input) return;
+            runUIAction(() => rename(id, input.value), button, { committedNameID: id });
+        }));
+        dialog.querySelectorAll('[data-workspace-up],[data-workspace-down]').forEach(button => button.addEventListener('click', () => {
+            const order = current.layout.workspaces.map(item => item.id);
+            const index = order.indexOf(button.dataset.workspaceUp || button.dataset.workspaceDown);
+            const delta = button.hasAttribute('data-workspace-up') ? -1 : 1;
+            if (index < 0 || index + delta < 0 || index + delta >= order.length) return;
+            [order[index], order[index + delta]] = [order[index + delta], order[index]];
+            runUIAction(() => reorder(order), button);
+        }));
+        dialog.querySelectorAll('[data-workspace-delete]').forEach(button => button.addEventListener('click', () => {
+            const confirm = elementByData('data-workspace-confirm', button.dataset.workspaceDelete);
+            if (confirm) confirm.hidden = false;
+            confirm?.querySelector('select')?.focus();
+        }));
+        dialog.querySelectorAll('[data-workspace-cancel-delete]').forEach(button => button.addEventListener('click', () => {
+            const confirm = elementByData('data-workspace-confirm', button.dataset.workspaceCancelDelete);
+            if (confirm) confirm.hidden = true;
+        }));
+        dialog.querySelectorAll('[data-workspace-confirm-delete]').forEach(button => button.addEventListener('click', () => {
+            const id = button.dataset.workspaceConfirmDelete;
+            const target = elementByData('data-workspace-target', id)?.value;
+            if (!target || target === id) {
+                announcement = text('desktop.workspaces_invalid');
+                dialog.querySelector('.vd-workspace-manager-status').textContent = announcement;
+                return;
+            }
+            runUIAction(() => remove(id, target), button);
+        }));
+        dialog.querySelectorAll('[data-workspace-target]').forEach(select => select.addEventListener('change', () => {
+            const paragraph = elementByData('data-workspace-delete-message', select.dataset.workspaceTarget);
+            const item = workspace(select.dataset.workspaceTarget);
+            if (paragraph) paragraph.textContent = select.value
+                ? text('desktop.workspaces_delete_confirm', { name: item?.name || name(select.dataset.workspaceTarget), target: name(select.value) })
+                : text('desktop.workspaces_delete_select_target');
+        }));
+    }
+
+    async function runUIAction(action, focusTarget, options = {}) {
+        const focus = focusDescriptor(focusTarget || document.activeElement);
+        announcement = '';
+        try {
+            await action();
+            announcement = text('desktop.workspaces_saved');
+            if (options.clearAdd) {
+                const input = dialog?.querySelector('[data-workspace-add-name]');
+                if (input) input.value = '';
+            }
+            if (options.committedNameID) {
+                const input = elementByData('data-workspace-rename', options.committedNameID);
+                const saved = workspace(options.committedNameID);
+                if (input && saved) input.value = saved.name;
+            }
+        } catch (error) {
+            const code = error?.body?.code || error?.message || '';
+            if (code === 'workspace_limit') announcement = text('desktop.workspaces_limit');
+            else if (code === 'workspace_not_found' || code === 'workspace_invalid') announcement = text('desktop.workspaces_invalid');
+            else if (code === 'desktop_readonly') announcement = text('desktop.file_dialog_readonly');
+            else if (code === 'workspace_revision_conflict' || code === 'workspace_revision_required') announcement = text('desktop.workspaces_conflict');
+            else announcement = text('desktop.workspaces_invalid');
+        }
+        renderDialog({ preserve: true });
+        restoreDialogFocus(focus);
+    }
+
+    const api = {
+        configure, snapshot, adopt, subscribe, workspace, name, resolveId, isReadonly,
+        load, add, rename, reorder, remove, open: openManager, close: closeManager, openManager, closeManager
+    };
+    window.AuraDesktopWorkspaceManager = api;
+})();
+
+;
+/* ui/js/desktop/core/custom-wallpaper-runtime.js */
+(function () {
+    'use strict';
+
+    const states = new WeakMap();
+    const activeTargets = new Set();
+    const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/bmp']);
+
+    function path(value) {
+        if (!isCustom(value)) return '';
+        return value.slice('file:'.length);
+    }
+
+    function isCustom(value) {
+        return typeof value === 'string' && value.startsWith('file:');
+    }
+
+    function stateFor(target) {
+        let state = states.get(target);
+        if (!state) {
+            state = { generation: 0, controller: null, objectURL: '', value: '', fit: 'cover' };
+            states.set(target, state);
+        }
+        activeTargets.add(target);
+        return state;
+    }
+
+    function revokeState(state) {
+        if (state.controller) state.controller.abort();
+        state.controller = null;
+        if (state.objectURL) URL.revokeObjectURL(state.objectURL);
+        state.objectURL = '';
+    }
+
+    function emitStatus(target, pathValue, status, code, callback) {
+        if (target && target.dataset) target.dataset.customWallpaperState = status;
+        if (typeof callback === 'function') {
+            try { callback(pathValue, status, code || ''); } catch (_) { /* status observers cannot block wallpaper updates */ }
+        }
+    }
+
+    function clearVisual(target, state) {
+        if (!target || !target.style) return;
+        target.style.removeProperty('--vd-custom-wallpaper-image');
+        target.style.removeProperty('--vd-custom-wallpaper-fit');
+        if (target.dataset) delete target.dataset.customWallpaperState;
+        if (state) state.value = '';
+    }
+
+    function isCurrent(target, state, generation, signal, options, value, relative) {
+        if (signal.aborted || states.get(target) !== state || state.generation !== generation) return false;
+        if (options.signal && options.signal.aborted) return false;
+        if (typeof options.isCurrent === 'function') {
+            try { return !!options.isCurrent(value, relative); } catch (_) { return false; }
+        }
+        return true;
+    }
+
+    async function decodeImage(objectURL) {
+        if (typeof Image !== 'function') throw new Error('image_decoder_unavailable');
+        const image = new Image();
+        image.decoding = 'async';
+        image.src = objectURL;
+        if (typeof image.decode === 'function') {
+            await image.decode();
+        } else {
+            await new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = () => reject(new Error('wallpaper_invalid_image'));
+            });
+        }
+        if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth > 8192 || image.naturalHeight > 8192 || image.naturalWidth * image.naturalHeight > 16_000_000) {
+            throw new Error('wallpaper_invalid_image');
+        }
+    }
+
+    async function apply(target, value, fit, options) {
+        options = options && typeof options === 'object' ? options : {};
+        const relative = path(value);
+        if (!target || !target.style || !target.dataset || !relative) {
+            if (target) release(target);
+            emitStatus(target, relative, 'invalid', 'wallpaper_invalid_path', options.onStatus);
+            return false;
+        }
+
+        const state = stateFor(target);
+        revokeState(state);
+        state.generation++;
+        const generation = state.generation;
+        const controller = new AbortController();
+        state.controller = controller;
+        state.value = value;
+        state.fit = fit === 'contain' ? 'contain' : 'cover';
+        const signal = controller.signal;
+        const externalSignal = options.signal;
+        const abortWithExternal = () => controller.abort();
+        if (externalSignal) {
+            if (externalSignal.aborted) controller.abort();
+            else externalSignal.addEventListener('abort', abortWithExternal, { once: true });
+        }
+        emitStatus(target, relative, 'loading', '', options.onStatus);
+
+        const current = () => isCurrent(target, state, generation, signal, options, value, relative);
+        let objectURL = '';
+        try {
+            if (!current()) return false;
+            const query = new URLSearchParams({ path: relative });
+            const response = await fetch('/api/desktop/wallpaper?' + query.toString(), {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                signal
+            });
+            if (!current()) return false;
+            if (!response.ok) {
+                let code = 'wallpaper_load_failed';
+                try {
+                    const body = await response.json();
+                    if (typeof body.code === 'string' && body.code.startsWith('wallpaper_')) code = body.code;
+                } catch (_) { /* HTTP status still produces a stable generic failure */ }
+                const error = new Error(code);
+                error.code = code;
+                error.status = response.status;
+                throw error;
+            }
+
+            const blob = await response.blob();
+            if (!current()) return false;
+            if (blob.size <= 0 || blob.size > 20 * 1024 * 1024 || !allowedTypes.has(String(blob.type || '').toLowerCase())) {
+                const error = new Error('wallpaper_invalid_image');
+                error.code = error.message;
+                throw error;
+            }
+            objectURL = URL.createObjectURL(blob);
+            await decodeImage(objectURL);
+            if (!current()) {
+                URL.revokeObjectURL(objectURL);
+                objectURL = '';
+                return false;
+            }
+
+            state.objectURL = objectURL;
+            objectURL = '';
+            target.style.setProperty('--vd-custom-wallpaper-image', `url(${JSON.stringify(state.objectURL)})`);
+            target.style.setProperty('--vd-custom-wallpaper-fit', state.fit);
+            emitStatus(target, relative, 'ready', '', options.onStatus);
+            return true;
+        } catch (error) {
+            if (objectURL) URL.revokeObjectURL(objectURL);
+            if (!current()) return false;
+            target.style.removeProperty('--vd-custom-wallpaper-image');
+            target.style.removeProperty('--vd-custom-wallpaper-fit');
+            const code = String(error && (error.code || error.message) || 'wallpaper_load_failed');
+            const stateName = code === 'wallpaper_not_found' ? 'missing'
+                : code === 'wallpaper_invalid_path' || code === 'wallpaper_invalid_image' || code === 'wallpaper_unsupported_format' || code === 'wallpaper_format_mismatch' || code === 'wallpaper_too_large' || code === 'wallpaper_dimensions_exceeded' || code === 'wallpaper_pixel_limit'
+                    ? 'invalid'
+                    : 'error';
+            emitStatus(target, relative, stateName, code, options.onStatus);
+            return false;
+        } finally {
+            if (externalSignal) externalSignal.removeEventListener('abort', abortWithExternal);
+            if (state.controller === controller) state.controller = null;
+        }
+    }
+
+    function release(target) {
+        if (!target) return;
+        const state = states.get(target);
+        if (state) {
+            state.generation++;
+            revokeState(state);
+            state.value = '';
+        }
+        clearVisual(target, state);
+        activeTargets.delete(target);
+    }
+
+    function releaseAll() {
+        for (const target of activeTargets) release(target);
+        activeTargets.clear();
+    }
+
+    window.addEventListener('pagehide', releaseAll);
+    window.AuraDesktopCustomWallpaper = Object.freeze({ isCustom, path, apply, release });
+})();
+
+;
+/* ui/js/desktop/core/window-overview-runtime.js */
+(function () {
+    'use strict';
+
+    const VALID_MODES = new Set(['switcher', 'app-group', 'snap-partner']);
+    let config = {
+        getWindows: () => [],
+        getActiveWindowId: () => '',
+        spaceName: () => '',
+        appName: appId => String(appId || ''),
+        previewMarkup: () => '',
+        activateWindow: () => false,
+        chooseSnapPartner: () => false,
+        closeWindow: async () => 'skipped',
+        closeBatch: async () => ({ status: 'skipped', closed: [], skipped: [] }),
+        t: key => key,
+        mountDialog: null
+    };
+    let current = null;
+    let nextGeneration = 1;
+
+    function configure(options = {}) {
+        for (const key of [
+            'getWindows', 'getActiveWindowId', 'spaceName', 'appName', 'previewMarkup', 'activateWindow',
+            'chooseSnapPartner', 'closeWindow', 'closeBatch', 't', 'mountDialog'
+        ]) {
+            if (typeof options[key] === 'function') config[key] = options[key];
+        }
+        return api;
+    }
+
+    function translate(key, variables) {
+        try {
+            const value = String(config.t(key, variables));
+            return value && value !== key ? value : key;
+        } catch (_) {
+            return key;
+        }
+    }
+
+    function escapeHTML(value) {
+        return String(value == null ? '' : value).replace(/[&<>"']/g, character => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[character]);
+    }
+
+    function windowId(win) {
+        return String(win && win.id != null ? win.id : '');
+    }
+
+    function isMinimized(win) {
+        return !!(win && (win.minimizing || win.element && win.element.style && win.element.style.display === 'none'));
+    }
+
+    function getWindows(view) {
+        let result;
+        try {
+            result = config.getWindows({
+                mode: view.mode,
+                appId: view.appId,
+                scope: view.scope,
+                sourceId: view.sourceId,
+                partnerZone: view.partnerZone,
+                includeMinimized: true
+            });
+        } catch (_) {
+            return [];
+        }
+        if (!Array.isArray(result)) return [];
+        const seen = new Set();
+        return result.filter(win => {
+            const id = windowId(win);
+            if (!win || !win.element || win.isGadget || !id || seen.has(id) || win.closing) return false;
+            if (view.mode === 'snap-partner' && win.checkingClose) return false;
+            if (view.mode === 'app-group' && win.appId !== view.appId) return false;
+            if (view.mode === 'snap-partner' && id === view.sourceId) return false;
+            seen.add(id);
+            return true;
+        });
+    }
+
+    function activeWindowId() {
+        try { return String(config.getActiveWindowId() || ''); } catch (_) { return ''; }
+    }
+
+    function windowSpaceName(win) {
+        try { return String(config.spaceName(win) || ''); } catch (_) { return ''; }
+    }
+
+    function windowTitle(win) {
+        return String(win && win.title || config.appName(win && win.appId) || '');
+    }
+
+    function signatureFor(view, windows) {
+        const activeId = activeWindowId();
+        return JSON.stringify([
+            view.mode, view.scope, activeId,
+            windows.map(win => [windowId(win), windowTitle(win), String(win.appId || ''), windowSpaceName(win), isMinimized(win), !!win.closing])
+        ]);
+    }
+
+    function isCurrent(view) {
+        return !!view && current === view && current.generation === view.generation && !!view.dialog;
+    }
+
+    function open(options = {}) {
+        if (!document.body) return false;
+        const mode = VALID_MODES.has(options.mode) ? options.mode : 'switcher';
+        const scope = options.scope === 'all' ? 'all' : 'current';
+        const view = {
+            generation: nextGeneration++,
+            mode,
+            appId: String(options.appId || ''),
+            scope,
+            sourceId: String(options.sourceId || ''),
+            partnerZone: String(options.partnerZone || ''),
+            opener: options.opener || document.activeElement,
+            dialog: null,
+            unmount: null,
+            observer: null,
+            windows: [],
+            selectedId: '',
+            selectedIndex: 0,
+            focused: null,
+            signature: '',
+            previewCache: new Map(),
+            pendingCloses: new Set(),
+            actionDepth: 0,
+            refreshPending: false,
+            snapCommit: false,
+            closeAppPending: false
+        };
+        const windows = getWindows(view);
+        if (mode === 'snap-partner' && !windows.length) return false;
+        if (current) closeView(current, { restoreFocus: false });
+        view.windows = windows;
+        const selected = windows.find(win => windowId(win) === activeWindowId()) || windows[0];
+        view.selectedId = selected ? windowId(selected) : '';
+        view.selectedIndex = Math.max(0, windows.findIndex(win => windowId(win) === view.selectedId));
+        current = view;
+        createDialog(view);
+        document.body.classList.add('vd-window-overview-open');
+        render(view, { focus: true, force: true });
+        return isCurrent(view);
+    }
+
+    function createDialog(view) {
+        const dialog = document.createElement('div');
+        dialog.id = 'vd-window-overview';
+        dialog.className = 'vd-window-overview';
+        dialog.dataset.overviewMode = view.mode;
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.addEventListener('click', event => handleClick(view, event));
+        dialog.addEventListener('keydown', event => handleKeydown(view, event));
+        dialog.addEventListener('focusin', event => rememberFocus(view, event.target));
+        view.dialog = dialog;
+        if (typeof config.mountDialog === 'function') {
+            try { view.unmount = config.mountDialog(dialog) || null; } catch (_) { document.body.appendChild(dialog); }
+        } else {
+            document.body.appendChild(dialog);
+        }
+    }
+
+    function titleFor(view) {
+        if (view.mode === 'snap-partner') return translate('desktop.snap_partner_title');
+        if (view.mode === 'app-group') return translate('desktop.window_app_list');
+        return translate('desktop.window_overview_title');
+    }
+
+    function render(view, options = {}) {
+        if (!isCurrent(view)) return;
+        const previousId = view.selectedId;
+        const previousIndex = Math.max(0, view.windows.findIndex(win => windowId(win) === previousId));
+        const windows = getWindows(view);
+        if (view.mode === 'snap-partner' && !windows.length) {
+            closeView(view, { restoreFocus: true });
+            return;
+        }
+        const signature = signatureFor(view, windows);
+        view.windows = windows;
+        if (windows.some(win => windowId(win) === previousId)) {
+            view.selectedId = previousId;
+            view.selectedIndex = windows.findIndex(win => windowId(win) === previousId);
+        } else if (windows.length) {
+            view.selectedIndex = Math.min(previousIndex, windows.length - 1);
+            view.selectedId = windowId(windows[view.selectedIndex]);
+        } else {
+            view.selectedIndex = 0;
+            view.selectedId = '';
+        }
+        if (!options.force && signature === view.signature) return;
+        view.signature = signature;
+        view.observer?.disconnect();
+        view.observer = null;
+        const title = titleFor(view);
+        const appLabel = view.appId ? String(config.appName(view.appId) || view.appId) : '';
+        const subtitle = view.mode === 'app-group'
+            ? translate('desktop.window_group_count', { name: appLabel, count: windows.length })
+            : '';
+        const scopeButtons = view.mode === 'snap-partner' ? '' : `
+            <div class="vd-window-overview-scope" role="group" aria-label="${escapeHTML(title)}">
+                <button type="button" data-overview-scope="current" aria-pressed="${view.scope === 'current'}">${escapeHTML(translate('desktop.window_overview_current'))}</button>
+                <button type="button" data-overview-scope="all" aria-pressed="${view.scope === 'all'}">${escapeHTML(translate('desktop.window_overview_all'))}</button>
+            </div>`;
+        const closeAppButton = view.mode === 'app-group'
+            ? `<button type="button" class="vd-window-overview-close-app" data-overview-close-app ${view.closeAppPending ? 'disabled' : ''}>${escapeHTML(translate('desktop.close_app_windows'))}</button>`
+            : '';
+        const cards = windows.map((win, index) => renderCard(view, win, index)).join('');
+        const empty = windows.length ? '' : `<p class="vd-window-overview-empty" role="status">${escapeHTML(translate('desktop.spaces_overview_empty'))}</p>`;
+        view.dialog.dataset.overviewMode = view.mode;
+        view.dialog.dataset.overviewScopeValue = view.scope;
+        view.dialog.setAttribute('aria-labelledby', 'vd-window-overview-title');
+        view.dialog.innerHTML = `
+            <div class="vd-window-overview-backdrop" data-overview-dismiss></div>
+            <section class="vd-window-overview-panel">
+                <header class="vd-window-overview-header">
+                    <div class="vd-window-overview-heading">
+                        <h2 id="vd-window-overview-title">${escapeHTML(title)}</h2>
+                        ${subtitle ? `<p>${escapeHTML(subtitle)}</p>` : ''}
+                    </div>
+                    <div class="vd-window-overview-header-actions">${scopeButtons}${closeAppButton}<button type="button" data-overview-dismiss aria-label="${escapeHTML(translate('desktop.close'))}">×</button></div>
+                </header>
+                <div class="vd-window-overview-list" role="list">${cards}</div>
+                ${empty}
+                <footer><button type="button" data-overview-dismiss>${escapeHTML(translate('desktop.close'))}</button></footer>
+            </section>`;
+        wirePreviewObserver(view);
+        if (options.focus) focusPreferred(view);
+        else restoreLogicalFocus(view);
+    }
+
+    function renderCard(view, win, index) {
+        const id = windowId(win);
+        const minimized = isMinimized(win);
+        const active = id === activeWindowId();
+        const selected = id === view.selectedId;
+        const name = windowTitle(win);
+        const appLabel = String(config.appName(win.appId) || win.appId || name);
+        const workspace = view.scope === 'all' && view.mode !== 'snap-partner' ? windowSpaceName(win) : '';
+        const activateLabel = view.mode === 'snap-partner'
+            ? translate('desktop.snap_partner_select', { name })
+            : name;
+        const cachedPreview = view.previewCache.get(id);
+        const preview = cachedPreview == null
+            ? `<div class="vd-window-overview-preview" data-overview-preview="${escapeHTML(id)}" aria-hidden="true"><span class="vd-window-overview-preview-placeholder"></span></div>`
+            : `<div class="vd-window-overview-preview" data-overview-preview="${escapeHTML(id)}" aria-hidden="true">${cachedPreview}</div>`;
+        const minimizedLabel = minimized ? `<span class="vd-window-overview-minimized" data-overview-minimized="true">${escapeHTML(translate('desktop.window_minimized'))}</span>` : '';
+        const closeButton = view.mode === 'snap-partner' ? '' : `<button type="button" data-window-close="${escapeHTML(id)}" aria-label="${escapeHTML(translate('desktop.menu_close_window') + ': ' + name)}" ${view.pendingCloses.has(id) ? 'disabled' : ''}>${escapeHTML(translate('desktop.menu_close_window'))}</button>`;
+        return `<article class="vd-window-overview-card${selected ? ' is-selected' : ''}${active ? ' is-active' : ''}${minimized ? ' is-minimized' : ''}" role="listitem" data-overview-window="${escapeHTML(id)}" data-overview-index="${index}" data-overview-minimized="${minimized ? 'true' : 'false'}" aria-current="${active ? 'true' : 'false'}">
+            <button type="button" class="vd-window-overview-activate" data-window-activate="${escapeHTML(id)}" aria-label="${escapeHTML(activateLabel)}" aria-pressed="${selected}">
+                ${preview}
+                <span class="vd-window-overview-card-title">${escapeHTML(name)}</span>
+            <span class="vd-window-overview-card-meta"><span>${escapeHTML(appLabel)}</span>${workspace ? ` · <span data-overview-workspace-label="${escapeHTML(id)}">${escapeHTML(workspace)}</span>` : ''}${minimizedLabel ? ` · ${minimizedLabel}` : ''}</span>
+            </button>
+            ${closeButton}
+        </article>`;
+    }
+
+    function wirePreviewObserver(view) {
+        const targets = [...view.dialog.querySelectorAll('[data-overview-preview]')].filter(node => !view.previewCache.has(node.dataset.overviewPreview));
+        if (!targets.length) return;
+        if (typeof window.IntersectionObserver === 'function') {
+            view.observer = new window.IntersectionObserver(entries => {
+                if (!isCurrent(view)) return;
+                for (const entry of entries) if (entry.isIntersecting) renderPreview(view, entry.target);
+            }, { root: view.dialog.querySelector('.vd-window-overview-list'), rootMargin: '64px' });
+            targets.forEach(node => view.observer.observe(node));
+            return;
+        }
+        targets.forEach(node => {
+            const rect = node.getBoundingClientRect();
+            if (rect.bottom > 0 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth) renderPreview(view, node);
+        });
+    }
+
+    function renderPreview(view, node) {
+        if (!isCurrent(view) || !node || !node.isConnected) return;
+        const id = node.dataset.overviewPreview;
+        const win = view.windows.find(item => windowId(item) === id);
+        if (!win) return;
+        if (!view.previewCache.has(id)) {
+            let markup = '';
+            try {
+                markup = String(config.previewMarkup(win, {
+                    maxW: 340, maxH: 190,
+                    bodyOnly: true,
+                    titleClass: 'vd-window-overview-preview-title',
+                    labelClass: 'vd-window-overview-preview-label',
+                    iconClass: 'vd-window-overview-preview-icon',
+                    iconSize: 16,
+                    fallbackIconSize: 38,
+                    viewportClass: 'vd-window-overview-preview-viewport',
+                    scaleClass: 'vd-window-overview-preview-scale',
+                    fallbackClass: 'vd-window-overview-preview-fallback',
+                    fallbackIconClass: 'vd-window-overview-preview-fallback-icon'
+                }) || '');
+            } catch (_) { markup = ''; }
+            view.previewCache.set(id, markup);
+        }
+        node.innerHTML = view.previewCache.get(id);
+        node.classList.add('is-ready');
+        view.observer?.unobserve(node);
+    }
+
+    function visibleFocusables(view) {
+        if (!view.dialog) return [];
+        return [...view.dialog.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+            .filter(node => !node.closest('[hidden]') && node.getAttribute('aria-hidden') !== 'true'
+                && (!node.getClientRects || node.getClientRects().length > 0));
+    }
+
+    function hasVisibleCompetingModal(view) {
+        try {
+            return [...document.querySelectorAll('[aria-modal="true"]')].some(modal => {
+                if (modal === view.dialog || modal.hidden || modal.getAttribute('aria-hidden') === 'true') return false;
+                return !modal.getClientRects || modal.getClientRects().length > 0;
+            });
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function focusPreferred(view) {
+        if (!isCurrent(view)) return;
+        const selected = view.dialog.querySelector(`[data-window-activate="${cssEscape(view.selectedId)}"]`);
+        const focus = selected || view.dialog.querySelector('[data-overview-scope="current"]')
+            || view.dialog.querySelector('button[data-overview-dismiss]') || visibleFocusables(view)[0];
+        focus?.focus({ preventScroll: true });
+    }
+
+    function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(String(value));
+        return String(value).replace(/["\\]/g, '\\$&');
+    }
+
+    function rememberFocus(view, element) {
+        if (!isCurrent(view) || !element) return;
+        const card = element.closest('[data-overview-window]');
+        if (card) {
+            const activate = element.closest('[data-window-activate]');
+            const close = element.closest('[data-window-close]');
+            view.focused = { windowId: card.dataset.overviewWindow, action: close ? 'close' : activate ? 'activate' : 'activate' };
+            return;
+        }
+        const scope = element.closest('[data-overview-scope]');
+        if (scope) view.focused = { action: 'scope', scope: scope.dataset.overviewScope };
+        else if (element.closest('[data-overview-close-app]')) view.focused = { action: 'close-app' };
+        else if (element.closest('[data-overview-dismiss]')) view.focused = { action: 'dismiss' };
+    }
+
+    function restoreLogicalFocus(view) {
+        if (!isCurrent(view) || hasVisibleCompetingModal(view)) return;
+        const descriptor = view.focused;
+        let target = null;
+        if (descriptor?.windowId) {
+            const selector = descriptor.action === 'close' ? '[data-window-close]' : '[data-window-activate]';
+            target = view.dialog.querySelector(`[data-overview-window="${cssEscape(descriptor.windowId)}"] ${selector}:not([disabled])`);
+        } else if (descriptor?.action === 'scope') target = view.dialog.querySelector(`[data-overview-scope="${descriptor.scope}"]`);
+        else if (descriptor?.action === 'close-app') target = view.dialog.querySelector('[data-overview-close-app]:not([disabled])');
+        else if (descriptor?.action === 'dismiss') target = view.dialog.querySelector('button[data-overview-dismiss]');
+        if (!target && view.selectedId) target = view.dialog.querySelector(`[data-window-activate="${cssEscape(view.selectedId)}"]`);
+        if (!target) target = visibleFocusables(view)[0];
+        target?.focus({ preventScroll: true });
+    }
+
+    function handleClick(view, event) {
+        if (!isCurrent(view)) return;
+        const target = event.target && event.target.closest ? event.target : null;
+        if (!target) return;
+        if (target.closest('[data-overview-dismiss]')) {
+            event.preventDefault();
+            finish({ activate: false });
+            return;
+        }
+        const scope = target.closest('[data-overview-scope]');
+        if (scope) {
+            event.preventDefault();
+            const nextScope = scope.dataset.overviewScope === 'all' ? 'all' : 'current';
+            if (nextScope !== view.scope) {
+                view.scope = nextScope;
+                view.signature = '';
+                render(view, { force: true });
+            }
+            return;
+        }
+        const closeApp = target.closest('[data-overview-close-app]');
+        if (closeApp) {
+            event.preventDefault();
+            closeAppWindows(view);
+            return;
+        }
+        const closeButton = target.closest('[data-window-close]');
+        if (closeButton) {
+            event.preventDefault();
+            closeOneWindow(view, closeButton.dataset.windowClose);
+            return;
+        }
+        const activate = target.closest('[data-window-activate]');
+        if (!activate) return;
+        event.preventDefault();
+        const id = activate.dataset.windowActivate;
+        view.selectedId = id;
+        view.selectedIndex = view.windows.findIndex(win => windowId(win) === id);
+        rememberFocus(view, activate);
+        if (view.mode === 'snap-partner') chooseSnapPartner(view, id);
+        else finish({ activate: true, windowId: id });
+    }
+
+    function handleKeydown(view, event) {
+        if (!isCurrent(view)) return;
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Tab') return;
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            finish({ activate: false });
+            return;
+        }
+        if (event.key === 'Tab') {
+            const focusables = visibleFocusables(view);
+            if (focusables.length) {
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
+            event.stopPropagation();
+            return;
+        }
+        const navigationKeys = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+        if (!navigationKeys.includes(event.key) || !view.windows.length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const currentIndex = Math.max(0, view.windows.findIndex(win => windowId(win) === view.selectedId));
+        let nextIndex = currentIndex;
+        if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = view.windows.length - 1;
+        else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % view.windows.length;
+        else nextIndex = (currentIndex - 1 + view.windows.length) % view.windows.length;
+        selectWindow(view, nextIndex, true);
+    }
+
+    function selectWindow(view, index, focus) {
+        if (!isCurrent(view) || !view.windows.length) return;
+        const normalized = (index + view.windows.length) % view.windows.length;
+        view.selectedIndex = normalized;
+        view.selectedId = windowId(view.windows[normalized]);
+        view.signature = '';
+        render(view, { force: true });
+        if (focus) view.dialog.querySelector(`[data-window-activate="${cssEscape(view.selectedId)}"]`)?.focus({ preventScroll: true });
+    }
+
+    function cycle(reverse = false) {
+        const view = current;
+        if (!view || view.mode !== 'switcher' || !view.windows.length) return false;
+        const index = view.windows.findIndex(win => windowId(win) === view.selectedId);
+        selectWindow(view, (index < 0 ? 0 : index) + (reverse ? -1 : 1), true);
+        return true;
+    }
+
+    function finish(options = {}) {
+        const view = current;
+        if (!view) return false;
+        const activate = options.activate === true;
+        const requestedId = String(options.windowId || view.selectedId || '');
+        const canActivate = activate && view.windows.some(win => windowId(win) === requestedId);
+        const wasCurrent = isCurrent(view);
+        closeView(view, { restoreFocus: !canActivate });
+        if (canActivate && wasCurrent) {
+            try { Promise.resolve(config.activateWindow(requestedId)).catch(() => {}); } catch (_) { /* Closing the dialog remains final if activation fails. */ }
+        }
+        return true;
+    }
+
+    function closeView(view, options = {}) {
+        if (!view || current !== view) return;
+        const opener = view.opener;
+        const competingModal = hasVisibleCompetingModal(view);
+        current = null;
+        view.generation = nextGeneration++;
+        view.observer?.disconnect();
+        view.observer = null;
+        if (typeof view.unmount === 'function') {
+            try { view.unmount(); } catch (_) { /* Dialog cleanup must not prevent focus restoration. */ }
+        }
+        view.dialog?.remove();
+        view.dialog = null;
+        document.body.classList.remove('vd-window-overview-open');
+        if (options.restoreFocus && !competingModal && opener && opener.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true });
+    }
+
+    async function closeOneWindow(view, id) {
+        if (!isCurrent(view) || !id || view.pendingCloses.has(id)) return;
+        const original = view.windows.find(win => windowId(win) === id);
+        if (!original) return;
+        view.pendingCloses.add(id);
+        view.actionDepth++;
+        view.dialog.querySelector(`[data-window-close="${cssEscape(id)}"]`)?.setAttribute('disabled', '');
+        try {
+            let result = 'skipped';
+            try { result = await config.closeWindow(id); } catch (_) { result = 'cancelled'; }
+            if (!isCurrent(view)) return;
+            if (result !== 'accepted') view.focused = { windowId: id, action: 'close' };
+            else {
+                const oldIndex = Math.max(0, view.windows.findIndex(win => windowId(win) === id));
+                view.selectedIndex = oldIndex;
+                view.selectedId = id;
+                view.focused = { windowId: id, action: 'activate' };
+            }
+        } finally {
+            if (isCurrent(view)) {
+                view.actionDepth = Math.max(0, view.actionDepth - 1);
+                view.pendingCloses.delete(id);
+                view.refreshPending = false;
+                render(view, { force: true });
+                restoreLogicalFocus(view);
+            }
+        }
+    }
+
+    async function closeAppWindows(view) {
+        if (!isCurrent(view) || view.mode !== 'app-group' || view.closeAppPending) return;
+        view.closeAppPending = true;
+        view.actionDepth++;
+        view.dialog.querySelector('[data-overview-close-app]')?.setAttribute('disabled', '');
+        const ids = getWindows({ ...view, scope: 'all' }).filter(win => win.appId === view.appId).map(windowId);
+        try {
+            try { await config.closeBatch(ids); } catch (_) { /* The list remains the recovery surface for any partial close. */ }
+            if (!isCurrent(view)) return;
+            view.focused = { action: 'close-app' };
+        } finally {
+            if (isCurrent(view)) {
+                view.actionDepth = Math.max(0, view.actionDepth - 1);
+                view.closeAppPending = false;
+                view.refreshPending = false;
+                render(view, { force: true });
+                restoreLogicalFocus(view);
+            }
+        }
+    }
+
+    async function chooseSnapPartner(view, id) {
+        if (!isCurrent(view) || view.mode !== 'snap-partner' || view.snapCommit) return;
+        const candidate = view.windows.find(win => windowId(win) === id);
+        if (!candidate) return;
+        const generation = view.generation;
+        view.snapCommit = true;
+        view.actionDepth++;
+        let chosen = false;
+        try {
+            try { chosen = !!(await config.chooseSnapPartner(view.sourceId, id, view.partnerZone)); } catch (_) { chosen = false; }
+        } finally {
+            if (!isCurrent(view) || view.generation !== generation) return;
+            view.actionDepth = Math.max(0, view.actionDepth - 1);
+            view.snapCommit = false;
+            if (chosen) {
+                closeView(view, { restoreFocus: false });
+                try { Promise.resolve(config.activateWindow(id)).catch(() => {}); } catch (_) { /* Snap selection is already committed. */ }
+                return;
+            }
+            view.refreshPending = false;
+            render(view, { force: true });
+            restoreLogicalFocus(view);
+        }
+    }
+
+    function refresh() {
+        const view = current;
+        if (!view || !isCurrent(view)) return false;
+        if (view.actionDepth > 0 || view.snapCommit) {
+            view.refreshPending = true;
+            return true;
+        }
+        render(view);
+        return true;
+    }
+
+    function isOpen(mode) {
+        return !!current && isCurrent(current) && (!mode || current.mode === mode);
+    }
+
+    const api = { configure, open, cycle, finish, refresh, isOpen };
+    window.AuraDesktopWindowOverview = api;
+})();
+
+;
 /* ui/js/desktop/core/desktop-foundation.js */
 // AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
@@ -591,9 +3763,12 @@
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
         'appearance.wallpaper_by_space': '{}',
+        'appearance.wallpaper_fit': 'cover',
         'appearance.theme': 'standard',
         'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
+        'accessibility.text_size': '100',
+        'accessibility.high_contrast': 'false',
         'appearance.icon_theme': 'papirus',
         'appearance.tela_folder_color': 'standard',
         'appearance.fluent_folder_color': 'standard',
@@ -867,12 +4042,14 @@
     }
 
     function dockApps() {
-        const runningIds = new Set(taskbarWindows().map(win => win.appId).filter(Boolean));
+        const windows = windowOverviewWindows({ scope: 'visible' });
+        const runningIds = new Set(windows.map(win => win.appId).filter(Boolean));
         const available = userFacingApps().filter(app => app.dock_visible !== false || runningIds.has(app.id));
         const pinned = dockPinIds().map(id => available.find(app => app.id === id)).filter(Boolean);
+        const running = windows.map(win => appById(win.appId) || { id: win.appId, name: win.title, icon: win.icon || 'monitor' });
         const seen = new Set();
         const merged = [];
-        pinned.concat(available).forEach(app => {
+        pinned.concat(available, running).forEach(app => {
             if (!app || seen.has(app.id)) return;
             seen.add(app.id);
             merged.push(app);
@@ -989,11 +4166,13 @@
         body.dataset.wallpaper = (typeof wallpaperForActiveSpace === 'function')
             ? wallpaperForActiveSpace()
             : settingValue('appearance.wallpaper');
+        syncDesktopCustomWallpaper();
         body.dataset.theme = settingValue('appearance.theme');
         applyDesktopThemeAttributes(body);
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
         body.dataset.accent = settingValue('appearance.accent');
         body.dataset.density = settingValue('appearance.density');
+        window.AuraDesktopAccessibility?.apply(desktopSettings());
         body.dataset.iconTheme = settingValue('appearance.icon_theme');
         body.dataset.animations = settingValue('windows.animations');
         body.dataset.widgets = settingValue('desktop.show_widgets');
@@ -1356,7 +4535,13 @@
             const body = shouldParseJSON ? await resp.json() : {};
             if (!resp.ok) {
                 if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
-                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                const uncertain = body.code === 'file_undo_uncertain' || body.uncertain === true;
+                if (uncertain && String(url).split('?')[0] !== '/api/desktop/file-undo') {
+                    refreshDesktopAfterFileChange().catch(() => {});
+                }
+                const message = uncertain ? t('desktop.file_history_unknown')
+                    : body.code === 'file_undo_limit' ? t('desktop.file_history_limit') : body.error || body.message || ('HTTP ' + resp.status);
+                const err = new Error(message);
                 err.body = body;
                 err.status = resp.status;
                 const retryAfter = String(resp.headers.get('retry-after') || '');
@@ -1364,6 +4549,9 @@
                 throw err;
             }
             if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            if (String(url).split('?')[0] === '/api/desktop/settings' && typeof reconcileDesktopSettingsResponse === 'function') {
+                reconcileDesktopSettingsResponse(body);
+            }
             return body;
         }
     }
@@ -1381,6 +4569,7 @@
 
     function disposeAppWindow(win) {
         if (!win) return;
+        window.AuraDesktopSessionActions?.register(win.id, null);
         const cleanup = state.windowCleanups.get(win.id);
         if (cleanup) {
             state.windowCleanups.delete(win.id);
@@ -1520,7 +4709,7 @@
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
-        state.bootstrap = await api('/api/desktop/bootstrap');
+        acceptDesktopBootstrap(await api('/api/desktop/bootstrap'));
         state.desktopFiles = await resolveDesktopFilesFromBootstrap(state.bootstrap);
         return state.bootstrap;
     }
@@ -1630,6 +4819,7 @@
     }
 
     function closeStartMenu() {
+        cancelStartSearch();
         const menu = $('vd-start-menu'); if (!menu || menu.hidden) return; menu.dataset.motionState = 'closing';
         menu.style.transition = ''; menu.style.transform = '';
         const startButton = $('vd-start-button'); if (startButton) { startButton.dataset.active = 'false'; startButton.setAttribute('aria-expanded', 'false'); }
@@ -2362,14 +5552,7 @@
         });
         if (!owned) return false;
         const written = { 'appearance.wallpaper': next.wallpaper, 'appearance.wallpaper_by_space': '{}' };
-        const last = await api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings: written })
-        });
-        if (!state.bootstrap) state.bootstrap = {};
-        const remote = last && last.settings && typeof last.settings === 'object' ? last.settings : {};
-        state.bootstrap.settings = Object.assign({}, desktopSettings(), remote, written);
+        await writeDesktopSettings(written);
         return true;
     }
 
@@ -7202,15 +10385,12 @@
         const host = $('vd-start-apps');
         if (!host) return;
         const query = state.startQuery.trim().toLowerCase();
+        if (query) { renderStartSearch(query); return; }
+        cancelStartSearch();
         let title = '';
         let count = 0;
         let html = '';
-        if (query) {
-            const matches = model.allApps.filter(app => appName(app).toLowerCase().includes(query)).sort(compareAppsByName);
-            title = t('desktop.start_results');
-            count = matches.length;
-            html = matches.length ? startSectionMarkup('', matches.map((app, index) => startAppItemMarkup(app, index)).join('')) : startEmptyMarkup(t('desktop.start_no_results'));
-        } else if (active === 'recent') {
+        if (active === 'recent') {
             title = t('desktop.recent_apps');
             count = model.recentApps.length + model.recentFiles.length;
             if (model.recentApps.length) html += startSectionMarkup(t('desktop.recent_apps'), model.recentApps.map((app, index) => startAppItemMarkup(app, index, 'vd-start-recent-item')).join(''));
@@ -7315,6 +10495,7 @@
 
     function renderTaskbar() {
         syncDesktopMenuBar();
+        window.AuraDesktopWindowOverview?.refresh();
         const host = $('vd-taskbar-apps');
         if (!host) return;
         host.classList.toggle('vd-dock', shellLayout() === 'dock');
@@ -7334,30 +10515,64 @@
         ensureMobileTaskbarSwipe();
     }
 
-    function taskbarButtonHTML(win) {
-        const app = appById(win.appId);
-        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-task-icon', 16);
-        return `${icon}<span class="vd-task-label">${esc(win.title)}</span>`;
+    function taskbarAppGroups() {
+        const groups = new Map();
+        const pins = new Set(dockPinIds());
+        pins.forEach(appId => {
+            if (appById(appId)) groups.set(appId, { appId, pinned: true, windows: [] });
+        });
+        windowOverviewWindows({ scope: 'visible' }).forEach(win => {
+            if (!groups.has(win.appId)) groups.set(win.appId, { appId: win.appId, pinned: pins.has(win.appId), windows: [] });
+            groups.get(win.appId).windows.push(win);
+        });
+        return [...groups.values()];
     }
 
-    function updateTaskbarButton(btn, win, index) {
+    function updateTaskbarButton(btn, group, index) {
+        const app = appById(group.appId);
+        const active = group.windows.find(win => win.id === state.activeWindowId);
+        const representative = active || group.windows[0];
+        const label = windowTitle(group.appId);
+        const count = group.windows.length;
         btn.className = 'vd-task-button';
-        btn.classList.toggle('active', win.id === state.activeWindowId);
-        btn.dataset.windowId = win.id;
+        btn.classList.toggle('active', !!active);
+        btn.classList.toggle('running', count > 0);
+        btn.classList.toggle('pinned', group.pinned);
+        btn.dataset.appId = group.appId;
+        btn.dataset.windowCount = String(count);
+        if (representative) btn.dataset.windowId = representative.id;
+        else delete btn.dataset.windowId;
+        if (group.pinned) btn.dataset.pinAppId = group.appId;
+        else delete btn.dataset.pinAppId;
+        btn.title = count ? t('desktop.window_group_count', { name: label, count }) : label;
+        btn.setAttribute('aria-label', btn.title);
+        if (count > 1) btn.setAttribute('aria-haspopup', 'dialog');
+        else btn.removeAttribute('aria-haspopup');
+        if (active) btn.setAttribute('aria-current', 'true');
+        else btn.removeAttribute('aria-current');
         btn.style.setProperty('--dock-index', index);
-        const nextHTML = taskbarButtonHTML(win);
+        const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
+        const nextHTML = `${icon}<span class="vd-task-label">${esc(label)}</span>${count > 1 ? `<span class="vd-task-count" aria-hidden="true">${count}</span>` : ''}`;
         if (btn.dataset.renderedHtml !== nextHTML) {
             btn.innerHTML = nextHTML;
             btn.dataset.renderedHtml = nextHTML;
         }
     }
 
+    function activateTaskbarApp(appId, opener) {
+        const windows = windowOverviewWindows({ mode: 'app-group', appId, scope: 'visible' });
+        // Compact taskbars count visible windows; the chooser still requires an explicit All scope.
+        if (windows.length > 1) openDesktopWindowOverview({ mode: 'app-group', appId, scope: 'current', opener });
+        else if (windows.length) activateOverviewWindow(windows[0].id);
+        else openApp(appId);
+    }
+
     function bindTaskbarButton(btn) {
         if (btn.getAttribute('data-taskbar-bound') === 'true') return;
         btn.setAttribute('data-taskbar-bound', 'true');
-        btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
-        btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
-        wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+        btn.addEventListener('click', () => activateTaskbarApp(btn.dataset.appId, btn));
+        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
+        wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
         wireTaskbarThumbnailHover(btn);
     }
 
@@ -7366,13 +10581,6 @@
         const host = $('vd-taskbar-apps');
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
-        let pinHost = host.querySelector('[data-taskbar-pins]');
-        if (!pinHost) {
-            pinHost = document.createElement('div');
-            pinHost.className = 'vd-taskbar-pins';
-            pinHost.dataset.taskbarPins = 'true';
-            host.prepend(pinHost);
-        }
         const winHost = host.querySelector('[data-taskbar-windows]') || (() => {
             const node = document.createElement('div');
             node.className = 'vd-taskbar-windows';
@@ -7380,31 +10588,10 @@
             host.appendChild(node);
             return node;
         })();
-        const seenPinIds = new Set();
-        dockPinIds().forEach((appId, index) => {
-            const app = appById(appId);
-            if (!app) return;
-            seenPinIds.add(appId);
-            let btn = pinHost.querySelector(`[data-pin-app-id="${cssSel(appId)}"]`);
-            if (!btn) {
-                btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'vd-taskbar-pin';
-                btn.dataset.pinAppId = appId;
-                bindTaskbarPinButton(btn);
-                pinHost.appendChild(btn);
-            }
-            btn.style.setProperty('--dock-index', index);
-            btn.innerHTML = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
-            btn.title = appName(app);
-        });
-        pinHost.querySelectorAll('[data-pin-app-id]').forEach(btn => {
-            if (!seenPinIds.has(btn.dataset.pinAppId)) btn.remove();
-        });
-        const seenWindowIds = new Set();
-        taskbarWindows().forEach((win, index) => {
-            seenWindowIds.add(win.id);
-            let btn = winHost.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+        const seenAppIds = new Set();
+        taskbarAppGroups().forEach((group, index) => {
+            seenAppIds.add(group.appId);
+            let btn = winHost.querySelector(`[data-app-id="${cssSel(group.appId)}"]`);
             if (!btn) {
                 btn = document.createElement('button');
                 btn.type = 'button';
@@ -7413,22 +10600,11 @@
             } else if (btn !== winHost.children[index]) {
                 winHost.insertBefore(btn, winHost.children[index] || null);
             }
-            updateTaskbarButton(btn, win, index);
+            updateTaskbarButton(btn, group, index);
         });
-        winHost.querySelectorAll('[data-window-id]').forEach(btn => {
-            if (!seenWindowIds.has(btn.dataset.windowId)) btn.remove();
+        winHost.querySelectorAll('[data-app-id]').forEach(btn => {
+            if (!seenAppIds.has(btn.dataset.appId)) btn.remove();
         });
-    }
-
-    function bindTaskbarPinButton(btn) {
-        if (btn.getAttribute('data-pin-bound') === 'true') return;
-        btn.setAttribute('data-pin-bound', 'true');
-        btn.addEventListener('click', () => {
-            const existing = findExistingAppWindow(btn.dataset.pinAppId, {});
-            if (existing) focusWindow(existing.id);
-            else openApp(btn.dataset.pinAppId);
-        });
-        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.pinAppId));
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
@@ -7461,6 +10637,7 @@
 
     function updateDockButton(btn, app, index, runningWindows) {
         const running = runningWindows.some(win => win.appId === app.id);
+        const count = runningWindows.filter(win => win.appId === app.id).length;
         const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
         const broken = appIsBroken(app);
         btn.type = 'button';
@@ -7469,7 +10646,12 @@
         btn.classList.toggle('active', active);
         btn.classList.toggle('broken', broken);
         btn.dataset.appId = app.id;
-        btn.title = broken ? `${appName(app)} - ${t('desktop.app_missing_entry')}` : appName(app);
+        btn.dataset.windowCount = String(count);
+        const label = count ? t('desktop.window_group_count', { name: appName(app), count }) : appName(app);
+        btn.title = broken ? `${label} - ${t('desktop.app_missing_entry')}` : label;
+        btn.setAttribute('aria-label', btn.title);
+        if (count > 1) btn.setAttribute('aria-haspopup', 'dialog');
+        else btn.removeAttribute('aria-haspopup');
         btn.style.setProperty('--dock-index', index);
         const nextHTML = dockButtonHTML(app);
         if (btn.dataset.renderedHtml !== nextHTML) {
@@ -7481,11 +10663,7 @@
     function bindDockButton(btn) {
         if (btn.getAttribute('data-dock-bound') === 'true') return;
         btn.setAttribute('data-dock-bound', 'true');
-        btn.addEventListener('click', () => {
-            const existing = findExistingAppWindow(btn.dataset.appId, {});
-            if (existing) focusWindow(existing.id);
-            else openApp(btn.dataset.appId);
-        });
+        btn.addEventListener('click', () => activateTaskbarApp(btn.dataset.appId, btn));
         btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
         wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
         wireDockThumbnailHover(btn);
@@ -7493,7 +10671,7 @@
 
     function reconcileFruityDock() {
         const host = $('vd-taskbar-apps');
-        const runningWindows = taskbarWindows();
+        const runningWindows = windowOverviewWindows({ scope: 'visible' });
         const track = ensureFruityDockShell(host);
         if (!track) return;
         const seenDockAppIds = new Set();
@@ -7864,6 +11042,12 @@
             }
             if (appId === 'agent-chat' && context && typeof applyChatLaunchContext === 'function') applyChatLaunchContext(existing.id, context);
             if (appId === 'settings' && context && context.category) renderAppContent(existing.id, appId, context);
+            if (appId === 'calculator' && context && typeof context.expression === 'string') {
+                if (window.CalculatorApp) window.CalculatorApp.openExpression?.(existing.id, context.expression);
+                else window.AuraDesktopModules.loadAppScript('calculator')
+                    .then(() => window.CalculatorApp?.openExpression?.(existing.id, context.expression))
+                    .catch(() => {}); // The original lazy renderer reports load failures.
+            }
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (appId === 'software-store' && context && context.app_id) {
                 updateWindowContext(existing.id, { app_id: context.app_id });
@@ -8008,7 +11192,8 @@
         animateThen(win, 'vd-window-opening', themeMotionMs('open'));
         if (!sessionRestore) desktopSound('window.open');
         if (sessionRestore && sessionRestore.maximized) toggleMaximizeWindow(id);
-        else if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);
+        else if (sessionRestore && sessionRestore.snapped) applyWindowSnap(win, sessionRestore.snapped, { showPartnerChooser: false });
+        else if (!sessionRestore && shouldOpenMaximized(app)) toggleMaximizeWindow(id);
         if (sessionRestore && sessionRestore.z) win.style.zIndex = String(sessionRestore.z);
         focusWindow(id);
         if (sessionRestore && sessionRestore.minimized) {
@@ -8033,11 +11218,30 @@
     const THUMB_MAX_H = 140;
     const THUMB_SHOW_DELAY_MS = 360;
     const THUMB_HIDE_DELAY_MS = 140;
+    const SENSITIVE_PREVIEW_APPS = new Set([
+        'agent-chat', 'calendar', 'code-studio', 'contacts', 'editor', 'files', 'mailer',
+        'notes', 'people', 'quick-connect', 'quickconnect', 'settings', 'sheets', 'terminal', 'tresor', 'virtual-computers', 'writer'
+    ]);
+    const PREVIEW_MAX_NODES = 512;
+    const PREVIEW_MAX_TEXT_CHARS = 32 * 1024;
+    const PREVIEW_UNSAFE_TAGS = new Set(['audio', 'canvas', 'embed', 'iframe', 'input', 'object', 'select', 'textarea', 'video']);
+    const PREVIEW_SKIP_TAGS = new Set([
+        'a', 'base', 'button', 'form', 'img', 'link', 'math', 'meta', 'option', 'picture', 'script',
+        'source', 'style', 'svg', 'template'
+    ]);
+    const PREVIEW_ALLOWED_TAGS = new Set([
+        'address', 'article', 'aside', 'b', 'blockquote', 'br', 'caption', 'code', 'dd', 'div', 'dl', 'dt',
+        'em', 'figcaption', 'figure', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'i',
+        'label', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'small', 'span', 'strong', 'sub', 'sup',
+        'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'time', 'tr', 'u', 'ul', 'wbr'
+    ]);
+    const PREVIEW_SAFE_ATTRIBUTES = new Set(['class', 'dir', 'lang']);
     let thumbShowTimer = 0;
     let thumbHideTimer = 0;
     let activeThumbWindowId = '';
 
     function taskbarThumbnailsEnabled() {
+        if (window.AuraDesktopWindowOverview?.isOpen?.()) return false;
         if (isCompactViewport()) return false;
         if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return false;
         return true;
@@ -8133,6 +11337,70 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
+    function sanitizeWindowPreviewClone(content, appId) {
+        if (!content || content.nodeType !== 1 || SENSITIVE_PREVIEW_APPS.has(String(appId || ''))) return null;
+        const budget = { nodes: 0, textChars: 0, unsafe: false, exceeded: false };
+        const inspectNode = source => {
+            if (!source) return;
+            budget.nodes++;
+            if (budget.nodes > PREVIEW_MAX_NODES) { budget.exceeded = true; return; }
+            if (source.nodeType === 3) {
+                budget.textChars += String(source.nodeValue || '').length;
+                if (budget.textChars > PREVIEW_MAX_TEXT_CHARS) budget.exceeded = true;
+                return;
+            }
+            if (source.nodeType !== 1) {
+                // Count comments and other node types toward the traversal cap.
+                for (const child of source.childNodes || []) {
+                    inspectNode(child);
+                    if (budget.exceeded) return;
+                }
+                return;
+            }
+            const tag = String(source.localName || source.tagName || '').toLowerCase();
+            if (!tag || tag.includes('-')) { budget.unsafe = true; return null; }
+            if (PREVIEW_UNSAFE_TAGS.has(tag) || (source.hasAttribute?.('contenteditable') && source.getAttribute('contenteditable') !== 'false')) {
+                budget.unsafe = true;
+            }
+            for (const attribute of PREVIEW_SAFE_ATTRIBUTES) {
+                if (!source.hasAttribute?.(attribute)) continue;
+                budget.textChars += String(source.getAttribute(attribute) || '').length;
+                if (budget.textChars > PREVIEW_MAX_TEXT_CHARS) { budget.exceeded = true; return; }
+            }
+            // Inspect children even under skipped wrappers. This catches an unsafe
+            // descendant hidden inside a form or navigation node before text is copied.
+            for (const child of source.childNodes || []) {
+                inspectNode(child);
+                if (budget.exceeded) return;
+            }
+        };
+        inspectNode(content);
+        if (budget.unsafe || budget.exceeded) return null;
+
+        const projectNode = source => {
+            if (!source || (source.nodeType !== 1 && source.nodeType !== 3)) return null;
+            if (source.nodeType === 3) return document.createTextNode(String(source.nodeValue || ''));
+            const tag = String(source.localName || source.tagName || '').toLowerCase();
+            if (PREVIEW_SKIP_TAGS.has(tag) || source.hasAttribute?.('hidden') || source.getAttribute?.('aria-hidden') === 'true') return null;
+            if (!PREVIEW_ALLOWED_TAGS.has(tag)) return null;
+            const projected = document.createElement(tag);
+            for (const attribute of PREVIEW_SAFE_ATTRIBUTES) {
+                if (source.hasAttribute?.(attribute)) projected.setAttribute(attribute, String(source.getAttribute(attribute) || ''));
+            }
+            for (const child of source.childNodes || []) {
+                const projectedChild = projectNode(child);
+                if (projectedChild) projected.appendChild(projectedChild);
+            }
+            return projected;
+        };
+
+        const projected = projectNode(content);
+        if (!projected || budget.unsafe || budget.exceeded) return null;
+        projected.setAttribute('aria-hidden', 'true');
+        projected.setAttribute('inert', '');
+        return projected;
+    }
+
     function windowPreviewBodyMarkup(win, options) {
         options = options || {};
         const maxW = options.maxW || THUMB_MAX_W;
@@ -8144,15 +11412,15 @@
         const scale = Math.min(maxW / sourceW, maxH / sourceH, 1);
         const viewW = Math.max(128, Math.round(sourceW * scale));
         const viewH = Math.max(80, Math.round(sourceH * scale));
-        const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
         const viewportClass = options.viewportClass || 'vd-taskbar-thumb-viewport';
         const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
         const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
         const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
-        if (hasIframe || !content) {
+        const preview = sanitizeWindowPreviewClone(content, win.appId);
+        if (!preview) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        return `<div class="${viewportClass}" inert aria-hidden="true" style="width:${viewW}px;height:${viewH}px;pointer-events:none"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale});pointer-events:none">${preview.innerHTML}</div></div>`;
     }
 
     function windowPreviewMarkup(win, options) {
@@ -8427,15 +11695,110 @@ function windowOverlapsFruityDock(win, dockRect) {
 }
 
 ;
+/* ui/js/desktop/core/window-layouts-runtime.js */
+    const DESKTOP_WINDOW_LAYOUT_ZONES = Object.freeze([
+        'left-half', 'right-half', 'top-half', 'bottom-half',
+        'top-left', 'top-right', 'bottom-left', 'bottom-right', 'maximize'
+    ]);
+
+    function desktopWindowLayoutRect(zone, width, height) {
+        const w = Math.max(0, Math.floor(Number(width) || 0));
+        const h = Math.max(0, Math.floor(Number(height) || 0));
+        const halfW = Math.floor(w / 2);
+        const halfH = Math.floor(h / 2);
+        const rects = {
+            'left-half': { left: 0, top: 0, width: halfW, height: h },
+            'right-half': { left: halfW, top: 0, width: w - halfW, height: h },
+            'top-half': { left: 0, top: 0, width: w, height: halfH },
+            'bottom-half': { left: 0, top: halfH, width: w, height: h - halfH },
+            'top-left': { left: 0, top: 0, width: halfW, height: halfH },
+            'top-right': { left: halfW, top: 0, width: w - halfW, height: halfH },
+            'bottom-left': { left: 0, top: halfH, width: halfW, height: h - halfH },
+            'bottom-right': { left: halfW, top: halfH, width: w - halfW, height: h - halfH },
+            maximize: { left: 0, top: 0, width: w, height: h }
+        };
+        return rects[zone] || null;
+    }
+
+    function desktopWindowLayoutFits(rect, constraints) {
+        const maxWidth = constraints && Number.isFinite(constraints.maxWidth) ? constraints.maxWidth : Infinity;
+        const maxHeight = constraints && Number.isFinite(constraints.maxHeight) ? constraints.maxHeight : Infinity;
+        return !!rect && rect.width >= (constraints && constraints.minWidth || 0)
+            && rect.height >= (constraints && constraints.minHeight || 0)
+            && rect.width <= maxWidth && rect.height <= maxHeight;
+    }
+
+    function desktopWindowLayoutMaxLimit(value, fallback) {
+        const limit = Number.parseFloat(value);
+        return Number.isFinite(limit) ? Math.min(fallback, Math.max(0, limit)) : fallback;
+    }
+
+    function desktopWindowLayoutOccupiesHalf(item, side) {
+        if (!item) return false;
+        if (item.maximized) return true;
+        const zone = String(item.snapped || '');
+        if (zone === side + '-half') return true;
+        return zone === 'top-' + side || zone === 'bottom-' + side;
+    }
+
+    function desktopWindowKeyboardLayout(zone, key) {
+        if (key === 'ArrowLeft') return 'left-half';
+        if (key === 'ArrowRight') return 'right-half';
+        const side = zone === 'left-half' || zone === 'top-left' || zone === 'bottom-left' ? 'left'
+            : zone === 'right-half' || zone === 'top-right' || zone === 'bottom-right' ? 'right' : '';
+        if (side && (key === 'ArrowUp' || key === 'ArrowDown')) {
+            return (key === 'ArrowUp' ? 'top-' : 'bottom-') + side;
+        }
+        return key === 'ArrowUp' ? 'maximize' : key === 'ArrowDown' ? 'restore' : '';
+    }
+
+    function desktopWindowRememberRestoreBounds(item, bounds) {
+        if (!item) return null;
+        if (!item.restoreBounds && bounds) item.restoreBounds = { ...bounds };
+        return item.restoreBounds;
+    }
+
+    async function desktopCloseWindowBatch(ids, hasWindow, closeWindow) {
+        const closed = [];
+        const skipped = [];
+        let cancelled = false;
+        for (const id of Array.from(ids || [])) {
+            if (typeof hasWindow === 'function' && !hasWindow(id)) {
+                skipped.push(id);
+                continue;
+            }
+            let result;
+            try { result = await closeWindow(id); }
+            catch (_) { cancelled = true; break; }
+            if (result === 'cancelled') {
+                cancelled = true;
+                break;
+            }
+            if (result !== 'accepted') {
+                skipped.push(id);
+                continue;
+            }
+            closed.push(id);
+        }
+        return {
+            status: cancelled ? 'cancelled' : closed.length ? 'accepted' : 'skipped',
+            closed,
+            skipped
+        };
+    }
+
+;
 /* ui/js/desktop/core/window-interactions-runtime.js */
     function minimizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
         if (item.isGadget) return; // gadgets cannot be minimized
         if (item.minimizing) return;
+        closeWindowLayoutPopupFor(id);
         emitDesktopWindowEffect('minimize', id);
         desktopSound('window.minimize');
         item.minimizing = true;
+        const minimizeRevision = item.minimizeRevision = (item.minimizeRevision || 0) + 1;
         if (state.activeWindowId === id) state.activeWindowId = '';
         const delta = windowMinimizeTargetDelta(item.element, id);
         if (delta) {
@@ -8444,6 +11807,7 @@ function windowOverlapsFruityDock(win, dockRect) {
         }
         renderTaskbar();
         animateThen(item.element, 'vd-window-minimizing', themeMotionMs('minimize'), () => {
+            if (item.minimizeRevision !== minimizeRevision || !item.minimizing || item.closing) return;
             item.element.style.display = 'none';
             refreshDesktopWindowEffects();
             item.minimizing = false;
@@ -8461,7 +11825,7 @@ function windowOverlapsFruityDock(win, dockRect) {
         if (shellLayout() === 'dock') {
             target = host.querySelector('.vd-dock-button[data-app-id="' + cssSel(item.appId) + '"]');
         } else {
-            target = host.querySelector('[data-window-id="' + cssSel(id) + '"]');
+            target = host.querySelector('.vd-task-button[data-app-id="' + cssSel(item.appId) + '"]');
         }
         if (!target) return null;
         const winRect = win.getBoundingClientRect();
@@ -8559,6 +11923,236 @@ function windowOverlapsFruityDock(win, dockRect) {
         if (flush && pending) pending();
     }
 
+    let activeDesktopWindowLayoutPopup = null;
+
+    function wireWindowLayoutControl(button, id) {
+        let holdTimer = 0;
+        let suppressNextClick = false;
+        button.setAttribute('aria-haspopup', 'menu');
+        button.setAttribute('aria-expanded', 'false');
+        button.setAttribute('aria-controls', 'vd-window-layout-menu');
+        button.addEventListener('click', event => {
+            if (suppressNextClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                suppressNextClick = false;
+                return;
+            }
+            toggleMaximizeWindow(id);
+        });
+        button.addEventListener('contextmenu', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            openWindowLayoutMenu(id);
+        });
+        button.addEventListener('keydown', event => {
+            if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+            event.preventDefault();
+            openWindowLayoutMenu(id);
+        });
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            if (holdTimer) window.clearTimeout(holdTimer);
+            holdTimer = window.setTimeout(() => {
+                holdTimer = 0;
+                suppressNextClick = true;
+                openWindowLayoutMenu(id);
+            }, 550);
+        });
+        const cancelHold = () => {
+            if (holdTimer) window.clearTimeout(holdTimer);
+            holdTimer = 0;
+        };
+        button.addEventListener('pointerup', () => {
+            cancelHold();
+            window.setTimeout(() => { suppressNextClick = false; }, 0);
+        });
+        button.addEventListener('pointercancel', () => { cancelHold(); suppressNextClick = false; });
+        button.addEventListener('pointerleave', () => { cancelHold(); suppressNextClick = false; });
+    }
+
+    function windowLayoutZones() {
+        return DESKTOP_WINDOW_LAYOUT_ZONES.slice();
+    }
+
+    function windowLayoutOptions(id) {
+        const item = state.windows.get(id);
+        if (!item || !item.element || item.isGadget) return [];
+        const limits = windowLayoutLimits(item.element);
+        return windowLayoutZones().map(zone => {
+            const rect = desktopWindowLayoutRect(zone, limits.width, limits.height);
+            return { zone, rect, fits: desktopWindowLayoutFits(rect, limits) };
+        });
+    }
+
+    function windowLayoutCanRestore(id) {
+        const item = state.windows.get(id);
+        return !!(item && !item.isGadget && item.restoreBounds);
+    }
+
+    function closeWindowLayoutPopup(restoreFocus) {
+        const popup = activeDesktopWindowLayoutPopup;
+        if (!popup) return;
+        activeDesktopWindowLayoutPopup = null;
+        document.removeEventListener('pointerdown', popup.onPointerDown, true);
+        document.removeEventListener('keydown', popup.onKeyDown, true);
+        popup.element.remove();
+        if (popup.opener) popup.opener.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && popup.opener && popup.opener.isConnected) popup.opener.focus({ preventScroll: true });
+    }
+
+    function closeWindowLayoutPopupFor(id) {
+        const popup = activeDesktopWindowLayoutPopup;
+        if (popup && (popup.windowId === id || popup.candidateIds.includes(id))) closeWindowLayoutPopup(false);
+    }
+
+    function positionWindowLayoutPopup(popup, anchor) {
+        const rect = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+        const margin = 8;
+        const width = popup.offsetWidth || 280;
+        const height = popup.offsetHeight || 360;
+        let left = rect ? rect.left : margin;
+        let top = rect ? rect.bottom + 6 : window.innerHeight - height - margin;
+        left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+        if (top + height > window.innerHeight - margin) top = rect ? rect.top - height - 6 : margin;
+        top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
+        popup.style.left = Math.round(left) + 'px';
+        popup.style.top = Math.round(top) + 'px';
+    }
+
+    function wireWindowLayoutPopup(popup, opener, windowId, candidateIds) {
+        const onPointerDown = event => {
+            if (popup.contains(event.target) || event.target === opener) return;
+            closeWindowLayoutPopup(false);
+        };
+        const onKeyDown = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeWindowLayoutPopup(true);
+                return;
+            }
+            if (event.key === 'Tab') {
+                closeWindowLayoutPopup(true);
+                return;
+            }
+            const items = [...popup.querySelectorAll('button:not(:disabled)')];
+            if (!items.length) return;
+            const index = items.indexOf(document.activeElement);
+            let next = null;
+            if (event.key === 'ArrowDown') next = items[index < 0 ? 0 : (index + 1) % items.length];
+            else if (event.key === 'ArrowUp') next = items[index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length];
+            else if (event.key === 'Home') next = items[0];
+            else if (event.key === 'End') next = items[items.length - 1];
+            if (!next) return;
+            event.preventDefault();
+            next.focus({ preventScroll: true });
+        };
+        activeDesktopWindowLayoutPopup = { element: popup, opener, windowId, candidateIds: candidateIds || [], onPointerDown, onKeyDown };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        document.addEventListener('keydown', onKeyDown, true);
+    }
+
+    function openWindowLayoutMenu(id) {
+        const item = state.windows.get(id);
+        const opener = item && item.element && item.element.querySelector('[data-action="maximize"]');
+        if (!item || item.isGadget || !opener) return false;
+        closeWindowLayoutPopup(false);
+        if (state.contextMenu) closeContextMenu(true);
+        const menu = document.createElement('div');
+        menu.id = 'vd-window-layout-menu';
+        menu.className = 'vd-context-menu vd-window-layout-menu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', t('desktop.window_layouts'));
+        const layoutLabels = {
+            maximize: 'desktop.maximize',
+            'left-half': 'desktop.snap_left',
+            'right-half': 'desktop.snap_right',
+            'top-half': 'desktop.snap_top_half',
+            'bottom-half': 'desktop.snap_bottom_half',
+            'top-left': 'desktop.snap_top_left',
+            'top-right': 'desktop.snap_top_right',
+            'bottom-left': 'desktop.snap_bottom_left',
+            'bottom-right': 'desktop.snap_bottom_right'
+        };
+        const addButton = (labelKey, icon, action, disabled, checked, title) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-context-item vd-window-layout-item';
+            button.setAttribute('role', action === 'restore' ? 'menuitem' : 'menuitemradio');
+            if (action !== 'restore') button.setAttribute('aria-checked', checked ? 'true' : 'false');
+            const glyph = document.createElement('span');
+            glyph.className = 'vd-context-icon';
+            glyph.setAttribute('aria-hidden', 'true');
+            glyph.textContent = icon;
+            const label = document.createElement('span');
+            label.className = 'vd-context-label';
+            label.textContent = t(labelKey);
+            button.append(glyph, label);
+            if (disabled) {
+                button.disabled = true;
+                button.title = t('desktop.snap_layout_too_small');
+                button.setAttribute('aria-description', t('desktop.snap_layout_too_small'));
+            } else {
+                button.addEventListener('click', () => {
+                    closeWindowLayoutPopup(true);
+                    if (action === 'restore') restoreWindowFromSnap(id);
+                    else applyWindowSnap(item.element, action);
+                });
+            }
+            if (title) button.title = title;
+            menu.appendChild(button);
+        };
+        if (windowLayoutCanRestore(id)) addButton('desktop.restore', '↶', 'restore', false, false);
+        windowLayoutOptions(id).forEach(option => {
+            addButton(layoutLabels[option.zone], option.zone === 'maximize' ? '□' : '▦', option.zone,
+                !option.fits, item.snapped === option.zone || (option.zone === 'maximize' && item.maximized));
+        });
+        document.body.appendChild(menu);
+        positionWindowLayoutPopup(menu, opener);
+        opener.setAttribute('aria-expanded', 'true');
+        wireWindowLayoutPopup(menu, opener, id);
+        const first = menu.querySelector('button:not(:disabled)');
+        if (first) first.focus({ preventScroll: true });
+        return true;
+    }
+
+    function desktopWindowSnapPartnerZone(zone) {
+        if (zone === 'left-half') return 'right-half';
+        if (zone === 'right-half') return 'left-half';
+        return '';
+    }
+
+    function windowSnapPartnerCandidates(windowId, partnerZone) {
+        const source = state.windows.get(windowId);
+        if (!source || !source.element || source.closing || source.checkingClose || source.minimizing
+            || source.element.style.display === 'none' || source.element.classList.contains('vd-space-hidden')
+            || desktopWindowSnapPartnerZone(source.snapped) !== partnerZone) return [];
+        const candidates = [...state.windows.values()].filter(candidate => {
+            if (candidate === source || candidate.isGadget || candidate.closing || candidate.checkingClose || !candidate.element) return false;
+            if (windowSpaceId(candidate) !== windowSpaceId(source)) return false;
+            const bounds = windowLayoutLimits(candidate.element);
+            return desktopWindowLayoutFits(desktopWindowLayoutRect(partnerZone, bounds.width, bounds.height), bounds);
+        });
+        const occupiedSide = partnerZone === 'left-half' ? 'left' : 'right';
+        if (candidates.some(candidate => candidate.element.style.display !== 'none' && !candidate.minimizing
+            && desktopWindowLayoutOccupiesHalf(candidate, occupiedSide))) return [];
+        return candidates;
+    }
+
+    function chooseWindowSnapPartner(windowId, candidateId, partnerZone) {
+        const candidate = windowSnapPartnerCandidates(windowId, partnerZone).find(win => win.id === candidateId);
+        return !!candidate && applyWindowSnap(candidate.element, partnerZone, { showPartnerChooser: false });
+    }
+
+    function showWindowSnapPartnerChooser(windowId, partnerZone) {
+        if (!windowSnapPartnerCandidates(windowId, partnerZone).length) return false;
+        return openDesktopWindowOverview({
+            mode: 'snap-partner', sourceId: windowId, partnerZone,
+            opener: state.windows.get(windowId)?.element.querySelector('[data-action="maximize"]')
+        });
+    }
+
 function wireWindow(win, id) {
         win.addEventListener('pointerdown', () => focusWindow(id));
         wireWindowContextMenu(win, id);
@@ -8566,20 +12160,19 @@ function wireWindow(win, id) {
         win.querySelector('[data-action="minimize"]').addEventListener('click', () => minimizeWindow(id));
         const aiBtn = win.querySelector('[data-action="ai-context"]'); if (aiBtn) aiBtn.addEventListener('click', () => openAgentChatForWindow(id));
         const maximizeBtn = win.querySelector('[data-action="maximize"]');
-        if (maximizeBtn) maximizeBtn.addEventListener('click', () => toggleMaximizeWindow(id));
+        if (maximizeBtn) wireWindowLayoutControl(maximizeBtn, id);
         const bar = win.querySelector('.vd-window-titlebar');
         let drag = null;
         bar.addEventListener('pointerdown', (event) => {
             if (event.target.closest('button, .vd-window-menu-popover')) return;
             if (window.useMobileDesktopMode && window.useMobileDesktopMode()) return;
             if (state.windows.get(id) && state.windows.get(id).maximized) return;
-            const dragItem = state.windows.get(id);
-            if (dragItem) dragItem.snapped = '';
             drag = {
                 x: event.clientX,
                 y: event.clientY,
                 left: parseInt(win.style.left, 10) || 0,
                 top: parseInt(win.style.top, 10) || 0,
+                moved: false,
                 raf: 0,
                 pendingFrame: null,
                 snapZone: null
@@ -8601,10 +12194,11 @@ function wireWindow(win, id) {
                 const maxTop = Math.max(0, window.innerHeight - taskbarReserve - win.offsetHeight);
                 const newLeft = Math.min(maxLeft, Math.max(0, activeDrag.left + activeDrag.clientX - activeDrag.x));
                 const newTop = Math.min(maxTop, Math.max(0, activeDrag.top + activeDrag.clientY - activeDrag.y));
+                if (!activeDrag.moved && (Math.abs(activeDrag.clientX - activeDrag.x) > 2 || Math.abs(activeDrag.clientY - activeDrag.y) > 2)) activeDrag.moved = true;
                 win.style.left = newLeft + 'px';
                 win.style.top = newTop + 'px';
                 emitDesktopWindowEffect('drag', id);
-                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight);
+                updateSnapZone(activeDrag, newLeft, newTop, win.offsetWidth, win.offsetHeight, win);
                 scheduleFruityDockOcclusionCheck();
             });
         });
@@ -8612,6 +12206,10 @@ function wireWindow(win, id) {
             cancelWindowPointerFrame(drag, true);
             if (drag) emitDesktopWindowEffect('drag-end', id);
             if (drag && drag.snapZone) applyWindowSnap(win, drag.snapZone);
+            else if (drag && drag.moved) {
+                const item = state.windows.get(id);
+                if (item) { item.snapped = ''; item.restoreBounds = null; }
+            }
             hideSnapOverlay();
             drag = null;
             win.classList.remove('dragging');
@@ -8639,18 +12237,22 @@ function wireWindow(win, id) {
     const SNAP_EDGE = 4;
     const SNAP_TOP_SIDE_EDGE = 96;
 
-    function updateSnapZone(drag, left, top, width, height) {
-        const workspace = $('vd-workspace') || document.body;
-        const ww = workspace.clientWidth;
-        const wh = workspace.clientHeight;
+    function updateSnapZone(drag, left, top, width, height, win) {
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width;
+        const wh = limits.height;
         const nearLeftEdge = left <= SNAP_TOP_SIDE_EDGE;
         const nearRightEdge = left + width >= ww - SNAP_TOP_SIDE_EDGE;
+        const nearBottomEdge = top + height >= wh - SNAP_EDGE;
         let zone = null;
         if (top <= SNAP_EDGE && nearLeftEdge) zone = 'top-left';
         else if (top <= SNAP_EDGE && nearRightEdge) zone = 'top-right';
         else if (top <= SNAP_EDGE) zone = 'maximize';
+        else if (nearBottomEdge && nearLeftEdge) zone = 'bottom-left';
+        else if (nearBottomEdge && nearRightEdge) zone = 'bottom-right';
         else if (left <= SNAP_EDGE) zone = 'left-half';
         else if (left + width >= ww - SNAP_EDGE) zone = 'right-half';
+        if (zone && !desktopWindowLayoutFits(desktopWindowLayoutRect(zone, ww, wh), limits)) zone = null;
         drag.snapZone = zone;
         showSnapOverlay(zone, ww, wh);
     }
@@ -8665,15 +12267,8 @@ function wireWindow(win, id) {
             $('vd-window-layer').appendChild(overlay);
         }
         overlay.hidden = false;
-        const positions = {
-            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
-            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
-            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
-            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 },
-            'maximize': { left: 0, top: 0, width: ww, height: wh }
-        };
-        const p = positions[zone];
+        const p = desktopWindowLayoutRect(zone, ww, wh);
+        if (!p) { hideSnapOverlay(); return; }
         overlay.style.left = p.left + 'px';
         overlay.style.top = p.top + 'px';
         overlay.style.width = p.width + 'px';
@@ -8686,54 +12281,52 @@ function wireWindow(win, id) {
         if (overlay) overlay.hidden = true;
     }
 
-    function applyWindowSnap(win, zone) {
-        const limits = windowLayoutLimits(win);
-        const ww = limits.width, wh = limits.height;
-        const positions = {
-            'left-half': { left: 0, top: 0, width: ww / 2, height: wh },
-            'right-half': { left: ww / 2, top: 0, width: ww / 2, height: wh },
-            'top-half': { left: 0, top: 0, width: ww, height: wh / 2 },
-            'top-left': { left: 0, top: 0, width: ww / 2, height: wh / 2 },
-            'top-right': { left: ww / 2, top: 0, width: ww / 2, height: wh / 2 }
-        };
+    function applyWindowSnap(win, zone, options) {
         const windowId = win.dataset.windowId;
         const item = state.windows.get(windowId);
-        if (!item) return;
+        if (!item || item.isGadget) return false;
+        closeWindowLayoutPopupFor(windowId);
+        const limits = windowLayoutLimits(win);
+        const ww = limits.width, wh = limits.height;
+        const p = desktopWindowLayoutRect(zone, ww, wh);
+        if (!desktopWindowLayoutFits(p, limits)) return false;
         if (zone === 'maximize') {
             item.snapped = '';
             if (!item.maximized) toggleMaximizeWindow(windowId);
-            return;
+            return true;
         }
-        const p = positions[zone];
-        if (!p) return;
+        if (!p) return false;
         animateWindowBounds(win, () => {
+            desktopWindowRememberRestoreBounds(item, windowBounds(win));
             if (item.maximized) {
                 item.maximized = false;
                 win.classList.remove('maximized');
             }
-            item.restoreBounds = windowBounds(win);
             item.snapped = zone;
-            const width = Math.min(ww, Math.max(limits.minWidth, p.width));
-            const height = Math.min(wh, Math.max(limits.minHeight, p.height));
-            win.style.left = Math.min(p.left, ww - width) + 'px';
-            win.style.top = Math.min(p.top, wh - height) + 'px';
-            win.style.width = width + 'px';
-            win.style.height = height + 'px';
+            win.style.left = p.left + 'px';
+            win.style.top = p.top + 'px';
+            win.style.width = p.width + 'px';
+            win.style.height = p.height + 'px';
         });
         emitDesktopWindowEffect('snap', windowId);
         desktopSound('window.snap');
         scheduleFruityDockOcclusionCheck();
+        scheduleSessionPersist();
+        const partnerZone = desktopWindowSnapPartnerZone(zone);
+        if (partnerZone && (!options || options.showPartnerChooser !== false)) showWindowSnapPartnerChooser(windowId, partnerZone);
+        return true;
     }
 
     function restoreWindowFromSnap(id) {
         const item = state.windows.get(id);
         if (!item || !item.element || item.isGadget) return;
+        closeWindowLayoutPopupFor(id);
         if (item.maximized) {
             toggleMaximizeWindow(id);
             return;
         }
         const bounds = item.restoreBounds;
-        if (item.snapped && bounds) {
+        if (bounds) {
             animateWindowBounds(item.element, () => {
                 item.element.classList.remove('maximized');
                 item.element.style.left = bounds.left + 'px';
@@ -8742,9 +12335,11 @@ function wireWindow(win, id) {
                 item.element.style.height = bounds.height + 'px';
                 item.maximized = false;
                 item.snapped = '';
+                item.restoreBounds = null;
             });
             emitDesktopWindowEffect('restore', id);
             scheduleFruityDockOcclusionCheck();
+            scheduleSessionPersist();
             return;
         }
         minimizeWindow(id);
@@ -8757,10 +12352,9 @@ function wireWindow(win, id) {
         const item = state.windows.get(state.activeWindowId);
         if (!item || !item.element || item.isGadget) return false;
         event.preventDefault();
-        if (event.key === 'ArrowLeft') applyWindowSnap(item.element, 'left-half');
-        else if (event.key === 'ArrowRight') applyWindowSnap(item.element, 'right-half');
-        else if (event.key === 'ArrowUp') applyWindowSnap(item.element, 'maximize');
-        else restoreWindowFromSnap(item.id);
+        const zone = desktopWindowKeyboardLayout(item.snapped, event.key);
+        if (zone === 'restore') restoreWindowFromSnap(item.id);
+        else if (zone) applyWindowSnap(item.element, zone);
         return true;
     }
 
@@ -8811,8 +12405,8 @@ function wireWindow(win, id) {
         return {
             left: parseInt(win.style.left, 10) || 0,
             top: parseInt(win.style.top, 10) || 0,
-            width: Math.round(win.offsetWidth),
-            height: Math.round(win.offsetHeight)
+            width: Math.round(win.offsetWidth || parseFloat(win.style.width) || 0),
+            height: Math.round(win.offsetHeight || parseFloat(win.style.height) || 0)
         };
     }
 
@@ -8836,6 +12430,7 @@ function wireWindow(win, id) {
     function toggleMaximizeWindow(id) {
         const item = state.windows.get(id);
         if (!item) return;
+        closeWindowLayoutPopupFor(id);
         const win = item.element;
         desktopSound(item.maximized ? 'window.restore' : 'window.maximize');
         animateWindowBounds(win, () => {
@@ -8847,14 +12442,18 @@ function wireWindow(win, id) {
                 win.style.width = b.width + 'px';
                 win.style.height = b.height + 'px';
                 item.maximized = false;
+                item.snapped = '';
+                item.restoreBounds = null;
             } else {
-                item.restoreBounds = windowBounds(win);
+                desktopWindowRememberRestoreBounds(item, windowBounds(win));
+                item.snapped = '';
                 const bounds = windowLayoutLimits(win);
+                const rect = desktopWindowLayoutRect('maximize', bounds.width, bounds.height);
                 win.classList.add('maximized');
-                win.style.left = '0';
-                win.style.top = '0';
-                win.style.width = bounds.width + 'px';
-                win.style.height = bounds.height + 'px';
+                win.style.left = rect.left + 'px';
+                win.style.top = rect.top + 'px';
+                win.style.width = rect.width + 'px';
+                win.style.height = rect.height + 'px';
                 item.maximized = true;
             }
         });
@@ -8880,6 +12479,9 @@ function wireWindow(win, id) {
                     x: event.clientX,
                     y: event.clientY,
                     bounds: windowBounds(win),
+                    style: { left: win.style.left, top: win.style.top, width: win.style.width, height: win.style.height },
+                    snapped: item && item.snapped || '',
+                    restoreBounds: item && item.restoreBounds ? { ...item.restoreBounds } : null,
                     raf: 0,
                     pendingFrame: null
                 };
@@ -8902,8 +12504,11 @@ function wireWindow(win, id) {
             });
             handle.addEventListener('pointerup', event => {
                 if (!resize) return;
+                const activeResize = resize;
                 handle.releasePointerCapture(event.pointerId);
                 cancelWindowPointerFrame(resize, true);
+                const item = state.windows.get(id), current = windowBounds(win), start = activeResize.bounds;
+                if (item && (current.left !== start.left || current.top !== start.top || current.width !== start.width || current.height !== start.height)) { item.snapped = ''; item.restoreBounds = null; }
                 emitDesktopWindowEffect('resize-end', id);
                 resize = null;
                 win.classList.remove('resizing');
@@ -8912,6 +12517,12 @@ function wireWindow(win, id) {
             handle.addEventListener('pointercancel', event => {
                 if (handle.hasPointerCapture && handle.hasPointerCapture(event.pointerId)) {
                     handle.releasePointerCapture(event.pointerId);
+                }
+                if (resize) {
+                    const item = state.windows.get(id), start = resize;
+                    Object.assign(win.style, start.style);
+                    if (item) { item.snapped = start.snapped; item.restoreBounds = start.restoreBounds; }
+                    scheduleFruityDockOcclusionCheck();
                 }
                 cancelWindowPointerFrame(resize);
                 if (resize) emitDesktopWindowEffect('resize-end', id);
@@ -8927,9 +12538,12 @@ function wireWindow(win, id) {
         const minimum = appWindowMinSize(win.dataset.appId);
         const minWidth = Math.min(workspace.width, minimum.width || WINDOW_MIN_W);
         const minHeight = Math.min(workspace.height, minimum.height || WINDOW_MIN_H);
+        const cssLimits = window.getComputedStyle ? window.getComputedStyle(win) : win.style;
         win.style.minWidth = minWidth + 'px';
         win.style.minHeight = minHeight + 'px';
-        return { ...workspace, minWidth, minHeight };
+        return { ...workspace, minWidth, minHeight,
+            maxWidth: desktopWindowLayoutMaxLimit(cssLimits && cssLimits.maxWidth, workspace.width),
+            maxHeight: desktopWindowLayoutMaxLimit(cssLimits && cssLimits.maxHeight, workspace.height) };
     }
 
     function applyResize(win, edge, start, dx, dy) {
@@ -8995,6 +12609,24 @@ function wireWindow(win, id) {
                 }
                 return;
             }
+            if (item.snapped) {
+                const bounds = windowLayoutLimits(win);
+                const rect = desktopWindowLayoutRect(item.snapped, bounds.width, bounds.height);
+                if (desktopWindowLayoutFits(rect, bounds)) {
+                    win.style.left = rect.left + 'px';
+                    win.style.top = rect.top + 'px';
+                    win.style.width = rect.width + 'px';
+                    win.style.height = rect.height + 'px';
+                    return;
+                }
+                item.snapped = '';
+                if (!mobile) {
+                    const before = `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+                    applyResize(win, 'se', item.restoreBounds || windowBounds(win), 0, 0);
+                    changed ||= before !== `${win.style.left}|${win.style.top}|${win.style.width}|${win.style.height}`;
+                }
+                return;
+            }
             if (mobile) return;
             const bounds = windowBounds(win);
             if (!bounds.width) bounds.width = parseFloat(win.style.width) || WINDOW_MIN_W;
@@ -9055,7 +12687,9 @@ function wireWindow(win, id) {
 
         if (state.z > 100000) normalizeWindowZIndexes();
         const wasHidden = win.element.style.display === 'none' || win.element.hidden;
+        win.minimizeRevision = (win.minimizeRevision || 0) + 1;
         win.minimizing = false;
+        win.element.classList.remove('vd-window-minimizing');
         win.element.style.display = '';
         assignWindowZ(win);
         state.activeWindowId = id;
@@ -9077,16 +12711,17 @@ function wireWindow(win, id) {
 
     async function closeWindow(id) {
         const win = state.windows.get(id);
-        if (!win) return;
-        if (win.isGadget) return; // gadgets are closed via their own context menu
-        if (win.closing || win.checkingClose) return;
+        if (!win) return 'skipped';
+        if (win.isGadget) return 'skipped'; // gadgets are closed via their own context menu
+        if (win.closing || win.checkingClose) return 'skipped';
         if (typeof win.beforeClose === 'function') {
             win.checkingClose = true;
-            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return; } }
-            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return; }
+            try { if (!await win.beforeClose()) { desktopSound('window.deny'); return 'cancelled'; } }
+            catch (error) { console.warn('Window close was cancelled', error); desktopSound('window.deny'); return 'cancelled'; }
             finally { win.checkingClose = false; }
-            if (!state.windows.has(id)) return;
+            if (state.windows.get(id) !== win || win.closing || win.checkingClose) return 'skipped';
         }
+        closeWindowLayoutPopupFor(id);
         win.closing = true;
         emitDesktopWindowEffect('close', id);
         desktopSound('window.close');
@@ -9102,6 +12737,14 @@ function wireWindow(win, id) {
             scheduleFruityDockOcclusionCheck();
             scheduleSessionPersist();
         });
+        return 'accepted';
+    }
+
+    async function closeDesktopWindowBatch(ids) {
+        return desktopCloseWindowBatch(ids, id => {
+            const item = state.windows.get(id);
+            return !!(item && !item.isGadget);
+        }, closeWindow);
     }
 
     function closeContextMenu(immediate) {
@@ -10368,26 +14011,130 @@ function wireWindow(win, id) {
 (function () {
     'use strict';
     const owners = new Map();
-    const actions = new Set(['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']);
+    const supportedActions = new Set(['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']);
+    const actions = new Set(supportedActions);
+    const listeners = new Set();
+    const statuses = new Set(['idle', 'paused', 'playing', 'buffering', 'ended', 'error']);
     let sequence = 0;
-    function render() {
-        if (!('mediaSession' in navigator)) return;
-        const selected = [...owners.values()].sort((a, b) => b.priority - a.priority || b.order - a.order)[0];
+    let lastOwner = null;
+    let lastSnapshot = '';
+
+    function selectedEntry() {
+        return [...owners.entries()].sort((a, b) => b[1].priority - a[1].priority || b[1].order - a[1].order)[0] || null;
+    }
+
+    function metadataSnapshot(metadata) {
+        metadata = metadata && typeof metadata === 'object' ? metadata : {};
+        const artwork = Array.isArray(metadata.artwork) ? metadata.artwork.map(image => {
+            if (!image || typeof image !== 'object') return null;
+            const item = {};
+            ['src', 'sizes', 'type'].forEach(key => {
+                if (typeof image[key] === 'string') item[key] = image[key];
+            });
+            return item.src ? item : null;
+        }).filter(Boolean) : [];
+        return {
+            title: typeof metadata.title === 'string' ? metadata.title : '',
+            artist: typeof metadata.artist === 'string' ? metadata.artist : '',
+            album: typeof metadata.album === 'string' ? metadata.album : '',
+            artwork
+        };
+    }
+
+    function snapshotFor(entry) {
+        if (!entry) return {
+            available: false,
+            metadata: metadataSnapshot(null),
+            playbackState: 'none',
+            status: 'unavailable',
+            actions: []
+        };
+        const owner = entry[1];
+        const playbackState = typeof owner.playbackState === 'string' ? owner.playbackState : 'none';
+        const status = statuses.has(owner.status) ? owner.status
+            : playbackState === 'playing' ? 'playing'
+                : playbackState === 'paused' ? 'paused' : 'idle';
+        const handlers = owner.handlers && typeof owner.handlers === 'object' ? owner.handlers : {};
+        return {
+            available: true,
+            metadata: metadataSnapshot(owner.metadata),
+            playbackState,
+            status,
+            actions: Object.keys(handlers).filter(action => supportedActions.has(action) && typeof handlers[action] === 'function')
+        };
+    }
+
+    function notifyIfChanged(entry, snapshot) {
+        const signature = JSON.stringify(snapshot);
+        const owner = entry ? entry[0] : null;
+        if (owner === lastOwner && signature === lastSnapshot) return;
+        lastOwner = owner;
+        lastSnapshot = signature;
+        listeners.forEach(listener => {
+            try { listener(snapshotFor(entry)); } catch (_) { /* observers cannot interrupt media ownership */ }
+        });
+    }
+
+    async function dispatch(action, details) {
+        if (!supportedActions.has(action)) return false;
+        const entry = selectedEntry();
+        const handlers = entry && entry[1].handlers;
+        const handler = handlers && Object.prototype.hasOwnProperty.call(handlers, action) ? handlers[action] : null;
+        if (typeof handler !== 'function') return false;
+        return (await handler(details)) !== false;
+    }
+
+    function renderNative(entry) {
+        if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !navigator.mediaSession) return;
+        const selected = entry && entry[1];
         for (const action of actions) {
-            try { navigator.mediaSession.setActionHandler(action, selected?.handlers?.[action] || null); } catch (_) { /* unsupported action */ }
+            try {
+                const handler = selected?.handlers && Object.prototype.hasOwnProperty.call(selected.handlers, action)
+                    ? selected.handlers[action] : null;
+                navigator.mediaSession.setActionHandler(action,
+                    typeof handler === 'function' ? details => { dispatch(action, details).catch(() => {}); } : null);
+            } catch (_) { /* unsupported action */ }
         }
-        try { navigator.mediaSession.metadata = selected?.metadata ? new MediaMetadata(selected.metadata) : null; } catch (_) { /* unsupported metadata */ }
+        try {
+            if (!selected?.metadata) navigator.mediaSession.metadata = null;
+            else if (typeof MediaMetadata === 'function') navigator.mediaSession.metadata = new MediaMetadata(metadataSnapshot(selected.metadata));
+        } catch (_) { /* unsupported metadata */ }
         try { navigator.mediaSession.playbackState = selected?.playbackState || 'none'; } catch (_) { /* unsupported state */ }
     }
+
+    function refresh() {
+        const entry = selectedEntry();
+        renderNative(entry);
+        notifyIfChanged(entry, snapshotFor(entry));
+    }
+
     window.AuraDesktopMediaSession = Object.freeze({
         claim(owner, options) {
             if (!owner) return;
+            options = options || {};
             const prior = owners.get(owner);
-            owners.set(owner, { ...options, priority: options.priority || 0, order: options.activate ? ++sequence : (prior?.order || ++sequence) });
+            owners.set(owner, {
+                ...options,
+                metadata: metadataSnapshot(options.metadata),
+                priority: options.priority || 0,
+                order: options.activate ? ++sequence : (prior?.order || ++sequence)
+            });
             Object.keys(options.handlers || {}).forEach(action => actions.add(action));
-            render();
+            refresh();
         },
-        release(owner) { if (owners.delete(owner)) render(); }
+        release(owner) {
+            if (owners.delete(owner)) refresh();
+        },
+        snapshot() {
+            return snapshotFor(selectedEntry());
+        },
+        subscribe(listener) {
+            if (typeof listener !== 'function') return () => {};
+            listeners.add(listener);
+            try { listener(snapshotFor(selectedEntry())); } catch (_) { /* observers cannot interrupt media ownership */ }
+            return () => listeners.delete(listener);
+        },
+        dispatch
     });
 })();
 
@@ -10398,14 +14145,63 @@ function wireWindow(win, id) {
     // Keys with a fixed id shape are only saved and restored when they match it.
     const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
     let sessionPersistTimer = 0;
+    let desktopSessionEnded = false;
+
+    function registerWindowSessionAction(id, participant) {
+        if (!state.windows.has(id) && participant) return;
+        return window.AuraDesktopSessionActions?.register(id, participant);
+    }
+
+    async function decideDesktopSessionAction(options = {}) {
+        const title = options.title || t('desktop.session_controls');
+        const label = options.label || options.detail || title;
+        const choice = await modalDialog({
+            title: t('desktop.session_action_question_title'),
+            message: t('desktop.session_action_question_message', { title, label }),
+            choices: [
+                { value: 'keep', label: t('desktop.session_action_keep') },
+                { value: 'save', label: t('desktop.session_action_save') }
+            ]
+        });
+        return choice === 'save' || choice === 'keep' ? choice : 'cancel';
+    }
+
+    function syncDesktopSessionControls() {
+        const footer = document.getElementById('vd-start-session');
+        if (!footer) return;
+        const enabled = window._auragoAuthEnabled === true && !desktopSessionEnded;
+        footer.hidden = !enabled;
+        footer.setAttribute('aria-label', t('desktop.session_controls'));
+        footer.querySelector('span').textContent = t('desktop.session_signed_in');
+        const button = footer.querySelector('button');
+        button.textContent = t('desktop.session_logout');
+        button.disabled = !enabled || !!window._logoutInProgress;
+    }
+
+    function initDesktopSessionActions() {
+        window.AuraDesktopSessionActions?.configure({
+            getWindows: () => [...state.windows.values()].filter(win => !win.isGadget && !win.closing && win.element?.isConnected)
+                .map(win => ({ id: win.id, title: win.title || win.element.querySelector('.vd-window-title')?.textContent || win.appId,
+                    appId: win.appId, beforeClose: win.beforeClose })),
+            canLogout: () => window._auragoAuthEnabled === true && !desktopSessionEnded && !window._logoutInProgress,
+            logout: () => window.performAuthenticatedLogout(),
+            onProblem: async problem => {
+                if (problem.code === 'auth_disabled' || desktopSessionEnded) return;
+                if (problem.windowId && state.windows.has(problem.windowId)) focusWindow(problem.windowId);
+                const prefix = problem.code === 'unknown_guard' ? 'desktop.logout_unavailable'
+                    : problem.code === 'save_failed' ? 'desktop.logout_save_failed' : 'desktop.logout_changed';
+                await modalDialog({ title: t(prefix + '_title'), message: t(prefix + '_message', { title: problem.title || t('desktop.session_controls') }) });
+            }
+        });
+        document.getElementById('vd-start-logout')?.addEventListener('click', () => { closeStartMenu(); void window.performLogout(); });
+        document.addEventListener('aurago:auth-status', syncDesktopSessionControls);
+        document.addEventListener('aurago:auth-ended', () => { desktopSessionEnded = true; syncDesktopSessionControls(); });
+        window.addEventListener('aurago:language-changed', syncDesktopSessionControls);
+        syncDesktopSessionControls();
+    }
 
     function saveSetting(key, value, keepalive = false) {
-        return api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, value }),
-            keepalive
-        });
+        return writeDesktopSettings({ [key]: value }, keepalive);
     }
 
     function defaultDockPinIds() {
@@ -10487,7 +14283,8 @@ function wireWindow(win, id) {
             if (SESSION_SKIP_APP_IDS.has(item.appId)) return;
             const el = item.element;
             if (!el) return;
-            const bounds = (item.maximized && item.restoreBounds) || el.style;
+            const snapped = sessionSnapZone(item.snapped);
+            const bounds = ((item.maximized || snapped) && item.restoreBounds) || el.style;
             windows.push({
                 key: item.sessionKey || item.id,
                 appId: item.appId,
@@ -10496,6 +14293,7 @@ function wireWindow(win, id) {
                 width: parseInt(bounds.width, 10) || 800,
                 height: parseInt(bounds.height, 10) || 600,
                 maximized: !!item.maximized,
+                snapped,
                 minimized: el.style.display === 'none',
                 z: parseInt(el.style.zIndex, 10) || 0,
                 spaceId: windowSpaceId(item),
@@ -10512,7 +14310,7 @@ function wireWindow(win, id) {
     }
 
     function scheduleSessionPersist() {
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
     }
@@ -10520,14 +14318,10 @@ function wireWindow(win, id) {
     async function persistSessionSnapshot(keepalive = false) {
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = 0;
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         try {
-            const snapshot = captureSessionSnapshot();
-            const json = JSON.stringify(snapshot);
-            await saveSetting('session.windows', json, keepalive);
-            if (state.bootstrap) {
-                state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
-            }
+            await queueDesktopSettingsWrite(() => ({ settings: { 'session.windows': JSON.stringify(captureSessionSnapshot()) },
+                revision: desktopWorkspaceRevision() }), keepalive);
         } catch (err) {
             if (!keepalive) showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -10543,6 +14337,22 @@ function wireWindow(win, id) {
         } catch (_) {
             return null;
         }
+    }
+
+    function sessionSnapZone(value) {
+        return value !== 'maximize' && DESKTOP_WINDOW_LAYOUT_ZONES.includes(value) ? value : '';
+    }
+
+    function sessionWindowGeometry(entry) {
+        const room = windowWorkspaceSize();
+        const defaults = appWindowSize(entry.appId);
+        const minimum = appWindowMinSize(entry.appId);
+        const number = (value, fallback) => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+        const width = Math.min(room.width, Math.max(minimum.width, number(entry.width, defaults.width)));
+        const height = Math.min(room.height, Math.max(minimum.height, number(entry.height, defaults.height)));
+        return { width, height,
+            left: Math.max(0, Math.min(room.width - width, number(entry.left, 0))),
+            top: Math.max(0, Math.min(room.height - height, number(entry.top, 0))) };
     }
 
     async function restoreDesktopSession() {
@@ -10563,11 +14373,9 @@ function wireWindow(win, id) {
                     forceNew: true,
                     sessionRestore: {
                         key: typeof entry.key === 'string' ? entry.key : '',
-                        left: entry.left,
-                        top: entry.top,
-                        width: entry.width,
-                        height: entry.height,
+                        ...sessionWindowGeometry(entry),
                         maximized: !!entry.maximized,
+                        snapped: sessionSnapZone(entry.snapped),
                         minimized: !!entry.minimized,
                         z: entry.z || 0,
                         spaceId: entry.spaceId,
@@ -10607,22 +14415,26 @@ function wireWindow(win, id) {
         }
     }
 
-    async function setDefaultAppForExtension(ext, appId) {
+    let defaultAppsSaveQueue = Promise.resolve();
+    function setDefaultAppForExtension(ext, appId) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
-        if (!normalized || !appId) return;
-        const map = parseDefaultAppsMap();
-        map[normalized] = appId;
-        const json = JSON.stringify(map);
-        await saveSetting('files.default_apps', json);
-        if (state.bootstrap) {
-            state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'files.default_apps': json });
-        }
+        if (!/^[a-z0-9][a-z0-9_+.-]{0,31}$/.test(normalized) || desktopReadonly()) return Promise.reject(new Error(t('desktop.action_unavailable')));
+        const pending = defaultAppsSaveQueue.then(async () => {
+            if (appId && !desktopAssociationCandidates({ name: 'file.' + normalized, path: 'Shared/file.' + normalized, type: 'file' }).some(app => app.appId === appId)) throw new Error(t('desktop.action_unavailable'));
+            const map = parseDefaultAppsMap();
+            if (appId) map[normalized] = appId;
+            else delete map[normalized];
+            await saveDesktopPreference('files.default_apps', JSON.stringify(map));
+        });
+        defaultAppsSaveQueue = pending.catch(() => {});
+        return pending;
     }
 
     function defaultAppForExtension(ext) {
         const normalized = String(ext || '').toLowerCase().replace(/^\./, '');
         const map = parseDefaultAppsMap();
-        return map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
+        const mapped = map[normalized] || (normalized === 'lyl' ? 'layerling' : '');
+        return mapped && appById(mapped) ? mapped : '';
     }
 
     const RECENT_FILES_KEY = 'aurago.desktop.recentFiles.v2';
@@ -10675,11 +14487,556 @@ function wireWindow(win, id) {
     }
 
 ;
+/* ui/js/desktop/core/settings-runtime.js */
+    let desktopPreferenceQueue = Promise.resolve();
+
+    function desktopSettingsContext() {
+        return { state, settingValue, settingBool, desktopSettings, t, currentDesktopTheme, desktopThemes,
+            iconThemeManifests: state.iconThemeManifests };
+    }
+    window.AuraDesktopSettingsContext = desktopSettingsContext;
+
+    function desktopPreferenceUpdates(key, value) {
+        const updates = { [key]: String(value) };
+        if (key === 'appearance.theme') {
+            const theme = desktopThemeById(value);
+            if (theme) Object.assign(updates, {
+                'appearance.icon_theme': theme.iconTheme,
+                'appearance.wallpaper': theme.wallpaper,
+                'appearance.wallpaper_by_space': '{}',
+                'appearance.theme_cursors': 'true',
+                'sound.theme': theme.soundTheme
+            });
+        }
+        return updates;
+    }
+
+    function saveDesktopPreference(key, value) {
+        if (desktopReadonly()) return Promise.reject(new Error(t('desktop.action_unavailable')));
+        const updates = desktopPreferenceUpdates(key, value);
+        return writeDesktopSettings(updates).then(async result => {
+            applyDesktopSettings();
+            Object.entries(updates).forEach(([setting, stored]) => applySoundSettingsChange(setting, stored));
+            if (key === 'windows.restore_session' && String(value) === 'true') await persistSessionSnapshot();
+            if (key !== 'sound.volume') {
+                renderStartButtonIcon();
+                renderIcons();
+                renderWidgets();
+                renderStartApps();
+            }
+            window.dispatchEvent(new CustomEvent('aurago:desktop-settings', { detail: { keys: Object.keys(updates) } }));
+            return result;
+        });
+    }
+
+    const WORKSPACE_PROTECTED_SETTINGS = ['session.windows', 'appearance.wallpaper_by_space', 'appearance.wallpaper'];
+    let desktopWorkspaceUIReady = false;
+    let desktopWorkspacePresentation = '';
+
+    function desktopWorkspaceRevision() {
+        return window.AuraDesktopWorkspaceManager?.snapshot().layout.revision || 1;
+    }
+
+    function applyDesktopWorkspaceState(snapshot) {
+        if (!snapshot?.layout) return;
+        if (!state.bootstrap) state.bootstrap = {};
+        state.bootstrap.settings = Object.assign({}, state.bootstrap.settings, snapshot.settings,
+            { 'desktop.workspaces.layout': JSON.stringify(snapshot.layout) });
+        const manager = window.AuraDesktopWorkspaceManager;
+        state.activeSpaceId = manager.resolveId(state.activeSpaceId || '1');
+        state.windows.forEach(win => {
+            if (win.isGadget) return;
+            assignWindowSpace(win, manager.resolveId(win.spaceId || win.element?.dataset.spaceId || '1'));
+        });
+        const presentation = JSON.stringify([snapshot.layout.workspaces, snapshot.layout.removed_to,
+            snapshot.settings?.['appearance.wallpaper'], snapshot.settings?.['appearance.wallpaper_by_space']]);
+        const changed = presentation !== desktopWorkspacePresentation;
+        desktopWorkspacePresentation = presentation;
+        if (!desktopWorkspaceUIReady || !changed) return;
+        applyActiveSpaceWallpaper();
+        applySpaceVisibility();
+        renderSpacePager();
+        renderTaskbar();
+        if (isSpacesOverviewOpen()) renderSpacesOverview();
+        window.dispatchEvent(new CustomEvent('aurago:desktop-settings', { detail: { keys: ['desktop.workspaces.layout'] } }));
+    }
+
+    function initDesktopWorkspaceSettings() {
+        window.AuraDesktopWorkspaceManager?.configure({ api, readonly: desktopReadonly, t, mountDialog: mountDesktopDialog,
+            onChange: applyDesktopWorkspaceState,
+            onConflict: () => showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.workspaces_conflict') }) });
+    }
+
+    function acceptDesktopBootstrap(boot) {
+        const manager = window.AuraDesktopWorkspaceManager;
+        const previous = manager?.snapshot();
+        let layout;
+        try { layout = JSON.parse(boot?.settings?.['desktop.workspaces.layout'] || 'null'); } catch (_) { /* Defaults cover legacy sessions. */ }
+        state.bootstrap = boot;
+        if (!manager) return;
+        if (!layout && previous?.layout.revision === 1) layout = previous.layout;
+        if (layout && layout.revision >= (previous?.layout.revision || 1)) {
+            const settings = {};
+            WORKSPACE_PROTECTED_SETTINGS.forEach(key => { settings[key] = boot.settings[key] ?? desktopSettingDefaults[key]; });
+            manager.adopt({ layout, settings });
+        } else if (previous) {
+            applyDesktopWorkspaceState(previous);
+        }
+    }
+
+    function queueDesktopSettingsWrite(producer, keepalive = false) {
+        const pending = desktopPreferenceQueue.then(async () => {
+            if (desktopReadonly() || desktopSessionEnded) throw new Error(t('desktop.action_unavailable'));
+            const body = producer();
+            let result;
+            try {
+                result = await api('/api/desktop/settings', { method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive });
+            } catch (err) {
+                if (err.body?.code === 'workspace_revision_conflict' || err.body?.code === 'workspace_revision_required') {
+                    if (err.body.state) window.AuraDesktopWorkspaceManager?.adopt(err.body.state);
+                    err.message = t('desktop.workspaces_conflict');
+                }
+                throw err;
+            }
+            if (!state.bootstrap) state.bootstrap = {};
+            if (!state.bootstrap.settings) state.bootstrap.settings = {};
+            for (const [key, value] of Object.entries(body.settings)) {
+                if (!result.workspace || !WORKSPACE_PROTECTED_SETTINGS.includes(key)) {
+                    state.bootstrap.settings[key] = result.settings?.[key] ?? value;
+                }
+            }
+            if (result.workspace) window.AuraDesktopWorkspaceManager?.adopt(result.workspace);
+            return result;
+        });
+        desktopPreferenceQueue = pending.catch(() => {});
+        return pending;
+    }
+
+    function reconcileDesktopSettingsResponse(result) {
+        const manager = window.AuraDesktopWorkspaceManager;
+        if (!manager || !result?.settings) return;
+        let snapshot = result.workspace;
+        try {
+            const layout = JSON.parse(result.settings['desktop.workspaces.layout'] || 'null');
+            if (layout && layout.revision > (snapshot?.layout.revision || 0)) {
+                const settings = {};
+                WORKSPACE_PROTECTED_SETTINGS.forEach(key => { settings[key] = result.settings[key] ?? desktopSettingDefaults[key]; });
+                snapshot = { layout, settings };
+            }
+        } catch (_) { /* A malformed or obsolete response cannot replace the accepted layout. */ }
+        if (!snapshot && !Object.hasOwn(result.settings, 'desktop.workspaces.layout')) return;
+        if (snapshot) manager.adopt(snapshot);
+        const latest = manager.snapshot();
+        // Pet and phone controls still consume the full settings response.
+        Object.assign(result.settings, latest.settings, { 'desktop.workspaces.layout': JSON.stringify(latest.layout) });
+    }
+
+    function writeDesktopSettings(settings, keepalive = false) {
+        const protectedKeys = WORKSPACE_PROTECTED_SETTINGS.filter(key => Object.hasOwn(settings, key));
+        const identity = () => {
+            const layout = window.AuraDesktopWorkspaceManager?.snapshot().layout;
+            return JSON.stringify(layout && [layout.workspaces, layout.removed_to, layout.next_id]);
+        };
+        const expectedLayout = identity();
+        const baseline = protectedKeys.map(key => settingValue(key));
+        return queueDesktopSettingsWrite(() => {
+            // A queued session save may advance the revision without changing this command's inputs.
+            if (protectedKeys.length && (identity() !== expectedLayout || protectedKeys.some((key, index) => settingValue(key) !== baseline[index]))) {
+                throw new Error(t('desktop.workspaces_conflict'));
+            }
+            return { settings, ...(protectedKeys.length ? { revision: desktopWorkspaceRevision() } : {}) };
+        }, keepalive);
+    }
+
+    let desktopCustomWallpaperKey = '';
+    function syncDesktopCustomWallpaper() {
+        const body = document.body;
+        const runtime = window.AuraDesktopCustomWallpaper;
+        if (!body || !runtime) return;
+        const value = body.dataset.wallpaper;
+        const fit = settingValue('appearance.wallpaper_fit') || 'cover';
+        const key = JSON.stringify([value, fit]);
+        if (key === desktopCustomWallpaperKey) return;
+        desktopCustomWallpaperKey = key;
+        if (!runtime.isCustom(value)) {
+            runtime.release(body);
+            updateDesktopWallpaperStatus('', 'ready');
+            return;
+        }
+        void runtime.apply(body, value, fit, { isCurrent: candidate => body.dataset.wallpaper === candidate,
+            onStatus: updateDesktopWallpaperStatus });
+    }
+
+    function updateDesktopWallpaperStatus(path, status) {
+        let notice = document.getElementById('vd-wallpaper-status');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'vd-wallpaper-status';
+            notice.className = 'vd-wallpaper-status';
+            notice.setAttribute('role', 'status');
+            document.getElementById('vd-workspace')?.appendChild(notice);
+        }
+        const failed = ['missing', 'invalid', 'error'].includes(status);
+        const key = status === 'missing' ? 'desktop.wallpaper_missing' : status === 'invalid' ? 'desktop.wallpaper_invalid' : 'desktop.wallpaper_load_failed';
+        notice.hidden = !failed;
+        notice.textContent = failed ? t(key, { path }) : '';
+    }
+
+    async function chooseDesktopWallpaper() {
+        if (desktopReadonly()) return false;
+        const choice = await openDesktopFileDialog({ title: t('desktop.wallpaper_choose'), initialPath: 'Pictures',
+            filters: [{ label: 'PNG, JPEG, WebP, BMP', extensions: ['.png', '.jpg', '.jpeg', '.webp', '.bmp'] }] });
+        if (choice.canceled || !choice.path) return false;
+        return saveDesktopWallpaper('file:' + choice.path);
+    }
+
+;
+/* ui/js/desktop/core/quick-settings-runtime.js */
+    let quickSettingsPanel = null;
+    let quickSettingsOpen = false;
+    let quickSettingsAnchor = null;
+    let quickSettingsUnsubscribePolicy = null;
+    let quickSettingsUnsubscribeMedia = null;
+    let quickSettingsKeyHandler = null;
+    let quickSettingsPreferencePending = new Set();
+    let quickSettingsMedia = null;
+    let quickSettingsMediaPending = false;
+
+    function quickSettingsSchemeKey() {
+        const key = currentDesktopTheme()?.schemeSetting || '';
+        return ['appearance.fruity_mode', 'appearance.minimal_mode'].includes(key) ? key : '';
+    }
+
+    function quickSettingsSchemeLabelKey(key) {
+        return key === 'appearance.minimal_mode' ? 'desktop.settings_minimal_mode' : 'desktop.settings_fruity_mode';
+    }
+
+    function ensureQuickSettingsPanel() {
+        if (quickSettingsPanel) return quickSettingsPanel;
+        const panel = document.createElement('section');
+        panel.id = 'vd-quick-settings';
+        panel.className = 'vd-tray-popover vd-quick-settings';
+        panel.hidden = true;
+        panel.tabIndex = -1;
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'false');
+        panel.setAttribute('aria-labelledby', 'vd-quick-settings-title');
+        document.body.appendChild(panel);
+        panel.addEventListener('click', onQuickSettingsClick);
+        panel.addEventListener('input', onQuickSettingsInput);
+        panel.addEventListener('change', onQuickSettingsChange);
+        quickSettingsPanel = panel;
+        return panel;
+    }
+
+    function quickSettingsMediaHTML() {
+        if (!window.AuraDesktopMediaSession || typeof window.AuraDesktopMediaSession.snapshot !== 'function') return '';
+        return `<section class="vd-quick-settings-group vd-quick-media" aria-labelledby="vd-quick-media-title">
+            <h3 id="vd-quick-media-title">${esc(t('desktop.category_media'))}</h3>
+            <div class="vd-quick-media-content" data-quick-media-content tabindex="-1"></div>
+            <p class="vd-quick-settings-status" data-quick-media-status role="status" aria-live="polite" hidden></p>
+        </section>`;
+    }
+
+    function quickSettingsMarkup() {
+        return `<header class="vd-quick-settings-header">
+                <h2 id="vd-quick-settings-title">${esc(t('desktop.quick_settings_title'))}</h2>
+                <button type="button" class="vd-quick-settings-close" data-quick-action="close" aria-label="${esc(t('desktop.close'))}">×</button>
+            </header>
+            <section class="vd-quick-settings-group">
+                <h3>${esc(t('desktop.quick_settings_sound'))}</h3>
+                <label class="vd-quick-settings-toggle"><span>${esc(t('desktop.settings_sound_enabled'))}</span><input type="checkbox" data-quick-setting="sound.enabled"></label>
+                <label class="vd-quick-settings-control"><span>${esc(t('desktop.settings_sound_volume'))}</span><span class="vd-quick-settings-range"><input type="range" min="0" max="100" step="5" data-quick-setting="sound.volume"><output data-quick-volume-output></output></span></label>
+            </section>
+            <section class="vd-quick-settings-group">
+                <h3>${esc(t('desktop.quick_settings_display'))}</h3>
+                <label class="vd-quick-settings-toggle"><span>${esc(t('desktop.settings_window_animations'))}</span><input type="checkbox" data-quick-setting="windows.animations"></label>
+                <div data-quick-scheme-slot></div>
+            </section>
+            <section class="vd-quick-settings-group vd-quick-dnd">
+                <label class="vd-quick-settings-toggle"><span><strong>${esc(t('desktop.notifications_dnd'))}</strong><small>${esc(t('desktop.quick_settings_dnd_desc'))}</small></span><input type="checkbox" data-quick-dnd></label>
+            </section>
+            ${quickSettingsMediaHTML()}
+            <p class="vd-quick-settings-status" data-quick-status role="status" aria-live="polite" hidden></p>
+            <p class="vd-quick-settings-readonly" data-quick-readonly hidden>${esc(t('desktop.quick_settings_readonly'))}</p>`;
+    }
+
+    function quickSettingsSchemeMarkup(key) {
+        if (!key) return '';
+        const labelKey = quickSettingsSchemeLabelKey(key);
+        return `<label class="vd-quick-settings-control vd-quick-scheme">
+            <span>${esc(t(labelKey))}</span>
+            <select data-quick-setting="${esc(key)}" aria-label="${esc(t(labelKey))}">
+                <option value="light">${esc(t('desktop.settings_fruity_mode_light'))}</option>
+                <option value="dark">${esc(t('desktop.settings_fruity_mode_dark'))}</option>
+            </select>
+        </label>`;
+    }
+
+    function syncQuickSettingsScheme() {
+        const slot = quickSettingsPanel?.querySelector('[data-quick-scheme-slot]');
+        if (!slot) return;
+        const key = quickSettingsSchemeKey();
+        if (slot.dataset.schemeKey === key) return;
+        const focusedScheme = !!(slot.contains && slot.contains(document.activeElement));
+        slot.dataset.schemeKey = key;
+        slot.innerHTML = quickSettingsSchemeMarkup(key);
+        if (focusedScheme) {
+            const replacement = key ? slot.querySelector(`[data-quick-setting="${key}"]`) : quickSettingsPanel.querySelector('[data-quick-setting="windows.animations"]');
+            replacement?.focus();
+        }
+    }
+
+    function quickMediaStatusText(status) {
+        const key = `desktop.quick_settings_media_status_${String(status || 'idle')}`;
+        const text = t(key);
+        return text && text !== key ? text : String(status || 'idle');
+    }
+
+    function renderQuickMedia() {
+        if (!quickSettingsPanel) return;
+        const host = quickSettingsPanel.querySelector('[data-quick-media-content]');
+        if (!host) return;
+        const active = document.activeElement;
+        const hostOwnedFocus = !!(host.contains && host.contains(active));
+        const focusedAction = hostOwnedFocus ? active.dataset?.mediaAction || '' : '';
+        const focusedToggle = hostOwnedFocus && active.dataset?.mediaToggle === 'true';
+        const media = quickSettingsMedia;
+        if (!media || !media.available) {
+            host.innerHTML = `<p class="vd-quick-media-empty">${esc(t('desktop.quick_settings_media_empty'))}</p>`;
+            if (hostOwnedFocus) host.focus();
+            return;
+        }
+        const metadata = media.metadata || {};
+        const title = String(metadata.title || '').trim();
+        const artist = String(metadata.artist || '').trim();
+        const status = String(media.status || media.playbackState || 'idle');
+        const actions = Array.isArray(media.actions) ? media.actions : [];
+        const controls = [];
+        if (actions.includes('previoustrack')) controls.push(['previoustrack', '⏮', 'desktop.audio_player_previous']);
+        if (status === 'playing' && actions.includes('pause')) controls.push(['pause', 'Ⅱ', 'desktop.audio_player_pause', true]);
+        else if (status !== 'playing' && actions.includes('play')) controls.push(['play', '▶', 'desktop.audio_player_play', true]);
+        if (actions.includes('nexttrack')) controls.push(['nexttrack', '⏭', 'desktop.audio_player_next']);
+        host.innerHTML = `<div class="vd-quick-media-track"><strong>${esc(title || t('desktop.quick_settings_media_empty'))}</strong>${artist ? `<span>${esc(artist)}</span>` : ''}<small>${esc(quickMediaStatusText(status))}</small></div>
+            ${controls.length ? `<div class="vd-quick-media-controls" role="group" aria-label="${esc(t('desktop.category_media'))}" aria-busy="${quickSettingsMediaPending ? 'true' : 'false'}" tabindex="-1">${controls.map(([action, glyph, label, toggle]) => `<button type="button" data-media-action="${action}" ${toggle ? 'data-media-toggle="true"' : ''} aria-disabled="${quickSettingsMediaPending ? 'true' : 'false'}" aria-label="${esc(t(label))}" title="${esc(t(label))}">${glyph}</button>`).join('')}</div>` : ''}`;
+        if (hostOwnedFocus) {
+            const replacement = focusedToggle
+                ? host.querySelector('[data-media-toggle="true"]')
+                : focusedAction ? host.querySelector(`[data-media-action="${focusedAction}"]`) : null;
+            (replacement || host.querySelector('[data-media-action]') || host.querySelector('.vd-quick-media-controls') || host).focus();
+        }
+    }
+
+    function syncQuickSettings() {
+        const panel = quickSettingsPanel;
+        if (!panel) return;
+        syncQuickSettingsScheme();
+        const readonly = desktopReadonly();
+        panel.querySelectorAll('[data-quick-setting]').forEach(control => {
+            const key = control.dataset.quickSetting;
+            if (control.type === 'checkbox') control.checked = settingBool(key);
+            else if (control.type === 'range') control.value = String(Math.round(Math.min(1, Math.max(0, Number(settingValue(key) || 0))) * 100));
+            else control.value = String(settingValue(key) || 'light');
+            control.disabled = readonly || quickSettingsPreferencePending.has(key);
+        });
+        const volume = panel.querySelector('[data-quick-volume-output]');
+        if (volume) volume.value = `${panel.querySelector('[data-quick-setting="sound.volume"]')?.value || 0}%`;
+        const dnd = panel.querySelector('[data-quick-dnd]');
+        if (dnd) dnd.checked = !!window.AuraDesktopNotificationCenter?.policy?.().dnd;
+        const readonlyHint = panel.querySelector('[data-quick-readonly]');
+        if (readonlyHint) readonlyHint.hidden = !readonly;
+        renderQuickMedia();
+    }
+
+    function quickSettingsStatus(message, error) {
+        if (!quickSettingsPanel) return;
+        const status = quickSettingsPanel.querySelector('[data-quick-status]');
+        if (!status) return;
+        status.textContent = message || '';
+        status.hidden = !message;
+        status.classList.toggle('is-error', !!error);
+    }
+
+    function quickMediaStatus(message, error) {
+        const status = quickSettingsPanel?.querySelector('[data-quick-media-status]');
+        if (!status) return;
+        status.textContent = message || '';
+        status.hidden = !message;
+        status.classList.toggle('is-error', !!error);
+    }
+
+    function quickSettingsSettingAllowed(key) {
+        return ['sound.enabled', 'sound.volume', 'windows.animations'].includes(key) || key === quickSettingsSchemeKey();
+    }
+
+    async function saveQuickSetting(key, value) {
+        if (!quickSettingsSettingAllowed(key)) return;
+        if (key === 'sound.volume') {
+            const volume = Number(value);
+            if (!Number.isFinite(volume)) return;
+            value = String(Math.min(1, Math.max(0, volume)));
+        } else if (key === quickSettingsSchemeKey()) {
+            if (!['light', 'dark'].includes(value)) return;
+        } else if (!['true', 'false'].includes(value)) {
+            return;
+        }
+        if (desktopReadonly()) {
+            quickSettingsStatus(t('desktop.quick_settings_readonly'), true);
+            return;
+        }
+        quickSettingsPreferencePending.add(key);
+        const control = quickSettingsPanel?.querySelector(`[data-quick-setting="${key}"]`);
+        if (control) control.disabled = true;
+        quickSettingsStatus(t('desktop.saving'));
+        try {
+            await saveDesktopPreference(key, value);
+            quickSettingsStatus(t('desktop.saved'));
+        } catch (_) {
+            quickSettingsStatus(t('desktop.quick_settings_save_failed'), true);
+        } finally {
+            quickSettingsPreferencePending.delete(key);
+            syncQuickSettings();
+        }
+    }
+
+    async function dispatchQuickMedia(action) {
+        const api = window.AuraDesktopMediaSession;
+        if (!api || !quickSettingsMedia?.available || !quickSettingsMedia.actions?.includes(action) || quickSettingsMediaPending) return;
+        quickSettingsMediaPending = true;
+        renderQuickMedia();
+        quickMediaStatus(t('desktop.loading'));
+        try {
+            const handled = await api.dispatch(action);
+            if (!handled) quickMediaStatus(t('desktop.quick_settings_media_action_failed'), true);
+            else quickMediaStatus('');
+        } catch (_) {
+            quickMediaStatus(t('desktop.quick_settings_media_action_failed'), true);
+        } finally {
+            quickSettingsMediaPending = false;
+            renderQuickMedia();
+        }
+    }
+
+    function onQuickSettingsClick(event) {
+        const target = event.target?.closest?.('[data-quick-action], [data-media-action]');
+        if (!target) return;
+        if (target.dataset.quickAction === 'close') {
+            closeQuickSettingsPopup(true);
+            return;
+        }
+        if (target.dataset.mediaAction) dispatchQuickMedia(target.dataset.mediaAction);
+    }
+
+    function onQuickSettingsInput(event) {
+        const control = event.target;
+        if (control?.dataset?.quickSetting === 'sound.volume') {
+            const output = quickSettingsPanel?.querySelector('[data-quick-volume-output]');
+            if (output) output.value = `${control.value}%`;
+        }
+    }
+
+    function onQuickSettingsChange(event) {
+        const control = event.target;
+        const key = control?.dataset?.quickSetting;
+        if (key) {
+            const value = control.type === 'checkbox' ? String(!!control.checked) : key === 'sound.volume' ? String(Math.min(1, Math.max(0, Number(control.value) / 100))) : String(control.value);
+            saveQuickSetting(key, value);
+            return;
+        }
+        if (control?.matches?.('[data-quick-dnd]')) {
+            const center = window.AuraDesktopNotificationCenter;
+            if (center && typeof center.setPolicy === 'function') center.setPolicy({ dnd: !!control.checked });
+        }
+    }
+
+    function closeQuickSettingsPopup(restoreFocus = false) {
+        if (!quickSettingsPanel || !quickSettingsOpen) return;
+        quickSettingsPanel.hidden = true;
+        quickSettingsOpen = false;
+        quickSettingsAnchor?.setAttribute('aria-expanded', 'false');
+        quickSettingsUnsubscribePolicy?.();
+        quickSettingsUnsubscribePolicy = null;
+        quickSettingsUnsubscribeMedia?.();
+        quickSettingsUnsubscribeMedia = null;
+        window.removeEventListener('aurago:desktop-settings', syncQuickSettings);
+        document.removeEventListener('aurago:desktop-policy', syncQuickSettings);
+        if (quickSettingsKeyHandler) document.removeEventListener('keydown', quickSettingsKeyHandler, true);
+        quickSettingsKeyHandler = null;
+        if (restoreFocus && quickSettingsAnchor?.isConnected) quickSettingsAnchor.focus();
+        quickSettingsAnchor = null;
+    }
+
+    function toggleQuickSettingsPopup(anchor) {
+        const panel = ensureQuickSettingsPanel();
+        if (quickSettingsOpen) {
+            closeQuickSettingsPopup();
+            return;
+        }
+        quickSettingsOpen = true;
+        quickSettingsAnchor = anchor || document.activeElement;
+        panel.innerHTML = quickSettingsMarkup();
+        panel.hidden = false;
+        panel.setAttribute('aria-label', t('desktop.quick_settings_title'));
+        quickSettingsAnchor?.setAttribute('aria-expanded', 'true');
+        placeTrayPopover(panel, anchor || quickSettingsAnchor);
+        syncQuickSettings();
+        window.addEventListener('aurago:desktop-settings', syncQuickSettings);
+        document.addEventListener('aurago:desktop-policy', syncQuickSettings);
+        const center = window.AuraDesktopNotificationCenter;
+        if (center && typeof center.subscribePolicy === 'function') quickSettingsUnsubscribePolicy = center.subscribePolicy(syncQuickSettings);
+        const media = window.AuraDesktopMediaSession;
+        quickSettingsMedia = null;
+        if (media && typeof media.subscribe === 'function') quickSettingsUnsubscribeMedia = media.subscribe(snapshot => { quickSettingsMedia = snapshot; renderQuickMedia(); });
+        else if (media && typeof media.snapshot === 'function') { quickSettingsMedia = media.snapshot(); renderQuickMedia(); }
+        quickSettingsKeyHandler = event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeQuickSettingsPopup(true);
+        };
+        document.addEventListener('keydown', quickSettingsKeyHandler, true);
+        (panel.querySelector('button:not(:disabled), input:not(:disabled), select:not(:disabled)') || panel).focus();
+    }
+
+;
 /* ui/js/desktop/core/spaces-runtime.js */
     const SPACE_IDS = ['1', '2', '3'];
     const DEFAULT_SPACE_ID = '1';
 
     if (!state.activeSpaceId) state.activeSpaceId = DEFAULT_SPACE_ID;
+
+    function workspaceRecords() {
+        const snapshot = window.AuraDesktopWorkspaceManager?.snapshot?.();
+        const configured = snapshot?.layout?.workspaces;
+        const records = Array.isArray(configured) && configured.length
+            ? configured.filter(item => item && typeof item.id === 'string' && item.id)
+            : SPACE_IDS.map(id => ({ id, name: '' }));
+        if (!records.length) return [{ id: DEFAULT_SPACE_ID, name: '' }];
+        SPACE_IDS.splice(0, SPACE_IDS.length, ...records.map(item => item.id));
+        return records;
+    }
+
+    function workspaceIDs() {
+        return workspaceRecords().map(item => item.id);
+    }
+
+    function workspaceRecord(id) {
+        return workspaceRecords().find(item => item.id === String(id)) || null;
+    }
+
+    function workspaceName(id) {
+        const record = workspaceRecord(id);
+        const customName = record && typeof record.name === 'string' ? record.name.trim() : '';
+        return customName || t('desktop.space_n').replace('{{n}}', String(id));
+    }
+
+    function workspaceShortName(id) {
+        const record = workspaceRecord(id);
+        return record && typeof record.name === 'string' && record.name.trim()
+            ? record.name.trim()
+            : String(id);
+    }
 
     function spacesEnabled() {
         return !isCompactViewport();
@@ -10691,7 +15048,9 @@ function wireWindow(win, id) {
 
     function normalizeWallpaperId(value) {
         const id = String(value || '');
-        return knownWallpaperIds().indexOf(id) >= 0 ? id : 'groupshoot';
+        return knownWallpaperIds().indexOf(id) >= 0 || window.AuraDesktopCustomWallpaper?.isCustom?.(id)
+            ? id
+            : 'groupshoot';
     }
 
     function parseWallpaperBySpace() {
@@ -10702,9 +15061,9 @@ function wireWindow(win, id) {
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
             const known = knownWallpaperIds();
             const out = {};
-            SPACE_IDS.forEach(id => {
+            workspaceIDs().forEach(id => {
                 const wallpaper = parsed[id];
-                if (typeof wallpaper === 'string' && known.indexOf(wallpaper) >= 0) out[id] = wallpaper;
+                if (typeof wallpaper === 'string' && (known.indexOf(wallpaper) >= 0 || window.AuraDesktopCustomWallpaper?.isCustom?.(wallpaper))) out[id] = wallpaper;
             });
             return out;
         } catch (err) {
@@ -10722,11 +15081,15 @@ function wireWindow(win, id) {
     function applyActiveSpaceWallpaper() {
         if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
         syncDesktopThemeFx();
+        if (typeof syncDesktopCustomWallpaper === 'function') syncDesktopCustomWallpaper();
     }
 
     function normalizeSpaceId(id) {
         const value = String(id || DEFAULT_SPACE_ID);
-        return SPACE_IDS.includes(value) ? value : DEFAULT_SPACE_ID;
+        const resolved = window.AuraDesktopWorkspaceManager?.resolveId?.(value);
+        const candidate = resolved ? String(resolved) : value;
+        const ids = workspaceIDs();
+        return ids.includes(candidate) ? candidate : ids[0] || DEFAULT_SPACE_ID;
     }
 
     function windowSpaceId(win) {
@@ -10778,10 +15141,11 @@ function wireWindow(win, id) {
         if (!pager) return;
         pager.hidden = !spacesEnabled();
         pager.setAttribute('aria-label', t('desktop.space'));
-        pager.innerHTML = SPACE_IDS.map(id => {
+        pager.innerHTML = workspaceRecords().map(workspace => {
+            const id = workspace.id;
             const active = normalizeSpaceId(state.activeSpaceId) === id;
-            const label = t('desktop.space_n').replace('{{n}}', id);
-            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(id)}</span></button>`;
+            const label = workspaceName(id);
+            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-label="${esc(label)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(workspaceShortName(id))}</span></button>`;
         }).join('');
         wireSpacePagerOverview(pager);
     }
@@ -10816,7 +15180,7 @@ function wireWindow(win, id) {
 
     function cycleSpace(direction) {
         if (!spacesEnabled()) return;
-        const ids = SPACE_IDS;
+        const ids = workspaceIDs();
         const current = normalizeSpaceId(state.activeSpaceId);
         const idx = ids.indexOf(current);
         const next = ids[(idx + direction + ids.length) % ids.length];
@@ -10920,7 +15284,7 @@ function wireWindow(win, id) {
                     <div class="vd-spaces-overview-title">${esc(t('desktop.spaces_overview'))}</div>
                     <button type="button" class="vd-spaces-overview-close" data-action="close-overview">${esc(t('desktop.close'))}</button>
                 </div>
-                <div class="vd-spaces-overview-columns">${SPACE_IDS.map(id => renderSpaceOverviewColumn(id, activeId)).join('')}</div>
+                <div class="vd-spaces-overview-columns">${workspaceRecords().map(workspace => renderSpaceOverviewColumn(workspace.id, activeId)).join('')}</div>
             </div>`;
         wireSpacesOverviewEvents(overlay);
     }
@@ -10931,8 +15295,9 @@ function wireWindow(win, id) {
         const cards = wins.length
             ? wins.map(win => renderSpaceOverviewCard(win)).join('')
             : `<div class="vd-space-column-empty">${esc(t('desktop.spaces_overview_empty'))}</div>`;
+        const label = workspaceName(spaceId);
         return `<section class="vd-space-column${isActive ? ' active' : ''}" data-space-id="${esc(spaceId)}" aria-current="${isActive ? 'true' : 'false'}">
-            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}">${esc(t('desktop.space_n').replace('{{n}}', spaceId))}</button>
+            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}" aria-label="${esc(label)}">${esc(label)}</button>
             <div class="vd-space-column-body">${cards}</div>
         </section>`;
     }
@@ -11110,15 +15475,15 @@ function wireWindow(win, id) {
 
 ;
 /* ui/js/desktop/core/shell-chrome-runtime.js */
-    state.notificationHistory = state.notificationHistory || [];
-    state.notificationUnread = state.notificationUnread || 0;
     let windowSwitcherHold = null;
+    let notificationChromeSubscriptions = null;
 
     // notificationContext keeps the launch context an app receives when its notification is clicked.
     function notificationContext(payload) {
         const c = payload.context || {};
         if (payload.appId === 'meshcore' && /^[a-f0-9]{64}$/.test(c.conversation_id || '')) return { conversation_id: c.conversation_id };
-        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(c.project_id || '')) return { projectId: c.project_id };
+        const projectId = c.project_id || c.projectId;
+        if (payload.appId === 'storymaker' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(projectId || '')) return { projectId };
         if (payload.appId === 'easydrag' && /^flow_[a-z0-9]{10}$/.test(c.flow_id || '')) {
             return /^run_[a-z0-9]{12}$/.test(c.run_id || '') ? { flow_id: c.flow_id, run_id: c.run_id } : { flow_id: c.flow_id };
         }
@@ -11131,18 +15496,7 @@ function wireWindow(win, id) {
     }
 
     function pushNotificationRecord(payload) {
-        const entry = {
-            id: 'n-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
-            title: String(payload.title || t('desktop.notification')),
-            message: String(payload.message || ''),
-            appId: payload.appId || '',
-            context: notificationContext(payload),
-            ts: Date.now(),
-            read: false
-        };
-        state.notificationHistory.unshift(entry);
-        if (state.notificationHistory.length > 40) state.notificationHistory.length = 40;
-        state.notificationUnread = Math.min(99, (state.notificationUnread || 0) + 1);
+        const entry = window.AuraDesktopNotificationCenter.record({ ...payload, title: payload.title || t('desktop.notification') }, notificationContext(payload));
         updateNotificationBadge();
         return entry;
     }
@@ -11150,15 +15504,50 @@ function wireWindow(win, id) {
     function updateNotificationBadge() {
         const badge = document.getElementById('vd-notification-badge');
         if (!badge) return;
-        const count = state.notificationUnread || 0;
+        const count = window.AuraDesktopNotificationCenter.history().filter(entry => !entry.read).length;
         badge.hidden = count <= 0;
         badge.textContent = count > 9 ? '9+' : String(count);
     }
 
     function markAllNotificationsRead() {
-        state.notificationHistory.forEach(entry => { entry.read = true; });
-        state.notificationUnread = 0;
-        updateNotificationBadge();
+        window.AuraDesktopNotificationCenter.markAllRead();
+    }
+
+    function notificationPolicyMarkup(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        const policy = center.policy();
+        const appIDs = new Set(['desktop', ...userFacingApps().map(app => app.id), ...Object.keys(policy.apps)]);
+        const selected = appIDs.has(panel.dataset.policyApp) ? panel.dataset.policyApp : 'desktop';
+        panel.dataset.policyApp = selected;
+        const appPolicy = policy.apps[selected] || { toast: true, sound: true };
+        const options = Array.from(appIDs).map(id => `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${esc(id === 'desktop' ? t('desktop.notifications_desktop') : appName(appById(id) || { id, name: id }))}</option>`).join('');
+        return `<div class="vd-notification-policy">
+            <label><input id="vd-notification-dnd" type="checkbox" ${policy.dnd ? 'checked' : ''}>${esc(t('desktop.notifications_dnd'))}</label>
+            <details ${panel.dataset.policyOpen === 'true' ? 'open' : ''}><summary>${esc(t('desktop.notifications_manage'))}</summary>
+                <label>${esc(t('desktop.notifications_source'))}<select id="vd-notification-source">${options}</select></label>
+                <label><input id="vd-notification-toasts" type="checkbox" ${appPolicy.toast ? 'checked' : ''}>${esc(t('desktop.notifications_toasts'))}</label>
+                <label><input id="vd-notification-sounds" type="checkbox" ${appPolicy.sound ? 'checked' : ''}>${esc(t('desktop.notifications_sounds'))}</label>
+            </details>
+            ${center.status().storageFallback ? `<p role="status">${esc(t('desktop.notifications_tab_only'))}</p>` : ''}
+        </div>`;
+    }
+
+    function wireNotificationPolicy(panel) {
+        const center = window.AuraDesktopNotificationCenter;
+        panel.querySelector('details').addEventListener('toggle', event => { panel.dataset.policyOpen = String(event.target.open); });
+        panel.querySelector('#vd-notification-source').addEventListener('change', event => {
+            panel.dataset.policyApp = event.target.value;
+            renderNotificationCenter();
+        });
+        panel.querySelector('#vd-notification-dnd').addEventListener('change', event => {
+            center.setPolicy({ ...center.policy(), dnd: event.target.checked });
+        });
+        ['toasts', 'sounds'].forEach(name => panel.querySelector('#vd-notification-' + name).addEventListener('change', event => {
+            const policy = center.policy();
+            const appId = panel.dataset.policyApp;
+            policy.apps[appId] = { toast: true, sound: true, ...policy.apps[appId], [name === 'toasts' ? 'toast' : 'sound']: event.target.checked };
+            center.setPolicy(policy);
+        }));
     }
 
     function closeNotificationCenter(restoreFocus = false) {
@@ -11184,36 +15573,52 @@ function wireWindow(win, id) {
             });
             document.body.appendChild(panel);
         }
+        const focusedID = panel.contains(document.activeElement) ? document.activeElement.id : '';
+        const focusedNotification = panel.contains(document.activeElement) ? document.activeElement.dataset.notificationId : '';
+        const focusedAction = panel.contains(document.activeElement) ? document.activeElement.dataset.action : '';
         panel.setAttribute('aria-label', t('desktop.notifications_title'));
-        const items = state.notificationHistory || [];
+        const center = window.AuraDesktopNotificationCenter;
+        const items = center.history();
         const list = items.length
-            ? items.map(entry => `<button type="button" class="vd-notification-item${entry.read ? '' : ' unread'}" data-notification-id="${esc(entry.id)}" data-app-id="${esc(entry.appId || '')}">
+            ? items.map(entry => `<article class="vd-notification-item${entry.read ? '' : ' unread'}">
                 <div class="vd-notification-item-title">${esc(entry.title)}</div>
                 ${entry.message ? `<div class="vd-notification-item-message">${esc(entry.message)}</div>` : ''}
                 <div class="vd-notification-item-time">${esc(formatNotificationTime(entry.ts))}</div>
-            </button>`).join('')
+                <div class="vd-notification-actions">
+                    <button type="button" data-action="open-notification" data-notification-id="${esc(entry.id)}" ${entry.appId !== 'desktop' && !appById(entry.appId) ? 'disabled' : ''}>${esc(t(entry.appId === 'desktop' ? 'desktop.notifications_mark_read' : 'desktop.notifications_open'))}</button>
+                    <button type="button" data-action="dismiss-notification" data-notification-id="${esc(entry.id)}">${esc(t('desktop.notifications_dismiss'))}</button>
+                </div>
+            </article>`).join('')
             : `<div class="vd-notification-empty">${esc(t('desktop.notifications_empty'))}</div>`;
         panel.innerHTML = `<div class="vd-notification-header">
             <div class="vd-notification-title">${esc(t('desktop.notifications_title'))}</div>
+            <button type="button" class="vd-notification-clear" data-action="read-notifications">${esc(t('desktop.notifications_mark_all_read'))}</button>
             <button type="button" class="vd-notification-clear" data-action="clear-notifications">${esc(t('desktop.notifications_clear'))}</button>
         </div>
-        <div class="vd-notification-list">${list}</div>`;
+        ${notificationPolicyMarkup(panel)}<div class="vd-notification-list">${list}</div>`;
+        wireNotificationPolicy(panel);
+        panel.querySelector('[data-action="read-notifications"]').addEventListener('click', markAllNotificationsRead);
         panel.querySelector('[data-action="clear-notifications"]').addEventListener('click', () => {
-            state.notificationHistory = [];
-            state.notificationUnread = 0;
-            updateNotificationBadge();
-            renderNotificationCenter();
+            center.clear();
         });
         panel.querySelectorAll('[data-notification-id]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const entry = state.notificationHistory.find(item => item.id === btn.dataset.notificationId);
-                if (entry) entry.read = true;
-                state.notificationUnread = Math.max(0, (state.notificationUnread || 0) - 1);
-                updateNotificationBadge();
-                closeNotificationCenter();
-                if (btn.dataset.appId) openApp(btn.dataset.appId, entry?.context);
+                const entry = center.history().find(item => item.id === btn.dataset.notificationId);
+                if (!entry) return;
+                if (btn.dataset.action === 'dismiss-notification') { center.remove(entry.id); return; }
+                if (entry.appId !== 'desktop' && !appById(entry.appId)) return;
+                center.markRead(entry.id);
+                if (entry.appId !== 'desktop') {
+                    closeNotificationCenter();
+                    openApp(entry.appId, notificationContext(entry));
+                }
             });
         });
+        const focusTarget = focusedID ? panel.querySelector('#' + cssSel(focusedID)) : focusedNotification
+            ? panel.querySelector(`[data-notification-id="${cssSel(focusedNotification)}"][data-action="${cssSel(focusedAction)}"]`)
+            : focusedAction ? panel.querySelector(`[data-action="${cssSel(focusedAction)}"]`) : null;
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+        else if (focusedNotification) (panel.querySelector('[data-notification-id]:not(:disabled)') || panel.querySelector('#vd-notification-dnd') || panel).focus({ preventScroll: true });
     }
 
     function toggleNotificationCenter(anchor) {
@@ -11230,7 +15635,6 @@ function wireWindow(win, id) {
         panel._returnFocus?.setAttribute('aria-expanded', 'true');
         panel.focus();
         desktopSound('menu.open');
-        markAllNotificationsRead();
         placeTrayPopover(panel, anchor);
     }
 
@@ -11242,7 +15646,8 @@ function wireWindow(win, id) {
         const rect = anchor.getBoundingClientRect();
         const below = rect.top + rect.height / 2 < window.innerHeight / 2;
         panel.dataset.placement = below ? 'below' : 'above';
-        panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        panel.style.right = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - panel.offsetWidth - 8)) + 'px';
+        panel.style.maxHeight = Math.max(0, below ? window.innerHeight - rect.bottom - 16 : rect.top - 16) + 'px';
         if (below) {
             panel.style.bottom = '';
             panel.style.top = Math.round(rect.bottom + 8) + 'px';
@@ -11258,69 +15663,19 @@ function wireWindow(win, id) {
     }
 
     function closeClockPopup(restoreFocus = false) {
+        closeClockCalendarPopup(restoreFocus);
+    }
+
+    function openClockPopup(anchor) {
+        closeNotificationCenter();
+        closeQuickSettingsPopup();
+        return openClockCalendarPopup(anchor);
+    }
+
+    function toggleClockPopup(anchor) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) {
-            popup.hidden = true;
-            popup._request = (popup._request || 0) + 1;
-            popup._returnFocus?.setAttribute('aria-expanded', 'false');
-            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
-        }
-    }
-
-    function clockLocalDay(value) {
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        const pad = n => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    }
-
-    async function openClockPopup(anchor) {
-        closeClockPopup();
-        let popup = document.getElementById('vd-clock-popup');
-        if (!popup) {
-            popup = document.createElement('div');
-            popup.id = 'vd-clock-popup';
-            popup.className = 'vd-clock-popup';
-            popup.setAttribute('role', 'dialog');
-            popup.tabIndex = -1;
-            popup.addEventListener('keydown', event => {
-                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
-            });
-            document.body.appendChild(popup);
-        }
-        const request = popup._request = (popup._request || 0) + 1;
-        popup.setAttribute('aria-label', t('desktop.clock_today'));
-        popup._returnFocus = anchor || document.activeElement;
-        popup._returnFocus?.setAttribute('aria-expanded', 'true');
-        popup.hidden = false;
-        popup.focus();
-        popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
-        placeTrayPopover(popup, anchor);
-        let appointments = [];
-        try {
-            appointments = await api('/api/desktop/integrations/appointments?status=all');
-        } catch (_) {
-            appointments = [];
-        }
-        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
-        const now = new Date();
-        const todayKey = clockLocalDay(now);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
-        const events = todayItems.slice(0, 6).map(item => {
-            const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
-        }).join('');
-        popup.innerHTML = `<div class="vd-clock-popup-head">
-            <div class="vd-clock-popup-date">${esc(now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
-            <div class="vd-clock-popup-time">${esc(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</div>
-        </div>
-        <div class="vd-clock-popup-section">${esc(t('desktop.clock_today'))}</div>
-        ${events ? `<ul class="vd-clock-popup-events">${events}</ul>` : `<div class="vd-clock-popup-empty">${esc(t('desktop.clock_no_events'))}</div>`}
-        <button type="button" class="vd-clock-popup-open" data-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
-        popup.querySelector('[data-action="open-calendar"]').addEventListener('click', () => {
-            closeClockPopup();
-            openApp('calendar');
-        });
+        if (popup && !popup.hidden) closeClockPopup(true);
+        else openClockPopup(anchor);
     }
 
     function closeShortcutsHelp() {
@@ -11342,6 +15697,8 @@ function wireWindow(win, id) {
             ['Ctrl+Alt+↑ / F3', t('desktop.spaces_overview_help')],
             ['Ctrl+Alt+↓', t('desktop.spaces_overview_close')],
             ['Win / ⌘ + ←↑→↓', t('desktop.shortcuts_window_snap')],
+            ['Win / ⌘ + ← →, ↑ ↓', t('desktop.shortcuts_snap_quarter')],
+            ['Shift+F10', t('desktop.shortcuts_layout_menu')],
             ['Alt+F4', t('desktop.close')],
             ['F11', t('desktop.maximize')],
             ['F1', t('desktop.shortcuts_title')]
@@ -11349,6 +15706,7 @@ function wireWindow(win, id) {
         overlay.innerHTML = `<div class="vd-shortcuts-panel">
             <div class="vd-shortcuts-heading">${esc(t('desktop.shortcuts_title'))}</div>
             <ul class="vd-shortcuts-list">${rows.map(row => `<li><kbd>${esc(row[0])}</kbd><span>${esc(row[1])}</span></li>`).join('')}</ul>
+            <p>${esc(t('desktop.shortcuts_browser_conflicts'))}</p>
             <button type="button" class="vd-shortcuts-close">${esc(t('desktop.close'))}</button>
         </div>`;
         overlay.addEventListener('click', event => {
@@ -11358,88 +15716,108 @@ function wireWindow(win, id) {
         document.body.appendChild(overlay);
     }
 
-    function windowSwitcherWindows() {
-        return taskbarWindows().filter(win => win && win.element && win.element.style.display !== 'none');
+    function windowOverviewWindows(options = {}) {
+        if (options.mode === 'snap-partner') return windowSnapPartnerCandidates(options.sourceId, options.partnerZone);
+        return [...state.windows.values()].filter(win => win && win.element && !win.isGadget && !win.closing
+            && (!options.appId || win.appId === options.appId)
+            && (options.scope === 'all' || (options.scope === 'visible' ? isWindowOnActiveSpace(win)
+                : windowSpaceId(win) === normalizeSpaceId(state.activeSpaceId))));
     }
 
-    function renderWindowSwitcherOverlay(nextIndex) {
-        const wins = windowSwitcherWindows();
-        if (!wins.length) return;
-        let overlay = document.getElementById('vd-window-switcher');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'vd-window-switcher';
-            overlay.className = 'vd-window-switcher';
-            document.body.appendChild(overlay);
+    function activateOverviewWindow(id) {
+        const win = state.windows.get(id);
+        if (desktopSessionEnded || !win || win.closing || win.isGadget) return false;
+        if (windowSpaceId(win) !== normalizeSpaceId(state.activeSpaceId)) {
+            if (spacesEnabled()) switchSpace(windowSpaceId(win));
+            else {
+                state.activeSpaceId = windowSpaceId(win);
+                applyActiveSpaceWallpaper();
+                renderSpacePager();
+            }
         }
-        overlay.innerHTML = wins.map((win, i) => {
-            const app = appById(win.appId);
-            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
-            const isActive = i === nextIndex;
-            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
-        }).join('');
+        focusWindow(id);
+        const target = win.element.querySelector('[data-action="maximize"]') || win.element.querySelector('[data-action="close"]');
+        target?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function initWindowOverviewRuntime() {
+        window.AuraDesktopWindowOverview?.configure({
+            getWindows: windowOverviewWindows,
+            getActiveWindowId: () => state.activeWindowId,
+            spaceName: win => workspaceName(windowSpaceId(win)),
+            appName: windowTitle,
+            previewMarkup: windowPreviewMarkup,
+            activateWindow: activateOverviewWindow,
+            chooseSnapPartner: chooseWindowSnapPartner,
+            closeWindow,
+            closeBatch: closeDesktopWindowBatch,
+            t,
+            mountDialog: mountDesktopDialog
+        });
+        document.addEventListener('aurago:auth-ended', () => endWindowSwitcherHold(false));
+    }
+
+    function hasOtherDesktopModal() {
+        return [...document.querySelectorAll('[aria-modal="true"]')]
+            .some(dialog => dialog.id !== 'vd-window-overview' && dialog.getClientRects().length);
+    }
+
+    function openDesktopWindowOverview(options = {}) {
+        if (desktopSessionEnded || hasOtherDesktopModal()) return false;
+        const requestedOpener = options.opener || document.activeElement;
+        const opener = requestedOpener && requestedOpener !== document.body && requestedOpener.isConnected
+            && requestedOpener.getClientRects().length && !requestedOpener.closest('.vd-context-menu, #vd-start-menu')
+            ? requestedOpener : [document.querySelector('[data-fruity-dock-orb]'), $('vd-start-button')].find(el => el?.getClientRects().length);
+        hideTaskbarThumbnail();
+        closeContextMenu(true);
+        closeWindowLayoutPopup(false);
+        closeStartMenu();
+        return window.AuraDesktopWindowOverview?.open({ mode: 'switcher', scope: 'current', ...options, opener }) || false;
+    }
+
+    function windowSwitcherWindows() {
+        return windowOverviewWindows({ scope: 'current' });
     }
 
     function beginWindowSwitcherHold(reverse) {
-        const wins = windowSwitcherWindows();
-        if (wins.length <= 1) {
-            if (wins.length === 1) focusWindow(wins[0].id);
-            return;
-        }
-        const currentIndex = wins.findIndex(win => win.id === state.activeWindowId);
-        const step = reverse ? -1 : 1;
-        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + wins.length) % wins.length;
-        windowSwitcherHold = { index: nextIndex, winsLength: wins.length };
-        renderWindowSwitcherOverlay(nextIndex);
+        if (!windowSwitcherWindows().length) return;
+        if (!openDesktopWindowOverview({ mode: 'switcher' })) return;
+        windowSwitcherHold = true;
+        window.AuraDesktopWindowOverview.cycle(reverse);
     }
 
     function cycleWindowSwitcherHold(reverse) {
-        if (!windowSwitcherHold) return;
-        const wins = windowSwitcherWindows();
-        if (!wins.length) {
-            endWindowSwitcherHold(false);
-            return;
-        }
-        const step = reverse ? -1 : 1;
-        windowSwitcherHold.index = (windowSwitcherHold.index + step + wins.length) % wins.length;
-        renderWindowSwitcherOverlay(windowSwitcherHold.index);
+        if (windowSwitcherHold) window.AuraDesktopWindowOverview?.cycle(reverse);
     }
 
     function endWindowSwitcherHold(applyFocus) {
-        const overlay = document.getElementById('vd-window-switcher');
-        const wins = windowSwitcherWindows();
-        if (applyFocus && windowSwitcherHold && wins[windowSwitcherHold.index]) {
-            focusWindow(wins[windowSwitcherHold.index].id);
-        }
         windowSwitcherHold = null;
-        if (overlay) overlay.remove();
+        window.AuraDesktopWindowOverview?.finish({ activate: !!applyFocus });
     }
 
     function handleWindowSwitcherKeydown(event) {
         const ctrl = event.ctrlKey || event.metaKey;
-        if (!ctrl || event.altKey) return false;
-        if (event.key === 'Tab') {
+        if (ctrl && event.altKey && event.key.toLowerCase() === 'w') {
             event.preventDefault();
-            if (!windowSwitcherHold) beginWindowSwitcherHold(event.shiftKey);
-            else cycleWindowSwitcherHold(event.shiftKey);
+            windowSwitcherHold = null;
+            openDesktopWindowOverview({ mode: 'switcher' });
             return true;
         }
-        if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
-            event.preventDefault();
-            if (!windowSwitcherHold) beginWindowSwitcherHold(false);
-            else cycleWindowSwitcherHold(false);
-            return true;
-        }
-        return false;
+        if (!ctrl || event.altKey || event.key !== 'Tab') return false;
+        event.preventDefault();
+        if (windowSwitcherHold && window.AuraDesktopWindowOverview?.isOpen('switcher')) cycleWindowSwitcherHold(event.shiftKey);
+        else beginWindowSwitcherHold(event.shiftKey);
+        return true;
     }
 
     function handleWindowSwitcherKeyup(event) {
-        if (!windowSwitcherHold) return false;
-        if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Alt') {
-            endWindowSwitcherHold(true);
-            return true;
+        if (!windowSwitcherHold || !['Control', 'Meta'].includes(event.key)) return false;
+        windowSwitcherHold = null;
+        if (!hasOtherDesktopModal() && window.AuraDesktopWindowOverview?.isOpen('switcher')) {
+            window.AuraDesktopWindowOverview.finish({ activate: true });
         }
-        return false;
+        return true;
     }
 
     function openDesktopFullscreenOnStartup() {
@@ -11467,6 +15845,19 @@ function wireWindow(win, id) {
     }
 
     function wireShellChromeControls() {
+        if (!notificationChromeSubscriptions) {
+            const refresh = () => {
+                updateNotificationBadge();
+                const panel = document.getElementById('vd-notification-center');
+                if (panel && !panel.hidden) renderNotificationCenter();
+            };
+            notificationChromeSubscriptions = [window.AuraDesktopNotificationCenter.subscribe(refresh), window.AuraDesktopNotificationCenter.subscribePolicy(refresh)];
+            window.addEventListener('pagehide', event => {
+                if (event.persisted) return;
+                notificationChromeSubscriptions?.forEach(unsubscribe => unsubscribe());
+                notificationChromeSubscriptions = null;
+            });
+        }
         const fullscreenBtn = document.getElementById('vd-fullscreen-button');
         if (fullscreenBtn && !fullscreenBtn.dataset.shellChromeWired) {
             fullscreenBtn.dataset.shellChromeWired = 'true';
@@ -11515,11 +15906,11 @@ function wireWindow(win, id) {
             clock.setAttribute('aria-expanded', 'false');
             clock.tabIndex = 0;
             clock.addEventListener('keydown', event => {
-                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleClockPopup(clock); }
             });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
-                openClockPopup(clock);
+                toggleClockPopup(clock);
             });
         }
         const notifyBtn = document.getElementById('vd-notification-button');
@@ -11530,15 +15921,37 @@ function wireWindow(win, id) {
             notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
+                closeClockPopup();
+                closeQuickSettingsPopup();
                 toggleNotificationCenter(notifyBtn);
             });
         }
-        document.addEventListener('click', event => {
-            if (!event.target.closest('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button')) {
+        const quickButton = document.getElementById('vd-quick-settings-button');
+        if (quickButton && !quickButton.dataset.shellChromeWired) {
+            quickButton.dataset.shellChromeWired = 'true';
+            quickButton.addEventListener('click', event => {
+                event.stopPropagation();
                 closeClockPopup();
                 closeNotificationCenter();
+                toggleQuickSettingsPopup(quickButton);
+            });
+        }
+        document.addEventListener('click', event => {
+            // A panel may replace the clicked control before this event bubbles here.
+            if (!event.composedPath().some(node => node.matches?.('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button, #vd-quick-settings, #vd-quick-settings-button'))) {
+                closeClockPopup();
+                closeNotificationCenter();
+                closeQuickSettingsPopup();
             }
         });
+        const repositionPanels = () => {
+            for (const [panelId, anchorId] of [['vd-clock-popup', 'vd-clock'], ['vd-notification-center', 'vd-notification-button'], ['vd-quick-settings', 'vd-quick-settings-button']]) {
+                const panel = document.getElementById(panelId);
+                if (panel && !panel.hidden) placeTrayPopover(panel, document.getElementById(anchorId));
+            }
+        };
+        window.addEventListener('resize', repositionPanels);
+        window.addEventListener('aurago:desktop-settings', repositionPanels);
     }
 
 ;
@@ -11590,6 +16003,7 @@ function wireWindow(win, id) {
 /* ui/js/desktop/core/spotlight-runtime.js */
     let spotlightOpen = false;
     let spotlightInstance = null;
+    let spotlightSearchProvider = null;
 
     function closeSpotlight() {
         if (spotlightInstance) {
@@ -11606,40 +16020,106 @@ function wireWindow(win, id) {
         spotlightOpen = false;
     }
 
-    function spotlightSettingsEntries() {
-        return [
-            { id: 'settings-appearance', title: t('desktop.settings_category_appearance'), action: () => openApp('settings', { category: 'appearance' }) },
-            { id: 'settings-desktop', title: t('desktop.settings_category_desktop'), action: () => openApp('settings', { category: 'desktop' }) },
-            { id: 'settings-windows', title: t('desktop.settings_category_windows'), action: () => openApp('settings', { category: 'windows' }) },
-            { id: 'settings-files', title: t('desktop.settings_category_files'), action: () => openApp('settings', { category: 'files' }) },
-            { id: 'settings-agent', title: t('desktop.settings_category_agent'), action: () => openApp('settings', { category: 'agent' }) }
-        ];
-    }
-
-    function spotlightAppEntries(query) {
-        const q = String(query || '').trim().toLowerCase();
+    function spotlightAppEntries() {
         return startMenuApps()
-            .filter(app => !q || appName(app).toLowerCase().includes(q) || String(app.id || '').includes(q))
-            .slice(0, 8)
             .map(app => ({
                 id: 'app-' + app.id,
+                type: 'app',
                 title: appName(app),
                 subtitle: t('desktop.spotlight_apps'),
-                action: () => openApp(app.id)
+                searchText: app.id,
+                open: () => openApp(app.id)
             }));
     }
 
-    function spotlightRecentFileEntries(query) {
-        const q = String(query || '').trim().toLowerCase();
+    function spotlightRecentFileEntries() {
         return readRecentFiles()
-            .filter(entry => !q || entry.name.toLowerCase().includes(q) || entry.path.toLowerCase().includes(q))
-            .slice(0, 6)
             .map(entry => ({
                 id: 'recent-' + entry.path,
+                type: 'file',
                 title: entry.name,
                 subtitle: t('desktop.spotlight_recent_files'),
-                action: () => openDesktopPath(entry.path)
+                path: entry.path,
+                searchText: entry.path,
+                open: () => openDesktopPath(entry.path)
             }));
+    }
+
+    function spotlightSettingsContext() {
+        const provider = window.AuraDesktopSettingsContext;
+        if (typeof provider === 'function') return provider() || {};
+        return provider && typeof provider === 'object' ? provider : {};
+    }
+
+    function spotlightLocalSources(includeRecents) {
+        const settingsContext = spotlightSettingsContext();
+        const settingsCatalog = window.AuraDesktopSettingsCatalog;
+        const actionsProvider = window.AuraDesktopSearchActions;
+        const actions = typeof actionsProvider === 'function' ? actionsProvider() : Array.isArray(actionsProvider) ? actionsProvider : [];
+        return {
+            apps: spotlightAppEntries(),
+            settings: settingsCatalog && typeof settingsCatalog.list === 'function' ? settingsCatalog.list('', Object.assign({}, settingsContext, {
+                openSetting: (category, settingKey) => openApp('settings', { category, settingKey })
+            })) : [],
+            actions,
+            files: includeRecents ? spotlightRecentFileEntries() : [],
+            t: key => t(key),
+            openCalculator: expression => openApp('calculator', { expression })
+        };
+    }
+
+    function spotlightFilters(backdrop) {
+        const value = selector => backdrop.querySelector(selector)?.value || '';
+        const localDateBound = (date, endOfDay) => {
+            if (!date) return '';
+            const parsed = new Date(date + (endOfDay ? 'T23:59:59.999' : 'T00:00:00'));
+            return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+        };
+        const minValue = value('[data-spotlight-min-size]');
+        const maxValue = value('[data-spotlight-max-size]');
+        const modifiedAfter = localDateBound(value('[data-spotlight-modified-after]'), false);
+        const modifiedBefore = localDateBound(value('[data-spotlight-modified-before]'), true);
+        const minSize = minValue === '' ? null : Number(minValue);
+        const maxSize = maxValue === '' ? null : Number(maxValue);
+        let error = '';
+        if (minSize != null && (!Number.isSafeInteger(minSize) || minSize < 0) || maxSize != null && (!Number.isSafeInteger(maxSize) || maxSize < 0)) {
+            error = 'desktop.spotlight_filter_invalid_size';
+        } else if (minSize != null && maxSize != null && minSize > maxSize) {
+            error = 'desktop.spotlight_filter_invalid_size';
+        } else if (modifiedAfter && modifiedBefore && modifiedAfter > modifiedBefore) {
+            error = 'desktop.spotlight_filter_invalid_dates';
+        }
+        return {
+            type: value('[data-spotlight-filter-type]') || 'all',
+            modifiedAfter,
+            modifiedBefore,
+            minSize,
+            maxSize,
+            error
+        };
+    }
+
+    function spotlightCanShowRecents(filters) {
+        return filters.type === 'all' && !filters.modifiedAfter && !filters.modifiedBefore && filters.minSize == null && filters.maxSize == null;
+    }
+
+    function spotlightHasFileFilters(filters) {
+        return filters.type !== 'all' || !!(filters.modifiedAfter || filters.modifiedBefore) ||
+            filters.minSize != null || filters.maxSize != null;
+    }
+
+    function spotlightCurrentEntries(stateObj) {
+        const recentPaths = new Set((stateObj.recentEntries || []).map(entry => entry.path).filter(Boolean));
+        const files = (stateObj.fileEntries || []).filter(entry => !recentPaths.has(entry.path));
+        return (stateObj.localEntries || []).concat(stateObj.recentEntries || [], files);
+    }
+
+    function spotlightProvider() {
+        if (spotlightSearchProvider) return spotlightSearchProvider;
+        const search = window.AuraDesktopSearch;
+        if (!search || typeof search.createProvider !== 'function') return null;
+        spotlightSearchProvider = search.createProvider({ api, openFile: path => openDesktopPath(path) });
+        return spotlightSearchProvider;
     }
 
     async function openDesktopPath(path) {
@@ -11670,60 +16150,126 @@ function wireWindow(win, id) {
         openApp('viewer', { path: normalized });
     }
 
-    async function spotlightFileEntries(query, signal) {
-        const q = String(query || '').trim();
-        if (q.length < 2) return [];
-        try {
-            const body = await api('/api/desktop/search?query=' + encodeURIComponent(q), { signal });
-            return (body.files || body.results || []).slice(0, 8).map(file => ({
-                id: 'file-' + file.path,
-                title: file.name || pathBaseName(file.path),
-                subtitle: t('desktop.spotlight_files'),
-                action: () => openDesktopPath(file.path)
-            }));
-        } catch (_) {
-            return [];
-        }
-    }
-
-    function renderSpotlightResults(entries, activeIndex) {
-        const host = document.querySelector('#vd-spotlight-backdrop [data-spotlight-results]');
-        if (!host) return;
+    function renderSpotlightResults(stateObj) {
+        const host = stateObj.backdrop.querySelector('[data-spotlight-results]');
+        const status = stateObj.backdrop.querySelector('[data-spotlight-status]');
+        const loadMore = stateObj.backdrop.querySelector('[data-spotlight-load-more]');
+        if (!host || !status || !loadMore) return;
+        const entries = stateObj.entries = spotlightCurrentEntries(stateObj);
+        host.setAttribute('aria-busy', String(Boolean(stateObj.loading)));
         if (!entries.length) {
-            host.innerHTML = `<div class="vd-spotlight-empty">${esc(t('desktop.spotlight_empty'))}</div>`;
-            return;
+            host.innerHTML = `<div class="vd-spotlight-empty">${esc(stateObj.loading ? t('desktop.spotlight_searching') : t('desktop.spotlight_empty'))}</div>`;
+            stateObj.backdrop.querySelector('.vd-spotlight-input')?.removeAttribute('aria-activedescendant');
+        } else {
+            host.innerHTML = entries.map((entry, index) => `<button type="button" class="vd-spotlight-item${index === stateObj.activeIndex ? ' active' : ''}" data-spotlight-index="${index}">
+                <span class="vd-spotlight-item-title">${esc(entry.title)}</span>
+                ${entry.subtitle ? `<span class="vd-spotlight-item-sub">${esc(entry.subtitle)}</span>` : ''}
+            </button>`).join('');
+            const input = stateObj.backdrop.querySelector('.vd-spotlight-input');
+            if (input) input.setAttribute('aria-activedescendant', 'vd-spotlight-result-' + stateObj.activeIndex);
+            host.querySelectorAll('[data-spotlight-index]').forEach((button, index) => {
+                button.id = 'vd-spotlight-result-' + index;
+                button.setAttribute('role', 'option');
+                button.setAttribute('aria-selected', String(index === stateObj.activeIndex));
+            });
         }
-        host.innerHTML = entries.map((entry, index) => `<button type="button" class="vd-spotlight-item${index === activeIndex ? ' active' : ''}" data-spotlight-index="${index}">
-            <span class="vd-spotlight-item-title">${esc(entry.title)}</span>
-            ${entry.subtitle ? `<span class="vd-spotlight-item-sub">${esc(entry.subtitle)}</span>` : ''}
-        </button>`).join('');
+        let message = '';
+        if (stateObj.filterError) message = t(stateObj.filterError);
+        else if (stateObj.fileError) message = t('desktop.spotlight_search_failed');
+        else if (stateObj.truncated) message = t('desktop.spotlight_results_truncated');
+        else if (stateObj.loading) message = t('desktop.spotlight_searching');
+        status.textContent = message;
+        status.hidden = !message;
+        status.setAttribute('role', stateObj.filterError || stateObj.fileError ? 'alert' : 'status');
+        loadMore.hidden = !stateObj.hasMore;
+        loadMore.textContent = t(stateObj.fileError ? 'desktop.spotlight_retry' : 'desktop.spotlight_load_more');
+        loadMore.dataset.spotlightPageAction = stateObj.fileError ? 'retry' : 'more';
+        loadMore.disabled = stateObj.loading || !stateObj.hasMore || (!stateObj.fileError && stateObj.nextOffset <= stateObj.lastOffset);
     }
 
-    async function refreshSpotlightResults(input, stateObj) {
+    function spotlightIsCurrent(stateObj, generation) {
+        return spotlightInstance === stateObj && generation === stateObj.generation && stateObj.backdrop.isConnected;
+    }
+
+    async function loadSpotlightFilePage(stateObj, generation, offset) {
+        const provider = spotlightProvider();
+        if (!provider || !spotlightIsCurrent(stateObj, generation) || stateObj.loading) return;
+        stateObj.loading = true;
+        stateObj.fileError = false;
+        stateObj.lastOffset = offset;
+        renderSpotlightResults(stateObj);
+        try {
+            const page = await provider.files(stateObj.query, {
+                signal: stateObj.controller.signal,
+                filters: stateObj.filters,
+                limit: 50,
+                offset
+            });
+            if (!spotlightIsCurrent(stateObj, generation)) return;
+            const recentPaths = new Set((stateObj.recentEntries || []).map(entry => entry.path).filter(Boolean));
+            const knownPaths = new Set((stateObj.fileEntries || []).map(entry => entry.path).filter(Boolean));
+            (page.items || []).forEach(entry => {
+                if (!entry.path || recentPaths.has(entry.path) || knownPaths.has(entry.path)) return;
+                knownPaths.add(entry.path);
+                stateObj.fileEntries.push(entry);
+            });
+            stateObj.nextOffset = page.nextOffset;
+            stateObj.hasMore = Boolean(page.hasMore) && page.nextOffset > offset;
+            stateObj.truncated = Boolean(stateObj.localTruncated || page.truncated);
+            stateObj.fileError = false;
+        } catch (error) {
+            if (!spotlightIsCurrent(stateObj, generation) || stateObj.controller.signal.aborted) return;
+            stateObj.fileError = true;
+            stateObj.hasMore = true;
+        } finally {
+            if (spotlightIsCurrent(stateObj, generation)) {
+                stateObj.loading = false;
+                renderSpotlightResults(stateObj);
+            }
+        }
+    }
+
+    function refreshSpotlightResults(input, stateObj, delay) {
         const generation = ++stateObj.generation;
         stateObj.controller?.abort();
         stateObj.controller = new AbortController();
-        const query = input.value || '';
-        const settings = spotlightSettingsEntries().filter(entry => !query || entry.title.toLowerCase().includes(query.toLowerCase()));
-        const apps = spotlightAppEntries(query);
-        const recent = spotlightRecentFileEntries(query);
-        const files = await spotlightFileEntries(query, stateObj.controller.signal);
-        if (spotlightInstance !== stateObj || generation !== stateObj.generation || !stateObj.backdrop.isConnected) return;
-        stateObj.entries = []
-            .concat(settings.map(entry => ({ id: entry.id, title: entry.title, subtitle: t('desktop.spotlight_settings'), action: entry.action })))
-            .concat(recent)
-            .concat(apps)
-            .concat(files)
-            .slice(0, 16);
-        if (stateObj.activeIndex >= stateObj.entries.length) stateObj.activeIndex = Math.max(0, stateObj.entries.length - 1);
-        renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+        window.clearTimeout(stateObj.timer);
+        stateObj.query = input.value || '';
+        stateObj.filters = spotlightFilters(stateObj.backdrop);
+        stateObj.filterError = stateObj.filters.error;
+        stateObj.fileError = false;
+        stateObj.loading = false;
+        stateObj.fileEntries = [];
+        stateObj.nextOffset = 0;
+        stateObj.lastOffset = -1;
+        stateObj.hasMore = false;
+        stateObj.truncated = false;
+        stateObj.activeIndex = 0;
+
+        const queryLength = Array.from(stateObj.query.trim()).length;
+        if (queryLength > 256) stateObj.filterError = 'desktop.spotlight_query_too_long';
+        const provider = spotlightProvider();
+        const includeRecents = spotlightCanShowRecents(stateObj.filters);
+        const localSources = stateObj.query.trim()
+            ? spotlightLocalSources(includeRecents)
+            : { files: includeRecents ? spotlightRecentFileEntries() : [], t: key => t(key) };
+        const local = provider ? provider.local(stateObj.query, localSources, { limit: 101 }) : [];
+        const visibleLocal = local.slice(0, 100);
+        stateObj.localEntries = visibleLocal.filter(entry => entry.type !== 'file');
+        stateObj.recentEntries = visibleLocal.filter(entry => entry.type === 'file');
+        stateObj.localTruncated = local.length > 100;
+        stateObj.truncated = stateObj.localTruncated;
+        renderSpotlightResults(stateObj);
+
+        if (stateObj.filterError || queryLength < 2 && !spotlightHasFileFilters(stateObj.filters) || !provider) return;
+        stateObj.timer = window.setTimeout(() => loadSpotlightFilePage(stateObj, generation, 0), Math.max(0, delay || 0));
     }
 
     function activateSpotlightIndex(stateObj) {
         const entry = stateObj.entries[stateObj.activeIndex];
-        if (!entry || typeof entry.action !== 'function') return;
+        if (!entry || typeof entry.open !== 'function' && typeof entry.action !== 'function') return;
         closeSpotlight();
-        entry.action();
+        (entry.open || entry.action)();
     }
 
     function openSpotlight() {
@@ -11734,22 +16280,50 @@ function wireWindow(win, id) {
         const backdrop = document.createElement('div');
         backdrop.id = 'vd-spotlight-backdrop';
         backdrop.className = 'vd-spotlight-backdrop';
-        backdrop.innerHTML = `<div class="vd-spotlight">
-            <label class="vd-spotlight-label">${esc(t('desktop.spotlight_title'))}</label>
-            <input type="search" class="vd-spotlight-input" placeholder="${esc(t('desktop.spotlight_placeholder'))}" autocomplete="off" spellcheck="false">
-            <div class="vd-spotlight-results" data-spotlight-results></div>
-        </div>`;
+        backdrop.innerHTML = `<section class="vd-spotlight" role="dialog" aria-modal="true" aria-labelledby="vd-spotlight-title">
+            <label id="vd-spotlight-title" for="vd-spotlight-query" class="vd-spotlight-label">${esc(t('desktop.spotlight_title'))}</label>
+            <input id="vd-spotlight-query" type="search" class="vd-spotlight-input" placeholder="${esc(t('desktop.spotlight_placeholder'))}" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="vd-spotlight-results" aria-activedescendant="">
+            <fieldset class="vd-spotlight-filters" aria-label="${esc(t('desktop.spotlight_filters'))}">
+                <label class="vd-spotlight-filter vd-spotlight-filter-type"><span>${esc(t('desktop.spotlight_filter_type'))}</span>
+                    <select data-spotlight-filter-type>
+                        <option value="all">${esc(t('desktop.spotlight_filter_all'))}</option>
+                        <option value="image">${esc(t('desktop.spotlight_filter_images'))}</option>
+                        <option value="audio">${esc(t('desktop.spotlight_filter_audio'))}</option>
+                        <option value="video">${esc(t('desktop.spotlight_filter_video'))}</option>
+                        <option value="document">${esc(t('desktop.spotlight_filter_documents'))}</option>
+                        <option value="archive">${esc(t('desktop.spotlight_filter_archives'))}</option>
+                        <option value="folder">${esc(t('desktop.spotlight_filter_folders'))}</option>
+                    </select>
+                </label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_modified_after'))}</span><input type="date" data-spotlight-modified-after></label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_modified_before'))}</span><input type="date" data-spotlight-modified-before></label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_min_size'))}</span><input type="number" min="0" step="1" inputmode="numeric" data-spotlight-min-size></label>
+                <label class="vd-spotlight-filter"><span>${esc(t('desktop.spotlight_filter_max_size'))}</span><input type="number" min="0" step="1" inputmode="numeric" data-spotlight-max-size></label>
+                <button type="button" class="vd-spotlight-filter-clear" data-spotlight-clear-filters>${esc(t('desktop.spotlight_clear_filters'))}</button>
+            </fieldset>
+            <div id="vd-spotlight-results" class="vd-spotlight-results" data-spotlight-results role="listbox" aria-label="${esc(t('desktop.spotlight_results_label'))}"></div>
+            <div class="vd-spotlight-status" data-spotlight-status role="status" aria-live="polite" hidden></div>
+            <button type="button" class="vd-spotlight-load-more" data-spotlight-load-more data-spotlight-page-action="more" hidden>${esc(t('desktop.spotlight_load_more'))}</button>
+        </section>`;
         document.body.appendChild(backdrop);
         const input = backdrop.querySelector('.vd-spotlight-input');
-        const stateObj = { entries: [], activeIndex: 0, generation: 0, controller: null, timer: 0, backdrop };
-        spotlightInstance = stateObj;
-        const scheduleRefresh = () => {
-            ++stateObj.generation;
-            stateObj.controller?.abort();
-            window.clearTimeout(stateObj.timer);
-            stateObj.timer = window.setTimeout(() => refreshSpotlightResults(input, stateObj), 120);
+        const stateObj = {
+            entries: [], localEntries: [], recentEntries: [], fileEntries: [], activeIndex: 0,
+            generation: 0, controller: null, timer: 0, backdrop, query: '', filters: { type: 'all' },
+            loading: false, fileError: false, filterError: '', hasMore: false, truncated: false,
+            nextOffset: 0, lastOffset: -1, localTruncated: false
         };
+        spotlightInstance = stateObj;
+        const scheduleRefresh = () => refreshSpotlightResults(input, stateObj, 120);
         input.addEventListener('input', scheduleRefresh);
+        backdrop.querySelectorAll('[data-spotlight-filter-type], [data-spotlight-modified-after], [data-spotlight-modified-before], [data-spotlight-min-size], [data-spotlight-max-size]')
+            .forEach(control => control.addEventListener('change', () => refreshSpotlightResults(input, stateObj, 0)));
+        backdrop.querySelector('[data-spotlight-clear-filters]').addEventListener('click', () => {
+            backdrop.querySelector('[data-spotlight-filter-type]').value = 'all';
+            backdrop.querySelectorAll('[data-spotlight-modified-after], [data-spotlight-modified-before], [data-spotlight-min-size], [data-spotlight-max-size]')
+                .forEach(control => { control.value = ''; });
+            refreshSpotlightResults(input, stateObj, 0);
+        });
         input.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 event.preventDefault();
@@ -11758,14 +16332,14 @@ function wireWindow(win, id) {
             }
             if (event.key === 'ArrowDown') {
                 event.preventDefault();
-                stateObj.activeIndex = Math.min(stateObj.entries.length - 1, stateObj.activeIndex + 1);
-                renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+                stateObj.activeIndex = stateObj.entries.length ? Math.min(stateObj.entries.length - 1, stateObj.activeIndex + 1) : 0;
+                renderSpotlightResults(stateObj);
                 return;
             }
             if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 stateObj.activeIndex = Math.max(0, stateObj.activeIndex - 1);
-                renderSpotlightResults(stateObj.entries, stateObj.activeIndex);
+                renderSpotlightResults(stateObj);
                 return;
             }
             if (event.key === 'Enter') {
@@ -11775,13 +16349,102 @@ function wireWindow(win, id) {
         });
         backdrop.addEventListener('click', event => {
             if (event.target === backdrop) closeSpotlight();
+            const pageAction = event.target.closest('[data-spotlight-page-action]');
+            if (pageAction) {
+                const offset = stateObj.fileError ? stateObj.lastOffset : stateObj.nextOffset;
+                loadSpotlightFilePage(stateObj, stateObj.generation, offset);
+                return;
+            }
             const btn = event.target.closest('[data-spotlight-index]');
             if (!btn) return;
             stateObj.activeIndex = Number(btn.dataset.spotlightIndex);
             activateSpotlightIndex(stateObj);
         });
-        refreshSpotlightResults(input, stateObj);
+        refreshSpotlightResults(input, stateObj, 0);
         input.focus();
+    }
+
+;
+/* ui/js/desktop/core/start-search-runtime.js */
+    let startSearchRequest = null;
+
+    window.AuraDesktopSearchActions = () => [
+        { id: 'action-overview', type: 'action', title: t('desktop.spaces_overview_show'), open: () => openSpacesOverview() },
+        { id: 'action-notifications', type: 'action', title: t('desktop.notifications_title'), open: () => toggleNotificationCenter() },
+        ...(!desktopReadonly() ? [{ id: 'action-empty-trash', type: 'action', title: t('desktop.context_empty_trash'), open: () => emptyTrash() }] : [])
+    ];
+
+    function cancelStartSearch() {
+        if (!startSearchRequest) return;
+        clearTimeout(startSearchRequest.timer);
+        startSearchRequest.controller.abort();
+        startSearchRequest = null;
+    }
+
+    function renderStartSearch(query) {
+        cancelStartSearch();
+        const provider = window.AuraDesktopSearch.createProvider({ api, openFile: path => openDesktopPath(path) });
+        const tooLong = Array.from(query).length > 256;
+        const request = { query, provider, controller: new AbortController(), local: provider.local(query, spotlightLocalSources(true)),
+            files: [], offset: 0, more: false, truncated: false, loading: query.length >= 2 && !tooLong, tooLong, error: false, timer: 0 };
+        startSearchRequest = request;
+        renderStartSearchResults(request);
+        if (request.loading) request.timer = setTimeout(() => loadStartSearchPage(request), 120);
+    }
+
+    async function loadStartSearchPage(request) {
+        if (startSearchRequest !== request) return;
+        request.loading = true;
+        request.error = false;
+        renderStartSearchResults(request);
+        try {
+            const page = await request.provider.files(request.query, { signal: request.controller.signal, limit: 50, offset: request.offset });
+            if (startSearchRequest !== request || request.controller.signal.aborted) return;
+            request.files.push(...page.items);
+            request.more = Boolean(page.hasMore) && page.nextOffset > request.offset;
+            request.offset = page.nextOffset;
+            request.truncated = page.truncated;
+        } catch (error) {
+            if (startSearchRequest !== request || request.controller.signal.aborted) return;
+            request.error = true;
+        }
+        if (startSearchRequest !== request) return;
+        request.loading = false;
+        renderStartSearchResults(request);
+    }
+
+    function renderStartSearchResults(request) {
+        if (startSearchRequest !== request) return;
+        const host = $('vd-start-apps');
+        if (!host) return;
+        const focusedID = document.activeElement?.dataset.startResult;
+        const seen = new Set();
+        const entries = [...request.local, ...request.files].filter(entry => {
+            const key = entry.path ? 'file:' + entry.path : entry.id;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        const head = $('vd-start-pane-head');
+        if (head) head.innerHTML = `<span class="vd-start-pane-title">${esc(t('desktop.start_results'))}</span><span class="vd-start-pane-count">${entries.length}</span>`;
+        const scroll = host.scrollTop;
+        host.innerHTML = entries.map(entry => `<button type="button" class="vd-start-item" data-start-result="${esc(entry.id)}"><span class="vd-start-item-text"><span class="vd-start-item-title">${esc(entry.title)}</span><small>${esc(entry.subtitle || '')}</small></span></button>`).join('') +
+            (!entries.length && !request.loading ? startEmptyMarkup(t('desktop.start_no_results')) : '') +
+            (request.loading ? `<p role="status">${esc(t('desktop.spotlight_searching'))}</p>` : '') +
+            (request.error ? `<p role="status">${esc(t('desktop.start_search_failed'))}</p>` : '') +
+            (request.tooLong ? `<p role="status">${esc(t('desktop.spotlight_query_too_long'))}</p>` : '') +
+            (request.truncated ? `<p role="status">${esc(t('desktop.spotlight_results_truncated'))}</p>` : '') +
+            (request.more || request.error ? `<button type="button" class="vd-button" data-search-more ${request.loading ? 'disabled' : ''}>${esc(t('desktop.start_search_more'))}</button>` : '');
+        host.scrollTop = scroll;
+        host.querySelectorAll('[data-start-result]').forEach(button => {
+            button.addEventListener('click', () => {
+                const entry = entries.find(item => item.id === button.dataset.startResult);
+                closeStartMenu();
+                Promise.resolve(entry?.open?.()).catch(error => showDesktopNotification({ message: error.message }));
+            });
+        });
+        host.querySelector('[data-search-more]')?.addEventListener('click', () => loadStartSearchPage(request));
+        if (focusedID) Array.from(host.querySelectorAll('[data-start-result]')).find(button => button.dataset.startResult === focusedID)?.focus({ preventScroll: true });
     }
 
 ;
@@ -11908,6 +16571,7 @@ function wireWindow(win, id) {
 
     async function refreshAfterDesktopFileDrop(options) {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) return window.FileManager.refreshLocalInstances();
         if (options && options.refreshActiveFileManager === false) return;
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
@@ -11926,6 +16590,7 @@ function wireWindow(win, id) {
     }
 
     async function moveDraggedFilesToDesktop(paths, clientX, clientY) {
+        if (desktopReadonly()) return;
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return;
         const body = await api('/api/desktop/files?path=' + encodeURIComponent('Desktop'));
@@ -11934,23 +16599,31 @@ function wireWindow(win, id) {
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
         let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(cleanPaths)) : null;
         let offset = 0;
-        for (const src of cleanPaths) {
-            if (src === 'Desktop') continue;
-            let newPath = src;
-            if (!src.toLowerCase().startsWith('desktop/')) {
-                newPath = await uniqueDesktopDestination(src, existingNames);
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
+        const moves = [];
+        try {
+            for (const src of cleanPaths) {
+                if (src === 'Desktop') continue;
+                let newPath = src;
+                if (!src.toLowerCase().startsWith('desktop/')) {
+                    newPath = await uniqueDesktopDestination(src, existingNames);
+                    const result = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    moves.push(result);
+                    newPath = normalizeDesktopPath(result.path) || newPath;
+                }
+                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+                saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
+                offset += 18;
             }
-            const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
-            saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
-            offset += 18;
+        } finally {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.file_history_move'));
+            try { await refreshAfterDesktopFileDrop(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
         }
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop();
     }
 
     async function uploadHostFilesToDesktop(files, clientX, clientY) {
@@ -11983,6 +16656,7 @@ function wireWindow(win, id) {
     }
 
     async function pasteDesktopFileClipboard(destBase, options) {
+        if (desktopReadonly()) return;
         const clipboardState = window.AuraDesktopFileClipboard;
         if (clipboardState?.entries?.length) return transferCloudFilesToLocal(clipboardState.entries, destBase == null ? 'Desktop' : destBase, clipboardState.mode === 'cut' ? 'move' : 'copy', clipboardState);
         const clipboard = desktopFileClipboard();
@@ -11996,36 +16670,54 @@ function wireWindow(win, id) {
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
         let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(clipboard.mode === 'cut' ? clipboard.paths : [])) : null;
         let offset = 0;
-        for (const src of clipboard.paths) {
-            const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
-            if (clipboard.mode === 'cut' && naturalPath === src) continue;
-            const newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
-            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
-            if (newPath === src) continue;
-            if (clipboard.mode === 'copy') {
-                await api('/api/desktop/copy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_path: src, dest_path: newPath })
-                });
-            } else {
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
+        const moves = [];
+        const movedSources = new Set();
+        let changed = false;
+        try {
+            for (const src of clipboard.paths) {
+                const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
+                if (clipboard.mode === 'cut' && naturalPath === src) continue;
+                let newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
+                if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+                if (newPath === src) continue;
+                if (clipboard.mode === 'copy') {
+                    await api('/api/desktop/copy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source_path: src, dest_path: newPath })
+                    });
+                } else {
+                    const result = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    moves.push(result);
+                    movedSources.add(src);
+                    newPath = normalizeDesktopPath(result.path) || newPath;
+                }
+                changed = true;
+                if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+                if (targetBase.toLowerCase() === 'desktop') {
+                    const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+                    saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
+                    offset += 18;
+                }
             }
-            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
-            if (targetBase.toLowerCase() === 'desktop') {
-                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
-                saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
-                offset += 18;
+        } finally {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.file_history_move'));
+            if (movedSources.size && window.AuraDesktopFileClipboard === clipboardState) {
+                const remaining = clipboard.paths.filter(path => !movedSources.has(path));
+                window.AuraDesktopFileClipboard = remaining.length ? Object.assign({}, clipboardState, { paths: remaining }) : null;
+            }
+            if (changed) {
+                try { await refreshAfterDesktopFileDrop(options); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             }
         }
         if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
         if (clipboard.mode === 'cut' && window.AuraDesktopFileClipboard === clipboardState) window.AuraDesktopFileClipboard = null;
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop(options);
     }
 
     function wireDesktopFileIconDrag(btn) {
@@ -14974,6 +19666,219 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
+/* ui/js/desktop/core/clock-calendar-runtime.js */
+    let clockCalendarPanel = null;
+    let clockCalendarOpen = false;
+    let clockCalendarAnchor = null;
+    let clockCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let clockCalendarSelected = isoDate(new Date());
+    let clockCalendarAppointments = [];
+    let clockCalendarLoading = false;
+    let clockCalendarLoadError = false;
+    let clockCalendarLoaded = false;
+    let clockCalendarRequest = 0;
+    let clockCalendarAbort = null;
+    let clockCalendarMidnightTimer = 0;
+    let clockCalendarKeyHandler = null;
+
+    function ensureClockCalendarPanel() {
+        if (clockCalendarPanel) return clockCalendarPanel;
+        const panel = document.createElement('section');
+        panel.id = 'vd-clock-popup';
+        panel.className = 'vd-clock-popup vd-tray-popover vd-clock-calendar';
+        panel.hidden = true;
+        panel.tabIndex = -1;
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'false');
+        panel.setAttribute('aria-labelledby', 'vd-clock-calendar-title');
+        document.body.appendChild(panel);
+        panel.addEventListener('click', onClockCalendarClick);
+        clockCalendarPanel = panel;
+        return panel;
+    }
+
+    function clockCalendarDayItems(date) {
+        return calendarDayItems(clockCalendarAppointments.filter(item => item.status !== 'cancelled' && item.status !== 'completed'), date);
+    }
+
+    function clockCalendarGridHTML() {
+        const weekdays = calendarWeekDays(new Date()).map(day => `<span>${esc(calFormat(day, { weekday: 'short' }))}</span>`).join('');
+        const today = new Date();
+        const cells = calendarMonthCells(clockCalendarCursor).cells.map(day => {
+            const key = isoDate(day);
+            const items = clockCalendarDayItems(day);
+            const classes = ['vd-clock-calendar-day'];
+            if (day.getMonth() !== clockCalendarCursor.getMonth()) classes.push('is-other-month');
+            if (key === isoDate(today)) classes.push('is-today');
+            if (key === clockCalendarSelected) classes.push('is-selected');
+            if (items.length) classes.push('has-events');
+            return `<button type="button" class="${classes.join(' ')}" data-clock-day="${key}" aria-label="${esc(calFormat(day, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}" aria-pressed="${key === clockCalendarSelected ? 'true' : 'false'}" ${key === isoDate(today) ? 'aria-current="date"' : ''}>
+                <span>${day.getDate()}</span>${items.length ? `<i aria-hidden="true"></i>` : ''}
+            </button>`;
+        }).join('');
+        return `<div class="vd-clock-calendar-weekdays" aria-hidden="true">${weekdays}</div><div class="vd-clock-calendar-grid" role="group" aria-label="${esc(calendarRangeLabel('month', clockCalendarCursor))}">${cells}</div>`;
+    }
+
+    function clockCalendarAgendaHTML() {
+        const selectedDate = calParseISODate(clockCalendarSelected);
+        const dateLabel = calFormat(selectedDate, { weekday: 'long', day: 'numeric', month: 'long' });
+        let body = '';
+        if (clockCalendarLoading) body = `<p class="vd-clock-calendar-message" role="status">${esc(t('desktop.loading'))}</p>`;
+        else if (clockCalendarLoadError) body = `<div class="vd-clock-calendar-error" role="alert"><p>${esc(t('desktop.clock_calendar_load_failed'))}</p><button type="button" class="vd-clock-calendar-retry" data-clock-action="retry">${esc(t('desktop.spotlight_retry'))}</button></div>`;
+        else if (clockCalendarLoaded) {
+            const items = clockCalendarDayItems(selectedDate);
+            body = items.length ? `<ul class="vd-clock-calendar-events">${items.map(item => {
+                const date = calendarDate(item.date_time);
+                return `<li><time datetime="${esc(item.date_time)}">${esc(date ? calFormatTime(date) : '')}</time><span>${esc(item.title || '')}</span></li>`;
+            }).join('')}</ul>` : `<p class="vd-clock-calendar-message">${esc(t('desktop.clock_no_events'))}</p>`;
+        }
+        return `<section class="vd-clock-calendar-agenda" aria-labelledby="vd-clock-calendar-agenda-title"><h3 id="vd-clock-calendar-agenda-title">${esc(dateLabel)}</h3>${body}</section>`;
+    }
+
+    function renderClockCalendar(focusSelector) {
+        const panel = clockCalendarPanel;
+        if (!panel) return;
+        const active = document.activeElement;
+        const keepFocus = !!(panel.contains && panel.contains(active));
+        const activeSelector = keepFocus && active.dataset?.clockAction
+            ? `[data-clock-action="${active.dataset.clockAction}"]`
+            : keepFocus && active.dataset?.clockDay ? `[data-clock-day="${active.dataset.clockDay}"]` : '';
+        panel.innerHTML = `<header class="vd-clock-calendar-header">
+                <h2 id="vd-clock-calendar-title">${esc(calendarRangeLabel('month', clockCalendarCursor))}</h2>
+                <div class="vd-clock-calendar-nav" role="group" aria-label="${esc(t('desktop.clock_calendar_month_navigation'))}">
+                    <button type="button" data-clock-action="previous-month" aria-label="${esc(t('desktop.cal_previous'))}" title="${esc(t('desktop.cal_previous'))}">‹</button>
+                    <button type="button" data-clock-action="today">${esc(t('desktop.cal_today'))}</button>
+                    <button type="button" data-clock-action="next-month" aria-label="${esc(t('desktop.cal_next'))}" title="${esc(t('desktop.cal_next'))}">›</button>
+                </div>
+            </header>
+            ${clockCalendarGridHTML()}
+            ${clockCalendarAgendaHTML()}
+            <button type="button" class="vd-clock-popup-open" data-clock-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
+        if (keepFocus) {
+            const selector = focusSelector || activeSelector;
+            (selector && panel.querySelector(selector) || panel.querySelector('[data-clock-action="today"]') || panel).focus();
+        }
+    }
+
+    function scheduleClockCalendarMidnight() {
+        if (clockCalendarMidnightTimer) window.clearTimeout(clockCalendarMidnightTimer);
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 100);
+        clockCalendarMidnightTimer = window.setTimeout(() => {
+            clockCalendarMidnightTimer = 0;
+            if (!clockCalendarOpen) return;
+            const previousToday = isoDate(new Date(next.getFullYear(), next.getMonth(), next.getDate() - 1));
+            const today = new Date();
+            const todayKey = isoDate(today);
+            if (clockCalendarSelected === previousToday) clockCalendarSelected = todayKey;
+            if (clockCalendarCursor.getFullYear() === Number(previousToday.slice(0, 4)) && clockCalendarCursor.getMonth() === Number(previousToday.slice(5, 7)) - 1) {
+                clockCalendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+            renderClockCalendar();
+            scheduleClockCalendarMidnight();
+        }, Math.max(100, next.getTime() - now.getTime()));
+    }
+
+    async function loadClockCalendarAppointments() {
+        if (!clockCalendarOpen) return;
+        clockCalendarAbort?.abort();
+        const controller = new AbortController();
+        clockCalendarAbort = controller;
+        const request = ++clockCalendarRequest;
+        clockCalendarLoading = true;
+        clockCalendarLoaded = false;
+        clockCalendarLoadError = false;
+        renderClockCalendar();
+        try {
+            const appointments = await api('/api/desktop/integrations/appointments?status=all', { signal: controller.signal });
+            if (!clockCalendarOpen || controller.signal.aborted || request !== clockCalendarRequest) return;
+            clockCalendarAppointments = normalizeCalendarAppointments(appointments);
+            clockCalendarLoaded = true;
+        } catch (_) {
+            if (!clockCalendarOpen || controller.signal.aborted || request !== clockCalendarRequest) return;
+            clockCalendarLoadError = true;
+        } finally {
+            if (clockCalendarOpen && request === clockCalendarRequest && !controller.signal.aborted) {
+                clockCalendarLoading = false;
+                renderClockCalendar();
+            }
+        }
+    }
+
+    function onClockCalendarClick(event) {
+        const target = event.target?.closest?.('[data-clock-action], [data-clock-day]');
+        if (!target) return;
+        if (target.dataset.clockDay) {
+            clockCalendarSelected = target.dataset.clockDay;
+            const selected = calParseISODate(clockCalendarSelected);
+            if (!Number.isNaN(selected.getTime()) && (selected.getMonth() !== clockCalendarCursor.getMonth() || selected.getFullYear() !== clockCalendarCursor.getFullYear())) {
+                clockCalendarCursor = new Date(selected.getFullYear(), selected.getMonth(), 1);
+            }
+            renderClockCalendar(`[data-clock-day="${clockCalendarSelected}"]`);
+            return;
+        }
+        const action = target.dataset.clockAction;
+        if (action === 'previous-month' || action === 'next-month') {
+            clockCalendarCursor = calAddMonths(clockCalendarCursor, action === 'previous-month' ? -1 : 1);
+            renderClockCalendar(`[data-clock-action="${action}"]`);
+        } else if (action === 'today') {
+            const today = new Date();
+            clockCalendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+            clockCalendarSelected = isoDate(today);
+            renderClockCalendar('[data-clock-action="today"]');
+        } else if (action === 'retry') {
+            loadClockCalendarAppointments();
+        } else if (action === 'open-calendar') {
+            closeClockCalendarPopup();
+            openApp('calendar');
+        }
+    }
+
+    function closeClockCalendarPopup(restoreFocus = false) {
+        if (!clockCalendarPanel) return;
+        clockCalendarPanel.hidden = true;
+        clockCalendarOpen = false;
+        clockCalendarRequest++;
+        clockCalendarAbort?.abort();
+        clockCalendarAbort = null;
+        if (clockCalendarMidnightTimer) window.clearTimeout(clockCalendarMidnightTimer);
+        clockCalendarMidnightTimer = 0;
+        clockCalendarAnchor?.setAttribute('aria-expanded', 'false');
+        if (clockCalendarKeyHandler) document.removeEventListener('keydown', clockCalendarKeyHandler, true);
+        clockCalendarKeyHandler = null;
+        if (restoreFocus && clockCalendarAnchor?.isConnected) clockCalendarAnchor.focus();
+        clockCalendarAnchor = null;
+    }
+
+    function openClockCalendarPopup(anchor) {
+        closeClockCalendarPopup();
+        const panel = ensureClockCalendarPanel();
+        clockCalendarOpen = true;
+        clockCalendarAnchor = anchor || document.activeElement;
+        const now = new Date();
+        clockCalendarCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+        clockCalendarSelected = isoDate(now);
+        clockCalendarAppointments = [];
+        clockCalendarLoading = false;
+        clockCalendarLoadError = false;
+        clockCalendarLoaded = false;
+        panel.hidden = false;
+        clockCalendarAnchor?.setAttribute('aria-expanded', 'true');
+        placeTrayPopover(panel, anchor || clockCalendarAnchor);
+        renderClockCalendar();
+        clockCalendarKeyHandler = event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeClockCalendarPopup(true);
+        };
+        document.addEventListener('keydown', clockCalendarKeyHandler, true);
+        panel.querySelector('[data-clock-action="previous-month"]')?.focus();
+        scheduleClockCalendarMidnight();
+        loadClockCalendarAppointments();
+    }
+
+;
 /* ui/js/desktop/apps/calendar-editor.js */
     // Calendar appointment editor, quick-peek popover and recurring creation.
     // Continuation of the shared Desktop IIFE; calendar.js owns the session state.
@@ -17763,51 +22668,21 @@ function updateTaskbarSystemButtonsForMobile() {
         return entry;
     }
 
+    function desktopAssociationCandidates(entry) {
+        const associations = window.AuraDesktopFileAssociations;
+        const candidates = associations.resolveCandidates(entry, {
+            isViewerFile, isWriterFile, isSheetsFile, allApps,
+            isImageFile: desktopIsImageFile, isMediaFile: desktopIsMediaFile, isArchiveFile: desktopIsArchiveFile
+        });
+        return associations.availableCandidates(candidates, allApps()).map(app => Object.assign({}, app, {
+            label: app.label || t(app.labelKey)
+        }));
+    }
+
     function buildDesktopOpenWithSubmenu(entry) {
         if (!entry || entry.type !== 'file') return [];
-        const name = entry.name || pathBaseName(entry.path);
-        const apps = [];
-        const isText = (typeof isViewerFile === 'function' && isViewerFile(entry)) || String(name).endsWith('.txt') || String(name).endsWith('.log');
-        const isImage = desktopIsImageFile(name);
-        const isMedia = desktopIsMediaFile(name) || String(entry.media_kind || '').toLowerCase() === 'audio' || String(entry.media_kind || '').toLowerCase() === 'video';
-        const isBookshelfFile = /\.(epub|pdf|mobi|azw|azw3|fb2(?:\.zip)?|cbz|txt(?:\.gz)?|html?|cbr|rtf|docx|odt|djvu|lit|pdb|lrf)$/i.test(String(name || ''));
-        if (isText) {
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.ora$/i.test(name)) {
-            // OpenRaster projects are Pixel documents: Gallery and Viewer cannot draw them.
-            apps.push({ label: t('desktop.app_pixel'), appId: 'pixel' });
-        } else if (isImage) {
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        } else if (isMedia) {
-            const ext = desktopFileExtension(name);
-            if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'opus'].includes(ext)) apps.push({ label: t('desktop.app_audio_player'), appId: 'audio-player' }, { label: t('desktop.app_music_player'), appId: 'music-player' });
-            apps.push({ label: t('desktop.app_gallery'), appId: 'gallery' }, { label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isWriterFile === 'function' && isWriterFile(entry)) {
-            apps.push({ label: t('desktop.app_writer'), appId: 'writer' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isSheetsFile === 'function' && isSheetsFile(entry)) {
-            apps.push({ label: t('desktop.app_sheets'), appId: 'sheets' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (/\.lyl$/i.test(name)) {
-            apps.push({ label: 'Layerling', appId: 'layerling' });
-        } else if (/\.aurasynth$/i.test(name)) {
-            apps.push({ label: t('desktop.app_synth_studio'), appId: 'synth-studio' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (String(name || '').toLowerCase().endsWith('.md')) {
-            apps.push({ label: t('desktop.app_notes'), appId: 'notes' });
-            apps.push({ label: t('desktop.app_editor'), appId: 'editor' });
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (typeof isViewerFile === 'function' && isViewerFile(entry)) {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' });
-        } else if (desktopIsArchiveFile(name)) {
-            apps.push({ label: t('desktop.app_zipper'), appId: 'zipper' });
-        } else {
-            apps.push({ label: t('desktop.app_viewer'), appId: 'viewer' }, { label: t('desktop.app_code_studio'), appId: 'code-studio' });
-        }
-        if (/\.kicad_pro$/i.test(name) && String(entry.path).startsWith('Shared/')) apps.unshift({ label: 'Ziro Designer', appId: allApps().some(app => app.id === 'store-ziro-designer') ? 'store-ziro-designer' : 'software-store' });
-        if (isBookshelfFile) apps.unshift({ label: t('desktop.app_bookshelf'), appId: 'bookshelf' });
-        const ext = /\.fb2\.zip$/i.test(String(name || '')) ? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name);
-        if (/\.(stl|obj|3mf|step|stp|svg)$/i.test(name)) apps.push({ label: 'Layerling', appId: 'layerling' });
+        const apps = desktopAssociationCandidates(entry);
+        const ext = window.AuraDesktopFileAssociations.extensionForName(entry.name || entry.path);
         const openItems = apps.map(app => ({
             label: app.label,
             action: () => {
@@ -17817,9 +22692,14 @@ function updateTaskbarSystemButtonsForMobile() {
         }));
         const defaultItems = apps.map(app => ({
             label: t('desktop.set_default_app_for', { app: app.label }),
-            action: () => {
-                setDefaultAppForExtension(ext, app.appId);
-                showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+            disabled: desktopReadonly() || !ext,
+            action: async () => {
+                try {
+                    await setDefaultAppForExtension(ext, app.appId);
+                    showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.default_app_saved') });
+                } catch (err) {
+                    showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+                }
             }
         }));
         return openItems.concat([{ separator: true }]).concat(defaultItems);
@@ -17878,7 +22758,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
             }
         }
-        await loadBootstrap();
+        await refreshDesktopAfterFileChange();
     }
 
     async function compressDesktopPathsToZip(paths) {
@@ -17900,7 +22780,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 body: JSON.stringify({ paths: cleanPaths, dest: destPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -17921,7 +22801,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 body: JSON.stringify({ path: entry.path, dest })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -17940,7 +22820,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 body: JSON.stringify({ target_path: entry.path, link_path: linkPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.fm.symlink_created') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -17979,43 +22859,31 @@ function updateTaskbarSystemButtonsForMobile() {
                 action: () => saveDesktopWallpaper(value)
             };
         };
-        return options.map(item).concat([{ separator: true }], animated.map(item));
+        return options.map(item).concat([{ separator: true }], animated.map(item), [{ separator: true }, { label: t('desktop.wallpaper_choose'), disabled: desktopReadonly(), action: chooseDesktopWallpaper }]);
     }
 
     async function saveDesktopWallpaper(value) {
         try {
-            const wallpaper = typeof normalizeWallpaperId === 'function' ? normalizeWallpaperId(value) : String(value || 'groupshoot');
-            const updates = [];
-            const nextSettings = Object.assign({}, desktopSettings());
-            if (typeof spacesEnabled === 'function' && spacesEnabled()) {
-                const map = typeof parseWallpaperBySpace === 'function' ? Object.assign({}, parseWallpaperBySpace()) : {};
-                const fallback = settingValue('appearance.wallpaper') || 'groupshoot';
-                SPACE_IDS.forEach(id => {
-                    if (!map[id]) map[id] = fallback;
-                });
+            const wallpaper = normalizeWallpaperId(value);
+            const reloadCustom = wallpaperForActiveSpace() === wallpaper;
+            if (spacesEnabled()) {
+                const map = Object.assign({}, parseWallpaperBySpace());
                 map[normalizeSpaceId(state.activeSpaceId)] = wallpaper;
-                const encoded = JSON.stringify(map);
-                updates.push({ key: 'appearance.wallpaper_by_space', value: encoded });
-                nextSettings['appearance.wallpaper_by_space'] = encoded;
+                await saveDesktopPreference('appearance.wallpaper_by_space', JSON.stringify(map));
             } else {
-                updates.push({ key: 'appearance.wallpaper', value: wallpaper });
-                nextSettings['appearance.wallpaper'] = wallpaper;
+                await saveDesktopPreference('appearance.wallpaper', wallpaper);
             }
-            const results = await Promise.all(updates.map(update => api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(update)
-            })));
-            const last = results[results.length - 1];
-            if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = last.settings || nextSettings;
-            Object.assign(state.bootstrap.settings, nextSettings);
-            applyDesktopSettings();
-            renderStartButtonIcon();
-            renderIcons();
-            renderWidgets();
+            if (reloadCustom && window.AuraDesktopCustomWallpaper?.isCustom(wallpaper)) {
+                desktopCustomWallpaperKey = '';
+                syncDesktopCustomWallpaper();
+            }
+            return true;
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            const code = err.body?.code || '';
+            const message = code.startsWith('wallpaper_') ? t(code === 'wallpaper_not_found' ? 'desktop.wallpaper_missing' : 'desktop.wallpaper_invalid',
+                { path: window.AuraDesktopCustomWallpaper?.path(value) || '' }) : err.message || String(err);
+            showDesktopNotification({ title: t('desktop.notification'), message });
+            return false;
         }
     }
 
@@ -18034,7 +22902,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function contextMenuReadonlyGuard(items) {
         if (!desktopReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app', 'undo', 'redo']);
         return (items || []).map(item => {
             if (!item || item.separator) return item;
             if (!blocked.has(item.id)) return item;
@@ -18145,11 +23013,15 @@ function updateTaskbarSystemButtonsForMobile() {
         if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
         event.preventDefault();
         selectDesktopIcon(null);
+        const history = window.AuraDesktopFileHistory;
+        const historyState = history?.snapshot();
         const items = contextMenuReadonlyGuard([
             { id: 'new-sticky-note', label: t('desktop.sticky_add'), icon: 'notes', fallback: '+', disabled: desktopReadonly(), action: () => editStickyNote(null, event.clientX, event.clientY) },
             { id: 'new-file', label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
             { id: 'new-folder', label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', id: 'paste', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
+            { id: 'undo', label: t('desktop.menu_undo'), icon: 'undo', fallback: '↶', shortcut: 'Ctrl+Z', disabled: !historyState?.canUndo, action: () => history?.undo() },
+            { id: 'redo', label: t('desktop.menu_redo'), icon: 'redo', fallback: '↷', shortcut: 'Ctrl+Shift+Z', disabled: !historyState?.canRedo, action: () => history?.redo() },
             { separator: true },
             { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
             { label: t('desktop.settings_wallpaper'), icon: 'image', fallback: 'W', items: desktopWallpaperMenuItems() },
@@ -18244,16 +23116,23 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
+        if (!appId) return;
+        const overviewOpener = event.target?.closest('button') || document.activeElement;
         const app = appById(appId);
         const pinned = isAppDockPinned(appId);
+        const hasWindows = windowOverviewWindows({ appId, scope: 'all' }).length > 0;
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
             { label: t('desktop.context_new_window'), icon: 'monitor', fallback: 'N', action: () => openApp(appId, { forceNew: true }) },
+            { id: 'app-windows', label: t('desktop.window_app_list'), icon: 'grid', fallback: 'W', disabled: !hasWindows,
+                action: () => openDesktopWindowOverview({ mode: 'app-group', appId, opener: overviewOpener }) },
             { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) },
             { separator: true },
             pinned
-                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', action: () => toggleDockPin(appId) }
-                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', action: () => toggleDockPin(appId) }
+                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', disabled: desktopReadonly(), action: () => toggleDockPin(appId) }
+                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', disabled: desktopReadonly(), action: () => toggleDockPin(appId) },
+            { id: 'close-app-windows', label: t('desktop.close_app_windows'), icon: 'x', fallback: 'X', disabled: !hasWindows,
+                action: () => closeDesktopWindowBatch(windowOverviewWindows({ appId, scope: 'all' }).map(win => win.id)) }
         ];
         if (!isBuiltinApp(appId)) {
             items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', danger: true, action: () => deleteDesktopApp(appId) });
@@ -18293,11 +23172,12 @@ function updateTaskbarSystemButtonsForMobile() {
         const item = state.windows.get(id);
         if (!item) return;
         const items = [
-            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => focusWindow(id) },
+            { label: t('desktop.context_restore'), icon: 'monitor', fallback: 'W', action: () => { restoreWindowFromSnap(id); focusWindow(id); } },
             { label: t('desktop.context_minimize'), icon: 'chevron-down', fallback: '_', action: () => minimizeWindow(id) },
             { label: item.maximized ? t('desktop.restore') : t('desktop.context_maximize'), icon: 'grid', fallback: 'M', action: () => toggleMaximizeWindow(id) }
         ];
         if (!item.isGadget) {
+            items.push({ label: t('desktop.window_layouts'), icon: 'grid', action: () => openWindowLayoutMenu(id) });
             const onTop = !!item.alwaysOnTop;
             items.push({
                 label: t('desktop.context_always_on_top'),
@@ -18330,7 +23210,7 @@ function updateTaskbarSystemButtonsForMobile() {
             SPACE_IDS.forEach(spaceId => {
                 const current = windowSpaceId(item) === spaceId;
                 items.push({
-                    label: t('desktop.move_to_space').replace('{{n}}', spaceId) + (current ? ' ✓' : ''),
+                    label: t('desktop.move_to_space').replace('{{n}}', window.AuraDesktopWorkspaceManager?.name(spaceId) || spaceId) + (current ? ' ✓' : ''),
                     icon: 'grid',
                     fallback: spaceId,
                     action: () => moveWindowToSpace(id, spaceId)
@@ -18339,6 +23219,7 @@ function updateTaskbarSystemButtonsForMobile() {
         }
         items.push(
             { separator: true },
+            ...windowBatchMenuItems(id).map(entry => ({ label: t(entry.labelKey), action: entry.action, disabled: entry.disabled })),
             { label: t('desktop.context_close'), icon: 'x', fallback: 'X', action: () => closeWindow(id) }
         );
         showContextMenu(event.clientX, event.clientY, items);
@@ -18396,6 +23277,10 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function refreshDesktopAfterFileChange() {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) {
+            await window.FileManager.refreshLocalInstances();
+            return;
+        }
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -18428,7 +23313,7 @@ function updateTaskbarSystemButtonsForMobile() {
     function officeAppContext(context) {
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, promptDialog, confirmDialog,
             registerWindowCleanup,
-            setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
+            registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
         });
     }
 
@@ -18526,9 +23411,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
             openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -18544,45 +23427,43 @@ function updateTaskbarSystemButtonsForMobile() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: workspaceJoinPath(basePath, name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function renamePath(path) {
-        if (!path) return;
+        if (!path || desktopReadonly()) return;
         const current = String(path).split('/').pop();
         const name = await promptDialog(t('desktop.rename'), current);
         if (!name || name === current) return;
         try {
-            await api('/api/desktop/file', {
+            const result = await api('/api/desktop/file', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ old_path: path, new_path: workspaceJoinPath(pathDir(path), name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            window.AuraDesktopFileHistory?.record(result, t('desktop.context_rename'));
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function deletePath(path) {
-        if (!path) return;
-        if (settingBool('files.confirm_delete')) {
-            const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
+        if (!path || desktopReadonly()) return;
+        const permanent = isInsideTrashPath(path);
+        if (permanent || settingBool('files.confirm_delete')) {
+            const confirmed = await confirmDialog(t(permanent ? 'desktop.app_delete_permanent' : 'desktop.confirm_delete'),
+                permanent ? t('desktop.confirm_empty_trash_msg', { count: 1 }) : t('desktop.confirm_delete_msg', { path }));
             if (!confirmed) return;
         }
         try {
+            if (!permanent) return await movePathToTrash(path);
             await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
             desktopSound('file.delete');
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -18596,20 +23477,26 @@ function updateTaskbarSystemButtonsForMobile() {
         if (desktopReadonly()) return [];
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: cleanPaths })
             });
-            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
-            desktopSound('file.trash');
-            await refreshDesktopAfterFileChange();
-            return result.moves || [];
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
-            return [];
         }
+        if (moves.length) {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.context_delete'));
+            moves.forEach(move => removeIconPosition('desktop-entry-' + move.from));
+            desktopSound('file.trash');
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+        }
+        return moves;
     }
 
     async function handleTrashDrop(btn) {
@@ -18622,6 +23509,8 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
     async function emptyTrash() {
+        if (desktopReadonly()) return;
+        let changed = false;
         try {
             const entries = await listTrashEntries();
             if (entries.length === 0) {
@@ -18633,12 +23522,19 @@ function updateTaskbarSystemButtonsForMobile() {
                 if (!confirmed) return;
             }
             for (const entry of entries) {
-                if (entry && entry.path) await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                if (entry && entry.path) {
+                    await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                    changed = true;
+                }
             }
             desktopSound('file.delete');
-            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        } finally {
+            if (changed) {
+                try { await refreshDesktopAfterFileChange(); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            }
         }
     }
 
@@ -18668,18 +23564,22 @@ function updateTaskbarSystemButtonsForMobile() {
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        let restored = [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: unique, restore: true })
             });
-            restored = (result.moves || []).map(move => move.path);
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
+        window.AuraDesktopFileHistory?.record(moves, t('desktop.context_restore'));
+        const restored = moves.map(move => move.path);
         if (restored.length) {
-            await refreshDesktopAfterFileChange();
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             const message = restored.length === 1
                 ? t('desktop.trash_restored', { path: restored[0] })
                 : t('desktop.trash_restored_items', { count: restored.length });
@@ -19036,6 +23936,18 @@ function updateTaskbarSystemButtonsForMobile() {
             .filter(menu => menu.items.length);
     }
 
+    function windowBatchMenuItems(windowId) {
+        const item = state.windows.get(windowId);
+        if (!item || item.isGadget) return [];
+        const eligible = Array.from(state.windows.values()).filter(win => !win.isGadget && !win.closing);
+        const others = eligible.filter(win => win.id !== windowId && windowSpaceId(win) === windowSpaceId(item)).map(win => win.id);
+        const sameApp = eligible.filter(win => win.appId === item.appId).map(win => win.id);
+        return [
+            { id: 'close-others', labelKey: 'desktop.close_other_windows', disabled: !others.length, action: () => closeDesktopWindowBatch(others) },
+            { id: 'close-app', labelKey: 'desktop.close_app_windows', disabled: !sameApp.length, action: () => closeDesktopWindowBatch(sameApp) }
+        ];
+    }
+
     function automaticWindowMenu(windowId) {
         const item = state.windows.get(windowId);
         const hasMaximize = !!(item && item.element && item.element.querySelector('[data-action="maximize"]'));
@@ -19053,6 +23965,9 @@ function updateTaskbarSystemButtonsForMobile() {
                     action: () => hasMaximize && toggleMaximizeWindow(windowId)
                 },
                 { type: 'separator' },
+                ...(item && !item.isGadget ? [{ id: 'layouts', labelKey: 'desktop.window_layouts', action: () => openWindowLayoutMenu(windowId) },
+                    { id: 'restore-layout', labelKey: 'desktop.restore', disabled: !windowLayoutCanRestore(windowId), action: () => restoreWindowFromSnap(windowId) },
+                    ...windowBatchMenuItems(windowId)] : []),
                 { id: 'close', labelKey: 'desktop.menu_close_window', icon: 'x', shortcut: 'Alt+F4', action: () => closeWindow(windowId) }
             ]
         };
@@ -19284,7 +24199,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, chooseDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -19330,7 +24245,7 @@ function updateTaskbarSystemButtonsForMobile() {
             if (win) { delete win.pendingCameraImport; delete win.pendingProjectId; }
             return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
@@ -19339,7 +24254,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'infra' && window.InfraApp) {
             return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, confirmDialog, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 showConfirmModal: (title, message, confirmLabel) => confirmLabel
                     ? modalDialog({ title, message, choices: [{ value: 'discard', label: confirmLabel }] }).then(value => value === 'discard')
                     : confirmDialog(title, message),
@@ -19349,7 +24264,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'ruview' && window.RuViewApp) {
             return window.RuViewApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, confirmDialog, modalDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'docker-manager' && window.DockerManagerApp) {
@@ -19466,7 +24381,7 @@ if (appId === 'system-info') {
             if (typeof window.StorymakerApp.render === 'function') {
                 return window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -19476,7 +24391,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {
@@ -19648,7 +24563,7 @@ if (appId === 'pixel') {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
                 registerWindowCleanup,
                 providers: (state.bootstrap || {}).providers || [],
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 closeWindow
             }), context || {});
         }
@@ -19674,7 +24589,7 @@ if (appId === 'pixel') {
             const win = state.windows.get(id);
             return window.BookshelfApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog,
-                setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
                 openApp
             }));
         }
@@ -19720,7 +24635,7 @@ if (appId === 'pixel') {
                 return window.CYDCreatorApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification,
                     readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -19740,7 +24655,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), openApp, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }
@@ -19750,7 +24665,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog, openApp,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }
@@ -19880,7 +24795,7 @@ if (appId === 'pixel') {
                     const actions = [
                         { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
                         { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(row.dataset.path) },
-                        { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(row.dataset.path) },
+                        { label: t(isInsideTrashPath(row.dataset.path) ? 'desktop.app_delete_permanent' : 'desktop.context_delete'), icon: 'trash', fallback: 'X', danger: true, action: () => deletePath(row.dataset.path) },
                     ];
                     if (row.dataset.type === 'file') {
                         const entry = {
@@ -20203,6 +25118,8 @@ if (appId === 'pixel') {
     async function renderEditor(id, path, initialContent) {
         const host = contentEl(id);
         if (!host) return;
+        const previous = host.querySelector('.vd-editor textarea')?.__auragoSessionAction;
+        if (previous && !await approveEditorReplacement(id, previous)) return false;
         host.innerHTML = `<div class="vd-editor">
             <div class="vd-toolbar">
                 <span class="vd-path">${esc(path)}</span>
@@ -20220,9 +25137,27 @@ if (appId === 'pixel') {
         let version = '';
         let saving = false;
         let loadFailed = false;
+        let editRevision = 0;
+        let savedRevision = 0;
+        const title = state.windows.get(id)?.title || t('desktop.app_editor');
+        const participant = {
+            inspect: () => ({ dirty: editRevision !== savedRevision, revision: editRevision, label: pathBaseName(path) }),
+            decide: snapshot => decideDesktopSessionAction({ title: snapshot.title || title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expected => {
+                if (!current() || loadFailed || desktopReadonly() || saving || editRevision !== expected) return false;
+                if (await saveEditor() !== true || editRevision !== expected || savedRevision !== expected) return false;
+                return { revision: expected };
+            }
+        };
+        textarea.__auragoSessionAction = participant;
+        registerWindowSessionAction(id, participant);
+        const win = state.windows.get(id);
+        if (win) win.beforeClose = () => approveEditorReplacement(id, participant);
+        textarea.addEventListener('input', () => { editRevision++; });
         const current = () => host.contains(textarea);
         textarea.readOnly = true;
         textarea.value = initialContent || '';
+        if (initialContent) editRevision++;
         host.querySelector('[data-retry]').addEventListener('click', () => renderEditor(id, path, initialContent));
         host.querySelector('[data-new]').addEventListener('click', () => {
             if (!desktopReadonly()) renderEditor(id, 'Documents/untitled-' + crypto.randomUUID() + '.txt', '');
@@ -20236,6 +25171,7 @@ if (appId === 'pixel') {
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
                 if (!current()) return;
                 textarea.value = body.content || '';
+                savedRevision = editRevision;
                 version = body.version || '';
             } catch (err) {
                 if (!current()) return;
@@ -20252,8 +25188,9 @@ if (appId === 'pixel') {
         textarea.hidden = loadFailed;
         if (!loadFailed) updateWindowContext(id, { path });
         const saveEditor = async () => {
-            if (!current() || loadFailed || saving || desktopReadonly()) return;
+            if (!current() || loadFailed || saving || desktopReadonly()) return false;
             saving = true;
+            const revision = editRevision;
             const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
@@ -20270,9 +25207,12 @@ if (appId === 'pixel') {
                 if (win) win.path = path;
                 updateWindowContext(id, { path });
                 status.textContent = textarea.value === content ? t('desktop.saved') : '';
+                if (textarea.value === content && editRevision === revision) savedRevision = revision;
                 await loadBootstrap();
+                return textarea.value === content && editRevision === revision;
             } catch (err) {
                 if (current()) status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+                return false;
             } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
@@ -20281,6 +25221,31 @@ if (appId === 'pixel') {
             subject: pathBaseName(path), formats: [{id:'source',label:pathBaseName(path)}],
             createFiles: async () => [new File([textarea.value], pathBaseName(path), {type:'text/plain;charset=utf-8'})]
         }));
+    }
+
+    async function approveEditorReplacement(id, participant) {
+        let snapshot;
+        try { snapshot = await participant.inspect(); }
+        catch (_) { return false; }
+        if (!snapshot || typeof snapshot.dirty !== 'boolean') return false;
+        if (!snapshot.dirty) return true;
+        const win = state.windows.get(id);
+        let choice;
+        try { choice = await participant.decide({ ...snapshot, title: win?.title || t('desktop.app_editor') }); }
+        catch (_) { return false; }
+        if (choice === 'cancel') return false;
+        let latest;
+        try { latest = await participant.inspect(); }
+        catch (_) { return false; }
+        if (!latest || latest.revision !== snapshot.revision || (!snapshot.dirty && latest.dirty)) return false;
+        // A normal autosave may have completed while the decision dialog was open.
+        if (!latest.dirty) return true;
+        if (choice === 'keep') return true;
+        if (choice !== 'save') return false;
+        try {
+            const result = await participant.save(snapshot.revision);
+            return !!result && result.revision === snapshot.revision;
+        } catch (_) { return false; }
     }
 
     function setEditorMenus(id, path, textarea, status, saveEditor) {
@@ -22840,6 +27805,7 @@ if (appId === 'pixel') {
                     draftKey: state.windows.get(id)?.sessionKey || id,
                     updateContext: value => updateWindowContext(id, value),
                     openProjectWindow: value => openApp(app.id, { ...value, forceNew: true }),
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction,
                     setBeforeClose: handler => { const win = state.windows.get(id); if (win) win.beforeClose = handler; },
                     openURL: desktopStoreOpenURL(storeAppId)
                 });
@@ -23521,7 +28487,7 @@ if (appId === 'pixel') {
             case 'notification:show':
                 requirePermission(client, ['notifications']);
                 guard();
-                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '' });
+                showDesktopNotification({ title: payload.title || client.app.name, message: payload.message || payload.content || '', appId: client.appId });
                 return { status: 'ok' };
             case 'widget:upsert': {
                 requirePermission(client, ['widgets:write']);
@@ -23585,6 +28551,7 @@ if (appId === 'pixel') {
     }
 
     function cleanupDesktopShellRuntime() {
+        endWindowSwitcherHold(false);
         if (state._clockTimer) {
             clearInterval(state._clockTimer);
             state._clockTimer = null;
@@ -23749,7 +28716,7 @@ if (appId === 'pixel') {
         }
         if (event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
-            state.bootstrap = event.payload || state.bootstrap;
+            acceptDesktopBootstrap(event.payload || state.bootstrap);
             document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: state.bootstrap || {} }));
             renderDesktop();
             refreshPetRuntime();
@@ -23816,11 +28783,20 @@ if (appId === 'pixel') {
 
     function showDesktopNotification(payload) {
         payload = payload || {};
-        if (payload.appId === 'meshcore') desktopSound('notify.message');
-        else if (payload.type === 'error') desktopSound('notify.error');
-        else desktopSound('notify.info');
+        const policy = window.AuraDesktopNotificationCenter;
+        const delivery = policy && typeof policy.delivery === 'function' ? policy.delivery(payload) : { toast: true, sound: true };
         pushNotificationRecord(payload);
+        if (delivery.sound) {
+            if (payload.appId === 'meshcore') desktopSound('notify.message');
+            else if (payload.type === 'error') desktopSound('notify.error');
+            else desktopSound('notify.info');
+        }
+        if (!delivery.toast) return;
         ringNotificationBell();
+        return showDesktopToast(payload);
+    }
+
+    function showDesktopToast(payload, action) {
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -23830,27 +28806,50 @@ if (appId === 'pixel') {
         toast.innerHTML = `<div><div class="vd-toast-title">${title}</div>${message ? `<div class="vd-toast-message">${message}</div>` : ''}</div><button class="vd-toast-close" type="button" aria-label="${esc(t('desktop.close'))}">✕</button>`;
         container.appendChild(toast);
         toast.querySelector('.vd-toast-close').addEventListener('click', () => removeToast(toast));
+        if (action && typeof action.run === 'function') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-toast-action';
+            button.textContent = action.label;
+            toast.firstElementChild.appendChild(button);
+            button.addEventListener('click', async () => {
+                if (button.disabled) return;
+                button.disabled = true;
+                try { await action.run(); }
+                catch (err) { showDesktopNotification({ type: 'error', message: err.message || t('desktop.action_unavailable') }); }
+                finally { removeToast(toast); }
+            });
+        }
         const duration = Number(payload.duration) || 5500;
         toast.dataset.type = payload.type === 'error' ? 'error' : 'info';
         toast.style.setProperty('--vd-toast-life', duration + 'ms');
-        // Hovering holds the toast; its countdown resumes with the time that was left.
+        // Keyboard and pointer interaction hold the toast until both leave it.
         let remaining = duration;
         let started = Date.now();
         const arm = () => {
+            if (toast._toastRemoved || toast._toastTimer || toast.matches(':hover, :focus-within')) return;
             started = Date.now();
             toast._toastTimer = setTimeout(() => removeToast(toast), remaining);
         };
-        toast.addEventListener('mouseenter', () => {
-            clearTimeout(toast._toastTimer);
-            remaining -= Date.now() - started;
+        const pause = () => {
+            if (toast._toastTimer) {
+                clearTimeout(toast._toastTimer);
+                toast._toastTimer = null;
+                remaining = Math.max(0, remaining - (Date.now() - started));
+            }
             toast.classList.add('vd-toast-paused');
-        });
-        toast.addEventListener('mouseleave', () => {
-            if (toast._toastRemoved) return;
+        };
+        const resume = () => {
+            if (toast._toastRemoved || toast.matches(':hover, :focus-within')) return;
             toast.classList.remove('vd-toast-paused');
             arm();
-        });
+        };
+        toast.addEventListener('mouseenter', pause);
+        toast.addEventListener('focusin', pause);
+        toast.addEventListener('mouseleave', resume);
+        toast.addEventListener('focusout', () => queueMicrotask(resume));
         arm();
+        return toast;
     }
 
     function removeToast(toast) {
@@ -23868,6 +28867,42 @@ if (appId === 'pixel') {
     function updateClock() {
         const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
+    }
+
+    function initDesktopFileHistory() {
+        const history = window.AuraDesktopFileHistory;
+        if (!history) return;
+        let sessionActive = true;
+        history.configure({ api, refresh: refreshDesktopAfterFileChange, notify: showDesktopNotification, isReadonly: desktopReadonly,
+            isSessionActive: () => sessionActive,
+            t: (key, _fallback, vars) => t(key, vars) });
+        let toast = null, lastId = '';
+        const updateToast = snapshot => {
+            if (!snapshot.undoCount) {
+                removeToast(toast);
+                toast = null;
+                lastId = '';
+                return;
+            }
+            if (toast) {
+                const button = toast.querySelector('.vd-toast-action');
+                if (button) button.disabled = !snapshot.canUndo;
+            }
+            if (snapshot.busy || snapshot.undoId === lastId) return;
+            lastId = snapshot.undoId;
+            removeToast(toast);
+            toast = null;
+            if (!snapshot.canUndo) return;
+            const undoId = snapshot.undoId;
+            toast = showDesktopToast({ title: t('desktop.menu_undo'), message: snapshot.undoLabel, duration: 8000 }, {
+                label: t('desktop.menu_undo'),
+                run: () => history.snapshot().undoId === undoId ? history.undo() : false
+            });
+            if (toast) toast.dataset.fileUndo = undoId;
+        };
+        history.subscribe(updateToast);
+        document.addEventListener('aurago:desktop-policy', () => updateToast(history.snapshot()));
+        document.addEventListener('aurago:auth-ended', () => { sessionActive = false; history.clear(); });
     }
 
     function wireChrome() {
@@ -23900,6 +28935,7 @@ if (appId === 'pixel') {
                 if (startButton) startButton.focus();
                 return;
             }
+            if (event.target.closest('.vd-start-session')) return;
             if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
                 const search = $('vd-start-search');
                 if (search && document.activeElement !== search) search.focus();
@@ -23948,7 +28984,9 @@ if (appId === 'pixel') {
             taskbarEl.addEventListener('contextmenu', (event) => {
                 if (event.target.closest('button, input, a, .vd-start-menu')) return;
                 event.preventDefault();
+                const overviewOpener = document.activeElement;
                 showContextMenu(event.clientX, event.clientY, [
+                    { id: 'window-overview', label: t('desktop.window_overview_title'), icon: 'grid', fallback: 'W', action: () => showWindowSwitcher(overviewOpener) },
                     { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
                     { separator: true },
                     { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') },
@@ -24048,8 +29086,9 @@ if (appId === 'pixel') {
         });
     }
 
-    function showWindowSwitcher() {
-        beginWindowSwitcherHold(false);
+    function showWindowSwitcher(opener) {
+        windowSwitcherHold = null;
+        return openDesktopWindowOverview({ mode: 'switcher', opener });
     }
 
     // Desktop icon shortcuts act only while the keyboard belongs to
@@ -24077,13 +29116,25 @@ if (appId === 'pixel') {
     document.addEventListener('pointerdown', trackDesktopKeyboardScope, true);
 
     function handleDesktopKeydown(event) {
+        if (event.defaultPrevented || hasOtherDesktopModal()) return;
+        if (handleWindowSwitcherKeydown(event)) return;
+        if (window.AuraDesktopWindowOverview?.isOpen()) return;
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
         if (handleSpacesOverviewShortcut(event)) return;
         if (handleWindowSnapShortcut(event)) return;
-        if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
+        if ((event.ctrlKey || event.metaKey) && !event.altKey && desktopIconKeysAllowed(event)) {
+            const key = event.key.toLowerCase();
+            if (key === 'z' || key === 'y') {
+                event.preventDefault();
+                const history = window.AuraDesktopFileHistory;
+                if (key === 'y' || event.shiftKey) history?.redo();
+                else history?.undo();
+                return;
+            }
+        }
         if (relayGeneratedFrameKeyboardEvent(event)) return;
         if (event.ctrlKey && event.key.toLowerCase() === 'k') {
             event.preventDefault();
@@ -24211,6 +29262,9 @@ if (appId === 'pixel') {
             try { performance.mark('vd:' + name); } catch (_) { /* ignore */ }
         };
         mark('init-start');
+        initDesktopFileHistory();
+        initDesktopSessionActions();
+        initDesktopWorkspaceSettings();
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();
@@ -24227,6 +29281,9 @@ if (appId === 'pixel') {
         mark('parallel-fetch-start');
         await Promise.all([
             loadIconManifest().catch(() => null),
+            (window.AuraDesktopNotificationCenter && typeof window.AuraDesktopNotificationCenter.init === 'function'
+                ? window.AuraDesktopNotificationCenter.init().catch(() => null)
+                : Promise.resolve()),
             (async () => {
                 if (bootstrapReloadPromise) return bootstrapReloadPromise;
                 bootstrapReloadPromise = fetchBootstrapState()
@@ -24236,10 +29293,12 @@ if (appId === 'pixel') {
         ]);
         mark('parallel-fetch-done');
         renderDesktop();
+        desktopWorkspaceUIReady = true;
         initSpacesRuntime();
         openDesktopFullscreenOnStartup();
         initSpacesOverviewRuntime();
         initTaskbarThumbnailsRuntime();
+        initWindowOverviewRuntime();
         initDesktopMediaKeysRuntime();
         initSIPPhoneShellRuntime();
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();

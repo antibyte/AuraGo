@@ -819,6 +819,7 @@ async function checkAuth() {
             window.AuraAuth.observeSessionStatus(data);
             // injectRadialMenu reveals Logout in a menu injected after this check.
             window._auragoAuthEnabled = !!data.enabled;
+            document.dispatchEvent(new CustomEvent('aurago:auth-status', { detail: { enabled: !!data.enabled, authenticated: data.authenticated === true } }));
             if (data.enabled) {
                 if (data.authenticated === false) {
                     window.AuraAuth.redirectToLogin();
@@ -860,6 +861,13 @@ function initLogoutLinks() {
 }
 
 async function performLogout() {
+    if (window.AuraDesktopSessionActions?.requestLogout) {
+        return window.AuraDesktopSessionActions.requestLogout();
+    }
+    return performAuthenticatedLogout();
+}
+
+async function performAuthenticatedLogout() {
     if (window._logoutInProgress) return;
     window._logoutInProgress = true;
     document.dispatchEvent(new CustomEvent('aurago:auth-ended'));
@@ -903,7 +911,7 @@ async function performLogout() {
             // Validate redirect: only allow relative paths starting with /
             const allowed = redirect === '/auth/login' || (/^\/[a-zA-Z0-9._~!$&'()*+,;=:@-]*$/).test(redirect);
             window.location.replace(allowed ? redirect : '/auth/login');
-            return;
+            return true;
         }
     } catch (_) {
         // Fallback below
@@ -911,6 +919,7 @@ async function performLogout() {
 
     clearTimeout(fallbackTimer);
     postFallback();
+    return true;
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -1,4 +1,4 @@
-// EasyDrag input tree: the data of upstream nodes (from a run or schema examples). Rows are
+// EasyDrag bounded data previews and input tree: upstream run data or schema examples. Rows are
 // draggable into parameter fields; a click inserts into the field that was focused last.
 (function () {
     'use strict';
@@ -23,6 +23,14 @@
         if (ty === 'file') return value.name || value.path || '';
         if (ty === 'list') return '[' + value.length + ']';
         return '{' + Object.keys(value).length + '}';
+    }
+
+    function previewText(output, fields) {
+        if (typeof output === 'string') return output.slice(0, 8000);
+        if (!output || typeof output !== 'object') return '';
+        const primary = (fields || []).find(f => f.primary && typeof output[f.name] === 'string');
+        const key = primary ? primary.name : ['text', 'content', 'message', 'summary', 'result'].find(k => typeof output[k] === 'string');
+        return key ? output[key].slice(0, 8000) : '';
     }
 
     // create returns {el, refresh(env)}. env: {ed, sources: [{id, label, roots, kind}], sourceId,
@@ -233,5 +241,5 @@
         };
     }
 
-    ED.mapping = { create, typeOf, preview };
+    ED.mapping = { create, typeOf, preview, previewText };
 })();

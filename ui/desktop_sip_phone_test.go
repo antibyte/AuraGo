@@ -247,7 +247,7 @@ func TestDesktopSIPPhoneFloatingGadgetContracts(t *testing.T) {
 		"js/desktop/core/sdk-events-bootstrap.js": {
 			"window.SipPhoneGadget.init()",
 		},
-		"js/desktop/apps/settings.js": {
+		"js/desktop/core/settings-catalog-runtime.js": {
 			"settingToggle('phone_gadget.enabled', 'desktop.settings_phone_gadget', 'desktop.settings_phone_gadget_desc')",
 		},
 		"css/desktop-sip-phone-shell.css": {

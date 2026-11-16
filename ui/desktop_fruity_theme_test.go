@@ -12,7 +12,8 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 	t.Parallel()
 
 	shellText := readDesktopAssetText(t, "js/desktop/main.js")
-	settingsText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
+	settingsCatalogText := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
+	settingsAppText := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	for _, want := range []string{
 		"'appearance.theme': 'standard'",
 		"body.dataset.theme = settingValue('appearance.theme')",
@@ -43,10 +44,13 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 			t.Fatalf("theme registry is missing translation key %s", want)
 		}
 	}
-	for _, want := range []string{"function settingDesktopThemes()", "type: 'desktop_theme'", "data-desktop-theme=\""} {
-		if !strings.Contains(settingsText, want) {
-			t.Fatalf("settings app is missing theme picker marker %q", want)
+	for _, want := range []string{"function settingDesktopThemes()", "type: 'desktop_theme'"} {
+		if !strings.Contains(settingsCatalogText, want) {
+			t.Fatalf("settings catalog is missing theme picker descriptor %q", want)
 		}
+	}
+	if !strings.Contains(settingsAppText, "data-desktop-theme=\"") {
+		t.Fatal("settings app is missing the rendered desktop theme picker")
 	}
 
 	cssText := readAllDesktopCSS(t)

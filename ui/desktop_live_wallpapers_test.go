@@ -16,7 +16,7 @@ func TestDesktopLiveWallpapersAreSelectableEverywhere(t *testing.T) {
 	t.Parallel()
 
 	module := readDesktopAssetText(t, "js/desktop/live-wallpapers.js")
-	settings := readDesktopAssetText(t, "js/desktop/apps/settings.js")
+	settings := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
 	menus := readDesktopAssetText(t, "js/desktop/core/menus-and-routing.js")
 	spaces := readDesktopAssetText(t, "js/desktop/core/spaces-runtime.js")
 	css := readDesktopAssetText(t, "css/desktop-wallpaper-live.css")

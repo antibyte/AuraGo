@@ -118,7 +118,7 @@
                     const actions = [
                         { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
                         { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(row.dataset.path) },
-                        { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(row.dataset.path) },
+                        { label: t(isInsideTrashPath(row.dataset.path) ? 'desktop.app_delete_permanent' : 'desktop.context_delete'), icon: 'trash', fallback: 'X', danger: true, action: () => deletePath(row.dataset.path) },
                     ];
                     if (row.dataset.type === 'file') {
                         const entry = {
@@ -441,6 +441,8 @@
     async function renderEditor(id, path, initialContent) {
         const host = contentEl(id);
         if (!host) return;
+        const previous = host.querySelector('.vd-editor textarea')?.__auragoSessionAction;
+        if (previous && !await approveEditorReplacement(id, previous)) return false;
         host.innerHTML = `<div class="vd-editor">
             <div class="vd-toolbar">
                 <span class="vd-path">${esc(path)}</span>
@@ -458,9 +460,27 @@
         let version = '';
         let saving = false;
         let loadFailed = false;
+        let editRevision = 0;
+        let savedRevision = 0;
+        const title = state.windows.get(id)?.title || t('desktop.app_editor');
+        const participant = {
+            inspect: () => ({ dirty: editRevision !== savedRevision, revision: editRevision, label: pathBaseName(path) }),
+            decide: snapshot => decideDesktopSessionAction({ title: snapshot.title || title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expected => {
+                if (!current() || loadFailed || desktopReadonly() || saving || editRevision !== expected) return false;
+                if (await saveEditor() !== true || editRevision !== expected || savedRevision !== expected) return false;
+                return { revision: expected };
+            }
+        };
+        textarea.__auragoSessionAction = participant;
+        registerWindowSessionAction(id, participant);
+        const win = state.windows.get(id);
+        if (win) win.beforeClose = () => approveEditorReplacement(id, participant);
+        textarea.addEventListener('input', () => { editRevision++; });
         const current = () => host.contains(textarea);
         textarea.readOnly = true;
         textarea.value = initialContent || '';
+        if (initialContent) editRevision++;
         host.querySelector('[data-retry]').addEventListener('click', () => renderEditor(id, path, initialContent));
         host.querySelector('[data-new]').addEventListener('click', () => {
             if (!desktopReadonly()) renderEditor(id, 'Documents/untitled-' + crypto.randomUUID() + '.txt', '');
@@ -474,6 +494,7 @@
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
                 if (!current()) return;
                 textarea.value = body.content || '';
+                savedRevision = editRevision;
                 version = body.version || '';
             } catch (err) {
                 if (!current()) return;
@@ -490,8 +511,9 @@
         textarea.hidden = loadFailed;
         if (!loadFailed) updateWindowContext(id, { path });
         const saveEditor = async () => {
-            if (!current() || loadFailed || saving || desktopReadonly()) return;
+            if (!current() || loadFailed || saving || desktopReadonly()) return false;
             saving = true;
+            const revision = editRevision;
             const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
@@ -508,9 +530,12 @@
                 if (win) win.path = path;
                 updateWindowContext(id, { path });
                 status.textContent = textarea.value === content ? t('desktop.saved') : '';
+                if (textarea.value === content && editRevision === revision) savedRevision = revision;
                 await loadBootstrap();
+                return textarea.value === content && editRevision === revision;
             } catch (err) {
                 if (current()) status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+                return false;
             } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
@@ -519,6 +544,31 @@
             subject: pathBaseName(path), formats: [{id:'source',label:pathBaseName(path)}],
             createFiles: async () => [new File([textarea.value], pathBaseName(path), {type:'text/plain;charset=utf-8'})]
         }));
+    }
+
+    async function approveEditorReplacement(id, participant) {
+        let snapshot;
+        try { snapshot = await participant.inspect(); }
+        catch (_) { return false; }
+        if (!snapshot || typeof snapshot.dirty !== 'boolean') return false;
+        if (!snapshot.dirty) return true;
+        const win = state.windows.get(id);
+        let choice;
+        try { choice = await participant.decide({ ...snapshot, title: win?.title || t('desktop.app_editor') }); }
+        catch (_) { return false; }
+        if (choice === 'cancel') return false;
+        let latest;
+        try { latest = await participant.inspect(); }
+        catch (_) { return false; }
+        if (!latest || latest.revision !== snapshot.revision || (!snapshot.dirty && latest.dirty)) return false;
+        // A normal autosave may have completed while the decision dialog was open.
+        if (!latest.dirty) return true;
+        if (choice === 'keep') return true;
+        if (choice !== 'save') return false;
+        try {
+            const result = await participant.save(snapshot.revision);
+            return !!result && result.revision === snapshot.revision;
+        } catch (_) { return false; }
     }
 
     function setEditorMenus(id, path, textarea, status, saveEditor) {

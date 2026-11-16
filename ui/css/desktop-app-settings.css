@@ -654,12 +654,14 @@
         background: var(--vd-mat-side, var(--vd-theme-panel-bg-strong));
         backdrop-filter: blur(16px);
         transform: translateX(-100%);
+        visibility: hidden;
         transition: transform 0.25s ease;
         padding-top: 10px;
     }
 
     .vd-settings-sidebar.open {
         transform: translateX(0);
+        visibility: visible;
     }
 
     .vd-settings-backdrop.visible {
@@ -676,3 +678,6 @@
     outline: var(--ds-focus-ring-width) solid var(--vd-theme-accent-border, var(--vd-accent));
     outline-offset: var(--ds-focus-ring-offset);
 }
+
+.vd-setting-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vd-wallpaper-path { overflow-wrap: anywhere; }

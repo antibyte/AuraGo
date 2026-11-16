@@ -370,6 +370,7 @@
 }
 
 .vd-task-button {
+    position: relative;
     max-width: 186px;
     height: 36px;
     padding: 0 12px;
@@ -445,6 +446,34 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.vd-task-button.running::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 12px;
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+    background: currentColor;
+}
+
+.vd-task-count {
+    flex: 0 0 auto;
+    min-width: 1.4em;
+    padding: 1px 4px;
+    border: 1px solid var(--vd-border);
+    border-radius: 4px;
+    font-size: .7rem;
+    text-align: center;
+}
+
+@media (forced-colors: active) {
+    .vd-task-button.running::after {
+        background: ButtonText;
+        forced-color-adjust: none;
+    }
 }
 
 .vd-task-button.active {

@@ -2,11 +2,30 @@
     const THUMB_MAX_H = 140;
     const THUMB_SHOW_DELAY_MS = 360;
     const THUMB_HIDE_DELAY_MS = 140;
+    const SENSITIVE_PREVIEW_APPS = new Set([
+        'agent-chat', 'calendar', 'code-studio', 'contacts', 'editor', 'files', 'mailer',
+        'notes', 'people', 'quick-connect', 'quickconnect', 'settings', 'sheets', 'terminal', 'tresor', 'virtual-computers', 'writer'
+    ]);
+    const PREVIEW_MAX_NODES = 512;
+    const PREVIEW_MAX_TEXT_CHARS = 32 * 1024;
+    const PREVIEW_UNSAFE_TAGS = new Set(['audio', 'canvas', 'embed', 'iframe', 'input', 'object', 'select', 'textarea', 'video']);
+    const PREVIEW_SKIP_TAGS = new Set([
+        'a', 'base', 'button', 'form', 'img', 'link', 'math', 'meta', 'option', 'picture', 'script',
+        'source', 'style', 'svg', 'template'
+    ]);
+    const PREVIEW_ALLOWED_TAGS = new Set([
+        'address', 'article', 'aside', 'b', 'blockquote', 'br', 'caption', 'code', 'dd', 'div', 'dl', 'dt',
+        'em', 'figcaption', 'figure', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'i',
+        'label', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'small', 'span', 'strong', 'sub', 'sup',
+        'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'time', 'tr', 'u', 'ul', 'wbr'
+    ]);
+    const PREVIEW_SAFE_ATTRIBUTES = new Set(['class', 'dir', 'lang']);
     let thumbShowTimer = 0;
     let thumbHideTimer = 0;
     let activeThumbWindowId = '';
 
     function taskbarThumbnailsEnabled() {
+        if (window.AuraDesktopWindowOverview?.isOpen?.()) return false;
         if (isCompactViewport()) return false;
         if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return false;
         return true;
@@ -102,6 +121,70 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
+    function sanitizeWindowPreviewClone(content, appId) {
+        if (!content || content.nodeType !== 1 || SENSITIVE_PREVIEW_APPS.has(String(appId || ''))) return null;
+        const budget = { nodes: 0, textChars: 0, unsafe: false, exceeded: false };
+        const inspectNode = source => {
+            if (!source) return;
+            budget.nodes++;
+            if (budget.nodes > PREVIEW_MAX_NODES) { budget.exceeded = true; return; }
+            if (source.nodeType === 3) {
+                budget.textChars += String(source.nodeValue || '').length;
+                if (budget.textChars > PREVIEW_MAX_TEXT_CHARS) budget.exceeded = true;
+                return;
+            }
+            if (source.nodeType !== 1) {
+                // Count comments and other node types toward the traversal cap.
+                for (const child of source.childNodes || []) {
+                    inspectNode(child);
+                    if (budget.exceeded) return;
+                }
+                return;
+            }
+            const tag = String(source.localName || source.tagName || '').toLowerCase();
+            if (!tag || tag.includes('-')) { budget.unsafe = true; return null; }
+            if (PREVIEW_UNSAFE_TAGS.has(tag) || (source.hasAttribute?.('contenteditable') && source.getAttribute('contenteditable') !== 'false')) {
+                budget.unsafe = true;
+            }
+            for (const attribute of PREVIEW_SAFE_ATTRIBUTES) {
+                if (!source.hasAttribute?.(attribute)) continue;
+                budget.textChars += String(source.getAttribute(attribute) || '').length;
+                if (budget.textChars > PREVIEW_MAX_TEXT_CHARS) { budget.exceeded = true; return; }
+            }
+            // Inspect children even under skipped wrappers. This catches an unsafe
+            // descendant hidden inside a form or navigation node before text is copied.
+            for (const child of source.childNodes || []) {
+                inspectNode(child);
+                if (budget.exceeded) return;
+            }
+        };
+        inspectNode(content);
+        if (budget.unsafe || budget.exceeded) return null;
+
+        const projectNode = source => {
+            if (!source || (source.nodeType !== 1 && source.nodeType !== 3)) return null;
+            if (source.nodeType === 3) return document.createTextNode(String(source.nodeValue || ''));
+            const tag = String(source.localName || source.tagName || '').toLowerCase();
+            if (PREVIEW_SKIP_TAGS.has(tag) || source.hasAttribute?.('hidden') || source.getAttribute?.('aria-hidden') === 'true') return null;
+            if (!PREVIEW_ALLOWED_TAGS.has(tag)) return null;
+            const projected = document.createElement(tag);
+            for (const attribute of PREVIEW_SAFE_ATTRIBUTES) {
+                if (source.hasAttribute?.(attribute)) projected.setAttribute(attribute, String(source.getAttribute(attribute) || ''));
+            }
+            for (const child of source.childNodes || []) {
+                const projectedChild = projectNode(child);
+                if (projectedChild) projected.appendChild(projectedChild);
+            }
+            return projected;
+        };
+
+        const projected = projectNode(content);
+        if (!projected || budget.unsafe || budget.exceeded) return null;
+        projected.setAttribute('aria-hidden', 'true');
+        projected.setAttribute('inert', '');
+        return projected;
+    }
+
     function windowPreviewBodyMarkup(win, options) {
         options = options || {};
         const maxW = options.maxW || THUMB_MAX_W;
@@ -113,15 +196,15 @@
         const scale = Math.min(maxW / sourceW, maxH / sourceH, 1);
         const viewW = Math.max(128, Math.round(sourceW * scale));
         const viewH = Math.max(80, Math.round(sourceH * scale));
-        const hasIframe = !!(content && content.querySelector('iframe, .vd-generated-frame, .vd-sandboxed-frame'));
         const viewportClass = options.viewportClass || 'vd-taskbar-thumb-viewport';
         const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
         const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
         const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
-        if (hasIframe || !content) {
+        const preview = sanitizeWindowPreviewClone(content, win.appId);
+        if (!preview) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }
-        return `<div class="${viewportClass}" style="width:${viewW}px;height:${viewH}px"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale})">${content.innerHTML}</div></div>`;
+        return `<div class="${viewportClass}" inert aria-hidden="true" style="width:${viewW}px;height:${viewH}px;pointer-events:none"><div class="${scaleClass}" inert aria-hidden="true" style="width:${sourceW}px;height:${sourceH}px;transform:scale(${scale});pointer-events:none">${preview.innerHTML}</div></div>`;
     }
 
     function windowPreviewMarkup(win, options) {

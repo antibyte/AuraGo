@@ -13,6 +13,41 @@
     const terminalStatuses = new Set(['ready', 'failed', 'cancelled']);
     const phases = ['building', 'ready'];
 
+    function sessionRevision(state) {
+        return JSON.stringify([
+            state.project?.id || '',
+            state.project?.current_revision ?? null,
+            state.project?.variant === 'voxel' && !!state.frame && !!state.previewGrant?.play_token
+        ]);
+    }
+
+    function sessionDirty(state) {
+        // The voxel runtime owns an in-memory play-state draft. Its flush protocol is the only
+        // reliable way for the host to learn whether that draft needs a write.
+        return !!(state.project?.variant === 'voxel' && state.frame && state.previewGrant?.play_token);
+    }
+
+    function registerSessionAction(state) {
+        const context = state.context;
+        if (typeof context.registerSessionAction !== 'function') return;
+        state.sessionActionOff = context.registerSessionAction(state.windowId, {
+            inspect: () => ({
+                dirty: sessionDirty(state),
+                revision: sessionRevision(state),
+                label: state.project?.name || context.t('game_maker.title')
+            }),
+            decide: snapshot => context.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                if (state.disposed || sessionRevision(state) !== expectedRevision) return false;
+                if (!sessionDirty(state)) return { revision: expectedRevision };
+                if (state.playStateBusy || await window.GameMakerStudioPreview?.flush(state) !== true) return false;
+                return !state.disposed && !state.playStateBusy && sessionRevision(state) === expectedRevision
+                    ? { revision: expectedRevision }
+                    : false;
+            }
+        });
+    }
+
     function render(container, windowId, context) {
         dispose(windowId);
         const state = {
@@ -55,6 +90,7 @@
             disposed: false
         };
         instances.set(windowId, state);
+        registerSessionAction(state);
         window.AuraDesktopEmail?.attach(windowId, () => container.querySelector('[data-gm-action="export"]')?.parentElement, () => ({
             key:state.project?.id,disabled:state.disposed||!state.project?.current_revision,subject:state.project?.name,formats:['zip'],
             createFiles:async(_format,signal)=>{
@@ -1845,6 +1881,7 @@
         if (!state) return;
         state.disposed = true;
         if (state.knowledgeClose) state.knowledgeClose();
+        state.sessionActionOff?.();
         state.context.setWindowBeforeClose?.(windowId, null);
         state.activity?.dispose();
         if (state.assetBrowserCleanup) state.assetBrowserCleanup();

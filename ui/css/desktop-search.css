@@ -1,0 +1,111 @@
+/* Search controls keep the shell's native panels while giving filters their own scroll-safe grid. */
+.vd-spotlight {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+}
+
+.vd-spotlight-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-spotlight-filter {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--vd-text);
+    font-size: 0.76rem;
+}
+
+.vd-spotlight-filter > span {
+    overflow: hidden;
+    color: var(--vd-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-spotlight-filter :is(input, select),
+.vd-spotlight-filter-clear {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, var(--ds-radius-sm));
+    background: var(--vd-theme-control-bg, var(--ds-color-control-bg));
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-spotlight-filter-clear {
+    align-self: end;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.vd-spotlight-results {
+    flex: 1 1 auto;
+    min-height: 72px;
+    max-height: min(44vh, 420px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.vd-spotlight-status {
+    padding: 8px 14px;
+    color: var(--vd-muted);
+    font-size: 0.82rem;
+}
+
+.vd-spotlight-status[role="alert"] {
+    color: var(--vd-danger, #c33);
+}
+
+.vd-spotlight-load-more {
+    align-self: stretch;
+    min-height: 40px;
+    margin: 0 14px 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, var(--ds-radius-sm));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: var(--vd-text);
+    cursor: pointer;
+}
+
+.vd-spotlight-load-more:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+@media (max-width: 560px) {
+    .vd-spotlight-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vd-spotlight-filter-type,
+    .vd-spotlight-filter-clear {
+        grid-column: 1 / -1;
+    }
+
+    .vd-spotlight-results {
+        max-height: min(38vh, 320px);
+    }
+}
+
+@media (pointer: coarse) {
+    .vd-spotlight-filter :is(input, select),
+    .vd-spotlight-filter-clear,
+    .vd-spotlight-load-more {
+        min-height: 44px;
+    }
+}

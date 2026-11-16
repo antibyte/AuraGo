@@ -252,6 +252,21 @@
     color: var(--vd-muted);
 }
 
+.vd-toast-action {
+    margin-top: 8px;
+    padding: 5px 12px;
+    min-height: 32px;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: var(--ds-color-control-bg);
+    color: var(--vd-text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.vd-toast-action:focus-visible { outline: 2px solid var(--ds-color-border-focus, var(--vd-accent)); outline-offset: 2px; }
+.vd-toast-action:disabled { opacity: .6; cursor: default; }
+
 .vd-toast-close {
     width: 28px;
     height: 28px;

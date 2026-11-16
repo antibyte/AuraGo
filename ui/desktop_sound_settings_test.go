@@ -297,6 +297,7 @@ func TestGreenSlimeSoundFxContract(t *testing.T) {
 func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 	t.Parallel()
 
+	catalog := readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js")
 	settings := readDesktopAssetText(t, "js/desktop/apps/settings.js")
 	for _, marker := range []string{
 		"id: 'sound', icon: 'sound-symbolic'",
@@ -307,15 +308,20 @@ func TestDesktopSoundSettingsUIMarkers(t *testing.T) {
 		"settingToggle('sound.notifications'",
 		"settingToggle('sound.navigation'",
 		"settingToggle('sound.files'",
+	} {
+		if !strings.Contains(catalog, marker) {
+			t.Fatalf("settings catalog missing marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
 		"data-sound-preview",
 		"nextPane.scrollTop = paneScroll",
-		"key === 'sound.volume'",
+		"key !== 'sound.volume'",
 	} {
 		if !strings.Contains(settings, marker) {
 			t.Fatalf("settings.js missing marker %q", marker)
 		}
 	}
-
 	css := readDesktopAssetText(t, "css/desktop-app-settings.css")
 	for _, marker := range []string{
 		".vd-sound-theme-grid",

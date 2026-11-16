@@ -9,7 +9,7 @@ func TestDesktopCalculatorRegistersWindowCleanup(t *testing.T) {
 	t.Parallel()
 
 	source := readDesktopAssetText(t, "js/desktop/apps/calculator.js")
-	if !strings.Contains(source, "function renderCalculator(id)") {
+	if !strings.Contains(source, "function renderCalculator(id, renderCtx)") {
 		t.Fatal("renderCalculator missing")
 	}
 	if !strings.Contains(source, "registerWindowCleanup(id, () =>") {

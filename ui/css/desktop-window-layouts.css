@@ -1,0 +1,21 @@
+.vd-window-layout-menu {
+    width: min(292px, calc(100vw - 16px));
+    max-height: min(540px, calc(100dvh - 16px));
+    overflow: auto;
+}
+
+.vd-window-layout-menu .vd-window-layout-item {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 38px;
+}
+
+.vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
+    background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
+}
+
+@media (forced-colors: active) {
+    .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
+        outline: 2px solid Highlight;
+        border-color: Highlight;
+    }
+}

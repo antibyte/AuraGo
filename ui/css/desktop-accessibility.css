@@ -1,0 +1,143 @@
+/* Shared accessibility tokens for Desktop chrome and its native Settings app. */
+.desktop-body {
+    --vd-accessibility-text-scale: 1;
+    --vd-accessibility-focus: #ffcf70;
+}
+
+.desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+    .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+    .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+    .vd-shortcuts-help) :focus-visible,
+.desktop-body .vd-settings-app :focus-visible,
+.desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+.desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+    outline: 3px solid var(--vd-accessibility-focus);
+    outline-offset: 2px;
+}
+
+.desktop-body[data-text-size="125"] { --vd-shell-text-size: 17.5px; }
+.desktop-body[data-text-size="150"] { --vd-shell-text-size: 21px; }
+
+/* Include div/span-based shell copy such as notification titles and timestamps. */
+.desktop-body[data-text-size="125"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
+    :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
+    :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
+    font-size: var(--vd-shell-text-size) !important;
+}
+
+/* Body-mounted dialogs are Desktop chrome; window/app documents stay independent. */
+.desktop-body[data-text-size="125"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="125"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
+    font-size: var(--vd-shell-text-size) !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app),
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app) :is(button, a, input, select, textarea, [role="button"]),
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, input, select, textarea, [role="button"]),
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, input, select, textarea, [role="button"]) {
+    color: CanvasText !important;
+    background-color: Canvas !important;
+    border: 2px solid CanvasText !important;
+    box-shadow: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] .vd-settings-app
+    :is(.vd-settings-sidebar, .vd-settings-pane, .vd-settings-pane-head, .vd-setting-row,
+        .vd-settings-nav, .vd-settings-search-input, .vd-setting-select, .vd-default-app-row) {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+    outline-color: Highlight;
+}
+
+.desktop-body :is(.vd-notification-center, .vd-start-menu, .vd-tray-popover, .vd-spotlight) {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+.desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+}
+
+@media (forced-colors: active) {
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help, .vd-settings-app),
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
+        color: CanvasText !important;
+        background: Canvas !important;
+        border-color: CanvasText !important;
+        forced-color-adjust: auto;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+    }
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+        outline-color: Highlight;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help, .vd-settings-app),
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog,
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help) *,
+    .desktop-body .vd-settings-app *,
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) *,
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}

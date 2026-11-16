@@ -32,11 +32,36 @@ func handleDesktopTrash(s *Server) http.HandlerFunc {
 			jsonError(w, err.Error(), http.StatusServiceUnavailable)
 			return
 		}
-		moves, err := svc.TrashPaths(r.Context(), body.Paths, body.Restore, body.Resolutions)
+		moves, err := svc.TrashPathsWithReceipts(r.Context(), body.Paths, body.Restore, body.Resolutions)
 		if len(moves) > 0 {
-			broadcastDesktopEvent(s, hub, desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "trash_move", "moves": moves}, CreatedAt: time.Now().UTC()})
+			eventMoves := make([]map[string]string, 0, len(moves))
+			for _, move := range moves {
+				eventMoves = append(eventMoves, map[string]string{"from": move.From, "path": move.Path})
+			}
+			broadcastDesktopEvent(s, hub, desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "trash_move", "moves": eventMoves}, CreatedAt: time.Now().UTC()})
 		}
 		if err != nil {
+			if errors.Is(err, desktop.ErrFileUndoUncertain) {
+				broadcastDesktopEvent(s, hub, desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "trash_move_uncertain"}, CreatedAt: time.Now().UTC()})
+			}
+			if len(moves) > 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusConflict)
+				body := map[string]interface{}{"status": "partial", "code": "partial_failure", "error": err.Error(), "moves": moves}
+				if errors.Is(err, desktop.ErrFileUndoUncertain) {
+					body["uncertain"] = true
+				}
+				_ = json.NewEncoder(w).Encode(body)
+				return
+			}
+			if errors.Is(err, desktop.ErrFileUndoLimit) {
+				writeDesktopUndoError(w, err)
+				return
+			}
+			if errors.Is(err, desktop.ErrFileUndoUncertain) {
+				writeDesktopUndoError(w, err)
+				return
+			}
 			var conflict *desktop.PathConflict
 			if errors.As(err, &conflict) {
 				code := "file_conflict"

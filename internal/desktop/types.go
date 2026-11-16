@@ -262,12 +262,16 @@ func desktopWallpaperValueSet() map[string]struct{} {
 func DesktopSettingDefinitions() []SettingDefinition {
 	return []SettingDefinition{
 		{Key: HASwitchboardSetting, Default: EmptyHASwitchboard},
-		{Key: "appearance.wallpaper", Default: "groupshoot", Values: desktopWallpaperValues()},
+		{Key: "appearance.wallpaper", Default: "groupshoot"},
 		{Key: "appearance.wallpaper_by_space", Default: "{}"},
+		{Key: "appearance.wallpaper_fit", Default: "cover", Values: []string{"cover", "contain"}},
+		{Key: WorkspaceLayoutSettingKey, Default: DefaultWorkspaceLayoutValue()},
 		{Key: "appearance.theme", Default: DefaultDesktopTheme, Values: DesktopThemeIDs()},
 		{Key: "appearance.theme_cursors", Default: "true", Values: []string{"true", "false"}},
 		{Key: "appearance.accent", Default: "theme", Values: []string{"theme", "teal", "orange", "blue", "violet", "green"}},
 		{Key: "appearance.density", Default: "comfortable", Values: []string{"comfortable", "compact"}},
+		{Key: "accessibility.text_size", Default: "100", Values: []string{"100", "125", "150"}},
+		{Key: "accessibility.high_contrast", Default: "false", Values: []string{"true", "false"}},
 		{Key: "appearance.icon_theme", Default: "papirus", Values: []string{"papirus", "whitesur", "windows_xp", "tela", "candy", "fluent", "buuf_nestort"}},
 		{Key: "appearance.tela_folder_color", Default: "standard", Values: []string{"standard", "black", "blue", "brown", "green", "grey", "orange", "pink", "purple", "red", "yellow", "manjaro", "ubuntu", "dracula", "nord"}},
 		{Key: "appearance.fluent_folder_color", Default: "standard", Values: []string{"standard", "green", "grey", "orange", "pink", "purple", "red", "yellow", "teal"}},

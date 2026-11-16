@@ -120,6 +120,7 @@
 
     async function refreshAfterDesktopFileDrop(options) {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) return window.FileManager.refreshLocalInstances();
         if (options && options.refreshActiveFileManager === false) return;
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
@@ -138,6 +139,7 @@
     }
 
     async function moveDraggedFilesToDesktop(paths, clientX, clientY) {
+        if (desktopReadonly()) return;
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return;
         const body = await api('/api/desktop/files?path=' + encodeURIComponent('Desktop'));
@@ -146,23 +148,31 @@
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
         let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(cleanPaths)) : null;
         let offset = 0;
-        for (const src of cleanPaths) {
-            if (src === 'Desktop') continue;
-            let newPath = src;
-            if (!src.toLowerCase().startsWith('desktop/')) {
-                newPath = await uniqueDesktopDestination(src, existingNames);
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
+        const moves = [];
+        try {
+            for (const src of cleanPaths) {
+                if (src === 'Desktop') continue;
+                let newPath = src;
+                if (!src.toLowerCase().startsWith('desktop/')) {
+                    newPath = await uniqueDesktopDestination(src, existingNames);
+                    const result = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    moves.push(result);
+                    newPath = normalizeDesktopPath(result.path) || newPath;
+                }
+                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+                saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
+                offset += 18;
             }
-            const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
-            saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
-            offset += 18;
+        } finally {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.file_history_move'));
+            try { await refreshAfterDesktopFileDrop(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
         }
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop();
     }
 
     async function uploadHostFilesToDesktop(files, clientX, clientY) {
@@ -195,6 +205,7 @@
     }
 
     async function pasteDesktopFileClipboard(destBase, options) {
+        if (desktopReadonly()) return;
         const clipboardState = window.AuraDesktopFileClipboard;
         if (clipboardState?.entries?.length) return transferCloudFilesToLocal(clipboardState.entries, destBase == null ? 'Desktop' : destBase, clipboardState.mode === 'cut' ? 'move' : 'copy', clipboardState);
         const clipboard = desktopFileClipboard();
@@ -208,36 +219,54 @@
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
         let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(clipboard.mode === 'cut' ? clipboard.paths : [])) : null;
         let offset = 0;
-        for (const src of clipboard.paths) {
-            const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
-            if (clipboard.mode === 'cut' && naturalPath === src) continue;
-            const newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
-            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
-            if (newPath === src) continue;
-            if (clipboard.mode === 'copy') {
-                await api('/api/desktop/copy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_path: src, dest_path: newPath })
-                });
-            } else {
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
+        const moves = [];
+        const movedSources = new Set();
+        let changed = false;
+        try {
+            for (const src of clipboard.paths) {
+                const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
+                if (clipboard.mode === 'cut' && naturalPath === src) continue;
+                let newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
+                if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+                if (newPath === src) continue;
+                if (clipboard.mode === 'copy') {
+                    await api('/api/desktop/copy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source_path: src, dest_path: newPath })
+                    });
+                } else {
+                    const result = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    moves.push(result);
+                    movedSources.add(src);
+                    newPath = normalizeDesktopPath(result.path) || newPath;
+                }
+                changed = true;
+                if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+                if (targetBase.toLowerCase() === 'desktop') {
+                    const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+                    saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
+                    offset += 18;
+                }
             }
-            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
-            if (targetBase.toLowerCase() === 'desktop') {
-                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
-                saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
-                offset += 18;
+        } finally {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.file_history_move'));
+            if (movedSources.size && window.AuraDesktopFileClipboard === clipboardState) {
+                const remaining = clipboard.paths.filter(path => !movedSources.has(path));
+                window.AuraDesktopFileClipboard = remaining.length ? Object.assign({}, clipboardState, { paths: remaining }) : null;
+            }
+            if (changed) {
+                try { await refreshAfterDesktopFileDrop(options); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             }
         }
         if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
         if (clipboard.mode === 'cut' && window.AuraDesktopFileClipboard === clipboardState) window.AuraDesktopFileClipboard = null;
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop(options);
     }
 
     function wireDesktopFileIconDrag(btn) {

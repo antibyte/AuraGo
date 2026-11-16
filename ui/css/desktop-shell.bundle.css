@@ -256,6 +256,21 @@
     color: var(--vd-muted);
 }
 
+.vd-toast-action {
+    margin-top: 8px;
+    padding: 5px 12px;
+    min-height: 32px;
+    border: 1px solid var(--vd-border);
+    border-radius: var(--ds-radius-sm);
+    background: var(--ds-color-control-bg);
+    color: var(--vd-text);
+    font: inherit;
+    cursor: pointer;
+}
+
+.vd-toast-action:focus-visible { outline: 2px solid var(--ds-color-border-focus, var(--vd-accent)); outline-offset: 2px; }
+.vd-toast-action:disabled { opacity: .6; cursor: default; }
+
 .vd-toast-close {
     width: 28px;
     height: 28px;
@@ -2636,6 +2651,7 @@
 }
 
 .vd-task-button {
+    position: relative;
     max-width: 186px;
     height: 36px;
     padding: 0 12px;
@@ -2711,6 +2727,34 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.vd-task-button.running::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 12px;
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+    background: currentColor;
+}
+
+.vd-task-count {
+    flex: 0 0 auto;
+    min-width: 1.4em;
+    padding: 1px 4px;
+    border: 1px solid var(--vd-border);
+    border-radius: 4px;
+    font-size: .7rem;
+    text-align: center;
+}
+
+@media (forced-colors: active) {
+    .vd-task-button.running::after {
+        background: ButtonText;
+        forced-color-adjust: none;
+    }
 }
 
 .vd-task-button.active {
@@ -3000,6 +3044,20 @@
     padding: var(--ds-space-3);
     border-bottom: 1px solid var(--ds-color-border-subtle);
 }
+
+.vd-start-session {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+    color: var(--vd-theme-muted, var(--vd-muted));
+}
+.vd-start-session[hidden] { display: none; }
+.vd-start-session button { min-height: 36px; }
+.vd-start-session button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
 
 .vd-start-search input {
     height: 36px;
@@ -5180,6 +5238,142 @@
 .desktop-body[data-theme="fruity"] .vd-window-titlebar:hover .vd-window-control-icon,
 .desktop-body[data-theme="fruity"] .vd-window-button:focus-visible .vd-window-control-icon,
 .desktop-body[data-theme="fruity"] .vd-widget-manager:hover .vd-window-control-icon { opacity: .8; }
+
+/* ui/css/desktop-window-layouts.css */
+.vd-window-layout-menu {
+    width: min(292px, calc(100vw - 16px));
+    max-height: min(540px, calc(100dvh - 16px));
+    overflow: auto;
+}
+
+.vd-window-layout-menu .vd-window-layout-item {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 38px;
+}
+
+.vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
+    background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
+}
+
+@media (forced-colors: active) {
+    .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
+        outline: 2px solid Highlight;
+        border-color: Highlight;
+    }
+}
+
+/* ui/css/desktop-search.css */
+/* Search controls keep the shell's native panels while giving filters their own scroll-safe grid. */
+.vd-spotlight {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+}
+
+.vd-spotlight-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-spotlight-filter {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--vd-text);
+    font-size: 0.76rem;
+}
+
+.vd-spotlight-filter > span {
+    overflow: hidden;
+    color: var(--vd-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-spotlight-filter :is(input, select),
+.vd-spotlight-filter-clear {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, var(--ds-radius-sm));
+    background: var(--vd-theme-control-bg, var(--ds-color-control-bg));
+    color: var(--vd-text);
+    font: inherit;
+}
+
+.vd-spotlight-filter-clear {
+    align-self: end;
+    cursor: pointer;
+    font-size: 0.82rem;
+}
+
+.vd-spotlight-results {
+    flex: 1 1 auto;
+    min-height: 72px;
+    max-height: min(44vh, 420px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.vd-spotlight-status {
+    padding: 8px 14px;
+    color: var(--vd-muted);
+    font-size: 0.82rem;
+}
+
+.vd-spotlight-status[role="alert"] {
+    color: var(--vd-danger, #c33);
+}
+
+.vd-spotlight-load-more {
+    align-self: stretch;
+    min-height: 40px;
+    margin: 0 14px 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-control, var(--ds-radius-sm));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: var(--vd-text);
+    cursor: pointer;
+}
+
+.vd-spotlight-load-more:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+@media (max-width: 560px) {
+    .vd-spotlight-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vd-spotlight-filter-type,
+    .vd-spotlight-filter-clear {
+        grid-column: 1 / -1;
+    }
+
+    .vd-spotlight-results {
+        max-height: min(38vh, 320px);
+    }
+}
+
+@media (pointer: coarse) {
+    .vd-spotlight-filter :is(input, select),
+    .vd-spotlight-filter-clear,
+    .vd-spotlight-load-more {
+        min-height: 44px;
+    }
+}
 
 /* ui/css/desktop-icons.css */
 /* desktop-icons.css — desktop icons, sprites, theme icons, labels, workspace */
@@ -10462,6 +10656,7 @@
 /* desktop-chrome.css — spotlight, notifications, clock popup, shortcuts, terminal/notes apps */
 
 .vd-fullscreen-button,
+.vd-quick-settings-button,
 .vd-notification-button {
     position: relative;
     display: inline-flex;
@@ -10476,7 +10671,8 @@
     cursor: pointer;
 }
 
-.vd-fullscreen-button {
+.vd-fullscreen-button,
+.vd-quick-settings-button {
     flex-shrink: 0;
     padding: 0;
 }
@@ -10491,14 +10687,21 @@
     border-color: var(--vd-theme-accent-border);
 }
 
-.desktop-body[data-shell="dock"] .vd-fullscreen-button {
+.vd-quick-settings-button:focus-visible {
+    outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent));
+    outline-offset: 1px;
+}
+
+.desktop-body[data-shell="dock"] .vd-fullscreen-button,
+.desktop-body[data-shell="dock"] .vd-quick-settings-button {
     width: 24px;
     height: 24px;
     border-radius: 6px;
 }
 
 @media (pointer: coarse) {
-    .desktop-body.desktop-body .vd-fullscreen-button {
+    .desktop-body.desktop-body .vd-fullscreen-button,
+    .desktop-body.desktop-body .vd-quick-settings-button {
         width: 44px;
         height: 44px;
     }
@@ -10520,6 +10723,7 @@
 }
 
 .vd-notification-center,
+.vd-quick-settings,
 .vd-clock-popup {
     position: fixed;
     z-index: calc(var(--ds-z-dock, 1200) + 4);
@@ -10529,6 +10733,8 @@
     background: var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal));
     box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-4));
     backdrop-filter: var(--vd-theme-blur, var(--ds-blur-fine));
+    /* Reduced-motion duration overrides must not animate viewport placement. */
+    transition-property: opacity, background-color, border-color, box-shadow;
 }
 
 .vd-notification-header,
@@ -10544,6 +10750,20 @@
 .vd-notification-list {
     max-height: 320px;
     overflow: auto;
+}
+
+.vd-notification-center { max-height: calc(100dvh - 80px); overflow: auto; }
+.vd-notification-header { flex-wrap: wrap; }
+.vd-notification-policy { padding: 10px 12px; border-bottom: 1px solid var(--vd-theme-border, var(--vd-border)); }
+.vd-notification-policy label { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.vd-notification-policy select { flex: 1; min-width: 0; max-width: 100%; color: var(--vd-text); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); }
+.vd-notification-policy summary { cursor: pointer; padding: 8px 0; }
+.vd-notification-policy p { margin: 6px 0; font-size: .85em; }
+.vd-notification-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.vd-notification-actions button { min-height: 36px; padding: 5px 10px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); cursor: pointer; }
+.vd-notification-actions button:disabled { opacity: .5; cursor: default; }
+@media (pointer: coarse) {
+    .vd-notification-policy label, .vd-notification-policy summary, .vd-notification-actions button, .vd-notification-clear { min-height: 44px; }
 }
 
 .vd-notification-item {
@@ -10813,31 +11033,12 @@
     background: var(--vd-theme-control-hover, var(--ds-color-control-hover));
 }
 
-.vd-taskbar-pins {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-right: 8px;
-    padding-right: 8px;
-    border-right: 1px solid var(--vd-border);
-}
-
 .vd-taskbar-windows {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     min-width: 0;
     flex: 1;
-}
-
-.vd-taskbar-pin {
-    width: 34px;
-    height: 34px;
-    border: 1px solid transparent;
-    border-radius: var(--ds-radius-sm);
-    background: transparent;
-    color: var(--vd-text);
-    cursor: pointer;
 }
 
 .vd-terminal-app {
@@ -10860,49 +11061,6 @@
     padding: 8px 10px;
     border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
     background: var(--vd-theme-chrome-bg);
-}
-
-.vd-window-switcher {
-    position: fixed;
-    inset: 0;
-    z-index: calc(var(--ds-z-dock, 1200) + 6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 24px;
-    background: color-mix(in srgb, var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal)) 72%, transparent);
-    backdrop-filter: blur(8px);
-}
-
-.vd-switcher-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    min-width: 120px;
-    max-width: 180px;
-    padding: 12px 10px;
-    border: 2px solid transparent;
-    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
-    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
-    color: var(--vd-text);
-    cursor: pointer;
-    box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-2));
-}
-
-.vd-switcher-item.active {
-    border-color: var(--vd-theme-accent-border, var(--vd-accent, #27c7a6));
-    transform: translateY(-2px);
-}
-
-.vd-switcher-label {
-    font-size: 0.78rem;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: 100%;
 }
 
 .vd-space-pager {
@@ -11356,7 +11514,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .desktop-body[data-global-menus="true"] .vd-global-brand,
     .desktop-body[data-global-menus="true"] .vd-global-bar .vd-window-menu-button { min-height: 40px; }
     .desktop-body[data-global-menus="true"] .vd-taskbar-system { height: 44px; }
-    .desktop-body[data-global-menus="true"] .vd-taskbar-system :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-agent-button, .vd-live-speech-button, .vd-space-pager-btn) {
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system :is(.vd-fullscreen-button, .vd-quick-settings-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-agent-button, .vd-live-speech-button, .vd-space-pager-btn) {
         width: 44px;
         height: 44px;
         min-width: 44px;
@@ -11410,6 +11568,649 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-global-menus="true"] .vd-window-titlebar > .vd-window-menubar { display: none; }
 
 .desktop-body[data-theme="fruity"] { --vd-font-ui: -apple-system, BlinkMacSystemFont, 'Geist', system-ui, sans-serif; }
+.vd-default-app-row { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; width: 100%; }
+.vd-default-app-row label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vd-default-app-row input, .vd-default-app-row select { max-width: 100%; min-height: 36px; color: var(--vd-text); background: var(--vd-surface); border: 1px solid var(--vd-border); border-radius: 6px; padding: 6px; }
+
+.vd-wallpaper-status {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(90%, 620px);
+    padding: 10px 14px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: var(--vd-surface, #17232e);
+    color: var(--vd-text, #fff);
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    z-index: 1;
+}
+.vd-wallpaper-status[hidden] { display: none; }
+@media (forced-colors: active) {
+    .vd-wallpaper-status { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}
+
+/* ui/css/desktop-quick-settings.css */
+.vd-quick-settings {
+    position: fixed;
+    z-index: calc(var(--ds-z-dock, 1200) + 5);
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: 12px;
+    color: var(--vd-text);
+}
+
+.vd-quick-settings-header,
+.vd-quick-settings-group,
+.vd-quick-settings-control,
+.vd-quick-settings-toggle,
+.vd-quick-settings-range,
+.vd-quick-media-controls {
+    display: flex;
+    align-items: center;
+}
+
+.vd-quick-settings-header {
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-quick-settings-header h2,
+.vd-quick-settings-group h3 { margin: 0; }
+.vd-quick-settings-header h2 { font-size: 1.05rem; }
+.vd-quick-settings-group { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--vd-theme-border-subtle, var(--vd-theme-border, var(--vd-border))); }
+.vd-quick-settings-group h3 { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vd-quick-settings-control,
+.vd-quick-settings-toggle { justify-content: space-between; gap: 12px; min-height: 36px; }
+.vd-quick-settings-toggle > span { display: flex; flex-direction: column; gap: 3px; }
+.vd-quick-settings-toggle small { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .78rem; }
+.vd-quick-settings-control select { min-width: 110px; max-width: 55%; padding: 5px 8px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; }
+.vd-quick-settings-range { gap: 8px; width: min(190px, 58%); }
+.vd-quick-settings-range input { flex: 1; min-width: 0; accent-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings-range output { min-width: 3.2em; color: var(--vd-theme-muted, var(--vd-muted)); font-variant-numeric: tabular-nums; text-align: end; }
+.vd-quick-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings button { min-width: 36px; min-height: 36px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-quick-settings button:hover:not(:disabled) { border-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings button:focus-visible,
+.vd-quick-settings input:focus-visible,
+.vd-quick-settings select:focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }
+.vd-quick-settings button:disabled,
+.vd-quick-settings input:disabled,
+.vd-quick-settings select:disabled { cursor: not-allowed; opacity: .62; }
+.vd-quick-settings-close { flex: 0 0 36px; font-size: 1.2rem !important; }
+.vd-quick-dnd { border-bottom: 0; }
+.vd-quick-media { padding-top: 4px; }
+.vd-quick-media-content { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.vd-quick-media-track { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.vd-quick-media-track strong,
+.vd-quick-media-track span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-quick-media-track small,
+.vd-quick-media-empty,
+.vd-quick-settings-readonly { color: var(--vd-theme-muted, var(--vd-muted)); }
+.vd-quick-media-empty { margin: 0; font-size: .9rem; }
+.vd-quick-media-controls { flex: 0 0 auto; gap: 5px; }
+.vd-quick-media-controls button { font-size: 1rem; }
+.vd-quick-media-controls button[aria-disabled="true"] { cursor: progress; opacity: .65; }
+.vd-quick-settings-status { margin: 10px 0 0; color: var(--vd-theme-muted, var(--vd-muted)); font-size: .85rem; }
+.vd-quick-settings-status.is-error { color: var(--vd-danger, #c43838); }
+.vd-quick-settings-readonly { margin: 10px 0 0; font-size: .82rem; }
+
+@media (forced-colors: active) {
+    .vd-quick-settings,
+    .vd-quick-settings button,
+    .vd-quick-settings select { border: 1px solid CanvasText; }
+    .vd-quick-settings button:focus-visible,
+    .vd-quick-settings input:focus-visible,
+    .vd-quick-settings select:focus-visible { outline: 2px solid Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-quick-settings *, .vd-quick-settings *::before, .vd-quick-settings *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+/* ui/css/desktop-workspaces.css */
+.vd-workspace-manager {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--ds-z-dock, 1200) + 32);
+    display: grid;
+    place-items: center;
+    padding: 18px;
+}
+
+.vd-workspace-manager[hidden] {
+    display: none !important;
+}
+
+.vd-spaces-overview-columns {
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+
+.vd-workspace-manager-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--vd-theme-overlay-bg, rgba(0, 0, 0, .48));
+    backdrop-filter: var(--vd-theme-blur, blur(4px));
+}
+
+.vd-workspace-manager-panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(720px, 100%);
+    max-height: min(88vh, 820px);
+    overflow: auto;
+    padding: 20px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg));
+    background: var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal));
+    color: var(--vd-text);
+    box-shadow: var(--vd-theme-shadow-modal, var(--ds-elevation-4));
+}
+
+.vd-workspace-manager-header,
+.vd-workspace-manager-header > div,
+.vd-workspace-manager-actions,
+.vd-workspace-manager-add,
+.vd-workspace-manager-delete-confirm,
+.vd-workspace-manager-delete-confirm label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vd-workspace-manager-header,
+.vd-workspace-manager-add {
+    justify-content: space-between;
+}
+
+.vd-workspace-manager-header > div {
+    display: block;
+    min-width: 0;
+}
+
+.vd-workspace-manager-header h2,
+.vd-workspace-manager-header p {
+    margin: 0;
+}
+
+.vd-workspace-manager-header h2 {
+    font-size: 1.1rem;
+}
+
+.vd-workspace-manager-header p,
+.vd-workspace-manager-delete-confirm p {
+    margin-top: 4px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .84rem;
+}
+
+.vd-workspace-manager button,
+.vd-workspace-manager input,
+.vd-workspace-manager select {
+    min-height: 36px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm, 6px);
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: inherit;
+    font: inherit;
+}
+
+.vd-workspace-manager button {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.vd-workspace-manager button:hover:not(:disabled) {
+    background: var(--vd-theme-control-hover, var(--ds-color-surface-3));
+}
+
+.vd-workspace-manager button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.vd-workspace-manager input,
+.vd-workspace-manager select {
+    min-width: 0;
+    padding: 6px 9px;
+}
+
+.vd-workspace-manager :focus-visible {
+    outline: 2px solid var(--vd-accent, #27c7a6);
+    outline-offset: 2px;
+}
+
+.vd-workspace-manager-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+    list-style: none;
+}
+
+.vd-workspace-manager-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) auto;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+}
+
+.vd-workspace-manager-name,
+.vd-workspace-manager-add > label,
+.vd-workspace-manager-delete-confirm label {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.vd-workspace-manager-name span,
+.vd-workspace-manager-add label span,
+.vd-workspace-manager-delete-confirm label span {
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .75rem;
+}
+
+.vd-workspace-manager-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.vd-workspace-manager-actions button[data-workspace-up],
+.vd-workspace-manager-actions button[data-workspace-down] {
+    min-width: 36px;
+    padding-inline: 8px;
+}
+
+.vd-workspace-manager-delete-confirm {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-workspace-manager-delete-confirm[hidden] {
+    display: none !important;
+}
+
+.vd-workspace-manager-delete-confirm p {
+    flex: 1 0 100%;
+    margin: 0;
+}
+
+.vd-workspace-manager-delete-confirm label {
+    flex: 1 1 180px;
+}
+
+.vd-workspace-manager-add {
+    padding-top: 12px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-workspace-manager-add > label {
+    flex: 1;
+}
+
+.vd-workspace-manager-status,
+.vd-workspace-manager-readonly {
+    min-height: 1.2em;
+    margin: 0;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .84rem;
+}
+
+.vd-workspace-manager-panel > footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
+@media (max-width: 640px) {
+    .vd-workspace-manager {
+        align-items: end;
+        padding: 0;
+    }
+
+    .vd-workspace-manager-panel {
+        width: 100%;
+        max-height: 94vh;
+        padding: 16px;
+        border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg)) var(--vd-theme-radius-modal, var(--ds-radius-lg)) 0 0;
+    }
+
+    .vd-workspace-manager-row {
+        grid-template-columns: 1fr;
+    }
+
+    .vd-workspace-manager-actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-workspace-manager-backdrop {
+        backdrop-filter: none;
+    }
+}
+
+/* ui/css/desktop-window-overview.css */
+.vd-window-overview {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--ds-z-dock, 1200) + 36);
+    display: grid;
+    place-items: center;
+    padding: clamp(10px, 3vw, 28px);
+    color: var(--vd-text, var(--ds-color-text));
+}
+
+.vd-window-overview[hidden] { display: none !important; }
+
+.vd-window-overview-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--vd-theme-overlay-bg, rgba(0, 0, 0, .52));
+    backdrop-filter: var(--vd-theme-blur, blur(4px));
+}
+
+.vd-window-overview-panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: min(980px, 100%);
+    max-height: min(86vh, 780px);
+    overflow: hidden;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg));
+    background: var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal));
+    box-shadow: var(--vd-theme-shadow-modal, var(--ds-elevation-4));
+    backdrop-filter: var(--vd-theme-blur, blur(10px));
+}
+
+.vd-window-overview-header,
+.vd-window-overview-header-actions,
+.vd-window-overview-scope,
+.vd-window-overview-card,
+.vd-window-overview-panel > footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vd-window-overview-header {
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-window-overview-heading { min-width: 0; }
+.vd-window-overview-heading h2,
+.vd-window-overview-heading p { margin: 0; }
+.vd-window-overview-heading h2 { font-size: 1rem; }
+.vd-window-overview-heading p {
+    margin-top: 3px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .82rem;
+}
+
+.vd-window-overview button {
+    min-height: 38px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm, 7px);
+    padding: 7px 11px;
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.vd-window-overview button:hover:not(:disabled),
+.vd-window-overview button[aria-pressed="true"] {
+    background: var(--vd-theme-control-hover, var(--ds-color-surface-3));
+}
+
+.vd-window-overview button:disabled { opacity: .55; cursor: not-allowed; }
+.vd-window-overview :focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }
+
+.vd-window-overview-header-actions { flex-wrap: wrap; justify-content: flex-end; }
+.vd-window-overview-scope { gap: 4px; }
+.vd-window-overview-scope button { min-height: 34px; padding-inline: 9px; }
+
+.vd-window-overview-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    align-content: start;
+    gap: 12px;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px;
+    overscroll-behavior: contain;
+}
+
+.vd-window-overview-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    align-items: stretch;
+    padding: 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-1));
+}
+
+.vd-window-overview-card.is-selected {
+    border-color: var(--vd-accent, #27c7a6);
+    box-shadow: 0 0 0 1px var(--vd-accent, #27c7a6);
+}
+
+.vd-window-overview-card.is-active .vd-window-overview-card-title::after {
+    content: " •";
+    color: var(--vd-accent, #27c7a6);
+}
+
+.vd-window-overview-activate {
+    display: grid;
+    flex: 0 0 auto;
+    align-content: start;
+    width: 100%;
+    min-width: 0;
+    gap: 7px;
+    padding: 5px !important;
+    border-color: transparent !important;
+    background: transparent !important;
+    text-align: left;
+}
+
+.vd-window-overview-activate:hover:not(:disabled) { background: transparent !important; }
+.vd-window-overview-preview {
+    display: grid;
+    min-height: 104px;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--ds-radius-sm, 7px);
+    background: var(--ds-color-surface-1, rgba(0, 0, 0, .12));
+    color: var(--vd-theme-muted, var(--vd-muted));
+    pointer-events: none;
+}
+
+.vd-window-overview-preview-viewport { overflow: hidden; }
+.vd-window-overview-preview-scale { transform-origin: top left; }
+.vd-window-overview-preview-fallback {
+    display: flex;
+    min-height: 104px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.vd-window-overview-preview-placeholder {
+    width: 38px;
+    height: 28px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    opacity: .28;
+}
+
+.vd-window-overview-card-title { overflow-wrap: anywhere; font-weight: 650; }
+.vd-window-overview-card-meta {
+    overflow-wrap: anywhere;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .78rem;
+}
+
+.vd-window-overview-minimized {
+    display: inline-block;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 1px 6px;
+}
+
+.vd-window-overview-card.is-minimized { opacity: .82; }
+.vd-window-overview-card > [data-window-close] {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    min-height: 30px;
+    padding: 4px 9px;
+}
+.vd-window-overview-empty { margin: auto; padding: 24px 16px; color: var(--vd-theme-muted, var(--vd-muted)); }
+
+.vd-window-overview-panel > footer {
+    justify-content: flex-end;
+    padding: 10px 16px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-window-overview-hint { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .8rem; }
+
+@media (max-width: 640px), (max-height: 520px) {
+    .vd-window-overview { align-items: end; padding: 0; }
+    .vd-window-overview-panel {
+        width: 100%;
+        max-height: 96vh;
+        border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg)) var(--vd-theme-radius-modal, var(--ds-radius-lg)) 0 0;
+    }
+    .vd-window-overview-header { align-items: flex-start; flex-wrap: wrap; }
+    .vd-window-overview-header-actions { width: 100%; justify-content: flex-start; }
+    .vd-window-overview-list { grid-template-columns: 1fr; padding: 12px; }
+}
+
+@media (max-width: 420px) {
+    .vd-window-overview-card > [data-window-close] { min-height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-window-overview *, .vd-window-overview *::before, .vd-window-overview *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+@media (forced-colors: active) {
+    .vd-window-overview-backdrop { background: Canvas; opacity: .78; }
+    .vd-window-overview-panel,
+    .vd-window-overview-card,
+    .vd-window-overview button { border: 1px solid CanvasText; }
+    .vd-window-overview-card.is-selected,
+    .vd-window-overview :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+    .vd-window-overview-preview { border: 1px solid GrayText; }
+}
+
+/* ui/css/desktop-custom-wallpaper.css */
+.desktop-body[data-wallpaper^="file:"] {
+    background-color: #111820;
+    background-image: var(--vd-custom-wallpaper-image, linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%));
+    background-size: var(--vd-custom-wallpaper-fit, cover);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="loading"] {
+    background-image: linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%);
+}
+
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="missing"],
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="invalid"],
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="error"] {
+    background-image: linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%);
+}
+
+@media (max-width: 760px) {
+    .desktop-body[data-wallpaper^="file:"] {
+        background-attachment: scroll;
+    }
+}
+
+/* ui/css/desktop-clock-calendar.css */
+.vd-clock-calendar.vd-clock-popup {
+    width: min(520px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 12px;
+    color: var(--vd-text);
+}
+
+.vd-clock-calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.vd-clock-calendar-header h2 { margin: 0; font-size: 1.05rem; }
+.vd-clock-calendar-nav { display: flex; align-items: center; gap: 5px; }
+.vd-clock-calendar-nav button,
+.vd-clock-calendar-retry { min-width: 36px; min-height: 36px; padding: 4px 9px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-clock-calendar-nav button:first-child,
+.vd-clock-calendar-nav button:last-child { font-size: 1.3rem; line-height: 1; }
+.vd-clock-calendar-weekdays,
+.vd-clock-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.vd-clock-calendar-weekdays { margin-bottom: 3px; color: var(--vd-theme-muted, var(--vd-muted)); font-size: .74rem; font-weight: 700; text-align: center; }
+.vd-clock-calendar-weekdays span { padding: 4px 1px; }
+.vd-clock-calendar-day { display: flex; min-width: 0; min-height: 38px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-clock-calendar-day:hover { border-color: var(--vd-theme-border, var(--vd-border)); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); }
+.vd-clock-calendar-day.is-other-month { color: var(--vd-theme-muted, var(--vd-muted)); opacity: .68; }
+.vd-clock-calendar-day.is-today { border-color: var(--vd-accent, #27c7a6); font-weight: 700; }
+.vd-clock-calendar-day.is-selected { background: var(--vd-accent, #27c7a6); color: var(--vd-accent-contrast, #fff); }
+.vd-clock-calendar-day i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.vd-clock-calendar-day:focus-visible,
+.vd-clock-calendar-nav button:focus-visible,
+.vd-clock-calendar-retry:focus-visible,
+.vd-clock-calendar .vd-clock-popup-open:focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }
+.vd-clock-calendar-agenda { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--vd-theme-border, var(--vd-border)); }
+.vd-clock-calendar-agenda h3 { margin: 0 0 8px; font-size: .9rem; }
+.vd-clock-calendar-message { margin: 0; padding: 5px 0; color: var(--vd-theme-muted, var(--vd-muted)); }
+.vd-clock-calendar-error { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vd-clock-calendar-error p { margin: 0; color: var(--vd-danger, #c43838); }
+.vd-clock-calendar-events { list-style: none; margin: 0; padding: 0; }
+.vd-clock-calendar-events li { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--vd-theme-border-subtle, var(--vd-theme-border, var(--vd-border))); }
+.vd-clock-calendar-events time { flex: 0 0 3.6em; color: var(--vd-theme-muted, var(--vd-muted)); font-variant-numeric: tabular-nums; }
+.vd-clock-calendar-events span { overflow-wrap: anywhere; }
+.vd-clock-calendar .vd-clock-popup-open { width: 100%; margin: 12px 0 0; }
+.vd-clock-calendar button:focus-visible { outline-offset: 2px; }
+
+@media (max-width: 520px) {
+    .vd-clock-calendar.vd-clock-popup { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: 10px; }
+    .vd-clock-calendar-day { min-height: 35px; }
+}
+
+@media (forced-colors: active) {
+    .vd-clock-calendar.vd-clock-popup,
+    .vd-clock-calendar button { border: 1px solid CanvasText; }
+    .vd-clock-calendar-day.is-selected { outline: 2px solid Highlight; }
+    .vd-clock-calendar button:focus-visible { outline: 2px solid Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-clock-calendar *, .vd-clock-calendar *::before, .vd-clock-calendar *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
 
 /* ui/css/desktop-wallpaper-live.css */
 /* desktop-wallpaper-live.css — animated wallpapers (js/desktop/live-wallpapers.js). The WebGL
@@ -22235,4 +23036,149 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* ---- Closed widget drawer: its skin shadows would bleed into the viewport from the parked position ---- */
 .desktop-body[data-theme]:not([data-theme="standard"]):not([data-theme="fruity"]) .vd-widget-drawer:not(.open) {
     box-shadow: none;
+}
+
+/* ui/css/desktop-accessibility.css */
+/* Shared accessibility tokens for Desktop chrome and its native Settings app. */
+.desktop-body {
+    --vd-accessibility-text-scale: 1;
+    --vd-accessibility-focus: #ffcf70;
+}
+
+.desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+    .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+    .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+    .vd-shortcuts-help) :focus-visible,
+.desktop-body .vd-settings-app :focus-visible,
+.desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+.desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+    outline: 3px solid var(--vd-accessibility-focus);
+    outline-offset: 2px;
+}
+
+.desktop-body[data-text-size="125"] { --vd-shell-text-size: 17.5px; }
+.desktop-body[data-text-size="150"] { --vd-shell-text-size: 21px; }
+
+/* Include div/span-based shell copy such as notification titles and timestamps. */
+.desktop-body[data-text-size="125"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
+    :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
+    :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
+    font-size: var(--vd-shell-text-size) !important;
+}
+
+/* Body-mounted dialogs are Desktop chrome; window/app documents stay independent. */
+.desktop-body[data-text-size="125"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="125"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
+.desktop-body[data-text-size="150"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
+    font-size: var(--vd-shell-text-size) !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app),
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app) :is(button, a, input, select, textarea, [role="button"]),
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, input, select, textarea, [role="button"]),
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, input, select, textarea, [role="button"]) {
+    color: CanvasText !important;
+    background-color: Canvas !important;
+    border: 2px solid CanvasText !important;
+    box-shadow: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] .vd-settings-app
+    :is(.vd-settings-sidebar, .vd-settings-pane, .vd-settings-pane-head, .vd-setting-row,
+        .vd-settings-nav, .vd-settings-search-input, .vd-setting-select, .vd-default-app-row) {
+    color: CanvasText !important;
+    background: Canvas !important;
+    border-color: CanvasText !important;
+    box-shadow: none !important;
+}
+
+.desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
+    .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
+    .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+.desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+.desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+    outline-color: Highlight;
+}
+
+.desktop-body :is(.vd-notification-center, .vd-start-menu, .vd-tray-popover, .vd-spotlight) {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+.desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow: auto;
+}
+
+@media (forced-colors: active) {
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help, .vd-settings-app),
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
+        color: CanvasText !important;
+        background: Canvas !important;
+        border-color: CanvasText !important;
+        forced-color-adjust: auto;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+    }
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
+        outline-color: Highlight;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help, .vd-settings-app),
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog,
+    .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
+        .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
+        .vd-shortcuts-help) *,
+    .desktop-body .vd-settings-app *,
+    .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) *,
+    .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }

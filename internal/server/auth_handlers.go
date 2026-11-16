@@ -4,6 +4,8 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/i18n"
 	"aurago/internal/security"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,15 +39,22 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 		webAuthn := s.Cfg.Auth.WebAuthn
 		s.CfgMu.RUnlock()
 		var expiry time.Time
+		var sessionScope string
 		if enabled && secret != "" {
 			if cookie, err := r.Cookie(sessionCookieName); err == nil {
-				expiry = sessionExpiry(secret, cookie.Value)
+				if IsAuthenticated(r, secret) {
+					expiry = sessionExpiry(secret, cookie.Value)
+					if !expiry.IsZero() {
+						scopeHash := sha256.Sum256([]byte(sessionNonce(cookie.Value)))
+						sessionScope = hex.EncodeToString(scopeHash[:])
+					}
+				}
 			}
 		}
 
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		status := map[string]interface{}{
 			"enabled":                  enabled,
 			"password_set":             passwordSet,
 			"totp_enabled":             totpEnabled,
@@ -55,7 +64,11 @@ func handleAuthStatus(s *Server) http.HandlerFunc {
 			"password_login_available": !webAuthn.Enabled || webAuthn.LoginMode == "passkey" || webAuthn.LoginMode == "second_factor" && totpEnabled,
 			"authenticated":            !expiry.IsZero(),
 			"expires_in_seconds":       max(0, int(time.Until(expiry).Seconds())),
-		})
+		}
+		if sessionScope != "" {
+			status["session_scope"] = sessionScope
+		}
+		json.NewEncoder(w).Encode(status)
 	}
 }
 

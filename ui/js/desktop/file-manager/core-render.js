@@ -43,9 +43,8 @@
             activeKeyboardWindow: '',
             navigationGeneration: 0,
             disposed: false,
+            fileHistoryUnsubscribe: null,
             renameDraft: null,
-            undoStack: [],
-            redoStack: [],
             sidebarOpen: false,
             incrementalRenderToken: 0,
             tabs: null,
@@ -338,11 +337,26 @@
         bindKeyboard();
         instance.storagePolicyListener = () => {
             loadStorageSources(instance, true);
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                updateToolbarState();
+                updateWindowMenus();
+            });
         };
         document.addEventListener('aurago:desktop-policy', instance.storagePolicyListener);
         loadStorageSources(instance);
         if (initialPath && initialPath.provider === 'koofr') openStorageMounts(instance);
         navigate(initialPath || '');
+        const fileHistory = window.AuraDesktopFileHistory;
+        if (fileHistory && typeof fileHistory.subscribe === 'function') {
+            instance.fileHistoryUnsubscribe = fileHistory.subscribe(() => {
+                if (!isLiveInstance(instance)) return;
+                withInstance(instance, () => {
+                    updateToolbarState();
+                    updateWindowMenus();
+                });
+            });
+        }
     }
 
     function renderAll() {
@@ -372,6 +386,8 @@
         const hasSelection = selected.length > 0;
         const hasClipboard = hasSharedFileClipboard();
         const readonly = isReadonly();
+        const history = window.AuraDesktopFileHistory;
+        const historyState = sharedFileHistorySnapshot();
         const selectedFile = selected.length === 1 ? selected[0] : null;
         const instance = fm;
         const bindMenu = menu => ({ ...menu, action: typeof menu.action === 'function' ? () => withInstance(instance, menu.action) : menu.action, items: menu.items?.map(bindMenu) });
@@ -395,6 +411,9 @@
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
+                    { id: 'undo', labelKey: 'desktop.menu_undo', icon: 'undo', shortcut: 'Ctrl+Z', disabled: !historyState.canUndo, action: () => history?.undo() },
+                    { id: 'redo', labelKey: 'desktop.menu_redo', icon: 'redo', shortcut: 'Ctrl+Shift+Z', disabled: !historyState.canRedo, action: () => history?.redo() },
+                    { type: 'separator' },
                     { id: 'cut', labelKey: 'desktop.fm.cut', icon: 'scissors', shortcut: 'Ctrl+X', disabled: readonly || !hasSelection, action: () => cutSelection() },
                     { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', disabled: !hasSelection, action: () => copySelection() },
                     { id: 'copy-path', labelKey: 'desktop.fm.copy_path', shortcut: 'Ctrl+Shift+C', disabled: !hasSelection, action: () => copyPathToClipboard() },
@@ -829,10 +848,19 @@
     function renderToolbarHtml() {
         const backDisabled = !canGoBack() ? ' disabled' : '';
         const fwdDisabled = !canGoForward() ? ' disabled' : '';
+        const fileHistory = sharedFileHistorySnapshot();
+        const undoDisabled = fileHistory.canUndo ? '' : ' disabled';
+        const redoDisabled = fileHistory.canRedo ? '' : ' disabled';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
                 <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar'))}">
                     ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
+                </button>
+                <button type="button" class="fm-toolbtn" data-action="history-undo" title="${esc(t('desktop.menu_undo'))} (Ctrl+Z)" aria-label="${esc(t('desktop.menu_undo'))}"${undoDisabled}>
+                    ${iconMarkup('undo', '\u21B6', 'fm-btn-icon', 16)}
+                </button>
+                <button type="button" class="fm-toolbtn" data-action="history-redo" title="${esc(t('desktop.menu_redo'))} (Ctrl+Shift+Z)" aria-label="${esc(t('desktop.menu_redo'))}"${redoDisabled}>
+                    ${iconMarkup('redo', '\u21B7', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}" aria-label="${esc(t('desktop.back'))}"${backDisabled}>
                     ${iconMarkup('chevron-left', '\u2039', 'fm-btn-icon', 16)}

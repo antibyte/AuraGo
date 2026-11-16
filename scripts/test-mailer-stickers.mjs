@@ -57,7 +57,7 @@ try {
         });
         await page.goto(origin);
         for (const file of ['desktop-shell.bundle','desktop-app-mailer','desktop-stickers']) await page.addStyleTag({url:origin+'/css/'+file+'.css'});
-        for (const file of ['vendor/marked.min','vendor/purify.min','desktop/shared/sticker-catalog','desktop/shared/sticker-library','desktop/apps/mailer-api','desktop/apps/mailer-stickers','desktop/apps/mailer-compose']) await page.addScriptTag({url:origin+'/js/'+file+'.js'});
+        for (const file of ['vendor/marked.min','vendor/purify.min','desktop/shared/sticker-catalog','desktop/shared/sticker-library','desktop/apps/mailer-api','desktop/apps/mailer-stickers','desktop/apps/mailer-session-actions','desktop/apps/mailer-compose']) await page.addScriptTag({url:origin+'/js/'+file+'.js'});
         await page.evaluate(({words,theme,mode}) => {
             document.body.className = 'desktop-body'; document.body.dataset.theme = theme; document.documentElement.dataset.theme = mode;
             document.documentElement.style.setProperty('--surface-color', mode === 'light' ? '#f5f6fa' : '#111823');

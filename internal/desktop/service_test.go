@@ -1272,6 +1272,9 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["appearance.wallpaper"] != "groupshoot" {
 		t.Fatalf("default wallpaper = %q", bootstrap.Settings["appearance.wallpaper"])
 	}
+	if layout, err := decodeWorkspaceLayout(bootstrap.Settings[WorkspaceLayoutSettingKey]); err != nil || layout.Revision != 1 || len(layout.Workspaces) != 3 {
+		t.Fatalf("default workspace layout was lost during settings normalization: layout=%+v err=%v", layout, err)
+	}
 	if bootstrap.Settings["appearance.theme"] != "standard" {
 		t.Fatalf("default theme = %q", bootstrap.Settings["appearance.theme"])
 	}
@@ -1287,7 +1290,12 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["sound.volume"] != "0.6" {
 		t.Fatalf("default sound.volume = %q", bootstrap.Settings["sound.volume"])
 	}
-	if err := svc.SetSetting(ctx, "appearance.wallpaper", "forest", SourceUser); err != nil {
+	workspaceState, err := svc.GetWorkspaceState(ctx)
+	if err != nil {
+		t.Fatalf("GetWorkspaceState: %v", err)
+	}
+	workspaceState, err = svc.SetWorkspaceSettings(ctx, &workspaceState.Layout.Revision, map[string]string{"appearance.wallpaper": "forest"}, SourceUser)
+	if err != nil {
 		t.Fatalf("SetSetting valid: %v", err)
 	}
 	if err := svc.SetSetting(ctx, "appearance.theme", "fruity", SourceUser); err != nil {
@@ -1309,16 +1317,17 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["appearance.icon_theme"] != "whitesur" {
 		t.Fatalf("stored icon theme = %q", bootstrap.Settings["appearance.icon_theme"])
 	}
-	if err := svc.SetSetting(ctx, "appearance.wallpaper", "../../bad", SourceUser); err == nil {
+	if _, err := svc.SetWorkspaceSettings(ctx, &workspaceState.Layout.Revision, map[string]string{"appearance.wallpaper": "../../bad"}, SourceUser); err == nil {
 		t.Fatal("expected invalid setting value to be rejected")
 	}
-	if err := svc.SetSetting(ctx, "appearance.wallpaper_by_space", `{"2":"forest"}`, SourceUser); err != nil {
+	workspaceState, err = svc.SetWorkspaceSettings(ctx, &workspaceState.Layout.Revision, map[string]string{"appearance.wallpaper_by_space": `{"2":"forest"}`}, SourceUser)
+	if err != nil {
 		t.Fatalf("SetSetting space wallpaper valid: %v", err)
 	}
-	if err := svc.SetSetting(ctx, "appearance.wallpaper_by_space", `{"9":"forest"}`, SourceUser); err == nil {
+	if _, err := svc.SetWorkspaceSettings(ctx, &workspaceState.Layout.Revision, map[string]string{"appearance.wallpaper_by_space": `{"9":"forest"}`}, SourceUser); err == nil {
 		t.Fatal("expected invalid space id in wallpaper map to be rejected")
 	}
-	if err := svc.SetSetting(ctx, "appearance.wallpaper_by_space", `{"1":"../../bad"}`, SourceUser); err == nil {
+	if _, err := svc.SetWorkspaceSettings(ctx, &workspaceState.Layout.Revision, map[string]string{"appearance.wallpaper_by_space": `{"1":"../../bad"}`}, SourceUser); err == nil {
 		t.Fatal("expected invalid wallpaper id in space map to be rejected")
 	}
 	if err := svc.SetSetting(ctx, "appearance.theme", "citrus", SourceUser); err == nil {

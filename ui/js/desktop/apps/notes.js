@@ -40,7 +40,7 @@
             '<main class="notes-main"><div class="notes-scroll" data-scroll><div class="notes-page"><div class="notes-note-meta" data-note-meta></div><div data-editor></div></div></div><div class="notes-empty" data-empty><div class="notes-empty-icon">'+icon('md')+'</div><h2>'+esc(tr('empty_title'))+'</h2><p>'+esc(tr('empty_description'))+'</p>'+button('new','new_note',true)+'</div><div class="notes-loading" data-loading hidden>'+esc(tr('loading'))+'</div></main><aside class="notes-right" data-right hidden></aside></div>'+
             '<footer class="notes-statusbar"><span data-count></span><span class="notes-spacer"></span><span data-mode></span>'+button('focus','focus_mode')+'<button data-action="zoomOut" aria-label="'+esc(tr('zoom_out'))+'">−</button><button data-action="zoomReset" data-zoom>100%</button><button data-action="zoomIn" aria-label="'+esc(tr('zoom_in'))+'">+</button></footer><div class="notes-popup" data-popup hidden></div><input data-upload type="file" multiple hidden><input data-import type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden></div>';
         const root=host.firstElementChild, find=selector=>root.querySelector(selector), life=new AbortController();
-        let docLife=new AbortController(), editor, queue, current, disposed=false, busy=false, loading=false, zoom=100, right='', searchTimer, updateTimer, draftTimer, draftDeadline, sseTimer;
+        let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, zoom=100, right='', searchTimer, updateTimer, draftTimer, draftDeadline, sseTimer;
         let meta={version:1,pinned:[],sort:'modified',last_note:''}, list=[], total=0, trash=false, page=0, listGeneration=0, currentDraft, assistController, proposal;
         let metaTask=Promise.resolve(), sourceRequested=false;
         const draftKey=()=>location.origin+':'+current.path;
@@ -52,6 +52,15 @@
             createFiles: (format,signal) => exportNote(format,true,signal)
         }));
         ctx.registerWindowCleanup?.(windowId,cleanup);ctx.setWindowBeforeClose?.(windowId,guard);ctx.wireContextMenuBoundary?.(host);
+        ctx.registerSessionAction?.(windowId,{
+            inspect:()=>({dirty:!!queue?.dirty,revision:JSON.stringify([documentGeneration,queue?.revision??0]),label:current?.title||tr('title')}),
+            decide:snapshot=>ctx.decideSessionAction?.({title:snapshot.title,label:snapshot.label,dirty:snapshot.dirty}),
+            save:async expected=>{
+                if(disposed||busy||loading||!queue||JSON.stringify([documentGeneration,queue.revision])!==expected)return false;
+                await queue.save();
+                return !queue.dirty&&JSON.stringify([documentGeneration,queue.revision])===expected?{revision:expected}:false;
+            }
+        });
         const on=(target,event,fn)=>target.addEventListener(event,fn,{signal:life.signal});
         function notice(message,error=false){if(disposed)return;find('[data-notice-text]').textContent=message||'';find('[data-notice]').hidden=!message;find('[data-notice]').dataset.error=error;}
         function fail(error){if(disposed||error?.name==='AbortError')return;notice(tr(error.status===412?'conflict':error.status===428?'conflict':'request_failed'),true);}
@@ -128,7 +137,7 @@
                 const next=await NotesEditor.create(document.createElement('div'),{content:recovered?draft.content:note.content,readonly:ctx.readonly||note.path.startsWith('Trash/'),tr,
                     upload:file=>uploadFile(file,true),resolveURL:href=>resolveURL(href,note.path),openLink:openLink,changed});
                 if(disposed){await next.destroy();return;}
-                queue?.dispose();docLife.abort();docLife=new AbortController();clearTimeout(draftTimer);clearTimeout(draftDeadline);
+                queue?.dispose();docLife.abort();docLife=new AbortController();documentGeneration++;clearTimeout(draftTimer);clearTimeout(draftDeadline);
                 await editor?.destroy();editor=next;current=note;currentDraft=recovered?draft:null;
                 find('[data-editor]').replaceChildren(next.view.dom.closest('.notes-rich').parentElement);
                 if(sourceRequested&&!editor.sourceMode)await editor.mode(true);

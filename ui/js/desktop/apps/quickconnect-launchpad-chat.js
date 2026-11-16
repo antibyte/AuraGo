@@ -1497,6 +1497,7 @@
                     draftKey: state.windows.get(id)?.sessionKey || id,
                     updateContext: value => updateWindowContext(id, value),
                     openProjectWindow: value => openApp(app.id, { ...value, forceNew: true }),
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction,
                     setBeforeClose: handler => { const win = state.windows.get(id); if (win) win.beforeClose = handler; },
                     openURL: desktopStoreOpenURL(storeAppId)
                 });

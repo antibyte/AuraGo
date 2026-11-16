@@ -38,6 +38,20 @@ func fileManagerAsyncBrowserSource(t *testing.T, includeFileManager bool) []byte
 	return []byte(source.String())
 }
 
+func fileManagerHistoryBrowserSource(t *testing.T) []byte {
+	t.Helper()
+	history, err := Content.ReadFile("js/desktop/core/file-history-runtime.js")
+	if err != nil {
+		t.Fatalf("read file history runtime: %v", err)
+	}
+	manager := fileManagerAsyncBrowserSource(t, true)
+	source := make([]byte, 0, len(history)+1+len(manager))
+	source = append(source, history...)
+	source = append(source, '\n')
+	source = append(source, manager...)
+	return source
+}
+
 func TestFileManagerAsyncActionsStayWithOriginBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	source := fileManagerAsyncBrowserSource(t, true)
@@ -66,7 +80,7 @@ window.$=id=>document.getElementById(id);window.loadBootstrap=async()=>{fmTest.b
 window.renderFiles=(id,path)=>fmTest.desktopRefreshes.push({id,path});window.clampDesktopIconPosition=(x,y)=>({x,y});
 window.desktopIconGridEnabled=()=>false;window.desktopIconGridUsedCells=()=>new Set();window.desktopSound=()=>{};window.saveIconPosition=()=>{};
 window.t=(key)=>key;window.esc=(value)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-window.iconMarkup=()=>'';window.showNotification=()=>{};window.showDesktopNotification=()=>{};window.isReadonly=()=>false;window.maxFileSize=()=>0;
+window.iconMarkup=()=>'';window.showNotification=()=>{};window.showDesktopNotification=()=>{};window.isReadonly=()=>false;window.desktopReadonly=()=>false;window.maxFileSize=()=>0;
 fmTest.files['Documents/A']=[file('Documents/A/a1.txt','a1.txt'),file('Documents/A/a2.txt','a2.txt'),file('Documents/A/archive.zip','archive.zip'),file('Documents/A/rename1.txt','rename1.txt'),file('Documents/A/rename2.txt','rename2.txt'),file('Documents/A/dest','dest','directory'),file('Documents/A/other','other','directory')];
 fmTest.files['Documents/A/dest']=[file('Documents/A/dest/a1.txt','a1.txt')];fmTest.files['Documents/A/other']=[file('Documents/A/other/other.txt','other.txt')];
 fmTest.files['Documents/B']=[file('Documents/B/b-copy.txt','b-copy.txt'),file('Documents/B/b.txt','b.txt'),file('Documents/B/target','target','directory')];fmTest.files['Documents/B/target']=[];fmTest.files['']=[file('root.txt','root.txt')];
@@ -112,18 +126,14 @@ await wait(()=>fmTest.writes.length>rootPaste,'root-path paste');
 if(fmTest.listCalls[fmTest.listCalls.length-1].path!==''||fmTest.writes[rootPaste].body.dest_path!=='a1.txt')throw Error('empty root destination was not preserved: '+JSON.stringify({lists:fmTest.listCalls.slice(-2),write:fmTest.writes[rootPaste]}));
 fmTest.finish(rootPaste);await wait(()=>fmTest.fmRefreshes.filter(id=>id==='A').length>1,'root paste refresh');
 
-// Without shared FileOps, paste must commit undo to A and leave B's local clipboard alone.
+// Without shared FileOps, paste must not synthesize path-based undo and must leave B's local clipboard alone.
 const desktopOps=window.AuraDesktopFileOps;window.AuraDesktopFileOps=null;FileManager.navigateTo('A','Documents/A');await wait(()=>fmTest.row('A',a2),'fallback source listing');
 fmTest.click('A',a2,false);fmTest.menu('A','edit','cut')();FileManager.navigateTo('A','Documents/A/dest');fmTest.holdWrites=true;
 const fallbackStart=fmTest.writes.length;const fallbackPaste=fmTest.menu('A','edit','paste')();await wait(()=>fmTest.writes.length>fallbackStart,'fallback paste mutation');
 if(fmTest.writes[fallbackStart].body.old_path!==a2||fmTest.writes[fallbackStart].body.new_path!=='Documents/A/dest/a2.txt')throw Error('fallback paste changed captured move paths: '+JSON.stringify(fmTest.writes[fallbackStart]));
 FileManager.navigateTo('B','Documents/B');await wait(()=>fmTest.row('B','Documents/B/b-copy.txt'),'B fallback clipboard source listing');fmTest.click('B','Documents/B/b-copy.txt',false);fmTest.menu('B','edit','copy')();fmTest.files['Documents/A/dest'].push(file('Documents/A/dest/a2.txt','a2.txt'));fmTest.finish(fallbackStart);await fallbackPaste;
-const writesBeforeEmptyUndo=fmTest.writes.length;FileManager.navigateTo('B','Documents/B');await wait(()=>fmTest.row('B','Documents/B/b.txt'),'B undo source listing');fmTest.click('B','Documents/B/b.txt',false);document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));
-await new Promise(resolve=>setTimeout(resolve,30));if(fmTest.writes.length!==writesBeforeEmptyUndo)throw Error('B undo consumed A paste history');
-fmTest.click('A','Documents/A/dest/a2.txt',false);document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));
-await wait(()=>fmTest.writes.length>writesBeforeEmptyUndo,'origin A undo');const undoWrite=fmTest.writes[writesBeforeEmptyUndo];
-if(undoWrite.method!=='PATCH'||undoWrite.body.old_path!=='Documents/A/dest/a2.txt'||undoWrite.body.new_path!==a2)throw Error('A undo did not reverse its own paste: '+JSON.stringify(undoWrite));
-const aRefreshBeforeUndo=fmTest.fmRefreshes.filter(id=>id==='A').length;fmTest.finish(writesBeforeEmptyUndo);await wait(()=>fmTest.fmRefreshes.filter(id=>id==='A').length>aRefreshBeforeUndo,'fallback undo refresh');
+const writesBeforeUnsupportedUndo=fmTest.writes.length;FileManager.navigateTo('B','Documents/B');await wait(()=>fmTest.row('B','Documents/B/b.txt'),'B undo source listing');fmTest.click('B','Documents/B/b.txt',false);fmTest.row('B','Documents/B/b.txt').focus();document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));
+await new Promise(resolve=>setTimeout(resolve,30));if(fmTest.writes.length!==writesBeforeUnsupportedUndo)throw Error('file manager synthesized a path-based undo without an opaque receipt');
 fmTest.holdWrites=false;FileManager.navigateTo('B','Documents/B/target');fmTest.activate('B');const bLocalPaste=fmTest.writes.length;await fmTest.menu('B','edit','paste')();
 if(fmTest.writes.length!==bLocalPaste+1||fmTest.writes[bLocalPaste].url!=='/api/desktop/copy'||fmTest.writes[bLocalPaste].body.source_path!=='Documents/B/b-copy.txt')throw Error('A paste changed B local clipboard: '+JSON.stringify(fmTest.writes.slice(bLocalPaste)));
 window.AuraDesktopFileOps=desktopOps;fmTest.holdWrites=false;
@@ -188,7 +198,7 @@ window.normalizeDesktopPath=path=>String(path==null?'':path).replaceAll('\\','/'
 window.state={bootstrap:{},filesPath:'Desktop',activeWindowId:'desktop-files',windows:new Map([['desktop-files',{id:'desktop-files',appId:'files'}]])};
 window.$=id=>document.getElementById(id);window.loadBootstrap=async()=>{fmTest.loads++;return {};};window.renderFiles=(id,path)=>fmTest.renders.push({id,path});
 window.clampDesktopIconPosition=(x,y)=>({x,y});window.desktopIconGridEnabled=()=>false;window.desktopIconGridUsedCells=()=>new Set();window.desktopSound=()=>{};window.saveIconPosition=()=>{};
-window.t=key=>key;window.showDesktopNotification=()=>{};
+window.t=key=>key;window.showDesktopNotification=()=>{};window.desktopReadonly=()=>false;
 window.api=(url,options={})=>{const u=new URL(url,location.origin);if(u.pathname==='/api/desktop/files')return Promise.resolve({files:[]});const body=options.body?JSON.parse(options.body):{};return new Promise(resolve=>fmTest.writes.push({url:u.pathname,method:options.method,body:body,resolve:()=>resolve(options.method==='PATCH'?{path:body.new_path}:{})}));};
 </script><script src="/fm.js"></script><script>
 try{window.originalClipboard={mode:'cut',paths:['Desktop/source.txt']};window.AuraDesktopFileClipboard=window.originalClipboard;
@@ -210,6 +220,66 @@ const replacement={mode:'cut',paths:['Desktop/source.txt']};window.AuraDesktopFi
 fmTest.writes[0].resolve();await window.pastePromise;
 if(window.AuraDesktopFileClipboard!==replacement)throw Error('paste cleared a newer same-content clipboard object');
 if(fmTest.loads!==1||fmTest.renders.length!==1||fmTest.renders[0].id!=='desktop-files')throw Error('desktop-context paste did not preserve its default refresh behavior: '+JSON.stringify({loads:fmTest.loads,renders:fmTest.renders}));
+if(__errors.length)throw Error('browser errors: '+JSON.stringify(__errors));
+}`)
+}
+
+func TestDesktopFileManagerReceiptHistoryBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	source := fileManagerHistoryBrowserSource(t)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<!doctype html><meta charset="utf-8"><div id="one"></div><div id="two"></div>
+<script>
+window.__errors=[];window.addEventListener('error',event=>__errors.push(event.error?.stack||event.message));
+window.fmTest={activeId:'A',files:{},writes:[],listCalls:[],menus:{},contexts:{},trashCalls:[],receiptNumber:0,holdPatch:false,wait:async function(predicate,label){const end=Date.now()+5000;while(Date.now()<end){if(predicate())return;await new Promise(resolve=>setTimeout(resolve,5));}throw Error('timed out: '+label+'; writes='+JSON.stringify(this.writes)+'; lists='+JSON.stringify(this.listCalls)+'; errors='+JSON.stringify(__errors));},
+activate(id){this.activeId=id;const root=document.querySelector('#'+(id==='A'?'one':'two')+' .file-manager');if(root)root.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));},
+row(id,path){return document.querySelector('#'+(id==='A'?'one':'two')+' [data-path="'+path+'"]');},
+click(id,path){this.activate(id);const item=this.row(id,path);if(!item)throw Error('missing row '+path);item.dispatchEvent(new MouseEvent('click',{bubbles:true}));},
+menuItem(id,groupId,itemId){const group=(this.menus[id]||[]).find(item=>item.id===groupId);return group&&group.items.find(entry=>entry.id===itemId);},
+menu(id,groupId,itemId){const item=this.menuItem(id,groupId,itemId);if(!item||typeof item.action!=='function')throw Error('missing menu '+id+'/'+groupId+'/'+itemId);return item.action;},
+contextAction(id,path,label){this.activate(id);const item=this.row(id,path);if(!item)throw Error('missing context row '+path);item.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));const entry=(this.contexts[id]||[]).find(value=>value.label===label);if(!entry||typeof entry.action!=='function')throw Error('missing context action '+label);return entry.action;}};
+function file(path,name,type){return {path:path,name:name,type:type||'file',size:1};}
+fmTest.files['Documents/A']=[file('Documents/A/rename.txt','rename.txt'),file('Documents/A/move.txt','move.txt'),file('Documents/A/delete.txt','delete.txt'),file('Documents/A/target','target','directory')];
+fmTest.files['Documents/B']=[file('Documents/B/b.txt','b.txt'),file('Documents/B/child','child','directory')];fmTest.files['Documents/B/child']=[];fmTest.files['Trash']=[file('Trash/old.txt','old.txt')];
+window.__readonly=false;window.state={bootstrap:{},filesPath:'Desktop',activeWindowId:'desktop-files',windows:new Map([['desktop-files',{id:'desktop-files',appId:'files'}]])};
+window.$=id=>document.getElementById(id);window.loadBootstrap=async()=>({});window.renderFiles=()=>{};window.clampDesktopIconPosition=(x,y)=>({x,y});window.desktopIconGridEnabled=()=>false;window.desktopIconGridUsedCells=()=>new Set();window.desktopSound=()=>{};window.saveIconPosition=()=>{};
+window.t=key=>key;window.esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));window.iconMarkup=()=>'';window.showNotification=()=>{};window.showDesktopNotification=()=>{};window.isReadonly=()=>false;window.desktopReadonly=()=>false;window.maxFileSize=()=>0;
+window.fetch=async()=>({ok:true,json:async()=>({})});
+window.api=async(url,options={})=>{const u=new URL(url,location.origin);const method=options.method||'GET';const body=options.body?JSON.parse(options.body):{};if(u.pathname==='/api/desktop/files'){const path=u.searchParams.get('path')||'';fmTest.listCalls.push(path);return {files:fmTest.files[path]||[]};}if(u.pathname==='/api/desktop/file'&&method==='PATCH'){const result={undo_receipt:'undo-'+(++fmTest.receiptNumber),from:body.old_path,path:body.new_path};const write={url:u.pathname,method:method,body:body,result:result,finish:null};fmTest.writes.push(write);if(fmTest.holdPatch)return new Promise(resolve=>{write.finish=()=>resolve(result);});return result;}if(u.pathname==='/api/desktop/file-undo'){const result={undo_receipt:'redo-'+body.receipt,from:'undo',path:'redo'};fmTest.writes.push({url:u.pathname,method:method,body:body,result:result});return result;}if(u.pathname==='/api/desktop/file'&&method==='DELETE'){fmTest.writes.push({url:u.pathname,method:method,body:body});return {};}throw Error('unexpected api call '+method+' '+u.pathname);};
+function callbacks(id){return {directories:[],api:window.api,t:window.t,esc:window.esc,readonly:false,promptDialog:async()=>true,confirmDialog:async()=>true,moveToTrash:async paths=>{fmTest.trashCalls.push(paths.slice());window.AuraDesktopFileHistory.record({undo_receipt:'trash-'+(++fmTest.receiptNumber),from:paths[0],path:'Trash/'+paths[0].split('/').pop()},window.t('desktop.file_history_move'));},showContextMenu:(x,y,items)=>{fmTest.contexts[id]=items;},setWindowMenus:(windowId,menus)=>{fmTest.menus[windowId]=menus;},clearWindowMenus(){},closeContextMenu(){}};}
+</script><script src="/fm.js"></script><script>
+try{window.AuraDesktopFileHistory.configure({api:window.api,refresh:()=>FileManager.refreshLocalInstances(),isReadonly:()=>window.__readonly,notify:window.showNotification,t:window.t});window.AuraDesktopFileOps=null;FileManager.render(document.querySelector('#one'),'A','Documents/A',callbacks('A'));FileManager.render(document.querySelector('#two'),'B','Documents/B',callbacks('B'));}catch(error){__errors.push(error.stack||String(error));}
+</script>`)
+	})
+	mux.HandleFunc("/fm.js", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		_, _ = w.Write(source)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	page := newSmokeBrowser(t).MustPage().Timeout(45 * time.Second)
+	defer page.Close()
+	page.MustNavigate(server.URL).MustWaitLoad()
+	page.MustEval(`async()=>{
+const wait=(predicate,label)=>fmTest.wait(predicate,label);
+await wait(()=>fmTest.row('A','Documents/A/rename.txt')&&fmTest.row('B','Documents/B/b.txt'),'initial listings');
+fmTest.activate('B');const child=fmTest.row('B','Documents/B/child');if(!child)throw Error('missing B child folder');child.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}));await wait(()=>fmTest.listCalls.includes('Documents/B/child'),'B child navigation');if(document.querySelector('#two [data-action=back]').disabled)throw Error('B folder navigation did not create Back history');
+const rename=fmTest.contextAction('A','Documents/A/rename.txt','desktop.fm.rename');rename();
+await wait(()=>document.querySelector('#one [data-rename-input]'),'rename editor');const editor=document.querySelector('#one [data-rename-input]');editor.value='renamed.txt';editor.dispatchEvent(new Event('input',{bubbles:true}));editor.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+await wait(()=>AuraDesktopFileHistory.snapshot().canUndo,'rename receipt');if(AuraDesktopFileHistory.snapshot().undoCount!==1)throw Error('rename did not create one shared history entry');
+if(!fmTest.menuItem('B','edit','undo')||fmTest.menuItem('B','edit','undo').disabled)throw Error('other file-manager menu did not observe shared undo state');if(document.querySelector('#two [data-action="history-undo"]').disabled)throw Error('other file-manager toolbar did not observe shared undo state');
+window.__readonly=true;document.dispatchEvent(new Event('aurago:desktop-policy'));await wait(()=>document.querySelector('#one [data-action="history-undo"]').disabled&&document.querySelector('#two [data-action="history-undo"]').disabled,'readonly history controls');if(!fmTest.menuItem('B','edit','undo').disabled)throw Error('readonly policy left the menu undo action enabled');
+window.__readonly=false;document.dispatchEvent(new Event('aurago:desktop-policy'));await wait(()=>!document.querySelector('#one [data-action="history-undo"]').disabled&&!document.querySelector('#two [data-action="history-undo"]').disabled,'writable history controls');
+const undoRefreshStart=fmTest.listCalls.length;await fmTest.menu('B','edit','undo')();const renameUndo=fmTest.writes.find(item=>item.url==='/api/desktop/file-undo');if(!renameUndo||renameUndo.body.receipt!=='undo-1')throw Error('menu undo did not use the opaque rename receipt: '+JSON.stringify(fmTest.writes));await wait(()=>fmTest.listCalls.length>=undoRefreshStart+2,'all local file-manager refreshes');if(!fmTest.listCalls.slice(undoRefreshStart).includes('Documents/A')||!fmTest.listCalls.slice(undoRefreshStart).includes('Documents/B/child'))throw Error('history refresh did not preserve and reload both local instances: '+JSON.stringify(fmTest.listCalls.slice(undoRefreshStart)));
+fmTest.activate('B');document.querySelector('#two [data-action="back"]').click();await wait(()=>fmTest.listCalls[fmTest.listCalls.length-1]==='Documents/B','refresh did not preserve B navigation history');
+await FileManager.dropDesktopFiles('A',['Documents/A/move.txt'],'Documents/A/target');if(!AuraDesktopFileHistory.snapshot().canUndo)throw Error('local drag move did not record its opaque receipt');const moveReceipt='undo-'+fmTest.receiptNumber;
+fmTest.activate('A');fmTest.row('A','Documents/A/move.txt').focus();document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true}));await wait(()=>fmTest.writes.some(item=>item.url==='/api/desktop/file-undo'&&item.body.receipt===moveReceipt),'keyboard undo');
+await wait(()=>{const button=document.querySelector('#one [data-action="history-redo"]');const history=AuraDesktopFileHistory.snapshot();return !!button&&!button.disabled&&history.canRedo&&!history.busy;},'redo toolbar enabled');fmTest.activate('A');document.querySelector('#one [data-action="history-redo"]').click();await wait(()=>fmTest.writes.some(item=>item.url==='/api/desktop/file-undo'&&item.body.receipt==='redo-'+moveReceipt),'toolbar redo');await wait(()=>!AuraDesktopFileHistory.snapshot().busy,'redo refresh complete');
+const historyBeforeClose=AuraDesktopFileHistory.snapshot().undoCount;const closeMoveStart=fmTest.writes.length;fmTest.holdPatch=true;const closingDrop=FileManager.dropDesktopFiles('A',['Documents/A/move.txt','Documents/A/delete.txt'],'Documents/A/target');await wait(()=>fmTest.writes.length===closeMoveStart+1,'partial move before disposal');const confirmedAfterClose=fmTest.writes[closeMoveStart];FileManager.dispose('A');fmTest.holdPatch=false;confirmedAfterClose.finish();await closingDrop;if(fmTest.writes.length!==closeMoveStart+1)throw Error('closed File Manager dispatched another partial move');if(AuraDesktopFileHistory.snapshot().undoCount!==historyBeforeClose+1)throw Error('confirmed move receipt was lost when its originating window closed');await AuraDesktopFileHistory.undo();if(!fmTest.writes.some(item=>item.url==='/api/desktop/file-undo'&&item.body.receipt===confirmedAfterClose.result.undo_receipt))throw Error('closed-window move receipt could not be undone');FileManager.render(document.querySelector('#one'),'A','Documents/A',callbacks('A'));await wait(()=>fmTest.row('A','Documents/A/delete.txt'),'reopened A after partial move');
+const beforeTrash=AuraDesktopFileHistory.snapshot().undoCount;fmTest.click('A','Documents/A/delete.txt');await fmTest.menu('A','edit','delete')();if(fmTest.trashCalls.length!==1||AuraDesktopFileHistory.snapshot().undoCount!==beforeTrash+1)throw Error('normal delete did not delegate exactly one shared trash receipt');if(fmTest.writes.some(item=>item.method==='DELETE'))throw Error('normal delete bypassed the trash callback');
+FileManager.navigateTo('A','Trash');await wait(()=>fmTest.row('A','Trash/old.txt'),'trash listing');fmTest.click('A','Trash/old.txt');const beforePermanent=AuraDesktopFileHistory.snapshot().undoCount;await fmTest.menu('A','edit','delete')();await wait(()=>fmTest.writes.some(item=>item.method==='DELETE'),'permanent trash deletion');if(AuraDesktopFileHistory.snapshot().undoCount!==beforePermanent)throw Error('permanent trash deletion was incorrectly recorded as undoable');
 if(__errors.length)throw Error('browser errors: '+JSON.stringify(__errors));
 }`)
 }

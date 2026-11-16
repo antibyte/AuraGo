@@ -1,0 +1,79 @@
+.vd-quick-settings {
+    position: fixed;
+    z-index: calc(var(--ds-z-dock, 1200) + 5);
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: 12px;
+    color: var(--vd-text);
+}
+
+.vd-quick-settings-header,
+.vd-quick-settings-group,
+.vd-quick-settings-control,
+.vd-quick-settings-toggle,
+.vd-quick-settings-range,
+.vd-quick-media-controls {
+    display: flex;
+    align-items: center;
+}
+
+.vd-quick-settings-header {
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-quick-settings-header h2,
+.vd-quick-settings-group h3 { margin: 0; }
+.vd-quick-settings-header h2 { font-size: 1.05rem; }
+.vd-quick-settings-group { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--vd-theme-border-subtle, var(--vd-theme-border, var(--vd-border))); }
+.vd-quick-settings-group h3 { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vd-quick-settings-control,
+.vd-quick-settings-toggle { justify-content: space-between; gap: 12px; min-height: 36px; }
+.vd-quick-settings-toggle > span { display: flex; flex-direction: column; gap: 3px; }
+.vd-quick-settings-toggle small { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .78rem; }
+.vd-quick-settings-control select { min-width: 110px; max-width: 55%; padding: 5px 8px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; }
+.vd-quick-settings-range { gap: 8px; width: min(190px, 58%); }
+.vd-quick-settings-range input { flex: 1; min-width: 0; accent-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings-range output { min-width: 3.2em; color: var(--vd-theme-muted, var(--vd-muted)); font-variant-numeric: tabular-nums; text-align: end; }
+.vd-quick-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings button { min-width: 36px; min-height: 36px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-quick-settings button:hover:not(:disabled) { border-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings button:focus-visible,
+.vd-quick-settings input:focus-visible,
+.vd-quick-settings select:focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }
+.vd-quick-settings button:disabled,
+.vd-quick-settings input:disabled,
+.vd-quick-settings select:disabled { cursor: not-allowed; opacity: .62; }
+.vd-quick-settings-close { flex: 0 0 36px; font-size: 1.2rem !important; }
+.vd-quick-dnd { border-bottom: 0; }
+.vd-quick-media { padding-top: 4px; }
+.vd-quick-media-content { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.vd-quick-media-track { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.vd-quick-media-track strong,
+.vd-quick-media-track span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vd-quick-media-track small,
+.vd-quick-media-empty,
+.vd-quick-settings-readonly { color: var(--vd-theme-muted, var(--vd-muted)); }
+.vd-quick-media-empty { margin: 0; font-size: .9rem; }
+.vd-quick-media-controls { flex: 0 0 auto; gap: 5px; }
+.vd-quick-media-controls button { font-size: 1rem; }
+.vd-quick-media-controls button[aria-disabled="true"] { cursor: progress; opacity: .65; }
+.vd-quick-settings-status { margin: 10px 0 0; color: var(--vd-theme-muted, var(--vd-muted)); font-size: .85rem; }
+.vd-quick-settings-status.is-error { color: var(--vd-danger, #c43838); }
+.vd-quick-settings-readonly { margin: 10px 0 0; font-size: .82rem; }
+
+@media (forced-colors: active) {
+    .vd-quick-settings,
+    .vd-quick-settings button,
+    .vd-quick-settings select { border: 1px solid CanvasText; }
+    .vd-quick-settings button:focus-visible,
+    .vd-quick-settings input:focus-visible,
+    .vd-quick-settings select:focus-visible { outline: 2px solid Highlight; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-quick-settings *, .vd-quick-settings *::before, .vd-quick-settings *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

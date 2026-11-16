@@ -43,7 +43,7 @@
                     <div class="vd-spaces-overview-title">${esc(t('desktop.spaces_overview'))}</div>
                     <button type="button" class="vd-spaces-overview-close" data-action="close-overview">${esc(t('desktop.close'))}</button>
                 </div>
-                <div class="vd-spaces-overview-columns">${SPACE_IDS.map(id => renderSpaceOverviewColumn(id, activeId)).join('')}</div>
+                <div class="vd-spaces-overview-columns">${workspaceRecords().map(workspace => renderSpaceOverviewColumn(workspace.id, activeId)).join('')}</div>
             </div>`;
         wireSpacesOverviewEvents(overlay);
     }
@@ -54,8 +54,9 @@
         const cards = wins.length
             ? wins.map(win => renderSpaceOverviewCard(win)).join('')
             : `<div class="vd-space-column-empty">${esc(t('desktop.spaces_overview_empty'))}</div>`;
+        const label = workspaceName(spaceId);
         return `<section class="vd-space-column${isActive ? ' active' : ''}" data-space-id="${esc(spaceId)}" aria-current="${isActive ? 'true' : 'false'}">
-            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}">${esc(t('desktop.space_n').replace('{{n}}', spaceId))}</button>
+            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}" aria-label="${esc(label)}">${esc(label)}</button>
             <div class="vd-space-column-body">${cards}</div>
         </section>`;
     }

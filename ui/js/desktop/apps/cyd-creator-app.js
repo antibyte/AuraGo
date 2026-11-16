@@ -775,6 +775,45 @@
         return results.every(Boolean);
     }
 
+    function sessionRevision(inst) {
+        const code = inst.code;
+        return JSON.stringify([
+            inst.projectSeq,
+            inst.projectId,
+            inst.layoutStore ? inst.layoutStore.get() : inst.layoutSnapshot,
+            typeof code?.openPath === 'function' ? code.openPath() : '',
+            typeof code?.text === 'function' ? code.text() : ''
+        ]);
+    }
+
+    function sessionDirty(inst) {
+        return !!inst.projectId && !!(
+            inst.layoutSaver?.dirty?.() ||
+            inst.code?.isDirty?.()
+        );
+    }
+
+    function registerSessionAction(inst) {
+        const ctx = inst.ctx;
+        if (typeof ctx.registerSessionAction !== 'function') return;
+        inst.sessionActionOff = ctx.registerSessionAction(inst.windowId, {
+            inspect: () => ({
+                dirty: sessionDirty(inst),
+                revision: sessionRevision(inst),
+                label: inst.project?.name || inst.t('cyd_creator.app.title')
+            }),
+            decide: snapshot => ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                if (inst.disposed || inst.readonly || inst.ctxReadonly || sessionRevision(inst) !== expectedRevision) return false;
+                if (!sessionDirty(inst)) return { revision: expectedRevision };
+                const saved = await flushAll(inst);
+                return saved && !sessionDirty(inst) && sessionRevision(inst) === expectedRevision
+                    ? { revision: expectedRevision }
+                    : false;
+            }
+        });
+    }
+
     // unsavedError explains why unsaved edits blocked an agent job or an upload: the error of the
     // failed layout save, else that of the failed code save (P.errors.message turns either into its
     // sentence), else a generic one.
@@ -913,6 +952,7 @@
         inst.root = P.util.el('div', { class: 'cydc-app', dataset: { ccRoot: '', ccWindow: String(windowId) } });
         host.replaceChildren(inst.root);
         instances.set(windowId, inst);
+        registerSessionAction(inst);
         if (inst.ctx && typeof inst.ctx.setWindowBeforeClose === 'function') {
             inst.ctx.setWindowBeforeClose(windowId, () => leaveProject(inst));
         }
@@ -931,6 +971,7 @@
         const inst = instances.get(windowId);
         if (!inst) return;
         inst.disposed = true;
+        inst.sessionActionOff?.();
         instances.delete(windowId);
         if (inst.pullTimer) clearInterval(inst.pullTimer);
         teardownProject(inst);

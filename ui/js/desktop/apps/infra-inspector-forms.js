@@ -21,6 +21,20 @@
         return value;
     };
 
+    async function saveSessionDrafts({ nodeIDs = [], sourceIDs = [], saveNode, saveSource, views = [], retryLayout, whenLayoutIdle, hasUnsavedWork }) {
+        try {
+            for (const id of nodeIDs) if (await saveNode(id) !== true) return false;
+            for (const id of sourceIDs) if (await saveSource(id) !== true) return false;
+            for (const view of views) {
+                if (await retryLayout(view) === false) return false;
+                if (await whenLayoutIdle(view) !== true) return false;
+            }
+            return hasUnsavedWork() !== true;
+        } catch (_) {
+            return false;
+        }
+    }
+
     function create(app) {
         const { store, state, t, esc, model } = app;
         const { clone, iconId, iconLabelKey, sourceActions, sourceIdentity, validCIDR, validHTTPLink } = model;
@@ -33,6 +47,7 @@
         const readonlyAttr = () => (!canWrite() ? 'readonly' : '');
         const disabledAttr = () => (!canWrite() ? 'disabled' : '');
         const groupOpen = new Map();
+        const nodeSavePromises = new Map(), sourceSavePromises = new Map();
         let inline = null, iconPicker = null;
 
         // ---- review markup -----------------------------------------------------------------
@@ -304,12 +319,19 @@
         }
 
         // ---- saving ---------------------------------------------------------------------------------------------
-        async function saveNode(id) {
-            if (!canWrite() || !state.dirty.has(id) || state.busy.has(`node-${id}`)) return;
+        function saveNode(id) {
+            if (nodeSavePromises.has(id)) return nodeSavePromises.get(id);
+            const pending = saveNodeNow(id).finally(() => { if (nodeSavePromises.get(id) === pending) nodeSavePromises.delete(id); });
+            nodeSavePromises.set(id, pending);
+            return pending;
+        }
+        async function saveNodeNow(id) {
+            if (!canWrite() || !state.dirty.has(id) || state.busy.has(`node-${id}`)) return false;
             const form = $('[data-detail-form]');
-            if (form && !validateDetailForm(form)) { submitDetails(); return; }
+            if (form?.dataset.nodeId === id && !validateDetailForm(form)) { submitDetails(); return false; }
             const revision = state.draftRevision.get(id) || 0;
             const draft = clone(state.drafts.get(id));
+            if (!draft) return false;
             draft.id = id;
             store.setBusy(`node-${id}`, true);
             const review = async () => {
@@ -334,12 +356,14 @@
                     store.notify(t('desktop.infra_saved_newer_draft'), 'info');
                 }
                 app.inspector.paint();
+                return !state.dirty.has(id);
             } catch (error) {
                 // A conflict or an uncertain write (a timeout included): reload the confirmed state and
                 // let the operator compare it with the retained draft. Hiding or closing the window stays quiet.
-                if (error.name === 'AbortError') return;
+                if (error.name === 'AbortError') return false;
                 if (error.status === 409 || store.uncertainMutation(error)) await review();
                 else store.notify(store.messageFor(error), 'error');
+                return false;
             } finally { store.setBusy(`node-${id}`, false); }
         }
         function editList(addList, removeList) {
@@ -453,9 +477,12 @@
             state.draftRevision.set(id, (state.draftRevision.get(id) || 0) + 1);
             store.notify(t('desktop.infra_reapply_ready'), 'info'); app.inspector.paint();
         }
-        const collectSourceFields = source => {
-            const fields = {};
-            el().querySelectorAll('[data-source-field]').forEach(input => { fields[input.dataset.sourceField] = sourceFieldValue(source, input.dataset.sourceField, input.value); });
+        const collectSourceFields = (source, id = state.selected) => {
+            const fields = { ...(state.sourceDrafts.get(id)?.fields || {}) };
+            if (id === state.selected) {
+                el().querySelectorAll('[data-source-field]').forEach(input => { fields[input.dataset.sourceField] = input.value; });
+            }
+            for (const [key, value] of Object.entries(fields)) fields[key] = sourceFieldValue(source, key, value);
             return fields;
         };
         const clearSourceState = id => { for (const set of [state.sourceDirty, state.sourceBlocked, state.sourcePending]) set.delete(id); state.sourceDrafts.delete(id); state.sourceReviews.delete(id); };
@@ -464,7 +491,7 @@
             if (!draft || !canEditSource()) return;
             try {
                 const latest = await store.request(`/nodes/${encodeURIComponent(id)}/source-edit?source=${encodeURIComponent(draft.source)}`);
-                const submitted = collectSourceFields(draft.source);
+                const submitted = collectSourceFields(draft.source, id);
                 if (sourceEditPending(latest)) {
                     state.sourceDrafts.set(id, { ...latest, fields: submitted }); state.sourceDirty.add(id); state.sourceBlocked.add(id); state.sourcePending.add(id);
                     state.sourceReviews.delete(id);
@@ -482,12 +509,18 @@
                 app.inspector.paint();
             } catch (error) { store.notify(store.messageFor(error), 'error'); }
         }
-        async function saveSourceEdit(id) {
+        function saveSourceEdit(id) {
+            if (sourceSavePromises.has(id)) return sourceSavePromises.get(id);
+            const pending = saveSourceEditNow(id).finally(() => { if (sourceSavePromises.get(id) === pending) sourceSavePromises.delete(id); });
+            sourceSavePromises.set(id, pending);
+            return pending;
+        }
+        async function saveSourceEditNow(id) {
             const draft = state.sourceDrafts.get(id);
-            if (!draft || !canEditSource() || !draft.editable || state.sourceBlocked.has(id)) return;
+            if (!draft || !canEditSource() || !draft.editable || state.sourceBlocked.has(id)) return false;
             const busyKey = `source-${id}`;
-            if (state.busy.has(busyKey)) return;
-            const fields = collectSourceFields(draft.source);
+            if (state.busy.has(busyKey)) return false;
+            const fields = collectSourceFields(draft.source, id);
             const revision = state.sourceRevision.get(id) || 0;
             const path = `/nodes/${encodeURIComponent(id)}/source-edit?source=${encodeURIComponent(draft.source)}`;
             store.setBusy(busyKey, true);
@@ -497,7 +530,7 @@
                     state.sourceBlocked.add(id);
                     if (result.status === 'pending' || sourceEditPending(result)) { state.sourcePending.add(id); store.notify(t('desktop.infra_source_pending'), 'info'); }
                     else store.notify(t('desktop.infra_source_outcome_unknown'), 'error');
-                    app.inspector.paint(); return;
+                    app.inspector.paint(); return false;
                 }
                 if ((state.sourceRevision.get(id) || 0) === revision) {
                     clearSourceState(id);
@@ -505,18 +538,36 @@
                     // The saved draft is gone, so the edit form must close even when the snapshot did not change.
                     app.inspector.paint();
                     store.notify(t('desktop.infra_source_saved'), 'success');
+                    return !state.sourceDirty.has(id);
                 } else {
                     const latest = await store.request(path);
                     const newer = state.sourceDrafts.get(id);
                     if (newer) newer.version = latest.version;
                     state.sourceDirty.add(id); await store.loadSnapshot();
                     store.notify(t('desktop.infra_source_saved_newer_draft'), 'info');
+                    return false;
                 }
             } catch (error) {
                 if (error.status === 409) { state.sourceBlocked.add(id); state.sourcePending.delete(id); state.sourceReviews.delete(id); app.inspector.paint(); store.notify(store.messageFor(error), 'error'); }
                 else if (store.uncertainMutation(error)) { state.sourceBlocked.add(id); state.sourcePending.delete(id); app.inspector.paint(); store.notify(t('desktop.infra_source_outcome_unknown'), 'error'); }
                 else store.notify(store.messageFor(error), 'error');
+                return false;
             } finally { store.setBusy(busyKey, false); }
+        }
+
+        async function saveAllDrafts() {
+            if (!canWrite()) return false;
+            if (state.sourceDirty.size && !canEditSource()) return false;
+            return saveSessionDrafts({
+                nodeIDs: [...state.dirty].sort(),
+                sourceIDs: [...state.sourceDirty].sort(),
+                saveNode,
+                saveSource: saveSourceEdit,
+                views: ['atlas', 'topology'],
+                retryLayout: view => store.unsavedCount(view) ? store.retryLayout(view) : true,
+                whenLayoutIdle: view => store.whenLayoutIdle(view),
+                hasUnsavedWork: () => state.dirty.size > 0 || state.sourceDirty.size > 0 || store.hasUnsavedWork()
+            });
         }
 
         // ---- the icon picker ----------------------------------------------------------------------------------------------
@@ -649,9 +700,9 @@
 
         return {
             detailsHTML, sourcesHTML, nodeReviewMarkup, afterPaint, detach, onClick, onFieldEvent, onSourceFieldEvent, onSubmit, onToggle,
-            submitDetails, openIconPicker, onBusy, isBusy, dispose,
+            submitDetails, saveAllDrafts, openIconPicker, onBusy, isBusy, dispose,
         };
     }
 
-    window.InfraAppInspectorForms = { create };
+    window.InfraAppInspectorForms = { create, saveSessionDrafts };
 })();

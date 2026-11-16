@@ -1,13 +1,38 @@
 # Virtual Desktop everyday workflow roadmap
 
-Status: proposed implementation plan, 2026-11-15. No runtime changes are included.
+Status: implemented in `codex/desktop-shell-everyday` and locally integrated into
+`main` on 2026-11-16. The original base is
+`6d753d4e1127447f4e953dc9a71244891648195a`. All four implementation
+waves are complete: snap and guarded close actions; shared search/default apps;
+browser-local notifications and accessibility; file history; quick settings,
+calendar and media; revision-bound workspaces, custom backgrounds and two-stage
+logout; grouped taskbars and the shared window overview.
+
+The 19 focused shell Node scripts, focused Windows Go/backend checks, deterministic
+bundles, encoding and all 16 locale checks passed. Browser acceptance covers the
+complete flows and failure cases described below, Standard/Fruity, compact views,
+forced colors, reduced motion, 150% text size and a 640×450 viewport at DPR 2.
+It includes two-tab workspace conflicts, failed saves without lost drafts, guarded
+close/reopen races, resource-free previews, compact logical workspace selection,
+and pin/session restoration after reload. Full Linux CI, macOS runtime and real
+assistive-technology acceptance remain separate.
+
+Local integration against `main` at `0da8b735768b74689760d872dce38f116db3c9bf`
+passed the Desktop package, Desktop/auth HTTP checks, 19 shell Node scripts,
+EasyDrag checks, UI/locale/loader checks and 29 browser cases. Merge acceptance
+also preserves settings validation detail, the EasyDrag module budget and
+popover placement under reduced motion. The broader UI regression script still
+reports the same seven Game Maker failures reproduced on the pre-merge `main`.
+GitNexus change analysis remains incomplete because its index is stale; source
+inspection and executable checks supply the integration evidence. DOX and the
+operator guide are updated. No push, deployment or publication was performed.
 
 Improve frequent desktop interactions by extending the existing shell. Preserve the
 distinct Standard taskbar and Fruity dock, the vanilla JavaScript architecture,
 server permissions, application close guards, and existing session data. Ship
 small vertical slices; operating-system feature parity is not the acceptance goal.
 
-## Existing foundations to reuse
+## Baseline before implementation (2026-11-15)
 
 - Snap already supports left/right halves and upper quarters. `top-half` geometry
   exists but has no user entry point. The lower quarters are absent.
@@ -48,12 +73,13 @@ not elapsed-time promises. Accessibility requirements apply to every delivery.
 | 3b | Quick settings, month calendar and now playing | P1 / M | 3a for Do Not Disturb |
 | 4 | Shared file-operation undo | P1 / L | Rooted file/trash services |
 | 5 | Text size and high contrast | P1 / M | Existing theme tokens; may ship earlier |
-| 6 | Grouped taskbar and preview switcher | P2 / M | 1 close guards and preview work |
+| 6 | Grouped taskbar and preview switcher | P2 / M | 1 close guards, preview work and 7b stable workspace IDs |
 | 7a | Custom wallpaper | P2 / M | Existing file picker and authorized reads |
 | 7b | Editable workspaces | P2 / L | Session/settings migration |
 | 8 | Discoverable session actions | P2 / S | Existing authentication/logout |
 
-Recommended first release: 1, 2, 3a and 5. Follow with 3b and 4, then 6–8.
+Implementation waves: 1, 2, 3a and 5; then 3b and 4; then 7a, 7b and 8;
+finally 6 against the stable workspace model.
 Do not make the first release wait for workspace migration, capture permissions,
 or a new authentication state machine.
 
@@ -229,8 +255,8 @@ new text-size tokens until their own views have been verified.
 
 ## 6. Grouped taskbar and preview switcher
 
-Owners: window-shell reconciliation, taskbar thumbnails, shell-chrome switcher,
-Spaces visibility, session pins and shared menus.
+Owners: window-shell reconciliation, `window-overview-runtime.js`, taskbar
+thumbnails, shell-chrome switcher, Spaces visibility, session pins and shared menus.
 
 - Give Standard one app entry combining pinned and running state, with a running
   count/indicator. Preserve ordered pins and existing launcher behavior. Fruity's
@@ -351,6 +377,7 @@ inside one page native multi-monitor placement.
   Capture/clipboard permission dialogs, real assistive technology and browser/OS
   shortcut conflicts require explicit real-client acceptance beyond local fixtures.
 
-DOX disposition for this planning change: owning guides remain unchanged because
-no runtime behavior, permission, persisted contract or ownership boundary changes.
-This file remains under the root guide's existing `plans/` responsibility.
+Implementation updates the owning UI, Desktop service, server and script guides
+with the shipped contracts. The root guide retains responsibility for this plan;
+its global ownership and permission rules are unchanged. Verification evidence and
+remaining acceptance checks are recorded in ignored `reports/desktop-shell-everyday/`.

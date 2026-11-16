@@ -48,9 +48,8 @@
             activeKeyboardWindow: '',
             navigationGeneration: 0,
             disposed: false,
+            fileHistoryUnsubscribe: null,
             renameDraft: null,
-            undoStack: [],
-            redoStack: [],
             sidebarOpen: false,
             incrementalRenderToken: 0,
             tabs: null,
@@ -343,11 +342,26 @@
         bindKeyboard();
         instance.storagePolicyListener = () => {
             loadStorageSources(instance, true);
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                updateToolbarState();
+                updateWindowMenus();
+            });
         };
         document.addEventListener('aurago:desktop-policy', instance.storagePolicyListener);
         loadStorageSources(instance);
         if (initialPath && initialPath.provider === 'koofr') openStorageMounts(instance);
         navigate(initialPath || '');
+        const fileHistory = window.AuraDesktopFileHistory;
+        if (fileHistory && typeof fileHistory.subscribe === 'function') {
+            instance.fileHistoryUnsubscribe = fileHistory.subscribe(() => {
+                if (!isLiveInstance(instance)) return;
+                withInstance(instance, () => {
+                    updateToolbarState();
+                    updateWindowMenus();
+                });
+            });
+        }
     }
 
     function renderAll() {
@@ -377,6 +391,8 @@
         const hasSelection = selected.length > 0;
         const hasClipboard = hasSharedFileClipboard();
         const readonly = isReadonly();
+        const history = window.AuraDesktopFileHistory;
+        const historyState = sharedFileHistorySnapshot();
         const selectedFile = selected.length === 1 ? selected[0] : null;
         const instance = fm;
         const bindMenu = menu => ({ ...menu, action: typeof menu.action === 'function' ? () => withInstance(instance, menu.action) : menu.action, items: menu.items?.map(bindMenu) });
@@ -400,6 +416,9 @@
                 id: 'edit',
                 labelKey: 'desktop.menu_edit',
                 items: [
+                    { id: 'undo', labelKey: 'desktop.menu_undo', icon: 'undo', shortcut: 'Ctrl+Z', disabled: !historyState.canUndo, action: () => history?.undo() },
+                    { id: 'redo', labelKey: 'desktop.menu_redo', icon: 'redo', shortcut: 'Ctrl+Shift+Z', disabled: !historyState.canRedo, action: () => history?.redo() },
+                    { type: 'separator' },
                     { id: 'cut', labelKey: 'desktop.fm.cut', icon: 'scissors', shortcut: 'Ctrl+X', disabled: readonly || !hasSelection, action: () => cutSelection() },
                     { id: 'copy', labelKey: 'desktop.fm.copy', icon: 'copy', shortcut: 'Ctrl+C', disabled: !hasSelection, action: () => copySelection() },
                     { id: 'copy-path', labelKey: 'desktop.fm.copy_path', shortcut: 'Ctrl+Shift+C', disabled: !hasSelection, action: () => copyPathToClipboard() },
@@ -834,10 +853,19 @@
     function renderToolbarHtml() {
         const backDisabled = !canGoBack() ? ' disabled' : '';
         const fwdDisabled = !canGoForward() ? ' disabled' : '';
+        const fileHistory = sharedFileHistorySnapshot();
+        const undoDisabled = fileHistory.canUndo ? '' : ' disabled';
+        const redoDisabled = fileHistory.canRedo ? '' : ' disabled';
         return `<div class="fm-toolbar">
             <div class="fm-toolbar-group">
                 <button type="button" class="fm-toolbtn fm-sidebar-toggle" data-action="sidebar-toggle" title="${esc(t('desktop.fm.toggle_sidebar'))}" aria-label="${esc(t('desktop.fm.toggle_sidebar'))}">
                     ${iconMarkup('list', '\u2630', 'fm-btn-icon', 16)}
+                </button>
+                <button type="button" class="fm-toolbtn" data-action="history-undo" title="${esc(t('desktop.menu_undo'))} (Ctrl+Z)" aria-label="${esc(t('desktop.menu_undo'))}"${undoDisabled}>
+                    ${iconMarkup('undo', '\u21B6', 'fm-btn-icon', 16)}
+                </button>
+                <button type="button" class="fm-toolbtn" data-action="history-redo" title="${esc(t('desktop.menu_redo'))} (Ctrl+Shift+Z)" aria-label="${esc(t('desktop.menu_redo'))}"${redoDisabled}>
+                    ${iconMarkup('redo', '\u21B7', 'fm-btn-icon', 16)}
                 </button>
                 <button type="button" class="fm-toolbtn" data-action="back" title="${esc(t('desktop.back'))}" aria-label="${esc(t('desktop.back'))}"${backDisabled}>
                     ${iconMarkup('chevron-left', '\u2039', 'fm-btn-icon', 16)}
@@ -1756,7 +1784,9 @@
 
     function handleActionClick(e) {
         const action = e.currentTarget.dataset.action;
-        if (action === 'sidebar-toggle') handleSidebarToggle();
+        if (action === 'history-undo') sharedFileHistoryAction('undo');
+        else if (action === 'history-redo') sharedFileHistoryAction('redo');
+        else if (action === 'sidebar-toggle') handleSidebarToggle();
         else if (action === 'sidebar-backdrop-close') { fm.sidebarOpen = false; renderAll(); }
         else if (action === 'back') goBack();
         else if (action === 'forward') goForward();
@@ -2116,83 +2146,6 @@
         };
     }
 
-    function pushToUndo(action) {
-        fm.undoStack.push(action);
-        if (fm.undoStack.length > 20) {
-            fm.undoStack.shift();
-        }
-        fm.redoStack.length = 0;
-    }
-
-    async function undo() {
-        if (isRemote()) return;
-        const instance = fm;
-        if (!instance.undoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
-            return;
-        }
-        const action = instance.undoStack.pop();
-        try {
-            let progress = null;
-            if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.undoing'), action.items.length);
-            }
-            let count = 0;
-            for (const item of action.items) {
-                count++;
-                if (progress) progress.update(count, baseName(item.oldPath));
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: item.newPath, new_path: item.oldPath })
-                });
-                if (!isLiveInstance(instance)) return;
-            }
-            if (progress) progress.close();
-            withInstance(instance, () => {
-                instance.redoStack.push(action);
-                showNotification({ type: 'success', message: t('desktop.fm.undone') });
-                refresh();
-            });
-        } catch (err) {
-            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) }));
-        }
-    }
-
-    async function redo() {
-        if (isRemote()) return;
-        const instance = fm;
-        if (!instance.redoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
-            return;
-        }
-        const action = instance.redoStack.pop();
-        try {
-            let progress = null;
-            if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.redoing'), action.items.length);
-            }
-            let count = 0;
-            for (const item of action.items) {
-                count++;
-                if (progress) progress.update(count, baseName(item.newPath));
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: item.oldPath, new_path: item.newPath })
-                });
-                if (!isLiveInstance(instance)) return;
-            }
-            if (progress) progress.close();
-
-            withInstance(instance, () => {
-                instance.undoStack.push(action);
-                showNotification({ type: 'success', message: t('desktop.fm.redone') });
-                refresh();
-            });
-        } catch (err) {
-            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) }));
-        }
-    }
-
     function toggleQuickLook() {
         const previewLocation = storageLocation();
         if (fm.quickLookOverlay) {
@@ -2294,8 +2247,13 @@
         const backBtn = fm.host.querySelector('[data-action="back"]');
         const fwdBtn = fm.host.querySelector('[data-action="forward"]');
         const sidebarBtn = fm.host.querySelector('[data-action="sidebar-toggle"]');
+        const history = sharedFileHistorySnapshot();
+        const undoBtn = fm.host.querySelector('[data-action="history-undo"]');
+        const redoBtn = fm.host.querySelector('[data-action="history-redo"]');
         if (backBtn) backBtn.disabled = !canGoBack();
         if (fwdBtn) fwdBtn.disabled = !canGoForward();
+        if (undoBtn) undoBtn.disabled = !history.canUndo;
+        if (redoBtn) redoBtn.disabled = !history.canRedo;
         if (sidebarBtn) {
             sidebarBtn.classList.toggle('active', fm.sidebarOpen);
             sidebarBtn.setAttribute('aria-expanded', fm.sidebarOpen ? 'true' : 'false');
@@ -2309,6 +2267,16 @@
     // Clipboard operations
     function sharedFileOps() {
         return window.AuraDesktopFileOps || null;
+    }
+
+    function sharedFileHistorySnapshot() {
+        const history = window.AuraDesktopFileHistory;
+        return history && typeof history.snapshot === 'function' ? history.snapshot() : { canUndo: false, canRedo: false };
+    }
+
+    function sharedFileHistoryAction(direction) {
+        const history = window.AuraDesktopFileHistory;
+        if (history && typeof history[direction] === 'function') history[direction]();
     }
 
     function sharedFileClipboard() {
@@ -2387,66 +2355,55 @@
         }
 
         let count = 0;
-        const undoItems = [];
-
-        for (const srcPath of sourcePaths) {
-            if (!isLiveInstance(instance)) {
-                if (progress) progress.close();
-                return;
-            }
-            count++;
-            const name = baseName(srcPath);
-            let destPath = joinPath(destination, name);
-            const exists = files.some(f => f.name === name);
-            if (exists && mode === 'copy') {
-                const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
-                destPath = joinPath(destination, newName);
-            }
-
-            if (progress) {
-                progress.update(count, name);
-            }
-
-            try {
-                if (mode === 'copy') {
-                    await api('/api/desktop/copy', {
-                        method: 'POST',
-                        body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
-                    });
-                } else {
-                    const moved = await api('/api/desktop/file', {
-                        method: 'PATCH',
-                        body: JSON.stringify({ old_path: srcPath, new_path: destPath })
-                    });
-                    undoItems.push({ oldPath: srcPath, newPath: moved.path || destPath });
+        const undoReceipts = [];
+        let changed = false;
+        try {
+            for (const srcPath of sourcePaths) {
+                if (!isLiveInstance(instance)) return;
+                count++;
+                const name = baseName(srcPath);
+                let destPath = joinPath(destination, name);
+                const exists = files.some(f => f.name === name);
+                if (exists && mode === 'copy') {
+                    const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
+                    destPath = joinPath(destination, newName);
                 }
-            } catch (err) {
-                if (!isLiveInstance(instance)) {
-                    if (progress) progress.close();
-                    return;
-                }
-                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
-            }
-        }
 
-        if (!isLiveInstance(instance)) {
+                if (progress) progress.update(count, name);
+
+                try {
+                    if (mode === 'copy') {
+                        await api('/api/desktop/copy', {
+                            method: 'POST',
+                            body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
+                        });
+                        changed = true;
+                    } else {
+                        const moved = await api('/api/desktop/file', {
+                            method: 'PATCH',
+                            body: JSON.stringify({ old_path: srcPath, new_path: destPath })
+                        });
+                        changed = true;
+                        undoReceipts.push(moved);
+                    }
+                } catch (err) {
+                    if (!isLiveInstance(instance)) return;
+                    withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
+                }
+            }
+
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
+            });
+        } finally {
             if (progress) progress.close();
-            return;
-        }
-        if (progress) {
-            progress.close();
-        }
-
-        withInstance(instance, () => {
-            if (undoItems.length > 0) {
-                pushToUndo({
-                    type: 'move',
-                    items: undoItems
-                });
+            if (undoReceipts.length) window.AuraDesktopFileHistory?.record(undoReceipts, t('desktop.file_history_move'));
+            if (changed) {
+                if (isLiveInstance(instance)) withInstance(instance, () => refresh());
+                else if (typeof instance.callbacks?.refreshDesktop === 'function') await instance.callbacks.refreshDesktop();
             }
-            if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
-            refresh();
-        });
+        }
     }
 
 ;
@@ -2548,12 +2505,9 @@
                 method: 'PATCH',
                 body: JSON.stringify({ old_path: path, new_path: nextPath })
             });
+            window.AuraDesktopFileHistory?.record(renamed, t('desktop.file_history_move'));
             if (!isLiveInstance(instance)) return;
             withInstance(instance, () => {
-                pushToUndo({
-                    type: 'rename',
-                    items: [{ oldPath: path, newPath: renamed.path || nextPath }]
-                });
                 refresh();
             });
         } catch (err) {
@@ -2590,14 +2544,37 @@
             confirmed = await confirmDialog(t('desktop.fm.confirm_delete', { count: selected.length }), '');
         }
         if (!confirmed || !isLiveInstance(instance)) return;
-        for (const file of selected) {
+
+        const trashItems = withInstance(instance, () => selected.filter(file => isTrashItemPath(file.path)));
+        const workspaceItems = selected.filter(file => !trashItems.includes(file));
+        if (workspaceItems.length) {
+            const moveToTrash = instance.callbacks && instance.callbacks.moveToTrash;
+            if (typeof moveToTrash !== 'function') {
+                withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.storage_unavailable') }));
+                return;
+            }
+            try {
+                await withInstance(instance, () => moveToTrash(workspaceItems.map(file => file.path)));
+            } catch (err) {
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
+            }
+            if (!isLiveInstance(instance)) return;
+        }
+        if (!trashItems.length) return;
+
+        let deletedAny = false;
+        for (const file of trashItems) {
             try {
                 await api('/api/desktop/file?path=' + encodeURIComponent(file.path), { method: 'DELETE' });
+                deletedAny = true;
             } catch (err) {
                 if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
-        if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
+        if (isLiveInstance(instance)) withInstance(instance, () => {
+            clearSelection();
+            if (deletedAny) refresh();
+        });
     }
 
     async function downloadFile(file) {
@@ -2809,39 +2786,37 @@
         }
 
         let count = 0;
-        const undoItems = [];
+        const undoReceipts = [];
+        try {
+            for (const src of cleanPaths) {
+                if (!isLiveInstance(instance)) return;
+                if (!src || src === destPath) continue;
+                const name = baseName(src);
+                const newPath = joinPath(destPath, name);
+                if (newPath === src) continue;
 
-        for (const src of cleanPaths) {
-            if (!src || src === destPath) continue;
-            const name = baseName(src);
-            const newPath = joinPath(destPath, name);
-            if (newPath === src) continue;
+                count++;
+                if (progress) progress.update(count, name);
 
-            count++;
-            if (progress) {
-                progress.update(count, name);
+                try {
+                    const moved = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    undoReceipts.push(moved);
+                    if (!isLiveInstance(instance)) return;
+                } catch (err) {
+                    if (!isLiveInstance(instance)) return;
+                    withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
+                }
             }
-
-            try {
-                const moved = await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
-                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
-                undoItems.push({ oldPath: src, newPath: moved.path || newPath });
-            } catch (err) {
-                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
-                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
-            }
-        }
-
-        if (progress) {
-            progress.close();
+        } finally {
+            if (progress) progress.close();
+            if (undoReceipts.length) window.AuraDesktopFileHistory?.record(undoReceipts, t('desktop.file_history_move'));
         }
 
         if (!isLiveInstance(instance)) return;
         withInstance(instance, () => {
-            if (undoItems.length > 0) pushToUndo({ type: 'move', items: undoItems });
             clearSelection();
             fm.dragSrcPath = null;
         });
@@ -3263,7 +3238,8 @@
             return;
         }
 
-        const isInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        const activeElement = document.activeElement;
+        const isInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
         if (isInput && e.key !== 'Escape') return;
 
         if (!isInput) {
@@ -3397,13 +3373,18 @@
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isInput) {
+            const history = window.AuraDesktopFileHistory;
+            if (!history || typeof history.undo !== 'function') return;
             e.preventDefault();
-            undo();
+            if (e.shiftKey) history.redo?.();
+            else history.undo();
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y' && !isInput) {
+            const history = window.AuraDesktopFileHistory;
+            if (!history || typeof history.redo !== 'function') return;
             e.preventDefault();
-            redo();
+            history.redo();
             return;
         }
         if (e.key === ' ' && !isInput) {
@@ -4660,9 +4641,20 @@
         return true;
     }
 
+    async function refreshLocalInstances() {
+        const pending = [...instances.values()];
+        for (const instance of pending) {
+            if (!isLiveInstance(instance) || isRemote(instance)) continue;
+            const path = instance.currentPath;
+            await withInstance(instance, () => navigate(path, false));
+        }
+    }
+
     function dispose(windowId) {
         const instance = instanceForWindow(windowId);
         if (!instance) return;
+        instance.fileHistoryUnsubscribe?.();
+        instance.fileHistoryUnsubscribe = null;
         instance.disposed = true;
         instance.storageLifetime.abort();
         instance.storageNavigation?.abort();
@@ -4688,7 +4680,7 @@
     }
 
     // Expose the module
-    window.FileManager = { render, navigateTo, dropDesktopFiles, dispose,
+    window.FileManager = { render, navigateTo, dropDesktopFiles, refreshLocalInstances, dispose,
         storageReady: id => isLiveInstance(instanceForWindow(id)),
         transferStorage: (id, entries, destination, mode, clipboard) => {
             const instance = instanceForWindow(id);

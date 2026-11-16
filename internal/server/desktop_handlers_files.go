@@ -172,14 +172,22 @@ func handleDesktopFile(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid JSON", http.StatusBadRequest)
 				return
 			}
-			if err := svc.MovePathTo(r.Context(), body.OldPath, body.NewPath, desktop.SourceUser, precondition); err != nil {
-				writeDesktopFileError(w, err)
+			path, undoReceipt, err := svc.MovePathWithReceipt(r.Context(), body.OldPath, body.NewPath, desktop.SourceUser, precondition)
+			if err != nil {
+				if errors.Is(err, desktop.ErrFileUndoUncertain) {
+					broadcastDesktopEvent(s, hub, desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "move_path_uncertain"}, CreatedAt: time.Now().UTC()})
+				}
+				writeDesktopUndoError(w, err)
 				return
 			}
-			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "move_path", "old_path": body.OldPath, "new_path": body.NewPath}, CreatedAt: time.Now().UTC()}
+			event := desktop.Event{Type: "desktop_changed", Payload: map[string]interface{}{"operation": "move_path", "old_path": body.OldPath, "new_path": path}, CreatedAt: time.Now().UTC()}
 			broadcastDesktopEvent(s, hub, event)
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "path": body.NewPath})
+			response := map[string]interface{}{"status": "ok", "path": path}
+			if undoReceipt != "" {
+				response["undo_receipt"] = undoReceipt
+			}
+			_ = json.NewEncoder(w).Encode(response)
 		case http.MethodDelete:
 			path := r.URL.Query().Get("path")
 			if err := svc.DeletePath(r.Context(), path, desktop.SourceUser); err != nil {

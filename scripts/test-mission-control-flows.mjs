@@ -252,6 +252,10 @@ check('detail: hostile trigger type and name render escaped', hero.includes('&lt
 // ── the app shell ──
 const calls = { notify: [], confirm: [], openApp: [], editorOpen: [], api: [], menus: null, context: null };
 let confirmAnswer = false;
+let missionSaveMode = 'normal';
+let releaseMissionSave = null;
+let sessionParticipant = null;
+const editorState = { dirty: false, payload: {}, open: false, handlers: new Map(), saving: false, serverError: '' };
 const missionsPayload = () => ({ missions: ALL.map(m => Object.assign({}, m)), queue: { items: [], running: '' } });
 // Like the shell's api(): the error carries the HTTP status and the parsed body ({error, code?}).
 function httpError(status, message, code) { const err = new Error(message); err.status = status; err.body = code ? { error: message, code } : { error: message }; return err; }
@@ -270,11 +274,29 @@ async function api(url, options) {
     if (url === MC_API && method === 'GET') return missionsPayload();
     if (url.endsWith('/run')) return { status: 'queued' };
     if (url.endsWith('/cancel')) throw httpError(...CANCEL_ANSWERS[url.split('/').slice(-2)[0]]);
+    if (url.startsWith(MC_API + '/') && method === 'PUT' && missionSaveMode === 'reject') throw httpError(500, 'write rejected', 'save_failed');
+    if (url.startsWith(MC_API + '/') && method === 'PUT' && missionSaveMode === 'pending') return new Promise(resolve => { releaseMissionSave = () => resolve({ status: 'ok' }); });
     if (method === 'PUT' || method === 'DELETE') return { status: 'ok' };
     return {};
 }
 W.MissionControlEditor = {
-    create: () => ({ element: new El('div'), open: (arg) => calls.editorOpen.push(arg.mode + ':' + (arg.mission ? arg.mission.id : '')), close() {}, isDirty: () => false, on() {}, setSaving() {}, setServerError() {}, dispose() {} })
+    create: () => ({
+        element: new El('div'),
+        open: arg => {
+            calls.editorOpen.push(arg.mode + ':' + (arg.mission ? arg.mission.id : ''));
+            editorState.open = true;
+            editorState.dirty = false;
+            editorState.payload = { id: arg.mission?.id || '', name: arg.mission?.name || 'New mission', prompt: arg.mission?.prompt || '' };
+        },
+        close() { editorState.open = false; editorState.dirty = false; },
+        isDirty: () => editorState.dirty,
+        getPayload: () => ({ ...editorState.payload }),
+        validate: () => [],
+        on(name, callback) { editorState.handlers.set(name, callback); },
+        setSaving(value) { editorState.saving = value; },
+        setServerError(value) { editorState.serverError = value; },
+        dispose() {}
+    })
 };
 const container = new El('div');
 W.MissionControlApp.render(container, 'w-mc', {
@@ -283,6 +305,11 @@ W.MissionControlApp.render(container, 'w-mc', {
     setWindowMenus: (_id, built) => { calls.menus = built; }, clearWindowMenus() {},
     confirmDialog: async (title, message) => { calls.confirm.push([title, message]); return confirmAnswer; },
     showContextMenu: (_x, _y, items) => { calls.context = items; }, setWindowBeforeClose() {}, isActive: () => true,
+    registerSessionAction: (id, participant) => {
+        if (id === 'w-mc') sessionParticipant = participant;
+        return () => { if (sessionParticipant === participant) sessionParticipant = null; };
+    },
+    decideSessionAction: () => 'save',
     openApp: (appId, launch) => calls.openApp.push([appId, launch])
 });
 await tick(); await tick();
@@ -386,6 +413,40 @@ check('shell: lock keeps enabled and sets locked', puts[1] && puts[1].body.locke
 check('shell: lock of an unpublished flow keeps enabled false', puts[2] && puts[2].body.locked === true && puts[2].body.enabled === false);
 check('shell: the server accepts every PUT body', puts.every(p => serverAcceptsFlowUpdate(p.url.endsWith('flow-1') ? flowLive : flowDraft, p.body)));
 check('shell: the server would refuse Resume of an unpublished flow', !serverAcceptsFlowUpdate(flowDraft, Object.assign({}, flowDraft, { enabled: true })));
+
+// The logout participant runs through the real Mission Control save path. A
+// failed write keeps the editor dirty; an edit during an acknowledged request
+// invalidates the captured revision and leaves the editor open.
+check('session participant: registered with a clean initial snapshot', !!sessionParticipant && !sessionParticipant.inspect().dirty);
+await selectRow('agent-1');
+await menuAction('edit');
+editorState.dirty = true;
+editorState.payload = { id: 'agent-1', name: 'Saved from logout', prompt: 'Persist this mission' };
+let participantSnapshot = sessionParticipant.inspect();
+check('session participant: dirty editor carries a content revision', participantSnapshot.dirty && participantSnapshot.revision.includes('Saved from logout'));
+const successfulParticipantSave = await sessionParticipant.save(participantSnapshot.revision);
+check('session participant: successful save acknowledges the exact revision and closes cleanly', successfulParticipantSave?.revision === participantSnapshot.revision && !sessionParticipant.inspect().dirty);
+const participantSaveRequest = calls.api.findLast(call => call.method === 'PUT' && call.url === MC_API + '/agent-1');
+check('session participant: save persists the current editor payload', participantSaveRequest?.body?.name === 'Saved from logout' && participantSaveRequest?.body?.prompt === 'Persist this mission');
+
+await menuAction('edit');
+editorState.dirty = true;
+editorState.payload = { id: 'agent-1', name: 'Keep after failure', prompt: 'Still here' };
+participantSnapshot = sessionParticipant.inspect();
+missionSaveMode = 'reject';
+check('session participant: rejected persistence blocks logout and preserves dirty state', await sessionParticipant.save(participantSnapshot.revision) === false && sessionParticipant.inspect().dirty && editorState.open);
+missionSaveMode = 'pending';
+editorState.payload = { id: 'agent-1', name: 'Initial request', prompt: 'In flight' };
+participantSnapshot = sessionParticipant.inspect();
+const lateEditSave = sessionParticipant.save(participantSnapshot.revision);
+await tick();
+check('session participant: API write is pending before the late edit', typeof releaseMissionSave === 'function');
+editorState.payload = { id: 'agent-1', name: 'Edited while saving', prompt: 'Keep this newer text' };
+editorState.dirty = true;
+releaseMissionSave();
+missionSaveMode = 'normal';
+check('session participant: late edit prevents success acknowledgement and remains dirty', await lateEditSave === false && sessionParticipant.inspect().dirty && editorState.open && sessionParticipant.inspect().revision !== participantSnapshot.revision);
+releaseMissionSave = null;
 
 W.MissionControlApp.dispose('w-mc');
 

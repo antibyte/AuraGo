@@ -201,6 +201,8 @@
         if (window.VideoStudioKeyframeEdit.setValues(project, clip.id, box, frame) !== true || !T().validTimeline(project)) { restore(); return; }
         s.staleArtwork.delete(result.clipId);
         scheduleSave(s);
+        // Exclude only a successfully scheduled derived revision; a thrown schedule still invalidates logout.
+        s.sessionDerivedRevision = (Number(s.sessionDerivedRevision) || 0) + 1;
         T().render(s.q('[data-timeline]'), s.timelineOptions);
         renderInspector(s);
         s.preview.seek(s.frame);
