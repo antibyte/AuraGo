@@ -10,6 +10,8 @@ Local model lifecycle, routing, attestation, and qualification.
 
 ## Local Contracts
 
+- Local chat preparation accepts a JSON object up to 4 MiB. Invalid/oversized requests close their bodies and return value-free, non-retryable `llm.LLMError` errors; they never count as runtime failures or trigger failover. Caller cancellation remains cancellation. Actual runtime unavailability retains immediate failover.
+
 ### Managed Local Model Contract
 - `spark` selects experimental AuraGo-Spark Q4_K_M with a fixed 64K context, Thinking on, one slot, and no speculative decoding or KVFlash. Config and Setup state at least 6 GB VRAM. Pin its Spark-capable hybrid engine independently; do not reuse Ling images or templates. Public CUDA/SYCL/Vulkan runtime digests are pinned and require explicit experimental selection. WSL CPU startup, tool rounds, streaming and cache reuse passed; filled-64K answer quality and native GPU acceptance remain unverified.
 - `local_llm.model_family` defaults to `qwen`; `ling` selects AuraGo-Ling Q4_K_L with MTP off and the full 16K context. Ling 32K requires separate qualification. Keep the reserved provider ID `aurago-qwen-local`; resolve display name and API model alias from the selected family.

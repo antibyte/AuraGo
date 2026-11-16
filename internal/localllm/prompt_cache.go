@@ -113,6 +113,10 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 		!strings.HasSuffix(strings.TrimSuffix(req.URL.Path, "/"), "/chat/completions") {
 		return req, nil, false, "", nil
 	}
+	if req.Body == nil {
+		return nil, nil, false, "", fmt.Errorf("local_request_invalid")
+	}
+	defer req.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(req.Body, maxLocalRequestBytes+1))
 	if err != nil {
 		return nil, nil, false, "", fmt.Errorf("local_request_read_failed: %w", err)
@@ -120,10 +124,9 @@ func preparePromptCacheRequest(req *http.Request) (*http.Request, *promptCacheSe
 	if len(raw) > maxLocalRequestBytes {
 		return nil, nil, false, "", fmt.Errorf("local_request_too_large")
 	}
-	_ = req.Body.Close()
 
 	var object map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &object); err != nil {
+	if err := json.Unmarshal(raw, &object); err != nil || object == nil {
 		return nil, nil, false, "", fmt.Errorf("local_request_invalid")
 	}
 	stream := rawJSONBool(object["stream"])

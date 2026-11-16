@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"aurago/internal/llm"
 )
 
 // RoundTripper starts AuraGo-Qwen on demand and holds the active request count
@@ -21,8 +24,12 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		// qualification. This also aborts a qualification that started while a
 		// long-running tool was executing between two agent turns.
 		m.cancelPromptCacheWarmForRequest()
+		requestContext := req.Context()
 		releaseSlot, err := m.acquirePromptSlot(req.Context())
 		if err != nil {
+			if req.Body != nil {
+				_ = req.Body.Close()
+			}
 			return nil, err
 		}
 		slotOwned := true
@@ -34,8 +41,24 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 
 		req, seed, stream, _, err := preparePromptCacheRequest(req)
 		if err != nil {
-			return nil, &UnavailableError{Code: errorCode(err), Err: err}
+			if requestContext.Err() != nil {
+				return nil, requestContext.Err()
+			}
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return nil, err
+			}
+			code := "local_request_invalid"
+			if err.Error() == "local_request_too_large" {
+				code = "local_request_too_large"
+			}
+			return nil, &llm.LLMError{Category: llm.ErrCategoryNonRetryableConfig, Message: code}
 		}
+		requestOwned := true
+		defer func() {
+			if requestOwned && req.Body != nil {
+				_ = req.Body.Close()
+			}
+		}()
 		if err := m.acquireRequest(); err != nil {
 			return nil, err
 		}
@@ -78,6 +101,7 @@ func (m *Manager) RoundTripper(base http.RoundTripper) http.RoundTripper {
 		req.Header = req.Header.Clone()
 		req.Header.Set("Authorization", "Bearer "+key)
 		started := time.Now()
+		requestOwned = false // The base transport now owns the request body.
 		resp, err := base.RoundTrip(req)
 		if err != nil {
 			if req.Context().Err() != nil {
