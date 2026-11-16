@@ -1,7 +1,8 @@
 // EasyDrag run stop: Run now and posting a test run; cancelling and stopping runs from the header,
-// the drawer and the run view (also runs this window did not start), with the polls that follow a
+// the run view (also runs this window did not start), with the polls that follow a
 // stop and a parked run; the run view refresh and the last run for the input tree. One of the four
 // run parts that create() in easydrag-runs.js installs on its run core; it loads before easydrag-runs.js.
+// It also owns the one Stop (ED.runStop below): the header's button, for the run in focus.
 (function () {
     'use strict';
 
@@ -160,29 +161,15 @@
             await finish(runId, detail);
         }
 
-        // setStopPending shows the stop request on those buttons until it settles.
+        // setStopPending shows the stop request on the one Stop, when it belongs to that run, until it settles.
+        // The header paints the same state again when the run in focus changes (ED.runStop.sync).
         function setStopPending(id, on) {
             if (on) rc.pendingStops.add(id); else rc.pendingStops.delete(id);
-            stopButtons(id).forEach(b => {
-                if (b.dataset.edCmd === 'cancel') { ED.runStop.paint(b, t, !!on, ed); return; }
-                b.disabled = !!on;
-                if (on) b.setAttribute('aria-busy', 'true');
-                else b.removeAttribute('aria-busy');
-                b.classList.toggle('is-busy', !!on);
-                const span = b.querySelector('span');
-                if (!span) return;
-                if (on) {
-                    if (!b.dataset.edStopLabel) b.dataset.edStopLabel = span.textContent;
-                    span.textContent = t('easydrag.ui.run_stopping');
-                } else if (b.dataset.edStopLabel) {
-                    span.textContent = b.dataset.edStopLabel;
-                    delete b.dataset.edStopLabel;
-                }
-            });
+            stopButtons(id).forEach(b => ED.runStop.paint(b, t, !!on, ed));
         }
 
-        // stopRun stops a queued, waiting or running run of the drawer, the header or the run
-        // view, also one this window did not start. A test stops at once. Any other mode asks
+        // stopRun stops a queued, waiting or running run (the one Stop passes the run in focus), also
+        // one this window did not start. A test stops at once. Any other mode asks
         // first. While the cancel is in flight the button stays disabled. 202, and 409
         // FLOW_RUN_FINISHED (it ended meanwhile), refresh quietly; other errors are shown.
         // Stop does not undo a step that already ran. A read-only desktop stops runs too.

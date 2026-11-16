@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "このデスクトップは読み取り専用です。",
   "easydrag.ui.run_rerun_test": "このデータでもう一度テスト",
   "easydrag.ui.run_started": "実行を開始しました",
-  "easydrag.ui.run_stop_label": "{time} の実行を停止",
   "easydrag.ui.run_stop_text": "{time} の実行を停止します。すでに実行されたステップは元に戻りません。",
   "easydrag.ui.run_stop_title": "この実行を停止しますか？",
   "easydrag.ui.run_stopped_by": "停止ステップで終了: {step}",

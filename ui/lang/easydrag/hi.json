@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "यह डेस्कटॉप केवल पढ़ने के लिए है।",
   "easydrag.ui.run_rerun_test": "इस डेटा के साथ फिर से परीक्षण करें",
   "easydrag.ui.run_started": "रन शुरू हुआ",
-  "easydrag.ui.run_stop_label": "{time} का रन रोकें",
   "easydrag.ui.run_stop_text": "{time} का रन रुक जाएगा। जो चरण पहले ही चल चुके हैं, वे पूर्ववत नहीं होंगे।",
   "easydrag.ui.run_stop_title": "यह रन रोकें?",
   "easydrag.ui.run_stopped_by": "स्टॉप चरण से समाप्त: {step}",

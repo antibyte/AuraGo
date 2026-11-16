@@ -714,8 +714,8 @@ export async function run(env) {
         const flowMenu = h.menus.find(m => m.id === 'flow');
         const del = flowMenu && flowMenu.items.find(i => i.id === 'delete');
         const off = button => button.getAttribute('aria-disabled') === 'true';
-        const before = [!btn('stop-viewed').hidden, off(btn('test')), off(btn('publish')), off(popEntry(editor, 'active')), !!(del && del.disabled)];
-        btn('stop-viewed').fire('click');
+        const before = [!btn('cancel').hidden, off(btn('test')), off(btn('publish')), off(popEntry(editor, 'active')), !!(del && del.disabled)];
+        btn('cancel').fire('click');
         await settle();
         const cancels = h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/runs/r2/cancel').length;
         eq('merge read-only desktop: Stop shows in the run view and posts the cancel; Test, Publish, the switch and Delete stay off',

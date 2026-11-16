@@ -31,7 +31,7 @@ func TestDesktopEasyDragDurableBrowser(t *testing.T) {
 		}
 	}
 	// Accepted means pending, not cancelled, and never a second Stop without user action.
-	p.MustElement(`[data-ed-cmd="stop-viewed"]`).MustClick()
+	s.clickStop()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
 	p.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
 	s.wait(`()=>edFixture.editor().run.durableStopping===true && edFixture.editor().run.status==='waiting'`)
@@ -46,15 +46,15 @@ func TestDesktopEasyDragDurableBrowser(t *testing.T) {
 	p.MustEval(`()=>fixtureTheme('standard')`)
 	legacy := p.MustEval(`()=>edDurableFixture.seed('Alter Zwischenstand',true)`).Map()
 	p.MustEval(`x=>EasyDragApp.open(Array.from(EasyDragApp._instances.values())[0].windowId,{flowId:x.flow,runId:x.run})`, map[string]string{"flow": legacy["flow_id"].Str(), "run": legacy["run_id"].Str()})
-	s.wait(`()=>!!document.querySelector('[data-ed-durable-run]') && edFixture.editor().run.status==='error' && !document.querySelector('[data-ed-cmd="stop-viewed"]').hidden`)
+	s.wait(`()=>!!document.querySelector('[data-ed-durable-run]') && edFixture.editor().run.status==='error' && !document.querySelector('[data-ed-cmd="cancel"]').hidden`)
 	s.shot("durable-legacy-checkpoint")
-	p.MustElement(`[data-ed-cmd="stop-viewed"]`).MustClick()
+	s.clickStop()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
 	p.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
 	s.wait(`()=>edFixture.editor().run.durableStopping`)
 	p.MustEval(`id=>edDurableFixture.completeCancel(id)`, legacy["run_id"].Str())
 	p.MustElement(`[data-ed-durable-check]`).MustClick()
-	s.wait(`()=>edFixture.editor().run.status==='error' && document.querySelector('[data-ed-cmd="stop-viewed"]').hidden`)
+	s.wait(`()=>edFixture.editor().run.status==='error' && document.querySelector('[data-ed-cmd="cancel"]').hidden`)
 	s.noRawKeys("durable lifecycle")
 	s.failOnPageErrors("durable lifecycle")
 }

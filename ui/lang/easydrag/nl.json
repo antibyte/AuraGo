@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "Dit bureaublad is alleen-lezen.",
   "easydrag.ui.run_rerun_test": "Opnieuw testen met deze gegevens",
   "easydrag.ui.run_started": "Uitvoering gestart",
-  "easydrag.ui.run_stop_label": "Uitvoering van {time} stoppen",
   "easydrag.ui.run_stop_text": "De uitvoering van {time} wordt gestopt. Stappen die al zijn uitgevoerd, worden niet teruggedraaid.",
   "easydrag.ui.run_stop_title": "Deze uitvoering stoppen?",
   "easydrag.ui.run_stopped_by": "Beëindigd door een stopstap: {step}",

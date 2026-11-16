@@ -851,7 +851,6 @@
   "easydrag.ui.run_readonly": "Ten pulpit jest tylko do odczytu.",
   "easydrag.ui.run_rerun_test": "Przetestuj ponownie z tymi danymi",
   "easydrag.ui.run_started": "Uruchomienie rozpoczęte",
-  "easydrag.ui.run_stop_label": "Zatrzymaj uruchomienie z {time}",
   "easydrag.ui.run_stop_text": "Uruchomienie z {time} zostanie zatrzymane. Kroki, które już się wykonały, nie zostaną cofnięte.",
   "easydrag.ui.run_stop_title": "Zatrzymać to uruchomienie?",
   "easydrag.ui.run_stopped_by": "Zakończono krokiem zatrzymania: {step}",

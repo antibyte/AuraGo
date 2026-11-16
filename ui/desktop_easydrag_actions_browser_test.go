@@ -233,7 +233,7 @@ func TestEasyDragActionsAgreeBrowser(t *testing.T) {
 	if bad := p.MustEval(`()=>{const bad=[];document.querySelectorAll('.ed-node').forEach(c=>{const b=c.querySelector('[data-ed-node-tool="test"]');if(b&&(b.getAttribute('aria-disabled')!=='true'||!/Lauf/.test(b.getAttribute('aria-description')||'')))bad.push(c.dataset.nodeId);});return bad.join(',');}`).Str(); bad != "" {
 		t.Fatalf("run in progress: the Test tool of these cards does not say a run is going: %s", bad)
 	}
-	p.MustElement(`[data-ed-cmd="cancel"]`).MustClick()
+	s.clickStop()
 	s.wait(`()=>{const stop=document.querySelector('[data-ed-cmd="cancel"]');return !stop || stop.hidden}`)
 	// The run ended: the window menus follow it without a selection change (Test is available again).
 	s.wait(`()=>window.__acts.menusFresh()`)

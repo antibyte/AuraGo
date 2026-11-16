@@ -30,7 +30,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     const mutations = f => f.h.requests.filter(req => req.method !== 'GET');
     const cancelPosts = f => mutations(f).filter(req => req.url.endsWith('/durable/cancel'));
     async function stop(f) {
-        f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').fire('click'); await settle();
+        f.editor.el.querySelector('[data-ed-cmd="cancel"]').fire('click'); await settle();
         f.h.dialogs.at(-1).el.querySelector('[data-ed-action="stop"]').fire('click'); await settle();
     }
 
@@ -103,7 +103,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     await guardAsync('durable accepted cancellation stays pending until authoritative terminal evidence', async () => {
         const f = fixture({ readonly: true }); await f.view(); await stop(f);
         eq('durable Stop uses observed generation under the existing readonly exception', cancelPosts(f).map(req => req.body), [{ generation: 2 }]);
-        eq('durable accepted Stop is not optimistic cancelled and remains busy', [f.editor.ed.run.status, f.editor.ed.run.durableStopping, f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').disabled], ['waiting', true, true]);
+        eq('durable accepted Stop is not optimistic cancelled and remains busy', [f.editor.ed.run.status, f.editor.ed.run.durableStopping, f.editor.el.querySelector('[data-ed-cmd="cancel"]').disabled], ['waiting', true, true]);
         f.state.run.status = 'cancelled'; f.state.phase = null;
         f.editor.ed.bus.emit('refresh-durable-run'); await settle();
         eq('durable only confirmed terminal state clears the pending control', [f.editor.ed.run.status, f.editor.ed.run.durableStopping, f.h.contexts.at(-1).run_id], ['cancelled', false, null]); f.editor.dispose();
@@ -122,10 +122,10 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     await guardAsync('durable incompatible legacy checkpoints remain independently inspectable and cancellable', async () => {
         const f = fixture(); f.state.run.durable = false; f.state.run.status = 'error'; f.state.phase = { ...phase('blocked'), blocked_code: 'incompatible' };
         await f.view();
-        eq('durable terminal legacy run keeps its actual error and exposes checkpoint cleanup', [f.editor.ed.run.status, f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').hidden, f.editor.el.querySelector('.ed-run-results-body').html.includes('durable_reason_incompatible')], ['error', false, true]);
+        eq('durable terminal legacy run keeps its actual error and exposes checkpoint cleanup', [f.editor.ed.run.status, f.editor.el.querySelector('[data-ed-cmd="cancel"]').hidden, f.editor.el.querySelector('.ed-run-results-body').html.includes('durable_reason_incompatible')], ['error', false, true]);
         f.state.hook = req => { if (req.url.endsWith('/durable/cancel')) { f.state.phase = null; return { accepted: true }; } };
         await stop(f);
-        eq('durable legacy cleanup does not rewrite the retained terminal run', [cancelPosts(f)[0].body, f.editor.ed.run.status, f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').hidden], [{ generation: 2 }, 'error', true]); f.editor.dispose();
+        eq('durable legacy cleanup does not rewrite the retained terminal run', [cancelPosts(f)[0].body, f.editor.ed.run.status, f.editor.el.querySelector('[data-ed-cmd="cancel"]').hidden], [{ generation: 2 }, 'error', true]); f.editor.dispose();
     });
 
     await guardAsync('durable refresh cadence is independent of run ticks and disposal fences late reads', async () => {
@@ -179,14 +179,14 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         const f = fixture(); f.state.steps.push({ node_id: T, node_key: 'start', status: 'success', output: { private: 'retained sample' } }); await f.view();
         f.state.hook = req => { if (req.method === 'GET' && req.url.includes('/runs/' + RID)) throw Object.assign(new Error('forbidden'), { status: 403 }); };
         f.editor.ed.bus.emit('refresh-durable-run'); await settle();
-        eq('durable a lost read scope retains only identity and unknown state', [f.editor.ed.run.steps.size, f.editor.ed.run.record.trigger_data, f.editor.ed.run.durableStatus, f.editor.ed.runView.data.roots, f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').hidden], [0, undefined, null, {}, true]); f.editor.dispose();
+        eq('durable a lost read scope retains only identity and unknown state', [f.editor.ed.run.steps.size, f.editor.ed.run.record.trigger_data, f.editor.ed.run.durableStatus, f.editor.ed.runView.data.roots, f.editor.el.querySelector('[data-ed-cmd="cancel"]').hidden], [0, undefined, null, {}, true]); f.editor.dispose();
     });
 
     await guardAsync('durable generation zero is sent only when the server explicitly supplies it', async () => {
         const f = fixture(); f.state.phase = { ...phase('running'), generation: 0 }; f.state.run.status = 'running'; await f.view(); await stop(f);
         eq('durable pre-checkpoint cancellation uses observed zero rather than a guessed fallback', cancelPosts(f)[0].body, { generation: 0 }); f.editor.dispose();
         const unavailable = fixture(); unavailable.state.phase = null; await unavailable.view();
-        eq('durable missing cancellation metadata offers refresh rather than guessing zero', [unavailable.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').hidden, cancelPosts(unavailable).length], [true, 0]); unavailable.editor.dispose();
+        eq('durable missing cancellation metadata offers refresh rather than guessing zero', [unavailable.editor.el.querySelector('[data-ed-cmd="cancel"]').hidden, cancelPosts(unavailable).length], [true, 0]); unavailable.editor.dispose();
     });
 
     await guardAsync('durable storage diagnosis preserves known legacy identity without a cancel fallback', async () => {
@@ -194,8 +194,8 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         f.state.steps.push({ node_id: T, node_key: 'start', status: 'success', output: { retained: true } }); await f.view();
         f.state.hook = req => { if (req.method === 'GET' && req.url.includes('/runs/' + RID)) { const result = f.detail(); delete result.durable_status; result.durable_status_error = 'storage_unavailable'; return result; } };
         f.editor.ed.bus.emit('refresh-durable-run'); await settle();
-        eq('durable failed checkpoint diagnosis retains payload reads but clears cancellation proof', [f.editor.ed.run.durableKnown, f.editor.ed.run.durableStatus, f.editor.ed.run.steps.get(T).output, f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').hidden, cancelPosts(f).length], [true, null, { retained: true }, true, 0]);
+        eq('durable failed checkpoint diagnosis retains payload reads but clears cancellation proof', [f.editor.ed.run.durableKnown, f.editor.ed.run.durableStatus, f.editor.ed.run.steps.get(T).output, f.editor.el.querySelector('[data-ed-cmd="cancel"]').hidden, cancelPosts(f).length], [true, null, { retained: true }, true, 0]);
         f.state.hook = null; f.editor.ed.bus.emit('refresh-durable-run'); await settle();
-        eq('durable explicit successful refresh restores the observed legacy cleanup action', [f.editor.ed.run.durableStatus.generation, f.editor.el.querySelector('[data-ed-cmd="stop-viewed"]').hidden], [2, false]); f.editor.dispose();
+        eq('durable explicit successful refresh restores the observed legacy cleanup action', [f.editor.ed.run.durableStatus.generation, f.editor.el.querySelector('[data-ed-cmd="cancel"]').hidden], [2, false]); f.editor.dispose();
     });
 }

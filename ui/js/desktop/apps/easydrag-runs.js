@@ -50,14 +50,11 @@
         const { t, esc } = ed;
         const bag = core.bag();
 
-        // stopButtons are every control for this still-active run: drawer, header and run view.
+        // stopButtons is the one Stop (the header's) when it belongs to this run: the run in focus.
         function stopButtons(id) {
             if (!ed.root || !ed.root.querySelectorAll) return [];
-            return Array.from(ed.root.querySelectorAll('[data-ed-run-stop], [data-ed-cmd="cancel"], [data-ed-cmd="stop-viewed"]')).filter(b => {
-                if (b.dataset.edRunStop) return b.dataset.edRunStop === String(id);
-                if (b.dataset.edCmd === 'cancel') { const focus = ED.runStop.focusRun(ed); return !!focus && focus.id === id; }
-                return !!(ed.runView && ed.runView.run && ed.runView.run.id === id);
-            });
+            const focus = ED.runStop.focusRun(ed);
+            return focus && focus.id === id ? Array.from(ed.root.querySelectorAll('[data-ed-cmd="cancel"]')) : [];
         }
 
         // rc is the run core. It holds the state that the run parts share (easydrag-run-stream.js,
@@ -100,7 +97,7 @@
             viewSeq: 0,
             viewRefreshSeq: 0,
             // The run drawer: its element, the control that opened it, its filter and search, its
-            // latest request and paging, and the runs it lists by id (for their Stop buttons).
+            // latest request and paging, and the runs it lists by id (for showsActive).
             drawer: null,
             drawerOpener: null,
             drawerFilter: 'all',

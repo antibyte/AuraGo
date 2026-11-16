@@ -65,7 +65,6 @@
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + ED.icons.of('runs') + '<span data-ed-runview-text></span>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="approval-review" hidden>' + ED.icons.of('approve') + '<span>' + esc(t('easydrag.ui.approval_review')) + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-cmd="stop-viewed" hidden>' + ED.icons.of('stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="rerun-viewed" hidden>' + ED.icons.of('test') + '<span>' + esc(t('easydrag.ui.run_rerun_test')) + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--small" data-ed-cmd="exit-run-view">' + ED.icons.of('back') + '<span>' + esc(t('easydrag.ui.run_view_exit')) + '</span></button></div>' +
             '<div class="ed-body"><nav class="ed-rail" aria-label="' + esc(t('easydrag.ui.rail_label')) + '">' +
@@ -151,9 +150,9 @@
 
         // ── run view ────────────────────────────────────────────────────────────
 
-        // renderBanner names the viewed run and offers Stop while it has not ended (not on a
-        // read-only desktop). A Stop that goes away hands its focus to "Back to draft". The text
-        // changes only with the run: the banner is a live region, and every header render calls this.
+        // renderBanner names the viewed run. The banner has no Stop: the header's one Stop stops the
+        // viewed run while it can be stopped (easydrag-run-stop.js). The text changes only with the
+        // run: the banner is a live region, and every header render calls this.
         function renderBanner() {
             const run = ed.runView && ed.runView.run;
             banner.hidden = !run;
@@ -165,16 +164,11 @@
             });
             const node = banner.querySelector('[data-ed-runview-text]');
             const shown = text; if (node.textContent !== shown) node.textContent = shown; node.title = ed.runView.stopped ? t('easydrag.ui.run_stopped_by', { step: ed.runView.stopped.label }) : '';
-            const stop = banner.querySelector('[data-ed-cmd="stop-viewed"]');
             const approval = banner.querySelector('[data-ed-cmd="approval-review"]');
             const durableStatus = ED.durable && ED.durable.info(ed.run);
             const gateId = durableStatus && durableStatus.approval_gate_id;
             approval.hidden = !gateId;
             if (approval.hidden && document.activeElement === approval) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
-            // Stop shows on a read-only desktop too (a stop is no write); nothing else does.
-            const off = !!ed.run?.durableStatusError || (durableStatus ? !durableStatus.cancel_available : !!(run.durable) || !ED.runs.isActive(run.status));
-            if (off && document.activeElement === stop) banner.querySelector('[data-ed-cmd="exit-run-view"]').focus();
-            stop.hidden = off;
             banner.querySelector('[data-ed-cmd="rerun-viewed"]').hidden = !canRerun(run);
         }
 
@@ -650,7 +644,6 @@
                 const gateId = ED.durable && ED.durable.info(ed.run)?.approval_gate_id;
                 if (gateId && ED.approvals) ED.approvals.openRunReview(ed, gateId, { runId: ed.runView?.run.id, flowId: ed.flow.id, revision: ed.runView?.run.revision });
             }
-            else if (cmd === 'stop-viewed') runs.stopRun(ed.runView && ed.runView.run);
             else if (cmd === 'rerun-viewed') rerunViewed();
             else if (cmd === 'last-run') { if (ed.run || lastRecord) runs.toggleDrawer(true); renderHeader(); }
             else if (cmd === 'issues') publish.openIssues(b);

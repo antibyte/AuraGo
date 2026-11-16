@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "Dieser Desktop ist nur lesbar.",
   "easydrag.ui.run_rerun_test": "Mit diesen Daten erneut testen",
   "easydrag.ui.run_started": "Lauf gestartet",
-  "easydrag.ui.run_stop_label": "Lauf vom {time} stoppen",
   "easydrag.ui.run_stop_text": "Der Lauf vom {time} wird gestoppt. Schritte, die schon gelaufen sind, werden nicht rückgängig gemacht.",
   "easydrag.ui.run_stop_title": "Diesen Lauf stoppen?",
   "easydrag.ui.run_stopped_by": "Durch Stopp beendet: {step}",

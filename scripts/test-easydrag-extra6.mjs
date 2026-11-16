@@ -723,41 +723,48 @@ export async function run(env) {
         await settle();
         popEntry(editor, 'runs').fire('click');
         await settle();
-        const stop = id => editor.el.querySelector('[data-ed-run-stop="' + id + '"]');
-        const shown = ['rq', 'rw', 'rr', 'rs'].map(id => !!stop(id));
-        stop('rq').fire('click');
+        // A row has no Stop of its own (W1c): a click on it opens the run, and the header's one Stop stops the run in focus.
+        const stop = () => editor.el.querySelector('[data-ed-cmd="cancel"]');
+        const open = async id => { editor.el.querySelector('[data-ed-run="' + id + '"]').fire('click'); await settle(); };
+        const rowStops = editor.el.querySelectorAll('[data-ed-run-stop]').length;
+        const shown = [];
+        for (const id of ['rq', 'rw', 'rr', 'rs']) { await open(id); shown.push(!!(stop() && !stop().hidden)); }
+        await open('rq');
+        stop().fire('click');
         await settle();
-        const testPending = [stop('rq').disabled, stop('rq').getAttribute('aria-busy'), stop('rq').querySelector('span').textContent.includes(editor.ed.t('easydrag.ui.run_stopping')),
+        const testPending = [stop().disabled, stop().getAttribute('aria-busy'), stop().querySelector('span').textContent.includes(editor.ed.t('easydrag.ui.run_stopping')),
             h.confirms.length, postsTo(h, '/api/desktop/flows/runs/rq/cancel')];
-        stop('rw').fire('click');
+        // The stop of rq is still out; the Stop of the next run in focus is its own.
+        await open('rw');
+        const other = stop().disabled;
+        stop().fire('click');
         await settle();
         const liveDialog = h.dialogs[h.dialogs.length - 1];
         const beforeConfirm = postsTo(h, '/api/desktop/flows/runs/rw/cancel');
         liveDialog.el.querySelector('[data-ed-action="keep"]').fire('click');
         await settle();
-        const declined = [postsTo(h, '/api/desktop/flows/runs/rw/cancel'), stop('rw').disabled];
-        stop('rw').fire('click');
+        const declined = [postsTo(h, '/api/desktop/flows/runs/rw/cancel'), stop().disabled];
+        stop().fire('click');
         await settle();
         h.dialogs[h.dialogs.length - 1].el.querySelector('[data-ed-action="stop"]').fire('click');
         await settle();
         const liveSent = postsTo(h, '/api/desktop/flows/runs/rw/cancel');
-        editor.el.querySelector('[data-ed-run="rr"]').fire('click');
-        await settle();
-        const viewed = editor.el.querySelector('[data-ed-cmd="stop-viewed"]');
-        const viewShown = !!(viewed && !viewed.hidden);
-        if (viewed) viewed.fire('click');
+        await open('rr');
+        const viewShown = !!(stop() && !stop().hidden);
+        stop().fire('click');
         await settle();
         cancelMode = 'finished';
         const notesBefore = h.notes.length;
-        stop('rw').fire('click');
+        await open('rw');
+        stop().fire('click');
         await settle();
         h.dialogs[h.dialogs.length - 1].el.querySelector('[data-ed-action="stop"]').fire('click');
         await settle();
         hold.resolve({});
         await settle();
-        eq('a1008 runs every active run has stop; a test stops immediately and pending; a live stop asks, then a finished run stays quiet',
-            [shown, testPending, beforeConfirm, declined, liveSent, viewShown, postsTo(h, '/api/desktop/flows/runs/rr/cancel'), h.notes.length - notesBefore],
-            [[true, true, true, false], [true, 'true', true, 0, 1], 0, [0, false], 1, true, 1, 0]);
+        eq('a1008 runs no row has a Stop; the header Stop shows for every run that has not ended; a test stops immediately and pending; a live stop asks, then a finished run stays quiet',
+            [rowStops, shown, testPending, other, beforeConfirm, declined, liveSent, viewShown, postsTo(h, '/api/desktop/flows/runs/rr/cancel'), h.notes.length - notesBefore],
+            [0, [true, true, true, false], [true, 'true', true, 0, 1], false, 0, [0, false], 1, true, 1, 0]);
         editor.dispose();
     });
 

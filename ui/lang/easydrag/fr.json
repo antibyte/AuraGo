@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "Ce bureau est en lecture seule.",
   "easydrag.ui.run_rerun_test": "Tester à nouveau avec ces données",
   "easydrag.ui.run_started": "Exécution démarrée",
-  "easydrag.ui.run_stop_label": "Arrêter l’exécution du {time}",
   "easydrag.ui.run_stop_text": "L’exécution du {time} sera arrêtée. Les étapes déjà exécutées ne sont pas annulées.",
   "easydrag.ui.run_stop_title": "Arrêter cette exécution ?",
   "easydrag.ui.run_stopped_by": "Terminé par une étape d’arrêt : {step}",

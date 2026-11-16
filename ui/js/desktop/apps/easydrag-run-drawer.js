@@ -1,5 +1,5 @@
-// EasyDrag run drawer: the list of a flow's runs (filter, search, paging, a Stop per active run,
-// compare) and the read-only run view of a stored run, which parks a live run until the view ends.
+// EasyDrag run drawer: the list of a flow's runs (filter, search, paging, compare; a running row opens its
+// run, and the header's Stop stops it there) and the read-only run view of a stored run, which parks a live run until the view ends.
 // One of the four run parts that create() in easydrag-runs.js installs on its run core; it loads
 // before easydrag-runs.js.
 (function () {
@@ -16,8 +16,6 @@
         const runData = (...args) => rc.runData(...args);
         const setRun = (...args) => rc.setRun(...args);
         const attach = (...args) => rc.attach(...args);
-        const setStopPending = (...args) => rc.setStopPending(...args);
-        const stopRun = (...args) => rc.stopRun(...args);
         const watchParked = (...args) => rc.watchParked(...args);
 
         function triggerLabel(r) {
@@ -30,10 +28,8 @@
                 '<span class="ed-run-main"><span>' + ED.status.label(t, ED.durable.value(r), ED.durable.label(t, r)) + ' · ' + esc(triggerLabel(r)) + '</span>' +
                 '<span class="ed-muted">' + esc(core.fmt.dateTime(r.started_at)) + (r.duration_ms ? ' · ' + esc(core.fmt.duration(r.duration_ms)) : '') + '</span></span>' +
                 '<span class="ed-chip' + (r.mode === 'test' ? ' ed-chip--muted' : '') + '">' + (r.durable ? core.icon('repeat') + '<span class="ed-sr-only">' + esc(t('easydrag.ui.durable_title')) + ' · </span>' : '') + esc(r.mode === 'test' ? t('easydrag.ui.run_mode_test') : t('easydrag.ui.run_mode_live')) + '</span></button>';
-            // A run that has not ended can be stopped from its row, also on a read-only desktop.
-            if (!isActive(r.status)) return row;
-            return '<div class="ed-run-item">' + row + '<button type="button" class="ed-btn ed-btn--small ed-btn--danger" data-ed-run-stop="' + esc(r.id) + '" aria-label="' +
-                esc(t('easydrag.ui.run_stop_label', { time: core.fmt.dateTime(r.started_at, true) })) + '">' + core.icon('player-stop') + '<span>' + esc(t('easydrag.ui.run_cancel')) + '</span></button></div>';
+            // A run that has not ended opens like any other: the header's Stop stops it in the review, also on a read-only desktop.
+            return row;
         }
 
         function matchingRuns() {
@@ -45,7 +41,6 @@
             const list = rc.drawer.querySelector('.ed-runs-list');
             const rows = matchingRuns();
             list.innerHTML = rows.length ? rows.map(runRow).join('') : '<p class="ed-hint">' + esc(t('easydrag.ui.runs_empty')) + '</p>';
-            new Set([...rc.stopping, ...rc.durableStopping]).forEach(id => setStopPending(id, true));
             const more = rc.drawer.querySelector('[data-ed-runs-more]');
             more.hidden = !rc.runsMore;
             more.disabled = rc.runsLoading;
@@ -89,13 +84,11 @@
             rc.runsLoading = false;
             const active = document.activeElement;
             const inList = !!(active && list.contains(active));
-            const focusRun = inList ? (active.dataset.edRunStop || active.dataset.edRun || '') : null;
-            const onStop = inList && active.dataset.edRunStop !== undefined;
+            const focusRun = inList ? (active.dataset.edRun || '') : null;
             drawRuns();
             if (focusRun === null) return;
-            // The same control when it is still there (the Stop of a run that goes on), else the row.
-            const stop = onStop && Array.from(list.querySelectorAll('[data-ed-run-stop]')).find(b => b.dataset.edRunStop === focusRun);
-            const target = stop || Array.from(list.querySelectorAll('[data-ed-run]')).find(b => b.dataset.edRun === focusRun) || rc.drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]');
+            // The run's row when it is still listed, else the filter.
+            const target = Array.from(list.querySelectorAll('[data-ed-run]')).find(b => b.dataset.edRun === focusRun) || rc.drawer.querySelector('[data-ed-runs-filter][aria-checked="true"]');
             if (target) target.focus();
         }
 
@@ -134,8 +127,6 @@
                     loadRuns();
                     return;
                 }
-                const stop = event.target.closest('[data-ed-run-stop]');
-                if (stop) { stopRun(rc.listedRuns.get(stop.dataset.edRunStop)); return; }
                 const row = event.target.closest('[data-ed-run]');
                 if (row) openRunView(row.dataset.edRun);
             });

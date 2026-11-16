@@ -1268,9 +1268,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-run-main > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ed-run-main > span:last-child { font-size: var(--ed-font-label); }
 /* a run that has not ended: its row and its Stop button side by side */
-.ed-run-item { display: flex; align-items: center; gap: 4px; }
-.ed-run-item > .ed-run-row { flex: 1; min-width: 0; }
-.ed-run-item > .ed-btn { flex: none; margin-right: 4px; }
 
 .ed-modal-backdrop {
     position: absolute; inset: 0; z-index: 40; display: grid; grid-template-rows: minmax(0, 1fr); place-items: center; padding: 16px;

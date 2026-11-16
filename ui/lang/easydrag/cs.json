@@ -850,7 +850,6 @@
   "easydrag.ui.run_readonly": "Tento desktop je jen ke čtení.",
   "easydrag.ui.run_rerun_test": "Znovu otestovat s těmito daty",
   "easydrag.ui.run_started": "Běh spuštěn",
-  "easydrag.ui.run_stop_label": "Zastavit běh z {time}",
   "easydrag.ui.run_stop_text": "Běh z {time} se zastaví. Kroky, které už proběhly, nebudou vráceny zpět.",
   "easydrag.ui.run_stop_title": "Zastavit tento běh?",
   "easydrag.ui.run_stopped_by": "Ukončeno krokem Stop: {step}",

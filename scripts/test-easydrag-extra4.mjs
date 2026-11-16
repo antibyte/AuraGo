@@ -278,17 +278,18 @@ export async function run(env) {
         });
         const runs = h.ED.runs.create(h.ed, h.canvas);
         const drawer = () => h.ed.root.querySelector('.ed-drawer');
-        const stopOf = id => drawer().querySelector('[data-ed-run-stop="' + id + '"]');
+        // A row has no Stop of its own (W1c): its click opens the run, and the header's one Stop (the real editor's tests
+        // click it) passes the run in focus to stopRun. This harness has no header: stopRow passes the run the row names.
+        const stopRow = id => runs.stopRun(listed.find(r => r.id === id));
+        const rowOf = id => drawer().querySelector('[data-ed-run="' + id + '"]');
         const posted = () => h.requests.filter(r => r.url.endsWith('/cancel')).map(r => r.url.split('/')[5]);
         const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows/f1/runs?limit=50').length;
         runs.toggleDrawer(true);
         await settle();
-        const label = stopOf('r_wait') && stopOf('r_wait').getAttribute('aria-label');
-        const shown = [!!stopOf('r_wait'), !!stopOf('r_done'), !!stopOf('r_test'), String(label).startsWith('run_stop_label:') && label.length > 'run_stop_label:'.length,
-            stopOf('r_wait').localName, stopOf('r_wait').parentNode.className];
+        const shown = [drawer().querySelectorAll('[data-ed-run-stop], .ed-run-item').length, !!rowOf('r_wait'), !!rowOf('r_done'), !!rowOf('r_test'), rowOf('r_wait').localName];
         // A live run asks first: keeping it posts nothing.
-        stopOf('r_wait').focus();
-        stopOf('r_wait').fire('click');
+        rowOf('r_wait').focus();
+        stopRow('r_wait');
         await settle();
         const asked = [!!h.top(), h.top() && h.top().querySelector('.ed-modal-title') !== null, posted()];
         h.top().querySelector('[data-ed-action="keep"]').fire('click');
@@ -297,18 +298,18 @@ export async function run(env) {
         // Stop: the cancel is posted, the list comes again and the focus stays on the run's row.
         const before = lists();
         listed = [run('r_wait', 'cancelled', 'live'), run('r_done', 'success', 'live'), run('r_test', 'running', 'test')];
-        stopOf('r_wait').focus();
-        stopOf('r_wait').fire('click');
+        rowOf('r_wait').focus();
+        runs.stopRun(run('r_wait', 'waiting', 'live'));
         await settle();
         h.top().querySelector('[data-ed-action="stop"]').fire('click');
         await settle();
-        const stopped = [posted(), lists() - before, !!stopOf('r_wait'), h.dom.document.activeElement && h.dom.document.activeElement.getAttribute('data-ed-run'), h.notes];
-        eq('c1d15b a waiting live run shows Stop in the drawer; Stop asks first and then posts the cancel and refreshes the list',
+        const stopped = [posted(), lists() - before, !!rowOf('r_wait'), h.dom.document.activeElement && h.dom.document.activeElement.getAttribute('data-ed-run'), h.notes];
+        eq('c1d15b a waiting live run has no Stop in the drawer; stopping it asks first and then posts the cancel and refreshes the list, the focus stays on its row',
             [shown, asked, kept, stopped],
-            [[true, false, true, true, 'button', 'ed-run-item'], [true, true, []], [null, []], [['r_wait'], 1, false, 'r_wait', []]]);
+            [[0, true, true, true, 'button'], [true, true, []], [null, []], [['r_wait'], 1, true, 'r_wait', []]]);
         // A test run stops without a question; a run that ended meanwhile (409) refreshes quietly;
         // an unknown run says so.
-        stopOf('r_test').fire('click');
+        stopRow('r_test');
         await settle();
         const testStop = [h.top(), posted()];
         listed = [run('r_gone', 'running', 'live'), run('r_lost', 'queued', 'live')];
@@ -316,12 +317,12 @@ export async function run(env) {
         runs.toggleDrawer(true);
         await settle();
         const listsBefore = lists();
-        stopOf('r_gone').fire('click');
+        stopRow('r_gone');
         await settle();
         h.top().querySelector('[data-ed-action="stop"]').fire('click');
         await settle();
         const gone = [posted().slice(-1), lists() - listsBefore, h.notes.slice()];
-        stopOf('r_lost').fire('click');
+        stopRow('r_lost');
         await settle();
         h.top().querySelector('[data-ed-action="stop"]').fire('click');
         await settle();
@@ -344,11 +345,11 @@ export async function run(env) {
         runs.toggleDrawer(false);
         runs.toggleDrawer(true);
         await settle();
-        const roShown = !!stopOf('r_test');
+        const roShown = !!rowOf('r_test') && !drawer().querySelector('[data-ed-run-stop]');
         const roBefore = posted().length;
         const roStopped = await runs.stopRun(listed[0]);
         await settle();
-        eq('c1d15b a read-only desktop still shows Stop and posts the cancel', [roShown, roStopped, posted().length - roBefore, posted().slice(-1)], [true, true, 1, ['r_test']]);
+        eq('c1d15b a read-only desktop lists the running run without a row Stop, and the stop still posts the cancel', [roShown, roStopped, posted().length - roBefore, posted().slice(-1)], [true, true, 1, ['r_test']]);
         eq('c1d15b the stop checks log no errors', h.logged, []);
     });
 
@@ -370,27 +371,29 @@ export async function run(env) {
         });
         const runs = h.ED.runs.create(h.ed, h.canvas);
         const drawer = () => h.ed.root.querySelector('.ed-drawer');
-        const stopOf = id => drawer().querySelector('[data-ed-run-stop="' + id + '"]');
+        // A row has no Stop of its own (W1c): its click opens the run, and the header's one Stop (the real editor's tests
+        // click it) passes the run in focus to stopRun. This harness has no header: stopRow passes the run the row names.
+        const stopRow = id => runs.stopRun(listed.find(r => r.id === id));
+        const rowOf = id => drawer().querySelector('[data-ed-run="' + id + '"]');
         const lists = () => h.requests.filter(r => r.url === '/api/desktop/flows/f1/runs?limit=50').length;
         const fetches = () => h.requests.filter(r => r.url === '/api/desktop/flows/runs/r_t').length;
         const delays = () => Array.from(h.timers.values()).map(x => x.ms).filter(ms => ms >= 1000);
         runs.toggleDrawer(true);
         await settle();
-        // #8: the name carries the seconds; #7: an agent run asks too.
-        const label = stopOf('r_a').getAttribute('aria-label');
-        stopOf('r_a').fire('click');
+        // #7: an agent run asks too. (#8, the seconds in the row Stop's name, went with the row Stop: one Stop has one name.)
+        stopRow('r_a');
         await settle();
         const asked = !!h.top();
         h.top().querySelector('[data-ed-action="keep"]').fire('click');
         await settle();
-        // #9: a reload keeps the focus on the Stop of a run that goes on.
-        stopOf('r_a').focus();
+        // #9: a reload keeps the focus on the row of a run that goes on.
+        rowOf('r_a').focus();
         runs.refreshShown();
         await settle();
-        const kept = h.dom.document.activeElement === stopOf('r_a');
+        const kept = h.dom.document.activeElement === rowOf('r_a');
         // #2: a test run that streams elsewhere is asked for after 1, 2 and 4 s until it ended.
         const listsBefore = lists();
-        stopOf('r_t').fire('click');
+        stopRow('r_t');
         await settle();
         const first = [delays(), fetches(), lists() - listsBefore];
         h.runTimers(1000);
@@ -400,9 +403,9 @@ export async function run(env) {
         listed = [run('r_t', 'cancelled', 'test'), run('r_a', 'waiting', 'agent')];
         h.runTimers(2000);
         await settle();
-        eq('c1d15b a stop asks for any run but a test, names the run to the second, keeps the focus on a Stop that stays, and follows a run no stream shows',
-            [label === 'run_stop_label:' + h.ED.core.fmt.dateTime(at, true), h.ED.core.fmt.dateTime(at, true) !== h.ED.core.fmt.dateTime(at), asked, kept, first, second, [delays(), fetches(), lists() - listsBefore, !!stopOf('r_t')]],
-            [true, true, true, true, [[1000], 0, 1], [[2000], 1], [[], 2, 2, false]]);
+        eq('c1d15b a stop asks for any run but a test, keeps the focus on the row of a run that goes on, and follows a run no stream shows',
+            [asked, kept, first, second, [delays(), fetches(), lists() - listsBefore, !!rowOf('r_t')]],
+            [true, true, [[1000], 0, 1], [[2000], 1], [[], 2, 2, true]]);
         // #4: an older answer for the viewed run never replaces a newer one.
         h.ed.runView = { run: run('r_v', 'running', 'live'), doc: effectsDoc() };
         runs.applyRunView({ run: h.ed.runView.run, steps: [] });
@@ -422,7 +425,7 @@ export async function run(env) {
         await settle();
         const slowDelays = [];
         h.timers.clear();
-        stopOf('r_s').fire('click');
+        stopRow('r_s');
         await settle();
         for (let i = 0; i < 6; i++) { const next = delays(); slowDelays.push(next[0] || 0); h.runTimers(16000); await settle(); }
         eq('c1d15b a stopped run that keeps going is followed for up to 31 s', slowDelays, [1000, 2000, 4000, 8000, 16000, 0]);
@@ -446,7 +449,7 @@ export async function run(env) {
         listed = [run('r_t', 'running', 'test')];
         runs.refreshShown();
         await settle();
-        stopOf('r_t').fire('click');
+        stopRow('r_t');
         await settle();
         const pending = Array.from(h.timers.values()).map(x => x.ms).sort((a, b) => a - b);
         runs.dispose();

@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "Este escritorio es de solo lectura.",
   "easydrag.ui.run_rerun_test": "Probar de nuevo con estos datos",
   "easydrag.ui.run_started": "Ejecución iniciada",
-  "easydrag.ui.run_stop_label": "Detener la ejecución del {time}",
   "easydrag.ui.run_stop_text": "La ejecución del {time} se detendrá. Los pasos que ya se ejecutaron no se deshacen.",
   "easydrag.ui.run_stop_title": "¿Detener esta ejecución?",
   "easydrag.ui.run_stopped_by": "Finalizada por un paso de parada: {step}",

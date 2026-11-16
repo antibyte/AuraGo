@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "此桌面为只读。",
   "easydrag.ui.run_rerun_test": "用这些数据再次测试",
   "easydrag.ui.run_started": "运行已开始",
-  "easydrag.ui.run_stop_label": "停止 {time} 的运行",
   "easydrag.ui.run_stop_text": "{time} 的运行将被停止。已运行的步骤不会被撤销。",
   "easydrag.ui.run_stop_title": "要停止这次运行吗？",
   "easydrag.ui.run_stopped_by": "由停止步骤结束：{step}",

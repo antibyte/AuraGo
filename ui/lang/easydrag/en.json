@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "This desktop is read-only.",
   "easydrag.ui.run_rerun_test": "Test again with this data",
   "easydrag.ui.run_started": "Run started",
-  "easydrag.ui.run_stop_label": "Stop the run from {time}",
   "easydrag.ui.run_stop_text": "The run from {time} stops. Steps that already ran are not undone.",
   "easydrag.ui.run_stop_title": "Stop this run?",
   "easydrag.ui.run_stopped_by": "Ended by a stop step: {step}",

@@ -709,36 +709,48 @@ func (s *easyDragSmoke) secretField() {
 	s.failOnPageErrors("secret field")
 }
 
-// stopWaitingRuns adds two live runs that wait for a slot. One is stopped from its row in the runs
-// drawer, the other from the banner of its run view; both ask first.
+// stopWaitingRuns adds two live runs that wait for a slot. A row in the runs drawer has no Stop: it opens its run, and the
+// header's one Stop stops it, after asking. Both runs are stopped that way, the second one with the drawer still open.
 func (s *easyDragSmoke) stopWaitingRuns() {
 	s.t.Helper()
 	page := s.page
 	ids := page.MustEval(`()=>[edFixture.addWaitingRun(),edFixture.addWaitingRun()]`).Arr()
 	first, second := ids[0].Str(), ids[1].Str()
 	s.pillEntry("runs")
-	s.wait(`()=>document.querySelectorAll('.ed-drawer .ed-run-item [data-ed-run-stop]').length===2`)
-	// The Stop button's name contains its visible label and names the run's start time.
-	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('[data-ed-run-stop="%s"]');const name=b.getAttribute('aria-label').toLowerCase();return name.includes(b.textContent.trim().toLowerCase()) && /\d/.test(name)}`, first))
-	s.shot("runs-drawer-stop")
-	s.noRawKeys("runs drawer stop")
-	page.MustElement(fmt.Sprintf(`[data-ed-run-stop="%s"]`, first)).MustClick()
+	s.wait(`()=>document.querySelectorAll('.ed-drawer .ed-run-row').length>=2`)
+	// A row has no Stop of its own, and with no run in focus no Stop shows at all.
+	s.wait(`()=>!document.querySelector('[data-ed-run-stop], .ed-run-item')`)
+	s.wantStops(0, "runs drawer open, no run in focus")
+	s.shot("runs-drawer-running")
+	s.noRawKeys("runs drawer running")
+	// A click on a running row opens its run; the header's one Stop then stops it, after asking. The row is found and
+	// clicked in one step: the drawer is redrawn when a run ends, and a found row can be detached before a separate click.
+	page.MustEval(fmt.Sprintf(`()=>document.querySelector('.ed-run-row[data-ed-run="%s"]').click()`, first))
+	s.wait(fmt.Sprintf(`()=>{const ed=edFixture.editor();return !document.querySelector('.ed-runview-banner').hidden && !!ed.runView && ed.runView.run.id==='%s'}`, first))
+	s.settle()
+	s.waitStop()
+	s.wantStops(1, "a running run open in the review, runs drawer open")
+	s.shot("run-view-stop")
+	s.clickStop()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
 	s.shot("run-stop-confirm")
 	s.noRawKeys("run stop confirm")
 	page.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
-	s.wait(fmt.Sprintf(`()=>edFixture.state.runs.get('%s').run.status==='cancelled' && !document.querySelector('.ed-modal-backdrop') && !document.querySelector('[data-ed-run-stop="%s"]') && document.activeElement===document.querySelector('[data-ed-run="%s"]')`, first, first, first))
-	// The run view of the other waiting run: Stop in the banner, then the banner shows it stopped.
-	// The stopped run's run_finished broadcast redraws the drawer about 250 ms later, so the row
-	// is found and clicked in one step (a found row can be detached before a separate click).
+	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && !document.querySelector('.ed-modal-backdrop') && b.textContent.includes(edFixture.editor().t('easydrag.status.cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, first))
+	s.wantStops(0, "the stopped run in the review")
+	// The other waiting run, opened from its row while the first run's review is still open: the banner has no Stop,
+	// the header's Stop stops it, and the banner then shows it stopped.
 	page.MustEval(fmt.Sprintf(`()=>document.querySelector('.ed-run-row[data-ed-run="%s"]').click()`, second))
-	s.wait(`()=>{const b=document.querySelector('.ed-runview-banner');return !b.hidden && !b.querySelector('[data-ed-cmd="stop-viewed"]').hidden}`)
+	s.wait(fmt.Sprintf(`()=>{const ed=edFixture.editor();return !!ed.runView && ed.runView.run.id==='%s'}`, second))
 	s.settle()
-	s.shot("run-view-stop")
-	page.MustElement(`.ed-runview-banner [data-ed-cmd="stop-viewed"]`).MustClick()
+	s.waitStop()
+	s.wantStops(1, "the second running run open in the review")
+	s.shot("run-view-stop-second")
+	s.clickStop()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="stop"]')`)
 	page.MustElement(`.ed-modal [data-ed-action="stop"]`).MustClick()
-	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && b.querySelector('[data-ed-cmd="stop-viewed"]').hidden && b.textContent.includes(edFixture.editor().t('easydrag.status.cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, second))
+	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('.ed-runview-banner');return edFixture.state.runs.get('%s').run.status==='cancelled' && !b.querySelector('[data-ed-cmd="stop-viewed"]') && b.textContent.includes(edFixture.editor().t('easydrag.status.cancelled')) && document.activeElement===b.querySelector('[data-ed-cmd="exit-run-view"]')}`, second))
+	s.wantStops(0, "the second run stopped in the review")
 	s.shot("run-view-stopped")
 	s.noRawKeys("run view stopped")
 	// "Back to draft" (focused) ends the run view; the focus goes to the draft's canvas.

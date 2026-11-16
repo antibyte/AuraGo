@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "Skrivebordet er skrivebeskyttet.",
   "easydrag.ui.run_rerun_test": "Test igen med disse data",
   "easydrag.ui.run_started": "Kørsel startet",
-  "easydrag.ui.run_stop_label": "Stop kørslen fra {time}",
   "easydrag.ui.run_stop_text": "Kørslen fra {time} stoppes. Trin, der allerede er kørt, bliver ikke fortrudt.",
   "easydrag.ui.run_stop_title": "Stop denne kørsel?",
   "easydrag.ui.run_stopped_by": "Afsluttet af stoptrin: {step}",

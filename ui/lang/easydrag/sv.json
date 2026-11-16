@@ -849,7 +849,6 @@
   "easydrag.ui.run_readonly": "Det här skrivbordet är skrivskyddat.",
   "easydrag.ui.run_rerun_test": "Testa igen med dessa data",
   "easydrag.ui.run_started": "Körning startad",
-  "easydrag.ui.run_stop_label": "Stoppa körningen från {time}",
   "easydrag.ui.run_stop_text": "Körningen från {time} stoppas. Steg som redan har körts ångras inte.",
   "easydrag.ui.run_stop_title": "Stoppa den här körningen?",
   "easydrag.ui.run_stopped_by": "Avslutad av ett stoppsteg: {step}",
