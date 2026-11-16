@@ -153,4 +153,108 @@ async function headerChecks(env) {
 
 export async function run(env) {
     await headerChecks(env);
+    await suggestionChecks(env);
+}
+// suggestionChecks: the entries the quick-add offers first (D.3). The catalog of load() lists curated
+// suggestions for the manual trigger (six, one over the limit) and for web.search (the e-mail step first,
+// which is not set up).
+async function suggestionChecks(env) {
+    const { eq, check, guardAsync } = env;
+    const FROM_ALPHA = { x: 10, y: 10, from: { node: A, port: 'out' } };
+
+    await guardAsync('w1c D.3 quick-add suggestions', async () => {
+        const h = load(env);
+        const marked = quick => quick.el.querySelectorAll('[data-ed-suggested]').map(n => n.getAttribute('data-ed-type'));
+        const groups = quick => quick.el.querySelectorAll('[data-ed-quick-suggested]').length;
+        const listed = (req, history) => {
+            if (history !== undefined) h.store.set(AFTER_KEY, JSON.stringify(history)); else h.store.delete(AFTER_KEY);
+            const quick = h.open(req);
+            const out = { all: h.types(quick), marked: marked(quick), groups: groups(quick), greyed: quick.el.querySelectorAll('.is-unavailable').map(n => n.getAttribute('data-ed-type')) };
+            quick.close();
+            return out;
+        };
+
+        const curated = listed(FROM_ALPHA);
+        eq('w1c D.3 without a history the curated list of the source comes first, a type that is not set up greyed, the rest follows without it',
+            [curated.all, curated.marked, curated.groups, curated.greyed],
+            [['notify.email', 'ai.step', 'web.search', 'http.request', 'notify.telegram', 'logic.if', 'logic.stop'], ['notify.email', 'ai.step'], 1, ['notify.email']]);
+
+        const history = listed(FROM_ALPHA, { 'web.search': { 'notify.telegram': 3, 'logic.if': 1, 'ai.step': 1 } });
+        eq('w1c D.3 the own history comes before the curated list, highest count first, and no type appears twice',
+            [history.all, history.marked], [['notify.telegram', 'logic.if', 'ai.step', 'notify.email', 'web.search', 'http.request', 'logic.stop'], ['notify.telegram', 'logic.if', 'ai.step', 'notify.email']]);
+
+        const capped = listed({ x: 10, y: 10, from: { node: TRG, port: 'out' } });
+        eq('w1c D.3 at most five are suggested; the sixth curated type is listed with the rest',
+            [capped.all, capped.marked.length], [['ai.step', 'web.search', 'http.request', 'notify.telegram', 'logic.if', 'notify.email', 'logic.stop'], 5]);
+
+        const mixed = listed({ x: 10, y: 10, from: { node: TRG, port: 'out' } }, { 'trigger.manual': { 'trigger.manual': 9, 'gone.type': 5, 'logic.if': 2 } });
+        eq('w1c D.3 history entries that are triggers, gone from the catalog or not candidates are skipped',
+            mixed.marked, ['logic.if', 'ai.step', 'web.search', 'http.request', 'notify.telegram']);
+
+        const damaged = ['x', '[1,2]', 'null', '{"web.search":5}', '{"web.search":{"ai.step":"many","gone":-2}}'].map(raw => {
+            h.store.set(AFTER_KEY, raw);
+            const quick = h.open(FROM_ALPHA);
+            const out = marked(quick);
+            quick.close();
+            return out;
+        });
+        eq('w1c D.3 a damaged history changes nothing', damaged, damaged.map(() => ['notify.email', 'ai.step']));
+
+        h.store.delete(AFTER_KEY);
+        h.store.set('aurago.easydrag.recent', JSON.stringify(['logic.stop', 'ai.step']));
+        const recent = listed(FROM_ALPHA);
+        eq('w1c D.3 the recently used steps follow the suggestions, without the ones already suggested',
+            recent.all, ['notify.email', 'ai.step', 'logic.stop', 'web.search', 'http.request', 'notify.telegram', 'logic.if']);
+        h.store.delete('aurago.easydrag.recent');
+
+        const wire = listed({ x: 10, y: 10, edge: 'e2' });
+        eq('w1c D.3 Insert on a wire suggests after the wire\'s source step, only steps that have an output',
+            [wire.marked, wire.all.includes('logic.stop')], [['notify.email', 'ai.step'], false]);
+
+        const bare = listed({ x: 10, y: 10 });
+        const trigger = listed({ x: 10, y: 10, filter: 'trigger' });
+        eq('w1c D.3 the empty canvas and the trigger button have no source and no suggestions',
+            [bare.groups, bare.marked, trigger.groups, trigger.all], [0, [], 0, ['trigger.manual']]);
+
+        const quick = h.open(FROM_ALPHA);
+        const search = quick.el.querySelector('.ed-quick-search');
+        search.value = 'Telegram';
+        search.fire('input');
+        eq('w1c D.3 a search lists matches only, without a suggestions group',
+            [h.types(quick), quick.el.querySelectorAll('[data-ed-quick-suggested]').length, marked(quick)], [['notify.telegram'], 0, []]);
+        quick.close();
+        eq('w1c D.3 the suggestion checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('w1c D.3 history of what was added after what', async () => {
+        const h = load(env);
+        const book = () => JSON.parse(h.store.get(AFTER_KEY) || 'null');
+        const pick = (req, type) => {
+            const quick = h.open(req);
+            const search = quick.el.querySelector('.ed-quick-search');
+            search.value = type;
+            search.fire('input');
+            search.fire('keydown', { key: 'Enter' });
+        };
+        pick({ x: 10, y: 10, from: { node: A, port: 'out' } }, 'Telegram');
+        pick({ x: 10, y: 10, from: { node: A, port: 'out' } }, 'Telegram');
+        pick({ x: 10, y: 10, from: { node: A, port: 'out' } }, 'HTTP');
+        eq('w1c D.3 a step added after a source is counted under the source\'s type, highest first',
+            book(), { 'web.search': { 'notify.telegram': 2, 'http.request': 1 } });
+
+        pick({ x: 10, y: 10, edge: 'e1' }, 'Wenn');
+        eq('w1c D.3 a step inserted on a wire counts after the wire\'s source step',
+            book()['trigger.manual'], { 'logic.if': 1 });
+
+        const before = JSON.stringify(book());
+        pick({ x: 10, y: 10 }, 'Wenn');
+        h.ED.palette.place(h.ed, 'logic.stop', { x: 900, y: 0 }, { edge: 'e2' });
+        h.ED.palette.place(h.ed, 'trigger.manual', { x: 900, y: 200 }, { from: { node: A, port: 'out' } });
+        eq('w1c D.3 a step added on the empty canvas, beside a wire it could not cut, or a trigger counts nothing', JSON.stringify(book()), before);
+
+        for (let i = 0; i < 3; i++) pick({ x: 10, y: 10, from: { node: B, port: 'out' } }, 'KI-Schritt');
+        eq('w1c D.3 the history is per source type', Object.keys(book()), ['web.search', 'trigger.manual', 'ai.step']);
+        check('w1c D.3 the book keeps only objects of counts', Object.values(book()).every(row => Object.values(row).every(n => Number.isInteger(n) && n > 0)));
+        eq('w1c D.3 the history checks log no errors', h.logged, []);
+    });
 }

@@ -6,6 +6,8 @@
     const ED = window.EasyDrag = window.EasyDrag || {};
     const RECENT_KEY = 'aurago.easydrag.recent';
     const OPEN_KEY = 'aurago.easydrag.palette.open';
+    const AFTER_KEY = 'aurago.easydrag.after'; // the quick-add's own history: {sourceType: {addedType: count}}
+    const MAX_SUGGESTED = 5;
 
     function search(list, query) {
         const q = String(query || '').trim().toLowerCase();
@@ -56,6 +58,24 @@
         core.storage.set(RECENT_KEY, list.slice(0, 6));
     }
 
+    // afterBook reads the history of what was added after what; anything that is not an object reads as empty.
+    function afterBook() {
+        const book = ED.core.storage.get(AFTER_KEY, {});
+        return book && typeof book === 'object' && !Array.isArray(book) ? book : {};
+    }
+
+    // rememberAfter counts a step of type added after a step of sourceType (8 types per source, 40 sources).
+    function rememberAfter(sourceType, type) {
+        const book = afterBook();
+        const row = book[sourceType] && typeof book[sourceType] === 'object' ? book[sourceType] : {};
+        row[type] = (Number(row[type]) || 0) + 1;
+        delete book[sourceType];
+        book[sourceType] = Object.fromEntries(Object.entries(row).sort((a, b) => b[1] - a[1]).slice(0, 8));
+        const sources = Object.keys(book);
+        sources.slice(0, Math.max(0, sources.length - 40)).forEach(key => { delete book[key]; });
+        ED.core.storage.set(AFTER_KEY, book);
+    }
+
     // place adds a node of type at a world position, optionally connected or inserted.
     function place(ed, type, at, opts) {
         const G = ED.geometry;
@@ -68,16 +88,21 @@
         rememberType(type);
         const pos = { x: G.snap(at.x), y: G.snap(at.y) };
         let id = null;
+        let after = null; // the step the new one follows, for the quick-add's history
         if (opts && opts.edge && ed.model.edge(opts.edge) && (info.inputs || []).length) {
+            after = ed.model.node(ed.model.edge(opts.edge).source.node);
             id = ed.model.insertOnEdge(opts.edge, type, pos);
         }
         // insertOnEdge refuses a step without outputs (it would cut the wire off): that step is added beside the wire.
         if (!id && opts && opts.from && !info.trigger) {
             id = ed.model.addNode(type, pos, null, opts.from);
+            after = id ? ed.model.node(opts.from.node) : null;
         } else if (!id) {
             id = ed.model.addNode(type, pos);
+            after = null;
         }
         if (id) {
+            if (after) rememberAfter(after.type, type);
             ed.selection.clear();
             ed.selection.add(id);
             ed.bus.emit('selection', ed.selection);
@@ -376,6 +401,23 @@
         return ed.t(req.filter === 'trigger' ? 'easydrag.ui.empty_action' : 'easydrag.ui.quick_title');
     }
 
+    // suggestedFor lists the entries the quick-add offers first after a step of sourceType, at most five and
+    // only among the candidates: the types the user added after it most often on this device, then the
+    // catalog's curated list for that step (info.suggest). No entry is listed twice.
+    function suggestedFor(ed, sourceType, candidates) {
+        const out = [];
+        const add = type => {
+            const info = candidates.find(i => i.type === type);
+            if (info && !out.includes(info) && out.length < MAX_SUGGESTED) out.push(info);
+        };
+        const row = afterBook()[sourceType];
+        const counts = row && typeof row === 'object' ? row : {};
+        Object.keys(counts).filter(type => Number(counts[type]) > 0).sort((a, b) => Number(counts[b]) - Number(counts[a])).forEach(add);
+        const source = ed.catalog.types.get(sourceType);
+        ((source && Array.isArray(source.suggest)) ? source.suggest : []).forEach(add);
+        return out;
+    }
+
     // openQuickAdd shows the quick-add popover at client point (x, y).
     // req: {x, y, from?: {node, port}, edge?: edgeId, filter?: "trigger", restoreFocus?: () => void}
     // restoreFocus takes the focus back when the popover ends with a choice, Escape or Tab; without
@@ -390,7 +432,9 @@
         if (req.filter === 'trigger') candidates = candidates.filter(i => i.trigger);
         if (req.from || req.edge) candidates = candidates.filter(i => !i.trigger && (i.inputs || []).length);
         if (req.edge) candidates = candidates.filter(i => (i.outputs || []).length);
-        const recent = core.storage.get(RECENT_KEY, []).map(type => candidates.find(i => i.type === type)).filter(Boolean);
+        const source = sourceStep(ed, req);
+        const suggested = source ? suggestedFor(ed, source.type, candidates) : [];
+        const recent = core.storage.get(RECENT_KEY, []).map(type => candidates.find(i => i.type === type)).filter(Boolean).filter(i => !suggested.includes(i));
         const head = headerText(ed, req);
         const el = core.el('<div class="ed-quick" role="dialog" aria-label="' + esc(head) + '">' +
             '<div class="ed-quick-head" data-ed-quick-head></div>' +
@@ -411,8 +455,8 @@
             const q = input.value;
             if (q.trim()) items = search(candidates, q);
             else {
-                const rest = candidates.filter(i => !recent.includes(i));
-                items = recent.concat(rest);
+                const rest = candidates.filter(i => !suggested.includes(i) && !recent.includes(i));
+                items = suggested.concat(recent, rest);
             }
             items = items.slice(0, 60);
             active = Math.min(active, Math.max(0, items.length - 1));
@@ -420,13 +464,15 @@
             let lastCat = '';
             listEl.innerHTML = items.map((info, idx) => {
                 let head = '';
-                const cat = !q.trim() && idx < recent.length ? 'recent' : (q.trim() ? '' : info.category);
+                const searching = !!q.trim();
+                const isSuggested = !searching && idx < suggested.length;
+                const cat = searching ? '' : (isSuggested ? 'suggested' : (idx < suggested.length + recent.length ? 'recent' : info.category));
                 if (cat && cat !== lastCat) {
-                    const label = cat === 'recent' ? t('easydrag.ui.quick_recent') : ((ed.catalog.categories.find(c => c.id === cat) || {}).label || cat);
-                    head = '<li class="ed-quick-group" role="presentation">' + esc(label) + '</li>';
+                    const label = cat === 'suggested' ? t('easydrag.ui.quick_suggested') : cat === 'recent' ? t('easydrag.ui.quick_recent') : ((ed.catalog.categories.find(c => c.id === cat) || {}).label || cat);
+                    head = '<li class="ed-quick-group" role="presentation"' + (cat === 'suggested' ? ' data-ed-quick-suggested' : '') + '>' + esc(label) + '</li>';
                     lastCat = cat;
                 }
-                return head + itemMarkup(core, t, esc, info, 'li').replace('<li class="ed-palette-item', '<li id="' + listId + '-' + idx + '" aria-selected="' + (idx === active) + '" data-ed-index="' + idx + '" class="ed-palette-item' + (idx === active ? ' is-active' : ''));
+                return head + itemMarkup(core, t, esc, info, 'li').replace('<li class="ed-palette-item', '<li id="' + listId + '-' + idx + '" aria-selected="' + (idx === active) + '" data-ed-index="' + idx + '"' + (isSuggested ? ' data-ed-suggested' : '') + ' class="ed-palette-item' + (idx === active ? ' is-active' : ''));
             }).join('');
             input.setAttribute('aria-activedescendant', listId + '-' + active);
             const activeEl = listEl.querySelector('.is-active');
