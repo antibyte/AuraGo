@@ -256,6 +256,7 @@ func TestRunRefusesAReportThatDropsMeasuredNarration(t *testing.T) {
 		t.Fatal(err)
 	}
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, fx.deps.Catalog)
 	seedPieces(t, fx, storymaker.Blocks(&story))
 	fx.playing(playOptions{frames: 12}) // the fake page posts an empty audio_events
 	job := fx.render(t)

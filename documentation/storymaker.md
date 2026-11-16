@@ -1,6 +1,6 @@
 # Storymaker
 
-The built-in illustration library contains twelve fixed characters, twelve day/night environments and eighty props. PixiJS renders textured bitmap artwork with separate background depth layers; GSAP evaluates animation at the requested video frame. Existing projects automatically use the new artwork with their existing asset IDs, timing and movement names. Images and both runtime libraries ship locally; preview and export need no image-generation provider or CDN.
+The built-in library contains three 3D Desktop pets (Hoodie, Professor and Punk), twelve day/night environments and eighty props. PixiJS renders textured bitmap artwork with separate background depth layers; GSAP evaluates animation at the requested video frame. Existing projects automatically use the new artwork with their existing asset IDs, timing and movement names. Images and both runtime libraries ship locally; preview and export need no image-generation provider or CDN.
 
 The renderer prefers WebGL and falls back to Pixi's Canvas renderer. Characters combine a thirteen-bone rig with facial, hand and seated replacement drawings. Source images, prompts, production steps and validation limits are documented in `assets/storymaker/ASSET-CONTRACT.md`.
 
@@ -21,8 +21,8 @@ Storymaker is on by default. **Configuration → Virtual Desktop → Storymaker*
 | `storymaker.render.max_duration_seconds` | `900` | The longest video that can be exported (10 to 3600). |
 | `storymaker.render.browser_path` | empty | Absolute path of Chrome or Chromium. Empty: the browser installed on the system, else a pinned download. |
 | `storymaker.render.transport` | empty | How frames reach FFmpeg (`png`, `webp`, `raw`, `screenshot`). Empty is the measured default; change it only on advice. |
-| `storymaker.narration.max_daily_chars` | `100000` | Characters that cloud voices may speak per local day (1000 to 100000000). |
-| `storymaker.narration.max_job_chars` | `20000` | Characters that cloud voices may speak in one narration job (100 to 10000000). |
+| `storymaker.narration.max_daily_chars` | `100000` | Legacy cloud-character setting; unused by Phonon narration. |
+| `storymaker.narration.max_job_chars` | `20000` | Legacy cloud-character setting; unused by Phonon narration. |
 | `storymaker.agent.enabled` | `true` | Allows agent jobs from the app and from chat. |
 | `storymaker.agent.provider` | empty | LLM provider for agent jobs. Empty: the main route with its configured failover. A chosen provider is pinned to the job without failover. |
 | `storymaker.agent.model` | empty | Model for agent jobs. Empty: the model of the provider. |
@@ -45,7 +45,7 @@ Code writes require a current revision, stay within 8 KiB and preserve saved sou
 
 - **In the app.** The project list has a start form. Inside a project, open the **AI author** side tab of the editor. It holds the prompt, length, language, **Write the story** or **Revise the story**, a progress list, **Stop the author** (cancel), the outcome card, **Export without voice** and **Restore speech**.
 - **From chat.** The `storymaker` tool can create a film, report its status, revise it, export it, open it in the app and list projects. "Mach mir ein Erklärvideo über Backups" is enough to start.
-- **Unattended runs.** With `agent.action_policy` switched on, missions, flows, scheduled runs and co-agents need an administrator rule to call `create`, `revise` or `render`. Chats you take part in need no rule. The policy is off by default. A run that is not watched is then limited only by `storymaker.agent.max_daily_jobs` and the character limits of the voices.
+- **Unattended runs.** With `agent.action_policy` switched on, missions, flows, scheduled runs and co-agents need an administrator rule to call `create`, `revise` or `render`. Chats you take part in need no rule. The policy is off by default. A run that is not watched is then limited only by `storymaker.agent.max_daily_jobs` and the normal job/runtime limits.
 - **While a job runs.** The editor is locked and shows a banner. Saving, narration and export are refused for that project. A job cannot start while a render, narration or music job of the project runs. One job runs at a time, and eight can wait.
 - **Language.** The request can name a language. Otherwise the job uses the language of the interface. Narration, title and on-screen text are written in that language.
 - **Writing check.** Narration and on-screen text are checked for dashes everywhere, and for stock phrases in English and German. A hit gets one optional fix round and never blocks the outcome or appears among the open checks.
@@ -59,7 +59,7 @@ Code writes require a current revision, stay within 8 KiB and preserve saved sou
 
 Watch every film once: when the compile check runs, the layout run flags captions over an actor's feet, props that are too small, boxes outside the frame and an actor that hides a prop or a text. A film reads `ready` only when no check is left open. Scenes that look alike (three or more in a row) are flagged as `scenes_look_alike`. The job card links the contact sheet of the last check. A film may run a little longer than asked, which is listed and is not a failure. Without a browser the compile check is skipped and reported as `compile_unverified`. The job still finishes.
 
-**No voice.** A job on a box with no ready voice still finishes. The narration text stays in the story, and each scene gets a short on-screen text. To export, either install a voice and press **Generate narration**, or press **Export without voice**. That button marks the scenes silent, gives each a reading time and turns speech bubbles into on-screen text. **Restore speech** undoes it while its copy, `story.before-silent.json`, exists. From chat, `render` with `silent: true` does the same and says that speech was removed.
+**No voice.** A job on a box with no ready voice still finishes. The narration text stays in the story, and each scene gets a short on-screen text. To export, either repair the Phonon resources/select a supported speech language and press **Generate narration**, or press **Export without voice**. That button marks the scenes silent, gives each a reading time and turns speech bubbles into on-screen text. **Restore speech** undoes it while its copy, `story.before-silent.json`, exists. From chat, `render` with `silent: true` does the same and says that speech was removed.
 
 **Narration and cost.** A job narrates by itself at its end, under the character limits above, so a finished job can export. Cloud voices can cost money. **Music** is not part of the agent: a request for music gets an answer that it cannot do this, and the Music tab stays with you.
 
@@ -99,9 +99,11 @@ Delete a project in the list: the whole folder, exports included, goes away.
 
 ## Voice and narration
 
-- **Voice panel.** Pick a provider, a voice and a language, then **Use this voice** writes them into the story. **Generate narration** and **Play a sample** work with the saved voice, so a voice you picked needs this click first. Phonon voices that are not installed are not listed: download them in the Phonon settings under More voices. `not tested` means nobody has listened to that provider in that language yet. A new project asks for a voice in the desktop language; when no voice speaks it, the app lists the languages that have one and offers to create the project without a voice.
+- **Automatic character voices.** Storymaker always uses the bundled local Phonon engine, independently of the chat TTS provider or persona. Language and current character metadata select the voice: Hoodie and Professor use male voices, Punk uses a female voice. Scene `speaker` and dialogue `who` identify the cast member. Old character IDs resolve through the current catalog. Existing voice metadata is normalized when used; incompatible cached audio is regenerated.
+- **Voice panel.** Choose the language and off-screen narrator voice, then **Use this voice**. Character voices are selected automatically; changing the project language reselects them. Compatible explicit Phonon choices and separately specified cast languages are retained by the backend. The default narrator is female. Generate and audition use saved selections. Additional Phonon voices require installation in Phonon settings; the ten defaults ship locally.
+- **Speech languages.** German, English, Spanish, French and Portuguese have bundled male/female voices. Unsupported speech languages are reported explicitly, with no English or other-provider fallback. The existing create-without-speech action remains available for unsupported languages. A missing/corrupt runtime or voice blocks narration with a readiness error; it does not require selecting a cloud service.
 - **Generate narration.** Audio is made one sentence at a time and only for sentences without audio, so an edit costs one sentence. The panel shows the characters, what has no audio and the progress. **Play a sample** plays a stored sentence and never calls a provider.
-- **Limits.** Cloud voices count characters per job and per local day (settings above). Local voices (phonon, piper, sanotts, supertonic, speech_lab) are not counted.
+- **Limits.** Phonon narration makes no cloud TTS calls and consumes no cloud-character allowance. Existing job, disk and audio-size limits still apply.
 - **Preview.** The narration plays with the preview, and the timeline shows its waveform. Speech bubbles, burned-in captions and lip-sync are drawn in the preview and in the export. A switch in the voice panel turns the captions off. Music and sound effects play along at about their export level. The preview has no presence carve, voice match or impact dips, so its balance is close, but the export is final.
 - **Languages.** Greek, Hindi, Arabic, Chinese and Japanese text uses bundled fallback fonts that load only when needed. A character no font covers, such as an emoji or Thai and Hebrew text, is the error `glyph_missing` at that text.
 

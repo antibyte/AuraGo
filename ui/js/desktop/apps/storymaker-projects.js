@@ -66,6 +66,7 @@
         // No voice speaks the language: say which languages have one and offer a project without a voice. Other errors go to submit.
         async function send(value, withoutVoice) {
             const spec = { title: value, aspect };
+            if (withoutVoice) spec.silent = true;
             if (!withoutVoice && inst.language) spec.language = inst.language;
             try {
                 await inst.createProject(spec);

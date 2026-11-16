@@ -1,4 +1,5 @@
 {
+  "storymaker.voice.automatic": "Phonon vybírá hlasy postav podle jazyka a pohlaví. Zde vybereš hlas vypravěče.",
   "storymaker.title": "Storymaker",
   "storymaker.loading": "Načítání…",
   "storymaker.retry": "Zkusit znovu",

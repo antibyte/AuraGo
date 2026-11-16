@@ -264,6 +264,7 @@ func smScriptHappyTurns() map[string][]smScriptTurn {
 func newSMScriptEnv(t *testing.T, model string, client *smScriptClient) *narrateJobEnv {
 	t.Helper()
 	s, _, token := storymakerAPIFixture(t)
+	s.storymakerVoicesOverride = readyStorymakerPhononVoices
 	s.Cfg.LLM.Model, s.Cfg.LLM.ProviderType, s.Cfg.LLM.UseNativeFunctions = model, "openai", true
 	s.Cfg.Agent.ContextWindow, s.Cfg.CircuitBreaker.LLMTimeoutSeconds = 65536, 30
 	s.Cfg.Directories.ToolsDir = filepath.Join(t.TempDir(), "tools")

@@ -31,6 +31,7 @@ func mixTestStory() *storymaker.Story {
 func seededMixRun(t *testing.T, fx *runFixture, story *storymaker.Story) (*renderRun, storymaker.AudioBlock) {
 	t.Helper()
 	ctx := context.Background()
+	storymaker.ApplyPhononVoices(story, fx.deps.Catalog)
 	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, story, 2); err != nil {
 		t.Fatal(err)
 	}

@@ -317,6 +317,7 @@ func packetStory(ctx context.Context, deps StudioDeps, projectID string) (*Story
 		return nil, err
 	}
 	ApplyDefaults(&story)
+	ApplyPhononVoices(&story, deps.Catalog)
 	return &story, nil
 }
 

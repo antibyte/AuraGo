@@ -480,6 +480,22 @@ function pick(view, id) { view.f('voice-provider').value = id; view.f('voice-pro
   eq(first.inst.edits, 1, 'one edit');
   eq(first.f('voice-apply').disabled, true, 'the stored voice needs no second write');
 
+  // A language change reselects cast voices; changing only the narrator keeps them.
+  const automatic = nullStory();
+  automatic.cast = [{ id: 'h', voice: { provider: 'phonon', voice: 'male-de', language: 'de' } }];
+  automatic.voice = { provider: 'phonon', voice: 'female-de', language: 'de' };
+  const phonon = [{ id: 'phonon', active: true, ready: true, languages: ['de', 'en'], voices: [
+    { id: 'female-de', language: 'de' }, { id: 'male-de', language: 'de' }, { id: 'female-en', language: 'en' }
+  ], tested_languages: ['de', 'en'] }];
+  const auto = await open(automatic, phonon);
+  auto.f('voice-select').value = 'male-de'; auto.f('voice-select').fire('change');
+  auto.f('voice-apply').click();
+  eq(auto.inst.story.cast[0].voice.voice, 'male-de', 'narrator change preserves cast voices');
+  auto.f('voice-language').value = 'en'; auto.f('voice-language').fire('change');
+  auto.f('voice-apply').click();
+  eq(auto.inst.story.voice.language, 'en', 'new project language');
+  eq(auto.inst.story.cast[0].voice, undefined, 'cast voice is reselected by the server');
+
   // sanotts has neither a list nor free text.
   const second = await open(nullStory(), providers);
   pick(second, 'sanotts');

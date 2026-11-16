@@ -194,6 +194,7 @@ func TestStorymakerNarrationReportsAMovedMusicSource(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &story); err != nil {
 		t.Fatal(err)
 	}
+	storymaker.ApplyPhononVoices(&story, rt.catalog)
 	if err := storymakertest.SeedNarration(ctx, rt.projects, id, &story, 1); err != nil {
 		t.Fatal(err)
 	}

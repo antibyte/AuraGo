@@ -622,7 +622,7 @@ function open(results) {
 
   first.f('create-without-voice').click();
   await flush();
-  eq(first.calls[1], { title: 'Film', aspect: '16:9' }, 'the second call sends no language');
+  eq(first.calls[1], { title: 'Film', aspect: '16:9', silent: true }, 'the second call explicitly creates without speech');
   eq([first.f('projects-offer').hidden, first.f('projects-error').hidden], [true, true], 'a success clears both');
 
   // Any other failure keeps its plain sentence and offers nothing.

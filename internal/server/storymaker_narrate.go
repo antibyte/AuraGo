@@ -208,6 +208,9 @@ func storymakerTTSConfig(cfg *config.Config, v storymaker.Voice) tools.TTSConfig
 // before DecodeAudio can spend memory on its samples. The refusal still returns the bytes: a provider
 // that answered has billed, and the caller can tell that from them.
 func (s *Server) storymakerSynth(ctx context.Context, cfg *config.Config, v storymaker.Voice, text string) ([]byte, error) {
+	if storymaker.NormalizeProvider(v.Provider) != "phonon" {
+		return nil, errors.New("Storymaker speech requires Phonon")
+	}
 	synth := tools.TTSSynthesizeInMemoryContext
 	if s.storymakerSynthOverride != nil {
 		synth = s.storymakerSynthOverride
@@ -351,6 +354,7 @@ func (s *Server) storymakerNarrateRead(ctx context.Context, run *storymakerNarra
 		return storymaker.Story{}, storymaker.AudioAnswer{}, nil, render.Fail(render.CodeInvalidStory, "The story can no longer be read, so the narration stopped.")
 	}
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, run.rt.catalog)
 	answer, err := run.rt.projects.AudioAnswer(ctx, run.id, &story, nil)
 	if err != nil {
 		return storymaker.Story{}, storymaker.AudioAnswer{}, nil, err

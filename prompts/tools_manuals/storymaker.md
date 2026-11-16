@@ -4,6 +4,8 @@ Use `storymaker` when the user wants an explainer video from a topic. An isolate
 
 Pass visual requirements in topic/instruction: the isolated author plans relevant catalog assets and supporting objects, searches concrete motifs and, when none fits, creates SVG path illustrations with the restricted drawing API. Its bundled references include executable asset-composition and effects examples, speech cues, camera, timing/easing, highlights and sound. Custom SVG paths are saved in revision-bound scene source, not imported as arbitrary SVG files. Speaking actors retain storyboard lip-sync; custom illustration scenes use off-screen narration. Raw PixiJS/GSAP, unsupported filters and code-scene dialogue/lip-sync are unavailable. Do not promise those effects or verified pixel layout.
 
+Speech always uses bundled local Phonon, independently of chat TTS. Supported spoken languages are German, English, French, Spanish and Portuguese. The server automatically matches cast voices to language and catalog gender, including scene narration speakers and dialogue. The optional voice selects only a compatible Phonon narrator voice; do not suggest another provider. Unsupported speech languages or missing resources are reported explicitly.
+
 ## Operations
 
 - `create` with `topic` (1-2000 characters) starts a job and returns `project_id`, `job_id`, `state` and `eta_hint_seconds`. Optional: `audience` (at most 120 characters), `length_seconds` (default 60; the server clamps it), `format` (`16:9`, `9:16` or `1:1`), `language` (default is the UI language) and `voice` (`{provider, voice}`).

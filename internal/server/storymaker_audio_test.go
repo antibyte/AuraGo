@@ -253,6 +253,7 @@ func TestStorymakerVoiceListCheckKnowsInstalledPhononVoices(t *testing.T) {
 
 func TestStorymakerNarrateQueuesOneJob(t *testing.T) {
 	s, _, writeToken := storymakerAPIFixture(t)
+	s.storymakerVoicesOverride = readyStorymakerPhononVoices
 	release := make(chan struct{})
 	// Registered after the fixture's cleanup, so it runs first and the manager can close.
 	t.Cleanup(func() { close(release) })
@@ -315,9 +316,6 @@ func TestStorymakerNarrateRefusals(t *testing.T) {
 		return got
 	}
 	const short = "This is a short story about a firewall."
-	// One sentence of 151 code points: under the 400-rune limit of openai and alone in its block, so
-	// it stays one piece and missing counts all 151.
-	long := strings.Repeat("a", 150) + "."
 
 	t.Run("no voice names the first block", func(t *testing.T) {
 		got := refuse(t, short, nil)
@@ -326,64 +324,33 @@ func TestStorymakerNarrateRefusals(t *testing.T) {
 		}
 	})
 	t.Run("provider not ready", func(t *testing.T) {
-		// Piper is switched off in this config, so TTSReady says no.
+		// A legacy provider is normalized to Phonon, whose resources are absent here.
 		got := refuse(t, short, &storymaker.Voice{Provider: "piper", Voice: "de_DE-thorsten-high", Language: "de"})
-		if got.Code != "narration_unavailable" || !strings.Contains(got.Message, "piper") {
+		if got.Code != "narration_unavailable" || !strings.Contains(got.Message, "phonon") {
 			t.Errorf("refusal = %+v", got)
 		}
 	})
-	t.Run("inactive google", func(t *testing.T) {
-		got := refuse(t, short, &storymaker.Voice{Provider: "google", Language: "de"})
-		if got.Code != "narration_unavailable" || !strings.Contains(got.Message, "google") {
-			t.Errorf("refusal = %+v", got)
-		}
-	})
-	t.Run("voice not on the list", func(t *testing.T) {
-		got := refuse(t, short, &storymaker.Voice{Provider: "openai", Voice: "nobody", Language: "en"})
-		// The openai list has 13 voices and the answer is capped at 5.
-		if got.Code != "voice_unknown" || !strings.Contains(got.Message, "s1:n") || len(got.Alternatives) != 5 {
+	t.Run("unsupported language", func(t *testing.T) {
+		s.storymakerVoicesOverride = readyStorymakerPhononVoices
+		defer func() { s.storymakerVoicesOverride = nil }()
+		got := refuse(t, short, &storymaker.Voice{Provider: "openai", Voice: "alloy", Language: "ja"})
+		if got.Code != "narration_unavailable" || !strings.Contains(got.Message, "Phonon") {
 			t.Fatalf("refusal = %+v", got)
 		}
-		for _, voice := range got.Alternatives {
-			if !slices.Contains(tools.OpenAITTSVoices(), voice) {
-				t.Errorf("alternative %q is not an openai voice", voice)
+	})
+	t.Run("missing selected voice", func(t *testing.T) {
+		s.storymakerVoicesOverride = func(ctx context.Context) []storymaker.VoiceProvider {
+			rows := readyStorymakerPhononVoices(ctx)
+			installed := false
+			for i := range rows[0].Voices {
+				rows[0].Voices[i].Installed = &installed
 			}
+			return rows
 		}
-	})
-	t.Run("job cap", func(t *testing.T) {
-		s.Cfg.Storymaker.Narration.MaxJobChars = 100
-		got := refuse(t, long, &storymaker.Voice{Provider: "openai", Voice: "alloy", Language: "en"})
-		if got.Code != "budget_exceeded" || got.Limit != 100 || got.Missing != 151 {
-			t.Errorf("refusal = %+v", got)
-		}
-	})
-	t.Run("daily cap", func(t *testing.T) {
-		s.Cfg.Storymaker.Narration.MaxJobChars = 20000
-		s.Cfg.Storymaker.Narration.MaxDailyChars = 1000
-		rt, err := s.storymakerRuntime()
-		if err != nil {
-			t.Fatal(err)
-		}
-		dir := filepath.Join(storymakerDir(rt.dataDir), "narrate")
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			t.Fatal(err)
-		}
-		usage := fmt.Sprintf(`{"v":1,"date":%q,"chars":950}`, time.Now().Format("2006-01-02"))
-		if err := os.WriteFile(filepath.Join(dir, "usage.json"), []byte(usage), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		// 950 used today plus 151 missing is 1101, over the daily 1000. The job cap of 20000 is not reached.
-		got := refuse(t, long, &storymaker.Voice{Provider: "openai", Voice: "alloy", Language: "en"})
-		if got.Code != "budget_exceeded" || got.Limit != 1000 || got.Missing != 151 {
-			t.Errorf("refusal = %+v", got)
-		}
-		// A damaged file is a full count, so the route refuses as the job would.
-		if err := os.WriteFile(filepath.Join(dir, "usage.json"), []byte(`{"chars":`), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		got = refuse(t, short, &storymaker.Voice{Provider: "openai", Voice: "alloy", Language: "en"})
-		if got.Code != "budget_exceeded" || got.Limit != 1000 || got.Missing != 39 {
-			t.Errorf("refusal with a damaged file = %+v", got)
+		defer func() { s.storymakerVoicesOverride = nil }()
+		got := refuse(t, short, &storymaker.Voice{Provider: "phonon", Language: "de"})
+		if got.Code != "voice_unknown" || !strings.Contains(got.Message, "s1:n") {
+			t.Fatalf("refusal = %+v", got)
 		}
 	})
 	t.Run("read-only", func(t *testing.T) {
@@ -436,11 +403,9 @@ func TestStorymakerVoicesEndpoint(t *testing.T) {
 	}
 
 	rows, w := get()
-	// The active provider, then the local ids in list order, then the cloud ids sorted.
-	// google is absent, because it is not the active provider.
-	want := []string{"openai", "phonon", "piper", "sanotts", "supertonic", "speech_lab", "elevenlabs", "minimax", "mistral", "resemble", "stepfun", "xai"}
+	want := []string{"phonon"}
 	if got := storymakerVoiceIDs(rows); !reflect.DeepEqual(got, want) {
-		t.Fatalf("provider order = %v", got)
+		t.Fatalf("providers = %v", got)
 	}
 	if w.Header().Get("Cache-Control") != "no-store" {
 		t.Errorf("Cache-Control = %q", w.Header().Get("Cache-Control"))
@@ -460,28 +425,13 @@ func TestStorymakerVoicesEndpoint(t *testing.T) {
 	}
 	assertStorymakerVoiceNotesAreFacts(t, rows)
 
-	// 13 is the length of the frozen list in tools.OpenAITTSVoices.
-	if !rows[0].Ready || len(rows[0].Voices) != 13 {
-		t.Errorf("openai row = %+v", rows[0])
+	if rows[0].Ready || len(rows[0].Voices) < 10 || !rows[0].Active {
+		t.Errorf("Phonon ready=%v active=%v voices=%d", rows[0].Ready, rows[0].Active, len(rows[0].Voices))
 	}
-	last := rows[len(rows)-1]
-	if !last.Ready || len(last.Voices) != 1 || last.Voices[0].ID != "eve" {
-		t.Errorf("xai row = %+v", last)
-	}
-
-	// The list is fetched once in 5 minutes.
-	if fetches.Load() != 1 {
-		t.Fatalf("first answer fetched %d times", fetches.Load())
-	}
-	now = now.Add(5*time.Minute - time.Second)
+	now = now.Add(6 * time.Minute)
 	get()
-	if fetches.Load() != 1 {
-		t.Errorf("a second inside the window fetched again: %d", fetches.Load())
-	}
-	now = now.Add(time.Second)
-	get()
-	if fetches.Load() != 2 {
-		t.Errorf("an expired list was not fetched again: %d", fetches.Load())
+	if fetches.Load() != 0 {
+		t.Fatalf("voice discovery contacted a cloud provider %d times", fetches.Load())
 	}
 
 	// Read-only changes nothing for this route.
@@ -490,18 +440,13 @@ func TestStorymakerVoicesEndpoint(t *testing.T) {
 	s.replaceConfigSnapshot(&ro)
 	get()
 
-	// An active google comes first and is listed once.
+	// Changing the chat provider does not change Storymaker's voice provider.
 	google := *s.ConfigSnapshot()
-	google.VirtualDesktop.ReadOnly = false
 	google.TTS.Provider = "google"
 	s.replaceConfigSnapshot(&google)
 	rows, _ = get()
-	want = []string{"google", "phonon", "piper", "sanotts", "supertonic", "speech_lab", "elevenlabs", "minimax", "mistral", "openai", "resemble", "stepfun", "xai"}
-	if got := storymakerVoiceIDs(rows); !reflect.DeepEqual(got, want) {
-		t.Fatalf("provider order with google active = %v", got)
-	}
-	if !rows[0].Active || rows[0].ChunkLimit != 200 {
-		t.Errorf("google row = %+v", rows[0])
+	if got := storymakerVoiceIDs(rows); !reflect.DeepEqual(got, want) || !rows[0].Active || fetches.Load() != 0 {
+		t.Fatalf("providers with Google active = %v, cloud fetches = %d", got, fetches.Load())
 	}
 }
 
@@ -527,7 +472,8 @@ func TestStorymakerPhononRowNeedsReadyAndVoicePath(t *testing.T) {
 	t.Setenv("AURAGO_PHONON_DIR", t.TempDir())
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = t.TempDir()
-	cfg.TTS.Language = "de"
+	cfg.Server.UILanguage = "de"
+	cfg.TTS.Language = "en"
 	withPhonon := *cfg
 	withPhonon.TTS.Provider = "phonon"
 	if !tools.TTSReady(&withPhonon, tools.TTSRouteTool) {

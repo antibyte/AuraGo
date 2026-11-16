@@ -399,6 +399,7 @@ func (s *Studio) evaluateSceneWrite(story Story, sceneID string, fields map[stri
 // last validate, so the check phase cannot end on a story it has not seen.
 func (s *Studio) saveSceneStory(ctx context.Context, story *Story, etag string) (string, error) {
 	s.checkClean = false
+	ApplyPhononVoices(story, s.deps.Catalog)
 	data, err := CanonicalJSON(*story)
 	if err != nil {
 		return "", err

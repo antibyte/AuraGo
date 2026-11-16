@@ -31,9 +31,9 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s compact=%v text=%v: %v", phase, compact, text, err)
 				}
-				wantName, house, otherHouse := "storymaker/v4/"+phase+"/normal", "## House style", "## House rules"
+				wantName, house, otherHouse := "storymaker/v5/"+phase+"/normal", "## House style", "## House rules"
 				if compact {
-					wantName, house, otherHouse = "storymaker/v4/"+phase+"/compact", "## House rules", "## House style"
+					wantName, house, otherHouse = "storymaker/v5/"+phase+"/compact", "## House rules", "## House style"
 				}
 				if text {
 					wantName += "/text"

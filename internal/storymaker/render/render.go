@@ -197,6 +197,7 @@ func (r *Runner) prepareCore(ctx context.Context, projectID, ifMatch string, st 
 	}
 	_ = issues
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, r.deps.Catalog)
 	storymaker.ApplyCaptionOverride(&story, opts.BurnInCaptions)
 	issues = storymaker.Validate(&story, r.deps.Catalog, st.Limits)
 	status, err := r.deps.Projects.CodeSceneStatus(ctx, projectID)

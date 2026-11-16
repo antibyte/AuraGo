@@ -114,6 +114,7 @@ func (fx *runFixture) seedStoredNarration(t *testing.T) {
 		t.Fatal(err)
 	}
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, fx.deps.Catalog)
 	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, &story, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -665,6 +666,7 @@ func (fx *runFixture) loadParallelStory(t *testing.T, name string) storymaker.St
 			t.Fatalf("SaveCodeScene %s: %v %+v", sc.ID, err, res)
 		}
 	}
+	storymaker.ApplyPhononVoices(&story, fx.deps.Catalog)
 	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, &story, 1.5); err != nil {
 		t.Fatal(err)
 	}

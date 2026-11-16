@@ -1,4 +1,5 @@
 {
+  "storymaker.voice.automatic": "Phonon kiest stemmen voor personages op basis van taal en geslacht. Hier kies je de vertelstem.",
   "storymaker.title": "Storymaker",
   "storymaker.loading": "Laden…",
   "storymaker.retry": "Opnieuw proberen",

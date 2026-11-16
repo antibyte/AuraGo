@@ -258,6 +258,7 @@
         const form = el('div', { class: 'stm-voice-form', hidden: true, dataset: { stm: 'voice-form' } },
             field('storymaker.voice.provider', providerSelect, 'voice-provider-field'),
             languageSelectField, languageInputField, voiceSelectField, voiceInputField,
+            el('p', { class: 'stm-hint', text: t('storymaker.voice.automatic') }),
             el('div', { class: 'stm-actions' }, notTested),
             note,
             el('div', { class: 'stm-actions' }, apply, audition));
@@ -413,7 +414,11 @@
         function writeVoice() {
             if (inst.readonly || apply.disabled) return;
             const voice = { provider: draft.provider, voice: draft.voice, language: draft.language };
-            inst.editStory(story => { story.voice = voice; }, { immediate: true });
+            inst.editStory(story => {
+                const languageChanged = !story.voice || story.voice.language !== voice.language;
+                story.voice = voice;
+                if (languageChanged) (story.cast || []).forEach(member => { delete member.voice; });
+            }, { immediate: true });
         }
 
         function playSample() {

@@ -306,7 +306,7 @@ func storymakerDefaultVoiceFor(cfg *config.Config, providers []storymaker.VoiceP
 	return func(provider, language string) string {
 		id := storymaker.NormalizeProvider(provider)
 		if id == "phonon" {
-			return phonon.DefaultVoice(language, cfg.Personality.CorePersonality)
+			return phonon.DefaultVoiceForGender(language, "")
 		}
 		base := storymaker.LanguageBase(language)
 		for _, row := range providers {
@@ -339,6 +339,7 @@ type storymakerCreateRequest struct {
 	Aspect   string `json:"aspect"`
 	FPS      int    `json:"fps"`
 	Language string `json:"language"`
+	Silent   bool   `json:"silent"`
 }
 
 func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request) {
@@ -367,21 +368,23 @@ func handleStorymakerProjects(s *Server, w http.ResponseWriter, r *http.Request)
 		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, storymakerJSONLimit))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&req); err != nil {
-			writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body must be {\"title\": ..., \"aspect\"?: ..., \"fps\"?: ..., \"language\"?: ...}.", nil)
+			writeStorymakerError(w, http.StatusBadRequest, "invalid_request", "The request body must be {\"title\": ..., \"aspect\"?: ..., \"fps\"?: ..., \"language\"?: ..., \"silent\"?: ...}.", nil)
+			return
+		}
+		language := strings.TrimSpace(req.Language)
+		if language == "" {
+			language = strings.TrimSpace(acc.cfg.Server.UILanguage)
+		}
+		if language == "" {
+			language = "de"
+		}
+		if !req.Silent && phonon.Language(language) == "" {
+			writeStorymakerErrorWith(w, http.StatusUnprocessableEntity, render.CodeNarrationUnavailable, "Phonon supports German, English, French, Spanish and Portuguese.", map[string]any{"languages": storymakerPhononLanguages})
 			return
 		}
 		var voice *storymaker.Voice
-		if language := strings.TrimSpace(req.Language); language != "" {
-			providers := s.storymakerVoiceProviders(r.Context())
-			resolved, languages, err := storymaker.ResolveProjectVoice(providers, language, storymakerDefaultVoiceFor(acc.cfg, providers))
-			if err != nil {
-				if languages == nil {
-					languages = []string{}
-				}
-				writeStorymakerErrorWith(w, http.StatusUnprocessableEntity, render.CodeNarrationUnavailable, "No ready voice speaks this language.", map[string]any{"languages": languages})
-				return
-			}
-			voice = &resolved
+		if !req.Silent {
+			voice = &storymaker.Voice{Provider: "phonon", Voice: phonon.DefaultVoiceForGender(language, ""), Language: language}
 		}
 		project, story, etag, err := acc.rt.projects.CreateWithVoice(r.Context(), req.Title, req.Aspect, req.FPS, voice)
 		if err != nil {
@@ -434,6 +437,7 @@ func handleStorymakerProject(s *Server, w http.ResponseWriter, r *http.Request, 
 			body["story_text"] = string(data)
 			body["issues"] = issuesOrEmpty(decodeIssues)
 		} else {
+			storymaker.ApplyPhononVoices(&story, acc.rt.catalog)
 			checked := story
 			storymaker.ApplyDefaults(&checked)
 			issues := storymaker.Validate(&checked, acc.rt.catalog, lim)
@@ -505,6 +509,7 @@ func handleStorymakerStory(s *Server, w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	defaults := storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, acc.rt.catalog)
 	issues = storymaker.Validate(&story, acc.rt.catalog, lim)
 	if status, serr := acc.rt.projects.CodeSceneStatus(r.Context(), id); serr == nil {
 		issues = append(issues, storymaker.CodeSceneIssues(&story, status)...)

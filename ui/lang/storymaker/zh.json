@@ -1,4 +1,5 @@
 {
+  "storymaker.voice.automatic": "Phonon 根据语言和性别选择角色声音。在这里选择旁白声音。",
   "storymaker.title": "Storymaker",
   "storymaker.loading": "正在加载…",
   "storymaker.retry": "重试",

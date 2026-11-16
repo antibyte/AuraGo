@@ -1,4 +1,5 @@
 {
+  "storymaker.voice.automatic": "Phonon väljer figurernas röster efter språk och kön. Här väljer du berättarrösten.",
   "storymaker.title": "Storymaker",
   "storymaker.loading": "Läser in …",
   "storymaker.retry": "Försök igen",

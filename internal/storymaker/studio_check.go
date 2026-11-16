@@ -315,6 +315,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 		return CheckReport{}, "", fmt.Errorf("storymaker: check: %w", err)
 	}
 	ApplyDefaults(&story)
+	ApplyPhononVoices(&story, s.deps.Catalog)
 	found := Validate(&story, s.deps.Catalog, s.deps.Limits)
 	if status, statusErr := s.deps.Projects.CodeSceneStatus(ctx, s.job.ProjectID); statusErr == nil {
 		found = append(found, CodeSceneIssues(&story, status)...)

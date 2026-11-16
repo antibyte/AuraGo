@@ -1200,6 +1200,7 @@ func (fx *runFixture) seedNarratedStory(t *testing.T, doc string, seconds float6
 		t.Fatal(err)
 	}
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, fx.deps.Catalog)
 	if err := storymakertest.SeedNarration(ctx, fx.projects, fx.projectID, &story, seconds); err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -442,7 +443,10 @@ func storymakerAgentVoiceReady(providers []storymaker.VoiceProvider, voice *stor
 	id := storymaker.NormalizeProvider(voice.Provider)
 	for _, row := range providers {
 		if row.ID == id {
-			return row.Ready
+			if !row.Ready || (id == "phonon" && !slices.Contains(row.Languages, storymaker.LanguageBase(voice.Language))) {
+				return false
+			}
+			return storymakerVoiceOnList(row, voice.Voice)
 		}
 	}
 	return false
@@ -501,8 +505,7 @@ func (s *Server) storymakerAgentCompile(rt *storymakerRuntime, cfg *config.Confi
 	}
 }
 
-// prepareVoice is the first job step (decision 11). It writes story.voice and returns the language
-// of the job and whether a ready voice speaks it. No voice is not a failure: the story keeps voice null.
+// prepareVoice selects Phonon before the agent starts, independently of chat TTS and resource readiness.
 func (j *storymakerAgentJob) prepareVoice(ctx context.Context) (string, bool, error) {
 	cfg := j.route.cfg
 	data, etag, err := j.rt.projects.LoadStory(ctx, j.job.ProjectID)
@@ -533,14 +536,21 @@ func (j *storymakerAgentJob) prepareVoice(ctx context.Context) (string, bool, er
 			chosen.Language = language
 		}
 		voice = &chosen
-	case voice == nil || (!revise && storymaker.LanguageBase(voice.Language) != storymaker.LanguageBase(language)):
-		voice = nil
-		if resolved, _, err := storymaker.ResolveProjectVoice(providers, language, storymakerDefaultVoiceFor(cfg, providers)); err == nil {
-			voice = &resolved
+	case voice == nil || storymaker.LanguageBase(voice.Language) != storymaker.LanguageBase(language):
+		voice = &storymaker.Voice{Provider: "phonon", Language: language}
+	}
+	changed := !storymakerAgentSameVoice(story.Voice, voice)
+	if story.Voice != nil && voice != nil && storymaker.LanguageBase(story.Voice.Language) != storymaker.LanguageBase(voice.Language) {
+		for i := range story.Cast {
+			member := &story.Cast[i]
+			if member.Voice != nil && storymaker.LanguageBase(member.Voice.Language) == storymaker.LanguageBase(story.Voice.Language) {
+				member.Voice = nil
+			}
 		}
 	}
-	if !storymakerAgentSameVoice(story.Voice, voice) {
-		story.Voice = voice
+	story.Voice = voice
+	changed = storymaker.ApplyPhononVoices(&story, j.rt.catalog) || changed
+	if changed {
 		storymaker.ApplyDefaults(&story)
 		out, err := storymaker.CanonicalJSON(story)
 		if err != nil {
@@ -550,7 +560,7 @@ func (j *storymakerAgentJob) prepareVoice(ctx context.Context) (string, bool, er
 			return "", false, err
 		}
 	}
-	return language, storymakerAgentVoiceReady(providers, voice), nil
+	return language, storymakerAgentVoiceReady(providers, story.Voice), nil
 }
 
 // newStorymakerAgentJob resolves the route and the voice and opens the session. Every error is a

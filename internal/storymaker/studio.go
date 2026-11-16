@@ -339,12 +339,14 @@ func (s *Studio) loadStory(ctx context.Context) (*Story, string, error) {
 		return nil, "", err
 	}
 	ApplyDefaults(&st)
+	ApplyPhononVoices(&st, s.deps.Catalog)
 	return &st, etag, nil
 }
 
 // saveStory writes the story against the etag that was read and returns the new etag.
 func (s *Studio) saveStory(ctx context.Context, st *Story, etag string) (string, error) {
 	ApplyDefaults(st)
+	ApplyPhononVoices(st, s.deps.Catalog)
 	data, err := CanonicalJSON(*st)
 	if err != nil {
 		return "", err

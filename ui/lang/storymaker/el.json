@@ -1,4 +1,5 @@
 {
+  "storymaker.voice.automatic": "Το Phonon επιλέγει τις φωνές των χαρακτήρων με βάση τη γλώσσα και το φύλο. Εδώ επιλέγεις τη φωνή του αφηγητή.",
   "storymaker.title": "Storymaker",
   "storymaker.loading": "Φόρτωση…",
   "storymaker.retry": "Δοκιμάστε ξανά",

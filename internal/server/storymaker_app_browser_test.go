@@ -530,13 +530,69 @@ func smappInstallAgentStub(t *testing.T, s *Server) {
 	rt.agent = stub
 }
 
+func TestStorymakerPhononVoicesBrowser(t *testing.T) {
+	s := storymakerRealServer(t)
+	s.Cfg.TTS.Provider = "openai"
+	s.storymakerVoicesOverride = readyStorymakerPhononVoices
+	spoken := make(chan tools.TTSConfig, 4)
+	s.storymakerSynthOverride = func(_ context.Context, cfg tools.TTSConfig, _ string) ([]byte, string, error) {
+		spoken <- cfg
+		return smappStubSpeech(0.8), "wav", nil
+	}
+	page, origin := smappPage(t, s)
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="new-title"]')`)
+	page.MustElement(`[data-stm="new-title"]`).MustInput("Phonon voices")
+	smappCreateInForm(t, page)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="project-title"]')?.textContent==='Phonon voices'`)
+	id := smappProjectIDs(t, origin)[0]
+	page.MustElement(`[data-stm="narration"]`).MustInput("Wir erklären heute die wichtigsten Grundlagen.")
+	smappEventually(t, 15*time.Second, "saved narration", func() bool {
+		scenes := smappStored(t, origin, id)["scenes"].([]any)
+		return scenes[0].(map[string]any)["narration"] == "Wir erklären heute die wichtigsten Grundlagen."
+	})
+	smappClick(t, page, `[data-stm="side-tab"][data-tab="library"]`)
+	smappClick(t, page, `[data-stm="library-card"][data-id="char.punk"]`)
+	smappEventually(t, 15*time.Second, "saved cast", func() bool { return len(smappStored(t, origin, id)["cast"].([]any)) == 1 })
+	smappClick(t, page, `[data-stm="side-tab"][data-tab="voice"]`)
+	smappWait(t, page, `()=>document.querySelector('[data-stm="voice-provider"]')?.value==='phonon'`)
+	if page.MustEval(`()=>document.querySelectorAll('[data-stm="voice-provider"] option').length`).Int() != 1 {
+		t.Fatal("Storymaker offers another speech provider")
+	}
+	const setField = `(sel,value)=>{const e=document.querySelector(sel);e.value=value;e.dispatchEvent(new Event('change',{bubbles:true}));}`
+	page.MustEval(setField, `[data-stm="voice-language"]`, "de")
+	page.MustEval(setField, `[data-stm="voice-select"]`, "3ZKKapPOvuWFcw9f")
+	smappClick(t, page, `[data-stm="voice-apply"]`)
+	smappEventually(t, 15*time.Second, "German narrator and female cast voice", func() bool {
+		story := smappStored(t, origin, id)
+		narrator := story["voice"].(map[string]any)
+		cast := story["cast"].([]any)[0].(map[string]any)["voice"].(map[string]any)
+		return narrator["provider"] == "phonon" && narrator["voice"] == "3ZKKapPOvuWFcw9f" && narrator["language"] == "de" && cast["provider"] == "phonon" && cast["voice"] == "2A2fFf8SkDEJ8nzx" && cast["language"] == "de"
+	})
+	smappWait(t, page, `()=>!document.querySelector('[data-stm="narration-generate"]').disabled`)
+	smappClick(t, page, `[data-stm="narration-generate"]`)
+	smappEventually(t, 30*time.Second, "generated narration", func() bool {
+		var answer storymaker.AudioAnswer
+		smappGet(t, origin, "/projects/"+id+"/narration", &answer)
+		return len(answer.Missing) == 0 && len(answer.Narration["s1"].Blocks) == 1
+	})
+	select {
+	case cfg := <-spoken:
+		if cfg.Provider != "phonon" || cfg.Language != "de" || cfg.Phonon.VoiceID != "3ZKKapPOvuWFcw9f" || !cfg.NoProviderFallback {
+			t.Fatal("the saved narrator did not reach Phonon synthesis")
+		}
+	default:
+		t.Fatal("no synthesis call")
+	}
+	smappNoErrors(t, page)
+}
+
 func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	s := storymakerRealServer(t)
 	smappEnableVideoStudio(t, s)
-	// A stub synth behind the real narrate job: no provider call and no cost. The key only makes the provider ready.
+	// Stub Phonon resources and synthesis behind the real narrate job.
 	var synthCalls atomic.Int32
 	s.Cfg.TTS.Provider = "openai"
-	s.Cfg.TTS.OpenAI.APIKey = "tour-key"
+	s.storymakerVoicesOverride = readyStorymakerPhononVoices
 	s.storymakerSynthOverride = func(ctx context.Context, cfg tools.TTSConfig, text string) ([]byte, string, error) {
 		synthCalls.Add(1)
 		return smappStubSpeech(0.8), "wav", nil
@@ -592,7 +648,7 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 
 	// Library: a person, a prop and an environment go into the selected scene.
 	smappClick(t, page, `[data-stm="side-tab"][data-tab="library"]`)
-	smappClick(t, page, `[data-stm="library-card"][data-id="char.office-woman-1"]`)
+	smappClick(t, page, `[data-stm="library-card"][data-id="char.punk"]`)
 	smappWait(t, page, `()=>document.querySelectorAll('[data-stm="scene-items"] [data-kind="actor"]').length===1`)
 	smappClick(t, page, `[data-stm="library-tab"][data-kind="prop"]`)
 	smappClick(t, page, `[data-stm="library-card"][data-id="prop.laptop"]`)
@@ -653,19 +709,18 @@ func TestStorymakerAppRealServerBrowser(t *testing.T) {
 	smappClick(t, page, `[data-stm="scene-down"]`)
 	smappWait(t, page, `()=>document.querySelector('[data-stm="scene"][data-index="1"]')?.dataset.scene==='code2' && document.querySelector('[data-stm="save-state"]')?.dataset.state==='saved'`)
 
-	// Voice: the panel preselects the active provider, and one action writes the voice into the story. openai lists its voices
-	// and takes any language, so its language control is the free-text field.
+	// Voice: Phonon stays selected independently of chat TTS; the panel selects language and narrator.
 	const setField = `(sel,value)=>{const e=document.querySelector(sel);e.value=value;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));}`
 	smappClick(t, page, `[data-stm="side-tab"][data-tab="voice"]`)
 	smappWait(t, page, `()=>!!document.querySelector('[data-stm="voice"]')`)
-	smappWait(t, page, `()=>document.querySelector('[data-stm="voice-provider"]')?.value==='openai'`)
-	smappWait(t, page, `()=>!!document.querySelector('[data-stm="voice-select"] option[value="nova"]')`)
-	page.MustEval(setField, `[data-stm="voice-select"]`, "nova")
-	page.MustEval(setField, `[data-stm="voice-language-free"]`, "en")
+	smappWait(t, page, `()=>document.querySelector('[data-stm="voice-provider"]')?.value==='phonon'`)
+	page.MustEval(setField, `[data-stm="voice-language"]`, "en")
+	smappWait(t, page, `()=>!!document.querySelector('[data-stm="voice-select"] option[value="LMDIYE0Oa377Qh6Z"]')`)
+	page.MustEval(setField, `[data-stm="voice-select"]`, "LMDIYE0Oa377Qh6Z")
 	smappClick(t, page, `[data-stm="voice-apply"]`)
 	smappEventually(t, 30*time.Second, "the stored voice", func() bool {
 		voice, _ := smappStored(t, origin, id)["voice"].(map[string]any)
-		return voice["provider"] == "openai" && voice["voice"] == "nova" && voice["language"] == "en"
+		return voice["provider"] == "phonon" && voice["voice"] == "LMDIYE0Oa377Qh6Z" && voice["language"] == "en"
 	})
 
 	// Narration: the real job runs against the stub synth. The narration has two sentences and neither merges: "Anna works

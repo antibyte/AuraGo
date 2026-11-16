@@ -92,3 +92,18 @@ func DefaultVoice(language, persona string) string {
 	}
 	return ""
 }
+
+// DefaultVoiceForGender selects a bundled speaker without applying chat-persona preferences.
+func DefaultVoiceForGender(language, gender string) string {
+	if strings.ToLower(strings.TrimSpace(gender)) != "male" {
+		gender = "female"
+	} else {
+		gender = "male"
+	}
+	for _, voice := range manifest.Voices {
+		if voice.Bundled && voice.Language == Language(language) && voice.Gender == gender {
+			return voice.ID
+		}
+	}
+	return ""
+}

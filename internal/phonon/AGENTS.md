@@ -17,6 +17,7 @@ UI owns the state-backed picker and explicit download action.
 - Maintainer GitHub release downloads resolve exact API asset IDs, use optional `GH_TOKEN`/`GITHUB_TOKEN`, and retain bounded reads and source pins. Keep `HF_TOKEN` limited to Hugging Face; drop authorization on redirects.
 - Never bundle an HF token or download gated weights on a user's first utterance.
   Release builders require the prepared model and ten bundled voice embeddings.
+- `DefaultVoiceForGender` selects a bundled language/gender speaker for Storymaker independently of chat persona and manual TTS settings. The existing `DefaultVoice` remains the chat/persona policy.
 - Empty manual voice means a deterministic language/persona default. Unknown,
   neutral and custom personas default to a female voice. Reject unsupported
   languages instead of silently converting them to English before provider selection.
@@ -40,6 +41,8 @@ The AuraGo Docker job in Security Gates prepares the manifest-verified
 the Dockerfile still performs its own offline `--check`.
 
 ## Verification
+On Windows, use a writable workspace temporary directory for `TEMP`/`TMP` when the system temp directory denies native WAV writes.
+
 `go test ./internal/phonon` covers catalog defaults, download integrity/cancellation
 and the native runner protocol. `AURAGO_PHONON_SMOKE_DIR` enables real ten-voice
 offline CPU synthesis. Also run focused TTS config/tools/agent/server/browser tests,

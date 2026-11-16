@@ -475,9 +475,9 @@ func narratedE2ECues(t *testing.T, name string, data []byte, filmMS int) string 
 // narration, narrate with a stub synth, then render with every option, and look at each output on disk.
 func TestStorymakerNarratedExportEndToEnd(t *testing.T) {
 	s := storymakerRealServer(t)
-	// sanotts is ready without a key (tools.TTSReady) and lists de, so the project voice resolves to it. The stub replaces
-	// the synthesis itself.
+	// Stub readiness and synthesis; chat's provider must not affect Storymaker.
 	s.Cfg.TTS.Provider = "sanotts"
+	s.storymakerVoicesOverride = readyStorymakerPhononVoices
 	// Each sentence has a width of 20 or more and more than 3 words, so SplitPieces keeps one piece per sentence: 2 calls.
 	const first, second = "Anna arbeitet von zu Hause.", "Plötzlich klopft jemand an die Tür."
 	narration := first + " " + second
@@ -540,7 +540,7 @@ func TestStorymakerNarratedExportEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(body, &created); err != nil || res.StatusCode != http.StatusCreated {
 		t.Fatalf("create %d: %s", res.StatusCode, body)
 	}
-	if v := created.Story.Voice; v == nil || v.Provider != "sanotts" || v.Language != "de" {
+	if v := created.Story.Voice; v == nil || v.Provider != "phonon" || v.Language != "de" {
 		t.Fatalf("resolved voice = %+v", created.Story.Voice)
 	}
 	id := created.Project.ID

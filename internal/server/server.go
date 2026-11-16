@@ -76,6 +76,7 @@ import (
 	"aurago/internal/speechlab"
 	"aurago/internal/speechlab/deployer"
 	"aurago/internal/sqlconnections"
+	"aurago/internal/storymaker"
 	"aurago/internal/storymaker/render"
 	"aurago/internal/telegram"
 	"aurago/internal/tools"
@@ -380,6 +381,7 @@ type Server struct {
 	// storymakerSynthOverride replaces the provider call of a narrate job, and
 	// storymakerFreeDiskOverride its free-space probe.
 	storymakerSynthOverride    func(ctx context.Context, cfg tools.TTSConfig, text string) ([]byte, string, error)
+	storymakerVoicesOverride   func(context.Context) []storymaker.VoiceProvider
 	storymakerFreeDiskOverride func(path string) (int64, error)
 	// storymakerFrameObserver sees every rendered frame (the parity test hashes them).
 	storymakerFrameObserver func(n int, transport string, data []byte)

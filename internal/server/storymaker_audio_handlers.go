@@ -169,6 +169,7 @@ func (s *Server) storymakerStoryAudio(w http.ResponseWriter, r *http.Request, ac
 		return nil, storymaker.AudioAnswer{}, false
 	}
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, acc.rt.catalog)
 	answer, err := acc.rt.projects.AudioAnswer(ctx, id, &story, s.storymakerMusicKey)
 	if err != nil {
 		mapStorymakerError(w, err, "project_not_found")
@@ -215,6 +216,9 @@ func storymakerNarrateRefusal(ctx context.Context, s *Server, acc *storymakerAcc
 		}
 	}
 	for _, b := range blocks {
+		if b.Voice.Provider == "phonon" && phonon.Language(b.Voice.Language) == "" {
+			return &storymakerRefusal{Status: http.StatusConflict, Code: render.CodeNarrationUnavailable, Message: "Phonon supports German, English, French, Spanish and Portuguese.", Extra: map[string]any{"languages": storymakerPhononLanguages}}
+		}
 		row := rows[b.Voice.Provider]
 		if !storymakerVoiceOnList(row, b.Voice.Voice) {
 			return &storymakerRefusal{
@@ -422,39 +426,18 @@ func storymakerActiveVoiceProvider(cfg *config.Config) string {
 	return id
 }
 
-// storymakerVoiceProviders is the one provider list behind GET /voices, POST /projects and
-// POST /narrate: the active provider first, then the local ids, then the cloud ids sorted. Keeping
-// local ahead of cloud means voice resolution never picks a paid provider ahead of a free one.
+// storymakerVoiceProviders keeps Storymaker on bundled offline speech, independently of chat TTS.
 func (s *Server) storymakerVoiceProviders(ctx context.Context) []storymaker.VoiceProvider {
+	if s.storymakerVoicesOverride != nil {
+		return s.storymakerVoicesOverride(ctx)
+	}
 	cfg := s.ConfigSnapshot()
 	if cfg == nil {
 		return []storymaker.VoiceProvider{}
 	}
-	var cache *storymakerVoiceCache
-	if rt, err := s.storymakerRuntime(); err == nil {
-		cache = rt.voices
-	}
-	active := storymakerActiveVoiceProvider(cfg)
-	rows := s.storymakerLocalVoiceRows(ctx, cfg)
-	for _, id := range storymakerCloudVoiceIDs {
-		if id == "google" && active != "google" {
-			continue
-		}
-		rows = append(rows, storymakerCloudVoiceRow(ctx, cfg, id, cache))
-	}
-	out := make([]storymaker.VoiceProvider, 0, len(rows))
-	for _, row := range rows {
-		if row.ID == active {
-			row.Active = true
-			out = append(out, row)
-		}
-	}
-	for _, row := range rows {
-		if row.ID != active {
-			out = append(out, row)
-		}
-	}
-	return out
+	row := storymakerPhononRow(cfg)
+	row.Active = true
+	return []storymaker.VoiceProvider{row}
 }
 
 // storymakerVoiceRow is the part of a row that every provider shares. Readiness runs on a copy of
@@ -507,14 +490,11 @@ func storymakerPhononRow(cfg *config.Config) storymaker.VoiceProvider {
 	row := storymakerVoiceRow(cfg, "phonon")
 	row.Languages = storymakerPhononLanguages
 	root, dataDir := phonon.Root(), cfg.Directories.DataDir
-	voice := strings.TrimSpace(cfg.TTS.Phonon.VoiceID)
-	if voice == "" {
-		voice = phonon.DefaultVoice(cfg.SanoTTSLanguage(""), cfg.Personality.CorePersonality)
-	}
+	voice := phonon.DefaultVoiceForGender(cfg.Server.UILanguage, "")
 	if voice == "" {
 		// The configured language is one phonon does not speak. English stands in, so the row
 		// still tells whether phonon can speak at all.
-		voice = phonon.DefaultVoice("en", cfg.Personality.CorePersonality)
+		voice = phonon.DefaultVoiceForGender("en", "")
 	}
 	row.DefaultVoice = voice
 	_, voiceErr := phonon.VoicePath(root, dataDir, voice)

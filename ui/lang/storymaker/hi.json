@@ -1,4 +1,5 @@
 {
+  "storymaker.voice.automatic": "Phonon भाषा और लिंग के अनुसार पात्रों की आवाज़ चुनता है। यहाँ कथावाचक की आवाज़ चुनें।",
   "storymaker.title": "Storymaker",
   "storymaker.loading": "लोड हो रहा है…",
   "storymaker.retry": "फिर से कोशिश करें",

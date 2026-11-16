@@ -182,25 +182,24 @@ func TestStorymakerCreateWithLanguage(t *testing.T) {
 	s, readToken, writeToken := storymakerAPIFixture(t)
 	s.Cfg.TTS.Provider = "sanotts"
 
-	// sanotts is the active provider, TTSReady says yes for it and it speaks de.
+	// Storymaker chooses bundled Phonon even when chat uses Sano and runtime files are absent.
 	w := storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Mit Stimme","language":"de"}`), nil)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("create with language = %d %s", w.Code, w.Body.String())
 	}
 	var created apiProject
 	decodeBody(t, w, &created)
-	if created.Story.Voice == nil || created.Story.Voice.Provider != "sanotts" || storymaker.LanguageBase(created.Story.Voice.Language) != "de" {
+	if created.Story.Voice == nil || created.Story.Voice.Provider != "phonon" || storymaker.LanguageBase(created.Story.Voice.Language) != "de" {
 		t.Fatalf("resolved voice = %+v", created.Story.Voice)
 	}
 
-	// Without a language the voice stays null, as in phase 1.
-	w = storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Ohne Stimme"}`), nil)
-	if w.Code != http.StatusCreated || !strings.Contains(w.Body.String(), `"voice":null`) {
+	// Without a language Storymaker uses the UI language and still selects Phonon.
+	w = storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Standardsprache"}`), nil)
+	if w.Code != http.StatusCreated || !strings.Contains(w.Body.String(), `"provider":"phonon"`) {
 		t.Fatalf("create without language = %d %s", w.Code, w.Body.String())
 	}
 
-	// Nothing ready speaks hi: sanotts does not list it, phonon has no files in this folder, piper,
-	// supertonic and speech_lab are off and the cloud providers have no key.
+	// An unsupported language never falls back to a cloud or another local provider.
 	w = storymakerRequest(s, writeToken, http.MethodPost, "/projects", strings.NewReader(`{"title":"Hindi","language":"hi"}`), nil)
 	var refused struct {
 		Code      string   `json:"code"`
@@ -218,7 +217,7 @@ func TestStorymakerCreateWithLanguage(t *testing.T) {
 		hasGerman = hasGerman || language == "de"
 	}
 	if !hasGerman {
-		t.Errorf("languages miss de, which sanotts speaks: %v", refused.Languages)
+		t.Errorf("languages miss de, which Phonon speaks: %v", refused.Languages)
 	}
 
 	// The refused create left nothing behind: only the first two projects exist.
@@ -1426,6 +1425,7 @@ func seedStoryNarrationForRender(t *testing.T, s *Server, id string) {
 		t.Fatal(err)
 	}
 	storymaker.ApplyDefaults(&story)
+	storymaker.ApplyPhononVoices(&story, rt.catalog)
 	if err := storymakertest.SeedNarration(ctx, rt.projects, id, &story, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -1520,4 +1520,15 @@ func TestStorymakerRenderRefusesMissingAudio(t *testing.T) {
 	// Volume 0 plays nothing, so it needs no file. This mood has no stored file under the key of "dramatic".
 	save(`{"schema":"storymaker/1","title":"Gate","music":{"mode":"generated","mood":"dramatic","volume":0},"scenes":[{"id":"s1"}]}`)
 	accepted()
+}
+
+func TestStorymakerCreateExplicitlyWithoutSpeech(t *testing.T) {
+	s, _, token := storymakerAPIFixture(t)
+	s.Cfg.Server.UILanguage = "ja"
+	w := storymakerRequest(s, token, http.MethodPost, "/projects", strings.NewReader(`{"title":"Silent","silent":true}`), nil)
+	var created apiProject
+	decodeBody(t, w, &created)
+	if w.Code != http.StatusCreated || created.Story.Voice != nil {
+		t.Fatalf("silent create = %d %s", w.Code, w.Body.String())
+	}
 }
