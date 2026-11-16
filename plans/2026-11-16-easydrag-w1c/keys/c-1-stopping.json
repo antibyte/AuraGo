@@ -1,0 +1,20 @@
+{
+  "easydrag.ui.run_stopping": {
+    "cs": "Zastavování…",
+    "da": "Stopper…",
+    "de": "Wird gestoppt…",
+    "el": "Διακόπτεται…",
+    "en": "Stopping…",
+    "es": "Deteniendo…",
+    "fr": "Arrêt…",
+    "hi": "रोका जा रहा है…",
+    "it": "Arresto…",
+    "ja": "停止しています…",
+    "nl": "Stoppen…",
+    "no": "Stopper…",
+    "pl": "Zatrzymywanie…",
+    "pt": "Parando…",
+    "sv": "Stoppar…",
+    "zh": "正在停止…"
+  }
+}

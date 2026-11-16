@@ -1,0 +1,38 @@
+{
+  "easydrag.ui.quick_all": {
+    "cs": "Zobrazit vše",
+    "da": "Vis alle",
+    "de": "Alle anzeigen",
+    "el": "Εμφάνιση όλων",
+    "en": "Show all",
+    "es": "Mostrar todos",
+    "fr": "Tout afficher",
+    "hi": "सभी दिखाएं",
+    "it": "Mostra tutti",
+    "ja": "すべて表示",
+    "nl": "Alles tonen",
+    "no": "Vis alle",
+    "pl": "Pokaż wszystkie",
+    "pt": "Mostrar tudo",
+    "sv": "Visa alla",
+    "zh": "显示全部"
+  },
+  "easydrag.ui.palette_scope": {
+    "cs": "Přidá za {name}",
+    "da": "Tilføjer efter {name}",
+    "de": "Fügt nach {name} ein",
+    "el": "Προσθέτει μετά το {name}",
+    "en": "Adds after {name}",
+    "es": "Añade después de {name}",
+    "fr": "Ajoute après {name}",
+    "hi": "{name} के बाद जोड़ता है",
+    "it": "Aggiunge dopo {name}",
+    "ja": "{name} の後に追加",
+    "nl": "Voegt toe na {name}",
+    "no": "Legger til etter {name}",
+    "pl": "Dodaje po {name}",
+    "pt": "Adiciona depois de {name}",
+    "sv": "Lägger till efter {name}",
+    "zh": "添加到 {name} 之后"
+  }
+}

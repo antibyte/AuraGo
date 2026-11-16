@@ -1,0 +1,72 @@
+{
+  "easydrag.ui.publish_with_changes": {
+    "_after": "easydrag.ui.publish",
+    "cs": {
+      "other": "Publikovat · {count} změn",
+      "one": "Publikovat · {count} změna",
+      "few": "Publikovat · {count} změny"
+    },
+    "da": {
+      "other": "Udgiv · {count} ændringer",
+      "one": "Udgiv · {count} ændring"
+    },
+    "de": {
+      "other": "Veröffentlichen · {count} Änderungen",
+      "one": "Veröffentlichen · {count} Änderung"
+    },
+    "el": {
+      "other": "Δημοσίευση · {count} αλλαγές",
+      "one": "Δημοσίευση · {count} αλλαγή"
+    },
+    "en": {
+      "other": "Publish · {count} changes",
+      "one": "Publish · {count} change"
+    },
+    "es": {
+      "other": "Publicar · {count} cambios",
+      "one": "Publicar · {count} cambio"
+    },
+    "fr": {
+      "other": "Publier · {count} modifications",
+      "one": "Publier · {count} modification"
+    },
+    "hi": {
+      "other": "प्रकाशित करें · {count} बदलाव",
+      "one": "प्रकाशित करें · {count} बदलाव"
+    },
+    "it": {
+      "other": "Pubblica · {count} modifiche",
+      "one": "Pubblica · {count} modifica"
+    },
+    "ja": {
+      "other": "公開 · {count} 件の変更",
+      "one": "公開 · {count} 件の変更"
+    },
+    "nl": {
+      "other": "Publiceren · {count} wijzigingen",
+      "one": "Publiceren · {count} wijziging"
+    },
+    "no": {
+      "other": "Publiser · {count} endringer",
+      "one": "Publiser · {count} endring"
+    },
+    "pl": {
+      "other": "Opublikuj · {count} zmiany",
+      "one": "Opublikuj · {count} zmiana",
+      "few": "Opublikuj · {count} zmiany",
+      "many": "Opublikuj · {count} zmian"
+    },
+    "pt": {
+      "other": "Publicar · {count} alterações",
+      "one": "Publicar · {count} alteração"
+    },
+    "sv": {
+      "other": "Publicera · {count} ändringar",
+      "one": "Publicera · {count} ändring"
+    },
+    "zh": {
+      "other": "发布 · {count} 项更改",
+      "one": "发布 · {count} 项更改"
+    }
+  }
+}

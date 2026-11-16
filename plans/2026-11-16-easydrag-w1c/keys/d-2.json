@@ -1,0 +1,38 @@
+{
+  "easydrag.ui.quick_head_after": {
+    "cs": "Kroky po: {name}",
+    "da": "Trin efter: {name}",
+    "de": "Schritte nach: {name}",
+    "el": "Βήματα μετά: {name}",
+    "en": "Steps after: {name}",
+    "es": "Pasos después de: {name}",
+    "fr": "Étapes après : {name}",
+    "hi": "{name} के बाद के चरण",
+    "it": "Passaggi dopo: {name}",
+    "ja": "{name} の次のステップ",
+    "nl": "Stappen na: {name}",
+    "no": "Trinn etter: {name}",
+    "pl": "Kroki po: {name}",
+    "pt": "Etapas depois de: {name}",
+    "sv": "Steg efter: {name}",
+    "zh": "{name} 之后的步骤"
+  },
+  "easydrag.ui.quick_head_insert": {
+    "cs": "Vložit za: {name}",
+    "da": "Indsæt efter: {name}",
+    "de": "Einfügen nach: {name}",
+    "el": "Εισαγωγή μετά: {name}",
+    "en": "Insert after: {name}",
+    "es": "Insertar después de: {name}",
+    "fr": "Insérer après : {name}",
+    "hi": "{name} के बाद डालें",
+    "it": "Inserisci dopo: {name}",
+    "ja": "{name} の後に挿入",
+    "nl": "Invoegen na: {name}",
+    "no": "Sett inn etter: {name}",
+    "pl": "Wstaw po: {name}",
+    "pt": "Inserir depois de: {name}",
+    "sv": "Infoga efter: {name}",
+    "zh": "插入到 {name} 之后"
+  }
+}

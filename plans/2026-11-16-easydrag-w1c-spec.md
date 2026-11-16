@@ -1,6 +1,6 @@
 # EasyDrag W1c "Header and one Stop": design spec
 
-- **Status:** design spec, 2026-11-16. The owner approved the design in the brainstorming session on 2026-11-16. Implementation plan: to follow in `plans/2026-11-16-easydrag-w1c/`.
+- **Status:** design spec, 2026-11-16. The owner approved the design in the brainstorming session on 2026-11-16. Implementation plan: [`plans/2026-11-16-easydrag-w1c/`](2026-11-16-easydrag-w1c/README.md) (2026-11-16; four parts A–D, 41 coordinator decisions and amendments in its README).
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - E4 "Calm chrome, confident publishing" (lines 496-559): UI-14 with CS-07, the one Stop, the F.2 next-fire accessor;
   - E9 "Build with real things" (lines 811-857): the UX-04 quick-add header slice;
