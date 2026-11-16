@@ -1,5 +1,7 @@
 # ansible — Ansible Automation
 
+Local and sidecar inventories share the static-file restrictions below. Only the exact configured default may be outside the root. Inventory output excludes arbitrary variables and raw errors; child processes never inherit the API token. Existing sidecars must be rebuilt to advertise security policy 2. Read-only blocks all playbook runs, including check and dry-run: tasks can ignore Ansible check mode.
+
 Run Ansible playbooks, ad-hoc commands, and inventory queries.
 Two execution modes are supported — choose with `ansible.mode` in `config.yaml`:
 
@@ -94,7 +96,7 @@ Run an Ansible playbook.
 ---
 
 ### check
-Dry-run a playbook (`--check --diff`) — shows what **would** change without applying anything.
+Request Ansible check mode. Tasks may still mutate state; the same write grant as playbook execution is required.
 
 ```json
 {"action": "ansible", "operation": "check", "name": "site.yml"}

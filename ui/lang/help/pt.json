@@ -91,7 +91,7 @@
   "help.ansible.image": "(Apenas no modo sidecar) Imagem Docker do contentor sidecar Ansible. Predefinição: 'aurago-ansible:latest'. Construa com: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Modo de execução: 'sidecar' = contentor da API Ansible (Docker), 'local' = chama os binários ansible diretamente no host. Predefinição: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Apenas no modo local) Diretório com os playbooks Ansible (ex. '/opt/ansible/playbooks'). Variável de ambiente: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Quando ativado, o agente só pode verificar o estado, o inventário e listar playbooks, mas não pode executar comandos ad-hoc nem playbooks.",
+  "help.ansible.read_only": "Quando ativado, o agente só pode verificar o estado, o inventário e listar playbooks, mas não pode executar comandos ad-hoc nem playbooks. A verificação e a simulação também exigem permissão de escrita; as tarefas Ansible podem ignorar o modo de verificação.",
   "help.ansible.timeout": "Tempo máximo de execução dos comandos Ansible, em segundos (predefinição: 300). Aumente para playbooks longos.",
   "help.ansible.token": "(Apenas no modo sidecar) Token Bearer da API do sidecar Ansible. Deve coincidir com ANSIBLE_API_TOKEN no contentor.",
   "help.ansible.url": "(Apenas no modo sidecar) URL do servidor da API Ansible. Predefinição: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Quando ativado, o agente só pode ler repositórios, issues e PRs, mas não pode criar, apagar nem modificar arquivos.",
   "help.github.token": "Personal Access Token (PAT) da API do GitHub. Crie um em https://github.com/settings/tokens com os âmbitos necessários (repo, issues, etc.). Armazenado criptografado no cofre.",
   "help.home_assistant.access_token": "Token de acesso de longa duração para a autenticação no Home Assistant.",
-  "help.home_assistant.allowed_services": "Lista opcional de nomes completos domain.service. A execução indireta (script, automation, python_script, rest_command, pyscript, shell_command, hassio) e os serviços críticos exigem permissões explícitas. Chamadas genéricas verificam ações de destinos concretos; grupos não resolvidos são recusados. Bloqueios e só de leitura têm prioridade.",
+  "help.home_assistant.allowed_services": "Lista opcional de nomes completos domain.service. A execução indireta (script, automation, python_script, rest_command, pyscript, shell_command, hassio) e os serviços críticos exigem permissões explícitas. Chamadas genéricas verificam ações de destinos concretos; grupos não resolvidos são recusados. Bloqueios e só de leitura têm prioridade. Os serviços de lock, alarm_control_panel e cover exigem sempre uma entrada explícita em allowed_services.",
   "help.home_assistant.blocked_services": "Serviços do Home Assistant que o agente nunca deve chamar, como lock.unlock. Esta lista de bloqueio é verificada antes dos serviços permitidos.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "Quando ativado, o agente só pode ler o estado dos dispositivos, mas não pode chamar serviços (sem alternar dispositivos).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Aceleração: auto, none, nvidia, amd, intel ou vulkan.",
   "help.vision.mirage.max_objects": "Máximo de objetos reconhecidos por imagem; predefinição: 20.",
   "help.vision.mirage.max_text_lines": "Máximo de linhas de texto reconhecidas por imagem; predefinição: 30.",
-  "help.vision.mirage.language": "Idioma de reconhecimento. Deixa vazio para usar o idioma predefinido do motor."
+  "help.vision.mirage.language": "Idioma de reconhecimento. Deixa vazio para usar o idioma predefinido do motor.",
+  "help.home_assistant.readonly": "Quando ativado, o agente só pode ler o estado dos dispositivos, mas não pode chamar serviços (sem alternar dispositivos).",
+  "help.ansible.readonly": "Quando ativado, o agente só pode verificar o estado, o inventário e listar playbooks, mas não pode executar comandos ad-hoc nem playbooks. A verificação e a simulação também exigem permissão de escrita; as tarefas Ansible podem ignorar o modo de verificação."
 }

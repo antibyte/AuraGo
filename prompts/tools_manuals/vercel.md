@@ -1,5 +1,7 @@
 # Vercel (`vercel`)
 
+Homepage deployments to existing projects require vercel.default_project_id starting with prj_ and the matching team_id for team projects. Returned project/account IDs are verified and passed to the CLI. There is no folder-name fallback. New projects require allow_project_management and an explicit new name; conflicts fail without adopting another project. Bind the returned ID in Config for subsequent deployments.
+
 Manage Vercel projects, deployments, environment variables, domains, and aliases via the Vercel REST API.
 
 ## Operations

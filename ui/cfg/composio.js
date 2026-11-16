@@ -379,6 +379,19 @@ function composioRenderDetail() {
     let html = '<div class="cmp-detail-head"><div><div class="cmp-detail-title">' + escapeAttr(tk.name || slug) + '</div><div class="cmp-detail-slug">' + escapeAttr(slug) + '</div></div>' +
         '<button class="btn-save" onclick="composioToggleToolkit(' + composioJSArg(slug) + ')">' + (isSelected ? t('config.composio.disable_toolkit') : t('config.composio.enable_toolkit')) + '</button></div>';
     html += '<div class="cmp-detail-desc">' + escapeAttr(description || t('config.composio.no_description')) + '</div>';
+    if (isSelected) {
+        const entry = selected[slug.toLowerCase()];
+        const preferred = entry.preferred_connected_account_id || '';
+        const choices = accounts.filter(a => a.user_id === composioConfig().user_id &&
+            (a.toolkit_slug || '').toLowerCase() === slug.toLowerCase() && a.status === 'ACTIVE');
+        html += '<label class="field-label" for="composio-account">' + t('config.composio.account_binding') + '</label>' +
+            '<div class="field-help">' + t('config.composio.account_binding_help') + '</div>' +
+            '<select class="field-input" id="composio-account" onchange="composioSelectAccount(this.value)">' +
+            '<option value="">' + t('config.composio.unique_account') + '</option>';
+        if (preferred && !choices.some(a => a.id === preferred)) choices.push({ id: preferred });
+        html += choices.map(a => '<option value="' + escapeAttr(a.id) + '"' +
+            (a.id === preferred ? ' selected' : '') + '>' + escapeAttr(a.id) + '</option>').join('') + '</select>';
+    }
     html += '<div class="cmp-detail-actions cfg-actions-row"><button id="composio-connect-btn" class="btn-save btn-secondary"' + connectDisabled + ' onclick="composioConnectToolkit(' + composioJSArg(slug) + ')">' + t('config.composio.connect') + '</button>' +
         '<button class="btn-save btn-secondary" onclick="composioLoadToolkitDetail(' + composioJSArg(slug) + ')">' + t('config.composio.refresh') + '</button></div>' +
         cfgActionResult.html('composio-connect-status');
@@ -390,6 +403,11 @@ function composioRenderDetail() {
 function composioAccountsHTML(accounts) {
     if (!accounts || accounts.length === 0) return '<div class="cmp-empty">' + t('config.composio.no_accounts') + '</div>';
     return accounts.map(a => '<div class="cmp-account-row"><span>' + escapeAttr(a.id || '-') + '</span><span>' + escapeAttr(a.status || '-') + '</span></div>').join('');
+}
+
+function composioSelectAccount(id) {
+    const entry = composioSelectedMap()[(composioState.selectedSlug || '').toLowerCase()];
+    if (entry) entry.preferred_connected_account_id = id;
 }
 
 function composioToolsHTML(items) {

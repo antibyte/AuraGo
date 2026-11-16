@@ -91,7 +91,7 @@
   "help.ansible.image": "(Kun sidecar-tilstand) Docker-image til Ansible-sidecar-containeren. Standard: 'aurago-ansible:latest'. Byg med: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Kørselstilstand: 'sidecar' = Ansible API-container (Docker), 'local' = kald ansible-binærfiler direkte på værten. Standard: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Kun lokal tilstand) Mappe med Ansible-playbooks (f.eks. '/opt/ansible/playbooks'). Miljøvariabel: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Når dette er aktiveret, kan agenten kun tjekke status og inventory og vise playbooks, men ikke køre ad hoc-kommandoer eller playbooks.",
+  "help.ansible.read_only": "Når dette er aktiveret, kan agenten kun tjekke status og inventory og vise playbooks, men ikke køre ad hoc-kommandoer eller playbooks. Kontrol og prøveafvikling kræver også skriveret; Ansible-opgaver kan ignorere kontroltilstand.",
   "help.ansible.timeout": "Maksimal køretid for Ansible-kommandoer i sekunder (standard: 300). Forøg den ved langvarige playbooks.",
   "help.ansible.token": "(Kun sidecar-tilstand) Bearer-token til Ansible-sidecar-API'en. Skal matche ANSIBLE_API_TOKEN i containeren.",
   "help.ansible.url": "(Kun sidecar-tilstand) URL til Ansible API-serveren. Standard: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Når dette er aktiveret, kan agenten kun læse repos, issues og PR'er, men ikke oprette, slette eller ændre filer.",
   "help.github.token": "Personal Access Token (PAT) til GitHub-API'en. Opret et på https://github.com/settings/tokens med de nødvendige scopes (repo, issues osv.). Gemmes krypteret i Vault.",
   "help.home_assistant.access_token": "Langtidsholdbart access token til Home Assistant-godkendelse.",
-  "help.home_assistant.allowed_services": "Valgfri tilladelsesliste med fulde domain.service-navne. Indirekte udførelse (script, automation, python_script, rest_command, pyscript, shell_command, hassio) og kritiske systemtjenester kræver udtrykkelig tilladelse. Generiske kald kontrollerer konkrete målhandlinger; uafklarede grupper afvises. Blokliste og skrivebeskyttelse har forrang.",
+  "help.home_assistant.allowed_services": "Valgfri tilladelsesliste med fulde domain.service-navne. Indirekte udførelse (script, automation, python_script, rest_command, pyscript, shell_command, hassio) og kritiske systemtjenester kræver udtrykkelig tilladelse. Generiske kald kontrollerer konkrete målhandlinger; uafklarede grupper afvises. Blokliste og skrivebeskyttelse har forrang. Tjenester i lock, alarm_control_panel og cover kræver altid en udtrykkelig post i allowed_services.",
   "help.home_assistant.blocked_services": "Home Assistant-tjenester, agenten aldrig må kalde, f.eks. lock.unlock. Denne blokliste kontrolleres før tilladte tjenester.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "Når dette er aktiveret, kan agenten kun læse enhedstilstande, men ikke kalde tjenester (ingen omskiftning af enheder).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Acceleration: auto, none, nvidia, amd, intel eller vulkan.",
   "help.vision.mirage.max_objects": "Maksimalt antal genkendte objekter pr. billede; standard: 20.",
   "help.vision.mirage.max_text_lines": "Maksimalt antal genkendte tekstlinjer pr. billede; standard: 30.",
-  "help.vision.mirage.language": "Sprog til genkendelse. Lad feltet være tomt for at bruge motorens standard."
+  "help.vision.mirage.language": "Sprog til genkendelse. Lad feltet være tomt for at bruge motorens standard.",
+  "help.home_assistant.readonly": "Når dette er aktiveret, kan agenten kun læse enhedstilstande, men ikke kalde tjenester (ingen omskiftning af enheder).",
+  "help.ansible.readonly": "Når dette er aktiveret, kan agenten kun tjekke status og inventory og vise playbooks, men ikke køre ad hoc-kommandoer eller playbooks. Kontrol og prøveafvikling kræver også skriveret; Ansible-opgaver kan ignorere kontroltilstand."
 }

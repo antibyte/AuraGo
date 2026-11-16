@@ -91,7 +91,7 @@
   "help.ansible.image": "(Μόνο σε λειτουργία sidecar) Εικόνα Docker για το container sidecar του Ansible. Προεπιλογή: 'aurago-ansible:latest'. Κατασκευή με: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Λειτουργία εκτέλεσης: 'sidecar' = container API του Ansible (Docker), 'local' = κλήση των δυαδικών ansible απευθείας στον κεντρικό υπολογιστή. Προεπιλογή: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Μόνο σε τοπική λειτουργία) Κατάλογος με τα playbooks του Ansible (π.χ. '/opt/ansible/playbooks'). Μεταβλητή περιβάλλοντος: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να ελέγχει κατάσταση και inventory και να απαριθμεί playbooks, αλλά όχι να εκτελεί ad-hoc εντολές ή playbooks.",
+  "help.ansible.read_only": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να ελέγχει κατάσταση και inventory και να απαριθμεί playbooks, αλλά όχι να εκτελεί ad-hoc εντολές ή playbooks. Ο έλεγχος και η δοκιμαστική εκτέλεση απαιτούν επίσης δικαίωμα εγγραφής· οι εργασίες Ansible μπορούν να αγνοήσουν τη λειτουργία ελέγχου.",
   "help.ansible.timeout": "Μέγιστος χρόνος εκτέλεσης εντολών Ansible σε δευτερόλεπτα (προεπιλογή: 300). Αυξήστε τον για playbooks μεγάλης διάρκειας.",
   "help.ansible.token": "(Μόνο σε λειτουργία sidecar) Bearer token για το API του sidecar Ansible. Πρέπει να ταιριάζει με το ANSIBLE_API_TOKEN μέσα στο container.",
   "help.ansible.url": "(Μόνο σε λειτουργία sidecar) URL του διακομιστή API του Ansible. Προεπιλογή: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να διαβάζει αποθετήρια, issues και PR, αλλά όχι να δημιουργεί, να διαγράφει ή να τροποποιεί αρχεία.",
   "help.github.token": "Προσωπικό διακριτικό πρόσβασης (PAT) για το GitHub API. Δημιουργήστε ένα στο https://github.com/settings/tokens με τα απαιτούμενα scopes (repo, issues κ.λπ.). Αποθηκεύεται κρυπτογραφημένο στο θησαυροφυλάκιο.",
   "help.home_assistant.access_token": "Διακριτικό πρόσβασης μακράς διάρκειας για την αυθεντικοποίηση στο Home Assistant.",
-  "help.home_assistant.allowed_services": "Προαιρετική λίστα πλήρων ονομάτων domain.service. Η έμμεση εκτέλεση (script, automation, python_script, rest_command, pyscript, shell_command, hassio) και οι κρίσιμες υπηρεσίες συστήματος απαιτούν ρητή άδεια. Οι γενικές κλήσεις ελέγχουν συγκεκριμένες ενέργειες στόχων· οι ασαφείς ομάδες απορρίπτονται. Η λίστα αποκλεισμού και η λειτουργία μόνο ανάγνωσης υπερισχύουν.",
+  "help.home_assistant.allowed_services": "Προαιρετική λίστα πλήρων ονομάτων domain.service. Η έμμεση εκτέλεση (script, automation, python_script, rest_command, pyscript, shell_command, hassio) και οι κρίσιμες υπηρεσίες συστήματος απαιτούν ρητή άδεια. Οι γενικές κλήσεις ελέγχουν συγκεκριμένες ενέργειες στόχων· οι ασαφείς ομάδες απορρίπτονται. Η λίστα αποκλεισμού και η λειτουργία μόνο ανάγνωσης υπερισχύουν. Οι υπηρεσίες των lock, alarm_control_panel και cover απαιτούν πάντα ρητή καταχώριση στο allowed_services.",
   "help.home_assistant.blocked_services": "Υπηρεσίες Home Assistant που ο πράκτορας δεν πρέπει ποτέ να καλεί, όπως lock.unlock. Αυτή η λίστα αποκλεισμού ελέγχεται πριν από τις επιτρεπόμενες υπηρεσίες.",
   "help.home_assistant.enabled": "Ενεργοποιεί την ενσωμάτωση έξυπνου σπιτιού Home Assistant.",
   "help.home_assistant.read_only": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να διαβάζει καταστάσεις συσκευών, αλλά όχι να καλεί υπηρεσίες (χωρίς εναλλαγή συσκευών).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Επιτάχυνση: auto, none, nvidia, amd, intel ή vulkan.",
   "help.vision.mirage.max_objects": "Μέγιστος αριθμός αναγνωρισμένων αντικειμένων ανά εικόνα· προεπιλογή: 20.",
   "help.vision.mirage.max_text_lines": "Μέγιστος αριθμός αναγνωρισμένων γραμμών κειμένου ανά εικόνα· προεπιλογή: 30.",
-  "help.vision.mirage.language": "Γλώσσα αναγνώρισης. Αφήστε κενό για την προεπιλογή της μηχανής."
+  "help.vision.mirage.language": "Γλώσσα αναγνώρισης. Αφήστε κενό για την προεπιλογή της μηχανής.",
+  "help.home_assistant.readonly": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να διαβάζει καταστάσεις συσκευών, αλλά όχι να καλεί υπηρεσίες (χωρίς εναλλαγή συσκευών).",
+  "help.ansible.readonly": "Όταν είναι ενεργοποιημένο, ο πράκτορας μπορεί μόνο να ελέγχει κατάσταση και inventory και να απαριθμεί playbooks, αλλά όχι να εκτελεί ad-hoc εντολές ή playbooks. Ο έλεγχος και η δοκιμαστική εκτέλεση απαιτούν επίσης δικαίωμα εγγραφής· οι εργασίες Ansible μπορούν να αγνοήσουν τη λειτουργία ελέγχου."
 }

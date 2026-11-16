@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Permite crear, actualizar y eliminar proyectos de Vercel.",
   "config.vercel.allow_env_management_help": "Permite gestionar variables de entorno de proyectos Vercel.",
   "config.vercel.allow_domain_management_help": "Permite añadir, actualizar y eliminar dominios de Vercel.",
-  "config.vercel.default_project_id_help": "ID de proyecto opcional usado cuando el agente no indica uno.",
+  "config.vercel.default_project_id_help": "Vincula un ID de proyecto existente (prj_...) y el ID de equipo correspondiente para desplegar. No se usa el nombre de la carpeta; los proyectos nuevos requieren permiso de administración y un nombre explícito.",
   "config.vercel.team_id_help": "ID opcional del equipo de Vercel para llamadas API del equipo.",
   "config.vercel.team_slug_help": "Slug opcional del equipo de Vercel para llamadas API del equipo.",
   "config.vercel.vault_badge": "vault"

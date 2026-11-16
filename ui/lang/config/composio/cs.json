@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio ID uživatele",
   "config.composio.saving": "Ukládám...",
   "config.composio.testing": "Testování připojení...",
-  "config.composio.filter_label": "Zobrazit sady nástrojů"
+  "config.composio.filter_label": "Zobrazit sady nástrojů",
+  "config.composio.account_binding": "Přiřazený účet",
+  "config.composio.account_binding_help": "Vyber aktivní účet tohoto uživatele a sady nástrojů a ulož změny. Volba je závazná; prázdná volba funguje pouze s jediným odpovídajícím aktivním účtem.",
+  "config.composio.unique_account": "Automaticky (jediný aktivní účet)"
 }

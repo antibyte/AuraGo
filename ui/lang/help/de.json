@@ -91,7 +91,7 @@
   "help.ansible.image": "(Nur sidecar-Modus) Docker-Image für den Ansible-Sidecar-Container. Standard: 'aurago-ansible:latest'. Bauen mit: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Ausführungsmodus: 'sidecar' = Ansible-API-Container (Docker), 'local' = ansible-Binaries direkt auf dem Host aufrufen. Standard: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Nur local-Modus) Verzeichnis mit den Ansible-Playbooks (z.B. '/opt/ansible/playbooks'). Umgebungsvariable: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Wenn aktiviert, darf der Agent nur Status, Inventar und Playbooks auflisten, aber keine Ad-hoc-Befehle oder Playbooks ausführen.",
+  "help.ansible.read_only": "Wenn aktiviert, darf der Agent nur Status, Inventar und Playbooks auflisten, aber keine Ad-hoc-Befehle oder Playbooks ausführen. Auch Check und Dry-run benötigen Schreibrecht; Ansible-Aufgaben können den Prüfmodus ignorieren.",
   "help.ansible.timeout": "Maximale Laufzeit für Ansible-Befehle in Sekunden (Standard: 300). Für lange Playbooks erhöhen.",
   "help.ansible.token": "(Nur sidecar-Modus) Bearer-Token für die Ansible-Sidecar-API. Muss mit ANSIBLE_API_TOKEN im Container übereinstimmen.",
   "help.ansible.url": "(Nur sidecar-Modus) URL des Ansible-API-Servers. Standard: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Wenn aktiviert, darf der Agent nur Repos, Issues und PRs lesen, aber keine erstellen, löschen oder Dateien ändern.",
   "help.github.token": "Personal Access Token (PAT) für die GitHub API. Erstelle unter https://github.com/settings/tokens ein Token mit den benötigten Berechtigungen (repo, issues, etc.). Wird verschlüsselt im Vault gespeichert.",
   "help.home_assistant.access_token": "Langlebiges Access Token für Home Assistant Auth.",
-  "help.home_assistant.allowed_services": "Optionale Freigabeliste vollständiger Dienstnamen (domain.service). Indirekte Ausführung (script, automation, python_script, rest_command, pyscript, shell_command, hassio) und kritische Systemdienste brauchen ausdrückliche Freigaben. Generische Aufrufe prüfen konkrete Zielaktionen; unaufgelöste Sammelziele werden abgewiesen. Sperrliste und Nur-Lesen haben Vorrang.",
+  "help.home_assistant.allowed_services": "Optionale Freigabeliste vollständiger Dienstnamen (domain.service). Indirekte Ausführung (script, automation, python_script, rest_command, pyscript, shell_command, hassio) und kritische Systemdienste brauchen ausdrückliche Freigaben. Generische Aufrufe prüfen konkrete Zielaktionen; unaufgelöste Sammelziele werden abgewiesen. Sperrliste und Nur-Lesen haben Vorrang. Dienste aus lock, alarm_control_panel und cover benötigen immer einen ausdrücklichen Eintrag in allowed_services.",
   "help.home_assistant.blocked_services": "Home-Assistant-Services, die der Agent nie aufrufen darf, z.B. lock.unlock. Diese Blockliste wird vor den erlaubten Services geprüft.",
   "help.home_assistant.enabled": "Aktiviert die Home Assistant Smart-Home-Integration.",
   "help.home_assistant.read_only": "Wenn aktiviert, darf der Agent nur Gerätezustände lesen, aber keine Services aufrufen (kein Schalten von Geräten).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Beschleunigung: auto, none, nvidia, amd, intel oder vulkan.",
   "help.vision.mirage.max_objects": "Maximale Anzahl erkannter Objekte pro Bild; Standard: 20.",
   "help.vision.mirage.max_text_lines": "Maximale Anzahl erkannter Textzeilen pro Bild; Standard: 30.",
-  "help.vision.mirage.language": "Sprache der Erkennung. Leer lassen, um den Standard der Engine zu verwenden."
+  "help.vision.mirage.language": "Sprache der Erkennung. Leer lassen, um den Standard der Engine zu verwenden.",
+  "help.home_assistant.readonly": "Wenn aktiviert, darf der Agent nur Gerätezustände lesen, aber keine Services aufrufen (kein Schalten von Geräten).",
+  "help.ansible.readonly": "Wenn aktiviert, darf der Agent nur Status, Inventar und Playbooks auflisten, aber keine Ad-hoc-Befehle oder Playbooks ausführen. Auch Check und Dry-run benötigen Schreibrecht; Ansible-Aufgaben können den Prüfmodus ignorieren."
 }

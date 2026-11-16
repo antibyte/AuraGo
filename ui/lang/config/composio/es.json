@@ -61,5 +61,8 @@
   "config.composio.user_id": "ID de usuario de Composio",
   "config.composio.saving": "Guardando...",
   "config.composio.testing": "Probando conexión...",
-  "config.composio.filter_label": "Mostrar toolkits"
+  "config.composio.filter_label": "Mostrar toolkits",
+  "config.composio.account_binding": "Cuenta vinculada",
+  "config.composio.account_binding_help": "Elige una cuenta activa de este usuario y conjunto de herramientas y guarda. La selección es obligatoria; dejarla vacía solo funciona si hay exactamente una cuenta activa adecuada.",
+  "config.composio.unique_account": "Automática (una sola cuenta activa)"
 }

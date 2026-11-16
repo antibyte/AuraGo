@@ -19,7 +19,7 @@
   "help.obsidian.setup_hint": "Kräver Obsidian community-pluginet <strong>Local REST API</strong>. Installera och aktivera det i Obsidian och kopiera sedan API-nyckeln från <strong>Inställningar → Local REST API</strong>. Behåll <code>127.0.0.1</code> när AuraGo och Obsidian körs på samma maskin. Om AuraGo körs i Docker, WSL eller på en annan enhet ska du i stället använda en nåbar värd/IP; vissa pluginupplägg kan också kräva att bind-adressen ändras från <code>127.0.0.1</code> till <code>0.0.0.0</code>. Exponera detta bara på betrodda nätverk.",
   "help.obsidian.enabled": "Aktivera Obsidian kunskapshanteringsintegration",
   "help.obsidian.readonly": "När aktiverat tillåts bara läsoperationer",
-  "help.obsidian.allow_destructive": "Tillåt radering av anteckningar",
+  "help.obsidian.allow_destructive": "Tillåt borttagning av anteckningar och godtyckliga execute_command-anrop. Skrivskydd blockerar dem fortfarande.",
   "help.obsidian.host": "Värdnamn eller IP för Obsidian-instansen",
   "help.obsidian.port": "Port för Obsidian Local REST API-plugin (standard: 27124)",
   "help.obsidian.use_https": "Använd HTTPS-anslutning (rekommenderat, standard: true)",

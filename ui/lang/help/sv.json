@@ -91,7 +91,7 @@
   "help.ansible.image": "(Endast sidecar-läge) Docker-avbild för Ansible-sidecarcontainern. Standard: 'aurago-ansible:latest'. Bygg med: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Körläge: 'sidecar' = Ansible-API-container (Docker), 'local' = anropa ansible-binärer direkt på värden. Standard: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Endast lokalt läge) Katalog med Ansible-playbooks (t.ex. '/opt/ansible/playbooks'). Miljövariabel: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks.",
+  "help.ansible.read_only": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks. Kontroll och provkörning kräver också skrivbehörighet; Ansible-uppgifter kan ignorera kontrolläget.",
   "help.ansible.timeout": "Maximal körtid för Ansible-kommandon i sekunder (standard: 300). Öka för långkörande playbooks.",
   "help.ansible.token": "(Endast sidecar-läge) Bearer-token för Ansible-sidecar-API:t. Måste stämma överens med ANSIBLE_API_TOKEN i containern.",
   "help.ansible.url": "(Endast sidecar-läge) URL till Ansible-API-servern. Standard: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "När detta är aktiverat kan agenten bara läsa arkiv, ärenden och pull requests men inte skapa, ta bort eller ändra filer.",
   "help.github.token": "Personal Access Token (PAT) för GitHub-API:t. Skapa en på https://github.com/settings/tokens med de behörigheter som krävs (repo, issues m.m.). Lagras krypterad i valvet.",
   "help.home_assistant.access_token": "Långlivad åtkomsttoken för Home Assistant-autentisering.",
-  "help.home_assistant.allowed_services": "Valfri tillåtelselista med fullständiga domain.service-namn. Indirekt körning (script, automation, python_script, rest_command, pyscript, shell_command, hassio) och kritiska systemtjänster kräver uttryckligt tillstånd. Generella anrop kontrollerar konkreta målåtgärder; olösta grupper nekas. Blocklista och skrivskydd har företräde.",
+  "help.home_assistant.allowed_services": "Valfri tillåtelselista med fullständiga domain.service-namn. Indirekt körning (script, automation, python_script, rest_command, pyscript, shell_command, hassio) och kritiska systemtjänster kräver uttryckligt tillstånd. Generella anrop kontrollerar konkreta målåtgärder; olösta grupper nekas. Blocklista och skrivskydd har företräde. Tjänster i lock, alarm_control_panel och cover kräver alltid en uttrycklig post i allowed_services.",
   "help.home_assistant.blocked_services": "Home Assistant-tjänster som agenten aldrig får anropa, t.ex. lock.unlock. Den här blockeringslistan kontrolleras före tillåtna tjänster.",
   "help.home_assistant.enabled": "Aktiverar Home Assistant-integrationen för smarta hem.",
   "help.home_assistant.read_only": "När detta är aktiverat kan agenten bara läsa enhetstillstånd men inte anropa tjänster (inga växlingar av enheter).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Acceleration: auto, none, nvidia, amd, intel eller vulkan.",
   "help.vision.mirage.max_objects": "Maximalt antal identifierade objekt per bild; standard: 20.",
   "help.vision.mirage.max_text_lines": "Maximalt antal identifierade textrader per bild; standard: 30.",
-  "help.vision.mirage.language": "Språk för igenkänning. Lämna tomt för att använda motorns standard."
+  "help.vision.mirage.language": "Språk för igenkänning. Lämna tomt för att använda motorns standard.",
+  "help.home_assistant.readonly": "När detta är aktiverat kan agenten bara läsa enhetstillstånd men inte anropa tjänster (inga växlingar av enheter).",
+  "help.ansible.readonly": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks. Kontroll och provkörning kräver också skrivbehörighet; Ansible-uppgifter kan ignorera kontrolläget."
 }

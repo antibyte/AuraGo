@@ -61,5 +61,8 @@
   "config.composio.user_id": "Αναγνωριστικό χρήστη Composio",
   "config.composio.saving": "Αποθήκευση...",
   "config.composio.testing": "Δοκιμή σύνδεσης...",
-  "config.composio.filter_label": "Εμφάνιση πακέτων εργαλείων"
+  "config.composio.filter_label": "Εμφάνιση πακέτων εργαλείων",
+  "config.composio.account_binding": "Συνδεδεμένος λογαριασμός",
+  "config.composio.account_binding_help": "Επίλεξε ενεργό λογαριασμό για αυτόν τον χρήστη και την εργαλειοθήκη και αποθήκευσε. Η επιλογή είναι δεσμευτική· η κενή επιλογή λειτουργεί μόνο με έναν κατάλληλο ενεργό λογαριασμό.",
+  "config.composio.unique_account": "Αυτόματα (μόνο ένας ενεργός λογαριασμός)"
 }

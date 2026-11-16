@@ -1,5 +1,7 @@
 # AgentMail Legacy Compatibility
 
+File attachments require a nonempty workspace and shared rooted outgoing-file checks. Configuration/data roots, protected files, links to protected state, special files and oversized files are refused before reading. An overbroad workspace must be narrowed; there is no current-directory fallback. Base64 attachments retain their size limit.
+
 Prefer `agentmail_inboxes`, `agentmail_messages`, `agentmail_threads`, and `agentmail_drafts` when they are visible. The legacy `agentmail` action remains accepted for dispatch compatibility with older clients and prompts. This is separate from the IMAP/SMTP tools `fetch_email`, `send_email`, and `list_email_accounts`.
 
 Common operations:

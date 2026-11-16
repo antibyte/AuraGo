@@ -2,10 +2,21 @@ package ui
 
 import (
 	"encoding/json"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 )
+
+func TestConfigComposioAccountBinding(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js is required")
+	}
+	if out, err := exec.Command(node, "testdata/composio-account-binding.cjs").CombinedOutput(); err != nil {
+		t.Fatalf("account binding regression: %v\n%s", err, out)
+	}
+}
 
 func TestConfigComposioAPIKeyParticipatesInNormalConfigSave(t *testing.T) {
 	t.Parallel()

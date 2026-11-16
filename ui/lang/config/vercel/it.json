@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Consente di creare, aggiornare ed eliminare i progetti Vercel.",
   "config.vercel.allow_env_management_help": "Consente di gestire le variabili d'ambiente del progetto Vercel.",
   "config.vercel.allow_domain_management_help": "Consente di aggiungere, aggiornare e rimuovere i domini Vercel.",
-  "config.vercel.default_project_id_help": "ID progetto facoltativo usato quando l'agente non nomina un progetto.",
+  "config.vercel.default_project_id_help": "Associa un ID progetto esistente (prj_...) e il relativo ID team per distribuire. Non viene usato il nome della cartella; i nuovi progetti richiedono il permesso di gestione e un nome esplicito.",
   "config.vercel.team_id_help": "ID team Vercel facoltativo per le chiamate API con ambito team.",
   "config.vercel.team_slug_help": "Slug del team Vercel facoltativo per le chiamate API con ambito team.",
   "config.vercel.vault_badge": "vault"

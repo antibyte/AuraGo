@@ -1,5 +1,7 @@
 # Obsidian Tool
 
+Arbitrary execute_command operations always require obsidian.allow_destructive, because installed commands may mutate or delete notes. Read-only still denies them. Fixed read/open-note operations keep their own policy.
+
 Interact with an Obsidian vault using the Local REST API plugin.
 
 ## Operations

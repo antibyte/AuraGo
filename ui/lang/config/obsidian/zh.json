@@ -19,7 +19,7 @@
   "help.obsidian.setup_hint": "需要安装 Obsidian 社区插件 <strong>Local REST API</strong>。请先在 Obsidian 中安装并启用它，然后从 <strong>设置 → Local REST API</strong> 复制 API 密钥。当 AuraGo 和 Obsidian 运行在同一台机器上时，请保持 <code>127.0.0.1</code>。如果 AuraGo 运行在 Docker、WSL 或另一台设备上，请改用可访问的主机/IP；某些插件配置还可能需要把绑定地址从 <code>127.0.0.1</code> 改为 <code>0.0.0.0</code>。只应在可信网络中暴露此设置。",
   "help.obsidian.enabled": "启用 Obsidian 知识管理集成",
   "help.obsidian.readonly": "启用后，仅允许读取操作",
-  "help.obsidian.allow_destructive": "允许删除笔记",
+  "help.obsidian.allow_destructive": "允许删除笔记和执行任意 execute_command 命令。只读模式仍会阻止这些操作。",
   "help.obsidian.host": "Obsidian 实例的主机名或 IP",
   "help.obsidian.port": "Obsidian Local REST API 插件的端口（默认：27124）",
   "help.obsidian.use_https": "使用 HTTPS 连接（推荐，默认：true）",

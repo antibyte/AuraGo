@@ -1,5 +1,7 @@
 # tailscale — Tailscale VPN Management
 
+Direct device IDs must be numeric IDs or supported stable node IDs. Path separators, query/fragment/control characters and percent-encoded input are refused. Hostname/IP lookup remains available and validates the returned ID before building a request path.
+
 Inspect and manage your Tailscale network via the Tailscale API v2.
 
 > **Requires** `tailscale.enabled: true` and a Tailscale API key (`tskey-api-…`) in `config.yaml` under `tailscale.api_key` or `TAILSCALE_API_KEY` env var.

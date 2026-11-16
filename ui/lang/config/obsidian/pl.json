@@ -19,7 +19,7 @@
   "help.obsidian.setup_hint": "Wymaga wtyczki społeczności Obsidian <strong>Local REST API</strong>. Zainstaluj ją i włącz w Obsidianie, a następnie skopiuj klucz API z <strong>Ustawienia → Local REST API</strong>. Pozostaw <code>127.0.0.1</code>, gdy AuraGo i Obsidian działają na tej samej maszynie. Jeśli AuraGo działa w Dockerze, WSL lub na innym urządzeniu, użyj zamiast tego osiągalnego hosta/IP; niektóre konfiguracje wtyczki mogą też wymagać zmiany adresu wiązania z <code>127.0.0.1</code> na <code>0.0.0.0</code>. Udostępniaj to tylko w zaufanych sieciach.",
   "help.obsidian.enabled": "Włącz integrację zarządzania wiedzą Obsidian",
   "help.obsidian.readonly": "Po włączeniu dozwolone są tylko operacje odczytu",
-  "help.obsidian.allow_destructive": "Zezwalaj na usuwanie notatek",
+  "help.obsidian.allow_destructive": "Zezwalaj na usuwanie notatek i dowolne polecenia execute_command. Tryb tylko do odczytu nadal je blokuje.",
   "help.obsidian.host": "Nazwa hosta lub IP instancji Obsidian",
   "help.obsidian.port": "Port wtyczki Obsidian Local REST API (domyślnie: 27124)",
   "help.obsidian.use_https": "Używaj połączenia HTTPS (zalecane, domyślnie: true)",

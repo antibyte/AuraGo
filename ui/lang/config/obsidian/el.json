@@ -19,7 +19,7 @@
   "help.obsidian.setup_hint": "Απαιτεί το community plugin του Obsidian <strong>Local REST API</strong>. Εγκαταστήστε και ενεργοποιήστε το στο Obsidian και μετά αντιγράψτε το κλειδί API από <strong>Ρυθμίσεις → Local REST API</strong>. Κρατήστε το <code>127.0.0.1</code> όταν το AuraGo και το Obsidian τρέχουν στο ίδιο μηχάνημα. Αν το AuraGo τρέχει σε Docker, WSL ή σε άλλη συσκευή, χρησιμοποιήστε μια προσβάσιμη διεύθυνση host/IP· ορισμένες ρυθμίσεις του plugin μπορεί επίσης να απαιτούν αλλαγή της bind address από <code>127.0.0.1</code> σε <code>0.0.0.0</code>. Να το εκθέτετε μόνο σε έμπιστα δίκτυα.",
   "help.obsidian.enabled": "Ενεργοποίηση ενσωμάτωσης διαχείρισης γνώσης Obsidian",
   "help.obsidian.readonly": "Όταν είναι ενεργοποιημένο, επιτρέπονται μόνο λειτουργίες ανάγνωσης",
-  "help.obsidian.allow_destructive": "Επιτρέπεται η διαγραφή σημειώσεων",
+  "help.obsidian.allow_destructive": "Να επιτρέπονται η διαγραφή σημειώσεων και αυθαίρετες εντολές execute_command. Η λειτουργία μόνο ανάγνωσης εξακολουθεί να τις αποκλείει.",
   "help.obsidian.host": "Όνομα κεντρικού υπολογιστή ή IP της παρουσίας Obsidian",
   "help.obsidian.port": "Θύρα του plugin Obsidian Local REST API (προεπιλογή: 27124)",
   "help.obsidian.use_https": "Χρήση σύνδεσης HTTPS (συνιστάται, προεπιλογή: true)",

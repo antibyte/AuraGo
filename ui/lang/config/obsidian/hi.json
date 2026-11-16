@@ -19,7 +19,7 @@
   "help.obsidian.setup_hint": "इसके लिए Obsidian कम्युनिटी प्लगइन <strong>Local REST API</strong> चाहिए। इसे Obsidian में इंस्टॉल करें और सक्षम करें, फिर <strong>सेटिंग्स → Local REST API</strong> से API कुंजी कॉपी करें। जब AuraGo और Obsidian एक ही मशीन पर चल रहे हों, तो <code>127.0.0.1</code> ही रखें। अगर AuraGo Docker, WSL या किसी दूसरे डिवाइस पर चल रहा है, तो उसकी जगह पहुँच योग्य होस्ट/IP इस्तेमाल करें; कुछ प्लगइन सेटअप में बाइंड पते को <code>127.0.0.1</code> से <code>0.0.0.0</code> में बदलना भी पड़ सकता है। इसे केवल भरोसेमंद नेटवर्क पर ही एक्सपोज़ करें।",
   "help.obsidian.enabled": "Obsidian ज्ञान प्रबंधन एकीकरण सक्षम करें",
   "help.obsidian.readonly": "सक्षम होने पर, केवल पढ़ने के संचालन की अनुमति है",
-  "help.obsidian.allow_destructive": "नोट्स को हटाने की अनुमति दें",
+  "help.obsidian.allow_destructive": "नोट हटाने और मनचाहे execute_command चलाने की अनुमति दें। केवल पढ़ने का मोड इन्हें फिर भी रोकता है।",
   "help.obsidian.host": "Obsidian इंस्टेंस का होस्टनेम या IP",
   "help.obsidian.port": "Obsidian Local REST API प्लगइन का पोर्ट (डिफ़ॉल्ट: 27124)",
   "help.obsidian.use_https": "HTTPS कनेक्शन का उपयोग करें (अनुशंसित, डिफ़ॉल्ट: true)",

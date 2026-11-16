@@ -91,7 +91,7 @@
   "help.ansible.image": "(Mode sidecar uniquement) Image Docker pour le conteneur sidecar Ansible. Par défaut : 'aurago-ansible:latest'.",
   "help.ansible.mode": "Mode d'exécution : 'sidecar' = conteneur API Ansible (Docker), 'local' = appeler les binaires ansible directement sur l'hôte. Par défaut : 'side-car'.",
   "help.ansible.playbooks_dir": "(Mode local uniquement) Répertoire contenant les playbooks Ansible (par exemple « /opt/ansible/playbooks »). Var d'environnement : ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Lorsqu'il est activé, l'agent peut uniquement vérifier l'état, l'inventaire et répertorier les playbooks, mais ne peut pas exécuter de commandes ou de playbooks ad hoc.",
+  "help.ansible.read_only": "Lorsqu'il est activé, l'agent peut uniquement vérifier l'état, l'inventaire et répertorier les playbooks, mais ne peut pas exécuter de commandes ou de playbooks ad hoc. La vérification et la simulation exigent aussi le droit d’écriture ; les tâches Ansible peuvent ignorer le mode de vérification.",
   "help.ansible.timeout": "Durée d'exécution maximale des commandes Ansible en secondes (par défaut : 300). Augmentation pour les playbooks de longue durée.",
   "help.ansible.token": "(Mode side-car uniquement) Jeton porteur pour l'API side-car Ansible. Doit correspondre à ANSIBLE_API_TOKEN dans le conteneur.",
   "help.ansible.url": "(Mode Sidecar uniquement) URL du serveur API Ansible. Par défaut : 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Lorsqu'il est activé, l'agent peut uniquement lire les dépôts, les problèmes et les PR, mais ne peut pas créer, supprimer ou modifier des fichiers.",
   "help.github.token": "Jeton d'accès personnel (PAT) pour l'API GitHub. Créez-en un sur https://github.com/settings/tokens avec les étendues requises (repo, issues, etc.). Stocké crypté dans le coffre-fort.",
   "help.home_assistant.access_token": "Jeton d'accès de longue durée pour l'authentification Home Assistant.",
-  "help.home_assistant.allowed_services": "Liste facultative de noms complets domain.service. L’exécution indirecte (script, automation, python_script, rest_command, pyscript, shell_command, hassio) et les services critiques exigent une autorisation explicite. Les appels génériques vérifient les actions des cibles concrètes ; les groupes non résolus sont refusés. Blocage et lecture seule restent prioritaires.",
+  "help.home_assistant.allowed_services": "Liste facultative de noms complets domain.service. L’exécution indirecte (script, automation, python_script, rest_command, pyscript, shell_command, hassio) et les services critiques exigent une autorisation explicite. Les appels génériques vérifient les actions des cibles concrètes ; les groupes non résolus sont refusés. Blocage et lecture seule restent prioritaires. Les services des domaines lock, alarm_control_panel et cover nécessitent toujours une entrée explicite dans allowed_services.",
   "help.home_assistant.blocked_services": "Services Home Assistant que l'agent ne doit jamais appeler, par exemple lock.unlock. Cette liste de blocage est verifiee avant les services autorises.",
   "help.home_assistant.enabled": "Permet l'intégration de la maison intelligente Home Assistant.",
   "help.home_assistant.read_only": "Lorsqu'il est activé, l'agent peut uniquement lire l'état des appareils mais ne peut pas appeler de services (pas de basculement d'appareils).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Accélération : auto, none, nvidia, amd, intel ou vulkan.",
   "help.vision.mirage.max_objects": "Nombre maximal d’objets reconnus par image ; par défaut : 20.",
   "help.vision.mirage.max_text_lines": "Nombre maximal de lignes de texte reconnues par image ; par défaut : 30.",
-  "help.vision.mirage.language": "Langue de reconnaissance. Laisser vide pour utiliser la valeur par défaut du moteur."
+  "help.vision.mirage.language": "Langue de reconnaissance. Laisser vide pour utiliser la valeur par défaut du moteur.",
+  "help.home_assistant.readonly": "Lorsqu'il est activé, l'agent peut uniquement lire l'état des appareils mais ne peut pas appeler de services (pas de basculement d'appareils).",
+  "help.ansible.readonly": "Lorsqu'il est activé, l'agent peut uniquement vérifier l'état, l'inventaire et répertorier les playbooks, mais ne peut pas exécuter de commandes ou de playbooks ad hoc. La vérification et la simulation exigent aussi le droit d’écriture ; les tâches Ansible peuvent ignorer le mode de vérification."
 }

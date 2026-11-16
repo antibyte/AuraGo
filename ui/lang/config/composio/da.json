@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio-bruger-ID",
   "config.composio.saving": "Gemmer...",
   "config.composio.testing": "Tester forbindelse...",
-  "config.composio.filter_label": "Vis værktøjssæt"
+  "config.composio.filter_label": "Vis værktøjssæt",
+  "config.composio.account_binding": "Tilknyttet konto",
+  "config.composio.account_binding_help": "Vælg en aktiv konto for denne bruger og værktøjssamling, og gem. Valget er bindende; tomt valg virker kun med præcis én passende aktiv konto.",
+  "config.composio.unique_account": "Automatisk (kun én aktiv konto)"
 }

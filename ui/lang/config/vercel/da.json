@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Tillader oprettelse, opdatering og sletning af Vercel-projekter.",
   "config.vercel.allow_env_management_help": "Tillader administration af miljøvariabler i Vercel-projekter.",
   "config.vercel.allow_domain_management_help": "Tillader tilføjelse, opdatering og fjernelse af Vercel-domæner.",
-  "config.vercel.default_project_id_help": "Valgfrit projekt-id, der bruges, når agenten ikke navngiver et projekt.",
+  "config.vercel.default_project_id_help": "Bind et eksisterende projekt-id (prj_...) og det tilhørende team-id til udrulning. Mappenavnet bruges ikke; nye projekter kræver administrationsret og et udtrykkeligt navn.",
   "config.vercel.team_id_help": "Valgfrit Vercel-team-id til teamafgrænsede API-kald.",
   "config.vercel.team_slug_help": "Valgfri Vercel-teamslug til teamafgrænsede API-kald.",
   "config.vercel.vault_badge": "vault"

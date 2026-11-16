@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio-användar-ID",
   "config.composio.saving": "Sparar...",
   "config.composio.testing": "Testar anslutning...",
-  "config.composio.filter_label": "Visa verktygssatser"
+  "config.composio.filter_label": "Visa verktygssatser",
+  "config.composio.account_binding": "Kopplat konto",
+  "config.composio.account_binding_help": "Välj ett aktivt konto för den här användaren och verktygssamlingen och spara. Valet är bindande; tomt val fungerar endast med exakt ett matchande aktivt konto.",
+  "config.composio.unique_account": "Automatiskt (endast ett aktivt konto)"
 }

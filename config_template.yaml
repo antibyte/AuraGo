@@ -548,8 +548,9 @@ retro_games:
 home_assistant:
     access_token: ""
     enabled: false
+    readonly: false                                      # blocks every service call when enabled
     url: ""
-    allowed_services: []                                  # full domain.service names; executable domains always need explicit grants
+    allowed_services: []                                  # explicit grants required for executable domains and lock/alarm_control_panel/cover
     blocked_services: []                                  # explicit denylist, evaluated before allowed_services
 rules:
     enabled: true                                         # task-specific markdown guardrails under prompts/rules/

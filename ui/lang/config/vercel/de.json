@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Erlaubt das Erstellen, Ändern und Löschen von Vercel-Projekten.",
   "config.vercel.allow_env_management_help": "Erlaubt das Verwalten von Umgebungsvariablen in Vercel-Projekten.",
   "config.vercel.allow_domain_management_help": "Erlaubt das Hinzufügen, Ändern und Entfernen von Vercel-Domains.",
-  "config.vercel.default_project_id_help": "Optionale Projekt-ID, wenn der Agent kein Projekt nennt.",
+  "config.vercel.default_project_id_help": "Binde für Deployments eine bestehende Projekt-ID (prj_...) und die passende Team-ID. Kein Rückgriff auf Ordnernamen; neue Projekte benötigen Verwaltungsrecht und einen ausdrücklichen Namen.",
   "config.vercel.team_id_help": "Optionale Vercel-Team-ID für teambezogene API-Aufrufe.",
   "config.vercel.team_slug_help": "Optionaler Vercel-Team-Slug für teambezogene API-Aufrufe.",
   "config.vercel.vault_badge": "Tresor"

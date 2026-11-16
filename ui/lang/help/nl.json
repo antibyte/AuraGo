@@ -91,7 +91,7 @@
   "help.ansible.image": "(Alleen sidecar-modus) Docker-image voor de Ansible-sidecarcontainer. Standaard: 'aurago-ansible:latest'. Bouwen met: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Uitvoeringsmodus: 'sidecar' = Ansible-API-container (Docker), 'local' = ansible-binaries rechtstreeks op de host aanroepen. Standaard: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Alleen lokale modus) Map met Ansible-playbooks (bijv. '/opt/ansible/playbooks'). Env: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren.",
+  "help.ansible.read_only": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren. Controle en proefuitvoering vereisen ook schrijfrechten; Ansible-taken kunnen de controlemodus negeren.",
   "help.ansible.timeout": "Maximale looptijd voor Ansible-opdrachten in seconden (standaard: 300). Verhoog dit voor langlopende playbooks.",
   "help.ansible.token": "(Alleen sidecar-modus) Bearer-token voor de Ansible-sidecar-API. Moet overeenkomen met ANSIBLE_API_TOKEN in de container.",
   "help.ansible.url": "(Alleen sidecar-modus) URL van de Ansible-API-server. Standaard: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Wanneer ingeschakeld, kan de agent alleen repos, issues en PR's lezen, maar geen bestanden maken, verwijderen of wijzigen.",
   "help.github.token": "Personal Access Token (PAT) voor de GitHub-API. Maak er een aan op https://github.com/settings/tokens met de vereiste scopes (repo, issues, enz.). Versleuteld opgeslagen in de Vault.",
   "help.home_assistant.access_token": "Langlevend toegangstoken voor Home Assistant-authenticatie.",
-  "help.home_assistant.allowed_services": "Optionele lijst met volledige domain.service-namen. Indirecte uitvoering (script, automation, python_script, rest_command, pyscript, shell_command, hassio) en kritieke systeemdiensten vereisen expliciete toestemming. Algemene aanroepen controleren concrete doelacties; onopgeloste groepen worden geweigerd. Blokkades en alleen-lezen hebben voorrang.",
+  "help.home_assistant.allowed_services": "Optionele lijst met volledige domain.service-namen. Indirecte uitvoering (script, automation, python_script, rest_command, pyscript, shell_command, hassio) en kritieke systeemdiensten vereisen expliciete toestemming. Algemene aanroepen controleren concrete doelacties; onopgeloste groepen worden geweigerd. Blokkades en alleen-lezen hebben voorrang. Diensten in lock, alarm_control_panel en cover vereisen altijd een expliciete vermelding in allowed_services.",
   "help.home_assistant.blocked_services": "Home Assistant-services die de agent nooit mag aanroepen, zoals lock.unlock. Deze blokkeerlijst wordt voor toegestane services gecontroleerd.",
   "help.home_assistant.enabled": "Home Assistant.",
   "help.home_assistant.read_only": "Wanneer ingeschakeld, kan de agent alleen apparaatstatussen lezen en geen services aanroepen (geen apparaten schakelen).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Versnelling: auto, none, nvidia, amd, intel of vulkan.",
   "help.vision.mirage.max_objects": "Maximumaantal herkende objecten per afbeelding; standaard: 20.",
   "help.vision.mirage.max_text_lines": "Maximumaantal herkende tekstregels per afbeelding; standaard: 30.",
-  "help.vision.mirage.language": "Taal voor herkenning. Laat leeg om de standaard van de engine te gebruiken."
+  "help.vision.mirage.language": "Taal voor herkenning. Laat leeg om de standaard van de engine te gebruiken.",
+  "help.home_assistant.readonly": "Wanneer ingeschakeld, kan de agent alleen apparaatstatussen lezen en geen services aanroepen (geen apparaten schakelen).",
+  "help.ansible.readonly": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren. Controle en proefuitvoering vereisen ook schrijfrechten; Ansible-taken kunnen de controlemodus negeren."
 }

@@ -1,5 +1,7 @@
 # OmniRoute Integration
 
+Managed ports remain on the configured interface. Loopback is local; remote access requires an explicit LAN interface or wildcard host and a reachable browser URL. Reconciliation preserves data volumes. Secure cookies are enabled when that browser URL uses HTTPS.
+
 OmniRoute is available as an optional OpenAI-compatible gateway provider with provider type `omniroute`.
 
 ## Configuration

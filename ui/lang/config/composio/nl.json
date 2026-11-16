@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio-gebruikers-ID",
   "config.composio.saving": "Opslaan...",
   "config.composio.testing": "Verbinding testen...",
-  "config.composio.filter_label": "Toolkits tonen"
+  "config.composio.filter_label": "Toolkits tonen",
+  "config.composio.account_binding": "Gekoppeld account",
+  "config.composio.account_binding_help": "Kies een actief account voor deze gebruiker en toolkit en sla op. De keuze is bindend; leeg werkt alleen met precies één passend actief account.",
+  "config.composio.unique_account": "Automatisch (slechts één actief account)"
 }

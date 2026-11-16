@@ -91,7 +91,7 @@
   "help.ansible.image": "(Solo modo sidecar) Imagen Docker para el contenedor sidecar Ansible. Predeterminado: 'aurago-ansible:latest'.",
   "help.ansible.mode": "Modo de ejecución: 'sidecar' = contenedor de API de Ansible (Docker), 'local' = llamar a los binarios de Ansible directamente en el host. Valor predeterminado: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Solo modo local) Directorio que contiene los libros de estrategias de Ansible (por ejemplo, '/opt/ansible/playbooks'). Var. entorno: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Cuando está habilitado, el agente solo puede verificar el estado, el inventario y enumerar los libros de estrategias, pero no puede ejecutar comandos ni libros de estrategias ad hoc.",
+  "help.ansible.read_only": "Cuando está habilitado, el agente solo puede verificar el estado, el inventario y enumerar los libros de estrategias, pero no puede ejecutar comandos ni libros de estrategias ad hoc. La comprobación y la simulación también requieren permiso de escritura; las tareas de Ansible pueden ignorar el modo de comprobación.",
   "help.ansible.timeout": "Tiempo de ejecución máximo para comandos de Ansible en segundos (predeterminado: 300). Aumento para manuales de estrategia de larga duración.",
   "help.ansible.token": "(Solo modo Sidecar) Token de portador para la API de Ansible Sidecar. Debe coincidir con ANSIBLE_API_TOKEN en el contenedor.",
   "help.ansible.url": "(Solo modo Sidecar) URL del servidor API de Ansible. Valor predeterminado: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Cuando está habilitado, el agente solo puede leer repositorios, problemas y relaciones públicas, pero no puede crear, eliminar ni modificar archivos.",
   "help.github.token": "Token de acceso personal (PAT) para la API de GitHub. Crea uno en https://github.com/settings/tokens con los alcances requeridos (repositorio, problemas, etc.). Almacenado cifrado en la bóveda.",
   "help.home_assistant.access_token": "Token de acceso de larga duración para la autenticación de Home Assistant.",
-  "help.home_assistant.allowed_services": "Lista opcional de nombres completos domain.service. La ejecución indirecta (script, automation, python_script, rest_command, pyscript, shell_command, hassio) y los servicios críticos requieren permisos explícitos. Las llamadas genéricas comprueban acciones de destinos concretos; los grupos sin resolver se rechazan. La lista de bloqueo y solo lectura tienen prioridad.",
+  "help.home_assistant.allowed_services": "Lista opcional de nombres completos domain.service. La ejecución indirecta (script, automation, python_script, rest_command, pyscript, shell_command, hassio) y los servicios críticos requieren permisos explícitos. Las llamadas genéricas comprueban acciones de destinos concretos; los grupos sin resolver se rechazan. La lista de bloqueo y solo lectura tienen prioridad. Los servicios de lock, alarm_control_panel y cover siempre requieren una entrada explícita en allowed_services.",
   "help.home_assistant.blocked_services": "Servicios de Home Assistant que el agente nunca debe llamar, como lock.unlock. Esta lista de bloqueo se comprueba antes de los servicios permitidos.",
   "help.home_assistant.enabled": "Permite la integración en el hogar inteligente de Home Assistant.",
   "help.home_assistant.read_only": "Cuando está habilitado, el agente solo puede leer los estados del dispositivo pero no puede llamar a servicios (no alternar dispositivos).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Aceleración: auto, none, nvidia, amd, intel o vulkan.",
   "help.vision.mirage.max_objects": "Máximo de objetos reconocidos por imagen; predeterminado: 20.",
   "help.vision.mirage.max_text_lines": "Máximo de líneas de texto reconocidas por imagen; predeterminado: 30.",
-  "help.vision.mirage.language": "Idioma de reconocimiento. Déjalo vacío para usar el predeterminado del motor."
+  "help.vision.mirage.language": "Idioma de reconocimiento. Déjalo vacío para usar el predeterminado del motor.",
+  "help.home_assistant.readonly": "Cuando está habilitado, el agente solo puede leer los estados del dispositivo pero no puede llamar a servicios (no alternar dispositivos).",
+  "help.ansible.readonly": "Cuando está habilitado, el agente solo puede verificar el estado, el inventario y enumerar los libros de estrategias, pero no puede ejecutar comandos ni libros de estrategias ad hoc. La comprobación y la simulación también requieren permiso de escritura; las tareas de Ansible pueden ignorar el modo de comprobación."
 }

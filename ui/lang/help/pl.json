@@ -91,7 +91,7 @@
   "help.ansible.image": "(Tylko tryb sidecar) Obraz Docker dla kontenera Ansible sidecar. Domyślnie: 'aurago-ansible:latest'.",
   "help.ansible.mode": "Tryb wykonania: 'sidecar' = kontener API Ansible (Docker), 'local' = wywołanie binariów ansible bezpośrednio na hoście. Domyślnie: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Tryb lokalny tylko) Katalog zawierający playbooki Ansible (np. '/opt/ansible/playbooks'). Zmienna env: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Gdy włączone, agent może tylko sprawdzać status, inwentarz i listować playbooki, ale nie może uruchamiać poleceń ad-hoc ani playbooków.",
+  "help.ansible.read_only": "Gdy włączone, agent może tylko sprawdzać status, inwentarz i listować playbooki, ale nie może uruchamiać poleceń ad-hoc ani playbooków. Sprawdzanie i próbne uruchomienie również wymagają prawa zapisu; zadania Ansible mogą ignorować tryb sprawdzania.",
   "help.ansible.timeout": "Maksymalny czas działania poleceń Ansible w sekundach (domyślnie: 300). Zwiększ dla długich playbooków.",
   "help.ansible.token": "(Tryb sidecar tylko) Token Bearer dla API sidecar Ansible. Musi pasować do ANSIBLE_API_TOKEN w kontenerze.",
   "help.ansible.url": "(Tryb sidecar tylko) URL serwera API Ansible. Domyślnie: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Gdy włączone, agent może tylko czytać repozytoria, zgłoszenia i PR, ale nie może tworzyć, usuwać ani modyfikować plików.",
   "help.github.token": "Token dostępu osobistego (PAT) dla interfejsu API GitHub. Utwórz go na https://github.com/settings/tokens z wymaganymi zakresami (repo, issues itp.). Przechowywany w postaci zaszyfrowanej w skarbcu.",
   "help.home_assistant.access_token": "Długoterminowy token dostępu do autoryzacji Home Assistant.",
-  "help.home_assistant.allowed_services": "Opcjonalna lista pełnych nazw domain.service. Wykonanie pośrednie (script, automation, python_script, rest_command, pyscript, shell_command, hassio) i krytyczne usługi wymagają jawnych uprawnień. Wywołania ogólne sprawdzają konkretne działania docelowe; nierozpoznane grupy są odrzucane. Blokady i tryb tylko do odczytu mają pierwszeństwo.",
+  "help.home_assistant.allowed_services": "Opcjonalna lista pełnych nazw domain.service. Wykonanie pośrednie (script, automation, python_script, rest_command, pyscript, shell_command, hassio) i krytyczne usługi wymagają jawnych uprawnień. Wywołania ogólne sprawdzają konkretne działania docelowe; nierozpoznane grupy są odrzucane. Blokady i tryb tylko do odczytu mają pierwszeństwo. Usługi domen lock, alarm_control_panel i cover zawsze wymagają jawnego wpisu w allowed_services.",
   "help.home_assistant.blocked_services": "Usługi Home Assistant, których agent nigdy nie może wywołać, np. lock.unlock. Ta lista blokad jest sprawdzana przed dozwolonymi usługami.",
   "help.home_assistant.enabled": "Włącza integrację smart home Home Assistant.",
   "help.home_assistant.read_only": "Gdy włączone, agent może tylko czytać stany urządzeń, ale nie może wywoływać usług (brak przełączania urządzeń).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Akceleracja: auto, none, nvidia, amd, intel lub vulkan.",
   "help.vision.mirage.max_objects": "Maksymalna liczba rozpoznanych obiektów na obraz; domyślnie: 20.",
   "help.vision.mirage.max_text_lines": "Maksymalna liczba rozpoznanych wierszy tekstu na obraz; domyślnie: 30.",
-  "help.vision.mirage.language": "Język rozpoznawania. Pozostaw puste, aby użyć domyślnego języka silnika."
+  "help.vision.mirage.language": "Język rozpoznawania. Pozostaw puste, aby użyć domyślnego języka silnika.",
+  "help.home_assistant.readonly": "Gdy włączone, agent może tylko czytać stany urządzeń, ale nie może wywoływać usług (brak przełączania urządzeń).",
+  "help.ansible.readonly": "Gdy włączone, agent może tylko sprawdzać status, inwentarz i listować playbooki, ale nie może uruchamiać poleceń ad-hoc ani playbooków. Sprawdzanie i próbne uruchomienie również wymagają prawa zapisu; zadania Ansible mogą ignorować tryb sprawdzania."
 }

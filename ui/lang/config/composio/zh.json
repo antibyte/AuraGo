@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio 用户 ID",
   "config.composio.saving": "正在保存...",
   "config.composio.testing": "正在测试连接...",
-  "config.composio.filter_label": "显示工具包"
+  "config.composio.filter_label": "显示工具包",
+  "config.composio.account_binding": "绑定的账户",
+  "config.composio.account_binding_help": "选择此用户和工具包的有效账户并保存。所选账户为强制绑定；留空仅在恰好有一个匹配的有效账户时可用。",
+  "config.composio.unique_account": "自动（仅一个有效账户）"
 }

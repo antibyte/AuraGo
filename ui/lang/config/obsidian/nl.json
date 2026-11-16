@@ -21,7 +21,7 @@
   "config.obsidian.request_timeout_label": "Aanvraagtime-out",
   "help.obsidian.enabled": "Schakel de Obsidian kennisbeheer-integratie in",
   "help.obsidian.readonly": "Indien ingeschakeld, zijn alleen leesbewerkingen toegestaan",
-  "help.obsidian.allow_destructive": "Sta het verwijderen van notities toe",
+  "help.obsidian.allow_destructive": "Notities verwijderen en willekeurige execute_command-opdrachten toestaan. Alleen-lezen blijft beide blokkeren.",
   "help.obsidian.host": "Hostnaam of IP van de Obsidian-instantie",
   "help.obsidian.port": "Poort van de Obsidian Local REST API-plugin (standaard: 27124)",
   "help.obsidian.use_https": "Gebruik HTTPS-verbinding (aanbevolen, standaard: true)",

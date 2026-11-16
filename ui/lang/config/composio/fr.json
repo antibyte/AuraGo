@@ -61,5 +61,8 @@
   "config.composio.user_id": "ID utilisateur Composio",
   "config.composio.saving": "Enregistrement...",
   "config.composio.testing": "Test de la connexion...",
-  "config.composio.filter_label": "Afficher les toolkits"
+  "config.composio.filter_label": "Afficher les toolkits",
+  "config.composio.account_binding": "Compte associé",
+  "config.composio.account_binding_help": "Choisis un compte actif pour cet utilisateur et cette boîte à outils, puis enregistre. Ce choix est contraignant ; une sélection vide fonctionne uniquement avec un seul compte actif correspondant.",
+  "config.composio.unique_account": "Automatique (un seul compte actif)"
 }

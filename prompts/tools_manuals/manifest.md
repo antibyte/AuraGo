@@ -1,5 +1,7 @@
 # Manifest.build Integration
 
+Managed ports remain on the configured interface. Loopback is local; remote access requires an explicit LAN interface or wildcard host and a reachable browser URL. Reconciliation corrects differing port bindings without deleting data volumes.
+
 Manifest.build is available as an optional OpenAI-compatible gateway provider in AuraGo.
 
 Use the Manifest provider when:

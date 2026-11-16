@@ -1,5 +1,7 @@
 # composio_call
 
+Execution requires an ACTIVE account for the configured user and verified toolkit. A configured preferred_connected_account_id is binding. Without it, exactly one matching active account across all pages is required; ambiguity requires an explicit selection in Config. Model-supplied account IDs cannot override that binding.
+
 ## Overview
 
 `composio_call` lets the agent search and use user-approved Composio toolkits through AuraGo's own policy gates. It is intentionally a single native tool entry point: do not expect every Composio tool to appear as an individual AuraGo tool.

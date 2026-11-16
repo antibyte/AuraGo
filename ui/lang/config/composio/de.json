@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio-Benutzer-ID",
   "config.composio.saving": "Speichere...",
   "config.composio.testing": "Verbindung wird getestet...",
-  "config.composio.filter_label": "Toolkits anzeigen"
+  "config.composio.filter_label": "Toolkits anzeigen",
+  "config.composio.account_binding": "Gebundenes Konto",
+  "config.composio.account_binding_help": "Wähle ein aktives Konto für diesen Benutzer und dieses Toolkit und speichere. Die Auswahl ist verbindlich; leer funktioniert nur bei genau einem passenden aktiven Konto.",
+  "config.composio.unique_account": "Automatisch (nur ein aktives Konto)"
 }

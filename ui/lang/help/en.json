@@ -91,7 +91,7 @@
   "help.ansible.image": "(Sidecar mode only) Docker image for the Ansible sidecar container. Default: 'aurago-ansible:latest'. Build with: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Execution mode: 'sidecar' = Ansible API container (Docker), 'local' = call ansible binaries directly on the host. Default: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Local mode only) Directory containing Ansible playbooks (e.g. '/opt/ansible/playbooks'). Env var: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "When enabled, the agent can only check status, inventory, and list playbooks but cannot run ad-hoc commands or playbooks.",
+  "help.ansible.read_only": "When enabled, the agent can only check status, inventory, and list playbooks but cannot run ad-hoc commands or playbooks. Check and dry-run also require write permission; Ansible tasks can ignore check mode.",
   "help.ansible.timeout": "Maximum runtime for Ansible commands in seconds (default: 300). Increase for long-running playbooks.",
   "help.ansible.token": "(Sidecar mode only) Bearer token for the Ansible sidecar API. Must match ANSIBLE_API_TOKEN in the container.",
   "help.ansible.url": "(Sidecar mode only) URL of the Ansible API server. Default: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "When enabled, the agent can only read repos, issues, and PRs but cannot create, delete, or modify files.",
   "help.github.token": "Personal Access Token (PAT) for the GitHub API. Create one at https://github.com/settings/tokens with the required scopes (repo, issues, etc.). Stored encrypted in the vault.",
   "help.home_assistant.access_token": "Long-lived access token for Home Assistant auth.",
-  "help.home_assistant.allowed_services": "Optional allowlist of full domain.service names. Indirect execution (script, automation, python_script, rest_command, pyscript, shell_command, hassio) and critical system services always need explicit grants. Generic calls check concrete target actions; unresolved groups are refused. Blocklist and read-only win.",
+  "help.home_assistant.allowed_services": "Optional allowlist of full domain.service names. Indirect execution (script, automation, python_script, rest_command, pyscript, shell_command, hassio) and critical system services always need explicit grants. Generic calls check concrete target actions; unresolved groups are refused. Blocklist and read-only win. Services in lock, alarm_control_panel and cover always require an explicit allowed_services entry.",
   "help.home_assistant.blocked_services": "Home Assistant services the agent must never call, such as lock.unlock. This denylist is checked before allowed services.",
   "help.home_assistant.enabled": "Enables Home Assistant smart home integration.",
   "help.home_assistant.read_only": "When enabled, the agent can only read device states but cannot call services (no toggling devices).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Acceleration backend: auto, none, nvidia, amd, intel or vulkan.",
   "help.vision.mirage.max_objects": "Maximum detected objects per image; default: 20.",
   "help.vision.mirage.max_text_lines": "Maximum recognized text lines per image; default: 30.",
-  "help.vision.mirage.language": "Recognition language. Leave empty to use the engine default."
+  "help.vision.mirage.language": "Recognition language. Leave empty to use the engine default.",
+  "help.home_assistant.readonly": "When enabled, the agent can only read device states but cannot call services (no toggling devices).",
+  "help.ansible.readonly": "When enabled, the agent can only check status, inventory, and list playbooks but cannot run ad-hoc commands or playbooks. Check and dry-run also require write permission; Ansible tasks can ignore check mode."
 }

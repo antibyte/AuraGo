@@ -91,7 +91,7 @@
   "help.ansible.image": "(仅 sidecar 模式) Ansible sidecar 容器的 Docker 镜像。默认：'aurago-ansible:latest'。",
   "help.ansible.mode": "执行模式：'sidecar' = Ansible API 容器（Docker），'local' = 直接在主机上调用 ansible 二进制文件。默认值：'sidecar'。",
   "help.ansible.playbooks_dir": "（仅限本地模式）包含 Ansible playbook 的目录（例如“/opt/ansible/playbooks”）。环境变量：ANSIBLE_PLAYBOOKS_DIR。",
-  "help.ansible.read_only": "启用后，代理只能检查状态、清单和列出 playbook，但无法运行临时命令或 playbook。",
+  "help.ansible.read_only": "启用后，代理只能检查状态、清单和列出 playbook，但无法运行临时命令或 playbook。 检查和试运行也需要写入权限；Ansible 任务可能忽略检查模式。",
   "help.ansible.timeout": "Ansible 命令的最大运行时间（以秒为单位）（默认值：300）。长时间运行的 playbook 请增大此限值。",
   "help.ansible.token": "（仅限 Sidecar 模式）Ansible sidecar API 的承载令牌。必须与容器中的 ANSIBLE_API_TOKEN 匹配。",
   "help.ansible.url": "（仅限 Sidecar 模式）Ansible API 服务器的 URL。默认值：“http://ansible:5001”。",
@@ -178,7 +178,7 @@
   "help.github.read_only": "启用后，代理只能读取存储库、问题和 PR，但无法创建、删除或修改文件。",
   "help.github.token": "GitHub API 的个人访问令牌 (PAT)。在 https://github.com/settings/tokens 上创建一个具有所需范围（存储库、问题等）的令牌。加密存储在保管库中。",
   "help.home_assistant.access_token": "用于家庭助理身份验证的长期访问令牌。",
-  "help.home_assistant.allowed_services": "可选的完整domain.service名称许可列表。间接执行（script、automation、python_script、rest_command、pyscript、shell_command、hassio）及关键系统服务始终需要明确授权。通用调用会检查具体目标操作；无法解析的集合目标将被拒绝。阻止列表和只读设置优先。",
+  "help.home_assistant.allowed_services": "可选的完整domain.service名称许可列表。间接执行（script、automation、python_script、rest_command、pyscript、shell_command、hassio）及关键系统服务始终需要明确授权。通用调用会检查具体目标操作；无法解析的集合目标将被拒绝。阻止列表和只读设置优先。 lock、alarm_control_panel 和 cover 域的服务始终需要在 allowed_services 中明确授权。",
   "help.home_assistant.blocked_services": "代理绝不能调用的 Home Assistant 服务，例如 lock.unlock。此阻止列表会先于允许服务检查。",
   "help.home_assistant.enabled": "实现 Home Assistant 智能家居集成。",
   "help.home_assistant.read_only": "启用后，代理只能读取设备状态，但无法调用服务（无法切换设备）。",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "加速后端：auto、none、nvidia、amd、intel 或 vulkan。",
   "help.vision.mirage.max_objects": "每张图像可识别的最大对象数；默认值：20。",
   "help.vision.mirage.max_text_lines": "每张图像可识别的最大文本行数；默认值：30。",
-  "help.vision.mirage.language": "识别语言。留空则使用引擎默认语言。"
+  "help.vision.mirage.language": "识别语言。留空则使用引擎默认语言。",
+  "help.home_assistant.readonly": "启用后，代理只能读取设备状态，但无法调用服务（无法切换设备）。",
+  "help.ansible.readonly": "启用后，代理只能检查状态、清单和列出 playbook，但无法运行临时命令或 playbook。 检查和试运行也需要写入权限；Ansible 任务可能忽略检查模式。"
 }

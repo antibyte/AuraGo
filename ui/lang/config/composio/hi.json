@@ -61,5 +61,8 @@
   "config.composio.user_id": "Composio उपयोगकर्ता ID",
   "config.composio.saving": "सहेजा जा रहा है...",
   "config.composio.testing": "कनेक्शन टेस्ट हो रहा है...",
-  "config.composio.filter_label": "टूलकिट दिखाएँ"
+  "config.composio.filter_label": "टूलकिट दिखाएँ",
+  "config.composio.account_binding": "बंधा हुआ खाता",
+  "config.composio.account_binding_help": "इस उपयोगकर्ता और टूलकिट का सक्रिय खाता चुनकर सहेजें। चयन बाध्यकारी है; खाली चयन तभी काम करता है जब ठीक एक उपयुक्त सक्रिय खाता हो।",
+  "config.composio.unique_account": "स्वचालित (केवल एक सक्रिय खाता)"
 }

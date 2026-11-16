@@ -61,5 +61,8 @@
   "config.composio.user_id": "ID użytkownika Composio",
   "config.composio.saving": "Zapisywanie...",
   "config.composio.testing": "Testowanie połączenia...",
-  "config.composio.filter_label": "Pokaż zestawy narzędzi"
+  "config.composio.filter_label": "Pokaż zestawy narzędzi",
+  "config.composio.account_binding": "Powiązane konto",
+  "config.composio.account_binding_help": "Wybierz aktywne konto tego użytkownika i zestawu narzędzi, a następnie zapisz. Wybór jest wiążący; puste pole działa tylko przy dokładnie jednym pasującym aktywnym koncie.",
+  "config.composio.unique_account": "Automatycznie (jedno aktywne konto)"
 }

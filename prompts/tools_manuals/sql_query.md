@@ -1,5 +1,7 @@
 # SQL Query Tool Manual
 
+Compound mutations require every applicable grant: insert/upsert updates need write plus change; replacements need delete as well as the underlying write/change permission. DROP, TRUNCATE and destructive DDL also require delete. Ordinary INSERT and ON CONFLICT DO NOTHING retain write-only admission. These checks use the dialect-normalized SQL structure, never raw keyword substring matching.
+
 ## Tool Name: `sql_query`
 
 ## Purpose

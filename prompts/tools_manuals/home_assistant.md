@@ -1,5 +1,7 @@
 # home_assistant — Smart Home Control
 
+The lock, alarm_control_panel and cover domains always require an explicit full service entry in allowed_services. home_assistant.readonly defaults to false; enabling it blocks every service call, including explicitly allowed services.
+
 Control Home Assistant devices and services via the HA REST API.
 
 > **Requires** `home_assistant.enabled: true` and a valid Long-Lived Access Token stored in the Vault.

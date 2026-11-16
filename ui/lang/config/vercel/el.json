@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Επιτρέπει τη δημιουργία, την ενημέρωση και τη διαγραφή έργων Vercel.",
   "config.vercel.allow_env_management_help": "Επιτρέπει τη διαχείριση μεταβλητών περιβάλλοντος του έργου Vercel.",
   "config.vercel.allow_domain_management_help": "Επιτρέπει την προσθήκη, την ενημέρωση και την αφαίρεση τομέων Vercel.",
-  "config.vercel.default_project_id_help": "Προαιρετικό αναγνωριστικό έργου που χρησιμοποιείται όταν ο πράκτορας δεν κατονομάζει έργο.",
+  "config.vercel.default_project_id_help": "Σύνδεσε υπάρχον αναγνωριστικό έργου (prj_...) και το αντίστοιχο αναγνωριστικό ομάδας για ανάπτυξη. Δεν χρησιμοποιείται το όνομα φακέλου· τα νέα έργα απαιτούν δικαίωμα διαχείρισης και ρητό όνομα.",
   "config.vercel.team_id_help": "Προαιρετικό αναγνωριστικό ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας.",
   "config.vercel.team_slug_help": "Προαιρετικό slug ομάδας Vercel για κλήσεις API με εμβέλεια ομάδας.",
   "config.vercel.vault_badge": "vault"

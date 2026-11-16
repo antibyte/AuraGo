@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Vercel プロジェクトの作成、更新、削除を許可します。",
   "config.vercel.allow_env_management_help": "Vercel プロジェクトの環境変数の管理を許可します。",
   "config.vercel.allow_domain_management_help": "Vercel ドメインの追加、更新、除去を許可します。",
-  "config.vercel.default_project_id_help": "エージェントがプロジェクトを指定しないときに使用される、任意のプロジェクト ID です。",
+  "config.vercel.default_project_id_help": "デプロイ先には既存のプロジェクト ID（prj_...）と対応するチーム ID を指定してください。フォルダー名への切り替えは行いません。新規作成には管理権限と明示的な名前が必要です。",
   "config.vercel.team_id_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チーム ID です。",
   "config.vercel.team_slug_help": "チームスコープの API 呼び出しに使用する、任意の Vercel チームスラッグです。",
   "config.vercel.vault_badge": "vault"

@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "Povoluje vytváření, aktualizaci a mazání projektů Vercel.",
   "config.vercel.allow_env_management_help": "Umožňuje správu proměnných prostředí projektu Vercel.",
   "config.vercel.allow_domain_management_help": "Povoluje přidávání, aktualizaci a odebírání domén Vercel.",
-  "config.vercel.default_project_id_help": "Volitelné ID projektu použité, když agent neuvede projekt.",
+  "config.vercel.default_project_id_help": "Pro nasazení přiřaď existující ID projektu (prj_...) a odpovídající ID týmu. Název složky se nepoužije; nový projekt vyžaduje oprávnění ke správě a výslovný název.",
   "config.vercel.team_id_help": "Volitelné ID týmu Vercel pro volání API v rozsahu týmu.",
   "config.vercel.team_slug_help": "Volitelný slug týmu Vercel pro volání API v rozsahu týmu.",
   "config.vercel.vault_badge": "vault"

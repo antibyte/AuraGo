@@ -91,7 +91,7 @@
   "help.ansible.image": "(サイドカーモードのみ) Ansible サイドカーコンテナの Docker イメージ。デフォルト: 'aurago-ansible:latest'。ビルド: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "実行モード: 'sidecar' = Ansible API コンテナ (Docker)、'local' = ホスト上で Ansible バイナリを直接呼び出します。デフォルト: 'sidecar'。",
   "help.ansible.playbooks_dir": "(ローカル モードのみ) Ansible Playbook を含むディレクトリ (例: '/opt/ansible/playbooks')。環境変数: ANSIBLE_PLAYBOOKS_DIR。",
-  "help.ansible.read_only": "有効にすると、エージェントはステータス、インベントリの確認、Playbook の一覧表示のみを行うことができますが、アドホック コマンドや Playbook を実行することはできません。",
+  "help.ansible.read_only": "有効にすると、エージェントはステータス、インベントリの確認、Playbook の一覧表示のみを行うことができますが、アドホック コマンドや Playbook を実行することはできません。 チェックと試行実行にも書き込み権限が必要です。Ansible タスクはチェックモードを無視する場合があります。",
   "help.ansible.timeout": "Ansible コマンドの最大実行時間 (秒単位) (デフォルト: 300)。長時間実行される Playbook の場合は増加します。",
   "help.ansible.token": "(サイドカー モードのみ) Ansible サイドカー API のベアラー トークン。コンテナ内の ANSIBLE_API_TOKEN と一致する必要があります。",
   "help.ansible.url": "(サイドカー モードのみ) Ansible API サーバーの URL。デフォルト: 「http://ansible:5001」。",
@@ -178,7 +178,7 @@
   "help.github.read_only": "有効にすると、エージェントはリポジトリ、課題、PR の読み取りのみが可能ですが、ファイルの作成、削除、変更はできません。",
   "help.github.token": "GitHub API のパーソナル アクセス トークン (PAT)。 https://github.com/settings/tokens で必要なスコープ (リポジトリ、問題など) を指定して作成します。暗号化されて金庫に保管されます。",
   "help.home_assistant.access_token": "ホーム アシスタント認証用の長期間有効なアクセス トークン。",
-  "help.home_assistant.allowed_services": "完全なdomain.service名を指定する任意の許可リストです。間接実行（script、automation、python_script、rest_command、pyscript、shell_command、hassio）と重要なシステムサービスには明示的な許可が必要です。汎用呼び出しは具体的な対象アクションを確認し、解決できないグループは拒否します。拒否リストと読み取り専用設定が優先されます。",
+  "help.home_assistant.allowed_services": "完全なdomain.service名を指定する任意の許可リストです。間接実行（script、automation、python_script、rest_command、pyscript、shell_command、hassio）と重要なシステムサービスには明示的な許可が必要です。汎用呼び出しは具体的な対象アクションを確認し、解決できないグループは拒否します。拒否リストと読み取り専用設定が優先されます。 lock、alarm_control_panel、cover のサービスは、常に allowed_services への明示的な登録が必要です。",
   "help.home_assistant.blocked_services": "エージェントが絶対に呼び出せない Home Assistant サービスです (例: lock.unlock)。このブロックリストは許可サービスより先に確認されます。",
   "help.home_assistant.enabled": "ホームアシスタントのスマートホーム統合を有効にします。",
   "help.home_assistant.read_only": "有効にすると、エージェントはデバイス状態の読み取りのみが可能ですが、サービスを呼び出すことはできません (デバイスの切り替えはありません)。",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "アクセラレーション: auto、none、nvidia、amd、intel、vulkan。",
   "help.vision.mirage.max_objects": "画像ごとに認識するオブジェクト数の上限。既定値: 20。",
   "help.vision.mirage.max_text_lines": "画像ごとに認識するテキスト行数の上限。既定値: 30。",
-  "help.vision.mirage.language": "認識に使う言語。空欄の場合はエンジンの既定値を使用します。"
+  "help.vision.mirage.language": "認識に使う言語。空欄の場合はエンジンの既定値を使用します。",
+  "help.home_assistant.readonly": "有効にすると、エージェントはデバイス状態の読み取りのみが可能ですが、サービスを呼び出すことはできません (デバイスの切り替えはありません)。",
+  "help.ansible.readonly": "有効にすると、エージェントはステータス、インベントリの確認、Playbook の一覧表示のみを行うことができますが、アドホック コマンドや Playbook を実行することはできません。 チェックと試行実行にも書き込み権限が必要です。Ansible タスクはチェックモードを無視する場合があります。"
 }

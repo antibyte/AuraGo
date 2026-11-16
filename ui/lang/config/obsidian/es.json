@@ -19,7 +19,7 @@
   "help.obsidian.setup_hint": "Requiere el plugin de la comunidad de Obsidian <strong>Local REST API</strong>. Instálalo y actívalo en Obsidian, y luego copia la clave API desde <strong>Ajustes → Local REST API</strong>. Mantén <code>127.0.0.1</code> cuando AuraGo y Obsidian se ejecuten en la misma máquina. Si AuraGo se ejecuta en Docker, WSL o en otro dispositivo, usa en su lugar un host/IP accesible; algunas configuraciones del plugin también pueden requerir cambiar la dirección de enlace de <code>127.0.0.1</code> a <code>0.0.0.0</code>. Expón esto solo en redes de confianza.",
   "help.obsidian.enabled": "Activar la integración de gestión del conocimiento Obsidian",
   "help.obsidian.readonly": "Cuando está activado, solo se permiten operaciones de lectura",
-  "help.obsidian.allow_destructive": "Permitir la eliminación de notas",
+  "help.obsidian.allow_destructive": "Permitir eliminar notas y ejecutar comandos execute_command arbitrarios. El modo de solo lectura sigue bloqueándolos.",
   "help.obsidian.host": "Nombre de host o IP de la instancia de Obsidian",
   "help.obsidian.port": "Puerto del plugin Obsidian Local REST API (predeterminado: 27124)",
   "help.obsidian.use_https": "Usar conexión HTTPS (recomendado, predeterminado: true)",

@@ -91,7 +91,7 @@
   "help.ansible.image": "(Pouze režim sidecar) Docker image pro kontejner Ansible sidecar. Výchozí: 'aurago-ansible:latest'. Sestavení: docker build -f deploy/docker/Dockerfile.ansible -t aurago-ansible .",
   "help.ansible.mode": "Režim spuštění: 'sidecar' = kontejner Ansible API (Docker), 'local' = přímé volání binárek ansible na hostiteli. Výchozí: 'sidecar'.",
   "help.ansible.playbooks_dir": "(Pouze režim local) Adresář s playbooky Ansible (např. '/opt/ansible/playbooks'). Proměnná prostředí: ANSIBLE_PLAYBOOKS_DIR.",
-  "help.ansible.read_only": "Když je povoleno, agent může jen kontrolovat stav, inventář a vypisovat playbooky, ale nemůže spouštět ad-hoc příkazy ani playbooky.",
+  "help.ansible.read_only": "Když je povoleno, agent může jen kontrolovat stav, inventář a vypisovat playbooky, ale nemůže spouštět ad-hoc příkazy ani playbooky. Kontrola i zkušební běh vyžadují právo zápisu; úlohy Ansible mohou kontrolní režim ignorovat.",
   "help.ansible.timeout": "Maximální doba běhu příkazů Ansible v sekundách (výchozí: 300). U dlouhých playbooků hodnotu zvyšte.",
   "help.ansible.token": "(Pouze režim sidecar) Bearer token pro API Ansible sidecar. Musí odpovídat ANSIBLE_API_TOKEN v kontejneru.",
   "help.ansible.url": "(Pouze režim sidecar) URL serveru Ansible API. Výchozí: 'http://ansible:5001'.",
@@ -178,7 +178,7 @@
   "help.github.read_only": "Když je povoleno, agent může jen číst repozitáře, issues a PR, ale nemůže vytvářet, mazat ani měnit soubory.",
   "help.github.token": "Osobní přístupový token (PAT) pro GitHub API. Vytvořte jej na https://github.com/settings/tokens s požadovanými rozsahy (repo, problémy atd.). Uloženo zašifrovaně v trezoru.",
   "help.home_assistant.access_token": "Dlouhodobý přístupový token pro ověření Home Assistant.",
-  "help.home_assistant.allowed_services": "Volitelný seznam úplných názvů domain.service. Nepřímé spouštění (script, automation, python_script, rest_command, pyscript, shell_command, hassio) a kritické systémové služby vyžadují výslovné povolení. Obecná volání ověřují konkrétní cílové akce; neurčité skupiny se odmítají. Blokování a režim jen pro čtení mají přednost.",
+  "help.home_assistant.allowed_services": "Volitelný seznam úplných názvů domain.service. Nepřímé spouštění (script, automation, python_script, rest_command, pyscript, shell_command, hassio) a kritické systémové služby vyžadují výslovné povolení. Obecná volání ověřují konkrétní cílové akce; neurčité skupiny se odmítají. Blokování a režim jen pro čtení mají přednost. Služby domén lock, alarm_control_panel a cover vždy vyžadují výslovný záznam v allowed_services.",
   "help.home_assistant.blocked_services": "Sluzby Home Assistant, ktere agent nikdy nesmi volat, napr. lock.unlock. Tento seznam blokovani se kontroluje pred povolenymi sluzbami.",
   "help.home_assistant.enabled": "Povoluje integraci chytré domácnosti Home Assistant.",
   "help.home_assistant.read_only": "Když je povoleno, agent může jen číst stavy zařízení, ale nemůže volat služby (žádné přepínání zařízení).",
@@ -560,5 +560,7 @@
   "help.vision.mirage.gpu": "Akcelerace: auto, none, nvidia, amd, intel nebo vulkan.",
   "help.vision.mirage.max_objects": "Maximální počet rozpoznaných objektů na obrázek; výchozí: 20.",
   "help.vision.mirage.max_text_lines": "Maximální počet rozpoznaných řádků textu na obrázek; výchozí: 30.",
-  "help.vision.mirage.language": "Jazyk rozpoznávání. Prázdná hodnota použije výchozí jazyk enginu."
+  "help.vision.mirage.language": "Jazyk rozpoznávání. Prázdná hodnota použije výchozí jazyk enginu.",
+  "help.home_assistant.readonly": "Když je povoleno, agent může jen číst stavy zařízení, ale nemůže volat služby (žádné přepínání zařízení).",
+  "help.ansible.readonly": "Když je povoleno, agent může jen kontrolovat stav, inventář a vypisovat playbooky, ale nemůže spouštět ad-hoc příkazy ani playbooky. Kontrola i zkušební běh vyžadují právo zápisu; úlohy Ansible mohou kontrolní režim ignorovat."
 }

@@ -36,7 +36,7 @@
   "config.vercel.allow_project_management_help": "允许创建、更新和删除 Vercel 项目。",
   "config.vercel.allow_env_management_help": "允许管理 Vercel 项目的环境变量。",
   "config.vercel.allow_domain_management_help": "允许添加、更新和移除 Vercel 域名。",
-  "config.vercel.default_project_id_help": "当智能体未指定项目时使用的可选项目 ID。",
+  "config.vercel.default_project_id_help": "部署时请绑定现有项目 ID（prj_...）及其对应的团队 ID。不会回退使用文件夹名称；新建项目需要管理权限和明确的名称。",
   "config.vercel.team_id_help": "可选的 Vercel 团队 ID，用于团队范围的 API 调用。",
   "config.vercel.team_slug_help": "可选的 Vercel 团队 slug，用于团队范围的 API 调用。",
   "config.vercel.vault_badge": "保险库"
