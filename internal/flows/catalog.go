@@ -87,6 +87,9 @@ type NodeTypeInfo struct {
 	// SampleTextKeys: see NodeDef.SampleTextKeys. The editor localizes those fields of a
 	// built-in sample.
 	SampleTextKeys map[string]map[string]string `json:"sample_text_keys,omitempty"`
+	// Suggest lists the type ids the quick-add offers first after a step of this type: a curated
+	// list per category (curatedSuggestions), without the type itself. Absent for a step without outputs.
+	Suggest []string `json:"suggest,omitempty"`
 }
 
 // ParamInfo is a translated parameter description.
@@ -161,9 +164,15 @@ func DescribeNodeTypes(reg *Registry, tr func(key string) string) []NodeTypeInfo
 		tr = func(key string) string { return key }
 	}
 	defs := reg.All()
+	present := make(map[string]bool, len(defs))
+	for _, def := range defs {
+		present[def.Type] = true
+	}
 	out := make([]NodeTypeInfo, 0, len(defs))
 	for _, def := range defs {
-		out = append(out, describeNodeType(def, tr, TriggerSample))
+		info := describeNodeType(def, tr, TriggerSample)
+		info.Suggest = suggestionsFor(info.Type, info.Category, len(info.Outputs) > 0 || info.DynamicOutputs != "", present)
+		out = append(out, info)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		ci, cj := categoryRank(out[i].Category), categoryRank(out[j].Category)
