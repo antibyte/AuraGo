@@ -71,6 +71,9 @@ use optional local frameworks/assets and explicitly finish.
   continuation, conflicts and path confinement.
 - TestFreeAgentBrowserPreservesState with AURAGO_RUN_BROWSER_SMOKE=1 exercises
   twelve captures/input rounds without Studio, errors and build isolation.
+- TestPreviewBootHTMLBrowser uses the same browser opt-in (legacy
+  GAMEMAKER_PREVIEW_BROWSER=1 also works) for framework-free readiness,
+  hidden/collapsed layouts, runtime/resource feedback and opaque iframe isolation.
 - Retain permission, receipt/publication, revision, source and save regressions.
   Developer tests are never a mandatory acceptance pipeline for generated games.
 

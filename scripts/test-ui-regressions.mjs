@@ -392,36 +392,53 @@ async function testGameMakerJobEventOwnership() {
   assert.equal(state.activeJob.job_id, 'another-project-job', 'history must not clear another project writer');
 }
 
-async function testGameMakerVisualGrantRenewal() {
-  const context = { window: {}, AbortController, setTimeout, clearTimeout };
+function testGameMakerAgentCapturesPreserveInteractivePreview() {
+  const images = [], status = {}, frame = { contentWindow: {} }, grant = { token: 'parent-only', revision: 3 };
+  const panel = {
+    hidden: true,
+    querySelector: selector => selector === '[data-gm-visual-status]' ? status : images[0],
+    querySelectorAll: () => images,
+    append: image => images.push(image),
+    replaceChildren: () => images.splice(0)
+  };
+  const context = { window: {}, document: { createElement(tag) {
+    assert.equal(tag, 'img');
+    const image = { dataset: {}, addEventListener(type, listener, options) {
+      assert.equal(type, 'error');
+      assert.equal(options.once, true);
+      image.fail = listener;
+    }, remove() { images.splice(images.indexOf(image), 1); } };
+    return image;
+  } } };
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), context);
-  // Review is private; use the same capture response path as the iframe.
-  for (const outcome of ['renewed', 'revision_changed', 'validation', 'replaced', 'disposed', 'cancelled', 'failed']) {
-    const frame = { contentWindow: {} }, grant = { token: 'expired', revision: 3 };
-    let resolveGrant, reviewCalls = 0;
-    const status = {}, state = { frame, previewGrant: grant, project: { id: 'p' }, previewProjectID: 'p', channelID: 'c',
-      visualCapture: { id: 'capture', manual: true, project: 'p', grant }, context: { t: String },
-      container: { querySelector: selector => selector === '[data-gm-visual-status]' ? status : null },
-      addDiagnostic() {}, api: {
-        previewGrant: () => new Promise((resolve, reject) => { resolveGrant = outcome === 'failed' ? () => reject(new Error('offline')) : resolve; }),
-        async reviewVisual(id, body) { reviewCalls++; assert.equal(id, 'p'); assert.equal(body.token, 'fresh'); return { status: 'reviewed' }; }
-      } };
-    context.window.GameMakerStudioPreview.handleMessage(state, { source: frame.contentWindow, data: {
-      source: 'aurago-game', type: 'capture', channel: 'c', request_id: 'capture',
-      captures: [{ image: 'data:image/png;base64,AA==', width: 1, height: 1 }]
-    } });
-    assert.equal(typeof resolveGrant, 'function');
-    if (outcome === 'replaced') state.previewGrant = { token: 'other' };
-    if (outcome === 'disposed') state.disposed = true;
-    if (outcome === 'cancelled') context.window.GameMakerStudioPreview.cancelVisual(state);
-    resolveGrant({ token: 'fresh', revision: outcome === 'revision_changed' ? 4 : 3, validation_id: outcome === 'validation' ? 'build' : '' });
-    await new Promise(setImmediate);
-    assert.equal(reviewCalls, outcome === 'renewed' ? 1 : 0, outcome);
-    assert.equal(state.frame, frame, 'renewal must preserve the running frame');
-    if (outcome === 'renewed') assert.equal(state.previewGrant, grant, 'renewal must preserve channel/save binding');
-    if (['revision_changed', 'validation', 'failed'].includes(outcome)) assert.equal(status.textContent, 'game_maker.visual_analysis_failed');
-    assert.equal(state.visualBusy, false);
+  const preview = context.window.GameMakerStudioPreview;
+  const state = { frame, previewGrant: grant, project: { id: 'p' }, context: { t: String },
+    container: { querySelector: () => panel } };
+  const capture = id => ({ id: String(id), build_id: 'build-' + id,
+    url: '/api/game-maker/projects/p/agent-captures/job/' + id });
+  for (const url of ['/api/game-maker/projects/other/agent-captures/job/0', '/api/game-maker/projects/p/preview',
+    'https://example.test/api/game-maker/projects/p/agent-captures/job/0', 'data:image/png;base64,AA==']) {
+    preview.showAgentCapture(state, { ...capture(0), url });
   }
+  assert.equal(images.length, 0, 'only same-project capture URLs are admitted');
+  assert.equal(panel.hidden, true);
+  for (let id = 0; id < 4; id++) preview.showAgentCapture(state, capture(id));
+  assert.deepEqual(images.map(image => image.dataset.captureId), ['1', '2', '3']);
+  assert.equal(panel.hidden, false);
+  assert.equal(status.textContent, 'game_maker.agent_view');
+  assert.equal(images[2].src, capture(3).url);
+  assert.equal(images[2].alt, 'game_maker.agent_view');
+  assert.equal(images[2].title, 'game_maker.agent_view · build-3');
+  assert.equal(state.agentBuildID, 'build-3');
+  assert.equal(state.frame, frame, 'agent screenshots must not replace the running game');
+  assert.equal(state.previewGrant, grant, 'agent screenshots must not replace save credentials');
+  preview.cancelVisual(state);
+  assert.equal(images.length, 3, 'interactive reload keeps the independent agent view');
+  images[2].fail();
+  assert.deepEqual(images.map(image => image.dataset.captureId), ['1', '2'], 'failed images are removed');
+  state.disposed = true;
+  preview.cancelVisual(state);
+  assert.equal(images.length, 0, 'disposing the Studio releases its captures');
 }
 
 function testVoxelInputOwnership() {
@@ -445,12 +462,13 @@ function testVoxelInputOwnership() {
   assert.equal(keys.size, 0, 'paused games cannot acquire input');
 }
 
-async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
+async function testGameMakerPreviewDiagnosticsReachNextRequest() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
   const sent = [];
   const shown = [];
-  let submitted;
+  let submitted, loadingCleared = 0;
   const state = {
+    previewLoadClear() { loadingCleared++; },
     frame: { contentWindow: { postMessage() {} } }, project: { id: 'snake' }, channelID: 'channel',
     container: { querySelector: () => null },
     previewProjectID: 'snake', previewGrant: { token: 'parent-only-token', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() },
@@ -479,59 +497,77 @@ async function testGameMakerPreviewDiagnosticsReachValidationAndNextRequest() {
   context.handlePreviewMessage(state, { ...event, source: {} });
   context.handlePreviewMessage(state, { ...event, data: { ...data, channel: 'old' } });
   context.handlePreviewMessage(state, { ...event, data: { ...data, source: 'foreign' } });
-  assert.equal(sent.length, 0, 'foreign iframe reports must stay outside the API');
+  assert.equal(shown.length, 0, 'foreign frames, channels and sources cannot supply diagnostics');
+  assert.equal(state.previewDiagnostics.length, 0);
   context.handlePreviewMessage(state, { ...event, data: { ...data, type: 'ready' } });
-  assert.equal(sent.length, 0, 'game-authored ready must not qualify an invisible canvas');
-  context.handlePreviewMessage(state, { ...event, data: { ...data, type: 'ready', boot: true, visible: true } });
+  assert.equal(loadingCleared, 1, 'plain HTML readiness settles loading without a canvas verdict');
   context.handlePreviewMessage(state, event);
   context.handlePreviewMessage(state, event);
-  assert.equal(sent.length, 2, 'send ready plus one deduplicated runtime error');
-  assert.equal(sent[1].token, 'parent-only-token');
-  assert.equal(sent[1].message, data.message);
-  assert.equal(sent[0].canvas_visible, true);
+  assert.equal(sent.length, 0, 'interactive errors stay local until an explicit change request');
+  assert.equal(state.previewDiagnostics.length, 1, 'duplicate runtime errors are reported once');
   assert.equal(shown.length, 1);
   const input = { value: 'Fix the snake', disabled: false };
   const button = {};
   const form = { querySelector(selector) { return selector.includes('button') ? button : input; } };
   state.container = { querySelector: selector => selector === '[data-gm-change-form]' ? form : null };
   await context.submitChange(state);
+  assert.equal(submitted.preview_diagnostics.length, 1);
   assert.equal(submitted.preview_diagnostics[0].message, data.message);
+  assert.equal(submitted.id, 'snake');
+  assert.equal(JSON.stringify(submitted).includes('parent-only-token'), false, 'change requests cannot expose preview grants');
   assert.equal(submitted.prompt, 'Fix the snake');
   assert.deepEqual(submitted.asset_pack_ids, ['space-shooter']);
   state.project = { id: 'other-project' };
   context.handlePreviewMessage(state, { ...event, data: { ...data, message: 'late old error' } });
-  assert.equal(sent.length, 2, 'a switched project must not receive old preview reports');
+  assert.equal(shown.length, 1, 'a switched project cannot receive old iframe errors');
+  state.jobActive = false; input.disabled = false; input.value = 'Change the other game';
+  await context.submitChange(state);
+  assert.equal(submitted.id, 'other-project');
+  assert.equal(submitted.preview_diagnostics.length, 0, 'another project cannot inherit preview diagnostics');
+  assert.equal(sent.length, 0);
 }
 
 async function testGameMakerAssetSelectionReachesCreateAndEdit() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
-  for (const packs of [[], ['space-shooter', 'platformer']]) {
+  for (const { dimension, packs, models } of [
+    { dimension: '2d', packs: [], models: [] },
+    { dimension: '2d', packs: ['space-shooter', 'platformer'], models: [] },
+    { dimension: '3d', packs: [], models: ['robot', 'tree'] }
+  ]) {
     const submitted = [];
     let create;
-    const input = { value: 'Change the game' }, button = {};
+    const input = { value: 'Change the game' }, button = {}, limitsLine = {};
+    const provider = { value: 'local', addEventListener() {} };
+    const model = { value: 'small-model', addEventListener() {} };
     const fieldsBySelector = new Map([
       ['textarea', input], ['button[type="submit"]', button],
-      ['select[name="provider_id"]', { addEventListener() {} }]
+      ['select[name="provider_id"]', provider], ['[name="provider_id"]', provider], ['[name="model"]', model]
     ]);
     const form = {
       querySelector: selector => fieldsBySelector.get(selector) || null,
       addEventListener(type, handler) { if (type === 'submit') create = handler; }
     };
-    const layer = { querySelector: selector => selector === '[data-gm-create]' ? form : null, querySelectorAll: () => [] };
-    const project = { id: 'new-game', dimension: '2d' };
+    const layer = { querySelector: selector => selector === '[data-gm-create]' ? form : limitsLine, querySelectorAll: () => [] };
+    const project = { id: 'new-game', dimension, provider_id: provider.value, model: model.value };
     const state = {
       capabilities: {}, context: { esc: String, t: String }, projects: [], messages: [],
-      selectedAssetPackIDs: [...packs],
+      selectedAssetPackIDs: [...packs], selectedModelAssetIDs: [...models],
       container: { querySelector: selector => selector === '[data-gm-change-form]' ? form : null },
       api: {
-        async createProject() { return project; },
+        async modelLimits() { return { context_window: 2048, max_output_tokens: 512 }; },
+        async createProject(request) {
+          assert.equal(request.dimension, dimension);
+          assert.equal(request.provider_id, provider.value);
+          assert.equal(request.model, model.value);
+          return project;
+        },
         async startJob(id, body) { submitted.push({ id, body }); return { id: 'job', status: 'queued' }; }
       }
     };
-    const fields = { name: 'New game', description: 'Create the game', dimension: '2d' };
+    const fields = { name: 'New game', description: 'Create the game', dimension, provider_id: provider.value, model: model.value };
     const context = {
       window: {}, FormData: class { get(key) { return fields[key] || ''; } },
-      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '', bindModelLimits() {},
+      capabilityState: () => ({ status: 'ready' }), mediaToggle: () => '', setTimeout, clearTimeout,
       showModal(_state, _html, mount) { mount(layer); }, closeModal() {}, setModalBusy() {},
       modalError(_layer, message) { assert.fail(message); }, fail(_state, error) { throw error; },
       async openProject(current) { current.project = project; },
@@ -539,8 +575,7 @@ async function testGameMakerAssetSelectionReachesCreateAndEdit() {
     };
     vm.createContext(context);
     vm.runInContext(sourceBetween(app, 'function jobStartMillis(', 'function formatElapsed('), context);
-    vm.runInContext(sourceBetween(app, 'function compactOptIn(', 'function bindModelLimits('), context);
-    vm.runInContext(sourceBetween(app, 'async function confirmSmallModel(', 'function applyStartedJob('), context);
+    vm.runInContext(sourceBetween(app, 'function modelLimitText(', 'function applyStartedJob('), context);
     vm.runInContext(sourceBetween(app, 'function applyStartedJob(', 'async function startResumedJob('), context);
     vm.runInContext(read('ui/js/desktop/apps/game-maker-studio-assets.js'), context);
     vm.runInContext(sourceBetween(app, 'function postedSelection(', 'async function stopJob('), context);
@@ -550,6 +585,8 @@ async function testGameMakerAssetSelectionReachesCreateAndEdit() {
     assert.equal(submitted[0].id, project.id);
     assert.deepEqual(Array.from(submitted[0].body.asset_pack_ids), packs, 'create sends selected packs');
     assert.equal(submitted[0].body.prompt, fields.description);
+    assert.equal(limitsLine.hidden, false, 'small model limits remain visible and informational');
+    assert.equal(limitsLine.textContent, 'game_maker.model_limits_line');
 
     await context.submitChange(state);
     assert.equal(submitted.length, 2, 'edit starts exactly one job');
@@ -557,7 +594,11 @@ async function testGameMakerAssetSelectionReachesCreateAndEdit() {
     assert.equal(submitted[1].body.prompt, 'Change the game');
     assert.equal(submitted[1].body.resume, false);
     state.selectedAssetPackIDs.push('later-selection');
+    state.selectedModelAssetIDs.push('later-model');
     for (const { body } of submitted) {
+      assert.deepEqual(Array.from(body.model_asset_ids), models, 'model selections are sent and detached');
+      assert.equal(body.provider_id, provider.value);
+      assert.equal(body.model, model.value);
       assert.deepEqual(Array.from(body.asset_pack_ids), packs, 'submitted selection is detached from later edits');
     }
   }
@@ -612,7 +653,7 @@ async function testGameMakerSpriteBrowserOwnsSelectionAndCleanup() {
   assert.equal(state.selectedAssetPackIDs.length, 0);
 }
 
-async function testGameMakerDiagnosticsFollowPreviewLifetime() {
+async function testGameMakerDiagnosticsFollowBuildLifetime() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
   const nodes = new Map();
   const panel = { open: false, classList: {
@@ -641,10 +682,12 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   // Loading overlays have their own DOM/lifecycle test below.
   context.window.GameMakerStudioPreview.showLoading = () => {};
   state.addDiagnostic = diagnostic => context.addDiagnostic(state, diagnostic);
+  vm.runInNewContext(sourceBetween(app, 'function eventMatchesJob(', 'function noteGameplay('), context);
+  vm.runInNewContext(sourceBetween(app, 'function handleEvent(', 'function handleJobStatus('), context);
+  context.clearDiagnostics(state);
   await context.refreshPreview(state);
   assert.equal(state.diagnostics.length, 0, 'preview setup must succeed before testing late reports');
-  let rejectReport;
-  state.api.reportPreview = () => new Promise((_resolve, reject) => { rejectReport = reject; });
+
   const oldEvent = { source: state.frame.contentWindow, data: {
     source: 'aurago-game', channel: state.channelID, type: 'runtime_error', message: 'Old image error'
   } };
@@ -652,16 +695,17 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   assert.equal(panel.hasErrors, true);
   assert.equal(state.previewDiagnostics.length, 1);
   await context.refreshPreview(state);
-  rejectReport(new Error('Late report failure'));
-  await Promise.resolve();
-  context.handlePreviewMessage(state, oldEvent);
+  context.handlePreviewMessage(state, { ...oldEvent, data: { ...oldEvent.data, message: 'late old frame' } });
+  assert.equal(state.diagnostics.length, 1, 'iframe reload retains build diagnostics but rejects old frame messages');
+  assert.equal(state.previewDiagnostics.length, 1);
+  context.handleEvent(state, { type: 'build_started', payload: { build_id: 'next-build' } });
+  assert.equal(state.buildID, 'next-build');
   assert.equal(state.diagnostics.length, 0);
   assert.equal(state.previewDiagnostics.length, 0);
   assert.equal(nodes.get('[data-gm-diagnostic-list]').innerHTML, '');
   assert.equal(nodes.get('[data-gm-diagnostic-count]').textContent, '0');
   assert.equal(panel.hasErrors, false);
   assert.equal(panel.open, false);
-  state.api.reportPreview = async () => {};
   const currentEvent = { ...oldEvent, source: state.frame.contentWindow,
     data: { ...oldEvent.data, channel: state.channelID } };
   context.handlePreviewMessage(state, currentEvent);
@@ -677,7 +721,14 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   await context.refreshPreview(state);
   rejectGrant(new Error('Late grant failure'));
   await staleRefresh;
-  assert.equal(state.diagnostics.length, 0, 'old grant failures must not contaminate the new preview');
+  assert.equal(state.diagnostics.length, 1, 'old grant failures cannot add errors or clear current diagnostics');
+  context.handleEvent(state, { type: 'preview_diagnostic', payload: { build_id: 'old-build', diagnostic: { message: 'stale build' } } });
+  assert.equal(state.diagnostics.length, 1, 'agent diagnostics from an old build are ignored');
+  context.handleEvent(state, { type: 'build_started', payload: { build_id: 'third-build' } });
+  context.handleEvent(state, { type: 'preview_diagnostic', payload: { build_id: 'third-build', diagnostic: { message: 'agent error', level: 'runtime' } } });
+  assert.equal(state.diagnostics.length, 1);
+  assert.equal(state.diagnostics[0].message, 'agent error');
+  context.clearDiagnostics(state);
   context.addDiagnostic(state, { level: 'runtime', message: 'Current error' });
   state.api.previewGrant = async () => { throw new Error('Current grant failure'); };
   await context.refreshPreview(state);
@@ -687,101 +738,85 @@ async function testGameMakerDiagnosticsFollowPreviewLifetime() {
   assert.match(sourceBetween(app, 'async function openProject(', 'function renderProject('), /clearDiagnostics\(state\)/);
 }
 
-async function testGameMakerPreviewStopsExpiredValidation() {
+function testGameMakerPreviewDiagnosticsStayLocalAndBounded() {
   const window = {};
   vm.runInNewContext(read('ui/js/desktop/apps/game-maker-studio-preview.js'), { window });
-  const shown = [], sent = [];
-  let reject;
+  const shown = [];
   const state = {
     frame: { contentWindow: {} }, project: { id: 'breakout' }, previewProjectID: 'breakout',
     channelID: 'channel', job: { status: 'building' }, previewReported: new Set(), previewDiagnostics: [],
-    previewGrant: { token: 'token', validation_id: 'build', expires_at: new Date(Date.now() + 60000).toISOString() },
+    previewGrant: { token: 'parent-only', validation_id: 'old-build', expires_at: '2000-01-01T00:00:00Z' },
     addDiagnostic: item => shown.push(item),
-    api: { reportPreview: (...args) => { sent.push(args); return new Promise((_, fail) => { reject = fail; }); } }
+    api: { reportPreview() { assert.fail('interactive diagnostics cannot revive the retired validation API'); } }
   };
-  const event = { source: state.frame.contentWindow, data: { source: 'aurago-game', channel: 'channel', type: 'runtime_error', message: 'this.paddle.body.setVelocity is not a function' } };
-  window.GameMakerStudioPreview.handleMessage(state, event);
-  assert.equal(sent.length, 1);
-  assert.equal(shown.length, 1);
-  state.previewGrant.expires_at = new Date(Date.now() - 1000).toISOString();
-  reject(new Error('invalid or expired preview token'));
-  await Promise.resolve();
-  assert.equal(shown.length, 1, 'expiry during an in-flight report must not add a misleading game error');
-  window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, message: 'late error' } });
-  window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, type: 'gameplay', observations: [] } });
-  assert.equal(sent.length, 1, 'expired validation must not send more reports');
-  state.previewGrant.expires_at = new Date(Date.now() + 60000).toISOString();
-  for (const status of ['failed', 'cancelled', 'ready']) {
+  const send = (type, message) => window.GameMakerStudioPreview.handleMessage(state, {
+    source: state.frame.contentWindow, data: { source: 'aurago-game', channel: 'channel', type, message }
+  });
+  for (const type of ['capture', 'gameplay', 'visual_result', 'unknown']) send(type, 'ignored');
+  assert.equal(shown.length, 0, 'only supported diagnostic types enter the local history');
+  for (const status of ['building', 'failed', 'cancelled', 'ready']) {
     state.job.status = status;
-    window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, message: status } });
+    send('runtime_error', status);
+    send('runtime_error', status);
   }
-  assert.equal(sent.length, 1, 'terminal jobs must not report against the old validation grant');
-  assert.equal(shown.length, 1);
-  state.previewGrant = { token: 'published', validation_id: '' };
-  window.GameMakerStudioPreview.handleMessage(state, { ...event, data: { ...event.data, message: 'published gameplay error' } });
-  assert.equal(shown.length, 2, 'published-game diagnostics must remain visible');
+  assert.equal(shown.length, 4, 'expired validation and terminal jobs do not hide current game errors');
+  send('resource_error', 'missing image');
+  send('diagnostic', 'browser feedback');
+  send('runtime_error', 'x'.repeat(3000));
+  assert.equal(shown[4].message, 'missing image');
+  assert.equal(shown[5].message, 'browser feedback');
+  assert.equal(shown[6].message.length, 2000);
+  send('runtime_error', 'x'.repeat(2000) + 'different tail');
+  assert.equal(shown.length, 7, 'deduplication uses the bounded message');
+  for (let i = 0; i < 250; i++) send('runtime_error', 'error-' + i);
+  assert.equal(shown.length, 200);
+  assert.equal(state.previewDiagnostics.length, 200);
+  assert.equal(state.previewReported.size, 200);
+  assert.equal(shown.at(-1).message, 'error-192', 'overflow cannot evict or grow the bounded history');
+  assert.ok(shown.every(item => item.level === 'runtime'));
+  assert.equal(JSON.stringify(shown).includes('parent-only'), false);
 }
 
-function testGameMakerBootDetectsInvisibleCanvasAndEngineErrors() {
-  const source = sourceBetween(read('internal/gamemaker/preview.go'), '(function () {', '</script>');
-  function boot() {
-    const messages = [], listeners = new Map();
-    let now = 0, interval = null;
-    const rect = { top: 650, bottom: 1100, left: 0, right: 800, width: 800, height: 450 };
-    const canvas = { width: 700, height: 504, getBoundingClientRect: () => rect };
-    const events = {
-      addEventListener: (type, fn) => listeners.set(type, fn),
-      removeEventListener: type => listeners.delete(type)
-    };
-    const context = {
-      window: { ...events }, console: { error() {} },
-      parent: { postMessage: message => messages.push(message) },
-      performance: { now: () => now },
-      location: { hash: '#gm-channel=test' }, URLSearchParams,
-      innerHeight: 600, innerWidth: 800,
-      getComputedStyle: () => ({ display: 'block', visibility: 'visible', opacity: '1' }),
-      MutationObserver: class { observe() {} disconnect() {} },
-      setInterval(callback) { interval = callback; return 1; },
-      clearInterval() { interval = null; },
-      document: { ...events, hidden: false, readyState: 'complete', documentElement: {},
-        querySelector: () => canvas,
-        querySelectorAll: selector => selector === 'canvas' ? [canvas] : [] }
-    };
-    vm.runInNewContext(source, context);
-    return { context, messages, rect, listeners,
-      tick(time) { now = time; interval?.(); },
-      watching: () => interval !== null };
+function testGameMakerBootSupportsHTMLAndCapturesEngineErrors() {
+  const template = sourceBetween(read('internal/gamemaker/preview.go'), 'const previewBootScript =', 'func injectPreviewBoot(');
+  const script = template.slice(template.indexOf('>') + 1, template.indexOf('</script>'));
+  for (const readyState of ['loading', 'complete']) {
+    for (const channel of ['test', '']) {
+      const messages = [], originalErrors = [], listeners = new Map();
+      const context = {
+        addEventListener(type, handler, options) { listeners.set(type, { handler, options }); },
+        console: { error: (...args) => originalErrors.push(args) },
+        parent: { postMessage(message, target) { assert.equal(target, '*'); messages.push(message); } },
+        location: { hash: channel ? '#gm-channel=' + channel : '' }, URLSearchParams,
+        document: { readyState, querySelector() { assert.fail('HTML readiness cannot require a canvas'); } }
+      };
+      vm.runInNewContext(script, context);
+      if (readyState === 'loading') {
+        assert.equal(messages.length, 0, 'readiness waits for the DOM');
+        assert.equal(listeners.get('DOMContentLoaded').options.once, true);
+        listeners.get('DOMContentLoaded').handler();
+      }
+      assert.equal(messages.length, channel ? 1 : 0);
+      if (channel) assert.equal(messages[0].type, 'ready');
+      assert.equal(listeners.get('error').options, true, 'capture phase sees resource errors');
+      listeners.get('error').handler({ message: 'Uncaught TypeError: broken engine' });
+      listeners.get('error').handler({ target: { src: '/missing.png' } });
+      listeners.get('error').handler({ target: { href: '/missing.css' } });
+      listeners.get('unhandledrejection').handler({ reason: 'rejected promise' });
+      context.console.error('Failed to process file:', 'image', 'snake');
+      context.console.error('x'.repeat(3000));
+      assert.equal(originalErrors.length, 2, 'the original console remains usable');
+      if (!channel) {
+        assert.equal(messages.length, 0, 'an unbound page cannot send preview feedback');
+        continue;
+      }
+      assert.deepEqual(messages.map(item => item.type), ['ready', 'runtime_error', 'resource_error', 'resource_error', 'runtime_error', 'runtime_error', 'runtime_error']);
+      assert.deepEqual(messages.slice(1, 6).map(item => item.message), ['Uncaught TypeError: broken engine',
+        'Failed resource: /missing.png', 'Failed resource: /missing.css', 'rejected promise', 'Failed to process file: image snake']);
+      assert.equal(messages.at(-1).message.length, 2000);
+      assert.ok(messages.every(item => item.source === 'aurago-game' && item.channel === channel));
+    }
   }
-  const failed = boot();
-  failed.tick(2999);
-  assert.equal(failed.messages.length, 0, 'layout gets a settling period before failure');
-  failed.tick(3000);
-  assert.match(failed.messages[0].message, /canvas remains hidden or outside/);
-  assert.equal(failed.watching(), false, 'a conclusive failure stops the layout timer');
-  failed.context.console.error('Failed to process file:', 'image', '"snake"');
-  assert.match(failed.messages[1].message, /Failed to process file: image "snake"/);
-  Object.assign(failed.rect, { top: 0, bottom: 450 });
-  failed.tick(4000);
-  assert.equal(failed.messages.length, 2, 'a failed boot must not later report success');
-
-  const resumed = boot();
-  resumed.context.document.hidden = true;
-  resumed.tick(4000);
-  resumed.context.document.hidden = false;
-  resumed.context.innerHeight = 0;
-  resumed.tick(8000);
-  resumed.context.innerHeight = 600;
-  resumed.listeners.get('message')({ source: resumed.context.parent, data: { type: 'aurago:game:active', active: false } });
-  resumed.tick(12000);
-  assert.equal(resumed.messages.length, 0, 'hidden, unsized or inactive host previews are not game failures');
-  resumed.listeners.get('message')({ source: resumed.context.parent, data: { type: 'aurago:game:active', active: true } });
-  resumed.tick(14999);
-  assert.equal(resumed.messages.length, 0, 'resuming starts a fresh layout settling period');
-  Object.assign(resumed.rect, { top: 0, bottom: 450 });
-  resumed.tick(15000);
-  assert.equal(resumed.messages[0].type, 'ready');
-  assert.equal(resumed.messages[0].visible, true);
-  assert.equal(resumed.watching(), false);
 }
 
 function testDesktopMediaKeysAreInBootstrapScope() {
@@ -5620,14 +5655,56 @@ function testDetectiveTokenCounts() {
 
 function testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload() {
   const app = read('ui/js/desktop/apps/game-maker-studio.js');
-  assert.match(app, /'waiting_preview', 'polishing'/);
-  assert.match(app, /state\.backlogPreviewReload = null/);
-  assert.match(app, /state\.backlogPreviewReload = body/);
-  assert.match(app, /if \(reload\) handleEvent\(state, reload\)/);
-  assert.match(app, /const shown = status === 'waiting_preview' \? 'validating' : status/);
-  assert.match(app, /const step = payload\.phase === 'waiting_preview' \? 'validating' : payload\.phase/);
-  assert.match(app, /phase === 'waiting_preview'/);
-  assert.doesNotMatch(app, /game_maker\.status_waiting_preview|game_maker\.phase_waiting_preview/);
+  const listeners = new Map(), input = {}, button = {}, stop = {}, phaseLabel = {}, status = {};
+  const nodes = new Map([
+    ['[data-gm-change-form]', { querySelector: selector => selector === 'textarea' ? input : button }],
+    ['[data-gm-job-banner]', { querySelector: () => phaseLabel }],
+    ['[data-gm-phases]', {}], ['[data-gm-status]', status]
+  ]);
+  const context = {
+    window: {}, EventSource: class { addEventListener(type, handler) { listeners.set(type, handler); } },
+    refreshPreview(state) { state.reloads = (state.reloads || 0) + 1; },
+    renderPlanCard() {}, rememberJobOutcome() {}, otherProjectBusy: () => false,
+    renderProjectContext() {}, renderDrift() {}, syncBusyPoll() {}, startElapsed() {}, stopElapsed() {}
+  };
+  vm.createContext(context);
+  for (const [start, end] of [
+    ['const eventTypes =', 'function sessionRevision('],
+    ['function phaseMarkup(', 'function handleJobStatus('],
+    ['function syncJobControls(', 'function startElapsed('],
+    ['function jobStartMillis(', 'function formatElapsed('],
+    ['function updateStatus(', 'function setButton(']
+  ]) vm.runInContext(sourceBetween(app, start, end), context);
+  const state = { project: { id: 'p' }, job: { id: 'j', status: 'building' }, capabilities: { allow_edit: true },
+    api: { eventURL: () => '/events' }, context: { t: String, esc: String },
+    container: { querySelector: selector => nodes.get(selector), querySelectorAll: () => [stop] } };
+  const emit = (type, payload, jobID = 'j') => listeners.get(type)({ data: JSON.stringify({ type, job_id: jobID, payload }) });
+  context.connectEvents(state);
+  emit('phase', { phase: 'waiting_preview' });
+  emit('preview_reload', { build_id: 'missed-build' });
+  assert.equal(state.reloads, undefined, 'history replay waits for stream_ready');
+  emit('stream_ready', {});
+  assert.equal(state.reloads, 1, 'the missed preview reload runs once after catch-up');
+  assert.equal(state.buildID, 'missed-build');
+  assert.equal(state.backlogPreviewReload, null);
+  assert.equal(state.backlogControl, null);
+  assert.equal(state.job.status, 'waiting_preview', 'legacy phase identity is preserved');
+  assert.equal(state.jobActive, true);
+  assert.equal(input.disabled, true);
+  assert.equal(button.disabled, true);
+  assert.equal(stop.disabled, false, 'the waiting job remains cancellable');
+  assert.equal(status.textContent, 'game_maker.status_validating');
+  assert.equal(phaseLabel.textContent, 'game_maker.phase_validating');
+  emit('stream_ready', {});
+  assert.equal(state.reloads, 1, 'duplicate stream_ready cannot repeat the reload');
+  emit('preview_reload', { build_id: 'old-build' }, 'old-job');
+  assert.equal(state.reloads, 1, 'a late previous job cannot replace the game');
+  emit('phase', { phase: 'building' });
+  emit('preview_reload', { build_id: 'live-build' });
+  assert.equal(state.reloads, 2, 'live reloads do not wait for another stream_ready');
+  assert.equal(state.buildID, 'live-build');
+  assert.equal(state.job.status, 'building');
+  assert.equal(state.jobActive, true);
 }
 
 const tests = [
@@ -5640,15 +5717,15 @@ const tests = [
   ['Desktop Chat separates streamed tool rounds and final text', testDesktopChatSeparatesStreamedToolRounds],
   ['Game Maker reconnect and terminal job state remain consistent', testGameMakerEventConnectionLifecycle],
   ['Game Maker isolates old job events during replay and live updates', testGameMakerJobEventOwnership],
-  ['Game Maker renews manual review grants without replacing the game', testGameMakerVisualGrantRenewal],
+  ['Game Maker agent captures preserve the interactive preview', testGameMakerAgentCapturesPreserveInteractivePreview],
   ['Voxel keeps held inputs isolated by source', testVoxelInputOwnership],
   ['Game Maker asset selection reaches create and edit', testGameMakerAssetSelectionReachesCreateAndEdit],
   ['Game Maker sprite browser owns selection and cleanup', testGameMakerSpriteBrowserOwnsSelectionAndCleanup],
-  ['Game Maker diagnostics belong to the current preview', testGameMakerDiagnosticsFollowPreviewLifetime],
-  ['Game Maker stops reports from expired or finished validation', testGameMakerPreviewStopsExpiredValidation],
-  ['Game Maker boot rejects invisible canvases and captures engine errors', testGameMakerBootDetectsInvisibleCanvasAndEngineErrors],
+  ['Game Maker diagnostics belong to the current build', testGameMakerDiagnosticsFollowBuildLifetime],
+  ['Game Maker preview diagnostics stay local and bounded', testGameMakerPreviewDiagnosticsStayLocalAndBounded],
+  ['Game Maker boot supports HTML and captures engine errors', testGameMakerBootSupportsHTMLAndCapturesEngineErrors],
   ['Desktop media keys are visible to bootstrap', testDesktopMediaKeysAreInBootstrapScope],
-  ['Game Maker forwards runtime diagnostics to validation and the next change', testGameMakerPreviewDiagnosticsReachValidationAndNextRequest],
+  ['Game Maker forwards local diagnostics only to the next explicit change', testGameMakerPreviewDiagnosticsReachNextRequest],
   ['local LLM family selection keeps model, context and draft settings valid', testLocalLLMFamilySelection],
   ['browser audio lease uses an exclusive Web Lock', testBrowserAudioLeaseUsesExclusiveWebLock],
   ['versioned service-worker registration', testVersionedServiceWorkerRegistration],

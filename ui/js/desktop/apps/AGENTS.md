@@ -6146,13 +6146,16 @@ registration lives in `internal/desktop/types.go`.
   Export stays disabled until the open project has a revision. Missing
   skills/revisions modals throw `game_maker.modules_load_failed`
   via `state.context.t(key)`. Exposes `window.GameMakerStudioApp`.
-  Its optional screenshot-review strip has an explicit, height-bounded grid row;
+  Its independent Agent view has an explicit, height-bounded grid row;
   status text and thumbnails must not squeeze the live game into a narrow band.
-  Verify wide/narrow layout and stale-review cleanup with
-  `TestGameMakerVisualStripLayoutBrowser` / `TestGameMakerManualVisualLifecycleBrowser`.
-  Manual review renews its credential for the captured revision without replacing
-  the frame or its save/channel grant; changed revisions and late responses fail
-  closed. Replay and live job events may replace the current job only with a newer
+  Verify capture retention/disposal with `TestGameMakerAgentCaptureBrowser`
+  and local, channel-bound diagnostics with `TestGameMakerDiagnosticFramesBrowser`.
+  `scripts/test-ui-regressions.mjs` covers the three-image limit, build-scoped
+  diagnostic reset, bounded local feedback, explicit change requests and optional
+  asset/model selections. Interactive reload keeps build diagnostics and Agent
+  view images; a new build or project resets diagnostics. Readiness accepts HTML
+  without a canvas and never reports a gameplay/visual acceptance verdict.
+  Replay and live job events may replace the current job only with a newer
   queued job; old terminal/preview events cannot finish a newer job. Project-only
   revision events stay valid. Verify `scripts/test-ui-regressions.mjs`.
   Every library entry carries its own `.gm-project-delete` control: a game is
