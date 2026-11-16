@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren. Controle en proefuitvoering vereisen ook schrijfrechten; Ansible-taken kunnen de controlemodus negeren.",
   "help.paperless_ngx.allow_delete": "Standaard uit. Alleen-lezen blijft verwijderen blokkeren.",
   "help.onedrive.allow_public_share": "Anonieme deellinks toestaan. Standaard uit; alleen-lezen heeft altijd voorrang.",
-  "help.huggingface.allow_publish": "Openbare repository’s, uploads en discussies toestaan. Zonder private blijft de repository privé; onbekende zichtbaarheid blokkeert wijzigingen. Alleen-lezen heeft voorrang."
+  "help.huggingface.allow_publish": "Openbare repository’s, uploads en discussies toestaan. Zonder private blijft de repository privé; onbekende zichtbaarheid blokkeert wijzigingen. Alleen-lezen heeft voorrang.",
+  "help.telnyx.owner_number": "Expliciet eigenaarsnummer in E.164-formaat, ook opgenomen bij toegestane nummers. Alleen dit nummer deelt gesprekken en vragen van de eigenaar. Leeg geeft geen eigenaarsrechten."
 }

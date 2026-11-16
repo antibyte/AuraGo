@@ -13,6 +13,15 @@ type numberPolicy struct {
 	readOnly bool
 }
 
+// IncomingConversation preserves the shared owner chat only for an explicit binding.
+func IncomingConversation(cfg *config.Config, from string) (string, bool) {
+	number := normalizePhone(from)
+	if cfg != nil && cfg.Telnyx.OwnerNumber != "" && config.ValidateTelnyxOwner(cfg) == nil && number == cfg.Telnyx.OwnerNumber {
+		return "default", true
+	}
+	return "telnyx:" + number, false
+}
+
 // errNoNumberPolicy is returned by every mutation of a client built with
 // NewClient: without telnyx.allowed_numbers and telnyx.read_only it may only read.
 var errNoNumberPolicy = errors.New("telnyx client has no number policy; use the configured client")

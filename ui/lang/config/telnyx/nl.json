@@ -43,5 +43,7 @@
   "help.telnyx.voice_language": "Standaardtaalcode voor Telnyx-spraakprompts en oproeptranscriptie.",
   "config.telnyx.voice_gender_help": "Stem waarmee de agent tijdens telefoongesprekken spreekt.",
   "config.telnyx.max_concurrent_calls_help": "Hoeveel gesprekken tegelijk mogen lopen (1-20, standaard 3). Overige gesprekken worden geweigerd.",
-  "config.telnyx.max_sms_per_minute_help": "Maximaal aantal uitgaande sms'jes per minuut (1-60, standaard 10). Beschermt tegen onbedoeld bulkverzenden en hoge kosten."
+  "config.telnyx.max_sms_per_minute_help": "Maximaal aantal uitgaande sms'jes per minuut (1-60, standaard 10). Beschermt tegen onbedoeld bulkverzenden en hoge kosten.",
+  "config.telnyx.owner_number_label": "Nummer van de eigenaar",
+  "help.telnyx.owner_number": "Expliciet eigenaarsnummer in E.164-formaat, ook opgenomen bij toegestane nummers. Alleen dit nummer deelt gesprekken en vragen van de eigenaar. Leeg geeft geen eigenaarsrechten."
 }

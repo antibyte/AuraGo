@@ -37,6 +37,7 @@ function renderTelnyxSection(section) {
             }),
             form.field({ label: t('config.telnyx.webhook_public_key_label'), help: t('help.telnyx.webhook_public_key'), path: 'telnyx.webhook_public_key', value: data.webhook_public_key || '' })
         ] }, { titleKey: 'config.refresh.connection', fields: [
+            form.field({ label: t('config.telnyx.owner_number_label'), help: t('help.telnyx.owner_number'), path: 'telnyx.owner_number', value: data.owner_number || '', placeholder: '+15551234567' }),
             form.field({ label: t('config.telnyx.phone_number_label'), help: t('help.telnyx.phone_number'), path: 'telnyx.phone_number', value: data.phone_number || '', placeholder: '+15551234567' }),
             form.field({ label: t('config.telnyx.messaging_profile_id_label'), help: t('help.telnyx.messaging_profile_id'), path: 'telnyx.messaging_profile_id', value: data.messaging_profile_id || '' }),
             form.field({ label: t('config.telnyx.connection_id_label'), help: t('help.telnyx.connection_id'), path: 'telnyx.connection_id', value: data.connection_id || '' }),

@@ -565,5 +565,6 @@
   "help.ansible.readonly": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks. Kontroll och provkörning kräver också skrivbehörighet; Ansible-uppgifter kan ignorera kontrolläget.",
   "help.paperless_ngx.allow_delete": "Av som standard. Skrivskydd blockerar fortfarande borttagning.",
   "help.onedrive.allow_public_share": "Tillåt anonyma delningslänkar. Av som standard; skrivskydd har alltid företräde.",
-  "help.huggingface.allow_publish": "Tillåt offentliga arkiv, uppladdningar och diskussioner. Utelämnat private betyder privat; okänd synlighet blockerar ändringar. Skrivskydd har företräde."
+  "help.huggingface.allow_publish": "Tillåt offentliga arkiv, uppladdningar och diskussioner. Utelämnat private betyder privat; okänd synlighet blockerar ändringar. Skrivskydd har företräde.",
+  "help.telnyx.owner_number": "Ange ägarens nummer i E.164-format, även i listan över tillåtna nummer. Endast detta nummer delar ägarens samtal och frågor. Ett tomt fält ger ingen ägaråtkomst."
 }

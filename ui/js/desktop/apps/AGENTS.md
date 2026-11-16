@@ -5661,6 +5661,7 @@ registration lives in `internal/desktop/types.go`.
   `tool_call`; its narration replaces that round's streamed draft instead of
   duplicating it. `final_response` replaces the current final draft. Pending
   scrolls target the newest log item, never an earlier round's bubble.
+  Answer requests carry the received `question_id` through the shared dialog; stale answers remain rejected without consuming another question.
   Terminal errors preserve the draft and show the concrete error. Stop and question
   Cancel/Escape use the existing administrator session stop endpoint; this cleanup
   is the exception to integration proxy routing. Failed stop/answer/clear requests

@@ -311,7 +311,8 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		return
 	}
 	msg := update.Message
-	sessionID, err := shortTermMem.ResolveUserSession(ctx, "default")
+	conversationID, owner := telegramConversationIdentity(msg, cfg)
+	sessionID, err := shortTermMem.ResolveUserSession(ctx, conversationID)
 	if err != nil {
 		logger.Error("Resolve Telegram conversation", "error", err)
 		return
@@ -527,12 +528,16 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if forwardMarker == "" {
 			if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
-				response.Source = tools.QuestionSourceTelegram
-				tools.CompleteQuestion(sessionID, response)
-				return
+				identity := tools.ConversationQuestionIdentity(tools.QuestionSourceTelegram, sessionID)
+				if owner {
+					identity = tools.OwnerQuestionIdentity(tools.QuestionSourceTelegram)
+				}
+				if tools.CompleteQuestion(sessionID, response, identity) {
+					return
+				}
 			}
 		}
-		deliverMessage(bot, msg.From.ID, "Please reply with one of the listed numbers.", "reply prompt", logger)
+		deliverMessage(bot, msg.Chat.ID, "Please reply with one of the listed numbers.", "reply prompt", logger)
 		return
 	}
 
@@ -562,17 +567,17 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 		cmdResult, isCmd, err := commands.Handle(msg.Text, cmdCtx)
 		if err != nil {
 			logger.Error("Telegram command execution failed", "error", err)
-			deliverMessage(bot, msg.From.ID, "⚠️ Fehler beim Ausführen des Befehls.", "command error notice", logger)
+			deliverMessage(bot, msg.Chat.ID, "⚠️ Fehler beim Ausführen des Befehls.", "command error notice", logger)
 			return
 		}
 		if isCmd {
-			deliverMessage(bot, msg.From.ID, cmdResult, "command result", logger)
+			deliverMessage(bot, msg.Chat.ID, cmdResult, "command result", logger)
 			return
 		}
 	}
 
 	if shouldBlockTelegramPromptInjection(inputText, guardian, logger, msg.From.ID) {
-		deliverMessage(bot, msg.From.ID, "Your message was blocked by the security guardian.", "security block notice", logger)
+		deliverMessage(bot, msg.Chat.ID, "Your message was blocked by the security guardian.", "security block notice", logger)
 		return
 	}
 	inputText = security.IsolateExternalData(inputText)
@@ -652,7 +657,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			if typingCtx.Err() != nil {
 				return
 			}
-			_ = sendChatAction(bot, msg.From.ID, tgbotapi.ChatTyping)
+			_ = sendChatAction(bot, msg.Chat.ID, tgbotapi.ChatTyping)
 			select {
 			case <-ticker.C:
 			case <-typingCtx.Done():
@@ -664,7 +669,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 	// Run the loop with the polling owner's cancellation context.
 
 	// Use TelegramBroker to capture audio events for native sending
-	broker := &TelegramBroker{bot: bot, chatID: msg.From.ID, logger: logger}
+	broker := &TelegramBroker{bot: bot, chatID: msg.Chat.ID, logger: logger}
 	resp, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	stopTyping() // Stop the indicator as soon as the agent is done
 	if ctx.Err() != nil {
@@ -673,7 +678,7 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 
 	if err != nil {
 		logger.Error("Telegram agent loop failed", "error", err)
-		deliverMessage(bot, msg.From.ID, "⚠️ Sorry, I encountered an error processing your request.", "error notice", logger)
+		deliverMessage(bot, msg.Chat.ID, "⚠️ Sorry, I encountered an error processing your request.", "error notice", logger)
 		return
 	}
 
@@ -690,12 +695,12 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			}
 			if convErr != nil {
 				logger.Warn("[Telegram] OGG conversion failed, falling back to audio", "error", convErr)
-				deliverAudio(bot, msg.From.ID, af.FilePath, af.Title, logger)
+				deliverAudio(bot, msg.Chat.ID, af.FilePath, af.Title, logger)
 			} else {
-				deliverVoice(bot, msg.From.ID, oggPath, logger)
+				deliverVoice(bot, msg.Chat.ID, oggPath, logger)
 			}
 		} else {
-			deliverAudio(bot, msg.From.ID, af.FilePath, af.Title, logger)
+			deliverAudio(bot, msg.Chat.ID, af.FilePath, af.Title, logger)
 		}
 	}
 
@@ -731,14 +736,14 @@ func processUpdate(ctx context.Context, bot *tgbotapi.BotAPI, update tgbotapi.Up
 			} else {
 				continue
 			}
-			deliverPhoto(bot, msg.From.ID, localPath, img.Caption, logger)
+			deliverPhoto(bot, msg.Chat.ID, localPath, img.Caption, logger)
 			if staged {
 				_ = os.Remove(localPath)
 			}
 		}
 		cleanText = AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
 		if cleanText != "" {
-			deliverMessage(bot, msg.From.ID, cleanText, "answer", logger)
+			deliverMessage(bot, msg.Chat.ID, cleanText, "answer", logger)
 		}
 	}
 }

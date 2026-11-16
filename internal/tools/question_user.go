@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/uid"
 )
 
 // QuestionOption is a selectable answer shown to the user.
@@ -39,9 +41,10 @@ const (
 
 // QuestionResponse is returned to the agent after the user answers or the wait times out.
 type QuestionResponse struct {
-	Status   string `json:"status"`
-	Selected string `json:"selected"`
-	FreeText string `json:"free_text,omitempty"`
+	QuestionID string `json:"question_id,omitempty"`
+	Status     string `json:"status"`
+	Selected   string `json:"selected"`
+	FreeText   string `json:"free_text,omitempty"`
 	// Source is set by the completer and never sent to the model. Empty means
 	// unknown and is treated as untrusted.
 	Source QuestionSource `json:"-"`
@@ -49,6 +52,7 @@ type QuestionResponse struct {
 
 // PendingQuestion tracks a blocking user question for a single session.
 type PendingQuestion struct {
+	QuestionID    string           `json:"question_id"`
 	Question      string           `json:"question"`
 	Options       []QuestionOption `json:"options"`
 	AllowFreeText bool             `json:"allow_free_text"`
@@ -61,6 +65,31 @@ type PendingQuestion struct {
 
 var pendingQuestions sync.Map
 
+// QuestionAnswerIdentity is supplied only by an authenticated channel adapter.
+// Its fields are deliberately unavailable to JSON, tool arguments and model text.
+type QuestionAnswerIdentity struct {
+	source    QuestionSource
+	sessionID string
+	owner     bool
+}
+
+func OwnerQuestionIdentity(source QuestionSource) QuestionAnswerIdentity {
+	return QuestionAnswerIdentity{source: source, owner: true}
+}
+
+func ConversationQuestionIdentity(source QuestionSource, sessionID string) QuestionAnswerIdentity {
+	return QuestionAnswerIdentity{source: source, sessionID: sessionID}
+}
+
+func (identity QuestionAnswerIdentity) allows(sessionID string) bool {
+	switch identity.source {
+	case QuestionSourceWeb, QuestionSourceDesktop, QuestionSourceTelegram, QuestionSourceDiscord, QuestionSourceWhatsApp, QuestionSourceTelnyx:
+		return identity.owner || (identity.sessionID != "" && identity.sessionID == sessionID)
+	default:
+		return false
+	}
+}
+
 // RegisterQuestion registers a pending question and returns its response channel.
 func RegisterQuestion(sessionID string, q *PendingQuestion) <-chan QuestionResponse {
 	if q == nil {
@@ -70,6 +99,7 @@ func RegisterQuestion(sessionID string, q *PendingQuestion) <-chan QuestionRespo
 		sessionID = "default"
 	}
 	q.SessionID = sessionID
+	q.QuestionID = uid.New()
 	if q.CreatedAt.IsZero() {
 		q.CreatedAt = time.Now()
 	}
@@ -82,21 +112,36 @@ func RegisterQuestion(sessionID string, q *PendingQuestion) <-chan QuestionRespo
 }
 
 // CompleteQuestion writes the user's response to a pending question.
-func CompleteQuestion(sessionID string, response QuestionResponse) bool {
+func CompleteQuestion(sessionID string, response QuestionResponse, identity QuestionAnswerIdentity) bool {
 	if strings.TrimSpace(sessionID) == "" {
 		sessionID = "default"
 	}
-	raw, ok := pendingQuestions.LoadAndDelete(sessionID)
+	if !identity.allows(sessionID) {
+		return false
+	}
+	raw, ok := pendingQuestions.Load(sessionID)
 	if !ok {
 		return false
 	}
 	q, ok := raw.(*PendingQuestion)
-	if !ok || q.responseCh == nil {
+	if !ok || q.responseCh == nil || response.QuestionID == "" || response.QuestionID != q.QuestionID {
 		return false
 	}
-	if strings.TrimSpace(response.Status) == "" {
-		response.Status = "ok"
+	if response.Status != "" && response.Status != "ok" {
+		return false
 	}
+	if response.FreeText != "" && !q.AllowFreeText {
+		return false
+	}
+	validSelection := response.Selected == "" && strings.TrimSpace(response.FreeText) != ""
+	for _, option := range q.Options {
+		validSelection = validSelection || (response.Selected != "" && response.Selected == option.Value)
+	}
+	if !validSelection || !pendingQuestions.CompareAndDelete(sessionID, q) {
+		return false
+	}
+	response.Status = "ok"
+	response.Source = identity.source
 	select {
 	case q.responseCh <- response:
 	default:
@@ -127,11 +172,15 @@ func GetPendingQuestion(sessionID string) *PendingQuestion {
 }
 
 // CancelQuestion removes a pending question without sending a response.
-func CancelQuestion(sessionID string) {
+func CancelQuestion(sessionID string, questionIDs ...string) {
 	if strings.TrimSpace(sessionID) == "" {
 		sessionID = "default"
 	}
-	pendingQuestions.Delete(sessionID)
+	if len(questionIDs) == 0 {
+		pendingQuestions.Delete(sessionID)
+	} else if q := GetPendingQuestion(sessionID); q != nil && q.QuestionID == questionIDs[0] {
+		pendingQuestions.CompareAndDelete(sessionID, q)
+	}
 }
 
 // ResolveQuestionReply converts a text-channel reply into a structured response.
@@ -145,15 +194,15 @@ func ResolveQuestionReply(sessionID, reply string) (QuestionResponse, bool) {
 		return QuestionResponse{}, false
 	}
 	if n, err := strconv.Atoi(trimmed); err == nil && n >= 1 && n <= len(q.Options) {
-		return QuestionResponse{Status: "ok", Selected: q.Options[n-1].Value}, true
+		return QuestionResponse{QuestionID: q.QuestionID, Status: "ok", Selected: q.Options[n-1].Value}, true
 	}
 	for _, opt := range q.Options {
 		if strings.EqualFold(trimmed, opt.Value) || strings.EqualFold(trimmed, opt.Label) {
-			return QuestionResponse{Status: "ok", Selected: opt.Value}, true
+			return QuestionResponse{QuestionID: q.QuestionID, Status: "ok", Selected: opt.Value}, true
 		}
 	}
 	if q.AllowFreeText {
-		return QuestionResponse{Status: "ok", FreeText: trimmed}, true
+		return QuestionResponse{QuestionID: q.QuestionID, Status: "ok", FreeText: trimmed}, true
 	}
 	return QuestionResponse{}, false
 }

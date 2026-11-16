@@ -2342,6 +2342,9 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	}
 	cfg.Discord.AllowedChannelIDs = normalizeChannelIDs(cfg.Discord.AllowedChannelIDs)
 
+	if err := ValidateTelnyxOwner(&cfg); err != nil {
+		return nil, err
+	}
 	// Telnyx defaults
 	if cfg.Telnyx.WebhookPath == "" {
 		cfg.Telnyx.WebhookPath = "/api/telnyx/webhook"

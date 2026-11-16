@@ -232,9 +232,9 @@ func (p *pipeline) handle(ctx context.Context, in inboundMessage) {
 			// The owner's own words answer, without the "[Reply to: ...]" prefix a swipe-reply
 			// to the question adds to the model's input.
 			if response, ok := tools.ResolveQuestionReply(sessionID, c.OwnerText); ok {
-				response.Source = tools.QuestionSourceWhatsApp
-				tools.CompleteQuestion(sessionID, response)
-				return
+				if tools.CompleteQuestion(sessionID, response, tools.OwnerQuestionIdentity(tools.QuestionSourceWhatsApp)) {
+					return
+				}
 			}
 		}
 		p.deliver(ctx, owner, replyPromptText, "reply prompt")

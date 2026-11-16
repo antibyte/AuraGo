@@ -43,5 +43,7 @@
   "help.telnyx.voice_language": "Domyślny kod języka używany dla komunikatów głosowych Telnyx i transkrypcji połączeń.",
   "config.telnyx.voice_gender_help": "Głos, którym agent mówi podczas rozmów telefonicznych.",
   "config.telnyx.max_concurrent_calls_help": "Ile rozmów może trwać jednocześnie (1-20, domyślnie 3). Kolejne są odrzucane.",
-  "config.telnyx.max_sms_per_minute_help": "Maksymalna liczba wychodzących SMS-ów na minutę (1-60, domyślnie 10). Chroni przed przypadkową masową wysyłką i wysokimi kosztami."
+  "config.telnyx.max_sms_per_minute_help": "Maksymalna liczba wychodzących SMS-ów na minutę (1-60, domyślnie 10). Chroni przed przypadkową masową wysyłką i wysokimi kosztami.",
+  "config.telnyx.owner_number_label": "Numer właściciela",
+  "help.telnyx.owner_number": "Jawny numer właściciela w formacie E.164, także na liście dozwolonych numerów. Tylko ten numer współdzieli rozmowy i pytania właściciela. Puste pole nie przyznaje praw właściciela."
 }

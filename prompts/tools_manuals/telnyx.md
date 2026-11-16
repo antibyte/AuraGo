@@ -1,5 +1,7 @@
 ## Tools: Telnyx Integration (`telnyx_sms`, `telnyx_call`, `telnyx_manage`)
 
+Only an explicit `telnyx.owner_number` in E.164 format and in `allowed_numbers` shares owner conversations and pending questions. Other allowed senders have separate conversations; an empty owner number grants no owner rights.
+
 Telnyx provides SMS/MMS messaging and voice call control. Use these tools to send text messages, make phone calls with TTS, gather DTMF input, transfer calls, and manage Telnyx resources.
 
 ---

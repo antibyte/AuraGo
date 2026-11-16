@@ -10,6 +10,8 @@ Client owns API transport; WebhookHandler owns active call state and reconciliat
 
 ## Local Contracts
 
+- Only explicit `telnyx.owner_number` (an E.164 number also present in `allowed_numbers`) shares the owner conversation and may answer its pending questions. Empty stays unprivileged on upgrades. Other allowed senders use separate `telnyx:<number>` conversation generations. Validate the owner binding on load and before config persistence.
+
 - Base URL contains exactly one /v2; call/SMS paths are relative. Escape call IDs as one segment. Retry reads only; mutations with an unconfirmed result are not replayed automatically.
 - Reconcile missing hangups through bounded provider status reads, at most once per minute. Remove only a matching call with is_alive=false and a valid end_time if its local activity did not change. Errors or pending/asynchronous calls remain retained.
 - Apply the same fail-closed E.164 allowlist to incoming SMS/calls, outgoing calls, transfers, SMS/MMS and agent SMS feedback. Configured clients (`NewConfiguredClient`) enforce read-only before mutation; a bare `NewClient` has no number policy, so its POSTs and destination checks fail closed and it serves only read-only account queries (the balance check and `telnyx_manage`'s number and message listings). Notification SMS use the configured client. Reject disallowed or busy incoming calls through the provider; this defensive rejection remains available in read-only mode. Answer allowed calls only once and retain uncertain reservations for reconciliation.

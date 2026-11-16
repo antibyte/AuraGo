@@ -32,7 +32,7 @@ func TestDesktopChatFailuresAndQuestionCancellationBrowser(t *testing.T) {
 		};
 	}`)
 	chat := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/agent-chat.js"))
-	if err := p.AddScriptTag("", "(()=>{"+chat+"\nwindow.chatFixture={submit:submitDesktopChatMessage,question:showDesktopQuestionModal,stop:requestDesktopChatAbort,clear:clearDesktopChatHistory,runtime:useDesktopChatRuntime};})();"); err != nil {
+	if err := p.AddScriptTag("", "(()=>{"+chat+"\nwindow.chatFixture={submit:submitDesktopChatMessage,question:(host,payload)=>showDesktopQuestionModal(host,normalizeDesktopQuestionPayload(payload)),stop:requestDesktopChatAbort,clear:clearDesktopChatHistory,runtime:useDesktopChatRuntime};})();"); err != nil {
 		t.Fatal(err)
 	}
 	quick := normalizeAssetText(mustReadUIFile(t, "js/desktop/core/window-shell-runtime.js"))
@@ -58,13 +58,16 @@ func TestDesktopChatFailuresAndQuestionCancellationBrowser(t *testing.T) {
 		}
 	}
 	for _, desktop := range []bool{false, true} {
-		p.MustEval(`desktop=>{document.getElementById('trigger').focus();window.failRequest=true;const payload={session_id:desktop?'virtual-desktop':'default',question:'Continue?',options:[{value:'yes',label:'Yes'}],allow_free_text:true};if(desktop)chatFixture.question(document.getElementById('host'),payload);else showQuestionModal(payload);}`, desktop)
+		p.MustEval(`desktop=>{document.getElementById('trigger').focus();window.failRequest=true;const payload={question_id:'fixture-question-id',session_id:desktop?'virtual-desktop':'default',question:'Continue?',options:[{value:'yes',label:'Yes'}],allow_free_text:true};if(desktop)chatFixture.question(document.getElementById('host'),payload);else showQuestionModal(payload);}`, desktop)
 		selector := ".question-modal-overlay"
 		if desktop {
 			selector = "[data-desktop-question-modal]"
 		}
 		p.MustElement(selector + " button").MustClick()
 		waitForJSBool(t, p, `()=>!!document.querySelector('[data-question-error]')?.textContent`)
+		if !p.MustEval(`()=>JSON.parse(calls.at(-1).body).question_id==='fixture-question-id'`).Bool() {
+			t.Fatal("question answer omitted its question ID")
+		}
 		p.MustElement(selector + " [data-question-cancel]").MustClick()
 		waitForJSBool(t, p, `()=>document.querySelector('[data-question-cancel]')?.disabled===false`)
 		if !p.MustEval(`()=>document.querySelector('[data-question-error]').textContent.includes('fixture refused')`).Bool() {

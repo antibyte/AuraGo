@@ -14,7 +14,7 @@ func TestQuestionLifecycle(t *testing.T) {
 	if GetPendingQuestion(sessionID) == nil {
 		t.Fatal("expected pending question details")
 	}
-	if !CompleteQuestion(sessionID, QuestionResponse{Selected: "b"}) {
+	if !CompleteQuestion(sessionID, QuestionResponse{QuestionID: GetPendingQuestion(sessionID).QuestionID, Selected: "b"}, OwnerQuestionIdentity(QuestionSourceWeb)) {
 		t.Fatal("expected question completion")
 	}
 	select {
@@ -55,7 +55,7 @@ func TestConcurrentQuestionsAreIsolated(t *testing.T) {
 	defer CancelQuestion("question-a")
 	defer CancelQuestion("question-b")
 
-	CompleteQuestion("question-b", QuestionResponse{Selected: "4"})
+	CompleteQuestion("question-b", QuestionResponse{QuestionID: GetPendingQuestion("question-b").QuestionID, Selected: "4"}, OwnerQuestionIdentity(QuestionSourceWeb))
 	select {
 	case resp := <-chB:
 		if resp.Selected != "4" {

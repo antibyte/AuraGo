@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Cuando está habilitado, el agente solo puede verificar el estado, el inventario y enumerar los libros de estrategias, pero no puede ejecutar comandos ni libros de estrategias ad hoc. La comprobación y la simulación también requieren permiso de escritura; las tareas de Ansible pueden ignorar el modo de comprobación.",
   "help.paperless_ngx.allow_delete": "Desactivado por defecto. Solo lectura sigue bloqueando la eliminación.",
   "help.onedrive.allow_public_share": "Permitir enlaces anónimos para compartir. Desactivado por defecto; solo lectura siempre prevalece.",
-  "help.huggingface.allow_publish": "Permitir repositorios públicos, subidas y debates. Omitir private implica privado; la visibilidad desconocida bloquea cambios. Solo lectura prevalece."
+  "help.huggingface.allow_publish": "Permitir repositorios públicos, subidas y debates. Omitir private implica privado; la visibilidad desconocida bloquea cambios. Solo lectura prevalece.",
+  "help.telnyx.owner_number": "Número explícito del propietario en formato E.164, incluido también entre los números permitidos. Solo este número comparte conversaciones y preguntas del propietario. Vacío no concede acceso de propietario."
 }

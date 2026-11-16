@@ -100,7 +100,9 @@ func (f *forwardedUpdateFixture) process(t *testing.T, msg *tgbotapi.Message) {
 	defer cancel()
 	go func() {
 		defer func() { done <- recover() }()
-		processUpdate(ctx, f.recorder.bot, tgbotapi.Update{Message: msg}, &config.Config{}, f.logger, nil, f.store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		cfg := &config.Config{}
+		cfg.Telegram.UserID = 1
+		processUpdate(ctx, f.recorder.bot, tgbotapi.Update{Message: msg}, cfg, f.logger, nil, f.store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}()
 	select {
 	case <-done:

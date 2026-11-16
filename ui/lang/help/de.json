@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Wenn aktiviert, darf der Agent nur Status, Inventar und Playbooks auflisten, aber keine Ad-hoc-Befehle oder Playbooks ausführen. Auch Check und Dry-run benötigen Schreibrecht; Ansible-Aufgaben können den Prüfmodus ignorieren.",
   "help.paperless_ngx.allow_delete": "Standardmäßig aus. Schreibschutz sperrt das Löschen weiterhin.",
   "help.onedrive.allow_public_share": "Anonyme Freigabelinks erlauben. Standardmäßig aus; Schreibschutz hat immer Vorrang.",
-  "help.huggingface.allow_publish": "Öffentliche Repositories, Uploads und Diskussionen erlauben. Ohne private-Angabe bleibt das Repository privat; unbekannte Sichtbarkeit sperrt Änderungen. Schreibschutz hat Vorrang."
+  "help.huggingface.allow_publish": "Öffentliche Repositories, Uploads und Diskussionen erlauben. Ohne private-Angabe bleibt das Repository privat; unbekannte Sichtbarkeit sperrt Änderungen. Schreibschutz hat Vorrang.",
+  "help.telnyx.owner_number": "Ausdrückliche Eigentümernummer im E.164-Format, auch in der Nummernfreigabe eingetragen. Nur diese Nummer teilt Eigentümerunterhaltungen und Rückfragen. Leer vergibt keine Eigentümerrechte."
 }

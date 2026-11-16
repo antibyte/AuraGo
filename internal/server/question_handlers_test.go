@@ -41,7 +41,7 @@ func TestQuestionResponseCompletesQuestion(t *testing.T) {
 	sessionID := "server-question-response"
 	ch := tools.RegisterQuestion(sessionID, &tools.PendingQuestion{Question: "Pick", Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
 
-	body := bytes.NewBufferString(`{"session_id":"` + sessionID + `","selected_value":"a"}`)
+	body := bytes.NewBufferString(`{"question_id":"` + tools.GetPendingQuestion(sessionID).QuestionID + `","session_id":"` + sessionID + `","selected_value":"a"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", body)
 	rec := httptest.NewRecorder()
 	handleQuestionResponse(nil)(rec, req)
@@ -63,24 +63,24 @@ func TestQuestionResponseCompletesQuestion(t *testing.T) {
 
 // A loopback call with valid internal headers on the question-response route
 // is labelled like the same call on /v1/chat/completions.
-func TestQuestionResponseLabelsInternalLoopbackAnswers(t *testing.T) {
+func TestQuestionResponseRejectsInternalLoopbackAnswers(t *testing.T) {
 	s := newOperatorCommandTestServer(t)
 	const sessionID = "server-question-response-internal"
 	ch := tools.RegisterQuestion(sessionID, &tools.PendingQuestion{Question: "Pick", AllowFreeText: true, Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
 	defer tools.CancelQuestion(sessionID)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", bytes.NewBufferString(`{"session_id":"`+sessionID+`","free_text":"blue"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", bytes.NewBufferString(`{"question_id":"`+tools.GetPendingQuestion(sessionID).QuestionID+`","session_id":"`+sessionID+`","free_text":"blue"}`))
 	req.RemoteAddr = "127.0.0.1:43210"
 	req.Header.Set("X-Internal-FollowUp", "true")
 	req.Header.Set("X-Internal-Token", s.internalToken)
 	handleQuestionResponse(s)(httptest.NewRecorder(), req)
 	select {
 	case resp := <-ch:
-		if resp.Source != tools.QuestionSourceInternal {
-			t.Fatalf("source = %q, want internal", resp.Source)
+		t.Fatalf("internal loopback answered owner question: %+v", resp)
+	default:
+		if !tools.HasPendingQuestion(sessionID) {
+			t.Fatal("internal answer removed question")
 		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for completion")
 	}
 }
 
@@ -103,6 +103,12 @@ func TestChatCompletionsLabelsQuestionAnswerSource(t *testing.T) {
 			ch := tools.RegisterQuestion("default", &tools.PendingQuestion{Question: "Pick", AllowFreeText: true, Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
 			defer tools.CancelQuestion("default")
 			postChatCommand(t, s, "blue", tc.headers)
+			if tc.want == tools.QuestionSourceInternal {
+				if !tools.HasPendingQuestion("default") {
+					t.Fatal("internal turn removed question")
+				}
+				return
+			}
 			select {
 			case resp := <-ch:
 				if resp.FreeText != "blue" || resp.Source != tc.want {
@@ -119,7 +125,7 @@ func TestQuestionResponseLabelsDesktopChatAnswers(t *testing.T) {
 	ch := tools.RegisterQuestion(desktopChatSessionID, &tools.PendingQuestion{Question: "Pick", AllowFreeText: true, Options: []tools.QuestionOption{{Label: "A", Value: "a"}, {Label: "B", Value: "b"}}})
 	defer tools.CancelQuestion(desktopChatSessionID)
 
-	body := bytes.NewBufferString(`{"session_id":"` + desktopChatSessionID + `","free_text":"blue"}`)
+	body := bytes.NewBufferString(`{"question_id":"` + tools.GetPendingQuestion(desktopChatSessionID).QuestionID + `","session_id":"` + desktopChatSessionID + `","free_text":"blue"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", body)
 	rec := httptest.NewRecorder()
 	handleQuestionResponse(nil)(rec, req)
@@ -151,18 +157,31 @@ func TestChatCompletionQuestionAnswerSource(t *testing.T) {
 }
 
 func TestQuestionResponseNoPendingQuestion(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", bytes.NewBufferString(`{"session_id":"missing","selected_value":"a"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/agent/question-response", bytes.NewBufferString(`{"session_id":"missing","question_id":"stale","selected_value":"a"}`))
 	rec := httptest.NewRecorder()
 	handleQuestionResponse(nil)(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want 200", rec.Code)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d", rec.Code)
 	}
-	var body map[string]string
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if body["status"] != "not_found" {
-		t.Fatalf("status = %q, want not_found", body["status"])
+}
+
+func TestQuestionResponseRejectsMissingStaleAndUnlistedAnswers(t *testing.T) {
+	const session = "http-question-validation"
+	q := &tools.PendingQuestion{Question: "Continue?", Options: []tools.QuestionOption{{Value: "yes"}}}
+	tools.RegisterQuestion(session, q)
+	defer tools.CancelQuestion(session)
+	for _, tc := range []struct{ id, selected, freeText string }{
+		{"", "yes", ""}, {"stale", "yes", ""}, {q.QuestionID, "arbitrary", ""}, {q.QuestionID, "yes", "forbidden free text"},
+	} {
+		body, err := json.Marshal(questionResponseRequest{SessionID: session, QuestionID: tc.id, SelectedValue: tc.selected, FreeText: tc.freeText})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+		handleQuestionResponse(nil)(rec, httptest.NewRequest(http.MethodPost, "/api/agent/question-response", bytes.NewReader(body)))
+		if rec.Code != http.StatusConflict || tools.GetPendingQuestion(session) != q {
+			t.Fatal("invalid answer consumed pending question")
+		}
 	}
 }
 

@@ -727,11 +727,11 @@
 
     function normalizeDesktopQuestionPayload(data) {
         if (!data) return null;
-        let payload = data.payload || data.question || data.detail || data.message || data;
+        let payload = data.payload || (typeof data.question === 'object' && data.question) || data.detail || data.message || data;
         if (typeof payload === 'string') {
             try {
                 const parsed = JSON.parse(payload);
-                payload = parsed.payload || parsed.question || parsed;
+                payload = parsed.payload || (typeof parsed.question === 'object' && parsed.question) || parsed;
             } catch (_) {
                 payload = { question: payload, options: [] };
             }
@@ -780,7 +780,7 @@
         </div>`;
         container.appendChild(overlay);
 
-        const dialog = window.bindAgentQuestionDialog(overlay, 'virtual-desktop', '/api/desktop/integrations/agent/question-response', desktopText('desktop.chat_question_request_failed'));
+        const dialog = window.bindAgentQuestionDialog(overlay, 'virtual-desktop', payload.question_id, '/api/desktop/integrations/agent/question-response', desktopText('desktop.chat_question_request_failed'));
 
         overlay.querySelectorAll('[data-value]').forEach(btn => {
             btn.addEventListener('click', () => dialog.submit(btn.getAttribute('data-value') || '', ''));

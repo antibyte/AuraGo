@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Lorsqu'il est activé, l'agent peut uniquement vérifier l'état, l'inventaire et répertorier les playbooks, mais ne peut pas exécuter de commandes ou de playbooks ad hoc. La vérification et la simulation exigent aussi le droit d’écriture ; les tâches Ansible peuvent ignorer le mode de vérification.",
   "help.paperless_ngx.allow_delete": "Désactivé par défaut. La lecture seule bloque toujours la suppression.",
   "help.onedrive.allow_public_share": "Autoriser les liens de partage anonymes. Désactivé par défaut ; la lecture seule reste prioritaire.",
-  "help.huggingface.allow_publish": "Autoriser les dépôts publics, les envois et les discussions. Sans private, le dépôt est privé ; une visibilité inconnue bloque les modifications. La lecture seule reste prioritaire."
+  "help.huggingface.allow_publish": "Autoriser les dépôts publics, les envois et les discussions. Sans private, le dépôt est privé ; une visibilité inconnue bloque les modifications. La lecture seule reste prioritaire.",
+  "help.telnyx.owner_number": "Numéro explicite du propriétaire au format E.164, également présent dans les numéros autorisés. Seul ce numéro partage les conversations et questions du propriétaire. Un champ vide ne donne aucun droit de propriétaire."
 }

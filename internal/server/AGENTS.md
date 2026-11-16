@@ -88,6 +88,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Administrator question-response routes require `question_id` from the pending payload; missing/stale IDs, invalid choices and internal loopbacks return a conflict without consuming the question. Chat text resolves the current ID before the turn lock. Trusted adapter identities cannot come from request JSON. Telnyx ownership requires its explicit allowed E.164 binding; other SMS senders remain in isolated conversations.
+
 - `initSkillManagers` installs and verifies the embedded `modern-web-guidance`
   package before background discovery, independently of the classic Python
   Skill Manager toggle. Use the Agent Skill Manager's installer; no network or

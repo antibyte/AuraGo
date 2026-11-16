@@ -565,5 +565,6 @@
   "help.ansible.readonly": "When enabled, the agent can only check status, inventory, and list playbooks but cannot run ad-hoc commands or playbooks. Check and dry-run also require write permission; Ansible tasks can ignore check mode.",
   "help.paperless_ngx.allow_delete": "Off by default. Read-only still blocks deletion.",
   "help.onedrive.allow_public_share": "Allow anonymous sharing links. Off by default; read-only always wins.",
-  "help.huggingface.allow_publish": "Allow public repositories, uploads and discussions. Omitted private means private; unknown visibility blocks mutations. Read-only wins."
+  "help.huggingface.allow_publish": "Allow public repositories, uploads and discussions. Omitted private means private; unknown visibility blocks mutations. Read-only wins.",
+  "help.telnyx.owner_number": "Explicit owner number in E.164 format, also listed in allowed numbers. Only this number shares owner conversations and questions. Empty grants no owner access."
 }

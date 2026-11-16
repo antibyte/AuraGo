@@ -43,5 +43,7 @@
   "help.telnyx.voice_language": "Výchozí kód jazyka používaný pro hlasové výzvy Telnyx a přepis hovorů.",
   "config.telnyx.max_concurrent_calls_help": "Kolik hovorů může probíhat současně (1–20, výchozí 3). Další hovory jsou odmítnuty.",
   "config.telnyx.max_sms_per_minute_help": "Maximální počet odchozích SMS za minutu (1–60, výchozí 10). Chrání před nechtěným hromadným odesíláním a vysokými náklady.",
-  "config.telnyx.voice_gender_help": "Hlas, kterým agent mluví při telefonních hovorech."
+  "config.telnyx.voice_gender_help": "Hlas, kterým agent mluví při telefonních hovorech.",
+  "config.telnyx.owner_number_label": "Číslo vlastníka",
+  "help.telnyx.owner_number": "Výslovné číslo vlastníka ve formátu E.164, uvedené také mezi povolenými čísly. Pouze toto číslo sdílí konverzace a otázky vlastníka. Prázdné pole neuděluje práva vlastníka."
 }

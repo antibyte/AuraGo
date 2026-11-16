@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Når dette er aktivert, kan agenten bare sjekke status og inventar og liste playbooks, men kan ikke kjøre ad hoc-kommandoer eller playbooks. Kontroll og prøvekjøring krever også skriverett; Ansible-oppgaver kan ignorere kontrollmodus.",
   "help.paperless_ngx.allow_delete": "Av som standard. Skrivebeskyttelse blokkerer fortsatt sletting.",
   "help.onedrive.allow_public_share": "Tillat anonyme delingslenker. Av som standard; skrivebeskyttelse har alltid forrang.",
-  "help.huggingface.allow_publish": "Tillat offentlige repositorier, opplastinger og diskusjoner. Utelatt private betyr privat; ukjent synlighet blokkerer endringer. Skrivebeskyttelse har forrang."
+  "help.huggingface.allow_publish": "Tillat offentlige repositorier, opplastinger og diskusjoner. Utelatt private betyr privat; ukjent synlighet blokkerer endringer. Skrivebeskyttelse har forrang.",
+  "help.telnyx.owner_number": "Angi eierens nummer i E.164-format, også i listen over tillatte numre. Bare dette nummeret deler eierens samtaler og spørsmål. Et tomt felt gir ingen eiertilgang."
 }

@@ -8378,7 +8378,7 @@ function docFormatIcon(fmt) {
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         activeQuestionModal = overlay;
-        const dialog = window.bindAgentQuestionDialog(overlay, sessionId, '/api/agent/question-response', tr('chat.question_request_failed', 'The request failed. Try again or cancel.'));
+        const dialog = window.bindAgentQuestionDialog(overlay, sessionId, payload.question_id, '/api/agent/question-response', tr('chat.question_request_failed', 'The request failed. Try again or cancel.'));
 
         const tick = window.setInterval(() => {
             if (!overlay.isConnected) {

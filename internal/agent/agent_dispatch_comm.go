@@ -214,7 +214,7 @@ func dispatchQuestionUser(ctx context.Context, tc ToolCall, dc *DispatchContext)
 		TimeoutSecs:   timeoutSecs,
 	}
 	responseCh := tools.RegisterQuestion(sessionID, q)
-	defer tools.CancelQuestion(sessionID)
+	defer tools.CancelQuestion(sessionID, q.QuestionID)
 
 	if interactiveQuestionUI {
 		payload, _ := json.Marshal(struct {
@@ -240,8 +240,8 @@ func dispatchQuestionUser(ctx context.Context, tc ToolCall, dc *DispatchContext)
 	case <-ctx.Done():
 		return cancelled
 	case <-time.After(timeout):
-		tools.CancelQuestion(sessionID)
-		b, _ := json.Marshal(tools.QuestionResponse{Status: "timeout"})
+		tools.CancelQuestion(sessionID, q.QuestionID)
+		b, _ := json.Marshal(tools.QuestionResponse{QuestionID: q.QuestionID, Status: "timeout"})
 		return "Tool Output: " + string(b)
 	}
 }

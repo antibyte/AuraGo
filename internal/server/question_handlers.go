@@ -13,6 +13,7 @@ import (
 
 type questionResponseRequest struct {
 	SessionID     string `json:"session_id"`
+	QuestionID    string `json:"question_id"`
 	SelectedValue string `json:"selected_value"`
 	FreeText      string `json:"free_text"`
 }
@@ -50,9 +51,9 @@ func handleQuestionResponse(s *Server) http.HandlerFunc {
 		if strings.TrimSpace(req.SessionID) == "" {
 			req.SessionID = "default"
 		}
-		resp := tools.QuestionResponse{Status: "ok", Selected: strings.TrimSpace(req.SelectedValue), FreeText: strings.TrimSpace(req.FreeText), Source: questionModalAnswerSource(s, r, req.SessionID)}
-		if !tools.CompleteQuestion(req.SessionID, resp) {
-			writeJSON(w, map[string]interface{}{"status": "not_found"})
+		resp := tools.QuestionResponse{QuestionID: req.QuestionID, Status: "ok", Selected: strings.TrimSpace(req.SelectedValue), FreeText: strings.TrimSpace(req.FreeText), Source: questionModalAnswerSource(s, r, req.SessionID)}
+		if !tools.CompleteQuestion(req.SessionID, resp, tools.OwnerQuestionIdentity(resp.Source)) {
+			jsonError(w, "Question answer rejected: missing or stale question_id, invalid answer or unauthorized source", http.StatusConflict)
 			return
 		}
 		writeJSON(w, map[string]interface{}{"status": "ok"})
@@ -91,9 +92,14 @@ func handlePendingQuestionChatMessage(w http.ResponseWriter, req openai.ChatComp
 	if !tools.HasPendingQuestion(sessionID) {
 		return false
 	}
+	if source == tools.QuestionSourceInternal {
+		writeChatCompletionTextResponse(w, req, sessionID, "A pending question requires an authenticated user reply.")
+		return true
+	}
 	if response, ok := tools.ResolveQuestionReply(sessionID, message); ok {
-		response.Source = source
-		tools.CompleteQuestion(sessionID, response)
+		if !tools.CompleteQuestion(sessionID, response, tools.OwnerQuestionIdentity(source)) {
+			return false
+		}
 		if logger != nil {
 			logger.Info("[QuestionUser] Completed pending question from chat message", "session_id", sessionID)
 		}

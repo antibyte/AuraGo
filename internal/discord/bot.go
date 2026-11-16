@@ -727,9 +727,13 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 
 	if !stopCommand && tools.HasPendingQuestion(sessionID) {
 		if response, ok := tools.ResolveQuestionReply(sessionID, inputText); ok {
-			response.Source = tools.QuestionSourceDiscord
-			tools.CompleteQuestion(sessionID, response)
-			return
+			identity := tools.ConversationQuestionIdentity(tools.QuestionSourceDiscord, sessionID)
+			if decision.IsDM {
+				identity = tools.OwnerQuestionIdentity(tools.QuestionSourceDiscord)
+			}
+			if tools.CompleteQuestion(sessionID, response, identity) {
+				return
+			}
 		}
 		sendDiscordNotice(s, m.ChannelID, "Please reply with one of the listed numbers.", logger)
 		return

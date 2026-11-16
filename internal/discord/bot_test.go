@@ -416,7 +416,7 @@ func TestRunDiscordQuestionReplyBypassesSaturatedWorkers(t *testing.T) {
 			t.Fatal("reply did not resolve the real pending question")
 		}
 		answer.Source = tools.QuestionSourceDiscord
-		if !tools.CompleteQuestion(sessionID, answer) {
+		if !tools.CompleteQuestion(sessionID, answer, tools.ConversationQuestionIdentity(tools.QuestionSourceDiscord, sessionID)) {
 			t.Fatal("question completion failed")
 		}
 	}) {

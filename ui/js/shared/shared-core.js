@@ -1194,7 +1194,7 @@ window.shouldShowAgentToolStatus = (() => {
 })();
 
 // Both chat surfaces keep questions retryable until the server accepts the answer or stop.
-window.bindAgentQuestionDialog = function (overlay, sessionId, endpoint, errorText) {
+window.bindAgentQuestionDialog = function (overlay, sessionId, questionId, endpoint, errorText) {
     let pending = false;
     const error = overlay.querySelector('[data-question-error]');
     const cancel = overlay.querySelector('[data-question-cancel]');
@@ -1207,7 +1207,7 @@ window.bindAgentQuestionDialog = function (overlay, sessionId, endpoint, errorTe
         try {
             const response = await fetch(stopping ? '/api/admin/stop' : endpoint, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId, selected_value: selectedValue || '', free_text: freeText || '' })
+                body: JSON.stringify({ session_id: sessionId, question_id: questionId, selected_value: selectedValue || '', free_text: freeText || '' })
             });
             const body = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(body.error || body.message || ('HTTP ' + response.status));

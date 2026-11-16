@@ -31,10 +31,12 @@ func TestTelegramIngressWaitsBeforePersistingAndCancellationReleasesQueue(t *tes
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan any, 1)
-	update := tgbotapi.Update{Message: &tgbotapi.Message{From: &tgbotapi.User{ID: 1}, Chat: &tgbotapi.Chat{ID: 1}, Text: "queued ingress"}}
+	update := tgbotapi.Update{Message: &tgbotapi.Message{From: &tgbotapi.User{ID: 1}, Chat: &tgbotapi.Chat{ID: 1, Type: "private"}, Text: "queued ingress"}}
 	go func() {
 		defer func() { done <- recover() }()
-		processUpdate(ctx, nil, update, &config.Config{}, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		cfg := &config.Config{}
+		cfg.Telegram.UserID = 1
+		processUpdate(ctx, nil, update, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}()
 	select {
 	case panicValue := <-done:
@@ -80,10 +82,12 @@ func TestTelegramQuestionReplyBypassesTheWaitingTurnsGate(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan any, 1)
-	update := tgbotapi.Update{Message: &tgbotapi.Message{From: &tgbotapi.User{ID: 1}, Chat: &tgbotapi.Chat{ID: 1}, Text: "continue"}}
+	update := tgbotapi.Update{Message: &tgbotapi.Message{From: &tgbotapi.User{ID: 1}, Chat: &tgbotapi.Chat{ID: 1, Type: "private"}, Text: "continue"}}
 	go func() {
 		defer func() { done <- recover() }()
-		processUpdate(ctx, nil, update, &config.Config{}, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		cfg := &config.Config{}
+		cfg.Telegram.UserID = 1
+		processUpdate(ctx, nil, update, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}()
 	select {
 	case answer := <-response:

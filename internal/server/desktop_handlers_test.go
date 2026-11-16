@@ -1064,7 +1064,7 @@ func TestDesktopChatUIHandlesQuestionUserPrompts(t *testing.T) {
 	for _, marker := range []string{
 		"event === 'question_user'",
 		"showDesktopQuestionModal(host, normalizeDesktopQuestionPayload(data))",
-		"window.bindAgentQuestionDialog(overlay, 'virtual-desktop', '/api/desktop/integrations/agent/question-response'",
+		"window.bindAgentQuestionDialog(overlay, 'virtual-desktop', payload.question_id, '/api/desktop/integrations/agent/question-response'",
 		"desktop.chat_question_waiting",
 	} {
 		if !strings.Contains(source, marker) {

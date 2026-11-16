@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Gdy włączone, agent może tylko sprawdzać status, inwentarz i listować playbooki, ale nie może uruchamiać poleceń ad-hoc ani playbooków. Sprawdzanie i próbne uruchomienie również wymagają prawa zapisu; zadania Ansible mogą ignorować tryb sprawdzania.",
   "help.paperless_ngx.allow_delete": "Domyślnie wyłączone. Tryb tylko do odczytu nadal blokuje usuwanie.",
   "help.onedrive.allow_public_share": "Zezwalaj na anonimowe linki udostępniania. Domyślnie wyłączone; tryb tylko do odczytu ma pierwszeństwo.",
-  "help.huggingface.allow_publish": "Zezwalaj na publiczne repozytoria, przesyłanie i dyskusje. Pominięte private oznacza prywatne; nieznana widoczność blokuje zmiany. Tryb tylko do odczytu ma pierwszeństwo."
+  "help.huggingface.allow_publish": "Zezwalaj na publiczne repozytoria, przesyłanie i dyskusje. Pominięte private oznacza prywatne; nieznana widoczność blokuje zmiany. Tryb tylko do odczytu ma pierwszeństwo.",
+  "help.telnyx.owner_number": "Jawny numer właściciela w formacie E.164, także na liście dozwolonych numerów. Tylko ten numer współdzieli rozmowy i pytania właściciela. Puste pole nie przyznaje praw właściciela."
 }

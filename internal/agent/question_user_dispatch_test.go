@@ -116,7 +116,7 @@ func TestDispatchQuestionUserCompletes(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-	tools.CompleteQuestion(sessionID, tools.QuestionResponse{Selected: "b"})
+	tools.CompleteQuestion(sessionID, tools.QuestionResponse{QuestionID: tools.GetPendingQuestion(sessionID).QuestionID, Selected: "b"}, tools.OwnerQuestionIdentity(tools.QuestionSourceWeb))
 	select {
 	case result := <-done:
 		if !strings.Contains(result, `"selected":"b"`) {
@@ -175,7 +175,7 @@ func TestDispatchQuestionUserUsesInteractiveUIForVirtualDesktop(t *testing.T) {
 	if events := broker.eventsSnapshot(); len(events) != 0 {
 		t.Fatalf("did not expect text-channel question event for desktop, got %#v", events)
 	}
-	tools.CompleteQuestion(sessionID, tools.QuestionResponse{Selected: "a"})
+	tools.CompleteQuestion(sessionID, tools.QuestionResponse{QuestionID: tools.GetPendingQuestion(sessionID).QuestionID, Selected: "a"}, tools.OwnerQuestionIdentity(tools.QuestionSourceWeb))
 	select {
 	case result := <-done:
 		if !strings.Contains(result, `"selected":"a"`) {
@@ -207,7 +207,8 @@ func answerPendingQuestion(sessionID string, response tools.QuestionResponse) <-
 			}
 			time.Sleep(10 * time.Millisecond)
 		}
-		if !tools.CompleteQuestion(sessionID, response) {
+		response.QuestionID = tools.GetPendingQuestion(sessionID).QuestionID
+		if !tools.CompleteQuestion(sessionID, response, tools.OwnerQuestionIdentity(response.Source)) {
 			result <- fmt.Errorf("question for session %q could not be completed", sessionID)
 			return
 		}
@@ -295,7 +296,7 @@ func TestDispatchQuestionUserIsolatesAndScansFreeText(t *testing.T) {
 
 	t.Run("free text is isolated without a guardian", func(t *testing.T) {
 		const answer = "blue"
-		_, got := ask(t, newDC("dispatch-question-freetext-noguardian", nil, discard), tools.QuestionResponse{Status: "ok", FreeText: answer})
+		_, got := ask(t, newDC("dispatch-question-freetext-noguardian", nil, discard), tools.QuestionResponse{Status: "ok", FreeText: answer, Source: tools.QuestionSourceTelegram})
 		if got.Status != "ok" || got.FreeText != security.IsolateExternalData(answer) {
 			t.Fatalf("free text must arrive isolated, got %+v", got)
 		}
@@ -303,10 +304,6 @@ func TestDispatchQuestionUserIsolatesAndScansFreeText(t *testing.T) {
 
 	t.Run("high-threat free text from a chat channel is withheld", func(t *testing.T) {
 		assertBlocked(t, tools.QuestionSourceTelegram)
-	})
-
-	t.Run("high-threat free text from an unknown source is withheld", func(t *testing.T) {
-		assertBlocked(t, "")
 	})
 
 	t.Run("high-threat free text from an admin surface is isolated, not withheld", func(t *testing.T) {
@@ -328,9 +325,9 @@ func TestDispatchQuestionUserIsolatesAndScansFreeText(t *testing.T) {
 	})
 
 	t.Run("selected option passes unchanged", func(t *testing.T) {
-		out, _ := ask(t, newDC("dispatch-question-selected-guarded", guardian, discard), tools.QuestionResponse{Status: "ok", Selected: "red", Source: tools.QuestionSourceTelegram})
-		if want := `Tool Output: {"status":"ok","selected":"red"}`; out != want {
-			t.Fatalf("selected answer = %q, want %q", out, want)
+		_, got := ask(t, newDC("dispatch-question-selected-guarded", guardian, discard), tools.QuestionResponse{Status: "ok", Selected: "red", Source: tools.QuestionSourceTelegram})
+		if got.Status != "ok" || got.Selected != "red" {
+			t.Fatalf("selected answer = %+v", got)
 		}
 	})
 }

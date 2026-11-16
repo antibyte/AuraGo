@@ -1547,6 +1547,7 @@ telnyx:
     connection_id: ""                       # SIP connection ID for voice calls
     webhook_path: "/api/telnyx/webhook"
     allowed_numbers: []                     # E.164 whitelist for inbound/outbound (empty = deny all)
+    owner_number: ""                       # Explicit owner E.164 number in allowed_numbers; empty grants no shared-owner access
     max_concurrent_calls: 3
     max_sms_per_minute: 10
     voice_language: "en"

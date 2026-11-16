@@ -731,7 +731,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				webhookPath = "/api/telnyx/webhook"
 			}
 			telnyxHandler := telnyx.NewWebhookHandler(s.Cfg, s.Logger, func(from, text string, mediaURLs []string) {
-				sessionID, err := s.ShortTermMem.ResolveUserSession(serverCtx, "default")
+				cfg := s.ConfigSnapshot()
+				conversationID, owner := telnyx.IncomingConversation(cfg, from)
+				sessionID, err := s.ShortTermMem.ResolveUserSession(serverCtx, conversationID)
 				if err != nil {
 					s.Logger.Error("Resolve incoming SMS conversation", "error", err)
 					return
@@ -747,11 +749,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				}
 				if !quarantined && tools.HasPendingQuestion(sessionID) {
 					if response, ok := tools.ResolveQuestionReply(sessionID, text); ok {
-						response.Source = tools.QuestionSourceTelnyx
-						tools.CompleteQuestion(sessionID, response)
-						return
+						identity := tools.ConversationQuestionIdentity(tools.QuestionSourceTelnyx, sessionID)
+						if owner {
+							identity = tools.OwnerQuestionIdentity(tools.QuestionSourceTelnyx)
+						}
+						if tools.CompleteQuestion(sessionID, response, identity) {
+							return
+						}
 					}
-					telnyx.NewSMSBroker(s.Cfg, from, s.Logger).Send("question_user", "Please reply with one of the listed numbers.")
+					telnyx.NewSMSBroker(cfg, from, s.Logger).Send("question_user", "Please reply with one of the listed numbers.")
 					return
 				}
 				// Relay incoming SMS to agent via loopback. Quarantined deliveries
@@ -759,7 +765,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				msg, quarantineAddenda := prepareIncomingSMSAgentInput(from, text, mediaURLs, quarantined)
 				s.Logger.Info("Telnyx SMS relayed to agent", "quarantined", quarantined)
 				runCfg := s.incomingSMSRunConfig(sessionID, &text, quarantineAddenda)
-				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(s.Cfg, from, s.Logger))
+				go agent.Loopback(runCfg, msg, telnyx.NewSMSBroker(cfg, from, s.Logger))
 			}, nil)
 			mux.HandleFunc(webhookPath, telnyxHandler.HandleWebhook)
 			s.registerTelnyxWebhookPath(webhookPath)

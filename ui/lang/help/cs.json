@@ -565,5 +565,6 @@
   "help.ansible.readonly": "Když je povoleno, agent může jen kontrolovat stav, inventář a vypisovat playbooky, ale nemůže spouštět ad-hoc příkazy ani playbooky. Kontrola i zkušební běh vyžadují právo zápisu; úlohy Ansible mohou kontrolní režim ignorovat.",
   "help.paperless_ngx.allow_delete": "Ve výchozím stavu vypnuto. Režim pouze pro čtení stále blokuje mazání.",
   "help.onedrive.allow_public_share": "Povolit anonymní odkazy pro sdílení. Ve výchozím stavu vypnuto; režim pouze pro čtení má přednost.",
-  "help.huggingface.allow_publish": "Povolit veřejné repozitáře, nahrávání a diskuse. Vynechané private znamená soukromý repozitář; neznámá viditelnost blokuje změny. Režim pouze pro čtení má přednost."
+  "help.huggingface.allow_publish": "Povolit veřejné repozitáře, nahrávání a diskuse. Vynechané private znamená soukromý repozitář; neznámá viditelnost blokuje změny. Režim pouze pro čtení má přednost.",
+  "help.telnyx.owner_number": "Výslovné číslo vlastníka ve formátu E.164, uvedené také mezi povolenými čísly. Pouze toto číslo sdílí konverzace a otázky vlastníka. Prázdné pole neuděluje práva vlastníka."
 }

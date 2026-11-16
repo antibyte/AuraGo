@@ -32,6 +32,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Notifications contains the metadata-only Mail delivery receipts widget (`js/config/mail-receipts.js`), loaded with the shared Config components and mounted only in that section. Its channel filter references the translated help. Show per-channel occupancy, attempt time and status; active attempts cannot be resolved. Both explicit resolutions use the native confirmation dialog and revision-bound POST, never send mail, never replay a lost mutation reply, and refresh current state. Abort reads on section leave/pagehide and keep all sixteen generic Config locales aligned. Verify `TestMailReceiptsConfigBrowser`; API/storage contracts belong to server/tools.
 
 
+- Both question dialogs pass the pending payload's `question_id` through `bindAgentQuestionDialog`; never synthesize one or retry against a newer question. Rejected answers leave the dialog retryable.
 - Chat question dialogs use the shared modal controller and session stop endpoint
   `/api/admin/stop` for Cancel/Escape. Keep failed answer/stop requests visible and
   retryable, trap focus in nested Desktop dialogs, and restore focus on completion.

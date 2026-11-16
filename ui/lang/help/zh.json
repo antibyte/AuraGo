@@ -565,5 +565,6 @@
   "help.ansible.readonly": "启用后，代理只能检查状态、清单和列出 playbook，但无法运行临时命令或 playbook。 检查和试运行也需要写入权限；Ansible 任务可能忽略检查模式。",
   "help.paperless_ngx.allow_delete": "默认关闭。只读模式仍会阻止删除。",
   "help.onedrive.allow_public_share": "允许匿名共享链接。默认关闭；只读模式始终优先。",
-  "help.huggingface.allow_publish": "允许创建公开仓库、上传文件和参与讨论。省略 private 表示私有；可见性未知时禁止修改。只读模式优先。"
+  "help.huggingface.allow_publish": "允许创建公开仓库、上传文件和参与讨论。省略 private 表示私有；可见性未知时禁止修改。只读模式优先。",
+  "help.telnyx.owner_number": "明确指定 E.164 格式的所有者号码，并将其列入允许的号码。只有此号码可共享所有者的对话和提问。留空不授予所有者权限。"
 }
