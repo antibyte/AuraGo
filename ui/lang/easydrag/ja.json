@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "下書きを保存できなかったため、まだ公開できません。",
   "easydrag.ui.publish_untrusted": "外部からのデータが重要なステップに届きます",
   "easydrag.ui.publish_warnings": "ヒント（{count}）",
+  "easydrag.ui.quick_head_after": "{name} の次のステップ",
+  "easydrag.ui.quick_head_insert": "{name} の後に挿入",
   "easydrag.ui.quick_recent": "最近使ったもの",
   "easydrag.ui.quick_search": "次に何をしますか？",
   "easydrag.ui.quick_search_trigger": "フローをいつ開始しますか？",

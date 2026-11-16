@@ -351,6 +351,31 @@
         };
     }
 
+    // stepName is the name a step goes by in a text: its label, else the label of its type.
+    function stepName(ed, nodeId) {
+        const node = ed.model.node(nodeId);
+        if (!node) return '';
+        const info = ed.catalog.types.get(node.type);
+        return node.label || (info && info.label) || node.type;
+    }
+
+    // sourceStep is the step a quick-add request goes after: the step it was opened from, or the source
+    // of the wire it inserts into. It is null when the request names none, or when that step is gone.
+    function sourceStep(ed, req) {
+        if (req.edge) {
+            const wire = ed.model.edge(req.edge);
+            return (wire && ed.model.node(wire.source.node)) || null;
+        }
+        return (req.from && ed.model.node(req.from.node)) || null;
+    }
+
+    // headerText is the title row of the quick-add; the dialog's accessible name is the same text.
+    function headerText(ed, req) {
+        const source = sourceStep(ed, req);
+        if (source) return ed.t(req.edge ? 'easydrag.ui.quick_head_insert' : 'easydrag.ui.quick_head_after', { name: stepName(ed, source.id) });
+        return ed.t(req.filter === 'trigger' ? 'easydrag.ui.empty_action' : 'easydrag.ui.quick_title');
+    }
+
     // openQuickAdd shows the quick-add popover at client point (x, y).
     // req: {x, y, from?: {node, port}, edge?: edgeId, filter?: "trigger", restoreFocus?: () => void}
     // restoreFocus takes the focus back when the popover ends with a choice, Escape or Tab; without
@@ -366,10 +391,13 @@
         if (req.from || req.edge) candidates = candidates.filter(i => !i.trigger && (i.inputs || []).length);
         if (req.edge) candidates = candidates.filter(i => (i.outputs || []).length);
         const recent = core.storage.get(RECENT_KEY, []).map(type => candidates.find(i => i.type === type)).filter(Boolean);
-        const el = core.el('<div class="ed-quick" role="dialog" aria-label="' + esc(t('easydrag.ui.quick_title')) + '">' +
+        const head = headerText(ed, req);
+        const el = core.el('<div class="ed-quick" role="dialog" aria-label="' + esc(head) + '">' +
+            '<div class="ed-quick-head" data-ed-quick-head></div>' +
             '<div class="ed-search">' + core.icon('search') + '<input type="text" class="ed-quick-search" role="combobox" aria-expanded="true" aria-autocomplete="list" placeholder="' +
             esc(req.filter === 'trigger' ? t('easydrag.ui.quick_search_trigger') : t('easydrag.ui.quick_search')) + '" enterkeyhint="go" autocomplete="off"></div>' +
             '<ul class="ed-quick-list" role="listbox"></ul></div>');
+        el.querySelector('[data-ed-quick-head]').textContent = head;
         ed.root.appendChild(el);
         const input = el.querySelector('input');
         const listEl = el.querySelector('ul');
@@ -408,7 +436,7 @@
         function position() {
             const host = ed.root.getBoundingClientRect();
             const w = 320;
-            const h = 380;
+            const h = Math.min(380, el.offsetHeight || 380);
             const x = core.clamp(req.x - host.left, 8, host.width - w - 8);
             const y = core.clamp(req.y - host.top, 8, host.height - h - 8);
             el.style.transform = 'translate(' + x + 'px,' + y + 'px)';
@@ -488,8 +516,8 @@
         // Listen for outside presses from the next task on (not the press that opened the popover),
         // unless it was closed by then.
         setTimeout(() => { if (!closed) document.addEventListener('pointerdown', outside, true); }, 0);
-        position();
         render();
+        position();
         input.focus({ preventScroll: true });
         requestAnimationFrame(() => el.classList.add('is-open'));
         ed.quickAdd = { el, close };

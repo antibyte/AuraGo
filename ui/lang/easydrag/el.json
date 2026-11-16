@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Το πρόχειρο δεν αποθηκεύτηκε, οπότε δεν μπορεί να δημοσιευτεί ακόμη.",
   "easydrag.ui.publish_untrusted": "Δεδομένα από έξω φτάνουν σε ευαίσθητα βήματα",
   "easydrag.ui.publish_warnings": "Υποδείξεις ({count})",
+  "easydrag.ui.quick_head_after": "Βήματα μετά: {name}",
+  "easydrag.ui.quick_head_insert": "Εισαγωγή μετά: {name}",
   "easydrag.ui.quick_recent": "Πρόσφατα",
   "easydrag.ui.quick_search": "Τι να γίνει μετά;",
   "easydrag.ui.quick_search_trigger": "Πότε να ξεκινά η ροή;",

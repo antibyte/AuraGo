@@ -790,6 +790,8 @@
   "easydrag.ui.publish_unsaved": "Koncept se nepodařilo uložit, a proto ho zatím nejde publikovat.",
   "easydrag.ui.publish_untrusted": "Data zvenčí se dostávají k citlivým krokům",
   "easydrag.ui.publish_warnings": "Upozornění ({count})",
+  "easydrag.ui.quick_head_after": "Kroky po: {name}",
+  "easydrag.ui.quick_head_insert": "Vložit za: {name}",
   "easydrag.ui.quick_recent": "Naposledy použité",
   "easydrag.ui.quick_search": "Co se má stát dál?",
   "easydrag.ui.quick_search_trigger": "Kdy se má tok spustit?",

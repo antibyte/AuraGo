@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "No se pudo guardar el borrador, así que todavía no se puede publicar.",
   "easydrag.ui.publish_untrusted": "Datos externos llegan a pasos sensibles",
   "easydrag.ui.publish_warnings": "Avisos ({count})",
+  "easydrag.ui.quick_head_after": "Pasos después de: {name}",
+  "easydrag.ui.quick_head_insert": "Insertar después de: {name}",
   "easydrag.ui.quick_recent": "Usados recientemente",
   "easydrag.ui.quick_search": "¿Qué debe pasar a continuación?",
   "easydrag.ui.quick_search_trigger": "¿Cuándo debe iniciarse el flujo?",

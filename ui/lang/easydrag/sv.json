@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Utkastet kunde inte sparas och kan därför inte publiceras än.",
   "easydrag.ui.publish_untrusted": "Data utifrån når känsliga steg",
   "easydrag.ui.publish_warnings": "Tips ({count})",
+  "easydrag.ui.quick_head_after": "Steg efter: {name}",
+  "easydrag.ui.quick_head_insert": "Infoga efter: {name}",
   "easydrag.ui.quick_recent": "Senast använda",
   "easydrag.ui.quick_search": "Vad ska hända härnäst?",
   "easydrag.ui.quick_search_trigger": "När ska flödet starta?",

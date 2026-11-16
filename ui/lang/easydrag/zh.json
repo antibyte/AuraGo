@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "草稿未能保存，因此暂时无法发布。",
   "easydrag.ui.publish_untrusted": "外部数据会到达敏感步骤",
   "easydrag.ui.publish_warnings": "提示（{count}）",
+  "easydrag.ui.quick_head_after": "{name} 之后的步骤",
+  "easydrag.ui.quick_head_insert": "插入到 {name} 之后",
   "easydrag.ui.quick_recent": "最近使用",
   "easydrag.ui.quick_search": "接下来要做什么？",
   "easydrag.ui.quick_search_trigger": "流程应该何时开始？",

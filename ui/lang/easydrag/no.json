@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Utkastet kunne ikke lagres og kan derfor ikke publiseres ennå.",
   "easydrag.ui.publish_untrusted": "Data utenfra når sensitive trinn",
   "easydrag.ui.publish_warnings": "Tips ({count})",
+  "easydrag.ui.quick_head_after": "Trinn etter: {name}",
+  "easydrag.ui.quick_head_insert": "Sett inn etter: {name}",
   "easydrag.ui.quick_recent": "Nylig brukt",
   "easydrag.ui.quick_search": "Hva skal skje videre?",
   "easydrag.ui.quick_search_trigger": "Når skal flyten starte?",

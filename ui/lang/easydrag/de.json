@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Der Entwurf konnte nicht gespeichert werden und lässt sich deshalb noch nicht veröffentlichen.",
   "easydrag.ui.publish_untrusted": "Daten von außen erreichen sensible Schritte",
   "easydrag.ui.publish_warnings": "Hinweise ({count})",
+  "easydrag.ui.quick_head_after": "Schritte nach: {name}",
+  "easydrag.ui.quick_head_insert": "Einfügen nach: {name}",
   "easydrag.ui.quick_recent": "Zuletzt verwendet",
   "easydrag.ui.quick_search": "Was soll als Nächstes passieren?",
   "easydrag.ui.quick_search_trigger": "Wann soll der Flow starten?",

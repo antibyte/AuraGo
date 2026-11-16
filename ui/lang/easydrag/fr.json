@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Le brouillon n’a pas pu être enregistré et ne peut donc pas encore être publié.",
   "easydrag.ui.publish_untrusted": "Des données externes atteignent des étapes sensibles",
   "easydrag.ui.publish_warnings": "Conseils ({count})",
+  "easydrag.ui.quick_head_after": "Étapes après : {name}",
+  "easydrag.ui.quick_head_insert": "Insérer après : {name}",
   "easydrag.ui.quick_recent": "Utilisés récemment",
   "easydrag.ui.quick_search": "Que doit-il se passer ensuite ?",
   "easydrag.ui.quick_search_trigger": "Quand le flux doit-il démarrer ?",

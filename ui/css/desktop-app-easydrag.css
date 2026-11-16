@@ -936,6 +936,8 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-quick.is-open { opacity: 1; scale: 1; }
 .ed-quick > .ed-search { padding: 10px 10px 6px; }
 .ed-quick > .ed-search > .ed-icon { left: 20px; }
+.ed-quick-head { flex: none; padding: 12px 14px 0; font-size: var(--ed-font-label); font-weight: 700; color: var(--ed-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-quick > .ed-search { flex: none; }
 .ed-quick-list { flex: 1; overflow: auto; margin: 0; padding: 2px 6px 8px; }
 .ed-quick-group { padding: 8px 8px 3px; font-family: var(--ed-label-font); font-size: var(--ed-font-label); font-weight: 700; letter-spacing: var(--ed-label-tracking); text-transform: var(--ed-label-transform); color: var(--ed-label-color); list-style: none; }
 .ed-quick-empty { padding: 18px; text-align: center; color: var(--ed-muted); list-style: none; }

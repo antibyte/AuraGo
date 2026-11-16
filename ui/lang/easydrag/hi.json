@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "ड्राफ़्ट सहेजा नहीं जा सका, इसलिए अभी प्रकाशित नहीं किया जा सकता।",
   "easydrag.ui.publish_untrusted": "बाहर का डेटा संवेदनशील चरणों तक पहुँचता है",
   "easydrag.ui.publish_warnings": "सुझाव ({count})",
+  "easydrag.ui.quick_head_after": "{name} के बाद के चरण",
+  "easydrag.ui.quick_head_insert": "{name} के बाद डालें",
   "easydrag.ui.quick_recent": "हाल में इस्तेमाल किए गए",
   "easydrag.ui.quick_search": "आगे क्या होना चाहिए?",
   "easydrag.ui.quick_search_trigger": "फ़्लो कब शुरू होना चाहिए?",

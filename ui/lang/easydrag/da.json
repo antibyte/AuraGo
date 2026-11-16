@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Kladden kunne ikke gemmes og kan derfor ikke udgives endnu.",
   "easydrag.ui.publish_untrusted": "Data udefra når følsomme trin",
   "easydrag.ui.publish_warnings": "Tips ({count})",
+  "easydrag.ui.quick_head_after": "Trin efter: {name}",
+  "easydrag.ui.quick_head_insert": "Indsæt efter: {name}",
   "easydrag.ui.quick_recent": "Senest brugt",
   "easydrag.ui.quick_search": "Hvad skal der ske nu?",
   "easydrag.ui.quick_search_trigger": "Hvornår skal flowet starte?",

@@ -791,6 +791,8 @@
   "easydrag.ui.publish_unsaved": "Nie udało się zapisać szkicu, więc nie można go jeszcze opublikować.",
   "easydrag.ui.publish_untrusted": "Dane z zewnątrz docierają do wrażliwych kroków",
   "easydrag.ui.publish_warnings": "Wskazówki ({count})",
+  "easydrag.ui.quick_head_after": "Kroki po: {name}",
+  "easydrag.ui.quick_head_insert": "Wstaw po: {name}",
   "easydrag.ui.quick_recent": "Ostatnio używane",
   "easydrag.ui.quick_search": "Co ma się stać dalej?",
   "easydrag.ui.quick_search_trigger": "Kiedy ma się uruchomić przepływ?",

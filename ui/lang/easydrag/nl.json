@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Het concept kon niet worden opgeslagen en kan daarom nog niet worden gepubliceerd.",
   "easydrag.ui.publish_untrusted": "Gegevens van buiten bereiken gevoelige stappen",
   "easydrag.ui.publish_warnings": "Tips ({count})",
+  "easydrag.ui.quick_head_after": "Stappen na: {name}",
+  "easydrag.ui.quick_head_insert": "Invoegen na: {name}",
   "easydrag.ui.quick_recent": "Recent gebruikt",
   "easydrag.ui.quick_search": "Wat moet er hierna gebeuren?",
   "easydrag.ui.quick_search_trigger": "Wanneer moet de flow starten?",

@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Não foi possível salvar o rascunho, por isso ele ainda não pode ser publicado.",
   "easydrag.ui.publish_untrusted": "Dados externos chegam a etapas sensíveis",
   "easydrag.ui.publish_warnings": "Dicas ({count})",
+  "easydrag.ui.quick_head_after": "Etapas depois de: {name}",
+  "easydrag.ui.quick_head_insert": "Inserir depois de: {name}",
   "easydrag.ui.quick_recent": "Usados recentemente",
   "easydrag.ui.quick_search": "O que deve acontecer em seguida?",
   "easydrag.ui.quick_search_trigger": "Quando o fluxo deve começar?",

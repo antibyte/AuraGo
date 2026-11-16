@@ -1142,6 +1142,8 @@ await (await import('./test-easydrag-flagship.mjs')).run({ sandbox: editorHarnes
 await (await import('./test-easydrag-pack.mjs')).run({ pack: editorHarness.sandbox().ED.pack, eq });
 // ── W1a B: the kit (test-easydrag-kit.mjs) ──
 await (await import('./test-easydrag-kit.mjs')).run({ apps, miniDom, eq });
+// ── W1c D: the quick-add (test-easydrag-quickadd.mjs) ──
+await (await import('./test-easydrag-quickadd.mjs')).run({ apps, miniDom, t, check, eq, guardAsync });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
 // ── W1c B: the header, its pill and the popover (test-easydrag-header.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-header.mjs')).run({ apps, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });

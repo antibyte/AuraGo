@@ -789,6 +789,8 @@
   "easydrag.ui.publish_unsaved": "Non è stato possibile salvare la bozza, quindi non può ancora essere pubblicata.",
   "easydrag.ui.publish_untrusted": "Dati esterni raggiungono passi sensibili",
   "easydrag.ui.publish_warnings": "Suggerimenti ({count})",
+  "easydrag.ui.quick_head_after": "Passaggi dopo: {name}",
+  "easydrag.ui.quick_head_insert": "Inserisci dopo: {name}",
   "easydrag.ui.quick_recent": "Usati di recente",
   "easydrag.ui.quick_search": "Cosa deve succedere dopo?",
   "easydrag.ui.quick_search_trigger": "Quando deve partire il flusso?",
