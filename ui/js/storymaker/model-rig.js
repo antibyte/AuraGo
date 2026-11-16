@@ -58,8 +58,14 @@
         var speech=entity&&entity.speech&&entity.speech.active(time),weights={},mouth=presentation.mouth||state.mouth;
         if(speech){
             var block=speech.data.block,track=block.mouths||SM.lipsync.track(block),span=block.duration_ms/1000;
-            var x=(time-speech.t0)/span*track.length-.5,index=Math.floor(x),fraction=smooth(x-index);
-            [index,index+1].forEach(function(k,i){var name=track[k];if(name&&name!=='rest')weights[name]=(weights[name]||0)+(i?fraction:1-fraction);});
+            var x=(time-speech.t0)/span*track.length-.5,radius=Math.max(1,track.length/span*.09),total=0;
+            // A fixed 180 ms window removes frame-rate chatter without history-dependent smoothing.
+            for(var k=Math.ceil(x-radius);k<=Math.floor(x+radius);k++){
+                var weight=Math.pow(Math.max(0,1-Math.abs(k-x)/radius),2),name=track[k];total+=weight;
+                if(name&&name!=='rest')weights[name]=(weights[name]||0)+weight;
+            }
+            var envelope=smooth((time-speech.t0)/.07)*smooth((speech.t1-time)/.07);
+            if(total>0)Object.keys(weights).forEach(function(name){weights[name]=weights[name]/total*envelope;});
         }else if(mouth&&mouth!=='rest')weights[mouth]=1;
         var expression=state.expression;
         if(expression&&expression!=='neutral')weights[expression]=mouth&&mouth!=='rest'?.35:1;

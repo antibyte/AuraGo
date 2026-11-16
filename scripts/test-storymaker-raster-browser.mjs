@@ -163,7 +163,7 @@ try{
     const seekOnly=frame=>evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>{window.removeEventListener('message',on);reject(new Error('Seek timed out'));},90000);const on=e=>{if(e.source!==document.querySelector('iframe').contentWindow)return;const m=e.data;if(m?.type==='error'||m?.type==='time'&&m.frame===${frame}){clearTimeout(timer);window.removeEventListener('message',on);m.type==='error'?reject(new Error(JSON.stringify(m))):resolve();}};window.addEventListener('message',on);seek(${frame});})`);let captureRequest=0;
     const capture=async(frame,width=0,height=0)=>{
         await seekOnly(frame);const request=++captureRequest;
-        return evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Canvas capture timed out')),60000);const on=event=>{const m=event.data;if(event.source!==document.querySelector('iframe').contentWindow||m?.type!=='qa_capture'||m.req!==${request})return;clearTimeout(timer);window.removeEventListener('message',on);const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(new Blob([m.data],{type:'image/png'}));};window.addEventListener('message',on);document.querySelector('iframe').contentWindow.postMessage({qaCapture:true,head:fixture.previewFace,req:${request},width:${width},height:${height}},'*');})`);
+        return evaluate(`new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Canvas capture timed out')),60000);const on=event=>{const m=event.data;if(event.source!==document.querySelector('iframe').contentWindow||m?.type!=='qa_capture'||m.req!==${request})return;clearTimeout(timer);window.removeEventListener('message',on);const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(new Blob([m.data],{type:'image/png'}));};window.addEventListener('message',on);document.querySelector('iframe').contentWindow.postMessage({qaCapture:true,head:fixture.previewFace||${speech},req:${request},width:${width},height:${height}},'*');})`);
     };
     const sameFrame=(actual,expected,label)=>{
         const a=decodePNG(Buffer.from(actual,'base64')),b=decodePNG(Buffer.from(expected,'base64'));
@@ -176,9 +176,9 @@ try{
         for(const view of ['front','three_quarter','profile'])for(const facing of ['left','right']){
             await call('Page.navigate',{url:address+'/?matrix='+encodeURIComponent(selectedCharacter)+'&view='+view+'&facing='+facing+'&speech=1'});await wait(0);
             const directory=path.join(fixture,'speech-'+selectedCharacter+'-'+view+'-'+facing);fs.mkdirSync(directory,{recursive:true});
-            for(let n=0;n<60;n++)writeArtifact(path.join(directory,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(n,512,512),'base64'));
-            execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-framerate','30','-i',path.join(directory,'%03d.png'),'-frames:v','60','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','-y',directory+'.mp4'],{windowsHide:true});
-            console.log(JSON.stringify({character:selectedCharacter,view,facing,frames:60,status:'passed'}));
+            for(let n=0;n<90;n++)writeArtifact(path.join(directory,String(n).padStart(3,'0')+'.png'),Buffer.from(await capture(n,512,512),'base64'));
+            execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-framerate','30','-i',path.join(directory,'%03d.png'),'-frames:v','90','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart','-y',directory+'.mp4'],{windowsHide:true});
+            console.log(JSON.stringify({character:selectedCharacter,view,facing,frames:90,status:'passed'}));
         }
     }else if(matrix){
         const catalog=JSON.parse(fs.readFileSync(path.join(catalogDir,'catalog.json'))),directory=path.join(fixture,'rig-matrix');fs.mkdirSync(directory,{recursive:true});

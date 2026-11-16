@@ -16,13 +16,14 @@ Offline production of three articulated Desktop-pet characters, illustrated envi
 
 - Deliver Hoodie, Professor and Punk, twelve day/night environments and eighty props. Human bitmap sprites are retired. Never reintroduce them as a fallback or modify source Desktop pets.
 - Preserve storymaker/1, all twelve old character IDs through aliases, and pose/gesture/expression/mouth names. Aliases resolve saved stories but never add library entries.
-- Mouth geometry follows the underlying face skin weights and deformed surface depth. Speech deforms the mouth/lower face; it never swaps heads or translates the skull. Review hands, proportions, sitting and walking in rendered motion at display size.
+- Mouths are actual openings in the face mesh, with attached textured lips, recessed oral cavities, teeth and tongues. Keep matching skin weights at the cut boundary; never project a dark mouth plate onto closed skin. Speech deforms the lips/lower jaw; it never swaps heads or translates the skull. Review hands, proportions, sitting and walking in rendered motion at display size.
 - Model production is deterministic and offline. Keep source hashes, copied notices and generator hashes. Geometry and motion rights remain distinct. Builds never invoke providers.
 - Inventory every delivery dependency with exact size/hash and image dimensions. Total budget: 256 MiB; per-file limit: 8 MiB. Model bounds belong to ASSET-CONTRACT.md.
 
 ## Work Guidance
 
 - Reuse accepted pets as separate derivatives; author poses/mouth shapes against each actual skeleton and face.
+- Calibrate each closed lip line against its original painted mouth. Reproject existing face colors for new lip triangles rather than interpolating across source UV islands; keep the original identity at rest.
 - Retain accepted ImageGen environment/prop originals and prompts. Regenerate models, catalog and actual player previews together after changes.
 - Inspect moving full figures and face close-ups, not only thumbnails.
 

@@ -6,6 +6,8 @@ AGENTS.md owns production. production.json records retained ImageGen environment
 
 models/ contains separate derivatives of ui/3d/pets/{hoodie,professor,punk}. Never overwrite the source pets. Per-character provenance records original/derived hashes, copied notices, facial landmarks and generator hashes. V1 geometry generators remain for shared stage/font/audio definitions, motion vocabulary and compatibility fixtures.
 
+The mouth generator calibrates the closed lip line per character and bakes a 256 x 128 lip texture from the original face triangles, preserving source UV seams. This embedded texture adds no runtime dependency or image-provider call. Compare the neutral face with the original, then inspect open, rounded and closed shapes in motion.
+
 ## Delivery schema
 
 - Projects remain storymaker/1; delivery remains storymaker-catalog/2. V1 fixtures still work.
@@ -13,7 +15,7 @@ models/ contains separate derivatives of ui/3d/pets/{hoodie,professor,punk}. Nev
 - Three canonical characters: char.hoodie, char.professor, char.punk. Their aliases resolve all twelve retired IDs in Go, the compiler and the app. Searches/pickers expose only canonical entries.
 - A storymaker-character-3d/1 descriptor names model (embedded GLB) and motions (storymaker-model-motions/1); both appear in resources.
 - Motion packs contain rest transforms, fifteen authored poses (ten public poses plus gesture targets) and selected original clips. Nine gestures approach canonical arm targets and return to the base pose. Every frame resets transforms before sampling explicit scene time. Walking blends in/out; actual skinned sole vertices determine ground height.
-- Six speech morphs plus implicit rest cover seven mouth names. Ten expressions include implicit neutral; localized blink/brow/lip morphs supply other states. Speech blends neighboring stored mouth samples. No frame-dependent head translation or head replacement is permitted.
+- Six speech morphs plus implicit rest cover seven mouth names. Ten expressions include implicit neutral; localized blink/brow/lip morphs supply other states. Speech samples a fixed 180 ms window of stored mouth shapes and eases to rest within 70 ms at speech boundaries; evaluation never accumulates frame history. Mouth topology cuts the face surface and joins textured lips to the cut, with a recessed oral cavity, teeth and tongue. Lower-face morphs rotate around a jaw hinge. No frame-dependent head translation or head replacement is permitted.
 - Three.js renders articulated models into transparent Pixi layers. View/facing rotates the model; existing pose/look controls still own perspective. No raw Three.js or new story field is exposed to code scenes.
 - Twelve day/night environments retain layered parallax and stage spots; eighty props retain old IDs. Labels, captions and bubbles remain measured runtime text.
 

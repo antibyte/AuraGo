@@ -36,13 +36,30 @@ t.check('3D articulation: every pet has all poses and facial shapes; skull and s
             core.modelRig.apply(rig,state,.7,{...presentation,mouth});
             assert.deepEqual(rig.bones.get('DEF-spine006').matrixWorld.toArray(),head,id+'/'+mouth+' rigid skull');
             assert.ok(rig.meshes.some(m=>m.morphTargetInfluences[m.morphTargetDictionary[mouth]]===1));
-            const cavity=rig.meshes.find(m=>{const a=m.geometry.attributes.position;return a.count===66&&a.getX(0)===a.getX(1);});
-            const center=cavity.getVertexPosition(0,new T.Vector3()).applyMatrix4(cavity.matrixWorld);
-            const normal=cavity.applyBoneTransform(0,new T.Vector3(0,0,1)).sub(cavity.applyBoneTransform(0,new T.Vector3())).transformDirection(cavity.matrixWorld);
-            const face=rig.meshes.filter(m=>m.geometry.attributes.position.count>66);
-            face.forEach(m=>{if(m.isSkinnedMesh)m.computeBoundingSphere();else m.geometry.computeBoundingSphere();});
-            const hit=new T.Raycaster(center.clone().add(normal),normal.clone().negate()).intersectObjects(face,false)[0];
-            assert.ok(hit&&hit.distance>1.001,id+'/'+mouth+' mouth cavity must cover the deformed face');
+            const cavity=rig.meshes.find(m=>m.name==='Storymaker_Mouth_Cavity'),lips=rig.meshes.find(m=>m.name==='Storymaker_Mouth_Lips');
+            assert.ok(cavity&&lips&&rig.meshes.some(m=>m.name==='Storymaker_Mouth_Teeth')&&rig.meshes.some(m=>m.name==='Storymaker_Mouth_Tongue'));
+            const patch=rig.meshes.find(m=>!m.geometry.index&&!m.name.startsWith('Storymaker_'));
+            assert.ok(patch,id+' has a cut face patch');
+            const source=patch.geometry.attributes.position,edge=lips.geometry.attributes.position;
+            const key=(a,i)=>[a.getX(i),a.getY(i),a.getZ(i)].map(n=>n.toFixed(6)).join(',');
+            const vertices=new Map(Array.from({length:source.count},(_,i)=>[key(source,i),i]));
+            for(let i=0;i<edge.count/3;i++){
+                const j=vertices.get(key(edge,i));assert.notEqual(j,undefined,id+' attached lip boundary');
+                const x=lips.getVertexPosition(i,new T.Vector3()).applyMatrix4(lips.matrixWorld),y=patch.getVertexPosition(j,new T.Vector3()).applyMatrix4(patch.matrixWorld);
+                assert.ok(x.distanceTo(y)<.00001,id+'/'+mouth+' lip has no skin seam');
+            }
+            if(['ai','e','o','u'].includes(mouth)){
+                const last=cavity.geometry.attributes.position.count-1,center=cavity.getVertexPosition(last,new T.Vector3()).applyMatrix4(cavity.matrixWorld);
+                const normal=cavity.applyBoneTransform(last,new T.Vector3(0,0,1)).sub(cavity.applyBoneTransform(last,new T.Vector3())).transformDirection(cavity.matrixWorld);
+                const face=rig.meshes.filter(m=>!m.name.startsWith('Storymaker_Mouth_'));
+                face.forEach(m=>{if(m.isSkinnedMesh)m.computeBoundingSphere();else m.geometry.computeBoundingSphere();});
+                const rim=(cavity.geometry.attributes.position.count-1)/2;
+                for(let sample=0;sample<=12;sample++){
+                    const inside=sample===12?center:center.clone().lerp(cavity.getVertexPosition(Math.floor(sample*rim/12),new T.Vector3()).applyMatrix4(cavity.matrixWorld),.65);
+                    const hit=new T.Raycaster(inside.clone().add(normal),normal.clone().negate()).intersectObjects(face,false)[0];
+                    assert.ok(!hit||hit.distance>1,id+'/'+mouth+'/'+sample+' opening must not intersect the face');
+                }
+            }
         }
         const block={id:'spoken:n',kind:'narration',speaker:'actor',duration_ms:1000,spans:[[0,1000]],speech_ok:true,levels:[150,210],pieces:[{hash:'a'.repeat(64),ext:'wav',at_ms:0,in_ms:0,out_ms:1000,chars:10}]};
         const compiled=core.compile({cast:[{id:'actor',character:'char.'+id}],scenes:[{id:'spoken',speaker:'actor',narration:'Hallo Welt',actors:[{cast:'actor',at:'center'}]}]},{narration:{spoken:{blocks:[block]}}},readJSON('ui/img/storymaker/catalog.json'));
@@ -51,6 +68,17 @@ t.check('3D articulation: every pet has all poses and facial shapes; skull and s
         for(const mesh of rig.meshes)for(const name of shapes)assert.equal(mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]],.5,id+' interpolates compiled speech shapes');
         const quiet=core.scene.evalEntity(actor,1.1);core.modelRig.apply(rig,quiet,1.1,presentation,actor);
         for(const mesh of rig.meshes)for(const name of shapes)assert.equal(mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]],0,id+' speech ends at rest');
+        const chatter={id:'chatter:n',duration_ms:2000,levels:Array.from({length:60},(_,i)=>i%2?210:150)};
+        const speech={speech:{active:time=>time>=0&&time<2?{t0:0,t1:2,data:{block:chatter}}:null}};
+        let previous=null;
+        for(let frame=20;frame<40;frame++){
+            core.modelRig.apply(rig,state,frame/30,presentation,speech);
+            const mesh=rig.meshes[0],weights=['ai','e','o','u','mbp','fv'].map(name=>mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]]);
+            if(previous)assert.ok(Math.max(...weights.map((n,i)=>Math.abs(n-previous[i])))<.35,id+' suppresses frame-rate viseme chatter');
+            previous=weights;
+        }
+        core.modelRig.apply(rig,state,1.999,presentation,speech);
+        const quietMesh=rig.meshes[0];assert.ok(['ai','e','o','u','mbp','fv'].reduce((sum,name)=>sum+quietMesh.morphTargetInfluences[quietMesh.morphTargetDictionary[name]],0)<.01,id+' closes before the speech boundary');
         for(const pose of Object.keys(pack.poses))assert.ok(Number.isFinite(core.modelRig.apply(rig,{...state,pose:{a:'stand',b:pose,u:1}},.7,presentation)),id+'/'+pose);
         const hand=rig.bones.get('DEF-handL'),thumb=rig.bones.get('DEF-thumb03L'),middle=rig.bones.get('DEF-f_middle03L');
         core.modelRig.apply(rig,{...state,pose:{a:'thumbs-up',b:'thumbs-up',u:1}},.7,presentation);

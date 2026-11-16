@@ -3,21 +3,16 @@
   "source": "ui/3d/pets/hoodie",
   "model_sha256": "51575fab886c2b8de5071abf2783da73ec7454ba6e8923943cf78decb50896af",
   "motions_sha256": "881e3a03e320818258736e68319189be55094141a6095f839dcd578e302d7102",
-  "derived_sha256": "66e4db0705d84fe39588dc838e274933b9e09d93a3382b47f219532c5b79b313",
+  "derived_sha256": "910306f42bdc10ab4d9f11338b418c821215c28dcf80255321981afd67421fca",
   "landmarks": {
     "mouth": [
       -0.024,
-      1.278
+      1.258
     ],
-    "width": 0.052,
+    "width": 0.08,
+    "smile": 0.014,
     "eyeY": 1.414,
-    "eyeX": 0.091,
-    "lip": [
-      0.42,
-      0.17,
-      0.13,
-      1
-    ]
+    "eyeX": 0.091
   },
   "morphs": [
     "ai",
@@ -40,11 +35,15 @@
   "authoring": [
     {
       "file": "assets/storymaker/lib/model-face.mjs",
-      "sha256": "5b05800d4884770cbf3695bacde16b27a1ae4282c202b3409589b782d494d8db"
+      "sha256": "09e57ecc3833667df37186ae02a4ba502de505d00cebaf0974d5add2046da783"
     },
     {
       "file": "assets/storymaker/lib/model-motions.mjs",
       "sha256": "c635696c9ad7f6e34bf30c8fc2bcebbc1b25f3857b53812cd8f8e296ee81314d"
+    },
+    {
+      "file": "assets/storymaker/lib/png.mjs",
+      "sha256": "e3631207f26733e0619d40cbca90c1ffda020c3f51fcb90dfef1cc83c7d825a9"
     }
   ],
   "geometry_notice": "Geometry, textures and character rigs: AuraGo character assets, not Mesh2Motion artwork.\nRetained provenance: assets/desktop-pets/hoodie/. The Mesh2Motion licenses do not license or relicense these assets.\nThis notice does not claim ownership of pre-existing character designs; retain their original notices and provenance.\n\nAnimations: retargeted Mesh2Motion human motion data (CC0-1.0). LICENSE-CC0.txt applies only to the Mesh2Motion animation inputs.\nUpstream repository, revision and input hashes are retained in motions.json and motions-manifest.json.\n\nRetargeting code: Mesh2Motion offline retargeting software (MIT). LICENSE-MIT.txt applies only to that software, not to the character geometry or motion data.\n",
