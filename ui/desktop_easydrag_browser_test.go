@@ -578,6 +578,40 @@ func (s *easyDragSmoke) settle() {
 	s.wait(`()=>![...document.querySelectorAll('.ed-canvas')].some(c=>c.classList.contains('is-animating'))`)
 }
 
+// clickSettled presses selector with a native pointer click once it holds still. Run views
+// re-render on their own (status polls, theme and viewport changes): an element queried just
+// before such a render can have no box, or another place, when rod hovers it, and MustClick
+// then panics with "element has no visible shape or outside the viewport". So it waits until the
+// same node keeps the same box over two frames, queries it right before the hover, and repeats
+// both while the hover cannot find it. Nothing is pressed before the hover succeeded, so a
+// retry never clicks twice.
+func (s *easyDragSmoke) clickSettled(selector string) {
+	s.t.Helper()
+	quoted, err := json.Marshal(selector)
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	settled := `()=>new Promise(done=>{const box=()=>{const e=document.querySelector(` + string(quoted) + `);return e && !e.hidden && e.getClientRects().length ? [e, JSON.stringify(e.getBoundingClientRect())] : null;};const a=box();requestAnimationFrame(()=>requestAnimationFrame(()=>{const b=box();done(!!a && !!b && a[0]===b[0] && a[1]===b[1]);}));})`
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		s.wait(settled)
+		el := s.page.MustElement(selector)
+		bounded := el.Timeout(5 * time.Second)
+		pt, err := bounded.WaitInteractable()
+		bounded.CancelTimeout()
+		if err == nil {
+			s.page.Mouse.MustMoveTo(pt.X, pt.Y)
+			el.MustWaitEnabled()
+			s.page.Mouse.MustClick(proto.InputMouseButtonLeft)
+			return
+		}
+		if time.Now().After(deadline) {
+			s.t.Fatalf("%s stayed unclickable: %v", selector, err)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+}
+
 // fit shows the whole flow (Shift+1 on the canvas). The editor's "view" event says the key was
 // handled; the animation class is no signal (it is short, and never set with reduced motion).
 func (s *easyDragSmoke) fit() {
