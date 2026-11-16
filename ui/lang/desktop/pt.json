@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Erro de ligação",
   "desktop.store.ig_disconnect": "Desligar",
   "desktop.store.ig_test": "Testar ligação",
-  "desktop.store.ig_save_first": "Guarda as alterações antes do teste."
+  "desktop.store.ig_save_first": "Guarda as alterações antes do teste.",
+  "desktop.store.ig_relay_port": "Porta interna do relay",
+  "desktop.store.ig_relay_hint": "Introduz um token de acesso de administrador do Open WebUI. Guardar adiciona a ligação AuraGo e preserva os outros fornecedores e conversas.",
+  "desktop.store.ig_relay_enable": "Permitir ligação ao modelo"
 }

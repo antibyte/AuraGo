@@ -585,9 +585,10 @@
                     ${saved.containerized ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
                     ${field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
                     ${field('credential', 'password')}<p data-ig-stored></p>
+                    ${appId === 'open-webui' ? `<p class="vd-store-modal-copy">${label('relay_hint')}</p>${field('relay_port', 'number')}` : ''}
                     <label class="vd-store-choice"><input type="checkbox" name="clear_credential"><span>${label('clear_credential')}</span></label>
                     ${saved.conflict ? `<label class="vd-store-choice"><input type="checkbox" name="select_store_instance"><span>${label('conflict')}</span></label>` : ''}
-                    ${grants.map(name => `<label class="vd-store-choice"><input type="checkbox" name="${name}"><span>${label(name)}</span></label>`).join('')}
+                    ${grants.map(name => `<label class="vd-store-choice"><input type="checkbox" name="${name}"><span>${label(appId === 'open-webui' && name === 'read' ? 'relay_enable' : name)}</span></label>`).join('')}
                     ${['node-red', 'olivetin'].includes(appId) ? field('allowed_ids') : ''}
                     ${appId === 'filebrowser-quantum' ? field('source') : ''}
                     ${appId === 'stirling-pdf' ? field('certificate_fingerprint') : ''}
@@ -605,7 +606,7 @@
                 const test = form.querySelector('[data-ig-test]');
                 const apply = connection => {
                     saved = connection;
-                    for (const name of ['url', 'username', 'source', 'certificate_fingerprint', 'admin_port', 'dns_address', 'docker_network']) if (form.elements[name]) form.elements[name].value = connection[name] || (name === 'admin_port' ? 'main' : '');
+                    for (const name of ['url', 'username', 'source', 'certificate_fingerprint', 'admin_port', 'dns_address', 'docker_network', 'relay_port']) if (form.elements[name]) form.elements[name].value = connection[name] || (name === 'admin_port' ? 'main' : '');
                     for (const name of grants) form.elements[name].checked = !!connection[name];
                     if (form.elements.allowed_ids) form.elements.allowed_ids.value = (connection.allowed_ids || []).join(', ');
                     form.querySelector('[data-ig-stored]').textContent = connection.credential_stored ? t('desktop.store.ig_stored') : '';
@@ -626,6 +627,7 @@
                     const payload = {revision: saved.revision, url: form.elements.url.value.trim(), credential: form.elements.credential.value, clear_credential: form.elements.clear_credential.checked, select_store_instance: !!form.elements.select_store_instance?.checked};
                     for (const name of grants) payload[name] = form.elements[name].checked;
                     for (const name of ['username', 'source', 'certificate_fingerprint', 'admin_port', 'dns_address', 'docker_network']) if (form.elements[name]) payload[name] = form.elements[name].value.trim();
+                    if (form.elements.relay_port) payload.relay_port = Number(form.elements.relay_port.value);
                     if (form.elements.allowed_ids) payload.allowed_ids = form.elements.allowed_ids.value.split(',').map(value => value.trim()).filter(Boolean);
                     const controls = [...form.querySelectorAll('input, select, button')];
                     controls.forEach(control => { control.disabled = true; });

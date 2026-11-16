@@ -18,6 +18,16 @@ import (
 
 // DeepTutorAppID is the catalog ID of the DeepTutor tutoring app.
 const DeepTutorAppID = "deeptutor"
+const OpenWebUIAppID = "open-webui"
+
+func IsRelayApp(id string) bool { return id == DeepTutorAppID || id == OpenWebUIAppID }
+func RelayPath(id string) string {
+	if !IsRelayApp(id) {
+		return ""
+	}
+	return "/api/store-llm/" + id + "/v1"
+}
+func RelayTokenKey(id string) string { return storeSecretVaultKey(id, deepTutorTokenKey) }
 
 // DeepTutorRelayPath is the AuraGo path prefix of the token-gated LLM relay
 // that DeepTutor uses instead of a provider key. The server owns the handlers;
@@ -60,8 +70,9 @@ var deepTutorMergeScript string
 
 // RelayInfo describes how a Store container reaches the AuraGo LLM relay.
 type RelayInfo struct {
+	DockerNetwork string
 	// BaseURL is the container-reachable AuraGo origin without a trailing
-	// slash, for example http://host.docker.internal:8088.
+	// slash, for example http://host.docker.internal:8099.
 	BaseURL string
 	// ExtraHosts are added to the container, for example
 	// host.docker.internal:host-gateway.
@@ -81,19 +92,23 @@ type LLMRelayProvider interface {
 	RelayInfo(ctx context.Context, networkMode string) (RelayInfo, error)
 }
 
-// VerifyRelayToken reports whether token is the relay token of the installed
-// DeepTutor app. It is the only check behind the relay's bearer authentication:
-// it fails closed for any other app, an app that is not installed, a missing
-// or empty Vault secret and an empty token, and compares SHA-256 digests in
-// constant time. The token is never logged.
+// VerifyRelayToken accepts only the running app's own token outside lifecycle
+// operations. The server additionally gates Open WebUI on its verified binding.
 func (s *Service) VerifyRelayToken(ctx context.Context, appID, token string) bool {
-	if s == nil || token == "" || normalizeAppID(appID) != DeepTutorAppID || s.cfg.Secrets == nil {
+	appID = normalizeAppID(appID)
+	if s == nil || token == "" || !IsRelayApp(appID) || s.cfg.Secrets == nil {
 		return false
 	}
-	if _, installed, err := s.GetInstalled(ctx, DeepTutorAppID); err != nil || !installed {
+	if app, installed, err := s.GetInstalled(ctx, appID); err != nil || !installed || app.Status != AppStatusRunning || s.IntegrationIdle(ctx, appID) != nil {
 		return false
 	}
-	stored, err := s.cfg.Secrets.ReadSecret(storeSecretVaultKey(DeepTutorAppID, deepTutorTokenKey))
+	if appID == OpenWebUIAppID {
+		settings, err := ReadIntegration(s.cfg.Secrets, appID)
+		if err != nil || !settings.Read {
+			return false
+		}
+	}
+	stored, err := s.cfg.Secrets.ReadSecret(RelayTokenKey(appID))
 	if err != nil || stored == "" {
 		return false
 	}

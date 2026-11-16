@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Errore di connessione",
   "desktop.store.ig_disconnect": "Disconnetti",
   "desktop.store.ig_test": "Verifica connessione",
-  "desktop.store.ig_save_first": "Salva le modifiche prima della verifica."
+  "desktop.store.ig_save_first": "Salva le modifiche prima della verifica.",
+  "desktop.store.ig_relay_port": "Porta interna del relay",
+  "desktop.store.ig_relay_hint": "Inserisci un token di accesso amministratore di Open WebUI. Il salvataggio aggiunge AuraGo e conserva gli altri fornitori e le chat.",
+  "desktop.store.ig_relay_enable": "Consenti la connessione al modello"
 }

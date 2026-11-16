@@ -100,14 +100,11 @@ Store app configuration, runtime, assets, and publication.
   implements `LLMRelayProvider` (`Config.LLMRelay`); a nil provider, a provider
   error or an invalid origin fails the install before the image pull
   (`prepareDeepTutorInstall`) with a secret-free operation error.
-- Reachability requirements (the server-side provider check owns the messages):
-  AuraGo login must be enabled (Config > Auth, password set), because the
-  container reaches AuraGo's address and without login every AuraGo route would
-  be open to it. On stock Linux installs (`server.host` 127.0.0.1, HTTPS on) a
-  plain-HTTP listener on a non-loopback address is needed, for example
-  `AURAGO_SERVER_HOST=0.0.0.0` with HTTPS disabled for the relay port; Docker
-  Desktop (Windows/macOS) reaches a loopback listener through
-  `host.docker.internal`.
+- Model relays retain mandatory AuraGo login. The dedicated listener uses port
+  8099 (configurable), native Linux's local Docker bridge address, Docker Desktop
+  loopback, or AuraGo's selected application bridge IP when containerized. HTTPS
+  and the main server bind are unchanged. A remote Engine or ambiguous network
+  fails closed; no LAN/Tailscale publication. See `documentation/store-agent-connections.md`.
 - The relay token is the generated secret `llm_relay_token` (Vault key
   `desktop_store_deeptutor_llm_relay_token`, never exposed). `resolveEnv` runs
   the generic generated-secret path and then strips the token env, so the
@@ -120,9 +117,9 @@ Store app configuration, runtime, assets, and publication.
   `RelayInfo.ExtraHosts` and `Entrypoint`. An Update therefore re-resolves a
   changed AuraGo address or token. Reading the token with the Vault failing
   fails the create; it is never regenerated silently there.
-- `VerifyRelayToken` is the only bearer check behind the relay: false for any
-  other app id, an app that is not installed, a missing or empty Vault secret
-  and an empty token; SHA-256 digests compared with `subtle`. Uninstall without
+- `VerifyRelayToken` accepts only DeepTutor and Open WebUI, each with its own
+  Vault token. Stopped apps and active Store operations are refused. Open WebUI
+  additionally needs a saved read grant and a verified server binding; SHA-256 digests compared with `subtle`. Uninstall without
   `delete_data` keeps the Vault token but the relay refuses it (no record);
   `delete_data` rotates it.
 - `ContainerSpec.Entrypoint` becomes the create payload's `Entrypoint` only when

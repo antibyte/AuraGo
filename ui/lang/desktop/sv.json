@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Anslutningsfel",
   "desktop.store.ig_disconnect": "Koppla från",
   "desktop.store.ig_test": "Testa anslutning",
-  "desktop.store.ig_save_first": "Spara ändringarna före testet."
+  "desktop.store.ig_save_first": "Spara ändringarna före testet.",
+  "desktop.store.ig_relay_port": "Intern reläport",
+  "desktop.store.ig_relay_hint": "Ange en åtkomsttoken för administratören i Open WebUI. När du sparar läggs AuraGo till och övriga leverantörer och samtal behålls.",
+  "desktop.store.ig_relay_enable": "Tillåt modellanslutning"
 }

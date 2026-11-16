@@ -1511,6 +1511,11 @@ adguard:
     readonly: false
     url: ""
     username: ""
+# Dedicated model relay; never published through the web server or Tailscale.
+store_llm_relay:
+  port: 8099
+  docker_network: "" # Containerized AuraGo: select a shared application bridge.
+
 uptime_kuma:
     enabled: false
     base_url: ""                  # e.g. https://uptime-kuma.local:3001

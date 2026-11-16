@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Forbindelsesfejl",
   "desktop.store.ig_disconnect": "Afbryd forbindelse",
   "desktop.store.ig_test": "Test forbindelse",
-  "desktop.store.ig_save_first": "Gem ændringer før testen."
+  "desktop.store.ig_save_first": "Gem ændringer før testen.",
+  "desktop.store.ig_relay_port": "Intern relæport",
+  "desktop.store.ig_relay_hint": "Indtast et administratortoken til Open WebUI. Når du gemmer, tilføjes AuraGo uden at fjerne andre udbydere eller samtaler.",
+  "desktop.store.ig_relay_enable": "Tillad modelforbindelse"
 }

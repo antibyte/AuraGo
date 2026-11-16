@@ -329,6 +329,7 @@ type Server struct {
 	desktopPolicyService      atomic.Pointer[desktop.Service]
 	DesktopStore              *desktopstore.Service
 	storeIntegrations         storeIntegrationRuntime
+	storeRelay                storeRelayRuntime
 	DesktopHub                *desktop.Hub
 	VirtualComputersDB        *virtualcomputers.Ledger
 	VirtualWorkspaceManager   *virtualcomputers.WorkspaceManager

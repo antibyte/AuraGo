@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Σφάλμα σύνδεσης",
   "desktop.store.ig_disconnect": "Αποσύνδεση",
   "desktop.store.ig_test": "Δοκιμή σύνδεσης",
-  "desktop.store.ig_save_first": "Αποθήκευσε τις αλλαγές πριν από τη δοκιμή."
+  "desktop.store.ig_save_first": "Αποθήκευσε τις αλλαγές πριν από τη δοκιμή.",
+  "desktop.store.ig_relay_port": "Εσωτερική θύρα αναμετάδοσης",
+  "desktop.store.ig_relay_hint": "Πρόσθεσε ένα διακριτικό πρόσβασης διαχειριστή του Open WebUI. Η αποθήκευση προσθέτει το AuraGo και διατηρεί τους άλλους παρόχους και τις συνομιλίες.",
+  "desktop.store.ig_relay_enable": "Ενεργοποίηση σύνδεσης μοντέλου"
 }

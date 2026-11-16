@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "कनेक्शन में त्रुटि",
   "desktop.store.ig_disconnect": "कनेक्शन बंद करें",
   "desktop.store.ig_test": "कनेक्शन जाँचें",
-  "desktop.store.ig_save_first": "जाँच से पहले बदलाव सहेजें।"
+  "desktop.store.ig_save_first": "जाँच से पहले बदलाव सहेजें।",
+  "desktop.store.ig_relay_port": "आंतरिक रिले पोर्ट",
+  "desktop.store.ig_relay_hint": "Open WebUI का व्यवस्थापक एक्सेस टोकन दर्ज करो। सहेजने पर AuraGo कनेक्शन जुड़ेगा और अन्य प्रदाता व चैट बने रहेंगे।",
+  "desktop.store.ig_relay_enable": "मॉडल कनेक्शन की अनुमति दो"
 }

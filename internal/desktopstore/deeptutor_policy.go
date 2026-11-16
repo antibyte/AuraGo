@@ -11,7 +11,7 @@ import (
 	"runtime"
 )
 
-var ErrDeepTutorRequiresLogin = errors.New("DeepTutor requires AuraGo login; uninstall DeepTutor before disabling login")
+var ErrDeepTutorRequiresLogin = errors.New("Store model relays require AuraGo login; uninstall DeepTutor and Open WebUI before disabling login")
 
 func RequireDeepTutorLogin(enabled bool, passwordHash string) error {
 	if !enabled || passwordHash == "" {
@@ -50,12 +50,12 @@ func DeepTutorNeedsLogin(ctx context.Context, dbPath string) (bool, error) {
 		if exists == 0 {
 			continue
 		}
-		query := `SELECT COUNT(*) FROM desktop_store_apps WHERE app_id = ?`
+		query := `SELECT COUNT(*) FROM desktop_store_apps WHERE app_id = ? OR (app_id = ? AND secret_refs_json LIKE '%llm_relay_token%')`
 		if table == "desktop_store_operations" {
-			query = `SELECT COUNT(*) FROM desktop_store_operations WHERE app_id = ? AND status IN ('pending', 'running')`
+			query = `SELECT COUNT(*) FROM desktop_store_operations WHERE (app_id = ? OR (app_id = ? AND type IN ('install', 'update'))) AND status IN ('pending', 'running')`
 		}
 		var count int
-		if err := db.QueryRowContext(ctx, query, DeepTutorAppID).Scan(&count); err != nil {
+		if err := db.QueryRowContext(ctx, query, DeepTutorAppID, OpenWebUIAppID).Scan(&count); err != nil {
 			return false, fmt.Errorf("read DeepTutor installation metadata: %w", err)
 		}
 		if count > 0 {

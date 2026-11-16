@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Erreur de connexion",
   "desktop.store.ig_disconnect": "Déconnecter",
   "desktop.store.ig_test": "Tester la connexion",
-  "desktop.store.ig_save_first": "Enregistre les modifications avant le test."
+  "desktop.store.ig_save_first": "Enregistre les modifications avant le test.",
+  "desktop.store.ig_relay_port": "Port interne du relais",
+  "desktop.store.ig_relay_hint": "Saisis un jeton d’accès administrateur Open WebUI. L’enregistrement ajoute AuraGo et conserve les autres fournisseurs et conversations.",
+  "desktop.store.ig_relay_enable": "Autoriser la connexion au modèle"
 }

@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Verbindingsfout",
   "desktop.store.ig_disconnect": "Verbinding uitschakelen",
   "desktop.store.ig_test": "Verbinding testen",
-  "desktop.store.ig_save_first": "Sla wijzigingen op voordat je test."
+  "desktop.store.ig_save_first": "Sla wijzigingen op voordat je test.",
+  "desktop.store.ig_relay_port": "Interne relaypoort",
+  "desktop.store.ig_relay_hint": "Voer een beheerderstoegangstoken van Open WebUI in. Opslaan voegt AuraGo toe en behoudt andere providers en gesprekken.",
+  "desktop.store.ig_relay_enable": "Modelverbinding toestaan"
 }

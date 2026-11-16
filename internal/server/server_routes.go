@@ -772,13 +772,14 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			s.Logger.Info("Telnyx webhook registered", "path", webhookPath)
 		}
 
-		go s.startStoreIntegrations()
 		// MCP: start external MCP server connections (only when both gates are open)
 		if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled {
 			mcpConfigs := buildRuntimeMCPConfigs(s.Cfg, s.Vault, s.Logger)
 			tools.InitMCPManager(mcpConfigs, s.Logger)
 			go s.startPrintGuardMCP()
 		}
+
+		go s.startStoreIntegrations()
 
 		// Sandbox: start the llm-sandbox MCP server (separate from user MCP servers)
 		if s.Cfg.Sandbox.Enabled {

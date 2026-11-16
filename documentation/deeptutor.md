@@ -49,20 +49,14 @@ Login cannot be disabled while DeepTutor is installed, including when stopped or
   DeepTutor container can reach AuraGo's address, and without a login every
   AuraGo route would be open to it. The install stops with a clear message if
   login is off.
-- **AuraGo must be reachable from Docker.** The container reaches AuraGo on the
-  host through `host.docker.internal` (the Store adds the host-gateway mapping)
-  over plain HTTP.
-  - *Docker Desktop (Windows, macOS):* a loopback listener (`127.0.0.1`) is
-    enough.
-  - *Linux:* a stock install (`server.host` `127.0.0.1`, HTTPS on) is not
-    reachable from containers. AuraGo needs a plain-HTTP listener on a
-    non-loopback address, for example `AURAGO_SERVER_HOST=0.0.0.0` with HTTPS
-    disabled for the relay port. Binding to all interfaces exposes AuraGo to the
-    network, so keep login enabled and the firewall tight.
-
-  If this is not the case, the install stops before downloading the image and
-  tells you why. Fix the AuraGo server bind address or HTTPS setting and try
-  again.
+- **The isolated model relay must be reachable from Docker.** Its default port
+  is 8099 (`store_llm_relay.port`), separate from AuraGo's HTTPS server.
+  Docker Desktop uses loopback through `host.docker.internal`; native Linux uses
+  the local Docker bridge gateway. Containerized AuraGo uses its selected shared
+  application network (`store_llm_relay.docker_network`). Remote Engines and
+  ambiguous networks need correction before installation. Keep HTTPS enabled.
+  Existing installations pick up the new address through Store Update; old
+  DeepTutor URLs remain compatible. See [Store connections](store-agent-connections.md).
 - **Embeddings** (knowledge bases) work only when AuraGo's embedding provider is
   an external OpenAI-compatible service. With a local or built-in embedding
   provider, DeepTutor gets no embedding profile (the relay answers 404

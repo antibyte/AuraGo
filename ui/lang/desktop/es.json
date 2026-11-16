@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Error de conexión",
   "desktop.store.ig_disconnect": "Desconectar",
   "desktop.store.ig_test": "Probar conexión",
-  "desktop.store.ig_save_first": "Guarda los cambios antes de probar."
+  "desktop.store.ig_save_first": "Guarda los cambios antes de probar.",
+  "desktop.store.ig_relay_port": "Puerto interno del relé",
+  "desktop.store.ig_relay_hint": "Introduce un token de acceso de administrador de Open WebUI. Al guardar se añade AuraGo y se conservan los demás proveedores y chats.",
+  "desktop.store.ig_relay_enable": "Permitir conexión al modelo"
 }

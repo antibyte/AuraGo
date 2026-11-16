@@ -238,6 +238,9 @@ func (s *Service) runtimeContainerSpec(ctx context.Context, app InstalledApp) (C
 	if app.AppID == PrintGuardAppID {
 		return s.printGuardContainerSpec(app, spec)
 	}
+	if app.AppID == OpenWebUIAppID && hasOpenWebUIRelay(app) {
+		return s.openWebUIContainerSpec(ctx, spec)
+	}
 	if app.AppID == DeepTutorAppID {
 		return s.deepTutorContainerSpec(ctx, spec)
 	}

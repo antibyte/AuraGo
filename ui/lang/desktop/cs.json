@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Chyba připojení",
   "desktop.store.ig_disconnect": "Odpojit",
   "desktop.store.ig_test": "Otestovat připojení",
-  "desktop.store.ig_save_first": "Před testem ulož změny."
+  "desktop.store.ig_save_first": "Před testem ulož změny.",
+  "desktop.store.ig_relay_port": "Interní port relé",
+  "desktop.store.ig_relay_hint": "Zadej přístupový token správce Open WebUI. Uložení přidá připojení AuraGo a zachová ostatní poskytovatele i chaty.",
+  "desktop.store.ig_relay_enable": "Povolit připojení modelu"
 }

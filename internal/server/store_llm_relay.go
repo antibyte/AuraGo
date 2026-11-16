@@ -68,6 +68,8 @@ type storeRelayTokenVerifier interface {
 var storeLLMRelaySlots = make(chan struct{}, storeLLMRelayMaxConcurrent)
 
 type storeLLMRelay struct {
+	appID       string
+	prefix      string
 	server      *Server
 	verifier    func(ctx context.Context) (storeRelayTokenVerifier, error)
 	slots       chan struct{}
@@ -83,7 +85,7 @@ func registerStoreLLMRelayRoutes(mux *http.ServeMux, s *Server) {
 }
 
 func newStoreLLMRelay(s *Server, verifier func(ctx context.Context) (storeRelayTokenVerifier, error)) *storeLLMRelay {
-	return &storeLLMRelay{server: s, verifier: verifier, slots: storeLLMRelaySlots}
+	return &storeLLMRelay{server: s, verifier: verifier, slots: storeLLMRelaySlots, appID: storeLLMRelayAppID, prefix: storeLLMRelayPrefix}
 }
 
 func (s *Server) storeRelayVerifier(ctx context.Context) (storeRelayTokenVerifier, error) {
@@ -127,12 +129,35 @@ func (h *storeLLMRelay) log() *slog.Logger {
 }
 
 func (h *storeLLMRelay) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if !desktopstore.IsRelayApp(h.appID) {
+		http.NotFound(w, r)
+		return
+	}
+	if h.server != nil {
+		ctx, release := h.server.storeRelayContext(r.Context(), h.appID)
+		defer release()
+		r = r.WithContext(ctx)
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if !h.authorized(w, r) {
 		return
 	}
-	switch strings.TrimPrefix(r.URL.Path, storeLLMRelayPrefix) {
+	if h.appID == desktopstore.OpenWebUIAppID {
+		settings, err := desktopstore.ReadIntegration(h.server.Vault, h.appID)
+		if err != nil {
+			h.denyAuth(w, r)
+			return
+		}
+		ctx, release, err := h.server.acquireStoreAccess(r.Context(), h.appID, settings.URL, false)
+		if err != nil {
+			h.denyAuth(w, r)
+			return
+		}
+		defer release()
+		r = r.WithContext(ctx)
+	}
+	switch strings.TrimPrefix(r.URL.Path, h.prefix) {
 	case "/models":
 		if r.Method != http.MethodGet {
 			writeStoreRelayMethodNotAllowed(w, http.MethodGet)
@@ -170,7 +195,7 @@ func (h *storeLLMRelay) authorized(w http.ResponseWriter, r *http.Request) bool 
 		h.denyAuth(w, r)
 		return false
 	}
-	if !verifier.VerifyRelayToken(r.Context(), storeLLMRelayAppID, token) {
+	if !verifier.VerifyRelayToken(r.Context(), h.appID, token) {
 		h.denyAuth(w, r)
 		return false
 	}
@@ -434,7 +459,7 @@ func (h *storeLLMRelay) recordUsage(cfg *config.Config, model string, capture *l
 		tracker.RecordResponseUsage(storeLLMRelayBudgetCategory, cfg.LLM.ProviderType, model, capture, input, output, input > 0 || output > 0)
 	}
 	if input > 0 || output > 0 {
-		h.log().Info("[StoreLLMRelay] completion finished", "app", storeLLMRelayAppID, "stream", stream, "prompt_tokens", input, "completion_tokens", output)
+		h.log().Info("[StoreLLMRelay] completion finished", "app", h.appID, "stream", stream, "prompt_tokens", input, "completion_tokens", output)
 	}
 }
 
@@ -598,7 +623,7 @@ func (h *storeLLMRelay) recordEmbeddingUsage(cfg *config.Config, model string, r
 	if tracker := h.server.BudgetTracker; tracker != nil && cfg != nil {
 		tracker.RecordResponseUsage(storeLLMRelayBudgetCategory, cfg.Embeddings.ProviderType, model, nil, tokens, 0, true)
 	}
-	h.log().Info("[StoreLLMRelay] embeddings finished", "app", storeLLMRelayAppID, "prompt_tokens", tokens)
+	h.log().Info("[StoreLLMRelay] embeddings finished", "app", h.appID, "prompt_tokens", tokens)
 }
 
 // ── errors ───────────────────────────────────────────────────────────────────
@@ -679,7 +704,7 @@ func (h *storeLLMRelay) writeUpstreamError(w http.ResponseWriter, r *http.Reques
 		return // the client disconnected; there is nobody to answer
 	}
 	mapped := mapStoreRelayError(err)
-	h.log().Warn("[StoreLLMRelay] upstream call failed", "app", storeLLMRelayAppID, "code", mapped.code, "category", string(llm.ClassifyError(err)))
+	h.log().Warn("[StoreLLMRelay] upstream call failed", "app", h.appID, "code", mapped.code, "category", string(llm.ClassifyError(err)))
 	if mapped.status == http.StatusTooManyRequests {
 		w.Header().Set("Retry-After", "5")
 	}

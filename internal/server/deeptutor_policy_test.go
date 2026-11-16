@@ -59,9 +59,9 @@ func deepTutorPolicyServer(t *testing.T, pending bool) *Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	query := `CREATE TABLE desktop_store_apps (app_id TEXT); INSERT INTO desktop_store_apps VALUES ('deeptutor')`
+	query := `CREATE TABLE desktop_store_apps (app_id TEXT, secret_refs_json TEXT); INSERT INTO desktop_store_apps VALUES ('deeptutor', '[]')`
 	if pending {
-		query = `CREATE TABLE desktop_store_operations (app_id TEXT, status TEXT); INSERT INTO desktop_store_operations VALUES ('deeptutor', 'pending')`
+		query = `CREATE TABLE desktop_store_operations (app_id TEXT, status TEXT, type TEXT); INSERT INTO desktop_store_operations VALUES ('deeptutor', 'pending', 'install')`
 	}
 	if _, err := db.Exec(query); err != nil {
 		t.Fatal(err)

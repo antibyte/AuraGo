@@ -53,9 +53,11 @@ type storeIntegrationUpdate struct {
 	AdminPort              string   `json:"admin_port"`
 	DNSAddress             string   `json:"dns_address"`
 	DockerNetwork          *string  `json:"docker_network"`
+	RelayPort              *int     `json:"relay_port"`
 }
 
 func (s *Server) revokeStoreIntegration(id string) {
+	s.revokeStoreRelay(id, false)
 	s.storeIntegrations.Lock()
 	defer s.storeIntegrations.Unlock()
 	delete(s.storeIntegrations.failures, id)
@@ -71,6 +73,7 @@ func (s *Server) revokeStoreIntegration(id string) {
 }
 
 func (s *Server) revokeStoreIntegrations() bool {
+	s.revokeStoreRelay("", false)
 	s.storeIntegrations.Lock()
 	defer s.storeIntegrations.Unlock()
 	for id, binding := range s.storeIntegrations.bindings {
@@ -133,6 +136,7 @@ func (s *Server) startStoreIntegrations() {
 }
 
 func (s *Server) refreshStoreIntegrations() {
+	s.restoreStoreRelay()
 	for _, id := range desktopstore.IntegrationApps {
 		settings, err := desktopstore.ReadIntegration(s.Vault, id)
 		if err != nil || settings.Revision == "" || !settings.Read {
@@ -246,6 +250,10 @@ func (s *Server) storeIntegrationStatus(ctx context.Context, store *desktopstore
 		state = "disabled"
 	}
 	result := map[string]any{"revision": settings.Revision, "state": state, "url": address, "username": settings.Username, "credential_stored": credentialStored, "conflict": conflict, "read": settings.Read, "execute": settings.Execute, "create": settings.Create, "process": settings.Process, "sign": settings.Sign, "notify": settings.Notify, "allowed_ids": settings.AllowedIDs, "source": settings.Source, "certificate_fingerprint": settings.CertificateFingerprint, "admin_port": settings.AdminPort, "dns_address": settings.DNSAddress}
+	result["relay_port"] = cfg.StoreLLMRelay.Port
+	if cfg.StoreLLMRelay.Port == 0 {
+		result["relay_port"] = storeRelayDefaultPort
+	}
 	result["docker_network"] = settings.DockerNetwork
 	result["containerized"] = cfg.Runtime.IsDocker
 	if cfg.Runtime.IsDocker {
@@ -413,6 +421,12 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 	}
 	mutations := []vaultMutation{}
 	patch := map[string]interface{}{}
+	if req.RelayPort != nil {
+		if id != desktopstore.OpenWebUIAppID || *req.RelayPort < 1 || *req.RelayPort > 65535 {
+			return errors.New("Invalid internal relay port")
+		}
+		patch["store_llm_relay"] = map[string]interface{}{"port": *req.RelayPort, "docker_network": next.DockerNetwork}
+	}
 	switch id {
 	case "adguard-home":
 		patch["adguard"] = map[string]interface{}{"store_managed": true, "enabled": next.Read, "readonly": !next.Execute, "url": next.URL, "username": next.Username}
@@ -432,7 +446,13 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 		return err
 	}
 	mutations = append(mutations, vaultMutation{key: desktopstore.IntegrationKey(id), value: string(raw)})
-	return s.persistStoreIntegrationPatch(cfg, patch, mutations)
+	if err := s.persistStoreIntegrationPatch(cfg, patch, mutations); err != nil {
+		return err
+	}
+	if id == desktopstore.OpenWebUIAppID && next.Read && !disconnect {
+		return s.connectOpenWebUI(ctx, next, true)
+	}
+	return nil
 }
 
 func (s *Server) persistStoreIntegrationPatch(cfg *config.Config, patch map[string]interface{}, mutations []vaultMutation) error {
@@ -527,6 +547,10 @@ func (s *Server) testStoreIntegration(ctx context.Context, store *desktopstore.S
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	switch id {
+	case desktopstore.OpenWebUIAppID:
+		if err := s.connectOpenWebUI(ctx, settings, false); err != nil {
+			return err
+		}
 	case "adguard-home":
 		var result struct {
 			Status string `json:"status"`
@@ -579,6 +603,7 @@ func (s *Server) storeIntegrationAdminPort(id string) string {
 }
 
 func (s *Server) stopStoreIntegrations() {
+	s.revokeStoreRelay("", true)
 	s.storeIntegrations.Lock()
 	s.storeIntegrations.closed = true
 	for id, b := range s.storeIntegrations.bindings {

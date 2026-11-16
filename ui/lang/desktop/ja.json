@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "接続エラー",
   "desktop.store.ig_disconnect": "接続を無効化",
   "desktop.store.ig_test": "接続をテスト",
-  "desktop.store.ig_save_first": "テスト前に変更を保存してください。"
+  "desktop.store.ig_save_first": "テスト前に変更を保存してください。",
+  "desktop.store.ig_relay_port": "内部リレーポート",
+  "desktop.store.ig_relay_hint": "Open WebUI の管理者アクセストークンを入力してください。保存すると AuraGo 接続が追加され、ほかのプロバイダーやチャットは保持されます。",
+  "desktop.store.ig_relay_enable": "モデル接続を許可"
 }

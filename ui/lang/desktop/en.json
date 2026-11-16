@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Connection error",
   "desktop.store.ig_disconnect": "Disconnect",
   "desktop.store.ig_test": "Test connection",
-  "desktop.store.ig_save_first": "Save changes before testing."
+  "desktop.store.ig_save_first": "Save changes before testing.",
+  "desktop.store.ig_relay_port": "Internal relay port",
+  "desktop.store.ig_relay_hint": "Enter an Open WebUI administrator access token. Saving adds the AuraGo connection and preserves other providers and chats.",
+  "desktop.store.ig_relay_enable": "Allow model connection"
 }

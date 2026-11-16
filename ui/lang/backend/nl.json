@@ -1,5 +1,5 @@
 {
-  "backend.deeptutor_requires_login": "DeepTutor vereist aanmelden bij AuraGo. Verwijder DeepTutor voordat je aanmelden uitschakelt.",
+  "backend.deeptutor_requires_login": "DeepTutor en Open WebUI met relay vereisen aanmelden bij AuraGo. Verwijder ze voordat je aanmelden uitschakelt.",
   "backend.speech_lab_llm_unavailable": "De geselecteerde Speech Lab-LLM-provider is niet beschikbaar. Er is geen fallbackprovider gebruikt.",
   "backend.operational_issue_notice_title": "Operationele problemen",
   "backend.operational_issue_notice_summary": "AuraGo heeft {0} probleem/problemen gedetecteerd tijdens achtergrondtaken.",

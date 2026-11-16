@@ -2681,7 +2681,8 @@ type Config struct {
 	TrueNAS TrueNASConfig `yaml:"truenas"`
 
 	// Uptime Kuma monitoring integration
-	UptimeKuma UptimeKumaConfig `yaml:"uptime_kuma"`
+	UptimeKuma    UptimeKumaConfig    `yaml:"uptime_kuma"`
+	StoreLLMRelay StoreLLMRelayConfig `yaml:"store_llm_relay"`
 
 	// Grafana observability integration
 	Grafana GrafanaConfig `yaml:"grafana"`
@@ -2727,6 +2728,12 @@ type TrueNASConfig struct {
 		DefaultDays  int  `yaml:"default_days"`  // default retention in days (0 = forever)
 		MaxSnapshots int  `yaml:"max_snapshots"` // maximum snapshots per dataset (0 = unlimited)
 	} `yaml:"snapshot_retention,omitempty"`
+}
+
+// StoreLLMRelayConfig selects the isolated Docker-only model relay listener.
+type StoreLLMRelayConfig struct {
+	Port          int    `yaml:"port"`
+	DockerNetwork string `yaml:"docker_network"`
 }
 
 // UptimeKumaConfig holds configuration for the read-only Uptime Kuma metrics integration.

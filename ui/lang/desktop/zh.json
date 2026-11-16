@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "连接错误",
   "desktop.store.ig_disconnect": "断开连接",
   "desktop.store.ig_test": "测试连接",
-  "desktop.store.ig_save_first": "测试前请先保存更改。"
+  "desktop.store.ig_save_first": "测试前请先保存更改。",
+  "desktop.store.ig_relay_port": "内部中继端口",
+  "desktop.store.ig_relay_hint": "填写 Open WebUI 管理员访问令牌。保存后会添加 AuraGo 连接，并保留其他提供商和聊天。",
+  "desktop.store.ig_relay_enable": "允许模型连接"
 }

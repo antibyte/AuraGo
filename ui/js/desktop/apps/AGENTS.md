@@ -2300,6 +2300,10 @@ buttons and menu popovers remain excluded from those gestures.
   aborts requests. Preserve focus trapping and all sixteen `desktop.store.ig_*`
   translations. Verify the Store disposal browser test and connection tests.
 
+- Store Open WebUI connection settings expose the internal relay port and a
+  write-only administrator token. Saving adds its provider; testing is read-only.
+  Keep existing providers/chats and show saved-only test feedback in all locales.
+
 - PrintGuard setup in `software-store.js` uses its admin config/test endpoints,
   CPU-first install, defined acceleration/network choices and explicit off/read/
   control grants. Never prefill tokens or test unsaved drafts. Clear credentials

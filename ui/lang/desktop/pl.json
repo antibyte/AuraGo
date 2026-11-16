@@ -12100,5 +12100,8 @@
   "desktop.store.ig_error": "Błąd połączenia",
   "desktop.store.ig_disconnect": "Rozłącz",
   "desktop.store.ig_test": "Testuj połączenie",
-  "desktop.store.ig_save_first": "Zapisz zmiany przed testem."
+  "desktop.store.ig_save_first": "Zapisz zmiany przed testem.",
+  "desktop.store.ig_relay_port": "Wewnętrzny port przekaźnika",
+  "desktop.store.ig_relay_hint": "Wpisz token dostępu administratora Open WebUI. Zapisanie doda AuraGo i zachowa pozostałych dostawców oraz rozmowy.",
+  "desktop.store.ig_relay_enable": "Zezwól na połączenie z modelem"
 }

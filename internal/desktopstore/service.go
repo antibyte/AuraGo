@@ -619,7 +619,7 @@ func (s *Service) StartAppOperation(ctx context.Context, appID, opType string, r
 }
 
 func (s *Service) createOperation(ctx context.Context, opType, appID string, request any) (Operation, error) {
-	if appID == DeepTutorAppID && opType != OperationStop && opType != OperationUninstall {
+	if s.requiresRelay(ctx, appID, opType) && opType != OperationStop && opType != OperationUninstall {
 		if admission, ok := s.cfg.LLMRelay.(interface {
 			AdmitDeepTutor(context.Context) (func(), error)
 		}); ok {
@@ -728,7 +728,7 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 		return err
 	}
 	var runErr error
-	if op.AppID == DeepTutorAppID && op.Type != OperationStop && op.Type != OperationUninstall {
+	if s.requiresRelay(ctx, op.AppID, op.Type) && op.Type != OperationStop && op.Type != OperationUninstall {
 		runErr = s.prepareDeepTutorInstall(ctx)
 	}
 	if runErr == nil {
@@ -765,7 +765,7 @@ func (s *Service) RunOperation(ctx context.Context, operationID string) error {
 	}
 	if runErr != nil {
 		errorCode, errorParams := operationErrorDetails(runErr)
-		if op.AppID == GodsEyeAppID || op.AppID == PrintGuardAppID || op.AppID == DeepTutorAppID {
+		if op.AppID == GodsEyeAppID || op.AppID == PrintGuardAppID || IsRelayApp(op.AppID) {
 			runErr = errors.New(security.Scrub(runErr.Error()))
 		}
 		if op.Type == OperationConfigure {
@@ -1186,7 +1186,7 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 			return err
 		}
 	}
-	if entry.ID == DeepTutorAppID {
+	if IsRelayApp(entry.ID) {
 		// Fail before the image pull when the AuraGo LLM relay is unusable.
 		if err := s.prepareDeepTutorInstall(ctx); err != nil {
 			s.cleanupBlockedInstall(ctx, entry.ID)
@@ -1229,6 +1229,9 @@ func (s *Service) install(ctx context.Context, op Operation, req InstallRequest)
 	record.Env = env
 	record.SecretRefs = secretRefs
 	if err := s.applyIntegrationRuntime(&record, req.DockerNetwork); err != nil {
+		return err
+	}
+	if err := s.applyRelayNetwork(ctx, &record); err != nil {
 		return err
 	}
 	if entry.ID == PrintGuardAppID {
@@ -1400,6 +1403,9 @@ func (s *Service) update(ctx context.Context, op Operation) error {
 	record.Env = env
 	record.SecretRefs = secretRefs
 	if err := s.applyIntegrationRuntime(&record, IntegrationNetwork(previous)); err != nil {
+		return err
+	}
+	if err := s.applyRelayNetwork(ctx, &record); err != nil {
 		return err
 	}
 	autoCompanions, err := s.prepareAutoCompanions(ctx, entry, record)
@@ -2284,7 +2290,7 @@ func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv [
 			refs = append(refs, ref)
 		}
 	}
-	if entry.ID == DeepTutorAppID {
+	if IsRelayApp(entry.ID) {
 		// The relay token lives only in the Vault; runtimeContainerSpec adds it
 		// (and the relay settings) when it creates the container.
 		env = withoutDeepTutorToken(env)
@@ -2716,7 +2722,7 @@ func (s *Service) upsertLaunchpad(ctx context.Context, entry CatalogEntry, app I
 }
 
 func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
-	if app.AppID == GodsEyeAppID || app.AppID == PrintGuardAppID || app.AppID == DeepTutorAppID {
+	if app.AppID == GodsEyeAppID || app.AppID == PrintGuardAppID || IsRelayApp(app.AppID) {
 		app.Error = security.Scrub(app.Error)
 	}
 	app.UpdatedAt = time.Now().UTC()
