@@ -50,3 +50,41 @@ Shell controls respect forced colors and reduced motion. Embedded applications
 retain their own accessibility behavior; use browser/OS zoom and assistive tools
 as needed. Sensitive, editable or embedded content and live canvas/media use
 replacement cards in window previews.
+
+## Quick settings, calendar and media
+
+The sliders button beside the clock opens Quick settings. Desktop sound volume
+controls interface feedback; music keeps its player's volume. Do Not Disturb
+uses the same browser-local policy as the notification center. Sound, animation
+and theme-mode changes use the server's Desktop settings and remain disabled in
+read-only mode. Light/dark choices appear only for themes that support them.
+
+Click the clock to browse months, select a day and view its appointments. Today
+returns to the current date; Open Calendar opens the full application. Loading
+errors offer Retry instead of presenting an empty agenda.
+
+Quick settings shows the current media owner's title, artist and playback state.
+Its transport buttons invoke that player's existing handlers; it creates no
+second player. Personal Radio retains priority, followed by the native audio
+player, WebAmp, then the most recently activated Radio, TeeVee or RTL-SDR player.
+
+## Undo file moves and deletion
+
+Desktop and File Manager share a history of 20 recent action groups. Normal
+deletion moves local files to Trash. Use the Undo button in the operation toast,
+the Desktop menu, or Ctrl+Z while the Desktop/File Manager has keyboard focus.
+Redo uses Ctrl+Shift+Z or Ctrl+Y. Text editors keep their own Undo shortcuts.
+
+History is temporary and clears on reload or logout. Server receipts expire after
+30 minutes; the server keeps at most 256 file identities, so older entries can
+expire sooner as new operations complete. Choose at most 256 entries in a single
+receipt-backed operation. A partially completed operation keeps its confirmed
+steps available; an uncertain network outcome is never retried automatically.
+
+Undo restores a file's location only after checking its identity, current write
+permissions and a free destination. It never replaces a file that appeared at the
+target. Replaced/deleted source identities cannot be restored through an old
+receipt. Notes restore through the Trash service. Permanent deletion, replacement
+of existing files, remote-storage operations and moving symbolic links do not
+receive file-history receipts; their existing permission and confirmation rules
+still apply. Trash restoration remains available after history has been cleared.

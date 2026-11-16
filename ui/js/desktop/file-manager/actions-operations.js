@@ -95,12 +95,9 @@
                 method: 'PATCH',
                 body: JSON.stringify({ old_path: path, new_path: nextPath })
             });
+            window.AuraDesktopFileHistory?.record(renamed, t('desktop.file_history_move'));
             if (!isLiveInstance(instance)) return;
             withInstance(instance, () => {
-                pushToUndo({
-                    type: 'rename',
-                    items: [{ oldPath: path, newPath: renamed.path || nextPath }]
-                });
                 refresh();
             });
         } catch (err) {
@@ -137,14 +134,37 @@
             confirmed = await confirmDialog(t('desktop.fm.confirm_delete', { count: selected.length }), '');
         }
         if (!confirmed || !isLiveInstance(instance)) return;
-        for (const file of selected) {
+
+        const trashItems = withInstance(instance, () => selected.filter(file => isTrashItemPath(file.path)));
+        const workspaceItems = selected.filter(file => !trashItems.includes(file));
+        if (workspaceItems.length) {
+            const moveToTrash = instance.callbacks && instance.callbacks.moveToTrash;
+            if (typeof moveToTrash !== 'function') {
+                withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.storage_unavailable') }));
+                return;
+            }
+            try {
+                await withInstance(instance, () => moveToTrash(workspaceItems.map(file => file.path)));
+            } catch (err) {
+                if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
+            }
+            if (!isLiveInstance(instance)) return;
+        }
+        if (!trashItems.length) return;
+
+        let deletedAny = false;
+        for (const file of trashItems) {
             try {
                 await api('/api/desktop/file?path=' + encodeURIComponent(file.path), { method: 'DELETE' });
+                deletedAny = true;
             } catch (err) {
                 if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
             }
         }
-        if (isLiveInstance(instance)) withInstance(instance, () => { clearSelection(); refresh(); });
+        if (isLiveInstance(instance)) withInstance(instance, () => {
+            clearSelection();
+            if (deletedAny) refresh();
+        });
     }
 
     async function downloadFile(file) {
@@ -356,39 +376,37 @@
         }
         
         let count = 0;
-        const undoItems = [];
-        
-        for (const src of cleanPaths) {
-            if (!src || src === destPath) continue;
-            const name = baseName(src);
-            const newPath = joinPath(destPath, name);
-            if (newPath === src) continue;
-            
-            count++;
-            if (progress) {
-                progress.update(count, name);
+        const undoReceipts = [];
+        try {
+            for (const src of cleanPaths) {
+                if (!isLiveInstance(instance)) return;
+                if (!src || src === destPath) continue;
+                const name = baseName(src);
+                const newPath = joinPath(destPath, name);
+                if (newPath === src) continue;
+
+                count++;
+                if (progress) progress.update(count, name);
+
+                try {
+                    const moved = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    undoReceipts.push(moved);
+                    if (!isLiveInstance(instance)) return;
+                } catch (err) {
+                    if (!isLiveInstance(instance)) return;
+                    withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
+                }
             }
-            
-            try {
-                const moved = await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
-                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
-                undoItems.push({ oldPath: src, newPath: moved.path || newPath });
-            } catch (err) {
-                if (!isLiveInstance(instance)) { if (progress) progress.close(); return; }
-                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
-            }
-        }
-        
-        if (progress) {
-            progress.close();
+        } finally {
+            if (progress) progress.close();
+            if (undoReceipts.length) window.AuraDesktopFileHistory?.record(undoReceipts, t('desktop.file_history_move'));
         }
         
         if (!isLiveInstance(instance)) return;
         withInstance(instance, () => {
-            if (undoItems.length > 0) pushToUndo({ type: 'move', items: undoItems });
             clearSelection();
             fm.dragSrcPath = null;
         });
@@ -810,7 +828,8 @@
             return;
         }
 
-        const isInput = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        const activeElement = document.activeElement;
+        const isInput = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
         if (isInput && e.key !== 'Escape') return;
 
         if (!isInput) {
@@ -944,13 +963,18 @@
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isInput) {
+            const history = window.AuraDesktopFileHistory;
+            if (!history || typeof history.undo !== 'function') return;
             e.preventDefault();
-            undo();
+            if (e.shiftKey) history.redo?.();
+            else history.undo();
             return;
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y' && !isInput) {
+            const history = window.AuraDesktopFileHistory;
+            if (!history || typeof history.redo !== 'function') return;
             e.preventDefault();
-            redo();
+            history.redo();
             return;
         }
         if (e.key === ' ' && !isInput) {

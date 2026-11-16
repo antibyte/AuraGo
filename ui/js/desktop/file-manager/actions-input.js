@@ -305,7 +305,9 @@
 
     function handleActionClick(e) {
         const action = e.currentTarget.dataset.action;
-        if (action === 'sidebar-toggle') handleSidebarToggle();
+        if (action === 'history-undo') sharedFileHistoryAction('undo');
+        else if (action === 'history-redo') sharedFileHistoryAction('redo');
+        else if (action === 'sidebar-toggle') handleSidebarToggle();
         else if (action === 'sidebar-backdrop-close') { fm.sidebarOpen = false; renderAll(); }
         else if (action === 'back') goBack();
         else if (action === 'forward') goForward();
@@ -665,83 +667,6 @@
         };
     }
 
-    function pushToUndo(action) {
-        fm.undoStack.push(action);
-        if (fm.undoStack.length > 20) {
-            fm.undoStack.shift();
-        }
-        fm.redoStack.length = 0;
-    }
-
-    async function undo() {
-        if (isRemote()) return;
-        const instance = fm;
-        if (!instance.undoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_undo') });
-            return;
-        }
-        const action = instance.undoStack.pop();
-        try {
-            let progress = null;
-            if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.undoing'), action.items.length);
-            }
-            let count = 0;
-            for (const item of action.items) {
-                count++;
-                if (progress) progress.update(count, baseName(item.oldPath));
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: item.newPath, new_path: item.oldPath })
-                });
-                if (!isLiveInstance(instance)) return;
-            }
-            if (progress) progress.close();
-            withInstance(instance, () => {
-                instance.redoStack.push(action);
-                showNotification({ type: 'success', message: t('desktop.fm.undone') });
-                refresh();
-            });
-        } catch (err) {
-            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.undo_error', { error: err.message || String(err) }) }));
-        }
-    }
-
-    async function redo() {
-        if (isRemote()) return;
-        const instance = fm;
-        if (!instance.redoStack.length) {
-            showNotification({ type: 'warning', message: t('desktop.fm.nothing_to_redo') });
-            return;
-        }
-        const action = instance.redoStack.pop();
-        try {
-            let progress = null;
-            if (action.items.length > 1) {
-                progress = showProgressOverlay(t('desktop.fm.redoing'), action.items.length);
-            }
-            let count = 0;
-            for (const item of action.items) {
-                count++;
-                if (progress) progress.update(count, baseName(item.newPath));
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    body: JSON.stringify({ old_path: item.oldPath, new_path: item.newPath })
-                });
-                if (!isLiveInstance(instance)) return;
-            }
-            if (progress) progress.close();
-            
-            withInstance(instance, () => {
-                instance.undoStack.push(action);
-                showNotification({ type: 'success', message: t('desktop.fm.redone') });
-                refresh();
-            });
-        } catch (err) {
-            if (isLiveInstance(instance)) withInstance(instance, () => showNotification({ type: 'error', message: t('desktop.fm.redo_error', { error: err.message || String(err) }) }));
-        }
-    }
-
     function toggleQuickLook() {
         const previewLocation = storageLocation();
         if (fm.quickLookOverlay) {
@@ -843,8 +768,13 @@
         const backBtn = fm.host.querySelector('[data-action="back"]');
         const fwdBtn = fm.host.querySelector('[data-action="forward"]');
         const sidebarBtn = fm.host.querySelector('[data-action="sidebar-toggle"]');
+        const history = sharedFileHistorySnapshot();
+        const undoBtn = fm.host.querySelector('[data-action="history-undo"]');
+        const redoBtn = fm.host.querySelector('[data-action="history-redo"]');
         if (backBtn) backBtn.disabled = !canGoBack();
         if (fwdBtn) fwdBtn.disabled = !canGoForward();
+        if (undoBtn) undoBtn.disabled = !history.canUndo;
+        if (redoBtn) redoBtn.disabled = !history.canRedo;
         if (sidebarBtn) {
             sidebarBtn.classList.toggle('active', fm.sidebarOpen);
             sidebarBtn.setAttribute('aria-expanded', fm.sidebarOpen ? 'true' : 'false');
@@ -858,6 +788,16 @@
     // Clipboard operations
     function sharedFileOps() {
         return window.AuraDesktopFileOps || null;
+    }
+
+    function sharedFileHistorySnapshot() {
+        const history = window.AuraDesktopFileHistory;
+        return history && typeof history.snapshot === 'function' ? history.snapshot() : { canUndo: false, canRedo: false };
+    }
+
+    function sharedFileHistoryAction(direction) {
+        const history = window.AuraDesktopFileHistory;
+        if (history && typeof history[direction] === 'function') history[direction]();
     }
 
     function sharedFileClipboard() {
@@ -936,64 +876,53 @@
         }
 
         let count = 0;
-        const undoItems = [];
-
-        for (const srcPath of sourcePaths) {
-            if (!isLiveInstance(instance)) {
-                if (progress) progress.close();
-                return;
-            }
-            count++;
-            const name = baseName(srcPath);
-            let destPath = joinPath(destination, name);
-            const exists = files.some(f => f.name === name);
-            if (exists && mode === 'copy') {
-                const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
-                destPath = joinPath(destination, newName);
-            }
-
-            if (progress) {
-                progress.update(count, name);
-            }
-
-            try {
-                if (mode === 'copy') {
-                    await api('/api/desktop/copy', {
-                        method: 'POST',
-                        body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
-                    });
-                } else {
-                    const moved = await api('/api/desktop/file', {
-                        method: 'PATCH',
-                        body: JSON.stringify({ old_path: srcPath, new_path: destPath })
-                    });
-                    undoItems.push({ oldPath: srcPath, newPath: moved.path || destPath });
+        const undoReceipts = [];
+        let changed = false;
+        try {
+            for (const srcPath of sourcePaths) {
+                if (!isLiveInstance(instance)) return;
+                count++;
+                const name = baseName(srcPath);
+                let destPath = joinPath(destination, name);
+                const exists = files.some(f => f.name === name);
+                if (exists && mode === 'copy') {
+                    const newName = name + ' (' + t('desktop.fm.copy_of') + ')';
+                    destPath = joinPath(destination, newName);
                 }
-            } catch (err) {
-                if (!isLiveInstance(instance)) {
-                    if (progress) progress.close();
-                    return;
-                }
-                withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
-            }
-        }
 
-        if (!isLiveInstance(instance)) {
+                if (progress) progress.update(count, name);
+
+                try {
+                    if (mode === 'copy') {
+                        await api('/api/desktop/copy', {
+                            method: 'POST',
+                            body: JSON.stringify({ source_path: srcPath, dest_path: destPath })
+                        });
+                        changed = true;
+                    } else {
+                        const moved = await api('/api/desktop/file', {
+                            method: 'PATCH',
+                            body: JSON.stringify({ old_path: srcPath, new_path: destPath })
+                        });
+                        changed = true;
+                        undoReceipts.push(moved);
+                    }
+                } catch (err) {
+                    if (!isLiveInstance(instance)) return;
+                    withInstance(instance, () => showNotification({ type: 'error', message: (err.message || String(err)) }));
+                }
+            }
+
+            if (!isLiveInstance(instance)) return;
+            withInstance(instance, () => {
+                if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
+            });
+        } finally {
             if (progress) progress.close();
-            return;
-        }
-        if (progress) {
-            progress.close();
-        }
-
-        withInstance(instance, () => {
-            if (undoItems.length > 0) {
-                pushToUndo({
-                    type: 'move',
-                    items: undoItems
-                });
+            if (undoReceipts.length) window.AuraDesktopFileHistory?.record(undoReceipts, t('desktop.file_history_move'));
+            if (changed) {
+                if (isLiveInstance(instance)) withInstance(instance, () => refresh());
+                else if (typeof instance.callbacks?.refreshDesktop === 'function') await instance.callbacks.refreshDesktop();
             }
-            if (mode === 'cut' && instance.clipboard === localClipboard) instance.clipboard = null;
-            refresh();
-        });
+        }
     }

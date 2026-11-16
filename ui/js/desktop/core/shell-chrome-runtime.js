@@ -169,7 +169,8 @@
         const rect = anchor.getBoundingClientRect();
         const below = rect.top + rect.height / 2 < window.innerHeight / 2;
         panel.dataset.placement = below ? 'below' : 'above';
-        panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        panel.style.right = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - panel.offsetWidth - 8)) + 'px';
+        panel.style.maxHeight = Math.max(0, below ? window.innerHeight - rect.bottom - 16 : rect.top - 16) + 'px';
         if (below) {
             panel.style.bottom = '';
             panel.style.top = Math.round(rect.bottom + 8) + 'px';
@@ -185,69 +186,19 @@
     }
 
     function closeClockPopup(restoreFocus = false) {
+        closeClockCalendarPopup(restoreFocus);
+    }
+
+    function openClockPopup(anchor) {
+        closeNotificationCenter();
+        closeQuickSettingsPopup();
+        return openClockCalendarPopup(anchor);
+    }
+
+    function toggleClockPopup(anchor) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) {
-            popup.hidden = true;
-            popup._request = (popup._request || 0) + 1;
-            popup._returnFocus?.setAttribute('aria-expanded', 'false');
-            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
-        }
-    }
-
-    function clockLocalDay(value) {
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        const pad = n => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    }
-
-    async function openClockPopup(anchor) {
-        closeClockPopup();
-        let popup = document.getElementById('vd-clock-popup');
-        if (!popup) {
-            popup = document.createElement('div');
-            popup.id = 'vd-clock-popup';
-            popup.className = 'vd-clock-popup';
-            popup.setAttribute('role', 'dialog');
-            popup.tabIndex = -1;
-            popup.addEventListener('keydown', event => {
-                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
-            });
-            document.body.appendChild(popup);
-        }
-        const request = popup._request = (popup._request || 0) + 1;
-        popup.setAttribute('aria-label', t('desktop.clock_today'));
-        popup._returnFocus = anchor || document.activeElement;
-        popup._returnFocus?.setAttribute('aria-expanded', 'true');
-        popup.hidden = false;
-        popup.focus();
-        popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
-        placeTrayPopover(popup, anchor);
-        let appointments = [];
-        try {
-            appointments = await api('/api/desktop/integrations/appointments?status=all');
-        } catch (_) {
-            appointments = [];
-        }
-        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
-        const now = new Date();
-        const todayKey = clockLocalDay(now);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
-        const events = todayItems.slice(0, 6).map(item => {
-            const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
-        }).join('');
-        popup.innerHTML = `<div class="vd-clock-popup-head">
-            <div class="vd-clock-popup-date">${esc(now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
-            <div class="vd-clock-popup-time">${esc(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</div>
-        </div>
-        <div class="vd-clock-popup-section">${esc(t('desktop.clock_today'))}</div>
-        ${events ? `<ul class="vd-clock-popup-events">${events}</ul>` : `<div class="vd-clock-popup-empty">${esc(t('desktop.clock_no_events'))}</div>`}
-        <button type="button" class="vd-clock-popup-open" data-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
-        popup.querySelector('[data-action="open-calendar"]').addEventListener('click', () => {
-            closeClockPopup();
-            openApp('calendar');
-        });
+        if (popup && !popup.hidden) closeClockPopup(true);
+        else openClockPopup(anchor);
     }
 
     function closeShortcutsHelp() {
@@ -458,11 +409,11 @@
             clock.setAttribute('aria-expanded', 'false');
             clock.tabIndex = 0;
             clock.addEventListener('keydown', event => {
-                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleClockPopup(clock); }
             });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
-                openClockPopup(clock);
+                toggleClockPopup(clock);
             });
         }
         const notifyBtn = document.getElementById('vd-notification-button');
@@ -473,13 +424,35 @@
             notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
+                closeClockPopup();
+                closeQuickSettingsPopup();
                 toggleNotificationCenter(notifyBtn);
             });
         }
-        document.addEventListener('click', event => {
-            if (!event.target.closest('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button')) {
+        const quickButton = document.getElementById('vd-quick-settings-button');
+        if (quickButton && !quickButton.dataset.shellChromeWired) {
+            quickButton.dataset.shellChromeWired = 'true';
+            quickButton.addEventListener('click', event => {
+                event.stopPropagation();
                 closeClockPopup();
                 closeNotificationCenter();
+                toggleQuickSettingsPopup(quickButton);
+            });
+        }
+        document.addEventListener('click', event => {
+            // A panel may replace the clicked control before this event bubbles here.
+            if (!event.composedPath().some(node => node.matches?.('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button, #vd-quick-settings, #vd-quick-settings-button'))) {
+                closeClockPopup();
+                closeNotificationCenter();
+                closeQuickSettingsPopup();
             }
         });
+        const repositionPanels = () => {
+            for (const [panelId, anchorId] of [['vd-clock-popup', 'vd-clock'], ['vd-notification-center', 'vd-notification-button'], ['vd-quick-settings', 'vd-quick-settings-button']]) {
+                const panel = document.getElementById(panelId);
+                if (panel && !panel.hidden) placeTrayPopover(panel, document.getElementById(anchorId));
+            }
+        };
+        window.addEventListener('resize', repositionPanels);
+        window.addEventListener('aurago:desktop-settings', repositionPanels);
     }

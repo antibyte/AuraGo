@@ -9,18 +9,29 @@ import (
 
 func TestDesktopMediaOwnershipBrowser(t *testing.T) {
 	page := desktopAuditBrowser(t)
-	result := page.MustEval(`()=>{
+	result := page.MustEval(`async()=>{
         const handlers={},calls=[];
         Object.defineProperty(navigator,'mediaSession',{configurable:true,value:{setActionHandler:(a,h)=>handlers[a]=h}});
         const m=AuraDesktopMediaSession,radio={},tv={},webamp={},personal={};
-        const claim=(owner,name,priority)=>m.claim(owner,{priority,metadata:{title:name},handlers:{play:()=>calls.push(name)}});
+        const changes=[];const unsubscribe=m.subscribe(snapshot=>changes.push(snapshot));
+        const claim=(owner,name,priority,activate=true)=>m.claim(owner,{priority,activate,status:'paused',playbackState:'paused',metadata:{title:name},handlers:{play:()=>calls.push(name)}});
         const assert=(v)=>{if(!v)throw Error('media ownership failed: '+JSON.stringify(calls));};
-        claim(radio,'radio',10);claim(webamp,'webamp',50);claim(tv,'tv',10);handlers.play();assert(calls.pop()==='webamp');
-        m.release(tv);handlers.play();assert(calls.pop()==='webamp');
-        claim(personal,'personal',100);claim(webamp,'webamp',50);handlers.play();assert(calls.pop()==='personal');
-        m.release(personal);handlers.play();assert(calls.pop()==='webamp');
-        m.release(webamp);handlers.play();assert(calls.pop()==='radio');
-        m.release(radio);assert(handlers.play===null&&navigator.mediaSession.metadata===null);
+        assert(!m.snapshot().available&&changes[0].status==='unavailable');
+        claim(radio,'radio',10);claim(tv,'tv',10);assert(m.snapshot().metadata.title==='tv');
+        const published=changes.length;claim(radio,'radio refreshed',10,false);
+        assert(changes.length===published&&m.snapshot().metadata.title==='tv');
+        claim(webamp,'webamp',50);assert(m.snapshot().metadata.title==='webamp');
+        claim(personal,'personal',100);assert(m.snapshot().metadata.title==='personal');
+        assert(await m.dispatch('play')&&calls.pop()==='personal');
+        assert(!await m.dispatch('nexttrack'));
+        m.release(personal);assert(m.snapshot().metadata.title==='webamp');
+        m.release(webamp);assert(m.snapshot().metadata.title==='tv');
+        m.release(tv);assert(m.snapshot().metadata.title==='radio refreshed');
+        const beforeRelease=changes.length;m.release(tv);assert(changes.length===beforeRelease);
+        const copy=m.snapshot();copy.metadata.title='mutated';assert(m.snapshot().metadata.title==='radio refreshed');
+        assert(!('owner'in m.snapshot())&&!m.snapshot().actions.some(action=>typeof action==='function'));
+        unsubscribe();const beforeUnsub=changes.length;claim(radio,'radio changed',10,false);assert(changes.length===beforeUnsub);
+        m.release(radio);assert(handlers.play===null&&navigator.mediaSession.metadata===null&&!m.snapshot().available);
         return true;
     }`).Bool()
 	if !result {

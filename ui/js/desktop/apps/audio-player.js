@@ -121,6 +121,7 @@
             tracks: [],
             index: -1,
             playing: false,
+            status: 'idle',
             shuffle: !!prefs.shuffle,
             repeat: REPEAT_MODES.indexOf(prefs.repeat) >= 0 ? prefs.repeat : 'off',
             volume: typeof prefs.volume === 'number' ? Math.min(1, Math.max(0, prefs.volume)) : 0.85,
@@ -311,6 +312,7 @@
 
         function updateMediaSession() {
             if (!window.AuraDesktopMediaSession) return;
+            if (state.disposed) return;
             const track = currentTrack();
             const artwork = track && track.picture ? [{ src: track.picture, sizes: '512x512' }] : [];
             try {
@@ -318,6 +320,7 @@
                     priority: 60,
                     activate: true,
                     playbackState: state.playing ? 'playing' : 'paused',
+                    status: state.status,
                     metadata: {
                         title: track ? (track.title || track.name) : t('desktop.audio_player_no_track'),
                         artist: track ? (track.artist || t('desktop.audio_player_unknown_artist')) : 'AuraGo',
@@ -325,21 +328,23 @@
                         artwork
                     },
                     handlers: {
-                        play: () => { play(); },
-                        pause: () => { pause(); },
-                        stop: () => { pause(); },
-                        previoustrack: () => { previous(); },
-                        nexttrack: () => { next(); },
-                        seekbackward: details => { seekBy(-(details && details.seekOffset ? details.seekOffset : 10)); },
-                        seekforward: details => { seekBy(details && details.seekOffset ? details.seekOffset : 10); },
-                        seekto: details => { seekToRatio(details && details.seekTime && track && track.duration ? details.seekTime / track.duration : 0); }
+                        play: () => play(),
+                        pause: () => pause(),
+                        stop: () => pause(),
+                        previoustrack: () => previous(),
+                        nexttrack: () => next(),
+                        seekbackward: details => seekBy(-(details && details.seekOffset ? details.seekOffset : 10)),
+                        seekforward: details => seekBy(details && details.seekOffset ? details.seekOffset : 10),
+                        seekto: details => seekToRatio(details && details.seekTime && track && track.duration ? details.seekTime / track.duration : 0)
                     }
                 });
             } catch (_) { /* media session unavailable */ }
         }
 
-        function setPlaying(playing) {
+        function setPlaying(playing, status) {
+            if (state.disposed) return;
             state.playing = !!playing;
+            state.status = status || (state.playing ? 'playing' : 'paused');
             if (els.play) {
                 els.play.innerHTML = icon(state.playing ? 'pause' : 'play');
                 els.play.setAttribute('aria-label', t(state.playing ? 'desktop.audio_player_pause' : 'desktop.audio_player_play'));
@@ -349,28 +354,29 @@
         }
 
         async function play() {
-            if (!audio.getAttribute('src')) return;
+            if (!audio.getAttribute('src')) return false;
             ensureGraph();
             if (state.graph && state.graph.context.state === 'suspended') {
                 try { await state.graph.context.resume(); } catch (_) { /* needs a gesture */ }
             }
             try {
                 await audio.play();
-            } catch (_) {
-                setPlaying(false);
-                return;
+            } catch (error) {
+                setPlaying(false, 'error');
+                throw error;
             }
-            setPlaying(true);
+            setPlaying(true, audio.readyState < 3 ? 'buffering' : 'playing');
+            return true;
         }
 
         function pause() {
             audio.pause();
-            setPlaying(false);
+            setPlaying(false, 'paused');
         }
 
         function toggle() {
-            if (state.playing) pause();
-            else play();
+            if (state.playing) { pause(); return Promise.resolve(true); }
+            return play();
         }
 
         function nextIndex() {
@@ -388,6 +394,7 @@
         function loadTrack(index, autoplay) {
             if (index < 0 || index >= state.tracks.length) return;
             state.index = index;
+            setPlaying(false, 'buffering');
             const track = state.tracks[index];
             audio.src = track.url;
             audio.playbackRate = state.speed;
@@ -395,7 +402,7 @@
             renderMeta();
             renderQueue();
             loadTags(track);
-            if (autoplay) play();
+            if (autoplay) play().catch(() => {});
         }
 
         function next() {
@@ -650,7 +657,7 @@
 
         function selectTrack(index) {
             if (index === state.index) {
-                toggle();
+                toggle().catch(() => {});
                 return;
             }
             loadTrack(index, true);
@@ -692,6 +699,11 @@
             renderQueue();
             if (index >= 0) loadTrack(index, !!focusPath);
             else {
+                state.playing = false;
+                state.status = 'idle';
+                audio.pause();
+                audio.removeAttribute('src');
+                audio.load();
                 renderMeta();
                 updateMediaSession();
             }
@@ -704,7 +716,7 @@
         }
 
         function wireEvents() {
-            els.play.addEventListener('click', toggle);
+            els.play.addEventListener('click', () => { toggle().catch(() => {}); });
             els.prev.addEventListener('click', previous);
             els.next.addEventListener('click', next);
             els.shuffle.addEventListener('click', toggleShuffle);
@@ -773,8 +785,24 @@
                 else if (event.key === 'ArrowLeft') { seekBy(-5); event.preventDefault(); }
             });
 
-            audio.addEventListener('play', () => setPlaying(true));
-            audio.addEventListener('pause', () => setPlaying(false));
+            audio.addEventListener('loadstart', () => {
+                if (!state.playing) setPlaying(false, 'buffering');
+            });
+            audio.addEventListener('play', () => setPlaying(true, audio.readyState < 3 ? 'buffering' : 'playing'));
+            audio.addEventListener('playing', () => setPlaying(true, 'playing'));
+            audio.addEventListener('waiting', () => {
+                if (!audio.paused) setPlaying(true, 'buffering');
+            });
+            audio.addEventListener('stalled', () => {
+                if (!audio.paused) setPlaying(true, 'buffering');
+            });
+            audio.addEventListener('canplay', () => {
+                if (audio.paused && state.status === 'buffering') setPlaying(false, 'paused');
+            });
+            audio.addEventListener('pause', () => {
+                if (state.disposed) return;
+                setPlaying(false, !currentTrack() ? 'idle' : state.status === 'error' || state.status === 'ended' ? state.status : 'paused');
+            });
             audio.addEventListener('timeupdate', updateTimeline);
             audio.addEventListener('progress', updateTimeline);
             audio.addEventListener('loadedmetadata', updateTimeline);
@@ -782,26 +810,26 @@
             audio.addEventListener('ended', () => {
                 if (state.repeat === 'one') {
                     audio.currentTime = 0;
-                    play();
+                    play().catch(() => {});
                     return;
                 }
                 const target = nextIndex();
                 if (target < 0) {
-                    setPlaying(false);
+                    setPlaying(false, 'ended');
                     return;
                 }
                 loadTrack(target, true);
             });
             audio.addEventListener('error', () => {
                 if (state.disposed) return;
-                setPlaying(false);
+                setPlaying(false, 'error');
             });
 
             root.addEventListener('keydown', event => {
                 if (event.target && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
                 if (event.target && typeof event.target.closest === 'function' && event.target.closest('[data-seek]')) return;
                 const key = event.key;
-                if (key === ' ' || key === 'k') { toggle(); event.preventDefault(); }
+                if (key === ' ' || key === 'k') { toggle().catch(() => {}); event.preventDefault(); }
                 else if (key === 'ArrowRight') { seekBy(5); event.preventDefault(); }
                 else if (key === 'ArrowLeft') { seekBy(-5); event.preventDefault(); }
                 else if (key === 'ArrowUp') { state.volume = Math.min(1, state.volume + 0.05); applyVolume(); persist(); event.preventDefault(); }
@@ -822,7 +850,7 @@
                     id: 'playback',
                     labelKey: 'desktop.menu_playback',
                     items: [
-                        { id: 'play-pause', labelKey: state.playing ? 'desktop.audio_player_pause' : 'desktop.audio_player_play', icon: state.playing ? 'pause' : 'play', action: toggle },
+                        { id: 'play-pause', labelKey: state.playing ? 'desktop.audio_player_pause' : 'desktop.audio_player_play', icon: state.playing ? 'pause' : 'play', action: () => toggle().catch(() => {}) },
                         { id: 'next', labelKey: 'desktop.audio_player_next', icon: 'next', action: next },
                         { id: 'previous', labelKey: 'desktop.audio_player_previous', icon: 'previous', action: previous },
                         { id: 'shuffle', labelKey: 'desktop.audio_player_shuffle', icon: 'shuffle', checked: state.shuffle, action: toggleShuffle },

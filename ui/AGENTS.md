@@ -229,10 +229,12 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 - File Manager paste, archive, extract and batch rename retain their originating
   instance and captured paths across dialogs and requests. Late results cannot
-  repaint another window or replace its undo state. Shared cut completion clears
+  repaint another window; confirmed receipts still reach shared history after
+  their originating window closes. Shared cut completion clears
   only the clipboard object it started with; a newer clipboard survives. Verify
-  `TestFileManagerAsyncActionsStayWithOriginBrowser` and
-  `TestDesktopFileClipboardPastePreservesNewSameContentBrowser`.
+  `TestFileManagerAsyncActionsStayWithOriginBrowser`,
+  `TestDesktopFileClipboardPastePreservesNewSameContentBrowser` and
+  `TestDesktopFileManagerReceiptHistoryBrowser`.
 - Generated-app keyboard relays use the existing document-bound SDK MessagePort.
   The injected receiver supports SDK-less apps and preserves normal keyboard
   events; navigation or frame disposal revokes forwarding. Verify
@@ -295,6 +297,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Operator guidance is `../documentation/desktop-shell.md`. Focused checks live in `scripts/test-desktop-{window-layouts,window-previews,search,start-search,settings-runtime,file-association-writes,notifications,accessibility}.mjs`; integrated acceptance is `TestDesktopEveryday*` with browser opt-in. Browser/OS shortcut interception and real assistive technology still require client acceptance.
 - `settings-catalog-runtime.js` owns the Settings descriptors consumed by Settings, Start and Spotlight. `settings-runtime.js` serializes confirmed settings writes and emits `aurago:desktop-settings`; theme presets remain atomic. Search surfaces own separate abort/generation/page states and show local matches immediately. Default-app choices share `file-associations-runtime.js` with Open With, preserve unavailable mappings and expose explicit reset.
 - Notification policy is versioned browser-local `localStorage` with tab synchronization. Do Not Disturb and per-app toast/sound rules suppress delivery, not recording, and stay usable with a read-only Desktop. `notification-center-runtime.js` owns the only 40-entry history; bounded sanitized records use `sessionStorage` only after auth scope validation. Volatile records stay in memory, and auth-end/expiry/scope changes purge history. Opening the center never marks entries read; opening a record and the explicit read-all control do.
+- `quick-settings-runtime.js` uses shared settings writes for desktop sounds, animations and supported theme modes; browser-local DND stays usable read-only. `clock-calendar-runtime.js` reuses Calendar month/agenda helpers, owns abortable appointment loading and preserves focus across asynchronous renders. Shell popovers stay within the available viewport after theme/size changes.
+- `media-session-runtime.js` exposes cloned `snapshot`, immediate `subscribe`/unsubscribe and asynchronous `dispatch` for the selected owner, even without native MediaSession support. Preserve owner priority/activation; native callbacks absorb handler rejections while shell consumers receive them. Playback status is idle/paused/playing/buffering/ended/error, with unavailable only when no owner exists. The quick panel never creates a player.
+- `file-history-runtime.js` shares at most 20 volatile action groups between Desktop and File Manager, with opaque server receipts only. Confirmed batch members survive partial failure; ambiguous outcomes are never replayed. Clear invalidates in-flight runs and queued records; auth-end also rejects late producer records for the rest of that page's lifetime. Root shell producers record actual destination paths and refresh all live local File Manager views. Transient Undo toasts capture the action ID; callbacks never enter notification history. Editor and iframe text shortcuts retain their own scope.
 - Preview markup is generated on demand, inert and sanitized. Sensitive apps, editable fields, embedded documents and live canvas/media receive an icon/title fallback. Never copy active URLs, scripts or event handlers into preview DOM. Text size and high contrast affect owned shell controls; embedded apps retain their own document and accessibility contracts.
 
 - Shared browser smoke cleanup closes, kills and reaps its launched browser before removing the profile or returning to test-owned directory cleanup. Preserve central browser opt-in and verify `TestBrowserSmokeCleanup` with opt-in enabled.

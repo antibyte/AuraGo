@@ -1,6 +1,7 @@
 /* desktop-chrome.css — spotlight, notifications, clock popup, shortcuts, terminal/notes apps */
 
 .vd-fullscreen-button,
+.vd-quick-settings-button,
 .vd-notification-button {
     position: relative;
     display: inline-flex;
@@ -15,7 +16,8 @@
     cursor: pointer;
 }
 
-.vd-fullscreen-button {
+.vd-fullscreen-button,
+.vd-quick-settings-button {
     flex-shrink: 0;
     padding: 0;
 }
@@ -30,14 +32,21 @@
     border-color: var(--vd-theme-accent-border);
 }
 
-.desktop-body[data-shell="dock"] .vd-fullscreen-button {
+.vd-quick-settings-button:focus-visible {
+    outline: var(--ds-focus-ring-width, 2px) solid var(--ds-color-border-focus, var(--vd-accent));
+    outline-offset: 1px;
+}
+
+.desktop-body[data-shell="dock"] .vd-fullscreen-button,
+.desktop-body[data-shell="dock"] .vd-quick-settings-button {
     width: 24px;
     height: 24px;
     border-radius: 6px;
 }
 
 @media (pointer: coarse) {
-    .desktop-body.desktop-body .vd-fullscreen-button {
+    .desktop-body.desktop-body .vd-fullscreen-button,
+    .desktop-body.desktop-body .vd-quick-settings-button {
         width: 44px;
         height: 44px;
     }
@@ -59,6 +68,7 @@
 }
 
 .vd-notification-center,
+.vd-quick-settings,
 .vd-clock-popup {
     position: fixed;
     z-index: calc(var(--ds-z-dock, 1200) + 4);
@@ -909,7 +919,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .desktop-body[data-global-menus="true"] .vd-global-brand,
     .desktop-body[data-global-menus="true"] .vd-global-bar .vd-window-menu-button { min-height: 40px; }
     .desktop-body[data-global-menus="true"] .vd-taskbar-system { height: 44px; }
-    .desktop-body[data-global-menus="true"] .vd-taskbar-system :is(.vd-fullscreen-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-agent-button, .vd-live-speech-button, .vd-space-pager-btn) {
+    .desktop-body[data-global-menus="true"] .vd-taskbar-system :is(.vd-fullscreen-button, .vd-quick-settings-button, .vd-notification-button, .vd-taskbar-widget-btn, .vd-show-desktop-btn, .vd-agent-button, .vd-live-speech-button, .vd-space-pager-btn) {
         width: 44px;
         height: 44px;
         min-width: 44px;

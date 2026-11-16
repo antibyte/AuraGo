@@ -30,6 +30,7 @@ func TestDesktopFileDropsStayOnDesktopBrowser(t *testing.T) {
 window.fixtureErrors=[];window.addEventListener('error',e=>fixtureErrors.push(e.message));
 window.addEventListener('unhandledrejection',e=>fixtureErrors.push(String(e.reason)));
 window.state={bootstrap:{},windows:new Map()};window.fixtureMutations=[];
+window.desktopReadonly=()=>false;
 window.$=id=>document.getElementById(id);window.normalizeDesktopPath=path=>String(path||'');
 window.clampDesktopIconPosition=(x,y)=>({x,y});window.desktopIconGridEnabled=()=>false;
 window.saveIconPosition=()=>{};window.desktopSound=()=>{};window.loadBootstrap=async()=>{};

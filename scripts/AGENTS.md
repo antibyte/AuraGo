@@ -25,6 +25,8 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 
 ## Verification
 
+- Everyday Desktop controls: `node scripts/test-desktop-{window-layouts,window-previews,search,start-search,settings-runtime,file-association-writes,notifications,accessibility,file-history,file-producers,quick-settings,clock-calendar,media-session}.mjs` names the focused scripts (run each separately). Keep receipt ordering/partial failure/session-clear tests and actual browser flows together; `TestDesktopEveryday*` requires the central browser opt-in. Rebuild/check `scripts/build-ui-bundles.js` after shell/module changes.
+
 <!-- pinball:start -->
 - Pinball: `npm run build:pinball` (`build-pinball-assets.mjs` then `build-pinball.mjs`),
   `npm run test:pinball` (`test-pinball.mjs` runs the `test-pinball-*.mjs` suites and the

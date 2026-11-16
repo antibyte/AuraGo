@@ -1605,6 +1605,370 @@
 }());
 
 ;
+/* ui/js/desktop/core/file-history-runtime.js */
+(function () {
+    'use strict';
+
+    const MAX_ACTIONS = 20;
+    const FILE_UNDO_ENDPOINT = '/api/desktop/file-undo';
+    const state = {
+        api: null,
+        refresh: null,
+        notify: null,
+        isReadonly: null,
+        isSessionActive: null,
+        t: null,
+        undoStack: [],
+        redoStack: [],
+        pendingRecords: [],
+        listeners: new Set(),
+        busy: false,
+        epoch: 0,
+        revision: 0,
+        nextActionId: 1
+    };
+
+    function text(key, fallback, vars) {
+        if (typeof state.t === 'function') {
+            try {
+                return state.t(key, fallback, vars) || fallback;
+            } catch (_) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    function readonly() {
+        try {
+            return typeof state.isReadonly === 'function' && !!state.isReadonly();
+        } catch (_) {
+            return true;
+        }
+    }
+
+    function sessionActive() {
+        try {
+            return typeof state.isSessionActive !== 'function' || !!state.isSessionActive();
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function snapshot() {
+        const eligible = sessionActive();
+        const undo = state.undoStack[state.undoStack.length - 1] || null;
+        const redo = state.redoStack[state.redoStack.length - 1] || null;
+        const canUndo = eligible && !state.busy && !readonly() && !!undo && undo.undoMoves.length > 0;
+        const canRedo = eligible && !state.busy && !readonly() && !!redo && redo.redoMoves.length > 0;
+        return {
+            canUndo,
+            canRedo,
+            undoLabel: canUndo ? undo.label : '',
+            redoLabel: canRedo ? redo.label : '',
+            undoCount: eligible ? state.undoStack.length : 0,
+            redoCount: eligible ? state.redoStack.length : 0,
+            busy: state.busy,
+            revision: state.revision,
+            undoId: canUndo ? undo.id : ''
+        };
+    }
+
+    function publish() {
+        state.revision++;
+        const current = snapshot();
+        for (const listener of [...state.listeners]) {
+            try { listener(current); } catch (err) { console.warn('File history subscriber failed', err); }
+        }
+        return current;
+    }
+
+    function collectMoves(value) {
+        if (Array.isArray(value)) return value;
+        if (!value || typeof value !== 'object') return [];
+        if (Array.isArray(value.moves)) return value.moves;
+        return value.undo_receipt ? [value] : [];
+    }
+
+    function allKnownReceiptTokens() {
+        const tokens = new Set();
+        for (const action of new Set([...state.undoStack, ...state.redoStack])) {
+            for (const move of action.undoMoves) if (move.undo_receipt) tokens.add(move.undo_receipt);
+            for (const move of action.redoMoves) if (move.undo_receipt) tokens.add(move.undo_receipt);
+        }
+        for (const pending of state.pendingRecords) {
+            for (const move of pending.moves) if (move.undo_receipt) tokens.add(move.undo_receipt);
+        }
+        return tokens;
+    }
+
+    function clearRedo() {
+        for (const action of state.redoStack) action.redoMoves = [];
+        state.redoStack = [];
+    }
+
+    function trimActions() {
+        const actions = [...new Set([...state.undoStack, ...state.redoStack])]
+            .sort((a, b) => a.createdAt - b.createdAt);
+        while (actions.length > MAX_ACTIONS) {
+            const oldest = actions.shift();
+            state.undoStack = state.undoStack.filter(action => action !== oldest);
+            state.redoStack = state.redoStack.filter(action => action !== oldest);
+            oldest.undoMoves = [];
+            oldest.redoMoves = [];
+        }
+    }
+
+    function newActionId() {
+        const cryptoApi = typeof crypto !== 'undefined' ? crypto : null;
+        if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID();
+        return 'file-action-' + Date.now().toString(36) + '-' + (state.nextActionId++).toString(36);
+    }
+
+    function normalizeRecord(resultOrMoves, label) {
+        const known = allKnownReceiptTokens();
+        const moves = [];
+        for (const raw of collectMoves(resultOrMoves)) {
+            if (!raw || typeof raw.undo_receipt !== 'string' || !raw.undo_receipt || known.has(raw.undo_receipt)) continue;
+            known.add(raw.undo_receipt);
+            moves.push({
+                undo_receipt: raw.undo_receipt,
+                from: typeof raw.from === 'string' ? raw.from : '',
+                path: typeof raw.path === 'string' ? raw.path : ''
+            });
+        }
+        if (!moves.length) return null;
+        return {
+            moves,
+            label: typeof label === 'string' && label ? label : text('desktop.file_history_move', 'Move')
+        };
+    }
+
+    function applyRecord(pending) {
+        clearRedo();
+        state.undoStack.push({
+            id: newActionId(),
+            label: pending.label,
+            createdAt: Date.now(),
+            undoMoves: pending.moves,
+            redoMoves: []
+        });
+        trimActions();
+        publish();
+    }
+
+    function record(resultOrMoves, label) {
+        if (!sessionActive()) return false;
+        const pending = normalizeRecord(resultOrMoves, label);
+        if (!pending) return false;
+        if (state.busy) {
+            state.pendingRecords.push(pending);
+            return true;
+        }
+        applyRecord(pending);
+        return true;
+    }
+
+    function flushPendingRecords() {
+        const pending = state.pendingRecords.splice(0);
+        if (!sessionActive()) return;
+        for (const record of pending) applyRecord(record);
+    }
+
+    function containsAction(stack, action) {
+        return stack.includes(action);
+    }
+
+    function syncActionStacks(action) {
+        if (action.undoMoves.length) {
+            if (!containsAction(state.undoStack, action)) state.undoStack.push(action);
+        } else {
+            state.undoStack = state.undoStack.filter(item => item !== action);
+        }
+        if (action.redoMoves.length) {
+            if (!containsAction(state.redoStack, action)) state.redoStack.push(action);
+        } else {
+            state.redoStack = state.redoStack.filter(item => item !== action);
+        }
+    }
+
+    function errorDetails(err) {
+        const body = err && err.body && typeof err.body === 'object' ? err.body : {};
+        const code = String(body.code || body.error || err?.code || '').toLowerCase();
+        const status = Number(err && err.status) || 0;
+        const message = String((err && err.message) || body.error || 'File operation failed');
+        const unavailable = code.includes('undo_unavailable') || code.includes('receipt_unavailable') || code.includes('expired');
+        const readOnly = code.includes('readonly') || code.includes('read_only') || code.includes('read-only') || status === 423;
+        const conflict = code.includes('conflict') || status === 409 || status === 412;
+        const retryable = !unavailable && (conflict || readOnly);
+        const conflictObject = body.conflict && typeof body.conflict === 'object' ? body.conflict : {};
+        const conflictPath = conflictObject.path || conflictObject.Path || body.path || '';
+        return { code, status, message, retryable, unavailable, readOnly, conflict, conflictPath };
+    }
+
+    function reportFailure(direction, err) {
+        if (typeof state.notify !== 'function') return;
+        const details = errorDetails(err);
+        let message;
+        if (details.unavailable) {
+            message = text('desktop.action_unavailable', 'This action is no longer available.');
+        } else if (details.readOnly) {
+            message = text('desktop.file_dialog_readonly', 'The desktop is read-only.');
+        } else if (details.conflict) {
+            message = text('desktop.file_conflict_title', 'The destination changed or is occupied.') +
+                (details.conflictPath ? ' ' + details.conflictPath : '');
+        } else if (!details.retryable) {
+            message = text('desktop.file_history_unknown', 'The result is unknown. AuraGo will not retry this action automatically.');
+        } else {
+            const key = direction === 'undo' ? 'desktop.fm.undo_error' : 'desktop.fm.redo_error';
+            message = text(key, details.message, { error: details.message });
+        }
+        try {
+            state.notify({
+                title: text('desktop.notification', 'Notification'),
+                message
+            });
+        } catch (notifyErr) {
+            console.warn('File history notification failed', notifyErr);
+        }
+    }
+
+    async function postUndoReceipt(receipt) {
+        if (typeof state.api !== 'function') throw new Error('desktop_api_unavailable');
+        return state.api(FILE_UNDO_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ receipt })
+        });
+    }
+
+    async function run(direction) {
+        if (state.busy) return { status: 'busy' };
+        if (!sessionActive()) return { status: 'inactive' };
+        if (readonly()) return { status: 'readonly' };
+        const sourceStack = direction === 'undo' ? state.undoStack : state.redoStack;
+        const targetMovesKey = direction === 'undo' ? 'undoMoves' : 'redoMoves';
+        const oppositeMovesKey = direction === 'undo' ? 'redoMoves' : 'undoMoves';
+        const action = sourceStack[sourceStack.length - 1];
+        if (!action || !action[targetMovesKey].length) return { status: 'empty' };
+
+        const epoch = state.epoch;
+        state.busy = true;
+        publish();
+        let changed = false;
+        let completed = 0;
+        let stopped = false;
+        let failedError = null;
+        try {
+            const moves = action[targetMovesKey];
+            for (let index = moves.length - 1; index >= 0; index--) {
+                if (epoch !== state.epoch) return { status: 'cleared' };
+                if (!sessionActive()) return { status: 'inactive' };
+                if (state.pendingRecords.length) {
+                    stopped = true;
+                    break;
+                }
+                const current = moves[index];
+                try {
+                    const result = await postUndoReceipt(current.undo_receipt);
+                    if (epoch !== state.epoch) return { status: 'cleared' };
+                    if (!sessionActive()) return { status: 'inactive' };
+                    if (!result || typeof result.undo_receipt !== 'string' || !result.undo_receipt) {
+                        moves.splice(index, 1);
+                        changed = true;
+                        stopped = true;
+                        failedError = new Error('Undo response did not include a redo receipt');
+                        failedError.status = 0;
+                        break;
+                    }
+                    moves.splice(index, 1);
+                    action[oppositeMovesKey].push({
+                        undo_receipt: result.undo_receipt,
+                        from: typeof result.from === 'string' ? result.from : current.path,
+                        path: typeof result.path === 'string' ? result.path : current.from
+                    });
+                    changed = true;
+                    completed++;
+                } catch (err) {
+                    if (epoch !== state.epoch) return { status: 'cleared' };
+                    if (!sessionActive()) return { status: 'inactive' };
+                    const details = errorDetails(err);
+                    if (!details.retryable) {
+                        // Semantic invalidation and uncertain transport outcomes must not be replayed.
+                        moves.splice(index, 1);
+                        changed = true;
+                    }
+                    failedError = err;
+                    stopped = true;
+                    break;
+                }
+            }
+            syncActionStacks(action);
+            trimActions();
+            if (epoch === state.epoch && sessionActive() && changed && typeof state.refresh === 'function') {
+                try { await state.refresh(); } catch (refreshError) {
+                    if (epoch === state.epoch && sessionActive()) reportFailure(direction, refreshError);
+                }
+            }
+            if (epoch !== state.epoch) return { status: 'cleared' };
+            if (!sessionActive()) return { status: 'inactive' };
+            if (failedError) reportFailure(direction, failedError);
+            return {
+                status: failedError ? (completed ? 'partial' : 'failed') : 'completed',
+                actionId: action.id,
+                label: action.label,
+                changed,
+                completed,
+                stopped
+            };
+        } finally {
+            state.busy = false;
+            if (epoch === state.epoch) flushPendingRecords();
+            publish();
+        }
+    }
+
+    function configure(options) {
+        options = options && typeof options === 'object' ? options : {};
+        state.api = typeof options.api === 'function' ? options.api : state.api;
+        state.refresh = typeof options.refresh === 'function' ? options.refresh : state.refresh;
+        state.notify = typeof options.notify === 'function' ? options.notify : state.notify;
+        state.isReadonly = typeof options.isReadonly === 'function' ? options.isReadonly : state.isReadonly;
+        if (Object.prototype.hasOwnProperty.call(options, 'isSessionActive')) {
+            state.isSessionActive = typeof options.isSessionActive === 'function' ? options.isSessionActive : null;
+        }
+        state.t = typeof options.t === 'function' ? options.t : state.t;
+        publish();
+        return snapshot();
+    }
+
+    function subscribe(callback) {
+        if (typeof callback !== 'function') return () => {};
+        state.listeners.add(callback);
+        try { callback(snapshot()); } catch (err) { console.warn('File history subscriber failed', err); }
+        return () => state.listeners.delete(callback);
+    }
+
+    function clear() {
+        state.epoch++;
+        state.undoStack = [];
+        state.redoStack = [];
+        state.pendingRecords = [];
+        publish();
+    }
+
+    window.AuraDesktopFileHistory = {
+        configure,
+        record,
+        undo: () => run('undo'),
+        redo: () => run('redo'),
+        snapshot,
+        subscribe,
+        clear
+    };
+})();
+
+;
 /* ui/js/desktop/core/desktop-foundation.js */
 // AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
@@ -2695,7 +3059,13 @@
             const body = shouldParseJSON ? await resp.json() : {};
             if (!resp.ok) {
                 if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
-                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                const uncertain = body.code === 'file_undo_uncertain' || body.uncertain === true;
+                if (uncertain && String(url).split('?')[0] !== '/api/desktop/file-undo') {
+                    refreshDesktopAfterFileChange().catch(() => {});
+                }
+                const message = uncertain ? t('desktop.file_history_unknown')
+                    : body.code === 'file_undo_limit' ? t('desktop.file_history_limit') : body.error || body.message || ('HTTP ' + resp.status);
+                const err = new Error(message);
                 err.body = body;
                 err.status = resp.status;
                 const retryAfter = String(resp.headers.get('retry-after') || '');
@@ -12172,26 +12542,130 @@ function wireWindow(win, id) {
 (function () {
     'use strict';
     const owners = new Map();
-    const actions = new Set(['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']);
+    const supportedActions = new Set(['play', 'pause', 'stop', 'previoustrack', 'nexttrack', 'seekbackward', 'seekforward', 'seekto']);
+    const actions = new Set(supportedActions);
+    const listeners = new Set();
+    const statuses = new Set(['idle', 'paused', 'playing', 'buffering', 'ended', 'error']);
     let sequence = 0;
-    function render() {
-        if (!('mediaSession' in navigator)) return;
-        const selected = [...owners.values()].sort((a, b) => b.priority - a.priority || b.order - a.order)[0];
+    let lastOwner = null;
+    let lastSnapshot = '';
+
+    function selectedEntry() {
+        return [...owners.entries()].sort((a, b) => b[1].priority - a[1].priority || b[1].order - a[1].order)[0] || null;
+    }
+
+    function metadataSnapshot(metadata) {
+        metadata = metadata && typeof metadata === 'object' ? metadata : {};
+        const artwork = Array.isArray(metadata.artwork) ? metadata.artwork.map(image => {
+            if (!image || typeof image !== 'object') return null;
+            const item = {};
+            ['src', 'sizes', 'type'].forEach(key => {
+                if (typeof image[key] === 'string') item[key] = image[key];
+            });
+            return item.src ? item : null;
+        }).filter(Boolean) : [];
+        return {
+            title: typeof metadata.title === 'string' ? metadata.title : '',
+            artist: typeof metadata.artist === 'string' ? metadata.artist : '',
+            album: typeof metadata.album === 'string' ? metadata.album : '',
+            artwork
+        };
+    }
+
+    function snapshotFor(entry) {
+        if (!entry) return {
+            available: false,
+            metadata: metadataSnapshot(null),
+            playbackState: 'none',
+            status: 'unavailable',
+            actions: []
+        };
+        const owner = entry[1];
+        const playbackState = typeof owner.playbackState === 'string' ? owner.playbackState : 'none';
+        const status = statuses.has(owner.status) ? owner.status
+            : playbackState === 'playing' ? 'playing'
+                : playbackState === 'paused' ? 'paused' : 'idle';
+        const handlers = owner.handlers && typeof owner.handlers === 'object' ? owner.handlers : {};
+        return {
+            available: true,
+            metadata: metadataSnapshot(owner.metadata),
+            playbackState,
+            status,
+            actions: Object.keys(handlers).filter(action => supportedActions.has(action) && typeof handlers[action] === 'function')
+        };
+    }
+
+    function notifyIfChanged(entry, snapshot) {
+        const signature = JSON.stringify(snapshot);
+        const owner = entry ? entry[0] : null;
+        if (owner === lastOwner && signature === lastSnapshot) return;
+        lastOwner = owner;
+        lastSnapshot = signature;
+        listeners.forEach(listener => {
+            try { listener(snapshotFor(entry)); } catch (_) { /* observers cannot interrupt media ownership */ }
+        });
+    }
+
+    async function dispatch(action, details) {
+        if (!supportedActions.has(action)) return false;
+        const entry = selectedEntry();
+        const handlers = entry && entry[1].handlers;
+        const handler = handlers && Object.prototype.hasOwnProperty.call(handlers, action) ? handlers[action] : null;
+        if (typeof handler !== 'function') return false;
+        return (await handler(details)) !== false;
+    }
+
+    function renderNative(entry) {
+        if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !navigator.mediaSession) return;
+        const selected = entry && entry[1];
         for (const action of actions) {
-            try { navigator.mediaSession.setActionHandler(action, selected?.handlers?.[action] || null); } catch (_) { /* unsupported action */ }
+            try {
+                const handler = selected?.handlers && Object.prototype.hasOwnProperty.call(selected.handlers, action)
+                    ? selected.handlers[action] : null;
+                navigator.mediaSession.setActionHandler(action,
+                    typeof handler === 'function' ? details => { dispatch(action, details).catch(() => {}); } : null);
+            } catch (_) { /* unsupported action */ }
         }
-        try { navigator.mediaSession.metadata = selected?.metadata ? new MediaMetadata(selected.metadata) : null; } catch (_) { /* unsupported metadata */ }
+        try {
+            if (!selected?.metadata) navigator.mediaSession.metadata = null;
+            else if (typeof MediaMetadata === 'function') navigator.mediaSession.metadata = new MediaMetadata(metadataSnapshot(selected.metadata));
+        } catch (_) { /* unsupported metadata */ }
         try { navigator.mediaSession.playbackState = selected?.playbackState || 'none'; } catch (_) { /* unsupported state */ }
     }
+
+    function refresh() {
+        const entry = selectedEntry();
+        renderNative(entry);
+        notifyIfChanged(entry, snapshotFor(entry));
+    }
+
     window.AuraDesktopMediaSession = Object.freeze({
         claim(owner, options) {
             if (!owner) return;
+            options = options || {};
             const prior = owners.get(owner);
-            owners.set(owner, { ...options, priority: options.priority || 0, order: options.activate ? ++sequence : (prior?.order || ++sequence) });
+            owners.set(owner, {
+                ...options,
+                metadata: metadataSnapshot(options.metadata),
+                priority: options.priority || 0,
+                order: options.activate ? ++sequence : (prior?.order || ++sequence)
+            });
             Object.keys(options.handlers || {}).forEach(action => actions.add(action));
-            render();
+            refresh();
         },
-        release(owner) { if (owners.delete(owner)) render(); }
+        release(owner) {
+            if (owners.delete(owner)) refresh();
+        },
+        snapshot() {
+            return snapshotFor(selectedEntry());
+        },
+        subscribe(listener) {
+            if (typeof listener !== 'function') return () => {};
+            listeners.add(listener);
+            try { listener(snapshotFor(selectedEntry())); } catch (_) { /* observers cannot interrupt media ownership */ }
+            return () => listeners.delete(listener);
+        },
+        dispatch
     });
 })();
 
@@ -12550,6 +13024,314 @@ function wireWindow(win, id) {
         const pending = desktopPreferenceQueue.then(write);
         desktopPreferenceQueue = pending.catch(() => {});
         return pending;
+    }
+
+;
+/* ui/js/desktop/core/quick-settings-runtime.js */
+    let quickSettingsPanel = null;
+    let quickSettingsOpen = false;
+    let quickSettingsAnchor = null;
+    let quickSettingsUnsubscribePolicy = null;
+    let quickSettingsUnsubscribeMedia = null;
+    let quickSettingsKeyHandler = null;
+    let quickSettingsPreferencePending = new Set();
+    let quickSettingsMedia = null;
+    let quickSettingsMediaPending = false;
+
+    function quickSettingsSchemeKey() {
+        const key = currentDesktopTheme()?.schemeSetting || '';
+        return ['appearance.fruity_mode', 'appearance.minimal_mode'].includes(key) ? key : '';
+    }
+
+    function quickSettingsSchemeLabelKey(key) {
+        return key === 'appearance.minimal_mode' ? 'desktop.settings_minimal_mode' : 'desktop.settings_fruity_mode';
+    }
+
+    function ensureQuickSettingsPanel() {
+        if (quickSettingsPanel) return quickSettingsPanel;
+        const panel = document.createElement('section');
+        panel.id = 'vd-quick-settings';
+        panel.className = 'vd-tray-popover vd-quick-settings';
+        panel.hidden = true;
+        panel.tabIndex = -1;
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'false');
+        panel.setAttribute('aria-labelledby', 'vd-quick-settings-title');
+        document.body.appendChild(panel);
+        panel.addEventListener('click', onQuickSettingsClick);
+        panel.addEventListener('input', onQuickSettingsInput);
+        panel.addEventListener('change', onQuickSettingsChange);
+        quickSettingsPanel = panel;
+        return panel;
+    }
+
+    function quickSettingsMediaHTML() {
+        if (!window.AuraDesktopMediaSession || typeof window.AuraDesktopMediaSession.snapshot !== 'function') return '';
+        return `<section class="vd-quick-settings-group vd-quick-media" aria-labelledby="vd-quick-media-title">
+            <h3 id="vd-quick-media-title">${esc(t('desktop.category_media'))}</h3>
+            <div class="vd-quick-media-content" data-quick-media-content tabindex="-1"></div>
+            <p class="vd-quick-settings-status" data-quick-media-status role="status" aria-live="polite" hidden></p>
+        </section>`;
+    }
+
+    function quickSettingsMarkup() {
+        return `<header class="vd-quick-settings-header">
+                <h2 id="vd-quick-settings-title">${esc(t('desktop.quick_settings_title'))}</h2>
+                <button type="button" class="vd-quick-settings-close" data-quick-action="close" aria-label="${esc(t('desktop.close'))}">×</button>
+            </header>
+            <section class="vd-quick-settings-group">
+                <h3>${esc(t('desktop.quick_settings_sound'))}</h3>
+                <label class="vd-quick-settings-toggle"><span>${esc(t('desktop.settings_sound_enabled'))}</span><input type="checkbox" data-quick-setting="sound.enabled"></label>
+                <label class="vd-quick-settings-control"><span>${esc(t('desktop.settings_sound_volume'))}</span><span class="vd-quick-settings-range"><input type="range" min="0" max="100" step="5" data-quick-setting="sound.volume"><output data-quick-volume-output></output></span></label>
+            </section>
+            <section class="vd-quick-settings-group">
+                <h3>${esc(t('desktop.quick_settings_display'))}</h3>
+                <label class="vd-quick-settings-toggle"><span>${esc(t('desktop.settings_window_animations'))}</span><input type="checkbox" data-quick-setting="windows.animations"></label>
+                <div data-quick-scheme-slot></div>
+            </section>
+            <section class="vd-quick-settings-group vd-quick-dnd">
+                <label class="vd-quick-settings-toggle"><span><strong>${esc(t('desktop.notifications_dnd'))}</strong><small>${esc(t('desktop.quick_settings_dnd_desc'))}</small></span><input type="checkbox" data-quick-dnd></label>
+            </section>
+            ${quickSettingsMediaHTML()}
+            <p class="vd-quick-settings-status" data-quick-status role="status" aria-live="polite" hidden></p>
+            <p class="vd-quick-settings-readonly" data-quick-readonly hidden>${esc(t('desktop.quick_settings_readonly'))}</p>`;
+    }
+
+    function quickSettingsSchemeMarkup(key) {
+        if (!key) return '';
+        const labelKey = quickSettingsSchemeLabelKey(key);
+        return `<label class="vd-quick-settings-control vd-quick-scheme">
+            <span>${esc(t(labelKey))}</span>
+            <select data-quick-setting="${esc(key)}" aria-label="${esc(t(labelKey))}">
+                <option value="light">${esc(t('desktop.settings_fruity_mode_light'))}</option>
+                <option value="dark">${esc(t('desktop.settings_fruity_mode_dark'))}</option>
+            </select>
+        </label>`;
+    }
+
+    function syncQuickSettingsScheme() {
+        const slot = quickSettingsPanel?.querySelector('[data-quick-scheme-slot]');
+        if (!slot) return;
+        const key = quickSettingsSchemeKey();
+        if (slot.dataset.schemeKey === key) return;
+        const focusedScheme = !!(slot.contains && slot.contains(document.activeElement));
+        slot.dataset.schemeKey = key;
+        slot.innerHTML = quickSettingsSchemeMarkup(key);
+        if (focusedScheme) {
+            const replacement = key ? slot.querySelector(`[data-quick-setting="${key}"]`) : quickSettingsPanel.querySelector('[data-quick-setting="windows.animations"]');
+            replacement?.focus();
+        }
+    }
+
+    function quickMediaStatusText(status) {
+        const key = `desktop.quick_settings_media_status_${String(status || 'idle')}`;
+        const text = t(key);
+        return text && text !== key ? text : String(status || 'idle');
+    }
+
+    function renderQuickMedia() {
+        if (!quickSettingsPanel) return;
+        const host = quickSettingsPanel.querySelector('[data-quick-media-content]');
+        if (!host) return;
+        const active = document.activeElement;
+        const hostOwnedFocus = !!(host.contains && host.contains(active));
+        const focusedAction = hostOwnedFocus ? active.dataset?.mediaAction || '' : '';
+        const focusedToggle = hostOwnedFocus && active.dataset?.mediaToggle === 'true';
+        const media = quickSettingsMedia;
+        if (!media || !media.available) {
+            host.innerHTML = `<p class="vd-quick-media-empty">${esc(t('desktop.quick_settings_media_empty'))}</p>`;
+            if (hostOwnedFocus) host.focus();
+            return;
+        }
+        const metadata = media.metadata || {};
+        const title = String(metadata.title || '').trim();
+        const artist = String(metadata.artist || '').trim();
+        const status = String(media.status || media.playbackState || 'idle');
+        const actions = Array.isArray(media.actions) ? media.actions : [];
+        const controls = [];
+        if (actions.includes('previoustrack')) controls.push(['previoustrack', '⏮', 'desktop.audio_player_previous']);
+        if (status === 'playing' && actions.includes('pause')) controls.push(['pause', 'Ⅱ', 'desktop.audio_player_pause', true]);
+        else if (status !== 'playing' && actions.includes('play')) controls.push(['play', '▶', 'desktop.audio_player_play', true]);
+        if (actions.includes('nexttrack')) controls.push(['nexttrack', '⏭', 'desktop.audio_player_next']);
+        host.innerHTML = `<div class="vd-quick-media-track"><strong>${esc(title || t('desktop.quick_settings_media_empty'))}</strong>${artist ? `<span>${esc(artist)}</span>` : ''}<small>${esc(quickMediaStatusText(status))}</small></div>
+            ${controls.length ? `<div class="vd-quick-media-controls" role="group" aria-label="${esc(t('desktop.category_media'))}" aria-busy="${quickSettingsMediaPending ? 'true' : 'false'}" tabindex="-1">${controls.map(([action, glyph, label, toggle]) => `<button type="button" data-media-action="${action}" ${toggle ? 'data-media-toggle="true"' : ''} aria-disabled="${quickSettingsMediaPending ? 'true' : 'false'}" aria-label="${esc(t(label))}" title="${esc(t(label))}">${glyph}</button>`).join('')}</div>` : ''}`;
+        if (hostOwnedFocus) {
+            const replacement = focusedToggle
+                ? host.querySelector('[data-media-toggle="true"]')
+                : focusedAction ? host.querySelector(`[data-media-action="${focusedAction}"]`) : null;
+            (replacement || host.querySelector('[data-media-action]') || host.querySelector('.vd-quick-media-controls') || host).focus();
+        }
+    }
+
+    function syncQuickSettings() {
+        const panel = quickSettingsPanel;
+        if (!panel) return;
+        syncQuickSettingsScheme();
+        const readonly = desktopReadonly();
+        panel.querySelectorAll('[data-quick-setting]').forEach(control => {
+            const key = control.dataset.quickSetting;
+            if (control.type === 'checkbox') control.checked = settingBool(key);
+            else if (control.type === 'range') control.value = String(Math.round(Math.min(1, Math.max(0, Number(settingValue(key) || 0))) * 100));
+            else control.value = String(settingValue(key) || 'light');
+            control.disabled = readonly || quickSettingsPreferencePending.has(key);
+        });
+        const volume = panel.querySelector('[data-quick-volume-output]');
+        if (volume) volume.value = `${panel.querySelector('[data-quick-setting="sound.volume"]')?.value || 0}%`;
+        const dnd = panel.querySelector('[data-quick-dnd]');
+        if (dnd) dnd.checked = !!window.AuraDesktopNotificationCenter?.policy?.().dnd;
+        const readonlyHint = panel.querySelector('[data-quick-readonly]');
+        if (readonlyHint) readonlyHint.hidden = !readonly;
+        renderQuickMedia();
+    }
+
+    function quickSettingsStatus(message, error) {
+        if (!quickSettingsPanel) return;
+        const status = quickSettingsPanel.querySelector('[data-quick-status]');
+        if (!status) return;
+        status.textContent = message || '';
+        status.hidden = !message;
+        status.classList.toggle('is-error', !!error);
+    }
+
+    function quickMediaStatus(message, error) {
+        const status = quickSettingsPanel?.querySelector('[data-quick-media-status]');
+        if (!status) return;
+        status.textContent = message || '';
+        status.hidden = !message;
+        status.classList.toggle('is-error', !!error);
+    }
+
+    function quickSettingsSettingAllowed(key) {
+        return ['sound.enabled', 'sound.volume', 'windows.animations'].includes(key) || key === quickSettingsSchemeKey();
+    }
+
+    async function saveQuickSetting(key, value) {
+        if (!quickSettingsSettingAllowed(key)) return;
+        if (key === 'sound.volume') {
+            const volume = Number(value);
+            if (!Number.isFinite(volume)) return;
+            value = String(Math.min(1, Math.max(0, volume)));
+        } else if (key === quickSettingsSchemeKey()) {
+            if (!['light', 'dark'].includes(value)) return;
+        } else if (!['true', 'false'].includes(value)) {
+            return;
+        }
+        if (desktopReadonly()) {
+            quickSettingsStatus(t('desktop.quick_settings_readonly'), true);
+            return;
+        }
+        quickSettingsPreferencePending.add(key);
+        const control = quickSettingsPanel?.querySelector(`[data-quick-setting="${key}"]`);
+        if (control) control.disabled = true;
+        quickSettingsStatus(t('desktop.saving'));
+        try {
+            await saveDesktopPreference(key, value);
+            quickSettingsStatus(t('desktop.saved'));
+        } catch (_) {
+            quickSettingsStatus(t('desktop.quick_settings_save_failed'), true);
+        } finally {
+            quickSettingsPreferencePending.delete(key);
+            syncQuickSettings();
+        }
+    }
+
+    async function dispatchQuickMedia(action) {
+        const api = window.AuraDesktopMediaSession;
+        if (!api || !quickSettingsMedia?.available || !quickSettingsMedia.actions?.includes(action) || quickSettingsMediaPending) return;
+        quickSettingsMediaPending = true;
+        renderQuickMedia();
+        quickMediaStatus(t('desktop.loading'));
+        try {
+            const handled = await api.dispatch(action);
+            if (!handled) quickMediaStatus(t('desktop.quick_settings_media_action_failed'), true);
+            else quickMediaStatus('');
+        } catch (_) {
+            quickMediaStatus(t('desktop.quick_settings_media_action_failed'), true);
+        } finally {
+            quickSettingsMediaPending = false;
+            renderQuickMedia();
+        }
+    }
+
+    function onQuickSettingsClick(event) {
+        const target = event.target?.closest?.('[data-quick-action], [data-media-action]');
+        if (!target) return;
+        if (target.dataset.quickAction === 'close') {
+            closeQuickSettingsPopup(true);
+            return;
+        }
+        if (target.dataset.mediaAction) dispatchQuickMedia(target.dataset.mediaAction);
+    }
+
+    function onQuickSettingsInput(event) {
+        const control = event.target;
+        if (control?.dataset?.quickSetting === 'sound.volume') {
+            const output = quickSettingsPanel?.querySelector('[data-quick-volume-output]');
+            if (output) output.value = `${control.value}%`;
+        }
+    }
+
+    function onQuickSettingsChange(event) {
+        const control = event.target;
+        const key = control?.dataset?.quickSetting;
+        if (key) {
+            const value = control.type === 'checkbox' ? String(!!control.checked) : key === 'sound.volume' ? String(Math.min(1, Math.max(0, Number(control.value) / 100))) : String(control.value);
+            saveQuickSetting(key, value);
+            return;
+        }
+        if (control?.matches?.('[data-quick-dnd]')) {
+            const center = window.AuraDesktopNotificationCenter;
+            if (center && typeof center.setPolicy === 'function') center.setPolicy({ dnd: !!control.checked });
+        }
+    }
+
+    function closeQuickSettingsPopup(restoreFocus = false) {
+        if (!quickSettingsPanel || !quickSettingsOpen) return;
+        quickSettingsPanel.hidden = true;
+        quickSettingsOpen = false;
+        quickSettingsAnchor?.setAttribute('aria-expanded', 'false');
+        quickSettingsUnsubscribePolicy?.();
+        quickSettingsUnsubscribePolicy = null;
+        quickSettingsUnsubscribeMedia?.();
+        quickSettingsUnsubscribeMedia = null;
+        window.removeEventListener('aurago:desktop-settings', syncQuickSettings);
+        document.removeEventListener('aurago:desktop-policy', syncQuickSettings);
+        if (quickSettingsKeyHandler) document.removeEventListener('keydown', quickSettingsKeyHandler, true);
+        quickSettingsKeyHandler = null;
+        if (restoreFocus && quickSettingsAnchor?.isConnected) quickSettingsAnchor.focus();
+        quickSettingsAnchor = null;
+    }
+
+    function toggleQuickSettingsPopup(anchor) {
+        const panel = ensureQuickSettingsPanel();
+        if (quickSettingsOpen) {
+            closeQuickSettingsPopup();
+            return;
+        }
+        quickSettingsOpen = true;
+        quickSettingsAnchor = anchor || document.activeElement;
+        panel.innerHTML = quickSettingsMarkup();
+        panel.hidden = false;
+        panel.setAttribute('aria-label', t('desktop.quick_settings_title'));
+        quickSettingsAnchor?.setAttribute('aria-expanded', 'true');
+        placeTrayPopover(panel, anchor || quickSettingsAnchor);
+        syncQuickSettings();
+        window.addEventListener('aurago:desktop-settings', syncQuickSettings);
+        document.addEventListener('aurago:desktop-policy', syncQuickSettings);
+        const center = window.AuraDesktopNotificationCenter;
+        if (center && typeof center.subscribePolicy === 'function') quickSettingsUnsubscribePolicy = center.subscribePolicy(syncQuickSettings);
+        const media = window.AuraDesktopMediaSession;
+        quickSettingsMedia = null;
+        if (media && typeof media.subscribe === 'function') quickSettingsUnsubscribeMedia = media.subscribe(snapshot => { quickSettingsMedia = snapshot; renderQuickMedia(); });
+        else if (media && typeof media.snapshot === 'function') { quickSettingsMedia = media.snapshot(); renderQuickMedia(); }
+        quickSettingsKeyHandler = event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeQuickSettingsPopup(true);
+        };
+        document.addEventListener('keydown', quickSettingsKeyHandler, true);
+        (panel.querySelector('button:not(:disabled), input:not(:disabled), select:not(:disabled)') || panel).focus();
     }
 
 ;
@@ -13159,7 +13941,8 @@ function wireWindow(win, id) {
         const rect = anchor.getBoundingClientRect();
         const below = rect.top + rect.height / 2 < window.innerHeight / 2;
         panel.dataset.placement = below ? 'below' : 'above';
-        panel.style.right = Math.max(8, window.innerWidth - rect.right) + 'px';
+        panel.style.right = Math.max(8, Math.min(window.innerWidth - rect.right, window.innerWidth - panel.offsetWidth - 8)) + 'px';
+        panel.style.maxHeight = Math.max(0, below ? window.innerHeight - rect.bottom - 16 : rect.top - 16) + 'px';
         if (below) {
             panel.style.bottom = '';
             panel.style.top = Math.round(rect.bottom + 8) + 'px';
@@ -13175,69 +13958,19 @@ function wireWindow(win, id) {
     }
 
     function closeClockPopup(restoreFocus = false) {
+        closeClockCalendarPopup(restoreFocus);
+    }
+
+    function openClockPopup(anchor) {
+        closeNotificationCenter();
+        closeQuickSettingsPopup();
+        return openClockCalendarPopup(anchor);
+    }
+
+    function toggleClockPopup(anchor) {
         const popup = document.getElementById('vd-clock-popup');
-        if (popup) {
-            popup.hidden = true;
-            popup._request = (popup._request || 0) + 1;
-            popup._returnFocus?.setAttribute('aria-expanded', 'false');
-            if (restoreFocus && popup._returnFocus?.isConnected) popup._returnFocus.focus();
-        }
-    }
-
-    function clockLocalDay(value) {
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
-        const pad = n => String(n).padStart(2, '0');
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    }
-
-    async function openClockPopup(anchor) {
-        closeClockPopup();
-        let popup = document.getElementById('vd-clock-popup');
-        if (!popup) {
-            popup = document.createElement('div');
-            popup.id = 'vd-clock-popup';
-            popup.className = 'vd-clock-popup';
-            popup.setAttribute('role', 'dialog');
-            popup.tabIndex = -1;
-            popup.addEventListener('keydown', event => {
-                if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeClockPopup(true); }
-            });
-            document.body.appendChild(popup);
-        }
-        const request = popup._request = (popup._request || 0) + 1;
-        popup.setAttribute('aria-label', t('desktop.clock_today'));
-        popup._returnFocus = anchor || document.activeElement;
-        popup._returnFocus?.setAttribute('aria-expanded', 'true');
-        popup.hidden = false;
-        popup.focus();
-        popup.innerHTML = `<div class="vd-clock-popup-loading">${esc(t('desktop.loading'))}</div>`;
-        placeTrayPopover(popup, anchor);
-        let appointments = [];
-        try {
-            appointments = await api('/api/desktop/integrations/appointments?status=all');
-        } catch (_) {
-            appointments = [];
-        }
-        if (popup.hidden || popup._request !== request || !popup.isConnected) return;
-        const now = new Date();
-        const todayKey = clockLocalDay(now);
-        const todayItems = (Array.isArray(appointments) ? appointments : []).filter(item => clockLocalDay(item.date_time) === todayKey && item.status !== 'cancelled');
-        const events = todayItems.slice(0, 6).map(item => {
-            const time = item.date_time ? new Date(item.date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-            return `<li><span class="vd-clock-event-time">${esc(time)}</span><span class="vd-clock-event-title">${esc(item.title || '')}</span></li>`;
-        }).join('');
-        popup.innerHTML = `<div class="vd-clock-popup-head">
-            <div class="vd-clock-popup-date">${esc(now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
-            <div class="vd-clock-popup-time">${esc(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</div>
-        </div>
-        <div class="vd-clock-popup-section">${esc(t('desktop.clock_today'))}</div>
-        ${events ? `<ul class="vd-clock-popup-events">${events}</ul>` : `<div class="vd-clock-popup-empty">${esc(t('desktop.clock_no_events'))}</div>`}
-        <button type="button" class="vd-clock-popup-open" data-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
-        popup.querySelector('[data-action="open-calendar"]').addEventListener('click', () => {
-            closeClockPopup();
-            openApp('calendar');
-        });
+        if (popup && !popup.hidden) closeClockPopup(true);
+        else openClockPopup(anchor);
     }
 
     function closeShortcutsHelp() {
@@ -13448,11 +14181,11 @@ function wireWindow(win, id) {
             clock.setAttribute('aria-expanded', 'false');
             clock.tabIndex = 0;
             clock.addEventListener('keydown', event => {
-                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); openClockPopup(clock); }
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); toggleClockPopup(clock); }
             });
             clock.addEventListener('click', event => {
                 event.stopPropagation();
-                openClockPopup(clock);
+                toggleClockPopup(clock);
             });
         }
         const notifyBtn = document.getElementById('vd-notification-button');
@@ -13463,15 +14196,37 @@ function wireWindow(win, id) {
             notifyBtn.setAttribute('aria-expanded', 'false');
             notifyBtn.addEventListener('click', event => {
                 event.stopPropagation();
+                closeClockPopup();
+                closeQuickSettingsPopup();
                 toggleNotificationCenter(notifyBtn);
             });
         }
-        document.addEventListener('click', event => {
-            if (!event.target.closest('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button')) {
+        const quickButton = document.getElementById('vd-quick-settings-button');
+        if (quickButton && !quickButton.dataset.shellChromeWired) {
+            quickButton.dataset.shellChromeWired = 'true';
+            quickButton.addEventListener('click', event => {
+                event.stopPropagation();
                 closeClockPopup();
                 closeNotificationCenter();
+                toggleQuickSettingsPopup(quickButton);
+            });
+        }
+        document.addEventListener('click', event => {
+            // A panel may replace the clicked control before this event bubbles here.
+            if (!event.composedPath().some(node => node.matches?.('#vd-clock-popup, #vd-clock, #vd-notification-center, #vd-notification-button, #vd-quick-settings, #vd-quick-settings-button'))) {
+                closeClockPopup();
+                closeNotificationCenter();
+                closeQuickSettingsPopup();
             }
         });
+        const repositionPanels = () => {
+            for (const [panelId, anchorId] of [['vd-clock-popup', 'vd-clock'], ['vd-notification-center', 'vd-notification-button'], ['vd-quick-settings', 'vd-quick-settings-button']]) {
+                const panel = document.getElementById(panelId);
+                if (panel && !panel.hidden) placeTrayPopover(panel, document.getElementById(anchorId));
+            }
+        };
+        window.addEventListener('resize', repositionPanels);
+        window.addEventListener('aurago:desktop-settings', repositionPanels);
     }
 
 ;
@@ -14091,6 +14846,7 @@ function wireWindow(win, id) {
 
     async function refreshAfterDesktopFileDrop(options) {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) return window.FileManager.refreshLocalInstances();
         if (options && options.refreshActiveFileManager === false) return;
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
@@ -14109,6 +14865,7 @@ function wireWindow(win, id) {
     }
 
     async function moveDraggedFilesToDesktop(paths, clientX, clientY) {
+        if (desktopReadonly()) return;
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return;
         const body = await api('/api/desktop/files?path=' + encodeURIComponent('Desktop'));
@@ -14117,23 +14874,31 @@ function wireWindow(win, id) {
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
         let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(cleanPaths)) : null;
         let offset = 0;
-        for (const src of cleanPaths) {
-            if (src === 'Desktop') continue;
-            let newPath = src;
-            if (!src.toLowerCase().startsWith('desktop/')) {
-                newPath = await uniqueDesktopDestination(src, existingNames);
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
+        const moves = [];
+        try {
+            for (const src of cleanPaths) {
+                if (src === 'Desktop') continue;
+                let newPath = src;
+                if (!src.toLowerCase().startsWith('desktop/')) {
+                    newPath = await uniqueDesktopDestination(src, existingNames);
+                    const result = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    moves.push(result);
+                    newPath = normalizeDesktopPath(result.path) || newPath;
+                }
+                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+                saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
+                offset += 18;
             }
-            const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
-            saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
-            offset += 18;
+        } finally {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.file_history_move'));
+            try { await refreshAfterDesktopFileDrop(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
         }
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop();
     }
 
     async function uploadHostFilesToDesktop(files, clientX, clientY) {
@@ -14166,6 +14931,7 @@ function wireWindow(win, id) {
     }
 
     async function pasteDesktopFileClipboard(destBase, options) {
+        if (desktopReadonly()) return;
         const clipboardState = window.AuraDesktopFileClipboard;
         if (clipboardState?.entries?.length) return transferCloudFilesToLocal(clipboardState.entries, destBase == null ? 'Desktop' : destBase, clipboardState.mode === 'cut' ? 'move' : 'copy', clipboardState);
         const clipboard = desktopFileClipboard();
@@ -14179,36 +14945,54 @@ function wireWindow(win, id) {
         const basePos = clampDesktopIconPosition(clientX - 40, clientY - 44);
         let usedCells = desktopIconGridEnabled() ? desktopIconGridUsedCells(desktopFileDropExcludedIconIds(clipboard.mode === 'cut' ? clipboard.paths : [])) : null;
         let offset = 0;
-        for (const src of clipboard.paths) {
-            const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
-            if (clipboard.mode === 'cut' && naturalPath === src) continue;
-            const newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
-            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
-            if (newPath === src) continue;
-            if (clipboard.mode === 'copy') {
-                await api('/api/desktop/copy', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_path: src, dest_path: newPath })
-                });
-            } else {
-                await api('/api/desktop/file', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ old_path: src, new_path: newPath })
-                });
+        const moves = [];
+        const movedSources = new Set();
+        let changed = false;
+        try {
+            for (const src of clipboard.paths) {
+                const naturalPath = desktopDropJoinPath(targetBase, desktopDropBaseName(src) || 'item');
+                if (clipboard.mode === 'cut' && naturalPath === src) continue;
+                let newPath = await uniqueDestinationInFolder(src, targetBase, existingNames);
+                if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+                if (newPath === src) continue;
+                if (clipboard.mode === 'copy') {
+                    await api('/api/desktop/copy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source_path: src, dest_path: newPath })
+                    });
+                } else {
+                    const result = await api('/api/desktop/file', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_path: src, new_path: newPath })
+                    });
+                    moves.push(result);
+                    movedSources.add(src);
+                    newPath = normalizeDesktopPath(result.path) || newPath;
+                }
+                changed = true;
+                if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
+                if (targetBase.toLowerCase() === 'desktop') {
+                    const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
+                    saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
+                    offset += 18;
+                }
             }
-            if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
-            if (targetBase.toLowerCase() === 'desktop') {
-                const iconPos = desktopFileDropIconPosition(basePos.x + offset, basePos.y + offset, usedCells);
-                saveIconPosition('desktop-entry-' + newPath, iconPos.x, iconPos.y);
-                offset += 18;
+        } finally {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.file_history_move'));
+            if (movedSources.size && window.AuraDesktopFileClipboard === clipboardState) {
+                const remaining = clipboard.paths.filter(path => !movedSources.has(path));
+                window.AuraDesktopFileClipboard = remaining.length ? Object.assign({}, clipboardState, { paths: remaining }) : null;
+            }
+            if (changed) {
+                try { await refreshAfterDesktopFileDrop(options); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             }
         }
         if (options && typeof options.shouldContinue === 'function' && !options.shouldContinue()) return;
         if (clipboard.mode === 'cut' && window.AuraDesktopFileClipboard === clipboardState) window.AuraDesktopFileClipboard = null;
         desktopSound('file.drop');
-        await refreshAfterDesktopFileDrop(options);
     }
 
     function wireDesktopFileIconDrag(btn) {
@@ -17157,6 +17941,219 @@ function updateTaskbarSystemButtonsForMobile() {
     }
 
 ;
+/* ui/js/desktop/core/clock-calendar-runtime.js */
+    let clockCalendarPanel = null;
+    let clockCalendarOpen = false;
+    let clockCalendarAnchor = null;
+    let clockCalendarCursor = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    let clockCalendarSelected = isoDate(new Date());
+    let clockCalendarAppointments = [];
+    let clockCalendarLoading = false;
+    let clockCalendarLoadError = false;
+    let clockCalendarLoaded = false;
+    let clockCalendarRequest = 0;
+    let clockCalendarAbort = null;
+    let clockCalendarMidnightTimer = 0;
+    let clockCalendarKeyHandler = null;
+
+    function ensureClockCalendarPanel() {
+        if (clockCalendarPanel) return clockCalendarPanel;
+        const panel = document.createElement('section');
+        panel.id = 'vd-clock-popup';
+        panel.className = 'vd-clock-popup vd-tray-popover vd-clock-calendar';
+        panel.hidden = true;
+        panel.tabIndex = -1;
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'false');
+        panel.setAttribute('aria-labelledby', 'vd-clock-calendar-title');
+        document.body.appendChild(panel);
+        panel.addEventListener('click', onClockCalendarClick);
+        clockCalendarPanel = panel;
+        return panel;
+    }
+
+    function clockCalendarDayItems(date) {
+        return calendarDayItems(clockCalendarAppointments.filter(item => item.status !== 'cancelled' && item.status !== 'completed'), date);
+    }
+
+    function clockCalendarGridHTML() {
+        const weekdays = calendarWeekDays(new Date()).map(day => `<span>${esc(calFormat(day, { weekday: 'short' }))}</span>`).join('');
+        const today = new Date();
+        const cells = calendarMonthCells(clockCalendarCursor).cells.map(day => {
+            const key = isoDate(day);
+            const items = clockCalendarDayItems(day);
+            const classes = ['vd-clock-calendar-day'];
+            if (day.getMonth() !== clockCalendarCursor.getMonth()) classes.push('is-other-month');
+            if (key === isoDate(today)) classes.push('is-today');
+            if (key === clockCalendarSelected) classes.push('is-selected');
+            if (items.length) classes.push('has-events');
+            return `<button type="button" class="${classes.join(' ')}" data-clock-day="${key}" aria-label="${esc(calFormat(day, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}" aria-pressed="${key === clockCalendarSelected ? 'true' : 'false'}" ${key === isoDate(today) ? 'aria-current="date"' : ''}>
+                <span>${day.getDate()}</span>${items.length ? `<i aria-hidden="true"></i>` : ''}
+            </button>`;
+        }).join('');
+        return `<div class="vd-clock-calendar-weekdays" aria-hidden="true">${weekdays}</div><div class="vd-clock-calendar-grid" role="group" aria-label="${esc(calendarRangeLabel('month', clockCalendarCursor))}">${cells}</div>`;
+    }
+
+    function clockCalendarAgendaHTML() {
+        const selectedDate = calParseISODate(clockCalendarSelected);
+        const dateLabel = calFormat(selectedDate, { weekday: 'long', day: 'numeric', month: 'long' });
+        let body = '';
+        if (clockCalendarLoading) body = `<p class="vd-clock-calendar-message" role="status">${esc(t('desktop.loading'))}</p>`;
+        else if (clockCalendarLoadError) body = `<div class="vd-clock-calendar-error" role="alert"><p>${esc(t('desktop.clock_calendar_load_failed'))}</p><button type="button" class="vd-clock-calendar-retry" data-clock-action="retry">${esc(t('desktop.spotlight_retry'))}</button></div>`;
+        else if (clockCalendarLoaded) {
+            const items = clockCalendarDayItems(selectedDate);
+            body = items.length ? `<ul class="vd-clock-calendar-events">${items.map(item => {
+                const date = calendarDate(item.date_time);
+                return `<li><time datetime="${esc(item.date_time)}">${esc(date ? calFormatTime(date) : '')}</time><span>${esc(item.title || '')}</span></li>`;
+            }).join('')}</ul>` : `<p class="vd-clock-calendar-message">${esc(t('desktop.clock_no_events'))}</p>`;
+        }
+        return `<section class="vd-clock-calendar-agenda" aria-labelledby="vd-clock-calendar-agenda-title"><h3 id="vd-clock-calendar-agenda-title">${esc(dateLabel)}</h3>${body}</section>`;
+    }
+
+    function renderClockCalendar(focusSelector) {
+        const panel = clockCalendarPanel;
+        if (!panel) return;
+        const active = document.activeElement;
+        const keepFocus = !!(panel.contains && panel.contains(active));
+        const activeSelector = keepFocus && active.dataset?.clockAction
+            ? `[data-clock-action="${active.dataset.clockAction}"]`
+            : keepFocus && active.dataset?.clockDay ? `[data-clock-day="${active.dataset.clockDay}"]` : '';
+        panel.innerHTML = `<header class="vd-clock-calendar-header">
+                <h2 id="vd-clock-calendar-title">${esc(calendarRangeLabel('month', clockCalendarCursor))}</h2>
+                <div class="vd-clock-calendar-nav" role="group" aria-label="${esc(t('desktop.clock_calendar_month_navigation'))}">
+                    <button type="button" data-clock-action="previous-month" aria-label="${esc(t('desktop.cal_previous'))}" title="${esc(t('desktop.cal_previous'))}">‹</button>
+                    <button type="button" data-clock-action="today">${esc(t('desktop.cal_today'))}</button>
+                    <button type="button" data-clock-action="next-month" aria-label="${esc(t('desktop.cal_next'))}" title="${esc(t('desktop.cal_next'))}">›</button>
+                </div>
+            </header>
+            ${clockCalendarGridHTML()}
+            ${clockCalendarAgendaHTML()}
+            <button type="button" class="vd-clock-popup-open" data-clock-action="open-calendar">${esc(t('desktop.clock_open_calendar'))}</button>`;
+        if (keepFocus) {
+            const selector = focusSelector || activeSelector;
+            (selector && panel.querySelector(selector) || panel.querySelector('[data-clock-action="today"]') || panel).focus();
+        }
+    }
+
+    function scheduleClockCalendarMidnight() {
+        if (clockCalendarMidnightTimer) window.clearTimeout(clockCalendarMidnightTimer);
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 100);
+        clockCalendarMidnightTimer = window.setTimeout(() => {
+            clockCalendarMidnightTimer = 0;
+            if (!clockCalendarOpen) return;
+            const previousToday = isoDate(new Date(next.getFullYear(), next.getMonth(), next.getDate() - 1));
+            const today = new Date();
+            const todayKey = isoDate(today);
+            if (clockCalendarSelected === previousToday) clockCalendarSelected = todayKey;
+            if (clockCalendarCursor.getFullYear() === Number(previousToday.slice(0, 4)) && clockCalendarCursor.getMonth() === Number(previousToday.slice(5, 7)) - 1) {
+                clockCalendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+            renderClockCalendar();
+            scheduleClockCalendarMidnight();
+        }, Math.max(100, next.getTime() - now.getTime()));
+    }
+
+    async function loadClockCalendarAppointments() {
+        if (!clockCalendarOpen) return;
+        clockCalendarAbort?.abort();
+        const controller = new AbortController();
+        clockCalendarAbort = controller;
+        const request = ++clockCalendarRequest;
+        clockCalendarLoading = true;
+        clockCalendarLoaded = false;
+        clockCalendarLoadError = false;
+        renderClockCalendar();
+        try {
+            const appointments = await api('/api/desktop/integrations/appointments?status=all', { signal: controller.signal });
+            if (!clockCalendarOpen || controller.signal.aborted || request !== clockCalendarRequest) return;
+            clockCalendarAppointments = normalizeCalendarAppointments(appointments);
+            clockCalendarLoaded = true;
+        } catch (_) {
+            if (!clockCalendarOpen || controller.signal.aborted || request !== clockCalendarRequest) return;
+            clockCalendarLoadError = true;
+        } finally {
+            if (clockCalendarOpen && request === clockCalendarRequest && !controller.signal.aborted) {
+                clockCalendarLoading = false;
+                renderClockCalendar();
+            }
+        }
+    }
+
+    function onClockCalendarClick(event) {
+        const target = event.target?.closest?.('[data-clock-action], [data-clock-day]');
+        if (!target) return;
+        if (target.dataset.clockDay) {
+            clockCalendarSelected = target.dataset.clockDay;
+            const selected = calParseISODate(clockCalendarSelected);
+            if (!Number.isNaN(selected.getTime()) && (selected.getMonth() !== clockCalendarCursor.getMonth() || selected.getFullYear() !== clockCalendarCursor.getFullYear())) {
+                clockCalendarCursor = new Date(selected.getFullYear(), selected.getMonth(), 1);
+            }
+            renderClockCalendar(`[data-clock-day="${clockCalendarSelected}"]`);
+            return;
+        }
+        const action = target.dataset.clockAction;
+        if (action === 'previous-month' || action === 'next-month') {
+            clockCalendarCursor = calAddMonths(clockCalendarCursor, action === 'previous-month' ? -1 : 1);
+            renderClockCalendar(`[data-clock-action="${action}"]`);
+        } else if (action === 'today') {
+            const today = new Date();
+            clockCalendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
+            clockCalendarSelected = isoDate(today);
+            renderClockCalendar('[data-clock-action="today"]');
+        } else if (action === 'retry') {
+            loadClockCalendarAppointments();
+        } else if (action === 'open-calendar') {
+            closeClockCalendarPopup();
+            openApp('calendar');
+        }
+    }
+
+    function closeClockCalendarPopup(restoreFocus = false) {
+        if (!clockCalendarPanel) return;
+        clockCalendarPanel.hidden = true;
+        clockCalendarOpen = false;
+        clockCalendarRequest++;
+        clockCalendarAbort?.abort();
+        clockCalendarAbort = null;
+        if (clockCalendarMidnightTimer) window.clearTimeout(clockCalendarMidnightTimer);
+        clockCalendarMidnightTimer = 0;
+        clockCalendarAnchor?.setAttribute('aria-expanded', 'false');
+        if (clockCalendarKeyHandler) document.removeEventListener('keydown', clockCalendarKeyHandler, true);
+        clockCalendarKeyHandler = null;
+        if (restoreFocus && clockCalendarAnchor?.isConnected) clockCalendarAnchor.focus();
+        clockCalendarAnchor = null;
+    }
+
+    function openClockCalendarPopup(anchor) {
+        closeClockCalendarPopup();
+        const panel = ensureClockCalendarPanel();
+        clockCalendarOpen = true;
+        clockCalendarAnchor = anchor || document.activeElement;
+        const now = new Date();
+        clockCalendarCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+        clockCalendarSelected = isoDate(now);
+        clockCalendarAppointments = [];
+        clockCalendarLoading = false;
+        clockCalendarLoadError = false;
+        clockCalendarLoaded = false;
+        panel.hidden = false;
+        clockCalendarAnchor?.setAttribute('aria-expanded', 'true');
+        placeTrayPopover(panel, anchor || clockCalendarAnchor);
+        renderClockCalendar();
+        clockCalendarKeyHandler = event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeClockCalendarPopup(true);
+        };
+        document.addEventListener('keydown', clockCalendarKeyHandler, true);
+        panel.querySelector('[data-clock-action="previous-month"]')?.focus();
+        scheduleClockCalendarMidnight();
+        loadClockCalendarAppointments();
+    }
+
+;
 /* ui/js/desktop/apps/calendar-editor.js */
     // Calendar appointment editor, quick-peek popover and recurring creation.
     // Continuation of the shared Desktop IIFE; calendar.js owns the session state.
@@ -20036,7 +21033,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
             }
         }
-        await loadBootstrap();
+        await refreshDesktopAfterFileChange();
     }
 
     async function compressDesktopPathsToZip(paths) {
@@ -20058,7 +21055,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 body: JSON.stringify({ paths: cleanPaths, dest: destPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -20079,7 +21076,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 body: JSON.stringify({ path: entry.path, dest })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -20098,7 +21095,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 body: JSON.stringify({ target_path: entry.path, link_path: linkPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.fm.symlink_created') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -20192,7 +21189,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     function contextMenuReadonlyGuard(items) {
         if (!desktopReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app', 'undo', 'redo']);
         return (items || []).map(item => {
             if (!item || item.separator) return item;
             if (!blocked.has(item.id)) return item;
@@ -20303,11 +21300,15 @@ function updateTaskbarSystemButtonsForMobile() {
         if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
         event.preventDefault();
         selectDesktopIcon(null);
+        const history = window.AuraDesktopFileHistory;
+        const historyState = history?.snapshot();
         const items = contextMenuReadonlyGuard([
             { id: 'new-sticky-note', label: t('desktop.sticky_add'), icon: 'notes', fallback: '+', disabled: desktopReadonly(), action: () => editStickyNote(null, event.clientX, event.clientY) },
             { id: 'new-file', label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
             { id: 'new-folder', label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', id: 'paste', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
+            { id: 'undo', label: t('desktop.menu_undo'), icon: 'undo', fallback: '↶', shortcut: 'Ctrl+Z', disabled: !historyState?.canUndo, action: () => history?.undo() },
+            { id: 'redo', label: t('desktop.menu_redo'), icon: 'redo', fallback: '↷', shortcut: 'Ctrl+Shift+Z', disabled: !historyState?.canRedo, action: () => history?.redo() },
             { separator: true },
             { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
             { label: t('desktop.settings_wallpaper'), icon: 'image', fallback: 'W', items: desktopWallpaperMenuItems() },
@@ -20556,6 +21557,10 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function refreshDesktopAfterFileChange() {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) {
+            await window.FileManager.refreshLocalInstances();
+            return;
+        }
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -20686,9 +21691,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
             openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -20704,45 +21707,43 @@ function updateTaskbarSystemButtonsForMobile() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: workspaceJoinPath(basePath, name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function renamePath(path) {
-        if (!path) return;
+        if (!path || desktopReadonly()) return;
         const current = String(path).split('/').pop();
         const name = await promptDialog(t('desktop.rename'), current);
         if (!name || name === current) return;
         try {
-            await api('/api/desktop/file', {
+            const result = await api('/api/desktop/file', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ old_path: path, new_path: workspaceJoinPath(pathDir(path), name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            window.AuraDesktopFileHistory?.record(result, t('desktop.context_rename'));
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function deletePath(path) {
-        if (!path) return;
-        if (settingBool('files.confirm_delete')) {
-            const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
+        if (!path || desktopReadonly()) return;
+        const permanent = isInsideTrashPath(path);
+        if (permanent || settingBool('files.confirm_delete')) {
+            const confirmed = await confirmDialog(t(permanent ? 'desktop.app_delete_permanent' : 'desktop.confirm_delete'),
+                permanent ? t('desktop.confirm_empty_trash_msg', { count: 1 }) : t('desktop.confirm_delete_msg', { path }));
             if (!confirmed) return;
         }
         try {
+            if (!permanent) return await movePathToTrash(path);
             await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
             desktopSound('file.delete');
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -20756,20 +21757,26 @@ function updateTaskbarSystemButtonsForMobile() {
         if (desktopReadonly()) return [];
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: cleanPaths })
             });
-            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
-            desktopSound('file.trash');
-            await refreshDesktopAfterFileChange();
-            return result.moves || [];
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
-            return [];
         }
+        if (moves.length) {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.context_delete'));
+            moves.forEach(move => removeIconPosition('desktop-entry-' + move.from));
+            desktopSound('file.trash');
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+        }
+        return moves;
     }
 
     async function handleTrashDrop(btn) {
@@ -20783,6 +21790,7 @@ function updateTaskbarSystemButtonsForMobile() {
 
     async function emptyTrash() {
         if (desktopReadonly()) return;
+        let changed = false;
         try {
             const entries = await listTrashEntries();
             if (entries.length === 0) {
@@ -20794,12 +21802,19 @@ function updateTaskbarSystemButtonsForMobile() {
                 if (!confirmed) return;
             }
             for (const entry of entries) {
-                if (entry && entry.path) await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                if (entry && entry.path) {
+                    await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                    changed = true;
+                }
             }
             desktopSound('file.delete');
-            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        } finally {
+            if (changed) {
+                try { await refreshDesktopAfterFileChange(); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            }
         }
     }
 
@@ -20829,18 +21844,22 @@ function updateTaskbarSystemButtonsForMobile() {
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        let restored = [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: unique, restore: true })
             });
-            restored = (result.moves || []).map(move => move.path);
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
+        window.AuraDesktopFileHistory?.record(moves, t('desktop.context_restore'));
+        const restored = moves.map(move => move.path);
         if (restored.length) {
-            await refreshDesktopAfterFileChange();
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             const message = restored.length === 1
                 ? t('desktop.trash_restored', { path: restored[0] })
                 : t('desktop.trash_restored_items', { count: restored.length });
@@ -22046,7 +23065,7 @@ if (appId === 'pixel') {
                     const actions = [
                         { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
                         { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(row.dataset.path) },
-                        { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(row.dataset.path) },
+                        { label: t(isInsideTrashPath(row.dataset.path) ? 'desktop.app_delete_permanent' : 'desktop.context_delete'), icon: 'trash', fallback: 'X', danger: true, action: () => deletePath(row.dataset.path) },
                     ];
                     if (row.dataset.type === 'file') {
                         const entry = {
@@ -25992,6 +27011,10 @@ if (appId === 'pixel') {
         }
         if (!delivery.toast) return;
         ringNotificationBell();
+        return showDesktopToast(payload);
+    }
+
+    function showDesktopToast(payload, action) {
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -26001,27 +27024,50 @@ if (appId === 'pixel') {
         toast.innerHTML = `<div><div class="vd-toast-title">${title}</div>${message ? `<div class="vd-toast-message">${message}</div>` : ''}</div><button class="vd-toast-close" type="button" aria-label="${esc(t('desktop.close'))}">✕</button>`;
         container.appendChild(toast);
         toast.querySelector('.vd-toast-close').addEventListener('click', () => removeToast(toast));
+        if (action && typeof action.run === 'function') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-toast-action';
+            button.textContent = action.label;
+            toast.firstElementChild.appendChild(button);
+            button.addEventListener('click', async () => {
+                if (button.disabled) return;
+                button.disabled = true;
+                try { await action.run(); }
+                catch (err) { showDesktopNotification({ type: 'error', message: err.message || t('desktop.action_unavailable') }); }
+                finally { removeToast(toast); }
+            });
+        }
         const duration = Number(payload.duration) || 5500;
         toast.dataset.type = payload.type === 'error' ? 'error' : 'info';
         toast.style.setProperty('--vd-toast-life', duration + 'ms');
-        // Hovering holds the toast; its countdown resumes with the time that was left.
+        // Keyboard and pointer interaction hold the toast until both leave it.
         let remaining = duration;
         let started = Date.now();
         const arm = () => {
+            if (toast._toastRemoved || toast._toastTimer || toast.matches(':hover, :focus-within')) return;
             started = Date.now();
             toast._toastTimer = setTimeout(() => removeToast(toast), remaining);
         };
-        toast.addEventListener('mouseenter', () => {
-            clearTimeout(toast._toastTimer);
-            remaining -= Date.now() - started;
+        const pause = () => {
+            if (toast._toastTimer) {
+                clearTimeout(toast._toastTimer);
+                toast._toastTimer = null;
+                remaining = Math.max(0, remaining - (Date.now() - started));
+            }
             toast.classList.add('vd-toast-paused');
-        });
-        toast.addEventListener('mouseleave', () => {
-            if (toast._toastRemoved) return;
+        };
+        const resume = () => {
+            if (toast._toastRemoved || toast.matches(':hover, :focus-within')) return;
             toast.classList.remove('vd-toast-paused');
             arm();
-        });
+        };
+        toast.addEventListener('mouseenter', pause);
+        toast.addEventListener('focusin', pause);
+        toast.addEventListener('mouseleave', resume);
+        toast.addEventListener('focusout', () => queueMicrotask(resume));
         arm();
+        return toast;
     }
 
     function removeToast(toast) {
@@ -26039,6 +27085,42 @@ if (appId === 'pixel') {
     function updateClock() {
         const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
+    }
+
+    function initDesktopFileHistory() {
+        const history = window.AuraDesktopFileHistory;
+        if (!history) return;
+        let sessionActive = true;
+        history.configure({ api, refresh: refreshDesktopAfterFileChange, notify: showDesktopNotification, isReadonly: desktopReadonly,
+            isSessionActive: () => sessionActive,
+            t: (key, _fallback, vars) => t(key, vars) });
+        let toast = null, lastId = '';
+        const updateToast = snapshot => {
+            if (!snapshot.undoCount) {
+                removeToast(toast);
+                toast = null;
+                lastId = '';
+                return;
+            }
+            if (toast) {
+                const button = toast.querySelector('.vd-toast-action');
+                if (button) button.disabled = !snapshot.canUndo;
+            }
+            if (snapshot.busy || snapshot.undoId === lastId) return;
+            lastId = snapshot.undoId;
+            removeToast(toast);
+            toast = null;
+            if (!snapshot.canUndo) return;
+            const undoId = snapshot.undoId;
+            toast = showDesktopToast({ title: t('desktop.menu_undo'), message: snapshot.undoLabel, duration: 8000 }, {
+                label: t('desktop.menu_undo'),
+                run: () => history.snapshot().undoId === undoId ? history.undo() : false
+            });
+            if (toast) toast.dataset.fileUndo = undoId;
+        };
+        history.subscribe(updateToast);
+        document.addEventListener('aurago:desktop-policy', () => updateToast(history.snapshot()));
+        document.addEventListener('aurago:auth-ended', () => { sessionActive = false; history.clear(); });
     }
 
     function wireChrome() {
@@ -26255,6 +27337,16 @@ if (appId === 'pixel') {
         if (handleWindowSnapShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
+        if ((event.ctrlKey || event.metaKey) && !event.altKey && desktopIconKeysAllowed(event)) {
+            const key = event.key.toLowerCase();
+            if (key === 'z' || key === 'y') {
+                event.preventDefault();
+                const history = window.AuraDesktopFileHistory;
+                if (key === 'y' || event.shiftKey) history?.redo();
+                else history?.undo();
+                return;
+            }
+        }
         if (relayGeneratedFrameKeyboardEvent(event)) return;
         if (event.ctrlKey && event.key.toLowerCase() === 'k') {
             event.preventDefault();
@@ -26382,6 +27474,7 @@ if (appId === 'pixel') {
             try { performance.mark('vd:' + name); } catch (_) { /* ignore */ }
         };
         mark('init-start');
+        initDesktopFileHistory();
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();

@@ -118,7 +118,7 @@
                     const actions = [
                         { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => row.dataset.type === 'directory' ? renderFiles(id, row.dataset.path) : openDesktopFileEntry(row) },
                         { label: t('desktop.context_rename'), icon: 'edit', fallback: 'E', action: () => renamePath(row.dataset.path) },
-                        { label: t('desktop.context_delete'), icon: 'trash', fallback: 'X', action: () => deletePath(row.dataset.path) },
+                        { label: t(isInsideTrashPath(row.dataset.path) ? 'desktop.app_delete_permanent' : 'desktop.context_delete'), icon: 'trash', fallback: 'X', danger: true, action: () => deletePath(row.dataset.path) },
                     ];
                     if (row.dataset.type === 'file') {
                         const entry = {

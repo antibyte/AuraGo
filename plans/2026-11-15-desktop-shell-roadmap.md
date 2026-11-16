@@ -5,15 +5,22 @@ Status: implementation in `codex/desktop-shell-everyday`, based on committed
 snap/guarded window actions, shared search/default apps, browser-local notification
 policy/history and shell text size/high contrast. Wave 1 passed focused Node, Go,
 browser, encoding and deterministic bundle checks locally on Windows, including
-snap/session restoration and notification storage boundaries. Later deliveries
-remain pending; full Linux CI and real assistive-technology acceptance are separate.
+snap/session restoration and notification storage boundaries. Wave 2 implements
+shared file history, Quick settings, a month calendar and media observation.
+Wave 2 passed focused Node and Windows Go tests, integrated browser flows,
+encoding and deterministic bundle checks, plus Linux/macOS compilation. Browser
+acceptance includes partial/disposed-window moves, cross-window history, late
+responses after logout, month navigation/retry, and constrained/forced-color views.
+Workspace personalization, session controls and grouped
+window switching remain pending. Full Linux CI and real assistive-technology
+acceptance are separate.
 
 Improve frequent desktop interactions by extending the existing shell. Preserve the
 distinct Standard taskbar and Fruity dock, the vanilla JavaScript architecture,
 server permissions, application close guards, and existing session data. Ship
 small vertical slices; operating-system feature parity is not the acceptance goal.
 
-## Existing foundations to reuse
+## Baseline before implementation (2026-11-15)
 
 - Snap already supports left/right halves and upper quarters. `top-half` geometry
   exists but has no user entry point. The lower quarters are absent.

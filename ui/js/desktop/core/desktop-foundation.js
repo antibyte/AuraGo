@@ -1087,7 +1087,13 @@
             const body = shouldParseJSON ? await resp.json() : {};
             if (!resp.ok) {
                 if (await resolveDesktopFileConflict(mutation, requestOptions, body)) continue;
-                const err = new Error(body.error || body.message || ('HTTP ' + resp.status));
+                const uncertain = body.code === 'file_undo_uncertain' || body.uncertain === true;
+                if (uncertain && String(url).split('?')[0] !== '/api/desktop/file-undo') {
+                    refreshDesktopAfterFileChange().catch(() => {});
+                }
+                const message = uncertain ? t('desktop.file_history_unknown')
+                    : body.code === 'file_undo_limit' ? t('desktop.file_history_limit') : body.error || body.message || ('HTTP ' + resp.status);
+                const err = new Error(message);
                 err.body = body;
                 err.status = resp.status;
                 const retryAfter = String(resp.headers.get('retry-after') || '');

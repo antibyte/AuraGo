@@ -88,6 +88,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Desktop PATCH `/api/desktop/file` and POST `/api/desktop/trash` include optional `undo_receipt` only for confirmed reversible moves. POST `/api/desktop/file-undo` accepts `{receipt}` and returns the opposite receipt after rechecking Desktop write authority. Partial Trash failures use HTTP409 `partial_failure` with confirmed `moves`; `uncertain:true` marks an unconfirmed additional mutation and must not enter conflict replay. Typed unavailable/limit/uncertain outcomes use 410/413/502. Broadcast only path invalidations, never receipt tokens. Keep existing body bounds, CSRF and Desktop permission gates.
+
 - Auth status is `no-store` and exposes `session_scope` only for a validated authenticated session: a non-secret SHA-256 digest of its nonce, stable across renewal and changed for a new session. It is a browser history partition, never an authorization credential. Disabled/invalid sessions omit it. Verify `TestAuthStatusSessionScopeTracksValidatedSessionIdentity` and `TestAuthStatusOmitsSessionScopeWhenDisabledOrInvalid`.
 - Desktop search keeps legacy callers without filters/paging on `SearchFiles`; optional `type`, `modified_after`, `modified_before`, `min_size`, `max_size`, `offset` and `limit` use `SearchFilesPage` and return `files`, `has_more`, `truncated`, `next_offset`. Validate before traversal and retain Desktop read permission. Verify `TestDesktopSearchPaged*`.
 

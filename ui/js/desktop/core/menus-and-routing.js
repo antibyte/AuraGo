@@ -185,7 +185,7 @@
                 showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
             }
         }
-        await loadBootstrap();
+        await refreshDesktopAfterFileChange();
     }
 
     async function compressDesktopPathsToZip(paths) {
@@ -207,7 +207,7 @@
                 body: JSON.stringify({ paths: cleanPaths, dest: destPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -228,7 +228,7 @@
                 body: JSON.stringify({ path: entry.path, dest })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.saved') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -247,7 +247,7 @@
                 body: JSON.stringify({ target_path: entry.path, link_path: linkPath })
             });
             showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.fm.symlink_created') });
-            await loadBootstrap();
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
@@ -341,7 +341,7 @@
 
     function contextMenuReadonlyGuard(items) {
         if (!desktopReadonly()) return items;
-        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app']);
+        const blocked = new Set(['cut', 'paste', 'rename', 'delete', 'duplicate', 'compress', 'extract', 'symlink', 'new-file', 'new-folder', 'empty-trash', 'remove-shortcut', 'delete-app', 'undo', 'redo']);
         return (items || []).map(item => {
             if (!item || item.separator) return item;
             if (!blocked.has(item.id)) return item;
@@ -452,11 +452,15 @@
         if (event.target.closest('.vd-icon, .vd-widget, .vd-window, .vd-start-menu')) return;
         event.preventDefault();
         selectDesktopIcon(null);
+        const history = window.AuraDesktopFileHistory;
+        const historyState = history?.snapshot();
         const items = contextMenuReadonlyGuard([
             { id: 'new-sticky-note', label: t('desktop.sticky_add'), icon: 'notes', fallback: '+', disabled: desktopReadonly(), action: () => editStickyNote(null, event.clientX, event.clientY) },
             { id: 'new-file', label: t('desktop.context_new_file'), icon: 'file-plus', fallback: '+', action: () => createFileInPath('Desktop') },
             { id: 'new-folder', label: t('desktop.context_new_folder'), icon: 'folder-plus', fallback: '+', action: () => createFolderInPath('Desktop') },
             { label: t('desktop.fm.paste'), icon: 'clipboard', fallback: 'V', shortcut: 'Ctrl+V', id: 'paste', disabled: !hasDesktopFileClipboard(), action: () => pasteDesktopFileClipboard('Desktop', { clientX: event.clientX, clientY: event.clientY }) },
+            { id: 'undo', label: t('desktop.menu_undo'), icon: 'undo', fallback: '↶', shortcut: 'Ctrl+Z', disabled: !historyState?.canUndo, action: () => history?.undo() },
+            { id: 'redo', label: t('desktop.menu_redo'), icon: 'redo', fallback: '↷', shortcut: 'Ctrl+Shift+Z', disabled: !historyState?.canRedo, action: () => history?.redo() },
             { separator: true },
             { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
             { label: t('desktop.settings_wallpaper'), icon: 'image', fallback: 'W', items: desktopWallpaperMenuItems() },
@@ -705,6 +709,10 @@
 
     async function refreshDesktopAfterFileChange() {
         await loadBootstrap();
+        if (window.FileManager?.refreshLocalInstances) {
+            await window.FileManager.refreshLocalInstances();
+            return;
+        }
         const active = state.windows.get(state.activeWindowId);
         if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
     }
@@ -835,9 +843,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path, content: '' })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
             openApp('editor', { path: saved.path || path, content: '' });
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
@@ -853,45 +859,43 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: workspaceJoinPath(basePath, name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function renamePath(path) {
-        if (!path) return;
+        if (!path || desktopReadonly()) return;
         const current = String(path).split('/').pop();
         const name = await promptDialog(t('desktop.rename'), current);
         if (!name || name === current) return;
         try {
-            await api('/api/desktop/file', {
+            const result = await api('/api/desktop/file', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ old_path: path, new_path: workspaceJoinPath(pathDir(path), name) })
             });
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            window.AuraDesktopFileHistory?.record(result, t('desktop.context_rename'));
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
     }
 
     async function deletePath(path) {
-        if (!path) return;
-        if (settingBool('files.confirm_delete')) {
-            const confirmed = await confirmDialog(t('desktop.confirm_delete'), t('desktop.confirm_delete_msg', { path }));
+        if (!path || desktopReadonly()) return;
+        const permanent = isInsideTrashPath(path);
+        if (permanent || settingBool('files.confirm_delete')) {
+            const confirmed = await confirmDialog(t(permanent ? 'desktop.app_delete_permanent' : 'desktop.confirm_delete'),
+                permanent ? t('desktop.confirm_empty_trash_msg', { count: 1 }) : t('desktop.confirm_delete_msg', { path }));
             if (!confirmed) return;
         }
         try {
+            if (!permanent) return await movePathToTrash(path);
             await api('/api/desktop/file?path=' + encodeURIComponent(path), { method: 'DELETE' });
             desktopSound('file.delete');
-            await loadBootstrap();
-            const active = state.windows.get(state.activeWindowId);
-            if (active && active.appId === 'files') renderFiles(active.id, state.filesPath);
+            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -905,20 +909,26 @@
         if (desktopReadonly()) return [];
         const cleanPaths = [...new Set((paths || []).map(normalizeDesktopPath).filter(Boolean))];
         if (!cleanPaths.length) return [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: cleanPaths })
             });
-            cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path));
-            desktopSound('file.trash');
-            await refreshDesktopAfterFileChange();
-            return result.moves || [];
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message });
-            return [];
         }
+        if (moves.length) {
+            window.AuraDesktopFileHistory?.record(moves, t('desktop.context_delete'));
+            moves.forEach(move => removeIconPosition('desktop-entry-' + move.from));
+            desktopSound('file.trash');
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+        }
+        return moves;
     }
 
     async function handleTrashDrop(btn) {
@@ -932,6 +942,7 @@
 
     async function emptyTrash() {
         if (desktopReadonly()) return;
+        let changed = false;
         try {
             const entries = await listTrashEntries();
             if (entries.length === 0) {
@@ -943,12 +954,19 @@
                 if (!confirmed) return;
             }
             for (const entry of entries) {
-                if (entry && entry.path) await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                if (entry && entry.path) {
+                    await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' });
+                    changed = true;
+                }
             }
             desktopSound('file.delete');
-            await refreshDesktopAfterFileChange();
         } catch (err) {
             showDesktopNotification({ title: t('desktop.notification'), message: err.message });
+        } finally {
+            if (changed) {
+                try { await refreshDesktopAfterFileChange(); }
+                catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
+            }
         }
     }
 
@@ -978,18 +996,22 @@
         if (desktopReadonly()) return [];
         const unique = [...new Set((paths || []).map(normalizeDesktopPath).filter(isInsideTrashPath))];
         if (!unique.length) return [];
-        let restored = [];
+        let moves = [];
         try {
             const result = await api('/api/desktop/trash', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ paths: unique, restore: true })
             });
-            restored = (result.moves || []).map(move => move.path);
+            moves = result.moves || [];
         } catch (err) {
+            moves = Array.isArray(err.body?.moves) ? err.body.moves : [];
             if (err.name !== 'AbortError') showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
         }
+        window.AuraDesktopFileHistory?.record(moves, t('desktop.context_restore'));
+        const restored = moves.map(move => move.path);
         if (restored.length) {
-            await refreshDesktopAfterFileChange();
+            try { await refreshDesktopAfterFileChange(); }
+            catch (err) { showDesktopNotification({ title: t('desktop.notification'), message: err.message }); }
             const message = restored.length === 1
                 ? t('desktop.trash_restored', { path: restored[0] })
                 : t('desktop.trash_restored_items', { count: restored.length });

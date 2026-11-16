@@ -504,6 +504,10 @@
         }
         if (!delivery.toast) return;
         ringNotificationBell();
+        return showDesktopToast(payload);
+    }
+
+    function showDesktopToast(payload, action) {
         const container = document.getElementById('vd-toast-container');
         if (!container) return;
         const toast = document.createElement('div');
@@ -513,27 +517,50 @@
         toast.innerHTML = `<div><div class="vd-toast-title">${title}</div>${message ? `<div class="vd-toast-message">${message}</div>` : ''}</div><button class="vd-toast-close" type="button" aria-label="${esc(t('desktop.close'))}">✕</button>`;
         container.appendChild(toast);
         toast.querySelector('.vd-toast-close').addEventListener('click', () => removeToast(toast));
+        if (action && typeof action.run === 'function') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'vd-toast-action';
+            button.textContent = action.label;
+            toast.firstElementChild.appendChild(button);
+            button.addEventListener('click', async () => {
+                if (button.disabled) return;
+                button.disabled = true;
+                try { await action.run(); }
+                catch (err) { showDesktopNotification({ type: 'error', message: err.message || t('desktop.action_unavailable') }); }
+                finally { removeToast(toast); }
+            });
+        }
         const duration = Number(payload.duration) || 5500;
         toast.dataset.type = payload.type === 'error' ? 'error' : 'info';
         toast.style.setProperty('--vd-toast-life', duration + 'ms');
-        // Hovering holds the toast; its countdown resumes with the time that was left.
+        // Keyboard and pointer interaction hold the toast until both leave it.
         let remaining = duration;
         let started = Date.now();
         const arm = () => {
+            if (toast._toastRemoved || toast._toastTimer || toast.matches(':hover, :focus-within')) return;
             started = Date.now();
             toast._toastTimer = setTimeout(() => removeToast(toast), remaining);
         };
-        toast.addEventListener('mouseenter', () => {
-            clearTimeout(toast._toastTimer);
-            remaining -= Date.now() - started;
+        const pause = () => {
+            if (toast._toastTimer) {
+                clearTimeout(toast._toastTimer);
+                toast._toastTimer = null;
+                remaining = Math.max(0, remaining - (Date.now() - started));
+            }
             toast.classList.add('vd-toast-paused');
-        });
-        toast.addEventListener('mouseleave', () => {
-            if (toast._toastRemoved) return;
+        };
+        const resume = () => {
+            if (toast._toastRemoved || toast.matches(':hover, :focus-within')) return;
             toast.classList.remove('vd-toast-paused');
             arm();
-        });
+        };
+        toast.addEventListener('mouseenter', pause);
+        toast.addEventListener('focusin', pause);
+        toast.addEventListener('mouseleave', resume);
+        toast.addEventListener('focusout', () => queueMicrotask(resume));
         arm();
+        return toast;
     }
 
     function removeToast(toast) {
@@ -551,6 +578,42 @@
     function updateClock() {
         const value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         document.querySelectorAll('.vd-clock').forEach(clock => { clock.textContent = value; });
+    }
+
+    function initDesktopFileHistory() {
+        const history = window.AuraDesktopFileHistory;
+        if (!history) return;
+        let sessionActive = true;
+        history.configure({ api, refresh: refreshDesktopAfterFileChange, notify: showDesktopNotification, isReadonly: desktopReadonly,
+            isSessionActive: () => sessionActive,
+            t: (key, _fallback, vars) => t(key, vars) });
+        let toast = null, lastId = '';
+        const updateToast = snapshot => {
+            if (!snapshot.undoCount) {
+                removeToast(toast);
+                toast = null;
+                lastId = '';
+                return;
+            }
+            if (toast) {
+                const button = toast.querySelector('.vd-toast-action');
+                if (button) button.disabled = !snapshot.canUndo;
+            }
+            if (snapshot.busy || snapshot.undoId === lastId) return;
+            lastId = snapshot.undoId;
+            removeToast(toast);
+            toast = null;
+            if (!snapshot.canUndo) return;
+            const undoId = snapshot.undoId;
+            toast = showDesktopToast({ title: t('desktop.menu_undo'), message: snapshot.undoLabel, duration: 8000 }, {
+                label: t('desktop.menu_undo'),
+                run: () => history.snapshot().undoId === undoId ? history.undo() : false
+            });
+            if (toast) toast.dataset.fileUndo = undoId;
+        };
+        history.subscribe(updateToast);
+        document.addEventListener('aurago:desktop-policy', () => updateToast(history.snapshot()));
+        document.addEventListener('aurago:auth-ended', () => { sessionActive = false; history.clear(); });
     }
 
     function wireChrome() {
@@ -767,6 +830,16 @@
         if (handleWindowSnapShortcut(event)) return;
         if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
+        if ((event.ctrlKey || event.metaKey) && !event.altKey && desktopIconKeysAllowed(event)) {
+            const key = event.key.toLowerCase();
+            if (key === 'z' || key === 'y') {
+                event.preventDefault();
+                const history = window.AuraDesktopFileHistory;
+                if (key === 'y' || event.shiftKey) history?.redo();
+                else history?.undo();
+                return;
+            }
+        }
         if (relayGeneratedFrameKeyboardEvent(event)) return;
         if (event.ctrlKey && event.key.toLowerCase() === 'k') {
             event.preventDefault();
@@ -894,6 +967,7 @@
             try { performance.mark('vd:' + name); } catch (_) { /* ignore */ }
         };
         mark('init-start');
+        initDesktopFileHistory();
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();

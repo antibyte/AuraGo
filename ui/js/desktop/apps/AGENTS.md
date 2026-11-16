@@ -620,6 +620,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 - `audio-player` is the native window for audio files. It is not the WebAmp launcher (`music-player`) and it never opens the gallery lightbox. Style: `css/desktop-app-audio-player.css`, prefix `vd-player`. Scripts, in order: `audio-player-tags.js`, `audio-player-visualizer.js`, `audio-player.js`.
 - The visualizer keeps the three modes `bars`, `radial` and `wave`. It only paints its canvas. Loudness reaches the shell as `onEnergy(bass, energy)` and becomes `--pl-pulse`. A readable cover swatch sets `--pl-cover` and `setCoverColor`; grey or missing art keeps the theme accent. Theme attribute changes refresh that accent only while no cover tint is active.
 - Playback, the folder queue, shuffle, repeat, speed and media-session handlers stay in `audio-player.js`. Visible copy stays on the existing `desktop.audio_player_*` keys. Verify `go test ./ui -run 'TestAudioPlayer|TestDesktopAudioPlayerWindowBrowser'`.
+- Media events publish idle/paused/playing/buffering/ended/error through the shared owner registration. Return asynchronous transport results, retain priority 60 and prevent late events or promises from claiming ownership after disposal. The shell subscribes to that state and delegates controls to the existing player.
 
 ## Synth Studio
 
@@ -3627,11 +3628,11 @@ buttons and menu popovers remain excluded from those gestures.
   previews. Dock hover must not call `findExistingAppWindow` (that switches
   spaces). Win/Meta+Arrow snaps the active window; Ctrl+Alt+Arrow keeps
   cycling spaces.
-- Thumbnails clone DOM window content when possible; iframe-heavy windows show
-  a live-window fallback instead of a blank capture.
+- Thumbnails use inert sanitized DOM when suitable; sensitive/editable content,
+  iframe-heavy windows and live canvas/media use icon/title replacement cards.
 - `AuraDesktopMediaSession` owns OS media handlers/metadata. Registrations are
-  owner-bound; disposal releases only that owner. Personal Radio has priority
-  over Webamp, then the latest active Radio/TeeVee/RTL-SDR player. Metadata
+  owner-bound; disposal releases only that owner. Priorities are Personal Radio
+  100, native Audio Player 60, WebAmp 50 and Radio/TeeVee/RTL-SDR 10. Metadata
   refreshes do not steal ownership. Radio direct streams use native no-CORS
   audio; background TeeVee playback remains intentional. No global volume control.
 - Chess disposes its AudioContext and scheduled tones. Galaxa cancels RAF while

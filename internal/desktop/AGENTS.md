@@ -12,6 +12,9 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- Receipt-backed file moves and Trash transitions return opaque one-use receipts, never a path-only inverse. Keep at most 256 pinned file identities for 30 minutes; expiration and service close release handles. Prepare an entire batch before mutation and reject more than 256 entries before the first move. Evict older receipts only when a confirmed replacement receipt commits; a failed attempt preserves existing history.
+- Undo rechecks readiness/read-only policy, current file identity, rooted source/target, Notes ownership and a free destination under the shared mutation lock. Native no-replace renames must also guard unpinnable legacy link moves; links and authorized replacements receive no receipt. Notes inverses use the Trash service's metadata path. Partial batches return confirmed moves; uncertain outcomes invalidate views without automatic retry or invented receipts. Close, receipt expiration and mutation lock ordering must not deadlock.
+
 - `SearchFilesPage` applies type, RFC3339 modification-time and byte-size filters before paging. Queries are bounded to 256 runes, traversal to 20,000 entries and matching results to 1,000; omitted pages default to 50 and explicit pages cannot exceed 100. Cancellation returns an error; exhausted budgets or unreadable subtrees report incomplete results. The legacy `SearchFiles` entry point retains its 1,000-result contract. Search never descends into symlinks or escapes the workspace.
 - Default-app settings are bounded extension-to-app-ID objects. New references must name available built-in or installed apps; unchanged unavailable mappings survive unrelated edits until explicitly reset. Text size accepts only 100/125/150 percent and high contrast is a boolean, both under `accessibility.*`.
 
