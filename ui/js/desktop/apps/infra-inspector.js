@@ -124,6 +124,7 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
             show();
             el.innerHTML = nodeMarkup(node, draft);
             el.setAttribute('aria-labelledby', titleId);
+            showTab(activeTab);
             forms.afterPaint(node);
             el.scrollTop = scrollTop;
         }
@@ -188,7 +189,12 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
                 const on = button.dataset.inspectorTab === tab;
                 button.setAttribute('aria-selected', String(on));
                 button.tabIndex = on ? 0 : -1;
-                if (on && focus) button.focus();
+                if (on) {
+                    if (focus) button.focus({ preventScroll: true });
+                    const tabs = button.parentElement, bounds = tabs.getBoundingClientRect(), rect = button.getBoundingClientRect();
+                    if (rect.left < bounds.left) tabs.scrollLeft -= bounds.left - rect.left;
+                    else if (rect.right > bounds.right) tabs.scrollLeft += rect.right - bounds.right;
+                }
             }
             for (const panel of el.querySelectorAll('[data-inspector-panel]')) panel.hidden = panel.dataset.inspectorPanel !== tab;
             const node = store.nodeById(state.selected);

@@ -461,8 +461,10 @@ button.infra-head-name:hover { border-color: var(--infra-line); }
 /* The rule above beats the generic touch size of .infra-button (specificity), so the touch size is restated here. */
 @media (pointer: coarse) { .infra-head-pills .infra-button { min-height: 44px; } }
 .infra-head-actions { display: flex; gap: 2px; }
-.infra-tabs { display: flex; gap: 0; padding: 0 var(--ds-space-2); overflow-x: auto; scrollbar-width: none; }
-.infra-tabs [role="tab"] { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; height: 36px; padding: 0 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vd-theme-muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+.infra-tabs { display: flex; gap: var(--ds-space-1); padding: 0 var(--ds-space-2); overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--vd-theme-border) transparent; scroll-padding-inline: var(--ds-space-2); }
+.infra-tabs [role="tab"] { display: inline-flex; flex: 1 0 auto; justify-content: center; align-items: center; gap: 4px; min-height: 40px; padding: 0 var(--ds-space-2); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--vd-theme-muted); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.infra-tabs [role="tab"]:hover { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); color: var(--vd-text); }
+.infra-app .infra-tabs [role="tab"]:focus-visible { outline-offset: -3px; }
 .infra-tabs [role="tab"][aria-selected="true"] { border-bottom-color: var(--vd-accent); background: var(--vd-mat-selected, transparent); color: var(--vd-mat-selected-text, var(--vd-text)); }
 .infra-tab-count { padding: 1px 5px; border-radius: var(--ds-radius-full); background: var(--infra-field-color); font-size: 12px; font-variant-numeric: tabular-nums; }
 .infra-tab-dirty { width: 8px; height: 8px; border-radius: 50%; background: var(--ds-color-warning-fg); }
@@ -519,7 +521,12 @@ button.infra-head-name:hover { border-color: var(--infra-line); }
 /* ---- Plan C: List view ---- */
 .infra-table-scroll { min-height: 0; flex: 1; margin: 0 var(--ds-space-3) var(--ds-space-3); overflow: auto; border: 1px solid var(--infra-line); border-radius: var(--ds-radius-md); background: var(--vd-mat-well, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-well-shadow, none); }
 .infra-table { width: 100%; min-width: 1100px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 14px; }
-.infra-table-empty { margin: 0; padding: var(--ds-space-6) var(--ds-space-4); color: var(--vd-theme-muted); text-align: center; }
+.infra-table-empty { min-height: 100%; display: grid; align-content: center; justify-items: center; gap: var(--ds-space-4); margin: 0; padding: var(--ds-space-6) var(--ds-space-4); color: var(--vd-theme-muted); text-align: center; }
+.infra-table-empty > p { max-width: 32ch; margin: 0; color: var(--vd-text); font-size: 16px; line-height: 1.5; text-wrap: balance; }
+.infra-table-empty .infra-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--ds-space-2); max-width: 100%; }
+.infra-table-empty .infra-button { height: auto; min-height: 36px; max-width: 100%; padding-block: var(--ds-space-2); white-space: normal; overflow-wrap: anywhere; }
+@media (pointer: coarse) { .infra-table-empty .infra-button, .infra-tabs [role="tab"] { min-height: 44px; } }
+.infra-col-check input:disabled { opacity: .45; cursor: default; }
 .infra-table thead th { position: sticky; top: 0; z-index: 1; height: 40px; padding: 0 var(--ds-space-2); border-bottom: 1px solid var(--infra-line); background: var(--vd-mat-bar-color, var(--vd-theme-panel-bg-strong)); color: var(--vd-mat-label-color, var(--vd-theme-muted)); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
 /* Fixed column widths in px, the name takes the rest, at least 200 px (an IP address, a type or a source never ellipsizes while its column shows). The table view is its own container: columns drop by priority as it narrows (Hardware, then Power and Source, then Place, then Type, then Address), so the List does not scroll sideways with the inspector open or in a small window. */
 .infra-table th[data-sort-col="kind"] { width: 150px; }

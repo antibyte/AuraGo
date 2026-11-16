@@ -248,6 +248,14 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `TestDesktopInfraWorkspaceRefreshBrowser` and `TestDesktopInfraWorkspacePolishLocalesBrowser`.
   Screenshot checks wait for visible images only; collapsed shelves and offscreen cards keep lazy images unloaded. The full
   fleet/theme browser matrix uses a bounded two-minute page budget.
+- The List distinguishes its first load, an unavailable snapshot, an empty inventory and no filter matches. Empty-state
+  actions reuse the command bar's import/create/retry/reset handlers and permissions; resetting filters returns focus to
+  the List button. Hide the empty table header, disable select-all without rows and retain known rows on refresh failure.
+  The header labels filtered counts as shown; the footer keeps the inventory total. Polling updates status without replacing
+  rows or focused actions. Empty-state actions and inspector tabs retain 44 px touch targets. Inspector tabs keep readable
+  spacing and reveal the active tab within their own horizontal scrollport, including a remembered tab after repaint;
+  they never scroll the page. Verify `TestDesktopInfraListRecoveryBrowser`,
+  `TestDesktopInfraListInitialStateBrowser` and `TestDesktopInfraInspectorTabVisibilityBrowser`.
 - Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
   guests, filters, scene builder, layout intents, history), `infra-lanes.js` (Topology lanes, auto layout; `window.InfraAppLanes`,
   `app.lanes`), `infra-store.js` (state, API, polling and visibility,

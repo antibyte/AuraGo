@@ -153,13 +153,13 @@ func TestDesktopInfraCameraTargetBrowser(t *testing.T) {
 
 	// Notification-center event contexts keep the existing event/detail flow
 	// after camera-only launch support was added.
+	page.MustWait(`()=>window.AuraDesktopNotificationCenter?.status().ready`)
 	page.MustEval(`id=>{
-		const a=auditTest;
-		a.state.notificationHistory.unshift({id:'n-infra-target-compat',title:'Camera event',message:'Garage',appId:'network-cameras',context:{event_id:id,camera_id:'garage'},ts:Date.now(),read:false});
+		window.infraTargetNotice=window.AuraDesktopNotificationCenter.record({title:'Camera event',message:'Garage',appId:'network-cameras',context:{event_id:id,camera_id:'garage'}});
 		document.getElementById('vd-notification-button').click();
 	}`, ncdEventGarage)
-	page.MustWait(`()=>!!document.querySelector('[data-notification-id="n-infra-target-compat"]')`)
-	page.MustEval(`()=>document.querySelector('[data-notification-id="n-infra-target-compat"]').click()`)
+	page.MustWait(`()=>!!document.querySelector('[data-action="open-notification"][data-notification-id="'+infraTargetNotice.id+'"]')`)
+	page.MustEval(`()=>document.querySelector('[data-action="open-notification"][data-notification-id="'+infraTargetNotice.id+'"]').click()`)
 	page.MustWait(`cover=>document.querySelector('.nc-segmented [data-mode="detections"]')?.getAttribute('aria-pressed')==='true'&&document.querySelector('[data-ncd-filter="camera"]')?.value==='garage'&&(document.querySelector('.ncd-frame img')?.getAttribute('src')||'').endsWith('/detection/images/'+cover)`, fmt.Sprint(ncdFrameID(ncdEventGarage, 1)))
 	networkCamerasWaitFor(t, "notification event camera filter", 5*time.Second, func() bool {
 		return fixture.snapshot(func(f *networkCamerasDetectionFixture) any {

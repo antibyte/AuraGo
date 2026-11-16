@@ -313,6 +313,7 @@
             statusReset.title = resetLabel;
             q('[data-reset-label]').textContent = resetLabel;
             paintInventoryStatus();
+            if (state.view === 'table') table.paintStatus();
             paintFilterChips();
             scheduleChipFit();
         }
@@ -485,7 +486,7 @@
             (left[Math.min(index, left.length - 1)] || chipsEl.querySelector('[data-filter-overflow]:not([hidden])') || searchInput).focus();
         }
         const onRootClick = event => {
-            if (event.target.closest(OWN_CLICKS)) return;
+            if (event.target.closest(OWN_CLICKS) && !event.target.closest('[data-table-empty] [data-action]')) return;
             const chip = event.target.closest('[data-remove-filter]');
             if (chip) { removeFilter(chip.dataset.removeFilter); return; }
             const viewButton = event.target.closest('.infra-view-switch [data-view]');
@@ -514,7 +515,7 @@
                 case 'toggle-library': toggleLibrary(); return;
                 case 'retry-layout': void store.retryLayout(view); break;
                 case 'clear-search': clearSearch(); focusSearch(); break;
-                case 'reset-filters': resetFilters(Object.keys(FILTER_SELECTS)); break;
+                case 'reset-filters': resetFilters(Object.keys(FILTER_SELECTS)); restoreFocus(focusFallback()); break;
                 case 'clear-search-filters': clearSearch(); resetFilters(Object.keys(FILTER_SELECTS)); restoreFocus(focusFallback()); break;
                 case 'show-match': jumpToSearchMatch(); break;
                 case 'dismiss-toast': { const element = button.closest('[data-toast]'); if (element) removeToast(element); return; }
