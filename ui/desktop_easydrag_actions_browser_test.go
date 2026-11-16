@@ -192,7 +192,7 @@ func TestEasyDragActionsAgreeBrowser(t *testing.T) {
 	p.MustEval(select1)
 	s.wait(`()=>document.querySelectorAll('.ed-node.is-selected').length===1`)
 	normal := s.actionsAgree("normal", []string{"window", "more", "card", "canvas", "tools", "header", "table"}, map[string]int{
-		"edit.duplicate": 4, "edit.delete": 4, "step.test": 2, "step.toggle": 3, "flow.test": 3, "flow.run_now": 3, "edit.undo": 3, "edit.select_all": 3, "view.zoom_fit": 3,
+		"edit.duplicate": 4, "edit.delete": 4, "step.test": 2, "step.toggle": 3, "flow.test": 3, "flow.run_now": 2, "edit.undo": 3, "edit.select_all": 3, "view.zoom_fit": 3,
 	})
 	if normal.Facts["flow.test"] != "on" || normal.Facts["edit.duplicate"] != "on" {
 		t.Fatalf("normal: Test and Duplicate must be available, got %v", normal.Facts)

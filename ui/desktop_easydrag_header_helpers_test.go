@@ -18,5 +18,8 @@ func (s *easyDragSmoke) pillEntry(name string) {
 // on (flows), the editor takes the flag at once (flows and blocks), and the header repaints. The primary button then offers Publish.
 func (s *easyDragSmoke) markTested() {
 	s.t.Helper()
+	// An edit that is still on its way to the server makes the draft untested, and its save answer (a block fixture says nothing of
+	// "tested") would drop the flag again: the mark is set once the saver is idle.
+	s.wait(`()=>{const ed=edFixture.editor();return !ed||ed.saver.state==='saved'}`)
 	s.page.MustEval(`()=>{edFixture.state.tested=true;const ed=edFixture.editor();if(!ed)return;ed.flow.tested=true;ed.flowFactsRevision=ed.saver.revision;ed.bus.emit('flow-facts',ed.flow)}`)
 }

@@ -45,9 +45,9 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 				page.MustSetViewport(width, 900, 1, width < 760)
 				page.MustEval(`theme=>fixtureTheme(theme)`, theme)
 				s.wait(`()=>{const app=document.querySelector('.ed-app'),head=document.querySelector('.ed-head'),box=head.getBoundingClientRect();return app && box.width>0 && box.left>=-1 && box.right<=innerWidth+1 && head.scrollWidth<=head.clientWidth+1 && document.querySelector('.ed-canvas').getBoundingClientRect().width>100;}`)
-				s.wait(`()=>['test','publish'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]'),label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';})`)
+				s.wait(`()=>['test','publish'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]');if(b.hidden)return cmd==='publish';const label=b.querySelector('span'),r=b.getBoundingClientRect();return r.width>0 && r.left>=-1 && r.right<=innerWidth+1 && getComputedStyle(label).display!=='none';})`)
 				if width < 760 {
-					s.wait(`()=>['test','publish','more'].every(cmd=>{const r=document.querySelector('[data-ed-cmd="'+cmd+'"]').getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
+					s.wait(`()=>['test','publish','more'].every(cmd=>{const b=document.querySelector('[data-ed-cmd="'+cmd+'"]');if(b.hidden)return cmd==='publish';const r=b.getBoundingClientRect();return r.width>=44 && r.height>=44;})`)
 				}
 				s.headerNames()
 				// Position is fixture setup; opening and closing use real keyboard/buttons.
@@ -67,7 +67,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustSetViewport(1440, 900, 1, false)
 	_ = (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page)
 	page.MustEval(`()=>fixtureTheme('standard')`)
-	// Fix batch 5: on a phone the ⋯ menu holds Runs and Test and Paused stays in the header; a deleted
+	// Fix batch 5: on a phone the ⋯ menu is the one of the wide editor (Runs is in the pill's popover, Test stays in the header) and Paused stays in the header; a deleted
 	// step offers Undo in a toast; the header's Undo takes back an edit.
 	if err := (proto.EmulationSetTouchEmulationEnabled{Enabled: true}).Call(page); err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	page.MustSetViewport(390, 844, 1, true)
 	s.wait(`()=>document.querySelector('.ed-app').getBoundingClientRect().width<=560 && getComputedStyle(document.querySelector('.ed-head-actions [data-ed-cmd="test"]')).display!=='none'`)
 	page.MustElement(`[data-ed-cmd="more"]`).MustClick()
-	s.wait(`()=>{const ed=edFixture.editor();const items=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].map(b=>b.textContent);return items.some(x=>x.includes(ed.t('easydrag.ui.runs_title'))) && items.some(x=>x.includes(ed.t('easydrag.ui.test_draft')))}`)
+	s.wait(`()=>{const ed=edFixture.editor();const items=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].map(b=>b.textContent);return items.length>0 && !items.some(x=>x.includes(ed.t('easydrag.ui.runs_title'))) && !items.some(x=>x.includes(ed.t('easydrag.ui.test_draft')))}`)
 	page.MustEval(`()=>aurora.closeContextMenu()`)
 	page.MustEval(`()=>{edFixture.flow().enabled=false;aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}})}`)
 	s.wait(`()=>{const chip=document.querySelector('[data-ed-pill][data-ed-pill-kind="paused"]');return !!chip && chip.getBoundingClientRect().width>0}`)

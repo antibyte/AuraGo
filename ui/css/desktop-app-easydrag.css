@@ -631,7 +631,7 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 /* the status pill (easydrag-pill.js): a status disc and one short text; its popover holds what left the header */
 .ed-head-pill {
     display: inline-flex; align-items: center; gap: 6px; max-width: min(20rem, 100%); min-width: 0; min-height: 28px; padding: 3px 10px 3px 8px;
-    border: 1px solid var(--ed-border); border-radius: var(--ed-radius-pill); background: var(--ed-control); color: var(--ed-text);
+    border: 1px solid var(--ed-border); border-radius: var(--ed-radius-pill); background: var(--ed-panel-strong); color: var(--ed-text);
     font: inherit; font-size: var(--ed-font-meta); font-weight: 600; line-height: 1.2; cursor: pointer;
 }
 .ed-head-pill:hover { background: var(--ed-control-hover); border-color: var(--ed-border-strong); }
@@ -1466,6 +1466,10 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="publish"] { flex: 1 1 80px; min-width: 80px; padding: 6px 8px; font-size: var(--ed-font-body); }
     .ed-head-actions [data-ed-cmd="publish"] { flex: 1 0 auto; min-width: min-content; }
     .ed-head-actions [data-ed-cmd="publish"] > .ed-icon { display: none; }
+    /* a phone takes two rows (W1c): the Stop slot and Test share the first; the primary button, Undo, Redo and More the second */
+    .ed-head-actions .ed-stop-slot { flex: 1 1 8rem; width: auto; min-width: 0; }
+    .ed-head-actions [data-ed-cmd="test"] { flex: 1 1 8rem; min-width: 0; }
+    .ed-head-actions [data-ed-cmd="publish"] { flex: 1 1 10rem; min-width: 0; }
     .ed-head-actions [data-ed-cmd="test"] > span, .ed-head-actions [data-ed-cmd="publish"] > span { overflow-wrap: normal; }
     .ed-detail-backdrop { padding: 0; }
     .ed-detail { border-radius: 0; }
