@@ -1,4 +1,4 @@
-/* Runenpfad backdrop painters (2/2): desert, glacier and citadel silhouettes, peak decoration and foreground strips. */
+/* Runenpfad backdrop painters (2/2): desert, glacier and citadel silhouettes and peak decoration. */
 (function (root) {
     'use strict';
 
@@ -458,117 +458,8 @@
         c.fill();
     }
 
-    // ---- foreground silhouettes (growing upward from the ground line only) ----
-
-    function blade(c, x, y, h, lean, w) {
-        c.beginPath();
-        c.moveTo(x - w / 2, y);
-        c.quadraticCurveTo(x + lean * 0.15, y - h * 0.6, x + lean, y - h);
-        c.quadraticCurveTo(x + lean * 0.35 + w * 0.1, y - h * 0.5, x + w / 2, y);
-        c.fill();
-    }
-
-    function paintForegroundStrip(c, style, color, span) {
-        const r = function (i, s) { return hash1(i * 977 + s * 7919 + 3, 4242); };
-        c.fillStyle = color;
-        c.strokeStyle = color;
-        c.lineCap = 'round';
-        const y = span;
-        const N = 16;
-        for (let i = 0; i < N; i++) {
-            const x = ((i + 0.15 + r(i, 1) * 0.7) * P) / N;
-            if (r(i, 2) < 0.28) continue; // keep it sparse
-            wrapDraw(x, 70, function (xx) {
-                if (style === 'iron') {
-                    const kind = r(i, 3);
-                    for (let k = 0; k < 3; k++) {
-                        const h = 24 + r(i * 3 + k, 4) * 64;
-                        const w = 3 + r(i * 3 + k, 5) * 3;
-                        const px = xx + (k - 1) * 14;
-                        c.fillRect(px - w / 2, y - h, w, h + 6);
-                        c.beginPath();
-                        c.moveTo(px - w, y - h + 1);
-                        c.lineTo(px, y - h - 12);
-                        c.lineTo(px + w, y - h + 1);
-                        c.fill();
-                    }
-                    if (kind > 0.5) {
-                        c.lineWidth = 3;
-                        c.beginPath();
-                        c.ellipse(xx, y - 14, 15, 11, 0.3, 0, TAU);
-                        c.stroke();
-                        c.beginPath();
-                        c.ellipse(xx + 17, y - 16, 12, 8, -0.4, 0, TAU);
-                        c.stroke();
-                    }
-                    return;
-                }
-                const n = 8 + Math.floor(r(i, 3) * 9);
-                for (let k = 0; k < n; k++) {
-                    const hh = (style === 'dry' ? 34 : 24) + r(i * 31 + k, 4) * (style === 'grass' ? 56 : 50);
-                    const lean = (r(i * 31 + k, 5) - 0.5) * (style === 'dry' ? 56 : 34);
-                    const w = style === 'dry' ? 2.4 : style === 'ice' ? 6 : 5;
-                    const px = xx + (k - n / 2) * 4.2;
-                    if (style === 'ice') {
-                        c.beginPath();
-                        c.moveTo(px - w, y);
-                        c.lineTo(px + lean * 0.3, y - hh * 0.9);
-                        c.lineTo(px + w, y);
-                        c.fill();
-                    } else {
-                        blade(c, px, y, hh, lean, w);
-                    }
-                }
-                if (style === 'fungi' && r(i, 6) > 0.4) {
-                    for (let k = 0; k < 2; k++) {
-                        const hh = 34 + r(i * 3 + k, 7) * 36;
-                        const px = xx + 22 + k * 16;
-                        c.lineWidth = 4;
-                        c.beginPath();
-                        c.moveTo(px, y);
-                        c.lineTo(px + 3, y - hh);
-                        c.stroke();
-                        c.beginPath();
-                        c.ellipse(px + 3, y - hh, 13, 7, 0, Math.PI, 0);
-                        c.fill();
-                    }
-                }
-                if (style === 'dry' && r(i, 6) > 0.7) {
-                    c.lineWidth = 7;
-                    c.beginPath();
-                    c.moveTo(xx - 30, y);
-                    c.lineTo(xx - 30, y - 62);
-                    c.moveTo(xx - 30, y - 30);
-                    c.lineTo(xx - 44, y - 30);
-                    c.lineTo(xx - 44, y - 48);
-                    c.stroke();
-                }
-                if (style === 'grass' && r(i, 6) > 0.5) {
-                    c.lineWidth = 2.4;
-                    for (let f = -1; f <= 1; f += 2) {
-                        c.beginPath();
-                        c.moveTo(xx + 24, y);
-                        c.quadraticCurveTo(xx + 24 + f * 22, y - 40, xx + 24 + f * 48, y - 34);
-                        c.stroke();
-                        for (let t = 1; t < 6; t++) {
-                            const px = xx + 24 + f * t * 8;
-                            const py = y - 10 - Math.sin((t / 6) * Math.PI) * 24;
-                            c.beginPath();
-                            c.moveTo(px, py);
-                            c.lineTo(px + f * 3, py - 12);
-                            c.moveTo(px, py);
-                            c.lineTo(px + f * 3, py + 6);
-                            c.stroke();
-                        }
-                    }
-                }
-            });
-        }
-    }
-
     B.PROPS = PROPS;
     B.decoratePeaks = decoratePeaks;
     B.drawBody = drawBody;
-    B.paintForegroundStrip = paintForegroundStrip;
     B.propsCeiling = propsCeiling;
 })(typeof window !== 'undefined' ? window : globalThis);

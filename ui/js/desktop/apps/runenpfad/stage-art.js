@@ -68,6 +68,12 @@
                 ctx.translate(pd.bx, pd.by);
                 ctx.rotate(view.reducedMotion ? 0 : view.nowSec * 9 * (pd.angle >= 0 ? 1 : -1));
                 h.drawGlow(0, 0, 60, 'rgba(251, 113, 133, 0.55)', 0.45);
+                if (!view.reducedMotion) {
+                    ctx.save();
+                    ctx.rotate(-0.3 * (pd.angle >= 0 ? 1 : -1));
+                    h.drawStaticAsset('jump-and-run', 'saw', -26, -26, 52, 52, false, 0.28);
+                    ctx.restore();
+                }
                 h.drawStaticAsset('jump-and-run', 'saw', -26, -26, 52, 52);
                 ctx.restore();
             });

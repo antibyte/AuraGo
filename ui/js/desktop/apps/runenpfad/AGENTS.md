@@ -20,8 +20,8 @@ Offline 2D action-platformer game (`runenpfad`, category `games`) for the AuraGo
 - `ui/js/desktop/apps/runenpfad/audio.js` — Gesture-unlocked Web Audio controller: cue table, sample and synth layers, buses, per-biome reverb, master limiter and `validateSoundManifest` for `aurago-sounds`.
 - `ui/js/desktop/apps/runenpfad/music.js` — Procedural adaptive music: per-biome themes and boss themes, seeded composition and the synthesis hooks.
 - `ui/js/desktop/apps/runenpfad/backdrops.js` — Backdrop painters, part 1: shared noise helpers, woodland, cavern and cave-ceiling silhouettes.
-- `ui/js/desktop/apps/runenpfad/backdrops-biomes.js` — Backdrop painters, part 2: desert, glacier and citadel silhouettes, peak decoration and foreground strips.
-- `ui/js/desktop/apps/runenpfad/atmosphere.js` — Canvas painter for cached parallax strips, clouds, weather, foreground, the 2D light map, colour grade and vignette.
+- `ui/js/desktop/apps/runenpfad/backdrops-biomes.js` — Backdrop painters, part 2: desert, glacier and citadel silhouettes and peak decoration.
+- `ui/js/desktop/apps/runenpfad/atmosphere.js` — Canvas painter for cached parallax strips, clouds, weather, the 2D light map, colour grade and vignette.
 - `ui/js/desktop/apps/runenpfad/decor.js` — Canvas decor layer: torches, lanterns, ledge caps, floaters, grass sway, lava shimmer and ripples.
 - `ui/js/desktop/apps/runenpfad/actors.js` — Hero, enemy and projectile drawing with squash and stretch, afterimages, hit flash, dissolve and the climb clips.
 - `ui/js/desktop/apps/runenpfad/stage-art.js` — Drawing of zone objects, boss telegraphs and timed hazards.

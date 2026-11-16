@@ -455,7 +455,17 @@
             stage.hazards.forEach(function (h) {
                 if (h.x + h.w < sx || h.x > sx + viewW) return;
                 if (h.kind === 'saw') {
-                    drawStaticAsset('jump-and-run', 'saw', h.x, h.y + (Math.sin(nowSec * 6) * 2), TILE, TILE);
+                    // Spin around the blade centre (render time only); alternate direction by tile parity, ghost for blur.
+                    const spin = reduced ? 0 : nowSec * 7.5 * ((Math.round(h.x / TILE) & 1) ? -1 : 1);
+                    const scx = h.x + TILE / 2;
+                    const scy = h.y + TILE / 2 + (reduced ? 0 : Math.sin(nowSec * 6) * 1.5);
+                    for (let g = reduced ? 0 : 1; g >= 0; g--) {
+                        ctx.save();
+                        ctx.translate(scx, scy);
+                        ctx.rotate(spin - g * 0.32);
+                        drawStaticAsset('jump-and-run', 'saw', -TILE / 2, -TILE / 2, TILE, TILE, false, g ? 0.28 : 1.0);
+                        ctx.restore();
+                    }
                 } else if (h.kind === 'spike_trap') {
                     drawAnimation('jump-and-run', 'spike_trap', spikeElapsed(h, nowSec), h.x, h.y + 4, TILE, TILE, false, 1.0, typeof h.phase01 === 'number');
                 } else if (h.assetId === 'stalactite') {
@@ -556,7 +566,6 @@
 
             if (atmosphere) {
                 const fgGround = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
-                if (typeof atmosphere.paintForeground === 'function') atmosphere.paintForeground(biome, sx, viewW, viewH, fgGround);
                 if (rainWeather) atmosphere.paintRainFront(rainWeather, viewW, viewH, nowSec, fgGround, reduced ? 0.35 : 1);
             }
 

@@ -582,12 +582,16 @@
         let nearLadder = false;
         let nearKind = null;
         let nearRope = null;
+        let ladderBelow = false; // a ladder tile continues under the feet, so one-way platforms at the column are passable
         for (let i = 0; i < stage.ladders.length; i++) {
             const l = stage.ladders[i];
-            if (Math.abs(p.x - (l.x + TILE / 2)) < 20 && p.y > l.y && p.y - p.h < l.y + TILE) {
+            if (Math.abs(p.x - (l.x + TILE / 2)) >= 20) continue;
+            // Standing on the platform at the top of a ladder (feet on the top tile's edge) + Down grabs it.
+            const atTopEdge = input.down && p.y > l.y - 3;
+            if ((p.y > l.y || atTopEdge) && p.y - p.h < l.y + TILE) {
                 nearLadder = true;
                 nearKind = 'ladder';
-                break;
+                if (p.y + 2 >= l.y && p.y + 2 < l.y + TILE) ladderBelow = true;
             }
         }
         if (!nearLadder && stage.ropes) {
@@ -671,7 +675,7 @@
         p.x += p.vx * dt;
         physicsApi().resolveHorizontalTiles(stage, p, p.w, p.h);
         p.y += p.vy * dt;
-        const landResult = physicsApi().resolveVerticalTiles(stage, p, p.w, p.h, prevY, !!(input.down && !p.slamActive && !nearLadder));
+        const landResult = physicsApi().resolveVerticalTiles(stage, p, p.w, p.h, prevY, !!(input.down && !p.slamActive && (!nearLadder || ladderBelow)));
         if (landResult === 'spring') {
             pushJump(sim);
             pushEvent(sim, 'spring', { x: p.x, y: p.y });

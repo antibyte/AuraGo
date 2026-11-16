@@ -1,4 +1,4 @@
-/* Runenpfad atmosphere painter: cached parallax strips, clouds, weather, foreground, 2D light map and colour grade. */
+/* Runenpfad atmosphere painter: cached parallax strips, clouds, weather, 2D light map and colour grade. */
 (function (root) {
     'use strict';
 
@@ -16,7 +16,6 @@
     const PROPS = B.PROPS || {};
     const decoratePeaks = B.decoratePeaks;
     const drawBody = B.drawBody;
-    const paintForegroundStrip = B.paintForegroundStrip;
     const propsCeiling = B.propsCeiling;
 
 
@@ -436,34 +435,6 @@
             }
         }
 
-        // Dark blurred silhouettes passing in front at parallax 1.25; they grow upward from the ground line only.
-        function paintForeground(biome, camX, viewW, viewH, groundY) {
-            const fg = biome.foreground;
-            if (!fg) return;
-            const d = dpr();
-            const span = 120;
-            const e = cached('fg|' + biome.id, P, span + 8, d, function (g) {
-                if ('filter' in g) g.filter = 'blur(1.3px)';
-                g.translate(0, 0);
-                g.save();
-                g.beginPath();
-                g.rect(0, 0, P, span + 8);
-                g.clip();
-                paintForegroundStrip(g, fg.style, fg.color, span);
-                g.restore();
-                if ('filter' in g) g.filter = 'none';
-            });
-            if (!e.canvas) return;
-            const limit = Math.min(groundY + 8, viewH - 40);
-            const dy = Math.round(groundY + 4 - span);
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, viewW, limit);
-            ctx.clip();
-            blit(e.canvas, d, camX * (fg.factor || 1.25), viewW, dy, Math.min(0.85, fg.alpha));
-            ctx.restore();
-        }
-
         function paintRainStreaks(w, viewW, viewH, t, frac, front) {
             const n = Math.round(w.density * frac);
             const slant = 0.2;
@@ -663,7 +634,6 @@
 
         return {
             paintBackdrop: paintBackdrop,
-            paintForeground: paintForeground,
             paintWeather: paintWeather,
             paintRainFront: paintRainFront,
             paintLighting: paintLighting,

@@ -821,3 +821,35 @@ console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 lev
     assert.ok(kRes.launchVx > 150, 'jumping off a rope sideways gives a usable horizontal launch');
     assert.ok(crossChasm('ranger', [0, 0, 3]), 'the ranger can cross rope_chasm via the ropes');
 }
+
+// Ladders can be climbed down from the platform at their top, and climbed back up to it.
+{
+    const STEP = Sim.STEP, TILE = 48;
+    const ls = Sim.createSimulation({ mode: "campaign", levelId: 3, hero: "knight", profile });
+    const col = ls.stage.ladders.filter((l) => l.x === ls.stage.ladders[0].x);
+    const top = col.reduce((a, b) => (b.y < a.y ? b : a));
+    const bottom = col.reduce((a, b) => (b.y > a.y ? b : a));
+    const p = ls.player;
+    p.x = top.x + 24; p.y = top.y; p.vx = 0; p.vy = 0;
+    Sim.stepSimulation(ls, STEP, {});
+    assert.ok(p.onGround && Math.abs(p.y - top.y) < 1 && !p.onLadder, 'the hero stands on the platform atop the ladder');
+    let climbedDown = false;
+    for (let i = 0; i < 200 && !(p.y > bottom.y + 24); i++) {
+        Sim.stepSimulation(ls, STEP, { down: true });
+        if (i > 5 && p.y < bottom.y) climbedDown = climbedDown || p.climbKind === 'ladder';
+        else if (i > 5) assert.equal(p.climbKind, 'ladder', `still on the ladder while descending (tick ${i})`);
+    }
+    assert.ok(climbedDown, 'Down on the top platform grabs the ladder');
+    assert.ok(p.y > bottom.y + 24, 'the hero climbs down to the bottom of the ladder');
+    for (let i = 0; i < 40; i++) Sim.stepSimulation(ls, STEP, { down: true });
+    assert.ok(p.y <= bottom.y + TILE + 0.01, 'holding Down at the bottom never drops through the ground');
+    for (let i = 0; i < 400 && p.y > top.y + 1; i++) Sim.stepSimulation(ls, STEP, { up: true });
+    for (let i = 0; i < 30; i++) Sim.stepSimulation(ls, STEP, {});
+    assert.ok(p.onGround && Math.abs(p.y - top.y) < 1.5, 'climbing up steps off onto the top platform');
+    // Jump still leaves the ladder.
+    Sim.stepSimulation(ls, STEP, { down: true });
+    Sim.stepSimulation(ls, STEP, { down: true });
+    assert.equal(p.climbKind, 'ladder');
+    Sim.stepSimulation(ls, STEP, { jumpPressed: true });
+    assert.ok(!p.onLadder && p.vy < 0, 'Jump leaves the ladder');
+}
