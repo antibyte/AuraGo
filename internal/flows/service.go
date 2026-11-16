@@ -739,10 +739,19 @@ func DiffFlows(live, draft *Flow) DiffSummary {
 	if draft == nil {
 		draft = &Flow{}
 	}
+	d := countDiff(live, draft)
+	d.Details, d.DetailsTruncated = diffDetails(live, draft)
+	return d
+}
+
+// countDiff is DiffFlows without the per-step details: only the counts. CountChanges
+// shares it, so the editor's change count equals the publish preview's counts.
+func countDiff(live, draft *Flow) DiffSummary {
+	if draft == nil {
+		draft = &Flow{}
+	}
 	if live == nil {
-		d := DiffSummary{FirstPublish: true, AddedNodes: len(draft.Nodes)}
-		d.Details, d.DetailsTruncated = diffDetails(nil, draft)
-		return d
+		return DiffSummary{FirstPublish: true, AddedNodes: len(draft.Nodes)}
 	}
 	signature := func(n Node) string {
 		n.Position = Point{}
@@ -790,6 +799,5 @@ func DiffFlows(live, draft *Flow) DiffSummary {
 			d.ChangedEdges++
 		}
 	}
-	d.Details, d.DetailsTruncated = diffDetails(live, draft)
 	return d
 }
