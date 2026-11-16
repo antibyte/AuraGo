@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
+	"time"
 
 	"aurago/internal/dbutil"
 	"aurago/internal/security"
@@ -16,11 +18,12 @@ import (
 var GlobalManager *Manager
 
 type Manager struct {
-	db        *sql.DB
-	vault     *security.Vault
-	logger    *slog.Logger
-	publicKey string
-	mu        sync.RWMutex
+	db               *sql.DB
+	vault            *security.Vault
+	logger           *slog.Logger
+	publicKey        string
+	mu               sync.RWMutex
+	sendNotification func([]byte, *webpush.Subscription, *webpush.Options) (*http.Response, error)
 }
 
 // PushSubscription represents a Web Push subscription object sent by the browser.
@@ -48,9 +51,10 @@ func NewManager(dbPath string, vault *security.Vault, logger *slog.Logger) (*Man
 	}
 
 	m := &Manager{
-		db:     db,
-		vault:  vault,
-		logger: logger,
+		db:               db,
+		vault:            vault,
+		logger:           logger,
+		sendNotification: webpush.SendNotification,
 	}
 
 	if err := m.initKeys(); err != nil {
@@ -92,8 +96,8 @@ func (m *Manager) GetPublicKey() string {
 }
 
 func (m *Manager) Subscribe(sub PushSubscription) error {
-	if sub.Endpoint == "" || sub.Keys["auth"] == "" || sub.Keys["p256dh"] == "" {
-		return fmt.Errorf("invalid subscription data")
+	if err := ValidateSubscription(sub); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidSubscription, err)
 	}
 
 	m.mu.Lock()
@@ -122,7 +126,7 @@ func (m *Manager) Subscribe(sub PushSubscription) error {
 	}
 
 	if created {
-		m.logger.Info("New Web Push subscription added", "endpoint", sub.Endpoint)
+		m.logger.Info("New Web Push subscription added")
 	}
 	return nil
 }
@@ -133,6 +137,7 @@ func (m *Manager) SendPush(payload []byte, beforeSend ...func()) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to read vapid private key: %w", err)
 	}
+	security.RegisterSensitive(privKey)
 
 	rows, err := m.db.Query("SELECT endpoint, auth_key, p256dh_key FROM subscriptions")
 	if err != nil {
@@ -148,6 +153,15 @@ func (m *Manager) SendPush(payload []byte, beforeSend ...func()) (int, error) {
 		if err := rows.Scan(&endpoint, &auth, &p256dh); err != nil {
 			continue
 		}
+		if err := ValidateSubscription(PushSubscription{Endpoint: endpoint, Keys: map[string]string{"auth": auth, "p256dh": p256dh}}); err != nil {
+			m.logger.Warn("Invalid stored push subscription skipped")
+			continue
+		}
+		client, err := security.NewStrictPublicHTTPClientForURL(endpoint, 30*time.Second)
+		if err != nil {
+			m.logger.Warn("Push endpoint validation failed; subscription retained")
+			continue
+		}
 
 		sub := &webpush.Subscription{
 			Endpoint: endpoint,
@@ -157,13 +171,8 @@ func (m *Manager) SendPush(payload []byte, beforeSend ...func()) (int, error) {
 			},
 		}
 
-		// Send notification
-		for _, observe := range beforeSend {
-			if observe != nil {
-				observe()
-			}
-		}
-		res, err := webpush.SendNotification(payload, sub, &webpush.Options{
+		res, err := m.sendNotification(payload, sub, &webpush.Options{
+			HTTPClient:      observedPushClient{client: client, beforeSend: beforeSend},
 			Subscriber:      "mailto:aurago@localhost", // Replace with an email for the VAPID claim if needed, but this works
 			VAPIDPublicKey:  m.publicKey,
 			VAPIDPrivateKey: privKey,
@@ -173,8 +182,9 @@ func (m *Manager) SendPush(payload []byte, beforeSend ...func()) (int, error) {
 		if res != nil {
 			res.Body.Close()
 		}
+		client.CloseIdleConnections()
 		if err != nil {
-			m.logger.Warn("Push delivery failed; subscription retained", "error", err)
+			m.logger.Warn("Push delivery failed; subscription retained")
 			continue
 		}
 		if res == nil {

@@ -74,3 +74,12 @@ func TestStrictPublicHTTPClientPinsDNSBeforeRebinding(t *testing.T) {
 		t.Fatal("next hop accepted rebound private DNS")
 	}
 }
+
+func TestStrictPublicHTTPClientRejectsReservedAndTranslationAddresses(t *testing.T) {
+	for _, raw := range []string{"https://192.0.2.1/push", "https://198.51.100.1/push", "https://203.0.113.1/push", "https://[2001:db8::1]/push", "https://[64:ff9b::7f00:1]/push", "https://[2002:7f00:1::]/push"} {
+		if client, err := NewStrictPublicHTTPClientForURL(raw, time.Second); err == nil {
+			client.CloseIdleConnections()
+			t.Errorf("nonpublic target accepted: %s", raw)
+		}
+	}
+}

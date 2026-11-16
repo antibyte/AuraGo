@@ -530,7 +530,7 @@ func NewStrictPublicHTTPClientForURLContext(ctx context.Context, rawURL string, 
 
 	var pinnedIP net.IP
 	if literal := net.ParseIP(host); literal != nil {
-		if isPrivateIP(literal) {
+		if !isStrictPublicIP(literal) {
 			return nil, fmt.Errorf("access to internal address %s is blocked (strict SSRF protection)", literal)
 		}
 		pinnedIP = literal
@@ -545,7 +545,7 @@ func NewStrictPublicHTTPClientForURLContext(ctx context.Context, rawURL string, 
 			return nil, fmt.Errorf("hostname resolution failed for %q: no A/AAAA records found", host)
 		}
 		for _, addr := range addrs {
-			if isPrivateIP(addr.IP) {
+			if !isStrictPublicIP(addr.IP) {
 				return nil, fmt.Errorf("access to internal address %s is blocked (strict SSRF protection)", addr.IP)
 			}
 		}

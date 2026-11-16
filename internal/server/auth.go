@@ -493,6 +493,9 @@ func requireAdmin(s *Server, next http.Handler) http.Handler {
 }
 
 func isAdminProtectedPath(path string) bool {
+	if path == "/api/push/subscribe" || path == "/api/push/unsubscribe" {
+		return true
+	}
 	if path == mailReceiptsRoute || strings.HasPrefix(path, mailReceiptsRoute+"/") {
 		return true
 	}

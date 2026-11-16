@@ -10,6 +10,8 @@ This package owns reusable primitives; server owns session and HTTP policy.
 
 ## Local Contracts
 
+- Strict public HTTP clients use the same public-address classification as `ValidatePublicHTTPURL`, including reserved, documentation and IPv6 translation ranges; resolve once and pin that address without proxies or redirects. Configured LAN clients retain their separate policy.
+
 - Registered secrets are redacted in raw, QueryEscape, PathEscape and RFC 3986
   component forms (percent-encoded spaces and literal plus signs);
   percent hex digits accept either case without changing literal case sensitivity.

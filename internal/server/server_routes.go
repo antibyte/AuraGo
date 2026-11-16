@@ -852,8 +852,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Web Push (PWA) API
 	mux.HandleFunc("/api/push/vapid-pubkey", handlePushVAPIDPublicKey(s))
-	mux.HandleFunc("/api/push/subscribe", handlePushSubscribe(s))
-	mux.HandleFunc("/api/push/unsubscribe", handlePushUnsubscribe(s))
+	mux.Handle("/api/push/subscribe", requireAdmin(s, handlePushSubscribe(s)))
+	mux.Handle("/api/push/unsubscribe", requireAdmin(s, handlePushUnsubscribe(s)))
 	mux.HandleFunc("/api/push/status", handlePushStatus(s))
 
 	mux.HandleFunc("/history", func(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"aurago/internal/push"
@@ -45,6 +46,10 @@ func handlePushSubscribe(s *Server) http.HandlerFunc {
 		}
 
 		if err := mgr.Subscribe(sub); err != nil {
+			if errors.Is(err, push.ErrInvalidSubscription) {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			s.Logger.Error("Failed to save push subscription", "error", err)
 			jsonError(w, "failed to save subscription", http.StatusInternalServerError)
 			return
