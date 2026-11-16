@@ -2150,7 +2150,8 @@ func rawString(parent map[string]interface{}, key string) string {
 }
 
 func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
-	if !reflect.DeepEqual(oldCfg.AIGateway, newCfg.AIGateway) {
+	if !reflect.DeepEqual(oldCfg.AIGateway, newCfg.AIGateway) ||
+		!reflect.DeepEqual(oldCfg.LLM.AnthropicThinking, newCfg.LLM.AnthropicThinking) {
 		return true
 	}
 	type providerCapabilityFingerprint struct {
