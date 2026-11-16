@@ -310,7 +310,7 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - **Multimodal Embedding Origin**: `NewMultimodalEmbedder` uses `httporigin.NewClient`, so the key and file content never follow a redirect off the configured origin; `shouldRetryEmbeddingError` treats `httporigin.ErrCrossOriginRedirect` as final and never retries it. Verify `TestMultimodalEmbedderDoesNotFollowCrossOriginRedirect` and `TestEmbeddingRetryTreatsRejectedRedirectAsFinal`.
 
 - The OpenAI-compatible multimodal format is image-only; reject audio before reading/uploading its contents instead of labelling it image_url. Provider-specific inline media retains its existing format. Verify `TestEmbedFileRejectsAudioForImageOnlyFormatBeforeSending`.
-- Migration backups run VACUUM INTO inside an owner-restricted temporary directory, protect the completed file and publish its existing backup name through fileutil.Rename. Remove private staging after success/failure and preserve existing parent-directory permissions. Verify `TestDatabaseBackupPublishesPrivateContentAndCleansStaging` and `TestMemoryDatabasePreservesExistingParentPermissions`.
+- `backupMainDatabase` delegates publication to `dbutil.BackupSQLite`, preserving `<db>.<label>-*.bak` names and the in-memory no-op. The shared helper owns WAL inclusion, private staging, sync and create-only publication; failures still abort migration. Verify `TestDatabaseBackupPublishesPrivateContentAndCleansStaging` and `TestMemoryDatabasePreservesExistingParentPermissions`.
 
 ### Learned rules
 

@@ -15,6 +15,9 @@ func TestDatabaseBackupPublishesPrivateContentAndCleansStaging(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	if _, err := db.Exec(`PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := db.Exec(`CREATE TABLE fixture(value TEXT); INSERT INTO fixture VALUES('private fixture')`); err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +41,7 @@ func TestDatabaseBackupPublishesPrivateContentAndCleansStaging(t *testing.T) {
 	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Fatalf("backup permissions=%v", info.Mode().Perm())
 	}
-	staging, err := filepath.Glob(filepath.Join(parent, ".memory-backup-*"))
+	staging, err := filepath.Glob(filepath.Join(parent, ".sqlite-backup-*"))
 	if err != nil || len(staging) != 0 {
 		t.Fatalf("staging=%v err=%v", staging, err)
 	}
