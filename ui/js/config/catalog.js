@@ -67,6 +67,7 @@
         'here_now.allow_delete': 'delete',
         'network_shares.allow_delete': 'delete',
         'huggingface.allow_delete': 'delete',
+        'paperless_ngx.allow_delete': 'delete',
         'game_maker.allow_delete': 'delete',
         'jellyfin.allow_destructive': 'destroy',
         'obsidian.allow_destructive': 'destroy',

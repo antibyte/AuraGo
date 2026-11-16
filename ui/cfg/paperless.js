@@ -10,7 +10,8 @@ function renderPaperlessSection(section) {
         key: 'paperless_ngx',
         groups: [{ titleKey: 'config.refresh.operation', fields: [
             form.toggle({ label: t('config.paperless.enabled_label'), help: t('help.paperless_ngx.enabled'), path: 'paperless_ngx.enabled', value: data.enabled === true }),
-            form.toggle({ label: t('config.paperless.readonly_label'), help: t('help.paperless_ngx.read_only'), path: 'paperless_ngx.readonly', value: data.readonly === true })
+            form.toggle({ label: t('config.paperless.readonly_label'), help: t('help.paperless_ngx.read_only'), path: 'paperless_ngx.readonly', value: data.readonly === true }),
+            form.toggle({ label: t('config.paperless_ngx.allow_delete_label'), help: t('help.paperless_ngx.allow_delete'), path: 'paperless_ngx.allow_delete', value: data.allow_delete === true })
         ] }, { titleKey: 'config.refresh.connection', fields: [
             form.field({ type: 'url', label: t('config.paperless.url_label'), help: t('help.paperless_ngx.url'), path: 'paperless_ngx.url', value: data.url || '', placeholder: 'https://paperless.example.com' })
         ] }, { titleKey: 'config.refresh.credentials', fields: [

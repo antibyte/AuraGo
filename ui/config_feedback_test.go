@@ -93,7 +93,7 @@ func TestConfigFeedbackScriptContract(t *testing.T) {
 
 	catalog := normalizeAssetText(mustReadUIFile(t, "js/config/catalog.js"))
 	for _, path := range []string{
-		"composio.allow_destructive", "github.allow_delete", "here_now.allow_delete", "network_shares.allow_delete", "huggingface.allow_delete",
+		"composio.allow_destructive", "github.allow_delete", "here_now.allow_delete", "network_shares.allow_delete", "huggingface.allow_delete", "paperless_ngx.allow_delete",
 		"game_maker.allow_delete", "jellyfin.allow_destructive", "obsidian.allow_destructive", "truenas.allow_destructive",
 		"rustfs.permissions.allow_delete", "proxmox.allow_destructive", "agent.sudo_enabled", "agent.sudo_unrestricted", "agent.allow_shell",
 		"agent.allow_python", "agent.allow_unsafe_host_execution", "docker.allow_host_access", "agent.allow_filesystem_write",

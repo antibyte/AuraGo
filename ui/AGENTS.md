@@ -27,7 +27,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Ownership
 
-- Homelab security settings keep explicit grants and read-only priority visible in all sixteen locales. Composio's toolkit dialog saves an explicit active-account binding; empty means a single unambiguous active account. Manifest/OmniRoute help must explain interface plus browser URL for remote access. Home Assistant exposes its existing `readonly: false` default without changing stored grants.
+- Homelab security settings keep explicit grants and read-only priority visible in all sixteen locales. Composio's toolkit dialog saves an explicit active-account binding; empty means a single unambiguous active account. Manifest/OmniRoute help must explain interface plus browser URL for remote access. Home Assistant exposes its existing `readonly: false` default without changing stored grants. Paperless deletion uses the shared delete confirmation. Verify new grant defaults and save/reload with `TestHomelabSecurityConfigBrowser`.
 
 - Notifications contains the metadata-only Mail delivery receipts widget (`js/config/mail-receipts.js`), loaded with the shared Config components and mounted only in that section. Its channel filter references the translated help. Show per-channel occupancy, attempt time and status; active attempts cannot be resolved. Both explicit resolutions use the native confirmation dialog and revision-bound POST, never send mail, never replay a lost mutation reply, and refresh current state. Abort reads on section leave/pagehide and keep all sixteen generic Config locales aligned. Verify `TestMailReceiptsConfigBrowser`; API/storage contracts belong to server/tools.
 
