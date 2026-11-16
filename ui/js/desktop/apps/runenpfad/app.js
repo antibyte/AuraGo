@@ -50,6 +50,9 @@
         let selectedWorld = Math.floor((Math.min(25, Math.max(1, profile.unlockedLevel)) - 1) / 5);
         let userPaused = false;
         let resetArmed = false;
+        let cardKind = null; // 'won' | 'lost' while a round card is shown
+        let cardShownAt = 0;
+        const CARD_GUARD_MS = 350;
 
         const keyState = Object.create(null);
         const edgeState = { jumpPressed: false, attackPressed: false, dashPressed: false, healPressed: false };
@@ -108,75 +111,13 @@
         const canvas = el('canvas', 'rp-canvas');
         stageWrap.append(canvas);
 
-        const hud = el('div', 'rp-hud');
-        const topbar = el('div', 'rp-topbar');
-        const brand = el('div', 'rp-brand');
-        const stageTitle = el('span', 'rp-stage-title');
-        const subTitle = el('span', 'rp-sub-title');
-        brand.append(stageTitle, subTitle);
-
-        const stats = el('div', 'rp-stats');
-        const heartsPill = el('span', 'rp-pill rp-pill-hearts');
-        const healBtn = el('button', 'rp-pill');
-        healBtn.type = 'button';
-        const coinsPill = el('span', 'rp-pill rp-pill-coins');
-        const gemsPill = el('span', 'rp-pill rp-pill-gems');
-        const keyPill = el('span', 'rp-pill rp-pill-key');
-        const starsPill = el('span', 'rp-pill rp-pill-stars');
-        const timePill = el('span', 'rp-pill rp-pill-time');
-        const modPill = el('span', 'rp-pill rp-pill-mod');
-        modPill.hidden = true;
-        const runePill = el('span', 'rp-pill rp-pill-rune');
-        runePill.hidden = true;
-        const comboPill = el('span', 'rp-pill rp-pill-combo');
-        comboPill.hidden = true;
-        stats.append(heartsPill, healBtn, coinsPill, gemsPill, keyPill, starsPill, timePill, modPill, runePill, comboPill);
-
-        const actions = el('div', 'rp-actions');
-        const heroBtn = el('button', 'rp-btn');
-        heroBtn.type = 'button';
-        heroBtn.dataset.rpBtn = 'hero';
-        const levelsBtn = el('button', 'rp-btn');
-        levelsBtn.type = 'button';
-        levelsBtn.dataset.rpBtn = 'levels';
-        const shopBtn = el('button', 'rp-btn rp-btn-gold');
-        shopBtn.type = 'button';
-        shopBtn.dataset.rpBtn = 'shop';
-        const hudSoundBtn = el('button', 'rp-btn');
-        hudSoundBtn.type = 'button';
-        hudSoundBtn.dataset.rpBtn = 'sound';
-        hudSoundBtn.setAttribute('aria-pressed', 'true');
-        const pauseBtn = el('button', 'rp-btn rp-btn-primary');
-        pauseBtn.type = 'button';
-        pauseBtn.dataset.rpBtn = 'pause';
-        actions.append(heroBtn, levelsBtn, shopBtn, hudSoundBtn, pauseBtn);
-
-        topbar.append(brand, stats, actions);
-
-        const noticeRow = el('div', 'rp-notice-row');
-        const noticeEl = el('p', 'rp-notice');
-        noticeEl.setAttribute('role', 'status');
-        const controlsHint = el('p', 'rp-controls-hint');
-        noticeRow.append(noticeEl, controlsHint);
-
-        const bossWrap = el('div', 'rp-boss-wrap');
-        bossWrap.hidden = true;
-        const bossLabel = el('div', 'rp-boss-label');
-        const bossName = el('span');
-        const bossHpText = el('span');
-        bossLabel.append(bossName, bossHpText);
-        const bossBar = el('div', 'rp-boss-bar');
-        const bossFill = el('div', 'rp-boss-fill');
-        bossBar.append(bossFill);
-        bossWrap.append(bossLabel, bossBar);
-
-        const bossCard = el('div', 'rp-bosscard');
-        const bossCardName = el('strong');
-        const bossCardSub = el('span');
-        bossCard.setAttribute('aria-hidden', 'true');
-        bossCard.append(bossCardName, bossCardSub);
-
-        hud.append(topbar, noticeRow, bossWrap);
+        const hud = root.RunenpfadHud.create({ el: el, t: t, fill: fill, Levels: Levels, Sim: Sim });
+        const heroBtn = hud.heroBtn;
+        const levelsBtn = hud.levelsBtn;
+        const shopBtn = hud.shopBtn;
+        const hudSoundBtn = hud.soundBtn;
+        const pauseBtn = hud.pauseBtn;
+        const healBtn = hud.healBtn;
 
         // Touch controls (visible when .rp-narrow is active)
         const touch = el('div', 'rp-touch');
@@ -192,32 +133,40 @@
         const errorCard = el('div', 'rp-card rp-error');
         errorCard.hidden = true;
         const errorText = el('p');
-        const retryBtn = el('button', 'rp-btn-primary');
+        const retryBtn = el('button', 'rp-btn rp-btn-primary');
         retryBtn.type = 'button';
         errorCard.append(errorText, retryBtn);
+
+        function cardButton(className) {
+            const b = el('button', className);
+            b.type = 'button';
+            return b;
+        }
 
         const winCard = el('div', 'rp-card rp-win');
         winCard.hidden = true;
         const winTitle = el('h2');
         const winStars = el('div', 'rp-stars-row');
-        const winBody = el('p');
+        const winPlaques = el('div', 'rp-plaques');
+        const winBody = el('p', 'rp-sr');
         const winRow = el('div', 'rp-row-actions');
-        const winNextBtn = el('button', 'rp-btn-primary');
-        winNextBtn.type = 'button';
-        const winReplayBtn = el('button', 'rp-btn');
-        winReplayBtn.type = 'button';
-        const winShopBtn = el('button', 'rp-btn-gold');
-        winShopBtn.type = 'button';
-        winRow.append(winNextBtn, winReplayBtn, winShopBtn);
-        winCard.append(winTitle, winStars, winBody, winRow);
+        const winNextBtn = cardButton('rp-btn rp-btn-primary');
+        const winReplayBtn = cardButton('rp-btn');
+        const winShopBtn = cardButton('rp-btn rp-btn-gold');
+        const winLevelsBtn = cardButton('rp-btn');
+        winRow.append(winNextBtn, winReplayBtn, winShopBtn, winLevelsBtn);
+        winCard.append(winTitle, winStars, winPlaques, winBody, winRow);
 
         const loseCard = el('div', 'rp-card rp-lose');
         loseCard.hidden = true;
         const loseTitle = el('h2');
         const loseBody = el('p');
-        const loseRetryBtn = el('button', 'rp-btn-primary');
-        loseRetryBtn.type = 'button';
-        loseCard.append(loseTitle, loseBody, loseRetryBtn);
+        const loseRow = el('div', 'rp-row-actions');
+        const loseRetryBtn = cardButton('rp-btn rp-btn-primary');
+        const loseShopBtn = cardButton('rp-btn rp-btn-gold');
+        const loseLevelsBtn = cardButton('rp-btn');
+        loseRow.append(loseRetryBtn, loseShopBtn, loseLevelsBtn);
+        loseCard.append(loseTitle, loseBody, loseRow);
 
         // Pause dialog
         const pauseDialog = el('dialog', 'rp-dialog rp-pause-dialog');
@@ -228,7 +177,7 @@
         pauseHead.append(pauseTitle, pauseCloseX);
         const pauseControls = el('p');
         const pauseActions = el('div', 'rp-row-actions');
-        const resumeBtn = el('button', 'rp-btn-primary');
+        const resumeBtn = el('button', 'rp-btn rp-btn-primary');
         resumeBtn.type = 'button';
         const restartBtn = el('button', 'rp-btn');
         restartBtn.type = 'button';
@@ -242,7 +191,7 @@
             b.setAttribute('aria-pressed', 'false');
             return b;
         });
-        const resetBtn = el('button', 'rp-btn-danger');
+        const resetBtn = el('button', 'rp-btn rp-btn-danger');
         resetBtn.type = 'button';
         pauseActions.append(resumeBtn, restartBtn, soundBtn, musicBtn, gfxBtn, resetBtn);
         pauseDialog.append(pauseHead, pauseControls, pauseActions);
@@ -270,7 +219,7 @@
         const shopGrid = el('div', 'rp-shop-grid');
         shopDialog.append(shopHead, shopCoins, heroGrid, shopGrid);
 
-        shell.append(stageWrap, hud, bossCard, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
+        shell.append(stageWrap, hud.root, hud.bossCard, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
         host.replaceChildren(shell);
 
         function anyDialogOpen() {
@@ -386,30 +335,32 @@
         }
 
         function paintStaticCopy() {
+            const setBtn = hud.setButton;
             loadingText.textContent = t('runenpfad.loading');
             errorText.textContent = t('runenpfad.error_assets');
             retryBtn.textContent = t('runenpfad.error_retry');
-            controlsHint.textContent = t('runenpfad.controls');
-            levelsBtn.textContent = t('runenpfad.btn_levels');
-            shopBtn.textContent = t('runenpfad.btn_shop');
-            pauseBtn.textContent = t('runenpfad.btn_pause');
+            hud.paintCopy();
+            hud.heroBtn.__rpHero = null;
             pauseTitle.textContent = t('runenpfad.pause_title');
-            pauseCloseX.textContent = t('runenpfad.close');
+            setBtn(pauseCloseX, t('runenpfad.close'), 'Esc');
             pauseControls.textContent = t('runenpfad.controls');
             resumeBtn.textContent = t('runenpfad.pause_resume');
             restartBtn.textContent = t('runenpfad.pause_restart');
             resetBtn.textContent = resetArmed ? t('runenpfad.pause_reset_confirm') : t('runenpfad.pause_reset');
             levelsTitle.textContent = t('runenpfad.levels_title');
-            levelsCloseBtn.textContent = t('runenpfad.close');
+            setBtn(levelsCloseBtn, t('runenpfad.close'), 'Esc');
             shopTitle.textContent = t('runenpfad.shop_title');
-            shopCloseBtn.textContent = t('runenpfad.close');
+            setBtn(shopCloseBtn, t('runenpfad.close'), 'Esc');
             winTitle.textContent = t('runenpfad.win_title');
-            winNextBtn.textContent = t('runenpfad.win_next');
-            winReplayBtn.textContent = t('runenpfad.win_replay');
-            winShopBtn.textContent = t('runenpfad.btn_shop');
+            setBtn(winNextBtn, t('runenpfad.win_next'), 'Enter');
+            setBtn(winReplayBtn, t('runenpfad.win_replay'), 'R');
+            setBtn(winShopBtn, t('runenpfad.btn_shop'), 'B');
+            setBtn(winLevelsBtn, t('runenpfad.btn_levels'), 'Esc');
             loseTitle.textContent = t('runenpfad.lose_title');
             loseBody.textContent = t('runenpfad.lose_body');
-            loseRetryBtn.textContent = t('runenpfad.lose_retry');
+            setBtn(loseRetryBtn, t('runenpfad.lose_retry'), 'Enter');
+            setBtn(loseShopBtn, t('runenpfad.btn_shop'), 'B');
+            setBtn(loseLevelsBtn, t('runenpfad.btn_levels'), 'Esc');
             paintSound();
             paintMusic();
             paintGfx();
@@ -418,72 +369,23 @@
 
         function paintHud() {
             if (!sim) return;
-            const stage = sim.stage;
             const p = sim.player;
-            if (sim.mode === 'endless') {
-                stageTitle.textContent = t('runenpfad.endless_title');
-                subTitle.textContent = fill('runenpfad.endless_stage', { floor: sim.endlessFloor }) + ' · ' + t(stage.world.nameKey);
-            } else {
-                stageTitle.textContent = fill('runenpfad.hud_level', { world: stage.worldIndex + 1, stage: stage.stageInWorld, name: t(stage.nameKey) });
-                subTitle.textContent = t(stage.world.nameKey);
-            }
-            heartsPill.textContent = '\u2665 ' + p.hp + '/' + p.maxHp;
-            healBtn.textContent = t('runenpfad.hud_heal') + ' (' + p.potions + ')';
-            healBtn.disabled = p.potions <= 0 || p.hp >= p.maxHp;
-            coinsPill.textContent = t('runenpfad.hud_coins') + ': ' + sim.profile.coins;
-            gemsPill.textContent = t('runenpfad.hud_gems') + ': ' + sim.gemCount + '/3';
-            keyPill.textContent = sim.hasKey ? t('runenpfad.hud_key_on') : t('runenpfad.hud_key_off');
-            keyPill.classList.toggle('is-on', sim.hasKey);
-            starsPill.textContent = t('runenpfad.hud_stars') + ': ' + Sim.totalStars(profile) + '/75';
-            timePill.textContent = Math.floor(sim.elapsed) + 's';
-
-            // Rune trial badge & rune power countdown
-            const mod = stage.mod;
-            if (mod) {
-                modPill.hidden = false;
-                modPill.textContent = t('runenpfad.hud_trial') + ': ' + t(mod.nameKey);
-                modPill.title = t(mod.descKey);
-            } else {
-                modPill.hidden = true;
-                modPill.title = '';
-            }
-            if (sim.blessing && sim.blessing.runePower > 0) {
-                runePill.hidden = false;
-                runePill.textContent = t('runenpfad.hud_rune') + ' ' + Math.ceil(sim.blessing.runePower) + 's';
-            } else {
-                runePill.hidden = true;
-            }
-            const combo = sim.combo;
-            comboPill.hidden = !(combo && combo.count >= 2);
-            if (!comboPill.hidden) comboPill.textContent = fill('runenpfad.hud_combo', { n: String.fromCharCode(215) + (Math.round((combo.mul || 1) * 10) / 10) });
-            const intro = sim.bossIntro;
-            const introOn = !!(intro && intro.timer > 0);
-            if (introOn) {
-                bossCardName.textContent = t(intro.nameKey);
-                bossCardSub.textContent = t('runenpfad.boss_intro_sub');
-            }
-            bossCard.classList.toggle('is-on', introOn);
-            heroBtn.textContent = t('runenpfad.btn_hero') + ': ' + t(Levels.HERO_DEFS[sim.heroId].nameKey);
-            noticeEl.textContent = sim.notice ? t(sim.notice) : '';
-
-            // Boss bar update
-            const boss = stage.bossId ? stage.enemies.find(function (e) { return e.id === stage.bossId; }) : null;
-            if (boss && !boss.dead) {
-                bossWrap.hidden = false;
-                bossName.textContent = t(boss.def.bossNameKey || stage.nameKey);
-                bossHpText.textContent = boss.hp + ' / ' + boss.maxHp;
-                bossFill.style.width = Math.max(0, Math.min(100, Math.round((boss.hp / boss.maxHp) * 100))) + '%';
-                if (audio) audio.setAmbienceDuck(0.55);
-            } else {
-                bossWrap.hidden = true;
-                if (audio) audio.setAmbienceDuck(1);
-            }
+            const bossOn = hud.paint(sim, profile);
+            if (audio) audio.setAmbienceDuck(bossOn ? 0.55 : 1);
 
             // Win / Lose cards
             if (sim.state === 'won') {
                 winCard.hidden = false;
                 loseCard.hidden = true;
-                winStars.textContent = '\u2605'.repeat(sim.earnedStars) + '\u2606'.repeat(3 - sim.earnedStars);
+                if (cardKind !== 'won') {
+                    hud.paintStars(winStars, sim.earnedStars);
+                    hud.paintPlaques(winPlaques, [
+                        { label: t('runenpfad.hud_time'), value: Math.floor(sim.elapsed) + 's' },
+                        { label: t('runenpfad.hud_gems'), value: sim.gemCount + '/3', icon: 'gem_blue' },
+                        { label: t('runenpfad.hud_coins'), value: String(sim.profile.coins), icon: 'coin' },
+                        { label: t('runenpfad.hud_score'), value: String(sim.stageScore) }
+                    ]);
+                }
                 winBody.textContent = fill('runenpfad.win_body', {
                     time: Math.floor(sim.elapsed),
                     gems: sim.gemCount,
@@ -496,6 +398,12 @@
             } else {
                 winCard.hidden = true;
                 loseCard.hidden = true;
+            }
+            const kind = sim.state === 'won' || sim.state === 'lost' ? sim.state : null;
+            if (kind !== cardKind) {
+                cardKind = kind;
+                cardShownAt = kind ? root.performance.now() : 0;
+                if (kind) focusCardPrimary();
             }
 
             // Deterministic DOM state markers for verification & accessibility inspection
@@ -519,6 +427,10 @@
             userPaused = false;
             winCard.hidden = true;
             loseCard.hidden = true;
+            cardKind = null;
+            cardShownAt = 0;
+            clearEdges();
+            if (shell.contains(document.activeElement) && document.activeElement !== shell) shell.focus({ preventScroll: true });
             sim = Sim.createSimulation({
                 mode: options.mode || (sim && sim.mode) || 'campaign',
                 levelId: options.levelId || (sim && sim.levelId) || Math.min(25, Math.max(1, profile.unlockedLevel)),
@@ -531,6 +443,44 @@
             }
             paintHud();
             syncAudioActive();
+            hud.showHint();
+        }
+
+        function primaryCardButton() {
+            if (cardKind === 'won') return winNextBtn.hidden ? winReplayBtn : winNextBtn;
+            return cardKind === 'lost' ? loseRetryBtn : null;
+        }
+
+        function focusCardPrimary() {
+            const b = primaryCardButton();
+            if (b) b.focus({ preventScroll: true });
+        }
+
+        function focusLevels() {
+            const b = levelsGrid.querySelector('.is-current:not(:disabled)') || levelsGrid.querySelector('button:not(:disabled)');
+            if (b) b.focus({ preventScroll: true });
+        }
+
+        function openLevels() {
+            renderLevelsModal();
+            levelsDialog.showModal();
+            syncAudioActive();
+            focusLevels();
+        }
+
+        function openShop() {
+            renderShopModal();
+            shopDialog.showModal();
+            syncAudioActive();
+        }
+
+        function openPause() {
+            userPaused = true;
+            resetArmed = false;
+            paintStaticCopy();
+            pauseDialog.showModal();
+            syncAudioActive();
+            resumeBtn.focus({ preventScroll: true });
         }
 
         function renderLevelsModal() {
@@ -541,6 +491,7 @@
                 tab.addEventListener('click', function () {
                     selectedWorld = idx;
                     renderLevelsModal();
+                    worldTabs.children[idx].focus({ preventScroll: true });
                 });
                 worldTabs.append(tab);
             });
@@ -549,6 +500,7 @@
             endlessTab.addEventListener('click', function () {
                 selectedWorld = 5;
                 renderLevelsModal();
+                worldTabs.lastChild.focus({ preventScroll: true });
             });
             worldTabs.append(endlessTab);
 
@@ -711,10 +663,27 @@
         }
 
         // Controls wiring
+        // Round cards (win / lose): Enter, Space or J = primary, R = replay, B or S = workshop, Esc = worlds.
+        // A card ignores the key that ended the round (guard window and auto-repeat); returns true when consumed.
+        function cardKeys(ev) {
+            if (!cardKind || anyDialogOpen()) return false;
+            const action = { Enter: 'primary', NumpadEnter: 'primary', Space: 'primary', KeyJ: 'primary', KeyR: 'replay', KeyB: 'shop', KeyS: 'shop', Escape: 'levels', KeyP: 'none' }[ev.code];
+            if (!action) return false;
+            ev.preventDefault();
+            if (ev.repeat || root.performance.now() - cardShownAt < CARD_GUARD_MS) return true;
+            const won = cardKind === 'won';
+            if (action === 'primary') primaryCardButton().click();
+            else if (action === 'replay') (won ? winReplayBtn : loseRetryBtn).click();
+            else if (action === 'shop') (won ? winShopBtn : loseShopBtn).click();
+            else if (action === 'levels') levelsBtn.click();
+            return true;
+        }
+
         function onKeyDown(ev) {
             if (disposed) return;
             if (ctx.isActive && !ctx.isActive()) return;
             if (audio) audio.unlock();
+            if (cardKeys(ev)) return;
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(ev.code)) {
                 if (!anyDialogOpen()) ev.preventDefault();
             }
@@ -735,11 +704,7 @@
                     } else if (!loadingCard.hidden || !errorCard.hidden) {
                         return;
                     } else {
-                        userPaused = true;
-                        resetArmed = false;
-                        paintStaticCopy();
-                        pauseDialog.showModal();
-                        syncAudioActive();
+                        openPause();
                     }
                 }
                 if (ev.code === 'KeyR' && !anyDialogOpen() && sim) {
@@ -750,6 +715,7 @@
         }
 
         function onKeyUp(ev) {
+            if (cardKind && ev.code === 'Space') ev.preventDefault(); // no synthetic click on the focused card button
             keyState[ev.code] = false;
         }
 
@@ -761,25 +727,30 @@
         healBtn.addEventListener('click', function () {
             edgeState.healPressed = true;
         });
-        levelsBtn.addEventListener('click', function () {
-            renderLevelsModal();
-            levelsDialog.showModal();
-            syncAudioActive();
+        levelsBtn.addEventListener('click', openLevels);
+        levelsDialog.addEventListener('keydown', function (ev) {
+            const dir = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1 }[ev.key];
+            if (!dir) return;
+            const tabs = Array.from(worldTabs.children);
+            const tiles = Array.from(levelsGrid.querySelectorAll('button:not(:disabled)'));
+            const cur = document.activeElement;
+            const horizontal = ev.key === 'ArrowLeft' || ev.key === 'ArrowRight';
+            if (tabs.includes(cur)) {
+                ev.preventDefault();
+                if (horizontal) tabs[(tabs.indexOf(cur) + dir + tabs.length) % tabs.length].focus();
+                else if (dir > 0 && tiles.length) tiles[0].focus();
+            } else if (tiles.includes(cur)) {
+                ev.preventDefault();
+                const i = tiles.indexOf(cur);
+                if (horizontal) tiles[(i + dir + tiles.length) % tiles.length].focus();
+                else if (dir < 0 && i === 0) (worldTabs.querySelector('.is-active') || tabs[0]).focus();
+                else tiles[Math.max(0, Math.min(tiles.length - 1, i + dir))].focus();
+            }
         });
         levelsCloseBtn.addEventListener('click', function () { levelsDialog.close(); syncAudioActive(); });
-        shopBtn.addEventListener('click', function () {
-            renderShopModal();
-            shopDialog.showModal();
-            syncAudioActive();
-        });
+        shopBtn.addEventListener('click', openShop);
         shopCloseBtn.addEventListener('click', function () { shopDialog.close(); syncAudioActive(); });
-        pauseBtn.addEventListener('click', function () {
-            userPaused = true;
-            resetArmed = false;
-            paintStaticCopy();
-            pauseDialog.showModal();
-            syncAudioActive();
-        });
+        pauseBtn.addEventListener('click', openPause);
         function closePause() {
             if (pauseDialog.open) pauseDialog.close();
             userPaused = false;
@@ -837,7 +808,10 @@
             else startStage({ mode: 'campaign', levelId: Math.min(Levels.CAMPAIGN_LEVELS.length, sim.levelId + 1) });
         });
         winReplayBtn.addEventListener('click', function () { startStage(); });
-        winShopBtn.addEventListener('click', function () { renderShopModal(); shopDialog.showModal(); });
+        winShopBtn.addEventListener('click', openShop);
+        loseShopBtn.addEventListener('click', openShop);
+        winLevelsBtn.addEventListener('click', openLevels);
+        loseLevelsBtn.addEventListener('click', openLevels);
         loseRetryBtn.addEventListener('click', function () { startStage(); });
         retryBtn.addEventListener('click', function () { runBoot(); });
 
@@ -845,7 +819,8 @@
             dlg.addEventListener('close', function () {
                 if (dlg === pauseDialog) userPaused = false;
                 syncAudioActive();
-                shell.focus({ preventScroll: true });
+                if (cardKind) focusCardPrimary();
+                else shell.focus({ preventScroll: true });
             }, { signal: controller.signal });
         });
 
@@ -911,6 +886,7 @@
                 const indexed = Levels.validateSpriteManifests(manifestsById);
                 sheets = await View.loadSpriteSheets(indexed, controller.signal);
                 if (disposed || ticket !== generation) return;
+                hud.setSheets(sheets);
                 if (audio) audio.dispose();
                 audio = Audio.createAudioController({
                     manifest: soundManifest,
@@ -964,6 +940,7 @@
                     rafId = 0;
                 }
                 if (ro) ro.disconnect();
+                hud.dispose();
                 disposeVisuals();
                 if (audio) {
                     audio.dispose();

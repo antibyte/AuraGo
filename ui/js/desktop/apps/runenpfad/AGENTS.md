@@ -27,14 +27,15 @@ Offline 2D action-platformer game (`runenpfad`, category `games`) for the AuraGo
 - `ui/js/desktop/apps/runenpfad/stage-art.js` — Drawing of zone objects, boss telegraphs and timed hazards.
 - `ui/js/desktop/apps/runenpfad/postfx.js` — Plain WebGL2 compositor (bloom, god rays, shockwaves, heat haze, grading, vignette, grain) with a canvas fallback.
 - `ui/js/desktop/apps/runenpfad/view.js` — Canvas 2D renderer that composes the layers above, reads simulation state and feeds the post-processing stage.
-- `ui/js/desktop/apps/runenpfad/app.js` — Window shell (`RunenpfadApp`), HUD, dialogs, keyboard, touch and pointer input, resize and visibility handling, and disposal.
+- `ui/js/desktop/apps/runenpfad/hud.js` — Rune-stone HUD builder (`RunenpfadHud`): top bar with sprite icons, notice/tag row, boss bar and boss card, key-cap button helper, win-card stars and plaques; builds DOM through the `el` helper that `app.js` passes in.
+- `ui/js/desktop/apps/runenpfad/app.js` — Window shell (`RunenpfadApp`), dialogs and round cards, keyboard (round cards: Enter/Space/J primary, R replay, B/S workshop, Esc worlds, 350 ms guard, no auto-repeat), touch and pointer input, resize and visibility handling, and disposal.
 - `ui/css/desktop-app-runenpfad.css`, `ui/img/runenpfad/icon.svg`, `ui/lang/runenpfad/*.json` (16 locales), and `ui/desktop_runenpfad_test.go`.
 
 ## Local Contracts
 
 - **Game Maker asset reuse**: Reads `/api/game-maker/asset-packs/<pack>/...` for `jump-and-run`, `human-characters-animated`, `monsters-animals-animated`, `robots-drones-animated`, `assets-animated`, `nature-assets`, and `aurago-sounds`. Never copy PNGs, WAVs, or manifests into `ui/`.
 - **DOM-free core**: `levels.js`, `sim.js`, `profile.js`, `behaviors.js`, `variety.js`, `fx.js`, `biomes.js`, `audio.js`, `physics.js`, `combat.js`, `bosses.js`, `zones.js` and `music.js` carry zero DOM references so `scripts/test-runenpfad-sim.mjs` executes them directly under Node `vm`. Do not add `document`, `window` or canvas use to them.
-- **Canvas-facing modules**: `backdrops.js`, `backdrops-biomes.js`, `atmosphere.js`, `decor.js`, `actors.js`, `stage-art.js`, `postfx.js` and `view.js`. `app.js` is the only module that builds DOM.
+- **Canvas-facing modules**: `backdrops.js`, `backdrops-biomes.js`, `atmosphere.js`, `decor.js`, `actors.js`, `stage-art.js`, `postfx.js` and `view.js`. Only `app.js` and `hud.js` build DOM.
 - **Deterministic gameplay randomness**: No `Math.random` and no `Date.now` in the DOM-free gameplay and audio modules. Gameplay decisions use only `Physics.rand` on `sim.rngState`. Never use `fx.rng` for gameplay.
 - **Read-only renderer**: The canvas-facing modules never mutate simulation state. Visual effects are driven by events and read-only state.
 - **Event vocabulary**: Simulation events are emitted through `Physics.pushEvent`. Besides the existing set, the new events are `pickup_star`, `pickup_treasure`, `hazard`, `door_open`, `enemy_attack`, `spike_rise`, `player_fall`, `boss_intro`, `boss_telegraph`, `boss_attack`, `boss_slam`, `combo`, `bounce`, `lantern_lit` and `secret_break`.
@@ -43,9 +44,9 @@ Offline 2D action-platformer game (`runenpfad`, category `games`) for the AuraGo
 - **Save integrity**: `importProfile` validates `v === 1` and clamps `unlockedLevel`, `endlessBestFloor`, `coins`, `totalScore`, `upgrades`, `starsByLevel`, `bestTimeByLevel`, and the `music` (boolean, default on) and `gfx` (`auto` or `canvas`) preferences. Invalid saves fall back cleanly to defaults. The save format stays `aurago.runenpfad.v1`.
 - **Climb clips**: Ladder and rope climbing use `<hero>_climb_ladder` and `<hero>_climb_rope`. These are rear-view clips and are never flipped. The clock runs only while moving, reverses when descending, and falls back to the `<hero>_idle` clip when a clip is missing.
 - **No third-party runtime**: PixiJS and Phaser are deliberately not used. The GPU stage is a full-screen post-process, and raw WebGL2 avoids an 800 KB vendor bundle and a CSP `unsafe-eval` shim. Do not add a vendor game library.
-- **Safe UI & styling**: `app.js` builds DOM via `document.createElement` and `textContent` only (no `.innerHTML`, no external URLs). `desktop-app-runenpfad.css` is listed in `desktopAppMaterialsExempt` (`ui/desktop_app_materials_test.go`), scopes classes to `.rp-*` (never `cc-` or `ad-`), and avoids `!important` and CSS `animation:`.
+- **Safe UI & styling**: `app.js` and `hud.js` build DOM via `document.createElement` and `textContent` only (no `.innerHTML`, no external URLs). `desktop-app-runenpfad.css` is listed in `desktopAppMaterialsExempt` (`ui/desktop_app_materials_test.go`), scopes classes to `.rp-*` (never `cc-` or `ad-`), and avoids `!important` and CSS `animation:`.
 - **Registration & bundles**: Registered in `internal/desktop/types.go` (`games`, `open_maximized: "true"`, `logo_path: "/img/runenpfad/icon.svg"`), `desktop-foundation.js`, `module-loader.js`, `menus-and-routing.js`, and `window-shell-runtime.js`; bundled into `ui/js/desktop/bundles/main.bundle.js`.
-- **Module load order**: `module-loader.js` must list `biomes` → `fx` → `physics` → `behaviors` → `bosses` → `variety` → `profile` → `zones` → `levels` → `combat` → `sim` → `audio` → `music` → `backdrops` → `backdrops-biomes` → `atmosphere` → `decor` → `actors` → `stage-art` → `postfx` → `view` → `app`. Each module reads its dependencies from the shared global scope at call time, so a new module must be placed after everything it reads.
+- **Module load order**: `module-loader.js` must list `biomes` → `fx` → `physics` → `behaviors` → `bosses` → `variety` → `profile` → `zones` → `levels` → `combat` → `sim` → `audio` → `music` → `backdrops` → `backdrops-biomes` → `atmosphere` → `decor` → `actors` → `stage-art` → `postfx` → `view` → `hud` → `app`. Each module reads its dependencies from the shared global scope at call time, so a new module must be placed after everything it reads.
 
 ## Work Guidance
 

@@ -66,6 +66,7 @@
                 '/js/desktop/apps/runenpfad/stage-art.js',
                 '/js/desktop/apps/runenpfad/postfx.js',
                 '/js/desktop/apps/runenpfad/view.js',
+                '/js/desktop/apps/runenpfad/hud.js',
                 '/js/desktop/apps/runenpfad/app.js'
             ]
         },

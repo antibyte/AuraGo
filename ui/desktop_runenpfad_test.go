@@ -66,7 +66,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js"}},
+		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js"}},
 		{"js/desktop/core/menus-and-routing.js", []string{"if (appId === 'runenpfad')", "RunenpfadApp.render"}},
 		{"js/desktop/core/desktop-foundation.js", []string{"runenpfad: '/img/runenpfad/icon.svg'", "runenpfad: 'RunenpfadApp'"}},
 		{"js/desktop/core/window-shell-runtime.js", []string{"runenpfad: { width: 1180, height: 740 }"}},
@@ -93,6 +93,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		{"js/desktop/apps/runenpfad/actors.js", []string{"RunenpfadActors"}},
 		{"js/desktop/apps/runenpfad/stage-art.js", []string{"RunenpfadStageArt"}},
 		{"js/desktop/apps/runenpfad/postfx.js", []string{"RunenpfadPostfx"}},
+		{"js/desktop/apps/runenpfad/hud.js", []string{"RunenpfadHud", "createElement", "rp-topbar"}},
 		{"js/desktop/apps/runenpfad/app.js", []string{"RunenpfadApp", "/api/game-maker/asset-packs/"}},
 	}
 	for _, tc := range checks {
@@ -288,6 +289,20 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		const app = document.querySelector('.rp-app');
 		const win = document.querySelector('.rp-win');
 		return app && app.dataset.rpState === 'won' && app.dataset.rpUnlocked === '2' && Number(app.dataset.rpStars) >= 1 && win && !win.hidden;
+	}`)
+
+	// The win card is keyboard-operable: the primary button is focused, and a fresh Enter keydown
+	// (after the short guard window that swallows the key which ended the round) starts the next stage.
+	page.MustWait(`()=>{
+		const win = document.querySelector('.rp-win');
+		return !!win && win.contains(document.activeElement);
+	}`)
+	page.MustEval(`()=>new Promise(r => setTimeout(r, 450))`)
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter', key: 'Enter', bubbles: true }))`)
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		const win = document.querySelector('.rp-win');
+		return app && app.dataset.rpState === 'playing' && app.dataset.rpLevel === '2' && win && win.hidden;
 	}`)
 
 	// Close window and verify clean teardown
