@@ -39,6 +39,16 @@ func TestEasyDragHeaderPopoverBrowser(t *testing.T) {
 	p.Keyboard.MustType(input.Escape)
 	s.wait(`()=>!document.querySelector('[data-ed-pill-popover]') && document.activeElement===document.querySelector('[data-ed-pill]') && document.querySelector('[data-ed-pill]').getAttribute('aria-expanded')==='false'`)
 
+	// Tab past the last entry ("Läufe") closes it and the focus goes back to the pill, not on to the end of the editor.
+	p.Keyboard.MustType(input.Space)
+	s.wait(`()=>!!document.querySelector('[data-ed-pill-popover]')`)
+	p.MustEval(`()=>{const all=[...document.querySelectorAll('[data-ed-pill-popover] button')];all[all.length-1].focus()}`)
+	if name := p.MustEval(`()=>document.activeElement.getAttribute('data-ed-pop')`).String(); name != "runs" {
+		t.Fatalf("the last popover entry is %q, want runs", name)
+	}
+	p.Keyboard.MustType(input.Tab)
+	s.wait(`()=>!document.querySelector('[data-ed-pill-popover]') && document.activeElement===document.querySelector('[data-ed-pill]')`)
+
 	// A press on the canvas closes it without moving the focus to the pill.
 	p.Keyboard.MustType(input.Space)
 	s.wait(`()=>!!document.querySelector('[data-ed-pill-popover]')`)
@@ -80,6 +90,14 @@ func TestEasyDragHeaderPrimaryBrowser(t *testing.T) {
 	}
 	p.MustElement(`.ed-modal [data-ed-action="cancel"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-modal-backdrop')`)
+
+	// A real publish: the header hides Publish (a clean live flow) while the dialog is open, and the focus must still land on a visible
+	// control of the editor, not on the body.
+	p.MustElement(`[data-ed-cmd="publish"]`).MustClick()
+	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="publish"]')`)
+	p.MustElement(`.ed-modal [data-ed-action="publish"]`).MustClick()
+	s.wait(`()=>!document.querySelector('.ed-modal-backdrop') && document.querySelector('[data-ed-cmd="publish"]').hidden`)
+	s.wait(`()=>{const a=document.activeElement,r=document.querySelector('.ed-editor');return !!a && a!==document.body && !!r && r.contains(a) && a.getClientRects().length>0 && !a.hidden}`)
 	s.failOnPageErrors("header primary")
 }
 

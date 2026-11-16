@@ -68,7 +68,7 @@
         let shown = '';
 
         const facts = () => ({
-            running: runs.isRunning() || !!(ed.runView && ed.runView.run && ED.runs.isActive(ed.runView.run.status)),
+            running: runs.isRunning() || !!(typeof runs.hasParked === 'function' && runs.hasParked()) || !!(ed.runView && ed.runView.run && ED.runs.isActive(ed.runView.run.status)),
             partialText: code => publish.partialText(code)
         });
 

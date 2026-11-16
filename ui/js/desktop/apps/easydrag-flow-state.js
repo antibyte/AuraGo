@@ -17,16 +17,20 @@
         const o = opts || {};
         const flow = ed.flow;
         if (!flow || !answer || typeof answer !== 'object') return;
-        flow.tested = answer.tested === true;
-        const changes = answer.changes;
-        if (changes && typeof changes === 'object') flow.changes = { steps: count(changes.steps), connections: count(changes.connections) };
-        else delete flow.changes;
+        // An answer for another revision than the one on screen says nothing about this draft: only the schedule is taken.
+        const other = Number.isInteger(o.revision) && o.revision !== currentRevision(ed);
+        if (!other) {
+            flow.tested = answer.tested === true;
+            const changes = answer.changes;
+            if (changes && typeof changes === 'object') flow.changes = { steps: count(changes.steps), connections: count(changes.connections) };
+            else delete flow.changes;
+        }
         if (o.get || Object.prototype.hasOwnProperty.call(answer, 'next_run')) {
             const next = answer.next_run;
             if (next && typeof next.at === 'string' && Number.isFinite(Date.parse(next.at))) flow.next_run = { at: next.at, node: typeof next.node === 'string' ? next.node : '' };
             else delete flow.next_run;
         }
-        ed.flowFactsRevision = Number.isInteger(o.revision) ? o.revision : count(flow.draft_revision);
+        if (!other) ed.flowFactsRevision = Number.isInteger(o.revision) ? o.revision : count(flow.draft_revision);
     }
 
     // currentRevision is the draft revision the editor shows: the saver's, else the record's.
@@ -49,8 +53,9 @@
     }
 
     // changeCount is the number of changes since the live version (steps and connections together), or null when the server
-    // sent none (a flow that was never published, an older server).
+    // sent none (a flow that was never published, an older server) or counted it for another revision than the one on screen.
     function changeCount(ed) {
+        if (!ed.flow || ed.flowFactsRevision !== currentRevision(ed)) return null;
         const changes = ed.flow && ed.flow.changes;
         return changes ? count(changes.steps) + count(changes.connections) : null;
     }

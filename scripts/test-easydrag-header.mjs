@@ -54,7 +54,7 @@ export async function run(env) {
         rev = 9;
         h.fireDoc('aurago:flows-changed', { detail: { flow_id: 'f1', reason: 'checked' } });
         await settle();
-        const elsewhere = [ED.flowState.isTested(editor.ed)];
+        const elsewhere = [ED.flowState.isTested(editor.ed), ED.flowState.changeCount(editor.ed)];
         // A restored version replaces the draft: the old flag and count go.
         editor.ed.bus.emit('restored', { flow: Object.assign(recordOf(10), { draft: flowDoc() }), issues: [] });
         await settle();
@@ -64,7 +64,7 @@ export async function run(env) {
             false,
             [false, { steps: 3, connections: 1 }, { at: '2026-11-17T07:00:00+01:00', node: T1 }, false, 4, 'saved'],
             [true, { steps: 5, connections: 0 }, true, true],
-            [false],
+            [true, 5],
             [false, true, false],
             []
         ]);
@@ -81,8 +81,37 @@ export async function run(env) {
             [ED.flowState.isTested(ed('success')), ED.flowState.isTested(ed('error')), ED.flowState.isTested(other), ED.flowState.isTested(dirty), ED.flowState.isTested(staleFlag)],
             [true, false, false, false, false]);
         eq('w1c B.1 changeCount adds steps and connections and is null without the server\'s count',
-            [ED.flowState.changeCount({ flow: { changes: { steps: 2, connections: 3 } } }), ED.flowState.changeCount({ flow: {} }), ED.flowState.changeCount({ flow: { changes: { steps: 'x' } } })],
-            [5, null, 0]);
+            [ED.flowState.changeCount({ flow: { changes: { steps: 2, connections: 3 } }, flowFactsRevision: 0 }), ED.flowState.changeCount({ flow: {}, flowFactsRevision: 0 }), ED.flowState.changeCount({ flow: { changes: { steps: 'x' } }, flowFactsRevision: 0 }), ED.flowState.changeCount({ flow: { changes: { steps: 2 } }, flowFactsRevision: 1 })],
+            [5, null, 0, null]);
+    });
+
+    await guardAsync('w1c B.1 the change count is null once the saver revision moved without the facts: an external acknowledgement, a conflict reload', async () => {
+        const facts = { tested: true, changes: { steps: 2, connections: 1 } };
+        const conflict = Object.assign(new Error('conflict'), { status: 409, body: { code: 'FLOW_REVISION_CONFLICT' } });
+        let mode = '';
+        const h = sandbox(req => {
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') return Object.assign({ flow: recordOf(mode === 'conflict' ? 7 : 3), enabled: true, issues: [] }, facts);
+            if (req.method === 'PUT' && mode === 'conflict') throw conflict;
+            return undefined;
+        });
+        const editor = openEditor(h, { flow: recordOf(3), enabled: true, facts });
+        await settle();
+        const ED = h.ED, ed = editor.ed;
+        const before = ED.flowState.changeCount(ed);
+        const ticket = ed.saver.beginExternal(ed.saver.revision, ed.model.version);
+        const acknowledged = ed.saver.acknowledgeExternal(ticket, ed.saver.revision + 1, () => ed.model.setFlow({ description: 'external' }), []);
+        await settle();
+        const afterAck = [acknowledged, ED.flowState.changeCount(ed), ED.flowState.isTested(ed)];
+        mode = 'conflict';
+        ed.model.setFlow({ description: 'mine' });
+        h.runTimers(1000);
+        await settle();
+        const dialog = h.dialogs[0];
+        if (dialog) dialog.el.querySelector('[data-ed-action="reload"]').fire('click');
+        await settle();
+        eq('w1c B.1 the count follows the revision: shown, then null after an acknowledgement and after a conflict reload',
+            [before, afterAck, ed.saver.revision, ED.flowState.changeCount(ed), h.logged], [3, [true, null, false], 7, null, []]);
+        editor.dispose();
     });
 
     // ── B.2: the kit popover ──
@@ -128,6 +157,24 @@ export async function run(env) {
         ]);
     });
 
+    await guardAsync('w1c B.2 ED.kit.popover: Tab past the last entry and Shift+Tab before the first close it and give the focus to the anchor', async () => {
+        const h = sandbox(() => undefined);
+        const { ED } = h, doc = h.dom.document, El = h.dom.El;
+        const anchor = new El('button', {});
+        h.body.appendChild(anchor);
+        const open = () => ED.kit.popover(anchor, { content: ED.core.el('<div><button type="button" data-ed-pop="a">A</button><button type="button" data-ed-pop="b">B</button></div>'), label: 'Status' });
+        let pop = open();
+        const a = pop.el.querySelector('[data-ed-pop="a"]'), b = pop.el.querySelector('[data-ed-pop="b"]');
+        const inner = [pop.el.fire('keydown', { key: 'Tab' }).defaultPrevented, pop.isOpen()];
+        b.focus();
+        const last = pop.el.fire('keydown', { key: 'Tab' });
+        const afterTab = [last.defaultPrevented, pop.isOpen(), doc.activeElement === anchor];
+        pop = open();
+        const first = pop.el.fire('keydown', { key: 'Tab', shiftKey: true });
+        const afterShift = [first.defaultPrevented, pop.isOpen(), doc.activeElement === anchor];
+        eq('w1c B.2 popover Tab edges', [inner, afterTab, afterShift, h.logged], [[false, true], [true, false, true], [true, false, true], []]);
+    });
+
     await guardAsync('w1c B.2 ED.kit.popover.update swaps the content and keeps the focus on the same control', async () => {
         const h = sandbox(() => undefined);
         const { ED } = h, doc = h.dom.document;
@@ -163,12 +210,15 @@ export async function run(env) {
             if (req.method === 'PUT') return { draft_revision: 4, issues: [] };
             return undefined;
         });
+        // world.parked answers the run controller's hasParked (a live run of this flow behind a review).
+        const create = h.ED.pill.create;
+        h.ED.pill.create = host => { if (world.parked !== undefined) host.runs.hasParked = () => !!world.parked; return create(host); };
         const editor = openEditor(h, Object.assign({ flow: recordOf(2), enabled: world.enabled }, opts));
         return { h, editor };
     };
 
     await guardAsync('w1c B.3 the pill says one thing, in the fixed order: run, past run, problem, pause, version', async () => {
-        const world = { enabled: true };
+        const world = { enabled: true, parked: false };
         const { h, editor } = publishedFlow(world);
         await settle();
         const live = { status: 'success', revision: 2, started_at: '2026-11-16T10:00:00Z' };
@@ -181,6 +231,9 @@ export async function run(env) {
         rows.push(['link over outdated', show(editor, { liveIssues: [{ code: 'FLOW_SCHEDULE_INVALID' }, { code: 'FLOW_MISSION_MISSING' }], liveIssuesRevision: 2 })]);
         rows.push(['partial over link', show(editor, { publishIncomplete: 'FLOW_PUBLISH_INCOMPLETE' })]);
         rows.push(['past run over problems', show(editor, { runView: { run: live } })]);
+        world.parked = true;
+        rows.push(['a past run with the own run parked', show(editor, {})]);
+        world.parked = false;
         rows.push(['a running viewed run over everything', show(editor, { runView: { run: Object.assign({}, live, { status: 'running' }) } })]);
         rows.push(['mission missing alone', show(editor, { runView: null, liveIssues: [], publishIncomplete: 'FLOW_MISSION_MISSING' })]);
         rows.push(['all clear', show(editor, { publishIncomplete: '', timersRunning: true, flowEnabled: true }, { draft_revision: 2 })]);
@@ -198,6 +251,7 @@ export async function run(env) {
             ['link over outdated', ['link', 'blocked', 'pill_link_missing']],
             ['partial over link', ['partial', 'blocked', 'state_publish_incomplete']],
             ['past run over problems', ['past', 'none', 'state_run_view']],
+            ['a past run with the own run parked', ['running', 'running', 'running']],
             ['a running viewed run over everything', ['running', 'running', 'running']],
             ['mission missing alone', ['link', 'blocked', 'pill_link_missing']],
             ['all clear', ['live', 'ok', 'pill_live:2']],

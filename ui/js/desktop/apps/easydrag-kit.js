@@ -290,6 +290,13 @@
             if (!el.contains(event.target) && !anchor.contains(event.target)) close(false);
         }
         el.addEventListener('keydown', event => {
+            if (event.key === 'Tab') {
+                // Tab leaves the popover from its edges: the focus goes back to the pill, not on to the end of the editor.
+                const items = Array.from(el.querySelectorAll('button')).filter(b => !b.disabled);
+                const edge = event.shiftKey ? items[0] : items[items.length - 1];
+                if (!items.length || document.activeElement === edge || document.activeElement === el) { event.preventDefault(); close(true); }
+                return;
+            }
             if (event.key !== 'Escape') return;
             event.preventDefault();
             event.stopPropagation();

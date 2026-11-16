@@ -124,6 +124,20 @@
             }).join('') + (diff.details_truncated ? '<p class="ed-hint">…</p>' : '') + '</section>';
         }
 
+        // settleFocus: a publish makes the header hide Publish while the dialog is open, so the modal gives the focus back to a hidden
+        // button. Then Test (else the canvas) takes it, unless the focus is already on a visible control of the editor.
+        function settleFocus() {
+            const root = ed.root;
+            if (!root || root.isConnected === false || typeof root.querySelector !== 'function') return;
+            const button = root.querySelector('[data-ed-cmd="publish"]');
+            if (!button || !button.hidden) return;
+            const active = document.activeElement;
+            if (active && active !== document.body && root.contains(active) && !(typeof active.closest === 'function' && active.closest('.ed-modal-backdrop')) && !active.hidden && typeof active.getClientRects === 'function' && active.getClientRects().length) return;
+            const target = [root.querySelector('[data-ed-cmd="test"]'), root.querySelector('[data-ed-canvas], .ed-canvas')]
+                .find(node => node && !node.hidden && typeof node.getClientRects === 'function' && node.getClientRects().length);
+            if (target && typeof target.focus === 'function') target.focus();
+        }
+
         // openDialog opens the publish dialog once: clicks while it loads or is open do nothing.
         async function openDialog() {
             if (ed.readonly || ed.runView || dialogBusy) return undefined;
@@ -134,7 +148,7 @@
             } finally {
                 if (!dialog) dialogBusy = false;
             }
-            if (dialog) dialog.done.then(() => { dialogBusy = false; });
+            if (dialog) dialog.done.then(() => { dialogBusy = false; settleFocus(); });
             return dialog;
         }
 
