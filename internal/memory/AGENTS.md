@@ -19,6 +19,9 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Corpus capacity
 
+- Legacy GOB migration inventories relative names, sizes and SHA-256 hashes and decodes one document at a time, bounded to 64 MiB per decompressed file. Include backup bytes, transaction headroom and the existing 256-MiB reserve before copying.
+- Publish a private verified snapshot with `aurago-legacy-manifest.json` before importing. Reuse a matching snapshot only after rechecking every checksum; preserve damaged/unknown/older backups. Import from the snapshot in one transaction and recheck the complete source and snapshot inventories before commit. Only the current attempt's uniquely created staging directory is cleaned; unfamiliar or interrupted staging is retained for review. Verify `TestLegacyVector*` and existing corpus migration/capacity tests.
+
 - `embeddings.corpus_max_size_mb` defaults to 1024 MiB and is startup-only.
   Apply SQLite max_page_count through the DSN on every pool connection. Do not
   include WAL in the cap; report logical usage and WAL separately.
