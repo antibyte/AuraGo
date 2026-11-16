@@ -762,6 +762,13 @@ Server-owned HTTP and cross-component integration contracts.
 - Dashboard and `/api/github/repos` list through the paged `GitHubListRepos` helper with no slice limit.
 
 ### Homepage Managed Website Ledger
+- `buildHomepageStudioAgentContext` directs site implementation and frontend
+  changes to activate `modern-web-guidance` and apply its relevant local guides.
+  Skill-reference reads use `file_reader_advanced`; project files retain the
+  Homepage tool boundary. Preserve design/browser targets and disabled or
+  blocked skills. This guidance is scoped to Homepage Studio, including window
+  and Store entry points. Verify `TestBuildDesktopAgentContextModernWebGuidanceRouting`
+  and `TestBuildDesktopAgentPromptRoutesHomepageStudioToHomepageTools`.
 - Homepage status forwards the HTTP request context to tool diagnostics. Its
   additive `local_preview` observation is independent of container `running` and
   query `status`; preserve both distinctions in Desktop aliases and UI consumers.

@@ -1146,6 +1146,8 @@ func buildHomepageStudioAgentContext(chatContext desktopChatContext) string {
 	b.WriteString("\nUse homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git for project lifecycle, file edits, checks, deploys, and git history. The legacy homepage tool is acceptable only when focused homepage tools are unavailable.")
 	b.WriteString("\nDo not use virtual_desktop apps, widgets, or files for Homepage Studio site changes unless the user explicitly asks to change the Virtual Desktop UI.")
 	b.WriteString("\nDo not use generic filesystem, file_editor, execute_shell, or execute_python for homepage workspace files; use homepage workspace tool paths instead.")
+	b.WriteString("\nBefore implementing or changing HTML, CSS, browser JavaScript, accessibility or performance, load the bundled modern-web-guidance Agent Skill via activate_agent_skill with skill=\"modern-web-guidance\" (use discover_tools if needed) and apply its relevant guides. Preserve the selected design and the project's browser targets.")
+	b.WriteString("\nRead the skill's local references with file_reader_advanced as directed by the skill; these are reference reads outside the homepage project, while project files still use homepage tools. If the skill is disabled, blocked or unavailable, report that limitation and continue the authorized work without re-enabling it or claiming to have applied it.")
 	b.WriteString("\nBefore editing, query homepage_registry get_site/overview for the exact managed site. Supply reason for every mutation. Afterwards verify the preview and automatic ledger event; use list_events for what changed and why.")
 	if design := homepageStudioDesignPrompt(chatContext.DesignID); design != "" {
 		b.WriteString("\n\n")

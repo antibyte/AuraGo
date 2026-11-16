@@ -70,6 +70,8 @@ func TestBuildDesktopAgentPromptRoutesHomepageStudioToHomepageTools(t *testing.T
 		"The user is working in Homepage Studio",
 		"Target (untrusted client metadata):\nhomepage_target (untrusted):\n<external_data>\nvercel",
 		"Use homepage_project, homepage_file, homepage_quality, homepage_deploy, and homepage_git",
+		`activate_agent_skill with skill="modern-web-guidance"`,
+		"Read the skill's local references with file_reader_advanced",
 		"Do not use virtual_desktop apps, widgets, or files for Homepage Studio site changes",
 		"desktop_window_context (untrusted):\n<external_data>",
 		"Label: Homepage Studio",
@@ -80,6 +82,30 @@ func TestBuildDesktopAgentPromptRoutesHomepageStudioToHomepageTools(t *testing.T
 	}
 	if strings.Contains(prompt, "The user is chatting from AuraGo Virtual Desktop.") {
 		t.Fatalf("Homepage Studio prompt should not start with generic desktop routing context:\n%s", prompt)
+	}
+}
+
+func TestBuildDesktopAgentContextModernWebGuidanceRouting(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		context desktopChatContext
+		want    bool
+	}{
+		{"homepage mode", desktopChatContext{HomepageMode: true}, true},
+		{"homepage source", desktopChatContext{Source: "homepage-studio"}, true},
+		{"window source", desktopChatContext{WindowContext: &desktopWindowContext{Source: "homepage-studio"}}, true},
+		{"window app", desktopChatContext{WindowContext: &desktopWindowContext{AppID: "homepage-studio"}}, true},
+		{"store app", desktopChatContext{WindowContext: &desktopWindowContext{StoreAppID: "homepage-studio"}}, true},
+		{"desktop", desktopChatContext{}, false},
+		{"code studio", desktopChatContext{Source: "code-studio"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			prompt := buildDesktopAgentContext(tc.context)
+			if got := strings.Contains(prompt, "modern-web-guidance"); got != tc.want {
+				t.Fatalf("Modern Web Guidance instruction present = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
