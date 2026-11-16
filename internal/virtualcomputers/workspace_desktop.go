@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image/png"
 	"os"
@@ -36,6 +37,11 @@ func (m *WorkspaceManager) SetGUIConfigSource(source func() ToolConfig) {
 	m.guiMu.Lock()
 	m.guiConfig = source
 	m.guiMu.Unlock()
+	if source != nil {
+		if err := m.prepareDesktopArtifacts(source().NativeArtifactDir); err != nil {
+			m.logger.Warn("Private desktop capture cleanup failed", "error", err)
+		}
+	}
 }
 func (m *WorkspaceManager) liveGUIConfig(fallback ToolConfig) ToolConfig {
 	m.guiMu.Lock()
@@ -53,15 +59,19 @@ func (m *WorkspaceManager) guiFor(id string) *workspaceGUI {
 		m.gui = make(map[string]*workspaceGUI)
 	}
 	if m.gui[id] == nil {
-		m.gui[id] = &workspaceGUI{serial: make(chan struct{}, 1)}
+		m.gui[id] = &workspaceGUI{serial: make(chan struct{}, 1), closed: m.guiClosed}
 	}
 	return m.gui[id]
 }
-func (g *workspaceGUI) clearImageLocked() {
+func (g *workspaceGUI) clearImageLocked() error {
 	if g.image != nil {
-		_ = os.Remove(g.image.path)
+		err := os.Remove(g.image.path)
 		g.image = nil
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 	}
+	return nil
 }
 func hasDesktopControl(w Workspace) bool {
 	return slices.Contains(w.Capabilities, "desktop.control.v1")
@@ -108,7 +118,11 @@ func (m *WorkspaceManager) beginGUI(ctx context.Context, cfg ToolConfig, identit
 		g.mu.Unlock()
 		return fail(WorkspaceRPCError{Code: "desktop_control_changed", Message: "workspace control changed; observe again"})
 	}
-	callCtx, cancel := context.WithTimeout(ctx, 40*time.Second)
+	callCtx, cancel := context.WithCancel(ctx)
+	if native {
+		cancel()
+		callCtx, cancel = context.WithTimeout(ctx, 40*time.Second)
+	}
 	done := make(chan struct{})
 	g.cancel, g.done = cancel, done
 	token := g.token
@@ -127,7 +141,9 @@ func (m *WorkspaceManager) beginGUI(ctx context.Context, cfg ToolConfig, identit
 			var client *Client
 			client, err = m.clientFactory(live)
 			if err == nil {
-				err = m.transportFactory(client).Call(callCtx, w.MachineID, "desktop.control", map[string]interface{}{"token": token, "blocked": human}, nil)
+				controlCtx, stop := context.WithTimeout(callCtx, 8*time.Second)
+				err = m.transportFactory(client).Call(controlCtx, w.MachineID, "desktop.control", map[string]interface{}{"token": token, "blocked": human}, nil)
+				stop()
 			}
 		}
 		if err != nil {
@@ -192,15 +208,14 @@ func (m *WorkspaceManager) revokeGUI(ctx context.Context, cfg ToolConfig, w Work
 	}
 	g.mu.Lock()
 	g.token = ""
+	g.clearImageLocked()
 	g.mu.Unlock() // Next admitted call negotiates a fresh token.
 	return func() { g.mu.Lock(); g.blocked = false; g.mu.Unlock(); g.control.Unlock() }, nil
 }
 
 // Called after the live config is published, before the save is acknowledged.
 func (m *WorkspaceManager) ApplyGUIConfig(ctx context.Context, oldCfg, newCfg ToolConfig) error {
-	if newCfg.Enabled && newCfg.ToolGate && newCfg.AgentControl.Enabled && !newCfg.ReadOnly && (!oldCfg.AgentControl.NativeAppsEnabled || newCfg.AgentControl.NativeAppsEnabled) {
-		return nil
-	}
+	revoke := !newCfg.Enabled || !newCfg.ToolGate || !newCfg.AgentControl.Enabled || newCfg.ReadOnly || (oldCfg.AgentControl.NativeAppsEnabled && !newCfg.AgentControl.NativeAppsEnabled)
 	m.guiMu.Lock()
 	ids := make([]string, 0, len(m.gui))
 	for id := range m.gui {
@@ -208,31 +223,45 @@ func (m *WorkspaceManager) ApplyGUIConfig(ctx context.Context, oldCfg, newCfg To
 	}
 	m.guiMu.Unlock()
 	// Revoke every active call immediately, even if the first guest is unreachable.
+	pending := make([]string, 0, len(ids))
 	for _, id := range ids {
 		g := m.guiFor(id)
 		g.mu.Lock()
-		g.blocked = true
-		g.clearImageLocked()
-		if g.cancel != nil {
-			g.cancel()
+		if revoke || g.blocked {
+			g.blocked = true
+			g.clearImageLocked()
+			if g.cancel != nil {
+				g.cancel()
+			}
+			pending = append(pending, id)
 		}
 		g.mu.Unlock()
 	}
-	for _, id := range ids {
-		w, ok, err := m.ledger.GetWorkspace(ctx, id)
-		if err != nil {
-			return err
-		}
-		if !ok || w.State != WorkspaceStateReady {
-			continue
-		}
-		release, err := m.revokeGUI(ctx, oldCfg, w, false)
-		if err != nil {
-			return err
-		}
-		release()
+	// A slow or unreachable guest must not consume another workspace's barrier budget.
+	failures := make(chan error, len(pending))
+	var workers sync.WaitGroup
+	for _, id := range pending {
+		workers.Go(func() {
+			w, ok, err := m.ledger.GetWorkspace(ctx, id)
+			if err == nil && ok && w.State == WorkspaceStateReady {
+				var release func()
+				release, err = m.revokeGUI(ctx, oldCfg, w, false)
+				if err == nil {
+					release()
+				}
+			}
+			if err != nil {
+				failures <- fmt.Errorf("revoke workspace %s: %w", id, err)
+			}
+		})
 	}
-	return nil
+	workers.Wait()
+	close(failures)
+	var errs []error
+	for err := range failures {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
 }
 
 func (m *WorkspaceManager) DesktopStatus(ctx context.Context, cfg ToolConfig, identity WorkspaceIdentity, id string) (map[string]interface{}, error) {
@@ -354,6 +383,9 @@ func (m *WorkspaceManager) captureDesktop(ctx context.Context, cfg ToolConfig, w
 	if cfg.NativeArtifactDir == "" {
 		return nil, fmt.Errorf("private desktop artifact directory is unavailable")
 	}
+	if err := m.prepareDesktopArtifacts(cfg.NativeArtifactDir); err != nil {
+		return nil, fmt.Errorf("prepare private desktop captures: %w", err)
+	}
 	if err := os.MkdirAll(cfg.NativeArtifactDir, 0700); err != nil {
 		return nil, err
 	}
@@ -373,10 +405,16 @@ func (m *WorkspaceManager) captureDesktop(ctx context.Context, cfg ToolConfig, w
 	}
 	g := m.guiFor(w.ID)
 	g.mu.Lock()
+	remaining := 30*time.Second - m.now().Sub(started)
+	if ctx.Err() != nil || g.closed || g.blocked || g.token != r.ControlToken || remaining <= 0 {
+		g.mu.Unlock()
+		_ = os.Remove(name)
+		return nil, WorkspaceRPCError{Code: "desktop_control_changed", Message: "capture was cancelled or expired; take a fresh observation"}
+	}
 	g.clearImageLocked()
 	g.image = &workspaceDesktopImage{ref: observation.Ref, path: name, nonce: w.InstanceNonce, created: started}
 	g.mu.Unlock()
-	time.AfterFunc(30*time.Second, func() {
+	time.AfterFunc(remaining, func() {
 		g.mu.Lock()
 		defer g.mu.Unlock()
 		if g.image != nil && g.image.path == name {
@@ -405,7 +443,7 @@ func (m *WorkspaceManager) ResolveDesktopImage(ctx context.Context, identity Wor
 	for id, g := range states {
 		g.mu.Lock()
 		var image workspaceDesktopImage
-		if g.image != nil {
+		if g.image != nil && !g.closed && !g.blocked {
 			image = *g.image
 		}
 		g.mu.Unlock()

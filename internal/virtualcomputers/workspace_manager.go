@@ -190,6 +190,10 @@ type WorkspaceManager struct {
 	lastConfig        ToolConfig
 	legacyImportMu    sync.Mutex
 	legacyImports     map[string]*pendingLegacyVolumeImport
+
+	guiClosed           bool
+	desktopArtifactDirs map[string]bool
+	guiCloseErr         error
 }
 
 var defaultWorkspaceManager struct {
@@ -251,9 +255,12 @@ func (m *WorkspaceManager) Close() error {
 	if m == nil {
 		return nil
 	}
-	m.closeOnce.Do(func() { close(m.stop) })
+	m.closeOnce.Do(func() {
+		m.guiCloseErr = m.closeDesktopGUI()
+		close(m.stop)
+	})
 	<-m.done
-	return nil
+	return m.guiCloseErr
 }
 
 func (m *WorkspaceManager) run() {

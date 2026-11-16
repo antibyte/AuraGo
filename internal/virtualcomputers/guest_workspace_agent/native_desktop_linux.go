@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -292,22 +293,26 @@ func runDesktopProcess(ctx context.Context, binary string, args []string, input 
 	ctx, cancel := context.WithTimeout(ctx, 35*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Env = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + nativeDesktopRoot, "AGENT_DESKTOP_HOME=" + nativeDesktopRoot, "DISPLAY=:0", "NO_AT_BRIDGE=0", "LANG=C.UTF-8", "DBUS_SESSION_BUS_ADDRESS=" + os.Getenv("DBUS_SESSION_BUS_ADDRESS"), "XDG_RUNTIME_DIR=" + os.Getenv("XDG_RUNTIME_DIR")}
+	cmd.Env = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=" + nativeDesktopRoot, "AGENT_DESKTOP_HOME=" + nativeDesktopRoot, "DISPLAY=:0", "NO_AT_BRIDGE=0", "LANG=C.UTF-8", "DBUS_SESSION_BUS_ADDRESS=" + os.Getenv("DBUS_SESSION_BUS_ADDRESS"), "XDG_RUNTIME_DIR=" + nativeDesktopRoot}
 	cmd.Stdin = strings.NewReader(input)
 	var stdout, stderr cappedDesktopOutput
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	// Kill the CLI and its helpers; application launch uses the desktop session.
+	// Upstream releases held X11 input on SIGTERM; allow its two-second release budget.
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {
 			return nil
 		}
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
 	}
-	cmd.WaitDelay = time.Second
+	cmd.WaitDelay = 3 * time.Second
 	err := cmd.Run()
 	if ctx.Err() != nil {
+		if cmd.Process != nil {
+			// WaitDelay kills the main process; also stop any remaining helpers.
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		}
 		return desktopEnvelope{}, &rpcError{Code: "desktop_interrupted", Message: "desktop operation interrupted; observe before another action", Data: map[string]interface{}{"disposition": map[string]string{"delivery": "unknown", "retry": "unsafe"}}}
 	}
 	if stdout.overflow || stderr.overflow {
@@ -321,6 +326,29 @@ func runDesktopProcess(ctx context.Context, binary string, args []string, input 
 		return desktopEnvelope{}, fmt.Errorf("native desktop process failed")
 	}
 	return result, nil // Preserve the upstream error envelope and its delivery/retry evidence.
+}
+
+func (n *nativeDesktop) releaseInput(ctx context.Context) error {
+	return releaseDesktopInput(ctx, filepath.Join(nativeDesktopRoot, "agent-desktop-input"), n.call)
+}
+
+// v1.3.1 journals held keys/buttons before delivery and removes records only after
+// release. Its status/permission probe also recovers abandoned input.
+func releaseDesktopInput(ctx context.Context, journal string, run func(context.Context, []string, string) (desktopEnvelope, error)) error {
+	entries, err := os.ReadDir(journal)
+	if os.IsNotExist(err) || (err == nil && len(entries) == 0) {
+		return ctx.Err()
+	}
+	if err == nil {
+		recoveryCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		_, _ = run(recoveryCtx, []string{"status"}, "")
+		cancel()
+		entries, err = os.ReadDir(journal)
+		if os.IsNotExist(err) || (err == nil && len(entries) == 0) {
+			return ctx.Err()
+		}
+	}
+	return &rpcError{Code: "desktop_input_release_unconfirmed", Message: "held input could not be released; restore the display and retry control, or close and recreate the workspace", Data: map[string]interface{}{"disposition": map[string]string{"delivery": "unknown", "retry": "unsafe"}}}
 }
 
 func (n *nativeDesktop) reset() { n.mu.Lock(); n.refs = nil; n.images = nil; n.mu.Unlock() }

@@ -9,9 +9,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -87,8 +89,148 @@ func TestNativeDesktopProcessHelper(t *testing.T) {
 		_, _ = os.Stdout.WriteString(strings.Repeat("x", nativeOutputLimit+1))
 	case "sleep":
 		time.Sleep(time.Minute)
+	case "graceful", "ignoreterm":
+		marker, _ := io.ReadAll(os.Stdin)
+		termination := make(chan os.Signal, 1)
+		if os.Args[len(os.Args)-1] == "ignoreterm" {
+			signal.Ignore(syscall.SIGTERM)
+		} else {
+			signal.Notify(termination, syscall.SIGTERM)
+		}
+		_ = os.WriteFile(string(marker), []byte("held"), 0600)
+		if os.Args[len(os.Args)-1] == "ignoreterm" {
+			time.Sleep(time.Minute)
+		}
+		<-termination
+		time.Sleep(100 * time.Millisecond)
+		_ = os.WriteFile(string(marker), []byte("released"), 0600)
 	}
 	os.Exit(0)
+}
+
+func TestNativeDesktopCancellationWaitsForReleaseAndBoundsFallback(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"graceful", "ignoreterm"} {
+		t.Run(mode, func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "input")
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() {
+				_, err := runDesktopProcess(ctx, executable, []string{"-test.run=^TestNativeDesktopProcessHelper$", "native-helper", mode}, marker)
+				done <- err
+			}()
+			deadline := time.Now().Add(5 * time.Second)
+			for {
+				if data, _ := os.ReadFile(marker); string(data) == "held" {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal("helper did not arm its signal handler")
+				}
+				time.Sleep(5 * time.Millisecond)
+			}
+			started := time.Now()
+			cancel()
+			select {
+			case err := <-done:
+				if err == nil {
+					t.Fatal("cancelled input reported success")
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("cancellation did not finish within its grace period")
+			}
+			state, err := os.ReadFile(marker)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "graceful" && string(state) != "released" {
+				t.Fatal("process was killed before input release")
+			}
+			if mode == "ignoreterm" && string(state) != "held" {
+				t.Fatal("hard fallback fixture unexpectedly released input")
+			}
+			if mode == "ignoreterm" && time.Since(started) < 2500*time.Millisecond {
+				t.Fatal("helper exited before the hard fallback deadline")
+			}
+		})
+	}
+}
+
+func TestNativeDesktopHandoffRequiresEmptyInputJournal(t *testing.T) {
+	for _, mode := range []string{"empty", "recovered", "stuck", "unreadable"} {
+		t.Run(mode, func(t *testing.T) {
+			dir := t.TempDir()
+			journal := filepath.Join(dir, "agent-desktop-input")
+			if mode != "empty" {
+				if err := os.Mkdir(journal, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(journal, "123.json"), []byte(`{"buttons":[1]}`), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if mode == "unreadable" {
+				journal = filepath.Join(journal, "123.json")
+			}
+			calls := 0
+			err := releaseDesktopInput(context.Background(), journal, func(_ context.Context, args []string, input string) (desktopEnvelope, error) {
+				calls++
+				if !reflect.DeepEqual(args, []string{"status"}) || input != "" {
+					t.Fatal("unexpected recovery command")
+				}
+				if mode == "recovered" {
+					_ = os.Remove(filepath.Join(journal, "123.json"))
+				}
+				return desktopEnvelope{OK: true}, nil
+			})
+			if mode == "empty" || mode == "recovered" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil {
+				t.Fatal("handoff accepted unconfirmed input release")
+			}
+			if mode == "empty" && calls != 0 {
+				t.Fatal("clean handoff changed the guest")
+			}
+		})
+	}
+}
+
+// Launched only by the isolated X11 harness after mounting a private /run and display.
+func TestNativeDesktopLiveAdapterHelper(t *testing.T) {
+	if len(os.Args) < 3 {
+		return
+	}
+	mode, binary := os.Args[len(os.Args)-2], os.Args[len(os.Args)-1]
+	if mode != "native-live-helper" && mode != "native-release-helper" {
+		return
+	}
+	if err := os.MkdirAll(nativeDesktopRoot, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if mode == "native-live-helper" {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() { var b [1]byte; _, _ = os.Stdin.Read(b[:]); cancel() }()
+		_, err := runDesktopProcess(ctx, binary, []string{"--headed", "drag", "--from-xy", "200,200", "--to-xy", "450,300", "--timeout-ms", "10000"}, "")
+		if err == nil {
+			t.Fatal("expected cancelled native input")
+		}
+	}
+	native := nativeDesktop{run: func(ctx context.Context, args []string, input string) (desktopEnvelope, error) {
+		return runDesktopProcess(ctx, binary, args, input)
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := native.releaseInput(ctx); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = os.Stdout.WriteString("{\"release_confirmed\":true}\n")
 }
 
 func TestNativeDesktopProcessStdinErrorsLimitsAndCancellation(t *testing.T) {

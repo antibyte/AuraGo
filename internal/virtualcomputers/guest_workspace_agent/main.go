@@ -537,6 +537,9 @@ func (s *service) dispatch(ctx context.Context, method string, raw json.RawMessa
 		if err := s.ui.change(ctx, request.Token, request.Blocked); err != nil {
 			return nil, toRPCError(err)
 		}
+		if err := s.native.releaseInput(ctx); err != nil {
+			return nil, toRPCError(err)
+		}
 		s.native.reset()
 		return map[string]bool{"drained": true}, nil
 	case "workspace.close":

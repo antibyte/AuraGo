@@ -260,7 +260,10 @@ dialogs; `virtual_browser` retains web navigation and its credential grants. Bot
 operate on VNC display `:0` and share the existing control lease. Take control,
 disabling or closing a workspace blocks new input and waits for active input to
 stop. If cancellation cannot be confirmed, the operation reports failure and
-input stays blocked; restore connectivity and retry the control change. After
+input stays blocked only in that workspace; other workspaces remain usable.
+Restore connectivity and retry the control change or save the configuration again.
+If held keyboard/mouse input cannot be released, restore the guest display and
+retry, or close and recreate the workspace. After
 returning control the agent must obtain fresh observations.
 
 The Debian 13 desktop image includes AT-SPI 2.52 or later. Openbox, GUI apps and
@@ -281,7 +284,8 @@ outcomes are never automatically retried.
 
 Guest references and helper state live under `/run/aurago/native-desktop`; host
 captures live privately under the configured data directory and are deleted
-after expiry or invalidation. They are excluded from `/workspace` checkpoints.
+after expiry, invalidation or shutdown. Startup also removes orphaned capture
+files left by an interrupted process. They are excluded from `/workspace` checkpoints.
 Activity stores operation/outcome only. Window content and image analysis are
 untrusted input. Native control is limited to the owning main-agent chat/mission;
 manual VMs, Python workspaces, co-agents and A2A peers are excluded.
