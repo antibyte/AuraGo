@@ -24,7 +24,7 @@ Offline 2D action-platformer game (`runenpfad`, category `games`) for the AuraGo
 ## Work Guidance
 
 - Keep each first-party JS file under `ui/js/desktop/` below `1100` lines with semantic filenames (`TestVirtualDesktopFirstPartyJSFilesStayBelowLineBudget`, `TestVirtualDesktopJSUsesSemanticChunkNames`).
-- Keep audio disabled at startup until the user enables it via the pause menu; suspend/pause audio whenever the window becomes inactive, minimized, hidden, or a modal is open.
+- Sound is enabled by default (`profile.sound`), unlocks Web Audio on the first user gesture, and can be toggled in either the top HUD bar or the pause menu; suspend/pause audio whenever the window becomes inactive, minimized, hidden, or a modal is open.
 - Preserve test names `TestRunenpfadRegistration` and `TestDesktopRunenpfadBrowser` so CI browser shards (`TestUIBrowserCIShardsCoverEveryTest`) cover both cleanly without modifying workflow selectors.
 - Maintain genuine translations for all 99 `runenpfad.*` keys and `desktop.app_runenpfad` across all 16 locales.
 

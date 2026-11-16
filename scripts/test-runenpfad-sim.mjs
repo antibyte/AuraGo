@@ -96,6 +96,7 @@ assert.equal(endlessA.collectibles.filter((c) => c.kind === 'gem').length, 3);
 let profile = Sim.createDefaultProfile();
 assert.equal(profile.unlockedLevel, 1);
 assert.equal(profile.hero, 'knight');
+assert.equal(profile.sound, true);
 
 const simK = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
 const startX = simK.player.x;
@@ -229,6 +230,7 @@ assert.deepEqual(Sim.buyUpgrade(poorProfile, 'vitality').reason, 'coins');
 const imported = Sim.importProfile({
     v: Sim.SAVE_VERSION,
     hero: 'unknown',
+    sound: false,
     unlockedLevel: 99,
     endlessBestFloor: -5,
     coins: 99999999,
@@ -239,6 +241,7 @@ const imported = Sim.importProfile({
 });
 assert.ok(imported);
 assert.equal(imported.hero, 'knight');
+assert.equal(imported.sound, false);
 assert.equal(imported.unlockedLevel, 25);
 assert.equal(imported.endlessBestFloor, 0);
 assert.equal(imported.upgrades.vitality, 5);

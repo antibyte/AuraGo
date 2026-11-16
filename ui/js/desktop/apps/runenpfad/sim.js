@@ -16,6 +16,7 @@
         return {
             v: SAVE_VERSION,
             hero: 'knight',
+            sound: true,
             unlockedLevel: 1,
             endlessBestFloor: 0,
             coins: 25,
@@ -70,6 +71,7 @@
         return {
             v: SAVE_VERSION,
             hero: hero,
+            sound: raw.sound !== false,
             unlockedLevel: clampInt(raw.unlockedLevel, 1, levels.CAMPAIGN_LEVELS.length, def.unlockedLevel),
             endlessBestFloor: clampInt(raw.endlessBestFloor, 0, 9999, 0),
             coins: clampInt(raw.coins, 0, 9999999, 0),

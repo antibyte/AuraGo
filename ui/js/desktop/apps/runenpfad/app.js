@@ -124,10 +124,14 @@
         const shopBtn = el('button', 'rp-btn rp-btn-gold');
         shopBtn.type = 'button';
         shopBtn.dataset.rpBtn = 'shop';
+        const hudSoundBtn = el('button', 'rp-btn');
+        hudSoundBtn.type = 'button';
+        hudSoundBtn.dataset.rpBtn = 'sound';
+        hudSoundBtn.setAttribute('aria-pressed', 'true');
         const pauseBtn = el('button', 'rp-btn rp-btn-primary');
         pauseBtn.type = 'button';
         pauseBtn.dataset.rpBtn = 'pause';
-        actions.append(heroBtn, levelsBtn, shopBtn, pauseBtn);
+        actions.append(heroBtn, levelsBtn, shopBtn, hudSoundBtn, pauseBtn);
 
         topbar.append(brand, stats, actions);
 
@@ -253,8 +257,11 @@
 
         function paintSound() {
             const on = !!(audio && audio.isEnabled());
-            soundBtn.textContent = on ? t('runenpfad.pause_sound_on') : t('runenpfad.pause_sound_off');
+            const label = on ? t('runenpfad.pause_sound_on') : t('runenpfad.pause_sound_off');
+            soundBtn.textContent = label;
             soundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            hudSoundBtn.textContent = label;
+            hudSoundBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
             shell.dataset.rpSound = on ? '1' : '0';
         }
 
@@ -272,6 +279,7 @@
                 b.type = 'button';
                 b.addEventListener('pointerdown', function (ev) {
                     ev.preventDefault();
+                    if (audio) audio.unlock();
                     touchState[spec.key] = true;
                     if (spec.edge) edgeState[spec.edge] = true;
                 });
@@ -562,6 +570,7 @@
         function onKeyDown(ev) {
             if (disposed) return;
             if (ctx.isActive && !ctx.isActive()) return;
+            if (audio) audio.unlock();
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(ev.code)) {
                 if (!anyDialogOpen()) ev.preventDefault();
             }
@@ -638,13 +647,17 @@
             closePause();
             startStage();
         });
-        soundBtn.addEventListener('click', function () {
+        function toggleSound() {
             if (!audio) return;
             audio.setEnabled(!audio.isEnabled());
+            profile.sound = audio.isEnabled();
+            writeProfile();
             if (audio.isEnabled() && sim) audio.setAmbience(sim.stage.world.ambience);
             paintSound();
             syncAudioActive();
-        });
+        }
+        soundBtn.addEventListener('click', toggleSound);
+        hudSoundBtn.addEventListener('click', toggleSound);
         resetBtn.addEventListener('click', function () {
             if (!resetArmed) {
                 resetArmed = true;
@@ -678,6 +691,7 @@
 
         root.addEventListener('keydown', onKeyDown, { signal: controller.signal });
         root.addEventListener('keyup', onKeyUp, { signal: controller.signal });
+        shell.addEventListener('pointerdown', function () { if (audio) audio.unlock(); }, { signal: controller.signal });
         document.addEventListener('visibilitychange', syncAudioActive, { signal: controller.signal });
 
         const ro = typeof ResizeObserver === 'function'
@@ -734,7 +748,11 @@
                 sheets = await View.loadSpriteSheets(indexed, controller.signal);
                 if (disposed || ticket !== generation) return;
                 if (audio) audio.dispose();
-                audio = Audio.createAudioController({ manifest: soundManifest, signal: controller.signal });
+                audio = Audio.createAudioController({
+                    manifest: soundManifest,
+                    signal: controller.signal,
+                    enabled: profile.sound !== false
+                });
                 renderer = View.createRenderer(canvas, sheets);
                 paintStaticCopy();
                 loadingCard.hidden = true;

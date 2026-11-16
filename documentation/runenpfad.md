@@ -30,6 +30,7 @@
 
 Narrow viewports automatically reveal touch buttons.
 
-## Rune Workshop & Local Saves
+## Rune Workshop, Audio & Local Saves
 
-Coins earned from enemies, crates, chests, and stage completions can be spent in the **Rune Workshop** (`Shop`) across four persistent upgrade tracks (`Vitality`, `Rune Might`, `Winged Boots`, `Alchemy`). All progress is stored locally in `localStorage` under `aurago.runenpfad.v1`.
+- **Audio**: Sound effects and biome ambience are enabled by default (`Sound` toggle in the top bar or Pause menu) and unlock on the first keyboard, mouse, or touch interaction using the `aurago-sounds` pack.
+- **Saves**: Coins earned from enemies, crates, chests, and stage completions can be spent in the **Rune Workshop** (`Shop`) across four persistent upgrade tracks (`Vitality`, `Rune Might`, `Winged Boots`, `Alchemy`). All progress is stored locally in `localStorage` under `aurago.runenpfad.v1`.

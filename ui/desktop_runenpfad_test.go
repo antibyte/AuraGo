@@ -212,13 +212,34 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 	page.MustEval(`()=>document.querySelector('.rp-shop-dialog .rp-dialog-head button').click()`)
 	page.MustWait(`()=>!document.querySelector('.rp-shop-dialog')?.hasAttribute('open')`)
 
-	// Toggle sound via Pause modal
+	// Sound is enabled by default; toggle off in HUD and back on in Pause modal
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpSound === '1'`)
+	page.MustEval(`()=>document.querySelector('[data-rp-btn="sound"]').click()`)
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpSound === '0'`)
+
+	// Toggle sound back on via Pause modal
 	page.MustEval(`()=>document.querySelector('[data-rp-btn="pause"]').click()`)
 	page.MustWait(`()=>document.querySelector('.rp-pause-dialog')?.hasAttribute('open')`)
 	page.MustEval(`()=>document.querySelector('.rp-pause-dialog button[aria-pressed]').click()`)
 	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpSound === '1'`)
 	page.MustEval(`()=>document.querySelector('.rp-pause-dialog .rp-dialog-head button').click()`)
 	page.MustWait(`()=>!document.querySelector('.rp-pause-dialog')?.hasAttribute('open')`)
+
+	// Verify adjacent subterranean ground blocks render without sky-colored gaps
+	page.MustWait(`()=>{
+		const c = document.querySelector('.rp-canvas');
+		const ctx2d = c && c.getContext('2d');
+		if (!ctx2d || c.width < 300 || c.height < 200) return false;
+		const dpr = Math.min(2, window.devicePixelRatio || 1);
+		const seamX = Math.round(144 * dpr);
+		const scanY = c.height - Math.round(28 * dpr);
+		const img = ctx2d.getImageData(seamX - 6, scanY, 13, 1).data;
+		for (let i = 0; i < img.length; i += 4) {
+			const r = img[i], b = img[i + 2];
+			if (b > r) return false;
+		}
+		return true;
+	}`)
 
 	// Play through Stage 1 key + portal through the live RAF loop
 	page.MustEval(`()=>{

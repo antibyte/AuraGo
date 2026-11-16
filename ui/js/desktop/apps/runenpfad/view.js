@@ -66,6 +66,7 @@
         const ctx = canvas.getContext('2d');
         let camX = 0;
         let camY = 0;
+        let camInitialized = false;
         let shake = 0;
         const particles = [];
         for (let i = 0; i < 42; i++) {
@@ -84,7 +85,24 @@
             }
         }
 
-        function drawFrameIndex(packId, frameIdx, dx, dy, dw, dh, flipX, alpha) {
+        const PLATFORM_CROPS = {
+            wood_platform: { sx: 8, sy: 30, sw: 48, sh: 29 },
+            rope_platform: { sx: 9, sy: 41, sw: 45, sh: 18 },
+            stone_platform: { sx: 8, sy: 32, sw: 48, sh: 27 },
+            chain_platform: { sx: 9, sy: 40, sw: 45, sh: 19 },
+            earth_platform: { sx: 8, sy: 25, sw: 47, sh: 31 },
+            log_platform: { sx: 8, sy: 24, sw: 48, sh: 29 },
+            grass_platform: { sx: 10, sy: 19, sw: 43, sh: 38 },
+            ice_platform: { sx: 9, sy: 18, sw: 46, sh: 35 },
+            red_mushroom_platform: { sx: 8, sy: 24, sw: 48, sh: 35 },
+            violet_mushroom_platform: { sx: 10, sy: 22, sw: 44, sh: 30 },
+            trapdoor: { sx: 8, sy: 22, sw: 48, sh: 37 },
+            magic_platform: { sx: 8, sy: 35, sw: 48, sh: 24 }
+        };
+
+        const WORLD_BACKING = ['#3b2313', '#271e38', '#6e4720', '#2c4a63', '#252c3d'];
+
+        function drawCroppedFrame(packId, frameIdx, sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha) {
             const sheet = sheets[packId];
             if (!sheet) return;
             const frame = sheet.pack.framesByIndex[frameIdx];
@@ -94,10 +112,51 @@
             if (flipX) {
                 ctx.translate(dx + dw / 2, dy + dh / 2);
                 ctx.scale(-1, 1);
-                ctx.drawImage(sheet.image, frame.x, frame.y, frame.w, frame.h, -dw / 2, -dh / 2, dw, dh);
+                ctx.drawImage(sheet.image, frame.x + sx, frame.y + sy, sw, sh, -dw / 2, -dh / 2, dw, dh);
             } else {
-                ctx.drawImage(sheet.image, frame.x, frame.y, frame.w, frame.h, dx, dy, dw, dh);
+                ctx.drawImage(sheet.image, frame.x + sx, frame.y + sy, sw, sh, dx, dy, dw, dh);
             }
+            ctx.restore();
+        }
+
+        function drawFrameIndex(packId, frameIdx, dx, dy, dw, dh, flipX, alpha) {
+            const sheet = sheets[packId];
+            if (!sheet) return;
+            const frame = sheet.pack.framesByIndex[frameIdx];
+            if (!frame) return;
+            drawCroppedFrame(packId, frameIdx, 0, 0, frame.w, frame.h, dx, dy, dw, dh, flipX, alpha);
+        }
+
+        function drawCroppedAsset(packId, assetId, sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha) {
+            const sheet = sheets[packId];
+            if (!sheet) return;
+            const asset = sheet.pack.assetsById[assetId];
+            if (!asset || !asset.frames.length) return;
+            drawCroppedFrame(packId, asset.frames[0], sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha);
+        }
+
+        function drawCroppedAnimation(packId, animId, elapsedSec, sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha, holdOnce) {
+            const sheet = sheets[packId];
+            if (!sheet) return;
+            const anim = sheet.pack.animationsById[animId];
+            if (!anim || !anim.frames.length) {
+                drawCroppedAsset(packId, animId, sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha);
+                return;
+            }
+            const fps = Number(anim.frame_rate) || 10;
+            const total = anim.frames.length;
+            let idx = Math.floor(Math.max(0, elapsedSec) * fps);
+            if (holdOnce || anim.repeat === 0) idx = Math.min(total - 1, idx);
+            else idx = idx % total;
+            drawCroppedFrame(packId, anim.frames[idx], sx, sy, sw, sh, dx, dy, dw, dh, flipX, alpha);
+        }
+
+        function drawContactShadow(cx, footY, width) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(8, 12, 20, 0.30)';
+            ctx.beginPath();
+            ctx.ellipse(cx, footY + 2, width * 0.5, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
             ctx.restore();
         }
 
@@ -197,11 +256,20 @@
             const TILE = stage.tileSize;
             const nowSec = (nowMs || 0) * 0.001;
 
-            // Camera target follows player smoothly
-            const targetX = Math.max(0, Math.min(stage.width - viewW, sim.player.x - viewW * 0.38));
-            const targetY = Math.max(0, Math.min(stage.height - viewH, sim.player.y - viewH * 0.62));
-            camX += (targetX - camX) * 0.16;
-            camY += (targetY - camY) * 0.14;
+            // Camera anchors stage bottom flush on tall screens and follows player smoothly
+            const maxX = Math.max(0, stage.width - viewW);
+            const targetX = Math.max(0, Math.min(maxX, sim.player.x - viewW * 0.38));
+            const targetY = viewH >= stage.height
+                ? stage.height - viewH
+                : Math.max(0, Math.min(stage.height - viewH, sim.player.y - viewH * 0.62));
+            if (!camInitialized) {
+                camX = targetX;
+                camY = targetY;
+                camInitialized = true;
+            } else {
+                camX += (targetX - camX) * 0.16;
+                camY = viewH >= stage.height ? targetY : camY + (targetY - camY) * 0.14;
+            }
             let sx = camX;
             let sy = camY;
             if (shake > 0.1) {
@@ -217,61 +285,76 @@
             ctx.save();
             ctx.translate(-Math.round(sx), -Math.round(sy));
 
-            // Scenery (nature-assets) anchored at feet/ground
+            // Scenery (nature-assets) grounded directly on terrain
             stage.scenery.forEach(function (prop) {
                 if (prop.x + 80 < sx || prop.x - 80 > sx + viewW) return;
-                drawStaticAsset('nature-assets', prop.assetId, prop.x - 36, prop.y - 72, 72, 72, false, 0.92);
+                drawStaticAsset('nature-assets', prop.assetId, prop.x - 36, prop.y - 64, 72, 72, false, 0.94);
             });
 
-            // Ladders
+            // Ladders (cropped horizontally & stacked seamlessly)
             stage.ladders.forEach(function (l) {
-                drawStaticAsset('jump-and-run', 'ladder', l.x, l.y, TILE, TILE);
+                drawCroppedAsset('jump-and-run', 'ladder', 14, 6, 36, 54, l.x + 6, l.y, TILE - 12, TILE + 1);
             });
 
-            // Solid terrain tiles
+            // Solid terrain tiles (subterranean fill + cropped interior so zero sky seams appear)
+            const backingColor = WORLD_BACKING[stage.worldIndex] || '#3b2313';
+            const solidMap = stage.solidMap || {};
             stage.tiles.forEach(function (tile) {
                 const tx = tile.tx * TILE;
                 const ty = tile.ty * TILE;
                 if (tx + TILE < sx || tx > sx + viewW) return;
-                drawStaticAsset('jump-and-run', tile.assetId, tx, ty, TILE, TILE);
+                const hasAbove = !!solidMap[tile.tx + ',' + (tile.ty - 1)];
+                ctx.fillStyle = backingColor;
+                ctx.fillRect(tx, ty + (hasAbove ? 0 : 4), TILE + 1, TILE - (hasAbove ? -1 : 3));
+                const cropY = hasAbove ? 4 : 2;
+                const cropH = hasAbove ? 55 : 57;
+                drawCroppedAsset('jump-and-run', tile.assetId, 4, cropY, 56, cropH, tx, ty, TILE + 1, TILE + 1);
             });
 
-            // Static / crumbling / spring platforms
+            // Static / crumbling / spring platforms (deck top sits flush at p.y, edge-to-edge tiles)
             stage.platforms.forEach(function (p) {
                 if (!p.solid) return;
                 if (p.x + p.w < sx || p.x > sx + viewW) return;
                 const jitter = p.crumbleTimer > 0 && !prefersReducedMotion() ? Math.sin(nowSec * 55) * 2.5 : 0;
-                drawStaticAsset('jump-and-run', p.assetId, p.x + jitter, p.y - 6, TILE, TILE);
+                const crop = PLATFORM_CROPS[p.assetId];
+                if (crop) {
+                    const drawH = Math.round(crop.sh * (TILE / crop.sw));
+                    drawCroppedAsset('jump-and-run', p.assetId, crop.sx, crop.sy, crop.sw, crop.sh, p.x + jitter, p.y - 1, TILE + 1, drawH);
+                } else {
+                    drawStaticAsset('jump-and-run', p.assetId, p.x + jitter, p.y - 20, TILE, TILE);
+                }
             });
 
             // Moving magic platforms
+            const magicCrop = PLATFORM_CROPS.magic_platform;
+            const magicH = Math.round(magicCrop.sh * (TILE / magicCrop.sw));
             stage.movingPlatforms.forEach(function (mp) {
-                drawAnimation('jump-and-run', 'magic_platform', nowSec, mp.x, mp.y - 10, TILE, TILE);
-                drawAnimation('jump-and-run', 'magic_platform', nowSec + 0.25, mp.x + TILE, mp.y - 10, TILE, TILE);
+                drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x, mp.y - 1, TILE + 1, magicH);
+                drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec + 0.25, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x + TILE, mp.y - 1, TILE + 1, magicH);
             });
 
-            // Checkpoints (campfire)
+            // Checkpoints (campfire grounded at surface)
             stage.checkpoints.forEach(function (cp) {
                 if (cp.activated) {
-                    drawAnimation('assets-animated', 'campfire', nowSec, cp.x - 28, cp.y - 4, 56, 56);
+                    drawAnimation('assets-animated', 'campfire', nowSec, cp.x - 28, cp.y + 2, 56, 56);
                 } else {
-                    drawStaticAsset('assets-animated', 'campfire', cp.x - 28, cp.y - 4, 56, 56, false, 0.55);
+                    drawStaticAsset('assets-animated', 'campfire', cp.x - 28, cp.y + 2, 56, 56, false, 0.55);
                 }
             });
 
             // Locked gate (door_open)
             if (stage.door) {
                 if (stage.door.opened) {
-                    drawAnimation('assets-animated', 'door_open', 10, stage.door.x - 28, stage.door.y - 14, 56, 62, false, 0.9, true);
+                    drawAnimation('assets-animated', 'door_open', 10, stage.door.x - 28, stage.door.y - 8, 56, 62, false, 0.9, true);
                 } else {
-                    drawStaticAsset('assets-animated', 'door_open', stage.door.x - 28, stage.door.y - 14, 56, 62, false, 1.0);
+                    drawStaticAsset('assets-animated', 'door_open', stage.door.x - 28, stage.door.y - 8, 56, 62, false, 1.0);
                 }
             }
 
             // Exit Portal
             if (stage.portal) {
                 const unlocked = sim.hasKey;
-                drawAnimation('assets-animated', 'portal', nowSec, stage.portal.x - 32, stage.portal.y - 16, 64, 64, false, unlocked ? 1.0 : 0.45);
+                drawAnimation('assets-animated', 'portal', nowSec, stage.portal.x - 32, stage.portal.y - 10, 64, 64, false, unlocked ? 1.0 : 0.45);
             }
 
             // Hazards
@@ -279,20 +362,22 @@
                 if (h.x + h.w < sx || h.x > sx + viewW) return;
                 if (h.kind === 'saw') {
                     drawStaticAsset('jump-and-run', 'saw', h.x, h.y + (Math.sin(nowSec * 6) * 2), TILE, TILE);
+                } else if (h.assetId === 'stalactite') {
+                    drawStaticAsset('jump-and-run', h.assetId, h.x, h.y - 4, TILE, TILE);
                 } else {
-                    drawStaticAsset('jump-and-run', h.assetId, h.x, h.y, TILE, TILE);
+                    drawStaticAsset('jump-and-run', h.assetId, h.x, h.y + 4, TILE, TILE);
                 }
             });
 
             // Cannons
             stage.cannons.forEach(function (c) {
-                drawStaticAsset('jump-and-run', 'cannon', c.x - 24, c.y - 24, 48, 48, c.dir > 0);
+                drawStaticAsset('jump-and-run', 'cannon', c.x - 24, c.y - 20, 48, 48, c.dir > 0);
             });
 
             // Breakable crates & barrels
             stage.crates.forEach(function (c) {
                 if (!c.broken) {
-                    drawStaticAsset('jump-and-run', c.assetId, c.x - 22, c.y + 4, 44, 44);
+                    drawStaticAsset('jump-and-run', c.assetId, c.x - 22, c.y + TILE - 40, 44, 44);
                 }
             });
 
@@ -319,7 +404,11 @@
                 if (e.dead && e.deathTimer <= 0) return;
                 if (e.x + 64 < sx || e.x - 64 > sx + viewW) return;
                 const size = Math.round(58 * e.def.scale);
+                const drawTop = e.y - Math.round(size * (57 / 64));
                 const animName = e.def.prefix + (e.dead ? 'death' : e.hurtTimer > 0 ? 'hurt' : e.animState === 'idle' ? 'idle' : 'move');
+                if (!e.dead && !e.def.flying && e.onGround) {
+                    drawContactShadow(e.x, e.y, size * 0.56);
+                }
                 if (e.def.boss && !e.dead) {
                     ctx.save();
                     ctx.strokeStyle = e.phase === 2 ? '#fb7185' : '#f7c948';
@@ -329,20 +418,23 @@
                     ctx.stroke();
                     ctx.restore();
                 }
-                drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, e.y - size + 4, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.65 : 1.0, e.dead);
+                drawAnimation(e.def.pack, animName, e.animTime, e.x - size / 2, drawTop, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.65 : 1.0, e.dead);
                 if (!e.dead && !e.def.boss && e.hp < e.maxHp) {
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-                    ctx.fillRect(e.x - 18, e.y - size - 6, 36, 5);
+                    ctx.fillRect(e.x - 18, drawTop - 4, 36, 5);
                     ctx.fillStyle = '#fb7185';
-                    ctx.fillRect(e.x - 18, e.y - size - 6, 36 * (e.hp / e.maxHp), 5);
+                    ctx.fillRect(e.x - 18, drawTop - 4, 36 * (e.hp / e.maxHp), 5);
                 }
             });
 
-            // Hero sprite
+            // Hero sprite (feet pixel y=59 inside 64x64 frame aligns squarely on p.y + 2)
             const p = sim.player;
+            if (p.onGround) {
+                drawContactShadow(p.x, p.y, 28);
+            }
             const blinkAlpha = p.invulnTimer > 0 && Math.floor(nowSec * 16) % 2 === 0 ? 0.45 : 1.0;
             const heroAnim = sim.stats.def.prefix + p.animState;
-            drawAnimation(sim.stats.def.pack, heroAnim, p.animTime, p.x - 32, p.y - 60, 64, 64, p.facing < 0, blinkAlpha, p.animState === 'death');
+            drawAnimation(sim.stats.def.pack, heroAnim, p.animTime, p.x - 32, p.y - 57, 64, 64, p.facing < 0, blinkAlpha, p.animState === 'death');
 
             // Knight melee cleave crescent visual
             if (sim.heroId === 'knight' && p.attackTimer > 0) {
