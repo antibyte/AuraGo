@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -8,16 +9,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	chromem "github.com/philippgille/chromem-go"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"aurago/internal/fileutil"
+	chromem "github.com/philippgille/chromem-go"
 )
 
-func readLegacyGob(path string, dest any) error {
+func readLegacyGob(path string, dest any, expectedHash string) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -30,22 +31,41 @@ func readLegacyGob(path string, dest any) error {
 		return err
 	}
 	defer file.Close()
-	var reader io.Reader = file
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return fmt.Errorf("legacy vector changed while opening")
+	}
+	hash := sha256.New()
+	raw := io.TeeReader(file, hash)
+	var reader io.Reader = raw
 	if strings.HasSuffix(path, ".gz") {
-		gz, err := gzip.NewReader(file)
+		gz, err := gzip.NewReader(raw)
 		if err != nil {
 			return err
 		}
 		defer gz.Close()
 		reader = gz
 	}
-	if err := gob.NewDecoder(reader).Decode(dest); err != nil {
+	data, err := io.ReadAll(io.LimitReader(reader, legacyImportReadLimit+1))
+	if err != nil {
+		return err
+	}
+	if len(data) > legacyImportReadLimit {
+		return fmt.Errorf("legacy GOB %s exceeds 64 MiB decompressed read limit", filepath.Base(path))
+	}
+	if _, err := io.Copy(io.Discard, raw); err != nil {
+		return err
+	}
+	if fmt.Sprintf("%x", hash.Sum(nil)) != expectedHash {
+		return fmt.Errorf("legacy source changed during decoding")
+	}
+	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(dest); err != nil {
 		return fmt.Errorf("decode legacy vector %s: %w", filepath.Base(path), err)
 	}
 	return nil
 }
 
-func copyLegacyFile(from, to string) error {
+func copyLegacyFile(from, to string, expectedSize int64) error {
 	src, err := os.Open(from)
 	if err != nil {
 		return err
@@ -59,138 +79,113 @@ func copyLegacyFile(from, to string) error {
 		dst.Close()
 		return err
 	}
-	_, copyErr := io.Copy(dst, src)
+	n, copyErr := io.Copy(dst, io.LimitReader(src, expectedSize+1))
+	if copyErr == nil && n != expectedSize {
+		copyErr = fmt.Errorf("legacy source size changed during backup")
+	}
 	return errors.Join(copyErr, dst.Sync(), dst.Close())
 }
 
-func (c *documentCorpus) migrateLegacy(dir string) error {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	type legacyCollection struct {
-		name     string
-		metadata map[string]string
-		docs     []chromem.Document
-	}
+type legacyCollection struct {
+	name, metadataFile string
+	documents          []string
+}
+
+// Inspect one document at a time; the retained inventory contains paths and hashes, not vectors.
+func inspectLegacyCollections(dir string, inventory []legacyFile) ([]legacyCollection, int64, error) {
 	var collections []legacyCollection
-	var legacyFiles []string
-	legacyHashes := map[string][32]byte{}
-	for _, entry := range entries {
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("legacy vector symlink is unsupported")
-		}
-		if !entry.IsDir() {
-			if strings.HasSuffix(entry.Name(), ".gob") || strings.HasSuffix(entry.Name(), ".gob.gz") {
-				return fmt.Errorf("orphan legacy document outside a collection")
-			}
-			continue
-		}
-		path := filepath.Join(dir, entry.Name())
-		files, err := os.ReadDir(path)
-		if err != nil {
-			return err
-		}
-		var meta struct {
-			Name     string
-			Metadata map[string]string
-		}
-		var docs []chromem.Document
-		hasGob := false
-		for _, file := range files {
-			if file.IsDir() {
-				continue
-			}
-			if !strings.HasSuffix(file.Name(), ".gob") && !strings.HasSuffix(file.Name(), ".gob.gz") {
-				continue
-			}
-			full := filepath.Join(path, file.Name())
-			hasGob = true
-			before, err := os.ReadFile(full)
-			if err != nil {
-				return err
-			}
-			legacyHashes[full] = sha256.Sum256(before)
-			legacyFiles = append(legacyFiles, full)
-			if file.Name() == "00000000.gob" || file.Name() == "00000000.gob.gz" {
-				if err := readLegacyGob(full, &meta); err != nil {
-					return err
+	var required int64
+	for i := 0; i < len(inventory); {
+		folder := filepath.Dir(inventory[i].Path)
+		col := legacyCollection{}
+		for i < len(inventory) && filepath.Dir(inventory[i].Path) == folder {
+			entry := inventory[i]
+			name := filepath.Base(entry.Path)
+			if name == "00000000.gob" || name == "00000000.gob.gz" {
+				if col.metadataFile != "" {
+					return nil, 0, fmt.Errorf("duplicate legacy collection metadata")
 				}
+				var meta struct {
+					Name     string
+					Metadata map[string]string
+				}
+				if err := readLegacyGob(filepath.Join(dir, entry.Path), &meta, entry.SHA256); err != nil {
+					return nil, 0, err
+				}
+				if meta.Name == "" {
+					return nil, 0, fmt.Errorf("legacy collection metadata has no name")
+				}
+				col.name, col.metadataFile = meta.Name, entry.Path
+				encoded, err := json.Marshal(meta.Metadata)
+				if err != nil {
+					return nil, 0, err
+				}
+				required += int64(len(encoded) + len(meta.Name) + 4096)
 			} else {
 				var doc chromem.Document
-				if err := readLegacyGob(full, &doc); err != nil {
-					return err
+				if err := readLegacyGob(filepath.Join(dir, entry.Path), &doc, entry.SHA256); err != nil {
+					return nil, 0, err
 				}
 				if doc.ID == "" || doc.Content == "" {
-					return fmt.Errorf("legacy document identity/content is empty")
+					return nil, 0, fmt.Errorf("legacy document identity/content is empty")
 				}
 				hash := sha256.Sum256([]byte(doc.ID))
 				want := fmt.Sprintf("%x", hash[:4]) + ".gob"
-				if strings.HasSuffix(file.Name(), ".gz") {
+				if strings.HasSuffix(name, ".gz") {
 					want += ".gz"
 				}
-				if file.Name() != want {
-					return fmt.Errorf("legacy document filename does not match raw ID")
+				if name != want {
+					return nil, 0, fmt.Errorf("legacy document filename does not match raw ID")
 				}
-				docs = append(docs, doc)
+				required += estimatedCorpusBytes([]chromem.Document{doc}, 0)
+				col.documents = append(col.documents, entry.Path)
 			}
-			after, err := os.ReadFile(full)
-			if err != nil {
-				return err
-			}
-			if sha256.Sum256(after) != legacyHashes[full] {
-				return fmt.Errorf("legacy source changed during decoding")
-			}
+			i++
 		}
-		if len(docs) == 0 && meta.Name == "" {
-			if hasGob {
-				return fmt.Errorf("legacy collection metadata has no name")
-			}
-			continue
+		if col.metadataFile == "" {
+			return nil, 0, fmt.Errorf("legacy collection metadata is missing")
 		}
-		if meta.Name == "" {
-			return fmt.Errorf("legacy collection metadata is missing")
-		}
-		collections = append(collections, legacyCollection{meta.Name, meta.Metadata, docs})
+		collections = append(collections, col)
 	}
-	var required int64
-	for _, col := range collections {
-		required += estimatedCorpusBytes(col.docs, 0)
+	return collections, required, nil
+}
+
+func (c *documentCorpus) migrateLegacy(dir string) error {
+	dir = filepath.Clean(dir)
+	inventory, err := inventoryLegacyFiles(dir)
+	if err != nil {
+		return err
+	}
+	collections, required, err := inspectLegacyCollections(dir, inventory)
+	if err != nil {
+		return err
+	}
+	manifest, err := makeLegacyManifest(inventory)
+	if err != nil {
+		return err
+	}
+	backup, err := findLegacyBackup(dir, manifest)
+	if err != nil {
+		return err
 	}
 	if err := c.checkCapacity(context.Background(), required); err != nil {
 		return err
 	}
-	// Original files remain in place; the synced copy is retained before migration.
-	if len(legacyFiles) > 0 {
-		backup, err := os.MkdirTemp(filepath.Dir(dir), filepath.Base(dir)+".legacy-backup-")
+	if len(inventory) > 0 && backup == "" {
+		var backupBytes int64
+		for _, file := range inventory {
+			backupBytes += file.Size + 4096
+		}
+		free, err := c.freeDisk(filepath.Dir(dir))
+		if err != nil {
+			return corpusCapacityError("corpus_disk_status_unavailable")
+		}
+		if free < CorpusDiskReserveBytes+required*3+backupBytes+65536 {
+			return corpusCapacityError("legacy_backup_disk_reserve")
+		}
+		backup, err = publishLegacyBackup(dir, manifest)
 		if err != nil {
 			return err
-		}
-		if err := fileutil.RestrictToOwner(backup); err != nil {
-			return err
-		}
-		for _, from := range legacyFiles {
-			rel, err := filepath.Rel(dir, from)
-			if err != nil {
-				return err
-			}
-			to := filepath.Join(backup, rel)
-			if err := os.MkdirAll(filepath.Dir(to), 0700); err != nil {
-				return err
-			}
-			if err := fileutil.RestrictToOwner(filepath.Dir(to)); err != nil {
-				return err
-			}
-			if err := copyLegacyFile(from, to); err != nil {
-				return fmt.Errorf("backup legacy vectors: %w", err)
-			}
-			copied, err := os.ReadFile(to)
-			if err != nil {
-				return err
-			}
-			if sha256.Sum256(copied) != legacyHashes[from] {
-				return fmt.Errorf("legacy backup differs from decoded source")
-			}
 		}
 	}
 	tx, err := c.db.Begin()
@@ -199,26 +194,50 @@ func (c *documentCorpus) migrateLegacy(dir string) error {
 	}
 	defer tx.Rollback()
 	expected := 0
+	hashes := make(map[string]string, len(inventory))
+	for _, file := range inventory {
+		hashes[file.Path] = file.SHA256
+	}
 	for _, col := range collections {
-		metadata, err := json.Marshal(col.metadata)
+		var meta struct {
+			Name     string
+			Metadata map[string]string
+		}
+		if err := readLegacyGob(filepath.Join(backup, col.metadataFile), &meta, hashes[col.metadataFile]); err != nil {
+			return err
+		}
+		if meta.Name != col.name {
+			return fmt.Errorf("legacy backup collection changed")
+		}
+		metadata, err := json.Marshal(meta.Metadata)
 		if err != nil {
 			return err
 		}
 		if _, err := tx.Exec(`INSERT INTO collections(name,metadata) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET metadata=excluded.metadata`, col.name, string(metadata)); err != nil {
 			return err
 		}
-		for _, doc := range col.docs {
+		for _, name := range col.documents {
+			var doc chromem.Document
+			if err := readLegacyGob(filepath.Join(backup, name), &doc, hashes[name]); err != nil {
+				return err
+			}
 			if err := writeCorpusDocument(context.Background(), tx, col.name, doc); err != nil {
 				return err
 			}
-			metadata, _ := json.Marshal(doc.Metadata)
-			vector, _ := json.Marshal(doc.Embedding)
+			metadata, err := json.Marshal(doc.Metadata)
+			if err != nil {
+				return err
+			}
+			vector, err := json.Marshal(doc.Embedding)
+			if err != nil {
+				return err
+			}
 			var content, storedMeta string
 			var storedVector []byte
 			if err := tx.QueryRow(`SELECT content,metadata,vector FROM documents WHERE collection=? AND id=?`, col.name, doc.ID).Scan(&content, &storedMeta, &storedVector); err != nil {
 				return err
 			}
-			if content != doc.Content || storedMeta != string(metadata) || string(storedVector) != string(vector) {
+			if content != doc.Content || storedMeta != string(metadata) || !bytes.Equal(storedVector, vector) {
 				return fmt.Errorf("legacy corpus content verification failed")
 			}
 			expected++
@@ -231,13 +250,12 @@ func (c *documentCorpus) migrateLegacy(dir string) error {
 	if count != expected {
 		return fmt.Errorf("legacy corpus count verification failed: got %d want %d", count, expected)
 	}
-	for path, want := range legacyHashes {
-		actual, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if sha256.Sum256(actual) != want {
-			return fmt.Errorf("legacy source changed before migration commit")
+	if err := verifyLegacyInventory(dir, manifest.Files); err != nil {
+		return fmt.Errorf("legacy source changed before migration commit: %w", err)
+	}
+	if len(inventory) > 0 {
+		if err := verifyLegacyInventory(backup, manifest.Files); err != nil {
+			return fmt.Errorf("legacy backup changed before migration commit: %w", err)
 		}
 	}
 	if _, err := tx.Exec(`INSERT OR REPLACE INTO corpus_meta(key,value) VALUES('verified','1')`); err != nil {

@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- A2A system tools are read-only: `service_manager` permits only `status`; `package_manager` permits only `detect`, `search`, `list_installed` and `info`; `install_package` is denied. Empty/unknown operations fail closed before action approvals. Discovery uses the same role policy, and package reads are neither mutating nor high risk. Main/local co-agent permissions are unchanged. Verify `TestA2ASystemToolsReadOnly`.
+
 - Trusted mail-policy contexts clear only their session-scoped Inner Voice state at actual ExecuteAgentLoop completion, including cancellation/early errors. Session prefixes never authorize cleanup. Retain persistent user history and delivery receipts; verify TestMailInnerVoiceClearsAtActualTurnCompletion.
 
 

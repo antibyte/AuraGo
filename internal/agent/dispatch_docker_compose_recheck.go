@@ -29,7 +29,7 @@ func (p *dockerComposePreflight) inputChanged(ctx context.Context) string {
 	}
 	ctx, cancel := context.WithTimeout(ctx, dockerComposePreflightTimeout)
 	defer cancel()
-	raw, err := readDockerComposeFile(p.file)
+	raw, err := readDockerComposeFile(p.root, p.file)
 	if err != nil || strings.ToLower(string(raw)) != p.raw {
 		return dockerComposeInputChangedDenial()
 	}

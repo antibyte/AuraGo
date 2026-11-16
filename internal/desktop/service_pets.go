@@ -95,8 +95,12 @@ func (s *Service) GetActivePetID(ctx context.Context) (string, error) {
 // InstallPet writes a pet package into the workspace Pets directory.
 // files maps relative paths (e.g. "pet.json", "spritesheet.webp") to content.
 func (s *Service) InstallPet(ctx context.Context, id string, files map[string][]byte) error {
-	if !petIDPattern.MatchString(id) {
+	if _, ok := cleanPetRelPath(id); !ok || !petIDPattern.MatchString(id) {
 		return fmt.Errorf("invalid pet id %q", id)
+	}
+	files, err := preparePetFiles(files)
+	if err != nil {
+		return err
 	}
 	if err := s.ensureReady(ctx); err != nil {
 		return err
@@ -108,23 +112,40 @@ func (s *Service) InstallPet(ctx context.Context, id string, files map[string][]
 
 	desktopMutationMu.Lock()
 	defer desktopMutationMu.Unlock()
-
-	petDir := filepath.Join(cfg.WorkspaceDir, petsDirName, id)
-	if err := os.MkdirAll(petDir, 0o700); err != nil {
-		return fmt.Errorf("create pet directory: %w", err)
+	if s.Config().ReadOnly {
+		return fmt.Errorf("virtual desktop is read-only")
 	}
+	workspace, err := os.OpenRoot(cfg.WorkspaceDir)
+	if err != nil {
+		return err
+	}
+	defer workspace.Close()
+	for name := range files {
+		if err := preflightPetWrite(workspace, petsDirName+"/"+id+"/"+name); err != nil {
+			return err
+		}
+	}
+	petRoot, err := openPetWriteDirectory(workspace, petsDirName+"/"+id)
+	if err != nil {
+		return fmt.Errorf("open pet directory: %w", err)
+	}
+	defer petRoot.Close()
 
-	for relPath, data := range files {
-		cleanRel := filepath.ToSlash(filepath.Clean(relPath))
-		if cleanRel == "." || strings.Contains(cleanRel, "..") || filepath.IsAbs(cleanRel) {
-			return fmt.Errorf("invalid pet file path %q", relPath)
+	for name, data := range files {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		target := filepath.Join(petDir, cleanRel)
-		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
-			return fmt.Errorf("create pet file directory: %w", err)
+		parent, err := openPetWriteDirectory(petRoot, path.Dir(name))
+		if err != nil {
+			return err
 		}
-		if err := os.WriteFile(target, data, 0o600); err != nil {
-			return fmt.Errorf("write pet file %s: %w", cleanRel, err)
+		err = preflightPetWrite(parent, path.Base(name))
+		if err == nil {
+			_, err = secureWriteFileRoot(ctx, parent, path.Base(name), data)
+		}
+		parent.Close()
+		if err != nil {
+			return fmt.Errorf("write pet file %s: %w", name, err)
 		}
 	}
 
@@ -242,8 +263,33 @@ func (s *Service) listPetsWithDefaultRepair(workspaceDir string) ([]PetManifest,
 // slash-separated: absolute paths, ".." escapes, backslashes, colons (drive
 // letters, NTFS streams) and names filepath.Localize refuses are rejected.
 func cleanPetRelPath(raw string) (string, bool) {
-	if strings.ContainsAny(raw, `:\`) {
+	if strings.ContainsAny(raw, `:\<>"|?*`) {
 		return "", false
+	}
+	for _, part := range strings.Split(raw, "/") {
+		if part == "." || part == ".." || part == "" {
+			continue
+		}
+		if part != strings.TrimRight(part, " .") {
+			return "", false
+		}
+		for _, ch := range part {
+			if ch < 32 {
+				return "", false
+			}
+		}
+		base, _, _ := strings.Cut(strings.ToUpper(part), ".")
+		base = strings.TrimRight(base, " ")
+		switch base {
+		case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$":
+			return "", false
+		}
+		if strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT") {
+			suffix := []rune(base[3:])
+			if len(suffix) == 1 && strings.ContainsRune("123456789¹²³", suffix[0]) {
+				return "", false
+			}
+		}
 	}
 	clean := path.Clean(raw)
 	if clean == "." || !fs.ValidPath(clean) {
@@ -340,12 +386,18 @@ func extractPetZip(r io.Reader, size int64) (map[string][]byte, error) {
 		return nil, fmt.Errorf("open pet zip: %w", err)
 	}
 	files := make(map[string][]byte)
+	seen := make(map[string]bool)
 	for _, f := range zr.File {
-		if f.FileInfo().IsDir() {
-			continue
+		name, ok := cleanPetRelPath(f.Name)
+		if !ok || (f.Mode().Type() != 0 && f.Mode().Type() != os.ModeDir) {
+			return nil, fmt.Errorf("invalid pet zip entry %q", f.Name)
 		}
-		name := filepath.ToSlash(filepath.Clean(f.Name))
-		if strings.Contains(name, "..") || strings.HasPrefix(name, "/") {
+		key := strings.ToLower(name)
+		if dir, exists := seen[key]; exists && !(dir && f.Mode().IsDir()) {
+			return nil, fmt.Errorf("duplicate pet zip entry %q", name)
+		}
+		seen[key] = f.Mode().IsDir()
+		if f.Mode().IsDir() {
 			continue
 		}
 		if len(files) >= maxFiles {

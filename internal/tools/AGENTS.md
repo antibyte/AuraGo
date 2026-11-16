@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- Compose file validation fails closed on path-resolution errors, including Windows junctions. Compare resolved file/workspace paths before every existing CLI entry point. Agent preflight and its final recheck read through `os.Root` with the existing regular-file, identity and 4-MiB bounds; model/host-access checks remain required.
+
 - Home Assistant indirect execution (`script`, `automation`, `python_script`,
   `rest_command`, `pyscript`, `shell_command`, `hassio`) and core system services
   require explicit allowed-service entries. Generic homeassistant turn/toggle

@@ -153,6 +153,10 @@ func a2aFilesystemWrite(tc ToolCall) bool {
 // Reads of memory, the knowledge graph, the journal and notes stay open to it.
 func a2aRestriction(tc ToolCall) string {
 	switch {
+	case canonicalActionName(tc.Action) == "service_manager" && tc.Operation != "status":
+		return `Tool Output: {"status":"policy_denied","message":"A2A requests may only query service status."}`
+	case canonicalActionName(tc.Action) == "package_manager" && !oneOf(tc.Operation, "detect", "search", "list_installed", "info"):
+		return `Tool Output: {"status":"policy_denied","message":"A2A requests may only query packages (detect, search, list_installed, info)."}`
 	case canonicalActionName(tc.Action) == "findit":
 		return `Tool Output: {"status":"policy_denied","message":"A2A requests cannot read the owner's FindIt inventory."}`
 	case a2aFilesystemWrite(tc):
@@ -171,7 +175,7 @@ func a2aRestriction(tc ToolCall) string {
 // authority. The git aliases and remote_execution resolve to the shell tools.
 func a2aCodeExecution(tc ToolCall) bool {
 	switch canonicalActionName(tc.Action) {
-	case "execute_shell", "execute_python", "execute_sandbox", "execute_sudo", "execute_remote_shell", "run_tool", "execute_skill", "run_agent_skill_script":
+	case "execute_shell", "execute_python", "execute_sandbox", "execute_sudo", "execute_remote_shell", "run_tool", "execute_skill", "run_agent_skill_script", "install_package":
 		return true
 	}
 	return false

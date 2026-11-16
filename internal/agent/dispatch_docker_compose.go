@@ -138,7 +138,7 @@ func loadDockerComposePreflight(ctx context.Context, cfg tools.DockerConfig, fil
 		}
 		return nil, err
 	}
-	raw, err := readDockerComposeFile(composeFile)
+	raw, err := readDockerComposeFile(root, composeFile)
 	if err != nil {
 		return nil, err
 	}
@@ -198,9 +198,27 @@ const dockerComposeFileReadLimit = 4 << 20
 
 // readDockerComposeFile reads the jailed compose file only when it is a
 // regular file of at most 4 MiB, so a FIFO or device cannot hang the call.
-// os.Stat follows a symlink, whose target the jail has already accepted.
-func readDockerComposeFile(path string) ([]byte, error) {
-	info, err := os.Stat(path)
+// The root also confines reads if a path component changes after validation.
+func readDockerComposeFile(workspace, path string) ([]byte, error) {
+	workspace, err := filepath.EvalSymlinks(workspace)
+	if err != nil {
+		return nil, fmt.Errorf("resolve compose workspace: %w", err)
+	}
+	root, err := os.OpenRoot(workspace)
+	if err != nil {
+		return nil, fmt.Errorf("open compose workspace: %w", err)
+	}
+	defer root.Close()
+	// os.Root rejects absolute symlinks even when their target is inside the root.
+	path, err = filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve compose file: %w", err)
+	}
+	rel, err := filepath.Rel(workspace, path)
+	if err != nil || !filepath.IsLocal(rel) {
+		return nil, fmt.Errorf("compose file must stay within the workspace")
+	}
+	info, err := root.Stat(rel)
 	if err != nil {
 		return nil, fmt.Errorf("read compose file: %w", err)
 	}
@@ -210,7 +228,7 @@ func readDockerComposeFile(path string) ([]byte, error) {
 	if info.Size() > dockerComposeFileReadLimit {
 		return nil, fmt.Errorf("read compose file: %s is larger than 4 MiB", path)
 	}
-	handle, err := os.Open(path)
+	handle, err := root.Open(rel)
 	if err != nil {
 		return nil, fmt.Errorf("read compose file: %w", err)
 	}

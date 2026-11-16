@@ -213,7 +213,13 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		return nil, fmt.Errorf("normalize knowledge graph timestamps: %w", err)
 	}
 	if jsonMigratePath != "" {
-		kg.migrateFromJSON(jsonMigratePath)
+		if err := kg.migrateFromJSON(jsonMigratePath); err != nil {
+			log := logger
+			if log == nil {
+				log = slog.Default()
+			}
+			log.Warn("[KG] Legacy graph import failed; continuing with SQLite graph and retaining source", "error", err)
+		}
 	}
 	kg.workerCtx, kg.cancelWorkers = context.WithCancel(context.Background())
 	kg.wg.Add(1)

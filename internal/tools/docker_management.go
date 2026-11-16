@@ -1081,13 +1081,16 @@ func validateDockerComposeFilePath(cfg DockerConfig, file string) (string, error
 	if !dockerPathEqualOrWithin(cleanFile, cleanWorkspace) {
 		return "", &dockerComposeJailError{message: fmt.Sprintf("compose file path %q must stay within the configured workspace", cleanFile)}
 	}
-	if _, err := os.Lstat(cleanFile); err == nil {
-		if resolved, err := filepath.EvalSymlinks(cleanFile); err == nil {
-			resolved = filepath.Clean(resolved)
-			if !dockerPathEqualOrWithin(resolved, cleanWorkspace) {
-				return "", &dockerComposeJailError{message: fmt.Sprintf("compose file symlink target %q must stay within the configured workspace", resolved)}
-			}
-		}
+	resolvedWorkspace, err := filepath.EvalSymlinks(cleanWorkspace)
+	if err != nil {
+		return "", fmt.Errorf("resolve compose workspace: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(cleanFile)
+	if err != nil {
+		return "", fmt.Errorf("resolve compose file: %w", err)
+	}
+	if !dockerPathEqualOrWithin(resolved, resolvedWorkspace) {
+		return "", &dockerComposeJailError{message: fmt.Sprintf("compose file symlink target %q must stay within the configured workspace", resolved)}
 	}
 	return cleanFile, nil
 }

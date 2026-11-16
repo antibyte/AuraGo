@@ -247,6 +247,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | FindIt | `internal/findit/AGENTS.md`, `assets/findit/AGENTS.md` | Physical inventory, typed templates, stock/project reservations, CSV, photos, QR labels, read-only agent access and Desktop integration. |
 | Invasion | `internal/invasion/AGENTS.md` | Egg/nest protocol/auth/connection generations/key rotation/private deployment. |
 | LLM transport | `internal/llm/AGENTS.md` | Trust/URL logging/failover state. |
+| Embedded Tailscale | `internal/tsnetnode/AGENTS.md` | Config-driven disable, serialized operations and cancellation-safe listener publication. |
+| Pending restores and startup locks | `internal/restorepending/AGENTS.md` | Read-only target resolution; `cmd/aurago` acquires and retains all data-directory locks before restore mutations or database opens. |
 | Launchpad links/icons | `internal/launchpad/AGENTS.md` | Link/icon reference validation, rooted local artwork ownership, download limits and cleanup. |
 | Managed local models | `internal/localllm/AGENTS.md` | Lifecycle/routing/attestation/qualification. |
 | Local Wikipedia Contract | `internal/localwiki/AGENTS.md` | Offline editions/download/verify/swap/search/tools/content; readers `internal/zim`, `internal/zim/xapian`. |

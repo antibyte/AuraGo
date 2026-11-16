@@ -12,7 +12,15 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Legacy graph import
+
+- `graph.json` is bounded to 64 MiB and imported in one transaction. Invalid node identities, missing edge endpoints, conflicting existing records and any SQL/commit error abort the entire import. Identical records may be retried without overwriting SQLite data.
+- Only a committed import archives the source using a create-only `.migrated` name (unique suffix on collision). Failures retain the source and existing archives. The constructor logs an import warning and starts with the existing SQLite graph; other initialization errors remain fatal. Verify `TestLegacyGraphJSON*` and `TestKGMigrateFromJSON`.
+
 ### Corpus capacity
+
+- Legacy GOB migration inventories relative names, sizes and SHA-256 hashes and decodes one document at a time, bounded to 64 MiB per decompressed file. Include backup bytes, transaction headroom and the existing 256-MiB reserve before copying.
+- Publish a private verified snapshot with `aurago-legacy-manifest.json` before importing. Reuse a matching snapshot only after rechecking every checksum; preserve damaged/unknown/older backups. Import from the snapshot in one transaction and recheck the complete source and snapshot inventories before commit. Only the current attempt's uniquely created staging directory is cleaned; unfamiliar or interrupted staging is retained for review. Verify `TestLegacyVector*` and existing corpus migration/capacity tests.
 
 - `embeddings.corpus_max_size_mb` defaults to 1024 MiB and is startup-only.
   Apply SQLite max_page_count through the DSN on every pool connection. Do not
@@ -310,7 +318,7 @@ Memory retrieval, hygiene, indexing, and maintenance.
 - **Multimodal Embedding Origin**: `NewMultimodalEmbedder` uses `httporigin.NewClient`, so the key and file content never follow a redirect off the configured origin; `shouldRetryEmbeddingError` treats `httporigin.ErrCrossOriginRedirect` as final and never retries it. Verify `TestMultimodalEmbedderDoesNotFollowCrossOriginRedirect` and `TestEmbeddingRetryTreatsRejectedRedirectAsFinal`.
 
 - The OpenAI-compatible multimodal format is image-only; reject audio before reading/uploading its contents instead of labelling it image_url. Provider-specific inline media retains its existing format. Verify `TestEmbedFileRejectsAudioForImageOnlyFormatBeforeSending`.
-- Migration backups run VACUUM INTO inside an owner-restricted temporary directory, protect the completed file and publish its existing backup name through fileutil.Rename. Remove private staging after success/failure and preserve existing parent-directory permissions. Verify `TestDatabaseBackupPublishesPrivateContentAndCleansStaging` and `TestMemoryDatabasePreservesExistingParentPermissions`.
+- `backupMainDatabase` delegates publication to `dbutil.BackupSQLite`, preserving `<db>.<label>-*.bak` names and the in-memory no-op. The shared helper owns WAL inclusion, private staging, sync and create-only publication; failures still abort migration. Verify `TestDatabaseBackupPublishesPrivateContentAndCleansStaging` and `TestMemoryDatabasePreservesExistingParentPermissions`.
 
 ### Learned rules
 

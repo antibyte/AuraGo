@@ -12,6 +12,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- Pet ZIP and direct-map installs validate every path and destination before writing. Both use `cleanPetRelPath`, reject Windows device/stream names on every OS, duplicate normalized names, file/directory conflicts and linked components. Pin real directories through `os.Root` and publish files atomically; invalid input leaves existing pets unchanged. Keep read-only checks under the mutation lock. Verify `TestCleanPetRelPath*`, `TestInstallPet*`, `TestPetZip*` and `TestPetWrite*` on Windows and Linux.
+
 <!-- pinball:start -->
 - AuraPinball (`pinball`, category `games`) is a local built-in app with no capability
   gate. Keep `open_maximized=true` and app-owned `/img/desktop-icons/pinball.svg`;

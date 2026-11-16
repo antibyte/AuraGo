@@ -3,12 +3,41 @@
 package remote
 
 import (
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 )
+
+func TestGetDeviceByNameRejectsAmbiguity(t *testing.T) {
+	db, err := InitDB(tempDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := GetDeviceByName(db, "host"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("missing: %v", err)
+	}
+	id, err := CreateDevice(db, DeviceRecord{Name: "Host"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, err := GetDeviceByName(db, "HOST"); err != nil || d.ID != id {
+		t.Fatalf("one: %+v %v", d, err)
+	}
+	if _, err := CreateDevice(db, DeviceRecord{Name: "host"}); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := GetDeviceByName(db, "HOST"); !errors.Is(err, ErrAmbiguousDeviceName) || d.ID != "" {
+		t.Fatalf("ambiguous: %+v %v", d, err)
+	}
+	if d, err := GetDevice(db, id); err != nil || d.ID != id {
+		t.Fatalf("explicit ID: %+v %v", d, err)
+	}
+}
 
 func tempDB(t *testing.T) string {
 	t.Helper()

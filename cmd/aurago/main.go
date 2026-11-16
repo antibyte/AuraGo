@@ -333,44 +333,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	// -- Apply a pending system restore ------------------------------------
-	// Runs under the instance lock and BEFORE the config is loaded and before
-	// any SQLite database or the vault is opened, so replaced files are never
-	// held open and the whole remaining startup (config, DB paths, memory) sees
-	// the restored state. vault.bin is never part of a file restore. If the
-	// restore fails it is rolled back and the old state keeps being used.
-	restoreRoot := ""
-	if !runSetup && !initOnly {
-		if root, rootErr := restorepending.ConfigRoot(configFile); rootErr == nil {
-			restoreRoot = root
-			if res, applyErr := restorepending.Apply(restoreRoot, restorepending.Options{
-				Logger:   appLog,
-				Validate: func() error { _, err := config.Load(configFile); return err },
-				ResolveDirs: func() (restorepending.Dirs, error) {
-					// Resolve against the config that is active right now (the
-					// restored config.yaml is not published yet at this point and
-					// its directory values are never used).
-					c, err := config.Load(configFile)
-					if err != nil {
-						return restorepending.Dirs{}, nil
-					}
-					return restorepending.Dirs{
-						VectorDB:    c.Directories.VectorDBDir,
-						Prompts:     c.Directories.PromptsDir,
-						Skills:      c.Directories.SkillsDir,
-						AgentSkills: c.Directories.AgentSkillsDir,
-						Tools:       c.Directories.ToolsDir,
-						Workspace:   c.Directories.WorkspaceDir,
-					}, nil
-				},
-			}); applyErr != nil {
-				status := ""
-				if res != nil {
-					status = res.Status
-				}
-				appLog.Error("System restore failed; continuing with the previous state", "status", status, "error", applyErr)
-			}
-		}
+	// Lock active and pending-restore data directories before any restore writes.
+	dataLocks := make(dataDirectoryLocks)
+	defer dataLocks.close()
+	restoreRoot, err := prepareStartupRestore(configFile, !runSetup && !initOnly, dataLocks, appLog)
+	if err != nil {
+		appLog.Error("BLOCKIERT: Datenverzeichnis belegt oder nicht verfügbar", "error", err)
+		os.Exit(1)
 	}
 
 	// -- Early Config Load for Path Resolution -----------------------------
@@ -392,20 +361,10 @@ func main() {
 		}
 	}
 
-	// Data-directory lock: the install lock above only protects this installation, so a second
-	// installation pointed at the same data directory would still open the same databases.
-	if flowsDB := config.FlowsDBPath(cfg); flowsDB != "" {
-		if mkErr := os.MkdirAll(filepath.Dir(flowsDB), 0o755); mkErr != nil {
-			appLog.Error("Failed to create the data directory for its lock", "path", filepath.Dir(flowsDB), "error", mkErr)
-			os.Exit(1)
-		}
-		dataLock := flock.New(dataLockPath(flowsDB))
-		if dataLocked, dataErr := dataLock.TryLock(); dataErr != nil || !dataLocked {
-			appLog.Error("BLOCKIERT: AuraGo laeuft bereits auf diesem Datenverzeichnis!", "lock_path", dataLockPath(flowsDB))
-			os.Exit(1)
-		}
-		defer dataLock.Unlock()
-		appLog.Info("Data directory lock acquired", "path", dataLockPath(flowsDB))
+	// Auto-setup may have supplied a new config after the restore preflight.
+	if err := dataLocks.acquire(configuredDataDirectories(cfg)...); err != nil {
+		appLog.Error("BLOCKIERT: Datenverzeichnis belegt oder nicht verfügbar", "error", err)
+		os.Exit(1)
 	}
 
 	// Configure the agent loop concurrency limit early, before any request can

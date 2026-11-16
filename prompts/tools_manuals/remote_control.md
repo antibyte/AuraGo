@@ -13,6 +13,8 @@ telemetry (`null`) as zero or replay an uncertain mutation automatically.
 
 ## Operations
 
+Device names are matched case-insensitively. If several records match, use `list_devices` and supply an explicit `device_id`; no command is sent for an ambiguous name.
+
 | Operation | Description |
 |-----------|-------------|
 | `list_devices` | List all registered devices with status |

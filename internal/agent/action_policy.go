@@ -90,7 +90,10 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 		case "git_push", "git_pull", "git_commit", "git_rollback":
 			a.HighRisk = true
 		}
-	case "execute_sudo", "execute_remote_shell", "package_manager", "manage_updates":
+	case "package_manager":
+		a.Mutating = !oneOf(a.Operation, "detect", "search", "list_installed", "info")
+		a.HighRisk = a.Mutating
+	case "execute_sudo", "execute_remote_shell", "manage_updates":
 		a.HighRisk = true
 		if tc.Action == "execute_sudo" || tc.Action == "execute_remote_shell" {
 			a.Operation, a.Mutating = "execute", true

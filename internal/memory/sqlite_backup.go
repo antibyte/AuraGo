@@ -1,12 +1,13 @@
 package memory
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"fmt"
 	"os"
-	"path/filepath"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/fileutil"
 )
 
@@ -22,25 +23,7 @@ func backupMainDatabase(db *sql.DB, label string) (string, error) {
 		return "", nil
 	}
 	backup := path + "." + label + "-" + rand.Text() + ".bak"
-	staging, err := os.MkdirTemp(filepath.Dir(path), ".memory-backup-*")
-	if err != nil {
-		return "", fmt.Errorf("create database backup directory: %w", err)
-	}
-	defer os.RemoveAll(staging)
-	if err := fileutil.RestrictToOwner(staging); err != nil {
-		return "", fmt.Errorf("protect database backup directory: %w", err)
-	}
-	temporary := filepath.Join(staging, "backup.sqlite")
-	if _, err := db.Exec(`VACUUM main INTO ?`, temporary); err != nil {
-		return "", fmt.Errorf("back up database: %w", err)
-	}
-	if err := fileutil.RestrictToOwner(temporary); err != nil {
-		return "", fmt.Errorf("protect database backup: %w", err)
-	}
-	if err := fileutil.Rename(temporary, backup); err != nil {
-		return "", fmt.Errorf("publish database backup: %w", err)
-	}
-	return backup, nil
+	return dbutil.BackupSQLite(context.Background(), db, backup)
 }
 
 func mainDatabasePath(db *sql.DB) (string, error) {

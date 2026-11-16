@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -42,7 +41,7 @@ func runRestoreFlowsPurgeBackup(lockPath, configFile, backupFile string, stdout,
 		return 1
 	}
 	defer lock.Unlock()
-	cfg, err := config.Load(configFile)
+	cfg, err := config.LoadReadOnly(configFile)
 	if err != nil {
 		fmt.Fprintf(stderr, "CONFIG ERROR: %v\n", err)
 		return 1
@@ -52,16 +51,13 @@ func runRestoreFlowsPurgeBackup(lockPath, configFile, backupFile string, stdout,
 		fmt.Fprintln(stderr, "The flows database path is not configured (sqlite.game_maker_path).")
 		return 1
 	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		fmt.Fprintf(stderr, "RESTORE ERROR: %v\n", err)
+	dataLocks := make(dataDirectoryLocks)
+	defer dataLocks.close()
+	if err := dataLocks.acquire(configuredDataDirectories(cfg)...); err != nil {
+		fmt.Fprintln(stderr, "AuraGo is running on this data directory or its lock is unavailable. Stop it first, then run the restore again.")
 		return 1
 	}
-	dataLock := flock.New(dataLockPath(dbPath))
-	if locked, err := dataLock.TryLock(); err != nil || !locked {
-		fmt.Fprintln(stderr, "AuraGo is running on this data directory. Stop it first, then run the restore again.")
-		return 1
-	}
-	defer dataLock.Unlock()
+
 	key := strings.TrimSpace(cfg.Server.MasterKey)
 	if key == "" {
 		fmt.Fprintln(stderr, "The master key is not available: set AURAGO_MASTER_KEY or AURAGO_MASTER_KEY_FILE.")
