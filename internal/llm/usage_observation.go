@@ -66,7 +66,8 @@ type usageObservationTransport struct {
 
 func (t *usageObservationTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	capture, _ := req.Context().Value(usageCaptureKey{}).(*UsageCapture)
-	if req.Method != http.MethodPost || !strings.HasSuffix(req.URL.Path, "/chat/completions") || req.Body == nil || (capture == nil && !t.directStepFun && t.provider != "openrouter") {
+	responses := strings.HasSuffix(req.URL.Path, "/responses")
+	if req.Method != http.MethodPost || !responses && !strings.HasSuffix(req.URL.Path, "/chat/completions") || req.Body == nil || (capture == nil && !t.directStepFun && t.provider != "openrouter") {
 		return t.base.RoundTrip(req)
 	}
 	var model string
@@ -79,7 +80,7 @@ func (t *usageObservationTransport) RoundTrip(req *http.Request) (*http.Response
 			_ = json.Unmarshal(request["model"], &model)
 			// Compatible streams report usage only when explicitly requested;
 			// collecting measurements does not establish a known pricing route.
-			if decodeErr == nil && capture != nil && (t.provider == "openai" && t.pricedRoute || t.provider == "cloudflare-rest" || t.provider == "minimax") && string(request["stream"]) == "true" {
+			if !responses && decodeErr == nil && capture != nil && (t.provider == "openai" && t.pricedRoute || t.provider == "cloudflare-rest" || t.provider == "minimax") && string(request["stream"]) == "true" {
 				var options map[string]json.RawMessage
 				_ = json.Unmarshal(request["stream_options"], &options)
 				if options == nil {
@@ -217,6 +218,12 @@ func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) (no
 	if json.Unmarshal(data, &payload) != nil {
 		return data
 	}
+	if native := payload["response"]; len(native) > 0 {
+		var response map[string]json.RawMessage
+		if json.Unmarshal(native, &response) == nil && response != nil {
+			payload = response
+		}
+	}
 	changed := stepFun && normalizeStepFunReasoning(payload)
 	defer func() {
 		if changed {
@@ -251,8 +258,13 @@ func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) (no
 	}
 	merge(&result.InputTokens, readCount(usage["prompt_tokens"]))
 	merge(&result.OutputTokens, readCount(usage["completion_tokens"]))
+	merge(&result.InputTokens, readCount(usage["input_tokens"]))
+	merge(&result.OutputTokens, readCount(usage["output_tokens"]))
 	var details map[string]json.RawMessage
 	_ = json.Unmarshal(usage["prompt_tokens_details"], &details)
+	if details == nil {
+		_ = json.Unmarshal(usage["input_tokens_details"], &details)
+	}
 	read := readCount(details["cached_tokens"])
 	if stepFun {
 		if n := readCount(usage["cached_tokens"]); n != nil {
@@ -268,6 +280,7 @@ func normalizeObservedUsage(data []byte, stepFun bool, result *RequestUsage) (no
 	}
 	merge(&result.CacheReadTokens, read)
 	merge(&result.CacheWriteTokens, readCount(usage["cache_creation_input_tokens"]))
+	merge(&result.CacheWriteTokens, readCount(details["cache_write_tokens"]))
 	return data
 }
 

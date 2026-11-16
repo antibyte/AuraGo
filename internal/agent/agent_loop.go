@@ -330,6 +330,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	if err := PrepareTaskRouting(ctx, &req, &runCfg); err != nil {
 		return response, err
 	}
+	if routes := candidateModelRoutes(runCfg.Config, runCfg.LLMClient, req); len(routes) == 1 {
+		ctx = llm.WithCompletionRoute(ctx, routes[0])
+	}
 	runCfg.DiscoveryRunID = acquireDiscoveryRun()
 	defer releaseDiscoveryRun(runCfg.DiscoveryRunID)
 	publishTaskRouting(runCfg, broker)

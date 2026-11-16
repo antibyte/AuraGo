@@ -35,6 +35,7 @@ type ModelRoute struct {
 	ContextWindowOverride   int
 	MaxOutputTokensOverride int
 	Primary                 bool
+	thinking                *anthropicThinkingConfig
 }
 
 // ModelLimits is the effective, request-safe limit set for a route.

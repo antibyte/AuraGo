@@ -101,6 +101,9 @@ func ExecuteMinimalLoop(
 	if dispatchCtx == nil {
 		return result, history, fmt.Errorf("dispatch context is required")
 	}
+	if routes := candidateModelRoutes(dispatchCtx.Cfg, client, openai.ChatCompletionRequest{Model: model}); len(routes) == 1 {
+		ctx = llm.WithCompletionRoute(ctx, routes[0])
+	}
 	if logger == nil {
 		logger = slog.Default()
 	}

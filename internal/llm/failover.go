@@ -215,7 +215,7 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 	reqCopy := req
 	reqCopy.Model = route.model
 	recordAttemptRoute(ctx, route.route)
-	response, err := route.client.CreateChatCompletion(ctx, reqCopy)
+	response, err := WrapOpenAIClient(route.client, route.route).CreateChatCompletion(ctx, reqCopy)
 	if err != nil {
 		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, route.onFallback, req, route.generation); retry {
 			fallbackRoute := fm.fallbackStreamRoute(route.generation, fallbackClient)
@@ -224,7 +224,7 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 			}
 			reqCopy.Model = fallbackModel
 			recordAttemptRoute(ctx, fallbackRoute.route)
-			response, err = fallbackClient.CreateChatCompletion(ctx, reqCopy)
+			response, err = WrapOpenAIClient(fallbackClient, fallbackRoute.route).CreateChatCompletion(ctx, reqCopy)
 			route = fallbackRoute
 		}
 	}
@@ -249,7 +249,7 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 	reqCopy.Model = route.model
 	recordAttemptRoute(ctx, route.route)
 
-	stream, err := route.client.CreateChatCompletionStream(ctx, reqCopy)
+	stream, err := WrapOpenAIClient(route.client, route.route).CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
 		if fallbackClient, fallbackModel, retry := fm.immediateFallbackForRequest(err, route.onFallback, req, route.generation); retry {
 			fallbackRoute := fm.fallbackStreamRoute(route.generation, fallbackClient)
@@ -258,7 +258,7 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 			}
 			reqCopy.Model = fallbackModel
 			recordAttemptRoute(ctx, fallbackRoute.route)
-			stream, err = fallbackClient.CreateChatCompletionStream(ctx, reqCopy)
+			stream, err = WrapOpenAIClient(fallbackClient, fallbackRoute.route).CreateChatCompletionStream(ctx, reqCopy)
 			if err != nil {
 				fm.recordStreamError(fallbackRoute, providerOutcomeError(ctx, err))
 				return nil, err
@@ -372,6 +372,11 @@ func routeSupportsRequest(route ModelRoute, req openai.ChatCompletionRequest, co
 	if strings.TrimSpace(route.Model) == "" {
 		return false
 	}
+	physical := req
+	physical.Model = route.Model
+	if _, _, err := prepareCompletionRequest(route, physical); err != nil {
+		return false
+	}
 
 	hasImage := false
 	for _, m := range req.Messages {
@@ -428,7 +433,7 @@ func modelRouteFromConfig(cfg *config.Config, fallback bool) ModelRoute {
 			route.ContextWindowOverride = provider.ContextWindow
 			route.MaxOutputTokensOverride = provider.MaxOutputTokens
 		}
-		return route
+		return completionRoute(cfg, route)
 	}
 	route := ModelRoute{
 		ProviderID:   cfg.LLM.Provider,
@@ -442,7 +447,7 @@ func modelRouteFromConfig(cfg *config.Config, fallback bool) ModelRoute {
 		route.ContextWindowOverride = provider.ContextWindow
 		route.MaxOutputTokensOverride = provider.MaxOutputTokens
 	}
-	return route
+	return completionRoute(cfg, route)
 }
 
 // matchingProviderForRoute returns a provider entry only when it describes the
@@ -607,7 +612,7 @@ func probePrimaryGeneration(ctx context.Context, snapshot failoverProbeSnapshot)
 		request.MaxCompletionTokens = 1
 	}
 	callCtx, capture := CaptureUsage(ctx)
-	response, err := snapshot.primaryClient.CreateChatCompletion(callCtx, request)
+	response, err := WrapOpenAIClient(snapshot.primaryClient, snapshot.route).CreateChatCompletion(callCtx, request)
 	if snapshot.recorder != nil {
 		snapshot.recorder(callCtx, snapshot.route, request, capture, response)
 	}

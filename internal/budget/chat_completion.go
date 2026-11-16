@@ -28,6 +28,9 @@ func CompleteChat(ctx context.Context, client llm.ChatClient, request openai.Cha
 	if err := ctx.Err(); err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
+	if err := llm.ValidateCompletionLimits(request); err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
 	if client == nil {
 		return openai.ChatCompletionResponse{}, fmt.Errorf("auxiliary completion client unavailable")
 	}
@@ -84,7 +87,7 @@ func CompleteChat(ctx context.Context, client llm.ChatClient, request openai.Cha
 	if err := ctx.Err(); err != nil {
 		return openai.ChatCompletionResponse{}, err
 	}
-	callCtx, capture := llm.CaptureUsage(ctx)
+	callCtx, capture := llm.CaptureUsage(llm.WithCompletionRoute(ctx, route))
 	response, callErr := client.CreateChatCompletion(callCtx, request)
 	input, output, observed := completionResponseUsage(ctx, request, response, inputEstimate, count)
 	if tracker != nil {

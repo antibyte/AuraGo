@@ -1941,7 +1941,7 @@ func runMemoryReflection(
 	analysisClient := mainClient
 	model := strings.TrimSpace(cfg.MemoryAnalysis.ResolvedModel)
 	if llmCfg.model != "" {
-		analysisClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID))
+		analysisClient = llm.WrapOpenAIClient(llm.NewClientFromProviderWithConfig(cfg, llmCfg.providerType, llmCfg.baseURL, llmCfg.apiKey, llmCfg.accountID, llmCfg.gatewayID), llm.ModelRoute{ProviderType: llmCfg.providerType, BaseURL: llmCfg.baseURL})
 		model = llmCfg.model
 	}
 

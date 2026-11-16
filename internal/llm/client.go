@@ -121,7 +121,7 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		}
 	case "opencode-go":
 		if !strings.Contains(lower, "opencode") {
-			return "provider=opencode-go but URL does not contain 'opencode' — use https://opencode.ai/zen/go"
+			return "provider=opencode-go but URL does not contain 'opencode' — use https://opencode.ai/zen/go/v1"
 		}
 	}
 	return ""
@@ -144,6 +144,14 @@ func normalizeProviderBaseURL(providerType, baseURL string) string {
 	}
 	u := providerutil.NormalizeBaseURL(baseURL)
 	pt := strings.ToLower(strings.TrimSpace(providerType))
+	if pt == "anthropic" {
+		if parsed, err := url.Parse(u); err == nil && strings.HasSuffix(strings.ToLower(strings.TrimRight(parsed.Path, "/")), "/messages") {
+			parsed.Path = strings.TrimRight(parsed.Path, "/")
+			parsed.Path = parsed.Path[:len(parsed.Path)-len("/messages")]
+			parsed.RawPath = ""
+			u = parsed.String()
+		}
+	}
 	if pt == "ollama" || pt == "llamacpp" || pt == "lmstudio" {
 		u = strings.TrimRight(u, "/")
 		if !strings.HasSuffix(u, "/v1") {
@@ -437,7 +445,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseUR
 		transport = gatewayTransport
 	}
 
-	if providerType == "minimax" || providerType == "glm" {
+	if providerType == "minimax" {
 		transport = &miniMaxTransport{base: transport}
 	}
 
@@ -739,7 +747,7 @@ type aiGatewayAuthTransport struct {
 }
 
 func (t *openAIPromptCacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	isChatCompletion := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions")
+	isChatCompletion := req.Method == http.MethodPost && (strings.HasSuffix(req.URL.Path, "/chat/completions") || strings.HasSuffix(req.URL.Path, "/responses"))
 	if req.Body == nil || !isChatCompletion {
 		return t.baseTransport().RoundTrip(req)
 	}
@@ -797,10 +805,17 @@ func buildOpenAIPromptCacheKey(payload map[string]interface{}) string {
 		fingerprint.Model = strings.TrimSpace(model)
 	}
 
-	if messages, ok := payload["messages"].([]interface{}); ok {
+	messages, _ := payload["messages"].([]interface{})
+	if messages == nil {
+		messages, _ = payload["input"].([]interface{})
+	}
+	if instructions, ok := payload["instructions"].(string); ok && instructions != "" {
+		fingerprint.SystemPrefixes = append(fingerprint.SystemPrefixes, openAICacheStablePrefix(instructions))
+	}
+	if messages != nil {
 		for _, rawMsg := range messages {
 			msg, ok := rawMsg.(map[string]interface{})
-			if !ok || msg["role"] != "system" {
+			if !ok || msg["role"] != "system" && msg["role"] != "developer" {
 				break // Appended recovery instructions do not change the leading prefix.
 			}
 			text := openAIRequestContentText(msg["content"])

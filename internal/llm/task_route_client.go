@@ -68,8 +68,8 @@ func NewTaskRouteClient(cfg *config.Config, ordinary ChatClient, selected *confi
 		fm.mu.RLock()
 		factory = fm.clientFactory
 		client.retryPolicy = fm.retryPolicy.clone()
-		primary := taskRouteEntry{client: WrapOpenAIClient(fm.primary), route: fm.primaryRoute}
-		fallback := taskRouteEntry{client: WrapOpenAIClient(fm.fallback), route: fm.fallbackRoute}
+		primary := taskRouteEntry{client: WrapOpenAIClient(fm.primary, fm.primaryRoute), route: fm.primaryRoute}
+		fallback := taskRouteEntry{client: WrapOpenAIClient(fm.fallback, fm.fallbackRoute), route: fm.fallbackRoute}
 		if fm.isOnFallback && fm.fallback != nil {
 			client.entries = append(client.entries, fallback)
 		}
@@ -99,7 +99,8 @@ func NewTaskRouteClient(cfg *config.Config, ordinary ChatClient, selected *confi
 		}
 		taskProviderClients.Unlock()
 		caps := ResolveProviderCapabilities(*selected, CapabilityFallback{})
-		client.entries = append([]taskRouteEntry{{client: WrapOpenAIClient(targetClient), route: modelRouteFromConfig(view, false), capabilities: &caps}}, client.entries...)
+		route := modelRouteFromConfig(view, false)
+		client.entries = append([]taskRouteEntry{{client: WrapOpenAIClient(targetClient, route), route: route, capabilities: &caps}}, client.entries...)
 	}
 	seen := map[string]bool{}
 	entries := client.entries[:0]

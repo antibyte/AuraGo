@@ -57,7 +57,7 @@ func ResolveHelperBackedClient(cfg *config.Config, fallbackClient ChatClient, fa
 	if IsHelperLLMAvailable(cfg) {
 		client := NewClientFromProviderWithConfig(cfg, helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID, helperCfg.GatewayID)
 		if client != nil {
-			return WrapOpenAIClient(client), helperCfg.Model
+			return WrapOpenAIClient(client, completionRoute(cfg, ModelRoute{ProviderID: helperCfg.ProviderID, ProviderType: helperCfg.ProviderType, BaseURL: helperCfg.BaseURL})), helperCfg.Model
 		}
 	}
 	return fallbackClient, strings.TrimSpace(fallbackModel)

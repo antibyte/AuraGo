@@ -101,7 +101,7 @@ func TestAnthropicAuxiliaryJSONRequestsUseTextFallback(t *testing.T) {
 					cfg.Agent.ContextWindow = 8192
 					cfg.LLM.Provider, cfg.LLM.ProviderType, cfg.LLM.Model = "main", providerType, model
 					cfg.LLM.BaseURL, cfg.LLM.APIKey = provider.URL+"/v1", "fixture"
-					cfg.Providers = []config.ProviderEntry{{ID: "main", Type: providerType, Model: model, APIKey: "fixture", ContextWindow: 8192, MaxOutputTokens: 256}}
+					cfg.Providers = []config.ProviderEntry{{ID: "main", Type: providerType, BaseURL: cfg.LLM.BaseURL, Model: model, APIKey: "fixture", ContextWindow: 8192, MaxOutputTokens: 256}}
 					if helper {
 						cfg.LLM.ProviderType, cfg.LLM.Model = "openai", "gpt-4o"
 						cfg.Providers[0].Type, cfg.Providers[0].Model = "openai", "gpt-4o"
@@ -112,7 +112,7 @@ func TestAnthropicAuxiliaryJSONRequestsUseTextFallback(t *testing.T) {
 						cfg.LLM.HelperEnabled, cfg.LLM.HelperProvider = true, "helper"
 						cfg.LLM.HelperProviderType, cfg.LLM.HelperResolvedModel = providerType, model
 						cfg.LLM.HelperBaseURL, cfg.LLM.HelperAPIKey = provider.URL+"/v1", "fixture"
-						cfg.Providers = append(cfg.Providers, config.ProviderEntry{ID: "helper", Type: providerType, Model: model, APIKey: "fixture", ContextWindow: 8192, MaxOutputTokens: 256})
+						cfg.Providers = append(cfg.Providers, config.ProviderEntry{ID: "helper", Type: providerType, BaseURL: cfg.LLM.HelperBaseURL, Model: model, APIKey: "fixture", ContextWindow: 8192, MaxOutputTokens: 256})
 					}
 					cfg.LLMRouter.HelperTimeoutMS = 5000
 					ResetGlobalHelperLLMManager()

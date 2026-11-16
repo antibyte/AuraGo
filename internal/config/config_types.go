@@ -1203,7 +1203,7 @@ type Config struct {
 		HelperModel                  string   `yaml:"helper_model"`       // optional helper model override (empty = provider default)
 		HelperResolvedModel          string   `yaml:"-"         json:"-"` // resolved helper model
 		UseNativeFunctions           bool     `yaml:"use_native_functions"`
-		Temperature                  float64  `yaml:"temperature"`                     // 0.0–2.0; default 0.7; 0 = provider default
+		Temperature                  float64  `yaml:"temperature"`                     // base sampling temperature; 0 selects AuraGo's default 0.7
 		Multimodal                   bool     `yaml:"multimodal"`                      // enable image inputs (MultiContent) in the main chat loop
 		MultimodalProviderTypesExtra []string `yaml:"multimodal_provider_types_extra"` // extra provider types treated as multimodal-capable (in addition to built-ins)
 		StructuredOutputs            bool     `yaml:"structured_outputs"`              // enable structured output mode (only for supported models)

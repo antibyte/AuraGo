@@ -87,7 +87,7 @@ func TestEmotionCompletionClientHonorsHelperLimitsAndRejectsTruncation(t *testin
 	cfg.Personality.V2ProviderType = "openai"
 	cfg.Providers = []config.ProviderEntry{
 		{ID: "main", ContextWindow: 128000, MaxOutputTokens: 16000},
-		{ID: "emotion", ContextWindow: 16384, MaxOutputTokens: 320},
+		{ID: "emotion", Type: "openai", Model: "gpt-4o-mini", ContextWindow: 16384, MaxOutputTokens: 320},
 	}
 	client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
 		return openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{
@@ -178,7 +178,7 @@ func TestPersonalityBothAnalysisPathsUseBoundedBilledRequests(t *testing.T) {
 			cfg.Budget.Enabled = true
 			cfg.LLM.Provider = "main"
 			cfg.LLM.ProviderType = "openai"
-			cfg.Providers = []config.ProviderEntry{{ID: "main", ContextWindow: 128000, MaxOutputTokens: 400}}
+			cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", Model: "gpt-4o-mini", ContextWindow: 128000, MaxOutputTokens: 400}}
 			tracker := budget.NewTracker(cfg, slog.Default(), t.TempDir())
 			defer tracker.Flush()
 			client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
@@ -301,7 +301,7 @@ func TestPersonalityAndHelperReasoningRequestsUseSupportedOutputField(t *testing
 	cfg := &config.Config{}
 	cfg.LLM.Provider = "main"
 	cfg.LLM.ProviderType = "openai"
-	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", ContextWindow: 32768, MaxOutputTokens: 2048}}
+	cfg.Providers = []config.ProviderEntry{{ID: "main", Type: "openai", Model: "o3-mini", ContextWindow: 32768, MaxOutputTokens: 2048}}
 	client := &turnEmotionClient{complete: func(context.Context) (openai.ChatCompletionResponse, error) {
 		return helperRecoveryResponse(`{}`, openai.FinishReasonStop), nil
 	}}

@@ -27,5 +27,5 @@ func effectiveAIGatewayRequestTimeoutMS(cfg *config.Config, provider string) int
 type invalidProviderTransport struct{ message string }
 
 func (t invalidProviderTransport) RoundTrip(*http.Request) (*http.Response, error) {
-	return nil, fmt.Errorf("invalid provider configuration: %s", t.message)
+	return nil, &LLMError{Category: ErrCategoryNonRetryableConfig, Message: fmt.Sprintf("invalid provider configuration: %s", t.message)}
 }

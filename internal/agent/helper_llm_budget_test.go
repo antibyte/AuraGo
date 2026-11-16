@@ -46,7 +46,7 @@ func TestHelperManagerRefreshesWhenProviderLimitsChange(t *testing.T) {
 	cfg.LLM.HelperProviderType = "openai"
 	cfg.LLM.HelperBaseURL = "http://127.0.0.1:1/v1"
 	cfg.LLM.HelperResolvedModel = "step-3.7-flash"
-	cfg.Providers = []config.ProviderEntry{{ID: "helper", MaxOutputTokens: 2048, ContextWindow: 32768}}
+	cfg.Providers = []config.ProviderEntry{{ID: "helper", Type: cfg.LLM.HelperProviderType, BaseURL: cfg.LLM.HelperBaseURL, Model: cfg.LLM.HelperResolvedModel, MaxOutputTokens: 2048, ContextWindow: 32768}}
 	first := newHelperLLMManager(cfg, nil)
 	if first == nil || first.route.MaxOutputTokensOverride != 2048 {
 		t.Fatal("helper provider output override was not retained")

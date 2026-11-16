@@ -3,6 +3,8 @@ package agent
 import (
 	"strings"
 
+	"aurago/internal/llm"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -25,9 +27,12 @@ func interruptedReasoningMessage(reasoning string) openai.ChatCompletionMessage 
 }
 
 // sanitizeReasoningForContinuation prevents completed hidden reasoning from
-// growing without bound. Providers that require reasoning on a tool-call
-// continuation retain only the newest assistant tool-call block.
+// growing without bound, except for GLM history and opaque Responses state.
+// Other providers retain only the newest required tool-call block.
 func sanitizeReasoningForContinuation(messages []openai.ChatCompletionMessage, providerType, model string) []openai.ChatCompletionMessage {
+	if providerRequiresFullReasoningContinuation(providerType, model) {
+		return messages
+	}
 	return sanitizeReasoningForContinuationRequired(messages, providerRequiresReasoningContinuation(providerType, model))
 }
 
@@ -36,14 +41,26 @@ func sanitizeReasoningForContinuation(messages []openai.ChatCompletionMessage, p
 // sent through a fallback after final preparation, so primary-only decisions
 // are unsafe.
 func sanitizeReasoningForRequestRoutes(messages []openai.ChatCompletionMessage, routes []RequestRouteBudget, providerType, model string) []openai.ChatCompletionMessage {
+	if providerRequiresFullReasoningContinuation(providerType, model) {
+		return messages
+	}
 	required := providerRequiresReasoningContinuation(providerType, model)
 	for _, route := range routes {
+		if providerRequiresFullReasoningContinuation(route.Limits.Route.ProviderType, route.Limits.Route.Model) {
+			return messages
+		}
 		if providerRequiresReasoningContinuation(route.Limits.Route.ProviderType, route.Limits.Route.Model) {
 			required = true
-			break
 		}
 	}
 	return sanitizeReasoningForContinuationRequired(messages, required)
+}
+
+func providerRequiresFullReasoningContinuation(providerType, model string) bool {
+	provider := strings.ToLower(strings.TrimSpace(providerType))
+	model = strings.ToLower(strings.TrimSpace(model))
+	model = strings.TrimPrefix(strings.TrimPrefix(model, "z-ai/"), "zai/")
+	return provider == "glm" || provider == "zai" || strings.HasPrefix(model, "glm-")
 }
 
 func sanitizeReasoningForContinuationRequired(messages []openai.ChatCompletionMessage, required bool) []openai.ChatCompletionMessage {
@@ -60,7 +77,7 @@ func sanitizeReasoningForContinuationRequired(messages []openai.ChatCompletionMe
 		}
 	}
 	for index := range messages {
-		if index != keepIndex {
+		if index != keepIndex && !llm.IsResponsesContinuation(messages[index].ReasoningContent) {
 			messages[index].ReasoningContent = ""
 		}
 	}

@@ -139,7 +139,7 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		if errors.Is(openai.NewReasoningValidator().Validate(request), openai.ErrReasoningModelMaxTokensDeprecated) {
 			request.MaxTokens, request.MaxCompletionTokens, request.Temperature = 0, outputTokens, 0
 		}
-		callCtx, capture := llm.CaptureUsage(ctx)
+		callCtx, capture := llm.CaptureUsage(llm.WithCompletionRoute(ctx, m.route))
 		resp, err := m.client.CreateChatCompletion(callCtx, request)
 		if policy.tracker != nil {
 			var input, output int

@@ -1,6 +1,7 @@
 # LLM request compatibility remediation
 
-Status: proposed implementation plan. No runtime changes have been made.
+Status: implemented and locally verified, with unrelated package failures recorded
+below. Live provider acceptance and Linux race testing remain pending.
 
 ## Goal and scope
 
@@ -90,22 +91,21 @@ Primary files:
 
 Tasks:
 
-- [ ] Give the existing adapter an immutable effective-route snapshot using the
+- [x] Give the existing adapter an immutable effective-route snapshot using the
   existing provider projection. Retain SDK factories and `WithClientFactory`
   compatibility for managed runtimes, metadata probes and test injection.
-- [ ] Route primary, fallback, task-router and generation-probe calls through
+- [x] Route primary, fallback, task-router and generation-probe calls through
   the same preparation path. Reprepare the original logical request for each
   attempted route; do not carry a previous provider's rewritten request forward.
-- [ ] For known reasoning models/providers, use the supported output-limit
+- [x] For known reasoning models/providers, use the supported output-limit
   field and omit unsupported sampling. Reject conflicting or negative explicit
   output limits rather than hiding the error while rewriting them.
-- [ ] Select a Responses operation before Chat SDK validation where required.
-  Until W2 is complete, that operation must fail explicitly rather than pretend
-  to support GPT-6 tool calling.
-- [ ] Check route compatibility against effective thinking policy and forced
+- [x] Select a Responses operation before Chat SDK validation where required;
+  reject unsupported provider/protocol combinations explicitly.
+- [x] Check route compatibility against effective thinking policy and forced
   tool choice. An excluded always-on Claude fallback must not be selected as a
   compatible route. Preserve real local-runtime outage failover.
-- [ ] Keep request/config snapshots immutable. Replace scattered SDK-validator
+- [x] Keep request/config snapshots immutable. Replace scattered SDK-validator
   workarounds only after tests establish equivalent limits and error handling.
 
 Call-site sweep must cover both adapter construction and raw generation calls:
@@ -117,15 +117,15 @@ each feature's permissions and unrelated behavior.
 
 Acceptance tests:
 
-- [ ] Exercise the real SDK with an injected RoundTripper, including main and
+- [x] Exercise the real SDK with an injected RoundTripper, including main and
   minimal agent flows. Tests must reach captured wire JSON, not stop at a fake
   ChatClient or invoke only the transport beneath the SDK.
-- [ ] Table cases: ordinary chat; bare o1/o3/o4 and GPT-5 IDs; qualified router
+- [x] Table cases: ordinary chat; bare o1/o3/o4 and GPT-5 IDs; qualified router
   IDs; known GPT-6 IDs; unknown custom models; streaming/non-streaming; tool
   choice `auto`, `none`, `required` and a named function.
-- [ ] Switch ordinary chat to a reasoning fallback and back, with no parameter
+- [x] Switch ordinary chat to a reasoning fallback and back, with no parameter
   contamination. Test an incompatible Claude fallback and concurrent task routes.
-- [ ] Retain `TestNewRequestBudgetReasoningAndSmallestFailoverLimits` and
+- [x] Retain `TestNewRequestBudgetReasoningAndSmallestFailoverLimits` and
   cancellation/no-replay coverage. Output allowance must remain unchanged.
 
 ## W2: Complete Responses support and migrate Copilot
@@ -142,73 +142,75 @@ Primary files:
 
 Tasks:
 
-- [ ] Map developer/system/user/assistant content and supported image parts to
+- [x] Map developer/system/user/assistant content and supported image parts to
   valid Responses input items. Preserve order, function call IDs, function-call
   outputs, schemas, tool choice, parallel-call intent and structured output.
   Use `NewResponseFunctionTool`; reject unsupported content and multiple-choice
   requests (`n > 1`) explicitly rather than silently reducing their meaning.
-- [ ] Map the validated completion allowance to `max_output_tokens` and effort
+- [x] Map the validated completion allowance to `max_output_tokens` and effort
   to native `reasoning.effort` when supplied. Omit unsupported sampling. Retain
   provider/model defaults when no explicit effort was selected.
-- [ ] Set `store: false` for the stateless local-history path. Preserve native
+- [x] Set `store: false` for the stateless local-history path. Preserve native
   reasoning continuation items, including encrypted content, unchanged and in
   order through a versioned opaque envelope in the existing reasoning field.
   Use SDK raw event/output data where typed fields omit opaque native fields.
   Do not display the envelope, leak it through `ReasoningText`, or send an
   incompatible provider's envelope as native continuation data.
-- [ ] Convert native output and events to existing completion responses/streams:
+- [x] Convert native output and events to existing completion responses/streams:
   text, refusals, interleaved/multiple function calls, incremental arguments and
   terminal usage. Preserve IDs and tool order across a complete tool round trip.
-- [ ] Emit successful finish markers only after confirmed native completion.
+- [x] Emit successful finish markers only after confirmed native completion.
   Map token exhaustion/refusal to the existing non-success finish reasons.
   Native errors, failed/incomplete responses, malformed required events and EOF
   before a terminal event must never become assistant success text.
-- [ ] Keep cancellation and early close neutral; record provider failures once.
+- [x] Keep cancellation and early close neutral; record provider failures once.
   Never replay a stream already returned to the caller. Retain partial usage.
-- [ ] Extend usage observation to native Responses input/output/cache counters
+- [x] Extend usage observation to native Responses input/output/cache counters
   and terminal stream usage. Preserve provider attribution, unknown-versus-zero
   measurements, cost estimation and exactly-once booking on failures/probes.
   Carry existing prompt-cache/privacy policy to the new endpoint.
-- [ ] Move Copilot Responses-only selection and prefix handling before Chat SDK
+- [x] Move Copilot Responses-only selection and prefix handling before Chat SDK
   validation. Preserve auth refresh and the correct streaming Accept header.
   Aggregate required upstream streams for non-stream callers through the shared
   mapper, then delete the obsolete lossy Chat-to-Responses/SSE translation.
 
 Acceptance tests:
 
-- [ ] GPT-6 tool use reaches the configured Responses endpoint through the real
+- [x] GPT-6 tool use reaches the configured Responses endpoint through the real
   SDK in main and minimal loops, with no forbidden Chat fields.
-- [ ] Copilot `gpt-5*-codex`, `codex-*` and discovered `copilot/` names work for
+- [x] Copilot `gpt-5*-codex`, `codex-*` and discovered `copilot/` names work for
   streaming and buffered callers, including a function result continuation.
-- [ ] Two tool calls with interleaved argument deltas retain the correct IDs.
-- [ ] Error before output, error after partial text/tool output, failed response,
+- [x] Two tool calls with interleaved argument deltas retain the correct IDs.
+- [x] Error before output, error after partial text/tool output, failed response,
   output limit, refusal, missing completion, invalid event, disconnect and caller
   cancellation produce the expected result and physical attempt count.
-- [ ] Opaque reasoning survives persistence/reload and continuation, never appears
+- [x] Opaque reasoning survives persistence/reload and continuation, never appears
   in visible prose, and leaves existing signed Anthropic continuations intact.
-- [ ] Cache/input/output/reasoning usage and partial-error costs are booked once.
+- [x] Cache/input/output/reasoning usage and partial-error costs are booked once.
   Store relay clients retain their existing external Chat Completions interface.
 
 ## W3: Repair reload, local errors and helper limits
 
 Dependencies: independent of W2; verify again after central client changes.
-Use separate focused commits for each defect.
+Keep independent reload changes separate; commit coupled protocol consumers with
+their shared adapter and contract tests.
 
-- [ ] **F3:** Compare the complete `LLM.AnthropicThinking` value in
+- [x] **F3:** Compare the complete `LLM.AnthropicThinking` value in
   `internal/server/config_handlers_main.go:llmHotReloadChanged`. Test enablement,
   budget, allowlist contents and unchanged settings. Add a save-to-next-request
   test proving the main transport changes without a restart or another LLM edit.
-- [ ] **F4:** Return the existing typed non-retryable configuration error from
+- [x] **F4:** Return the existing typed non-retryable configuration error from
   `invalidProviderTransport` in `internal/llm/ai_gateway_timeout.go`. Confirm
   classification through URL/network error wrappers. Missing keys, invalid
   bindings and invalid Cloudflare model configuration must neither retry nor
   increment failover health. Keep unknown-error/transient-network, 429, HTTP
   4xx and real managed-local outage behavior unchanged.
-- [ ] **F7:** In `internal/agent/helper_llm_manager.go`, project provider limit
+- [x] **F7:** In `internal/agent/helper_llm_manager.go`, project provider limit
   overrides only when provider/endpoint/model identity matches the effective
   helper route, following `candidateModelRoutes` in `request_budget.go`.
   Resolve actual-model limits otherwise. Test matching defaults, explicit helper
   model override, the global context cap and helper cache invalidation.
+  Apply the same identity rule to the personality helper's completion budget.
 
 Test files: existing server config handler tests, LLM error/failover tests and
 helper manager/request-budget tests. Include finite next-request assertions;
@@ -218,25 +220,27 @@ avoid tests that only search for field names in source.
 
 Dependencies: W1; recheck the final configuration with W2 enabled.
 
-- [ ] **F5:** Remove `glm` from the MiniMax-only transport selection in
+- [x] **F5:** Remove `glm` from the MiniMax-only transport selection in
   `internal/llm/client.go`. Preserve native GLM system messages and
   `reasoning_content`. Test a thinking/tool continuation and ordinary text.
   Keep the separate `zai` route and MiniMax M3/legacy behavior intact; do not
   silently migrate saved provider types or endpoints.
-- [ ] **F6:** Normalize pasted Anthropic Messages endpoints in a provider-aware
+  Preserve all GLM reasoning tool turns in both agent loops, not only the newest.
+- [x] **F6:** Normalize pasted Anthropic Messages endpoints in a provider-aware
   path before SDK endpoint composition. Cover native `/v1`, full `/v1/messages`,
   trailing slashes, compatible proxy prefixes, gateway paths and custom URLs.
   Do not strip `/messages` from unrelated providers or alter the endpoint origin.
   Compare the same normalized route during validation, probes and generation.
-- [ ] Correct the OpenCode diagnostic hint in `client.go` to match usable saved
+- [x] Correct the OpenCode diagnostic hint in `client.go` to match usable saved
   base URLs. `ui/cfg/providers.js` already supplies `/zen/go/v1`; it is not
   missing the suffix. Current upstream documentation uses protocol-specific
   `/inference/go/...` endpoints, so do not automatically migrate existing custom
   URLs or append another `/v1`. Verify a new canonical default separately before
   changing it; retain a working existing configuration.
-- [ ] Update affected provider help in all 16
+- [x] Update affected provider help in all 16
   `ui/lang/config/providers/*.json` locales if visible wording changes. Use the
   existing Config save/probe flow and preserve route/auth diagnostics.
+  No UI wording changed; locale and UI source files therefore remain unchanged.
 
 Acceptance: injected-transport tests capture the exact path/body for each
 provider. Add focused configuration/help checks, run JavaScript/JSON validation
@@ -245,17 +249,17 @@ when the UI changes. No new provider-management controls are required.
 
 ## W5: Documentation, verification and closeout
 
-- [ ] Update `internal/llm/AGENTS.md` for route-specific preparation, Responses
+- [x] Update `internal/llm/AGENTS.md` for route-specific preparation, Responses
   completion/continuation and usage ownership. Update affected agent/server/UI
   contracts and their indexes only where their durable contracts change.
-- [ ] Update `documentation/anthropic.md` and
+- [x] Update `documentation/anthropic.md` and
   `documentation/llm-router.md` for effective reload/route compatibility.
   Record the protocol/model support matrix in existing LLM operator guidance.
-- [ ] Correct `config_types.go` and affected help/template documentation to
+- [x] Correct `config_types.go` and affected help/template documentation to
   describe the existing temperature contract: zero selects AuraGo's default
   0.7; the chat can modulate/clamp sampling, and reasoning models can omit it.
   Do not change zero's persisted meaning or promise deterministic output.
-- [ ] Reread changed paths against the DOX chain, inspect encoding/LF and run
+- [x] Reread changed paths against the DOX chain, inspect encoding/LF and run
   `git diff --check`. Use meaningful regression tests with each repair, then
   run the affected package suites once after integration.
 
@@ -282,9 +286,9 @@ own focused tests when their binding or interpretation changes.
   tool continuation; one forced fallback between different model families.
   Use synthetic prompts and a tool fixture. Record route, result and usage
   metadata in ignored `reports/`, never keys or conversation bodies.
-- [ ] Verify configuration failures make zero provider attempts, accepted streams
+- [x] Verify configuration failures make zero provider attempts, accepted streams
   are not replayed and the configured output ceilings still hold.
-- [ ] Commit each coherent repair with its tests and owner-document updates.
+- [x] Commit each coherent repair with its tests and owner-document updates.
   Inspect only intended staged files, perform the required graph change analysis,
   check the staged diff and scan for secrets. Separate baseline failures from
   new failures. Deployment, release and pushing are separate work.
@@ -293,6 +297,34 @@ Definition of done: F1-F7 pass their regression checks, the two high-priority
 paths work end to end, measured usage/continuations survive the protocol change,
 and live acceptance is either recorded or explicitly left pending. Local unit
 tests alone do not establish current provider availability/compatibility.
+
+## Local verification result
+
+- Final full suites: `internal/llm`, `internal/budget` and `internal/config` pass.
+  `internal/memory` also passes. Focused agent/server repair tests exercise real
+  SDK wire requests, main/minimal tool rounds and a thinking-only Config save.
+- Focused `internal/security`, `internal/services` and `internal/kgextraction`
+  consumer checks pass. The broader tools selection fails its unrelated HTTP
+  helper cancellation test, reproduced at unchanged baseline `b796c52c3`.
+- The full agent suite retains five unrelated failure groups: Homepage aliases,
+  MiniMax prepared-tool catalog expectations, dispatch coverage, search-term
+  loading and search-term coverage. All five reproduce in a clean baseline
+  worktree. Helper/personality fixture identities were completed and their
+  affected tests pass separately after the fixes.
+- The full server suite fails `TestStorePDFSeparatesGrantsAndPublishesNewFiles`
+  at the pre-existing captured file-publication grant. Its owning source/test
+  are unchanged and the path makes no LLM request; this classification is
+  source-based rather than a separate clean-worktree reproduction.
+- A 15-ms LLM timeout fixture flaked under concurrent checkout/test load; it
+  passes in isolation and in the final full LLM suite. No timeout was weakened.
+- Graph change analysis is partial because GitNexus is stale; unmapped new files
+  are covered by direct source/call-site review and protocol/consumer tests.
+  Graft refreshed 28 changed files during the final source check.
+- DOX owners updated: `internal/llm`, `internal/agent`, `internal/server`.
+  Root/global ownership and UI behavior did not change, so their guides/indexes
+  need no update. No UI translations, new sampling controls or dependencies added.
+- Detailed local evidence: ignored `reports/llm-remediation-20261116/`.
+  No live provider acceptance, Linux race run, push, release or deployment.
 
 ## Explicitly deferred
 

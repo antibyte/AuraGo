@@ -158,6 +158,37 @@ router is disabled. Remove the assignment first. No database migration is needed
 A stored zero deadline from a programmatic configuration snapshot is normalized
 to 1,500 ms without changing explicit disabled switches or a zero helper quota.
 
+## Completion protocols
+
+Request compatibility applies to main chat, minimal workflows, helpers and each
+physical fallback, even with task routing disabled. AuraGo prepares parameters
+after selecting that route. Output caps remain binding, including reasoning
+tokens; negative or conflicting explicit caps fail locally. A helper model
+override uses that model's limits rather than the provider default model's limits.
+
+| Selected provider/model | Protocol and behavior |
+| --- | --- |
+| Ordinary OpenAI-compatible models | Chat Completions; custom model IDs and endpoints remain intact |
+| Known o-series/GPT-5 reasoning models | Compatible completion-token field and sampling; Chat Completions unless the model requires Responses |
+| Known GPT-6 models with reasoning and tools; GPT-6.1 Terra with tools | Native Responses on OpenAI, Copilot or OpenRouter; unsupported provider combinations fail locally |
+| OpenAI/Copilot/OpenRouter Codex aliases (`gpt-5*-codex`, `codex-*`) | Native Responses, including buffered and streaming function calls |
+| Anthropic | Messages translation with the captured [thinking policy](anthropic.md); excluded always-on models are ineligible fallbacks |
+| GLM/zai | Native Chat Completions system messages and complete reasoning tool history |
+| MiniMax | Existing model-specific MiniMax compatibility rules |
+
+Router-qualified wire IDs, such as `openai/gpt-5`, remain qualified. A configured
+zero temperature retains AuraGo's existing default of 0.7; the chat may modulate
+and clamp it, and incompatible reasoning models omit sampling parameters.
+
+Responses uses local history with `store: false`. Native encrypted reasoning and
+ordered tool items are persisted as opaque continuation state, hidden from readable
+thinking and scoped to the same route/model. Tools, schemas, choices and supported
+images/structured output retain their meaning; unsupported request options fail
+explicitly. Completion requires a terminal native response. Errors or truncated
+streams cannot become assistant success text, and observed partial usage is still
+booked once. Copilot retains its authentication and uses the same stream mapper
+when buffering an upstream stream for a non-streaming caller.
+
 ## Development checks
 
 Use the repository's Windows cache wrapper when needed. Focused checks:

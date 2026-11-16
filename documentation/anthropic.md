@@ -5,12 +5,20 @@ Messages API. Native Anthropic and compatible gateways share this translator.
 API keys remain in the Vault; configure the provider through Setup or Config.
 The API version remains `2023-06-01`.
 
+The base URL can be the API root (`https://api.anthropic.com`), `/v1`, or a
+complete `/v1/messages` endpoint, with optional trailing slashes. AuraGo removes
+only the terminal Messages suffix before composing the request; compatible
+proxy/gateway prefixes and the original origin remain intact.
+
 ## Thinking
 
 The existing `llm.anthropic_thinking` configuration controls which supported
 models may use thinking. It defaults to disabled. `model_allowlist` optionally
 restricts enabled models by exact/prefix match, with an optional trailing `*`.
 An empty list selects the known supported families automatically.
+
+Saving a change to enablement, budget or allowlist applies to the next main-client
+request without a restart. Existing in-flight requests keep their captured policy.
 
 | Models | Enabled | Disabled or excluded by allowlist |
 | --- | --- | --- |

@@ -479,7 +479,10 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 		ProviderID:           helperCfg.ProviderID,
 		GlobalContextWindow:  cfg.Agent.ContextWindow,
 	}
-	if provider := cfg.FindProvider(helperCfg.ProviderID); provider != nil {
+	if provider := cfg.FindProvider(helperCfg.ProviderID); provider != nil &&
+		strings.EqualFold(strings.TrimSpace(provider.Type), newInstCfg.ProviderType) &&
+		strings.TrimRight(strings.TrimSpace(provider.BaseURL), "/") == strings.TrimRight(newInstCfg.BaseURL, "/") &&
+		strings.TrimSpace(provider.Model) == newInstCfg.Model {
 		newInstCfg.ContextWindowOverride = provider.ContextWindow
 		newInstCfg.MaxOutputTokensOverride = provider.MaxOutputTokens
 	}
@@ -497,7 +500,7 @@ func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helpe
 	}
 
 	inst := &helperLLMManager{
-		client:       llm.WrapOpenAIClient(client),
+		client:       llm.WrapOpenAIClient(client, llm.ModelRoute{ProviderID: newInstCfg.ProviderID, ProviderType: newInstCfg.ProviderType, BaseURL: newInstCfg.BaseURL}),
 		model:        newInstCfg.Model,
 		providerID:   newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
 		providerType: newInstCfg.ProviderType,

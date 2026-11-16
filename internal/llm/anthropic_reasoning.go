@@ -44,6 +44,9 @@ func decodeAnthropicReasoning(value string) []json.RawMessage {
 // ReasoningText returns displayable reasoning, excluding signatures and redacted data.
 // Persist and send the original string to preserve continuation signatures.
 func ReasoningText(value string) string {
+	if strings.HasPrefix(value, responsesReasoningPrefix) {
+		return ""
+	}
 	if !strings.HasPrefix(value, anthropicReasoningPrefix) {
 		return value
 	}

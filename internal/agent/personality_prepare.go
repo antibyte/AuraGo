@@ -140,7 +140,9 @@ func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req 
 			route.BaseURL = c.cfg.Personality.V2URL
 		}
 	}
-	if provider := c.cfg.FindProvider(route.ProviderID); provider != nil {
+	if provider := c.cfg.FindProvider(route.ProviderID); provider != nil &&
+		strings.EqualFold(strings.TrimSpace(provider.Type), route.ProviderType) &&
+		strings.TrimRight(strings.TrimSpace(provider.BaseURL), "/") == strings.TrimRight(route.BaseURL, "/") && strings.TrimSpace(provider.Model) == route.Model {
 		route.ContextWindowOverride, route.MaxOutputTokensOverride = provider.ContextWindow, provider.MaxOutputTokens
 	}
 	inputTokens := 32
@@ -159,7 +161,7 @@ func (c *emotionCompletionClient) CreateChatCompletion(ctx context.Context, req 
 	}
 	req.ResponseFormat = llm.JSONResponseFormatForModel(route.ProviderType, req.Model)
 	c.calls++
-	callCtx, capture := llm.CaptureUsage(ctx)
+	callCtx, capture := llm.CaptureUsage(llm.WithCompletionRoute(ctx, route))
 	response, err := c.client.CreateChatCompletion(callCtx, req)
 	response, input, output, _, _, _, account := normalizeResponseUsage(req, response)
 	model := response.Model

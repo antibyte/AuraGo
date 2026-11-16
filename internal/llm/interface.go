@@ -32,21 +32,50 @@ func WrapChatCompletionStream(stream *openai.ChatCompletionStream) CompletionStr
 
 type openAIClientAdapter struct {
 	client *openai.Client
+	route  ModelRoute
 }
 
 // WrapOpenAIClient adapts the SDK client to ChatClient's stream interface.
-func WrapOpenAIClient(client *openai.Client) ChatClient {
+func WrapOpenAIClient(client *openai.Client, routes ...ModelRoute) ChatClient {
 	if client == nil {
 		return nil
 	}
-	return openAIClientAdapter{client: client}
+	adapter := openAIClientAdapter{client: client}
+	if len(routes) > 0 {
+		adapter.route = routes[0]
+	}
+	return adapter
 }
 
 func (c openAIClientAdapter) CreateChatCompletion(ctx context.Context, request openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
+	if c.route.ProviderType == "" && c.route.BaseURL == "" {
+		if route, ok := ctx.Value(completionRouteKey{}).(ModelRoute); ok {
+			c.route = route
+		}
+	}
+	request, responses, err := prepareCompletionRequest(c.route, request)
+	if err != nil {
+		return openai.ChatCompletionResponse{}, err
+	}
+	if responses {
+		return c.createResponseCompletion(ctx, request)
+	}
 	return c.client.CreateChatCompletion(ctx, request)
 }
 
 func (c openAIClientAdapter) CreateChatCompletionStream(ctx context.Context, request openai.ChatCompletionRequest) (CompletionStream, error) {
+	if c.route.ProviderType == "" && c.route.BaseURL == "" {
+		if route, ok := ctx.Value(completionRouteKey{}).(ModelRoute); ok {
+			c.route = route
+		}
+	}
+	request, responses, err := prepareCompletionRequest(c.route, request)
+	if err != nil {
+		return nil, err
+	}
+	if responses {
+		return c.createResponseCompletionStream(ctx, request)
+	}
 	stream, err := c.client.CreateChatCompletionStream(ctx, request)
 	return WrapChatCompletionStream(stream), err
 }
