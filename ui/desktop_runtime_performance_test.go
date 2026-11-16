@@ -112,9 +112,11 @@ func TestDesktopTaskbarAndDockUseReconciliation(t *testing.T) {
 	source := readEmbeddedText(t, "js/desktop/core/window-shell-runtime.js")
 	for _, marker := range []string{
 		"function reconcileStandardTaskbar()",
-		"const seenWindowIds = new Set()",
+		"const seenAppIds = new Set()",
 		"data-taskbar-bound",
-		"function updateTaskbarButton(btn, win, index)",
+		"function updateTaskbarButton(btn, group, index)",
+		"taskbarAppGroups().forEach",
+		"btn.dataset.appId = group.appId",
 		"function reconcileFruityDock()",
 		"const seenDockAppIds = new Set()",
 		"data-dock-bound",

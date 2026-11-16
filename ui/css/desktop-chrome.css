@@ -376,31 +376,12 @@
     background: var(--vd-theme-control-hover, var(--ds-color-control-hover));
 }
 
-.vd-taskbar-pins {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-right: 8px;
-    padding-right: 8px;
-    border-right: 1px solid var(--vd-border);
-}
-
 .vd-taskbar-windows {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     min-width: 0;
     flex: 1;
-}
-
-.vd-taskbar-pin {
-    width: 34px;
-    height: 34px;
-    border: 1px solid transparent;
-    border-radius: var(--ds-radius-sm);
-    background: transparent;
-    color: var(--vd-text);
-    cursor: pointer;
 }
 
 .vd-terminal-app {
@@ -423,49 +404,6 @@
     padding: 8px 10px;
     border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
     background: var(--vd-theme-chrome-bg);
-}
-
-.vd-window-switcher {
-    position: fixed;
-    inset: 0;
-    z-index: calc(var(--ds-z-dock, 1200) + 6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 24px;
-    background: color-mix(in srgb, var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal)) 72%, transparent);
-    backdrop-filter: blur(8px);
-}
-
-.vd-switcher-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    min-width: 120px;
-    max-width: 180px;
-    padding: 12px 10px;
-    border: 2px solid transparent;
-    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
-    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
-    color: var(--vd-text);
-    cursor: pointer;
-    box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-2));
-}
-
-.vd-switcher-item.active {
-    border-color: var(--vd-theme-accent-border, var(--vd-accent, #27c7a6));
-    transform: translateY(-2px);
-}
-
-.vd-switcher-label {
-    font-size: 0.78rem;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: 100%;
 }
 
 .vd-space-pager {

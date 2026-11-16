@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Ten obszar już nie istnieje.",
   "desktop.workspaces_limit": "Osiągnięto limit obszarów.",
   "desktop.workspaces_saved": "Zmiany obszarów zostały zapisane.",
-  "desktop.workspaces_delete_select_target": "Wybierz obszar docelowy dla jego okien."
+  "desktop.workspaces_delete_select_target": "Wybierz obszar docelowy dla jego okien.",
+  "desktop.window_overview_title": "Przegląd okien",
+  "desktop.window_group_count": "{{name}} · Okna: {{count}}",
+  "desktop.window_app_list": "Okna tej aplikacji",
+  "desktop.window_overview_current": "Bieżący obszar roboczy",
+  "desktop.window_overview_all": "Wszystkie obszary robocze",
+  "desktop.window_minimized": "Zminimalizowane"
 }

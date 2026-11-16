@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Dette arbeidsområdet finnes ikke lenger.",
   "desktop.workspaces_limit": "Grensen for arbeidsområder er nådd.",
   "desktop.workspaces_saved": "Endringene i arbeidsområdene er lagret.",
-  "desktop.workspaces_delete_select_target": "Velg arbeidsområdet som vinduene skal flyttes til."
+  "desktop.workspaces_delete_select_target": "Velg arbeidsområdet som vinduene skal flyttes til.",
+  "desktop.window_overview_title": "Vindusoversikt",
+  "desktop.window_group_count": "{{name}} · Vinduer: {{count}}",
+  "desktop.window_app_list": "Vinduer for denne appen",
+  "desktop.window_overview_current": "Gjeldende arbeidsområde",
+  "desktop.window_overview_all": "Alle arbeidsområder",
+  "desktop.window_minimized": "Minimert"
 }

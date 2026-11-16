@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "此工作区已不存在。",
   "desktop.workspaces_limit": "已达到工作区数量上限。",
   "desktop.workspaces_saved": "工作区更改已保存。",
-  "desktop.workspaces_delete_select_target": "选择这些窗口的目标工作区。"
+  "desktop.workspaces_delete_select_target": "选择这些窗口的目标工作区。",
+  "desktop.window_overview_title": "窗口概览",
+  "desktop.window_group_count": "{{name}} · 窗口数：{{count}}",
+  "desktop.window_app_list": "此应用的窗口",
+  "desktop.window_overview_current": "当前工作区",
+  "desktop.window_overview_all": "所有工作区",
+  "desktop.window_minimized": "已最小化"
 }

@@ -2651,6 +2651,7 @@
 }
 
 .vd-task-button {
+    position: relative;
     max-width: 186px;
     height: 36px;
     padding: 0 12px;
@@ -2726,6 +2727,34 @@
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.vd-task-button.running::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 12px;
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+    background: currentColor;
+}
+
+.vd-task-count {
+    flex: 0 0 auto;
+    min-width: 1.4em;
+    padding: 1px 4px;
+    border: 1px solid var(--vd-border);
+    border-radius: 4px;
+    font-size: .7rem;
+    text-align: center;
+}
+
+@media (forced-colors: active) {
+    .vd-task-button.running::after {
+        background: ButtonText;
+        forced-color-adjust: none;
+    }
 }
 
 .vd-task-button.active {
@@ -5226,124 +5255,8 @@
     background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
 }
 
-.vd-snap-partner-chooser {
-    width: min(520px, calc(100vw - 16px));
-    max-height: min(560px, calc(100dvh - 16px));
-    overflow: auto;
-    padding: 12px;
-    color: var(--vd-text);
-}
-
-.vd-snap-partner-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin: 0 0 10px;
-}
-
-.vd-snap-partner-header h2 {
-    margin: 0;
-    font: inherit;
-    font-size: 14px;
-    font-weight: 700;
-}
-
-.vd-snap-partner-dismiss {
-    flex: 0 0 auto;
-    width: 36px;
-    height: 36px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    font-size: 24px;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.vd-snap-partner-dismiss:hover,
-.vd-snap-partner-dismiss:focus-visible {
-    background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
-}
-
-.vd-snap-partner-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-}
-
-.vd-snap-partner-card {
-    min-width: 0;
-    padding: 8px;
-    border: 1px solid var(--vd-theme-border, var(--vd-border));
-    border-radius: var(--vd-theme-radius-card, var(--ds-radius-md));
-    background: var(--vd-theme-panel-bg, var(--ds-color-bg-surface));
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.vd-snap-partner-card:hover,
-.vd-snap-partner-card:focus-visible {
-    border-color: var(--vd-accent);
-    outline: 2px solid color-mix(in srgb, var(--vd-accent) 45%, transparent);
-    outline-offset: 1px;
-}
-
-.vd-snap-partner-preview-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    margin: 0 0 6px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.vd-snap-partner-preview-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.vd-snap-partner-preview-viewport {
-    position: relative;
-    display: block;
-    width: 100% !important;
-    height: 108px !important;
-    overflow: hidden;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--vd-text) 8%, transparent);
-}
-
-.vd-snap-partner-preview-scale {
-    transform-origin: top left;
-    pointer-events: none;
-}
-
-.vd-snap-partner-preview-fallback {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    height: 108px;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--vd-text) 8%, transparent);
-    color: var(--vd-muted);
-    font-size: 12px;
-}
-
-@media (max-width: 520px) {
-    .vd-snap-partner-grid { grid-template-columns: minmax(0, 1fr); }
-}
-
 @media (forced-colors: active) {
-    .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled),
-    .vd-snap-partner-card:hover,
-    .vd-snap-partner-card:focus-visible {
+    .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
         outline: 2px solid Highlight;
         border-color: Highlight;
     }
@@ -11118,31 +11031,12 @@
     background: var(--vd-theme-control-hover, var(--ds-color-control-hover));
 }
 
-.vd-taskbar-pins {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-right: 8px;
-    padding-right: 8px;
-    border-right: 1px solid var(--vd-border);
-}
-
 .vd-taskbar-windows {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     min-width: 0;
     flex: 1;
-}
-
-.vd-taskbar-pin {
-    width: 34px;
-    height: 34px;
-    border: 1px solid transparent;
-    border-radius: var(--ds-radius-sm);
-    background: transparent;
-    color: var(--vd-text);
-    cursor: pointer;
 }
 
 .vd-terminal-app {
@@ -11165,49 +11059,6 @@
     padding: 8px 10px;
     border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
     background: var(--vd-theme-chrome-bg);
-}
-
-.vd-window-switcher {
-    position: fixed;
-    inset: 0;
-    z-index: calc(var(--ds-z-dock, 1200) + 6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 24px;
-    background: color-mix(in srgb, var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal)) 72%, transparent);
-    backdrop-filter: blur(8px);
-}
-
-.vd-switcher-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    min-width: 120px;
-    max-width: 180px;
-    padding: 12px 10px;
-    border: 2px solid transparent;
-    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
-    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
-    color: var(--vd-text);
-    cursor: pointer;
-    box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-2));
-}
-
-.vd-switcher-item.active {
-    border-color: var(--vd-theme-accent-border, var(--vd-accent, #27c7a6));
-    transform: translateY(-2px);
-}
-
-.vd-switcher-label {
-    font-size: 0.78rem;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    width: 100%;
 }
 
 .vd-space-pager {
@@ -12051,6 +11902,228 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .vd-workspace-manager-backdrop {
         backdrop-filter: none;
     }
+}
+
+/* ui/css/desktop-window-overview.css */
+.vd-window-overview {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--ds-z-dock, 1200) + 36);
+    display: grid;
+    place-items: center;
+    padding: clamp(10px, 3vw, 28px);
+    color: var(--vd-text, var(--ds-color-text));
+}
+
+.vd-window-overview[hidden] { display: none !important; }
+
+.vd-window-overview-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--vd-theme-overlay-bg, rgba(0, 0, 0, .52));
+    backdrop-filter: var(--vd-theme-blur, blur(4px));
+}
+
+.vd-window-overview-panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: min(980px, 100%);
+    max-height: min(86vh, 780px);
+    overflow: hidden;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg));
+    background: var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal));
+    box-shadow: var(--vd-theme-shadow-modal, var(--ds-elevation-4));
+    backdrop-filter: var(--vd-theme-blur, blur(10px));
+}
+
+.vd-window-overview-header,
+.vd-window-overview-header-actions,
+.vd-window-overview-scope,
+.vd-window-overview-card,
+.vd-window-overview-panel > footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vd-window-overview-header {
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-window-overview-heading { min-width: 0; }
+.vd-window-overview-heading h2,
+.vd-window-overview-heading p { margin: 0; }
+.vd-window-overview-heading h2 { font-size: 1rem; }
+.vd-window-overview-heading p {
+    margin-top: 3px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .82rem;
+}
+
+.vd-window-overview button {
+    min-height: 38px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm, 7px);
+    padding: 7px 11px;
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.vd-window-overview button:hover:not(:disabled),
+.vd-window-overview button[aria-pressed="true"] {
+    background: var(--vd-theme-control-hover, var(--ds-color-surface-3));
+}
+
+.vd-window-overview button:disabled { opacity: .55; cursor: not-allowed; }
+.vd-window-overview :focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }
+
+.vd-window-overview-header-actions { flex-wrap: wrap; justify-content: flex-end; }
+.vd-window-overview-scope { gap: 4px; }
+.vd-window-overview-scope button { min-height: 34px; padding-inline: 9px; }
+
+.vd-window-overview-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    align-content: start;
+    gap: 12px;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px;
+    overscroll-behavior: contain;
+}
+
+.vd-window-overview-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    align-items: stretch;
+    padding: 8px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-1));
+}
+
+.vd-window-overview-card.is-selected {
+    border-color: var(--vd-accent, #27c7a6);
+    box-shadow: 0 0 0 1px var(--vd-accent, #27c7a6);
+}
+
+.vd-window-overview-card.is-active .vd-window-overview-card-title::after {
+    content: " •";
+    color: var(--vd-accent, #27c7a6);
+}
+
+.vd-window-overview-activate {
+    display: grid;
+    flex: 0 0 auto;
+    align-content: start;
+    width: 100%;
+    min-width: 0;
+    gap: 7px;
+    padding: 5px !important;
+    border-color: transparent !important;
+    background: transparent !important;
+    text-align: left;
+}
+
+.vd-window-overview-activate:hover:not(:disabled) { background: transparent !important; }
+.vd-window-overview-preview {
+    display: grid;
+    min-height: 104px;
+    place-items: center;
+    overflow: hidden;
+    border-radius: var(--ds-radius-sm, 7px);
+    background: var(--ds-color-surface-1, rgba(0, 0, 0, .12));
+    color: var(--vd-theme-muted, var(--vd-muted));
+    pointer-events: none;
+}
+
+.vd-window-overview-preview-viewport { overflow: hidden; }
+.vd-window-overview-preview-scale { transform-origin: top left; }
+.vd-window-overview-preview-fallback {
+    display: flex;
+    min-height: 104px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.vd-window-overview-preview-placeholder {
+    width: 38px;
+    height: 28px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    opacity: .28;
+}
+
+.vd-window-overview-card-title { overflow-wrap: anywhere; font-weight: 650; }
+.vd-window-overview-card-meta {
+    overflow-wrap: anywhere;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .78rem;
+}
+
+.vd-window-overview-minimized {
+    display: inline-block;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 1px 6px;
+}
+
+.vd-window-overview-card.is-minimized { opacity: .82; }
+.vd-window-overview-card > [data-window-close] {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    min-height: 30px;
+    padding: 4px 9px;
+}
+.vd-window-overview-empty { margin: auto; padding: 24px 16px; color: var(--vd-theme-muted, var(--vd-muted)); }
+
+.vd-window-overview-panel > footer {
+    justify-content: flex-end;
+    padding: 10px 16px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-window-overview-hint { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .8rem; }
+
+@media (max-width: 640px), (max-height: 520px) {
+    .vd-window-overview { align-items: end; padding: 0; }
+    .vd-window-overview-panel {
+        width: 100%;
+        max-height: 96vh;
+        border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg)) var(--vd-theme-radius-modal, var(--ds-radius-lg)) 0 0;
+    }
+    .vd-window-overview-header { align-items: flex-start; flex-wrap: wrap; }
+    .vd-window-overview-header-actions { width: 100%; justify-content: flex-start; }
+    .vd-window-overview-list { grid-template-columns: 1fr; padding: 12px; }
+}
+
+@media (max-width: 420px) {
+    .vd-window-overview-card > [data-window-close] { min-height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-window-overview *, .vd-window-overview *::before, .vd-window-overview *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+@media (forced-colors: active) {
+    .vd-window-overview-backdrop { background: Canvas; opacity: .78; }
+    .vd-window-overview-panel,
+    .vd-window-overview-card,
+    .vd-window-overview button { border: 1px solid CanvasText; }
+    .vd-window-overview-card.is-selected,
+    .vd-window-overview :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+    .vd-window-overview-preview { border: 1px solid GrayText; }
 }
 
 /* ui/css/desktop-custom-wallpaper.css */
@@ -22972,7 +23045,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
     .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
-    .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+    .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
     .vd-shortcuts-help) :focus-visible,
 .desktop-body .vd-settings-app :focus-visible,
 .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
@@ -22988,12 +23061,12 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-text-size="125"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
     .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
     .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
-    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app)
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
     :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]),
 .desktop-body[data-text-size="150"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
     .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
     .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
-    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app)
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app)
     :is(button, a, label, p, small, strong, span, div, summary, h1, h2, h3, input, select, textarea):not([aria-hidden="true"]) {
     font-size: var(--vd-shell-text-size) !important;
 }
@@ -23009,7 +23082,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
     .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
     .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
-    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app),
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app),
 .desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
 .desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog {
     color: CanvasText !important;
@@ -23022,7 +23095,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
     .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
     .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
-    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app) :is(button, a, input, select, textarea, [role="button"]),
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app) :is(button, a, input, select, textarea, [role="button"]),
 .desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :is(button, a, input, select, textarea, [role="button"]),
 .desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :is(button, a, input, select, textarea, [role="button"]) {
     color: CanvasText !important;
@@ -23043,7 +23116,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .desktop-body[data-high-contrast="true"] :is(.vd-taskbar, .vd-global-bar, .vd-start-menu,
     .vd-notification-center, .vd-toast, .vd-context-menu, .vd-window-titlebar,
     .vd-window-controls, .vd-spaces-overview, .vd-spotlight, .vd-tray-popover,
-    .vd-window-switcher, .vd-shortcuts-help, .vd-settings-app) :focus-visible,
+    .vd-window-overview-panel, .vd-window-overview-backdrop, .vd-shortcuts-help, .vd-settings-app) :focus-visible,
 .desktop-body[data-high-contrast="true"] > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
 .desktop-body[data-high-contrast="true"] > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
     outline-color: Highlight;
@@ -23066,7 +23139,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 @media (forced-colors: active) {
     .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
         .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
-        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
         .vd-shortcuts-help, .vd-settings-app),
     .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
     .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog {
@@ -23079,7 +23152,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     }
     .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
         .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
-        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
         .vd-shortcuts-help, .vd-settings-app) :focus-visible,
     .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) :focus-visible,
     .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog :focus-visible {
@@ -23090,13 +23163,13 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 @media (prefers-reduced-motion: reduce) {
     .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
         .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
-        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
         .vd-shortcuts-help, .vd-settings-app),
     .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager),
     .desktop-body > .vd-file-dialog-backdrop > .vd-file-dialog,
     .desktop-body :is(.vd-taskbar, .vd-global-bar, .vd-start-menu, .vd-notification-center,
         .vd-toast, .vd-context-menu, .vd-window-titlebar, .vd-window-controls,
-        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-switcher,
+        .vd-spaces-overview, .vd-spotlight, .vd-tray-popover, .vd-window-overview-panel, .vd-window-overview-backdrop,
         .vd-shortcuts-help) *,
     .desktop-body .vd-settings-app *,
     .desktop-body > .vd-modal-backdrop > :is(.vd-modal, .vd-widget-manager) *,

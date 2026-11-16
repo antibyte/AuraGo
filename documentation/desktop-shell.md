@@ -19,6 +19,28 @@ The window menu also offers closing other windows on the current workspace or
 all windows of the same app. Close decisions run in order; cancelling keeps that
 window and all later targets open.
 
+## Find a window
+
+Standard combines pinned and running windows into one app button, with a running
+indicator and a window count. Click an app with several windows to choose one;
+right-click its button for the window list or Close all windows of this app.
+Fruity offers the same window list through its dock while keeping its app catalog.
+
+Ctrl/Command+Tab cycles through window previews; releasing the modifier activates
+the selected window. Ctrl/Command+Alt+W or the taskbar's Window overview menu opens
+a persistent list. Lists start on the current workspace, including on compact
+displays. Choose All workspaces to
+include other workspaces; their names appear beside the window titles. Minimized
+windows remain available and restore when selected. Escape dismisses the list.
+On compact displays the taskbar can count visible windows from several workspaces;
+the list's current-workspace filter still applies until you choose All workspaces.
+
+Each preview has a separate Close button. Cancelling an app's save/close question
+keeps its preview available. Sensitive, embedded, active-media or oversized content
+uses a replacement card. Previews are created only when needed and are not saved.
+The same chooser suggests a partner after snapping to a free half; selecting a
+window applies the second snap, while browsing the choices leaves windows in place.
+
 ## Search and default applications
 
 Start and Spotlight search applications, individual Desktop settings, recent

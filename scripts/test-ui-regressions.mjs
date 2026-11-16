@@ -5734,7 +5734,8 @@ for (const name of [
   'window-layouts', 'window-previews', 'search', 'start-search', 'settings-runtime',
   'file-association-writes', 'notifications', 'accessibility', 'file-history',
   'file-producers', 'quick-settings', 'clock-calendar', 'media-session',
-  'custom-wallpaper', 'workspace-settings', 'workspaces', 'session-actions', 'session-adapters'
+  'custom-wallpaper', 'workspace-settings', 'workspaces', 'session-actions', 'session-adapters',
+  'window-overview-runtime'
 ]) {
   tests.push([`Desktop ${name} contracts`, () => {
     const result = spawnSync(process.execPath, [`scripts/test-desktop-${name}.mjs`], {

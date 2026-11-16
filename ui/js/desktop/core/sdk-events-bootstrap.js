@@ -263,6 +263,7 @@
     }
 
     function cleanupDesktopShellRuntime() {
+        endWindowSwitcherHold(false);
         if (state._clockTimer) {
             clearInterval(state._clockTimer);
             state._clockTimer = null;
@@ -695,7 +696,9 @@
             taskbarEl.addEventListener('contextmenu', (event) => {
                 if (event.target.closest('button, input, a, .vd-start-menu')) return;
                 event.preventDefault();
+                const overviewOpener = document.activeElement;
                 showContextMenu(event.clientX, event.clientY, [
+                    { id: 'window-overview', label: t('desktop.window_overview_title'), icon: 'grid', fallback: 'W', action: () => showWindowSwitcher(overviewOpener) },
                     { label: t('desktop.context_settings'), icon: 'settings', fallback: 'S', action: () => openApp('settings', { category: 'appearance' }) },
                     { separator: true },
                     { label: t('desktop.context_system_info'), icon: 'analytics', fallback: 'i', action: () => openApp('system-info') },
@@ -795,8 +798,9 @@
         });
     }
 
-    function showWindowSwitcher() {
-        beginWindowSwitcherHold(false);
+    function showWindowSwitcher(opener) {
+        windowSwitcherHold = null;
+        return openDesktopWindowOverview({ mode: 'switcher', opener });
     }
 
     // Desktop icon shortcuts act only while the keyboard belongs to
@@ -824,13 +828,14 @@
     document.addEventListener('pointerdown', trackDesktopKeyboardScope, true);
 
     function handleDesktopKeydown(event) {
-        if (event.defaultPrevented || [...document.querySelectorAll('[aria-modal="true"]')].some(dialog => dialog.getClientRects().length)) return;
+        if (event.defaultPrevented || hasOtherDesktopModal()) return;
+        if (handleWindowSwitcherKeydown(event)) return;
+        if (window.AuraDesktopWindowOverview?.isOpen()) return;
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
         if (handleSpacesOverviewShortcut(event)) return;
         if (handleWindowSnapShortcut(event)) return;
-        if (handleWindowSwitcherKeydown(event)) return;
         if (isEditableTarget(event.target)) return;
         if ((event.ctrlKey || event.metaKey) && !event.altKey && desktopIconKeysAllowed(event)) {
             const key = event.key.toLowerCase();
@@ -1005,6 +1010,7 @@
         openDesktopFullscreenOnStartup();
         initSpacesOverviewRuntime();
         initTaskbarThumbnailsRuntime();
+        initWindowOverviewRuntime();
         initDesktopMediaKeysRuntime();
         initSIPPhoneShellRuntime();
         if (window.SipPhoneGadget && typeof window.SipPhoneGadget.init === 'function') window.SipPhoneGadget.init();

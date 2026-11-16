@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Esta área já não existe.",
   "desktop.workspaces_limit": "Foi atingido o limite de áreas.",
   "desktop.workspaces_saved": "Alterações às áreas guardadas.",
-  "desktop.workspaces_delete_select_target": "Escolhe a área de destino das janelas."
+  "desktop.workspaces_delete_select_target": "Escolhe a área de destino das janelas.",
+  "desktop.window_overview_title": "Visão geral das janelas",
+  "desktop.window_group_count": "{{name}} · Janelas: {{count}}",
+  "desktop.window_app_list": "Janelas deste aplicativo",
+  "desktop.window_overview_current": "Área de trabalho atual",
+  "desktop.window_overview_all": "Todas as áreas de trabalho",
+  "desktop.window_minimized": "Minimizada"
 }

@@ -1114,6 +1114,7 @@
 
     function renderTaskbar() {
         syncDesktopMenuBar();
+        window.AuraDesktopWindowOverview?.refresh();
         const host = $('vd-taskbar-apps');
         if (!host) return;
         host.classList.toggle('vd-dock', shellLayout() === 'dock');
@@ -1133,30 +1134,64 @@
         ensureMobileTaskbarSwipe();
     }
 
-    function taskbarButtonHTML(win) {
-        const app = appById(win.appId);
-        const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-task-icon', 16);
-        return `${icon}<span class="vd-task-label">${esc(win.title)}</span>`;
+    function taskbarAppGroups() {
+        const groups = new Map();
+        const pins = new Set(dockPinIds());
+        pins.forEach(appId => {
+            if (appById(appId)) groups.set(appId, { appId, pinned: true, windows: [] });
+        });
+        windowOverviewWindows({ scope: 'visible' }).forEach(win => {
+            if (!groups.has(win.appId)) groups.set(win.appId, { appId: win.appId, pinned: pins.has(win.appId), windows: [] });
+            groups.get(win.appId).windows.push(win);
+        });
+        return [...groups.values()];
     }
 
-    function updateTaskbarButton(btn, win, index) {
+    function updateTaskbarButton(btn, group, index) {
+        const app = appById(group.appId);
+        const active = group.windows.find(win => win.id === state.activeWindowId);
+        const representative = active || group.windows[0];
+        const label = windowTitle(group.appId);
+        const count = group.windows.length;
         btn.className = 'vd-task-button';
-        btn.classList.toggle('active', win.id === state.activeWindowId);
-        btn.dataset.windowId = win.id;
+        btn.classList.toggle('active', !!active);
+        btn.classList.toggle('running', count > 0);
+        btn.classList.toggle('pinned', group.pinned);
+        btn.dataset.appId = group.appId;
+        btn.dataset.windowCount = String(count);
+        if (representative) btn.dataset.windowId = representative.id;
+        else delete btn.dataset.windowId;
+        if (group.pinned) btn.dataset.pinAppId = group.appId;
+        else delete btn.dataset.pinAppId;
+        btn.title = count ? t('desktop.window_group_count', { name: label, count }) : label;
+        btn.setAttribute('aria-label', btn.title);
+        if (count > 1) btn.setAttribute('aria-haspopup', 'dialog');
+        else btn.removeAttribute('aria-haspopup');
+        if (active) btn.setAttribute('aria-current', 'true');
+        else btn.removeAttribute('aria-current');
         btn.style.setProperty('--dock-index', index);
-        const nextHTML = taskbarButtonHTML(win);
+        const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
+        const nextHTML = `${icon}<span class="vd-task-label">${esc(label)}</span>${count > 1 ? `<span class="vd-task-count" aria-hidden="true">${count}</span>` : ''}`;
         if (btn.dataset.renderedHtml !== nextHTML) {
             btn.innerHTML = nextHTML;
             btn.dataset.renderedHtml = nextHTML;
         }
     }
 
+    function activateTaskbarApp(appId, opener) {
+        const windows = windowOverviewWindows({ mode: 'app-group', appId, scope: 'visible' });
+        // Compact taskbars count visible windows; the chooser still requires an explicit All scope.
+        if (windows.length > 1) openDesktopWindowOverview({ mode: 'app-group', appId, scope: 'current', opener });
+        else if (windows.length) activateOverviewWindow(windows[0].id);
+        else openApp(appId);
+    }
+
     function bindTaskbarButton(btn) {
         if (btn.getAttribute('data-taskbar-bound') === 'true') return;
         btn.setAttribute('data-taskbar-bound', 'true');
-        btn.addEventListener('click', () => focusWindow(btn.dataset.windowId));
-        btn.addEventListener('contextmenu', event => showWindowContextMenu(event, btn.dataset.windowId));
-        wireLongPress(btn, event => showWindowContextMenu(event, btn.dataset.windowId));
+        btn.addEventListener('click', () => activateTaskbarApp(btn.dataset.appId, btn));
+        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
+        wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
         wireTaskbarThumbnailHover(btn);
     }
 
@@ -1165,13 +1200,6 @@
         const host = $('vd-taskbar-apps');
         if (!host) return;
         if (host.querySelector('[data-fruity-dock-track]')) host.replaceChildren();
-        let pinHost = host.querySelector('[data-taskbar-pins]');
-        if (!pinHost) {
-            pinHost = document.createElement('div');
-            pinHost.className = 'vd-taskbar-pins';
-            pinHost.dataset.taskbarPins = 'true';
-            host.prepend(pinHost);
-        }
         const winHost = host.querySelector('[data-taskbar-windows]') || (() => {
             const node = document.createElement('div');
             node.className = 'vd-taskbar-windows';
@@ -1179,31 +1207,10 @@
             host.appendChild(node);
             return node;
         })();
-        const seenPinIds = new Set();
-        dockPinIds().forEach((appId, index) => {
-            const app = appById(appId);
-            if (!app) return;
-            seenPinIds.add(appId);
-            let btn = pinHost.querySelector(`[data-pin-app-id="${cssSel(appId)}"]`);
-            if (!btn) {
-                btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'vd-taskbar-pin';
-                btn.dataset.pinAppId = appId;
-                bindTaskbarPinButton(btn);
-                pinHost.appendChild(btn);
-            }
-            btn.style.setProperty('--dock-index', index);
-            btn.innerHTML = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
-            btn.title = appName(app);
-        });
-        pinHost.querySelectorAll('[data-pin-app-id]').forEach(btn => {
-            if (!seenPinIds.has(btn.dataset.pinAppId)) btn.remove();
-        });
-        const seenWindowIds = new Set();
-        taskbarWindows().forEach((win, index) => {
-            seenWindowIds.add(win.id);
-            let btn = winHost.querySelector(`[data-window-id="${cssSel(win.id)}"]`);
+        const seenAppIds = new Set();
+        taskbarAppGroups().forEach((group, index) => {
+            seenAppIds.add(group.appId);
+            let btn = winHost.querySelector(`[data-app-id="${cssSel(group.appId)}"]`);
             if (!btn) {
                 btn = document.createElement('button');
                 btn.type = 'button';
@@ -1212,22 +1219,11 @@
             } else if (btn !== winHost.children[index]) {
                 winHost.insertBefore(btn, winHost.children[index] || null);
             }
-            updateTaskbarButton(btn, win, index);
+            updateTaskbarButton(btn, group, index);
         });
-        winHost.querySelectorAll('[data-window-id]').forEach(btn => {
-            if (!seenWindowIds.has(btn.dataset.windowId)) btn.remove();
+        winHost.querySelectorAll('[data-app-id]').forEach(btn => {
+            if (!seenAppIds.has(btn.dataset.appId)) btn.remove();
         });
-    }
-
-    function bindTaskbarPinButton(btn) {
-        if (btn.getAttribute('data-pin-bound') === 'true') return;
-        btn.setAttribute('data-pin-bound', 'true');
-        btn.addEventListener('click', () => {
-            const existing = findExistingAppWindow(btn.dataset.pinAppId, {});
-            if (existing) focusWindow(existing.id);
-            else openApp(btn.dataset.pinAppId);
-        });
-        btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.pinAppId));
     }
 
     function renderStandardTaskbar() { reconcileStandardTaskbar(); }
@@ -1260,6 +1256,7 @@
 
     function updateDockButton(btn, app, index, runningWindows) {
         const running = runningWindows.some(win => win.appId === app.id);
+        const count = runningWindows.filter(win => win.appId === app.id).length;
         const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
         const broken = appIsBroken(app);
         btn.type = 'button';
@@ -1268,7 +1265,12 @@
         btn.classList.toggle('active', active);
         btn.classList.toggle('broken', broken);
         btn.dataset.appId = app.id;
-        btn.title = broken ? `${appName(app)} - ${t('desktop.app_missing_entry')}` : appName(app);
+        btn.dataset.windowCount = String(count);
+        const label = count ? t('desktop.window_group_count', { name: appName(app), count }) : appName(app);
+        btn.title = broken ? `${label} - ${t('desktop.app_missing_entry')}` : label;
+        btn.setAttribute('aria-label', btn.title);
+        if (count > 1) btn.setAttribute('aria-haspopup', 'dialog');
+        else btn.removeAttribute('aria-haspopup');
         btn.style.setProperty('--dock-index', index);
         const nextHTML = dockButtonHTML(app);
         if (btn.dataset.renderedHtml !== nextHTML) {
@@ -1280,11 +1282,7 @@
     function bindDockButton(btn) {
         if (btn.getAttribute('data-dock-bound') === 'true') return;
         btn.setAttribute('data-dock-bound', 'true');
-        btn.addEventListener('click', () => {
-            const existing = findExistingAppWindow(btn.dataset.appId, {});
-            if (existing) focusWindow(existing.id);
-            else openApp(btn.dataset.appId);
-        });
+        btn.addEventListener('click', () => activateTaskbarApp(btn.dataset.appId, btn));
         btn.addEventListener('contextmenu', event => showStartAppContextMenu(event, btn.dataset.appId));
         wireLongPress(btn, event => showStartAppContextMenu(event, btn.dataset.appId));
         wireDockThumbnailHover(btn);
@@ -1292,7 +1290,7 @@
 
     function reconcileFruityDock() {
         const host = $('vd-taskbar-apps');
-        const runningWindows = taskbarWindows();
+        const runningWindows = windowOverviewWindows({ scope: 'visible' });
         const track = ensureFruityDockShell(host);
         if (!track) return;
         const seenDockAppIds = new Set();

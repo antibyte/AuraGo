@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Den här arbetsytan finns inte längre.",
   "desktop.workspaces_limit": "Gränsen för arbetsytor har nåtts.",
   "desktop.workspaces_saved": "Ändringarna av arbetsytorna har sparats.",
-  "desktop.workspaces_delete_select_target": "Välj arbetsytan som fönstren ska flyttas till."
+  "desktop.workspaces_delete_select_target": "Välj arbetsytan som fönstren ska flyttas till.",
+  "desktop.window_overview_title": "Fönsteröversikt",
+  "desktop.window_group_count": "{{name}} · Fönster: {{count}}",
+  "desktop.window_app_list": "Fönster för den här appen",
+  "desktop.window_overview_current": "Aktuell arbetsyta",
+  "desktop.window_overview_all": "Alla arbetsytor",
+  "desktop.window_minimized": "Minimerat"
 }

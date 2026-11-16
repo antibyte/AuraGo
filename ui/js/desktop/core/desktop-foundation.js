@@ -599,12 +599,14 @@
     }
 
     function dockApps() {
-        const runningIds = new Set(taskbarWindows().map(win => win.appId).filter(Boolean));
+        const windows = windowOverviewWindows({ scope: 'visible' });
+        const runningIds = new Set(windows.map(win => win.appId).filter(Boolean));
         const available = userFacingApps().filter(app => app.dock_visible !== false || runningIds.has(app.id));
         const pinned = dockPinIds().map(id => available.find(app => app.id === id)).filter(Boolean);
+        const running = windows.map(win => appById(win.appId) || { id: win.appId, name: win.title, icon: win.icon || 'monitor' });
         const seen = new Set();
         const merged = [];
-        pinned.concat(available).forEach(app => {
+        pinned.concat(available, running).forEach(app => {
             if (!app || seen.has(app.id)) return;
             seen.add(app.id);
             merged.push(app);

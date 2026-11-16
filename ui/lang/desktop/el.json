@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Αυτός ο χώρος δεν υπάρχει πλέον.",
   "desktop.workspaces_limit": "Συμπληρώθηκε το όριο χώρων εργασίας.",
   "desktop.workspaces_saved": "Οι αλλαγές στους χώρους αποθηκεύτηκαν.",
-  "desktop.workspaces_delete_select_target": "Επίλεξε τον χώρο προορισμού για τα παράθυρά του."
+  "desktop.workspaces_delete_select_target": "Επίλεξε τον χώρο προορισμού για τα παράθυρά του.",
+  "desktop.window_overview_title": "Επισκόπηση παραθύρων",
+  "desktop.window_group_count": "{{name}} · Παράθυρα: {{count}}",
+  "desktop.window_app_list": "Παράθυρα αυτής της εφαρμογής",
+  "desktop.window_overview_current": "Τρέχουσα επιφάνεια εργασίας",
+  "desktop.window_overview_all": "Όλες οι επιφάνειες εργασίας",
+  "desktop.window_minimized": "Ελαχιστοποιημένο"
 }

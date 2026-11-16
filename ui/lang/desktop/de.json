@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Diese Arbeitsfläche existiert nicht mehr.",
   "desktop.workspaces_limit": "Die Grenze für Arbeitsflächen ist erreicht.",
   "desktop.workspaces_saved": "Änderungen an den Arbeitsflächen gespeichert.",
-  "desktop.workspaces_delete_select_target": "Wähle eine Ziel-Arbeitsfläche für die Fenster aus."
+  "desktop.workspaces_delete_select_target": "Wähle eine Ziel-Arbeitsfläche für die Fenster aus.",
+  "desktop.window_overview_title": "Fensterübersicht",
+  "desktop.window_group_count": "{{name}} · Fenster: {{count}}",
+  "desktop.window_app_list": "Fenster dieser App",
+  "desktop.window_overview_current": "Aktuelle Arbeitsfläche",
+  "desktop.window_overview_all": "Alle Arbeitsflächen",
+  "desktop.window_minimized": "Minimiert"
 }

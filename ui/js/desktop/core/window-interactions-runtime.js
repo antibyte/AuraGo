@@ -7,6 +7,7 @@
         emitDesktopWindowEffect('minimize', id);
         desktopSound('window.minimize');
         item.minimizing = true;
+        const minimizeRevision = item.minimizeRevision = (item.minimizeRevision || 0) + 1;
         if (state.activeWindowId === id) state.activeWindowId = '';
         const delta = windowMinimizeTargetDelta(item.element, id);
         if (delta) {
@@ -15,6 +16,7 @@
         }
         renderTaskbar();
         animateThen(item.element, 'vd-window-minimizing', themeMotionMs('minimize'), () => {
+            if (item.minimizeRevision !== minimizeRevision || !item.minimizing || item.closing) return;
             item.element.style.display = 'none';
             refreshDesktopWindowEffects();
             item.minimizing = false;
@@ -32,7 +34,7 @@
         if (shellLayout() === 'dock') {
             target = host.querySelector('.vd-dock-button[data-app-id="' + cssSel(item.appId) + '"]');
         } else {
-            target = host.querySelector('[data-window-id="' + cssSel(id) + '"]');
+            target = host.querySelector('.vd-task-button[data-app-id="' + cssSel(item.appId) + '"]');
         }
         if (!target) return null;
         const winRect = win.getBoundingClientRect();
@@ -330,84 +332,34 @@
         return '';
     }
 
-    function showWindowSnapPartnerChooser(windowId, partnerZone) {
+    function windowSnapPartnerCandidates(windowId, partnerZone) {
         const source = state.windows.get(windowId);
-        if (!source || !source.element) return false;
-        const sameSpace = candidate => typeof windowSpaceId === 'function'
-            ? windowSpaceId(candidate) === windowSpaceId(source)
-            : String(candidate.spaceId || '') === String(source.spaceId || '');
+        if (!source || !source.element || source.closing || source.checkingClose || source.minimizing
+            || source.element.style.display === 'none' || source.element.classList.contains('vd-space-hidden')
+            || desktopWindowSnapPartnerZone(source.snapped) !== partnerZone) return [];
         const candidates = [...state.windows.values()].filter(candidate => {
             if (candidate === source || candidate.isGadget || candidate.closing || candidate.checkingClose || !candidate.element) return false;
-            if (candidate.element.style.display === 'none' || candidate.element.classList.contains('vd-space-hidden') || candidate.minimizing) return false;
-            if (!sameSpace(candidate)) return false;
+            if (windowSpaceId(candidate) !== windowSpaceId(source)) return false;
             const bounds = windowLayoutLimits(candidate.element);
             return desktopWindowLayoutFits(desktopWindowLayoutRect(partnerZone, bounds.width, bounds.height), bounds);
         });
         const occupiedSide = partnerZone === 'left-half' ? 'left' : 'right';
-        const occupied = candidates.some(candidate => desktopWindowLayoutOccupiesHalf(candidate, occupiedSide));
-        if (!candidates.length || occupied) return false;
-        closeWindowLayoutPopup(false);
-        const popup = document.createElement('section');
-        popup.className = 'vd-context-menu vd-snap-partner-chooser';
-        popup.setAttribute('role', 'dialog');
-        popup.setAttribute('aria-modal', 'false');
-        popup.setAttribute('aria-label', t('desktop.snap_partner_title'));
-        const header = document.createElement('header');
-        header.className = 'vd-snap-partner-header';
-        const heading = document.createElement('h2');
-        heading.textContent = t('desktop.snap_partner_title');
-        const dismiss = document.createElement('button');
-        dismiss.type = 'button';
-        dismiss.className = 'vd-snap-partner-dismiss';
-        dismiss.setAttribute('aria-label', t('desktop.snap_partner_dismiss'));
-        dismiss.textContent = '×';
-        header.append(heading, dismiss);
-        popup.appendChild(header);
-        const grid = document.createElement('div');
-        grid.className = 'vd-snap-partner-grid';
-        candidates.forEach(candidate => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'vd-snap-partner-card';
-            button.setAttribute('aria-label', t('desktop.snap_partner_select', { name: candidate.title }));
-            const preview = document.createElement('div');
-            preview.className = 'vd-snap-partner-preview';
-            preview.innerHTML = typeof windowPreviewMarkup === 'function'
-                ? windowPreviewMarkup(candidate, {
-                    maxW: 224, maxH: 118,
-                    titleClass: 'vd-snap-partner-preview-title', labelClass: 'vd-snap-partner-preview-label',
-                    iconClass: 'vd-snap-partner-preview-icon', viewportClass: 'vd-snap-partner-preview-viewport',
-                    scaleClass: 'vd-snap-partner-preview-scale', fallbackClass: 'vd-snap-partner-preview-fallback',
-                    fallbackIconClass: 'vd-snap-partner-preview-fallback-icon', fallbackIconSize: 30
-                }) : esc(candidate.title);
-            button.appendChild(preview);
-            button.addEventListener('click', () => {
-                if (state.windows.get(windowId) !== source || source.element.style.display === 'none'
-                    || source.element.classList.contains('vd-space-hidden') || source.minimizing || source.closing || source.checkingClose
-                    || desktopWindowSnapPartnerZone(source.snapped) !== partnerZone) {
-                    closeWindowLayoutPopup(false);
-                    return;
-                }
-                if (state.windows.get(candidate.id) !== candidate || candidate.element.style.display === 'none'
-                    || candidate.element.classList.contains('vd-space-hidden') || candidate.minimizing || candidate.closing
-                    || candidate.checkingClose || !sameSpace(candidate)) return;
-                if (!applyWindowSnap(candidate.element, partnerZone, { showPartnerChooser: false })) return;
-                closeWindowLayoutPopup(false);
-                focusWindow(candidate.id);
-                const target = candidate.element.querySelector('[data-action="maximize"]');
-                if (target) target.focus({ preventScroll: true });
-            });
-            grid.appendChild(button);
+        if (candidates.some(candidate => candidate.element.style.display !== 'none' && !candidate.minimizing
+            && desktopWindowLayoutOccupiesHalf(candidate, occupiedSide))) return [];
+        return candidates;
+    }
+
+    function chooseWindowSnapPartner(windowId, candidateId, partnerZone) {
+        const candidate = windowSnapPartnerCandidates(windowId, partnerZone).find(win => win.id === candidateId);
+        return !!candidate && applyWindowSnap(candidate.element, partnerZone, { showPartnerChooser: false });
+    }
+
+    function showWindowSnapPartnerChooser(windowId, partnerZone) {
+        if (!windowSnapPartnerCandidates(windowId, partnerZone).length) return false;
+        return openDesktopWindowOverview({
+            mode: 'snap-partner', sourceId: windowId, partnerZone,
+            opener: state.windows.get(windowId)?.element.querySelector('[data-action="maximize"]')
         });
-        popup.appendChild(grid);
-        document.body.appendChild(popup);
-        positionWindowLayoutPopup(popup, source.element);
-        const opener = source.element.querySelector('[data-action="maximize"]');
-        wireWindowLayoutPopup(popup, opener, windowId, candidates.map(candidate => candidate.id));
-        dismiss.addEventListener('click', () => closeWindowLayoutPopup(true));
-        const first = grid.querySelector('button');
-        if (first) first.focus({ preventScroll: true });
-        return true;
     }
 
 function wireWindow(win, id) {
@@ -662,8 +614,8 @@ function wireWindow(win, id) {
         return {
             left: parseInt(win.style.left, 10) || 0,
             top: parseInt(win.style.top, 10) || 0,
-            width: Math.round(win.offsetWidth),
-            height: Math.round(win.offsetHeight)
+            width: Math.round(win.offsetWidth || parseFloat(win.style.width) || 0),
+            height: Math.round(win.offsetHeight || parseFloat(win.style.height) || 0)
         };
     }
 
@@ -944,7 +896,9 @@ function wireWindow(win, id) {
 
         if (state.z > 100000) normalizeWindowZIndexes();
         const wasHidden = win.element.style.display === 'none' || win.element.hidden;
+        win.minimizeRevision = (win.minimizeRevision || 0) + 1;
         win.minimizing = false;
+        win.element.classList.remove('vd-window-minimizing');
         win.element.style.display = '';
         assignWindowZ(win);
         state.activeWindowId = id;

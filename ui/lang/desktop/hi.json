@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "यह कार्यस्थान अब मौजूद नहीं है।",
   "desktop.workspaces_limit": "कार्यस्थानों की सीमा पूरी हो गई है।",
   "desktop.workspaces_saved": "कार्यस्थानों के बदलाव सहेज दिए गए।",
-  "desktop.workspaces_delete_select_target": "इसकी विंडो के लिए लक्ष्य कार्यस्थान चुनें।"
+  "desktop.workspaces_delete_select_target": "इसकी विंडो के लिए लक्ष्य कार्यस्थान चुनें।",
+  "desktop.window_overview_title": "विंडो का अवलोकन",
+  "desktop.window_group_count": "{{name}} · विंडो: {{count}}",
+  "desktop.window_app_list": "इस ऐप की विंडो",
+  "desktop.window_overview_current": "मौजूदा कार्यक्षेत्र",
+  "desktop.window_overview_all": "सभी कार्यक्षेत्र",
+  "desktop.window_minimized": "न्यूनतम किया गया"
 }

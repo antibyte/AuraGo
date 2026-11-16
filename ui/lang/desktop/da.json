@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Dette arbejdsområde findes ikke længere.",
   "desktop.workspaces_limit": "Grænsen for arbejdsområder er nået.",
   "desktop.workspaces_saved": "Ændringer til arbejdsområderne er gemt.",
-  "desktop.workspaces_delete_select_target": "Vælg et arbejdsområde til vinduerne."
+  "desktop.workspaces_delete_select_target": "Vælg et arbejdsområde til vinduerne.",
+  "desktop.window_overview_title": "Vinduesoversigt",
+  "desktop.window_group_count": "{{name}} · Vinduer: {{count}}",
+  "desktop.window_app_list": "Denne apps vinduer",
+  "desktop.window_overview_current": "Aktuelt arbejdsområde",
+  "desktop.window_overview_all": "Alle arbejdsområder",
+  "desktop.window_minimized": "Minimeret"
 }

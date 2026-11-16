@@ -543,16 +543,23 @@
 
     function showStartAppContextMenu(event, appId) {
         event.preventDefault();
+        if (!appId) return;
+        const overviewOpener = event.target?.closest('button') || document.activeElement;
         const app = appById(appId);
         const pinned = isAppDockPinned(appId);
+        const hasWindows = windowOverviewWindows({ appId, scope: 'all' }).length > 0;
         const items = [
             { label: t('desktop.context_open'), icon: 'folder-open', fallback: 'O', action: () => openApp(appId) },
             { label: t('desktop.context_new_window'), icon: 'monitor', fallback: 'N', action: () => openApp(appId, { forceNew: true }) },
+            { id: 'app-windows', label: t('desktop.window_app_list'), icon: 'grid', fallback: 'W', disabled: !hasWindows,
+                action: () => openDesktopWindowOverview({ mode: 'app-group', appId, opener: overviewOpener }) },
             { label: t('desktop.context_add_to_desktop'), icon: 'desktop', fallback: 'D', action: () => addDesktopShortcut(appId) },
             { separator: true },
             pinned
-                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', action: () => toggleDockPin(appId) }
-                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', action: () => toggleDockPin(appId) }
+                ? { label: t('desktop.unpin_from_dock'), icon: 'pin', fallback: '-', disabled: desktopReadonly(), action: () => toggleDockPin(appId) }
+                : { label: t('desktop.pin_to_dock'), icon: 'pin', fallback: '+', disabled: desktopReadonly(), action: () => toggleDockPin(appId) },
+            { id: 'close-app-windows', label: t('desktop.close_app_windows'), icon: 'x', fallback: 'X', disabled: !hasWindows,
+                action: () => closeDesktopWindowBatch(windowOverviewWindows({ appId, scope: 'all' }).map(win => win.id)) }
         ];
         if (!isBuiltinApp(appId)) {
             items.push({ separator: true }, { label: t('desktop.context_delete_app'), icon: 'trash', fallback: 'X', danger: true, action: () => deleteDesktopApp(appId) });

@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "That workspace no longer exists.",
   "desktop.workspaces_limit": "The workspace limit has been reached.",
   "desktop.workspaces_saved": "Workspace changes saved.",
-  "desktop.workspaces_delete_select_target": "Choose a destination workspace for its windows."
+  "desktop.workspaces_delete_select_target": "Choose a destination workspace for its windows.",
+  "desktop.window_overview_title": "Window overview",
+  "desktop.window_group_count": "{{name}} · Windows: {{count}}",
+  "desktop.window_app_list": "Windows for this app",
+  "desktop.window_overview_current": "Current workspace",
+  "desktop.window_overview_all": "All workspaces",
+  "desktop.window_minimized": "Minimized"
 }

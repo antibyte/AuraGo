@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Dit werkblad bestaat niet meer.",
   "desktop.workspaces_limit": "Het maximum aantal werkbladen is bereikt.",
   "desktop.workspaces_saved": "Werkbladwijzigingen opgeslagen.",
-  "desktop.workspaces_delete_select_target": "Kies het doelwerkblad voor de vensters."
+  "desktop.workspaces_delete_select_target": "Kies het doelwerkblad voor de vensters.",
+  "desktop.window_overview_title": "Vensteroverzicht",
+  "desktop.window_group_count": "{{name}} · Vensters: {{count}}",
+  "desktop.window_app_list": "Vensters van deze app",
+  "desktop.window_overview_current": "Huidige werkruimte",
+  "desktop.window_overview_all": "Alle werkruimtes",
+  "desktop.window_minimized": "Geminimaliseerd"
 }

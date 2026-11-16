@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Cet espace n’existe plus.",
   "desktop.workspaces_limit": "La limite des espaces est atteinte.",
   "desktop.workspaces_saved": "Modifications des espaces enregistrées.",
-  "desktop.workspaces_delete_select_target": "Choisis l’espace de destination de ses fenêtres."
+  "desktop.workspaces_delete_select_target": "Choisis l’espace de destination de ses fenêtres.",
+  "desktop.window_overview_title": "Vue des fenêtres",
+  "desktop.window_group_count": "{{name}} · Fenêtres : {{count}}",
+  "desktop.window_app_list": "Fenêtres de cette application",
+  "desktop.window_overview_current": "Espace de travail actuel",
+  "desktop.window_overview_all": "Tous les espaces de travail",
+  "desktop.window_minimized": "Réduite"
 }

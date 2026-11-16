@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "このワークスペースはもう存在しません。",
   "desktop.workspaces_limit": "ワークスペースの上限に達しました。",
   "desktop.workspaces_saved": "ワークスペースの変更を保存しました。",
-  "desktop.workspaces_delete_select_target": "ウィンドウの移動先ワークスペースを選んでください。"
+  "desktop.workspaces_delete_select_target": "ウィンドウの移動先ワークスペースを選んでください。",
+  "desktop.window_overview_title": "ウィンドウ一覧",
+  "desktop.window_group_count": "{{name}} · ウィンドウ数: {{count}}",
+  "desktop.window_app_list": "このアプリのウィンドウ",
+  "desktop.window_overview_current": "現在のワークスペース",
+  "desktop.window_overview_all": "すべてのワークスペース",
+  "desktop.window_minimized": "最小化"
 }

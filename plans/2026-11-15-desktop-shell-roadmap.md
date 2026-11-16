@@ -1,26 +1,24 @@
 # Virtual Desktop everyday workflow roadmap
 
-Status: implementation in `codex/desktop-shell-everyday`, based on committed
-`6d753d4e1127447f4e953dc9a71244891648195a`. The first delivery implements complete
-snap/guarded window actions, shared search/default apps, browser-local notification
-policy/history and shell text size/high contrast. Wave 1 passed focused Node, Go,
-browser, encoding and deterministic bundle checks locally on Windows, including
-snap/session restoration and notification storage boundaries. Wave 2 implements
-shared file history, Quick settings, a month calendar and media observation.
-Wave 2 passed focused Node and Windows Go tests, integrated browser flows,
-encoding and deterministic bundle checks, plus Linux/macOS compilation. Browser
-acceptance includes partial/disposed-window moves, cross-window history, late
-responses after logout, month navigation/retry, and constrained/forced-color views.
-Wave 3 implements revision-bound editable workspaces, validated custom backgrounds
-and two-stage logout with app participants. Focused Node/Go and browser checks
-passed, including two-tab workspace conflicts, custom-image fallback, small-screen
-workspace management, real editor/mail/synth/Ziro/Storymaker flows and pending
-Sheets cell/formula edits with failed-save recovery. Adapter regressions cover
-debounced input, derived artwork, active gestures and untitled Save As. All 16
-locales and deterministic bundles passed their checks. The broader UI regression
-script retains seven Game Maker failures reproduced at the starting commit;
-the 18 focused shell scripts pass. Grouped window switching remains pending.
-Full Linux CI and real assistive-technology acceptance are separate.
+Status: implemented and locally verified in `codex/desktop-shell-everyday`, based
+on committed `6d753d4e1127447f4e953dc9a71244891648195a`. All four implementation
+waves are complete: snap and guarded close actions; shared search/default apps;
+browser-local notifications and accessibility; file history; quick settings,
+calendar and media; revision-bound workspaces, custom backgrounds and two-stage
+logout; grouped taskbars and the shared window overview.
+
+The 19 focused shell Node scripts, focused Windows Go/backend checks, deterministic
+bundles, encoding and all 16 locale checks passed. Browser acceptance covers the
+complete flows and failure cases described below, Standard/Fruity, compact views,
+forced colors, reduced motion, 150% text size and a 640×450 viewport at DPR 2.
+It includes two-tab workspace conflicts, failed saves without lost drafts, guarded
+close/reopen races, resource-free previews, compact logical workspace selection,
+and pin/session restoration after reload. Full Linux CI, macOS runtime and real
+assistive-technology acceptance remain separate.
+
+The broader UI regression script still reports seven Game Maker failures reproduced
+at the starting commit; the Desktop checks pass. DOX and the operator guide are
+updated. No push, merge to main, deployment or publication was performed.
 
 Improve frequent desktop interactions by extending the existing shell. Preserve the
 distinct Standard taskbar and Fruity dock, the vanilla JavaScript architecture,
@@ -68,12 +66,13 @@ not elapsed-time promises. Accessibility requirements apply to every delivery.
 | 3b | Quick settings, month calendar and now playing | P1 / M | 3a for Do Not Disturb |
 | 4 | Shared file-operation undo | P1 / L | Rooted file/trash services |
 | 5 | Text size and high contrast | P1 / M | Existing theme tokens; may ship earlier |
-| 6 | Grouped taskbar and preview switcher | P2 / M | 1 close guards and preview work |
+| 6 | Grouped taskbar and preview switcher | P2 / M | 1 close guards, preview work and 7b stable workspace IDs |
 | 7a | Custom wallpaper | P2 / M | Existing file picker and authorized reads |
 | 7b | Editable workspaces | P2 / L | Session/settings migration |
 | 8 | Discoverable session actions | P2 / S | Existing authentication/logout |
 
-Recommended first release: 1, 2, 3a and 5. Follow with 3b and 4, then 6–8.
+Implementation waves: 1, 2, 3a and 5; then 3b and 4; then 7a, 7b and 8;
+finally 6 against the stable workspace model.
 Do not make the first release wait for workspace migration, capture permissions,
 or a new authentication state machine.
 
@@ -249,8 +248,8 @@ new text-size tokens until their own views have been verified.
 
 ## 6. Grouped taskbar and preview switcher
 
-Owners: window-shell reconciliation, taskbar thumbnails, shell-chrome switcher,
-Spaces visibility, session pins and shared menus.
+Owners: window-shell reconciliation, `window-overview-runtime.js`, taskbar
+thumbnails, shell-chrome switcher, Spaces visibility, session pins and shared menus.
 
 - Give Standard one app entry combining pinned and running state, with a running
   count/indicator. Preserve ordered pins and existing launcher behavior. Fruity's

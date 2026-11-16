@@ -12057,5 +12057,11 @@
   "desktop.workspaces_not_found": "Tato plocha už neexistuje.",
   "desktop.workspaces_limit": "Byl dosažen limit ploch.",
   "desktop.workspaces_saved": "Změny ploch byly uloženy.",
-  "desktop.workspaces_delete_select_target": "Vyber cílovou plochu pro její okna."
+  "desktop.workspaces_delete_select_target": "Vyber cílovou plochu pro její okna.",
+  "desktop.window_overview_title": "Přehled oken",
+  "desktop.window_group_count": "{{name}} · Okna: {{count}}",
+  "desktop.window_app_list": "Okna této aplikace",
+  "desktop.window_overview_current": "Aktuální pracovní plocha",
+  "desktop.window_overview_all": "Všechny pracovní plochy",
+  "desktop.window_minimized": "Minimalizováno"
 }

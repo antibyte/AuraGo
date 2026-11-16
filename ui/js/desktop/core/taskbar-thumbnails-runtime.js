@@ -4,19 +4,28 @@
     const THUMB_HIDE_DELAY_MS = 140;
     const SENSITIVE_PREVIEW_APPS = new Set([
         'agent-chat', 'calendar', 'code-studio', 'contacts', 'editor', 'files', 'mailer',
-        'notes', 'quickconnect', 'settings', 'sheets', 'terminal', 'tresor', 'writer'
+        'notes', 'people', 'quick-connect', 'quickconnect', 'settings', 'sheets', 'terminal', 'tresor', 'virtual-computers', 'writer'
     ]);
-    const PREVIEW_UNSAFE_SELECTOR = 'iframe, .vd-generated-frame, .vd-sandboxed-frame, canvas, video, audio, input, textarea, select, [type="password"], [contenteditable]';
-    const PREVIEW_REMOVE_SELECTOR = 'script, style, link, meta, base, object, embed, form, input, textarea, select, option, button, source, picture, img, audio, video, iframe, canvas, template, svg, math';
-    const PREVIEW_URL_ATTRIBUTES = new Set([
-        'action', 'background', 'cite', 'data', 'formaction', 'href', 'longdesc', 'manifest',
-        'poster', 'src', 'srcdoc', 'srcset', 'style', 'xlink:href'
+    const PREVIEW_MAX_NODES = 512;
+    const PREVIEW_MAX_TEXT_CHARS = 32 * 1024;
+    const PREVIEW_UNSAFE_TAGS = new Set(['audio', 'canvas', 'embed', 'iframe', 'input', 'object', 'select', 'textarea', 'video']);
+    const PREVIEW_SKIP_TAGS = new Set([
+        'a', 'base', 'button', 'form', 'img', 'link', 'math', 'meta', 'option', 'picture', 'script',
+        'source', 'style', 'svg', 'template'
     ]);
+    const PREVIEW_ALLOWED_TAGS = new Set([
+        'address', 'article', 'aside', 'b', 'blockquote', 'br', 'caption', 'code', 'dd', 'div', 'dl', 'dt',
+        'em', 'figcaption', 'figure', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'i',
+        'label', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'small', 'span', 'strong', 'sub', 'sup',
+        'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'time', 'tr', 'u', 'ul', 'wbr'
+    ]);
+    const PREVIEW_SAFE_ATTRIBUTES = new Set(['class', 'dir', 'lang']);
     let thumbShowTimer = 0;
     let thumbHideTimer = 0;
     let activeThumbWindowId = '';
 
     function taskbarThumbnailsEnabled() {
+        if (window.AuraDesktopWindowOverview?.isOpen?.()) return false;
         if (isCompactViewport()) return false;
         if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return false;
         return true;
@@ -112,31 +121,68 @@
         panel.style.top = Math.round(top) + 'px';
     }
 
-    function windowPreviewIsUnsafe(win, content) {
-        if (!content || SENSITIVE_PREVIEW_APPS.has(String(win.appId || ''))) return true;
-        if (content.matches && content.matches(PREVIEW_UNSAFE_SELECTOR)
-            || content.querySelector && content.querySelector(PREVIEW_UNSAFE_SELECTOR)) return true;
-        return !!(content.querySelectorAll && Array.from(content.querySelectorAll('*')).some(node => String(node.tagName || '').includes('-')));
-    }
-
-    function sanitizeWindowPreviewClone(content) {
-        if (!content || typeof content.cloneNode !== 'function') return null;
-        const clone = content.cloneNode(true);
-        if (windowPreviewIsUnsafe({}, clone)) return null;
-        clone.querySelectorAll(PREVIEW_REMOVE_SELECTOR).forEach(node => node.remove());
-        const nodes = [clone, ...clone.querySelectorAll('*')];
-        nodes.forEach(node => {
-            Array.from(node.attributes || []).forEach(attribute => {
-                const name = String(attribute.name || '').toLowerCase();
-                if (name.startsWith('on') || name.startsWith('data-') || PREVIEW_URL_ATTRIBUTES.has(name)
-                    || ['id', 'name', 'autofocus', 'tabindex', 'accesskey', 'contenteditable'].includes(name)) {
-                    node.removeAttribute(attribute.name);
+    function sanitizeWindowPreviewClone(content, appId) {
+        if (!content || content.nodeType !== 1 || SENSITIVE_PREVIEW_APPS.has(String(appId || ''))) return null;
+        const budget = { nodes: 0, textChars: 0, unsafe: false, exceeded: false };
+        const inspectNode = source => {
+            if (!source) return;
+            budget.nodes++;
+            if (budget.nodes > PREVIEW_MAX_NODES) { budget.exceeded = true; return; }
+            if (source.nodeType === 3) {
+                budget.textChars += String(source.nodeValue || '').length;
+                if (budget.textChars > PREVIEW_MAX_TEXT_CHARS) budget.exceeded = true;
+                return;
+            }
+            if (source.nodeType !== 1) {
+                // Count comments and other node types toward the traversal cap.
+                for (const child of source.childNodes || []) {
+                    inspectNode(child);
+                    if (budget.exceeded) return;
                 }
-            });
-        });
-        clone.setAttribute('aria-hidden', 'true');
-        clone.setAttribute('inert', '');
-        return clone;
+                return;
+            }
+            const tag = String(source.localName || source.tagName || '').toLowerCase();
+            if (!tag || tag.includes('-')) { budget.unsafe = true; return null; }
+            if (PREVIEW_UNSAFE_TAGS.has(tag) || (source.hasAttribute?.('contenteditable') && source.getAttribute('contenteditable') !== 'false')) {
+                budget.unsafe = true;
+            }
+            for (const attribute of PREVIEW_SAFE_ATTRIBUTES) {
+                if (!source.hasAttribute?.(attribute)) continue;
+                budget.textChars += String(source.getAttribute(attribute) || '').length;
+                if (budget.textChars > PREVIEW_MAX_TEXT_CHARS) { budget.exceeded = true; return; }
+            }
+            // Inspect children even under skipped wrappers. This catches an unsafe
+            // descendant hidden inside a form or navigation node before text is copied.
+            for (const child of source.childNodes || []) {
+                inspectNode(child);
+                if (budget.exceeded) return;
+            }
+        };
+        inspectNode(content);
+        if (budget.unsafe || budget.exceeded) return null;
+
+        const projectNode = source => {
+            if (!source || (source.nodeType !== 1 && source.nodeType !== 3)) return null;
+            if (source.nodeType === 3) return document.createTextNode(String(source.nodeValue || ''));
+            const tag = String(source.localName || source.tagName || '').toLowerCase();
+            if (PREVIEW_SKIP_TAGS.has(tag) || source.hasAttribute?.('hidden') || source.getAttribute?.('aria-hidden') === 'true') return null;
+            if (!PREVIEW_ALLOWED_TAGS.has(tag)) return null;
+            const projected = document.createElement(tag);
+            for (const attribute of PREVIEW_SAFE_ATTRIBUTES) {
+                if (source.hasAttribute?.(attribute)) projected.setAttribute(attribute, String(source.getAttribute(attribute) || ''));
+            }
+            for (const child of source.childNodes || []) {
+                const projectedChild = projectNode(child);
+                if (projectedChild) projected.appendChild(projectedChild);
+            }
+            return projected;
+        };
+
+        const projected = projectNode(content);
+        if (!projected || budget.unsafe || budget.exceeded) return null;
+        projected.setAttribute('aria-hidden', 'true');
+        projected.setAttribute('inert', '');
+        return projected;
     }
 
     function windowPreviewBodyMarkup(win, options) {
@@ -154,10 +200,7 @@
         const scaleClass = options.scaleClass || 'vd-taskbar-thumb-scale';
         const fallbackClass = options.fallbackClass || 'vd-taskbar-thumb-fallback';
         const fallbackIconClass = options.fallbackIconClass || 'vd-taskbar-thumb-fallback-icon';
-        if (windowPreviewIsUnsafe(win, content)) {
-            return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
-        }
-        const preview = sanitizeWindowPreviewClone(content);
+        const preview = sanitizeWindowPreviewClone(content, win.appId);
         if (!preview) {
             return `<div class="${fallbackClass}">${iconMarkup(iconForApp(app), iconGlyph(app), fallbackIconClass, options.fallbackIconSize || 42)}<span>${esc(t('desktop.taskbar_thumb_live'))}</span></div>`;
         }

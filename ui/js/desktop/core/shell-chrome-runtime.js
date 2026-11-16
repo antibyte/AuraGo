@@ -239,88 +239,108 @@
         document.body.appendChild(overlay);
     }
 
-    function windowSwitcherWindows() {
-        return taskbarWindows().filter(win => win && win.element && win.element.style.display !== 'none');
+    function windowOverviewWindows(options = {}) {
+        if (options.mode === 'snap-partner') return windowSnapPartnerCandidates(options.sourceId, options.partnerZone);
+        return [...state.windows.values()].filter(win => win && win.element && !win.isGadget && !win.closing
+            && (!options.appId || win.appId === options.appId)
+            && (options.scope === 'all' || (options.scope === 'visible' ? isWindowOnActiveSpace(win)
+                : windowSpaceId(win) === normalizeSpaceId(state.activeSpaceId))));
     }
 
-    function renderWindowSwitcherOverlay(nextIndex) {
-        const wins = windowSwitcherWindows();
-        if (!wins.length) return;
-        let overlay = document.getElementById('vd-window-switcher');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'vd-window-switcher';
-            overlay.className = 'vd-window-switcher';
-            document.body.appendChild(overlay);
+    function activateOverviewWindow(id) {
+        const win = state.windows.get(id);
+        if (desktopSessionEnded || !win || win.closing || win.isGadget) return false;
+        if (windowSpaceId(win) !== normalizeSpaceId(state.activeSpaceId)) {
+            if (spacesEnabled()) switchSpace(windowSpaceId(win));
+            else {
+                state.activeSpaceId = windowSpaceId(win);
+                applyActiveSpaceWallpaper();
+                renderSpacePager();
+            }
         }
-        overlay.innerHTML = wins.map((win, i) => {
-            const app = appById(win.appId);
-            const icon = iconMarkup(win.icon || iconForApp(app), win.iconGlyph || iconGlyph(app), 'vd-switcher-icon', 20);
-            const isActive = i === nextIndex;
-            return `<button type="button" class="vd-switcher-item${isActive ? ' active' : ''}" data-window-id="${esc(win.id)}" title="${esc(win.title)}">${icon}<span class="vd-switcher-label">${esc(win.title)}</span></button>`;
-        }).join('');
+        focusWindow(id);
+        const target = win.element.querySelector('[data-action="maximize"]') || win.element.querySelector('[data-action="close"]');
+        target?.focus({ preventScroll: true });
+        return true;
+    }
+
+    function initWindowOverviewRuntime() {
+        window.AuraDesktopWindowOverview?.configure({
+            getWindows: windowOverviewWindows,
+            getActiveWindowId: () => state.activeWindowId,
+            spaceName: win => workspaceName(windowSpaceId(win)),
+            appName: windowTitle,
+            previewMarkup: windowPreviewMarkup,
+            activateWindow: activateOverviewWindow,
+            chooseSnapPartner: chooseWindowSnapPartner,
+            closeWindow,
+            closeBatch: closeDesktopWindowBatch,
+            t,
+            mountDialog: mountDesktopDialog
+        });
+        document.addEventListener('aurago:auth-ended', () => endWindowSwitcherHold(false));
+    }
+
+    function hasOtherDesktopModal() {
+        return [...document.querySelectorAll('[aria-modal="true"]')]
+            .some(dialog => dialog.id !== 'vd-window-overview' && dialog.getClientRects().length);
+    }
+
+    function openDesktopWindowOverview(options = {}) {
+        if (desktopSessionEnded || hasOtherDesktopModal()) return false;
+        const requestedOpener = options.opener || document.activeElement;
+        const opener = requestedOpener && requestedOpener !== document.body && requestedOpener.isConnected
+            && requestedOpener.getClientRects().length && !requestedOpener.closest('.vd-context-menu, #vd-start-menu')
+            ? requestedOpener : [document.querySelector('[data-fruity-dock-orb]'), $('vd-start-button')].find(el => el?.getClientRects().length);
+        hideTaskbarThumbnail();
+        closeContextMenu(true);
+        closeWindowLayoutPopup(false);
+        closeStartMenu();
+        return window.AuraDesktopWindowOverview?.open({ mode: 'switcher', scope: 'current', ...options, opener }) || false;
+    }
+
+    function windowSwitcherWindows() {
+        return windowOverviewWindows({ scope: 'current' });
     }
 
     function beginWindowSwitcherHold(reverse) {
-        const wins = windowSwitcherWindows();
-        if (wins.length <= 1) {
-            if (wins.length === 1) focusWindow(wins[0].id);
-            return;
-        }
-        const currentIndex = wins.findIndex(win => win.id === state.activeWindowId);
-        const step = reverse ? -1 : 1;
-        const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + wins.length) % wins.length;
-        windowSwitcherHold = { index: nextIndex, winsLength: wins.length };
-        renderWindowSwitcherOverlay(nextIndex);
+        if (!windowSwitcherWindows().length) return;
+        if (!openDesktopWindowOverview({ mode: 'switcher' })) return;
+        windowSwitcherHold = true;
+        window.AuraDesktopWindowOverview.cycle(reverse);
     }
 
     function cycleWindowSwitcherHold(reverse) {
-        if (!windowSwitcherHold) return;
-        const wins = windowSwitcherWindows();
-        if (!wins.length) {
-            endWindowSwitcherHold(false);
-            return;
-        }
-        const step = reverse ? -1 : 1;
-        windowSwitcherHold.index = (windowSwitcherHold.index + step + wins.length) % wins.length;
-        renderWindowSwitcherOverlay(windowSwitcherHold.index);
+        if (windowSwitcherHold) window.AuraDesktopWindowOverview?.cycle(reverse);
     }
 
     function endWindowSwitcherHold(applyFocus) {
-        const overlay = document.getElementById('vd-window-switcher');
-        const wins = windowSwitcherWindows();
-        if (applyFocus && windowSwitcherHold && wins[windowSwitcherHold.index]) {
-            focusWindow(wins[windowSwitcherHold.index].id);
-        }
         windowSwitcherHold = null;
-        if (overlay) overlay.remove();
+        window.AuraDesktopWindowOverview?.finish({ activate: !!applyFocus });
     }
 
     function handleWindowSwitcherKeydown(event) {
         const ctrl = event.ctrlKey || event.metaKey;
-        if (!ctrl || event.altKey) return false;
-        if (event.key === 'Tab') {
+        if (ctrl && event.altKey && event.key.toLowerCase() === 'w') {
             event.preventDefault();
-            if (!windowSwitcherHold) beginWindowSwitcherHold(event.shiftKey);
-            else cycleWindowSwitcherHold(event.shiftKey);
+            windowSwitcherHold = null;
+            openDesktopWindowOverview({ mode: 'switcher' });
             return true;
         }
-        if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'w') {
-            event.preventDefault();
-            if (!windowSwitcherHold) beginWindowSwitcherHold(false);
-            else cycleWindowSwitcherHold(false);
-            return true;
-        }
-        return false;
+        if (!ctrl || event.altKey || event.key !== 'Tab') return false;
+        event.preventDefault();
+        if (windowSwitcherHold && window.AuraDesktopWindowOverview?.isOpen('switcher')) cycleWindowSwitcherHold(event.shiftKey);
+        else beginWindowSwitcherHold(event.shiftKey);
+        return true;
     }
 
     function handleWindowSwitcherKeyup(event) {
-        if (!windowSwitcherHold) return false;
-        if (event.key === 'Control' || event.key === 'Meta' || event.key === 'Alt') {
-            endWindowSwitcherHold(true);
-            return true;
+        if (!windowSwitcherHold || !['Control', 'Meta'].includes(event.key)) return false;
+        windowSwitcherHold = null;
+        if (!hasOtherDesktopModal() && window.AuraDesktopWindowOverview?.isOpen('switcher')) {
+            window.AuraDesktopWindowOverview.finish({ activate: true });
         }
-        return false;
+        return true;
     }
 
     function openDesktopFullscreenOnStartup() {

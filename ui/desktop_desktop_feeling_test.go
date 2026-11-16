@@ -230,7 +230,6 @@ func TestDesktopShellChromeAndSpotlight(t *testing.T) {
 	for _, want := range []string{
 		".vd-spotlight-backdrop",
 		".vd-notification-center",
-		".vd-window-switcher",
 		".vd-space-pager",
 		".vd-spaces-overview",
 		".vd-space-column",
@@ -285,11 +284,13 @@ func TestDesktopFeelingBundlesIncludeChromeModules(t *testing.T) {
 		"session-runtime.js",
 		"spaces-runtime.js",
 		"spaces-overview-runtime.js",
+		"window-overview-runtime.js",
 		"taskbar-thumbnails-runtime.js",
 		"media-keys-runtime.js",
 		"shell-chrome-runtime.js",
 		"spotlight-runtime.js",
 		"desktop-chrome.css",
+		"desktop-window-overview.css",
 	} {
 		if !strings.Contains(buildScript, want) {
 			t.Fatalf("build-ui-bundles.js must include %q", want)
