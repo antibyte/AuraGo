@@ -623,6 +623,7 @@ func TestDesktopAppMaterialsChecker(t *testing.T) {
 // no longer loaded by an app fails the test, so the list cannot go stale.
 var desktopAppMaterialsExempt = map[string]string{
 	"/css/desktop-app-leuchtfeuer.css": "theme-independent skin: the Leuchtfeuer harbour scene and its HUD",
+	"/css/desktop-app-runenpfad.css":   "theme-independent skin: the Runenpfad 2D platformer scene and its HUD",
 	"/css/xterm.css":                   "vendor: the xterm.js terminal emulator stylesheet",
 	"/css/cm-chessboard.css":           "vendor: the cm-chessboard board widget stylesheet",
 	"/css/hljs-github.min.css":         "vendor: highlight.js light syntax theme",

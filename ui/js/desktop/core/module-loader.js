@@ -52,6 +52,16 @@
                 '/js/desktop/apps/leuchtfeuer/app.js'
             ]
         },
+        runenpfad: {
+            styles: appStyles('/css/desktop-app-runenpfad.css'),
+            scripts: [
+                '/js/desktop/apps/runenpfad/levels.js',
+                '/js/desktop/apps/runenpfad/sim.js',
+                '/js/desktop/apps/runenpfad/audio.js',
+                '/js/desktop/apps/runenpfad/view.js',
+                '/js/desktop/apps/runenpfad/app.js'
+            ]
+        },
         'aura-drift': {
             styles: appStyles('/css/desktop-app-aura-drift.css'),
             scripts: [

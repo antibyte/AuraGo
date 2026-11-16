@@ -44,6 +44,10 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   capability gate. Its app-owned icon is `logo_path` `/img/leuchtfeuer/icon.svg`. Runtime,
   lod0 loading and locales belong to `../../ui/js/desktop/apps/leuchtfeuer/AGENTS.md`.
   Verify `go test ./ui -run TestLeuchtfeuerRegistration -count=1`.
+- Runenpfad (`runenpfad`, category `games`) is a built-in offline 25-level 2D action-platformer
+  with no capability gate. Its app-owned icon is `logo_path` `/img/runenpfad/icon.svg`. Runtime,
+  pack validation, upgrades and locales belong to `../../ui/js/desktop/apps/runenpfad/AGENTS.md`.
+  Verify `go test ./ui -run TestRunenpfadRegistration -count=1`.
 
 - The WebAmp launcher (`music-player`) declares app-owned `logo_path` `/img/desktop-icons/music-player.svg`; keep it visually distinct from the native `audio-player` and preserve their existing icon aliases.
 

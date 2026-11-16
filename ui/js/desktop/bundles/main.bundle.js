@@ -3617,6 +3617,7 @@
         'galaxa-deluxe': 'galaxa-deluxe',
         'aura-drift': 'aura-drift',
         leuchtfeuer: 'leuchtfeuer',
+        runenpfad: 'runenpfad',
         layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
@@ -3626,6 +3627,7 @@
     appIconKeys['code-studio'] = 'code-studio';
     const appLogoPaths = {
         leuchtfeuer: '/img/leuchtfeuer/icon.svg',
+        runenpfad: '/img/runenpfad/icon.svg',
         detective: '/img/desktop-icons/detective.svg',
         kaggle: '/img/desktop-icons/kaggle.svg',
         'pet-picker': '/img/desktop-icons/pet-picker.svg',
@@ -3861,6 +3863,7 @@
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
             'aura-drift': 'AD',
+            runenpfad: 'Rp',
             nasscad: 'NC',
             people: 'Pp',
             'mission-control': 'MC',
@@ -4094,6 +4097,7 @@
             'galaxa-deluxe': 'GalaxaDeluxe',
             'aura-drift': 'AuraDriftApp',
             leuchtfeuer: 'LeuchtfeuerApp',
+            runenpfad: 'RunenpfadApp',
             'minigolf': 'MinigolfApp',
             'pinball': 'PinballApp',
             layerling: 'LayerlingApp',
@@ -10749,6 +10753,7 @@
             'galaxa-deluxe': { width: 600, height: 800 },
             'aura-drift': { width: 1120, height: 720 },
             leuchtfeuer: { width: 1100, height: 720 },
+            runenpfad: { width: 1180, height: 740 },
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },
             nasscad: { width: 1280, height: 850 },
@@ -24477,6 +24482,16 @@ if (appId === 'pixel') {
                 return;
             }
             return window.LeuchtfeuerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
+                esc, t, api,
+                isActive: () => state.activeWindowId === id
+            }));
+        }
+        if (appId === 'runenpfad') {
+            if (!window.RunenpfadApp) {
+                window.AuraDesktopModules.loadAppScript('runenpfad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            return window.RunenpfadApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api,
                 isActive: () => state.activeWindowId === id
             }));

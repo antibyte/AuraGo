@@ -176,6 +176,7 @@
         'galaxa-deluxe': 'galaxa-deluxe',
         'aura-drift': 'aura-drift',
         leuchtfeuer: 'leuchtfeuer',
+        runenpfad: 'runenpfad',
         layerling: 'layerling',
         nasscad: 'nasscad',
         'store-quakejs-rootless': 'quakejs',
@@ -185,6 +186,7 @@
     appIconKeys['code-studio'] = 'code-studio';
     const appLogoPaths = {
         leuchtfeuer: '/img/leuchtfeuer/icon.svg',
+        runenpfad: '/img/runenpfad/icon.svg',
         detective: '/img/desktop-icons/detective.svg',
         kaggle: '/img/desktop-icons/kaggle.svg',
         'pet-picker': '/img/desktop-icons/pet-picker.svg',
@@ -420,6 +422,7 @@
             pixel: 'Px',
             'galaxa-deluxe': 'Gx',
             'aura-drift': 'AD',
+            runenpfad: 'Rp',
             nasscad: 'NC',
             people: 'Pp',
             'mission-control': 'MC',
@@ -653,6 +656,7 @@
             'galaxa-deluxe': 'GalaxaDeluxe',
             'aura-drift': 'AuraDriftApp',
             leuchtfeuer: 'LeuchtfeuerApp',
+            runenpfad: 'RunenpfadApp',
             'minigolf': 'MinigolfApp',
             'pinball': 'PinballApp',
             layerling: 'LayerlingApp',

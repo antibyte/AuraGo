@@ -125,6 +125,11 @@ New app-scoped prefixes must contain no `ad` substring; verify
   not copy those models into `ui/`. Runtime: `js/desktop/apps/leuchtfeuer/AGENTS.md`. Operator
   guide: `../documentation/leuchtfeuer.md`. Verify `node scripts/test-leuchtfeuer-sim.mjs`,
   `TestLeuchtfeuerRegistration` and `TestLeuchtfeuerBrowser`.
+- Runenpfad (`runenpfad`, category `games`) is an offline 25-level 2D action-platformer plus Endless
+  Rune Tower. It reads the 6 Game Maker 2D sprite packs and `aurago-sounds` through the existing
+  asset route without copying binaries into `ui/`. Runtime: `js/desktop/apps/runenpfad/AGENTS.md`.
+  Operator guide: `../documentation/runenpfad.md`. Verify `node scripts/test-runenpfad-sim.mjs`,
+  `TestRunenpfadRegistration` and `TestDesktopRunenpfadBrowser`.
 
 - AgentMail exposes default-off `allow_delete` separately from readonly. Connection
   tests render only translated fixed error codes, with all sixteen email/AgentMail
@@ -1156,6 +1161,18 @@ New app-scoped prefixes must contain no `ad` substring; verify
   nova clash. Robot GLTF/Draco assets resolve through `BUILD_VERSION`, retain
   live Draco workers across in-flight theme resets, and retry failed loads with
   bounded backoff. Keep reduced-motion and theme-exit disposal intact.
+- Shared chat theme optics (`js/shared/theme-optics-core.js`) paint one WebGL
+  backdrop per recipe; `8bit` and `retro-crt` both use the `lattice` grid.
+  `gl_FragCoord` is bottom-up, so the grid belongs above `horizon = 0.52` and
+  the sky wash below it. Never divide by a clamped near-zero depth in the sky
+  half: `fract()` of ~10^5 coordinates painted the whole lower half with
+  per-pixel noise that flickered on every frame. Keep the `gridFade` mask, the
+  bounded `safeDepth` divisor and the integer-cycle `period` wrap so the grid
+  stays smooth near the horizon and keeps its precision in long sessions.
+  Verify `TestThemeOpticsLatticeGuardsTheHorizon` and, with
+  `AURAGO_RUN_BROWSER_SMOKE=1`, `TestChatLatticeOpticsKeepsTheLowerHalfCalm`
+  (real GPU frames: the lower half must not change between neighbouring
+  frames while the upper grid keeps moving).
 - Cyberwar uses the generated `img/cyberwar-city.webp` as a static, centered
   cover background in `#chat-box`, beneath a navy dimming gradient and the HUD.
   Keep the image position fixed in the scanline keyframes and retain readable
@@ -1559,5 +1576,6 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - `js/desktop/apps/AGENTS.md` - Built-in Virtual Desktop application modules
   and their lifecycle, asset, and app-specific contracts.
 - `js/desktop/apps/leuchtfeuer/AGENTS.md` — Harbour walk runtime, session save and locale contract.
+- `js/desktop/apps/runenpfad/AGENTS.md` — 2D platformer runtime, asset pack manifest contracts, local save and locale contract.
 - `js/desktop/screensavers/AGENTS.md` - Screensaver overlay host, scene
   lifecycle, idle/wake rules and verification.
