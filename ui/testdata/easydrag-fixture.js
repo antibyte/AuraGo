@@ -153,9 +153,15 @@
     //   failPreview     the publish preview answers 500 FLOW_INTERNAL
     //   failLists       answers {status, code, error} the next GET /api/desktop/flows lists get, in order
     //   delay           milliseconds each step of a run takes
+    //   tested          GET {flow} and every save answer carry "tested": this value (false by default). The
+    //                   fixture does not mimic the server's marker, so a save does not reset it: set it
+    //                   before the call that should show it
+    //   changes         {steps, connections}: "changes" of GET {flow} and of the save answer for a flow
+    //                   with a live version (null by default: the field is left out)
+    //   nextRun         {at, node}: "next_run" of GET {flow} (null by default: the field is left out)
     const state = {
         flows: new Map(), runs: new Map(), scenarios: new Map(), saves: [], exports: [], requests: [], testData: {}, secrets: ['wetter_api'], secretWrites: [], streams: [], decisionResult: null,
-        delay: 140, disabled: false, failSaves: [], failLists: [], publishPartial: '', resyncAfter: 0, malformedSnapshotOnce: false, malformedSSEAfter: 0, malformedSSESent: false, failType: '', failPreview: false,
+        delay: 140, disabled: false, failSaves: [], failLists: [], publishPartial: '', resyncAfter: 0, malformedSnapshotOnce: false, malformedSSEAfter: 0, malformedSSESent: false, failType: '', failPreview: false, tested: false, changes: null, nextRun: null,
         options: { ha_entities: { options: [{ value: 'light.kueche', label: 'Küche' }, { value: 'light.flur', label: 'Flur' }], truncated: true } }
     };
 
@@ -183,6 +189,16 @@
         return rec;
     }
     const seeded = addFlow(briefing(), true, true);
+
+    // factsOf are the W1c facts of a flow answer: tested, changes (only for a flow with a live version) and next_run
+    // (only when withSchedule is set: the GET), from state.tested, state.changes and state.nextRun. The neutral
+    // defaults (false, null, null) leave every existing answer as it was apart from "tested": false.
+    function factsOf(rec, withSchedule) {
+        const out = { tested: !!state.tested };
+        if (rec.live && state.changes) out.changes = clone(state.changes);
+        if (withSchedule && state.nextRun) out.next_run = clone(state.nextRun);
+        return out;
+    }
 
     function triggerNodes(doc) { return doc.nodes.filter(n => (types.get(n.type) || {}).trigger && !(n.settings || {}).disabled); }
     function triggersOf(doc) { return triggerNodes(doc).map(n => n.type); }
@@ -628,7 +644,7 @@
             return reply({ base_revision: rec.draft_revision, doc, issues: [], effects: effects(doc), diff: diff(rec.draft, doc) });
         }
         if (!action) {
-            if (method === 'GET') return reply({ flow: rec, enabled: entry.enabled, issues: validate(rec.draft, 'draft') });
+            if (method === 'GET') return reply(Object.assign({ flow: rec, enabled: entry.enabled, issues: validate(rec.draft, 'draft') }, factsOf(rec, true)));
             if (method === 'DELETE') { state.flows.delete(rec.id); broadcast(rec.id, 'deleted'); return reply({ status: 'deleted' }); }
             if (method !== 'PUT') return null;
             const injected = state.failSaves.shift();
@@ -645,7 +661,7 @@
             rec.updated_at = iso();
             state.saves.push(clone(rec.draft));
             broadcast(rec.id, 'saved');
-            return reply({ draft_revision: rec.draft_revision, issues: validate(rec.draft, 'draft') });
+            return reply(Object.assign({ draft_revision: rec.draft_revision, issues: validate(rec.draft, 'draft') }, factsOf(rec, false)));
         }
         if (action === 'publish-preview' && method === 'GET') {
             if (state.failPreview) return fail(500, 'FLOW_INTERNAL', 'the flow service failed; see the server log');
