@@ -39,16 +39,17 @@
         return d.numbered ? ed.t(d.key, { n: Number(ed.flow.live_revision) || 0 }) : ed.t(d.key);
     }
 
-    // primaryOf names the next step. {kind: 'test'} (the draft is not tested yet), {kind: 'publish', count} (tested, with changes;
-    // count is null when the server sent none or the flow was never published) or {kind: 'none'}. A partial publish offers Publish
-    // again, as it always did; a read-only desktop and a past run offer nothing.
+    // primaryOf says how the Test and Publish buttons look. Publish keeps its place whenever there is something to publish (never
+    // published, a live flow whose draft differs, an incomplete publish), whatever the run or the test says: {show: true}. Exactly one
+    // of the two is filled: Test until the exact draft is tested, then Publish (an incomplete publish fills Publish at once). A clean
+    // live flow and a read-only desktop fill none and show no Publish. kind is 'test', 'publish' or 'none'; count is the number of
+    // changes since the live version, or null when the server sent none (or the flow was never published).
     function primaryOf(ed) {
-        if (ed.readonly || ed.runView) return { kind: 'none', count: null };
-        if (ed.publishIncomplete) return { kind: 'publish', count: null };
-        if (ed.flow.live && !changed(ed)) return { kind: 'none', count: null };
-        if (!ED.flowState.isTested(ed)) return { kind: 'test', count: null };
+        if (ed.readonly) return { kind: 'none', show: false, count: null };
+        const incomplete = !!ed.publishIncomplete;
+        if (!incomplete && ed.flow.live && !changed(ed)) return { kind: 'none', show: false, count: null };
         const count = ed.flow.live ? ED.flowState.changeCount(ed) : null;
-        return { kind: 'publish', count: count > 0 ? count : null };
+        return { kind: incomplete || ED.flowState.isTested(ed) ? 'publish' : 'test', show: true, count: count > 0 ? count : null };
     }
 
     function markup() {

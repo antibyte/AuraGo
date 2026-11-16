@@ -59,8 +59,9 @@ func TestEasyDragHeaderPopoverBrowser(t *testing.T) {
 	s.failOnPageErrors("header popover")
 }
 
-// TestEasyDragHeaderPrimaryBrowser walks the primary button through its states with the fixture's facts: none for a clean live flow, Test for a
-// changed and untested draft, Publish with its change count once the server says the draft is tested, and the dialog (never a direct publish).
+// TestEasyDragHeaderPrimaryBrowser walks the filled button through its states with the fixture's facts: none for a clean live flow (no Publish),
+// Test for a changed and untested draft (Publish is there, quiet), Publish once the server says the draft is tested, and the dialog (never a
+// direct publish).
 func TestEasyDragHeaderPrimaryBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	s := startEasyDragSmoke(t)
@@ -72,7 +73,7 @@ func TestEasyDragHeaderPrimaryBrowser(t *testing.T) {
 
 	// A changed draft the server has not seen pass a test: Test is the filled button.
 	p.MustEval(`()=>{const ed=edFixture.editor();ed.model.setLabel(ed.model.doc.nodes[0].id,'Changed once')}`)
-	s.wait(`()=>` + filled + `==='test' && document.querySelector('[data-ed-cmd="publish"]').hidden && edFixture.editor().saver.state==='saved'`)
+	s.wait(`()=>` + filled + `==='test' && !document.querySelector('[data-ed-cmd="publish"]').hidden && !document.querySelector('[data-ed-cmd="publish"]').hasAttribute('data-ed-primary') && edFixture.editor().saver.state==='saved'`)
 	s.shot("header-primary-test")
 
 	// The next save answers "tested" and the count of the changes: three, as the button says.

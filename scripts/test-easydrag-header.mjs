@@ -459,10 +459,10 @@ export async function run(env) {
             rows.push([name, r.row]);
             r.editor.dispose();
         }
-        eq('w1c B.4 primary rows [filled, Publish hidden, Publish text, Test filled, Publish filled, log]', rows, [
-            ['never published, untested', [['test'], true, 'publish', true, false, []]],
+        eq('w1c B.4 primary rows [filled, Publish hidden (only a clean live flow or a read-only desktop), Publish text, Test filled, Publish filled, log]', rows, [
+            ['never published, untested', [['test'], false, 'publish', true, false, []]],
             ['never published, tested', [['publish'], false, 'publish', false, true, []]],
-            ['changed, untested', [['test'], true, 'publish', true, false, []]],
+            ['changed, untested', [['test'], false, 'publish', true, false, []]],
             ['changed, tested, three changes', [['publish'], false, 'publish_with_changes:3', false, true, []]],
             ['changed, tested, one change', [['publish'], false, 'publish_with_changes_one:1', false, true, []]],
             ['changed, tested, no count', [['publish'], false, 'publish', false, true, []]],
@@ -497,12 +497,12 @@ export async function run(env) {
         editor.ed.bus.emit('restored', { flow: Object.assign({ id: 'f1', draft: flowDoc(), draft_revision: 9, published_draft_revision: 2 }, live), issues: [] });
         await settle();
         rows.push(filled());
-        eq('w1c B.4 primary follows evidence, edits, saves and a restore', rows, ['test', 'test', 'publish', 'test', 'test', true, 'publish', 'publish_with_changes_one:1', 'test']);
+        eq('w1c B.4 primary follows evidence, edits, saves and a restore', rows, ['test', 'test', 'publish', 'test', 'test', false, 'publish', 'publish_with_changes_one:1', 'test']);
         eq('w1c B.4 no log', h.logged, []);
         editor.dispose();
     });
 
-    await guardAsync('w1c B.4 a partial publish offers Publish again, a past run offers nothing, Test stays beside the primary and says why when it cannot run', async () => {
+    await guardAsync('w1c B.4 a partial publish fills Publish, a past run keeps it in place but unavailable, Test stays beside the primary and says why when it cannot run', async () => {
         const { h, editor } = await primaryRow({ enabled: true, flow: Object.assign({ draft_revision: 2 }, live) });
         const filled = () => editor.el.querySelectorAll('[data-ed-primary]').map(b => b.getAttribute('data-ed-cmd')).join();
         const rows = [filled()];
@@ -513,7 +513,27 @@ export async function run(env) {
         editor.ed.bus.emit('enabled');
         const test = editor.el.querySelector('[data-ed-cmd="test"]');
         rows.push(filled(), test.getAttribute('aria-disabled'), test.getAttribute('aria-description'));
-        eq('w1c B.4 partial publish, past run', rows, ['', 'publish', '', 'true', 'reason_run_view']);
+        eq('w1c B.4 partial publish, past run', rows, ['', 'publish', 'publish', 'true', 'reason_run_view']);
+        editor.dispose();
+    });
+
+    await guardAsync('w1c B.4 Publish stays in place while there is something to publish: untested or tested, a run going, a past run open', async () => {
+        const { h, editor } = await primaryRow({ enabled: true, flow: Object.assign({ draft_revision: 3 }, live), facts: { changes: { steps: 2, connections: 1 } } });
+        const pub = () => editor.el.querySelector('[data-ed-cmd="publish"]');
+        const look = () => [editor.el.querySelectorAll('[data-ed-primary]').map(b => b.getAttribute('data-ed-cmd')).join(), pub().hidden === true, pub().getAttribute('aria-disabled'), pub().getAttribute('aria-description'), pub().querySelector('span').textContent];
+        const rows = [look()];
+        editor.ed.testEvidence = { revision: 3, status: 'success' };
+        editor.ed.bus.emit('run', editor.ed.run);
+        rows.push(look());
+        editor.ed.runView = { run: { id: 'r9', status: 'success', revision: 2 } };
+        editor.ed.bus.emit('enabled');
+        rows.push(look());
+        eq('w1c B.4 Publish: untested (Test filled), tested (Publish filled), a past run open (same look, unavailable)', rows, [
+            ['test', false, null, null, 'publish_with_changes:3'],
+            ['publish', false, null, null, 'publish_with_changes:3'],
+            ['publish', false, 'true', 'reason_run_view', 'publish_with_changes:3']
+        ]);
+        eq('w1c B.4 Publish no log', h.logged, []);
         editor.dispose();
     });
 

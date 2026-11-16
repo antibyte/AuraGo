@@ -284,3 +284,64 @@ func TestEasyDragStopKeyboardPendingBrowser(t *testing.T) {
 	s.wait(`()=>{const a=document.activeElement;return a===document.querySelector('.ed-canvas') || a===document.querySelector('[data-ed-cmd="exit-run-view"]')}`)
 	s.failOnPageErrors("stop keyboard pending")
 }
+
+// headerRects returns the rectangle of the Stop slot, Test, Publish, Undo, Redo and "⋯" as "left,top,width,height" rounded to a
+// half pixel (the top relative to the row of actions: the pill above may wrap with its text), after the fonts and two animation frames have settled.
+func (s *easyDragSmoke) headerRects() []string {
+	s.t.Helper()
+	raw := s.page.MustEval(`async()=>{
+		await document.fonts.ready;
+		await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+		const head=document.querySelector('.ed-head'),top=head.querySelector('.ed-head-actions').getBoundingClientRect().top;
+		return JSON.stringify(['[data-ed-stop-slot]','[data-ed-cmd="test"]','[data-ed-cmd="publish"]','[data-ed-history="undo"]','[data-ed-history="redo"]','[data-ed-cmd="more"]'].map(sel=>{
+			const el=head.querySelector(sel);if(!el)return sel+' missing';
+			const r=el.getBoundingClientRect();return sel+' '+[r.left,r.top-top,r.width,r.height].map(v=>Math.round(v*2)/2).join(',');
+		}));
+	}`).Str()
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		s.t.Fatalf("header rects: %v (%s)", err, raw)
+	}
+	return out
+}
+
+// TestEasyDragStopPositionsPublishBrowser: a changed draft whose test succeeds. Publish is in its place before the test, while it
+// runs (unavailable) and after it ended (filled): the Stop slot, Test, Publish, Undo, Redo and "⋯" keep their rectangles.
+func TestEasyDragStopPositionsPublishBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	s := startEasyDragSmoke(t)
+	p := s.page
+	s.openFirstFlow()
+	p.MustEval(`()=>{edFixture.state.changes={steps:2,connections:1};const ed=edFixture.editor();ed.model.setLabel(ed.model.doc.nodes[0].id,'Changed before the test')}`)
+	s.wait(`()=>edFixture.editor().saver.state==='saved'`)
+	s.wait(`()=>{const b=document.querySelector('[data-ed-cmd="publish"]');const t=document.querySelector('[data-ed-cmd="test"]');return !b.hidden && !b.hasAttribute('data-ed-primary') && t.hasAttribute('data-ed-primary') && /3/.test(b.textContent)}`)
+	same := func(idle, now []string, when string) {
+		t.Helper()
+		for i := range idle {
+			if idle[i] != now[i] {
+				t.Errorf("%s: %q became %q", when, idle[i], now[i])
+			}
+		}
+	}
+	for _, width := range []int{390, 900, 1440} {
+		p.MustSetViewport(width, 900, 1, width < 480)
+		s.settle()
+		idle := s.headerRects()
+		s.startOwnTest(300)
+		same(idle, s.headerRects(), fmt.Sprintf("%d px, while the test runs", width))
+		if got := p.MustEval(`()=>document.querySelector('[data-ed-cmd="publish"]').getAttribute('aria-disabled')`).String(); got != "true" {
+			t.Errorf("%d px: Publish is %q while a run goes, want aria-disabled=true", width, got)
+		}
+		s.waitNoStop()
+		s.wait(`()=>{const r=edFixture.editor().run;return !!r && r.status==='success'}`)
+		// The server says that this revision passed the test (the fixture's runs carry no draft revision of their own).
+		s.markTested()
+		s.wait(`()=>{const b=document.querySelector('[data-ed-cmd="publish"]');return !b.hidden && b.hasAttribute('data-ed-primary') && !document.querySelector('[data-ed-cmd="test"]').hasAttribute('data-ed-primary')}`)
+		same(idle, s.headerRects(), fmt.Sprintf("%d px, after the test", width))
+		s.shot(fmt.Sprintf("stop-positions-publish-%d", width))
+		// The next width starts from an untested draft again: an edit takes the evidence away.
+		p.MustEval(`()=>{edFixture.state.tested=false;const ed=edFixture.editor();ed.model.setLabel(ed.model.doc.nodes[0].id,'Changed again '+Date.now())}`)
+		s.wait(`()=>edFixture.editor().saver.state==='saved' && document.querySelector('[data-ed-cmd="test"]').hasAttribute('data-ed-primary')`)
+	}
+	s.failOnPageErrors("stop positions publish")
+}

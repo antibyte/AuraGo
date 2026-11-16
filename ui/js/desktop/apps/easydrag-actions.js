@@ -27,7 +27,7 @@
         ['flow.test', 'easydrag.ui.test_draft', 'flask', '', 'Ctrl+Enter', 'editor', 'safe', ['writable', 'free', 'idle'], 'test'],
         ['flow.run_now', 'easydrag.ui.run_now', 'play', '', '', 'editor', 'safe', ['writable', 'free', 'published', 'active'], 'run'],
         ['flow.stop', 'easydrag.ui.run_cancel', 'stop', '', '', 'editor', 'safe', [], ''],
-        ['flow.publish', 'easydrag.ui.publish', 'upload', '', '', 'editor', 'safe', ['writable', 'free'], 'publish'],
+        ['flow.publish', 'easydrag.ui.publish', 'upload', '', '', 'editor', 'safe', ['writable', 'free', 'idle'], 'publish'],
         ['flow.active', 'easydrag.ui.active', 'check', '', '', 'editor', 'safe', ['writable'], ''],
         ['flow.versions', 'easydrag.ui.versions_title', 'history', '', '', 'editor', 'safe', ['free'], 'versions'],
         ['flow.settings', 'easydrag.ui.flow_settings', 'settings', '', '', 'editor', 'safe', ['free'], 'settings'],

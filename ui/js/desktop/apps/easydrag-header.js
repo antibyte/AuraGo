@@ -30,16 +30,17 @@
             pill.paint();
         }
 
-        // paintPrimary draws the one filled button (easydrag-pill.js, primaryOf): Test while the draft is not tested, Publish with the
-        // number of changes once it is, none for a clean live flow. Both buttons keep their place in the row; the one that is not
-        // wanted is hidden, and only the filled one carries data-ed-primary.
+        // paintPrimary draws the one filled button (easydrag-pill.js, primaryOf): Test until the draft is tested, then Publish; none for a
+        // clean live flow. Both buttons keep their place in the row. Publish shows whenever there is something to publish (it is
+        // unavailable, not hidden, while a run goes or a past run is open); only the filled look moves, and only the filled button
+        // carries data-ed-primary. The label names the number of changes when the server sent it, in both looks.
         function paintPrimary() {
             const p = ED.pill.primaryOf(ed);
             const test = el.querySelector('[data-ed-cmd="test"]');
             const pub = el.querySelector('[data-ed-cmd="publish"]');
             test.classList.toggle('ed-btn--primary', p.kind === 'test');
             test.toggleAttribute('data-ed-primary', p.kind === 'test');
-            pub.hidden = p.kind !== 'publish';
+            pub.hidden = !p.show;
             pub.classList.toggle('ed-btn--primary', p.kind === 'publish');
             pub.toggleAttribute('data-ed-primary', p.kind === 'publish');
             const text = p.count ? ED.format.plural(t, 'easydrag.ui.publish_with_changes', p.count) : ED.actions.label('flow.publish', { host: ed });
