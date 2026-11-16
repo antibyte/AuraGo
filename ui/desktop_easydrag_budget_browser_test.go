@@ -25,8 +25,9 @@ type easyDragControlBudget struct {
 // easyDragControlBudgets is the table. Regions are measured at 1440x900 with the standard fixture
 // and a published, idle, enabled flow (see TestEasyDragControlBudgetsBrowser).
 var easyDragControlBudgets = []easyDragControlBudget{
-	// The editor header (.ed-head). W1c rebuilds it and must reach 8.
-	{Region: "header", Ceiling: 10, Target: 8, Gate: "W1c"},
+	// The editor header (.ed-head): Back, name, pill, Test, Undo, Redo and More, and the primary Publish button while there are changes
+	// to publish (W1c). Enforced.
+	{Region: "header", Ceiling: 8, Target: 8, Gate: "W1c", Enforced: true},
 	// The editor footer (.ed-foot). No target: it must not grow.
 	{Region: "footer", Ceiling: 2},
 	// The entries of the header "..." menu, separators not counted. No target: it must not grow, so
@@ -127,11 +128,11 @@ func TestEasyDragControlBudgetsBrowser(t *testing.T) {
 	counts["home"] = s.countControls("home", ".ed-home", ".ed-flow-card, .ed-template-card")
 	counts["card"] = s.countControls("card", ".ed-home .ed-flow-card", "")
 
-	// The editor of that flow: published, idle and switched on, so Run now is shown.
+	// The editor of that flow: published, idle and switched on; the pill says so.
 	page.MustElement(".ed-flow-card h3").MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-node').length===4 && document.querySelectorAll('.ed-edge').length===3`)
 	s.settle()
-	s.wait(`()=>{const ed=edFixture.editor();const run=document.querySelector('[data-ed-cmd="run-now"]');return !!ed && ed.flowEnabled===true && !!run && !run.hidden}`)
+	s.wait(`()=>{const ed=edFixture.editor();const pill=document.querySelector('[data-ed-pill]');return !!ed && ed.flowEnabled===true && !!pill && pill.getAttribute('data-ed-pill-kind')==='live'}`)
 	counts["header"] = s.countControls("header", ".ed-editor > .ed-head", "")
 	counts["footer"] = s.countControls("footer", ".ed-editor > .ed-foot", "")
 
