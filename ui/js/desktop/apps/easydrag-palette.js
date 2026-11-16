@@ -23,6 +23,11 @@
         }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.info.label.localeCompare(b.info.label)).map(x => x.info);
     }
 
+    // fits tells whether a step of this type may follow a scope's source: not a trigger, with an input, and for a wire with an output too.
+    function fits(info, scope) {
+        return !!info && !info.trigger && (info.inputs || []).length > 0 && (!scope.edge || (info.outputs || []).length > 0);
+    }
+
     function availabilityBadge(core, t, esc, info, tag) {
         const state = (info.availability || {}).state;
         // In the panel the setup chip is a link of its own beside the item (setupLink): a link inside the
@@ -68,9 +73,12 @@
     function rememberAfter(sourceType, type) {
         const book = afterBook();
         const row = book[sourceType] && typeof book[sourceType] === 'object' ? book[sourceType] : {};
-        row[type] = (Number(row[type]) || 0) + 1;
+        const n = v => Math.max(0, Number(v) || 0);
+        row[type] = n(row[type]) + 1;
         delete book[sourceType];
-        book[sourceType] = Object.fromEntries(Object.entries(row).sort((a, b) => b[1] - a[1]).slice(0, 8));
+        // The type just counted is always kept; the other seven are the most used.
+        const others = Object.entries(row).filter(([k, v]) => k !== type && n(v) > 0).sort((a, b) => n(b[1]) - n(a[1])).slice(0, 7);
+        book[sourceType] = Object.fromEntries([[type, n(row[type])], ...others].sort((a, b) => n(b[1]) - n(a[1])));
         const sources = Object.keys(book);
         sources.slice(0, Math.max(0, sources.length - 40)).forEach(key => { delete book[key]; });
         ED.core.storage.set(AFTER_KEY, book);
@@ -288,11 +296,14 @@
         function addByClick(type) {
             const info = ed.catalog.types.get(type);
             if (scope) {
+                // A step that cannot follow the source is refused and the scope stays.
+                if (!fits(info, scope)) { core.say(ed, t('easydrag.ui.connect_port')); return; }
                 // One step ends the scope, also when its source is gone by now (nothing is added then).
                 const there = scope;
                 endScope();
                 const result = placeStep(ed, canvas, there, type);
                 closeOverlay();
+                if (typeof there.restoreFocus === 'function') there.restoreFocus();
                 if (result.gone) core.say(ed, t('easydrag.ui.quick_target_gone'));
                 else if (result.id) canvas.centerOn(result.id, { animate: true });
                 return;
@@ -429,16 +440,20 @@
         bag.listen(el.querySelector('[data-ed-palette-scope-cancel]'), 'click', () => { endScope(); focusSearch(); });
         bag.listen(el, 'keydown', event => {
             if (event.key !== 'Escape' || !scope) return;
+            if (event.isComposing || event.keyCode === 229) return;
             event.preventDefault();
             event.stopPropagation();
+            const there = scope;
             endScope();
-            canvas.el.focus({ preventScroll: true });
+            if (typeof there.restoreFocus === 'function') there.restoreFocus();
+            else canvas.el.focus({ preventScroll: true });
         });
         // With a scope, Enter in the search adds the first match, so the search that Show all focused is enough.
         bag.listen(input, 'keydown', event => {
             if (event.key !== 'Enter' || !scope || event.isComposing || !input.value.trim()) return;
-            const first = list.querySelector('[data-ed-type]');
-            if (first) { event.preventDefault(); addByClick(first.dataset.edType); }
+            // The match is computed now, from the steps that may follow the source, not read from the debounced list.
+            const first = search(ed.catalog.list.filter(i => fits(i, scope)), input.value)[0];
+            if (first) { event.preventDefault(); addByClick(first.type); }
         });
 
         render();
@@ -584,7 +599,7 @@
         function showAll() {
             const source = sourceStep(ed, req);
             const point = source && !req.edge ? canvas.clientToWorld(req.x, req.y) : null;
-            const scope = source ? { from: req.from, edge: req.edge, name: stepName(ed, source.id), world: () => point } : null;
+            const scope = source ? { from: req.from, edge: req.edge, name: stepName(ed, source.id), world: () => point, restoreFocus: req.restoreFocus } : null;
             close();
             ed.bus.emit('palette-scope', scope);
         }

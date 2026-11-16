@@ -155,6 +155,7 @@ export async function run(env) {
     await headerChecks(env);
     await suggestionChecks(env);
     await scopeChecks(env);
+    await reviewChecks(env);
 }
 // suggestionChecks: the entries the quick-add offers first (D.3). The catalog of load() lists curated
 // suggestions for the manual trigger (six, one over the limit) and for web.search (the e-mail step first,
@@ -423,5 +424,71 @@ async function scopeChecks(env) {
         third.el.querySelector('[data-ed-quick-all]').fire('keydown', { key: 'Escape' });
         eq('w1c D.4 Escape on the link closes it too', h.ed.quickAdd, null);
         eq('w1c D.4 the keyboard checks log no errors', h.logged, []);
+    });
+}
+
+// reviewChecks: the review fixes of Part D (history keeps learning, scoped Enter only adds steps that fit, focus goes back).
+async function reviewChecks(env) {
+    const { eq, check, guardAsync } = env;
+    const FROM_ALPHA = { x: 10, y: 10, from: { node: A, port: 'out' } };
+    const added = h => h.model.doc.nodes.filter(n => ![TRG, A, B, GAMMA].includes(n.id));
+
+    await guardAsync('w1c D.R history keeps learning', async () => {
+        const h = load(env);
+        const row = {};
+        for (let i = 1; i <= 8; i++) row['old.type' + i] = 3;
+        h.store.set(AFTER_KEY, JSON.stringify({ 'web.search': row }));
+        const addNew = () => h.ED.palette.place(h.ed, 'http.request', { x: 900, y: 100 }, { from: { node: A, port: 'out' } });
+        addNew();
+        let book = JSON.parse(h.store.get(AFTER_KEY))['web.search'];
+        eq('w1c D.R after 8 types a 9th is kept and the least used goes', [Object.keys(book).length, book['http.request']], [8, 1]);
+        addNew(); addNew(); addNew();
+        book = JSON.parse(h.store.get(AFTER_KEY))['web.search'];
+        const top = Object.entries(book).sort((a, b) => b[1] - a[1])[0];
+        eq('w1c D.R after three more adds it ranks first', [top[0], top[1]], ['http.request', 4]);
+
+        const many = {};
+        for (let i = 0; i < 40; i++) many['s' + i] = { 'ai.step': 1 };
+        h.store.set(AFTER_KEY, JSON.stringify(many));
+        addNew();
+        const keys = Object.keys(JSON.parse(h.store.get(AFTER_KEY)));
+        eq('w1c D.R the 41st source evicts the one written longest ago', [keys.length, keys.includes('s0'), keys.includes('s1'), keys[keys.length - 1]], [40, false, true, 'web.search']);
+    });
+
+    await guardAsync('w1c D.R scoped Enter and clicks only add steps that fit', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        p.showAll(FROM_ALPHA);
+        p.search.value = 'Start';
+        p.search.fire('keydown', { key: 'Enter' });
+        eq('w1c D.R Enter skips a trigger match and keeps the scope', [added(h).length, p.scoped()], [0, true]);
+        p.choose('trigger.manual');
+        eq('w1c D.R a click on a trigger keeps the scope and adds nothing', [added(h).length, p.scoped(), h.said.includes('connect_port')], [0, true, true]);
+        p.search.value = 'Telegram';
+        p.search.fire('keydown', { key: 'Enter' });
+        eq('w1c D.R Enter right after typing (no render yet) adds the fitting match', [added(h).map(n => n.type), p.scoped()], [['notify.telegram'], false]);
+
+        const w = load(env);
+        const q = panelOf(w);
+        q.showAll({ x: 10, y: 10, edge: 'e2' });
+        q.search.value = 'Stopp';
+        q.search.fire('keydown', { key: 'Enter' });
+        eq('w1c D.R under a wire scope a step without outputs is not added', [added(w).length, q.scoped()], [0, true]);
+        eq('w1c D.R the review checks log no errors', [h.logged, w.logged], [[], []]);
+    });
+
+    await guardAsync('w1c D.R focus returns to the inspector', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        let called = 0;
+        p.showAll(Object.assign({ restoreFocus: () => { called++; } }, FROM_ALPHA));
+        p.choose('http.request');
+        eq('w1c D.R restoreFocus runs after a scoped add', called, 1);
+        p.showAll(Object.assign({ restoreFocus: () => { called++; } }, FROM_ALPHA));
+        p.panel.el.fire('keydown', { key: 'Escape' });
+        eq('w1c D.R restoreFocus runs on Escape instead of the canvas', [called, h.dom.document.activeElement === h.canvas.el], [2, false]);
+        p.showAll(FROM_ALPHA);
+        p.panel.el.fire('keydown', { key: 'Escape', isComposing: true });
+        check('w1c D.R Escape during composition keeps the scope', p.scoped());
     });
 }
