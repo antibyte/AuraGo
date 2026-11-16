@@ -1428,8 +1428,11 @@ The ten waves sum to 22.5 relative units instead of 20.5, for two reasons. The p
     - C, the control budgets (ceilings header 10, home 15, card 4; targets 8, 6, 3 for W1c and W1f): 22ede3b8f to 3a189497c;
     - A, the action registry (54 rows; every menu, card tool, header button, the shortcut table and the keyboard): 99c2425e6 to 345c61ce6;
     - B, the voice (guide and ledger, "du" and ledger lints, 135 error texts, "Schritte", own-action notifications, length notes, manuals): 331d63392 to dadaa8299.
-  - **Where W1c is.** Spec `plans/2026-11-16-easydrag-w1c-spec.md`, plan `plans/2026-11-16-easydrag-w1c/` (2026-11-16). Four parts: A server data (next run, "tested", change count), B the header (pill, popover, primary button, budget 8), C the one Stop, D quick-add. A, B and D start in parallel; A lands first, then B+C, then D. Implementation has not started.
-  - Next: W1c implementation, then W1d to W1f, each with its own spec and plan.
+  - **Where W1c is.** Spec `plans/2026-11-16-easydrag-w1c-spec.md`, plan `plans/2026-11-16-easydrag-w1c/` (2026-11-16). Four parts: A server data (next run, "tested", change count), B the header (pill, popover, primary button, budget 8), C the one Stop, D quick-add. All four parts landed on main on 2026-11-16 and are not pushed, so W1c is complete:
+    - A, server data (one shared next-run function with Mission Control, a durable "tested" marker, the change count): 690fdacbd to 0da8b7357;
+    - B+C, the header (pill and popover, the primary button with "Veröffentlichen · N Änderungen" always in place, budget 8 enforced) and the one Stop for the run in focus: b07de91d3 to 1a313bf33;
+    - D, quick-add ("Schritte nach: X", own history then curated suggestions, "Alle anzeigen" with the source kept): c675a4298 to b8c94fe91.
+  - Next: W1d to W1f, each with its own spec and plan.
   - S0c ledger rows 23 (plurals) and 24 (status-map "stopped") are closed by W1a C and A.
 - *Includes:*
   - E2: FD-08 with the status map, UI-17, FD-09, FD-11, CS-01, UI-15, JY-01, the action registry, UX-18 and CS-20, the first FD-14 scenes, and the CS-17 ledger and control budgets;

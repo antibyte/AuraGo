@@ -1,6 +1,6 @@
 # EasyDrag W1c "Header and one Stop": design spec
 
-- **Status:** design spec, 2026-11-16. The owner approved the design in the brainstorming session on 2026-11-16. Implementation plan: [`plans/2026-11-16-easydrag-w1c/`](2026-11-16-easydrag-w1c/README.md) (2026-11-16; four parts A–D, 41 coordinator decisions and amendments in its README).
+- **Status:** W1c COMPLETE. All four parts landed on local main on 2026-11-16 and are not pushed: A 690fdacbd..0da8b7357, B+C b07de91d3..1a313bf33, D c675a4298..b8c94fe91. What implementation and review changed is in §12. The owner approved the design in the brainstorming session on 2026-11-16. Implementation plan: [`plans/2026-11-16-easydrag-w1c/`](2026-11-16-easydrag-w1c/README.md) (2026-11-16; four parts A–D, 41 coordinator decisions and amendments in its README).
 - **Roadmap:** `plans/2026-11-09-easydrag-next-roadmap.md`:
   - E4 "Calm chrome, confident publishing" (lines 496-559): UI-14 with CS-07, the one Stop, the F.2 next-fire accessor;
   - E9 "Build with real things" (lines 811-857): the UX-04 quick-add header slice;
@@ -228,16 +228,16 @@ No entry appears twice; the rest of the list follows as today without the sugges
 
 ## 9. Acceptance checklist
 
-- [ ] `next_run` in the flow API equals Mission Control's next run for the same flow; schedules and date-and-time triggers both count; paused and unpublished flows have none.
-- [ ] `tested` turns true after a successful test or simulation of the current draft revision, survives a reload, and turns false on the next save; a failed test leaves it false.
-- [ ] `changes` equals the publish preview's diff counts.
-- [ ] The header shows Zurück, Name, Pill, Stop slot, Testen, primary, Rückgängig, Wiederholen, "⋯"; the budget test enforces 8.
-- [ ] The pill shows the states of §4.3; its popover holds Aktiv, the next run, Jetzt ausführen, Läufe ansehen and the completing action.
-- [ ] The primary button follows §4.5; a clean live flow shows no filled button.
-- [ ] Exactly one Stop is visible per window in the three situations of §5.4; its label shows at 320, 760 and 1440 px.
-- [ ] No header control moves when a run starts or ends at 390, 900 and 1440 px.
-- [ ] Quick-add shows its header, suggestions first, and "Alle anzeigen" opens the scoped palette.
-- [ ] T0 and the full browser run are green; the lab has zero findings.
+- [x] `next_run` in the flow API equals Mission Control's next run for the same flow; schedules and date-and-time triggers both count; paused and unpublished flows have none.
+- [x] `tested` turns true after a successful test or simulation of the current draft revision, survives a reload, and turns false on the next save; a failed test leaves it false.
+- [x] `changes` equals the publish preview's diff counts.
+- [x] The header shows Zurück, Name, Pill, Stop slot, Testen, primary, Rückgängig, Wiederholen, "⋯"; the budget test enforces 8.
+- [x] The pill shows the states of §4.3; its popover holds Aktiv, the next run, Jetzt ausführen, Läufe ansehen and the completing action.
+- [x] The primary button follows §4.5; a clean live flow shows no filled button.
+- [x] Exactly one Stop is visible per window in the three situations of §5.4; its label shows at 320, 760 and 1440 px.
+- [x] No header control moves when a run starts or ends at 390, 900 and 1440 px.
+- [x] Quick-add shows its header, suggestions first, and "Alle anzeigen" opens the scoped palette.
+- [x] T0 and the full browser run are green; the lab has zero findings.
 
 ## 10. Risks
 
@@ -254,3 +254,59 @@ No entry appears twice; the rest of the list follows as today without the sugges
 - E16 (Wave 4): the bottom-bar Stop below 560 px.
 - UI-04 and W1f: `next_run` on the home cards.
 - UX-04 (Wave 4): synonyms, favourites first, ">" commands in the quick-add.
+
+## 12. Changes from implementation and review
+
+**Planning.**
+- The plan README records 41 coordinator decisions and amendments. Among them:
+  - "tested" is a marker in `flows_meta` (`tested:<id>`), written by successful simulations and by test runs that end with success, so pruning old runs does not make a draft untested (no migration);
+  - a one-step test counts for the whole draft;
+  - the three facts are top-level fields, for blocks too (without `next_run`);
+  - the fixture defaults are neutral;
+  - the phone header takes two rows at 560 px and below;
+  - the Stop slot is 10.5rem wide;
+  - the parked own run is a case of "in focus";
+  - Tab in the quick-add leads to "Alle anzeigen";
+  - nine curated rows, including `planner` and `tool`.
+
+**Implementation.**
+- The pill's class is `ed-head-pill`: `ed-status-pill` is on the status map's retired list.
+- The pill's background is `--ed-panel-strong`, because the Voxel World button material gave its disc 1.03:1 contrast.
+- The phone header's right group takes exactly two rows: Stop and Test, then the primary, Undo, Redo and "⋯".
+- Removing the Publish dot lowered the radius ratchet from 79 to 78 and dropped one colour pin.
+- The actions test counts `flow.run_now` on 2 surfaces. The header lost Run now; the Node checks pin the popover's reasons.
+
+**Review A.** No Critical or Important findings.
+
+**Review B+C.** Seven Important findings, all fixed:
+1. The change count is gated on the revision it was read for. `take` keeps only `next_run` from an answer for another revision.
+2. After a publish, the focus returns to Test when Publish is hidden.
+3. Tab past the popover's last entry, or Shift+Tab before its first, closes it and returns to the pill.
+4. The pending Stop is `aria-busy`/`aria-disabled` and never `disabled`, so the focus hand-over works from the keyboard.
+5. A parked own run makes the pill say "Läuft".
+6. **Owner decision of 2026-11-16, "always visible", amending §4.5:**
+   - "Veröffentlichen · N Änderungen" stays visible in its place whenever there is something to publish (never published, a changed draft, an incomplete publish), and is hidden only on a clean live flow or read-only.
+   - Before a passed test, Test is the filled button; after it, Publish is.
+   - Publishing an untested draft from the header stays possible, and the dialog shows the evidence.
+   - Nothing in the header moves when a test ends. `TestEasyDragStopPositionsPublishBrowser` checks this at 390, 900 and 1440 px.
+   - The budget test counts this fullest state: 8 of 8.
+7. The UX test checks the counted Publish at every width again.
+
+**Review D.** Three Important findings, all fixed:
+- the history keeps learning past 8 types: the type just used is always kept;
+- scoped Enter and clicks add only steps that can follow the source: the check is `fits`, and a refused step keeps the scope;
+- "Alle anzeigen" passes on the opener's `restoreFocus`.
+
+**Landing evidence.**
+- **A:** T0 passed with 49 steps; the flows, tools and server suites were ok after two rebases.
+- **B+C:**
+  - The full EasyDrag browser run had 137 PASS, 0 FAIL and 2 SKIP, with 0 lab findings, after the rebase on main that brought another session's session-action code into `easydrag-editor.js` (878 lines, limit 896).
+  - T0 passed with 51 steps. One earlier T0 failed once in `internal/flows` under load; the package passed alone, and the full T0 passed again.
+- **D:** the full run had 138 PASS, 0 FAIL and 2 SKIP, with 0 lab findings, and T0 passed with 52 steps.
+
+**Open.**
+- A native-speaker check of the 14 other locales for the W1c keys.
+- The unused keys `revision_live` and `revision_ahead`.
+- The scoped palette's refusal reuses `connect_port` ("These ports cannot be connected."); a more specific text needs a key.
+- The 390 px header is tall: the left part stacks name, pill and save state.
+- `TestEasyDragActionsAgreeBrowser` failed once under load and then passed 3 of 3 runs alone.
