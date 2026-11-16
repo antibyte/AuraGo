@@ -53,7 +53,7 @@
     // create returns a saver. options:
     //   api, flowId, model, revision,
     //   onState(state)                       saved | dirty | saving | invalid | offline | failed | conflict
-    //   onSaved({revision, issues})
+    //   onSaved({revision, issues, answer})   answer is the whole save answer (tested, changes ...)
     //   onInvalid(issues)
     //   onConflict() → Promise<"reload" | "keep">
     // A transient error (network, FLOWS_DISABLED, FLOW_INTERNAL, 5xx, 429) sets "offline" and retries
@@ -229,7 +229,7 @@
             savedVersion = version;
             error = null;
             retryDelay = RETRY_MS;
-            notify(o.onSaved, { revision, issues: res.issues || [] });
+            notify(o.onSaved, { revision, issues: res.issues || [], answer: res });
             if (o.model.version === savedVersion) {
                 dropPendingCopy();
                 core.storage.remove(emergencyKey(o.flowId));

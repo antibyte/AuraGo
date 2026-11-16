@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-kit.js', 'easydrag-format.js', 'easydrag-status.js', 'easydrag-actions.js', 'easydrag-icons.js', 'easydrag-delight.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-groups.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-approvals.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-credentials-move.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-credentials-purge.js', 'easydrag-home-grid.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-header.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-approvals.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-credentials-move.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-credentials-purge.js', 'easydrag-home-grid.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-flow-state.js', 'easydrag-header.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -205,7 +205,7 @@ export async function run(env) {
     }
 
     // openEditor creates the editor for flow f1 (draft revision 3) in h.body and runs its first frame.
-    // opts: flow (fields over the default record), enabled, readonly (a read-only desktop).
+    // opts: flow (fields over the default record), enabled, readonly (a read-only desktop), facts (more fields of the GET answer: next_run, tested, changes).
     function openEditor(h, opts) {
         const o = opts || {};
         const flow = Object.assign({ id: 'f1', name: 'Flow', draft: flowDoc(), draft_revision: 3, published_draft_revision: 0, live: null, live_revision: 0 }, o.flow);
@@ -214,7 +214,7 @@ export async function run(env) {
             openBlock: (id, opts) => h.opened.push({ blockId: id, opts }),
             openHome: x => h.homes.push(x || {}), openFlow: id => h.opened.push(id)
         };
-        const editor = h.ED.editor.create(app, { flow, enabled: !!o.enabled, issues: [] }, {});
+        const editor = h.ED.editor.create(app, Object.assign({ flow, enabled: !!o.enabled, issues: [] }, o.facts), {});
         h.body.appendChild(editor.el);
         h.flushFrames();
         return editor;

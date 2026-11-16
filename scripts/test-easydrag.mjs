@@ -1143,6 +1143,8 @@ await (await import('./test-easydrag-pack.mjs')).run({ pack: editorHarness.sandb
 // ── W1a B: the kit (test-easydrag-kit.mjs) ──
 await (await import('./test-easydrag-kit.mjs')).run({ apps, miniDom, eq });
 await (await import('./test-easydrag-ux-batch5.mjs')).run({ apps, types, t, miniDom, check, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor, saverHarness });
+// ── W1c B: the header, its pill and the popover (test-easydrag-header.mjs, on the c1d07 sandbox) ──
+await (await import('./test-easydrag-header.mjs')).run({ apps, eq, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 // ── S0.0: render counters on seeded S/M/XL flows (test-easydrag-render-baseline.mjs, on the c1d07 sandbox) ──
 await (await import('./test-easydrag-render-baseline.mjs')).run({ eq, check, guardAsync, settle, sandbox: editorHarness.sandbox, openEditor: editorHarness.openEditor });
 

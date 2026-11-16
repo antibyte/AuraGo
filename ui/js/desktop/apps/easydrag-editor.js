@@ -106,6 +106,7 @@
             try { return fn(); } finally { sessionActionFlushing = wasFlushing; }
         };
         bag.add(() => { if (ed.packExportControl) ed.packExportControl.abort(); });
+        ED.flowState.bind(ed, bag, loaded);
 
         canvas = ED.canvas.create(ed);
         if (ED.groups) { ed.groups = ED.groups.create(ed, canvas); bag.add(() => ed.groups.dispose()); }
@@ -142,7 +143,7 @@
             api: ed.api, flowId: ed.flow.id, model: draftModel, revision: ed.flow.draft_revision,
             onState: renderSaveState,
             // An edit made while the request ran is still unsaved: the saver sends it next.
-            onSaved: ({ revision }) => { ed.flow.draft_revision = revision; contentDirty = ed.saver.isDirty(); renderHeader(); },
+            onSaved: ({ revision, answer }) => { ed.flow.draft_revision = revision; ED.flowState.take(ed, answer, { revision }); contentDirty = ed.saver.isDirty(); renderHeader(); },
             onInvalid: issues => { ed.issues = issues; ed.bus.emit('issues', issues); },
             onConflict: () => ED.dialogs.conflict(ed)
         });
@@ -764,6 +765,7 @@
             ed.timersRunning = res.timers_running !== false;
             if (ed.publishIncomplete && Number(res.flow.live_revision) > partialRevision) ed.publishIncomplete = '';
             ed.flowEnabled = !!res.enabled;
+            ED.flowState.take(ed, res, { get: true, revision: Number(res.flow.draft_revision) });
             renderHeader();
             setMenus();
         }
