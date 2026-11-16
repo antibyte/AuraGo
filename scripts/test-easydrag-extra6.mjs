@@ -761,6 +761,34 @@ export async function run(env) {
         editor.dispose();
     });
 
+    // W1c C.1: a past run is open while the editor's own test still runs. The header's Stop stops the own run.
+    await guardAsync('w1c the one Stop stops the own run while a past run is open', async () => {
+        const at = '2026-11-16T10:00:00Z';
+        const h = sandbox(req => {
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/f1/test') return { run_id: 'r_own' };
+            if (req.method === 'POST' && req.url === '/api/desktop/flows/runs/r_own/cancel') return {};
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/runs/r_old?include=doc') return { run: { id: 'r_old', status: 'success', mode: 'test', started_at: at, revision: 1, trigger_node: T1 }, steps: [], doc: flowDoc() };
+            return undefined;
+        });
+        const editor = openEditor(h);
+        await settle();
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        h.dialogs[h.dialogs.length - 1].el.querySelector('[data-ed-action="run"]').fire('click');
+        await settle();
+        const stop = () => editor.el.querySelector('[data-ed-cmd="cancel"]');
+        const during = !stop().hidden;
+        editor.showRun('r_old');
+        await settle();
+        const reviewing = [!stop().hidden, editor.ed.runView.run.id, h.dialogs.length];
+        stop().fire('click');
+        await settle();
+        eq('w1c the Stop shows during the own run and in the review of a past run, and stops the own run, not the past one',
+            [during, reviewing, postsTo(h, '/api/desktop/flows/runs/r_own/cancel'), postsTo(h, '/api/desktop/flows/runs/r_old/cancel')],
+            [true, [true, 'r_old', 1], 1, 0]);
+        editor.dispose();
+    });
+
     await guardAsync('a1008 runs shortcuts drop Tab add and keep Ctrl+K plus connect', async () => {
         const h = sandbox(() => undefined);
         const flat = h.ED.dialogs.SHORTCUTS.flatMap(([, rows]) => rows);

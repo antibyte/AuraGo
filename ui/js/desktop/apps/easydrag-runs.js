@@ -55,7 +55,7 @@
             if (!ed.root || !ed.root.querySelectorAll) return [];
             return Array.from(ed.root.querySelectorAll('[data-ed-run-stop], [data-ed-cmd="cancel"], [data-ed-cmd="stop-viewed"]')).filter(b => {
                 if (b.dataset.edRunStop) return b.dataset.edRunStop === String(id);
-                if (b.dataset.edCmd === 'cancel') return !!(ed.run && ed.run.id === id && !ed.run.view);
+                if (b.dataset.edCmd === 'cancel') { const focus = ED.runStop.focusRun(ed); return !!focus && focus.id === id; }
                 return !!(ed.runView && ed.runView.run && ed.runView.run.id === id);
             });
         }
@@ -88,7 +88,9 @@
             // promise and does not send again. An uncertain result is not sent again.
             startPost: null,
             // stopping holds the runs whose stop is being confirmed or sent: one stop per run at a time.
+            // pendingStops holds the runs whose stop request is out (the Stop says "Stopping…" for them).
             stopping: new Set(),
+            pendingStops: new Set(),
             durableStopping: new Set(),
             // stopPolls holds the timers of followStop.
             stopPolls: new Set(),
@@ -111,6 +113,9 @@
             disposed: false
         };
 
+        // ed.parkedRun is the live run that a review parked ({id, mode, record}): the one Stop reads it (focusRun).
+        Object.defineProperty(ed, 'parkedRun', { configurable: true, get: () => rc.parked });
+
         Object.assign(rc, ED.runParts.stream(rc));
         Object.assign(rc, ED.runParts.start(rc));
         Object.assign(rc, ED.runParts.stop(rc));
@@ -128,7 +133,7 @@
         return {
             startTest: rc.startTest, attach: rc.attach, runLive: rc.runLive, cancel: rc.cancel, stopRun: rc.stopRun, refreshShown: rc.refreshShown, runFinished: rc.runFinished,
             loadLast: rc.loadLast, toggleDrawer: rc.toggleDrawer, openRunView: rc.openRunView, effects, stepsFrom: rc.stepsFrom, applyRunView: rc.applyRunView, clearRun: rc.clearRun,
-            isRunning: rc.isRunning, hasParked: () => !!rc.parked,
+            isRunning: rc.isRunning, hasParked: () => !!rc.parked, stopPending: id => rc.pendingStops.has(id),
             drawerOpen: () => !!rc.drawer,
             dispose() { rc.disposed = true; rc.parked = null; bag.dispose(); }
         };

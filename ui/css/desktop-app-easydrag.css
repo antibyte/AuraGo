@@ -644,8 +644,8 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-head-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 0 1 auto; margin-left: auto; justify-content: flex-end; min-width: 0; }
 .ed-head-actions .ed-btn { white-space: normal; }
 /* the Stop slot keeps its width whether a run is going or not, so no control beside it moves (the Stop itself fills it) */
-.ed-stop-slot { display: inline-flex; align-items: center; justify-content: flex-end; flex: none; width: var(--ed-stop-slot-w, 9.5rem); }
-.ed-stop-slot > .ed-btn { width: 100%; min-width: 0; }
+.ed-stop-slot { display: inline-flex; align-items: center; justify-content: flex-end; flex: none; width: var(--ed-stop-slot-w, 10.5rem); }
+.ed-stop-slot > .ed-btn { width: 100%; min-width: 0; white-space: nowrap; }
 .ed-body { position: relative; flex: 1; display: flex; min-height: 0; }
 .ed-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; width: var(--ed-rail-w); flex: none; padding: 8px 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; background: var(--ed-side); box-shadow: var(--ed-side-edge); border-right: 1px solid var(--ed-border); z-index: 3; }
 .ed-rail-spacer { flex: 1; }
@@ -1430,8 +1430,9 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     /* The text goes, the name stays: these spans are hidden visually (as .ed-sr-only does), and the buttons carry the same words as aria-label. */
     .ed-head-actions .ed-btn:not([data-ed-cmd="test"]):not([data-ed-cmd="publish"]):not([data-ed-cmd="cancel"]) > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .ed-head-actions .ed-btn[data-ed-cmd="test"] > span,
-    .ed-head-actions .ed-btn[data-ed-cmd="publish"] > span,
-    .ed-head-actions .ed-btn[data-ed-cmd="cancel"] > span { display: inline; white-space: normal; }
+    .ed-head-actions .ed-btn[data-ed-cmd="publish"] > span { display: inline; white-space: normal; }
+    /* The Stop's words stay on one line at every width: the slot holds the longest of them. */
+    .ed-head-actions .ed-btn[data-ed-cmd="cancel"] > span { display: inline; white-space: nowrap; }
     .ed-head-actions { flex: 1 1 100%; }
     .ed-head-actions .ed-btn, .ed-head-actions .ed-icon-btn, .ed-head-pill { min-height: 44px; min-width: 44px; }
     .ed-head-actions .ed-btn { padding: 6px 10px; }

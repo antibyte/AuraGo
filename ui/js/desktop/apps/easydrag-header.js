@@ -62,9 +62,12 @@
                 nameInput.setAttribute('aria-label', t('easydrag.ui.block_name'));
             }
             btn('test').classList.toggle('is-busy', running);
-            btn('cancel').hidden = !running;
+            // A block editor's simulation has its own Stop: shown while the simulation runs.
+            if (isBlock) btn('cancel').hidden = !running;
             paintPrimary();
             paintActions();
+            // The one Stop, for the run in focus (easydrag-run-stop.js).
+            if (!isBlock) ED.runStop.sync(ed, btn('cancel'), t, id => runs.stopPending(id));
             btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
             // The run view keeps the palette hidden: a stored run takes no new steps.
             btn('palette').setAttribute('aria-disabled', String(!!ed.runView));

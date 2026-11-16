@@ -6,6 +6,72 @@
     'use strict';
 
     const ED = window.EasyDrag = window.EasyDrag || {};
+    const FINAL = ['success', 'error', 'cancelled'];
+    const ACTIVE = ['queued', 'waiting', 'running'];
+
+    // ── the one Stop ─────────────────────────────────────────────────────────────
+    // The header holds one Stop button (data-ed-cmd="cancel", in the reserved slot). It stops the run in
+    // focus: the run the review shows while that run is still active and can be cancelled (a durable
+    // run too: its checkpoint says so), else the editor's own run, also while a past run is open (the
+    // own run is parked behind the review, ed.parkedRun). focusRun returns that run as a record that
+    // stopRun takes, or null: then the slot is empty and keeps its width.
+
+    // viewedStoppable: the rule the banner's Stop used. A durable run asks its checkpoint; a stored
+    // run that has no checkpoint but says "durable" cannot be stopped from here; any other run can
+    // while it is queued, waiting or running. A lost checkpoint read takes the proof away.
+    function viewedStoppable(ed, run) {
+        if (ed.run && ed.run.durableStatusError) return false;
+        const status = ED.durable && ED.durable.info(ed.run);
+        return status ? !!status.cancel_available : !run.durable && ACTIVE.includes(run.status);
+    }
+
+    // ownStoppable is the rule of runs.isRunning(): a live run, not a review, not one whose stream was given up.
+    function ownStoppable(ed) {
+        const run = ed.run;
+        if (!run || run.view || FINAL.includes(run.status)) return false;
+        return !run.stale || !!(ED.durable && ED.durable.has(run));
+    }
+
+    function focusRun(ed) {
+        const view = ed.runView && ed.runView.run;
+        if (view && viewedStoppable(ed, view)) return view;
+        if (view) {
+            const parked = ed.parkedRun;
+            return parked && parked.id !== view.id ? Object.assign({ id: parked.id, status: 'running', mode: parked.mode || 'test' }, parked.record || {}) : null;
+        }
+        return ownStoppable(ed) ? Object.assign({ id: ed.run.id, status: ed.run.status, mode: ed.run.mode || 'test' }, ed.run.record || {}) : null;
+    }
+
+    // paint gives the Stop its words: "Stop" (always shown, at every width), "Stopping…" while the
+    // request is out. The name follows the text, so a screen reader hears what the eye reads.
+    function paint(button, t, pending, ed) {
+        const name = t(pending ? 'easydrag.ui.run_stopping' : 'easydrag.ui.run_cancel');
+        button.disabled = !!pending;
+        if (pending) button.setAttribute('aria-busy', 'true'); else button.removeAttribute('aria-busy');
+        button.classList.toggle('is-busy', !!pending);
+        button.setAttribute('aria-label', name);
+        button.setAttribute('title', name);
+        const span = button.querySelector('span');
+        if (span && span.textContent !== name) span.textContent = name;
+        // The registry paints the availability (aria-disabled and its reason) from the same facts, now that the busy state changed.
+        if (ed && ED.actions) ED.actions.paint(button, 'flow.stop', { host: ed });
+    }
+
+    // sync shows the Stop for the run in focus (or hides it) and paints its pending state; the editor's
+    // header calls it on every render. pendingOf(id) tells whether the stop of that run is in flight.
+    // A Stop that goes away while it has the focus hands the focus on: "Back to draft" in the review,
+    // else the canvas.
+    function sync(ed, button, t, pendingOf) {
+        const focus = focusRun(ed);
+        const hadFocus = button === document.activeElement;
+        button.hidden = !focus;
+        paint(button, t, !!focus && !!pendingOf(focus.id), ed);
+        if (!focus && hadFocus) {
+            const next = (ed.runView && ed.root.querySelector('[data-ed-cmd="exit-run-view"]')) || ed.root.querySelector('.ed-canvas');
+            if (next && next.focus) next.focus({ preventScroll: true });
+        }
+        return focus;
+    }
 
     // installStop installs the stop part on the run core rc and returns its functions, which
     // create() puts on rc. Shared state is read and written as rc.<name>; functions of the other
@@ -76,10 +142,10 @@
             });
         }
 
+        // cancel is the header Stop: it stops the run in focus (focusRun above).
         async function cancel() {
-            if (!ed.run || isFinal(ed.run.status) && !ED.durable?.info(ed.run)?.cancel_available) return;
-            const record = Object.assign({ id: ed.run.id, status: ed.run.status, mode: ed.run.mode || 'test' }, ed.run.record || {});
-            return stopRun(record);
+            const record = ED.runStop.focusRun(ed);
+            return record ? stopRun(record) : undefined;
         }
 
         // settleFinished shows the stored result of a run that ended before its stream said so:
@@ -96,18 +162,13 @@
 
         // setStopPending shows the stop request on those buttons until it settles.
         function setStopPending(id, on) {
+            if (on) rc.pendingStops.add(id); else rc.pendingStops.delete(id);
             stopButtons(id).forEach(b => {
+                if (b.dataset.edCmd === 'cancel') { ED.runStop.paint(b, t, !!on, ed); return; }
                 b.disabled = !!on;
                 if (on) b.setAttribute('aria-busy', 'true');
                 else b.removeAttribute('aria-busy');
                 b.classList.toggle('is-busy', !!on);
-                // The header's Stop is named after its text (its text is hidden on narrow headers):
-                // the name says "Stopping…" as long as the text does.
-                if (b.dataset.edCmd === 'cancel') {
-                    const name = on ? t('easydrag.ui.run_stopping') : t('easydrag.ui.run_cancel');
-                    b.setAttribute('aria-label', name);
-                    b.setAttribute('title', name);
-                }
                 const span = b.querySelector('span');
                 if (!span) return;
                 if (on) {
@@ -295,5 +356,6 @@
         };
     }
 
+    ED.runStop = { focusRun, paint, sync };
     (ED.runParts = ED.runParts || {}).stop = installStop;
 })();

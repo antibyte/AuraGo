@@ -183,7 +183,7 @@
 
         // Keep an active run parked until clearRun restores its stream.
         function applyRunView(detail) {
-            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) { rc.parked = { id: ed.run.id, mode: ed.run.mode }; watchParked(); }
+            if (ed.run && !ed.run.view && !isFinal(ed.run.status) && !ed.run.stale) { rc.parked = { id: ed.run.id, mode: ed.run.mode, record: ed.run.record }; watchParked(); }
             closeStream();
             const shown = stepsFrom(detail.steps, detail.run, detail.durable_status, detail.durable_status_error);
             shown.view = true;

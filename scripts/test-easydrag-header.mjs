@@ -495,7 +495,7 @@ export async function run(env) {
         const css = fs.readFileSync(path.join(apps, '..', '..', '..', 'css', 'desktop-app-easydrag.css'), 'utf8');
         const slot = /\.ed-stop-slot \{([^}]*)\}/.exec(css);
         const at900 = css.slice(css.indexOf('@container (max-width: 900px)')).split(/\r?\n\}\r?\n/)[0];
-        eq('w1c B.5 stylesheet', [!!slot && /flex: none/.test(slot[1]) && /width: var\(--ed-stop-slot-w, 9\.5rem\)/.test(slot[1]),
+        eq('w1c B.5 stylesheet', [!!slot && /flex: none/.test(slot[1]) && /width: var\(--ed-stop-slot-w, 10\.5rem\)/.test(slot[1]),
             /\[data-ed-cmd="cancel"\] > span \{ display: inline/.test(at900), /data-ed-cmd="(runs|run-now|active)"/.test(css), /\.ed-head-history \{[^}]*flex: none/.test(css)], [true, true, false, true]);
     });
 
