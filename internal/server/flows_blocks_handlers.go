@@ -168,6 +168,7 @@ func (s *Server) flowBlockDocument(w http.ResponseWriter, r *http.Request, id st
 		if contract, err := flows.BlockDraftContract(block.Draft); err == nil {
 			answer["contract"] = contract
 		}
+		s.addFlowDraftFacts(ctx, answer, block, false)
 		flowsJSON(w, http.StatusOK, answer)
 	case http.MethodPut:
 		var body struct {
@@ -196,7 +197,9 @@ func (s *Server) flowBlockDocument(w http.ResponseWriter, r *http.Request, id st
 			return
 		}
 		s.broadcastFlowsChanged(id, "saved")
-		flowsJSON(w, http.StatusOK, map[string]any{"draft_revision": revision, "issues": nonNilIssues(issues)})
+		answer := map[string]any{"draft_revision": revision, "issues": nonNilIssues(issues)}
+		s.addSavedDraftFacts(ctx, answer, id, revision, true)
+		flowsJSON(w, http.StatusOK, answer)
 	case http.MethodDelete:
 		var body struct {
 			BaseRevision     *int `json:"base_revision"`

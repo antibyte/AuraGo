@@ -689,8 +689,10 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 				return
 			}
 			issues := s.Flows.Validate(rec.Draft, flows.ModeDraft)
-			flowsJSON(w, http.StatusOK, map[string]any{"flow": rec, "enabled": s.flowEnabled(rec), "issues": nonNilIssues(issues),
-				"live_issues": nonNilIssues(s.Flows.LiveIssues(rec)), "timers_running": s.Flows.TimersRunning()})
+			answer := map[string]any{"flow": rec, "enabled": s.flowEnabled(rec), "issues": nonNilIssues(issues),
+				"live_issues": nonNilIssues(s.Flows.LiveIssues(rec)), "timers_running": s.Flows.TimersRunning()}
+			s.addFlowDraftFacts(ctx, answer, rec, true)
+			flowsJSON(w, http.StatusOK, answer)
 		case http.MethodPut:
 			var body struct {
 				Doc          json.RawMessage `json:"doc"`
@@ -710,7 +712,9 @@ func (s *Server) flowRoute(w http.ResponseWriter, r *http.Request, id string, re
 				return
 			}
 			s.broadcastFlowsChanged(id, "saved")
-			flowsJSON(w, http.StatusOK, map[string]any{"draft_revision": rev, "issues": nonNilIssues(issues)})
+			answer := map[string]any{"draft_revision": rev, "issues": nonNilIssues(issues)}
+			s.addSavedDraftFacts(ctx, answer, id, rev, false)
+			flowsJSON(w, http.StatusOK, answer)
 		case http.MethodDelete:
 			rec, err := s.Flows.GetFlow(ctx, id)
 			if err != nil {
