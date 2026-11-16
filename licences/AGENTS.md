@@ -10,6 +10,12 @@ This folder owns `UEBERSICHT.md`, `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARI
 
 ## Local Contracts
 
+- Modern Web Guidance is an Apache-2.0 documentation package embedded in
+  `internal/tools/bundled_agent_skills/modern-web-guidance.zip.xz`. Its unchanged
+  upstream license travels inside the skill as `references/LICENSE.txt`;
+  `texts/Apache-2.0.txt` remains the shared license-family text. Preserve the
+  GoogleChrome source/distribution pins and the AuraGo adaptation notice.
+
 - Synth Studio's Strudel browser runtime/integration is AGPL-3.0-or-later;
   independent MIT source retains its license. Ship the full upstream notices
   and package/integration sources at `ui/js/vendor/strudel/{LICENSES.md,sources.zip}`

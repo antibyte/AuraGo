@@ -94,8 +94,12 @@ func TestAgentSkillStartupDoesNotWaitForGuardian(t *testing.T) {
 		t.Fatal("security scan ignored shutdown cancellation")
 	}
 	var count int
-	if err := s.SkillsDB.QueryRow("SELECT count(*) FROM agent_skills_registry").Scan(&count); err != nil || count != len(gamemaker.CuratedSkillNames()) {
+	if err := s.SkillsDB.QueryRow("SELECT count(*) FROM agent_skills_registry").Scan(&count); err != nil || count != len(gamemaker.CuratedSkillNames())+1 {
 		t.Fatalf("canceled scan changed the verified bundle registry: count=%d err=%v", count, err)
+	}
+	webGuidance, err := s.AgentSkillManager.GetAgentSkillByName("modern-web-guidance")
+	if err != nil || !webGuidance.Enabled || webGuidance.Origin != tools.OriginSystem {
+		t.Fatalf("offline web guidance unavailable while Guardian was canceled: %+v, %v", webGuidance, err)
 	}
 	if _, err := s.AgentSkillManager.GetAgentSkillByName("user-example"); err == nil {
 		t.Fatal("canceled user package scan persisted a verdict")

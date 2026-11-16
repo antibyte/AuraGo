@@ -1,5 +1,11 @@
 # Third-Party Libraries and Assets
 
+Modern Web Guidance (GoogleChrome and contributors, Apache-2.0) ships as an
+offline Agent Skill with 209 unchanged guides from distribution revision
+`4dd968349e54ca45a05dd5c818fb035c9054b022` (v1.0.0). The entrypoint is adapted
+to AuraGo; the compressed package includes the upstream license and provenance.
+See [notices](THIRD_PARTY_NOTICES.md#modern-web-guidance).
+
 Synth Studio bundles Strudel 1.3.0 (`@strudel/web`, AGPL-3.0-or-later) locally.
 The engine and its integration run in a network-disabled sandbox document.
 Full upstream/package notices, package/integration source download and pinned

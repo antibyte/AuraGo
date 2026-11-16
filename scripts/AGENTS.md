@@ -18,6 +18,7 @@ This folder owns the maintained helpers and the `start.*`, `kill_all.*`, `instal
 - `check-web-assets.mjs` caps first-party package embeds at 12 MB, including bundled speech runtimes, firmware and design templates. Full UI embedding stays forbidden; recovery assets stay below 1 MB and stripped binaries below 200 MB. Security Gates checks embeds before the Go test suite, and release CI checks them before cross-building.
 - Sibling helpers are relative to this folder; `deploy/`, `bin/`, `.env` and source inputs remain relative to the repository root.
 - Source paths may change; release asset names and installed config/notice paths stay stable. The English third-party notices come from `../licences/`.
+- `build-modern-web-guidance.py --archive <zip>` imports only the SHA-256-pinned upstream distribution into the tools-owned XZ-compressed skill ZIP; `--check` validates its manifest, adapter and index offline. No upstream executable is run. Corpus and startup contracts: `../internal/tools/bundled_agent_skills/AGENTS.md`.
 - Keep the Bluetooth kit synchronized into root installers/updater and `scripts/install_service_linux.sh` through `sync-bluetooth-kit.sh`.
 
 ## Work Guidance

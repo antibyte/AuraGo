@@ -101,6 +101,9 @@ Agent filesystem, external service and Docker tool safety boundaries.
 ### Bundled Newspaper editorial skill
 - Register `aurago-newspaper` through the Agent Skill Manager under the `newspaper` owner. Verify its bundled hash before use; do not let a disk edit silently replace the trusted guide. The guide can plan bounded searches and edit server-supplied evidence but cannot execute arbitrary tools, send or change the publication profile.
 
+### Bundled Modern Web Guidance
+- `agent_skills_embedded.go` installs the pinned, compressed multi-file package through the Agent Skill Manager during server initialization. Verify the complete tree against the binary, enable only new registrations, preserve saved disablement across restart/upgrade, and refuse foreign/blocked/modified packages. Stage replacements and restore the previous package if registry publication fails. Source, corpus, license and rebuild rules: `bundled_agent_skills/AGENTS.md`; verify `TestEmbeddedAgentSkill*` and `TestModernWebGuidance*`.
+
 ### Brave research adapter
 - `SearchBrave` is the typed, single-request Web/News adapter with freshness, pagination and sanitized rate-limit metadata. Its caller owns pacing/retries and budgets. Keep the native `ExecuteBraveSearch` Web behavior, isolated result text and native tool schema compatible; server-only News options do not widen the agent tool schema. Verify `TestBraveNewsPaginationAndNativeCompatibility`, `TestBraveRateLimitErrorsAndCancellation` and existing Brave/DDG callers.
 - Verify with `go test ./internal/tools -run TestNewspaperBundled`.
@@ -393,7 +396,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Child DOX Index
 
-None.
+- `bundled_agent_skills/AGENTS.md` — reviewed offline skill packages, provenance, compressed embedding and deterministic maintenance.
 
 ### Managed go2rtc media
 - Camera main/sub/snapshot sources remain Vault-only. `go2rtc_media.go` owns opaque per-camera revision aliases, cancellable media/HLS leases and at most two shared active video-transcoding profiles. Register every replacement alias before publishing a revision and revoking only that camera's leases; failed or superseded registrations keep the active revision usable and retire partial aliases. Status distinguishes active media from pending saved settings. Stale snapshot responses cannot enter the cache or media registry. Snapshot transforms validate JPEG dimensions before decoding, rotate first and fit proportionally afterwards.

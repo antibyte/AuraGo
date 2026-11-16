@@ -744,6 +744,26 @@ Frage den Agenten: „Wie ist das Wetter in Berlin?"
 
 Getrennt von Python-Skills in `agent_workspace/skills/`: **Agent Skills** sind Markdown-Pakete im Agent Skill Manager.
 
+### Mitgeliefert: Modern Web Guidance
+
+`modern-web-guidance` wird automatisch installiert und aktiviert, auch nach
+einem AuraGo-Update in bestehenden Installationen. Der Skill enthält 209 lokale
+Anleitungen zu HTML, CSS, Barrierefreiheit, Performance und Browser-APIs aus
+[GoogleChromes Modern Web Guidance](https://github.com/GoogleChrome/modern-web-guidance-src).
+Der Agent aktiviert ihn bei passenden Webaufgaben und liest gezielt die
+benötigten Referenzen. Dafür brauchst Du weder Node.js oder npm noch einen
+Download oder API-Schlüssel. Angaben zur Browser-Unterstützung beziehen sich
+auf die mitgelieferte Version und werden nicht live aktualisiert.
+
+Auf der Seite **Skills** kannst Du ihn deaktivieren; diese Einstellung bleibt
+bei Neustarts und Paket-Updates erhalten. Beim Start prüft AuraGo das komplette
+Paket gegen die im Programm enthaltenen Dateien. Lokale Änderungen oder ein
+gleichnamiger eigener Skill bleiben erhalten und verhindern das automatische
+Ersetzen. Verwende für Anpassungen eine Kopie mit eigenem Namen. Die Referenzen
+liegen normalerweise unter
+`agent_workspace/agent_skills/modern-web-guidance/references/`; ein abweichendes
+Skill-Verzeichnis muss innerhalb der erlaubten Dateipfade des Agenten liegen.
+
 ### API
 
 - `GET/POST /api/agent-skills`

@@ -1,5 +1,18 @@
 # Third-party notices
 
+## Modern Web Guidance
+
+Modern Web Guidance by GoogleChrome and contributors is licensed under
+Apache-2.0. Source: https://github.com/GoogleChrome/modern-web-guidance-src.
+AuraGo bundles all 209 guides from the generated distribution
+https://github.com/GoogleChrome/modern-web-guidance at revision
+`4dd968349e54ca45a05dd5c818fb035c9054b022` (v1.0.0), unchanged.
+AuraGo modifies the skill entrypoint for native offline file reading and adds
+an index and provenance note; no upstream CLI or npm package is executed.
+The original license ships inside the skill ZIP as `references/LICENSE.txt`;
+the shared license text is [Apache-2.0](texts/Apache-2.0.txt).
+Hashes and maintained adapter: `internal/tools/bundled_agent_skills/`.
+
 ## Synth Studio — Strudel
 
 The local Strudel 1.3.0 browser engine (`@strudel/web`, core/mini/tonal/transpiler/

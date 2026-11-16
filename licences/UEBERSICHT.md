@@ -1,5 +1,15 @@
 # Externe Projekte und Lizenzbedingungen
 
+## Modern Web Guidance
+
+GoogleChrome Modern Web Guidance (Apache-2.0) wird als offline nutzbarer,
+standardmäßig aktiver Agent Skill mitgeliefert. Enthalten sind alle 209
+unveränderten Anleitungen der Distribution `GoogleChrome/modern-web-guidance`,
+Revision `4dd968349e54ca45a05dd5c818fb035c9054b022` (v1.0.0).
+AuraGo passt den Skill-Einstieg an die eigenen Dateilesewerkzeuge an und ergänzt
+Index und Herkunftsnachweis. Die Original-Lizenz liegt im Skill-Paket;
+siehe auch `THIRD_PARTY_NOTICES.md` und `texts/Apache-2.0.txt`.
+
 ## Kaggle und optionale Notebook-Laufzeit
 
 Die generierten API-Verträge stammen aus Kaggle SDK 0.1.38 (Copyright 2018 Kaggle Inc,

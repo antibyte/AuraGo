@@ -2075,6 +2075,9 @@ func (s *Server) initSkillManagers(ctx context.Context, installDir string) gamem
 	}
 	s.AgentSkillManager = tools.NewAgentSkillManager(skillsDB, cfg.Directories.AgentSkillsDir, cfg.Directories.WorkspaceDir, logger)
 	tools.SetDefaultAgentSkillManager(s.AgentSkillManager)
+	if _, err := s.AgentSkillManager.InstallModernWebGuidance(ctx); err != nil {
+		logger.Warn("Failed to install bundled Modern Web Guidance", "error", err)
+	}
 	// Compile-time packages are checked locally before Game Maker is exposed.
 	// Other discovered skills still use the optional background scanners.
 	s.gameMakerSkills, s.gameMakerSkillsReady = verifyGameMakerAgentSkills(ctx, s.AgentSkillManager, installResult, logger)

@@ -88,6 +88,14 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- `initSkillManagers` installs and verifies the embedded `modern-web-guidance`
+  package before background discovery, independently of the classic Python
+  Skill Manager toggle. Use the Agent Skill Manager's installer; no network or
+  remote scan runs on this startup path. Installation failures are logged and
+  do not block unrelated skills. Verify `TestModernWebGuidanceStartup` and
+  `TestAgentSkillStartupDoesNotWaitForGuardian`; package ownership is in
+  `../tools/bundled_agent_skills/AGENTS.md`.
+
 - Desktop PATCH `/api/desktop/file` and POST `/api/desktop/trash` include optional `undo_receipt` only for confirmed reversible moves. POST `/api/desktop/file-undo` accepts `{receipt}` and returns the opposite receipt after rechecking Desktop write authority. Partial Trash failures use HTTP409 `partial_failure` with confirmed `moves`; `uncertain:true` marks an unconfirmed additional mutation and must not enter conflict replay. Typed unavailable/limit/uncertain outcomes use 410/413/502. Broadcast only path invalidations, never receipt tokens. Keep existing body bounds, CSRF and Desktop permission gates.
 - Desktop workspace GET requires read scope; POST CRUD requires admin scope. Settings PUT accepts an optional `revision`, required for session/global/by-space-wallpaper writes, and returns the authoritative `workspace` snapshot alongside legacy full settings. Missing/stale revisions are HTTP409 with `state`; readonly writes are423. Generic direct layout writes are rejected. Broadcast invalidations after commit; clients preserve live windows on reconciliation.
 - Invalid workspace/settings input retains its non-secret validation detail in `error` alongside the stable `workspace_invalid` code. Internal failures expose only their stable code. Verify the settings-handler and Retro-Net settings validation tests.
