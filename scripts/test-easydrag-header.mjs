@@ -85,5 +85,60 @@ export async function run(env) {
             [5, null, 0]);
     });
 
+    // ── B.2: the kit popover ──
+
+    await guardAsync('w1c B.2 ED.kit.popover: focus moves in; Escape, a press outside and a focus change close it; Escape gives the focus back', async () => {
+        const h = sandbox(() => undefined);
+        const { ED } = h, doc = h.dom.document, El = h.dom.El;
+        const anchor = new El('button', {});
+        const outside = new El('button', {});
+        h.body.appendChild(anchor);
+        h.body.appendChild(outside);
+        const closed = [];
+        const open = () => ED.kit.popover(anchor, {
+            content: ED.core.el('<div><button type="button" data-ed-pop="a">A</button><button type="button" data-ed-pop="b">B</button></div>'),
+            label: 'Status', onClose: info => closed.push(info.restore)
+        });
+        let pop = open();
+        const opened = [pop.el.getAttribute('role'), pop.el.getAttribute('aria-label'), h.body.contains(pop.el), doc.activeElement === pop.el.querySelector('[data-ed-pop="a"]'), pop.isOpen()];
+        const key = pop.el.fire('keydown', { key: 'Escape' });
+        const byEscape = [h.body.contains(pop.el), doc.activeElement === anchor, closed.slice(), key.defaultPrevented, key.stopped, pop.isOpen()];
+        pop = open();
+        h.fireDoc('pointerdown', { target: anchor });
+        const onAnchor = [pop.isOpen()];
+        h.fireDoc('pointerdown', { target: pop.el.querySelector('[data-ed-pop="b"]') });
+        const inside = [pop.isOpen()];
+        outside.focus();
+        h.fireDoc('pointerdown', { target: outside });
+        const byPress = [pop.isOpen(), h.body.contains(pop.el), doc.activeElement === outside, closed.slice()];
+        pop = open();
+        pop.el.fire('focusout', { relatedTarget: pop.el.querySelector('[data-ed-pop="b"]') });
+        const withinFocus = [pop.isOpen()];
+        pop.el.fire('focusout', { relatedTarget: outside });
+        const byFocus = [pop.isOpen(), closed.slice()];
+        pop.close(true);
+        eq('w1c B.2 popover', [opened, byEscape, onAnchor, inside, byPress, withinFocus, byFocus, h.docListeners.pointerdown.length, h.logged], [
+            ['dialog', 'Status', true, true, true],
+            [false, true, [true], true, true, false],
+            [true], [true],
+            [false, false, true, [true, false]],
+            [true],
+            [false, [true, false, false]],
+            0, []
+        ]);
+    });
+
+    await guardAsync('w1c B.2 ED.kit.popover.update swaps the content and keeps the focus on the same control', async () => {
+        const h = sandbox(() => undefined);
+        const { ED } = h, doc = h.dom.document;
+        const anchor = new h.dom.El('button', {});
+        h.body.appendChild(anchor);
+        const pop = ED.kit.popover(anchor, { content: ED.core.el('<div><button type="button" data-ed-pop="a">A</button><button type="button" data-ed-pop="b">B</button></div>') });
+        pop.el.querySelector('[data-ed-pop="b"]').focus();
+        pop.update(ED.core.el('<div><button type="button" data-ed-pop="a">A2</button><button type="button" data-ed-pop="b">B2</button></div>'));
+        eq('w1c B.2 popover update', [doc.activeElement === pop.el.querySelector('[data-ed-pop="b"]'), pop.el.querySelectorAll('button').length, h.body.contains(pop.el)], [true, 2, true]);
+        pop.close(false);
+    });
+
     // @@APPEND@@
 }

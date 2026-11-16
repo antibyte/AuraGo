@@ -255,5 +255,65 @@
         return input.edLimit;
     }
 
-    ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar, flash, limit };
+    // popover anchors a small dialog panel to a control (W1c): opts {content (an element, or markup), label (the dialog's name),
+    // className, onClose({restore})}. It sits under the anchor inside the nearest .ed-editor (else the body), left-aligned to the
+    // anchor and kept inside that host. Focus moves to the first button in it (else the panel); Escape closes it and gives the focus
+    // back to the anchor; a press outside the panel and the anchor, and focus that moves elsewhere, close it without moving the focus.
+    // Returns {el, close(restoreFocus), update(content), isOpen()}. update swaps the content and keeps the focus on the same
+    // [data-ed-pop] control. Nothing animates on close: the panel is removed at once.
+    function popover(anchor, opts) {
+        const o = opts || {};
+        const host = (anchor.closest && anchor.closest('.ed-editor')) || document.body;
+        const el = ED.core.el('<div class="ed-popover ed-popover--anchored" role="dialog" tabindex="-1"></div>');
+        if (o.label) el.setAttribute('aria-label', text(o.label));
+        if (o.className) o.className.split(/\s+/).filter(Boolean).forEach(name => el.classList.add(name));
+        let open = true;
+        function fill(content) {
+            el.innerHTML = '';
+            if (content && typeof content === 'object') el.appendChild(content); else el.innerHTML = text(content);
+        }
+        function place() {
+            const h = host.getBoundingClientRect(), a = anchor.getBoundingClientRect();
+            const left = Math.max(8, Math.min(a.left - h.left, h.width - 368));
+            el.style.left = left + 'px';
+            el.style.top = Math.max(8, a.bottom - h.top + 6) + 'px';
+        }
+        function close(restore) {
+            if (!open) return;
+            open = false;
+            document.removeEventListener('pointerdown', outside, true);
+            el.remove();
+            if (restore && typeof anchor.focus === 'function') anchor.focus();
+            if (typeof o.onClose === 'function') o.onClose({ restore: !!restore });
+        }
+        function outside(event) {
+            if (!el.contains(event.target) && !anchor.contains(event.target)) close(false);
+        }
+        el.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            close(true);
+        });
+        el.addEventListener('focusout', event => {
+            const to = event.relatedTarget;
+            if (to && !el.contains(to) && !anchor.contains(to)) close(false);
+        });
+        function update(content) {
+            const was = document.activeElement && el.contains(document.activeElement) ? document.activeElement.getAttribute('data-ed-pop') : null;
+            fill(content);
+            place();
+            const again = was ? el.querySelector('[data-ed-pop="' + was + '"]') : null;
+            if (again && typeof again.focus === 'function') again.focus();
+        }
+        fill(o.content);
+        host.appendChild(el);
+        place();
+        document.addEventListener('pointerdown', outside, true);
+        const first = el.querySelector('button');
+        (first || el).focus();
+        return { el, close, update, isOpen: () => open };
+    }
+
+    ED.kit = { disclosure, disclosureMarkup, attach, isOpen, setOpen, setTitle, setCount, body, callout, chip, toast, toolbar, flash, limit, popover };
 })();
