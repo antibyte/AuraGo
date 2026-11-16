@@ -1783,14 +1783,16 @@ func Start(opts StartOptions) error {
 				inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
 			}
 			go tools.EnsureAnsibleSidecarRunning(cfg.Docker.Host, tools.AnsibleSidecarConfig{
-				Token:         cfg.Ansible.Token,
-				Timeout:       cfg.Ansible.Timeout,
-				Image:         cfg.Ansible.Image,
-				ContainerName: cfg.Ansible.ContainerName,
-				PlaybooksDir:  cfg.Ansible.PlaybooksDir,
-				InventoryDir:  inventoryDir,
-				AutoBuild:     cfg.Ansible.AutoBuild,
-				DockerfileDir: cfg.Ansible.DockerfileDir,
+				ReadOnly:         cfg.Ansible.ReadOnly,
+				DefaultInventory: cfg.Ansible.DefaultInventory,
+				Token:            cfg.Ansible.Token,
+				Timeout:          cfg.Ansible.Timeout,
+				Image:            cfg.Ansible.Image,
+				ContainerName:    cfg.Ansible.ContainerName,
+				PlaybooksDir:     cfg.Ansible.PlaybooksDir,
+				InventoryDir:     inventoryDir,
+				AutoBuild:        cfg.Ansible.AutoBuild,
+				DockerfileDir:    cfg.Ansible.DockerfileDir,
 			}, logger)
 		}
 

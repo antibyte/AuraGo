@@ -223,7 +223,7 @@ func buildOmniRouteCreatePayload(sidecar OmniRouteSidecarConfig, networkName str
 		"OMNIROUTE_WS_BRIDGE_SECRET=" + sidecar.WSBridgeSecret,
 		"REQUIRE_API_KEY=true",
 		"ALLOW_API_KEY_REVEAL=false",
-		"AUTH_COOKIE_SECURE=false",
+		"AUTH_COOKIE_SECURE=" + strconv.FormatBool(omniRouteSecureCookie(sidecar.BrowserBaseURL)),
 		"NEXT_PUBLIC_BASE_URL=" + normalizeManifestBrowserBaseURL(sidecar.BrowserBaseURL),
 		"BASE_URL=" + strings.TrimRight(strings.TrimSpace(sidecar.InternalBaseURL), "/"),
 	}
@@ -255,6 +255,10 @@ func defaultOmniRouteMemoryMB(value int) int {
 		return omniRouteDefaultMemoryMB
 	}
 	return value
+}
+
+func omniRouteSecureCookie(browserURL string) bool {
+	return strings.HasPrefix(strings.ToLower(normalizeManifestBrowserBaseURL(browserURL)), "https://")
 }
 
 // EnsureOmniRouteSidecarRunning creates and starts OmniRoute when managed mode is enabled.
@@ -363,6 +367,9 @@ func omniRouteContainerNeedsRecreate(data []byte, sidecar OmniRouteSidecarConfig
 	if got, want := manifestEnvValue(info.Config.Env, "NEXT_PUBLIC_BASE_URL"), normalizeManifestBrowserBaseURL(sidecar.BrowserBaseURL); got != want {
 		return true
 	}
+	if manifestEnvValue(info.Config.Env, "AUTH_COOKIE_SECURE") != strconv.FormatBool(omniRouteSecureCookie(sidecar.BrowserBaseURL)) {
+		return true
+	}
 	if !manifestContainerAttachedToNetwork(info.NetworkSettings.Networks, networkName) {
 		return true
 	}
@@ -391,7 +398,7 @@ func omniRouteContainerNeedsRecreate(data []byte, sidecar OmniRouteSidecarConfig
 	}
 	containerPort := fmt.Sprintf("%d/tcp", port)
 	bindings := info.HostConfig.PortBindings[containerPort]
-	if len(bindings) == 0 {
+	if len(bindings) != 1 || len(info.HostConfig.PortBindings) != 1 {
 		return true
 	}
 	wantHost := manifestPublishHost(sidecar.Host)

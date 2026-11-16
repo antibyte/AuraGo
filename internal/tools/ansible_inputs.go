@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -76,6 +77,28 @@ func stageAnsibleInputs(ctx context.Context, cfg AnsibleLocalConfig, name string
 		var data []byte
 		func() {
 			defer root.Close()
+			prefix := ""
+			for _, part := range strings.Split(filepath.Clean(relative), string(filepath.Separator)) {
+				prefix = filepath.Join(prefix, part)
+				var info os.FileInfo
+				info, err = root.Lstat(prefix)
+				if err != nil {
+					return
+				}
+				if info.Mode()&os.ModeSymlink != 0 {
+					err = fmt.Errorf("inventory symlinks are not allowed")
+					return
+				}
+			}
+			before, statErr := root.Stat(relative)
+			if statErr != nil {
+				err = statErr
+				return
+			}
+			if !before.Mode().IsRegular() || before.Mode()&0111 != 0 {
+				err = fmt.Errorf("inventory must be a non-executable regular file")
+				return
+			}
 			var f *os.File
 			f, err = root.Open(relative)
 			if err != nil {
@@ -87,7 +110,7 @@ func stageAnsibleInputs(ctx context.Context, cfg AnsibleLocalConfig, name string
 			if err != nil {
 				return
 			}
-			if !info.Mode().IsRegular() || info.Mode()&0111 != 0 {
+			if !info.Mode().IsRegular() || info.Mode()&0111 != 0 || !os.SameFile(before, info) {
 				err = fmt.Errorf("inventory must be a non-executable regular file")
 				return
 			}
@@ -118,6 +141,44 @@ func stageAnsibleInputs(ctx context.Context, cfg AnsibleLocalConfig, name string
 		result = append(result, "-i", inventory)
 	}
 	return
+}
+
+func ansibleInventorySummary(raw string) string {
+	var inventory map[string]map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &inventory); err != nil {
+		return errJSON("Invalid Ansible inventory response")
+	}
+	result := make(map[string]interface{})
+	for name, group := range inventory {
+		if name == "_meta" {
+			continue
+		}
+		projection := make(map[string][]string)
+		for _, key := range []string{"hosts", "children"} {
+			var items []string
+			if json.Unmarshal(group[key], &items) == nil {
+				projection[key] = items
+			}
+		}
+		result[name] = projection
+	}
+	var hosts map[string]map[string]interface{}
+	if meta := inventory["_meta"]; meta != nil {
+		_ = json.Unmarshal(meta["hostvars"], &hosts)
+	}
+	for host, fields := range hosts {
+		clean := make(map[string]interface{})
+		for _, key := range []string{"ansible_host", "ansible_port", "ansible_user", "ansible_connection"} {
+			switch value := fields[key].(type) {
+			case string, float64:
+				clean[key] = value
+			}
+		}
+		hosts[host] = clean
+	}
+	result["_meta"] = map[string]interface{}{"hostvars": hosts}
+	data, _ := json.Marshal(result)
+	return ansibleLocalResult(string(data), "", nil)
 }
 
 func ansibleInputRelative(base, input string) (string, error) {

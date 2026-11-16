@@ -18,34 +18,24 @@ func AuthMiddleware(cfg *config.Config, next http.Handler) http.Handler {
 			return
 		}
 
-		auth := &cfg.A2A.Auth
-		if !auth.APIKeyEnabled && !auth.BearerEnabled {
-			http.Error(w, "A2A authentication is not configured", http.StatusUnauthorized)
+		if validCredentials(cfg, r.Header.Get("X-API-Key"), r.Header.Get("Authorization")) {
+			next.ServeHTTP(w, r)
 			return
-		}
-
-		// API keys use the header advertised by the agent card, never URL parameters.
-		if auth.APIKeyEnabled && auth.APIKey != "" {
-			if key := r.Header.Get("X-API-Key"); key != "" {
-				if subtle.ConstantTimeCompare([]byte(key), []byte(auth.APIKey)) == 1 {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-		}
-
-		// Try Bearer token auth (via Authorization header)
-		if auth.BearerEnabled && auth.BearerSecret != "" {
-			if authHeader := r.Header.Get("Authorization"); authHeader != "" {
-				if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok {
-					if subtle.ConstantTimeCompare([]byte(token), []byte(auth.BearerSecret)) == 1 {
-						next.ServeHTTP(w, r)
-						return
-					}
-				}
-			}
 		}
 
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	})
+}
+
+// Both transports use the configured credentials; discovery is HTTP-only.
+func validCredentials(cfg *config.Config, apiKey, authorization string) bool {
+	if cfg == nil {
+		return false
+	}
+	auth := &cfg.A2A.Auth
+	if auth.APIKeyEnabled && auth.APIKey != "" && apiKey != "" && subtle.ConstantTimeCompare([]byte(apiKey), []byte(auth.APIKey)) == 1 {
+		return true
+	}
+	token, bearer := strings.CutPrefix(authorization, "Bearer ")
+	return auth.BearerEnabled && auth.BearerSecret != "" && bearer && token != "" && subtle.ConstantTimeCompare([]byte(token), []byte(auth.BearerSecret)) == 1
 }

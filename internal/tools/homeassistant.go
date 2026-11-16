@@ -271,7 +271,7 @@ func HAServiceRefusal(domain, service string, allowedServices, blockedServices [
 	}
 	if len(allowedServices) == 0 {
 		switch domain {
-		case "shell_command", "python_script", "script", "hassio", "automation", "rest_command", "pyscript":
+		case "shell_command", "python_script", "script", "hassio", "automation", "rest_command", "pyscript", "lock", "alarm_control_panel", "cover":
 			return "Home Assistant service " + full + " requires an explicit entry in home_assistant.allowed_services"
 		case "homeassistant":
 			switch service {

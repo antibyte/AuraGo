@@ -43,11 +43,10 @@ EXPOSE 5001
 # All values can be overridden in docker-compose.yml / docker run -e ...
 ENV PORT=5001
 ENV PLAYBOOKS_DIR=/playbooks
-ENV DEFAULT_INVENTORY=/inventory/hosts
+ENV DEFAULT_INVENTORY=""
 ENV ANSIBLE_TIMEOUT=300
-# SSH host-key checking is ENABLED by default (security best practice).
-# Set ANSIBLE_HOST_KEY_CHECKING=False in docker-compose.yml / docker run -e if you
-# need to connect to hosts whose keys are not yet in known_hosts.
+# SSH host-key checking is enforced by the sidecar's filtered child environment.
+# Set up trusted known_hosts entries in the mounted SSH directory before use.
 ENV ANSIBLE_HOST_KEY_CHECKING=True
 
 # Run as a non-root user

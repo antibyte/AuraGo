@@ -211,8 +211,8 @@ func TestBuildManifestPayloadPublishesOnlyManifestPort(t *testing.T) {
 	hostConfig := payload["HostConfig"].(map[string]interface{})
 	portBindings := hostConfig["PortBindings"].(map[string]interface{})
 	bound := portBindings["2099/tcp"].([]interface{})[0].(map[string]interface{})
-	if bound["HostIp"] != "0.0.0.0" || bound["HostPort"] != "2099" {
-		t.Fatalf("Manifest port binding = %#v, want LAN-reachable 0.0.0.0:2099", bound)
+	if bound["HostIp"] != "127.0.0.1" || bound["HostPort"] != "2099" {
+		t.Fatalf("Manifest port binding = %#v, want loopback 127.0.0.1:2099", bound)
 	}
 }
 
@@ -315,6 +315,7 @@ func TestManifestContainerNeedsRecreateForLoopbackOnlyBinding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
 	}
+	sidecar.Host = "0.0.0.0"
 	if !manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
 		t.Fatal("expected loopback-only existing Manifest container to require recreation")
 	}
@@ -363,7 +364,7 @@ func TestManifestContainerWithoutBrowserOverrideIgnoresBetterAuthMismatch(t *tes
 		},
 		"HostConfig": {
 			"PortBindings": {
-				"2099/tcp": [{"HostIp": "0.0.0.0", "HostPort": "2099"}]
+				"2099/tcp": [{"HostIp": "127.0.0.1", "HostPort": "2099"}]
 			}
 		},
 		"NetworkSettings": {
@@ -406,6 +407,7 @@ func TestManifestContainerNeedsRecreateAcceptsLANReachableBinding(t *testing.T) 
 	if err != nil {
 		t.Fatalf("ResolveManifestSidecarConfig() error = %v", err)
 	}
+	sidecar.Host = "0.0.0.0"
 	if manifestContainerNeedsRecreate(inspect, sidecar, sidecar.NetworkName) {
 		t.Fatal("did not expect LAN-reachable existing Manifest container to require recreation")
 	}

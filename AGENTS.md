@@ -199,6 +199,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 | Feature / area | Required AGENTS.md | Scope |
 | --- | --- | --- |
+| Ansible sidecar | `ansible_api/AGENTS.md` | Static inventory admission, sanitized child execution/output, read-only checks and Go/sidecar compatibility. |
 | Repository scripts | `scripts/AGENTS.md` | Developer entrypoints, project-root resolution and release helper paths; runtime/update policy remains in root and upkeep guides. |
 | SQLite utilities | `internal/dbutil/AGENTS.md` | Shared database opening, migration primitives and private backup publication; stores retain schema and recovery ownership. |
 | Shared shell policy | `internal/shellpolicy/AGENTS.md` | Literal wrapper normalization and program-controlled execution checks for local, isolated and Remote shells; callers retain execution grants and OS isolation. |

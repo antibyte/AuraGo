@@ -127,8 +127,8 @@ func TestBuildOmniRouteCreatePayload(t *testing.T) {
 		t.Fatalf("Memory = %d, want 512 MiB", body.HostConfig.Memory)
 	}
 	bindings := body.HostConfig.PortBindings["20128/tcp"]
-	if len(bindings) != 1 || bindings[0].HostIP != "0.0.0.0" || bindings[0].HostPort != "20128" {
-		t.Fatalf("PortBindings = %#v, want 0.0.0.0:20128", body.HostConfig.PortBindings)
+	if len(bindings) != 1 || bindings[0].HostIP != "127.0.0.1" || bindings[0].HostPort != "20128" {
+		t.Fatalf("PortBindings = %#v, want 127.0.0.1:20128", body.HostConfig.PortBindings)
 	}
 }
 

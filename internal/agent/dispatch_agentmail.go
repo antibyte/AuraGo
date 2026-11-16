@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"aurago/internal/agentmail"
+	"aurago/internal/config"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 )
 
 type agentMailArgs struct {
@@ -83,7 +86,7 @@ func dispatchAgentMailCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	opCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	result, err := executeAgentMailOperation(opCtx, client, amCfg, req, cfg.Directories.WorkspaceDir)
+	result, err := executeAgentMailOperation(opCtx, client, amCfg, req, cfg)
 	if err != nil {
 		return agentMailError(err.Error()), true
 	}
@@ -124,7 +127,7 @@ func sanitizeAgentMailToolResult(ctx context.Context, guardian *security.Guardia
 	return checked.Text
 }
 
-func executeAgentMailOperation(ctx context.Context, client *agentmail.Client, cfg agentmail.Config, req agentMailArgs, workspaceDir string) (map[string]interface{}, error) {
+func executeAgentMailOperation(ctx context.Context, client *agentmail.Client, cfg agentmail.Config, req agentMailArgs, appCfg *config.Config) (map[string]interface{}, error) {
 	inboxID := strings.TrimSpace(req.InboxID)
 	requireInbox := func() (string, error) {
 		if inboxID == "" {
@@ -142,10 +145,9 @@ func executeAgentMailOperation(ctx context.Context, client *agentmail.Client, cf
 		if len(inputs) == 0 {
 			return nil, nil
 		}
-		if strings.TrimSpace(workspaceDir) == "" {
-			workspaceDir = "."
-		}
-		return agentmail.PrepareAttachments(workspaceDir, cfg.MaxAttachmentMB, inputs)
+		return agentmail.PrepareAttachments(cfg.MaxAttachmentMB, inputs, func(path string) (*os.File, error) {
+			return tools.OpenWorkspaceAttachment(path, appCfg)
+		})
 	}
 
 	switch req.Operation {

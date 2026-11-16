@@ -11,6 +11,7 @@ This folder owns the Ansible, Browser Automation and browser-egress Dockerfiles,
 ## Local Contracts
 
 - Ansible and browser Dockerfiles use the repository root as their build context; moving a Dockerfile does not change its COPY sources.
+- Ansible leaves `DEFAULT_INVENTORY` empty unless explicitly configured; the sidecar then uses a private localhost snapshot. Only an explicit default may permit an inventory outside the playbook root. Runtime policy: `../../ansible_api/AGENTS.md`.
 - Compose names these Dockerfiles explicitly. Native auto-builds also find them under `deploy/docker/`, retaining context-root Dockerfiles for existing custom build contexts.
 - Root `Dockerfile` copies `docker-entrypoint.sh` to `/app/docker-entrypoint.sh`; `.dockerignore` must include that source despite the general shell-script exclusion.
 - Release cleanup must preserve this entire source folder.

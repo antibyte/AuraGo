@@ -270,8 +270,8 @@ func buildManifestCreatePayload(sidecar ManifestSidecarConfig, networkName strin
 
 func manifestPublishHost(host string) string {
 	host = strings.TrimSpace(host)
-	if host == "" || strings.EqualFold(host, "localhost") || host == "127.0.0.1" || host == "::1" {
-		return "0.0.0.0"
+	if host == "" || strings.EqualFold(host, "localhost") {
+		return "127.0.0.1"
 	}
 	return host
 }
@@ -551,7 +551,7 @@ func manifestContainerNeedsRecreateWithAuth(data []byte, sidecar ManifestSidecar
 	}
 	containerPort := fmt.Sprintf("%d/tcp", port)
 	bindings := info.HostConfig.PortBindings[containerPort]
-	if len(bindings) == 0 {
+	if len(bindings) != 1 || len(info.HostConfig.PortBindings) != 1 {
 		return true
 	}
 	wantHost := manifestPublishHost(sidecar.Host)

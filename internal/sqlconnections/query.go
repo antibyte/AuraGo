@@ -38,7 +38,7 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 		return nil, fmt.Errorf("global SQL read-only mode is enabled — %s queries are blocked", stmtType.String())
 	}
 
-	if err := CheckPermission(rec, stmtType); err != nil {
+	if err := checkQueryPermissions(rec, stmtType, query); err != nil {
 		return nil, err
 	}
 	// A CTE may contain several different mutations. Require every grant,

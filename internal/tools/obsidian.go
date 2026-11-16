@@ -600,6 +600,9 @@ func ObsidianExecuteCommand(cfg config.ObsidianConfig, vault *security.Vault, co
 	if denied := obsidianReadOnlyMutationError(cfg, "execute_command"); denied != "" {
 		return denied
 	}
+	if !cfg.AllowDestructive {
+		return errJSON("Arbitrary Obsidian commands require obsidian.allow_destructive=true")
+	}
 
 	client, err := newObsidianClient(cfg, vault)
 	if err != nil {

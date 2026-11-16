@@ -23,10 +23,11 @@ import (
 
 // AnsibleConfig holds the connection parameters for the Ansible sidecar API.
 type AnsibleConfig struct {
-	Context context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
-	URL     string          // e.g. "http://ansible:5001"
-	Token   string          // Bearer token (matches ANSIBLE_API_TOKEN in the sidecar)
-	Timeout int             // HTTP client timeout in seconds (default 360)
+	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	URL      string          // e.g. "http://ansible:5001"
+	Token    string          // Bearer token (matches ANSIBLE_API_TOKEN in the sidecar)
+	Timeout  int             // HTTP client timeout in seconds (default 360)
+	ReadOnly bool
 }
 
 // ansibleHTTPClient is intentionally generous — playbook runs can take minutes.
@@ -38,6 +39,18 @@ var ansibleClientPool sync.Map
 
 // ansibleRequest executes an authenticated HTTP request against the Ansible sidecar.
 func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}) ([]byte, int, error) {
+	if cfg.ReadOnly && method == http.MethodPost && (endpoint == "/run/playbook" || endpoint == "/run/adhoc") {
+		return nil, 0, fmt.Errorf("ansible.readonly blocks playbooks (including check/dry_run) and arbitrary modules")
+	}
+	if endpoint == "/inventory" || strings.HasPrefix(endpoint, "/inventory?") || strings.HasPrefix(endpoint, "/run/") {
+		data, code, err := ansibleRequest(cfg, http.MethodGet, "/status", nil)
+		var status struct {
+			SecurityPolicy int `json:"security_policy"`
+		}
+		if err != nil || code != http.StatusOK || json.Unmarshal(data, &status) != nil || status.SecurityPolicy < 2 {
+			return nil, 0, fmt.Errorf("Ansible sidecar requires the static-inventory security update; rebuild its image")
+		}
+	}
 	url := strings.TrimRight(cfg.URL, "/") + endpoint
 
 	var reqBody io.Reader
@@ -227,14 +240,16 @@ const ansibleSidecarImage = "aurago-ansible:latest"
 // AnsibleSidecarConfig carries the fields needed to auto-manage the
 // Ansible sidecar container via the Docker API.
 type AnsibleSidecarConfig struct {
-	Token         string // ANSIBLE_API_TOKEN inside the container
-	Timeout       int    // ANSIBLE_TIMEOUT (seconds, default 300)
-	Image         string // Docker image (default: aurago-ansible:latest)
-	ContainerName string // Container name (default: aurago_ansible)
-	PlaybooksDir  string // Host path to playbooks dir (mounted into /playbooks)
-	InventoryDir  string // Host path to inventory dir (mounted into /inventory)
-	AutoBuild     bool   // Build image automatically if not found locally
-	DockerfileDir string // Directory containing Dockerfile.ansible (default: ".")
+	ReadOnly         bool
+	DefaultInventory string
+	Token            string // ANSIBLE_API_TOKEN inside the container
+	Timeout          int    // ANSIBLE_TIMEOUT (seconds, default 300)
+	Image            string // Docker image (default: aurago-ansible:latest)
+	ContainerName    string // Container name (default: aurago_ansible)
+	PlaybooksDir     string // Host path to playbooks dir (mounted into /playbooks)
+	InventoryDir     string // Host path to inventory dir (mounted into /inventory)
+	AutoBuild        bool   // Build image automatically if not found locally
+	DockerfileDir    string // Directory containing Dockerfile.ansible (default: ".")
 }
 
 // EnsureAnsibleSidecarRunning ensures the Ansible sidecar container is running.
@@ -260,17 +275,10 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		containerName = ansibleContainerName
 	}
 
-	// Check if ANY ansible sidecar (any name) is already running with the same image.
-	listData, listCode, listErr := dockerRequest(dockerCfg, "GET",
-		`/containers/json?filters={"status":["running"],"ancestor":["`+image+`"]}`, "")
-	if listErr == nil && listCode == 200 {
-		var containers []map[string]interface{}
-		if json.Unmarshal(listData, &containers) == nil && len(containers) > 0 {
-			logger.Info("[Ansible] Sidecar container already running (external)", "count", len(containers))
-			return
-		}
+	defaultInventory := ""
+	if sidecarCfg.DefaultInventory != "" {
+		defaultInventory = "/inventory/" + filepath.Base(sidecarCfg.DefaultInventory)
 	}
-
 	// Inspect our managed container
 	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+containerName+"/json", "")
 	if err != nil {
@@ -282,6 +290,20 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		// Container exists — check if it's running
 		var info map[string]interface{}
 		if json.Unmarshal(data, &info) == nil {
+			var inspect struct{ Config struct{ Env []string } }
+			if json.Unmarshal(data, &inspect) != nil {
+				return
+			}
+			desired := fmt.Sprintf("ANSIBLE_READONLY=%t", sidecarCfg.ReadOnly)
+			matched, current := false, false
+			for _, value := range inspect.Config.Env {
+				matched = matched || value == desired
+				current = current || value == "AURAGO_ANSIBLE_POLICY=2"
+			}
+			if !matched || !current || manifestEnvValue(inspect.Config.Env, "DEFAULT_INVENTORY") != defaultInventory {
+				ReapplyAnsibleToken(dockerHost, sidecarCfg, logger)
+				return
+			}
 			if state, ok := info["State"].(map[string]interface{}); ok {
 				if running, _ := state["Running"].(bool); running {
 					logger.Info("[Ansible] Sidecar container already running")
@@ -327,6 +349,9 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 	env := []string{
 		"PORT=5001",
 		"ANSIBLE_HOST_KEY_CHECKING=True",
+		fmt.Sprintf("ANSIBLE_READONLY=%t", sidecarCfg.ReadOnly),
+		"AURAGO_ANSIBLE_POLICY=2",
+		"DEFAULT_INVENTORY=" + defaultInventory,
 	}
 	if sidecarCfg.Token != "" {
 		env = append(env, "ANSIBLE_API_TOKEN="+sidecarCfg.Token)
@@ -465,8 +490,9 @@ func ReapplyAnsibleToken(dockerHost string, sidecarCfg AnsibleSidecarConfig, log
 		logger.Warn("[Ansible] Failed to stop container (may already be stopped)", "container", containerName, "code", code, "error", err)
 	}
 	// Remove container (best-effort)
-	if _, code, err := dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName, ""); err != nil {
+	if _, code, err := dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName, ""); err != nil || (code != http.StatusNoContent && code != http.StatusNotFound) {
 		logger.Warn("[Ansible] Failed to remove container (may already be removed)", "container", containerName, "code", code, "error", err)
+		return
 	}
 
 	// Recreate with updated token
@@ -495,6 +521,7 @@ func ansibleSSHDir() string {
 
 // AnsibleLocalConfig holds settings for direct (non-sidecar) ansible execution.
 type AnsibleLocalConfig struct {
+	ReadOnly         bool
 	Context          context.Context
 	WorkDir          string
 	PlaybooksDir     string // directory containing playbook files
@@ -524,6 +551,16 @@ func ansibleLocalResult(stdout, stderr string, err error) string {
 
 // ansibleRunCmd executes a command with a timeout and returns stdout, stderr, and error.
 func ansibleRunCmd(cfg AnsibleLocalConfig, name string, args ...string) (string, string, error) {
+	if cfg.ReadOnly {
+		if name == "ansible-playbook" {
+			return "", "", fmt.Errorf("ansible.readonly blocks playbooks, including check/dry_run")
+		}
+		for i, arg := range args {
+			if arg == "-m" && i+1 < len(args) && args[i+1] != "ping" && args[i+1] != "setup" {
+				return "", "", fmt.Errorf("ansible.readonly blocks arbitrary modules")
+			}
+		}
+	}
 	ctx := cfg.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -615,8 +652,11 @@ func AnsibleLocalListInventory(cfg AnsibleLocalConfig, inventoryPath string) str
 	if inv != "" {
 		args = append(args, "-i", inv)
 	}
-	stdout, stderr, err := ansibleRunCmd(cfg, "ansible-inventory", args...)
-	return ansibleLocalResult(stdout, stderr, err)
+	stdout, _, err := ansibleRunCmd(cfg, "ansible-inventory", args...)
+	if err != nil {
+		return errJSON("Ansible inventory unavailable: execution disabled or invalid static inventory")
+	}
+	return ansibleInventorySummary(stdout)
 }
 
 // AnsibleLocalPing runs `ansible <hosts> -m ping`.

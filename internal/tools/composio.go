@@ -142,6 +142,7 @@ type ComposioConnectLink struct {
 }
 
 type ComposioExecuteRequest struct {
+	PreferredAccountID string                 `json:"-"` // Trusted configuration, never a model argument.
 	ToolSlug           string                 `json:"tool_slug"`
 	ToolkitSlug        string                 `json:"toolkit_slug,omitempty"`
 	ConnectedAccountID string                 `json:"connected_account_id,omitempty"`
@@ -151,7 +152,8 @@ type ComposioExecuteRequest struct {
 }
 
 type ComposioExecuteResult struct {
-	Raw json.RawMessage `json:"raw"`
+	Raw                json.RawMessage `json:"raw"`
+	ConnectedAccountID string          `json:"connected_account_id"`
 }
 
 func NewComposioClient(cfg ComposioClientConfig) *ComposioClient {
@@ -315,7 +317,18 @@ func (c *ComposioClient) CreateAuthConfig(ctx context.Context, toolkitSlug strin
 }
 
 func (c *ComposioClient) ListConnectedAccounts(ctx context.Context, toolkitSlug, userID string) (ComposioListPage[ComposioConnectedAccount], error) {
+	page, err := c.listConnectedAccountsPage(ctx, toolkitSlug, userID, "")
+	if err == nil {
+		c.rememberConnections(toolkitSlug, userID, page)
+	}
+	return page, err
+}
+
+func (c *ComposioClient) listConnectedAccountsPage(ctx context.Context, toolkitSlug, userID, cursor string) (ComposioListPage[ComposioConnectedAccount], error) {
 	values := url.Values{}
+	if cursor != "" {
+		values.Set("cursor", cursor)
+	}
 	if strings.TrimSpace(toolkitSlug) != "" {
 		values.Set("toolkit_slugs", strings.TrimSpace(toolkitSlug))
 	}
@@ -333,7 +346,6 @@ func (c *ComposioClient) ListConnectedAccounts(ctx context.Context, toolkitSlug,
 	for i := range page.Items {
 		page.Items[i].normalize()
 	}
-	c.rememberConnections(toolkitSlug, userID, page)
 	return page, nil
 }
 
@@ -355,6 +367,11 @@ func (c *ComposioClient) ExecuteTool(ctx context.Context, req ComposioExecuteReq
 	if req.ToolSlug == "" {
 		return ComposioExecuteResult{}, fmt.Errorf("composio tool slug is required")
 	}
+	accountID, err := c.selectExecutionAccount(ctx, req.ToolkitSlug, req.UserID, req.PreferredAccountID, req.ConnectedAccountID)
+	if err != nil {
+		return ComposioExecuteResult{}, err
+	}
+	req.ConnectedAccountID = accountID
 	payload := map[string]interface{}{}
 	if req.Arguments != nil {
 		payload["arguments"] = req.Arguments
@@ -374,7 +391,56 @@ func (c *ComposioClient) ExecuteTool(ctx context.Context, req ComposioExecuteReq
 	if err != nil {
 		return ComposioExecuteResult{}, err
 	}
-	return ComposioExecuteResult{Raw: append(json.RawMessage(nil), body...)}, nil
+	return ComposioExecuteResult{Raw: append(json.RawMessage(nil), body...), ConnectedAccountID: accountID}, nil
+}
+
+func (c *ComposioClient) selectExecutionAccount(ctx context.Context, toolkit, user, preferred, requested string) (string, error) {
+	toolkit, user = strings.TrimSpace(toolkit), strings.TrimSpace(user)
+	preferred, requested = strings.TrimSpace(preferred), strings.TrimSpace(requested)
+	if toolkit == "" || user == "" {
+		return "", fmt.Errorf("Composio execution requires a configured user and verified toolkit")
+	}
+	if preferred != "" && requested != "" && requested != preferred {
+		return "", fmt.Errorf("connected_account_id does not match the configured preferred account")
+	}
+	matched := make(map[string]bool)
+	seen := make(map[string]bool)
+	cursor := ""
+	for pageNumber := 0; pageNumber < 100; pageNumber++ {
+		page, err := c.listConnectedAccountsPage(ctx, toolkit, user, cursor)
+		if err != nil {
+			return "", err
+		}
+		for _, account := range page.Items {
+			if account.ID != "" && account.UserID == user && strings.EqualFold(account.ToolkitSlug, toolkit) && strings.EqualFold(strings.TrimSpace(account.Status), "active") {
+				matched[account.ID] = true
+			}
+		}
+		if page.NextCursor == "" {
+			selected := preferred
+			if selected == "" {
+				if len(matched) != 1 {
+					return "", fmt.Errorf("select an active account in the Composio toolkit configuration; automatic selection requires exactly one matching account")
+				}
+				for id := range matched {
+					selected = id
+				}
+			}
+			if !matched[selected] {
+				return "", fmt.Errorf("configured Composio account is not active for this user and toolkit")
+			}
+			if requested != "" && requested != selected {
+				return "", fmt.Errorf("requested Composio account is not the authorized account")
+			}
+			return selected, nil
+		}
+		if seen[page.NextCursor] {
+			return "", fmt.Errorf("Composio account pagination did not advance")
+		}
+		seen[page.NextCursor] = true
+		cursor = page.NextCursor
+	}
+	return "", fmt.Errorf("Composio account list is incomplete; execution blocked")
 }
 
 func (c *ComposioClient) do(ctx context.Context, method, path string, values url.Values, payload interface{}) ([]byte, error) {

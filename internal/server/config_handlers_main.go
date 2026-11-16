@@ -1577,19 +1577,21 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 					inventoryDir = filepath.Dir(newCfg.Ansible.DefaultInventory)
 				}
 				sidecarCfg := tools.AnsibleSidecarConfig{
-					Token:         newCfg.Ansible.Token,
-					Timeout:       newCfg.Ansible.Timeout,
-					Image:         newCfg.Ansible.Image,
-					ContainerName: newCfg.Ansible.ContainerName,
-					PlaybooksDir:  newCfg.Ansible.PlaybooksDir,
-					InventoryDir:  inventoryDir,
-					AutoBuild:     newCfg.Ansible.AutoBuild,
-					DockerfileDir: newCfg.Ansible.DockerfileDir,
+					ReadOnly:         newCfg.Ansible.ReadOnly,
+					DefaultInventory: newCfg.Ansible.DefaultInventory,
+					Token:            newCfg.Ansible.Token,
+					Timeout:          newCfg.Ansible.Timeout,
+					Image:            newCfg.Ansible.Image,
+					ContainerName:    newCfg.Ansible.ContainerName,
+					PlaybooksDir:     newCfg.Ansible.PlaybooksDir,
+					InventoryDir:     inventoryDir,
+					AutoBuild:        newCfg.Ansible.AutoBuild,
+					DockerfileDir:    newCfg.Ansible.DockerfileDir,
 				}
 				if newCfg.Docker.Enabled && (!oldCfg.Ansible.Enabled || oldCfg.Ansible.Mode != "sidecar") {
 					// Newly enabled — create/start container
 					go tools.EnsureAnsibleSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
-				} else if newCfg.Docker.Enabled && newCfg.Ansible.Token != oldCfg.Ansible.Token && newCfg.Ansible.Token != "" {
+				} else if newCfg.Docker.Enabled && (newCfg.Ansible.Token != oldCfg.Ansible.Token || newCfg.Ansible.ReadOnly != oldCfg.Ansible.ReadOnly || newCfg.Ansible.DefaultInventory != oldCfg.Ansible.DefaultInventory) {
 					// Token changed while already running — recreate container to apply new token
 					go tools.ReapplyAnsibleToken(newCfg.Docker.Host, sidecarCfg, s.Logger)
 				}

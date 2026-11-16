@@ -7,8 +7,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // TailscaleConfig holds the Tailscale API connection parameters.
@@ -67,9 +70,15 @@ func tailscaleRequest(cfg TailscaleConfig, method, endpoint, body string) ([]byt
 // tailscaleFindDeviceID resolves a hostname, MagicDNS name, IP address, or node ID to a
 // Tailscale device node ID. If the query is already a node ID it is returned unchanged.
 func tailscaleFindDeviceID(cfg TailscaleConfig, query string) (string, error) {
-	// Node IDs are long alphanumeric strings (no dots or spaces).
-	if len(query) > 10 && !strings.ContainsAny(query, ". \t") {
-		return query, nil
+	if strings.ContainsAny(query, "/\\?#%") || strings.IndexFunc(query, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("invalid Tailscale device identifier")
+	}
+	query = strings.TrimSpace(query)
+	if query == "" || strings.ContainsAny(query, " \t") {
+		return "", fmt.Errorf("Tailscale device identifier is required")
+	}
+	if tailscaleDeviceIDPattern.MatchString(query) {
+		return tailscaleDevicePathID(query)
 	}
 	endpoint := fmt.Sprintf("/api/v2/tailnet/%s/devices", tailscaleTailnet(cfg))
 	data, code, err := tailscaleRequest(cfg, "GET", endpoint, "")
@@ -95,17 +104,27 @@ func tailscaleFindDeviceID(cfg TailscaleConfig, query string) (string, error) {
 		// Match by short hostname or full MagicDNS name
 		if strings.ToLower(d.Hostname) == q || strings.ToLower(d.Name) == q ||
 			strings.HasPrefix(strings.ToLower(d.Name), q+".") {
-			return d.ID, nil
+			return tailscaleDevicePathID(d.ID)
 		}
 		// Match by Tailscale IP (strip CIDR suffix if present)
 		for _, addr := range d.Addresses {
 			bare := strings.SplitN(addr, "/", 2)[0]
 			if bare == query {
-				return d.ID, nil
+				return tailscaleDevicePathID(d.ID)
 			}
 		}
 	}
 	return "", fmt.Errorf("device not found: %q", query)
+}
+
+// The hosted API accepts legacy numeric IDs and opaque stable node IDs.
+var tailscaleDeviceIDPattern = regexp.MustCompile(`^(?:[0-9]{1,20}|n[A-Za-z0-9]{1,100}CNTRL)$`)
+
+func tailscaleDevicePathID(id string) (string, error) {
+	if !tailscaleDeviceIDPattern.MatchString(id) {
+		return "", fmt.Errorf("Tailscale returned an invalid device identifier")
+	}
+	return url.PathEscape(id), nil
 }
 
 // ─── Public API functions ────────────────────────────────────────────────────

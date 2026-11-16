@@ -22,6 +22,7 @@ owns tool admission. Mailer's provider adapter remains in `../mailer`.
   `agentmail.allow_delete` grant at agent/server boundaries; readonly wins.
 - Register credentials before requests. Keep relay sender policy, successful-seed
   admission, quarantine, deduplication and shutdown joining intact.
+- File attachments require a configured workspace and the trusted `tools.OpenWorkspaceAttachment` opener. Keep the retained regular-file handle, pre-read size check and bounded read; never fall back to the process directory. Shared outgoing-file policy rejects protected paths, hard links and roots containing configuration/data. Base64 limits remain independent.
 - Server relay handoff uses an isolated mail-event session and the shared notification receipt policy; it cannot answer a pending question in the default human chat. Server owns the trusted loaded-cheatsheet marker and the 35-minute loopback caller budget.
 
 ## Work Guidance

@@ -249,6 +249,7 @@ func compactVercelProject(project map[string]interface{}) map[string]interface{}
 	}
 	return map[string]interface{}{
 		"id":               strVal(project, "id"),
+		"account_id":       strVal(project, "accountId"),
 		"name":             strVal(project, "name"),
 		"framework":        strVal(project, "framework"),
 		"root_directory":   strVal(project, "rootDirectory"),

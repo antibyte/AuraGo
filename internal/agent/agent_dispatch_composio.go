@@ -325,29 +325,11 @@ func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, 
 		})
 	}
 
-	accountID := strings.TrimSpace(req.ConnectedAccountID)
-	if accountID == "" {
-		accountID = tools.ComposioPreferredConnectedAccount(policy, toolInfo.ToolkitSlug)
-	}
-	if accountID == "" {
-		accountID, err = firstActiveComposioAccount(ctx, client, toolInfo.ToolkitSlug, cfg.Composio.UserID)
-		if err != nil {
-			return composioErrorOutput("list_connected_accounts", err)
-		}
-	}
-	if accountID == "" {
-		return composioJSONOutput(map[string]interface{}{
-			"status":       "connect_required",
-			"message":      "No connected Composio account is available for this toolkit. Connect it in the Composio configuration UI first.",
-			"toolkit_slug": toolInfo.ToolkitSlug,
-			"tool_slug":    toolInfo.Slug,
-		})
-	}
-
 	result, err := client.ExecuteTool(ctx, tools.ComposioExecuteRequest{
 		ToolSlug:           toolInfo.Slug,
 		ToolkitSlug:        toolInfo.ToolkitSlug,
-		ConnectedAccountID: accountID,
+		ConnectedAccountID: strings.TrimSpace(req.ConnectedAccountID),
+		PreferredAccountID: tools.ComposioPreferredConnectedAccount(policy, toolInfo.ToolkitSlug),
 		UserID:             cfg.Composio.UserID,
 		Arguments:          req.Arguments,
 		Text:               req.Text,
@@ -360,7 +342,7 @@ func dispatchComposioExecute(ctx context.Context, client *tools.ComposioClient, 
 		"operation":            "execute_tool",
 		"tool_slug":            req.ToolSlug,
 		"toolkit_slug":         toolInfo.ToolkitSlug,
-		"connected_account_id": accountID,
+		"connected_account_id": result.ConnectedAccountID,
 		"result":               json.RawMessage(result.Raw),
 	})
 }
@@ -384,23 +366,6 @@ func filterComposioToolsForPolicy(policy tools.ComposioPolicyConfig, items []too
 		}
 	}
 	return filtered
-}
-
-func firstActiveComposioAccount(ctx context.Context, client *tools.ComposioClient, toolkitSlug, userID string) (string, error) {
-	if strings.TrimSpace(toolkitSlug) == "" {
-		return "", nil
-	}
-	page, err := client.ListConnectedAccounts(ctx, toolkitSlug, userID)
-	if err != nil {
-		return "", err
-	}
-	for _, account := range page.Items {
-		status := strings.ToLower(strings.TrimSpace(account.Status))
-		if account.ID != "" && (status == "" || status == "active" || status == "connected" || status == "success") {
-			return account.ID, nil
-		}
-	}
-	return "", nil
 }
 
 func composioErrorOutput(operation string, err error) string {

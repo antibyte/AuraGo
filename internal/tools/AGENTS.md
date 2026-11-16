@@ -13,11 +13,19 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Compose file validation fails closed on path-resolution errors, including Windows junctions. Compare resolved file/workspace paths before every existing CLI entry point. Agent preflight and its final recheck read through `os.Root` with the existing regular-file, identity and 4-MiB bounds; model/host-access checks remain required.
 
 - Home Assistant indirect execution (`script`, `automation`, `python_script`,
-  `rest_command`, `pyscript`, `shell_command`, `hassio`) and core system services
+  `rest_command`, `pyscript`, `shell_command`, `hassio`), `lock`, `alarm_control_panel`, `cover` and core system services
   require explicit allowed-service entries. Generic homeassistant turn/toggle
   calls check each concrete entity's effective service as well; unresolved group,
   area, device, label, floor and all-target selections are refused. Read-only and
   blocked services always win. Verify `TestHA*Service*` and `TestHAGenericTargets*`.
+
+- Ansible local and sidecar inventory/execution share `../../ansible_api/AGENTS.md`. Read-only denies check/dry-run as well as playbook writes. Managed containers reconcile read-only/default-inventory policy; older sidecars cannot execute or expose raw inventory.
+- AgentMail uses `OpenWorkspaceAttachment`, narrowing the existing outgoing-file protection to a nonempty workspace; never use general project input resolution for email attachments.
+- Obsidian arbitrary `execute_command` requires `allow_destructive`; read-only always denies it. Named read/open operations retain their individual policy.
+- Composio execution requires an ACTIVE account with the configured user and toolkit. A preferred ID is binding; without one exactly one matching account may be selected across all pages. Never authorize from cached account metadata or model-supplied IDs alone.
+- Homepage Vercel deployments bind existing targets to `default_project_id` and verify the returned project/account against `team_id`. New projects require management permission and an explicit name; a conflict never adopts an existing project. CLI environment binds the verified project and account IDs.
+- Manifest/OmniRoute publish exactly the configured interface; loopback never expands to wildcard. Reconcile port-binding drift without removing volumes. OmniRoute secure cookies follow the configured browser URL's HTTPS scheme.
+- Tailscale device IDs are validated before path construction, including IDs returned by hostname/IP lookup; reject path/query/fragment/control/percent-encoded input.
 
 - PDF text extraction reads the rooted file handle through `pdftext.Extract`.
   Pass dispatch cancellation; failed extraction never reaches the summary LLM.

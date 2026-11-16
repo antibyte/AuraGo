@@ -18,8 +18,11 @@ Endpoints:
 import glob
 import json
 import os
+import re
 import signal
+import stat
 import subprocess
+import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
@@ -31,10 +34,11 @@ from urllib.parse import parse_qs, urlparse
 TOKEN             = os.environ.get("ANSIBLE_API_TOKEN", "")
 ALLOW_UNAUTH      = os.environ.get("ANSIBLE_API_ALLOW_UNAUTH", "").lower() in {"1", "true", "yes"}
 PLAYBOOKS_DIR     = os.environ.get("PLAYBOOKS_DIR", "/playbooks")
-DEFAULT_INVENTORY = os.environ.get("DEFAULT_INVENTORY", "/inventory/hosts")
+DEFAULT_INVENTORY = os.environ.get("DEFAULT_INVENTORY", "")
 ANSIBLE_TIMEOUT   = int(os.environ.get("ANSIBLE_TIMEOUT", "300"))
 PORT              = int(os.environ.get("PORT", "5001"))
 MAX_BODY_SIZE     = int(os.environ.get("MAX_BODY_SIZE", str(2 * 1024 * 1024)))  # 2 MB default
+READ_ONLY         = os.environ.get("ANSIBLE_READONLY", "false").lower() in {"1", "true", "yes"}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -52,22 +56,34 @@ def run_ansible(cmd: list, timeout: int = None) -> dict:
     """Execute an ansible command as a subprocess and return rc/stdout/stderr."""
     effective_timeout = timeout or ANSIBLE_TIMEOUT
     env = {
-        **os.environ,
+        **{key: os.environ[key] for key in ("PATH", "HOME", "USER", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP") if key in os.environ},
         "ANSIBLE_FORCE_COLOR": "0",
         "ANSIBLE_NOCOLOR":     "1",
+        "ANSIBLE_HOST_KEY_CHECKING": "True",
+        "ANSIBLE_INVENTORY_ENABLED": "ini,yaml",
     }
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=effective_timeout,
-            env=env,
-        )
+        if READ_ONLY and (cmd[0] == "ansible-playbook" or (cmd[0] == "ansible" and "-m" in cmd and cmd[cmd.index("-m") + 1] not in {"ping", "setup"})):
+            raise ValueError("ansible.readonly blocks playbooks (including check/dry_run) and arbitrary modules")
+        if cmd[0] == "ansible" and len(cmd) > 1 and cmd[1].startswith("-") and cmd[1] != "--version":
+            raise ValueError("invalid host pattern")
+        with tempfile.TemporaryDirectory(prefix="aurago-ansible-") as staging:
+            cmd = list(cmd)
+            if "-i" in cmd:
+                index = cmd.index("-i") + 1
+                data, extension = read_static_inventory(cmd[index]) if cmd[index] else (b"localhost ansible_connection=local\n", ".ini")
+                inventory = os.path.join(staging, "inventory" + extension)
+                with open(inventory, "xb") as target:
+                    target.write(data)
+                cmd[index] = inventory
+            env["ANSIBLE_CONFIG"] = os.path.join(staging, "safe.cfg")
+            with open(env["ANSIBLE_CONFIG"], "x", encoding="utf-8") as config:
+                config.write("[defaults]\nhost_key_checking=True\n[inventory]\nenable_plugins=ini,yaml\n")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=effective_timeout, env=env, cwd=staging)
         return {
             "rc":     result.returncode,
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
+            "stdout": scrub_token(result.stdout.strip()),
+            "stderr": scrub_token(result.stderr.strip()),
         }
     except subprocess.TimeoutExpired:
         return {
@@ -81,8 +97,77 @@ def run_ansible(cmd: list, timeout: int = None) -> dict:
             "stdout": "",
             "stderr": "Ansible not found. Is it installed in this container?",
         }
-    except Exception as exc:
+    except ValueError as exc:
         return {"rc": -1, "stdout": "", "stderr": str(exc)}
+    except Exception:
+        return {"rc": -1, "stdout": "", "stderr": "Ansible input or execution failed"}
+
+
+def scrub_token(value: str) -> str:
+    return value.replace(TOKEN, "[redacted]") if TOKEN else value
+
+
+def read_static_inventory(value: str) -> tuple[bytes, str]:
+    """Snapshot a bounded non-executable inventory without following symlinks."""
+    if not isinstance(value, str) or not value or "\x00" in value:
+        raise ValueError("inventory path is required")
+    root = os.path.abspath(PLAYBOOKS_DIR)
+    if value == DEFAULT_INVENTORY and os.path.isabs(value):
+        root = os.path.dirname(value)
+    path = os.path.abspath(value if os.path.isabs(value) else os.path.join(root, value))
+    if os.path.commonpath([root, path]) != root or path == root:
+        raise ValueError("inventory path escapes the configured root")
+    relative = os.path.relpath(path, root)
+    extension = os.path.splitext(path)[1].lower()
+    if extension not in {"", ".ini", ".yaml", ".yml"}:
+        raise ValueError("only static INI/YAML inventories are supported")
+    descriptors = []
+    try:
+        if os.open in os.supports_dir_fd:
+            parent = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            descriptors.append(parent)
+            parts = relative.split(os.sep)
+            for part in parts[:-1]:
+                parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+                descriptors.append(parent)
+            fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
+        else:
+            current = root
+            for part in relative.split(os.sep):
+                current = os.path.join(current, part)
+                info = os.lstat(current)
+                if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
+                    raise ValueError("inventory symlinks are not allowed")
+            if not stat.S_ISREG(info.st_mode):
+                raise ValueError("inventory must be a regular file")
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
+            if not os.path.samestat(info, os.fstat(fd)):
+                os.close(fd)
+                raise ValueError("inventory changed while opening")
+        with os.fdopen(fd, "rb") as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o111 or info.st_size > 1024 * 1024:
+                raise ValueError("inventory must be a bounded non-executable regular file")
+            data = source.read(1024 * 1024 + 1)
+        if len(data) > 1024 * 1024 or b"\x00" in data or data.startswith(b"#!") or re.search(rb"(?im)^\s*['\"]?plugin['\"]?\s*:", data):
+            raise ValueError("only bounded static INI/YAML inventories are supported")
+        return data, extension or ".ini"
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def inventory_summary(data: dict) -> dict:
+    """Expose topology and connection metadata, never arbitrary inventory vars."""
+    result = {}
+    for name, group in data.items():
+        if name == "_meta" or not isinstance(group, dict):
+            continue
+        result[name] = {key: value for key in ("hosts", "children") if isinstance(value := group.get(key), list) and all(isinstance(item, str) for item in value)}
+    allowed = {"ansible_host", "ansible_port", "ansible_user", "ansible_connection"}
+    hosts = data.get("_meta", {}).get("hostvars", {})
+    result["_meta"] = {"hostvars": {host: {key: value for key, value in fields.items() if key in allowed and isinstance(value, (str, int))} for host, fields in hosts.items() if isinstance(fields, dict)}}
+    return result
 
 
 def inventory_arg(body: dict) -> str:
@@ -181,6 +266,7 @@ class Handler(BaseHTTPRequestHandler):
         version_line = out["stdout"].split("\n")[0] if out["stdout"] else "unknown"
         self.send_json(200, {
             "status":             "ok",
+            "security_policy":    2,
             "version":            version_line,
             "token_configured":   bool(TOKEN),
             "playbooks_dir":      PLAYBOOKS_DIR,
@@ -201,11 +287,11 @@ class Handler(BaseHTTPRequestHandler):
         if out["rc"] == 0:
             try:
                 data = json.loads(out["stdout"])
-                self.send_json(200, {"status": "ok", "inventory": data})
+                self.send_json(200, {"status": "ok", "inventory": inventory_summary(data)})
             except Exception:
-                self.send_json(200, {"status": "ok", "raw": out["stdout"]})
+                self.send_json(502, {"status": "error", "message": "Invalid inventory response"})
         else:
-            self.send_json(500, {"status": "error", **out})
+            self.send_json(400, {"status": "error", "message": "Inventory rejected or unavailable"})
 
     # ── POST ──────────────────────────────────────────────────────────────────
 

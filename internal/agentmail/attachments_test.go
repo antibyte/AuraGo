@@ -24,10 +24,10 @@ func TestPrepareAttachmentsAcceptsWorkspacePathAndBase64(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	got, err := PrepareAttachments(workspace, 1, []AttachmentInput{
+	got, err := PrepareAttachments(1, []AttachmentInput{
 		{Path: filepath.Join("reports", "report.txt"), ContentType: "text/plain"},
 		{Filename: "inline.txt", ContentType: "text/plain", Base64: base64.StdEncoding.EncodeToString([]byte("inline"))},
-	})
+	}, attachmentTestOpener(t, workspace))
 	if err != nil {
 		t.Fatalf("PrepareAttachments() error = %v", err)
 	}
@@ -52,7 +52,7 @@ func TestPrepareAttachmentsRejectsOutsideWorkspace(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	if _, err := PrepareAttachments(workspace, 1, []AttachmentInput{{Path: outsidePath}}); err == nil {
+	if _, err := PrepareAttachments(1, []AttachmentInput{{Path: outsidePath}}, attachmentTestOpener(t, workspace)); err == nil {
 		t.Fatal("PrepareAttachments() expected error for outside path")
 	}
 }
@@ -66,7 +66,7 @@ func TestPrepareAttachmentsRejectsOversizedInput(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	if _, err := PrepareAttachments(workspace, 0, []AttachmentInput{{Path: path}}); err == nil {
+	if _, err := PrepareAttachments(0, []AttachmentInput{{Path: path}}, attachmentTestOpener(t, workspace)); err == nil {
 		t.Fatal("PrepareAttachments() expected error when file exceeds zero MB limit")
 	}
 }
@@ -145,3 +145,22 @@ func TestAttachmentRedirectRequiresPublicHTTPS(t *testing.T) {
 type attachmentRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f attachmentRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func attachmentTestOpener(t *testing.T, workspace string) func(string) (*os.File, error) {
+	t.Helper()
+	root, err := os.OpenRoot(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { root.Close() })
+	return func(path string) (*os.File, error) {
+		if filepath.IsAbs(path) {
+			var err error
+			path, err = filepath.Rel(workspace, path)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return root.Open(path)
+	}
+}

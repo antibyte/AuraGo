@@ -103,6 +103,20 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 	if strings.TrimSpace(vcfg.Token) == "" {
 		return errJSON("Vercel token is required")
 	}
+	projectRef := strings.TrimSpace(vcfg.DefaultProjectID)
+	requestedProject := strings.TrimSpace(projectID)
+	createProject := projectRef == ""
+	if createProject {
+		if !allowProjectManagement || !vcfg.AllowProjectManagement || requestedProject == "" || strings.HasPrefix(requestedProject, "prj_") {
+			return errJSON("Bind an existing project ID in vercel.default_project_id. Creating a new project requires vercel.allow_project_management and an explicit new project name.")
+		}
+		projectRef = requestedProject
+	} else if !strings.HasPrefix(projectRef, "prj_") || (requestedProject != "" && requestedProject != projectRef) {
+		return errJSON("Deployment must match the project ID bound in vercel.default_project_id; project names and folder fallbacks are not accepted.")
+	}
+	if strings.TrimSpace(vcfg.TeamSlug) != "" && strings.TrimSpace(vcfg.TeamID) == "" {
+		return errJSON("Bind the Vercel team with vercel.team_id before deployment.")
+	}
 	if (strings.TrimSpace(alias) != "" || strings.TrimSpace(domain) != "") && !allowDomainManagement {
 		return errJSON("Alias or domain assignment for Vercel requires vercel.allow_domain_management=true.")
 	}
@@ -212,61 +226,36 @@ func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, bui
 		logger.Warn("[Homepage] Vercel: failed to build deployment manifest", "project_dir", projectDir, "build_dir", manifestBuildDir, "error", manifestErr)
 	}
 
-	projectRef := strings.TrimSpace(projectID)
-	if projectRef == "" {
-		projectRef = strings.TrimSpace(vcfg.DefaultProjectID)
+	var projectResult map[string]interface{}
+	if createProject {
+		// A name conflict is an error, never permission to adopt the existing project.
+		projectResult = parseToolJSON(VercelCreateProject(vcfg, projectRef, framework, "", ""))
+	} else {
+		projectResult = parseToolJSON(VercelGetProject(vcfg, projectRef))
 	}
-	if projectRef == "" && projectDir != "." {
-		projectRef = filepath.Base(projectDir)
+	if projectResult["status"] != "ok" {
+		return errJSON("Vercel project selection failed; no existing project is adopted or created as a fallback")
 	}
-	if projectRef == "" {
-		projectRef = "aurago-homepage"
+	projectObj, ok := projectResult["project"].(map[string]interface{})
+	if !ok {
+		return errJSON("Vercel project identity is unavailable")
 	}
-
-	projectResult := parseToolJSON(VercelGetProject(vcfg, projectRef))
-	projectExists := projectResult["status"] == "ok"
-	if !projectExists {
-		httpCode := vercelHTTPCode(projectResult)
-		if httpCode != 404 && httpCode != 0 {
-			msg, _ := projectResult["message"].(string)
-			if msg == "" {
-				msg = "Failed to look up Vercel project"
-			}
-			return errJSON("%s", msg)
-		}
-		if !allowProjectManagement {
-			return errJSON("Vercel project %q was not found. Set vercel.default_project_id, pass project_id, or enable vercel.allow_project_management so AuraGo may create the project automatically.", projectRef)
-		}
-		createRaw := VercelCreateProject(vcfg, projectRef, framework, "", "")
-		createResult := parseToolJSON(createRaw)
-		if createResult["status"] != "ok" {
-			msg, _ := createResult["message"].(string)
-			if msg == "" {
-				msg = createRaw
-			}
-			return errJSON("Failed to create Vercel project %q: %s", projectRef, truncateStr(msg, 500))
-		}
-		projectExists = true
-		projectResult = createResult
+	resolvedID, accountID := strVal(projectObj, "id"), strVal(projectObj, "account_id")
+	if !strings.HasPrefix(resolvedID, "prj_") || (!createProject && resolvedID != projectRef) || accountID == "" {
+		return errJSON("Vercel project identity does not match the configured binding")
 	}
-
-	cliProjectRef := projectRef
-	if projectObj, ok := projectResult["project"].(map[string]interface{}); ok {
-		if name := strVal(projectObj, "name"); name != "" {
-			cliProjectRef = name
-		}
-		if id := strVal(projectObj, "id"); id != "" {
-			projectRef = id
-		} else if name := strVal(projectObj, "name"); name != "" {
-			projectRef = name
-		}
+	teamID := strings.TrimSpace(vcfg.TeamID)
+	if (teamID != "" && accountID != teamID) || (teamID == "" && strings.HasPrefix(accountID, "team_")) {
+		return errJSON("Vercel project does not match vercel.team_id")
 	}
+	projectRef = resolvedID
+	cliProjectRef := resolvedID
 
 	logger.Info("[Homepage] Deploying to Vercel", "project", projectRef, "path", deploySubdir, "target", target, "static_output", staticOutputDeploy)
 
 	scopeFlag := vercelScopeFlag(vcfg)
 	deployCmd := buildVercelDeployCommand(deploySubdir, cliProjectRef, target, vcfg)
-	deployRaw := HomepageExec(cfg, deployCmd, []string{"VERCEL_TOKEN=" + vcfg.Token}, logger)
+	deployRaw := HomepageExec(cfg, deployCmd, []string{"VERCEL_TOKEN=" + vcfg.Token, "VERCEL_PROJECT_ID=" + projectRef, "VERCEL_ORG_ID=" + accountID}, logger)
 	deployOutput := security.Scrub(extractOutput(deployRaw))
 
 	var deployResp map[string]interface{}

@@ -328,6 +328,10 @@ func TestComposioClientNormalizesErrorsAndCapsResults(t *testing.T) {
 
 func TestComposioClientExecuteToolPostsArguments(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/connected_accounts" {
+			w.Write([]byte(`{"items":[{"id":"acct_1","user_id":"owner","toolkit_slug":"github","status":"ACTIVE"}]}`))
+			return
+		}
 		if r.URL.Path != "/tools/execute/GITHUB_GET_REPO" {
 			t.Fatalf("path = %q, want execute endpoint", r.URL.Path)
 		}
@@ -354,6 +358,8 @@ func TestComposioClientExecuteToolPostsArguments(t *testing.T) {
 	})
 	result, err := client.ExecuteTool(context.Background(), ComposioExecuteRequest{
 		ToolSlug:           "GITHUB_GET_REPO",
+		ToolkitSlug:        "github",
+		UserID:             "owner",
 		ConnectedAccountID: "acct_1",
 		Arguments:          map[string]interface{}{"owner": "aurago"},
 	})

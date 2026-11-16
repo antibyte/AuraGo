@@ -86,6 +86,21 @@ type outgoingRoots struct {
 	dropped []string
 }
 
+// OpenWorkspaceAttachment narrows outgoing-file policy to the configured workspace.
+func OpenWorkspaceAttachment(filePath string, cfg *config.Config) (*os.File, error) {
+	if cfg == nil || strings.TrimSpace(cfg.Directories.WorkspaceDir) == "" {
+		return nil, fmt.Errorf("directories.workspace_dir is required for file attachments")
+	}
+	resolved, root, err := resolveOutgoingAttachment(filePath, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if root != canonicalExistingRoot(cfg.Directories.WorkspaceDir) {
+		return nil, fmt.Errorf("attachment must be inside directories.workspace_dir")
+	}
+	return openWithinOutgoingRoot(cfg, root, resolved)
+}
+
 // outgoingAttachmentRoots returns the folders an outgoing attachment may live in: the
 // workspace and the documents folder, minus any that contains the data directory or the
 // directory of the config file. Such a folder would send the vault, the databases and the

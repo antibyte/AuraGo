@@ -57,14 +57,16 @@ func handleAnsibleGenerateToken(s *Server) http.HandlerFunc {
 				inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
 			}
 			go tools.ReapplyAnsibleToken(cfg.Docker.Host, tools.AnsibleSidecarConfig{
-				Token:         token,
-				Timeout:       cfg.Ansible.Timeout,
-				Image:         cfg.Ansible.Image,
-				ContainerName: cfg.Ansible.ContainerName,
-				PlaybooksDir:  cfg.Ansible.PlaybooksDir,
-				InventoryDir:  inventoryDir,
-				AutoBuild:     cfg.Ansible.AutoBuild,
-				DockerfileDir: cfg.Ansible.DockerfileDir,
+				ReadOnly:         cfg.Ansible.ReadOnly,
+				DefaultInventory: cfg.Ansible.DefaultInventory,
+				Token:            token,
+				Timeout:          cfg.Ansible.Timeout,
+				Image:            cfg.Ansible.Image,
+				ContainerName:    cfg.Ansible.ContainerName,
+				PlaybooksDir:     cfg.Ansible.PlaybooksDir,
+				InventoryDir:     inventoryDir,
+				AutoBuild:        cfg.Ansible.AutoBuild,
+				DockerfileDir:    cfg.Ansible.DockerfileDir,
 			}, s.Logger)
 		}
 

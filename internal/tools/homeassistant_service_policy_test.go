@@ -6,7 +6,7 @@ import (
 )
 
 func TestHAExecutableServicesNeedExplicitGrant(t *testing.T) {
-	for _, domain := range []string{"shell_command", "python_script", "script", "hassio", "automation", "rest_command", "pyscript"} {
+	for _, domain := range []string{"shell_command", "python_script", "script", "hassio", "automation", "rest_command", "pyscript", "lock", "alarm_control_panel", "cover"} {
 		t.Run(domain, func(t *testing.T) {
 			if got := HAServiceRefusal(domain, "run", nil, nil); !strings.Contains(got, "explicit") {
 				t.Fatalf("missing explicit-grant denial: %q", got)

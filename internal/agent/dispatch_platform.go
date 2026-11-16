@@ -914,8 +914,8 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			req := decodeAnsibleArgs(tc)
 			if cfg.Ansible.ReadOnly {
 				switch req.Operation {
-				case "adhoc", "command", "run_module", "playbook", "run", "run_playbook":
-					return `Tool Output: {"status":"error","message":"Ansible is in read-only mode. Disable ansible.read_only to allow changes."}`
+				case "adhoc", "command", "run_module", "playbook", "run", "run_playbook", "check", "dry_run":
+					return `Tool Output: {"status":"error","message":"Ansible is in read-only mode. Disable ansible.readonly to allow changes (including check/dry_run)."}`
 				}
 			}
 			// Resolve host pattern (hosts for ad-hoc / limit for playbooks)
@@ -928,6 +928,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if isLocal {
 				// ── Local CLI mode ──────────────────────────────────────────────────────
 				localCfg := tools.AnsibleLocalConfig{
+					ReadOnly:         cfg.Ansible.ReadOnly,
 					Context:          ctx,
 					WorkDir:          filepath.Join(cfg.Directories.WorkspaceDir, "workdir"),
 					PlaybooksDir:     cfg.Ansible.PlaybooksDir,
@@ -976,9 +977,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 			// ── Sidecar mode (default) ──────────────────────────────────────────────
 			ansCfg := tools.AnsibleConfig{Context: ctx,
-				URL:     cfg.Ansible.URL,
-				Token:   cfg.Ansible.Token,
-				Timeout: cfg.Ansible.Timeout,
+				ReadOnly: cfg.Ansible.ReadOnly,
+				URL:      cfg.Ansible.URL,
+				Token:    cfg.Ansible.Token,
+				Timeout:  cfg.Ansible.Timeout,
 			}
 			switch req.Operation {
 			case "status", "health":
@@ -1164,7 +1166,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// Destructive operation check
 			if !cfg.Obsidian.AllowDestructive {
 				switch req.Operation {
-				case "delete_note":
+				case "delete_note", "execute_command":
 					return `Tool Output: {"status":"error","message":"Destructive Obsidian operations are disabled. Set obsidian.allow_destructive=true in config.yaml."}`
 				}
 			}
