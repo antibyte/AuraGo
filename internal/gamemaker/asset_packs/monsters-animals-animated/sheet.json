@@ -9,7 +9,7 @@
     "enemy"
   ],
   "schema_version": 1,
-  "version": "2",
+  "version": "3",
   "image": "sheet.png",
   "columns": 10,
   "rows": 10,
@@ -1447,9 +1447,9 @@
         0,
         1,
         2,
-        3
+        1
       ],
-      "frame_rate": 6,
+      "frame_rate": 4,
       "repeat": -1,
       "yoyo": false,
       "entity": "slime",
@@ -1469,7 +1469,7 @@
         10,
         11
       ],
-      "frame_rate": 10,
+      "frame_rate": 8,
       "repeat": -1,
       "yoyo": false,
       "entity": "slime",
@@ -1487,7 +1487,7 @@
         16,
         17
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "slime",
@@ -1501,7 +1501,7 @@
         18,
         19
       ],
-      "frame_rate": 12,
+      "frame_rate": 6,
       "repeat": 0,
       "yoyo": false,
       "entity": "slime",
@@ -1518,7 +1518,7 @@
         23,
         24
       ],
-      "frame_rate": 12,
+      "frame_rate": 8,
       "repeat": 0,
       "yoyo": false,
       "entity": "slime",
@@ -1532,9 +1532,9 @@
         25,
         26,
         27,
-        28
+        26
       ],
-      "frame_rate": 6,
+      "frame_rate": 4,
       "repeat": -1,
       "yoyo": false,
       "entity": "goblin",
@@ -1554,7 +1554,7 @@
         35,
         36
       ],
-      "frame_rate": 10,
+      "frame_rate": 8,
       "repeat": -1,
       "yoyo": false,
       "entity": "goblin",
@@ -1572,7 +1572,7 @@
         41,
         42
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "goblin",
@@ -1586,7 +1586,7 @@
         43,
         44
       ],
-      "frame_rate": 12,
+      "frame_rate": 6,
       "repeat": 0,
       "yoyo": false,
       "entity": "goblin",
@@ -1603,7 +1603,7 @@
         48,
         49
       ],
-      "frame_rate": 12,
+      "frame_rate": 8,
       "repeat": 0,
       "yoyo": false,
       "entity": "goblin",
@@ -1617,9 +1617,9 @@
         50,
         51,
         52,
-        53
+        51
       ],
-      "frame_rate": 6,
+      "frame_rate": 4,
       "repeat": -1,
       "yoyo": false,
       "entity": "wolf",
@@ -1639,7 +1639,7 @@
         60,
         61
       ],
-      "frame_rate": 10,
+      "frame_rate": 8,
       "repeat": -1,
       "yoyo": false,
       "entity": "wolf",
@@ -1657,7 +1657,7 @@
         66,
         67
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "wolf",
@@ -1671,7 +1671,7 @@
         68,
         69
       ],
-      "frame_rate": 12,
+      "frame_rate": 6,
       "repeat": 0,
       "yoyo": false,
       "entity": "wolf",
@@ -1688,7 +1688,7 @@
         73,
         74
       ],
-      "frame_rate": 12,
+      "frame_rate": 8,
       "repeat": 0,
       "yoyo": false,
       "entity": "wolf",
@@ -1702,9 +1702,9 @@
         75,
         76,
         77,
-        78
+        76
       ],
-      "frame_rate": 6,
+      "frame_rate": 4,
       "repeat": -1,
       "yoyo": false,
       "entity": "boar",
@@ -1724,7 +1724,7 @@
         85,
         86
       ],
-      "frame_rate": 10,
+      "frame_rate": 8,
       "repeat": -1,
       "yoyo": false,
       "entity": "boar",
@@ -1742,7 +1742,7 @@
         91,
         92
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "boar",
@@ -1756,7 +1756,7 @@
         93,
         94
       ],
-      "frame_rate": 12,
+      "frame_rate": 6,
       "repeat": 0,
       "yoyo": false,
       "entity": "boar",
@@ -1773,7 +1773,7 @@
         98,
         99
       ],
-      "frame_rate": 12,
+      "frame_rate": 8,
       "repeat": 0,
       "yoyo": false,
       "entity": "boar",

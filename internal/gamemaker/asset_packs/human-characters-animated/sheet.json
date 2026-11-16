@@ -1,7 +1,7 @@
 {
   "id": "human-characters-animated",
   "name": "Human Characters Animated",
-  "description": "Ranger and knight side-view character animations.",
+  "description": "Ranger and knight side-view character animations. Stable pixel-art cycles with rear-view ladder and rope climbing.",
   "tags": [
     "human",
     "character",
@@ -9,10 +9,10 @@
     "platformer"
   ],
   "schema_version": 1,
-  "version": "2",
+  "version": "3",
   "image": "sheet.png",
   "columns": 10,
-  "rows": 10,
+  "rows": 12,
   "frame_width": 64,
   "frame_height": 64,
   "frames": [
@@ -815,6 +815,166 @@
       "y": 576,
       "w": 64,
       "h": 64
+    },
+    {
+      "index": 100,
+      "asset_id": "ranger_climb_ladder",
+      "x": 0,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 101,
+      "asset_id": "ranger_climb_ladder",
+      "x": 64,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 102,
+      "asset_id": "ranger_climb_ladder",
+      "x": 128,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 103,
+      "asset_id": "ranger_climb_ladder",
+      "x": 192,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 104,
+      "asset_id": "ranger_climb_ladder",
+      "x": 256,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 105,
+      "asset_id": "ranger_climb_rope",
+      "x": 320,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 106,
+      "asset_id": "ranger_climb_rope",
+      "x": 384,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 107,
+      "asset_id": "ranger_climb_rope",
+      "x": 448,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 108,
+      "asset_id": "ranger_climb_rope",
+      "x": 512,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 109,
+      "asset_id": "ranger_climb_rope",
+      "x": 576,
+      "y": 640,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 110,
+      "asset_id": "knight_climb_ladder",
+      "x": 0,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 111,
+      "asset_id": "knight_climb_ladder",
+      "x": 64,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 112,
+      "asset_id": "knight_climb_ladder",
+      "x": 128,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 113,
+      "asset_id": "knight_climb_ladder",
+      "x": 192,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 114,
+      "asset_id": "knight_climb_ladder",
+      "x": 256,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 115,
+      "asset_id": "knight_climb_rope",
+      "x": 320,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 116,
+      "asset_id": "knight_climb_rope",
+      "x": 384,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 117,
+      "asset_id": "knight_climb_rope",
+      "x": 448,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 118,
+      "asset_id": "knight_climb_rope",
+      "x": 512,
+      "y": 704,
+      "w": 64,
+      "h": 64
+    },
+    {
+      "index": 119,
+      "asset_id": "knight_climb_rope",
+      "x": 576,
+      "y": 704,
+      "w": 64,
+      "h": 64
     }
   ],
   "assets": [
@@ -1295,6 +1455,150 @@
         "y": 0.9375
       },
       "flip_x": true
+    },
+    {
+      "id": "ranger_climb_ladder",
+      "name": "Ranger Climb Ladder",
+      "description": "Ranger climbing a ladder in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+      "tags": [
+        "ranger",
+        "human",
+        "character",
+        "climb",
+        "climbing",
+        "ladder",
+        "klettern",
+        "leiter"
+      ],
+      "view": "side",
+      "entity": "ranger",
+      "action": "climb_ladder",
+      "transform": {
+        "mode": "fixed",
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        100,
+        101,
+        102,
+        103,
+        104
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "ranger_climb_rope",
+      "name": "Ranger Climb Rope",
+      "description": "Ranger climbing a rope in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+      "tags": [
+        "ranger",
+        "human",
+        "character",
+        "climb",
+        "climbing",
+        "rope",
+        "klettern",
+        "seil"
+      ],
+      "view": "side",
+      "entity": "ranger",
+      "action": "climb_rope",
+      "transform": {
+        "mode": "fixed",
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        105,
+        106,
+        107,
+        108,
+        109
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "knight_climb_ladder",
+      "name": "Knight Climb Ladder",
+      "description": "Knight climbing a ladder in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+      "tags": [
+        "knight",
+        "human",
+        "character",
+        "climb",
+        "climbing",
+        "ladder",
+        "klettern",
+        "leiter"
+      ],
+      "view": "side",
+      "entity": "knight",
+      "action": "climb_ladder",
+      "transform": {
+        "mode": "fixed",
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        110,
+        111,
+        112,
+        113,
+        114
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
+    },
+    {
+      "id": "knight_climb_rope",
+      "name": "Knight Climb Rope",
+      "description": "Knight climbing a rope in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+      "tags": [
+        "knight",
+        "human",
+        "character",
+        "climb",
+        "climbing",
+        "rope",
+        "klettern",
+        "seil"
+      ],
+      "view": "side",
+      "entity": "knight",
+      "action": "climb_rope",
+      "transform": {
+        "mode": "fixed",
+        "flip_x": false,
+        "flip_y": false
+      },
+      "frames": [
+        115,
+        116,
+        117,
+        118,
+        119
+      ],
+      "direction": "none",
+      "origin": {
+        "x": 0.5,
+        "y": 0.9375
+      },
+      "flip_x": false
     }
   ],
   "animations": [
@@ -1305,11 +1609,9 @@
         0,
         1,
         2,
-        3,
-        4,
-        5
+        1
       ],
-      "frame_rate": 6,
+      "frame_rate": 4,
       "repeat": -1,
       "yoyo": false,
       "entity": "ranger",
@@ -1320,16 +1622,14 @@
       "id": "ranger_walk",
       "asset_id": "ranger_walk",
       "frames": [
-        6,
-        7,
         8,
         9,
         10,
         11,
-        12,
-        13
+        7,
+        6
       ],
-      "frame_rate": 10,
+      "frame_rate": 8,
       "repeat": -1,
       "yoyo": false,
       "entity": "ranger",
@@ -1341,15 +1641,13 @@
       "asset_id": "ranger_run",
       "frames": [
         14,
-        15,
         16,
-        17,
         18,
         19,
-        20,
-        21
+        17,
+        15
       ],
-      "frame_rate": 10,
+      "frame_rate": 12,
       "repeat": -1,
       "yoyo": false,
       "entity": "ranger",
@@ -1367,7 +1665,7 @@
         26,
         27
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "ranger",
@@ -1387,7 +1685,7 @@
         34,
         35
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "ranger",
@@ -1403,7 +1701,7 @@
         38,
         39
       ],
-      "frame_rate": 12,
+      "frame_rate": 6,
       "repeat": 0,
       "yoyo": false,
       "entity": "ranger",
@@ -1425,7 +1723,7 @@
         48,
         49
       ],
-      "frame_rate": 12,
+      "frame_rate": 8,
       "repeat": 0,
       "yoyo": false,
       "entity": "ranger",
@@ -1439,11 +1737,9 @@
         50,
         51,
         52,
-        53,
-        54,
-        55
+        51
       ],
-      "frame_rate": 6,
+      "frame_rate": 4,
       "repeat": -1,
       "yoyo": false,
       "entity": "knight",
@@ -1454,16 +1750,14 @@
       "id": "knight_walk",
       "asset_id": "knight_walk",
       "frames": [
-        56,
-        57,
         58,
         59,
         60,
         61,
-        62,
-        63
+        57,
+        56
       ],
-      "frame_rate": 10,
+      "frame_rate": 8,
       "repeat": -1,
       "yoyo": false,
       "entity": "knight",
@@ -1475,15 +1769,13 @@
       "asset_id": "knight_run",
       "frames": [
         64,
-        65,
         66,
-        67,
         68,
         69,
-        70,
-        71
+        67,
+        65
       ],
-      "frame_rate": 10,
+      "frame_rate": 12,
       "repeat": -1,
       "yoyo": false,
       "entity": "knight",
@@ -1501,7 +1793,7 @@
         76,
         77
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "knight",
@@ -1521,7 +1813,7 @@
         84,
         85
       ],
-      "frame_rate": 12,
+      "frame_rate": 10,
       "repeat": 0,
       "yoyo": false,
       "entity": "knight",
@@ -1537,7 +1829,7 @@
         88,
         89
       ],
-      "frame_rate": 12,
+      "frame_rate": 6,
       "repeat": 0,
       "yoyo": false,
       "entity": "knight",
@@ -1559,12 +1851,84 @@
         98,
         99
       ],
-      "frame_rate": 12,
+      "frame_rate": 8,
       "repeat": 0,
       "yoyo": false,
       "entity": "knight",
       "action": "death",
       "direction": "right"
+    },
+    {
+      "id": "ranger_climb_ladder",
+      "asset_id": "ranger_climb_ladder",
+      "frames": [
+        100,
+        101,
+        101,
+        102,
+        103,
+        103
+      ],
+      "frame_rate": 8,
+      "repeat": -1,
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "climb_ladder",
+      "direction": "none"
+    },
+    {
+      "id": "ranger_climb_rope",
+      "asset_id": "ranger_climb_rope",
+      "frames": [
+        105,
+        106,
+        106,
+        107,
+        108,
+        108
+      ],
+      "frame_rate": 8,
+      "repeat": -1,
+      "yoyo": false,
+      "entity": "ranger",
+      "action": "climb_rope",
+      "direction": "none"
+    },
+    {
+      "id": "knight_climb_ladder",
+      "asset_id": "knight_climb_ladder",
+      "frames": [
+        110,
+        111,
+        111,
+        112,
+        113,
+        113
+      ],
+      "frame_rate": 8,
+      "repeat": -1,
+      "yoyo": false,
+      "entity": "knight",
+      "action": "climb_ladder",
+      "direction": "none"
+    },
+    {
+      "id": "knight_climb_rope",
+      "asset_id": "knight_climb_rope",
+      "frames": [
+        115,
+        116,
+        116,
+        117,
+        118,
+        118
+      ],
+      "frame_rate": 8,
+      "repeat": -1,
+      "yoyo": false,
+      "entity": "knight",
+      "action": "climb_rope",
+      "direction": "none"
     }
   ],
   "provenance": {
@@ -1576,6 +1940,10 @@
       {
         "file": "humans-side.png",
         "sha256": "c3803565567eabf2ef6b69bb96051e24e7c2fa784ba7581a4e97c4b173e52759"
+      },
+      {
+        "file": "humans-climbing.png",
+        "sha256": "f3a86c3994979395eaaecfbffcb5ac55c50e8517b53897acaf95ee31755a323a"
       }
     ],
     "note": "Reviewed source poses; repeated source frames are intentional animation holds."

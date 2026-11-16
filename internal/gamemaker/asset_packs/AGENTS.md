@@ -34,7 +34,9 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
   copies, preserve existing project limits and permissions. Model metadata is
   per asset in project copies. Routes serve only manifest-allowlisted files.
 
-- Twenty-two fixed-grid sheets, each 640×640 RGBA with 100 cells of 64×64 pixels. Animation frames
+- Twenty-two fixed-grid sheets with ten columns of 64×64 RGBA cells. The two
+  human packs have twelve rows (120 frames); the other twenty have ten rows
+  (100 frames). Preserve existing frame indices when appending actions. Animation frames
   count as cells. Non-tile objects have real transparent margins; no painted
   checkerboards, labels, grid lines, empty cells or clipped bodies.
 - Stable pack/asset IDs and schema/versioned JSON describe every cell and
@@ -50,6 +52,12 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
 - Preserve originals and their hashes. Edit reviewed rectangles/pose selections
   in `production/manifest.json`; rebuild outputs through the pack script. Do not
   manually patch generated JSON/PNGs. No third-party game characters or packs.
+- Character content version 3 keeps the original pixel-art look. Reviewed body
+  anchors, explicit local `animation_frames` and `frame_rate` control alignment
+  and cadence independently of storage cells. Preserve intentional holds and
+  complete one-shot actions. Human `climb_ladder`/`climb_rope` clips use rear
+  views with `direction: none`, available from any facing through `playAction`.
+  The game owns travel, collision and descent playback; no climbable is baked in.
 - `assembly_part` sprites may touch cell edges. Each belongs to an `assemblies`
   recipe with width/height, normalized origin and ordered parts (`asset_id`,
   numeric `frame`, top-left pixel `x`/`y`, optional `animation_id`). Render a
@@ -70,6 +78,8 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
 # Verification
 
 - `python scripts/pack_game_sprites.py --check`
+- `python scripts/test_pack_game_sprites.py`
+- `node scripts/test-game-maker-sprites.mjs`
 - `go test ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMakerAssetPack'`
 - Studio Assets previews and an exported game using locally packaged Phaser 4.2.1.
 - `python assets/game-maker-low-poly/verify.py --boards`

@@ -31,7 +31,7 @@ export function preloadPack(scene, meta, imagePath) {
     }
     return;
   }
-  need(meta.frame_width === 64 && meta.frame_height === 64 && meta.frames.length === 100, `${meta.id}: expected 100 frames of 64x64`);
+  need(meta.frame_width === 64 && meta.frame_height === 64 && meta.columns === 10 && Number.isInteger(meta.rows) && meta.rows >= 10 && meta.rows <= 32 && meta.frames.length === meta.columns * meta.rows, `${meta.id}: expected a complete 10-column grid of 64x64 frames`);
   if (!scene.textures.exists(keyFor(meta))) scene.load.spritesheet(keyFor(meta), imagePath, { frameWidth: 64, frameHeight: 64 });
 }
 export function registerAnimations(scene, meta) {
@@ -153,9 +153,9 @@ export function playAction(object, action) {
   }
   const clips = u.meta.animations.filter(a => a.entity ? a.entity === u.a.entity : a.asset_id === u.a.id);
   const candidates = clips.filter(a => a.action === action);
-  const animation = candidates.find(a => a.direction === u.direction) || candidates.find(a => a.direction === u.a.direction && u.a.transform.mode !== 'directional');
+  const animation = candidates.find(a => a.direction === u.direction) || candidates.find(a => a.direction === 'none') || candidates.find(a => a.direction === u.a.direction && u.a.transform.mode !== 'directional');
   if (!animation) {
-    const actions = [...new Set(clips.filter(a => a.direction === u.direction || (a.direction === u.a.direction && u.a.transform.mode !== 'directional')).map(a => a.action))];
+    const actions = [...new Set(clips.filter(a => a.direction === u.direction || a.direction === 'none' || (a.direction === u.a.direction && u.a.transform.mode !== 'directional')).map(a => a.action))];
     need(false, `${u.a.id}: action ${JSON.stringify(action)} unavailable for direction ${u.direction}; available actions: ${actions.map(a => JSON.stringify(a)).join(', ') || 'none'}. Pass only the action to playAction(object, action); use setFacing(object, dx, dy) for direction, not an action/direction or animation ID.`);
   }
   object.play(animKey(u.meta, animation.id), true);

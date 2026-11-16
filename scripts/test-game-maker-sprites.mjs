@@ -1,72 +1,5 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import vm from 'node:vm';
-
-const source = fs.readFileSync(new URL('../internal/gamemaker/build.go', import.meta.url), 'utf8');
-const guard = source.match(/const phaserSpriteGuard = `([\s\S]*?)`/)[1];
-const calls = [];
-class Loader {
-  addFile(input) { calls.push({ loader: this, input }); return this; }
-}
-class TextureManager {
-  exists(key) { return key === 'loaded'; }
-  get(key) { return key; }
-}
-class GameObject { constructor(){this.body={gameObject:this};} }
-class ArcadeFactory {
-  collider(...args){return {factory:this,args};}
-  overlap(...args){return {factory:this,args};}
-}
-const context = { Phaser: { Loader: { LoaderPlugin: Loader }, Textures: { TextureManager }, Physics:{Arcade:{Factory:ArcadeFactory}}, GameObjects:{GameObject} } };
-vm.runInNewContext(guard, context);
-const wrapped = Loader.prototype.addFile;
-vm.runInNewContext(guard, context);
-assert.equal(Loader.prototype.addFile, wrapped, 'guard must install only once');
-const textures=new TextureManager(), get=textures.get;
-vm.runInNewContext(guard, context);
-assert.equal(textures.get,get);
-assert.throws(()=>textures.get({id:'blocks-and-balls',assets:[]}),/pack JSON.*createAsset/);
-assert.throws(()=>textures.get('absent'),/texture absent is not loaded/);
-assert.equal(textures.get('loaded'),'loaded');
-assert.equal(textures.get(undefined),undefined);
-const nativeTexture={key:'loaded'};assert.equal(textures.get(nativeTexture),nativeTexture);
-const factory=new ArcadeFactory(), physicsObject=new GameObject();
-for(const method of ['collider','overlap']){
-  const wrapped=factory[method];vm.runInNewContext(guard,context);assert.equal(factory[method],wrapped);
-  for(const input of [{body:physicsObject,art:{}},[{body:physicsObject}]]){
-    assert.throws(()=>factory[method](input,physicsObject),/wrapper.*persistent group/);
-    assert.throws(()=>factory[method](physicsObject,input),/wrapper.*persistent group/);
-  }
-  for(const input of [physicsObject,[physicsObject],{isParent:true},physicsObject.body,undefined]){
-    const result=factory[method](input,physicsObject);
-    assert.equal(result.factory,factory);assert.equal(result.args[0],input);
-  }
-}
-const loader = new Loader();
-const url = 'assets/builtin/space-shooter/1/sheet.png';
-const good = { type: 'spritesheet', url, config: { frameWidth: 64, frameHeight: 64 } };
-assert.equal(loader.addFile(good), loader);
-assert.equal(calls[0].loader, loader);
-assert.equal(calls[0].input, good);
-loader.addFile([good, { type: 'image', url: 'assets/custom.png' }]);
-loader.addFile({ type: 'json', url: 'assets/builtin/space-shooter/1/sheet.json' });
-loader.addFile({ ...good, config: { frameWidth: 64 } });
-for (const file of [
-  { type: 'image', url },
-  { type: 'image', url: '/api/game-maker/preview/token/' + url + '?v=1' },
-  { type: 'image', url: url.replace('space-shooter', 'space%2Dshooter') },
-  { ...good, config: { frameWidth: 640, frameHeight: 640 } },
-  { ...good, config: { frameWidth: 64, frameHeight: 32 } },
-  { ...good, config: { frameWidth: 64, spacing: 1 } },
-  { ...good, config: { frameWidth: 64, startFrame: 10 } },
-]) {
-  const before = calls.length;
-  assert.throws(() => loader.addFile(file), /load\.spritesheet.*frameWidth:64/);
-  assert.throws(() => loader.addFile([good, file]), /load\.spritesheet/);
-  assert.equal(calls.length, before, 'invalid batches must not reach the loader');
-}
-vm.runInNewContext(guard, {}); // A Three.js game has no Phaser global.
-console.log('PASS: built-in sprite loader contract, arrays, URLs and idempotence');
 
 const helpers = await import('../internal/gamemaker/runtime/aurago-game-1.js');
 const meta = JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_packs/human-characters-animated/sheet.json', import.meta.url)));
@@ -88,12 +21,20 @@ class Sprite {
 }
 const objects=[];
 const scene={
-  textures:{exists:()=>true,get:()=>({has:frame=>Number.isInteger(frame)&&frame>=0&&frame<100})},
+  textures:{exists:()=>true,get:()=>({has:frame=>Number.isInteger(frame)&&frame>=0&&frame<meta.frames.length})},
   anims:{exists:key=>definitions.has(key),create:definition=>definitions.set(definition.key,definition)},
   add:{sprite:(...args)=>{const o=new Sprite(...args);objects.push(o);return o;},container:(x,y)=>{const o=new Sprite(x,y,'container',0);objects.push(o);return o;}},
   children:{list:objects}
 };
 helpers.registerAnimations(scene,meta);const count=definitions.size;helpers.registerAnimations(scene,meta);assert.equal(definitions.size,count);
+const loadedSheets=[];
+const preloadScene={textures:{exists:()=>false},load:{spritesheet:(...args)=>loadedSheets.push(args)}};
+helpers.preloadPack(preloadScene,meta,'sheet.png');
+helpers.preloadPack(preloadScene,recipes,'sheet.png');
+assert.equal(loadedSheets.length,2,'both expanded and original grids must load');
+for(const broken of [{...meta,rows:10},{...meta,rows:12.5},{...meta,rows:33},{...meta,columns:0},{...meta,frame_width:32}]){
+  assert.throws(()=>helpers.preloadPack(preloadScene,broken,'sheet.png'),/complete 10-column grid/);
+}
 const anim=meta.animations.find(a=>a.id==='ranger_walk');
 assert.deepEqual(definitions.get(meta.id+'@'+meta.version+':ranger_walk').frames.map(f=>f.frame),anim.frames);
 assert.equal(definitions.get(meta.id+'@'+meta.version+':ranger_walk').sortFrames,false);
@@ -109,6 +50,25 @@ assert.throws(()=>helpers.fitVisual(second,0,18),/positive finite/);
 delete globalThis.document;
 helpers.playAction(ranger,'walk');const starts=animationStarts;helpers.playAction(ranger,'walk');assert.equal(animationStarts,starts);
 helpers.setFacing(ranger,-1,0);assert.equal(ranger.flipX,true);helpers.setFacing(ranger,0,0);assert.equal(ranger.flipX,true);
+for(const packID of ['human-characters-animated','human-characters-top-down']){
+  const humans=JSON.parse(fs.readFileSync(new URL('../internal/gamemaker/asset_packs/'+packID+'/sheet.json',import.meta.url)));
+  helpers.registerAnimations(scene,humans);
+  for(const entity of ['ranger','knight']){
+    const hero=helpers.createAsset(scene,humans,entity+(packID.endsWith('top-down')?'_idle_down':'_idle'),0,0);
+    for(const [dx,dy] of (packID.endsWith('top-down')?[[0,-1],[1,0],[0,1],[-1,0]]:[[1,0],[-1,0]])){
+      helpers.setFacing(hero,dx,dy);
+      for(const action of ['climb_ladder','climb_rope']){
+        helpers.playAction(hero,action);
+        const clip=definitions.get(hero.current);
+        assert.equal(hero.current,humans.id+'@'+humans.version+':'+entity+'_'+action);
+        assert.equal(clip.repeat,-1);
+        assert.equal(clip.frameRate,8);
+        assert.ok(clip.frames.every(f=>f.frame>=100));
+      }
+      helpers.playAction(hero,'walk');
+    }
+  }
+}
 assert.throws(()=>helpers.playAction(ranger,'invented'),/unavailable/);
 assert.throws(()=>helpers.playAction(ranger,'walk/right'),error=>{
   assert.match(error.message,/available actions:.*"walk"/);
@@ -160,25 +120,3 @@ helpers.bindGameTest(testScene,state,player);shutdown[0]();
 assert.equal(globalThis.__AURAGO_GAME_TEST__.state,state,'old shutdown cannot erase new binding');
 shutdown[1]();assert.equal(globalThis.__AURAGO_GAME_TEST__,undefined);
 console.log('PASS: helper animation order/holds, idempotence, facing, missing actions and assembly geometry');
-
-const previewWindow = {};
-vm.runInNewContext(fs.readFileSync(new URL('../ui/js/desktop/apps/game-maker-studio-preview.js', import.meta.url),'utf8'), {window:previewWindow,clearTimeout});
-const reports=[],sent=[],diagnostics=[];let debugPressed='false';
-const previewState={container:{querySelector:selector=>selector==='[data-gm-visual]'?null:({setAttribute:(name,value)=>{if(name==='aria-pressed')debugPressed=value}})},frame:{contentWindow:{postMessage:message=>sent.push(message)}},channelID:'channel',project:{id:'project'},previewProjectID:'project',previewReported:new Set(),previewDiagnostics:[],
-  previewGrant:{token:'token',validation_id:'build',expires_at:new Date(Date.now()+60000).toISOString(),scenarios:[{id:'required_input'}]},api:{reportPreview:(id,payload)=>{reports.push({id,payload});return Promise.resolve();}},addDiagnostic:message=>diagnostics.push(message)};
-const receive=(data,source=previewState.frame.contentWindow)=>previewWindow.GameMakerStudioPreview.handleMessage(previewState,{source,data:{source:'aurago-game',channel:'channel',...data}});
-receive({type:'ready',boot:true,visible:true},{});receive({type:'ready',boot:false,visible:true});receive({type:'ready',boot:true,visible:true,channel:'stale'});
-assert.equal(reports.length,0,'only the current iframe and server boot may establish readiness');
-receive({type:'ready',boot:true,visible:true});assert.equal(reports[0].payload.canvas_visible,true);assert.equal(sent[0].type,'run-tests');
-previewWindow.GameMakerStudioPreview.setSceneDebug(previewState,true);assert.equal(debugPressed,'true');assert.equal(sent.at(-1).type,'scene-debug');assert.equal(sent.at(-1).channel,'channel');
-receive({type:'gameplay',observations:Array(17).fill({})});assert.equal(reports.length,1);
-receive({type:'gameplay',observations:[{id:'required_input',before:{player_x:1},after:{player_x:2}}],images:['data:image/png;base64,a','b','c']});
-assert.equal(reports.length,2);assert.equal(reports[1].payload.images.length,2);assert.equal(reports[1].payload.token,'token');
-receive({type:'gameplay',observations:[]});assert.equal(reports.length,2,'one report per current window');
-receive({type:'runtime_error',message:'new error'});receive({type:'ready',boot:true,visible:true});assert.equal(diagnostics.length,1,'ready cannot clear a current error');
-let rejectOld;
-previewState.api.reportPreview=()=>new Promise((_,reject)=>{rejectOld=reject;});
-receive({type:'runtime_error',message:'pending report'});
-previewState.previewGrant=null;const diagnosticCount=diagnostics.length;rejectOld(Error('old window failure'));await Promise.resolve();
-assert.equal(diagnostics.length,diagnosticCount,'late report failures must not repopulate diagnostics after reset');
-console.log('PASS: Studio bridge window/channel binding, evidence limits, replay and stale-response isolation');

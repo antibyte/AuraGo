@@ -1,4 +1,4 @@
-"""Pack reviewed Imagegen artwork into deterministic 10x10 RGBA game sheets.
+"""Pack reviewed Imagegen artwork into deterministic fixed-grid RGBA game sheets.
 
 Requires Pillow. Sources and explicit frame selections live in the production
 manifest; no background is guessed from RGB colors and no artwork is synthesized.
@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import io
+import tempfile
 from pathlib import Path
 
 from PIL import Image
@@ -16,12 +17,22 @@ PACKS = ROOT / "internal/gamemaker/asset_packs"
 
 
 def write_output(path, data, check):
+    existing = path.read_bytes() if path.exists() else None
     if check:
-        if not path.exists() or path.read_bytes() != data:
+        if existing != data:
             raise ValueError(f"Generated sprite artifact differs: {path}")
-    else:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
+        return
+    if existing == data:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = tempfile.NamedTemporaryFile(dir=path.parent, prefix=".sprite-", suffix=".tmp", delete=False)
+    staged = Path(temporary.name)
+    try:
+        with temporary:
+            temporary.write(data)
+        staged.replace(path)
+    finally:
+        staged.unlink(missing_ok=True)
 
 
 def catalog_records(definitions, model, existing):
@@ -57,7 +68,10 @@ def assembly_cell(crop, layout):
 
 
 def pack(definition, source_root, check=False):
-    sheet = Image.new("RGBA", (640, 640))
+    sheet_rows = definition.get("rows", 10)
+    if not isinstance(sheet_rows, int) or isinstance(sheet_rows, bool) or not 10 <= sheet_rows <= 32:
+        raise ValueError("Sprite sheets require 10–32 rows")
+    sheet = Image.new("RGBA", (640, sheet_rows * 64))
     frames, assets, animations = [], [], []
     sources = {}
     for key, spec in definition["sources"].items():
@@ -90,8 +104,8 @@ def pack(definition, source_root, check=False):
         ids = []
         for source_index, (crop, bbox) in zip(asset["source_frames"], crops):
             index = len(frames)
-            if index >= 100:
-                raise ValueError("More than 100 frames")
+            if index >= sheet_rows * 10:
+                raise ValueError("More frames than grid cells")
             if "slice" in asset:
                 sprite = assembly_cell(crop, asset["slice"])
                 if not sprite.getbbox():
@@ -111,7 +125,7 @@ def pack(definition, source_root, check=False):
             top = 60 - sprite.height if asset.get("view") == "side" else (64 - sprite.height) // 2
             if asset.get("tile"):
                 top = 0
-            if asset.get("action") == "jump":
+            if asset.get("action") == "jump" and not spec.get("anchors"):
                 top -= min(top - 2, round(max(0, crop.height * .9 - bbox[3]) * scale))
             left = (64 - sprite.width) // 2
             if "baseline" in asset:
@@ -142,13 +156,19 @@ def pack(definition, source_root, check=False):
         assets.append(item)
         if asset["action"] != "static":
             action = asset["action"]
-            animations.append({"id": asset["id"], "asset_id": asset["id"], "frames": ids,
-                               "frame_rate": 6 if action == "idle" else 10 if action in ("walk", "run", "move") else 12,
+            sequence = asset.get("animation_frames", list(range(len(ids))))
+            if not sequence or any(type(i) is not int or i < 0 or i >= len(ids) for i in sequence):
+                raise ValueError(f"Invalid animation frame selection: {asset['id']}")
+            frame_rate = asset.get("frame_rate", 6 if action == "idle" else 10 if action in ("walk", "run", "move") else 12)
+            if type(frame_rate) is not int or not 1 <= frame_rate <= 60:
+                raise ValueError(f"Invalid animation frame rate: {asset['id']}")
+            animations.append({"id": asset["id"], "asset_id": asset["id"], "frames": [ids[i] for i in sequence],
+                               "frame_rate": frame_rate,
                                "repeat": -1 if asset.get("loop", action in ("idle", "walk", "run", "move")) else 0,
                                "yoyo": False, "entity": asset["entity"], "action": action,
                                "direction": asset.get("direction", "none")})
-    if len(frames) != 100:
-        raise ValueError(f"{definition['id']}: expected 100 frames, got {len(frames)}")
+    if len(frames) != sheet_rows * 10:
+        raise ValueError(f"{definition['id']}: expected {sheet_rows * 10} frames, got {len(frames)}")
     for animation in animations:
         poses = {sheet.crop((i % 10 * 64, i // 10 * 64, i % 10 * 64 + 64, i // 10 * 64 + 64)).tobytes() for i in animation["frames"]}
         asset = next(a for a in assets if a["id"] == animation["asset_id"])
@@ -160,7 +180,7 @@ def pack(definition, source_root, check=False):
                            "frame_rate": 6, "repeat": -1, "yoyo": False,
                            "entity": alias["entity"], "action": alias["action"], "direction": alias["direction"]})
     metadata = {key: definition[key] for key in ("id", "name", "description", "tags")}
-    metadata.update(schema_version=1, version=definition["version"], image="sheet.png", columns=10, rows=10,
+    metadata.update(schema_version=1, version=definition["version"], image="sheet.png", columns=10, rows=sheet_rows,
                     frame_width=64, frame_height=64, frames=frames, assets=assets, animations=animations,
                     provenance={"generator": "OpenAI Imagegen", "license": "MIT", "license_text": (ROOT / "LICENSE").read_text(encoding="utf8"), "source_manifest": "production/manifest.json",
                                 "sources": [{"file": s["file"], "sha256": s["sha256"]} for s in definition["sources"].values()],
@@ -197,7 +217,7 @@ def main():
         if args.pack and args.pack != definition["id"]:
             continue
         result = pack(definition, args.source_root, args.check)
-        print(f"Packed {result['id']}: 100 RGBA frames, {len(result['animations'])} animations")
+        print(f"Packed {result['id']}: {len(result['frames'])} RGBA frames, {len(result['animations'])} animations")
     write_output(args.manifest, (json.dumps(definitions, ensure_ascii=False, indent=2) + "\n").encode("utf8"), args.check)
     catalog_path = PACKS / "catalog.json"
     existing_catalog = json.loads(catalog_path.read_text(encoding="utf8")) if catalog_path.exists() else []

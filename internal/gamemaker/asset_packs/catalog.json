@@ -66,27 +66,27 @@
   {
     "id": "human-characters-animated",
     "name": "Human Characters Animated",
-    "description": "Ranger and knight side-view character animations.",
+    "description": "Ranger and knight side-view character animations. Stable pixel-art cycles with rear-view ladder and rope climbing.",
     "tags": [
       "human",
       "character",
       "side",
       "platformer"
     ],
-    "version": "2",
+    "version": "3",
     "kind": "sprite2d"
   },
   {
     "id": "human-characters-top-down",
     "name": "Human Characters Top Down",
-    "description": "Ranger and knight with four-direction idle, walk and attack sequences.",
+    "description": "Ranger and knight with four-direction idle, walk and attack sequences. Stable pixel-art cycles with rear-view ladder and rope climbing.",
     "tags": [
       "human",
       "character",
       "top",
       "adventure"
     ],
-    "version": "2",
+    "version": "3",
     "kind": "sprite2d"
   },
   {
@@ -203,7 +203,7 @@
       "side",
       "enemy"
     ],
-    "version": "2",
+    "version": "3",
     "kind": "sprite2d"
   },
   {
@@ -216,7 +216,7 @@
       "top",
       "enemy"
     ],
-    "version": "2",
+    "version": "3",
     "kind": "sprite2d"
   },
   {
@@ -258,7 +258,7 @@
       "animated",
       "side"
     ],
-    "version": "2",
+    "version": "3",
     "kind": "sprite2d"
   },
   {
@@ -272,7 +272,7 @@
       "animated",
       "top"
     ],
-    "version": "2",
+    "version": "3",
     "kind": "sprite2d"
   },
   {

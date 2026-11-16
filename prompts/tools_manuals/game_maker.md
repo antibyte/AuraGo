@@ -34,6 +34,14 @@ only selected asset_ids. Generated image/music files require media permission
 and remain under assets/. Imports save without building. Use project reference
 for optional helper APIs; no asset pack, framework or plan is mandatory.
 
+The original pixel-art human packs expose ranger/knight `climb_ladder` and
+`climb_rope` actions in both side and top views. Search/describe the exact IDs,
+then import the current pack version. The sprite helper's `playAction` selects
+these rear-view, direction-neutral clips from any facing; keep the existing hero
+instance. The game owns ladder/rope collision and vertical travel; pause playback
+while stationary and reverse it to descend. Read grid dimensions and ordered
+animation frames from metadata (human sheets now have 120 cells), never assume 100.
+
 
 ## game_maker_preview
 

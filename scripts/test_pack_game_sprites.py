@@ -102,6 +102,53 @@ class SpriteCatalogTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Generated sprite artifact differs"):
             self.run_packer(check=True)
 
+    def test_expanded_grid_preserves_cells_and_explicit_animation_timing(self):
+        definition = json.loads(self.manifest.read_text(encoding="utf8"))[0]
+        definition["rows"] = 12
+        first = definition["assets"][0]
+        first.update(action="walk", source_frames=[0, 1, 2], animation_frames=[2, 0, 2, 0], frame_rate=7)
+        definition["assets"][1:3] = []
+        definition["assets"].extend(
+            {**definition["assets"][-1], "id": f"extra-{i}", "source_frames": [i]}
+            for i in range(20)
+        )
+        metadata = packer.pack(definition, self.production)
+        self.assertEqual(len(metadata["frames"]), 120)
+        self.assertEqual(metadata["assets"][0]["frames"], [0, 1, 2])
+        animation = metadata["animations"][0]
+        self.assertEqual(animation["frames"], [2, 0, 2, 0])
+        self.assertEqual(animation["frame_rate"], 7)
+        self.assertEqual(animation["repeat"], -1)
+        with Image.open(self.packs / "mixed-test/sheet.png") as image:
+            self.assertEqual(image.size, (640, 768))
+        packer.pack(definition, self.production, check=True)
+
+    def test_invalid_animation_controls_fail_before_publishing(self):
+        definition = json.loads(self.manifest.read_text(encoding="utf8"))[0]
+        asset = definition["assets"][0]
+        asset["action"] = "idle"
+        for field, value in [("animation_frames", []), ("animation_frames", [1]),
+                             ("animation_frames", [-1]), ("animation_frames", [True]),
+                             ("frame_rate", 0), ("frame_rate", 61), ("frame_rate", True)]:
+            with self.subTest(field=field, value=value):
+                asset.pop("animation_frames", None)
+                asset.pop("frame_rate", None)
+                asset[field] = value
+                with self.assertRaisesRegex(ValueError, "Invalid animation"):
+                    packer.pack(definition, self.production)
+                self.assertFalse((self.packs / "mixed-test/sheet.json").exists())
+
+    def test_failed_replacement_preserves_previous_artifact(self):
+        path = self.production / "artifact.bin"
+        path.write_bytes(b"previous")
+        with mock.patch("os.replace", side_effect=OSError("replacement failed")):
+            with self.assertRaisesRegex(OSError, "replacement failed"):
+                packer.write_output(path, b"updated", False)
+        self.assertEqual(path.read_bytes(), b"previous")
+        self.assertEqual(list(self.production.glob(".sprite-*.tmp")), [])
+        with mock.patch("tempfile.NamedTemporaryFile", side_effect=AssertionError("unchanged output was rewritten")):
+            packer.write_output(path, b"previous", False)
+
 
 if __name__ == "__main__":
     unittest.main()

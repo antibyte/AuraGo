@@ -2,7 +2,7 @@
   {
     "id": "human-characters-animated",
     "name": "Human Characters Animated",
-    "description": "Ranger and knight side-view character animations.",
+    "description": "Ranger and knight side-view character animations. Stable pixel-art cycles with rear-view ladder and rope climbing.",
     "tags": [
       "human",
       "character",
@@ -448,7 +448,492 @@
             1241,
             1254
           ]
+        },
+        "anchors": {
+          "0": [
+            70,
+            140
+          ],
+          "1": [
+            199,
+            140
+          ],
+          "2": [
+            334,
+            140
+          ],
+          "3": [
+            465,
+            140
+          ],
+          "4": [
+            603,
+            140
+          ],
+          "5": [
+            741,
+            140
+          ],
+          "6": [
+            875,
+            140
+          ],
+          "7": [
+            1015,
+            140
+          ],
+          "8": [
+            1156,
+            140
+          ],
+          "9": [
+            73,
+            292
+          ],
+          "10": [
+            205,
+            291
+          ],
+          "11": [
+            343,
+            286
+          ],
+          "12": [
+            485,
+            292
+          ],
+          "13": [
+            611,
+            293
+          ],
+          "14": [
+            739,
+            293
+          ],
+          "15": [
+            888,
+            271
+          ],
+          "16": [
+            1030,
+            293
+          ],
+          "17": [
+            1172,
+            293
+          ],
+          "18": [
+            60,
+            446
+          ],
+          "19": [
+            205,
+            446
+          ],
+          "20": [
+            341,
+            445
+          ],
+          "21": [
+            480,
+            447
+          ],
+          "22": [
+            607,
+            453
+          ],
+          "24": [
+            898,
+            431
+          ],
+          "25": [
+            1033,
+            446
+          ],
+          "23": [
+            750,
+            447
+          ],
+          "27": [
+            56,
+            593
+          ],
+          "28": [
+            209,
+            593
+          ],
+          "29": [
+            348,
+            594
+          ],
+          "30": [
+            494,
+            591
+          ],
+          "31": [
+            623,
+            591
+          ],
+          "32": [
+            766,
+            594
+          ],
+          "33": [
+            905,
+            594
+          ],
+          "35": [
+            1175,
+            593
+          ],
+          "36": [
+            62,
+            772
+          ],
+          "37": [
+            194,
+            772
+          ],
+          "38": [
+            333,
+            772
+          ],
+          "39": [
+            470,
+            772
+          ],
+          "40": [
+            606,
+            772
+          ],
+          "41": [
+            744,
+            772
+          ],
+          "42": [
+            874,
+            772
+          ],
+          "43": [
+            1014,
+            773
+          ],
+          "44": [
+            1159,
+            774
+          ],
+          "45": [
+            68,
+            928
+          ],
+          "46": [
+            210,
+            921
+          ],
+          "47": [
+            349,
+            920
+          ],
+          "48": [
+            484,
+            929
+          ],
+          "49": [
+            605,
+            932
+          ],
+          "50": [
+            728,
+            928
+          ],
+          "51": [
+            885,
+            904
+          ],
+          "52": [
+            1019,
+            929
+          ],
+          "53": [
+            1160,
+            928
+          ],
+          "54": [
+            59,
+            1079
+          ],
+          "55": [
+            191,
+            1079
+          ],
+          "56": [
+            341,
+            1076
+          ],
+          "57": [
+            475,
+            1078
+          ],
+          "58": [
+            601,
+            1085
+          ],
+          "60": [
+            890,
+            1076
+          ],
+          "61": [
+            1025,
+            1078
+          ],
+          "59": [
+            749,
+            1079
+          ],
+          "63": [
+            57,
+            1220
+          ],
+          "64": [
+            197,
+            1221
+          ],
+          "65": [
+            340,
+            1223
+          ],
+          "66": [
+            485,
+            1224
+          ],
+          "67": [
+            628,
+            1220
+          ],
+          "68": [
+            756,
+            1225
+          ],
+          "69": [
+            904,
+            1228
+          ],
+          "71": [
+            1167,
+            1225
+          ]
         }
+      },
+      "climbing": {
+        "file": "humans-climbing.png",
+        "columns": 5,
+        "rows": 4,
+        "rects": {
+          "0": [
+            0,
+            0,
+            280,
+            285
+          ],
+          "1": [
+            280,
+            0,
+            561,
+            285
+          ],
+          "2": [
+            561,
+            0,
+            841,
+            285
+          ],
+          "3": [
+            841,
+            0,
+            1122,
+            285
+          ],
+          "4": [
+            1122,
+            0,
+            1402,
+            285
+          ],
+          "5": [
+            0,
+            285,
+            280,
+            565
+          ],
+          "6": [
+            280,
+            285,
+            561,
+            565
+          ],
+          "7": [
+            561,
+            285,
+            841,
+            565
+          ],
+          "8": [
+            841,
+            285,
+            1122,
+            565
+          ],
+          "9": [
+            1122,
+            285,
+            1402,
+            565
+          ],
+          "10": [
+            0,
+            565,
+            280,
+            825
+          ],
+          "11": [
+            280,
+            565,
+            561,
+            825
+          ],
+          "12": [
+            561,
+            565,
+            841,
+            825
+          ],
+          "13": [
+            841,
+            565,
+            1122,
+            825
+          ],
+          "14": [
+            1122,
+            565,
+            1402,
+            825
+          ],
+          "15": [
+            0,
+            825,
+            280,
+            1122
+          ],
+          "16": [
+            280,
+            825,
+            561,
+            1122
+          ],
+          "17": [
+            561,
+            825,
+            841,
+            1122
+          ],
+          "18": [
+            841,
+            825,
+            1122,
+            1122
+          ],
+          "19": [
+            1122,
+            825,
+            1402,
+            1122
+          ]
+        },
+        "anchors": {
+          "0": [
+            197,
+            149
+          ],
+          "1": [
+            448,
+            156
+          ],
+          "2": [
+            704,
+            149
+          ],
+          "3": [
+            954,
+            157
+          ],
+          "4": [
+            1208,
+            149
+          ],
+          "5": [
+            194,
+            432
+          ],
+          "6": [
+            446,
+            440
+          ],
+          "7": [
+            704,
+            431
+          ],
+          "8": [
+            949,
+            440
+          ],
+          "9": [
+            1205,
+            430
+          ],
+          "10": [
+            194,
+            694
+          ],
+          "11": [
+            451,
+            702
+          ],
+          "12": [
+            709,
+            695
+          ],
+          "13": [
+            954,
+            702
+          ],
+          "14": [
+            1204,
+            694
+          ],
+          "15": [
+            193,
+            966
+          ],
+          "16": [
+            447,
+            980
+          ],
+          "17": [
+            701,
+            966
+          ],
+          "18": [
+            944,
+            980
+          ],
+          "19": [
+            1204,
+            966
+          ]
+        },
+        "scale": 0.2,
+        "sha256": "f3a86c3994979395eaaecfbffcb5ac55c50e8517b53897acaf95ee31755a323a"
       }
     },
     "assets": [
@@ -479,7 +964,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "ranger_walk",
@@ -510,7 +1003,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          2,
+          3,
+          4,
+          5,
+          1,
+          0
+        ]
       },
       {
         "id": "ranger_run",
@@ -541,7 +1044,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 12,
+        "animation_frames": [
+          0,
+          2,
+          4,
+          5,
+          3,
+          1
+        ]
       },
       {
         "id": "ranger_jump",
@@ -570,7 +1083,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "ranger_attack",
@@ -601,7 +1116,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "ranger_hurt",
@@ -628,7 +1145,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "ranger_death",
@@ -661,7 +1180,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "knight_idle",
@@ -690,7 +1211,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "knight_walk",
@@ -721,7 +1250,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          2,
+          3,
+          4,
+          5,
+          1,
+          0
+        ]
       },
       {
         "id": "knight_run",
@@ -752,7 +1291,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 12,
+        "animation_frames": [
+          0,
+          2,
+          4,
+          5,
+          3,
+          1
+        ]
       },
       {
         "id": "knight_jump",
@@ -781,7 +1330,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "knight_attack",
@@ -812,7 +1363,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "knight_hurt",
@@ -839,7 +1392,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "knight_death",
@@ -872,10 +1427,185 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
+      },
+      {
+        "id": "ranger_climb_ladder",
+        "name": "Ranger Climb Ladder",
+        "description": "Ranger climbing a ladder in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "ranger",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "ladder",
+          "klettern",
+          "leiter"
+        ],
+        "view": "side",
+        "entity": "ranger",
+        "action": "climb_ladder",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 36,
+        "frame_rate": 8,
+        "loop": true
+      },
+      {
+        "id": "ranger_climb_rope",
+        "name": "Ranger Climb Rope",
+        "description": "Ranger climbing a rope in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "ranger",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "rope",
+          "klettern",
+          "seil"
+        ],
+        "view": "side",
+        "entity": "ranger",
+        "action": "climb_rope",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 36,
+        "frame_rate": 8,
+        "loop": true
+      },
+      {
+        "id": "knight_climb_ladder",
+        "name": "Knight Climb Ladder",
+        "description": "Knight climbing a ladder in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "knight",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "ladder",
+          "klettern",
+          "leiter"
+        ],
+        "view": "side",
+        "entity": "knight",
+        "action": "climb_ladder",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 36,
+        "frame_rate": 8,
+        "loop": true
+      },
+      {
+        "id": "knight_climb_rope",
+        "name": "Knight Climb Rope",
+        "description": "Knight climbing a rope in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "knight",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "rope",
+          "klettern",
+          "seil"
+        ],
+        "view": "side",
+        "entity": "knight",
+        "action": "climb_rope",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 36,
+        "frame_rate": 8,
+        "loop": true
       }
     ],
-    "version": "2"
+    "version": "3",
+    "rows": 12
   },
   {
     "id": "assets-animated",
@@ -1778,7 +2508,7 @@
   {
     "id": "human-characters-top-down",
     "name": "Human Characters Top Down",
-    "description": "Ranger and knight with four-direction idle, walk and attack sequences.",
+    "description": "Ranger and knight with four-direction idle, walk and attack sequences. Stable pixel-art cycles with rear-view ladder and rope climbing.",
     "tags": [
       "human",
       "character",
@@ -2393,7 +3123,313 @@
           ]
         },
         "sha256": "75812814a412b20bcdadb2e00a30cf57cd8c86e17a8d58e913829537ab0da938",
-        "scale": 0.27
+        "scale": 0.27,
+        "anchors": {
+          "0": [
+            80,
+            108
+          ],
+          "1": [
+            200,
+            108
+          ],
+          "2": [
+            336,
+            109
+          ],
+          "3": [
+            460,
+            105
+          ],
+          "4": [
+            582,
+            100
+          ],
+          "5": [
+            703,
+            108
+          ],
+          "6": [
+            829,
+            108
+          ],
+          "7": [
+            951,
+            109
+          ],
+          "12": [
+            72,
+            212
+          ],
+          "13": [
+            192,
+            211
+          ],
+          "14": [
+            326,
+            211
+          ],
+          "15": [
+            456,
+            211
+          ],
+          "16": [
+            583,
+            211
+          ],
+          "17": [
+            702,
+            211
+          ],
+          "18": [
+            820,
+            212
+          ],
+          "19": [
+            942,
+            212
+          ],
+          "20": [
+            1075,
+            214
+          ],
+          "21": [
+            1206,
+            214
+          ],
+          "22": [
+            1352,
+            213
+          ],
+          "24": [
+            81,
+            317
+          ],
+          "25": [
+            200,
+            317
+          ],
+          "26": [
+            335,
+            317
+          ],
+          "27": [
+            464,
+            317
+          ],
+          "28": [
+            588,
+            317
+          ],
+          "29": [
+            707,
+            317
+          ],
+          "30": [
+            827,
+            317
+          ],
+          "31": [
+            949,
+            317
+          ],
+          "36": [
+            85,
+            417
+          ],
+          "37": [
+            206,
+            419
+          ],
+          "38": [
+            341,
+            419
+          ],
+          "39": [
+            470,
+            420
+          ],
+          "40": [
+            590,
+            422
+          ],
+          "41": [
+            712,
+            422
+          ],
+          "42": [
+            830,
+            422
+          ],
+          "43": [
+            953,
+            421
+          ],
+          "44": [
+            1095,
+            422
+          ],
+          "45": [
+            1235,
+            422
+          ],
+          "46": [
+            1394,
+            422
+          ],
+          "48": [
+            78,
+            534
+          ],
+          "49": [
+            198,
+            532
+          ],
+          "50": [
+            331,
+            535
+          ],
+          "51": [
+            460,
+            536
+          ],
+          "52": [
+            584,
+            536
+          ],
+          "53": [
+            704,
+            537
+          ],
+          "54": [
+            823,
+            538
+          ],
+          "55": [
+            946,
+            539
+          ],
+          "60": [
+            70,
+            641
+          ],
+          "61": [
+            194,
+            640
+          ],
+          "62": [
+            327,
+            644
+          ],
+          "63": [
+            458,
+            643
+          ],
+          "64": [
+            579,
+            644
+          ],
+          "65": [
+            702,
+            644
+          ],
+          "66": [
+            820,
+            645
+          ],
+          "67": [
+            944,
+            643
+          ],
+          "68": [
+            1053,
+            646
+          ],
+          "69": [
+            1201,
+            646
+          ],
+          "70": [
+            1378,
+            647
+          ],
+          "72": [
+            88,
+            755
+          ],
+          "73": [
+            202,
+            756
+          ],
+          "74": [
+            337,
+            756
+          ],
+          "75": [
+            464,
+            756
+          ],
+          "76": [
+            588,
+            758
+          ],
+          "77": [
+            715,
+            758
+          ],
+          "78": [
+            828,
+            757
+          ],
+          "79": [
+            954,
+            758
+          ],
+          "84": [
+            78,
+            866
+          ],
+          "85": [
+            204,
+            865
+          ],
+          "86": [
+            334,
+            866
+          ],
+          "87": [
+            460,
+            866
+          ],
+          "88": [
+            585,
+            866
+          ],
+          "89": [
+            702,
+            866
+          ],
+          "90": [
+            827,
+            866
+          ],
+          "91": [
+            947,
+            866
+          ],
+          "92": [
+            1101,
+            866
+          ],
+          "93": [
+            1227,
+            867
+          ],
+          "94": [
+            1366,
+            866
+          ]
+        }
       },
       "attacks": {
         "file": "humans-top-attacks.png",
@@ -2565,6 +3601,217 @@
           ]
         },
         "sha256": "b9ae989147c4486dbab4abcdc4b2dee3621b11c71590108aa9dc710a8d9ac014"
+      },
+      "climbing": {
+        "file": "humans-climbing.png",
+        "columns": 5,
+        "rows": 4,
+        "rects": {
+          "0": [
+            0,
+            0,
+            280,
+            285
+          ],
+          "1": [
+            280,
+            0,
+            561,
+            285
+          ],
+          "2": [
+            561,
+            0,
+            841,
+            285
+          ],
+          "3": [
+            841,
+            0,
+            1122,
+            285
+          ],
+          "4": [
+            1122,
+            0,
+            1402,
+            285
+          ],
+          "5": [
+            0,
+            285,
+            280,
+            565
+          ],
+          "6": [
+            280,
+            285,
+            561,
+            565
+          ],
+          "7": [
+            561,
+            285,
+            841,
+            565
+          ],
+          "8": [
+            841,
+            285,
+            1122,
+            565
+          ],
+          "9": [
+            1122,
+            285,
+            1402,
+            565
+          ],
+          "10": [
+            0,
+            565,
+            280,
+            825
+          ],
+          "11": [
+            280,
+            565,
+            561,
+            825
+          ],
+          "12": [
+            561,
+            565,
+            841,
+            825
+          ],
+          "13": [
+            841,
+            565,
+            1122,
+            825
+          ],
+          "14": [
+            1122,
+            565,
+            1402,
+            825
+          ],
+          "15": [
+            0,
+            825,
+            280,
+            1122
+          ],
+          "16": [
+            280,
+            825,
+            561,
+            1122
+          ],
+          "17": [
+            561,
+            825,
+            841,
+            1122
+          ],
+          "18": [
+            841,
+            825,
+            1122,
+            1122
+          ],
+          "19": [
+            1122,
+            825,
+            1402,
+            1122
+          ]
+        },
+        "anchors": {
+          "0": [
+            197,
+            149
+          ],
+          "1": [
+            448,
+            156
+          ],
+          "2": [
+            704,
+            149
+          ],
+          "3": [
+            954,
+            157
+          ],
+          "4": [
+            1208,
+            149
+          ],
+          "5": [
+            194,
+            432
+          ],
+          "6": [
+            446,
+            440
+          ],
+          "7": [
+            704,
+            431
+          ],
+          "8": [
+            949,
+            440
+          ],
+          "9": [
+            1205,
+            430
+          ],
+          "10": [
+            194,
+            694
+          ],
+          "11": [
+            451,
+            702
+          ],
+          "12": [
+            709,
+            695
+          ],
+          "13": [
+            954,
+            702
+          ],
+          "14": [
+            1204,
+            694
+          ],
+          "15": [
+            193,
+            966
+          ],
+          "16": [
+            447,
+            980
+          ],
+          "17": [
+            701,
+            966
+          ],
+          "18": [
+            944,
+            980
+          ],
+          "19": [
+            1204,
+            966
+          ]
+        },
+        "scale": 0.12,
+        "sha256": "f3a86c3994979395eaaecfbffcb5ac55c50e8517b53897acaf95ee31755a323a"
       }
     },
     "assets": [
@@ -2592,7 +3839,12 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "ranger_walk_up",
@@ -2622,7 +3874,16 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "ranger_attack_up",
@@ -2650,7 +3911,8 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "ranger_idle_right",
@@ -2676,7 +3938,12 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "ranger_walk_right",
@@ -2706,7 +3973,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "ranger_attack_right",
@@ -2734,7 +4010,8 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "ranger_idle_down",
@@ -2760,7 +4037,12 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "ranger_walk_down",
@@ -2790,7 +4072,16 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "ranger_attack_down",
@@ -2818,7 +4109,8 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "ranger_idle_left",
@@ -2844,7 +4136,12 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "ranger_walk_left",
@@ -2874,7 +4171,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "ranger_attack_left",
@@ -2902,7 +4208,8 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "knight_idle_up",
@@ -2928,7 +4235,12 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "knight_walk_up",
@@ -2958,7 +4270,16 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "knight_attack_up",
@@ -2986,7 +4307,8 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "knight_idle_right",
@@ -3012,7 +4334,12 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "knight_walk_right",
@@ -3042,7 +4369,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "knight_attack_right",
@@ -3070,7 +4406,8 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "knight_idle_down",
@@ -3096,7 +4433,12 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "knight_walk_down",
@@ -3126,7 +4468,16 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "knight_attack_down",
@@ -3154,7 +4505,8 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "knight_idle_left",
@@ -3180,7 +4532,12 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1
+        ]
       },
       {
         "id": "knight_walk_left",
@@ -3210,7 +4567,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "knight_attack_left",
@@ -3238,7 +4604,8 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "frame_rate": 10
       },
       {
         "id": "sword",
@@ -3323,9 +4690,182 @@
           "flip_x": false,
           "flip_y": false
         }
+      },
+      {
+        "id": "ranger_climb_ladder",
+        "name": "Ranger Climb Ladder",
+        "description": "Ranger climbing a ladder in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "ranger",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "ladder",
+          "klettern",
+          "leiter"
+        ],
+        "view": "top",
+        "entity": "ranger",
+        "action": "climb_ladder",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 30,
+        "frame_rate": 8,
+        "loop": true
+      },
+      {
+        "id": "ranger_climb_rope",
+        "name": "Ranger Climb Rope",
+        "description": "Ranger climbing a rope in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "ranger",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "rope",
+          "klettern",
+          "seil"
+        ],
+        "view": "top",
+        "entity": "ranger",
+        "action": "climb_rope",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 30,
+        "frame_rate": 8,
+        "loop": true
+      },
+      {
+        "id": "knight_climb_ladder",
+        "name": "Knight Climb Ladder",
+        "description": "Knight climbing a ladder in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "knight",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "ladder",
+          "klettern",
+          "leiter"
+        ],
+        "view": "top",
+        "entity": "knight",
+        "action": "climb_ladder",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 30,
+        "frame_rate": 8,
+        "loop": true
+      },
+      {
+        "id": "knight_climb_rope",
+        "name": "Knight Climb Rope",
+        "description": "Knight climbing a rope in place, viewed from behind. The game owns vertical travel; reverse playback to descend.",
+        "tags": [
+          "knight",
+          "human",
+          "character",
+          "climb",
+          "climbing",
+          "rope",
+          "klettern",
+          "seil"
+        ],
+        "view": "top",
+        "entity": "knight",
+        "action": "climb_rope",
+        "direction": "none",
+        "transform": {
+          "mode": "fixed",
+          "flip_x": false,
+          "flip_y": false
+        },
+        "source": "climbing",
+        "source_frames": [
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "animation_frames": [
+          0,
+          1,
+          1,
+          2,
+          3,
+          3
+        ],
+        "baseline": 30,
+        "frame_rate": 8,
+        "loop": true
       }
     ],
-    "version": "2"
+    "version": "3",
+    "rows": 12
   },
   {
     "id": "monsters-animals-animated",
@@ -3375,22 +4915,22 @@
             132
           ],
           "5": [
-            0,
-            132,
-            130,
-            253
+            16,
+            173,
+            112,
+            239
           ],
           "6": [
-            130,
-            132,
-            257,
-            253
+            144,
+            190,
+            246,
+            241
           ],
           "7": [
-            257,
-            132,
-            385,
-            253
+            261,
+            167,
+            377,
+            241
           ],
           "8": [
             385,
@@ -3441,10 +4981,10 @@
             506
           ],
           "16": [
-            130,
-            375,
-            257,
-            506
+            133,
+            403,
+            232,
+            481
           ],
           "17": [
             257,
@@ -3454,9 +4994,9 @@
           ],
           "18": [
             385,
-            375,
-            503,
-            506
+            398,
+            466,
+            447
           ],
           "19": [
             503,
@@ -3465,28 +5005,28 @@
             506
           ],
           "20": [
-            0,
-            506,
-            130,
-            627
+            14,
+            528,
+            122,
+            599
           ],
           "21": [
-            130,
-            506,
-            257,
-            627
+            141,
+            526,
+            240,
+            603
           ],
           "22": [
             257,
-            506,
-            385,
-            627
+            532,
+            364,
+            602
           ],
           "23": [
             385,
-            506,
-            503,
-            627
+            550,
+            496,
+            605
           ],
           "24": [
             503,
@@ -3495,7 +5035,109 @@
             627
           ]
         },
-        "scale": 0.36
+        "scale": 0.36,
+        "anchors": {
+          "0": [
+            75,
+            126
+          ],
+          "1": [
+            202,
+            125
+          ],
+          "2": [
+            331,
+            124
+          ],
+          "3": [
+            459,
+            125
+          ],
+          "4": [
+            567,
+            125
+          ],
+          "5": [
+            71,
+            239
+          ],
+          "6": [
+            196,
+            241
+          ],
+          "7": [
+            315,
+            241
+          ],
+          "8": [
+            443,
+            241
+          ],
+          "9": [
+            573,
+            241
+          ],
+          "10": [
+            75,
+            361
+          ],
+          "11": [
+            219,
+            364
+          ],
+          "12": [
+            337,
+            363
+          ],
+          "13": [
+            447,
+            361
+          ],
+          "14": [
+            567,
+            354
+          ],
+          "15": [
+            67,
+            483
+          ],
+          "16": [
+            186,
+            481
+          ],
+          "17": [
+            304,
+            483
+          ],
+          "18": [
+            425,
+            447
+          ],
+          "19": [
+            551,
+            483
+          ],
+          "20": [
+            62,
+            599
+          ],
+          "21": [
+            192,
+            603
+          ],
+          "22": [
+            319,
+            602
+          ],
+          "23": [
+            429,
+            605
+          ],
+          "24": [
+            557,
+            605
+          ]
+        }
       },
       "goblin": {
         "file": "monsters-side.png",
@@ -3594,22 +5236,22 @@
             506
           ],
           "15": [
-            1090,
-            375,
-            1254,
-            506
+            1107,
+            411,
+            1240,
+            498
           ],
           "16": [
-            627,
-            506,
-            783,
-            627
+            648,
+            511,
+            756,
+            624
           ],
           "17": [
             783,
-            506,
-            938,
-            627
+            521,
+            898,
+            624
           ],
           "18": [
             938,
@@ -3624,7 +5266,89 @@
             627
           ]
         },
-        "scale": 0.36
+        "scale": 0.36,
+        "anchors": {
+          "0": [
+            691,
+            126
+          ],
+          "1": [
+            833,
+            126
+          ],
+          "2": [
+            978,
+            126
+          ],
+          "3": [
+            1140,
+            126
+          ],
+          "4": [
+            699,
+            246
+          ],
+          "5": [
+            853,
+            246
+          ],
+          "6": [
+            1000,
+            246
+          ],
+          "7": [
+            1151,
+            246
+          ],
+          "8": [
+            690,
+            369
+          ],
+          "9": [
+            853,
+            369
+          ],
+          "10": [
+            1008,
+            369
+          ],
+          "11": [
+            1160,
+            369
+          ],
+          "12": [
+            698,
+            498
+          ],
+          "13": [
+            851,
+            499
+          ],
+          "14": [
+            1010,
+            499
+          ],
+          "15": [
+            1159,
+            498
+          ],
+          "16": [
+            704,
+            624
+          ],
+          "17": [
+            858,
+            624
+          ],
+          "18": [
+            994,
+            623
+          ],
+          "19": [
+            1159,
+            620
+          ]
+        }
       },
       "wolf": {
         "file": "monsters-side.png",
@@ -3633,22 +5357,22 @@
         "sha256": "2f3cc827c40dad0cee606d552daf4aa5cd3bb268d6ec1902fb72175d3eab4ec4",
         "rects": {
           "0": [
-            0,
-            627,
-            157,
-            758
+            10,
+            644,
+            144,
+            748
           ],
           "1": [
             157,
-            627,
-            303,
-            758
+            644,
+            290,
+            748
           ],
           "2": [
             303,
-            627,
-            468,
-            758
+            646,
+            454,
+            748
           ],
           "3": [
             468,
@@ -3669,10 +5393,10 @@
             880
           ],
           "6": [
-            303,
-            758,
-            468,
-            880
+            319,
+            772,
+            459,
+            870
           ],
           "7": [
             468,
@@ -3729,22 +5453,22 @@
             1117
           ],
           "16": [
-            0,
-            1117,
-            157,
-            1254
+            8,
+            1122,
+            147,
+            1232
           ],
           "17": [
             157,
-            1117,
-            303,
-            1254
+            1123,
+            264,
+            1232
           ],
           "18": [
             303,
-            1117,
-            468,
-            1254
+            1157,
+            429,
+            1231
           ],
           "19": [
             468,
@@ -3753,7 +5477,89 @@
             1254
           ]
         },
-        "scale": 0.36
+        "scale": 0.36,
+        "anchors": {
+          "0": [
+            76,
+            748
+          ],
+          "1": [
+            224,
+            748
+          ],
+          "2": [
+            386,
+            748
+          ],
+          "3": [
+            537,
+            748
+          ],
+          "4": [
+            82,
+            870
+          ],
+          "5": [
+            234,
+            870
+          ],
+          "6": [
+            384,
+            870
+          ],
+          "7": [
+            546,
+            871
+          ],
+          "8": [
+            79,
+            989
+          ],
+          "9": [
+            239,
+            989
+          ],
+          "10": [
+            384,
+            989
+          ],
+          "11": [
+            549,
+            989
+          ],
+          "12": [
+            76,
+            1103
+          ],
+          "13": [
+            221,
+            1104
+          ],
+          "14": [
+            383,
+            1104
+          ],
+          "15": [
+            554,
+            1102
+          ],
+          "16": [
+            77,
+            1232
+          ],
+          "17": [
+            224,
+            1232
+          ],
+          "18": [
+            386,
+            1231
+          ],
+          "19": [
+            534,
+            1230
+          ]
+        }
       },
       "boar": {
         "file": "monsters-side.png",
@@ -3774,10 +5580,10 @@
             758
           ],
           "2": [
-            944,
-            627,
-            1103,
-            758
+            946,
+            651,
+            1077,
+            750
           ],
           "3": [
             1103,
@@ -3816,16 +5622,16 @@
             1000
           ],
           "9": [
-            784,
-            880,
-            944,
-            1000
+            790,
+            902,
+            932,
+            993
           ],
           "10": [
             944,
-            880,
-            1103,
-            1000
+            892,
+            1089,
+            985
           ],
           "11": [
             1103,
@@ -3840,16 +5646,16 @@
             1117
           ],
           "13": [
-            784,
-            1000,
-            944,
-            1117
+            793,
+            1014,
+            920,
+            1109
           ],
           "14": [
             944,
-            1000,
-            1103,
-            1117
+            1018,
+            1077,
+            1112
           ],
           "15": [
             1103,
@@ -3871,9 +5677,9 @@
           ],
           "18": [
             944,
-            1117,
-            1103,
-            1254
+            1156,
+            1076,
+            1233
           ],
           "19": [
             1103,
@@ -3882,7 +5688,85 @@
             1254
           ]
         },
-        "scale": 0.36
+        "scale": 0.36,
+        "anchors": {
+          "0": [
+            711,
+            749
+          ],
+          "1": [
+            860,
+            750
+          ],
+          "2": [
+            1024,
+            750
+          ],
+          "3": [
+            1168,
+            750
+          ],
+          "4": [
+            711,
+            870
+          ],
+          "5": [
+            870,
+            869
+          ],
+          "6": [
+            1032,
+            871
+          ],
+          "7": [
+            1181,
+            872
+          ],
+          "8": [
+            719,
+            992
+          ],
+          "9": [
+            867,
+            993
+          ],
+          "10": [
+            1024,
+            985
+          ],
+          "11": [
+            1176,
+            991
+          ],
+          "12": [
+            699,
+            1110
+          ],
+          "16": [
+            695,
+            1238
+          ],
+          "13": [
+            862,
+            1109
+          ],
+          "14": [
+            1022,
+            1112
+          ],
+          "15": [
+            1166,
+            1109
+          ],
+          "18": [
+            1022,
+            1233
+          ],
+          "19": [
+            1165,
+            1232
+          ]
+        }
       }
     },
     "assets": [
@@ -3910,7 +5794,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "slime_move",
@@ -3940,7 +5832,19 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
       },
       {
         "id": "slime_attack",
@@ -3968,7 +5872,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "slime_hurt",
@@ -3992,7 +5898,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "slime_death",
@@ -4019,7 +5927,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "goblin_idle",
@@ -4045,7 +5955,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "goblin_move",
@@ -4075,7 +5993,19 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
       },
       {
         "id": "goblin_attack",
@@ -4103,7 +6033,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "goblin_hurt",
@@ -4127,7 +6059,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "goblin_death",
@@ -4154,7 +6088,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "wolf_idle",
@@ -4180,7 +6116,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "wolf_move",
@@ -4210,7 +6154,19 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
       },
       {
         "id": "wolf_attack",
@@ -4238,7 +6194,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "wolf_hurt",
@@ -4262,7 +6220,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "wolf_death",
@@ -4289,7 +6249,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "boar_idle",
@@ -4315,7 +6277,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "boar_move",
@@ -4345,7 +6315,19 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
       },
       {
         "id": "boar_attack",
@@ -4373,7 +6355,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "boar_hurt",
@@ -4397,7 +6381,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "boar_death",
@@ -4424,10 +6410,12 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       }
     ],
-    "version": "2"
+    "version": "3"
   },
   {
     "id": "monsters-animals-top-down",
@@ -4597,16 +6585,16 @@
             425
           ],
           "25": [
-            246,
-            331,
-            380,
-            425
+            273,
+            335,
+            360,
+            419
           ],
           "26": [
-            380,
-            331,
-            514,
-            425
+            407,
+            338,
+            494,
+            421
           ],
           "27": [
             514,
@@ -4663,16 +6651,16 @@
             513
           ],
           "36": [
-            110,
+            136,
             513,
-            246,
-            606
+            220,
+            603
           ],
           "37": [
-            246,
-            513,
-            380,
-            606
+            271,
+            515,
+            350,
+            604
           ],
           "38": [
             380,
@@ -4687,10 +6675,10 @@
             606
           ],
           "40": [
-            648,
-            513,
-            780,
-            606
+            672,
+            516,
+            754,
+            600
           ],
           "41": [
             780,
@@ -4705,10 +6693,10 @@
             695
           ],
           "43": [
-            246,
+            259,
             606,
-            380,
-            695
+            347,
+            690
           ],
           "44": [
             380,
@@ -4717,10 +6705,10 @@
             695
           ],
           "45": [
-            514,
-            606,
-            648,
-            695
+            530,
+            609,
+            605,
+            693
           ],
           "46": [
             648,
@@ -4735,10 +6723,10 @@
             695
           ],
           "48": [
-            110,
+            146,
             695,
-            246,
-            808
+            203,
+            806
           ],
           "49": [
             246,
@@ -4759,124 +6747,124 @@
             808
           ],
           "52": [
-            648,
-            695,
-            780,
-            808
+            677,
+            696,
+            738,
+            805
           ],
           "53": [
-            780,
-            695,
-            915,
+            812,
+            699,
+            871,
             808
           ],
           "54": [
-            110,
+            124,
             808,
-            246,
-            891
+            238,
+            884
           ],
           "55": [
-            246,
-            808,
-            380,
-            891
+            257,
+            810,
+            370,
+            884
           ],
           "56": [
-            380,
-            808,
-            514,
-            891
+            397,
+            811,
+            506,
+            885
           ],
           "57": [
-            514,
-            808,
-            648,
-            891
+            526,
+            813,
+            637,
+            888
           ],
           "58": [
-            648,
+            657,
             808,
-            780,
-            891
+            768,
+            882
           ],
           "59": [
-            780,
-            808,
-            915,
-            891
+            789,
+            812,
+            899,
+            888
           ],
           "60": [
-            110,
+            147,
             891,
-            246,
-            997
+            211,
+            989
           ],
           "61": [
-            246,
+            281,
             891,
-            380,
-            997
+            343,
+            986
           ],
           "62": [
-            380,
+            415,
             891,
-            514,
-            997
+            478,
+            987
           ],
           "63": [
-            514,
+            545,
             891,
-            648,
-            997
+            610,
+            991
           ],
           "64": [
-            648,
+            676,
             891,
-            780,
-            997
+            740,
+            990
           ],
           "65": [
-            780,
-            891,
-            915,
-            997
+            810,
+            893,
+            873,
+            993
           ],
           "66": [
-            110,
+            122,
             997,
-            246,
-            1074
+            240,
+            1065
           ],
           "67": [
-            246,
+            258,
             997,
-            380,
-            1074
+            375,
+            1065
           ],
           "68": [
-            380,
+            394,
             997,
-            514,
-            1074
+            506,
+            1065
           ],
           "69": [
-            514,
+            523,
             997,
-            648,
-            1074
+            639,
+            1065
           ],
           "70": [
-            648,
+            655,
             997,
-            780,
-            1074
+            770,
+            1067
           ],
           "71": [
-            780,
+            784,
             997,
-            915,
-            1074
+            899,
+            1068
           ],
           "72": [
             110,
@@ -4915,22 +6903,22 @@
             1169
           ],
           "78": [
-            110,
+            128,
             1169,
-            246,
-            1255
+            238,
+            1250
           ],
           "79": [
-            246,
-            1169,
-            380,
-            1255
+            256,
+            1172,
+            369,
+            1247
           ],
           "80": [
-            380,
-            1169,
-            514,
-            1255
+            386,
+            1171,
+            505,
+            1248
           ],
           "81": [
             514,
@@ -4939,16 +6927,16 @@
             1255
           ],
           "82": [
-            648,
-            1169,
-            780,
-            1255
+            657,
+            1173,
+            769,
+            1250
           ],
           "83": [
-            780,
-            1169,
-            915,
-            1255
+            788,
+            1170,
+            898,
+            1248
           ],
           "84": [
             110,
@@ -5023,7 +7011,393 @@
             1440
           ]
         },
-        "scale": 0.4
+        "scale": 0.4,
+        "anchors": {
+          "0": [
+            182,
+            84
+          ],
+          "1": [
+            313,
+            81
+          ],
+          "2": [
+            446,
+            84
+          ],
+          "3": [
+            580,
+            83
+          ],
+          "4": [
+            714,
+            83
+          ],
+          "5": [
+            843,
+            83
+          ],
+          "6": [
+            182,
+            168
+          ],
+          "7": [
+            314,
+            168
+          ],
+          "8": [
+            451,
+            169
+          ],
+          "9": [
+            580,
+            168
+          ],
+          "10": [
+            712,
+            169
+          ],
+          "11": [
+            845,
+            168
+          ],
+          "12": [
+            182,
+            245
+          ],
+          "13": [
+            313,
+            249
+          ],
+          "14": [
+            446,
+            250
+          ],
+          "15": [
+            578,
+            245
+          ],
+          "16": [
+            714,
+            250
+          ],
+          "17": [
+            844,
+            245
+          ],
+          "18": [
+            182,
+            326
+          ],
+          "19": [
+            310,
+            328
+          ],
+          "20": [
+            444,
+            327
+          ],
+          "21": [
+            578,
+            327
+          ],
+          "22": [
+            711,
+            327
+          ],
+          "23": [
+            844,
+            328
+          ],
+          "24": [
+            182,
+            425
+          ],
+          "25": [
+            312,
+            419
+          ],
+          "26": [
+            445,
+            421
+          ],
+          "27": [
+            578,
+            425
+          ],
+          "28": [
+            709,
+            425
+          ],
+          "29": [
+            847,
+            425
+          ],
+          "30": [
+            175,
+            507
+          ],
+          "31": [
+            310,
+            509
+          ],
+          "32": [
+            447,
+            511
+          ],
+          "33": [
+            578,
+            512
+          ],
+          "34": [
+            709,
+            511
+          ],
+          "35": [
+            844,
+            513
+          ],
+          "36": [
+            175,
+            603
+          ],
+          "37": [
+            312,
+            604
+          ],
+          "38": [
+            450,
+            605
+          ],
+          "39": [
+            573,
+            606
+          ],
+          "40": [
+            716,
+            600
+          ],
+          "41": [
+            838,
+            606
+          ],
+          "42": [
+            173,
+            690
+          ],
+          "43": [
+            309,
+            690
+          ],
+          "44": [
+            443,
+            693
+          ],
+          "45": [
+            570,
+            693
+          ],
+          "46": [
+            712,
+            692
+          ],
+          "47": [
+            840,
+            695
+          ],
+          "48": [
+            175,
+            806
+          ],
+          "49": [
+            310,
+            801
+          ],
+          "50": [
+            445,
+            808
+          ],
+          "51": [
+            580,
+            808
+          ],
+          "52": [
+            708,
+            805
+          ],
+          "53": [
+            842,
+            808
+          ],
+          "54": [
+            177,
+            884
+          ],
+          "55": [
+            314,
+            884
+          ],
+          "56": [
+            454,
+            885
+          ],
+          "57": [
+            584,
+            888
+          ],
+          "58": [
+            712,
+            882
+          ],
+          "59": [
+            846,
+            888
+          ],
+          "60": [
+            178,
+            989
+          ],
+          "61": [
+            312,
+            986
+          ],
+          "62": [
+            446,
+            987
+          ],
+          "63": [
+            578,
+            991
+          ],
+          "64": [
+            708,
+            990
+          ],
+          "65": [
+            841,
+            993
+          ],
+          "66": [
+            184,
+            1065
+          ],
+          "67": [
+            315,
+            1065
+          ],
+          "68": [
+            446,
+            1065
+          ],
+          "69": [
+            582,
+            1065
+          ],
+          "70": [
+            712,
+            1067
+          ],
+          "71": [
+            838,
+            1068
+          ],
+          "72": [
+            180,
+            1167
+          ],
+          "73": [
+            312,
+            1166
+          ],
+          "74": [
+            446,
+            1166
+          ],
+          "75": [
+            576,
+            1169
+          ],
+          "76": [
+            710,
+            1169
+          ],
+          "77": [
+            842,
+            1167
+          ],
+          "78": [
+            184,
+            1250
+          ],
+          "79": [
+            312,
+            1247
+          ],
+          "80": [
+            446,
+            1248
+          ],
+          "81": [
+            583,
+            1255
+          ],
+          "82": [
+            714,
+            1250
+          ],
+          "83": [
+            844,
+            1248
+          ],
+          "84": [
+            178,
+            1347
+          ],
+          "85": [
+            310,
+            1345
+          ],
+          "86": [
+            442,
+            1347
+          ],
+          "87": [
+            577,
+            1347
+          ],
+          "88": [
+            710,
+            1346
+          ],
+          "89": [
+            842,
+            1347
+          ],
+          "90": [
+            178,
+            1429
+          ],
+          "91": [
+            312,
+            1431
+          ],
+          "92": [
+            445,
+            1433
+          ],
+          "93": [
+            582,
+            1432
+          ],
+          "94": [
+            712,
+            1430
+          ],
+          "95": [
+            847,
+            1433
+          ]
+        }
       },
       "loot": {
         "file": "monsters-top.png",
@@ -5035,7 +7409,8 @@
           760,
           1536
         ],
-        "sha256": "0d013aa5e69a7c62dde5b04c90f3fc6baea65d0ec6e2746c20dbd4bd934bb0f3"
+        "sha256": "0d013aa5e69a7c62dde5b04c90f3fc6baea65d0ec6e2746c20dbd4bd934bb0f3",
+        "anchors": {}
       }
     },
     "assets": [
@@ -5066,7 +7441,17 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "slime_walk_right",
@@ -5095,7 +7480,17 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "slime_walk_down",
@@ -5124,7 +7519,17 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "slime_walk_left",
@@ -5153,7 +7558,17 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "goblin_walk_up",
@@ -5182,7 +7597,17 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "goblin_walk_right",
@@ -5211,7 +7636,17 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "goblin_walk_down",
@@ -5240,7 +7675,17 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "goblin_walk_left",
@@ -5269,7 +7714,17 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "wolf_walk_up",
@@ -5298,7 +7753,17 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "wolf_walk_right",
@@ -5327,7 +7792,17 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "wolf_walk_down",
@@ -5356,7 +7831,17 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "wolf_walk_left",
@@ -5385,7 +7870,17 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "boar_walk_up",
@@ -5414,7 +7909,17 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "boar_walk_right",
@@ -5443,7 +7948,17 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "boar_walk_down",
@@ -5472,7 +7987,17 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "boar_walk_left",
@@ -5501,7 +8026,17 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "slime_gel",
@@ -5706,7 +8241,7 @@
         "direction": "left"
       }
     ],
-    "version": "2"
+    "version": "3"
   },
   {
     "id": "jump-and-run",
@@ -37334,7 +39869,7 @@
       "animated",
       "side"
     ],
-    "version": "2",
+    "version": "3",
     "sources": {
       "art": {
         "file": "robots-side.png",
@@ -37943,7 +40478,385 @@
           ]
         },
         "scale": 0.39,
-        "sha256": "34ca15c5718888ebb83a7f4e4caa8a20c5b1a3a41b1d0e7bf9c0ad78b8f790d6"
+        "sha256": "34ca15c5718888ebb83a7f4e4caa8a20c5b1a3a41b1d0e7bf9c0ad78b8f790d6",
+        "anchors": {
+          "0": [
+            66,
+            117
+          ],
+          "1": [
+            193,
+            117
+          ],
+          "2": [
+            319,
+            117
+          ],
+          "3": [
+            450,
+            117
+          ],
+          "4": [
+            570,
+            117
+          ],
+          "5": [
+            696,
+            117
+          ],
+          "6": [
+            822,
+            117
+          ],
+          "7": [
+            943,
+            117
+          ],
+          "8": [
+            1073,
+            117
+          ],
+          "10": [
+            61,
+            240
+          ],
+          "11": [
+            185,
+            240
+          ],
+          "12": [
+            313,
+            240
+          ],
+          "13": [
+            438,
+            240
+          ],
+          "14": [
+            568,
+            240
+          ],
+          "15": [
+            688,
+            240
+          ],
+          "18": [
+            1055,
+            239
+          ],
+          "16": [
+            809,
+            240
+          ],
+          "17": [
+            924,
+            239
+          ],
+          "19": [
+            1176,
+            239
+          ],
+          "20": [
+            55,
+            375
+          ],
+          "21": [
+            172,
+            375
+          ],
+          "22": [
+            300,
+            375
+          ],
+          "23": [
+            420,
+            375
+          ],
+          "24": [
+            550,
+            375
+          ],
+          "25": [
+            677,
+            375
+          ],
+          "26": [
+            803,
+            375
+          ],
+          "27": [
+            927,
+            375
+          ],
+          "28": [
+            1056,
+            374
+          ],
+          "30": [
+            50,
+            503
+          ],
+          "31": [
+            197,
+            504
+          ],
+          "32": [
+            315,
+            503
+          ],
+          "34": [
+            548,
+            503
+          ],
+          "35": [
+            685,
+            503
+          ],
+          "36": [
+            810,
+            503
+          ],
+          "37": [
+            934,
+            503
+          ],
+          "38": [
+            1057,
+            503
+          ],
+          "39": [
+            1163,
+            503
+          ],
+          "40": [
+            62,
+            623
+          ],
+          "41": [
+            187,
+            622
+          ],
+          "42": [
+            312,
+            622
+          ],
+          "43": [
+            444,
+            622
+          ],
+          "44": [
+            562,
+            623
+          ],
+          "45": [
+            681,
+            623
+          ],
+          "46": [
+            812,
+            622
+          ],
+          "47": [
+            937,
+            622
+          ],
+          "48": [
+            1061,
+            623
+          ],
+          "50": [
+            59,
+            746
+          ],
+          "51": [
+            185,
+            745
+          ],
+          "52": [
+            312,
+            745
+          ],
+          "53": [
+            436,
+            747
+          ],
+          "54": [
+            553,
+            746
+          ],
+          "55": [
+            681,
+            748
+          ],
+          "56": [
+            818,
+            747
+          ],
+          "57": [
+            945,
+            746
+          ],
+          "58": [
+            1070,
+            746
+          ],
+          "59": [
+            1174,
+            746
+          ],
+          "60": [
+            62,
+            814.0
+          ],
+          "61": [
+            187,
+            815.5
+          ],
+          "62": [
+            310,
+            811.0
+          ],
+          "63": [
+            436,
+            817.5
+          ],
+          "64": [
+            567,
+            815.0
+          ],
+          "65": [
+            689,
+            830.0
+          ],
+          "66": [
+            813,
+            819.0
+          ],
+          "67": [
+            943,
+            814.0
+          ],
+          "68": [
+            1060,
+            816.5
+          ],
+          "70": [
+            62,
+            918.5
+          ],
+          "71": [
+            187,
+            921.5
+          ],
+          "72": [
+            308,
+            929.0
+          ],
+          "73": [
+            443,
+            929.5
+          ],
+          "74": [
+            560,
+            920.0
+          ],
+          "75": [
+            696,
+            920.0
+          ],
+          "76": [
+            820,
+            977
+          ],
+          "77": [
+            953,
+            972
+          ],
+          "78": [
+            1067,
+            975
+          ],
+          "79": [
+            1175,
+            975
+          ],
+          "80": [
+            61,
+            1050.5
+          ],
+          "81": [
+            188,
+            1048.5
+          ],
+          "82": [
+            315,
+            1047.5
+          ],
+          "83": [
+            440,
+            1050.5
+          ],
+          "84": [
+            568,
+            1052.0
+          ],
+          "85": [
+            695,
+            1050.0
+          ],
+          "86": [
+            823,
+            1052.5
+          ],
+          "87": [
+            948,
+            1046.0
+          ],
+          "88": [
+            1066,
+            1050.0
+          ],
+          "90": [
+            54,
+            1175.5
+          ],
+          "91": [
+            196,
+            1173.5
+          ],
+          "92": [
+            314,
+            1173.5
+          ],
+          "93": [
+            455,
+            1177.5
+          ],
+          "94": [
+            572,
+            1173.5
+          ],
+          "95": [
+            687,
+            1173.5
+          ],
+          "96": [
+            821,
+            1248
+          ],
+          "97": [
+            956,
+            1248
+          ],
+          "98": [
+            1067,
+            1248
+          ],
+          "99": [
+            1179,
+            1248
+          ]
+        }
       }
     },
     "assets": [
@@ -37973,7 +40886,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "service_robot_move",
@@ -38003,7 +40924,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "service_robot_attack",
@@ -38031,7 +40962,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "service_robot_hurt",
@@ -38057,7 +40990,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "service_robot_death",
@@ -38085,7 +41020,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "combat_mech_idle",
@@ -38113,7 +41050,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "combat_mech_move",
@@ -38143,7 +41088,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "combat_mech_attack",
@@ -38171,7 +41126,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "combat_mech_hurt",
@@ -38197,7 +41154,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "combat_mech_death",
@@ -38225,7 +41184,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "spider_drone_idle",
@@ -38253,7 +41214,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "spider_drone_move",
@@ -38283,7 +41252,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "spider_drone_attack",
@@ -38311,7 +41290,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 10
       },
       {
         "id": "spider_drone_hurt",
@@ -38337,7 +41318,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 6
       },
       {
         "id": "spider_drone_death",
@@ -38365,7 +41348,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "quadcopter_idle",
@@ -38393,7 +41378,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 43,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "quadcopter_move",
@@ -38423,7 +41416,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 43,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          3,
+          1
+        ]
       },
       {
         "id": "quadcopter_attack",
@@ -38451,7 +41452,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 43,
+        "frame_rate": 10
       },
       {
         "id": "quadcopter_hurt",
@@ -38477,7 +41480,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 43,
+        "frame_rate": 6
       },
       {
         "id": "quadcopter_death",
@@ -38505,7 +41510,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       },
       {
         "id": "security_orb_idle",
@@ -38533,7 +41540,15 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 40,
+        "frame_rate": 4,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          1
+        ]
       },
       {
         "id": "security_orb_move",
@@ -38563,7 +41578,17 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 40,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
       },
       {
         "id": "security_orb_attack",
@@ -38591,7 +41616,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 40,
+        "frame_rate": 10
       },
       {
         "id": "security_orb_hurt",
@@ -38617,7 +41644,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 40,
+        "frame_rate": 6
       },
       {
         "id": "security_orb_death",
@@ -38645,7 +41674,9 @@
           "forward_radians": 0,
           "flip_x": true,
           "flip_y": false
-        }
+        },
+        "baseline": 60,
+        "frame_rate": 8
       }
     ]
   },
@@ -38660,7 +41691,7 @@
       "animated",
       "top"
     ],
-    "version": "2",
+    "version": "3",
     "sources": {
       "art": {
         "file": "robots-top.png",
@@ -39209,7 +42240,369 @@
           ]
         },
         "scale": 0.36,
-        "sha256": "fcbdb39b1df5d28bce0ef04d978eb670ae5356b33bc56bda413aa04f5da3533e"
+        "sha256": "fcbdb39b1df5d28bce0ef04d978eb670ae5356b33bc56bda413aa04f5da3533e",
+        "anchors": {
+          "0": [
+            74,
+            123
+          ],
+          "1": [
+            210,
+            125
+          ],
+          "2": [
+            347,
+            125
+          ],
+          "3": [
+            482,
+            125
+          ],
+          "4": [
+            616,
+            121
+          ],
+          "5": [
+            753,
+            125
+          ],
+          "6": [
+            889,
+            123
+          ],
+          "7": [
+            1027,
+            120
+          ],
+          "8": [
+            1164,
+            125
+          ],
+          "9": [
+            73,
+            250
+          ],
+          "10": [
+            210,
+            250
+          ],
+          "11": [
+            345,
+            251
+          ],
+          "12": [
+            482,
+            251
+          ],
+          "13": [
+            628,
+            244
+          ],
+          "14": [
+            763,
+            250
+          ],
+          "15": [
+            900,
+            250
+          ],
+          "16": [
+            1032,
+            250
+          ],
+          "17": [
+            1170,
+            250
+          ],
+          "18": [
+            71,
+            394
+          ],
+          "19": [
+            208,
+            394
+          ],
+          "20": [
+            344,
+            396
+          ],
+          "21": [
+            480,
+            395
+          ],
+          "22": [
+            622,
+            397
+          ],
+          "23": [
+            760,
+            399
+          ],
+          "24": [
+            894,
+            398
+          ],
+          "25": [
+            1032,
+            399
+          ],
+          "26": [
+            1173,
+            399
+          ],
+          "27": [
+            70,
+            539
+          ],
+          "28": [
+            206,
+            542
+          ],
+          "29": [
+            343,
+            542
+          ],
+          "30": [
+            482,
+            543
+          ],
+          "31": [
+            611,
+            541
+          ],
+          "32": [
+            752,
+            541
+          ],
+          "33": [
+            888,
+            545
+          ],
+          "34": [
+            1027,
+            541
+          ],
+          "35": [
+            1161,
+            545
+          ],
+          "36": [
+            70,
+            661
+          ],
+          "37": [
+            207,
+            661
+          ],
+          "38": [
+            344,
+            663
+          ],
+          "39": [
+            481,
+            666
+          ],
+          "40": [
+            623,
+            665
+          ],
+          "41": [
+            763,
+            667
+          ],
+          "42": [
+            902,
+            665
+          ],
+          "43": [
+            1039,
+            662
+          ],
+          "44": [
+            1174,
+            660
+          ],
+          "45": [
+            73,
+            779
+          ],
+          "46": [
+            207,
+            788
+          ],
+          "47": [
+            344,
+            771
+          ],
+          "48": [
+            480,
+            771
+          ],
+          "49": [
+            614,
+            786
+          ],
+          "50": [
+            746,
+            786
+          ],
+          "51": [
+            892,
+            781
+          ],
+          "52": [
+            1019,
+            784
+          ],
+          "53": [
+            1162,
+            783
+          ],
+          "54": [
+            71,
+            853.0
+          ],
+          "55": [
+            207,
+            852.5
+          ],
+          "56": [
+            344,
+            853.0
+          ],
+          "57": [
+            480,
+            853.0
+          ],
+          "58": [
+            619,
+            852.5
+          ],
+          "59": [
+            747,
+            856.5
+          ],
+          "60": [
+            884,
+            858.0
+          ],
+          "61": [
+            1019,
+            854.5
+          ],
+          "62": [
+            1157,
+            854.5
+          ],
+          "63": [
+            71,
+            956.5
+          ],
+          "64": [
+            207,
+            960.0
+          ],
+          "65": [
+            344,
+            958.5
+          ],
+          "66": [
+            480,
+            958.0
+          ],
+          "67": [
+            616,
+            963.0
+          ],
+          "68": [
+            764,
+            968.5
+          ],
+          "69": [
+            901,
+            968.0
+          ],
+          "70": [
+            1036,
+            969.5
+          ],
+          "71": [
+            1175,
+            967.5
+          ],
+          "72": [
+            72,
+            1070.0
+          ],
+          "73": [
+            208,
+            1073.5
+          ],
+          "74": [
+            344,
+            1065.0
+          ],
+          "75": [
+            481,
+            1067.5
+          ],
+          "85": [
+            617,
+            1190.0
+          ],
+          "86": [
+            753,
+            1184.5
+          ],
+          "87": [
+            887,
+            1183.0
+          ],
+          "88": [
+            1029,
+            1189.5
+          ],
+          "89": [
+            1162,
+            1189.0
+          ],
+          "81": [
+            71,
+            1192.0
+          ],
+          "82": [
+            208,
+            1191.5
+          ],
+          "83": [
+            344,
+            1192.5
+          ],
+          "84": [
+            481,
+            1193.0
+          ],
+          "76": [
+            616,
+            1068.5
+          ],
+          "77": [
+            753,
+            1071.5
+          ],
+          "78": [
+            892,
+            1070.5
+          ],
+          "79": [
+            1030,
+            1071.0
+          ],
+          "80": [
+            1168,
+            1073.0
+          ]
+        }
       }
     },
     "assets": [
@@ -39240,7 +42633,15 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "service_robot_move_right",
@@ -39269,7 +42670,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "service_robot_move_down",
@@ -39298,7 +42708,15 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "service_robot_move_left",
@@ -39327,7 +42745,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "combat_mech_move_up",
@@ -39356,7 +42783,15 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "combat_mech_move_right",
@@ -39385,7 +42820,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "combat_mech_move_down",
@@ -39414,7 +42858,15 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "combat_mech_move_left",
@@ -39443,7 +42895,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "spider_drone_move_up",
@@ -39472,7 +42933,15 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "spider_drone_move_right",
@@ -39501,7 +42970,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "spider_drone_move_down",
@@ -39530,7 +43008,15 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "spider_drone_move_left",
@@ -39559,7 +43045,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 56,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "quadcopter_move_up",
@@ -39588,7 +43083,15 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "quadcopter_move_right",
@@ -39617,7 +43120,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "quadcopter_move_down",
@@ -39646,7 +43158,15 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "quadcopter_move_left",
@@ -39675,7 +43195,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "security_orb_move_up",
@@ -39704,7 +43233,15 @@
           "forward_radians": -1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "security_orb_move_right",
@@ -39733,7 +43270,16 @@
           "forward_radians": 0,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       {
         "id": "security_orb_move_down",
@@ -39762,7 +43308,15 @@
           "forward_radians": 1.5707963267948966,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          1,
+          2,
+          3,
+          0
+        ]
       },
       {
         "id": "security_orb_move_left",
@@ -39791,7 +43345,16 @@
           "forward_radians": 3.141592653589793,
           "flip_x": false,
           "flip_y": false
-        }
+        },
+        "baseline": 32,
+        "frame_rate": 8,
+        "animation_frames": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       }
     ],
     "animation_aliases": [

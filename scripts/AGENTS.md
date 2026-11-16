@@ -77,6 +77,13 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
   and the optional fallback when a stale loader omits its resource module.
 - Runenpfad: `node scripts/test-runenpfad-sim.mjs` validates all 6 2D sprite packs, `aurago-sounds`, all 25 campaign stages, endless mode, hero abilities, workshop upgrades and save clamping. Browser play is `TestDesktopRunenpfadBrowser`.
+- Sprite packing: `pack_game_sprites.py` fills the declared ten-column grid from
+  reviewed rectangles and anchors in the production manifest; human packs append
+  two climbing rows without renumbering existing cells. `test_pack_game_sprites.py`
+  checks reproducibility and animation controls; `test-game-maker-sprites.mjs`
+  checks actual helper loading, registration, facing and climbing transitions.
+  Artifact replacement stages a complete temporary file beside its destination,
+  preserves the previous file on failure and skips unchanged bytes.
 - Chat regression fixtures load the shared `shouldShowAgentToolStatus` policy before
   the Desktop chat module, matching production order. Camera preference assertions
   allow only the non-secret viewing fields and the optional `sound` flag (default false).

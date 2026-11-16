@@ -12,6 +12,26 @@ hashes also travel in metadata. Preserve originals; change pose/crop choices in
 Bump the pack's `version` when changing already-released artwork or metadata;
 existing projects keep their earlier versioned copies.
 
+The six human, monster/animal and robot/drone packs use content version 3.
+Original artwork, pixel-art outlines and nearest-neighbor sampling are retained.
+Reviewed body anchors prevent weapons and changing silhouettes from re-centering
+the character. Grounded poses share a baseline; hovering drones use a center
+anchor. Local `animation_frames` selects playback indices from an asset's stored
+cells without renumbering those cells; repeated indices are intentional holds.
+`frame_rate` overrides the default cadence. Idle uses 4 FPS, walk/move 8 FPS,
+run 12 FPS, attack/jump 10 FPS, hurt 6 FPS and death 8 FPS.
+
+Both human sheets append twenty cells, becoming 640×768 (10×12); their original
+first hundred frame indices remain intact. `humans-climbing.png` is the retained
+Imagegen master and `climbing-prompts.json` records its exact prompt and reference.
+Explicit row rectangles exclude neighboring hands. Ranger and knight each expose
+`climb_ladder` and `climb_rope`, at 8 FPS with deliberate pull holds. Back anchors
+keep the torso still while limbs alternate. These rear views have no baked-in
+ladder or rope; `direction: none` lets `playAction(hero, 'climb_ladder')` or
+`playAction(hero, 'climb_rope')` work from any facing. Pause when stationary and
+reverse playback to descend; the game owns vertical movement and collision.
+All other sheets remain 640×640 (10×10).
+
 Version 3 of `assets-animated` corrects the coin's entity/action to `coin`/`spin`.
 Reviewed explosion, smoke, portal and coin sprites support both top and side
 views through explicit `compatible_views`; directional world objects retain
@@ -41,6 +61,7 @@ blue cape), slime, goblin, wolf and boar. Keep body size and ground line stable.
 | humans-side.png | Ranger/knight idle, walk, run, jump, attack, hurt and death |
 | humans-top.png | Both humans in four directions, idle/walk/attack and equipment |
 | humans-top-attacks.png | Four phases per human up/down attack; no detached projectiles |
+| humans-climbing.png | Ranger/knight rear-view ladder and rope cycles; five source poses per row |
 | monsters-side.png | Four creatures with idle/movement/attack/hurt/death poses |
 | monsters-top.png | Six movement poses in four directions per creature, four loot icons |
 | effects.png | Explosion, campfire, smoke, portal, coin, chest, water, torch, door, trap |
@@ -111,13 +132,14 @@ go test ./internal/gamemaker ./internal/server -run 'TestSpritePack|TestGameMake
 ```
 
 The packer rejects sources without real alpha, thresholds near-transparent
-halos, scales without smoothing, enforces bounds and packs exactly 100 frames.
+halos, scales without smoothing, enforces bounds and fills the declared grid
+(100 cells, or 120 for the two human packs).
 It never guesses a background from RGB. Shared scale and explicit anchors keep
 alignment. Freestanding objects retain transparent cell borders.
 
 In Studio, review every animation on light and dark backgrounds for clipping,
 neighbor fragments, direction, actual motion, ground line and transitions.
-Idle uses 6 FPS, movement 10 FPS, actions/effects 12 FPS. Creature resting
+Unchanged packs retain defaults of idle 6 FPS, movement 10 FPS and actions/effects 12 FPS. Creature resting
 animations reuse existing poses. The first complete production check was the
 ranger side-view walk, with JSON and a rendered animation preview.
 

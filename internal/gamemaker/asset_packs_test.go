@@ -38,7 +38,11 @@ func TestSpritePackContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if pack.SchemaVersion != 1 || pack.Version != summary.Version || pack.Columns != 10 || pack.Rows != 10 || pack.FrameWidth != 64 || pack.FrameHeight != 64 || pack.Image != "sheet.png" {
+			rows := 10
+			if strings.HasPrefix(summary.ID, "human-characters-") {
+				rows = 12
+			}
+			if pack.SchemaVersion != 1 || pack.Version != summary.Version || pack.Columns != 10 || pack.Rows != rows || pack.FrameWidth != 64 || pack.FrameHeight != 64 || pack.Image != "sheet.png" {
 				t.Fatal("invalid grid contract")
 			}
 			data, err := s.AssetPackFile(summary.ID, "sheet.png")
@@ -53,8 +57,8 @@ func TestSpritePackContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if im.Bounds().Dx() != 640 || im.Bounds().Dy() != 640 {
-				t.Fatal("sheet must be 640x640")
+			if im.Bounds().Dx() != 640 || im.Bounds().Dy() != rows*64 {
+				t.Fatal("sheet dimensions must match the grid")
 			}
 			var frames []struct {
 				Index, X, Y, W, H int
@@ -83,7 +87,7 @@ func TestSpritePackContent(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if len(frames) != 100 {
+			if len(frames) != rows*10 {
 				t.Fatalf("frame count = %d", len(frames))
 			}
 			assetIDs, used := map[string]bool{}, map[int]bool{}
@@ -93,7 +97,7 @@ func TestSpritePackContent(t *testing.T) {
 				}
 				assetIDs[a.ID] = true
 				for _, index := range a.Frames {
-					if index < 0 || index >= 100 || used[index] {
+					if index < 0 || index >= len(frames) || used[index] {
 						t.Fatalf("duplicate/invalid asset frame %d", index)
 					}
 					used[index] = true
@@ -120,7 +124,7 @@ func TestSpritePackContent(t *testing.T) {
 					}
 				}
 			}
-			if len(used) != 100 {
+			if len(used) != rows*10 {
 				t.Fatal("not every cell is described")
 			}
 			animationIDs := map[string]bool{}
