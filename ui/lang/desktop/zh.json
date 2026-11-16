@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "启用 n8n 实例的 MCP 服务器，开放现有工作流并保存专用 MCP 令牌。",
   "desktop.store.ig_help_node-red": "启用 Node-RED 的 adminAuth。保存访问令牌并选择允许的 Inject ID；现有载荷保持不变。",
   "desktop.store.ig_help_olivetin": "使用带有 Bearer 密钥的专用 OliveTin 用户，并选择允许的操作 ID。执行前会验证参数。",
-  "desktop.store.ig_help_bytestash": "保存用于官方 MCP 端点的 ByteStash API 密钥。读取与创建分别授权；修改和删除仍被禁止。"
+  "desktop.store.ig_help_bytestash": "保存用于官方 MCP 端点的 ByteStash API 密钥。读取与创建分别授权；修改和删除仍被禁止。",
+  "desktop.store.ig_help_beszel": "使用可读取所需系统的普通 Beszel 用户，不要使用超级用户凭据。",
+  "desktop.store.ig_help_filebrowser-quantum": "创建专用 API 用户：仅允许 Store 的 /folder 卷上的一个来源，仅有 View/Download 权限，无共享或管理权限。保存 API 令牌和来源名称。",
+  "desktop.store.ig_help_stirling-pdf": "保存 Stirling API 密钥。签名需单独授权，默认关闭：在 Stirling 中选择服务器证书并输入 SHA-256 指纹。证书变化将阻止签名。"
 }

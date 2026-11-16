@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "Enable n8n's instance MCP server, expose existing workflows and save its dedicated MCP token.",
   "desktop.store.ig_help_node-red": "Enable Node-RED adminAuth. Save an access token and select allowed Inject IDs; their existing payload is retained.",
   "desktop.store.ig_help_olivetin": "Use a dedicated OliveTin user with a bearer key and select allowed action IDs. Arguments are validated before execution.",
-  "desktop.store.ig_help_bytestash": "Save a ByteStash API key for the official MCP endpoint. Reading and creation are separate; update and deletion remain blocked."
+  "desktop.store.ig_help_bytestash": "Save a ByteStash API key for the official MCP endpoint. Reading and creation are separate; update and deletion remain blocked.",
+  "desktop.store.ig_help_beszel": "Use a normal Beszel reader for the intended systems, never superuser credentials.",
+  "desktop.store.ig_help_filebrowser-quantum": "Create a dedicated API user: one source on the Store /folder volume, View/Download only, no sharing or admin rights. Save its API token and source name.",
+  "desktop.store.ig_help_stirling-pdf": "Save a Stirling API key. Signing is separately off by default: select the server certificate in Stirling and enter its SHA-256 fingerprint. Certificate changes block signing."
 }

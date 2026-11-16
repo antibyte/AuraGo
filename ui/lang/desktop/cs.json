@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "Zapni instanční MCP server n8n, zpřístupni existující pracovní postupy a ulož jeho samostatný token MCP.",
   "desktop.store.ig_help_node-red": "Zapni adminAuth v Node-RED. Ulož přístupový token a vyber povolená ID Inject; jejich stávající obsah se nemění.",
   "desktop.store.ig_help_olivetin": "Použij samostatného uživatele OliveTin s klíčem Bearer a vyber povolená ID akcí. Argumenty se před spuštěním ověří.",
-  "desktop.store.ig_help_bytestash": "Ulož API klíč ByteStash pro oficiální rozhraní MCP. Čtení a vytváření mají oddělená oprávnění; úpravy a mazání jsou zakázané."
+  "desktop.store.ig_help_bytestash": "Ulož API klíč ByteStash pro oficiální rozhraní MCP. Čtení a vytváření mají oddělená oprávnění; úpravy a mazání jsou zakázané.",
+  "desktop.store.ig_help_beszel": "Použij běžného čtenáře Beszel pro požadované systémy, nikoli přístup superuživatele.",
+  "desktop.store.ig_help_filebrowser-quantum": "Vytvoř samostatného API uživatele: jediný zdroj na svazku Store /folder, pouze View/Download, bez sdílení a správy. Ulož API token a název zdroje.",
+  "desktop.store.ig_help_stirling-pdf": "Ulož API klíč Stirling. Podepisování je samostatně vypnuté: vyber serverový certifikát ve Stirling a zadej otisk SHA-256. Změna certifikátu podepisování zablokuje."
 }

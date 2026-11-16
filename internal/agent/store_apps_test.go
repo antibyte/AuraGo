@@ -56,3 +56,16 @@ func TestStoreAppA2AOnlyReads(t *testing.T) {
 		}
 	}
 }
+
+func TestStorePDFNativeArgumentsKeepFilesAndReadClassification(t *testing.T) {
+	tc := NativeToolCallToToolCall(openai.ToolCall{Type: openai.ToolTypeFunction, Function: openai.FunctionCall{Name: "stirling_pdf", Arguments: `{"operation":"ocr","files":["Shared/input.pdf"],"languages":["deu"]}`}}, nil)
+	if tc.NativeArgsMalformed || len(tc.Params["files"].([]interface{})) != 1 {
+		t.Fatal("PDF file arguments lost")
+	}
+	for _, op := range []string{"list_systems", "host_metrics", "container_metrics"} {
+		action := DescribeAction(ToolCall{Action: "beszel", Operation: op}, &DispatchContext{Cfg: &config.Config{}})
+		if action.Mutating || action.HighRisk {
+			t.Fatalf("metric read classified as mutation: %+v", action)
+		}
+	}
+}

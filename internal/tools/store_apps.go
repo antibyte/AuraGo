@@ -18,6 +18,12 @@ type StoreAppRequest struct {
 	Arguments   []storeapps.OliveTinArgument `json:"arguments"`
 	Limit       int                          `json:"limit"`
 	Offset      int                          `json:"offset"`
+	SystemID    string                       `json:"system_id"`
+	Path        string                       `json:"path"`
+	Query       string                       `json:"query"`
+	Files       []string                     `json:"files"`
+	Languages   []string                     `json:"languages"`
+	Pages       string                       `json:"pages"`
 }
 
 var storeApplications struct {

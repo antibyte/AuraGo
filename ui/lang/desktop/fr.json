@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "Active le serveur MCP de l’instance n8n, partage des workflows existants et enregistre son jeton MCP dédié.",
   "desktop.store.ig_help_node-red": "Active adminAuth dans Node-RED. Enregistre un jeton d’accès et choisis les identifiants Inject autorisés ; leur contenu est conservé.",
   "desktop.store.ig_help_olivetin": "Utilise un compte OliveTin dédié avec une clé Bearer et choisis les identifiants d’actions autorisées. Les arguments sont vérifiés avant exécution.",
-  "desktop.store.ig_help_bytestash": "Enregistre une clé API ByteStash pour son accès MCP officiel. Lecture et création ont des droits distincts ; modification et suppression restent bloquées."
+  "desktop.store.ig_help_bytestash": "Enregistre une clé API ByteStash pour son accès MCP officiel. Lecture et création ont des droits distincts ; modification et suppression restent bloquées.",
+  "desktop.store.ig_help_beszel": "Utilise un compte lecteur Beszel normal pour les systèmes souhaités, jamais des identifiants superutilisateur.",
+  "desktop.store.ig_help_filebrowser-quantum": "Crée un compte API dédié : une seule source sur le volume Store /folder, View/Download uniquement, sans partage ni administration. Enregistre son jeton API et le nom de la source.",
+  "desktop.store.ig_help_stirling-pdf": "Enregistre une clé API Stirling. La signature est désactivée séparément : sélectionne le certificat serveur dans Stirling et saisis son empreinte SHA-256. Un changement de certificat bloque la signature."
 }

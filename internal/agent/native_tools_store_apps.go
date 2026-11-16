@@ -22,5 +22,25 @@ func appendStoreAppSchemas(out []openai.Tool, ff ToolFeatureFlags) []openai.Tool
 		properties["arguments"] = map[string]interface{}{"type": "array", "maxItems": 64, "description": "Configured action arguments only; no shell commands.", "items": schema(map[string]interface{}{"name": prop("string", "Argument name from the action definition."), "value": prop("string", "Argument value, validated by OliveTin.")}, "name", "value")}
 		out = append(out, tool("olivetin", "List allowed OliveTin actions, execute a predefined action, or inspect its execution. Unknown outcomes must not be retried automatically.", schema(properties, "operation")))
 	}
+	if ff.BeszelEnabled {
+		properties := page("list_systems", "host_metrics", "container_metrics")
+		properties["system_id"] = prop("string", "Beszel system ID, required for host_metrics and container_metrics.")
+		out = append(out, tool("beszel", "Read connected Beszel systems and latest host/container metrics, including timestamps and stale-data indicators. No administration or alerts.", schema(properties, "operation")))
+	}
+	if ff.FileBrowserEnabled {
+		properties := page("list", "search", "read")
+		properties["path"] = prop("string", "Path within the administrator-selected FileBrowser source (default root for list).")
+		properties["query"] = prop("string", "Literal filename search term, required for search.")
+		out = append(out, tool("filebrowser", "Read the connected FileBrowser source. Small text is returned inline; larger/binary files are copied to a new Shared path when file publication is allowed. No changes to source files.", schema(properties, "operation")))
+	}
+	if ff.StirlingPDFEnabled {
+		properties := map[string]interface{}{
+			"operation": map[string]interface{}{"type": "string", "enum": []string{"ocr", "split", "merge", "cert_sign"}},
+			"files":     map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 20, "items": prop("string", "Saved PDF path relative to the Desktop workspace."), "description": "One PDF, or 2-20 PDFs to merge in the specified order."},
+			"languages": map[string]interface{}{"type": "array", "minItems": 1, "maxItems": 8, "items": prop("string", "Installed OCR language, e.g. deu or eng."), "description": "Required for OCR."},
+			"pages":     prop("string", "Required for split: all, page numbers or ranges such as 2,5-8. Split points are inclusive."),
+		}
+		out = append(out, tool("stirling_pdf", "Process saved PDFs through the connected Stirling API. Outputs use new Shared paths; originals stay unchanged. Signing separately requires the administrator-approved server certificate; no private keys or certificate management.", schema(properties, "operation", "files")))
+	}
 	return out
 }

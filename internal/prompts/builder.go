@@ -211,6 +211,9 @@ type ContextFlags struct {
 	MQTTEnabled              bool
 	NodeREDEnabled           bool
 	OliveTinEnabled          bool
+	BeszelEnabled            bool
+	FileBrowserEnabled       bool
+	StirlingPDFEnabled       bool
 	AdGuardEnabled           bool
 	UptimeKumaEnabled        bool
 	GrafanaEnabled           bool
@@ -2677,6 +2680,10 @@ var enabledIntegrationDescriptors = []enabledIntegrationDescriptor{
 	{"mqtt", "mqtt", func(f *ContextFlags) bool { return f.MQTTEnabled }},
 	{"node_red", "node_red", func(f *ContextFlags) bool { return f.NodeREDEnabled }},
 	{"olivetin", "olivetin", func(f *ContextFlags) bool { return f.OliveTinEnabled }},
+	{"beszel", "beszel", func(f *ContextFlags) bool { return f.BeszelEnabled }},
+	{"filebrowser", "filebrowser", func(f *ContextFlags) bool { return f.FileBrowserEnabled }},
+	{"stirling_pdf", "stirling_pdf", func(f *ContextFlags) bool { return f.StirlingPDFEnabled }},
+
 	{"adguard", "adguard", func(f *ContextFlags) bool { return f.AdGuardEnabled }},
 	{"uptime_kuma", "uptime_kuma", func(f *ContextFlags) bool { return f.UptimeKumaEnabled }},
 	{"grafana", "grafana", func(f *ContextFlags) bool { return f.GrafanaEnabled }},

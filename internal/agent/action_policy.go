@@ -74,6 +74,9 @@ func DescribeAction(tc ToolCall, dc *DispatchContext) ActionDescriptor {
 		}
 	}
 	a.Mutating = !readActionOperation(a.Operation)
+	if a.Tool == "beszel" {
+		a.Mutating = false
+	}
 	switch tc.Action {
 	case "virtual_computer_ui":
 		a.Mutating = virtualcomputers.DesktopInput(a.Operation)

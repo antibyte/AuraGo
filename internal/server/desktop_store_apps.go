@@ -32,13 +32,21 @@ func (s *Server) executeStoreApplication(ctx context.Context, id string, req too
 	if !exists {
 		return nil, errors.New("Verify the Store connection first")
 	}
-	mutation := (id == "node-red" && req.Operation == "trigger") || (id == "olivetin" && req.Operation == "execute")
-	ctx, release, err := s.acquireStoreAccess(ctx, id, b.settings.URL, mutation)
+	mutation := (id == "node-red" && req.Operation == "trigger") || (id == "olivetin" && req.Operation == "execute") || id == "stirling-pdf"
+	cfg := s.ConfigSnapshot()
+	if id == "stirling-pdf" && (cfg.VirtualDesktop.ReadOnly || !cfg.Agent.AllowFilesystemWrite || (req.Operation == "cert_sign" && !b.settings.Sign) || (req.Operation != "cert_sign" && !b.settings.Process)) {
+		return nil, errors.New("PDF processing/signing or file publication permission is disabled")
+	}
+	ctx, release, err := s.acquireStoreAccess(ctx, id, b.settings.URL, mutation && id != "stirling-pdf")
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	timeout := time.Minute
+	if id == "stirling-pdf" {
+		timeout = 5 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	client := storeAppConnection(b.settings)
 	if req.Limit == 0 {
@@ -63,6 +71,18 @@ func (s *Server) executeStoreApplication(ctx context.Context, id string, req too
 		result, err = client.OliveTinExecute(ctx, req.ActionID, req.Arguments)
 	case "olivetin:get_execution":
 		result, err = client.OliveTinStatus(ctx, req.ActionID, req.ExecutionID)
+	case "beszel:list_systems":
+		result, err = client.BeszelSystems(ctx, req.Offset, req.Limit)
+	case "beszel:host_metrics", "beszel:container_metrics":
+		result, err = client.BeszelMetrics(ctx, req.SystemID, req.Operation == "container_metrics")
+	case "filebrowser-quantum:list":
+		result, err = client.FileBrowserList(ctx, req.Path, req.Offset, req.Limit)
+	case "filebrowser-quantum:search":
+		result, err = client.FileBrowserSearch(ctx, req.Query, req.Limit)
+	case "filebrowser-quantum:read":
+		result, err = s.readStoreFile(ctx, client, req.Path)
+	case "stirling-pdf:ocr", "stirling-pdf:split", "stirling-pdf:merge", "stirling-pdf:cert_sign":
+		result, err = s.processStorePDF(ctx, client, req)
 	default:
 		return nil, errors.New("Unsupported Store application operation")
 	}

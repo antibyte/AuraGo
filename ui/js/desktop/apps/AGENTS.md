@@ -6491,6 +6491,6 @@ registration lives in `internal/desktop/types.go`.
 
 - Virtual Computers adds native application control only to desktop Agent Workspaces. Reuse Observe, Take control and activity UI; the check button reads the authenticated desktop status endpoint without launching apps. Keep per-workspace asynchronous diagnostics isolated and discard results after disposal. All labels/help use the 16 desktop/config locales. Domain ownership: `internal/virtualcomputers/AGENTS.md`.
 
-## Store workflow connections
+## Store connections
 
-- Store workflow connection hints explain app-owned authentication and selected IDs in all sixteen Desktop locales. Tests remain read-only; saving does not run workflows or actions.
+- Store connection hints explain app-owned authentication, selected IDs, FileBrowser source rights and PDF certificate selection in all sixteen Desktop locales. Tests remain read-only; saving does not run workflows or PDF operations.

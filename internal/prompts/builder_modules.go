@@ -574,6 +574,13 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.NodeREDEnabled
 	case "olivetin_enabled":
 		return flags.OliveTinEnabled
+	case "beszel_enabled":
+		return flags.BeszelEnabled
+	case "filebrowser_enabled":
+		return flags.FileBrowserEnabled
+	case "stirling_pdf_enabled":
+		return flags.StirlingPDFEnabled
+
 	case "adguard_enabled":
 		return flags.AdGuardEnabled
 	case "uptime_kuma_enabled":

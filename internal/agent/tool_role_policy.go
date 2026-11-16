@@ -196,6 +196,8 @@ var a2aDesktopReadOperations = []string{
 // a2aDesktopWrite reports a virtual desktop call that is not a plain read.
 func a2aDesktopWrite(tc ToolCall) bool {
 	switch tc.Action {
+	case "stirling_pdf":
+		return true
 	case "node_red":
 		return tc.Operation != "list_flows"
 	case "olivetin":

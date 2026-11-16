@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "Włącz serwer MCP instancji n8n, udostępnij istniejące przepływy i zapisz osobny token MCP.",
   "desktop.store.ig_help_node-red": "Włącz adminAuth w Node-RED. Zapisz token dostępu i wybierz dozwolone identyfikatory Inject; obecne dane pozostają bez zmian.",
   "desktop.store.ig_help_olivetin": "Użyj osobnego użytkownika OliveTin z kluczem Bearer i wybierz dozwolone identyfikatory akcji. Argumenty są sprawdzane przed uruchomieniem.",
-  "desktop.store.ig_help_bytestash": "Zapisz klucz API ByteStash dla oficjalnego punktu MCP. Odczyt i tworzenie mają osobne uprawnienia; zmiana i usuwanie są zablokowane."
+  "desktop.store.ig_help_bytestash": "Zapisz klucz API ByteStash dla oficjalnego punktu MCP. Odczyt i tworzenie mają osobne uprawnienia; zmiana i usuwanie są zablokowane.",
+  "desktop.store.ig_help_beszel": "Użyj zwykłego użytkownika odczytu Beszel dla wybranych systemów, nigdy konta superużytkownika.",
+  "desktop.store.ig_help_filebrowser-quantum": "Utwórz osobnego użytkownika API: jedno źródło na wolumenie Store /folder, tylko View/Download, bez udostępniania i administracji. Zapisz token API oraz nazwę źródła.",
+  "desktop.store.ig_help_stirling-pdf": "Zapisz klucz API Stirling. Podpisywanie jest osobno wyłączone: wybierz certyfikat serwera w Stirling i wpisz odcisk SHA-256. Zmiana certyfikatu blokuje podpisywanie."
 }

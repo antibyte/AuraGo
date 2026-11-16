@@ -581,7 +581,7 @@
                 overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true" aria-label="${label('connect')}">
                     <div class="vd-modal-title">${esc(catalog.find(item => item.id === appId)?.name || appId)} · ${label('connect')}</div>
                     <p class="vd-store-modal-copy">${label('intro')}</p>
-                    ${['n8n', 'node-red', 'olivetin', 'bytestash'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
+                    ${['n8n', 'node-red', 'olivetin', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
                     <button type="button" class="vd-button" data-ig-open>${esc(t('desktop.open'))}</button>
                     ${saved.containerized ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
                     ${field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}

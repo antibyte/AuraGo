@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "Aktivér n8n-instansens MCP-server, del eksisterende arbejdsgange, og gem dens særskilte MCP-token.",
   "desktop.store.ig_help_node-red": "Aktivér adminAuth i Node-RED. Gem et adgangstoken, og vælg tilladte Inject-id’er; eksisterende data bevares.",
   "desktop.store.ig_help_olivetin": "Brug en særskilt OliveTin-bruger med Bearer-nøgle, og vælg tilladte handlings-id’er. Argumenter kontrolleres før start.",
-  "desktop.store.ig_help_bytestash": "Gem en ByteStash-API-nøgle til det officielle MCP-endepunkt. Læsning og oprettelse er adskilt; ændring og sletning er blokeret."
+  "desktop.store.ig_help_bytestash": "Gem en ByteStash-API-nøgle til det officielle MCP-endepunkt. Læsning og oprettelse er adskilt; ændring og sletning er blokeret.",
+  "desktop.store.ig_help_beszel": "Brug en almindelig Beszel-læsebruger til de ønskede systemer, aldrig superbrugeradgang.",
+  "desktop.store.ig_help_filebrowser-quantum": "Opret en særskilt API-bruger: én kilde på Store-disken /folder, kun View/Download, uden deling eller administratorrettigheder. Gem API-token og kildenavn.",
+  "desktop.store.ig_help_stirling-pdf": "Gem en Stirling-API-nøgle. Signering er separat slået fra: vælg servercertifikatet i Stirling, og angiv dets SHA-256-fingeraftryk. Certifikatændringer blokerer signering."
 }

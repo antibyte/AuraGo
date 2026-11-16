@@ -76,7 +76,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		KaggleEnabled:   true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
-		NodeREDEnabled: true, OliveTinEnabled: true, AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
+		NodeREDEnabled: true, OliveTinEnabled: true, BeszelEnabled: true, FileBrowserEnabled: true, StirlingPDFEnabled: true, AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, TregEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, GogEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
@@ -158,6 +158,10 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("notification", ff.NotificationEnabled)
 	appendToolFeatureKeyPart("node_red", ff.NodeREDEnabled)
 	appendToolFeatureKeyPart("olivetin", ff.OliveTinEnabled)
+	appendToolFeatureKeyPart("beszel", ff.BeszelEnabled)
+	appendToolFeatureKeyPart("filebrowser", ff.FileBrowserEnabled)
+	appendToolFeatureKeyPart("stirling_pdf", ff.StirlingPDFEnabled)
+
 	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
 	appendToolFeatureKeyPart("uptime_kuma", ff.UptimeKumaEnabled)
 	appendToolFeatureKeyPart("grafana", ff.GrafanaEnabled)

@@ -157,6 +157,9 @@ type ToolFeatureFlags struct {
 	NotificationEnabled     bool
 	NodeREDEnabled          bool
 	OliveTinEnabled         bool
+	BeszelEnabled           bool
+	FileBrowserEnabled      bool
+	StirlingPDFEnabled      bool
 	AdGuardEnabled          bool
 	UptimeKumaEnabled       bool
 	GrafanaEnabled          bool

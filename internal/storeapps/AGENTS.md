@@ -12,6 +12,8 @@ This package owns upstream API contracts and projection of external responses.
 
 ## Local Contracts
 
+- Beszel authenticates only normal PocketBase users and reads system/container samples with timestamps and stale flags. FileBrowser rechecks the single selected source and View/Download-only user permissions on every call; responses omit view tokens. Stirling uses fixed multipart operations, installed OCR languages and the approved public server-certificate SHA-256 pin before/after signing. Never request key material or certificate management.
+
 - Caller contexts carry the verified connection lifetime. Never retain credentials
   or bypass cancellation. Register secrets before constructing network clients.
 - Use the same-origin HTTP client, fixed API paths, bounded bodies and safe errors.

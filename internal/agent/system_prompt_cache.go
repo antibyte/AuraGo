@@ -513,6 +513,15 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.OliveTinEnabled {
 		tools = append(tools, "olivetin")
 	}
+	if flags.BeszelEnabled {
+		tools = append(tools, "beszel")
+	}
+	if flags.FileBrowserEnabled {
+		tools = append(tools, "filebrowser")
+	}
+	if flags.StirlingPDFEnabled {
+		tools = append(tools, "stirling_pdf")
+	}
 	if flags.AdGuardEnabled {
 		tools = append(tools, "adguard")
 	}

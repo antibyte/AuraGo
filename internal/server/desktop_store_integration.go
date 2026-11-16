@@ -16,6 +16,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/desktopstore"
 	"aurago/internal/security"
+	"aurago/internal/storeapps"
 	"aurago/internal/tools"
 	"gopkg.in/yaml.v3"
 )
@@ -515,6 +516,11 @@ func validateStoreIntegrationGrants(id string, p desktopstore.IntegrationSetting
 	if (p.Process || p.Sign) && id != "stirling-pdf" {
 		return errors.New("PDF permissions are not supported by this integration")
 	}
+	if p.Sign {
+		if _, err := storeapps.NormalizeCertificateFingerprint(p.CertificateFingerprint); err != nil {
+			return err
+		}
+	}
 	if p.Notify && id != "uptime-kuma" {
 		return errors.New("Notifications are not supported by this integration")
 	}
@@ -554,6 +560,18 @@ func (s *Server) testStoreIntegration(ctx context.Context, store *desktopstore.S
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	switch id {
+	case "beszel":
+		if _, err := storeAppConnection(settings).BeszelSystems(ctx, 0, 1); err != nil {
+			return err
+		}
+	case "filebrowser-quantum":
+		if err := storeAppConnection(settings).FileBrowserProbe(ctx); err != nil {
+			return err
+		}
+	case "stirling-pdf":
+		if err := storeAppConnection(settings).StirlingProbe(ctx, settings.Process, settings.Sign); err != nil {
+			return err
+		}
 	case "n8n", "bytestash":
 		if err := s.probeStoreMCP(ctx, id, settings); err != nil {
 			return err

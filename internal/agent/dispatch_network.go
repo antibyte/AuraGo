@@ -46,7 +46,7 @@ func mqttToolError(operation string, err error) string {
 }
 
 func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
-	if tc.Action == "node_red" || tc.Action == "olivetin" {
+	if tc.Action == "node_red" || tc.Action == "olivetin" || tc.Action == "beszel" || tc.Action == "filebrowser" || tc.Action == "stirling_pdf" {
 		return dispatchStoreApplication(ctx, tc, dc), true
 	}
 	cfg := dc.Cfg

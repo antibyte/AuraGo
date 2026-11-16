@@ -113,3 +113,41 @@ Upstream: [n8n MCP](https://docs.n8n.io/connect/connect-to-n8n-mcp-server/),
 [Node-RED security](https://nodered.org/docs/user-guide/runtime/securing-node-red),
 [OliveTin keys](https://docs.olivetin.app/security/api_keys.html),
 [ByteStash MCP](https://github.com/jordan-dalby/ByteStash).
+
+## Metrics, files and PDFs
+
+Beszel uses a normal `users` account, never PocketBase superuser credentials.
+Limit that account to the intended systems. `beszel` lists systems and reads the
+latest one-minute host/container records, with timestamps, units and stale flags
+(older than five minutes, missing or invalid time). Existing optional Store agent
+setup remains the only agent provisioning path; no new polling or alerts are added.
+
+FileBrowser Quantum uses a dedicated API user with exactly one selected source
+backed by the Store `/folder` volume. Configure only View/Download source rights,
+API access, no admin or sharing; save the user API token and exact source name.
+AuraGo rechecks these rights on every operation and never mounts that volume in
+its agent workspace. The administrator owns the source-to-volume mapping inside
+FileBrowser. Small text (64 KiB) is inline; larger/binary reads use a unique Shared
+path and require file-write permission. View tokens and upstream settings are not
+returned to the agent. Incompatible source-permission APIs require a Store update.
+
+Stirling PDF requires an API key and explicit processing permission for OCR,
+splitting and merging. OCR checks installed language packs before upload; missing
+languages are reported by name. Inputs are saved Desktop PDFs, up to 20 for merging.
+Total input/output obey the Desktop file maximum, capped at 64 MiB; outputs are new
+files in `Shared/Store/stirling-pdf/`. Originals are never replaced. Split ZIPs are
+bounded and validated before publication. Existing signatures may become invalid
+when a document is processed or merged; original copies remain unchanged.
+
+Signing is independently disabled by default. Configure the server certificate
+in Stirling, inspect its public DER certificate and enter its SHA-256 fingerprint
+in the Store dialog. The API key must be allowed to read Stirling's administrator
+public-certificate endpoint. AuraGo checks validity and fingerprint before and
+after `certType=SERVER` signing; any observed change blocks/withholds the result.
+It never uploads or reads private keys, creates certificates or changes keystores.
+A server signature identifies its certificate, not a qualified personal signature.
+Connection tests inspect API capabilities/languages/public certificate only.
+
+Upstream: [Beszel REST API](https://beszel.dev/guide/rest-api),
+[FileBrowser users](https://filebrowserquantum.com/en/docs/configuration/users/),
+[Stirling API](https://docs.stirlingpdf.com/Developers/API/).

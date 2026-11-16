@@ -247,6 +247,10 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"uptime_kuma", "Read monitor health and outages from Uptime Kuma"},
 		{"node_red", "List Node-RED flows and trigger allowed Inject nodes"},
 		{"olivetin", "List and execute allowed OliveTin actions and read execution status"},
+		{"beszel", "Read Beszel host and container metrics"},
+		{"filebrowser", "List, search and read the connected FileBrowser source"},
+		{"stirling_pdf", "OCR, split, merge and certificate-sign saved PDFs"},
+
 		{"grafana", "Read Grafana dashboards, data sources, alerts, health, and org info"},
 	},
 	"infrastructure": {

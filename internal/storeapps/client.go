@@ -27,13 +27,10 @@ type Connection struct {
 func (c Connection) Allowed(id string) bool { return id != "" && slices.Contains(c.AllowedIDs, id) }
 
 func (c Connection) request(ctx context.Context, method, path string, body any, mutation bool, result any) error {
-	if err := security.ValidateHTTPBaseURL(c.URL); err != nil {
-		return errors.New("Invalid Store app address")
-	}
-	if c.Credential == "" {
-		return errors.New("Store app credential is missing")
-	}
-	security.RegisterSensitive(c.Credential)
+	return c.jsonRequest(ctx, method, path, body, mutation, "Authorization", "Bearer "+c.Credential, result)
+}
+
+func (c Connection) jsonRequest(ctx context.Context, method, path string, body any, mutation bool, authKey, authValue string, result any) error {
 	var reader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -42,35 +39,57 @@ func (c Connection) request(ctx context.Context, method, path string, body any, 
 		}
 		reader = bytes.NewReader(data)
 	}
+	data, err := c.exchange(ctx, method, path, reader, "application/json", authKey, authValue, mutation, 2<<20)
+	if err != nil {
+		return err
+	}
+	if result != nil && json.Unmarshal(data, result) != nil {
+		if mutation {
+			return ErrUncertain
+		}
+		return errors.New("Store app returned an incompatible response; update the app")
+	}
+	return nil
+}
+
+func (c Connection) exchange(ctx context.Context, method, path string, reader io.Reader, contentType, authKey, authValue string, mutation bool, maxBytes int64) ([]byte, error) {
+	if err := security.ValidateHTTPBaseURL(c.URL); err != nil {
+		return nil, errors.New("Invalid Store app address")
+	}
+	if c.Credential == "" {
+		return nil, errors.New("Store app credential is missing")
+	}
+	security.RegisterSensitive(c.Credential)
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.URL, "/")+path, reader)
 	if err != nil {
-		return errors.New("Invalid Store app request")
+		return nil, errors.New("Invalid Store app request")
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Credential)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	client := httporigin.NewClient(30 * time.Second)
+	if authKey != "" {
+		req.Header.Set(authKey, authValue)
+	}
+	req.Header.Set("Content-Type", contentType)
+	client := httporigin.NewClient(5 * time.Minute)
 	defer client.CloseIdleConnections()
 	resp, err := client.Do(req)
 	if err != nil {
 		if mutation {
-			return ErrUncertain
+			return nil, ErrUncertain
 		}
-		return errors.New("Store app request failed or was cancelled")
+		return nil, errors.New("Store app request failed or was cancelled")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if mutation && resp.StatusCode >= 500 {
-			return ErrUncertain
+			return nil, ErrUncertain
 		}
-		return fmt.Errorf("Store app rejected the request (HTTP %d)", resp.StatusCode)
+		return nil, fmt.Errorf("Store app rejected the request (HTTP %d)", resp.StatusCode)
 	}
-	data, err := io.ReadAll(io.LimitReader(resp.Body, (2<<20)+1))
-	if err != nil || len(data) > 2<<20 || (result != nil && json.Unmarshal(data, result) != nil) {
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil || int64(len(data)) > maxBytes {
 		if mutation {
-			return ErrUncertain
+			return nil, ErrUncertain
 		}
-		return errors.New("Store app response is incomplete, incompatible or exceeds 2 MiB")
+		return nil, errors.New("Store app response is incomplete or exceeds its size limit")
 	}
-	return nil
+	return data, nil
 }

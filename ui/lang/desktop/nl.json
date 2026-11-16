@@ -12107,5 +12107,8 @@
   "desktop.store.ig_help_n8n": "Schakel de MCP-server van de n8n-instantie in, deel bestaande workflows en sla het eigen MCP-token op.",
   "desktop.store.ig_help_node-red": "Schakel adminAuth in Node-RED in. Sla een toegangstoken op en kies toegestane Inject-ID’s; de bestaande payload blijft behouden.",
   "desktop.store.ig_help_olivetin": "Gebruik een aparte OliveTin-gebruiker met Bearer-sleutel en kies toegestane actie-ID’s. Argumenten worden vóór uitvoering gecontroleerd.",
-  "desktop.store.ig_help_bytestash": "Sla een ByteStash-API-sleutel op voor het officiële MCP-eindpunt. Lezen en aanmaken hebben aparte rechten; wijzigen en verwijderen blijven geblokkeerd."
+  "desktop.store.ig_help_bytestash": "Sla een ByteStash-API-sleutel op voor het officiële MCP-eindpunt. Lezen en aanmaken hebben aparte rechten; wijzigen en verwijderen blijven geblokkeerd.",
+  "desktop.store.ig_help_beszel": "Gebruik een gewone Beszel-leesgebruiker voor de gewenste systemen, nooit superusergegevens.",
+  "desktop.store.ig_help_filebrowser-quantum": "Maak een aparte API-gebruiker: één bron op het Store-volume /folder, alleen View/Download, zonder deel- of beheerrechten. Sla API-token en bronnaam op.",
+  "desktop.store.ig_help_stirling-pdf": "Sla een Stirling-API-sleutel op. Ondertekenen staat apart uit: kies het servercertificaat in Stirling en voer de SHA-256-vingerafdruk in. Een certificaatwijziging blokkeert ondertekenen."
 }

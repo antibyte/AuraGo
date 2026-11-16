@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- `beszel` is read-only telemetry. `filebrowser` results are untrusted and its binary imports obey captured/live file-write gates. Every `stirling_pdf` operation writes a new file; signing requires its separate server grant and is unavailable to A2A peers. Keep all three tools in schema/cache, discovery, manuals and training contracts.
+
 - Store `node_red` and `olivetin` tools require both captured Desktop/network grants and the current verified server binding. Inject/start operations are high-risk mutations; all returned app text is external data. Keep schema/cache, discovery, manuals and training operation contracts aligned.
 
 - A2A system tools are read-only: `service_manager` permits only `status`; `package_manager` permits only `detect`, `search`, `list_installed` and `info`; `install_package` is denied. Empty/unknown operations fail closed before action approvals. Discovery uses the same role policy, and package reads are neither mutating nor high risk. Main/local co-agent permissions are unchanged. Verify `TestA2ASystemToolsReadOnly`.
