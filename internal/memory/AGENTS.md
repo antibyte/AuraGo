@@ -12,6 +12,11 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ## Local Contracts
 
+### Legacy graph import
+
+- `graph.json` is bounded to 64 MiB and imported in one transaction. Invalid node identities, missing edge endpoints, conflicting existing records and any SQL/commit error abort the entire import. Identical records may be retried without overwriting SQLite data.
+- Only a committed import archives the source using a create-only `.migrated` name (unique suffix on collision). Failures retain the source and existing archives. The constructor logs an import warning and starts with the existing SQLite graph; other initialization errors remain fatal. Verify `TestLegacyGraphJSON*` and `TestKGMigrateFromJSON`.
+
 ### Corpus capacity
 
 - `embeddings.corpus_max_size_mb` defaults to 1024 MiB and is startup-only.

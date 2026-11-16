@@ -2,12 +2,8 @@ package memory
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"strconv"
 	"strings"
 )
 
@@ -454,89 +450,4 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 	}
 
 	return nil
-}
-
-func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
-	f, err := os.Open(jsonPath)
-	if err != nil {
-		return
-	}
-
-	data, err := io.ReadAll(f)
-	if err != nil || len(data) == 0 {
-		f.Close()
-		return
-	}
-	f.Close()
-
-	var state struct {
-		Nodes map[string]Node `json:"nodes"`
-		Edges []Edge          `json:"edges"`
-	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		kg.logger.Warn("[KG] Failed to parse graph.json for migration", "error", err)
-		return
-	}
-
-	tx, err := kg.db.Begin()
-	if err != nil {
-		kg.logger.Error("[KG] Failed to begin migration transaction", "error", err)
-		return
-	}
-	defer tx.Rollback()
-
-	migrated := 0
-	for _, n := range state.Nodes {
-		if n.ID == "" {
-			continue
-		}
-		propsJSON, err := json.Marshal(n.Properties)
-		if err != nil {
-			kg.logger.Warn("[KG] Failed to marshal node properties during migration", "node_id", n.ID, "error", err)
-			continue
-		}
-		accessCount := 0
-		if countStr, ok := n.Properties["access_count"]; ok {
-			if parsed, err := strconv.Atoi(countStr); err == nil {
-				accessCount = parsed
-			}
-		}
-		isProtected := 0
-		if n.Properties["protected"] == "true" {
-			isProtected = 1
-		}
-		_, err = tx.Exec(
-			"INSERT OR IGNORE INTO kg_nodes (id, label, properties, access_count, protected) VALUES (?, ?, ?, ?, ?)",
-			n.ID, n.Label, string(propsJSON), accessCount, isProtected,
-		)
-		if err == nil {
-			migrated++
-		}
-	}
-	edgeMigrated := 0
-	for _, e := range state.Edges {
-		propsJSON, err := json.Marshal(e.Properties)
-		if err != nil {
-			kg.logger.Warn("[KG] Failed to marshal edge properties during migration", "source", e.Source, "target", e.Target, "error", err)
-			continue
-		}
-		if _, err := tx.Exec(
-			"INSERT OR IGNORE INTO kg_edges (source, target, relation, properties) VALUES (?, ?, ?, ?)",
-			e.Source, e.Target, e.Relation, string(propsJSON),
-		); err != nil {
-			kg.logger.Warn("[KG] Failed to migrate edge", "source", e.Source, "target", e.Target, "error", err)
-		} else {
-			edgeMigrated++
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		kg.logger.Error("[KG] Migration commit failed", "error", err)
-		return
-	}
-
-	if renameErr := os.Rename(jsonPath, jsonPath+".migrated"); renameErr != nil {
-		kg.logger.Warn("[KG] Could not rename migrated JSON file", "error", renameErr)
-	}
-	kg.logger.Info("[KG] Migrated graph.json to SQLite", "nodes", migrated, "edges", edgeMigrated)
 }

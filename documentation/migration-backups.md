@@ -32,3 +32,17 @@ WAL/SHM companions. Verify the chosen migration copy using SQLite
 copy with the matching AuraGo version; do not pair it with a newer database's
 WAL/SHM files. Preserve both the current state and the migration copy until
 recovery is verified. Never restore over a running database.
+
+## Legacy graph JSON
+
+AuraGo imports `graph.json` atomically, with a fixed 64-MiB input limit. Invalid
+identities, invalid edges, conflicting SQLite records or SQL failures roll back
+the import. Startup logs a warning and continues using the existing SQLite graph;
+the original JSON stays available for review and a later retry. Other database
+initialization errors still stop startup.
+
+After a successful commit the source is archived as `graph.json.migrated`, using
+a unique suffix when that name already exists. Existing archives are preserved.
+Archival uses create-only hard links; if the filesystem cannot publish the archive,
+the committed graph remains usable and the source stays in place. A retry accepts
+identical records and refuses conflicting ones; it never overwrites existing data.
