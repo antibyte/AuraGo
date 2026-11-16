@@ -413,8 +413,10 @@ func (m *MissionManagerV2) updateFlowMissionLocked(mission, updated *MissionV2) 
 }
 
 // nextFlowRun returns the earliest schedule or Date/Time trigger of an enabled flow
-// mission. isFlow is false for every other mission. Only flowCronSource jobs count: a
-// prompt mission whose id is "<flow>__<node>" owns a job with the same id.
+// mission. isFlow is false for every other mission. When the flow hooks implement
+// FlowNextRunner (AuraGo's do) the answer is theirs, the shared function that the flow API
+// also uses. Otherwise it combines the schedule jobs (flowScheduleRun) with
+// FlowHooks.NextFlowRun.
 func (m *MissionManagerV2) nextFlowRun(id string) (next time.Time, ok bool, isFlow bool) {
 	m.mu.RLock()
 	mission, exists := m.missions[id]
@@ -423,35 +425,23 @@ func (m *MissionManagerV2) nextFlowRun(id string) (next time.Time, ok bool, isFl
 		return time.Time{}, false, false
 	}
 	enabled := mission.Enabled
-	var jobs []string
-	for _, spec := range mission.FlowTriggers {
-		if spec.TriggerType == FlowTriggerSchedule {
-			jobs = append(jobs, flowCronJobID(id, spec.NodeID))
-		}
-	}
+	specs := copyFlowTriggers(mission.FlowTriggers)
 	hooks, cron := m.flowHooks, m.cron
 	m.mu.RUnlock()
 	if !enabled {
 		return time.Time{}, false, true
+	}
+	if shared, isShared := hooks.(FlowNextRunner); isShared {
+		at, found := shared.SharedNextFlowRun(id)
+		return at, found && !at.IsZero(), true
 	}
 	consider := func(t time.Time, found bool) {
 		if found && !t.IsZero() && (next.IsZero() || t.Before(next)) {
 			next = t
 		}
 	}
-	if cron != nil && len(jobs) > 0 {
-		flowJobs := make(map[string]bool, len(jobs))
-		for _, job := range cron.GetJobs() {
-			if job.Source == flowCronSource {
-				flowJobs[job.ID] = true
-			}
-		}
-		for _, job := range jobs {
-			if flowJobs[job] {
-				consider(cron.NextRun(job))
-			}
-		}
-	}
+	at, _, found := flowScheduleRun(cron, id, specs)
+	consider(at, found)
 	if hooks != nil {
 		consider(hooks.NextFlowRun(id))
 	}

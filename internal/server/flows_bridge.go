@@ -463,12 +463,26 @@ func (h flowMissionHooks) logError(msg, missionID string, err error) {
 	}
 }
 
-// NextFlowRun implements tools.FlowHooks.
+// NextFlowRun implements tools.FlowHooks: the Date/Time timers only. Mission Control asks
+// SharedNextFlowRun first, which covers the schedules too.
 func (h flowMissionHooks) NextFlowRun(missionID string) (time.Time, bool) {
 	if h.s.Flows == nil {
 		return time.Time{}, false
 	}
 	return h.s.Flows.NextTimer(context.Background(), missionID)
+}
+
+var _ tools.FlowNextRunner = flowMissionHooks{}
+
+// SharedNextFlowRun implements tools.FlowNextRunner: the next time the flow starts by itself,
+// from flows.Service.NextRunForMission, the function behind "next_run" in the flow API. So
+// Mission Control and EasyDrag show the same time.
+func (h flowMissionHooks) SharedNextFlowRun(missionID string) (time.Time, bool) {
+	if h.s.Flows == nil {
+		return time.Time{}, false
+	}
+	next, ok := h.s.Flows.NextRunForMission(missionID)
+	return next.At, ok
 }
 
 // broadcastFlowsChanged tells open editors to refresh their flow list.

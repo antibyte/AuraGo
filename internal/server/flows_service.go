@@ -94,6 +94,7 @@ func (s *Server) initFlows() {
 		flowsInitTestHook()
 	}
 	s.MissionManagerV2.SetFlowHooks(flowMissionHooks{s: s})
+	svc.SetScheduleNexter(flowScheduleNexter{s: s})
 }
 
 // The delays between the start attempts of the flow service (flowsStartRetryDelay).
