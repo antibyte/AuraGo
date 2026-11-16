@@ -367,6 +367,15 @@ func clearLegacyBrowserAutomationCloakProxy(cfg *Config) {
 }
 
 func Load(path string) (*Config, error) {
+	return load(path, true)
+}
+
+// LoadReadOnly resolves the same configuration without writing diagnostic backups.
+func LoadReadOnly(path string) (*Config, error) {
+	return load(path, false)
+}
+
+func load(path string, diagnosticBackup bool) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve absolute path for config: %w", err)
@@ -1078,6 +1087,9 @@ func Load(path string) (*Config, error) {
 		_ = lineNum
 
 		// Save corrupted config for debugging
+		if !diagnosticBackup {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
 		backupPath := absConfigPath + ".corrupted." + fmt.Sprintf("%d", time.Now().Unix())
 		_ = WriteFileAtomic(backupPath, data, 0o600)
 
