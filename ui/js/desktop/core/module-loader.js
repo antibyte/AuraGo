@@ -337,6 +337,7 @@
                 '/js/desktop/apps/easydrag-authoring.js',
                 '/js/desktop/apps/easydrag-extraction.js',
                 '/js/desktop/apps/easydrag-flow-state.js',
+                '/js/desktop/apps/easydrag-pill.js',
                 '/js/desktop/apps/easydrag-header.js',
                 '/js/desktop/apps/easydrag-editor.js',
                 '/js/desktop/apps/easydrag.js'

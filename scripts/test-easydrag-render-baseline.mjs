@@ -11,6 +11,7 @@
 // A direct run starts test-easydrag.mjs with AURAGO_EASYDRAG_TEST_FILTER=render baseline (that runner
 // builds the sandbox and calls run(env) below); every full test-easydrag.mjs run compares as well.
 import fs from 'node:fs';
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -120,7 +121,7 @@ export async function run(env) {
         },
         async runEvent(doc) {
             const s = await open(doc);
-            s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+            popEntry(s.editor, 'run-now').fire('click');
             await settled(s.h);
             const source = s.h.sources[s.h.sources.length - 1];
             const id = middle(doc);

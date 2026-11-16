@@ -3,6 +3,7 @@
 // (test-easydrag-extra3.mjs returns sandbox and openEditor); test-easydrag.mjs calls run(env)
 // with its helpers and counts the failures.
 import fs from 'node:fs';
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 import path from 'node:path';
 import vm from 'node:vm';
 
@@ -33,7 +34,7 @@ const apiError = code => Object.assign(new Error('text ' + code), { body: { erro
 
 // chips lists the texts of the editor's state chips.
 function chips(editor) {
-    return Array.from(editor.el.querySelector('[data-ed-state]').html.matchAll(/<span class="ed-chip ed-chip--\w+"[^>]*>([^<]*)<\/span>/g)).map(m => m[1]);
+    return [pillText(editor)];
 }
 
 function readLang(apps, area, locale) {
@@ -81,27 +82,30 @@ export async function run(env) {
         const world = { exists: true, enabled: true };
         const { h, editor } = publishedEditor(world);
         await settle();
-        const rows = [['open', chips(editor), runNow(h, editor), gets(h)]];
+        // The popover stays open: its read of the next run is part of the baseline of the counts.
+        popEntry(editor, 'active');
+        const base = gets(h);
+        const rows = [['open', chips(editor), runNow(h, editor), gets(h) - base]];
         // Mission Control pauses the flow: the broadcast names it (FF1).
         world.enabled = false;
         changed(h, 'f1', 'enabled');
         await settle();
-        rows.push(['paused here', chips(editor), runNow(h, editor), gets(h), editor.el.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')]);
+        rows.push(['paused here', chips(editor), runNow(h, editor), gets(h) - base, popEntry(editor, 'active').getAttribute('aria-checked')]);
         // Another flow's switch, and a save without an id, are not this flow's news.
         changed(h, 'f9', 'enabled');
         changed(h, '', 'saved');
         await settle();
-        rows.push(['other', gets(h)]);
+        rows.push(['other', gets(h) - base]);
         // A switch without an id (no single flow held the mission) may be this flow: read again.
         world.enabled = true;
         changed(h, '', 'enabled');
         await settle();
-        rows.push(['maybe mine', chips(editor), runNow(h, editor), gets(h), editor.el.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')]);
+        rows.push(['maybe mine', chips(editor), runNow(h, editor), gets(h) - base, popEntry(editor, 'active').getAttribute('aria-checked')]);
         eq('ff2 I1 a pause made elsewhere shows Paused and turns Run now off with its hint; a switch without an id is read again', rows, [
-            ['open', ['state_published'], [[false, ''], [false, '']], 0],
-            ['paused here', ['state_published', 'state_inactive'], [[true, 'reason_paused'], [true, 'reason_paused']], 1, 'false'],
+            ['open', ['pill_live:1'], [[false, ''], [false, '']], 0],
+            ['paused here', ['pill_paused:1'], [[true, 'reason_paused'], [true, 'reason_paused']], 1, 'false'],
             ['other', 1],
-            ['maybe mine', ['state_published'], [[false, ''], [false, '']], 2, 'true']
+            ['maybe mine', ['pill_live:1'], [[false, ''], [false, '']], 2, 'true']
         ]);
         // A Run now that raced the pause (a stale menu) shows the server's FLOW_DISABLED in words.
         world.enabled = false;
@@ -112,11 +116,11 @@ export async function run(env) {
         // The Active switch turned off here does the same.
         const s = publishedEditor({ exists: true, enabled: true });
         await settle();
-        s.editor.el.querySelector('[data-ed-cmd="active"]').fire('click');
+        popEntry(s.editor, 'active').fire('click');
         await settle();
         const posted = s.h.requests.find(r => r.url === '/api/desktop/flows/f1/enabled');
         eq('ff2 switching the flow off here turns Run now off too', [posted && posted.body.enabled, chips(s.editor), runNow(s.h, s.editor), s.h.logged],
-            [false, ['state_published', 'state_inactive'], [[true, 'reason_paused'], [true, 'reason_paused']], []]);
+            [false, ['pill_paused:1'], [[true, 'reason_paused'], [true, 'reason_paused']], []]);
         s.editor.dispose();
     });
 
@@ -349,7 +353,7 @@ export async function run(env) {
         await settle();
         eq('ff2 M1 a pan or zoom saves nothing, keeps Published and is stored per device; the test dialog runs at once after a zoom',
             [panned, count(h, 'GET', '/api/desktop/flows/f1/publish-preview'), count(h, 'POST', '/api/desktop/flows/f1/test'), h.logged],
-            [[0, true, ['state_published'], 'saved', false, true, false], 1, 1, []]);
+            [[0, true, ['pill_live:1'], 'saved', false, true, false], 1, 1, []]);
         editor.dispose();
     });
 
@@ -710,7 +714,7 @@ export async function run(env) {
         const flowMenu = h.menus.find(m => m.id === 'flow');
         const del = flowMenu && flowMenu.items.find(i => i.id === 'delete');
         const off = button => button.getAttribute('aria-disabled') === 'true';
-        const before = [!btn('stop-viewed').hidden, off(btn('test')), off(btn('publish')), off(btn('active')), !!(del && del.disabled)];
+        const before = [!btn('stop-viewed').hidden, off(btn('test')), off(btn('publish')), off(popEntry(editor, 'active')), !!(del && del.disabled)];
         btn('stop-viewed').fire('click');
         await settle();
         const cancels = h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/runs/r2/cancel').length;
@@ -795,55 +799,55 @@ export async function run(env) {
         const cmdBtn = (root, cmd) => root.querySelector('[data-ed-cmd="' + cmd + '"]');
         eq('ux an unpublished editor puts save in the title, names the draft test, and hides Run now',
             [draft.el.querySelector('.ed-title').contains(save), save.className, !!draft.el.querySelector('.ed-foot [data-ed-save]'),
-                cmdBtn(draft.el, 'test').getAttribute('title').includes('test_draft'), cmdBtn(draft.el, 'run-now').hidden,
-                draft.el.querySelector('[data-ed-revision]').textContent],
-            [true, 'ed-foot-item ed-save ed-save--saved', false, true, true, '']);
+                cmdBtn(draft.el, 'test').getAttribute('title').includes('test_draft'), popEntry(draft, 'run-now') === null,
+                pillText(draft)],
+            [true, 'ed-foot-item ed-save ed-save--saved', false, true, true, 'pill_draft']);
 
         const on = publishedEditor({ exists: true, enabled: true });
         await settle();
-        const liveBtn = cmdBtn(on.editor.el, 'run-now');
+        const liveBtn = popEntry(on.editor, 'run-now');
         liveBtn.fire('click');
         await settle();
-        eq('ux a published flow shows Run now and starts it',
-            [liveBtn.hidden, liveBtn.getAttribute('aria-disabled') === 'true', liveBtn.getAttribute('title'), on.editor.el.querySelector('[data-ed-revision]').textContent,
+        eq('ux a published flow shows Run now in the popover, starts it, and the pill says it is running',
+            [!liveBtn, liveBtn.getAttribute('aria-disabled') === 'true', liveBtn.getAttribute('title'), pillText(on.editor),
                 on.h.requests.filter(r => r.method === 'POST' && r.url === '/api/desktop/flows/f1/run').length],
-            [false, false, 'run_now', 'revision_live:1', 1]);
+            [false, false, 'run_now', 'running', 1]);
 
         const paused = publishedEditor({ exists: true, enabled: false });
         await settle();
-        const pausedBtn = cmdBtn(paused.editor.el, 'run-now');
+        const pausedBtn = popEntry(paused.editor, 'run-now');
         pausedBtn.fire('click');
         await settle();
-        eq('ux a paused live flow keeps Run now visible and disabled with the reason',
-            [pausedBtn.hidden, pausedBtn.getAttribute('aria-disabled') === 'true', pausedBtn.getAttribute('title'),
+        eq('ux a paused live flow keeps Run now in the popover, disabled with the reason',
+            [!pausedBtn, pausedBtn.getAttribute('aria-disabled') === 'true', pausedBtn.getAttribute('title'),
                 paused.h.requests.filter(r => r.url === '/api/desktop/flows/f1/run').length],
             [false, true, 'run_now ' + String.fromCodePoint(0x2013) + ' reason_paused', 0]);
 
         const ro = sandbox(() => undefined);
         const roEditor = openEditor(ro, { readonly: true, flow: { live: flowDoc(), live_revision: 3, published_draft_revision: 3 }, enabled: true });
         await settle();
-        const roBtn = cmdBtn(roEditor.el, 'run-now');
-        eq('ux read-only still shows Run now, disabled, with its reason',
-            [roBtn.hidden, roBtn.getAttribute('aria-disabled') === 'true', roBtn.getAttribute('title')],
+        const roBtn = popEntry(roEditor, 'run-now');
+        eq('ux read-only still shows Run now in the popover, disabled, with its reason',
+            [!roBtn, roBtn.getAttribute('aria-disabled') === 'true', roBtn.getAttribute('title')],
             [false, true, 'run_now ' + String.fromCodePoint(0x2013) + ' reason_readonly']);
 
         const ahead = openEditor(sandbox(() => undefined), { flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 2, draft_revision: 5 }, enabled: true });
         await settle();
         ahead.ed.publishIncomplete = 'FLOW_PUBLISH_INCOMPLETE';
         ahead.ed.bus.emit('enabled');
-        eq('ux revision names a newer draft, and a partial publish keeps its chip',
-            [ahead.el.querySelector('[data-ed-revision]').textContent, chips(ahead)],
-            ['revision_ahead:2', ['state_publish_incomplete']]);
+        eq('ux the pill knows the draft is newer than live, and a partial publish says so',
+            [ahead.el.querySelector('[data-ed-pill]').dataset.kind, chips(ahead)],
+            ['newer', ['state_publish_incomplete']]);
         ahead.ed.runView = { run: { id: 'r9', status: 'success', revision: 2 } };
         ahead.ed.bus.emit('enabled');
-        const viewBtn = cmdBtn(ahead.el, 'run-now');
-        eq('ux the run view keeps Run now visible and disabled',
-            [viewBtn.hidden, viewBtn.getAttribute('aria-disabled') === 'true', viewBtn.getAttribute('title')],
+        const viewBtn = popEntry(ahead, 'run-now');
+        eq('ux the run view keeps Run now in the popover, disabled',
+            [!viewBtn, viewBtn.getAttribute('aria-disabled') === 'true', viewBtn.getAttribute('title')],
             [false, true, 'run_now ' + String.fromCodePoint(0x2013) + ' reason_run_view']);
         // A run view that knows its start time names it in the tooltip instead of repeating the chip (S0c A7).
         ahead.ed.runView = { run: { id: 'r9', status: 'success', revision: 2, started_at: '2026-10-25T10:00:00Z' } };
         ahead.ed.bus.emit('enabled');
-        const timedBtn = cmdBtn(ahead.el, 'run-now');
+        const timedBtn = popEntry(ahead, 'run-now');
         const timedTitle = timedBtn.getAttribute('title');
         eq('ux the run view tooltip gives the registry reason, not the chip text again (the start time is in the banner)',
             [timedTitle.endsWith('reason_run_view'), timedTitle === 'state_run_view', timedBtn.getAttribute('aria-description')],

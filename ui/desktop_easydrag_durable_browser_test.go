@@ -88,7 +88,7 @@ func TestDesktopEasyDragDurableReconnectBrowser(t *testing.T) {
 	flowID := p.MustEval(`()=>edDurableFixture.seed('Fortsetzung nach Verbindungsabbruch',false,true).flow_id`).Str()
 	p.MustEval(`id=>EasyDragApp.open(Array.from(EasyDragApp._instances.values())[0].windowId,{flowId:id})`, flowID)
 	s.wait(`()=>edFixture.editor()?.flow.id==='` + flowID + `' && edFixture.editor().runtime?.value?.effective`)
-	p.MustElement(`[data-ed-cmd="run-now"]`).MustClick()
+	s.pillEntry("run-now")
 	s.wait(`()=>edFixture.editor()?.run?.record?.durable && edFixture.editor().run.status==='waiting'`)
 	runID := p.MustEval(`()=>edFixture.editor().run.id`).Str()
 	p.MustEval(`id=>edDurableFixture.beginWait(id)`, runID)

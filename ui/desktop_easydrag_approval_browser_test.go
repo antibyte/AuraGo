@@ -98,7 +98,7 @@ func TestDesktopEasyDragApprovalBrowser(t *testing.T) {
 	s.wait(`()=>!document.querySelector('.ed-modal--approval-review')`)
 	p.MustElement(`[data-ed-cmd="exit-run-view"]`).MustClick()
 	s.wait(`()=>!edFixture.editor()?.runView`)
-	p.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>!!document.querySelector('[data-ed-run="` + run3 + `"]')`)
 	p.MustElement(`[data-ed-run="` + run3 + `"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor(),info=window.EasyDrag.durable.info(ed?.run),button=document.querySelector('.ed-runview-banner [data-ed-cmd="approval-review"]');return ed?.runView?.run.id==='` + run3 + `'&&info?.state==='error'&&info.approval_gate_id==='` + gate3 + `'&&button&&!button.hidden}`)

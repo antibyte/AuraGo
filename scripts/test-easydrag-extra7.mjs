@@ -10,6 +10,7 @@
 // sandbox and openEditor, whose EventSource stub lists its streams in h.sources); test-easydrag.mjs
 // calls run(env) with its helpers and counts the failures.
 import fs from 'node:fs';
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 import path from 'node:path';
 
 const T1 = 'n_tttttttt';
@@ -213,7 +214,7 @@ export async function run(env) {
             });
             const editor = openEditor(h, { enabled: true, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
             await settle();
-            editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+            popEntry(editor, 'run-now').fire('click');
             await settle();
             h.sources[0].emit('snapshot', { run: { id: 'r1', status: 'running' }, steps: [] });
             const testBtn = editor.el.querySelector('[data-ed-cmd="test"]');
@@ -264,13 +265,13 @@ export async function run(env) {
         await settle();
         const buttons = editor.el.querySelectorAll('.ed-head-actions button');
         const cmd = b => b.dataset.edCmd;
-        eq('a1023b U1 the header hides the text of Stop, the Active switch and More, and spares four buttons',
-            [spared, buttons.map(cmd)], [['publish', 'run-now', 'runs', 'test'], ['runs', 'test', 'cancel', 'publish', 'run-now', 'active', 'more']]);
+        eq('a1023b U1 the header hides the text of Stop and More, and spares the buttons the stylesheet names',
+            [spared, buttons.map(cmd)], [['publish', 'run-now', 'runs', 'test'], ['test', 'cancel', 'publish', 'more']]);
         eq('a1023b U1 every header button that loses its text has a name of its own',
             buttons.filter(b => !spared.includes(cmd(b)) && !named(b)).map(cmd), []);
         eq('a1023b U1 the names say what the text says, so the visible label is part of the name',
-            buttons.filter(b => ['cancel', 'active'].includes(cmd(b))).map(b => [cmd(b), b.getAttribute('aria-label'), b.getAttribute('title')]),
-            [['cancel', 'run_cancel', 'run_cancel'], ['active', 'active', 'active']]);
+            buttons.filter(b => ['cancel'].includes(cmd(b))).map(b => [cmd(b), b.getAttribute('aria-label'), b.getAttribute('title')]),
+            [['cancel', 'run_cancel', 'run_cancel']]);
         // The header's Stop says "Stopping…" while the request is out; its name follows the text.
         let release;
         const hold = new Promise(resolve => { release = resolve; });
@@ -526,7 +527,7 @@ export async function run(env) {
         await say('the same step reports again', () => step(4, B, 'error'));
         await say('a reconnect snapshot lists it', () => stream().emit('snapshot', { run: { id: 'r1', status: 'running' }, steps: [{ node_id: B, status: 'error' }] }));
         await say('the run ends', () => stream().emit('end', {}));
-        await say('start a live run', () => s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click'));
+        await say('start a live run', () => popEntry(s.editor, 'run-now').fire('click'));
         eq('a1023b U3 the live region says that a run started and which step failed, once, and keeps the final result', [rows, s.h.logged], [[
             ['start a test', 'announce_test_started'],
             ['snapshot', ''],

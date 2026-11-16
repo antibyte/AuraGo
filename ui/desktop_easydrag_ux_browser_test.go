@@ -78,10 +78,10 @@ func TestDesktopEasyDragUXBrowser(t *testing.T) {
 	s.wait(`()=>{const ed=edFixture.editor();const items=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].map(b=>b.textContent);return items.some(x=>x.includes(ed.t('easydrag.ui.runs_title'))) && items.some(x=>x.includes(ed.t('easydrag.ui.test_draft')))}`)
 	page.MustEval(`()=>aurora.closeContextMenu()`)
 	page.MustEval(`()=>{edFixture.flow().enabled=false;aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}})}`)
-	s.wait(`()=>{const chip=document.querySelector('[data-ed-state] [data-ed-paused]');return !!chip && chip.getBoundingClientRect().width>0}`)
+	s.wait(`()=>{const chip=document.querySelector('[data-ed-pill][data-ed-pill-kind="paused"]');return !!chip && chip.getBoundingClientRect().width>0}`)
 	s.shot("ux-batch5-phone-header")
 	page.MustEval(`()=>{edFixture.flow().enabled=true;aurora.handleDesktopEvent({type:'flows_changed',payload:{flow_id:edFixture.seededID,reason:'enabled'}})}`)
-	s.wait(`()=>!document.querySelector('[data-ed-state] [data-ed-paused]')`)
+	s.wait(`()=>!document.querySelector('[data-ed-pill][data-ed-pill-kind="paused"]')`)
 	page.MustSetViewport(1440, 900, 1, false)
 	_ = (proto.EmulationSetTouchEmulationEnabled{Enabled: false}).Call(page)
 	page.MustEval(`()=>{const ed=edFixture.editor();const id=ed.model.doc.nodes.find(n=>!ed.model.info(n.type).trigger).id;window.__b5Count=ed.model.doc.nodes.length;ed.bus.emit('focus-node',id);document.querySelector('.ed-node[data-node-id="'+id+'"] [data-ed-node-tool="delete"]').click();}`)
@@ -259,7 +259,7 @@ func (s *easyDragSmoke) axName(selector string) string {
 func (s *easyDragSmoke) headerNames() {
 	s.t.Helper()
 	s.page.MustEval(`()=>{document.querySelector('[data-ed-cmd="cancel"]').hidden=false}`)
-	for _, cmd := range []string{"cancel", "active", "more"} {
+	for _, cmd := range []string{"cancel", "more"} {
 		if name := s.axName(`[data-ed-cmd="` + cmd + `"]`); name == "" {
 			s.t.Errorf("header button %s has no accessible name", cmd)
 		}

@@ -4,6 +4,7 @@
 // sandbox (test-easydrag-extra3.mjs returns sandbox); test-easydrag.mjs calls run(env) with its
 // helpers and counts the failures.
 import fs from 'node:fs';
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 import path from 'node:path';
 
 const T1 = 'n_tttttttt';
@@ -60,7 +61,7 @@ export async function run(env) {
         home.dispose();
         const editor = openFlow(h, t, { live_issues: [ISSUE] });
         await settle();
-        const chip = () => !!editor.el.querySelector('[data-ed-state] [data-ed-live-outdated]');
+        const chip = () => pillKind(editor) === 'outdated';
         const shown = chip();
         editor.ed.bus.emit('published', { live_revision: 3, published_draft_revision: 3 });
         const afterPublish = chip();
@@ -87,7 +88,7 @@ export async function run(env) {
         const editor = openFlow(h, t, { timers_running: false });
         await settle();
         const banner = () => !!home.el.querySelector('[data-ed-timers-off]');
-        const chip = () => !!editor.el.querySelector('[data-ed-state] [data-ed-timers-off]');
+        const chip = () => pillKind(editor) === 'timers';
         const stopped = [banner(), chip()];
         running = true;
         h.fireDoc('aurago:flows-changed', { detail: { flow_id: '', reason: 'checked' } });

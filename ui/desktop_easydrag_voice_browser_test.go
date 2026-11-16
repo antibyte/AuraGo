@@ -26,7 +26,7 @@ func (s *easyDragSmoke) publishAndActiveAreQuiet() {
 	s.wait(`()=>{const ed=edFixture.editor();const text=ed.t('easydrag.ui.publish_done',{name:ed.model.doc.name});return window.__edSpoken.includes(text) && ![...document.querySelectorAll('.vd-toast')].some(x=>x.textContent.includes(text))}`)
 	for i := 0; i < 2; i++ {
 		page.MustEval(`()=>{window.__edSpoken.length=0}`)
-		page.MustElement(`[data-ed-cmd="active"]`).MustClick()
+		s.pillEntry("active")
 		s.wait(`()=>{const ed=edFixture.editor();const text=ed.t(ed.flowEnabled?'easydrag.ui.active_on':'easydrag.ui.active_off');return window.__edSpoken.includes(text) && ![...document.querySelectorAll('.vd-toast')].some(x=>x.textContent.includes(text))}`)
 	}
 }

@@ -1,4 +1,5 @@
 // User-level block editing, typed-value and immutable call regressions on the existing DOM harness.
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     const A = 'n_aaaaaaaa', B = 'n_bbbbbbbb';
     const field = (name, type = 'string', required = true, nullable = false) => ({ name, type, required, nullable });
@@ -64,7 +65,8 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         editor.el.querySelector('[data-ed-block-field-remove]').fire('click'); await settle();
         eq('blocks removes an incomplete required output', editor.ed.model.node(B).params.fields, []);
         eq('blocks editor never loads independent run history or mission controls', h.requests.some(req => /\/runs|\/enabled|\/run$|\/repair-mission/.test(req.url)), false);
-        eq('blocks editor hides activation and history', [editor.el.querySelector('[data-ed-cmd="active"]').hidden, editor.el.querySelector('[data-ed-cmd="runs"]').hidden], [true, true]);
+        eq('blocks editor offers no activation, next run, Run now or history: its popover shows the state only',
+            [popEntry(editor, 'active'), popEntry(editor, 'runs'), popEntry(editor, 'run-now'), editor.el.querySelector('[data-ed-next-run]')], [null, null, null, null]);
         editor.dispose();
     });
     await guardAsync('blocks simulation opens once and a closed dialog cannot publish a late result', async () => {

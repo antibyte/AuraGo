@@ -82,7 +82,7 @@ func TestDesktopEasyDragBlocksBrowser(t *testing.T) {
 	s.wait(`()=>{const ed=edFixture.editor();return ed && ed.isBlock && ed.model.doc.nodes.length===2;}`)
 	blockID := p.MustEval(`()=>edFixture.editor().flow.id`).Str()
 	t.Log("edit block contract", blockID)
-	s.wait(`()=>edFixture.state.flows.size===1 && edBlockFixture.state.blocks.size===1 && !document.querySelector('[data-ed-cmd="active"]').getClientRects().length && !document.querySelector('[data-ed-cmd="runs"]').getClientRects().length`)
+	s.wait(`()=>edFixture.state.flows.size===1 && edBlockFixture.state.blocks.size===1 && !document.querySelector('[data-ed-cmd="active"]') && !document.querySelector('[data-ed-cmd="runs"]')`)
 
 	// Native double click opens the localized input boundary; no raw JSON is required.
 	p.MustElement(`.ed-node[data-node-id="n_blockinput01"] .ed-node-label`).MustDoubleClick()

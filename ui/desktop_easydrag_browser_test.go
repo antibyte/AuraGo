@@ -41,12 +41,12 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(".ed-flow-card h3").MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-node').length===4 && document.querySelectorAll('.ed-edge').length===3`)
 	s.wait(`()=>document.querySelector('[data-ed-state]').textContent.length>0 && getComputedStyle(document.querySelector('.ed-empty')).display==='none'`)
-	s.wait(`()=>{const head=document.querySelector('.ed-head');const save=head.querySelector('[data-ed-save]');const test=head.querySelector('[data-ed-cmd="test"]');const publish=head.querySelector('[data-ed-cmd="publish"]');const rev=head.querySelector('[data-ed-revision]');return !!save && save.getClientRects().length>0 && !document.querySelector('.ed-foot [data-ed-save]') && !!test && !test.hidden && test.textContent.trim().length>0 && !!publish && !publish.hidden && publish.textContent.trim().length>0 && !!rev && rev.textContent.trim().length>0}`)
+	s.wait(`()=>{const head=document.querySelector('.ed-head');const save=head.querySelector('[data-ed-save]');const test=head.querySelector('[data-ed-cmd="test"]');const publish=head.querySelector('[data-ed-cmd="publish"]');const rev=head.querySelector('[data-ed-pill-text]');return !!save && save.getClientRects().length>0 && !document.querySelector('.ed-foot [data-ed-save]') && !!test && !test.hidden && test.textContent.trim().length>0 && !!publish && !publish.hidden && publish.textContent.trim().length>0 && !!rev && rev.textContent.trim().length>0}`)
 	s.shot("editor-standard")
 	s.failOnPageErrors("open editor")
 	s.noRawKeys("editor")
 	// The state chip follows the flow name, and no card repeats its label on the second line.
-	s.wait(`()=>{const name=document.querySelector('[data-ed-name]').getBoundingClientRect();const chip=document.querySelector('[data-ed-state] .ed-chip').getBoundingClientRect();return chip.left-name.right>=0 && chip.left-name.right<=16}`)
+	s.wait(`()=>{const name=document.querySelector('[data-ed-name]').getBoundingClientRect();const chip=document.querySelector('[data-ed-pill]').getBoundingClientRect();return chip.left-name.right>=0 && chip.left-name.right<=16}`)
 	s.wait(`()=>[...document.querySelectorAll('.ed-node')].every(c=>{const sub=c.querySelector('.ed-node-summary');return !sub || sub.textContent!==c.querySelector('.ed-node-label').textContent})`)
 	// The flow opens at a readable zoom (no stored view yet), and the name field keeps its own font.
 	s.wait(`()=>edFixture.editor().view.zoom>=0.8`)
@@ -170,13 +170,13 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(`[data-ed-cmd="publish"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="publish"]') && !!document.querySelector('.ed-modal .ed-callout--warn')`)
 	page.MustElement(`.ed-modal [data-ed-action="publish"]`).MustClick()
-	s.wait(`()=>{const r=edFixture.flow().rec;const ed=edFixture.editor();return r.published_draft_revision===r.draft_revision && !document.querySelector('.ed-modal-backdrop') && !ed.publishIncomplete && !!document.querySelector('[data-ed-state] .ed-chip--ok')}`)
+	s.wait(`()=>{const r=edFixture.flow().rec;const ed=edFixture.editor();return r.published_draft_revision===r.draft_revision && !document.querySelector('.ed-modal-backdrop') && !ed.publishIncomplete && document.querySelector('[data-ed-pill]').getAttribute('data-status')==='ok'}`)
 	// Publishing and the active switch announce and do not notify (W1b B.6).
 	s.publishAndActiveAreQuiet()
 	s.clearToasts()
 
 	// Run drawer and read-only run view; Esc returns to the draft.
-	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>document.querySelectorAll('.ed-run-row').length===1`)
 	page.MustElement(`.ed-run-row`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-runview-banner').hidden && document.querySelectorAll('.ed-node.is-readonly').length===5`)
@@ -194,7 +194,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// The palette is back, and the footer still names the last run once the run view is left.
 	s.wait(`()=>!document.querySelector('.ed-palette').classList.contains('is-collapsed') && document.querySelector('.ed-palette').inert===false && document.querySelector('.ed-rail [data-ed-cmd="palette"]').getAttribute('aria-disabled')==='false'`)
 	s.wait(`()=>!document.querySelector('[data-ed-last-run]').textContent.includes(edFixture.editor().t('easydrag.ui.home_never_ran'))`)
-	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
 
 	// flows_changed desktop events reach open editors.
@@ -316,7 +316,7 @@ func (s *easyDragSmoke) pausedElsewhere() {
 	runItem := `const ed=edFixture.editor();const item=aurora.state.windowMenus.get(ed.windowId).renderedMenus.find(m=>m.id==='flow').items.find(i=>i.id==='run');`
 	page.MustEval(`()=>{edFixture.flow().enabled=false}`)
 	page.MustEval(broadcast)
-	s.wait(`()=>{` + runItem + `const chips=[...document.querySelectorAll('[data-ed-state] .ed-chip')].map(c=>c.textContent);return ed.flowEnabled===false && chips.includes(ed.t('easydrag.ui.state_inactive')) && document.querySelector('[data-ed-cmd="active"]').getAttribute('aria-checked')==='false' && item.disabled && item.disabledHint===ed.t('easydrag.ui.reason_paused')}`)
+	s.wait(`()=>{` + runItem + `return ed.flowEnabled===false && document.querySelector('[data-ed-pill]').getAttribute('data-ed-pill-kind')==='paused' && item.disabled && item.disabledHint===ed.t('easydrag.ui.reason_paused')}`)
 	page.MustElement(`[data-ed-cmd="more"]`).MustClick()
 	s.wait(`()=>{const ed=edFixture.editor();const b=[...document.querySelectorAll('.vd-context-menu .vd-context-item')].find(x=>x.textContent.includes(ed.t('easydrag.ui.run_now')));return !!b && b.disabled && b.title===ed.t('easydrag.ui.reason_paused')}`)
 	s.shot("editor-paused")
@@ -324,7 +324,7 @@ func (s *easyDragSmoke) pausedElsewhere() {
 	page.MustEval(`()=>aurora.closeContextMenu()`)
 	page.MustEval(`()=>{edFixture.flow().enabled=true}`)
 	page.MustEval(broadcast)
-	s.wait(`()=>{` + runItem + `return ed.flowEnabled===true && document.querySelectorAll('[data-ed-state] .ed-chip').length===1 && !item.disabled}`)
+	s.wait(`()=>{` + runItem + `return ed.flowEnabled===true && document.querySelector('[data-ed-pill]').getAttribute('data-ed-pill-kind')==='live' && !item.disabled}`)
 	s.failOnPageErrors("paused elsewhere")
 }
 
@@ -715,7 +715,7 @@ func (s *easyDragSmoke) stopWaitingRuns() {
 	page := s.page
 	ids := page.MustEval(`()=>[edFixture.addWaitingRun(),edFixture.addWaitingRun()]`).Arr()
 	first, second := ids[0].Str(), ids[1].Str()
-	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>document.querySelectorAll('.ed-drawer .ed-run-item [data-ed-run-stop]').length===2`)
 	// The Stop button's name contains its visible label and names the run's start time.
 	s.wait(fmt.Sprintf(`()=>{const b=document.querySelector('[data-ed-run-stop="%s"]');const name=b.getAttribute('aria-label').toLowerCase();return name.includes(b.textContent.trim().toLowerCase()) && /\d/.test(name)}`, first))
@@ -743,7 +743,7 @@ func (s *easyDragSmoke) stopWaitingRuns() {
 	// "Back to draft" (focused) ends the run view; the focus goes to the draft's canvas.
 	page.Keyboard.MustType(input.Enter)
 	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden && document.activeElement===document.querySelector('.ed-canvas')`)
-	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
 	s.clearToasts()
 	s.failOnPageErrors("stop waiting runs")
@@ -791,7 +791,7 @@ func (s *easyDragSmoke) publishPartial() {
 	s.wait(`()=>{const ed=edFixture.editor();const r=edFixture.flow().rec;return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && r.published_draft_revision===r.draft_revision && !document.querySelector('.ed-modal-backdrop') && !!document.querySelector('.vd-toast')}`)
 	// The re-read flow has the same live revision, which must not end the warning.
 	s.wait(fmt.Sprintf(`()=>(%s)()>%d`, reads, before))
-	s.wait(`()=>{const ed=edFixture.editor();const pub=document.querySelector('[data-ed-cmd="publish"]');return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && !!document.querySelector('[data-ed-state] .ed-chip--warn') && !pub.disabled && pub.classList.contains('has-changes')}`)
+	s.wait(`()=>{const ed=edFixture.editor();const pub=document.querySelector('[data-ed-cmd="publish"]');return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && document.querySelector('[data-ed-pill]').getAttribute('data-status')==='blocked' && !pub.disabled && pub.classList.contains('has-changes')}`)
 	s.clearToasts()
 	s.shot("publish-partial")
 	s.noRawKeys("publish partial")
@@ -847,7 +847,7 @@ func (s *easyDragSmoke) phoneKeyboardAdd() {
 func (s *easyDragSmoke) failedRunView() {
 	s.t.Helper()
 	page := s.page
-	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>document.querySelectorAll('.ed-run-row').length===2`)
 	page.MustElement(`.ed-run-row .ed-status-disc[data-status="failed"]`).MustClick()
 	s.wait(`()=>!document.querySelector('.ed-runview-banner').hidden && document.querySelectorAll('.ed-node.status-error').length===1`)
@@ -858,7 +858,7 @@ func (s *easyDragSmoke) failedRunView() {
 	page.MustEval(`()=>document.querySelector('.ed-canvas').focus()`)
 	page.Keyboard.MustType(input.Escape)
 	s.wait(`()=>document.querySelector('.ed-runview-banner').hidden`)
-	page.MustElement(`[data-ed-cmd="runs"]`).MustClick()
+	s.pillEntry("runs")
 	s.wait(`()=>!document.querySelector('.ed-drawer')`)
 	s.failOnPageErrors("failed run view")
 }

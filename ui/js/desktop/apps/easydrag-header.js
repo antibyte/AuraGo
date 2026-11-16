@@ -1,4 +1,4 @@
-// EasyDrag editor header and footer: the flow name, the state, revision, live and timer chips,
+// EasyDrag editor header and footer: the flow name, the pill (easydrag-pill.js: the state, its popover),
 // the action buttons, the save state, the issues count and the last run. easydrag-editor.js
 // creates it once per editor and keeps the run view (renderBanner), the commands and the bus wiring.
 (function () {
@@ -8,78 +8,26 @@
     const SAVE_ICONS = { saved: 'check', dirty: 'pencil', saving: 'refresh', invalid: 'alert', offline: 'alert', failed: 'alert', conflict: 'alert' };
 
     // create(host) builds the header renderers of one editor. host: {ed, el, isBlock, canvas, runs,
-    // palette, publish, nameInput, renderBanner(), isDisposed(), lastRecord()}; t, esc and ctx come from ed.
+    // palette, publish, nameInput, bag, renderBanner(), isDisposed(), lastRecord()}; t, esc and ctx come from ed.
     function create(host) {
         const core = ED.core;
         const { ed, el, isBlock, canvas, runs, palette, publish, nameInput, renderBanner } = host;
         const { t, esc, ctx } = ed;
 
-        // stateOf names the flow's state with the words of Mission Control and the missions page:
-        // state_draft reads "Not published yet" (a flow never published) and state_inactive
-        // "Paused" (published, switched off). "Draft" stays the word for the editable version.
-        function stateOf() {
-            // A partial publish is live, but Mission Control or the timers were not updated: the chip
-            // says why and Publish stays offered (publishing again finishes it).
-            if (ed.publishIncomplete && !ed.runView) return { cls: 'warn', key: 'easydrag.ui.state_publish_incomplete', title: publish.partialText(ed.publishIncomplete) };
-            if (ed.runView) return { cls: 'muted', key: 'easydrag.ui.state_run_view' };
-            if (!ed.flow.live) return { cls: 'muted', key: 'easydrag.ui.state_draft' };
-            if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return { cls: 'accent', key: 'easydrag.ui.state_changes' };
-            return { cls: 'ok', key: 'easydrag.ui.state_published' };
-        }
-
-        // revisionText is the persistent draft-versus-live line. Partial publish stays on the state chip.
-        function revisionText() {
-            // The run view's chip says "Past run" already; the line stays empty and hidden there.
-            if (ed.runView) return '';
-            if (!ed.flow.live) return '';
-            const liveN = Number(ed.flow.live_revision) || 0;
-            if (ed.flow.draft_revision !== ed.flow.published_draft_revision) return t('easydrag.ui.revision_ahead', { n: liveN });
-            return t('easydrag.ui.revision_live', { n: liveN });
-        }
+        // The pill (the flow's state in one text, and its popover with Active, the next run, Run now and Runs) is easydrag-pill.js.
+        const pill = ED.pill.create({ ed, el, runs, publish });
 
         // paintActions draws the action buttons from the registry: the title (label and shortcut), and for an unavailable button
         // aria-disabled with its reason in the title and in aria-description. A button never says "disabled": a keyboard user can
         // still reach it and read why, and the click handler (and ED.actions.run) refuse it.
         function paintActions() {
             const c = { host: ed };
-            [['test', 'flow.test'], ['cancel', 'flow.stop'], ['publish', 'flow.publish'], ['run-now', 'flow.run_now'], ['active', 'flow.active']].forEach(([cmd, id]) => {
+            [['test', 'flow.test'], ['cancel', 'flow.stop'], ['publish', 'flow.publish']].forEach(([cmd, id]) => {
                 const button = el.querySelector('[data-ed-cmd="' + cmd + '"]');
                 if (button) ED.actions.paint(button, id, c);
             });
-        }
-
-        function paintRevision() {
-            const node = el.querySelector('[data-ed-revisions]');
-            if (!node) return;
-            const draftN = String(Number(ed.flow.draft_revision) || 0);
-            const liveN = String(Number(ed.flow.live_revision) || 0);
-            const kind = !ed.flow.live ? 'draft' : ed.flow.draft_revision !== ed.flow.published_draft_revision ? 'newer' : 'live';
-            const paused = !isBlock && !!(ed.flow.live && !ed.flowEnabled);
-            node.dataset.kind = kind;
-            node.dataset.draft = draftN;
-            node.dataset.live = liveN;
-            node.dataset.paused = paused ? 'true' : 'false';
-            node.hidden = !!ed.runView || !ed.flow.live;
-            node.textContent = revisionText();
-        }
-
-        // liveChip marks a published version that no longer passes the server's current checks
-        // (its start-up check), only while that version is still live: a new publication clears it.
-        function liveChip() {
-            const outdated = !ed.runView && !!ed.flow.live && ed.liveIssues.length > 0 && Number(ed.flow.live_revision) === ed.liveIssuesRevision;
-            if (!outdated) return '';
-            const hint = t('easydrag.ui.live_outdated_hint');
-            return '<span class="ed-chip ed-chip--risk" data-ed-live-outdated title="' + esc(hint) + '">' + esc(t('easydrag.ui.state_live_outdated')) +
-                '<span class="ed-sr-only"> ' + esc(hint) + '</span></span>';
-        }
-
-        // timersChip: the server's Date & time triggers do not fire (its flow store did not start).
-        function timersChip() {
-            if (isBlock) return '';
-            if (ed.runView || ed.timersRunning !== false) return '';
-            const text = t('easydrag.ui.timers_stopped_text');
-            return '<span class="ed-chip ed-chip--warn" data-ed-timers-off title="' + esc(text) + '">' + esc(t('easydrag.ui.timers_stopped_title')) +
-                '<span class="ed-sr-only"> ' + esc(text) + '</span></span>';
+            // The pill's popover shows the same reasons (a dialog or a menu opening or closing changes them).
+            pill.paint();
         }
 
         function renderHeader() {
@@ -88,30 +36,21 @@
             renderBanner();
             if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || ''; if (nameInput.edLimit) nameInput.edLimit.update();
             nameInput.readOnly = !!(ed.readonly || ed.runView);
-            const s = stateOf();
-            const inactive = !isBlock && ed.flow.live && !ed.flowEnabled && !ed.runView;
-            el.querySelector('[data-ed-state]').innerHTML = '<span class="ed-chip ed-chip--' + s.cls + '"' + (s.title ? ' title="' + esc(s.title) + '"' : '') + '>' + esc(t(s.key)) + '</span>' +
-                (inactive ? '<span class="ed-chip ed-chip--muted" data-ed-paused>' + esc(t('easydrag.ui.state_inactive')) + '</span>' : '') + (isBlock ? '<span class="ed-chip ed-chip--muted">' + esc(t('easydrag.ui.block_pure')) + '</span>' : '') + liveChip() + timersChip();
-            paintRevision();
             syncSaveChip();
             const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
             if (isBlock) {
                 btn('test').querySelector('span').textContent = ED.actions.label('flow.test', { host: ed });
-                btn('runs').hidden = true; btn('active').hidden = true;
                 el.querySelector('[data-ed-cmd="templates"]').hidden = true;
                 nameInput.setAttribute('aria-label', t('easydrag.ui.block_name'));
             }
             btn('test').classList.toggle('is-busy', running);
             btn('test').classList.toggle('ed-btn--primary', !ed.flow.live && !ro);
             btn('cancel').hidden = !running;
-            btn('publish').classList.toggle('has-changes', s.cls !== 'ok' && !ro);
+            btn('publish').classList.toggle('has-changes', (!ed.flow.live || ED.pill.changed(ed) || !!ed.publishIncomplete) && !ro);
             btn('publish').classList.toggle('ed-btn--primary', !!ed.flow.live && !ro);
-            btn('run-now').hidden = isBlock || !ed.flow.live;
-            btn('active').setAttribute('aria-checked', String(!!ed.flowEnabled));
             paintActions();
-            btn('runs').setAttribute('aria-pressed', String(runs.drawerOpen()));
             btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
             // The run view keeps the palette hidden: a stored run takes no new steps.
             btn('palette').setAttribute('aria-disabled', String(!!ed.runView));
@@ -140,6 +79,7 @@
                 ? '<button type="button" class="ed-save-retry" data-ed-cmd="save" title="' + esc(title) + '">' + label + '<span class="ed-save-action">' + esc(t('easydrag.ui.retry')) + '</span></button>'
                 : label;
             node.title = s === 'failed' ? '' : title;
+            if (!host.isDisposed()) pill.paint();
             // Each state replaces the retry button: keyboard focus moves to the new one or, once the
             // save went through, to the canvas.
             if (hadFocus && !host.isDisposed()) (node.querySelector('[data-ed-cmd="save"]') || canvas.el).focus({ preventScroll: true });
@@ -193,7 +133,10 @@
             text.parentElement.title = text.textContent;
         }
 
-        return { renderHeader, renderSaveState, renderIssues, renderLastRun, paintActions };
+        // The facts of the server (next run, tested, changes) arrive after the first paint: the pill follows them.
+        host.bag.add(ed.bus.on('flow-facts', renderHeader));
+
+        return { renderHeader, renderSaveState, renderIssues, renderLastRun, paintActions, dispose() { pill.dispose(); } };
     }
 
     ED.header = { create };

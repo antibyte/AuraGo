@@ -8,7 +8,7 @@ import { webcrypto } from 'node:crypto';
 
 const MODULES = ['easydrag-core.js', 'easydrag-kit.js', 'easydrag-format.js', 'easydrag-status.js', 'easydrag-actions.js', 'easydrag-icons.js', 'easydrag-delight.js', 'easydrag-durable.js', 'easydrag-template.js', 'easydrag-credentials.js', 'easydrag-model.js', 'easydrag-geometry.js', 'easydrag-groups.js', 'easydrag-saver.js', 'easydrag-canvas.js',
     'easydrag-wires.js', 'easydrag-interact.js', 'easydrag-palette.js', 'easydrag-template-field.js', 'easydrag-fields-conditions.js', 'easydrag-fields.js', 'easydrag-forms.js', 'easydrag-blocks.js', 'easydrag-batches.js', 'easydrag-block-fields.js', 'easydrag-transform.js', 'easydrag-mapping.js',
-    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-approvals.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-credentials-move.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-credentials-purge.js', 'easydrag-home-grid.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-flow-state.js', 'easydrag-header.js', 'easydrag-editor.js', 'easydrag.js'];
+    'easydrag-detail.js', 'easydrag-scenarios.js', 'easydrag-testing.js', 'easydrag-child-history.js', 'easydrag-compare.js', 'easydrag-approvals.js', 'easydrag-run-stream.js', 'easydrag-run-start.js', 'easydrag-run-stop.js', 'easydrag-run-drawer.js', 'easydrag-runs.js', 'easydrag-metadata.js', 'easydrag-publish.js', 'easydrag-credentials-move.js', 'easydrag-library-pause.js', 'easydrag-pack.js', 'easydrag-credentials-purge.js', 'easydrag-home-grid.js', 'easydrag-home.js', 'easydrag-dialogs.js', 'easydrag-history.js', 'easydrag-workspace.js', 'easydrag-authoring.js', 'easydrag-extraction.js', 'easydrag-flow-state.js', 'easydrag-pill.js', 'easydrag-header.js', 'easydrag-editor.js', 'easydrag.js'];
 const T1 = 'n_tttttttt';
 const A = 'n_aaaaaaaa';
 const B = 'n_bbbbbbbb';
@@ -33,10 +33,10 @@ function flowDoc(name) {
 const apiError = code => Object.assign(new Error('text ' + code), { body: { error: 'text ' + code, code } });
 const deferred = () => { let resolve, reject; const p = new Promise((a, b) => { resolve = a; reject = b; }); return { p, resolve, reject }; };
 
-// chipState reads the editor's state chip: [colour, text, title, Publish disabled].
+// chipState reads the editor's pill: [kind, text, tooltip, Publish disabled].
 function chipState(editor) {
-    const m = /<span class="ed-chip ed-chip--(\w+)"(?: title="([^"]*)")?>([^<]*)<\/span>/.exec(editor.el.querySelector('[data-ed-state]').html);
-    return m ? [m[1], m[3], m[2] === undefined ? null : m[2], editor.el.querySelector('[data-ed-cmd="publish"]').disabled] : null;
+    const pill = editor.el.querySelector('[data-ed-pill]');
+    return [pill.getAttribute('data-ed-pill-kind'), pill.querySelector('[data-ed-pill-text]').textContent, pill.getAttribute('title'), editor.el.querySelector('[data-ed-cmd="publish"]').disabled];
 }
 
 export async function run(env) {
@@ -395,10 +395,10 @@ export async function run(env) {
         const h = sandbox(req => {
             if (req.url === '/api/desktop/flows/f1/publish-preview') return { issues: [], effects: [], diff: {} };
             if (req.url === '/api/desktop/flows/f1/publish') return { flow: record(3), issues: [], partial: true, code: 'FLOW_PUBLISH_INCOMPLETE', error: 'server text' };
-            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') return { flow: record(liveRevision), enabled: false, issues: [] };
+            if (req.method === 'GET' && req.url === '/api/desktop/flows/f1') return { flow: record(liveRevision), enabled: true, issues: [] };
             return undefined;
         });
-        const editor = openEditor(h, { flow: { published_draft_revision: 2, live: flowDoc(), live_revision: 2 } });
+        const editor = openEditor(h, { enabled: true, flow: { published_draft_revision: 2, live: flowDoc(), live_revision: 2 } });
         await settle();
         const states = [chipState(editor)];
         editor.el.querySelector('[data-ed-cmd="publish"]').fire('click');
@@ -415,10 +415,10 @@ export async function run(env) {
         await settle();
         states.push(chipState(editor));
         eq('c1d07 a partial publish shows its own state and keeps Publish until a higher live revision arrives', states, [
-            ['accent', 'state_changes', null, false],
-            ['warn', 'state_publish_incomplete', 'error_flow_publish_incomplete', false],
-            ['warn', 'state_publish_incomplete', 'error_flow_publish_incomplete', false],
-            ['ok', 'state_published', null, false]
+            ['changed', 'pill_live_changed:2', 'pill_live_changed:2', false],
+            ['partial', 'state_publish_incomplete', 'state_publish_incomplete' + ' ' + String.fromCodePoint(0x2013) + ' ' + 'error_flow_publish_incomplete', false],
+            ['partial', 'state_publish_incomplete', 'state_publish_incomplete' + ' ' + String.fromCodePoint(0x2013) + ' ' + 'error_flow_publish_incomplete', false],
+            ['live', 'pill_live:4', 'pill_live:4', false]
         ]);
         eq('c1d07 effectsConfirmed is a Set', Object.prototype.toString.call(editor.ed.effectsConfirmed), '[object Set]');
         eq('c1d07 the publish state checks log no errors', h.logged, []);

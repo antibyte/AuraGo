@@ -4,6 +4,7 @@
 // (test-easydrag-extra3.mjs returns sandbox and openEditor, whose EventSource stub lists its streams in
 // h.sources); test-easydrag.mjs calls run(env) with its helpers and saverHarness and counts the failures.
 import fs from 'node:fs';
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 import path from 'node:path';
 
 const T1 = 'n_tttttttt';
@@ -105,7 +106,7 @@ export async function run(env) {
     await guardAsync('b5 G2 a skipped Run now says so, in the editor and on the start page', async () => {
         const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run' ? { status: 'skipped' } : undefined),
             { enabled: true, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
-        const said = await s.heard(() => s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click'));
+        const said = await s.heard(() => popEntry(s.editor, 'run-now').fire('click'));
         const editorRow = [s.h.notes.map(n => [n.title, n.message, n.type]), said, s.h.sources.length, !!s.ed.run, s.h.logged];
         s.editor.dispose();
         const p = await homePage(req => {
@@ -343,7 +344,7 @@ export async function run(env) {
         const pick = h.dialogs[h.dialogs.length - 1];
         const pickList = pick.el.parentNode.html.includes('role="list"');
         pick.close(null);
-        editor.el.querySelector('[data-ed-cmd="runs"]').fire('click');
+        popEntry(editor, 'runs').fire('click');
         const drawerGroup = editor.el.querySelector('.ed-drawer [role="radiogroup"]').getAttribute('aria-label');
         ed.bus.emit('open-detail', { nodeId: A });
         const tabs = editor.el.querySelectorAll('.ed-detail [role="tab"]').map(b => {
@@ -590,18 +591,16 @@ export async function run(env) {
         const s = await session(req => (req.url === '/api/desktop/flows/runs/r1?include=doc'
             ? { run: { id: 'r1', status: 'success', mode: 'test', started_at: '2026-10-25T10:00:00Z', revision: 2 }, steps: [], doc: flowDoc('Run') } : undefined));
         const head = () => {
-            const state = s.editor.el.querySelector('[data-ed-state]').html;
-            const rev = s.editor.el.querySelector('[data-ed-revisions]');
             const save = s.editor.el.querySelector('[data-ed-save]');
-            return [(state.match(/state_run_view/g) || []).length + (rev.textContent === 'state_run_view' ? 1 : 0), !!rev.hidden, !!save.hidden];
+            return [pillText(s.editor) === 'state_run_view' ? 1 : 0, !!save.hidden];
         };
         const before = head();
         s.editor.showRun('r1');
         await settle();
         const inView = head();
         s.editor.el.querySelector('[data-ed-cmd="exit-run-view"]').fire('click');
-        eq('b5 V1 draft: no Past run; run view: once, revision line and Saved hidden; back: as before',
-            [before, inView, head(), s.h.logged], [[0, true, false], [1, true, true], [0, true, false], []]);
+        eq('b5 V1 draft: no Past run; run view: the pill says it and Saved is hidden; back: as before',
+            [before, inView, head(), s.h.logged], [[0, false], [1, true], [0, false], []]);
         s.editor.dispose();
     });
     // ── V4, U13: phone header ──
@@ -623,14 +622,14 @@ export async function run(env) {
         await items.find(i => i.label === 'test_draft').action();
         await settle();
         const testOpened = s.h.dialogs.length - dialogs;
-        const paused = s.editor.el.querySelector('[data-ed-state]').html.includes('data-ed-paused');
+        const paused = pillKind(s.editor) === 'paused';
         const sheet = css();
         const narrow = sheet.slice(sheet.indexOf('@container (max-width: 560px)')).split(/\r?\n\}\r?\n/)[0];
         eq('b5 V4 U13 phone keeps Test visible, both menu shortcuts work and Paused stays visible',
             [wide.slice(0, 2), phone.slice(0, 4), drawer, testOpened, paused,
                 narrow.includes('.ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }') && !narrow.includes('[data-ed-cmd="test"] { display: none; }'),
-                narrow.includes('.ed-state > :not([data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]) { display: none; }'), narrow.includes('.ed-state { display: none; }'), s.h.logged],
-            [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, true, false, []]);
+                narrow.includes('.ed-state > :not('), narrow.includes('.ed-state { display: none; }'), s.h.logged],
+            [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, false, false, []]);
         s.editor.dispose();
     });
     // ── U7, U9, U11 ──
@@ -826,7 +825,7 @@ export async function run(env) {
         const chain = chainDoc(40);
         const s = await session(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/run' ? { run_id: 'r1' } : undefined),
             { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
-        s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+        popEntry(s.editor, 'run-now').fire('click');
         await settle();
         const source = s.h.sources[s.h.sources.length - 1];
         const stats = s.ed.renderStats;
@@ -889,7 +888,7 @@ export async function run(env) {
             if (req.url === '/api/desktop/flows/runs/r1?include=doc') return viewed();
             return undefined;
         }, { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
-        s.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+        popEntry(s.editor, 'run-now').fire('click');
         await settle();
         s.editor.showRun('r1');
         await settle();
@@ -910,7 +909,7 @@ export async function run(env) {
             if (req.url.startsWith('/api/desktop/flows/runs/r7')) return { run: { id: 'r7', status: parkedStatus, mode: 'test', started_at: '2026-10-25T10:01:00Z' }, steps: [] };
             return undefined;
         }, { enabled: true, flow: { draft: chain, live: chain, live_revision: 2, published_draft_revision: 3 } });
-        s2.editor.el.querySelector('[data-ed-cmd="run-now"]').fire('click');
+        popEntry(s2.editor, 'run-now').fire('click');
         await settle();
         s2.editor.showRun('r1');
         await settle();
@@ -955,10 +954,10 @@ export async function run(env) {
         editor.dispose();
     });
 
-    await guardAsync('b5 phone the state chips Republish needed and the timers warning stay visible at 560 px', async () => {
+    await guardAsync('b5 phone the pill with Republish needed, the timers warning and Paused stays visible at 560 px', async () => {
         const sheet = css();
-        const rule = /@container \(max-width: 560px\) \{[\s\S]*?\.ed-state > :not\(([^)]*)\) \{ display: none; \}/.exec(sheet);
-        eq('b5 phone the hide rule excepts paused, live-outdated and timers-off', rule && rule[1], '[data-ed-paused], [data-ed-live-outdated], [data-ed-timers-off]');
+        const narrow = sheet.slice(sheet.indexOf('@container (max-width: 560px)')).split(/\r?\n\}\r?\n/)[0];
+        eq('b5 phone no 560 px rule hides the pill or its parent', /\.ed-head-pill[^{]*\{[^}]*display: none/.test(narrow) || /\.ed-state[^{]*\{[^}]*display: none/.test(narrow), false);
     });
 
     // ── U18: manual chapter 24 ──

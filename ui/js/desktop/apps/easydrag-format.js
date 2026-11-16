@@ -109,6 +109,17 @@
         return '';
     }
 
+    // nextRun says when a flow runs next, short: the weekday and the time inside the next six days ("Mo., 07:00"), the day, the
+    // month and the time after that ("17. Nov., 07:00"). The time shown is the browser's. now is for tests; an invalid value gives ''.
+    function nextRun(value, now) {
+        const d = toDate(value);
+        if (!d) return '';
+        const from = now instanceof Date ? now : new Date();
+        const soon = d.getTime() - from.getTime() < 6 * 86400000;
+        const opts = soon ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+        try { return intl('DateTimeFormat', locale(), opts).format(d); } catch (err) { return d.toISOString(); }
+    }
+
     // list joins items with the language's "and" ("a, b und c"); opts.type 'disjunction' gives "or".
     function list(items, opts) {
         const values = Array.from(items || []);
@@ -170,5 +181,5 @@
         };
     }
 
-    ED.format = { locale, category, key, number, plural, duration, date, relative, list, listSeparator, pseudoText, pseudoOn, wrapT, PSEUDO_KEY };
+    ED.format = { locale, category, key, number, plural, duration, date, relative, nextRun, list, listSeparator, pseudoText, pseudoOn, wrapT, PSEUDO_KEY };
 })();

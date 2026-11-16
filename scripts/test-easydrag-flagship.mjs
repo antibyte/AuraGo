@@ -1,4 +1,5 @@
 // Flagship journeys use the existing editor sandbox and API transport.
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
     await guardAsync('flagship comparison exports only explicit bounded metadata and rejects stale responses', async () => {
         const records = ['r1', 'r2', 'r3'].map(id => ({ id, flow_id: 'f1', status: 'success', revision: 3, started_at: '2026-11-04T12:00:00Z' }));
@@ -15,7 +16,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         });
         const editor = openEditor(h);
         await settle();
-        editor.el.querySelector('[data-ed-cmd="runs"]').fire('click'); await settle();
+        popEntry(editor, 'runs').fire('click'); await settle();
         editor.el.querySelector('[data-ed-runs-compare]').fire('click'); await settle();
         const dialog = h.dialogs[h.dialogs.length - 1];
         const exportButton = dialog.el.querySelector('[data-ed-action="export"]');
@@ -70,7 +71,7 @@ export async function run({ sandbox, openEditor, eq, guardAsync, settle }) {
         });
         const editor = openEditor(h);
         await settle();
-        editor.el.querySelector('[data-ed-cmd="runs"]').fire('click');
+        popEntry(editor, 'runs').fire('click');
         await settle();
         editor.el.querySelector('[data-ed-runs-more]').fire('click');
         await settle();

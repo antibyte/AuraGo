@@ -7,7 +7,7 @@ import (
 )
 
 var easyDragVersionKeys = []string{
-	"revision_live", "revision_ahead", "run_view_banner", "run_view_pruned", "child_history_reference",
+	"revision_live", "revision_ahead", "pill_live", "pill_live_changed", "pill_paused", "run_view_banner", "run_view_pruned", "child_history_reference",
 	"pack_block_version", "approval_revision", "approval_blocked_stale", "approval_stale_help",
 	"cred_purge_live_block_line", "cred_purge_live_block_advice", "publish_changes", "publish_tested_revision",
 }

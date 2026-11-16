@@ -6,6 +6,7 @@
 // sandbox (test-easydrag-extra3.mjs returns sandbox, openEditor and desktopMenus);
 // test-easydrag.mjs calls run(env) with its helpers and counts the failures.
 import fs from 'node:fs';
+import { popEntry, pillText, pillKind } from './easydrag-header-test-helper.mjs';
 import path from 'node:path';
 
 const T1 = 'n_tttttttt';
@@ -578,7 +579,7 @@ export async function run(env) {
         runBtn.fire('click');
         await settle();
         const duringTest = [testPosts(), livePosts(), runBtn.disabled];
-        const runNow = () => editor.el.querySelector('[data-ed-cmd="run-now"]');
+        const runNow = () => { editor.ed.bus.emit('enabled'); return popEntry(editor, 'run-now'); };
         runNow().fire('click');
         runNow().fire('click');
         await settle();
@@ -720,7 +721,7 @@ export async function run(env) {
         });
         const editor = openEditor(h);
         await settle();
-        editor.el.querySelector('[data-ed-cmd="runs"]').fire('click');
+        popEntry(editor, 'runs').fire('click');
         await settle();
         const stop = id => editor.el.querySelector('[data-ed-run-stop="' + id + '"]');
         const shown = ['rq', 'rw', 'rr', 'rs'].map(id => !!stop(id));

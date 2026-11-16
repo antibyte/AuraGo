@@ -54,16 +54,13 @@
         const el = core.el('<div class="ed-editor">' +
             '<header class="ed-head">' +
             '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('back') + '</button>' +
-            '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state></span><span class="ed-revision" data-ed-revision data-ed-revisions></span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
+            '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state>' + ED.pill.markup() + '</span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
             '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<div class="ed-head-actions">' +
-            '<button type="button" class="ed-btn ed-btn--ghost" data-ed-cmd="runs" aria-pressed="false">' + ED.icons.of('runs') + '<span>' + esc(t('easydrag.ui.runs_title')) + '</span></button>' +
             '<button type="button" class="ed-btn" data-ed-cmd="test">' + ED.icons.of('test') + '<span>' + lab('flow.test') + '</span></button>' +
             // Below 900 px the text of Stop and of the Active switch (below) is hidden: the name and the tooltip say the same words.
             '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" aria-label="' + lab('flow.stop') + '" hidden>' + ED.icons.of('stop') + '<span>' + lab('flow.stop') + '</span></button>' +
             '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + ED.icons.of('publish') + '<span>' + lab('flow.publish') + '</span></button>' +
-            '<button type="button" class="ed-btn" data-ed-cmd="run-now" hidden>' + ED.icons.of('run') + '<span>' + lab('flow.run_now') + '</span></button>' +
-            '<button type="button" class="ed-switch-btn" role="switch" aria-checked="false" data-ed-cmd="active" aria-label="' + lab('flow.active') + '"><span class="ed-switch" aria-hidden="true"><span></span></span><span>' + lab('flow.active') + '</span></button>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + ED.icons.of('more') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + ED.icons.of('runs') + '<span data-ed-runview-text></span>' +
@@ -133,7 +130,7 @@
         // The header and the footer (name, state and revision chips, actions, save state, issues,
         // last run) render in easydrag-header.js. The run view's banner stays here; renderHeader calls it.
         const headerView = ED.header.create({
-            ed, el, isBlock, canvas, runs, palette, publish, nameInput, renderBanner,
+            ed, el, isBlock, canvas, runs, palette, publish, nameInput, bag, renderBanner,
             isDisposed: () => disposed, lastRecord: () => lastRecord
         });
         const { renderHeader, renderSaveState, renderIssues, renderLastRun } = headerView;
@@ -652,12 +649,9 @@
             if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true') return;
             const cmd = b.dataset.edCmd;
             if (cmd === 'home') goHome();
-            else if (cmd === 'runs') { runs.toggleDrawer(); renderHeader(); setMenus(); }
             else if (cmd === 'test') test();
             else if (cmd === 'cancel') runs.cancel();
             else if (cmd === 'publish') publishNow();
-            else if (cmd === 'run-now') runLiveNow();
-            else if (cmd === 'active') publish.setActive(!ed.flowEnabled);
             else if (cmd === 'more') moreMenu(b);
             else if (cmd === 'exit-run-view') exitRunView();
             else if (cmd === 'approval-review') {
@@ -877,7 +871,7 @@
             safely(() => { if (interact) interact.dispose(); });
             safely(() => { if (contentDirty && ed.saver) ed.saver.save(); });
             safely(() => storeView.flush());
-            [ed.childHistory, ed.runtime, extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
+            [ed.childHistory, ed.runtime, extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history, headerView].forEach(m => { if (m) safely(() => m.dispose()); });
             if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
             ed.sessionActionEdit = null;
