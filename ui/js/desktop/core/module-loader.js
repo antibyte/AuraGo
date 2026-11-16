@@ -58,6 +58,8 @@
                 '/js/desktop/apps/runenpfad/sim.js',
                 '/js/desktop/apps/runenpfad/audio.js',
                 '/js/desktop/apps/runenpfad/music.js',
+                '/js/desktop/apps/runenpfad/backdrops.js',
+                '/js/desktop/apps/runenpfad/backdrops-biomes.js',
                 '/js/desktop/apps/runenpfad/atmosphere.js',
                 '/js/desktop/apps/runenpfad/decor.js',
                 '/js/desktop/apps/runenpfad/actors.js',

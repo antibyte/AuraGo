@@ -283,120 +283,6 @@
             ctx.restore();
         }
 
-        // Legacy enemy drawing, used until the actors module takes over.
-        function drawEnemiesLegacy(sim, stage, sx, viewW) {
-            stage.enemies.forEach(function (e) {
-                if (e.dead && e.deathTimer <= 0) return;
-                if (e.x + 64 < sx || e.x - 64 > sx + viewW) return;
-                const size = Math.round(58 * e.def.scale);
-                const drawTop = e.y - Math.round(size * (57 / 64));
-                const attacking = !e.dead && e.attackTimer > 0 && hasAnim(e.def.pack, e.def.prefix + 'attack');
-                const animName = e.def.prefix + (e.dead ? 'death' : e.hurtTimer > 0 ? 'hurt' : attacking ? 'attack' : e.animState === 'idle' ? 'idle' : 'move');
-                const animClock = attacking ? Math.max(0, 0.45 - e.attackTimer) : e.animTime;
-                if (!e.dead && !e.def.flying && e.onGround) {
-                    drawContactShadow(e.x, e.y, size * 0.56);
-                }
-                if (e.def.boss && !e.dead) {
-                    ctx.save();
-                    ctx.strokeStyle = e.phase === 2 ? '#fb7185' : '#f7c948';
-                    ctx.lineWidth = 2.5;
-                    ctx.beginPath();
-                    ctx.arc(e.x, e.y - size * 0.42, size * 0.46, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                    drawGlow(e.x, e.y - size * 0.42, size * 0.9, e.phase === 2 ? 'rgba(251, 113, 133, 0.45)' : 'rgba(247, 201, 72, 0.4)', 0.6);
-                }
-                drawAnimation(e.def.pack, animName, animClock, e.x - size / 2, drawTop, size, size, e.facing < 0, e.hurtTimer > 0 ? 0.75 : 1.0, e.dead || attacking);
-                if (e.hurtTimer > 0 && !e.dead) {
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'lighter';
-                    ctx.globalAlpha = 0.35;
-                    drawAnimation(e.def.pack, animName, animClock, e.x - size / 2, drawTop, size, size, e.facing < 0, 1.0, attacking);
-                    ctx.restore();
-                }
-                if (!e.dead && !e.def.boss && e.hp < e.maxHp) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-                    ctx.fillRect(e.x - 18, drawTop - 4, 36, 5);
-                    ctx.fillStyle = '#fb7185';
-                    ctx.fillRect(e.x - 18, drawTop - 4, 36 * (e.hp / e.maxHp), 5);
-                }
-            });
-        }
-
-        function drawHeroLegacy(sim, nowSec) {
-            // Hero sprite (feet pixel y=59 inside 64x64 frame aligns squarely on p.y + 2)
-            const p = sim.player;
-            if (p.onGround) {
-                drawContactShadow(p.x, p.y, 28);
-        }
-        if (sim.blessing && sim.blessing.runePower > 0) {
-            drawGlow(p.x, p.y - 24, 62, 'rgba(192, 132, 252, 0.7)', 0.8);
-        }
-        const blinkAlpha = p.invulnTimer > 0 && Math.floor(nowSec * 16) % 2 === 0 ? 0.45 : 1.0;
-        const heroAnim = sim.stats.def.prefix + p.animState;
-        drawAnimation(sim.stats.def.pack, heroAnim, p.animTime, p.x - 32, p.y - 57, 64, 64, p.facing < 0, blinkAlpha, p.animState === 'death');
-
-        // Knight melee cleave crescent visual
-        if (sim.heroId === 'knight' && p.attackTimer > 0) {
-            const progress = 1 - p.attackTimer / Math.max(0.01, sim.stats.def.attackDuration);
-            ctx.save();
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.lineCap = 'round';
-            ctx.lineWidth = 9 - progress * 4;
-            ctx.strokeStyle = 'rgba(126, 232, 250, ' + (0.85 * (1 - progress * 0.7)).toFixed(3) + ')';
-            ctx.beginPath();
-            if (p.facing > 0) {
-                ctx.arc(p.x + 18, p.y - 24, 28, -Math.PI * 0.45, Math.PI * 0.45);
-            } else {
-                ctx.arc(p.x - 18, p.y - 24, 28, Math.PI * 0.55, Math.PI * 1.45);
-            }
-            ctx.stroke();
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.8 * (1 - progress)).toFixed(3) + ')';
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        // Ranger rune bolt glow
-        if (sim.heroId === 'ranger' && p.attackTimer > 0) {
-            drawGlow(p.x + p.facing * 20, p.y - 24, 60, 'rgba(126, 232, 250, 0.5)', 0.7);
-        }
-        }
-
-        function drawProjectilesLegacy(sim) {
-            // Projectiles with motion trail
-            sim.projectiles.forEach(function (proj) {
-                if (proj.dead) return;
-                const color = proj.color || '#7ee8fa';
-                ctx.save();
-                ctx.globalCompositeOperation = 'lighter';
-                const len = Math.hypot(proj.vx, proj.vy) * 0.028;
-                const nx = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vx / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
-                const ny = proj.vx === 0 && proj.vy === 0 ? 0 : proj.vy / Math.max(0.001, Math.hypot(proj.vx, proj.vy));
-                const grad = ctx.createLinearGradient(proj.x, proj.y, proj.x - nx * len * 2, proj.y - ny * len * 2);
-                grad.addColorStop(0, color);
-                grad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.strokeStyle = grad;
-                ctx.lineWidth = proj.fromEnemy ? 7 : 5;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(proj.x, proj.y);
-                ctx.lineTo(proj.x - nx * len * 2, proj.y - ny * len * 2);
-                ctx.stroke();
-                ctx.restore();
-                ctx.save();
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(proj.x, proj.y, proj.fromEnemy ? 6 : 5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-                ctx.beginPath();
-                ctx.arc(proj.x - 1, proj.y - 1, proj.fromEnemy ? 2.4 : 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-        }
-
         function render(sim, nowMs) {
             if (!sim || !ctx) return;
             const dpr = Math.min(2, root.devicePixelRatio || 1);
@@ -417,6 +303,7 @@
             const reduced = prefersReducedMotion();
             const biome = (Biomes && Biomes.biomeFor(stage.worldIndex)) || { layers: [], light: { ambient: 0 }, weather: null, sky: ['#101018'] };
             const fx = sim.fx;
+            const rainWeather = stage.weather === 'rain' && Biomes && Biomes.RAIN_WEATHER ? Biomes.RAIN_WEATHER : null;
             const ambient = Math.min(0.92, (biome.light ? biome.light.ambient : 0) + (stage.darkness || 0));
 
             // Camera anchors stage bottom flush on tall screens and follows player smoothly
@@ -450,9 +337,9 @@
 
             if (atmosphere) {
                 const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
-                atmosphere.paintBackdrop(biome, sx, viewW, viewH, groundScreenY);
+                atmosphere.paintBackdrop(biome, sx, viewW, viewH, groundScreenY, nowSec);
                 if (typeof atmosphere.sunPosition === 'function') sunScreen = atmosphere.sunPosition(biome, sx, viewW, viewH, groundScreenY) || null;
-                atmosphere.paintWeather(biome, viewW, viewH, nowSec, reduced ? 0.35 : 1);
+                atmosphere.paintWeather(biome, viewW, viewH, nowSec, reduced ? 0.35 : 1, groundScreenY, rainWeather);
             } else {
                 ctx.fillStyle = biome.sky[0];
                 ctx.fillRect(0, 0, viewW, viewH);
@@ -638,12 +525,9 @@
             }
 
             callHook(stageArt, 'drawWorld', sim, frameView);
-            if (actors && typeof actors.drawEnemies === 'function') actors.drawEnemies(sim, frameView);
-            else drawEnemiesLegacy(sim, stage, sx, viewW);
-            if (actors && typeof actors.drawHero === 'function') actors.drawHero(sim, frameView);
-            else drawHeroLegacy(sim, nowSec);
-            if (actors && typeof actors.drawProjectiles === 'function') actors.drawProjectiles(sim, frameView);
-            else drawProjectilesLegacy(sim);
+            callHook(actors, 'drawEnemies', sim, frameView);
+            callHook(actors, 'drawHero', sim, frameView);
+            callHook(actors, 'drawProjectiles', sim, frameView);
 
             // Transient animated explosions/smoke
             sim.effects.forEach(function (fx2) {
@@ -670,8 +554,10 @@
 
             ctx.restore();
 
-            if (atmosphere && typeof atmosphere.paintForeground === 'function') {
-                atmosphere.paintForeground(biome, sx, viewW, viewH, Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy)));
+            if (atmosphere) {
+                const fgGround = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
+                if (typeof atmosphere.paintForeground === 'function') atmosphere.paintForeground(biome, sx, viewW, viewH, fgGround);
+                if (rainWeather) atmosphere.paintRainFront(rainWeather, viewW, viewH, nowSec, fgGround, reduced ? 0.35 : 1);
             }
 
             // Dynamic light map above the world plane
@@ -729,6 +615,25 @@
             return !!(sheet && sheet.pack.animationsById && sheet.pack.animationsById[animId]);
         }
 
+        // Resolves an animation (or static asset) to a source rectangle for custom drawing (flash, dissolve).
+        function getFrame(packId, animId, elapsedSec, holdOnce) {
+            const sheet = sheets[packId];
+            if (!sheet) return null;
+            const anim = sheet.pack.animationsById[animId];
+            let idx;
+            if (anim && anim.frames.length) {
+                const total = anim.frames.length;
+                const i = Math.floor(Math.max(0, elapsedSec) * (Number(anim.frame_rate) || 10));
+                idx = anim.frames[holdOnce || anim.repeat === 0 ? Math.min(total - 1, i) : i % total];
+            } else {
+                const asset = sheet.pack.assetsById[animId];
+                if (!asset || !asset.frames.length) return null;
+                idx = asset.frames[0];
+            }
+            const fr = sheet.pack.framesByIndex[idx];
+            return fr ? { image: sheet.image, sx: fr.x, sy: fr.y, sw: fr.w, sh: fr.h } : null;
+        }
+
         function callHook(mod, name, a, b, c) {
             if (mod && typeof mod[name] === 'function') mod[name](a, b, c);
         }
@@ -777,6 +682,7 @@
                     try { m.dispose(); } catch (err) { /* ignore */ }
                 }
             });
+            if (atmosphere && typeof atmosphere.dispose === 'function') atmosphere.dispose();
             postfx = null;
         }
 
@@ -789,6 +695,8 @@
             drawCroppedAnimation: drawCroppedAnimation,
             drawGlow: drawGlow,
             drawContactShadow: drawContactShadow,
+            getFrame: getFrame,
+            hasAnim: hasAnim,
             get reducedMotion() { return prefersReducedMotion(); }
         };
         function makeHook(mod) {
