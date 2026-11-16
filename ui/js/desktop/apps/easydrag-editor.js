@@ -55,12 +55,12 @@
             '<header class="ed-head">' +
             '<button type="button" class="ed-icon-btn ed-back" data-ed-cmd="home" title="' + esc(t('easydrag.ui.back_home')) + '" aria-label="' + esc(t('easydrag.ui.back_home')) + '">' + ED.icons.of('back') + '</button>' +
             '<div class="ed-title"><input class="ed-title-input" data-ed-name maxlength="120" spellcheck="false" aria-label="' + esc(t('easydrag.ui.flow_name')) + '"><span class="ed-state" data-ed-state>' + ED.pill.markup() + '</span><span class="ed-foot-item ed-save" data-ed-save aria-live="polite"></span></div>' +
-            '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<div class="ed-head-actions">' +
+            // The Stop sits in a slot of fixed width: the controls beside it keep their place whether a run is going or not.
+            '<span class="ed-stop-slot" data-ed-stop-slot><button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" aria-label="' + lab('flow.stop') + '" hidden>' + ED.icons.of('stop') + '<span>' + lab('flow.stop') + '</span></button></span>' +
             '<button type="button" class="ed-btn" data-ed-cmd="test">' + ED.icons.of('test') + '<span>' + lab('flow.test') + '</span></button>' +
-            // Below 900 px the text of Stop and of the Active switch (below) is hidden: the name and the tooltip say the same words.
-            '<button type="button" class="ed-btn ed-btn--danger" data-ed-cmd="cancel" aria-label="' + lab('flow.stop') + '" hidden>' + ED.icons.of('stop') + '<span>' + lab('flow.stop') + '</span></button>' +
-            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish">' + ED.icons.of('publish') + '<span>' + lab('flow.publish') + '</span></button>' +
+            '<button type="button" class="ed-btn ed-btn--primary" data-ed-cmd="publish" hidden>' + ED.icons.of('publish') + '<span>' + lab('flow.publish') + '</span></button>' +
+            '<div class="ed-head-history" role="group" data-ed-history-host></div>' +
             '<button type="button" class="ed-icon-btn" data-ed-cmd="more" aria-label="' + esc(t('easydrag.ui.more')) + '" title="' + esc(t('easydrag.ui.more')) + '">' + ED.icons.of('more') + '</button>' +
             '</div></header>' +
             '<div class="ed-runview-banner" role="status" hidden>' + ED.icons.of('runs') + '<span data-ed-runview-text></span>' +
@@ -425,21 +425,13 @@
             return ctx.confirmDialog(t('easydrag.ui.leave_title'), t('easydrag.ui.leave_text'));
         }
 
-        // headerNarrow: the editor is 560 px wide or narrower, where the stylesheet hides Runs, Test and
-        // Run now in the header (@container max-width 560px) and the ⋯ menu offers them.
-        function headerNarrow() {
-            const width = el.getBoundingClientRect().width;
-            return width > 0 && width <= 560;
-        }
-
         const MORE_MENU = ['flow.run_now', 'flow.versions', 'flow.settings', 'flow.organize', 'flow.describe', 'flow.repair_mission', 'flow.duplicate', 'flow.export',
             'flow.export_pack', 'flow.export_email', 'flow.mission_control', 'view.liveliness', '-', 'flow.delete'];
         const BLOCK_MORE_MENU = ['flow.versions', 'flow.open_draft', 'view.liveliness', 'flow.delete'];
 
         function moreMenu(anchor) {
             const r = anchor.getBoundingClientRect();
-            const moved = !isBlock && headerNarrow() ? ['view.runs', 'flow.test', '-'] : [];
-            ctx.showContextMenu(r.left, r.bottom + 4, ED.actions.items(isBlock ? BLOCK_MORE_MENU : moved.concat(MORE_MENU), { host: ed }));
+            ctx.showContextMenu(r.left, r.bottom + 4, ED.actions.items(isBlock ? BLOCK_MORE_MENU : MORE_MENU, { host: ed }));
         }
 
         async function repairMission() {

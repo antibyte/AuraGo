@@ -463,5 +463,41 @@ export async function run(env) {
         editor.dispose();
     });
 
+    // ── B.5: the header row ──
+
+    await guardAsync('w1c B.5 the header row: Back, Name and Pill on the left; Stop slot, Test, primary, Undo and Redo, More on the right', async () => {
+        const h = sandbox(req => (req.method === 'POST' && req.url === '/api/desktop/flows/f1/test' ? { run_id: 'r1' } : undefined));
+        const editor = openEditor(h);
+        await settle();
+        const head = editor.el.querySelector('.ed-head');
+        const kind = c => (c.hasAttribute('data-ed-stop-slot') ? 'stop-slot' : c.hasAttribute('data-ed-history-host') ? 'history' : c.getAttribute('data-ed-cmd') || c.className);
+        const row = () => Array.from(editor.el.querySelector('.ed-head-actions').children).map(kind);
+        const title = editor.el.querySelector('.ed-title');
+        const idle = row();
+        const slot = editor.el.querySelector('[data-ed-stop-slot]');
+        const stop = slot.querySelector('[data-ed-cmd="cancel"]');
+        const idleStop = [stop.hidden, editor.el.querySelector('.ed-head-actions').children[0] === slot];
+        editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
+        await settle();
+        const dialog = h.dialogs[h.dialogs.length - 1];
+        if (dialog) { const run = dialog.el.querySelector('[data-ed-action="run"]'); if (run) { run.fire('click'); await settle(); } }
+        const running = [stop.hidden, row(), stop.parentNode === slot];
+        eq('w1c B.5 header row order and the Stop slot (idle and while a test runs)', [
+            Array.from(head.children).map(c => c.className), title.querySelector('[data-ed-pill]') !== null, title.querySelector('[data-ed-name]') !== null,
+            idle, idleStop, running, h.logged], [
+            ['ed-icon-btn ed-back', 'ed-title', 'ed-head-actions'], true, true,
+            ['stop-slot', 'test', 'publish', 'history', 'more'], [true, true],
+            [false, ['stop-slot', 'test', 'publish', 'history', 'more'], true], []]);
+        editor.dispose();
+    });
+
+    await guardAsync('w1c B.5 the stylesheet reserves the slot, keeps the Stop label at 900 px and names no removed button', async () => {
+        const css = fs.readFileSync(path.join(apps, '..', '..', '..', 'css', 'desktop-app-easydrag.css'), 'utf8');
+        const slot = /\.ed-stop-slot \{([^}]*)\}/.exec(css);
+        const at900 = css.slice(css.indexOf('@container (max-width: 900px)')).split(/\r?\n\}\r?\n/)[0];
+        eq('w1c B.5 stylesheet', [!!slot && /flex: none/.test(slot[1]) && /width: var\(--ed-stop-slot-w, 9\.5rem\)/.test(slot[1]),
+            /\[data-ed-cmd="cancel"\] > span \{ display: inline/.test(at900), /data-ed-cmd="(runs|run-now|active)"/.test(css), /\.ed-head-history \{[^}]*flex: none/.test(css)], [true, true, false, true]);
+    });
+
     // @@APPEND@@
 }

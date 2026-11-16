@@ -265,8 +265,8 @@ export async function run(env) {
         await settle();
         const buttons = editor.el.querySelectorAll('.ed-head-actions button');
         const cmd = b => b.dataset.edCmd;
-        eq('a1023b U1 the header hides the text of Stop and More, and spares the buttons the stylesheet names',
-            [spared, buttons.map(cmd)], [['publish', 'run-now', 'runs', 'test'], ['test', 'cancel', 'publish', 'more']]);
+        eq('a1023b U1 the header hides the text of Undo, Redo and More, and spares Stop, Test and Publish',
+            [spared, buttons.map(cmd)], [['cancel', 'publish', 'test'], ['cancel', 'test', 'publish', undefined, undefined, 'more']]);
         eq('a1023b U1 every header button that loses its text has a name of its own',
             buttons.filter(b => !spared.includes(cmd(b)) && !named(b)).map(cmd), []);
         eq('a1023b U1 the names say what the text says, so the visible label is part of the name',

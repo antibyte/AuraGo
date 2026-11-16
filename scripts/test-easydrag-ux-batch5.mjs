@@ -605,7 +605,7 @@ export async function run(env) {
     });
     // ── V4, U13: phone header ──
 
-    await guardAsync('b5 V4 U13 a phone header keeps Test visible and offers history in More', async () => {
+    await guardAsync('b5 V4 U13 a phone header keeps Test visible, Runs is in the pill popover and More does not grow', async () => {
         const s = await session(undefined, { enabled: false, flow: { live: flowDoc(), live_revision: 2, published_draft_revision: 3 } });
         let items = [];
         s.h.ctx.showContextMenu = (x, y, list) => { items = list; };
@@ -616,20 +616,20 @@ export async function run(env) {
         s.editor.el.getBoundingClientRect = () => ({ left: 0, top: 0, right: 390, bottom: 800, width: 390, height: 800 });
         more.fire('click');
         const phone = labels();
-        items.find(i => i.label === 'runs_title').action();
+        popEntry(s.editor, 'runs').fire('click');
         const drawer = !!s.editor.el.querySelector('.ed-drawer');
         const dialogs = s.h.dialogs.length;
-        await items.find(i => i.label === 'test_draft').action();
+        s.editor.el.querySelector('[data-ed-cmd="test"]').fire('click');
         await settle();
         const testOpened = s.h.dialogs.length - dialogs;
         const paused = pillKind(s.editor) === 'paused';
         const sheet = css();
         const narrow = sheet.slice(sheet.indexOf('@container (max-width: 560px)')).split(/\r?\n\}\r?\n/)[0];
-        eq('b5 V4 U13 phone keeps Test visible, both menu shortcuts work and Paused stays visible',
-            [wide.slice(0, 2), phone.slice(0, 4), drawer, testOpened, paused,
-                narrow.includes('.ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }') && !narrow.includes('[data-ed-cmd="test"] { display: none; }'),
+        eq('b5 V4 U13 phone: More is the same as wide, Test and the popover entry Runs work and Paused stays visible',
+            [wide.slice(0, 2), phone.slice(0, 2), phone.includes('runs_title') || phone.includes('test_draft'), drawer, testOpened, paused,
+                narrow.includes('[data-ed-cmd="runs"]') || narrow.includes('[data-ed-cmd="run-now"]') || narrow.includes('[data-ed-cmd="test"] { display: none; }'),
                 narrow.includes('.ed-state > :not('), narrow.includes('.ed-state { display: none; }'), s.h.logged],
-            [['run_now', 'versions_title'], ['runs_title', 'test_draft', '|', 'run_now'], true, 1, true, true, false, false, []]);
+            [['run_now', 'versions_title'], ['run_now', 'versions_title'], false, true, 1, true, false, false, false, []]);
         s.editor.dispose();
     });
     // ── U7, U9, U11 ──

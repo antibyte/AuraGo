@@ -640,8 +640,12 @@ textarea.ed-input { resize: vertical; line-height: 1.45; }
 .ed-head-pill-disc { display: inline-flex; flex: none; }
 .ed-head-pill-disc:empty { display: none; }
 .ed-head-pill-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ed-head-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; justify-content: flex-start; min-width: 0; }
+/* the right-hand group: Stop slot, Test, the primary button, Undo, Redo, More. It sits at the right end of the row, and below it when the row is full. */
+.ed-head-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 0 1 auto; margin-left: auto; justify-content: flex-end; min-width: 0; }
 .ed-head-actions .ed-btn { white-space: normal; }
+/* the Stop slot keeps its width whether a run is going or not, so no control beside it moves (the Stop itself fills it) */
+.ed-stop-slot { display: inline-flex; align-items: center; justify-content: flex-end; flex: none; width: var(--ed-stop-slot-w, 9.5rem); }
+.ed-stop-slot > .ed-btn { width: 100%; min-width: 0; }
 .ed-body { position: relative; flex: 1; display: flex; min-height: 0; }
 .ed-rail { display: flex; flex-direction: column; align-items: center; gap: 4px; width: var(--ed-rail-w); flex: none; padding: 8px 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; background: var(--ed-side); box-shadow: var(--ed-side-edge); border-right: 1px solid var(--ed-border); z-index: 3; }
 .ed-rail-spacer { flex: 1; }
@@ -1424,13 +1428,12 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 /* ── responsive ─────────────────────────────────────────────────────────────── */
 @container (max-width: 900px) {
     /* The text goes, the name stays: these spans are hidden visually (as .ed-sr-only does), and the buttons carry the same words as aria-label. */
-    .ed-head-actions .ed-btn:not([data-ed-cmd="test"]):not([data-ed-cmd="publish"]):not([data-ed-cmd="runs"]):not([data-ed-cmd="run-now"]) > span,
-    .ed-switch-btn > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .ed-head-actions .ed-btn:not([data-ed-cmd="test"]):not([data-ed-cmd="publish"]):not([data-ed-cmd="cancel"]) > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .ed-head-actions .ed-btn[data-ed-cmd="test"] > span,
     .ed-head-actions .ed-btn[data-ed-cmd="publish"] > span,
-    .ed-head-actions .ed-btn[data-ed-cmd="runs"] > span,
-    .ed-head-actions .ed-btn[data-ed-cmd="run-now"] > span { display: inline; white-space: normal; }
-    .ed-head-actions .ed-btn, .ed-head-actions .ed-icon-btn, .ed-head-actions .ed-switch-btn { min-height: 44px; min-width: 44px; }
+    .ed-head-actions .ed-btn[data-ed-cmd="cancel"] > span { display: inline; white-space: normal; }
+    .ed-head-actions { flex: 1 1 100%; }
+    .ed-head-actions .ed-btn, .ed-head-actions .ed-icon-btn, .ed-head-pill { min-height: 44px; min-width: 44px; }
     .ed-head-actions .ed-btn { padding: 6px 10px; }
     .ed-palette { position: absolute; top: 0; bottom: 0; left: var(--ed-rail-w); z-index: 4; box-shadow: var(--ed-shadow-lg); }
     .ed-minimap { display: none; }
@@ -1459,8 +1462,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     .ed-home-actions [data-ed-authoring] { grid-column: 1 / -1; grid-row: 2; }
     .ed-home-actions [data-ed-new] { grid-column: 2; grid-row: 1; }
     /* the pill stays at every width and cuts its text with an ellipsis; "Paused" leads its text (U13): a paused flow is told apart on a phone too */
-    /* Keep the first-test path visible; history and live runs remain in the More menu. */
-    .ed-head-actions [data-ed-cmd="runs"], .ed-head-actions [data-ed-cmd="run-now"] { display: none; }
+    /* Test and the primary button share the width; the Stop slot and Undo, Redo and More keep their size. */
     .ed-head-actions [data-ed-cmd="test"], .ed-head-actions [data-ed-cmd="publish"] { flex: 1 1 80px; min-width: 80px; padding: 6px 8px; font-size: var(--ed-font-body); }
     .ed-head-actions [data-ed-cmd="publish"] { flex: 1 0 auto; min-width: min-content; }
     .ed-head-actions [data-ed-cmd="publish"] > .ed-icon { display: none; }
