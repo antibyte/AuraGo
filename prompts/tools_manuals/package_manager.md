@@ -57,6 +57,8 @@ Manage local system packages with a structured cross-platform wrapper. The tool 
 
 ### Safety Notes
 
+- A2A peers may use only `detect`, `search`, `list_installed`, and `info`; changes and the separate `install_package` tool are denied regardless of action approvals.
+
 - Mutating commands inherit the originating run's permissions and cancellation, including sudo authentication. A later server grant never widens an older run.
 - Prefer `detect`, `search`, `list_installed`, and `info` before changing packages.
 - Confirm with the user before `install` or `remove` unless the user explicitly requested that change.
