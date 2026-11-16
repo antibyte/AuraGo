@@ -28,7 +28,7 @@ func UntrustedContentTool(tool, operation string) bool {
 		"mcp_call", "composio_call", "manus", "evomap", "huggingface",
 		"google_workspace", "gworkspace", "google_calendar", "call_webhook",
 		"co_agent", "co_agents", "space_agent",
-		"local_wikipedia", "virustotal_scan", "mqtt_get_messages":
+		"local_wikipedia", "virustotal_scan", "mqtt_get_messages", "node_red", "olivetin":
 		return true
 	}
 	return false

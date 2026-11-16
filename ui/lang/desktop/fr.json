@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Enregistre les modifications avant le test.",
   "desktop.store.ig_relay_port": "Port interne du relais",
   "desktop.store.ig_relay_hint": "Saisis un jeton d’accès administrateur Open WebUI. L’enregistrement ajoute AuraGo et conserve les autres fournisseurs et conversations.",
-  "desktop.store.ig_relay_enable": "Autoriser la connexion au modèle"
+  "desktop.store.ig_relay_enable": "Autoriser la connexion au modèle",
+  "desktop.store.ig_help_n8n": "Active le serveur MCP de l’instance n8n, partage des workflows existants et enregistre son jeton MCP dédié.",
+  "desktop.store.ig_help_node-red": "Active adminAuth dans Node-RED. Enregistre un jeton d’accès et choisis les identifiants Inject autorisés ; leur contenu est conservé.",
+  "desktop.store.ig_help_olivetin": "Utilise un compte OliveTin dédié avec une clé Bearer et choisis les identifiants d’actions autorisées. Les arguments sont vérifiés avant exécution.",
+  "desktop.store.ig_help_bytestash": "Enregistre une clé API ByteStash pour son accès MCP officiel. Lecture et création ont des droits distincts ; modification et suppression restent bloquées."
 }

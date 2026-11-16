@@ -58,6 +58,7 @@ type storeIntegrationUpdate struct {
 
 func (s *Server) revokeStoreIntegration(id string) {
 	s.revokeStoreRelay(id, false)
+	revokeStoreMCP(id)
 	s.storeIntegrations.Lock()
 	defer s.storeIntegrations.Unlock()
 	delete(s.storeIntegrations.failures, id)
@@ -74,6 +75,8 @@ func (s *Server) revokeStoreIntegration(id string) {
 
 func (s *Server) revokeStoreIntegrations() bool {
 	s.revokeStoreRelay("", false)
+	revokeStoreMCP("n8n")
+	revokeStoreMCP("bytestash")
 	s.storeIntegrations.Lock()
 	defer s.storeIntegrations.Unlock()
 	for id, binding := range s.storeIntegrations.bindings {
@@ -129,6 +132,7 @@ func (s *Server) startStoreIntegrations() {
 	s.storeIntegrations.started = true
 	s.storeIntegrations.Unlock()
 	tools.SetStoreAccess(s.acquireStoreAccess)
+	tools.SetStoreApplications(s.executeStoreApplication, s.storeApplicationEnabled)
 	s.refreshStoreIntegrations()
 	if s.ShutdownCh != nil {
 		go func() { <-s.ShutdownCh; s.stopStoreIntegrations() }()
@@ -247,6 +251,9 @@ func (s *Server) storeIntegrationStatus(ctx context.Context, store *desktopstore
 		state = "error"
 	}
 	if settings.Read && (!cfg.VirtualDesktop.Enabled || !cfg.VirtualDesktop.AllowAgentControl || !cfg.Tools.VirtualDesktop.Enabled || !cfg.Agent.AllowNetworkRequests) {
+		state = "disabled"
+	}
+	if settings.Read && storeMCPName(id) != "" && (!cfg.Agent.AllowMCP || !cfg.MCP.Enabled) {
 		state = "disabled"
 	}
 	result := map[string]any{"revision": settings.Revision, "state": state, "url": address, "username": settings.Username, "credential_stored": credentialStored, "conflict": conflict, "read": settings.Read, "execute": settings.Execute, "create": settings.Create, "process": settings.Process, "sign": settings.Sign, "notify": settings.Notify, "allowed_ids": settings.AllowedIDs, "source": settings.Source, "certificate_fingerprint": settings.CertificateFingerprint, "admin_port": settings.AdminPort, "dns_address": settings.DNSAddress}
@@ -547,6 +554,18 @@ func (s *Server) testStoreIntegration(ctx context.Context, store *desktopstore.S
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	switch id {
+	case "n8n", "bytestash":
+		if err := s.probeStoreMCP(ctx, id, settings); err != nil {
+			return err
+		}
+	case "node-red":
+		if err := storeAppConnection(settings).NodeREDProbe(ctx); err != nil {
+			return err
+		}
+	case "olivetin":
+		if err := storeAppConnection(settings).OliveTinProbe(ctx); err != nil {
+			return err
+		}
 	case desktopstore.OpenWebUIAppID:
 		if err := s.connectOpenWebUI(ctx, settings, false); err != nil {
 			return err
@@ -586,6 +605,10 @@ func (s *Server) testStoreIntegration(ctx context.Context, store *desktopstore.S
 	}
 	s.storeIntegrations.bindings[id] = storeIntegrationBinding{settings: settings, ctx: bindingCtx, cancel: bindingCancel}
 	s.storeIntegrations.Unlock()
+	if err := s.syncStoreMCP(id); err != nil {
+		s.revokeStoreIntegration(id)
+		return err
+	}
 	return nil
 }
 
@@ -604,6 +627,8 @@ func (s *Server) storeIntegrationAdminPort(id string) string {
 
 func (s *Server) stopStoreIntegrations() {
 	s.revokeStoreRelay("", true)
+	revokeStoreMCP("n8n")
+	revokeStoreMCP("bytestash")
 	s.storeIntegrations.Lock()
 	s.storeIntegrations.closed = true
 	for id, b := range s.storeIntegrations.bindings {

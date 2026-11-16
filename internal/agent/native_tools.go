@@ -155,6 +155,8 @@ type ToolFeatureFlags struct {
 	MQTTEnabled             bool
 	CydEnabled              bool
 	NotificationEnabled     bool
+	NodeREDEnabled          bool
+	OliveTinEnabled         bool
 	AdGuardEnabled          bool
 	UptimeKumaEnabled       bool
 	GrafanaEnabled          bool

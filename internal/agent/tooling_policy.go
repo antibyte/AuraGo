@@ -393,6 +393,8 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		NotificationEnabled: cfg.Cyd.Enabled || cfg.Notifications.Ntfy.Enabled || cfg.Notifications.Pushover.Enabled ||
 			(cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0) || cfg.Discord.Enabled || cfg.Telnyx.Enabled ||
 			(cfg.WhatsApp.Enabled && !cfg.WhatsApp.ReadOnly),
+		NodeREDEnabled:               cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled && cfg.Agent.AllowNetworkRequests && tools.StoreApplicationEnabled("node-red"),
+		OliveTinEnabled:              cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.AllowAgentControl && cfg.Tools.VirtualDesktop.Enabled && cfg.Agent.AllowNetworkRequests && tools.StoreApplicationEnabled("olivetin"),
 		AdGuardEnabled:               cfg.AdGuard.Enabled,
 		UptimeKumaEnabled:            cfg.UptimeKuma.Enabled,
 		GrafanaEnabled:               cfg.Grafana.Enabled,
@@ -598,6 +600,8 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		InvasionControlEnabled:   flags.InvasionControlEnabled,
 		GitHubEnabled:            flags.GitHubEnabled,
 		MQTTEnabled:              flags.MQTTEnabled,
+		NodeREDEnabled:           flags.NodeREDEnabled,
+		OliveTinEnabled:          flags.OliveTinEnabled,
 		AdGuardEnabled:           flags.AdGuardEnabled,
 		UptimeKumaEnabled:        flags.UptimeKumaEnabled,
 		GrafanaEnabled:           flags.GrafanaEnabled,

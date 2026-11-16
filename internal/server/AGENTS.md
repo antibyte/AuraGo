@@ -88,6 +88,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Store workflow adapters use verified, revocable bindings. n8n/ByteStash managed MCP connections have exact read/execute/create allowlists and retain global MCP gates; missing capabilities require an update. Node-RED/OliveTin execution additionally checks selected IDs and live execute rights. Tests never start actions.
+
 - Web Push subscribe/unsubscribe require the shared administrator gate and admin path classification. Invalid endpoints/keys return 400 before storage; manager-level validation also protects direct callers. See `../push/AGENTS.md`.
 
 - Administrator question-response routes require `question_id` from the pending payload; missing/stale IDs, invalid choices and internal loopbacks return a conflict without consuming the question. Chat text resolves the current ID before the turn lock. Trusted adapter identities cannot come from request JSON. Telnyx ownership requires its explicit allowed E.164 binding; other SMS senders remain in isolated conversations.

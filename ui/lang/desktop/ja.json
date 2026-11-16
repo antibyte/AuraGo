@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "テスト前に変更を保存してください。",
   "desktop.store.ig_relay_port": "内部リレーポート",
   "desktop.store.ig_relay_hint": "Open WebUI の管理者アクセストークンを入力してください。保存すると AuraGo 接続が追加され、ほかのプロバイダーやチャットは保持されます。",
-  "desktop.store.ig_relay_enable": "モデル接続を許可"
+  "desktop.store.ig_relay_enable": "モデル接続を許可",
+  "desktop.store.ig_help_n8n": "n8n のインスタンス MCP サーバーを有効にし、既存のワークフローを公開して専用 MCP トークンを保存します。",
+  "desktop.store.ig_help_node-red": "Node-RED の adminAuth を有効にします。アクセストークンを保存し、許可する Inject ID を選択します。既存のペイロードは維持されます。",
+  "desktop.store.ig_help_olivetin": "Bearer キーを持つ専用 OliveTin ユーザーを使い、許可するアクション ID を選択します。引数は実行前に検証されます。",
+  "desktop.store.ig_help_bytestash": "公式 MCP エンドポイント用の ByteStash API キーを保存します。読み取りと作成は別権限です。更新と削除は禁止されます。"
 }

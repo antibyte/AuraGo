@@ -46,6 +46,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools = appendFindItToolSchemas(tools, ff)
 	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
+	tools = appendStoreAppSchemas(tools, ff)
 	tools = appendKaggleSchemas(tools, ff)
 	tools = appendGogSchemas(tools, ff)
 	tools = appendGameMakerToolSchemas(tools, ff)
@@ -75,7 +76,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		KaggleEnabled:   true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, FrigateEnabled: true, Go2RTCEnabled: true, ThreeDPrinterEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, HuggingFaceEnabled: true, MQTTEnabled: true, CydEnabled: true, NotificationEnabled: true,
-		AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
+		NodeREDEnabled: true, OliveTinEnabled: true, AdGuardEnabled: true, UptimeKumaEnabled: true, GrafanaEnabled: true, MCPEnabled: true, ComposioEnabled: true, ManusEnabled: true, EvomapEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, HereNowEnabled: true, TregEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true, AgentMailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, GogEnabled: true, OneDriveEnabled: true, WebDAVEnabled: true,
 		VirusTotalEnabled: true, GolangciLintEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, TTSEnabled: true, RemoteControlEnabled: true, PackageManagerEnabled: true,
@@ -155,6 +156,8 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
 	appendToolFeatureKeyPart("cyd", ff.CydEnabled)
 	appendToolFeatureKeyPart("notification", ff.NotificationEnabled)
+	appendToolFeatureKeyPart("node_red", ff.NodeREDEnabled)
+	appendToolFeatureKeyPart("olivetin", ff.OliveTinEnabled)
 	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
 	appendToolFeatureKeyPart("uptime_kuma", ff.UptimeKumaEnabled)
 	appendToolFeatureKeyPart("grafana", ff.GrafanaEnabled)

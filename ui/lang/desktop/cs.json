@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Před testem ulož změny.",
   "desktop.store.ig_relay_port": "Interní port relé",
   "desktop.store.ig_relay_hint": "Zadej přístupový token správce Open WebUI. Uložení přidá připojení AuraGo a zachová ostatní poskytovatele i chaty.",
-  "desktop.store.ig_relay_enable": "Povolit připojení modelu"
+  "desktop.store.ig_relay_enable": "Povolit připojení modelu",
+  "desktop.store.ig_help_n8n": "Zapni instanční MCP server n8n, zpřístupni existující pracovní postupy a ulož jeho samostatný token MCP.",
+  "desktop.store.ig_help_node-red": "Zapni adminAuth v Node-RED. Ulož přístupový token a vyber povolená ID Inject; jejich stávající obsah se nemění.",
+  "desktop.store.ig_help_olivetin": "Použij samostatného uživatele OliveTin s klíčem Bearer a vyber povolená ID akcí. Argumenty se před spuštěním ověří.",
+  "desktop.store.ig_help_bytestash": "Ulož API klíč ByteStash pro oficiální rozhraní MCP. Čtení a vytváření mají oddělená oprávnění; úpravy a mazání jsou zakázané."
 }

@@ -84,3 +84,10 @@ virtual_workspace:
 virtual_computer_ui:
   en: ["native app control", "desktop window", "save dialog", "Mousepad", "PCManFM", "accessibility snapshot", "click native application", "Agent Workspace screen"]
   de: ["native Anwendung steuern", "Desktopfenster", "Speicherdialog", "Mousepad bedienen", "PCManFM öffnen", "Bedienelemente erkennen", "Anwendungsfenster anklicken", "Agent Workspace Bildschirm"]
+
+node_red:
+  en: ["Node-RED flows", "Node-RED Inject", "list Node-RED workflows", "trigger Node-RED flow", "allowed Node-RED nodes", "Node-RED automation", "start existing Node-RED flow", "Node-RED flow names"]
+  de: ["Node-RED Flows", "Node-RED auslösen", "Node-RED Abläufe auflisten", "Node-RED Inject starten", "freigegebene Node-RED Knoten", "Node-RED Automatisierung", "bestehenden Node-RED Flow starten", "Node-RED Flownamen"]
+olivetin:
+  en: ["OliveTin actions", "run OliveTin action", "OliveTin execution status", "allowed OliveTin actions", "OliveTin argument validation", "predefined OliveTin command", "OliveTin automation", "OliveTin action result"]
+  de: ["OliveTin Aktionen", "OliveTin Aktion ausführen", "OliveTin Ausführungsstatus", "freigegebene OliveTin Aktionen", "OliveTin Argumente prüfen", "vordefinierte OliveTin Aktion", "OliveTin Automatisierung", "OliveTin Aktionsergebnis"]

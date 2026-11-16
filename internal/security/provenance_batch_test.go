@@ -11,6 +11,7 @@ func TestUntrustedContentTool(t *testing.T) {
 		tool, op string
 		want     bool
 	}{
+		{"node_red", "list_flows", true}, {"olivetin", "get_execution", true},
 		{"web_scraper", "", true}, {"fetch_email", "", true}, {"discord_read", "", true},
 		{"fetch_discord", "", true}, {"telegram_read", "", true}, {"matrix_read", "", true},
 		{"rocket_chat_read", "", true}, {"github", "issues", true}, {"notion", "", true},

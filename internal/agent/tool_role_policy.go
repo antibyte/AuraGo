@@ -196,6 +196,10 @@ var a2aDesktopReadOperations = []string{
 // a2aDesktopWrite reports a virtual desktop call that is not a plain read.
 func a2aDesktopWrite(tc ToolCall) bool {
 	switch tc.Action {
+	case "node_red":
+		return tc.Operation != "list_flows"
+	case "olivetin":
+		return !oneOf(tc.Operation, "list_actions", "get_execution")
 	case "ecalc":
 		// search, describe, calculate, table, pinout, decode and encode are pure computation on the embedded catalog; open
 		// puts a window on the owner's desktop. An empty or unknown operation fails closed like the desktop tools.

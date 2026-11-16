@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Salva le modifiche prima della verifica.",
   "desktop.store.ig_relay_port": "Porta interna del relay",
   "desktop.store.ig_relay_hint": "Inserisci un token di accesso amministratore di Open WebUI. Il salvataggio aggiunge AuraGo e conserva gli altri fornitori e le chat.",
-  "desktop.store.ig_relay_enable": "Consenti la connessione al modello"
+  "desktop.store.ig_relay_enable": "Consenti la connessione al modello",
+  "desktop.store.ig_help_n8n": "Attiva il server MCP dell’istanza n8n, rendi disponibili i flussi esistenti e salva il token MCP dedicato.",
+  "desktop.store.ig_help_node-red": "Attiva adminAuth in Node-RED. Salva un token di accesso e scegli gli ID Inject consentiti; il payload esistente viene conservato.",
+  "desktop.store.ig_help_olivetin": "Usa un utente OliveTin dedicato con chiave Bearer e scegli gli ID delle azioni consentite. Gli argomenti vengono verificati prima dell’esecuzione.",
+  "desktop.store.ig_help_bytestash": "Salva una chiave API ByteStash per l’endpoint MCP ufficiale. Lettura e creazione hanno permessi separati; modifica ed eliminazione restano bloccate."
 }

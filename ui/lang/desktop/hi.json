@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "जाँच से पहले बदलाव सहेजें।",
   "desktop.store.ig_relay_port": "आंतरिक रिले पोर्ट",
   "desktop.store.ig_relay_hint": "Open WebUI का व्यवस्थापक एक्सेस टोकन दर्ज करो। सहेजने पर AuraGo कनेक्शन जुड़ेगा और अन्य प्रदाता व चैट बने रहेंगे।",
-  "desktop.store.ig_relay_enable": "मॉडल कनेक्शन की अनुमति दो"
+  "desktop.store.ig_relay_enable": "मॉडल कनेक्शन की अनुमति दो",
+  "desktop.store.ig_help_n8n": "n8n का इंस्टेंस MCP सर्वर चालू करो, मौजूदा वर्कफ़्लो उपलब्ध कराओ और उसका अलग MCP टोकन सहेजो।",
+  "desktop.store.ig_help_node-red": "Node-RED में adminAuth चालू करो। एक्सेस टोकन सहेजो और अनुमति वाले Inject ID चुनो; मौजूदा पेलोड बना रहेगा।",
+  "desktop.store.ig_help_olivetin": "Bearer कुंजी वाला अलग OliveTin उपयोगकर्ता इस्तेमाल करो और अनुमति वाले कार्रवाई ID चुनो। चलाने से पहले आर्ग्युमेंट जाँचे जाते हैं।",
+  "desktop.store.ig_help_bytestash": "आधिकारिक MCP एंडपॉइंट के लिए ByteStash API कुंजी सहेजो। पढ़ने और बनाने की अनुमतियाँ अलग हैं; बदलना और मिटाना बंद है।"
 }

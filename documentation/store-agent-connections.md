@@ -80,3 +80,36 @@ Docker reachability and real provider chat/embedding behavior require separate
 live acceptance; fixture tests cover authentication, limits and preservation.
 
 Upstream: [Open WebUI configuration](https://docs.openwebui.com/reference/env-configuration/).
+
+## Workflows and snippets
+
+n8n uses its instance-level Streamable HTTP MCP endpoint `/mcp-server/http`.
+Enable it in n8n, expose existing workflows and save the dedicated MCP token.
+The exact allowlist is `search_workflows`, `get_workflow_details`, and optionally
+`execute_workflow`. Editing and deletion are never granted. Search previews may
+include other workflows visible to the account; n8n controls MCP sharing for
+details and execution.
+
+ByteStash uses `/mcp` with a dedicated user API key. Its exact read allowlist is
+`list_snippets`, `get_snippet`, `list_metadata`; the separate create grant adds
+`create_snippet`. Updates and deletion stay blocked. Both connections obey global
+MCP/network/Desktop gates. Missing capabilities require a compatible Store update.
+Reserved managed names are `aurago-store-n8n` and `aurago-store-bytestash`; rename
+a colliding manual connection first. No manual connection is overwritten.
+
+Node-RED requires `adminAuth` and an access token. Select Inject IDs in the dialog.
+`node_red.list_flows` returns tab names/IDs and selected active Inject nodes, with
+no source or payload. `trigger` sends no override and means accepted, not completed.
+There is no flow editing, deployment or runtime restart operation.
+
+OliveTin requires a dedicated user with a bearer key and selected binding IDs.
+`olivetin` exposes `list_actions`, `execute`, `get_execution`. AuraGo checks the
+current binding, choices and argument names, then uses upstream argument
+validation before starting. Status must match both action and execution ID.
+Unknown outcomes after connection loss are never automatically replayed; inspect
+the returned tracking ID when available.
+
+Upstream: [n8n MCP](https://docs.n8n.io/connect/connect-to-n8n-mcp-server/),
+[Node-RED security](https://nodered.org/docs/user-guide/runtime/securing-node-red),
+[OliveTin keys](https://docs.olivetin.app/security/api_keys.html),
+[ByteStash MCP](https://github.com/jordan-dalby/ByteStash).

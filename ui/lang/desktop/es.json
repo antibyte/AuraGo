@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Guarda los cambios antes de probar.",
   "desktop.store.ig_relay_port": "Puerto interno del relé",
   "desktop.store.ig_relay_hint": "Introduce un token de acceso de administrador de Open WebUI. Al guardar se añade AuraGo y se conservan los demás proveedores y chats.",
-  "desktop.store.ig_relay_enable": "Permitir conexión al modelo"
+  "desktop.store.ig_relay_enable": "Permitir conexión al modelo",
+  "desktop.store.ig_help_n8n": "Activa el servidor MCP de la instancia n8n, habilita flujos existentes y guarda su token MCP específico.",
+  "desktop.store.ig_help_node-red": "Activa adminAuth en Node-RED. Guarda un token de acceso y elige los ID Inject permitidos; se conserva su carga útil.",
+  "desktop.store.ig_help_olivetin": "Usa un usuario exclusivo de OliveTin con clave Bearer y elige los ID de acciones permitidas. Los argumentos se validan antes de ejecutar.",
+  "desktop.store.ig_help_bytestash": "Guarda una clave API ByteStash para el acceso MCP oficial. Leer y crear requieren permisos separados; modificar y eliminar siguen bloqueados."
 }

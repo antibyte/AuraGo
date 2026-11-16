@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Gem ændringer før testen.",
   "desktop.store.ig_relay_port": "Intern relæport",
   "desktop.store.ig_relay_hint": "Indtast et administratortoken til Open WebUI. Når du gemmer, tilføjes AuraGo uden at fjerne andre udbydere eller samtaler.",
-  "desktop.store.ig_relay_enable": "Tillad modelforbindelse"
+  "desktop.store.ig_relay_enable": "Tillad modelforbindelse",
+  "desktop.store.ig_help_n8n": "Aktivér n8n-instansens MCP-server, del eksisterende arbejdsgange, og gem dens særskilte MCP-token.",
+  "desktop.store.ig_help_node-red": "Aktivér adminAuth i Node-RED. Gem et adgangstoken, og vælg tilladte Inject-id’er; eksisterende data bevares.",
+  "desktop.store.ig_help_olivetin": "Brug en særskilt OliveTin-bruger med Bearer-nøgle, og vælg tilladte handlings-id’er. Argumenter kontrolleres før start.",
+  "desktop.store.ig_help_bytestash": "Gem en ByteStash-API-nøgle til det officielle MCP-endepunkt. Læsning og oprettelse er adskilt; ændring og sletning er blokeret."
 }

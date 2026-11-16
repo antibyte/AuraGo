@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Zapisz zmiany przed testem.",
   "desktop.store.ig_relay_port": "Wewnętrzny port przekaźnika",
   "desktop.store.ig_relay_hint": "Wpisz token dostępu administratora Open WebUI. Zapisanie doda AuraGo i zachowa pozostałych dostawców oraz rozmowy.",
-  "desktop.store.ig_relay_enable": "Zezwól na połączenie z modelem"
+  "desktop.store.ig_relay_enable": "Zezwól na połączenie z modelem",
+  "desktop.store.ig_help_n8n": "Włącz serwer MCP instancji n8n, udostępnij istniejące przepływy i zapisz osobny token MCP.",
+  "desktop.store.ig_help_node-red": "Włącz adminAuth w Node-RED. Zapisz token dostępu i wybierz dozwolone identyfikatory Inject; obecne dane pozostają bez zmian.",
+  "desktop.store.ig_help_olivetin": "Użyj osobnego użytkownika OliveTin z kluczem Bearer i wybierz dozwolone identyfikatory akcji. Argumenty są sprawdzane przed uruchomieniem.",
+  "desktop.store.ig_help_bytestash": "Zapisz klucz API ByteStash dla oficjalnego punktu MCP. Odczyt i tworzenie mają osobne uprawnienia; zmiana i usuwanie są zablokowane."
 }

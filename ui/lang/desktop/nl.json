@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Sla wijzigingen op voordat je test.",
   "desktop.store.ig_relay_port": "Interne relaypoort",
   "desktop.store.ig_relay_hint": "Voer een beheerderstoegangstoken van Open WebUI in. Opslaan voegt AuraGo toe en behoudt andere providers en gesprekken.",
-  "desktop.store.ig_relay_enable": "Modelverbinding toestaan"
+  "desktop.store.ig_relay_enable": "Modelverbinding toestaan",
+  "desktop.store.ig_help_n8n": "Schakel de MCP-server van de n8n-instantie in, deel bestaande workflows en sla het eigen MCP-token op.",
+  "desktop.store.ig_help_node-red": "Schakel adminAuth in Node-RED in. Sla een toegangstoken op en kies toegestane Inject-ID’s; de bestaande payload blijft behouden.",
+  "desktop.store.ig_help_olivetin": "Gebruik een aparte OliveTin-gebruiker met Bearer-sleutel en kies toegestane actie-ID’s. Argumenten worden vóór uitvoering gecontroleerd.",
+  "desktop.store.ig_help_bytestash": "Sla een ByteStash-API-sleutel op voor het officiële MCP-eindpunt. Lezen en aanmaken hebben aparte rechten; wijzigen en verwijderen blijven geblokkeerd."
 }

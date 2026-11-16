@@ -245,6 +245,8 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"wake_on_lan", "Send Wake-on-LAN magic packets to devices"},
 		{"adguard", "Manage AdGuard Home DNS: filtering, rewrites, DHCP, clients"},
 		{"uptime_kuma", "Read monitor health and outages from Uptime Kuma"},
+		{"node_red", "List Node-RED flows and trigger allowed Inject nodes"},
+		{"olivetin", "List and execute allowed OliveTin actions and read execution status"},
 		{"grafana", "Read Grafana dashboards, data sources, alerts, health, and org info"},
 	},
 	"infrastructure": {

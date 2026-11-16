@@ -10,6 +10,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 
 ## Local Contracts
 
+- `store_apps.go` delegates typed Store operations to the server-owned verified bindings. No fallback HTTP, shell or credentials in model arguments. `internal/storeapps` owns the bounded upstream clients.
+
 - Store-managed AdGuard/Kuma configurations acquire the server-owned Store access
   lease before HTTP. Missing verification, revoked permissions and pending Store
   operations fail closed; manual configurations retain their existing behavior.

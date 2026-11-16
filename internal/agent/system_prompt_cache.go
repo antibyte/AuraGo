@@ -507,6 +507,12 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.MQTTEnabled {
 		tools = append(tools, "mqtt")
 	}
+	if flags.NodeREDEnabled {
+		tools = append(tools, "node_red")
+	}
+	if flags.OliveTinEnabled {
+		tools = append(tools, "olivetin")
+	}
 	if flags.AdGuardEnabled {
 		tools = append(tools, "adguard")
 	}

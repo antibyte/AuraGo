@@ -1787,6 +1787,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		}
 		if loadErr == nil && syncMCPAfterUnlock && newCfg != nil {
 			syncExternalMCPRuntime(newCfg, s.Vault, s.Logger, mcpGeneration)
+			_ = s.syncStoreMCP("n8n")
+			_ = s.syncStoreMCP("bytestash")
 		}
 		if loadErr == nil && newCfg != nil {
 			optimizer.SetEnabled(newCfg.Agent.OptimizerEnabled)

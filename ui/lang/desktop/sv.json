@@ -12103,5 +12103,9 @@
   "desktop.store.ig_save_first": "Spara ändringarna före testet.",
   "desktop.store.ig_relay_port": "Intern reläport",
   "desktop.store.ig_relay_hint": "Ange en åtkomsttoken för administratören i Open WebUI. När du sparar läggs AuraGo till och övriga leverantörer och samtal behålls.",
-  "desktop.store.ig_relay_enable": "Tillåt modellanslutning"
+  "desktop.store.ig_relay_enable": "Tillåt modellanslutning",
+  "desktop.store.ig_help_n8n": "Aktivera n8n-instansens MCP-server, dela befintliga arbetsflöden och spara dess separata MCP-token.",
+  "desktop.store.ig_help_node-red": "Aktivera adminAuth i Node-RED. Spara en åtkomsttoken och välj tillåtna Inject-ID:n; befintliga data behålls.",
+  "desktop.store.ig_help_olivetin": "Använd en separat OliveTin-användare med Bearer-nyckel och välj tillåtna åtgärds-ID:n. Argument kontrolleras före körning.",
+  "desktop.store.ig_help_bytestash": "Spara en ByteStash-API-nyckel för den officiella MCP-adressen. Läsning och skapande har separata rättigheter; ändring och borttagning blockeras."
 }

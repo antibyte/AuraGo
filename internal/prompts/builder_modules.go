@@ -570,6 +570,10 @@ func matchPromptCondition(cond string, flags *ContextFlags) bool {
 		return flags.FritzBoxStorageEnabled
 	case "fritzbox_tv_enabled":
 		return flags.FritzBoxTVEnabled
+	case "node_red_enabled":
+		return flags.NodeREDEnabled
+	case "olivetin_enabled":
+		return flags.OliveTinEnabled
 	case "adguard_enabled":
 		return flags.AdGuardEnabled
 	case "uptime_kuma_enabled":
