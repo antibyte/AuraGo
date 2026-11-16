@@ -874,8 +874,7 @@
                 try { flushPendingEdits(); } catch (err) { console.error('EasyDrag inspector flush failed', err); }
                 bag.dispose();
                 ed.root.classList.remove('is-inspector');
-                el.classList.add('is-closing');
-                setTimeout(() => el.remove(), 160);
+                el.remove(); // a panel in the body's row: an invisible one kept its width and left an empty strip beside the next inspector
                 ed.detail = null;
                 ed.bus.emit('detail-closed', node.id);
             }

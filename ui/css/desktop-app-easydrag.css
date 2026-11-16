@@ -958,7 +958,6 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
     box-shadow: var(--ed-side-edge); backdrop-filter: none; opacity: 1;
 }
 .ed-detail-backdrop.is-open { opacity: 1; }
-.ed-detail-backdrop.is-closing { opacity: 0; }
 .ed-detail-backdrop.ed-detail-portal {
     position: relative; inset: auto; z-index: 2; width: 360px; height: auto; min-height: 0; overflow: hidden;
 }
