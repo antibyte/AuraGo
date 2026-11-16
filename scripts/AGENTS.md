@@ -76,7 +76,6 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   requested-music queue priority; the full run also decodes assets with FFmpeg.
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
   and the optional fallback when a stale loader omits its resource module.
-- Leuchtfeuer: `node scripts/test-leuchtfeuer-sim.mjs` checks the harbour simulation against the pirates manifest. Browser play is `TestLeuchtfeuerBrowser`.
 - Runenpfad: `node scripts/test-runenpfad-sim.mjs` validates all 6 2D sprite packs, `aurago-sounds`, all 25 campaign stages, endless mode, hero abilities, workshop upgrades and save clamping. Browser play is `TestDesktopRunenpfadBrowser`.
 - Chat regression fixtures load the shared `shouldShowAgentToolStatus` policy before
   the Desktop chat module, matching production order. Camera preference assertions

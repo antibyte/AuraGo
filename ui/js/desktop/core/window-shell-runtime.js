@@ -1367,7 +1367,6 @@
             pixel: { width: 1100, height: 750 },
             'galaxa-deluxe': { width: 600, height: 800 },
             'aura-drift': { width: 1120, height: 720 },
-            leuchtfeuer: { width: 1100, height: 720 },
             runenpfad: { width: 1180, height: 740 },
             chess: { width: 980, height: 680 },
             layerling: { width: 1280, height: 850 },

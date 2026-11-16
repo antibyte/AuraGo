@@ -175,7 +175,6 @@
         pixel: 'pixel',
         'galaxa-deluxe': 'galaxa-deluxe',
         'aura-drift': 'aura-drift',
-        leuchtfeuer: 'leuchtfeuer',
         runenpfad: 'runenpfad',
         layerling: 'layerling',
         nasscad: 'nasscad',
@@ -185,7 +184,6 @@
     };
     appIconKeys['code-studio'] = 'code-studio';
     const appLogoPaths = {
-        leuchtfeuer: '/img/leuchtfeuer/icon.svg',
         runenpfad: '/img/runenpfad/icon.svg',
         detective: '/img/desktop-icons/detective.svg',
         kaggle: '/img/desktop-icons/kaggle.svg',
@@ -655,7 +653,6 @@
             pixel: 'PixelApp',
             'galaxa-deluxe': 'GalaxaDeluxe',
             'aura-drift': 'AuraDriftApp',
-            leuchtfeuer: 'LeuchtfeuerApp',
             runenpfad: 'RunenpfadApp',
             'minigolf': 'MinigolfApp',
             'pinball': 'PinballApp',

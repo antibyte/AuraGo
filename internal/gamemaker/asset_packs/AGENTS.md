@@ -57,7 +57,7 @@ runtime files enter the same resource set; no .blend or authoring scripts do.
   Empty outer assembly cells are omitted. Parts of a moving vehicle share
   timing and start together; an individual part may remain visually static.
 
-- Desktop game Leuchtfeuer reads `aurago-pirates-3d` lod0, `aurago-effects` and `aurago-sounds` through the existing asset route. It does not copy those files into `ui/`.
+- Game Maker owns its shared asset packs independently of Desktop games. Removing a Desktop game preserves these packs, their runtimes and the existing asset route.
 - Desktop game Runenpfad reads `jump-and-run`, `human-characters-animated`, `monsters-animals-animated`, `robots-drones-animated`, `assets-animated`, `nature-assets` and `aurago-sounds` through the existing asset route without copying those files into `ui/`.
 
 # Work Guidance

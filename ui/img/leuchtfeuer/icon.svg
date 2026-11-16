@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Leuchtfeuer">
-  <rect width="64" height="64" rx="14" fill="#1a2836"/>
-  <path d="M32 6l6 10h-4l4 8h-3l5 10H24l5-10h-3l4-8h-4z" fill="#f0d78c"/>
-  <rect x="28" y="34" width="8" height="16" rx="1" fill="#d5e4ee"/>
-  <rect x="22" y="50" width="20" height="6" rx="1" fill="#8eb4c9"/>
-</svg>

@@ -40,10 +40,6 @@ The Service owns authorization, read-only state, mutation locks and cache invali
   locale keys and tests belong to `../../ui/js/desktop/apps/AGENTS.md`.
   Verify `TestAuraDriftAppRegistration` and `go test ./internal/desktop -run TestBuiltinAppsCarryStartMenuCategories`.
 
-- Leuchtfeuer (`leuchtfeuer`, category `games`) is a built-in offline harbour walk with no
-  capability gate. Its app-owned icon is `logo_path` `/img/leuchtfeuer/icon.svg`. Runtime,
-  lod0 loading and locales belong to `../../ui/js/desktop/apps/leuchtfeuer/AGENTS.md`.
-  Verify `go test ./ui -run TestLeuchtfeuerRegistration -count=1`.
 - Runenpfad (`runenpfad`, category `games`) is a built-in offline 25-level 2D action-platformer
   with no capability gate. Its app-owned icon is `logo_path` `/img/runenpfad/icon.svg`. Runtime,
   pack validation, upgrades and locales belong to `../../ui/js/desktop/apps/runenpfad/AGENTS.md`.

@@ -1898,16 +1898,6 @@ if (appId === 'pixel') {
                 fileOps: window.AuraDesktopFileOps
             }));
         }
-        if (appId === 'leuchtfeuer') {
-            if (!window.LeuchtfeuerApp) {
-                window.AuraDesktopModules.loadAppScript('leuchtfeuer').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
-                return;
-            }
-            return window.LeuchtfeuerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
-                esc, t, api,
-                isActive: () => state.activeWindowId === id
-            }));
-        }
         if (appId === 'runenpfad') {
             if (!window.RunenpfadApp) {
                 window.AuraDesktopModules.loadAppScript('runenpfad').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));

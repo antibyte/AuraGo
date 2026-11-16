@@ -42,16 +42,6 @@
             styles: appStyles('/css/desktop-app-pinball.css'),
             scripts: ['/js/desktop/apps/pinball.js']
         },
-        leuchtfeuer: {
-            styles: appStyles('/css/desktop-app-leuchtfeuer.css'),
-            scripts: [
-                '/js/desktop/apps/leuchtfeuer/world.js',
-                '/js/desktop/apps/leuchtfeuer/sim.js',
-                '/js/desktop/apps/leuchtfeuer/view.js',
-                '/js/desktop/apps/leuchtfeuer/audio.js',
-                '/js/desktop/apps/leuchtfeuer/app.js'
-            ]
-        },
         runenpfad: {
             styles: appStyles('/css/desktop-app-runenpfad.css'),
             scripts: [
