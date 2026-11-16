@@ -983,6 +983,9 @@ func (m *MCPManager) CallTool(ctx context.Context, serverName, toolName string, 
 }
 
 func (m *MCPManager) callTool(ctx context.Context, serverName, toolName string, arguments map[string]interface{}, expected *mcpConn) (string, error) {
+	if strings.TrimSpace(toolName) == "" {
+		return "", fmt.Errorf("MCP tool name is required")
+	}
 	if err := m.requireToolAllowed(serverName, toolName); err != nil {
 		return "", err
 	}
@@ -1059,7 +1062,7 @@ func mcpAllowedToolSet(cfg MCPServerConfig) (map[string]struct{}, bool) {
 			allowed[trimmed] = struct{}{}
 		}
 	}
-	return allowed, len(allowed) > 0
+	return allowed, len(allowed) > 0 || !cfg.AllowDestructive
 }
 
 func mcpToolVisible(cfg MCPServerConfig, toolName string) bool {
@@ -1072,7 +1075,16 @@ func mcpToolVisible(cfg MCPServerConfig, toolName string) bool {
 }
 
 func isMCPToolNameDestructive(toolName string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(toolName))
+	var words strings.Builder
+	var previous rune
+	for _, r := range strings.TrimSpace(toolName) {
+		if r >= 'A' && r <= 'Z' && previous >= 'a' && previous <= 'z' {
+			words.WriteByte('_')
+		}
+		words.WriteRune(r)
+		previous = r
+	}
+	normalized := strings.ToLower(words.String())
 	if normalized == "" {
 		return false
 	}
@@ -1081,7 +1093,7 @@ func isMCPToolNameDestructive(toolName string) bool {
 	})
 	for _, part := range parts {
 		switch part {
-		case "delete", "destroy", "remove", "drop", "wipe", "purge", "truncate", "format":
+		case "delete", "destroy", "remove", "drop", "wipe", "purge", "truncate", "format", "execute", "exec", "run", "shell", "bash", "sh", "powershell", "cmd", "eval", "evaluate", "python", "javascript", "terminal":
 			return true
 		}
 	}

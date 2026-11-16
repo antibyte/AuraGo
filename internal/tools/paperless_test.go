@@ -233,6 +233,7 @@ func TestPaperlessDelete(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	defer srv.Close()
+	cfg.AllowDelete = true
 
 	result := PaperlessDelete(cfg, "5")
 

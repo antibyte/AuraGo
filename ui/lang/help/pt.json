@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Máximo de linhas de texto reconhecidas por imagem; predefinição: 30.",
   "help.vision.mirage.language": "Idioma de reconhecimento. Deixa vazio para usar o idioma predefinido do motor.",
   "help.home_assistant.readonly": "Quando ativado, o agente só pode ler o estado dos dispositivos, mas não pode chamar serviços (sem alternar dispositivos).",
-  "help.ansible.readonly": "Quando ativado, o agente só pode verificar o estado, o inventário e listar playbooks, mas não pode executar comandos ad-hoc nem playbooks. A verificação e a simulação também exigem permissão de escrita; as tarefas Ansible podem ignorar o modo de verificação."
+  "help.ansible.readonly": "Quando ativado, o agente só pode verificar o estado, o inventário e listar playbooks, mas não pode executar comandos ad-hoc nem playbooks. A verificação e a simulação também exigem permissão de escrita; as tarefas Ansible podem ignorar o modo de verificação.",
+  "help.paperless_ngx.allow_delete": "Desativado por predefinição. Só de leitura continua a bloquear a eliminação.",
+  "help.onedrive.allow_public_share": "Permitir ligações de partilha anónimas. Desativado por predefinição; só de leitura tem sempre prioridade.",
+  "help.huggingface.allow_publish": "Permitir repositórios públicos, envios e discussões. Omitir private significa privado; visibilidade desconhecida bloqueia alterações. Só de leitura tem prioridade."
 }

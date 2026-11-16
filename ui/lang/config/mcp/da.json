@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Alle fundne",
   "config.mcp.field_environment_secret_hint": "Gem adgangskoder og tokens som MCP-hemmeligheder, og henvis til dem her med {{alias}} i stedet for klartekst.",
   "config.mcp.field_allowed_tools": "Tilladte runtime-værktøjer",
-  "config.mcp.field_allowed_tools_hint": "Valgfri værktøjsbegrænsning. Lad feltet være tomt for at tillade alle fundne værktøjer; angiv værktøjsnavne for kun at tillade dem til kørsel og routing.",
+  "config.mcp.field_allowed_tools_hint": "Uden destruktiv tilladelse skal betroede værktøjer angives udtrykkeligt; en tom liste tillader ingen. Kendte slette- og udførelsesværktøjer forbliver blokeret. Listen er ikke en generel sandkasse.",
   "config.mcp.field_allow_destructive": "Tillad destruktive MCP-værktøjer",
   "config.mcp.card_transport": "Transport:",
   "config.mcp.card_url": "URL:",

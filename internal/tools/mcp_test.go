@@ -280,7 +280,7 @@ func TestMCPManagerCallToolEnforcesAllowedTools(t *testing.T) {
 	}
 }
 
-func TestMCPManagerCallToolAllowsAllWhenAllowlistEmpty(t *testing.T) {
+func TestMCPManagerCallToolDeniesAllWithoutExplicitAllowlist(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	oldStart := startManagedMCPConn
 	oldInvoke := invokeMCPConnTool
@@ -305,11 +305,8 @@ func TestMCPManagerCallToolAllowsAllWhenAllowlistEmpty(t *testing.T) {
 	}
 
 	got, err := mgr.CallTool(context.Background(), "safe", "any_safe_tool", nil)
-	if err != nil {
-		t.Fatalf("CallTool() error = %v, want empty allowed_tools to allow all non-destructive tools", err)
-	}
-	if got != "ok" {
-		t.Fatalf("CallTool() = %q, want ok", got)
+	if err == nil || got != "" || !strings.Contains(err.Error(), "not allowed") {
+		t.Fatalf("CallTool() = %q, %v, want empty allowed_tools denied", got, err)
 	}
 }
 
@@ -334,7 +331,7 @@ func TestMCPManagerCallToolPropagatesCancellation(t *testing.T) {
 		return "", ctx.Err()
 	}
 	mgr := &MCPManager{
-		configs: map[string]MCPServerConfig{"safe": {Name: "safe", Enabled: true, Command: "test"}},
+		configs: map[string]MCPServerConfig{"safe": {Name: "safe", Enabled: true, Command: "test", AllowedTools: []string{"read"}}},
 		conns:   map[string]*mcpConn{"safe": {name: "safe", ready: true}},
 		logger:  slog.Default(),
 	}
@@ -357,7 +354,7 @@ func TestMCPManagerCallToolReturnsUncertainOutcomeWithoutBackoff(t *testing.T) {
 	}
 	closeManagedMCPConn = func(_ *mcpConn) {}
 	mgr := &MCPManager{
-		configs: map[string]MCPServerConfig{"safe": {Name: "safe", Enabled: true, Command: "test"}},
+		configs: map[string]MCPServerConfig{"safe": {Name: "safe", Enabled: true, Command: "test", AllowedTools: []string{"read"}}},
 		conns:   map[string]*mcpConn{"safe": {name: "safe", ready: true}},
 		logger:  slog.Default(),
 	}
@@ -396,7 +393,7 @@ func TestMCPManagerListToolsOnlyExposesAllowedTools(t *testing.T) {
 	}
 }
 
-func TestMCPManagerListToolsExposesAllWhenAllowlistEmpty(t *testing.T) {
+func TestMCPManagerListToolsExposesNoneWithoutExplicitAllowlist(t *testing.T) {
 	mgr := &MCPManager{
 		configs: map[string]MCPServerConfig{
 			"safe": {Name: "safe", Enabled: true, Command: "uvx"},
@@ -416,8 +413,8 @@ func TestMCPManagerListToolsExposesAllWhenAllowlistEmpty(t *testing.T) {
 	}
 
 	got := mgr.ListTools("safe")
-	if len(got) != 2 || got[0].Name != "first_tool" || got[1].Name != "second_tool" {
-		t.Fatalf("ListTools() = %+v, want all non-destructive tools when allowed_tools is empty", got)
+	if len(got) != 0 {
+		t.Fatalf("ListTools() = %+v, want no tools when allowed_tools is empty", got)
 	}
 }
 

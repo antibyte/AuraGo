@@ -662,5 +662,6 @@
   "config.section.decisions.desc": "तय करता है कि EasyDrag फ़्लो में संरचित निर्णय कौन-सा स्थानीय या बाहरी मॉडल लेता है।",
   "config.section.llm_router.desc": "हर कार्य के लिए अपने आप उपयुक्त मॉडल चुनता है।",
   "config.section.ruview.label": "RuView",
-  "config.section.ruview.desc": "Wi-Fi सिग्नल से किसी कमरे में गति का पता लगाता है।"
+  "config.section.ruview.desc": "Wi-Fi सिग्नल से किसी कमरे में गति का पता लगाता है।",
+  "config.paperless_ngx.allow_delete_label": "दस्तावेज़ हटाने की अनुमति दें"
 }

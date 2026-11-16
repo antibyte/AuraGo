@@ -18,7 +18,7 @@ func TestPaperlessDocumentIDsCannotChangeEndpoint(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1) }))
 	defer srv.Close()
-	cfg := PaperlessConfig{URL: srv.URL, APIToken: "fixture-token"}
+	cfg := PaperlessConfig{URL: srv.URL, APIToken: "fixture-token", AllowDelete: true}
 	for _, id := range []string{"", "0", "-1", "+1", "01", "1/../../tags", "../", "1?x=y", "1#fragment", "%31", "1%2f..", " 1", "9223372036854775808"} {
 		for _, out := range []string{PaperlessGet(cfg, id), PaperlessDownload(cfg, id), PaperlessUpdate(cfg, id, "title", "", "", ""), PaperlessDelete(cfg, id)} {
 			if !strings.Contains(out, `"status":"error"`) {

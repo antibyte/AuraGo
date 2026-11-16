@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Maximale Anzahl erkannter Textzeilen pro Bild; Standard: 30.",
   "help.vision.mirage.language": "Sprache der Erkennung. Leer lassen, um den Standard der Engine zu verwenden.",
   "help.home_assistant.readonly": "Wenn aktiviert, darf der Agent nur Gerätezustände lesen, aber keine Services aufrufen (kein Schalten von Geräten).",
-  "help.ansible.readonly": "Wenn aktiviert, darf der Agent nur Status, Inventar und Playbooks auflisten, aber keine Ad-hoc-Befehle oder Playbooks ausführen. Auch Check und Dry-run benötigen Schreibrecht; Ansible-Aufgaben können den Prüfmodus ignorieren."
+  "help.ansible.readonly": "Wenn aktiviert, darf der Agent nur Status, Inventar und Playbooks auflisten, aber keine Ad-hoc-Befehle oder Playbooks ausführen. Auch Check und Dry-run benötigen Schreibrecht; Ansible-Aufgaben können den Prüfmodus ignorieren.",
+  "help.paperless_ngx.allow_delete": "Standardmäßig aus. Schreibschutz sperrt das Löschen weiterhin.",
+  "help.onedrive.allow_public_share": "Anonyme Freigabelinks erlauben. Standardmäßig aus; Schreibschutz hat immer Vorrang.",
+  "help.huggingface.allow_publish": "Öffentliche Repositories, Uploads und Diskussionen erlauben. Ohne private-Angabe bleibt das Repository privat; unbekannte Sichtbarkeit sperrt Änderungen. Schreibschutz hat Vorrang."
 }

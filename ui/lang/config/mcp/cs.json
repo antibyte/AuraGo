@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Všechny objevené",
   "config.mcp.field_environment_secret_hint": "Hesla a tokeny ukládejte jako MCP secrets a zde je odkazujte pomocí {{alias}} místo prostého textu.",
   "config.mcp.field_allowed_tools": "Povolené runtime nástroje",
-  "config.mcp.field_allowed_tools_hint": "Volitelné omezení nástrojů. Prázdné povolí všechny objevené nástroje; zadané názvy omezí spouštění a směrování jen na tyto nástroje.",
+  "config.mcp.field_allowed_tools_hint": "Bez oprávnění k destruktivním akcím výslovně uveď důvěryhodné nástroje; prázdný seznam nepovoluje žádné. Známé nástroje pro mazání a spouštění zůstávají blokované. Seznam není univerzální izolované prostředí.",
   "config.mcp.field_allow_destructive": "Povolit destruktivní MCP nástroje",
   "config.mcp.card_transport": "Transport:",
   "config.mcp.card_url": "URL:",

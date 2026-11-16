@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Maximalt antal identifierade textrader per bild; standard: 30.",
   "help.vision.mirage.language": "Språk för igenkänning. Lämna tomt för att använda motorns standard.",
   "help.home_assistant.readonly": "När detta är aktiverat kan agenten bara läsa enhetstillstånd men inte anropa tjänster (inga växlingar av enheter).",
-  "help.ansible.readonly": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks. Kontroll och provkörning kräver också skrivbehörighet; Ansible-uppgifter kan ignorera kontrolläget."
+  "help.ansible.readonly": "När detta är aktiverat kan agenten bara kontrollera status och inventering samt lista playbooks, men inte köra ad hoc-kommandon eller playbooks. Kontroll och provkörning kräver också skrivbehörighet; Ansible-uppgifter kan ignorera kontrolläget.",
+  "help.paperless_ngx.allow_delete": "Av som standard. Skrivskydd blockerar fortfarande borttagning.",
+  "help.onedrive.allow_public_share": "Tillåt anonyma delningslänkar. Av som standard; skrivskydd har alltid företräde.",
+  "help.huggingface.allow_publish": "Tillåt offentliga arkiv, uppladdningar och diskussioner. Utelämnat private betyder privat; okänd synlighet blockerar ändringar. Skrivskydd har företräde."
 }

@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Wszystkie wykryte",
   "config.mcp.field_environment_secret_hint": "Zapisuj hasła i tokeny jako sekrety MCP i odwołuj się do nich tutaj przez {{alias}} zamiast tekstem jawnym.",
   "config.mcp.field_allowed_tools": "Dozwolone narzędzia runtime",
-  "config.mcp.field_allowed_tools_hint": "Opcjonalne ograniczenie narzędzi. Pozostaw puste, aby zezwolić na wszystkie wykryte narzędzia; wpisz nazwy, aby ograniczyć uruchamianie i routing tylko do nich.",
+  "config.mcp.field_allowed_tools_hint": "Bez uprawnień destrukcyjnych jawnie wymień zaufane narzędzia; pusta lista nie pozwala na żadne. Znane narzędzia usuwania i wykonywania pozostają zablokowane. Lista nie jest uniwersalną piaskownicą.",
   "config.mcp.field_allow_destructive": "Zezwalaj na destrukcyjne narzędzia MCP",
   "config.mcp.card_transport": "Transport:",
   "config.mcp.card_url": "URL:",

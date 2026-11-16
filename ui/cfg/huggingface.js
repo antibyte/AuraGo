@@ -7,6 +7,7 @@ function huggingFaceConfig() {
     if (cfg.read_only === undefined) cfg.read_only = true;
     if (cfg.allow_writes === undefined) cfg.allow_writes = false;
     if (cfg.allow_delete === undefined) cfg.allow_delete = false;
+    if (cfg.allow_publish === undefined) cfg.allow_publish = false;
     if (cfg.allow_jobs === undefined) cfg.allow_jobs = false;
     if (cfg.allow_scheduled_jobs === undefined) cfg.allow_scheduled_jobs = false;
     if (cfg.allow_job_token_injection === undefined) cfg.allow_job_token_injection = false;
@@ -58,6 +59,7 @@ async function renderHuggingFaceSection(section) {
             huggingFaceToggle('huggingface.read_only', cfg.read_only, 'config.huggingface.read_only', 'help.huggingface.read_only'),
             huggingFaceToggle('huggingface.allow_writes', cfg.allow_writes, 'config.huggingface.allow_writes', 'help.huggingface.allow_writes'),
             huggingFaceToggle('huggingface.allow_delete', cfg.allow_delete, 'config.huggingface.allow_delete', 'help.huggingface.allow_delete'),
+            huggingFaceToggle('huggingface.allow_publish', cfg.allow_publish, 'config.huggingface.allow_publish', 'help.huggingface.allow_publish'),
             huggingFaceToggle('huggingface.allow_jobs', cfg.allow_jobs, 'config.huggingface.allow_jobs', 'help.huggingface.allow_jobs'),
             huggingFaceToggle('huggingface.allow_scheduled_jobs', cfg.allow_scheduled_jobs, 'config.huggingface.allow_scheduled_jobs', 'help.huggingface.allow_scheduled_jobs'),
             huggingFaceToggle('huggingface.allow_job_token_injection', cfg.allow_job_token_injection, 'config.huggingface.allow_job_token_injection', 'help.huggingface.allow_job_token_injection')

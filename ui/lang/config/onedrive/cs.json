@@ -66,5 +66,7 @@
   "config.updates.running": "Běží…",
   "config.web_scraper.summary_mode": "Režim shrnutí",
   "config.onedrive.disconnect_confirm_title": "Odpojit OneDrive?",
-  "config.onedrive.enabled_help": "Povoluje přístup k souborům OneDrive po dokončení autorizace Microsoft."
+  "config.onedrive.enabled_help": "Povoluje přístup k souborům OneDrive po dokončení autorizace Microsoft.",
+  "config.onedrive.allow_public_share": "Povolit veřejné odkazy",
+  "config.onedrive.allow_public_share_hint": "Povolit anonymní odkazy pro sdílení. Ve výchozím stavu vypnuto; režim pouze pro čtení má přednost."
 }

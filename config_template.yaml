@@ -591,6 +591,7 @@ koofr:
 paperless_ngx:
     enabled: false
     readonly: false
+    allow_delete: false                                  # explicit document-deletion grant; readonly wins
     url: ""
 virustotal:
     enabled: false
@@ -1920,6 +1921,7 @@ google_workspace:
 onedrive:
     enabled: false
     readonly: false
+    allow_public_share: false                            # anonymous links; existing OAuth grants are never expanded by refresh
     client_id: ""     # Azure App Registration (public client) Client ID
     tenant_id: common  # "common", "consumers", "organizations", or tenant UUID
 image_generation:
@@ -2182,6 +2184,7 @@ huggingface:
     read_only: true                                     # blocks writes, Job starts, and cancellation; authenticated Job inspection remains available
     allow_writes: false                                 # opt-in for repo creation, uploads, and discussions
     allow_delete: false                                 # separate opt-in for repository deletion
+    allow_publish: false                                # public creation/uploads/discussions; omitted private defaults true
     allow_jobs: false                                   # opt-in for compute-backed Hugging Face Jobs
     allow_scheduled_jobs: false                         # separate opt-in for scheduled Jobs
     allow_job_token_injection: false                    # separate opt-in before a Job may receive the Vault-backed HF_TOKEN

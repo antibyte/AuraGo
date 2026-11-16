@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Maksymalna liczba rozpoznanych wierszy tekstu na obraz; domyślnie: 30.",
   "help.vision.mirage.language": "Język rozpoznawania. Pozostaw puste, aby użyć domyślnego języka silnika.",
   "help.home_assistant.readonly": "Gdy włączone, agent może tylko czytać stany urządzeń, ale nie może wywoływać usług (brak przełączania urządzeń).",
-  "help.ansible.readonly": "Gdy włączone, agent może tylko sprawdzać status, inwentarz i listować playbooki, ale nie może uruchamiać poleceń ad-hoc ani playbooków. Sprawdzanie i próbne uruchomienie również wymagają prawa zapisu; zadania Ansible mogą ignorować tryb sprawdzania."
+  "help.ansible.readonly": "Gdy włączone, agent może tylko sprawdzać status, inwentarz i listować playbooki, ale nie może uruchamiać poleceń ad-hoc ani playbooków. Sprawdzanie i próbne uruchomienie również wymagają prawa zapisu; zadania Ansible mogą ignorować tryb sprawdzania.",
+  "help.paperless_ngx.allow_delete": "Domyślnie wyłączone. Tryb tylko do odczytu nadal blokuje usuwanie.",
+  "help.onedrive.allow_public_share": "Zezwalaj na anonimowe linki udostępniania. Domyślnie wyłączone; tryb tylko do odczytu ma pierwszeństwo.",
+  "help.huggingface.allow_publish": "Zezwalaj na publiczne repozytoria, przesyłanie i dyskusje. Pominięte private oznacza prywatne; nieznana widoczność blokuje zmiany. Tryb tylko do odczytu ma pierwszeństwo."
 }

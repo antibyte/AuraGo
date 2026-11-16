@@ -66,5 +66,7 @@
   "config.updates.running": "Kjører…",
   "config.web_scraper.summary_mode": "Sammendragsmodus",
   "config.onedrive.disconnect_confirm_title": "Koble fra OneDrive?",
-  "config.onedrive.enabled_help": "Aktiverer OneDrive-filtilgang etter at Microsoft-autorisasjonen er fullført."
+  "config.onedrive.enabled_help": "Aktiverer OneDrive-filtilgang etter at Microsoft-autorisasjonen er fullført.",
+  "config.onedrive.allow_public_share": "Tillat offentlige lenker",
+  "config.onedrive.allow_public_share_hint": "Tillat anonyme delingslenker. Av som standard; skrivebeskyttelse har alltid forrang."
 }

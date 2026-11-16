@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Alla upptäckta",
   "config.mcp.field_environment_secret_hint": "Spara lösenord och tokens som MCP-hemligheter och referera till dem här med {{alias}} i stället för klartext.",
   "config.mcp.field_allowed_tools": "Tillåtna runtime-verktyg",
-  "config.mcp.field_allowed_tools_hint": "Valfri verktygsbegränsning. Lämna tomt för att tillåta alla upptäckta verktyg; ange verktygsnamn för att begränsa körning och routing till endast dessa.",
+  "config.mcp.field_allowed_tools_hint": "Utan destruktiv behörighet måste betrodda verktyg anges uttryckligen; en tom lista tillåter inga. Kända borttagnings- och körverktyg förblir blockerade. Listan är ingen generell sandlåda.",
   "config.mcp.field_allow_destructive": "Tillåt destruktiva MCP-verktyg",
   "config.mcp.card_transport": "Transport:",
   "config.mcp.card_url": "URL:",

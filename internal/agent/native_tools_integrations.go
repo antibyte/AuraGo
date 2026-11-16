@@ -1539,7 +1539,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"title":           prop("string", "Discussion title."),
 				"body":            prop("string", "Discussion or comment body."),
 				"number":          prop("integer", "Discussion number."),
-				"private":         prop("boolean", "Create a private repository when writes are enabled."),
+				"private":         prop("boolean", "Repository visibility for create_repo. Omitted or null means private; false requires huggingface.allow_publish."),
 				"local_path":      prop("string", "Local workspace path to upload."),
 				"message":         prop("string", "Upload commit message."),
 				"scheduled":       prop("boolean", "Request a scheduled Job; separately gated."),

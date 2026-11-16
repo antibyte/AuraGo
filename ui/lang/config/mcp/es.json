@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Todos los descubiertos",
   "config.mcp.field_environment_secret_hint": "Guarda contraseñas y tokens como secretos MCP y referencia aquí {{alias}} en lugar de texto claro.",
   "config.mcp.field_allowed_tools": "Herramientas runtime permitidas",
-  "config.mcp.field_allowed_tools_hint": "Límite opcional de herramientas. Déjalo vacío para permitir todas las herramientas descubiertas; escribe nombres para restringir la ejecución y el routing solo a esas herramientas.",
+  "config.mcp.field_allowed_tools_hint": "Sin permiso destructivo, enumera explícitamente las herramientas de confianza; una lista vacía no permite ninguna. Las herramientas conocidas de eliminación y ejecución siguen bloqueadas. Esta lista no es un entorno aislado general.",
   "config.mcp.field_allow_destructive": "Permitir herramientas MCP destructivas",
   "config.mcp.card_transport": "Transporte:",
   "config.mcp.card_url": "URL:",

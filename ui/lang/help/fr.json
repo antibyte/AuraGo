@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Nombre maximal de lignes de texte reconnues par image ; par défaut : 30.",
   "help.vision.mirage.language": "Langue de reconnaissance. Laisser vide pour utiliser la valeur par défaut du moteur.",
   "help.home_assistant.readonly": "Lorsqu'il est activé, l'agent peut uniquement lire l'état des appareils mais ne peut pas appeler de services (pas de basculement d'appareils).",
-  "help.ansible.readonly": "Lorsqu'il est activé, l'agent peut uniquement vérifier l'état, l'inventaire et répertorier les playbooks, mais ne peut pas exécuter de commandes ou de playbooks ad hoc. La vérification et la simulation exigent aussi le droit d’écriture ; les tâches Ansible peuvent ignorer le mode de vérification."
+  "help.ansible.readonly": "Lorsqu'il est activé, l'agent peut uniquement vérifier l'état, l'inventaire et répertorier les playbooks, mais ne peut pas exécuter de commandes ou de playbooks ad hoc. La vérification et la simulation exigent aussi le droit d’écriture ; les tâches Ansible peuvent ignorer le mode de vérification.",
+  "help.paperless_ngx.allow_delete": "Désactivé par défaut. La lecture seule bloque toujours la suppression.",
+  "help.onedrive.allow_public_share": "Autoriser les liens de partage anonymes. Désactivé par défaut ; la lecture seule reste prioritaire.",
+  "help.huggingface.allow_publish": "Autoriser les dépôts publics, les envois et les discussions. Sans private, le dépôt est privé ; une visibilité inconnue bloque les modifications. La lecture seule reste prioritaire."
 }

@@ -66,5 +66,7 @@
   "config.updates.running": "Draait…",
   "config.web_scraper.summary_mode": "Samenvattingsmodus",
   "config.onedrive.disconnect_confirm_title": "OneDrive loskoppelen?",
-  "config.onedrive.enabled_help": "Schakelt OneDrive-bestandstoegang in nadat Microsoft-autorisatie is voltooid."
+  "config.onedrive.enabled_help": "Schakelt OneDrive-bestandstoegang in nadat Microsoft-autorisatie is voltooid.",
+  "config.onedrive.allow_public_share": "Openbare links toestaan",
+  "config.onedrive.allow_public_share_hint": "Anonieme deellinks toestaan. Standaard uit; alleen-lezen heeft altijd voorrang."
 }

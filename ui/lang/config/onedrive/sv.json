@@ -66,5 +66,7 @@
   "config.updates.running": "Kör…",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.onedrive.disconnect_confirm_title": "Koppla från OneDrive?",
-  "config.onedrive.enabled_help": "Aktiverar OneDrive-filåtkomst när Microsoft-auktoriseringen är klar."
+  "config.onedrive.enabled_help": "Aktiverar OneDrive-filåtkomst när Microsoft-auktoriseringen är klar.",
+  "config.onedrive.allow_public_share": "Tillåt offentliga länkar",
+  "config.onedrive.allow_public_share_hint": "Tillåt anonyma delningslänkar. Av som standard; skrivskydd har alltid företräde."
 }

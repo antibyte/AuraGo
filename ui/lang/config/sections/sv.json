@@ -662,5 +662,6 @@
   "config.section.decisions.desc": "Anger vilken lokal eller extern modell som fattar de strukturerade besluten i EasyDrag-flöden.",
   "config.section.llm_router.desc": "Väljer automatiskt en lämplig modell för varje uppgift.",
   "config.section.ruview.label": "RuView",
-  "config.section.ruview.desc": "Upptäcker rörelse i ett rum utifrån Wi-Fi-signaler."
+  "config.section.ruview.desc": "Upptäcker rörelse i ett rum utifrån Wi-Fi-signaler.",
+  "config.paperless_ngx.allow_delete_label": "Tillåt borttagning av dokument"
 }

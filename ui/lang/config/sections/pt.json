@@ -662,5 +662,6 @@
   "config.section.decisions.desc": "Define qual modelo local ou externo toma as decisões estruturadas nos fluxos EasyDrag.",
   "config.section.llm_router.desc": "Escolhe automaticamente um modelo adequado para cada tarefa.",
   "config.section.ruview.label": "RuView",
-  "config.section.ruview.desc": "Detecta movimento em um ambiente a partir de sinais Wi-Fi."
+  "config.section.ruview.desc": "Detecta movimento em um ambiente a partir de sinais Wi-Fi.",
+  "config.paperless_ngx.allow_delete_label": "Permitir eliminar documentos"
 }

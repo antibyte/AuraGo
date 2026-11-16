@@ -29,7 +29,7 @@
   "config.mcp.field_environment": "Environment Variables",
   "config.mcp.field_environment_secret_hint": "Store passwords and tokens as MCP secrets and reference them here with {{alias}} instead of plaintext.",
   "config.mcp.field_allowed_tools": "Allowed Runtime Tools",
-  "config.mcp.field_allowed_tools_hint": "Optional tool limit. Leave empty to allow all discovered tools; enter tool names to restrict execution and routing to only those tools.",
+  "config.mcp.field_allowed_tools_hint": "Without destructive permission, explicitly list trusted tools; empty permits none. Known delete/execute tools stay blocked. This allowlist is not a general sandbox.",
   "config.mcp.save_failed": "MCP save failed: ",
   "config.mcp.routing_title": "Tool Routing",
   "config.mcp.routing_desc": "Choose which connected MCP tool AuraGo should use for built-in web search and image analysis.",

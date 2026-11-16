@@ -662,5 +662,6 @@
   "config.section.decisions.desc": "Angiver, hvilken lokal eller ekstern model der træffer de strukturerede beslutninger i EasyDrag-flows.",
   "config.section.llm_router.desc": "Vælger automatisk en passende model til hver opgave.",
   "config.section.ruview.label": "RuView",
-  "config.section.ruview.desc": "Registrerer bevægelse i et rum ud fra Wi-Fi-signaler."
+  "config.section.ruview.desc": "Registrerer bevægelse i et rum ud fra Wi-Fi-signaler.",
+  "config.paperless_ngx.allow_delete_label": "Tillad sletning af dokumenter"
 }

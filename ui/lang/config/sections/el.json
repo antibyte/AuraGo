@@ -662,5 +662,6 @@
   "config.section.decisions.desc": "Ορίζει ποιο τοπικό ή εξωτερικό μοντέλο λαμβάνει τις δομημένες αποφάσεις στις ροές EasyDrag.",
   "config.section.llm_router.desc": "Επιλέγει αυτόματα ένα κατάλληλο μοντέλο για κάθε εργασία.",
   "config.section.ruview.label": "RuView",
-  "config.section.ruview.desc": "Εντοπίζει κίνηση σε έναν χώρο από σήματα Wi-Fi."
+  "config.section.ruview.desc": "Εντοπίζει κίνηση σε έναν χώρο από σήματα Wi-Fi.",
+  "config.paperless_ngx.allow_delete_label": "Να επιτρέπεται διαγραφή εγγράφων"
 }

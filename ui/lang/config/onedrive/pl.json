@@ -66,5 +66,7 @@
   "config.updates.running": "Działa…",
   "config.web_scraper.summary_mode": "Tryb podsumowania",
   "config.onedrive.disconnect_confirm_title": "Odłączyć OneDrive?",
-  "config.onedrive.enabled_help": "Włącza dostęp do plików OneDrive po zakończeniu autoryzacji Microsoft."
+  "config.onedrive.enabled_help": "Włącza dostęp do plików OneDrive po zakończeniu autoryzacji Microsoft.",
+  "config.onedrive.allow_public_share": "Zezwalaj na publiczne linki",
+  "config.onedrive.allow_public_share_hint": "Zezwalaj na anonimowe linki udostępniania. Domyślnie wyłączone; tryb tylko do odczytu ma pierwszeństwo."
 }

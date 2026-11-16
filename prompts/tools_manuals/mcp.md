@@ -1,4 +1,4 @@
-# MCP (Model Context Protocol) — Tool Manual
+# MCP (Model Context Protocol) â€” Tool Manual
 
 ## Overview
 MCP enables AuraGo to connect to external MCP-compliant servers and use their tools. This extends AuraGo's capabilities dynamically without code changes.
@@ -80,7 +80,7 @@ mcp:
       url: "https://example.com/mcp"
       headers:
         Authorization: "Bearer {{remote-mcp-token}}"
-      allowed_tools: []
+      allowed_tools: []  # No tools until explicit trusted names are selected
       allow_destructive: false
 ```
 
@@ -102,7 +102,7 @@ mcp:
       docker_image: "ghcr.io/astral-sh/uv:latest"
       docker_command: "uvx"
       args: ["mcp-server-fetch"]
-      allowed_tools: []
+      allowed_tools: [fetch]
       allow_destructive: false
 ```
 
@@ -125,7 +125,7 @@ mcp:
       enabled: true
       transport: streamable_http
       url: "http://host.docker.internal:9100/mcp"
-      allowed_tools: []
+      allowed_tools: [fetch]
       allow_destructive: false
 ```
 
@@ -144,6 +144,6 @@ mcp:
       runtime: local
       command: "uvx"
       args: ["mcp-server-fetch"]
-      allowed_tools: []
+      allowed_tools: [fetch]
       allow_destructive: false
 ```

@@ -66,5 +66,7 @@
   "config.updates.running": "In esecuzione…",
   "config.web_scraper.summary_mode": "Modalità riepilogo",
   "config.onedrive.disconnect_confirm_title": "Disconnettere OneDrive?",
-  "config.onedrive.enabled_help": "Abilita l’accesso ai file OneDrive dopo l’autorizzazione Microsoft."
+  "config.onedrive.enabled_help": "Abilita l’accesso ai file OneDrive dopo l’autorizzazione Microsoft.",
+  "config.onedrive.allow_public_share": "Consenti link pubblici",
+  "config.onedrive.allow_public_share_hint": "Consenti link di condivisione anonimi. Disattivato per impostazione predefinita; la sola lettura prevale sempre."
 }

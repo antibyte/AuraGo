@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Maximumaantal herkende tekstregels per afbeelding; standaard: 30.",
   "help.vision.mirage.language": "Taal voor herkenning. Laat leeg om de standaard van de engine te gebruiken.",
   "help.home_assistant.readonly": "Wanneer ingeschakeld, kan de agent alleen apparaatstatussen lezen en geen services aanroepen (geen apparaten schakelen).",
-  "help.ansible.readonly": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren. Controle en proefuitvoering vereisen ook schrijfrechten; Ansible-taken kunnen de controlemodus negeren."
+  "help.ansible.readonly": "Wanneer ingeschakeld, kan de agent alleen status, inventory en playbooks bekijken, maar geen ad-hocopdrachten of playbooks uitvoeren. Controle en proefuitvoering vereisen ook schrijfrechten; Ansible-taken kunnen de controlemodus negeren.",
+  "help.paperless_ngx.allow_delete": "Standaard uit. Alleen-lezen blijft verwijderen blokkeren.",
+  "help.onedrive.allow_public_share": "Anonieme deellinks toestaan. Standaard uit; alleen-lezen heeft altijd voorrang.",
+  "help.huggingface.allow_publish": "Openbare repository’s, uploads en discussies toestaan. Zonder private blijft de repository privé; onbekende zichtbaarheid blokkeert wijzigingen. Alleen-lezen heeft voorrang."
 }

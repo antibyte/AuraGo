@@ -43,7 +43,7 @@ type HuggingFaceRequest struct {
 	Title          string            `json:"title,omitempty"`
 	Body           string            `json:"body,omitempty"`
 	Number         int               `json:"number,omitempty"`
-	Private        bool              `json:"private,omitempty"`
+	Private        *bool             `json:"private,omitempty"`
 	LocalPath      string            `json:"local_path,omitempty"`
 	Message        string            `json:"message,omitempty"`
 	Scheduled      bool              `json:"scheduled,omitempty"`
@@ -129,6 +129,9 @@ func EvaluateHuggingFacePolicy(cfg config.HuggingFaceConfig, req HuggingFaceRequ
 		if !cfg.AllowWrites {
 			return fmt.Errorf("Hugging Face writes are not allowed. Set huggingface.allow_writes=true")
 		}
+		if op == "create_repo" && req.Private != nil && !*req.Private && !cfg.AllowPublish {
+			return fmt.Errorf("Public repositories require huggingface.allow_publish=true")
+		}
 		if strings.TrimSpace(token) == "" {
 			return fmt.Errorf("huggingface_token is required for writes")
 		}
@@ -171,6 +174,25 @@ func RunHuggingFace(ctx context.Context, cfg config.HuggingFaceConfig, token, wo
 }
 
 func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg config.HuggingFaceConfig, token, workspaceDir, dataDir string, req HuggingFaceRequest) (interface{}, error) {
+	if req.Operation == "upload_file" || req.Operation == "create_discussion" || req.Operation == "comment_discussion" {
+		var metadata map[string]interface{}
+		var err error
+		switch strings.ToLower(strings.TrimSpace(req.RepoType)) {
+		case "dataset", "datasets":
+			metadata, err = client.GetDataset(ctx, requestRepoID(req))
+		case "space", "spaces":
+			metadata, err = client.GetSpace(ctx, requestRepoID(req))
+		default:
+			metadata, err = client.GetModel(ctx, requestRepoID(req))
+		}
+		private, known := metadata["private"].(bool)
+		if err != nil || !known {
+			return nil, fmt.Errorf("Repository visibility could not be verified; publication blocked")
+		}
+		if !private && !cfg.AllowPublish {
+			return nil, fmt.Errorf("Public repository mutations require huggingface.allow_publish=true")
+		}
+	}
 	switch req.Operation {
 	case "whoami":
 		return client.WhoAmI(ctx)
@@ -234,7 +256,7 @@ func executeHuggingFaceOperation(ctx context.Context, client *hf.Client, cfg con
 		attachHuggingFaceLedgerWarning(result, recordHuggingFaceJob(ctx, dataDir, req.Operation, opts.Hardware, req, result, err))
 		return result, err
 	case "create_repo":
-		return client.CreateRepo(ctx, hf.CreateRepoOptions{RepoID: requestRepoID(req), Type: req.RepoType, Private: req.Private})
+		return client.CreateRepo(ctx, hf.CreateRepoOptions{RepoID: requestRepoID(req), Type: req.RepoType, Private: req.Private == nil || *req.Private})
 	case "upload_file":
 		return uploadHuggingFaceWorkspaceFile(ctx, client, cfg, workspaceDir, dataDir, req)
 	case "create_discussion":

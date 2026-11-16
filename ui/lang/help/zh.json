@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "每张图像可识别的最大文本行数；默认值：30。",
   "help.vision.mirage.language": "识别语言。留空则使用引擎默认语言。",
   "help.home_assistant.readonly": "启用后，代理只能读取设备状态，但无法调用服务（无法切换设备）。",
-  "help.ansible.readonly": "启用后，代理只能检查状态、清单和列出 playbook，但无法运行临时命令或 playbook。 检查和试运行也需要写入权限；Ansible 任务可能忽略检查模式。"
+  "help.ansible.readonly": "启用后，代理只能检查状态、清单和列出 playbook，但无法运行临时命令或 playbook。 检查和试运行也需要写入权限；Ansible 任务可能忽略检查模式。",
+  "help.paperless_ngx.allow_delete": "默认关闭。只读模式仍会阻止删除。",
+  "help.onedrive.allow_public_share": "允许匿名共享链接。默认关闭；只读模式始终优先。",
+  "help.huggingface.allow_publish": "允许创建公开仓库、上传文件和参与讨论。省略 private 表示私有；可见性未知时禁止修改。只读模式优先。"
 }

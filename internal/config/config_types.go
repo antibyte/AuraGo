@@ -1068,6 +1068,7 @@ type HuggingFaceConfig struct {
 	ReadOnly                 bool     `yaml:"read_only" json:"read_only"`
 	AllowWrites              bool     `yaml:"allow_writes" json:"allow_writes"`
 	AllowDelete              bool     `yaml:"allow_delete" json:"allow_delete"`
+	AllowPublish             bool     `yaml:"allow_publish" json:"allow_publish"`
 	AllowJobs                bool     `yaml:"allow_jobs" json:"allow_jobs"`
 	AllowScheduledJobs       bool     `yaml:"allow_scheduled_jobs" json:"allow_scheduled_jobs"`
 	AllowJobTokenInjection   bool     `yaml:"allow_job_token_injection" json:"allow_job_token_injection"`
@@ -1918,10 +1919,11 @@ type Config struct {
 		SecretKey    string `yaml:"-" vault:"secret_key"` // S3 Secret Access Key (vault: s3_secret_key)
 	} `yaml:"s3"`
 	PaperlessNGX struct {
-		Enabled  bool   `yaml:"enabled"`
-		ReadOnly bool   `yaml:"readonly"` // true = only search/get/download/list, block upload/update/delete
-		URL      string `yaml:"url"`      // e.g. https://paperless.example.com
-		APIToken string `yaml:"-" json:"-"`
+		Enabled     bool   `yaml:"enabled"`
+		AllowDelete bool   `yaml:"allow_delete"`
+		ReadOnly    bool   `yaml:"readonly"` // true = only search/get/download/list, block upload/update/delete
+		URL         string `yaml:"url"`      // e.g. https://paperless.example.com
+		APIToken    string `yaml:"-" json:"-"`
 	} `yaml:"paperless_ngx"`
 	TTS struct {
 		Provider            string `yaml:"provider"`              // Phonon, sanoTTS, Google, cloud speech providers, Piper, Supertonic, or s2s
@@ -2662,14 +2664,15 @@ type Config struct {
 		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
 	} `yaml:"video_generation"`
 	OneDrive struct {
-		Enabled      bool   `yaml:"enabled"`
-		ReadOnly     bool   `yaml:"readonly"`   // true = only list/read/search/quota, block upload/delete/move/copy/share/mkdir
-		ClientID     string `yaml:"client_id"`  // Azure App Registration Client ID (public client for Device Code flow)
-		ClientSecret string `yaml:"-" json:"-"` // vault-only: onedrive_client_secret (optional, only for confidential apps)
-		TenantID     string `yaml:"tenant_id"`  // "common" (default), "consumers", "organizations", or tenant UUID
-		AccessToken  string `yaml:"-" json:"-"` // resolved from OAuth token in vault
-		RefreshToken string `yaml:"-" json:"-"` // resolved from OAuth token in vault
-		TokenExpiry  string `yaml:"-" json:"-"` // resolved: RFC3339 expiry
+		Enabled          bool   `yaml:"enabled"`
+		AllowPublicShare bool   `yaml:"allow_public_share"`
+		ReadOnly         bool   `yaml:"readonly"`   // true = only list/read/search/quota, block upload/delete/move/copy/share/mkdir
+		ClientID         string `yaml:"client_id"`  // Azure App Registration Client ID (public client for Device Code flow)
+		ClientSecret     string `yaml:"-" json:"-"` // vault-only: onedrive_client_secret (optional, only for confidential apps)
+		TenantID         string `yaml:"tenant_id"`  // "common" (default), "consumers", "organizations", or tenant UUID
+		AccessToken      string `yaml:"-" json:"-"` // resolved from OAuth token in vault
+		RefreshToken     string `yaml:"-" json:"-"` // resolved from OAuth token in vault
+		TokenExpiry      string `yaml:"-" json:"-"` // resolved: RFC3339 expiry
 	} `yaml:"onedrive"`
 
 	// TrueNAS integration for ZFS storage management

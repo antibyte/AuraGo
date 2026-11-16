@@ -57,5 +57,7 @@
   "config.huggingface.allow_job_token_injection": "Token-Injektion in Jobs erlauben",
   "config.huggingface.job_namespace": "Job-Namespace",
   "help.huggingface.allow_job_token_injection": "Injiziert den Vault-Token nur bei einem ausdrücklichen inject_token-Aufruf als HF_TOKEN. Nicht vertrauenswürdiger Job-Code kann den Token entwenden.",
-  "help.huggingface.job_namespace": "Optionaler Benutzer- oder Organisations-Namespace für Jobs; leer wird er per whoami ermittelt."
+  "help.huggingface.job_namespace": "Optionaler Benutzer- oder Organisations-Namespace für Jobs; leer wird er per whoami ermittelt.",
+  "config.huggingface.allow_publish": "Öffentliche Veröffentlichungen erlauben",
+  "help.huggingface.allow_publish": "Öffentliche Repositories, Uploads und Diskussionen erlauben. Ohne private-Angabe bleibt das Repository privat; unbekannte Sichtbarkeit sperrt Änderungen. Schreibschutz hat Vorrang."
 }

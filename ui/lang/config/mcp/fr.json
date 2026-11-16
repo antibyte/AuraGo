@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Tous détectés",
   "config.mcp.field_environment_secret_hint": "Stockez les mots de passe et jetons comme secrets MCP et référencez-les ici avec {{alias}} au lieu de texte en clair.",
   "config.mcp.field_allowed_tools": "Outils runtime autorisés",
-  "config.mcp.field_allowed_tools_hint": "Limite d’outils facultative. Laissez vide pour autoriser tous les outils détectés ; indiquez des noms d’outils pour limiter l’exécution et le routage à ceux-ci.",
+  "config.mcp.field_allowed_tools_hint": "Sans autorisation destructive, indique explicitement les outils de confiance ; une liste vide n’en autorise aucun. Les outils connus de suppression et d’exécution restent bloqués. Cette liste n’est pas un bac à sable général.",
   "config.mcp.field_allow_destructive": "Autoriser les outils MCP destructifs",
   "config.mcp.card_transport": "Transport :",
   "config.mcp.card_url": "URL :",

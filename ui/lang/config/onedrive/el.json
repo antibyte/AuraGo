@@ -66,5 +66,7 @@
   "config.updates.running": "Εκτελείται…",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.onedrive.disconnect_confirm_title": "Αποσύνδεση OneDrive;",
-  "config.onedrive.enabled_help": "Ενεργοποιεί την πρόσβαση σε αρχεία OneDrive μετά την ολοκλήρωση της εξουσιοδότησης Microsoft."
+  "config.onedrive.enabled_help": "Ενεργοποιεί την πρόσβαση σε αρχεία OneDrive μετά την ολοκλήρωση της εξουσιοδότησης Microsoft.",
+  "config.onedrive.allow_public_share": "Να επιτρέπονται δημόσιοι σύνδεσμοι",
+  "config.onedrive.allow_public_share_hint": "Να επιτρέπονται ανώνυμοι σύνδεσμοι κοινής χρήσης. Απενεργοποιημένο από προεπιλογή· η λειτουργία μόνο ανάγνωσης υπερισχύει."
 }

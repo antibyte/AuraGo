@@ -35,7 +35,7 @@ func decodeHuggingFaceArgs(tc ToolCall) tools.HuggingFaceRequest {
 		Message:        toolArgString(tc.Params, "message", "commit_message"),
 	}
 	if private, ok := toolArgBool(tc.Params, "private"); ok {
-		rows.Private = private
+		rows.Private = &private
 	}
 	if scheduled, ok := toolArgBool(tc.Params, "scheduled"); ok {
 		rows.Scheduled = scheduled

@@ -66,5 +66,7 @@
   "config.updates.running": "Läuft…",
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
   "config.onedrive.disconnect_confirm_title": "OneDrive trennen?",
-  "config.onedrive.enabled_help": "Aktiviert OneDrive-Dateizugriff nach abgeschlossener Microsoft-Autorisierung."
+  "config.onedrive.enabled_help": "Aktiviert OneDrive-Dateizugriff nach abgeschlossener Microsoft-Autorisierung.",
+  "config.onedrive.allow_public_share": "Öffentliche Links erlauben",
+  "config.onedrive.allow_public_share_hint": "Anonyme Freigabelinks erlauben. Standardmäßig aus; Schreibschutz hat immer Vorrang."
 }

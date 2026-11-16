@@ -66,5 +66,7 @@
   "config.updates.running": "Running…",
   "config.web_scraper.summary_mode": "Summary Mode",
   "config.onedrive.disconnect_confirm_title": "Disconnect OneDrive?",
-  "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete."
+  "config.onedrive.enabled_help": "Enables OneDrive file access after Microsoft authorization is complete.",
+  "config.onedrive.allow_public_share": "Allow public links",
+  "config.onedrive.allow_public_share_hint": "Allow anonymous sharing links. Off by default; read-only always wins."
 }

@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "सभी खोजे गए",
   "config.mcp.field_environment_secret_hint": "पासवर्ड और टोकन MCP सीक्रेट के रूप में सहेजें और सादे पाठ के बजाय यहाँ {{alias}} से संदर्भित करें।",
   "config.mcp.field_allowed_tools": "अनुमत रनटाइम टूल",
-  "config.mcp.field_allowed_tools_hint": "वैकल्पिक टूल सीमा। खोजे गए सभी टूल की अनुमति के लिए खाली छोड़ें; निष्पादन और रूटिंग को केवल उन्हीं टूल तक सीमित करने के लिए टूल नाम दर्ज करें।",
+  "config.mcp.field_allowed_tools_hint": "विनाशकारी अनुमति के बिना विश्वसनीय टूल स्पष्ट रूप से सूचीबद्ध करें; खाली सूची कोई टूल नहीं देती। ज्ञात हटाने और निष्पादन वाले टूल अवरुद्ध रहते हैं। यह सूची सामान्य सैंडबॉक्स नहीं है।",
   "config.mcp.field_allow_destructive": "विनाशकारी MCP टूल की अनुमति दें",
   "config.mcp.card_transport": "ट्रांसपोर्ट:",
   "config.mcp.card_url": "URL:",

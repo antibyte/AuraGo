@@ -4,6 +4,13 @@ Use the `huggingface` tool for Hugging Face platform workflows, not only model i
 
 Use literal canonical repository IDs. Writes require `namespace/repository`;
 encoded IDs, traversal segments, backslashes and ambiguous IDs are rejected.
+
+`create_repo` defaults to private when `private` is omitted or null. Explicit
+`private: false` requires `huggingface.allow_publish`. Uploads and discussion
+mutations check the repository visibility first: public targets require that
+same grant; unknown visibility blocks the mutation. Read-only and write gates
+still apply. The publication grant defaults off, including existing configs.
+
 Authenticated API redirects remain at the configured origin. File downloads
 may follow public HTTPS redirects without forwarding the Vault token.
 

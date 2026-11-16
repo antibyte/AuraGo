@@ -181,7 +181,7 @@ func TestMCPPreferredCallRejectsReplacedConnection(t *testing.T) {
 		return "", nil
 	}
 	previous, current := &mcpConn{ready: true}, &mcpConn{ready: true}
-	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": current}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture"}}}
+	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": current}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture", AllowedTools: []string{"vision"}}}}
 	defer mgr.Close()
 	if _, err := mgr.callTool(context.Background(), "s", "vision", nil, previous); err == nil {
 		t.Fatal("changed connection accepted")
@@ -195,7 +195,7 @@ func TestMCPDiscoveryPreservesExplicitDeadline(t *testing.T) {
 	defer cancel()
 	deadline, _ := ctx.Deadline()
 	mgr := InitMCPManager(nil, testLogger())
-	mgr.configs["s"] = MCPServerConfig{Name: "s", Enabled: true, Command: "fixture"}
+	mgr.configs["s"] = MCPServerConfig{Name: "s", Enabled: true, Command: "fixture", AllowedTools: []string{"vision"}}
 	startManagedMCPConn = func(got context.Context, _ MCPServerConfig, _ *slog.Logger) (*mcpConn, error) {
 		if actual, _ := got.Deadline(); !actual.Equal(deadline) {
 			t.Fatal("discovery shortened caller deadline")

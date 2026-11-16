@@ -66,5 +66,7 @@
   "config.updates.running": "चल रहा है…",
   "config.web_scraper.summary_mode": "सारांश मोड",
   "config.onedrive.disconnect_confirm_title": "OneDrive डिस्कनेक्ट करें?",
-  "config.onedrive.enabled_help": "Microsoft प्राधिकरण पूरा होने के बाद OneDrive फ़ाइल पहुँच सक्षम करता है।"
+  "config.onedrive.enabled_help": "Microsoft प्राधिकरण पूरा होने के बाद OneDrive फ़ाइल पहुँच सक्षम करता है।",
+  "config.onedrive.allow_public_share": "सार्वजनिक लिंक की अनुमति दें",
+  "config.onedrive.allow_public_share_hint": "अनाम साझाकरण लिंक की अनुमति दें। डिफ़ॉल्ट रूप से बंद; केवल पढ़ने का मोड हमेशा प्राथमिक है।"
 }

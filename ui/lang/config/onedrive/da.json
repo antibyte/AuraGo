@@ -66,5 +66,7 @@
   "config.updates.running": "Kører…",
   "config.web_scraper.summary_mode": "Opsummeringstilstand",
   "config.onedrive.disconnect_confirm_title": "Afbryd OneDrive?",
-  "config.onedrive.enabled_help": "Aktiverer OneDrive-filadgang, når Microsoft-godkendelsen er fuldført."
+  "config.onedrive.enabled_help": "Aktiverer OneDrive-filadgang, når Microsoft-godkendelsen er fuldført.",
+  "config.onedrive.allow_public_share": "Tillad offentlige links",
+  "config.onedrive.allow_public_share_hint": "Tillad anonyme delingslinks. Slået fra som standard; skrivebeskyttelse har altid forrang."
 }

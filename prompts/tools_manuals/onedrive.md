@@ -2,6 +2,10 @@
 
 Interact with Microsoft OneDrive cloud storage. List, read, upload, search, delete, move, copy files and folders, check quota, and create share links.
 
+Anonymous `share` requires `onedrive.allow_public_share` (default false) and
+read-only mode must be off. OAuth refresh reuses the existing grant without
+requesting additional scopes; increased Microsoft permissions require signing in again.
+
 ## Operations
 
 | Operation | Description |

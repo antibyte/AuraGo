@@ -3,7 +3,11 @@
 AuraGo's server exports only explicitly selected tool names. Empty server lists
 deny all, including existing IDE bridge configurations. Apply the recommended
 tools explicitly in Config and save; there is no automatic migration.
-Client allowlists retain their separate semantics.
+For outbound MCP clients, `allow_destructive: false` also requires an explicit
+`allowed_tools` list. Empty means no tools, including existing configurations.
+Discovery and invocation enforce the same list; known deletion and general
+execution tools still require destructive permission. Server annotations cannot
+grant permission. The list approves trusted tools; it is not a universal sandbox.
 Overlapping catalog loads cannot replace a newer explicit preset selection.
 
 Configuration and secret changes revoke the old manager before connecting the

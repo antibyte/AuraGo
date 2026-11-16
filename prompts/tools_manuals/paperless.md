@@ -75,5 +75,6 @@ Interact with the Paperless-ngx document management system. Search, retrieve, an
 - **Upload**: Only the text in `content` is uploaded, as a `.txt` file. The result is a processing task id, not a searchable document yet.
 - **Get and download**: The returned text is the OCR content. When it is longer than 8000 characters, the message reports the returned length and the original length.
 - **Read-only**: `paperless_ngx.readonly` blocks upload, update, and delete.
+- **Deletion**: `delete` additionally requires `paperless_ngx.allow_delete`, which defaults to false. This does not override read-only mode.
 - **Credentials**: The API token is Vault key `paperless_ngx_api_token` and applies when that secret is saved. The URL and toggles apply when the configuration is saved.
 - **Discovery**: Use `list_tags`, `list_correspondents`, and `list_document_types` before filtering. A list that hits the page cap says how many rows are shown out of the reported total.

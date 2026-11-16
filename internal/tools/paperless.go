@@ -20,10 +20,11 @@ import (
 
 // PaperlessConfig holds connection parameters for a Paperless-ngx instance.
 type PaperlessConfig struct {
-	Context  context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
-	URL      string          // Base URL, e.g. https://paperless.example.com
-	APIToken string          // API authentication token
-	ReadOnly bool            // true = block upload/update/delete
+	Context     context.Context `json:"-"` // Request owner; nil retains the standalone API lifetime.
+	URL         string          // Base URL, e.g. https://paperless.example.com
+	APIToken    string          // API authentication token
+	ReadOnly    bool            // true = block upload/update/delete
+	AllowDelete bool
 }
 
 // paperlessHTTPClient is a shared HTTP client for Paperless-ngx calls.
@@ -922,6 +923,9 @@ func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent
 func PaperlessDelete(cfg PaperlessConfig, documentID string) string {
 	if msg := paperlessReadOnlyError(cfg); msg != "" {
 		return msg
+	}
+	if !cfg.AllowDelete {
+		return paperlessEncode(FSResult{Status: "error", Message: "Document deletion requires paperless_ngx.allow_delete=true"})
 	}
 	if !validPaperlessDocumentID(documentID) {
 		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' must be a positive decimal integer for delete"})

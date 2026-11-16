@@ -66,5 +66,7 @@
   "config.updates.running": "运行中…",
   "config.web_scraper.summary_mode": "摘要模式",
   "config.onedrive.disconnect_confirm_title": "要断开 OneDrive 连接吗？",
-  "config.onedrive.enabled_help": "Microsoft 授权完成后启用 OneDrive 文件访问。"
+  "config.onedrive.enabled_help": "Microsoft 授权完成后启用 OneDrive 文件访问。",
+  "config.onedrive.allow_public_share": "允许公开链接",
+  "config.onedrive.allow_public_share_hint": "允许匿名共享链接。默认关闭；只读模式始终优先。"
 }

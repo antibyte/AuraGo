@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "全部已发现",
   "config.mcp.field_environment_secret_hint": "将密码和令牌保存为 MCP 密钥，并在此使用 {{alias}} 引用，避免明文。",
   "config.mcp.field_allowed_tools": "允许的运行时工具",
-  "config.mcp.field_allowed_tools_hint": "可选工具限制。留空表示允许所有已发现的工具；填写工具名称后，仅这些工具可执行并显示在路由菜单中。",
+  "config.mcp.field_allowed_tools_hint": "未授予破坏性权限时，必须明确列出受信任的工具；空列表不允许任何工具。已知的删除和执行工具仍被阻止。此列表不是通用沙箱。",
   "config.mcp.field_allow_destructive": "允许破坏性 MCP 工具",
   "config.mcp.card_transport": "传输:",
   "config.mcp.card_url": "URL:",

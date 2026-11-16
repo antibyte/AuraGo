@@ -66,5 +66,7 @@
   "config.updates.running": "Ejecutando…",
   "config.web_scraper.summary_mode": "Modo de resumen",
   "config.onedrive.disconnect_confirm_title": "¿Desconectar OneDrive?",
-  "config.onedrive.enabled_help": "Activa el acceso a archivos de OneDrive después de la autorización de Microsoft."
+  "config.onedrive.enabled_help": "Activa el acceso a archivos de OneDrive después de la autorización de Microsoft.",
+  "config.onedrive.allow_public_share": "Permitir enlaces públicos",
+  "config.onedrive.allow_public_share_hint": "Permitir enlaces anónimos para compartir. Desactivado por defecto; solo lectura siempre prevalece."
 }

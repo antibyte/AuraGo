@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Tutti rilevati",
   "config.mcp.field_environment_secret_hint": "Salva password e token come segreti MCP e fai riferimento qui con {{alias}} invece che in chiaro.",
   "config.mcp.field_allowed_tools": "Strumenti runtime consentiti",
-  "config.mcp.field_allowed_tools_hint": "Limite strumenti opzionale. Lascia vuoto per consentire tutti gli strumenti rilevati; inserisci i nomi per limitare esecuzione e routing solo a quelli.",
+  "config.mcp.field_allowed_tools_hint": "Senza permesso distruttivo, elenca esplicitamente gli strumenti fidati; una lista vuota non ne consente nessuno. Gli strumenti noti di eliminazione ed esecuzione restano bloccati. Questa lista non è una sandbox generale.",
   "config.mcp.field_allow_destructive": "Consenti strumenti MCP distruttivi",
   "config.mcp.card_transport": "Trasporto:",
   "config.mcp.card_url": "URL:",

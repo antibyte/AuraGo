@@ -18,16 +18,17 @@ import (
 
 // OneDriveClient holds auth state for Microsoft Graph OneDrive API calls.
 type OneDriveClient struct {
-	Context      context.Context `json:"-"`
-	mu           sync.Mutex
-	AccessToken  string
-	RefreshToken string
-	TokenExpiry  time.Time
-	ClientID     string
-	ClientSecret string
-	TenantID     string
-	Vault        *security.Vault
-	ReadOnly     bool
+	Context          context.Context `json:"-"`
+	mu               sync.Mutex
+	AccessToken      string
+	RefreshToken     string
+	TokenExpiry      time.Time
+	ClientID         string
+	ClientSecret     string
+	TenantID         string
+	Vault            *security.Vault
+	ReadOnly         bool
+	AllowPublicShare bool
 }
 
 var odHTTPClient = &http.Client{Timeout: 60 * time.Second, CheckRedirect: security.SameOriginRedirect}
@@ -63,15 +64,16 @@ func NewOneDriveClient(cfg config.Config, vault *security.Vault, contexts ...con
 	}
 
 	return &OneDriveClient{
-		Context:      nativeHTTPContext(contexts...),
-		AccessToken:  od.AccessToken,
-		RefreshToken: od.RefreshToken,
-		TokenExpiry:  expiry,
-		ClientID:     od.ClientID,
-		ClientSecret: clientSecret,
-		TenantID:     tenantID,
-		Vault:        vault,
-		ReadOnly:     od.ReadOnly,
+		Context:          nativeHTTPContext(contexts...),
+		AccessToken:      od.AccessToken,
+		RefreshToken:     od.RefreshToken,
+		TokenExpiry:      expiry,
+		ClientID:         od.ClientID,
+		ClientSecret:     clientSecret,
+		TenantID:         tenantID,
+		Vault:            vault,
+		ReadOnly:         od.ReadOnly,
+		AllowPublicShare: od.AllowPublicShare,
 	}, nil
 }
 
@@ -110,7 +112,6 @@ func (c *OneDriveClient) refreshIfNeeded() error {
 		"client_id":     {c.ClientID},
 		"refresh_token": {c.RefreshToken},
 		"grant_type":    {"refresh_token"},
-		"scope":         {"Files.ReadWrite.All offline_access"},
 	}
 	if c.ClientSecret != "" {
 		form.Set("client_secret", c.ClientSecret)
@@ -755,6 +756,12 @@ func (c *OneDriveClient) copyItem(path, destination string) string {
 }
 
 func (c *OneDriveClient) createShareLink(path string) string {
+	if c.ReadOnly {
+		return odErrJSON("OneDrive is in read-only mode")
+	}
+	if !c.AllowPublicShare {
+		return odErrJSON("Anonymous links require onedrive.allow_public_share=true")
+	}
 	if path == "" {
 		return odErrJSON("Path is required for share operation")
 	}

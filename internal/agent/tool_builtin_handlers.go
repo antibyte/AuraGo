@@ -155,9 +155,10 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			}
 		}
 		plCfg := tools.PaperlessConfig{Context: ctx,
-			URL:      cfg.PaperlessNGX.URL,
-			APIToken: cfg.PaperlessNGX.APIToken,
-			ReadOnly: cfg.PaperlessNGX.ReadOnly,
+			AllowDelete: cfg.PaperlessNGX.AllowDelete,
+			URL:         cfg.PaperlessNGX.URL,
+			APIToken:    cfg.PaperlessNGX.APIToken,
+			ReadOnly:    cfg.PaperlessNGX.ReadOnly,
 		}
 		logSuffix := ""
 		if viaSkill {

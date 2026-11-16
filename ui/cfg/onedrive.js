@@ -30,6 +30,15 @@ async function renderOneDriveSection(section) {
     </div>`;
 
     // ── Authentication section ──
+    html += `<div class="field-group">
+        <div class="field-label" id="od-public-share-label">${t('config.onedrive.allow_public_share')}</div>
+        <div class="field-help" id="od-public-share-help">${t('config.onedrive.allow_public_share_hint')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${data.allow_public_share === true ? ' on' : ''}" data-path="onedrive.allow_public_share" aria-labelledby="od-public-share-label" aria-describedby="od-public-share-help" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${data.allow_public_share === true ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+    </div>`;
+
     html += `<div class="od-section-block">
         <div class="od-section-title">${cfgIcon('lock')} ${t('config.onedrive.auth_title')}</div>
         <div class="od-section-desc od-section-desc-spacious">

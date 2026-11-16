@@ -170,8 +170,8 @@ function mcpServerRenderCards() {
         const argsStr = (s.args || []).join(' ');
         const envCount = s.env ? Object.keys(s.env).length : 0;
         const headersCount = s.headers ? Object.keys(s.headers).length : 0;
-        const allowedToolsCount = Array.isArray(s.allowed_tools) ? s.allowed_tools.length : 0;
-        const allowedToolsLabel = allowedToolsCount > 0 ? String(allowedToolsCount) : t('config.mcp.card_allowed_tools_all');
+        const allowedToolsCount = Array.isArray(s.allowed_tools) ? s.allowed_tools.filter(name => typeof name === 'string' && name.trim()).length : 0;
+        const allowedToolsLabel = allowedToolsCount > 0 ? String(allowedToolsCount) : (s.allow_destructive ? t('config.mcp.card_allowed_tools_all') : '0');
         const transport = s.transport || 'stdio';
         const transportLabel = mcpTransportLabel(transport);
         const runtimeLabel = s.runtime === 'docker' ? t('config.mcp.runtime_docker') : t('config.mcp.runtime_local');

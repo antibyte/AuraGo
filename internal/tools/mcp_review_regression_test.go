@@ -25,7 +25,7 @@ func TestMCPUnsentWaiterPreservesActiveCall(t *testing.T) {
 	defer outputWriter.Close()
 	tr := newStdioMCPTransport(nil, inputWriter, outputReader, nil)
 	conn := &mcpConn{ready: true, name: "s", transport: tr, toolsRefreshed: time.Now()}
-	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": conn}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture"}}}
+	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": conn}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture", AllowedTools: []string{"read"}}}}
 	defer mgr.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -89,7 +89,7 @@ func TestMCPDiscoveryWaiterPreservesConnection(t *testing.T) {
 	for _, list := range []bool{false, true} {
 		t.Run(fmt.Sprint(list), func(t *testing.T) {
 			conn := &mcpConn{ready: true, name: "s", transport: &disclosureMCPTransport{}}
-			mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": conn}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture"}}}
+			mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": conn}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture", AllowedTools: []string{"read"}}}}
 			defer mgr.Close()
 			if err := conn.discoveryMu.Lock(context.Background()); err != nil {
 				t.Fatal(err)
@@ -134,7 +134,7 @@ func TestMCPWebSocketUnsentWaiterPreservesConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	conn := &mcpConn{ready: true, name: "s", transport: tr, toolsRefreshed: time.Now()}
-	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": conn}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture"}}}
+	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"s": conn}, configs: map[string]MCPServerConfig{"s": {Name: "s", Enabled: true, Command: "fixture", AllowedTools: []string{"read"}}}}
 	defer mgr.Close()
 	if err := tr.writeMu.Lock(ctx); err != nil {
 		t.Fatal(err)

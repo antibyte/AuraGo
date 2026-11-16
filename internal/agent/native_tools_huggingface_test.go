@@ -5,6 +5,25 @@ import (
 	"testing"
 )
 
+func TestDecodeHuggingFacePrivatePreservesOmission(t *testing.T) {
+	for _, tc := range []struct {
+		value   interface{}
+		present bool
+		want    *bool
+	}{
+		{present: false}, {present: true, value: nil}, {present: true, value: true, want: new(true)}, {present: true, value: false, want: new(false)},
+	} {
+		args := map[string]interface{}{}
+		if tc.present {
+			args["private"] = tc.value
+		}
+		req := decodeHuggingFaceArgs(ToolCall{Params: args})
+		if (req.Private == nil) != (tc.want == nil) || (req.Private != nil && *req.Private != *tc.want) {
+			t.Fatalf("private=%v decoded as %v", tc.value, req.Private)
+		}
+	}
+}
+
 func TestHuggingFaceNativeToolIsFeatureGated(t *testing.T) {
 	if containsName(toolNames(builtinToolSchemas(ToolFeatureFlags{})), "huggingface") {
 		t.Fatal("huggingface tool must be hidden when the integration is disabled")

@@ -562,5 +562,8 @@
   "help.vision.mirage.max_text_lines": "Maksimalt antall gjenkjente tekstlinjer per bilde; standard: 30.",
   "help.vision.mirage.language": "Språk for gjenkjenning. La feltet stå tomt for å bruke motorens standard.",
   "help.home_assistant.readonly": "Når dette er aktivert, kan agenten bare lese enhetstilstander, men kan ikke kalle tjenester (ingen veksling av enheter).",
-  "help.ansible.readonly": "Når dette er aktivert, kan agenten bare sjekke status og inventar og liste playbooks, men kan ikke kjøre ad hoc-kommandoer eller playbooks. Kontroll og prøvekjøring krever også skriverett; Ansible-oppgaver kan ignorere kontrollmodus."
+  "help.ansible.readonly": "Når dette er aktivert, kan agenten bare sjekke status og inventar og liste playbooks, men kan ikke kjøre ad hoc-kommandoer eller playbooks. Kontroll og prøvekjøring krever også skriverett; Ansible-oppgaver kan ignorere kontrollmodus.",
+  "help.paperless_ngx.allow_delete": "Av som standard. Skrivebeskyttelse blokkerer fortsatt sletting.",
+  "help.onedrive.allow_public_share": "Tillat anonyme delingslenker. Av som standard; skrivebeskyttelse har alltid forrang.",
+  "help.huggingface.allow_publish": "Tillat offentlige repositorier, opplastinger og diskusjoner. Utelatt private betyr privat; ukjent synlighet blokkerer endringer. Skrivebeskyttelse har forrang."
 }

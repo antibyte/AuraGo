@@ -66,5 +66,7 @@
   "config.updates.running": "実行中…",
   "config.web_scraper.summary_mode": "サマリーモード",
   "config.onedrive.disconnect_confirm_title": "OneDrive を切断しますか？",
-  "config.onedrive.enabled_help": "Microsoft の承認完了後に OneDrive ファイルアクセスを有効にします。"
+  "config.onedrive.enabled_help": "Microsoft の承認完了後に OneDrive ファイルアクセスを有効にします。",
+  "config.onedrive.allow_public_share": "公開リンクを許可",
+  "config.onedrive.allow_public_share_hint": "匿名共有リンクを許可します。初期状態は無効で、読み取り専用が常に優先されます。"
 }

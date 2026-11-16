@@ -77,7 +77,7 @@
   "config.mcp.card_allowed_tools_all": "Alle ontdekte",
   "config.mcp.field_environment_secret_hint": "Sla wachtwoorden en tokens op als MCP-secrets en verwijs hier met {{alias}} in plaats van platte tekst.",
   "config.mcp.field_allowed_tools": "Toegestane runtime-tools",
-  "config.mcp.field_allowed_tools_hint": "Optionele toolbeperking. Laat leeg om alle ontdekte tools toe te staan; vul toolnamen in om uitvoering en routing tot alleen die tools te beperken.",
+  "config.mcp.field_allowed_tools_hint": "Geef zonder destructieve toestemming expliciet vertrouwde tools op; een lege lijst staat niets toe. Bekende verwijder- en uitvoeringstools blijven geblokkeerd. Deze lijst is geen algemene sandbox.",
   "config.mcp.field_allow_destructive": "Destructieve MCP-tools toestaan",
   "config.mcp.card_transport": "Transport:",
   "config.mcp.card_url": "URL:",
