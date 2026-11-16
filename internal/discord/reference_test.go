@@ -76,7 +76,7 @@ func handleDiscordFixtureMessage(t *testing.T, message *discordgo.Message) []str
 	defer cancel()
 	go func() {
 		defer func() { done <- recover() }()
-		handleMessage(recorder.session, create, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		handleMessage(context.Background(), recorder.session, create, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}()
 	select {
 	case <-done:

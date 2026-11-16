@@ -126,7 +126,7 @@ func setStatus(st BotStatus) {
 }
 
 func discordErrorMessage(errText string) string {
-	msg := strings.TrimSpace(errText)
+	msg := strings.TrimSpace(security.Scrub(errText))
 	if msg == "" {
 		return ""
 	}
@@ -242,6 +242,9 @@ func acquireDiscordWorker(ctx context.Context, slots chan struct{}) bool {
 // worker limit. It returns false when the message was rejected because no
 // worker slot became free in time; then no agent run happened.
 func runDiscordMessage(ctx context.Context, slots chan struct{}, limit int, sender discordMessageSender, channelID string, logger *slog.Logger, control bool, run func()) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	if control {
 		run()
 		return true
@@ -256,8 +259,8 @@ func runDiscordMessage(ctx context.Context, slots chan struct{}, limit int, send
 		if logger != nil {
 			logger.Warn("[Discord] Worker pool exhausted, message rejected", "channel", channelID, "limit", limit)
 		}
-		if sender != nil {
-			sender.ChannelMessageSend(channelID, discordBusyMessage)
+		if sender != nil && ctx.Err() == nil {
+			sender.ChannelMessageSend(channelID, discordBusyMessage, discordgo.WithContext(ctx))
 		}
 		return false
 	}
@@ -268,6 +271,9 @@ func runDiscordMessage(ctx context.Context, slots chan struct{}, limit int, send
 
 // StartBot initializes the Discord bot and begins listening for messages.
 func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, snapshot func() (*config.Config, llm.ChatClient), routingDecisions agent.TaskDecisionService) {
+	startMu.Lock()
+	defer startMu.Unlock()
+	epoch := stopDiscordGeneration(logger)
 	if cfg == nil || !cfg.Discord.Enabled {
 		setStatus(statusFromConfig(cfg, BotStatus{Status: "disabled", Connected: false}))
 		return
@@ -280,15 +286,6 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 		return
 	}
 
-	if existing := GetSession(); existing != nil {
-		if err := existing.Close(); err != nil && logger != nil {
-			logger.Warn("[Discord] Error closing previous session before reconnect", "error", err)
-		}
-		setSession(nil)
-	}
-
-	setStatus(statusFromConfig(cfg, BotStatus{Status: "connecting", Connected: false, Message: "Connecting to Discord gateway..."}))
-
 	security.RegisterSensitive(cfg.Discord.BotToken)
 	dg, err := discordgo.New("Bot " + cfg.Discord.BotToken)
 	if err != nil {
@@ -296,6 +293,19 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 		setStatus(statusFromConfig(cfg, BotStatus{Status: "error", Connected: false, LastError: err.Error()}))
 		return
 	}
+
+	generation := newDiscordGeneration(dg)
+	configureDiscordHTTP(dg, generation)
+	bindDiscordGateway(dg, generation)
+	if !generation.install(epoch) {
+		generation.stop()
+		return
+	}
+	sessionMu.RLock()
+	if activeGeneration == generation {
+		setStatus(statusFromConfig(cfg, BotStatus{Status: "connecting", Connected: false, Message: "Connecting to Discord gateway..."}))
+	}
+	sessionMu.RUnlock()
 
 	// Only subscribe to message events for efficiency
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages | discordgo.IntentsMessageContent
@@ -307,6 +317,10 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 	workerSlots := newDiscordWorkerSlots(workerLimit)
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		if !generation.begin() {
+			return
+		}
+		defer generation.workers.Done()
 		current, currentClient := cfg, client
 		if snapshot != nil {
 			current, currentClient = snapshot()
@@ -321,30 +335,55 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 			logBlockedDiscordMessage(logger, m, current, decision)
 			return
 		}
-		sessionID, err := shortTermMem.ResolveUserSession(context.Background(), discordConversationID(m))
+		sessionID, err := shortTermMem.ResolveUserSession(generation.ctx, discordConversationID(m))
 		if err != nil {
 			logger.Error("[Discord] Resolve conversation before admission", "error", err)
 			return
 		}
 		control := discordControlMessage(discordCommandText(m.Content, discordBotUserID(s), decision.IsMentioned), sessionID)
-		runDiscordMessage(context.Background(), workerSlots, workerLimit, s, m.ChannelID, logger, control, func() {
-			handleMessage(s, m, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions)
+		runDiscordMessage(generation.ctx, workerSlots, workerLimit, s, m.ChannelID, logger, control, func() {
+			handleMessage(generation.ctx, s, m, current, logger, currentClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, remoteHub, guardian, budgetTrackerSnapshot, webhookManager, routingDecisions)
 		})
 	})
+	dg.AddHandler(func(_ *discordgo.Session, _ *discordgo.Disconnect) { generation.requestReconnect() })
 
-	if err := dg.Open(); err != nil {
+	if !generation.begin() {
+		return
+	}
+	err = dg.Open()
+	generation.workers.Done()
+	if err != nil {
+		generation.stop()
+		sessionMu.Lock()
+		defer sessionMu.Unlock()
+		if activeGeneration != generation {
+			return
+		}
+		activeGeneration = nil
 		logger.Error("[Discord] Failed to open websocket connection", "error", err)
 		setStatus(statusFromConfig(cfg, BotStatus{Status: "error", Connected: false, LastError: err.Error()}))
 		return
 	}
 
-	setSession(dg)
+	sessionMu.Lock()
+	if activeGeneration != generation || generation.ctx.Err() != nil {
+		sessionMu.Unlock()
+		generation.stop()
+		return
+	}
+	session = dg
+	sessionMu.Unlock()
+	generation.startReconnect(dg.Open, logger)
 	user := ""
 	if dg.State != nil && dg.State.User != nil {
 		user = dg.State.User.Username + "#" + dg.State.User.Discriminator
 	}
 	logger.Info("[Discord] Bot connected", "user", user)
-	setStatus(statusFromConfig(cfg, BotStatus{Status: "connected", Connected: true, User: user, Message: "Discord bot is connected."}))
+	sessionMu.RLock()
+	if activeGeneration == generation {
+		setStatus(statusFromConfig(cfg, BotStatus{Status: "connected", Connected: true, User: user, Message: "Discord bot is connected."}))
+	}
+	sessionMu.RUnlock()
 
 	// The channel policy is evaluated against the live configuration, so a
 	// changed allowlist applies without restarting the bot.
@@ -369,13 +408,13 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 			if err := ChannelAllowed(policyConfig(), channelID); err != nil {
 				return err
 			}
-			return SendMessage(channelID, content, logger)
+			return sendMessage(generation.ctx, dg, channelID, content, logger)
 		},
 		func(channelID string, limit int, logger *slog.Logger) ([]tools.DiscordMessageInfo, error) {
 			if err := ChannelAllowed(policyConfig(), channelID); err != nil {
 				return nil, err
 			}
-			msgs, err := FetchMessages(channelID, limit, logger)
+			msgs, err := fetchMessages(generation.ctx, dg, channelID, limit, logger)
 			if err != nil {
 				return nil, err
 			}
@@ -391,7 +430,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 			return result, nil
 		},
 		func(guildID string, logger *slog.Logger) ([]tools.DiscordChannelInfo, error) {
-			chs, err := ListGuildChannels(guildID, logger)
+			chs, err := listGuildChannels(generation.ctx, dg, guildID, logger)
 			if err != nil {
 				return nil, err
 			}
@@ -411,17 +450,32 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 // StopBot gracefully closes the Discord websocket connection and clears the session.
 // Safe to call multiple times.
 func StopBot(logger *slog.Logger) {
-	s := GetSession()
-	if s == nil {
-		setStatus(BotStatus{Status: "disconnected", Connected: false, Message: "Discord bot is not connected."})
-		return
+	stopDiscordGeneration(logger)
+}
+
+func stopDiscordGeneration(logger *slog.Logger) uint64 {
+	stopMu.Lock()
+	defer stopMu.Unlock()
+	sessionMu.Lock()
+	generationEpoch++
+	epoch := generationEpoch
+	generation, previous := activeGeneration, session
+	activeGeneration, session = nil, nil
+	sessionMu.Unlock()
+	if generation != nil {
+		generation.stop()
+	} else if previous != nil {
+		_ = previous.Close()
 	}
-	if err := s.Close(); err != nil {
-		logger.Warn("[Discord] Error closing session", "error", err)
+	sessionMu.RLock()
+	if activeGeneration == nil {
+		setStatus(BotStatus{Status: "disconnected", Connected: false, Message: "Discord bot disconnected."})
 	}
-	setSession(nil)
-	setStatus(BotStatus{Status: "disconnected", Connected: false, Message: "Discord bot disconnected."})
-	logger.Info("[Discord] Bot disconnected")
+	sessionMu.RUnlock()
+	if logger != nil && (generation != nil || previous != nil) {
+		logger.Info("[Discord] Bot disconnected and workers drained")
+	}
+	return epoch
 }
 
 // GetSession returns the active Discord session (for sending messages from tools).
@@ -456,12 +510,20 @@ func agentFileMessage(name string, file *os.File, caption string) *discordgo.Mes
 
 // SendMessage sends a message to a Discord channel. Used by the agent's send_discord tool.
 func SendMessage(channelID, content string, logger *slog.Logger) error {
+	return sendMessage(context.Background(), GetSession(), channelID, content, logger)
+}
+
+func sendMessage(parent context.Context, s *discordgo.Session, channelID, content string, logger *slog.Logger) error {
 	content = security.Scrub(content)
-	s := GetSession()
 	if s == nil {
 		return fmt.Errorf("discord bot is not connected")
 	}
 
+	ctx, done, err := discordRequestContext(s, parent)
+	if err != nil {
+		return err
+	}
+	defer done()
 	totalLen := len(content)
 
 	// Discord limit: 2000 chars per message
@@ -496,7 +558,7 @@ func SendMessage(channelID, content string, logger *slog.Logger) error {
 			content = ""
 		}
 
-		if _, err := s.ChannelMessageSendComplex(channelID, agentTextMessage(chunk)); err != nil {
+		if _, err := s.ChannelMessageSendComplex(channelID, agentTextMessage(chunk), discordgo.WithContext(ctx)); err != nil {
 			return fmt.Errorf("failed to send Discord message: %w", err)
 		}
 	}
@@ -505,52 +567,51 @@ func SendMessage(channelID, content string, logger *slog.Logger) error {
 	return nil
 }
 
-// SendDiscordImage sends a local image file as a Discord file attachment with an optional caption.
+// SendDiscordImage sends a local image as an attachment with an optional caption.
 func SendDiscordImage(channelID, localPath, caption string, logger *slog.Logger) error {
-	s := GetSession()
-	if s == nil {
-		return fmt.Errorf("discord bot is not connected")
-	}
-	f, err := os.Open(localPath)
-	if err != nil {
-		return fmt.Errorf("failed to open image file: %w", err)
-	}
-	defer f.Close()
-
-	_, err = s.ChannelMessageSendComplex(channelID, agentFileMessage(filepath.Base(localPath), f, caption))
-	if err != nil {
-		return fmt.Errorf("failed to send Discord image: %w", err)
-	}
-	logger.Info("[Discord] Image sent", "channel", channelID, "file", filepath.Base(localPath))
-	return nil
+	return sendDiscordAttachment(context.Background(), GetSession(), channelID, localPath, caption, logger)
 }
 
-// SendDiscordAudio sends a local audio file as a Discord file attachment with an optional title.
+// SendDiscordAudio sends a local audio file as an attachment with an optional title.
 func SendDiscordAudio(channelID, localPath, title string, logger *slog.Logger) error {
-	s := GetSession()
+	return sendDiscordAttachment(context.Background(), GetSession(), channelID, localPath, title, logger)
+}
+
+func sendDiscordAttachment(parent context.Context, s *discordgo.Session, channelID, localPath, caption string, logger *slog.Logger) error {
 	if s == nil {
 		return fmt.Errorf("discord bot is not connected")
 	}
+	ctx, done, err := discordRequestContext(s, parent)
+	if err != nil {
+		return err
+	}
+	defer done()
 	f, err := os.Open(localPath)
 	if err != nil {
-		return fmt.Errorf("failed to open audio file: %w", err)
+		return fmt.Errorf("open Discord attachment: %w", err)
 	}
 	defer f.Close()
-
-	_, err = s.ChannelMessageSendComplex(channelID, agentFileMessage(filepath.Base(localPath), f, title))
-	if err != nil {
-		return fmt.Errorf("failed to send Discord audio: %w", err)
+	if _, err = s.ChannelMessageSendComplex(channelID, agentFileMessage(filepath.Base(localPath), f, caption), discordgo.WithContext(ctx)); err != nil {
+		return fmt.Errorf("send Discord attachment: %w", err)
 	}
-	logger.Info("[Discord] Audio sent", "channel", channelID, "file", filepath.Base(localPath))
+	logger.Info("[Discord] Attachment sent", "channel", channelID, "file", filepath.Base(localPath))
 	return nil
 }
 
 // FetchMessages retrieves the last N messages from a Discord channel.
 func FetchMessages(channelID string, limit int, logger *slog.Logger) ([]*discordgo.Message, error) {
-	s := GetSession()
+	return fetchMessages(context.Background(), GetSession(), channelID, limit, logger)
+}
+
+func fetchMessages(parent context.Context, s *discordgo.Session, channelID string, limit int, logger *slog.Logger) ([]*discordgo.Message, error) {
 	if s == nil {
 		return nil, fmt.Errorf("discord bot is not connected")
 	}
+	ctx, done, err := discordRequestContext(s, parent)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
 	if limit <= 0 {
 		limit = 10
 	}
@@ -558,7 +619,7 @@ func FetchMessages(channelID string, limit int, logger *slog.Logger) ([]*discord
 		limit = 100 // Discord API max
 	}
 
-	messages, err := s.ChannelMessages(channelID, limit, "", "", "")
+	messages, err := s.ChannelMessages(channelID, limit, "", "", "", discordgo.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch Discord messages: %w", err)
 	}
@@ -569,12 +630,20 @@ func FetchMessages(channelID string, limit int, logger *slog.Logger) ([]*discord
 
 // ListGuildChannels returns text channels the bot can see in a guild.
 func ListGuildChannels(guildID string, logger *slog.Logger) ([]*discordgo.Channel, error) {
-	s := GetSession()
+	return listGuildChannels(context.Background(), GetSession(), guildID, logger)
+}
+
+func listGuildChannels(parent context.Context, s *discordgo.Session, guildID string, logger *slog.Logger) ([]*discordgo.Channel, error) {
 	if s == nil {
 		return nil, fmt.Errorf("discord bot is not connected")
 	}
+	ctx, done, err := discordRequestContext(s, parent)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
 
-	channels, err := s.GuildChannels(guildID)
+	channels, err := s.GuildChannels(guildID, discordgo.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list channels: %w", err)
 	}
@@ -665,8 +734,8 @@ func logBlockedDiscordMessage(logger *slog.Logger, m *discordgo.MessageCreate, c
 // sendDiscordNotice sends a short notice to the channel and records a failed
 // delivery. A notice that does not arrive is invisible to the user, so it is
 // counted in the health endpoint.
-func sendDiscordNotice(s *discordgo.Session, channelID, text string, logger *slog.Logger) {
-	if _, err := s.ChannelMessageSend(channelID, text); err != nil {
+func sendDiscordNotice(ctx context.Context, s *discordgo.Session, channelID, text string, logger *slog.Logger) {
+	if _, err := s.ChannelMessageSend(channelID, text, discordgo.WithContext(ctx)); err != nil {
 		markDeliveryFailure(time.Now())
 		if logger != nil {
 			logger.Error("[Discord] Notice could not be delivered", "error", err)
@@ -677,7 +746,7 @@ func sendDiscordNotice(s *discordgo.Session, channelID, text string, logger *slo
 // Replaceable so ingress tests can supply attachment text without ASR or FFmpeg.
 var discordAttachmentProcessor = processDiscordAttachmentContext
 
-func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
+func handleMessage(parent context.Context, s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, remoteHub *remote.RemoteHub, guardian *security.Guardian, budgetTrackerSnapshot func() *budget.Tracker, webhookManager *webhooks.Manager, routingDecisions ...agent.TaskDecisionService) {
 	botUserID := discordBotUserID(s)
 	decision := shouldHandleDiscordMessage(botUserID, m, cfg)
 	if !decision.Accepted {
@@ -689,9 +758,9 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	if budgetTrackerSnapshot != nil {
 		budgetTracker = budgetTrackerSnapshot()
 	}
-	preprocessingCtx := budget.WithTracking(context.Background(), budgetTracker, "chat")
+	preprocessingCtx := budget.WithTracking(parent, budgetTracker, "chat")
 	inputText := m.Content
-	sessionID, err := shortTermMem.ResolveUserSession(context.Background(), discordConversationID(m))
+	sessionID, err := shortTermMem.ResolveUserSession(parent, discordConversationID(m))
 	if err != nil {
 		logger.Error("[Discord] Resolve conversation", "error", err)
 		return
@@ -735,7 +804,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 				return
 			}
 		}
-		sendDiscordNotice(s, m.ChannelID, "Please reply with one of the listed numbers.", logger)
+		sendDiscordNotice(ctx, s, m.ChannelID, "Please reply with one of the listed numbers.", logger)
 		return
 	}
 
@@ -758,11 +827,11 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		}
 		if err != nil {
 			logger.Error("[Discord] Command execution failed", "error", err)
-			sendDiscordNotice(s, m.ChannelID, "⚠️ Command execution failed.", logger)
+			sendDiscordNotice(ctx, s, m.ChannelID, "⚠️ Command execution failed.", logger)
 			return
 		}
 		if isCmd {
-			SendMessage(m.ChannelID, cmdResult, logger)
+			sendMessage(ctx, s, m.ChannelID, cmdResult, logger)
 			return
 		}
 	}
@@ -778,7 +847,7 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {
 			logger.Warn("[Discord] Prompt injection BLOCKED — message discarded",
 				"user", m.Author.Username, "level", scan.Level, "patterns", scan.Patterns)
-			sendDiscordNotice(s, m.ChannelID, "⚠️ Your message was blocked by the security guardian.", logger)
+			sendDiscordNotice(ctx, s, m.ChannelID, "⚠️ Your message was blocked by the security guardian.", logger)
 			return
 		}
 	}
@@ -788,18 +857,20 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 	}
 
 	// Show typing indicator
-	s.ChannelTyping(m.ChannelID)
+	s.ChannelTyping(m.ChannelID, discordgo.WithContext(ctx))
 
 	// Set up a goroutine to keep typing indicator active
 	typingCtx, stopTyping := context.WithCancel(ctx)
-	defer stopTyping()
+	typingDone := make(chan struct{})
+	defer func() { stopTyping(); <-typingDone }()
 	go func() {
+		defer close(typingDone)
 		ticker := time.NewTicker(8 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				s.ChannelTyping(m.ChannelID)
+				s.ChannelTyping(m.ChannelID, discordgo.WithContext(typingCtx))
 			case <-typingCtx.Done():
 				return
 			}
@@ -989,6 +1060,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 
 	// Run the agent loop
 	broker := &DiscordBroker{
+		ctx:       ctx,
 		session:   s,
 		channelID: m.ChannelID,
 		logger:    logger,
@@ -1001,7 +1073,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 
 	if err != nil {
 		logger.Error("[Discord] Agent loop failed", "error", err)
-		sendDiscordNotice(s, m.ChannelID, "⚠️ Sorry, I encountered an error processing your request.", logger)
+		sendDiscordNotice(ctx, s, m.ChannelID, "⚠️ Sorry, I encountered an error processing your request.", logger)
 		return
 	}
 
@@ -1010,7 +1082,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 		if ctx.Err() != nil {
 			return
 		}
-		if err := SendDiscordAudio(m.ChannelID, af.FilePath, af.Title, logger); err != nil {
+		if err := sendDiscordAttachment(ctx, s, m.ChannelID, af.FilePath, af.Title, logger); err != nil {
 			logger.Warn("[Discord] Failed to send audio", "path", af.FilePath, "error", err)
 		}
 	}
@@ -1053,7 +1125,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 				}
 				return
 			}
-			if err := SendDiscordImage(m.ChannelID, localPath, img.Caption, logger); err != nil {
+			if err := sendDiscordAttachment(ctx, s, m.ChannelID, localPath, img.Caption, logger); err != nil {
 				logger.Warn("[Discord] Failed to send image", "path", localPath, "error", err)
 			}
 			if staged {
@@ -1062,7 +1134,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 		}
 		cleanText = telegram.AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
 		if cleanText != "" && ctx.Err() == nil {
-			if err := SendMessage(m.ChannelID, cleanText, logger); err != nil {
+			if err := sendMessage(ctx, s, m.ChannelID, cleanText, logger); err != nil {
 				markDeliveryFailure(time.Now())
 				logger.Error("[Discord] Failed to send response", "error", err)
 			}
@@ -1074,6 +1146,7 @@ func processDiscordMessage(ctx context.Context, sessionID string, s *discordgo.S
 
 // DiscordBroker implements agent.FeedbackBroker for real-time Discord feedback.
 type DiscordBroker struct {
+	ctx           context.Context
 	session       *discordgo.Session
 	channelID     string
 	logger        *slog.Logger
@@ -1137,7 +1210,12 @@ func (b *DiscordBroker) Send(event, message string) {
 // message is invisible to the user, so it is logged and counted in the health
 // endpoint.
 func (b *DiscordBroker) deliver(text, what string) {
-	if _, err := b.session.ChannelMessageSendComplex(b.channelID, agentTextMessage(text)); err != nil {
+	ctx, done, err := discordRequestContext(b.session, b.ctx)
+	if err != nil {
+		return
+	}
+	defer done()
+	if _, err := b.session.ChannelMessageSendComplex(b.channelID, agentTextMessage(text), discordgo.WithContext(ctx)); err != nil {
 		markDeliveryFailure(time.Now())
 		if b.logger != nil {
 			b.logger.Warn("[Discord] Failed to send "+what, "error", err)

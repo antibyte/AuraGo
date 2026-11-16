@@ -79,7 +79,7 @@ func TestDiscordAttachmentsCannotSupplyOperatorCommands(t *testing.T) {
 				processed = true
 				return strings.TrimSpace("/personality audio\n" + inputText)
 			}
-			handleMessage(recorder.session, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+			handleMessage(context.Background(), recorder.session, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 			if !processed {
 				t.Fatal("attachment was not processed")
 			}

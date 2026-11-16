@@ -64,7 +64,7 @@ func TestDiscordStopSkipsAttachmentsWithSaturatedWorkers(t *testing.T) {
 			slots <- struct{}{}
 			stop := commands.IsStop(discordCommandText(message.Content, "bot", true))
 			if !runDiscordMessage(context.Background(), slots, 1, recorder.session, "channel", logger, stop, func() {
-				handleMessage(recorder.session, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+				handleMessage(context.Background(), recorder.session, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 			}) {
 				t.Fatal("stop was rejected by the occupied worker pool")
 			}
@@ -122,7 +122,7 @@ func TestDiscordSessionStopCancelsMediaBeforeHistoryOrExecution(t *testing.T) {
 	done := make(chan any, 1)
 	go func() {
 		defer func() { done <- recover() }()
-		handleMessage(nil, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		handleMessage(context.Background(), nil, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}()
 	select {
 	case <-started:
@@ -176,7 +176,7 @@ func TestDiscordQuestionReplyBypassesWaitingTurnGate(t *testing.T) {
 	done := make(chan any, 1)
 	go func() {
 		defer func() { done <- recover() }()
-		handleMessage(nil, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+		handleMessage(context.Background(), nil, message, cfg, logger, nil, store, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}()
 	select {
 	case response := <-answer:

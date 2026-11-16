@@ -28,6 +28,7 @@ Integrated Discord bot. The agent can send/receive messages and list channels.
 ```
 
 > Long messages (>2000 chars) are automatically split at newline boundaries.
+> Rate limits (429) allow at most two additional, cancellable attempts within a 30-second send budget. A 502 or network failure is not retried: delivery may already have occurred, so do not automatically send the message again.
 
 ---
 

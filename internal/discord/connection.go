@@ -14,7 +14,7 @@ import (
 
 const discordAPIBaseURL = "https://discord.com/api/v10"
 
-var discordConnectionHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var discordConnectionHTTPClient = &http.Client{Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 
 // CheckBotToken performs a one-shot Discord REST authentication check. It does
 // not open a Gateway session or request privileged intents.
