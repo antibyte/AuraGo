@@ -40,6 +40,8 @@
         bag.add(draftModel.on(change => { if (change && change.kind === 'reset') noteDroppedDuplicates(); }));
         let savedView = null;
         let contentDirty = false;
+        let sessionEditRevision = 0;
+        let sessionActionFlushing = false;
         let lastRecord = null;
         // partialRevision is the live revision of the last partial publish (ed.publishIncomplete).
         let partialRevision = 0;
@@ -95,6 +97,12 @@
             timersRunning: loaded.timers_running !== false, liveIssues: Array.isArray(loaded.live_issues) ? loaded.live_issues : [], liveIssuesRevision: Number(loaded.flow.live_revision) || 0, lastRunData: null, detail: null, quickAdd: null,
             dragging: false, initialRender: true, effectsConfirmed: new Set(), publishIncomplete: '', bus: core.emitter(), saver: null,
             enterRunView, exitRunView
+        };
+        ed.sessionActionEdit = () => { if (!sessionActionFlushing) sessionEditRevision++; };
+        ed.sessionActionCommit = fn => {
+            const wasFlushing = sessionActionFlushing;
+            sessionActionFlushing = true;
+            try { return fn(); } finally { sessionActionFlushing = wasFlushing; }
         };
         bag.add(() => { if (ed.packExportControl) ed.packExportControl.abort(); });
 
@@ -574,6 +582,7 @@
         // document (a restore answered there); the rest follows the model shown. Pans and zooms
         // are no changes: the view is stored per device (storeView), never in the document.
         bag.add(draftModel.on(change => {
+            if (!sessionActionFlushing) sessionEditRevision++;
             contentDirty = true;
             ed.saver.schedule();
             if (ed.model !== draftModel) return;
@@ -797,6 +806,32 @@
         }
 
         if (typeof ctx.setWindowBeforeClose === 'function') ctx.setWindowBeforeClose(ed.windowId, leave);
+        if (typeof ctx.registerSessionAction === 'function') {
+            const sessionContentRevision = () => JSON.stringify([ed.flow.id, sessionEditRevision]);
+            ed.sessionActionOff = ctx.registerSessionAction(ed.windowId, {
+                inspect: () => ({
+                    dirty: !!(ed.saver?.isDirty() || contentDirty || ed.detail?.hasPendingEdits?.()),
+                    revision: sessionContentRevision(),
+                    label: draftModel.doc.name || 'EasyDrag'
+                }),
+                decide: snapshot => ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+                save: async expectedRevision => {
+                    if (disposed || deleting || ed.readonly || ed.runView || !ed.saver ||
+                        sessionContentRevision() !== expectedRevision) return false;
+                    sessionActionFlushing = true;
+                    let flushed = false;
+                    try { flushed = ed.flushPendingEdits(); }
+                    finally { sessionActionFlushing = false; }
+                    if (!flushed) return false;
+                    if (sessionContentRevision() !== expectedRevision) return false;
+                    if (!(await ed.saver.flush())) return false;
+                    return !ed.saver.isDirty() && !contentDirty &&
+                        sessionContentRevision() === expectedRevision
+                        ? { revision: expectedRevision }
+                        : false;
+                }
+            });
+        }
 
         // ── start ───────────────────────────────────────────────────────────────
 
@@ -880,8 +915,11 @@
             [ed.childHistory, ed.runtime, extraction, blockTracker, authoring, workspace, wires, canvas, palette, runs, publish, history].forEach(m => { if (m) safely(() => m.dispose()); });
             if (emailBinding) safely(() => emailBinding.dispose());
             safely(() => { if (ed.saver) ed.saver.dispose(); });
+            ed.sessionActionEdit = null;
+            ed.sessionActionCommit = null;
             safely(() => setMenusSoon.cancel());
             safely(() => bag.dispose());
+            safely(() => ed.sessionActionOff?.());
             if (typeof ctx.setWindowBeforeClose === 'function') safely(() => ctx.setWindowBeforeClose(ed.windowId, null));
             el.remove();
         }

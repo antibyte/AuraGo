@@ -11,9 +11,16 @@ Wave 2 passed focused Node and Windows Go tests, integrated browser flows,
 encoding and deterministic bundle checks, plus Linux/macOS compilation. Browser
 acceptance includes partial/disposed-window moves, cross-window history, late
 responses after logout, month navigation/retry, and constrained/forced-color views.
-Workspace personalization, session controls and grouped
-window switching remain pending. Full Linux CI and real assistive-technology
-acceptance are separate.
+Wave 3 implements revision-bound editable workspaces, validated custom backgrounds
+and two-stage logout with app participants. Focused Node/Go and browser checks
+passed, including two-tab workspace conflicts, custom-image fallback, small-screen
+workspace management, real editor/mail/synth/Ziro/Storymaker flows and pending
+Sheets cell/formula edits with failed-save recovery. Adapter regressions cover
+debounced input, derived artwork, active gestures and untitled Save As. All 16
+locales and deterministic bundles passed their checks. The broader UI regression
+script retains seven Game Maker failures reproduced at the starting commit;
+the 18 focused shell scripts pass. Grouped window switching remains pending.
+Full Linux CI and real assistive-technology acceptance are separate.
 
 Improve frequent desktop interactions by extending the existing shell. Preserve the
 distinct Standard taskbar and Fruity dock, the vanilla JavaScript architecture,

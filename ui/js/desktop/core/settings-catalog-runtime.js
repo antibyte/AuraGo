@@ -99,6 +99,10 @@
                         ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
                         ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
                     ]),
+                    { type: 'custom_wallpaper', key: 'appearance.wallpaper_by_space', label: 'desktop.wallpaper_choose', desc: 'desktop.wallpaper_custom_desc' },
+                    settingSelect('appearance.wallpaper_fit', 'desktop.wallpaper_fit', 'desktop.wallpaper_fit_desc', [
+                        ['cover', 'desktop.wallpaper_cover'], ['contain', 'desktop.wallpaper_contain']
+                    ]),
                     settingDesktopThemes(),
                     settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
                     activeTheme && activeTheme.cursorTheme ? { type: 'cursor_preview', theme: activeTheme.cursorTheme } : null,
@@ -125,6 +129,7 @@
             },
             {
                 id: 'desktop', icon: 'desktop-symbolic', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                    { type: 'workspaces', key: 'desktop.workspaces.layout', label: 'desktop.workspaces_manage', desc: 'desktop.workspaces_description' },
                     settingToggle('desktop.open_fullscreen', 'desktop.settings_open_fullscreen', 'desktop.settings_open_fullscreen_desc'),
                     settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
                         ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']

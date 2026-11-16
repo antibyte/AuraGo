@@ -427,7 +427,7 @@
         }
         if (event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
-            state.bootstrap = event.payload || state.bootstrap;
+            acceptDesktopBootstrap(event.payload || state.bootstrap);
             document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: state.bootstrap || {} }));
             renderDesktop();
             refreshPetRuntime();
@@ -646,6 +646,7 @@
                 if (startButton) startButton.focus();
                 return;
             }
+            if (event.target.closest('.vd-start-session')) return;
             if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
                 const search = $('vd-start-search');
                 if (search && document.activeElement !== search) search.focus();
@@ -823,6 +824,7 @@
     document.addEventListener('pointerdown', trackDesktopKeyboardScope, true);
 
     function handleDesktopKeydown(event) {
+        if (event.defaultPrevented || [...document.querySelectorAll('[aria-modal="true"]')].some(dialog => dialog.getClientRects().length)) return;
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
@@ -968,6 +970,8 @@
         };
         mark('init-start');
         initDesktopFileHistory();
+        initDesktopSessionActions();
+        initDesktopWorkspaceSettings();
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();
@@ -996,6 +1000,7 @@
         ]);
         mark('parallel-fetch-done');
         renderDesktop();
+        desktopWorkspaceUIReady = true;
         initSpacesRuntime();
         openDesktopFullscreenOnStartup();
         initSpacesOverviewRuntime();

@@ -88,3 +88,32 @@ receipt. Notes restore through the Trash service. Permanent deletion, replacemen
 of existing files, remote-storage operations and moving symbolic links do not
 receive file-history receipts; their existing permission and confirmation rules
 still apply. Trash restoration remains available after history has been cleared.
+
+## Personal workspaces and backgrounds
+
+Settings → Desktop → Manage workspaces creates, renames, orders and removes
+workspaces. Keep between one and eight. Removing a workspace requires choosing
+where its open windows should move. A change in another tab refreshes the list;
+review a reported conflict and try the command again. Open windows and unsaved
+content stay in place during reconciliation.
+
+Settings → Appearance → Choose an image opens the existing workspace file picker.
+PNG, JPEG, WebP and BMP images may contain at most 20 MiB, 8192 pixels per side
+and 16 megapixels. Fill covers the background and may crop; Fit keeps the entire
+image visible. This choice applies to all custom backgrounds. A missing or
+invalid image shows a replacement with its path, retaining the selection until
+you choose another image or use the theme background.
+
+## Sign out with open work
+
+When login is enabled, Start, the radial menu and the existing logout control
+use the same preparation. Each app with unsaved changes offers Save, Without
+saving or Cancel. All choices are collected before the first save. Cancellation,
+a save failure or edits made during preparation leave the windows open; any
+saves already completed remain saved. Without saving never deletes a saved draft,
+but unsaved in-memory edits can be lost when you complete sign-out.
+
+An app whose close guard cannot prepare safely asks you to save or close it
+first. The server's automatic session expiry still ends the session directly;
+it does not show cancellable dialogs. The Start sign-out control is hidden when
+login is disabled.

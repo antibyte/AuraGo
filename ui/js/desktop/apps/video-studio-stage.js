@@ -79,7 +79,10 @@
         if (!Object.keys(values).length) return;
         const clip = found.clip, saved = JSON.stringify(clip);
         const result = window.VideoStudioKeyframeEdit.setValues(s.project, clip.id, values, s.frame);
-        if (result === true) return;
+        if (result === true) {
+            if (JSON.stringify(clip) !== saved) s.sessionActionRevision = (Number(s.sessionActionRevision) || 0) + 1;
+            return;
+        }
         // A refusal can leave the clip partly changed (outside P.applyEdit nothing restores it): put it back, in place.
         const before = JSON.parse(saved);
         Object.keys(clip).forEach(key => { if (!(key in before)) delete clip[key]; });

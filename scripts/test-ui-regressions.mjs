@@ -4225,6 +4225,7 @@ function testNetworkCamerasNotificationContextKeepsEventIds() {
 async function testEasyDragSessionKeepsOnlyValidFlowIds() {
   const source = read('ui/js/desktop/core/session-runtime.js');
   const helperSource = [
+    read('ui/js/desktop/core/window-layouts-runtime.js'),
     sourceBetween(source, 'const SESSION_SKIP_APP_IDS', 'let sessionPersistTimer'),
     sourceBetween(source, 'function sanitizeSessionContext(', 'function scheduleSessionPersist('),
     sourceBetween(source, 'function parseSessionSnapshot(', 'function parseDefaultAppsMap(')
@@ -4247,6 +4248,9 @@ async function testEasyDragSessionKeepsOnlyValidFlowIds() {
     },
     window: { setTimeout: fn => fn() },
     windowSpaceId: () => 0,
+    windowWorkspaceSize: () => ({ width: 1280, height: 900 }),
+    appWindowSize: () => ({ width: 900, height: 600 }),
+    appWindowMinSize: () => ({ width: 320, height: 240 }),
     normalizeSpaceId: id => id,
     settingValue: key => settings[key],
     sessionRestoreEnabled: () => true,
@@ -5725,6 +5729,20 @@ const tests = [
   ['Setup wizard batch 4: badges, advanced step 0, passwords, personalities, local Ollama plan', testSetupWizardBatch4],
   ['Game Maker waiting_preview keeps the job active and replays a missed preview reload', testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload]
 ];
+
+for (const name of [
+  'window-layouts', 'window-previews', 'search', 'start-search', 'settings-runtime',
+  'file-association-writes', 'notifications', 'accessibility', 'file-history',
+  'file-producers', 'quick-settings', 'clock-calendar', 'media-session',
+  'custom-wallpaper', 'workspace-settings', 'workspaces', 'session-actions', 'session-adapters'
+]) {
+  tests.push([`Desktop ${name} contracts`, () => {
+    const result = spawnSync(process.execPath, [`scripts/test-desktop-${name}.mjs`], {
+      cwd: root, encoding: 'utf8', timeout: 60000
+    });
+    assert.equal(result.status, 0, `${result.error?.message || ''}\n${result.stdout}${result.stderr}`);
+  }]);
+}
 
 let failures = 0;
 for (const [name, test] of tests) {

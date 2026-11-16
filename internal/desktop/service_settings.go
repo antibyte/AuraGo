@@ -21,6 +21,9 @@ func (s *Service) SetSetting(ctx context.Context, key, value, source string) err
 	}
 	key = strings.TrimSpace(key)
 	value = strings.TrimSpace(value)
+	if err := rejectUnversionedWorkspaceSettings(map[string]string{key: value}); err != nil {
+		return err
+	}
 	if err := validateDesktopSetting(key, value); err != nil {
 		return err
 	}
@@ -52,6 +55,9 @@ func (s *Service) compareAndSetSetting(ctx context.Context, key, old, value, sou
 	key = strings.TrimSpace(key)
 	old = strings.TrimSpace(old)
 	value = strings.TrimSpace(value)
+	if err := rejectUnversionedWorkspaceSettings(map[string]string{key: value}); err != nil {
+		return false, err
+	}
 	if err := validateDesktopSetting(key, value); err != nil {
 		return false, err
 	}
@@ -111,6 +117,9 @@ func (s *Service) SetSettings(ctx context.Context, values map[string]string, sou
 		normalized[key] = value
 	}
 	values = normalized
+	if err := rejectUnversionedWorkspaceSettings(values); err != nil {
+		return err
+	}
 	if err := s.validateDefaultAppSetting(ctx, values); err != nil {
 		return err
 	}
@@ -154,10 +163,10 @@ func validateWallpaperBySpace(value string) error {
 	}
 	allowed := desktopWallpaperValueSet()
 	for spaceID, wallpaper := range parsed {
-		if spaceID != "1" && spaceID != "2" && spaceID != "3" {
+		if _, ok := canonicalWorkspaceID(spaceID); !ok {
 			return fmt.Errorf("invalid desktop setting value for appearance.wallpaper_by_space")
 		}
-		if _, ok := allowed[wallpaper]; !ok {
+		if _, ok := allowed[wallpaper]; !ok && !isCustomWorkspaceWallpaper(wallpaper) {
 			return fmt.Errorf("invalid desktop setting value for appearance.wallpaper_by_space")
 		}
 	}
@@ -165,6 +174,12 @@ func validateWallpaperBySpace(value string) error {
 }
 
 func validateDesktopSetting(key, value string) error {
+	if key == workspaceWallpaperGlobal {
+		if _, ok := desktopWallpaperValueSet()[value]; ok || isCustomWorkspaceWallpaper(value) {
+			return nil
+		}
+		return fmt.Errorf("invalid desktop setting value for %s", key)
+	}
 	if key == "gallery.categories" {
 		_, err := parseGalleryCategories(value)
 		return err
@@ -230,6 +245,9 @@ func validateFreeformDesktopSetting(key, value string) error {
 		return nil
 	case "appearance.wallpaper_by_space":
 		return validateWallpaperBySpace(value)
+	case WorkspaceLayoutSettingKey:
+		_, err := decodeWorkspaceLayout(value)
+		return err
 	case SerialProfilesSetting:
 		return validateSerialProfiles(value)
 	case retronet.EntriesSetting:
@@ -252,6 +270,10 @@ func validateFreeformDesktopSetting(key, value string) error {
 	default:
 		return fmt.Errorf("invalid desktop setting value for %s", key)
 	}
+}
+
+func isCustomWorkspaceWallpaper(value string) bool {
+	return strings.HasPrefix(value, "file:") && len(value) > len("file:")
 }
 
 func (s *Service) listSettings(ctx context.Context) (map[string]string, error) {

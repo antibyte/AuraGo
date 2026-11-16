@@ -3,14 +3,63 @@
     // Keys with a fixed id shape are only saved and restored when they match it.
     const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
     let sessionPersistTimer = 0;
+    let desktopSessionEnded = false;
+
+    function registerWindowSessionAction(id, participant) {
+        if (!state.windows.has(id) && participant) return;
+        return window.AuraDesktopSessionActions?.register(id, participant);
+    }
+
+    async function decideDesktopSessionAction(options = {}) {
+        const title = options.title || t('desktop.session_controls');
+        const label = options.label || options.detail || title;
+        const choice = await modalDialog({
+            title: t('desktop.session_action_question_title'),
+            message: t('desktop.session_action_question_message', { title, label }),
+            choices: [
+                { value: 'keep', label: t('desktop.session_action_keep') },
+                { value: 'save', label: t('desktop.session_action_save') }
+            ]
+        });
+        return choice === 'save' || choice === 'keep' ? choice : 'cancel';
+    }
+
+    function syncDesktopSessionControls() {
+        const footer = document.getElementById('vd-start-session');
+        if (!footer) return;
+        const enabled = window._auragoAuthEnabled === true && !desktopSessionEnded;
+        footer.hidden = !enabled;
+        footer.setAttribute('aria-label', t('desktop.session_controls'));
+        footer.querySelector('span').textContent = t('desktop.session_signed_in');
+        const button = footer.querySelector('button');
+        button.textContent = t('desktop.session_logout');
+        button.disabled = !enabled || !!window._logoutInProgress;
+    }
+
+    function initDesktopSessionActions() {
+        window.AuraDesktopSessionActions?.configure({
+            getWindows: () => [...state.windows.values()].filter(win => !win.isGadget && !win.closing && win.element?.isConnected)
+                .map(win => ({ id: win.id, title: win.title || win.element.querySelector('.vd-window-title')?.textContent || win.appId,
+                    appId: win.appId, beforeClose: win.beforeClose })),
+            canLogout: () => window._auragoAuthEnabled === true && !desktopSessionEnded && !window._logoutInProgress,
+            logout: () => window.performAuthenticatedLogout(),
+            onProblem: async problem => {
+                if (problem.code === 'auth_disabled' || desktopSessionEnded) return;
+                if (problem.windowId && state.windows.has(problem.windowId)) focusWindow(problem.windowId);
+                const prefix = problem.code === 'unknown_guard' ? 'desktop.logout_unavailable'
+                    : problem.code === 'save_failed' ? 'desktop.logout_save_failed' : 'desktop.logout_changed';
+                await modalDialog({ title: t(prefix + '_title'), message: t(prefix + '_message', { title: problem.title || t('desktop.session_controls') }) });
+            }
+        });
+        document.getElementById('vd-start-logout')?.addEventListener('click', () => { closeStartMenu(); void window.performLogout(); });
+        document.addEventListener('aurago:auth-status', syncDesktopSessionControls);
+        document.addEventListener('aurago:auth-ended', () => { desktopSessionEnded = true; syncDesktopSessionControls(); });
+        window.addEventListener('aurago:language-changed', syncDesktopSessionControls);
+        syncDesktopSessionControls();
+    }
 
     function saveSetting(key, value, keepalive = false) {
-        return api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, value }),
-            keepalive
-        });
+        return writeDesktopSettings({ [key]: value }, keepalive);
     }
 
     function defaultDockPinIds() {
@@ -119,7 +168,7 @@
     }
 
     function scheduleSessionPersist() {
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
     }
@@ -127,14 +176,10 @@
     async function persistSessionSnapshot(keepalive = false) {
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = 0;
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         try {
-            const snapshot = captureSessionSnapshot();
-            const json = JSON.stringify(snapshot);
-            await saveSetting('session.windows', json, keepalive);
-            if (state.bootstrap) {
-                state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
-            }
+            await queueDesktopSettingsWrite(() => ({ settings: { 'session.windows': JSON.stringify(captureSessionSnapshot()) },
+                revision: desktopWorkspaceRevision() }), keepalive);
         } catch (err) {
             if (!keepalive) showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }

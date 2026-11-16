@@ -104,7 +104,7 @@
         const searchGroup = q('.infra-search'), searchOpenButton = q('[data-action="open-search"]'), searchDot = q('[data-search-dot]');
         const searchClearButton = q('.infra-search-clear'), statusReset = q('.infra-status-reset');
         const chipsEl = q('[data-filter-chips]'), clearFiltersButton = q('[data-action="clear-filters"]');
-        let chipsKey = '', chipsFrame = 0, disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null;
+        let chipsKey = '', chipsFrame = 0, disposed = false, deferred = false, searchFrame = 0, searchValue = '', announceTimer = 0, prefsTimer = 0, openMenuName = '', resizeFrame = 0, unsubscribe = null, resizeObserver = null, sessionActionOff = null;
         const toastTimers = new Map();
 
         // ---- preferences ---------------------------------------------------------------
@@ -670,6 +670,23 @@
         }
         gestures.attach();
         syncMenus();
+        const sessionRevision = () => JSON.stringify([
+            [...state.draftRevision.entries()].sort(([left], [right]) => left.localeCompare(right)),
+            [...state.sourceRevision.entries()].sort(([left], [right]) => left.localeCompare(right)),
+            state.nodes.map(node => [node.id, store.effectivePlacement(node.id, 'atlas'), store.effectivePlacement(node.id, 'topology'), store.effectiveParent(node.id, 'atlas'), store.effectiveParent(node.id, 'topology')])
+        ]);
+        sessionActionOff = ctx.registerSessionAction?.(windowId, {
+            inspect: () => ({ dirty: store.hasUnsavedWork(), revision: sessionRevision(), label: t('desktop.app_infra') }),
+            decide: snapshot => ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                if (disposed || sessionRevision() !== expectedRevision) return false;
+                if (!store.hasUnsavedWork()) return { revision: expectedRevision };
+                if (!store.canWrite() || !await app.forms.saveAllDrafts()) return false;
+                return !store.hasUnsavedWork() && sessionRevision() === expectedRevision
+                    ? { revision: expectedRevision }
+                    : false;
+            }
+        });
         ctx.setWindowBeforeClose?.(windowId, async () => (!store.hasUnsavedWork() && !state.busy.has('layout')
             ? true
             : dialogs.confirmAction(t('desktop.app_infra'), t('desktop.infra_unsaved_close'), { confirmLabel: t('desktop.infra_discard') })));
@@ -691,6 +708,7 @@
                 if (prefsTimer) flushPrefs();
                 unsubscribe?.();
                 store.dispose();
+                sessionActionOff?.();
                 ctx.setWindowBeforeClose?.(windowId, null);
                 ctx.setWindowMenus?.(windowId, []);
                 root.replaceChildren();

@@ -492,6 +492,18 @@
         window.addEventListener('pagehide',()=>dispose(id),{signal});
         const guard=async()=>{stop();await stage?.guard();return storage.guard();};
         ctx.setWindowBeforeClose?.(id,guard);
+        const sessionRevision=()=>JSON.stringify([storage.state.revision,!!stage?.active(),stage?.readyTake?.()||null]);
+        ctx.registerSessionAction?.(id,{
+            inspect:()=>({dirty:!!storage.state.dirty||!!stage?.active()||!!stage?.readyTake?.(),revision:sessionRevision(),label:storage.state.name||tr('untitled')}),
+            decide:snapshot=>ctx.decideSessionAction?.({title:snapshot.title,label:snapshot.label,dirty:snapshot.dirty}),
+            save:async expected=>{
+                if(disposed||busy||recording||stage?.active()||sessionRevision()!==expected)return false;
+                if(stage?.guard && await stage.guard()===false)return false;
+                if(sessionRevision()!==expected)return false;
+                const saved=storage.state.dirty?await storage.save(false):true;
+                return saved===true&&!storage.state.dirty&&sessionRevision()===expected?{revision:expected}:false;
+            }
+        });
         ctx.registerWindowCleanup?.(id,()=>dispose(id));
         const instance={guard,dispose(){if(disposed)return;stage?.stop();disposed=true;generation++;cancelAnimationFrame(analyserFrame);audio.stop();composer?.stop();panic();timers.forEach(clearTimeout);timers.clear();life.abort();midi.dispose();audio.dispose();storage.dispose();editor.dispose();},project:()=>M.clone(project()),editor,storage,stage,audio};
         instances.set(id,instance);renderLibrary();refresh();analyserFrame=requestAnimationFrame(drawAnalyser);

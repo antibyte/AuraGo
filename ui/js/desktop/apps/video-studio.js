@@ -106,6 +106,7 @@
         if (s.detachTimeline) s.detachTimeline();
         if (s.keyHandler) window.removeEventListener('keydown', s.keyHandler, true);
         if (s.ctx.clearWindowMenus) s.ctx.clearWindowMenus(id);
+        s.sessionActionOff?.();
         instances.delete(id);
     }
     function layoutMarkup(s) {
@@ -194,6 +195,21 @@
 <div class="vs-conflict-host" data-conflict-host></div>
 </div>`;
     }
+    function trackTimelineDragging(s) {
+        let active = !!s.timelineDragging;
+        Object.defineProperty(s, 'timelineDragging', {
+            configurable: true,
+            enumerable: true,
+            get: () => active,
+            set: value => {
+                const next = !!value;
+                if (next === active) return;
+                active = next;
+                s.sessionActionRevision++;
+            }
+        });
+        return s;
+    }
     function appRender(host, id, ctx) {
         dispose(id);
         const s = {
@@ -201,12 +217,15 @@
             status: null, projects: [], jobs: [], jobLocalStops: new Set(), frame: 0, selectedClipId: '', selectionRevision: 0,
             selectionSet: new Set(), selectionPrimary: '', clipboard: null, tool: 'select', trimMode: '', peekReturn: null, ...P.readMediaPrefs(), mediaFolder: '', selectedAssetId: '',
             zoom: 1, snap: readPref(PREF_SNAP) !== 'false', magnetic: readPref(PREF_MAGNETIC) === 'true', loop: false, soloIds: new Set(), renamingTrackId: '', previewQuality: readPref(PREF_QUALITY) || 'auto', dirty: false, saving: false, saveError: '', conflict: false, history: [], redo: [],
-            busy: false, revision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
+            busy: false, revision: 0, sessionActionRevision: 0, sessionDerivedRevision: 0, artworkRevision: 0, savePromise: null, autosaveTimer: 0, libraryTab: 'media', filter: 'all',
             uploads: new Map(), notifiedJobs: new Set(), xhrs: new Set(), projectEpoch: 0, failedArtwork: new Set(), fieldGesture: false,
             textTimers: new Map(), staleArtwork: new Set(), artworkInFlight: new Set(), artworkJobs: new Map(), clipArtRevisions: new Map(), artworkKeys: new Map(), pendingArtwork: new Map(), textBefore: null,
             stageMode: 'timeline', sourceAssetId: '', sourceProjectId: '', sourceIn: null, sourceOut: null, sourceFrame: 0, sourceRate: '', sourceProject: null, sourcePreview: null, sourceShuttle: null,
             importOffer: null, cameraImportAwaitCreate: '', studioReady: false
         };
+        // Timeline gesture owners set this flag directly. Track its transitions centrally so a
+        // gesture that starts and ends while a logout decision is open still changes the revision.
+        trackTimelineDragging(s);
         instances.set(id, s);
         P.installEmailExports?.(s);
         host.innerHTML = layoutMarkup(s);
@@ -309,6 +328,25 @@
                 if (!saved) return false;
             }
             return !s.dirty;
+        });
+        const sessionRevision = () => JSON.stringify([s.projectId, s.projectEpoch, s.revision - s.sessionDerivedRevision, s.sessionActionRevision]);
+        s.sessionActionOff = ctx.registerSessionAction?.(id, {
+            inspect: () => ({
+                dirty: !!(s.dirty || s.timelineDragging || s.fieldGesture || s.saving || s.savePromise || s.pendingArtwork.size || s.textTimers.size || s.staleArtwork.size || s.artworkInFlight.size),
+                revision: sessionRevision(),
+                label: s.project?.name || tr(s, 'title', 'Video Studio')
+            }),
+            decide: snapshot => ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                const dirty = () => !!(s.dirty || s.timelineDragging || s.fieldGesture || s.saving || s.savePromise || s.pendingArtwork.size || s.textTimers.size || s.staleArtwork.size || s.artworkInFlight.size);
+                if (s.disposed || sessionRevision() !== expectedRevision) return false;
+                if (!dirty()) return { revision: expectedRevision };
+                if (s.readonly || !s.project || s.timelineDragging || s.fieldGesture) return false;
+                await P.flushArtwork(s);
+                if (s.disposed || s.timelineDragging || s.fieldGesture || sessionRevision() !== expectedRevision) return false;
+                if (s.dirty && !await saveUntilClean(s)) return false;
+                return !dirty() && sessionRevision() === expectedRevision ? { revision: expectedRevision } : false;
+            }
         });
         if (ctx.setWindowMenus) ctx.setWindowMenus(id, [{
             label: tr(s, 'project', 'Project'), items: [

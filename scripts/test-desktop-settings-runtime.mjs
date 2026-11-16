@@ -10,6 +10,8 @@ const runtime = {
     state: { bootstrap: { settings: {} } },
     desktopSettings: () => runtime.state.bootstrap.settings,
     desktopReadonly: () => false,
+    desktopSessionEnded: false,
+    settingValue: key => runtime.state.bootstrap.settings[key],
     t: key => key,
     desktopThemeById: id => id === 'fruity' ? { iconTheme: 'whitesur', wallpaper: 'aurora', soundTheme: 'crystal' } : null,
     api: async (_url, options) => {

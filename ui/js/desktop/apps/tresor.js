@@ -469,9 +469,11 @@
             const form = event.target.closest('[data-form]');
             if (form) { event.preventDefault(); perform(() => submit(form)); }
         });
+        let sessionRevision = 0;
         listen('input', event => {
             if (event.target.matches('[data-search]')) { state.search = event.target.value; host.querySelector('.tresor-sidebar nav').innerHTML = listRows(); }
             if (event.target.matches('[data-note], [data-title]')) {
+                sessionRevision++;
                 if (event.target.matches('[data-note]')) state.noteText = event.target.value;
                 if (event.target.matches('[data-title]')) state.noteTitle = event.target.value;
                 state.dirty = true;
@@ -505,6 +507,15 @@
         context.setWindowBeforeClose?.(windowId, async () => {
             try { await saveNote(); return !state.dirty; }
             catch (error) { announce(tr(error.message === 'conflict' ? 'conflict' : 'request_failed'), true); return false; }
+        });
+        context.registerSessionAction?.(windowId,{
+            inspect:()=>({dirty:!!state.dirty,revision:sessionRevision,label:state.noteTitle||tr('title')}),
+            decide:snapshot=>context.decideSessionAction?.({title:snapshot.title,label:snapshot.label,dirty:snapshot.dirty}),
+            save:async expected=>{
+                if(sessionRevision!==expected||state.phase!=='open'||state.busy)return false;
+                await saveNote();
+                return sessionRevision===expected&&!state.dirty?{revision:expected}:false;
+            }
         });
         state.cleanup = () => events.abort();
         draw();

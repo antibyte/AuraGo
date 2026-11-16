@@ -110,6 +110,37 @@
         return instance && instances.get(instance.windowId) === instance;
     }
 
+    function sessionRevision(instance) {
+        return JSON.stringify(instance.openTabs.map(tab => [tab.path, tab.kind || '', editorValue(tab)]));
+    }
+
+    function sessionDirty(instance) {
+        return instance.openTabs.some(tab => tab.modified || !!tab.pendingSave);
+    }
+
+    function registerSessionAction(instance) {
+        const context = instance.context;
+        if (typeof context.registerSessionAction !== 'function') return;
+        instance.sessionActionOff = context.registerSessionAction(instance.windowId, {
+            inspect: () => ({
+                dirty: sessionDirty(instance),
+                revision: sessionRevision(instance),
+                label: instance.openTabs[instance.activeTabIndex]?.path || 'Code Studio'
+            }),
+            decide: snapshot => context.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                if (!isLiveInstance(instance) || !canWrite(instance) || sessionRevision(instance) !== expectedRevision) return false;
+                const pending = instance.openTabs.map(tab => tab.pendingSave).filter(Boolean);
+                if (pending.length) await Promise.all(pending);
+                if (!isLiveInstance(instance) || sessionRevision(instance) !== expectedRevision) return false;
+                if (sessionDirty(instance) && !await runWithInstance(instance, saveAllFiles)) return false;
+                return !sessionDirty(instance) && sessionRevision(instance) === expectedRevision
+                    ? { revision: expectedRevision }
+                    : false;
+            }
+        });
+    }
+
     function runWithInstance(instance, fn) {
         if (!instance || typeof fn !== 'function') return undefined;
         const previous = state;
@@ -449,6 +480,7 @@
         dispose(windowId);
         const instance = createInstance(container, windowId, context);
         instances.set(windowId, instance);
+        registerSessionAction(instance);
         window.AuraDesktopEmail?.attach(windowId, '.code-studio-toolbar', () => {
             const tab = instance.openTabs[instance.activeTabIndex];
             return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary||tab.kind==='diff', subject:tab?.path.split('/').pop(),
@@ -495,6 +527,7 @@
         }
         const instance = instances.get(windowId);
         if (!instance) return;
+        instance.sessionActionOff?.();
         if (instance.agentAbortController) instance.agentAbortController.abort();
         if (instance.knowledgeClose) instance.knowledgeClose();
         closeTerminalSessionSockets(instance);

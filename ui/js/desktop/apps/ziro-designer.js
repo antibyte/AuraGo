@@ -1,10 +1,10 @@
 (function () {
     'use strict';
     async function render(host, windowId, app, context, deps) {
-        const { t, esc, api, makeSandboxedFrame, registerWindowCleanup, modalDialog, openFileDialog, saveFileDialog } = deps;
+        const { t, esc, api, makeSandboxedFrame, registerWindowCleanup, registerSessionAction, decideSessionAction, modalDialog, openFileDialog, saveFileDialog } = deps;
         const abort = new AbortController();
         let disposed = false, port = null, dirty = false, busy = false, connected = false, generation = 0, serial = 0;
-        let frame = null, frameOrigin = '', handshake = '', editing = 0, openedOnce = false;
+        let frame = null, frameOrigin = '', handshake = '', editing = 0, openedOnce = false, sessionEpoch = 0;
         const pending = new Map();
         const project = new AuraZiroFiles.Project(window.fetch.bind(window), abort.signal);
         const text = key => t('desktop.ziro.' + key);
@@ -118,6 +118,7 @@
             if (!alive()) return;
             const result = await request('open', { projectKey: incoming.folder, files, draftKey: deps.draftKey });
             openedOnce = true;
+            sessionEpoch++;
             dirty = false;
             if (result.draft) {
                 const choice = await choose(text('recover'), [{ value: 'recover', label: text('recover_action') }, { value: 'discard', label: text('discard') }]);
@@ -158,7 +159,7 @@
             AuraZiroFiles.relative(name);
             if (name.includes('/')) throw new Error('ziro.invalid_path');
             await request('new', { name, draftKey: deps.draftKey });
-            openedOnce = true; dirty = true;
+            openedOnce = true; sessionEpoch++; editing++; dirty = true;
             project.folder = ''; project.baseline = new Map();
             pathLabel.textContent = ''; display('unsaved_status');
         }
@@ -197,13 +198,22 @@
                 openedOnce = true;
                 const choice = await choose(text('recover'), [{ value: 'recover', label: text('recover_action') }, { value: 'discard', label: text('discard') }]);
                 await request(choice === 'recover' ? 'recover' : choice === 'discard' ? 'discard' : 'cancel-open');
-                dirty = choice === 'recover'; display(dirty ? 'unsaved_status' : 'ready');
+                dirty = choice === 'recover'; sessionEpoch++; if (dirty) editing++; display(dirty ? 'unsaved_status' : 'ready');
             });
         }
         const policy = () => controls();
         document.addEventListener('aurago:desktop-policy', policy);
         window.addEventListener('message', ready);
         deps.setBeforeClose(cleanBeforeLeave);
+        registerSessionAction?.(windowId, {
+            inspect: () => ({ dirty, revision: `${sessionEpoch}:${editing}`, label: project.folder || 'Ziro Designer' }),
+            decide: snapshot => decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expected => {
+                if (!alive() || busy || !connected || !openedOnce || `${sessionEpoch}:${editing}` !== expected) return false;
+                if (!await run(() => save(false))) return false;
+                return !dirty && `${sessionEpoch}:${editing}` === expected ? { revision: expected } : false;
+            }
+        });
         const beforeUnload = event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } };
         window.addEventListener('beforeunload', beforeUnload);
         registerWindowCleanup(windowId, () => {

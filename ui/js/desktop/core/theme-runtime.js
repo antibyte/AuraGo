@@ -128,13 +128,6 @@
         });
         if (!owned) return false;
         const written = { 'appearance.wallpaper': next.wallpaper, 'appearance.wallpaper_by_space': '{}' };
-        const last = await api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings: written })
-        });
-        if (!state.bootstrap) state.bootstrap = {};
-        const remote = last && last.settings && typeof last.settings === 'object' ? last.settings : {};
-        state.bootstrap.settings = Object.assign({}, desktopSettings(), remote, written);
+        await writeDesktopSettings(written);
         return true;
     }

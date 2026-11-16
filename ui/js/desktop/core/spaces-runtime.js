@@ -3,6 +3,38 @@
 
     if (!state.activeSpaceId) state.activeSpaceId = DEFAULT_SPACE_ID;
 
+    function workspaceRecords() {
+        const snapshot = window.AuraDesktopWorkspaceManager?.snapshot?.();
+        const configured = snapshot?.layout?.workspaces;
+        const records = Array.isArray(configured) && configured.length
+            ? configured.filter(item => item && typeof item.id === 'string' && item.id)
+            : SPACE_IDS.map(id => ({ id, name: '' }));
+        if (!records.length) return [{ id: DEFAULT_SPACE_ID, name: '' }];
+        SPACE_IDS.splice(0, SPACE_IDS.length, ...records.map(item => item.id));
+        return records;
+    }
+
+    function workspaceIDs() {
+        return workspaceRecords().map(item => item.id);
+    }
+
+    function workspaceRecord(id) {
+        return workspaceRecords().find(item => item.id === String(id)) || null;
+    }
+
+    function workspaceName(id) {
+        const record = workspaceRecord(id);
+        const customName = record && typeof record.name === 'string' ? record.name.trim() : '';
+        return customName || t('desktop.space_n').replace('{{n}}', String(id));
+    }
+
+    function workspaceShortName(id) {
+        const record = workspaceRecord(id);
+        return record && typeof record.name === 'string' && record.name.trim()
+            ? record.name.trim()
+            : String(id);
+    }
+
     function spacesEnabled() {
         return !isCompactViewport();
     }
@@ -13,7 +45,9 @@
 
     function normalizeWallpaperId(value) {
         const id = String(value || '');
-        return knownWallpaperIds().indexOf(id) >= 0 ? id : 'groupshoot';
+        return knownWallpaperIds().indexOf(id) >= 0 || window.AuraDesktopCustomWallpaper?.isCustom?.(id)
+            ? id
+            : 'groupshoot';
     }
 
     function parseWallpaperBySpace() {
@@ -24,9 +58,9 @@
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
             const known = knownWallpaperIds();
             const out = {};
-            SPACE_IDS.forEach(id => {
+            workspaceIDs().forEach(id => {
                 const wallpaper = parsed[id];
-                if (typeof wallpaper === 'string' && known.indexOf(wallpaper) >= 0) out[id] = wallpaper;
+                if (typeof wallpaper === 'string' && (known.indexOf(wallpaper) >= 0 || window.AuraDesktopCustomWallpaper?.isCustom?.(wallpaper))) out[id] = wallpaper;
             });
             return out;
         } catch (err) {
@@ -44,11 +78,15 @@
     function applyActiveSpaceWallpaper() {
         if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
         syncDesktopThemeFx();
+        if (typeof syncDesktopCustomWallpaper === 'function') syncDesktopCustomWallpaper();
     }
 
     function normalizeSpaceId(id) {
         const value = String(id || DEFAULT_SPACE_ID);
-        return SPACE_IDS.includes(value) ? value : DEFAULT_SPACE_ID;
+        const resolved = window.AuraDesktopWorkspaceManager?.resolveId?.(value);
+        const candidate = resolved ? String(resolved) : value;
+        const ids = workspaceIDs();
+        return ids.includes(candidate) ? candidate : ids[0] || DEFAULT_SPACE_ID;
     }
 
     function windowSpaceId(win) {
@@ -100,10 +138,11 @@
         if (!pager) return;
         pager.hidden = !spacesEnabled();
         pager.setAttribute('aria-label', t('desktop.space'));
-        pager.innerHTML = SPACE_IDS.map(id => {
+        pager.innerHTML = workspaceRecords().map(workspace => {
+            const id = workspace.id;
             const active = normalizeSpaceId(state.activeSpaceId) === id;
-            const label = t('desktop.space_n').replace('{{n}}', id);
-            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(id)}</span></button>`;
+            const label = workspaceName(id);
+            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-label="${esc(label)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(workspaceShortName(id))}</span></button>`;
         }).join('');
         wireSpacePagerOverview(pager);
     }
@@ -138,7 +177,7 @@
 
     function cycleSpace(direction) {
         if (!spacesEnabled()) return;
-        const ids = SPACE_IDS;
+        const ids = workspaceIDs();
         const current = normalizeSpaceId(state.activeSpaceId);
         const idx = ids.indexOf(current);
         const next = ids[(idx + direction + ids.length) % ids.length];

@@ -4146,6 +4146,9 @@ registration lives in `internal/desktop/types.go`.
 
 ## Local Contracts
 
+- Apps with unsaved state register `ctx.registerSessionAction(windowId, {inspect, decide, save})` for two-stage shell logout. `inspect()` is pure and returns `{dirty, revision, label}`; revision covers document identity and editable content, not merely a resettable counter. `decide(snapshot)` uses `ctx.decideSessionAction` and returns `save`, `keep` or `cancel` without saving/discarding/cleanup. `save(expectedRevision)` returns `{revision: expectedRevision}` only after persistence acknowledges that same content and `inspect().dirty` is false. Keep means no operation and must never delete a previously saved draft. Preserve existing direct-close guards; shell disposal unregisters participants. Mailer extracts its guard and participant into `mailer-session-actions.js`, loaded before compose. The native text Editor shares its dirty tracking with direct close and logout.
+- Logout inspection includes pending cell/form/note inputs before debounce or blur. Committing those same values, acknowledging a server save, and generating derived artwork do not count as new user edits. A later input or document switch still invalidates preparation. Untitled documents use the existing Save As flow; cancelling that picker or failing a write keeps the document and its recovery draft open.
+
 - MeshCore loads `meshcore-device.js` before `meshcore.js`. The companion module
   owns Device/Settings pages and reception/contact details. Settings use topic
   navigation (a native select in narrow windows); inactive forms stay mounted so

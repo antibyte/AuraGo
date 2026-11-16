@@ -3016,6 +3016,20 @@
     border-bottom: 1px solid var(--ds-color-border-subtle);
 }
 
+.vd-start-session {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+    color: var(--vd-theme-muted, var(--vd-muted));
+}
+.vd-start-session[hidden] { display: none; }
+.vd-start-session button { min-height: 36px; }
+.vd-start-session button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
+
 .vd-start-search input {
     height: 36px;
     padding: 0 var(--ds-space-4);
@@ -11705,6 +11719,26 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .vd-default-app-row label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .vd-default-app-row input, .vd-default-app-row select { max-width: 100%; min-height: 36px; color: var(--vd-text); background: var(--vd-surface); border: 1px solid var(--vd-border); border-radius: 6px; padding: 6px; }
 
+.vd-wallpaper-status {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(90%, 620px);
+    padding: 10px 14px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: var(--vd-surface, #17232e);
+    color: var(--vd-text, #fff);
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    z-index: 1;
+}
+.vd-wallpaper-status[hidden] { display: none; }
+@media (forced-colors: active) {
+    .vd-wallpaper-status { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}
+
 /* ui/css/desktop-quick-settings.css */
 .vd-quick-settings {
     position: fixed;
@@ -11784,6 +11818,265 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 @media (prefers-reduced-motion: reduce) {
     .vd-quick-settings *, .vd-quick-settings *::before, .vd-quick-settings *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+/* ui/css/desktop-workspaces.css */
+.vd-workspace-manager {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--ds-z-dock, 1200) + 32);
+    display: grid;
+    place-items: center;
+    padding: 18px;
+}
+
+.vd-workspace-manager[hidden] {
+    display: none !important;
+}
+
+.vd-spaces-overview-columns {
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+
+.vd-workspace-manager-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--vd-theme-overlay-bg, rgba(0, 0, 0, .48));
+    backdrop-filter: var(--vd-theme-blur, blur(4px));
+}
+
+.vd-workspace-manager-panel {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(720px, 100%);
+    max-height: min(88vh, 820px);
+    overflow: auto;
+    padding: 20px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg));
+    background: var(--vd-theme-panel-bg-strong, var(--ds-color-bg-modal));
+    color: var(--vd-text);
+    box-shadow: var(--vd-theme-shadow-modal, var(--ds-elevation-4));
+}
+
+.vd-workspace-manager-header,
+.vd-workspace-manager-header > div,
+.vd-workspace-manager-actions,
+.vd-workspace-manager-add,
+.vd-workspace-manager-delete-confirm,
+.vd-workspace-manager-delete-confirm label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.vd-workspace-manager-header,
+.vd-workspace-manager-add {
+    justify-content: space-between;
+}
+
+.vd-workspace-manager-header > div {
+    display: block;
+    min-width: 0;
+}
+
+.vd-workspace-manager-header h2,
+.vd-workspace-manager-header p {
+    margin: 0;
+}
+
+.vd-workspace-manager-header h2 {
+    font-size: 1.1rem;
+}
+
+.vd-workspace-manager-header p,
+.vd-workspace-manager-delete-confirm p {
+    margin-top: 4px;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .84rem;
+}
+
+.vd-workspace-manager button,
+.vd-workspace-manager input,
+.vd-workspace-manager select {
+    min-height: 36px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--ds-radius-sm, 6px);
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+    color: inherit;
+    font: inherit;
+}
+
+.vd-workspace-manager button {
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.vd-workspace-manager button:hover:not(:disabled) {
+    background: var(--vd-theme-control-hover, var(--ds-color-surface-3));
+}
+
+.vd-workspace-manager button:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+}
+
+.vd-workspace-manager input,
+.vd-workspace-manager select {
+    min-width: 0;
+    padding: 6px 9px;
+}
+
+.vd-workspace-manager :focus-visible {
+    outline: 2px solid var(--vd-accent, #27c7a6);
+    outline-offset: 2px;
+}
+
+.vd-workspace-manager-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+    list-style: none;
+}
+
+.vd-workspace-manager-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) auto;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px;
+    border: 1px solid var(--vd-theme-border, var(--vd-border));
+    border-radius: var(--vd-theme-radius-panel, var(--ds-radius-md));
+    background: var(--vd-theme-control-bg, var(--ds-color-surface-2));
+}
+
+.vd-workspace-manager-name,
+.vd-workspace-manager-add > label,
+.vd-workspace-manager-delete-confirm label {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.vd-workspace-manager-name span,
+.vd-workspace-manager-add label span,
+.vd-workspace-manager-delete-confirm label span {
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .75rem;
+}
+
+.vd-workspace-manager-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.vd-workspace-manager-actions button[data-workspace-up],
+.vd-workspace-manager-actions button[data-workspace-down] {
+    min-width: 36px;
+    padding-inline: 8px;
+}
+
+.vd-workspace-manager-delete-confirm {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-workspace-manager-delete-confirm[hidden] {
+    display: none !important;
+}
+
+.vd-workspace-manager-delete-confirm p {
+    flex: 1 0 100%;
+    margin: 0;
+}
+
+.vd-workspace-manager-delete-confirm label {
+    flex: 1 1 180px;
+}
+
+.vd-workspace-manager-add {
+    padding-top: 12px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+}
+
+.vd-workspace-manager-add > label {
+    flex: 1;
+}
+
+.vd-workspace-manager-status,
+.vd-workspace-manager-readonly {
+    min-height: 1.2em;
+    margin: 0;
+    color: var(--vd-theme-muted, var(--vd-muted));
+    font-size: .84rem;
+}
+
+.vd-workspace-manager-panel > footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
+@media (max-width: 640px) {
+    .vd-workspace-manager {
+        align-items: end;
+        padding: 0;
+    }
+
+    .vd-workspace-manager-panel {
+        width: 100%;
+        max-height: 94vh;
+        padding: 16px;
+        border-radius: var(--vd-theme-radius-modal, var(--ds-radius-lg)) var(--vd-theme-radius-modal, var(--ds-radius-lg)) 0 0;
+    }
+
+    .vd-workspace-manager-row {
+        grid-template-columns: 1fr;
+    }
+
+    .vd-workspace-manager-actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vd-workspace-manager-backdrop {
+        backdrop-filter: none;
+    }
+}
+
+/* ui/css/desktop-custom-wallpaper.css */
+.desktop-body[data-wallpaper^="file:"] {
+    background-color: #111820;
+    background-image: var(--vd-custom-wallpaper-image, linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%));
+    background-size: var(--vd-custom-wallpaper-fit, cover);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="loading"] {
+    background-image: linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%);
+}
+
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="missing"],
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="invalid"],
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="error"] {
+    background-image: linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%);
+}
+
+@media (max-width: 760px) {
+    .desktop-body[data-wallpaper^="file:"] {
+        background-attachment: scroll;
+    }
 }
 
 /* ui/css/desktop-clock-calendar.css */

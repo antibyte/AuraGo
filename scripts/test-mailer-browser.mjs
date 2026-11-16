@@ -88,7 +88,7 @@ try {
         await page.addScriptTag({url:origin+'/js/vendor/marked.min.js'});
         await page.addScriptTag({url:origin+'/js/vendor/purify.min.js'});
         for(const file of ['sticker-catalog','sticker-library']) await page.addScriptTag({url:origin+'/js/desktop/shared/'+file+'.js'});
-        for(const file of ['mailer-api','mailer-views','mailer-workflow','mailer-stickers','mailer-compose','mailer-settings','mailer']) await page.addScriptTag({url:origin+'/js/desktop/apps/'+file+'.js'});
+        for(const file of ['mailer-api','mailer-views','mailer-workflow','mailer-stickers','mailer-session-actions','mailer-compose','mailer-settings','mailer']) await page.addScriptTag({url:origin+'/js/desktop/apps/'+file+'.js'});
         await page.evaluate(({words,theme,mode,state})=>{
             document.body.className='desktop-body'; document.body.dataset.theme=theme; document.documentElement.dataset.theme=mode;
             document.documentElement.style.setProperty('--surface-color',mode==='light'?'#f5f6fa':'#111823');

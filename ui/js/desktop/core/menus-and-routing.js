@@ -286,43 +286,31 @@
                 action: () => saveDesktopWallpaper(value)
             };
         };
-        return options.map(item).concat([{ separator: true }], animated.map(item));
+        return options.map(item).concat([{ separator: true }], animated.map(item), [{ separator: true }, { label: t('desktop.wallpaper_choose'), disabled: desktopReadonly(), action: chooseDesktopWallpaper }]);
     }
 
     async function saveDesktopWallpaper(value) {
         try {
-            const wallpaper = typeof normalizeWallpaperId === 'function' ? normalizeWallpaperId(value) : String(value || 'groupshoot');
-            const updates = [];
-            const nextSettings = Object.assign({}, desktopSettings());
-            if (typeof spacesEnabled === 'function' && spacesEnabled()) {
-                const map = typeof parseWallpaperBySpace === 'function' ? Object.assign({}, parseWallpaperBySpace()) : {};
-                const fallback = settingValue('appearance.wallpaper') || 'groupshoot';
-                SPACE_IDS.forEach(id => {
-                    if (!map[id]) map[id] = fallback;
-                });
+            const wallpaper = normalizeWallpaperId(value);
+            const reloadCustom = wallpaperForActiveSpace() === wallpaper;
+            if (spacesEnabled()) {
+                const map = Object.assign({}, parseWallpaperBySpace());
                 map[normalizeSpaceId(state.activeSpaceId)] = wallpaper;
-                const encoded = JSON.stringify(map);
-                updates.push({ key: 'appearance.wallpaper_by_space', value: encoded });
-                nextSettings['appearance.wallpaper_by_space'] = encoded;
+                await saveDesktopPreference('appearance.wallpaper_by_space', JSON.stringify(map));
             } else {
-                updates.push({ key: 'appearance.wallpaper', value: wallpaper });
-                nextSettings['appearance.wallpaper'] = wallpaper;
+                await saveDesktopPreference('appearance.wallpaper', wallpaper);
             }
-            const results = await Promise.all(updates.map(update => api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(update)
-            })));
-            const last = results[results.length - 1];
-            if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = last.settings || nextSettings;
-            Object.assign(state.bootstrap.settings, nextSettings);
-            applyDesktopSettings();
-            renderStartButtonIcon();
-            renderIcons();
-            renderWidgets();
+            if (reloadCustom && window.AuraDesktopCustomWallpaper?.isCustom(wallpaper)) {
+                desktopCustomWallpaperKey = '';
+                syncDesktopCustomWallpaper();
+            }
+            return true;
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            const code = err.body?.code || '';
+            const message = code.startsWith('wallpaper_') ? t(code === 'wallpaper_not_found' ? 'desktop.wallpaper_missing' : 'desktop.wallpaper_invalid',
+                { path: window.AuraDesktopCustomWallpaper?.path(value) || '' }) : err.message || String(err);
+            showDesktopNotification({ title: t('desktop.notification'), message });
+            return false;
         }
     }
 
@@ -642,7 +630,7 @@
             SPACE_IDS.forEach(spaceId => {
                 const current = windowSpaceId(item) === spaceId;
                 items.push({
-                    label: t('desktop.move_to_space').replace('{{n}}', spaceId) + (current ? ' ✓' : ''),
+                    label: t('desktop.move_to_space').replace('{{n}}', window.AuraDesktopWorkspaceManager?.name(spaceId) || spaceId) + (current ? ' ✓' : ''),
                     icon: 'grid',
                     fallback: spaceId,
                     action: () => moveWindowToSpace(id, spaceId)
@@ -745,7 +733,7 @@
     function officeAppContext(context) {
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, promptDialog, confirmDialog,
             registerWindowCleanup,
-            setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
+            registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
         });
     }
 
@@ -1631,7 +1619,7 @@
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, chooseDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -1677,7 +1665,7 @@
             if (win) { delete win.pendingCameraImport; delete win.pendingProjectId; }
             return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
@@ -1686,7 +1674,7 @@
         if (appId === 'infra' && window.InfraApp) {
             return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, confirmDialog, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 showConfirmModal: (title, message, confirmLabel) => confirmLabel
                     ? modalDialog({ title, message, choices: [{ value: 'discard', label: confirmLabel }] }).then(value => value === 'discard')
                     : confirmDialog(title, message),
@@ -1696,7 +1684,7 @@
         if (appId === 'ruview' && window.RuViewApp) {
             return window.RuViewApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, confirmDialog, modalDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'docker-manager' && window.DockerManagerApp) {
@@ -1813,7 +1801,7 @@ if (appId === 'system-info') {
             if (typeof window.StorymakerApp.render === 'function') {
                 return window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -1823,7 +1811,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {
@@ -1985,7 +1973,7 @@ if (appId === 'pixel') {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
                 registerWindowCleanup,
                 providers: (state.bootstrap || {}).providers || [],
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 closeWindow
             }), context || {});
         }
@@ -2011,7 +1999,7 @@ if (appId === 'pixel') {
             const win = state.windows.get(id);
             return window.BookshelfApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog,
-                setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
                 openApp
             }));
         }
@@ -2057,7 +2045,7 @@ if (appId === 'pixel') {
                 return window.CYDCreatorApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification,
                     readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -2077,7 +2065,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), openApp, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }
@@ -2087,7 +2075,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog, openApp,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }

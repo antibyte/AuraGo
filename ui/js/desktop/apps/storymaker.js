@@ -28,7 +28,7 @@
             report: null, frame: 0, playing: false, selected: 0, tab: 'stage', sideTab: 'scene', saveState: 'saved',
             catalog: null, thumbs: new Map(), dirty: false, disposed: false, loadSeq: 0, thumbSeq: 0, conflict: false,
             wantFrame: null, seekBusy: false, seekSent: -1, seekTimer: 0,
-            handoffWish: new Set(),
+            handoffWish: new Set(), projectEpoch: 0, editRevision: 0,
             agentLocked: false, silentBackup: false,
             view: 'loading', parts: {}, root: null, content: null, liveTimer: 0, launchProjectId: typeof c.projectId === 'string' ? c.projectId : ''
         };
@@ -231,6 +231,8 @@
             closeEditor(inst);
             inst.view = 'editor';
             inst.projectId = data.project.id;
+            inst.projectEpoch++;
+            inst.editRevision = 0;
             inst.project = data.project;
             inst.story = data.story;
             inst.etag = data.etag || '';
@@ -785,6 +787,7 @@
     function commit(inst, draft, immediate) {
         inst.story = draft;
         inst.dirty = true;
+        inst.editRevision++;
         inst.saveState = 'dirty';
         inst.bus.emit('story');
         clearTimeout(inst.saveTimer);
@@ -916,6 +919,7 @@
             if (inst.disposed) return;
             inst.story = data.story;
             inst.etag = data.etag || '';
+            inst.editRevision++;
             inst.issues = Array.isArray(data.issues) ? data.issues : [];
             inst.codeStatus = Array.isArray(data.code_scenes) ? data.code_scenes : [];
             inst.draftIssues = [];
@@ -994,6 +998,29 @@
             if (inst.parts.projects) inst.parts.projects.refresh();
         });
         if (typeof inst.ctx.setWindowBeforeClose === 'function') inst.ctx.setWindowBeforeClose(windowId, () => beforeClose(inst));
+        inst.ctx.registerSessionAction?.(windowId, {
+            inspect: () => {
+                const code = inst.parts.code?.inspect?.() || { dirty: false, revision: 0 };
+                return {
+                    dirty: inst.view === 'editor' && (!!inst.dirty || code.dirty),
+                    revision: JSON.stringify([inst.projectEpoch, inst.editRevision, code.revision]),
+                    label: inst.project?.title || inst.projectId || inst.t('storymaker.title')
+                };
+            },
+            decide: snapshot => inst.ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expected => {
+                const revision = () => {
+                    const code = inst.parts.code?.inspect?.() || { dirty: false, revision: 0 };
+                    return JSON.stringify([inst.projectEpoch, inst.editRevision, code.revision]);
+                };
+                if (inst.disposed || inst.view !== 'editor' || revision() !== expected) return false;
+                if (inst.dirty && !await flushEdits(inst)) return false;
+                const code = inst.parts.code?.inspect?.() || { dirty: false, revision: 0 };
+                if (code.dirty && !await inst.parts.code.saveAll(code.revision)) return false;
+                const after = inst.parts.code?.inspect?.() || { dirty: false };
+                return !inst.dirty && !after.dirty && revision() === expected ? { revision: expected } : false;
+            }
+        });
         start(inst);
         return inst;
     }

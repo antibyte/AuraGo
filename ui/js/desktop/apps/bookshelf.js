@@ -31,7 +31,7 @@
             selected: null, metadata: null, focusedBookId: '', restoreShelfFocus: false, sourceId: '', collectionId: '',
             query: '', statusFilter: 'all', sort: 'recent', sortExplicit: false, offset: 0, density: 'covers', page: 'library', panel: '',
             busy: false, error: '', notice: '', job: null, jobTimer: 0,
-            searchTimer: 0, progressTimer: 0, progressQueue: new Map(),
+            searchTimer: 0, progressTimer: 0, progressQueue: new Map(), progressRevision: 0, progressSavedRevision: 0,
             progressWrite: Promise.resolve(), progressWriter: null, reader: null, readerToken: 0, readerRevision: '', renditionRevision: '', shelfScrollTop: 0,
             readerData: null, readerPrefs: Object.assign({}, defaultPrefs), readerReady: false, thumbnailObserver: null, thumbnailURLs: new Map(), thumbnailCount: 48,
             toc: [], annotations: [], searchResults: [], details: false, modalResolver: null,
@@ -869,6 +869,21 @@
                 if (await flushProgress()) return true;
                 return confirmDiscardProgress();
             });
+            state.ctx.registerSessionAction?.(windowId, {
+                inspect: () => ({
+                    dirty: state.progressQueue.size > 0 || state.progressSavedRevision !== state.progressRevision,
+                    revision: state.progressRevision,
+                    label: state.selected?.title || t('reader')
+                }),
+                decide: snapshot => state.ctx.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+                save: async expected => {
+                    if (state.disposed || readOnly() || expected !== state.progressRevision) return false;
+                    if (!await flushProgress()) return false;
+                    return state.progressQueue.size === 0 && state.progressSavedRevision === expected
+                        ? { revision: expected }
+                        : false;
+                }
+            });
         }
 
         function passwordDialog(reason) {
@@ -916,6 +931,7 @@
 
         function queueProgress(book, progress, renditionRevision = state.renditionRevision) {
             if (readOnly() || !progress || !progress.locator) return;
+            state.progressRevision++;
             const previous = state.progressQueue.get(book.id);
             const expectedRevision = previous?.expectedRevision ?? state.progressWriter.revisionFor({ bookId: book.id, renditionRevision }, book.progress?.revision ?? 0);
             const pending = {
@@ -946,6 +962,7 @@
             state.progressTimer = 0;
             if (!state.progressQueue.size || readOnly()) return state.progressWrite.then(() => !state.progressQueue.size);
             const pending = Array.from(state.progressQueue.values());
+            const batchRevision = state.progressRevision;
             pending.forEach(item => state.progressQueue.delete(item.book.id));
             state.progressWrite = state.progressWrite.then(async () => {
                 let savedAll = true;
@@ -993,6 +1010,7 @@
                         }
                     }
                 }
+                if (savedAll && !state.progressQueue.size) state.progressSavedRevision = batchRevision;
                 return savedAll && !state.progressQueue.size;
             });
             return state.progressWrite;
@@ -1186,6 +1204,7 @@
             if (!(await flushProgress())) {
                 if (!(await confirmDiscardProgress())) return false;
                 state.progressQueue.clear();
+                state.progressSavedRevision = state.progressRevision;
             }
             state.readerToken++;
             disposeThumbnails();
@@ -1196,6 +1215,8 @@
             root.dataset.page = 'library';
             by('[data-reader]').hidden = true;
             if (state.ctx.setWindowBeforeClose) state.ctx.setWindowBeforeClose(windowId, null);
+            state.ctx.registerSessionAction?.(windowId, null);
+            state.ctx.registerSessionAction?.(windowId, null);
             paintShelf();
             requestAnimationFrame(() => {
                 by('.bs-shelf-scroll').scrollTop = state.shelfScrollTop;

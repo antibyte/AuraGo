@@ -1130,6 +1130,10 @@
                         ['electronic_dreams', 'desktop.settings_wallpaper_electronic_dreams'], ['windows_xp', 'desktop.settings_wallpaper_windows_xp'], ['green_slime', 'desktop.settings_wallpaper_green_slime'], ['voxel_world', 'desktop.settings_wallpaper_voxel_world'],
                         ['orbit', 'desktop.settings_wallpaper_orbit'], ['minimal', 'desktop.settings_wallpaper_minimal']
                     ]),
+                    { type: 'custom_wallpaper', key: 'appearance.wallpaper_by_space', label: 'desktop.wallpaper_choose', desc: 'desktop.wallpaper_custom_desc' },
+                    settingSelect('appearance.wallpaper_fit', 'desktop.wallpaper_fit', 'desktop.wallpaper_fit_desc', [
+                        ['cover', 'desktop.wallpaper_cover'], ['contain', 'desktop.wallpaper_contain']
+                    ]),
                     settingDesktopThemes(),
                     settingToggle('appearance.theme_cursors', 'desktop.settings_theme_cursors', 'desktop.settings_theme_cursors_desc'),
                     activeTheme && activeTheme.cursorTheme ? { type: 'cursor_preview', theme: activeTheme.cursorTheme } : null,
@@ -1156,6 +1160,7 @@
             },
             {
                 id: 'desktop', icon: 'desktop-symbolic', fallback: 'D', title: 'desktop.settings_category_desktop', desc: 'desktop.settings_category_desktop_desc', items: [
+                    { type: 'workspaces', key: 'desktop.workspaces.layout', label: 'desktop.workspaces_manage', desc: 'desktop.workspaces_description' },
                     settingToggle('desktop.open_fullscreen', 'desktop.settings_open_fullscreen', 'desktop.settings_open_fullscreen_desc'),
                     settingSelect('desktop.icon_size', 'desktop.settings_icon_size', 'desktop.settings_icon_size_desc', [
                         ['small', 'desktop.settings_icon_size_small'], ['medium', 'desktop.settings_icon_size_medium'], ['large', 'desktop.settings_icon_size_large']
@@ -1969,6 +1974,879 @@
 })();
 
 ;
+/* ui/js/desktop/core/session-actions-runtime.js */
+(function () {
+    'use strict';
+
+    const participants = new Map();
+    const defaults = {
+        getWindows: () => [],
+        canLogout: () => false,
+        logout: async () => false,
+        onProblem: () => {}
+    };
+    let config = { ...defaults };
+    let running = null;
+
+    function configure(options = {}) {
+        config = {
+            getWindows: typeof options.getWindows === 'function' ? options.getWindows : config.getWindows,
+            canLogout: typeof options.canLogout === 'function' ? options.canLogout : config.canLogout,
+            logout: typeof options.logout === 'function' ? options.logout : config.logout,
+            onProblem: typeof options.onProblem === 'function' ? options.onProblem : config.onProblem
+        };
+        return api;
+    }
+
+    function register(windowId, participant) {
+        const id = String(windowId || '').trim();
+        if (!id) throw new TypeError('A session action requires a window id');
+        if (participant == null) {
+            participants.delete(id);
+            return () => {};
+        }
+        if (typeof participant.inspect !== 'function' ||
+            typeof participant.decide !== 'function' ||
+            typeof participant.save !== 'function') {
+            throw new TypeError('A session action requires inspect, decide, and save functions');
+        }
+        participants.set(id, participant);
+        return () => {
+            if (participants.get(id) === participant) participants.delete(id);
+        };
+    }
+
+    function requestLogout() {
+        if (running) return running;
+        const wrapped = logoutOnce().finally(() => {
+            if (running === wrapped) running = null;
+        });
+        running = wrapped;
+        return wrapped;
+    }
+
+    async function logoutOnce() {
+        if (!await allowed()) return false;
+        let windows;
+        try {
+            windows = await currentWindows();
+        } catch (_) {
+            return problem('state_unavailable');
+        }
+
+        const records = [];
+        for (const win of windows) {
+            const participant = participants.get(win.id);
+            if (win.hasBeforeClose && !participant) {
+                return problem('unknown_guard', win);
+            }
+            if (!participant) continue;
+            let state;
+            try {
+                state = await inspect(participant);
+            } catch (_) {
+                return problem('state_unavailable', win);
+            }
+            records.push({ win, participant, state, decision: state.dirty ? null : 'keep' });
+        }
+
+        // Collect every choice before any save, draft mutation, or close-side effect.
+        for (const record of records) {
+            if (!record.state.dirty) continue;
+            let choice;
+            try {
+                choice = await record.participant.decide(publicSnapshot(record.win, record.state));
+            } catch (_) {
+                return problem('state_unavailable', record.win);
+            }
+            if (choice === 'cancel') return false;
+            if (choice !== 'save' && choice !== 'keep') return problem('state_unavailable', record.win);
+            record.decision = choice;
+        }
+
+        if (!await validate(records, windows)) return false;
+        if (!await allowed()) return false;
+
+        for (const record of records) {
+            if (record.decision !== 'save' || !record.state.dirty) continue;
+            if (!await validate(records, windows)) return false;
+            let result;
+            try {
+                result = await record.participant.save(record.state.revision);
+            } catch (_) {
+                return problem('save_failed', record.win);
+            }
+            if (!result || result.revision !== record.state.revision) {
+                return problem('save_failed', record.win);
+            }
+            let state;
+            try {
+                state = await inspect(record.participant);
+            } catch (_) {
+                return problem('state_unavailable', record.win);
+            }
+            if (state.revision !== result.revision) return problem('content_changed', record.win);
+            if (state.dirty) return problem('save_failed', record.win);
+            record.state = state;
+        }
+
+        if (!await validate(records, windows)) return false;
+        if (!await allowed()) return false;
+        try {
+            return (await config.logout()) === true;
+        } catch (_) {
+            return problem('logout_failed');
+        }
+    }
+
+    async function validate(records, expectedWindows) {
+        let windows;
+        try {
+            windows = await currentWindows();
+        } catch (_) {
+            return problem('state_unavailable');
+        }
+        if (!sameWindows(expectedWindows, windows)) return problem('window_set_changed');
+        const expectedParticipantIDs = records.map(record => record.win.id).sort();
+        const actualParticipantIDs = windows.filter(win => participants.has(win.id)).map(win => win.id).sort();
+        const staleParticipantIDs = [...participants.keys()].filter(id => !windows.some(win => win.id === id));
+        if (staleParticipantIDs.length || expectedParticipantIDs.length !== actualParticipantIDs.length ||
+            expectedParticipantIDs.some((id, index) => id !== actualParticipantIDs[index])) {
+            return problem('window_set_changed');
+        }
+
+        for (const record of records) {
+            const win = windows.find(candidate => candidate.id === record.win.id);
+            if (!win || participants.get(record.win.id) !== record.participant) {
+                return problem('window_set_changed', record.win);
+            }
+            let state;
+            try {
+                state = await inspect(record.participant);
+            } catch (_) {
+                return problem('state_unavailable', record.win);
+            }
+            if (state.revision !== record.state.revision || (!record.state.dirty && state.dirty)) {
+                return problem('content_changed', record.win);
+            }
+            // An autosave may finish while another app's decision is open. The
+            // unchanged revision proves it saved the same editable content, so
+            // accept that transition and avoid an unnecessary second save.
+            record.state = state;
+        }
+        return true;
+    }
+
+    async function inspect(participant) {
+        const value = await participant.inspect();
+        if (!value || typeof value.dirty !== 'boolean' || !validRevision(value.revision)) {
+            throw new TypeError('Session action inspect returned an invalid snapshot');
+        }
+        return {
+            dirty: value.dirty,
+            revision: value.revision,
+            label: String(value.label || ''),
+            detail: String(value.detail || '')
+        };
+    }
+
+    function validRevision(value) {
+        return value === null || typeof value === 'string' || typeof value === 'boolean' ||
+            (typeof value === 'number' && Number.isFinite(value));
+    }
+
+    function publicSnapshot(win, state) {
+        return Object.freeze({
+            id: win.id,
+            appId: win.appId,
+            title: win.title,
+            dirty: state.dirty,
+            revision: state.revision,
+            label: state.label,
+            detail: state.detail
+        });
+    }
+
+    async function currentWindows() {
+        const source = await config.getWindows();
+        if (!Array.isArray(source)) throw new TypeError('getWindows must return an array');
+        const seen = new Set();
+        return source.map(value => {
+            if (!value || typeof value !== 'object') throw new TypeError('getWindows returned an invalid window');
+            const id = String(value && value.id || '').trim();
+            if (!id || seen.has(id)) throw new TypeError('getWindows returned an invalid window id');
+            seen.add(id);
+            return {
+                id,
+                appId: String(value.appId || ''),
+                title: String(value.title || ''),
+                hasBeforeClose: typeof value.beforeClose === 'function' || value.beforeClose === true || value.hasBeforeClose === true
+            };
+        }).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    }
+
+    function sameWindows(left, right) {
+        return left.length === right.length && left.every((win, index) =>
+            win.id === right[index].id && win.appId === right[index].appId &&
+            win.hasBeforeClose === right[index].hasBeforeClose);
+    }
+
+    async function allowed() {
+        try { return await config.canLogout() === true; }
+        catch (_) { return false; }
+    }
+
+    async function problem(code, win) {
+        try {
+            await config.onProblem({ code, windowId: win?.id || '', title: win?.title || '' });
+        } catch (_) { /* Problem reporting must not turn a blocked logout into an unhandled rejection. */ }
+        return false;
+    }
+
+    const api = { configure, register, requestLogout };
+    window.AuraDesktopSessionActions = api;
+})();
+
+;
+/* ui/js/desktop/core/workspace-manager-runtime.js */
+(function () {
+    'use strict';
+
+    const MAX_WORKSPACES = 8;
+    const MAX_NAME_LENGTH = 64;
+    const MAX_SAFE_ID = Number.MAX_SAFE_INTEGER;
+    const DEFAULT_LAYOUT = Object.freeze({
+        version: 1,
+        revision: 1,
+        next_id: 4,
+        workspaces: Object.freeze([{ id: '1', name: '' }, { id: '2', name: '' }, { id: '3', name: '' }]),
+        removed_to: Object.freeze({})
+    });
+    const DEFAULT_SETTINGS = Object.freeze({
+        'session.windows': '',
+        'appearance.wallpaper_by_space': '{}',
+        'appearance.wallpaper': 'groupshoot'
+    });
+
+    const listeners = new Set();
+    let config = {
+        api: null,
+        readonly: () => false,
+        t: key => key,
+        mountDialog: null,
+        onChange: () => {},
+        onConflict: () => {}
+    };
+    let current = { layout: cloneLayout(DEFAULT_LAYOUT), settings: { ...DEFAULT_SETTINGS } };
+    let mutationPromise = null;
+    let dialog = null;
+    let dialogUnmount = null;
+    let launcherFocus = null;
+    let announcement = '';
+
+    function cloneLayout(layout) {
+        return {
+            version: layout.version,
+            revision: layout.revision,
+            next_id: layout.next_id,
+            workspaces: layout.workspaces.map(workspace => ({ id: workspace.id, name: workspace.name })),
+            removed_to: { ...layout.removed_to }
+        };
+    }
+
+    function cloneSnapshot(snapshot) {
+        return { layout: cloneLayout(snapshot.layout), settings: { ...snapshot.settings } };
+    }
+
+    function normalizeSnapshot(value) {
+        if (!value || typeof value !== 'object') throw new TypeError('Workspace state must be an object');
+        const layout = value.layout;
+        if (!layout || layout.version !== 1 || !Number.isSafeInteger(layout.revision) || layout.revision < 1 ||
+            !Number.isSafeInteger(layout.next_id) || layout.next_id < 1 || layout.next_id > MAX_SAFE_ID ||
+            !Array.isArray(layout.workspaces) || layout.workspaces.length < 1 || layout.workspaces.length > MAX_WORKSPACES) {
+            throw new TypeError('Workspace layout is invalid');
+        }
+        const seen = new Set();
+        const active = new Set();
+        let maxID = 0;
+        const workspaces = layout.workspaces.map(item => {
+            if (!item || typeof item.id !== 'string' || !/^[1-9]\d*$/.test(item.id)) throw new TypeError('Workspace id is invalid');
+            const numeric = Number(item.id);
+            if (!Number.isSafeInteger(numeric) || String(numeric) !== item.id || seen.has(item.id)) throw new TypeError('Workspace id is invalid');
+            if (typeof item.name !== 'string' || item.name !== item.name.trim() || Array.from(item.name).length > MAX_NAME_LENGTH || /[\u0000-\u001f\u007f]/u.test(item.name)) {
+                throw new TypeError('Workspace name is invalid');
+            }
+            seen.add(item.id);
+            active.add(item.id);
+            maxID = Math.max(maxID, numeric);
+            return { id: item.id, name: item.name };
+        });
+        const removed = layout.removed_to == null ? {} : layout.removed_to;
+        if (!removed || typeof removed !== 'object' || Array.isArray(removed)) throw new TypeError('Workspace redirects are invalid');
+        const removedTo = {};
+        for (const [removedID, target] of Object.entries(removed)) {
+            if (!/^[1-9]\d*$/.test(removedID) || !Number.isSafeInteger(Number(removedID)) || String(Number(removedID)) !== removedID ||
+                seen.has(removedID) || typeof target !== 'string' || !active.has(target)) throw new TypeError('Workspace redirect is invalid');
+            maxID = Math.max(maxID, Number(removedID));
+            removedTo[removedID] = target;
+        }
+        if (layout.next_id <= maxID) throw new TypeError('Workspace next id is invalid');
+        const settings = {};
+        const sourceSettings = value.settings && typeof value.settings === 'object' ? value.settings : {};
+        for (const key of Object.keys(DEFAULT_SETTINGS)) {
+            const setting = sourceSettings[key];
+            settings[key] = typeof setting === 'string' ? setting : DEFAULT_SETTINGS[key];
+        }
+        return { layout: { version: 1, revision: layout.revision, next_id: layout.next_id, workspaces, removed_to: removedTo }, settings };
+    }
+
+    function configure(options = {}) {
+        config = {
+            api: typeof options.api === 'function' ? options.api : config.api,
+            readonly: typeof options.readonly === 'function' ? options.readonly : config.readonly,
+            t: typeof options.t === 'function' ? options.t : config.t,
+            mountDialog: typeof options.mountDialog === 'function' ? options.mountDialog : config.mountDialog,
+            onChange: typeof options.onChange === 'function' ? options.onChange : config.onChange,
+            onConflict: typeof options.onConflict === 'function' ? options.onConflict : config.onConflict
+        };
+        return api;
+    }
+
+    function snapshot() {
+        return cloneSnapshot(current);
+    }
+
+    function adopt(value, reason = 'adopt') {
+        const incoming = normalizeSnapshot(value);
+        if (incoming.layout.revision < current.layout.revision) return false;
+        current = incoming;
+        notify(reason);
+        return true;
+    }
+
+    function subscribe(listener) {
+        if (typeof listener !== 'function') throw new TypeError('Workspace subscriber must be a function');
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+    }
+
+    function notify(reason) {
+        const value = snapshot();
+        try { config.onChange(value, reason); } catch (_) { /* UI reconciliation cannot invalidate an accepted server snapshot. */ }
+        for (const listener of [...listeners]) {
+            try { listener(snapshot(), reason); } catch (_) { /* One subscriber must not block the others. */ }
+        }
+        if (dialog && !dialog.hidden) renderDialog({ preserve: true });
+    }
+
+    function workspace(id) {
+        const key = String(id || '');
+        const found = current.layout.workspaces.find(item => item.id === key);
+        return found ? { ...found } : null;
+    }
+
+    function resolveId(id) {
+        let key = String(id || current.layout.workspaces[0]?.id || '1');
+        const visited = new Set();
+        while (!current.layout.workspaces.some(item => item.id === key)) {
+            if (visited.has(key) || !Object.hasOwn(current.layout.removed_to, key)) return current.layout.workspaces[0]?.id || '1';
+            visited.add(key);
+            key = current.layout.removed_to[key];
+        }
+        return key;
+    }
+
+    function name(id) {
+        const record = workspace(resolveId(id));
+        return record?.name || String(config.t('desktop.space_n')).replace('{{n}}', record?.id || String(id));
+    }
+
+    function isReadonly() {
+        try { return config.readonly() === true; } catch (_) { return true; }
+    }
+
+    async function load() {
+        if (typeof config.api !== 'function') throw new Error('Workspace API is not configured');
+        const result = await config.api('/api/desktop/workspaces', { method: 'GET' });
+        const state = result && result.layout ? result : result?.state;
+        if (!adopt(state, 'load')) throw new Error('Workspace state is older than the current state');
+        return snapshot();
+    }
+
+    function add(nameValue = '') { return mutate({ operation: 'add', name: String(nameValue || '') }); }
+    function rename(id, nameValue) { return mutate({ operation: 'rename', id: String(id || ''), name: String(nameValue || '') }); }
+    function reorder(order) { return mutate({ operation: 'reorder', order: Array.isArray(order) ? order.map(String) : [] }); }
+    function remove(id, moveTo) { return mutate({ operation: 'delete', id: String(id || ''), move_to: String(moveTo || '') }); }
+
+    function mutate(command) {
+        if (isReadonly()) return Promise.reject(new Error('desktop_readonly'));
+        if (mutationPromise) return Promise.reject(new Error('workspace_mutation_busy'));
+        if (typeof config.api !== 'function') return Promise.reject(new Error('workspace_api_unavailable'));
+        const body = { ...command, revision: current.layout.revision };
+        const pending = config.api('/api/desktop/workspaces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(result => {
+            const state = result && result.layout ? result : result?.state;
+            if (!adopt(state, 'mutation')) throw new Error('Workspace response is stale');
+            return snapshot();
+        }).catch(error => {
+            if ((error?.body?.code === 'workspace_revision_conflict' || error?.body?.code === 'workspace_revision_required') && error.body.state) {
+                adopt(error.body.state, 'conflict');
+                try { config.onConflict(snapshot(), error.body); } catch (_) { /* Keep the original conflict visible to the caller. */ }
+            }
+            throw error;
+        }).finally(() => {
+            if (mutationPromise === pending) mutationPromise = null;
+            if (dialog && !dialog.hidden) renderDialog({ preserve: true });
+        });
+        mutationPromise = pending;
+        if (dialog && !dialog.hidden) renderDialog({ preserve: true });
+        return pending;
+    }
+
+    function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+    }
+
+    function text(key, variables) {
+        const translated = String(config.t(key, variables));
+        return translated === key ? key : translated;
+    }
+
+    function openManager() {
+        if (!document.body) return false;
+        if (dialog && !dialog.hidden) return true;
+        launcherFocus = document.activeElement;
+        if (!dialog) {
+            dialog = document.createElement('div');
+            dialog.id = 'vd-workspace-manager';
+            dialog.className = 'vd-workspace-manager';
+            dialog.hidden = true;
+            dialog.addEventListener('click', event => {
+                if (event.target === dialog || event.target.closest('[data-workspace-dismiss]')) closeManager();
+            });
+            dialog.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeManager();
+                }
+                if (event.key === 'Tab') trapDialogFocus(event);
+                if (event.key === 'Tab') event.stopPropagation();
+            });
+            if (config.mountDialog) dialogUnmount = config.mountDialog(dialog);
+            else document.body.appendChild(dialog);
+        }
+        dialog.hidden = false;
+        renderDialog({ preserve: false });
+        dialog.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)')?.focus();
+        return true;
+    }
+
+    function closeManager() {
+        if (!dialog) return;
+        dialogUnmount?.();
+        dialogUnmount = null;
+        dialog.remove();
+        dialog = null;
+        const focus = launcherFocus;
+        launcherFocus = null;
+        if (focus?.isConnected) focus.focus();
+    }
+
+    function trapDialogFocus(event) {
+        const focusable = [...dialog.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),[href],[tabindex]:not([tabindex="-1"])')]
+            .filter(element => !element.closest('[hidden]') && element.getAttribute('aria-hidden') !== 'true' &&
+                (typeof element.getClientRects !== 'function' || element.getClientRects().length > 0));
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function captureDialogState() {
+        if (!dialog) return { values: {}, targets: {}, confirmations: new Set(), focus: null };
+        const values = {};
+        dialog.querySelectorAll('[data-workspace-rename]').forEach(input => { values[input.dataset.workspaceRename] = input.value; });
+        const addInput = dialog.querySelector('[data-workspace-add-name]');
+        if (addInput) values.$add = addInput.value;
+        const targets = {};
+        dialog.querySelectorAll('[data-workspace-target]').forEach(select => { targets[select.dataset.workspaceTarget] = select.value; });
+        const confirmations = new Set([...dialog.querySelectorAll('[data-workspace-confirm]:not([hidden])')].map(node => node.dataset.workspaceConfirm));
+        return { values, targets, confirmations, focus: focusDescriptor(document.activeElement) };
+    }
+
+    function focusDescriptor(element) {
+        if (!element || !dialog?.contains(element)) return null;
+        const attributes = [
+            'data-workspace-add-name', 'data-workspace-rename', 'data-workspace-save',
+            'data-workspace-up', 'data-workspace-down', 'data-workspace-delete',
+            'data-workspace-confirm-delete', 'data-workspace-target', 'data-workspace-cancel-delete', 'data-workspace-dismiss'
+        ];
+        const attribute = attributes.find(name => element.hasAttribute(name));
+        const row = element.closest('[data-workspace-row]');
+        return {
+            attribute: attribute || '',
+            value: attribute ? element.getAttribute(attribute) : '',
+            rowIndex: row ? [...dialog.querySelectorAll('[data-workspace-row]')].indexOf(row) : -1,
+            selectionStart: typeof element.selectionStart === 'number' ? element.selectionStart : null,
+            selectionEnd: typeof element.selectionEnd === 'number' ? element.selectionEnd : null
+        };
+    }
+
+    function elementByData(attribute, value) {
+        if (!dialog || !attribute) return null;
+        return [...dialog.querySelectorAll(`[${attribute}]`)].find(element => element.getAttribute(attribute) === value) || null;
+    }
+
+    function restoreDialogFocus(descriptor) {
+        if (!dialog || !descriptor) return;
+        let element = descriptor.attribute ? elementByData(descriptor.attribute, descriptor.value) : null;
+        if (!element && descriptor.rowIndex >= 0) {
+            const rows = dialog.querySelectorAll('[data-workspace-row]');
+            const row = rows[Math.min(descriptor.rowIndex, rows.length - 1)];
+            element = row?.querySelector('input:not(:disabled),button:not(:disabled),select:not(:disabled)') || null;
+        }
+        if (!element) element = dialog.querySelector('button:not(:disabled),input:not(:disabled),select:not(:disabled)');
+        element?.focus();
+        if (element && descriptor.selectionStart !== null && typeof element.setSelectionRange === 'function') {
+            try { element.setSelectionRange(descriptor.selectionStart, descriptor.selectionEnd); } catch (_) { /* Some input types do not expose a selection range. */ }
+        }
+    }
+
+    function renderDialog(options = {}) {
+        if (!dialog || dialog.hidden) return;
+        const previous = options.preserve === false ? null : captureDialogState();
+        const readonly = isReadonly();
+        const busy = Boolean(mutationPromise);
+        const records = current.layout.workspaces;
+        const rows = records.map((item, index) => {
+            const first = index === 0;
+            const last = index === records.length - 1;
+            const others = records.filter(other => other.id !== item.id);
+            const displayName = item.name || name(item.id);
+            const savedTarget = previous?.targets[item.id] || '';
+            const targetSelect = `<option value="">${escapeHTML(text('desktop.workspaces_delete_select_target'))}</option>` +
+                others.map(other => `<option value="${escapeHTML(other.id)}"${savedTarget === other.id ? ' selected' : ''}>${escapeHTML(name(other.id))}</option>`).join('');
+            const deleteMessage = savedTarget
+                ? text('desktop.workspaces_delete_confirm', { name: displayName, target: name(savedTarget) })
+                : text('desktop.workspaces_delete_select_target');
+            return `<li class="vd-workspace-manager-row" data-workspace-row="${escapeHTML(item.id)}">
+                <label class="vd-workspace-manager-name"><span>${escapeHTML(text('desktop.workspaces_name_label'))}</span><input type="text" aria-label="${escapeHTML(text('desktop.workspaces_name_label') + ': ' + displayName)}" maxlength="${MAX_NAME_LENGTH}" data-workspace-rename="${escapeHTML(item.id)}" value="${escapeHTML(previous?.values[item.id] ?? item.name)}" ${readonly || busy ? 'disabled' : ''}></label>
+                <div class="vd-workspace-manager-actions">
+                    <button type="button" data-workspace-save="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.rename') + ': ' + displayName)}" ${readonly || busy ? 'disabled' : ''}>${escapeHTML(text('desktop.rename'))}</button>
+                    <button type="button" data-workspace-up="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.workspaces_move_up') + ': ' + displayName)}" ${readonly || busy || first ? 'disabled' : ''}>↑</button>
+                    <button type="button" data-workspace-down="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.workspaces_move_down') + ': ' + displayName)}" ${readonly || busy || last ? 'disabled' : ''}>↓</button>
+                    ${records.length > 1 ? `<button type="button" class="vd-workspace-manager-delete" data-workspace-delete="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.delete') + ': ' + displayName)}" ${readonly || busy ? 'disabled' : ''}>${escapeHTML(text('desktop.delete'))}</button>` : ''}
+                </div>
+                <div class="vd-workspace-manager-delete-confirm" data-workspace-confirm="${escapeHTML(item.id)}"${previous?.confirmations.has(item.id) ? '' : ' hidden'}>
+                    <p data-workspace-delete-message="${escapeHTML(item.id)}">${escapeHTML(deleteMessage)}</p>
+                    <label><span>${escapeHTML(text('desktop.workspaces_move_windows_to'))}</span><select data-workspace-target="${escapeHTML(item.id)}" ${readonly || busy ? 'disabled' : ''}>${targetSelect}</select></label>
+                    <button type="button" data-workspace-confirm-delete="${escapeHTML(item.id)}" aria-label="${escapeHTML(text('desktop.delete') + ': ' + displayName)}" ${readonly || busy ? 'disabled' : ''}>${escapeHTML(text('desktop.delete'))}</button>
+                    <button type="button" data-workspace-cancel-delete="${escapeHTML(item.id)}" ${busy ? 'disabled' : ''}>${escapeHTML(text('desktop.cancel'))}</button>
+                </div>
+            </li>`;
+        }).join('');
+        const canAdd = records.length < MAX_WORKSPACES;
+        dialog.innerHTML = `<div class="vd-workspace-manager-backdrop" data-workspace-dismiss></div>
+            <section class="vd-workspace-manager-panel" role="dialog" aria-modal="true" aria-labelledby="vd-workspace-manager-title" aria-describedby="vd-workspace-manager-description">
+                <header class="vd-workspace-manager-header"><div><h2 id="vd-workspace-manager-title">${escapeHTML(text('desktop.workspaces_manage'))}</h2><p id="vd-workspace-manager-description">${escapeHTML(text('desktop.workspaces_description'))}</p></div><button type="button" data-workspace-dismiss aria-label="${escapeHTML(text('desktop.close'))}">×</button></header>
+                ${readonly ? `<p class="vd-workspace-manager-readonly" role="status">${escapeHTML(text('desktop.file_dialog_readonly'))}</p>` : ''}
+                <ol class="vd-workspace-manager-list">${rows}</ol>
+                <form class="vd-workspace-manager-add"><label><span>${escapeHTML(text('desktop.workspaces_name_label'))}</span><input type="text" maxlength="${MAX_NAME_LENGTH}" data-workspace-add-name value="${escapeHTML(previous?.values.$add || '')}" ${readonly || busy || !canAdd ? 'disabled' : ''}></label><button type="submit" ${readonly || busy || !canAdd ? 'disabled' : ''}>${escapeHTML(text('desktop.workspaces_add'))}</button></form>
+                ${records.length <= 1 ? `<p class="vd-workspace-manager-limit" role="status">${escapeHTML(text('desktop.workspaces_minimum'))}</p>` : ''}
+                ${records.length >= MAX_WORKSPACES ? `<p class="vd-workspace-manager-limit" role="status">${escapeHTML(text('desktop.workspaces_maximum'))}</p>` : ''}
+                <p class="vd-workspace-manager-status" role="status" aria-live="polite">${escapeHTML(announcement || (busy ? text('desktop.saving') : ''))}</p>
+                <footer><button type="button" data-workspace-dismiss>${escapeHTML(text('desktop.close'))}</button></footer>
+            </section>`;
+        wireDialogEvents();
+        restoreDialogFocus(previous?.focus || null);
+    }
+
+    function wireDialogEvents() {
+        dialog.querySelector('.vd-workspace-manager-add')?.addEventListener('submit', event => {
+            event.preventDefault();
+            const input = dialog.querySelector('[data-workspace-add-name]');
+            const value = input?.value.trim() || '';
+            if (current.layout.workspaces.length >= MAX_WORKSPACES) {
+                announcement = text('desktop.workspaces_maximum');
+                dialog.querySelector('.vd-workspace-manager-status').textContent = announcement;
+                return;
+            }
+            runUIAction(() => add(value), input, { clearAdd: true });
+        });
+        dialog.querySelectorAll('[data-workspace-save]').forEach(button => button.addEventListener('click', () => {
+            const id = button.dataset.workspaceSave;
+            const input = elementByData('data-workspace-rename', id);
+            if (!input) return;
+            runUIAction(() => rename(id, input.value), button, { committedNameID: id });
+        }));
+        dialog.querySelectorAll('[data-workspace-up],[data-workspace-down]').forEach(button => button.addEventListener('click', () => {
+            const order = current.layout.workspaces.map(item => item.id);
+            const index = order.indexOf(button.dataset.workspaceUp || button.dataset.workspaceDown);
+            const delta = button.hasAttribute('data-workspace-up') ? -1 : 1;
+            if (index < 0 || index + delta < 0 || index + delta >= order.length) return;
+            [order[index], order[index + delta]] = [order[index + delta], order[index]];
+            runUIAction(() => reorder(order), button);
+        }));
+        dialog.querySelectorAll('[data-workspace-delete]').forEach(button => button.addEventListener('click', () => {
+            const confirm = elementByData('data-workspace-confirm', button.dataset.workspaceDelete);
+            if (confirm) confirm.hidden = false;
+            confirm?.querySelector('select')?.focus();
+        }));
+        dialog.querySelectorAll('[data-workspace-cancel-delete]').forEach(button => button.addEventListener('click', () => {
+            const confirm = elementByData('data-workspace-confirm', button.dataset.workspaceCancelDelete);
+            if (confirm) confirm.hidden = true;
+        }));
+        dialog.querySelectorAll('[data-workspace-confirm-delete]').forEach(button => button.addEventListener('click', () => {
+            const id = button.dataset.workspaceConfirmDelete;
+            const target = elementByData('data-workspace-target', id)?.value;
+            if (!target || target === id) {
+                announcement = text('desktop.workspaces_invalid');
+                dialog.querySelector('.vd-workspace-manager-status').textContent = announcement;
+                return;
+            }
+            runUIAction(() => remove(id, target), button);
+        }));
+        dialog.querySelectorAll('[data-workspace-target]').forEach(select => select.addEventListener('change', () => {
+            const paragraph = elementByData('data-workspace-delete-message', select.dataset.workspaceTarget);
+            const item = workspace(select.dataset.workspaceTarget);
+            if (paragraph) paragraph.textContent = select.value
+                ? text('desktop.workspaces_delete_confirm', { name: item?.name || name(select.dataset.workspaceTarget), target: name(select.value) })
+                : text('desktop.workspaces_delete_select_target');
+        }));
+    }
+
+    async function runUIAction(action, focusTarget, options = {}) {
+        const focus = focusDescriptor(focusTarget || document.activeElement);
+        announcement = '';
+        try {
+            await action();
+            announcement = text('desktop.workspaces_saved');
+            if (options.clearAdd) {
+                const input = dialog?.querySelector('[data-workspace-add-name]');
+                if (input) input.value = '';
+            }
+            if (options.committedNameID) {
+                const input = elementByData('data-workspace-rename', options.committedNameID);
+                const saved = workspace(options.committedNameID);
+                if (input && saved) input.value = saved.name;
+            }
+        } catch (error) {
+            const code = error?.body?.code || error?.message || '';
+            if (code === 'workspace_limit') announcement = text('desktop.workspaces_limit');
+            else if (code === 'workspace_not_found' || code === 'workspace_invalid') announcement = text('desktop.workspaces_invalid');
+            else if (code === 'desktop_readonly') announcement = text('desktop.file_dialog_readonly');
+            else if (code === 'workspace_revision_conflict' || code === 'workspace_revision_required') announcement = text('desktop.workspaces_conflict');
+            else announcement = text('desktop.workspaces_invalid');
+        }
+        renderDialog({ preserve: true });
+        restoreDialogFocus(focus);
+    }
+
+    const api = {
+        configure, snapshot, adopt, subscribe, workspace, name, resolveId, isReadonly,
+        load, add, rename, reorder, remove, open: openManager, close: closeManager, openManager, closeManager
+    };
+    window.AuraDesktopWorkspaceManager = api;
+})();
+
+;
+/* ui/js/desktop/core/custom-wallpaper-runtime.js */
+(function () {
+    'use strict';
+
+    const states = new WeakMap();
+    const activeTargets = new Set();
+    const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/bmp']);
+
+    function path(value) {
+        if (!isCustom(value)) return '';
+        return value.slice('file:'.length);
+    }
+
+    function isCustom(value) {
+        return typeof value === 'string' && value.startsWith('file:');
+    }
+
+    function stateFor(target) {
+        let state = states.get(target);
+        if (!state) {
+            state = { generation: 0, controller: null, objectURL: '', value: '', fit: 'cover' };
+            states.set(target, state);
+        }
+        activeTargets.add(target);
+        return state;
+    }
+
+    function revokeState(state) {
+        if (state.controller) state.controller.abort();
+        state.controller = null;
+        if (state.objectURL) URL.revokeObjectURL(state.objectURL);
+        state.objectURL = '';
+    }
+
+    function emitStatus(target, pathValue, status, code, callback) {
+        if (target && target.dataset) target.dataset.customWallpaperState = status;
+        if (typeof callback === 'function') {
+            try { callback(pathValue, status, code || ''); } catch (_) { /* status observers cannot block wallpaper updates */ }
+        }
+    }
+
+    function clearVisual(target, state) {
+        if (!target || !target.style) return;
+        target.style.removeProperty('--vd-custom-wallpaper-image');
+        target.style.removeProperty('--vd-custom-wallpaper-fit');
+        if (target.dataset) delete target.dataset.customWallpaperState;
+        if (state) state.value = '';
+    }
+
+    function isCurrent(target, state, generation, signal, options, value, relative) {
+        if (signal.aborted || states.get(target) !== state || state.generation !== generation) return false;
+        if (options.signal && options.signal.aborted) return false;
+        if (typeof options.isCurrent === 'function') {
+            try { return !!options.isCurrent(value, relative); } catch (_) { return false; }
+        }
+        return true;
+    }
+
+    async function decodeImage(objectURL) {
+        if (typeof Image !== 'function') throw new Error('image_decoder_unavailable');
+        const image = new Image();
+        image.decoding = 'async';
+        image.src = objectURL;
+        if (typeof image.decode === 'function') {
+            await image.decode();
+        } else {
+            await new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = () => reject(new Error('wallpaper_invalid_image'));
+            });
+        }
+        if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth > 8192 || image.naturalHeight > 8192 || image.naturalWidth * image.naturalHeight > 16_000_000) {
+            throw new Error('wallpaper_invalid_image');
+        }
+    }
+
+    async function apply(target, value, fit, options) {
+        options = options && typeof options === 'object' ? options : {};
+        const relative = path(value);
+        if (!target || !target.style || !target.dataset || !relative) {
+            if (target) release(target);
+            emitStatus(target, relative, 'invalid', 'wallpaper_invalid_path', options.onStatus);
+            return false;
+        }
+
+        const state = stateFor(target);
+        revokeState(state);
+        state.generation++;
+        const generation = state.generation;
+        const controller = new AbortController();
+        state.controller = controller;
+        state.value = value;
+        state.fit = fit === 'contain' ? 'contain' : 'cover';
+        const signal = controller.signal;
+        const externalSignal = options.signal;
+        const abortWithExternal = () => controller.abort();
+        if (externalSignal) {
+            if (externalSignal.aborted) controller.abort();
+            else externalSignal.addEventListener('abort', abortWithExternal, { once: true });
+        }
+        emitStatus(target, relative, 'loading', '', options.onStatus);
+
+        const current = () => isCurrent(target, state, generation, signal, options, value, relative);
+        let objectURL = '';
+        try {
+            if (!current()) return false;
+            const query = new URLSearchParams({ path: relative });
+            const response = await fetch('/api/desktop/wallpaper?' + query.toString(), {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-store',
+                signal
+            });
+            if (!current()) return false;
+            if (!response.ok) {
+                let code = 'wallpaper_load_failed';
+                try {
+                    const body = await response.json();
+                    if (typeof body.code === 'string' && body.code.startsWith('wallpaper_')) code = body.code;
+                } catch (_) { /* HTTP status still produces a stable generic failure */ }
+                const error = new Error(code);
+                error.code = code;
+                error.status = response.status;
+                throw error;
+            }
+
+            const blob = await response.blob();
+            if (!current()) return false;
+            if (blob.size <= 0 || blob.size > 20 * 1024 * 1024 || !allowedTypes.has(String(blob.type || '').toLowerCase())) {
+                const error = new Error('wallpaper_invalid_image');
+                error.code = error.message;
+                throw error;
+            }
+            objectURL = URL.createObjectURL(blob);
+            await decodeImage(objectURL);
+            if (!current()) {
+                URL.revokeObjectURL(objectURL);
+                objectURL = '';
+                return false;
+            }
+
+            state.objectURL = objectURL;
+            objectURL = '';
+            target.style.setProperty('--vd-custom-wallpaper-image', `url(${JSON.stringify(state.objectURL)})`);
+            target.style.setProperty('--vd-custom-wallpaper-fit', state.fit);
+            emitStatus(target, relative, 'ready', '', options.onStatus);
+            return true;
+        } catch (error) {
+            if (objectURL) URL.revokeObjectURL(objectURL);
+            if (!current()) return false;
+            target.style.removeProperty('--vd-custom-wallpaper-image');
+            target.style.removeProperty('--vd-custom-wallpaper-fit');
+            const code = String(error && (error.code || error.message) || 'wallpaper_load_failed');
+            const stateName = code === 'wallpaper_not_found' ? 'missing'
+                : code === 'wallpaper_invalid_path' || code === 'wallpaper_invalid_image' || code === 'wallpaper_unsupported_format' || code === 'wallpaper_format_mismatch' || code === 'wallpaper_too_large' || code === 'wallpaper_dimensions_exceeded' || code === 'wallpaper_pixel_limit'
+                    ? 'invalid'
+                    : 'error';
+            emitStatus(target, relative, stateName, code, options.onStatus);
+            return false;
+        } finally {
+            if (externalSignal) externalSignal.removeEventListener('abort', abortWithExternal);
+            if (state.controller === controller) state.controller = null;
+        }
+    }
+
+    function release(target) {
+        if (!target) return;
+        const state = states.get(target);
+        if (state) {
+            state.generation++;
+            revokeState(state);
+            state.value = '';
+        }
+        clearVisual(target, state);
+        activeTargets.delete(target);
+    }
+
+    function releaseAll() {
+        for (const target of activeTargets) release(target);
+        activeTargets.clear();
+    }
+
+    window.addEventListener('pagehide', releaseAll);
+    window.AuraDesktopCustomWallpaper = Object.freeze({ isCustom, path, apply, release });
+})();
+
+;
 /* ui/js/desktop/core/desktop-foundation.js */
 // AUDIT(Task27 / 2026-06-02): All 24 `.style.*` assignments in this file were reviewed.
 // No tokenizable hard-coded colors/sizes/radii were found. Every match is one of:
@@ -2292,6 +3170,7 @@
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
         'appearance.wallpaper_by_space': '{}',
+        'appearance.wallpaper_fit': 'cover',
         'appearance.theme': 'standard',
         'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
@@ -2691,6 +3570,7 @@
         body.dataset.wallpaper = (typeof wallpaperForActiveSpace === 'function')
             ? wallpaperForActiveSpace()
             : settingValue('appearance.wallpaper');
+        syncDesktopCustomWallpaper();
         body.dataset.theme = settingValue('appearance.theme');
         applyDesktopThemeAttributes(body);
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
@@ -3073,6 +3953,9 @@
                 throw err;
             }
             if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            if (String(url).split('?')[0] === '/api/desktop/settings' && typeof reconcileDesktopSettingsResponse === 'function') {
+                reconcileDesktopSettingsResponse(body);
+            }
             return body;
         }
     }
@@ -3090,6 +3973,7 @@
 
     function disposeAppWindow(win) {
         if (!win) return;
+        window.AuraDesktopSessionActions?.register(win.id, null);
         const cleanup = state.windowCleanups.get(win.id);
         if (cleanup) {
             state.windowCleanups.delete(win.id);
@@ -3229,7 +4113,7 @@
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
-        state.bootstrap = await api('/api/desktop/bootstrap');
+        acceptDesktopBootstrap(await api('/api/desktop/bootstrap'));
         state.desktopFiles = await resolveDesktopFilesFromBootstrap(state.bootstrap);
         return state.bootstrap;
     }
@@ -4072,14 +4956,7 @@
         });
         if (!owned) return false;
         const written = { 'appearance.wallpaper': next.wallpaper, 'appearance.wallpaper_by_space': '{}' };
-        const last = await api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings: written })
-        });
-        if (!state.bootstrap) state.bootstrap = {};
-        const remote = last && last.settings && typeof last.settings === 'object' ? last.settings : {};
-        state.bootstrap.settings = Object.assign({}, desktopSettings(), remote, written);
+        await writeDesktopSettings(written);
         return true;
     }
 
@@ -12676,14 +13553,63 @@ function wireWindow(win, id) {
     // Keys with a fixed id shape are only saved and restored when they match it.
     const SESSION_CONTEXT_PATTERNS = { flowId: /^flow_[a-z0-9]{10}$/ };
     let sessionPersistTimer = 0;
+    let desktopSessionEnded = false;
+
+    function registerWindowSessionAction(id, participant) {
+        if (!state.windows.has(id) && participant) return;
+        return window.AuraDesktopSessionActions?.register(id, participant);
+    }
+
+    async function decideDesktopSessionAction(options = {}) {
+        const title = options.title || t('desktop.session_controls');
+        const label = options.label || options.detail || title;
+        const choice = await modalDialog({
+            title: t('desktop.session_action_question_title'),
+            message: t('desktop.session_action_question_message', { title, label }),
+            choices: [
+                { value: 'keep', label: t('desktop.session_action_keep') },
+                { value: 'save', label: t('desktop.session_action_save') }
+            ]
+        });
+        return choice === 'save' || choice === 'keep' ? choice : 'cancel';
+    }
+
+    function syncDesktopSessionControls() {
+        const footer = document.getElementById('vd-start-session');
+        if (!footer) return;
+        const enabled = window._auragoAuthEnabled === true && !desktopSessionEnded;
+        footer.hidden = !enabled;
+        footer.setAttribute('aria-label', t('desktop.session_controls'));
+        footer.querySelector('span').textContent = t('desktop.session_signed_in');
+        const button = footer.querySelector('button');
+        button.textContent = t('desktop.session_logout');
+        button.disabled = !enabled || !!window._logoutInProgress;
+    }
+
+    function initDesktopSessionActions() {
+        window.AuraDesktopSessionActions?.configure({
+            getWindows: () => [...state.windows.values()].filter(win => !win.isGadget && !win.closing && win.element?.isConnected)
+                .map(win => ({ id: win.id, title: win.title || win.element.querySelector('.vd-window-title')?.textContent || win.appId,
+                    appId: win.appId, beforeClose: win.beforeClose })),
+            canLogout: () => window._auragoAuthEnabled === true && !desktopSessionEnded && !window._logoutInProgress,
+            logout: () => window.performAuthenticatedLogout(),
+            onProblem: async problem => {
+                if (problem.code === 'auth_disabled' || desktopSessionEnded) return;
+                if (problem.windowId && state.windows.has(problem.windowId)) focusWindow(problem.windowId);
+                const prefix = problem.code === 'unknown_guard' ? 'desktop.logout_unavailable'
+                    : problem.code === 'save_failed' ? 'desktop.logout_save_failed' : 'desktop.logout_changed';
+                await modalDialog({ title: t(prefix + '_title'), message: t(prefix + '_message', { title: problem.title || t('desktop.session_controls') }) });
+            }
+        });
+        document.getElementById('vd-start-logout')?.addEventListener('click', () => { closeStartMenu(); void window.performLogout(); });
+        document.addEventListener('aurago:auth-status', syncDesktopSessionControls);
+        document.addEventListener('aurago:auth-ended', () => { desktopSessionEnded = true; syncDesktopSessionControls(); });
+        window.addEventListener('aurago:language-changed', syncDesktopSessionControls);
+        syncDesktopSessionControls();
+    }
 
     function saveSetting(key, value, keepalive = false) {
-        return api('/api/desktop/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, value }),
-            keepalive
-        });
+        return writeDesktopSettings({ [key]: value }, keepalive);
     }
 
     function defaultDockPinIds() {
@@ -12792,7 +13718,7 @@ function wireWindow(win, id) {
     }
 
     function scheduleSessionPersist() {
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = window.setTimeout(persistSessionSnapshot, 800);
     }
@@ -12800,14 +13726,10 @@ function wireWindow(win, id) {
     async function persistSessionSnapshot(keepalive = false) {
         if (sessionPersistTimer) window.clearTimeout(sessionPersistTimer);
         sessionPersistTimer = 0;
-        if (!sessionRestoreEnabled() || state.sessionRestoring) return;
+        if (!sessionRestoreEnabled() || state.sessionRestoring || desktopSessionEnded) return;
         try {
-            const snapshot = captureSessionSnapshot();
-            const json = JSON.stringify(snapshot);
-            await saveSetting('session.windows', json, keepalive);
-            if (state.bootstrap) {
-                state.bootstrap.settings = Object.assign({}, state.bootstrap.settings || {}, { 'session.windows': json });
-            }
+            await queueDesktopSettingsWrite(() => ({ settings: { 'session.windows': JSON.stringify(captureSessionSnapshot()) },
+                revision: desktopWorkspaceRevision() }), keepalive);
         } catch (err) {
             if (!keepalive) showDesktopNotification({ title: t('desktop.notification'), message: err.message });
         }
@@ -13000,14 +13922,7 @@ function wireWindow(win, id) {
     function saveDesktopPreference(key, value) {
         if (desktopReadonly()) return Promise.reject(new Error(t('desktop.action_unavailable')));
         const updates = desktopPreferenceUpdates(key, value);
-        const write = async () => {
-            const result = await api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ settings: updates })
-            });
-            if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = result.settings || Object.assign({}, desktopSettings(), updates);
+        return writeDesktopSettings(updates).then(async result => {
             applyDesktopSettings();
             Object.entries(updates).forEach(([setting, stored]) => applySoundSettingsChange(setting, stored));
             if (key === 'windows.restore_session' && String(value) === 'true') await persistSessionSnapshot();
@@ -13019,11 +13934,169 @@ function wireWindow(win, id) {
             }
             window.dispatchEvent(new CustomEvent('aurago:desktop-settings', { detail: { keys: Object.keys(updates) } }));
             return result;
-        };
-        // A failed save is reported to its caller, but must not poison later saves.
-        const pending = desktopPreferenceQueue.then(write);
+        });
+    }
+
+    const WORKSPACE_PROTECTED_SETTINGS = ['session.windows', 'appearance.wallpaper_by_space', 'appearance.wallpaper'];
+    let desktopWorkspaceUIReady = false;
+    let desktopWorkspacePresentation = '';
+
+    function desktopWorkspaceRevision() {
+        return window.AuraDesktopWorkspaceManager?.snapshot().layout.revision || 1;
+    }
+
+    function applyDesktopWorkspaceState(snapshot) {
+        if (!snapshot?.layout) return;
+        if (!state.bootstrap) state.bootstrap = {};
+        state.bootstrap.settings = Object.assign({}, state.bootstrap.settings, snapshot.settings,
+            { 'desktop.workspaces.layout': JSON.stringify(snapshot.layout) });
+        const manager = window.AuraDesktopWorkspaceManager;
+        state.activeSpaceId = manager.resolveId(state.activeSpaceId || '1');
+        state.windows.forEach(win => {
+            if (win.isGadget) return;
+            assignWindowSpace(win, manager.resolveId(win.spaceId || win.element?.dataset.spaceId || '1'));
+        });
+        const presentation = JSON.stringify([snapshot.layout.workspaces, snapshot.layout.removed_to,
+            snapshot.settings?.['appearance.wallpaper'], snapshot.settings?.['appearance.wallpaper_by_space']]);
+        const changed = presentation !== desktopWorkspacePresentation;
+        desktopWorkspacePresentation = presentation;
+        if (!desktopWorkspaceUIReady || !changed) return;
+        applyActiveSpaceWallpaper();
+        applySpaceVisibility();
+        renderSpacePager();
+        renderTaskbar();
+        if (isSpacesOverviewOpen()) renderSpacesOverview();
+        window.dispatchEvent(new CustomEvent('aurago:desktop-settings', { detail: { keys: ['desktop.workspaces.layout'] } }));
+    }
+
+    function initDesktopWorkspaceSettings() {
+        window.AuraDesktopWorkspaceManager?.configure({ api, readonly: desktopReadonly, t, mountDialog: mountDesktopDialog,
+            onChange: applyDesktopWorkspaceState,
+            onConflict: () => showDesktopNotification({ title: t('desktop.notification'), message: t('desktop.workspaces_conflict') }) });
+    }
+
+    function acceptDesktopBootstrap(boot) {
+        const manager = window.AuraDesktopWorkspaceManager;
+        const previous = manager?.snapshot();
+        let layout;
+        try { layout = JSON.parse(boot?.settings?.['desktop.workspaces.layout'] || 'null'); } catch (_) { /* Defaults cover legacy sessions. */ }
+        state.bootstrap = boot;
+        if (!manager) return;
+        if (!layout && previous?.layout.revision === 1) layout = previous.layout;
+        if (layout && layout.revision >= (previous?.layout.revision || 1)) {
+            const settings = {};
+            WORKSPACE_PROTECTED_SETTINGS.forEach(key => { settings[key] = boot.settings[key] ?? desktopSettingDefaults[key]; });
+            manager.adopt({ layout, settings });
+        } else if (previous) {
+            applyDesktopWorkspaceState(previous);
+        }
+    }
+
+    function queueDesktopSettingsWrite(producer, keepalive = false) {
+        const pending = desktopPreferenceQueue.then(async () => {
+            if (desktopReadonly() || desktopSessionEnded) throw new Error(t('desktop.action_unavailable'));
+            const body = producer();
+            let result;
+            try {
+                result = await api('/api/desktop/settings', { method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive });
+            } catch (err) {
+                if (err.body?.code === 'workspace_revision_conflict' || err.body?.code === 'workspace_revision_required') {
+                    if (err.body.state) window.AuraDesktopWorkspaceManager?.adopt(err.body.state);
+                    err.message = t('desktop.workspaces_conflict');
+                }
+                throw err;
+            }
+            if (!state.bootstrap) state.bootstrap = {};
+            if (!state.bootstrap.settings) state.bootstrap.settings = {};
+            for (const [key, value] of Object.entries(body.settings)) {
+                if (!result.workspace || !WORKSPACE_PROTECTED_SETTINGS.includes(key)) {
+                    state.bootstrap.settings[key] = result.settings?.[key] ?? value;
+                }
+            }
+            if (result.workspace) window.AuraDesktopWorkspaceManager?.adopt(result.workspace);
+            return result;
+        });
         desktopPreferenceQueue = pending.catch(() => {});
         return pending;
+    }
+
+    function reconcileDesktopSettingsResponse(result) {
+        const manager = window.AuraDesktopWorkspaceManager;
+        if (!manager || !result?.settings) return;
+        let snapshot = result.workspace;
+        try {
+            const layout = JSON.parse(result.settings['desktop.workspaces.layout'] || 'null');
+            if (layout && layout.revision > (snapshot?.layout.revision || 0)) {
+                const settings = {};
+                WORKSPACE_PROTECTED_SETTINGS.forEach(key => { settings[key] = result.settings[key] ?? desktopSettingDefaults[key]; });
+                snapshot = { layout, settings };
+            }
+        } catch (_) { /* A malformed or obsolete response cannot replace the accepted layout. */ }
+        if (!snapshot && !Object.hasOwn(result.settings, 'desktop.workspaces.layout')) return;
+        if (snapshot) manager.adopt(snapshot);
+        const latest = manager.snapshot();
+        // Pet and phone controls still consume the full settings response.
+        Object.assign(result.settings, latest.settings, { 'desktop.workspaces.layout': JSON.stringify(latest.layout) });
+    }
+
+    function writeDesktopSettings(settings, keepalive = false) {
+        const protectedKeys = WORKSPACE_PROTECTED_SETTINGS.filter(key => Object.hasOwn(settings, key));
+        const identity = () => {
+            const layout = window.AuraDesktopWorkspaceManager?.snapshot().layout;
+            return JSON.stringify(layout && [layout.workspaces, layout.removed_to, layout.next_id]);
+        };
+        const expectedLayout = identity();
+        const baseline = protectedKeys.map(key => settingValue(key));
+        return queueDesktopSettingsWrite(() => {
+            // A queued session save may advance the revision without changing this command's inputs.
+            if (protectedKeys.length && (identity() !== expectedLayout || protectedKeys.some((key, index) => settingValue(key) !== baseline[index]))) {
+                throw new Error(t('desktop.workspaces_conflict'));
+            }
+            return { settings, ...(protectedKeys.length ? { revision: desktopWorkspaceRevision() } : {}) };
+        }, keepalive);
+    }
+
+    let desktopCustomWallpaperKey = '';
+    function syncDesktopCustomWallpaper() {
+        const body = document.body;
+        const runtime = window.AuraDesktopCustomWallpaper;
+        if (!body || !runtime) return;
+        const value = body.dataset.wallpaper;
+        const fit = settingValue('appearance.wallpaper_fit') || 'cover';
+        const key = JSON.stringify([value, fit]);
+        if (key === desktopCustomWallpaperKey) return;
+        desktopCustomWallpaperKey = key;
+        if (!runtime.isCustom(value)) {
+            runtime.release(body);
+            updateDesktopWallpaperStatus('', 'ready');
+            return;
+        }
+        void runtime.apply(body, value, fit, { isCurrent: candidate => body.dataset.wallpaper === candidate,
+            onStatus: updateDesktopWallpaperStatus });
+    }
+
+    function updateDesktopWallpaperStatus(path, status) {
+        let notice = document.getElementById('vd-wallpaper-status');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'vd-wallpaper-status';
+            notice.className = 'vd-wallpaper-status';
+            notice.setAttribute('role', 'status');
+            document.getElementById('vd-workspace')?.appendChild(notice);
+        }
+        const failed = ['missing', 'invalid', 'error'].includes(status);
+        const key = status === 'missing' ? 'desktop.wallpaper_missing' : status === 'invalid' ? 'desktop.wallpaper_invalid' : 'desktop.wallpaper_load_failed';
+        notice.hidden = !failed;
+        notice.textContent = failed ? t(key, { path }) : '';
+    }
+
+    async function chooseDesktopWallpaper() {
+        if (desktopReadonly()) return false;
+        const choice = await openDesktopFileDialog({ title: t('desktop.wallpaper_choose'), initialPath: 'Pictures',
+            filters: [{ label: 'PNG, JPEG, WebP, BMP', extensions: ['.png', '.jpg', '.jpeg', '.webp', '.bmp'] }] });
+        if (choice.canceled || !choice.path) return false;
+        return saveDesktopWallpaper('file:' + choice.path);
     }
 
 ;
@@ -13341,6 +14414,38 @@ function wireWindow(win, id) {
 
     if (!state.activeSpaceId) state.activeSpaceId = DEFAULT_SPACE_ID;
 
+    function workspaceRecords() {
+        const snapshot = window.AuraDesktopWorkspaceManager?.snapshot?.();
+        const configured = snapshot?.layout?.workspaces;
+        const records = Array.isArray(configured) && configured.length
+            ? configured.filter(item => item && typeof item.id === 'string' && item.id)
+            : SPACE_IDS.map(id => ({ id, name: '' }));
+        if (!records.length) return [{ id: DEFAULT_SPACE_ID, name: '' }];
+        SPACE_IDS.splice(0, SPACE_IDS.length, ...records.map(item => item.id));
+        return records;
+    }
+
+    function workspaceIDs() {
+        return workspaceRecords().map(item => item.id);
+    }
+
+    function workspaceRecord(id) {
+        return workspaceRecords().find(item => item.id === String(id)) || null;
+    }
+
+    function workspaceName(id) {
+        const record = workspaceRecord(id);
+        const customName = record && typeof record.name === 'string' ? record.name.trim() : '';
+        return customName || t('desktop.space_n').replace('{{n}}', String(id));
+    }
+
+    function workspaceShortName(id) {
+        const record = workspaceRecord(id);
+        return record && typeof record.name === 'string' && record.name.trim()
+            ? record.name.trim()
+            : String(id);
+    }
+
     function spacesEnabled() {
         return !isCompactViewport();
     }
@@ -13351,7 +14456,9 @@ function wireWindow(win, id) {
 
     function normalizeWallpaperId(value) {
         const id = String(value || '');
-        return knownWallpaperIds().indexOf(id) >= 0 ? id : 'groupshoot';
+        return knownWallpaperIds().indexOf(id) >= 0 || window.AuraDesktopCustomWallpaper?.isCustom?.(id)
+            ? id
+            : 'groupshoot';
     }
 
     function parseWallpaperBySpace() {
@@ -13362,9 +14469,9 @@ function wireWindow(win, id) {
             if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
             const known = knownWallpaperIds();
             const out = {};
-            SPACE_IDS.forEach(id => {
+            workspaceIDs().forEach(id => {
                 const wallpaper = parsed[id];
-                if (typeof wallpaper === 'string' && known.indexOf(wallpaper) >= 0) out[id] = wallpaper;
+                if (typeof wallpaper === 'string' && (known.indexOf(wallpaper) >= 0 || window.AuraDesktopCustomWallpaper?.isCustom?.(wallpaper))) out[id] = wallpaper;
             });
             return out;
         } catch (err) {
@@ -13382,11 +14489,15 @@ function wireWindow(win, id) {
     function applyActiveSpaceWallpaper() {
         if (document.body) document.body.dataset.wallpaper = wallpaperForActiveSpace();
         syncDesktopThemeFx();
+        if (typeof syncDesktopCustomWallpaper === 'function') syncDesktopCustomWallpaper();
     }
 
     function normalizeSpaceId(id) {
         const value = String(id || DEFAULT_SPACE_ID);
-        return SPACE_IDS.includes(value) ? value : DEFAULT_SPACE_ID;
+        const resolved = window.AuraDesktopWorkspaceManager?.resolveId?.(value);
+        const candidate = resolved ? String(resolved) : value;
+        const ids = workspaceIDs();
+        return ids.includes(candidate) ? candidate : ids[0] || DEFAULT_SPACE_ID;
     }
 
     function windowSpaceId(win) {
@@ -13438,10 +14549,11 @@ function wireWindow(win, id) {
         if (!pager) return;
         pager.hidden = !spacesEnabled();
         pager.setAttribute('aria-label', t('desktop.space'));
-        pager.innerHTML = SPACE_IDS.map(id => {
+        pager.innerHTML = workspaceRecords().map(workspace => {
+            const id = workspace.id;
             const active = normalizeSpaceId(state.activeSpaceId) === id;
-            const label = t('desktop.space_n').replace('{{n}}', id);
-            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(id)}</span></button>`;
+            const label = workspaceName(id);
+            return `<button type="button" class="vd-space-pager-btn${active ? ' active' : ''}" data-space-id="${esc(id)}" aria-label="${esc(label)}" aria-pressed="${active ? 'true' : 'false'}" title="${esc(label)}"><span class="vd-space-pager-label">${esc(workspaceShortName(id))}</span></button>`;
         }).join('');
         wireSpacePagerOverview(pager);
     }
@@ -13476,7 +14588,7 @@ function wireWindow(win, id) {
 
     function cycleSpace(direction) {
         if (!spacesEnabled()) return;
-        const ids = SPACE_IDS;
+        const ids = workspaceIDs();
         const current = normalizeSpaceId(state.activeSpaceId);
         const idx = ids.indexOf(current);
         const next = ids[(idx + direction + ids.length) % ids.length];
@@ -13580,7 +14692,7 @@ function wireWindow(win, id) {
                     <div class="vd-spaces-overview-title">${esc(t('desktop.spaces_overview'))}</div>
                     <button type="button" class="vd-spaces-overview-close" data-action="close-overview">${esc(t('desktop.close'))}</button>
                 </div>
-                <div class="vd-spaces-overview-columns">${SPACE_IDS.map(id => renderSpaceOverviewColumn(id, activeId)).join('')}</div>
+                <div class="vd-spaces-overview-columns">${workspaceRecords().map(workspace => renderSpaceOverviewColumn(workspace.id, activeId)).join('')}</div>
             </div>`;
         wireSpacesOverviewEvents(overlay);
     }
@@ -13591,8 +14703,9 @@ function wireWindow(win, id) {
         const cards = wins.length
             ? wins.map(win => renderSpaceOverviewCard(win)).join('')
             : `<div class="vd-space-column-empty">${esc(t('desktop.spaces_overview_empty'))}</div>`;
+        const label = workspaceName(spaceId);
         return `<section class="vd-space-column${isActive ? ' active' : ''}" data-space-id="${esc(spaceId)}" aria-current="${isActive ? 'true' : 'false'}">
-            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}">${esc(t('desktop.space_n').replace('{{n}}', spaceId))}</button>
+            <button type="button" class="vd-space-column-head" data-space-target="${esc(spaceId)}" aria-label="${esc(label)}">${esc(label)}</button>
             <div class="vd-space-column-body">${cards}</div>
         </section>`;
     }
@@ -21134,43 +22247,31 @@ function updateTaskbarSystemButtonsForMobile() {
                 action: () => saveDesktopWallpaper(value)
             };
         };
-        return options.map(item).concat([{ separator: true }], animated.map(item));
+        return options.map(item).concat([{ separator: true }], animated.map(item), [{ separator: true }, { label: t('desktop.wallpaper_choose'), disabled: desktopReadonly(), action: chooseDesktopWallpaper }]);
     }
 
     async function saveDesktopWallpaper(value) {
         try {
-            const wallpaper = typeof normalizeWallpaperId === 'function' ? normalizeWallpaperId(value) : String(value || 'groupshoot');
-            const updates = [];
-            const nextSettings = Object.assign({}, desktopSettings());
-            if (typeof spacesEnabled === 'function' && spacesEnabled()) {
-                const map = typeof parseWallpaperBySpace === 'function' ? Object.assign({}, parseWallpaperBySpace()) : {};
-                const fallback = settingValue('appearance.wallpaper') || 'groupshoot';
-                SPACE_IDS.forEach(id => {
-                    if (!map[id]) map[id] = fallback;
-                });
+            const wallpaper = normalizeWallpaperId(value);
+            const reloadCustom = wallpaperForActiveSpace() === wallpaper;
+            if (spacesEnabled()) {
+                const map = Object.assign({}, parseWallpaperBySpace());
                 map[normalizeSpaceId(state.activeSpaceId)] = wallpaper;
-                const encoded = JSON.stringify(map);
-                updates.push({ key: 'appearance.wallpaper_by_space', value: encoded });
-                nextSettings['appearance.wallpaper_by_space'] = encoded;
+                await saveDesktopPreference('appearance.wallpaper_by_space', JSON.stringify(map));
             } else {
-                updates.push({ key: 'appearance.wallpaper', value: wallpaper });
-                nextSettings['appearance.wallpaper'] = wallpaper;
+                await saveDesktopPreference('appearance.wallpaper', wallpaper);
             }
-            const results = await Promise.all(updates.map(update => api('/api/desktop/settings', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(update)
-            })));
-            const last = results[results.length - 1];
-            if (!state.bootstrap) state.bootstrap = {};
-            state.bootstrap.settings = last.settings || nextSettings;
-            Object.assign(state.bootstrap.settings, nextSettings);
-            applyDesktopSettings();
-            renderStartButtonIcon();
-            renderIcons();
-            renderWidgets();
+            if (reloadCustom && window.AuraDesktopCustomWallpaper?.isCustom(wallpaper)) {
+                desktopCustomWallpaperKey = '';
+                syncDesktopCustomWallpaper();
+            }
+            return true;
         } catch (err) {
-            showDesktopNotification({ title: t('desktop.notification'), message: err.message || String(err) });
+            const code = err.body?.code || '';
+            const message = code.startsWith('wallpaper_') ? t(code === 'wallpaper_not_found' ? 'desktop.wallpaper_missing' : 'desktop.wallpaper_invalid',
+                { path: window.AuraDesktopCustomWallpaper?.path(value) || '' }) : err.message || String(err);
+            showDesktopNotification({ title: t('desktop.notification'), message });
+            return false;
         }
     }
 
@@ -21490,7 +22591,7 @@ function updateTaskbarSystemButtonsForMobile() {
             SPACE_IDS.forEach(spaceId => {
                 const current = windowSpaceId(item) === spaceId;
                 items.push({
-                    label: t('desktop.move_to_space').replace('{{n}}', spaceId) + (current ? ' ✓' : ''),
+                    label: t('desktop.move_to_space').replace('{{n}}', window.AuraDesktopWorkspaceManager?.name(spaceId) || spaceId) + (current ? ' ✓' : ''),
                     icon: 'grid',
                     fallback: spaceId,
                     action: () => moveWindowToSpace(id, spaceId)
@@ -21593,7 +22694,7 @@ function updateTaskbarSystemButtonsForMobile() {
     function officeAppContext(context) {
         return withDesktopFileDialogs(context, { esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), loadBootstrap, updateWindowContext: updateWindowContext, openAgentChatForFile, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, promptDialog, confirmDialog,
             registerWindowCleanup,
-            setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
+            registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (id, handler) => { const win = state.windows.get(id); if (win) win.beforeClose = handler; }
         });
     }
 
@@ -22479,7 +23580,7 @@ function updateTaskbarSystemButtonsForMobile() {
                 return;
             }
             if (typeof window.SettingsApp.render === 'function') {
-                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
+                const ctx = Object.assign({}, context || {}, { contentEl, esc, t, iconMarkup, api, state, settingValue, settingBool, desktopSettings, applyDesktopSettings, saveDesktopPreference, allApps, desktopAssociationCandidates, setDefaultAppForExtension, desktopReadonly, renderStartButtonIcon, renderIcons, renderWidgets, renderStartApps, showDesktopNotification, loadBootstrap, saveDesktopWallpaper, chooseDesktopWallpaper, wallpaperForActiveSpace, persistSessionSnapshot, desktopThemes, desktopThemeById, currentDesktopTheme, followThemeWallpaper, previewDesktopSound, setDesktopSoundVolume, applySoundSettingsChange, previewDesktopScreensaver });
                 return window.SettingsApp.render(contentEl(id), ctx);
             }
         }
@@ -22525,7 +23626,7 @@ function updateTaskbarSystemButtonsForMobile() {
             if (win) { delete win.pendingCameraImport; delete win.pendingProjectId; }
             return window.VideoStudioApp.render(contentEl(id), id, withDesktopFileDialogs(launch, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog, promptDialog, setWindowMenus, clearWindowMenus,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'teevee' && window.TeeVeeApp && typeof window.TeeVeeApp.render === 'function') {
@@ -22534,7 +23635,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'infra' && window.InfraApp) {
             return window.InfraApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary, confirmDialog, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 showConfirmModal: (title, message, confirmLabel) => confirmLabel
                     ? modalDialog({ title, message, choices: [{ value: 'discard', label: confirmLabel }] }).then(value => value === 'discard')
                     : confirmDialog(title, message),
@@ -22544,7 +23645,7 @@ function updateTaskbarSystemButtonsForMobile() {
         if (appId === 'ruview' && window.RuViewApp) {
             return window.RuViewApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, t, api, openApp, confirmDialog, modalDialog, setWindowMenus, clearWindowMenus, readonly: desktopReadonly(),
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; }
             }));
         }
         if (appId === 'docker-manager' && window.DockerManagerApp) {
@@ -22661,7 +23762,7 @@ if (appId === 'system-info') {
             if (typeof window.StorymakerApp.render === 'function') {
                 return window.StorymakerApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -22671,7 +23772,7 @@ if (appId === 'system-info') {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
+            return window.TresorApp.render(contentEl(id), id, { esc, t, openFileDialog: options => openDesktopFileDialog(options || {}), registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; } });
         }
         if (appId === 'openscad') {
             if (!window.OpenSCADApp) {
@@ -22833,7 +23934,7 @@ if (appId === 'pixel') {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), openApp, confirmDialog, promptDialog,
                 registerWindowCleanup,
                 providers: (state.bootstrap || {}).providers || [],
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 closeWindow
             }), context || {});
         }
@@ -22859,7 +23960,7 @@ if (appId === 'pixel') {
             const win = state.windows.get(id);
             return window.BookshelfApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                 esc, api, t, iconMarkup, readonly: desktopReadonly(), confirmDialog,
-                setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const target = state.windows.get(winId); if (target) target.beforeClose = handler; },
                 openApp
             }));
         }
@@ -22905,7 +24006,7 @@ if (appId === 'pixel') {
                 return window.CYDCreatorApp.render(contentEl(id), id, Object.assign({}, context || {}, {
                     esc, api, t, iconMarkup, notify: showDesktopNotification,
                     readonly: desktopReadonly(), openApp, confirmDialog,
-                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                     isActive: () => state.activeWindowId === id
                 }));
             }
@@ -22925,7 +24026,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), openApp, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }
@@ -22935,7 +24036,7 @@ if (appId === 'pixel') {
                 readonly: desktopReadonly(), loadBootstrap, updateWindowContext,
                 setWindowMenus, clearWindowMenus, showContextMenu, wireContextMenuBoundary,
                 confirmDialog, promptDialog, openApp,
-                setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction, setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
                 isActive: () => state.activeWindowId === id
             }));
         }
@@ -23388,6 +24489,8 @@ if (appId === 'pixel') {
     async function renderEditor(id, path, initialContent) {
         const host = contentEl(id);
         if (!host) return;
+        const previous = host.querySelector('.vd-editor textarea')?.__auragoSessionAction;
+        if (previous && !await approveEditorReplacement(id, previous)) return false;
         host.innerHTML = `<div class="vd-editor">
             <div class="vd-toolbar">
                 <span class="vd-path">${esc(path)}</span>
@@ -23405,9 +24508,27 @@ if (appId === 'pixel') {
         let version = '';
         let saving = false;
         let loadFailed = false;
+        let editRevision = 0;
+        let savedRevision = 0;
+        const title = state.windows.get(id)?.title || t('desktop.app_editor');
+        const participant = {
+            inspect: () => ({ dirty: editRevision !== savedRevision, revision: editRevision, label: pathBaseName(path) }),
+            decide: snapshot => decideDesktopSessionAction({ title: snapshot.title || title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expected => {
+                if (!current() || loadFailed || desktopReadonly() || saving || editRevision !== expected) return false;
+                if (await saveEditor() !== true || editRevision !== expected || savedRevision !== expected) return false;
+                return { revision: expected };
+            }
+        };
+        textarea.__auragoSessionAction = participant;
+        registerWindowSessionAction(id, participant);
+        const win = state.windows.get(id);
+        if (win) win.beforeClose = () => approveEditorReplacement(id, participant);
+        textarea.addEventListener('input', () => { editRevision++; });
         const current = () => host.contains(textarea);
         textarea.readOnly = true;
         textarea.value = initialContent || '';
+        if (initialContent) editRevision++;
         host.querySelector('[data-retry]').addEventListener('click', () => renderEditor(id, path, initialContent));
         host.querySelector('[data-new]').addEventListener('click', () => {
             if (!desktopReadonly()) renderEditor(id, 'Documents/untitled-' + crypto.randomUUID() + '.txt', '');
@@ -23421,6 +24542,7 @@ if (appId === 'pixel') {
                 const body = await api('/api/desktop/file?path=' + encodeURIComponent(path));
                 if (!current()) return;
                 textarea.value = body.content || '';
+                savedRevision = editRevision;
                 version = body.version || '';
             } catch (err) {
                 if (!current()) return;
@@ -23437,8 +24559,9 @@ if (appId === 'pixel') {
         textarea.hidden = loadFailed;
         if (!loadFailed) updateWindowContext(id, { path });
         const saveEditor = async () => {
-            if (!current() || loadFailed || saving || desktopReadonly()) return;
+            if (!current() || loadFailed || saving || desktopReadonly()) return false;
             saving = true;
+            const revision = editRevision;
             const content = textarea.value;
             status.textContent = t('desktop.saving');
             try {
@@ -23455,9 +24578,12 @@ if (appId === 'pixel') {
                 if (win) win.path = path;
                 updateWindowContext(id, { path });
                 status.textContent = textarea.value === content ? t('desktop.saved') : '';
+                if (textarea.value === content && editRevision === revision) savedRevision = revision;
                 await loadBootstrap();
+                return textarea.value === content && editRevision === revision;
             } catch (err) {
                 if (current()) status.textContent = err.name === 'AbortError' ? '' : t('desktop.request_failed');
+                return false;
             } finally { saving = false; }
         };
         setEditorMenus(id, path, textarea, status, saveEditor);
@@ -23466,6 +24592,31 @@ if (appId === 'pixel') {
             subject: pathBaseName(path), formats: [{id:'source',label:pathBaseName(path)}],
             createFiles: async () => [new File([textarea.value], pathBaseName(path), {type:'text/plain;charset=utf-8'})]
         }));
+    }
+
+    async function approveEditorReplacement(id, participant) {
+        let snapshot;
+        try { snapshot = await participant.inspect(); }
+        catch (_) { return false; }
+        if (!snapshot || typeof snapshot.dirty !== 'boolean') return false;
+        if (!snapshot.dirty) return true;
+        const win = state.windows.get(id);
+        let choice;
+        try { choice = await participant.decide({ ...snapshot, title: win?.title || t('desktop.app_editor') }); }
+        catch (_) { return false; }
+        if (choice === 'cancel') return false;
+        let latest;
+        try { latest = await participant.inspect(); }
+        catch (_) { return false; }
+        if (!latest || latest.revision !== snapshot.revision || (!snapshot.dirty && latest.dirty)) return false;
+        // A normal autosave may have completed while the decision dialog was open.
+        if (!latest.dirty) return true;
+        if (choice === 'keep') return true;
+        if (choice !== 'save') return false;
+        try {
+            const result = await participant.save(snapshot.revision);
+            return !!result && result.revision === snapshot.revision;
+        } catch (_) { return false; }
     }
 
     function setEditorMenus(id, path, textarea, status, saveEditor) {
@@ -26025,6 +27176,7 @@ if (appId === 'pixel') {
                     draftKey: state.windows.get(id)?.sessionKey || id,
                     updateContext: value => updateWindowContext(id, value),
                     openProjectWindow: value => openApp(app.id, { ...value, forceNew: true }),
+                    registerSessionAction: registerWindowSessionAction, decideSessionAction: decideDesktopSessionAction,
                     setBeforeClose: handler => { const win = state.windows.get(id); if (win) win.beforeClose = handler; },
                     openURL: desktopStoreOpenURL(storeAppId)
                 });
@@ -26934,7 +28086,7 @@ if (appId === 'pixel') {
         }
         if (event.type === 'welcome') {
             document.dispatchEvent(new CustomEvent('aurago:meshcore-change', { detail: {} }));
-            state.bootstrap = event.payload || state.bootstrap;
+            acceptDesktopBootstrap(event.payload || state.bootstrap);
             document.dispatchEvent(new CustomEvent('aurago:desktop-policy', { detail: state.bootstrap || {} }));
             renderDesktop();
             refreshPetRuntime();
@@ -27153,6 +28305,7 @@ if (appId === 'pixel') {
                 if (startButton) startButton.focus();
                 return;
             }
+            if (event.target.closest('.vd-start-session')) return;
             if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
                 const search = $('vd-start-search');
                 if (search && document.activeElement !== search) search.focus();
@@ -27330,6 +28483,7 @@ if (appId === 'pixel') {
     document.addEventListener('pointerdown', trackDesktopKeyboardScope, true);
 
     function handleDesktopKeydown(event) {
+        if (event.defaultPrevented || [...document.querySelectorAll('[aria-modal="true"]')].some(dialog => dialog.getClientRects().length)) return;
         if (handleWindowMenuShortcut(event)) return;
         if (handleDesktopMediaKeydown(event)) return;
         if (handleSpaceShortcut(event)) return;
@@ -27475,6 +28629,8 @@ if (appId === 'pixel') {
         };
         mark('init-start');
         initDesktopFileHistory();
+        initDesktopSessionActions();
+        initDesktopWorkspaceSettings();
         ['vd-icons', 'vd-widgets', 'vd-window-layer', 'vd-taskbar-apps', 'vd-start-apps', 'vd-start-menu', 'vd-start-search', 'vd-ws-state', 'vd-clock', 'vd-workspace', 'vd-disabled'].forEach(id => { els[id] = $(id); });
         ensureDesktopRadialMenuAnchor();
         bindViewportMetrics();
@@ -27503,6 +28659,7 @@ if (appId === 'pixel') {
         ]);
         mark('parallel-fetch-done');
         renderDesktop();
+        desktopWorkspaceUIReady = true;
         initSpacesRuntime();
         openDesktopFullscreenOnStartup();
         initSpacesOverviewRuntime();

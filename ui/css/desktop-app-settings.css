@@ -678,3 +678,6 @@
     outline: var(--ds-focus-ring-width) solid var(--vd-theme-accent-border, var(--vd-accent));
     outline-offset: var(--ds-focus-ring-offset);
 }
+
+.vd-setting-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.vd-wallpaper-path { overflow-wrap: anywhere; }

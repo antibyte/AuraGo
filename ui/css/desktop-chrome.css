@@ -976,3 +976,23 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .vd-default-app-row { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; width: 100%; }
 .vd-default-app-row label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .vd-default-app-row input, .vd-default-app-row select { max-width: 100%; min-height: 36px; color: var(--vd-text); background: var(--vd-surface); border: 1px solid var(--vd-border); border-radius: 6px; padding: 6px; }
+
+.vd-wallpaper-status {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(90%, 620px);
+    padding: 10px 14px;
+    border: 1px solid var(--vd-border);
+    border-radius: 10px;
+    background: var(--vd-surface, #17232e);
+    color: var(--vd-text, #fff);
+    overflow-wrap: anywhere;
+    pointer-events: none;
+    z-index: 1;
+}
+.vd-wallpaper-status[hidden] { display: none; }
+@media (forced-colors: active) {
+    .vd-wallpaper-status { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}

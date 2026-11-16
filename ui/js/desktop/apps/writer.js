@@ -80,6 +80,15 @@
         ctx.wireContextMenuBoundary?.(host);
         ctx.setWindowBeforeClose?.(windowId,guard);
         ctx.registerWindowCleanup?.(windowId,cleanup);
+        ctx.registerSessionAction?.(windowId,{
+            inspect:()=>({dirty:!!queue?.dirty,revision:JSON.stringify([generation,queue?.revision??0]),label:basename(path)}),
+            decide:snapshot=>ctx.decideSessionAction?.({title:snapshot.title,label:snapshot.label,dirty:snapshot.dirty}),
+            save:async expected=>{
+                if(disposed||loading||fileOperation||!editor||!queue||JSON.stringify([generation,queue.revision])!==expected)return false;
+                await queue.save();
+                return !queue.dirty&&JSON.stringify([generation,queue.revision])===expected?{revision:expected}:false;
+            }
+        });
         function pinSelection() {
             if (!editor) return;
             if (pin) editor.releaseSelection(pin);

@@ -38,7 +38,7 @@
         const lifecycle=new AbortController();
         let documentLife=new AbortController(),engine,api,book,lib,queue,bridge,panels,chartView,imageView;
         let path=ctx.path||newPath(),etag=null,loading=true,disposed=false,generation=0,leftPanel='',rightPanel='',refreshTimer;
-        let aux={charts:[],images:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null;
+        let aux={charts:[],images:[],print:{}},operations=[],loadingFailed=false,structuralLocked=false,formulaTarget=null,formulaChanged=false,pin=null,lastDraft=null,backupTimer,backupDeadline,sourceData=null,recoveryConflict=false,nativeEdit=null,sessionEditRevision=0,sessionSaving=false,sessionCommitDepth=0,nativeEditCommitPending=false,formulaCommitPending=false;
         const disposables=[],locale=document.documentElement.lang||'en';
         const state={ctx,esc,tr,root,find,locale,act,notice,fail,refresh,run,selected,selection,commitFormula,snapshot,prepareOutput,
             get api(){return api;},get book(){return book;},get charts(){return chartView;},get images(){return imageView;},get lib(){return lib;},get readonly(){return !!ctx.readonly;},
@@ -53,6 +53,18 @@
         };
         const instance={act,dispose:cleanup,get api(){return api;},get book(){return book;},get session(){return queue;},get path(){return path;},get state(){return state;}};
         instances.set(windowId,instance);
+        const sessionRevision=()=>JSON.stringify([generation,sessionEditRevision]);
+        const sessionDirty=()=>!!(queue?.dirty||queue?.pending||formulaChanged||nativeEdit||book?.isCellEditing?.());
+        function blockSessionEdit(event){
+            if(!sessionSaving)return;
+            event.preventDefault();event.stopImmediatePropagation();
+        }
+        for(const type of ['beforeinput','keydown','keyup','click','pointerdown','change'])root.addEventListener(type,blockSessionEdit,true);
+        root.addEventListener('input',event=>{
+            if(sessionSaving){blockSessionEdit(event);return;}
+            const target=event.target;
+            if(target===find('[data-formula]')||mount.contains(target)&&target.matches?.('input,textarea,[contenteditable="true"],[contenteditable=""]'))sessionEditRevision++;
+        },true);
         window.AuraDesktopEmail?.attach(windowId, '.sheets-documentbar', () => ({
             key: documentLife.signal, signal: documentLife.signal, subject: basename(path),
             disabled: !book || loading || loadingFailed || disposed,
@@ -60,6 +72,22 @@
             createFiles: (format,signal) => download(format,true,signal)
         }));
         ctx.wireContextMenuBoundary?.(host);ctx.setWindowBeforeClose?.(windowId,guard);ctx.registerWindowCleanup?.(windowId,cleanup);
+        ctx.registerSessionAction?.(windowId,{
+            inspect:()=>({dirty:sessionDirty(),revision:sessionRevision(),label:basename(path)}),
+            decide:snapshot=>ctx.decideSessionAction?.({title:snapshot.title,label:snapshot.label,dirty:snapshot.dirty}),
+            save:async expected=>{
+                if(disposed||loading||!book||!queue||sessionRevision()!==expected)return false;
+                sessionSaving=true;root.setAttribute('aria-busy','true');
+                try{
+                    sessionCommitDepth++;
+                    try{await book.endEditingAsync(true);commitFormula();}
+                    finally{sessionCommitDepth--;}
+                    if(sessionRevision()!==expected)return false;
+                    await save();
+                    return !sessionDirty()&&sessionRevision()===expected?{revision:expected}:false;
+                }finally{sessionSaving=false;root.removeAttribute('aria-busy');}
+            }
+        });
         function notice(text,error=false){if(disposed)return;find('[data-notice-text]').textContent=text||'';find('[data-notice]').hidden=!text;find('[data-notice]').dataset.error=String(error);}
         function fail(error){if(error?.name!=='AbortError'&&!disposed)notice(error?.status===412?tr('conflict'):(error?.message||String(error)),true);}
         function sheet(){return book?.getActiveSheet();}
@@ -143,7 +171,7 @@
                 book=api.createWorkbook(doc.workbook);book.setEditable(!ctx.readonly);book.setNumfmtLocal(locale.split('-')[0]==='zh'?'zh_CN':locale.replace('-','_'));
                 panels=window.SheetsPanels.create(state);chartView=window.SheetsCharts.create(state);imageView=window.SheetsImages.create(state);
                 loading=false;makeQueue();
-                disposables.push(api.addEvent(api.Event.BeforeSheetEditEnd,event=>{nativeEdit=event.isConfirm?{row:event.row,column:event.column,text:event.value.toPlainText().replace(/\r?\n$/,'')}:null;}));
+                disposables.push(api.addEvent(api.Event.BeforeSheetEditEnd,event=>{nativeEditCommitPending=!!event.isConfirm;nativeEdit=event.isConfirm?{row:event.row,column:event.column,text:event.value.toPlainText().replace(/\r?\n$/,'')}:null;}));
                 const structureTypes={'sheet.mutation.insert-row':'insertRows','sheet.mutation.remove-rows':'deleteRows','sheet.mutation.insert-col':'insertColumns','sheet.mutation.remove-col':'deleteColumns'};
                 disposables.push(api.addEvent(api.Event.BeforeCommandExecute,event=>{
                     if(structuralLocked&&(/sheet\.(command|mutation)\.(insert-row|insert-col|remove-row|remove-col|set-worksheet-name|remove-sheet|insert-sheet|copy-sheet|move-range|move-rows|move-cols)/.test(event.id))){event.cancel=true;notice(tr('structure_locked'),true);}
@@ -157,6 +185,8 @@
                     if(event.type===2&&!event.options?.applyFormulaCalculationResult&&!event.options?.onlyLocal&&!/^(formula|doc)\.|sheet\.mutation\.(set-formula|set-array-formula)/.test(event.id)){
                         const kind=structureTypes[event.id],p=event.params;
                         if(kind&&p?.range){const rows=/Rows$/.test(kind);operations.push({type:kind,sheet:p.subUnitId,index:rows?p.range.startRow:p.range.startColumn,count:rows?p.range.endRow-p.range.startRow+1:p.range.endColumn-p.range.startColumn+1});}
+                        if(!sessionCommitDepth&&!nativeEditCommitPending&&!formulaCommitPending)sessionEditRevision++;
+                        nativeEditCommitPending=false;
                         queue.changed();scheduleBackup();
                     }
                     refreshSoon();
@@ -218,7 +248,9 @@
             if(!formulaChanged||!book||ctx.readonly)return;
             const target=formulaTarget||{sheet:sheet().getSheetId(),range:selection()},active=book.getSheetBySheetId(target.sheet);
             if(!active)return;
-            active.getRange(target.range.startRow,target.range.startColumn).setValue(window.SheetsData.parseInput(find('[data-formula]').value,locale));
+            formulaCommitPending=true;
+            try{active.getRange(target.range.startRow,target.range.startColumn).setValue(window.SheetsData.parseInput(find('[data-formula]').value,locale));}
+            finally{formulaCommitPending=false;}
             formulaChanged=false;formulaTarget=null;find('[data-formula-actions]').hidden=true;find('[data-formula-hints]').hidden=true;
         }
         function cancelFormula(){formulaChanged=false;formulaTarget=null;find('[data-formula-actions]').hidden=true;find('[data-formula-hints]').hidden=true;find('[data-formula]').blur();refresh();}

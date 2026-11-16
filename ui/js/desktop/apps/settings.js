@@ -143,7 +143,7 @@
         wireSearch(sections);
         wireSidebarToggle();
         if (ctx.desktopReadonly()) {
-            host.querySelectorAll('[data-setting-key], [data-default-extension], [data-default-reset], [data-default-add], [data-default-new], [data-default-choice], [data-sound-theme], [data-desktop-theme], [data-screensaver-theme]').forEach(control => {
+            host.querySelectorAll('[data-setting-key], [data-settings-action]:not([data-settings-action="workspaces"]), [data-default-extension], [data-default-reset], [data-default-add], [data-default-new], [data-default-choice], [data-sound-theme], [data-desktop-theme], [data-screensaver-theme]').forEach(control => {
                 control.disabled = true;
                 control.setAttribute('aria-disabled', 'true');
                 control.tabIndex = -1;
@@ -181,6 +181,25 @@
 
     function wireSettings() {
         wireDefaultApps();
+        const owner = host, environment = ctx;
+        owner.querySelectorAll('[data-settings-action]').forEach(button => button.addEventListener('click', async () => {
+            if (button.dataset.settingsAction === 'workspaces') {
+                window.AuraDesktopWorkspaceManager?.open();
+                return;
+            }
+            if (environment.desktopReadonly()) return;
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            try {
+                if (button.dataset.settingsAction === 'wallpaper-choose') await environment.chooseDesktopWallpaper();
+                else await environment.saveDesktopWallpaper(environment.currentDesktopTheme()?.wallpaper || 'groupshoot');
+            } finally {
+                if (host === owner && owner.isConnected) {
+                    renderSettingsShell();
+                    owner.querySelector(`[data-settings-action="${button.dataset.settingsAction}"]`)?.focus({ preventScroll: true });
+                }
+            }
+        }));
         host.querySelectorAll('[data-setting-key]').forEach(control => {
             control.addEventListener('change', async event => {
                 const key = event.currentTarget.dataset.settingKey;
@@ -358,6 +377,14 @@
     function renderSettingItem(item) {
         const { esc, t, settingBool, settingValue } = ctx;
         if (item.type === 'default_apps') return renderDefaultApps();
+        if (item.type === 'workspaces' || item.type === 'custom_wallpaper') {
+            const custom = item.type === 'custom_wallpaper';
+            const path = custom ? window.AuraDesktopCustomWallpaper?.path(ctx.wallpaperForActiveSpace()) || '' : '';
+            return `<article class="vd-setting-row vd-setting-row-stack"><div><div class="vd-setting-label">${esc(t(item.label))}</div>
+                <div class="vd-setting-help">${esc(t(item.desc))}</div>${path ? `<div class="vd-setting-help vd-wallpaper-path">${esc(path)}</div>` : ''}</div>
+                <div class="vd-setting-actions"><button type="button" class="vd-button" data-settings-action="${custom ? 'wallpaper-choose' : 'workspaces'}">${esc(t(item.label))}</button>
+                ${custom && path ? `<button type="button" class="vd-button" data-settings-action="wallpaper-remove">${esc(t('desktop.wallpaper_remove'))}</button>` : ''}</div></article>`;
+        }
         if (item.type === 'cursor_preview') {
             return `<article class="vd-setting-row vd-setting-row-stack"><div class="vd-setting-help">${esc(t('desktop.settings_cursor_preview'))}</div><img class="vd-cursor-preview" src="${esc(soundArtworkURL('/img/cursors/' + item.theme + '/preview.svg'))}" alt="" width="288" height="88"></article>`;
         }
@@ -409,7 +436,7 @@
             : settingValue(item.key);
         const control = item.type === 'toggle'
             ? `<label class="vd-switch"><input type="checkbox" data-setting-key="${esc(item.key)}" aria-label="${esc(t(item.label))}" ${settingBool(item.key) ? 'checked' : ''}><span></span></label>`
-            : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.options.map(option => {
+            : `<select class="vd-setting-select" data-setting-key="${esc(item.key)}">${item.key === 'appearance.wallpaper' && window.AuraDesktopCustomWallpaper?.isCustom(currentValue) ? `<option value="${esc(currentValue)}" selected>${esc(window.AuraDesktopCustomWallpaper.path(currentValue))}</option>` : ''}${item.options.map(option => {
                 const normalized = normalizeSettingOption(option);
                 return `<option value="${esc(normalized.value)}" ${currentValue === normalized.value ? 'selected' : ''}>${esc(normalized.label)}</option>`;
             }).join('')}</select>`;

@@ -1,0 +1,24 @@
+.desktop-body[data-wallpaper^="file:"] {
+    background-color: #111820;
+    background-image: var(--vd-custom-wallpaper-image, linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%));
+    background-size: var(--vd-custom-wallpaper-fit, cover);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="loading"] {
+    background-image: linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%);
+}
+
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="missing"],
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="invalid"],
+.desktop-body[data-wallpaper^="file:"][data-custom-wallpaper-state="error"] {
+    background-image: linear-gradient(145deg, #263746 0%, #17232e 48%, #10161d 100%);
+}
+
+@media (max-width: 760px) {
+    .desktop-body[data-wallpaper^="file:"] {
+        background-attachment: scroll;
+    }
+}

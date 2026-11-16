@@ -37,7 +37,11 @@ func TestExperienceThemeSettingsAreAtomicAndPreservePersonalChoices(t *testing.T
 	t.Parallel()
 	svc := testService(t)
 	ctx := context.Background()
-	if err := svc.SetSettings(ctx, map[string]string{"appearance.wallpaper": "midnight", "sound.theme": "water"}, SourceUser); err != nil {
+	workspaceState, err := svc.GetWorkspaceState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.SetWorkspaceSettings(ctx, &workspaceState.Layout.Revision, map[string]string{"appearance.wallpaper": "midnight", "sound.theme": "water"}, SourceUser); err != nil {
 		t.Fatal(err)
 	}
 	for _, theme := range []string{"electronic_dreams", "windows_xp", "green_slime", "voxel_world"} {

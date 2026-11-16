@@ -45,7 +45,7 @@ func desktopAuditBrowserWith(t *testing.T, handlers map[string]http.Handler, twe
 	if cut < 0 {
 		t.Fatal("startup seam missing")
 	}
-	shell = shell[:cut] + `window.auditTest={state,api,modalDialog,openApp,openDesktopPath,closeWindow,closeDesktopWindowBatch,focusWindow,captureSessionSnapshot,restoreDesktopSession,switchSpace,refreshSpacesForViewport,applyResize,applyWindowSnap,restoreWindowFromSnap,openWindowLayoutMenu,workspaceBoundsForWindow,openSpotlight,closeSpotlight,renderQuickChatWidget,clearWidgetRuntime,openClockPopup,toggleNotificationCenter,applyDesktopSettings,saveDesktopPreference,defaultAppForExtension,setDefaultAppForExtension,movePathsToTrash,restorePathsFromTrash};` + shell[cut:]
+	shell = shell[:cut] + `window.auditTest={state,api,modalDialog,openApp,openDesktopPath,closeWindow,closeDesktopWindowBatch,focusWindow,captureSessionSnapshot,restoreDesktopSession,persistSessionSnapshot,moveWindowToSpace,switchSpace,refreshSpacesForViewport,applyResize,applyWindowSnap,restoreWindowFromSnap,openWindowLayoutMenu,workspaceBoundsForWindow,openSpotlight,closeSpotlight,renderQuickChatWidget,clearWidgetRuntime,openClockPopup,toggleNotificationCenter,applyDesktopSettings,saveDesktopPreference,defaultAppForExtension,setDefaultAppForExtension,movePathsToTrash,restorePathsFromTrash};` + shell[cut:]
 	settings := desktop.DesktopSettingDefaults()
 	for key, value := range map[string]string{"windows.restore_session": "false", "windows.animations": "false", "pet.enabled": "false", "phone_gadget.enabled": "false", "desktop.show_widgets": "false"} {
 		settings[key] = value

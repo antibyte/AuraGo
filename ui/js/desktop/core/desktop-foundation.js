@@ -320,6 +320,7 @@
     const desktopSettingDefaults = {
         'appearance.wallpaper': 'groupshoot',
         'appearance.wallpaper_by_space': '{}',
+        'appearance.wallpaper_fit': 'cover',
         'appearance.theme': 'standard',
         'appearance.accent': 'theme',
         'appearance.density': 'comfortable',
@@ -719,6 +720,7 @@
         body.dataset.wallpaper = (typeof wallpaperForActiveSpace === 'function')
             ? wallpaperForActiveSpace()
             : settingValue('appearance.wallpaper');
+        syncDesktopCustomWallpaper();
         body.dataset.theme = settingValue('appearance.theme');
         applyDesktopThemeAttributes(body);
         body.dataset.fruityMode = settingValue('appearance.fruity_mode');
@@ -1101,6 +1103,9 @@
                 throw err;
             }
             if (body && typeof body === 'object' && resp.headers.get('ETag')) body.version = resp.headers.get('ETag');
+            if (String(url).split('?')[0] === '/api/desktop/settings' && typeof reconcileDesktopSettingsResponse === 'function') {
+                reconcileDesktopSettingsResponse(body);
+            }
             return body;
         }
     }
@@ -1118,6 +1123,7 @@
 
     function disposeAppWindow(win) {
         if (!win) return;
+        window.AuraDesktopSessionActions?.register(win.id, null);
         const cleanup = state.windowCleanups.get(win.id);
         if (cleanup) {
             state.windowCleanups.delete(win.id);
@@ -1257,7 +1263,7 @@
     // fetchBootstrapState loads bootstrap (+ desktop files) without rendering.
     // Used for parallel boot with icon manifests and for refresh paths.
     async function fetchBootstrapState() {
-        state.bootstrap = await api('/api/desktop/bootstrap');
+        acceptDesktopBootstrap(await api('/api/desktop/bootstrap'));
         state.desktopFiles = await resolveDesktopFilesFromBootstrap(state.bootstrap);
         return state.bootstrap;
     }

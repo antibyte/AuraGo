@@ -59,6 +59,11 @@ func TestDesktopMailerResponsiveAndReaderContracts(t *testing.T) {
 	if viewsIndex < 0 || appIndex <= viewsIndex {
 		t.Fatal("desktop Mailer views module must load before its app entry point")
 	}
+	sessionActionsIndex := strings.Index(loader, "'/js/desktop/apps/mailer-session-actions.js'")
+	composeIndex := strings.Index(loader, "'/js/desktop/apps/mailer-compose.js'")
+	if sessionActionsIndex < 0 || composeIndex <= sessionActionsIndex || appIndex <= composeIndex {
+		t.Fatal("Mailer session-action adapter must load before the composer and app entry point")
+	}
 	if !strings.Contains(loader, "'mailer': ['mailer', 'stickers']") {
 		t.Fatal("desktop Mailer must load its lazy translation section before app scripts")
 	}

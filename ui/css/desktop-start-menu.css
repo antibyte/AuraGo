@@ -99,6 +99,20 @@
     border-bottom: 1px solid var(--ds-color-border-subtle);
 }
 
+.vd-start-session {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--vd-theme-border, var(--vd-border));
+    color: var(--vd-theme-muted, var(--vd-muted));
+}
+.vd-start-session[hidden] { display: none; }
+.vd-start-session button { min-height: 36px; }
+.vd-start-session button:focus-visible { outline: 2px solid var(--vd-accent); outline-offset: 2px; }
+
 .vd-start-search input {
     height: 36px;
     padding: 0 var(--ds-space-4);

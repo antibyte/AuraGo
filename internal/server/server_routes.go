@@ -576,6 +576,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/plant", handleDesktopPlant(s))
 	mux.HandleFunc("/api/desktop/plant/actions", handleDesktopPlant(s))
 	mux.HandleFunc("/api/desktop/settings", handleDesktopSettings(s))
+	mux.HandleFunc("/api/desktop/workspaces", handleDesktopWorkspaces(s))
+	mux.HandleFunc("/api/desktop/wallpaper", handleDesktopWallpaper(s))
 	mux.HandleFunc("/api/desktop/home-assistant/entities", handleDesktopHomeAssistant(s))
 	mux.HandleFunc("/api/desktop/home-assistant/states", handleDesktopHomeAssistant(s))
 	mux.HandleFunc("/api/desktop/home-assistant/switch", handleDesktopHomeAssistant(s))

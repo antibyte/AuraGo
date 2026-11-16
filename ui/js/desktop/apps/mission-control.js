@@ -48,7 +48,8 @@
             editing: null, busy: '', cancelling: new Set(), runStarted: new Map(), preparedOpen: false,
             history: { missionId: '', items: [], total: 0, loading: false, error: '', filter: 'all' },
             initialLoad: false, live: false, disposed: false,
-            sseHandler: null, keydownHandler: null, timer: null, resizeObserver: null, menuSignature: ''
+            sseHandler: null, keydownHandler: null, timer: null, resizeObserver: null, menuSignature: '',
+            sessionActionSavedRevision: JSON.stringify([null]), editorSavePromise: null, sessionActionOff: null
         };
         instances.set(windowId, state);
 
@@ -488,25 +489,66 @@
         }
 
         editor.on('cancel', () => closeEditor(false));
-        editor.on('save', async ({ mode, id, payload }) => {
-            editor.setSaving(true);
-            editor.setServerError('');
-            try {
-                const url = mode === 'edit' ? '/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) : '/api/desktop/integrations/missions/v2';
-                const res = await api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                notify(t(mode === 'edit' ? 'desktop.mc_toast_saved' : 'desktop.mc_toast_created'));
-                const newId = mode === 'edit' ? id : (res && res.id) || '';
-                editor.close();
-                state.editing = null;
-                await loadData();
-                if (newId && byId(newId)) { state.selectedId = newId; list.setSelected(newId); }
-                detail.element.hidden = false;
-                if (state.compact) state.compactView = 'detail';
-                syncAll();
-                list.focusSelected();
-            } catch (err) {
-                editor.setSaving(false);
-                editor.setServerError((err && err.message) || String(err));
+        const sessionRevision = () => state.editing
+            ? JSON.stringify([state.editing.mode, state.editing.id, editor.getPayload()])
+            : state.sessionActionSavedRevision;
+        const sessionDirty = () => !!(state.editorSavePromise || (state.editing && editor.isDirty()));
+        async function persistMissionEditor({ mode, id, payload }, expectedRevision) {
+            if (state.editorSavePromise) return state.editorSavePromise;
+            if (state.disposed || !state.editing || state.editing.mode !== mode || state.editing.id !== id) return false;
+            const revision = sessionRevision();
+            if (expectedRevision != null && revision !== expectedRevision) return false;
+            const task = (async () => {
+                editor.setSaving(true);
+                editor.setServerError('');
+                try {
+                    const url = mode === 'edit' ? '/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) : '/api/desktop/integrations/missions/v2';
+                    const res = await api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (state.disposed) return false;
+                    state.sessionActionSavedRevision = revision;
+                    notify(t(mode === 'edit' ? 'desktop.mc_toast_saved' : 'desktop.mc_toast_created'));
+                    const newId = mode === 'edit' ? id : (res && res.id) || '';
+                    const unchanged = sessionRevision() === revision;
+                    if (unchanged) {
+                        editor.close();
+                        state.editing = null;
+                    } else {
+                        editor.setSaving(false);
+                    }
+                    await loadData();
+                    if (newId && byId(newId)) { state.selectedId = newId; list.setSelected(newId); }
+                    if (unchanged) {
+                        detail.element.hidden = false;
+                        if (state.compact) state.compactView = 'detail';
+                        syncAll();
+                        list.focusSelected();
+                    }
+                    return unchanged && !state.editing && sessionRevision() === revision;
+                } catch (err) {
+                    editor.setSaving(false);
+                    editor.setServerError((err && err.message) || String(err));
+                    return false;
+                }
+            })();
+            const tracked = task.finally(() => { if (state.editorSavePromise === tracked) state.editorSavePromise = null; });
+            state.editorSavePromise = tracked;
+            return tracked;
+        }
+        editor.on('save', details => { void persistMissionEditor(details); });
+        state.sessionActionOff = context.registerSessionAction?.(windowId, {
+            inspect: () => ({ dirty: sessionDirty(), revision: sessionRevision(), label: state.editing?.id || t('desktop.app_mission_control') }),
+            decide: snapshot => context.decideSessionAction?.({ title: snapshot.title, label: snapshot.label, dirty: snapshot.dirty }),
+            save: async expectedRevision => {
+                if (state.disposed || sessionRevision() !== expectedRevision) return false;
+                if (!sessionDirty()) return { revision: expectedRevision };
+                if (readonly || !state.editing) return false;
+                const errors = editor.validate();
+                if (errors.length) { editor.element.requestSubmit(); return false; }
+                const editing = state.editing;
+                const saved = await persistMissionEditor({ mode: editing.mode, id: editing.id, payload: editor.getPayload() }, expectedRevision);
+                return saved && !sessionDirty() && sessionRevision() === expectedRevision
+                    ? { revision: expectedRevision }
+                    : false;
             }
         });
         if (typeof setWindowBeforeClose === 'function') {
@@ -664,6 +706,7 @@
         const st = instances.get(windowId);
         if (!st) return;
         st.disposed = true;
+        st.sessionActionOff?.();
         if (st.sseHandler && window.AuraSSE && typeof window.AuraSSE.off === 'function') {
             window.AuraSSE.off('mission_update', st.sseHandler);
         }
