@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,7 @@ type TailscaleConfig struct {
 	ReadOnly bool            // true = block route changes
 }
 
-var tailscaleHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var tailscaleHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect}
 var tailscaleLocalHTTPClient = &http.Client{Timeout: 5 * time.Second}
 
 // tailscaleTailnet returns the tailnet identifier, defaulting to "-" (implicit tailnet).
@@ -42,6 +43,7 @@ func tailscaleReadOnlyError(cfg TailscaleConfig) string {
 
 // tailscaleRequest executes an authenticated HTTP request against the Tailscale API v2.
 func tailscaleRequest(cfg TailscaleConfig, method, endpoint, body string) ([]byte, int, error) {
+	security.RegisterSensitive(cfg.APIKey)
 	url := "https://api.tailscale.com" + endpoint
 	var reqBody io.Reader
 	if body != "" {
@@ -57,12 +59,15 @@ func tailscaleRequest(cfg TailscaleConfig, method, endpoint, body string) ([]byt
 	}
 	resp, err := tailscaleHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, 0, fmt.Errorf("request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		data = []byte(security.Scrub(string(data)))
 	}
 	return data, resp.StatusCode, nil
 }

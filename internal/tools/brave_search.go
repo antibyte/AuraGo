@@ -52,6 +52,7 @@ func (e *BraveSearchError) Error() string {
 
 // SearchBrave performs exactly one request. Callers own retry and query budgets.
 func SearchBrave(ctx context.Context, apiKey string, opts BraveSearchOptions) (BraveSearchPage, error) {
+	security.RegisterSensitive(apiKey)
 	page := BraveSearchPage{}
 	if apiKey == "" {
 		return page, &BraveSearchError{Code: "key_missing"}

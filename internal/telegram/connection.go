@@ -16,7 +16,7 @@ import (
 
 const telegramBotAPIBaseURL = "https://api.telegram.org"
 
-var telegramConnectionHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var telegramConnectionHTTPClient = &http.Client{Timeout: 15 * time.Second, CheckRedirect: rejectTelegramRedirect}
 
 // CheckBotToken performs Telegram's read-only getMe authentication check.
 // It deliberately does not start polling, delete webhooks, or send messages.

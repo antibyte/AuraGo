@@ -42,7 +42,7 @@ func (e *koofrAPIError) Error() string {
 	if e == nil {
 		return ""
 	}
-	return fmt.Sprintf("API returns status %d: %s", e.statusCode, e.body)
+	return fmt.Sprintf("API returns status %d: %s", e.statusCode, security.Scrub(e.body))
 }
 
 var koofrHTTPClient = security.NewSSRFProtectedHTTPClientSameOrigin(30 * time.Second)
@@ -672,6 +672,7 @@ func findPrimaryMount(mounts []mountInfo) (string, error) {
 }
 
 func doKoofrRequest(method, reqURL, username, password, contentType string, body io.Reader, contexts ...context.Context) ([]byte, error) {
+	security.RegisterSensitive(password)
 	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), method, reqURL, body)
 	if err != nil {
 		return nil, err
@@ -684,7 +685,7 @@ func doKoofrRequest(method, reqURL, username, password, contentType string, body
 
 	resp, err := koofrHTTPClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Koofr request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/httporigin"
 )
 
 const (
@@ -463,8 +464,9 @@ func (c *Client) doWithHeaders(ctx context.Context, cfg config.SpeechLabConfig, 
 	}
 	req.Header.Set("Accept", "application/json, audio/wav")
 	client := &http.Client{
-		Transport: privateTransport(),
-		Timeout:   time.Duration(cfg.TimeoutSeconds) * time.Second,
+		Transport:     privateTransport(),
+		Timeout:       time.Duration(cfg.TimeoutSeconds) * time.Second,
+		CheckRedirect: httporigin.SameOriginRedirect,
 	}
 	resp, err := client.Do(req)
 	if err != nil {

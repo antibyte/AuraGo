@@ -23,6 +23,7 @@ const outgoingWebhookMaskedValue = config.OutgoingWebhookMaskedValue
 
 // ExecuteOutgoingWebhook resolves variables and sends an HTTP request
 func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, params map[string]interface{}) (string, int, error) {
+	security.RegisterSensitive(hook.URL)
 	method, err := config.NormalizeOutgoingWebhookMethod(hook.Method)
 	if err != nil {
 		return "", 0, err
@@ -74,9 +75,10 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 		reqBody = []byte(bodyString)
 	}
 
+	security.RegisterSensitive(urlStr)
 	req, err := http.NewRequestWithContext(ctx, hook.Method, urlStr, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return "", 0, fmt.Errorf("failed to create request: %w", err)
+		return "", 0, fmt.Errorf("failed to create webhook request: %s", security.Scrub(err.Error()))
 	}
 
 	// Set default content type
@@ -97,12 +99,13 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 		for pk, pv := range params {
 			resolvedV = strings.ReplaceAll(resolvedV, "{{"+pk+"}}", fmt.Sprintf("%v", pv))
 		}
+		security.RegisterSensitive(resolvedV)
 		req.Header.Set(k, resolvedV)
 	}
 
 	resp, err := outgoingWebhookHTTPClient.Do(req)
 	if err != nil {
-		return "", 0, fmt.Errorf("request failed: %w", err)
+		return "", 0, fmt.Errorf("webhook request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 
@@ -110,7 +113,7 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 	if err != nil {
 		return "", resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
 	}
-	bodyStr := strings.TrimSpace(string(bodyBytes))
+	bodyStr := strings.TrimSpace(security.Scrub(string(bodyBytes)))
 
 	return bodyStr, resp.StatusCode, nil
 }

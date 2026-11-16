@@ -23,9 +23,10 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
-var virustotalHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var virustotalHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 var virustotalBaseURL = "https://www.virustotal.com/api/v3"
 var virustotalHashPattern = regexp.MustCompile(`(?i)^[a-f0-9]{32}$|^[a-f0-9]{40}$|^[a-f0-9]{64}$`)
 var virustotalDomainPattern = regexp.MustCompile(`(?i)^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
@@ -423,10 +424,23 @@ func virustotalGetLargeUploadURL(apiKey string, contexts ...context.Context) (st
 	if strings.TrimSpace(payload.Data) == "" {
 		return "", fmt.Errorf("VirusTotal did not return an upload URL for large file upload")
 	}
+	if err := validateVirusTotalUploadURL(payload.Data); err != nil {
+		return "", err
+	}
 	return payload.Data, nil
 }
 
+func validateVirusTotalUploadURL(raw string) error {
+	u, err := url.Parse(raw)
+	origin, _ := url.Parse("https://www.virustotal.com")
+	if err != nil || !security.SameHTTPOrigin(u, origin) || u.Fragment != "" || u.Opaque != "" {
+		return fmt.Errorf("VirusTotal returned an unsafe upload URL")
+	}
+	return nil
+}
+
 func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, contentType string, contexts ...context.Context) ([]byte, error) {
+	security.RegisterSensitive(apiKey)
 	req, err := newToolHTTPRequest(nativeHTTPContext(contexts...), method, endpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VirusTotal request: %w", err)
@@ -439,7 +453,7 @@ func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, conten
 
 	resp, err := virustotalHTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("VirusTotal request failed: %w", err)
+		return nil, fmt.Errorf("VirusTotal request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 
@@ -451,7 +465,7 @@ func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, conten
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, &virustotalAPIError{
 			StatusCode: resp.StatusCode,
-			Body:       strings.TrimSpace(string(bodyBytes)),
+			Body:       security.Scrub(strings.TrimSpace(string(bodyBytes))),
 		}
 	}
 

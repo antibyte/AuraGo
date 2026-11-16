@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2aclient"
@@ -35,9 +36,8 @@ type backoffState struct {
 
 // ClientManager manages A2A client connections to remote agents.
 type ClientManager struct {
-	cfg      *config.Config
-	logger   *slog.Logger
-	resolver *agentcard.Resolver
+	cfg    *config.Config
+	logger *slog.Logger
 
 	mu      sync.RWMutex
 	clients map[string]*a2aclient.Client // keyed by remote agent ID
@@ -48,15 +48,13 @@ type ClientManager struct {
 
 // NewClientManager creates a new A2A client manager.
 func NewClientManager(cfg *config.Config, logger *slog.Logger) *ClientManager {
-	httpClient := &http.Client{Timeout: 30 * time.Second}
 	return &ClientManager{
-		cfg:      cfg,
-		logger:   logger.With("component", "a2a-client"),
-		resolver: agentcard.NewResolver(httpClient),
-		clients:  make(map[string]*a2aclient.Client),
-		cards:    make(map[string]*a2a.AgentCard),
-		status:   make(map[string]*RemoteAgentStatus),
-		backoff:  make(map[string]*backoffState),
+		cfg:     cfg,
+		logger:  logger.With("component", "a2a-client"),
+		clients: make(map[string]*a2aclient.Client),
+		cards:   make(map[string]*a2a.AgentCard),
+		status:  make(map[string]*RemoteAgentStatus),
+		backoff: make(map[string]*backoffState),
 	}
 }
 
@@ -91,10 +89,16 @@ func (m *ClientManager) resolveAndConnect(ctx context.Context, ra config.A2ARemo
 		opts = append(opts, agentcard.WithRequestHeader("Authorization", "Bearer "+ra.BearerToken))
 	}
 
-	card, err := m.resolver.Resolve(resolveCtx, ra.CardURL, opts...)
+	security.RegisterSensitive(ra.APIKey)
+	security.RegisterSensitive(ra.BearerToken)
+	httpClient, err := remoteHTTPClient(ra.CardURL)
+	var card *a2a.AgentCard
+	if err == nil {
+		card, err = agentcard.NewResolver(httpClient).Resolve(resolveCtx, ra.CardURL, opts...)
+	}
 	if err != nil {
 		m.logger.Warn("Failed to resolve A2A agent card", "agent", ra.ID, "url", ra.CardURL, "error", err)
-		status.Error = err.Error()
+		status.Error = security.Scrub(err.Error())
 		status.LastCheck = time.Now()
 		m.mu.Lock()
 		m.status[ra.ID] = status
@@ -104,7 +108,7 @@ func (m *ClientManager) resolveAndConnect(ctx context.Context, ra config.A2ARemo
 	}
 
 	// Create client from card
-	var factoryOpts []a2aclient.FactoryOption
+	factoryOpts := []a2aclient.FactoryOption{a2aclient.WithJSONRPCTransport(httpClient), a2aclient.WithRESTTransport(httpClient)}
 	client, err := a2aclient.NewFromCard(ctx, card, factoryOpts...)
 	if err != nil {
 		m.logger.Warn("Failed to create A2A client", "agent", ra.ID, "error", err)
@@ -130,6 +134,14 @@ func (m *ClientManager) resolveAndConnect(ctx context.Context, ra config.A2ARemo
 	m.mu.Unlock()
 
 	m.logger.Info("A2A remote agent connected", "agent", ra.ID, "name", card.Name)
+}
+
+func remoteHTTPClient(cardURL string) (*http.Client, error) {
+	if err := security.ValidateHTTPBaseURL(cardURL); err != nil {
+		return nil, err
+	}
+	return &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect,
+		Transport: security.NewConfiguredHTTPTransport(cardURL, http.DefaultTransport.(*http.Transport))}, nil
 }
 
 // updateBackoffLocked updates the backoff state for an agent.

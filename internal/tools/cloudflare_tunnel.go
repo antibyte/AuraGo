@@ -30,7 +30,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var cfHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var cfHTTPClient = &http.Client{Timeout: 30 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // CloudflareTunnelConfig holds the merged config for tunnel management.
 type CloudflareTunnelConfig struct {

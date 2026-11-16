@@ -110,6 +110,9 @@ type GrafanaOrg struct {
 
 func normalizeGrafanaBaseURL(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
+	if err := security.ValidateHTTPBaseURL(trimmed); err != nil {
+		return "", err
+	}
 	if trimmed == "" {
 		return "", fmt.Errorf("grafana base_url is not configured")
 	}
@@ -147,7 +150,7 @@ func grafanaHTTPClient(cfg GrafanaConfig) *http.Client {
 	transport.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: cfg.InsecureSSL, //nolint:gosec // user-controlled for self-signed homelab instances
 	}
-	client := &http.Client{Timeout: timeout, Transport: transport}
+	client := &http.Client{Timeout: timeout, Transport: security.NewConfiguredHTTPTransport(baseURL, transport), CheckRedirect: security.SameOriginRedirect}
 	actual, _ := grafanaHTTPClientCache.LoadOrStore(cacheKey, client)
 	return actual.(*http.Client)
 }

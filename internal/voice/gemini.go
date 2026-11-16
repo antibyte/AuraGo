@@ -15,6 +15,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/realtimespeech"
+	"aurago/internal/security"
 
 	"github.com/gorilla/websocket"
 )
@@ -124,6 +125,7 @@ type geminiLiveSession struct {
 }
 
 func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error) {
+	security.RegisterSensitive(s.backend.Profile.APIKey)
 	endpoint := strings.TrimSpace(s.backend.WebSocketURL)
 	if endpoint == "" {
 		endpoint = defaultGeminiLiveWebSocketURL
@@ -144,7 +146,7 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 		if response != nil {
 			return nil, fmt.Errorf("Gemini Live WebSocket rejected with HTTP %d", response.StatusCode)
 		}
-		return nil, fmt.Errorf("connect Gemini Live WebSocket: %w", err)
+		return nil, fmt.Errorf("connect Gemini Live WebSocket: %s", security.Scrub(err.Error()))
 	}
 	stopClose := context.AfterFunc(s.ctx, func() { _ = conn.Close() })
 	defer stopClose()
@@ -170,7 +172,7 @@ func (s *geminiLiveSession) connect(resumeHandle string) (*websocket.Conn, error
 		}
 		if providerError, ok := payload["error"].(map[string]interface{}); ok {
 			_ = conn.Close()
-			return nil, fmt.Errorf("Gemini Live setup rejected: %v", providerError["status"])
+			return nil, fmt.Errorf("Gemini Live setup rejected: %s", security.Scrub(fmt.Sprint(providerError["status"])))
 		}
 		if _, ok := payload["setupComplete"]; ok {
 			break

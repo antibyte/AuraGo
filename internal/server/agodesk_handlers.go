@@ -1673,6 +1673,7 @@ func acceptAgodeskSessionStart(s *Server, r *http.Request, requestID string, pay
 	}
 
 	sharedKey, err := remote.GenerateSharedKey()
+	security.RegisterSensitive(sharedKey)
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "failed to generate shared key"
 	}
@@ -1761,6 +1762,7 @@ func acceptAgodeskDeviceReconnect(s *Server, requestID string, payload agodesk.S
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorInternal, "vault is not available"
 	}
 	sharedKey, err := s.Vault.ReadSecret("remote_shared_key_" + deviceID)
+	security.RegisterSensitive(sharedKey)
 	if err != nil {
 		return agodesk.SessionAcceptedPayload{}, agodesk.ErrorAuthFailed, "missing shared key"
 	}

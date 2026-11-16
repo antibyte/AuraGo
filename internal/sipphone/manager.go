@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/voice"
 
 	"github.com/emiago/diago"
@@ -172,6 +173,7 @@ type callStore interface {
 }
 
 func NewManager(cfg config.SIPConfig, dataDir string, backendFactory BackendFactory, reporter IssueReporter, logger *slog.Logger, options ...ManagerOption) (*Manager, error) {
+	security.RegisterSensitive(cfg.Password)
 	config.NormalizeSIPConfig(&cfg)
 	store, err := OpenStore(filepath.Join(dataDir, "sip_calls.db"))
 	if err != nil {
@@ -396,6 +398,7 @@ func (m *Manager) Close() error {
 }
 
 func (m *Manager) Reconfigure(ctx context.Context, cfg config.SIPConfig) error {
+	security.RegisterSensitive(cfg.Password)
 	m.lifecycleMu.Lock()
 	defer m.lifecycleMu.Unlock()
 	config.NormalizeSIPConfig(&cfg)

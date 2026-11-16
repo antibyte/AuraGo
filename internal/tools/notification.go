@@ -4,6 +4,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/cyd"
 	"aurago/internal/push"
+	"aurago/internal/security"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -32,7 +33,7 @@ const (
 )
 
 // notifyHTTPClient is shared across notification calls with a bounded timeout.
-var notifyHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var notifyHTTPClient = &http.Client{Timeout: 15 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 // defaultNotificationTitle is the title of a notification sent without one.
 const defaultNotificationTitle = "AuraGo"
@@ -220,6 +221,7 @@ func SendNotificationContext(ctx context.Context, cfg *config.Config, logger *sl
 // ── ntfy.sh ─────────────────────────────────────────────────────────────────
 
 func sendNtfy(cfg *config.Config, title, message, priority string, contexts ...context.Context) error {
+	security.RegisterSensitive(cfg.Notifications.Ntfy.Token)
 	if !cfg.Notifications.Ntfy.Enabled {
 		return fmt.Errorf("ntfy is not enabled in config")
 	}
@@ -273,7 +275,7 @@ func sendNtfy(cfg *config.Config, title, message, priority string, contexts ...c
 		if err != nil {
 			return fmt.Errorf("ntfy returned HTTP %d and response body could not be read safely: %w", resp.StatusCode, err)
 		}
-		return fmt.Errorf("ntfy returned HTTP %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("ntfy returned HTTP %d: %s", resp.StatusCode, security.Scrub(string(body)))
 	}
 	return nil
 }

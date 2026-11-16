@@ -174,9 +174,10 @@ func NewGo2RTCManager(cfg *config.Config, vault *security.Vault, mediaDB *sql.DB
 		mediaDB: mediaDB,
 		logger:  logger,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:       30 * time.Second,
+			CheckRedirect: security.SameOriginRedirect,
 			Transport: &http.Transport{
-				Proxy:                 http.ProxyFromEnvironment,
+				Proxy:                 nil,
 				MaxIdleConns:          10,
 				MaxIdleConnsPerHost:   5,
 				IdleConnTimeout:       60 * time.Second,

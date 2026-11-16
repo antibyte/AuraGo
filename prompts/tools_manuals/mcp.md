@@ -1,4 +1,4 @@
-# MCP (Model Context Protocol) â€” Tool Manual
+# MCP (Model Context Protocol) — Tool Manual
 
 ## Overview
 MCP enables AuraGo to connect to external MCP-compliant servers and use their tools. This extends AuraGo's capabilities dynamically without code changes.

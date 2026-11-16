@@ -1,6 +1,7 @@
 package telnyx
 
 import (
+	"aurago/internal/security"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -30,13 +31,15 @@ type Client struct {
 // (balance, numbers, messages, call status) but every mutation fails closed;
 // senders use NewConfiguredClient.
 func NewClient(apiKey string, logger *slog.Logger) *Client {
+	security.RegisterSensitive(apiKey)
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &Client{
 		apiKey: apiKey,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:       30 * time.Second,
+			CheckRedirect: security.SameOriginRedirect,
 		},
 		baseURL: defaultBaseURL,
 		logger:  logger,
@@ -85,12 +88,15 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}) 
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
-			lastErr = fmt.Errorf("http request: %w", err)
+			lastErr = fmt.Errorf("http request: %s", security.Scrub(err.Error()))
 			continue
 		}
 
 		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 		resp.Body.Close()
+		if resp.StatusCode >= 300 {
+			respBody = []byte(security.Scrub(string(respBody)))
+		}
 		if err != nil {
 			lastErr = fmt.Errorf("read response: %w", err)
 			continue

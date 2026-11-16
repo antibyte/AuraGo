@@ -48,7 +48,7 @@ func SendPhoto(ctx context.Context, cfg *config.Config, name string, jpeg []byte
 	defer cancel()
 	token := cfg.Telegram.BotToken
 	security.RegisterSensitive(token)
-	client := contextBoundHTTPClient{parent: ctx, client: &http.Client{Timeout: photoSendTimeout}}
+	client := contextBoundHTTPClient{parent: ctx, client: &http.Client{Timeout: photoSendTimeout, CheckRedirect: rejectTelegramRedirect}}
 	bot, err := tgbotapi.NewBotAPIWithClient(token, photoAPIEndpoint, client)
 	if err != nil {
 		return fmt.Errorf("telegram client: %s", redactBotToken(err.Error(), token))

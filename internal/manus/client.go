@@ -113,7 +113,7 @@ func NewClient(apiKey string, cfg ClientConfig) (*Client, error) {
 		base = DefaultBaseURL
 	}
 	parsed, err := url.Parse(base)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+	if err != nil || security.ValidateHTTPBaseURL(base) != nil {
 		return nil, fmt.Errorf("invalid Manus base URL")
 	}
 
@@ -129,9 +129,21 @@ func NewClient(apiKey string, cfg ClientConfig) (*Client, error) {
 		}
 		client = &http.Client{Timeout: timeout}
 	}
+	apiClient := *client
+	previousRedirect := client.CheckRedirect
+	apiClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := security.SameOriginRedirect(req, via); err != nil {
+			return err
+		}
+		if previousRedirect != nil {
+			return previousRedirect(req, via)
+		}
+		return nil
+	}
+	client = &apiClient
 	fileClient := cfg.FileHTTPClient
 	if fileClient == nil {
-		fileClient = &http.Client{Timeout: client.Timeout}
+		fileClient = security.NewPublicHTTPClient(client.Timeout)
 	}
 	fileClient = cloneSecureFileClient(fileClient)
 	retryDelay := cfg.RetryBaseDelay

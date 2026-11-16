@@ -110,7 +110,7 @@ func frigateHTTPClient(cfg FrigateConfig, timeout time.Duration, kind string) *h
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: cfg.Insecure}
-	client := &http.Client{Timeout: timeout, Transport: transport, CheckRedirect: security.SameOriginRedirect}
+	client := &http.Client{Timeout: timeout, Transport: security.NewConfiguredHTTPTransport(baseURL, transport), CheckRedirect: security.SameOriginRedirect}
 	actual, _ := frigateClientCache.LoadOrStore(cacheKey, client)
 	return actual.(*http.Client)
 }

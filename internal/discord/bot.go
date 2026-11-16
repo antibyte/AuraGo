@@ -289,6 +289,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 	setStatus(statusFromConfig(cfg, BotStatus{Status: "connecting", Connected: false, Message: "Connecting to Discord gateway..."}))
 
+	security.RegisterSensitive(cfg.Discord.BotToken)
 	dg, err := discordgo.New("Bot " + cfg.Discord.BotToken)
 	if err != nil {
 		logger.Error("[Discord] Failed to create session", "error", err)

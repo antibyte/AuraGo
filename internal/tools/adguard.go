@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/security"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,7 +27,7 @@ type AdGuardConfig struct {
 var adguardClient *http.Client
 var adguardClientOnce sync.Once
 var adguardClientFactory = func() *http.Client {
-	return &http.Client{Timeout: 15 * time.Second}
+	return &http.Client{Timeout: 15 * time.Second, CheckRedirect: security.SameOriginRedirect}
 }
 
 func getAdGuardClient() *http.Client {
@@ -38,6 +39,10 @@ func getAdGuardClient() *http.Client {
 
 // adguardRequest performs an HTTP request against the AdGuard Home API.
 func adguardRequest(cfg AdGuardConfig, method, endpoint string, body string) ([]byte, int, error) {
+	security.RegisterSensitive(cfg.Password)
+	if err := security.ValidateHTTPBaseURL(cfg.URL); err != nil {
+		return nil, 0, err
+	}
 	if cfg.URL == "" {
 		return nil, 0, fmt.Errorf("AdGuard Home URL is not configured")
 	}
@@ -61,13 +66,16 @@ func adguardRequest(cfg AdGuardConfig, method, endpoint string, body string) ([]
 
 	resp, err := getAdGuardClient().Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, 0, fmt.Errorf("request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 
 	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		data = []byte(security.Scrub(string(data)))
 	}
 	return data, resp.StatusCode, nil
 }

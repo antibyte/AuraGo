@@ -10,6 +10,8 @@ Active ASR/TTS snapshots and speech-driven chat routing.
 
 ## Local Contracts
 
+- Private backend HTTP requests retain the validated direct transport and exact-origin redirect policy. A redirect to another private host is still forbidden.
+
 ### Speech Lab Integration Contract
 - Bundle-v2 image metadata recognizes `phonon` and `granite_speech_cpu`, `granite_speech_cuda`, `granite_speech_vulkan`. Keep typed image decoding, `imageValues`, and `imageByKey` consistent so signed v0.2.19+ runtime descriptors validate without weakening the publisher/digest checks. These are optional catalog choices; retain Confucius/Supertonic defaults, saved stacks and chat-output settings.
 - The signed managed bundle starts Confucius4-R2T2 GGUF as its default ASR through llama.cpp `POST /v1/audio/transcriptions`, with a pinned model and audio projector. Select its published CPU, NVIDIA CUDA, or Vulkan image from the validated hardware profile before pulling and starting; leave older bundles unchanged. Keep the stable `confucius-asr` network alias and the gateway's selected ASR protocol/model consistent with the catalog and `/ready` snapshot.

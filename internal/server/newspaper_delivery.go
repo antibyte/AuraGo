@@ -24,6 +24,7 @@ import (
 	"aurago/internal/agentmail"
 	"aurago/internal/config"
 	"aurago/internal/newspaper"
+	"aurago/internal/security"
 	"aurago/internal/whatsapp"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -284,10 +285,11 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 			return "", newspaper.SafeDelivery(err)
 		}
 	}
-	client := &http.Client{Timeout: 90 * time.Second}
+	security.RegisterSensitive(token)
+	client := &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 	bot, err := tgbotapi.NewBotAPIWithClient(token, newspaperTelegramEndpoint, client)
 	if err != nil {
-		return "", newspaper.SafeDelivery(fmt.Errorf("Telegram client failed: %w", err))
+		return "", newspaper.SafeDelivery(fmt.Errorf("Telegram client failed: %s", security.Scrub(err.Error())))
 	}
 	intro := newspaperDigest(e)
 	if utf8.RuneCountInString(intro) > newspaperDigestRunes {
@@ -295,7 +297,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 	}
 	digestMessage, err := bot.Send(newspaperTelegramText(chatID, intro))
 	if err != nil {
-		return "", fmt.Errorf("Telegram digest failed: %w", err)
+		return "", fmt.Errorf("Telegram digest failed: %s", security.Scrub(err.Error()))
 	}
 	lastID := fmt.Sprint(digestMessage.MessageID)
 	if pdfErr == nil {
@@ -303,7 +305,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 		message, sendErr := bot.Send(doc)
 		err = sendErr
 		if err != nil {
-			return lastID, fmt.Errorf("Telegram document outcome unknown: %w", err)
+			return lastID, fmt.Errorf("Telegram document outcome unknown: %s", security.Scrub(err.Error()))
 		}
 		return fmt.Sprint(message.MessageID), nil
 	}
@@ -314,7 +316,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 		}
 		message, sendErr := bot.Send(newspaperTelegramText(chatID, chunk))
 		if sendErr != nil {
-			return lastID, fmt.Errorf("Telegram text outcome unknown: %w", sendErr)
+			return lastID, fmt.Errorf("Telegram text outcome unknown: %s", security.Scrub(sendErr.Error()))
 		}
 		lastID = fmt.Sprint(message.MessageID)
 	}

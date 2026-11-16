@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // VercelConfig holds the Vercel API connection parameters.
@@ -50,7 +52,8 @@ func vercelDial(ctx context.Context, network, addr string) (net.Conn, error) {
 }
 
 var vercelHTTPClient = &http.Client{
-	Timeout: 60 * time.Second,
+	Timeout:       60 * time.Second,
+	CheckRedirect: security.SameOriginRedirect,
 	Transport: &http.Transport{
 		DialContext:         vercelDial,
 		TLSHandshakeTimeout: 15 * time.Second,
@@ -59,6 +62,7 @@ var vercelHTTPClient = &http.Client{
 }
 
 func vercelRequest(cfg VercelConfig, method, endpoint string, body interface{}) ([]byte, int, error) {
+	security.RegisterSensitive(cfg.Token)
 	fullURL, err := vercelURLWithScope(cfg, endpoint)
 	if err != nil {
 		return nil, 0, fmt.Errorf("build request url: %w", err)
@@ -85,13 +89,16 @@ func vercelRequest(cfg VercelConfig, method, endpoint string, body interface{}) 
 
 	resp, err := vercelHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("execute request: %w", err)
+		return nil, 0, fmt.Errorf("execute request: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 
 	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		data = []byte(security.Scrub(string(data)))
 	}
 	return data, resp.StatusCode, nil
 }

@@ -58,7 +58,11 @@ const telegramHTTPTimeout = 90 * time.Second
 
 // newTelegramHTTPClient builds the HTTP client used for Telegram requests.
 func newTelegramHTTPClient() *http.Client {
-	return &http.Client{Timeout: telegramHTTPTimeout}
+	return &http.Client{Timeout: telegramHTTPTimeout, CheckRedirect: rejectTelegramRedirect}
+}
+
+func rejectTelegramRedirect(_ *http.Request, _ []*http.Request) error {
+	return http.ErrUseLastResponse
 }
 
 // StartLongPolling starts one cancellable generation without waiting for network I/O.
@@ -275,13 +279,14 @@ func SendTestMessage(cfg *config.Config, now time.Time) error {
 	if cfg == nil || strings.TrimSpace(cfg.Telegram.BotToken) == "" || cfg.Telegram.UserID == 0 {
 		return fmt.Errorf("telegram is not configured")
 	}
-	bot, err := tgbotapi.NewBotAPI(cfg.Telegram.BotToken)
+	security.RegisterSensitive(cfg.Telegram.BotToken)
+	bot, err := tgbotapi.NewBotAPIWithClient(cfg.Telegram.BotToken, tgbotapi.APIEndpoint, newTelegramHTTPClient())
 	if err != nil {
-		return fmt.Errorf("initialize telegram test client: %w", err)
+		return fmt.Errorf("initialize telegram test client: %s", security.Scrub(err.Error()))
 	}
 	text := telegramTestMessage(now)
 	if _, err := bot.Send(tgbotapi.NewMessage(cfg.Telegram.UserID, text)); err != nil {
-		return fmt.Errorf("send telegram test message: %w", err)
+		return fmt.Errorf("send telegram test message: %s", security.Scrub(err.Error()))
 	}
 	integrationstatus.MarkTelegramTest(now)
 	return nil
@@ -1029,7 +1034,7 @@ func (b *TelegramBroker) SendThinkingBlock(provider, content, state string) {
 
 func downloadFile(ctx context.Context, url string, logger *slog.Logger) (string, error) {
 	const maxTelegramDownloadBytes = 50 * 1024 * 1024
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second, CheckRedirect: rejectTelegramRedirect}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", fmt.Errorf("create Telegram media download request: %s", security.Scrub(err.Error()))

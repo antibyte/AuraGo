@@ -20,6 +20,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/httpstream"
+	"aurago/internal/security"
 
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -495,12 +496,15 @@ func resolveCredential(cfg managerConfigSnapshot, node NodeID) resolvedCredentia
 		key = tsCfg.AuthKeySpaceAgent
 	}
 	if key = strings.TrimSpace(key); key != "" {
+		security.RegisterSensitive(key)
 		return resolvedCredential{Key: key, Source: "node_vault"}
 	}
 	if key = strings.TrimSpace(tsCfg.AuthKey); key != "" {
+		security.RegisterSensitive(key)
 		return resolvedCredential{Key: key, Source: "shared_vault"}
 	}
 	if key = strings.TrimSpace(os.Getenv("TS_AUTHKEY")); key != "" {
+		security.RegisterSensitive(key)
 		return resolvedCredential{Key: key, Source: "environment"}
 	}
 	return resolvedCredential{Source: "none"}
@@ -2127,7 +2131,7 @@ func newStoreAppProxyHandler(spec StoreAppProxySpec, logger *slog.Logger) (http.
 func newStoreAppReverseProxy(target *url.URL, logger *slog.Logger) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
+		Proxy:                 nil,
 		DialContext:           (&net.Dialer{Timeout: storeAppProxyBackendTimeout, KeepAlive: 30 * time.Second}).DialContext,
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          100,
@@ -2153,6 +2157,12 @@ func newStoreAppReverseProxy(target *url.URL, logger *slog.Logger) *httputil.Rev
 		http.Error(w, "Store app backend unavailable", http.StatusBadGateway)
 	}
 	return proxy
+}
+
+func directTailnetProxyTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	return transport
 }
 
 func storeAppProxyUsesAPITarget(path string) bool {
@@ -2559,6 +2569,7 @@ func (m *Manager) startHomepageListener(ctx context.Context, srv *tsnet.Server) 
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy.Transport = directTailnetProxyTransport()
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
@@ -2619,6 +2630,7 @@ func (m *Manager) startSpeechLabListener(ctx context.Context, srv *tsnet.Server,
 		return fmt.Errorf("Speech Lab exposure requires Tailscale HTTPS on :%d: %w", port, err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy.Transport = directTailnetProxyTransport()
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
@@ -2838,6 +2850,7 @@ func (m *Manager) startManifestListener(ctx context.Context, _ *tsnet.Server) er
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy.Transport = directTailnetProxyTransport()
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
@@ -3067,6 +3080,7 @@ func (m *Manager) startSpaceAgentListener(ctx context.Context) error {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy.Transport = directTailnetProxyTransport()
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)

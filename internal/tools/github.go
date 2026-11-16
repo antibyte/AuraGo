@@ -61,6 +61,7 @@ func githubContentEndpoint(owner, repo, filePath string) string {
 
 // githubRequest executes an authenticated HTTP request against the GitHub API.
 func githubRequest(ctx context.Context, cfg GitHubConfig, method, endpoint string, body interface{}) ([]byte, http.Header, int, error) {
+	security.RegisterSensitive(cfg.Token)
 	if ctx == nil {
 		return nil, nil, 0, fmt.Errorf("github request context is required")
 	}
@@ -94,13 +95,16 @@ func githubRequest(ctx context.Context, cfg GitHubConfig, method, endpoint strin
 
 	resp, err := githubHTTPClient.Do(req)
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("request failed: %w", err)
+		return nil, nil, 0, fmt.Errorf("request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 
 	respBody, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
 		return nil, resp.Header, resp.StatusCode, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode >= 300 {
+		respBody = []byte(security.Scrub(string(respBody)))
 	}
 	return respBody, resp.Header, resp.StatusCode, nil
 }

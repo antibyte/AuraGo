@@ -17,12 +17,13 @@ import (
 	"time"
 
 	"aurago/internal/fileutil"
+	"aurago/internal/security"
 )
 
 const cloudflaredMaxDownload = 100 << 20
 
 var cloudflaredInstallMu sync.Mutex
-var cloudflaredDownloadClient = &http.Client{Timeout: 5 * time.Minute}
+var cloudflaredDownloadClient = security.NewPublicHTTPClient(5 * time.Minute)
 var cloudflaredPublish = fileutil.RenameContext
 
 type cloudflaredDownload struct {

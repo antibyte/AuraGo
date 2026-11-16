@@ -15,7 +15,7 @@ import (
 	"aurago/internal/security"
 )
 
-var braveHTTPClient = &http.Client{Timeout: 15 * time.Second}
+var braveHTTPClient = &http.Client{Timeout: 15 * time.Second, CheckRedirect: security.SameOriginRedirect}
 
 var braveUILangMap = map[string]string{
 	"de": "de-DE",
@@ -105,6 +105,7 @@ func braveReadBody(resp *http.Response) ([]byte, error) {
 }
 
 func braveFormatAPIError(statusCode int, body []byte) string {
+	body = []byte(security.Scrub(string(body)))
 	var apiErr braveErrorResponse
 	if err := json.Unmarshal(body, &apiErr); err == nil {
 		code := strings.TrimSpace(apiErr.Error.Code)

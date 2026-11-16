@@ -35,7 +35,7 @@ type Client struct {
 // NewClient creates a provider client with conservative timeouts.
 func NewClient() *Client {
 	return &Client{
-		HTTPClient:      &http.Client{Timeout: 20 * time.Second},
+		HTTPClient:      &http.Client{Timeout: 20 * time.Second, CheckRedirect: security.SameOriginRedirect},
 		OpenAIBaseURL:   "https://api.openai.com",
 		XAIBaseURL:      "https://api.x.ai",
 		XAIWebSocketURL: "wss://api.x.ai/v1/realtime",
@@ -47,7 +47,7 @@ func (c *Client) httpClient() *http.Client {
 	if c != nil && c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return &http.Client{Timeout: 20 * time.Second}
+	return &http.Client{Timeout: 20 * time.Second, CheckRedirect: security.SameOriginRedirect}
 }
 
 func (c *Client) openAIBaseURL() string {
@@ -206,6 +206,7 @@ type GeminiEphemeralToken struct {
 // CreateGeminiEphemeralToken creates a Developer API token constrained to the
 // selected model, voice, system contract, and two private AuraGo functions.
 func (c *Client) CreateGeminiEphemeralToken(ctx context.Context, profile config.RealtimeSpeechProfile) (GeminiEphemeralToken, error) {
+	security.RegisterSensitive(profile.APIKey)
 	var result GeminiEphemeralToken
 	now := time.Now().UTC()
 	expireAt := now.Add(30 * time.Minute)
@@ -229,7 +230,7 @@ func (c *Client) CreateGeminiEphemeralToken(ctx context.Context, profile config.
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
-		return result, fmt.Errorf("Gemini ephemeral token request failed: %w", err)
+		return result, fmt.Errorf("Gemini ephemeral token request failed: %s", security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 	body, err := readProviderBody(resp.Body)
@@ -257,6 +258,7 @@ func (c *Client) CreateGeminiEphemeralToken(ctx context.Context, profile config.
 		ConstrainedToolCount:  len(PrivateTools()),
 		ManualActivityEnabled: true,
 	}
+	security.RegisterSensitive(result.Value)
 	return result, nil
 }
 
@@ -393,6 +395,7 @@ func geminiTypedSchema(schema map[string]interface{}) map[string]interface{} {
 // TestProfile validates credentials, model, and voice without requesting a
 // generated audio response.
 func (c *Client) TestProfile(ctx context.Context, profile config.RealtimeSpeechProfile) ([]Voice, error) {
+	security.RegisterSensitive(profile.APIKey)
 	switch profile.Provider {
 	case ProviderOpenAI:
 		endpoint := c.openAIBaseURL() + "/v1/models/" + url.PathEscape(profile.Model)
@@ -437,7 +440,7 @@ func (c *Client) testMetadata(ctx context.Context, provider, endpoint string) er
 func (c *Client) doMetadataRequest(req *http.Request, provider string) error {
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
-		return fmt.Errorf("%s metadata request failed: %w", provider, err)
+		return fmt.Errorf("%s metadata request failed: %s", provider, security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 	payload, err := readProviderBody(resp.Body)

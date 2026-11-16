@@ -72,6 +72,9 @@ type UptimeKumaSnapshot struct {
 
 func normalizeUptimeKumaBaseURL(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
+	if err := security.ValidateHTTPBaseURL(trimmed); err != nil {
+		return "", err
+	}
 	if trimmed == "" {
 		return "", fmt.Errorf("uptime kuma base_url is not configured")
 	}
@@ -98,8 +101,9 @@ func uptimeKumaHTTPClient(cfg UptimeKumaConfig) *http.Client {
 		InsecureSkipVerify: cfg.InsecureSSL, //nolint:gosec // user-controlled for self-signed homelab instances
 	}
 	return &http.Client{
-		Timeout:   timeout,
-		Transport: transport,
+		Timeout:       timeout,
+		Transport:     security.NewConfiguredHTTPTransport(cfg.BaseURL, transport),
+		CheckRedirect: security.SameOriginRedirect,
 	}
 }
 

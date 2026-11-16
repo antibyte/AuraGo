@@ -10,6 +10,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -48,7 +51,14 @@ func NewClient(cfg config.TrueNASConfig, vault *security.Vault) (*Client, error)
 		return nil, fmt.Errorf("TrueNAS host is required")
 	}
 
-	baseURL := fmt.Sprintf("%s://%s:%d/api/v2.0", scheme, cfg.Host, port)
+	host := strings.TrimPrefix(strings.TrimSuffix(cfg.Host, "]"), "[")
+	if strings.ContainsAny(host, "/\\?#@% \t\r\n") || (strings.Contains(host, ":") && net.ParseIP(host) == nil) || port < 1 || port > 65535 {
+		return nil, fmt.Errorf("TrueNAS host must be a hostname or IP address without URL components")
+	}
+	baseURL := (&url.URL{Scheme: scheme, Host: net.JoinHostPort(host, strconv.Itoa(port)), Path: "/api/v2.0"}).String()
+	if err := security.ValidateHTTPBaseURL(baseURL); err != nil {
+		return nil, err
+	}
 
 	// Get API key from config or vault
 	apiKey := cfg.APIKey
@@ -62,6 +72,7 @@ func NewClient(cfg config.TrueNASConfig, vault *security.Vault) (*Client, error)
 	if apiKey == "" {
 		return nil, fmt.Errorf("TrueNAS API key is required (set in config or vault as 'truenas_api_key')")
 	}
+	security.RegisterSensitive(apiKey)
 
 	// Configure TLS
 	tlsConfig := &tls.Config{
@@ -89,7 +100,8 @@ func NewClient(cfg config.TrueNASConfig, vault *security.Vault) (*Client, error)
 		apiKey:   apiKey,
 		insecure: cfg.InsecureSSL,
 		httpClient: &http.Client{
-			Timeout: time.Duration(requestTimeout) * time.Second,
+			Timeout:       time.Duration(requestTimeout) * time.Second,
+			CheckRedirect: security.SameOriginRedirect,
 			Transport: &http.Transport{
 				TLSClientConfig:       tlsConfig,
 				DialContext:           dialer.DialContext,
@@ -145,7 +157,7 @@ func (c *Client) Get(ctx context.Context, endpoint string, result interface{}) e
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("API error %d: %s", resp.StatusCode, security.Scrub(string(body)))
 	}
 
 	if result != nil && len(body) > 0 {
@@ -171,7 +183,7 @@ func (c *Client) Post(ctx context.Context, endpoint string, body, result interfa
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
+		return fmt.Errorf("API error %d: %s", resp.StatusCode, security.Scrub(string(respBody)))
 	}
 
 	if result != nil && len(respBody) > 0 {
@@ -193,7 +205,7 @@ func (c *Client) Put(ctx context.Context, endpoint string, body interface{}) err
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("API error %d: %s", resp.StatusCode, security.Scrub(string(body)))
 	}
 
 	return nil
@@ -209,7 +221,7 @@ func (c *Client) Delete(ctx context.Context, endpoint string) error {
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
+		return fmt.Errorf("API error %d: %s", resp.StatusCode, security.Scrub(string(body)))
 	}
 
 	return nil

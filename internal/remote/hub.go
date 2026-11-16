@@ -1090,6 +1090,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 
 		// Verify shared key by looking up vault
 		storedKey, err := h.vault.ReadSecret("remote_shared_key_" + device.ID)
+		security.RegisterSensitive(storedKey)
 		if err != nil {
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "missing shared key", nil, nil)
 		}
@@ -1173,6 +1174,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", "credential storage unavailable", nil, nil)
 		}
 		authKey, err := h.vault.ReadSecret(enrollmentAuthKeyName(enrollment.ID))
+		security.RegisterSensitive(authKey)
 		if errors.Is(err, security.ErrSecretNotFound) {
 			h.logger.Warn("Remote enrollment token has no MAC key in the vault", "enrollment_id", enrollment.ID)
 			return h.sendAuthResponse(wsConn, msg.Nonce, "", "", "", "rejected", keylessEnrollmentMessage, nil, nil)
@@ -1249,6 +1251,7 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 // requestNonce is the Nonce of the auth frame being answered.
 func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, requestNonce string, auth AuthPayload, enrollmentID, deviceName, bootstrapSigningKey string) error {
 	sharedKey, err := GenerateSharedKey()
+	security.RegisterSensitive(sharedKey)
 	if err != nil {
 		return h.sendAuthResponse(wsConn, requestNonce, bootstrapSigningKey, "", "", "rejected", "key generation failed", nil, nil)
 	}
@@ -1398,6 +1401,8 @@ func (h *RemoteHub) DiscardEnrollmentKey(enrollmentID string) {
 // back; a failed commit deletes the key again. Expired enrollments and their
 // keys are swept first, so leftovers do not accumulate.
 func (h *RemoteHub) issueEnrollment(token, deviceName, expiresAt string, alsoInTx func(*sql.Tx) error) (string, error) {
+	security.RegisterSensitive(token)
+	security.RegisterSensitive(DeriveEnrollmentAuthKey(token))
 	if h.vault == nil {
 		return "", fmt.Errorf("enrollment key storage unavailable")
 	}
@@ -1485,6 +1490,7 @@ func (h *RemoteHub) rejectPreUpgradeEnrollment(wsConn *websocket.Conn, msg Remot
 func (h *RemoteHub) rejectPreUpgradeReconnect(wsConn *websocket.Conn, msg RemoteMessage, deviceID string) error {
 	if device, err := GetDevice(h.db, deviceID); err == nil && device.Status != "revoked" && h.vault != nil {
 		if key, err := h.vault.ReadSecret("remote_shared_key_" + device.ID); err == nil {
+			security.RegisterSensitive(key)
 			if refusal, err := legacyRefusal(msg.Nonce, key, preUpgradeReconnectMessage); err == nil {
 				return wsConn.WriteJSON(refusal)
 			}
@@ -1563,6 +1569,8 @@ func (h *RemoteHub) RejectDevice(deviceID string) error {
 // replayed on a later connect. A malformed request nonce is not echoed, so a
 // requester cannot place arbitrary bytes under a signature.
 func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, requestNonce, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string, settingsConn ...*RemoteConnection) (sendErr error) {
+	security.RegisterSensitive(signingKeyHex)
+	security.RegisterSensitive(sharedKey)
 	defer func() {
 		if sendErr != nil && len(settingsConn) > 0 {
 			settingsConn[0].Close()

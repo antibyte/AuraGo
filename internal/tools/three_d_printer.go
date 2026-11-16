@@ -560,16 +560,17 @@ func klipperCommand(ctx context.Context, printer KlipperPrinter, method, path st
 		req.Header.Set("Content-Type", "application/json")
 	}
 	if strings.TrimSpace(printer.APIKey) != "" {
+		security.RegisterSensitive(printer.APIKey)
 		req.Header.Set("X-Api-Key", strings.TrimSpace(printer.APIKey))
 	}
-	resp, err := (&http.Client{Timeout: timeout}).Do(req)
+	resp, err := (&http.Client{Timeout: timeout, CheckRedirect: security.SameOriginRedirect}).Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("call Moonraker %s %s: %w", method, path, err)
+		return nil, fmt.Errorf("call Moonraker %s %s: %s", method, path, security.Scrub(err.Error()))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return nil, fmt.Errorf("Moonraker %s %s returned HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(data)))
+		return nil, fmt.Errorf("Moonraker %s %s returned HTTP %d: %s", method, path, resp.StatusCode, security.Scrub(strings.TrimSpace(string(data))))
 	}
 	var decoded map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
