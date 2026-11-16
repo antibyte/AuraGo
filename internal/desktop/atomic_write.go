@@ -20,6 +20,10 @@ func secureWriteWorkspaceFileRoot(ctx context.Context, rootPath, path string, co
 	if err != nil || !filepath.IsLocal(rel) {
 		return nil, fmt.Errorf("invalid desktop write path")
 	}
+	return secureWriteFileRoot(ctx, root, rel, content)
+}
+
+func secureWriteFileRoot(ctx context.Context, root *os.Root, rel string, content []byte) (os.FileInfo, error) {
 	if err := root.MkdirAll(filepath.Dir(rel), 0700); err != nil {
 		return nil, err
 	}
