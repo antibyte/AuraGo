@@ -200,11 +200,20 @@ const dockerComposeFileReadLimit = 4 << 20
 // regular file of at most 4 MiB, so a FIFO or device cannot hang the call.
 // The root also confines reads if a path component changes after validation.
 func readDockerComposeFile(workspace, path string) ([]byte, error) {
+	workspace, err := filepath.EvalSymlinks(workspace)
+	if err != nil {
+		return nil, fmt.Errorf("resolve compose workspace: %w", err)
+	}
 	root, err := os.OpenRoot(workspace)
 	if err != nil {
 		return nil, fmt.Errorf("open compose workspace: %w", err)
 	}
 	defer root.Close()
+	// os.Root rejects absolute symlinks even when their target is inside the root.
+	path, err = filepath.EvalSymlinks(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve compose file: %w", err)
+	}
 	rel, err := filepath.Rel(workspace, path)
 	if err != nil || !filepath.IsLocal(rel) {
 		return nil, fmt.Errorf("compose file must stay within the workspace")
