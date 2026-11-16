@@ -18,7 +18,7 @@
     const BEATS = 4;
     const ARP_PATTERNS = [[0, 1, 2, 3, 2, 1, 0, 1], [0, 2, 1, 2, 0, 2, 1, 3], [0, 1, 2, 1, 3, 2, 1, 2]];
     const MELODY_RHYTHMS = [[0, 1, 1.5, 2.5], [0, 0.5, 1, 2], [0, 1.5, 2, 3], [0, 1, 2, 3], [0, 0.75, 1.5, 2.5, 3]];
-    const OSTINATO = [0, 0, 1, 0, 0, 2, 0, -1];
+    const OSTINATO = [0, 0, 1, 0, 0, 4, 0, 1];
     const EIGHTHS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5];
 
     // Biome themes: tonic (midi), mode, tempo, two 4-bar chord loops (scale degrees), instruments, calm drum grid.
@@ -39,11 +39,11 @@
                 bpm: s.bpm, prog: s.prog, arpInstr: s.arpInstr, melInstr: s.melInstr, arpGrid: s.arpGrid,
                 drums: { kick: [0, 2], snare: [1, 3], hat: [0.5, 1.5, 2.5, 3.5] }
             };
-            const bossScale = biome === 'citadel' ? 'harmonicMinor' : 'minor';
+            const bossScale = biome === 'citadel' ? 'harmonicMinor' : 'phrygian';
             out['boss_' + biome] = {
                 id: 'boss_' + biome, biome: biome, boss: true, root: s.root, scaleName: bossScale, scale: SCALES[bossScale],
-                bpm: Math.round(s.bpm * 1.15), prog: [[0, 5, 3, 4], [0, 6, 5, 4]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS,
-                drums: { kick: [0, 1.5, 2, 3], snare: [1, 3], hat: EIGHTHS }
+                bpm: Math.round(s.bpm * 1.15), prog: [[0, 5, 6, 0], [0, 1, 0, 4]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS,
+                drums: { kick: [0, 1.5], snare: [2], hat: [1, 3], tom: [1, 2.75, 3.5] }
             };
         });
         return out;
@@ -123,8 +123,8 @@
             const low = fold(degMidi(theme, d), root - 14, root - 3);
             const fifth = fold(degMidi(theme, d + 4), root - 14, root - 3);
             if (theme.boss) {
-                EIGHTHS.forEach(function (t, i) {
-                    out.push({ t: t, dur: 0.42, midi: i % 4 === 3 ? fold(low + 12, root - 14, root + 2) : low, vel: i % 2 === 0 ? 1 : 0.7, type: 'bass' });
+                [[0, 1.4, 1], [1.5, 0.45, 0.8], [2, 1.5, 0.9]].forEach(function (n) {
+                    out.push({ t: n[0], dur: n[1], midi: low, vel: n[2], type: 'bass' });
                 });
             } else if (rng() < 0.5) {
                 out.push({ t: 0, dur: 2.5, midi: low, vel: 1, type: 'bass' });
@@ -144,6 +144,11 @@
                 out.push({ t: t, dur: Math.max(0.5, gap * 1.2), midi: fold(degMidi(theme, tones[idx]) + 12, root + 7, root + 24), vel: (t % 1 === 0 ? 0.85 : 0.6) + rng() * 0.15, type: theme.arpInstr });
             });
         } else if (layer === 'melody') {
+            if (theme.boss) {
+                out.push({ t: 0, dur: 3.6, midi: fold(degMidi(theme, d + (phrase === 3 ? 1 : 0)), root, root + 11), vel: 0.8, type: 'lead' });
+                if (phrase % 2 === 1) out.push({ t: 2, dur: 1.8, midi: fold(degMidi(theme, d + 2), root, root + 11), vel: 0.6, type: 'lead' });
+                return out;
+            }
             if (bar % 8 === 7) {
                 out.push({ t: 0, dur: 3, midi: fold(degMidi(theme, d + 7), root + 12, root + 28), vel: 0.7, type: theme.melInstr });
                 return out;
@@ -162,13 +167,21 @@
             theme.drums.kick.forEach(function (t) { out.push({ t: t, dur: 0.3, midi: null, vel: 0.9, type: 'kick' }); });
             theme.drums.snare.forEach(function (t) { out.push({ t: t, dur: 0.2, midi: null, vel: 0.6, type: 'snare' }); });
             theme.drums.hat.forEach(function (t) { out.push({ t: t, dur: 0.1, midi: null, vel: 0.4 + rng() * 0.3, type: 'hat' }); });
-            if (fill) {
+            (theme.drums.tom || []).forEach(function (t, i) { out.push({ t: t, dur: 0.25, midi: null, vel: 0.7 + 0.1 * (i % 2), type: 'tom' }); });
+            if (fill && !theme.boss) {
                 [3.25, 3.5, 3.75].forEach(function (t) { out.push({ t: t, dur: 0.15, midi: null, vel: 0.5, type: 'snare' }); });
             }
         } else if (layer === 'boss') {
             if (!theme.boss) return out;
+            out.push({ t: 0, dur: 4, midi: fold(degMidi(theme, 0), root - 24, root - 13), vel: 1, type: 'drone' });
+            [[0, [d, d + 1], 1], [1.5, [d, d + 4], 0.8], [2.75, [d + 1, d], 0.9]].forEach(function (h) {
+                h[1].forEach(function (deg) {
+                    out.push({ t: h[0], dur: 0.4, midi: fold(degMidi(theme, deg), root - 12, root - 1), vel: h[2], type: 'stab' });
+                });
+            });
+            if (phrase === 3) out.push({ t: 0, dur: 4, midi: null, vel: 1, type: 'swell' });
             EIGHTHS.forEach(function (t, i) {
-                out.push({ t: t, dur: 0.4, midi: fold(degMidi(theme, d + OSTINATO[i]), root - 5, root + 12), vel: i % 2 === 0 ? 1 : 0.7, type: 'ostinato' });
+                out.push({ t: t, dur: 0.4, midi: fold(degMidi(theme, d + OSTINATO[i]), root - 12, root + 2), vel: i % 2 === 0 ? 1 : 0.7, type: 'ostinato' });
             });
         }
         return out;
@@ -213,6 +226,7 @@
         let send = null;
         let stingOut = null;
         let noise = null;
+        let shape = null;
         let enabled = true;
         let active = true;
         let disposed = false;
@@ -260,6 +274,8 @@
             const data = noise.getChannelData(0);
             const r = rngOf(0x5EED);
             for (let i = 0; i < len; i++) data[i] = r() * 2 - 1;
+            shape = new Float32Array(513);
+            for (let i = 0; i < 513; i++) shape[i] = Math.tanh(3 * (i / 256 - 1)) / Math.tanh(3);
             applyOut(true);
             return true;
         }
@@ -323,11 +339,11 @@
             const th = deck.theme;
             const dd = clamp(danger, 0, 1);
             const target = {
-                pad: 1,
-                bass: 0.9,
-                arp: th.boss ? 0.7 : 0.85 * (1 - 0.35 * dd),
-                melody: th.boss ? 0.55 : 0.8 * (1 - 0.7 * dd),
-                perc: th.boss ? 1 : (dd > 0.12 ? 0.3 + 0.7 * dd : 0),
+                pad: th.boss ? 0.7 : 1 - 0.3 * dd,
+                bass: 0.8 + 0.4 * dd,
+                arp: th.boss ? 0 : 0.45 + 0.65 * dd,
+                melody: th.boss ? 0.6 : 0.85 * (1 - 0.6 * dd),
+                perc: th.boss ? 1.3 : (dd > 0.12 ? 0.4 + 1.1 * dd : 0),
                 boss: th.boss ? 1 : 0
             };
             LAYERS.forEach(function (l) {
@@ -370,30 +386,39 @@
             g.gain.exponentialRampToValueAtTime(0.0001, endT);
         }
 
-        function buildVoice(ev, t, f, dur, dest) {
+        function buildVoice(ev, t, f, dur, dest, pan) {
             const g = ctx.createGain();
-            g.connect(dest);
             const nodes = [g];
             const keep = function (n) { nodes.push(n); return n; };
+            if (pan && typeof ctx.createStereoPanner === 'function') {
+                const p = keep(ctx.createStereoPanner());
+                p.pan.value = pan;
+                g.connect(p);
+                p.connect(dest);
+            } else {
+                g.connect(dest);
+            }
             const vel = ev.vel;
             let end = t + dur + 0.1;
             let main;
             if (ev.type === 'pad') {
-                const lp = keep(filt('lowpass', 850, 0.6));
-                const a = keep(osc('sawtooth', f, t, -8));
-                const b = keep(osc('sawtooth', f, t, 8));
-                const c = keep(osc('triangle', f, t, 0));
-                const lfo = keep(osc('sine', 0.09 + (ev.midi % 5) * 0.015, t, 0));
+                const hp = keep(filt('highpass', 180, 0.5));
+                const lp = keep(filt('lowpass', ev.boss ? 900 : 2200, 0.6));
+                const a = keep(osc('sawtooth', f, t, -9));
+                const b = keep(osc('sawtooth', f, t, 9));
+                const c = keep(osc('triangle', f * 2, t, 0));
+                const lfo = keep(osc('sine', 0.08 + (ev.midi % 5) * 0.015, t, 0));
                 const lfoG = keep(ctx.createGain());
-                lfoG.gain.value = 260;
+                lfoG.gain.value = 800;
                 lfo.connect(lfoG);
                 lfoG.connect(lp.frequency);
-                [a, b, c].forEach(function (o) { o.connect(lp); });
+                [a, b, c].forEach(function (o) { o.connect(hp); });
+                hp.connect(lp);
                 lp.connect(g);
                 end = t + dur + 0.7;
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.linearRampToValueAtTime(0.05 * vel, t + 0.55);
-                g.gain.setValueAtTime(0.05 * vel, t + dur - 0.05);
+                g.gain.linearRampToValueAtTime(0.026 * vel, t + 0.55);
+                g.gain.setValueAtTime(0.026 * vel, t + dur - 0.05);
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 [a, b, lfo].forEach(function (o) { o.stop(end + 0.02); });
                 main = c;
@@ -401,58 +426,141 @@
                 const car = keep(osc('sine', f, t, 0));
                 const mod = keep(osc('sine', f * 3.51, t, 0));
                 const mg = keep(ctx.createGain());
-                mg.gain.setValueAtTime(f * 1.3, t);
-                mg.gain.exponentialRampToValueAtTime(f * 0.04, t + 0.9);
+                mg.gain.setValueAtTime(f * 3.2, t);
+                mg.gain.exponentialRampToValueAtTime(f * 0.08, t + 1.0);
                 mod.connect(mg);
                 mg.connect(car.frequency);
                 car.connect(g);
                 end = t + 1.7;
-                envelope(g, t, 0.1 * vel, 0.004, end);
+                envelope(g, t, 0.2 * vel, 0.003, end);
                 mod.stop(end + 0.02);
                 main = car;
             } else if (ev.type === 'pluck') {
-                const lp = keep(filt('lowpass', Math.min(5000, f * 6), 0.8));
-                lp.frequency.setValueAtTime(Math.min(5000, f * 6), t);
-                lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 1.2), t + 0.3);
-                const a = keep(osc('triangle', f, t, 0));
-                const b = keep(osc('sine', f * 2, t, 3));
+                const top = Math.min(6000, f * 9);
+                const lp = keep(filt('lowpass', top, 1.0));
+                lp.frequency.setValueAtTime(top, t);
+                lp.frequency.exponentialRampToValueAtTime(Math.max(500, f * 1.5), t + 0.18);
+                const a = keep(osc('sawtooth', f, t, 0));
+                const b = keep(osc('square', f, t, 6));
                 const bg = keep(ctx.createGain());
-                bg.gain.value = 0.3;
+                bg.gain.value = 0.45;
                 a.connect(lp);
                 b.connect(bg);
                 bg.connect(lp);
                 lp.connect(g);
-                end = t + Math.min(1.3, dur * 1.1 + 0.35);
-                envelope(g, t, 0.13 * vel, 0.006, end);
+                end = t + Math.min(1.1, dur * 0.9 + 0.3);
+                envelope(g, t, 0.17 * vel, 0.004, end);
                 b.stop(end + 0.02);
                 main = a;
             } else if (ev.type === 'bass') {
-                const lp = keep(filt('lowpass', ev.boss ? 420 : 320, 0.7));
+                const lp = keep(filt('lowpass', ev.boss ? 380 : 260, 0.7));
                 const a = keep(osc('sine', f, t, 0));
                 const b = keep(osc(ev.boss ? 'sawtooth' : 'triangle', f, t, 0));
                 const bg = keep(ctx.createGain());
-                bg.gain.value = ev.boss ? 0.22 : 0.3;
+                bg.gain.value = ev.boss ? 0.2 : 0.25;
                 a.connect(lp);
                 b.connect(bg);
                 bg.connect(lp);
                 lp.connect(g);
                 end = t + dur + 0.12;
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.linearRampToValueAtTime(0.26 * vel, t + 0.025);
-                g.gain.setTargetAtTime(0.16 * vel, t + 0.05, 0.4);
-                g.gain.setValueAtTime(0.16 * vel * 0.5, Math.max(t + 0.06, end - 0.12));
+                g.gain.linearRampToValueAtTime(0.13 * vel, t + 0.025);
+                g.gain.setTargetAtTime(0.08 * vel, t + 0.05, 0.4);
+                g.gain.setValueAtTime(0.04 * vel, Math.max(t + 0.06, end - 0.12));
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 b.stop(end + 0.02);
                 main = a;
-            } else if (ev.type === 'ostinato') {
-                const lp = keep(filt('lowpass', 1500, 1.1));
-                lp.frequency.setValueAtTime(1500, t);
-                lp.frequency.exponentialRampToValueAtTime(380, t + 0.28);
-                const a = keep(osc('sawtooth', f, t, 0));
+            } else if (ev.type === 'stab') {
+                const lp = keep(filt('lowpass', 1800, 1.2));
+                lp.frequency.setValueAtTime(2200, t);
+                lp.frequency.exponentialRampToValueAtTime(420, t + 0.5);
+                const a = keep(osc('sawtooth', f, t, -7));
+                const b = keep(osc('sawtooth', f, t, 7));
                 a.connect(lp);
+                b.connect(lp);
                 lp.connect(g);
+                end = t + Math.min(1.2, dur + 0.25);
+                envelope(g, t, 0.07 * vel, 0.03, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'ostinato') {
+                const lp = keep(filt('lowpass', 900, 1.0));
+                lp.frequency.setValueAtTime(900, t);
+                lp.frequency.exponentialRampToValueAtTime(260, t + 0.2);
+                const a = keep(osc('sawtooth', f, t, 0));
+                const b = keep(osc('square', f, t, -5));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 0.5;
+                a.connect(bg);
+                b.connect(bg);
+                if (typeof ctx.createWaveShaper === 'function' && shape) {
+                    const ws = keep(ctx.createWaveShaper());
+                    ws.curve = shape;
+                    bg.gain.value = 2.2;
+                    bg.connect(ws);
+                    ws.connect(lp);
+                } else {
+                    bg.connect(lp);
+                }
+                lp.connect(g);
+                end = t + 0.24;
+                envelope(g, t, 0.14 * vel, 0.004, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'drone') {
+                const a = keep(osc('sine', f, t, 0));
+                const b = keep(osc('triangle', f, t, 4));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 0.3;
+                a.connect(g);
+                b.connect(bg);
+                bg.connect(g);
+                end = t + dur + 0.4;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.11, t + 0.4);
+                g.gain.setValueAtTime(0.11, t + dur - 0.1);
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'lead') {
+                const lp = keep(filt('lowpass', 1400, 0.8));
+                const a = keep(osc('sawtooth', f, t, -6));
+                const b = keep(osc('sawtooth', f, t, 6));
+                a.connect(lp);
+                b.connect(lp);
+                lp.connect(g);
+                end = t + dur + 0.35;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.055 * vel, t + 0.2);
+                g.gain.setValueAtTime(0.055 * vel, t + dur - 0.1);
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'swell') {
+                const n = keep(noiseSrc(t, 0.2));
+                const bp = keep(filt('bandpass', 300, 1.4));
+                bp.frequency.setValueAtTime(300, t);
+                bp.frequency.exponentialRampToValueAtTime(3000, t + dur);
+                n.connect(bp);
+                bp.connect(g);
+                end = t + dur + 0.05;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.1, t + dur);
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                main = n;
+            } else if (ev.type === 'tom') {
+                const a = keep(osc('sine', 120, t, 0));
+                a.frequency.setValueAtTime(120, t);
+                a.frequency.exponentialRampToValueAtTime(55, t + 0.22);
+                const tn = keep(noiseSrc(t, 0.6));
+                const tg = keep(ctx.createGain());
+                tg.gain.value = 0.12;
+                tn.connect(tg);
+                tg.connect(g);
+                tn.stop(t + 0.06);
+                a.connect(g);
                 end = t + 0.32;
-                envelope(g, t, 0.075 * vel, 0.005, end);
+                envelope(g, t, 0.35 * vel, 0.003, end);
                 main = a;
             } else if (ev.type === 'kick') {
                 const a = keep(osc('sine', 130, t, 0));
@@ -464,8 +572,8 @@
                 main = a;
             } else if (ev.type === 'snare') {
                 const n = keep(noiseSrc(t, (ev.midi || 0) * 0.01 + 0.1));
-                const bp = keep(filt('bandpass', 1900, 0.9));
-                const body = keep(osc('triangle', 190, t, 0));
+                const bp = keep(filt('bandpass', 2400, 0.9));
+                const body = keep(osc('triangle', 200, t, 0));
                 const bg = keep(ctx.createGain());
                 bg.gain.value = 0.35;
                 n.connect(bp);
@@ -473,20 +581,35 @@
                 body.connect(bg);
                 bg.connect(g);
                 end = t + 0.16;
-                envelope(g, t, 0.16 * vel, 0.002, end);
+                envelope(g, t, 0.24 * vel, 0.002, end);
                 body.stop(end + 0.02);
                 main = n;
             } else {
                 const n = keep(noiseSrc(t, 0.3 + vel * 0.2));
-                const hp = keep(filt('highpass', 7000, 0.7));
+                const hp = keep(filt('highpass', ev.boss ? 6000 : 8000, 0.7));
                 n.connect(hp);
                 hp.connect(g);
-                end = t + (ev.boss ? 0.06 : 0.045);
-                envelope(g, t, 0.05 * vel, 0.002, end);
+                end = t + (ev.boss ? 0.07 : 0.055);
+                envelope(g, t, (ev.boss ? 0.09 : 0.16) * vel, 0.002, end);
                 main = n;
             }
             main.stop(end + 0.03);
             return { nodes: nodes, src: main };
+        }
+
+        // Stereo placement per instrument; arp, pad, hats and toms alternate sides per note.
+        function panFor(deck, ev) {
+            deck.alt = deck.alt || {};
+            deck.alt[ev.type] = (deck.alt[ev.type] || 0) + 1;
+            const side = deck.alt[ev.type] % 2 ? 1 : -1;
+            switch (ev.type) {
+                case 'pad': return 0.4 * side;
+                case 'pluck':
+                case 'bell': return ev.layer === 'arp' ? 0.35 * side : 0.1;
+                case 'hat': return 0.2 * side;
+                case 'tom': return 0.25 * side;
+                default: return 0;
+            }
         }
 
         function playNote(deck, ev, at) {
@@ -497,7 +620,7 @@
             let voice = null;
             try {
                 ev.boss = deck.theme.boss;
-                voice = buildVoice(ev, at, f, ev.dur * deck.spb, dest);
+                voice = buildVoice(ev, at, f, ev.dur * deck.spb, dest, panFor(deck, ev));
             } catch (err) { return; }
             voiceCount++;
             deck.voices.add(voice);

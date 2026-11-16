@@ -35,12 +35,15 @@ loadModule('ui/js/desktop/apps/runenpfad/biomes.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/fx.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/physics.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/behaviors.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/bosses.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/variety.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/profile.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/zones.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/levels.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/combat.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/sim.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/audio.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/music.js', sandbox);
 
 const Levels = sandbox.RunenpfadLevels;
 const Sim = sandbox.RunenpfadSim;
@@ -320,7 +323,8 @@ assert.ok(stageBiome.ambience.secondary, 'cavern uses a layered second ambience 
     assert.ok(Audio.CUE_MAP[type], `audio cue table is missing ${type}`);
 });
 assert.equal(Audio.CUE_MAP.attack_ranged.sound, 'laser', 'rune bolts use the bright magic chime');
-assert.equal(Audio.CUE_MAP.attack_melee.sound, 'rifle', 'the sword swing uses the swishy cue, not the magic chime');
+assert.notEqual(Audio.CUE_MAP.attack_melee.sound, 'rifle', 'the sword swing no longer uses the rifle sample');
+assert.equal(Audio.CUE_MAP.attack_melee.synth, 'whoosh', 'the sword swing is a synthesized whoosh');
 assert.equal(Audio.CUE_MAP.boss_defeat.sound, 'explosion-large', 'boss defeat uses the large explosion');
 
 // 10. Impact feedback: the boss phase change emits its own cue
@@ -520,4 +524,261 @@ console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 lev
     const junk = Sim.importProfile({ v: 1, music: 'loud', gfx: 'webgl9' });
     assert.equal(junk.music, true, 'non-false music values clamp to on');
     assert.equal(junk.gfx, 'auto', 'unknown gfx values clamp to auto');
+}
+
+// B4: audio cue coverage, procedural music composition and controller smoke test
+{
+    const Music = sandbox.RunenpfadMusic;
+    ['pickup_star', 'pickup_treasure', 'hazard', 'door_open', 'enemy_attack', 'spike_rise', 'player_fall',
+     'boss_intro', 'boss_attack', 'boss_slam', 'boss_telegraph', 'combo', 'secret_break', 'lantern_lit', 'bounce'
+    ].forEach((type) => assert.ok(Audio.CUE_MAP[type], `audio cue table is missing ${type}`));
+    ['charge', 'pound', 'leap', 'volley', 'ring', 'laser', 'dive', 'summon', 'missiles', 'groundfire'].forEach((p) => {
+        assert.ok(Audio.CUE_MAP.boss_attack.by.map[p], `boss_attack pattern ${p} needs a cue`);
+    });
+    assert.equal(Audio.CUE_MAP.boss_attack.by.map.missiles.sound, 'reload', 'mech missiles use the reload sample');
+    assert.equal(Audio.CUE_MAP.door_open.by.map.metal.sound, 'door-metal');
+    assert.deepEqual(Array.from(Audio.COIN_LADDER), [0, 2, 4, 7, 9, 12, 14, 16], 'coin chime ladder');
+    assert.equal(Audio.hashUnit('jump', 3), Audio.hashUnit('jump', 3), 'cue variation is deterministic');
+    assert.ok(Audio.panFor(1000, { x: 0, w: 800 }) <= 0.7 && Audio.panFor(-500, { x: 0, w: 800 }) >= -0.7, 'pan stays inside +-0.7');
+
+    const biomeIds = ['woodland', 'cavern', 'desert', 'glacier', 'citadel'];
+    biomeIds.forEach((b) => assert.ok(Music.THEMES[b] && Music.THEMES['boss_' + b], `music theme for ${b} and its boss variant`));
+    assert.equal(Music.THEMES.citadel.scaleName, 'harmonicMinor');
+    assert.ok(Music.THEMES.boss_woodland.bpm > Music.THEMES.woodland.bpm * 1.1, 'boss tempo is faster');
+    Object.keys(Music.THEMES).forEach((id) => {
+        const theme = Music.THEMES[id];
+        for (let bar = 0; bar < 16; bar++) {
+            Music.LAYERS.forEach((layer) => {
+                const a = JSON.stringify(Music.composeBar(id, layer, bar, 4242));
+                assert.equal(a, JSON.stringify(Music.composeBar(id, layer, bar, 4242)), `${id}/${layer}/${bar} is deterministic`);
+                JSON.parse(a).forEach((n) => {
+                    assert.ok(n.t >= 0 && n.t < 4 && n.dur > 0, 'note timing inside the bar');
+                    if (n.midi !== null) {
+                        const pc = (((n.midi - theme.root) % 12) + 12) % 12;
+                        assert.ok(theme.scale.includes(pc), `${id}/${layer} note ${n.midi} is outside the scale`);
+                    }
+                });
+            });
+        }
+    });
+    assert.notEqual(JSON.stringify(Music.composeBar('woodland', 'melody', 0, 1)), JSON.stringify(Music.composeBar('woodland', 'melody', 1, 1)), 'melody phrases vary');
+    assert.ok(Music.composeBar('boss_desert', 'boss', 0, 1).length === 15, 'boss themes carry stabs plus the driving ostinato');
+    assert.ok(Music.THEMES.boss_desert.scale.includes(1) && Music.THEMES.boss_desert.scale.includes(3) && !Music.THEMES.boss_desert.scale.includes(4), 'boss modes are minor with a flat 2nd (no major tonic)');
+    assert.equal(Music.composeBar('woodland', 'boss', 0, 1).length, 0, 'calm themes have no ostinato');
+
+    // Intensity reads the simulation: a live enemy right next to the player raises danger.
+    const musSim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
+    const calm = Music.intensityFor(musSim);
+    assert.equal(calm.state, 'playing');
+    const near = musSim.stage.enemies.find((e) => !e.dead);
+    near.x = musSim.player.x + 40;
+    near.y = musSim.player.y;
+    assert.ok(Music.intensityFor(musSim).danger > 0.7, 'a close enemy raises danger');
+    assert.equal(Music.themeIdFor(musSim, true), 'boss_woodland');
+
+    // Controller smoke test on a recording fake Web Audio context.
+    const fakeParam = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {}, cancelScheduledValues() {} });
+    const fakeNode = () => new Proxy({ connect: (n) => n, disconnect() {}, start() {}, stop() {}, getChannelData: () => new Float32Array(48000) }, {
+        get(t, k) { if (!(k in t)) t[k] = fakeParam(); return t[k]; },
+        set(t, k, v) { t[k] = v; return true; }
+    });
+    let nodeCount = 0;
+    const fakeCtx = { currentTime: 0, state: 'running', sampleRate: 48000, destination: fakeNode() };
+    ['createGain', 'createOscillator', 'createBiquadFilter', 'createBufferSource'].forEach((m) => { fakeCtx[m] = () => { nodeCount++; return fakeNode(); }; });
+    fakeCtx.createBuffer = () => fakeNode();
+    const port = { ctx: null, bus: fakeNode(), reverb: fakeNode() };
+    const music = Music.createMusicController(port);
+    assert.ok(music, 'controller is created before the AudioContext exists');
+    assert.equal(Music.createMusicController(null), null, 'no port, no controller');
+    music.update(Music.intensityFor(musSim), musSim);
+    assert.equal(music.getState().theme, null, 'no context yet: nothing scheduled');
+    port.ctx = fakeCtx;
+    let maxVoices = 0;
+    for (let i = 0; i < 600; i++) {
+        fakeCtx.currentTime = i / 60;
+        music.update(Music.intensityFor(musSim), musSim);
+        maxVoices = Math.max(maxVoices, music.getState().voices);
+    }
+    assert.equal(music.getState().theme, 'woodland');
+    assert.ok(nodeCount > 50, 'notes were scheduled');
+    assert.ok(maxVoices > 0 && maxVoices <= Music.VOICE_CAP, 'voice cap respected');
+    musSim.state = 'won';
+    music.update(Music.intensityFor(musSim), musSim);
+    assert.equal(music.getState().fadedOut, true, 'music fades out on win');
+    music.dispose();
+    music.update(Music.intensityFor(musSim), musSim);
+
+    ['audio.js', 'music.js'].forEach((f) => {
+        const src = fs.readFileSync(path.join(rootDir, 'ui/js/desktop/apps/runenpfad', f), 'utf8');
+        assert.ok(!src.includes('Math.random'), `${f} must not use Math.random`);
+        assert.ok(!src.includes('Date.now'), `${f} must not use Date.now`);
+    });
+}
+
+// B5: boss patterns, variety zones, ropes and combo.
+{
+    const Zones = sandbox.RunenpfadZones;
+    const Combat = sandbox.RunenpfadCombat;
+    const STEP = Sim.STEP;
+    const prof = Sim.createDefaultProfile();
+    assert.ok(Zones && Zones.ZONE_IDS.length === 7, 'zones module exposes seven archetypes');
+    const mk = (levelId, hero) => Sim.createSimulation({ mode: 'campaign', levelId, hero: hero || 'knight', profile: prof });
+
+    // Endless floors 1-15 keep the stage invariants; every zone archetype is used by the campaign.
+    for (let f = 1; f <= 15; f++) {
+        const st = Levels.buildStage(Levels.createEndlessConfig(f, 9001));
+        assert.ok(st.key && st.door && st.portal, `endless floor ${f} has key, door and portal`);
+        assert.equal(st.collectibles.filter((c) => c.kind === 'gem').length, 3, `endless floor ${f} has 3 gems`);
+        assert.equal(!!st.bossId, f % 3 === 0, `endless floor ${f} boss placement`);
+    }
+    const used = new Set();
+    Levels.CAMPAIGN_LEVELS.forEach((l) => l.zones.forEach((z) => z.split('|').forEach((s) => used.add(s))));
+    Zones.ZONE_IDS.forEach((z) => assert.ok(used.has(z), `campaign uses zone ${z}`));
+    assert.deepEqual(Levels.buildStage(12).hazards.length, Levels.buildStage(12).hazards.length, 'slot variants stay fixed per level');
+
+    // Every boss runs 900 ticks next to a passive hero, introduces itself and varies its attacks.
+    [5, 10, 15, 20, 25].forEach((lvl) => {
+        const s = mk(lvl);
+        const b = s.stage.enemies.find((e) => e.id === s.stage.bossId);
+        const patterns = new Set();
+        let intro = false;
+        let telegraphs = 0;
+        for (let i = 0; i < 900; i++) {
+            s.player.x = b.x - 140;
+            s.player.y = s.stage.groundY;
+            s.player.vx = 0;
+            s.player.hp = s.player.maxHp;
+            s.player.invulnTimer = 2;
+            Sim.stepSimulation(s, STEP, {}).forEach((e) => {
+                if (e.type === 'boss_attack') patterns.add(e.detail.pattern);
+                if (e.type === 'boss_intro') intro = true;
+                if (e.type === 'boss_telegraph') telegraphs++;
+            });
+            assert.ok(Number.isFinite(b.x) && Number.isFinite(b.y), `boss ${lvl} stays finite`);
+        }
+        assert.ok(intro, `boss ${lvl} introduces itself`);
+        assert.ok(telegraphs >= 2, `boss ${lvl} telegraphs its attacks`);
+        assert.ok(patterns.size >= 2, `boss ${lvl} uses at least two patterns (got ${[...patterns]})`);
+    });
+    // The intro banner decays and the first attack waits for the intro to settle.
+    const introSim = mk(5);
+    const introBoss = introSim.stage.enemies.find((e) => e.id === introSim.stage.bossId);
+    introSim.player.x = introBoss.x - 200;
+    introSim.player.y = introSim.stage.groundY;
+    let firstAttack = -1;
+    for (let i = 0; i < 400; i++) {
+        introSim.player.invulnTimer = 2;
+        const evs = Sim.stepSimulation(introSim, STEP, {});
+        if (i === 5) assert.ok(introSim.bossIntro && introSim.bossIntro.timer > 0, 'boss intro banner is active');
+        if (firstAttack < 0 && evs.some((e) => e.type === 'boss_attack')) firstAttack = i;
+    }
+    assert.ok(firstAttack > 60, 'the first boss attack comes more than a second after the intro');
+    assert.equal(introSim.bossIntro, null, 'boss intro banner clears');
+
+    // Defeating a boss slows time and the combo multiplier rises with chained kills.
+    const kill = mk(5);
+    const kb = kill.stage.enemies.find((e) => e.id === kill.stage.bossId);
+    for (let h = 0; h < 40 && !kb.dead; h++) {
+        kill.player.x = kb.x - 28; kill.player.y = kb.y; kill.player.facing = 1;
+        kill.player.attackCooldown = 0; kill.player.invulnTimer = 2;
+        Sim.stepSimulation(kill, STEP, { attackPressed: true });
+    }
+    assert.ok(kb.dead && kill.fx.slowmo > 0, 'boss defeat triggers slow motion');
+
+    const cs = mk(1);
+    const comboEvents = [];
+    cs.stage.enemies.slice(0, 3).forEach((e) => { Combat.damageEnemy(cs, e, 99, e.x); });
+    cs.events.forEach((e) => { if (e.type === 'combo') comboEvents.push(e.detail); });
+    assert.equal(cs.combo.count, 3);
+    assert.equal(cs.combo.mul, 1.5, 'three chained kills raise the multiplier to 1.5');
+    assert.ok(comboEvents.length >= 2 && comboEvents[comboEvents.length - 1].mul === 1.5, 'combo events carry count and mul');
+    for (let i = 0; i < 200; i++) Sim.stepSimulation(cs, STEP, {});
+    assert.equal(cs.combo.count, 0, 'the combo decays after 2.5 s');
+    assert.equal(cs.combo.mul, 1);
+
+    // Conveyor belts carry a rider.
+    const cv = mk(13);
+    const belt = cv.stage.platforms.find((p) => p.kind === 'conveyor');
+    assert.ok(belt, 'level 13 has a conveyor belt');
+    cv.player.x = belt.x + 24; cv.player.y = belt.y - 1;
+    Sim.stepSimulation(cv, STEP, {});
+    Sim.stepSimulation(cv, STEP, {});
+    const bx0 = cv.player.x;
+    for (let i = 0; i < 30; i++) Sim.stepSimulation(cv, STEP, {});
+    assert.ok((cv.player.x - bx0) * Math.sign(belt.conveyor) > 15, 'conveyor moves its rider');
+
+    // Updraft lifts: vy is lower inside the wind column than outside.
+    function windVy(withWind) {
+        const s = mk(8);
+        const wz = s.stage.windZones[0];
+        assert.ok(wz, 'level 8 has an updraft');
+        if (!withWind) s.stage.windZones = [];
+        s.player.x = wz.x + wz.w / 2; s.player.y = wz.y + 120; s.player.vy = 200;
+        Sim.stepSimulation(s, STEP, {});
+        return s.player.vy;
+    }
+    assert.ok(windVy(true) < windVy(false) - 20, 'updraft reduces downward speed');
+
+    // Cracked wall: three hits break it and clear its solid tiles.
+    const sv = mk(4);
+    const wall = sv.stage.secretWalls[0];
+    assert.ok(wall && wall.tiles.length === 2, 'level 4 has a secret wall');
+    assert.ok(wall.tiles.every((t) => sv.stage.solidMap[t.tx + ',' + t.ty]), 'wall tiles start solid');
+    sv.player.x = wall.x - 30; sv.player.y = sv.stage.groundY;
+    const secretEvents = [];
+    for (let i = 0; i < 3; i++) {
+        sv.player.facing = 1; sv.player.attackCooldown = 0;
+        Sim.stepSimulation(sv, STEP, { attackPressed: true }).forEach((e) => secretEvents.push(e.type));
+    }
+    assert.equal(wall.broken, true, 'three hits break the secret wall');
+    assert.ok(wall.tiles.every((t) => !sv.stage.solidMap[t.tx + ',' + t.ty] && t.tile.broken), 'broken wall frees its solid keys');
+    assert.ok(secretEvents.includes('secret_break'), 'secret_break is emitted');
+    assert.equal(sv.notice, 'runenpfad.notice.secret_found');
+
+    // Pendulum saws hurt through the hazard list.
+    const pe = mk(7);
+    const pd = pe.stage.pendulums[0];
+    pe.elapsed = -STEP;
+    pe.player.x = pd.x; pe.player.y = pe.stage.groundY; pe.player.invulnTimer = 0;
+    const peHp = pe.player.hp;
+    const peEvents = Sim.stepSimulation(pe, STEP, {});
+    assert.ok(pe.player.hp < peHp, 'a pendulum saw hurts');
+    assert.ok(peEvents.some((e) => e.type === 'hazard' && e.detail.kind === 'pendulum'), 'pendulum emits hazard');
+
+    // Bounce mushrooms launch higher than plain springs.
+    const bs = mk(3);
+    const mush = bs.stage.platforms.find((p) => p.bounce);
+    assert.ok(mush, 'level 3 has a bounce mushroom');
+    bs.player.x = mush.x + 24; bs.player.y = mush.y - 4; bs.player.vy = 100;
+    const bEvents = [].concat(Sim.stepSimulation(bs, STEP, {}), Sim.stepSimulation(bs, STEP * 2, {}));
+    assert.ok(bs.player.vy < -800, 'bounce mushroom launches the hero');
+    assert.ok(bEvents.some((e) => e.type === 'bounce'), 'bounce event is emitted');
+
+    // Lanterns light on touch and expose light sources.
+    const ls = mk(4);
+    const ln = ls.stage.lanterns[0];
+    ls.player.x = ln.x; ls.player.y = ls.stage.groundY;
+    const lEvents = Sim.stepSimulation(ls, STEP, {});
+    assert.ok(ln.lit && lEvents.some((e) => e.type === 'lantern_lit'), 'touching a lantern lights it');
+    assert.ok(Zones.lights(ls).some((l) => l.radius > 150), 'lit lanterns emit light');
+
+    // Ropes: climb up, hold the climb state, jump off sideways.
+    const rs = mk(9);
+    const rope = rs.stage.ropes[0];
+    assert.ok(rope, 'level 9 has a rope');
+    rs.player.x = rope.x; rs.player.y = rope.top + 200; rs.player.vy = 0;
+    const ry0 = rs.player.y;
+    for (let i = 0; i < 20; i++) Sim.stepSimulation(rs, STEP, { up: true });
+    assert.equal(rs.player.climbKind, 'rope', 'the hero climbs the rope');
+    assert.equal(rs.player.animState, 'climb');
+    assert.ok(rs.player.y < ry0 - 30, 'climbing up decreases y');
+    Sim.stepSimulation(rs, STEP, { jumpPressed: true, right: true });
+    assert.ok(rs.player.vy < 0 && !rs.player.onLadder, 'the hero can jump off a rope');
+    Sim.stepSimulation(rs, STEP, { right: true });
+    assert.equal(rs.player.climbKind, null);
+    const ladderSim = mk(3);
+    const lad = ladderSim.stage.ladders[0];
+    ladderSim.player.x = lad.x + 24; ladderSim.player.y = lad.y + 40;
+    Sim.stepSimulation(ladderSim, STEP, { up: true });
+    assert.equal(ladderSim.player.climbKind, 'ladder', 'ladders report their climb kind');
 }
