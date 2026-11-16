@@ -112,6 +112,34 @@
         return id;
     }
 
+    // placeStep adds a step of type where a quick-add request puts it: after scope.from, on the wire scope.edge,
+    // or at the point scope.world() names. The quick-add and the palette's scope both call it, so a step lands in
+    // the same spot either way. It returns {gone: true} when the step or wire is gone by now, else {id} (null: refused).
+    function placeStep(ed, canvas, scope, type) {
+        const G = ED.geometry;
+        if ((scope.from && !ed.model.node(scope.from.node)) || (scope.edge && !ed.model.edge(scope.edge))) return { gone: true };
+        let at;
+        if (scope.from) {
+            const src = ed.model.node(scope.from.node);
+            const outs = ed.model.outputs(src);
+            const port = G.portPoint(src.position, 'out', Math.max(0, outs.indexOf(scope.from.port)), outs.length);
+            const dropped = scope.world();
+            at = dropped.x > port.x + 40 ? { x: dropped.x, y: dropped.y - G.NODE_H / 2 } : { x: src.position.x + G.NODE_W + 96, y: port.y - G.NODE_H / 2 };
+        } else if (scope.edge) {
+            const e = ed.model.edge(scope.edge);
+            const src = ed.model.node(e.source.node);
+            const dst = ed.model.node(e.target.node);
+            at = { x: (src.position.x + dst.position.x) / 2, y: (src.position.y + dst.position.y) / 2 + 24 };
+        } else {
+            const p = scope.world();
+            at = { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 };
+        }
+        const info = ed.catalog.types.get(type) || {};
+        const onWire = !!scope.edge && (info.inputs || []).length > 0 && (info.outputs || []).length > 0; // a wire takes only steps with both
+        const rects = ed.model.doc.nodes.map(n => canvas.nodeRect(n.id));
+        return { id: place(ed, type, onWire ? at : G.freeSpot(at, rects), { from: scope.from, edge: scope.edge }) };
+    }
+
     // requestInsert asks the editor for the quick-add popover that puts a step into a connection. The
     // popover opens under anchor (the wire's insert button, a row of the inspector's connections).
     // extra: restoreFocus() takes the focus back once the popover closes, where the canvas would.
@@ -131,10 +159,24 @@
             '<input type="search" class="ed-palette-search" placeholder="' + esc(t('easydrag.ui.palette_search')) + '" aria-label="' + esc(t('easydrag.ui.palette_search')) + '" enterkeyhint="search" inputmode="search"></div>' +
             '<button type="button" class="ed-icon-btn ed-panel-width-btn" data-ed-palette-size aria-haspopup="menu" title="' + esc(t('easydrag.ui.panel_resize_palette')) + '" aria-label="' + esc(t('easydrag.ui.panel_resize_palette')) + '">' + core.icon('fit') + '</button>' +
             '<button type="button" class="ed-icon-btn" data-ed-palette-close title="' + esc(t('easydrag.ui.palette_hide')) + '" aria-label="' + esc(t('easydrag.ui.palette_hide')) + '">' + core.icon('chevron-left') + '</button></div>' +
+            '<div class="ed-palette-scope" data-ed-palette-scope role="status" hidden><span class="ed-palette-scope-text"></span>' +
+            '<span class="ed-palette-scope-dot" aria-hidden="true">' + String.fromCodePoint(0xB7) + '</span>' +
+            '<button type="button" class="ed-btn ed-btn--ghost" data-ed-palette-scope-cancel>' + esc(t('easydrag.ui.cancel')) + '</button></div>' +
             '<div class="ed-palette-list"></div>' +
             '<p class="ed-palette-hint">' + esc(t('easydrag.ui.palette_hint')) + '</p></aside>');
         const list = el.querySelector('.ed-palette-list');
         const input = el.querySelector('.ed-palette-search');
+
+        // scope is where the next step chosen here goes ({from?, edge?, name, world}); "Show all" of the
+        // quick-add sets it. One added step, Cancel, Escape and hiding the panel end it.
+        const scopeEl = el.querySelector('[data-ed-palette-scope]');
+        let scope = null;
+        function setScope(next) {
+            scope = next;
+            scopeEl.toggleAttribute('hidden', !next);
+            scopeEl.querySelector('.ed-palette-scope-text').textContent = next ? t('easydrag.ui.palette_scope', { name: next.name }) : '';
+        }
+        function endScope() { if (scope) setScope(null); }
 
         function groups() {
             const out = [];
@@ -174,6 +216,7 @@
         // the canvas, so it is never left on a control nobody sees.
         function setOpen(open, transient) {
             if (!open && el.contains(document.activeElement)) canvas.el.focus({ preventScroll: true });
+            if (!open) endScope();
             el.classList.toggle('is-collapsed', !open);
             el.inert = !open;
             ed.root.classList.toggle('has-palette', open);
@@ -235,7 +278,7 @@
                 const hit = document.elementFromPoint(ev.clientX, ev.clientY);
                 if (!hit || !hit.closest('.ed-canvas')) return;
                 const p = canvas.clientToWorld(ev.clientX, ev.clientY);
-                place(ed, type, { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 }, { edge: overEdge });
+                if (place(ed, type, { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 }, { edge: overEdge })) endScope();
                 closeOverlay();
             };
             drag = core.capturePointer(list, event, move, up);
@@ -244,6 +287,16 @@
         // addByClick appends after the single selected node, or places the node in free space.
         function addByClick(type) {
             const info = ed.catalog.types.get(type);
+            if (scope) {
+                // One step ends the scope, also when its source is gone by now (nothing is added then).
+                const there = scope;
+                endScope();
+                const result = placeStep(ed, canvas, there, type);
+                closeOverlay();
+                if (result.gone) core.say(ed, t('easydrag.ui.quick_target_gone'));
+                else if (result.id) canvas.centerOn(result.id, { animate: true });
+                return;
+            }
             const sel = ed.selection.size === 1 ? ed.model.node(Array.from(ed.selection)[0]) : null;
             if (sel && !info.trigger && ed.model.outputs(sel).length) {
                 const rects = ed.model.doc.nodes.map(n => canvas.nodeRect(n.id));
@@ -365,13 +418,36 @@
         bag.listen(el.querySelector('[data-ed-palette-close]'), 'click', () => setOpen(false));
         bag.listen(el.querySelector('[data-ed-palette-size]'), 'click', event => ed.bus.emit('panel-size-menu', { kind: 'palette', anchor: event.currentTarget || el.querySelector('[data-ed-palette-size]') }));
 
+        function focusSearch() { setOpen(true); input.focus(); input.select(); }
+
+        // "Show all" of the quick-add hands over its source (or null: no source, only the search).
+        bag.add(ed.bus.on('palette-scope', next => {
+            if (ed.readonly || ed.runView) return;
+            setScope(next || null);
+            focusSearch();
+        }));
+        bag.listen(el.querySelector('[data-ed-palette-scope-cancel]'), 'click', () => { endScope(); focusSearch(); });
+        bag.listen(el, 'keydown', event => {
+            if (event.key !== 'Escape' || !scope) return;
+            event.preventDefault();
+            event.stopPropagation();
+            endScope();
+            canvas.el.focus({ preventScroll: true });
+        });
+        // With a scope, Enter in the search adds the first match, so the search that Show all focused is enough.
+        bag.listen(input, 'keydown', event => {
+            if (event.key !== 'Enter' || !scope || event.isComposing || !input.value.trim()) return;
+            const first = list.querySelector('[data-ed-type]');
+            if (first) { event.preventDefault(); addByClick(first.dataset.edType); }
+        });
+
         render();
         const savedOpen = core.storage.get(OPEN_KEY, null);
         setOpen(savedOpen !== false, true);
 
         return {
             el, render, setOpen, isOpen, isOverlay, syncLayout, afterMove, restoreDocked, hasPreference: () => savedOpen !== null,
-            focusSearch() { setOpen(true); input.focus(); input.select(); },
+            focusSearch,
             dispose() { if (drag) drag.abort(); bag.dispose(); }
         };
     }
@@ -424,7 +500,6 @@
     // it the canvas gets the focus.
     function openQuickAdd(ed, canvas, req) {
         const core = ED.core;
-        const G = ED.geometry;
         const { t, esc } = ed;
         if (ed.readonly || ed.runView) return null;
         closeQuickAdd(ed);
@@ -440,11 +515,13 @@
             '<div class="ed-quick-head" data-ed-quick-head></div>' +
             '<div class="ed-search">' + core.icon('search') + '<input type="text" class="ed-quick-search" role="combobox" aria-expanded="true" aria-autocomplete="list" placeholder="' +
             esc(req.filter === 'trigger' ? t('easydrag.ui.quick_search_trigger') : t('easydrag.ui.quick_search')) + '" enterkeyhint="go" autocomplete="off"></div>' +
-            '<ul class="ed-quick-list" role="listbox"></ul></div>');
+            '<ul class="ed-quick-list" role="listbox"></ul>' +
+            '<div class="ed-quick-foot"><button type="button" class="ed-btn ed-btn--ghost" data-ed-quick-all>' + esc(t('easydrag.ui.quick_all')) + '</button></div></div>');
         el.querySelector('[data-ed-quick-head]').textContent = head;
         ed.root.appendChild(el);
         const input = el.querySelector('input');
         const listEl = el.querySelector('ul');
+        const allBtn = el.querySelector('[data-ed-quick-all]');
         const listId = 'ed-quick-list-' + ed.windowId;
         listEl.id = listId;
         input.setAttribute('aria-controls', listId);
@@ -491,35 +568,25 @@
         function choose(idx) {
             const info = items[idx];
             if (!info) return;
+            const result = placeStep(ed, canvas, { from: req.from, edge: req.edge, world: () => canvas.clientToWorld(req.x, req.y) }, info.type);
+            close();
             // The wire or the step quick-add was opened for can be gone by now (an undo, a delete
             // elsewhere): nothing is added, the popover closes and says why.
-            if ((req.from && !ed.model.node(req.from.node)) || (req.edge && !ed.model.edge(req.edge))) {
-                close();
+            if (result.gone) {
                 giveFocusBack();
                 ED.core.say(ed, ed.t('easydrag.ui.quick_target_gone'));
                 return;
             }
-            let at;
-            if (req.from) {
-                const src = ed.model.node(req.from.node);
-                const outs = ed.model.outputs(src);
-                const port = G.portPoint(src.position, 'out', Math.max(0, outs.indexOf(req.from.port)), outs.length);
-                const dropped = canvas.clientToWorld(req.x, req.y);
-                at = dropped.x > port.x + 40 ? { x: dropped.x, y: dropped.y - G.NODE_H / 2 } : { x: src.position.x + G.NODE_W + 96, y: port.y - G.NODE_H / 2 };
-            } else if (req.edge) {
-                const e = ed.model.edge(req.edge);
-                const src = ed.model.node(e.source.node);
-                const dst = ed.model.node(e.target.node);
-                at = { x: (src.position.x + dst.position.x) / 2, y: (src.position.y + dst.position.y) / 2 + 24 };
-            } else {
-                const p = canvas.clientToWorld(req.x, req.y);
-                at = { x: p.x - G.NODE_W / 2, y: p.y - G.NODE_H / 2 };
-            }
-            const rects = ed.model.doc.nodes.map(n => canvas.nodeRect(n.id));
-            const spot = req.edge ? at : G.freeSpot(at, rects);
-            const id = place(ed, info.type, spot, { from: req.from, edge: req.edge });
+            if (result.id) giveFocusBack();
+        }
+
+        // showAll closes the quick-add without taking the focus back; the palette puts its next step where this popover would.
+        function showAll() {
+            const source = sourceStep(ed, req);
+            const point = source && !req.edge ? canvas.clientToWorld(req.x, req.y) : null;
+            const scope = source ? { from: req.from, edge: req.edge, name: stepName(ed, source.id), world: () => point } : null;
             close();
-            if (id) giveFocusBack();
+            ed.bus.emit('palette-scope', scope);
         }
 
         function giveFocusBack() {
@@ -546,6 +613,14 @@
             if (event.key === 'ArrowDown') { event.preventDefault(); active = Math.min(items.length - 1, active + 1); render(); }
             else if (event.key === 'ArrowUp') { event.preventDefault(); active = Math.max(0, active - 1); render(); }
             else if (event.key === 'Enter') { event.preventDefault(); choose(active); }
+            else if (event.key === 'Tab' && !event.shiftKey) { event.preventDefault(); allBtn.focus(); }
+            else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); giveFocusBack(); }
+            event.stopPropagation();
+        });
+        // Tab leads from the search to "Show all", Shift+Tab goes back; Tab past it and Escape close.
+        allBtn.addEventListener('click', showAll);
+        allBtn.addEventListener('keydown', (event) => {
+            if (event.key === 'Tab' && event.shiftKey) { event.preventDefault(); input.focus({ preventScroll: true }); }
             else if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); close(); giveFocusBack(); }
             event.stopPropagation();
         });

@@ -154,6 +154,7 @@ async function headerChecks(env) {
 export async function run(env) {
     await headerChecks(env);
     await suggestionChecks(env);
+    await scopeChecks(env);
 }
 // suggestionChecks: the entries the quick-add offers first (D.3). The catalog of load() lists curated
 // suggestions for the manual trigger (six, one over the limit) and for web.search (the e-mail step first,
@@ -256,5 +257,171 @@ async function suggestionChecks(env) {
         eq('w1c D.3 the history is per source type', Object.keys(book()), ['web.search', 'trigger.manual', 'ai.step']);
         check('w1c D.3 the book keeps only objects of counts', Object.values(book()).every(row => Object.values(row).every(n => Number.isInteger(n) && n > 0)));
         eq('w1c D.3 the history checks log no errors', h.logged, []);
+    });
+}
+// scopeChecks: "Show all" and the scoped palette (D.4). panelOf adds the real palette panel to load()'s editor.
+function panelOf(h) {
+    const panel = h.ED.palette.createPanel(h.ed, h.canvas);
+    h.root.appendChild(panel.el);
+    const banner = panel.el.querySelector('[data-ed-palette-scope]');
+    return {
+        panel, banner,
+        search: panel.el.querySelector('.ed-palette-search'),
+        item: type => panel.el.querySelectorAll('[data-ed-type]').find(n => n.getAttribute('data-ed-type') === type),
+        scoped: () => !banner.attrs.has('hidden'),
+        text: () => banner.querySelector('.ed-palette-scope-text').textContent,
+        // choose presses Enter on a palette entry, as a keyboard user does; a click ends in the same function.
+        choose(type) { this.item(type).fire('keydown', { key: 'Enter' }); },
+        // showAll opens the quick-add for req and clicks its "Show all" link.
+        showAll(req) {
+            const quick = h.open(req);
+            quick.el.querySelector('[data-ed-quick-all]').fire('click');
+            return quick;
+        }
+    };
+}
+
+async function scopeChecks(env) {
+    const { eq, check, guardAsync } = env;
+    const FROM_ALPHA = { x: 10, y: 10, from: { node: A, port: 'out' } };
+    const added = h => h.model.doc.nodes.filter(n => ![TRG, A, B, GAMMA].includes(n.id));
+
+    await guardAsync('w1c D.4 Show all hands the source to the palette', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        const quick = p.showAll(FROM_ALPHA);
+        eq('w1c D.4 the link closes the quick-add and focuses the palette search, not the canvas',
+            [h.ed.quickAdd, h.root.querySelectorAll('.ed-quick').length, h.dom.document.activeElement === p.search, h.dom.document.activeElement === h.canvas.el], [null, 0, true, false]);
+        eq('w1c D.4 the palette shows "Adds after <step>" with a Cancel button', [p.scoped(), p.text(), !!p.banner.querySelector('[data-ed-palette-scope-cancel]')], [true, 'palette_scope:Alpha', true]);
+        check('w1c D.4 the quick-add is gone for good (no handler left that would close it twice)', quick.el.parentNode === null);
+
+        p.choose('http.request');
+        const first = added(h)[0];
+        eq('w1c D.4 the next step chosen in the palette goes after the source and ends the scope',
+            [added(h).length, first.type, h.model.incoming(first.id).map(e => e.source.node), p.scoped(), h.model.node(Array.from(h.ed.selection)[0]).id === first.id], [1, 'http.request', [A], false, true]);
+        h.ed.selection.clear();
+        p.choose('notify.telegram');
+        const second = added(h)[1];
+        eq('w1c D.4 the step after that is a plain palette add again (no selection, no source)', [added(h).length, h.model.incoming(second.id).length], [2, 0]);
+        eq('w1c D.4 the scoped add counts in the history like a quick-add', JSON.parse(h.store.get(AFTER_KEY)), { 'web.search': { 'http.request': 1 } });
+        eq('w1c D.4 the scope checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('w1c D.4 the palette places the step where the quick-add would', async () => {
+        const req = { x: 900, y: 120, from: { node: A, port: 'out' } };
+        const viaQuick = load(env);
+        const q = viaQuick.open(req);
+        const search = q.el.querySelector('.ed-quick-search');
+        search.value = 'HTTP';
+        search.fire('input');
+        search.fire('keydown', { key: 'Enter' });
+        const viaPalette = load(env);
+        const p = panelOf(viaPalette);
+        p.showAll(req);
+        p.choose('http.request');
+        const a = added(viaQuick)[0].position;
+        const b = added(viaPalette)[0].position;
+        eq('w1c D.4 a wire pulled from a port and dropped far away puts the step at the drop point either way', [a, b.x === a.x && b.y === a.y, a.x > 600], [a, true, true]);
+
+        const wireQuick = load(env);
+        const wq = wireQuick.open({ x: 10, y: 10, edge: 'e2' });
+        const wqSearch = wq.el.querySelector('.ed-quick-search');
+        wqSearch.value = 'HTTP';
+        wqSearch.fire('input');
+        wqSearch.fire('keydown', { key: 'Enter' });
+        const wirePalette = load(env);
+        const wp = panelOf(wirePalette);
+        wp.showAll({ x: 10, y: 10, edge: 'e2' });
+        eq('w1c D.4 the scope of an inserted wire says the wire\'s source step', wp.text(), 'palette_scope:Alpha');
+        wp.choose('http.request');
+        const ends = h => { const n = added(h)[0]; return [h.model.incoming(B).map(e => e.source.node)[0] === n.id, h.model.incoming(n.id).map(e => e.source.node), h.model.doc.edges.some(e => e.id === 'e2'), n.position]; };
+        eq('w1c D.4 a wire scope inserts between the two steps exactly as the quick-add does', [ends(wirePalette), JSON.stringify(ends(wirePalette)) === JSON.stringify(ends(wireQuick))], [[true, [A], false, ends(wirePalette)[3]], true]);
+    });
+
+    await guardAsync('w1c D.4 ending the scope', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        p.showAll(FROM_ALPHA);
+        p.banner.querySelector('[data-ed-palette-scope-cancel]').fire('click');
+        eq('w1c D.4 Cancel ends the scope and leaves the focus in the search', [p.scoped(), h.dom.document.activeElement === p.search], [false, true]);
+        p.choose('http.request');
+        eq('w1c D.4 a step chosen after Cancel is not connected', [added(h).length, h.model.incoming(added(h)[0].id).length], [1, 0]);
+
+        p.showAll(FROM_ALPHA);
+        const unscoped = p.panel.el.fire('keydown', { key: 'Escape' });
+        eq('w1c D.4 Escape ends the scope, is taken (the editor does not see it) and puts the focus on the canvas',
+            [p.scoped(), unscoped.stopped, unscoped.defaultPrevented, h.dom.document.activeElement === h.canvas.el], [false, true, true, true]);
+        const plain = p.panel.el.fire('keydown', { key: 'Escape' });
+        eq('w1c D.4 without a scope Escape is left to the editor', [plain.stopped, plain.defaultPrevented], [false, false]);
+
+        p.showAll(FROM_ALPHA);
+        p.panel.setOpen(false);
+        eq('w1c D.4 hiding the palette ends the scope', p.scoped(), false);
+
+        p.showAll(FROM_ALPHA);
+        h.model.removeNodes([A]);
+        const count = h.model.doc.nodes.length;
+        p.choose('notify.telegram');
+        eq('w1c D.4 a source that is gone by then adds nothing, says so and ends the scope',
+            [h.model.doc.nodes.length === count, h.said.includes('quick_target_gone'), p.scoped()], [true, true, false]);
+        eq('w1c D.4 the ending checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('w1c D.4 Enter in the scoped search', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        const type = text => { p.search.value = text; p.search.fire('input'); h.runTimers(); };
+        type('Telegram');
+        p.search.fire('keydown', { key: 'Enter' });
+        eq('w1c D.4 without a scope Enter in the search adds nothing, as before', added(h).length, 0);
+        p.showAll(FROM_ALPHA);
+        p.search.value = '';
+        p.search.fire('keydown', { key: 'Enter' });
+        eq('w1c D.4 with a scope but no query Enter adds nothing', [added(h).length, p.scoped()], [0, true]);
+        type('Telegram');
+        p.search.fire('keydown', { key: 'Enter' });
+        const step = added(h)[0];
+        eq('w1c D.4 with a scope Enter adds the first match after the source', [step.type, h.model.incoming(step.id).map(e => e.source.node), p.scoped()], ['notify.telegram', [A], false]);
+    });
+
+    await guardAsync('w1c D.4 entries without a source and guards', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        p.showAll({ x: 10, y: 10 });
+        eq('w1c D.4 from the empty canvas Show all opens the palette with the search focused and no scope', [p.scoped(), h.dom.document.activeElement === p.search, h.ed.quickAdd], [false, true, null]);
+        p.showAll({ x: 10, y: 10, filter: 'trigger' });
+        eq('w1c D.4 the trigger button\'s link does the same', [p.scoped(), h.dom.document.activeElement === p.search], [false, true]);
+
+        h.ed.readonly = true;
+        h.ed.bus.emit('palette-scope', { from: { node: A, port: 'out' }, edge: undefined, name: 'Alpha', world: () => ({ x: 0, y: 0 }) });
+        eq('w1c D.4 a read-only editor takes no scope', p.scoped(), false);
+        h.ed.readonly = false;
+
+        p.panel.dispose();
+        h.ed.bus.emit('palette-scope', { from: { node: A, port: 'out' }, name: 'Alpha', world: () => ({ x: 0, y: 0 }) });
+        eq('w1c D.4 a disposed palette no longer listens', p.scoped(), false);
+        eq('w1c D.4 the guard checks log no errors', h.logged, []);
+    });
+
+    await guardAsync('w1c D.4 keyboard path of the quick-add', async () => {
+        const h = load(env);
+        const p = panelOf(h);
+        const quick = h.open(FROM_ALPHA);
+        const search = quick.el.querySelector('.ed-quick-search');
+        const link = quick.el.querySelector('[data-ed-quick-all]');
+        const tab = search.fire('keydown', { key: 'Tab' });
+        eq('w1c D.4 Tab in the search moves to Show all and keeps the quick-add open', [h.dom.document.activeElement === link, !!h.ed.quickAdd, tab.defaultPrevented], [true, true, true]);
+        link.fire('keydown', { key: 'Tab', shiftKey: true });
+        eq('w1c D.4 Shift+Tab on the link goes back to the search', [h.dom.document.activeElement === search, !!h.ed.quickAdd], [true, true]);
+        search.fire('keydown', { key: 'Tab' });
+        link.fire('keydown', { key: 'Tab' });
+        eq('w1c D.4 Tab on the link closes the quick-add and gives the focus back to the canvas', [h.ed.quickAdd, h.dom.document.activeElement === h.canvas.el], [null, true]);
+        const again = h.open(FROM_ALPHA);
+        again.el.querySelector('.ed-quick-search').fire('keydown', { key: 'Tab', shiftKey: true });
+        eq('w1c D.4 Shift+Tab in the search and Escape close it as before', [h.ed.quickAdd, p.scoped()], [null, false]);
+        const third = h.open(FROM_ALPHA);
+        third.el.querySelector('[data-ed-quick-all]').fire('keydown', { key: 'Escape' });
+        eq('w1c D.4 Escape on the link closes it too', h.ed.quickAdd, null);
+        eq('w1c D.4 the keyboard checks log no errors', h.logged, []);
     });
 }
