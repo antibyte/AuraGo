@@ -211,6 +211,8 @@ type Service struct {
 	startFailures sync.WaitGroup
 	// Purge admission and preflight are counted under mu before touching the store.
 	purging sync.WaitGroup
+	// nexter is the schedule source of NextRun (SetScheduleNexter); guarded by mu.
+	nexter ScheduleNexter
 }
 
 // NewService wires engine, runner and timers. Call Start, and Shutdown when done.

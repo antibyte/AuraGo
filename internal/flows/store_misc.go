@@ -157,8 +157,10 @@ func (s *Store) MoveTimer(ctx context.Context, flowID, nodeID string, from, to t
 // so a test can check its query plan. The GLOB keeps only times in the stored layout
 // (timeLayout): a row whose fire_at cannot be read would otherwise sort before or after
 // the real times as text, and the timer service drops such rows without firing them.
-const nextTimerSQL = `SELECT MIN(fire_at) FROM flow_timers WHERE flow_id = ? AND fire_at GLOB ` +
-	`'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'`
+const nextTimerSQL = `SELECT MIN(fire_at) FROM flow_timers WHERE flow_id = ? AND fire_at GLOB ` + storedFireAtGlob
+
+// storedFireAtGlob is the GLOB pattern of the stored fire_at layout (timeLayout).
+const storedFireAtGlob = `'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9][0-9][0-9][0-9]Z'`
 
 // NextTimerAt returns the earliest fire time among the timers of one flow; ok is false
 // when the flow has none (also when it does not exist). Rows whose fire_at is not in the
