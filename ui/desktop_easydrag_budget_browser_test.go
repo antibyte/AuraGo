@@ -25,7 +25,7 @@ type easyDragControlBudget struct {
 // easyDragControlBudgets is the table. Regions are measured at 1440x900 with the standard fixture
 // and a published, idle, enabled flow (see TestEasyDragControlBudgetsBrowser).
 var easyDragControlBudgets = []easyDragControlBudget{
-	// The editor header (.ed-head): Back, name, pill, Test, Undo, Redo and More, and the primary Publish button while there are changes
+	// The editor header (.ed-head): Back, name, pill, Test, Undo, Redo and More, and Publish while there is something to publish (counted in that state)
 	// to publish (W1c). Enforced.
 	{Region: "header", Ceiling: 8, Target: 8, Gate: "W1c", Enforced: true},
 	// The editor footer (.ed-foot). No target: it must not grow.
@@ -142,6 +142,15 @@ func TestEasyDragControlBudgetsBrowser(t *testing.T) {
 	counts["more-menu"] = s.countMenuEntries("more-menu")
 	page.MustEval(`()=>aurora.closeContextMenu()`)
 	s.wait(`()=>!document.querySelector('.vd-context-menu')`)
+
+	// The header's fullest state: with something to publish, Publish stays visible (owner decision on
+	// W1c review finding 6), so the header shows one control more. The region's count is the larger one.
+	page.MustEval(`()=>{edFixture.state.changes={steps:1,connections:0};const ed=edFixture.editor();ed.model.setLabel(ed.model.doc.nodes[0].id,'Changed for the budget')}`)
+	s.wait(`()=>edFixture.editor().saver.state==='saved'`)
+	s.wait(`()=>{const b=document.querySelector('[data-ed-cmd="publish"]');return !!b && !b.hidden}`)
+	if withPublish := s.countControls("header-with-publish", ".ed-editor > .ed-head", ""); withPublish > counts["header"] {
+		counts["header"] = withPublish
+	}
 
 	for _, b := range easyDragControlBudgets {
 		count, ok := counts[b.Region]
