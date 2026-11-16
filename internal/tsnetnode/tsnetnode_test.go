@@ -130,6 +130,7 @@ func TestReconfigureExposureRetriesHomepageAfterBackendBecomesReachable(t *testi
 
 	cfg := &config.Config{}
 	cfg.Tailscale.TsNet.ExposeHomepage = true
+	cfg.Tailscale.TsNet.Enabled = true
 	cfg.Homepage.WebServerEnabled = true
 	cfg.Homepage.WebServerPort = 8080
 	m := NewManager(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)))

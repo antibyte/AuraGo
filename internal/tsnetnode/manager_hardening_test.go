@@ -160,6 +160,7 @@ func TestAuthKeyForNodePriority(t *testing.T) {
 func TestOperationUsesImmutableConfigSnapshot(t *testing.T) {
 	t.Setenv("TS_AUTHKEY", "tskey-auth-original-environment-value")
 	original := &config.Config{}
+	original.Tailscale.TsNet.Enabled = true
 	manager := NewManager(original, slog.Default())
 
 	_, operationID, err := manager.beginOperation("start", NodeMain)
@@ -167,6 +168,7 @@ func TestOperationUsesImmutableConfigSnapshot(t *testing.T) {
 		t.Fatalf("beginOperation() error = %v", err)
 	}
 	updated := &config.Config{}
+	updated.Tailscale.TsNet.Enabled = true
 	updated.Tailscale.TsNet.AuthKeyMain = "tskey-auth-updated-value"
 	manager.UpdateConfig(updated)
 	t.Setenv("TS_AUTHKEY", "tskey-auth-updated-environment-value")
@@ -239,7 +241,9 @@ func TestReauthenticateRejectsUnconfiguredNodeBeforeOperation(t *testing.T) {
 }
 
 func TestConcurrentOperationsAreRejected(t *testing.T) {
-	manager := NewManager(&config.Config{}, slog.Default())
+	cfg := &config.Config{}
+	cfg.Tailscale.TsNet.Enabled = true
+	manager := NewManager(cfg, slog.Default())
 	_, operationID, err := manager.beginOperation("start", NodeMain)
 	if err != nil {
 		t.Fatalf("beginOperation() error = %v", err)
@@ -483,6 +487,7 @@ func TestTimedOutListenerIsClosedWhenItArrivesLate(t *testing.T) {
 
 func TestFunnelModeCreatesExactlyOneFunnelListener(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tailscale.TsNet.Enabled = true
 	cfg.Tailscale.TsNet.Funnel = true
 	manager := NewManager(cfg, slog.Default())
 	listener := newBlockingListener("funnel.tailnet.test:443")
@@ -500,7 +505,8 @@ func TestFunnelModeCreatesExactlyOneFunnelListener(t *testing.T) {
 		return nil, errors.New("TLS listener must not be created in Funnel mode")
 	}
 
-	if err := manager.startMainListener(context.Background(), &tsnet.Server{}, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})); err != nil {
+	manager.server = &tsnet.Server{}
+	if err := manager.startMainListener(context.Background(), manager.server, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})); err != nil {
 		t.Fatalf("startMainListener() error = %v", err)
 	}
 	if funnelCalls != 1 || tlsCalls != 0 {

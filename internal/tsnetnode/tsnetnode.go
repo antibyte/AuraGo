@@ -179,6 +179,7 @@ type Manager struct {
 	operationDone   chan struct{}
 	operationPlan   *runtimePlan
 	shuttingDown    bool
+	disablePending  bool
 }
 
 type nodeRuntimeState struct {
@@ -355,9 +356,29 @@ func NewManager(cfg *config.Config, logger *slog.Logger) *Manager {
 
 // UpdateConfig updates the config reference (e.g. after hot-reload).
 func (m *Manager) UpdateConfig(cfg *config.Config) {
+	m.operationMu.Lock()
+	defer m.operationMu.Unlock()
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	wasEnabled := m.cfg.Tailscale.TsNet.Enabled
 	m.cfg = snapshotManagerConfig(cfg)
+	disabled := !m.cfg.Tailscale.TsNet.Enabled
+	m.mu.Unlock()
+	if disabled && (wasEnabled || m.operationDone != nil) && !m.disablePending {
+		m.disablePending = true
+		if m.operationCancel != nil {
+			m.operationCancel()
+		}
+		// A save arriving over tsnet must return before its HTTP server drains.
+		go func() {
+			err := m.Stop()
+			m.operationMu.Lock()
+			m.disablePending = false
+			m.operationMu.Unlock()
+			if err != nil {
+				m.logger.Warn("[tsnet] Disable shutdown failed", "error_code", classifyError(err))
+			}
+		}()
+	}
 }
 
 func snapshotManagerConfig(cfg *config.Config) managerConfigSnapshot {
@@ -841,12 +862,15 @@ func (m *Manager) beginOperation(kind string, node NodeID) (context.Context, str
 	if m.shuttingDown && kind != "stop" {
 		return nil, "", fmt.Errorf("%s: manager is shutting down", ErrorOperationConflict)
 	}
+	cfg := m.configSnapshot()
+	if kind != "stop" && (m.disablePending || !cfg.Tailscale.TsNet.Enabled) {
+		return nil, "", fmt.Errorf("%s: tsnet is disabled or stopping", ErrorOperationConflict)
+	}
 	if m.operation != nil && (m.operation.State == "pending" || m.operation.State == "running") {
 		return nil, "", fmt.Errorf("%s: operation %s is already running", ErrorOperationConflict, m.operation.ID)
 	}
 	id := fmt.Sprintf("tsnet-%d-%d", time.Now().UnixMilli(), operationSequence.Add(1))
 	ctx, cancel := context.WithCancel(context.Background())
-	cfg := m.configSnapshot()
 	m.operationPlan = &runtimePlan{
 		Config:      cfg,
 		Credentials: resolveCredentials(cfg),
@@ -907,6 +931,11 @@ func (m *Manager) configSnapshot() managerConfigSnapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.cfg
+}
+
+// Call with mu held so disable/stop cannot race with resource publication.
+func (m *Manager) canPublishLocked(ctx context.Context, srv *tsnet.Server) bool {
+	return ctx.Err() == nil && m.cfg.Tailscale.TsNet.Enabled && srv != nil && m.server == srv
 }
 
 func (m *Manager) runtimeCredentials() credentialSnapshot {
@@ -1310,7 +1339,7 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 	// when interactive login is required.  Holding m.mu during that wait would deadlock
 	// every concurrent GetStatus() / Stop() call.
 	m.mu.Lock()
-	if m.running || m.starting {
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled || m.running || m.starting {
 		m.mu.Unlock()
 		return fmt.Errorf("%s: tsnet lifecycle changed while starting", ErrorOperationConflict)
 	}
@@ -1364,6 +1393,12 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 		return fmt.Errorf("%s: tsnet start cancelled: %w", ErrorTimeout, err)
 	}
 	m.mu.Lock()
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled {
+		m.mu.Unlock()
+		_ = srv.Close()
+		cleanup("tsnet start cancelled")
+		return fmt.Errorf("%s: tsnet start cancelled", ErrorOperationConflict)
+	}
 	m.server = srv
 	m.mu.Unlock()
 	if err := m.ensureNodeAuthenticated(ctx, NodeMain, srv, authKey); err != nil {
@@ -1376,6 +1411,13 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 		return err
 	}
 	m.setNodeError(NodeMain, nil)
+	m.mu.Lock()
+	if !m.canPublishLocked(ctx, srv) {
+		m.mu.Unlock()
+		_ = srv.Close()
+		cleanup("tsnet start cancelled")
+		return fmt.Errorf("%s: tsnet start cancelled", ErrorOperationConflict)
+	}
 
 	// ── Node is now in the Tailscale network ──────────────────────────────────
 	// By default (serve_http: false) we just joined the network — no HTTP
@@ -1386,7 +1428,6 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 	if !tsCfg.ServeHTTP {
 		// Network-only mode: node is connected, no listener yet unless Homepage
 		// exposure is enabled below via ReconfigureExposure.
-		m.mu.Lock()
 		m.server = srv
 		m.listener = nil
 		m.httpSrv = nil
@@ -1406,7 +1447,6 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 		m.funnelActive = false
 		m.mu.Unlock()
 	} else {
-		m.mu.Lock()
 		m.server = srv
 		m.running = true
 		m.starting = false
@@ -1415,17 +1455,10 @@ func (m *Manager) start(ctx context.Context, handler http.Handler) error {
 	}
 
 	if err := m.reconfigureExposure(ctx, handler); err != nil {
-		m.mu.Lock()
-		if m.server != nil {
-			m.server.Close()
-		}
-		m.server = nil
-		m.running = false
-		m.starting = false
-		m.mu.Unlock()
+		stopErr := m.stopRuntime(ctx)
 		cleanup(safeErrorMessage(err))
 		m.setNodeError(NodeMain, err)
-		return err
+		return errors.Join(err, stopErr)
 	}
 	if err := cleanupRecoveryBackup(stateDir); err != nil {
 		m.logger.Warn("[tsnet] Retaining recovery backup after cleanup failure", "node", NodeMain, "error_code", ErrorStateCorrupt)
@@ -1820,7 +1853,7 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 		return fmt.Errorf("tsnet config is unavailable")
 	}
 	m.mu.Lock()
-	if !m.running {
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled || !m.running {
 		m.mu.Unlock()
 		return fmt.Errorf("tsnet node is not running")
 	}
@@ -1949,7 +1982,7 @@ func (m *Manager) reconfigureExposure(ctx context.Context, handler http.Handler)
 // containers on the existing AuraGo tsnet node. These proxies never use Funnel.
 func (m *Manager) ReconcileStoreAppProxies(specs []StoreAppProxySpec) error {
 	m.mu.Lock()
-	if !m.running {
+	if !m.cfg.Tailscale.TsNet.Enabled || !m.running {
 		m.mu.Unlock()
 		return fmt.Errorf("tsnet node is not running")
 	}
@@ -2037,12 +2070,12 @@ func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) 
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
 	}
-	go func() {
-		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
-			m.logger.Warn("[tsnet] store app proxy stopped", "app_id", spec.ID, "error_code", classifyError(err), "error", safeErrorMessage(err))
-		}
-	}()
 	m.mu.Lock()
+	if !m.canPublishLocked(context.Background(), srv) {
+		m.mu.Unlock()
+		_ = ln.Close()
+		return fmt.Errorf("%s: store proxy start was superseded", ErrorOperationConflict)
+	}
 	if m.storeProxyLns == nil {
 		m.storeProxyLns = map[string]net.Listener{}
 	}
@@ -2056,6 +2089,11 @@ func (m *Manager) startStoreAppProxy(srv *tsnet.Server, spec StoreAppProxySpec) 
 	m.storeProxySrvs[spec.ID] = httpSrv
 	m.storeProxySpecs[spec.ID] = spec
 	m.mu.Unlock()
+	go func() {
+		if err := httpSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			m.logger.Warn("[tsnet] store app proxy stopped", "app_id", spec.ID, "error_code", classifyError(err), "error", safeErrorMessage(err))
+		}
+	}()
 	m.logger.Info("[tsnet] store app proxy started", "app_id", spec.ID, "port", spec.Port, "target", spec.TargetURL)
 	return nil
 }
@@ -2191,6 +2229,7 @@ func (m *Manager) stopStoreAppProxy(ctx context.Context, id string) error {
 
 func homepageExposureWanted(cfg managerConfigSnapshot) bool {
 	return cfg.Valid &&
+		cfg.Tailscale.TsNet.Enabled &&
 		cfg.Tailscale.TsNet.ExposeHomepage &&
 		cfg.Homepage.WebServerEnabled &&
 		cfg.Homepage.WebServerPort > 0
@@ -2392,6 +2431,11 @@ func (m *Manager) startMainListener(ctx context.Context, srv *tsnet.Server, hand
 	}
 
 	m.mu.Lock()
+	if !m.canPublishLocked(ctx, srv) {
+		m.mu.Unlock()
+		_ = ln.Close()
+		return fmt.Errorf("%s: main listener start was superseded", ErrorOperationConflict)
+	}
 	m.listener = ln
 	m.httpSrv = httpSrv
 	m.servingHTTP = true
@@ -2414,10 +2458,12 @@ func (m *Manager) startMainListener(ctx context.Context, srv *tsnet.Server, hand
 			m.logger.Error("tsnet AuraGo listener error", "error_code", classifyError(err), "error", safeErrorMessage(err))
 			m.setNodeError(NodeMain, err)
 			m.mu.Lock()
-			m.lastErr = safeErrorMessage(err)
-			m.servingHTTP = false
-			m.httpFallback = false
-			m.funnelActive = false
+			if m.httpSrv == httpSrv {
+				m.lastErr = safeErrorMessage(err)
+				m.servingHTTP = false
+				m.httpFallback = false
+				m.funnelActive = false
+			}
 			m.mu.Unlock()
 		}
 	}()
@@ -2461,6 +2507,11 @@ func (m *Manager) rebuildMainNode(ctx context.Context, previous *tsnet.Server) (
 		return nil, fmt.Errorf("%s: replacement tsnet start cancelled: %w", ErrorTimeout, err)
 	}
 	m.mu.Lock()
+	if !m.canPublishLocked(ctx, previous) {
+		m.mu.Unlock()
+		_ = srv.Close()
+		return nil, fmt.Errorf("%s: replacement node start was superseded", ErrorOperationConflict)
+	}
 	m.server = srv
 	m.mu.Unlock()
 	if err := m.ensureNodeAuthenticated(ctx, NodeMain, srv, authKey); err != nil {
@@ -2528,6 +2579,11 @@ func (m *Manager) startHomepageListener(ctx context.Context, srv *tsnet.Server) 
 	}
 
 	m.mu.Lock()
+	if !m.canPublishLocked(ctx, srv) {
+		m.mu.Unlock()
+		_ = ln.Close()
+		return fmt.Errorf("%s: Homepage listener start was superseded", ErrorOperationConflict)
+	}
 	m.homepageLn = ln
 	m.homepageSrv = homepageSrv
 	m.homepageUp = true
@@ -2581,6 +2637,11 @@ func (m *Manager) startSpeechLabListener(ctx context.Context, srv *tsnet.Server,
 		TLSConfig:    &tls.Config{MinVersion: tls.VersionTLS12},
 	}
 	m.mu.Lock()
+	if !m.canPublishLocked(ctx, srv) {
+		m.mu.Unlock()
+		_ = ln.Close()
+		return fmt.Errorf("%s: Speech Lab listener start was superseded", ErrorOperationConflict)
+	}
 	m.speechLabLn = ln
 	m.speechLabSrv = speechLabSrv
 	m.speechLabUp = true
@@ -2692,6 +2753,9 @@ func manifestTsNetPort(port int) int {
 }
 
 func (m *Manager) startManifestListener(ctx context.Context, _ *tsnet.Server) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	cfg := m.runtimeConfig()
 	if cfg == nil {
 		return fmt.Errorf("tsnet config is unavailable")
@@ -2749,7 +2813,7 @@ func (m *Manager) startManifestListener(ctx context.Context, _ *tsnet.Server) er
 		return fmt.Errorf("%s: Manifest node start cancelled: %w", ErrorTimeout, err)
 	}
 	m.mu.Lock()
-	if m.manifest.Generation != generation || m.manifest.State != "starting" {
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled || m.manifest.Generation != generation || m.manifest.State != "starting" {
 		m.mu.Unlock()
 		_ = m.closeChildResources(ctx, NodeManifest, childResourceState{Node: manifestNode})
 		return fmt.Errorf("%s: Manifest node start was superseded", ErrorOperationConflict)
@@ -2794,7 +2858,7 @@ func (m *Manager) startManifestListener(ctx context.Context, _ *tsnet.Server) er
 	}
 
 	m.mu.Lock()
-	if m.manifest.Generation != generation || m.manifest.Node != manifestNode {
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled || m.manifest.Generation != generation || m.manifest.Node != manifestNode {
 		m.mu.Unlock()
 		_ = m.closeChildResources(ctx, NodeManifest, childResourceState{
 			Generation: generation,
@@ -2918,6 +2982,9 @@ func (m *Manager) effectiveSpaceAgentHostname() string {
 }
 
 func (m *Manager) startSpaceAgentListener(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	cfg := m.runtimeConfig()
 	if cfg == nil {
 		return fmt.Errorf("tsnet config is unavailable")
@@ -2976,7 +3043,7 @@ func (m *Manager) startSpaceAgentListener(ctx context.Context) error {
 		return fmt.Errorf("%s: Space Agent node start cancelled: %w", ErrorTimeout, err)
 	}
 	m.mu.Lock()
-	if m.spaceAgent.Generation != generation || m.spaceAgent.State != "starting" {
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled || m.spaceAgent.Generation != generation || m.spaceAgent.State != "starting" {
 		m.mu.Unlock()
 		_ = m.closeChildResources(ctx, NodeSpaceAgent, childResourceState{Node: spaceNode})
 		return fmt.Errorf("%s: Space Agent node start was superseded", ErrorOperationConflict)
@@ -3020,7 +3087,7 @@ func (m *Manager) startSpaceAgentListener(ctx context.Context) error {
 	}
 
 	m.mu.Lock()
-	if m.spaceAgent.Generation != generation || m.spaceAgent.Node != spaceNode {
+	if ctx.Err() != nil || !m.cfg.Tailscale.TsNet.Enabled || m.spaceAgent.Generation != generation || m.spaceAgent.Node != spaceNode {
 		m.mu.Unlock()
 		_ = m.closeChildResources(ctx, NodeSpaceAgent, childResourceState{
 			Generation: generation,
