@@ -50,9 +50,9 @@ agotrain before AuraGo, retaining both exact pins and commit histories. These
 sequential pins avoid circular commit IDs; there is no submodule or automatic
 cross-repository push.
 
-The synthetic pack contains 5,370 rows, including DE/EN direct coverage for every
+The synthetic pack contains 5,400 rows, including DE/EN direct coverage for every
 operation and selector-free tool, at least 500 multi-call scenarios and all negative
-cases. The Kaggle expansion adds 300 rows to retain paired coverage and at least 500 multi-call scenarios. Review the fixed budget before catalog growth would reduce those minima.
+cases. The Store expansion adds 30 rows to retain paired coverage and 512 multi-call scenarios at 1,569 operation/selector-free fixtures. Review the fixed budget before catalog growth would reduce those minima.
 
 ## Migration and retained material
 
