@@ -1421,10 +1421,10 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - EasyDrag metadata journeys select active dialogs for native close clicks and
   await removal of closing overlays; a saved editor remains in the DOM during
   its 140 ms exit animation and must not become the next click target.
-- EasyDrag run-view clicks (banner, durable panel and its Stop dialog) use
-  `clickSettled`: it waits until the same node keeps one box over two frames and
-  queries it right before a native press, because the run view re-renders on its
-  own and a stale node has no shape for rod.
+- EasyDrag run-view clicks (Run now, banner, results disclosure, durable panel and
+  its Stop dialog) use `clickSettled`: it waits until the same node keeps one box
+  over two frames and queries it right before a native press, because the run view
+  re-renders on its own and a stale node has no shape for rod.
 - Synth Studio library clicks await the sidebar's rendered viewport bounds, not
   visibility alone during its slide-in transition. Master-chain changes keep the
   `TestDesktopSynthStudioAudioBrowser` offline ceiling and neutral-width transfer

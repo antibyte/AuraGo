@@ -99,7 +99,7 @@ func TestDesktopEasyDragDurableReconnectBrowser(t *testing.T) {
 	s.wait(`()=>edFixture.state.streams.filter(s=>!s.closed && s.url.includes('` + runID + `') && s.url.includes('after=1')).length===1 && edFixture.editor().run.durableStatus?.state==='waiting'`)
 	p.MustEval(`id=>{if(edFixture.editor().run.id!==id || edDurableFixture.state.requests.filter(r=>r.method==='POST' && r.path.endsWith('/run')).length!==1)throw Error('Run identity changed or admission replayed');}`, runID)
 	s.shot("durable-reconnected-same-run")
-	p.MustElement(`.ed-run-results > .ed-disclosure-head`).MustClick()
+	s.clickSettled(`.ed-run-results > .ed-disclosure-head`)
 	s.wait(`()=>document.querySelector('.ed-run-results > .ed-disclosure-head').getAttribute('aria-expanded')==='true'`)
 	p.MustSetViewport(390, 844, 1, true)
 	p.MustEval(`()=>fixtureTheme('fruity-light')`)
@@ -107,7 +107,7 @@ func TestDesktopEasyDragDurableReconnectBrowser(t *testing.T) {
 	// The five-second metadata poll needs a complete cadence after the streamed wake.
 	p.Timeout(10 * time.Second).MustWait(`()=>edFixture.editor().run.status==='running' && edFixture.editor().run.durableStatus?.state==='running'`)
 	s.wait(`()=>document.querySelector('.ed-run-results > .ed-disclosure-head').getAttribute('aria-expanded')==='true'`)
-	p.MustElement(`.ed-run-results > .ed-disclosure-head`).MustClick()
+	s.clickSettled(`.ed-run-results > .ed-disclosure-head`)
 	s.wait(`()=>!(document.querySelector('.ed-run-results > .ed-disclosure-head').getAttribute('aria-expanded')==='true')`)
 	s.shot("durable-resumed-fruity-light-390")
 	p.MustEval(`id=>edDurableFixture.finish(id)`, runID)
