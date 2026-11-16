@@ -82,6 +82,9 @@ func (s *Service) SimulateBlock(ctx context.Context, id string, req BlockSimulat
 			}
 		}
 	}
+	if response.Status == RunSuccess {
+		s.markTested(ctx, id, rec.DraftRevision)
+	}
 	return response, nil
 }
 

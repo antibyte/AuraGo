@@ -114,8 +114,19 @@ func (c simulationClock) After(time.Duration) <-chan time.Time {
 }
 
 // Simulate executes only trusted built-in pure logic; all other built-in nodes
-// require a fixture. It never uses the production registry's executable hooks.
+// require a fixture. It never uses the production registry's executable hooks. A
+// simulation that ends with success marks the draft revision it ran as tested (IsTested).
 func (s *Service) Simulate(ctx context.Context, id string, req SimulationRequest) (*SimulationResult, error) {
+	result, err := s.simulate(ctx, id, req)
+	if err == nil && result.Status == RunSuccess {
+		s.markTested(ctx, id, result.Revision)
+	}
+	return result, err
+}
+
+// simulate is Simulate without the tested marker; SimulateScenario marks only after its
+// assertions passed.
+func (s *Service) simulate(ctx context.Context, id string, req SimulationRequest) (*SimulationResult, error) {
 	rec, err := s.requireFlow(ctx, id)
 	if err != nil {
 		return nil, err

@@ -322,5 +322,8 @@ func (s *Service) DeleteBlock(ctx context.Context, id string, draftRevision, liv
 	if _, err := tx.ExecContext(ctx, `DELETE FROM flows WHERE id=? AND kind=?`, id, string(KindBlock)); err != nil {
 		return fmt.Errorf("delete block: %w", err)
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM flows_meta WHERE key=?`, testedMetaKey(id)); err != nil {
+		return fmt.Errorf("delete block: %w", err)
+	}
 	return tx.Commit()
 }

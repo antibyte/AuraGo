@@ -800,5 +800,7 @@ func (s *Store) DeleteFlow(ctx context.Context, id string) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
+	// The tested marker (testedMetaKey) goes with the flow; a failure leaves a harmless row.
+	_, _ = s.db.ExecContext(ctx, `DELETE FROM flows_meta WHERE key = ?`, testedMetaKey(id))
 	return nil
 }

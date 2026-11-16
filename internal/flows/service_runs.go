@@ -541,6 +541,11 @@ func (s *Service) onRunStarted(rec RunRecord, doc *Flow) {
 // flow lock), Cancel or Shutdown, once per queued run.
 func (s *Service) onRunFinished(rec RunRecord, res RunResult) {
 	if rec.Mode == ModeTest {
+		// A test run that ended with success marks its draft revision as tested; the marker
+		// outlives the run's row, which retention may prune.
+		if res.Status == RunSuccess {
+			s.markTested(context.Background(), rec.FlowID, rec.Revision)
+		}
 		return
 	}
 	s.mu.Lock()

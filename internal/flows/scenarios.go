@@ -642,7 +642,7 @@ func (s *Service) simulateLoadedScenario(ctx context.Context, flowID string, bas
 	if scenario.Stale {
 		return nil, ErrScenarioStale
 	}
-	result, err := s.Simulate(ctx, flowID, SimulationRequest{TriggerNode: scenario.TriggerNode, TriggerData: scenario.TriggerData,
+	result, err := s.simulate(ctx, flowID, SimulationRequest{TriggerNode: scenario.TriggerNode, TriggerData: scenario.TriggerData,
 		OnlyNode: scenario.OnlyNode, BaseRevision: baseDraftRevision, Fixtures: scenario.Fixtures, At: scenario.At, blockFingerprints: scenario.blockFingerprints})
 	if err != nil {
 		return nil, err
@@ -675,6 +675,15 @@ func (s *Service) simulateLoadedScenario(ctx context.Context, flowID string, bas
 			check.Passed = check.Code == ""
 		}
 		checks = append(checks, check)
+	}
+	if result.Status == RunSuccess {
+		passed := true
+		for _, check := range checks {
+			passed = passed && check.Passed
+		}
+		if passed {
+			s.markTested(ctx, flowID, result.Revision)
+		}
 	}
 	return &ScenarioSimulationResult{SimulationResult: result, Assertions: checks}, nil
 }
