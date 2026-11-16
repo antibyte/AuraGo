@@ -41,7 +41,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	page.MustElement(".ed-flow-card h3").MustClick()
 	s.wait(`()=>document.querySelectorAll('.ed-node').length===4 && document.querySelectorAll('.ed-edge').length===3`)
 	s.wait(`()=>document.querySelector('[data-ed-state]').textContent.length>0 && getComputedStyle(document.querySelector('.ed-empty')).display==='none'`)
-	s.wait(`()=>{const head=document.querySelector('.ed-head');const save=head.querySelector('[data-ed-save]');const test=head.querySelector('[data-ed-cmd="test"]');const publish=head.querySelector('[data-ed-cmd="publish"]');const rev=head.querySelector('[data-ed-pill-text]');return !!save && save.getClientRects().length>0 && !document.querySelector('.ed-foot [data-ed-save]') && !!test && !test.hidden && test.textContent.trim().length>0 && !!publish && !publish.hidden && publish.textContent.trim().length>0 && !!rev && rev.textContent.trim().length>0}`)
+	s.wait(`()=>{const head=document.querySelector('.ed-head');const save=head.querySelector('[data-ed-save]');const test=head.querySelector('[data-ed-cmd="test"]');const publish=head.querySelector('[data-ed-cmd="publish"]');const rev=head.querySelector('[data-ed-pill-text]');return !!save && save.getClientRects().length>0 && !document.querySelector('.ed-foot [data-ed-save]') && !!test && !test.hidden && test.textContent.trim().length>0 && !!publish && publish.hidden && !!rev && rev.textContent.trim().length>0}`)
 	s.shot("editor-standard")
 	s.failOnPageErrors("open editor")
 	s.noRawKeys("editor")
@@ -161,6 +161,7 @@ func TestDesktopEasyDragBrowser(t *testing.T) {
 	// Publish (no blocking problems left). The first answer is partial: the revision is live but
 	// Mission Control was not updated, so the state chip warns and Publish stays offered.
 	// Publishing again finishes it.
+	s.markTested()
 	page.MustElement(`[data-ed-cmd="publish"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="publish"]')`)
 	s.shot("publish-dialog")
@@ -791,7 +792,7 @@ func (s *easyDragSmoke) publishPartial() {
 	s.wait(`()=>{const ed=edFixture.editor();const r=edFixture.flow().rec;return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && r.published_draft_revision===r.draft_revision && !document.querySelector('.ed-modal-backdrop') && !!document.querySelector('.vd-toast')}`)
 	// The re-read flow has the same live revision, which must not end the warning.
 	s.wait(fmt.Sprintf(`()=>(%s)()>%d`, reads, before))
-	s.wait(`()=>{const ed=edFixture.editor();const pub=document.querySelector('[data-ed-cmd="publish"]');return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && document.querySelector('[data-ed-pill]').getAttribute('data-status')==='blocked' && !pub.disabled && pub.classList.contains('has-changes')}`)
+	s.wait(`()=>{const ed=edFixture.editor();const pub=document.querySelector('[data-ed-cmd="publish"]');return ed.publishIncomplete==='FLOW_PUBLISH_INCOMPLETE' && document.querySelector('[data-ed-pill]').getAttribute('data-status')==='blocked' && !pub.disabled && !pub.hidden}`)
 	s.clearToasts()
 	s.shot("publish-partial")
 	s.noRawKeys("publish partial")

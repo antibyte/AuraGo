@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "Αποτέλεσμα:",
   "easydrag.ui.preview_text": "Κείμενο, χαρακτήρες: {count}",
   "easydrag.ui.publish": "Δημοσίευση",
+  "easydrag.ui.publish_with_changes": "Δημοσίευση · {count} αλλαγές",
+  "easydrag.ui.publish_with_changes_one": "Δημοσίευση · {count} αλλαγή",
   "easydrag.ui.publish_activate": "Ενεργοποίηση τώρα, ώστε να αρχίσουν να λειτουργούν τα εναύσματα",
   "easydrag.ui.publish_blocked": "Η δημοσίευση μπλοκαρίστηκε – προβλήματα: {count}",
   "easydrag.ui.publish_done": "Η ροή «{name}» δημοσιεύτηκε.",

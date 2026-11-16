@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "Ergebnis:",
   "easydrag.ui.preview_text": "Text, Zeichen: {count}",
   "easydrag.ui.publish": "Veröffentlichen",
+  "easydrag.ui.publish_with_changes": "Veröffentlichen · {count} Änderungen",
+  "easydrag.ui.publish_with_changes_one": "Veröffentlichen · {count} Änderung",
   "easydrag.ui.publish_activate": "Jetzt aktivieren, damit die Auslöser greifen",
   "easydrag.ui.publish_blocked": "Veröffentlichung blockiert – Probleme: {count}",
   "easydrag.ui.publish_done": "„{name}“ ist veröffentlicht.",

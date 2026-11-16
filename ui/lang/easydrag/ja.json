@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "結果:",
   "easydrag.ui.preview_text": "テキスト、文字数: {count}",
   "easydrag.ui.publish": "公開",
+  "easydrag.ui.publish_with_changes": "公開 · {count} 件の変更",
+  "easydrag.ui.publish_with_changes_one": "公開 · {count} 件の変更",
   "easydrag.ui.publish_activate": "今すぐ有効にして、トリガーを作動させる",
   "easydrag.ui.publish_blocked": "公開できません – 問題: {count}",
   "easydrag.ui.publish_done": "「{name}」を公開しました。",

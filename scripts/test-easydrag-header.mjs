@@ -374,5 +374,94 @@ export async function run(env) {
         editor.dispose();
     });
 
+    // ── B.4: the primary button ──
+
+    // primaryOf opens f1 with the given facts and says [which button is filled, the Publish label, whether Publish shows].
+    const primaryRow = async (opts) => {
+        const h = sandbox(() => undefined);
+        const editor = openEditor(h, opts);
+        await settle();
+        const filled = editor.el.querySelectorAll('[data-ed-primary]').map(b => b.getAttribute('data-ed-cmd'));
+        const test = editor.el.querySelector('[data-ed-cmd="test"]'), pub = editor.el.querySelector('[data-ed-cmd="publish"]');
+        const row = [filled, pub.hidden === true, pub.querySelector('span').textContent, test.className.includes('ed-btn--primary'), pub.className.includes('ed-btn--primary'), h.logged];
+        return { h, editor, row };
+    };
+    const live = { live: flowDoc(), live_revision: 2, published_draft_revision: 2 };
+
+    await guardAsync('w1c B.4 the primary button follows the states of the table: Test, Publish with its count, or none', async () => {
+        const rows = [];
+        const cases = [
+            ['never published, untested', {}],
+            ['never published, tested', { facts: { tested: true } }],
+            ['changed, untested', { enabled: true, flow: Object.assign({ draft_revision: 3 }, live) }],
+            ['changed, tested, three changes', { enabled: true, flow: Object.assign({ draft_revision: 3 }, live), facts: { tested: true, changes: { steps: 2, connections: 1 } } }],
+            ['changed, tested, one change', { enabled: true, flow: Object.assign({ draft_revision: 3 }, live), facts: { tested: true, changes: { steps: 1, connections: 0 } } }],
+            ['changed, tested, no count', { enabled: true, flow: Object.assign({ draft_revision: 3 }, live), facts: { tested: true } }],
+            ['clean live', { enabled: true, flow: Object.assign({ draft_revision: 2 }, live), facts: { tested: true } }],
+            ['read-only', { enabled: true, readonly: true, flow: Object.assign({ draft_revision: 3 }, live), facts: { tested: true } }]
+        ];
+        for (const [name, opts] of cases) {
+            const r = await primaryRow(opts);
+            rows.push([name, r.row]);
+            r.editor.dispose();
+        }
+        eq('w1c B.4 primary rows [filled, Publish hidden, Publish text, Test filled, Publish filled, log]', rows, [
+            ['never published, untested', [['test'], true, 'publish', true, false, []]],
+            ['never published, tested', [['publish'], false, 'publish', false, true, []]],
+            ['changed, untested', [['test'], true, 'publish', true, false, []]],
+            ['changed, tested, three changes', [['publish'], false, 'publish_with_changes:3', false, true, []]],
+            ['changed, tested, one change', [['publish'], false, 'publish_with_changes_one:1', false, true, []]],
+            ['changed, tested, no count', [['publish'], false, 'publish', false, true, []]],
+            ['clean live', [[], true, 'publish', false, false, []]],
+            ['read-only', [[], true, 'publish', false, false, []]]
+        ]);
+    });
+
+    await guardAsync('w1c B.4 a failed test leaves Test primary; a passed one, an edit, a save and a restore move the button', async () => {
+        const h = sandbox(req => (req.method === 'PUT' ? { draft_revision: 4, issues: [], tested: false, changes: { steps: 1, connections: 0 } } : undefined));
+        const editor = openEditor(h, { enabled: true, flow: Object.assign({ draft_revision: 3 }, live) });
+        await settle();
+        const filled = () => editor.el.querySelectorAll('[data-ed-primary]').map(b => b.getAttribute('data-ed-cmd')).join();
+        const rows = [filled()];
+        // The editor's own evidence: a failed run is no test, a successful one of this revision is.
+        editor.ed.testEvidence = { revision: 3, status: 'error' };
+        editor.ed.bus.emit('run', editor.ed.run);
+        rows.push(filled());
+        editor.ed.testEvidence = { revision: 3, status: 'success' };
+        editor.ed.bus.emit('run', editor.ed.run);
+        rows.push(filled());
+        // An edit makes the draft untested at once; its save brings revision 4, which the evidence does not cover.
+        editor.ed.model.setFlow({ description: 'changed' });
+        rows.push(filled());
+        h.runTimers(1000);
+        await settle();
+        rows.push(filled(), editor.el.querySelector('[data-ed-cmd="publish"]').hidden);
+        // Evidence for revision 4 brings Publish with the count of the save answer.
+        editor.ed.testEvidence = { revision: 4, status: 'success' };
+        editor.ed.bus.emit('run', editor.ed.run);
+        rows.push(filled(), editor.el.querySelector('[data-ed-cmd="publish"]').querySelector('span').textContent);
+        editor.ed.bus.emit('restored', { flow: Object.assign({ id: 'f1', draft: flowDoc(), draft_revision: 9, published_draft_revision: 2 }, live), issues: [] });
+        await settle();
+        rows.push(filled());
+        eq('w1c B.4 primary follows evidence, edits, saves and a restore', rows, ['test', 'test', 'publish', 'test', 'test', true, 'publish', 'publish_with_changes_one:1', 'test']);
+        eq('w1c B.4 no log', h.logged, []);
+        editor.dispose();
+    });
+
+    await guardAsync('w1c B.4 a partial publish offers Publish again, a past run offers nothing, Test stays beside the primary and says why when it cannot run', async () => {
+        const { h, editor } = await primaryRow({ enabled: true, flow: Object.assign({ draft_revision: 2 }, live) });
+        const filled = () => editor.el.querySelectorAll('[data-ed-primary]').map(b => b.getAttribute('data-ed-cmd')).join();
+        const rows = [filled()];
+        Object.assign(editor.ed, { publishIncomplete: 'FLOW_PUBLISH_INCOMPLETE' });
+        editor.ed.bus.emit('enabled');
+        rows.push(filled());
+        editor.ed.runView = { run: { id: 'r9', status: 'success', revision: 2 } };
+        editor.ed.bus.emit('enabled');
+        const test = editor.el.querySelector('[data-ed-cmd="test"]');
+        rows.push(filled(), test.getAttribute('aria-disabled'), test.getAttribute('aria-description'));
+        eq('w1c B.4 partial publish, past run', rows, ['', 'publish', '', 'true', 'reason_run_view']);
+        editor.dispose();
+    });
+
     // @@APPEND@@
 }

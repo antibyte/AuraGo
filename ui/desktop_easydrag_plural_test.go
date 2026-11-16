@@ -33,7 +33,7 @@ var easyDragPluralForms = map[string][]string{
 // They are read only through ED.format.plural and have the forms of every locale.
 var easyDragPluralKeys = []string{
 	"folder_flows", "group_member_count", "group_edges_count", "group_errors", "group_running",
-	"group_success", "group_disabled", "cred_purge_versions", "cred_purge_pinned", "versions_connections",
+	"group_success", "group_disabled", "cred_purge_versions", "cred_purge_pinned", "versions_connections", "publish_with_changes",
 }
 
 // easyDragNumberNeutralKeys are count texts with no word that agrees with the count in any locale: the

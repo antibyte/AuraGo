@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "Resultat:",
   "easydrag.ui.preview_text": "Tekst, tegn: {count}",
   "easydrag.ui.publish": "Udgiv",
+  "easydrag.ui.publish_with_changes": "Udgiv · {count} ændringer",
+  "easydrag.ui.publish_with_changes_one": "Udgiv · {count} ændring",
   "easydrag.ui.publish_activate": "Aktivér nu, så udløserne begynder at virke",
   "easydrag.ui.publish_blocked": "Udgivelse blokeret – problemer: {count}",
   "easydrag.ui.publish_done": "“{name}” er udgivet.",

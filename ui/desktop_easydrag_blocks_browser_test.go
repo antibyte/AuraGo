@@ -35,6 +35,7 @@ func TestDesktopEasyDragBlocksBrowser(t *testing.T) {
 	}
 	publish := func(block bool) {
 		t.Helper()
+		s.markTested()
 		p.MustElement(`[data-ed-cmd="publish"]`).MustClick()
 		s.wait(`()=>!!document.querySelector('[data-ed-action="publish"]')`)
 		if block {

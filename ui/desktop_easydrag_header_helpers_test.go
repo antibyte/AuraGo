@@ -13,3 +13,10 @@ func (s *easyDragSmoke) pillEntry(name string) {
 	}
 	s.page.MustElement(`[data-ed-pill-popover] [data-ed-pop="` + name + `"]`).MustClick()
 }
+
+// markTested says that the open flow's draft passed a test, as the server would after one: the fixture answers tested=true from now
+// on (flows), the editor takes the flag at once (flows and blocks), and the header repaints. The primary button then offers Publish.
+func (s *easyDragSmoke) markTested() {
+	s.t.Helper()
+	s.page.MustEval(`()=>{edFixture.state.tested=true;const ed=edFixture.editor();if(!ed)return;ed.flow.tested=true;ed.flowFactsRevision=ed.saver.revision;ed.bus.emit('flow-facts',ed.flow)}`)
+}

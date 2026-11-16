@@ -631,15 +631,14 @@ func TestEasyDragCategoryLintRejectsBypasses(t *testing.T) {
 	}
 }
 
-// TestEasyDragStateMarksUseChange pins the interaction and change marks: the unpublished chip and the Publish dot read
+// TestEasyDragStateMarksUseChange pins the interaction and change marks: the unpublished chip reads
 // --ed-change (the accent, or a neutral colour where the accent looks like success), the drag ghost is an interaction,
 // cards carry no category stripe and wires no category attribute.
 func TestEasyDragStateMarksUseChange(t *testing.T) {
 	sheet := parseCSSSheet(strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-easydrag.css"), "\r\n", "\n"))
 	want := map[string]map[string]string{
-		".ed-chip--accent":                    {"background": "color-mix(in srgb, var(--ed-change) 16%, transparent)", "color": "var(--ed-change-ink)"},
-		".ed-btn--primary.has-changes::after": {"background": "var(--ed-change)"},
-		".ed-drag-ghost.is-over-canvas":       {"border-color": "var(--ed-accent)"},
+		".ed-chip--accent":              {"background": "color-mix(in srgb, var(--ed-change) 16%, transparent)", "color": "var(--ed-change-ink)"},
+		".ed-drag-ghost.is-over-canvas": {"border-color": "var(--ed-accent)"},
 	}
 	for selector, props := range want {
 		decls := easyDragS0RuleDecls(sheet, selector)

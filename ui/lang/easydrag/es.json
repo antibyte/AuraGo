@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "Resultado:",
   "easydrag.ui.preview_text": "Texto, caracteres: {count}",
   "easydrag.ui.publish": "Publicar",
+  "easydrag.ui.publish_with_changes": "Publicar · {count} cambios",
+  "easydrag.ui.publish_with_changes_one": "Publicar · {count} cambio",
   "easydrag.ui.publish_activate": "Activar ahora para que los activadores empiecen a funcionar",
   "easydrag.ui.publish_blocked": "Publicación bloqueada – problemas: {count}",
   "easydrag.ui.publish_done": "«{name}» está publicado.",

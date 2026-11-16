@@ -9,7 +9,7 @@ import (
 // The ceilings only fall. A change that lowers a count lowers its ceiling in the same commit; a change that
 // raises one is refused (use a --ed-radius-* token or a status/theme colour token instead of a literal).
 const (
-	easyDragRadiusLiteralCeiling = 79
+	easyDragRadiusLiteralCeiling = 78
 	easyDragColourLiteralCeiling = 14
 )
 

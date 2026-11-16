@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "结果：",
   "easydrag.ui.preview_text": "文本，字符：{count}",
   "easydrag.ui.publish": "发布",
+  "easydrag.ui.publish_with_changes": "发布 · {count} 项更改",
+  "easydrag.ui.publish_with_changes_one": "发布 · {count} 项更改",
   "easydrag.ui.publish_activate": "立即启用，让触发器开始生效",
   "easydrag.ui.publish_blocked": "发布被阻止，问题：{count}",
   "easydrag.ui.publish_done": "“{name}”已发布。",

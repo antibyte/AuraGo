@@ -30,6 +30,23 @@
             pill.paint();
         }
 
+        // paintPrimary draws the one filled button (easydrag-pill.js, primaryOf): Test while the draft is not tested, Publish with the
+        // number of changes once it is, none for a clean live flow. Both buttons keep their place in the row; the one that is not
+        // wanted is hidden, and only the filled one carries data-ed-primary.
+        function paintPrimary() {
+            const p = ED.pill.primaryOf(ed);
+            const test = el.querySelector('[data-ed-cmd="test"]');
+            const pub = el.querySelector('[data-ed-cmd="publish"]');
+            test.classList.toggle('ed-btn--primary', p.kind === 'test');
+            test.toggleAttribute('data-ed-primary', p.kind === 'test');
+            pub.hidden = p.kind !== 'publish';
+            pub.classList.toggle('ed-btn--primary', p.kind === 'publish');
+            pub.toggleAttribute('data-ed-primary', p.kind === 'publish');
+            const text = p.count ? ED.format.plural(t, 'easydrag.ui.publish_with_changes', p.count) : ED.actions.label('flow.publish', { host: ed });
+            const span = pub.querySelector('span');
+            if (span && span.textContent !== text) span.textContent = text;
+        }
+
         function renderHeader() {
             // A save answered after dispose must not point the window context at this flow again.
             if (host.isDisposed()) return;
@@ -37,7 +54,6 @@
             if (document.activeElement !== nameInput) nameInput.value = ed.model.doc.name || ''; if (nameInput.edLimit) nameInput.edLimit.update();
             nameInput.readOnly = !!(ed.readonly || ed.runView);
             syncSaveChip();
-            const ro = !!(ed.readonly || ed.runView);
             const running = runs.isRunning();
             const btn = cmd => el.querySelector('[data-ed-cmd="' + cmd + '"]');
             if (isBlock) {
@@ -46,10 +62,8 @@
                 nameInput.setAttribute('aria-label', t('easydrag.ui.block_name'));
             }
             btn('test').classList.toggle('is-busy', running);
-            btn('test').classList.toggle('ed-btn--primary', !ed.flow.live && !ro);
             btn('cancel').hidden = !running;
-            btn('publish').classList.toggle('has-changes', (!ed.flow.live || ED.pill.changed(ed) || !!ed.publishIncomplete) && !ro);
-            btn('publish').classList.toggle('ed-btn--primary', !!ed.flow.live && !ro);
+            paintPrimary();
             paintActions();
             btn('palette').setAttribute('aria-pressed', String(palette.isOpen()));
             // The run view keeps the palette hidden: a stored run takes no new steps.
@@ -79,7 +93,7 @@
                 ? '<button type="button" class="ed-save-retry" data-ed-cmd="save" title="' + esc(title) + '">' + label + '<span class="ed-save-action">' + esc(t('easydrag.ui.retry')) + '</span></button>'
                 : label;
             node.title = s === 'failed' ? '' : title;
-            if (!host.isDisposed()) pill.paint();
+            if (!host.isDisposed()) { paintPrimary(); pill.paint(); }
             // Each state replaces the retry button: keyboard focus moves to the new one or, once the
             // save went through, to the canvas.
             if (hadFocus && !host.isDisposed()) (node.querySelector('[data-ed-cmd="save"]') || canvas.el).focus({ preventScroll: true });

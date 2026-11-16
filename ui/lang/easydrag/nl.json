@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "Resultaat:",
   "easydrag.ui.preview_text": "Tekst, tekens: {count}",
   "easydrag.ui.publish": "Publiceren",
+  "easydrag.ui.publish_with_changes": "Publiceren · {count} wijzigingen",
+  "easydrag.ui.publish_with_changes_one": "Publiceren · {count} wijziging",
   "easydrag.ui.publish_activate": "Nu activeren zodat de triggers gaan werken",
   "easydrag.ui.publish_blocked": "Publiceren geblokkeerd – problemen: {count}",
   "easydrag.ui.publish_done": "‘{name}’ is gepubliceerd.",

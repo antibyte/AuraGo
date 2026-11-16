@@ -777,6 +777,8 @@
   "easydrag.ui.preview_result": "नतीजा:",
   "easydrag.ui.preview_text": "टेक्स्ट, अक्षर: {count}",
   "easydrag.ui.publish": "प्रकाशित करें",
+  "easydrag.ui.publish_with_changes": "प्रकाशित करें · {count} बदलाव",
+  "easydrag.ui.publish_with_changes_one": "प्रकाशित करें · {count} बदलाव",
   "easydrag.ui.publish_activate": "अभी सक्रिय करें ताकि ट्रिगर काम करना शुरू करें",
   "easydrag.ui.publish_blocked": "प्रकाशन अवरुद्ध – समस्याएँ: {count}",
   "easydrag.ui.publish_done": "“{name}” प्रकाशित हो गया।",

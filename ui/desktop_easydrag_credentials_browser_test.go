@@ -35,6 +35,7 @@ func TestDesktopEasyDragCredentialMoveBrowser(t *testing.T) {
 	s.noRawKeys("credential move")
 
 	// The next publish offers the guided purge, once.
+	s.markTested()
 	p.MustElement(`[data-ed-cmd="publish"]`).MustClick()
 	s.wait(`()=>!!document.querySelector('.ed-modal [data-ed-action="publish"]')`)
 	p.MustElement(`.ed-modal [data-ed-action="publish"]`).MustClick()
