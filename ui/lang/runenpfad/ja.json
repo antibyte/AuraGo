@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "コンボ {n}",
   "runenpfad.notice.boss_enraged": "ボスが激怒した！",
   "runenpfad.notice.secret_found": "秘密の部屋を発見！",
-  "runenpfad.notice.lantern_lit": "ランタンに火が灯った！"
+  "runenpfad.notice.lantern_lit": "ランタンに火が灯った！",
+  "runenpfad.rune_fire": "炎のルーン",
+  "runenpfad.rune_frost": "氷のルーン",
+  "runenpfad.rune_storm": "嵐のルーン",
+  "runenpfad.rune_magnet": "磁力のルーン",
+  "runenpfad.rune_fire_desc": "ダメージ+1",
+  "runenpfad.rune_frost_desc": "次の一撃を防ぐ",
+  "runenpfad.rune_storm_desc": "追加ジャンプとスピード",
+  "runenpfad.rune_magnet_desc": "コインを引き寄せる"
 }

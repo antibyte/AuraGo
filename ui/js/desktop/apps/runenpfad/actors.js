@@ -26,10 +26,11 @@
         let scratch = null;
         let scratchCtx = null;
         let seq = 1;
-        const heroVis = { climbClock: 100, sx: 1, sy: 1, vsx: 0, vsy: 0, fallVy: 0, wasGround: true, ghosts: [], ghostClock: 0, tilt: 0 };
+        const heroVis = { climbClock: 100, sx: 1, sy: 1, vsx: 0, vsy: 0, fallVy: 0, zapT: 0, wasGround: true, ghosts: [], ghostClock: 0, tilt: 0 };
         const ent = {}; // per-enemy visual state keyed by id
         const parts = [];
         let lastDt = 1 / 60;
+        let fireBolt = false;
         let stepped = -1;
 
         function rnd() {
@@ -422,8 +423,9 @@
             ctx.translate(p.x, p.y - 24);
             ctx.scale(p.facing < 0 ? -1 : 1, 1);
             ctx.globalCompositeOperation = 'lighter';
-            crescent(12, 0, 40, head - 1.25, head, 26, '#3ccfe8', 0.5 * fade);
-            crescent(12, 0, 40, head - 0.8, head, 18, '#9af3ff', 0.8 * fade);
+            const fireRune = activeRune(sim) && activeRune(sim).kind === 'fire';
+            crescent(12, 0, 40, head - 1.25, head, 26, fireRune ? '#ff6a1a' : '#3ccfe8', 0.5 * fade);
+            crescent(12, 0, 40, head - 0.8, head, 18, fireRune ? '#ffb55a' : '#9af3ff', 0.8 * fade);
             crescent(12, 0, 40, head - 0.45, head, 9, '#ffffff', 0.95 * fade);
             const tx = 12 + Math.cos(head) * 38;
             const ty = Math.sin(head) * 38;
@@ -444,6 +446,105 @@
             for (let i = 0; i < ropes.length; i++) if (Math.abs(p.x - ropes[i].x) <= 14) return ropes[i].x;
             for (let i = 0; i < ladders.length; i++) if (Math.abs(p.x - (ladders[i].x + T / 2)) < 20) return ladders[i].x + T / 2;
             return p.x;
+        }
+
+        // ---- rune power-up visuals on the hero ----
+        function activeRune(sim) {
+            const r = sim.player.rune;
+            return r && r.timeLeft > 0 ? r : null;
+        }
+
+        // Blink during the last two seconds so the end of a rune is readable.
+        function runeFade(r, nowSec) {
+            return r.timeLeft < 2 ? (Math.floor(nowSec * 9) % 2 ? 0.3 : 0.85) : 1;
+        }
+
+        function drawRuneAura(sim, view, p, r) {
+            const kind = r.kind;
+            const k = runeFade(r, view.nowSec);
+            const cy = p.y - 26;
+            const t = view.nowSec;
+            const rm = view.reducedMotion;
+            if (kind === 'fire') {
+                glow(p.x, cy, 54 + (rm ? 0 : Math.sin(t * 9) * 4), 'rgba(255, 140, 50, 0.7)', 0.5 * k);
+                if (!rm && rnd() < lastDt * 22 * k) addPart('bit', p.x + (rnd() - 0.5) * 18, p.y - 6 - rnd() * 24, (rnd() - 0.5) * 24 - p.vx * 0.05, -30 - rnd() * 50, 0.6, 2 + rnd() * 2, rnd() < 0.5 ? '#ff9a4a' : '#ffd37a');
+            } else if (kind === 'frost') {
+                if (r.charges > 0) {
+                    ctx.save();
+                    const g = ctx.createRadialGradient(p.x, cy, 8, p.x, cy, 34);
+                    g.addColorStop(0, 'rgba(170, 230, 255, 0.03)');
+                    g.addColorStop(0.8, 'rgba(150, 220, 255, 0.2)');
+                    g.addColorStop(1, 'rgba(210, 245, 255, 0.45)');
+                    ctx.globalAlpha = k;
+                    ctx.fillStyle = g;
+                    ctx.beginPath();
+                    ctx.arc(p.x, cy, 34, 0, TAU);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(220, 247, 255, 0.75)';
+                    ctx.lineWidth = 1.6;
+                    ctx.stroke();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(p.x, cy, 28, 3.7, 4.6);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } else if (kind === 'storm') {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.strokeStyle = '#d9ccff';
+                ctx.lineWidth = 1.4;
+                ctx.globalAlpha = k;
+                const slot = Math.floor(t * 18);
+                for (let i = 0; i < 3; i++) {
+                    const a = hash(slot * 7 + i) * TAU;
+                    const r0 = 18 + hash(slot * 13 + i) * 8;
+                    let x = p.x + Math.cos(a) * r0;
+                    let y = cy + Math.sin(a) * r0 * 1.25;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    for (let s = 1; s <= 3; s++) {
+                        x += Math.cos(a + (hash(slot + s * 5 + i) - 0.5) * 2.4) * 6;
+                        y += Math.sin(a + (hash(slot + s * 3 + i) - 0.5) * 2.4) * 6;
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.restore();
+                glow(p.x, cy, 44, 'rgba(180, 160, 255, 0.6)', 0.3 * k);
+                if (heroVis.zapT > 0) {
+                    heroVis.zapT -= lastDt;
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2.4;
+                    ctx.globalAlpha = Math.max(0, heroVis.zapT / 0.16);
+                    ctx.beginPath();
+                    let zx = p.x;
+                    let zy = p.y + 4;
+                    ctx.moveTo(zx, zy);
+                    for (let s = 1; s <= 6; s++) {
+                        zx += (hash(slot + s) - 0.5) * 22;
+                        zy -= 16;
+                        ctx.lineTo(zx, zy);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            } else if (kind === 'magnet') {
+                const ph = ((t % 1.4) / 1.4);
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.strokeStyle = '#c084fc';
+                ctx.lineWidth = 2.2 * (1 - ph) + 0.6;
+                ctx.globalAlpha = (1 - ph) * 0.55 * k;
+                ctx.beginPath();
+                ctx.arc(p.x, cy, 16 + ph * 74, 0, TAU);
+                ctx.stroke();
+                ctx.restore();
+                glow(p.x, cy, 40, 'rgba(192, 132, 252, 0.6)', 0.28 * k);
+            }
         }
 
         function drawHero(sim, view) {
@@ -512,6 +613,8 @@
                 }
                 ctx.restore();
             }
+            const rune = activeRune(sim);
+            if (rune) drawRuneAura(sim, view, p, rune);
             const blink = p.invulnTimer > 0 && Math.floor(view.nowSec * 16) % 2 === 0 ? 0.45 : 1;
             const flash = p.hurtTimer > 0 ? clamp(p.hurtTimer * 5, 0, 0.8) : 0;
             sprite(def.pack, anim, clock, hold, drawX, p.y, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, heroVis.tilt);
@@ -719,7 +822,7 @@
 
         // Ranger bolt: slim rune arrow with trailing glyphs.
         function drawRangerBolt(pr, ang, view) {
-            const col = pr.color || '#7ee8fa';
+            const col = fireBolt ? '#ff9a4a' : (pr.color || '#7ee8fa');
             glow(pr.x, pr.y, 30, rgba(col, 0.6), 0.7);
             ctx.save();
             ctx.translate(pr.x, pr.y);
@@ -775,6 +878,8 @@
 
         function drawProjectiles(sim, view) {
             const list = sim.projectiles;
+            const pr0 = activeRune(sim);
+            fireBolt = !!(pr0 && pr0.kind === 'fire');
             if (!list.length) {
                 drawParts();
                 return;
@@ -834,6 +939,7 @@
             const d = ev.detail || {};
             const p = sim && sim.player;
             if (ev.type === 'jump') {
+                if (p && !p.onGround && p.rune && p.rune.kind === 'storm') heroVis.zapT = 0.16;
                 heroVis.sx = 0.82;
                 heroVis.sy = 1.22;
                 heroVis.vsx = 0;
@@ -849,6 +955,8 @@
                     const dir = i % 2 ? 1 : -1;
                     addPart('dust', p.x + dir * 6, p.y - 2, dir * (50 + rnd() * 110), -8 - rnd() * 22, 0.45 + rnd() * 0.2, 4 + rnd() * 4, '#d8cdb6');
                 }
+            } else if (ev.type === 'rune_shield_break' && p) {
+                for (let i = 0; i < 12; i++) addPart('bit', p.x + (rnd() - 0.5) * 20, p.y - 26 + (rnd() - 0.5) * 30, (rnd() - 0.5) * 240, (rnd() - 0.5) * 240 - 40, 0.5, 2 + rnd() * 2.5, '#bfeaff');
             } else if (ev.type === 'dash') {
                 heroVis.ghostClock = 0;
                 heroVis.sx = 1.22;

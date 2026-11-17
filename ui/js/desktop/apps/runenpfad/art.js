@@ -193,7 +193,7 @@
             const face = p && p.facing < 0 ? -1 : 1;
             switch (ev.type) {
                 case 'attack_melee':
-                    if (p && sim.heroId !== 'ranger') add('fx-slash', p.x + face * 34, p.y - 28, 84, { flip: face < 0 });
+                    if (p && sim.heroId !== 'ranger') add('fx-slash', p.x + face * 34, p.y - 28, 84, { flip: face < 0, tint: p.rune && p.rune.kind === 'fire' && p.rune.timeLeft > 0 ? '#ff7a2a' : '', alpha: 1 });
                     break;
                 case 'enemy_hit': {
                     const b = body(sim, x, y);

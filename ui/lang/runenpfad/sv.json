@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Kombo {n}",
   "runenpfad.notice.boss_enraged": "Bossen är rasande!",
   "runenpfad.notice.secret_found": "Hemligt rum hittat!",
-  "runenpfad.notice.lantern_lit": "Lykta tänd!"
+  "runenpfad.notice.lantern_lit": "Lykta tänd!",
+  "runenpfad.rune_fire": "Eldruna",
+  "runenpfad.rune_frost": "Frostruna",
+  "runenpfad.rune_storm": "Stormruna",
+  "runenpfad.rune_magnet": "Magnetruna",
+  "runenpfad.rune_fire_desc": "+1 skada",
+  "runenpfad.rune_frost_desc": "Blockerar nästa träff",
+  "runenpfad.rune_storm_desc": "Extra hopp och fart",
+  "runenpfad.rune_magnet_desc": "Drar till sig mynt"
 }

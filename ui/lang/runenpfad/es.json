@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Combo {n}",
   "runenpfad.notice.boss_enraged": "¡El jefe está furioso!",
   "runenpfad.notice.secret_found": "¡Cámara secreta encontrada!",
-  "runenpfad.notice.lantern_lit": "¡Farol encendido!"
+  "runenpfad.notice.lantern_lit": "¡Farol encendido!",
+  "runenpfad.rune_fire": "Runa de fuego",
+  "runenpfad.rune_frost": "Runa de escarcha",
+  "runenpfad.rune_storm": "Runa de tormenta",
+  "runenpfad.rune_magnet": "Runa magnética",
+  "runenpfad.rune_fire_desc": "+1 de daño",
+  "runenpfad.rune_frost_desc": "Bloquea el siguiente golpe",
+  "runenpfad.rune_storm_desc": "Salto extra y velocidad",
+  "runenpfad.rune_magnet_desc": "Atrae las monedas"
 }

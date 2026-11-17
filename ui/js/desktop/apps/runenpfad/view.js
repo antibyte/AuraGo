@@ -83,7 +83,7 @@
         let lastStage = null;
         let cineFlash = 0;
         const artFx = root.RunenpfadArt && root.RunenpfadArt.createFx ? root.RunenpfadArt.createFx() : null;
-        const TARGET_WORLD_H = 624; // about 13 tiles of 48 px stay visible vertically
+        const TARGET_WORLD_H = 576; // about 12 tiles of 48 px stay visible vertically
         const SHOCKWAVE_EVENTS = { bomb_blast: 1.0, slam_land: 0.8, boss_phase: 1.2, boss_defeat: 1.4, boss_slam: 1.1, portal_win: 1.0 };
 
         function triggerShake(amount) {
@@ -548,9 +548,27 @@
 
             // Collectibles
             const bob = prefersReducedMotion() ? 0 : Math.sin(nowSec * 4) * 3.5;
+            const magnet = sim.player.rune && sim.player.rune.kind === 'magnet' && sim.player.rune.timeLeft > 0;
             stage.collectibles.forEach(function (item) {
                 if (item.collected) return;
                 if (item.x + 32 < sx || item.x - 32 > sx + vw) return;
+                if (magnet) {
+                    // Visual-only arc: pulled pickups swing in on a curve instead of a straight line.
+                    const mx = sim.player.x - item.x;
+                    const my = sim.player.y - 22 - item.y;
+                    const md = Math.hypot(mx, my);
+                    if (md > 12 && md < 340) {
+                        const arc = Math.sin((md / 340) * Math.PI) * 26;
+                        ctx.save();
+                        ctx.translate((-my / md) * arc, (mx / md) * arc);
+                        drawCollectible(item);
+                        ctx.restore();
+                        return;
+                    }
+                }
+                drawCollectible(item);
+            });
+            function drawCollectible(item) {
                 if (item.type === 'rune_orb') {
                     callHook(stageArt, 'drawRuneOrb', item, frameView, bob);
                     return;
@@ -565,7 +583,7 @@
                 } else {
                     drawStaticAsset('jump-and-run', item.assetId, item.x - 18, item.y - 18 + bob, 36, 36);
                 }
-            });
+           }
 
             // Runic Key
             if (stage.key && !stage.key.collected) {
@@ -793,6 +811,10 @@
                     intensity: biome.light.player * 0.92,
                     flicker: false
                 });
+            }
+            if (p.rune && p.rune.timeLeft > 0) {
+                const rk = p.rune.kind;
+                lights.push({ x: p.x, y: p.y - 24, radius: rk === 'fire' ? 150 : 120, intensity: rk === 'fire' ? 0.75 : 0.55, flicker: rk === 'fire' || rk === 'storm' });
             }
             if (sim.blessing && sim.blessing.runePower > 0) {
                 lights.push({

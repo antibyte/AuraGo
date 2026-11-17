@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Combo {n}",
   "runenpfad.notice.boss_enraged": "De baas is woedend!",
   "runenpfad.notice.secret_found": "Geheime kamer gevonden!",
-  "runenpfad.notice.lantern_lit": "Lantaarn aangestoken!"
+  "runenpfad.notice.lantern_lit": "Lantaarn aangestoken!",
+  "runenpfad.rune_fire": "Vuurrune",
+  "runenpfad.rune_frost": "Vorstrune",
+  "runenpfad.rune_storm": "Stormrune",
+  "runenpfad.rune_magnet": "Magneetrune",
+  "runenpfad.rune_fire_desc": "+1 schade",
+  "runenpfad.rune_frost_desc": "Blokkeert de volgende treffer",
+  "runenpfad.rune_storm_desc": "Extra sprong en snelheid",
+  "runenpfad.rune_magnet_desc": "Trekt munten aan"
 }

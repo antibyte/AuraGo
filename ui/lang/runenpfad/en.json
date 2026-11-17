@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Combo {n}",
   "runenpfad.notice.boss_enraged": "The boss is enraged!",
   "runenpfad.notice.secret_found": "Secret chamber found!",
-  "runenpfad.notice.lantern_lit": "Lantern lit!"
+  "runenpfad.notice.lantern_lit": "Lantern lit!",
+  "runenpfad.rune_fire": "Fire Rune",
+  "runenpfad.rune_frost": "Frost Rune",
+  "runenpfad.rune_storm": "Storm Rune",
+  "runenpfad.rune_magnet": "Magnet Rune",
+  "runenpfad.rune_fire_desc": "+1 damage",
+  "runenpfad.rune_frost_desc": "Blocks the next hit",
+  "runenpfad.rune_storm_desc": "Extra jump and speed",
+  "runenpfad.rune_magnet_desc": "Pulls in coins"
 }

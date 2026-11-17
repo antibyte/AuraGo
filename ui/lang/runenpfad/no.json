@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Kombo {n}",
   "runenpfad.notice.boss_enraged": "Sjefen er rasende!",
   "runenpfad.notice.secret_found": "Hemmelig kammer funnet!",
-  "runenpfad.notice.lantern_lit": "Lykt tent!"
+  "runenpfad.notice.lantern_lit": "Lykt tent!",
+  "runenpfad.rune_fire": "Ildrune",
+  "runenpfad.rune_frost": "Frostrune",
+  "runenpfad.rune_storm": "Stormrune",
+  "runenpfad.rune_magnet": "Magnetrune",
+  "runenpfad.rune_fire_desc": "+1 skade",
+  "runenpfad.rune_frost_desc": "Blokkerer neste treff",
+  "runenpfad.rune_storm_desc": "Ekstra hopp og fart",
+  "runenpfad.rune_magnet_desc": "Trekker til seg mynter"
 }

@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Kombo {n}",
   "runenpfad.notice.boss_enraged": "Boss zuří!",
   "runenpfad.notice.secret_found": "Tajná komnata nalezena!",
-  "runenpfad.notice.lantern_lit": "Lucerna zapálena!"
+  "runenpfad.notice.lantern_lit": "Lucerna zapálena!",
+  "runenpfad.rune_fire": "Ohnivá runa",
+  "runenpfad.rune_frost": "Mrazivá runa",
+  "runenpfad.rune_storm": "Bouřná runa",
+  "runenpfad.rune_magnet": "Magnetická runa",
+  "runenpfad.rune_fire_desc": "+1 poškození",
+  "runenpfad.rune_frost_desc": "Zablokuje další zásah",
+  "runenpfad.rune_storm_desc": "Skok navíc a rychlost",
+  "runenpfad.rune_magnet_desc": "Přitahuje mince"
 }

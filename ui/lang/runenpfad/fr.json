@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Combo {n}",
   "runenpfad.notice.boss_enraged": "Le boss est enragé !",
   "runenpfad.notice.secret_found": "Chambre secrète découverte !",
-  "runenpfad.notice.lantern_lit": "Lanterne allumée !"
+  "runenpfad.notice.lantern_lit": "Lanterne allumée !",
+  "runenpfad.rune_fire": "Rune de feu",
+  "runenpfad.rune_frost": "Rune de givre",
+  "runenpfad.rune_storm": "Rune de tempête",
+  "runenpfad.rune_magnet": "Rune magnétique",
+  "runenpfad.rune_fire_desc": "+1 dégât",
+  "runenpfad.rune_frost_desc": "Bloque le prochain coup",
+  "runenpfad.rune_storm_desc": "Saut bonus et vitesse",
+  "runenpfad.rune_magnet_desc": "Attire les pièces"
 }

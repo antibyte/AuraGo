@@ -25,6 +25,9 @@
         let sheets = null;
         let hintTimer = 0;
         let heartCount = -1;
+        let atlas = null;
+        let runeKind = '';
+        let runeShownAt = 0;
 
         function setText(node, value) {
             const text = String(value);
@@ -97,6 +100,46 @@
             icons.push(node);
             if (sheets) paintIcon(node);
             return node;
+        }
+
+        // Orb icon from the painted atlas (powerups column per kind); the CSS colour dot stays when the atlas is absent.
+        function paintRuneIcon(kind) {
+            runeIcon.className = 'rp-rune-icon is-' + kind;
+            runeIcon.replaceChildren();
+            const A = root.RunenpfadArt;
+            if (!atlas || !A || !A.has(atlas, 'powerups.' + kind)) return;
+            const canvas = el('canvas', 'rp-rune-canvas');
+            canvas.width = 56;
+            canvas.height = 56;
+            const cx = canvas.getContext('2d');
+            if (!cx) return;
+            A.draw(cx, atlas, 'powerups.' + kind, 0, 28, 28, { height: 58 });
+            runeIcon.replaceChildren(canvas);
+            runeIcon.classList.add('is-ready');
+        }
+
+        function setArt(a) {
+            atlas = a || null;
+            if (runeKind) paintRuneIcon(runeKind);
+        }
+
+        function paintRune(p) {
+            const r = p.rune && p.rune.timeLeft > 0 ? p.rune : null;
+            runePlaque.hidden = !r;
+            if (!r) { runeKind = ''; return; }
+            const now = root.performance.now();
+            if (r.kind !== runeKind) {
+                runeKind = r.kind;
+                runeShownAt = now;
+                paintRuneIcon(r.kind);
+                setText(runeDesc, t('runenpfad.rune_' + r.kind + '_desc'));
+                runePlaque.title = t('runenpfad.rune_' + r.kind) + ': ' + t('runenpfad.rune_' + r.kind + '_desc');
+            }
+            setText(runeName, t('runenpfad.rune_' + r.kind) + (r.kind === 'frost' ? ' \u00d7' + (r.charges || 0) : ''));
+            runePlaque.classList.toggle('is-intro', now - runeShownAt < 2500);
+            const frac = r.duration > 0 ? Math.max(0, Math.min(1, r.timeLeft / r.duration)) : 0;
+            runeFill.style.width = Math.round(frac * 100) + '%';
+            runePlaque.classList.toggle('is-ending', r.timeLeft < 2 && Math.floor(now / 220) % 2 === 0);
         }
 
         function setSheets(s) {
@@ -180,7 +223,20 @@
         const runeTag = el('span', 'rp-tag rp-tag-rune');
         const comboTag = el('span', 'rp-tag rp-tag-combo');
         [modTag, runeTag, comboTag].forEach(function (tag) { tag.hidden = true; });
-        tags.append(modTag, runeTag, comboTag);
+        // Active rune power-up plaque: orb icon, name, short effect text and a draining timer bar.
+        const runePlaque = el('div', 'rp-rune-plaque');
+        runePlaque.hidden = true;
+        const runeIcon = el('span', 'rp-rune-icon');
+        runeIcon.setAttribute('aria-hidden', 'true');
+        const runeBody = el('span', 'rp-rune-body');
+        const runeName = el('span', 'rp-rune-name');
+        const runeDesc = el('span', 'rp-rune-desc');
+        const runeBar = el('span', 'rp-rune-bar');
+        const runeFill = el('span', 'rp-rune-fill');
+        runeBar.append(runeFill);
+        runeBody.append(runeName, runeDesc, runeBar);
+        runePlaque.append(runeIcon, runeBody);
+        tags.append(runePlaque, modTag, runeTag, comboTag);
         noticeRow.append(notice, tags);
 
         // ---- boss bar ----
@@ -263,6 +319,7 @@
             const power = sim.blessing && sim.blessing.runePower > 0;
             runeTag.hidden = !power;
             if (power) setText(runeTag, t('runenpfad.hud_rune') + ' ' + Math.ceil(sim.blessing.runePower) + 's');
+            paintRune(p);
             const combo = sim.combo;
             comboTag.hidden = !(combo && combo.count >= 2);
             if (!comboTag.hidden) setText(comboTag, fill('runenpfad.hud_combo', { n: String.fromCharCode(215) + (Math.round((combo.mul || 1) * 10) / 10) }));
@@ -325,7 +382,7 @@
         return {
             root: rootEl, bossCard: bossCard,
             heroBtn: heroBtn, levelsBtn: levelsBtn, shopBtn: shopBtn, soundBtn: soundBtn, pauseBtn: pauseBtn, healBtn: healBtn,
-            icon: icon, keycap: keycap, setButton: setButton, setSheets: setSheets, setText: setText,
+            icon: icon, keycap: keycap, setButton: setButton, setSheets: setSheets, setArt: setArt, setText: setText,
             paint: paint, paintCopy: paintCopy, paintStars: paintStars, paintPlaques: paintPlaques,
             showHint: showHint, dispose: dispose
         };

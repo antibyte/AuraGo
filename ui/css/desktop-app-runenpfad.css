@@ -865,3 +865,100 @@
 .rp-hidden {
     display: none;
 }
+
+/* ---- active rune plaque ---- */
+.rp-rune-plaque {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 150px;
+    padding: 3px 9px 3px 4px;
+    background: linear-gradient(180deg, rgba(43, 33, 24, 0.95), rgba(21, 16, 11, 0.95));
+    border: 1px solid var(--rp-bronze);
+    border-radius: 4px;
+    color: var(--rp-parch);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.rp-rune-plaque[hidden] {
+    display: none;
+}
+
+.rp-rune-plaque.is-ending {
+    opacity: 0.45;
+}
+
+.rp-rune-icon {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+
+.rp-rune-icon.is-ready {
+    background: none;
+}
+
+.rp-rune-icon.is-fire { background: radial-gradient(circle at 35% 30%, #ffd9a0, #fb923c 55%, #7c2d12); }
+.rp-rune-icon.is-frost { background: radial-gradient(circle at 35% 30%, #e0f7ff, #7dd3fc 55%, #1e4e79); }
+.rp-rune-icon.is-storm { background: radial-gradient(circle at 35% 30%, #f5f0ff, #c4b5fd 55%, #4c3a8f); }
+.rp-rune-icon.is-magnet { background: radial-gradient(circle at 35% 30%, #fff7bd, #fde047 55%, #7a5b09); }
+
+.rp-rune-canvas {
+    display: block;
+    width: 28px;
+    height: 28px;
+}
+
+.rp-rune-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.rp-rune-name {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.rp-rune-desc {
+    display: none;
+    font-size: 10.5px;
+    line-height: 1.1;
+    color: #cdbf9d;
+}
+
+.rp-rune-plaque.is-intro .rp-rune-desc {
+    display: block;
+}
+
+.rp-rune-bar {
+    display: block;
+    height: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(138, 106, 58, 0.8);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.rp-rune-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(180deg, #8ee6ef, #3aa7b5);
+}
+
+.rp-rune-plaque:has(.is-fire) .rp-rune-fill { background: linear-gradient(180deg, #ffbf7a, #e0701a); }
+.rp-rune-plaque:has(.is-storm) .rp-rune-fill { background: linear-gradient(180deg, #ddd2ff, #8b73e0); }
+.rp-rune-plaque:has(.is-magnet) .rp-rune-fill { background: linear-gradient(180deg, #fff09a, #d8b21c); }
+
+.rp-app.rp-narrow .rp-rune-plaque {
+    min-width: 0;
+    padding-right: 6px;
+}
+
+.rp-app.rp-narrow .rp-rune-plaque.is-intro .rp-rune-desc {
+    display: none;
+}

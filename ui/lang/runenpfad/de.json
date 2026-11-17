@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Kombo {n}",
   "runenpfad.notice.boss_enraged": "Der Boss ist wütend!",
   "runenpfad.notice.secret_found": "Geheimkammer entdeckt!",
-  "runenpfad.notice.lantern_lit": "Laterne entzündet!"
+  "runenpfad.notice.lantern_lit": "Laterne entzündet!",
+  "runenpfad.rune_fire": "Feuerrune",
+  "runenpfad.rune_frost": "Frostrune",
+  "runenpfad.rune_storm": "Sturmrune",
+  "runenpfad.rune_magnet": "Magnetrune",
+  "runenpfad.rune_fire_desc": "+1 Schaden",
+  "runenpfad.rune_frost_desc": "Blockt den nächsten Treffer",
+  "runenpfad.rune_storm_desc": "Extra-Sprung und Tempo",
+  "runenpfad.rune_magnet_desc": "Zieht Münzen an"
 }

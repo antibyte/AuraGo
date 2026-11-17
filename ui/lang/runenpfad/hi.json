@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "कॉम्बो {n}",
   "runenpfad.notice.boss_enraged": "बॉस भड़क उठा है!",
   "runenpfad.notice.secret_found": "गुप्त कक्ष मिल गया!",
-  "runenpfad.notice.lantern_lit": "लालटेन जल गई!"
+  "runenpfad.notice.lantern_lit": "लालटेन जल गई!",
+  "runenpfad.rune_fire": "अग्नि रून",
+  "runenpfad.rune_frost": "हिम रून",
+  "runenpfad.rune_storm": "तूफ़ान रून",
+  "runenpfad.rune_magnet": "चुंबक रून",
+  "runenpfad.rune_fire_desc": "+1 क्षति",
+  "runenpfad.rune_frost_desc": "अगला वार रोकता है",
+  "runenpfad.rune_storm_desc": "अतिरिक्त छलांग और गति",
+  "runenpfad.rune_magnet_desc": "सिक्के खींचता है"
 }

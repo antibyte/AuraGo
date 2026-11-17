@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Kombo {n}",
   "runenpfad.notice.boss_enraged": "Boss wpadł w szał!",
   "runenpfad.notice.secret_found": "Znaleziono tajną komnatę!",
-  "runenpfad.notice.lantern_lit": "Latarnia zapalona!"
+  "runenpfad.notice.lantern_lit": "Latarnia zapalona!",
+  "runenpfad.rune_fire": "Runa ognia",
+  "runenpfad.rune_frost": "Runa mrozu",
+  "runenpfad.rune_storm": "Runa burzy",
+  "runenpfad.rune_magnet": "Runa magnesu",
+  "runenpfad.rune_fire_desc": "+1 obrażeń",
+  "runenpfad.rune_frost_desc": "Blokuje następne trafienie",
+  "runenpfad.rune_storm_desc": "Dodatkowy skok i szybkość",
+  "runenpfad.rune_magnet_desc": "Przyciąga monety"
 }

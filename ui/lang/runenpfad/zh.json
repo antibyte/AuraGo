@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "连击 {n}",
   "runenpfad.notice.boss_enraged": "首领暴怒了！",
   "runenpfad.notice.secret_found": "发现了秘密密室！",
-  "runenpfad.notice.lantern_lit": "灯笼已点亮！"
+  "runenpfad.notice.lantern_lit": "灯笼已点亮！",
+  "runenpfad.rune_fire": "火焰符文",
+  "runenpfad.rune_frost": "冰霜符文",
+  "runenpfad.rune_storm": "风暴符文",
+  "runenpfad.rune_magnet": "磁力符文",
+  "runenpfad.rune_fire_desc": "伤害 +1",
+  "runenpfad.rune_frost_desc": "抵挡下一次攻击",
+  "runenpfad.rune_storm_desc": "额外跳跃与速度",
+  "runenpfad.rune_magnet_desc": "吸引金币"
 }

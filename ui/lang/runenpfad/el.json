@@ -122,5 +122,13 @@
   "runenpfad.hud_combo": "Κόμπο {n}",
   "runenpfad.notice.boss_enraged": "Το αφεντικό λυσσάζει!",
   "runenpfad.notice.secret_found": "Βρέθηκε μυστικός θάλαμος!",
-  "runenpfad.notice.lantern_lit": "Το φανάρι άναψε!"
+  "runenpfad.notice.lantern_lit": "Το φανάρι άναψε!",
+  "runenpfad.rune_fire": "Ρούνος της φωτιάς",
+  "runenpfad.rune_frost": "Ρούνος του παγετού",
+  "runenpfad.rune_storm": "Ρούνος της καταιγίδας",
+  "runenpfad.rune_magnet": "Μαγνητικός ρούνος",
+  "runenpfad.rune_fire_desc": "+1 ζημιά",
+  "runenpfad.rune_frost_desc": "Μπλοκάρει το επόμενο χτύπημα",
+  "runenpfad.rune_storm_desc": "Επιπλέον άλμα και ταχύτητα",
+  "runenpfad.rune_magnet_desc": "Τραβάει τα νομίσματα"
 }

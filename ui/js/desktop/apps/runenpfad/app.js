@@ -605,6 +605,7 @@
                 right: right,
                 up: up,
                 down: down,
+                jump: !!(keyState.Space || keyState.ArrowUp || keyState.KeyW || touchState.Space || touchState.ArrowUp),
                 jumpPressed: edgeState.jumpPressed,
                 attackPressed: edgeState.attackPressed,
                 dashPressed: edgeState.dashPressed,
@@ -900,7 +901,7 @@
                 renderer = View.createRenderer(canvas, sheets);
                 const bootRenderer = renderer;
                 artPromise.then(function (atlas) {
-                    if (!disposed && ticket === generation && renderer === bootRenderer && atlas && typeof bootRenderer.setArt === 'function') bootRenderer.setArt(atlas);
+                    if (!disposed && ticket === generation && renderer === bootRenderer && atlas && typeof bootRenderer.setArt === 'function') { bootRenderer.setArt(atlas); if (typeof hud.setArt === 'function') hud.setArt(atlas); }
                 });
                 const Music = root.RunenpfadMusic;
                 try {
