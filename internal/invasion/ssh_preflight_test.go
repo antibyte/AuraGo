@@ -46,6 +46,14 @@ func TestSSHEggMasterKeyPreflightPreservesExistingFiles(t *testing.T) {
 				}
 			}
 			run := func(script string) ([]byte, error) {
+				if runtime.GOOS == "windows" {
+					// Use native no-overwrite NTFS links in the Windows fixture.
+					script = `ln() {
+    [ "$#" -eq 3 ] && [ "$1" = -- ] || return 2
+    MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /c mklink /H "$(cygpath -w "$3")" "$(cygpath -w "$2")"
+}
+` + script
+				}
 				cmd := exec.Command(bash, "-s")
 				cmd.Env = append(sandbox.FilterEnv(os.Environ()), "BASH_ENV=")
 				cmd.Dir = dir
@@ -56,16 +64,24 @@ func TestSSHEggMasterKeyPreflightPreservesExistingFiles(t *testing.T) {
 			if (err == nil) != tc.allowed {
 				t.Fatalf("preflight allowed=%v: %s, %v", tc.allowed, output, err)
 			}
+			if !tc.allowed && !strings.Contains(string(output), "Existing Egg") {
+				t.Fatalf("preflight failed outside the key guard: %s, %v", output, err)
+			}
 			if strings.Contains(string(output), strings.Repeat("a", 64)) {
 				t.Fatal("preflight returned the original key")
 			}
-			_, err = run(sshDeployFileScript("./.env", []byte("AURAGO_MASTER_KEY="+strings.Repeat("b", 64)+"\n"), true))
+			payload := "AURAGO_MASTER_KEY=" + strings.Repeat("b", 64) + "\n"
+			output, err = run(sshDeployFileScript("./.env", []byte(payload), true))
 			if (err == nil) != tc.allowed {
-				t.Fatalf("publish allowed=%v: %v", tc.allowed, err)
+				t.Fatalf("publish allowed=%v: %s, %v", tc.allowed, output, err)
 			}
 			got, readErr := os.ReadFile(filepath.Join(dir, ".env"))
-			if tc.env != "" && (readErr != nil || string(got) != tc.env) {
-				t.Fatal("existing .env changed")
+			wantEnv := tc.env
+			if tc.allowed && wantEnv == "" {
+				wantEnv = payload
+			}
+			if wantEnv != "" && (readErr != nil || string(got) != wantEnv) {
+				t.Fatal("master-key file was not published or preserved")
 			}
 			if tc.vault {
 				data, err := os.ReadFile(filepath.Join(dir, "data/vault.bin"))

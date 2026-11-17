@@ -142,6 +142,12 @@ Run bridge and invasion tests, server Invasion/MissionRemote regressions, and
 Linux CGO race tests for concurrent heartbeat, result and rekey traffic. The existing Docker image-contract job runs TestDockerEggRuntimeBootstrapAndReconfigure against its freshly built image with an isolated test Vault/master; ordinary Go runs skip it unless explicitly opted in. Exercise
 replayed authentication on a fresh socket and old-connection replacement cleanup.
 
+The Windows preflight fixture uses Git Bash and native `mklink /H` for atomic,
+no-overwrite NTFS publication; MSYS `ln` can reject links from Go-launched shells.
+Keep this adapter test-only. Linux tests execute the real remote `ln` and private
+file-mode checks. Rejections must come from the Egg key guard, and a fresh publish
+must contain the supplied synthetic key.
+
 ## Child DOX index
 
 None. This file also owns `bridge/`.

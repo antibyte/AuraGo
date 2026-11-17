@@ -351,6 +351,7 @@ Memory retrieval, hygiene, indexing, and maintenance.
 ## Verification
 
 - Run `go test ./internal/memory` and the named cross-component checks in the contracts above when those paths change.
+- Complete Windows package runs use the existing CI budget: `./scripts/go-test-with-cache.ps1 -Packages @('-p','1','./internal/memory','-count=1','-timeout=30m')`. Go's timeout covers the whole package, including all tests and subtests.
 
 ### Privacy deletion and note protection
 
