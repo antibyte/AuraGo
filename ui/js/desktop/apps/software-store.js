@@ -582,7 +582,7 @@
                     <div class="vd-modal-title">${esc(catalog.find(item => item.id === appId)?.name || appId)} · ${label('connect')}</div>
                     <p class="vd-store-modal-copy">${label('intro')}</p>
                     ${['n8n', 'node-red', 'olivetin', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
-                    <button type="button" class="vd-button" data-ig-open>${esc(t('desktop.open'))}</button>
+                    <button type="button" class="vd-button" data-ig-open>${esc(t('desktop.store.open'))}</button>
                     ${saved.containerized && appId !== 'ziro-designer' ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
                     ${appId === 'ziro-designer' ? '' : field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
                     ${appId === 'ziro-designer' ? '' : field('credential', 'password')}<p data-ig-stored></p>
