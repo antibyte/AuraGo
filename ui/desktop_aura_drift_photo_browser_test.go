@@ -74,11 +74,16 @@ func TestDesktopAuraDriftTrackPhotoBrowser(t *testing.T) {
 				if(card!==window.testRacePrint || document.querySelectorAll('.agdrift-photo').length!==1) throw Error('Lost race print');
 				const panel=card.parentElement;
 				if(reduced && getComputedStyle(panel).animationName!=='none') throw Error('Reduced-motion result panel is animated');
-				await Promise.all(panel.getAnimations().map(animation=>animation.finished));
+				const entrance=panel.getAnimations({subtree:true}).filter(a=>a.effect.getTiming().iterations!==Infinity);
+				await Promise.all(entrance.map(a=>a.finished));
 				const box=card.getBoundingClientRect(), root=document.querySelector('.agdrift-root').getBoundingClientRect();
 				if(box.left<root.left || box.right>root.right || box.bottom>root.bottom || box.top<root.top) throw Error('Photo outside the window');
 				const rows=document.querySelector('.agdrift-result-body');
-				if(rows.scrollWidth>rows.clientWidth+1) throw Error('Photo stretches the result rows');
+				if(rows.scrollWidth>rows.clientWidth+1){
+					const right=rows.getBoundingClientRect().left+rows.clientWidth;
+					const outside=Array.from(rows.querySelectorAll('*')).filter(e=>e.getBoundingClientRect().right>right+1);
+					throw Error('Result row overflow '+rows.scrollWidth+'/'+rows.clientWidth+' '+outside.map(e=>e.className));
+				}
 			}`, tc.reduced)
 			if artifacts != "" {
 				page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(artifacts, "results.png"))
