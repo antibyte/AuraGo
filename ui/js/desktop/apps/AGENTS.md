@@ -3787,8 +3787,9 @@ buttons and menu popovers remain excluded from those gestures.
   files; English is the reference, and every value needs a non-empty translation with no U+FFFD.
 - The track camera in `aura-drift-ui-cards.js` copies one 384×216 frame per race from the
   active renderer immediately after drawing. Keep the print in window memory through results.
-  Its captions, horn guests and RNG belong to presentation. Reduced motion skips the developing
-  effect. Verify `TestDesktopAuraDriftTrackPhotoBrowser` in 3D and the Canvas fallback.
+  Its captions, horn guests and RNG belong to presentation. The game's reduced-motion setting
+  and system preference suppress CSS motion for prints, menus and results. Verify
+  `TestDesktopAuraDriftTrackPhotoBrowser` in 3D and the Canvas fallback.
 - Radio wording history belongs to each game window and survives race restarts. Prefer unheard
   ready variants, then the least recently heard ready variant. Preserve the subtitle/voice index
   and the per-race speaker and event cooldowns. Verify `scripts/test-aura-drift-banter.mjs`.

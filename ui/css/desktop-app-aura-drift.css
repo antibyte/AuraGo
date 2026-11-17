@@ -700,10 +700,10 @@
     right: 2.1%;
     width: clamp(90px, 16%, 184px);
     margin: 0;
+    animation: agdrift-print-in .3s ease-out;
 }
 .agdrift-root:not([data-view="play"]) > .agdrift-photo { display: none; }
-.agdrift-root > .agdrift-photo.is-developing { animation: agdrift-print-in .3s ease-out; }
-.agdrift-root > .agdrift-photo.is-developing canvas { animation: agdrift-develop .7s ease-out; }
+.agdrift-root > .agdrift-photo canvas { animation: agdrift-develop .7s ease-out; }
 @keyframes agdrift-print-in { from { opacity: 0; transform: translateY(-8px) rotate(3deg); } }
 @keyframes agdrift-develop { from { filter: sepia(.8) contrast(.55) brightness(1.25); } }
 .agdrift-results > .agdrift-photo {
@@ -893,6 +893,10 @@
     .agdrift-rail::before, .agdrift-rail::after, .agdrift-results::before, .agdrift-results::after { transform: none; inset: 0; }
     .agdrift-rail, .agdrift-results { padding-right: 18px; }
     .agdrift-results { width: 100%; }
+}
+.agdrift-root.is-reduced-motion *, .agdrift-root.is-reduced-motion *::before, .agdrift-root.is-reduced-motion *::after {
+    transition: none !important;
+    animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
     .agdrift-root *, .agdrift-root *::before, .agdrift-root *::after {

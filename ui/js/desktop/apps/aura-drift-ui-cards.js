@@ -167,7 +167,7 @@
         const nextCaption = new Map();
         let print = null, attempted = false, honked = false, previewUntil = 0, edition = 0;
 
-        function update(race, source, reduced) {
+        function update(race, source) {
             if (race.state !== 'running') return;
             if (previewUntil && race.time >= previewUntil) {
                 print.remove();
@@ -208,7 +208,7 @@
             const caption = el('figcaption');
             caption.append(el('small', null, t('aura_drift.photo.label') + ' · ' + AD.trackName(race.track, t)),
                 el('span', null, lines[index]));
-            print = el('figure', 'agdrift-photo' + (reduced ? '' : ' is-developing'));
+            print = el('figure', 'agdrift-photo');
             print.append(frame, caption);
             root.appendChild(print);
             previewUntil = race.time + 3.6;

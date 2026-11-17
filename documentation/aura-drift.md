@@ -459,7 +459,7 @@ and at most one line of the same key every sixty seconds.
 
 Keyboard-only start journey, visible `:focus-visible` outlines, a screen-reader control hint with
 pointer-only touch controls hidden from the accessibility tree, touch targets of at least 56 px,
-reduced motion (no shake, weather or speed-line motion), and no colour-only state in the HUD.
+reduced motion (static menus and prints, no shake, weather or speed-line motion), and no colour-only state in the HUD.
 A full WCAG 2.2 AA review has not been done.
 
 ## Desktop integration

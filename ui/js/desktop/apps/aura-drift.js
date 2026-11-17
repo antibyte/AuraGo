@@ -188,9 +188,13 @@
         let lastPose = null, aspect = 16 / 9, pausedGlAt = 0, inactive = false;
         let pendingResults = null, resultsShown = false, appliedQuality = settings.quality;
         let tier = governor.tier;
-        let reducedMotion = settings.reducedMotion ||
-            (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-        timeWarp.reduced = !!reducedMotion;
+        let reducedMotion;
+        function applyMotionPreference(reduce) {
+            root.classList.toggle('is-reduced-motion', !!reduce);
+            reducedMotion = !!(reduce || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+            timeWarp.reduced = reducedMotion;
+        }
+        applyMotionPreference(settings.reducedMotion);
 
         function applyQuality(next) {
             if (next) tier = next;
@@ -328,9 +332,7 @@
                 audio.setSettings(next);
                 /* The voice commentary may be switched off in the settings. */
                 if (voice) voice.setEnabled(next.voice !== false);
-                reducedMotion = next.reducedMotion ||
-                    (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-                timeWarp.reduced = !!reducedMotion;
+                applyMotionPreference(next.reducedMotion);
                 if (next.camera && next.camera !== camera.mode) camera.setMode(next.camera);
                 if (next.quality !== appliedQuality) {
                     appliedQuality = next.quality;
@@ -615,7 +617,7 @@
 
         function updateTrackPhoto() {
             // WebGL's drawing buffer is only available for a photo in the frame that painted it.
-            if (playing() && !paused && !frozen) ui.trackCamera?.update(race, renderer.kind === 'three' ? glCanvas : world, reducedMotion);
+            if (playing() && !paused && !frozen) ui.trackCamera?.update(race, renderer.kind === 'three' ? glCanvas : world);
         }
 
         /* One presentation tick for the events and effects a batch of steps produced (the RAF loop minus the wall clock). */

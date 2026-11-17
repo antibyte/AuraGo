@@ -28,7 +28,11 @@ func TestDesktopAuraDriftTrackPhotoBrowser(t *testing.T) {
 				t.Fatal(err)
 			}
 			auraDriftReopen(page, map[string]interface{}{"quality": "low", "voice": false, "reducedMotion": tc.reduced}, "")
-			page.MustEval(`async()=>{await AuraDriftApp.debug.start({mode:'drift_attack',trackId:'alpenpass',seed:2});}`)
+			page.MustEval(`async()=>{
+				aurora.state.bootstrap.settings['windows.animations']=true;
+				aurora.applyDesktopSettings();
+				await AuraDriftApp.debug.start({mode:'drift_attack',trackId:'alpenpass',seed:2});
+			}`)
 			artifacts := auraDriftArtifactDir(t, "track-photo-"+tc.renderer)
 			if artifacts != "" {
 				page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(artifacts, "start.png"))
@@ -45,7 +49,9 @@ func TestDesktopAuraDriftTrackPhotoBrowser(t *testing.T) {
 				d.launch(12);
 				d.fastForward(.25,{renderEvery:15});
 				const card=document.querySelector('.agdrift-root > .agdrift-photo');
-				if(!card || (getComputedStyle(card).animationName==='none')!==reduced) throw Error('Missing print or incorrect motion preference');
+				if(!card) throw Error('Missing race print');
+				const animation=getComputedStyle(card.querySelector('canvas')).animationName;
+				if(animation!==(reduced?'none':'agdrift-develop')) throw Error('Unexpected photo animation: '+animation);
 				if(AuraDriftApp.stats()[0].renderer.kind!==renderer) throw Error('Wrong photo source');
 				const image=card.querySelector('canvas'), pixels=image.getContext('2d').getImageData(0,0,image.width/2,image.height).data;
 				let bright=0;
@@ -59,18 +65,21 @@ func TestDesktopAuraDriftTrackPhotoBrowser(t *testing.T) {
 			if artifacts != "" {
 				page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(artifacts, "race.png"))
 			}
-			page.MustEval(`()=>{
+			page.MustEval(`async reduced=>{
 				const d=AuraDriftApp.debug;
 				d.fastForward(5,{renderEvery:200});
 				if(document.querySelector('.agdrift-photo')) throw Error('Photo stayed on track');
 				d.fastForward(95,{renderEvery:100000});
 				const card=document.querySelector('.agdrift-results .agdrift-photo');
 				if(card!==window.testRacePrint || document.querySelectorAll('.agdrift-photo').length!==1) throw Error('Lost race print');
+				const panel=card.parentElement;
+				if(reduced && getComputedStyle(panel).animationName!=='none') throw Error('Reduced-motion result panel is animated');
+				await Promise.all(panel.getAnimations().map(animation=>animation.finished));
 				const box=card.getBoundingClientRect(), root=document.querySelector('.agdrift-root').getBoundingClientRect();
 				if(box.left<root.left || box.right>root.right || box.bottom>root.bottom || box.top<root.top) throw Error('Photo outside the window');
 				const rows=document.querySelector('.agdrift-result-body');
 				if(rows.scrollWidth>rows.clientWidth+1) throw Error('Photo stretches the result rows');
-			}`)
+			}`, tc.reduced)
 			if artifacts != "" {
 				page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(artifacts, "results.png"))
 			}
