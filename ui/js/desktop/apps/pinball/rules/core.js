@@ -11,6 +11,7 @@ import {
 } from './modes.js';
 import { rankOf, nextInitials, initialsButton, tickInitials } from './highscore.js';
 import { lampModes } from './lamps.js';
+import { idleSurprise, clearOutlaneSurprise, surpriseEvent } from './surprises.js';
 
 export { lampModes };
 const BALLS = 3;
@@ -40,6 +41,7 @@ export function createGame(table, o = {}) {
         ballSave: { armed: false, until: null, soft: null, unlimited: training, seconds: 8 },
         tiltEnergy: 0, nextWarning: 0, coilsOff: false,
         skill: { lane: 0, live: false, until: 0, superUntil: 0 }, combo: { last: null, until: 0, count: 0 },
+        surprise: idleSurprise(),
         mb: idleMb(), mode: idleMode(), select: null, bonusCount: null, match: null,
         initials: { queue: [], player: -1, letters: '', cur: 0, rank: 0, until: 0 },
         results: [], queue: [], scores: copy(Array.isArray(o.scores) ? o.scores : []),
@@ -66,7 +68,7 @@ function startBall(g, again) {
     p.lanesTop.fill(false); p.lanesLower.fill(false);
     if (g.coilsOff) { g.coilsOff = false; cmd(g, { type: 'coils', on: true }); gi(g, 'all', 'on', 0); }
     Object.assign(g, { tiltEnergy: 0, nextWarning: 0, select: null, bonusCount: null, phase: 'ballStart', launched: false, base: '' });
-    g.mode = idleMode(); g.mb = idleMb(); g.combo = { last: null, until: 0, count: 0 };
+    g.mode = idleMode(); g.mb = idleMb(); g.combo = { last: null, until: 0, count: 0 }; g.surprise = idleSurprise();
     g.ballSave = { armed: !!pk.ballSave, until: null, soft: null, unlimited: g.training, seconds: pk.ballSave?.seconds ?? 8 };
     const n = pk.topLanes?.switches?.length || 0;
     g.skill = { lane: n ? Math.floor(rngNext(g) * n) : -1, live: true, until: 1e9, superUntil: 0 };
@@ -92,6 +94,7 @@ function reserve(g) {
 
 function onDrain(g, ev) {
     if (!live(g) || !dropBall(g, ev.ball)) return;
+    clearOutlaneSurprise(g);
     const p = cur(g);
     if (!p.tilt) { cue(g, 'drain'); show(g, 'sweepDown', { ms: 700 }); gi(g, 'all', 'flicker', 400); }
     if (g.training) { if (!g.balls.ids.length) reserve(g); return; }
@@ -240,6 +243,7 @@ export function handle(g, ev) {
     featureStep(g, ev, SCORING.has(ev.type));
     pack(g).hooks?.onEvent?.(makeCtx(g), ev);
     const held = dispatchShots(g, ev);
+    surpriseEvent(g, ev);
     checkReplay(g);
     if (ev.type === 'hole' && !held) ejectHole(g, ev.id);
     sync(g);

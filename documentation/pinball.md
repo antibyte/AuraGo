@@ -34,6 +34,8 @@ are drawn in code, and all sound effects and music are synthesized at runtime.
 - **System Meltdown.** The wizard gives four balls, a 20-second ball save and rising
   jackpots. Six jackpots light the super jackpot at the Data Core.
 - **Super skill shot.** Shoot the Data Core within 6 seconds of launch.
+- **Matrix Breach (secret combo).** Shoot the left ramp, right ramp and Data Core in
+  sequence within 12 seconds to unlock 750,000 points and advance the bonus multiplier.
 
 ### Deep Sea Leviathan
 
@@ -51,6 +53,8 @@ are drawn in code, and all sound effects and music are synthesized at runtime.
   lights an extra ball.
 - **Leviathan Awakens.** After all four modes, the next ship shot starts the wizard
   with four balls. The super skill is the ship scoop within 6 seconds of launch.
+- **Abyssal Vortex (secret combo).** Chain the current ramp, tentacle ramp and captive
+  pearl within 12 seconds for 750,000 points and a bonus multiplier step.
 
 ### Lost Temple of the Sun
 
@@ -67,6 +71,8 @@ are drawn in code, and all sound effects and music are synthesized at runtime.
 - **Temple of the Sun.** After all four modes, the wizard starts at the idol. The extra
   ball is lit at the left ramp after two modes, and the super skill is the left ramp
   within 8 seconds of launch.
+- **Solar Secret (secret combo).** Shoot the left ramp, left orbit and idol scoop in
+  order within 12 seconds for 750,000 points and a bonus multiplier step.
 
 ## Controls
 
@@ -115,6 +121,10 @@ two key-up events.
   the end of each ball. Hold both flippers to skip the count.
 - **Combos.** Shots in quick succession within 3 seconds score a combo, worth 100,000 for
   each step after the first.
+- **Surprises.** Surviving an unguarded outlane back onto the playfield awards a Lazarus
+  Save (350,000). Ripping 16+ rapid spinner turns triggers Hyper Spin (300,000 plus 8
+  seconds of overdrive bonus spins), 14 fast bumper hits award Bumper Mayhem (300,000),
+  and three orbits within 9 seconds score a Warp Loop (500,000).
 - **Extra ball and replay.** Table awards light an extra ball, which is used at the
   table's extra-ball shot. A player who reaches the replay score (40,000,000) gets one
   extra ball per game.

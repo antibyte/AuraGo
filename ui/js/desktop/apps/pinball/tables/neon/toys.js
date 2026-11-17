@@ -206,18 +206,25 @@ export function buildToys(THREE, kit, layout, opts) {
     }
 
     const tmpV = new THREE.Vector3(), tmpT = new THREE.Vector3(), target = new THREE.Color(), hot = new THREE.Color('#ffffff');
-    let pulse = 0, hue = new THREE.Color('#37d9ff');
+    let pulse = 0, vaultSurge = 0, citySurge = 0, hue = new THREE.Color('#37d9ff');
     return {
         group,
-        // events: this frame's physics events and presentation commands [{source, type, id}]; the spire pulses on Data Core activity.
+        // events: this frame's physics events and presentation commands [{source, type, id}]; the spire, subway and skyline react.
         update(dt, t, snap, toyState, lamps, events) {
             const st = toyState && toyState.spire ? toyState.spire : { speed: 0.4, color: '#37d9ff' };
             const speed = Number.isFinite(st.speed) ? st.speed : 0.4;
             hue.lerp(target.set(colorOf(THREE, st.color, '#37d9ff')), Math.min(1, dt * 4));
             let hit = 0;
-            if (events) { for (const e of events) if (coreEvent(e)) hit = 1; }
-            else if (lamps && lamps.flashLevel && lamps.flashLevel.length) hit = lamps.flashLevel[0] || 0;   // engine harness: no event feed
+            if (events) {
+                for (const e of events) {
+                    if (coreEvent(e)) hit = 1;
+                    if (e.id === 'vault' || e.id === 'vaultFeed' || e.id === 'lock') vaultSurge = 1;
+                    if (e.id === 'jackpot' || e.id === 'superJackpot' || e.id === 'surprise' || e.id === 'multiball') { hit = 1; citySurge = 1; }
+                }
+            } else if (lamps && lamps.flashLevel && lamps.flashLevel.length) hit = lamps.flashLevel[0] || 0;   // engine harness: no event feed
             pulse = Math.max(hit, pulse - dt * 2.2);
+            vaultSurge = Math.max(0, vaultSurge - dt * 2.5);
+            citySurge = Math.max(0, citySurge - dt * 1.6);
             holoU.uTime.value = t; holoU.uPulse.value = Math.min(1, pulse); holoU.uColor.value.copy(hue);
             prism.rotation.y = t * speed * 0.9;
             crystal.rotation.y = -t * speed * 1.3; crystal.rotation.x = t * speed * 0.7;
@@ -232,23 +239,26 @@ export function buildToys(THREE, kit, layout, opts) {
                 }
                 a.needsUpdate = true; motes.material.color.copy(hue).lerp(hot, 0.4);
             }
-            // signs follow the skyline lamps (fallback: gentle flicker)
+            // signs follow the skyline lamps (fallback: gentle flicker) plus celebratory surge
             let dirty = false;
+            cityMat.color.setRGB(1.25 + 0.55 * citySurge, 1.25 + 0.45 * citySurge, 1.35 + 0.65 * citySurge);
             for (let i = 0; i < 6; i++) {
                 let lv = 0.4 + 0.1 * Math.sin(t * 1.7 + i * 2.1);
                 const idx = lamps && lamps.index && lamps.index.get ? lamps.index.get(signLamp[i]) : undefined;
                 if (idx !== undefined && lamps.intensity) lv = 0.16 + 0.62 * lamps.intensity[idx];
                 if (i === 2 && Math.sin(t * 9.0) > 0.96) lv *= 0.55;     // a faulty tube
+                lv = Math.min(1.5, lv + citySurge * 0.65);
                 signLevel[i] += (lv - signLevel[i]) * Math.min(1, dt * 12);
                 for (let k = 0; k < 4; k++) signCol.setXYZ(i * 4 + k, signLevel[i], signLevel[i], signLevel[i]);
                 dirty = true;
             }
             if (dirty) signCol.needsUpdate = true;
             const vault = toyState && Number.isFinite(toyState.vault) ? toyState.vault : 0;
-            stripMat.color.set('#a98bff').multiplyScalar(0.55 + 0.25 * vault + 0.2 * Math.sin(t * 3));
+            stripMat.color.set('#a98bff').multiplyScalar(0.55 + 0.25 * vault + 0.95 * vaultSurge + 0.2 * Math.sin(t * (3 + vaultSurge * 12)));
             if (traffic && curve) {
+                const trafficSpeed = 1 + Math.min(2.2, speed * 0.28) + citySurge * 0.9;
                 for (let i = 0; i < TN; i++) {
-                    const u = ((i / TN) + t * (0.035 + (i % 3) * 0.008)) % 1;
+                    const u = ((i / TN) + t * (0.035 + (i % 3) * 0.008) * trafficSpeed) % 1;
                     curve.getPointAt(u, tmpV); curve.getTangentAt(u, tmpT);
                     tmp.position.copy(tmpV).y += Math.sin(t * 2 + i) * 0.002;
                     tmp.rotation.set(0, Math.atan2(-tmpT.z, tmpT.x), 0); tmp.updateMatrix();

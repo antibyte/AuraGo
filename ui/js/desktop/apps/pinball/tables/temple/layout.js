@@ -83,7 +83,7 @@ function orbitsAndRamps() {
 
 export const layout = composeLayout(
     { id: 'temple', version: 1, meta: {
-        title: 'Lost Temple of the Sun', accent: GOLD, secondary: JADE, cx: CX, troughSize: 4,
+        title: 'Lost Temple of the Sun', accent: GOLD, secondary: JADE, cx: CX, troughSize: 4, replayScore: 40000000,
         giColor: { lower: '#ffd59a', upper: '#ffb347' },
         attract: [['sweepUp', 1600], ['ring', 1600], ['spiral', 2000], ['sparkle', 2400], ['radial', 1500], ['chase', 1800], ['breath', 1600]]
     } },

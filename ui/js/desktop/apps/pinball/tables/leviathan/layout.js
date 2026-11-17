@@ -100,7 +100,7 @@ function build() {
     const ch = channels();
     return composeLayout(
         { id: 'leviathan', version: 1, meta: {
-            title: 'Deep Sea Leviathan', accent: TEAL, secondary: GOLD, cx: CX, troughSize: 4,
+            title: 'Deep Sea Leviathan', accent: TEAL, secondary: GOLD, cx: CX, troughSize: 4, replayScore: 40000000,
             giColor: { lower: '#bff6ff', upper: '#7fd3ff' },
             attract: [['breath', 2400], ['sweepUp', 1800], ['radial', 1600], ['sparkle', 2400], ['ring', 1600]]
         } },

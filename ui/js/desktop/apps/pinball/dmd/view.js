@@ -3,10 +3,9 @@
 // .pb-dmd-glow (canvas while the glow is on), .pb-dmd-flat (wrapper when the glow is off / reduced motion).
 const W = 192;
 const H = 48;
-const AMBER = [255, 140, 26];
-const LEVELS = [0, 0.35, 0.65, 1];
-const UNLIT = '#2b1606';
-const GLOW = 'drop-shadow(0 0 3px rgba(255,140,26,.75)) drop-shadow(0 0 9px rgba(255,120,10,.4))';
+const PALETTE = [[0, 0, 0], [116, 54, 8], [228, 114, 18], [255, 174, 48]];
+const UNLIT = '#261305';
+const GLOW = 'drop-shadow(0 0 3px rgba(255,148,32,.78)) drop-shadow(0 0 9px rgba(255,120,10,.42))';
 
 function makeCanvas(w, h) {
     const c = document.createElement('canvas');
@@ -66,8 +65,8 @@ export function createDmdView(parent, { glow = true } = {}) {
         if (disposed || !lastFrame) return;
         const px = image.data;
         for (let i = 0; i < W * H; i++) {
-            const level = lastFrame[i] & 3, o = i * 4;
-            px[o] = AMBER[0] * LEVELS[level]; px[o + 1] = AMBER[1] * LEVELS[level]; px[o + 2] = AMBER[2] * LEVELS[level];
+            const level = lastFrame[i] & 3, rgb = PALETTE[level], o = i * 4;
+            px[o] = rgb[0]; px[o + 1] = rgb[1]; px[o + 2] = rgb[2];
             px[o + 3] = level ? 255 : 0;
         }
         smallCtx.putImageData(image, 0, 0);

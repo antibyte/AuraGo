@@ -14,6 +14,7 @@ import { createEnvironment, createLights, BALL_RADIUS } from './lighting.js';
 import { buildCabinet, buildRoom } from './cabinet.js';
 import { createCameraRig } from './camera.js';
 import { buildMechanics } from './builders.js';
+import { createEffects } from './fx.js';
 
 const TILT = 6.5 * Math.PI / 180;
 const abortError = () => Object.assign(new Error('cancelled'), { name: 'AbortError' });
@@ -115,6 +116,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
 
     const visual = VISUALS[tableId] || {};
     let toys = null, toysLow = false;
+    const fx = createEffects({ root: tableRoot, layout, palette, tier });
     const buildToysNow = () => {
         if (!visual.buildToys) return;
         if (toys) { if (toys.dispose) toys.dispose(); toys = null; }
@@ -151,6 +153,8 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         if (tier.bloom) { bloom.strength = tier.bloom.strength * (reducedNow ? 0.6 : 1); bloom.radius = tier.bloom.radius; bloom.threshold = tier.bloom.threshold; }
         pf.uniforms.lampGain.value = tier.lampGain;
         lights.setTier(tier, true);
+        fx.setQuality(tier);
+        if (cabinet.glass) cabinet.glass.visible = quality !== 'low' && rig.mode !== 'top' && !reducedNow;
         for (const m of mechs) if (m.setQuality) m.setQuality(tier);
         scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); });
         mats.woodTex.anisotropy = art.texture.anisotropy = aniso();
@@ -181,7 +185,11 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         env = fresh; old.dispose();
     };
     canvas.addEventListener('webglcontextlost', onLost); canvas.addEventListener('webglcontextrestored', onRestored);
-    const setCam = mode => { rig.setMode(mode); cabinet.head.visible = rig.mode !== 'follow' && rig.mode !== 'play' && rig.mode !== 'top'; };
+    const setCam = mode => {
+        rig.setMode(mode);
+        cabinet.head.visible = rig.mode !== 'follow' && rig.mode !== 'play' && rig.mode !== 'top';
+        if (cabinet.glass) cabinet.glass.visible = quality !== 'low' && rig.mode !== 'top' && !reducedNow;
+    };
     applyTier(); rebuildArt(); setCam(['play', 'top', 'showcase', 'attract'].includes(settings.camera) ? settings.camera : 'follow'); resize();
 
     function update(o = {}) {
@@ -189,7 +197,11 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         const { snap, lamps, dmd, toyState, events = [], dt = 0, paused = false, reduced = false, interactive = true } = o;
         const step = paused ? 0 : Math.min(0.05, Math.max(0, dt));
         tAnim += step;
-        if (reduced !== reducedNow) { reducedNow = reduced; if (tier.bloom) bloom.strength = tier.bloom.strength * (reduced ? 0.6 : 1); }
+        if (reduced !== reducedNow) {
+            reducedNow = reduced;
+            if (tier.bloom) bloom.strength = tier.bloom.strength * (reduced ? 0.6 : 1);
+            if (cabinet.glass) cabinet.glass.visible = quality !== 'low' && rig.mode !== 'top' && !reducedNow;
+        }
         if (lamps && lamps.rgba) {
             let changed = false;
             for (let i = 0; i < 1024; i++) if (cachedRgba[i] !== lamps.rgba[i]) { changed = true; break; }
@@ -199,7 +211,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         const gl = lamps && lamps.giLevel, gv = pf.uniforms.giLevel.value;
         gv.set(1, 1);
         (layout.gi || []).forEach((g, k) => { const v = gl ? gl[k] : 1; if (g.id === 'upper') gv.y = v; else if (g.id === 'lower') gv.x = v; });
-        lights.update(lamps, reduced);
+        lights.update(lamps, reduced, snap && snap.balls);
         if (dmd && dmd.frame && dmd.version !== lastDmd) { lastDmd = dmd.version; cabinet.dmd.setFrame(dmd.frame); }
         let n = 0;
         if (snap && snap.balls && simpleBalls) for (const b of snap.balls) {
@@ -209,6 +221,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         ballMesh.count = n; ballMesh.visible = simpleBalls; if (n) ballMesh.instanceMatrix.needsUpdate = true;
         const ctx = { snap, lamps, toyState, dt: step, time: tAnim, reduced, scene: api };
         for (const m of mechs) if (m.update) m.update(ctx);
+        fx.update({ snap, dt: step, reduced });
         if (toys && toys.update) toys.update(step, tAnim, snap, toyState, lamps, events);
         rig.update(step, tAnim, { reducedNow: reduced, interactive, balls: snap && snap.balls });
         composer.render(step);
@@ -221,7 +234,8 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         setCamera(mode) { setCam(mode); },
         setInsets(i) { rig.setInsets(i); },
         shake(dx, dy, strength) { rig.shake(dx, dy, strength); },
-        hit() { /* T13/T16 hook: event visuals */ },
+        hit(ev) { fx.hit(ev); },
+        celebrate(cmd) { fx.command(cmd); },
         // T13 contract: builder({THREE, root, layout, mats, env, tier, kit, assetURL, renderer, scene}) -> {update?(ctx), setQuality?(tier), dispose?()}.
         // `root` is a Group inside tableRoot (X = x, Y = h, Z = -y). ctx = {snap, lamps, toyState, dt, time, reduced, scene}.
         addMechanics(builder) {
@@ -245,6 +259,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
             for (const m of mechs) if (m.dispose) m.dispose();
             mechs.clear();
             if (toys && toys.dispose) toys.dispose();
+            fx.dispose();
             rig.dispose(); lights.dispose(); cabinet.dispose(); room.dispose();
             for (const m of [plane, ...wallMeshes]) m.geometry.dispose();
             ballGeo.dispose(); ballMat.dispose(); ballMesh.dispose();

@@ -66,19 +66,22 @@ function speakerPanel(accent) {
 }
 
 export function createDmdScreen(accent) {
+    void accent;
     const data = new Uint8Array(192 * 48);
     const tex = new THREE.DataTexture(data, 192, 48, THREE.RedFormat, THREE.UnsignedByteType);
     tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.flipY = false; tex.unpackAlignment = 1; tex.needsUpdate = true;
     const material = new THREE.ShaderMaterial({
-        uniforms: { frame: { value: tex }, dims: { value: new THREE.Vector2(192, 48) }, amber: { value: new THREE.Vector3(1.0, 0.27, 0.012) }, unlit: { value: new THREE.Vector3(0.026, 0.0045, 0.0006) } },
+        uniforms: { frame: { value: tex }, dims: { value: new THREE.Vector2(192, 48) }, amber: { value: new THREE.Vector3(1.0, 0.29, 0.018) }, hot: { value: new THREE.Vector3(1.0, 0.82, 0.42) }, unlit: { value: new THREE.Vector3(0.024, 0.0045, 0.0006) } },
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        fragmentShader: `uniform sampler2D frame; uniform vec2 dims; uniform vec3 amber; uniform vec3 unlit; varying vec2 vUv;
+        fragmentShader: `uniform sampler2D frame; uniform vec2 dims; uniform vec3 amber; uniform vec3 hot; uniform vec3 unlit; varying vec2 vUv;
         float lv(vec2 id){ return texture2D(frame, (id + 0.5) / dims).r; }
         void main(){
             vec2 cell = vec2(vUv.x, 1.0 - vUv.y) * dims; vec2 id = floor(cell); vec2 f = fract(cell) - 0.5;
-            float l = lv(id), d = length(f), dotm = smoothstep(0.5, 0.3, d);
+            float l = lv(id), d = length(f), dotm = smoothstep(0.49, 0.28, d);
+            float core = smoothstep(0.22, 0.0, d) * smoothstep(0.72, 1.0, l);
             float nb = (lv(id + vec2(1.0, 0.0)) + lv(id - vec2(1.0, 0.0)) + lv(id + vec2(0.0, 1.0)) + lv(id - vec2(0.0, 1.0))) * 0.25;
-            vec3 col = mix(unlit, amber * 1.7, l) * dotm + amber * (l * 0.16 + nb * 0.07) * (1.0 - dotm);
+            vec3 col = mix(unlit, amber * 1.72, l) * dotm + hot * (core * 0.55) + amber * (l * 0.17 + nb * 0.08) * (1.0 - dotm);
+            col += vec3(0.012, 0.014, 0.018) * smoothstep(0.62, 0.0, abs(vUv.x + vUv.y * 0.45 - 0.55));
             gl_FragColor = vec4(col, 1.0);
         }`
     });
@@ -87,6 +90,22 @@ export function createDmdScreen(accent) {
         setFrame(frame) { for (let i = 0; i < 9216; i++) data[i] = LEVELS[frame[i] & 3]; tex.needsUpdate = true; },
         dispose() { tex.dispose(); material.dispose(); }
     };
+}
+
+function playfieldGlassCanvas(accent) {
+    const c = canvasOf(512, 1024), g = c.getContext('2d');
+    g.clearRect(0, 0, 512, 1024);
+    const sh = g.createLinearGradient(0, 0, 512, 1024);
+    sh.addColorStop(0.14, 'rgba(255,255,255,0)');
+    sh.addColorStop(0.24, 'rgba(225,240,255,.028)');
+    sh.addColorStop(0.30, 'rgba(255,255,255,0)');
+    sh.addColorStop(0.64, 'rgba(255,255,255,0)');
+    sh.addColorStop(0.71, rgbCss(accent, 1, 0.022));
+    sh.addColorStop(0.78, 'rgba(255,255,255,0)');
+    g.fillStyle = sh; g.fillRect(0, 0, 512, 1024);
+    g.strokeStyle = 'rgba(220,238,255,.055)'; g.lineWidth = 4;
+    g.strokeRect(3, 3, 506, 1018);
+    return c;
 }
 
 // tableRoot children: cabinet body, trims, apron + cards, head. Returns pieces for update/dispose.
@@ -122,14 +141,33 @@ export function buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass, 
     ]), mats.chrome, 'chrome');
     add(merge([box(sideX, top + 0.003, cy, sideW + 0.008, 0.007, len + 0.004), box(-sideX, top + 0.003, cy, sideW + 0.008, 0.007, len + 0.004)]), mats.darkMetal, 'siderailCap');
     add(merge([box(sideIn - 0.026, 0.02, -(frontY + 0.016), 0.044, 0.034, 0.03), box(-sideIn + 0.026, 0.02, -(frontY + 0.016), 0.044, 0.034, 0.03)]), mats.steel, 'lockdownBlocks');
-    // Accent underglow strips.
+    // Accent underglow strips and illuminated arcade flipper/start buttons.
     add(merge([
         box(sideOut + 0.001, bottom + 0.014, cy, 0.004, 0.007, len - 0.02), box(-sideOut - 0.001, bottom + 0.014, cy, 0.004, 0.007, len - 0.02),
-        box(0, bottom + 0.014, -(frontY - 0.0012), sideOut * 2 - 0.02, 0.007, 0.004)
+        box(0, bottom + 0.014, -(frontY - 0.0012), sideOut * 2 - 0.02, 0.007, 0.004),
+        new THREE.CylinderGeometry(0.0115, 0.0115, 0.006, 16).rotateZ(Math.PI / 2).translate(sideOut + 0.004, -0.045, -(frontY + 0.105)),
+        new THREE.CylinderGeometry(0.0115, 0.0115, 0.006, 16).rotateZ(Math.PI / 2).translate(-sideOut - 0.004, -0.045, -(frontY + 0.105)),
+        new THREE.CylinderGeometry(0.0095, 0.0095, 0.005, 14).rotateX(Math.PI / 2).translate(-0.175, -0.055, -(frontY - 0.003))
     ]), mats.glow, 'underglow');
+    // Plunger front housing, shooter ball knob, button bezels and apron center arch trim.
+    add(merge([
+        new THREE.CylinderGeometry(0.0145, 0.0155, 0.003, 16).rotateZ(Math.PI / 2).translate(sideOut + 0.0015, -0.045, -(frontY + 0.105)),
+        new THREE.CylinderGeometry(0.0145, 0.0155, 0.003, 16).rotateZ(Math.PI / 2).translate(-sideOut - 0.0015, -0.045, -(frontY + 0.105)),
+        box(0.2405, -0.012, -(frontY - 0.006), 0.036, 0.036, 0.014),
+        new THREE.CylinderGeometry(0.005, 0.005, 0.024, 12).rotateX(Math.PI / 2).translate(0.2405, -0.012, -(frontY - 0.022)),
+        new THREE.SphereGeometry(0.0135, 16, 12).translate(0.2405, -0.012, -(frontY - 0.038)),
+        box(0, 0.0062, -0.004, 0.42, 0.0024, 0.005),
+        box(-0.002, 0.0062, -0.064, 0.005, 0.0024, 0.082)
+    ]), mats.chrome, 'cabinetHardware');
+
+    // Tempered playfield glass sheet (subtle studio softbox sheen; hidden in overhead/low/reduced modes).
+    const pgTex = canvasTexture(playfieldGlassCanvas(accent), { aniso: 2, mip: false }); textures.push(pgTex);
+    const pgMat = new THREE.MeshBasicMaterial({ map: pgTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }); own.push(pgMat);
+    const glassSheet = add(quad([-sideIn + 0.003, top - 0.003, -frontY - 0.012], [sideIn - 0.003, top - 0.003, -frontY - 0.012], [sideIn - 0.003, top - 0.003, -backY + 0.015], [-sideIn + 0.003, top - 0.003, -backY + 0.015]), pgMat, 'playfieldGlass');
+    if (glassSheet) glassSheet.renderOrder = 8;
 
     // Apron instruction cards.
-    const scoreText = new Intl.NumberFormat('en-US').format((layout.meta && layout.meta.replayScore) || 2000000);
+    const scoreText = new Intl.NumberFormat('en-US').format((layout.meta && layout.meta.replayScore) || 40000000);
     const cardMat = (canvasEl, hex) => {
         const t = canvasTexture(canvasEl, { aniso: Math.min(4, aniso) }); textures.push(t);
         const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.32, metalness: 0, emissive: '#ffffff', emissiveMap: t, emissiveIntensity: 0.42, envMap: mats.chrome.envMap, envMapIntensity: 0.5 });
@@ -166,7 +204,7 @@ export function buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass, 
     ]), mats.steel, 'headTrim', head);
     add(merge([box(0, bodyTop - 0.012, 0.004, W - 0.06, 0.005, 0.006), box(0, 0.016, 0.004, W - 0.06, 0.005, 0.006)]), mats.glowSecondary, 'headGlow', head);
     return {
-        group, head, dmd, meshes, textures,
+        group, head, dmd, glass: glassSheet, meshes, textures,
         dispose() {
             dmd.dispose();
             textures.forEach(t => t.dispose()); own.forEach(m => m.dispose());

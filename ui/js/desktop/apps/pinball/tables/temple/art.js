@@ -179,7 +179,13 @@ function inlayRoutes(kit) {
     for (let i = 0; i < 4; i++) { const y = 0.715 + i * 0.016, w = 0.020 - i * 0.002; if (!blocked(0, y, 0.002)) inlay(kit, [[-w, y], [0, y + 0.007], [w, y]], 0.0010, 0.55); }
     // lane guides at the top
     for (const x of [-0.06, -0.02, 0.02, 0.06]) inlay(kit, [[x, 0.955], [x, 1.01]], 0.0012, 0.8);
-    // lower playfield: long gold rails following the inlane guides and a lyre around the lower centre
+    // lower playfield: long gold rails following the inlane guides, jewel medallions and a lyre around the lower centre
+    for (const [jx, jy] of [[-0.070, 0.545], [0.070, 0.545]]) {
+        pool(kit, jx, jy, 0.036, 0.036, JADE, 0.16);
+        const jp = kit.px(jx, jy), jr = kit.m(0.022);
+        kit.ctx.save(); kit.ctx.strokeStyle = 'rgba(138,214,163,.48)'; kit.ctx.lineWidth = Math.max(1, kit.m(0.0009));
+        kit.ctx.beginPath(); kit.ctx.arc(jp[0], jp[1], jr, 0, Math.PI * 2); kit.ctx.stroke(); kit.ctx.restore();
+    }
     inlay(kit, [[-0.2475, 0.12], [-0.2475, 0.50]], 0.0012, 0.5);
     inlay(kit, [[0.2145, 0.12], [0.2145, 0.50]], 0.0012, 0.5);
     inlay(kit, [[-0.17, 0.215], [-0.10, 0.285], [0.10, 0.285], [0.17, 0.215]], 0.0014, 0.65);

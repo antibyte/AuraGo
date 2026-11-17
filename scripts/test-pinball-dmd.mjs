@@ -27,6 +27,7 @@ const scenes = {
         skillShot: { value: 50000 }, ballSaved: {}, extraBall: {}, replay: {}, combo: { n: 3, value: 30000 }, tilt: {}, tiltWarning: { n: 2 },
         bonus: { phase: 'line', key: 'bonus_ramps', count: 4, value: 20000 }, match: { match: 30, last: 30, hit: true },
         initials: { letters: ['A', 'B', '_'], cursor: 1, rank: 2 }, gameOver: {}, shootAgain: {}, wizardStart: { name: 'mode_neon_wizard' },
+        surprise: { text: 'dmd_surprise_lazarus', score: 350000 },
         score: { players, turn: 0, ball: 1 }, modeStatus: { name: 'mode_neon_hack', remaining: 20, total: 30, count: 2, target: 5, score: 1000 },
         attract: { title: 'Cyber Neon Metropolis', scores: players, replayAt: 1000000, last: players }
     };

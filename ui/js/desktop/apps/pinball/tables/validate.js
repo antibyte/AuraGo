@@ -165,6 +165,7 @@ function checkPack(layout, rules, ids, shotIds, ref, err) {
         for (const t of list(m.targets)) if (!shotIds.has(t)) patternRef('mode "' + m.id + '" target', t, ids, err);
     }
     if (rules.wizard) shot('wizard superShot', rules.wizard.superShot);
+    for (const id of list(rules.surprises?.secret)) shot('surprise secret shot', id);
 }
 
 // ---------------------------------------------------------------- lamp conventions
@@ -195,6 +196,7 @@ function collectKeys(layout, rules, keys) {
     for (const c of list(rules.bonusCounters)) add(c.key);
     for (const m of list(rules.modes)) { add(m.name); add(m.hint); }
     add(rules.multiball?.name); add(rules.wizard?.name);
+    add(rules.surprises?.key);
     add(layout.meta?.title);
 }
 

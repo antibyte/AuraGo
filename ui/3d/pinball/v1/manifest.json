@@ -33,8 +33,8 @@
     },
     {
       "path": "neon-preview.webp",
-      "bytes": 44372,
-      "sha256": "1f9bd846adb18c7d466aeedd3bdbf7b3691e0b41fd928ece30bcc6f871979003"
+      "bytes": 45746,
+      "sha256": "0d5f69c04ca62ecc524984410c4408c6978f38465386c22b7e2e45f8b8e14265"
     },
     {
       "path": "leviathan-playfield.webp",
@@ -48,8 +48,8 @@
     },
     {
       "path": "leviathan-preview.webp",
-      "bytes": 27934,
-      "sha256": "805363ab225b5b2c137d84f67da9cb642281eb46abe36e6447349f3172e1bf46"
+      "bytes": 29024,
+      "sha256": "d8b30f90f56bc86ddca4961f862e74a57e03600e06538e3463c0b994d4690939"
     },
     {
       "path": "temple-playfield.webp",
@@ -63,8 +63,8 @@
     },
     {
       "path": "temple-preview.webp",
-      "bytes": 43436,
-      "sha256": "3db9e62dda2a3ba486118c5a4996216e8e91250f3636858ebf4ff0ba2b90d6de"
+      "bytes": 44052,
+      "sha256": "37b9e177e653b97d76733262fc0fbc84a251aad7aa348e9b92b6e55eb4fddbe6"
     },
     {
       "path": "audio/drift-impact-metal-1.ogg",

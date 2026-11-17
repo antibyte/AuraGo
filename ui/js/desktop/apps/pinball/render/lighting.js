@@ -99,20 +99,33 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     }
     const flashColor = flashers.map(f => hexToLinear(f.color || '#ffffff'));
     const giColor = giDefs.map(g => hexToLinear(g.color || '#ffffff'));
+    const ballLightColor = hexToLinear(accent, 0.5).lerp(new THREE.Color('#fff6e8'), 0.65);
     const tmp = new THREE.Color();
     let lastGi = '';
 
-    function update(lamps, reduced) {
+    function update(lamps, reduced, balls = null) {
         const fl = lamps && lamps.flashLevel, gl = lamps && lamps.giLevel;
         const giAvg = gl && gl.length ? gl.reduce((a, v) => a + v, 0) / gl.length : 1;
         hemi.intensity = 0.25 + 0.65 * giAvg; rim.intensity = 0.2 + 0.4 * giAvg; fill.intensity = 0.08 + 0.22 * giAvg;
         const n = points.length;
+        let ballIdx = 0;
+        const liveBalls = !reduced && balls ? balls.filter(b => !b.hidden && b.mode !== 'held') : null;
         for (let p = 0; p < n; p++) {
             let best = -1, level = 0;
             for (let j = p; j < flashers.length; j += n) { const v = fl ? fl[j] || 0 : 0; if (v >= level) { level = v; best = j; } }
             const light = points[p];
-            if (best >= 0) { const f = flashers[best]; light.position.set(f.x, 0.06, -f.y); light.color.copy(flashColor[best]); }
-            light.intensity = level * (reduced ? 0.7 : 1) * 0.55;
+            if (best >= 0 && level > 0.03) {
+                const f = flashers[best]; light.position.set(f.x, 0.06, -f.y); light.color.copy(flashColor[best]);
+                light.intensity = level * (reduced ? 0.7 : 1) * 0.55;
+            } else if (liveBalls && ballIdx < liveBalls.length && ballIdx < 2 && n >= 4) {
+                const b = liveBalls[ballIdx++];
+                const sp = Math.min(1, Math.hypot(b.vx || 0, b.vy || 0) * 0.35);
+                light.position.set(b.x, 0.048 + (b.h || 0), -b.y);
+                light.color.copy(ballLightColor);
+                light.intensity = (0.12 + 0.14 * sp) * giAvg;
+            } else {
+                light.intensity = 0;
+            }
         }
         if (domes) for (let j = 0; j < flashers.length; j++) {
             const v = fl ? fl[j] || 0 : 0;

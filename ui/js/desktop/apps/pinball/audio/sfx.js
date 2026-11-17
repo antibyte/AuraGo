@@ -16,7 +16,7 @@ function hash(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) 
 function spread(ev) { return 1 + (hash(String(ev.id ?? '') + ':' + (ev.tick ?? 0)) - .5) * .06; }
 
 // Events that deliberately make no sound (scoring/rules/visuals handle them, or they are covered by another event).
-export const SILENT_EVENTS = Object.freeze(['bankDown', 'pathEnter', 'pathMade', 'pathFail', 'search', 'searchFail']);
+export const SILENT_EVENTS = Object.freeze(['bankDown', 'pathMade', 'pathFail', 'search', 'searchFail']);
 
 const IMPACT_RECIPE = { wood: 'impactWood', metal: 'impactMetal', plastic: 'impactPlastic', rubber: 'impactRubber', flipper: 'impactFlipper', target: 'impactTarget', ball: 'impactBall' };
 
@@ -41,7 +41,7 @@ export function soundFor(ev) {
         case 'standup': return s('standup', .8);
         case 'spinner': return s('spinnerTick', .6, clamp(.92 + (ev.rate ?? 0) / 60, .92, 1.25) * rate);
         case 'rollover': case 'trigger': return s('rollover', .6);
-        case 'gate': case 'pathSwitch': return s('gate', ev.type === 'gate' ? .55 : .35);
+        case 'gate': case 'pathSwitch': case 'pathEnter': return s('gate', ev.type === 'gate' ? .55 : .38);
         case 'hole': return s('scoop', 1);
         case 'eject': return s('eject', .9);
         case 'kickback': return s('kickback', 1);
@@ -69,7 +69,8 @@ const CUE_TABLE = {
     modeComplete: ['bell', .9, 1], skillShot: ['bellHigh', .9, 1.19], ballSaved: ['bellHigh', .8, 1.5], drain: ['drain', 1, 1],
     gameOver: ['descend', 1, 1], highScore: ['bell', .9, 1.19], tiltWarning: ['tiltWarnBuzz', .9, 1], tilt: ['tiltBuzzer', 1, 1],
     combo: ['bellHigh', .6, 1.33], bonusTick: ['tick', .6, 1], bonusTotal: ['bonusTotal', 1, 1], match: ['bell', .8, .89],
-    knocker: ['knocker', 1, 1], startGame: ['riser', .6, .8], shootAgain: ['bellHigh', .8, 1.26], wizard: ['riser', 1, .75]
+    knocker: ['knocker', 1, 1], startGame: ['riser', .6, .8], shootAgain: ['bellHigh', .8, 1.26], wizard: ['riser', 1, .75],
+    surprise: ['surpriseFanfare', .95, 1]
 };
 export function cueSoundFor(name) { const c = CUE_TABLE[name]; return c ? { recipe: c[0], gain: c[1], pan: 0, rate: c[2] } : null; }
 
@@ -79,7 +80,7 @@ export function rollKind(ball) {
     if (ball.mode === 'path') return ball.pathKind === 'wire' ? 'wire' : ball.pathKind === 'tube' ? 'tube' : 'plastic';
     return 'field';
 }
-export function rollLevel(speed) { return speed > .05 ? Math.pow(clamp(speed / 2.5, 0, 1), 1.5) * .5 : 0; }
+export function rollLevel(speed) { return speed > .05 ? Math.pow(clamp(speed / 2.35, 0, 1), 1.35) * .62 : 0; }
 
 // Pure: voice stealing. acquire() returns a handle, or null when the new voice itself is the lowest priority.
 export function createVoiceLimiter(max = MAX_VOICES) {
@@ -158,9 +159,9 @@ export function createSfx(engine) {
             hard.connect(hardLp); hardLp.connect(hardHp); hardHp.connect(hardG); hardG.connect(level);
             const soft = loopSrc(softB), softBp = filt('bandpass', 900, 2), softG = gain(0);
             soft.connect(softBp); softBp.connect(softG); softG.connect(level);
-            const scrape = loopSrc(scrapeB), scrapeHp = filt('highpass', 1500), scrapeG = gain(0);
+            const scrape = loopSrc(scrapeB), scrapeHp = filt('highpass', 1100), scrapeG = gain(0);
             scrape.connect(scrapeHp); scrapeHp.connect(am); am.connect(scrapeG); scrapeG.connect(level);
-            lfo.type = 'square'; lfo.frequency.value = 30; lfo.connect(depth); depth.connect(am.gain); lfo.start();
+            lfo.type = 'sine'; lfo.frequency.value = 28; lfo.connect(depth); depth.connect(am.gain); lfo.start();
             let tail = level;
             const pan = c.createStereoPanner ? c.createStereoPanner() : null;
             if (pan) { level.connect(pan); tail = pan; }
@@ -170,20 +171,20 @@ export function createSfx(engine) {
     }
     // Per surface kind: mix gains, filter settings and the playback-rate range over ball speed.
     const ROLL_KINDS = {
-        field: { hard: 1, soft: 0, scrape: 0, lp: 5500, hp: 40, rate: [.7, .75] },
-        plastic: { hard: .7, soft: 1.5, scrape: 0, lp: 2600, hp: 250, bp: 1500, q: 1.1, rate: [.9, .5] },
-        wire: { hard: .8, soft: 0, scrape: 2.2, lp: 9000, hp: 2000, scrapeHp: 1400, am: 1, rate: [.9, .5] },
-        tube: { hard: 1.15, soft: 0, scrape: 0, lp: 650, hp: 30, rate: [.6, .5] }
+        field: { hard: 1.05, soft: .22, scrape: 0, lp: 5200, hp: 45, bp: 240, q: 1.4, rate: [.72, .75] },
+        plastic: { hard: .78, soft: 1.65, scrape: 0, lp: 2900, hp: 220, bp: 1350, q: 1.1, rate: [.9, .52] },
+        wire: { hard: 1.35, soft: 0, scrape: 2.8, lp: 6800, hp: 320, scrapeHp: 950, am: 1, rate: [.88, .58] },
+        tube: { hard: 1.2, soft: .35, scrape: 0, lp: 720, hp: 35, bp: 340, q: 1.6, rate: [.62, .5] }
     };
     function shape(slot, kind, speed, t) {
         const p = ROLL_KINDS[kind] || ROLL_KINDS.field, k = clamp(speed / 3, 0, 1), tc = .05;
         slot.kind = kind;
-        slot.hardLp.frequency.setTargetAtTime(p.lp, t, tc); slot.hardHp.frequency.setTargetAtTime(p.hp, t, tc);
+        slot.hardLp.frequency.setTargetAtTime(p.lp * (.68 + .48 * k), t, tc); slot.hardHp.frequency.setTargetAtTime(p.hp, t, tc);
         slot.softBp.frequency.setTargetAtTime(p.bp || 900, t, tc); slot.softBp.Q.setTargetAtTime(p.q || 2, t, tc);
-        slot.scrapeHp.frequency.setTargetAtTime(p.scrapeHp || 1500, t, tc);
+        slot.scrapeHp.frequency.setTargetAtTime(p.scrapeHp || 1100, t, tc);
         slot.hardG.gain.setTargetAtTime(p.hard, t, tc); slot.softG.gain.setTargetAtTime(p.soft, t, tc); slot.scrapeG.gain.setTargetAtTime(p.scrape, t, tc);
-        slot.depth.gain.setTargetAtTime(p.am ? .42 : 0, t, tc); slot.am.gain.setTargetAtTime(p.am ? .58 : 1, t, tc);
-        slot.lfo.frequency.setTargetAtTime(p.am ? 26 + 30 * k : 30, t, tc);
+        slot.depth.gain.setTargetAtTime(p.am ? .34 : 0, t, tc); slot.am.gain.setTargetAtTime(p.am ? .66 : 1, t, tc);
+        slot.lfo.frequency.setTargetAtTime(p.am ? 20 + 34 * k : 28, t, tc);
         const rate = p.rate[0] + p.rate[1] * k;
         for (const s of slot.srcs) s.playbackRate.setTargetAtTime(rate, t, .06);
     }

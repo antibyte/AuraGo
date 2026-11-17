@@ -120,7 +120,8 @@ const ST = stingerSet({
     knocker: { tom: M('E2:3', { vel: 1 }), kick: D('X'), log: M('E2:3', { vel: 0.9 }) },
     startGame: { tom: M('E3:1 E3:1 G3:1 A3:1 B3:2 .:2', { vel: 0.85 }), flute: M('E4:2 B4:2 E5:6', { vel: 0.8 }), log: M('E2:4 E2:4') },
     shootAgain: { marimba: M('E5:2 B5:2 E6:4', { vel: 0.85 }) },
-    wizard: { tom: M('E3:1 E3:1 G3:1 G3:1 A3:1 B3:1 .:10', { vel: 0.95 }), flute: M('E4:4 E4:4 G4:4 B4:4', { vel: 0.85 }), log: M('E2:4 E2:4 G2:4 A2:4'), kick: D('X...X...X...XXXX'), drone: M('E1:16') }
+    wizard: { tom: M('E3:1 E3:1 G3:1 G3:1 A3:1 B3:1 .:10', { vel: 0.95 }), flute: M('E4:4 E4:4 G4:4 B4:4', { vel: 0.85 }), log: M('E2:4 E2:4 G2:4 A2:4'), kick: D('X...X...X...XXXX'), drone: M('E1:16') },
+    surprise: { marimba: M('E5:1 G5:1 A5:1 B5:1 D6:1 E6:5', { vel: 0.9 }), flute: M('B5:2 D6:2 E6:6', { vel: 0.8 }), log: M('E2:3 B2:3', { vel: 0.9 }), tom: D('X.x.X', { note: 52 }) }
 });
 Object.assign(patterns, ST.patterns);
 

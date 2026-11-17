@@ -55,7 +55,7 @@ async function modeEngine(h) {
     const sc = await sceneMod.createScene(h.stage, { tableId: params.table, layout, settings: { quality: params.quality, camera: cameraName, reduced: false }, assetURL: p => p, signal: ctrl.signal, tr: harnessTr });
     const lamps = lampMod.createLamps(layout, { seed: params.seed });
     const dmd = dmdMod.createDmd({ raster: rasterMod.createRaster(), tr: harnessTr, locale: params.lang });
-    dmd.setBase('attract', { title: layout.meta.title, scores: [{ name: 'AAA', score: 12345670 }, { name: 'BBB', score: 8200000 }, { name: 'CCC', score: 5100000 }], replayAt: 2000000 });
+    dmd.setBase('attract', { title: layout.meta.title, scores: [{ name: 'AAA', score: 12345670 }, { name: 'BBB', score: 8200000 }, { name: 'CCC', score: 5100000 }], replayAt: (layout.meta && layout.meta.replayScore) || 40000000 });
     const mechanical = spec !== 'attract' && spec !== 'showcase';
     if (mechanical) lamps.setModes(Uint8Array.from(layout.lamps, (_, i) => (i % 4 === 3 ? 2 : 1)));
     // `preview` = lobby card framing: the table's signature spot, no ball, lamps lit (see PREVIEW_SPOTS); `preview:x,y,h` overrides the spot.

@@ -145,7 +145,9 @@ export function mountGame(host, context = {}) {
     }
 
     // Small ring of what just happened (physics events + presentation commands) for scene toys; drained once per frame.
-    function note(source, ev) { if (recent.length < 48) recent.push({ source, type: ev.type, id: ev.id ?? ev.name ?? null }); }
+    function note(source, ev) {
+        if (recent.length < 48) recent.push({ source, type: ev.type, id: ev.id ?? ev.name ?? ev.scene ?? null, state: ev.state ?? null });
+    }
     function doTicks(time, dt) {
         accumulator += dt;
         let steps = 0;

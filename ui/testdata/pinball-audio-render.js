@@ -163,7 +163,7 @@ const SFX_CASES = {
     impactFlipper: ev({ type: 'impact', material: 'flipper', speed: 1.5 }), impactTarget: ev({ type: 'impact', material: 'target', speed: 1.5 }),
     impactBall: ev({ type: 'impact', material: 'ball', speed: 1.5 }), drain: ev({ type: 'drain' }),
     tiltBuzzer: cueS('tilt'), tiltWarnBuzz: cueS('tiltWarning'), bell: cueS('modeComplete'), bellHigh: cueS('lockLit'),
-    jackpotHit: cueS('jackpot'), lockThunk: cueS('lock'), riser: cueS('multiball'), descend: cueS('gameOver'), tick: cueS('bonusTick'), bonusTotal: cueS('bonusTotal')
+    jackpotHit: cueS('jackpot'), surpriseFanfare: cueS('surprise'), lockThunk: cueS('lock'), riser: cueS('multiball'), descend: cueS('gameOver'), tick: cueS('bonusTick'), bonusTotal: cueS('bonusTotal')
 };
 const SEQUENCES = { spinnerTick: 1.2, plungerRatchet: 1.6 }; // recipes rendered as a sequence instead of a single hit
 

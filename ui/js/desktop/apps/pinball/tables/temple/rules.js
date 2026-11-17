@@ -179,6 +179,7 @@ export const rules = {
     ],
     wizard: { id: 'wizard', name: 'mode_temple_wizard', balls: 4, ballSave: 20, jackpotValue: 5000000, step: 1000000, superShot: 'idol', superAfter: 6 },
     combos: { window: 3.0, base: 100000 },
+    surprises: { secret: ['leftRamp', 'leftOrbit', 'idol'], key: 'dmd_secret_temple', value: 750000 },
     replay: 40000000,
     hooks: {
         init: () => ({ sun: [0, 0, 0, 0], jewels: [0, 0], jewelDone: 0, pops: 0, doors: 0, pre: 0, ebModes: false, mb: false }),

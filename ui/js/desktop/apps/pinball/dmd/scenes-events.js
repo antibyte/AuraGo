@@ -186,5 +186,17 @@ export const EVENT_SCENES = {
         d.line(scan, 0, scan, 47, 2);
         zoomWord(d, p.name || 'dmd_wizard_lit', t, 24, 'l', { vars: p.vars });
         border(d, t, 6);
+    } },
+
+    surprise: { ms: 2300, priority: 7, transition: 'zoom', draw(d, p, t) {
+        d.sparkle(22, sparkSeed(t, 29));
+        for (const cx of [18, 174]) {
+            burst(d, cx, 24, t, { rays: 10, rMax: 18, spin: 2.2, speed: 52 });
+            d.sprite(SPARK, cx, 24, 8 + Math.sin(t * 11) * 2.5, -t * 3.2, 3, true);
+        }
+        zoomWord(d, p.text || 'dmd_surprise_mystery', t, Number.isFinite(p.score) ? 13 : 24, 'l', { maxWidth: 132, vars: p.vars });
+        if (Number.isFinite(p.score)) d.number(countUp(p.score, t, 0.75, 0.18), 96, 30, { font: 'm', align: 'center' });
+        flash(d, t, 0.28, 12);
+        border(d, t, 10, 2);
     } }
 };

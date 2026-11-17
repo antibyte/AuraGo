@@ -42,26 +42,26 @@ export const SAMPLE_NAMES = Object.freeze(Object.keys(SAMPLE_FILES));
 
 const T = (s, off = 0, dur, g = 1) => ({ s, off, dur, g });
 export const TAKES = Object.freeze({
-    // flipper coil: metal-on-metal strikes
-    flipperUp: [T('drift-impact-metal-1', .01, .24), T('drift-impact-metal-2', 0, .2)],
-    flipperDown: [T('drift-impact-metal-2', 0, .09, .9), T('drift-impact-metal-1', .01, .1, .9)],
-    // pop bumper: hard wood/stone thock
-    bumper: [T('drift-prop-barrel-2', 0, .1), T('golf-impact-stone-3', 0, .14), T('drift-prop-barrel-1', 0, .12)],
-    sling: [T('golf-cup-rim-2', 0, .2), T('golf-cup-rim-3', 0, .17), T('golf-cup-rim-1', 0, .14)],
-    drop: [T('drift-prop-cone-1', .16, .28, .8), T('drift-prop-barrel-2', 0, .12, .8), T('drift-prop-barrel-1', 0, .12, .7)],
-    standup: [T('golf-impact-wood-medium-2', 0, .1), T('drift-prop-cone-2', .01, .1)],
+    // flipper coil: metal-on-metal strikes + heavy solenoid pull
+    flipperUp: [T('drift-impact-metal-1', .01, .22), T('drift-impact-metal-2', 0, .19), T('drift-impact-heavy-1', 0, .22, .85)],
+    flipperDown: [T('drift-impact-metal-2', 0, .095, .92), T('drift-impact-light-3', 0, .12, .9), T('golf-impact-wood-medium-1', 0, .11, .82)],
+    // pop bumper: hard wood/stone/heavy thock (leading silence trimmed on stone-3)
+    bumper: [T('drift-prop-barrel-2', 0, .12), T('golf-impact-stone-3', .035, .14), T('drift-prop-barrel-1', .06, .13), T('drift-impact-heavy-1', .01, .15, .85)],
+    sling: [T('golf-cup-rim-2', 0, .2), T('golf-cup-rim-3', 0, .17), T('golf-cup-rim-1', 0, .15)],
+    drop: [T('drift-prop-cone-1', .16, .28, .85), T('drift-prop-barrel-2', 0, .12, .85), T('drift-prop-barrel-1', 0, .12, .75)],
+    standup: [T('golf-impact-wood-medium-2', 0, .11), T('drift-prop-cone-2', .01, .11), T('drift-prop-cone-3', 0, .11)],
     knocker: [T('drift-impact-light-3', 0, .18), T('drift-impact-heavy-1', 0, .36)],
     plungerRelease: [T('drift-impact-metal-2', 0, .3), T('drift-impact-metal-1', 0, .3)],
-    scoop: [T('drift-impact-metal-2', 0, .34), T('drift-impact-metal-3', 0, .4, .8)],
+    scoop: [T('drift-impact-metal-2', 0, .34), T('drift-impact-metal-3', 0, .4, .82)],
     eject: [T('drift-impact-metal-1', .01, .2), T('drift-impact-metal-2', 0, .18)],
-    kickback: [T('drift-impact-metal-1', .01, .24), T('drift-impact-metal-3', 0, .28, .8)],
-    // short metal ticks: spinner, ratchet, ball on ball
-    tick: [T('drift-crate-break-1', 0, .04), T('drift-crate-break-2', 0, .04), T('golf-cup-rim-2', 0, .06, .8)],
-    clack: [T('golf-cup-rim-2', 0, .12), T('golf-cup-rim-3', 0, .1), T('golf-impact-metal-light-2', 0, .08)],
-    impactMetal: [T('drift-impact-metal-2', 0, .14, .6), T('golf-impact-metal-light-1', 0, .14)],
-    impactWood: [T('golf-impact-wood-medium-1', 0, .12), T('golf-impact-wood-medium-3', 0, .12)],
-    impactRubber: [T('golf-impact-soft-light-1', 0, .12)],
-    impactTarget: [T('drift-prop-cone-2', .01, .12), T('golf-impact-wood-medium-2', 0, .1)],
+    kickback: [T('drift-impact-metal-1', .01, .24), T('drift-impact-metal-3', 0, .28, .85)],
+    // crisp steel switch ticks: spinner, ratchet, rollover
+    tick: [T('drift-crate-break-1', 0, .04), T('golf-impact-metal-light-1', 0, .045, .95), T('drift-crate-break-2', 0, .04), T('golf-cup-rim-2', 0, .055, .8)],
+    clack: [T('golf-cup-rim-2', 0, .12), T('golf-cup-rim-3', 0, .1), T('golf-cup-rim-1', 0, .11), T('golf-impact-metal-light-2', 0, .085)],
+    impactMetal: [T('drift-impact-metal-2', 0, .14, .65), T('golf-impact-metal-light-1', 0, .14), T('golf-impact-metal-light-3', 0, .13)],
+    impactWood: [T('golf-impact-wood-medium-1', 0, .13), T('golf-impact-wood-medium-3', 0, .13)],
+    impactRubber: [T('golf-impact-soft-light-1', 0, .11)],
+    impactTarget: [T('drift-prop-cone-2', .01, .12), T('drift-prop-cone-3', 0, .12), T('golf-impact-wood-medium-2', 0, .11)],
     lock: [T('drift-impact-metal-3', 0, .32), T('drift-impact-metal-1', 0, .3)],
     drain: [T('golf-cup-rattle-1')],
     jackpot: [T('golf-win-moon-1')],

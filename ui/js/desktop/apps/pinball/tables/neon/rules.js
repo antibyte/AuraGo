@@ -175,6 +175,7 @@ export const rules = {
     ],
     wizard: { id: 'wizard', name: 'mode_neon_wizard', balls: 4, ballSave: 20, jackpotValue: 5000000, step: 1000000, superShot: 'core', superAfter: 6 },
     combos: { window: 3.0, base: 100000 },
+    surprises: { secret: ['leftRamp', 'rightRamp', 'core'], key: 'dmd_secret_neon', value: 750000 },
     replay: 40000000,
     hooks: {
         init: () => ({ letters: [0, 0, 0, 0], neon: 0, up: [0, 0, 0], uplink: 0, spins: 0, fw: [0, 0, 0], ebModes: false, mb: false }),

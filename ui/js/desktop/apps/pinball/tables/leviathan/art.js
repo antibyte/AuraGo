@@ -236,11 +236,17 @@ function sonarRings(kit) {
         }
         ctx.setLineDash([]);
     });
-    // a long sonar sweep sector across the lower middle, pointing at the Abyss magnet
+    // a long sonar sweep sector across the lower middle, pointing at the Abyss magnet + brass compass points
     const m = kit.px(MAGNET[0], MAGNET[1]);
     for (let i = 0; i < 5; i++) {
         ctx.strokeStyle = `rgba(100,240,235,${0.34 - i * 0.055})`; ctx.lineWidth = Math.max(1, kit.m(0.0012)); ctx.shadowBlur = 0;
         ctx.setLineDash([kit.m(0.010), kit.m(0.008)]); ctx.beginPath(); ctx.arc(m[0], m[1], kit.m(0.030 + i * 0.020), 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(220,173,99,.55)'; ctx.lineWidth = Math.max(1, kit.m(0.0011));
+    for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4, r0 = kit.m(0.017), r1 = kit.m(i % 2 ? 0.026 : 0.034);
+        ctx.beginPath(); ctx.moveTo(m[0] + Math.cos(a) * r0, m[1] + Math.sin(a) * r0); ctx.lineTo(m[0] + Math.cos(a) * r1, m[1] + Math.sin(a) * r1); ctx.stroke();
     }
     // pearl channel halo: faint rings round the captive pearl
     const pc = kit.px(PEARL[0], PEARL[1]);

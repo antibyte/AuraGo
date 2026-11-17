@@ -6,6 +6,7 @@ import {
     addScore, addBonus, advanceBonusX, lightKickback, lightExtraBall, lightModeStart, comboHit
 } from './features.js';
 import { lampPos } from './lamps.js';
+import { surpriseShots } from './surprises.js';
 
 const SELECT_SECONDS = 4;
 export const idleMode = () => ({ id: null, until: 0, count: 0, target: 0, moveAt: 0, total: 0 });
@@ -57,6 +58,7 @@ export function dispatchShots(g, ev) {
         if (modeStartShot(g, s, ev)) held = true;
         pk.hooks?.onShot?.(ctx, s.id);
     }
+    surpriseShots(g, shots);
     return held;
 }
 

@@ -24,8 +24,12 @@ function drawScore(d, p) {
     d.text('dmd_player', 2, 0, { size: 's', vars: { n: turn + 1 }, maxWidth: 90 });
     if (p.training) d.text('dmd_training', 190, 0, { size: 's', align: 'right', maxWidth: 90 });
     else d.text('dmd_ball', 190, 0, { size: 's', align: 'right', vars: { n: num(p.ball, 1) }, maxWidth: 90 });
+    d.line(2, 10, 189, 10, 1);
     const level = m.flash > 0 && Math.floor(m.flash * 20) % 2 ? 2 : 3;
     d.number(m.shown, 96, 14, { font: 'l', align: 'center', level });
+    if (m.flash > 0) {
+        d.line(0, 12, 0, 34, 2); d.line(191, 12, 191, 34, 2);
+    }
 
     const others = players.map((pl, i) => ({ pl, i })).filter(e => e.i !== turn);
     if (others.length) {

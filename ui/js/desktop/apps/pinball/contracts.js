@@ -20,7 +20,7 @@ export const LAMP_MODES = Object.freeze({ off: 0, on: 1, slow: 2, fast: 3, pulse
 export const CUES = Object.freeze([
     'jackpot', 'superJackpot', 'lock', 'lockLit', 'multiball', 'extraBall', 'replay', 'modeStart', 'modeComplete',
     'skillShot', 'ballSaved', 'drain', 'gameOver', 'highScore', 'tiltWarning', 'tilt', 'combo', 'bonusTick',
-    'bonusTotal', 'match', 'knocker', 'startGame', 'shootAgain', 'wizard'
+    'bonusTotal', 'match', 'knocker', 'startGame', 'shootAgain', 'wizard', 'surprise'
 ]);
 export const MUSIC_SECTIONS = Object.freeze(['off', 'attract', 'main', 'mode', 'multiball', 'wizard', 'bonus', 'hiscore']);
 export const SHOWS = Object.freeze([

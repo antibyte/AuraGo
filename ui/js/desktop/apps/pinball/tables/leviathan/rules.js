@@ -190,6 +190,7 @@ export const rules = {
     ],
     wizard: { id: 'wizard', name: 'mode_leviathan_wizard', balls: 4, ballSave: 20, jackpotValue: 5000000, step: 1000000, superShot: 'ship', superAfter: 6 },
     combos: { window: 3.0, base: 100000 },
+    surprises: { secret: ['current', 'tentacle', 'pearl'], key: 'dmd_secret_leviathan', value: 750000 },
     replay: 40000000,
     hooks: {
         init: () => ({

@@ -110,17 +110,40 @@ export function createArtKit(ctx, { W, H, layout, tr, palette = {}, underlay = n
         if (pl && pl.laneX) {
             const a = px(pl.laneX[0], 0.78), b = px(pl.laneX[1], 0);
             const g = ctx.createLinearGradient(a[0], 0, b[0], 0);
-            g.addColorStop(0, 'rgba(6,8,12,.72)'); g.addColorStop(0.5, 'rgba(26,32,42,.6)'); g.addColorStop(1, 'rgba(6,8,12,.72)');
+            g.addColorStop(0, 'rgba(6,8,12,.76)'); g.addColorStop(0.5, 'rgba(28,36,48,.62)'); g.addColorStop(1, 'rgba(6,8,12,.76)');
             ctx.fillStyle = g; ctx.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
-            ctx.strokeStyle = 'rgba(190,205,225,.12)'; ctx.lineWidth = Math.max(1, m(0.0004));
+            ctx.strokeStyle = 'rgba(190,205,225,.14)'; ctx.lineWidth = Math.max(1, m(0.0004));
             for (let i = 0; i < 6; i++) { const x = a[0] + (b[0] - a[0]) * (0.15 + i * 0.14); ctx.beginPath(); ctx.moveTo(x, a[1]); ctx.lineTo(x, b[1]); ctx.stroke(); }
-            for (let y = 0.1; y < 0.72; y += 0.11) kit.arrow((pl.laneX[0] + pl.laneX[1]) / 2, y, 0, 0.0075, rgbCss(accent, 1, 0.5));
+            // Plunger calibration scale ticks near the shooter rest zone.
+            const yRest = pl.yRest || 0.0535, travel = pl.travel || 0.06;
+            for (let step = 0; step <= 10; step++) {
+                const y = yRest + 0.015 + (1 - step / 10) * travel * 1.4, major = step % 5 === 0;
+                const pL = px(pl.laneX[0] + 0.002, y), pR = px(pl.laneX[0] + (major ? 0.0085 : 0.0052), y);
+                ctx.strokeStyle = major ? rgbCss(accent, 1.1, 0.78) : 'rgba(210,225,245,.38)';
+                ctx.lineWidth = Math.max(1, m(major ? 0.0008 : 0.00045));
+                ctx.beginPath(); ctx.moveTo(pL[0], pL[1]); ctx.lineTo(pR[0], pR[1]); ctx.stroke();
+            }
+            for (let y = 0.12; y < 0.72; y += 0.11) kit.arrow((pl.laneX[0] + pl.laneX[1]) / 2, y, 0, 0.0075, rgbCss(accent, 1, 0.55));
         }
         for (const d of (layout && layout.devices) || []) {
-            if (d.type !== 'rollover') continue;
-            const a = px(d.x - 0.0125, d.y + 0.045), b = px(d.x + 0.0125, d.y - 0.045), r = m(0.0125);
-            ctx.fillStyle = 'rgba(210,225,255,.06)'; ctx.strokeStyle = rgbCss(accent, 1, 0.3); ctx.lineWidth = Math.max(1, m(0.0006));
-            ctx.beginPath(); ctx.roundRect(a[0], a[1], b[0] - a[0], b[1] - a[1], r); ctx.fill(); ctx.stroke();
+            if (d.type === 'rollover') {
+                const a = px(d.x - 0.0125, d.y + 0.045), b = px(d.x + 0.0125, d.y - 0.045), r = m(0.0125);
+                ctx.fillStyle = 'rgba(210,225,255,.06)'; ctx.strokeStyle = rgbCss(accent, 1, 0.32); ctx.lineWidth = Math.max(1, m(0.0006));
+                ctx.beginPath(); ctx.roundRect(a[0], a[1], b[0] - a[0], b[1] - a[1], r); ctx.fill(); ctx.stroke();
+            } else if (d.type === 'hole' && !d.hidden) {
+                // Brushed metallic scoop wear-plate & mounting rivets around visible scoops / VUKs.
+                const c = px(d.x, d.y), r = m((d.r || 0.017) * 1.48);
+                const gr = ctx.createRadialGradient(c[0], c[1], r * 0.5, c[0], c[1], r);
+                gr.addColorStop(0, 'rgba(18,22,30,.85)'); gr.addColorStop(0.75, 'rgba(135,150,170,.36)'); gr.addColorStop(1, 'rgba(10,14,20,0)');
+                ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(c[0], c[1], r, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = rgbCss(accent, 1, 0.42); ctx.lineWidth = Math.max(1, m(0.0007));
+                ctx.beginPath(); ctx.arc(c[0], c[1], r * 0.88, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = 'rgba(220,232,248,.55)';
+                for (let k = 0; k < 6; k++) {
+                    const ang = (k / 6) * Math.PI * 2;
+                    ctx.beginPath(); ctx.arc(c[0] + Math.cos(ang) * r * 0.78, c[1] + Math.sin(ang) * r * 0.78, Math.max(1, m(0.0011)), 0, Math.PI * 2); ctx.fill();
+                }
+            }
         }
         ctx.restore();
     };

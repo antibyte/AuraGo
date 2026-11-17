@@ -119,7 +119,8 @@ const ST = stingerSet({
     knocker: { tom: M('A2:3', { vel: 1 }), kick: D('X'), clap: D('..X', { vel: 0.7 }) },
     startGame: { lead: M('A4:1 C5:1 E5:1 A5:2 .:1 E5:1 A5:1 C6:1 E6:6', { vel: 0.9 }), bass: M('A1:4 A1:4'), kick: D('X...X...') },
     shootAgain: { lead: M('E5:2 A5:2 E6:4', { vel: 0.85 }), bass: M('A1:4', { vel: 0.8 }) },
-    wizard: { lead: M('A4:2 A4:2 C5:2 E5:2 A5:4 G5:2 E5:2', { vel: 0.95 }), pad: chord(['F3', 'A3', 'C4', 'F4'], { len: 16, vel: 0.6 }), tom: M('A2:1 A2:1 E3:1 E3:1 A2:1 .:3', { vel: 0.9 }), kick: D('X...X...X...XXXX') }
+    wizard: { lead: M('A4:2 A4:2 C5:2 E5:2 A5:4 G5:2 E5:2', { vel: 0.95 }), pad: chord(['F3', 'A3', 'C4', 'F4'], { len: 16, vel: 0.6 }), tom: M('A2:1 A2:1 E3:1 E3:1 A2:1 .:3', { vel: 0.9 }), kick: D('X...X...X...XXXX') },
+    surprise: { lead: M('E5:1 G5:1 A5:1 C6:1 E6:1 G6:1 A6:6', { vel: 0.9 }), pluck: M('A5:2 C6:2 E6:2 A6:4', { vel: 0.8 }), pad: chord(['A3', 'C4', 'E4', 'G4'], { step: 4, len: 8, vel: 0.55 }), kick: D('X...X') }
 });
 Object.assign(patterns, ST.patterns);
 

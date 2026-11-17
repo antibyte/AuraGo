@@ -128,7 +128,8 @@ const ST = stingerSet({
     knocker: { tom: M('D2:3', { vel: 1 }), kick: D('X') },
     startGame: { ping: M('A5:1', { vel: 0.9 }), call: M('D4:2 A4:2 D5:6', { vel: 0.75 }), drone: M('D1:12') },
     shootAgain: { ping: M('D6:1 .:3 D6:1 .:2', { vel: 0.85 }), bell: M('A5:2 D6:4', { vel: 0.7 }) },
-    wizard: { drone: M('D1:16'), call: M('D4:4 D4:4 F4:4 A4:4', { vel: 0.85 }), tom: M('D2:1 D2:1 A2:1 A2:1 D3:1 .:3', { vel: 0.9 }), kick: D('X...X...X...XXXX'), bell: M('.:8 A5:2 D6:2 F6:4') }
+    wizard: { drone: M('D1:16'), call: M('D4:4 D4:4 F4:4 A4:4', { vel: 0.85 }), tom: M('D2:1 D2:1 A2:1 A2:1 D3:1 .:3', { vel: 0.9 }), kick: D('X...X...X...XXXX'), bell: M('.:8 A5:2 D6:2 F6:4') },
+    surprise: { bell: M('D5:1 F5:1 A5:1 C6:1 D6:1 F6:1 A6:4', { vel: 0.88 }), ping: M('A5:1 .:3 D6:4', { vel: 0.85 }), pad: chord(['D3', 'F3', 'A3', 'C4'], { step: 4, len: 6, vel: 0.55 }), kick: D('X') }
 });
 Object.assign(patterns, ST.patterns);
 

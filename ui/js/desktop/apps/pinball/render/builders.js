@@ -48,14 +48,21 @@ const A = (anim, i) => (i >= 0 && i < anim.length ? anim[i] : 0);
 // ---- flipper ----
 export function buildFlipper(ctx, def, i) {
     const p = { ...FLIPPER, ...def }, side = def.side < 0 ? -1 : 1;
-    const { rubber, top } = M.flipperGeometry(p, ctx.low);
+    const { rubber, top, spine } = M.flipperGeometry(p, ctx.low);
+    const spineMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: new THREE.Color(ctx.accent).lerp(new THREE.Color('#ffffff'), 0.35), toneMapped: false }));
     const root = at(new THREE.Group(), def.x, def.y), bat = new THREE.Group(); root.add(bat);
     bat.add(mesh(ctx, rubber, ctx.mats.rubber, def.id + '_rubber'), mesh(ctx, top, ctx.mats.flipperTop, def.id + '_top'));
+    if (spine) { const sp = mesh(ctx, spine, spineMat, def.id + '_spine'); sp.castShadow = false; bat.add(sp); }
     const { cap, dot } = M.pivotCap(def.x, def.y, ctx.low);
     ctx.statics.chrome.push(cap); ctx.statics.glow.push(dot);
-    const set = a => { bat.rotation.y = side > 0 ? a : Math.PI - a; };
-    set(p.rest);
-    return { object: root, update(anim, snap) { if (snap && snap.flippers && 2 * i < snap.flippers.length) set(snap.flippers[2 * i]); } };
+    const baseCol = new THREE.Color(ctx.accent).lerp(new THREE.Color('#ffffff'), 0.28), hotCol = new THREE.Color('#ffffff');
+    const set = (a, w = 0) => {
+        bat.rotation.y = side > 0 ? a : Math.PI - a;
+        const flare = Math.min(1, Math.abs(w) / 18 + (a > (p.rest + p.up) * 0.5 ? 0.25 : 0));
+        spineMat.color.copy(baseCol).lerp(hotCol, flare * 0.65).multiplyScalar(0.85 + 0.9 * flare);
+    };
+    set(p.rest, 0);
+    return { object: root, update(anim, snap) { if (snap && snap.flippers && 2 * i < snap.flippers.length) set(snap.flippers[2 * i], snap.flippers[2 * i + 1] || 0); } };
 }
 
 // ---- rubber walls, sling assemblies ----
@@ -126,17 +133,22 @@ export function buildBumper(ctx, def) {
     const gp = g => g.translate(def.x, 0, -def.y);
     ctx.statics.dark.push(gp(geo.base)); ctx.statics.chrome.push(gp(geo.stud));
     const ring = mesh(ctx, geo.ring, ctx.mats.chrome, def.id + '_ring');
-    const skirtMat = ctx.D.m(new THREE.MeshStandardMaterial({ color: sc.clone().multiplyScalar(0.8), roughness: 0.32, metalness: 0.1, emissive: sc, emissiveIntensity: 0.15, envMap: ctx.env, envMapIntensity: 0.9 }));
+    const skirtMat = ctx.D.m(new THREE.MeshStandardMaterial({ color: sc.clone().multiplyScalar(0.82), roughness: 0.28, metalness: 0.14, emissive: sc, emissiveIntensity: 0.14, envMap: ctx.env, envMapIntensity: 1.0 }));
     const skirt = mesh(ctx, geo.skirt, skirtMat, def.id + '_skirt');
-    const capMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.4), transparent: true, opacity: 0.78, roughness: 0.12, metalness: 0, emissive: lc, emissiveIntensity: 0.3,
-        envMap: ctx.env, envMapIntensity: 1.3, clearcoat: ctx.low ? 0 : 1, depthWrite: false }));
+    const coreMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.55), toneMapped: false }));
+    const core = mesh(ctx, geo.core, coreMat, def.id + '_core'); core.castShadow = false;
+    const capMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.32), transparent: true, opacity: 0.72, roughness: 0.1, metalness: 0, emissive: lc, emissiveIntensity: 0.22,
+        envMap: ctx.env, envMapIntensity: 1.4, clearcoat: ctx.low ? 0 : 1, depthWrite: false }));
     const cap = mesh(ctx, geo.cap, capMat, def.id + '_cap'); cap.renderOrder = 2;
-    root.add(ring, skirt, cap);
+    const coreBase = lc.clone().lerp(new THREE.Color('#ffffff'), 0.52);
+    root.add(ring, skirt, core, cap);
     const slot = ctx.slot(def.id);
     return { object: root, update(anim, snap, ex) {
         const k = A(anim, slot), lit = lamp && ex.lamps ? ex.lamps.intensity[li] : 0.45;
-        ring.position.y = -k * 0.0026; skirt.position.y = -k * 0.0024; cap.position.y = -k * 0.0012;
-        capMat.emissiveIntensity = 0.12 + 0.8 * lit + 1.1 * k; skirtMat.emissiveIntensity = 0.1 + 0.3 * lit + 1.4 * k;
+        ring.position.y = -k * 0.0026; skirt.position.y = -k * 0.0024; cap.position.y = -k * 0.0012; core.position.y = -k * 0.0012;
+        capMat.emissiveIntensity = 0.10 + 0.62 * lit + 1.15 * k;
+        skirtMat.emissiveIntensity = 0.08 + 0.28 * lit + 1.35 * k;
+        coreMat.color.copy(coreBase).multiplyScalar(0.35 + 1.35 * lit + 1.8 * k);
     } };
 }
 

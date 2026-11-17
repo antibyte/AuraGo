@@ -66,10 +66,19 @@ function sweep(F, idx, profile, closed = true) {
 function signTexture(color) {
     const c = document.createElement('canvas'); c.width = 128; c.height = 40;
     const g = c.getContext('2d');
-    g.fillStyle = '#05070c'; g.fillRect(0, 0, 128, 40);
-    g.strokeStyle = color; g.lineWidth = 4; g.lineJoin = 'round';
-    for (let k = 0; k < 3; k++) { const x = 30 + k * 34; g.globalAlpha = 0.45 + k * 0.27; g.beginPath(); g.moveTo(x - 12, 28); g.lineTo(x, 12); g.lineTo(x + 12, 28); g.stroke(); }
-    g.globalAlpha = 1; g.strokeStyle = color; g.lineWidth = 3; g.strokeRect(2, 2, 124, 36);
+    const bg = g.createLinearGradient(0, 0, 0, 40);
+    bg.addColorStop(0, '#101622'); bg.addColorStop(1, '#04060b');
+    g.fillStyle = bg; g.fillRect(0, 0, 128, 40);
+    g.shadowColor = color; g.shadowBlur = 8;
+    g.strokeStyle = color; g.lineWidth = 4; g.lineJoin = 'round'; g.lineCap = 'round';
+    for (let k = 0; k < 3; k++) {
+        const x = 30 + k * 34;
+        g.globalAlpha = 0.48 + k * 0.26;
+        g.beginPath(); g.moveTo(x - 12, 28); g.lineTo(x, 11); g.lineTo(x + 12, 28); g.stroke();
+    }
+    g.shadowBlur = 0; g.globalAlpha = 1; g.strokeStyle = color; g.lineWidth = 2.6; g.strokeRect(2.5, 2.5, 123, 35);
+    g.fillStyle = 'rgba(220,235,250,.75)';
+    for (const [rx, ry] of [[8, 8], [120, 8], [8, 32], [120, 32]]) { g.beginPath(); g.arc(rx, ry, 2, 0, Math.PI * 2); g.fill(); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
     return t;
 }
@@ -147,7 +156,7 @@ function plasticRamp(def, F, ctx, group, D) {
         new THREE.Vector3(-F.t[3 * fi], -F.t[3 * fi + 1], -F.t[3 * fi + 2]));
     const pivot = new THREE.Group(); pivot.quaternion.setFromRotationMatrix(fb); pivot.position.copy(at(F, fi, 0, 0.0004, new THREE.Vector3()));
     pivot.add(flap); group.add(pivot);
-    return { flap, pivot, state: 1, hinge: pivot.position };
+    return { flap, pivot, state: 1, hinge: pivot.position, glowMat, signMat, baseColor: color.clone(), pulse: 0, F };
 }
 
 function wireRamp(def, F, ctx, group, D) {
@@ -222,14 +231,23 @@ export function buildRamps(paths, ctx) {
         group,
         update(snap, dt) {
             for (const f of flaps) {
-                let near = 0;
+                let near = 0, riding = 0;
                 if (snap && snap.balls) for (const b of snap.balls) {
                     if (b.hidden) continue;
                     const dx = b.x - f.hinge.x, dy = -b.y - f.hinge.z;
-                    if (dx * dx + dy * dy < 0.045 * 0.045) { near = 1; break; }
+                    if (dx * dx + dy * dy < 0.045 * 0.045) near = 1;
+                    if (b.mode === 'path' && (b.h || 0) > 0.008) {
+                        for (let i = 0; i < f.F.count; i += 4) {
+                            const rx = b.x - f.F.p[3 * i], rz = -b.y - f.F.p[3 * i + 2];
+                            if (rx * rx + rz * rz < 0.042 * 0.042) { riding = 1; break; }
+                        }
+                    }
                 }
                 f.state += ((near ? 0 : 1) - f.state) * Math.min(1, dt * 14);
                 f.pivot.children[0].rotation.x = 0.38 * f.state;
+                f.pulse = riding ? Math.min(1, f.pulse + dt * 10) : Math.max(0, f.pulse - dt * 3.5);
+                if (f.glowMat) f.glowMat.color.copy(f.baseColor).multiplyScalar(1.9 + 1.5 * f.pulse);
+                if (f.signMat) f.signMat.emissiveIntensity = 0.5 + 1.4 * f.pulse;
             }
         },
         dispose() {

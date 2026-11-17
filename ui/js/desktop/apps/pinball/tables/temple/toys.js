@@ -313,7 +313,10 @@ export function buildToys(THREE, kit, layout, opts) {
             // events [{source, type, id}]: the idol flares on its scoop, rays on SUN drops and ramps, the jungle shakes on pops
             if (events && events.length) for (const e of events) {
                 const id = String((e && (e.id || e.device)) || '');
-                if (/idolScoop|idolDoors/.test(id)) eyePulse = 1; else if (/^sun|^ray|Ramp/.test(id)) rayPulse = 1; else if (/jungle/.test(id)) shake = Math.min(1.5, shake + 0.6);
+                if (/idolScoop|idolDoors/.test(id)) eyePulse = 1;
+                else if (/^sun|^ray|Ramp|jewel/.test(id)) rayPulse = 1;
+                else if (/jungle/.test(id)) shake = Math.min(1.5, shake + 0.6);
+                if (id === 'jackpot' || id === 'superJackpot' || id === 'surprise' || id === 'multiball') { eyePulse = 1; rayPulse = 1; pyr = Math.max(pyr, 0.95); shake = Math.max(shake, 0.9); }
             }
             eyePulse = Math.max(0, eyePulse - dt * 1.6); rayPulse = Math.max(0, rayPulse - dt * 1.4); shake = Math.max(0, shake - dt * 1.2);
             doorK += ((Number.isFinite(ts.doors) ? ts.doors : 0) - doorK) * k(5);

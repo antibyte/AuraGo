@@ -406,4 +406,46 @@ for (const equal of [true, false]) {
     P(g).lockLit = true;
     assert.equal(lamp(g, 'arrow_vault'), LAMP_MODES.on);
 }
+
+// 19. surprises: Lazarus outlane save, Hyper Spinner frenzy + overdrive, Bumper Mayhem, Warp Orbit loop and Secret Combo
+{
+    const sShots = [
+        ...shots,
+        { id: 'leftOrbit', on: 'trigger:leftOrbit@1', combo: true },
+        { id: 'rightOrbit', on: 'trigger:rightOrbit@1', combo: true }
+    ];
+    const sLamps = [...lampIds, 'arrow_leftOrbit', 'combo_leftOrbit', 'arrow_rightOrbit', 'combo_rightOrbit'];
+    const sTable = {
+        layout: { id: 'synthSurprise', shots: sShots, lamps: sLamps.map((id, i) => ({ id, x: i * 0.01, y: 0.5 })) },
+        rules: { ...rules, surprises: { secret: ['ramp1', 'ramp2', 'core'], key: 'dmd_secret_neon', value: 750000 } }
+    };
+    const g = createGame(sTable, { players: ['A'], seed: 21 }); startGame(g); launch(g); bumper(g);
+    ticks(g, 11); take(g); // past ball-save window, g.time > 0.5
+    // Lazarus: unguarded outlaneR -> recovered onto playfield
+    ev(g, 'rollover', 'outlaneR');
+    assert.ok(g.surprise.outlaneUntil > g.time);
+    assert.ok(gained(g, () => bumper(g)) >= 350000);
+    assert.ok(take(g).some(c => c.type === 'dmd' && c.scene === 'surprise' && c.params.text === 'dmd_surprise_lazarus'));
+    // Hyper Spinner: 16 rapid spins -> 300k + overdrive (+5000/spin)
+    for (let i = 0; i < 16; i++) ev(g, 'spinner', 'spin1');
+    assert.ok(take(g).some(c => c.type === 'dmd' && c.scene === 'surprise' && c.params.text === 'dmd_surprise_spinner'));
+    assert.equal(gained(g, () => ev(g, 'spinner', 'spin1')), 1010 + 5000);
+    // Bumper Mayhem: 14 rapid pops -> 300k
+    for (let i = 0; i < 14; i++) bumper(g);
+    assert.ok(take(g).some(c => c.type === 'dmd' && c.scene === 'surprise' && c.params.text === 'dmd_surprise_mayhem'));
+    // Warp Orbit Loop: 3 orbits within 9 s -> 500k
+    ev(g, 'trigger', 'leftOrbit', { dir: 1 });
+    ev(g, 'trigger', 'rightOrbit', { dir: 1 });
+    ev(g, 'trigger', 'leftOrbit', { dir: 1 });
+    assert.ok(take(g).some(c => c.type === 'dmd' && c.scene === 'surprise' && c.params.text === 'dmd_surprise_loop'));
+    // Secret Combo: ramp1 -> ramp2 -> core -> 750k + bonusX advance
+    const bx = P(g).bonusX;
+    ev(g, 'pathMade', 'ramp1');
+    ev(g, 'pathMade', 'ramp2');
+    handle(g, { type: 'hole', id: 'core', ball: ball(g) });
+    assert.equal(P(g).bonusX, Math.min(5, bx + 1));
+    const sq = take(g);
+    assert.ok(sq.some(c => c.type === 'dmd' && c.scene === 'surprise' && c.params.text === 'dmd_secret_neon'));
+    assert.ok(sq.some(c => c.type === 'cue' && c.name === 'surprise'));
+}
 console.log('pinball rules ok');

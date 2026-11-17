@@ -29,7 +29,9 @@ export function flipperGeometry(p, low) {
     const inset = 0.0017;
     const top = flat(new THREE.ExtrudeGeometry(batShape(p.length, p.rBase - inset, p.rTip - inset, seg),
         { depth: 0.0026, bevelEnabled: !low, bevelSize: 0.0006, bevelThickness: 0.0007, bevelSegments: 2, curveSegments: seg })).translate(0, 0.0088, 0);
-    return { rubber, top };
+    const spine = flat(new THREE.ExtrudeGeometry(batShape(p.length * 0.82, Math.max(0.0016, p.rBase * 0.28), Math.max(0.0009, p.rTip * 0.26), low ? 6 : 12),
+        { depth: 0.0007, bevelEnabled: false, curveSegments: low ? 6 : 12 })).translate(p.rBase * 0.18, 0.0119, 0);
+    return { rubber, top, spine };
 }
 export function pivotCap(x, y, low) {
     const seg = low ? 10 : 20;
@@ -68,7 +70,12 @@ export function bumperGeometry(r, low) {
         ring: lathe([[r * 0.98, 0], [r * 1.12, 0], [r * 1.12, 0.0022], [r * 1.05, 0.0033], [r * 0.98, 0.0033]], seg).translate(0, 0.0035, 0),
         skirt: lathe([[r * 0.96, 0], [r * 0.96, 0.004], [r * 0.88, 0.0095], [r * 0.7, 0.0123], [0, 0.0123]], seg).translate(0, 0.0069, 0),
         cap: lathe([[r * 0.66, 0], [r * 0.67, 0.0045], [r * 0.62, 0.0095], [r * 0.5, 0.0138], [r * 0.3, 0.0168], [0.0015, 0.0178]], seg).translate(0, 0.0192, 0),
-        stud: merge([cyl(r * 0.2, r * 0.2, 0.0016, low ? 8 : 14, 0.0364), cyl(r * 0.67, r * 0.67, 0.0022, seg, 0.0185)])
+        core: new THREE.OctahedronGeometry(r * 0.24, low ? 0 : 1).scale(1, 0.72, 1).translate(0, 0.0255, 0),
+        stud: merge([
+            cyl(r * 0.2, r * 0.2, 0.0016, low ? 8 : 14, 0.0364),
+            cyl(r * 0.67, r * 0.67, 0.0022, seg, 0.0185),
+            new THREE.TorusGeometry(r * 0.46, 0.0008, 5, low ? 12 : 24).rotateX(Math.PI / 2).translate(0, 0.0315, 0)
+        ])
     };
 }
 

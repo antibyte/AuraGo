@@ -489,6 +489,8 @@ export function buildToys(THREE, kit, layout, opts) {
                 else if (type === 'hole' && /shipScoop/.test(id)) { flare = Math.max(flare, 0.8); snap = 1; lantern = 1; }
                 else if (/ship|flShip/i.test(id) && type !== 'bumper') lantern = Math.max(lantern, 0.8);
                 else if (type === 'captive' || /pearl/i.test(id)) emit(PEARL[0], PEARL[1], 0.012, 11, 0.012);
+                else if (type === 'magnet' && (e.state === 'grab' || e.state === 'throw')) { emit(0.045, 0.540, 0.008, 12, 0.026); flare = Math.max(flare, 0.65); }
+                else if (id === 'jackpot' || id === 'superJackpot' || id === 'surprise' || id === 'multiball') { flare = 1; snap = 1; lantern = 1; emit(sx, sy, 0.02, 10, 0.028); }
             }
             flare = Math.max(0, flare - dt * 1.5); snap = Math.max(0, snap - dt * 3.2); lantern = Math.max(0, lantern - dt * 1.4);
             const lit = finite(ts.jaw, 0);

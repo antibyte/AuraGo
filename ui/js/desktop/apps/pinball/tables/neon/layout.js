@@ -89,7 +89,7 @@ function orbitsAndRamps() {
 
 export const layout = composeLayout(
     { id: 'neon', version: 1, meta: {
-        title: 'Cyber Neon Metropolis', accent: CYAN, secondary: PINK, cx: CX, troughSize: 4,
+        title: 'Cyber Neon Metropolis', accent: CYAN, secondary: PINK, cx: CX, troughSize: 4, replayScore: 40000000,
         giColor: { lower: '#d8f0ff', upper: '#c9b6ff' },
         attract: [['sweepUp', 1600], ['chase', 2400], ['radial', 1500], ['sparkle', 2500], ['spiral', 2000], ['strobe', 600], ['rainbow', 3000]]
     } },

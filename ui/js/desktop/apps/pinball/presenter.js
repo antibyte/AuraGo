@@ -33,11 +33,19 @@ export function createPresenter({ layout, lamps, dmd, audio, scene, callouts = (
     }
 
     return {
-        handle(command) { const fn = handlers[command.type]; if (fn) fn(command); },
-        // Physics events that need a visual or audible reaction beyond the rules (sound, camera).
+        handle(command) {
+            const fn = handlers[command.type];
+            if (fn) fn(command);
+            if (scene && scene.celebrate) scene.celebrate(command);
+        },
+        // Physics events that need a visual or audible reaction beyond the rules (sound, camera, impact FX).
         event(ev) {
             if (audio) audio.event(ev);
             if (scene) scene.hit(ev);
+            if (ev && (ev.type === 'bumper' || ev.type === 'sling' || ev.type === 'kickback')) {
+                shake(ev.type === 'kickback' ? 0.0022 : 0.0011, flip, ev.type === 'bumper' ? -0.8 : 0.5);
+                flip = -flip;
+            }
         },
         // A nudge pushes the ball (dx, dy); the camera jolts the other way.
         nudge(dx, dy) { shake(0.004, -Math.sign(dx) || 0, -Math.sign(dy) || 0); },

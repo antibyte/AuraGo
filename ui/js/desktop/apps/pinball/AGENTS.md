@@ -26,8 +26,11 @@ music, and a per-window Desktop game lifecycle.
 - `physics/` is the 480 Hz engine. `world.js` steps and owns the event queue. `devices*.js` and
   `paths.js` implement the device and ramp systems behind the contracts in `contracts.js`.
 - `rules/core.js` is the lifecycle, `rules/features.js` the per-event pipeline (points, bonus, lanes,
-  skill, combos), `rules/modes.js` the modes, locks, multiball and wizard, plus `rules/lamps.js` and
+  skill, combos), `rules/modes.js` the modes, locks, multiball and wizard, `rules/surprises.js` the
+  deterministic surprise awards and per-table secret combos, plus `rules/lamps.js` and
   `rules/highscore.js`.
+- `render/fx.js` owns pooled 3D ball speed trails, playfield bounce halos, impact spark bursts and
+  expanding shockwave rings, wired through `scene.hit` and `scene.celebrate` and gated by reduced motion.
 - `tables/<id>/` contains `layout.js` (geometry, devices, paths, shots, lamps), `rules.js` (the rule
   pack), `lamps.js`, `art.js` and `toys.js`. `tables/kit/` holds the shared shell and lower playfield.
 

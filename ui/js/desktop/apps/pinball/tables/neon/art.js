@@ -185,6 +185,13 @@ function coreArt(kit) {
         ctx.globalAlpha = a; ctx.lineWidth = kit.m(lw); ctx.setLineDash(dash.map(v => kit.m(v)));
         ctx.beginPath(); ctx.arc(c[0], c[1], kit.m(rad), 0, Math.PI * 2); ctx.stroke();
     });
+    ctx.setLineDash([]);
+    // Cybernetic HUD cardinal crosshair ticks around the Data Core.
+    ctx.strokeStyle = PINK; ctx.shadowColor = PINK; ctx.lineWidth = kit.m(0.0012); ctx.globalAlpha = 0.65;
+    for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI) / 4, r0 = kit.m(i % 2 ? 0.078 : 0.052), r1 = kit.m(i % 2 ? 0.094 : 0.066);
+        ctx.beginPath(); ctx.moveTo(c[0] + Math.cos(a) * r0, c[1] + Math.sin(a) * r0); ctx.lineTo(c[0] + Math.cos(a) * r1, c[1] + Math.sin(a) * r1); ctx.stroke();
+    }
     ctx.restore();
 }
 
