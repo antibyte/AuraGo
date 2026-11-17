@@ -56,7 +56,8 @@
         // Mech: mechanical ticking percussion and a distorted bass.
         citadel: {
             leadInstr: 'lead', arpInstr: 'pluck', bossArp: 0.35, bassInstr: 'fuzzbass', ostInstr: 'ostinato', ostGrid: EIGHTHS, droneVel: 1,
-            drums: { kick: [0, 1, 2, 3], snare: [1.5, 3.5], hat: [0.5, 2.5], tick: SIXTEENTHS }
+            leadStyle: 'slow', ostLow: true,
+            drums: { kick: [0, 1.5], snare: [], hat: [3.5], clank: [2], tick: [1, 3], tickQuiet: true }
         }
     };
 
@@ -75,7 +76,7 @@
                 id: 'boss_' + biome, biome: biome, boss: true, root: s.root, scaleName: bossScale, scale: SCALES[bossScale],
                 bpm: Math.round(s.bpm * 1.15), prog: [[0, 5, 6, 0], [0, 1, 0, 4]], arpInstr: bs.arpInstr, melInstr: bs.leadInstr, arpGrid: bs.arpGrid || EIGHTHS,
                 leadInstr: bs.leadInstr, bossArp: bs.bossArp, bassInstr: bs.bassInstr, ostInstr: bs.ostInstr, ostGrid: bs.ostGrid,
-                droneVel: bs.droneVel, leadStyle: bs.leadStyle || '', drums: bs.drums
+                droneVel: bs.droneVel, leadStyle: bs.leadStyle || '', ostLow: !!bs.ostLow, drums: bs.drums
             };
         });
         return out;
@@ -151,6 +152,8 @@
             [d, d + 2, d + 4].forEach(function (deg, i) {
                 out.push({ t: 0, dur: BEATS, midi: fold(degMidi(theme, deg), root - 2, root + 14), vel: i === 0 ? 0.9 : 0.75, type: 'pad' });
             });
+            // Desert boss: a low sustained minor second against the drone.
+            if (theme.leadStyle === 'charmer') out.push({ t: 0, dur: BEATS, midi: root - 11, vel: 0.8, type: 'pad' });
         } else if (layer === 'bass') {
             const low = fold(degMidi(theme, d), root - 14, root - 3);
             const fifth = fold(degMidi(theme, d + 4), root - 14, root - 3);
@@ -179,9 +182,18 @@
             if (theme.boss) {
                 const lead = theme.leadInstr || 'lead';
                 if (theme.leadStyle === 'charmer') {
-                    // Winding reed phrase that circles the flat second.
-                    [[0, 1, 0], [1, 0.45, 1], [1.5, 0.45, 0], [2, 1.2, 1], [3.25, 0.7, phrase === 3 ? 2 : 0]].forEach(function (n, i) {
-                        out.push({ t: n[0], dur: n[1], midi: fold(degMidi(theme, d + n[2]), root, root + 11), vel: 0.7 + (i % 2) * 0.1, type: lead });
+                    // Sparse, low reed: long held notes on the flat second and the fifth, with rests.
+                    const pairs = [[1, 4], [4, 1], [1, 0], [4, 1]][phrase];
+                    [[0, 1.9, pairs[0]], [2.1, 1.7, pairs[1]]].forEach(function (n, k) {
+                        out.push({ t: n[0], dur: n[1], midi: fold(degMidi(theme, n[2]), root - 12, root - 1), vel: 0.75 + k * 0.05, type: lead });
+                    });
+                    return out;
+                }
+                if (theme.leadStyle === 'slow') {
+                    // Slow, low saw lead on the minor third and the flat sixth.
+                    const degs = [[2, 5], [5, 2], [2, 2], [5, 2]][phrase];
+                    [[0, 2.1, degs[0]], [2.3, 1.5, degs[1]]].forEach(function (n, k) {
+                        out.push({ t: n[0], dur: n[1], midi: fold(degMidi(theme, n[2]), root - 7, root + 4), vel: 0.75 + k * 0.05, type: lead });
                     });
                     return out;
                 }
@@ -209,7 +221,10 @@
             theme.drums.hat.forEach(function (t) { out.push({ t: t, dur: 0.1, midi: null, vel: 0.4 + rng() * 0.3, type: 'hat' }); });
             (theme.drums.tom || []).forEach(function (t, i) { out.push({ t: t, dur: 0.25, midi: null, vel: 0.7 + 0.1 * (i % 2), type: 'tom' }); });
             (theme.drums.taiko || []).forEach(function (t, i) { out.push({ t: t, dur: 0.4, midi: null, vel: 0.8 + 0.15 * (i % 2), type: 'taiko' }); });
-            (theme.drums.tick || []).forEach(function (t, i) { out.push({ t: t, dur: 0.05, midi: null, vel: i % 4 === 0 ? 0.9 : 0.5, type: 'tick' }); });
+            (theme.drums.tick || []).forEach(function (t, i) { out.push({ t: t, dur: 0.05, midi: null, vel: theme.drums.tickQuiet ? 0.3 : (i % 4 === 0 ? 0.9 : 0.5), type: 'tick' });
+            });
+            (theme.drums.clank || []).forEach(function (t) {
+                out.push({ t: t, dur: 0.3, midi: null, vel: 0.8, type: 'clank' }); });
             if (fill && !theme.boss) {
                 [3.25, 3.5, 3.75].forEach(function (t) { out.push({ t: t, dur: 0.15, midi: null, vel: 0.5, type: 'snare' }); });
             }
@@ -224,7 +239,7 @@
             if (phrase === 3) out.push({ t: 0, dur: 4, midi: null, vel: 1, type: 'swell' });
             (theme.ostGrid || EIGHTHS).forEach(function (t, i) {
                 const fast = (theme.ostGrid || EIGHTHS).length > 8;
-                out.push({ t: t, dur: fast ? 0.2 : 0.4, midi: fold(degMidi(theme, d + OSTINATO[(fast ? i >> 1 : i) % 8]), root - 12, root + 2), vel: i % 2 === 0 ? 1 : 0.7, type: theme.ostInstr || 'ostinato' });
+                out.push({ t: t, dur: fast ? 0.2 : 0.4, midi: theme.ostLow ? fold(degMidi(theme, d + OSTINATO[(fast ? i >> 1 : i) % 8]), root - 18, root - 6) : fold(degMidi(theme, d + OSTINATO[(fast ? i >> 1 : i) % 8]), root - 12, root + 2), vel: i % 2 === 0 ? 1 : 0.7, type: theme.ostInstr || 'ostinato' });
             });
         }
         return out;
@@ -388,10 +403,10 @@
             const dd = clamp(danger, 0, 1);
             const target = {
                 pad: th.boss ? 0.7 : 1 - 0.3 * dd,
-                bass: 0.8 + 0.4 * dd,
-                arp: th.boss ? (th.bossArp || 0) : 0.45 + 0.65 * dd,
-                melody: th.boss ? 0.6 : 0.85 * (1 - 0.6 * dd),
-                perc: th.boss ? 1.3 : (dd > 0.12 ? 0.4 + 1.1 * dd : 0),
+                bass: th.boss ? 0.45 + 0.2 * dd : 0.8 + 0.4 * dd,
+                arp: th.boss ? (th.bossArp || 0) * 1.7 : 0.45 + 0.65 * dd,
+                melody: th.boss ? 1.0 : 0.85 * (1 - 0.6 * dd),
+                perc: th.boss ? 0.65 : (dd > 0.12 ? 0.4 + 1.1 * dd : 0),
                 boss: th.boss ? 1 : 0
             };
             LAYERS.forEach(function (l) {
@@ -556,22 +571,24 @@
                 b.stop(end + 0.02);
                 main = a;
             } else if (ev.type === 'drone') {
+                const hp = keep(filt('highpass', 45, 0.7));
+                hp.connect(g);
                 const a = keep(osc('sine', f, t, 0));
                 const b = keep(osc('triangle', f, t, 4));
                 const bg = keep(ctx.createGain());
                 bg.gain.value = 0.3;
-                a.connect(g);
+                a.connect(hp);
                 b.connect(bg);
-                bg.connect(g);
+                bg.connect(hp);
                 end = t + dur + 0.4;
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.linearRampToValueAtTime(0.11, t + 0.4);
-                g.gain.setValueAtTime(0.11, t + dur - 0.1);
+                g.gain.linearRampToValueAtTime(0.055, t + 0.4);
+                g.gain.setValueAtTime(0.055, t + dur - 0.1);
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 b.stop(end + 0.02);
                 main = a;
             } else if (ev.type === 'lead') {
-                const lp = keep(filt('lowpass', 1400, 0.8));
+                const lp = keep(filt('lowpass', ev.boss ? 2600 : 1400, 0.8));
                 const a = keep(osc('sawtooth', f, t, -6));
                 const b = keep(osc('sawtooth', f, t, 6));
                 a.connect(lp);
@@ -579,17 +596,17 @@
                 lp.connect(g);
                 end = t + dur + 0.35;
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.linearRampToValueAtTime(0.055 * vel, t + 0.2);
-                g.gain.setValueAtTime(0.055 * vel, t + dur - 0.1);
+                g.gain.linearRampToValueAtTime(0.044 * vel, t + 0.2);
+                g.gain.setValueAtTime(0.044 * vel, t + dur - 0.1);
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 b.stop(end + 0.02);
                 main = a;
             } else if (ev.type === 'horn') {
                 // Low brass: detuned saws, a slow filter bloom and gentle vibrato.
                 const lp = keep(filt('lowpass', 800, 0.9));
-                lp.frequency.setValueAtTime(380, t);
-                lp.frequency.linearRampToValueAtTime(1500, t + Math.min(0.5, dur * 0.5));
-                lp.frequency.linearRampToValueAtTime(900, t + dur);
+                lp.frequency.setValueAtTime(600, t);
+                lp.frequency.linearRampToValueAtTime(3000, t + Math.min(0.5, dur * 0.5));
+                lp.frequency.linearRampToValueAtTime(2000, t + dur);
                 const a = keep(osc('sawtooth', f, t, -8));
                 const b = keep(osc('sawtooth', f, t, 8));
                 const c = keep(osc('square', f / 2, t, 0));
@@ -608,21 +625,22 @@
                 lp.connect(g);
                 end = t + dur + 0.3;
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.linearRampToValueAtTime(0.07 * vel, t + 0.14);
-                g.gain.setValueAtTime(0.07 * vel, t + dur - 0.05);
+                g.gain.linearRampToValueAtTime(0.1 * vel, t + 0.14);
+                g.gain.setValueAtTime(0.1 * vel, t + dur - 0.05);
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 [b, c, lfo].forEach(function (o) { o.stop(end + 0.02); });
                 main = a;
             } else if (ev.type === 'reed') {
                 // Snake-charmer reed: nasal formant, pitch scoop and wide vibrato.
-                const bp = keep(filt('bandpass', clamp(f * 3.2, 900, 2400), 2.2));
+                const bp = keep(filt('bandpass', clamp(f * 4, 1200, 3000), 1.6));
                 const a = keep(osc('square', f, t, 0));
                 const b = keep(osc('sawtooth', f, t, 5));
-                a.frequency.setValueAtTime(f * 0.94, t);
-                a.frequency.exponentialRampToValueAtTime(f, t + 0.08);
-                const lfo = keep(osc('sine', 5.6, t, 0));
+                a.frequency.setValueAtTime(f * 0.983, t);
+                a.frequency.exponentialRampToValueAtTime(f, t + 0.1);
+                const lfo = keep(osc('sine', 4.5, t, 0));
                 const lg = keep(ctx.createGain());
-                lg.gain.value = f * 0.011;
+                lg.gain.setValueAtTime(0, t);
+                lg.gain.linearRampToValueAtTime(f * 0.0037, t + 0.4);
                 lfo.connect(lg);
                 lg.connect(a.frequency);
                 lg.connect(b.frequency);
@@ -634,8 +652,8 @@
                 bp.connect(g);
                 end = t + dur + 0.2;
                 g.gain.setValueAtTime(0.0001, t);
-                g.gain.linearRampToValueAtTime(0.11 * vel, t + 0.05);
-                g.gain.setValueAtTime(0.09 * vel, t + dur - 0.05);
+                g.gain.linearRampToValueAtTime(0.127 * vel, t + 0.08);
+                g.gain.setValueAtTime(0.103 * vel, t + dur - 0.05);
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 [b, lfo].forEach(function (o) { o.stop(end + 0.02); });
                 main = a;
@@ -652,7 +670,7 @@
                 car.connect(lp);
                 lp.connect(g);
                 end = t + 2.3;
-                envelope(g, t, 0.19 * vel, 0.004, end);
+                envelope(g, t, 0.25 * vel, 0.004, end);
                 mod.stop(end + 0.02);
                 main = car;
             } else if (ev.type === 'glass') {
@@ -666,7 +684,7 @@
                 mg.connect(car.frequency);
                 car.connect(g);
                 end = t + 1.1;
-                envelope(g, t, 0.11 * vel, 0.002, end);
+                envelope(g, t, 0.15 * vel, 0.002, end);
                 mod.stop(end + 0.02);
                 main = car;
             } else if (ev.type === 'string') {
@@ -728,6 +746,25 @@
                 end = t + 0.5;
                 envelope(g, t, 0.45 * vel, 0.003, end);
                 main = a;
+            } else if (ev.type === 'clank') {
+                // Metallic clank: inharmonic square partials through narrow band-passes.
+                const parts = [[310, 0.5], [517, 0.4], [830, 0.3], [1210, 0.2]];
+                const m = keep(ctx.createGain());
+                m.connect(g);
+                let first = null;
+                parts.forEach(function (pt) {
+                    const o = keep(osc('square', pt[0], t, 0));
+                    const bp = keep(filt('bandpass', pt[0] * 1.5, 5));
+                    const pg = keep(ctx.createGain());
+                    pg.gain.value = pt[1];
+                    o.connect(bp);
+                    bp.connect(pg);
+                    pg.connect(m);
+                    if (first) o.stop(t + 0.38); else first = o;
+                });
+                end = t + 0.4;
+                envelope(g, t, 0.2 * vel, 0.002, end);
+                main = first;
             } else if (ev.type === 'tick') {
                 // Mechanical tick: a tiny click.
                 const n = keep(noiseSrc(t, 0.2 + vel * 0.3));
@@ -810,6 +847,7 @@
                 case 'hat': return 0.2 * side;
                 case 'tom': return 0.25 * side;
                 case 'tick': return 0.3 * side;
+                case 'clank': return -0.15;
                 case 'glass':
                 case 'darkbell': return ev.layer === 'arp' ? 0.3 * side : 0;
                 default: return 0;
