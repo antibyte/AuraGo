@@ -29,6 +29,13 @@
             if (marks.length >= cap) marks.shift();
             marks.push(m);
         }
+        function spawnAtlasFx(key, x, y, size) {
+            if (reducedMotion()) return;
+            const anim = ctx.spriteAssets && ctx.spriteAssets.manifest && ctx.spriteAssets.manifest.animations && ctx.spriteAssets.manifest.animations[key];
+            if (!anim || !ctx.G || !ctx.G.exp) return;
+            if (ctx.G.exp.length >= 80) ctx.G.exp.shift();
+            ctx.G.exp.push({ x, y, t: 0, dur: anim.ms * anim.frames.length, animation: key, size: size || anim.size || 48 });
+        }
 
         // --- Impact pop on a fresh hit ---------------------------------------
         function fxEnemyHit(x, y, col) {
@@ -118,6 +125,115 @@
             fxEnemyBlink(x1, y1, '#88ddff');
             fxEnemyBlink(x2, y2, '#88ddff');
             if (ctx.SFX && ctx.SFX.shuffleRumble) ctx.SFX.shuffleRumble((x1 + x2) / 2);
+        }
+
+        // --- Quantum phase-step / teleport rift ------------------------------
+        function fxPhaseStep(x0, y0, x1, y1, col) {
+            if (x0 == null || y0 == null) return;
+            const tint = col || '#55f2ff';
+            addMark({ kind: 'rift', x: x0, y: y0, x2: x1 != null ? x1 : x0, y2: y1 != null ? y1 : y0, t: 0, dur: 280, col: tint, r: 16 });
+            spawnAtlasFx('fx.warp_rift', x0, y0, 44);
+            if (ctx.SFX && ctx.SFX.phaseShift) ctx.SFX.phaseShift(x1 != null ? x1 : x0);
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            const n = ctx.settings.particles === 'medium' ? 3 : 5;
+            for (let i = 0; i < n; i++) {
+                const a = (i / n) * Math.PI * 2 + Math.random() * 0.5;
+                const sp = 35 + Math.random() * 55;
+                ctx.G.part.push(ctx.getParticle({
+                    x: x0, y: y0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 140 + Math.random() * 90, t: 0, col: i % 2 ? '#d8b4ff' : tint,
+                    size: 1.2, spark: true, shape: 'diamond'
+                }));
+            }
+        }
+
+        // --- Shield-bee / armor-crab phalanx barrier deflection --------------
+        function fxShieldGuardHit(x, y, dirX, dirY) {
+            if (x == null || y == null) return;
+            addMark({ kind: 'hexGuard', x, y, t: 0, dur: 260, col: '#ffd86b', r: 18 });
+            spawnAtlasFx('fx.aegis_hex', x, y, 46);
+            if (ctx.SFX && ctx.SFX.shieldGuard) ctx.SFX.shieldGuard(x);
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            const baseA = Math.atan2(-(dirY || -1), -(dirX || 0));
+            const n = ctx.settings.particles === 'medium' ? 3 : 6;
+            for (let i = 0; i < n; i++) {
+                const a = baseA + (Math.random() - 0.5) * 1.4;
+                const sp = 75 + Math.random() * 95;
+                ctx.G.part.push(ctx.getParticle({
+                    x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 120 + Math.random() * 90, t: 0,
+                    col: i % 2 ? '#ffd86b' : '#77eeff', size: 1.3, spark: true, shape: 'diamond'
+                }));
+            }
+        }
+
+        // --- Carrier live drone launch bay flare -----------------------------
+        function fxCarrierDeploy(x, y) {
+            if (x == null || y == null) return;
+            addMark({ kind: 'bayPulse', x, y: y + 6, t: 0, dur: 340, col: '#cc88ff', r: 22 });
+            if (ctx.SFX && ctx.SFX.carrierDeploy) ctx.SFX.carrierDeploy(x);
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            for (let i = 0; i < 4; i++) {
+                const side = i % 2 ? 1 : -1;
+                ctx.G.part.push(ctx.getParticle({
+                    x: x + side * 8, y: y + 6,
+                    vx: side * (35 + Math.random() * 35), vy: 20 + Math.random() * 30,
+                    life: 170 + Math.random() * 90, t: 0,
+                    col: i < 2 ? '#ffe08a' : '#d6a4ff', size: 1.3, spark: true, shape: 'ringlet', r: 3
+                }));
+            }
+        }
+
+        // --- Kamikaze / Void-Runner mid-dive afterburner surge ---------------
+        function fxAfterburnerSurge(x, y) {
+            if (x == null || y == null) return;
+            addMark({ kind: 'machCone', x, y, t: 0, dur: 280, col: '#ff6633', r: 22 });
+            spawnAtlasFx('fx.sonic_surge', x, y, 48);
+            if (ctx.SFX && ctx.SFX.afterburner) ctx.SFX.afterburner(x);
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            const n = ctx.settings.particles === 'medium' ? 3 : 6;
+            for (let i = 0; i < n; i++) {
+                const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.1;
+                const sp = 55 + Math.random() * 85;
+                ctx.G.part.push(ctx.getParticle({
+                    x, y: y - 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 150 + Math.random() * 110, t: 0,
+                    col: i % 2 ? '#ffffff' : '#ff7733', size: 1.4, spark: true, fireTrail: true, shape: 'circle', r: 2.2
+                }));
+            }
+        }
+
+        // --- Coordinated twin pincer dive launch cue -------------------------
+        function fxPincerCue(x1, y1, x2, y2) {
+            fxEnemyDiveStart(x1, y1, '#66eeff');
+            fxEnemyDiveStart(x2, y2, '#66eeff');
+            if (!reducedMotion() && x1 != null && x2 != null) {
+                const cap = caps().chain || 8;
+                if (chains.length >= cap) chains.shift();
+                chains.push({ x1, y1, x2, y2, t: 0, dur: 240, seed: Math.floor(Math.random() * 997), col: '#77eeff' });
+            }
+        }
+
+        // --- Asteroid non-lethal chip sparks ---------------------------------
+        function fxAsteroidChip(x, y, effect) {
+            if (x == null || y == null) return;
+            const palette = effect === 'ice-shatter' ? ['#ccf6ff', '#66ddff']
+                : effect === 'crystal-shatter' ? ['#f2ccff', '#77ffee']
+                : effect === 'lava-ejecta' ? ['#ffaa44', '#ff5522']
+                : effect === 'metal-sparks' ? ['#fff2b8', '#ffbb55']
+                : ['#e4ccb0', '#b59472'];
+            addMark({ kind: 'pop', x, y, t: 0, dur: 150, col: palette[0], r: 7 });
+            if (ctx.settings.particles === 'low' || reducedMotion()) return;
+            const n = ctx.settings.particles === 'medium' ? 2 : 4;
+            for (let i = 0; i < n; i++) {
+                const a = Math.PI * 0.5 + (Math.random() - 0.5) * 2.2;
+                const sp = 45 + Math.random() * 70;
+                ctx.G.part.push(ctx.getParticle({
+                    x, y: y + 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                    life: 120 + Math.random() * 100, t: 0,
+                    col: palette[i % palette.length], size: 1.3, spark: effect !== 'rock-shatter', debris: effect === 'rock-shatter', rot: Math.random() * 6.28
+                }));
+            }
         }
 
         // --- Charge-up telegraph glint in front of an attacker ---------------
@@ -565,6 +681,41 @@
                         c.strokeStyle = '#ffffff';
                         c.lineWidth = 1.2;
                         c.beginPath(); c.arc(m.x, m.y, 4 + p * m.r * 0.78, 0, Math.PI * 2); c.stroke();
+                    } else if (m.kind === 'rift') {
+                        c.globalAlpha = a * 0.75;
+                        c.strokeStyle = m.col;
+                        c.lineWidth = 1.6;
+                        c.beginPath(); c.moveTo(m.x, m.y); c.lineTo(m.x2, m.y2); c.stroke();
+                        c.beginPath(); c.ellipse(m.x, m.y, (1 - p * 0.5) * 9, (1 - p * 0.3) * 14, 0, 0, Math.PI * 2); c.stroke();
+                        c.globalAlpha = a * 0.9;
+                        c.strokeStyle = '#ffffff';
+                        c.beginPath(); c.arc(m.x2, m.y2, 3 + p * 9, 0, Math.PI * 2); c.stroke();
+                    } else if (m.kind === 'hexGuard') {
+                        const rad = 8 + p * m.r;
+                        c.globalAlpha = a * 0.92;
+                        c.strokeStyle = m.col;
+                        c.lineWidth = 1.8 * (1 - p * 0.4);
+                        c.beginPath();
+                        for (let s = 0; s < 6; s++) {
+                            const ha = s * Math.PI / 3 - Math.PI / 6;
+                            const hx = m.x + Math.cos(ha) * rad, hy = m.y + Math.sin(ha) * rad;
+                            if (s === 0) c.moveTo(hx, hy); else c.lineTo(hx, hy);
+                        }
+                        c.closePath(); c.stroke();
+                    } else if (m.kind === 'bayPulse') {
+                        c.globalAlpha = a * 0.85;
+                        c.strokeStyle = m.col;
+                        c.lineWidth = 1.8;
+                        c.beginPath(); c.ellipse(m.x, m.y, 6 + p * m.r, 3 + p * m.r * 0.45, 0, 0, Math.PI * 2); c.stroke();
+                    } else if (m.kind === 'machCone') {
+                        const mw = 6 + p * m.r;
+                        c.globalAlpha = a * 0.9;
+                        c.strokeStyle = m.col;
+                        c.lineWidth = 2.2 * (1 - p * 0.45);
+                        c.beginPath();
+                        c.moveTo(m.x - mw, m.y - 6 - p * 10);
+                        c.quadraticCurveTo(m.x, m.y + 8 + p * 6, m.x + mw, m.y - 6 - p * 10);
+                        c.stroke();
                     } else {
                         // Feint / shuffle: iris ring plus a diamond core marker.
                         c.globalAlpha = a * 0.6;
@@ -596,6 +747,7 @@
                     const dx = ch.x2 - ch.x1, dy = ch.y2 - ch.y1;
                     const len = Math.hypot(dx, dy) || 1;
                     const nx = dy / len, ny = -dx / len;
+                    c.strokeStyle = ch.col || '#bfe6ff';
                     c.globalAlpha = a;
                     c.beginPath(); c.moveTo(ch.x1, ch.y1);
                     const segs = 5;
@@ -605,6 +757,33 @@
                         c.lineTo(ch.x1 + dx * t + nx * off, ch.y1 + dy * t + ny * off);
                     }
                     c.stroke();
+                }
+                c.restore();
+                c.globalAlpha = 1;
+            }
+            // 5. Subtle gravity-web filaments linking adjacent formation weavers
+            if (!reducedMotion() && ctx.settings.particles !== 'low') {
+                let drawnLinks = 0;
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                c.lineWidth = 1.1;
+                for (let i = 0; i < G.enemies.length && drawnLinks < 6; i++) {
+                    const a = G.enemies[i];
+                    if (a.st !== 'FORM' || a.type !== 'weaver') continue;
+                    for (let j = i + 1; j < G.enemies.length && drawnLinks < 6; j++) {
+                        const b = G.enemies[j];
+                        if (b.st !== 'FORM' || b.type !== 'weaver') continue;
+                        const d = Math.hypot(b.x - a.x, b.y - a.y);
+                        if (d > 118 || d < 8) continue;
+                        const pulse = 0.11 + 0.09 * Math.sin(time * 0.008 + i + j);
+                        c.globalAlpha = pulse * (1 - d / 130);
+                        c.strokeStyle = a.artId === 'gravity-spider' || b.artId === 'gravity-spider' ? '#cc77ff' : '#ff9955';
+                        c.beginPath();
+                        c.moveTo(a.x, a.y);
+                        c.quadraticCurveTo((a.x + b.x) * 0.5, (a.y + b.y) * 0.5 + Math.sin(time * 0.006 + i) * 5, b.x, b.y);
+                        c.stroke();
+                        drawnLinks++;
+                    }
                 }
                 c.restore();
                 c.globalAlpha = 1;
@@ -619,6 +798,12 @@
         ctx.fxKillChain = fxKillChain;
         ctx.fxSquadDiveCue = fxSquadDiveCue;
         ctx.fxFormationShuffle = fxFormationShuffle;
+        ctx.fxPhaseStep = fxPhaseStep;
+        ctx.fxShieldGuardHit = fxShieldGuardHit;
+        ctx.fxCarrierDeploy = fxCarrierDeploy;
+        ctx.fxAfterburnerSurge = fxAfterburnerSurge;
+        ctx.fxPincerCue = fxPincerCue;
+        ctx.fxAsteroidChip = fxAsteroidChip;
         ctx.maybeSmolder = maybeSmolder;
         ctx.igniteSmolder = igniteSmolder;
         ctx.smolderDetonate = smolderDetonate;

@@ -108,6 +108,24 @@
       "bytes": 475118
     },
     {
+      "bytes": 377884,
+      "file": "fx-warp-rift.webp",
+      "sha256": "ad833a06fd7c1bdaa6875305c94507319e835dd9749129313999e224c854f60c",
+      "source": "codex-image_gen-fx-warp-rift.png"
+    },
+    {
+      "bytes": 310448,
+      "file": "fx-aegis-hex.webp",
+      "sha256": "f72f7df6a41f2529d68c621b24d5fb1380f9af9851fff62e61cfe02ce51cdf6a",
+      "source": "codex-image_gen-fx-aegis-hex.png"
+    },
+    {
+      "bytes": 392012,
+      "file": "fx-sonic-surge.webp",
+      "sha256": "4ce7e14972a6317cabc494bb2510bff367d43b9d82075a77400fc3a25e949b81",
+      "source": "codex-image_gen-fx-sonic-surge.png"
+    },
+    {
       "file": "exp-asteroid-crater-boulder.webp",
       "source": "exec-562cfbf0-f284-4cdb-b740-3f03bf3f3283.png",
       "sha256": "f1c2276e3c5133415691a8a9f0e5d3516df9a8562ed1c742d214efbb3583f12a",

@@ -25,6 +25,17 @@
                 layer: (i % 2) + 1
             });
         }
+        const dustMotes = [];
+        for (let i = 0; i < 14; i++) {
+            dustMotes.push({
+                x: Math.random() * ctx.W,
+                y: Math.random() * ctx.H,
+                spd: 24 + (i % 4) * 9,
+                drift: (i % 2 ? 1 : -1) * (3 + (i % 3) * 2),
+                ph: Math.random() * Math.PI * 2,
+                r: i % 3 === 0 ? 1.6 : 1.1
+            });
+        }
         function ensureNebulaCanvas() {
             if (!nebulaCv) { nebulaCv = document.createElement('canvas'); nebulaCv.width = ctx.W; nebulaCv.height = ctx.H; }
             return nebulaCv;
@@ -85,6 +96,29 @@
                 } else {
                     c.fillRect(Math.round(sx), Math.round(sy), 1, 1);
                 }
+            }
+            const pCfg = (GC.FX_CAPS && GC.FX_CAPS[ctx.settings.particles]) || (GC.FX_CAPS && GC.FX_CAPS.high);
+            const dustCount = Math.min(dustMotes.length, (pCfg && pCfg.dust) || 8);
+            const dustTint = (GC.ENEMY_BIOME_TINT && GC.ENEMY_BIOME_TINT[G && G.biome]) || '#88ccff';
+            if (dustCount > 0) {
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                c.fillStyle = dustTint;
+                for (let i = 0; i < dustCount; i++) {
+                    const dm = dustMotes[i];
+                    const my = (dm.y + time * dm.spd) % ctx.H;
+                    const mx = ((dm.x + Math.sin(time * 0.45 + dm.ph) * dm.drift - px * 9) % ctx.W + ctx.W) % ctx.W;
+                    const pulse = reduced ? 0.2 : (0.12 + 0.22 * (0.5 + 0.5 * Math.sin(time * 2.1 + dm.ph)));
+                    c.globalAlpha = pulse;
+                    if (warping) {
+                        c.fillRect(Math.round(mx), Math.round(my - 14), 1, 16);
+                    } else {
+                        c.beginPath();
+                        c.arc(mx, my, dm.r, 0, Math.PI * 2);
+                        c.fill();
+                    }
+                }
+                c.restore();
             }
             c.globalAlpha = 1;
         }

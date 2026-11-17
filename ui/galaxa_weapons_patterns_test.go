@@ -67,7 +67,7 @@ const galaxaWeaponsPatternsProbe = `()=>{
  }
  g.bul=[];g.railBeams=[];
  out.rot={};
- for(const kind of ['loop','strafe','hover']){
+ for(const kind of ['loop','strafe','hover','swoop','corkscrew','pendulum']){
   const e=g.enemies.find(x=>x.st==='FORM'&&!x.sectorBoss&&!['spinner','hunter','stalker','kamikaze','boss','miniboss'].includes(x.type));
   if(!e){out.rot[kind]={skipped:true};continue;}
   const r0=e.rot;let changed=false;
@@ -89,6 +89,16 @@ const galaxaWeaponsPatternsProbe = `()=>{
   out.patterns[type]=grew;ok('fire-'+type,grew);
  }
  ok('lob-gravity',c.ATTACK_PATTERNS.lob({x:200,y:100},3,0.5,260,Math.random).every(b=>b.ay>0));
+ ok('cross-helix',c.ATTACK_PATTERNS.cross_helix({x:200,y:100},0.46,260,22,0.0085).length===2);
+ for(const fxKey of ['fx.warp_rift','fx.aegis_hex','fx.sonic_surge']){
+  ok('atlas-'+fxKey,!!(c.spriteAssets&&c.spriteAssets.manifest.animations[fxKey]));
+ }
+ const guardBee=Object.assign(c.newEnemy('shield_bee',220,160,0,2),{x:220,y:160,st:'FORM',guardT:800});
+ g.enemies.push(guardBee);c.damageEnemy(guardBee,1);
+ ok('shield-guard-halves-and-breaks',guardBee.hp===1.5&&guardBee.guardT===0);
+ const kami=Object.assign(c.newEnemy('kamikaze',260,c.H*0.36,0,1),{x:260,y:c.H*0.36,st:'DIVING',dTmr:2000,sTmr:9999});
+ g.enemies.push(kami);g.stage=7;c.updateE(1/60);
+ ok('kamikaze-afterburner-surge',kami.surged===true);
  out.errors=window.errors.slice();
  return JSON.stringify(out);
 }`
@@ -138,9 +148,25 @@ func TestGalaxaWeaponsPatternsBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{const c=game,g=c.G;g.weaponEvo=null;g.bul=[];g.ebul=[];g.st='PLAYING';g.p.inv=1e9;
  const forms=g.enemies.filter(e=>(e.st==='FORM'||e.st==='RETURN')&&!e.sectorBoss);
- forms.slice(0,8).forEach((e,i)=>{e.st='DIVING';e.dPath={ph:i,kind:['loop','strafe','hover','sine','zigzag','arc'][i%6],amp:40,vx:(i%2?60:-60)};e.dTmr=4000;e.sTmr=99999;});
+ forms.slice(0,8).forEach((e,i)=>{e.st='DIVING';e.dPath={ph:i,kind:['loop','strafe','hover','swoop','corkscrew','pendulum'][i%6],amp:40,vx:(i%2?60:-60)};e.dTmr=4000;e.sTmr=99999;});
  for(let i=0;i<70;i++){g.p.inv=1e9;c.stepFrame(1/60);}c.renderFrame()}`)
 	os.WriteFile(filepath.Join(dir, "galaxa-rotation.png"), page.MustScreenshot(), 0644)
+	page.MustEval(`()=>{const c=game,g=c.G;c.resetRun(42);g.stage=22;c.startStage();g.st='PLAYING';g.p.alive=true;g.p.inv=1e9;g.p.x=250;g.p.y=605;g.shipTilt=0.16;g.muzzleT=120;
+ const w1=Object.assign(c.newEnemy('weaver',170,150,0,2),{x:170,y:150,fx:170,fy:150,st:'FORM',artId:'gravity-spider'});
+ const w2=Object.assign(c.newEnemy('weaver',255,155,1,2),{x:255,y:155,fx:255,fy:155,st:'FORM',artId:'gravity-spider'});
+ const sb=Object.assign(c.newEnemy('shield_bee',360,175,2,2),{x:360,y:175,fx:360,fy:175,st:'FORM',artId:'armor-crab',guardT:900});
+ const sn=Object.assign(c.newEnemy('sniper',125,120,3,2),{x:125,y:120,fx:125,fy:120,st:'FORM',artId:'prism-falcon',shotPending:true,shotWarning:340});
+ g.enemies.push(w1,w2,sb,sn);
+ g.ebul.push(...c.ATTACK_PATTERNS.cross_helix(w1,0.46,260,24,0.009));
+ g.ebul.push({x:145,y:320,vx:45,vy:210,w:2,h:6,kind:'sniper'},{x:395,y:360,vx:0,vy:40,w:3,h:3,kind:'mine',fuse:420});
+ c.fxPhaseStep(120,255,162,255,'#55f2ff');
+ c.fxShieldGuardHit(360,210,0,-1);
+ c.fxAfterburnerSurge(285,330);
+ g.plasmaRings.push({x:285,y:330,r:34,maxR:60,t:90,dur:280,col:'#ff8844'});
+ for(const ex of g.exp) ex.t=180;
+ for(let i=0;i<6;i++){g.p.inv=1e9;c.updateBul(1/60);}
+ g.shipTilt=0.16;c.renderFrame();}`)
+	os.WriteFile(filepath.Join(dir, "galaxa-polish-showcase.png"), page.MustScreenshot(), 0644)
 	if errs := page.MustEval(`()=>errors`).String(); errs != "[]" {
 		t.Fatal(errs)
 	}

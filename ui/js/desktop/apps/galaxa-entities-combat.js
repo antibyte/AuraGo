@@ -823,7 +823,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                             e.hitF = 100;
                             ctx.bulletImpact(b.x, b.y, '#ffee88', b.vx || 0, b.vy || -ctx.PB_SPEED);
                             if ((e.type === 'shield_bee' || e.type === 'boss' || e.type === 'miniboss') && ctx.fxArmorRicochet) ctx.fxArmorRicochet(b.x, b.y, b.vx || 0, b.vy || -ctx.PB_SPEED);
-                            if (hitSfxNow - (e._lastHitSfxT || 0) > 60) { e._lastHitSfxT = hitSfxNow; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x); }
+                            if (hitSfxNow - (e._lastHitSfxT || 0) > 60) { e._lastHitSfxT = hitSfxNow; if (ctx.SFX.enemyHitSfx) ctx.SFX.enemyHitSfx(e.type, e.x, e.hp / Math.max(1, e.maxHp)); }
                         }
                         if (removed || (!b.laser && !b.pierce)) { removed = true; break; }
                         if (b.laser) {
@@ -906,6 +906,7 @@ ctx.G.p.alive = false; ctx.boom(ctx.G.p.x, ctx.G.p.y, false, 'player'); ctx.SFX.
                 b.prevX = b.x; b.prevY = b.y;
                 b.t = (b.t || 0) + dtMs;
                 if (b.ay) b.vy = (b.vy || 0) + b.ay * eDt;
+                if (b.helixAmp) b.x = b.baseX + Math.sin(b.t * b.helixFreq + b.helixPhase) * b.helixAmp;
                 if (b.steerX !== undefined) { b.vx = (b.vx || 0) + (b.steerX - b.x) * b.steer * eDt; b.vx *= Math.max(0, 1 - 1.5 * eDt); }
                 if (b.orbitT > 0) {
                     b.orbitT -= eDt * 1000; b.orbitAngle += eDt * 1.5;

@@ -29,19 +29,19 @@
         function drawThruster(c, x, y, time, boost, col) {
             if (ctx.settings.reducedMotion) return;
             const flicker = 0.8 + 0.35 * Math.sin(time * 0.045 + x);
-            const len = (boost ? 15 : 9) * flicker;
+            const len = (boost ? 16 : 9.5) * flicker;
             c.save();
             c.globalCompositeOperation = 'lighter';
             for (const ox of [-5, 5]) {
-                c.globalAlpha = 0.72;
+                c.globalAlpha = 0.74;
                 c.fillStyle = col || '#44bbff';
                 c.beginPath();
-                c.moveTo(x + ox - 2.5, y + 14);
-                c.lineTo(x + ox + 2.5, y + 14);
+                c.moveTo(x + ox - 2.6, y + 14);
+                c.lineTo(x + ox + 2.6, y + 14);
                 c.lineTo(x + ox, y + 14 + len);
                 c.closePath();
                 c.fill();
-                c.globalAlpha = 0.9;
+                c.globalAlpha = 0.92;
                 c.fillStyle = '#ffffff';
                 c.beginPath();
                 c.moveTo(x + ox - 1.2, y + 14);
@@ -49,11 +49,33 @@
                 c.lineTo(x + ox, y + 14 + len * 0.55);
                 c.closePath();
                 c.fill();
+                if (boost && len > 11) {
+                    const dy = y + 14 + len * 0.48;
+                    c.globalAlpha = 0.65;
+                    c.fillRect(x + ox - 1.4, dy - 0.7, 2.8, 1.4);
+                }
             }
             c.restore();
         }
         function drawShip(c, x, y, ref) {
-            const bank = ctx.settings.reducedMotion ? 0 : (ctx.G.shipTilt || 0) * 0.6;
+            const tilt = ctx.G.shipTilt || 0;
+            const bank = ctx.settings.reducedMotion ? 0 : tilt * 0.6;
+            if (!ctx.settings.reducedMotion && ctx.settings.particles !== 'low' && Math.abs(tilt) > 0.085) {
+                const ribbonAlpha = Math.min(0.36, (Math.abs(tilt) - 0.085) * 3.2);
+                c.save();
+                c.globalCompositeOperation = 'lighter';
+                c.strokeStyle = '#99eeff';
+                c.lineWidth = 1.1;
+                c.globalAlpha = ribbonAlpha;
+                for (const side of [-1, 1]) {
+                    const wx = x + side * 13, wy = y + 5;
+                    c.beginPath();
+                    c.moveTo(wx, wy);
+                    c.lineTo(wx - tilt * 22, wy + 13 + Math.abs(tilt) * 18);
+                    c.stroke();
+                }
+                c.restore();
+            }
             if (Math.abs(bank) < 0.004) { ctx.drawAnimation(c, ref.key, x, y, ref.time, 48); return; }
             c.save(); c.translate(x, y); c.rotate(bank); ctx.drawAnimation(c, ref.key, 0, 0, ref.time, 48); c.restore();
         }
@@ -89,6 +111,27 @@
                 c.restore();
                 if (e.enraged) {
                     ring(e.x, e.y, (e.w || 28) * 0.65, '#ff4422', 0.35 + 0.2 * Math.sin(time * 0.018));
+                }
+                if (!ctx.settings.reducedMotion && e.spawnDur > 0 && (e.spawnAnim || 0) > 0 && e.spawnAnim < e.spawnDur) {
+                    const spFrac = 1 - e.spawnAnim / e.spawnDur;
+                    ring(e.x, e.y, 10 + spFrac * 14, '#88eeff', spFrac * 0.45);
+                }
+                if (e.guardT > 0) {
+                    const gPulse = ctx.settings.reducedMotion ? 0.65 : (0.52 + 0.24 * Math.sin(time * 0.022));
+                    c.save();
+                    c.globalCompositeOperation = 'lighter';
+                    c.globalAlpha = gPulse;
+                    c.strokeStyle = '#ffd86b';
+                    c.lineWidth = 1.8;
+                    c.beginPath();
+                    c.arc(e.x, e.y + 3, 15, 0.12 * Math.PI, 0.88 * Math.PI);
+                    c.stroke();
+                    c.strokeStyle = '#77eeff';
+                    c.lineWidth = 1;
+                    c.beginPath();
+                    c.arc(e.x, e.y + 3, 12.5, 0.18 * Math.PI, 0.82 * Math.PI);
+                    c.stroke();
+                    c.restore();
                 }
                 if (e.armor) for (let side = 0; side < 2; side++) {
                     if (e.armor[side] <= 0) continue;
@@ -215,7 +258,10 @@
                 c.restore();
             }
             for (const ex of G.exp) ctx.drawAnimation(c, ex.animation || ('fx.explosion.' + (ex.isBoss ? 'large' : 'small')), ex.x, ex.y, ex.t, ex.size || (ex.isBoss ? 128 : 48), null, false);
-            for (const r of G.plasmaRings) ring(r.x, r.y, r.r, r.col, Math.max(0, 1 - r.t / r.dur) * 0.45);
+            for (const r of G.plasmaRings) {
+                if (!ctx.settings.reducedMotion && ctx.drawShockwave) ctx.drawShockwave(c, r.x, r.y, r.r, r.col, r.t / Math.max(1, r.dur));
+                else ring(r.x, r.y, r.r, r.col, Math.max(0, 1 - r.t / r.dur) * 0.45);
+            }
             if (G.bossDeath) ctx.drawAnimation(c, 'sector.' + G.bossDeath.id + '.death', G.bossDeath.x, G.bossDeath.y, G.bossDeath.t, 128, null, false);
             for (const text of [...G.scorePopups, ...G.combatText]) {
                 c.globalAlpha = Math.max(0, 1 - text.t / text.dur); c.fillStyle = text.col || '#fff';
@@ -250,8 +296,10 @@
                 // Destroyed or smoldering attackers draw no telegraph (sector bosses are never SMOLDER).
                 if (e.st === 'DEAD' || e.st === 'SMOLDER') continue;
                 if (e.shotWarning > 0 && (e.shotPending || e.divePending) && G.p.alive) {
-                    ring(e.x, e.y, 17, '#ffe79a', 0.9);
-                    c.strokeStyle = '#d8ac60'; c.setLineDash([3, 9]); c.beginPath(); c.moveTo(e.x, e.y + 12); c.lineTo(G.p.x, G.p.y); c.stroke(); c.setLineDash([]);
+                    const wFrac = Math.min(1, e.shotWarning / 500);
+                    ring(e.x, e.y, 13 + wFrac * 7, e.type === 'sniper' ? '#99f6ff' : '#ffe79a', 0.9);
+                    c.strokeStyle = e.type === 'sniper' ? '#7ce8ff' : '#d8ac60';
+                    c.setLineDash([3, 9]); c.beginPath(); c.moveTo(e.x, e.y + 12); c.lineTo(G.p.x, G.p.y); c.stroke(); c.setLineDash([]);
                 }
                 if (!e.sectorBoss) continue;
                 if (e.sectorBoss === 'crystal' || e.reflectT > 0) for (const side of [-1, 1]) {
@@ -298,12 +346,42 @@
                     }
                 }
             }
+            const drawBulletWakes = !ctx.settings.reducedMotion && ctx.settings.particles !== 'low';
             for (const bullet of G.ebul) {
-                const kind = bullet.kind === 'mine' ? 'mine' : bullet.kind === 'crystal' ? 'crystal' : bullet.kind === 'gravity' ? 'gravity' : 'ion';
+                const kind = bullet.kind === 'mine' ? 'mine' : bullet.kind === 'crystal' ? 'crystal' : bullet.kind === 'gravity' ? 'gravity' : bullet.kind === 'plasma' ? 'plasma' : 'ion';
+                if (drawBulletWakes) {
+                    if (bullet.kind === 'mine' && bullet.fuse !== undefined && bullet.fuse < 1000) {
+                        const urgency = 1 - Math.max(0, bullet.fuse) / 1000;
+                        ring(bullet.x, bullet.y, 8 + urgency * 7, '#ff66cc', 0.25 + urgency * 0.35);
+                    } else if (bullet.vx || bullet.vy) {
+                        const bvx = bullet.vx || 0, bvy = bullet.vy || ctx.EB_SPEED;
+                        const bLen = Math.hypot(bvx, bvy) || 1;
+                        const tailLen = bullet.kind === 'sniper' ? 14 : bullet.kind === 'plasma' ? 11 : 8;
+                        c.save();
+                        c.globalCompositeOperation = 'lighter';
+                        c.globalAlpha = bullet.kind === 'sniper' ? 0.48 : 0.3;
+                        c.strokeStyle = bullet.kind === 'sniper' ? '#ffe07a' : bullet.kind === 'plasma' ? '#66ffbb' : bullet.kind === 'gravity' ? '#cc88ff' : bullet.kind === 'hunter' ? '#ff8844' : '#66ccff';
+                        c.lineWidth = bullet.kind === 'sniper' ? 2.2 : 1.6;
+                        c.beginPath();
+                        c.moveTo(bullet.x, bullet.y);
+                        c.lineTo(bullet.x - (bvx / bLen) * tailLen, bullet.y - (bvy / bLen) * tailLen);
+                        c.stroke();
+                        c.restore();
+                    }
+                }
                 // Dark rim and bright solid core keep hazards visible through explosions and supers.
                 c.fillStyle = '#080c1c'; c.beginPath(); c.arc(bullet.x, bullet.y, 6, 0, Math.PI * 2); c.fill();
-                ctx.drawAnimation(c, 'projectile.' + kind, bullet.x, bullet.y, time, 18);
-                c.fillStyle = '#fff3b6'; c.fillRect(Math.round(bullet.x - 1), Math.round(bullet.y - 1), 3, 3);
+                if (!ctx.settings.reducedMotion && bullet.vx && Math.abs(bullet.vx) > 8 && kind !== 'mine' && kind !== 'gravity') {
+                    c.save();
+                    c.translate(bullet.x, bullet.y);
+                    c.rotate(Math.atan2(bullet.vx, bullet.vy || ctx.EB_SPEED));
+                    ctx.drawAnimation(c, 'projectile.' + kind, 0, 0, time, 18);
+                    c.restore();
+                } else {
+                    ctx.drawAnimation(c, 'projectile.' + kind, bullet.x, bullet.y, time, 18);
+                }
+                c.fillStyle = bullet.kind === 'sniper' ? '#ffffff' : '#fff3b6';
+                c.fillRect(Math.round(bullet.x - 1), Math.round(bullet.y - 1), 3, 3);
             }
         }
         ctx.renderGame = renderGame; ctx.renderDangers = renderDangers;

@@ -213,7 +213,21 @@
                 const floor = e.bossPhase === 1 ? e.maxHp * 0.65 : e.bossPhase === 2 ? e.maxHp * 0.30 : 0;
                 e.hp = Math.max(floor, e.hp - damage);
                 if (floor && e.hp === floor) e.hp = floor - 0.01;
-            } else e.hp -= damage;
+                } else {
+                    if (e.guardT > 0 && GC.SHIELD_GUARD) {
+                        damage *= GC.SHIELD_GUARD.dmgScale;
+                        e.guardT = 0;
+                        if (ctx.fxShieldGuardHit) ctx.fxShieldGuardHit(e.x, e.y, 0, -1);
+                    }
+                    e.hp -= damage;
+                    if (e.quirk === 'berserk' && !e._berserkFired && e.hp > 0 && e.hp <= e.maxHp * 0.6) {
+                        e._berserkFired = true;
+                        e.rageMode = 2400; e.rageSpeedMult = 1.4;
+                        e.sTmr = Math.min(e.sTmr || 400, 260);
+                        if (ctx.fxEnemyBlink) ctx.fxEnemyBlink(e.x, e.y, '#ff5533');
+                        if (ctx.SFX && ctx.SFX.rageGrowl) ctx.SFX.rageGrowl(e.x);
+                    }
+                }
             const _fresh = e.hitF <= 0;
             e.hitF = 90;
             if (_fresh && ctx.fxEnemyHit) ctx.fxEnemyHit(e.x, e.y, '#ffffff');

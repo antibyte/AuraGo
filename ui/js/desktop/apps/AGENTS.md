@@ -4335,23 +4335,29 @@ registration lives in `internal/desktop/types.go`.
   in `GC.ENEMY_MOTION_FX` (pulse scale, dive trails, blink invisibility).
 - Enemy-side effects live in `galaxa-enemy-fx.js` (`GC.createEnemyFx`, called from
   `galaxa-entities.js`): charge-up telegraph glints, feint/formation-shuffle blink
-  rings, rage auras, rapid-kill lightning chains, per-hit impact pops, plus the
+  rings, rage auras, rapid-kill lightning chains, per-hit impact pops, quantum
+  phase-step rifts (`fxPhaseStep` + `fx.warp_rift`), shield-bee phalanx barrier
+  ripples (`fxShieldGuardHit` + `fx.aegis_hex`), carrier launch-bay pulses
+  (`fxCarrierDeploy`), kamikaze afterburner Mach cones (`fxAfterburnerSurge` +
+  `fx.sonic_surge`), pincer launch links (`fxPincerCue`), non-lethal asteroid chip
+  sparks (`fxAsteroidChip`), subtle formation weaver filaments, plus the
   smoldering crash-dive state (`SMOLDER`, tuned by `GC.SMOLDER`): hit enemies
   that tumble toward the player trailing smoke/embers and detonate after a seeded
   delay. It is
   drawn by `ctx.drawEnemyFxWorld(c)` between `fxDrawWorld` and `renderDangers`, and
   ticked by `ctx.updateEnemyFx(dt)` from `updateExp`. Pools are bounded by
-  `GC.FX_CAPS` (`telegraph`, `enemyMarks`, `chain`, `smolder`) via `ctx.settings.particles`,
+  `GC.FX_CAPS` (`telegraph`, `enemyMarks`, `chain`, `smolder`, `dust`, `afterimage`) via `ctx.settings.particles`,
   honour `ctx.settings.reducedMotion`/`prefers-reduced-motion`, and are cleared
   whenever the game leaves `PLAYING`/`STAGE_INTRO` so no mark freezes over menus.
-- Enemy unpredictability (quirks, feints, squad/revenge dives, dive path
-  profiles) lives in `galaxa-entities-behaviors.js` with tuning in
+- Enemy unpredictability (quirks, feints, squad/revenge/pincer dives, dive path
+  profiles, species abilities) lives in `galaxa-entities-behaviors.js` with tuning in
   `galaxa-constants.js` (`GC.ENEMY_QUIRKS`, `GC.QUIRK_CHANCE`, `GC.FEINT`,
-  `GC.SQUAD_DIVE`, `GC.REVENGE_DIVE`, `GC.FORMATION_SHUFFLE`, `GC.DIVE_PATHS`).
-  Quirks are assigned at both spawn sites through `ctx.assignEnemyQuirk` and are
-  disabled on easy difficulty. The new `FEINT` state aborts a dive and can never
-  kill by body contact. Every gameplay decision (quirk roll, dive path, squad and
-  revenge picks) must use the seeded `ctx.random`; only visual randomness may use
+  `GC.SIDESTEP`, `GC.PINCER_DIVE`, `GC.SHIELD_GUARD`, `GC.CARRIER_DEPLOY`,
+  `GC.SNIPER_REPOSITION`, `GC.KAMIKAZE_SURGE`, `GC.SQUAD_DIVE`, `GC.REVENGE_DIVE`,
+  `GC.FORMATION_SHUFFLE`, `GC.DIVE_PATHS`, `GC.ATTACK_PATTERNS.cross_helix`).
+  Quirks (`feint`, `fakeout`, `shy`, `volley`, `sidestep`, `berserk`) are assigned at both spawn sites through `ctx.assignEnemyQuirk` and are
+  disabled on easy difficulty. The `FEINT` state aborts a dive and can never
+  kill by body contact. Formation abilities (`shield_bee` guard, `carrier` live escort deploy, `sniper` post-shot glide, `sidestep` dodge) run only while `G.st === 'PLAYING'` so `STAGE_INTRO` formation geometry stays deterministic. Every gameplay decision must use the seeded `ctx.random`; only visual randomness may use
   `Math.random`, so fixed-step runs stay deterministic. Revenge dives are
   reported by `ctx.onEnemyKilled` from `registerKill`; rapid kills also spawn
   `ctx.fxKillChain`, and `damageEnemy` spawns the hit pop once per damage window.
@@ -5249,9 +5255,13 @@ registration lives in `internal/desktop/types.go`.
   gates the one-shot super-ready cue in `updateFX`. Menu states (SHOP, evo
   choice) tick `updateFX` so leftover gameplay FX decay instead of freezing
   as artifacts over the menu panels.
-- Enemy-behaviour pass (2026-10) adds `feintWhistle`, `squadDive`, `rageGrowl`,
-  `shuffleRumble`, `smolderIgnite` and `smolderBlast` SFX (mute-guarded) plus
-  the `galaxa-enemy-fx.js` effects
+- Enemy-behaviour pass (2026-10) and polish pass (2026-11) add `feintWhistle`,
+  `squadDive`, `rageGrowl`, `shuffleRumble`, `smolderIgnite`, `smolderBlast`,
+  `phaseShift`, `shieldGuard`, `carrierDeploy`, `sniperCharge`, `afterburner`,
+  `helixShot`, `asteroidHit` and `asteroidShatter` SFX (mute-guarded), three
+  eager 12-frame non-expansion FX sheets (`fx-warp-rift.webp`,
+  `fx-aegis-hex.webp`, `fx-sonic-surge.webp` -> `fx.warp_rift`, `fx.aegis_hex`,
+  `fx.sonic_surge`), plus the `galaxa-enemy-fx.js` effects
   and the quirk tables listed above. Keep quirk rolls, dive-path picks and
   squad/revenge/smolder selection on the seeded `ctx.random` (only the particle
   seeds may use `Math.random`, because particles never enter the simulation

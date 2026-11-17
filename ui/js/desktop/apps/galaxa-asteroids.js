@@ -28,8 +28,14 @@
         function damageAsteroid(a, damage) {
             if (a.hp <= 0 || a.warning > 0 || damage <= 0) return false;
             a.hp -= damage;
-            if (a.hp > 0) return false;
+            if (a.hp > 0) {
+                a.hitF = 100;
+                if (ctx.SFX && ctx.SFX.asteroidHit) ctx.SFX.asteroidHit(a.size, a.x);
+                if (ctx.fxAsteroidChip) ctx.fxAsteroidChip(a.x, a.y, a.art && a.art.effect);
+                return false;
+            }
             ctx.expansionEffect(a.art.effect, a.x, a.y, a.r * 3);
+            if (ctx.SFX && ctx.SFX.asteroidShatter) ctx.SFX.asteroidShatter(a.art && a.art.effect, a.x);
             if (!a.root.rewarded) { a.root.rewarded = true; ctx.addScore(100, a.x, a.y, '#d5b58e'); }
             ctx.G.asteroids = ctx.G.asteroids.filter(o => o.hp > 0);
             if (a.size === 2 && !a.fragment && ctx.G.asteroids.filter(o => o.hp > 0).length + 2 <= ctx.ASTEROID_LIMIT) {
@@ -81,6 +87,7 @@
             if (G.asteroidSpawnT <= 0) { spawnAsteroid(); G.asteroidSpawnT = 3000; }
             for (const a of G.asteroids) {
                 a.age += dt * 1000;
+                if (a.hitF > 0) a.hitF = Math.max(0, a.hitF - dt * 1000);
                 if (a.warning > 0) { a.warning -= dt * 1000; continue; }
                 a.y += a.vy * dt;
                 if (a.hp > 0 && G.p.alive && G.p.inv <= 0 && intersects(a, ctx.getShipHitbox())) {
@@ -92,10 +99,27 @@
         function drawAsteroids(c) {
             for (const a of ctx.G.asteroids || []) {
                 if (a.warning > 0) {
-                    c.save(); c.strokeStyle = '#ffce79'; c.lineWidth = 2;
+                    const wPulse = ctx.settings.reducedMotion ? 0.85 : (0.55 + 0.4 * Math.sin(a.age * 0.016));
+                    c.save(); c.strokeStyle = '#ffce79'; c.lineWidth = 2; c.globalAlpha = wPulse;
                     c.beginPath(); c.moveTo(a.x - 7, 16); c.lineTo(a.x, 25); c.lineTo(a.x + 7, 16); c.stroke();
-                    c.setLineDash([3, 8]); c.globalAlpha = 0.45; c.beginPath(); c.moveTo(a.x, 30); c.lineTo(a.x, 100); c.stroke(); c.restore();
-                } else ctx.drawAnimation(c, 'asteroid.' + a.art.id, a.x, a.y, ctx.settings.reducedMotion ? 0 : a.age, a.r * 2.5);
+                    c.setLineDash([3, 8]); c.globalAlpha = 0.45 * wPulse; c.beginPath(); c.moveTo(a.x, 30); c.lineTo(a.x, 100); c.stroke(); c.restore();
+                } else {
+                    if (!ctx.settings.reducedMotion && a.y < 95) {
+                        const entryAlpha = Math.max(0, 1 - Math.max(0, a.y + a.r) / (95 + a.r)) * 0.36;
+                        if (entryAlpha > 0.02) {
+                            c.save();
+                            c.globalCompositeOperation = 'lighter';
+                            c.strokeStyle = '#ffaa55';
+                            c.lineWidth = 2;
+                            c.globalAlpha = entryAlpha;
+                            c.beginPath();
+                            c.arc(a.x, a.y + 2, a.r + 3, 0.15 * Math.PI, 0.85 * Math.PI);
+                            c.stroke();
+                            c.restore();
+                        }
+                    }
+                    ctx.drawAnimation(c, 'asteroid.' + a.art.id, a.x, a.y, ctx.settings.reducedMotion ? 0 : a.age, a.r * 2.5, a.hitF > 40 ? '#fff2dc' : undefined);
+                }
             }
         }
         Object.assign(ctx, { startAsteroids, spawnAsteroid, damageAsteroid, hitAsteroidShot, hitAsteroidEnemyShot,

@@ -174,6 +174,14 @@ func TestGalaxaEnemyFxSFXRespectMute(t *testing.T) {
 		"armorRicochet(panX) { if (ctx.G.muted) return;",
 		"critHit(panX) { if (ctx.G.muted) return;",
 		"diveIgnite(panX) { if (ctx.G.muted) return;",
+		"phaseShift(panX) { if (ctx.G.muted) return;",
+		"shieldGuard(panX) { if (ctx.G.muted) return;",
+		"carrierDeploy(panX) { if (ctx.G.muted) return;",
+		"sniperCharge(panX) { if (ctx.G.muted) return;",
+		"afterburner(panX) { if (ctx.G.muted) return;",
+		"helixShot(panX) { if (ctx.G.muted) return;",
+		"asteroidHit(size, panX) { if (ctx.G.muted) return;",
+		"asteroidShatter(effect, panX) { if (ctx.G.muted) return;",
 	} {
 		if !strings.Contains(sfx, marker) {
 			t.Fatalf("galaxa audio sfx missing mute guard %q", marker)

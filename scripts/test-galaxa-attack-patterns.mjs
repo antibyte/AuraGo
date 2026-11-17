@@ -53,7 +53,14 @@ const moving = P.predictive({ x: 270, y: 100 }, 1, 0.62, ebSpd, { x: 270, y: 600
 assert.equal(still.length, 1);
 assert.ok(moving[0].vx > still[0].vx + 1, 'predictive must aim further right at a target moving right');
 
-for (const k of ['loop', 'strafe', 'hover']) assert.ok(GC.DIVE_PATHS[k] && GC.DIVE_PATHS[k].stageMin > 0, 'DIVE_PATHS.' + k);
+// cross_helix: twin counter-phased weaving bolts moving downward around baseX.
+const helix = P.cross_helix({ x: 270, y: 100 }, 0.46, ebSpd, 22, 0.0085);
+assert.equal(helix.length, 2);
+assert.ok(helix.every(b => b.vy > 0 && b.baseX === 270 && b.helixAmp === 22), 'cross_helix bolts must carry helix parameters');
+assert.notEqual(helix[0].helixPhase, helix[1].helixPhase, 'cross_helix bolts must be counter-phased');
+
+for (const k of ['loop', 'strafe', 'hover', 'swoop', 'corkscrew', 'pendulum']) assert.ok(GC.DIVE_PATHS[k] && GC.DIVE_PATHS[k].stageMin > 0, 'DIVE_PATHS.' + k);
 assert.ok(GC.ENEMY_HEADING.default && GC.ENEMY_HEADING.hunter.face && GC.ENEMY_HEADING.spinner.spin, 'ENEMY_HEADING profiles');
+assert.ok(GC.ENEMY_QUIRKS.some(q => q.id === 'sidestep') && GC.ENEMY_QUIRKS.some(q => q.id === 'berserk'), 'new enemy quirks');
 
 console.log('galaxa attack pattern checks passed');

@@ -9,6 +9,7 @@
                 if (e.shotPending) return;
                 e.shotPending = true; e.attackAnim = 1000;
                 e.shotWarning = ctx.settings.diff === 'hard' ? 300 : 500;
+                if (e.type === 'sniper' && ctx.SFX && ctx.SFX.sniperCharge) ctx.SFX.sniperCharge(e.x);
                 ctx.scheduleGame(() => {
                     e.shotPending = false; e.shotWarning = 0;
                     if (e.st !== 'DEAD' && e.st !== 'SMOLDER' && ctx.G.freezeT <= 0) { e.shotReady = true; enemyFire(e); e.shotReady = false; }
@@ -26,6 +27,8 @@
             function mirrorBullet(b) {
                 if (!ctx.modesIsMirrorPermanent || !ctx.modesIsMirrorPermanent()) return;
                 b.x = ctx.W - b.x;
+                if (b.baseX !== undefined) b.baseX = ctx.W - b.baseX;
+                if (b.steerX !== undefined) b.steerX = ctx.W - b.steerX;
                 if (b.vx) b.vx = -b.vx;
             }
 
@@ -90,6 +93,7 @@
                 // NEW: Enemy type firing patterns
                 case 'weaver':
                     if (!ctx.G.p.alive) break;
+                    if (variant(6, 0.36)) { if (ctx.SFX.helixShot) ctx.SFX.helixShot(e.x); ctx.G.ebul.push(...P.cross_helix(e, 0.46, spd, 22, 0.0085)); break; }
                     if (variant(3, 0.5)) { if (ctx.SFX.pincerShot) ctx.SFX.pincerShot(e.x); ctx.G.ebul.push(...P.pincer(e, 0.45, spd, player.x)); break; }
                     { const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy) || 1;
                       ctx.G.ebul.push({ x: px, y: py, w: 2, h: 5, vx: (dx / dist) * spd * 0.45, vy: (dy / dist) * spd * 0.45, kind: 'hunter' }); }
@@ -99,6 +103,10 @@
                     ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.random_spread(e, 5, 0.35, 0.6, spd, ctx.random));
                     break;
                 case 'shield_bee':
+                    if (player.alive && variant(5, 0.38)) {
+                        for (const s of [-1, 1]) ctx.G.ebul.push({ x: px + s * 5, y: py, w: 2, h: 6, vx: s * spd * 0.14, vy: spd * 0.56, kind: 'ion' });
+                        break;
+                    }
                     ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6 });
                     break;
                 case 'kamikaze':
@@ -109,6 +117,7 @@
                     ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.aimed_burst(e, 3, 0.4, 0, spd, ctx.G.p.x, ctx.G.p.y));
                     break;
                 case 'teleporter':
+                    if (variant(6, 0.36)) { if (ctx.SFX.helixShot) ctx.SFX.helixShot(e.x); ctx.G.ebul.push(...P.cross_helix(e, 0.44, spd, 26, 0.0095)); break; }
                     if (variant(3, 0.5)) { ctx.G.ebul.push(...P.fan_sweep(e, 5, 0.34, 1.4, spd)); break; }
                     ctx.G.ebul.push(...ctx.ATTACK_PATTERNS.circle(e, 6, 0.3, spd));
                     break;
@@ -120,9 +129,18 @@
                     break;
                 case 'sniper':
                     if (ctx.G.p.alive) {
-                        if (variant(6, 0.5)) { ctx.G.ebul.push(...P.predictive(e, 1, 0.62, spd, player)); ctx.SFX.sniperShot(e.x); break; }
-                        const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy);
-                        if (dist > 1) { ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6, vx: (dx / dist) * spd * 0.6, vy: (dy / dist) * spd * 0.6, kind: 'sniper' }); ctx.SFX.sniperShot(e.x); }
+                        if (variant(6, 0.5)) { ctx.G.ebul.push(...P.predictive(e, 1, 0.62, spd, player)); ctx.SFX.sniperShot(e.x); }
+                        else {
+                            const dx = ctx.G.p.x - px, dy = ctx.G.p.y - py, dist = Math.hypot(dx, dy);
+                            if (dist > 1) { ctx.G.ebul.push({ x: px, y: py, w: 2, h: 6, vx: (dx / dist) * spd * 0.6, vy: (dy / dist) * spd * 0.6, kind: 'sniper' }); ctx.SFX.sniperShot(e.x); }
+                        }
+                        if (e.st === 'FORM' && ctx.G.st === 'PLAYING' && GC.SNIPER_REPOSITION && ctx.G.stage >= GC.SNIPER_REPOSITION.stageMin && ctx.random() < GC.SNIPER_REPOSITION.chance) {
+                            const hopDir = e.fx < 90 ? 1 : e.fx > ctx.W - 90 ? -1 : (ctx.random() < 0.5 ? -1 : 1);
+                            const nextFx = Math.max(44, Math.min(ctx.W - 44, e.fx + hopDir * GC.SNIPER_REPOSITION.hopPx));
+                            e.repositionOff = (e.repositionOff || 0) + (e.fx - nextFx);
+                            e.fx = nextFx;
+                            if (ctx.fxEnemyBlink) ctx.fxEnemyBlink(e.x, e.y, '#7ce8ff');
+                        }
                     }
                     break;
                 default:
@@ -201,6 +219,21 @@
                 if (d.hoverT === undefined && e.y > ctx.H * 0.36) { d.hoverT = 900; e.sTmr = Math.min(e.sTmr, 150); }
                 if (d.hoverT > 0) { d.hoverT -= eDt * 1000; d.yMul = 0.05; e.x += Math.sin(d.ph * 1.3) * d.amp * 2.2 * eDt; }
                 else { d.yMul = d.hoverT !== undefined ? 1.5 : 1; e.x += d.vx * eDt; }
+            } else if (k === 'swoop') {
+                // Wide banking J-curve across the lane before accelerating downward.
+                const dir = d.swoopDir || (d.swoopDir = (d.vx >= 0 ? 1 : -1));
+                d.yMul = d.ph < 2.2 ? 0.82 : 1.28;
+                e.x = Math.max(20, Math.min(ctx.W - 20, e.x + dir * Math.cos(Math.min(Math.PI * 0.85, d.ph * 0.42)) * (130 + d.amp) * eDt));
+            } else if (k === 'corkscrew') {
+                // Tightening helix spiral descent.
+                const env = Math.max(0.35, 1 - d.ph * 0.045);
+                e.x = Math.max(20, Math.min(ctx.W - 20, e.x + (d.vx * 0.4 + Math.cos(d.ph * 1.85) * d.amp * 3.3 * env) * eDt));
+                e.y += Math.sin(d.ph * 1.85) * d.amp * 1.15 * env * eDt;
+            } else if (k === 'pendulum') {
+                // Rhythmic wide swings with brief apex slow-downs.
+                const swing = Math.cos(d.ph * 0.78);
+                d.yMul = 0.55 + 0.65 * Math.abs(swing);
+                e.x = Math.max(20, Math.min(ctx.W - 20, e.x + swing * (d.amp * 3.0 + 42) * eDt));
             } else {
                 e.x += d.vx * eDt + Math.cos(d.ph) * d.amp * 3 * eDt;
             }
@@ -238,8 +271,10 @@
                 ctx.scheduleGame(() => { e.divePending = false; if (e.st === 'FORM') { e.diveReady = true; startDive(e, opts); } }, warnMs);
                 return;
             }
-            e.diveReady = false; e.st = 'DIVING';
-            e.dPath = { ph: 0, kind: pickDivePath(e), amp: e.type === 'hunter' ? 18 + ctx.random() * 20 : 30 + ctx.random() * 40, vx: (ctx.random() - 0.5) * (e.type === 'hunter' ? 70 : 130) };
+            e.diveReady = false; e.st = 'DIVING'; e.surged = false;
+            const forcedPath = opts && opts.forcePath ? opts.forcePath : pickDivePath(e);
+            const forcedVx = opts && opts.forceVx != null ? opts.forceVx : (ctx.random() - 0.5) * (e.type === 'hunter' ? 70 : 130);
+            e.dPath = { ph: 0, kind: forcedPath, amp: e.type === 'hunter' ? 18 + ctx.random() * 20 : 30 + ctx.random() * 40, vx: forcedVx, swoopDir: opts && opts.forceVx != null ? Math.sign(opts.forceVx) : undefined };
             e.dTmr = e.type === 'hunter' ? 4500 : 3000;
             e.sTmr = e.type === 'hunter' ? 280 + ctx.random() * 420 : 500 + ctx.random() * 1000;
             // Quirk "feint": dive a short way, then abort and climb back. Never
@@ -252,6 +287,7 @@
             }
             if (quirk === 'feint' && e.st === 'FEINT' && ctx.SFX.feintWhistle) ctx.SFX.feintWhistle(e.x);
             else if (e.type === 'hunter') ctx.SFX.hunterDive(e.x);
+            else if (e.type === 'stalker' && ctx.SFX.stalkerDive) { ctx.SFX.stalkerDive(e.x); if (ctx.fxPhaseStep) ctx.fxPhaseStep(e.x, e.y, e.x, e.y + 6, '#aa66ee'); }
             else ctx.SFX.dive(e.x);
             if (e.st === 'DIVING' && ctx.fxEnemyDiveStart) ctx.fxEnemyDiveStart(e.x, e.y);
             if ((e.type === 'boss' || e.type === 'miniboss') && !e.hasCap && !ctx.G.beam && ctx.G.stage > 1 && ctx.random() < 0.3) {
@@ -327,8 +363,64 @@
                     }
                 }
                 else if (e.st === 'FORM') {
-                    e.x = e.fx + formationX; e.y = e.fy + Math.sin(formationTime * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
+                    if (e.repositionOff) {
+                        e.repositionOff *= Math.max(0, 1 - eDt * 5.5);
+                        if (Math.abs(e.repositionOff) < 0.4) e.repositionOff = 0;
+                    }
+                    e.x = e.fx + formationX + (e.repositionOff || 0); e.y = e.fy + Math.sin(formationTime * 2 + (e.rowPhase || e.col * 0.5)) * (e.bobAmp || 3);
                     if ((e.spawnAnim || 0) < (e.spawnDur || 400)) e.spawnAnim = Math.min(e.spawnDur, (e.spawnAnim || 0) + dtMs);
+                    if (ctx.G.st === 'PLAYING' && !ctx.G.chal && ctx.G.freezeT <= 0) {
+                        // Shield-bee / Armor-Crab periodic phalanx guard stance
+                        if (e.type === 'shield_bee' && e.hp >= 2 && GC.SHIELD_GUARD && ctx.G.stage >= GC.SHIELD_GUARD.stageMin) {
+                            if (e.guardT > 0) e.guardT = Math.max(0, e.guardT - dtMs);
+                            if (e.guardCd == null) e.guardCd = GC.SHIELD_GUARD.intervalMinMs + ctx.random() * (GC.SHIELD_GUARD.intervalMaxMs - GC.SHIELD_GUARD.intervalMinMs);
+                            e.guardCd -= dtMs;
+                            if (e.guardCd <= 0) {
+                                e.guardT = GC.SHIELD_GUARD.durMs;
+                                e.guardCd = GC.SHIELD_GUARD.intervalMinMs + ctx.random() * (GC.SHIELD_GUARD.intervalMaxMs - GC.SHIELD_GUARD.intervalMinMs);
+                            }
+                        }
+                        // Carrier / Swarm-Carrier live escort wingman deployment
+                        if (e.type === 'carrier' && !e.deployedEscorts && GC.CARRIER_DEPLOY && ctx.G.stage >= GC.CARRIER_DEPLOY.stageMin) {
+                            if (e.deployCd == null) e.deployCd = GC.CARRIER_DEPLOY.delayMinMs + ctx.random() * (GC.CARRIER_DEPLOY.delayMaxMs - GC.CARRIER_DEPLOY.delayMinMs);
+                            e.deployCd -= dtMs;
+                            if (e.deployCd <= 0) {
+                                e.deployedEscorts = true;
+                                let liveCount = 0;
+                                for (const o of ctx.G.enemies) if (o.st !== 'DEAD') liveCount++;
+                                if (liveCount + GC.CARRIER_DEPLOY.count <= GC.CARRIER_DEPLOY.maxAlive) {
+                                    e.attackAnim = 750;
+                                    if (ctx.fxCarrierDeploy) ctx.fxCarrierDeploy(e.x, e.y);
+                                    for (let s = -1; s <= 1; s += 2) {
+                                        const escort = ctx.newEnemy('bee', Math.max(36, Math.min(ctx.W - 36, e.fx + s * 32)), Math.min(ctx.H * 0.42, e.fy + 38), 0, 1);
+                                        Object.assign(escort, { x: e.x + s * 12, y: e.y + 10, st: 'DIVING', eTmr: 0, dTmr: 2100, sTmr: 750 + ctx.random() * 500, dPath: { ph: 0, kind: 'swoop', amp: 24, vx: s * 65, swoopDir: s }, quirk: null });
+                                        ctx.G.enemies.push(escort);
+                                    }
+                                }
+                            }
+                        }
+                        // Quirk "sidestep": quantum lateral dodge when a shot enters the lane
+                        if (e.quirk === 'sidestep' && GC.SIDESTEP) {
+                            e.dodgeCd = Math.max(0, (e.dodgeCd || 0) - dtMs);
+                            if (e.dodgeCd <= 0 && ctx.G.bul.length > 0) {
+                                for (let bi = 0; bi < ctx.G.bul.length; bi++) {
+                                    const b = ctx.G.bul[bi];
+                                    if (b.y > e.y && b.y - e.y < GC.SIDESTEP.lookaheadY && Math.abs(b.x - e.x) < GC.SIDESTEP.radiusX) {
+                                        e.dodgeCd = GC.SIDESTEP.cooldownMs;
+                                        if (ctx.random() < GC.SIDESTEP.chance) {
+                                            const oldX = e.x;
+                                            let dir = b.x <= e.x ? 1 : -1;
+                                            if (e.fx + dir * GC.SIDESTEP.stepPx > ctx.W - 36 || e.fx + dir * GC.SIDESTEP.stepPx < 36) dir = -dir;
+                                            e.fx = Math.max(36, Math.min(ctx.W - 36, e.fx + dir * GC.SIDESTEP.stepPx));
+                                            e.x = e.fx + formationX;
+                                            if (ctx.fxPhaseStep) ctx.fxPhaseStep(oldX, e.y, e.x, e.y, '#66f2ff');
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     // NEW: Weaver sine-wave horizontal movement
                     if (e.type === 'weaver') {
                         e.x += Math.sin(formationTime * 3 + e.col) * 40;
@@ -346,6 +438,7 @@
                             const oldX = e.x, oldY = e.y;
                             e.x = 40 + ctx.random() * (ctx.W - 80);
                             e.y = ctx.FTOP + ctx.random() * 100; e.fx = e.x - formationX; e.fy = e.y;
+                            if (ctx.fxPhaseStep) ctx.fxPhaseStep(oldX, oldY, e.x, e.y, '#44ffff');
                             for (let _ti = 0; _ti < 8; _ti++) {
                                 const _ta = (_ti / 8) * Math.PI * 2;
                                 ctx.G.part.push(ctx.getParticle({ x: oldX, y: oldY, vx: Math.cos(_ta) * 30, vy: Math.sin(_ta) * 30, life: 200, t: 0, col: '#44ffff', size: 1, spark: true }));
@@ -392,11 +485,25 @@
                             e.x += (ctx.G.p.x - e.x) * eDt * 4.8;
                             e.y += (ctx.G.p.y - e.y) * eDt * 1.1;
                         } else if (e.type === 'stalker' && ctx.G.p.alive) { e.x += (ctx.G.p.x - e.x) * eDt * 2.5; }
-                        // NEW: Kamikaze charges directly at player
+                        // NEW: Kamikaze charges directly at player, then locks into an afterburner surge mid-dive
                         else if (e.type === 'kamikaze' && ctx.G.p.alive) {
-                            const kdx = ctx.G.p.x - e.x, kdy = ctx.G.p.y - e.y, kdist = Math.hypot(kdx, kdy) || 1;
-                            e.x += (kdx / kdist) * diveSpd * 1.8 * eDt;
-                            e.y += (kdy / kdist) * diveSpd * 1.8 * eDt;
+                            const surgeCfg = GC.KAMIKAZE_SURGE;
+                            if (!e.surged && surgeCfg && ctx.G.stage >= 6 && e.y > ctx.H * surgeCfg.triggerYFrac) {
+                                e.surged = true;
+                                const ldx = ctx.G.p.x + (ctx.G.p.vx || 0) * 0.14 - e.x, ldy = Math.max(40, ctx.G.p.y - e.y);
+                                const ldist = Math.hypot(ldx, ldy) || 1;
+                                e.surgeDx = ldx / ldist; e.surgeDy = ldy / ldist;
+                                if (ctx.fxAfterburnerSurge) ctx.fxAfterburnerSurge(e.x, e.y);
+                            }
+                            if (e.surged) {
+                                const mult = (surgeCfg && surgeCfg.boostMult) || 1.45;
+                                e.x += e.surgeDx * diveSpd * 1.8 * mult * eDt;
+                                e.y += (e.surgeDy * 0.72) * diveSpd * 1.8 * mult * eDt;
+                            } else {
+                                const kdx = ctx.G.p.x - e.x, kdy = ctx.G.p.y - e.y, kdist = Math.hypot(kdx, kdy) || 1;
+                                e.x += (kdx / kdist) * diveSpd * 1.8 * eDt;
+                                e.y += (kdy / kdist) * diveSpd * 1.8 * eDt;
+                            }
                         }
                         else if (e.dPath) moveDivePath(e, eDt);
                         if (ctx.G.beam && ctx.G.beam.owner === e) { ctx.G.beam.x = e.x; ctx.G.beam.y = e.y + 16; }
@@ -476,6 +583,17 @@
                             }
                             ctx.G.fxSquadDive = { t: 0, dur: 620 };
                             if (ctx.fxSquadDiveCue) ctx.fxSquadDiveCue();
+                            launched = true;
+                        }
+                    }
+                    // Pincer dive: two outer flankers launch simultaneously on mirrored swoops.
+                    if (!launched && GC.PINCER_DIVE && ctx.G.stage >= GC.PINCER_DIVE.stageMin && fe.length >= 4 && ctx.random() < GC.PINCER_DIVE.chance) {
+                        const sorted = fe.slice().sort((a, b) => a.x - b.x);
+                        const leftE = sorted[0], rightE = sorted[sorted.length - 1];
+                        if (leftE !== rightE && rightE.x - leftE.x > 110) {
+                            ctx.startDive(leftE, { noQuirk: true, forcePath: 'swoop', forceVx: 92 });
+                            ctx.startDive(rightE, { noQuirk: true, forcePath: 'swoop', forceVx: -92 });
+                            if (ctx.fxPincerCue) ctx.fxPincerCue(leftE.x, leftE.y, rightE.x, rightE.y);
                             launched = true;
                         }
                     }

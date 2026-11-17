@@ -71,9 +71,10 @@
                     beep('sine', 2960 * _p, 2400 * _p, 0.04, 0.07 * _v, panX);
                     return;
                 }
-                beep('sine', 920 * _p, 1340 * _p, 0.065, 0.25 * _v, panX, { q: 1.8 });
-                beep('square', 480 * _p, 180 * _p, 0.045, 0.09 * _v, panX, { cut0: 3200, cut1: 600 });
-                noise(0.022, 0.04 * _v, 5200, panX);
+                beep('sine', 940 * _p, 1380 * _p, 0.06, 0.23 * _v, panX, { q: 1.7, reverb: 0.08 });
+                beep('square', 510 * _p, 195 * _p, 0.042, 0.085 * _v, panX, { cut0: 3400, cut1: 650 });
+                beep('triangle', 240 * _p, 92 * _p, 0.032, 0.09 * _v, panX);
+                noise(0.02, 0.038 * _v, 5600, panX);
             },
             shoot(panX) { this.shootTyped('normal', panX); },
             laserShoot(panX) { this.shootTyped('laser', panX); },
@@ -169,12 +170,17 @@
             powerupExpire() { beep('sawtooth', 880, 440, 0.08, 0.34); },
             enemyHitSfx(type, panX) {
                 if (ctx.G.muted) return;
+                const hpFrac = arguments[2];
                 let hitType = type, px = panX;
                 if (px === undefined) { hitType = 'bee'; px = type; }
-                const _p = pv(), _v = vv();
-                const base = hitType === 'shield_bee' ? 560 : hitType === 'boss' || hitType === 'miniboss' ? 210 : 400;
-                beep('sine', base * _p, (base * 0.42) * _p, 0.032, 0.22 * _v, px, { q: 1.8 });
-                beep('square', (base * 1.35) * _p, (base * 0.65) * _p, 0.022, 0.1 * _v, px);
+                const _p = pv() * (Number.isFinite(hpFrac) ? (1 + (1 - Math.max(0, Math.min(1, hpFrac))) * 0.22) : 1), _v = vv();
+                const isArmor = hitType === 'shield_bee' || hitType === 'carrier' || hitType === 'bomber';
+                const isCrystal = hitType === 'sniper' || hitType === 'splitter';
+                const isBoss = hitType === 'boss' || hitType === 'miniboss';
+                const base = isArmor ? 540 : isCrystal ? 720 : isBoss ? 210 : 400;
+                beep('sine', base * _p, (base * 0.44) * _p, 0.034, 0.21 * _v, px, { q: 1.8 });
+                beep(isCrystal ? 'triangle' : 'square', (base * 1.38) * _p, (base * 0.68) * _p, 0.024, 0.1 * _v, px);
+                if (isCrystal) ctx.fm(1680 * _p, 1240 * _p, 0.03, 0.08 * _v, px, 2.5, { reverb: 0.14 });
             },
             stalkerDive(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 920 * _p, 280 * _p, 0.22, 0.2 * _v, panX, { q: 2.2, reverb: 0.15 }); noise(0.1, 0.14 * _v, 4800, panX); },
             hunterDive(panX) { const _p = pv(), _v = vv(); beep('sawtooth', 1240 * _p, 175 * _p, 0.34, 0.26 * _v, panX, { q: 2.5, reverb: 0.18 }); noise(0.14, 0.2 * _v, 3600, panX); beep('square', 420 * _p, 115 * _p, 0.12, 0.16 * _v, panX); },
@@ -246,13 +252,21 @@
             // NEW: Whoosh for dives/parries/supers — noise + bandpass sweep
             whoosh(speed, panX) { noise(Math.max(0.08, Math.min(0.3, 60 / Math.max(50, speed))), 0.18, 2200, panX, { filterType: 'bandpass', q: 2.2 }); },
             eExplodeTyped(type, size, panX) {
+                if (ctx.G.muted) return;
                 const _p = pv(), _v = vv();
                 const big = size === 'big' || type === 'boss' || type === 'miniboss';
                 noise(0.025, (big ? 0.34 : 0.24) * _v, 5800, panX);
-                noise(big ? 0.32 : 0.16, (big ? 0.48 : 0.36) * _v, big ? 1500 : 2100, panX, { q: 1.7, reverb: big ? 0.24 : 0.08 });
-                const baseF = type === 'boss' ? 62 : type === 'miniboss' ? 72 : type === 'kamikaze' ? 105 : 195;
-                ctx.fm(baseF * _p, baseF * 0.35 * _p, big ? 0.26 : 0.12, (big ? 0.38 : 0.22) * _v, panX, 1.9);
+                noise(big ? 0.32 : 0.16, (big ? 0.46 : 0.34) * _v, big ? 1500 : 2100, panX, { q: 1.7, reverb: big ? 0.24 : 0.1 });
+                const baseF = type === 'boss' ? 62 : type === 'miniboss' ? 72 : type === 'kamikaze' ? 105 : (type === 'carrier' || type === 'bomber') ? 140 : 195;
+                ctx.fm(baseF * _p, baseF * 0.35 * _p, big ? 0.26 : 0.13, (big ? 0.38 : 0.22) * _v, panX, 1.9);
                 beep('triangle', baseF * 0.45 * _p, baseF * 0.18 * _p, big ? 0.3 : 0.15, (big ? 0.26 : 0.15) * _v, panX);
+                if (type === 'splitter' || type === 'sniper') {
+                    ctx.fm(1820 * _p, 960 * _p, 0.085, 0.14 * _v, panX, 2.6, { reverb: 0.2 });
+                } else if (type === 'teleporter' || type === 'spinner') {
+                    ctx.fm(1340 * _p, 320 * _p, 0.09, 0.15 * _v, panX, 2.2, { reverb: 0.16 });
+                } else if (type === 'carrier' || type === 'shield_bee') {
+                    beep('sine', 92 * _p, 38 * _p, 0.18, 0.18 * _v, panX);
+                }
                 if (big) {
                     noise(0.22, 0.22 * _v, 580, panX);
                     beep('sawtooth', 82 * _p, 34 * _p, 0.38, 0.28 * _v, panX, { reverb: 0.2 });
@@ -363,11 +377,26 @@
             gauntletWave() { if (ctx.G.muted) return; [523, 659, 784].forEach((f, i) => ctx.scheduleSfx(() => beep('sawtooth', f, f, 0.085, 0.24 * vv(), undefined, { reverb: 0.2 }), i * 68)); },
             expansionWeapon(type, panX) {
                 if (ctx.G.muted) return;
-                const volume = vv();
-                if (type === 'emp_mine_layer') { beep('sine', 1100, 180, 0.25, 0.17 * volume, panX); noise(0.16, 0.1 * volume, 2400, panX); }
-                else if (type === 'cluster_mine_layer') { noise(0.12, 0.2 * volume, 3200, panX); beep('triangle', 240, 70, 0.12, 0.14 * volume, panX); }
-                else if (type === 'swarm_launcher') beep('square', 480, 1000, 0.09, 0.12 * volume, panX);
-                else if (type === 'seeker_torpedo') beep('sawtooth', 95, 42, 0.25, 0.2 * volume, panX);
+                const volume = vv(), pitch = pv();
+                if (type === 'emp_mine_layer') {
+                    ctx.fm(1280 * pitch, 190 * pitch, 0.24, 0.18 * volume, panX, 2.3, { reverb: 0.2 });
+                    beep('sine', 960 * pitch, 165 * pitch, 0.22, 0.14 * volume, panX);
+                    noise(0.14, 0.11 * volume, 3400, panX, { filterType: 'bandpass', q: 2.2 });
+                } else if (type === 'cluster_mine_layer') {
+                    noise(0.12, 0.19 * volume, 3200, panX, { q: 1.6 });
+                    beep('triangle', 260 * pitch, 68 * pitch, 0.13, 0.16 * volume, panX);
+                    [0, 1, 2].forEach(i => ctx.scheduleSfx(() => { if (!ctx.G.muted) beep('square', (720 + i * 180) * pitch, 340 * pitch, 0.035, 0.09 * volume, panX); }, 35 + i * 28));
+                } else if (type === 'swarm_launcher') {
+                    [0, 1, 2].forEach(i => ctx.scheduleSfx(() => {
+                        if (ctx.G.muted) return;
+                        beep('square', (510 + i * 90) * pitch, (1080 + i * 120) * pitch, 0.075, 0.11 * volume, panX, { q: 2.0, reverb: 0.12 });
+                    }, i * 26));
+                    noise(0.06, 0.08 * volume, 2800, panX, { filterType: 'bandpass', q: 1.8 });
+                } else if (type === 'seeker_torpedo') {
+                    beep('sawtooth', 105 * pitch, 42 * pitch, 0.26, 0.2 * volume, panX, { q: 1.9, reverb: 0.18 });
+                    ctx.fm(160 * pitch, 54 * pitch, 0.22, 0.16 * volume, panX, 1.6);
+                    ctx.scheduleSfx(() => { if (!ctx.G.muted) beep('sine', 1320 * pitch, 1320 * pitch, 0.05, 0.09 * volume, panX, { reverb: 0.22 }); }, 65);
+                }
             },
             rocketLaunch(panX) { if (ctx.G.muted) return; beep('sawtooth', 190, 560, 0.11, 0.23 * vv(), panX, { q: 2.0 }); noise(0.08, 0.13 * vv(), 460, panX, { filterType: 'bandpass', q: 1.8 }); },
             rocketHit(panX) { if (ctx.G.muted) return; ctx.fm(135, 48, 0.14, 0.28 * vv(), panX, 2.0); noise(0.16, 0.22 * vv(), 560, panX); },
@@ -491,6 +520,70 @@
                 const _p = pv(), _v = vv();
                 noise(0.085, 0.13 * _v, 1950, panX, { filterType: 'bandpass', q: 2.0 });
                 beep('sawtooth', 250 * _p, 520 * _p, 0.075, 0.13 * _v, panX, { q: 2.0, reverb: 0.14 });
+            },
+            // NEW: Quantum phase-step / teleporter spatial fold shimmer
+            phaseShift(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(680 * _p, 1960 * _p, 0.085, 0.18 * _v, panX, 2.6, { reverb: 0.24 });
+                beep('sine', 1480 * _p, 520 * _p, 0.09, 0.12 * _v, panX, { reverb: 0.2 });
+                noise(0.045, 0.07 * _v, 6800, panX, { filterType: 'highpass' });
+            },
+            // NEW: Shield-bee / armor-crab phalanx barrier deflection chime
+            shieldGuard(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                ctx.fm(1520 * _p, 2280 * _p, 0.075, 0.2 * _v, panX, 2.5, { reverb: 0.24 });
+                beep('triangle', 1140 * _p, 1710 * _p, 0.065, 0.13 * _v, panX, { reverb: 0.18 });
+            },
+            // NEW: Carrier brood-bay pneumatic release + twin launch chirp
+            carrierDeploy(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                noise(0.08, 0.12 * _v, 1250, panX, { filterType: 'bandpass', q: 1.8 });
+                [0, 1].forEach(i => ctx.scheduleSfx(() => {
+                    if (ctx.G.muted) return;
+                    beep('triangle', (460 + i * 110) * _p, (880 + i * 140) * _p, 0.07, 0.14 * _v, panX, { reverb: 0.18 });
+                }, i * 55));
+            },
+            // NEW: Sniper / prism-falcon capacitor lock whine
+            sniperCharge(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('sine', 960 * _p, 2120 * _p, 0.16, 0.13 * _v, panX, { reverb: 0.18 });
+                ctx.fm(1920 * _p, 2880 * _p, 0.12, 0.08 * _v, panX, 2.0);
+            },
+            // NEW: Kamikaze / void-runner mid-dive afterburner surge
+            afterburner(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                noise(0.14, 0.2 * _v, 1700, panX, { filterType: 'bandpass', q: 1.7, reverb: 0.16 });
+                beep('sawtooth', 195 * _p, 640 * _p, 0.13, 0.2 * _v, panX, { q: 2.2, reverb: 0.16 });
+                beep('square', 98 * _p, 240 * _p, 0.11, 0.12 * _v, panX);
+            },
+            // NEW: Counter-weaving double-helix alien shot
+            helixShot(panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                beep('sine', 780 * _p, 1180 * _p, 0.07, 0.15 * _v, panX, { detune: -14, reverb: 0.14 });
+                beep('triangle', 780 * _p, 1180 * _p, 0.07, 0.13 * _v, panX, { detune: 14 });
+            },
+            // NEW: Asteroid non-lethal chip & material-aware shatter
+            asteroidHit(size, panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                const f0 = size >= 2 ? 155 : size === 1 ? 210 : 275;
+                beep('triangle', f0 * _p, f0 * 0.45 * _p, 0.055, 0.2 * _v, panX);
+                noise(0.038, 0.12 * _v, 1850, panX, { filterType: 'bandpass', q: 1.7 });
+            },
+            asteroidShatter(effect, panX) { if (ctx.G.muted) return;
+                const _p = pv(), _v = vv();
+                if (effect === 'crystal-shatter' || effect === 'ice-shatter') {
+                    ctx.fm(1640 * _p, 740 * _p, 0.14, 0.22 * _v, panX, 2.7, { reverb: 0.24 });
+                    noise(0.12, 0.16 * _v, 4800, panX, { reverb: 0.2 });
+                } else if (effect === 'metal-sparks') {
+                    ctx.fm(920 * _p, 280 * _p, 0.15, 0.24 * _v, panX, 2.3, { reverb: 0.18 });
+                    noise(0.14, 0.2 * _v, 2600, panX);
+                } else if (effect === 'lava-ejecta') {
+                    beep('sawtooth', 165 * _p, 52 * _p, 0.18, 0.24 * _v, panX);
+                    noise(0.18, 0.22 * _v, 1100, panX, { reverb: 0.18 });
+                } else {
+                    beep('triangle', 130 * _p, 42 * _p, 0.17, 0.25 * _v, panX);
+                    noise(0.16, 0.22 * _v, 920, panX, { q: 1.5, reverb: 0.16 });
+                }
             }
         };
         SFX.attackWarning = pan => ctx.fm(680, 920, 0.10, 0.18, pan, 1.5, { reverb: 0.18 });
