@@ -812,7 +812,7 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   ball, at the entry); `bumper` adds `at`, `radius` and `speed` (horizontal, before
   the kick); `water` and `out` add `speed`; `rest` with `forced: true` after
   `SHOT_TIMEOUT` (the ball stays where it is). `predict()` returns `cup` by the live
-  `dropsIn` rule.
+  `dropsIn` rule. Over the cup opening the rim may lift the ball at most `LIP_HOP` metres (live step and `predict()`, one shared helper), because the rim corner otherwise throws fast balls off the course; pinned by the overshoot cases in `scripts/test-minigolf-courses.mjs`.
 - Existing shots stay bit-identical (`dropsIn` keeps its arithmetic; the new events
   only read state). The 18 recorded routes in `ROUTES` of
   `scripts/test-minigolf-courses.mjs` must replay unchanged; a time-limit change
@@ -908,7 +908,7 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   (120° at 35°, 4-7 m, `false` when reduced), `shake(strength)` (0.25 s, added after
   `controls.update()`), `popBall()` (0.3 s) and `kickFlag(amount)`. `burst()` takes
   `bumper`, `ace` and `dust`; `strike` clears the trail.
-- Tunables: `CUP_SPEED` (2.4 m/s), `SHOT_TIMEOUT` (20 s) and `LIP_MARGIN` (.02 m) in
+- Tunables: `CUP_SPEED` (2.4 m/s), `SHOT_TIMEOUT` (20 s), `LIP_MARGIN` (.02 m) and `LIP_HOP` (.03 m) in
   `minigolf-physics.js`; `NEAR_MISS_RADIUS` (.7 m), `HARD_HIT` (6 m/s),
   `ACE_SCORE_DELAY_MS` (2200) in `minigolf-game.js`; `AIM_DOT_*`, `TAIL_*`, `FLAG_*`,
   `GLIDE_TIME`, `SHAKE_TIME` and `POP_TIME` in `minigolf-scene.js`; toast durations in

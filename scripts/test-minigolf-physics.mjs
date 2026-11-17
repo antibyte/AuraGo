@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createPhysics, MAX_ROLL, launchSpeedFor, rollDistance, strengthToPower } from '../ui/js/desktop/apps/minigolf-physics.js';
+import { createPhysics, LIP_HOP, MAX_ROLL, launchSpeedFor, rollDistance, strengthToPower } from '../ui/js/desktop/apps/minigolf-physics.js';
 import { multiply, obstaclePose, validateObstacle } from '../ui/js/desktop/apps/minigolf-mechanics.js';
 import { readColliders } from '../ui/js/desktop/apps/minigolf-collision.js';
 import { buildColliderGlb } from './lib/minigolf-glb.mjs';
@@ -145,6 +145,34 @@ assert.equal(fastEvents.some(event => event.type === 'cup'), false);
 assert.ok(fastCup.getBall()[0] > 0.6, `fast ball passes the cup opening at x=${fastCup.getBall()[0]}`);
 assert.equal(fastEvents.filter(event => event.type === 'lip').length, 1, 'a ball skipping over the cup lips exactly once');
 fastCup.dispose();
+
+// The ring above has no pit wall, so it cannot kick. This fixture adds the real cup shape: a 0.30 m deep vertical wall
+// and a floor under the opening. Over the opening the rim may lift a fast ball by LIP_HOP at most (live and preview).
+{
+    const pit = { type: 'mesh', surface: 'grass', vertices: [...ring.vertices], indices: [...ring.indices] };
+    const segments = 32, depth = 0.3;
+    for (let i = 0; i < segments; i++) {
+        const a = i * Math.PI * 2 / segments, b = (i + 1) * Math.PI * 2 / segments;
+        const base = pit.vertices.length / 3;
+        pit.vertices.push(0.32 * Math.cos(a), 0, 0.32 * Math.sin(a), 0.32 * Math.cos(a), -depth, 0.32 * Math.sin(a), 0.32 * Math.cos(b), -depth, 0.32 * Math.sin(b), 0.32 * Math.cos(b), 0, 0.32 * Math.sin(b), 0, -depth, 0);
+        pit.indices.push(base, base + 1, base + 2, base, base + 2, base + 3, base + 4, base + 2, base + 1);
+    }
+    const moonCup = () => course({ gravity: 4, tee: [-1, 0.16, 0], cup: [0, 0, 0], colliders: [pit] });
+    const limit = 0.16 + LIP_HOP + 0.02;
+    const live = await createPhysics(moonCup());
+    assert.equal(live.shoot([1, 0], strengthToPower(0.45)), true);
+    let peak = 0;
+    for (let i = 0; i < 90; i++) {
+        live.step(1 / 120);
+        if (live.getBall()[0] > -0.32) peak = Math.max(peak, live.getBall()[1]);
+    }
+    assert.ok(peak > 0 && peak <= limit, `rim lifts a fast moon ball by at most LIP_HOP: peak y=${peak}`);
+    live.dispose();
+    const ghostPhysics = await createPhysics(moonCup());
+    const ghostPoints = ghostPhysics.predict([1, 0], strengthToPower(0.45)).points.filter(point => point[0] > -0.32);
+    assert.ok(ghostPoints.length > 0 && ghostPoints.every(point => point[1] <= limit), `preview ball obeys LIP_HOP: peak y=${Math.max(...ghostPoints.map(point => point[1]))}`);
+    ghostPhysics.dispose();
+}
 
 // The preview uses the live cup rule: a slow ball drops, a fast one rolls on.
 {

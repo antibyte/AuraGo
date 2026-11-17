@@ -23,6 +23,8 @@ export const ROLLING = Object.freeze({
 // Max horizontal speed at which the cup still takes the ball; a shot is forced to rest after SHOT_TIMEOUT s.
 export const CUP_SPEED = 2.4;
 export const SHOT_TIMEOUT = 20;
+// Most the cup rim may lift a ball that crosses the opening (m); the sharp rim corner otherwise throws fast balls off the course.
+export const LIP_HOP = 0.03;
 const LIP_MARGIN = 0.02;
 const WALL_RESTITUTION = { wood: 0.78, stone: 0.82, metal: 0.80 };
 
@@ -170,6 +172,14 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     let ghost = null;
     const cupOpening = Number.isFinite(course.cupRadius) ? course.cupRadius : 0.32;
     const activeSurfaceContacts = new Map();
+    const lipHopSpeed = Math.sqrt(2 * gravity * LIP_HOP);
+    // The far rim of the cup is a sharp corner that turns forward speed into a high hop; cap the lift of a ball that was over the opening.
+    function capLipHop(before, body) {
+        const across = Math.hypot(before[0] - course.cup[0], before[2] - course.cup[2]);
+        if (!(across < cupOpening && before[1] > course.cup[1] && before[1] <= course.cup[1] + BALL_RADIUS + 0.04)) return;
+        const v = body.linvel();
+        if (v.y > lipHopSpeed) body.setLinvel({ x: v.x, y: lipHopSpeed, z: v.z }, true);
+    }
     const dropsIn = (position, across, v) => position[1] < course.cup[1] - 0.1 && across < cupOpening - BALL_RADIUS * 0.1 && Math.hypot(v.x, v.z) <= CUP_SPEED;
 
     const surfaceFriction = { grass: 0.82, sand: 1.1, wood: 0.52, stone: 0.68, metal: 0.5 };
@@ -361,6 +371,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
                 applyBumpers(bumped, control, emit);
                 if (!zoneState.captured) applyRolling(world, ballBody, ballCollider, handle => surfaces.get(handle));
                 stepZones(zones, zoneState, control, time, { emit });
+                if (!zoneState.captured) capLipHop(previousPosition, ballBody);
             }
             resolveConditions();
             if (resolvedShots !== resolvedBeforeStep) {
@@ -442,7 +453,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         launch(ball, direction, power);
         const limit = Math.max(1.5, 0.45 * power * MAX_ROLL);
         const points = [start];
-        let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, zone = null, quiet = 0, cup = false;
+        let before = start, last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, zone = null, quiet = 0, cup = false;
         for (let stepIndex = 0; stepIndex < 360; stepIndex++) {
             for (const { spec, body } of obstacles) {
                 const pose = obstaclePose(spec, atTime);
@@ -463,7 +474,9 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             applyBumpers(bumped, ghostControl);
             applyRolling(copy, ball, collider, handle => surfaces.get(handle));
             stepZones(zones, ghostZones, ghostControl, atTime, { stop: kind => { stopped = kind; } });
+            if (!ghostZones.captured) capLipHop(before, ball);
             const position = array3(ball.translation());
+            before = position;
             const stepLength = Math.hypot(position[0] - last[0], position[1] - last[1], position[2] - last[2]);
             if (contactAt >= 0 && travelled + stepLength - contactAt >= 0.9) {
                 // End exactly 0.9 m after the first wall contact.

@@ -48,7 +48,7 @@ power meter sits at the ball with the strength in percent and the estimated roll
 and it stays for a moment after each change. Toasts appear above the panels (the
 main menu clears the ones left over from play), and a hint line covers the first shots of a session. A putt attempted in camera
 mode asks for Aim instead. A near miss says "So close!", and a shot that is forced
-to rest says that the ball took too long. The lane map, drawn from the
+to rest says that the ball took too long. A ball that is too fast for the cup clips the far rim, hops a few centimetres and rolls on; the rim does not throw it off the course. The lane map, drawn from the
 course collision geometry and water volumes, shows the bounds, water, tee, cup and
 every ball; its toggle is saved. Water and out-of-bounds cost one penalty stroke
 and return the ball to its previous shot position. Twelve unsuccessful putts

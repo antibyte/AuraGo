@@ -13,8 +13,8 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { colliderDigest } from '../ui/js/desktop/apps/minigolf-collision.js';
-import { createPhysics } from '../ui/js/desktop/apps/minigolf-physics.js';
-import { findRoute, loadCourses, replayRoute, timedRoute } from './lib/minigolf-routes.mjs';
+import { createPhysics, strengthToPower } from '../ui/js/desktop/apps/minigolf-physics.js';
+import { findRoute, loadCourses, replayRoute, runShot, timedRoute } from './lib/minigolf-routes.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.resolve(root, process.env.AURAGO_MINIGOLF_DIR || 'ui/3d/minigolf');
@@ -52,6 +52,14 @@ const ROUTES = {
     'moon-16': [{"angle":1.8910303584447268,"power":0.45},{"angle":2.6849503186969588,"power":1}],
     'moon-17': [{"angle":1.3608005039387798,"power":1},{"angle":2.0760866852859885,"power":0.85},{"angle":-1.5593871692981225,"power":0.15}],
     'moon-18': [{"angle":1.312723602389293,"power":1},{"angle":2.071097003039387,"power":0.45}],
+};
+
+// Overshoots across the cup (UI strength 0..1, aimed at the cup) must roll on and rest, never fly off the course: the rim
+// corner of the collision cup threw them out (`out`/`water`) before LIP_HOP capped the hop.
+const OVERSHOOTS = {
+    'moon-13': { from: [13.5, 0.16, 0], strengths: [0.3, 0.34, 0.45, 0.6] },
+    'moon-16': { from: [8.65, 0.16, -13.29], strengths: [0.45, 0.6] },
+    'pirate-01': { from: [7.7, 0.16, -4.07], strengths: [0.6, 0.8] },
 };
 
 const { manifest, courses: all } = await loadCourses(dir);
@@ -122,6 +130,12 @@ for (const course of selected) {
         assert.ok(replay.ok, `${course.id}: shot ${replay.failed ? replay.failed.index + 1 : '?'} should end '${replay.failed?.expected}' but ends '${replay.failed?.got}'`);
         assert.equal(replay.shots, route.length, `${course.id}: every shot of the route is played`);
         routed++;
+        const overshoot = OVERSHOOTS[course.id];
+        for (const strength of overshoot?.strengths ?? []) {
+            const angle = Math.atan2(course.cup[0] - overshoot.from[0], course.cup[2] - overshoot.from[2]);
+            const end = runShot(physics, overshoot.from, { angle, power: strengthToPower(strength) }, events);
+            assert.ok(end && ['rest', 'cup'].includes(end.type), `${course.id}: overshoot at strength ${strength} should rest or drop but ends '${end?.type ?? null}'`);
+        }
         const waits = route.filter(shot => shot.wait).length;
         if (search) console.log(`    '${course.id}': ${JSON.stringify(route)},`);
         console.log(`${course.id}: ${search ? 'found' : 'recorded'} route reaches the cup in ${route.length} shot${route.length === 1 ? '' : 's'} (par ${course.par})${waits ? `, ${waits} wait${waits === 1 ? '' : 's'} for moving parts` : ''}`);
