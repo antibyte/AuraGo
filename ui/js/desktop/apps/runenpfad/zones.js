@@ -311,6 +311,11 @@
             fxBurst(sim, 'dust', wall.x + wall.w / 2, wall.y + wall.h / 2, 6, { color: '#cfc3ae', speed: 110, life: 0.45 });
             if (wall.hp <= 0) breakWall(sim, wall);
         });
+        // Crystal switches (zones-extra) and rune chests (runes) react to the same hits.
+        const extra = root.RunenpfadZonesExtra;
+        const runes = root.RunenpfadRunes;
+        if (extra && extra.hitRect(sim, x, y, w, h, dmg)) hit = true;
+        if (runes && runes.hitRect(sim, x, y, w, h, dmg)) hit = true;
         return hit;
     }
 
@@ -337,7 +342,8 @@
                 ? { x: ln.x, y: ln.y, radius: 210, intensity: 0.95, flicker: true }
                 : { x: ln.x, y: ln.y, radius: 54, intensity: 0.22, flicker: false });
         });
-        return out;
+        const extra = root.RunenpfadZonesExtra;
+        return extra ? out.concat(extra.lights(sim)) : out;
     }
 
     root.RunenpfadZones = {

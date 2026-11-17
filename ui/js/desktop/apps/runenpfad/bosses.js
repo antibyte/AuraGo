@@ -230,7 +230,7 @@
                     const y0 = e.y - 70;
                     const v = aimArc(x0, y0, m.x, m.y - 6, 0.9, 900);
                     spawnProj(sim, { x: x0, y: y0, vx: v.vx, vy: v.vy, gravity: 900, color: '#fde68a', kind: 'spear', radius: 7, life: 2.4 });
-                    pushEvent(sim, 'enemy_attack', { id: e.id, kind: 'shot', x: e.x, y: e.y });
+                    pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'shot', x: e.x, y: e.y });
                     e.attackTimer = 0.45;
                     e.attackKind = 'shot';
                     ai.fired += 1;
@@ -391,7 +391,7 @@
                     const y0 = e.y - 96;
                     const v = aimArc(x0, y0, m.x, m.y - 6, 1.1, 700);
                     spawnProj(sim, { x: x0, y: y0, vx: v.vx, vy: v.vy, gravity: 700, color: '#fb923c', kind: 'missile', radius: 9, blast: 62, life: 3 });
-                    pushEvent(sim, 'enemy_attack', { id: e.id, kind: 'shot', x: e.x, y: e.y });
+                    pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'shot', x: e.x, y: e.y });
                     e.attackTimer = 0.45;
                     e.attackKind = 'shot';
                     ai.fired += 1;
@@ -513,7 +513,7 @@
                 ai.t = 0;
                 atk.begin(sim, e, ai);
                 pushEvent(sim, 'boss_attack', { pattern: ai.pattern, x: e.x, y: e.y });
-                if (ai.pattern === 'missiles') pushEvent(sim, 'enemy_attack', { id: e.id, kind: 'shot', x: e.x, y: e.y });
+                if (ai.pattern === 'missiles') pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'shot', x: e.x, y: e.y });
             }
         } else if (ai.state === 'attack') {
             if (ATTACKS[ai.pattern].run(sim, e, dt, api, ai)) {

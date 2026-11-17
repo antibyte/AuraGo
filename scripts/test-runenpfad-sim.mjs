@@ -38,7 +38,9 @@ loadModule('ui/js/desktop/apps/runenpfad/behaviors.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/bosses.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/variety.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/profile.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/runes.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/zones.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/zones-extra.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/levels.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/combat.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/sim.js', sandbox);
@@ -853,3 +855,336 @@ console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 lev
     Sim.stepSimulation(ls, STEP, { jumpPressed: true });
     assert.ok(!p.onLadder && p.vy < 0, 'Jump leaves the ladder');
 }
+
+// Round 3: new enemies, stomp, rune power-ups, rune chests, extra zones and campaign coverage.
+{
+    const Combat = sandbox.RunenpfadCombat;
+    const Runes = sandbox.RunenpfadRunes;
+    const Zones = sandbox.RunenpfadZones;
+    const ZonesExtra = sandbox.RunenpfadZonesExtra;
+    const STEP = Sim.STEP;
+    assert.ok(Combat && Runes && ZonesExtra, 'combat, runes and zones-extra are loaded');
+
+    // Sim on level 1 with no enemies; the hero stands on the flat ground.
+    const mk = (hero) => {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: hero || 'knight', profile });
+        s.stage.enemies.length = 0;
+        s.player.x = 200;
+        s.player.y = s.stage.groundY;
+        return s;
+    };
+    const spawn = (s, kind, x, id) => {
+        const e = Levels.createEnemy(kind, x, s.stage.groundY, x - 48, x + 48, { id: id || 't_' + kind });
+        s.stage.enemies.push(e);
+        return e;
+    };
+    // Steps n ticks and returns every event seen; `each` runs before every tick.
+    const run = (s, n, input, each) => {
+        const events = [];
+        for (let i = 0; i < n; i++) {
+            if (each) each(s, i);
+            Sim.stepSimulation(s, STEP, input || {}).forEach((e) => events.push(e));
+        }
+        return events;
+    };
+    const keep = (s) => { s.player.invulnTimer = 9; };
+    const seen = (events, type) => events.filter((e) => e.type === type);
+
+    // Content table: five new enemies with art ids and boss art ids.
+    ['sporecap', 'crystal_bat', 'scarab', 'frost_wraith', 'clock_knight'].forEach((id) => {
+        assert.ok(Levels.ENEMY_DEFS[id] && Levels.ENEMY_DEFS[id].art, `enemy ${id} exists with an art sheet`);
+    });
+    ['boss_boar', 'boss_goblin', 'boss_orb', 'boss_quad', 'boss_mech'].forEach((id) => {
+        assert.ok(/^boss-/.test(Levels.ENEMY_DEFS[id].art) && Levels.ENEMY_DEFS[id].scale >= 1.9, `${id} has art and a larger scale`);
+    });
+
+    // Sporecap lobs a spore that bursts into a poison cloud.
+    {
+        const s = mk();
+        spawn(s, 'sporecap', 400);
+        let sporeFlew = false;
+        let cloud = null;
+        const ev = run(s, 240, {}, (sim) => {
+            keep(sim);
+            if (sim.projectiles.some((p) => p.spore && !p.dead)) sporeFlew = true;
+            if (!cloud) cloud = sim.tempHazards.find((h) => h.kind === 'poison') || null;
+        });
+        assert.ok(sporeFlew, 'sporecap lobs a spore projectile');
+        assert.ok(seen(ev, 'spore_burst').length >= 1 && cloud, 'the spore becomes a poison cloud hazard');
+        assert.ok(cloud.w === 64 && cloud.h === 44 && cloud.damage === 1, 'poison cloud is 64x44 and deals 1 damage');
+    }
+
+    // Crystal bat dives on the hero from its perch, then climbs back.
+    {
+        const s = mk();
+        const bat = spawn(s, 'crystal_bat', 400);
+        let dived = false;
+        let deepest = 0;
+        run(s, 240, {}, (sim) => {
+            sim.player.x = 400;
+            keep(sim);
+            if (bat.diving) dived = true;
+            deepest = Math.max(deepest, bat.y);
+        });
+        assert.ok(dived, 'crystal bat enters its dive');
+        assert.ok(deepest > s.stage.groundY - 120, 'the dive reaches the hero');
+        assert.ok(bat.y < s.stage.groundY - 60, 'the bat climbs back toward its perch');
+    }
+
+    // Scarab blocks frontal hits, takes rear hits, stomps and piercing damage.
+    {
+        const s = mk();
+        const scarab = spawn(s, 'scarab', 500);
+        scarab.facing = 1;
+        s.events = [];
+        Combat.damageEnemy(s, scarab, 2, scarab.x + 40);
+        assert.equal(scarab.hp, scarab.maxHp, 'a frontal hit is blocked');
+        assert.ok(seen(s.events, 'enemy_block').length === 1 && scarab.blockFlash > 0, 'a block emits enemy_block');
+        Combat.damageEnemy(s, scarab, 1, scarab.x - 40);
+        assert.equal(scarab.hp, scarab.maxHp - 1, 'a rear hit lands');
+        Combat.damageEnemy(s, scarab, 1, scarab.x + 40, true);
+        assert.equal(scarab.hp, scarab.maxHp - 2, 'piercing damage ignores the shield');
+    }
+
+    // Frost wraith phases out: intangible, no contact damage, cannot be hit.
+    {
+        const s = mk();
+        const w = spawn(s, 'frost_wraith', 900);
+        const ev = run(s, 220, {}, (sim) => { sim.player.x = 200; keep(sim); });
+        const phaseEvents = seen(ev, 'enemy_phase');
+        assert.ok(phaseEvents.length >= 1 && phaseEvents[0].detail.phased === true, 'wraith emits enemy_phase when it phases out');
+        w.phased = true;
+        w.phaseT = 5;
+        w.x = s.player.x;
+        w.y = s.player.y;
+        s.player.invulnTimer = 0;
+        const hp = s.player.hp;
+        Sim.stepSimulation(s, STEP, {});
+        assert.equal(s.player.hp, hp, 'a phased wraith deals no contact damage');
+        Combat.damageEnemy(s, w, 5, w.x + 30);
+        assert.equal(w.hp, w.maxHp, 'a phased wraith cannot be hit');
+    }
+
+    // Clock knight winds up, then slams with a shock wave each way.
+    {
+        const s = mk();
+        const k = spawn(s, 'clock_knight', 420);
+        let wound = false;
+        const ev = run(s, 150, {}, (sim) => { sim.player.x = 360; keep(sim); if (k.windup > 0) wound = true; });
+        assert.ok(wound && seen(ev, 'enemy_windup').length >= 1, 'brute winds up first');
+        assert.ok(seen(ev, 'enemy_slam').length >= 1, 'brute slams afterwards');
+        assert.ok(s.projectiles.filter((p) => p.kind === 'shock').length >= 1, 'the slam sends shock waves');
+    }
+
+    // Stomp: damages, bounces, no contact damage, bosses once per 0.6 s, fire adds damage.
+    {
+        // Drops the hero on a 10 hp slime; returns the enemy, the sim, the stomp event and the bounce velocity.
+        const stomp = (opts) => {
+            const s = mk();
+            const e = spawn(s, 'slime', 300);
+            e.hp = e.maxHp = 10;
+            if (opts.rune) Runes.grant(s, opts.rune, 200, 500);
+            s.player.y = s.stage.groundY - 70;
+            s.player.vy = 300;
+            const hp = s.player.hp;
+            for (let i = 0; i < 60; i++) {
+                s.player.x = e.x;
+                const hit = seen(Sim.stepSimulation(s, STEP, { jump: !!opts.held }), 'stomp')[0];
+                if (hit) return { s, e, hit, hp, vy: s.player.vy };
+            }
+            return { s, e, hit: null, hp, vy: 0 };
+        };
+        const a = stomp({});
+        assert.ok(a.hit && a.hit.detail.enemyId === a.e.id, 'falling onto an enemy emits stomp');
+        assert.equal(a.e.hp, 9, 'a stomp deals 1 damage');
+        assert.equal(a.s.player.hp, a.hp, 'a stomp causes no contact damage');
+        assert.ok(Math.abs(a.vy + 470) < 1, 'stomp bounce is -470');
+        assert.ok(Math.abs(stomp({ held: true }).vy + 600) < 1, 'held-jump stomp bounce is -600');
+        assert.equal(stomp({ rune: 'fire' }).e.hp, 8, 'a stomp with the fire rune deals 2 damage');
+        // Bosses take a stomp at most once per 0.6 s.
+        const sb = mk();
+        const bossE = Levels.createEnemy('boss_boar', 300, sb.stage.groundY, 100, 500, { id: 'bb' });
+        sb.stage.enemies.push(bossE);
+        const eh = 38 * bossE.def.scale;
+        const drop = () => {
+            sb.player.x = bossE.x;
+            sb.player.y = bossE.y - eh + 4;
+            sb.player.vy = 300;
+            return Combat.stompEnemy(sb, bossE, eh, false);
+        };
+        const hp0 = bossE.hp;
+        assert.ok(drop() && bossE.hp < hp0, 'bosses can be stomped');
+        const hp1 = bossE.hp;
+        bossE.stompCool = 0.4;
+        assert.ok(drop() && bossE.hp === hp1, 'a boss takes at most one stomp per 0.6 s');
+    }
+
+    // Runes: every kind applies its effect and expires.
+    {
+        assert.deepEqual(JSON.parse(JSON.stringify(Runes.DURATIONS)), { fire: 15, frost: 20, storm: 15, magnet: 18 });
+        // Fire: +1 melee damage.
+        const f = mk();
+        const slime = spawn(f, 'slime', 230);
+        slime.hp = slime.maxHp = 10;
+        Runes.grant(f, 'fire', f.player.x, f.player.y);
+        f.player.facing = 1;
+        run(f, 1, { attackPressed: true }, keep);
+        assert.equal(slime.hp, 10 - (f.stats.damage + 1), 'fire rune adds 1 hit damage');
+        // Frost: absorbs exactly one hit, slows nearby enemies.
+        const fr = mk();
+        const near = spawn(fr, 'slime', 260);
+        Runes.grant(fr, 'frost', 200, 500);
+        assert.equal(fr.player.rune.charges, 1);
+        assert.equal(Runes.enemySlow(fr, near), 0.6, 'frost slows enemies within 130 px');
+        const frHp = fr.player.hp;
+        fr.events = [];
+        Combat.hurtPlayer(fr, 1, 100);
+        assert.equal(fr.player.hp, frHp, 'frost absorbs one hit');
+        assert.ok(seen(fr.events, 'rune_shield_break').length === 1, 'frost emits rune_shield_break');
+        fr.player.invulnTimer = 0;
+        Combat.hurtPlayer(fr, 1, 100);
+        assert.equal(fr.player.hp, frHp - 1, 'the next hit lands');
+        // Storm: extra air jump, speed, kills zap the nearest other enemy.
+        const st = mk('ranger');
+        const a = spawn(st, 'slime', 300, 'za');
+        const b = spawn(st, 'slime', 380, 'zb');
+        b.hp = b.maxHp = 5;
+        Runes.grant(st, 'storm', 200, 500);
+        assert.equal(st.player.airJumpsLeft, 2, 'storm gives the ranger a second air jump');
+        assert.equal(Runes.speedMul(st), 1.12);
+        st.events = [];
+        Combat.damageEnemy(st, a, 99, a.x);
+        const zap = seen(st.events, 'rune_zap');
+        assert.ok(zap.length === 1 && b.hp === 4, 'a storm kill zaps the nearest enemy for 1');
+        ['x1', 'y1', 'x2', 'y2'].forEach((k) => assert.ok(Number.isFinite(zap[0].detail[k]), `rune_zap carries ${k}`));
+        // Magnet: pulls coins in and pays one extra.
+        const mg = mk();
+        mg.stage.collectibles.length = 0;
+        mg.stage.collectibles.push({ id: 't_coin', kind: 'coin', assetId: 'coin', animated: false, x: mg.player.x + 250, y: mg.player.y - 22, collected: false });
+        Runes.grant(mg, 'magnet', 200, 500);
+        const coins0 = mg.stageCoins;
+        run(mg, 60, {}, keep);
+        const coinItem = mg.stage.collectibles.find((c) => c.id === 't_coin');
+        assert.ok(coinItem.collected, 'magnet pulls the coin to the hero');
+        assert.equal(mg.stageCoins - coins0, Math.max(1, Math.round(mg.stage.coinValue || 1)) + 1, 'magnet coins are worth +1');
+        // Orb pickup replaces the active rune, runes expire.
+        const ob = mk();
+        Runes.grant(ob, 'magnet', 200, 500);
+        Runes.orb(ob, 'fire', ob.player.x, ob.player.y - 22);
+        const pick = run(ob, 2, {}, keep);
+        assert.ok(seen(pick, 'rune_pickup').length === 1 && ob.player.rune.kind === 'fire' && ob.player.rune.duration === 15, 'a rune orb replaces the active rune');
+        ob.player.rune.timeLeft = 0.03;
+        const exp = run(ob, 4, {}, keep);
+        assert.ok(ob.player.rune === null && seen(exp, 'rune_expire')[0].detail.kind === 'fire', 'runes expire with rune_expire');
+    }
+
+    // Rune chests: touching opens, an orb appears; hits open them too.
+    {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 3, hero: 'knight', profile });
+        s.stage.enemies.length = 0;
+        const chest = s.stage.chests[0];
+        assert.ok(chest && !chest.opened && ['fire', 'frost', 'storm', 'magnet'].includes(chest.kind), 'level 3 holds a rune chest');
+        s.player.x = chest.x;
+        s.player.y = chest.y;
+        const ev = run(s, 2, {}, keep);
+        const open = seen(ev, 'chest_open');
+        assert.ok(chest.opened && open.length === 1 && open[0].detail.kind === chest.kind, 'touching a chest opens it');
+        const orbItem = s.stage.collectibles.find((c) => c.type === 'rune_orb');
+        assert.ok(orbItem && orbItem.kind === chest.kind && orbItem.y < chest.y, 'the chest spawns a rune orb above it');
+        const s2 = Sim.createSimulation({ mode: 'campaign', levelId: 3, hero: 'knight', profile });
+        const c2 = s2.stage.chests[0];
+        Zones.hitRect(s2, c2.x - 5, c2.y - 20, 10, 10, 1);
+        assert.ok(c2.opened, 'a hit opens a chest');
+    }
+
+    // Extra zones build and their steps emit events.
+    {
+        const zoneSim = (zone, worldIndex) => {
+            const s = mk();
+            s.stage = Levels.buildStage({ id: 99, worldIndex: worldIndex, stageInWorld: 1, nameKey: 'x', parTime: 90, zones: ['meadow', zone, 'key_sanctum'], enemies: ['slime'] });
+            s.stage.enemies.length = 0;
+            s.player.x = s.stage.spawn.x;
+            s.player.y = s.stage.spawn.y;
+            return s;
+        };
+        // Geyser field launches the hero.
+        const g = zoneSim('geyser_field', 2);
+        const gy = g.stage.geysers[0];
+        assert.ok(g.stage.geysers.length >= 1 && gy.w > 0 && gy.period > 0, 'geyser_field builds geysers');
+        g.player.x = gy.x + gy.w / 2;
+        g.player.y = g.stage.groundY;
+        let topY = g.player.y;
+        const gev = run(g, 200, {}, (sim) => { topY = Math.min(topY, sim.player.y); });
+        assert.ok(seen(gev, 'geyser_burst').length >= 1, 'geysers announce eruptions');
+        assert.ok(topY < g.stage.groundY - 200, 'an eruption launches the hero');
+        // Rune gate: three switches open the gate and uncover the chest.
+        const r = zoneSim('rune_gate', 1);
+        const gate = r.stage.gates[0];
+        assert.equal(r.stage.switches.length, 3, 'rune_gate has three switches');
+        assert.ok(r.stage.switches.some((sw) => sw.y < r.stage.groundY - 3 * Levels.TILE), 'one switch sits up high');
+        assert.ok(r.stage.chests.length === 1 && r.stage.chests[0].x > gate.x, 'a rune chest waits behind the gate');
+        const gateKey = gate.tiles[0].tx + ',' + gate.tiles[0].ty;
+        assert.ok(!gate.open && r.stage.solidMap[gateKey], 'the gate starts solid');
+        r.events = [];
+        r.stage.switches.forEach((sw) => { Zones.hitRect(r, sw.x - 5, sw.y - 5, 10, 10, 1); });
+        assert.equal(seen(r.events, 'switch_on').length, 3, 'each switch emits switch_on');
+        assert.ok(seen(r.events, 'gate_open').length === 1 && gate.open && !r.stage.solidMap[gateKey], 'all switches open the gate');
+        // Flame jets warn, fire and burn.
+        const fj = zoneSim('flame_jets', 2);
+        const jet = fj.stage.flameJets[0];
+        assert.ok(fj.stage.flameJets.length >= 2 && ['idle', 'warn', 'fire'].includes(jet.state), 'flame_jets builds jets');
+        fj.player.x = jet.x - 140;
+        fj.player.y = fj.stage.groundY;
+        const fev = run(fj, 420, {}, (sim) => { keep(sim); sim.player.x = jet.x - 140; });
+        assert.ok(seen(fev, 'jet_warn').length >= 1 && seen(fev, 'jet_fire').length >= 1, 'jets emit jet_warn and jet_fire');
+        const fj2 = zoneSim('flame_jets', 4);
+        const j2 = fj2.stage.flameJets[0];
+        const hp0 = fj2.player.hp;
+        run(fj2, 300, {}, (sim) => { sim.player.x = j2.x; sim.player.y = sim.stage.groundY; sim.player.invulnTimer = 0; });
+        assert.ok(fj2.player.hp < hp0, 'standing in a flame jet burns the hero');
+    }
+
+    // Campaign: every level builds and steps; chests from level 3; every world has a new mechanic and a new enemy.
+    {
+        const newKinds = ['sporecap', 'crystal_bat', 'scarab', 'frost_wraith', 'clock_knight'];
+        const seenKinds = new Set();
+        for (let i = 1; i <= 25; i++) {
+            const s = Sim.createSimulation({ mode: 'campaign', levelId: i, hero: 'knight', profile });
+            if (i >= 3) assert.ok(s.stage.chests.length >= 1, `level ${i} holds a rune chest`);
+            s.stage.enemies.forEach((e) => seenKinds.add(e.defId));
+            run(s, 5, {});
+            const boss = s.stage.enemies.find((e) => e.id === s.stage.bossId);
+            if (i % 5 === 0) {
+                assert.ok(boss && boss.x >= boss.minX && boss.x <= boss.maxX, `level ${i} arena contains its boss`);
+                assert.ok(boss.y - 42 * boss.def.scale > 0, `level ${i} boss fits under the ceiling`);
+            }
+        }
+        newKinds.forEach((k) => assert.ok(seenKinds.has(k), `${k} appears in the campaign`));
+        for (let w = 0; w < 5; w++) {
+            const lvls = Levels.CAMPAIGN_LEVELS.filter((l) => l.worldIndex === w);
+            assert.ok(lvls.some((l) => l.zones.some((z) => ZonesExtra.has(z))), `world ${w + 1} has a new mechanic`);
+            assert.ok(lvls.some((l) => l.enemies.some((k) => newKinds.includes(k))), `world ${w + 1} has a new enemy`);
+        }
+        assert.ok(!Levels.CAMPAIGN_LEVELS[0].enemies.includes('sporecap') && !Levels.CAMPAIGN_LEVELS[1].enemies.includes('sporecap'), 'sporecap stays out of the first two levels');
+        for (const seed of [9001, 4242]) {
+            for (let f = 1; f <= 12; f++) {
+                const s = Sim.createSimulation({ mode: 'endless', endlessFloor: f, seed: seed, hero: 'ranger', profile });
+                assert.ok(s.stage.chests.length >= 1, `endless floor ${f} holds a rune chest`);
+                run(s, 3, {});
+            }
+        }
+    }
+
+    // fire_strip announces itself with boss_attack.
+    {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 25, hero: 'knight', profile });
+        const boss = s.stage.enemies.find((e) => e.id === s.stage.bossId);
+        const patterns = new Set();
+        run(s, 3600, {}, (sim) => { sim.player.x = boss.x - 320; sim.player.y = sim.stage.groundY; keep(sim); }).forEach((e) => {
+            if (e.type === 'boss_attack') patterns.add(e.detail.pattern);
+        });
+        assert.ok(patterns.has('fire_strip'), 'fire_strip emits boss_attack with pattern fire_strip');
+    }
+}
+
+console.log('Runenpfad round 3 checks passed: new enemies, stomp, runes, chests, extra zones, campaign coverage.');

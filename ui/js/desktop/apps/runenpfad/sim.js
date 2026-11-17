@@ -36,9 +36,8 @@
         return root.RunenpfadCombat;
     }
 
-    function zonesApi() {
-        const z = root.RunenpfadZones;
-        return z || null;
+    function runesApi() {
+        return root.RunenpfadRunes || null;
     }
 
     function pushEvent(sim, type, detail) { physicsApi().pushEvent(sim, type, detail); }
@@ -49,14 +48,15 @@
     function fxHitstop(sim, seconds) { physicsApi().fxHitstop(sim, seconds); }
     function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) { return physicsApi().rectOverlap(ax, ay, aw, ah, bx, by, bw, bh); }
     function hurtPlayer(sim, amount, sourceX, sound) { combatApi().hurtPlayer(sim, amount, sourceX, sound); }
-    function damageEnemy(sim, enemy, dmg, hitX) { combatApi().damageEnemy(sim, enemy, dmg, hitX); }
+    function damageEnemy(sim, enemy, dmg, hitX, pierce) { combatApi().damageEnemy(sim, enemy, dmg, hitX, pierce); }
     function breakCrate(sim, crate) { combatApi().breakCrate(sim, crate); }
     function performPlayerAttack(sim, input) { combatApi().performPlayerAttack(sim, input); }
 
-    // Optional zone hooks (zones.js may be absent in node tests or still a stub).
+    // Optional zone hooks: zones.js and zones-extra.js both take part when loaded.
     function zoneHook(name, a, b, c) {
-        const z = zonesApi();
-        if (z && typeof z[name] === 'function') z[name](a, b, c);
+        [root.RunenpfadZones, root.RunenpfadZonesExtra].forEach(function (z) {
+            if (z && typeof z[name] === 'function') z[name](a, b, c);
+        });
     }
 
     function createSimulation(options) {
@@ -111,6 +111,7 @@
                 coyoteTimer: 0,
                 jumpBuffer: 0,
                 airJumpsLeft: stats.maxAirJumps,
+                rune: null,
                 hp: stats.maxHp,
                 maxHp: stats.maxHp,
                 potions: stats.potions + (stage.modEffects && stage.modEffects.potionBonus ? stage.modEffects.potionBonus : 0),
@@ -253,8 +254,8 @@
 
     function enemyShot(sim, e) {
         const p = sim.player;
-        pushEvent(sim, 'enemy_shot', { id: e.id, x: e.x, y: e.y });
-        pushEvent(sim, 'enemy_attack', { id: e.id, kind: 'shot', x: e.x, y: e.y });
+        pushEvent(sim, 'enemy_shot', { id: e.id, defId: e.defId, x: e.x, y: e.y });
+        pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'shot', x: e.x, y: e.y });
         e.attackTimer = 0.45;
         e.attackKind = 'shot';
         const dx = p.x - e.x;
@@ -274,10 +275,12 @@
         });
     }
 
-    function stepEnemies(sim, dt) {
+    function stepEnemies(sim, dt, input) {
         const stage = sim.stage;
         const p = sim.player;
         const behaviors = behaviorsApi();
+        const runes = runesApi();
+        const jumpHeld = !!(input && (input.jump || input.up || input.jumpPressed));
         stage.enemies.forEach(function (e) {
             e.animTime += dt;
             if (e.dead) {
@@ -285,11 +288,13 @@
                 return;
             }
             if (e.hurtTimer > 0) e.hurtTimer -= dt;
+            if (e.blockFlash > 0) e.blockFlash = Math.max(0, e.blockFlash - dt);
+            if (e.stompCool > 0) e.stompCool -= dt;
             if (e.attackTimer > 0) e.attackTimer = Math.max(0, e.attackTimer - dt);
             const speedMul = e.phase === 2 ? 1.38 : 1.0;
 
             if (behaviors) {
-                behaviors.update(sim, e, dt, enemyApi());
+                behaviors.update(sim, e, dt * (runes ? runes.enemySlow(sim, e) : 1), enemyApi());
             } else {
                 e.x += e.vx * speedMul * dt;
             }
@@ -315,11 +320,12 @@
             e.animState = e.hurtTimer > 0 ? 'hurt' : (Math.abs(e.vx) < 1 ? 'idle' : 'move');
             const ew = 28 * e.def.scale;
             const eh = 38 * e.def.scale;
-            if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, e.x - ew / 2, e.y - eh, ew, eh)) {
+            if (!e.phased && rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, e.x - ew / 2, e.y - eh, ew, eh)) {
+                if (combatApi().stompEnemy(sim, e, eh, jumpHeld)) return;
                 if (p.invulnTimer <= 0 && sim.state === 'playing') {
                     e.attackKind = 'lunge';
                     e.attackTimer = 0.45;
-                    pushEvent(sim, 'enemy_attack', { id: e.id, kind: 'lunge', x: e.x, y: e.y });
+                    pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'lunge', x: e.x, y: e.y });
                 }
                 hurtPlayer(sim, e.def.damage, e.x, e.def.hitSound);
             }
@@ -380,12 +386,15 @@
         const px = p.x - p.w / 2;
         const py = p.y - p.h;
         const magnet = sim.stats.magnetRadius;
+        const runes = runesApi();
+        if (runes) runes.interact(sim);
 
         stage.collectibles.forEach(function (item) {
             if (item.collected) return;
             const dx = item.x - p.x;
             const dy = item.y - (p.y - 22);
             const dist = Math.hypot(dx, dy);
+            if (runes && runes.collect(sim, item, dist)) return;
             if (item.kind === 'coin' && dist < magnet + 24 && dist > 1) {
                 item.x -= (dx / dist) * 4.5;
                 item.y -= (dy / dist) * 4.5;
@@ -393,7 +402,7 @@
             if (dist < 30) {
                 item.collected = true;
                 if (item.kind === 'coin') {
-                    const value = Math.max(1, Math.round(stage.coinValue || 1));
+                    const value = Math.max(1, Math.round(stage.coinValue || 1)) + (runes ? runes.coinBonus(sim) : 0);
                     sim.stageCoins += value;
                     sim.profile.coins += value;
                     sim.stageScore += 25 * value;
@@ -552,6 +561,7 @@
 
         stepPlatformsAndCannons(sim, dt);
         zoneHook('step', sim, dt);
+        if (runesApi()) runesApi().tick(sim, dt);
 
         // Potion heal
         if (input.healPressed) applyPotionHeal(sim);
@@ -630,7 +640,7 @@
                 pushJump(sim);
             }
         } else {
-            const targetVx = moveDir * stats.speed + (stage.modEffects && stage.modEffects.wind ? stage.modEffects.wind : 0);
+            const targetVx = moveDir * stats.speed * (runesApi() ? runesApi().speedMul(sim) : 1) + (stage.modEffects && stage.modEffects.wind ? stage.modEffects.wind : 0);
             const accel = p.onGround ? (stage.world.friction < 1 ? 650 : 2400) : 1400;
             const diff = targetVx - p.vx;
             const stepV = accel * dt;
@@ -639,7 +649,7 @@
 
             if (p.onGround) {
                 p.coyoteTimer = 0.11;
-                p.airJumpsLeft = stats.maxAirJumps;
+                p.airJumpsLeft = stats.maxAirJumps + (runesApi() ? runesApi().extraAirJumps(sim) : 0);
             } else {
                 p.coyoteTimer = Math.max(0, p.coyoteTimer - dt);
             }
@@ -707,7 +717,7 @@
                 stage.enemies.forEach(function (e) {
                     if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 120) {
                         const slamMul = varietyApi() ? varietyApi().damageMultiplier(sim.blessing) : 1;
-                        damageEnemy(sim, e, (stats.damage + 1) * slamMul, p.x);
+                        damageEnemy(sim, e, (stats.damage + 1) * slamMul, p.x, true);
                     }
                 });
                 stage.crates.forEach(function (c) {
@@ -730,7 +740,7 @@
             }
         }
 
-        stepEnemies(sim, dt);
+        stepEnemies(sim, dt, input);
         combatApi().stepProjectiles(sim, dt);
         combatApi().tick(sim, dt);
         stepInteractables(sim);

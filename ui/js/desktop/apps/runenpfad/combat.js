@@ -23,6 +23,10 @@
         return root.RunenpfadZones || null;
     }
 
+    function runesApi() {
+        return root.RunenpfadRunes || null;
+    }
+
     // Kills chain into a combo: every kill inside the 2.5 s window raises the score multiplier.
     function registerKill(sim, enemy) {
         const c = sim.combo;
@@ -40,6 +44,8 @@
     function hurtPlayer(sim, amount, sourceX, sound) {
         const p = sim.player;
         if (p.invulnTimer > 0 || sim.state !== 'playing') return;
+        const runes = runesApi();
+        if (runes && amount < p.maxHp && runes.absorb(sim)) return;
         p.hp = Math.max(0, p.hp - amount);
         sim.damageTaken += amount;
         p.invulnTimer = 1.1;
@@ -76,15 +82,23 @@
         }
     }
 
-    function damageEnemy(sim, enemy, dmg, hitX) {
-        if (enemy.dead) return;
+    // Scarabs block melee and bolts from the side they face; pierce (stomp, slam, blasts, zaps) ignores the shield.
+    function damageEnemy(sim, enemy, dmg, hitX, pierce) {
+        if (enemy.dead || enemy.phased) return;
+        if (!pierce && enemy.def.behavior === 'shielded' && (hitX - enemy.x) * (enemy.facing || 1) > 0) {
+            enemy.blockFlash = 0.25;
+            pushEvent(sim, 'enemy_block', { id: enemy.id, defId: enemy.defId, x: enemy.x, y: enemy.y });
+            sim.floatingTexts.push({ x: enemy.x, y: enemy.y - 46, text: 'BLOCK', color: '#cfe8ff', timer: 0.5 });
+            fxBurst(sim, 'spark', enemy.x + (hitX < enemy.x ? -18 : 18), enemy.y - 24, 6, { color: '#cfe8ff', speed: 170, arc: Math.PI * 2, life: 0.26 });
+            return;
+        }
         enemy.hp = Math.max(0, enemy.hp - dmg);
         enemy.hurtTimer = 0.22;
         if (!enemy.def.boss && enemy.vx !== undefined) {
             enemy.vx = (enemy.x >= hitX ? 1 : -1) * Math.max(70, enemy.def.speed);
         }
         sim.floatingTexts.push({ x: enemy.x, y: enemy.y - 46, text: String(dmg), color: '#ffe066', timer: 0.6 });
-        pushEvent(sim, 'enemy_hit', { sound: enemy.def.hitSound, x: enemy.x, y: enemy.y });
+        pushEvent(sim, 'enemy_hit', { defId: enemy.defId, sound: enemy.def.hitSound, x: enemy.x, y: enemy.y });
         fxBurst(sim, 'spark', hitX, enemy.y - 24, 7, {
             color: enemy.def.hitSound === 'impact-metal' ? '#cfe8ff' : '#ffe066',
             speed: 190,
@@ -110,7 +124,9 @@
             });
             fxShake(sim, enemy.def.boss ? 11 : 3.6);
             fxHitstop(sim, enemy.def.boss ? 0.12 : 0.045);
-            pushEvent(sim, 'enemy_kill', { id: enemy.defId, boss: !!enemy.def.boss, x: enemy.x, y: enemy.y });
+            pushEvent(sim, 'enemy_kill', { id: enemy.defId, defId: enemy.defId, boss: !!enemy.def.boss, x: enemy.x, y: enemy.y });
+            const runes = runesApi();
+            if (runes) runes.onKill(sim, enemy);
             if (enemy.def.boss) {
                 fxFlash(sim, '#fff3c4', 0.4, 0.4);
                 sim.notice = 'runenpfad.notice.boss_defeated';
@@ -134,7 +150,7 @@
                 fxFlash(sim, '#fb923c', 0.2, 0.24);
                 sim.stage.enemies.forEach(function (o) {
                     if (!o.dead && o !== enemy && Math.hypot(o.x - enemy.x, o.y - enemy.y) < 96) {
-                        damageEnemy(sim, o, sim.stats.damage + 2, enemy.x);
+                        damageEnemy(sim, o, sim.stats.damage + 2, enemy.x, true);
                     }
                 });
                 const p = sim.player;
@@ -173,6 +189,8 @@
                 y: crate.y + 20,
                 collected: false
             });
+            const runes = runesApi();
+            if (runes) runes.maybeDrop(sim, crate.x, crate.y - 8);
         }
     }
 
@@ -182,7 +200,8 @@
         const stats = sim.stats;
         const variety = varietyApi();
         const blessingMul = variety ? variety.damageMultiplier(sim.blessing) : 1;
-        const attackDamage = stats.damage * blessingMul;
+        const runes = runesApi();
+        const attackDamage = stats.damage * blessingMul + (runes ? runes.damageBonus(sim) : 0);
         if (p.attackCooldown > 0) return;
 
         // Mid-air knight ground slam
@@ -202,6 +221,7 @@
         p.attackTimer = stats.def.attackDuration;
         p.animState = 'attack';
         p.animTime = 0;
+        if (runes && runes.active(sim, 'fire')) fxBurst(sim, 'ember', p.x + p.facing * 34, p.y - 26, 6, { color: '#fb923c', speed: 90, life: 0.5 });
 
         if (sim.heroId === 'knight') {
             pushEvent(sim, 'attack_melee', { x: p.x, y: p.y });
@@ -274,6 +294,13 @@
         if (Math.hypot(p.x - proj.x, (p.y - 22) - proj.y) < radius) hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
     }
 
+    // A spore bursts into a poison cloud (64x44, 1.6 s) whose bottom edge rests on bottomY.
+    function sporeBurst(sim, x, bottomY) {
+        sim.tempHazards.push({ kind: 'poison', x: x - 32, y: bottomY - 44, w: 64, h: 44, t: 1.6, dur: 1.6, damage: 1 });
+        pushEvent(sim, 'spore_burst', { defId: 'sporecap', x: x, y: bottomY });
+        fxBurst(sim, 'dust', x, bottomY - 10, 10, { color: '#a3e635', speed: 80, arc: Math.PI, angle: -Math.PI / 2, life: 0.6 });
+    }
+
     function stepProjectiles(sim, dt) {
         const stage = sim.stage;
         const p = sim.player;
@@ -299,6 +326,7 @@
             if (isSolidTile(stage, tx, ty)) {
                 proj.dead = true;
                 if (proj.blast) projectileBlast(sim, proj);
+                if (proj.spore) sporeBurst(sim, proj.x, proj.vy > 0 ? ty * TILE : proj.y + 20);
                 return;
             }
             // Shock waves hug the floor and fade out where the ground ends.
@@ -310,11 +338,12 @@
                 if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, proj.x - r, proj.y - r, r * 2, r * 2)) {
                     proj.dead = true;
                     if (proj.blast) projectileBlast(sim, proj);
+                    else if (proj.spore) sporeBurst(sim, proj.x, p.y);
                     else hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
                 }
             } else {
                 stage.enemies.forEach(function (e) {
-                    if (proj.dead || e.dead) return;
+                    if (proj.dead || e.dead || e.phased) return;
                     const ew = 34 * e.def.scale;
                     const eh = 42 * e.def.scale;
                     if (rectOverlap(proj.x - 8, proj.y - 8, 16, 16, e.x - ew / 2, e.y - eh, ew, eh)) {
@@ -334,6 +363,27 @@
         if (sim.projectiles.length > 64) {
             sim.projectiles = sim.projectiles.filter(function (pr) { return !pr.dead; });
         }
+    }
+
+    // Falling onto an enemy's top: 1 damage (+1 fire, +1 knight slam), a bounce, no contact damage. Returns true when it stomped.
+    // Bosses take the damage at most once per 0.6 s; inside that window the bounce still happens.
+    function stompEnemy(sim, e, eh, jumpHeld) {
+        const p = sim.player;
+        if (e.phased || e.dead || p.vy <= 120 || sim.state !== 'playing') return false;
+        const top = e.y - eh;
+        if (p.y < top || p.y > top + eh * 0.45) return false;
+        if (!e.def.boss || !(e.stompCool > 0)) {
+            const runes = runesApi();
+            const dmg = 1 + (runes ? runes.damageBonus(sim) : 0) + (p.slamActive ? 1 : 0);
+            if (e.def.boss) e.stompCool = 0.6;
+            damageEnemy(sim, e, dmg, p.x, true);
+        }
+        p.vy = jumpHeld ? -600 : -470;
+        p.onGround = false;
+        p.slamActive = false;
+        pushEvent(sim, 'stomp', { x: p.x, y: p.y, enemyId: e.id });
+        fxBurst(sim, 'spark', p.x, p.y, 8, { color: '#ffe066', speed: 170, arc: Math.PI, angle: -Math.PI / 2, life: 0.3 });
+        return true;
     }
 
     // Timed hazards (boss lasers, fire strips) burn the hero while they are active.
@@ -372,6 +422,7 @@
     root.RunenpfadCombat = {
         hurtPlayer: hurtPlayer,
         damageEnemy: damageEnemy,
+        stompEnemy: stompEnemy,
         breakCrate: breakCrate,
         performPlayerAttack: performPlayerAttack,
         stepProjectiles: stepProjectiles,
