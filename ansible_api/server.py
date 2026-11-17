@@ -24,6 +24,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
@@ -56,7 +57,9 @@ def run_ansible(cmd: list, timeout: int = None) -> dict:
     """Execute an ansible command as a subprocess and return rc/stdout/stderr."""
     effective_timeout = timeout or ANSIBLE_TIMEOUT
     env = {
-        **{key: os.environ[key] for key in ("PATH", "HOME", "USER", "LANG", "LC_ALL", "SYSTEMROOT", "TEMP", "TMP") if key in os.environ},
+        **{key: os.environ[key] for key in ("PATH", "HOME", "USER", "SYSTEMROOT", "TEMP", "TMP") if key in os.environ},
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
         "ANSIBLE_FORCE_COLOR": "0",
         "ANSIBLE_NOCOLOR":     "1",
         "ANSIBLE_HOST_KEY_CHECKING": "True",
@@ -67,8 +70,25 @@ def run_ansible(cmd: list, timeout: int = None) -> dict:
             raise ValueError("ansible.readonly blocks playbooks (including check/dry_run) and arbitrary modules")
         if cmd[0] == "ansible" and len(cmd) > 1 and cmd[1].startswith("-") and cmd[1] != "--version":
             raise ValueError("invalid host pattern")
+        cmd = list(cmd)
+        for index, arg in enumerate(cmd):
+            if arg in {"-e", "--extra-vars"}:
+                if index + 1 >= len(cmd):
+                    raise ValueError("extra_vars must be a JSON object")
+                try:
+                    variables = json.loads(cmd[index + 1])
+                except (ValueError, TypeError):
+                    raise ValueError("extra_vars must be a JSON object") from None
+                cmd[index + 1] = extra_vars_arg(variables) or "{}"
+            if arg in {"--limit", "-l"}:
+                if index + 1 >= len(cmd):
+                    raise ValueError("host limit is missing")
+                validate_host_pattern(cmd[index + 1])
+        if cmd[0] == "ansible" and cmd[1] != "--version":
+            validate_host_pattern(cmd[1])
+        deadline = time.monotonic() + effective_timeout
         with tempfile.TemporaryDirectory(prefix="aurago-ansible-") as staging:
-            cmd = list(cmd)
+            inventory = None
             if "-i" in cmd:
                 index = cmd.index("-i") + 1
                 data, extension = read_static_inventory(cmd[index]) if cmd[index] else (b"localhost ansible_connection=local\n", ".ini")
@@ -79,7 +99,35 @@ def run_ansible(cmd: list, timeout: int = None) -> dict:
             env["ANSIBLE_CONFIG"] = os.path.join(staging, "safe.cfg")
             with open(env["ANSIBLE_CONFIG"], "x", encoding="utf-8") as config:
                 config.write("[defaults]\nhost_key_checking=True\n[inventory]\nenable_plugins=ini,yaml\n")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=effective_timeout, env=env, cwd=staging)
+
+            def execute(command):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(command, effective_timeout)
+                return subprocess.run(command, capture_output=True, text=True, timeout=remaining, env=env, cwd=staging)
+
+            if inventory is not None:
+                exported = execute(["ansible-inventory", "-i", inventory, "--list", "--export"])
+                if exported.returncode != 0:
+                    raise ValueError("static inventory could not be resolved")
+                try:
+                    declared = inventory_hosts(json.loads(exported.stdout))
+                except (ValueError, TypeError):
+                    raise ValueError("inventory must contain only literal static values") from None
+                if cmd[0] == "ansible-inventory":
+                    result = exported
+                else:
+                    if cmd[0] == "ansible":
+                        probe = ["ansible", cmd[1], "-i", inventory, "--list-hosts"]
+                    else:
+                        probe = cmd + ["--list-hosts"]
+                    selected = execute(probe)
+                    if selected.returncode != 0:
+                        raise ValueError("host selection could not be resolved")
+                    validate_selected_hosts(selected.stdout, declared)
+                    result = execute(cmd)
+            else:
+                result = execute(cmd)
         return {
             "rc":     result.returncode,
             "stdout": scrub_token(result.stdout.strip()),
@@ -151,6 +199,10 @@ def read_static_inventory(value: str) -> tuple[bytes, str]:
             data = source.read(1024 * 1024 + 1)
         if len(data) > 1024 * 1024 or b"\x00" in data or data.startswith(b"#!") or re.search(rb"(?im)^\s*['\"]?plugin['\"]?\s*:", data):
             raise ValueError("only bounded static INI/YAML inventories are supported")
+        try:
+            validate_literal(data.decode("utf-8"))
+        except UnicodeError:
+            raise ValueError("inventory must be UTF-8") from None
         return data, extension or ".ini"
     finally:
         for descriptor in reversed(descriptors):
@@ -176,12 +228,76 @@ def inventory_arg(body: dict) -> str:
 
 
 def extra_vars_arg(extra_vars) -> str | None:
-    """Normalise extra_vars to a JSON string, or return None."""
-    if not extra_vars:
+    """Accept literal application data, never Ansible connection/engine overrides."""
+    if extra_vars is None:
         return None
-    if isinstance(extra_vars, dict):
-        return json.dumps(extra_vars)
-    return str(extra_vars)
+    if not isinstance(extra_vars, dict):
+        raise ValueError("extra_vars must be a JSON object")
+    validate_literal(extra_vars)
+    reserved = {"hostvars", "groups", "group_names", "inventory_hostname", "inventory_hostname_short", "inventory_file", "inventory_dir", "playbook_dir", "role_path", "vars", "omit"}
+    for key in extra_vars:
+        if not isinstance(key, str) or key.lower().startswith(("ansible_", "_ansible_")) or key.lower() in reserved:
+            raise ValueError("extra_vars cannot override Ansible connection or engine variables")
+    return json.dumps(extra_vars, allow_nan=False) if extra_vars else None
+
+
+def validate_literal(value, depth=0):
+    if depth > 64:
+        raise ValueError("Ansible data nesting exceeds 64 levels")
+    if isinstance(value, str) and any(token in value for token in ("{{", "{%", "{#")):
+        raise ValueError("Ansible inputs must be literal; templates and lookups are not allowed")
+    if isinstance(value, dict):
+        for key, item in value.items():
+            validate_literal(key, depth + 1)
+            validate_literal(item, depth + 1)
+    elif isinstance(value, list):
+        for item in value:
+            validate_literal(item, depth + 1)
+
+
+def validate_host_pattern(pattern):
+    if not isinstance(pattern, str) or not pattern or pattern.startswith(("-", "@")) or any(ord(char) < 32 for char in pattern):
+        raise ValueError("invalid host pattern or limit")
+    validate_literal(pattern)
+
+
+def inventory_hosts(data):
+    if not isinstance(data, dict):
+        raise ValueError("invalid inventory response")
+    validate_literal(data)
+    hosts = set()
+    for name, group in data.items():
+        if not isinstance(group, dict):
+            raise ValueError("invalid inventory group")
+        if name == "_meta":
+            hostvars = group.get("hostvars", {})
+            if not isinstance(hostvars, dict):
+                raise ValueError("invalid inventory host variables")
+            hosts.update(hostvars)
+        else:
+            entries = group.get("hosts", [])
+            if not isinstance(entries, list) or not all(isinstance(host, str) for host in entries):
+                raise ValueError("invalid inventory hosts")
+            hosts.update(entries)
+    return hosts
+
+
+def validate_selected_hosts(stdout, declared):
+    lines = stdout.splitlines()
+    selected = 0
+    for index, line in enumerate(lines):
+        match = re.fullmatch(r"\s*hosts \((\d+)\):\s*", line)
+        if not match:
+            continue
+        count = int(match.group(1))
+        if count > len(lines) - index - 1:
+            raise ValueError("invalid host selection response")
+        for host in lines[index + 1:index + 1 + count]:
+            if host.strip() not in declared:
+                raise ValueError("host selection includes a host outside the static inventory")
+        selected += count
+    if selected == 0:
+        raise ValueError("host pattern selects no explicit inventory hosts")
 
 
 def safe_playbook_path(playbook: str) -> str | None:
@@ -266,7 +382,7 @@ class Handler(BaseHTTPRequestHandler):
         version_line = out["stdout"].split("\n")[0] if out["stdout"] else "unknown"
         self.send_json(200, {
             "status":             "ok",
-            "security_policy":    2,
+            "security_policy":    3,
             "version":            version_line,
             "token_configured":   bool(TOKEN),
             "playbooks_dir":      PLAYBOOKS_DIR,
@@ -310,7 +426,12 @@ class Handler(BaseHTTPRequestHandler):
         }
         handler = routes.get(path)
         if handler:
-            handler(body)
+            try:
+                if not isinstance(body, dict):
+                    raise ValueError("request body must be a JSON object")
+                handler(body)
+            except ValueError as exc:
+                self.send_json(400, {"status": "error", "message": str(exc)})
         else:
             self.send_json(404, {"status": "error", "message": f"Unknown endpoint: {path}"})
 

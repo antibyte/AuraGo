@@ -45,6 +45,10 @@ Keep the AuraGo binary CGO-free. `runtime/` must not expose any network port.
 - Publication reuses both native builds after offline IQ acceptance. Push by
   digest, retain SBOM/provenance, and assemble/sign the version manifest only
   after both architectures pass; PRs never publish.
+- `RuntimeImage` consumes the signed multiarch index by SHA-256, with its
+  version tag retained for readability. Check the publisher identity and both
+  linux/amd64 and linux/arm64 descriptors before updating the pin. Publisher
+  fixtures keep testing the freshly built candidate. Verify `TestRuntimeImageIsDigestPinned`.
 - Runtime patches retain LF and unified-diff context whitespace on every host;
   `.gitattributes` owns their Windows checkout normalization.
 

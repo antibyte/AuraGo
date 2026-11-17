@@ -294,7 +294,10 @@ func TestDecodeAnsibleArgsUsesFallbacks(t *testing.T) {
 	if !req.Preview {
 		t.Fatal("expected Preview to be true")
 	}
-	extraVars := req.extraVars()
+	extraVars, err := req.extraVars()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, _ := extraVars["serial"].(float64); got != 1 {
 		t.Fatalf("extraVars[serial] = %v, want 1", got)
 	}

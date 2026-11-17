@@ -112,7 +112,7 @@ func (s *SQLiteMemory) initPersonalityEvidence() error {
 		return fmt.Errorf("back up personality migration: %w", err)
 	}
 	// Rehearse the exact transactional migration on a protected consistent copy.
-	probePath, err := backupMainDatabase(s.db, "personality-evidence-probe")
+	probePath, err := freshMainDatabaseProbe(s.db, "personality-evidence-probe")
 	if err != nil {
 		return err
 	}

@@ -19,6 +19,16 @@ var sqliteBackupSync = (*os.File).Sync
 // committed WAL content. Existing destinations are retained under their names;
 // a collision gets a unique sibling name, returned to the caller.
 func BackupSQLite(ctx context.Context, db *sql.DB, destination string) (string, error) {
+	return backupSQLite(ctx, db, destination, false)
+}
+
+// BackupSQLiteForMigration reuses a verified private snapshot of identical bytes.
+// Its destination is a filename prefix; the published name includes a SHA-256.
+func BackupSQLiteForMigration(ctx context.Context, db *sql.DB, destination string) (string, error) {
+	return backupSQLite(ctx, db, destination, true)
+}
+
+func backupSQLite(ctx context.Context, db *sql.DB, destination string, migration bool) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -61,6 +71,9 @@ func BackupSQLite(ctx context.Context, db *sql.DB, destination string) (string, 
 	}
 	if err := ctx.Err(); err != nil {
 		return "", err
+	}
+	if migration {
+		return publishMigrationBackup(ctx, temporary, destination)
 	}
 	requested := destination
 	for {

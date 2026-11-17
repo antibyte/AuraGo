@@ -21,6 +21,9 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 - A2A system tools are read-only: `service_manager` permits only `status`; `package_manager` permits only `detect`, `search`, `list_installed` and `info`; `install_package` is denied. Empty/unknown operations fail closed before action approvals. Discovery uses the same role policy, and package reads are neither mutating nor high risk. Main/local co-agent permissions are unchanged. Verify `TestA2ASystemToolsReadOnly`.
 
+- A2A document tools remain read-only: deny `document_creator`; Office permits explicit reads and workbook formula evaluation through the shared `tools.OfficeOperationMutates` classification; Desktop Notes permits only list/search/read. Reject conflicting typed/map operations before execution. Discovery trims the same operations. Local co-agents retain their grants. Verify `TestA2ADocumentToolsAreReadOnly`.
+- Ansible extra-variable bodies must decode to JSON objects; malformed bodies fail before either transport instead of silently dropping arguments. Inventory/target policy belongs to `../../ansible_api/AGENTS.md`. Verify `TestAnsibleExtraVariablesRejectMalformedBody`.
+
 - Trusted mail-policy contexts clear only their session-scoped Inner Voice state at actual ExecuteAgentLoop completion, including cancellation/early errors. Session prefixes never authorize cleanup. Retain persistent user history and delivery receipts; verify TestMailInnerVoiceClearsAtActualTurnCompletion.
 
 

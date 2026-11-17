@@ -93,6 +93,11 @@ func officeToolAllowed(cfg *config.Config, kind, op string) error {
 	return nil
 }
 
+// OfficeOperationMutates shares the Office read boundary with agent role policy.
+func OfficeOperationMutates(kind, op string) bool {
+	return officeToolMutates(kind, op)
+}
+
 func officeToolMutates(kind, op string) bool {
 	op = strings.ToLower(strings.TrimSpace(op))
 	switch kind {

@@ -195,9 +195,26 @@ var a2aDesktopReadOperations = []string{
 
 // a2aDesktopWrite reports a virtual desktop call that is not a plain read.
 func a2aDesktopWrite(tc ToolCall) bool {
-	switch tc.Action {
-	case "stirling_pdf", "ziro_export":
+	action := canonicalActionName(tc.Action)
+	if oneOf(action, "office_document", "office_workbook", "desktop_notes") {
+		operation := toolArgString(tc.Params, "operation")
+		if operation == "" && action != "desktop_notes" {
+			operation = toolArgString(tc.Params, "action_type")
+		}
+		// Execution must not select a different operation from the parameter map.
+		if operation != "" && strings.ToLower(strings.TrimSpace(operation)) != strings.ToLower(strings.TrimSpace(tc.Operation)) {
+			return true
+		}
+	}
+	switch action {
+	case "document_creator", "stirling_pdf", "ziro_export":
 		return true
+	case "office_document":
+		return tools.OfficeOperationMutates("document", tc.Operation)
+	case "office_workbook":
+		return tools.OfficeOperationMutates("workbook", tc.Operation)
+	case "desktop_notes":
+		return !oneOf(tc.Operation, "list", "search", "read")
 	case "node_red":
 		return tc.Operation != "list_flows"
 	case "olivetin":

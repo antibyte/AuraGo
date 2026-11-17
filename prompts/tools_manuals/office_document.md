@@ -6,6 +6,8 @@ The tool requires `tools.office_document.enabled`, `virtual_desktop.enabled`, an
 
 If `tools.office_document.readonly` is enabled, only `read` is allowed. `write`, `patch`, `export`, and `insert_image` are blocked.
 
+A2A peers may only read, regardless of write grants. Local co-agents retain their ordinary permissions.
+
 ## Operations
 
 - `read`: use `path`; returns `entry`, `document`, and `office_version`.

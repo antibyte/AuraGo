@@ -164,7 +164,7 @@ func (embedder *llamaEmbedder) embedLocked(ctx context.Context, texts []string) 
 	if response.StatusCode != http.StatusOK {
 		var body bytes.Buffer
 		_, _ = body.ReadFrom(io.LimitReader(response.Body, 16<<10))
-		return nil, fmt.Errorf("llama-server returned %s: %s", response.Status, strings.TrimSpace(body.String()))
+		return nil, embeddingHTTPError(response.StatusCode, fmt.Sprintf("llama-server returned %s: %s", response.Status, strings.TrimSpace(body.String())))
 	}
 	var decoded struct {
 		Data []struct {

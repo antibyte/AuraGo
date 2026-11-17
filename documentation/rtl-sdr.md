@@ -160,6 +160,12 @@ not installed by the app. `.github/workflows/rtl-sdr.yml` runs these checks on
 amd64 and arm64. Release tags (`v*`) and its explicit `publish` input build/sign
 the multi-platform GHCR package only after both architectures pass those checks.
 Pull requests and manual runs without `publish` only validate the receiver.
+AuraGo consumes the signed multiarch runtime by digest, so moving its version
+tag cannot replace the receiver it runs. Before updating the digest, verify the
+AuraGo RTL-SDR publishing-workflow signature and both Linux architecture
+descriptors. The publisher's fixture image continues to test its freshly built
+candidate rather than the previously released digest.
+
 Increment `RuntimeImage` and the matching Docker/CI tags when changing a released
 receiver package.
 

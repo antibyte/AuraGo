@@ -6,6 +6,8 @@ The tool requires `tools.office_workbook.enabled`, `virtual_desktop.enabled`, an
 
 If `tools.office_workbook.readonly` is enabled, only `read` and `evaluate_formula` are allowed. `write`, `set_cell`, `set_range`, `export`, and `insert_image` are blocked.
 
+A2A peers may only read or evaluate formulas, regardless of write grants. Legacy writes cannot preserve `.xltx` or `.xltm` templates and are rejected; read them or export a separate simplified CSV copy instead.
+
 ## Operations
 
 - `read`: use `path`; returns `entry`, `workbook`, and `office_version`.

@@ -698,6 +698,9 @@ func shouldHandleDiscordMessage(botUserID string, m *discordgo.MessageCreate, cf
 	if isDM {
 		return messageDecision{Accepted: true, Reason: "dm", IsDM: true, IsMentioned: isMentioned}
 	}
+	if err := ChannelAllowed(cfg, m.ChannelID); err != nil {
+		return messageDecision{Reason: "channel_not_allowed"}
+	}
 	if defaultChannelID := strings.TrimSpace(cfg.Discord.DefaultChannelID); defaultChannelID != "" && m.ChannelID == defaultChannelID {
 		return messageDecision{Accepted: true, Reason: "default_channel", IsMentioned: isMentioned}
 	}

@@ -24,6 +24,9 @@ Workbook and document preservation, editing, and assist.
   unsupported extensions; reject edits that cannot retain their references.
 - Legacy Office/agent writes cannot silently flatten complex XLSX. Same-format
   exports pass through complete packages; explicit simplified copies are separate.
+- Legacy writes reject `.xltx`/`.xltm` templates, including uppercase extensions,
+  before rebuilding or replacing their bytes. Reading and separate simplified
+  CSV exports remain available. Verify `TestLegacyWorkbookRewriteRejectsTemplates`.
 - Workbook assist is tool-free, uses only bounded explicit selection/context,
   and returns revision-bound proposals. The client applies only after approval.
 - Both Office apps share revision-aware serial saves, asynchronous close guards

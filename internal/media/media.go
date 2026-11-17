@@ -20,12 +20,16 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"aurago/internal/security"
 )
 
 // SaveAttachment downloads a URL and saves it persistently to destDir with a
 // timestamped, sanitized filename. Returns the full saved path.
 // httpClientMedia is a shared HTTP client with timeout for media downloads.
 var httpClientMedia = &http.Client{Timeout: 120 * time.Second}
+
+var httpClientPublicImage = security.NewPublicHTTPClient(120 * time.Second)
 
 // maxAttachmentSize is the maximum download size for attachments (100 MB).
 const maxAttachmentSize = 100 << 20
@@ -405,10 +409,11 @@ func SaveURLToDirContext(ctx context.Context, rawURL, destDir string) (string, e
 		return "", fmt.Errorf("failed to build request: %w", err)
 	}
 	// Mimic a real browser so CDNs (Wikipedia, Unsplash, etc.) don’t return 403.
+	req.URL.Fragment, req.URL.RawFragment = "", ""
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
 	req.Header.Set("Referer", "https://www.google.com/")
-	resp, err := httpClientMedia.Do(req)
+	resp, err := httpClientPublicImage.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to download image: %w", err)
 	}

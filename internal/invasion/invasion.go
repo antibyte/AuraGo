@@ -611,17 +611,25 @@ func ToggleEggActive(db *sql.DB, id string, active bool) error {
 	return nil
 }
 
-// GetNestByName retrieves a nest by its name (case-insensitive).
+// GetNestByName retrieves an unambiguous nest by its name (case-insensitive).
 func GetNestByName(db *sql.DB, name string) (NestRecord, error) {
-	query := `SELECT ` + nestColumns + ` FROM nests WHERE LOWER(name) = LOWER(?)`
-	n, err := scanNestRow(db.QueryRow(query, name))
+	query := `SELECT ` + nestColumns + ` FROM nests WHERE LOWER(name) = LOWER(?) LIMIT 2`
+	rows, err := db.Query(query, name)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return NestRecord{}, fmt.Errorf("nest not found by name: %s", name)
-		}
 		return NestRecord{}, fmt.Errorf("failed to get nest by name: %w", err)
 	}
-	return n, nil
+	defer rows.Close()
+	nests, err := scanNests(rows)
+	if err != nil {
+		return NestRecord{}, fmt.Errorf("failed to get nest by name: %w", err)
+	}
+	if len(nests) == 0 {
+		return NestRecord{}, fmt.Errorf("nest not found by name: %s", name)
+	}
+	if len(nests) != 1 {
+		return NestRecord{}, fmt.Errorf("nest name %q is ambiguous; provide nest_id", name)
+	}
+	return nests[0], nil
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────

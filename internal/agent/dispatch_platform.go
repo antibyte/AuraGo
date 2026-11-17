@@ -921,7 +921,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			// Resolve host pattern (hosts for ad-hoc / limit for playbooks)
 			hosts := req.hosts()
 			inventoryPath := req.Inventory
-			extraVars := req.extraVars()
+			extraVars, extraVarsErr := req.extraVars()
+			if extraVarsErr != nil {
+				return `Tool Output: {"status":"error","message":"Ansible extra variables must be a JSON object."}`
+			}
 
 			isLocal := cfg.Ansible.Mode == "local"
 

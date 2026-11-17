@@ -944,13 +944,18 @@ func (req ansibleArgs) moduleName() string {
 	return req.Package
 }
 
-func (req ansibleArgs) extraVars() map[string]interface{} {
+func (req ansibleArgs) extraVars() (map[string]interface{}, error) {
 	if strings.TrimSpace(req.Body) == "" {
-		return nil
+		return nil, nil
 	}
 	var extraVars map[string]interface{}
-	_ = json.Unmarshal([]byte(req.Body), &extraVars)
-	return extraVars
+	if err := json.Unmarshal([]byte(req.Body), &extraVars); err != nil {
+		return nil, fmt.Errorf("Ansible extra variables must be a JSON object: %w", err)
+	}
+	if extraVars == nil {
+		return nil, fmt.Errorf("Ansible extra variables must be a JSON object")
+	}
+	return extraVars, nil
 }
 
 func decodeTrueNASArgs(tc ToolCall) trueNASArgs {

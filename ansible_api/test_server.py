@@ -150,7 +150,7 @@ class InventorySecurityTests(unittest.TestCase):
             self.assertEqual(snapshot.read_bytes(), self.default.read_bytes())
             return subprocess_result
         from types import SimpleNamespace
-        subprocess_result = SimpleNamespace(returncode=0, stdout="ok", stderr="")
+        subprocess_result = SimpleNamespace(returncode=0, stdout=json.dumps({"all": {"hosts": ["server"]}, "_meta": {"hostvars": {"server": {"ansible_host": "192.168.1.10"}}}}), stderr="")
         with patch.dict(os.environ, {"ANSIBLE_API_TOKEN": "secret", "OTHER_API_KEY": "secret"}), patch.object(server.subprocess, "run", side_effect=execute):
             self.assertEqual(server.run_ansible(["ansible-inventory", "-i", str(self.default), "--list"])["rc"], 0)
 

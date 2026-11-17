@@ -16,6 +16,7 @@ This package owns protocol cards, HTTP authentication, peer clients and the remo
 - HTTP and all unary/streaming gRPC methods share the same enabled API-key/Bearer check. Missing, empty or invalid gRPC credentials fail before handler execution; public card discovery is HTTP-only.
 - Worker admission, cancellation, session scope and draining share the agent registry contract in ../agent/AGENTS.md.
 - Peer system queries retain only service `status` and package `detect`, `search`, `list_installed`, `info`. The shared agent role policy denies mutations and `install_package` before approvals, and trims discovery to the same operations.
+- Peers cannot create documents or Desktop Notes, or mutate Office files. Office reads/formula evaluation and Notes list/search/read retain their existing grants; dispatch and discovery share the agent role boundary.
 
 ## Work Guidance
 

@@ -1122,6 +1122,9 @@ func preserveWorkbookParts(original, updated map[string][]byte, dirty map[string
 
 func CheckLegacyWorkbookRewrite(name string, original []byte) error {
 	ext := strings.ToLower(path.Ext(name))
+	if ext == ".xltx" || ext == ".xltm" {
+		return fmt.Errorf("legacy editing cannot preserve workbook templates (%s); export a separate simplified copy", ext)
+	}
 	if ext != ".xlsx" && ext != ".xlsm" {
 		return nil
 	}

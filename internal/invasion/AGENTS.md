@@ -10,6 +10,10 @@ the Egg runtime in `cmd/aurago`.
 
 ## Local contracts
 
+- Name lookup must be unambiguous, case-insensitively. `GetNestByName` rejects
+  multiple matches and requests `nest_id`; preserve existing duplicate records
+  and explicit-ID access. Verify `TestGetNestByNameRejectsAmbiguousNames`.
+
 - The four `prompts/tools_manuals/invasion_*.md` guides share these admission,
   explicit-permission and coordinated-upgrade rules. Manual changes do not add
   tool arguments or require training catalog regeneration.

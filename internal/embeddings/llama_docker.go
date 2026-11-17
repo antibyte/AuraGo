@@ -464,7 +464,7 @@ func (embedder *dockerLlamaEmbedder) embedLocked(ctx context.Context, texts []st
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		rawBody, _ := io.ReadAll(io.LimitReader(response.Body, 16<<10))
-		return nil, fmt.Errorf("managed llama-server returned %s: %s", response.Status, strings.TrimSpace(string(rawBody)))
+		return nil, embeddingHTTPError(response.StatusCode, fmt.Sprintf("managed llama-server returned %s: %s", response.Status, strings.TrimSpace(string(rawBody))))
 	}
 	var decoded struct {
 		Data []struct {

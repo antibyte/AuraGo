@@ -72,6 +72,7 @@ func TestSaveAttachmentContextCancelsAndRemovesPartialFile(t *testing.T) {
 }
 
 func TestSaveURLToDirContextCancelsAndRemovesPartialFile(t *testing.T) {
+	useLocalImageClient(t)
 	requestStarted := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
@@ -116,6 +117,7 @@ func TestSaveURLToDirContextCancelsAndRemovesPartialFile(t *testing.T) {
 }
 
 func TestDownloadAndSanitizeImageContextCancelsRemoteFetch(t *testing.T) {
+	useLocalImageClient(t)
 	requestStarted := make(chan struct{})
 	serverCanceled := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -193,6 +195,7 @@ func TestDownloadFileUsesURLPathExtensionForSignedURLs(t *testing.T) {
 }
 
 func TestSaveURLToDirStripsFragmentBeforeExtension(t *testing.T) {
+	useLocalImageClient(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/webp")
 		_, _ = w.Write([]byte("RIFFxxxxWEBP"))
@@ -206,4 +209,11 @@ func TestSaveURLToDirStripsFragmentBeforeExtension(t *testing.T) {
 	if filepath.Ext(path) != ".webp" {
 		t.Fatalf("saved path = %q, want .webp extension", path)
 	}
+}
+
+func useLocalImageClient(t *testing.T) {
+	t.Helper()
+	previous := httpClientPublicImage
+	httpClientPublicImage = &http.Client{Timeout: 5 * time.Second}
+	t.Cleanup(func() { httpClientPublicImage = previous })
 }

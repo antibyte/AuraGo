@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -47,8 +48,8 @@ func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}
 		var status struct {
 			SecurityPolicy int `json:"security_policy"`
 		}
-		if err != nil || code != http.StatusOK || json.Unmarshal(data, &status) != nil || status.SecurityPolicy < 2 {
-			return nil, 0, fmt.Errorf("Ansible sidecar requires the static-inventory security update; rebuild its image")
+		if err != nil || code != http.StatusOK || json.Unmarshal(data, &status) != nil || status.SecurityPolicy < ansibleSecurityPolicy {
+			return nil, 0, fmt.Errorf("Ansible sidecar requires security policy 3 (literal inventory and bounded targets); rebuild its image")
 		}
 	}
 	url := strings.TrimRight(cfg.URL, "/") + endpoint
@@ -236,6 +237,8 @@ func AnsibleGatherFacts(cfg AnsibleConfig, hosts, inventoryPath string) string {
 
 const ansibleContainerName = "aurago_ansible"
 const ansibleSidecarImage = "aurago-ansible:latest"
+const ansibleSecurityPolicy = 3
+const ansibleImagePolicyLabel = "io.aurago.ansible.security-policy"
 
 // AnsibleSidecarConfig carries the fields needed to auto-manage the
 // Ansible sidecar container via the Docker API.
@@ -248,7 +251,7 @@ type AnsibleSidecarConfig struct {
 	ContainerName    string // Container name (default: aurago_ansible)
 	PlaybooksDir     string // Host path to playbooks dir (mounted into /playbooks)
 	InventoryDir     string // Host path to inventory dir (mounted into /inventory)
-	AutoBuild        bool   // Build image automatically if not found locally
+	AutoBuild        bool   // Build image automatically if missing or on an obsolete security policy
 	DockerfileDir    string // Directory containing Dockerfile.ansible (default: ".")
 }
 
@@ -285,12 +288,20 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		logger.Warn("[Ansible] Docker unavailable, skipping sidecar auto-start", "error", err)
 		return
 	}
+	if !ensureAnsiblePolicyImage(dockerCfg, sidecarCfg, image, logger) {
+		return
+	}
 
 	if code == 200 {
 		// Container exists — check if it's running
 		var info map[string]interface{}
 		if json.Unmarshal(data, &info) == nil {
-			var inspect struct{ Config struct{ Env []string } }
+			var inspect struct {
+				Config struct {
+					Env    []string
+					Labels map[string]string
+				}
+			}
 			if json.Unmarshal(data, &inspect) != nil {
 				return
 			}
@@ -298,9 +309,9 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 			matched, current := false, false
 			for _, value := range inspect.Config.Env {
 				matched = matched || value == desired
-				current = current || value == "AURAGO_ANSIBLE_POLICY=2"
+				current = current || value == fmt.Sprintf("AURAGO_ANSIBLE_POLICY=%d", ansibleSecurityPolicy)
 			}
-			if !matched || !current || manifestEnvValue(inspect.Config.Env, "DEFAULT_INVENTORY") != defaultInventory {
+			if !matched || !current || inspect.Config.Labels[ansibleImagePolicyLabel] != strconv.Itoa(ansibleSecurityPolicy) || manifestEnvValue(inspect.Config.Env, "DEFAULT_INVENTORY") != defaultInventory {
 				ReapplyAnsibleToken(dockerHost, sidecarCfg, logger)
 				return
 			}
@@ -326,31 +337,12 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		return
 	}
 
-	// Container does not exist — check if image is available
-	_, imgCode, imgErr := dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
-	if imgErr != nil || imgCode != 200 {
-		if sidecarCfg.AutoBuild {
-			if err := buildAnsibleImageOnEngine(image, sidecarCfg.DockerfileDir, dockerHost, logger); err != nil {
-				logger.Error("[Ansible] Auto-build failed. Start the sidecar manually after building the image.",
-					"image", image,
-					"hint", "docker build -f deploy/docker/Dockerfile.ansible -t "+image+" .",
-					"error", err)
-				return
-			}
-		} else {
-			logger.Warn("[Ansible] Image not found locally. Build it first.",
-				"image", image,
-				"hint", "docker build -f deploy/docker/Dockerfile.ansible -t "+image+" .")
-			return
-		}
-	}
-
 	// Build environment variables
 	env := []string{
 		"PORT=5001",
 		"ANSIBLE_HOST_KEY_CHECKING=True",
 		fmt.Sprintf("ANSIBLE_READONLY=%t", sidecarCfg.ReadOnly),
-		"AURAGO_ANSIBLE_POLICY=2",
+		fmt.Sprintf("AURAGO_ANSIBLE_POLICY=%d", ansibleSecurityPolicy),
 		"DEFAULT_INVENTORY=" + defaultInventory,
 	}
 	if sidecarCfg.Token != "" {
@@ -400,6 +392,39 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 		return
 	}
 	logger.Info("[Ansible] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+func ensureAnsiblePolicyImage(dockerCfg DockerConfig, sidecarCfg AnsibleSidecarConfig, image string, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) bool {
+	if image == "" {
+		image = ansibleSidecarImage
+	}
+	// Verify the image before replacing a running container or claiming a new policy.
+	imageData, imageCode, imageErr := dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
+	var imageInfo struct {
+		Config struct{ Labels map[string]string }
+	}
+	currentImage := imageErr == nil && imageCode == 200 && json.Unmarshal(imageData, &imageInfo) == nil && imageInfo.Config.Labels[ansibleImagePolicyLabel] == strconv.Itoa(ansibleSecurityPolicy)
+	if !currentImage {
+		if !sidecarCfg.AutoBuild {
+			logger.Warn("[Ansible] Image requires security policy 3; rebuild it before starting the sidecar", "image", image)
+			return false
+		}
+		if err := buildAnsibleImageOnEngine(image, sidecarCfg.DockerfileDir, dockerCfg.Host, logger); err != nil {
+			logger.Error("[Ansible] Security-policy image build failed; existing container retained", "error", err)
+			return false
+		}
+		imageData, imageCode, imageErr = dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
+		if imageErr != nil || imageCode != 200 || json.Unmarshal(imageData, &imageInfo) != nil || imageInfo.Config.Labels[ansibleImagePolicyLabel] != strconv.Itoa(ansibleSecurityPolicy) {
+			logger.Error("[Ansible] Rebuilt image does not provide security policy 3; existing container retained")
+			return false
+		}
+	}
+
+	return true
 }
 
 func ansibleManagedHostConfig(binds []string) map[string]interface{} {
@@ -482,6 +507,9 @@ func ReapplyAnsibleToken(dockerHost string, sidecarCfg AnsibleSidecarConfig, log
 		containerName = ansibleContainerName
 	}
 	dockerCfg := DockerConfig{Host: dockerHost}
+	if !ensureAnsiblePolicyImage(dockerCfg, sidecarCfg, sidecarCfg.Image, logger) {
+		return
+	}
 
 	logger.Info("[Ansible] Reapplying token — recreating sidecar container", "container", containerName)
 
@@ -589,17 +617,52 @@ func ansibleRunCmd(cfg AnsibleLocalConfig, name string, args ...string) (string,
 		return "", "", err
 	}
 	defer os.RemoveAll(staging)
-	binary, err := exec.LookPath(name)
+	run := func(binaryName string, commandArgs []string) (string, string, error) {
+		binary, err := exec.LookPath(binaryName)
+		if err != nil {
+			return "", "", err
+		}
+		cmd := sb.PrepareExecCommand(binary, commandArgs, staging)
+		ensureFilteredEnv(cmd)
+		cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=True", "ANSIBLE_CONFIG="+filepath.Join(staging, "_safe.cfg"), "ANSIBLE_INVENTORY_ENABLED=ini,yaml", "LANG=C.UTF-8", "LC_ALL=C.UTF-8")
+		ApplyShellSandboxDockerGrant(cmd)
+		SetupCmd(cmd)
+		runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: time.Duration(cfg.Timeout) * time.Second, Graceful: true, KillWait: shellKillWait})
+		return runner.Run(ctx)
+	}
+	inventory := ""
+	for index, arg := range stagedArgs {
+		if arg == "-i" && index+1 < len(stagedArgs) {
+			inventory = stagedArgs[index+1]
+			break
+		}
+	}
+	if inventory == "" {
+		return run(name, stagedArgs)
+	}
+	exported, _, err := run("ansible-inventory", []string{"-i", inventory, "--list", "--export"})
+	if err != nil {
+		return "", "", fmt.Errorf("static inventory could not be resolved: %w", err)
+	}
+	declared, err := ansibleDeclaredHosts(exported)
 	if err != nil {
 		return "", "", err
 	}
-	cmd := sb.PrepareExecCommand(binary, stagedArgs, staging)
-	ensureFilteredEnv(cmd)
-	cmd.Env = append(cmd.Env, "ANSIBLE_HOST_KEY_CHECKING=True", "ANSIBLE_CONFIG="+filepath.Join(staging, "_safe.cfg"), "ANSIBLE_INVENTORY_ENABLED=ini,yaml")
-	ApplyShellSandboxDockerGrant(cmd)
-	SetupCmd(cmd)
-	runner := NewForegroundRunner(cmd, ForegroundOptions{Timeout: time.Duration(cfg.Timeout) * time.Second, Graceful: true, KillWait: shellKillWait})
-	return runner.Run(ctx)
+	if name == "ansible-inventory" {
+		return exported, "", nil
+	}
+	probe := append(append([]string(nil), stagedArgs...), "--list-hosts")
+	if name == "ansible" {
+		probe = []string{stagedArgs[0], "-i", inventory, "--list-hosts"}
+	}
+	selected, _, err := run(name, probe)
+	if err != nil {
+		return "", "", fmt.Errorf("host selection could not be resolved: %w", err)
+	}
+	if err := validateAnsibleSelectedHosts(selected, declared); err != nil {
+		return "", "", err
+	}
+	return run(name, stagedArgs)
 }
 
 // AnsibleLocalStatus returns ansible and ansible-playbook version information.

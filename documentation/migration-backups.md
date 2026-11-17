@@ -21,6 +21,16 @@ find copies by their prefix and check their contents and modification time.
 Existing private Memory snapshots, Flow rehearsal copies and `.ago` archives
 retain their own layouts and recovery workflows.
 
+Memory's migration copies use `BackupSQLiteForMigration`: the filename contains
+the migration label and the SHA-256 of the consistent copy. A retry or restart
+reuses an existing copy only after checking its bytes, regular-file identity and
+private permissions. Committed changes, including WAL data, produce a different
+name. Corrupt or non-private content-addressed copies stop migration and remain
+untouched for operator review. Older randomly named backups are retained.
+Rehearsals use separate fresh mutable copies and cannot alter retained backups.
+Each retry still prepares a private temporary full copy before comparison; only
+its temporary staging is removed, never existing recovery copies.
+
 Flow's `pre-restore.db` and `restored.db` are private offline restore scratch,
 not live stores in `.ago` archives. Recover them through the encrypted purge or
 pre-restore backup and the Flow restore procedure, never as an independent live

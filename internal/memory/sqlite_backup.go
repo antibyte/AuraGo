@@ -22,8 +22,15 @@ func backupMainDatabase(db *sql.DB, label string) (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	backup := path + "." + label + "-" + rand.Text() + ".bak"
-	return dbutil.BackupSQLite(context.Background(), db, backup)
+	return dbutil.BackupSQLiteForMigration(context.Background(), db, path+"."+label+".bak")
+}
+
+func freshMainDatabaseProbe(db *sql.DB, label string) (string, error) {
+	path, err := mainDatabasePath(db)
+	if err != nil || path == "" {
+		return "", err
+	}
+	return dbutil.BackupSQLite(context.Background(), db, path+"."+label+"-"+rand.Text()+".bak")
 }
 
 func mainDatabasePath(db *sql.DB) (string, error) {

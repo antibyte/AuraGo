@@ -3,7 +3,16 @@ package embeddings
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
 )
+
+func embeddingHTTPError(status int, message string) error {
+	if status == http.StatusBadRequest || status == http.StatusRequestEntityTooLarge || status == http.StatusUnprocessableEntity {
+		return fmt.Errorf("%w: %s", ErrInvalidInput, message)
+	}
+	return errors.New(message)
+}
 
 var (
 	// ErrInvalidInput marks an embedding request that the caller got wrong

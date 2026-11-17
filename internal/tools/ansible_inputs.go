@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
 
 // Local execution sees a private, bounded snapshot. Absolute paths have exactly
@@ -19,6 +20,29 @@ func stageAnsibleInputs(ctx context.Context, cfg AnsibleLocalConfig, name string
 	}
 	if name == "ansible" && len(args) > 0 && strings.HasPrefix(args[0], "-") && args[0] != "--version" {
 		return "", nil, fmt.Errorf("invalid host pattern")
+	}
+	if name == "ansible" && len(args) > 0 && args[0] != "--version" {
+		if err := validateAnsibleHostPattern(args[0]); err != nil {
+			return "", nil, err
+		}
+	}
+	for index, arg := range args {
+		switch arg {
+		case "-e", "--extra-vars":
+			if index+1 >= len(args) {
+				return "", nil, fmt.Errorf("extra_vars must be a JSON object")
+			}
+			if err := validateAnsibleExtraVars(args[index+1]); err != nil {
+				return "", nil, err
+			}
+		case "--limit", "-l":
+			if index+1 >= len(args) {
+				return "", nil, fmt.Errorf("host limit is missing")
+			}
+			if err := validateAnsibleHostPattern(args[index+1]); err != nil {
+				return "", nil, err
+			}
+		}
 	}
 	dir, err = os.MkdirTemp(cfg.WorkDir, ".aurago-ansible-")
 	if err != nil {
@@ -122,6 +146,13 @@ func stageAnsibleInputs(ctx context.Context, cfg AnsibleLocalConfig, name string
 		ext := strings.ToLower(filepath.Ext(relative))
 		if len(data) > 1<<20 || strings.ContainsRune(string(data), 0) || strings.HasPrefix(string(data), "#!") || (ext != ".ini" && ext != ".yaml" && ext != ".yml" && ext != "") || strings.Contains(strings.ToLower(string(data)), "plugin:") {
 			err = fmt.Errorf("only bounded static INI/YAML inventory is supported")
+			return
+		}
+		if !utf8.Valid(data) {
+			err = fmt.Errorf("inventory must be UTF-8")
+			return
+		}
+		if err = validateAnsibleLiteral(string(data), 0); err != nil {
 			return
 		}
 		if ext == "" {

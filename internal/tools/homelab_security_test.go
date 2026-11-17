@@ -36,7 +36,7 @@ func TestWorkspaceAttachmentRetainsOutgoingProtection(t *testing.T) {
 }
 
 func TestAnsibleRequiresUpdatedSidecarBeforeExecution(t *testing.T) {
-	for _, version := range []int{0, 1, 2} {
+	for _, version := range []int{0, 1, 2, 3} {
 		t.Run(strconv.Itoa(version), func(t *testing.T) {
 			calls := 0
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func TestAnsibleRequiresUpdatedSidecarBeforeExecution(t *testing.T) {
 			}))
 			defer srv.Close()
 			_, _, err := ansibleRequest(AnsibleConfig{URL: srv.URL}, http.MethodPost, "/run/playbook", map[string]bool{"check": true})
-			if (err == nil) != (version == 2) || (calls > 0) != (version == 2) {
+			if (err == nil) != (version == 3) || (calls > 0) != (version == 3) {
 				t.Fatalf("version %d: calls=%d err=%v", version, calls, err)
 			}
 		})

@@ -18,6 +18,7 @@ Own Discord ingress, API delivery and connection lifecycle.
 - The transport owns rate-limit waits; remove SDK rate-limit scheduling headers so its bucket locks cannot start independent, uncancellable sleeps. Gateway reconnect backoff and handshake are generation-bound.
 - Register tokens before SDK construction; scrub provider errors. Preserve suppressed link embeds, attachment confinement and delivery-failure counters.
 - Sender/channel checks precede worker admission. Authorized stop and pending-question text bypass saturation; source identity and question ID remain mandatory. Keep separate Discord conversation contexts and operator commands limited to authorized DMs.
+- Guild ingress applies `ChannelAllowed` before default-channel/mention admission and before stop/question fast paths. An empty allowlist preserves legacy reach; configured owner DMs remain available. Verify `TestShouldHandleDiscordMessageHonorsChannelAllowlist`.
 
 ## Work Guidance
 

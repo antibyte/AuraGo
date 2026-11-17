@@ -1,6 +1,8 @@
 # ansible — Ansible Automation
 
-Local and sidecar inventories share the static-file restrictions below. Only the exact configured default may be outside the root. Inventory output excludes arbitrary variables and raw errors; child processes never inherit the API token. Existing sidecars must be rebuilt to advertise security policy 2. Read-only blocks all playbook runs, including check and dry-run: tasks can ignore Ansible check mode.
+Local and sidecar inventories share the static-file restrictions below. Only the exact configured default may be outside the root. Inventory output excludes arbitrary variables and raw errors; child processes never inherit the API token. Existing sidecars must be rebuilt to advertise security policy 3. Managed images also require the matching `io.aurago.ansible.security-policy=3` label. Read-only blocks all playbook runs, including check and dry-run: tasks can ignore Ansible check mode.
+
+Both modes require literal UTF-8 inventories: no Jinja templates/lookups, including escaped forms. Host/group patterns must resolve entirely to explicitly declared inventory hosts; implicit localhost and host-file limits (`@file`) are rejected. With no configured default, AuraGo supplies its own explicit private localhost inventory. Extra variables must be JSON objects containing application data, without templates or Ansible connection/engine overrides (`ansible_*`, `_ansible_*`, `hostvars`, `groups` and other reserved inventory variables). Malformed JSON is an error, not an empty variable set. These checks constrain supplied inputs; approved playbooks remain executable operator code and require write permission.
 
 Run Ansible playbooks, ad-hoc commands, and inventory queries.
 Two execution modes are supported — choose with `ansible.mode` in `config.yaml`:
@@ -181,4 +183,5 @@ ansible:
 - Facts output is trimmed to 8 KB to avoid overwhelming the context window.
 - Playbook paths are validated to prevent directory traversal (sidecar mode).
 - Playbooks are listed recursively in both local and sidecar modes.
-- `ansible.timeout` applies to both modes as the maximum seconds per command.
+- `ansible.timeout` covers inventory export, host selection and execution together.
+- Auto-build refreshes missing or obsolete managed images before container replacement. Failed builds retain the previous container; rebuild external images explicitly before using policy 3.

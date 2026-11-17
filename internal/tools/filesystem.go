@@ -360,16 +360,11 @@ func secureResolveFinalPath(clean string) (string, error) {
 	current := clean
 	var missing []string
 	for {
-		info, err := os.Lstat(current)
+		_, err := os.Lstat(current)
 		if err == nil {
-			resolved := current
-			if info.Mode()&os.ModeSymlink != 0 {
-				resolved, err = filepath.EvalSymlinks(current)
-				if err != nil {
-					return "", err
-				}
-			} else if eval, evalErr := filepath.EvalSymlinks(current); evalErr == nil {
-				resolved = eval
+			resolved, err := resolveExistingToolPath(current)
+			if err != nil {
+				return "", err
 			}
 			for i := len(missing) - 1; i >= 0; i-- {
 				resolved = filepath.Join(resolved, missing[i])
@@ -381,11 +376,7 @@ func secureResolveFinalPath(clean string) (string, error) {
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			resolved := current
-			for i := len(missing) - 1; i >= 0; i-- {
-				resolved = filepath.Join(resolved, missing[i])
-			}
-			return filepath.Clean(resolved), nil
+			return "", err
 		}
 		missing = append(missing, filepath.Base(current))
 		current = parent

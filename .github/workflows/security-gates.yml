@@ -434,6 +434,9 @@ jobs:
           - id: supertonic
             context: .
             dockerfile: deploy/docker/Dockerfile.supertonic
+          - id: ansible
+            context: .
+            dockerfile: deploy/docker/Dockerfile.ansible
 
     steps:
       - name: Checkout repository
@@ -483,6 +486,20 @@ jobs:
           docker run --rm --entrypoint sh "aurago-ci-aurago:test" -c
           'test -s /app/LICENSE && test -s /app/THIRD_PARTY_NOTICES.md &&
           test -s /app/licences/texts/GPL-3.0-only.txt && test -s /app/licences/linked-go-modules.tsv'
+
+      - name: Verify real Ansible inventory and target admission
+        if: matrix.id == 'ansible'
+        timeout-minutes: 5
+        run: >-
+          docker run --rm --network none --cap-drop ALL
+          --security-opt no-new-privileges:true
+          --env AURAGO_RUN_ANSIBLE_SMOKE=1
+          --env PYTHONDONTWRITEBYTECODE=1
+          --mount "type=bind,src=${{ github.workspace }}/ansible_api,dst=/tests,readonly"
+          "aurago-ci-ansible:test"
+          python -c 'import server, sys, unittest;
+          result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover("/tests"));
+          sys.exit(not result.wasSuccessful())'
 
       - name: Set up Go for the isolated Egg runtime contract
         if: matrix.id == 'aurago'

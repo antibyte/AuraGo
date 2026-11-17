@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const RuntimeImage = "ghcr.io/antibyte/aurago-rtl-sdr:4"
+const RuntimeImage = "ghcr.io/antibyte/aurago-rtl-sdr:4@sha256:9cfd37d5151c373c6fe574aa29094036a3be6b38eee0705b6387f09f1f5dab86"
 
 type Device struct {
 	ID            string `json:"id"`

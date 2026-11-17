@@ -45,7 +45,7 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_t
 |-----------|------|----------|-------------|
 | `operation` | string | yes | One of the operations above |
 | `nest_id` | string | for most nest operations | Nest ID |
-| `nest_name` | string | no | Nest name — alternative to nest_id for lookup |
+| `nest_name` | string | no | Case-insensitive unique nest name; ambiguous names require nest_id |
 | `egg_id` | string | for assign_egg; optional target for egg_status/send_task | Egg ID |
 | `egg_name` | string | optional target for egg_status/send_task | Egg name — alternative to egg_id when the user names the Egg |
 | `task` | string | for send_task | Task description in natural language |
