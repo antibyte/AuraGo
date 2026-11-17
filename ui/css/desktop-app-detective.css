@@ -31,11 +31,13 @@
 .dt-cases-head b{margin-left:auto;padding:1px 8px;border-radius:999px;font-size:11px;letter-spacing:0;background:var(--vd-mat-card,var(--vd-theme-control-bg));color:var(--vd-theme-muted)}
 .dt-cases{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto;padding:0 10px 12px}
 .dt-none{padding:10px 4px;font-size:12px;color:var(--vd-theme-muted)}
-.dt-app .dt-case{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;text-align:left;width:100%;margin:0;padding:10px 11px;overflow-wrap:anywhere}
+/* Case rows stay cards. The shared button radius is a pill on some themes, and that turns a wrapped title into a capsule. */
+.dt-app .dt-case{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;text-align:left;width:100%;margin:0;padding:10px 11px;overflow-wrap:anywhere;border-radius:var(--vd-mat-card-radius,10px);border-color:transparent;background:transparent;box-shadow:none}
+.dt-app .dt-case:hover:not(.is-selected){background:var(--vd-mat-hover,var(--vd-theme-control-hover));border-color:transparent}
 .dt-case-body{display:grid;gap:4px;min-width:0}
 .dt-case b{font-size:13px;line-height:1.35;font-weight:600}
 .dt-case small{font-size:11px;display:block}
-.dt-case.is-selected{border-color:var(--vd-accent);background:var(--vd-mat-selected,var(--vd-theme-accent-soft));color:var(--vd-mat-selected-text,inherit);box-shadow:var(--vd-mat-selected-edge,none)}
+.dt-app .dt-case.is-selected,.dt-app .dt-case.is-selected:hover{border-color:var(--vd-accent);background:var(--vd-mat-selected,var(--vd-theme-accent-soft));color:var(--vd-mat-selected-text,inherit);box-shadow:var(--vd-mat-selected-edge,none)}
 .dt-case.is-selected small{color:var(--vd-mat-selected-text,var(--vd-theme-muted))}
 .dt-dot{--dt-dot:var(--vd-theme-muted);width:8px;height:8px;border-radius:50%;flex:none;background:var(--dt-dot)}
 .dt-case .dt-dot{margin-top:5px}
