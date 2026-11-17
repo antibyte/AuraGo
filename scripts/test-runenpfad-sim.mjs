@@ -1884,5 +1884,50 @@ console.log('Runenpfad round 3 review fixes passed.');
         Sim.stepSimulation(s, STEP, {}).forEach((e) => { if (e.type === 'boss_defeat') defeated = true; });
         assert.ok(boss.dead && s.tempHazards.length === 0, 'defeat clears the fire');
     }
+
+    // --- swing clearance: arcs never touch solid tiles, and a block in the arc stops the swing without embedding ---
+    {
+        const Ph = sandbox.RunenpfadPhysics;
+        const overlapsSolid = (st, x, y) => {
+            for (let tx = Math.floor((x - 14) / T); tx <= Math.floor((x + 14) / T); tx++) {
+                for (let ty = Math.floor((y - 44) / T); ty <= Math.floor((y - 1) / T); ty++) if (Ph.isSolidTile(st, tx, ty)) return true;
+            }
+            return false;
+        };
+        const stages = [];
+        Levels.CAMPAIGN_LEVELS.forEach((l) => stages.push(Levels.buildStage(l.id)));
+        for (const seed of [9001, 777]) for (let f = 1; f <= 12; f++) stages.push(Levels.buildStage(Levels.createEndlessConfig(f, seed)));
+        let swept = 0;
+        stages.forEach((st) => st.swings.forEach((r) => {
+            swept++;
+            for (let a = -Swing.MAX_ANGLE; a <= Swing.MAX_ANGLE + 1e-9; a += 0.05) {
+                const x = r.ax + r.len * Math.sin(a);
+                const y = r.ay + r.len * Math.cos(a) + 40;
+                assert.ok(!overlapsSolid(st, x, y), `rope ${r.id} of stage ${st.id} clear at angle ${a.toFixed(2)}`);
+            }
+        }));
+        assert.ok(swept >= 20, 'swept ropes ' + swept);
+        const s = mk(3);
+        s.stage.enemies.length = 0;
+        const r0 = s.stage.swings[0];
+        const e0 = Swing.endOf(r0);
+        s.player.x = e0.x; s.player.y = e0.y + 20; s.player.onGround = false; s.player.vy = 0;
+        tickN(s, 2, {});
+        assert.ok(s.player.swing, 'hanging');
+        // a solid wall in the forward arc
+        const bx = Math.floor((r0.ax + r0.len * Math.sin(0.5)) / T);
+        for (let ty = 4; ty <= 11; ty++) s.stage.solidMap[(bx + 1) + ',' + ty] = true;
+        let embedded = false;
+        let maxA = 0;
+        tickN(s, 400, { right: true }, (sim) => {
+            if (sim.player.swing) {
+                const pl = sim.player;
+                if (overlapsSolid(sim.stage, pl.x, pl.y)) embedded = true;
+                maxA = Math.max(maxA, r0.angle);
+            }
+        });
+        assert.ok(!embedded, 'the hero is never seated inside the block');
+        assert.ok(maxA < 0.95, 'the block stops the swing, max angle ' + maxA);
+    }
 }
 console.log('Runenpfad round 4 checks passed: swing ropes, rune sequence, lever bridge, ritual chain, drakeling, dragon strafe, dragon boss.');

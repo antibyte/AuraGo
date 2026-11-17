@@ -44,13 +44,13 @@
         const T = ctx.TILE;
         const n = ctx.cfg.worldIndex >= 2 ? 4 : 3;
         const spacing = 4.2;
-        const first = 4.2;
+        const first = 6; // the arc reaches ~5.4 tiles to each side, so every rope's corridor stays inside the zone
         const pitWidth = n === 4 ? 18 : 14;
         const style = styleFor(ctx.cfg.worldIndex);
         const group = 'sg_' + ctx.extras.swings.length;
-        ctx.fillGround(cx, 3, g);
-        spikePit(ctx, cx + 3, pitWidth);
-        ctx.fillGround(cx + 3 + pitWidth, 4, g);
+        ctx.fillGround(cx, 5, g);
+        spikePit(ctx, cx + 5, pitWidth);
+        ctx.fillGround(cx + 5 + pitWidth, 4, g);
         const ay = (g - 8) * T;
         const len = 270;
         for (let i = 0; i < n; i++) {
@@ -75,8 +75,8 @@
         }
         ctx.addCheckpoint(cx + 1);
         ctx.addProp(cx + 1, g);
-        ctx.addProp(cx + 3 + pitWidth + 2, g);
-        return 3 + pitWidth + 4;
+        ctx.addProp(cx + 5 + pitWidth + 2, g);
+        return 5 + pitWidth + 4;
     }
 
     function build(zone, ctx) {
@@ -114,6 +114,24 @@
         const along = (hx - s.ax) * dx + (hy - s.ay) * dy;
         const t = Math.min(s.len, Math.max(s.len * GRAB_FROM, along));
         return { dist: Math.hypot(hx - (s.ax + dx * t), hy - (s.ay + dy * t)), along: along };
+    }
+
+    // True when the hero rect at (x, y) overlaps a solid tile, or a solid one-way platform while moving down.
+    function blocked(sim, x, y, prevY) {
+        const stage = sim.stage;
+        const T = stage.tileSize;
+        for (let tx = Math.floor((x - 14) / T); tx <= Math.floor((x + 14) / T); tx++) {
+            for (let ty = Math.floor((y - 44) / T); ty <= Math.floor((y - 1) / T); ty++) {
+                if (P().isSolidTile(stage, tx, ty)) return true;
+            }
+        }
+        if (y > prevY) {
+            for (let i = 0; i < stage.platforms.length; i++) {
+                const pl = stage.platforms[i];
+                if (pl.solid && x + 14 > pl.x && x - 14 < pl.x + pl.w && prevY <= pl.y + 2 && y > pl.y) return true;
+            }
+        }
+        return false;
     }
 
     function seat(sim, s) {
@@ -182,7 +200,21 @@
         const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
         if (dir !== 0) p.facing = dir;
         else if (Math.abs(s.omega) > 0.5) p.facing = s.omega > 0 ? 1 : -1;
+        const ox = p.x;
+        const oy = p.y;
         seat(sim, s);
+        if (blocked(sim, p.x, p.y, oy)) {
+            // Bonk: the arc runs into a solid tile or platform, so the swing stops dead and never seats the hero inside it.
+            s.angle = s.pa;
+            s.omega = 0;
+            seat(sim, s);
+            if (blocked(sim, p.x, p.y, oy)) {
+                p.x = ox;
+                p.y = oy;
+                release(sim, s, false, null);
+                return false;
+            }
+        }
         return true;
     }
 
@@ -218,6 +250,10 @@
         const held = p.swing ? find(list, p.swing.id) : null;
         if (p.swing && !held) p.swing = null;
         const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+        if (held) {
+            held.pa = held.angle;
+            held.po = held.omega;
+        }
         list.forEach(function (s) { integrate(s, s === held ? dir : 0, s === held, dt); });
         if (held) return carry(sim, held, dt, input);
         if (!stage.swingHinted && list.some(function (s) { return Math.abs(p.x - s.ax) < HINT_RANGE; })) {
