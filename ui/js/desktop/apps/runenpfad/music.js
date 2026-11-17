@@ -20,6 +20,7 @@
     const MELODY_RHYTHMS = [[0, 1, 1.5, 2.5], [0, 0.5, 1, 2], [0, 1.5, 2, 3], [0, 1, 2, 3], [0, 0.75, 1.5, 2.5, 3]];
     const OSTINATO = [0, 0, 1, 0, 0, 4, 0, 1];
     const EIGHTHS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5];
+    const SIXTEENTHS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75];
 
     // Biome themes: tonic (midi), mode, tempo, two 4-bar chord loops (scale degrees), instruments, calm drum grid.
     const BASE_SPECS = {
@@ -28,6 +29,35 @@
         desert: { root: 52, scale: 'phrygianDominant', bpm: 104, prog: [[0, 1, 0, 6], [0, 4, 1, 0]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS },
         glacier: { root: 54, scale: 'lydian', bpm: 72, prog: [[0, 1, 0, 4], [5, 1, 4, 0]], arpInstr: 'bell', melInstr: 'bell', arpGrid: [0, 1, 2, 3] },
         citadel: { root: 48, scale: 'harmonicMinor', bpm: 120, prog: [[0, 5, 3, 4], [0, 3, 4, 0]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS }
+    };
+
+    // Boss characters. lead/arp/bass/ost name the instrument of each role; bossArp is the arp layer level (0 = silent).
+    const BOSS_SPECS = {
+        // Boar: war drums and a low horn-like brass lead.
+        woodland: {
+            leadInstr: 'horn', arpInstr: 'horn', bossArp: 0, bassInstr: 'bass', ostInstr: 'ostinato', ostGrid: EIGHTHS, droneVel: 1,
+            drums: { kick: [0, 1.5], snare: [2], hat: [3], taiko: [0.5, 1, 1.5, 2.5, 3, 3.5] }
+        },
+        // Goblin: dark cave bells over plucked low strings.
+        cavern: {
+            leadInstr: 'darkbell', arpInstr: 'darkbell', bossArp: 0.4, bassInstr: 'bass', ostInstr: 'string', ostGrid: EIGHTHS, droneVel: 1,
+            drums: { kick: [0, 2.5], snare: [2], hat: [1, 3], tom: [1.5, 3.5] }
+        },
+        // Orb: snake-charmer reed over a heavy drone, kept dark (flat 2nd, minor).
+        desert: {
+            leadInstr: 'reed', arpInstr: 'reed', bossArp: 0, bassInstr: 'bass', ostInstr: 'ostinato', ostGrid: EIGHTHS, droneVel: 1.5, leadStyle: 'charmer',
+            drums: { kick: [0, 1.5], snare: [2], hat: [1, 3], tom: [0.75, 2.75, 3.5] }
+        },
+        // Quad: icy glassy bells and a fast ostinato.
+        glacier: {
+            leadInstr: 'glass', arpInstr: 'glass', bossArp: 0.5, bassInstr: 'bass', ostInstr: 'ostinato', ostGrid: SIXTEENTHS, droneVel: 1, arpGrid: EIGHTHS,
+            drums: { kick: [0, 1.5], snare: [2], hat: [1, 3], tom: [3.5] }
+        },
+        // Mech: mechanical ticking percussion and a distorted bass.
+        citadel: {
+            leadInstr: 'lead', arpInstr: 'pluck', bossArp: 0.35, bassInstr: 'fuzzbass', ostInstr: 'ostinato', ostGrid: EIGHTHS, droneVel: 1,
+            drums: { kick: [0, 1, 2, 3], snare: [1.5, 3.5], hat: [0.5, 2.5], tick: SIXTEENTHS }
+        }
     };
 
     function buildThemes() {
@@ -40,10 +70,12 @@
                 drums: { kick: [0, 2], snare: [1, 3], hat: [0.5, 1.5, 2.5, 3.5] }
             };
             const bossScale = biome === 'citadel' ? 'harmonicMinor' : 'phrygian';
+            const bs = BOSS_SPECS[biome];
             out['boss_' + biome] = {
                 id: 'boss_' + biome, biome: biome, boss: true, root: s.root, scaleName: bossScale, scale: SCALES[bossScale],
-                bpm: Math.round(s.bpm * 1.15), prog: [[0, 5, 6, 0], [0, 1, 0, 4]], arpInstr: 'pluck', melInstr: 'pluck', arpGrid: EIGHTHS,
-                drums: { kick: [0, 1.5], snare: [2], hat: [1, 3], tom: [1, 2.75, 3.5] }
+                bpm: Math.round(s.bpm * 1.15), prog: [[0, 5, 6, 0], [0, 1, 0, 4]], arpInstr: bs.arpInstr, melInstr: bs.leadInstr, arpGrid: bs.arpGrid || EIGHTHS,
+                leadInstr: bs.leadInstr, bossArp: bs.bossArp, bassInstr: bs.bassInstr, ostInstr: bs.ostInstr, ostGrid: bs.ostGrid,
+                droneVel: bs.droneVel, leadStyle: bs.leadStyle || '', drums: bs.drums
             };
         });
         return out;
@@ -124,7 +156,7 @@
             const fifth = fold(degMidi(theme, d + 4), root - 14, root - 3);
             if (theme.boss) {
                 [[0, 1.4, 1], [1.5, 0.45, 0.8], [2, 1.5, 0.9]].forEach(function (n) {
-                    out.push({ t: n[0], dur: n[1], midi: low, vel: n[2], type: 'bass' });
+                    out.push({ t: n[0], dur: n[1], midi: low, vel: n[2], type: theme.bassInstr || 'bass' });
                 });
             } else if (rng() < 0.5) {
                 out.push({ t: 0, dur: 2.5, midi: low, vel: 1, type: 'bass' });
@@ -145,8 +177,16 @@
             });
         } else if (layer === 'melody') {
             if (theme.boss) {
-                out.push({ t: 0, dur: 3.6, midi: fold(degMidi(theme, d + (phrase === 3 ? 1 : 0)), root, root + 11), vel: 0.8, type: 'lead' });
-                if (phrase % 2 === 1) out.push({ t: 2, dur: 1.8, midi: fold(degMidi(theme, d + 2), root, root + 11), vel: 0.6, type: 'lead' });
+                const lead = theme.leadInstr || 'lead';
+                if (theme.leadStyle === 'charmer') {
+                    // Winding reed phrase that circles the flat second.
+                    [[0, 1, 0], [1, 0.45, 1], [1.5, 0.45, 0], [2, 1.2, 1], [3.25, 0.7, phrase === 3 ? 2 : 0]].forEach(function (n, i) {
+                        out.push({ t: n[0], dur: n[1], midi: fold(degMidi(theme, d + n[2]), root, root + 11), vel: 0.7 + (i % 2) * 0.1, type: lead });
+                    });
+                    return out;
+                }
+                out.push({ t: 0, dur: 3.6, midi: fold(degMidi(theme, d + (phrase === 3 ? 1 : 0)), root, root + 11), vel: 0.8, type: lead });
+                if (phrase % 2 === 1) out.push({ t: 2, dur: 1.8, midi: fold(degMidi(theme, d + 2), root, root + 11), vel: 0.6, type: lead });
                 return out;
             }
             if (bar % 8 === 7) {
@@ -168,24 +208,30 @@
             theme.drums.snare.forEach(function (t) { out.push({ t: t, dur: 0.2, midi: null, vel: 0.6, type: 'snare' }); });
             theme.drums.hat.forEach(function (t) { out.push({ t: t, dur: 0.1, midi: null, vel: 0.4 + rng() * 0.3, type: 'hat' }); });
             (theme.drums.tom || []).forEach(function (t, i) { out.push({ t: t, dur: 0.25, midi: null, vel: 0.7 + 0.1 * (i % 2), type: 'tom' }); });
+            (theme.drums.taiko || []).forEach(function (t, i) { out.push({ t: t, dur: 0.4, midi: null, vel: 0.8 + 0.15 * (i % 2), type: 'taiko' }); });
+            (theme.drums.tick || []).forEach(function (t, i) { out.push({ t: t, dur: 0.05, midi: null, vel: i % 4 === 0 ? 0.9 : 0.5, type: 'tick' }); });
             if (fill && !theme.boss) {
                 [3.25, 3.5, 3.75].forEach(function (t) { out.push({ t: t, dur: 0.15, midi: null, vel: 0.5, type: 'snare' }); });
             }
         } else if (layer === 'boss') {
             if (!theme.boss) return out;
-            out.push({ t: 0, dur: 4, midi: fold(degMidi(theme, 0), root - 24, root - 13), vel: 1, type: 'drone' });
+            out.push({ t: 0, dur: 4, midi: fold(degMidi(theme, 0), root - 24, root - 13), vel: theme.droneVel || 1, type: 'drone' });
             [[0, [d, d + 1], 1], [1.5, [d, d + 4], 0.8], [2.75, [d + 1, d], 0.9]].forEach(function (h) {
                 h[1].forEach(function (deg) {
                     out.push({ t: h[0], dur: 0.4, midi: fold(degMidi(theme, deg), root - 12, root - 1), vel: h[2], type: 'stab' });
                 });
             });
             if (phrase === 3) out.push({ t: 0, dur: 4, midi: null, vel: 1, type: 'swell' });
-            EIGHTHS.forEach(function (t, i) {
-                out.push({ t: t, dur: 0.4, midi: fold(degMidi(theme, d + OSTINATO[i]), root - 12, root + 2), vel: i % 2 === 0 ? 1 : 0.7, type: 'ostinato' });
+            (theme.ostGrid || EIGHTHS).forEach(function (t, i) {
+                const fast = (theme.ostGrid || EIGHTHS).length > 8;
+                out.push({ t: t, dur: fast ? 0.2 : 0.4, midi: fold(degMidi(theme, d + OSTINATO[(fast ? i >> 1 : i) % 8]), root - 12, root + 2), vel: i % 2 === 0 ? 1 : 0.7, type: theme.ostInstr || 'ostinato' });
             });
         }
         return out;
     }
+
+    // Chord tones (semitones over the root) of each boss intro swell: dark in every biome.
+    const BOSS_INTRO_STEPS = { woodland: [0, 7], cavern: [0, 1, 7], desert: [0, 1, 7], glacier: [0, 6, 7], citadel: [0, 3, 6] };
 
     function biomeOf(sim) {
         const stage = sim && sim.stage;
@@ -241,6 +287,8 @@
         let prevState = null;
         let prevIntro = null;
         let lastDanger = 0;
+        let evRef = null;
+        let evIdx = 0;
 
         function teardown() {
             decks.forEach(killDeck);
@@ -341,7 +389,7 @@
             const target = {
                 pad: th.boss ? 0.7 : 1 - 0.3 * dd,
                 bass: 0.8 + 0.4 * dd,
-                arp: th.boss ? 0 : 0.45 + 0.65 * dd,
+                arp: th.boss ? (th.bossArp || 0) : 0.45 + 0.65 * dd,
                 melody: th.boss ? 0.6 : 0.85 * (1 - 0.6 * dd),
                 perc: th.boss ? 1.3 : (dd > 0.12 ? 0.4 + 1.1 * dd : 0),
                 boss: th.boss ? 1 : 0
@@ -536,6 +584,159 @@
                 g.gain.linearRampToValueAtTime(0.0001, end);
                 b.stop(end + 0.02);
                 main = a;
+            } else if (ev.type === 'horn') {
+                // Low brass: detuned saws, a slow filter bloom and gentle vibrato.
+                const lp = keep(filt('lowpass', 800, 0.9));
+                lp.frequency.setValueAtTime(380, t);
+                lp.frequency.linearRampToValueAtTime(1500, t + Math.min(0.5, dur * 0.5));
+                lp.frequency.linearRampToValueAtTime(900, t + dur);
+                const a = keep(osc('sawtooth', f, t, -8));
+                const b = keep(osc('sawtooth', f, t, 8));
+                const c = keep(osc('square', f / 2, t, 0));
+                const cg = keep(ctx.createGain());
+                cg.gain.value = 0.3;
+                const lfo = keep(osc('sine', 5, t, 0));
+                const lg = keep(ctx.createGain());
+                lg.gain.value = f * 0.007;
+                lfo.connect(lg);
+                lg.connect(a.frequency);
+                lg.connect(b.frequency);
+                a.connect(lp);
+                b.connect(lp);
+                c.connect(cg);
+                cg.connect(lp);
+                lp.connect(g);
+                end = t + dur + 0.3;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.07 * vel, t + 0.14);
+                g.gain.setValueAtTime(0.07 * vel, t + dur - 0.05);
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                [b, c, lfo].forEach(function (o) { o.stop(end + 0.02); });
+                main = a;
+            } else if (ev.type === 'reed') {
+                // Snake-charmer reed: nasal formant, pitch scoop and wide vibrato.
+                const bp = keep(filt('bandpass', clamp(f * 3.2, 900, 2400), 2.2));
+                const a = keep(osc('square', f, t, 0));
+                const b = keep(osc('sawtooth', f, t, 5));
+                a.frequency.setValueAtTime(f * 0.94, t);
+                a.frequency.exponentialRampToValueAtTime(f, t + 0.08);
+                const lfo = keep(osc('sine', 5.6, t, 0));
+                const lg = keep(ctx.createGain());
+                lg.gain.value = f * 0.011;
+                lfo.connect(lg);
+                lg.connect(a.frequency);
+                lg.connect(b.frequency);
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 0.7;
+                a.connect(bp);
+                b.connect(bg);
+                bg.connect(bp);
+                bp.connect(g);
+                end = t + dur + 0.2;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.11 * vel, t + 0.05);
+                g.gain.setValueAtTime(0.09 * vel, t + dur - 0.05);
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                [b, lfo].forEach(function (o) { o.stop(end + 0.02); });
+                main = a;
+            } else if (ev.type === 'darkbell') {
+                // Cave bell: inharmonic FM, low-passed and long-ringing.
+                const lp = keep(filt('lowpass', 2600, 0.7));
+                const car = keep(osc('sine', f, t, 0));
+                const mod = keep(osc('sine', f * 2.76, t, 0));
+                const mg = keep(ctx.createGain());
+                mg.gain.setValueAtTime(f * 1.8, t);
+                mg.gain.exponentialRampToValueAtTime(f * 0.05, t + 1.4);
+                mod.connect(mg);
+                mg.connect(car.frequency);
+                car.connect(lp);
+                lp.connect(g);
+                end = t + 2.3;
+                envelope(g, t, 0.19 * vel, 0.004, end);
+                mod.stop(end + 0.02);
+                main = car;
+            } else if (ev.type === 'glass') {
+                // Icy glass bell: an octave up with a bright, quickly fading FM index.
+                const car = keep(osc('sine', f * 2, t, 0));
+                const mod = keep(osc('sine', f * 2 * 5.07, t, 0));
+                const mg = keep(ctx.createGain());
+                mg.gain.setValueAtTime(f * 2 * 2.6, t);
+                mg.gain.exponentialRampToValueAtTime(f * 0.1, t + 0.5);
+                mod.connect(mg);
+                mg.connect(car.frequency);
+                car.connect(g);
+                end = t + 1.1;
+                envelope(g, t, 0.11 * vel, 0.002, end);
+                mod.stop(end + 0.02);
+                main = car;
+            } else if (ev.type === 'string') {
+                // Plucked low string.
+                const lp = keep(filt('lowpass', 1400, 0.9));
+                lp.frequency.setValueAtTime(1400, t);
+                lp.frequency.exponentialRampToValueAtTime(320, t + 0.35);
+                const a = keep(osc('triangle', f, t, 0));
+                const b = keep(osc('sawtooth', f, t, 4));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 0.5;
+                a.connect(lp);
+                b.connect(bg);
+                bg.connect(lp);
+                lp.connect(g);
+                end = t + 0.55;
+                envelope(g, t, 0.2 * vel, 0.004, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'fuzzbass') {
+                // Distorted bass for the mech boss.
+                const lp = keep(filt('lowpass', 650, 0.9));
+                const a = keep(osc('sawtooth', f, t, 0));
+                const b = keep(osc('square', f, t, -7));
+                const bg = keep(ctx.createGain());
+                bg.gain.value = 3;
+                a.connect(bg);
+                b.connect(bg);
+                if (typeof ctx.createWaveShaper === 'function' && shape) {
+                    const ws = keep(ctx.createWaveShaper());
+                    ws.curve = shape;
+                    bg.connect(ws);
+                    ws.connect(lp);
+                } else {
+                    bg.connect(lp);
+                }
+                lp.connect(g);
+                end = t + dur + 0.1;
+                g.gain.setValueAtTime(0.0001, t);
+                g.gain.linearRampToValueAtTime(0.1 * vel, t + 0.02);
+                g.gain.setValueAtTime(0.06 * vel, Math.max(t + 0.05, end - 0.12));
+                g.gain.linearRampToValueAtTime(0.0001, end);
+                b.stop(end + 0.02);
+                main = a;
+            } else if (ev.type === 'taiko') {
+                // War drum: low skin thump with a short slap.
+                const a = keep(osc('sine', 100, t, 0));
+                a.frequency.setValueAtTime(100, t);
+                a.frequency.exponentialRampToValueAtTime(40, t + 0.32);
+                const tn = keep(noiseSrc(t, 0.5));
+                const tb = keep(filt('bandpass', 700, 1.2));
+                const tg = keep(ctx.createGain());
+                tg.gain.value = 0.16;
+                tn.connect(tb);
+                tb.connect(tg);
+                tg.connect(g);
+                tn.stop(t + 0.05);
+                a.connect(g);
+                end = t + 0.5;
+                envelope(g, t, 0.45 * vel, 0.003, end);
+                main = a;
+            } else if (ev.type === 'tick') {
+                // Mechanical tick: a tiny click.
+                const n = keep(noiseSrc(t, 0.2 + vel * 0.3));
+                const bp = keep(filt('bandpass', 4200, 4));
+                n.connect(bp);
+                bp.connect(g);
+                end = t + 0.045;
+                envelope(g, t, 0.13 * vel, 0.001, end);
+                main = n;
             } else if (ev.type === 'swell') {
                 const n = keep(noiseSrc(t, 0.2));
                 const bp = keep(filt('bandpass', 300, 1.4));
@@ -608,6 +809,9 @@
                 case 'bell': return ev.layer === 'arp' ? 0.35 * side : 0.1;
                 case 'hat': return 0.2 * side;
                 case 'tom': return 0.25 * side;
+                case 'tick': return 0.3 * side;
+                case 'glass':
+                case 'darkbell': return ev.layer === 'arp' ? 0.3 * side : 0;
                 default: return 0;
             }
         }
@@ -690,6 +894,19 @@
                     [7, 3, 0, -5].forEach(function (s, i) {
                         tone('triangle', hz(r + s), t + i * 0.28, 1.6, 0.12, stingOut);
                     });
+                } else if (kind === 'rune') {
+                    // Quick rising sparkle.
+                    [0, 7, 12, 19].forEach(function (s, i) {
+                        tone('sine', hz(r + 12 + s), t + i * 0.06, 0.7, 0.07, stingOut);
+                        tone('triangle', hz(r + s), t + i * 0.06, 0.5, 0.05, stingOut);
+                    });
+                } else if (kind === 'checkpoint') {
+                    // Two warm rising notes over a held fifth.
+                    [0, 7].forEach(function (s, i) {
+                        tone('triangle', hz(r + s), t + i * 0.14, 1.0, 0.1, stingOut);
+                        tone('sine', hz(r + s + 12), t + i * 0.14, 0.8, 0.05, stingOut);
+                    });
+                    tone('sine', hz(r - 5), t, 1.3, 0.05, stingOut);
                 } else if (kind === 'boss_intro') {
                     [0, 0.45].forEach(function (dt) {
                         const k = ctx.createOscillator();
@@ -703,13 +920,28 @@
                         k.stop(t + dt + 0.65);
                         k.onended = function () { disc(k); disc(g); };
                     });
-                    tone('sawtooth', hz(theme.root - 12), t + 0.9, 1.8, 0.07, stingOut);
-                    tone('sawtooth', hz(theme.root - 12 + 7), t + 0.9, 1.8, 0.05, stingOut);
+                    (BOSS_INTRO_STEPS[theme.biome] || [0, 7]).forEach(function (s, i) {
+                        tone('sawtooth', hz(theme.root - 12 + s), t + 0.9, 1.8, 0.07 - i * 0.01, stingOut);
+                    });
                 }
             } catch (err) { /* stinger is cosmetic */ }
         }
 
         // ---- public ------------------------------------------------------
+        // Rune pickups and checkpoints get a short stinger; each event array is read once.
+        function scanEvents(events) {
+            if (!Array.isArray(events)) return;
+            if (events !== evRef) { evRef = events; evIdx = 0; }
+            if (evIdx > events.length) evIdx = 0;
+            let kind = null;
+            for (; evIdx < events.length; evIdx++) {
+                const ev = events[evIdx];
+                if (ev && ev.type === 'rune_pickup') kind = 'rune';
+                else if (ev && ev.type === 'checkpoint' && kind !== 'rune') kind = 'checkpoint';
+            }
+            if (kind) stinger(kind);
+        }
+
         function update(intensity, sim) {
             if (disposed || !intensity || !sim || !sim.stage) return;
             try {
@@ -731,6 +963,7 @@
                 prevState = state;
                 if (sim.bossIntro && sim.bossIntro !== prevIntro && running) stinger('boss_intro');
                 prevIntro = sim.bossIntro || null;
+                if (running && enabled && active) scanEvents(sim.events);
                 if (!running || !enabled || !active || fadedOut || state !== 'playing') return;
                 if (intensity.boss) latched = true;
                 if (!intensity.bossAlive) latched = false;
