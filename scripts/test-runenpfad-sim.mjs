@@ -1239,5 +1239,53 @@ console.log('Runenpfad round 3 checks passed: new enemies, stomp, runes, chests,
         for (let i = 0; i < 4; i++) { s.player.invulnTimer = 9; Sim.stepSimulation(s, STEP, {}); }
         assert.ok(s.player.rune === null && s.player.airJumpsLeft === 1 && !s.player.onGround, 'storm expiry mid-air removes the extra air jump');
     }
+    // Chasers stop instead of flip-flopping (dead zone, pit edges) and resume patrol afterwards.
+    {
+        const mkW = () => {
+            const s = Sim.createSimulation({ mode: 'campaign', levelId: 2, hero: 'knight', profile });
+            s.stage.enemies.length = 0;
+            const T = s.stage.tileSize;
+            const w = Levels.createEnemy('wolf', 20 * T, s.stage.groundY, 8 * T, 40 * T, { id: 'wf' });
+            s.stage.enemies.push(w);
+            return { s, w, T };
+        };
+        const tick = (s, n, each) => { for (let i = 0; i < n; i++) { s.player.invulnTimer = 9; s.player.vx = 0; if (each) each(i); Sim.stepSimulation(s, STEP, {}); } };
+        // (a) hero ~2 tiles directly above the wolf
+        {
+            const { s, w, T } = mkW();
+            tick(s, 30, () => { s.player.x = w.x; s.player.y = w.y - 2 * T; });
+            let flips = 0, last = w.facing;
+            tick(s, 60, () => { s.player.x = w.x + 2; s.player.y = w.y - 2 * T; if (w.facing !== last) { flips++; last = w.facing; } });
+            assert.ok(flips <= 1, 'wolf under the hero flips at most once, got ' + flips);
+            assert.equal(w.vx, 0, 'wolf under the hero stands still');
+            assert.equal(w.animState, 'idle', 'wolf under the hero idles');
+        }
+        // (b) pit edge: chaser stops at the edge without flipping
+        {
+            const { s, w, T } = mkW();
+            const edge = 24;
+            s.stage.platforms.length = 0;
+            s.stage.solidMap = {};
+            for (let tx = 8; tx < edge; tx++) for (let ty = 13; ty < s.stage.heightTiles; ty++) s.stage.solidMap[tx + ',' + ty] = true;
+            w.x = (edge - 3) * T;
+            w.maxX = 40 * T;
+            let flips = 0, last = w.facing;
+            tick(s, 150, () => { s.player.x = (edge + 4) * T; s.player.y = s.stage.groundY; if (w.facing !== last) { flips++; last = w.facing; } });
+            assert.ok(w.x < edge * T && w.x > (edge - 1) * T - 8, 'wolf stays on the platform at the edge, x=' + w.x);
+            assert.equal(w.vx, 0, 'wolf stops at the pit edge');
+            assert.equal(w.facing, 1, 'wolf keeps facing the hero at the edge');
+            assert.ok(flips <= 1, 'at most the initial turn at the edge, got ' + flips);
+        }
+        // (c) hero leaves range: wolf patrols again
+        {
+            const { s, w, T } = mkW();
+            tick(s, 60, () => { s.player.x = w.x; s.player.y = w.y - 2 * T; });
+            assert.equal(w.vx, 0);
+            let moved = false;
+            tick(s, 6, () => { s.player.x = w.x + 2000; s.player.y = w.y; });
+            moved = w.vx !== 0;
+            assert.ok(moved, 'wolf resumes patrol once the hero leaves range');
+        }
+    }
 }
 console.log('Runenpfad round 3 review fixes passed.');

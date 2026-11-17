@@ -24,6 +24,21 @@
         }
     }
 
+    // Chase intent with a dead zone: stops when level with the hero (hysteresis 10/26 px) and only turns on a clear difference.
+    function chaseIntent(sim, e, api, speed) {
+        const dx = sim.player.x - e.x;
+        const ax = Math.abs(dx);
+        const stopped = e.chaseStopped ? ax <= 26 : ax < 10;
+        e.chaseStopped = stopped;
+        e.chasing = true;
+        e.vx = stopped ? 0 : (dx >= 0 ? 1 : -1) * speed;
+        if (ax > 6) e.facing = dx >= 0 ? 1 : -1;
+        if (e.vx !== 0 && e.onGround) {
+            const ts = sim.stage.tileSize;
+            if (!api.isSolidTile(sim.stage, Math.floor((e.x + Math.sign(e.vx) * 20) / ts), Math.floor((e.y + 4) / ts))) e.vx = 0;
+        }
+    }
+
     function pushEvent(sim, type, detail) { root.RunenpfadPhysics.pushEvent(sim, type, detail); }
 
     // Sporecap: every ~2.6 s a spore is lobbed in a gravity arc at the hero's feet; combat turns it into a poison cloud.
@@ -222,6 +237,7 @@
         if (behavior === 'spitter') spitterThink(sim, e, dt);
         const stationary = behavior === 'turret' || (behavior === 'brute' && bruteFrozen(sim, e, dt));
         const engaged = behavior === 'shooter' && distToPlayer <= SHOOTER_AGGRO;
+        e.chasing = false;
         const chases = behavior === 'charger' || behavior === 'shielded' || behavior === 'boss_ground' || behavior === 'boss_jumper';
 
         if (stationary) {
@@ -237,17 +253,21 @@
                 e.ambushTimer -= dt;
                 e.vx = 0;
             } else {
-                e.vx = (p.x >= e.x ? 1 : -1) * def.speed * speedMul * 1.45;
+                chaseIntent(sim, e, api, Math.abs(def.speed) * speedMul * 1.45);
             }
         } else if (behavior === 'bomber') {
             if (distToPlayer < 320 && Math.abs(p.y - e.y) < 140) {
-                e.vx = (p.x >= e.x ? 1 : -1) * def.speed * speedMul * 1.3;
+                chaseIntent(sim, e, api, Math.abs(def.speed) * speedMul * 1.3);
+            } else if (e.vx === 0) {
+                e.vx = (e.facing || 1) * Math.abs(def.speed) * speedMul;
             }
         } else if (behavior === 'shooter') {
             shooterIntent(sim, e, api, distToPlayer);
         } else if (chases) {
             if (distToPlayer < 240 && Math.abs(p.y - e.y) < 120) {
-                e.vx = (p.x >= e.x ? 1 : -1) * def.speed * speedMul * 1.15;
+                chaseIntent(sim, e, api, Math.abs(def.speed) * speedMul * 1.15);
+            } else if (e.vx === 0) {
+                e.vx = (e.facing || 1) * Math.abs(def.speed) * speedMul;
             }
         }
 
@@ -259,7 +279,8 @@
         if (hitWall || outOfBounds) {
             if (e.x < e.minX) e.x = e.minX;
             if (e.x > e.maxX) e.x = e.maxX;
-            if (!stationary && !engaged && !(behavior === 'ambusher' && !e.ambushTriggered)) {
+            if (e.chasing) e.vx = 0;
+            else if (!stationary && !engaged && !(behavior === 'ambusher' && !e.ambushTriggered)) {
                 e.vx = e.x <= e.minX
                     ? Math.abs(def.speed) * speedMul
                     : (e.x >= e.maxX ? -Math.abs(def.speed) * speedMul : -e.vx);
@@ -277,11 +298,11 @@
         e.facing = e.vx > 0 ? 1 : (e.vx < 0 ? -1 : e.facing);
 
         if (engaged) e.facing = p.x >= e.x ? 1 : -1;
-        if (!stationary && !engaged) {
-            const checkAheadX = Math.floor((e.x + e.facing * 20) / stage.tileSize);
+        if (!stationary && !engaged && e.vx !== 0) {
+            const checkAheadX = Math.floor((e.x + Math.sign(e.vx) * 20) / stage.tileSize);
             const groundAheadY = Math.floor((e.y + 4) / stage.tileSize);
             if (e.onGround && !api.isSolidTile(stage, checkAheadX, groundAheadY)) {
-                e.vx = -e.vx;
+                e.vx = e.chasing ? 0 : -e.vx;
             }
         }
     }

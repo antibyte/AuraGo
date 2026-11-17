@@ -220,7 +220,9 @@ def build_sheet(entry):
         pivot_dy = median([rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(min(4, len(rects))) if rects[i] is not None])
         pivot_dx = cw / 2.0
     elif pivot == "base":
-        pivot_dx, pivot_dy = cw / 2.0, float(ch)
+        # ground line = lowest solid pixel over all frames (the sheets do not sit on the cell bottom)
+        ground = max(rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(len(rects)) if rects[i] is not None)
+        pivot_dx, pivot_dy = cw / 2.0, float(ground)
     else:
         pivot_dx, pivot_dy = cw / 2.0, ch / 2.0
     if kind in ("boss", "enemy"):
@@ -237,6 +239,10 @@ def build_sheet(entry):
         ox = r[0] - (col * cw + pivot_dx)
         oy = r[1] - (row * ch + pivot_dy)
         frames.append([r[0], r[1], r[2], r[3], int(round(ox)), int(round(oy))])
+    if pivot == "base":
+        bottoms = [f[5] + f[3] for f in frames if f[3] > 0]
+        if max(bottoms) != 0:
+            raise SystemExit("%s: base sheet max content bottom offset is %d, expected 0" % (entry["file"], max(bottoms)))
     return {
         "file": entry["file"],
         "w": im.width,
