@@ -121,6 +121,7 @@ sandbox.__t += 10;
 const before = nodeCount;
 controller.handleEvents([{ type: 'totally_unknown_event', detail: { x: 1 } }, null, {}], null, null);
 assert.equal(nodeCount, before, 'unknown events are silent');
+assert.ok(controller.liveSynths() > 0 && controller.liveSynths() <= 40, 'live synth voices stay under the hard cap: ' + controller.liveSynths());
 controller.dispose();
 
 // ---- 4. music builds every biome and boss theme ----

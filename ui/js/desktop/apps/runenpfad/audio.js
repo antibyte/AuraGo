@@ -20,6 +20,8 @@
     const COIN_LADDER = [0, 2, 4, 7, 9, 12, 14, 16];
     const COIN_RESET_SECONDS = 0.7;
     const BIOME_BY_AMBIENCE = { 'forest-day': 'woodland', 'forest-night': 'cavern', 'wind-strong': 'desert', 'wind-gentle': 'glacier', industrial: 'citadel' };
+    const SYNTH_CAP = 24;
+    const SYNTH_HARD_CAP = 40;
     const DRIP_BEDS = { cavern: 'rain-light' };
     // Reverb tail length (s) and wet level per biome.
     const REVERBS = {
@@ -404,6 +406,7 @@
         let biome = 'woodland';
         let ambienceSpec = { primary: '', secondary: '', tertiary: '' };
         let ambienceDuck = 1;
+        let liveSynths = 0;
         let coinStep = -1;
         let lastCoinAt = -9;
         const layers = [];
@@ -652,13 +655,18 @@
             });
         }
 
-        function playSynth(name, o, pan) {
+        // Live synth anchors are capped; important cues (priority) may exceed the soft cap up to the hard cap.
+        function playSynth(name, o, pan, priority) {
+            if (liveSynths >= (priority ? SYNTH_HARD_CAP : SYNTH_CAP)) return;
             const fn = SYNTHS[name] || (root.RunenpfadSfx && root.RunenpfadSfx.SYNTHS[name]);
             if (!fn || !ctx || ctx.state !== 'running' || !noiseBuf) return;
             const dest = route(pan);
             try {
                 const res = fn(ctx, noiseBuf, dest, ctx.currentTime + 0.005 + (o.delay || 0), o);
+                liveSynths++;
+                let done = false;
                 res[0].onended = function () {
+                    if (!done) { done = true; liveSynths = Math.max(0, liveSynths - 1); }
                     res[1].forEach(function (n) { try { n.disconnect(); } catch (err) { /* gone */ } });
                     releaseRoute(dest);
                 };
@@ -718,6 +726,7 @@
 
         // Extra synth layers and the per-biome boss voice of a resolved cue.
         function playExtras(cue, key, d, pan) {
+            if (liveSynths >= SYNTH_CAP) return;
             const v = hashUnit(key, counters.get(key) || 0);
             (cue.also || []).forEach(function (a) {
                 playSynth(a.synth, { gain: a.sg || 0.4, sr: a.sr || 1, v: v, delay: a.delay || 0, count: d && d.count }, pan);
@@ -759,7 +768,7 @@
                         sr = ratio;
                     }
                     if (id && assetsById[id]) playSample(id, cue.gain, rate, pan);
-                    if (cue.synth) playSynth(cue.synth, { gain: cue.sg || 0.4, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: cue.ladder ? 1046 : 0 }, pan);
+                    if (cue.synth) playSynth(cue.synth, { gain: cue.sg || 0.4, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: cue.ladder ? 1046 : 0 }, pan, /^boss_/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
                     if (cue.also || cue.voice) playExtras(cue, key, d, pan);
                 }
             }
@@ -805,6 +814,7 @@
         function dispose() {
             if (disposed) return;
             disposed = true;
+            liveSynths = 0;
             stopAmbience();
             buffers.clear();
             pendingLoads.clear();
@@ -833,6 +843,7 @@
             setAmbienceDuck: setAmbienceDuck,
             playUiClick: function () { playCue('ui-click', 0.5, 50, true); },
             handleEvents: handleEvents,
+            liveSynths: function () { return liveSynths; },
             musicPort: function () { return port; },
             dispose: dispose
         };

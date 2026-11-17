@@ -1188,3 +1188,56 @@ console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 lev
 }
 
 console.log('Runenpfad round 3 checks passed: new enemies, stomp, runes, chests, extra zones, campaign coverage.');
+
+// Round 3 review fixes: wraith hover lane, per-gate switches, storm expiry.
+{
+    const Combat = sandbox.RunenpfadCombat;
+    const Runes = sandbox.RunenpfadRunes;
+    const Zones = sandbox.RunenpfadZones;
+    const STEP = Sim.STEP;
+    const mk = (hero) => {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero, profile });
+        s.stage.enemies.length = 0;
+        s.player.x = 200;
+        s.player.y = s.stage.groundY;
+        return s;
+    };
+    // A visible wraith next to a grounded hero can be hit by a melee swing and by a bolt.
+    for (const hero of ['knight', 'ranger']) {
+        const s = mk(hero);
+        const w = Levels.createEnemy('frost_wraith', 260, s.stage.groundY, 200, 320, { id: 'fw' });
+        w.hp = w.maxHp = 10;
+        s.stage.enemies.push(w);
+        for (let i = 0; i < 240; i++) {
+            s.player.invulnTimer = 9;
+            w.phaseT = 99;
+            Sim.stepSimulation(s, STEP, {});
+        }
+        s.player.facing = Math.sign(w.x - s.player.x) || 1;
+        Sim.stepSimulation(s, STEP, { attackPressed: true });
+        for (let i = 0; i < 20 && w.hp === 10; i++) { w.phaseT = 99; s.player.invulnTimer = 9; Sim.stepSimulation(s, STEP, {}); }
+        assert.ok(w.hp < 10, `a visible wraith takes damage from the ${hero}'s attack`);
+    }
+    // Each rune gate opens from its own switches only.
+    {
+        const s = mk();
+        s.stage = Levels.buildStage({ id: 99, worldIndex: 1, stageInWorld: 1, nameKey: 'x', parTime: 90, zones: ['meadow', 'rune_gate', 'rune_gate', 'key_sanctum'], enemies: ['slime'] });
+        const [gA, gB] = s.stage.gates;
+        assert.ok(gA && gB && gA.switchIds.length === 3 && gB.switchIds.length === 3, 'two gates with their own switches');
+        s.events = [];
+        s.stage.switches.filter((sw) => gA.switchIds.includes(sw.id)).forEach((sw) => Zones.hitRect(s, sw.x - 5, sw.y - 5, 10, 10, 1));
+        assert.ok(gA.open && !gB.open, 'gate A opens from its own switches while gate B stays shut');
+    }
+    // Storm expiry gives the extra air jump back.
+    {
+        const s = mk('ranger');
+        s.player.y = s.stage.groundY - 300;
+        s.player.airJumpsLeft = 1;
+        Runes.grant(s, 'storm', s.player.x, s.player.y);
+        assert.equal(s.player.airJumpsLeft, 2);
+        s.player.rune.timeLeft = 0.03;
+        for (let i = 0; i < 4; i++) { s.player.invulnTimer = 9; Sim.stepSimulation(s, STEP, {}); }
+        assert.ok(s.player.rune === null && s.player.airJumpsLeft === 1 && !s.player.onGround, 'storm expiry mid-air removes the extra air jump');
+    }
+}
+console.log('Runenpfad round 3 review fixes passed.');

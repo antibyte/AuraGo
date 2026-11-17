@@ -41,7 +41,7 @@
         const r = sim.player.rune;
         if (!r) return;
         const was = r.kind;
-        const bonus = extraAirJumps(sim);
+        const bonus = r.kind === 'storm' ? 1 : 0;
         sim.player.rune = null;
         sim.player.airJumpsLeft = Math.max(0, sim.player.airJumpsLeft - bonus);
         pushEvent(sim, 'rune_expire', { kind: was });

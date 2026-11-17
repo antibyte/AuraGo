@@ -70,8 +70,10 @@
         ctx.addPlatformRow(cx + 7, 2, g - 4, 'platform');
         ctx.addPlatformRow(cx + 10, 2, g - 6, 'platform');
         ctx.addPlatformRow(cx + 11, 2, g - 2, 'platform');
+        const switchIds = [];
         [{ x: cx + 2.5, y: g * T - 26 }, { x: cx + 7.5, y: (g - 4) * T - 26 }, { x: cx + 10.5, y: (g - 6) * T - 26 }].forEach(function (s) {
             ctx.switches.push({ id: 'sw_' + ctx.switches.length, x: s.x * T, y: s.y, on: false, hitFlash: 0 });
+            switchIds.push('sw_' + (ctx.switches.length - 1));
         });
         // Sealed alcove: roof on top (also the walkable way over), gate column at the front, back wall behind.
         for (let x = cx + 13; x <= cx + 17; x++) ctx.setTile(x, g - 3, ctx.world.groundTop, 'solid');
@@ -81,7 +83,7 @@
             gateTiles.push({ tx: cx + 13, ty: y, tile: ctx.tiles[ctx.tiles.length - 1] });
             ctx.setTile(cx + 17, y, ctx.world.groundFill, 'solid');
         }
-        ctx.gates.push({ id: 'gt_' + ctx.gates.length, x: (cx + 13) * T, y: (g - 2) * T, w: T, h: 2 * T, open: false, tiles: gateTiles });
+        ctx.gates.push({ id: 'gt_' + ctx.gates.length, x: (cx + 13) * T, y: (g - 2) * T, w: T, h: 2 * T, open: false, tiles: gateTiles, switchIds: switchIds });
         ctx.chests.push({ x: (cx + 15.5) * T, y: g * T, opened: false, kind: RUNE_KINDS[(ctx.cfg.id || 1) % RUNE_KINDS.length] });
         ctx.addCoinLine(cx + 4, 2, g - 3, false);
         ctx.addCoinLine(cx + 7, 2, g - 5, false);
@@ -218,9 +220,11 @@
             s.hitFlash = 0.3;
             pushEvent(sim, 'switch_on', { x: s.x, y: s.y });
             fxBurst(sim, 'rune', s.x, s.y, 12, { color: '#7ee8fa', speed: 150, life: 0.6 });
-            if (stage.switches.every(function (o) { return o.on; })) {
-                (stage.gates || []).forEach(function (gate) { if (!gate.open) openGate(sim, gate); });
-            }
+            // Each gate opens once its own switches are all on.
+            (stage.gates || []).forEach(function (gate) {
+                if (gate.open || !gate.switchIds || gate.switchIds.indexOf(s.id) < 0) return;
+                if (stage.switches.every(function (o) { return gate.switchIds.indexOf(o.id) < 0 || o.on; })) openGate(sim, gate);
+            });
         });
         return hit;
     }

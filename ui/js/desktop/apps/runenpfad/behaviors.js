@@ -125,8 +125,8 @@
             pushEvent(sim, 'enemy_phase', { id: e.id, defId: e.defId, phased: e.phased, x: e.x, y: e.y });
         }
         const near = Math.hypot(p.x - e.x, p.y - e.y) < 480;
-        const tx = near ? p.x : Math.min(e.maxX, Math.max(e.minX, e.spawnX + Math.sin(e.animTime * 0.7) * 80));
-        const ty = near ? Math.min(p.y - 60, sim.stage.groundY - 50) : e.spawnY - 88 + Math.sin(e.animTime * 2.2) * 20;
+        const tx = near ? p.x + (e.x >= p.x ? 24 : -24) : Math.min(e.maxX, Math.max(e.minX, e.spawnX + Math.sin(e.animTime * 0.7) * 80));
+        const ty = near ? Math.min(p.y - 14, sim.stage.groundY - 10) : e.spawnY - 88 + Math.sin(e.animTime * 2.2) * 20;
         const spd = Math.abs(e.def.speed) * 0.8;
         const dx = tx - e.x;
         const dy = ty - e.y;
