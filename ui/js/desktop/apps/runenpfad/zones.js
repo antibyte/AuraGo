@@ -316,6 +316,9 @@
         const runes = root.RunenpfadRunes;
         if (extra && extra.hitRect(sim, x, y, w, h, dmg)) hit = true;
         if (runes && runes.hitRect(sim, x, y, w, h, dmg)) hit = true;
+        // Round 4 puzzles: glyph stones, oracles, levers and braziers.
+        const puzzles = root.RunenpfadPuzzles;
+        if (puzzles && puzzles.hitRect(sim, x, y, w, h, dmg)) hit = true;
         return hit;
     }
 
@@ -343,7 +346,10 @@
                 : { x: ln.x, y: ln.y, radius: 54, intensity: 0.22, flicker: false });
         });
         const extra = root.RunenpfadZonesExtra;
-        return extra ? out.concat(extra.lights(sim)) : out;
+        const more = [root.RunenpfadPuzzles, root.RunenpfadDragons];
+        let all = extra ? out.concat(extra.lights(sim)) : out;
+        more.forEach(function (m) { if (m && m.lights) all = all.concat(m.lights(sim)); });
+        return all;
     }
 
     root.RunenpfadZones = {

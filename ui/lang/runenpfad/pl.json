@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 obrażeń",
   "runenpfad.rune_frost_desc": "Blokuje następne trafienie",
   "runenpfad.rune_storm_desc": "Dodatkowy skok i szybkość",
-  "runenpfad.rune_magnet_desc": "Przyciąga monety"
+  "runenpfad.rune_magnet_desc": "Przyciąga monety",
+  "runenpfad.notice.seq_watch": "Kamień wieszcza pokazuje sekwencję run — zapamiętaj ją!",
+  "runenpfad.notice.seq_fail": "Zła kolejność — popatrz jeszcze raz na kamień wieszcza.",
+  "runenpfad.notice.seq_solved": "Sekwencja run rozwiązana! Skarbiec się otwiera.",
+  "runenpfad.notice.lever_hint": "Każda dźwignia przełącza części mostu — rozświetl je wszystkie.",
+  "runenpfad.notice.bridge_done": "Most stoi!",
+  "runenpfad.notice.ritual_hint": "Stań na płycie, a potem zapal paleniska po kolei — szybko!",
+  "runenpfad.notice.ritual_fail": "Płomienie gasną — stań znowu na płycie.",
+  "runenpfad.notice.ritual_done": "Rytuał dopełniony!",
+  "runenpfad.notice.dragon_warn": "Smok! Schowaj się pod kamiennymi daszkami!",
+  "runenpfad.notice.swing_hint": "Wskocz na linę, rozhuśtaj się w lewo/prawo, puść skokiem.",
+  "runenpfad.boss_dragon_ember": "Smok żaru",
+  "runenpfad.boss_dragon_frost": "Smok szronu"
 }

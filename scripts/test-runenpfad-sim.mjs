@@ -41,6 +41,9 @@ loadModule('ui/js/desktop/apps/runenpfad/profile.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/runes.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/zones.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/zones-extra.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/swing.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/puzzles.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/dragons.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/levels.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/combat.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/sim.js', sandbox);
@@ -1289,3 +1292,597 @@ console.log('Runenpfad round 3 checks passed: new enemies, stomp, runes, chests,
     }
 }
 console.log('Runenpfad round 3 review fixes passed.');
+
+// ---- Round 4: swinging ropes, puzzles and dragons ----
+{
+    const STEP = Sim.STEP;
+    const T = 48;
+    const Combat = sandbox.RunenpfadCombat;
+    const Puzzles = sandbox.RunenpfadPuzzles;
+    const Swing = sandbox.RunenpfadSwing;
+    const Dragons = sandbox.RunenpfadDragons;
+    assert.ok(Combat && Puzzles && Swing && Dragons, 'round 4 modules loaded');
+
+    const blank = () => ({ left: false, right: false, up: false, down: false, jumpPressed: false, attackPressed: false, dashPressed: false, healPressed: false });
+    const mk = (levelId, hero) => Sim.createSimulation({ mode: 'campaign', levelId, hero: hero || 'knight' });
+    const tickN = (s, n, input, fn) => {
+        const evs = [];
+        for (let i = 0; i < n; i++) {
+            if (fn) fn(s, i);
+            Sim.stepSimulation(s, STEP, typeof input === 'function' ? input(i) : (input || {})).forEach((e) => evs.push(e));
+        }
+        return evs;
+    };
+    const seenR4 = (evs, type) => evs.filter((e) => e.type === type).map((e) => e.detail);
+    const placeHero = (s, x, y) => { s.player.x = x; s.player.y = y; s.player.vx = 0; s.player.vy = 0; s.player.onGround = true; };
+    const zonesOf = (id) => Levels.CAMPAIGN_LEVELS[id - 1].zones.map((z) => z.split('|')[0].split(':')[0]);
+
+    // --- placement: every world gets a puzzle, ropes in >= 3 worlds, dragons in worlds 2-5, drakelings in cavern/desert/citadel ---
+    {
+        const worldHas = (w, pred) => Levels.CAMPAIGN_LEVELS.some((l) => l.worldIndex === w && l.zones.some((z) => pred(z.split('|')[0].split(':')[0])));
+        const puzzleZones = ['rune_sequence', 'lever_bridge', 'ritual_chain'];
+        for (let w = 0; w < 5; w++) assert.ok(worldHas(w, (z) => puzzleZones.includes(z)), `world ${w + 1} has a puzzle`);
+        assert.ok([0, 1, 2, 3, 4].filter((w) => worldHas(w, (z) => z === 'swing_gorge')).length >= 3, 'swing gorges in at least three worlds');
+        for (let w = 1; w < 5; w++) assert.ok(worldHas(w, (z) => z === 'dragon_strafe'), `world ${w + 1} has a dragon strafe`);
+        assert.ok(!worldHas(0, (z) => z === 'dragon_strafe'), 'no dragon in world 1');
+        [1, 2, 4].forEach((w) => assert.ok(Levels.CAMPAIGN_LEVELS.some((l) => l.worldIndex === w && l.enemies.includes('drakeling')), `drakelings in world ${w + 1}`));
+        assert.ok(!zonesOf(1).some((z) => puzzleZones.includes(z) || z === 'swing_gorge' || z === 'dragon_strafe'), 'level 1 stays simple');
+        const sty = [0, 1, 4].map((w) => Levels.buildStage(Levels.CAMPAIGN_LEVELS.find((l) => l.worldIndex === w && l.zones.includes('swing_gorge')).id).swings[0].style);
+        assert.deepEqual(sty, ['vine', 'rope', 'chain'], 'swing style by biome');
+        // every campaign level and endless floors 1-12 build and run
+        for (let i = 1; i <= 25; i++) {
+            const s = mk(i);
+            tickN(s, 120, {});
+            assert.equal(s.state, 'playing', `level ${i} runs`);
+        }
+        for (const seed of [9001, 777]) {
+            for (let f = 1; f <= 12; f++) {
+                const s = Sim.createSimulation({ mode: 'endless', endlessFloor: f, seed, hero: 'knight' });
+                tickN(s, 60, {});
+                assert.ok(s.stage.key && s.stage.portal, `endless floor ${f} builds`);
+            }
+        }
+        assert.deepEqual(JSON.stringify(Levels.buildStage(4).levers), JSON.stringify(Levels.buildStage(4).levers), 'puzzle layout is deterministic');
+    }
+
+    // --- swinging ropes ---
+    {
+        const s = mk(3);
+        s.stage.enemies.length = 0;
+        const ropes = s.stage.swings;
+        assert.ok(ropes.length >= 3 && ropes.length <= 4, 'a gorge hangs 3-4 ropes');
+        ropes.forEach((r) => assert.ok(Number.isFinite(r.ax + r.ay + r.len + r.angle + r.omega) && r.style, 'rope fields'));
+        const r0 = ropes[0];
+        // free ropes sway gently on their own
+        let maxA = 0;
+        tickN(s, 240, {}, () => { maxA = Math.max(maxA, Math.abs(r0.angle)); });
+        assert.ok(maxA > 0.04 && maxA < 0.4, 'a free rope sways gently, max angle ' + maxA);
+        // grab: airborne hero with hands at the lower rope
+        r0.angle = 0; r0.omega = 0;
+        const endY = r0.ay + r0.len;
+        s.player.x = r0.ax + 6; s.player.y = endY - 40 + 60; s.player.vx = 0; s.player.vy = -50; s.player.onGround = false;
+        let ev = tickN(s, 2, {});
+        assert.ok(s.player.swing && s.player.swing.id === r0.id, 'hero grabs the rope');
+        assert.equal(s.player.animState, 'swing', 'animState while hanging');
+        const gr = seenR4(ev, 'swing_grab');
+        assert.ok(gr.length === 1 && gr[0].id === r0.id && Number.isFinite(gr[0].x + gr[0].y), 'swing_grab payload');
+        // hands sit at the rope end once the grip settles
+        tickN(s, 30, {});
+        const hx = r0.ax + r0.len * Math.sin(r0.angle);
+        const hy = r0.ay + r0.len * Math.cos(r0.angle);
+        assert.ok(Math.abs(s.player.x - hx) < 3 && Math.abs(s.player.y - 40 - hy) < 3, 'hands at the rope end');
+        // pumping builds amplitude
+        let maxAmp = 0;
+        tickN(s, 150, { right: true }, () => { maxAmp = Math.max(maxAmp, Math.abs(r0.angle)); });
+        assert.ok(maxAmp > 0.55 && maxAmp <= Swing.MAX_ANGLE + 1e-6, 'pumping raises the swing, amplitude ' + maxAmp);
+        assert.ok(s.player.swing, 'still hanging while pumping');
+        // release with jump: tangential launch plus boost
+        let guard = 0;
+        while (!(r0.omega > 1 && r0.angle > 0.3) && guard++ < 300) tickN(s, 1, { right: true });
+        ev = tickN(s, 1, { right: true, jumpPressed: true });
+        const rl = seenR4(ev, 'swing_release');
+        assert.ok(!s.player.swing && rl.length === 1 && rl[0].id === r0.id && rl[0].speed > 100, 'swing_release payload');
+        assert.ok(s.player.vy < 0, 'release launches upward');
+        assert.ok(s.player.swingCool > 0, 'a release starts the re-grab cool-down');
+        // damage drops the hero
+        const s2 = mk(3);
+        s2.stage.enemies.length = 0;
+        const q = s2.stage.swings[0];
+        const qe = Swing.endOf(q); s2.player.x = qe.x; s2.player.y = qe.y + 20; s2.player.vy = 0; s2.player.onGround = false;
+        tickN(s2, 2, {});
+        assert.ok(s2.player.swing, 'second hero hangs');
+        s2.player.invulnTimer = 0;
+        Combat.hurtPlayer(s2, 1, s2.player.x + 10);
+        assert.equal(s2.player.swing, null, 'damage drops the hero');
+        tickN(s2, 3, {});
+        assert.ok(s2.player.animState === 'hurt' || s2.player.animState === 'jump', 'hurt animation instead of swing');
+        // a grounded hero never grabs, and ranger jump after release keeps its air jump
+        const s3 = mk(3, 'ranger');
+        s3.stage.enemies.length = 0;
+        const w = s3.stage.swings[0];
+        const we = Swing.endOf(w); s3.player.x = we.x; s3.player.y = we.y + 20; s3.player.onGround = false;
+        tickN(s3, 2, {});
+        assert.ok(s3.player.swing, 'ranger hangs');
+        tickN(s3, 8, {});
+        tickN(s3, 1, { jumpPressed: true });
+        assert.ok(!s3.player.swing && s3.player.airJumpsLeft >= 1, 'ranger keeps its air jump after the release');
+    }
+
+    // The bot: run right, jump at the ledge edge, hold right to pump and release with jump on the forward upswing.
+    function crossGorge(levelId, hero) {
+        const s = mk(levelId, hero);
+        s.stage.enemies.length = 0;
+        const p = s.player;
+        const g = s.stage.groundY;
+        const results = [];
+        const groups = Array.from(new Set(s.stage.swings.map((r) => r.group)));
+        for (const group of groups) {
+            const ropes = s.stage.swings.filter((r) => r.group === group);
+            const first = ropes[0];
+            const last = ropes[ropes.length - 1];
+            const spikes = s.stage.hazards.filter((h) => h.kind === 'spikes' && h.x > first.ax - 6 * T && h.x < last.ax + 6 * T);
+            const nearEdge = Math.min.apply(null, spikes.map((h) => h.x));
+            const farEdge = Math.max.apply(null, spikes.map((h) => h.x + T));
+            p.x = nearEdge - 60; p.y = g; p.vx = 0; p.vy = 0; p.onGround = true; p.swing = null; p.invulnTimer = 0;
+            s.checkpoint = { x: p.x, y: g };
+            const hp0 = p.hp;
+            let ok = false;
+            let usedRopes = new Set();
+            for (let i = 0; i < 60 * 30 && s.state === 'playing' && p.hp === hp0; i++) {
+                const input = blank();
+                input.right = true;
+                if (p.swing) {
+                    usedRopes.add(p.swing.id);
+                    const r = s.stage.swings.find((o) => o.id === p.swing.id);
+                    if (r.omega > 0.3 && r.angle > 0.7) input.jumpPressed = true;
+                } else if (p.onGround) {
+                    if (p.x >= farEdge + 4) { ok = true; break; }
+                    if (p.x >= nearEdge - 8 && p.x < first.ax - 20) input.jumpPressed = true;
+                }
+                Sim.stepSimulation(s, STEP, input);
+            }
+            results.push({ group, ok: ok && usedRopes.size >= 2, used: usedRopes.size, ropes: ropes.length, x: p.x, hp: p.hp });
+        }
+        return results;
+    }
+    {
+        let gorges = 0;
+        for (const lv of Levels.CAMPAIGN_LEVELS.filter((l) => l.zones.includes('swing_gorge'))) {
+            for (const hero of ['knight', 'ranger']) {
+                crossGorge(lv.id, hero).forEach((r) => {
+                    gorges++;
+                    assert.ok(r.ok, `bot (${hero}) crosses the swing gorge of level ${lv.id}: ${JSON.stringify(r)}`);
+                });
+            }
+        }
+        assert.ok(gorges >= 8, 'bot crossed every campaign swing gorge with both heroes (' + gorges + ')');
+        // endless floors with a gorge are crossable too
+        let eg = 0;
+        for (let f = 1; f <= 40 && eg < 3; f++) {
+            const cfg = Levels.createEndlessConfig(f, 9001);
+            if (!cfg.zones.includes('swing_gorge')) continue;
+            eg++;
+            const s = Sim.createSimulation({ mode: 'endless', endlessFloor: f, seed: 9001, hero: 'ranger' });
+            assert.ok(s.stage.swings.length >= 3, 'endless gorge has ropes');
+        }
+        assert.ok(eg >= 1, 'endless pool contains swing gorges');
+    }
+
+    // --- rune_sequence ---
+    {
+        for (const [lv, len, vault] of [[2, 3, true], [9, 3, false], [14, 4, true], [22, 4, true]]) {
+            const s = mk(lv);
+            s.stage.enemies.length = 0;
+            const o = s.stage.oracles[0];
+            assert.ok(o && o.len === len && o.state === 'idle', `level ${lv} oracle with ${len} glyphs`);
+            const stones = s.stage.glyphStones;
+            assert.equal(stones.length, len, 'one stone per glyph');
+            assert.ok(stones.every((st) => st.glyph >= 0 && st.glyph <= 3 && st.oracleId === o.id && st.y === o.y), 'stone fields');
+            const gate = s.stage.gates.find((gt) => gt.id === o.gateId);
+            assert.ok(gate && !gate.open && gate.tiles.every((t) => s.stage.solidMap[t.tx + ',' + t.ty]), 'vault gate is closed');
+            assert.equal(o.vault, vault);
+            assert.equal(!!gate.portcullis, !vault, 'required puzzles use a full-height gate');
+        }
+        const s = mk(2);
+        s.stage.enemies.length = 0;
+        const o = s.stage.oracles[0];
+        const stones = s.stage.glyphStones;
+        placeHero(s, o.x - 100, s.stage.groundY);
+        const keep = () => { s.player.invulnTimer = 9; };
+        let evs = tickN(s, 400, {}, (sim) => { if (o.state !== 'input') { sim.player.x = o.x - 100; } keep(); });
+        assert.equal(o.state, 'input', 'the oracle shows the sequence and then waits for input');
+        const shows = seenR4(evs, 'seq_show');
+        assert.equal(shows.length, 3, 'seq_show once per glyph');
+        shows.forEach((d, i) => assert.ok(d.oracleId === o.id && d.index === i && d.glyph === o.seq[i] && Number.isFinite(d.x + d.y), 'seq_show payload ' + i));
+        // a correct order solves the puzzle and opens the vault; use a real melee attack for the first stone
+        const stoneOf = (glyph) => stones.find((st) => st.glyph === glyph);
+        const first = stoneOf(o.seq[0]);
+        placeHero(s, first.x - 36, s.stage.groundY);
+        s.player.facing = 1;
+        evs = tickN(s, 4, (i) => ({ attackPressed: i === 0 }), keep);
+        let hits = seenR4(evs, 'seq_hit');
+        assert.ok(hits.length === 1 && hits[0].glyph === o.seq[0] && hits[0].step === 0, 'a melee hit on the right glyph counts');
+        for (let i = 1; i < o.seq.length; i++) {
+            const st = stoneOf(o.seq[i]);
+            evs = tickN(s, 25, {});
+            Puzzles.hitRect(s, st.x - 4, st.y - 30, 8, 8, 1);
+        }
+        evs = tickN(s, 2, {});
+        assert.equal(o.state, 'solved', 'a correct sequence solves');
+        const gate = s.stage.gates.find((gt) => gt.id === o.gateId);
+        assert.ok(gate.open && gate.tiles.every((t) => !s.stage.solidMap[t.tx + ',' + t.ty]), 'the vault gate opens');
+        // wrong order: fail and replay
+        const f = mk(2);
+        f.stage.enemies.length = 0;
+        const fo = f.stage.oracles[0];
+        placeHero(f, fo.x - 100, f.stage.groundY);
+        tickN(f, 400, {}, (sim) => { sim.player.invulnTimer = 9; });
+        assert.equal(fo.state, 'input');
+        const seq = fo.seq.slice();
+        const wrong = f.stage.glyphStones.find((st) => st.glyph !== seq[0]);
+        f.events = [];
+        Puzzles.hitRect(f, wrong.x - 4, wrong.y - 30, 8, 8, 1);
+        evs = f.events.slice();
+        assert.ok(seenR4(evs, 'seq_fail').length === 1 && fo.state === 'fail', 'a wrong hit fails');
+        assert.equal(f.notice, 'runenpfad.notice.seq_fail');
+        evs = tickN(f, 130, {}, (sim) => { sim.player.invulnTimer = 9; });
+        assert.ok(fo.state === 'showing' || fo.state === 'input', 'the oracle replays after the failure');
+        assert.ok(seenR4(evs, 'seq_show').length >= 1, 'the replay emits seq_show again');
+        assert.deepEqual(fo.seq, seq, 'the same sequence is replayed');
+        const gateF = f.stage.gates.find((gt) => gt.id === fo.gateId);
+        assert.ok(!gateF.open, 'a failure keeps the vault closed');
+        // hitting the idle oracle replays too; stomping a stone counts
+        const g2 = mk(2);
+        const go = g2.stage.oracles[0];
+        placeHero(g2, go.x - 600, g2.stage.groundY);
+        Puzzles.hitRect(g2, go.x - 5, go.y - 40, 10, 10, 1);
+        assert.equal(go.state, 'showing', 'hitting the idle oracle starts the sequence');
+        const st2 = mk(2);
+        st2.stage.enemies.length = 0;
+        const so = st2.stage.oracles[0];
+        placeHero(st2, so.x - 100, st2.stage.groundY);
+        tickN(st2, 400, {}, (sim) => { sim.player.invulnTimer = 9; });
+        const target = st2.stage.glyphStones.find((x) => x.glyph === so.seq[0]);
+        st2.player.x = target.x; st2.player.y = target.y - 110; st2.player.vy = 300; st2.player.onGround = false;
+        evs = tickN(st2, 20, {}, (sim) => { sim.player.invulnTimer = 9; });
+        assert.ok(seenR4(evs, 'seq_hit').length === 1, 'landing on a stone counts as a hit');
+        // the knight slam shock counts as well
+        const sl = mk(2);
+        sl.stage.enemies.length = 0;
+        const slo = sl.stage.oracles[0];
+        placeHero(sl, slo.x - 100, sl.stage.groundY);
+        tickN(sl, 400, {}, (sim) => { sim.player.invulnTimer = 9; });
+        const sst = sl.stage.glyphStones.find((x) => x.glyph === slo.seq[0]);
+        Puzzles.slamLand(sl, sst.x, sst.y);
+        assert.equal(slo.step, 1, 'the slam shock hits glyph stones');
+        // the ranger's bolt hits stones and levers too
+        const rg = mk(2, 'ranger');
+        rg.stage.enemies.length = 0;
+        const rgo = rg.stage.oracles[0];
+        placeHero(rg, rgo.x - 100, rg.stage.groundY);
+        tickN(rg, 400, {}, (sim) => { sim.player.invulnTimer = 9; });
+        const rst = rg.stage.glyphStones.find((x) => x.glyph === rgo.seq[0]);
+        placeHero(rg, rst.x - 160, rg.stage.groundY);
+        rg.player.facing = 1;
+        evs = tickN(rg, 40, (i) => ({ attackPressed: i === 0 }), (sim) => { sim.player.invulnTimer = 9; });
+        assert.ok(seenR4(evs, 'seq_hit').length === 1, 'a ranger bolt hits the glyph stone');
+    }
+
+    // --- lever_bridge ---
+    {
+        // every preset is solvable by some subset of its levers (toggles are self-inverse) and not solved at the start
+        const solvable = (masks, on) => {
+            const need = on.map((v) => !v);
+            for (let sub = 1; sub < (1 << masks.length); sub++) {
+                const t = [false, false, false, false];
+                masks.forEach((m, i) => { if (sub & (1 << i)) m.forEach((k) => { t[k] = !t[k]; }); });
+                if (t.every((v, k) => v === need[k])) return sub;
+            }
+            return 0;
+        };
+        Puzzles.LEVER_PRESETS.forEach((pr, i) => {
+            assert.ok(pr.on.some((v) => !v), `preset ${i} does not start solved`);
+            assert.ok(solvable(pr.masks, pr.on), `preset ${i} is solvable`);
+        });
+        const stagesWithLevers = [];
+        for (let i = 1; i <= 25; i++) if (zonesOf(i).includes('lever_bridge')) stagesWithLevers.push(i);
+        for (let f = 1; f <= 40; f++) {
+            if (Levels.createEndlessConfig(f, 9001).zones.includes('lever_bridge')) stagesWithLevers.push(1000 + f);
+        }
+        assert.ok(stagesWithLevers.length >= 4, 'lever bridges appear in the campaign and the endless pool');
+        for (const id of stagesWithLevers) {
+            const st = id > 1000 ? Levels.buildStage(Levels.createEndlessConfig(id - 1000, 9001)) : Levels.buildStage(id);
+            const segs = st.bridgeSegs;
+            const masks = st.levers.map((l) => l.mask);
+            assert.equal(segs.length, 4, 'four bridge segments');
+            assert.equal(st.levers.length, 3, 'three levers');
+            assert.ok(solvable(masks, segs.map((sg) => sg.on)), `lever bridge in stage ${id} is solvable`);
+        }
+        // play level 4: solve it with real lever hits, then walk across
+        const s = mk(4);
+        s.stage.enemies.length = 0;
+        const segs = s.stage.bridgeSegs;
+        const levers = s.stage.levers;
+        assert.ok(segs.some((sg) => !sg.on), 'the bridge starts incomplete');
+        segs.forEach((sg) => assert.ok(sg.tiles.every((t) => t.solid === sg.on), 'segment solidity follows its state'));
+        const sub = solvable(levers.map((l) => l.mask), segs.map((sg) => sg.on));
+        let evs = [];
+        levers.forEach((lv, i) => {
+            if (!(sub & (1 << i))) return;
+            placeHero(s, lv.x - 30, s.stage.groundY);
+            s.player.facing = 1;
+            evs = evs.concat(tickN(s, 3, (k) => ({ attackPressed: k === 0 }), (sim) => { sim.player.invulnTimer = 9; }));
+            evs = evs.concat(tickN(s, 20, {}, (sim) => { sim.player.invulnTimer = 9; }));
+        });
+        assert.ok(seenR4(evs, 'lever_pull').length === Array.from({ length: 3 }, (_, i) => (sub >> i) & 1).reduce((a, b) => a + b, 0), 'lever_pull per hit');
+        const pull = seenR4(evs, 'lever_pull')[0];
+        assert.ok(Number.isFinite(pull.x + pull.y) && typeof pull.on === 'boolean', 'lever_pull payload');
+        assert.ok(seenR4(evs, 'bridge_toggle').length >= 1, 'bridge_toggle events');
+        assert.equal(seenR4(evs, 'bridge_done').length, 1, 'bridge_done once all segments are on');
+        assert.ok(segs.every((sg) => sg.on && sg.tiles.every((t) => t.solid)), 'solving makes every segment solid');
+        assert.equal(s.notice, 'runenpfad.notice.bridge_done');
+        assert.ok(levers.every((l) => l.locked), 'levers lock after the bridge is done');
+        // walking across the finished bridge never hurts
+        const first = segs[0];
+        placeHero(s, first.x - 40, s.stage.groundY);
+        const hp0 = s.player.hp;
+        tickN(s, 200, { right: true });
+        assert.ok(s.player.x > first.x + 8 * T && s.player.hp === hp0, 'the hero walks over the finished bridge, x=' + s.player.x);
+    }
+
+    // --- ritual_chain ---
+    {
+        const s = mk(6);
+        s.stage.enemies.length = 0;
+        const r = s.stage.rituals[0];
+        assert.ok(r && r.state === 'idle' && r.timeLimit >= 8 && r.timeLimit <= 12, 'ritual starts idle with a time limit');
+        assert.ok(r.stairs.length === 3 && r.braziers.length === 3 && r.braziers.every((b, i) => b.order === i && !b.lit), 'ritual layout');
+        assert.ok(r.stairs.every((st) => !st.up && st.tiles.every((t) => !t.solid)), 'stairs start sunk');
+        const g = s.stage.groundY;
+        placeHero(s, r.plate.x, g);
+        let evs = tickN(s, 3, {});
+        assert.ok(r.plate.down && r.state === 'active', 'stepping on the plate starts the ritual');
+        assert.equal(seenR4(evs, 'plate_down').length, 1);
+        evs = evs.concat(tickN(s, 40, {}));
+        assert.ok(seenR4(evs, 'stairs_up').length === 1 && r.stairs.every((st) => st.up && st.tiles.every((t) => t.solid)), 'stairs rise and become solid');
+        assert.ok(r.t > 0 && r.t < r.timeLimit, 'ritual timer counts up');
+        // light the braziers in order by touch
+        evs = [];
+        r.braziers.forEach((b) => {
+            placeHero(s, b.x, b.y);
+            evs = evs.concat(tickN(s, 2, {}, (sim) => { sim.player.invulnTimer = 9; sim.player.vy = 0; }));
+        });
+        const lit = seenR4(evs, 'brazier_lit');
+        assert.deepEqual(lit.map((d) => d.order), [0, 1, 2], 'brazier_lit in order');
+        assert.equal(seenR4(evs, 'ritual_done').length, 1, 'ritual_done');
+        assert.equal(r.state, 'done');
+        const gate = s.stage.gates.find((gt) => gt.id === r.gateId);
+        assert.ok(gate.open, 'the gate opens');
+        assert.ok(r.stairs.every((st) => st.up), 'stairs stay up after success');
+        assert.equal(s.notice, 'runenpfad.notice.ritual_done');
+        // wrong order fails and resets, the plate retries
+        const f = mk(6);
+        f.stage.enemies.length = 0;
+        const fr = f.stage.rituals[0];
+        placeHero(f, fr.plate.x, g);
+        tickN(f, 40, {});
+        placeHero(f, fr.braziers[1].x, fr.braziers[1].y);
+        evs = tickN(f, 2, {}, (sim) => { sim.player.invulnTimer = 9; sim.player.vy = 0; });
+        assert.equal(seenR4(evs, 'ritual_fail').length, 1, 'a wrong order fails');
+        assert.ok(fr.state === 'idle' && !fr.plate.down && fr.braziers.every((b) => !b.lit) && fr.stairs.every((st) => !st.up && st.tiles.every((t) => !t.solid)), 'braziers go out and stairs sink');
+        assert.ok(seenR4(evs, 'stairs_down').length === 1, 'stairs_down');
+        placeHero(f, fr.plate.x - 200, g);
+        tickN(f, 60, {});
+        placeHero(f, fr.plate.x, g);
+        tickN(f, 3, {});
+        assert.equal(fr.state, 'active', 'the plate retries the ritual');
+        // timeout fails too, and a hero on the top stair drops back down
+        const t2 = mk(6);
+        t2.stage.enemies.length = 0;
+        const tr = t2.stage.rituals[0];
+        placeHero(t2, tr.plate.x, g);
+        tickN(t2, 20, {});
+        const top = tr.stairs[2];
+        placeHero(t2, top.x + 0.3 * T, top.y);
+        tickN(t2, 30, {}, (sim) => { sim.player.x = top.x + 0.3 * T; });
+        assert.ok(t2.player.onGround && Math.abs(t2.player.y - top.y) < 2, 'the hero stands on the high stair');
+        evs = tickN(t2, Math.ceil((tr.timeLimit + 1) * 60), {}, (sim) => { sim.player.invulnTimer = 9; });
+        assert.equal(seenR4(evs, 'ritual_fail').length, 1, 'a timeout fails');
+        assert.ok(t2.player.y > top.y + T, 'the hero falls back down when the stairs sink');
+        // fairness: a scripted run through the ritual succeeds for both heroes (levels 6, 13 required, 18)
+        const walkTo = (sim, tx, ty, maxSec) => {
+            const p = sim.player;
+            for (let i = 0; i < maxSec * 60; i++) {
+                const input = blank();
+                const dx = tx - p.x;
+                if (Math.abs(dx) > 6) { input.right = dx > 0; input.left = dx < 0; }
+                if (p.onGround && ty < p.y - 30 && Math.abs(dx) < 100) input.jumpPressed = true;
+                Sim.stepSimulation(sim, STEP, input);
+                if (Math.abs(p.x - tx) < 14 && Math.abs(p.y - ty) < 6 && p.onGround) return true;
+            }
+            return false;
+        };
+        for (const lv of [6, 13, 18]) {
+            for (const hero of ['knight', 'ranger']) {
+                const b = mk(lv, hero);
+                b.stage.enemies.length = 0;
+                const rr = b.stage.rituals[0];
+                placeHero(b, rr.plate.x - 120, g);
+                walkTo(b, rr.plate.x, g, 4);
+                const legs = [[rr.braziers[0].x, g], [rr.stairs[0].x + 0.5 * T, rr.stairs[0].y], [rr.stairs[1].x + 0.5 * T, rr.stairs[1].y], [rr.braziers[1].x - 8, rr.stairs[1].y], [rr.stairs[2].x + 0.5 * T, rr.stairs[2].y], [rr.braziers[2].x - 8, rr.stairs[2].y]];
+                for (const leg of legs) { if (rr.state === 'done') break; walkTo(b, leg[0], leg[1], 4); }
+                assert.equal(rr.state, 'done', `${hero} completes the ritual of level ${lv} in time (t=${rr.t.toFixed(1)})`);
+                assert.ok(rr.t < rr.timeLimit - 3, 'the ritual leaves a comfortable margin');
+            }
+        }
+    }
+
+    // --- drakeling ---
+    {
+        assert.ok(Levels.ENEMY_DEFS.drakeling && Levels.ENEMY_DEFS.drakeling.art === 'enemy-drakeling' && Levels.ENEMY_DEFS.drakeling.prefix === 'quadcopter_', 'drakeling def');
+        assert.equal(Levels.ENEMY_DEFS.drakeling.hp, 3);
+        assert.equal(Levels.ENEMY_DEFS.drakeling.behavior, 'drakeling');
+        const s = mk(8);
+        s.stage.enemies.length = 0;
+        const d = Levels.createEnemy('drakeling', 20 * T, s.stage.groundY, 15 * T, 25 * T, { id: 'dk1' });
+        s.stage.enemies.push(d);
+        placeHero(s, d.x - 220, s.stage.groundY);
+        let evs = tickN(s, 300, {}, (sim) => { sim.player.invulnTimer = 9; sim.player.x = Math.min(sim.player.x, d.x - 150); });
+        const atk = seenR4(evs, 'enemy_attack').filter((a) => a.kind === 'fireball');
+        assert.ok(atk.length >= 2 && atk[0].defId === 'drakeling' && Number.isFinite(atk[0].x + atk[0].y), 'drakeling emits enemy_attack kind fireball, shots=' + atk.length);
+        assert.ok(seenR4(evs, 'enemy_windup').length >= 1, 'drakeling winds up before spitting');
+        // keeps its distance
+        const dist = Math.abs(s.player.x - d.x);
+        assert.ok(dist > 150 && dist < 330, 'drakeling hovers at a distance, ' + dist);
+        // an unprotected hero gets hurt by the fireball; the projectile carries kind fireball
+        const h = mk(8);
+        h.stage.enemies.length = 0;
+        const d2 = Levels.createEnemy('drakeling', 20 * T, h.stage.groundY, 15 * T, 25 * T, { id: 'dk2' });
+        h.stage.enemies.push(d2);
+        placeHero(h, d2.x - 220, h.stage.groundY);
+        let kinds = new Set();
+        const hp0 = h.player.hp;
+        tickN(h, 400, {}, (sim) => { sim.projectiles.forEach((pr) => kinds.add(pr.kind)); sim.player.x = d2.x - 200; sim.player.y = sim.stage.groundY; sim.player.vy = 0; });
+        assert.ok(kinds.has('fireball'), 'projectile kind fireball');
+        assert.ok(h.player.hp < hp0, 'a fireball hurts the hero');
+        d2.hp = 1;
+        Combat.damageEnemy(h, d2, 5, d2.x);
+        assert.ok(d2.dead, 'drakelings die to hits');
+    }
+
+    // --- dragon strafe ---
+    {
+        for (const [lv, kind] of [[8, 'ember'], [12, 'ember'], [16, 'frost'], [23, 'ember']]) {
+            const s = mk(lv);
+            s.stage.enemies.length = 0;
+            const run = s.stage.dragonRuns[0];
+            assert.ok(run && run.kind === kind && run.state === 'off', `level ${lv} has a ${kind} dragon run`);
+            assert.ok(run.fire === null && Number.isFinite(run.x1 + run.x2 + run.laneY + run.laneH), 'dragon run fields');
+        }
+        const sim = mk(8);
+        sim.stage.enemies.length = 0;
+        const run = sim.stage.dragonRuns[0];
+        const g = sim.stage.groundY;
+        // shelters: roofs ~2 tiles above the ground, every hero position is within a short run of one
+        const roofX = [];
+        for (let tx = Math.floor(run.x1 / T); tx < run.x2 / T; tx++) if (sim.stage.solidMap[tx + ',' + (g / T - 3)]) roofX.push(tx);
+        assert.ok(roofX.length >= 12, 'four three-tile roofs');
+        let maxGap = 0;
+        for (let tx = Math.floor(run.x1 / T); tx < run.x2 / T; tx++) maxGap = Math.max(maxGap, Math.min.apply(null, roofX.map((r) => Math.abs(r - tx))));
+        assert.ok(maxGap <= 2, 'a shelter is always within two tiles, gap ' + maxGap);
+        // timeline: far -> warn (>= 1.2 s) -> strafe -> leave -> far; warn events precede the breath
+        const outside = () => { sim.player.x = run.x1 + 4.5 * T; sim.player.y = g; sim.player.vy = 0; sim.player.invulnTimer = 9; };
+        placeHero(sim, run.x1 + 4.5 * T, g);
+        const order = [];
+        const states = [];
+        let warnTicks = 0;
+        let evs = [];
+        for (let i = 0; i < 60 * 40; i++) {
+            outside();
+            const e = Sim.stepSimulation(sim, STEP, {});
+            e.forEach((x) => { evs.push(x); if (/^dragon_/.test(x.type)) order.push(x.type); });
+            if (states[states.length - 1] !== run.state) states.push(run.state);
+            if (run.state === 'warn') warnTicks++;
+            if (states.length >= 5 && run.state === 'far' && states.includes('leave')) break;
+        }
+        assert.deepEqual(states.slice(0, 5), ['far', 'warn', 'strafe', 'leave', 'far'], 'dragon run cycle ' + states.join(','));
+        assert.ok(warnTicks >= 70, 'the warn phase lasts >= 1.2 s, ticks ' + warnTicks);
+        assert.ok(order.indexOf('dragon_roar') >= 0 && order.indexOf('dragon_warn') >= 0 && order.indexOf('dragon_breath') > order.indexOf('dragon_warn'), 'warn precedes the strafe: ' + order.join(','));
+        const warnEv = seenR4(evs, 'dragon_warn')[0];
+        assert.ok(warnEv.x1 === run.x1 && warnEv.x2 === run.x2 && warnEv.laneY === run.laneY && warnEv.laneH === run.laneH, 'dragon_warn payload');
+        const roarEv = seenR4(evs, 'dragon_roar')[0];
+        assert.ok(roarEv.kind === 'ember' && Number.isFinite(roarEv.x + roarEv.y), 'dragon_roar payload');
+        assert.equal(sim.stage.dragonHinted, true);
+        // exposed vs sheltered hero over a full strafe
+        function strafeRun(heroX, hero) {
+            const t = mk(8, hero);
+            t.stage.enemies.length = 0;
+            const r = t.stage.dragonRuns[0];
+            placeHero(t, r.x1 + heroX * T, g);
+            const hp = t.player.hp;
+            let burned = 0;
+            let breath = false;
+            for (let i = 0; i < 60 * 30; i++) {
+                t.player.x = r.x1 + heroX * T; t.player.y = g; t.player.vy = 0;
+                if (t.player.invulnTimer > 0.3) t.player.invulnTimer = 0.3; // hurt knock-back must not break the test
+                const e = Sim.stepSimulation(t, STEP, {});
+                e.forEach((x) => { if (x.type === 'hazard' && x.detail.kind === 'dragonfire') burned++; if (x.type === 'dragon_breath') breath = true; });
+                if (breath && r.state === 'far') break;
+            }
+            return { burned, hp: t.player.hp, hp0: hp };
+        }
+        const exposed = strafeRun(5.5, 'knight');
+        assert.ok(exposed.burned >= 1 && exposed.hp < exposed.hp0, 'dragon fire hurts an exposed hero ' + JSON.stringify(exposed));
+        const covered = strafeRun(2.5, 'knight');
+        assert.ok(covered.burned === 0 && covered.hp === covered.hp0, 'a sheltered hero is safe ' + JSON.stringify(covered));
+        assert.ok(Dragons.sheltered && typeof Dragons.sheltered === 'function');
+        // frost uses the same damage with a frost flag
+        const fz = mk(16);
+        fz.stage.enemies.length = 0;
+        const fr = fz.stage.dragonRuns[0];
+        let frostFlag = false;
+        for (let i = 0; i < 60 * 25; i++) {
+            fz.player.x = fr.x1 + 5.5 * T; fz.player.y = g; fz.player.vy = 0; fz.player.invulnTimer = Math.min(fz.player.invulnTimer, 0.3);
+            Sim.stepSimulation(fz, STEP, {}).forEach((x) => { if (x.type === 'hazard' && x.detail.kind === 'dragonfire' && x.detail.frost) frostFlag = true; });
+            if (frostFlag) break;
+        }
+        assert.ok(frostFlag, 'frost dragon breath carries the frost flag');
+    }
+
+    // --- dragon boss ---
+    {
+        const cfg6 = Levels.createEndlessConfig(6, 9001);
+        const cfg9 = Levels.createEndlessConfig(9, 9001);
+        const cfg12 = Levels.createEndlessConfig(12, 9001);
+        const cfg24 = Levels.createEndlessConfig(24, 9001);
+        const cfg3 = Levels.createEndlessConfig(3, 9001);
+        assert.equal(cfg3.boss, 'boss_orb', 'floor 3 keeps the world boss');
+        assert.equal(cfg6.boss, 'boss_dragon_ember', 'floor 6 is an ember dragon');
+        assert.equal(cfg9.boss, 'boss_quad', 'floor 9 is the world boss again');
+        assert.equal(cfg12.boss, 'boss_dragon_ember');
+        assert.equal(cfg24.boss, 'boss_dragon_frost', 'glacier floors bring the frost dragon');
+        assert.ok(Levels.ENEMY_DEFS.boss_dragon_ember.art === 'dragon-ember' && Levels.ENEMY_DEFS.boss_dragon_frost.bossNameKey === 'runenpfad.boss_dragon_frost' && Levels.ENEMY_DEFS.boss_dragon_ember.flying && Levels.ENEMY_DEFS.boss_dragon_ember.hp >= 55, 'dragon boss defs');
+        for (const floor of [6, 24]) {
+            const s = Sim.createSimulation({ mode: 'endless', endlessFloor: floor, seed: 9001, hero: 'knight' });
+            const boss = s.stage.enemies.find((e) => e.id === s.stage.bossId);
+            assert.ok(boss && boss.def.dragon, `floor ${floor} builds a dragon boss`);
+            assert.ok(boss.y - 42 * boss.def.scale > 0, 'the dragon fits under the ceiling');
+            const g = s.stage.groundY;
+            const seenPat = new Set();
+            let fireHazard = false;
+            let fireballProj = false;
+            let drakes = false;
+            let kindOk = true;
+            s.player.hp = s.player.maxHp = 9999;
+            for (let i = 0; i < 60 * 150 && seenPat.size < 4; i++) {
+                s.player.x = Math.max(boss.minX + 80, Math.min(boss.maxX - 80, s.player.x));
+                if (i === 0) { s.player.x = boss.x - 200; s.player.y = g; }
+                s.player.invulnTimer = 9;
+                if (s.player.y < g - 1 && s.player.onGround) s.player.y = g;
+                Sim.stepSimulation(s, STEP, {}).forEach((e) => {
+                    if (e.type === 'boss_attack') { seenPat.add(e.detail.pattern); assert.ok(Number.isFinite(e.detail.x + e.detail.y)); }
+                    if (e.type === 'boss_telegraph') assert.ok(e.detail.kind);
+                });
+                s.tempHazards.forEach((h) => { if (h.kind === 'dragonfire') { fireHazard = true; if (h.variant !== boss.def.dragon) kindOk = false; } });
+                s.projectiles.forEach((pr) => { if (pr.kind === 'fireball' && pr.fromEnemy) fireballProj = true; });
+                if (s.stage.enemies.some((e) => e.summoned && e.defId === 'drakeling' && !e.dead)) drakes = true;
+            }
+            assert.deepEqual(Array.from(seenPat).sort(), ['dive', 'fireballs', 'roar', 'strafe'], `dragon floor ${floor} runs every pattern once: ` + Array.from(seenPat).join(','));
+            assert.ok(fireHazard && kindOk, 'strafe leaves dragonfire temp hazards tagged with the dragon kind');
+            assert.ok(fireballProj, 'fireballs fly as projectile kind fireball');
+            assert.ok(drakes, 'the roar summons drakelings');
+            assert.ok(s.stage.enemies.filter((e) => e.summoned && e.defId === 'drakeling' && !e.dead).length <= 2, 'at most two drakelings');
+        }
+        // phase two doubles the strafe and the dragon dies like any boss
+        const s = Sim.createSimulation({ mode: 'endless', endlessFloor: 6, seed: 9001, hero: 'knight' });
+        const boss = s.stage.enemies.find((e) => e.id === s.stage.bossId);
+        boss.hp = Math.floor(boss.maxHp * 0.4);
+        Combat.damageEnemy(s, boss, 1, boss.x, true);
+        assert.equal(boss.phase, 2, 'the dragon enrages at half health');
+        let defeated = false;
+        Combat.damageEnemy(s, boss, 9999, boss.x, true);
+        Sim.stepSimulation(s, STEP, {}).forEach((e) => { if (e.type === 'boss_defeat') defeated = true; });
+        assert.ok(boss.dead && s.tempHazards.length === 0, 'defeat clears the fire');
+    }
+}
+console.log('Runenpfad round 4 checks passed: swing ropes, rune sequence, lever bridge, ritual chain, drakeling, dragon strafe, dragon boss.');

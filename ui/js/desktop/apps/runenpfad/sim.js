@@ -52,9 +52,9 @@
     function breakCrate(sim, crate) { combatApi().breakCrate(sim, crate); }
     function performPlayerAttack(sim, input) { combatApi().performPlayerAttack(sim, input); }
 
-    // Optional zone hooks: zones.js and zones-extra.js both take part when loaded.
+    // Optional zone hooks: every zone module takes part when loaded.
     function zoneHook(name, a, b, c) {
-        [root.RunenpfadZones, root.RunenpfadZonesExtra].forEach(function (z) {
+        [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons].forEach(function (z) {
             if (z && typeof z[name] === 'function') z[name](a, b, c);
         });
     }
@@ -122,6 +122,8 @@
                 dashCooldown: 0,
                 slamActive: false,
                 hurtTimer: 0,
+                swing: null,
+                swingCool: 0,
                 stepTimer: 0,
                 animState: 'idle',
                 animTime: 0
@@ -566,8 +568,11 @@
         // Potion heal
         if (input.healPressed) applyPotionHeal(sim);
 
+        // Swinging ropes own the hero's position while hanging.
+        const swung = !!(root.RunenpfadSwing && root.RunenpfadSwing.update(sim, dt, input));
+
         // Dash roll (Ranger)
-        if (stats.def.dashEnabled && input.dashPressed && p.dashCooldown <= 0 && p.dashTimer <= 0) {
+        if (!swung && stats.def.dashEnabled && input.dashPressed && p.dashCooldown <= 0 && p.dashTimer <= 0) {
             p.dashTimer = 0.18;
             p.dashCooldown = 0.72;
             p.invulnTimer = Math.max(p.invulnTimer, 0.24);
@@ -584,7 +589,7 @@
         }
 
         // Carry standing player on moving platforms
-        if (p.onGround && p.onPlatformRide) {
+        if (!swung && p.onGround && p.onPlatformRide) {
             p.x += p.onPlatformRide.x - p.onPlatformRide.prevX;
         }
 
@@ -604,7 +609,9 @@
                 if (p.y + 2 >= l.y && p.y + 2 < l.y + TILE) ladderBelow = true;
             }
         }
-        if (!nearLadder && stage.ropes) {
+        if (swung) {
+            nearLadder = false;
+        } else if (!nearLadder && stage.ropes) {
             for (let i = 0; i < stage.ropes.length; i++) {
                 const r = stage.ropes[i];
                 if (Math.abs(p.x - r.x) <= 14 && p.y > r.top && p.y - p.h < r.bottom) {
@@ -621,13 +628,16 @@
         } else if (!nearLadder) {
             p.onLadder = false;
         }
+        if (swung) p.onLadder = false;
 
         p.climbKind = p.onLadder ? (nearKind || p.climbKind) : null;
         p.climbDir = 0;
         const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
         if (moveDir !== 0 && p.dashTimer <= 0) p.facing = moveDir;
 
-        if (p.dashTimer > 0) {
+        if (swung) {
+            p.climbDir = 0;
+        } else if (p.dashTimer > 0) {
             p.dashTimer -= dt;
         } else if (p.onLadder) {
             p.vx = moveDir * stats.speed * (p.climbKind === 'rope' ? 0.4 : 0.65);
@@ -682,10 +692,13 @@
         zoneHook('applyForces', sim, p, dt);
         const prevY = p.y;
         const wasOnGround = p.onGround;
-        p.x += p.vx * dt;
-        physicsApi().resolveHorizontalTiles(stage, p, p.w, p.h);
-        p.y += p.vy * dt;
-        const landResult = physicsApi().resolveVerticalTiles(stage, p, p.w, p.h, prevY, !!(input.down && !p.slamActive && (!nearLadder || ladderBelow)));
+        let landResult;
+        if (!swung) {
+            p.x += p.vx * dt;
+            physicsApi().resolveHorizontalTiles(stage, p, p.w, p.h);
+            p.y += p.vy * dt;
+            landResult = physicsApi().resolveVerticalTiles(stage, p, p.w, p.h, prevY, !!(input.down && !p.slamActive && (!nearLadder || ladderBelow)));
+        }
         if (landResult === 'spring') {
             pushJump(sim);
             pushEvent(sim, 'spring', { x: p.x, y: p.y });
@@ -714,6 +727,7 @@
                 fxShake(sim, 8);
                 fxHitstop(sim, 0.06);
                 fxFlash(sim, '#ffe9b0', 0.18, 0.18);
+                zoneHook('slamLand', sim, p.x, p.y);
                 stage.enemies.forEach(function (e) {
                     if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 120) {
                         const slamMul = varietyApi() ? varietyApi().damageMultiplier(sim.blessing) : 1;
@@ -755,6 +769,7 @@
         // Animation state selection
         p.animTime += dt;
         if (p.hurtTimer > 0) p.animState = 'hurt';
+        else if (p.swing) p.animState = 'swing';
         else if (p.onLadder) p.animState = 'climb';
         else if (p.attackTimer > 0) p.animState = 'attack';
         else if (!p.onGround) p.animState = 'jump';

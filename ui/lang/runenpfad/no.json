@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 skade",
   "runenpfad.rune_frost_desc": "Blokkerer neste treff",
   "runenpfad.rune_storm_desc": "Ekstra hopp og fart",
-  "runenpfad.rune_magnet_desc": "Trekker til seg mynter"
+  "runenpfad.rune_magnet_desc": "Trekker til seg mynter",
+  "runenpfad.notice.seq_watch": "Seersteinen viser en runerekke — husk den!",
+  "runenpfad.notice.seq_fail": "Feil rekkefølge — se på seersteinen igjen.",
+  "runenpfad.notice.seq_solved": "Runerekken er løst! Hvelvet åpner seg.",
+  "runenpfad.notice.lever_hint": "Hver spak snur noen brodeler — få alle til å lyse.",
+  "runenpfad.notice.bridge_done": "Brua holder!",
+  "runenpfad.notice.ritual_hint": "Tråkk på platen, og tenn fyrfatene i rekkefølge — fort!",
+  "runenpfad.notice.ritual_fail": "Flammene slukner — tråkk på platen igjen.",
+  "runenpfad.notice.ritual_done": "Ritualet er fullført!",
+  "runenpfad.notice.dragon_warn": "En drage! Søk dekning under steintakene!",
+  "runenpfad.notice.swing_hint": "Hopp på tauet, sving med venstre/høyre, slipp med hopp.",
+  "runenpfad.boss_dragon_ember": "Glødrage",
+  "runenpfad.boss_dragon_frost": "Frostlindorm"
 }

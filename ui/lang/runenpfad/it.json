@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 danno",
   "runenpfad.rune_frost_desc": "Blocca il prossimo colpo",
   "runenpfad.rune_storm_desc": "Salto extra e velocità",
-  "runenpfad.rune_magnet_desc": "Attira le monete"
+  "runenpfad.rune_magnet_desc": "Attira le monete",
+  "runenpfad.notice.seq_watch": "La pietra veggente mostra una sequenza di rune — ricordala!",
+  "runenpfad.notice.seq_fail": "Ordine sbagliato — guarda di nuovo la pietra veggente.",
+  "runenpfad.notice.seq_solved": "Sequenza di rune risolta! La cripta si apre.",
+  "runenpfad.notice.lever_hint": "Ogni leva inverte alcune parti del ponte — falle brillare tutte.",
+  "runenpfad.notice.bridge_done": "Il ponte regge!",
+  "runenpfad.notice.ritual_hint": "Sali sulla piastra, poi accendi i bracieri in ordine — presto!",
+  "runenpfad.notice.ritual_fail": "Le fiamme si spengono — risali sulla piastra.",
+  "runenpfad.notice.ritual_done": "Il rituale è compiuto!",
+  "runenpfad.notice.dragon_warn": "Un drago! Riparati sotto le tettoie di pietra!",
+  "runenpfad.notice.swing_hint": "Salta sulla corda, dondola con sinistra/destra, lascia con il salto.",
+  "runenpfad.boss_dragon_ember": "Drago delle braci",
+  "runenpfad.boss_dragon_frost": "Viverna del gelo"
 }

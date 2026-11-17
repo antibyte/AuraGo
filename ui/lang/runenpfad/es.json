@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 de daño",
   "runenpfad.rune_frost_desc": "Bloquea el siguiente golpe",
   "runenpfad.rune_storm_desc": "Salto extra y velocidad",
-  "runenpfad.rune_magnet_desc": "Atrae las monedas"
+  "runenpfad.rune_magnet_desc": "Atrae las monedas",
+  "runenpfad.notice.seq_watch": "La piedra vidente muestra una secuencia de runas — ¡memorízala!",
+  "runenpfad.notice.seq_fail": "Orden incorrecto — vuelve a mirar la piedra vidente.",
+  "runenpfad.notice.seq_solved": "¡Secuencia de runas resuelta! La cámara se abre.",
+  "runenpfad.notice.lever_hint": "Cada palanca alterna partes del puente — haz que todas brillen.",
+  "runenpfad.notice.bridge_done": "¡El puente aguanta!",
+  "runenpfad.notice.ritual_hint": "Pisa la placa y enciende los braseros en orden — ¡rápido!",
+  "runenpfad.notice.ritual_fail": "Las llamas se apagan — vuelve a pisar la placa.",
+  "runenpfad.notice.ritual_done": "¡El ritual está completo!",
+  "runenpfad.notice.dragon_warn": "¡Un dragón! ¡Ponte a cubierto bajo los tejados de piedra!",
+  "runenpfad.notice.swing_hint": "Salta a la cuerda, balancéate con izquierda/derecha y suéltate con salto.",
+  "runenpfad.boss_dragon_ember": "Dragón de brasas",
+  "runenpfad.boss_dragon_frost": "Sierpe de escarcha"
 }

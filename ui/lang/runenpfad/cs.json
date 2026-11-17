@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 poškození",
   "runenpfad.rune_frost_desc": "Zablokuje další zásah",
   "runenpfad.rune_storm_desc": "Skok navíc a rychlost",
-  "runenpfad.rune_magnet_desc": "Přitahuje mince"
+  "runenpfad.rune_magnet_desc": "Přitahuje mince",
+  "runenpfad.notice.seq_watch": "Věštecký kámen ukazuje sled run — zapamatuj si ho!",
+  "runenpfad.notice.seq_fail": "Špatné pořadí — sleduj věštecký kámen znovu.",
+  "runenpfad.notice.seq_solved": "Sled run vyřešen! Klenba se otevírá.",
+  "runenpfad.notice.lever_hint": "Každá páka přepíná části mostu — rozsviť je všechny.",
+  "runenpfad.notice.bridge_done": "Most drží!",
+  "runenpfad.notice.ritual_hint": "Šlápni na desku a pak zapal ohňové mísy popořadě — rychle!",
+  "runenpfad.notice.ritual_fail": "Plameny uhasly — šlápni znovu na desku.",
+  "runenpfad.notice.ritual_done": "Rituál je dokonán!",
+  "runenpfad.notice.dragon_warn": "Drak! Schovej se pod kamenné stříšky!",
+  "runenpfad.notice.swing_hint": "Skoč na lano, rozhoupej se doleva/doprava, pusť se skokem.",
+  "runenpfad.boss_dragon_ember": "Žhavý drak",
+  "runenpfad.boss_dragon_frost": "Mrazivý drak"
 }

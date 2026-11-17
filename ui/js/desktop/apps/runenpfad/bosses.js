@@ -62,7 +62,7 @@
     }
 
     function hoverY(e) {
-        return e.spawnY - 96 + Math.sin(e.animTime * 2.2) * 12;
+        return e.spawnY - (e.def.dragon ? 72 : 96) + Math.sin(e.animTime * 2.2) * 12;
     }
 
     function summonedAlive(sim, defId) {
@@ -421,16 +421,153 @@
         }
     };
 
+
+    // ---- dragon boss (endless tower): low fire passes, arcing fireball volleys and a roar that calls drakelings ----
+    const ARENA_PAD_L = 144;       // the arena floor reaches 3 tiles left of the boss range and 5 tiles right of it
+    const ARENA_PAD_R = 240;
+    const STRAFE_FIRE_H = 58;
+
+    // Free flight toward a point without the arena clamp (the dragon enters and leaves from outside the arena).
+    function flyFree(e, tx, ty, speed, dt) {
+        const dx = tx - e.x;
+        const dy = ty - e.y;
+        const len = Math.hypot(dx, dy);
+        if (len > 1) {
+            const step = Math.min(len, speed * dt);
+            e.x += (dx / len) * step;
+            e.y += (dy / len) * step;
+        }
+    }
+
+    function dragonKind(e) {
+        return e.def.dragon || 'ember';
+    }
+
+    ATTACKS.strafe = {
+        dur: 1.1,
+        recover: 0.9,
+        tele: function (sim, e, ai) {
+            ai.dir = rand(sim) < 0.5 ? -1 : 1;
+            ai.startX = ai.dir > 0 ? e.minX : e.maxX;
+            ai.x1 = e.minX - ARENA_PAD_L;
+            ai.x2 = e.maxX + ARENA_PAD_R;
+            e.facing = ai.dir;
+            telegraph(e, 'strafe', ai.startX, groundTop(sim) - STRAFE_FIRE_H, ATTACKS.strafe.dur, { dir: ai.dir, x1: ai.x1, x2: ai.x2, h: STRAFE_FIRE_H, variant: dragonKind(e) });
+        },
+        begin: function (sim, e, ai) {
+            ai.passes = e.phase === 2 ? 2 : 1;
+            ai.speed = e.phase === 2 ? 640 : 520;
+            ai.sub = 'pass';
+            ai.s = 0;
+            ai.fireT = 0;
+            e.telegraph = null;
+            pushEvent(sim, 'dragon_breath', { x: e.x, y: groundTop(sim) - 30, kind: dragonKind(e) });
+            fxShake(sim, 4);
+        },
+        run: function (sim, e, dt, api, ai) {
+            const ground = groundTop(sim);
+            e.facing = ai.dir;
+            if (ai.sub === 'pass') {
+                e.x += ai.dir * ai.speed * dt;
+                e.y += clamp(ground - 72 - e.y, -560 * dt, 560 * dt);
+                ai.fireT -= dt;
+                if (ai.fireT <= 0) {
+                    ai.fireT = 0.07;
+                    const head = e.x + ai.dir * 80;
+                    sim.tempHazards.push({ kind: 'dragonfire', variant: dragonKind(e), x: head - 50, y: ground - STRAFE_FIRE_H, w: 100, h: STRAFE_FIRE_H, t: 0.55, dur: 0.55, damage: 1 });
+                    fxBurst(sim, dragonKind(e) === 'frost' ? 'dust' : 'ember', head, ground - 20, 3, { color: dragonKind(e) === 'frost' ? '#a5f3fc' : '#fb923c', speed: 120, arc: Math.PI, angle: -Math.PI / 2, life: 0.5 });
+                }
+                const exitX = ai.dir > 0 ? ai.x2 + 160 : ai.x1 - 160;
+                if ((e.x - exitX) * ai.dir >= 0) {
+                    ai.passes -= 1;
+                    ai.sub = ai.passes > 0 ? 'turn' : 'return';
+                    ai.s = 0.45;
+                }
+            } else if (ai.sub === 'turn') {
+                ai.s -= dt;
+                e.y += clamp(hoverY(e) - e.y, -400 * dt, 400 * dt);
+                if (ai.s <= 0) {
+                    ai.dir = -ai.dir;
+                    ai.sub = 'pass';
+                    pushEvent(sim, 'dragon_breath', { x: e.x, y: ground - 30, kind: dragonKind(e) });
+                }
+            } else {
+                flyFree(e, clamp(e.x, e.minX, e.maxX), hoverY(e), 460, dt);
+                if (Math.abs(e.x - clamp(e.x, e.minX, e.maxX)) < 6 && Math.abs(e.y - hoverY(e)) < 8) return true;
+            }
+            return false;
+        }
+    };
+
+    ATTACKS.fireballs = {
+        dur: 0.85,
+        recover: 0.9,
+        tele: function (sim, e, ai) {
+            const n = e.phase === 2 ? 5 : 3;
+            const marks = [];
+            for (let i = 0; i < n; i++) marks.push({ x: clamp(sim.player.x + (i - (n - 1) / 2) * 80, 100, sim.stage.width - 100), y: groundTop(sim) });
+            ai.marks = marks;
+            telegraph(e, 'fireballs', e.x, groundTop(sim), ATTACKS.fireballs.dur, { marks: marks, variant: dragonKind(e) });
+            e.facing = sim.player.x >= e.x ? 1 : -1;
+        },
+        begin: function (sim, e, ai) {
+            ai.s = 0;
+            ai.fired = 0;
+            e.telegraph = null;
+        },
+        run: function (sim, e, dt, api, ai) {
+            ai.s += dt;
+            while (ai.fired < ai.marks.length && ai.s >= ai.fired * 0.2) {
+                const m = ai.marks[ai.fired];
+                const x0 = e.x + e.facing * 40;
+                const y0 = e.y - 50;
+                const v = aimArc(x0, y0, m.x, m.y - 6, 0.95, 800);
+                spawnProj(sim, { x: x0, y: y0, vx: v.vx, vy: v.vy, gravity: 800, color: dragonKind(e) === 'frost' ? '#7dd3fc' : '#fb923c', kind: 'fireball', variant: dragonKind(e), radius: 10, blast: 56, life: 2.6 });
+                pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'fireball', x: e.x, y: e.y });
+                e.attackTimer = 0.45;
+                e.attackKind = 'shot';
+                ai.fired += 1;
+            }
+            return ai.fired >= ai.marks.length && ai.s > ai.marks.length * 0.2 + 0.6;
+        }
+    };
+
+    ATTACKS.roar = {
+        dur: 0.9,
+        recover: 1.0,
+        tele: function (sim, e, ai) {
+            ai.marks = [-140, 140].map(function (off) { return { x: clamp(e.x + off, e.minX + 10, e.maxX - 10), y: groundTop(sim) }; });
+            telegraph(e, 'roar', e.x, groundTop(sim), ATTACKS.roar.dur, { marks: ai.marks, variant: dragonKind(e) });
+        },
+        begin: function (sim, e, ai) {
+            pushEvent(sim, 'dragon_roar', { x: e.x, y: e.y, kind: dragonKind(e) });
+            ai.marks.forEach(function (m) {
+                if (summonedAlive(sim, 'drakeling') < 2) summon(sim, e, ai, 'drakeling', m.x);
+            });
+            P().ring(sim, e.x, e.y - 40, { color: '#fb923c', size: 18, grow: 300, life: 0.5 });
+            fxShake(sim, 6);
+            e.telegraph = null;
+            ai.s = 0;
+        },
+        run: function (sim, e, dt, api, ai) {
+            ai.s += dt;
+            return ai.s >= 0.4;
+        }
+    };
+
     const TABLE = {
         boss_boar: { p1: ['charge', 'ground_pound'], p2: ['charge', 'ground_pound', 'charge'], keep: 190, speed: 0.45 },
         boss_goblin: { p1: ['leap', 'volley'], p2: ['leap', 'volley', 'summon'], keep: 300, speed: 0.5 },
         boss_orb: { p1: ['ring', 'laser'], p2: ['ring', 'laser', 'ring'], flying: true },
         boss_quad: { p1: ['dive', 'summon'], p2: ['dive', 'summon', 'dive'], flying: true },
-        boss_mech: { p1: ['missiles', 'fire_strip'], p2: ['missiles', 'fire_strip', 'missiles'], keep: 300, speed: 0.4 }
+        boss_mech: { p1: ['missiles', 'fire_strip'], p2: ['missiles', 'fire_strip', 'missiles'], keep: 300, speed: 0.4 },
+        boss_dragon_ember: { p1: ['strafe', 'fireballs', 'roar', 'dive'], p2: ['strafe', 'fireballs', 'dive', 'roar', 'strafe'], flying: true },
+        boss_dragon_frost: { p1: ['strafe', 'fireballs', 'roar', 'dive'], p2: ['strafe', 'fireballs', 'dive', 'roar', 'strafe'], flying: true }
     };
 
     function pickPattern(sim, e, ai, cfg) {
         let list = (e.phase === 2 ? cfg.p2 : cfg.p1).filter(function (name) {
+            if (name === 'roar') return summonedAlive(sim, 'drakeling') < 2;
             if (name === 'summon') return summonedAlive(sim, e.defId === 'boss_quad' ? 'quadcopter' : 'goblin') < (e.defId === 'boss_quad' ? 3 : 2);
             return true;
         });
@@ -478,7 +615,7 @@
                 ai.state = 'intro';
                 ai.t = 0;
                 sim.bossIntro = { id: e.id, nameKey: e.def.bossNameKey, timer: 2.2 };
-                pushEvent(sim, 'boss_intro', { id: e.id, nameKey: e.def.bossNameKey, x: e.x, y: e.y });
+                pushEvent(sim, 'boss_intro', { id: e.id, nameKey: e.def.bossNameKey, defId: e.defId, x: e.x, y: e.y });
             }
         } else if (ai.state === 'intro') {
             idleMove(sim, e, dt, api, cfg, ai, false);
@@ -504,7 +641,8 @@
             if (e.telegraph) e.telegraph.t = ai.t;
             if (cfg.flying) {
                 const tx = ai.tx != null && ai.pattern === 'dive' ? ai.tx : (ai.pattern === 'laser' ? ai.xs[0] : e.x);
-                flyTo(e, tx, hoverY(e), 260, dt);
+                if (ai.pattern === 'strafe') flyTo(e, ai.startX, hoverY(e), 560, dt);
+                else flyTo(e, tx, hoverY(e), 260, dt);
             } else {
                 moveGround(e, dt, api, sim.stage, 0);
             }

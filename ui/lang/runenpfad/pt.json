@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 de dano",
   "runenpfad.rune_frost_desc": "Bloqueia o próximo golpe",
   "runenpfad.rune_storm_desc": "Salto extra e velocidade",
-  "runenpfad.rune_magnet_desc": "Atrai moedas"
+  "runenpfad.rune_magnet_desc": "Atrai moedas",
+  "runenpfad.notice.seq_watch": "A pedra vidente mostra uma sequência de runas — memoriza-a!",
+  "runenpfad.notice.seq_fail": "Ordem errada — observa novamente a pedra vidente.",
+  "runenpfad.notice.seq_solved": "Sequência de runas resolvida! A câmara abre-se.",
+  "runenpfad.notice.lever_hint": "Cada alavanca alterna partes da ponte — faz com que todas brilhem.",
+  "runenpfad.notice.bridge_done": "A ponte aguenta!",
+  "runenpfad.notice.ritual_hint": "Pisa a placa e acende os braseiros por ordem — depressa!",
+  "runenpfad.notice.ritual_fail": "As chamas apagam-se — pisa novamente a placa.",
+  "runenpfad.notice.ritual_done": "O ritual está completo!",
+  "runenpfad.notice.dragon_warn": "Um dragão! Abriga-te debaixo dos telhados de pedra!",
+  "runenpfad.notice.swing_hint": "Salta para a corda, balança com esquerda/direita e larga com o salto.",
+  "runenpfad.boss_dragon_ember": "Dragão das Brasas",
+  "runenpfad.boss_dragon_frost": "Serpe de Gelo"
 }

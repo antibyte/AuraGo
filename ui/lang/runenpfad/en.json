@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 damage",
   "runenpfad.rune_frost_desc": "Blocks the next hit",
   "runenpfad.rune_storm_desc": "Extra jump and speed",
-  "runenpfad.rune_magnet_desc": "Pulls in coins"
+  "runenpfad.rune_magnet_desc": "Pulls in coins",
+  "runenpfad.notice.seq_watch": "The seer stone shows a rune sequence — remember it!",
+  "runenpfad.notice.seq_fail": "Wrong order — watch the seer stone again.",
+  "runenpfad.notice.seq_solved": "Rune sequence solved! The vault opens.",
+  "runenpfad.notice.lever_hint": "Each lever flips some bridge parts — make them all glow.",
+  "runenpfad.notice.bridge_done": "The bridge holds!",
+  "runenpfad.notice.ritual_hint": "Step on the plate, then light the braziers in order — quickly!",
+  "runenpfad.notice.ritual_fail": "The flames die out — step on the plate to try again.",
+  "runenpfad.notice.ritual_done": "The ritual is complete!",
+  "runenpfad.notice.dragon_warn": "A dragon! Take cover under the stone shelters!",
+  "runenpfad.notice.swing_hint": "Jump onto the rope, swing with left/right, let go with jump.",
+  "runenpfad.boss_dragon_ember": "Ember Dragon",
+  "runenpfad.boss_dragon_frost": "Frost Wyrm"
 }

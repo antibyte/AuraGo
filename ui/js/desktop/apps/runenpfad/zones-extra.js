@@ -247,6 +247,7 @@
         step: step,
         applyForces: applyForces,
         hitRect: hitRect,
-        lights: lights
+        lights: lights,
+        openGate: openGate
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 ζημιά",
   "runenpfad.rune_frost_desc": "Μπλοκάρει το επόμενο χτύπημα",
   "runenpfad.rune_storm_desc": "Επιπλέον άλμα και ταχύτητα",
-  "runenpfad.rune_magnet_desc": "Τραβάει τα νομίσματα"
+  "runenpfad.rune_magnet_desc": "Τραβάει τα νομίσματα",
+  "runenpfad.notice.seq_watch": "Η πέτρα του μάντη δείχνει μια σειρά ρούνων — θυμήσου τη!",
+  "runenpfad.notice.seq_fail": "Λάθος σειρά — κοίτα ξανά την πέτρα του μάντη.",
+  "runenpfad.notice.seq_solved": "Η σειρά των ρούνων λύθηκε! Ο θόλος ανοίγει.",
+  "runenpfad.notice.lever_hint": "Κάθε μοχλός αλλάζει κάποια κομμάτια της γέφυρας — κάνε τα όλα να λάμψουν.",
+  "runenpfad.notice.bridge_done": "Η γέφυρα κρατάει!",
+  "runenpfad.notice.ritual_hint": "Πάτησε την πλάκα και άναψε τα μαγκάλια με τη σειρά — γρήγορα!",
+  "runenpfad.notice.ritual_fail": "Οι φλόγες σβήνουν — πάτησε ξανά την πλάκα.",
+  "runenpfad.notice.ritual_done": "Η τελετή ολοκληρώθηκε!",
+  "runenpfad.notice.dragon_warn": "Ένας δράκος! Κρύψου κάτω από τα πέτρινα στέγαστρα!",
+  "runenpfad.notice.swing_hint": "Πήδα στο σχοινί, κουνήσου με αριστερά/δεξιά, άφησέ το με άλμα.",
+  "runenpfad.boss_dragon_ember": "Πύρινος δράκος",
+  "runenpfad.boss_dragon_frost": "Δράκος του παγετού"
 }

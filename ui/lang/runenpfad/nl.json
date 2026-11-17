@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 schade",
   "runenpfad.rune_frost_desc": "Blokkeert de volgende treffer",
   "runenpfad.rune_storm_desc": "Extra sprong en snelheid",
-  "runenpfad.rune_magnet_desc": "Trekt munten aan"
+  "runenpfad.rune_magnet_desc": "Trekt munten aan",
+  "runenpfad.notice.seq_watch": "De zienersteen toont een runenreeks — onthoud hem!",
+  "runenpfad.notice.seq_fail": "Verkeerde volgorde — kijk nog eens naar de zienersteen.",
+  "runenpfad.notice.seq_solved": "Runenreeks opgelost! Het gewelf gaat open.",
+  "runenpfad.notice.lever_hint": "Elke hendel schakelt brugdelen om — laat ze allemaal oplichten.",
+  "runenpfad.notice.bridge_done": "De brug houdt!",
+  "runenpfad.notice.ritual_hint": "Stap op de plaat en steek de vuurschalen op volgorde aan — snel!",
+  "runenpfad.notice.ritual_fail": "De vlammen doven — stap opnieuw op de plaat.",
+  "runenpfad.notice.ritual_done": "Het ritueel is voltooid!",
+  "runenpfad.notice.dragon_warn": "Een draak! Schuil onder de stenen afdaken!",
+  "runenpfad.notice.swing_hint": "Spring aan het touw, zwaai met links/rechts, laat los met springen.",
+  "runenpfad.boss_dragon_ember": "Gloeddraak",
+  "runenpfad.boss_dragon_frost": "Vorstworm"
 }

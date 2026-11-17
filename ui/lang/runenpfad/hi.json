@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 क्षति",
   "runenpfad.rune_frost_desc": "अगला वार रोकता है",
   "runenpfad.rune_storm_desc": "अतिरिक्त छलांग और गति",
-  "runenpfad.rune_magnet_desc": "सिक्के खींचता है"
+  "runenpfad.rune_magnet_desc": "सिक्के खींचता है",
+  "runenpfad.notice.seq_watch": "भविष्यवक्ता पत्थर एक रून क्रम दिखाता है — इसे याद रखो!",
+  "runenpfad.notice.seq_fail": "गलत क्रम — भविष्यवक्ता पत्थर को फिर से देखो।",
+  "runenpfad.notice.seq_solved": "रून क्रम हल हो गया! तहख़ाना खुल रहा है।",
+  "runenpfad.notice.lever_hint": "हर लीवर पुल के कुछ हिस्से बदलता है — सबको चमकाओ।",
+  "runenpfad.notice.bridge_done": "पुल टिक गया!",
+  "runenpfad.notice.ritual_hint": "प्लेट पर कदम रखो, फिर अंगीठियाँ क्रम से जलाओ — जल्दी!",
+  "runenpfad.notice.ritual_fail": "लपटें बुझ गईं — फिर से प्लेट पर कदम रखो।",
+  "runenpfad.notice.ritual_done": "अनुष्ठान पूरा हुआ!",
+  "runenpfad.notice.dragon_warn": "एक ड्रैगन! पत्थर की छतों के नीचे छिपो!",
+  "runenpfad.notice.swing_hint": "रस्सी पर कूदो, बाएँ/दाएँ से झूलो, कूदकर छोड़ो।",
+  "runenpfad.boss_dragon_ember": "अंगार ड्रैगन",
+  "runenpfad.boss_dragon_frost": "हिम ड्रैगन"
 }

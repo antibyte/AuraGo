@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 dégât",
   "runenpfad.rune_frost_desc": "Bloque le prochain coup",
   "runenpfad.rune_storm_desc": "Saut bonus et vitesse",
-  "runenpfad.rune_magnet_desc": "Attire les pièces"
+  "runenpfad.rune_magnet_desc": "Attire les pièces",
+  "runenpfad.notice.seq_watch": "La pierre du voyant montre une suite de runes — retiens-la !",
+  "runenpfad.notice.seq_fail": "Mauvais ordre — regarde à nouveau la pierre du voyant.",
+  "runenpfad.notice.seq_solved": "Suite de runes résolue ! La crypte s'ouvre.",
+  "runenpfad.notice.lever_hint": "Chaque levier bascule des parties du pont — fais-les toutes briller.",
+  "runenpfad.notice.bridge_done": "Le pont tient !",
+  "runenpfad.notice.ritual_hint": "Marche sur la dalle, puis allume les braseros dans l'ordre — vite !",
+  "runenpfad.notice.ritual_fail": "Les flammes s'éteignent — remarche sur la dalle.",
+  "runenpfad.notice.ritual_done": "Le rituel est accompli !",
+  "runenpfad.notice.dragon_warn": "Un dragon ! Mets-toi à l'abri sous les toits de pierre !",
+  "runenpfad.notice.swing_hint": "Saute sur la corde, balance-toi avec gauche/droite, lâche avec saut.",
+  "runenpfad.boss_dragon_ember": "Dragon des braises",
+  "runenpfad.boss_dragon_frost": "Guivre de givre"
 }

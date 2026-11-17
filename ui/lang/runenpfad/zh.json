@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "伤害 +1",
   "runenpfad.rune_frost_desc": "抵挡下一次攻击",
   "runenpfad.rune_storm_desc": "额外跳跃与速度",
-  "runenpfad.rune_magnet_desc": "吸引金币"
+  "runenpfad.rune_magnet_desc": "吸引金币",
+  "runenpfad.notice.seq_watch": "先知石显示了一串符文顺序——记住它！",
+  "runenpfad.notice.seq_fail": "顺序错了——再看一次先知石。",
+  "runenpfad.notice.seq_solved": "符文顺序已破解！宝库打开了。",
+  "runenpfad.notice.lever_hint": "每根拉杆会切换部分桥段——让它们全部亮起。",
+  "runenpfad.notice.bridge_done": "桥搭好了！",
+  "runenpfad.notice.ritual_hint": "踩下压板，然后按顺序点燃火盆——要快！",
+  "runenpfad.notice.ritual_fail": "火焰熄灭了——再踩一次压板。",
+  "runenpfad.notice.ritual_done": "仪式完成了！",
+  "runenpfad.notice.dragon_warn": "巨龙来袭！躲到石檐下面！",
+  "runenpfad.notice.swing_hint": "跳上绳索，用左/右荡起来，按跳跃松手。",
+  "runenpfad.boss_dragon_ember": "余烬巨龙",
+  "runenpfad.boss_dragon_frost": "冰霜巨龙"
 }

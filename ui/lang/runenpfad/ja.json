@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "ダメージ+1",
   "runenpfad.rune_frost_desc": "次の一撃を防ぐ",
   "runenpfad.rune_storm_desc": "追加ジャンプとスピード",
-  "runenpfad.rune_magnet_desc": "コインを引き寄せる"
+  "runenpfad.rune_magnet_desc": "コインを引き寄せる",
+  "runenpfad.notice.seq_watch": "予言の石がルーンの順番を示す — 覚えておこう！",
+  "runenpfad.notice.seq_fail": "順番が違う — もう一度予言の石を見よう。",
+  "runenpfad.notice.seq_solved": "ルーンの順番を解いた！宝物庫が開く。",
+  "runenpfad.notice.lever_hint": "レバーごとに橋の一部が切り替わる — 全部を光らせよう。",
+  "runenpfad.notice.bridge_done": "橋がかかった！",
+  "runenpfad.notice.ritual_hint": "床板を踏んでから、火皿を順番に灯そう — 急いで！",
+  "runenpfad.notice.ritual_fail": "炎が消えた — もう一度床板を踏もう。",
+  "runenpfad.notice.ritual_done": "儀式が完了した！",
+  "runenpfad.notice.dragon_warn": "ドラゴンだ！石の屋根の下に隠れろ！",
+  "runenpfad.notice.swing_hint": "ロープに跳びつき、左右で揺らし、ジャンプで放そう。",
+  "runenpfad.boss_dragon_ember": "熾火のドラゴン",
+  "runenpfad.boss_dragon_frost": "氷霜の竜"
 }

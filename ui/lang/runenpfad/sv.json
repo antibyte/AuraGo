@@ -130,5 +130,17 @@
   "runenpfad.rune_fire_desc": "+1 skada",
   "runenpfad.rune_frost_desc": "Blockerar nästa träff",
   "runenpfad.rune_storm_desc": "Extra hopp och fart",
-  "runenpfad.rune_magnet_desc": "Drar till sig mynt"
+  "runenpfad.rune_magnet_desc": "Drar till sig mynt",
+  "runenpfad.notice.seq_watch": "Siarstenen visar en runföljd — kom ihåg den!",
+  "runenpfad.notice.seq_fail": "Fel ordning — titta på siarstenen igen.",
+  "runenpfad.notice.seq_solved": "Runföljden är löst! Valvet öppnas.",
+  "runenpfad.notice.lever_hint": "Varje spak växlar några brodelar — få alla att lysa.",
+  "runenpfad.notice.bridge_done": "Bron håller!",
+  "runenpfad.notice.ritual_hint": "Kliv på plattan och tänd sedan fyrfaten i ordning — snabbt!",
+  "runenpfad.notice.ritual_fail": "Lågorna slocknar — kliv på plattan igen.",
+  "runenpfad.notice.ritual_done": "Ritualen är fullbordad!",
+  "runenpfad.notice.dragon_warn": "En drake! Sök skydd under stentaken!",
+  "runenpfad.notice.swing_hint": "Hoppa upp på repet, gunga med vänster/höger, släpp med hopp.",
+  "runenpfad.boss_dragon_ember": "Glöddrake",
+  "runenpfad.boss_dragon_frost": "Frostlindorm"
 }

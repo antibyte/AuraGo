@@ -67,6 +67,61 @@
         });
     }
 
+    // Drakeling: hovers 180-260 px from the hero and spits an aimed fireball every ~2.4 s after a short wind-up.
+    function drakelingUpdate(sim, e, dt) {
+        const p = sim.player;
+        const stage = sim.stage;
+        const dx = p.x - e.x;
+        const dist = Math.abs(dx);
+        const speed = Math.abs(e.def.speed) * (e.phase === 2 ? 1.38 : 1.0);
+        const engaged = dist < 560 && Math.abs(p.y - e.y) < 420;
+        let vx;
+        if (engaged) {
+            vx = dist < 180 ? -Math.sign(dx || 1) * speed : (dist > 260 ? Math.sign(dx) * speed : 0);
+            e.facing = dx >= 0 ? 1 : -1;
+        } else {
+            if (e.vx === 0) e.vx = (e.facing || 1) * speed;
+            vx = e.vx;
+            if (e.x <= e.minX) vx = Math.abs(speed);
+            if (e.x >= e.maxX) vx = -Math.abs(speed);
+            e.facing = vx >= 0 ? 1 : -1;
+        }
+        e.vx = vx;
+        e.x = Math.max(30, Math.min(stage.width - 30, e.x + vx * dt));
+        e.y = e.spawnY - 110 + Math.sin(e.animTime * 2.4) * 22;
+        if (e.windup > 0) {
+            e.windup = Math.max(0, e.windup - dt);
+            if (e.windup === 0) drakelingSpit(sim, e);
+            return;
+        }
+        e.spitTimer = (e.spitTimer == null ? 1.6 : e.spitTimer) - dt;
+        if (e.spitTimer > 0) return;
+        if (engaged && dist < 480) {
+            e.windup = 0.3;
+            pushEvent(sim, 'enemy_windup', { id: e.id, defId: e.defId, x: e.x, y: e.y });
+        } else {
+            e.spitTimer = 0.3;
+        }
+    }
+
+    function drakelingSpit(sim, e) {
+        const p = sim.player;
+        const x0 = e.x + (e.facing || 1) * 16;
+        const y0 = e.y - 24;
+        const dx = p.x - x0;
+        const dy = (p.y - 22) - y0;
+        const len = Math.max(1, Math.hypot(dx, dy));
+        const spd = 230;
+        e.spitTimer = 2.4;
+        e.attackTimer = 0.45;
+        e.attackKind = 'shot';
+        pushEvent(sim, 'enemy_attack', { id: e.id, defId: e.defId, kind: 'fireball', x: e.x, y: e.y });
+        sim.projectiles.push({
+            x: x0, y: y0, vx: (dx / len) * spd, vy: (dy / len) * spd, fromEnemy: true, kind: 'fireball', damage: 1,
+            radius: 9, blast: 44, life: 2.6, color: '#fb923c', noDeflect: true, dead: false
+        });
+    }
+
     // Crystal bat: perches, winds up when the hero is below, dives on a curve to the hero's position, then climbs back.
     // Returns true while it owns the movement (wind-up, dive, climb); false means "hover like a normal flyer".
     function swooperUpdate(sim, e, dt) {
@@ -221,6 +276,10 @@
 
         if (def.behavior === 'phaser') {
             phaserUpdate(sim, e, dt);
+            return;
+        }
+        if (def.behavior === 'drakeling') {
+            drakelingUpdate(sim, e, dt);
             return;
         }
         if (def.flying) {

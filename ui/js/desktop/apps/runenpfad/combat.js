@@ -47,6 +47,10 @@
         const runes = runesApi();
         if (runes && amount < p.maxHp && runes.absorb(sim)) return;
         p.hp = Math.max(0, p.hp - amount);
+        if (p.swing) {
+            p.swing = null;
+            p.swingCool = 0.3;
+        }
         sim.damageTaken += amount;
         p.invulnTimer = 1.1;
         p.hurtTimer = 0.28;
@@ -130,7 +134,7 @@
             if (enemy.def.boss) {
                 fxFlash(sim, '#fff3c4', 0.4, 0.4);
                 sim.notice = 'runenpfad.notice.boss_defeated';
-                pushEvent(sim, 'boss_defeat', { id: enemy.id, x: enemy.x, y: enemy.y });
+                pushEvent(sim, 'boss_defeat', { id: enemy.id, defId: enemy.defId, x: enemy.x, y: enemy.y });
                 if (sim.stage.key && sim.stage.key.guardedByBoss && !sim.stage.key.collected) {
                     sim.stage.key.guardedByBoss = false;
                     sim.stage.key.x = enemy.x;
@@ -160,7 +164,7 @@
             }
         } else if (enemy.def.boss && enemy.phase !== 2 && enemy.hp <= enemy.maxHp * 0.5) {
             enemy.phase = 2;
-            pushEvent(sim, 'boss_phase', { id: enemy.id, x: enemy.x, y: enemy.y });
+            pushEvent(sim, 'boss_phase', { id: enemy.id, defId: enemy.defId, x: enemy.x, y: enemy.y });
             fxFlash(sim, '#fb7185', 0.32, 0.35);
             fxShake(sim, 8);
             fxBurst(sim, 'rune', enemy.x, enemy.y - 28, 18, { color: '#fb7185', speed: 210, life: 0.8 });
@@ -287,7 +291,7 @@
     function projectileBlast(sim, proj) {
         const p = sim.player;
         const radius = proj.blast;
-        pushEvent(sim, 'bomb_blast', { x: proj.x, y: proj.y });
+        pushEvent(sim, proj.kind === 'fireball' ? 'fireball_hit' : 'bomb_blast', { x: proj.x, y: proj.y });
         sim.effects.push({ animId: 'explosion', x: proj.x, y: proj.y - 8, timer: 0.5 });
         fxBurst(sim, 'shard', proj.x, proj.y, 10, { color: '#fb923c', speed: 230, life: 0.6 });
         fxShake(sim, 4);
