@@ -202,7 +202,7 @@
             t.tile.broken = true;
         });
         pushEvent(sim, 'gate_open', { x: gate.x + gate.w / 2, y: gate.y + gate.h / 2 });
-        sim.floatingTexts.push({ x: gate.x + gate.w / 2, y: gate.y - 10, text: 'OPEN', color: '#7ee8fa', timer: 1 });
+        sim.floatingTexts.push({ x: gate.x + gate.w / 2, y: gate.y - 10, text: 'OPEN', key: 'runenpfad.float_open', color: '#7ee8fa', timer: 1 });
         fxBurst(sim, 'shard', gate.x + gate.w / 2, gate.y + gate.h / 2, 14, { color: '#cfc3ae', speed: 200, life: 0.7 });
         fxShake(sim, 4);
         sim.stageScore += 120;

@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "En drage! Søk dekning under steintakene!",
   "runenpfad.notice.swing_hint": "Hopp på tauet, sving med venstre/høyre, klatre med opp/ned, slipp med mellomrom.",
   "runenpfad.boss_dragon_ember": "Glødrage",
-  "runenpfad.boss_dragon_frost": "Frostlindorm"
+  "runenpfad.boss_dragon_frost": "Frostlindorm",
+  "runenpfad.float_block": "Blokkert!",
+  "runenpfad.float_open": "Åpen!",
+  "runenpfad.level_locked": "Låst",
+  "runenpfad.hero_selected": "Valgt",
+  "runenpfad.hero_choose": "Velg",
+  "runenpfad.hero_switch_confirm": "Nivået starter på nytt — bekreft",
+  "runenpfad.win_new_best": "Ny bestetid!",
+  "runenpfad.win_goal_portal": "Portalen nådd",
+  "runenpfad.win_goal_gems": "Alle 3 edelstener",
+  "runenpfad.win_goal_swift": "Under {time} eller uten å bli truffet",
+  "runenpfad.ctl_move": "Bevegelse"
 }

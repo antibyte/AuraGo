@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "¡Un dragón! ¡Ponte a cubierto bajo los tejados de piedra!",
   "runenpfad.notice.swing_hint": "Salta a la cuerda, balancéate con izquierda/derecha, trepa con arriba/abajo y suéltate con Espacio.",
   "runenpfad.boss_dragon_ember": "Dragón de brasas",
-  "runenpfad.boss_dragon_frost": "Sierpe de escarcha"
+  "runenpfad.boss_dragon_frost": "Sierpe de escarcha",
+  "runenpfad.float_block": "¡Bloqueado!",
+  "runenpfad.float_open": "¡Abierto!",
+  "runenpfad.level_locked": "Bloqueado",
+  "runenpfad.hero_selected": "En uso",
+  "runenpfad.hero_choose": "Elegir",
+  "runenpfad.hero_switch_confirm": "El nivel se reinicia — confirma",
+  "runenpfad.win_new_best": "¡Nuevo mejor tiempo!",
+  "runenpfad.win_goal_portal": "Portal alcanzado",
+  "runenpfad.win_goal_gems": "Las 3 gemas",
+  "runenpfad.win_goal_swift": "En menos de {time} o sin recibir golpes",
+  "runenpfad.ctl_move": "Moverse"
 }

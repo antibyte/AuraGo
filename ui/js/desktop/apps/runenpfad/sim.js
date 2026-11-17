@@ -347,6 +347,7 @@
             if (stars > prevStars) sim.profile.starsByLevel[stage.id] = stars;
             const prevBest = sim.profile.bestTimeByLevel[stage.id];
             const cleanElapsed = Math.round(sim.elapsed * 10) / 10;
+            sim.newBest = !!prevBest && cleanElapsed < prevBest; // a first clear sets the time, it does not beat one
             if (!prevBest || cleanElapsed < prevBest) sim.profile.bestTimeByLevel[stage.id] = cleanElapsed;
             if (stage.id >= sim.profile.unlockedLevel && stage.id < levelsApi().CAMPAIGN_LEVELS.length) {
                 sim.profile.unlockedLevel = stage.id + 1;
@@ -417,31 +418,31 @@
                     }
                     sim.stageScore += 100;
                     pushEvent(sim, 'pickup_gem', { gemIndex: item.gemIndex, x: item.x, y: item.y });
-                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+GEM', color: '#7ee8fa', timer: 0.85 });
+                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+GEM', key: 'runenpfad.hud_gems', suffix: ' ' + sim.gemCount + '/3', color: '#7ee8fa', timer: 1.0 });
                     fxBurst(sim, 'rune', item.x, item.y, 12, { color: '#7ee8fa', speed: 165, life: 0.7 });
                     fxFlash(sim, '#7ee8fa', 0.16, 0.2);
                 } else if (item.kind === 'star') {
                     sim.stageScore += 150;
                     pushEvent(sim, 'pickup_star', { x: item.x, y: item.y });
-                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+STAR', color: '#ffe066', timer: 0.85 });
+                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+150', icon: 'star', color: '#ffe066', timer: 0.85 });
                     fxBurst(sim, 'rune', item.x, item.y, 10, { color: '#ffe066', speed: 150, life: 0.7 });
                 } else if (item.kind === 'heart' || item.kind === 'apple') {
                     p.hp = Math.min(p.maxHp, p.hp + 1);
                     sim.stageScore += 50;
                     pushEvent(sim, 'pickup_heart', { x: item.x, y: item.y });
-                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+1 HP', color: '#86efac', timer: 0.75 });
+                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+1', icon: 'heart', color: '#86efac', timer: 0.75 });
                     fxBurst(sim, 'ember', item.x, item.y, 6, { color: '#86efac', speed: 85, life: 0.55 });
                 } else if (item.kind === 'potion') {
                     p.potions += 1;
                     pushEvent(sim, 'pickup_potion', { x: item.x, y: item.y });
-                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+POTION', color: '#c084fc', timer: 0.85 });
+                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+1', icon: 'potion', color: '#c084fc', timer: 0.85 });
                     fxBurst(sim, 'rune', item.x, item.y, 8, { color: '#c084fc', speed: 120, life: 0.6 });
                 } else if (item.kind === 'treasure') {
                     sim.stageCoins += 10;
                     sim.profile.coins += 10;
                     sim.stageScore += 250;
                     pushEvent(sim, 'pickup_treasure', { x: item.x, y: item.y });
-                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+10', color: '#ffd65a', timer: 0.9 });
+                    sim.floatingTexts.push({ x: item.x, y: item.y - 12, text: '+10', icon: 'coin', color: '#ffd65a', timer: 0.9 });
                     fxBurst(sim, 'ember', item.x, item.y, 14, { color: '#ffd65a', speed: 130, life: 0.9 });
                     fxFlash(sim, '#ffd65a', 0.2, 0.25);
                 }
@@ -471,7 +472,7 @@
                 sim.notice = 'runenpfad.notice.key_found';
                 sim.stageScore += 200;
                 pushEvent(sim, 'pickup_key', { x: stage.key.x, y: stage.key.y });
-                sim.floatingTexts.push({ x: stage.key.x, y: stage.key.y - 16, text: 'KEY!', color: '#ffe066', timer: 1.0 });
+                sim.floatingTexts.push({ x: stage.key.x, y: stage.key.y - 16, text: 'KEY!', key: 'runenpfad.hud_key_on', color: '#ffe066', timer: 1.2 });
                 fxBurst(sim, 'rune', stage.key.x, stage.key.y, 18, { color: '#ffe066', speed: 210, life: 0.9 });
                 fxFlash(sim, '#ffe066', 0.24, 0.35);
                 fxShake(sim, 3.5);
@@ -501,7 +502,7 @@
                 sim.blessing.runePower = varietyApi() ? varietyApi().RUNE_POWER_DURATION : 12;
                 sim.stageScore += 150;
                 pushEvent(sim, 'pickup_shrine', { x: sh.x, y: sh.y });
-                sim.floatingTexts.push({ x: sh.x, y: sh.y - 26, text: 'RUNE POWER', color: '#c084fc', timer: 1.1 });
+                sim.floatingTexts.push({ x: sh.x, y: sh.y - 26, text: 'RUNE POWER', key: 'runenpfad.hud_rune', color: '#c084fc', timer: 1.1 });
                 fxBurst(sim, 'rune', sh.x, sh.y, 18, { color: '#c084fc', speed: 220, life: 1.0 });
                 fxFlash(sim, '#c084fc', 0.28, 0.4);
                 fxShake(sim, 4);
@@ -526,7 +527,7 @@
         p.potions -= 1;
         p.hp = Math.min(p.maxHp, p.hp + 2);
         pushEvent(sim, 'heal', { x: p.x, y: p.y });
-        sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+2 HP', color: '#c084fc', timer: 0.8 });
+        sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+2', icon: 'heart', color: '#c084fc', timer: 0.8 });
         fxBurst(sim, 'rune', p.x, p.y - 24, 12, { color: '#c084fc', speed: 150, life: 0.7 });
         fxFlash(sim, '#c084fc', 0.16, 0.24);
     }

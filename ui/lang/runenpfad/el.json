@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Ένας δράκος! Κρύψου κάτω από τα πέτρινα στέγαστρα!",
   "runenpfad.notice.swing_hint": "Πήδα στο σχοινί, κουνήσου με αριστερά/δεξιά, σκαρφάλωσε με πάνω/κάτω, άφησέ το με το Space.",
   "runenpfad.boss_dragon_ember": "Πύρινος δράκος",
-  "runenpfad.boss_dragon_frost": "Δράκος του παγετού"
+  "runenpfad.boss_dragon_frost": "Δράκος του παγετού",
+  "runenpfad.float_block": "Απόκρουση!",
+  "runenpfad.float_open": "Άνοιξε!",
+  "runenpfad.level_locked": "Κλειδωμένο",
+  "runenpfad.hero_selected": "Επιλέχθηκε",
+  "runenpfad.hero_choose": "Επίλεξε",
+  "runenpfad.hero_switch_confirm": "Το επίπεδο ξαναρχίζει — επιβεβαίωσε",
+  "runenpfad.win_new_best": "Νέος καλύτερος χρόνος!",
+  "runenpfad.win_goal_portal": "Έφτασες στην Πύλη",
+  "runenpfad.win_goal_gems": "Και τα 3 πετράδια",
+  "runenpfad.win_goal_swift": "Κάτω από {time} ή χωρίς χτύπημα",
+  "runenpfad.ctl_move": "Κίνηση"
 }

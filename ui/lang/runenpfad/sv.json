@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "En drake! Sök skydd under stentaken!",
   "runenpfad.notice.swing_hint": "Hoppa upp på repet, gunga med vänster/höger, klättra med upp/ner, släpp med mellanslag.",
   "runenpfad.boss_dragon_ember": "Glöddrake",
-  "runenpfad.boss_dragon_frost": "Frostlindorm"
+  "runenpfad.boss_dragon_frost": "Frostlindorm",
+  "runenpfad.float_block": "Blockerat!",
+  "runenpfad.float_open": "Öppen!",
+  "runenpfad.level_locked": "Låst",
+  "runenpfad.hero_selected": "Vald",
+  "runenpfad.hero_choose": "Välj",
+  "runenpfad.hero_switch_confirm": "Banan startar om — bekräfta",
+  "runenpfad.win_new_best": "Ny bästa tid!",
+  "runenpfad.win_goal_portal": "Portalen nådd",
+  "runenpfad.win_goal_gems": "Alla 3 ädelstenar",
+  "runenpfad.win_goal_swift": "Under {time} eller utan att bli träffad",
+  "runenpfad.ctl_move": "Rörelse"
 }

@@ -110,6 +110,14 @@ func TestRunenpfadRegistration(t *testing.T) {
 		}
 	}
 
+	// readProfile() assigns rejectedRaw, so a declaration after the first call throws and discards every saved profile.
+	appJS := readDesktopAssetText(t, "js/desktop/apps/runenpfad/app.js")
+	rejectedDecl := strings.Index(appJS, "let rejectedRaw")
+	firstRead := strings.Index(appJS, "= readProfile()")
+	if rejectedDecl < 0 || firstRead < 0 || rejectedDecl > firstRead {
+		t.Fatal("runenpfad app.js must declare rejectedRaw before the first readProfile() call")
+	}
+
 	requiredKeys := []string{
 		"runenpfad.title",
 		"runenpfad.hud_level",
@@ -117,6 +125,17 @@ func TestRunenpfadRegistration(t *testing.T) {
 		"runenpfad.win_title",
 		"runenpfad.lose_title",
 		"runenpfad.error_assets",
+		"runenpfad.float_block",
+		"runenpfad.float_open",
+		"runenpfad.level_locked",
+		"runenpfad.hero_selected",
+		"runenpfad.hero_choose",
+		"runenpfad.hero_switch_confirm",
+		"runenpfad.win_new_best",
+		"runenpfad.win_goal_portal",
+		"runenpfad.win_goal_gems",
+		"runenpfad.win_goal_swift",
+		"runenpfad.ctl_move",
 	}
 	for _, lang := range runenpfadLocales {
 		rpPath := path.Join("lang", "runenpfad", lang+".json")
@@ -132,6 +151,9 @@ func TestRunenpfadRegistration(t *testing.T) {
 			if strings.TrimSpace(dict[k]) == "" {
 				t.Fatalf("%s missing non-empty key %q", rpPath, k)
 			}
+		}
+		if !strings.Contains(dict["runenpfad.win_goal_swift"], "{time}") {
+			t.Fatalf("%s runenpfad.win_goal_swift must keep the {time} placeholder", rpPath)
 		}
 
 		deskPath := path.Join("lang", "desktop", lang+".json")
@@ -306,6 +328,19 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 	}`)
 
 	// Close window and verify clean teardown
+	page.MustEval(`()=>{
+		const win = [...window.auditTest.state.windows.values()].find(w => w.appId === 'runenpfad');
+		if (!win) throw Error('runenpfad window missing');
+		window.auditTest.closeWindow(win.id);
+	}`)
+	page.MustWait(`()=>!document.querySelector('.rp-app')`)
+
+	// Reopening restores the saved profile: the unlocked stage and the bought upgrade survive the window.
+	page.MustEval(`()=>window.auditTest.openApp('runenpfad')`)
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		return app && app.dataset.rpState === 'playing' && app.dataset.rpUnlocked === '2' && app.dataset.rpLevel === '2' && app.dataset.rpMaxHp === '6';
+	}`)
 	page.MustEval(`()=>{
 		const win = [...window.auditTest.state.windows.values()].find(w => w.appId === 'runenpfad');
 		if (!win) throw Error('runenpfad window missing');

@@ -62,8 +62,12 @@
         return sheets;
     }
 
-    function createRenderer(canvas, sheets) {
+    // options: { t: translator for floating labels, font: CSS font family of the stage titles } (both optional).
+    function createRenderer(canvas, sheets, options) {
         const ctx = canvas.getContext('2d');
+        const translate = options && typeof options.t === 'function' ? options.t : null;
+        const floatFamily = (options && options.font) || '"Segoe UI", sans-serif';
+        const floatFont = (/Press Start/.test(floatFamily) ? '9px ' : 'bold 14px ') + floatFamily;
         const Atmosphere = root.RunenpfadAtmosphere;
         const Biomes = root.RunenpfadBiomes;
         const atmosphere = Atmosphere && Atmosphere.createAtmosphere ? Atmosphere.createAtmosphere(ctx) : null;
@@ -611,16 +615,22 @@
             callHook(stageArt, 'drawOverlay', sim, frameView);
             callHook(setPieces, 'drawOverlay', sim, frameView);
 
-            // Floating feedback numbers
+            // Floating feedback: numbers, translated labels (ft.key) and an optional pixel icon (ft.icon) behind the text
             ctx.save();
-            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.font = floatFont;
             ctx.textAlign = 'center';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#09111a';
             sim.floatingTexts.forEach(function (ft) {
+                const word = ft.key && translate ? translate(ft.key) : '';
+                const label = word && word !== ft.key ? word + (ft.suffix || '') : ft.text;
+                const x = ft.icon ? ft.x - 9 : ft.x;
                 ctx.globalAlpha = Math.min(1, ft.timer * 1.6);
-                ctx.fillStyle = '#09111a';
-                ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
+                ctx.strokeText(label, x, ft.y);
                 ctx.fillStyle = ft.color || '#ffe066';
-                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.fillText(label, x, ft.y);
+                if (ft.icon) drawStaticAsset('jump-and-run', ft.icon, x + ctx.measureText(label).width / 2, ft.y - 17, 22, 22);
             });
             ctx.restore();
 

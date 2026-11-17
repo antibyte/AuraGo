@@ -185,6 +185,12 @@
     display: inline-flex;
     align-items: center;
     gap: 2px;
+    transition: filter 0.2s ease;
+}
+
+/* Last heart: the row glows red until the hero heals. */
+.rp-hearts.is-low {
+    filter: drop-shadow(0 0 5px rgba(255, 64, 86, 0.95));
 }
 
 .rp-icon {
@@ -333,6 +339,13 @@
     gap: 3px;
 }
 
+/* Hero switch waiting for its confirming second click. */
+.rp-app .rp-tablet.is-armed {
+    color: var(--rp-gold);
+    border-color: var(--rp-gold);
+    box-shadow: inset 0 1px 0 rgba(255, 225, 160, 0.3), 0 2px 0 var(--rp-ink), 0 0 12px rgba(255, 190, 90, 0.6);
+}
+
 .rp-btn-primary {
     background: linear-gradient(180deg, #8a6420 0%, #52380f 100%);
     color: #fff1c8;
@@ -371,6 +384,13 @@
     font-style: normal;
     line-height: 1;
     letter-spacing: 0;
+}
+
+.rp-keycap-sym {
+    padding: 0 3px 2px;
+    font-family: var(--rp-ui);
+    font-size: 11px;
+    font-weight: 700;
 }
 
 /* ---- notice row, tags, controls hint ---- */
@@ -637,6 +657,36 @@
     color: var(--rp-gold);
 }
 
+.rp-plaque-tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #9be37f;
+}
+
+/* Star goals of the finished stage, right under the star row. */
+.rp-goals {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 16px;
+    margin: 0 0 12px;
+    padding: 0;
+    list-style: none;
+}
+
+.rp-goal {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--rp-parch-dim);
+}
+
+.rp-goal.is-done {
+    color: var(--rp-parch);
+}
+
 .rp-row-actions {
     display: flex;
     flex-wrap: wrap;
@@ -676,6 +726,33 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* Key legend: two key/action pairs per row. */
+.rp-legend {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 7px 8px;
+    margin: 0 0 4px;
+    padding: 9px 10px;
+    background: rgba(0, 0, 0, 0.34);
+    border: 1px solid rgba(138, 106, 58, 0.75);
+    border-radius: 3px;
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.rp-legend-keys {
+    display: flex;
+    justify-content: flex-end;
+    gap: 3px;
+}
+
+.rp-legend-label {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.25;
+    color: var(--rp-parch);
+}
+
 .rp-pause-dialog .rp-row-actions > :first-child,
 .rp-pause-dialog .rp-row-actions > :last-child {
     grid-column: 1 / -1;
@@ -700,17 +777,33 @@
     margin: 0;
 }
 
+/* World tabs: an even 3 x 2 block (five worlds and the tower), each with its star count. */
 .rp-tabs {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     margin-bottom: 12px;
 }
 
 .rp-app .rp-tab {
-    min-height: 28px;
+    justify-content: space-between;
+    min-height: 30px;
     padding: 2px 10px;
     font-size: 12px;
+    text-align: left;
+}
+
+.rp-tab-stars {
+    flex: none;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--rp-gold-soft);
+    white-space: nowrap;
+}
+
+.rp-app .rp-tab.is-sealed,
+.rp-app .rp-tab.is-sealed .rp-tab-stars {
+    color: var(--rp-parch-dim);
 }
 
 .rp-app .rp-tab.is-active {
@@ -719,20 +812,30 @@
     color: #fff1c8;
 }
 
+.rp-app .rp-tab.is-active .rp-tab-stars {
+    color: #ffe6a8;
+}
+
+/* One row per world: its five stages side by side. */
 .rp-level-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
 }
 
+.rp-level-grid > .rp-shop-item {
+    grid-column: 1 / -1;
+}
+
 .rp-app .rp-level-tile {
+    position: relative;
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
     text-align: left;
-    gap: 4px;
-    padding: 9px 10px;
-    min-height: 70px;
+    gap: 5px;
+    padding: 8px 9px;
+    min-height: 96px;
 }
 
 .rp-app .rp-level-tile.is-current {
@@ -740,15 +843,63 @@
     background: linear-gradient(180deg, #5a4526 0%, #35271a 100%);
 }
 
-.rp-level-meta {
-    font-size: 12px;
-    color: var(--rp-gold);
+.rp-app .rp-level-tile.is-boss {
+    border-top-color: #c9665a;
 }
 
+.rp-level-no {
+    font-family: var(--rp-px);
+    font-size: 9px;
+    line-height: 1.3;
+    color: var(--rp-gold-soft);
+}
+
+.rp-level-tile strong {
+    font-size: 12.5px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.rp-level-boss {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    padding: 1px 4px;
+    background: rgba(120, 30, 20, 0.55);
+    border: 1px solid #a34a3c;
+    border-radius: 2px;
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #ffb39d;
+}
+
+.rp-level-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    margin-top: auto;
+    font-size: 11.5px;
+    color: var(--rp-parch-dim);
+}
+
+.rp-level-stars {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.rp-level-meta .rp-num {
+    font-size: 8px;
+    color: var(--rp-gold-soft);
+}
+
+/* Two columns while there is room (heroes above, the four upgrades as a 2 x 2 block), one column below that. */
 .rp-shop-grid,
 .rp-hero-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(max(210px, 34%), 1fr));
     gap: 10px;
     margin-bottom: 10px;
 }
@@ -765,14 +916,45 @@
     box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 
+/* Buttons sit on the card floor, so a row of cards lines up whatever the text length. */
+.rp-shop-item > button,
+.rp-hero-card > button {
+    margin-top: auto;
+}
+
 .rp-hero-card.is-selected {
     border-color: var(--rp-gold);
     box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 213, 107, 0.3);
 }
 
 .rp-shop-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     font-weight: 700;
     color: var(--rp-gold);
+}
+
+/* Upgrade level pips */
+.rp-pips {
+    display: inline-flex;
+    flex: none;
+    gap: 3px;
+}
+
+.rp-pips i {
+    width: 9px;
+    height: 9px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--rp-bronze);
+    border-radius: 1px;
+}
+
+.rp-pips i.is-on {
+    background: linear-gradient(180deg, #ffe08a, #c98f1d);
+    border-color: var(--rp-gold);
+    box-shadow: 0 0 4px rgba(255, 200, 80, 0.6);
 }
 
 .rp-shop-desc {
@@ -854,8 +1036,13 @@
     font-size: 11px;
 }
 
-.rp-app.rp-narrow .rp-plaques {
+.rp-app.rp-narrow .rp-plaques,
+.rp-app.rp-narrow .rp-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rp-app.rp-narrow .rp-level-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
 }
 
 .rp-app.rp-narrow .rp-card {

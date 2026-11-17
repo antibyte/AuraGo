@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "एक ड्रैगन! पत्थर की छतों के नीचे छिपो!",
   "runenpfad.notice.swing_hint": "रस्सी पर कूदो, बाएँ/दाएँ से झूलो, ऊपर/नीचे से चढ़ो-उतरो, स्पेस से छोड़ो।",
   "runenpfad.boss_dragon_ember": "अंगार ड्रैगन",
-  "runenpfad.boss_dragon_frost": "हिम ड्रैगन"
+  "runenpfad.boss_dragon_frost": "हिम ड्रैगन",
+  "runenpfad.float_block": "रोका!",
+  "runenpfad.float_open": "खुल गया!",
+  "runenpfad.level_locked": "लॉक",
+  "runenpfad.hero_selected": "चयनित",
+  "runenpfad.hero_choose": "चुनें",
+  "runenpfad.hero_switch_confirm": "स्तर फिर शुरू होगा — पुष्टि करें",
+  "runenpfad.win_new_best": "नया सर्वश्रेष्ठ समय!",
+  "runenpfad.win_goal_portal": "पोर्टल तक पहुँचे",
+  "runenpfad.win_goal_gems": "सभी 3 रत्न",
+  "runenpfad.win_goal_swift": "{time} से कम या बिना चोट के",
+  "runenpfad.ctl_move": "चलना"
 }

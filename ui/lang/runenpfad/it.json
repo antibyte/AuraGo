@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Un drago! Riparati sotto le tettoie di pietra!",
   "runenpfad.notice.swing_hint": "Salta sulla corda, dondola con sinistra/destra, arrampicati con su/giù, lascia con Spazio.",
   "runenpfad.boss_dragon_ember": "Drago delle braci",
-  "runenpfad.boss_dragon_frost": "Viverna del gelo"
+  "runenpfad.boss_dragon_frost": "Viverna del gelo",
+  "runenpfad.float_block": "Parato!",
+  "runenpfad.float_open": "Aperto!",
+  "runenpfad.level_locked": "Bloccato",
+  "runenpfad.hero_selected": "In uso",
+  "runenpfad.hero_choose": "Scegli",
+  "runenpfad.hero_switch_confirm": "Il livello ricomincia — conferma",
+  "runenpfad.win_new_best": "Nuovo record!",
+  "runenpfad.win_goal_portal": "Portale raggiunto",
+  "runenpfad.win_goal_gems": "Tutte e 3 le gemme",
+  "runenpfad.win_goal_swift": "Sotto {time} o senza subire colpi",
+  "runenpfad.ctl_move": "Muoversi"
 }

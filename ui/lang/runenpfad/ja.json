@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "ドラゴンだ！石の屋根の下に隠れろ！",
   "runenpfad.notice.swing_hint": "ロープに跳びつき、左右で揺らし、上下で登り降りし、スペースで放そう。",
   "runenpfad.boss_dragon_ember": "熾火のドラゴン",
-  "runenpfad.boss_dragon_frost": "氷霜の竜"
+  "runenpfad.boss_dragon_frost": "氷霜の竜",
+  "runenpfad.float_block": "ガード！",
+  "runenpfad.float_open": "開いた！",
+  "runenpfad.level_locked": "ロック中",
+  "runenpfad.hero_selected": "選択中",
+  "runenpfad.hero_choose": "選ぶ",
+  "runenpfad.hero_switch_confirm": "ステージをやり直します — もう一度押す",
+  "runenpfad.win_new_best": "自己ベスト更新！",
+  "runenpfad.win_goal_portal": "ポータルに到達",
+  "runenpfad.win_goal_gems": "宝石を3つすべて",
+  "runenpfad.win_goal_swift": "{time}以内、またはノーダメージ",
+  "runenpfad.ctl_move": "移動"
 }

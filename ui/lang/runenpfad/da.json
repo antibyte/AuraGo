@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "En drage! Søg dækning under stentagene!",
   "runenpfad.notice.swing_hint": "Hop op på rebet, sving med venstre/højre, klatr med op/ned, slip med mellemrum.",
   "runenpfad.boss_dragon_ember": "Gløddrage",
-  "runenpfad.boss_dragon_frost": "Frostlindorm"
+  "runenpfad.boss_dragon_frost": "Frostlindorm",
+  "runenpfad.float_block": "Blokeret!",
+  "runenpfad.float_open": "Åben!",
+  "runenpfad.level_locked": "Låst",
+  "runenpfad.hero_selected": "Valgt",
+  "runenpfad.hero_choose": "Vælg",
+  "runenpfad.hero_switch_confirm": "Banen genstarter — bekræft",
+  "runenpfad.win_new_best": "Ny bedste tid!",
+  "runenpfad.win_goal_portal": "Portalen nået",
+  "runenpfad.win_goal_gems": "Alle 3 ædelstene",
+  "runenpfad.win_goal_swift": "Under {time} eller uden at blive ramt",
+  "runenpfad.ctl_move": "Bevægelse"
 }

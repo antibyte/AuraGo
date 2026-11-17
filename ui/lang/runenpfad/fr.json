@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Un dragon ! Mets-toi à l'abri sous les toits de pierre !",
   "runenpfad.notice.swing_hint": "Saute sur la corde, balance-toi avec gauche/droite, grimpe avec haut/bas, lâche avec Espace.",
   "runenpfad.boss_dragon_ember": "Dragon des braises",
-  "runenpfad.boss_dragon_frost": "Guivre de givre"
+  "runenpfad.boss_dragon_frost": "Guivre de givre",
+  "runenpfad.float_block": "Paré !",
+  "runenpfad.float_open": "Ouvert !",
+  "runenpfad.level_locked": "Verrouillé",
+  "runenpfad.hero_selected": "Choix actuel",
+  "runenpfad.hero_choose": "Choisir",
+  "runenpfad.hero_switch_confirm": "Le niveau recommence — confirme",
+  "runenpfad.win_new_best": "Nouveau record !",
+  "runenpfad.win_goal_portal": "Portail atteint",
+  "runenpfad.win_goal_gems": "Les 3 gemmes",
+  "runenpfad.win_goal_swift": "En moins de {time} ou sans dégâts",
+  "runenpfad.ctl_move": "Se déplacer"
 }

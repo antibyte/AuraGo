@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "巨龙来袭！躲到石檐下面！",
   "runenpfad.notice.swing_hint": "跳上绳索，用左/右荡起来，用上/下攀爬，按空格键松手。",
   "runenpfad.boss_dragon_ember": "余烬巨龙",
-  "runenpfad.boss_dragon_frost": "冰霜巨龙"
+  "runenpfad.boss_dragon_frost": "冰霜巨龙",
+  "runenpfad.float_block": "格挡！",
+  "runenpfad.float_open": "已开启！",
+  "runenpfad.level_locked": "未解锁",
+  "runenpfad.hero_selected": "已选择",
+  "runenpfad.hero_choose": "选择",
+  "runenpfad.hero_switch_confirm": "本关将重新开始 — 再点一次确认",
+  "runenpfad.win_new_best": "新的最佳时间！",
+  "runenpfad.win_goal_portal": "抵达传送门",
+  "runenpfad.win_goal_gems": "集齐 3 颗宝石",
+  "runenpfad.win_goal_swift": "{time} 内通关或无伤",
+  "runenpfad.ctl_move": "移动"
 }

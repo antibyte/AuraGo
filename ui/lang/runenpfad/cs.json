@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Drak! Schovej se pod kamenné stříšky!",
   "runenpfad.notice.swing_hint": "Skoč na lano, rozhoupej se doleva/doprava, šplhej nahoru/dolů, pusť se mezerníkem.",
   "runenpfad.boss_dragon_ember": "Žhavý drak",
-  "runenpfad.boss_dragon_frost": "Mrazivý drak"
+  "runenpfad.boss_dragon_frost": "Mrazivý drak",
+  "runenpfad.float_block": "Blok!",
+  "runenpfad.float_open": "Otevřeno!",
+  "runenpfad.level_locked": "Zamčeno",
+  "runenpfad.hero_selected": "Vybráno",
+  "runenpfad.hero_choose": "Vybrat",
+  "runenpfad.hero_switch_confirm": "Úroveň se restartuje — potvrď",
+  "runenpfad.win_new_best": "Nový nejlepší čas!",
+  "runenpfad.win_goal_portal": "Portál dosažen",
+  "runenpfad.win_goal_gems": "Všechny 3 drahokamy",
+  "runenpfad.win_goal_swift": "Pod {time} nebo bez zásahu",
+  "runenpfad.ctl_move": "Pohyb"
 }

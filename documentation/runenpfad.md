@@ -10,6 +10,8 @@
   1. Complete the level by claiming the key and entering the exit portal.
   2. Collect all 3 hidden stage gems (`red_gem`, `blue_gem`, `green_gem`).
   3. Clear the stage within Par Time or take zero damage.
+- **Win card**: lists these three goals and marks the ones you reached, then shows your time, the gems, the coins earned in the stage and the score. Beating your stored time adds a `New best time!` tag.
+- **World Map** (`Worlds`): each world tab shows its stars out of 15 or `Locked`, and the tower tab shows your best floor. Stage tiles show the stage number, your stars and best time, and a `World Boss` tag on every fifth stage.
 - **Endless Rune Tower**: unlocks procedurally generated stages seeded per floor after completing campaign milestones or selecting it from the World Map (`Levels` dialog).
 
 ## Rune Trials (per-level variety)
@@ -49,6 +51,8 @@ Level `1` stays a clean tutorial without a trial. Endless floors pick a trial pe
 - **Wächter (Knight)**: higher vitality, melee cleave that breaks crates and deflects enemy projectiles, and a mid-air Ground Slam (`Down + Attack`).
 - **Waldläuferin (Ranger)**: higher movement speed, native Double Jump, evasive Dash Roll (`Shift` / `K`), and ranged rune bolts.
 
+Switch heroes with the `Hero` button in the top bar or in the Rune Workshop. Switching restarts the current stage, so once a run has progress the button asks you to click a second time to confirm. On the win card the switch applies to the next stage.
+
 ## Controls
 
 | Action | Keys |
@@ -60,7 +64,7 @@ Level `1` stays a clean tutorial without a trial. Endless floors pick a trial pe
 | Healing Potion | `Q`, `H` |
 | Pause / Restart Stage | `Esc` / `P`, `R` |
 
-Narrow viewports automatically reveal touch buttons.
+The Pause menu shows the main keys as a legend. Narrow viewports automatically reveal touch buttons.
 
 ## Presentation
 
@@ -77,7 +81,7 @@ Narrow viewports automatically reveal touch buttons.
 - **Sound effects and ambience**: enabled by default (`Sound` toggle in the top bar or Pause menu). They unlock on the first keyboard, mouse, or touch interaction using the `aurago-sounds` pack. Each biome mixes a primary and a secondary ambience bed (e.g. `forest-night` + `space-hum` in the caves), the master bus runs through a limiter, and repeated cues get a small random detune so they never machine-gun.
 - **Adaptive music**: procedural music is enabled by default and can be switched off with the `Music on` / `Music off` button in the Pause menu. Each world has its own theme, and boss stages play a heavier boss theme.
 - **Pause menu**: `Continue`, `Restart Stage`, `Sound on` / `Sound off`, `Music on` / `Music off`, `Graphics: GPU effects` / `Graphics: classic canvas`, `Reset Progress`.
-- **Saves**: Coins earned from enemies, crates, chests, and stage completions can be spent in the **Rune Workshop** (`Shop`) across four persistent upgrade tracks (`Vitality`, `Rune Might`, `Winged Boots`, `Alchemy`). All progress is stored locally in `localStorage` under `aurago.runenpfad.v1`, including your sound, music and graphics preferences.
+- **Saves**: Coins earned from enemies, crates, chests, and stage completions can be spent in the **Rune Workshop** (`Shop`) across four persistent upgrade tracks (`Vitality`, `Rune Might`, `Winged Boots`, `Alchemy`); each track shows its level as five pips. All progress is stored locally in `localStorage` under `aurago.runenpfad.v1`, including your sound, music and graphics preferences.
 
 ## Recent Fixes
 
@@ -86,3 +90,5 @@ Narrow viewports automatically reveal touch buttons.
 - Fixed Rune Power for the Ranger.
 - Fixed coins being saved mid-level.
 - Fixed the Darkness trial so its effect is visible.
+- Fixed saved progress being replaced by a fresh profile every time the game was opened.
+- Pickup and combat labels that float over the stage now appear in your language.

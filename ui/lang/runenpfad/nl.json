@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Een draak! Schuil onder de stenen afdaken!",
   "runenpfad.notice.swing_hint": "Spring aan het touw, zwaai met links/rechts, klim met omhoog/omlaag, laat los met spatie.",
   "runenpfad.boss_dragon_ember": "Gloeddraak",
-  "runenpfad.boss_dragon_frost": "Vorstworm"
+  "runenpfad.boss_dragon_frost": "Vorstworm",
+  "runenpfad.float_block": "Geblokt!",
+  "runenpfad.float_open": "Open!",
+  "runenpfad.level_locked": "Vergrendeld",
+  "runenpfad.hero_selected": "Gekozen",
+  "runenpfad.hero_choose": "Kiezen",
+  "runenpfad.hero_switch_confirm": "Level herstart — bevestig",
+  "runenpfad.win_new_best": "Nieuwe beste tijd!",
+  "runenpfad.win_goal_portal": "Portaal bereikt",
+  "runenpfad.win_goal_gems": "Alle 3 edelstenen",
+  "runenpfad.win_goal_swift": "Onder {time} of zonder geraakt te worden",
+  "runenpfad.ctl_move": "Bewegen"
 }

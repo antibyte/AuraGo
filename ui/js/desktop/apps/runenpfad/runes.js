@@ -32,7 +32,7 @@
         p.airJumpsLeft = Math.max(0, p.airJumpsLeft + extraAirJumps(sim) - bonusBefore);
         sim.stageScore += 100;
         pushEvent(sim, 'rune_pickup', { kind: kind, x: x, y: y });
-        sim.floatingTexts.push({ x: x, y: y - 20, text: kind.toUpperCase() + ' RUNE', color: COLORS[kind], timer: 1.1 });
+        sim.floatingTexts.push({ x: x, y: y - 20, text: kind.toUpperCase() + ' RUNE', key: 'runenpfad.rune_' + kind, color: COLORS[kind], timer: 1.1 });
         fxBurst(sim, 'rune', x, y, 16, { color: COLORS[kind], speed: 200, life: 0.8 });
         P().fxFlash(sim, COLORS[kind], 0.2, 0.3);
     }

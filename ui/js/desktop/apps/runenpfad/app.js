@@ -46,10 +46,14 @@
         let music = null;
         let postfx = null;
         let sim = null;
+        // Declared before the first readProfile() call: that call assigns it, and a later `let` would throw there.
+        let rejectedRaw = null; // stored value that failed to import; backed up before the first overwrite
         let profile = readProfile();
         let selectedWorld = Math.floor((Math.min(25, Math.max(1, profile.unlockedLevel)) - 1) / 5);
         let userPaused = false;
         let resetArmed = false;
+        let heroArmed = ''; // hero id waiting for the confirming second click
+        let heroArmTimer = 0;
         let cardKind = null; // 'won' | 'lost' while a round card is shown
         let cardShownAt = 0;
         const CARD_GUARD_MS = 350;
@@ -73,8 +77,6 @@
                 return Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : m;
             });
         }
-
-        let rejectedRaw = null; // stored value that failed to import; backed up before the first overwrite
 
         function readProfile() {
             try {
@@ -147,6 +149,7 @@
         winCard.hidden = true;
         const winTitle = el('h2');
         const winStars = el('div', 'rp-stars-row');
+        const winGoals = el('ul', 'rp-goals');
         const winPlaques = el('div', 'rp-plaques');
         const winBody = el('p', 'rp-sr');
         const winRow = el('div', 'rp-row-actions');
@@ -155,7 +158,7 @@
         const winShopBtn = cardButton('rp-btn rp-btn-gold');
         const winLevelsBtn = cardButton('rp-btn');
         winRow.append(winNextBtn, winReplayBtn, winShopBtn, winLevelsBtn);
-        winCard.append(winTitle, winStars, winPlaques, winBody, winRow);
+        winCard.append(winTitle, winStars, winGoals, winPlaques, winBody, winRow);
 
         const loseCard = el('div', 'rp-card rp-lose');
         loseCard.hidden = true;
@@ -175,7 +178,7 @@
         const pauseCloseX = el('button', 'rp-btn');
         pauseCloseX.type = 'button';
         pauseHead.append(pauseTitle, pauseCloseX);
-        const pauseControls = el('p');
+        const pauseControls = el('dl', 'rp-legend');
         const pauseActions = el('div', 'rp-row-actions');
         const resumeBtn = el('button', 'rp-btn rp-btn-primary');
         resumeBtn.type = 'button';
@@ -343,7 +346,7 @@
             hud.heroBtn.__rpHero = null;
             pauseTitle.textContent = t('runenpfad.pause_title');
             setBtn(pauseCloseX, t('runenpfad.close'), 'Esc');
-            pauseControls.textContent = t('runenpfad.controls');
+            hud.paintLegend(pauseControls);
             resumeBtn.textContent = t('runenpfad.pause_resume');
             restartBtn.textContent = t('runenpfad.pause_restart');
             resetBtn.textContent = resetArmed ? t('runenpfad.pause_reset_confirm') : t('runenpfad.pause_reset');
@@ -377,15 +380,7 @@
             if (sim.state === 'won') {
                 winCard.hidden = false;
                 loseCard.hidden = true;
-                if (cardKind !== 'won') {
-                    hud.paintStars(winStars, sim.earnedStars);
-                    hud.paintPlaques(winPlaques, [
-                        { label: t('runenpfad.hud_time'), value: Math.floor(sim.elapsed) + 's' },
-                        { label: t('runenpfad.hud_gems'), value: sim.gemCount + '/3', icon: 'gem_blue' },
-                        { label: t('runenpfad.hud_coins'), value: String(sim.profile.coins), icon: 'coin' },
-                        { label: t('runenpfad.hud_score'), value: String(sim.stageScore) }
-                    ]);
-                }
+                if (cardKind !== 'won') hud.paintWinSummary(winStars, winGoals, winPlaques, sim);
                 winBody.textContent = fill('runenpfad.win_body', {
                     time: Math.floor(sim.elapsed),
                     gems: sim.gemCount,
@@ -425,6 +420,7 @@
         function startStage(options) {
             options = options || {};
             userPaused = false;
+            disarmHero();
             winCard.hidden = true;
             loseCard.hidden = true;
             cardKind = null;
@@ -462,6 +458,7 @@
         }
 
         function openLevels() {
+            disarmHero();
             renderLevelsModal();
             levelsDialog.showModal();
             syncAudioActive();
@@ -477,6 +474,7 @@
         function openPause() {
             userPaused = true;
             resetArmed = false;
+            disarmHero();
             paintStaticCopy();
             pauseDialog.showModal();
             syncAudioActive();
@@ -486,8 +484,13 @@
         function renderLevelsModal() {
             worldTabs.replaceChildren();
             Levels.WORLDS.forEach(function (w, idx) {
-                const tab = el('button', 'rp-tab' + (selectedWorld === idx ? ' is-active' : ''), (idx + 1) + '. ' + t(w.nameKey));
+                // Each world tab carries its star count; worlds that are still sealed stay dimmed.
+                let stars = 0;
+                for (let id = idx * 5 + 1; id <= idx * 5 + 5; id++) stars += profile.starsByLevel[id] || 0;
+                const sealed = idx * 5 + 1 > profile.unlockedLevel;
+                const tab = el('button', 'rp-tab' + (selectedWorld === idx ? ' is-active' : '') + (sealed ? ' is-sealed' : ''), (idx + 1) + '. ' + t(w.nameKey));
                 tab.type = 'button';
+                tab.append(el('span', 'rp-tab-stars', sealed ? t('runenpfad.level_locked') : '\u2605 ' + stars + '/15'));
                 tab.addEventListener('click', function () {
                     selectedWorld = idx;
                     renderLevelsModal();
@@ -497,6 +500,7 @@
             });
             const endlessTab = el('button', 'rp-tab' + (selectedWorld === 5 ? ' is-active' : ''), t('runenpfad.endless_title'));
             endlessTab.type = 'button';
+            if (profile.endlessBestFloor > 0) endlessTab.append(el('span', 'rp-tab-stars', fill('runenpfad.endless_stage', { floor: profile.endlessBestFloor })));
             endlessTab.addEventListener('click', function () {
                 selectedWorld = 5;
                 renderLevelsModal();
@@ -525,14 +529,24 @@
                 const locked = lvl.id > profile.unlockedLevel;
                 const stars = profile.starsByLevel[lvl.id] || 0;
                 const isCurrent = sim && sim.mode === 'campaign' && sim.levelId === lvl.id;
-                const btn = el('button', 'rp-level-tile' + (isCurrent ? ' is-current' : ''));
+                const btn = el('button', 'rp-level-tile' + (isCurrent ? ' is-current' : '') + (lvl.boss ? ' is-boss' : ''));
                 btn.type = 'button';
                 btn.disabled = locked;
                 btn.dataset.rpLevelTile = String(lvl.id);
-                btn.append(el('strong', '', (selectedWorld + 1) + '-' + lvl.stageInWorld + ' · ' + t(lvl.nameKey)));
-                const starStr = '\u2605'.repeat(stars) + '\u2606'.repeat(3 - stars);
-                const best = profile.bestTimeByLevel[lvl.id];
-                btn.append(el('span', 'rp-level-meta', starStr + (best ? ' · ' + best + 's' : '')));
+                btn.append(el('span', 'rp-level-no', (selectedWorld + 1) + '-' + lvl.stageInWorld));
+                btn.append(el('strong', '', t(lvl.nameKey)));
+                if (lvl.boss) btn.append(el('span', 'rp-level-boss', t('runenpfad.boss_intro_sub')));
+                const meta = el('span', 'rp-level-meta');
+                if (locked) {
+                    meta.textContent = t('runenpfad.level_locked');
+                } else {
+                    const best = profile.bestTimeByLevel[lvl.id];
+                    const row = el('span', 'rp-level-stars');
+                    hud.paintStars(row, stars, 14);
+                    meta.append(row);
+                    if (best) meta.append(el('span', 'rp-num', hud.formatTime(best)));
+                }
+                btn.append(meta);
                 btn.addEventListener('click', function () {
                     levelsDialog.close();
                     startStage({ mode: 'campaign', levelId: lvl.id });
@@ -546,17 +560,19 @@
             heroGrid.replaceChildren();
             ['knight', 'ranger'].forEach(function (heroId) {
                 const def = Levels.HERO_DEFS[heroId];
-                const card = el('div', 'rp-hero-card' + (profile.hero === heroId ? ' is-selected' : ''));
+                const chosen = profile.hero === heroId;
+                const card = el('div', 'rp-hero-card' + (chosen ? ' is-selected' : ''));
                 card.append(el('div', 'rp-shop-title', t(def.nameKey)));
                 card.append(el('p', 'rp-shop-desc', t(def.descKey)));
-                const pick = el('button', profile.hero === heroId ? 'rp-btn-primary' : 'rp-btn', t(def.nameKey));
+                const pick = el('button', chosen ? 'rp-btn-primary' : 'rp-btn', t(chosen ? 'runenpfad.hero_selected' : heroArmed === heroId ? 'runenpfad.hero_switch_confirm' : 'runenpfad.hero_choose'));
                 pick.type = 'button';
                 pick.dataset.rpPickHero = heroId;
+                if (chosen) pick.setAttribute('aria-current', 'true');
                 pick.addEventListener('click', function () {
-                    profile.hero = heroId;
-                    writeProfile();
-                    if (sim) startStage({ mode: sim.mode, levelId: sim.levelId, endlessFloor: sim.endlessFloor });
+                    chooseHero(heroId);
                     renderShopModal();
+                    const again = heroGrid.querySelector('[data-rp-pick-hero="' + heroId + '"]');
+                    if (again) again.focus({ preventScroll: true });
                 });
                 card.append(pick);
                 heroGrid.append(card);
@@ -567,8 +583,10 @@
                 const lvl = profile.upgrades[track.id] || 1;
                 const cost = Sim.upgradeCost(track.id, lvl);
                 const item = el('div', 'rp-shop-item');
-                item.append(el('div', 'rp-shop-title', t(track.nameKey) + ' · ' + fill('runenpfad.shop_level', { level: lvl, max: track.maxLevel })));
-                item.append(el('p', 'rp-shop-desc', t(track.descKey)));
+                const head = el('div', 'rp-shop-title', t(track.nameKey));
+                head.title = fill('runenpfad.shop_level', { level: lvl, max: track.maxLevel });
+                head.append(hud.pips(lvl, track.maxLevel));
+                item.append(head, el('p', 'rp-shop-desc', t(track.descKey)));
                 const buyBtn = el('button', 'rp-btn-gold', cost === null ? t('runenpfad.shop_max') : fill('runenpfad.shop_buy', { cost: cost }));
                 buyBtn.type = 'button';
                 buyBtn.dataset.rpBuyTrack = track.id;
@@ -588,6 +606,8 @@
                         }
                         paintHud();
                         renderShopModal();
+                        const again = shopGrid.querySelector('[data-rp-buy-track="' + track.id + '"]:not(:disabled)') || shopCloseBtn;
+                        again.focus({ preventScroll: true });
                     }
                 });
                 item.append(buyBtn);
@@ -723,10 +743,43 @@
             keyState[ev.code] = false;
         }
 
-        heroBtn.addEventListener('click', function () {
-            profile.hero = profile.hero === 'knight' ? 'ranger' : 'knight';
+        function disarmHero() {
+            root.clearTimeout(heroArmTimer);
+            if (!heroArmed) return;
+            heroArmed = '';
+            heroBtn.__rpHero = null; // the HUD repaints the hero label on its next pass
+            heroBtn.classList.remove('is-armed');
+        }
+
+        // Switching heroes restarts the stage, so a run that already has progress asks for a second click first.
+        function chooseHero(heroId) {
+            if (heroId === profile.hero) return;
+            const atRisk = sim && sim.state === 'playing' && (sim.stageScore > 0 || sim.elapsed > 20);
+            if (atRisk && heroArmed !== heroId) {
+                disarmHero();
+                heroArmed = heroId;
+                hud.setButton(heroBtn, t('runenpfad.hero_switch_confirm'));
+                heroBtn.classList.add('is-armed');
+                heroArmTimer = root.setTimeout(function () {
+                    disarmHero();
+                    if (shopDialog.open) renderShopModal();
+                }, 4000);
+                return;
+            }
+            profile.hero = heroId;
             writeProfile();
-            if (sim) startStage({ mode: sim.mode, levelId: sim.levelId, endlessFloor: sim.endlessFloor });
+            // A finished stage keeps its win card: the new hero simply enters the next stage (or the replay).
+            if (sim && sim.state !== 'won') {
+                startStage({ mode: sim.mode, levelId: sim.levelId, endlessFloor: sim.endlessFloor });
+            } else {
+                disarmHero();
+                heroBtn.__rpHero = null;
+                paintHud();
+            }
+        }
+
+        heroBtn.addEventListener('click', function () {
+            chooseHero(profile.hero === 'knight' ? 'ranger' : 'knight');
         });
         healBtn.addEventListener('click', function () {
             edgeState.healPressed = true;
@@ -901,7 +954,7 @@
                     enabled: profile.sound !== false
                 });
                 disposeVisuals();
-                renderer = View.createRenderer(canvas, sheets);
+                renderer = View.createRenderer(canvas, sheets, { t: t, font: root.getComputedStyle(shell).getPropertyValue('--rp-title-font').trim() });
                 const bootRenderer = renderer;
                 artPromise.then(function (atlas) {
                     if (!disposed && ticket === generation && renderer === bootRenderer && atlas && typeof bootRenderer.setArt === 'function') { bootRenderer.setArt(atlas); if (typeof hud.setArt === 'function') hud.setArt(atlas); }
@@ -951,6 +1004,7 @@
                     rafId = 0;
                 }
                 if (ro) ro.disconnect();
+                root.clearTimeout(heroArmTimer);
                 hud.dispose();
                 disposeVisuals();
                 if (audio) {

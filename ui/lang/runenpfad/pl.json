@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Smok! Schowaj się pod kamiennymi daszkami!",
   "runenpfad.notice.swing_hint": "Wskocz na linę, rozhuśtaj się w lewo/prawo, wspinaj się w górę/w dół, puść spacją.",
   "runenpfad.boss_dragon_ember": "Smok żaru",
-  "runenpfad.boss_dragon_frost": "Smok szronu"
+  "runenpfad.boss_dragon_frost": "Smok szronu",
+  "runenpfad.float_block": "Blok!",
+  "runenpfad.float_open": "Otwarte!",
+  "runenpfad.level_locked": "Zablokowane",
+  "runenpfad.hero_selected": "Wybrano",
+  "runenpfad.hero_choose": "Wybierz",
+  "runenpfad.hero_switch_confirm": "Poziom zacznie się od nowa — potwierdź",
+  "runenpfad.win_new_best": "Nowy najlepszy czas!",
+  "runenpfad.win_goal_portal": "Portal osiągnięty",
+  "runenpfad.win_goal_gems": "Wszystkie 3 klejnoty",
+  "runenpfad.win_goal_swift": "Poniżej {time} lub bez obrażeń",
+  "runenpfad.ctl_move": "Ruch"
 }

@@ -2053,3 +2053,59 @@ console.log('Runenpfad round 3 review fixes passed.');
     }
 }
 console.log('Runenpfad round 4 checks passed: swing ropes, rune sequence, lever bridge, ritual chain, drakeling, dragon strafe, dragon boss.');
+
+// ---- Polish round: translated floating labels and the "new best time" flag ----
+{
+    const Runes = sandbox.RunenpfadRunes;
+    // Every floating-label key the DOM-free core writes resolves in all sixteen locales.
+    const keys = new Set(Object.keys(Runes.DURATIONS).map((kind) => 'runenpfad.rune_' + kind));
+    ['sim.js', 'combat.js', 'runes.js', 'zones-extra.js'].forEach((f) => {
+        const src = fs.readFileSync(path.join(rootDir, 'ui/js/desktop/apps/runenpfad', f), 'utf8');
+        for (const m of src.matchAll(/\bkey: '(runenpfad\.[a-z_]+)'(?! \+)/g)) keys.add(m[1]);
+    });
+    ['runenpfad.hud_gems', 'runenpfad.hud_key_on', 'runenpfad.hud_rune', 'runenpfad.float_block', 'runenpfad.float_open'].forEach((k) => {
+        assert.ok(keys.has(k), 'the core still labels a floating text with ' + k);
+    });
+    const langDir = path.join(rootDir, 'ui', 'lang', 'runenpfad');
+    const locales = fs.readdirSync(langDir).filter((f) => f.endsWith('.json'));
+    assert.equal(locales.length, 16, 'sixteen Runenpfad locales');
+    locales.forEach((f) => {
+        const dict = JSON.parse(fs.readFileSync(path.join(langDir, f), 'utf8'));
+        keys.forEach((k) => assert.ok(typeof dict[k] === 'string' && dict[k].trim(), f + ' translates the floating label ' + k));
+    });
+
+    // Clears level 1 at a fixed clock: one gem, the key, then the portal.
+    const clear = (bestBefore) => {
+        const prof = Sim.createDefaultProfile();
+        if (bestBefore) prof.bestTimeByLevel[1] = bestBefore;
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile: prof });
+        s.stage.enemies.length = 0;
+        const gem = s.stage.collectibles.find((c) => c.kind === 'gem');
+        s.player.x = gem.x;
+        s.player.y = gem.y + 18;
+        Sim.stepSimulation(s, Sim.STEP, {});
+        const label = s.floatingTexts.find((ft) => ft.key === 'runenpfad.hud_gems');
+        assert.ok(label && label.text === '+GEM' && label.suffix === ' 1/3', 'a gem pickup floats a translatable label with its count');
+        s.player.x = s.stage.key.x;
+        s.player.y = s.stage.key.y + 18;
+        Sim.stepSimulation(s, Sim.STEP, {});
+        assert.equal(s.hasKey, true, 'key collected');
+        assert.ok(s.floatingTexts.some((ft) => ft.key === 'runenpfad.hud_key_on'), 'the key pickup floats a translatable label');
+        s.elapsed = 60;
+        s.player.x = s.stage.portal.x;
+        s.player.y = s.stage.portal.y + 20;
+        Sim.stepSimulation(s, Sim.STEP, {});
+        assert.equal(s.state, 'won', 'portal with key wins level 1');
+        return s;
+    };
+    const first = clear(0);
+    assert.equal(first.newBest, false, 'a first clear sets the best time without calling it a new best');
+    assert.equal(first.profile.bestTimeByLevel[1], 60);
+    const faster = clear(80);
+    assert.equal(faster.newBest, true, 'beating the stored time is a new best');
+    assert.equal(faster.profile.bestTimeByLevel[1], 60);
+    const slower = clear(40);
+    assert.equal(slower.newBest, false, 'a slower clear is no new best');
+    assert.equal(slower.profile.bestTimeByLevel[1], 40, 'a slower clear keeps the stored best time');
+}
+console.log('Runenpfad polish checks passed: floating label keys in 16 locales, new-best flag.');

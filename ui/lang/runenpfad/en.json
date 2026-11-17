@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "A dragon! Take cover under the stone shelters!",
   "runenpfad.notice.swing_hint": "Jump onto the rope, swing with left/right, climb with up/down, let go with Space.",
   "runenpfad.boss_dragon_ember": "Ember Dragon",
-  "runenpfad.boss_dragon_frost": "Frost Wyrm"
+  "runenpfad.boss_dragon_frost": "Frost Wyrm",
+  "runenpfad.float_block": "Blocked!",
+  "runenpfad.float_open": "Open!",
+  "runenpfad.level_locked": "Locked",
+  "runenpfad.hero_selected": "Selected",
+  "runenpfad.hero_choose": "Select",
+  "runenpfad.hero_switch_confirm": "Stage restarts — confirm",
+  "runenpfad.win_new_best": "New best time!",
+  "runenpfad.win_goal_portal": "Portal reached",
+  "runenpfad.win_goal_gems": "All 3 gems",
+  "runenpfad.win_goal_swift": "Under {time} or no hits taken",
+  "runenpfad.ctl_move": "Move"
 }

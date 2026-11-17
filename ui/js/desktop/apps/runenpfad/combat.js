@@ -92,7 +92,7 @@
         if (!pierce && enemy.def.behavior === 'shielded' && (hitX - enemy.x) * (enemy.facing || 1) > 0) {
             enemy.blockFlash = 0.25;
             pushEvent(sim, 'enemy_block', { id: enemy.id, defId: enemy.defId, x: enemy.x, y: enemy.y });
-            sim.floatingTexts.push({ x: enemy.x, y: enemy.y - 46, text: 'BLOCK', color: '#cfe8ff', timer: 0.5 });
+            sim.floatingTexts.push({ x: enemy.x, y: enemy.y - 46, text: 'BLOCK', key: 'runenpfad.float_block', color: '#cfe8ff', timer: 0.6 });
             fxBurst(sim, 'spark', enemy.x + (hitX < enemy.x ? -18 : 18), enemy.y - 24, 6, { color: '#cfe8ff', speed: 170, arc: Math.PI * 2, life: 0.26 });
             return;
         }

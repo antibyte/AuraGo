@@ -97,9 +97,16 @@
             node.dataset.rpPx = String(px || 16);
             node.style.setProperty('--rp-icon', (px || 16) + 'px');
             node.setAttribute('aria-hidden', 'true');
-            icons.push(node);
+            // Only icons made before the sheets arrive wait in the list; later ones (dialogs, cards) paint at once.
             if (sheets) paintIcon(node);
+            else icons.push(node);
             return node;
+        }
+
+        // Seconds as m:ss (stage clock, best times, par time).
+        function formatTime(seconds) {
+            const s = Math.max(0, Math.floor(Number(seconds) || 0));
+            return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
         }
 
         // Orb icon from the painted atlas (powerups column per kind); the CSS colour dot stays when the atlas is absent.
@@ -161,8 +168,9 @@
             if (sheets) icons.forEach(paintIcon);
         }
 
+        // Arrow symbols are too small in the pixel font, so they use the UI font.
         function keycap(text) {
-            return el('kbd', 'rp-keycap', text);
+            return el('kbd', 'rp-keycap' + (/^[\u2190-\u2193]$/.test(text) ? ' rp-keycap-sym' : ''), text);
         }
 
         // Button label with an optional key-cap hint.
@@ -321,6 +329,7 @@
             }
             if (heartCount !== p.maxHp) buildHearts(p.maxHp);
             Array.prototype.forEach.call(heartsRow.children, function (h, i) { h.classList.toggle('is-empty', i >= p.hp); });
+            heartsRow.classList.toggle('is-low', p.hp <= 1 && sim.state === 'playing');
             heartsRow.setAttribute('aria-label', '\u2665 ' + p.hp + '/' + p.maxHp);
             heartsRow.title = '\u2665 ' + p.hp + '/' + p.maxHp;
             setText(healCount, '\u00d7' + p.potions);
@@ -332,7 +341,7 @@
             keyChip.box.title = sim.hasKey ? t('runenpfad.hud_key_on') : t('runenpfad.hud_key_off');
             setText(keyChip.value, sim.hasKey ? '\u2713' : '\u2013');
             setText(starsChip.value, Sim.totalStars(profile) + '/75');
-            setText(timeValue, Math.floor(sim.elapsed) + 's');
+            setText(timeValue, formatTime(sim.elapsed));
 
             const mod = stage.mod;
             modTag.hidden = !mod;
@@ -358,9 +367,11 @@
             bossCard.classList.toggle('is-on', introOn);
             setText(notice, sim.notice ? t(sim.notice) : '');
             notice.classList.toggle('is-empty', !sim.notice);
-            if (heroBtn.__rpHero !== sim.heroId) {
-                heroBtn.__rpHero = sim.heroId;
-                setButton(heroBtn, t('runenpfad.btn_hero') + ': ' + t(Levels.HERO_DEFS[sim.heroId].nameKey));
+            // The chosen hero (profile) can run ahead of the stage hero once a stage is finished.
+            const heroId = profile && Levels.HERO_DEFS[profile.hero] ? profile.hero : sim.heroId;
+            if (heroBtn.__rpHero !== heroId) {
+                heroBtn.__rpHero = heroId;
+                setButton(heroBtn, t('runenpfad.btn_hero') + ': ' + t(Levels.HERO_DEFS[heroId].nameKey));
             }
 
             const boss = stage.bossId ? stage.enemies.find(function (e) { return e.id === stage.bossId; }) : null;
@@ -374,12 +385,12 @@
             return bossOn;
         }
 
-        // Big star row for the win card (earned stars lit, the rest dark).
-        function paintStars(container, earned) {
+        // Star row (earned stars lit, the rest dark): big on the win card, small (px) on the world map tiles.
+        function paintStars(container, earned, px) {
             container.replaceChildren();
             for (let i = 0; i < 3; i++) {
-                const s = icon('star', 40);
-                s.classList.add('rp-bigstar');
+                const s = icon('star', px || 40);
+                if (!px) s.classList.add('rp-bigstar');
                 s.classList.toggle('is-empty', i >= earned);
                 container.append(s);
             }
@@ -387,7 +398,7 @@
             container.setAttribute('aria-label', '\u2605 ' + earned + '/3');
         }
 
-        // Summary plaques: [{ label, value, icon? }].
+        // Summary plaques: [{ label, value, icon?, tag? }]; the tag is a small highlight line (new best time).
         function paintPlaques(container, items) {
             container.replaceChildren();
             items.forEach(function (it) {
@@ -396,8 +407,60 @@
                 if (it.icon) head.append(icon(it.icon, 14));
                 head.append(el('span', '', it.label));
                 plaque.append(head, el('span', 'rp-plaque-value rp-num', it.value));
+                if (it.tag) plaque.append(el('span', 'rp-plaque-tag', it.tag));
                 container.append(plaque);
             });
+        }
+
+        // Win card summary: star row, the three star goals (one small star each) and the result plaques.
+        // The goals mirror the simulation's star rules: portal, all gems, par time or a flawless run.
+        function paintWinSummary(starsEl, goalsEl, plaquesEl, sim) {
+            paintStars(starsEl, sim.earnedStars);
+            goalsEl.replaceChildren();
+            [
+                { label: t('runenpfad.win_goal_portal'), done: true },
+                { label: t('runenpfad.win_goal_gems'), done: sim.gemCount >= 3 },
+                { label: fill('runenpfad.win_goal_swift', { time: formatTime(sim.stage.parTime) }), done: sim.elapsed <= sim.stage.parTime || sim.damageTaken === 0 }
+            ].forEach(function (g) {
+                const row = el('li', 'rp-goal' + (g.done ? ' is-done' : ''));
+                const star = icon('star', 14);
+                star.classList.toggle('is-empty', !g.done);
+                row.append(star, el('span', '', g.label));
+                goalsEl.append(row);
+            });
+            paintPlaques(plaquesEl, [
+                { label: t('runenpfad.hud_time'), value: formatTime(sim.elapsed), tag: sim.newBest ? t('runenpfad.win_new_best') : '' },
+                { label: t('runenpfad.hud_gems'), value: sim.gemCount + '/3', icon: 'gem_blue' },
+                { label: t('runenpfad.hud_coins'), value: '+' + sim.stageCoins, icon: 'coin' },
+                { label: t('runenpfad.hud_score'), value: String(sim.stageScore) }
+            ]);
+        }
+
+        // Key legend of the pause dialog: key caps in front of each action.
+        function paintLegend(container) {
+            container.replaceChildren();
+            container.setAttribute('aria-label', t('runenpfad.controls'));
+            [
+                { keys: ['A', 'D', '\u2190', '\u2192'], label: t('runenpfad.ctl_move') },
+                { keys: ['W', 'Space'], label: t('runenpfad.touch_jump') },
+                { keys: ['J', 'Enter'], label: t('runenpfad.touch_attack') },
+                { keys: ['K', 'Shift'], label: t('runenpfad.touch_special') },
+                { keys: ['Q'], label: t('runenpfad.hud_heal') },
+                { keys: ['R'], label: t('runenpfad.pause_restart') }
+            ].forEach(function (r) {
+                const keys = el('dt', 'rp-legend-keys');
+                r.keys.forEach(function (k) { keys.append(keycap(k)); });
+                container.append(keys, el('dd', 'rp-legend-label', r.label));
+            });
+        }
+
+        // Upgrade level as a row of pips (filled up to the current level).
+        function pips(level, max) {
+            const row = el('span', 'rp-pips');
+            for (let i = 1; i <= max; i++) row.append(el('i', i <= level ? 'is-on' : ''));
+            row.setAttribute('role', 'img');
+            row.setAttribute('aria-label', level + '/' + max);
+            return row;
         }
 
         function dispose() {
@@ -409,6 +472,7 @@
             heroBtn: heroBtn, levelsBtn: levelsBtn, shopBtn: shopBtn, soundBtn: soundBtn, pauseBtn: pauseBtn, healBtn: healBtn,
             icon: icon, keycap: keycap, setButton: setButton, setSheets: setSheets, setArt: setArt, setText: setText,
             paint: paint, paintCopy: paintCopy, paintStars: paintStars, paintPlaques: paintPlaques,
+            paintWinSummary: paintWinSummary, paintLegend: paintLegend, pips: pips, formatTime: formatTime,
             showHint: showHint, dispose: dispose
         };
     }

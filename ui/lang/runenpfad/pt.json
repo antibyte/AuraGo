@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Um dragão! Abriga-te debaixo dos telhados de pedra!",
   "runenpfad.notice.swing_hint": "Salta para a corda, balança com esquerda/direita, sobe e desce com cima/baixo e larga com Espaço.",
   "runenpfad.boss_dragon_ember": "Dragão das Brasas",
-  "runenpfad.boss_dragon_frost": "Serpe de Gelo"
+  "runenpfad.boss_dragon_frost": "Serpe de Gelo",
+  "runenpfad.float_block": "Bloqueado!",
+  "runenpfad.float_open": "Aberto!",
+  "runenpfad.level_locked": "Bloqueado",
+  "runenpfad.hero_selected": "Em uso",
+  "runenpfad.hero_choose": "Escolher",
+  "runenpfad.hero_switch_confirm": "A fase recomeça — confirma",
+  "runenpfad.win_new_best": "Novo melhor tempo!",
+  "runenpfad.win_goal_portal": "Portal alcançado",
+  "runenpfad.win_goal_gems": "As 3 gemas",
+  "runenpfad.win_goal_swift": "Abaixo de {time} ou sem sofrer golpes",
+  "runenpfad.ctl_move": "Mover"
 }

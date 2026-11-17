@@ -80,7 +80,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   requested-music queue priority; the full run also decodes assets with FFmpeg.
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
   and the optional fallback when a stale loader omits its resource module.
-- Runenpfad: `node scripts/test-runenpfad-sim.mjs` validates all 6 2D sprite packs, `aurago-sounds`, all 25 campaign stages, endless mode, hero abilities, workshop upgrades and save clamping. Browser play is `TestDesktopRunenpfadBrowser`.
+- Runenpfad: `node scripts/test-runenpfad-sim.mjs` validates all 6 2D sprite packs, `aurago-sounds`, all 25 campaign stages, endless mode, hero abilities, workshop upgrades, save clamping, the new-best flag and the floating-label translation keys in all 16 locales. Browser play is `TestDesktopRunenpfadBrowser`.
 - Sprite packing: `pack_game_sprites.py` fills the declared ten-column grid from
   reviewed rectangles and anchors in the production manifest; human packs append
   two climbing rows without renumbering existing cells. `test_pack_game_sprites.py`

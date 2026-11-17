@@ -142,5 +142,16 @@
   "runenpfad.notice.dragon_warn": "Ein Drache! Such Deckung unter den Steindächern!",
   "runenpfad.notice.swing_hint": "Spring ans Seil, schwing mit links/rechts, kletter mit hoch/runter, lass mit der Leertaste los.",
   "runenpfad.boss_dragon_ember": "Glutdrache",
-  "runenpfad.boss_dragon_frost": "Frostwurm"
+  "runenpfad.boss_dragon_frost": "Frostwurm",
+  "runenpfad.float_block": "Geblockt!",
+  "runenpfad.float_open": "Offen!",
+  "runenpfad.level_locked": "Gesperrt",
+  "runenpfad.hero_selected": "Ausgewählt",
+  "runenpfad.hero_choose": "Auswählen",
+  "runenpfad.hero_switch_confirm": "Level startet neu – bestätigen",
+  "runenpfad.win_new_best": "Neue Bestzeit!",
+  "runenpfad.win_goal_portal": "Portal erreicht",
+  "runenpfad.win_goal_gems": "Alle 3 Juwelen",
+  "runenpfad.win_goal_swift": "Unter {time} oder ohne Treffer",
+  "runenpfad.ctl_move": "Bewegen"
 }
