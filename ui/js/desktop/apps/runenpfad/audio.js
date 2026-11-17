@@ -50,7 +50,11 @@
         laser: { sound: 'laser', rate: 0.55, gain: 0.7, synth: 'zap', sg: 0.35, sr: 0.5, also: [{ synth: 'crack', sg: 0.5 }] },
         dive: { synth: 'whoosh', sg: 0.7, sr: 0.6, also: [{ synth: 'whistle', sg: 0.45, sr: 0.9 }, { synth: 'impact', sg: 0.5, sr: 0.8, delay: 0.12 }] },
         missiles: { sound: 'reload', gain: 0.7, synth: 'whoosh', sg: 0.4, also: [{ synth: 'clank', sg: 0.4, sr: 1.2 }] },
-        fire_strip: { sound: 'fire', gain: 0.7, also: [{ synth: 'flame', sg: 0.6 }] }
+        fire_strip: { sound: 'fire', gain: 0.7, also: [{ synth: 'flame', sg: 0.6 }] },
+        // Dragon boss patterns: the voice resolves to the dragon roar (see dragonVoice()).
+        strafe: { sound: 'fire', gain: 0.8, rate: 0.7, synth: 'dragonbreath', sg: 0.85, also: [{ synth: 'dragonpass', sg: 0.6 }], voice: { gain: 0.6, sr: 1, short: true } },
+        fireballs: { sound: 'fire', gain: 0.5, rate: 1.2, synth: 'fwoosh', sg: 0.6, sr: 0.7, also: [{ synth: 'fwoosh', sg: 0.5, sr: 0.9, delay: 0.14 }, { synth: 'fwoosh', sg: 0.45, sr: 1.1, delay: 0.28 }] },
+        roar: { sound: 'thunder', gain: 0.5, rate: 0.7, synth: 'dragonroar', sg: 0.95, also: [{ synth: 'boom', sg: 0.5, sr: 0.6 }] }
     };
     BOSS_ATTACKS.pound = BOSS_ATTACKS.ground_pound; // legacy ids
     BOSS_ATTACKS.groundfire = BOSS_ATTACKS.fire_strip;
@@ -64,6 +68,9 @@
         ring: { synth: 'charge', sg: 0.35, sr: 2 },
         beam: { synth: 'charge', sg: 0.4, sr: 2.6, also: [{ synth: 'hiss', sg: 0.25 }] },
         dive: { synth: 'whistle', sg: 0.4 },
+        strafe: { synth: 'dragonwarn', sg: 0.5, also: [{ synth: 'hiss', sg: 0.25 }] },
+        fireballs: { synth: 'charge', sg: 0.35, sr: 0.7, also: [{ synth: 'fwoosh', sg: 0.3, sr: 0.8 }] },
+        roar: { synth: 'dragonwarn', sg: 0.6, sr: 1.1 },
         missiles: { synth: 'ratchet', sg: 0.5 },
         fire: { synth: 'hiss', sg: 0.5, also: [{ synth: 'charge', sg: 0.2, sr: 0.5 }] },
         '*': { synth: 'warn', sg: 0.3, sr: 1 }
@@ -75,6 +82,19 @@
         glacier: [{ synth: 'rotor', sr: 1 }],
         citadel: [{ synth: 'servo', sr: 0.6 }, { synth: 'clank', sr: 0.7 }]
     };
+    const DRAGON_VOICES = {
+        ember: [{ synth: 'dragonroar', sr: 1 }],
+        frost: [{ synth: 'dragonroar_frost', sr: 1 }]
+    };
+    const DRAGON_PATTERNS = { strafe: 1, fireballs: 1, roar: 1 };
+    const GLYPH_TONES = {
+        0: { synth: 'glyph', sr: 1 },
+        1: { synth: 'glyph', sr: 1.26 },
+        2: { synth: 'glyph', sr: 1.5 },
+        3: { synth: 'glyph', sr: 1.68 },
+        '*': { synth: 'glyph', sr: 1 }
+    };
+    const SOLVED_FANFARE = { sound: 'pickup', rate: 1.2, gain: 0.35 };
     const RUNE_PICKUPS = {
         fire: { sound: 'fire', rate: 1.3, synth: 'fireup', sg: 0.5, also: [{ synth: 'shimmer', sg: 0.3, sr: 0.9 }] },
         frost: { sound: false, synth: 'frostchime', sg: 0.5, also: [{ synth: 'shimmer', sg: 0.25, sr: 1.4 }] },
@@ -107,6 +127,7 @@
                     dive: { synth: 'screech', sg: 0.45 },
                     swoop: { synth: 'screech', sg: 0.45 },
                     lob: { synth: 'puff', sg: 0.3, sr: 1.4 },
+                    fireball: { synth: 'fwoosh', sg: 0.5, also: [{ synth: 'puff', sg: 0.3, sr: 1.8 }] },
                     spore: { synth: 'puff', sg: 0.3, sr: 1.4 }
                 }
             },
@@ -187,7 +208,34 @@
         spike_rise: { sound: 'impact-metal', gain: 0.3, cooldown: 200, rate: 1.7 },
         door_open: { sound: 'door-wood', gain: 0.65, cooldown: 300, by: { key: 'material', map: { wood: { sound: 'door-wood' }, metal: { sound: 'door-metal' } } } },
         cannon: { sound: 'shotgun', gain: 0.45, cooldown: 150, vary: 0.1, also: [{ synth: 'boom', sg: 0.3, sr: 1.4 }] },
-        portal_win: { sound: 'victory', gain: 0.8, cooldown: 500 }
+        portal_win: { sound: 'victory', gain: 0.8, cooldown: 500 },
+        // ---- round 4: swinging ropes, puzzles, dragons ----
+        swing_grab: { sound: false, gain: 0.5, cooldown: 150, synth: 'swinggrab', sg: 0.6 },
+        swing_release: { sound: false, gain: 0.5, cooldown: 150, synth: 'swingwhoosh', sg: 0.5, sr: 1, scale: { key: 'speed', base: 0.7, per: 0.0015, min: 0.7, max: 1.6, gain: true } },
+        seq_show: { sound: false, gain: 0.5, cooldown: 60, by: { key: 'glyph', map: GLYPH_TONES }, sg: 0.5 },
+        seq_hit: { sound: false, gain: 0.5, cooldown: 60, by: { key: 'glyph', map: GLYPH_TONES }, sg: 0.65, also: [{ synth: 'ping', sg: 0.1, sr: 0.7 }] },
+        seq_fail: { sound: false, gain: 0.5, cooldown: 300, synth: 'seqfail', sg: 0.55 },
+        seq_solved: Object.assign({ cooldown: 500, synth: 'solved', sg: 0.6 }, SOLVED_FANFARE),
+        bridge_done: Object.assign({ cooldown: 500, synth: 'solved', sg: 0.6, sr: 1.122 }, SOLVED_FANFARE),
+        ritual_done: Object.assign({ cooldown: 500, synth: 'solved', sg: 0.6, sr: 0.89, also: [{ synth: 'shimmer', sg: 0.25, sr: 1, delay: 0.5 }] }, SOLVED_FANFARE),
+        lever_pull: { sound: 'impact-metal', gain: 0.5, cooldown: 150, rate: 0.7, synth: 'clank', sg: 0.5, sr: 0.5, also: [{ synth: 'ratchet', sg: 0.35, sr: 0.9, delay: 0.04 }] },
+        bridge_toggle: { sound: false, gain: 0.4, cooldown: 90, synth: 'magicping', sg: 0.5, by: { key: 'on', map: { true: { sr: 1.2 }, false: { sr: 0.7 }, '*': { sr: 1.2 } } } },
+        plate_down: { sound: 'impact-stone', gain: 0.5, cooldown: 200, rate: 1.5, synth: 'impact', sg: 0.5, sr: 1.5 },
+        stairs_up: { sound: 'impact-stone', gain: 0.35, cooldown: 400, rate: 0.6, synth: 'stairs', sg: 0.7, sr: 1.3 },
+        stairs_down: { sound: 'impact-stone', gain: 0.35, cooldown: 400, rate: 0.6, synth: 'stairs', sg: 0.7, sr: 0.75 },
+        brazier_lit: { sound: 'fire', gain: 0.3, cooldown: 120, rate: 1.3, synth: 'ignite', sg: 0.6, scale: { key: 'order', base: 1, per: 0.12, min: 0.8, max: 2 } },
+        ritual_fail: { sound: false, gain: 0.5, cooldown: 400, synth: 'fizzle', sg: 0.55, also: [{ synth: 'seqfail', sg: 0.25, sr: 0.8 }] },
+        dragon_roar: {
+            sound: 'thunder', gain: 0.55, cooldown: 800, rate: 0.6, synth: 'dragonroar', sg: 1, also: [{ synth: 'boom', sg: 0.5, sr: 0.6 }],
+            by: { key: 'kind', map: { frost: { synth: 'dragonroar_frost', sound: false } } }
+        },
+        dragon_warn: { sound: false, gain: 0.5, cooldown: 1000, synth: 'dragonwarn', sg: 0.7 },
+        dragon_breath: {
+            sound: 'fire', gain: 0.7, cooldown: 600, rate: 0.7, synth: 'dragonbreath', sg: 0.9,
+            by: { key: 'kind', map: { frost: { sound: false, synth: 'dragonbreath_frost' } } }
+        },
+        dragon_pass: { sound: false, gain: 0.5, cooldown: 800, synth: 'dragonpass', sg: 0.8 },
+        fireball_hit: { sound: 'explosion-small', gain: 0.55, cooldown: 100, rate: 0.9, vary: 0.1, synth: 'puff', sg: 0.5, sr: 0.8 }
     };
 
     function validateSoundManifest(manifest) {
@@ -724,6 +772,15 @@
             return out;
         }
 
+        // Dragon bosses speak with the dragon roar instead of the biome voice (by pattern or definition id).
+        function dragonVoice(d) {
+            if (!d) return null;
+            const id = String(d.defId || d.boss || d.enemy || d.id || '');
+            const isDragon = /dragon/i.test(id) || (typeof d.pattern === 'string' && DRAGON_PATTERNS[d.pattern] === 1);
+            if (!isDragon) return null;
+            return /frost/i.test(id) || d.kind === 'frost' ? DRAGON_VOICES.frost : DRAGON_VOICES.ember;
+        }
+
         // Extra synth layers and the per-biome boss voice of a resolved cue.
         function playExtras(cue, key, d, pan) {
             if (liveSynths >= SYNTH_CAP) return;
@@ -732,7 +789,7 @@
                 playSynth(a.synth, { gain: a.sg || 0.4, sr: a.sr || 1, v: v, delay: a.delay || 0, count: d && d.count }, pan);
             });
             if (cue.voice) {
-                (BOSS_VOICES[biome] || BOSS_VOICES.woodland).forEach(function (bv) {
+                (dragonVoice(d) || BOSS_VOICES[biome] || BOSS_VOICES.woodland).forEach(function (bv) {
                     playSynth(bv.synth, { gain: cue.voice.gain || 0.5, sr: bv.sr * (cue.voice.sr || 1), v: v, short: !!cue.voice.short }, pan);
                 });
             }
@@ -748,7 +805,7 @@
                     const d = ev.detail || null;
                     if (ev.type === 'enemy_kill' && d && d.boss) continue;
                     const cue = resolveCue(ev, base, d);
-                    const key = ev.type + ':' + ((d && (d.pattern || d.kind || d.material || d.enemy || d.defId)) || '');
+                    const key = ev.type + ':' + ((d && (d.pattern || d.kind || d.material || d.enemy || d.defId || (typeof d.glyph === 'number' ? 'g' + d.glyph : ''))) || '');
                     if (!gate(key, cue.cooldown)) continue;
                     let id = cue.sound;
                     if (id === null) {
@@ -767,8 +824,14 @@
                         rate *= ratio;
                         sr = ratio;
                     }
+                    let sg = cue.sg || 0.4;
+                    if (cue.scale && d && typeof d[cue.scale.key] === 'number') {
+                        const k = Math.max(cue.scale.min, Math.min(cue.scale.max, cue.scale.base + cue.scale.per * d[cue.scale.key]));
+                        sr *= k;
+                        if (cue.scale.gain) sg *= 0.6 + 0.4 * k;
+                    }
                     if (id && assetsById[id]) playSample(id, cue.gain, rate, pan);
-                    if (cue.synth) playSynth(cue.synth, { gain: cue.sg || 0.4, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: cue.ladder ? 1046 : 0 }, pan, /^boss_/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
+                    if (cue.synth) playSynth(cue.synth, { gain: sg, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: cue.ladder ? 1046 : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
                     if (cue.also || cue.voice) playExtras(cue, key, d, pan);
                 }
             }

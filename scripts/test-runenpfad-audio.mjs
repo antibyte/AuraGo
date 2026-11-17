@@ -124,6 +124,57 @@ assert.equal(nodeCount, before, 'unknown events are silent');
 assert.ok(controller.liveSynths() > 0 && controller.liveSynths() <= 40, 'live synth voices stay under the hard cap: ' + controller.liveSynths());
 controller.dispose();
 
+// ---- 3b. round 4 events: every new event, glyph and pattern maps to a cue and plays ----
+const R4_EVENTS = ['swing_grab', 'swing_release', 'seq_show', 'seq_hit', 'seq_fail', 'seq_solved', 'lever_pull', 'bridge_toggle', 'bridge_done',
+    'plate_down', 'stairs_up', 'stairs_down', 'brazier_lit', 'ritual_done', 'ritual_fail', 'dragon_roar', 'dragon_warn', 'dragon_breath', 'dragon_pass', 'fireball_hit'];
+R4_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], 'cue missing for ' + type));
+[0, 1, 2, 3].forEach((g) => ['seq_show', 'seq_hit'].forEach((type) => assert.ok(Audio.CUE_MAP[type].by.map[g], type + ' glyph ' + g)));
+['strafe', 'fireballs', 'roar'].forEach((p) => {
+    assert.ok(Audio.CUE_MAP.boss_attack.by.map[p], 'dragon boss attack sound missing for ' + p);
+    assert.ok(Audio.CUE_MAP.boss_telegraph.by.map[p], 'dragon boss telegraph sound missing for ' + p);
+});
+assert.ok(Audio.CUE_MAP.enemy_attack.by.map.fireball, 'drakeling fireball spit');
+const R4_CASES = [];
+R4_EVENTS.forEach((type) => R4_CASES.push({ type, detail: { x: 300, y: 200 } }, { type, detail: {} }, { type }));
+[0, 1, 2, 3].forEach((glyph) => ['seq_show', 'seq_hit'].forEach((type) => R4_CASES.push({ type, detail: { glyph, index: glyph, step: glyph, x: 50, y: 50 } })));
+R4_CASES.push({ type: 'seq_show', detail: { glyph: 9 } }, { type: 'swing_release', detail: { speed: 0 } }, { type: 'swing_release', detail: { speed: 900, x: 5 } }, { type: 'swing_release', detail: { speed: 'fast' } },
+    { type: 'bridge_toggle', detail: { on: true } }, { type: 'bridge_toggle', detail: { on: false } }, { type: 'brazier_lit', detail: { order: 0 } }, { type: 'brazier_lit', detail: { order: 4 } },
+    { type: 'dragon_roar', detail: { kind: 'ember' } }, { type: 'dragon_roar', detail: { kind: 'frost' } }, { type: 'dragon_breath', detail: { kind: 'frost', x: 1, y: 1 } },
+    { type: 'dragon_warn', detail: { x1: 0, x2: 900, laneY: 400, laneH: 60 } }, { type: 'enemy_attack', detail: { id: 4, defId: 'drakeling', kind: 'fireball', x: 10, y: 10 } });
+['strafe', 'fireballs', 'roar'].forEach((pattern) => ['boss_dragon_ember', 'boss_dragon_frost', 'boss_forest'].forEach((defId) => {
+    R4_CASES.push({ type: 'boss_attack', detail: { pattern, defId, x: 10, y: 10 } }, { type: 'boss_telegraph', detail: { kind: pattern, defId, x: 10, y: 10 } });
+}));
+R4_CASES.push({ type: 'boss_intro', detail: { defId: 'boss_dragon_frost' } });
+R4_CASES.forEach((ev) => {
+    const r4 = Audio.createAudioController({ manifest }); // fresh: the fake never ends voices, so the live-voice cap would fill up
+    r4.unlock();
+    sandbox.__t += 5;
+    const nodesBefore = nodeCount;
+    r4.handleEvents([ev], null, { x: 0, w: 800 });
+    assert.ok(nodeCount > nodesBefore, 'event builds sound: ' + JSON.stringify(ev));
+    assert.ok(nodeCount - nodesBefore < 700, 'event stays within a sane node budget: ' + JSON.stringify(ev) + ' ' + (nodeCount - nodesBefore));
+    assert.ok(r4.liveSynths() <= 40);
+    r4.dispose();
+});
+const r4 = Audio.createAudioController({ manifest });
+r4.unlock();
+sandbox.__t += 5;
+const dragonNodes = nodeCount;
+r4.handleEvents([{ type: 'boss_attack', detail: { pattern: 'strafe', defId: 'boss_dragon_frost', x: 1, y: 1 } }], null, null);
+assert.ok(nodeCount > dragonNodes, 'dragon voice plays');
+sandbox.__t += 5;
+const silent = nodeCount;
+r4.handleEvents([{ type: 'seq_wobble', detail: { glyph: 1 } }, { type: 'dragon_sneeze' }], null, null);
+assert.equal(nodeCount, silent, 'unknown round 4 events are silent');
+// Burst: many simultaneous big cues never exceed the hard voice cap.
+sandbox.__t += 50;
+for (let i = 0; i < 80; i++) {
+    sandbox.__t += 2;
+    r4.handleEvents([{ type: 'dragon_roar', detail: { kind: i % 2 ? 'frost' : 'ember', x: i } }, { type: 'dragon_breath', detail: { kind: 'ember', x: i } }, { type: 'dragon_pass', detail: { x: i } }, { type: 'seq_solved', detail: { x: i } }], null, null);
+    assert.ok(r4.liveSynths() <= 40, 'burst stays under the hard cap: ' + r4.liveSynths());
+}
+r4.dispose();
+
 // ---- 4. music builds every biome and boss theme ----
 const themeIds = Object.keys(Music.THEMES);
 ['woodland', 'cavern', 'desert', 'glacier', 'citadel'].forEach((b) => assert.ok(Music.THEMES[b] && Music.THEMES['boss_' + b]));
