@@ -172,7 +172,7 @@
         function stateFor(e) {
             let s = ent[e.id];
             if (!s) {
-                s = ent[e.id] = { sx: 1, sy: 1, vsx: 0, vsy: 0, prevHurt: 0, prevAtk: 0, burst: false };
+                s = ent[e.id] = { sx: 1, sy: 1, vsx: 0, vsy: 0, prevHurt: 0, prevAtk: 0, burst: false, deadT: 0, stateT: 0, sKey: '', clock: 0, hurtT: 0, prevPhase: 1, enrageT: 0 };
             }
             return s;
         }
@@ -209,6 +209,126 @@
             ctx.restore();
         }
 
+        // ---- painted atlas actors: enemies and the five world bosses ----
+        const Art = root.RunenpfadArt;
+        const BOSS_ART = { boss_boar: 'boss-boar', boss_goblin: 'boss-goblin', boss_orb: 'boss-orb', boss_quad: 'boss-quad', boss_mech: 'boss-mech' };
+        const BOSS_GLOW = { boss_boar: '110,231,120', boss_goblin: '250,204,21', boss_orb: '167,139,250', boss_quad: '125,211,252', boss_mech: '251,146,60' };
+        const AO = { height: 0, flip: false, alpha: 1, composite: '', rotation: 0, scale: 0, frame: undefined, flash: 0, tint: '', tintAmount: 0.55 };
+        const BOSS_DEFEAT_HOLD = 2.2;
+
+        function artIdFor(e) {
+            if (!h.art || !Art) return '';
+            const id = e.def.art || BOSS_ART[e.defId] || '';
+            return id && Art.has(h.art, id + '.idle') ? id : '';
+        }
+
+        function aoReset(height, flip) {
+            AO.height = height;
+            AO.flip = flip;
+            AO.alpha = 1;
+            AO.composite = '';
+            AO.rotation = 0;
+            AO.scale = 0;
+            AO.frame = undefined;
+            AO.flash = 0;
+            AO.tint = '';
+            AO.tintAmount = 0.55;
+        }
+
+        function drawArtEnemy(e, st, view, artId, rm) {
+            const boss = !!e.def.boss;
+            const scale = e.def.scale || 1;
+            const boxH = (boss ? 42 : 38) * scale;
+            const target = boxH * (boss ? 1.3 : 1.25);
+            const sheet = h.art.sheets[artId];
+            const center = !!sheet && sheet.def.pivot === 'center';
+            const py = center ? e.y - boxH * 0.5 : e.y;
+            const bodyY = center ? py : e.y - boxH * 0.5;
+            const ai = boss ? e.ai : null;
+            const aiState = ai ? ai.state : '';
+            const sKey = e.dead ? 'dead' : (boss ? aiState : (e.windup > 0 ? 'windup' : e.attackTimer > 0 ? 'attack' : 'idle'));
+            if (sKey !== st.sKey) { st.sKey = sKey; st.stateT = 0; } else st.stateT += lastDt;
+            st.clock += lastDt * (1 + Math.min(1.2, Math.abs(e.vx || 0) / 220));
+            st.hurtT = e.hurtTimer > 0 ? st.hurtT + lastDt : 0;
+            if (boss && e.phase === 2 && st.prevPhase !== 2) st.enrageT = 1.1;
+            if (boss) st.prevPhase = e.phase;
+            if (st.enrageT > 0) st.enrageT -= lastDt;
+            const flip = e.facing < 0;
+            let clip = artId + '.idle';
+            let time = st.clock;
+            let frame;
+            let alpha = 1;
+            let tint = '';
+            if (e.dead) {
+                clip = artId + (boss ? '.defeat' : '.death');
+                time = st.deadT;
+                alpha = boss ? (st.deadT > BOSS_DEFEAT_HOLD ? clamp((BOSS_DEFEAT_HOLD + 0.5 - st.deadT) / 0.5, 0, 1) : 1) : clamp(e.deathTimer / 0.2, 0, 1);
+            } else if (boss) {
+                if (aiState === 'telegraph') { clip = artId + '.telegraph'; frame = st.stateT < 0.32 ? 0 : 1; }
+                else if (aiState === 'attack') { clip = artId + '.attack'; frame = 0; }
+                else if (aiState === 'recover' && st.stateT < 0.4) { clip = artId + '.attack'; frame = 1; }
+                else if (st.enrageT > 0) { clip = artId + '.enraged'; frame = 0; }
+            } else if (e.hurtTimer > 0) {
+                clip = artId + '.hurt';
+                time = st.hurtT;
+            } else if (e.windup > 0) {
+                clip = artId + '.telegraph';
+                frame = e.windup > 0.3 ? 0 : 1;
+            } else if (e.attackTimer > 0) {
+                clip = artId + '.attack';
+                time = Math.max(0, 0.45 - e.attackTimer);
+            }
+            if (!Art.has(h.art, clip)) { clip = artId + '.idle'; frame = undefined; time = st.clock; }
+            if (!e.dead && e.phased) alpha = 0.34;
+            if (!e.dead && e.blockFlash > 0) tint = '#aee3ff';
+            const flash = !e.dead && e.hurtTimer > 0 ? clamp(e.hurtTimer * (boss ? 6 : 7), 0, boss ? 0.6 : 0.85) : 0;
+            if (!e.dead && !center && e.onGround) h.drawContactShadow(e.x, e.y, target * 0.62);
+            if (boss && !e.dead) drawBossArtGlow(e, bodyY, target, view, st, aiState, rm);
+            ctx.save();
+            ctx.translate(e.x, py);
+            if (!rm) ctx.scale(st.sx, st.sy);
+            aoReset(target, flip);
+            AO.alpha = alpha;
+            AO.frame = frame;
+            AO.flash = flash;
+            AO.tint = tint;
+            Art.draw(ctx, h.art, clip, time, 0, 0, AO);
+            if (boss && aiState === 'telegraph' && !e.dead) {
+                aoReset(target, flip);
+                AO.frame = frame;
+                AO.composite = 'lighter';
+                AO.tint = '#ff7a30';
+                AO.tintAmount = 0.85;
+                AO.alpha = 0.14 + 0.26 * (0.5 + 0.5 * Math.sin(view.nowSec * 20));
+                Art.draw(ctx, h.art, clip, time, 0, 0, AO);
+            }
+            ctx.restore();
+            if (!boss && !e.dead && e.hp < e.maxHp) {
+                const top = (center ? py - target * 0.5 : e.y - target) - 6;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(e.x - 19, top - 1, 38, 7);
+                ctx.fillStyle = '#fb923c';
+                ctx.fillRect(e.x - 18, top, 36 * clamp(e.hp / e.maxHp, 0, 1), 5);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+                ctx.fillRect(e.x - 18, top, 36 * clamp(e.hp / e.maxHp, 0, 1), 1.5);
+            }
+        }
+
+        // Subtle painted-boss glow: a soft body halo, a pulsing rune warning while telegraphing and an enraged ember aura in phase two.
+        function drawBossArtGlow(e, cy, target, view, st, aiState, rm) {
+            const rgb = BOSS_GLOW[e.defId] || '247,201,72';
+            const p2 = e.phase === 2;
+            const pulse = 0.5 + 0.5 * Math.sin(view.nowSec * (p2 ? 6 : 2.4));
+            if (aiState === 'telegraph') {
+                glow(e.x, cy, target * (0.75 + 0.2 * pulse), 'rgba(255, 96, 48, 0.7)', 0.4 + 0.3 * pulse);
+            } else {
+                glow(e.x, cy, target * 0.8, p2 ? 'rgba(251, 113, 133, 0.5)' : 'rgba(' + rgb + ', 0.4)', p2 ? 0.3 + 0.15 * pulse : 0.14 + 0.06 * pulse);
+            }
+            if (p2 && !rm && rnd() < lastDt * 14) {
+                addPart('bit', e.x + (rnd() - 0.5) * target * 0.6, cy + (rnd() - 0.2) * target * 0.5, (rnd() - 0.5) * 36, -40 - rnd() * 60, 0.75, 2 + rnd() * 2.2, rnd() < 0.5 ? '#ff8a5c' : '#ffd0a0');
+            }
+        }
+
         function drawEnemies(sim, view) {
             step(view);
             const stage = sim.stage;
@@ -217,9 +337,12 @@
             const rm = view.reducedMotion;
             for (let i = 0; i < stage.enemies.length; i++) {
                 const e = stage.enemies[i];
-                if (e.dead && e.deathTimer <= 0) continue;
-                if (e.x + 64 < sx0 || e.x - 64 > sx0 + view.viewW) continue;
+                const artId = artIdFor(e);
                 const st = stateFor(e);
+                if (e.dead) st.deadT += dt; else st.deadT = 0;
+                if (e.dead && e.deathTimer <= 0 && !(artId && e.def.boss && st.deadT < BOSS_DEFEAT_HOLD + 0.5)) continue;
+                const margin = artId ? 200 : 64;
+                if (e.x + margin < sx0 || e.x - margin > sx0 + view.viewW) continue;
                 if (!e.dead) st.burst = false;
                 if (!rm) {
                     if (e.hurtTimer > 0 && st.prevHurt <= 0 && !e.dead) { st.sx = 1.2; st.sy = 0.82; }
@@ -228,6 +351,10 @@
                 }
                 st.prevHurt = e.hurtTimer;
                 st.prevAtk = e.attackTimer;
+                if (artId) {
+                    drawArtEnemy(e, st, view, artId, rm);
+                    continue;
+                }
                 const size = Math.round(58 * e.def.scale);
                 const topLocal = -Math.round(size * (59 / 64)); // v3 sheets: feet end on cell row 59 (origin y 0.9375)
                 const attacking = !e.dead && e.attackTimer > 0 && h.hasAnim(e.def.pack, e.def.prefix + 'attack');
@@ -408,6 +535,244 @@
             }
         }
 
+        // ---- projectile kinds: each type gets its own silhouette ----
+        function rgba(color, a) {
+            if (color && color.charAt(0) === '#' && color.length >= 7) return 'rgba(' + parseInt(color.slice(1, 3), 16) + ',' + parseInt(color.slice(3, 5), 16) + ',' + parseInt(color.slice(5, 7), 16) + ',' + a + ')';
+            return 'rgba(126, 232, 250, ' + a + ')';
+        }
+
+        function drawSpear(pr, ang, view) {
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            ctx.rotate(ang);
+            glow(0, 0, 26, rgba(pr.color || '#fde68a', 0.6), 0.5);
+            ctx.fillStyle = '#6b4a2f';
+            ctx.fillRect(-24, -1.6, 34, 3.2);
+            ctx.fillStyle = '#a77d47';
+            ctx.fillRect(-24, -1.6, 34, 1.1);
+            ctx.fillStyle = '#e8efe9';
+            ctx.beginPath();
+            ctx.moveTo(-26, 0);
+            ctx.lineTo(-19, -4.5);
+            ctx.lineTo(-17, 0);
+            ctx.lineTo(-19, 4.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#7ee8fa';
+            ctx.beginPath();
+            ctx.moveTo(18, 0);
+            ctx.lineTo(9, -5.5);
+            ctx.lineTo(5, 0);
+            ctx.lineTo(9, 5.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(15, 0);
+            ctx.lineTo(9, -2.4);
+            ctx.lineTo(7, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawMissile(pr, ang, view) {
+            const fl = view.reducedMotion ? 1 : 0.7 + 0.3 * Math.sin(view.nowSec * 50 + pr.x);
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            ctx.rotate(ang);
+            ctx.globalCompositeOperation = 'lighter';
+            const g = ctx.createLinearGradient(-6, 0, -34 * fl, 0);
+            g.addColorStop(0, 'rgba(255, 210, 120, 0.95)');
+            g.addColorStop(0.5, 'rgba(251, 120, 40, 0.6)');
+            g.addColorStop(1, 'rgba(251, 120, 40, 0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(-5, -4);
+            ctx.lineTo(-34 * fl, 0);
+            ctx.lineTo(-5, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#7b8498';
+            ctx.fillRect(-9, -4, 20, 8);
+            ctx.fillStyle = '#c9d0dd';
+            ctx.fillRect(-9, -4, 20, 2.4);
+            ctx.fillStyle = '#d9483b';
+            ctx.beginPath();
+            ctx.moveTo(11, -4);
+            ctx.lineTo(19, 0);
+            ctx.lineTo(11, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#4a5263';
+            ctx.fillRect(-12, -7, 6, 4);
+            ctx.fillRect(-12, 3, 6, 4);
+            ctx.restore();
+            if (!view.reducedMotion && rnd() < 0.5) addPart('dust', pr.x - Math.cos(ang) * 14, pr.y - Math.sin(ang) * 14, (rnd() - 0.5) * 20, (rnd() - 0.5) * 20, 0.5, 3.5 + rnd() * 3, '#aaa69c');
+        }
+
+        function drawOrbBullet(pr, view) {
+            const r = 8 + (pr.radius ? pr.radius * 0.3 : 0);
+            const col = pr.color || '#a78bfa';
+            glow(pr.x, pr.y, r * 3.6, rgba(col, 0.7), 0.85);
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+            g.addColorStop(0, '#ffffff');
+            g.addColorStop(0.45, col);
+            g.addColorStop(1, rgba(col, 0.15));
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, TAU);
+            ctx.fill();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.strokeStyle = rgba(col, 0.95);
+            ctx.lineWidth = 1.8;
+            ctx.rotate(view.reducedMotion ? 0 : view.nowSec * 4 + pr.x * 0.02);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 1.45, r * 0.62, 0, 0, TAU);
+            ctx.stroke();
+            ctx.rotate(1.5);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, r * 1.45, r * 0.62, 0, 0, TAU);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawShockCrest(pr, view) {
+            const dir = pr.vx >= 0 ? 1 : -1;
+            const k = view.reducedMotion ? 1 : 0.9 + 0.1 * Math.sin(view.nowSec * 34 + pr.x * 0.1);
+            const hgt = 30 * k;
+            ctx.save();
+            ctx.translate(pr.x, pr.y + 12);
+            ctx.scale(dir, 1);
+            ctx.globalCompositeOperation = 'lighter';
+            const g = ctx.createLinearGradient(0, 0, 0, -hgt);
+            g.addColorStop(0, 'rgba(255, 190, 90, 0.95)');
+            g.addColorStop(1, 'rgba(255, 240, 200, 0.15)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(-34, 0);
+            ctx.quadraticCurveTo(-18, -hgt * 0.25, -4, -hgt * 0.7);
+            ctx.quadraticCurveTo(10, -hgt * 1.05, 22, -hgt * 0.35);
+            ctx.quadraticCurveTo(16, -hgt * 0.12, 26, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-14, -hgt * 0.35);
+            ctx.quadraticCurveTo(-2, -hgt * 0.8, 14, -hgt * 0.55);
+            ctx.stroke();
+            ctx.restore();
+            if (!view.reducedMotion && rnd() < 0.5) addPart('dust', pr.x - dir * 24, pr.y + 10, -dir * 30, -20 - rnd() * 20, 0.45, 4 + rnd() * 4, '#e8d8b8');
+        }
+
+        function drawSpore(pr, view) {
+            const w = view.reducedMotion ? 0 : Math.sin(view.nowSec * 14 + pr.x * 0.05) * 0.14;
+            glow(pr.x, pr.y, 30, 'rgba(134, 239, 172, 0.6)', 0.55);
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            ctx.scale(1 + w, 1 - w);
+            ctx.fillStyle = '#3f9a52';
+            ctx.beginPath();
+            ctx.arc(0, 0, 9, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = '#86efac';
+            ctx.beginPath();
+            ctx.arc(-1.5, -2, 6.4, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = '#d9ffd9';
+            ctx.beginPath();
+            ctx.arc(-3.4, -4, 2.2, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(40, 90, 50, 0.75)';
+            ctx.beginPath();
+            ctx.arc(3, 2, 1.8, 0, TAU);
+            ctx.arc(-2, 4, 1.3, 0, TAU);
+            ctx.fill();
+            ctx.restore();
+            if (!view.reducedMotion && rnd() < 0.3) addPart('bit', pr.x, pr.y, (rnd() - 0.5) * 30, -10 - rnd() * 24, 0.5, 2, '#86efac');
+        }
+
+        function drawCannonBolt(pr, ang, view) {
+            glow(pr.x, pr.y, 34, 'rgba(251, 146, 60, 0.6)', 0.6);
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            ctx.rotate(ang);
+            const g = ctx.createRadialGradient(-3, -3, 1, 0, 0, 10);
+            g.addColorStop(0, '#7b8498');
+            g.addColorStop(1, '#1d2230');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(0, 0, 8.5, 0, TAU);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(251, 146, 60, 0.9)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(0, 0, 8.5, -0.9, 0.9);
+            ctx.stroke();
+            ctx.restore();
+            if (!view.reducedMotion && rnd() < 0.5) addPart('dust', pr.x - Math.cos(ang) * 9, pr.y, (rnd() - 0.5) * 20, -10, 0.4, 3 + rnd() * 3, '#8d8576');
+        }
+
+        // Ranger bolt: slim rune arrow with trailing glyphs.
+        function drawRangerBolt(pr, ang, view) {
+            const col = pr.color || '#7ee8fa';
+            glow(pr.x, pr.y, 30, rgba(col, 0.6), 0.7);
+            ctx.save();
+            ctx.translate(pr.x, pr.y);
+            ctx.rotate(ang);
+            ctx.globalCompositeOperation = 'lighter';
+            const g = ctx.createLinearGradient(0, 0, -44, 0);
+            g.addColorStop(0, rgba(col, 0.95));
+            g.addColorStop(1, rgba(col, 0));
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.moveTo(10, 0);
+            ctx.lineTo(-44, -2.4);
+            ctx.lineTo(-44, 2.4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.moveTo(14, 0);
+            ctx.lineTo(3, -3.2);
+            ctx.lineTo(-6, 0);
+            ctx.lineTo(3, 3.2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = rgba(col, 0.9);
+            for (let i = 1; i <= 3; i++) {
+                const gx = -i * 14 - ((view.nowSec * 40) % 14);
+                const s = 3.2 - i * 0.6;
+                ctx.globalAlpha = 0.9 - i * 0.22;
+                ctx.beginPath();
+                ctx.moveTo(gx, -s);
+                ctx.lineTo(gx + s, 0);
+                ctx.lineTo(gx, s);
+                ctx.lineTo(gx - s, 0);
+                ctx.closePath();
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Returns true when the projectile type has its own look.
+        function drawKind(pr, view) {
+            const ang = Math.atan2(pr.vy, pr.vx || 0.001);
+            if (pr.kind === 'spear') drawSpear(pr, ang, view);
+            else if (pr.kind === 'missile') drawMissile(pr, ang, view);
+            else if (pr.kind === 'orb') drawOrbBullet(pr, view);
+            else if (pr.kind === 'shock') drawShockCrest(pr, view);
+            else if (pr.kind === 'spore') drawSpore(pr, view);
+            else if (!pr.kind && pr.fromEnemy && pr.color === '#fb923c') drawCannonBolt(pr, ang, view);
+            else if (!pr.kind && !pr.fromEnemy) drawRangerBolt(pr, ang, view);
+            else return false;
+            return true;
+        }
+
         function drawProjectiles(sim, view) {
             const list = sim.projectiles;
             if (!list.length) {
@@ -417,6 +782,7 @@
             for (let i = 0; i < list.length; i++) {
                 const pr = list[i];
                 if (pr.dead) continue;
+                if (drawKind(pr, view)) continue;
                 const color = pr.color || (pr.fromEnemy ? '#fb7185' : '#7ee8fa');
                 const sp = Math.hypot(pr.vx, pr.vy) || 1;
                 const nx = pr.vx / sp;
@@ -443,7 +809,7 @@
                 ctx.lineTo(pr.x - nx * len * 0.5, pr.y - ny * len * 0.5);
                 ctx.stroke();
                 ctx.restore();
-                glow(pr.x, pr.y, rad * 5, color.charAt(0) === '#' ? 'rgba(' + parseInt(color.slice(1, 3), 16) + ',' + parseInt(color.slice(3, 5), 16) + ',' + parseInt(color.slice(5, 7), 16) + ',0.6)' : 'rgba(126, 232, 250, 0.6)', 0.75);
+                glow(pr.x, pr.y, rad * 5, rgba(color, 0.6), 0.75);
                 ctx.save();
                 ctx.translate(pr.x, pr.y);
                 ctx.rotate(Math.atan2(ny, nx));

@@ -871,6 +871,9 @@
             winCard.hidden = true;
             loseCard.hidden = true;
             loadingText.textContent = '…';
+            // The painted art atlas loads in parallel; it never blocks or fails the boot (null keeps the pack sprites).
+            const Art = root.RunenpfadArt;
+            const artPromise = Art && typeof Art.load === 'function' ? Art.load(controller.signal).catch(function () { return null; }) : Promise.resolve(null);
             try {
                 const loaded = await Promise.all([
                     fetchDictionary(),
@@ -895,6 +898,10 @@
                 });
                 disposeVisuals();
                 renderer = View.createRenderer(canvas, sheets);
+                const bootRenderer = renderer;
+                artPromise.then(function (atlas) {
+                    if (!disposed && ticket === generation && renderer === bootRenderer && atlas && typeof bootRenderer.setArt === 'function') bootRenderer.setArt(atlas);
+                });
                 const Music = root.RunenpfadMusic;
                 try {
                     music = Music && Music.createMusicController(typeof audio.musicPort === 'function' ? audio.musicPort() : null);

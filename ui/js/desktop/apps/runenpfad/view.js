@@ -75,7 +75,15 @@
         let hurtPulse = 0;
         let postfx = null;
         let disposed = false;
-        let lastCam = { x: 0, y: 0, w: 960, h: 540, dpr: 1 };
+        let lastCam = { x: 0, y: 0, w: 960, h: 540, dpr: 1, zoom: 1, sw: 960, sh: 540 };
+        let zoom = 1;
+        let zoomInit = false;
+        let art = null;
+        let cineT = 0;
+        let lastStage = null;
+        let cineFlash = 0;
+        const artFx = root.RunenpfadArt && root.RunenpfadArt.createFx ? root.RunenpfadArt.createFx() : null;
+        const TARGET_WORLD_H = 624; // about 13 tiles of 48 px stay visible vertically
         const SHOCKWAVE_EVENTS = { bomb_blast: 1.0, slam_land: 0.8, boss_phase: 1.2, boss_defeat: 1.4, boss_slam: 1.1, portal_win: 1.0 };
 
         function triggerShake(amount) {
@@ -296,6 +304,13 @@
 
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             const stage = sim.stage;
+            if (stage !== lastStage) {
+                lastStage = stage;
+                camInitialized = false;
+                cineT = 0;
+                cineFlash = 0;
+                if (artFx) artFx.clear();
+            }
             const TILE = stage.tileSize;
             const nowSec = (nowMs || 0) * 0.001;
             const dt = lastNowMs ? Math.min(0.1, Math.max(0, (nowMs - lastNowMs) * 0.001)) : 1 / 60;
@@ -306,39 +321,54 @@
             const rainWeather = stage.weather === 'rain' && Biomes && Biomes.RAIN_WEATHER ? Biomes.RAIN_WEATHER : null;
             const ambient = Math.min(0.92, (biome.light ? biome.light.ambient : 0) + (stage.darkness || 0));
 
-            // Camera anchors stage bottom flush on tall screens and follows player smoothly
-            const maxX = Math.max(0, stage.width - viewW);
-            const targetX = Math.max(0, Math.min(maxX, sim.player.x - viewW * 0.38));
-            const targetY = viewH >= stage.height
-                ? stage.height - viewH
-                : Math.max(0, Math.min(stage.height - viewH, sim.player.y - viewH * 0.62));
+            // Adaptive zoom: about 13 tiles stay visible vertically (clamped 1..2), arenas with a living boss zoom out a little.
+            let bossAlive = false;
+            for (let i = 0; i < stage.enemies.length; i++) {
+                if (stage.enemies[i].def.boss && !stage.enemies[i].dead) { bossAlive = true; break; }
+            }
+            const baseZoom = Math.max(1, Math.min(2, viewH / TARGET_WORLD_H));
+            const zoomTarget = Math.max(0.85, Math.min(2, bossAlive ? baseZoom * 0.86 : baseZoom));
+            if (!zoomInit) { zoom = zoomTarget; zoomInit = true; } else zoom += (zoomTarget - zoom) * (1 - Math.exp(-dt * 2.6));
+            const z = zoom;
+            const vw = viewW / z;
+            const vh = viewH / z;
+
+            // Camera in world px: follows the player smoothly and never shows below the stage bottom.
+            const maxX = Math.max(0, stage.width - vw);
+            const maxY = stage.height - vh;
+            const targetX = Math.max(0, Math.min(maxX, sim.player.x - vw * 0.38));
+            const targetY = maxY <= 0 ? maxY : Math.max(0, Math.min(maxY, sim.player.y - vh * 0.62));
             if (!camInitialized) {
                 camX = targetX;
                 camY = targetY;
                 camInitialized = true;
             } else {
                 camX += (targetX - camX) * (1 - Math.exp(-dt * 10.5));
-                camY = viewH >= stage.height ? targetY : camY + (targetY - camY) * (1 - Math.exp(-dt * 9));
+                camY = maxY <= 0 ? targetY : camY + (targetY - camY) * (1 - Math.exp(-dt * 9));
             }
             let sx = camX;
             let sy = camY;
             // The renderer only reads sim.fx.shake; the simulation owns its decay.
+            if (cineT > 0) { cineT = Math.max(0, cineT - dt); shake = Math.max(shake, 4 + cineT * 2); }
             const totalShake = reduced ? 0 : Math.max(shake, fx ? fx.shake : 0);
             if (totalShake > 0.1) {
-                sx += (Math.sin(nowSec * 61) * totalShake);
-                sy += (Math.cos(nowSec * 53) * totalShake * 0.6);
+                sx += (Math.sin(nowSec * 61) * totalShake) / z;
+                sy += (Math.cos(nowSec * 53) * totalShake * 0.6) / z;
             }
+            if (maxY > 0 && sy > maxY) sy = maxY;
             if (shake > 0.1) shake *= Math.exp(-dt * 10.5);
             else shake = 0;
             hurtPulse = hurtPulse > 0.01 ? hurtPulse * Math.exp(-dt * 4) : 0;
-            lastCam = { x: sx, y: sy, w: viewW, h: viewH, dpr: dpr };
-            const frameView = { sx: sx, sy: sy, viewW: viewW, viewH: viewH, nowSec: nowSec, dt: dt, biome: biome, reducedMotion: reduced, ambient: ambient };
+            lastCam = { x: sx, y: sy, w: vw, h: vh, dpr: dpr, zoom: z, sw: viewW, sh: viewH };
+            const frameView = { sx: sx, sy: sy, viewW: vw, viewH: vh, zoom: z, nowSec: nowSec, dt: dt, biome: biome, reducedMotion: reduced, ambient: ambient };
             let sunScreen = null;
 
+            // Sky, parallax and weather are painted in screen space at full resolution.
+            ctx.imageSmoothingEnabled = true;
             if (atmosphere) {
-                const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
-                atmosphere.paintBackdrop(biome, sx, viewW, viewH, groundScreenY, nowSec);
-                if (typeof atmosphere.sunPosition === 'function') sunScreen = atmosphere.sunPosition(biome, sx, viewW, viewH, groundScreenY) || null;
+                const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, (stage.groundY - sy) * z));
+                atmosphere.paintBackdrop(biome, sx * z, viewW, viewH, groundScreenY, nowSec);
+                if (typeof atmosphere.sunPosition === 'function') sunScreen = atmosphere.sunPosition(biome, sx * z, viewW, viewH, groundScreenY) || null;
                 atmosphere.paintWeather(biome, viewW, viewH, nowSec, reduced ? 0.35 : 1, groundScreenY, rainWeather);
             } else {
                 ctx.fillStyle = biome.sky[0];
@@ -346,13 +376,16 @@
             }
 
             ctx.save();
-            ctx.translate(-Math.round(sx), -Math.round(sy));
+            ctx.setTransform(dpr * z, 0, 0, dpr * z, -Math.round(sx * z * dpr), -Math.round(sy * z * dpr));
+            // Pack sprites stay crisp when magnified; the painted atlas art smooths itself.
+            ctx.imageSmoothingEnabled = dpr * z < 1.3;
+            if (artFx && art) artFx.step(sim, dt, frameView, art);
 
             callHook(decor, 'drawBehind', sim, frameView);
 
             // Scenery (nature-assets) grounded directly on terrain
             stage.scenery.forEach(function (prop) {
-                if (prop.x + 80 < sx || prop.x - 80 > sx + viewW) return;
+                if (prop.x + 80 < sx || prop.x - 80 > sx + vw) return;
                 drawStaticAsset('nature-assets', prop.assetId, prop.x - 36, prop.y - 64, 72, 72, false, 0.94);
             });
 
@@ -368,7 +401,7 @@
                 if (tile.broken) return;
                 const tx = tile.tx * TILE;
                 const ty = tile.ty * TILE;
-                if (tx + TILE < sx || tx > sx + viewW) return;
+                if (tx + TILE < sx || tx > sx + vw) return;
                 const hasAbove = !!solidMap[tile.tx + ',' + (tile.ty - 1)];
                 ctx.fillStyle = backingColor;
                 ctx.fillRect(tx, ty + (hasAbove ? 0 : 4), TILE + 1, TILE - (hasAbove ? -1 : 3));
@@ -383,7 +416,7 @@
                 if (tile.broken) return;
                 const tx = tile.tx * TILE;
                 const ty = tile.ty * TILE;
-                if (tx + TILE < sx || tx > sx + viewW) return;
+                if (tx + TILE < sx || tx > sx + vw) return;
                 const hasAbove = !!solidMap[tile.tx + ',' + (tile.ty - 1)];
                 if (!hasAbove) {
                     ctx.fillStyle = 'rgba(255, 246, 214, 0.16)';
@@ -404,7 +437,7 @@
             // Static / crumbling / spring platforms (deck top sits flush at p.y, edge-to-edge tiles)
             stage.platforms.forEach(function (p) {
                 if (!p.solid) return;
-                if (p.x + p.w < sx || p.x > sx + viewW) return;
+                if (p.x + p.w < sx || p.x > sx + vw) return;
                 const jitter = p.crumbleTimer > 0 && !prefersReducedMotion() ? Math.sin(nowSec * 55) * 2.5 : 0;
                 const crop = PLATFORM_CROPS[p.assetId];
                 if (crop) {
@@ -425,8 +458,9 @@
                 drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec + 0.25, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x + TILE, mp.y - 1, TILE + 1, magicH);
             });
 
-            // Checkpoints (campfire grounded at surface)
-            stage.checkpoints.forEach(function (cp) {
+            // Checkpoints (painted banner stone, campfire fallback grounded at surface)
+            const artCheckpoints = !!(art && stageArt && stageArt.drawCheckpoints && stageArt.drawCheckpoints(sim, frameView));
+            if (!artCheckpoints) stage.checkpoints.forEach(function (cp) {
                 if (cp.activated) {
                     drawGlow(cp.x, cp.y + 4, 108, 'rgba(255, 168, 76, 0.55)', 0.75);
                     drawAnimation('assets-animated', 'campfire', nowSec, cp.x - 28, cp.y + 2, 56, 56);
@@ -445,7 +479,9 @@
             }
 
             // Exit Portal
-            if (stage.portal) {
+            if (stage.portal && art && stageArt && stageArt.drawPortal && stageArt.drawPortal(sim, frameView)) {
+                // painted portal handled by stage art
+            } else if (stage.portal) {
                 const unlocked = sim.hasKey;
                 if (unlocked) drawGlow(stage.portal.x, stage.portal.y + 14, 132, 'rgba(126, 232, 250, 0.55)', 0.8);
                 drawAnimation('assets-animated', 'portal', nowSec, stage.portal.x - 32, stage.portal.y - 10, 64, 64, false, unlocked ? 1.0 : 0.45);
@@ -453,7 +489,7 @@
 
             // Hazards
             stage.hazards.forEach(function (h) {
-                if (h.x + h.w < sx || h.x > sx + viewW) return;
+                if (h.x + h.w < sx || h.x > sx + vw) return;
                 if (h.kind === 'saw') {
                     // Spin around the blade centre (render time only); alternate direction by tile parity, ghost for blur.
                     const spin = reduced ? 0 : nowSec * 7.5 * ((Math.round(h.x / TILE) & 1) ? -1 : 1);
@@ -480,7 +516,7 @@
 
             // Falling stones
             (stage.boulders || []).forEach(function (b) {
-                if (b.x + b.w < sx || b.x > sx + viewW) return;
+                if (b.x + b.w < sx || b.x > sx + vw) return;
                 if (b.state === 'falling') {
                     drawGlow(b.x + b.w / 2, b.y + b.h / 2, 70, 'rgba(207, 195, 174, 0.5)', 0.55);
                 }
@@ -489,7 +525,7 @@
 
             // Rune shrines
             (stage.shrines || []).forEach(function (sh) {
-                if (sh.x + 60 < sx || sh.x - 60 > sx + viewW) return;
+                if (sh.x + 60 < sx || sh.x - 60 > sx + vw) return;
                 if (sh.taken) {
                     drawStaticAsset('nature-assets', 'blue_crystals', sh.x - 20, sh.y - 24, 40, 40, false, 0.4);
                     return;
@@ -514,7 +550,11 @@
             const bob = prefersReducedMotion() ? 0 : Math.sin(nowSec * 4) * 3.5;
             stage.collectibles.forEach(function (item) {
                 if (item.collected) return;
-                if (item.x + 32 < sx || item.x - 32 > sx + viewW) return;
+                if (item.x + 32 < sx || item.x - 32 > sx + vw) return;
+                if (item.type === 'rune_orb') {
+                    callHook(stageArt, 'drawRuneOrb', item, frameView, bob);
+                    return;
+                }
                 if (item.kind === 'gem') {
                     drawGlow(item.x, item.y, 78, 'rgba(126, 232, 250, 0.6)', 0.7);
                 } else if (item.kind === 'star') {
@@ -544,7 +584,8 @@
                 drawAnimation('assets-animated', fx2.animId, 0.5 - fx2.timer, fx2.x - 28, fx2.y - 28, 56, 56, false, 1.0, true);
             });
 
-            // Particle layer (sparks, dust, shards, rings)
+            // Sprite FX from the painted atlas, then the procedural particle layer (sparks, dust, shards, rings)
+            if (artFx && art) artFx.draw(ctx, art, frameView);
             drawParticles(sim);
 
             callHook(stageArt, 'drawOverlay', sim, frameView);
@@ -565,7 +606,7 @@
             ctx.restore();
 
             if (atmosphere) {
-                const fgGround = Math.min(viewH * 1.15, Math.max(viewH * 0.5, stage.groundY - sy));
+                const fgGround = Math.min(viewH * 1.15, Math.max(viewH * 0.5, (stage.groundY - sy) * z));
                 if (rainWeather) atmosphere.paintRainFront(rainWeather, viewW, viewH, nowSec, fgGround, reduced ? 0.35 : 1);
             }
 
@@ -574,7 +615,13 @@
                 const lights = collectLights(sim, stage, biome, nowSec, ambient);
                 callHook(decor, 'collectLights', sim, frameView, lights);
                 callHook(stageArt, 'collectLights', sim, frameView, lights);
-                atmosphere.paintLighting(biome, sx, sy, viewW, viewH, lights, nowSec, ambient);
+                for (let i = 0; i < lights.length; i++) {
+                    const lt = lights[i];
+                    lt.x = (lt.x - sx) * z;
+                    lt.y = (lt.y - sy) * z;
+                    lt.radius = (lt.radius || 100) * z;
+                }
+                atmosphere.paintLighting(biome, 0, 0, viewW, viewH, lights, nowSec, ambient);
             }
             const gpu = !!(postfx && postfx.isEnabled());
             if (atmosphere && !gpu) {
@@ -589,6 +636,16 @@
                 ctx.fillStyle = fx.flashColor || '#ffffff';
                 ctx.fillRect(0, 0, viewW, viewH);
                 ctx.restore();
+            }
+
+            if (cineFlash > 0.01) {
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = Math.min(0.85, cineFlash);
+                ctx.fillStyle = '#fff6dc';
+                ctx.fillRect(0, 0, viewW, viewH);
+                ctx.restore();
+                cineFlash *= Math.exp(-dt * 3.2);
             }
 
             if (gpu) {
@@ -648,7 +705,7 @@
         }
 
         function worldToScreen(x, y) {
-            return { x: (x - lastCam.x) , y: (y - lastCam.y) };
+            return { x: (x - lastCam.x) * lastCam.zoom, y: (y - lastCam.y) * lastCam.zoom };
         }
 
         function handleEvents(events, sim) {
@@ -661,6 +718,8 @@
                 const wy = typeof d.y === 'number' ? d.y : (pl ? pl.y : 0);
                 if (ev.type === 'player_hurt') hurtPulse = 1;
                 if (ev.type === 'player_hurt' || ev.type === 'boss_defeat') triggerShake(7);
+                if (ev.type === 'boss_defeat' && !prefersReducedMotion()) { cineT = 1.6; cineFlash = 0.75; }
+                if (artFx && art) artFx.onEvent(ev, sim);
                 if (SHOCKWAVE_EVENTS[ev.type] && postfx) {
                     const sp = worldToScreen(wx, wy);
                     postfx.pushShockwave(sp.x, sp.y, SHOCKWAVE_EVENTS[ev.type]);
@@ -675,11 +734,17 @@
                 return;
             }
             postfx = p;
-            if (typeof p.resize === 'function') p.resize(Math.round(lastCam.w * lastCam.dpr), Math.round(lastCam.h * lastCam.dpr));
+            if (typeof p.resize === 'function') p.resize(Math.round(lastCam.sw * lastCam.dpr), Math.round(lastCam.sh * lastCam.dpr));
         }
 
         function getCamera() {
-            return { x: lastCam.x, y: lastCam.y, w: lastCam.w, h: lastCam.h, dpr: lastCam.dpr };
+            return { x: lastCam.x, y: lastCam.y, w: lastCam.w, h: lastCam.h, dpr: lastCam.dpr, zoom: lastCam.zoom };
+        }
+
+        // Hands the decoded art atlas to the renderer (null keeps the pack sprites).
+        function setArt(atlas) {
+            art = atlas || null;
+            if (artFx) artFx.clear();
         }
 
         function dispose() {
@@ -706,6 +771,7 @@
             drawContactShadow: drawContactShadow,
             getFrame: getFrame,
             hasAnim: hasAnim,
+            get art() { return art; },
             get reducedMotion() { return prefersReducedMotion(); }
         };
         function makeHook(mod) {
@@ -776,6 +842,7 @@
             handleEvents: handleEvents,
             attachPostfx: attachPostfx,
             getCamera: getCamera,
+            setArt: setArt,
             dispose: dispose
         };
     }

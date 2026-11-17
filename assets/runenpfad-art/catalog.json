@@ -1,0 +1,1247 @@
+{
+ "version": 1,
+ "sheets": [
+  {
+   "id": "boss-boar",
+   "file": "boss-boar.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "feet",
+   "kind": "boss",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 150,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 160,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "enraged": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "defeat": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 420,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: ALPHA BOAR, ancient forest boar, a large world boss. A colossal armoured wild boar, dark bristly fur, mossy bark-like armour plates and huge curved tusks carved with glowing green runes, small fierce red eyes; signature attack: lowering the head and charging with tusks forward, then rearing up to stomp. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The character stands on an invisible common baseline: in every cell the lowest point of the feet sits at exactly the same height, about 8 percent above the bottom edge of the cell, horizontally centered. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a menacing idle/move loop; frames 5-8 the signature attack (5 anticipation, 6 wind-up with glowing runes as a warning tell, 7 strike at full extension, 8 recovery); frame 9 hurt flinch with a pale flash; frame 10 enraged phase-two pose with intensely glowing runes and steam or sparks; frames 11-12 defeat (11 staggering and cracking with light bursting out, 12 collapsed and broken). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 180 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "boss-boar.png",
+   "sourceSha256": "81721ffaf066b1fdf0ef5815f53dbabbebb97414df632bad23079f7e1c84b698"
+  },
+  {
+   "id": "boss-goblin",
+   "file": "boss-goblin.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "feet",
+   "kind": "boss",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 150,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 160,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "enraged": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "defeat": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 420,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: DEEP GOBLIN WARLORD, a large world boss. A hulking goblin chieftain with green skin, a crown of cave crystals, a heavy fur mantle, bone and iron armour, carrying a huge crystal-tipped spear-staff and a lantern on his belt; signature attack: leaping and throwing the spear-staff overhead. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The character stands on an invisible common baseline: in every cell the lowest point of the feet sits at exactly the same height, about 8 percent above the bottom edge of the cell, horizontally centered. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a menacing idle/move loop; frames 5-8 the signature attack (5 anticipation, 6 wind-up with glowing runes as a warning tell, 7 strike at full extension, 8 recovery); frame 9 hurt flinch with a pale flash; frame 10 enraged phase-two pose with intensely glowing runes and steam or sparks; frames 11-12 defeat (11 staggering and cracking with light bursting out, 12 collapsed and broken). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 180 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "boss-goblin.png",
+   "sourceSha256": "63a63c19e643fa032d0af994a8b4774c7185e72f457b451e6b722f88750acf42"
+  },
+  {
+   "id": "boss-orb",
+   "file": "boss-orb.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "center",
+   "kind": "boss",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 150,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 160,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "enraged": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "defeat": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 420,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SUN GUARDIAN ORB construct, a large world boss. An ancient floating golden sphere construct from desert ruins: a polished sandstone-and-gold core with a single glowing amber eye, surrounded by two rotating bronze rune rings and small orbiting sun shards; signature attack: the eye charging up and firing a beam while the rings spin fast. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The creature hovers, its body centered at the exact cell center in every frame. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a menacing idle/move loop; frames 5-8 the signature attack (5 anticipation, 6 wind-up with glowing runes as a warning tell, 7 strike at full extension, 8 recovery); frame 9 hurt flinch with a pale flash; frame 10 enraged phase-two pose with intensely glowing runes and steam or sparks; frames 11-12 defeat (11 staggering and cracking with light bursting out, 12 collapsed and broken). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 180 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "boss-orb.png",
+   "sourceSha256": "26ce43839e30b675d9b2a87a3af44611ac4ad68734b82fa5b151e6bf64647f1e"
+  },
+  {
+   "id": "boss-quad",
+   "file": "boss-quad.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "center",
+   "kind": "boss",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 150,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 160,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "enraged": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "defeat": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 420,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: GLACIER ROTOR SENTINEL, a large world boss. A large flying frost-rune clockwork drone with four frosted rotor blades on brass arms, an ice-crystal core glowing pale blue, icicles hanging from its hull and a cold steam exhaust; signature attack: tilting forward and diving with the rotors screaming. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The creature hovers, its body centered at the exact cell center in every frame. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a menacing idle/move loop; frames 5-8 the signature attack (5 anticipation, 6 wind-up with glowing runes as a warning tell, 7 strike at full extension, 8 recovery); frame 9 hurt flinch with a pale flash; frame 10 enraged phase-two pose with intensely glowing runes and steam or sparks; frames 11-12 defeat (11 staggering and cracking with light bursting out, 12 collapsed and broken). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 180 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "boss-quad.png",
+   "sourceSha256": "a0df01490bcd5fb9bacb2d925ceb574a4f10d850ce0c88135becb073cb44059b"
+  },
+  {
+   "id": "boss-mech",
+   "file": "boss-mech.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "feet",
+   "kind": "boss",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 150,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 160,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8
+     ],
+     "ms": 120,
+     "loop": false
+    },
+    "enraged": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "defeat": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 420,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CHRONOS WAR MECH, a large world boss. A towering two-legged clockwork battle mech of dark iron and polished brass with a giant exposed clock gear core glowing orange, shoulder missile pods and a piston fist; signature attack: crouching and launching missiles from the shoulder pods while the core blazes. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The character stands on an invisible common baseline: in every cell the lowest point of the feet sits at exactly the same height, about 8 percent above the bottom edge of the cell, horizontally centered. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a menacing idle/move loop; frames 5-8 the signature attack (5 anticipation, 6 wind-up with glowing runes as a warning tell, 7 strike at full extension, 8 recovery); frame 9 hurt flinch with a pale flash; frame 10 enraged phase-two pose with intensely glowing runes and steam or sparks; frames 11-12 defeat (11 staggering and cracking with light bursting out, 12 collapsed and broken). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 180 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "boss-mech.png",
+   "sourceSha256": "504241f225da894eb9e9151a567b301e1577a96a00c6b5d40f13596be506605d"
+  },
+  {
+   "id": "enemy-sporecap",
+   "file": "enemy-sporecap.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "feet",
+   "kind": "enemy",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 140,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 140,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 110,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8,
+      9
+     ],
+     "ms": 90,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 220,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SPORECAP mushroom spitter, an enemy creature. A squat walking toadstool creature with a wide red-and-cream spotted cap, angry little eyes under the cap rim, stubby root legs; it attacks by puffing a burst of toxic green spores out of its cap. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The character stands on an invisible common baseline: in every cell the lowest point of the feet sits at exactly the same height, about 8 percent above the bottom edge of the cell, horizontally centered. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a smooth walk or move loop; frames 5-8 the attack (5 anticipation, 6 wind-up, 7 strike at full extension, 8 recovery); frames 9-10 a hurt flinch recoiling backwards with a brief pale flash on the body; frames 11-12 defeat (11 collapsing, 12 lying broken or dissolving). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 72 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "enemy-sporecap.png",
+   "sourceSha256": "c4d2c257dfe1807a76258277295246b702606c91e7c7a6b263790f6e14b6bd77"
+  },
+  {
+   "id": "enemy-crystalbat",
+   "file": "enemy-crystalbat.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "center",
+   "kind": "enemy",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 140,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 140,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 110,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8,
+      9
+     ],
+     "ms": 90,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 220,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CRYSTAL BAT, an enemy creature. A cave bat whose wings and back are grown with glowing violet-cyan crystal shards, big ears, sharp fangs, glowing eyes; it attacks with a diving bite, wings folded back. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The creature hovers, its body centered at the exact cell center in every frame. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a smooth wing-flap flying loop; frames 5-8 the attack (5 anticipation, 6 wind-up, 7 strike at full extension, 8 recovery); frames 9-10 a hurt flinch recoiling backwards with a brief pale flash on the body; frames 11-12 defeat (11 collapsing, 12 lying broken or dissolving). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 72 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "enemy-crystalbat.png",
+   "sourceSha256": "e751a281645475d731a2701625f8dbbf37ff08b407865a951b551013a3f3e8d2"
+  },
+  {
+   "id": "enemy-scarab",
+   "file": "enemy-scarab.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "feet",
+   "kind": "enemy",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 140,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 140,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 110,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8,
+      9
+     ],
+     "ms": 90,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 220,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SCARAB SHIELD BEETLE, an enemy creature. A large desert scarab beetle with a polished bronze-and-turquoise carapace and a heavy rune-engraved horn plate held in front like a shield; it attacks by ramming with the horn plate. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The character stands on an invisible common baseline: in every cell the lowest point of the feet sits at exactly the same height, about 8 percent above the bottom edge of the cell, horizontally centered. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a smooth walk or move loop; frames 5-8 the attack (5 anticipation, 6 wind-up, 7 strike at full extension, 8 recovery); frames 9-10 a hurt flinch recoiling backwards with a brief pale flash on the body; frames 11-12 defeat (11 collapsing, 12 lying broken or dissolving). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 72 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "enemy-scarab.png",
+   "sourceSha256": "77356fb425d4606e35fad95207710d073adf8f7e49bf4be26ffb8f0c489acaf2"
+  },
+  {
+   "id": "enemy-frostwraith",
+   "file": "enemy-frostwraith.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "center",
+   "kind": "enemy",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 140,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 140,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 110,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8,
+      9
+     ],
+     "ms": 90,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 220,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: FROST WRAITH, an enemy creature. A hovering ghostly spirit made of pale blue mist and ice, with a hooded icy skull face, long trailing wisps instead of legs and claws of frost; it attacks by thrusting icy claws; parts of it are slightly translucent. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The creature hovers, its body centered at the exact cell center in every frame. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a slow floating hover loop with trailing wisps; frames 5-8 the attack (5 anticipation, 6 wind-up, 7 strike at full extension, 8 recovery); frames 9-10 a hurt flinch recoiling backwards with a brief pale flash on the body; frames 11-12 defeat (11 collapsing, 12 lying broken or dissolving). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 72 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "enemy-frostwraith.png",
+   "sourceSha256": "43a83b04a88f6dd88c03806bed1746b0913fa9b90b5b51e6a722b28a00436e71"
+  },
+  {
+   "id": "enemy-clockknight",
+   "file": "enemy-clockknight.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "feet",
+   "kind": "enemy",
+   "default": "idle",
+   "clips": {
+    "idle": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 140,
+     "loop": true
+    },
+    "telegraph": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 140,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 110,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      8,
+      9
+     ],
+     "ms": 90,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 220,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CLOCKWORK KNIGHT, an enemy creature. A stocky brass-and-iron clockwork automaton knight with a round porthole visor glowing amber, exposed gears in the chest, a heavy tower shield and a short war hammer; it attacks by slamming the hammer down. Exactly 12 animation frames, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer. The character stands on an invisible common baseline: in every cell the lowest point of the feet sits at exactly the same height, about 8 percent above the bottom edge of the cell, horizontally centered. Same character design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a smooth walk or move loop; frames 5-8 the attack (5 anticipation, 6 wind-up, 7 strike at full extension, 8 recovery); frames 9-10 a hurt flinch recoiling backwards with a brief pale flash on the body; frames 11-12 defeat (11 collapsing, 12 lying broken or dissolving). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when scaled down to 72 pixels tall.  Each frame fits within 82 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No duplicate frames, no extra characters, no projectiles detached from the body.",
+   "source": "enemy-clockknight.png",
+   "sourceSha256": "6e1f3ee68f6a1a476c9b4128a0a464ea4194aaac2d4b57dba649e440202b1d50"
+  },
+  {
+   "id": "fx-slash",
+   "file": "fx-slash.webp",
+   "cols": 3,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SWORD SLASH crescent visual effect. Exactly 6 animation frames, precisely arranged in a regular 3-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a thin bright starting arc at the upper right; 2 a growing silver-white crescent with an icy blue edge; 3 the full wide crescent swinging from top to bottom in front of the sword arm, with speed streaks; 4 the crescent thinning and splitting; 5 fading crescent wisps with small sparkles; 6 a few last sparkles. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. The crescent opens towards the right, as a sword swing seen from the side. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-slash.png",
+   "sourceSha256": "82ed6f5fc1d41eaab2e3fb3d5f8bd47a7318e4aea6554a53ca0db1d3f1e5f845"
+  },
+  {
+   "id": "fx-hit",
+   "file": "fx-hit.webp",
+   "cols": 3,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: IMPACT HIT spark visual effect. Exactly 6 animation frames, precisely arranged in a regular 3-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a small white-hot dot; 2 a sharp four-to-eight-point white-yellow impact star; 3 the largest star with radiating sharp shards and a thin ring; 4 shards flying outwards, star shrinking; 5 small orange shards and a faint ring; 6 three tiny embers. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds.  Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-hit.png",
+   "sourceSha256": "0b1dcdfa3c19e8dbf4d4e46cc8ecd96990bb0a6cdf21e499b1341feda105364b"
+  },
+  {
+   "id": "fx-dust",
+   "file": "fx-dust.webp",
+   "cols": 3,
+   "rows": 2,
+   "pivot": "base",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: LANDING DUST puff visual effect. Exactly 6 animation frames, precisely arranged in a regular 3-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a small flat dust puff; 2 two dust clouds pushed out left and right along the ground; 3 the widest puffs rolling outwards with a few pebbles; 4 puffs rising and thinning; 5 faint wisps; 6 last tiny wisps. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Warm beige-brown dust, side view; every frame shares a flat ground line near the bottom of the cell. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-dust.png",
+   "sourceSha256": "c6a689cfeceea5198ae34a1cfea1bf0adaed09bdeed3ddf77fde2299d2da0ebe"
+  },
+  {
+   "id": "fx-frost",
+   "file": "fx-frost.webp",
+   "cols": 3,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: FROST SHATTER visual effect. Exactly 6 animation frames, precisely arranged in a regular 3-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a small pale-blue ice crystal; 2 a cluster of sharp ice crystals forming; 3 the ice cluster cracking with white light; 4 the ice shattering into many angular shards flying outwards; 5 small shards and snowflakes; 6 a few glittering flakes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds.  Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-frost.png",
+   "sourceSha256": "8a1fafe144f5576782a4a70acd0a9be3fc50fa3679bfe95ab5c448121870d34e"
+  },
+  {
+   "id": "fx-poison",
+   "file": "fx-poison.webp",
+   "cols": 3,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOXIC SPORE CLOUD visual effect. Exactly 6 animation frames, precisely arranged in a regular 3-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a small puff of yellow-green spores; 2 a growing round toxic cloud with tiny spore dots; 3 the largest bubbling sickly green cloud with darker purple shading; 4 the cloud drifting and thinning; 5 scattered spore wisps; 6 last faint spores. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds.  Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-poison.png",
+   "sourceSha256": "56d64ef925acf3a2f995b623a2d38fb52211a9b18ad8e6e4829bb59f6b7cbecf"
+  },
+  {
+   "id": "fx-explosion",
+   "file": "fx-explosion.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 70,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 90,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for a 2D fantasy side-scrolling action platformer called Runenpfad (rune path). Asset: FIERY RUNE EXPLOSION effect. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell the same size, every effect centered at the exact cell center. Square-ish 2048 x 1024 sheet, genuinely transparent alpha background (real alpha channel, not a painted checkerboard and not a solid colour), no text, labels, numbers, grid lines or backdrop. Frames: 1 a tiny bright white-yellow spark core; 2 a flash ball with a faint glowing golden rune ring; 3 a bursting orange fireball with radiating shards; 4 the largest fireball with billowing orange-red flame tongues and flying embers; 5 flames breaking up into curling smoke puffs with glowing edges; 6 dark grey-violet smoke with a few remaining embers; 7 thinning smoke wisps; 8 last faint smoke and two tiny embers. Crisp 16-bit era pixel-art clusters with clean dark outlines on the smoke, saturated warm palette, readable on both dark and light backgrounds. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another or the sheet edge. No duplicate frames, no added objects.",
+   "source": "fx-explosion.png",
+   "sourceSha256": "d78055f9c85803195d9bbebb5cd8655ea4a192c00f72ae9f24e69fc12832c25d"
+  },
+  {
+   "id": "fx-rune-burst",
+   "file": "fx-rune-burst.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: ARCANE RUNE BURST visual effect. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a small cyan glowing dot; 2 a bright cyan-blue orb with a thin rune circle; 3 an expanding ring of glowing Norse-style rune glyphs around a white core; 4 the largest burst: rune ring, light rays and blue-violet sparks; 5 rune glyphs drifting outwards and fading; 6 a broken ring of sparks; 7 faint cyan motes; 8 two last tiny motes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Glyphs are abstract angular rune marks, never readable Latin letters. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-rune-burst.png",
+   "sourceSha256": "ce48778da42be61253200e2e667bdeaa57366d81bb9eb157f2882f5704217b8b"
+  },
+  {
+   "id": "fx-sparkle",
+   "file": "fx-sparkle.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 65,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 85,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: HEALING SPARKLE visual effect. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a single small green-gold twinkle; 2 three twinkles and a soft leaf-green glow; 3 a rising spiral of green and golden sparkles; 4 the fullest spiral with tiny glowing leaves and plus-shaped glints; 5 sparkles rising higher and spreading; 6 fewer sparkles; 7 three faint glints; 8 one last glint. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds.  Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-sparkle.png",
+   "sourceSha256": "1d247298480e8af1e218783daab04a90d869ee6ab58059a3866c0c6bdf22b2d1"
+  },
+  {
+   "id": "fx-fire-pillar",
+   "file": "fx-fire-pillar.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "base",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 85,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 105,
+     "loop": true
+    },
+    "sustain": {
+     "frames": [
+      2,
+      3,
+      4,
+      3
+     ],
+     "ms": 95,
+     "loop": true
+    },
+    "warn": {
+     "frames": [
+      0,
+      1
+     ],
+     "ms": 140,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: FIRE PILLAR eruption visual effect. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 glowing embers on the ground; 2 a short flame jet bursting upwards; 3 a tall roaring pillar of orange-yellow fire; 4 the tallest pillar with a white-hot core and flying embers; 5 a tall pillar flickering; 6 the pillar shrinking; 7 low flames and smoke; 8 smouldering embers. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. The flame base sits on a flat ground line near the bottom of every cell; flames rise upwards. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-fire-pillar.png",
+   "sourceSha256": "1bdd38c03ec752835742faa919d26b1432e588d4bfb49c888603e4679921970e"
+  },
+  {
+   "id": "fx-lightning",
+   "file": "fx-lightning.webp",
+   "cols": 6,
+   "rows": 1,
+   "pivot": "base",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 55,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 75,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: LIGHTNING STRIKE visual effect. Exactly 6 animation frames, precisely arranged in a regular 6-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 768 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a faint thin forked bolt from the top of the cell; 2 a brighter jagged bolt reaching the bottom; 3 the full blinding white-blue bolt with branches and a ground burst at the bottom; 4 the bolt flickering with a second branch; 5 a fading bolt with electric sparks at the bottom; 6 leftover crackling sparks at the bottom. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each bolt runs vertically through the whole cell height; cells are tall and narrow. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-lightning.png",
+   "sourceSha256": "0d4eac045b3390b29369acdd88495a020474d79e3b7ff23a77280d2f652c8f9d"
+  },
+  {
+   "id": "fx-steam",
+   "file": "fx-steam.webp",
+   "cols": 6,
+   "rows": 1,
+   "pivot": "base",
+   "kind": "fx",
+   "default": "play",
+   "clips": {
+    "play": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 100,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "sustain": {
+     "frames": [
+      2,
+      3,
+      4,
+      3
+     ],
+     "ms": 95,
+     "loop": true
+    },
+    "warn": {
+     "frames": [
+      0,
+      1
+     ],
+     "ms": 140,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: STEAM GEYSER column visual effect. Exactly 6 animation frames, precisely arranged in a regular 6-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 768 target sheet. Every effect is centered at the exact cell center. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Frames: 1 a small hiss of steam at the bottom; 2 a rising jet of white steam and water droplets; 3 a tall powerful white-blue geyser column reaching the top; 4 the full column with spray at the top; 5 the column breaking into billowing steam; 6 drifting steam wisps. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. The geyser base sits at the bottom centre of every tall narrow cell. Each frame fits within 80 percent of its cell with fully transparent padding on all four sides; no frame touches another frame or the sheet edge. No duplicate frames, no added objects, no characters.",
+   "source": "fx-steam.png",
+   "sourceSha256": "d59463253538a03688e495cd8b838f1082d800bf4469aeee11ea899b18f4d111"
+  },
+  {
+   "id": "prop-chest",
+   "file": "prop-chest.webp",
+   "cols": 3,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "prop",
+   "default": "closed",
+   "clips": {
+    "closed": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "open": {
+     "frames": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "ms": 90,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE TREASURE CHEST opening. Exactly 6 animation frames, precisely arranged in a regular 3-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. A sturdy wooden chest with iron bands and a glowing rune lock, side three-quarter view. 1 closed; 2 the lock rune flashing; 3 the lid cracking open with golden light; 4 the lid wide open, golden light beam rising; 5 open chest with coins and gems glittering inside; 6 open chest, calm glow. Same chest size and baseline (about 8 percent above the cell bottom) in every frame. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each frame within 80 percent of its cell. No characters, no text.",
+   "source": "prop-chest.png",
+   "sourceSha256": "28b5004c5e425db98dc51898d1e7386c8ca146f2c4f18f495c7dc9566bb4eae9"
+  },
+  {
+   "id": "prop-portal",
+   "file": "prop-portal.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "prop",
+   "default": "loop",
+   "clips": {
+    "loop": {
+     "frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 100,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE PORTAL level exit, animated loop. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. An ancient standing arch of mossy grey stone blocks carved with glowing violet runes, enclosing a swirling violet-cyan magic vortex with sparkles. The stone arch is identical and stands on the same baseline (about 6 percent above the cell bottom) in all eight frames; only the vortex swirl, rune glow and sparkles animate as a seamless loop where frame 8 flows into frame 1. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each frame fits within 82 percent of its cell with transparent padding; nothing touches the edges. No characters, no text.",
+   "source": "prop-portal.png",
+   "sourceSha256": "9d6f19b91087ec159104e421d7c259bc273f0baa61545918cd402ca0e4c50e82"
+  },
+  {
+   "id": "prop-checkpoint",
+   "file": "prop-checkpoint.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "prop",
+   "default": "active",
+   "clips": {
+    "dormant": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "activate": {
+     "frames": [
+      1,
+      2,
+      3
+     ],
+     "ms": 110,
+     "loop": false
+    },
+    "active": {
+     "frames": [
+      4,
+      5,
+      6,
+      7
+     ],
+     "ms": 130,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE STONE checkpoint. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. A waist-high weathered standing stone carved with Norse-style rune marks. Frame 1 dormant: grey stone, runes dark. Frames 2-4 activation: runes igniting cyan from bottom to top with a burst of light. Frames 5-8 active seamless loop: runes glowing cyan-white, a small blue spirit flame dancing on top, a few rising motes. The stone shape and baseline (about 6 percent above the cell bottom) are identical in every frame. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each frame fits within 80 percent of its cell. No characters, no readable letters.",
+   "source": "prop-checkpoint.png",
+   "sourceSha256": "f8388a5942aafe626cdc6dd90cebe2dae2698088fc9ad0b288bf16fa9f10f6fb"
+  },
+  {
+   "id": "prop-switch",
+   "file": "prop-switch.webp",
+   "cols": 4,
+   "rows": 1,
+   "pivot": "feet",
+   "kind": "prop",
+   "default": "off",
+   "clips": {
+    "off": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "flash": {
+     "frames": [
+      1
+     ],
+     "ms": 160,
+     "loop": false
+    },
+    "on": {
+     "frames": [
+      2,
+      3
+     ],
+     "ms": 200,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE CRYSTAL SWITCH pillar. Exactly 4 animation frames, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. A short carved stone pedestal holding a floating faceted crystal. 1 dormant: dull grey-violet crystal; 2 struck: crystal flashing white with cracks of light; 3 active: crystal glowing bright cyan with a rune ring around it; 4 active pulse: brighter glow and rising motes. Identical pedestal and baseline in all four frames. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each frame within 78 percent of its cell. No characters, no text.",
+   "source": "prop-switch.png",
+   "sourceSha256": "544dbb9b8f0b9ce18abc7084008c965ab1ed73822f84f015851d55e567f5626d"
+  },
+  {
+   "id": "powerups",
+   "file": "powerups.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "prop",
+   "default": "fire",
+   "clips": {
+    "fire": {
+     "frames": [
+      0,
+      4
+     ],
+     "ms": 260,
+     "loop": true
+    },
+    "frost": {
+     "frames": [
+      1,
+      5
+     ],
+     "ms": 260,
+     "loop": true
+    },
+    "storm": {
+     "frames": [
+      2,
+      6
+     ],
+     "ms": 260,
+     "loop": true
+    },
+    "magnet": {
+     "frames": [
+      3,
+      7
+     ],
+     "ms": 260,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: four POWER-UP RUNE ORBS, two-frame glow animation. Exactly 8 animation frames, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Columns left to right: FIRE rune orb (orange-red glass sphere with a flame rune and tiny flames), FROST rune orb (ice-blue faceted sphere with a snowflake-like rune and frost crystals), STORM rune orb (yellow-white sphere crackling with lightning and a wing-like rune), MAGNET rune orb (violet sphere with a horseshoe-like rune and orbiting golden sparks). Row 1 normal glow, row 2 the same orb pulsing brighter with a stronger halo. Each orb centered in its cell, same size in both rows. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each orb within 70 percent of its cell. No text, no readable letters.",
+   "source": "powerups.png",
+   "sourceSha256": "3adbbce79e25c0103a4336b746e572e11c91cd2be5f9a3ea39fab5eca1a6fdf6"
+  }
+ ]
+}

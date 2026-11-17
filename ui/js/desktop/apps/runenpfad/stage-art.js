@@ -223,6 +223,230 @@
             });
         }
 
+        // ---- painted props (atlas) with plain fallbacks so gameplay objects never vanish ----
+        const Art = root.RunenpfadArt;
+        const O = { height: 0, flip: false, alpha: 1, composite: '', rotation: 0, scale: 0 };
+        const seen = new WeakMap();
+        const RUNE_RGB = { fire: '251,146,60', frost: '125,211,252', storm: '196,181,253', magnet: '253,224,71' };
+
+        function art(clip) {
+            return h.art && Art && Art.has(h.art, clip) ? h.art : null;
+        }
+
+        function put(clip, time, x, y, height, alpha, comp) {
+            O.height = height;
+            O.alpha = alpha == null ? 1 : alpha;
+            O.composite = comp || '';
+            O.flip = false;
+            O.rotation = 0;
+            return Art.draw(ctx, h.art, clip, time, x, y, O);
+        }
+
+        // Seconds since an object entered its "on" state; objects found already on skip their intro clip.
+        function stamp(obj, on, nowSec) {
+            let s = seen.get(obj);
+            if (!s) { s = { on: on, t0: on ? -100 : 0 }; seen.set(obj, s); }
+            if (on && !s.on) s.t0 = nowSec;
+            s.on = on;
+            return nowSec - s.t0;
+        }
+
+        function pulseK(view, rate) {
+            return view.reducedMotion ? 0.6 : 0.5 + 0.5 * Math.sin(view.nowSec * rate);
+        }
+
+        function drawPortal(sim, view) {
+            const p = sim.stage.portal;
+            if (!p || !art('prop-portal.loop')) return false;
+            const feet = p.y + (sim.stage.tileSize || 48);
+            const open = !!sim.hasKey;
+            if (open) h.drawGlow(p.x, feet - 52, 150, 'rgba(126, 232, 250, 0.55)', 0.75);
+            put('prop-portal.loop', view.nowSec, p.x, feet, 112, open ? 1 : 0.5);
+            if (open) put('prop-portal.loop', view.nowSec + 0.3, p.x, feet, 112, 0.28, 'lighter');
+            return true;
+        }
+
+        function drawCheckpoints(sim, view) {
+            const list = sim.stage.checkpoints;
+            if (!list || !art('prop-checkpoint.active')) return false;
+            const T = sim.stage.tileSize || 48;
+            for (let i = 0; i < list.length; i++) {
+                const cp = list[i];
+                if (!visible(view, cp.x, cp.x)) continue;
+                const t = stamp(cp, !!cp.activated, view.nowSec);
+                const feet = cp.y + T;
+                if (!cp.activated) {
+                    put('prop-checkpoint.dormant', 0, cp.x, feet, 84, 0.9);
+                } else if (t < Art.duration(h.art, 'prop-checkpoint.activate')) {
+                    put('prop-checkpoint.activate', t, cp.x, feet, 84);
+                    h.drawGlow(cp.x, feet - 40, 120, 'rgba(255, 190, 90, 0.6)', 0.5 + t);
+                } else {
+                    h.drawGlow(cp.x, feet - 40, 112, 'rgba(255, 190, 90, 0.55)', 0.6 + 0.15 * pulseK(view, 6));
+                    put('prop-checkpoint.active', view.nowSec, cp.x, feet, 84);
+                }
+            }
+            return true;
+        }
+
+        function drawRuneOrb(item, view, bob) {
+            const kind = item.kind || 'fire';
+            const rgb = RUNE_RGB[kind] || RUNE_RGB.fire;
+            const y = item.y + (bob || 0);
+            const k = pulseK(view, 5 + (item.x % 7));
+            h.drawGlow(item.x, y, 62 + 10 * k, 'rgba(' + rgb + ',0.65)', 0.55 + 0.25 * k);
+            if (!art('powerups.' + kind)) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(' + rgb + ',0.9)';
+                ctx.beginPath();
+                ctx.arc(item.x, y, 11, 0, TAU);
+                ctx.fill();
+                ctx.restore();
+                return;
+            }
+            put('powerups.' + kind, view.nowSec + item.x * 0.01, item.x, y, 50 + 3 * k, 1);
+            put('powerups.' + kind, view.nowSec + item.x * 0.01, item.x, y, 54, 0.22 + 0.2 * k, 'lighter');
+        }
+
+        function drawChests(sim, view) {
+            const list = sim.stage.chests;
+            if (!list) return;
+            for (let i = 0; i < list.length; i++) {
+                const c = list[i];
+                if (!visible(view, c.x, c.x)) continue;
+                const t = stamp(c, !!c.opened, view.nowSec);
+                const rgb = RUNE_RGB[c.kind] || RUNE_RGB.fire;
+                if (!c.opened) h.drawGlow(c.x, c.y - 22, 54 + 8 * pulseK(view, 3), 'rgba(' + rgb + ',0.55)', 0.4 + 0.25 * pulseK(view, 3));
+                if (art('prop-chest.closed')) {
+                    put(c.opened ? 'prop-chest.open' : 'prop-chest.closed', t, c.x, c.y + 2, 58);
+                } else {
+                    ctx.save();
+                    ctx.fillStyle = c.opened ? '#6b4a2f' : '#8a6440';
+                    ctx.fillRect(c.x - 20, c.y - 28, 40, 28);
+                    ctx.fillStyle = 'rgba(' + rgb + ',0.9)';
+                    ctx.fillRect(c.x - 4, c.y - 20, 8, 8);
+                    ctx.restore();
+                }
+            }
+        }
+
+        function drawSwitches(sim, view) {
+            const list = sim.stage.switches;
+            if (!list) return;
+            for (let i = 0; i < list.length; i++) {
+                const s = list[i];
+                if (!visible(view, s.x, s.x)) continue;
+                if (s.on) h.drawGlow(s.x, s.y - 4, 74, 'rgba(126, 232, 250, 0.6)', 0.55 + 0.2 * pulseK(view, 6));
+                if (art('prop-switch.off')) {
+                    put(s.hitFlash > 0 ? 'prop-switch.flash' : (s.on ? 'prop-switch.on' : 'prop-switch.off'), view.nowSec, s.x, s.y + 28, 58);
+                } else {
+                    ctx.save();
+                    ctx.fillStyle = s.on ? '#7ee8fa' : '#5b6a8f';
+                    ctx.beginPath();
+                    ctx.moveTo(s.x, s.y - 22);
+                    ctx.lineTo(s.x + 14, s.y);
+                    ctx.lineTo(s.x, s.y + 22);
+                    ctx.lineTo(s.x - 14, s.y);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        // Sealed gate column: glowing rune seal while closed (the open gate simply disappears with its tiles).
+        function drawGates(sim, view) {
+            const list = sim.stage.gates;
+            if (!list) return;
+            for (let i = 0; i < list.length; i++) {
+                const g = list[i];
+                if (g.open || !visible(view, g.x, g.x + g.w)) continue;
+                const k = pulseK(view, 3.2);
+                const cx = g.x + g.w / 2;
+                const cy = g.y + g.h / 2;
+                ctx.save();
+                ctx.globalCompositeOperation = 'lighter';
+                const grad = ctx.createLinearGradient(g.x, 0, g.x + g.w, 0);
+                grad.addColorStop(0, 'rgba(126, 232, 250, 0)');
+                grad.addColorStop(0.5, 'rgba(126, 232, 250, ' + (0.16 + 0.14 * k) + ')');
+                grad.addColorStop(1, 'rgba(126, 232, 250, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(g.x - 8, g.y, g.w + 16, g.h);
+                ctx.strokeStyle = 'rgba(190, 245, 255, ' + (0.5 + 0.4 * k) + ')';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 20);
+                ctx.lineTo(cx + 9, cy);
+                ctx.lineTo(cx, cy + 20);
+                ctx.lineTo(cx - 9, cy);
+                ctx.closePath();
+                ctx.moveTo(cx, cy - 20);
+                ctx.lineTo(cx, cy + 20);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function drawGeysers(sim, view) {
+            const list = sim.stage.geysers;
+            if (!list) return;
+            for (let i = 0; i < list.length; i++) {
+                const g = list[i];
+                const cx = g.x + g.w / 2;
+                if (!visible(view, g.x, g.x + g.w)) continue;
+                ctx.save();
+                ctx.fillStyle = 'rgba(30, 36, 50, 0.7)';
+                ctx.beginPath();
+                ctx.ellipse(cx, g.y + 1, g.w * 0.42, 6, 0, 0, TAU);
+                ctx.fill();
+                ctx.restore();
+                const warn = g.active && !g.erupting;
+                if (art('fx-steam.sustain')) {
+                    if (g.erupting) {
+                        h.drawGlow(cx, g.y - 40, 90, 'rgba(186, 230, 253, 0.5)', 0.4);
+                        put('fx-steam.sustain', view.nowSec, cx, g.y + 2, Math.min(g.h || 300, 320), 0.92);
+                    } else {
+                        put('fx-steam.warn', view.nowSec + i * 0.37, cx, g.y + 2, warn ? 90 : 52, warn ? 0.75 : 0.3);
+                    }
+                } else if (g.erupting) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(224, 242, 254, 0.35)';
+                    ctx.fillRect(cx - 16, g.y - (g.h || 300), 32, g.h || 300);
+                    ctx.restore();
+                }
+            }
+        }
+
+        function drawFlameJets(sim, view) {
+            const list = sim.stage.flameJets;
+            if (!list) return;
+            for (let i = 0; i < list.length; i++) {
+                const j = list[i];
+                if (!visible(view, j.x, j.x)) continue;
+                ctx.save();
+                ctx.fillStyle = '#2a2f3d';
+                ctx.fillRect(j.x - 15, j.y - 8, 30, 10);
+                ctx.fillStyle = '#4b5366';
+                ctx.fillRect(j.x - 12, j.y - 11, 24, 4);
+                ctx.restore();
+                if (j.state === 'warn') {
+                    const k = view.reducedMotion ? 0.7 : 0.5 + 0.5 * Math.sin(view.nowSec * 30);
+                    h.drawGlow(j.x, j.y - 8, 40 + 20 * k, 'rgba(255, 120, 30, 0.7)', 0.45 + 0.4 * k);
+                    if (art('fx-fire-pillar.warn')) put('fx-fire-pillar.warn', view.nowSec, j.x, j.y - 4, 56, 0.75);
+                } else if (j.state === 'fire') {
+                    h.drawGlow(j.x, j.y - j.h * 0.45, 130, 'rgba(255, 140, 40, 0.65)', 0.7);
+                    if (art('fx-fire-pillar.sustain')) {
+                        put('fx-fire-pillar.sustain', view.nowSec + i * 0.21, j.x, j.y - 2, j.h * 1.1, 1);
+                        put('fx-fire-pillar.sustain', view.nowSec + i * 0.21 + 0.1, j.x, j.y - 2, j.h * 1.1, 0.3, 'lighter');
+                    } else {
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(255, 140, 40, 0.8)';
+                        ctx.fillRect(j.x - j.w / 2, j.y - j.h, j.w, j.h);
+                        ctx.restore();
+                    }
+                }
+            }
+        }
+
         // ---- boss telegraphs ----
         function markRing(view, x, y, radius, t, color) {
             ctx.save();
@@ -356,6 +580,11 @@
             drawLanterns(sim, view);
             drawRopes(sim, view);
             drawPendulums(sim, view);
+            drawGates(sim, view);
+            drawGeysers(sim, view);
+            drawFlameJets(sim, view);
+            drawSwitches(sim, view);
+            drawChests(sim, view);
             sim.stage.enemies.forEach(function (e) {
                 if (e.def.boss && !e.dead && e.telegraph) drawTelegraph(sim, e, view);
             });
@@ -398,6 +627,12 @@
         function collectLights(sim, view, lights) {
             const Z = root.RunenpfadZones;
             if (Z && typeof Z.lights === 'function') Z.lights(sim).forEach(function (l) { lights.push(l); });
+            (sim.stage.chests || []).forEach(function (c) {
+                if (!c.opened) lights.push({ x: c.x, y: c.y - 22, radius: 70, intensity: 0.4, flicker: true });
+            });
+            sim.stage.collectibles.forEach(function (it) {
+                if (it.type === 'rune_orb' && !it.collected) lights.push({ x: it.x, y: it.y, radius: 90, intensity: 0.55, flicker: false });
+            });
             (sim.tempHazards || []).forEach(function (th) {
                 if (th.kind === 'fire') {
                     for (let x = th.x + 30; x < th.x + th.w; x += 90) lights.push({ x: x, y: th.y + th.h / 2, radius: 120, intensity: 0.7, flicker: true });
@@ -407,7 +642,14 @@
             });
         }
 
-        return { drawWorld: drawWorld, drawOverlay: drawOverlay, collectLights: collectLights };
+        return {
+            drawWorld: drawWorld,
+            drawOverlay: drawOverlay,
+            collectLights: collectLights,
+            drawCheckpoints: drawCheckpoints,
+            drawPortal: drawPortal,
+            drawRuneOrb: drawRuneOrb
+        };
     }
 
     root.RunenpfadStageArt = { create: create };
