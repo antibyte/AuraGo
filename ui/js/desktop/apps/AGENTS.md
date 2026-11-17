@@ -775,7 +775,7 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   then validate with `node scripts/test-minigolf-assets.mjs`.
 - UI modules: `minigolf-shared.js` is DOM- and three-free (palette,
   `MAX_NAME_LENGTH` = 24 code points, `POWER_STOPS`, `FLOOR_SURFACES` for physics
-  and the map, `createQualityGovernor`). `minigolf-views.js` builds the shell,
+  and the map, `aimAlongPath(path, ball, cup, options)` for the start-of-turn aim, `createQualityGovernor`). `minigolf-views.js` builds the shell,
   imports `-hud`, `-menus`, `-scorecard` and `-tutorial`, and merges the menus and
   scorecard functions into its view; `-hud` imports `-minimap`. UI factories receive
   `tr`, `esc` and `icon` as arguments. Register each new `tr` module in
@@ -804,9 +804,19 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   adapter. Physics accepts typed mesh arrays, `course.gravity` (finite, 0 < g <= 20, default
   9.81), `metal` rails (restitution 0.80), obstacle parts `box|ball|cylinder` and `mechanics`.
   Only `rest|cup|water|out` end a shot; `impact`, `bumper`, `boost`, `teleport` and `cannon`
-  only report, and `predict()` returns `zone: 'teleport'|'cannon'|null`. Verify with
+  only report (`lip` and `capture` too), and `predict()` returns `zone: 'teleport'|'cannon'|null` and `cup`. Verify with
   `scripts/test-minigolf-collision.mjs` and the mechanics, loop prototype and seam cases in
   `scripts/test-minigolf-physics.mjs`.
+- Physics payloads: `lip` `{ speed }` (non-terminal, once per shot, the ball leaves
+  the cup opening without dropping); `capture` `{ id, muzzle }` (a cannon takes the
+  ball, at the entry); `bumper` adds `at`, `radius` and `speed` (horizontal, before
+  the kick); `water` and `out` add `speed`; `rest` with `forced: true` after
+  `SHOT_TIMEOUT` (the ball stays where it is). `predict()` returns `cup` by the live
+  `dropsIn` rule.
+- Existing shots stay bit-identical (`dropsIn` keeps its arithmetic; the new events
+  only read state). The 18 recorded routes in `ROUTES` of
+  `scripts/test-minigolf-courses.mjs` must replay unchanged; a time-limit change
+  needs a note.
 - P3 scene and game: `overviewFor(course)` (`minigolf-camera.js`, pure) returns the overview
   pose, `shadowHalf`, `waterRadius` and `fogScale`. An island half-axis up to 5.5 m keeps the
   fixed (10, 13, 14) view of the tee/cup midpoint (shadow ±9, water 60, fog scale 1). A larger
@@ -822,20 +832,30 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   `{ colliders }`; the game passes `{ ...course, colliders }` to physics and the lane map. Nodes with
   the extra `aurago_spin: { axis, speed }` turn about their local axis unless motion is reduced.
   `boost`, `teleport`, `cannon` and `bumper` events only play sound and effects (`spark` bursts,
-  `scene.resetTrail?.()` on teleport, an extra `impact` burst on a bumper kick) and never end `busy`.
+  `scene.resetTrail?.()` on teleport, the `bumper` burst and flash) and never end `busy`.
   Developer route search lives in `scripts/lib/minigolf-routes.mjs` (`loadCourses`, `runShot`,
   `progress`/`remaining` along `corridors`/`path`, `findRoute`, `timedRoute`, `replayRoute`) with the
   CLI `scripts/minigolf-route-search.mjs [--dir] [--course id|number|look-NN] [--json]`.
 - `settings(values, track, focus)`, `audioSettings(settings, track)` and
   `credits(tracks)` in `minigolf-menus.js` are the stable entry points for the
   settings, sound and credits panels.
+- Model and HUD: `cancelShot(round)` (`minigolf-model.js`) drops a discarded shot so
+  `beginShot` works again; `underParStreak(player, round, courses)` counts holes under
+  par in a row. `hud.plaqueInfo({ distance, best }, lang?)`, `hud.toast(key, values?)`
+  and `hud.update(round, course, busy)` (the chip shows `strokes + 1` while busy) are
+  in `minigolf-hud.js` with `formatDistance`; `holeStars(strokes, par)` and
+  `starTally(best, courses)` are in `minigolf-menus.js`. New keys go into all 16
+  locales after `minigolf.tutorial_skip`.
+- Audio: `effect` takes the cue types `bumper`, `capture`, `lip`, `poof`, `fanfare`,
+  `chime`, `low`, `best` and `turn` (`delay` clamped to 0-2 s, sounds from `playCue()`
+  in `minigolf-audio-synth.js`); `ui` adds `card`, `select`, `switch-on` and `switch-off`.
 - The first-putt introduction lives in `minigolf-tutorial.js`: `tutorialNext()` and
   `tutorialView()` are pure, and `createCoach()` renders its single bubble.
 - Controls cover keyboard, mouse and touch: held arrow keys scale with frame time
   (Shift keeps fine steps), a one-finger Aim drag putts from anywhere, and
   optional persisted settings add a four-degree aim assist, per-turn camera
   framing behind the ball and roll following — all still usable under reduced
-  motion. Visuals add a dashed aim line with a color-graded power ring, penalty
+  motion. Visuals add a dotted aim line (`aimDots`, instanced spheres sized in pixels) with a color-graded power ring, penalty
   rest markers, name tags on ghost balls, a lane map with a persisted toggle, and
   the animated scorecard with grade badges, on top of the P2 look below.
 - P2 look: `LOOKS` (exposure, sky, fog, sun, rim, environment intensity, bloom,
@@ -878,11 +898,21 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   `aurago_flicker`; `glass` loses its transmission (transparent at 0.55 opacity).
   `aurago_strength` is not read at runtime; the exported emission is used.
 - Effects: `burst(type, position, speed, info)` types are `strike`, `impact`, `water`,
-  `cup`, `win` and `spark` (18 glow particles in the look's palette, the P3 mechanic flash); `info.surface` (`sand`) selects the sand cloud on a strike. The
+  `cup`, `ace`, `win`, `spark` (18 glow particles in the look's palette, the P3 mechanic flash), `bumper` (gold flash ring sized by `info.radius`) and `dust`; `info.surface` (`sand`) selects the sand cloud on a strike, and `wood`, `stone`, `metal`, `grass` or `sand` select the impact particles. The
   rolling sand plume follows `update(dt, snapshot)` and its optional
   `snapshot.surface`. The pools are fixed buffers capped by `TIERS.particles`
   (confetti: half); nothing allocates per frame. The ball trail is 28 points, on
   medium and high only, and shows once the ball moves faster than 0.6 m/s.
+- Camera and effects: `glideToBall()` (0.4 s, keeps the view direction and a hand
+  zoom, `userZoomed`, otherwise 3-8 m; no-op during the intro), `orbitCup(seconds)`
+  (120° at 35°, 4-7 m, `false` when reduced), `shake(strength)` (0.25 s, added after
+  `controls.update()`), `popBall()` (0.3 s) and `kickFlag(amount)`. `burst()` takes
+  `bumper`, `ace` and `dust`; `strike` clears the trail.
+- Tunables: `CUP_SPEED` (2.4 m/s), `SHOT_TIMEOUT` (20 s) and `LIP_MARGIN` (.02 m) in
+  `minigolf-physics.js`; `NEAR_MISS_RADIUS` (.7 m), `HARD_HIT` (6 m/s),
+  `ACE_SCORE_DELAY_MS` (2200) in `minigolf-game.js`; `AIM_DOT_*`, `TAIL_*`, `FLAG_*`,
+  `GLIDE_TIME`, `SHAKE_TIME` and `POP_TIME` in `minigolf-scene.js`; toast durations in
+  `TOASTS` (`minigolf-hud.js`).
 - Intro flight: `createIntro()` follows the path at 2.2 m behind and 3.2 m above,
   looking 2.5 m ahead, for 0.35 s per metre clamped to 2.5–4.5 s, and then settles
   on the overview pose. `scene.skipIntro()` ends it (returns true when one was
@@ -892,11 +922,15 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   `frameTurn` queued during the flight runs after it.
 - Reduced motion (OS/Desktop preference, `data-animations="false"` or the checkbox)
   skips the flight, stops particles, fireworks, sway, flicker, spin, flags and
-  water and sky animation, and keeps the gold ring static. The ball
+  water and sky animation, and keeps the gold ring static. It also skips the glide, orbit, shake and pop, opens
+  the flag without waving, keeps the cup glow at .8 opacity, and leaves only the
+  rings of the effects. The ball
   trail stays. Low tier also drops scatter props, sway, flicker and spin, the
   composer (bloom) and the trail, and freezes the water.
 - `stats()` also reports `look`, `props` (placed instances), `env` (environment
-  set), `intro` (flight running) and `trail` (visible trail points). `triangles` and
+  set), `intro` (flight running) and `trail` (visible trail points). The camera and aim fields
+  are `aimDots` (visible dots), `cupGlow`, `flagLift`, `orbit`, `tween`, `shake` (seconds
+  left), `ballScale` and `userZoomed`. `triangles` and
   `calls` count the whole frame: `renderer.info.autoReset` is false and the counters
   reset once per frame. Before P2 they covered only the last composer pass, so only
   frame rates compare with older runs.

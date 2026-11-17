@@ -10,7 +10,9 @@ not an installation or server dependency.
 The start screen lists a round card for all eighteen holes, one card per world
 with its preview (when the build provides one) and best score, and a Practice
 card. Practice opens a hole grid that shows each hole's best score. A saved round
-appears as a resume card. All worlds are available immediately. The start flow
+appears as a resume card. All worlds are available immediately. Each hole tile shows up to three stars for
+its best score: three under par, two at par, one above par, and none without a best
+score. The world cards and the all-holes card show the star total. The start flow
 hides the putting controls at the bottom, so the cards get the whole window.
 
 One to four players share the same device and take turns after every shot. Names
@@ -20,13 +22,16 @@ HUD chip, scorecard row and podium step. Other players' translucent ball markers
 show their names and never block the active ball. Pull back from the ball and
 release to putt. Strength follows the on-screen drag distance (independent of
 camera zoom); releasing next to the ball, a right click, a second finger or
-Escape cancels the drag. A dashed preview path shows the roll up to the first
-rail and a short stretch of the rebound, a color-graded ring marks the
+Escape cancels the drag. A dotted line of aim dots shows the roll up to the first
+rail and a short stretch of the rebound. The dots grow with the distance, so they
+stay readable from the overview camera. A color-graded ring marks the
 strength, and the strength readout adds the estimated flat roll distance (full
 strength rolls 28 m on flat felt, on the moon as well). The preview applies
-bumper kicks and boost pads and ends at a teleporter or a cannon. Arrow keys adjust aim and strength while
-held (Shift gives finer steps); Space putts. A gentle aim assist snaps shots
-within four degrees toward the cup, and after a penalty the rest position gets a marker ring. A left-drag that starts away from the ball
+bumper kicks and boost pads, and it ends at a teleporter or a cannon, or in the
+cup when a live ball would drop in; the ring around the cup then glows. Arrow keys adjust aim and strength while
+held (Shift gives finer steps); Space putts. At the start of a turn the aim
+follows the course path ahead of the ball, and points at the cup once the ball is
+near it or off the path. A gentle aim assist snaps shots within four degrees toward the cup, and after a penalty the rest marker sits at the penalised player's lie. A left-drag that starts away from the ball
 pans the view along the ground (it stays within the course bounds plus a short
 margin), right-drag rotates it, the wheel zooms, and **To the ball** restores
 focus. Optional settings move the camera
@@ -35,15 +40,21 @@ both functional without smooth transitions. Touch users can switch between
 Camera and Aim; in Aim a one-finger drag from anywhere putts, and two fingers
 zoom/pan.
 
-The HUD shows a plaque with the world, hole, par and hole name, a chip per player
-with the score and the active turn, and turn and hole banners. While you aim, a
+The HUD shows a plaque with the world, hole, par and hole name, and while you aim
+the distance to the cup and the best score for the hole. A chip per player
+with the score and the active turn (it counts the stroke as the ball is hit),
+and turn and hole banners. While you aim, a
 power meter sits at the ball with the strength in percent and the estimated roll,
 and it stays for a moment after each change. Toasts appear above the panels (the
-main menu clears the ones left over from play), and a hint line covers the first shots of a session. The lane map, drawn from the
+main menu clears the ones left over from play), and a hint line covers the first shots of a session. A putt attempted in camera
+mode asks for Aim instead. A near miss says "So close!", and a shot that is forced
+to rest says that the ball took too long. The lane map, drawn from the
 course collision geometry and water volumes, shows the bounds, water, tee, cup and
 every ball; its toggle is saved. Water and out-of-bounds cost one penalty stroke
 and return the ball to its previous shot position. Twelve unsuccessful putts
-finish the hole with 13.
+finish the hole with 13. Ten strokes bring a warning that two are left, and the
+eleventh stroke is announced as the last one. A shot that is still moving after 20
+seconds comes to rest where it is, even in the air.
 
 The scorecard appears when everyone finishes a hole. Its rows animate in when a
 hole ends, Eagle/Birdie/Par/Bogey results are coloured, and Next hole continues
@@ -51,6 +62,11 @@ the round. After the last hole a podium names the winner; equal totals share a
 place (1, 1, 3). A single player gets a result card instead. Play again restarts
 the same mode with the same players and colours. A practice result also offers
 Another hole, which returns to the hole grid.
+
+Each hole ends with a grade banner. It adds a new-best line when the hole beats the
+stored best (not in practice), and a streak line from three holes under par in a
+row. Each grade has a short tone: a fanfare for a hole-in-one, a chime for an eagle
+or birdie, a low tone for a bogey or worse, and no tone for par.
 
 New rounds start with an interactive introduction until it is finished or
 skipped: a coach bubble walks through aiming, setting the power, releasing and
@@ -170,7 +186,8 @@ teleporter, a cannon).
   of about 0.3 to 0.5), and a harder one flies over the landing. The aim preview shows the flight path. Inside
   a loop or on a steep half-pipe wall the ball glides without rolling friction.
 - **Sparks and sound:** boost, teleporter and cannon have their own sounds and
-  spark bursts; a bumper kick plays the ordinary impact.
+  spark bursts; a bumper kick has its own cue and flash, and a cannon catch plays a
+  short capture cue.
 - **Lighting:** an environment map is built once per world from its sky, with one
   shadow-casting sun limited to the island and a faint rim light on Moon Station.
   The renderer uses Neutral tone mapping; exposure is set per world.
@@ -215,6 +232,19 @@ distance so the lane stays as clear as on a small course.
   than 0.6 m/s. It is on medium and high only.
 - **Cup celebration:** confetti in the world colours, a gold ring that spreads over
   the green in 0.8 s, a glitter column and a flag that waves hard for about 2 s.
+- **Flag:** the cloth opens while the ball is within 1.8 m of the cup and closes
+  again beyond 2.2 m. A near miss opens it briefly.
+- **Hole-in-one:** three rockets around the cup and a camera orbit of about 2 s,
+  on top of the usual celebration (not under reduced motion).
+- **Obstacles:** a bumper kick flashes a gold ring and throws sparks, a cannon that
+  takes the ball sends sparks, and a hard hit on a wall shakes the camera a little.
+- **Impacts:** particles follow the surface: wood chips on wood, stone dust on
+  stone, sparks on metal, and a light puff on grass and sand.
+- **Out of bounds:** a dust puff marks where the ball left the course. If the same
+  player plays on after the penalty, the ball pops in at its lie.
+- **Camera after a shot:** the view glides onto the ball in 0.4 s and keeps the
+  viewing direction and any zoom the player chose. The focus button still returns to
+  the 3 to 8 m close-up.
 - **Win fireworks:** three rockets over the island at the end of the round, with
   confetti from three points.
 
@@ -223,10 +253,13 @@ distance so the lane stays as clear as on a small course.
 Reduced motion follows the OS/Desktop preference or the game's checkbox. It
 disables:
 
-- the intro flight and camera turns (framing jumps to the end pose),
-- decorative particles, confetti and fireworks,
-- the gold ring's growth (it fades in and out at a fixed size),
-- sway, flicker, the dish, the teleporter rings and the flags,
+- the intro flight and camera turns (framing jumps to the end pose), the glide
+  after a shot, the hole-in-one orbit, the camera shake and the ball pop,
+- decorative particles, confetti and fireworks (the rings stay),
+- the gold ring's growth (it fades in and out at a fixed size) and the pulse of
+  the cup glow while aiming,
+- sway, flicker, the dish, the teleporter rings and the waving of the flags (a
+  flag near the cup still opens, without waving),
 - the animation of the water and the sky.
 
 The ball trail stays, because it only follows the ball. Obstacles keep moving,
@@ -269,19 +302,22 @@ Effects are recorded CC0 samples with variants, a random pitch (±6%) and a
 random volume (±15%); the same variant never plays twice in a row. Effects are
 panned from the ball's screen position. Rolling loops follow ball speed and
 surface: a soft loop on grass and sand, a hard loop on wood, stone and metal.
-Impacts are chosen by material and strength. The cup plays a rim sound, two to
-four rattles and a soft landing. Splash, cannon, boost, teleporter and strike
+Impacts are chosen by material and strength. The cup plays a rim sound, one to
+four rattles and a soft landing; a fast ball rattles more and louder. Splash, cannon, boost, teleporter and strike
 are sampled too, and each world has its own win jingle. At most 20 voices play
 at once.
 
 Interface clicks and world ambience are synthesized locally: waves and gulls on
-the pirate world, insects and birds on temple, a hum with beeps on moon.
+the pirate world, insects and birds on temple, a hum with beeps on moon. The event cues (bumper, cannon capture, near miss, grade
+tones, new best and turn) are synthesized too, and so are the clicks for cards,
+tiles, switches and selects.
 Effects and ambience send into a reverb built from a locally generated impulse
 response for each world, and a limiter sits on the master bus.
 
 Minimizing or hiding the browser tab pauses simulation and audio. Pause also
-freezes the current shot and stops sound effects, rolling and ambience. The
-audio context is suspended, so music resumes where it stopped. Closing releases
+freezes the current shot. Its level fades out over about 0.12 s, then the sound
+effects, rolling and ambience stop and the audio context is suspended, so music
+resumes where it stopped. Closing releases
 rendering, physics and audio resources.
 
 Nothing is loaded from outside: the sound pack ships with the web resources, and
