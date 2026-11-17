@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Lågorna slocknar — kliv på plattan igen.",
   "runenpfad.notice.ritual_done": "Ritualen är fullbordad!",
   "runenpfad.notice.dragon_warn": "En drake! Sök skydd under stentaken!",
-  "runenpfad.notice.swing_hint": "Hoppa upp på repet, gunga med vänster/höger, släpp med hopp.",
+  "runenpfad.notice.swing_hint": "Hoppa upp på repet, gunga med vänster/höger, klättra med upp/ner, släpp med mellanslag.",
   "runenpfad.boss_dragon_ember": "Glöddrake",
   "runenpfad.boss_dragon_frost": "Frostlindorm"
 }

@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Flammene slukner — tråkk på platen igjen.",
   "runenpfad.notice.ritual_done": "Ritualet er fullført!",
   "runenpfad.notice.dragon_warn": "En drage! Søk dekning under steintakene!",
-  "runenpfad.notice.swing_hint": "Hopp på tauet, sving med venstre/høyre, slipp med hopp.",
+  "runenpfad.notice.swing_hint": "Hopp på tauet, sving med venstre/høyre, klatre med opp/ned, slipp med mellomrom.",
   "runenpfad.boss_dragon_ember": "Glødrage",
   "runenpfad.boss_dragon_frost": "Frostlindorm"
 }

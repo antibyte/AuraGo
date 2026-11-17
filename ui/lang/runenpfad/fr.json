@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Les flammes s'éteignent — remarche sur la dalle.",
   "runenpfad.notice.ritual_done": "Le rituel est accompli !",
   "runenpfad.notice.dragon_warn": "Un dragon ! Mets-toi à l'abri sous les toits de pierre !",
-  "runenpfad.notice.swing_hint": "Saute sur la corde, balance-toi avec gauche/droite, lâche avec saut.",
+  "runenpfad.notice.swing_hint": "Saute sur la corde, balance-toi avec gauche/droite, grimpe avec haut/bas, lâche avec Espace.",
   "runenpfad.boss_dragon_ember": "Dragon des braises",
   "runenpfad.boss_dragon_frost": "Guivre de givre"
 }

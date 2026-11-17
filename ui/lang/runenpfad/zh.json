@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "火焰熄灭了——再踩一次压板。",
   "runenpfad.notice.ritual_done": "仪式完成了！",
   "runenpfad.notice.dragon_warn": "巨龙来袭！躲到石檐下面！",
-  "runenpfad.notice.swing_hint": "跳上绳索，用左/右荡起来，按跳跃松手。",
+  "runenpfad.notice.swing_hint": "跳上绳索，用左/右荡起来，用上/下攀爬，按空格键松手。",
   "runenpfad.boss_dragon_ember": "余烬巨龙",
   "runenpfad.boss_dragon_frost": "冰霜巨龙"
 }

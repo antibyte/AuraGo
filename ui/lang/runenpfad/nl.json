@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "De vlammen doven — stap opnieuw op de plaat.",
   "runenpfad.notice.ritual_done": "Het ritueel is voltooid!",
   "runenpfad.notice.dragon_warn": "Een draak! Schuil onder de stenen afdaken!",
-  "runenpfad.notice.swing_hint": "Spring aan het touw, zwaai met links/rechts, laat los met springen.",
+  "runenpfad.notice.swing_hint": "Spring aan het touw, zwaai met links/rechts, klim met omhoog/omlaag, laat los met spatie.",
   "runenpfad.boss_dragon_ember": "Gloeddraak",
   "runenpfad.boss_dragon_frost": "Vorstworm"
 }

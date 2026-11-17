@@ -121,10 +121,11 @@
 
     // Swinging saw pendulums hang from the ceiling; timing the gaps is the whole puzzle.
     function buildPendulumHall(ctx) {
-        const cx = ctx.cursorX;
+        // The saws sweep ~8.7 tiles to each side, so the hall keeps safe padding for whatever zone (e.g. swing ropes) borders it.
+        const cx = ctx.cursorX + 4;
         const g = ctx.groundY;
         const T = ctx.TILE;
-        ctx.fillGround(cx, 19, g);
+        ctx.fillGround(cx - 4, 29, g);
         ctx.addCheckpoint(cx + 1);
         for (let i = 0; i < 3; i++) {
             const hazard = { kind: 'pendulum', assetId: '', x: 0, y: 0, w: 46, h: 42 };
@@ -149,7 +150,7 @@
         if (ctx.gemCount() < 2) ctx.placeGem(cx + 10, g - 2);
         ctx.addEnemy(ctx.nextEnemyId(), cx + 17, g, cx + 16, cx + 18);
         ctx.addProp(cx + 2, g);
-        return 19;
+        return 29;
     }
 
     // A cracked wall hides a chamber with treasure; three hits break it open.

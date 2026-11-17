@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Οι φλόγες σβήνουν — πάτησε ξανά την πλάκα.",
   "runenpfad.notice.ritual_done": "Η τελετή ολοκληρώθηκε!",
   "runenpfad.notice.dragon_warn": "Ένας δράκος! Κρύψου κάτω από τα πέτρινα στέγαστρα!",
-  "runenpfad.notice.swing_hint": "Πήδα στο σχοινί, κουνήσου με αριστερά/δεξιά, άφησέ το με άλμα.",
+  "runenpfad.notice.swing_hint": "Πήδα στο σχοινί, κουνήσου με αριστερά/δεξιά, σκαρφάλωσε με πάνω/κάτω, άφησέ το με το Space.",
   "runenpfad.boss_dragon_ember": "Πύρινος δράκος",
   "runenpfad.boss_dragon_frost": "Δράκος του παγετού"
 }

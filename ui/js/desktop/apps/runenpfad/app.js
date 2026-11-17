@@ -607,6 +607,7 @@
                 down: down,
                 jump: !!(keyState.Space || keyState.ArrowUp || keyState.KeyW || touchState.Space || touchState.ArrowUp),
                 jumpPressed: edgeState.jumpPressed,
+                jumpKey: !!(keyState.Space || touchState.Space || edgeState.spaceHit),
                 attackPressed: edgeState.attackPressed,
                 dashPressed: edgeState.dashPressed,
                 healPressed: edgeState.healPressed
@@ -618,6 +619,7 @@
 
         function clearEdges() {
             edgeState.jumpPressed = false;
+            edgeState.spaceHit = false;
             edgeState.attackPressed = false;
             edgeState.dashPressed = false;
             edgeState.healPressed = false;
@@ -690,6 +692,7 @@
             }
             if (!ev.repeat) {
                 if (ev.code === 'Space' || ev.code === 'ArrowUp' || ev.code === 'KeyW') edgeState.jumpPressed = true;
+                if (ev.code === 'Space') edgeState.spaceHit = true;
                 if (ev.code === 'KeyJ' || ev.code === 'KeyZ' || ev.code === 'Enter') {
                     if (!anyDialogOpen()) edgeState.attackPressed = true;
                 }

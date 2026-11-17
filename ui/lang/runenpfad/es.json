@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Las llamas se apagan — vuelve a pisar la placa.",
   "runenpfad.notice.ritual_done": "¡El ritual está completo!",
   "runenpfad.notice.dragon_warn": "¡Un dragón! ¡Ponte a cubierto bajo los tejados de piedra!",
-  "runenpfad.notice.swing_hint": "Salta a la cuerda, balancéate con izquierda/derecha y suéltate con salto.",
+  "runenpfad.notice.swing_hint": "Salta a la cuerda, balancéate con izquierda/derecha, trepa con arriba/abajo y suéltate con Espacio.",
   "runenpfad.boss_dragon_ember": "Dragón de brasas",
   "runenpfad.boss_dragon_frost": "Sierpe de escarcha"
 }

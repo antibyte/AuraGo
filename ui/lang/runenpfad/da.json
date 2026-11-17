@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Flammerne går ud — træd på pladen igen.",
   "runenpfad.notice.ritual_done": "Ritualet er fuldbragt!",
   "runenpfad.notice.dragon_warn": "En drage! Søg dækning under stentagene!",
-  "runenpfad.notice.swing_hint": "Hop op på rebet, sving med venstre/højre, slip med hop.",
+  "runenpfad.notice.swing_hint": "Hop op på rebet, sving med venstre/højre, klatr med op/ned, slip med mellemrum.",
   "runenpfad.boss_dragon_ember": "Gløddrage",
   "runenpfad.boss_dragon_frost": "Frostlindorm"
 }

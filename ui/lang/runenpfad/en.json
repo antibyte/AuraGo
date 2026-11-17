@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "The flames die out — step on the plate to try again.",
   "runenpfad.notice.ritual_done": "The ritual is complete!",
   "runenpfad.notice.dragon_warn": "A dragon! Take cover under the stone shelters!",
-  "runenpfad.notice.swing_hint": "Jump onto the rope, swing with left/right, let go with jump.",
+  "runenpfad.notice.swing_hint": "Jump onto the rope, swing with left/right, climb with up/down, let go with Space.",
   "runenpfad.boss_dragon_ember": "Ember Dragon",
   "runenpfad.boss_dragon_frost": "Frost Wyrm"
 }

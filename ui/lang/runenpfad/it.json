@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Le fiamme si spengono — risali sulla piastra.",
   "runenpfad.notice.ritual_done": "Il rituale è compiuto!",
   "runenpfad.notice.dragon_warn": "Un drago! Riparati sotto le tettoie di pietra!",
-  "runenpfad.notice.swing_hint": "Salta sulla corda, dondola con sinistra/destra, lascia con il salto.",
+  "runenpfad.notice.swing_hint": "Salta sulla corda, dondola con sinistra/destra, arrampicati con su/giù, lascia con Spazio.",
   "runenpfad.boss_dragon_ember": "Drago delle braci",
   "runenpfad.boss_dragon_frost": "Viverna del gelo"
 }

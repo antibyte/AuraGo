@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Die Flammen erlöschen — tritt erneut auf die Platte.",
   "runenpfad.notice.ritual_done": "Das Ritual ist vollbracht!",
   "runenpfad.notice.dragon_warn": "Ein Drache! Such Deckung unter den Steindächern!",
-  "runenpfad.notice.swing_hint": "Spring ans Seil, schwing mit links/rechts, lass mit Sprung los.",
+  "runenpfad.notice.swing_hint": "Spring ans Seil, schwing mit links/rechts, kletter mit hoch/runter, lass mit der Leertaste los.",
   "runenpfad.boss_dragon_ember": "Glutdrache",
   "runenpfad.boss_dragon_frost": "Frostwurm"
 }

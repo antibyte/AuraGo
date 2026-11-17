@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Plameny uhasly — šlápni znovu na desku.",
   "runenpfad.notice.ritual_done": "Rituál je dokonán!",
   "runenpfad.notice.dragon_warn": "Drak! Schovej se pod kamenné stříšky!",
-  "runenpfad.notice.swing_hint": "Skoč na lano, rozhoupej se doleva/doprava, pusť se skokem.",
+  "runenpfad.notice.swing_hint": "Skoč na lano, rozhoupej se doleva/doprava, šplhej nahoru/dolů, pusť se mezerníkem.",
   "runenpfad.boss_dragon_ember": "Žhavý drak",
   "runenpfad.boss_dragon_frost": "Mrazivý drak"
 }

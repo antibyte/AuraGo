@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "Płomienie gasną — stań znowu na płycie.",
   "runenpfad.notice.ritual_done": "Rytuał dopełniony!",
   "runenpfad.notice.dragon_warn": "Smok! Schowaj się pod kamiennymi daszkami!",
-  "runenpfad.notice.swing_hint": "Wskocz na linę, rozhuśtaj się w lewo/prawo, puść skokiem.",
+  "runenpfad.notice.swing_hint": "Wskocz na linę, rozhuśtaj się w lewo/prawo, wspinaj się w górę/w dół, puść spacją.",
   "runenpfad.boss_dragon_ember": "Smok żaru",
   "runenpfad.boss_dragon_frost": "Smok szronu"
 }

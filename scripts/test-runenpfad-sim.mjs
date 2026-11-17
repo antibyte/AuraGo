@@ -1370,7 +1370,8 @@ console.log('Runenpfad round 3 review fixes passed.');
         tickN(s, 30, {});
         const hx = r0.ax + r0.len * Math.sin(r0.angle);
         const hy = r0.ay + r0.len * Math.cos(r0.angle);
-        assert.ok(Math.abs(s.player.x - hx) < 3 && Math.abs(s.player.y - 40 - hy) < 3, 'hands at the rope end');
+        const gripLen = Math.hypot(s.player.x - r0.ax, s.player.y - 40 - r0.ay);
+        assert.ok(Math.abs(gripLen - s.player.swing.grip) < 3 && s.player.swing.grip > r0.len * 0.5 && Math.hypot(s.player.x - hx, s.player.y - 40 - hy) < r0.len, 'hands follow the grip point on the rope');
         // pumping builds amplitude
         let maxAmp = 0;
         tickN(s, 150, { right: true }, () => { maxAmp = Math.max(maxAmp, Math.abs(r0.angle)); });
@@ -1885,6 +1886,107 @@ console.log('Runenpfad round 3 review fixes passed.');
         assert.ok(boss.dead && s.tempHazards.length === 0, 'defeat clears the fire');
     }
 
+
+    // --- human-like reach: release anywhere in a wide window of the forward swing, then climb / release / let go ---
+    {
+        const hang = (sim, r) => {
+            const e = Swing.endOf(r);
+            sim.player.x = e.x; sim.player.y = e.y + 20; sim.player.vx = 0; sim.player.vy = 0; sim.player.onGround = false;
+            tickN(sim, 2, {});
+            assert.ok(sim.player.swing && sim.player.swing.id === r.id, 'hero hangs on ' + r.id);
+        };
+        const trial = (levelId, hero, ropeIdx, target) => {
+            const sim = mk(levelId, hero);
+            sim.stage.enemies.length = 0;
+            const p = sim.player;
+            const all = sim.stage.swings;
+            const group = all[0].group;
+            const ropes = all.filter((r) => r.group === group);
+            const last = ropes[ropes.length - 1];
+            const spikes = sim.stage.hazards.filter((h) => h.kind === 'spikes' && h.x > ropes[0].ax - 6 * T && h.x < last.ax + 6 * T);
+            const farEdge = Math.max.apply(null, spikes.map((h) => h.x + T));
+            const r = ropes[ropeIdx];
+            hang(sim, r);
+            p.invulnTimer = 0;
+            const hp0 = p.hp;
+            let peak = 0;
+            let guard = 0;
+            let turned = false;
+            while (guard++ < 900 && !(turned && r.omega > 0.2 && r.angle >= target)) {
+                // pump to a moderate amplitude, let the swing turn around once, then wait for the forward swing
+                tickN(sim, 1, peak < Math.max(0.45, target - 0.1) ? { right: true } : {});
+                peak = Math.max(peak, r.angle);
+                if (peak >= Math.max(0.45, target - 0.1) && r.omega < -0.2) turned = true;
+            }
+            tickN(sim, 1, { right: true, jumpPressed: true, jumpKey: true });
+            for (let i = 0; i < 150; i++) {
+                if (p.hp !== hp0 || sim.state !== 'playing') return false;
+                if (p.swing) { return p.swing.id !== r.id; }
+                if (p.onGround) return p.x >= farEdge - 2;
+                tickN(sim, 1, { right: true });
+            }
+            return false;
+        };
+        const lo = -0.15;
+        const hi = 0.9;
+        let total = 0;
+        for (const lv of Levels.CAMPAIGN_LEVELS.filter((l) => l.zones.includes('swing_gorge'))) {
+            for (const hero of ['knight', 'ranger']) {
+                const n = mk(lv.id, hero).stage.swings.filter((r) => r.group === mk(lv.id, hero).stage.swings[0].group).length;
+                for (let ri = 0; ri < n; ri++) {
+                    let okN = 0;
+                    for (let k = 0; k < 10; k++) if (trial(lv.id, hero, ri, lo + (hi - lo) * k / 9)) okN++;
+                    total++;
+                    const bottom = trial(lv.id, hero, ri, -0.02);
+                    assert.ok(okN >= 8, `level ${lv.id} ${hero} rope ${ri}: ${okN}/10 release moments reach the next anchor`);
+                    assert.ok(bottom, `level ${lv.id} ${hero} rope ${ri}: release at the bottom works`);
+                    console.log(`reach level ${lv.id} ${hero} rope ${ri}: ${okN}/10`);
+                }
+            }
+        }
+        assert.ok(total >= 24, 'reach tested on ropes ' + total);
+
+        // climbing: Up never releases, Space does with the boost
+        const c = mk(3);
+        c.stage.enemies.length = 0;
+        const cr = c.stage.swings[0];
+        hang(c, cr);
+        const g0 = c.player.swing.grip;
+        tickN(c, 1, { up: true, jumpPressed: true });
+        tickN(c, 30, { up: true });
+        assert.ok(c.player.swing && c.player.swing.grip < g0 - 50, 'Up climbs the rope, grip ' + c.player.swing.grip);
+        tickN(c, 200, { up: true });
+        assert.ok(c.player.swing && Math.abs(c.player.swing.grip - cr.len * 0.18) < 1, 'climb stops near the top');
+        const evc = tickN(c, 1, { jumpPressed: true, jumpKey: true });
+        assert.ok(!c.player.swing && seenR4(evc, 'swing_release').length === 1 && c.player.vy < -250, 'Space releases with the jump boost, vy ' + c.player.vy);
+        // down climbs to the end, then lets go without a boost
+        const d = mk(3);
+        d.stage.enemies.length = 0;
+        const dr = d.stage.swings[0];
+        hang(d, dr);
+        tickN(d, 40, { up: true });
+        const gUp = d.player.swing.grip;
+        tickN(d, 20, { down: true });
+        assert.ok(d.player.swing && d.player.swing.grip > gUp + 20, 'Down climbs down');
+        let dn = 0;
+        while (d.player.swing && dn++ < 300) tickN(d, 1, { down: true });
+        assert.ok(!d.player.swing && d.player.vy > -120, 'holding Down at the end lets go without a boost');
+        // climbing into a ceiling bonks instead of embedding
+        const b = mk(3);
+        b.stage.enemies.length = 0;
+        const br = b.stage.swings[0];
+        hang(b, br);
+        const ty = Math.floor((br.ay + br.len - 100) / T);
+        const bx = Math.floor(br.ax / T);
+        for (let x = bx - 2; x <= bx + 2; x++) b.stage.solidMap[x + ',' + ty] = true;
+        let emb = false;
+        tickN(b, 120, { up: true }, (sim) => {
+            const pl = sim.player;
+            if (pl.swing) for (let tx = Math.floor((pl.x - 14) / T); tx <= Math.floor((pl.x + 14) / T); tx++) for (let yy = Math.floor((pl.y - 44) / T); yy <= Math.floor((pl.y - 1) / T); yy++) if (b.stage.solidMap[tx + ',' + yy]) emb = true;
+        });
+        assert.ok(!emb && b.player.swing && b.player.swing.grip > (ty + 1) * T - br.ay - 8, 'climbing bonks on a ceiling, grip ' + b.player.swing.grip);
+    }
+
     // --- swing clearance: arcs never touch solid tiles, and a block in the arc stops the swing without embedding ---
     {
         const Ph = sandbox.RunenpfadPhysics;
@@ -1907,6 +2009,26 @@ console.log('Runenpfad round 3 review fixes passed.');
             }
         }));
         assert.ok(swept >= 20, 'swept ropes ' + swept);
+        // no hazard rect or pendulum sweep of a neighbouring zone reaches the hero anywhere along any rope's arc
+        const hit = (hx, hy, h) => hx + 14 > h.x && hx - 14 < h.x + h.w && hy > h.y && hy - 44 < h.y + h.h;
+        const offenders = [];
+        stages.forEach((st) => {
+            const rects = st.hazards.filter((h) => h.kind !== 'pendulum');
+            (st.pendulums || []).forEach((pd) => {
+                for (let a = -pd.amp; a <= pd.amp + 1e-9; a += 0.04) rects.push({ x: pd.x + Math.sin(a) * pd.len - 23, y: pd.y + Math.cos(a) * pd.len - 29, w: 46, h: 42, kind: 'pendulum' });
+            });
+            st.swings.forEach((r) => {
+                for (let a = -Swing.MAX_ANGLE; a <= Swing.MAX_ANGLE + 1e-9; a += 0.05) {
+                    for (const k of [0.18, 0.5, 1]) {
+                        const x = r.ax + r.len * k * Math.sin(a);
+                        const y = r.ay + r.len * k * Math.cos(a) + 40;
+                        const h = rects.find((q) => hit(x, y, q));
+                        if (h) offenders.push(`${st.id}:${r.id}:${h.kind}@${Math.round(h.x)}`);
+                    }
+                }
+            });
+        });
+        assert.deepEqual(Array.from(new Set(offenders)), [], 'no hazard reaches a rope arc');
         const s = mk(3);
         s.stage.enemies.length = 0;
         const r0 = s.stage.swings[0];

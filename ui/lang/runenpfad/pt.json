@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "As chamas apagam-se — pisa novamente a placa.",
   "runenpfad.notice.ritual_done": "O ritual está completo!",
   "runenpfad.notice.dragon_warn": "Um dragão! Abriga-te debaixo dos telhados de pedra!",
-  "runenpfad.notice.swing_hint": "Salta para a corda, balança com esquerda/direita e larga com o salto.",
+  "runenpfad.notice.swing_hint": "Salta para a corda, balança com esquerda/direita, sobe e desce com cima/baixo e larga com Espaço.",
   "runenpfad.boss_dragon_ember": "Dragão das Brasas",
   "runenpfad.boss_dragon_frost": "Serpe de Gelo"
 }

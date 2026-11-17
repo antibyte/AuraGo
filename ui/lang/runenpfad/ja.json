@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "炎が消えた — もう一度床板を踏もう。",
   "runenpfad.notice.ritual_done": "儀式が完了した！",
   "runenpfad.notice.dragon_warn": "ドラゴンだ！石の屋根の下に隠れろ！",
-  "runenpfad.notice.swing_hint": "ロープに跳びつき、左右で揺らし、ジャンプで放そう。",
+  "runenpfad.notice.swing_hint": "ロープに跳びつき、左右で揺らし、上下で登り降りし、スペースで放そう。",
   "runenpfad.boss_dragon_ember": "熾火のドラゴン",
   "runenpfad.boss_dragon_frost": "氷霜の竜"
 }

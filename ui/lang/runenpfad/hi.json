@@ -140,7 +140,7 @@
   "runenpfad.notice.ritual_fail": "लपटें बुझ गईं — फिर से प्लेट पर कदम रखो।",
   "runenpfad.notice.ritual_done": "अनुष्ठान पूरा हुआ!",
   "runenpfad.notice.dragon_warn": "एक ड्रैगन! पत्थर की छतों के नीचे छिपो!",
-  "runenpfad.notice.swing_hint": "रस्सी पर कूदो, बाएँ/दाएँ से झूलो, कूदकर छोड़ो।",
+  "runenpfad.notice.swing_hint": "रस्सी पर कूदो, बाएँ/दाएँ से झूलो, ऊपर/नीचे से चढ़ो-उतरो, स्पेस से छोड़ो।",
   "runenpfad.boss_dragon_ember": "अंगार ड्रैगन",
   "runenpfad.boss_dragon_frost": "हिम ड्रैगन"
 }
