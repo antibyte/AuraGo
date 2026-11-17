@@ -95,14 +95,29 @@ export function createEngine({ assetURL = value => value, onError, random = Math
       if (!current) return false;
       try { if (current.state !== 'running') await current.resume(); }
       catch (error) { report('context', error); return false; }
+      if (current.state === 'running') restoreMaster();
       return !disposed && current.state === 'running';
     });
   }
 
-  function suspend() {
+  const restoreMaster = () => { if (graph) ease(graph.master.gain, 0.9, 0.02); };
+
+  // `fade` ramps the master down first; `before` runs afterwards and may veto the suspend by returning false.
+  function suspend({ fade = 0, before } = {}) {
     return serial(async () => {
       const current = ctx;
-      if (!current || current.state !== 'running') return;
+      if (!current) return;
+      const running = current.state === 'running';
+      if (running && fade > 0) {
+        graph.master.gain.setTargetAtTime(0, current.currentTime, fade / 3);
+        await new Promise(done => setTimeout(done, fade * 1000));
+        if (ctx !== current) return;
+      }
+      if (before?.() === false) {
+        if (graph && running && fade > 0) graph.master.gain.setTargetAtTime(0.9, current.currentTime, 0.02);
+        return;
+      }
+      if (!running) return;
       try { await current.suspend(); } catch (error) { report('context', error); }
     });
   }
@@ -113,6 +128,7 @@ export function createEngine({ assetURL = value => value, onError, random = Math
       if (!current || disposed) return false;
       try { if (current.state !== 'running' && current.state !== 'closed') await current.resume(); }
       catch (error) { report('context', error); }
+      if (current.state === 'running') restoreMaster();
       return !disposed && current.state === 'running';
     });
   }

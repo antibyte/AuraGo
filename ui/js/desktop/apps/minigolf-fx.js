@@ -19,6 +19,8 @@ void main() {
 const TRAIL_POINTS = 28;
 const tint = new THREE.Color();
 const between = (a, b) => a + Math.random() * (b - a);
+const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
+const scaledOut = (o, k) => ({ ...o, out: [o.out[0] * k, o.out[1] * k] });
 
 function createPool(max, blending, scale) {
     const geometry = new THREE.BufferGeometry();
@@ -195,10 +197,10 @@ export function createFx(parent, initialLook) {
     let look = initialLook, cfg = TIERS.medium, reduced = false, flagBoost = 0, ambientAt = 0, sandAt = 0, elapsed = 0;
     const rockets = [], scale = { value: 300 };
     const soft = createPool(320, THREE.NormalBlending, scale), glow = createPool(320, THREE.AdditiveBlending, scale);
-    const confetti = createConfetti(160), ring = createRing(), ripple = createRing(), trail = createTrail();
-    parent.add(soft.points, glow.points, confetti.mesh, ring.mesh, ripple.mesh, trail.mesh);
+    const confetti = createConfetti(160), ring = createRing(), ripple = createRing(), flash = createRing(), trail = createTrail();
+    parent.add(soft.points, glow.points, confetti.mesh, ring.mesh, ripple.mesh, flash.mesh, trail.mesh);
     function setTier(next) { cfg = next; soft.setLimit(next.particles); glow.setLimit(next.particles); confetti.setLimit(Math.round(next.particles / 2)); }
-    function clear() { soft.clear(); glow.clear(); confetti.clear(); trail.reset(); rockets.length = 0; flagBoost = 0; ring.mesh.visible = false; ripple.mesh.visible = false; }
+    function clear() { soft.clear(); glow.clear(); confetti.clear(); trail.reset(); rockets.length = 0; flagBoost = 0; ring.mesh.visible = false; ripple.mesh.visible = false; flash.mesh.visible = false; }
     setTier(cfg);
     function spray(pool, count, x, y, z, hex, o) {
         for (let i = 0; i < count; i++) {
@@ -216,19 +218,34 @@ export function createFx(parent, initialLook) {
     function burst(type, position, speed = 1, info = {}) {
         if (!position) return;
         const [x, y, z] = position, fx = look.fx, ground = y - .15, space = look.water.mode === 'void';
-        if (type === 'cup') flagBoost = 2;
-        if (type === 'cup' || type === 'win') ring.play(x, y + .012, z, fx.gold, reduced);
+        if (type === 'cup' || type === 'ace') flagBoost = 2;
+        if (type === 'cup' || type === 'ace' || type === 'win') ring.play(x, y + .012, z, fx.gold, reduced);
         if (reduced) return;
         if (type === 'strike') {
-            if (space) return spray(soft, 10, x, ground, z, fx.sand, { up: [.3, .8], out: [.4, 1.1], size: [.12, .22], life: [.6, 1], gravity: .2, drag: 2.5, grow: 1.2, opacity: .6 });
-            if (info.surface === 'sand') return spray(soft, 16, x, ground, z, fx.sand, { up: [.5, 1.2], out: [.5, 1.4], size: [.1, .2], life: [.6, 1.1], gravity: 2, drag: 2, grow: 1, opacity: .75 });
-            return spray(soft, 8, x, ground, z, fx.grass, { up: [1, 2], out: [.4, 1], size: [.04, .07], life: [.4, .7], gravity: 7, drag: .5 });
+            // speed is the stroke strength times two: k 0..1 scales the count and the throw.
+            const k = clamp(speed / 2, 0, 1), n = base => Math.round(base * (.5 + k)), out = .6 + .8 * k;
+            if (space) return spray(soft, n(10), x, ground, z, fx.sand, scaledOut({ up: [.3, .8], out: [.4, 1.1], size: [.12, .22], life: [.6, 1], gravity: .2, drag: 2.5, grow: 1.2, opacity: .6 }, out));
+            if (info.surface === 'sand') return spray(soft, n(16), x, ground, z, fx.sand, scaledOut({ up: [.5, 1.2], out: [.5, 1.4], size: [.1, .2], life: [.6, 1.1], gravity: 2, drag: 2, grow: 1, opacity: .75 }, out));
+            return spray(soft, n(8), x, ground, z, fx.grass, scaledOut({ up: [1, 2], out: [.4, 1], size: [.04, .07], life: [.4, .7], gravity: 7, drag: .5 }, out));
         }
         if (type === 'impact') {
-            const count = Math.round(4 + Math.min(1, speed) * 10);
+            const k = clamp(speed, 0, 1), count = Math.round(3 + 11 * k), puff = { up: [.2, .6], out: [.2, .7], size: [.05, .1], life: [.3, .6], gravity: 3, drag: 1.5, opacity: .7 };
+            switch (info.surface) {
+                case 'wood': return spray(soft, count, x, y, z, fx.wood, { up: [.8, 1.8], out: [.6, 1.6], size: [.035, .06], life: [.4, .7], gravity: 7, drag: .6 });
+                case 'stone': return spray(soft, count, x, y, z, fx.stone, { up: [.1, .5], out: [.3, .8], size: [.1, .18], life: [.5, .9], gravity: -.15, drag: 3, grow: 1, opacity: .55 });
+                case 'metal': return spray(glow, count, x, y, z, 0xfff1b0, { up: [.6, 2], out: [1.5, 3.5], size: [.035, .06], life: [.25, .5], gravity: 5, drag: 1 });
+                case 'grass': return spray(soft, Math.round(2 + 4 * k), x, ground, z, fx.grass, puff);
+                case 'sand': return spray(soft, Math.round(2 + 4 * k), x, ground, z, fx.sand, puff);
+            }
             if (fx.wall === 'sparks') return spray(glow, count, x, y, z, 0xfff1b0, { up: [.6, 2], out: [1.5, 3.5], size: [.035, .06], life: [.25, .5], gravity: 5, drag: 1 });
             if (fx.wall === 'dust') return spray(soft, count, x, y, z, fx.stone, { up: [.1, .5], out: [.3, .8], size: [.1, .18], life: [.5, .9], gravity: -.15, drag: 3, grow: 1, opacity: .55 });
             return spray(soft, count, x, y, z, fx.wood, { up: [.8, 1.8], out: [.6, 1.6], size: [.035, .06], life: [.4, .7], gravity: 7, drag: .6 });
+        }
+        if (type === 'dust') return spray(soft, 14, x, y, z, fx.stone, { up: [.2, .6], out: [.4, 1.2], size: [.14, .26], life: [.5, .9], gravity: -.2, drag: 3, grow: 1.4, opacity: .6 });
+        if (type === 'bumper') {
+            const k = clamp(speed / 8, .4, 1);
+            flash.play(x, y + .03, z, fx.gold, false, (Number(info.radius) || 0) + .35, .3);
+            return spray(glow, 10, x, y + .05, z, [fx.gold, 0xffffff], { up: [.6, 1.8 * k], out: [.8 * k, 2.2 * k], size: [.04, .07], life: [.3, .55], gravity: 4, drag: 1 });
         }
         if (type === 'spark') {
             // Mechanic flash (boost, teleporter, cannon): 18 glow particles in the look's palette; speed scales the throw.
@@ -240,7 +257,8 @@ export function createFx(parent, initialLook) {
             ripple.play(x, look.water.level + .02, z, 0xffffff, false, .9, .6);
             return spray(soft, 26, x, look.water.level + .02, z, fx.splash, { up: [2, 4.5], out: [.4, 1.4], size: [.06, .12], life: [.6, 1], gravity: 9.8, drag: .2 });
         }
-        if (type === 'cup') {
+        if (type === 'cup' || type === 'ace') {
+            if (type === 'ace') [[-1.4, .8], [1.4, -.8], [0, .8]].forEach(([dx, dz], i) => rockets.push({ delay: i * .3, time: 0, x: x + dx, y, z: z + dz, hex: fx.confetti[i % fx.confetti.length], done: false }));
             confettiBurst(x, y + .1, z, Math.round(cfg.particles * .45));
             return spray(glow, 24, x, y, z, fx.gold, { up: [1.2, 3], out: [.05, .3], size: [.05, .09], life: [.6, 1.1], gravity: -.3, drag: .4 });
         }
@@ -269,6 +287,8 @@ export function createFx(parent, initialLook) {
         burst,
         // Ends the glow trail, for example when the ball jumps through a teleporter.
         resetTrail: () => trail.reset(),
+        // Opens the flag cloth wider for a moment (near miss); the wave in the scene reads flagBoost.
+        kickFlag(amount = 1.2) { flagBoost = Math.max(flagBoost, amount); },
         get flagBoost() { return flagBoost; },
         setLook(next) { look = next; clear(); },
         setTier,
@@ -299,10 +319,10 @@ export function createFx(parent, initialLook) {
                 }
             }
             for (let i = rockets.length - 1; i >= 0; i--) if (rockets[i].done) rockets.splice(i, 1);
-            soft.update(dt); glow.update(dt); confetti.update(dt, elapsed); ring.update(dt); ripple.update(dt);
+            soft.update(dt); glow.update(dt); confetti.update(dt, elapsed); ring.update(dt); ripple.update(dt); flash.update(dt);
             trail.update(dt, ctx.ball, ctx.moving, ctx.speed, ctx.color, cfg.trail);
         },
         stats() { return { particles: soft.count + glow.count + confetti.count, trail: trail.count }; },
-        dispose() { soft.dispose(); glow.dispose(); confetti.dispose(); ring.dispose(); ripple.dispose(); trail.dispose(); for (const item of [soft.points, glow.points, confetti.mesh, ring.mesh, ripple.mesh, trail.mesh]) item.removeFromParent(); }
+        dispose() { soft.dispose(); glow.dispose(); confetti.dispose(); ring.dispose(); ripple.dispose(); flash.dispose(); trail.dispose(); for (const item of [soft.points, glow.points, confetti.mesh, ring.mesh, ripple.mesh, flash.mesh, trail.mesh]) item.removeFromParent(); }
     };
 }

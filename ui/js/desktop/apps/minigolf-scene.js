@@ -90,34 +90,15 @@ function disposeTree(tree) {
     for (const geometry of geometries) geometry.dispose();
 }
 
-const PREVIEW_POINTS = 400;
 const DRAG_DEAD_ZONE = 14;
-
-function dashedLine(opacity) {
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PREVIEW_POINTS * 3), 3));
-    geometry.setAttribute('lineDistance', new THREE.BufferAttribute(new Float32Array(PREVIEW_POINTS), 1));
-    geometry.setDrawRange(0, 0);
-    const line = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color: 0xdf914f, transparent: true, opacity, dashSize: .26, gapSize: .18, depthWrite: false }));
-    line.visible = false;
-    line.frustumCulled = false;
-    return line;
-}
-
-function fillLine(line, points, from, to) {
-    const positions = line.geometry.attributes.position, distances = line.geometry.attributes.lineDistance;
-    const count = Math.max(0, Math.min(PREVIEW_POINTS, to - from));
-    let total = 0;
-    for (let i = 0; i < count; i++) {
-        const point = points[from + i], previous = i ? points[from + i - 1] : point;
-        total += Math.hypot(point[0] - previous[0], point[1] - previous[1], point[2] - previous[2]);
-        positions.setXYZ(i, point[0], point[1] - .145, point[2]);
-        distances.setX(i, total);
-    }
-    positions.needsUpdate = true; distances.needsUpdate = true;
-    line.geometry.setDrawRange(0, count);
-    return count >= 2;
-}
+// Aim dots: a chain of instanced spheres along the predicted path. The radius grows with distance so the dots keep a minimum
+// on-screen size from the overview camera and stay small in the close aim camera.
+const AIM_DOT_SPACING = .28, AIM_DOT_FIRST = .32, AIM_DOT_MAX = 96, AIM_DOT_RADIUS = .045, AIM_DOT_MAX_RADIUS = .09, AIM_DOT_MIN_PX = 2.5, TAIL_SCALE = .75, TAIL_TINT = .55;
+const FLAG_NEAR = 1.8, FLAG_FAR = 2.2, FLAG_OPEN = .6, FLAG_RATE = 1 / .25;
+const GLIDE_TIME = .4, SHAKE_TIME = .25, POP_TIME = .3, ORBIT_SWEEP = Math.PI * 2 / 3, ORBIT_BLEND = .4;
+const smoothstep = t => t * t * (3 - 2 * t);
+// easeOutBack with a 1.08 overshoot
+const popEase = t => { const u = t - 1; return 1 + 2.5 * u * u * u + 1.5 * u * u; };
 
 export function createScene(host, options) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -147,7 +128,14 @@ export function createScene(host, options) {
     controls.screenSpacePanning = false;
     controls.touches.ONE = null;
     controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-    controls.addEventListener('start', () => { userOrbiting = true; camTween = null; skipIntro(); });
+    // Only a hand zoom keeps the camera distance after a shot (otherwise the intro overview distance would stay); wheel dollies apply
+    // during later damped updates, so the distance is watched for ~1.2 s after 'start' instead of compared at 'end'. Not armed during the intro.
+    let userZoomed = false, zoomWatch = 0, zoomRef = 0;
+    controls.addEventListener('start', () => {
+        const idle = !intro;
+        userOrbiting = true; camTween = null; orbit = null; skipIntro();
+        if (idle) { if (!(zoomWatch > 0)) zoomRef = camera.position.distanceTo(controls.target); zoomWatch = 1.2; }
+    });
     controls.addEventListener('end', () => { userOrbiting = false; });
     // Keeps a panned view over the course: the target stays within the bounds plus a margin, and the camera moves by the
     // same amount so the view direction does not change. The intro flight is not clamped.
@@ -177,7 +165,14 @@ export function createScene(host, options) {
     const bloom = new UnrealBloomPass(new THREE.Vector2(640, 360), .22, .5, 1.1);
     const output = new OutputPass();
     composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(output);
-    const previewLine = dashedLine(.9), previewTail = dashedLine(.45);
+    const aimDots = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6), new THREE.MeshBasicMaterial({ transparent: true, opacity: .92, depthWrite: false }), AIM_DOT_MAX);
+    aimDots.instanceMatrix.setUsage(THREE.DynamicDrawUsage); aimDots.setColorAt(0, new THREE.Color(1, 1, 1));
+    aimDots.renderOrder = 2; aimDots.frustumCulled = false; aimDots.count = 0; aimDots.visible = false;
+    // Sampled dot centres (x, ground y, z) and whether each belongs to the tail after the first contact.
+    const aimPoints = new Float32Array(AIM_DOT_MAX * 3), aimTail = new Uint8Array(AIM_DOT_MAX), dotMatrix = new THREE.Matrix4(), dotPosition = new THREE.Vector3(), dotScale = new THREE.Vector3(), dotRotation = new THREE.Quaternion(), dotColor = new THREE.Color();
+    let aimCount = 0;
+    const cupGlow = new THREE.Mesh(new THREE.RingGeometry(.35, .43, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd35a, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }));
+    cupGlow.renderOrder = 2; cupGlow.visible = false;
     const previewEnd = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffedb3, transparent: true, opacity: .9, depthWrite: false }));
     previewEnd.visible = false;
     let preview = null, previewDirty = false, lastPreviewPower = -1;
@@ -191,7 +186,7 @@ export function createScene(host, options) {
     const blob = new THREE.Mesh(new THREE.CircleGeometry(.24, 24), new THREE.MeshBasicMaterial({ color: 0x07130e, transparent: true, opacity: .26, depthWrite: false }));
     blob.rotation.x = -Math.PI / 2;
     blob.visible = false;
-    scene.add(previewLine, previewTail, previewEnd, powerRing, restMark, blob);
+    scene.add(aimDots, cupGlow, previewEnd, powerRing, restMark, blob);
     const ball = new THREE.Group();
     scene.add(ball);
     const ghosts = new THREE.Group();
@@ -201,6 +196,9 @@ export function createScene(host, options) {
     let course = null, courseRoot = null, disposed = false, generation = 0, request = null;
     let quality = options.quality || 'auto', reduced = !!options.reducedMotion, cameraMode = false, canAim = false;
     let followEnabled = true, aimCamEnabled = false, camTween = null, userOrbiting = false;
+    // Camera orbit around the cup (ace), camera shake, ball pop and the flag cloth opening near the ball.
+    let orbit = null, shakeRest = 0, shakeStrength = 0, popTime = Infinity, ballScale = 1, flagLift = 0, flagTarget = 0;
+    const shakeOffset = new THREE.Vector3(), orbitPoint = new THREE.Vector3();
     let aimDirection = [0, -1], aimPower = .35, pointerId = null, dragged = false, dragStart = null;
     // Opponent name tags: { sprite, x, y, z } of the ghost each tag floats over; resized every frame (tagFit).
     let tags = [], cursor = '';
@@ -280,26 +278,57 @@ export function createScene(host, options) {
         if (quality === 'auto') governor.reset(elapsed);
         applyTier();
     }
+    // Walks the polyline at AIM_DOT_SPACING from AIM_DOT_FIRST; dots on segments from the first contact on belong to the tail.
+    function sampleAim(points, contact) {
+        let n = 0, walked = 0, next = AIM_DOT_FIRST;
+        for (let i = 1; i < points.length && n < AIM_DOT_MAX; i++) {
+            const a = points[i - 1], b = points[i], length = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+            if (length < 1e-6) continue;
+            while (n < AIM_DOT_MAX && next <= walked + length) {
+                const k = (next - walked) / length;
+                aimPoints[n * 3] = a[0] + (b[0] - a[0]) * k; aimPoints[n * 3 + 1] = a[1] + (b[1] - a[1]) * k - .16; aimPoints[n * 3 + 2] = a[2] + (b[2] - a[2]) * k;
+                const tail = contact >= 0 && i - 1 >= contact;
+                aimTail[n] = tail ? 1 : 0;
+                aimDots.setColorAt(n, dotColor.setScalar(tail ? TAIL_TINT : 1));
+                n++; next += AIM_DOT_SPACING;
+            }
+            walked += length;
+        }
+        aimCount = n; aimDots.count = n;
+        if (aimDots.instanceColor) aimDots.instanceColor.needsUpdate = true;
+    }
+    // Radius in metres that keeps AIM_DOT_MIN_PX on screen, clamped; recomputed every frame because the camera moves.
+    function fitAimDots() {
+        if (!aimDots.visible) return;
+        const span = 2 * Math.tan(camera.fov * Math.PI / 360), height = Math.max(1, host.clientHeight), cam = camera.position;
+        for (let i = 0; i < aimCount; i++) {
+            const x = aimPoints[i * 3], y = aimPoints[i * 3 + 1], z = aimPoints[i * 3 + 2];
+            const distance = Math.max(.1, Math.hypot(x - cam.x, y - cam.y, z - cam.z)), perMeter = height / (span * distance);
+            const r = Math.min(AIM_DOT_MAX_RADIUS, Math.max(AIM_DOT_RADIUS, AIM_DOT_MIN_PX / perMeter)) * (aimTail[i] ? TAIL_SCALE : 1);
+            dotMatrix.compose(dotPosition.set(x, y + r, z), dotRotation, dotScale.setScalar(r));
+            aimDots.setMatrixAt(i, dotMatrix);
+        }
+        aimDots.instanceMatrix.needsUpdate = true;
+    }
     function updateAim() {
         const aiming = canAim && !cameraMode;
         powerRing.visible = aiming;
         const points = aiming && preview?.points?.length >= 2 ? preview.points : null;
         if (points && (previewDirty || lastPreviewPower !== aimPower)) {
-            const split = preview.contactIndex >= 0 ? preview.contactIndex + 1 : points.length;
-            const tint = powerColor(aimPower);
-            previewLine.userData.ready = fillLine(previewLine, points, 0, split);
-            previewTail.userData.ready = fillLine(previewTail, points, Math.max(0, split - 1), points.length);
-            previewLine.material.color.copy(tint);
-            previewTail.material.color.copy(tint);
+            sampleAim(points, preview.contactIndex);
+            aimDots.material.color.copy(powerColor(aimPower));
             const end = points[points.length - 1];
             previewEnd.position.set(end[0], end[1] - .1, end[2]);
-            previewEnd.material.color.setHex(preview.hazard ? 0xff6b5e : 0xffedb3);
+            previewEnd.material.color.setHex(preview.cup ? look.fx.gold : preview.hazard ? 0xff6b5e : 0xffedb3);
             previewDirty = false;
             lastPreviewPower = aimPower;
+            aimDots.visible = aimCount > 0;
+            fitAimDots();
         }
-        previewLine.visible = !!points && !!previewLine.userData.ready;
-        previewTail.visible = !!points && !!previewTail.userData.ready;
+        aimDots.visible = !!points && aimCount > 0;
         previewEnd.visible = !!points;
+        cupGlow.visible = aiming && !!preview?.cup;
+        if (cupGlow.visible) cupGlow.material.opacity = reduced ? .8 : .55 + .35 * Math.sin(elapsed * 4);
         if (aiming) {
             const ground = ball.position.y - .155;
             powerRing.position.set(ball.position.x, ground + .012, ball.position.z);
@@ -323,6 +352,7 @@ export function createScene(host, options) {
         updateAim();
     }
     function focusBall(overviewPlan = false) {
+        userZoomed = false; zoomWatch = 0;
         if (intro) {
             // Ends the flight in the end pose; a turn framing queued meanwhile runs afterwards.
             const turn = pendingTurn;
@@ -332,7 +362,7 @@ export function createScene(host, options) {
             return;
         }
         // Flush pending orbit/pan damping before moving the camera and its target together.
-        camTween = null;
+        camTween = null; orbit = null;
         const damping = controls.enableDamping;
         controls.enableDamping = false; controls.update();
         const pose = overviewPlan && course ? overviewPose() : null;
@@ -347,14 +377,49 @@ export function createScene(host, options) {
     function frameTurn(angle, position) {
         if (intro) { pendingTurn = [angle, position ? Array.from(position) : position]; return; }
         if (!aimCamEnabled || !position || position.length < 3) return;
+        zoomWatch = 0;
         const target = new THREE.Vector3(position[0], position[1], position[2]);
         const dirX = Math.sin(angle), dirZ = -Math.cos(angle);
         const destination = target.clone().add(new THREE.Vector3(-dirX * 6.4, 4.1, -dirZ * 6.4));
+        orbit = null;
         if (reduced) {
             camera.position.copy(destination); controls.target.copy(target); controls.update();
             return;
         }
         camTween = { fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: destination, toTarget: target, time: 0, duration: .45 };
+    }
+    // Keeps the current view direction and moves onto the ball: 0.4 s, instant when reduced. The distance stays only after a hand zoom
+    // (limit: orbit range), otherwise it is the close-up range 3-8 m.
+    function glideToBall() {
+        if (intro) return false;
+        orbit = null; zoomWatch = 0;
+        const offset = camera.position.clone().sub(controls.target).clampLength(controls.minDistance, userZoomed ? controls.maxDistance : 8);
+        const toTarget = ball.position.clone(), toPosition = toTarget.clone().add(offset);
+        if (reduced) {
+            camTween = null;
+            camera.position.copy(toPosition); controls.target.copy(toTarget); controls.update();
+            return true;
+        }
+        camTween = { fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition, toTarget, time: 0, duration: GLIDE_TIME };
+        return true;
+    }
+    // Ace camera: swings 120 degrees around the cup at 35 degrees elevation and then stays; false when nothing starts.
+    function orbitCup(seconds = 2) {
+        if (reduced || intro || !course?.cup || !(seconds > 0)) return false;
+        const cup = course.cup, distance = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target), 4, 7);
+        camTween = null; zoomWatch = 0;
+        orbit = { cx: cup[0], cy: cup[1], cz: cup[2], azimuth: Math.atan2(camera.position.x - cup[0], camera.position.z - cup[2]), reach: distance * Math.cos(Math.PI * 35 / 180), rise: distance * Math.sin(Math.PI * 35 / 180),
+            time: 0, duration: seconds, fromPosition: camera.position.clone(), fromTarget: controls.target.clone() };
+        return true;
+    }
+    function shake(strength) {
+        if (reduced || !(strength > 0)) return;
+        shakeStrength = Math.max(shakeRest > 0 ? shakeStrength : 0, Math.min(1, strength));
+        shakeRest = SHAKE_TIME;
+    }
+    function popBall() {
+        if (reduced) { popTime = Infinity; ballScale = 1; ball.scale.setScalar(1); return; }
+        popTime = 0; ballScale = .001; ball.scale.setScalar(ballScale);
     }
     function setRestMark(position) {
         if (!position || position.length < 3) { restMark.visible = false; return; }
@@ -498,7 +563,14 @@ export function createScene(host, options) {
         props = kit ? buildProps(kit, lookId, next.props, { scatter: cfg().scatter, state: shaderState }) : null;
         if (props) scene.add(props.group);
         fx.clear();
-        intro = null; pendingTurn = null;
+        cupGlow.geometry.dispose();
+        const cupRadius = Number.isFinite(next.cupRadius) ? next.cupRadius : .32;
+        cupGlow.geometry = new THREE.RingGeometry(cupRadius + .03, cupRadius + .11, 48).rotateX(-Math.PI / 2);
+        cupGlow.position.set(next.cup[0], next.cup[1] + .012, next.cup[2]);
+        cupGlow.material.color.set(look.fx.gold);
+        orbit = null; flagLift = 0; flagTarget = 0; popTime = Infinity; ballScale = 1; ball.scale.setScalar(1); shakeRest = 0; shakeStrength = 0;
+        previewDirty = true;
+        intro = null; pendingTurn = null; userZoomed = false; zoomWatch = 0;
         setBall(next.tee); focusBall(true); resize();
         startIntro();
         return { colliders };
@@ -524,7 +596,7 @@ export function createScene(host, options) {
         return true;
     }
     function burst(type, position, speed = 1, info = {}) {
-        if (type === 'strike') { swing = .25 + Math.min(1, speed) * .6; skipIntro(); }
+        if (type === 'strike') { swing = .25 + Math.min(1, speed) * .6; skipIntro(); fx.resetTrail(); }
         fx.burst(type, position, speed, info);
     }
     function pointAt(event) {
@@ -634,8 +706,19 @@ export function createScene(host, options) {
         if (!reduced) for (const spin of spinNodes) spin.node.rotateOnAxis(spin.axis, spin.speed * dt);
         // The hole flag is authored in world space. Turning the node about Z orbits
         // it around the origin, so the cloth leaves the pole except while the sine is near zero.
-        const wave = reduced ? 0 : Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12);
-        for (const flag of flagNodes) flag.node.rotation.y = flag.base + wave;
+        // The cloth opens while the ball is near the cup (hysteresis between FLAG_NEAR and FLAG_FAR).
+        if (course?.cup) {
+            const near = Math.hypot(ball.position.x - course.cup[0], ball.position.z - course.cup[2]);
+            if (near < FLAG_NEAR) flagTarget = 1; else if (near > FLAG_FAR) flagTarget = 0;
+        }
+        flagLift = reduced ? flagTarget : flagLift + Math.max(-dt * FLAG_RATE, Math.min(dt * FLAG_RATE, flagTarget - flagLift));
+        const wave = reduced ? 0 : Math.sin(elapsed * (2.2 + fx.flagBoost * 3)) * (.045 + fx.flagBoost * .12 + flagLift * .06);
+        for (const flag of flagNodes) flag.node.rotation.y = flag.base + wave + flagLift * FLAG_OPEN;
+        if (popTime < POP_TIME) {
+            popTime += dt;
+            ballScale = popTime >= POP_TIME ? 1 : Math.max(.001, popEase(popTime / POP_TIME));
+            ball.scale.setScalar(ballScale);
+        }
         if (motion) props?.update(elapsed);
         const velocity = snapshot?.velocity;
         fxContext.moving = !!snapshot?.moving;
@@ -660,34 +743,59 @@ export function createScene(host, options) {
             controls.target.lerpVectors(camTween.fromTarget, camTween.toTarget, eased);
             if (progress >= 1) camTween = null;
         }
-        if (followEnabled && snapshot?.moving && !userOrbiting && !camTween) {
+        if (orbit && !userOrbiting) {
+            orbit.time = Math.min(orbit.duration, orbit.time + dt);
+            const progress = orbit.time / orbit.duration, azimuth = orbit.azimuth + ORBIT_SWEEP * smoothstep(progress), blend = smoothstep(Math.min(1, orbit.time / ORBIT_BLEND));
+            orbitPoint.set(orbit.cx + Math.sin(azimuth) * orbit.reach, orbit.cy + orbit.rise, orbit.cz + Math.cos(azimuth) * orbit.reach);
+            camera.position.lerpVectors(orbit.fromPosition, orbitPoint, blend);
+            controls.target.set(orbit.cx, orbit.cy, orbit.cz).sub(orbit.fromTarget).multiplyScalar(blend).add(orbit.fromTarget);
+            if (progress >= 1) orbit = null;
+        }
+        if (followEnabled && snapshot?.moving && !userOrbiting && !camTween && !orbit) {
             controls.target.lerp(ball.position, reduced ? 1 : Math.min(1, dt * 2.5));
         }
-        controls.enableDamping = !reduced; controls.update(); updateAim(); fitTags();
+        controls.enableDamping = !reduced; controls.update();
+        if (zoomWatch > 0) {
+            zoomWatch -= dt;
+            if (!camTween && !orbit && !intro && Math.abs(camera.position.distanceTo(controls.target) - zoomRef) > .5) { userZoomed = true; zoomWatch = 0; }
+        }
+        updateAim(); fitAimDots(); fitTags();
+        // The shake is added after OrbitControls ran and removed again after rendering, so the controls never adopt it.
+        let shaken = false;
+        if (shakeRest > 0 && !reduced) {
+            shakeRest = Math.max(0, shakeRest - dt);
+            const amount = .05 * shakeStrength * (shakeRest / SHAKE_TIME);
+            shakeOffset.set((Math.random() * 2 - 1) * amount, (Math.random() * 2 - 1) * amount, (Math.random() * 2 - 1) * amount);
+            camera.position.add(shakeOffset); shaken = true;
+            if (!shakeRest) shakeStrength = 0;
+        }
         renderer.info.reset();
         if (tier() === 'low') renderer.render(scene, camera); else composer.render();
+        if (shaken) camera.position.sub(shakeOffset);
         const change = governor.frame(dt, elapsed);
         if (change && quality === 'auto') { applyTier(); if (change === 'down') options.onQuality?.('low'); }
     }
     return {
         canvas, load, update, setBall, setGhosts, setAim, focusBall, burst, resetTrail: () => fx.resetTrail(), setQuality, frameTurn, setRestMark, panAt, setPreview, cancelDrag, screenPosition, skipIntro,
+        glideToBall, orbitCup, shake, popBall, kickFlag: (amount = 1.2) => fx.kickFlag(amount),
         setFollow(value) { followEnabled = !!value; },
         setAimCamera(value) { aimCamEnabled = !!value; if (!value) camTween = null; },
         setReducedMotion(value) {
             reduced = !!value;
             fx.setReduced(reduced);
             shaderState.golfMotion.value = cfg().motion && !reduced ? 1 : 0;
-            if (reduced) skipIntro();
+            if (reduced) { skipIntro(); orbit = null; popTime = Infinity; ballScale = 1; ball.scale.setScalar(1); shakeRest = 0; shakeStrength = 0; }
         },
         setCameraMode(value) { cameraMode = !!value; controls.touches.ONE = value ? THREE.TOUCH.ROTATE : null; controls.mouseButtons.LEFT = value ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN; setCursor(''); updateAim(); },
         stats() { const effects = fx.stats(); return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: effects.particles, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             look: lookId, props: props?.instances || 0, env: !!scene.environment, intro: !!intro, trail: effects.trail,
+            aimDots: aimDots.visible ? aimCount : 0, cupGlow: cupGlow.visible, flagLift, orbit: !!orbit, tween: !!camTween, userZoomed, shake: shakeRest, ballScale,
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
             if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
             canvas.removeEventListener('pointerdown', down, { capture: true }); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointermove', hover); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
             // Props, sky, water and effects leave the scene first so shared kit geometry is freed exactly once below.
-            props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose();
+            props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose(); aimDots.dispose();
             for (const target of environments.values()) target.dispose();
             for (const pending of kits.values()) pending.then(kit => kit && disposeTree(kit));
             canvas.removeEventListener('wheel', wheel);

@@ -86,6 +86,7 @@ p.mg-loading{padding:24px}
 .mg-plaque-world{font-size:13px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--mg-muted)}
 .mg-plaque-hole{font-size:18px;line-height:1.3;font-variant-numeric:tabular-nums}
 .mg-plaque-name{max-width:min(260px,60cqw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mg-plaque-meta{font-size:13px;color:var(--mg-muted);font-variant-numeric:tabular-nums;max-width:min(260px,60cqw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mg-chips{grid-area:chips;justify-self:end;display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:100%;margin:0;padding:0;list-style:none}
 .mg-chip{display:flex;align-items:center;gap:8px;max-width:100%;min-height:36px;padding:5px 12px;border-radius:var(--mg-radius);box-shadow:var(--mg-elev-1);font-variant-numeric:tabular-nums}
 .mg-chip[data-active]{border-color:transparent;box-shadow:0 0 0 2px var(--mg-focus),0 0 0 5px color-mix(in srgb,var(--mg-focus) 24%,transparent),var(--mg-elev-1)}
@@ -114,7 +115,7 @@ p.mg-loading{padding:24px}
 .mg-banner-icon{display:inline-flex;color:#2f9e63}
 .mg-banner-icon .mg-icon{width:22px;height:22px;fill:currentColor}
 .mg-banner [data-banner-lines]{display:grid}
-.mg-banner [data-banner-lines] span{color:var(--mg-muted)}
+.mg-banner [data-banner-lines] span{color:var(--mg-muted);overflow-wrap:anywhere}
 .mg-hint{position:absolute;left:14px;bottom:12px;max-width:calc(100% - 28px);margin:0;padding:4px 10px;border-radius:var(--mg-radius);color:var(--mg-muted);font-size:13px;box-shadow:var(--mg-elev-1)}
 @container (max-width:800px){
     .mg-hud{padding:10px}
@@ -255,7 +256,7 @@ p.mg-loading{padding:24px}
 .mg-hole-best{display:inline-flex;align-items:center;gap:3px;font-weight:700;font-variant-numeric:tabular-nums}
 .mg-hole-best .mg-icon{width:14px;height:14px}
 .mg-hole-best[data-rank=good]{color:var(--mg-text)}
-.mg-hole-best[data-rank=good] .mg-icon{fill:var(--mg-accent-2);stroke:var(--mg-accent-2)}
+.mg-hole-best[data-rank=good] .mg-icon{stroke:var(--mg-accent-2)}
 
 /* 8.3 Player setup */
 .mg-segment{min-width:0;margin:0 0 16px;padding:0;border:0}
@@ -430,6 +431,20 @@ p.mg-loading{padding:24px}
 .mg-app[data-reduced=true] .mg-coach-demo::before{content:'';position:absolute;left:10px;top:16px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--mg-accent);transform:rotate(45deg)}
 @keyframes mg-coach-drag{0%{opacity:0;transform:translate(0,0)}15%{opacity:1}75%{opacity:1;transform:translate(-13px,15px)}100%{opacity:0;transform:translate(-13px,15px)}}
 @media (prefers-reduced-motion:reduce){.mg-app .mg-coach-demo i{display:none}}
+
+/* 12 Stars: hole tiles, world cards and the full-round card; they sit in rows that already exist. */
+.mg-star-on{fill:var(--mg-accent-2);stroke:var(--mg-accent-2)}
+.mg-hole-stars{display:inline-flex;align-items:center;gap:1px;color:var(--mg-muted)}
+.mg-hole-stars .mg-icon{width:14px;height:14px}
+.mg-round-foot{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;min-width:0}
+.mg-round-foot .mg-round-best{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.mg-round-stars{display:inline-flex;flex:none;align-items:center;gap:4px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--mg-text)}
+.mg-round-stars .mg-icon{width:16px;height:16px;fill:var(--mg-accent-2);stroke:var(--mg-accent-2)}
+@container (max-width:560px){
+    .mg-round-end{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 8px}
+    .mg-round-end>.mg-round-stars,.mg-round-end>.mg-round-best{grid-column:1;justify-self:start}
+    .mg-round-end>.mg-icon{grid-column:2;grid-row:1/3}
+}
 
 /* 11 Motion: banners, toasts, scorecard rows and the podium animate; reduced motion removes every animation and transition. */
 @keyframes mg-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}

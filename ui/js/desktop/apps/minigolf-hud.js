@@ -1,4 +1,4 @@
-import { colorValue, formatToPar, powerHex } from './minigolf-shared.js';
+import { colorValue, fillText, formatToPar, powerHex } from './minigolf-shared.js';
 import { createMinimap } from './minigolf-minimap.js';
 
 const formatters = new Map();
@@ -23,6 +23,12 @@ export function formatPower(strength, meters, lang) {
     return { percent, distance, text: distance ? percent + ' · ' + distance : percent };
 }
 
+// "3,4 m" / "12 m": one decimal below 10 m, none above; unit joined by a no-break space.
+export function formatDistance(meters, lang) {
+    const value = Math.max(0, Number(meters) || 0);
+    return numberFormat(lang, value < 10 ? { minimumFractionDigits: 1, maximumFractionDigits: 1 } : { maximumFractionDigits: 0 }).format(value) + '\xa0m';
+}
+
 // Top-left of the meter: 56 px right and 64 px above the ball, mirrored at the
 // stage edges and clamped; bottom centre when the ball is not visible.
 export function placeMeter(ball, width, height, size) {
@@ -36,7 +42,7 @@ export function placeMeter(ball, width, height, size) {
 }
 
 // key: [kind, seconds] (spec 4.5)
-export const TOASTS = Object.freeze({ sunk: ['success', 3], new_best: ['success', 6], water: ['warning', 3.5], out: ['warning', 3.5], limit: ['warning', 5], quality_changed: ['info', 4], audio_error: ['warning', 6], storage_error: ['warning', 8], progress_reset: ['info', 8] });
+export const TOASTS = Object.freeze({ sunk: ['success', 3], new_best: ['success', 6], water: ['warning', 3.5], out: ['warning', 3.5], limit: ['warning', 5], near_miss: ['info', 2.2], stuck: ['info', 4], limit_warning: ['warning', 3.5], limit_last: ['warning', 3.5], tutorial_camera: ['info', 3], quality_changed: ['info', 4], audio_error: ['warning', 6], storage_error: ['warning', 8], progress_reset: ['info', 8] });
 const MAX_TOASTS = 3;
 const MAX_TICK_MS = 120;
 
@@ -44,14 +50,14 @@ const MAX_TICK_MS = 120;
 // the game feeds to tick(), so banners and toasts pause with the window.
 export function createHud(elements, { tr, esc, icon }) {
     const { hud, toasts, announcer } = elements;
-    hud.innerHTML = `<div class="mg-plaque" data-plaque><span class="mg-plaque-world" data-plaque-world></span><strong class="mg-plaque-hole" data-plaque-hole></strong><span class="mg-plaque-name" data-plaque-name></span></div>
+    hud.innerHTML = `<div class="mg-plaque" data-plaque><span class="mg-plaque-world" data-plaque-world></span><strong class="mg-plaque-hole" data-plaque-hole></strong><span class="mg-plaque-name" data-plaque-name></span><span class="mg-plaque-meta" data-plaque-meta hidden></span></div>
         <ol class="mg-chips" data-chips aria-label="${esc(tr('players'))}"></ol>
         <div class="mg-map" data-map></div>
         <div class="mg-banner" data-banner hidden><strong data-banner-title></strong><span data-banner-lines></span></div>
         <div class="mg-meter" data-meter hidden aria-hidden="true"><svg viewBox="0 0 96 96"><circle class="mg-meter-track" cx="48" cy="48" r="40"/><circle class="mg-meter-arc" data-meter-arc cx="48" cy="48" r="40" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 48 48)"/></svg><strong class="mg-meter-percent" data-meter-percent></strong><span class="mg-meter-distance" data-meter-distance></span></div>
         <p class="mg-hint" data-hint hidden></p>`;
     const $ = selector => hud.querySelector(selector);
-    const plaque = { world: $('[data-plaque-world]'), hole: $('[data-plaque-hole]'), name: $('[data-plaque-name]') };
+    const plaque = { world: $('[data-plaque-world]'), hole: $('[data-plaque-hole]'), name: $('[data-plaque-name]'), meta: $('[data-plaque-meta]') };
     const mapElement = $('[data-map]');
     mapElement.innerHTML = `<button class="mg-map-toggle" data-action="map" aria-pressed="true" aria-label="${esc(tr('map'))}" title="${esc(tr('map'))}">${icon('map')}</button><div class="mg-map-frame" role="img" aria-label="${esc(tr('hole_map'))}"><canvas class="mg-map-lane"></canvas><canvas class="mg-map-live"></canvas></div>`;
     const map = createMinimap(mapElement);
@@ -67,21 +73,32 @@ export function createHud(elements, { tr, esc, icon }) {
 
     // Stroke counts seen at the last update() of this course; a changed count bumps the chip score once.
     let strokeCourse = null, strokeMemory = [];
-    function chip(round, course, player, index, bump) {
+    function chip(round, course, player, index, bump, shown) {
         const single = round.players.length === 1, active = index === round.turnIndex && !player.done;
-        const score = player.done ? icon('check') + esc(formatToPar(player.strokes - course.par, tr('par'))) : String(player.strokes);
+        const score = player.done ? icon('check') + esc(formatToPar(player.strokes - course.par, tr('par'))) : String(shown);
         return `<li class="mg-chip" data-player="${index}"${active ? ' data-active' : ''}${player.done ? ` data-done title="${esc(tr('chip_done'))}"` : ''} style="--mg-player:${colorValue(player.color)}"><i class="mg-dot"></i><span class="mg-chip-name">${esc(single ? tr('strokes') : player.name)}</span><b class="mg-chip-score${bump ? ' mg-bump' : ''}">${score}</b>${active && !single ? `<span class="mg-chip-turn">${esc(tr('chip_active'))}</span>` : ''}</li>`;
     }
 
     return {
         map,
-        update(round, course) {
+        update(round, course, busy) {
             plaque.world.textContent = tr(course.world);
             plaque.hole.textContent = tr('hole_par').replace('{hole}', course.number).replace('{par}', course.par);
             plaque.name.textContent = tr('course_' + course.number);
             const sameCourse = strokeCourse === course.id;
-            chips.innerHTML = round.players.map((player, index) => chip(round, course, player, index, sameCourse && index in strokeMemory && strokeMemory[index] !== player.strokes)).join('');
-            strokeCourse = course.id; strokeMemory = round.players.map(player => player.strokes);
+            // While a putt rolls the active chip already shows the stroke being played.
+            const shown = round.players.map((player, index) => player.strokes + (busy && index === round.turnIndex && !player.done ? 1 : 0));
+            chips.innerHTML = round.players.map((player, index) => chip(round, course, player, index, sameCourse && index in strokeMemory && strokeMemory[index] !== shown[index], shown[index])).join('');
+            strokeCourse = course.id; strokeMemory = shown;
+        },
+        // info: { distance: metres or null, best: strokes or null }; text is written only when it changes.
+        plaqueInfo({ distance, best } = {}, lang = document.documentElement.lang) {
+            const parts = [];
+            if (Number.isFinite(distance)) parts.push(fillText(tr('to_cup'), { distance: formatDistance(distance, lang) }));
+            if (Number.isFinite(best)) parts.push(fillText(tr('best_value'), { n: best }));
+            const text = parts.join(' · ');
+            if (plaque.meta.textContent !== text) plaque.meta.textContent = text;
+            plaque.meta.hidden = !text;
         },
         // formatted: result of formatPower(); the arc follows the 3D ring colours.
         power(strength, formatted) {
@@ -112,8 +129,8 @@ export function createHud(elements, { tr, esc, icon }) {
             bannerCount++; bannerText = [title, ...extra].join(' · '); bannerLeft = seconds * 1000;
             announce(bannerText);
         },
-        toast(key) {
-            const [kind, seconds] = TOASTS[key] || ['info', 4], text = tr(key);
+        toast(key, values) {
+            const [kind, seconds] = TOASTS[key] || ['info', 4], text = values ? fillText(tr(key), values) : tr(key);
             const known = live.find(item => item.key === key);
             if (known) dismiss(known);
             const el = document.createElement('div');

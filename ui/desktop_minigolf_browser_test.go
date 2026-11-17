@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
@@ -99,6 +100,13 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	settle := func() {
 		page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+	}
+	// waitOr polls a page condition like MustWait but fails with the relevant game state instead of a bare timeout.
+	waitOr := func(timeout time.Duration, label, condition string) {
+		t.Helper()
+		if err := page.Timeout(timeout).Wait(rod.Eval(condition)); err != nil {
+			t.Fatalf("%s: %v; state: %s", label, err, page.MustEval(`()=>{const s=golfFixture.inspect(),c=document.querySelector('.mg-chip[data-active] .mg-chip-score'),m=document.querySelector('[data-plaque-meta]');return JSON.stringify({busy:s.busy,panel:s.panel,tutorial:s.tutorial,turn:s.round?.turnIndex,strokes:s.round?.players.map(p=>p.strokes),chip:c?.textContent,plaque:m?{text:m.textContent,hidden:m.hidden}:null,toasts:s.hud.toasts,graphics:s.graphics&&{aimDots:s.graphics.aimDots,cupGlow:s.graphics.cupGlow,tween:s.graphics.tween,orbit:s.graphics.orbit,shake:s.graphics.shake,ballScale:s.graphics.ballScale,camera:s.graphics.camera}})}`).Str())
+		}
 	}
 	// A freshly loaded course flies the camera from tee to cup unless the browser asks for
 	// reduced motion. A wheel event on the canvas ends that flight, so camera checks never
@@ -231,6 +239,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if !page.MustEval(`()=>{const name=document.querySelector('.mg-plaque-name');return name.getClientRects().length>0&&name.textContent===I18N['minigolf.course_1']&&document.querySelectorAll('.mg-chip').length===2&&golfFixture.inspect().hud.map.visible===true&&golfFixture.inspect().hud.map.drawn===true}`).Bool() {
 		t.Fatalf("HUD plaque, chips or map are wrong: %s", page.MustEval(`()=>JSON.stringify({plaque:document.querySelector('.mg-plaque-name').textContent,chips:document.querySelectorAll('.mg-chip').length,hud:golfFixture.inspect().hud})`).Str())
 	}
+	// A4: the plaque shows the distance to the cup ("12 m to the cup ...") under the hole name.
+	waitOr(5*time.Second, "plaque distance", `()=>{const m=document.querySelector('[data-plaque-meta]');return !!m&&!m.hidden&&m.getClientRects().length>0&&/\d+[.,]?\d*\xa0m/.test(m.textContent)}`)
 	page.MustElement(`[data-action="map"]`).MustClick()
 	page.MustWait(`()=>golfFixture.inspect().hud.map.visible===false&&JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1')).showMap===false`)
 	page.MustElement(`[data-action="map"]`).MustClick()
@@ -382,6 +392,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	if step := page.MustEval(`()=>golfFixture.inspect().tutorial`).Str(); step != "aim" {
 		t.Fatalf("the coach marks left the aim step before the first drag: %q", step)
 	}
+	// A1: the aim line is a chain of dots, drawn as soon as the course allows aiming.
+	waitOr(5*time.Second, "aim dots", `()=>golfFixture.inspect().graphics.aimDots>=3`)
 	bannersBefore := page.MustEval(`()=>golfFixture.inspect().hud.bannerCount`).Int()
 	ballPoint := page.MustEval(`()=>{const c=golfFixture.inspect().graphics.camera.projectedBall,r=document.querySelector('.mg-canvas canvas').getBoundingClientRect();return{x:r.left+(c[0]+1)/2*r.width,y:r.top+(1-c[1])/2*r.height}}`)
 	ballX, ballY := ballPoint.Get("x").Num(), ballPoint.Get("y").Num()
@@ -443,13 +455,30 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustWait(`()=>golfFixture.inspect().panel===''`)
 
 	// Putting from the footer button must keep arrow keys, Space and Escape working.
+	// B5: zoom far out first; the camera glides back to the ball after the putt without losing that zoom (the "Zum Ball" button still caps at 8 m).
+	for zoom := 0; zoom < 5 && page.MustEval(`()=>golfFixture.inspect().graphics.camera.distance`).Num() <= 14; zoom++ {
+		page.Mouse.MustMoveTo(cameraX, cameraY).MustScroll(0, 600)
+		page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,200))`)
+	}
+	waitOr(3*time.Second, "zoomed out camera", `()=>golfFixture.inspect().graphics.camera.distance>14`)
 	page.MustEval(`()=>document.querySelector('[data-action="shoot"]').focus()`)
 	page.Keyboard.MustType(input.Enter)
 	page.MustWait(`()=>golfFixture.inspect().busy`)
 	if !page.MustEval(`()=>document.activeElement===document.querySelector('.mg-canvas canvas')`).Bool() {
 		t.Fatal("putting from the footer button dropped the keyboard focus")
 	}
+	// A3: while the ball rolls the active chip already counts the stroke being played.
+	waitOr(3*time.Second, "chip counts the stroke in play", `()=>{const s=golfFixture.inspect(),c=document.querySelector('.mg-chip[data-active] .mg-chip-score');return s.busy&&!!c&&Number(c.textContent)===s.round.players[s.round.turnIndex].strokes+1}`)
 	page.Timeout(30 * time.Second).MustWait(`()=>!golfFixture.inspect().busy&&golfFixture.inspect().round.turnIndex===0`)
+	page.MustEval(`()=>new Promise(resolve=>setTimeout(resolve,600))`)
+	waitOr(3*time.Second, "camera glide back to the ball", `()=>{const g=golfFixture.inspect().graphics,c=g.camera;return g.tween===false&&c.distance>8.5&&Math.abs(c.projectedBall[0])<.08&&Math.abs(c.projectedBall[1])<.08}`)
+	// D5: in camera mode a stroke attempt only shows the hint; the ball stays put.
+	page.MustElement(`[data-action="camera"]`).MustClick()
+	page.MustEval(`()=>document.querySelector('.mg-canvas canvas').focus()`)
+	page.Keyboard.MustType(input.Space)
+	waitOr(3*time.Second, "camera mode hint", `()=>{const s=golfFixture.inspect();return s.hud.toasts.includes('tutorial_camera')&&!s.busy}`)
+	page.MustElement(`[data-action="camera"]`).MustClick()
+	page.MustEval(`()=>document.querySelector('.mg-canvas canvas').focus()`)
 
 	// Hiding the Desktop window pauses both audio and simulation, then resuming
 	// the reopened app continues from its persisted round checkpoint.
@@ -471,6 +500,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	}
 	page.MustEval(`()=>{document.querySelector('#golf-host').style.display=''}`)
 	page.Timeout(10 * time.Second).MustWait(`()=>golfFixture.inspect().visible&&golfFixture.inspect().audio.playing`)
+	// D2: a stored hole best of one stroke earns three stars on the hole tile and a star total on the round card.
+	page.MustEval(`()=>{golfFixture.failStorage(false);localStorage.setItem('aurago.desktop.minigolf.best.v2',JSON.stringify({version:2,set:'',rounds:{},holes:{'pirate-01':1}}))}`)
 	page.MustEval(`()=>golfFixture.reopen()`)
 	page.MustWait(`()=>!golfFixture.inspect().loading&&golfFixture.inspect().panel==='menu'&&!!document.querySelector('[data-action="resume"]')`)
 	page.MustElement(`[data-action="resume"]`).MustClick()
@@ -516,6 +547,8 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.MustElement(`[data-hole-id="` + id + `"]`).MustClick()
 		page.MustWait(`()=>golfFixture.inspect().menuStep==='players'`)
 	}
+	openMenu()
+	waitOr(5*time.Second, "round card stars", `()=>!!document.querySelector('[data-round="pirate"] .mg-round-stars')`)
 	worldCaptured := map[string]bool{}
 	// Manifest version 2: the world id is the look, and every course reads its collision from its own GLB. One course per
 	// world is enough for the smoke (the finale of each world: the biggest island, fork, mechanics and obstacles);
@@ -535,6 +568,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		t.Logf("loading practice course %s", course.ID)
 		openHoles()
 		if !introChecked {
+			waitOr(5*time.Second, "hole tile stars", `()=>!!document.querySelector('[data-hole-id="pirate-01"] .mg-hole-stars[data-stars="3"]')`)
 			layoutOK("holes 1280")
 			shot("holes-1280")
 		}

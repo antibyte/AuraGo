@@ -1,6 +1,6 @@
 import { AUDIO_PATH_RE, clamp, createEngine } from './minigolf-audio-engine.js';
 import { createMusic } from './minigolf-audio-music.js';
-import { REVERB_PRESETS, createAmbience, createImpulse, playUi } from './minigolf-audio-synth.js';
+import { REVERB_PRESETS, createAmbience, createImpulse, playCue, playUi } from './minigolf-audio-synth.js';
 
 export const AUDIO_MANIFEST_PATH = '/3d/minigolf/audio/manifest.json';
 export const REQUIRED_GROUPS = [
@@ -25,7 +25,7 @@ const MANIFEST_LIMIT = 128 * 1024;
 const PENDING_EFFECT_MS = 1000;
 const IMPACT_MATERIAL = { wood: 'wood', stone: 'stone', metal: 'metal', grass: 'soft', sand: 'soft' };
 const STONE_RATE = { light: 1.08, medium: 1, heavy: 0.86 };
-const UI_KIND = { start: 'confirm', resume: 'confirm', 'next-hole': 'confirm', close: 'back', menu: 'back', pause: 'back' };
+const UI_KIND = { start: 'confirm', resume: 'confirm', 'next-hole': 'confirm', close: 'back', menu: 'back', pause: 'back', card: 'click', select: 'click', 'switch-on': 'on', 'switch-off': 'off' };
 // Rolling bed per surface: which loop is audible, its playback rate, gain and lowpass cutoff at full speed.
 const ROLL = {
   grass: { loop: 'soft', rate: 1, gain: 0.55, cutoff: 2600 },
@@ -34,7 +34,8 @@ const ROLL = {
   stone: { loop: 'hard', rate: 1.1, gain: 0.5, cutoff: 6500 },
   metal: { loop: 'hard', rate: 1.25, gain: 0.45, cutoff: 8000 }
 };
-const EFFECT_TYPES = new Set(['strike', 'impact', 'cup', 'splash', 'cannon', 'boost', 'teleport', 'win']);
+const CUE_TYPES = ['bumper', 'capture', 'lip', 'poof', 'fanfare', 'chime', 'low', 'best', 'turn'];
+const EFFECT_TYPES = new Set(['strike', 'impact', 'cup', 'splash', 'cannon', 'boost', 'teleport', 'win', ...CUE_TYPES]);
 
 function parseManifest(text) {
   if (text.length > MANIFEST_LIMIT) throw new Error('Minigolf audio manifest exceeds its size limit.');
@@ -205,12 +206,14 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
         return !!group && play(group, { gain: clamp(0.2 + speed / 10, 0.2, 1, 0.2), rate: material === 'stone' ? STONE_RATE[tier] : 1, pan });
       }
       case 'cup': {
-        let started = play('cup.rim', { gain: 0.55, pan, priority: 1 });
-        const hits = 2 + Math.floor(random() * 3);
+        // A fast ball rattles longer and louder; without a speed the old 2-3 hits stay.
+        const n = Number.isFinite(options.speed) ? clamp(options.speed / 4, 0, 1, 0.5) : 0.5;
+        let started = play('cup.rim', { gain: 0.3 + 0.4 * n, pan, priority: 1 });
+        const hits = 1 + Math.round(2 * n) + Math.floor(random() * 2);
         let delay = 0;
         for (let i = 0; i < hits; i++) {
           delay += 0.07 + random() * 0.06;
-          started = play('cup.rattle', { gain: 0.45 * 0.72 ** i, rate: 1.15 + random() * 0.2, delay, pan }) || started;
+          started = play('cup.rattle', { gain: (0.3 + 0.3 * n) * 0.72 ** i, rate: 1.15 + random() * 0.2, delay, pan }) || started;
         }
         started = play('impact.soft.light', { gain: 0.5, delay: delay + 0.09, pan }) || started;
         music.duck(1.4, 0.35);
@@ -229,6 +232,15 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
         const started = play(`win.${worldContext}`, { gain: 0.8, priority: 2 });
         music.duck(3, 0.25);
         return started;
+      }
+      case 'fanfare': music.duck(1.6, 0.3);
+      // falls through
+      case 'bumper': case 'capture': case 'lip': case 'poof': case 'chime': case 'low': case 'best': case 'turn': {
+        const ctx = engine.context();
+        const bus = engine.bus('effects');
+        if (!ctx || !bus) return false;
+        const gain = type === 'bumper' ? 0.5 + 0.5 * Math.min(1, clamp(options.speed, 0, 40, 0) / 8) : 1;
+        return playCue(ctx, bus, type, { gain, pan, delay: clamp(options.delay, 0, 2, 0) });
       }
       default: return false;
     }
@@ -288,10 +300,8 @@ export function createAudio({ assetURL = value => value, onTrack, onError, rando
     pausedPosition = music.state().position;
     paused = true;
     rollingSpeed = 0;
-    engine.stopVoices(0);
-    stopRolling(0);
-    stopAmbience(0);
-    void engine.suspend();
+    // Voices keep running through the short master fade; a quick resume() cancels the teardown.
+    void engine.suspend({ fade: 0.12, before: () => paused && (engine.stopVoices(0), stopRolling(0), stopAmbience(0), true) });
     return pausedPosition;
   }
 

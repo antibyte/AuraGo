@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { advanceHole, beginShot, cloneSave, createRound, normalizeBest, recordHole, recordRound, resolveShot, scoreTotal, validateSave } from '../ui/js/desktop/apps/minigolf-model.js';
+import { aimAlongPath } from '../ui/js/desktop/apps/minigolf-shared.js';
+import { advanceHole, beginShot, cancelShot, cloneSave, createRound, normalizeBest, recordHole, recordRound, resolveShot, scoreTotal, underParStreak, validateSave } from '../ui/js/desktop/apps/minigolf-model.js';
 
 const courses = [
     { id: 'temple-1', tee: [-2, 0.16, 0], cup: [2, 0, 0] },
@@ -109,5 +110,49 @@ sink(templeRound, bestCourses[1]); advanceHole(templeRound, bestCourses);
 assert.equal(recordRound(best, templeRound), true);
 assert.equal(best.rounds.temple, 2);
 assert.equal(recordRound(best, templeRound), false);
+
+// cancelShot lets beginShot start again after a discarded shot.
+{
+    const r = createRound(courses, { players: ['Ada'], mode: 'temple' });
+    assert.equal(cancelShot(r), false);
+    assert.ok(beginShot(r));
+    assert.equal(beginShot(r), null);
+    assert.equal(cancelShot(r), true);
+    assert.ok(beginShot(r));
+}
+
+// underParStreak counts holes under par in a row, ending with the latest one.
+{
+    const par = [3, 3, 3, 3, 3];
+    const cs = par.map((p, i) => ({ id: 'h-' + i, tee: [0, 0, 0], cup: [1, 0, 0], par: p }));
+    const r = createRound(cs, { players: ['Ada'], mode: 'temple' });
+    const p = r.players[0];
+    assert.equal(underParStreak(p, r, cs), 0);
+    p.scores = [2, 2, 2]; r.holeIndex = 3;
+    assert.equal(underParStreak(p, r, cs), 3);
+    p.scores = [2, 3, 2, 2]; r.holeIndex = 4;
+    assert.equal(underParStreak(p, r, cs), 2);
+    p.scores = [2, 2, 3]; r.holeIndex = 3;
+    assert.equal(underParStreak(p, r, cs), 0, 'a par hole ends the streak');
+    p.scores = [2, 2]; r.holeIndex = 2; p.strokes = 2;
+    assert.equal(underParStreak(p, r, cs), 2, 'the running hole does not count until the player is done');
+    p.done = true;
+    assert.equal(underParStreak(p, r, cs), 3, 'a finished running hole counts');
+}
+
+// aimAlongPath: look-ahead on the path, the cup near it, off the path or on an empty path.
+{
+    const cup = [10, 0, 0];
+    const straight = [[-10, 0, 0], [0, 1, 0], [10, 0, 0]];
+    const t = aimAlongPath(straight, [-8, 0, 0.5], cup);
+    assert.ok(Math.abs(t[0] + 5) < 1e-6 && Math.abs(t[2]) < 1e-6 && Math.abs(t[1] - 0.5) < 1e-6, 'three metres ahead on a straight path, y interpolated');
+    const bend = [[0, 0, 0], [0, 0, -10], [10, 0, -10]];
+    const around = aimAlongPath(bend, [0, 0, -8.5], [10, 0, -10]);
+    assert.ok(Math.abs(around[0] - 1.5) < 1e-6 && Math.abs(around[2] + 10) < 1e-6, 'the target turns the corner');
+    assert.deepEqual(aimAlongPath(straight, [8, 0, 0], cup), cup, 'near the cup');
+    assert.deepEqual(aimAlongPath(straight, [-5, 0, 6], cup), cup, 'off the path');
+    assert.deepEqual(aimAlongPath([], [0, 0, 0], cup), cup, 'empty path');
+    assert.notEqual(aimAlongPath([], [0, 0, 0], cup), cup, 'a copy of the cup');
+}
 
 console.log('minigolf model: all checks passed');

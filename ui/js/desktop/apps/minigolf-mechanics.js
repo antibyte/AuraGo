@@ -73,8 +73,9 @@ export function resetZoneState(state) { state.inside.clear(); state.teleportUnti
 export function applyBumpers(hits, ball, emit) {
     for (const bumper of new Set(hits)) {
         const position = ball.position();
-        ball.setVelocity(bumperVelocity(bumper, position, ball.velocity()));
-        emit?.('bumper', position, { id: bumper.id });
+        const v = ball.velocity();
+        ball.setVelocity(bumperVelocity(bumper, position, v));
+        emit?.('bumper', position, { id: bumper.id, at: bumper.position.slice(), radius: bumper.radius, speed: Math.hypot(v[0], v[2]) });
     }
 }
 
@@ -101,6 +102,7 @@ export function stepZones(zones, state, ball, time, { emit, stop } = {}) {
         if (zone.kind === 'cannon') {
             state.captured = { id: zone.id, release: time + (zone.delay || 0), muzzle: zone.muzzle, velocity: zone.velocity };
             ball.hold(zone.muzzle);
+            emit?.('capture', position, { id: zone.id, muzzle: zone.muzzle.slice() });
             return;
         }
         if (zone.kind === 'teleport') {

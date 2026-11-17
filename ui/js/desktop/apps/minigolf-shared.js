@@ -75,6 +75,35 @@ const PIN_FREE = 0.22;
 // Pivot of a hole flag authored in world space: the midpoint of its only vertical
 // edge (the hoist). A cloth with two vertical edges (hoist and fly) returns null,
 // because either edge would be a guess. The scene then leaves that cloth still.
+// Aim point on the course path: `lookAhead` m of path ahead of the ball, or the cup when the ball is
+// near it, off the path (side arm) or close to the path end. Works in the XZ plane, y is interpolated.
+export function aimAlongPath(path, ball, cup, { lookAhead = 3, nearCup = 3.5, offPath = 2.5 } = {}) {
+    const points = (Array.isArray(path) ? path : []).filter(p => Array.isArray(p) && p.length >= 3 && p.slice(0, 3).every(Number.isFinite));
+    const toCup = () => cup.slice();
+    if (points.length < 2 || Math.hypot(ball[0] - cup[0], ball[2] - cup[2]) < nearCup) return toCup();
+    let best = null, before = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i], b = points[i + 1];
+        const dx = b[0] - a[0], dz = b[2] - a[2], length = Math.hypot(dx, dz);
+        if (length < 1e-9) continue;
+        const t = Math.max(0, Math.min(1, ((ball[0] - a[0]) * dx + (ball[2] - a[2]) * dz) / (length * length)));
+        const distance = Math.hypot(ball[0] - (a[0] + dx * t), ball[2] - (a[2] + dz * t));
+        if (!best || distance < best.distance) best = { distance, s: before + length * t };
+        before += length;
+    }
+    if (!best || best.distance > offPath || before - best.s < lookAhead / 2) return toCup();
+    const want = Math.min(before, best.s + lookAhead);
+    let target = null;
+    for (let i = 0, run = 0; i < points.length - 1 && !target; i++) {
+        const a = points[i], b = points[i + 1], length = Math.hypot(b[0] - a[0], b[2] - a[2]);
+        if (length < 1e-9) continue;
+        if (run + length >= want - 1e-9) { const t = (want - run) / length; target = a.slice(0, 3).map((v, axis) => v + (b[axis] - v) * t); }
+        run += length;
+    }
+    if (!target) return toCup();
+    return Math.hypot(ball[0] - cup[0], ball[2] - cup[2]) < Math.hypot(ball[0] - target[0], ball[2] - target[2]) ? toCup() : target;
+}
+
 export function flagPolePivot(positions) {
     if (!Array.isArray(positions) || positions.length < 2) return null;
     const edges = [];

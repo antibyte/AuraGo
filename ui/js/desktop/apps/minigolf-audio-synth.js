@@ -98,6 +98,7 @@ function tone(ctx, destination, { type = 'sine', path, start, dur, peak, band })
   osc.onended = () => { for (const node of nodes) node.disconnect(); };
   osc.start(start);
   osc.stop(start + dur + 0.02);
+  return osc;
 }
 
 const ticks = new WeakMap();
@@ -115,9 +116,75 @@ function tick(ctx, destination, start) {
   source.start(start);
 }
 
+const puffs = new WeakMap();
+// Band-passed noise burst; `band` is [[seconds, hz], ...] with linear glides.
+function noiseBurst(ctx, destination, { start, dur, peak, band }) {
+  let buffer = puffs.get(ctx);
+  if (!buffer) puffs.set(ctx, buffer = noiseBuffer(ctx, 0.4, 'white', 13));
+  const source = ctx.createBufferSource();
+  const filter = filterNode(ctx, 'bandpass', band[0][1], 3);
+  const env = ctx.createGain();
+  source.buffer = buffer;
+  for (const [offset, hz] of band.slice(1)) filter.frequency.linearRampToValueAtTime(hz, start + offset);
+  env.gain.setValueAtTime(0, start);
+  env.gain.linearRampToValueAtTime(peak, start + Math.min(0.01, dur / 4));
+  env.gain.linearRampToValueAtTime(0, start + dur);
+  source.connect(filter);
+  filter.connect(env);
+  env.connect(destination);
+  source.onended = () => { for (const node of [source, filter, env]) node.disconnect(); };
+  source.start(start);
+  source.stop(start + dur + 0.02);
+  return source;
+}
+
+const NOTES = (hzs, step, dur, peak, type = 'sine') => hzs.map((hz, i) => ({ type, path: [[0, hz]], at: i * step, dur, peak }));
+// Each cue is a list of oscillator voices (`at` seconds after the start) and noise bursts; peaks are before the effects bus.
+const CUES = {
+  bumper: { tones: [{ type: 'triangle', path: [[0, 520], [0.03, 780]], dur: 0.22, peak: 0.32 }, { path: [[0, 1560]], dur: 0.12, peak: 0.1 }] },
+  capture: { tones: [{ path: [[0, 140], [0.14, 70]], dur: 0.14, peak: 0.45 }], noise: [{ dur: 0.03, peak: 0.2, band: [[0, 900]] }] },
+  lip: { tones: [{ type: 'triangle', path: [[0, 600], [0.35, 420]], dur: 0.35, peak: 0.16 }] },
+  poof: { noise: [{ dur: 0.28, peak: 0.25, band: [[0, 700], [0.28, 300]] }] },
+  fanfare: { tones: [...NOTES([523, 659, 784, 1047], 0.11, 0.16, 0.22, 'triangle'), ...[523, 659, 784, 1047].map(hz => ({ type: 'triangle', path: [[0, hz]], at: 0.44, dur: 0.6, peak: 0.12 }))] },
+  chime: { tones: NOTES([784, 1175], 0.09, 0.25, 0.18) },
+  low: { tones: [{ path: [[0, 196], [0.35, 174]], dur: 0.35, peak: 0.16 }] },
+  best: { tones: NOTES([880, 1109, 1319], 0.07, 0.2, 0.16) },
+  turn: { tones: NOTES([523, 784], 0.08, 0.12, 0.1) }
+};
+
+// Short synthesized feedback cue; true when something was scheduled.
+export function playCue(ctx, destination, kind, { gain = 1, pan = 0, delay = 0 } = {}) {
+  const cue = Object.hasOwn(CUES, kind) ? CUES[kind] : null;
+  if (!cue || !ctx || !destination) return false;
+  const level = Math.max(0, Number(gain) || 0);
+  const start = ctx.currentTime + 0.005 + Math.max(0, Number(delay) || 0);
+  const panner = pan ? ctx.createStereoPanner() : null;
+  let out = destination;
+  if (panner) {
+    panner.pan.setValueAtTime(Math.max(-1, Math.min(1, Number(pan) || 0)), ctx.currentTime);
+    panner.connect(destination);
+    out = panner;
+  }
+  let last = null;
+  let lastEnd = -1;
+  const track = (node, end) => { if (end >= lastEnd) { last = node; lastEnd = end; } };
+  for (const voice of cue.tones || []) {
+    const at = start + (voice.at || 0);
+    track(tone(ctx, out, { type: voice.type, path: voice.path, start: at, dur: voice.dur, peak: voice.peak * level }), at + voice.dur);
+  }
+  for (const voice of cue.noise || []) track(noiseBurst(ctx, out, { start, dur: voice.dur, peak: voice.peak * level, band: voice.band }), start + voice.dur);
+  if (panner) {
+    const previous = last.onended;
+    last.onended = () => { previous?.(); panner.disconnect(); };
+  }
+  return true;
+}
+
 export function playUi(ctx, destination, kind) {
   const start = ctx.currentTime + 0.005;
-  if (kind === 'confirm' || kind === 'back') {
+  if (kind === 'on' || kind === 'off') {
+    tone(ctx, destination, { path: [[0, kind === 'on' ? 1200 : 1500], [0.04, kind === 'on' ? 1500 : 1100]], start, dur: 0.04, peak: 0.18 });
+  } else if (kind === 'confirm' || kind === 'back') {
     const [first, second] = kind === 'confirm' ? [660, 990] : [880, 587];
     tone(ctx, destination, { path: [[0, first]], start, dur: 0.07, peak: 0.2 });
     tone(ctx, destination, { path: [[0, second]], start: start + 0.08, dur: 0.09, peak: 0.2 });

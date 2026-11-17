@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { MAX_NAME_LENGTH, PALETTE, DEFAULT_COLORS, FLOOR_SURFACES, colorValue, assignColors, cleanName, uniqueNames, worldIds, formatToPar, fillText, powerHex, createQualityGovernor, flagPolePivot, clothPinFactors, edgeSamples } from '../ui/js/desktop/apps/minigolf-shared.js';
-import { formatPower, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
+import { formatPower, formatDistance, placeMeter } from '../ui/js/desktop/apps/minigolf-hud.js';
+import { holeStars, starTally } from '../ui/js/desktop/apps/minigolf-menus.js';
 import { laneGeometry, obstacleOutlines } from '../ui/js/desktop/apps/minigolf-minimap.js';
 import { rankPlayers, relativeToPar, holeGrade, finishedHoles, gradeTitle } from '../ui/js/desktop/apps/minigolf-scorecard.js';
 import { tutorialStart, tutorialNext, tutorialView } from '../ui/js/desktop/apps/minigolf-tutorial.js';
@@ -114,6 +115,15 @@ assert.deepEqual(placeMeter({ x: 100, y: 200, visible: true }, 800, 600, 96), { 
 assert.deepEqual(placeMeter({ x: 780, y: 200, visible: true }, 800, 600, 96), { x: 676, y: 88 }, 'mirrors left at the right edge');
 assert.deepEqual(placeMeter({ x: 100, y: 40, visible: true }, 800, 600, 96), { x: 108, y: 56 }, 'mirrors below at the top edge');
 assert.deepEqual(placeMeter({ visible: false }, 800, 600, 96), { x: 352, y: 492 }, 'hidden ball: bottom centre');
+
+// Stars and the plaque distance (polish round 2).
+assert.deepEqual([[undefined, 3], [0, 3], [1, 2], [1, 3], [2, 3], [3, 3], [4, 3]].map(([strokes, par]) => holeStars(strokes, par)), [0, 0, 3, 3, 3, 2, 1], 'one star over par, two at par, three under; no value gives none');
+assert.equal(holeStars(1, 2), 3, 'an ace on par 2 earns three stars');
+assert.deepEqual(starTally({ holes: { a: 1, b: 3, gone: 1 } }, [{ id: 'a', par: 3 }, { id: 'b', par: 3 }, { id: 'c', par: 4 }]), { stars: 5, max: 9 }, 'unknown holes are ignored, max is three per course');
+assert.deepEqual(starTally(null, [{ id: 'a', par: 3 }]), { stars: 0, max: 3 });
+assert.equal(formatDistance(3.4, 'de'), '3,4' + nb + 'm');
+assert.equal(formatDistance(12.4, 'de'), '12' + nb + 'm', 'no decimals from 10 m');
+assert.equal(formatDistance(3.4, 'en'), '3.4' + nb + 'm');
 
 // --- Lane map geometry (Task 6) ----------------------------------------------
 const lane = laneGeometry({

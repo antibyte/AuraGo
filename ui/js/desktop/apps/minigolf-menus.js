@@ -2,6 +2,18 @@ import { PALETTE, colorValue, fillText } from './minigolf-shared.js';
 
 export const WORLD_ICONS = { pirate: 'ship', temple: 'temple', moon: 'moon' };
 
+// 0 without a valid stroke count, 3 under par (an ace on par 2 included), 2 at par, else 1.
+export function holeStars(strokes, par) {
+    if (!(strokes >= 1) || !(par >= 1)) return 0;
+    return strokes < par ? 3 : strokes === par ? 2 : 1;
+}
+
+// Stars over the holes of `courses` from the best-stroke map `best.holes`; unknown holes are ignored.
+export function starTally(best, courses) {
+    const holes = best?.holes || {};
+    return { stars: courses.reduce((sum, course) => sum + holeStars(holes[course.id], course.par), 0), max: 3 * courses.length };
+}
+
 export function roundLabel(mode, holeId, courses, tr) {
     if (mode === 'full') return tr('full');
     if (mode !== 'practice') return tr(mode);
@@ -40,14 +52,20 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL, logo })
             const image = world.preview ? `<img alt="" loading="lazy" decoding="async" src="${esc(assetURL('/3d/minigolf/' + world.preview))}">` : '';
             return `<span class="mg-preview${mini ? ' mg-preview-mini' : ''}"><span class="mg-island" aria-hidden="true"></span>${icon(WORLD_ICONS[world.id] || 'star')}${image}</span>`;
         };
+        const starsOf = list => {
+            const { stars, max } = starTally(best, list);
+            if (!stars) return '';
+            const text = fillText(tr('stars_total'), { n: stars, max });
+            return `<span class="mg-round-stars" title="${esc(text)}" aria-label="${esc(text)}">${icon('star')}<span>${stars}/${max}</span></span>`;
+        };
         const bestChip = value => value ? `<span class="mg-round-best" data-has-best>${icon('trophy')}<span>${esc(bestText(value))}</span></span>` : `<span class="mg-round-best">${esc(bestText(value))}</span>`;
         const worldCard = world => {
             const own = courses.filter(course => course.world === world.id);
-            return roundCard('', world.id, world.id, `${preview(world, false)}<span class="mg-round-title">${esc(tr(world.id))}</span><span class="mg-round-meta">${esc(meta(own))}</span>${bestChip(bests[world.id])}`);
+            return roundCard('', world.id, world.id, `${preview(world, false)}<span class="mg-round-title">${esc(tr(world.id))}</span><span class="mg-round-meta">${esc(meta(own))}</span><span class="mg-round-foot">${bestChip(bests[world.id])}${starsOf(own)}</span>`);
         };
         const resume = saved ? `<article class="mg-resume-card"><div><h2>${esc(tr('resume'))}</h2><p>${esc(fillText(tr('resume_detail'), { hole: saved.hole, total: saved.total, players: saved.players }))}</p><p class="mg-muted">${esc(roundLabel(saved.mode, saved.holeId, courses, tr))}</p></div><button class="mg-primary" data-action="resume">${icon('play')}<span>${esc(tr('continue'))}</span></button></article>` : '';
         const collage = `<span class="mg-round-collage" aria-hidden="true">${worlds.map(world => `<span class="mg-collage-cell" data-world="${esc(world.id)}">${preview(world, true)}</span>`).join('')}</span>`;
-        const full = roundCard('mg-round-full', 'full', 'full', `${collage}<span class="mg-round-title">${esc(tr('full'))}</span><span class="mg-round-meta">${esc(meta(courses))}</span><span class="mg-round-end">${bestChip(bests.full)}${icon('chevron')}</span>`);
+        const full = roundCard('mg-round-full', 'full', 'full', `${collage}<span class="mg-round-title">${esc(tr('full'))}</span><span class="mg-round-meta">${esc(meta(courses))}</span><span class="mg-round-end">${starsOf(courses)}${bestChip(bests.full)}${icon('chevron')}</span>`);
         const practice = roundCard('mg-round-practice', 'practice', 'neutral', `${icon('flag')}<span class="mg-round-title">${esc(tr('training'))}</span><span class="mg-round-meta">${esc(tr('training_detail'))}</span>${icon('chevron')}`);
         const logoImg = logo ? `<img class="mg-logo" src="${esc(logo)}" width="56" height="56" alt="">` : '';
         const brandBar = `<div class="mg-brand-bar" aria-hidden="true">${worlds.map(world => `<i data-world="${esc(world.id)}"></i>`).join('')}</div>`;
@@ -59,9 +77,15 @@ export function createMenus({ showPanel, panel, tr, esc, icon, assetURL, logo })
             const value = bests[course.id];
             if (!value) return '';
             const text = fillText(tr('best_value'), { n: value });
-            return `<span class="mg-hole-best" data-rank="${value <= course.par ? 'good' : 'plain'}" title="${esc(text)}">${icon('star')}<span>${esc(value)}</span></span>`;
+            return `<span class="mg-hole-best" data-rank="${value <= course.par ? 'good' : 'plain'}" title="${esc(text)}">${icon('trophy')}<span>${esc(value)}</span></span>`;
         };
-        const tile = course => `<button class="mg-hole-tile" data-hole-id="${esc(course.id)}"><span class="mg-hole-number">${esc(course.number)}</span><span class="mg-hole-name">${esc(tr('course_' + course.number))}</span><span class="mg-hole-foot"><span class="mg-hole-par">${esc(tr('par'))} ${esc(course.par)}</span>${bestOf(course)}</span></button>`;
+        const starsFor = course => {
+            const value = bests[course.id];
+            if (!value) return '';
+            const n = holeStars(value, course.par), text = fillText(tr('stars'), { n });
+            return `<span class="mg-hole-stars" data-stars="${n}" role="img" aria-label="${esc(text)}" title="${esc(text)}">${[1, 2, 3].map(at => icon('star').replace('class="mg-icon"', at <= n ? 'class="mg-icon mg-star-on"' : 'class="mg-icon"')).join('')}</span>`;
+        };
+        const tile = course => `<button class="mg-hole-tile" data-hole-id="${esc(course.id)}"><span class="mg-hole-number">${esc(course.number)}</span><span class="mg-hole-name">${esc(tr('course_' + course.number))}</span><span class="mg-hole-foot"><span class="mg-hole-par">${esc(tr('par'))} ${esc(course.par)}</span>${bestOf(course)}${starsFor(course)}</span></button>`;
         const group = world => `<section class="mg-hole-group" data-world="${esc(world.id)}"><h3 class="mg-group-title">${icon(WORLD_ICONS[world.id] || 'star')}<span>${esc(tr(world.id))}</span></h3><div class="mg-hole-grid">${courses.filter(course => course.world === world.id).map(tile).join('')}</div></section>`;
         showPanel(`${stepHead(tr('pick_hole'))}${worlds.map(group).join('')}`, 'pick_hole', focus);
     }

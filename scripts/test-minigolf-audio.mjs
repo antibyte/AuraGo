@@ -278,6 +278,24 @@ assert.ok(cup.some(source => source.buffer.path.startsWith('sfx/impact-soft-ligh
 const duckTargets = level => ctx.nodes.some(node => node.kind === 'gain' && node.gain.events.some(event => event[0] === 'target' && event[1] === level));
 assert.ok(duckTargets(0.35), 'cup ducks the music');
 for (const source of cup) source.onended();
+const rattleHits = options => {
+  ctx.currentTime += 1;
+  const made = fired(() => audio.effect('cup', options)).made;
+  made.forEach(source => source.onended());
+  return made.filter(source => source.buffer.path.startsWith('sfx/cup-rattle')).length;
+};
+assert.ok(rattleHits({ speed: 0.2 }) <= 2, 'a slow ball rattles at most twice');
+assert.ok(rattleHits({ speed: 4 }) >= 3, 'a fast ball rattles at least three times');
+
+// Synthesized cues
+for (const type of ['bumper', 'capture', 'lip', 'poof', 'fanfare', 'chime', 'low', 'best', 'turn']) {
+  ctx.currentTime += 1;
+  const from = ctx.nodes.length;
+  assert.equal(audio.effect(type, { speed: 6, pan: -0.5, delay: 0.3 }), true, `${type} plays`);
+  const made = ctx.nodes.slice(from).filter(node => (node.kind === 'osc' || node.kind === 'buffer') && node.starts[0] >= ctx.currentTime + 0.3);
+  assert.ok(made.length > 0, `${type} creates delayed sources`);
+}
+assert.equal(audio.effect('nonsense'), false);
 
 // Voice cap
 endAll();
@@ -330,8 +348,13 @@ assert.equal(fired(() => audio.effect('win')).made[0].buffer.path, 'sfx/win-moon
 ctx.currentTime = 100;
 const resumesBeforePause = ctx.calls.resume;
 const heldPosition = audio.getState().position;
+const master = ctx.nodes.find(node => node.kind === 'gain' && node.out.includes(limiter));
+let masterEventsAtSuspend = null;
+const realSuspend = ctx.suspend.bind(ctx);
+ctx.suspend = () => { masterEventsAtSuspend = [...master.gain.events]; return realSuspend(); };
 assert.equal(audio.pause(), heldPosition);
 await until(() => ctx.calls.suspend === 1, 'suspend');
+assert.deepEqual(masterEventsAtSuspend.at(-1).slice(0, 2), ['target', 0], 'the master is faded to silence before the context suspends');
 assert.ok(liveVoices().every(source => source.stops.length), 'pause stops every voice');
 assert.ok(rollLoops('soft').every(source => source.stops.length) && rollLoops('hard').every(source => source.stops.length), 'pause stops the rolling loops');
 assert.ok(oscillators(55)[0].stops.length && oscillators(55)[0].disconnects > 0, 'pause tears the ambience down');

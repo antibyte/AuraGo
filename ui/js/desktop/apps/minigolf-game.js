@@ -1,21 +1,26 @@
 import { createScene } from './minigolf-scene.js';
+import { TERMINAL_EVENTS } from './minigolf-mechanics.js';
 import { createPhysics, strengthToPower, MAX_ROLL } from './minigolf-physics.js';
-import { createRound, beginShot, resolveShot, advanceHole, validateSave, cloneSave, normalizeBest, recordHole, recordRound } from './minigolf-model.js';
+import { createRound, beginShot, cancelShot, resolveShot, underParStreak, advanceHole, validateSave, cloneSave, normalizeBest, recordHole, recordRound } from './minigolf-model.js';
 import { AUDIO_CREDITS, createAudio } from './minigolf-audio.js';
 import { createView } from './minigolf-views.js';
 import { tutorialStart, tutorialNext, tutorialView } from './minigolf-tutorial.js';
-import { DEFAULT_COLORS, colorValue, assignColors, cleanName, uniqueNames, worldIds, fillText, formatToPar } from './minigolf-shared.js';
+import { DEFAULT_COLORS, FLOOR_SURFACES, aimAlongPath, colorValue, assignColors, cleanName, uniqueNames, worldIds, fillText, formatToPar } from './minigolf-shared.js';
 import { holeGrade, gradeTitle } from './minigolf-scorecard.js';
 
 // Time between the last putt of a hole and the scorecard, so ball, confetti and banner stay visible.
 const SCORE_DELAY_MS = 900;
+// An ace keeps the cup orbit and the fireworks on screen longer.
+const ACE_SCORE_DELAY_MS = 2200;
+// A resting ball closer than this (m, horizontal) to the cup centre was a near miss; wall hits harder than HARD_HIT (m/s) shake the camera.
+const NEAR_MISS_RADIUS = .7, HARD_HIT = 6;
 
 const SAVE_KEY = 'aurago.desktop.minigolf.round.v2';
 const SETTINGS_KEY = 'aurago.desktop.minigolf.settings.v1';
 const BEST_KEY = 'aurago.desktop.minigolf.best.v2';
 const LEGACY_KEYS = ['aurago.desktop.minigolf.round.v1', 'aurago.desktop.minigolf.best.v1'];
 const QUALITIES = ['auto', 'low', 'medium', 'high'];
-const MECHANIC_EVENTS = new Set(['boost', 'teleport', 'cannon', 'bumper']);
+const MECHANIC_EVENTS = new Set(['boost', 'teleport', 'cannon', 'bumper', 'capture']);
 const finiteUnit = (v, fallback) => Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 const plain = value => !!value && typeof value === 'object' && !Array.isArray(value);
 
@@ -55,7 +60,7 @@ export function mountGame(host, context = {}) {
     let best = null, checkpoint = null, manifest = null, round = null, course = null, physics = null, scene = null;
     let worlds = [], newBest = false;
     // dragActive: a pointer drag is aiming; meterLeft: ms the power meter stays after the last change; sessionShots: shots this session.
-    let dragActive = false, meterLeft = 0, sessionShots = 0, hintShown = false;
+    let dragActive = false, meterLeft = 0, sessionShots = 0, hintShown = false, shotLipped = false, plaqueLeft = 0;
     let disposed = false, busy = false, loading = true, visible = true, inView = true, cameraMode = false;
     let panelKind = 'loading', track = null, tracks = [];
     // { left, run }: the scorecard (or the next practice hole) that opens once left ms of frame time have passed with no panel open.
@@ -166,13 +171,21 @@ export function mountGame(host, context = {}) {
         previewAt = now; previewKey = key;
         scene.setPreview(physics.predict(dir, strengthToPower(strength)));
     }
+    // Distance to the cup and the hole best under the hole name; no distance once everybody is done.
+    function updatePlaque(position) {
+        if (!round || !course) return;
+        const distance = position && course.cup && !round.players.every(p => p.done) ? Math.hypot(position[0] - course.cup[0], position[2] - course.cup[2]) : null;
+        view.hud.plaqueInfo({ distance, best: best?.holes?.[course.id] ?? null });
+    }
     function setTurn() {
         if (!round || round.completed || !course) return;
         const player = round.players[round.turnIndex];
         physics?.setBall(player.position);
         scene?.setBall(player.position, [0, 0, 0, 1], player.color);
         scene?.setGhosts(round.players, round.turnIndex);
-        angle = Math.atan2(course.cup[0] - player.position[0], -(course.cup[2] - player.position[2]));
+        const target = aimAlongPath(course.path, player.position, course.cup);
+        angle = Math.atan2(target[0] - player.position[0], -(target[2] - player.position[2]));
+        scene?.resetTrail?.(); updatePlaque(player.position);
         strength = .35; cameraMode = false; scene?.setCameraMode(false); view.setCamera(false);
         view.update(round, course, busy); updateAim();
         scene?.frameTurn?.(angle, player.position);
@@ -205,13 +218,21 @@ export function mountGame(host, context = {}) {
     }
     function turnBanner() { const player = round.players[round.turnIndex]; view.hud.banner(fillText(tr('turn_of'), { name: player.name }), [], colorValue(player.color), 1.6); }
     // Grade of the hole just sunk; when the turn passes on in a multi-player hole the banner also names the next player.
-    function gradeBanner(player, before) {
+    function gradeBanner(player, before, extra = '') {
         const name = holeGrade(player.strokes, course.par), diff = player.strokes - course.par, next = round.players[round.turnIndex];
         const passes = round.players.length > 1 && round.turnIndex !== before && !round.players.every(p => p.done);
         view.hud.banner(gradeTitle(name, tr),
-            [round.players.length > 1 ? player.name : '', tr('strokes') + ': ' + player.strokes + (diff ? ' · ' + formatToPar(diff, tr('par')) : ''), passes ? fillText(tr('turn_of'), { name: next.name }) : ''],
+            [round.players.length > 1 ? player.name : '', tr('strokes') + ': ' + player.strokes + (diff ? ' · ' + formatToPar(diff, tr('par')) : ''), extra, passes ? fillText(tr('turn_of'), { name: next.name }) : ''],
             colorValue(player.color), 2.6, name);
         return passes;
+    }
+    // One extra banner line: a new hole best (not in practice, which announces its own) and a streak of holes under par.
+    function bannerExtra(player, previousBest) {
+        const parts = [];
+        if (round.mode !== 'practice' && Number.isFinite(previousBest) && player.strokes < previousBest) { parts.push(tr('new_best')); audio.effect('best', { delay: .9 }); }
+        const n = underParStreak(player, round, manifest.courses);
+        if (n >= 3) parts.push(fillText(tr('streak'), { n }));
+        return parts.join(' \xb7 ');
     }
     const pauseInfo = () => course ? { world: tr(course.world), worldId: course.world, hole: fillText(tr('hole_par'), { hole: course.number, par: course.par }), name: tr('course_' + course.number) } : undefined;
     async function loadCourse(next, preview = false) {
@@ -251,7 +272,7 @@ export function mountGame(host, context = {}) {
     async function startRound({ mode, holeId, players }) {
         const courses = mode === 'full' || mode === 'practice' ? manifest.courses : manifest.courses.filter(c => c.world === mode);
         round = createRound(courses, { players, mode, holeId });
-        newBest = false; returnStack = []; tutorial = settings.tutorial < 2 ? tutorialStart() : { step: null, finished: false }; persist(); view.close(); setPanel('');
+        newBest = false; sessionShots = 0; returnStack = []; tutorial = settings.tutorial < 2 ? tutorialStart() : { step: null, finished: false }; persist(); view.close(); setPanel('');
         await loadCourse(manifest.courses.find(c => c.id === round.courseIds[0]));
         focusStage();
     }
@@ -263,17 +284,18 @@ export function mountGame(host, context = {}) {
     }
     async function resume() {
         if (!checkpoint || !validateSave(checkpoint, manifest.courses) || checkpoint.completed) return;
-        round = cloneSave(checkpoint); returnStack = []; tutorial = settings.tutorial < 2 ? tutorialStart() : { step: null, finished: false }; view.close(); setPanel('');
+        round = cloneSave(checkpoint); sessionShots = 0; returnStack = []; tutorial = settings.tutorial < 2 ? tutorialStart() : { step: null, finished: false }; view.close(); setPanel('');
         await loadCourse(manifest.courses.find(c => c.id === round.courseIds[round.holeIndex]));
         if (!disposed && round.players.every(p => p.done)) showScore(); else focusStage();
     }
     function shoot(dir = direction(), amount = strength) {
         dragActive = false;
-        if (!allowAim() || cameraMode || !visible || context.isActive?.() === false) return;
+        if (cameraMode) { if (allowAim()) message('tutorial_camera'); return; }
+        if (!allowAim() || !visible || context.isActive?.() === false) return;
         dir = snapTowardCup(dir);
         if (!physics.shoot(dir, strengthToPower(amount))) return;
         if (!beginShot(round)) { physics.setBall(round.players[round.turnIndex].position); return; }
-        angle = Math.atan2(dir[0], -dir[1]); strength = amount; busy = true; clearHeld();
+        angle = Math.atan2(dir[0], -dir[1]); strength = amount; busy = true; shotLipped = false; clearHeld();
         meterLeft = 0; sessionShots++; tutorialEvent({ type: 'shot' });
         const ballPosition = physics.getBall();
         audio.effect('strike', { speed: amount * 12, pan: scene?.panAt?.(ballPosition) ?? 0 });
@@ -290,44 +312,68 @@ export function mountGame(host, context = {}) {
             audio.effect('teleport', { pan });
             scene.burst('spark', event.position); scene.burst('spark', event.exit);
             scene.resetTrail?.();
-        } else if (event.type === 'cannon') { audio.effect('cannon', { pan }); scene.burst('spark', event.position, 2); }
-        else if (event.type === 'bumper') scene.burst('impact', event.position, 1, { surface: lastSurface });
+        } else if (event.type === 'cannon') { audio.effect('cannon', { pan }); scene.burst('spark', event.position, 2); scene.shake?.(.8); }
+        else if (event.type === 'capture') { audio.effect('capture', { pan }); scene.burst('spark', event.position, .5); }
+        else if (event.type === 'bumper') { audio.effect('bumper', { speed: event.speed, pan }); scene.burst('bumper', event.at ?? event.position, event.speed, { radius: event.radius }); }
     }
     function handleEvents() {
         for (const event of events.splice(0)) {
             if (MECHANIC_EVENTS.has(event.type)) { mechanicEvent(event); continue; }
+            if (event.type === 'lip') { if (busy) shotLipped = true; continue; }
             if (event.type === 'impact') {
                 lastSurface = event.surface || 'grass';
                 if (busy && event.speed > .25 && performance.now() - soundTime > 65) {
                     soundTime = performance.now();
                     audio.effect('impact', { speed: event.speed, surface: lastSurface, pan: scene?.panAt?.(event.position) ?? 0 });
-                    scene.burst('impact', event.position, event.speed * .25, { surface: lastSurface });
+                    scene.burst('impact', event.position, Math.min(1, event.speed / 8), { surface: lastSurface });
                 }
+                if (busy && !FLOOR_SURFACES.has(lastSurface) && event.speed > HARD_HIT) scene.shake?.(Math.min(1, .35 + (event.speed - HARD_HIT) / 6));
                 continue;
             }
-            const finishingPlayer = round?.players[round.turnIndex], before = round?.turnIndex;
-            if (!busy || !round || !resolveShot(round, event, course)) continue;
+            if (!TERMINAL_EVENTS.has(event.type) || !busy || !round) continue;
+            // Resolving advances the turn: note the player, the lie and the hole best first.
+            const finishingPlayer = round.players[round.turnIndex], before = round.turnIndex, previousBest = best?.holes?.[course.id];
+            const lipped = shotLipped, pan = scene?.panAt?.(event.position) ?? 0;
+            shotLipped = false;
+            if (!resolveShot(round, event, course)) { cancelShot(round); busy = false; audio.rolling(0, lastSurface); setTurn(); continue; }
             busy = false; audio.rolling(0, lastSurface); tutorialEvent({ type: 'resolved' });
+            let ace = false;
             if (event.type === 'water' || event.type === 'out') {
-                audio.effect('splash', { speed: 1, pan: scene?.panAt?.(event.position) ?? 0 });
-                scene.burst('water', event.position); message(event.type);
-                scene?.setRestMark?.(round.players[round.turnIndex].position);
+                if (event.type === 'water') { audio.effect('splash', { speed: event.speed, pan }); scene.burst('water', event.position); }
+                else { audio.effect('poof', { pan }); scene.burst('dust', event.position); }
+                message(event.type);
+                scene.setRestMark?.(finishingPlayer.position);
             } else if (event.type === 'cup') {
-                audio.effect('cup', { speed: 1, pan: scene?.panAt?.(event.position) ?? 0 });
-                scene.burst('cup', course.cup); gradeBanner(finishingPlayer, before);
+                audio.effect('cup', { speed: event.speed, pan });
+                const grade = holeGrade(finishingPlayer.strokes, course.par);
+                ace = grade === 'ace';
+                scene.burst(ace ? 'ace' : 'cup', course.cup); gradeBanner(finishingPlayer, before, bannerExtra(finishingPlayer, previousBest));
+                const cue = { ace: 'fanfare', eagle: 'chime', birdie: 'chime', bogey: 'low', over: 'low' }[grade];
+                if (cue) audio.effect(cue, { delay: .35 });
+            } else if (event.forced) message('stuck');
+            else if (lipped || Math.hypot(event.position[0] - course.cup[0], event.position[2] - course.cup[2]) < NEAR_MISS_RADIUS) {
+                message('near_miss'); audio.effect('lip', { pan }); scene.kickFlag?.(1.2);
             }
-            if (event.type !== 'cup' && finishingPlayer.shots >= 12) message('limit');
+            if (event.type !== 'cup') {
+                if (finishingPlayer.shots >= 12) message('limit');
+                else if (!finishingPlayer.done && finishingPlayer.shots === 10) view.hud.toast('limit_warning', { n: 2 });
+                else if (!finishingPlayer.done && finishingPlayer.shots === 11) message('limit_last');
+            }
             persist();
             if (round.players.every(p => p.done)) {
                 if (recordHole(best, round)) { write(BEST_KEY, best); if (round.mode === 'practice') { newBest = true; view.hud.announce(tr('new_best')); } }
-                view.update(round, course, false);
+                view.update(round, course, false); updatePlaque(null);
                 const finish = () => { if (round.mode === 'practice') nextHole().catch(fail); else showScore(true); };
-                if (reduced) finish(); else pendingNext = { left: SCORE_DELAY_MS, run: finish };
+                if (reduced) finish();
+                else { if (ace) scene.orbitCup?.(2); pendingNext = { left: ace ? ACE_SCORE_DELAY_MS : SCORE_DELAY_MS, run: finish }; }
             }
             else {
-                setTurn(); if (event.type !== 'cup' && round.players.length > 1 && round.turnIndex !== before) turnBanner();
-                // focusBall cancels the turn tween setTurn just started; re-issue it (a no-op while the aim camera is off).
-                if (!reduced) { scene.focusBall(); scene.frameTurn?.(angle, round.players[round.turnIndex].position); }
+                setTurn();
+                const changed = round.turnIndex !== before;
+                if (event.type !== 'cup' && round.players.length > 1 && changed) { turnBanner(); audio.effect('turn', { delay: .25 }); }
+                if (!changed && (event.type === 'water' || event.type === 'out')) scene.popBall?.();
+                // The scene snaps under reduced motion; frameTurn re-issues the turn tween that glideToBall replaces (a no-op while the aim camera is off).
+                scene.glideToBall?.(); scene.frameTurn?.(angle, round.players[round.turnIndex].position);
             }
         }
     }
@@ -390,7 +436,7 @@ export function mountGame(host, context = {}) {
         settings(button) { pushReturn('settings', button); setPanel('settings'); view.settings(settings, track); },
         help(button) { if (panelKind === 'help') return; pushReturn('help', button); setPanel('help'); view.help({ inRound: inRoundPanels() }); },
         close: closePanel,
-        camera() { cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); view.setCamera(cameraMode); },
+        camera() { clearHeld(); cameraMode = !cameraMode; scene?.setCameraMode(cameraMode); view.setCamera(cameraMode); },
         map() { settings.showMap = !settings.showMap; saveSettings(); view.hud.map.setVisible(settings.showMap); },
         'tutorial-skip': () => tutorialEvent({ type: 'skip' }),
         'tutorial-done': () => tutorialEvent({ type: 'confirm' }),
@@ -402,8 +448,8 @@ export function mountGame(host, context = {}) {
     };
     function click(event) {
         const card = event.target.closest('[data-round]'), tile = event.target.closest('[data-hole-id]');
-        if (card && panelKind === 'menu') { setup.mode = card.dataset.round; if (setup.mode !== 'practice') setup.holeId = null; menuStep = setup.mode === 'practice' ? 'holes' : 'players'; renderMenu(); return; }
-        if (tile && panelKind === 'menu') { setup.mode = 'practice'; setup.holeId = tile.dataset.holeId; menuStep = 'players'; renderMenu(); return; }
+        if (card && panelKind === 'menu') { audio.ui('card'); setup.mode = card.dataset.round; if (setup.mode !== 'practice') setup.holeId = null; menuStep = setup.mode === 'practice' ? 'holes' : 'players'; renderMenu(); return; }
+        if (tile && panelKind === 'menu') { audio.ui('card'); setup.mode = 'practice'; setup.holeId = tile.dataset.holeId; menuStep = 'players'; renderMenu(); return; }
         const button = event.target.closest('[data-action]');
         if (button && !button.disabled && actions[button.dataset.action]) {
             audio.ui(button.dataset.action);
@@ -419,6 +465,8 @@ export function mountGame(host, context = {}) {
     }
     function change(event) {
         const element = event.target;
+        if (element.type === 'checkbox') audio.ui(element.checked ? 'switch-on' : 'switch-off');
+        else if (element.matches('[data-quality],[data-player-count],[data-player-color]')) audio.ui('select');
         if (element.matches('[data-player-count]')) { setPlayerCount(Number(element.value)); renderMenu('[data-player-count]:checked'); }
         if (element.matches('[data-player-color]')) { const player = setup.players[Number(element.closest('[data-player-index]').dataset.playerIndex)]; if (player) { player.color = element.value; view.syncPlayerColors(setup.players); } }
         if (element.matches('[data-quality]')) { settings.quality = element.value; scene?.setQuality(settings.quality); saveSettings(); }
@@ -457,7 +505,7 @@ export function mountGame(host, context = {}) {
             if (!event.repeat) shoot();
             return;
         }
-        if (!name || typing || !allowAim()) return;
+        if (!name || typing || cameraMode || !allowAim()) return;
         event.preventDefault();
         held.fine = event.shiftKey;
         if (event.repeat) return;
@@ -493,7 +541,7 @@ export function mountGame(host, context = {}) {
             scene.update(panelKind === 'pause' ? 0 : dt, snapshot);
         }
         if (busy && !panelKind && snapshot?.velocity) audio.rolling(Math.hypot(...snapshot.velocity), lastSurface, scene?.panAt?.(snapshot.position) ?? 0);
-        if ((held.left || held.right || held.up || held.down) && !panelKind && allowAim() && dt) {
+        if ((held.left || held.right || held.up || held.down) && !panelKind && !cameraMode && allowAim() && dt) {
             const fine = held.fine;
             const rotate = (held.right ? 1 : 0) - (held.left ? 1 : 0);
             const lift = (held.up ? 1 : 0) - (held.down ? 1 : 0);
@@ -502,6 +550,7 @@ export function mountGame(host, context = {}) {
             if (rotate || lift) updateAim();
         }
         if (!busy && !panelKind && !loading) refreshPreview();
+        if (busy && !panelKind && snapshot?.position && (plaqueLeft -= dt * 1000) <= 0) { plaqueLeft = 250; updatePlaque(snapshot.position); }
         if (round && course && !panelKind && snapshot && settings.showMap) {
             view.hud.map.update(round.players, round.turnIndex, round.players.map((player, index) => index === round.turnIndex ? (snapshot.position || player.position) : player.position), snapshot.obstacles || []);
         }

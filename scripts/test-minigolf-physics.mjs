@@ -108,6 +108,7 @@ const water = await createPhysics(course({ water: [{ min: [0.3, -1, -1], max: [0
 assert.equal(water.shoot([1, 0], 0.12), true);
 for (let i = 0; i < 120 && !waterEvents.some(event => event.type === 'water'); i++) water.step(1 / 60);
 assert.equal(waterEvents.filter(event => event.type === 'water').length, 1);
+assert.ok(waterEvents.find(event => event.type === 'water').speed > 0, 'water carries the entry speed');
 assert.equal(water.shoot([1, 0], 0.1), false);
 assert.equal(water.setBall([0, 0.16, 0]), true);
 assert.equal(water.shoot([1, 0], 0.1), true);
@@ -133,6 +134,7 @@ const slowCup = await createPhysics(course({ tee: [0, 0.4, 0], cup: [0, 0, 0], c
 assert.equal(slowCup.shoot([1, 0], 0.01), true);
 for (let i = 0; i < 120 && !cupEvents.some(event => event.type === 'cup'); i++) slowCup.step(1 / 60);
 assert.equal(cupEvents.filter(event => event.type === 'cup').length, 1);
+assert.equal(cupEvents.some(event => event.type === 'lip'), false, 'a dropping ball does not lip');
 slowCup.dispose();
 
 const fastEvents = [];
@@ -141,7 +143,16 @@ assert.equal(fastCup.shoot([1, 0], 1), true);
 for (let i = 0; i < 30; i++) fastCup.step(1 / 60);
 assert.equal(fastEvents.some(event => event.type === 'cup'), false);
 assert.ok(fastCup.getBall()[0] > 0.6, `fast ball passes the cup opening at x=${fastCup.getBall()[0]}`);
+assert.equal(fastEvents.filter(event => event.type === 'lip').length, 1, 'a ball skipping over the cup lips exactly once');
 fastCup.dispose();
+
+// The preview uses the live cup rule: a slow ball drops, a fast one rolls on.
+{
+    const preview = await createPhysics(course({ tee: [-1, 0.16, 0], cup: [0, 0, 0], colliders: [ring] }));
+    assert.equal(preview.predict([1, 0], 0.06).cup, true, 'a gentle putt reports the cup');
+    assert.equal(preview.predict([1, 0], 1).cup, false, 'a hard putt does not');
+    preview.dispose();
+}
 
 const moving = await createPhysics(course({ obstacles: [{ id: 'gate', kind: 'slide', position: [0, 1, 1], halfExtents: [0.1, 0.5, 0.5], axis: [1, 0, 0], amplitude: 1, speed: 2, phase: 0 }] }));
 const first = moving.getObstacles()[0];
@@ -434,6 +445,33 @@ assert.deepEqual(await cannonRun(), cannonFirst, 'two cannon runs rest on bit-id
     assert.ok(events.some(event => event.type === 'impact' && event.surface === 'wood'), 'the contact still reports an impact');
     assert.ok(horizontal(kicked.velocity) >= 0.95 * bumper.kick && kicked.velocity[0] < 0, `kicked away at ${horizontal(kicked.velocity).toFixed(2)} m/s`);
     assert.ok(physics.getBall()[0] < 1.54, 'the ball ends up behind the bumper');
+    physics.dispose();
+}
+
+// 5b. Bumper and capture payloads; a cannon holding past the shot limit forces a rest.
+{
+    const bumper = { id: 'pin-a', kind: 'bumper', position: [2, 0, 0], radius: 0.3, height: 0.5, surface: 'wood', kick: 5 };
+    const events = [];
+    const physics = await createPhysics(wide({ mechanics: [bumper] }), { onEvent: event => events.push(event) });
+    physics.shoot([1, 0], 0.08);
+    for (let i = 0; i < 1800 && !events.some(event => event.type === 'bumper'); i++) physics.step(fixedStep);
+    const hit = events.find(event => event.type === 'bumper');
+    assert.ok(hit && hit.radius === 0.3 && hit.speed > 0, 'the bumper event carries radius and speed');
+    assert.deepEqual(hit.at, bumper.position);
+    assert.notEqual(hit.at, bumper.position, 'at is a copy');
+    physics.dispose();
+}
+{
+    const events = [];
+    const physics = await createPhysics(wide({ mechanics: [{ ...cannon, delay: 25 }] }), { onEvent: event => events.push(event) });
+    physics.shoot([1, 0], 0.2);
+    for (let i = 0; i < 4000 && !events.some(event => event.type === 'cannon'); i++) physics.step(fixedStep);
+    const captureAt = events.findIndex(event => event.type === 'capture'), cannonAt = events.findIndex(event => event.type === 'cannon');
+    assert.ok(captureAt >= 0 && captureAt < cannonAt && events[captureAt].id === 'cannon-a', 'a capture event comes before the cannon event');
+    assert.equal(events.filter(event => event.type === 'capture').length, 1);
+    for (let i = 0; i < 3 && !terminalOf(events); i++) physics.step(fixedStep);
+    assert.equal(terminalOf(events)?.type, 'rest');
+    assert.equal(terminalOf(events).forced, true, 'the shot timed out');
     physics.dispose();
 }
 

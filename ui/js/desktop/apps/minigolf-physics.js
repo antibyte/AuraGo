@@ -20,6 +20,10 @@ export const ROLLING = Object.freeze({
     wood: Object.freeze({ a: 0.7, k: 0.42 }),
     stone: Object.freeze({ a: 0.65, k: 0.4 })
 });
+// Max horizontal speed at which the cup still takes the ball; a shot is forced to rest after SHOT_TIMEOUT s.
+export const CUP_SPEED = 2.4;
+export const SHOT_TIMEOUT = 20;
+const LIP_MARGIN = 0.02;
 const WALL_RESTITUTION = { wood: 0.78, stone: 0.82, metal: 0.80 };
 
 export function rollDistance(speed, surface = 'grass') {
@@ -159,11 +163,14 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
     let activeShot = false;
     let shotLocked = false;
     let quietSteps = 0;
+    let overCup = false;
+    let lipped = false;
     let resolvedShots = 0;
     let disposed = false;
     let ghost = null;
     const cupOpening = Number.isFinite(course.cupRadius) ? course.cupRadius : 0.32;
     const activeSurfaceContacts = new Map();
+    const dropsIn = (position, across, v) => position[1] < course.cup[1] - 0.1 && across < cupOpening - BALL_RADIUS * 0.1 && Math.hypot(v.x, v.z) <= CUP_SPEED;
 
     const surfaceFriction = { grass: 0.82, sand: 1.1, wood: 0.52, stone: 0.68, metal: 0.5 };
     // Floors keep a dead bounce; every other collider (rails, gates) is a wall.
@@ -288,16 +295,19 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         if (!activeShot) return;
         const position = getBall();
         const inWater = (course.water || []).some(volume => contains(volume, position));
-        if (inWater) { emit('water', position); return; }
-        if (!contains(course.bounds, position)) { emit('out', position); return; }
+        if (inWater) { emit('water', position, { speed: speed(ballBody.linvel()) }); return; }
+        if (!contains(course.bounds, position)) { emit('out', position, { speed: speed(ballBody.linvel()) }); return; }
         const dx = position[0] - course.cup[0];
         const dz = position[2] - course.cup[2];
-        const cupRadius = Number.isFinite(course.cupRadius) ? course.cupRadius : 0.32;
+        const across = Math.hypot(dx, dz);
         const velocity = ballBody.linvel();
-        if (position[1] < course.cup[1] - 0.1 && Math.hypot(dx, dz) < cupRadius - BALL_RADIUS * 0.1 && Math.hypot(velocity.x, velocity.z) <= 2.4) {
+        if (dropsIn(position, across, velocity)) {
             emit('cup', position, { speed: speed(velocity) });
             return;
         }
+        if (across < cupOpening) overCup = true;
+        else if (overCup && !lipped && across >= cupOpening + LIP_MARGIN) { lipped = true; emit('lip', position, { speed: Math.hypot(velocity.x, velocity.z) }); }
+        if (!zoneState.captured && time - shotStartedAt >= SHOT_TIMEOUT - 1e-9) { emit('rest', position, { forced: true }); return; }
         const angular = ballBody.angvel();
         // A held (cannon) or just teleported ball is not at rest.
         if (!zoneState.captured && time >= zoneState.teleportUntil && time > shotStartedAt + 0.15 && speed(velocity) < 0.075 && speed(angular) < 0.075 / BALL_RADIUS + 0.05) quietSteps++;
@@ -369,6 +379,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         resetZoneState(zoneState);
         activeShot = true;
         quietSteps = 0;
+        overCup = lipped = false;
         shotStartedAt = time;
         return true;
     }
@@ -385,6 +396,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         activeShot = false;
         shotLocked = false;
         quietSteps = 0;
+        overCup = lipped = false;
         return true;
     }
     function resetTime() {
@@ -430,7 +442,7 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
         launch(ball, direction, power);
         const limit = Math.max(1.5, 0.45 * power * MAX_ROLL);
         const points = [start];
-        let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, zone = null, quiet = 0;
+        let last = start, travelled = 0, contactAt = -1, contactIndex = -1, hazard = null, zone = null, quiet = 0, cup = false;
         for (let stepIndex = 0; stepIndex < 360; stepIndex++) {
             for (const { spec, body } of obstacles) {
                 const pose = obstaclePose(spec, atTime);
@@ -470,14 +482,15 @@ export async function createPhysics(course, { onEvent = () => {} } = {}) {
             if (stopped) { zone = stopped; break; }
             if ((course.water || []).some(volume => contains(volume, position))) { hazard = 'water'; break; }
             if (!contains(course.bounds, position)) { hazard = 'out'; break; }
-            if (Math.hypot(position[0] - course.cup[0], position[2] - course.cup[2]) < cupOpening) break;
-            if (travelled >= limit) break;
+            const across = Math.hypot(position[0] - course.cup[0], position[2] - course.cup[2]);
+            if (dropsIn(position, across, ball.linvel())) { cup = true; break; }
+            if (travelled >= limit && across >= cupOpening) break;
             quiet = speed(ball.linvel()) < 0.075 ? quiet + 1 : 0;
             if (quiet >= 30) break;
         }
         if (points[points.length - 1] !== last) points.push(last);
         ball.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-        return { points, contactIndex, hazard, zone };
+        return { points, contactIndex, hazard, zone, cup };
     }
 
     function dispose() {

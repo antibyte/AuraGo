@@ -62,6 +62,11 @@ export function beginShot(round) {
     return { playerIndex: index, player: player.name, position: player.position.slice(), shots: player.shots, strokes: player.strokes };
 }
 
+// Drops a shot the game discarded so beginShot works again.
+export function cancelShot(round) {
+    return !!round && typeof round === 'object' && activeShots.delete(round);
+}
+
 export function resolveShot(round, result, course) {
     if (!round || !activeShots.has(round) || !result || !['rest', 'cup', 'water', 'out'].includes(result.type) || !finitePosition(result.position)) return false;
     const player = round.players[round.turnIndex];
@@ -143,6 +148,20 @@ export function cloneSave(round) {
     } catch (_) {
         return null;
     }
+}
+
+// Holes in a row under par, ending with the latest finished hole.
+export function underParStreak(player, round, courses) {
+    if (!player || !round || !Array.isArray(player.scores) || !Array.isArray(round.courseIds)) return 0;
+    const results = player.scores.slice();
+    if (player.done && !round.completed && round.holeIndex < round.courseIds.length) results.push(player.strokes);
+    let streak = 0;
+    for (let i = results.length - 1; i >= 0; i--) {
+        const par = (Array.isArray(courses) ? courses : []).find(course => course?.id === round.courseIds[i])?.par;
+        if (!(Number.isFinite(par) && results[i] < par)) break;
+        streak++;
+    }
+    return streak;
 }
 
 export function scoreTotal(player) {
