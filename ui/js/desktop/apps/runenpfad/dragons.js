@@ -154,7 +154,7 @@
             r.dx += r.dir * STRAFE_SPEED * dt;
             r.dy = r.laneY - 110 + Math.max(0, 1 - r.t / 0.4) * 190;
             const head = r.dx + r.dir * HEAD_OFFSET;
-            r.fire = { x: r.dir > 0 ? head : head - FIRE_LENGTH, y: r.laneY, w: FIRE_LENGTH, h: r.laneH };
+            r.fire = { dir: r.dir, x: r.dir > 0 ? head : head - FIRE_LENGTH, y: r.laneY, w: FIRE_LENGTH, h: r.laneH };
             r.fxT -= dt;
             if (r.fxT <= 0) {
                 r.fxT = 0.09;

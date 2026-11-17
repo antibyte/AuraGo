@@ -62,7 +62,7 @@
     }
 
     function hoverY(e) {
-        return e.spawnY - (e.def.dragon ? 72 : 96) + Math.sin(e.animTime * 2.2) * 12;
+        return e.spawnY - (e.def.dragon ? 130 : 96) + Math.sin(e.animTime * 2.2) * 12;
     }
 
     function summonedAlive(sim, defId) {
@@ -474,7 +474,7 @@
                 if (ai.fireT <= 0) {
                     ai.fireT = 0.07;
                     const head = e.x + ai.dir * 80;
-                    sim.tempHazards.push({ kind: 'dragonfire', variant: dragonKind(e), x: head - 50, y: ground - STRAFE_FIRE_H, w: 100, h: STRAFE_FIRE_H, t: 0.55, dur: 0.55, damage: 1 });
+                    sim.tempHazards.push({ kind: 'dragonfire', dir: ai.dir, variant: dragonKind(e), x: head - 50, y: ground - STRAFE_FIRE_H, w: 100, h: STRAFE_FIRE_H, t: 0.55, dur: 0.55, damage: 1 });
                     fxBurst(sim, dragonKind(e) === 'frost' ? 'dust' : 'ember', head, ground - 20, 3, { color: dragonKind(e) === 'frost' ? '#a5f3fc' : '#fb923c', speed: 120, arc: Math.PI, angle: -Math.PI / 2, life: 0.5 });
                 }
                 const exitX = ai.dir > 0 ? ai.x2 + 160 : ai.x1 - 160;
