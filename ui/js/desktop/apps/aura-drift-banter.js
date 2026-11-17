@@ -47,7 +47,7 @@
         let lastDriver = null;
         const lastType = Object.create(null);
         const lastKey = Object.create(null);
-        const lastVariant = Object.create(null);
+        const wordingHistory = opts.wordingHistory || new Map();
         let pending = null;
         let disposed = false;
 
@@ -67,22 +67,19 @@
             return list.length ? list : null;
         }
 
-        /* The wording of the line: one the voice can speak right now if it knows
-         * one, and never the one of the last time. */
+        /* Use every available wording before repeating one. The window keeps
+         * the order across restarts, even as more voice clips become ready. */
         function pickVariant(key, count) {
-            let pool = [];
+            const pool = [];
             if (ready) {
                 const known = ready(key);
-                if (known && known.length) for (const index of known) if (index < count) pool.push(index);
+                if (known) for (const index of known) if (Number.isInteger(index) && index >= 0 && index < count) pool.push(index);
             }
             if (!pool.length) for (let index = 0; index < count; index++) pool.push(index);
-            const last = lastVariant[key];
-            let choice = pool[Math.floor(rng() * pool.length)];
-            if (pool.length > 1 && choice === last) {
-                const others = pool.filter(index => index !== last);
-                choice = others[Math.floor(rng() * others.length)];
-            }
-            lastVariant[key] = choice;
+            const history = wordingHistory.get(key) || [];
+            const unheard = pool.filter(index => !history.includes(index));
+            const choice = unheard.length ? unheard[Math.floor(rng() * unheard.length)] : history.find(index => pool.includes(index));
+            wordingHistory.set(key, history.filter(index => index !== choice).concat(choice));
             return choice;
         }
 

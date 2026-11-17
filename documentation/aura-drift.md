@@ -55,6 +55,12 @@ Settings (saved per browser): car and livery (eight cars, four liveries each), c
 graphics tier (auto, low, medium, high, ultra), volume, mute, reduced motion, weapons on or
 off, and ghost display.
 
+The track camera prints one postcard per race. After the opening seconds it looks for a
+jump or a charged drift. After 14 seconds a drive past 20 km/h also qualifies. The print
+uses the current 3D or 2D view, shows the speed at exposure, and appears again on the
+results screen. The horn can invite a rubber duck into the picture. Occasionally a curious
+animal turns up on its own. The window releases the print when you leave or start again.
+
 ### Modes
 
 | Mode | Opponents | Weapons | Ranking | Rules |
@@ -427,10 +433,10 @@ rules live in `ui/js/desktop/apps/aura-drift-banter.js`: at most one line every 
 never the same speaker twice in a row, at most one line of the same kind every twenty seconds
 and at most one line of the same key every sixty seconds.
 
-- **Every line has six wordings.** A line is one key in the locale files; its six wordings are
-  the six lines of its value. The radio picks one of them, the voice speaks the english original
-  of the very same one, and a line never sounds the same twice in a row. The wording that the
-  voice can speak at once is the one the radio prefers, so a remark never waits for the model.
+- **Every line has six wordings.** Each locale stores one wording per line. The radio cycles
+  through the available wordings before repeating one and remembers them across races in the
+  same window. Warmed voice clips take priority. The English voice uses the same wording
+  index as the subtitle.
 - **Two new moments.** `style` is the comment on a style chain the player banked (from 200
   points on), `marshal.13` to `marshal.16` announce that the player won the race - before, the
   player's win was the one moment without a comment at all.
@@ -462,10 +468,10 @@ Aura Drift opens maximized through the shared Desktop window manager.
 
 Lazy module loading, one render loop per visible window, complete disposal of listeners, RAF,
 AudioContext, WebGL resources, caches and observers, `isActive` gating, `app_aura_drift` plus
-`aura_drift.*` keys (349 keys) in all sixteen `ui/lang/desktop/*.json` bundles, Standard and
+`aura_drift.*` keys in all sixteen `ui/lang/desktop/*.json` bundles, Standard and
 Fruity chrome, and app-owned icon artwork.
 
-The loader loads 40 app modules plus the three.js runtime (`ui/js/desktop/core/module-loader.js`).
+The Desktop module loader loads the game modules and the three.js runtime (`ui/js/desktop/core/module-loader.js`).
 FX atlas and shader definitions live in `aura-drift-fx-resources.js`; each FX instance
 creates and disposes its own atlas. The particle update and event mapping stay in `aura-drift-fx.js`.
 `window.AuraDriftApp.stats()` is a read-only per-window diagnostic: race state, time, speed,

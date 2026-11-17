@@ -63,6 +63,7 @@
         const modeNames = { quick: labels.quickRace, time_trial: labels.timeTrial, cup: labels.cup, daily: labels.daily };
         const modeName = id => modeNames[id] || L('aura_drift.mode.' + id + '.name');
         const ctx = { L: L, modeName: modeName };
+        const trackCamera = C.createTrackCamera?.(root, L);
         const car0 = AD.carById(settings.car);
         const state = {
             tab: 'mode', mode: 'quick', car: car0.id, livery: Math.max(0, Math.min(3, settings.livery | 0)),
@@ -473,6 +474,8 @@
         function buildResults(result, info) {
             resultBody.replaceChildren();
             resultButtons.replaceChildren();
+            results.querySelector('.agdrift-photo')?.remove();
+            if (info.photo) resultButtons.before(info.photo);
             const mode = result.mode || 'quick';
             const tally = result.tally || {};
             const hero = el('div', 'agdrift-res-hero');
@@ -598,7 +601,9 @@
 
         return {
             touch: touchState,
+            trackCamera,
             showMenu(next) {
+                trackCamera?.reset();
                 bests = next || {};
                 disarm();
                 refresh();
@@ -621,7 +626,7 @@
             hide() { overlay.hidden = true; touch.hidden = false; root.classList.remove('is-rail'); root.dataset.view = 'play'; },
             setFallback(on) { fallbackNote.hidden = !on; },
             setBests(next) { bests = next || {}; refresh(); },
-            destroy() { disarm(); overlay.remove(); touch.remove(); root.classList.remove('is-rail'); }
+            destroy() { trackCamera?.reset(); disarm(); overlay.remove(); touch.remove(); root.classList.remove('is-rail'); }
         };
     };
 })();

@@ -12,6 +12,7 @@
     --acc: #7dd3fc;
     --car: #ff5a4e;
     position: relative;
+    container-type: inline-size;
     width: 100%;
     height: 100%;
     overflow: hidden;
@@ -656,6 +657,81 @@
 }
 .agdrift-result-body { flex: 1 1 0; min-height: 0; overflow-y: auto; padding-right: 6px; scrollbar-width: thin; }
 .agdrift-result-buttons { display: flex; flex-direction: column; padding-top: 8px; }
+.agdrift-photo {
+    position: relative;
+    box-sizing: border-box;
+    margin: 12px 4px;
+    padding: 6px 6px 9px;
+    background: #fff5dc;
+    color: #292526;
+    box-shadow: 1px 4px 10px #08091073;
+    transform: rotate(-2deg);
+    pointer-events: none;
+}
+.agdrift-photo::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    left: 35%;
+    top: -5px;
+    width: 30%;
+    height: 12px;
+    background: #f3cc79d9;
+    transform: rotate(4deg);
+}
+.agdrift-photo-frame { position: relative; }
+.agdrift-photo-frame canvas { display: block; width: 100%; height: auto; }
+.agdrift-photo-speed {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 1px 5px;
+    background: #172027e8;
+    color: #ffe6a7;
+    font: 700 11px/1.5 ui-monospace, monospace;
+}
+.agdrift-photo figcaption { display: grid; gap: 3px; padding: 6px 2px 0; }
+.agdrift-photo figcaption small { color: #654a3c; font: 700 10px/1.3 ui-monospace, monospace; text-transform: uppercase; }
+.agdrift-photo figcaption span { font: italic 600 14px/1.25 Georgia, serif; }
+.agdrift-root > .agdrift-photo {
+    position: absolute;
+    z-index: 2;
+    top: 30%;
+    right: 2.1%;
+    width: clamp(90px, 16%, 184px);
+    margin: 0;
+}
+.agdrift-root:not([data-view="play"]) > .agdrift-photo { display: none; }
+.agdrift-root > .agdrift-photo.is-developing { animation: agdrift-print-in .3s ease-out; }
+.agdrift-root > .agdrift-photo.is-developing canvas { animation: agdrift-develop .7s ease-out; }
+@keyframes agdrift-print-in { from { opacity: 0; transform: translateY(-8px) rotate(3deg); } }
+@keyframes agdrift-develop { from { filter: sepia(.8) contrast(.55) brightness(1.25); } }
+.agdrift-results > .agdrift-photo {
+    flex: none;
+    display: grid;
+    grid-template-columns: 32% minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 5px 10px 5px 5px;
+    margin: 8px 4px 3px;
+    transform: rotate(-1deg);
+}
+@container (min-width: 820px) {
+    .agdrift-results > .agdrift-photo {
+        display: block;
+        position: absolute;
+        left: calc(100cqw - 32px);
+        bottom: 28px;
+        width: clamp(224px, 24cqw, 340px);
+        margin: 0;
+        padding: 9px 9px 14px;
+        transform: translateX(-100%) rotate(3deg);
+    }
+    .agdrift-results > .agdrift-photo figcaption span { font-size: 18px; }
+}
+@container (max-width: 659px) {
+    .agdrift-root > .agdrift-photo figcaption { display: none; }
+}
 .agdrift-res-kicker {
     font: 800 11px/1.3 system-ui, sans-serif;
     letter-spacing: 0.16em;

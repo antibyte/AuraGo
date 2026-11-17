@@ -237,6 +237,7 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 		"hold_my_nitro", "honk_for_cow")
 	ids("brand.", "", "wurstwerk", "muhmilch", "turbotoast", "sofaspeed", "gnombau", "nebelhorn", "entenbank", "plueschreifen")
 	ids("result.", "", "score", "tricks", "air_time", "animals", "smashed", "cup_total", "eliminated_at", "survived")
+	ids("photo.", "", "label", "air", "drift", "speed", "duck", "cow")
 	for _, driver := range drivers {
 		ids("banter."+driver+".", "", "pass", "passed", "hit", "got_you", "wreck", "win", "style")
 	}

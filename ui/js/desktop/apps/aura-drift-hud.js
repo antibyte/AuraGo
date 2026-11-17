@@ -427,20 +427,37 @@
         }
 
         function drawCountdown(race) {
+            const green = race.state !== 'countdown';
+            if (green && goT <= 0) return;
             const cx = W / 2, cy = compact ? 78 : 96;
-            if (race.state === 'countdown') {
-                const lit = clamp(Math.floor((3.2 - race.countdown) / 0.64) + 1, 0, 5);
-                const sp = compact ? 46 : 70, rr = compact ? 15 : 24;
-                for (let i = 0; i < 5; i++) {
-                    const x = cx + (i - 2) * sp, on = i < lit;
-                    c.beginPath(); c.arc(x, cy, rr + 5, 0, kit.TAU); c.fillStyle = 'rgba(4,8,18,0.82)'; c.fill();
-                    c.beginPath(); c.arc(x, cy, rr, 0, kit.TAU); c.fillStyle = on ? '#ff2d3d' : '#1a2132'; c.fill();
-                    if (on) {
-                        c.beginPath(); c.arc(x, cy, rr + 9, 0, kit.TAU); c.fillStyle = 'rgba(255,45,61,0.25)'; c.fill();
-                        c.beginPath(); c.arc(x - rr * 0.3, cy - rr * 0.35, rr * 0.35, 0, kit.TAU); c.fillStyle = 'rgba(255,255,255,0.65)'; c.fill();
-                    }
-                    c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.arc(x, cy, rr, 0, kit.TAU); c.stroke();
+            const lit = green ? 5 : clamp(Math.floor((3.2 - race.countdown) / 0.64) + 1, 0, 5);
+            const sp = compact ? 46 : 70, rr = compact ? 15 : 24;
+            const edge = 2 * sp + rr + 14;
+            c.save();
+            if (green) c.globalAlpha = clamp(goT, 0, 1);
+            kit.para(c, cx - edge, cy - rr - 9, 2 * edge, 2 * rr + 18, 5);
+            c.fillStyle = '#16202c'; c.fill();
+            c.lineWidth = 2; c.strokeStyle = '#82909a'; c.stroke();
+            c.fillStyle = '#b7b1a5';
+            for (const side of [-1, 1]) c.fillRect(cx + side * (edge - 5), cy - 1.5, 3, 3);
+            for (let i = 0; i < 5; i++) {
+                const x = cx + (i - 2) * sp, on = i < lit;
+                c.beginPath(); c.arc(x, cy + 1, rr + 5, 0, kit.TAU); c.fillStyle = '#080d14'; c.fill();
+                if (on) {
+                    c.beginPath(); c.arc(x, cy, rr + 4, 0, kit.TAU);
+                    c.fillStyle = green ? '#31ff7a50' : '#ff493d50'; c.fill();
                 }
+                c.beginPath(); c.arc(x, cy, rr, 0, kit.TAU);
+                c.fillStyle = on ? (green ? '#23ce71' : '#e63743') : '#28323d'; c.fill();
+                c.fillStyle = on ? (green ? '#c1ffcf' : '#ffc3ad') : '#454e58';
+                for (let row = -1; row <= 1; row++) for (let col = -1; col <= 1; col++) {
+                    c.fillRect(x + col * rr * .46 - 1.5, cy + row * rr * .46 - 1.5, 3, 3);
+                }
+                c.beginPath(); c.arc(x, cy, rr - 2, Math.PI * 1.14, Math.PI * 1.8);
+                c.strokeStyle = on ? '#ffffffb0' : '#636d78'; c.stroke();
+            }
+            c.restore();
+            if (!green) {
                 const n = Math.ceil(race.countdown);
                 if (n >= 1 && n <= 3) {
                     const u = n - race.countdown;
@@ -449,16 +466,6 @@
                     kit.text(c, String(n), 0, 0, compact ? 90 : 150, '#ffffff', { align: 'center', weight: 900, stroke: 'rgba(255,45,61,0.9)', sw: 14 });
                     c.restore();
                 }
-            } else if (goT > 0) {
-                const sp = compact ? 46 : 70, rr = compact ? 15 : 24;
-                c.globalAlpha = clamp(goT, 0, 1);
-                for (let i = 0; i < 5; i++) {
-                    const x = cx + (i - 2) * sp;
-                    c.beginPath(); c.arc(x, cy, rr + 5, 0, kit.TAU); c.fillStyle = 'rgba(4,8,18,0.82)'; c.fill();
-                    c.beginPath(); c.arc(x, cy, rr + 9, 0, kit.TAU); c.fillStyle = 'rgba(49,255,122,0.28)'; c.fill();
-                    c.beginPath(); c.arc(x, cy, rr, 0, kit.TAU); c.fillStyle = '#31ff7a'; c.fill();
-                }
-                c.globalAlpha = 1;
             }
         }
 

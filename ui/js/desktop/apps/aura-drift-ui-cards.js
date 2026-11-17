@@ -162,6 +162,71 @@
         return b;
     };
 
+    /* One instant print from the actual race view, later pinned to the results. */
+    cards.createTrackCamera = function (root, t) {
+        const nextCaption = new Map();
+        let print = null, attempted = false, honked = false, previewUntil = 0, edition = 0;
+
+        function update(race, source, reduced) {
+            if (race.state !== 'running') return;
+            if (previewUntil && race.time >= previewUntil) {
+                print.remove();
+                previewUntil = 0;
+            }
+            if (attempted || race.time < 2.5) return;
+            const v = race.cars[0].v;
+            let subject;
+            if (v.airborne && v.z >= 1.2) subject = 'air';
+            else if (v.driftLevel >= 1) subject = 'drift';
+            else if (race.time >= 14 && AD.vehicleSpeedKmh(v) >= 20) subject = 'speed';
+            else return;
+
+            attempted = true;
+            const image = el('canvas');
+            image.width = 384;
+            image.height = 216;
+            image.setAttribute('aria-hidden', 'true');
+            const ctx = image.getContext('2d');
+            if (!ctx || !source.width || !source.height) return;
+            const scale = Math.min(source.width / image.width, source.height / image.height);
+            const w = image.width * scale, h = image.height * scale;
+            const rng = AD.rng(race.seed ^ Math.imul(++edition, 0x9e3779b1));
+            try {
+                ctx.drawImage(source, (source.width - w) / 2, (source.height - h) * 0.65, w, h, 0, 0, image.width, image.height);
+                const roll = rng();
+                if ((honked || roll < 0.125) && AD.drawWeaponGlyph) {
+                    subject = honked || roll < 0.0625 ? 'duck' : 'cow';
+                    AD.drawWeaponGlyph(ctx, subject === 'duck' ? 'ducks' : 'cow', image.width - 20, image.height - 29, 112, 1);
+                }
+            } catch (_) { return; } // A lost drawing buffer only costs the souvenir.
+
+            const lines = t('aura_drift.photo.' + subject, '').split('\n').filter(Boolean);
+            const index = nextCaption.get(subject) ?? Math.floor(rng() * lines.length);
+            if (lines.length) nextCaption.set(subject, (index + 1) % lines.length);
+            const frame = el('div', 'agdrift-photo-frame');
+            frame.append(image, el('span', 'agdrift-photo-speed', Math.round(AD.vehicleSpeedKmh(v)) + ' km/h'));
+            const caption = el('figcaption');
+            caption.append(el('small', null, t('aura_drift.photo.label') + ' · ' + AD.trackName(race.track, t)),
+                el('span', null, lines[index]));
+            print = el('figure', 'agdrift-photo' + (reduced ? '' : ' is-developing'));
+            print.append(frame, caption);
+            root.appendChild(print);
+            previewUntil = race.time + 3.6;
+        }
+
+        return {
+            update,
+            get print() { return print; },
+            honk() { honked = true; },
+            reset() {
+                print?.remove();
+                print = null;
+                attempted = honked = false;
+                previewUntil = 0;
+            }
+        };
+    };
+
     /* ---- arrow-key groups ---------------------------------------------- */
     /* Roving tabindex: the pressed item takes the Tab stop, arrows move (and with
        `select` also choose) inside the group. Up and Down jump a grid row. */

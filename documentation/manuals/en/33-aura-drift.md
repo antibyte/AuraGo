@@ -169,6 +169,10 @@ Press C to change the view.
 
 The camera turns with the car, so holding right always moves the car to the right on screen.
 
+The track camera snaps a jump, a drift or a stretch at speed. The postcard appears briefly
+beside the track, then returns with your speed and its caption on the results screen.
+Try sounding the horn before the picture if you fancy some company in the shot.
+
 ## Weather
 
 The weather changes during the race on a fixed schedule: rain in the harbour and in the city,

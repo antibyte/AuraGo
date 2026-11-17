@@ -179,6 +179,7 @@
         const governor = AD.createQualityGovernor(settings.quality === 'auto' ? 'high' : settings.quality);
         if (settings.quality !== 'auto') governor.lock(settings.quality);
         const pressed = new Set();
+        const wordingHistory = new Map();
         let race = null, banter = null, cupIndex = 0, currentConfig = null, ui = null;
         let cupScores = [0, 0, 0, 0, 0, 0];
         let view = 'menu';             /* menu -> loading -> play -> results (the results panel overlays 'play') */
@@ -358,6 +359,7 @@
         }
 
         function beginRace(track, config, opts) {
+            ui.trackCamera?.reset();
             const best = bests[track.id];
             const mode = config.mode || 'quick';
             const playerCar = config.carId || settings.car;
@@ -385,7 +387,7 @@
             });
             banter = typeof AD.createBanter === 'function'
                 ? AD.createBanter({
-                    seed: race.seed, t: t, race: race,
+                    seed: race.seed, t: t, race: race, wordingHistory,
                     /* The voice knows which wordings of a line it can speak right
                      * now: the radio prefers those, so a remark never has to wait. */
                     ready: voice && typeof voice.readyVariants === 'function'
@@ -565,6 +567,7 @@
                 info: {
                     field: race.cars.length,
                     track: AD.trackName(track, t),
+                    photo: ui.trackCamera?.print,
                     record: record,
                     cupTotal: cupTotal,
                     hasNext: race.mode === 'cup' && cupIndex < AD.TRACKS.length - 1
@@ -610,6 +613,11 @@
             }
         }
 
+        function updateTrackPhoto() {
+            // WebGL's drawing buffer is only available for a photo in the frame that painted it.
+            if (playing() && !paused && !frozen) ui.trackCamera?.update(race, renderer.kind === 'three' ? glCanvas : world, reducedMotion);
+        }
+
         /* One presentation tick for the events and effects a batch of steps produced (the RAF loop minus the wall clock). */
         function presentTick(dt) {
             renderer.emit(race, dt);
@@ -624,6 +632,7 @@
                 }
             }
             renderer.render(race, lastPose, dt, reducedMotion);
+            updateTrackPhoto();
             if (!hudBroken && playing() && !resultsShown) {
                 try { hud.render(race, dt, settings, lastPose); }
                 catch (error) { hudFailed(error); }
@@ -701,6 +710,7 @@
             if (!(paused && renderer.kind === 'three' && now - pausedGlAt < 100)) {
                 if (paused) pausedGlAt = now;
                 renderer.render(race, lastPose, paused ? 0 : simDt, reducedMotion);
+                updateTrackPhoto();
             }
             advanceResults(dt);
             if (!hudBroken && playing() && !paused && !resultsShown) {
@@ -881,6 +891,7 @@
                 }
                 if (event.code === 'KeyH') {
                     if (typeof audio.horn === 'function') audio.horn();
+                    ui.trackCamera?.honk();
                     return;
                 }
                 audio.unlock();

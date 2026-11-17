@@ -175,6 +175,10 @@ Mit C wechselst du die Ansicht.
 Die Kamera dreht sich mit dem Auto. Wenn du nach rechts lenkst, wandert das Auto auf dem
 Bildschirm nach rechts.
 
+Bei einem Sprung, einem Drift oder auf der nächsten schnellen Passage knipst die Streckenkamera
+ein Foto. Du siehst es kurz am Streckenrand und später mit deinem Tempo und einem Spruch im
+Ergebnis. Wenn du vorher hupst, bekommst du vielleicht Gesellschaft auf dem Bild.
+
 ## Wetter
 
 Das Wetter wechselt während des Rennens nach einem festen Plan: Regen im Hafen und in der

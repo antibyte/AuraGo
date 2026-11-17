@@ -3785,6 +3785,13 @@ buttons and menu popovers remain excluded from those gestures.
   full disposal of listeners, RAF, AudioContext, WebGL resources, caches and observers. Visible
   strings use `aura_drift.*` plus `desktop.app_aura_drift` in all sixteen `ui/lang/desktop/*.json`
   files; English is the reference, and every value needs a non-empty translation with no U+FFFD.
+- The track camera in `aura-drift-ui-cards.js` copies one 384×216 frame per race from the
+  active renderer immediately after drawing. Keep the print in window memory through results.
+  Its captions, horn guests and RNG belong to presentation. Reduced motion skips the developing
+  effect. Verify `TestDesktopAuraDriftTrackPhotoBrowser` in 3D and the Canvas fallback.
+- Radio wording history belongs to each game window and survives race restarts. Prefer unheard
+  ready variants, then the least recently heard ready variant. Preserve the subtitle/voice index
+  and the per-race speaker and event cooldowns. Verify `scripts/test-aura-drift-banter.mjs`.
 - The post pipeline restores the render target, clear settings and scene override in `finally`; a failed normals pass also restores every renderable's visibility before fallback.
 - The GTAO normals pass reuses the beauty pass's shadow maps; suppress shadow-map
   auto-update only during GTAO and restore it in `finally`, including render failures.

@@ -131,6 +131,23 @@ check('a wording the voice can speak right now is preferred', () => {
     assert.equal(out[0].variant, 1);
 });
 
+check('restarting rotates through every ready wording and picks up newly warmed clips', () => {
+    const wordingHistory = new Map(), race = mockRace();
+    const restart = ready => {
+        const b = AD.createBanter({ seed: 42, t: () => 'A\nB\nC\nD', ready: () => ready, wordingHistory });
+        b.onEvent(hitBy(1), race);
+        const line = b.update(1);
+        b.dispose();
+        return line.variant;
+    };
+    const pair = [restart([0, 2]), restart([0, 2])];
+    assert.deepEqual(new Set(pair), new Set([0, 2]));
+    assert.equal(restart([0, 1, 2]), 1);
+    assert.equal(restart([0, 1, 2]), pair[0]);
+    assert.equal(restart([]), 3);
+    assert.equal(restart([2]), 2);
+});
+
 check('marshal lines: respawn 1..6, animals 7..12, speaker marshal', () => {
     const race = mockRace();
     const b = AD.createBanter({ seed: 9, t, race });
