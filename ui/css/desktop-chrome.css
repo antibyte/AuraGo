@@ -37,6 +37,46 @@
     outline-offset: 1px;
 }
 
+/* Tray controls share the button material used inside the desktop's apps. */
+:is(.vd-quick-settings-button, .vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry) {
+    border: 1px solid var(--vd-mat-btn-border);
+    border-radius: var(--vd-mat-btn-radius);
+    background: var(--vd-mat-btn);
+    box-shadow: var(--vd-mat-btn-shadow);
+    color: var(--vd-mat-btn-text);
+}
+
+@media (hover: hover) {
+    :is(.vd-quick-settings-button, .vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry):where(:enabled:not([aria-disabled="true"]):hover) {
+        background: var(--vd-mat-btn-hover);
+    }
+}
+
+.vd-quick-settings-button[aria-expanded="true"] {
+    border-color: var(--vd-mat-primary-border);
+    background: var(--vd-mat-selected);
+    box-shadow: var(--vd-mat-selected-edge);
+    color: var(--vd-mat-selected-text);
+}
+
+.vd-quick-settings-button[aria-expanded="true"] circle:first-of-type { transform: translateX(5px); }
+.vd-quick-settings-button[aria-expanded="true"] circle:last-of-type { transform: translateX(-5px); }
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .vd-quick-settings-button circle,
+    .desktop-body:not([data-animations="false"]) .vd-quick-settings-toggle input::before,
+    .desktop-body:not([data-animations="false"]) .vd-space-pager-btn::after {
+        transition: transform var(--ds-motion-duration-fast) var(--vd-shell-feedback-ease);
+    }
+}
+
+:is(.vd-quick-settings-header, .vd-clock-calendar-header) h2 {
+    font-family: var(--vd-mat-heading-font);
+    font-weight: var(--vd-mat-heading-weight);
+    letter-spacing: var(--vd-mat-heading-tracking);
+    color: var(--vd-mat-heading-color);
+}
+
 .desktop-body[data-shell="dock"] .vd-fullscreen-button,
 .desktop-body[data-shell="dock"] .vd-quick-settings-button {
     width: 24px;
@@ -416,6 +456,7 @@
 }
 
 .vd-space-pager-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -440,6 +481,29 @@
 
 .vd-space-pager-btn:hover {
     background: var(--vd-theme-control-hover, var(--vd-theme-control-bg, var(--ds-color-surface-2)));
+}
+
+.vd-space-pager-btn::after {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    width: 9px;
+    height: 2px;
+    border-radius: var(--vd-mat-btn-radius);
+    background: currentColor;
+    transform: scaleX(0);
+    pointer-events: none;
+}
+
+@media (hover: hover) {
+    .vd-space-pager-btn:hover::after { transform: scaleX(.4); }
+}
+
+.vd-space-pager-btn:focus-visible::after { transform: scaleX(.4); }
+.vd-space-pager-btn[aria-pressed="true"]::after { transform: scaleX(1); }
+
+@media (forced-colors: active) {
+    .vd-space-pager-btn[aria-pressed="true"]::after { border-bottom: 2px solid Highlight; }
 }
 
 .vd-window.vd-space-hidden,

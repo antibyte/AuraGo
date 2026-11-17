@@ -169,6 +169,16 @@ func TestDesktopEverydayMonthCalendarBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('.vd-clock-calendar-agenda').textContent.includes('Current appointment')`).Bool() {
 		t.Fatal("Today must restore the current day and agenda")
 	}
+	if !page.MustEval(`() => {
+        const busy = document.querySelector('.vd-clock-calendar-day.has-events');
+        const top = busy.getBoundingClientRect().top;
+        const plain = [...document.querySelectorAll('.vd-clock-calendar-day:not(.has-events)')]
+            .find(day => Math.abs(day.getBoundingClientRect().top - top) < 1);
+        return plain && Math.abs(plain.firstElementChild.getBoundingClientRect().top -
+            busy.firstElementChild.getBoundingClientRect().top) < 1;
+    }`).Bool() {
+		t.Fatal("appointment marks must not lift the day number above its neighbours")
+	}
 	captureEverydayPanel(t, page, "calendar-standard")
 	page.MustSetViewport(390, 640, 1, false)
 	page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)

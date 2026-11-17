@@ -5,6 +5,7 @@
     max-height: calc(100dvh - 24px);
     overflow: auto;
     padding: 12px;
+    background: var(--vd-mat-card);
     color: var(--vd-text);
 }
 
@@ -21,26 +22,75 @@
 .vd-quick-settings-header {
     justify-content: space-between;
     gap: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+    margin: -12px -12px 0;
+    padding: 10px 12px;
+    background: var(--vd-mat-bar);
+    box-shadow: var(--vd-mat-bar-edge);
+    border-bottom: 1px solid var(--vd-mat-divider);
 }
 
 .vd-quick-settings-header h2,
 .vd-quick-settings-group h3 { margin: 0; }
 .vd-quick-settings-header h2 { font-size: 1.05rem; }
 .vd-quick-settings-group { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--vd-theme-border-subtle, var(--vd-theme-border, var(--vd-border))); }
-.vd-quick-settings-group h3 { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vd-quick-settings-group h3 {
+    color: var(--vd-mat-label-color);
+    font: 700 .76rem/1.4 var(--vd-mat-label-font);
+    letter-spacing: var(--vd-mat-label-tracking);
+    text-transform: var(--vd-mat-label-transform);
+}
 .vd-quick-settings-control,
 .vd-quick-settings-toggle { justify-content: space-between; gap: 12px; min-height: 36px; }
 .vd-quick-settings-toggle > span { display: flex; flex-direction: column; gap: 3px; }
 .vd-quick-settings-toggle small { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .78rem; }
-.vd-quick-settings-control select { min-width: 110px; max-width: 55%; padding: 5px 8px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; }
+.vd-quick-settings-control select {
+    min-width: 110px;
+    max-width: 55%;
+    padding: 5px 8px;
+    border: 1px solid var(--vd-mat-field-border);
+    border-radius: var(--vd-mat-field-radius);
+    background: var(--vd-mat-field);
+    box-shadow: var(--vd-mat-field-shadow);
+    color: var(--vd-text);
+    font: inherit;
+}
 .vd-quick-settings-range { gap: 8px; width: min(190px, 58%); }
 .vd-quick-settings-range input { flex: 1; min-width: 0; accent-color: var(--vd-accent, #27c7a6); }
 .vd-quick-settings-range output { min-width: 3.2em; color: var(--vd-theme-muted, var(--vd-muted)); font-variant-numeric: tabular-nums; text-align: end; }
-.vd-quick-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--vd-accent, #27c7a6); }
-.vd-quick-settings button { min-width: 36px; min-height: 36px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
-.vd-quick-settings button:hover:not(:disabled) { border-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings-toggle input { flex-shrink: 0; width: 18px; height: 18px; margin: 0; }
+@media (forced-colors: none) {
+    .vd-quick-settings-toggle input {
+        appearance: none;
+        box-sizing: border-box;
+        display: grid;
+        align-items: center;
+        width: 32px;
+        height: 18px;
+        padding: 2px;
+        border: 1px solid var(--vd-mat-field-border);
+        border-radius: var(--vd-mat-btn-radius);
+        background: var(--vd-mat-well);
+        box-shadow: var(--vd-mat-well-shadow);
+        cursor: pointer;
+    }
+    .vd-quick-settings-toggle input::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border-radius: inherit;
+        background: var(--vd-text);
+    }
+    .vd-quick-settings-toggle input:checked {
+        background: var(--vd-mat-primary);
+        border-color: var(--vd-mat-primary-border);
+        box-shadow: var(--vd-mat-primary-shadow);
+    }
+    .vd-quick-settings-toggle input:checked::before {
+        transform: translateX(14px);
+        background: var(--vd-mat-primary-text);
+    }
+}
+.vd-quick-settings button { min-width: 36px; min-height: 36px; font: inherit; cursor: pointer; }
 .vd-quick-settings button:focus-visible,
 .vd-quick-settings input:focus-visible,
 .vd-quick-settings select:focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }

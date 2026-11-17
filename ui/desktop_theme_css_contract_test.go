@@ -728,8 +728,8 @@ func TestDesktopThemeCSSContract(t *testing.T) {
 		if live < 0 || polish < 0 {
 			t.Fatalf("desktop-shell.bundle.css must list desktop-wallpaper-live.css (index %d) and desktop-polish.css (index %d)", live, polish)
 		}
-		if polish != len(parts)-1 {
-			t.Errorf("desktop-polish.css must be the last part of desktop-shell.bundle.css, it is at %d of %d", polish, len(parts))
+		if polish != len(parts)-2 || parts[len(parts)-1] != "ui/css/desktop-accessibility.css" {
+			t.Error("the desktop shell CSS bundle must end with polish followed by accessibility overrides")
 		}
 		want := map[string]bool{}
 		for _, theme := range skinned {

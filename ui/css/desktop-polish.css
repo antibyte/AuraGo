@@ -1,6 +1,6 @@
 /* desktop-polish.css — finishing layer: wallpaper light in the chrome, a pointer light on
- * launchers and menus, deeper focus and small details. Loads last in the shell bundle and
- * only refines existing surfaces. Colour effects are static; movement honours
+ * launchers and menus, deeper focus and small details. The accessibility overrides follow
+ * this layer in the shell bundle. Colour effects are static; movement honours
  * data-animations="false" and prefers-reduced-motion, extra translucency honours
  * prefers-reduced-transparency. */
 

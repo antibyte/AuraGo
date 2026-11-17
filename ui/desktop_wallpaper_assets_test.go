@@ -30,15 +30,7 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 	foundationText := readDesktopAssetText(t, "js/desktop/core/desktop-foundation.js")
 	cssText := readAllDesktopCSS(t)
 
-	defs := desktop.DesktopSettingDefinitions()
-	wallpaperValues := map[string]bool{}
-	for _, def := range defs {
-		if def.Key == "appearance.wallpaper" {
-			for _, value := range def.Values {
-				wallpaperValues[value] = true
-			}
-		}
-	}
+	wallpapers := desktop.BuiltinWallpaperIDs()
 
 	for _, name := range desktopWallpaperOptions {
 		translationKey := "desktop.settings_wallpaper_" + name
@@ -48,8 +40,8 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 		if !strings.Contains(cssText, `data-wallpaper="`+name+`"`) || !strings.Contains(cssText, "wallpapers/"+name+".jpg") {
 			t.Fatalf("desktop stylesheet is missing wallpaper background %q", name)
 		}
-		if !wallpaperValues[name] {
-			t.Fatalf("desktop setting definitions missing wallpaper value %q", name)
+		if !desktopThemeContains(wallpapers, name) {
+			t.Fatalf("missing built-in wallpaper %q", name)
 		}
 		data, err := Content.ReadFile("img/wallpapers/" + name + ".jpg")
 		if err != nil {
@@ -96,17 +88,8 @@ func TestDesktopWallpaperAssetsAreEmbeddedAndSelectable(t *testing.T) {
 		t.Fatal("desktop frontend defaults must include an empty per-space wallpaper map")
 	}
 
-	var foundSpaceWallpapers bool
-	for _, def := range defs {
-		if def.Key == "appearance.wallpaper_by_space" {
-			foundSpaceWallpapers = true
-			if def.Default != "{}" {
-				t.Fatalf("appearance.wallpaper_by_space default = %q, want {}", def.Default)
-			}
-		}
-	}
-	if !foundSpaceWallpapers {
-		t.Fatal("desktop setting definitions missing appearance.wallpaper_by_space")
+	if got := desktop.DesktopSettingDefaults()["appearance.wallpaper_by_space"]; got != "{}" {
+		t.Fatalf("appearance.wallpaper_by_space default = %q, want {}", got)
 	}
 }
 

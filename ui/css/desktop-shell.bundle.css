@@ -141,6 +141,7 @@
     --ds-motion-duration-base: 200ms;
     --ds-motion-duration-slow: 220ms;
     --ds-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --vd-shell-feedback-ease: var(--ds-motion-ease-standard);
     --ds-motion-ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
     --ds-motion-ease-decel: cubic-bezier(0, 0, 0, 1);
     --ds-motion-ease-accel: cubic-bezier(0.3, 0, 1, 1);
@@ -3040,9 +3041,31 @@
 }
 
 .vd-start-search {
+    position: relative;
     flex: 0 0 auto;
     padding: var(--ds-space-3);
     border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+.vd-start-search::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 2px;
+    margin-inline: auto;
+    width: 3rem;
+    height: 2px;
+    background: var(--vd-mat-rule);
+    transform: scaleX(0);
+    pointer-events: none;
+}
+
+.vd-start-searching .vd-start-search::after { transform: scaleX(1); }
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .vd-start-search::after {
+        transition: transform var(--ds-motion-duration-fast) var(--vd-shell-feedback-ease);
+    }
 }
 
 .vd-start-session {
@@ -10692,6 +10715,46 @@
     outline-offset: 1px;
 }
 
+/* Tray controls share the button material used inside the desktop's apps. */
+:is(.vd-quick-settings-button, .vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry) {
+    border: 1px solid var(--vd-mat-btn-border);
+    border-radius: var(--vd-mat-btn-radius);
+    background: var(--vd-mat-btn);
+    box-shadow: var(--vd-mat-btn-shadow);
+    color: var(--vd-mat-btn-text);
+}
+
+@media (hover: hover) {
+    :is(.vd-quick-settings-button, .vd-quick-settings button, .vd-clock-calendar-nav button, .vd-clock-calendar-retry):where(:enabled:not([aria-disabled="true"]):hover) {
+        background: var(--vd-mat-btn-hover);
+    }
+}
+
+.vd-quick-settings-button[aria-expanded="true"] {
+    border-color: var(--vd-mat-primary-border);
+    background: var(--vd-mat-selected);
+    box-shadow: var(--vd-mat-selected-edge);
+    color: var(--vd-mat-selected-text);
+}
+
+.vd-quick-settings-button[aria-expanded="true"] circle:first-of-type { transform: translateX(5px); }
+.vd-quick-settings-button[aria-expanded="true"] circle:last-of-type { transform: translateX(-5px); }
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .vd-quick-settings-button circle,
+    .desktop-body:not([data-animations="false"]) .vd-quick-settings-toggle input::before,
+    .desktop-body:not([data-animations="false"]) .vd-space-pager-btn::after {
+        transition: transform var(--ds-motion-duration-fast) var(--vd-shell-feedback-ease);
+    }
+}
+
+:is(.vd-quick-settings-header, .vd-clock-calendar-header) h2 {
+    font-family: var(--vd-mat-heading-font);
+    font-weight: var(--vd-mat-heading-weight);
+    letter-spacing: var(--vd-mat-heading-tracking);
+    color: var(--vd-mat-heading-color);
+}
+
 .desktop-body[data-shell="dock"] .vd-fullscreen-button,
 .desktop-body[data-shell="dock"] .vd-quick-settings-button {
     width: 24px;
@@ -11071,6 +11134,7 @@
 }
 
 .vd-space-pager-btn {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -11095,6 +11159,29 @@
 
 .vd-space-pager-btn:hover {
     background: var(--vd-theme-control-hover, var(--vd-theme-control-bg, var(--ds-color-surface-2)));
+}
+
+.vd-space-pager-btn::after {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    width: 9px;
+    height: 2px;
+    border-radius: var(--vd-mat-btn-radius);
+    background: currentColor;
+    transform: scaleX(0);
+    pointer-events: none;
+}
+
+@media (hover: hover) {
+    .vd-space-pager-btn:hover::after { transform: scaleX(.4); }
+}
+
+.vd-space-pager-btn:focus-visible::after { transform: scaleX(.4); }
+.vd-space-pager-btn[aria-pressed="true"]::after { transform: scaleX(1); }
+
+@media (forced-colors: active) {
+    .vd-space-pager-btn[aria-pressed="true"]::after { border-bottom: 2px solid Highlight; }
 }
 
 .vd-window.vd-space-hidden,
@@ -11600,6 +11687,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     max-height: calc(100dvh - 24px);
     overflow: auto;
     padding: 12px;
+    background: var(--vd-mat-card);
     color: var(--vd-text);
 }
 
@@ -11616,26 +11704,75 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 .vd-quick-settings-header {
     justify-content: space-between;
     gap: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--vd-theme-border, var(--vd-border));
+    margin: -12px -12px 0;
+    padding: 10px 12px;
+    background: var(--vd-mat-bar);
+    box-shadow: var(--vd-mat-bar-edge);
+    border-bottom: 1px solid var(--vd-mat-divider);
 }
 
 .vd-quick-settings-header h2,
 .vd-quick-settings-group h3 { margin: 0; }
 .vd-quick-settings-header h2 { font-size: 1.05rem; }
 .vd-quick-settings-group { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--vd-theme-border-subtle, var(--vd-theme-border, var(--vd-border))); }
-.vd-quick-settings-group h3 { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .76rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.vd-quick-settings-group h3 {
+    color: var(--vd-mat-label-color);
+    font: 700 .76rem/1.4 var(--vd-mat-label-font);
+    letter-spacing: var(--vd-mat-label-tracking);
+    text-transform: var(--vd-mat-label-transform);
+}
 .vd-quick-settings-control,
 .vd-quick-settings-toggle { justify-content: space-between; gap: 12px; min-height: 36px; }
 .vd-quick-settings-toggle > span { display: flex; flex-direction: column; gap: 3px; }
 .vd-quick-settings-toggle small { color: var(--vd-theme-muted, var(--vd-muted)); font-size: .78rem; }
-.vd-quick-settings-control select { min-width: 110px; max-width: 55%; padding: 5px 8px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; }
+.vd-quick-settings-control select {
+    min-width: 110px;
+    max-width: 55%;
+    padding: 5px 8px;
+    border: 1px solid var(--vd-mat-field-border);
+    border-radius: var(--vd-mat-field-radius);
+    background: var(--vd-mat-field);
+    box-shadow: var(--vd-mat-field-shadow);
+    color: var(--vd-text);
+    font: inherit;
+}
 .vd-quick-settings-range { gap: 8px; width: min(190px, 58%); }
 .vd-quick-settings-range input { flex: 1; min-width: 0; accent-color: var(--vd-accent, #27c7a6); }
 .vd-quick-settings-range output { min-width: 3.2em; color: var(--vd-theme-muted, var(--vd-muted)); font-variant-numeric: tabular-nums; text-align: end; }
-.vd-quick-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--vd-accent, #27c7a6); }
-.vd-quick-settings button { min-width: 36px; min-height: 36px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
-.vd-quick-settings button:hover:not(:disabled) { border-color: var(--vd-accent, #27c7a6); }
+.vd-quick-settings-toggle input { flex-shrink: 0; width: 18px; height: 18px; margin: 0; }
+@media (forced-colors: none) {
+    .vd-quick-settings-toggle input {
+        appearance: none;
+        box-sizing: border-box;
+        display: grid;
+        align-items: center;
+        width: 32px;
+        height: 18px;
+        padding: 2px;
+        border: 1px solid var(--vd-mat-field-border);
+        border-radius: var(--vd-mat-btn-radius);
+        background: var(--vd-mat-well);
+        box-shadow: var(--vd-mat-well-shadow);
+        cursor: pointer;
+    }
+    .vd-quick-settings-toggle input::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border-radius: inherit;
+        background: var(--vd-text);
+    }
+    .vd-quick-settings-toggle input:checked {
+        background: var(--vd-mat-primary);
+        border-color: var(--vd-mat-primary-border);
+        box-shadow: var(--vd-mat-primary-shadow);
+    }
+    .vd-quick-settings-toggle input:checked::before {
+        transform: translateX(14px);
+        background: var(--vd-mat-primary-text);
+    }
+}
+.vd-quick-settings button { min-width: 36px; min-height: 36px; font: inherit; cursor: pointer; }
 .vd-quick-settings button:focus-visible,
 .vd-quick-settings input:focus-visible,
 .vd-quick-settings select:focus-visible { outline: 2px solid var(--vd-accent, #27c7a6); outline-offset: 2px; }
@@ -12163,23 +12300,37 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     color: var(--vd-text);
 }
 
-.vd-clock-calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.vd-clock-calendar-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
 .vd-clock-calendar-header h2 { margin: 0; font-size: 1.05rem; }
 .vd-clock-calendar-nav { display: flex; align-items: center; gap: 5px; }
 .vd-clock-calendar-nav button,
-.vd-clock-calendar-retry { min-width: 36px; min-height: 36px; padding: 4px 9px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-clock-calendar-retry { min-width: 36px; min-height: 36px; padding: 4px 9px; font: inherit; cursor: pointer; }
 .vd-clock-calendar-nav button:first-child,
 .vd-clock-calendar-nav button:last-child { font-size: 1.3rem; line-height: 1; }
 .vd-clock-calendar-weekdays,
 .vd-clock-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .vd-clock-calendar-weekdays { margin-bottom: 3px; color: var(--vd-theme-muted, var(--vd-muted)); font-size: .74rem; font-weight: 700; text-align: center; }
 .vd-clock-calendar-weekdays span { padding: 4px 1px; }
-.vd-clock-calendar-day { display: flex; min-width: 0; min-height: 38px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-clock-calendar-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-radius: var(--vd-mat-field-radius);
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
 .vd-clock-calendar-day:hover { border-color: var(--vd-theme-border, var(--vd-border)); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); }
 .vd-clock-calendar-day.is-other-month { color: var(--vd-theme-muted, var(--vd-muted)); opacity: .68; }
 .vd-clock-calendar-day.is-today { border-color: var(--vd-accent, #27c7a6); font-weight: 700; }
-.vd-clock-calendar-day.is-selected { background: var(--vd-accent, #27c7a6); color: var(--vd-accent-contrast, #fff); }
-.vd-clock-calendar-day i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.vd-clock-calendar-day.is-selected { background: var(--vd-mat-selected); box-shadow: var(--vd-mat-selected-edge); color: var(--vd-mat-selected-text); opacity: 1; }
+/* Event marks sit below the number's baseline without lifting busy dates out of their row. */
+.vd-clock-calendar-day i { position: absolute; top: calc(50% + .65em); width: 5px; height: 3px; border-radius: var(--vd-mat-btn-radius); background: currentColor; }
 .vd-clock-calendar-day:focus-visible,
 .vd-clock-calendar-nav button:focus-visible,
 .vd-clock-calendar-retry:focus-visible,
@@ -12474,6 +12625,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     .vd-start-category-count, .vd-start-item, .vd-start-pane-title, .vd-start-pane-count, .vd-start-recent-label,
     .vd-start-empty, .vd-icon-label, .vd-toast-title, .vd-toast-message, .vd-modal-title, .vd-modal-copy,
     .vd-file-dialog-title, .vd-shortcuts-title, .vd-notification-clear, .vd-clock-popup-open,
+    .vd-quick-settings-header h2, .vd-quick-settings-group h3, .vd-clock-calendar-header h2,
     .vd-notification-header, .vd-notification-title, .vd-notification-item-title, .vd-notification-item-message,
     .vd-notification-item-time, .vd-notification-empty, .vd-clock-popup-date, .vd-clock-popup-time,
     .vd-clock-popup-section, .vd-clock-popup-empty, .vd-clock-popup-loading, .vd-clock-event-time, .vd-clock-event-title
@@ -15519,6 +15671,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
  * rules; this file paints each dock surface whose paint is keyed on the Fruity theme or on the dock shell. */
 
 .desktop-body[data-theme="lollipop"] {
+    --vd-shell-feedback-ease: cubic-bezier(.22, 1.35, .42, 1);
     color-scheme: light;
 
     /* Core */
@@ -18168,6 +18321,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 /* ui/css/desktop-theme-green-slime.css */
 /* Green Slime: readable dark moss surfaces wrapped in glossy lime gel and soft drips. */
 .desktop-body[data-theme="green_slime"] {
+    --vd-shell-feedback-ease: cubic-bezier(.24, 1.45, .46, 1);
     color-scheme: dark;
     --vd-bg: #11180d;
     --vd-surface: #202a15;
@@ -18474,6 +18628,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
    grass #4c8a32 / #3f7a2a, redstone #b33a2b. */
 
 .desktop-body[data-theme="voxel_world"] {
+    --vd-shell-feedback-ease: steps(2, end);
     color-scheme: light;
     --vd-bg: #d8e7d1;
     --vd-surface: #f5f1e5;
@@ -22179,8 +22334,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
 
 /* ui/css/desktop-polish.css */
 /* desktop-polish.css — finishing layer: wallpaper light in the chrome, a pointer light on
- * launchers and menus, deeper focus and small details. Loads last in the shell bundle and
- * only refines existing surfaces. Colour effects are static; movement honours
+ * launchers and menus, deeper focus and small details. The accessibility overrides follow
+ * this layer in the shell bundle. Colour effects are static; movement honours
  * data-animations="false" and prefers-reduced-motion, extra translucency honours
  * prefers-reduced-transparency. */
 

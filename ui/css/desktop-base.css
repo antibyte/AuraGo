@@ -137,6 +137,7 @@
     --ds-motion-duration-base: 200ms;
     --ds-motion-duration-slow: 220ms;
     --ds-motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --vd-shell-feedback-ease: var(--ds-motion-ease-standard);
     --ds-motion-ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
     --ds-motion-ease-decel: cubic-bezier(0, 0, 0, 1);
     --ds-motion-ease-accel: cubic-bezier(0.3, 0, 1, 1);

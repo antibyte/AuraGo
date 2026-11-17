@@ -282,7 +282,7 @@ func TestDesktopThemeRegistryMatchesGoAndAssets(t *testing.T) {
 
 	idPattern := regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	iconThemes := desktopSettingValues(t, "appearance.icon_theme")
-	wallpapers := desktopSettingValues(t, "appearance.wallpaper")
+	wallpapers := desktop.BuiltinWallpaperIDs()
 	fxParts := desktopBundleParts(t, "ui/js/desktop/bundles/desktop-theme-fx.bundle.js")
 	loader := readDesktopThemeSource(t, "js/desktop/core/module-loader.js")
 

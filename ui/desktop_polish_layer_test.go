@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -10,25 +8,17 @@ import (
 	"aurago/internal/desktop"
 )
 
-func TestDesktopPolishLayerLoadsLast(t *testing.T) {
+func TestDesktopPolishAssetsAreBundled(t *testing.T) {
 	t.Parallel()
 
-	scriptBytes, err := os.ReadFile(filepath.Join("..", "scripts", "build-ui-bundles.js"))
-	if err != nil {
-		t.Fatalf("read build script: %v", err)
-	}
-	script := string(scriptBytes)
-	chrome := strings.Index(script, "'ui/css/desktop-chrome.css'")
-	polish := strings.Index(script, "'ui/css/desktop-polish.css'")
+	parts := desktopBundleParts(t, "ui/css/desktop-shell.bundle.css")
+	chrome := indexOfBundlePart(parts, "ui/css/desktop-chrome.css")
+	polish := indexOfBundlePart(parts, "ui/css/desktop-polish.css")
 	if chrome < 0 || polish < chrome {
 		t.Fatalf("desktop-polish.css must be bundled after desktop-chrome.css")
 	}
-	rest := script[polish+len("'ui/css/desktop-polish.css'"):]
-	if end, next := strings.Index(rest, "]"), strings.Index(rest, "'ui/css/"); end < 0 || (next >= 0 && next < end) {
-		t.Fatalf("desktop-polish.css must be the last part of the desktop shell CSS bundle")
-	}
-	if !strings.Contains(script, "'ui/js/desktop/core/polish-runtime.js'") {
-		t.Fatalf("build-ui-bundles.js must include polish-runtime.js")
+	if indexOfBundlePart(desktopBundleParts(t, "ui/js/desktop/bundles/main.bundle.js"), "ui/js/desktop/core/polish-runtime.js") < 0 {
+		t.Fatal("the desktop main bundle must include polish-runtime.js")
 	}
 }
 
@@ -61,17 +51,12 @@ func TestDesktopPolishCoversEveryWallpaper(t *testing.T) {
 	t.Parallel()
 
 	css := readDesktopAssetText(t, "css/desktop-polish.css")
-	for _, def := range desktop.DesktopSettingDefinitions() {
-		if def.Key != "appearance.wallpaper" {
+	for _, id := range desktop.BuiltinWallpaperIDs() {
+		if id == "aurora" { // Aurora uses the .desktop-body defaults.
 			continue
 		}
-		for _, id := range def.Values {
-			if id == "aurora" { // the default wallpaper uses the .desktop-body defaults
-				continue
-			}
-			if !strings.Contains(css, `.desktop-body[data-wallpaper="`+id+`"] { --vd-ambient-top:`) {
-				t.Errorf("wallpaper %q has no ambient light in desktop-polish.css; photos: run python scripts/wallpaper-ambient.py", id)
-			}
+		if !strings.Contains(css, `.desktop-body[data-wallpaper="`+id+`"] { --vd-ambient-top:`) {
+			t.Errorf("wallpaper %q has no ambient light in desktop-polish.css; photos: run python scripts/wallpaper-ambient.py", id)
 		}
 	}
 }

@@ -7,6 +7,7 @@
    grass #4c8a32 / #3f7a2a, redstone #b33a2b. */
 
 .desktop-body[data-theme="voxel_world"] {
+    --vd-shell-feedback-ease: steps(2, end);
     color-scheme: light;
     --vd-bg: #d8e7d1;
     --vd-surface: #f5f1e5;

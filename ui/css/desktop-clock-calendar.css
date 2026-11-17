@@ -6,23 +6,37 @@
     color: var(--vd-text);
 }
 
-.vd-clock-calendar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.vd-clock-calendar-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
 .vd-clock-calendar-header h2 { margin: 0; font-size: 1.05rem; }
 .vd-clock-calendar-nav { display: flex; align-items: center; gap: 5px; }
 .vd-clock-calendar-nav button,
-.vd-clock-calendar-retry { min-width: 36px; min-height: 36px; padding: 4px 9px; border: 1px solid var(--vd-theme-border, var(--vd-border)); border-radius: var(--ds-radius-sm); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-clock-calendar-retry { min-width: 36px; min-height: 36px; padding: 4px 9px; font: inherit; cursor: pointer; }
 .vd-clock-calendar-nav button:first-child,
 .vd-clock-calendar-nav button:last-child { font-size: 1.3rem; line-height: 1; }
 .vd-clock-calendar-weekdays,
 .vd-clock-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .vd-clock-calendar-weekdays { margin-bottom: 3px; color: var(--vd-theme-muted, var(--vd-muted)); font-size: .74rem; font-weight: 700; text-align: center; }
 .vd-clock-calendar-weekdays span { padding: 4px 1px; }
-.vd-clock-calendar-day { display: flex; min-width: 0; min-height: 38px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 1px solid transparent; border-radius: var(--ds-radius-sm); background: transparent; color: var(--vd-text); font: inherit; cursor: pointer; }
+.vd-clock-calendar-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 38px;
+    border: 1px solid transparent;
+    border-radius: var(--vd-mat-field-radius);
+    background: transparent;
+    color: var(--vd-text);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
 .vd-clock-calendar-day:hover { border-color: var(--vd-theme-border, var(--vd-border)); background: var(--vd-theme-control-bg, var(--ds-color-surface-2)); }
 .vd-clock-calendar-day.is-other-month { color: var(--vd-theme-muted, var(--vd-muted)); opacity: .68; }
 .vd-clock-calendar-day.is-today { border-color: var(--vd-accent, #27c7a6); font-weight: 700; }
-.vd-clock-calendar-day.is-selected { background: var(--vd-accent, #27c7a6); color: var(--vd-accent-contrast, #fff); }
-.vd-clock-calendar-day i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.vd-clock-calendar-day.is-selected { background: var(--vd-mat-selected); box-shadow: var(--vd-mat-selected-edge); color: var(--vd-mat-selected-text); opacity: 1; }
+/* Event marks sit below the number's baseline without lifting busy dates out of their row. */
+.vd-clock-calendar-day i { position: absolute; top: calc(50% + .65em); width: 5px; height: 3px; border-radius: var(--vd-mat-btn-radius); background: currentColor; }
 .vd-clock-calendar-day:focus-visible,
 .vd-clock-calendar-nav button:focus-visible,
 .vd-clock-calendar-retry:focus-visible,

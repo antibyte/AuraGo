@@ -245,12 +245,13 @@ type SettingDefinition struct {
 	Values  []string
 }
 
-func desktopWallpaperValues() []string {
+// BuiltinWallpaperIDs returns the shipped presets accepted by global and per-workspace settings.
+func BuiltinWallpaperIDs() []string {
 	return []string{"groupshoot", "aurora", "midnight", "slate", "ember", "forest", "alpine_dawn", "city_rain", "ocean_cliff", "aurora_glass", "nebula_flow", "paper_waves", "silk_flow", "firefly_dusk", "neon_overdrive", "fractal_trip", "electronic_dreams", "windows_xp", "green_slime", "voxel_world", "orbit", "minimal"}
 }
 
 func desktopWallpaperValueSet() map[string]struct{} {
-	values := desktopWallpaperValues()
+	values := BuiltinWallpaperIDs()
 	set := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		set[value] = struct{}{}

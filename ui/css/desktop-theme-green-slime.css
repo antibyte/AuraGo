@@ -1,5 +1,6 @@
 /* Green Slime: readable dark moss surfaces wrapped in glossy lime gel and soft drips. */
 .desktop-body[data-theme="green_slime"] {
+    --vd-shell-feedback-ease: cubic-bezier(.24, 1.45, .46, 1);
     color-scheme: dark;
     --vd-bg: #11180d;
     --vd-surface: #202a15;

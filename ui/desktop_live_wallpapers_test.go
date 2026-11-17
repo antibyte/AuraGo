@@ -21,18 +21,11 @@ func TestDesktopLiveWallpapersAreSelectableEverywhere(t *testing.T) {
 	spaces := readDesktopAssetText(t, "js/desktop/core/spaces-runtime.js")
 	css := readDesktopAssetText(t, "css/desktop-wallpaper-live.css")
 	polish := readDesktopAssetText(t, "css/desktop-polish.css")
-	allowed := map[string]bool{}
-	for _, def := range desktop.DesktopSettingDefinitions() {
-		if def.Key == "appearance.wallpaper" {
-			for _, value := range def.Values {
-				allowed[value] = true
-			}
-		}
-	}
+	wallpapers := desktop.BuiltinWallpaperIDs()
 	for _, id := range desktopLiveWallpapers {
 		option := "['" + id + "', 'desktop.settings_wallpaper_" + id + "']"
 		switch {
-		case !allowed[id]:
+		case !desktopThemeContains(wallpapers, id):
 			t.Errorf("server does not accept wallpaper %q", id)
 		case !strings.Contains(module, "  "+id+": { fps:"):
 			t.Errorf("live-wallpapers.js has no shader for %q", id)
@@ -48,7 +41,7 @@ func TestDesktopLiveWallpapersAreSelectableEverywhere(t *testing.T) {
 			t.Errorf("wallpaper %q has no ambient light", id)
 		}
 	}
-	if !strings.Contains(menus, "options.map(item).concat([{ separator: true }], animated.map(item))") {
+	if !strings.Contains(menus, "options.map(item).concat([{ separator: true }], animated.map(item)") {
 		t.Error("context menu must set the animated wallpapers apart")
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {

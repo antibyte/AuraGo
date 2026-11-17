@@ -5,6 +5,7 @@
  * rules; this file paints each dock surface whose paint is keyed on the Fruity theme or on the dock shell. */
 
 .desktop-body[data-theme="lollipop"] {
+    --vd-shell-feedback-ease: cubic-bezier(.22, 1.35, .42, 1);
     color-scheme: light;
 
     /* Core */

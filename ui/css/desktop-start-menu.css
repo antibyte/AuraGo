@@ -94,9 +94,31 @@
 }
 
 .vd-start-search {
+    position: relative;
     flex: 0 0 auto;
     padding: var(--ds-space-3);
     border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+.vd-start-search::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 2px;
+    margin-inline: auto;
+    width: 3rem;
+    height: 2px;
+    background: var(--vd-mat-rule);
+    transform: scaleX(0);
+    pointer-events: none;
+}
+
+.vd-start-searching .vd-start-search::after { transform: scaleX(1); }
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .vd-start-search::after {
+        transition: transform var(--ds-motion-duration-fast) var(--vd-shell-feedback-ease);
+    }
 }
 
 .vd-start-session {
