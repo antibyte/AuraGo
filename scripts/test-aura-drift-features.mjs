@@ -125,8 +125,16 @@ function step(race, actor, fs, seconds) {
     const pad = fs.pads[0];
     const race = fakeRace(track);
     const actor = fakeActor(track, pad.x, pad.y, pad.psi);
+    const entrySpeed = 100 / 3.6;
+    actor.v.vx = entrySpeed;
     step(race, actor, fs, 0.05);
-    check('pad sets burst and power', Math.abs(actor.v.burst - 0.9) < 0.06 && actor.v.burstPower === 1.35, 'burst=' + actor.v.burst);
+    check('pad gives a coasting car a nudge and a one-second burst', Math.abs(actor.v.vx - entrySpeed - 0.8) < 0.001 &&
+        actor.v.burst === 1 && actor.v.burstPower === 1.5);
+    const ordinary = AD.createVehicle(0, 0, 0, 0), boosted = { ...actor.v };
+    ordinary.vx = entrySpeed;
+    for (let i = 0; i < 126; i++) for (const v of [ordinary, boosted]) AD.stepVehicle(v, { throttle: 1 }, AD.STEP, AD.SURFACES.asphalt);
+    const extra = (boosted.vx - ordinary.vx) * 3.6;
+    check('pad adds 10–15 km/h over full throttle from 100 km/h', extra > 10 && extra < 15, extra.toFixed(1));
     check('pad emits boost_pad', race.events.some(e => e.type === 'boost_pad' && e.car === 0));
     const burst = actor.v.burst;
     step(race, actor, fs, 0.2);
@@ -135,7 +143,7 @@ function step(race, actor, fs, seconds) {
     check('pad fires again after 1.5 s', race.events.filter(e => e.type === 'boost_pad').length === 2);
     const van = fakeActor(track, pad.x, pad.y, pad.psi, 'softeis', 1);
     step(fakeRace(track), van, fs, 0.01);
-    check('Softeis keeps the pad boost 1.4x longer', van.v.burst > 1.2, 'burst=' + van.v.burst);
+    check('Softeis keeps the pad boost 1.4x longer', Math.abs(van.v.burst - 1.4) < 0.001, 'burst=' + van.v.burst);
     const ghost = fakeActor(track, pad.x, pad.y, pad.psi, 'vektor', -1);
     ghost.ghost = true; ghost.style = null; ghost.tally = null;
     const gRace = fakeRace(track, { muteEvents: true });

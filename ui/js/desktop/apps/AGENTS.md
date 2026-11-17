@@ -3766,6 +3766,17 @@ buttons and menu popovers remain excluded from those gestures.
   simulation time, so nothing reads the clock or the render rate; the contract is
   `scripts/test-aura-drift-weather.mjs`. Wetness keeps its grip penalty after the sky clears
   on purpose (wet roads linger), and grip never exceeds the dry base.
+- `track.puddles` owns the oriented footprints. Both renderers and `AD.drivingSurface` use
+  them for permanent pools and depressions that fill with rain. Wet braking, speed-dependent
+  aquaplaning and the signed, decaying rear-tyre oil response run on fixed vehicle ticks.
+  Include tyre state in replay hashes and clear it when airborne or rescued.
+- `AD.digitalSteer` eases keyboard and touch input on the fixed simulation step. Boost pads
+  give a forward impulse and timed thrust on activation. Time-trial records retain the historical
+  time and car separately from the fastest complete tape and car for `AD.GHOST_HANDLING`.
+- `AD.roadsideScenes` builds two reserved verge sites per track. Both views use the same cast
+  and race clock. Reduced motion freezes their poses. Only completed races advance the local
+  finish count. Read-only windows keep that progress in memory. Verify the switch on a later
+  visit in `TestDesktopAuraDriftRoadsideBrowser`.
 - Polish: `aura-drift-fx.js` owns a quiet camera-relative biome mote layer (one `MOTES` profile
   per biome, scaled by the particle tier, disabled by `fx.setReducedMotion` from `render3d.js`)
   and one-shot feedback for near misses, style banks, sectors, cloak changes, bomb ticks and the

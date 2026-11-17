@@ -197,6 +197,75 @@ check('input tape round-trips steering sign', unpacked.steer < -0.45 && unpacked
     check('outro: vehicle state stays finite', finite);
 }
 
+{
+    const t = AD.buildTrack(AD.trackById('neon-hafen')), p = t.puddles.find(x => x.permanent);
+    const car = kmh => { const v = AD.createVehicle(0, 0, 0, 0); v.vx = kmh / 3.6; return v; };
+    const dry = AD.SURFACES.asphalt;
+    const ground = (x, y, wetness) => AD.drivingSurface(t, AD.sampleTrack(t, x, y), { x, y }, { wetness, grip: 1 });
+    const centre = ground(p.x, p.y, 0), lane = ground(p.x - p.ty * (p.width + 1), p.y + p.tx * (p.width + 1), 0);
+    const hollow = t.puddles.find(x => !x.permanent);
+    check('standing water has a centre and a bypass, and rain fills other hollows', centre.puddle > .99 && lane.puddle === 0 &&
+        ground(hollow.x, hollow.y, 0).puddle === 0 && ground(hollow.x, hollow.y, .9).puddle > .95);
+    function crossPool(offset) {
+        const r = AD.createRace({ track: t, mode: 'time_trial', opponents: 0, weapons: false });
+        r.countdown = 0; r.state = 'running';
+        const v = r.cars[0].v;
+        v.x = p.x - p.tx * (p.length + 3) - p.ty * offset;
+        v.y = p.y - p.ty * (p.length + 3) + p.tx * offset;
+        v.psi = Math.atan2(p.ty, p.tx); v.vx = 120 / 3.6;
+        let peak = 0;
+        for (let i = 0; i < 120; i++) { AD.stepRace(r, AD.STEP); peak = Math.max(peak, v.planing); }
+        return peak;
+    }
+    check('the painted pool affects a live race crossing and leaves an open line',
+        crossPool(0) > .55 && crossPool(p.width + 1) < .02);
+    const brakingDistance = env => {
+        const v = car(100);
+        for (let i = 0; i < 1200 && v.vx > 0.5; i++) AD.stepVehicle(v, { brake: 1 }, AD.STEP, env);
+        return v.x;
+    };
+    const ratio = brakingDistance(lane) / brakingDistance(dry);
+    check('wet asphalt lengthens a 100 km/h stop by 12–30 percent', ratio > 1.12 && ratio < 1.3, ratio.toFixed(2));
+    const slow = car(40), fast = car(120), bypass = car(120);
+    for (let i = 0; i < 36; i++) {
+        for (const v of [slow, fast]) AD.stepVehicle(v, { steer: .28 }, AD.STEP, centre);
+        AD.stepVehicle(bypass, { steer: .28 }, AD.STEP, lane);
+    }
+    check('fast wheels plane and turn less in the pool while slow wheels keep contact',
+        !slow.planing && fast.planing > .6 && fast.psi < bypass.psi * .8 && fast.vx < bypass.vx);
+    for (let i = 0; i < 90; i++) AD.stepVehicle(fast, {}, AD.STEP, dry);
+    check('tyres regain contact after leaving the water', fast.planing < .03);
+
+    function oilPass(offset, counter = 0, options = {}) {
+        const v = car(95); v.y = offset; Object.assign(v, options);
+        const actor = { v, index: 1 }, race = { hazards: [{ type: 'oil', x: 4, y: 0, r: 4, owner: 0, age: 2 }] };
+        let peak = 0;
+        for (let i = 0; i < 170; i++) {
+            const env = { ...dry };
+            AD.applyHazardEnv(race, actor, env);
+            AD.stepVehicle(v, { steer: i >= 25 && i < 42 ? counter : 0 }, AD.STEP, env);
+            peak = Math.max(peak, v.oilFilm);
+        }
+        return { v, peak };
+    }
+    const left = oilPass(-1.5), right = oilPass(1.5), catchIt = oilPass(-1.5, -.065);
+    check('opposite edges of oil pull the rear in opposite directions and countersteer catches it',
+        left.v.psi > .01 && right.v.psi < -.01 && Math.abs(catchIt.v.psi) < left.v.psi * .6);
+    check('oil film clears, and adjacent, airborne and cloaked passes stay clean', left.peak > .65 &&
+        left.v.oilFilm < .02 && !oilPass(5).peak && !oilPass(0, 0, { airborne: true }).peak && !oilPass(0, 0, { cloak: 8 }).peak);
+
+    const key = car(100), immediate = car(100);
+    let steer = 0;
+    for (let i = 0; i < 12; i++) {
+        steer = AD.digitalSteer(steer, 1, AD.STEP);
+        AD.stepVehicle(key, { steer }, AD.STEP, dry);
+        AD.stepVehicle(immediate, { steer: 1 }, AD.STEP, dry);
+    }
+    check('100 ms steering taps are 5–15 percent gentler, full lock and release are available',
+        key.steer > immediate.steer * .85 && key.steer < immediate.steer * .95 &&
+        AD.digitalSteer(0, 1, .3) > .999 && AD.digitalSteer(1, 0, AD.STEP) === 0);
+}
+
 if (failures.length) {
     console.error('\n' + failures.length + ' physics check(s) failed');
     process.exit(1);

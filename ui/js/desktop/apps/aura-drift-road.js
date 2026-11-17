@@ -593,12 +593,40 @@
             for (const sv of track.sectors || []) strip(sv, 0.5, null, new T.Color(W.hexLin(biome.line)[0], W.hexLin(biome.line)[1], W.hexLin(biome.line)[2]));
         }
 
+        let rainPools = null, rainPocket = null;
+        if (track.puddles?.length) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 96;
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(127, 0, 0, 47, 128, 48);
+            AD.paintPuddle(ctx);
+            const map = own(new T.CanvasTexture(canvas));
+            map.colorSpace = T.SRGBColorSpace;
+            const geometry = own(new T.PlaneGeometry(2, 2).rotateX(-Math.PI / 2));
+            const pools = own(new T.MeshBasicMaterial({ map, transparent: true, opacity: 0.76, depthWrite: false,
+                polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
+            rainPools = own(pools.clone());
+            for (const p of track.puddles) {
+                const mesh = new T.Mesh(geometry, p.permanent ? pools : rainPools);
+                mesh.name = 'standing-water';
+                mesh.position.set(p.x, 0.033, p.y);
+                mesh.rotation.y = -Math.atan2(p.ty, p.tx);
+                mesh.scale.set(p.length, 1, p.width);
+                group.add(mesh);
+                if (!p.permanent) rainPocket = p;
+                stats.triangles += 2; stats.meshes++;
+            }
+        }
         stats.ms = typeof performance !== 'undefined' ? performance.now() - t0 : 0;
         const nightBase = look.night ? 0.38 : 0;
         let applied = -1;
         const api = {
             group: group,
-            setWetness(w) {
+            setWetness(w, surfaceWetness = 0) {
+                if (rainPocket) {
+                    rainPools.opacity = 0.76 * AD.puddleLevel(rainPocket, surfaceWetness);
+                    rainPools.visible = rainPools.opacity > 0;
+                }
                 const wet = clamp(Math.max(w, nightBase), 0, 1);
                 if (Math.abs(wet - applied) < 0.001) return;
                 applied = wet;

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { loadSim } from './aura-drift-sim-loader.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const AD = loadSim(['look', 'props']);
+const AD = loadSim(['look', 'terrain', 'scenery', 'props', 'pet-decor']);
 const manifest = JSON.parse(readFileSync(path.join(root, 'ui/3d/aura-drift/v1/manifest.json'), 'utf8'));
 const failures = [];
 function check(name, condition, detail) {
@@ -21,6 +21,18 @@ const tracks = AD.TRACKS.map(m => AD.buildTrack(m));
 const daily = [AD.buildTrack(AD.dailyTrack(20261106)), AD.buildTrack(AD.dailyTrack(777))];
 const all = tracks.concat(daily);
 const metaFor = id => (manifest.props && manifest.props[id]) || {};
+
+for (const track of all) {
+    const normal = AD.roadsideScenes(track, 0), repeat = AD.roadsideScenes(track, 1);
+    const props = AD.scatterProps(track, track.biomeId, metaFor(track.biomeId));
+    check(track.id + ' has two clear roadside stages', normal.length === 2 && normal.every(({ site }) => {
+        const road = AD.sampleTrack(track, site.x, site.y);
+        return Math.abs(road.offset) >= road.halfWidth + site.r && site.z >= -1 &&
+            props.every(p => Math.hypot(p.x - site.x, p.y - site.y) >= p.r + site.r);
+    }));
+    check(track.id + ' has encores after two and four finishes', normal[1].story === repeat[1].story &&
+        AD.roadsideScenes(track, 2)[1].story === 'taxi' && AD.roadsideScenes(track, 4)[1].story === 'disco');
+}
 
 /* Same seed, same placements; another seed, other placements. */
 let unequal = [];

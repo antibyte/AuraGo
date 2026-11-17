@@ -14,7 +14,7 @@
         let theta = 0;                 /* current screen rotation, see AD.screenRotation */
         let showcaseSpec = { carId: 'vektor', livery: 0, biomeId: 'alpine' };
         let showcaseTime = 0;
-        let lastRace = null;
+        let lastRace = null, shows = [];
 
         /* Rotated worlds show a disc, not a rectangle. */
         function onScreen(sx, sy, margin) {
@@ -795,7 +795,8 @@
                 c.setTransform(dpr, 0, 0, dpr, 0, 0);
             },
             setQuality(q) { quality = AD.QUALITY[q] || AD.QUALITY.high; },
-            setTrack(track) {
+            setTrack(track, race, sidelines) {
+                shows = sidelines || AD.roadsideScenes?.(track, 0) || [];
                 chunks.clear(); decals.length = 0; particles.length = 0;
                 lights.length = 0; furniture.length = 0;
                 /* Lamp posts every ~110 m alternate sides of the road. */
@@ -896,7 +897,7 @@
                 if (v.damage > 62 && speed > 4 && fxTick % 7 === 0) this.smoke(v.x, v.y - 1.2, '#5c5c62');
                 if (v.impact > 0.55 && quality.particles > 0) this.burst('spark', v.x, v.y, 3, '#ffb347');
                 /* Water thrown up on wet asphalt and powder on snow. */
-                const wet = surface === 'wet', snow = surface === 'snow';
+                const wet = surface === 'wet' || v.planing > 0.08, snow = surface === 'snow';
                 if ((wet || snow) && speed > 14 && fxTick % 2 === 0) {
                     const cos = Math.cos(v.psi), sin = Math.sin(v.psi);
                     this.smoke(v.x - cos * 2.1 + sin * 0.9, v.y - sin * 2.1 - cos * 0.9, wet ? '#b9cede' : '#f3f8ff');
@@ -949,6 +950,15 @@
                 drawDecals(cam);
                 drawCurbs(track, cam);
                 drawRoadMarkings(track, cam);
+                for (const p of track.puddles || []) {
+                    const level = AD.puddleLevel(p, race.conditions?.state.wetness || 0);
+                    if (!level) continue;
+                    const [x, y] = worldToScreen(p.x, p.y, cam);
+                    if (!onScreen(x, y, p.length * cam.scale)) continue;
+                    c.save(); c.translate(x, y); c.rotate(Math.atan2(p.ty, p.tx));
+                    c.scale(p.length * cam.scale, p.width * cam.scale); c.globalAlpha = 0.76 * level;
+                    AD.paintPuddle(c); c.restore();
+                }
                 /* Trackside furniture frames the road: grandstands, hoardings,
                    tyre walls, marshal posts and the biome set pieces. */
                 for (const item of furniture) {
@@ -957,6 +967,10 @@
                     AD.drawFurniture(c, item, sx, sy, cam.scale, frame);
                 }
                 drawFeatures(race, cam);
+                for (const show of shows) {
+                    const centre = worldToScreen(show.site.x, show.site.y, cam);
+                    if (onScreen(centre[0], centre[1], 12 * cam.scale)) AD.drawRoadside(c, show, cam, centre, theta, reducedMotion ? 0 : race.time);
+                }
 
                 /* Crates, hazards, projectiles and beams live in world space. */
                 const crates = (race.features && race.features.crates) || race.pickups || [];

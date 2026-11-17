@@ -179,11 +179,19 @@ Bei einem Sprung, einem Drift oder auf der nächsten schnellen Passage knipst di
 ein Foto. Du siehst es kurz am Streckenrand und später mit deinem Tempo und einem Spruch im
 Ergebnis. Wenn du vorher hupst, bekommst du vielleicht Gesellschaft auf dem Bild.
 
+Am Alpenpass vergibt sogar das Weidevieh Pokale. Schau beim nächsten Rennen wieder an den
+Streckenrand. Nach ein paar Zieleinläufen haben die Zuschauer gelegentlich etwas anderes vor.
+
 ## Wetter
 
 Das Wetter wechselt während des Rennens nach einem festen Plan: Regen im Hafen und in der
 Stadt, Schnee auf dem Gletscher, dazu Nebel, Dunst, Hitze und Blendung. Es wirkt auf alle
 Autos gleich.
+
+Auf nassem Asphalt brauchst du mehr Bremsweg. Die spiegelnden Pfützen kannst du umfahren.
+Triffst du bei hohem Tempo ihre Mitte, schwimmt die Vorderachse kurz auf und das Auto schiebt
+geradeaus. Geh früh vom Gas und lenk ruhig. Auf Öl bricht eher das Heck aus. Ein kurzer
+Gegenlenker hilft, sobald du die Bewegung spürst.
 
 ## Sound
 

@@ -35,6 +35,8 @@
         return h >>> 0;
     };
 
+    AD.wetBrakeGrip = (water, planing) => (1 - 0.21 * water) * (1 - 0.30 * planing);
+    AD.frontWaterGrip = planing => 1 - 0.55 * planing;
     /* Presentation text for surfaces lives in locale keys (aura_drift.surface.<type>). */
     AD.SURFACES = {
         asphalt: { grip: 1.00, roll: 0.016 },
@@ -280,6 +282,21 @@
        The old key is removed (no migration) unless the desktop is readonly. */
     AD.BEST_KEY = 'aurago.desktop.aura-drift.best.v2';
     AD.OLD_BEST_KEY = 'aurago.desktop.aura-drift.best.v1';
+    AD.GHOST_HANDLING = 2;
+    const FINISHES_KEY = 'aurago.desktop.aura-drift.finishes.v1';
+    AD.readFinishes = function () {
+        try {
+            const n = Number(window.localStorage.getItem(FINISHES_KEY));
+            return Number.isSafeInteger(n) && n > 0 ? n : 0;
+        } catch (_) { return 0; }
+    };
+    AD.countFinish = function (previous, readonly) {
+        const count = Math.max(previous, AD.readFinishes()) + 1;
+        if (!readonly) {
+            try { window.localStorage.setItem(FINISHES_KEY, String(count)); } catch (_) { /* session-only progress */ }
+        }
+        return count;
+    };
     AD.loadBests = function (readonly) {
         try {
             if (!readonly && window.localStorage) window.localStorage.removeItem(AD.OLD_BEST_KEY);
@@ -288,8 +305,7 @@
             return parsed && typeof parsed === 'object' ? parsed : {};
         } catch (_) { return {}; }
     };
-    /* Entry shape: { time, tape: string, carId, score? }. Array tapes handed in
-       by callers are encoded on the way out. */
+    /* Historical time/car and the fastest tape/car for current handling can differ. */
     AD.saveBests = function (bests, readonly) {
         if (readonly) return;
         try {
@@ -303,6 +319,7 @@
         } catch (_) { /* storage unavailable */ }
     };
 
+    AD.digitalSteer = (previous, direction, dt) => direction ? AD.smooth(previous, direction, 52, dt) : 0;
     AD.createInput = function () {
         return { throttle: 0, brake: 0, steer: 0, handbrake: 0, fire: 0, boost: 0 };
     };

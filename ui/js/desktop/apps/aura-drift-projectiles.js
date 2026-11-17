@@ -417,12 +417,20 @@
        ice, and from their own oil for the first second. Cloaked cars ignore all hazards. */
     AD.applyHazardEnv = function (race, actor, env) {
         const v = actor.v;
-        if (v.cloak > 0) return;
+        if (v.cloak > 0 || v.airborne) return;
         for (const h of race.hazards) {
             if (h.type !== 'oil' && h.type !== 'ice') continue;
-            if (AD.distance(v.x, v.y, h.x, h.y) >= h.r) continue;
+            const distance = AD.distance(v.x, v.y, h.x, h.y);
+            if (distance >= h.r) continue;
             if (h.owner === actor.index && (h.type === 'ice' || h.age < 1)) continue;
             env.grip = Math.min(env.grip, h.type === 'oil' ? AD.SURFACES.oil.grip : 0.3);
+            if (h.type === 'oil') {
+                const film = 1 - (distance / h.r) ** 2;
+                if (film <= (env.oil || 0)) continue;
+                const lateral = (h.y - v.y) * Math.cos(v.psi) - (h.x - v.x) * Math.sin(v.psi);
+                env.oil = film;
+                env.oilSide = clamp(lateral / (h.r * 0.55) + 0.22 * Math.cos(h.x + h.y), -1, 1);
+            }
         }
     };
 

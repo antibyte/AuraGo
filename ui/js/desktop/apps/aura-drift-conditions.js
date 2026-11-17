@@ -159,7 +159,7 @@
                    shave off a little more, identically for every driver. */
                 const depth = (state.kind === 'rain' || state.kind === 'snow') ? state.intensity : 0;
                 state.wind = profile.wind * (0.7 + state.intensity * 0.6) * (0.85 + state.gust * 0.3);
-                state.grip = clamp(base - depth * 0.12 - state.wetness * 0.025 -
+                state.grip = clamp(base - depth * 0.12 - state.wetness * 0.10 -
                     state.gust * state.wind * 0.006, 0.6, 1.05);
                 const murk = state.kind === 'fog' || state.kind === 'mist' ? 0.55 :
                     state.kind === 'snow' ? 0.35 : state.kind === 'rain' ? 0.2 : 0;

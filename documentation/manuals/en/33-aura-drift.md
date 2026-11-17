@@ -173,10 +173,18 @@ The track camera snaps a jump, a drift or a stretch at speed. The postcard appea
 beside the track, then returns with your speed and its caption on the results screen.
 Try sounding the horn before the picture if you fancy some company in the shot.
 
+Even the cattle hand out trophies on the Alpine Pass. Keep an eye on the verge when you come
+back. After a few finishes the spectators occasionally have other plans.
+
 ## Weather
 
 The weather changes during the race on a fixed schedule: rain in the harbour and in the city,
 snow on the glacier, and fog, mist, heat and glare. It affects every car equally.
+
+Allow more braking distance on wet asphalt. You can steer around the reflective pools.
+Hit the middle of one at speed and the front tyres briefly aquaplane, carrying the car
+straight on. Lift early and steer gently. Oil loosens the rear instead. A small amount of
+countersteer helps catch the slide.
 
 ## Sound
 

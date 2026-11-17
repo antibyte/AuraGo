@@ -13,8 +13,10 @@
         ['aura-drift-core.js', 'loadSettings'],
         ['aura-drift-core.js', 'createScheduler'],
         ['aura-drift-core.js', 'createQualityGovernor'],
+        ['aura-drift-core.js', 'digitalSteer'],
         ['aura-drift-physics.js', 'createVehicle'],
         ['aura-drift-track.js', 'buildTrack'],
+        ['aura-drift-track.js', 'drivingSurface'],
         ['aura-drift-tricks.js', 'updateVehicleTricks'],
         ['aura-drift-features.js', 'createFeatures'],
         ['aura-drift-weapons.js', 'fireWeapon'],
@@ -23,6 +25,7 @@
         ['aura-drift-ai.js', 'aiInput'],
         ['aura-drift-race.js', 'createRace'],
         ['aura-drift-camera.js', 'createChaseCamera'],
+        ['aura-drift-scenery.js', 'roadsideScenes'],
         ['aura-drift-render.js', 'createRenderer'],
         ['aura-drift-hud.js', 'createHud'],
         ['aura-drift-audio.js', 'createAudio'],
@@ -180,6 +183,7 @@
         if (settings.quality !== 'auto') governor.lock(settings.quality);
         const pressed = new Set();
         const wordingHistory = new Map();
+        let finishes = 0, sidelines = [];
         let race = null, banter = null, cupIndex = 0, currentConfig = null, ui = null;
         let cupScores = [0, 0, 0, 0, 0, 0];
         let view = 'menu';             /* menu -> loading -> play -> results (the results panel overlays 'play') */
@@ -269,7 +273,7 @@
             attachSurfaces();
             quality = applyQuality();
             resize();
-            if (race) renderer.setTrack(race.track, race);
+            if (race) renderer.setTrack(race.track, race, sidelines);
             else if (view === 'menu') showcaseNow();
             if (ui) ui.setFallback(true);
         }
@@ -282,7 +286,7 @@
             attachSurfaces();
             quality = applyQuality();
             resize();
-            if (race) renderer.setTrack(race.track, race);
+            if (race) renderer.setTrack(race.track, race, sidelines);
             else if (view === 'menu') showcaseNow();
             if (ui) ui.setFallback(false);
         }
@@ -380,8 +384,8 @@
                 opponents: fieldSize(mode, config),
                 weapons: settings.weapons && mode !== 'time_trial',
                 /* Only a time-trial run is a replayable ghost: it has no weapons and no rescue. */
-                ghostTape: mode === 'time_trial' && best && best.tape ? best.tape : null,
-                ghostCar: best && best.carId,
+                ghostTape: mode === 'time_trial' && best?.handling === AD.GHOST_HANDLING ? best.tape : null,
+                ghostCar: best && (best.ghostCarId || best.carId),
                 showGhost: settings.showGhost,
                 readonly: readonly,
                 playerCar: playerCar,
@@ -395,7 +399,9 @@
                     ready: voice && typeof voice.readyVariants === 'function'
                         ? key => voice.readyVariants(key) : null
                 }) : null;
-            renderer.setTrack(track, race);
+            finishes = Math.max(finishes, AD.readFinishes());
+            sidelines = AD.roadsideScenes(track, finishes);
+            renderer.setTrack(track, race, sidelines);
             audio.setBiome(track.biomeId);
             if (typeof audio.setCar === 'function') audio.setCar(playerCar);
             if (typeof audio.setView === 'function') audio.setView('race');
@@ -498,17 +504,16 @@
 
         const playing = () => view === 'play' && race && race.cars[0].isPlayer;
 
-        function readInput() {
+        function readInput(step) {
             const input = race.playerInput;
             const touch = ui.touch;
             const key = name => pressed.has(name);
             input.throttle = (key('ArrowUp') || key('KeyW') || touch.throttle) ? 1 : 0;
             input.brake = (key('ArrowDown') || key('KeyS') || touch.brake) ? 1 : 0;
-            /* Raw arcade steering: right is +1 and the solver turns the nose to the
-               right on the screen, forward and in reverse. Camera and 2D view follow
-               the car heading, so no input-side flip exists anywhere. */
-            input.steer = (((key('ArrowRight') || key('KeyD') || touch.right) ? 1 : 0) -
-                ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0));
+            /* Sample buttons on fixed ticks so a short tap feels the same at every frame rate. */
+            const direction = ((key('ArrowRight') || key('KeyD') || touch.right) ? 1 : 0) -
+                ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0);
+            input.steer = AD.digitalSteer(input.steer, direction, step);
             input.handbrake = (key('ShiftLeft') || key('ShiftRight') || touch.handbrake) ? 1 : 0;
             input.fire = (key('Space') || touch.fire) ? 1 : 0;
             /* Ctrl+W closes a browser tab, so nitro is also on E (D6). */
@@ -531,19 +536,22 @@
             if (!race || !race.result || race.result.saved) return;
             const result = race.result;
             result.saved = true;
+            if (!result.dnf) finishes = AD.countFinish(finishes, readonly);
             audio.stopWorld();
             /* The race is over: the voice may warm up the lines of the next one. */
             if (voice) voice.setRacing(false);
             const track = race.track, carId = race.cars[0].v.car.id;
             /* Bests: a time-trial lap record (with a complete tape, D5) or a drift-attack score.
                A quick-race tape is never stored: weapons and rescue would desync the ghost. */
-            let record = false;
+            let record = false, newTape = false;
             if (!readonly && race.mode === 'time_trial' && result.tapeComplete === true && !result.dnf) {
                 const previous = bests[track.id];
-                if (!previous || result.time < previous.time) {
+                record = !previous || result.time < previous.time;
+                if (record || previous.handling !== AD.GHOST_HANDLING || result.time < previous.ghostTime) {
                     const tape = Array.isArray(result.tape) ? AD.encodeTape(result.tape) : result.tape;
-                    bests[track.id] = { time: result.time, tape: tape, carId: carId };
-                    record = true;
+                    bests[track.id] = { time: record ? result.time : previous.time, carId: record ? carId : previous.carId,
+                        handling: AD.GHOST_HANDLING, ghostTime: result.time, ghostCarId: carId, tape };
+                    newTape = true;
                 }
             } else if (!readonly && race.mode === 'drift_attack' && result.score > 0) {
                 const previous = bests['drift:' + track.id];
@@ -552,7 +560,7 @@
                     record = true;
                 }
             }
-            if (record) AD.saveBests(bests, readonly);
+            if (record || newTape) AD.saveBests(bests, readonly);
             if (typeof AD.pickResultTitle === 'function') result.title = AD.pickResultTitle(result, race.cars[0], race);
             /* Cup points accumulate across the cup (six slots, AD.cupPoints per place). */
             let cupTotal;
@@ -601,7 +609,11 @@
             const input = AD.aiInput(race, car), target = race.playerInput;
             for (const key of Object.keys(input)) target[key] = input[key];
         }
-        function stepOnce(step) { if (autopilot) driveAuto(); AD.stepRace(race, step); }
+        function stepOnce(step) {
+            if (autopilot) driveAuto();
+            else if (playing() && (race.state === 'running' || race.state === 'countdown')) readInput(step);
+            AD.stepRace(race, step);
+        }
 
         function advanceResults(dt) {
             if (pendingResults) {
@@ -685,7 +697,6 @@
             }
             const simDt = paused ? 0 : timeWarp.scale(dt);
             if (!paused && !frozen) {
-                if (!autopilot && playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
                 scheduler.advance(simDt, stepOnce);
                 drainEvents();
                 renderer.emit(race, simDt);
@@ -779,7 +790,6 @@
                 const every = Math.max(1, (opts && opts.renderEvery) | 0) || 30;
                 let left = Math.round(seconds / AD.STEP), ticks = 0, rendered = 0;
                 while (left-- > 0 && race && !paused) {
-                    if (!autopilot && playing() && (race.state === 'running' || race.state === 'countdown')) readInput();
                     stepOnce(AD.STEP);
                     drainEvents();
                     if (race.state === 'finished' && race.cars[0].isPlayer) finishRace();

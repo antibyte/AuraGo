@@ -37,6 +37,7 @@
         v.psi = Math.atan2(point.ty, point.tx);
         v.vx = 10; v.vy = 0; v.r = 0;
         v.z = 0; v.vz = 0; v.airborne = false; v.roll = 0; v.pitch = 0;
+        v.planing = 0; v.oilFilm = 0; v.oilSide = 0;
         v.disabled = 0; v.impact = 0.4;
         car.lastS = current.s;
         car.ai.stuckTime = 0;
@@ -86,10 +87,8 @@
            asphalt. The old single target multiplied that ceiling by both grip
            and a speed-scaled look-ahead angle, which kept every rival near
            58 m/s while the player reached about 71. */
-        const surface = AD.surfaceAt(track, sample.s, sample.offset, sample);
-        /* Weather bites since D1 was fixed: drivers read it like a surface. */
-        const weatherGrip = race.conditions ? race.conditions.state.grip : 1;
-        const grip = clamp(surface.grip * weatherGrip, 0.12, 1.3);
+        const surface = AD.drivingSurface(track, sample, v, race.conditions && race.conditions.state);
+        const grip = clamp(surface.grip, 0.12, 1.3);
         const corridor = Math.abs(sample.offset) / Math.max(1, sample.halfWidth);
         const corridorFactor = 1 - 0.4 * clamp((corridor - 0.55) / 0.45, 0, 1);
         let leader = car.progress;
@@ -105,7 +104,8 @@
         const cd = v.car;
         const handling = Math.sqrt(Math.pow(clamp(cd.grip, 0.6, 1.4), 0.7) * Math.pow(clamp(cd.steerK, 0.6, 1.4), 0.3));
         const pace = clamp(car.ai.aggression * (car.ai.skill || 1), 0.7, 1.25);
-        const lateral = 9.81 * grip * CORNER_G * handling * pace;
+        const lateral = 9.81 * grip * AD.frontWaterGrip(v.planing) * CORNER_G * handling * pace;
+        const braking = BRAKE_A * AD.wetBrakeGrip(surface.water, v.planing);
         /* Nitro is a shared resource: rivals spend it exactly like the player,
            and their straight-line ceiling accounts for the extra thrust. */
         const boost = (v.nitro > 0.55 && curvature < 0.02 && speed > 46) ? 1 : 0;
@@ -126,7 +126,7 @@
                 kappas[(index + 1) % n] || 0,
                 kappas[(index - 1 + n) % n] || 0);
             const corner = Math.sqrt(lateral / Math.max(kappa, 0.0003)) * corridorFactor * catchup;
-            const allowed = Math.sqrt(corner * corner + 2 * BRAKE_A * d);
+            const allowed = Math.sqrt(corner * corner + 2 * braking * d);
             if (allowed < target) target = allowed;
         }
         target = clamp(target, 10, 95);

@@ -23,7 +23,7 @@
         return {
             x: x, y: y, psi: heading,
             vx: 0, vy: 0, r: 0,
-            steer: 0, throttle: 0, brake: 0,
+            steer: 0, throttle: 0, brake: 0, planing: 0, oilFilm: 0, oilSide: 0,
             gear: 1, rpm: 900, slip: 0, surface: 'asphalt',
             damage: 0, disabled: 0, boost: 0, shield: 0,
             nitro: 1, brakeHold: 0, slipstream: 0,
@@ -45,6 +45,7 @@
         v.x = x; v.y = y; v.psi = heading;
         v.vx = 0; v.vy = 0; v.r = 0;
         v.steer = 0; v.throttle = 0; v.brake = 0;
+        v.planing = 0; v.oilFilm = 0; v.oilSide = 0;
         v.gear = 1; v.rpm = 900; v.slip = 0;
         v.damage = 0; v.disabled = 0; v.boost = 0; v.shield = 0;
         v.nitro = 1; v.brakeHold = 0; v.slipstream = 0;
@@ -62,10 +63,10 @@
 
     AD.vehicleState = function (v) {
         return [v.x, v.y, v.psi, v.vx, v.vy, v.r, v.steer, v.rpm, v.nitro, v.slipstream,
-            v.z, v.vz, v.roll, v.pitch, v.burst];
+            v.z, v.vz, v.roll, v.pitch, v.burst, v.planing, v.oilFilm, v.oilSide];
     };
 
-    /* env: { grip, roll, disabled, slipstream, driveK }. Pure: no randomness, no clock. */
+    /* Road contact and drivetrain inputs are sampled on the same fixed tick as the replay. */
     AD.stepVehicle = function (v, input, dt, env) {
         const grip = clamp((env && env.grip) || 1, 0.12, 1.3);
         const roll = (env && env.roll !== undefined) ? env.roll : 0.016;
@@ -138,10 +139,18 @@
         /* Brake force fades to zero at standstill: brakes hold a stopped car
            instead of pumping it backwards against the next substep. */
         const brakeFade = clamp(speed / 1.2, 0, 1);
-        const braking = reversing ? 0 : (brake * BRAKE_FORCE * c.mass + handbrake * 5200 * c.mass) * brakeFade;
+        const water = env && env.water || 0, puddle = env && env.puddle || 0;
+        const lift = puddle * clamp((speed - 15) / 22, 0, 1), oil = env && env.oil || 0;
+        v.planing = AD.smooth(v.planing, lift, lift > v.planing ? 16 : 5, dt);
+        v.oilFilm = AD.smooth(v.oilFilm, oil, oil > v.oilFilm ? 18 : 4, dt);
+        if (oil > 0) v.oilSide = env.oilSide || 0;
+        const slick = v.oilFilm * clamp((speed - 5) / 18, 0, 1);
+        const braking = reversing ? 0 : (brake * BRAKE_FORCE * c.mass + handbrake * 5200 * c.mass) * brakeFade *
+            AD.wetBrakeGrip(water, v.planing);
         const drag = DRAG * c.dragK * (1 - 0.32 * draft) * v.vx * Math.abs(v.vx);
         const rolling = roll * Mm * G * dir * brakeFade;
-        const fx = drive - dir * braking - drag - rolling;
+        const waterDrag = puddle * Mm * 3.4 * clamp(speed / 30, 0, 1);
+        const fx = drive - dir * (braking + waterDrag) - drag - rolling;
 
         const transfer = clamp(fx * CG_HEIGHT / L, -0.35 * Mm * G, 0.35 * Mm * G);
         const fzf = Math.max(900 * c.mass, Mm * G * B / L - transfer);
@@ -149,14 +158,14 @@
         /* D3: the car's own grip stat finally reaches the tyres; a rough
            landing halves the available grip for a moment. */
         const gripNow = grip * c.grip * (v.landWobble > 0 ? 0.55 : 1);
-        const muFront = gripNow;
-        const muRear = gripNow * (handbrake ? 0.42 : 1);
+        const muFront = gripNow * AD.frontWaterGrip(v.planing);
+        const muRear = gripNow * (handbrake ? 0.42 : 1) * (1 - 0.28 * v.planing - 0.52 * slick);
         const fyf = clamp(-CFm * alphaF, -muFront * fzf, muFront * fzf);
         const fyr = clamp(-CRm * alphaR, -muRear * fzr, muRear * fzr);
 
         const ax = fx / Mm + v.vy * v.r;
         const ay = (fyf * Math.cos(delta) + fyr) / Mm - v.vx * v.r;
-        const rdot = (A * fyf * Math.cos(delta) - B * fyr) / IZm;
+        const rdot = (A * fyf * Math.cos(delta) - B * fyr) / IZm + slick * v.oilSide * 0.95;
 
         v.vx += ax * dt;
         v.vy += ay * dt;
@@ -167,7 +176,7 @@
             v.vy *= Math.exp(-5.5 * dt);
             v.r *= Math.exp(-4.0 * dt);
         }
-        v.vy *= Math.exp(-1.2 * dt);
+        v.vy *= Math.exp(-1.2 * (1 - 0.30 * water - 0.30 * v.planing - 0.36 * slick) * dt);
         v.r *= Math.exp(-0.5 * dt);
         v.vx = clamp(v.vx, -12, overdrive ? 105 : 95);
         v.vy = clamp(v.vy, -45, 45);

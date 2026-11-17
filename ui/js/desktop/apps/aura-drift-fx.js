@@ -743,7 +743,7 @@
         function carEmit(race, car, i, dt) {
             const v = car.v;
             if (v.out || !near(v.x, v.y, i === 0 ? 220 : 130)) return;
-            const cs = carState(i), g = geoOf(v), prof = profOf(v), surf = v.surface || 'asphalt';
+            const cs = carState(i), g = geoOf(v), prof = v.planing > 0.08 ? SURF.wet : profOf(v), surf = v.surface || 'asphalt';
             const cp = Math.cos(v.psi), sp = Math.sin(v.psi), rx = -sp, rz = cp, speed = Math.abs(v.vx);
             const wvx = cp * v.vx + rx * v.vy, wvz = sp * v.vx + rz * v.vy, w = i === 0 ? 1 : 0.45;
             const gnd = !v.airborne;
@@ -763,7 +763,7 @@
                 if (k > 0.05) rate = prof.rate * (0.3 + 0.7 * k);
                 else if (loose && speed > 10) rate = prof.rate * 0.45 * clamp(speed / 40, 0.3, 1);
                 else if (prof.spray && speed > 14) rate = prof.rate * 0.5 * clamp(speed / 45, 0.3, 1);
-                rate *= dens * w;
+                rate *= dens * w * (1 + (v.planing || 0) * 1.5);
                 for (let c = N(rate * dt); c > 0; c--) {
                     puff(wx + rr(-0.25, 0.25) - wvx * rr(0, dt), 0.4, wz + rr(-0.25, 0.25) - wvz * rr(0, dt), wvx * 0.3 + rx * side * rr(0, prof.sp) + rr(-0.6, 0.6), rr(0.3, 1) * prof.up, wvz * 0.3 + rz * side * rr(0, prof.sp) + rr(-0.6, 0.6),
                         prof.life * rr(0.75, 1.25), prof.s0 * rr(0.8, 1.2), prof.s1 * rr(0.8, 1.2), prof.c0, prof.c1, prof.a * rr(0.8, 1), 1.3, -0.25 * prof.up);

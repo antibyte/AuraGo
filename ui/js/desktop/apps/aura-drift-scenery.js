@@ -5,6 +5,162 @@
     const clamp = AD.clamp;
     const CHUNK_PX = 320;
 
+    const SIDELINES = {
+        alpine: ['cow', 'podium', 'snack'], desert: ['llama', 'slalom', 'podium'],
+        harbour: ['crab', 'snack', 'slalom'], salt: ['llama', 'podium', 'slalom'],
+        forest: ['sheep', 'snack', 'podium'], industry: ['crab', 'slalom', 'snack'],
+        glacier: ['penguin', 'slalom', 'podium'], metro: ['penguin', 'snack', 'slalom']
+    };
+    const sitesByTrack = new WeakMap();
+
+    AD.roadsideSites = function (track) {
+        if (sitesByTrack.has(track)) return sitesByTrack.get(track);
+        const sites = [], occupied = (AD.furnitureProps?.(track) || []).concat(AD.petDecorPlacements?.(track) || []);
+        for (const [index, fraction] of [0.055, 0.58].entries()) {
+            for (let attempt = 0; attempt < 50; attempt++) {
+                const s = track.length * fraction + Math.floor(attempt / 2) * 11;
+                const p = AD.pointAt(track, s), side = (attempt + index) % 2 ? 1 : -1;
+                const off = side * (p.halfWidth + 12), x = p.x + p.nx * off, y = p.y + p.ny * off;
+                const near = AD.sampleTrack(track, x, y), dist = Math.hypot(x - near.x, y - near.y);
+                if (dist < near.halfWidth + 10 || occupied.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 11)) continue;
+                const z = AD.terrainHeight?.(track.biomeId, dist, x, y, near) || 0;
+                if (z < -1 || z > 2.5) continue;
+                sites.push({ s, x, y, z, tx: p.tx, ty: p.ty, r: 9, stage: true, furniture: true, side });
+                break;
+            }
+        }
+        sitesByTrack.set(track, sites);
+        return sites;
+    };
+
+    function cast(scene, animal) {
+        const parts = [];
+        function add(model, x, y, z, height, motion = '', phase = 0) {
+            parts.push({ model, x, y, z, height, motion, phase });
+        }
+        if (scene === 'podium') {
+            for (const [x, podium, winner] of [[-3.8, 1.45, 'gnome_mine'], [0, 2.6, animal], [3.8, .95, 'rubber_duck']]) {
+                add('hay_bale', x, 0, 0, podium);
+                add(winner, x, 0, podium, winner === animal ? 3.5 : 2.2, 'bow', x);
+            }
+        } else if (scene === 'slalom') {
+            for (const x of [-3.2, 0, 3.2]) add('cone', x, 0, 0, 1.35);
+            add(animal, 0, 0, 0, 2.9, 'weave');
+            add('gnome_mine', 5.7, 1.6, 0, 2.6);
+            add('cone', 5.7, 1.6, 2.15, 1.45);
+        } else if (scene === 'snack') {
+            add('hay_bale', 2.7, 0, 0, 1.55);
+            add('bratwurst', 2.7, 0, 1.65, 1.25, 'turn');
+            add('gnome_mine', 4.7, .6, 0, 2.75, 'bow');
+            add(animal, -1.1, 0, 0, 3.2, 'queue');
+            add('rubber_duck', -5.5, .25, 0, 2.1, 'queue', 1.2);
+        } else if (scene === 'taxi') {
+            add('rubber_duck', 0, 0, 0, 4.6, 'ride');
+            add(animal, .65, 0, 2.65, 2.8, 'ride');
+            add('gnome_mine', -5.8, 2.8, 0, 2.5, 'bow');
+            add('gnome_mine', 5.7, 2.6, 0, 2.5, 'bow', 1.5);
+        } else {
+            add('tyre_stack', 0, 1.8, 0, 2.35);
+            add('disco_ball', 0, 1.8, 2.35, 3.25, 'turn');
+            add(animal, -3.7, -.4, 0, 3.2, 'dance');
+            add('rubber_duck', 0, -2.4, 0, 2.2, 'dance', 1.6);
+            add('gnome_mine', 3.7, -.4, 0, 2.7, 'dance', 3.2);
+        }
+        return parts;
+    }
+
+    AD.roadsideScenes = function (track, finishes) {
+        const [animal, first, second] = SIDELINES[track.biomeId] || SIDELINES.alpine;
+        const encore = finishes >= 2 && finishes % 3 === 2 ? 'taxi' :
+            finishes >= 4 && finishes % 3 === 1 ? 'disco' : second;
+        return AD.roadsideSites(track).map((site, i) => {
+            const story = i ? encore : first;
+            return { site, story, parts: cast(story, animal) };
+        });
+    };
+
+    /* Local metres along and across the verge. Both views share the same choreography. */
+    AD.roadsidePose = function (part, site, time, pose) {
+        const t = time + part.phase, beat = Math.sin(t * 2.6);
+        let x = part.x, y = part.y, z = part.z, yaw = -site.side * 1.75, lean = 0;
+        switch (part.motion) {
+            case 'weave':
+                x += 4.7 * Math.sin(t * .9); y += 1.95 * Math.sin(t * 2.7 + .7);
+                yaw = Math.atan2(5.265 * Math.cos(t * 2.7 + .7), 4.23 * Math.cos(t * .9));
+                z += .13 * Math.abs(Math.sin(t * 8)); break;
+            case 'ride':
+                x += 2 * Math.sin(t * .82); z += .2 + .18 * Math.sin(t * 2);
+                yaw = Math.PI + site.side * .78; break;
+            case 'queue': x += .4 * beat; yaw = 0; lean = .12 * beat; break;
+            case 'bow': lean = .20 * beat; break;
+            case 'turn': yaw = t * 1.35; break;
+            case 'dance': z += .5 * Math.abs(beat); lean = .24 * beat; yaw += .55 * Math.sin(t * 1.3); break;
+        }
+        pose.x = x; pose.y = y; pose.z = z; pose.yaw = yaw; pose.lean = lean;
+        return pose;
+    };
+
+    const ICONS = { rubber_duck: 'ducks', gnome_mine: 'gnome_mine', cow: 'cow', disco_ball: 'disco' };
+    AD.drawRoadside = function (c, show, cam, centre, theta, time) {
+        const site = show.site, k = cam.scale, pose = {}, angle = Math.atan2(site.ty, site.tx);
+        for (const part of show.parts) {
+            AD.roadsidePose(part, site, time, pose);
+            const x = centre[0] + (site.tx * pose.x - site.ty * pose.y) * k;
+            const y = centre[1] + (site.ty * pose.x + site.tx * pose.y) * k;
+            const size = part.height * k, kind = part.model;
+            c.save(); c.translate(x, y); c.rotate(-theta); c.translate(0, -pose.z * k * .65);
+            c.fillStyle = '#12232e60'; c.beginPath(); c.ellipse(0, 0, size * .55, size * .21, 0, 0, 2 * Math.PI); c.fill();
+            c.translate(0, -size * .35); c.rotate(-pose.lean);
+            if (ICONS[kind] && AD.drawWeaponGlyph) AD.drawWeaponGlyph(c, ICONS[kind], 0, 0, size * 1.35, 1);
+            else if (kind === 'bratwurst') {
+                c.rotate(pose.yaw); c.lineCap = 'round'; c.strokeStyle = '#9c4325'; c.lineWidth = size * .64;
+                c.beginPath(); c.moveTo(-size, 0); c.quadraticCurveTo(0, size * .58, size, 0); c.stroke();
+                c.strokeStyle = '#efb55d'; c.lineWidth = size * .13; c.stroke();
+            }
+            else if (kind === 'cone' || kind === 'hay_bale' || kind === 'tyre_stack') {
+                c.fillStyle = { cone: '#ff792c', hay_bale: '#cba04a', tyre_stack: '#334051' }[kind];
+                c.beginPath();
+                if (kind === 'cone') { c.moveTo(0, -size * .65); c.lineTo(size * .45, size * .4); c.lineTo(-size * .45, size * .4); }
+                else c.rect(-size * .65, -size * .4, size * 1.3, size * .8);
+                c.fill(); c.fillStyle = kind === 'cone' ? '#fff2cb' : '#796237'; c.fillRect(-size * .22, 0, size * .44, size * .13);
+            } else {
+                c.scale(Math.cos(angle + theta + pose.yaw) < 0 ? -size : size, size);
+                const oval = (x0, y0, rx, ry, col) => { c.fillStyle = col; c.beginPath(); c.ellipse(x0, y0, rx, ry, 0, 0, Math.PI * 2); c.fill(); };
+                const fur = { sheep: '#f2edda', llama: '#cd9a65', penguin: '#243242', crab: '#ee6450' }[kind];
+                oval(0, .04, .54, .34, fur);
+                if (kind === 'crab') { oval(-.45, -.25, .22, .15, fur); oval(.45, -.25, .22, .15, fur); }
+                else if (kind === 'penguin') { oval(.13, .1, .31, .24, '#fff1d1'); oval(.48, -.15, .23, .08, '#ffaf3a'); }
+                else { oval(.32, -.2, .15, kind === 'llama' ? .43 : .24, fur); oval(.46, kind === 'llama' ? -.53 : -.26, .20, .14, '#775a46'); }
+                oval(.46, kind === 'llama' ? -.56 : -.23, .045, .045, '#17212a');
+            }
+            c.restore();
+        }
+    };
+
+    /* Both road renderers use this waterline, in unit-ellipse coordinates. */
+    AD.paintPuddle = function (g) {
+        const water = g.createLinearGradient(-.7, -.8, .65, .9);
+        water.addColorStop(0, '#394c5780'); water.addColorStop(.43, '#627785b5');
+        water.addColorStop(.60, '#a8b6bac4'); water.addColorStop(1, '#52646b7a');
+        g.fillStyle = water;
+        g.beginPath(); g.moveTo(-.94, -.22);
+        g.bezierCurveTo(-.85, -.61, -.62, -.52, -.45, -.82);
+        g.bezierCurveTo(-.27, -1.04, -.05, -.78, .14, -.91);
+        g.bezierCurveTo(.44, -1.07, .51, -.56, .76, -.49);
+        g.bezierCurveTo(1.03, -.39, .86, -.15, .98, .04);
+        g.bezierCurveTo(1.02, .31, .67, .40, .59, .65);
+        g.bezierCurveTo(.43, .85, .26, .70, .01, .92);
+        g.bezierCurveTo(-.35, 1.03, -.36, .69, -.63, .62);
+        g.bezierCurveTo(-.83, .54, -.72, .29, -.94, .21);
+        g.bezierCurveTo(-1.02, .11, -.88, -.04, -.94, -.22);
+        g.closePath(); g.fill();
+        g.strokeStyle = '#a7bdc244'; g.lineWidth = .017; g.stroke();
+        g.strokeStyle = '#d6e2e3a6'; g.lineWidth = .013;
+        for (const [x, y, w] of [[-.35, -.25, .19], [-.31, -.24, .25], [.29, .18, .22]]) {
+            g.beginPath(); g.ellipse(x, y, .075, w, 0, -.95, 1.14); g.stroke();
+        }
+    };
+
     /* --- terrain -------------------------------------------------------- */
     AD.makeChunkCanvas = function (track, cx, cy) {
         const canvas = document.createElement('canvas');
@@ -337,7 +493,8 @@
                 seed: Math.floor(rng() * 100000)
             });
         }
-        return items;
+        const stages = AD.roadsideSites(track);
+        return items.filter(item => stages.every(site => Math.hypot(item.x - site.x, item.y - site.y) > site.r + (item.width || 6) / 2));
     };
 
     AD.drawFurniture = function (c, item, sx, sy, scale, frame) {

@@ -115,7 +115,7 @@
         let sizeDirty = false, tierDirty = false, lastPose = null, inShowcase = false;
         let env = null, envKey = '', wetness = 0, time = 0, gen = 0;
         let actors = null, carLights = null, terrain = null, road = null, sky = null, props = null, fx = null, fallback = null;
-        let post = null, realPost = null, petDecor = null;
+        let post = null, realPost = null, petDecor = null, roadside = null, shows = [];
         let shadowMode = '', discoCount = 0;
 
         AD.assets.acquire();
@@ -279,9 +279,9 @@
         /* ---- per-track objects ------------------------------------------- */
         function stop(mod) { if (mod && typeof mod.dispose === 'function') { try { mod.dispose(); } catch (_) { /* partial module */ } } }
         function disposeTrack() {
-            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback); stop(petDecor);
+            stop(actors); stop(carLights); stop(terrain); stop(road); stop(sky); stop(props); stop(fx); stop(fallback); stop(petDecor); stop(roadside);
             for (const m of [terrain, road]) if (m && m.group) m.group.removeFromParent();
-            actors = carLights = terrain = road = sky = props = fx = fallback = petDecor = null;
+            actors = carLights = terrain = road = sky = props = fx = fallback = petDecor = roadside = null;
             wetness = 0; discoCount = 0;
         }
         function buildTrack() {
@@ -301,6 +301,7 @@
             if (typeof AD.createSky === 'function') sky = AD.createSky(T, scene, look, glq, track);
             if (typeof AD.createProps === 'function') props = AD.createProps(T, scene, track, id, glq, t || (k => k));
             if (typeof AD.createPetDecor === 'function') petDecor = AD.createPetDecor(T, scene, track, glq, terrain && terrain.group);
+            if (AD.createRoadsideShow) roadside = AD.createRoadsideShow(T, scene, shows, terrain?.group);
             if (!terrain && !sky) fallback = makeFallback();
             actors = AD.createActors(T, scene, glq);
             actors.setRace(race);
@@ -541,8 +542,8 @@
                 applySize();
                 tierDirty = true;
             },
-            setTrack(next, r) {
-                track = next; race = r || race;
+            setTrack(next, r, sidelines) {
+                track = next; race = r || race; shows = sidelines || AD.roadsideScenes?.(track, 0) || [];
                 buildTrack();
                 applySun();
             },
@@ -571,22 +572,27 @@
                 time += dt;
                 applyPose(pose);
                 const v = r.cars[0].v;
-                if (!track || track !== r.track) { track = r.track; buildTrack(); applySun(); }
+                if (!track || track !== r.track) {
+                    track = r.track; shows = AD.roadsideScenes?.(track, 0) || [];
+                    buildTrack(); applySun();
+                }
                 actors.update(r, dt);
                 if (carLights) carLights.update(r, carHalf);
                 if (fallback) { fallback.dome.position.copy(camera.position); }
                 if (sky && sky.update) sky.update(dt, pose, r.conditions ? r.conditions.state : null);
                 if (props && props.update) props.update(pose, r);
                 if (petDecor) petDecor.update(pose, r, dt, reduced);
+                if (roadside) roadside.update(pose.eye, reduced ? 0 : r.time);
                 if (fx && fx.setReducedMotion) fx.setReducedMotion(reduced);
                 if (fx && fx.update) fx.update(dt, pose);
                 const cond = r.conditions && r.conditions.state;
-                const wetTarget = clamp(look.wet * 0.5 + (cond && cond.kind === 'rain' ? cond.intensity : 0), 0, 1);
+                const surfaceWetness = cond ? cond.wetness : 0;
+                const wetTarget = clamp(look.wet * 0.5 + surfaceWetness, 0, 1);
                 if (Math.abs(wetTarget - wetness) > 0.002) {
                     wetness += (wetTarget - wetness) * (1 - Math.exp(-0.8 * dt));
-                    if (road && road.setWetness) road.setWetness(wetness);
                     if (terrain && terrain.setWetness) terrain.setWetness(wetness);
                 }
+                if (road && road.setWetness) road.setWetness(wetness, surfaceWetness);
                 followSun(v.x, v.z, v.y);
                 renderer.toneMappingExposure = look.exposure;
                 /* The programs of a new tier are compiled while the canvas still holds

@@ -84,7 +84,8 @@
         const back = BACKDROP[biomeId] || {};
         for (const name of Object.keys(back)) { const b = back[name]; entries.push({ name: name, min: b.min, max: b.max, rate: b.rate, scale: b.scale, back: true }); }
         const furniture = AD.furnitureProps(track).concat(typeof AD.petDecorPlacements === 'function' ? AD.petDecorPlacements(track) : []);
-        const mascotSpaces = furniture.filter(p => p.folder);
+        if (AD.roadsideSites) furniture.push(...AD.roadsideSites(track));
+        const reservedSpaces = furniture.filter(p => p.folder || p.stage);
         const cells = new Map();
         const cellKey = (x, y) => Math.floor(x / 16) + ',' + Math.floor(y / 16);
         for (const f of furniture) { const k = cellKey(f.x, f.y); (cells.get(k) || cells.set(k, []).get(k)).push(f); }
@@ -139,7 +140,7 @@
                             reach: e.back || tags.indexOf('far') >= 0 ? 1.8 : (tags.indexOf('scatter') >= 0 ? 0.7 : 1),
                             tags: tags.indexOf('hero') >= 0 ? 'hero' : ''
                         };
-                        if (mascotSpaces.some(p => Math.hypot(p.x - pl.x, p.y - pl.y) < p.r + pl.r + 2)) continue;
+                        if (reservedSpaces.some(p => Math.hypot(p.x - pl.x, p.y - pl.y) < p.r + pl.r + 2)) continue;
                         out.push(pl);
                         (cells.get(cellKey(x, y)) || cells.set(cellKey(x, y), []).get(cellKey(x, y))).push(pl);
                     }
@@ -364,6 +365,54 @@
 
     /* Canvas painters, exposed so the visual survey can look at the sign atlas and the brand panels. */
     AD.propCanvases = { atlas: drawSignAtlas, brand: drawBrand, brands: BRANDS };
+
+    AD.createRoadsideShow = function (T, scene, shows, terrain) {
+        const groups = [], pose = {}, ray = new T.Raycaster(), down = new T.Vector3(0, -1, 0);
+        terrain?.updateMatrixWorld(true);
+        for (const show of shows) {
+            const site = show.site, group = new T.Group();
+            group.name = 'roadside-' + show.story;
+            group.position.set(site.x, site.z, site.y);
+            let along = 0, across = 0;
+            if (terrain) {
+                ray.set(new T.Vector3(site.x, 80, site.y), down);
+                const ground = ray.intersectObject(terrain, true)[0];
+                if (ground) {
+                    group.position.y = ground.point.y;
+                    const normal = ground.face.normal.clone().applyNormalMatrix(new T.Matrix3().getNormalMatrix(ground.object.matrixWorld));
+                    along = -(normal.x * site.tx + normal.z * site.ty) / Math.max(.1, normal.y);
+                    across = (normal.x * site.ty - normal.z * site.tx) / Math.max(.1, normal.y);
+                }
+            }
+            group.rotation.y = -Math.atan2(site.ty, site.tx);
+            const actors = show.parts.map(part => {
+                const id = part.model;
+                const template = ['hay_bale', 'cone', 'tyre_stack'].includes(id) ? AD.assets.trackPiece(id) :
+                    ['cow', 'crab', 'penguin', 'llama', 'sheep'].includes(id) ? AD.assets.animal(id) : AD.assets.item(id);
+                const model = template.clone(true), holder = new T.Group();
+                const box = new T.Box3().setFromObject(model), centre = box.getCenter(new T.Vector3());
+                model.position.x -= centre.x; model.position.y -= box.min.y; model.position.z -= centre.z;
+                holder.scale.setScalar(part.height / Math.max(.1, box.max.y - box.min.y));
+                holder.add(model); group.add(holder);
+                return { part, holder };
+            });
+            group.visible = false; scene.add(group); groups.push({ site, group, actors, along, across });
+        }
+        return {
+            update(eye, time) {
+                for (const { site, group, actors, along, across } of groups) {
+                    group.visible = Math.hypot(eye[0] - site.x, eye[2] - site.y) < 140;
+                    if (!group.visible) continue;
+                    for (const { part, holder } of actors) {
+                        AD.roadsidePose(part, site, time, pose);
+                        holder.position.set(pose.x, pose.z + along * pose.x + across * pose.y, pose.y);
+                        holder.rotation.set(0, Math.PI / 2 - pose.yaw, pose.lean, 'YXZ');
+                    }
+                }
+            },
+            dispose() { for (const { group } of groups) group.removeFromParent(); }
+        };
+    };
 
     /* ---- the three.js part --------------------------------------------------------------------------- */
     AD.createProps = function (T, scene, track, biomeId, q, t) {

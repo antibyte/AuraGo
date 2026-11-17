@@ -169,7 +169,7 @@
             curvature[i] = sum / 9;
         }
 
-        return {
+        const track = {
             id: manifest.id, name: manifest.name, manifest: manifest,
             seed: trackSeed, samples: samples, grid: grid, length: length,
             gates: gates, pads: pads, width: manifest.width, curvature: curvature,
@@ -191,6 +191,49 @@
                 return { minX, minY, maxX, maxY };
             })()
         };
+        track.puddles = drainage(track);
+        return track;
+    };
+
+    /* Standing water occupies one wheel line. Other low spots only fill in rain. */
+    function drainage(track) {
+        const rng = AD.rng(AD.hashString(track.id + '/drainage/' + track.seed)), out = [];
+        const wetZones = track.zones.filter(z => z.type === 'wet');
+        const rainy = ['harbour', 'forest', 'metro'].includes(track.biomeId);
+        function add(fraction, side, permanent) {
+            const s = fraction * track.length, p = AD.pointAt(track, s);
+            const off = side * p.halfWidth * 0.45;
+            out.push({ s, x: p.x + p.nx * off, y: p.y + p.ny * off, tx: p.tx, ty: p.ty,
+                length: 8 + rng() * 3, width: Math.min(3.6, p.halfWidth * 0.32), permanent });
+        }
+        for (const zone of wetZones) for (const part of [0.24, 0.77]) {
+            add(zone.from + (zone.to - zone.from) * part, zone.side || (part < 0.5 ? -1 : 1), true);
+        }
+        if (rainy) for (let i = 0; i < 4; i++) {
+            const fraction = (i + 0.32 + rng() * 0.36) / 4;
+            if (out.every(p => Math.abs(p.s - fraction * track.length) > 32)) add(fraction, i % 2 ? 1 : -1, false);
+        }
+        return out;
+    }
+
+    AD.puddleLevel = (p, wetness) => p.permanent ? 1 : clamp((wetness - 0.25) * 1.7, 0, 1);
+
+    AD.drivingSurface = function (track, sample, v, conditions) {
+        const surface = AD.surfaceAt(track, sample.s, sample.offset, sample);
+        const wetness = conditions?.wetness || 0;
+        let puddle = 0;
+        for (const p of track.puddles || []) {
+            if (Math.abs(sample.s - p.s) > p.length + 6) continue;
+            const dx = v.x - p.x, dy = v.y - p.y;
+            const along = (dx * p.tx + dy * p.ty) / p.length;
+            const across = (dy * p.tx - dx * p.ty) / p.width;
+            puddle = Math.max(puddle, (1 - along * along - across * across) * AD.puddleLevel(p, wetness));
+        }
+        surface.puddle = puddle;
+        surface.water = Math.max(surface.type === 'wet' ? 0.8 : 0, wetness, puddle);
+        surface.grip *= (conditions?.grip ?? 1) * (1 - 0.38 * puddle);
+        if (surface.type === 'asphalt' && surface.water > 0.35) surface.type = 'wet';
+        return surface;
     };
 
     AD.sampleTrack = function (track, x, y) {

@@ -9,7 +9,7 @@
 
     const BUCKETS = 64;
     const RAMP = { length: 9, height: 1.6 };
-    const PAD = { width: 6, length: 10, power: 1.35, duration: 0.9, cooldown: 1.5 };
+    const PAD = { width: 6, length: 10, power: 1.50, duration: 1.0, cooldown: 1.5 };
     const CRATE = { radius: 4.2, respawn: 8, maxZ: 3.5 };
     const DESTRUCT = {
         cone: { r: 0.4, speed: 0.995, lift: 7, push: 7 },
@@ -322,6 +322,7 @@
         if (race.time - (fs.padAt[key] === undefined ? -99 : fs.padAt[key]) < PAD.cooldown) return;
         if (!inRect(pad, v, pad.length / 2, pad.width / 2, true).inside) return;
         fs.padAt[key] = race.time;
+        if (v.vx > 0 && v.disabled <= 0) v.vx += clamp(95 - v.vx, 0, 0.8);
         v.burst = pad.duration * (v.car.quirk === 'pad_time' ? v.car.quirkK : 1);
         v.burstPower = pad.power;
         AD.emit(race, 'boost_pad', { car: actor.index, x: pad.x, y: pad.y });

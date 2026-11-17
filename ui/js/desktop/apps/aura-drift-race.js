@@ -128,7 +128,7 @@
     function environmentAt(race, actor) {
         const v = actor.v, car = v.car;
         const sample = AD.sampleTrack(race.track, v.x, v.y);
-        const surface = AD.surfaceAt(race.track, sample.s, sample.offset, sample);
+        const surface = AD.drivingSurface(race.track, sample, v, race.conditions && race.conditions.state);
         let grip = surface.grip, roll = surface.roll;
         /* Car quirks that act on the surface. */
         if (car.quirk === 'wet_grip' && surface.type === 'wet') grip *= car.quirkK;
@@ -136,9 +136,7 @@
             if (car.quirk === 'loose_grip') grip *= car.quirkK;
             roll *= car.looseRoll;
         }
-        /* Rain and snow take the grip away in the same way for every driver. */
-        if (race.conditions) grip *= race.conditions.state.grip;
-        const env = { grip: grip, roll: roll, sample: sample, slipstream: 0, driveK: 1 };
+        const env = { grip, roll, water: surface.water, puddle: surface.puddle, sample, slipstream: 0, driveK: 1 };
         /* Hot potato: the bomb holder runs hot (rules.driveK). */
         if (v.hasBomb && race.rules && race.rules.driveK) env.driveK = race.rules.driveK;
         if (!actor.ghost) AD.applyHazardEnv(race, actor, env);
@@ -231,8 +229,10 @@
             v.wobblePhase += dt * 11;
             effective.steer = clamp(effective.steer + 0.45 * Math.sin(v.wobblePhase), -1, 1);
         }
-        if (v.airborne) AD.stepAir(actor, effective, dt, race);
-        else AD.stepVehicle(v, effective, dt, env);
+        if (v.airborne) {
+            v.planing = 0; v.oilFilm = 0; v.oilSide = 0;
+            AD.stepAir(actor, effective, dt, race);
+        } else AD.stepVehicle(v, effective, dt, env);
 
         const contacts = v.wallContacts;
         AD.resolveWall(v, env.sample, dt);

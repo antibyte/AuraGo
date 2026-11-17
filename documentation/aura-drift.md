@@ -61,6 +61,10 @@ uses the current 3D or 2D view, shows the speed at exposure, and appears again o
 results screen. The horn can invite a rubber duck into the picture. Occasionally a curious
 animal turns up on its own. The window releases the print when you leave or start again.
 
+Two scenes sit beside each circuit, including daily layouts. Local animals queue for a sausage,
+weave around cones or take the podium. Finishing races changes what can turn up on later visits.
+Read-only desktops keep discoveries for the current window. Reduced motion holds the cast still.
+
 ### Modes
 
 | Mode | Opponents | Weapons | Ranking | Rules |
@@ -375,8 +379,14 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   then a deterministic marshal respawn) clears pinned cars.
   `scripts/test-aura-drift-balance.mjs` checks the ceiling against the solver for all eight
   cars and the field against a full-throttle reference car.
-- **Replays:** the player's input is recorded as a compact integer tape. Time trial re-simulates
-  that tape for the ghost; the same tape is stored with the personal best in local storage.
+- **Road feel.** Wet asphalt lengthens braking distances. Visible puddles share their elliptical
+  footprint with the tyre model. At speed, deep water reduces front grip and throws spray, while
+  an oil slick releases the rear more strongly on the side that touched it. The tyres recover
+  progressively after leaving either. Keyboard and touch steering ease into short taps. A boost
+  pad gives an immediate forward nudge and a second of extra thrust.
+- **Replays.** The player's quantised input drives the time-trial ghost. Historical best times and
+  their cars survive handling updates. The first complete run on the new handling supplies a
+  compatible ghost, and faster runs replace it.
 
 ## Audio
 
