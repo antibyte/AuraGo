@@ -520,11 +520,31 @@
                 ctx.strokeRect(tg.x - tg.w / 2, 0, tg.w, ground);
                 ctx.setLineDash([]);
                 markRing(view, tg.x, ground - 3, tg.w * 0.5, tg.t, warn);
-            } else if (tg.kind === 'volley' || tg.kind === 'missiles' || tg.kind === 'summon') {
-                const color = tg.kind === 'summon' ? '#a855f7' : (tg.kind === 'missiles' ? '#ff7a00' : warn);
+            } else if (tg.kind === 'volley' || tg.kind === 'missiles' || tg.kind === 'summon' || tg.kind === 'fireballs' || tg.kind === 'roar') {
+                const color = tg.kind === 'summon' || tg.kind === 'roar' ? '#a855f7' : (tg.kind === 'missiles' ? '#ff7a00' : warn);
                 (tg.marks || []).forEach(function (m) {
                     markRing(view, m.x, ground - 3, tg.kind === 'missiles' ? 46 : 34, tg.t, color);
                 });
+            } else if (tg.kind === 'strafe') {
+                // dragon low pass: a pulsing lane over the arena floor with chevrons running the way it will fly
+                const fc = tg.variant === 'frost' ? '110, 210, 255' : '255, 110, 30';
+                const lx = Math.min(tg.x1, tg.x2);
+                const lw = Math.abs(tg.x2 - tg.x1);
+                ctx.fillStyle = 'rgba(' + fc + ', ' + (0.14 + 0.16 * pulse(view, tg.t, 16)) + ')';
+                ctx.fillRect(lx, ground - tg.h, lw, tg.h);
+                ctx.strokeStyle = 'rgba(' + fc + ', 0.85)';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(lx, ground - tg.h, lw, tg.h);
+                const sh = view.reducedMotion ? 0 : (tg.t * 220 * tg.dir) % 48;
+                for (let x = lx - 48; x < lx + lw + 48; x += 48) {
+                    const cx = x + sh;
+                    if (cx < lx || cx > lx + lw) continue;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 8 * tg.dir, ground - tg.h + 8);
+                    ctx.lineTo(cx + 5 * tg.dir, ground - tg.h / 2);
+                    ctx.lineTo(cx - 8 * tg.dir, ground - 8);
+                    ctx.stroke();
+                }
             } else if (tg.kind === 'ring') {
                 const r = 46 + prog * 40;
                 ctx.lineWidth = 5;
@@ -592,7 +612,7 @@
 
         function drawOverlay(sim, view) {
             (sim.tempHazards || []).forEach(function (th) {
-                if (!visible(view, th.x, th.x + th.w)) return;
+                if (th.kind === 'dragonfire' || !visible(view, th.x, th.x + th.w)) return; // dragon fire is drawn by set-pieces.js
                 const life = Math.max(0, Math.min(1, th.t / th.dur));
                 ctx.save();
                 if (th.kind === 'laser') {
@@ -634,6 +654,7 @@
                 if (it.type === 'rune_orb' && !it.collected) lights.push({ x: it.x, y: it.y, radius: 90, intensity: 0.55, flicker: false });
             });
             (sim.tempHazards || []).forEach(function (th) {
+                if (th.kind === 'dragonfire') return;
                 if (th.kind === 'fire') {
                     for (let x = th.x + 30; x < th.x + th.w; x += 90) lights.push({ x: x, y: th.y + th.h / 2, radius: 120, intensity: 0.7, flicker: true });
                 } else {

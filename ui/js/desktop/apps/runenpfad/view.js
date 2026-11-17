@@ -84,7 +84,7 @@
         let cineFlash = 0;
         const artFx = root.RunenpfadArt && root.RunenpfadArt.createFx ? root.RunenpfadArt.createFx() : null;
         const TARGET_WORLD_H = 576; // about 12 tiles of 48 px stay visible vertically
-        const SHOCKWAVE_EVENTS = { bomb_blast: 1.0, slam_land: 0.8, boss_phase: 1.2, boss_defeat: 1.4, boss_slam: 1.1, portal_win: 1.0 };
+        const SHOCKWAVE_EVENTS = { bomb_blast: 1.0, slam_land: 0.8, boss_phase: 1.2, boss_defeat: 1.4, boss_slam: 1.1, portal_win: 1.0, dragon_roar: 1.1, dragon_breath: 0.7 };
 
         function triggerShake(amount) {
             if (!prefersReducedMotion()) {
@@ -369,6 +369,7 @@
                 const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, (stage.groundY - sy) * z));
                 atmosphere.paintBackdrop(biome, sx * z, viewW, viewH, groundScreenY, nowSec);
                 if (typeof atmosphere.sunPosition === 'function') sunScreen = atmosphere.sunPosition(biome, sx * z, viewW, viewH, groundScreenY) || null;
+                callHook(setPieces, 'drawFar', sim, frameView, viewW, viewH);
                 atmosphere.paintWeather(biome, viewW, viewH, nowSec, reduced ? 0.35 : 1, groundScreenY, rainWeather);
             } else {
                 ctx.fillStyle = biome.sky[0];
@@ -593,6 +594,7 @@
             }
 
             callHook(stageArt, 'drawWorld', sim, frameView);
+            callHook(setPieces, 'drawWorld', sim, frameView);
             callHook(actors, 'drawEnemies', sim, frameView);
             callHook(actors, 'drawHero', sim, frameView);
             callHook(actors, 'drawProjectiles', sim, frameView);
@@ -607,6 +609,7 @@
             drawParticles(sim);
 
             callHook(stageArt, 'drawOverlay', sim, frameView);
+            callHook(setPieces, 'drawOverlay', sim, frameView);
 
             // Floating feedback numbers
             ctx.save();
@@ -623,6 +626,7 @@
 
             ctx.restore();
 
+            callHook(setPieces, 'drawScreen', sim, frameView, viewW, viewH);
             if (atmosphere) {
                 const fgGround = Math.min(viewH * 1.15, Math.max(viewH * 0.5, (stage.groundY - sy) * z));
                 if (rainWeather) atmosphere.paintRainFront(rainWeather, viewW, viewH, nowSec, fgGround, reduced ? 0.35 : 1);
@@ -633,6 +637,7 @@
                 const lights = collectLights(sim, stage, biome, nowSec, ambient);
                 callHook(decor, 'collectLights', sim, frameView, lights);
                 callHook(stageArt, 'collectLights', sim, frameView, lights);
+                callHook(setPieces, 'collectLights', sim, frameView, lights);
                 for (let i = 0; i < lights.length; i++) {
                     const lt = lights[i];
                     lt.x = (lt.x - sx) * z;
@@ -675,7 +680,7 @@
                     sun: sunScreen,
                     hurt: hurtPulse,
                     lowHp: pl && pl.maxHp > 0 && pl.hp > 0 && pl.hp / pl.maxHp <= 0.34 ? 1 : 0,
-                    heat: biome.id === 'desert' ? 1 : biome.id === 'citadel' ? 0.6 : 0
+                    heat: Math.max(biome.id === 'desert' ? 1 : biome.id === 'citadel' ? 0.6 : 0, setPieces && setPieces.heat ? setPieces.heat() : 0)
                 });
             }
         }
@@ -718,8 +723,8 @@
             return fr ? { image: sheet.image, sx: fr.x, sy: fr.y, sw: fr.w, sh: fr.h } : null;
         }
 
-        function callHook(mod, name, a, b, c) {
-            if (mod && typeof mod[name] === 'function') mod[name](a, b, c);
+        function callHook(mod, name, a, b, c, d) {
+            if (mod && typeof mod[name] === 'function') mod[name](a, b, c, d);
         }
 
         function worldToScreen(x, y) {
@@ -743,6 +748,7 @@
                     postfx.pushShockwave(sp.x, sp.y, SHOCKWAVE_EVENTS[ev.type]);
                 }
                 callHook(actors, 'onEvent', ev, sim, lastCam);
+                callHook(setPieces, 'onEvent', ev, sim);
             }
         }
 
@@ -769,7 +775,7 @@
             if (disposed) return;
             disposed = true;
             // The app owns the post-processing object and disposes it itself.
-            [decor, actors, stageArt].forEach(function (m) {
+            [decor, actors, stageArt, setPieces].forEach(function (m) {
                 if (m && typeof m.dispose === 'function') {
                     try { m.dispose(); } catch (err) { /* ignore */ }
                 }
@@ -787,6 +793,7 @@
             drawCroppedAnimation: drawCroppedAnimation,
             drawGlow: drawGlow,
             drawContactShadow: drawContactShadow,
+            shake: triggerShake,
             getFrame: getFrame,
             hasAnim: hasAnim,
             get art() { return art; },
@@ -798,6 +805,7 @@
         const decor = makeHook(root.RunenpfadDecor);
         const actors = makeHook(root.RunenpfadActors);
         const stageArt = makeHook(root.RunenpfadStageArt);
+        const setPieces = makeHook(root.RunenpfadSetPieces);
 
         // Light sources in world space for the 2D light map.
         function collectLights(sim, stage, biome, nowSec, ambient) {

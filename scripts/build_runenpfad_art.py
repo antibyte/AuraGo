@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Runenpfad art pipeline.
 
---import <rawdir> <promptsdir>  clean + downscale raw Codex PNG sheets into ui/img/runenpfad/*.webp
+--import <rawdir> <promptsdir> [ids]  clean + downscale raw Codex PNG sheets into ui/img/runenpfad/*.webp
                                 and (re)write assets/runenpfad-art/catalog.json
 --write (default)               measure trimmed frame rects from the committed WebPs and write
                                 ui/img/runenpfad/atlas.json + provenance.json
@@ -25,6 +25,7 @@ ALPHA_CUT = 24        # below this the generated "fog" is erased
 ALPHA_BOX = 48        # trimmed rectangles measure only solid pixels
 MAX_CELL = 256
 MAX_CELL_BOSS = 340
+MAX_CELL_DRAGON = 360
 
 NOTE = "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
 TOOL = "Codex CLI image generation"
@@ -57,10 +58,83 @@ SHEETS = {
     "prop-checkpoint": (4, 2, "feet", "prop"),
     "prop-switch": (4, 1, "feet", "prop"),
     "powerups": (4, 2, "center", "prop"),
+    # round 4
+    "dragon-ember": (4, 3, "center", "dragon"),
+    "dragon-frost": (4, 3, "center", "dragon"),
+    "enemy-drakeling": (4, 3, "center", "enemy"),
+    "fx-dragonfire": (2, 4, "left", "fx"),
+    "fx-fireball": (4, 2, "center", "fx"),
+    "prop-glyphs": (4, 2, "feet", "prop"),
+    "prop-lever": (4, 1, "feet", "prop"),
+    "prop-brazier": (4, 2, "feet", "prop"),
+    "prop-plate": (4, 1, "feet", "prop"),
+    "prop-oracle": (4, 1, "feet", "prop"),
+    "prop-swing": (4, 1, "center", "prop"),
 }
 
 
 def clips_for(sheet_id, kind, count):
+    if kind == "dragon":
+        return "idle", {
+            "idle": {"frames": [0, 1, 2, 3], "ms": 130, "loop": True},
+            "telegraph": {"frames": [4, 5], "ms": 200, "loop": False},
+            "attack": {"frames": [6, 7], "ms": 110, "loop": True},
+            "roar": {"frames": [8], "ms": 200, "loop": False},
+            "enraged": {"frames": [8], "ms": 200, "loop": False},
+            "hurt": {"frames": [9], "ms": 120, "loop": False},
+            "defeat": {"frames": [10, 11], "ms": 420, "loop": False},
+        }
+    if sheet_id == "fx-dragonfire":
+        return "loop", {
+            "start": {"frames": [0, 1], "ms": 70, "loop": False},
+            "loop": {"frames": [2, 3, 4, 5], "ms": 75, "loop": True},
+            "end": {"frames": [6, 7], "ms": 110, "loop": False},
+        }
+    if sheet_id == "fx-fireball":
+        return "loop", {
+            "loop": {"frames": [0, 1, 2, 3], "ms": 70, "loop": True},
+            "impact": {"frames": [4, 5, 6, 7], "ms": 65, "loop": False},
+        }
+    if sheet_id == "prop-glyphs":
+        clips = {}
+        for g in range(4):
+            clips["dormant_%d" % g] = {"frames": [g], "ms": 200, "loop": False}
+            clips["lit_%d" % g] = {"frames": [4 + g], "ms": 200, "loop": False}
+        return "dormant_0", clips
+    if sheet_id == "prop-lever":
+        return "off", {
+            "off": {"frames": [0], "ms": 200, "loop": False},
+            "mid": {"frames": [1], "ms": 200, "loop": False},
+            "on": {"frames": [2], "ms": 200, "loop": False},
+            "glint": {"frames": [2, 3], "ms": 240, "loop": True},
+        }
+    if sheet_id == "prop-brazier":
+        return "unlit", {
+            "unlit": {"frames": [0], "ms": 200, "loop": False},
+            "ignite": {"frames": [1], "ms": 160, "loop": False},
+            "burn": {"frames": [2, 3, 4, 5, 6, 7], "ms": 95, "loop": True},
+        }
+    if sheet_id == "prop-plate":
+        return "up", {
+            "up": {"frames": [0], "ms": 200, "loop": False},
+            "down": {"frames": [1], "ms": 200, "loop": False},
+            "lit": {"frames": [2], "ms": 200, "loop": False},
+            "pulse": {"frames": [2, 3], "ms": 220, "loop": True},
+        }
+    if sheet_id == "prop-oracle":
+        return "dormant", {
+            "dormant": {"frames": [0], "ms": 200, "loop": False},
+            "eyes": {"frames": [1], "ms": 200, "loop": False},
+            "speaking": {"frames": [2], "ms": 200, "loop": False},
+            "calm": {"frames": [3], "ms": 200, "loop": False},
+        }
+    if sheet_id == "prop-swing":
+        return "ring", {
+            "ring": {"frames": [0], "ms": 200, "loop": False},
+            "branch": {"frames": [1], "ms": 200, "loop": False},
+            "grip": {"frames": [2], "ms": 200, "loop": False},
+            "rope": {"frames": [3], "ms": 200, "loop": False},
+        }
     if kind == "boss":
         return "idle", {
             "idle": {"frames": [0, 1, 2, 3], "ms": 150, "loop": True},
@@ -146,19 +220,30 @@ def cell_size(src_w, src_h, cols, rows, limit):
     return max(8, int(round(cw * k))), max(8, int(round(ch * k)))
 
 
-def do_import(raw_dir, prompt_dir):
+def do_import(raw_dir, prompt_dir, only=None):
     raw_dir, prompt_dir = Path(raw_dir), Path(prompt_dir)
+    only = set(only or [])
+    for unknown in only - set(SHEETS):
+        raise SystemExit("unknown sheet id: %s" % unknown)
+    old = {}
+    if only and CATALOG.is_file():
+        for entry in json.loads(CATALOG.read_text(encoding="utf-8"))["sheets"]:
+            old[entry["id"]] = entry
     IMG_DIR.mkdir(parents=True, exist_ok=True)
     CATALOG.parent.mkdir(parents=True, exist_ok=True)
     sheets = []
     for sheet_id, (cols, rows, pivot, kind) in SHEETS.items():
+        if only and sheet_id not in only:
+            if sheet_id in old:
+                sheets.append(old[sheet_id])
+            continue
         src = raw_dir / (sheet_id + ".png")
         if not src.is_file():
             raise SystemExit("missing raw sheet: %s" % src)
         raw_bytes = src.read_bytes()
         im = Image.open(src).convert("RGBA")
         im = clean_alpha(im)
-        limit = MAX_CELL_BOSS if kind == "boss" else MAX_CELL
+        limit = MAX_CELL_DRAGON if kind == "dragon" else (MAX_CELL_BOSS if kind == "boss" else MAX_CELL)
         cw, ch = cell_size(im.width, im.height, cols, rows, limit)
         out = im.resize((cw * cols, ch * rows), Image.LANCZOS)
         out = clean_alpha(out)
@@ -219,13 +304,17 @@ def build_sheet(entry):
     if pivot == "feet":
         pivot_dy = median([rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(min(4, len(rects))) if rects[i] is not None])
         pivot_dx = cw / 2.0
+    elif pivot == "left":
+        # stream sheets: x = left cell edge, y = median vertical centre of the content over the loop frames
+        mids = [rects[i][1] + rects[i][3] / 2.0 - (i // cols) * ch for i in range(len(rects)) if rects[i] is not None]
+        pivot_dx, pivot_dy = 0.0, float(int(round(statistics.median(mids))))
     elif pivot == "base":
         # ground line = lowest solid pixel over all frames (the sheets do not sit on the cell bottom)
         ground = max(rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(len(rects)) if rects[i] is not None)
         pivot_dx, pivot_dy = cw / 2.0, float(ground)
     else:
         pivot_dx, pivot_dy = cw / 2.0, ch / 2.0
-    if kind in ("boss", "enemy"):
+    if kind in ("boss", "enemy", "dragon"):
         ref_h = median([r[3] for r in first])
     else:
         ref_h = max(r[3] for r in rects if r is not None)
@@ -291,9 +380,9 @@ def compute():
 
 def main(argv):
     if argv[:1] == ["--import"]:
-        if len(argv) != 3:
-            raise SystemExit("usage: --import <rawdir> <promptsdir>")
-        do_import(argv[1], argv[2])
+        if len(argv) < 3:
+            raise SystemExit("usage: --import <rawdir> <promptsdir> [sheet-id ...]")
+        do_import(argv[1], argv[2], argv[3:])
         return 0
     check = argv[:1] == ["--check"]
     atlas_text, prov_text, cat_text = compute()

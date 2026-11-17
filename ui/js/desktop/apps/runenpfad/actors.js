@@ -240,7 +240,7 @@
             const boss = !!e.def.boss;
             const scale = e.def.scale || 1;
             const boxH = (boss ? 42 : 38) * scale;
-            const target = boxH * (boss ? 1.3 : 1.25);
+            const target = boxH * (boss ? 1.3 : 1.25) * (e.def.dragon ? 1.15 : 1);
             const sheet = h.art.sheets[artId];
             const center = !!sheet && sheet.def.pivot === 'center';
             const py = center ? e.y - boxH * 0.5 : e.y;
@@ -266,6 +266,7 @@
                 alpha = boss ? (st.deadT > BOSS_DEFEAT_HOLD ? clamp((BOSS_DEFEAT_HOLD + 0.5 - st.deadT) / 0.5, 0, 1) : 1) : clamp(e.deathTimer / 0.2, 0, 1);
             } else if (boss) {
                 if (aiState === 'telegraph') { clip = artId + '.telegraph'; frame = st.stateT < 0.32 ? 0 : 1; }
+                else if (ai.pattern === 'roar' && (aiState === 'attack' || aiState === 'recover') && st.stateT < 0.7) { clip = artId + '.roar'; frame = 0; }
                 else if (aiState === 'attack') { clip = artId + '.attack'; frame = 0; }
                 else if (aiState === 'recover' && st.stateT < 0.4) { clip = artId + '.attack'; frame = 1; }
                 else if (st.enrageT > 0) { clip = artId + '.enraged'; frame = 0; }
@@ -617,7 +618,10 @@
             if (rune) drawRuneAura(sim, view, p, rune);
             const blink = p.invulnTimer > 0 && Math.floor(view.nowSec * 16) % 2 === 0 ? 0.45 : 1;
             const flash = p.hurtTimer > 0 ? clamp(p.hurtTimer * 5, 0, 0.8) : 0;
-            sprite(def.pack, anim, clock, hold, drawX, p.y, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, heroVis.tilt);
+            if (p.swing) {
+                // Hanging on a rope: the jump pose pivots around the hands (feet are 40 px below) and leans with the rope.
+                sprite(def.pack, clipFor(def.pack, def.prefix, 'jump'), p.animTime, false, p.x, p.y - 40, 64, -19, flipHero, blink, 1, 1, flash, -(p.swing.angle || 0) * 0.8);
+            } else sprite(def.pack, anim, clock, hold, drawX, p.y, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, heroVis.tilt);
             if (sim.heroId === 'knight' && p.attackTimer > 0) drawSwoosh(sim);
             if (sim.heroId === 'ranger' && p.attackTimer > 0) {
                 const mx = p.x + p.facing * 22;
@@ -870,6 +874,7 @@
             else if (pr.kind === 'orb') drawOrbBullet(pr, view);
             else if (pr.kind === 'shock') drawShockCrest(pr, view);
             else if (pr.kind === 'spore') drawSpore(pr, view);
+            else if (pr.kind === 'fireball') return true; // painted by set-pieces.js
             else if (!pr.kind && pr.fromEnemy && pr.color === '#fb923c') drawCannonBolt(pr, ang, view);
             else if (!pr.kind && !pr.fromEnemy) drawRangerBolt(pr, ang, view);
             else return false;

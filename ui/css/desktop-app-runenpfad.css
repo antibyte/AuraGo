@@ -962,3 +962,65 @@
 .rp-app.rp-narrow .rp-rune-plaque.is-intro .rp-rune-desc {
     display: none;
 }
+
+/* ---- ritual countdown plaque ---- */
+.rp-ritual-plaque {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 120px;
+    padding: 3px 9px;
+    background: linear-gradient(180deg, rgba(43, 33, 24, 0.95), rgba(21, 16, 11, 0.95));
+    border: 1px solid var(--rp-bronze);
+    border-radius: 4px;
+    color: var(--rp-parch);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.rp-ritual-plaque[hidden] {
+    display: none;
+}
+
+.rp-ritual-plaque.is-urgent {
+    border-color: #ff6b4a;
+}
+
+.rp-ritual-mark {
+    flex: 0 0 auto;
+    color: #fbbf24;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.rp-ritual-num {
+    flex: 0 0 auto;
+    min-width: 38px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.rp-ritual-bar {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 40px;
+    height: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(138, 106, 58, 0.8);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.rp-ritual-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(180deg, #ffd27a, #e0901a);
+}
+
+.rp-ritual-plaque.is-urgent .rp-ritual-fill {
+    background: linear-gradient(180deg, #ff9a7a, #d43a1a);
+}
+
+.rp-app.rp-narrow .rp-ritual-plaque {
+    min-width: 0;
+    padding: 3px 6px;
+}

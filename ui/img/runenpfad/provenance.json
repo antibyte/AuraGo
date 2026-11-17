@@ -262,6 +262,116 @@
    "source": "powerups.png",
    "sourceSha256": "3adbbce79e25c0103a4336b746e572e11c91cd2be5f9a3ea39fab5eca1a6fdf6",
    "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "dragon-ember.webp",
+   "sha256": "630b5aa369e0e8eaf73e783a9e209d9feb090d5cdcc28e51860523d4129cbbfc",
+   "bytes": 342826,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: EMBER DRAGON, a HUGE flying dragon (a set-piece monster many times bigger than the hero). A massive crimson-and-black dragon with bat-like leathery wings edged in orange, glowing molten cracks along its belly and throat, a crown of curved horns, a long spiked tail and fierce amber eyes; ancient, armoured scales like volcanic rock. Exactly 12 cells, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer; the whole dragon including wingtips and tail is fully inside each cell, the body centred at the exact cell centre. Same dragon design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a powerful seamless flight loop (1 wings fully raised, 2 wings level mid-stroke, 3 wings fully down, 4 wings rising), body gliding level; frames 5-6 fire-breath anticipation (5 head pulled back and up, chest and throat glowing hot, 6 head snapping forward, jaws opening with a bright glow inside); frames 7-8 breathing (jaws wide open, a short bright flame burst right at the mouth only — the long fire stream is NOT part of this sheet); frame 9 a mighty roar with the head raised; frame 10 hurt flinch with a pale flash; frames 11-12 defeat (11 wings crumpling, tumbling, 12 crashed and limp). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when drawn 260 pixels wide. Each frame fits within 88 percent of its cell with transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No rider, no extra creatures, no detached fire streams.",
+   "tool": "Codex CLI image generation",
+   "source": "dragon-ember.png",
+   "sourceSha256": "7c658984190118af04b6b6dd8b4487b980492f60c499ed38ba8ec4bdb45e9e28",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "dragon-frost.webp",
+   "sha256": "9403bb0d9ab940ea58c4e7f8149d7cf2ed8bff8a8d474040408d521e015b2e27",
+   "bytes": 424594,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: FROST WYRM, a HUGE flying dragon (a set-piece monster many times bigger than the hero). A massive pale-blue and white dragon with feathered-crystal wings of translucent ice, frost-rimed armour plates, long icicle horns, a whip-like tail ending in an ice blade and glowing cyan eyes; its breath glow is icy cyan-white instead of orange. Exactly 12 cells, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1536 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT, as in a classic side-scrolling platformer; the whole dragon including wingtips and tail is fully inside each cell, the body centred at the exact cell centre. Same dragon design, size, proportions, colours and outline in all twelve frames; only the pose changes. Frames: frames 1-4 a powerful seamless flight loop (1 wings fully raised, 2 wings level mid-stroke, 3 wings fully down, 4 wings rising), body gliding level; frames 5-6 fire-breath anticipation (5 head pulled back and up, chest and throat glowing hot, 6 head snapping forward, jaws opening with a bright glow inside); frames 7-8 breathing (jaws wide open, a short bright flame burst right at the mouth only — the long fire stream is NOT part of this sheet); frame 9 a mighty roar with the head raised; frame 10 hurt flinch with a pale flash; frames 11-12 defeat (11 wings crumpling, tumbling, 12 crashed and limp). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette that still reads clearly when drawn 260 pixels wide. Each frame fits within 88 percent of its cell with transparent padding; no frame touches another frame or the sheet edge, nothing is cropped. No rider, no extra creatures, no detached fire streams.",
+   "tool": "Codex CLI image generation",
+   "source": "dragon-frost.png",
+   "sourceSha256": "4dc3b8420d045e7b97caab1f3b4206df129d9f2644099e60699b9909bdf9d7ea",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "enemy-drakeling.webp",
+   "sha256": "f31e1f7c401ea0cac71b68cdc38db06c3d2c20ab12961717f0fe24eec426a7a4",
+   "bytes": 124424,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: DRAKELING, a small young fire dragon enemy about the size of a dog. A cheeky little red-orange dragon with stubby horns, a round belly, small flapping wings and a curled tail; it attacks by spitting a small fireball. Exactly 12 cells, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Strict side view (profile) facing RIGHT. The creature hovers, its body centred at the exact cell centre in every frame. Same design, size and colours in all frames; only the pose changes. Frames: 1-4 a smooth wing-flap hovering loop; 5-8 the attack (5 rearing back, 6 cheeks puffed and glowing, 7 spitting with a small flame at the mouth, 8 recovery); 9-10 hurt flinch with a pale flash; 11-12 defeat (11 tumbling, 12 lying limp). Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette at 72 pixels tall. Each frame fits within 80 percent of its cell; nothing touches the edges.",
+   "tool": "Codex CLI image generation",
+   "source": "enemy-drakeling.png",
+   "sourceSha256": "4ddcd839fdb5d839bf342be14a2cc6edc53e521c85624654cbdd84519b01dacc",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "fx-dragonfire.webp",
+   "sha256": "7a235196a596639c45b2f3e596144e36269688a5ae94ed343b550ada605e1a6c",
+   "bytes": 49950,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: DRAGON FIRE BREATH stream visual effect. Exactly 8 cells, precisely arranged in a regular 2-column by 4-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. Each cell is a wide 4:1 horizontal strip. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. In every cell the fire stream starts at the LEFT edge of the cell at mid-height and blasts towards the right. Frames: 1 a short narrow jet; 2 the jet growing to half the cell width; 3-6 the full roaring stream filling the whole cell width, widening into billowing flames towards the right end, with a white-yellow core, orange body, red edges and embers — four distinct flickering variations that loop; 7 the stream breaking up into separate flame clouds drifting right; 8 thin smoke and embers. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. The stream stays vertically centred in each cell and never touches the top or bottom cell edges; no characters, no dragon head.",
+   "tool": "Codex CLI image generation",
+   "source": "fx-dragonfire.png",
+   "sourceSha256": "9bd2a66cfd132d5a1ca3344582860266a69eb0f3c52861c95d2d5a55a1c32ff4",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "fx-fireball.webp",
+   "sha256": "763976f65a9f9d1ae03e5569666cd1ee79252d1e55ba983c10b39d50bb09b8bd",
+   "bytes": 59380,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: small FIREBALL projectile. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Row 1 (frames 1-4): a seamless flying loop of a glowing orange-yellow fireball moving to the RIGHT with a short flickering flame tail trailing to the left, centred in each cell. Row 2 (frames 5-8): the fireball hitting and bursting — 5 squash and flash, 6 small fiery burst, 7 scattered embers and smoke, 8 last wisps. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each frame within 70 percent of its cell; nothing touches the edges.",
+   "tool": "Codex CLI image generation",
+   "source": "fx-fireball.png",
+   "sourceSha256": "474e0722c767fa65d622fcc277f01b020e4fcd337e4572dc946a1d1eaf0d70c3",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-glyphs.webp",
+   "sha256": "c5faef40e8c31dffe7a940213e584e81ae509afe73559bb4f105951377145a06",
+   "bytes": 107588,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: four RUNE GLYPH STONES for a memory puzzle. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Columns left to right are four different waist-high standing stones, each carved with one large distinct abstract rune symbol: column 1 a sun disc with rays, column 2 a crescent moon, column 3 three wave lines, column 4 a branching tree. Row 1: dormant grey stone, carving dark. Row 2: the SAME stone with its carving blazing — column 1 golden, column 2 silver-violet, column 3 sea-blue, column 4 leaf-green — plus a soft halo. Every stone stands on the same baseline about 6 percent above its cell bottom and is horizontally centred; the stone shapes match between the two rows. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 80 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex CLI image generation",
+   "source": "prop-glyphs.png",
+   "sourceSha256": "9a3b52dcdd539ce70598ac1902c59372b28e44d2af3ea56086a5ea9faed6e1cb",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-lever.webp",
+   "sha256": "1e5db8cc01b25f0ec1e6296b0d37ee1453784b6d00fe92fc6aba7a361baeea7b",
+   "bytes": 36490,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE LEVER switch. Exactly 4 cells, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. A sturdy iron lever on a carved stone base with a small rune plate. Frame 1: handle tilted fully LEFT, rune plate dark. Frame 2: handle upright mid-way. Frame 3: handle tilted fully RIGHT, rune plate glowing cyan. Frame 4: same as frame 3 with a brighter glint. Identical base, same baseline about 8 percent above the cell bottom, horizontally centred. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 80 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex CLI image generation",
+   "source": "prop-lever.png",
+   "sourceSha256": "95cacb1a163a241f25a7d368f2446f7960c7e22906e8779e67275515cc33569c",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-brazier.webp",
+   "sha256": "bd5e13f263129a98ca8a2d7bf8332761d3bb08e336fc05f68a7228ffd5c64f1a",
+   "bytes": 107220,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RITUAL FIRE BRAZIER. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. An iron fire bowl on a carved stone pedestal. Frame 1: cold and unlit with dark coals. Frame 2: ignition — sparks and a small blue-white flash. Frames 3-8: a seamless burning loop of tall lively orange flames with rising embers. Identical pedestal and baseline about 6 percent above the cell bottom in all frames, horizontally centred; only the fire animates. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 80 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex CLI image generation",
+   "source": "prop-brazier.png",
+   "sourceSha256": "37c7dc94b31d391cc238bedb3023ba6099ffbc48fe94728b5698059e54a25ec4",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-plate.webp",
+   "sha256": "ca87b08880a627dba7e9620426cbe13d720bbb269d1c46e72dbf1c2ba4d95ea2",
+   "bytes": 21702,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: RUNE PRESSURE PLATE. Exactly 4 cells, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. A flat square stone pressure plate set into a low stone frame, seen from the side at a slight angle. Frame 1: plate raised, rune dark. Frame 2: plate pressed down flush. Frame 3: pressed with its rune glowing gold. Frame 4: pressed with a brighter glow pulse. Same frame and baseline about 10 percent above the cell bottom, horizontally centred. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 80 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex CLI image generation",
+   "source": "prop-plate.png",
+   "sourceSha256": "24afcd32d395f250f4d0bf79a3ee2eb4339c9731023d9c116bd013b5c197b8ca",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-oracle.webp",
+   "sha256": "da53752398925f728e7b2a4910e8d0f7e7add481c12205d2b0ba9ab52eee8a18",
+   "bytes": 48962,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SEER STONE oracle totem. Exactly 4 cells, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. A tall mossy stone totem carved with a solemn stylised face. Frame 1: dormant, eyes dark. Frame 2: eyes glowing cyan. Frame 3: eyes blazing and the mouth glowing as if speaking, faint light rays. Frame 4: calm with softly glowing eyes. Identical totem and baseline about 6 percent above the cell bottom, horizontally centred. IMPORTANT: absolutely no mist, fog, haze, smoke, clouds, glow halo or background wash anywhere — every pixel outside the totem and its small eye light is fully transparent (alpha 0). The light rays in frame 3 are thin and stay close to the face. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 84 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex CLI image generation",
+   "source": "prop-oracle.png",
+   "sourceSha256": "a824ec9777eae19c52cb9b5dd5cf800ab501efad135f76e17365c5391ed7038a",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-swing.webp",
+   "sha256": "1f466aff0721cbcca3d7594fdd3f2f881a8f2040dfb540dfe5777501f875fe5a",
+   "bytes": 34186,
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SWINGING ROPE parts. Exactly 4 cells, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Four separate objects, one per cell, each centred: cell 1 a heavy iron ring anchor bolted under a short wooden beam (seen from the side), cell 2 a gnarled thick tree branch stub with a rope knot around it, cell 3 a knotted rope end with a worn wooden grip handle, cell 4 a short vertical segment of thick braided rope that can tile seamlessly vertically. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 80 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
+   "tool": "Codex CLI image generation",
+   "source": "prop-swing.png",
+   "sourceSha256": "1897a0fe9b66e5728dd546f077ae1124e97b4afe1dab32c83c912a6cd2065a3b",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
   }
  ]
 }

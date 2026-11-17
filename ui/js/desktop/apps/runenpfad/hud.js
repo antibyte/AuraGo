@@ -142,6 +142,20 @@
             runePlaque.classList.toggle('is-ending', r.timeLeft < 2 && Math.floor(now / 220) % 2 === 0);
         }
 
+        function paintRitual(stage) {
+            const list = stage.rituals;
+            let r = null;
+            if (list) for (let i = 0; i < list.length; i++) if (list[i].state === 'active' && list[i].timeLimit > 0) { r = list[i]; break; }
+            ritualPlaque.hidden = !r;
+            if (!r) return;
+            const left = Math.max(0, Math.min(r.timeLimit, r.timeLimit - r.t)); // r.t counts up
+            const frac = left / r.timeLimit;
+            ritualPlaque.title = t('runenpfad.notice.ritual_hint');
+            setText(ritualNum, left.toFixed(1) + 's');
+            ritualFill.style.width = Math.round(frac * 100) + '%';
+            ritualPlaque.classList.toggle('is-urgent', frac < 0.3 && Math.floor(root.performance.now() / 200) % 2 === 0);
+        }
+
         function setSheets(s) {
             sheets = s || null;
             if (sheets) icons.forEach(paintIcon);
@@ -236,7 +250,17 @@
         runeBar.append(runeFill);
         runeBody.append(runeName, runeDesc, runeBar);
         runePlaque.append(runeIcon, runeBody);
-        tags.append(runePlaque, modTag, runeTag, comboTag);
+        // Ritual countdown plaque (ritual_chain puzzle): a flame mark, the seconds left and a draining bar.
+        const ritualPlaque = el('div', 'rp-ritual-plaque');
+        ritualPlaque.hidden = true;
+        const ritualMark = el('span', 'rp-ritual-mark', '✦');
+        ritualMark.setAttribute('aria-hidden', 'true');
+        const ritualNum = el('span', 'rp-ritual-num rp-num');
+        const ritualBar = el('span', 'rp-ritual-bar');
+        const ritualFill = el('span', 'rp-ritual-fill');
+        ritualBar.append(ritualFill);
+        ritualPlaque.append(ritualMark, ritualNum, ritualBar);
+        tags.append(runePlaque, ritualPlaque, modTag, runeTag, comboTag);
         noticeRow.append(notice, tags);
 
         // ---- boss bar ----
@@ -320,6 +344,7 @@
             runeTag.hidden = !power;
             if (power) setText(runeTag, t('runenpfad.hud_rune') + ' ' + Math.ceil(sim.blessing.runePower) + 's');
             paintRune(p);
+            paintRitual(stage);
             const combo = sim.combo;
             comboTag.hidden = !(combo && combo.count >= 2);
             if (!comboTag.hidden) setText(comboTag, fill('runenpfad.hud_combo', { n: String.fromCharCode(215) + (Math.round((combo.mul || 1) * 10) / 10) }));
