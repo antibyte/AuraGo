@@ -689,7 +689,104 @@
             return true;
         }
 
+        // ---- Storm gusts (read-only): faint streaks while warning, strong streaks plus biome debris and a wrap around the hero while gusting ----
+        const GUST_TINT = ['226,240,255', '200,235,230', '255,232,190', '235,248,255', '255,214,180'];
+        const DEBRIS = [
+            { rgb: '134,180,70', rgb2: '190,160,60', kind: 'leaf', lum: false },
+            { rgb: '120,255,200', rgb2: '170,200,255', kind: 'dot', lum: true },
+            { rgb: '226,190,120', rgb2: '244,214,150', kind: 'grain', lum: false },
+            { rgb: '255,255,255', rgb2: '210,235,255', kind: 'dot', lum: false },
+            { rgb: '255,150,60', rgb2: '90,80,80', kind: 'dot', lum: true }
+        ];
+
+        function gustHash(i, k) {
+            const s = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
+            return s - Math.floor(s);
+        }
+
+        function drawGusts(sim, view) {
+            const w = sim.wind;
+            if (!w || (w.state !== 'warn' && w.state !== 'gust')) return;
+            const gusting = w.state === 'gust';
+            const level = gusting ? w.strength : Math.max(0, Math.min(1, 1 - w.t / (w.dur || 1))) * 0.35;
+            if (level <= 0.01) return;
+            const reduced = !!view.reducedMotion;
+            const wi = Math.max(0, Math.min(4, sim.stage.worldIndex | 0));
+            const z = view.zoom || 1;
+            const x0 = view.sx;
+            const W = view.viewW;
+            const y0 = view.sy + 8 / z;
+            const H = Math.max(40, view.viewH - 56 / z); // nothing in the bottom 40 canvas px
+            const t = reduced ? 1.7 : view.nowSec;
+            const n = gusting ? (reduced ? 10 : 34) : (reduced ? 3 : 8);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x0, y0, W, H);
+            ctx.clip();
+            ctx.lineCap = 'round';
+            for (let i = 0; i < n; i++) {
+                const len = (gusting ? 90 : 60) + gustHash(i, 1) * (gusting ? 170 : 80);
+                const speed = reduced ? 120 : (gusting ? 1100 : 420) + gustHash(i, 2) * (gusting ? 700 : 260);
+                const span = W + len * 2;
+                const head = x0 + W + len - ((t * speed + gustHash(i, 3) * span) % span);
+                const y = y0 + gustHash(i, 4) * H;
+                const wob = Math.sin(t * 3 + i * 1.7) * (reduced ? 0 : 3);
+                ctx.strokeStyle = 'rgba(' + GUST_TINT[wi] + ',' + (level * (0.3 + gustHash(i, 5) * 0.45)).toFixed(3) + ')';
+                ctx.lineWidth = gusting ? 2 + gustHash(i, 6) * 2.5 : 1.5;
+                ctx.beginPath();
+                ctx.moveTo(head, y);
+                ctx.quadraticCurveTo(head + len * 0.5, y + wob + 6, head + len, y + wob);
+                ctx.stroke();
+            }
+            if (gusting) {
+                const D = DEBRIS[wi];
+                const m = reduced ? 6 : 24;
+                if (D.lum) ctx.globalCompositeOperation = 'lighter';
+                for (let i = 0; i < m; i++) {
+                    const speed = reduced ? 90 : 520 + gustHash(i, 12) * 520;
+                    const span = W + 80;
+                    const px = x0 + W + 40 - ((t * speed + gustHash(i, 13) * span) % span);
+                    const py = y0 + gustHash(i, 14) * H + (reduced ? 0 : Math.sin(t * 4 + i * 2.3) * 14);
+                    const a = w.strength * (0.7 + gustHash(i, 15) * 0.3);
+                    ctx.fillStyle = 'rgba(' + (i & 1 ? D.rgb : D.rgb2) + ',' + a.toFixed(3) + ')';
+                    if (D.kind === 'leaf') {
+                        ctx.save();
+                        ctx.translate(px, py);
+                        ctx.rotate(t * 6 + i);
+                        ctx.fillRect(-6, -3, 12, 5);
+                        ctx.restore();
+                    } else if (D.kind === 'grain') {
+                        ctx.fillRect(px, py, 3, 3);
+                        ctx.fillRect(px + 8, py + 1, 3, 3);
+                    } else {
+                        const r = 2.2 + gustHash(i, 16) * 2.2;
+                        ctx.beginPath();
+                        ctx.arc(px, py, r, 0, TAU);
+                        ctx.fill();
+                    }
+                }
+                ctx.globalCompositeOperation = 'source-over';
+                // Streaks bend around the hero and trail off to the left.
+                const p = sim.player;
+                const by = p.y - 22;
+                ctx.lineWidth = 2;
+                for (let k = 0; k < 5; k++) {
+                    const off = (k - 2) * 13;
+                    const flow = reduced ? 0 : (t * 7 + k * 0.9) % 6.28;
+                    const lean = Math.sin(flow) * (reduced ? 0 : 3);
+                    ctx.strokeStyle = 'rgba(' + GUST_TINT[wi] + ',' + (w.strength * (0.5 - Math.abs(k - 2) * 0.08)).toFixed(3) + ')';
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + 74, by + off * 0.7);
+                    ctx.bezierCurveTo(p.x + 30, by + off * 0.7, p.x + 20, by + off + lean, p.x, by + off * 1.25 + lean);
+                    ctx.bezierCurveTo(p.x - 22, by + off * 1.3 + lean, p.x - 34, by + off * 0.8, p.x - 90, by + off * 0.9 + lean);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+        }
+
         function drawOverlay(sim, view) {
+            drawGusts(sim, view);
             (sim.tempHazards || []).forEach(function (th) {
                 if (th.kind === 'dragonfire' || !visible(view, th.x, th.x + th.w)) return; // dragon fire is drawn by set-pieces.js
                 const life = Math.max(0, Math.min(1, th.t / th.dur));

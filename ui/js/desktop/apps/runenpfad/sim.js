@@ -137,6 +137,7 @@
             combo: { count: 0, timer: 0, mul: 1 },
             bossIntro: null,
             tempHazards: [],
+            wind: null,
             fx: fxApiRef ? fxApiRef.createSystem((mode === 'endless' ? endlessFloor : levelId) * 7919 + 13) : null
         };
     }
@@ -564,6 +565,7 @@
 
         stepPlatformsAndCannons(sim, dt);
         zoneHook('step', sim, dt);
+        if (varietyApi()) varietyApi().stepWind(sim, dt);
         if (runesApi()) runesApi().tick(sim, dt);
 
         // Potion heal
@@ -651,7 +653,7 @@
                 pushJump(sim);
             }
         } else {
-            const targetVx = moveDir * stats.speed * (runesApi() ? runesApi().speedMul(sim) : 1) + (stage.modEffects && stage.modEffects.wind ? stage.modEffects.wind : 0);
+            const targetVx = moveDir * stats.speed * (runesApi() ? runesApi().speedMul(sim) : 1) + (varietyApi() ? varietyApi().windPush(sim, moveDir !== 0) : 0);
             const accel = p.onGround ? (stage.world.friction < 1 ? 650 : 2400) : 1400;
             const diff = targetVx - p.vx;
             const stepV = accel * dt;

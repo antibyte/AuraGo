@@ -154,6 +154,8 @@
         switch_on: { sound: 'ui-click', gain: 0.3, cooldown: 120, rate: 1.6, synth: 'ping', sg: 0.5 },
         gate_open: { sound: 'impact-stone', gain: 0.55, cooldown: 400, rate: 0.6, synth: 'grind', sg: 0.7 },
         jet_warn: { sound: false, gain: 0.4, cooldown: 200, synth: 'hiss', sg: 0.5 },
+        gust_warn: { sound: 'wind-gentle', gain: 0.3, cooldown: 1500, rate: 1.15, synth: 'whoosh', sg: 0.18, sr: 0.7 },
+        gust: { sound: 'wind-strong', gain: 0.5, cooldown: 1500, rate: 1, synth: 'whoosh', sg: 0.3, sr: 0.55 },
         jet_fire: { sound: 'fire', gain: 0.7, cooldown: 200, rate: 0.8, synth: 'flame', sg: 0.8 },
         boss_intro: {
             sound: 'thunder', gain: 0.55, cooldown: 600, rate: 0.75, synth: 'warn', sg: 0.32, sr: 0.5,

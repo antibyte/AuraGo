@@ -2234,3 +2234,113 @@ console.log('Runenpfad polish checks passed: floating label keys in 16 locales, 
     }
 }
 console.log('Runenpfad round 5 checks passed: grounded poison and fire.');
+
+// Round 5: Storm trial gusts. Telegraphed, deterministic, only against the run direction, never a constant drift.
+{
+    const TILE = 48;
+    const mkSim = (levelId) => Sim.createSimulation({ mode: 'campaign', levelId: levelId, hero: 'knight', profile: Levels.defaultProfile ? Levels.defaultProfile() : undefined });
+    const flat = (s) => {
+        const gt = s.stage.groundY / TILE;
+        for (let tx = 10; tx < 40; tx++) {
+            for (let ty = 0; ty < gt; ty++) delete s.stage.solidMap[tx + ',' + ty];
+            s.stage.solidMap[tx + ',' + gt] = true;
+        }
+        s.stage.platforms.length = 0;
+        s.stage.movingPlatforms.length = 0;
+        s.stage.hazards.length = 0;
+        s.stage.enemies.length = 0;
+        s.tempHazards.length = 0;
+    };
+    const GUST_NOW = () => ({ state: 'gust', t: 99, dur: 100, strength: 1, dir: -1 });
+    const CALM_NOW = () => ({ state: 'calm', t: 1e9, dur: 0, strength: 0, dir: -1 });
+    // Runs ticks with the wind pinned to `wind()`, the hero starting at (x, y); returns the hero after the run.
+    const trial = (wind, x, y, ticks, input) => {
+        const s = mkSim(6);
+        flat(s);
+        s.player.x = x;
+        s.player.y = y;
+        s.player.vx = 0;
+        s.player.vy = 0;
+        for (let i = 0; i < ticks; i++) {
+            s.wind = (i < 8 && y >= s.stage.groundY - 1) ? CALM_NOW() : wind(); // let a grounded hero settle first
+            s.player.invulnTimer = 5;
+            Sim.stepSimulation(s, Sim.STEP, i < 8 ? {} : (input || {}));
+        }
+        return s.player;
+    };
+    const schedule = () => {
+        const s = mkSim(6);
+        flat(s);
+        const log = [];
+        for (let i = 0; i < 60 * 40; i++) {
+            s.player.invulnTimer = 5;
+            Sim.stepSimulation(s, Sim.STEP, {});
+            s.events.forEach((e) => { if (/^gust/.test(e.type)) log.push(e.type + '@' + s.stepCount + ':' + Math.round(e.detail.x)); });
+            s.events.length = 0;
+        }
+        return log;
+    };
+
+    const a = schedule();
+    const b = schedule();
+    assert.deepEqual(a, b, 'the gust schedule is deterministic for the same seed');
+    const types = a.map((e) => e.split('@')[0]);
+    assert.ok(types.length >= 9, 'at least three gust cycles in 40 s: ' + types.length);
+    types.forEach((t, i) => assert.equal(t, ['gust_warn', 'gust', 'gust_end'][i % 3], 'cycle order calm -> warn -> gust -> calm at ' + i));
+    const at = (e) => Number(e.split('@')[1].split(':')[0]);
+    for (let i = 0; i + 2 < a.length; i += 3) {
+        const warnS = (at(a[i + 1]) - at(a[i])) / 60;
+        const gustS = (at(a[i + 2]) - at(a[i + 1])) / 60;
+        assert.ok(warnS > 0.85 && warnS < 0.95, 'warn lasts about 0.9 s: ' + warnS);
+        assert.ok(gustS >= 1.55 && gustS <= 2.25, 'gust lasts 1.6-2.2 s: ' + gustS);
+        if (i + 3 < a.length) {
+            const calmS = (at(a[i + 3]) - at(a[i + 2])) / 60; // gust_end to the next gust_warn
+            assert.ok(calmS > 3.4 && calmS < 6.1, 'calm lasts 3.5-6 s: ' + calmS);
+        }
+    }
+
+    const gy = mkSim(6).stage.groundY;
+    const x0 = 14 * TILE;
+    const idle = trial(GUST_NOW, x0, gy, 90);
+    assert.ok(idle.onGround && Math.abs(idle.x - x0) < 0.01, 'an idle hero on the ground does not move in a gust: ' + (idle.x - x0));
+    const airWind = trial(GUST_NOW, x0, gy - 240, 24);
+    const airCalm = trial(CALM_NOW, x0, gy - 240, 24);
+    assert.ok(airWind.x < airCalm.x - 10, 'a hero in the air is pushed left by a gust: ' + (airWind.x - airCalm.x));
+    const walkWind = trial(GUST_NOW, x0, gy, 90, { right: true });
+    const walkCalm = trial(CALM_NOW, x0, gy, 90, { right: true });
+    assert.ok(walkWind.x - x0 > 150, 'a hero walking right still makes forward progress in a gust: ' + (walkWind.x - x0));
+    assert.ok(walkWind.x < walkCalm.x, 'the gust slows a walking hero');
+    // jumping forward through a gust works too
+    {
+        const s = mkSim(6);
+        flat(s);
+        s.player.x = x0;
+        s.player.y = gy;
+        let start = s.player.x;
+        for (let i = 0; i < 70; i++) {
+            s.wind = GUST_NOW();
+            s.player.invulnTimer = 5;
+            Sim.stepSimulation(s, Sim.STEP, { right: true, jumpPressed: i === 2, jump: i < 30 });
+        }
+        assert.ok(s.player.x - start > 80, 'a hero jumping right in a gust still gets forward');
+    }
+
+    // No wind at all without the Storm trial; storm levels run it.
+    [1, 2, 3, 4, 5, 7].forEach((id) => {
+        const s = mkSim(id);
+        for (let i = 0; i < 600; i++) { s.player.invulnTimer = 5; Sim.stepSimulation(s, Sim.STEP, {}); }
+        assert.equal(s.wind, null, 'level ' + id + ' has no gusts');
+        assert.ok(!s.stage.modEffects.gusts && !s.stage.modEffects.wind, 'level ' + id + ' has no wind effect');
+    });
+    [6, 12, 18, 24].forEach((id) => {
+        const s = mkSim(id);
+        assert.ok(s.stage.modEffects.gusts, 'level ' + id + ' carries the storm gusts');
+        assert.ok(!s.stage.modEffects.wind, 'no constant wind on level ' + id);
+    });
+    // Rain only under an open sky; caves and glaciers get a wind bed.
+    assert.notEqual(mkSim(6).stage.weather, 'rain', 'no rain in the cavern');
+    assert.equal(mkSim(6).stage.ambience.secondary, 'wind-gentle', 'cavern storm ambience is wind');
+    assert.notEqual(mkSim(18).stage.weather, 'rain', 'no rain on the glacier');
+    assert.equal(mkSim(24).stage.weather, 'rain', 'the citadel storm keeps its rain');
+}
+console.log('Runenpfad round 5 checks passed: storm gusts.');
