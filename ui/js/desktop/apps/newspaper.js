@@ -284,11 +284,13 @@
         }
         function draw() {
             if(st.disposed)return;
+            const preferencesScroll=st.view==='preferences'&&frame.querySelector('.np-preferences')?frame.querySelector('.np-scroll').scrollTop:null;
             const active=document.activeElement;
             const token=focusToken(active),selection=selectionOf(active);
             frame.innerHTML=shell(st.view==='article'?article():st.view==='archive'?archive():st.view==='preferences'?preferences():today());
             if(st.view==='preferences')st.host.querySelector('.np-prefs .np-pref-section:last-of-type')?.insertAdjacentHTML('afterend',audioPreferences(st.draft||st.profile)+budgetPanel());
             updatePlayer();
+            if(preferencesScroll!==null)frame.querySelector('.np-scroll').scrollTop=preferencesScroll;
             if(st.view==='today')st.host.querySelector('.np-scroll').scrollTop=st.frontScroll;
             if(st.view==='article'&&st.edition)st.host.querySelector('.np-scroll').scrollTop=Number(localStorage.getItem('aurago.newspaper.read.'+st.edition.id+'.'+st.articleId)||0);
             const restored=resolveFocus(token);

@@ -275,7 +275,10 @@ func (s *Server) personalRadioSpeak(ctx context.Context, p personalradio.Station
 		return out, personalradio.ErrLimit
 	}
 	data, err := s.synthesizeChatWAV(ctx, cfg, p.Language, text)
-	return personalradio.Audio{Data: data, Extension: "wav"}, err
+	if err != nil {
+		return out, err
+	}
+	return personalradio.Audio{Data: data, Extension: "wav"}, nil
 }
 
 // Use one effective chat voice and Speech Lab stack for the entire recording.

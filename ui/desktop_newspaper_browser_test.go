@@ -284,15 +284,14 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	page.MustElement(`[data-view=preferences]`).MustClick()
 	page.MustWait(`() => document.querySelector('.np-budget-panel')?.innerText.includes('Themen 6') && document.querySelector('.np-budget-panel')?.innerText.includes('Artikel 12')`)
 	page.MustEval(`(sections)=>{for(const input of document.querySelectorAll('[name=sections]'))input.checked=sections.includes(input.value);document.querySelector('[name=sections]').dispatchEvent(new Event('change',{bubbles:true}))}`, []string{"regional", "national", "international", "politics", "economy", "culture", "technology", "science", "environment", "health", "sport"})
-	for i := 0; i < 20; i++ {
-		page.MustElement(`[name=interests_input]`).MustInput(fmt.Sprintf("Topic %02d", i+1))
-		page.MustElement(`[data-add=interests]`).MustClick()
-	}
+	page.MustElement(`[name=interests_input]`).MustInput("Topic 01")
+	page.MustElement(`[data-add=interests]`).MustClick()
+	// The bulk fixture still uses each real button handler, without forty browser round trips.
+	page.MustEval(`()=>{for(let i=2;i<=20;i++){const input=document.querySelector('[name=interests_input]');input.value='Topic '+String(i).padStart(2,'0');input.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-add=interests]').click()}}`)
 	page.Timeout(20 * time.Second).MustWait(`() => document.querySelector('.np-budget-panel')?.innerText.includes('Themen 31') && document.querySelector('.np-budget-panel')?.innerText.includes('Artikel 31')`)
 	page.MustEval(`(sections)=>{for(const input of document.querySelectorAll('[name=sections]'))input.checked=sections.includes(input.value);document.querySelector('[name=sections]').dispatchEvent(new Event('change',{bubbles:true}))}`, p.Sections)
-	for i := 0; i < 20; i++ {
-		page.MustElement(`[data-remove=interests]`).MustClick()
-	}
+	page.MustElement(`[data-remove=interests]`).MustClick()
+	page.MustEval(`()=>{for(let i=1;i<20;i++)document.querySelector('[data-remove=interests]').click()}`)
 	page.Timeout(20 * time.Second).MustWait(`() => document.querySelector('.np-budget-panel')?.innerText.includes('Themen 6')`)
 	page.MustEval(`()=>{document.querySelector('[name=name]').value='Der Neue Morgen';document.querySelector('[name=rss_url]').value='https://example.org/culture.xml'}`)
 	page.MustElement(`[name=interests_input]`).MustInput("Lokales Theater")
@@ -389,6 +388,8 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if page.MustEval(`()=>!!document.querySelector('.np-revision')`).Bool() {
 		t.Fatal("an old edition offered a correction revision for the new day")
 	}
+	page.MustEval(`()=>{window.ctx.readonly=true;document.querySelector('.np-chrome [data-view=today]').click()}`)
+	page.MustWait(`()=>document.querySelector('[data-action=cast-now]')?.disabled && document.querySelector('[data-send=telegram]')?.disabled && !document.querySelector('[data-action=listen]').disabled && document.querySelector('audio')===window.newsPlayer`)
 	page.MustEval(`()=>NewspaperApp.dispose('test')`)
 	before := page.MustEval(`()=>calls`).Int()
 	time.Sleep(5500 * time.Millisecond)
