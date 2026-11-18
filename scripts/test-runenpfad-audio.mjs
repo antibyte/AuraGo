@@ -11,7 +11,7 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'sfx.js', 'audio.js', 'music.js', 'duel-music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'sfx.js', 'audio.js', 'music.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
 const Music = sandbox.RunenpfadMusic;
@@ -269,5 +269,147 @@ assert.equal(Music.themeIdFor(Object.assign({}, duelSim, { encounter: null }), t
     const after = Object.assign({}, sim, { events: [] });
     for (let i = 120; i < 240; i++) { sandbox.__t = i / 30; music.update(Music.intensityFor(after), after); }
     music.dispose();
+}
+// ---- 6. places and story: interior events, UI cues, village / interior / story themes, music override ----
+const PLACE_EVENTS = ['place_near', 'place_enter', 'place_leave', 'place_room', 'place_ko', 'in_step', 'in_attack', 'in_dash', 'in_hit', 'in_mob_tell',
+    'in_mob_attack', 'in_mob_die', 'in_chest', 'in_pickup', 'in_clear', 'in_locked'];
+PLACE_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], 'cue missing for ' + type));
+['interior.js', 'interior-mobs.js', 'places.js', 'village.js', 'folk.js'].forEach((rel) => {
+    const file = path.join(root, 'ui/js/desktop/apps/runenpfad', rel);
+    if (!fs.existsSync(file)) return;
+    for (const m of fs.readFileSync(file, 'utf8').matchAll(/pushEvent\x28sim, '((?:place|in)_[a-z_]+)'/g)) assert.ok(Audio.CUE_MAP[m[1]], rel + ' pushes ' + m[1] + ' without an audio cue');
+});
+const MOBS = ['rat', 'slime', 'bat', 'spider', 'mummy', 'icewisp', 'clockbug'];
+MOBS.forEach((k) => ['in_mob_tell', 'in_mob_attack'].forEach((type) => assert.ok(Audio.CUE_MAP[type].by.map[k], type + ' sound missing for ' + k)));
+assert.equal(new Set(MOBS.map((k) => Audio.CUE_MAP.in_mob_tell.by.map[k].sr)).size, 7, 'every creature has its own warning pitch');
+const PLACE_CASES = [];
+PLACE_EVENTS.forEach((type) => PLACE_CASES.push({ type }, { type, detail: {} }));
+PLACE_CASES.push({ type: 'place_near', detail: { placeId: 'inn', kind: 'house' } }, { type: 'place_enter', detail: { placeId: 'inn', kind: 'house' } }, { type: 'place_enter', detail: { placeId: 'mine', kind: 'cave' } },
+    { type: 'place_leave', detail: { placeId: 'inn', reason: 'exit' } }, { type: 'place_leave', detail: { placeId: 'inn', reason: 'ko' } }, { type: 'place_room', detail: { roomId: 'cellar' } },
+    { type: 'in_attack', detail: { hero: 'knight' } }, { type: 'in_attack', detail: { hero: 'ranger' } }, { type: 'in_hit', detail: { target: 'mob', kind: 'rat' } }, { type: 'in_hit', detail: { target: 'hero', kind: 'slime' } },
+    { type: 'in_chest', detail: { lootId: 'a', empty: false } }, { type: 'in_chest', detail: { lootId: 'a', empty: true } }, { type: 'in_clear', detail: { roomId: 'cellar' } });
+MOBS.forEach((kind) => ['in_mob_tell', 'in_mob_attack', 'in_mob_die'].forEach((type) => PLACE_CASES.push({ type, detail: { kind } })));
+['coin', 'heart', 'potion', 'key', 'unknown'].forEach((kind) => PLACE_CASES.push({ type: 'in_pickup', detail: { kind } }));
+let panners = 0;
+const makePanner = FakeContext.prototype.createStereoPanner;
+FakeContext.prototype.createStereoPanner = function () { panners++; return makePanner.call(this); };
+PLACE_CASES.forEach((ev) => {
+    const pc = Audio.createAudioController({ manifest });
+    pc.unlock();
+    sandbox.__t += 5;
+    const nodesBefore = nodeCount;
+    pc.handleEvents([ev], null, { x: 4000, w: 800 }); // far-off camera: an x-less event must stay centred
+    assert.ok(nodeCount > nodesBefore, 'place event builds sound: ' + JSON.stringify(ev));
+    assert.ok(nodeCount - nodesBefore < 700, 'place event stays within a sane node budget: ' + JSON.stringify(ev));
+    pc.dispose();
+});
+assert.equal(panners, 0, 'interior events are never panned by the world camera');
+FakeContext.prototype.createStereoPanner = makePanner;
+// Footsteps are rate-limited: a walking burst plays only a few steps.
+const stepper = Audio.createAudioController({ manifest });
+stepper.unlock();
+sandbox.__t += 5;
+const stepBase = nodeCount;
+for (let i = 0; i < 12; i++) { sandbox.__t += 0.05; stepper.handleEvents([{ type: 'in_step' }], null, null); }
+assert.ok(nodeCount > stepBase && nodeCount - stepBase < 12 * 25 / 2, 'in_step is rate-limited: ' + (nodeCount - stepBase));
+stepper.dispose();
+// Empty chests click instead of creaking open; the hero attack sounds differ.
+assert.notEqual(Audio.CUE_MAP.in_chest.by.map.true.synth, Audio.CUE_MAP.in_chest.synth);
+assert.ok(Audio.CUE_MAP.in_attack.by.map.knight.sr < Audio.CUE_MAP.in_attack.by.map.ranger.sr, 'knight swings lower than the ranger');
+// UI cues play without a simulation through audio.play(cueId).
+['cut_open', 'cut_next', 'cut_close'].forEach((cue) => {
+    assert.ok(Audio.UI_CUES[cue] && Audio.hasSynth(Audio.UI_CUES[cue].synth), 'UI cue ' + cue);
+    const uc = Audio.createAudioController({ manifest });
+    uc.unlock();
+    uc.setActive(false); // overlays pause the game; the cue must still sound
+    sandbox.__t += 5;
+    const before = nodeCount;
+    uc.play(cue);
+    assert.ok(nodeCount > before, 'play(' + cue + ') builds sound');
+    sandbox.__t += 5;
+    const quiet = nodeCount;
+    uc.play('cut_unknown');
+    assert.equal(nodeCount, quiet, 'unknown UI cue is silent');
+    uc.dispose();
+});
+{
+    const muted = Audio.createAudioController({ manifest, enabled: false });
+    const before = nodeCount;
+    muted.play('cut_open');
+    assert.equal(nodeCount, before, 'play() respects mute');
+    muted.dispose();
+}
+// Themes: three place loops and three story loops, deterministic, dark ones without a major third.
+const PlaceMusic = sandbox.RunenpfadPlaceMusic;
+const StoryMusic = sandbox.RunenpfadStoryMusic;
+assert.equal(PlaceMusic.THEME_IDS.join(), 'village,in_cozy,in_cave');
+assert.equal(StoryMusic.THEME_IDS.join(), 'story_dawn,story_dark,story_triumph');
+const NEW_THEMES = PlaceMusic.THEME_IDS.concat(StoryMusic.THEME_IDS);
+NEW_THEMES.forEach((id) => {
+    const th = Music.THEMES[id];
+    assert.ok(th && !th.boss && th.prog.length === 2 && th.prog[0].length === 4, id + ' is registered');
+    Music.LAYERS.forEach((layer) => {
+        for (let bar = 0; bar < 8; bar++) {
+            const notes = Music.composeBar(id, layer, bar, 7);
+            assert.equal(JSON.stringify(notes), JSON.stringify(Music.composeBar(id, layer, bar, 7)), id + ' composes deterministically');
+            notes.forEach((n) => assert.ok(Number.isFinite(n.t) && Number.isFinite(n.dur) && (n.midi === null || Number.isFinite(n.midi)), id + ' note is finite'));
+        }
+    });
+    assert.ok(Music.composeBar(id, 'melody', 0, 7).length > 0 && Music.composeBar(id, 'pad', 0, 7).length > 0, id + ' has a melody and a pad');
+});
+['in_cave', 'story_dark'].forEach((id) => assert.ok(!Music.THEMES[id].scale.includes(4), id + ' has no major third'));
+['village', 'in_cozy', 'story_dawn', 'story_triumph'].forEach((id) => assert.ok(Music.THEMES[id].scale.includes(4), id + ' is a major or mixolydian tune'));
+assert.ok(Music.THEMES.in_cave.bpm < 70 && Music.THEMES.story_dark.bpm < 70 && Music.THEMES.story_dawn.bpm < 80, 'dark and dawn loops are slow');
+assert.ok(Music.THEMES.in_cozy.bpm > Music.THEMES.village.bpm, 'the tavern jig is livelier than the village');
+assert.ok(Music.THEMES.in_cozy.vol < 1 && Music.THEMES.village.vol < 1 && Music.THEMES.village.arpInstr !== Music.THEMES.woodland.arpInstr, 'place loops are gentle and distinct from the woodland theme');
+assert.ok(Music.composeBar('story_dark', 'perc', 0, 1).some((n) => n.type === 'tick'), 'story_dark ticks like a clock');
+assert.ok(Music.composeBar('story_triumph', 'perc', 0, 1).length >= 4, 'story_triumph marches');
+assert.ok(Music.composeBar('in_cave', 'perc', 3, 1).every((n) => n.type === 'kick'), 'the cave has only a heartbeat');
+['lute', 'harp', 'flute', 'fiddle', 'plink', 'cello'].forEach((v) => assert.equal(typeof PlaceMusic.VOICES[v], 'function', 'voice ' + v));
+// themeFor: interior room music, the hub stage, otherwise nothing.
+const interiorSim = (music) => ({ stage: { id: 1, biome: { id: 'woodland' }, enemies: [], bossId: null }, player: { x: 0, y: 0 }, state: 'playing', events: [], interior: { room: { def: { music } } } });
+assert.equal(PlaceMusic.themeFor(interiorSim('in_cave')), 'in_cave');
+assert.equal(PlaceMusic.themeFor(interiorSim('in_cozy')), 'in_cozy');
+assert.equal(PlaceMusic.themeFor(interiorSim('nonsense')), 'in_cozy', 'an unknown room music id falls back to the cozy loop');
+const hubSim = Object.assign({}, sim, { stage: Object.assign({}, stage, { hub: true }) });
+assert.equal(PlaceMusic.themeFor(hubSim), 'village');
+assert.equal(PlaceMusic.themeFor(Object.assign({}, hubSim, { interior: { room: { def: { music: 'in_cave' } } } })), 'in_cave', 'inside a hub house the room loop wins');
+assert.equal(PlaceMusic.themeFor(sim), null);
+assert.equal(PlaceMusic.themeFor(null), null);
+assert.equal(Music.themeIdFor(interiorSim('in_cave'), false), 'in_cave');
+assert.equal(Music.themeIdFor(hubSim, false), 'village');
+assert.equal(Music.themeIdFor(sim, false), 'woodland', 'ordinary levels keep the biome theme');
+assert.equal(Music.themeIdFor(Object.assign({}, duelSim, { interior: { room: { def: { music: 'in_cave' } } } }), true), 'duel_seer', 'a duel wins over the place loop');
+{
+    const port = { ctx: new FakeContext(), bus: node('bus'), reverb: node('rev') };
+    const music = Music.createMusicController(port);
+    const tick = (n, s) => { for (let i = 0; i < n; i++) { sandbox.__t += 1 / 30; music.update(Music.intensityFor(s), s); } };
+    sandbox.__t = 1;
+    tick(60, hubSim);
+    assert.equal(music.getState().theme, 'village', 'the hub plays the village loop');
+    tick(60, interiorSim('in_cave'));
+    assert.equal(music.getState().theme, 'in_cave', 'entering a cave switches the loop');
+    // setOverride wins over the normal choice, also with a won stage and no sim at all.
+    music.setOverride('story_dawn');
+    assert.equal(music.getState().theme, 'story_dawn', 'override plays at once');
+    assert.ok(music.getState().voices > 0, 'override deck is scheduled without an update call');
+    tick(60, interiorSim('in_cave'));
+    assert.equal(music.getState().theme, 'story_dawn', 'override beats the interior loop');
+    tick(30, Object.assign({}, sim, { state: 'won' }));
+    music.update(null, null);
+    assert.equal(music.getState().theme, 'story_dawn', 'override survives a won stage and a missing sim');
+    music.setOverride('story_dark');
+    assert.equal(music.getState().theme, 'story_dark', 'override can change theme');
+    music.setOverride('no_such_theme'); // unknown ids clear the override
+    assert.equal(music.getState().theme, null, 'clearing fades the cutscene deck out');
+    tick(90, sim);
+    assert.equal(music.getState().theme, 'woodland', 'clearing the override returns to normal selection');
+    music.setOverride('story_triumph');
+    music.setOverride(null);
+    tick(90, sim);
+    assert.equal(music.getState().theme, 'woodland');
+    assert.ok(music.getState().voices <= Music.VOICE_CAP);
+    music.dispose();
+    music.setOverride('story_dawn'); // after dispose: harmless
 }
 console.log('Runenpfad audio checks passed: ' + Object.keys(Audio.CUE_MAP).length + ' cues, ' + Object.keys(Sfx.SYNTHS).length + ' synth recipes, ' + themeIds.length + ' music themes.');

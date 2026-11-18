@@ -225,7 +225,7 @@
             });
             (theme.drums.clank || []).forEach(function (t) {
                 out.push({ t: t, dur: 0.3, midi: null, vel: 0.8, type: 'clank' }); });
-            if (fill && !theme.boss) {
+            if (fill && !theme.boss && !theme.noFill) {
                 [3.25, 3.5, 3.75].forEach(function (t) { out.push({ t: t, dur: 0.15, midi: null, vel: 0.5, type: 'snare' }); });
             }
         } else if (layer === 'boss') {
@@ -258,7 +258,9 @@
     function themeIdFor(sim, boss) {
         const biome = biomeOf(sim);
         const duel = boss && root.RunenpfadDuelMusic ? root.RunenpfadDuelMusic.themeFor(sim) : null; // per-NPC duel loop (duel-music.js)
-        return duel && THEMES[duel] ? duel : (boss ? 'boss_' + biome : biome);
+        const place = !duel && root.RunenpfadPlaceMusic ? root.RunenpfadPlaceMusic.themeFor(sim) : null; // interior / village loop (place-music.js)
+        const pick = duel || place;
+        return pick && THEMES[pick] ? pick : (boss ? 'boss_' + biome : biome);
     }
 
     // Reads the simulation only; danger rises as the nearest live enemy closes inside 360 px.
@@ -306,6 +308,7 @@
         let lastDanger = 0;
         let evRef = null;
         let evIdx = 0;
+        let override = null, overrideTimer = null;
 
         function teardown() {
             decks.forEach(killDeck);
@@ -347,7 +350,7 @@
 
         function applyOut(first) {
             if (!out || !ctx) return;
-            const level = enabled && active && !fadedOut ? 1 : 0;
+            const level = enabled && active && (!fadedOut || override) ? 1 : 0;
             const now = ctx.currentTime;
             out.gain.cancelScheduledValues(now);
             if (first) out.gain.setValueAtTime(0, now);
@@ -393,9 +396,10 @@
                 old.retireAt = now + CROSSFADE + 0.4;
                 old.queue.length = 0;
             }
+            if (!themeId) { curDeck = null; return; }
             const deck = makeDeck(themeId, seed);
             deck.gain.gain.setValueAtTime(0, now);
-            deck.gain.gain.linearRampToValueAtTime(1, now + (old ? CROSSFADE : 0.6));
+            deck.gain.gain.linearRampToValueAtTime(deck.theme.vol || 1, now + (old ? CROSSFADE : 0.6));
             decks.push(deck);
             curDeck = deck;
         }
@@ -408,7 +412,7 @@
                 bass: th.boss ? 0.45 + 0.2 * dd : 0.8 + 0.4 * dd,
                 arp: th.boss ? (th.bossArp || 0) * 1.7 : 0.45 + 0.65 * dd,
                 melody: th.boss ? 1.0 : 0.85 * (1 - 0.6 * dd),
-                perc: th.boss ? 0.65 : (dd > 0.12 ? 0.4 + 1.1 * dd : 0),
+                perc: th.boss ? 0.65 : (dd > 0.12 ? 0.4 + 1.1 * dd : th.perc || 0),
                 boss: th.boss ? 1 : 0
             };
             LAYERS.forEach(function (l) {
@@ -824,6 +828,9 @@
                 envelope(g, t, 0.24 * vel, 0.002, end);
                 body.stop(end + 0.02);
                 main = n;
+            } else if (root.RunenpfadPlaceMusic && root.RunenpfadPlaceMusic.VOICES[ev.type]) { // lute, harp, flute, fiddle, plink, cello
+                const pv = root.RunenpfadPlaceMusic.VOICES[ev.type]({ ctx: ctx, g: g, keep: keep, osc: osc, filt: filt, noiseSrc: noiseSrc, envelope: envelope }, f, t, dur, vel);
+                end = pv.end; main = pv.main;
             } else {
                 const n = keep(noiseSrc(t, 0.3 + vel * 0.2));
                 const hp = keep(filt('highpass', ev.boss ? 6000 : 8000, 0.7));
@@ -985,7 +992,7 @@
         }
 
         function update(intensity, sim) {
-            if (disposed || !intensity || !sim || !sim.stage) return;
+            if (disposed || override || !intensity || !sim || !sim.stage) return;
             try {
                 if (!ensureGraph()) return;
                 const state = sim.state;
@@ -1015,11 +1022,31 @@
                 lastDanger = intensity.danger || 0;
                 setLayers(curDeck, lastDanger, now);
                 schedule(curDeck, now);
-                decks = decks.filter(function (d) {
-                    if (d.retireAt !== null && d.retireAt < now && d !== curDeck) { killDeck(d); return false; }
-                    return true;
-                });
+                retireDecks(now);
             } catch (err) { /* music must never break the game loop */ }
+        }
+
+        function retireDecks(now) {
+            decks = decks.filter(function (d) { const dead = d.retireAt !== null && d.retireAt < now && d !== curDeck; if (dead) killDeck(d); return !dead; });
+        }
+
+        function pumpOverride() { // cutscene music: update() stops while an overlay pauses the game, so a timer pumps this deck
+            if (disposed || !override) return;
+            try {
+                if (!ensureGraph() || ctx.state !== 'running' || !enabled || !active) return;
+                if (!curDeck || curDeck.themeId !== override) switchTo(override, hash32(override));
+                const now = ctx.currentTime; setLayers(curDeck, 0, now); schedule(curDeck, now); retireDecks(now);
+            } catch (err) { /* music must never break the game */ }
+        }
+
+        function setOverride(themeId) {
+            const next = themeId && THEMES[themeId] ? themeId : null;
+            if (next === override) return;
+            if (overrideTimer !== null) { clearInterval(overrideTimer); overrideTimer = null; }
+            override = next;
+            if (next && typeof setInterval === 'function') overrideTimer = setInterval(pumpOverride, 100);
+            if (!next && ctx) switchTo(null, 0); // fade the cutscene deck out; update() brings the normal theme back
+            applyOut(false); pumpOverride();
         }
 
         function setTheme(themeId) {
@@ -1039,6 +1066,7 @@
         function dispose() {
             if (disposed) return;
             disposed = true;
+            if (overrideTimer !== null) clearInterval(overrideTimer);
             teardown();
         }
 
@@ -1046,6 +1074,7 @@
             update: update,
             stinger: stinger,
             setTheme: setTheme,
+            setOverride: setOverride,
             setEnabled: setEnabled,
             setActive: setActive,
             dispose: dispose,

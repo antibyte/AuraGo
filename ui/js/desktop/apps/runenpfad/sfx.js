@@ -497,6 +497,70 @@
             b.n(t, 0.7, g * 0.5, { type: 'highpass', f0: 4200 * sr, q: 0.6, atk: 0.02 });
             b.o('sine', 600 * sr, 110 * sr, t, 0.6, g * 0.18, { atk: 0.01 });
             for (let i = 0; i < 6; i++) b.n(t + i * 0.09 + jit(o, i) * 0.05, 0.02, g * 0.3 * (1 - i / 7), { type: 'highpass', f0: 3000 + jit(o, i + 9) * 3000, q: 1 });
+        }),
+        // ---- places: interiors, caves and cutscene UI (no x: always centred) ----
+        // Short rising warning chirp, played twice; sr sets the creature's pitch.
+        chirp: wrap(function (b, t, g, sr) {
+            [0, 0.11].forEach(function (dt) {
+                b.o('sine', 700 * sr, 1500 * sr, t + dt, 0.1, g * 0.35, { atk: 0.008 });
+                b.o('triangle', 1400 * sr, 2600 * sr, t + dt + 0.03, 0.07, g * 0.1, { atk: 0.006 });
+            });
+        }),
+        // Creature pop followed by a little sparkle.
+        popspark: wrap(function (b, t, g, sr, o) {
+            b.o('sine', 420 * sr, 120 * sr, t, 0.09, g * 0.8, { atk: 0.002 });
+            b.n(t, 0.02, g * 0.4, { type: 'highpass', f0: 3000 });
+            for (let i = 0; i < 3; i++) b.bell(1800 * sr * (1 + i * 0.26 + (jit(o, i) - 0.5) * 0.02), t + 0.05 + i * 0.05, 0.35, g * 0.12);
+        }),
+        // Hollow stone rumble: low sine drop, dark noise bed and a few falling pebbles.
+        hollow: wrap(function (b, t, g, sr, o) {
+            b.n(t, 0.9, g * 0.6, { type: 'lowpass', f0: 380, f1: 110, q: 1.2, atk: 0.1 });
+            b.o('sine', 64 * sr, 38 * sr, t, 0.8, g * 0.7, { atk: 0.05 });
+            b.o('sawtooth', 48 * sr, 40 * sr, t, 0.8, g * 0.18, { filter: 'lowpass', ff: 160, atk: 0.1 });
+            for (let i = 0; i < 4; i++) b.n(t + 0.3 + i * 0.1 + jit(o, i) * 0.06, 0.02, g * 0.2, { f0: 900 + jit(o, i + 5) * 900, q: 2 });
+        }),
+        // Very soft footstep: a tiny low-passed thud.
+        softstep: wrap(function (b, t, g, sr, o) {
+            b.n(t, 0.07, g * 0.5, { type: 'lowpass', f0: 900, f1: 300, q: 0.7, atk: 0.004 });
+            b.o('sine', (110 + o.v * 30) * sr, 60 * sr, t, 0.07, g * 0.5, { atk: 0.004 });
+        }),
+        // Dull double knock on a locked door.
+        knock2: wrap(function (b, t, g, sr) {
+            [0, 0.15].forEach(function (dt) {
+                b.o('sine', 170 * sr, 90 * sr, t + dt, 0.1, g * 0.9, { atk: 0.003 });
+                b.n(t + dt, 0.025, g * 0.5, { f0: 700, q: 1.5 });
+            });
+        }),
+        // Room cleared: three bright rising notes (C, E, G) with the last one held.
+        fanfare3: wrap(function (b, t, g, sr) {
+            [523.25, 659.25, 783.99].forEach(function (f, i) {
+                const tt = t + i * 0.1;
+                b.bell(f * sr, tt, i === 2 ? 0.8 : 0.45, g * 0.3);
+                b.o('triangle', f * sr, f * sr, tt, i === 2 ? 0.5 : 0.25, g * 0.14, { atk: 0.004 });
+            });
+        }),
+        // Empty chest: a dry click and a hollow tap.
+        dryclick: wrap(function (b, t, g, sr) {
+            b.n(t, 0.012, g * 0.8, { type: 'highpass', f0: 2500 });
+            b.o('sine', 300 * sr, 150 * sr, t, 0.05, g * 0.3, { atk: 0.002 });
+        }),
+        // Creature hit: wet squelch with a soft thud.
+        squelch: wrap(function (b, t, g, sr) {
+            b.n(t, 0.16, g * 0.7, { f0: 900, f1: 250, q: 2.5, atk: 0.01 });
+            b.o('sine', 230 * sr, 90 * sr, t, 0.14, g * 0.6, { atk: 0.005 });
+            b.o('sawtooth', 160 * sr, 70 * sr, t, 0.12, g * 0.15, { filter: 'lowpass', ff: 600 });
+        }),
+        // Cutscene swell: low and rising (sr >= 1) or falling (sr < 1), soft and slow.
+        cutswell: wrap(function (b, t, g, sr) {
+            const up = sr >= 1;
+            b.n(t, 1.2, g * 0.4, { type: 'lowpass', f0: up ? 200 : 700, f1: up ? 700 : 200, q: 0.8, atk: 0.5 });
+            b.o('sine', up ? 110 : 150, up ? 170 : 90, t, 1.2, g * 0.35, { atk: 0.5 });
+            b.o('triangle', up ? 220 : 300, up ? 340 : 180, t, 1.1, g * 0.1, { atk: 0.5 });
+        }),
+        // Cutscene page turn: a quiet tick.
+        cuttick: wrap(function (b, t, g, sr) {
+            b.n(t, 0.02, g * 0.5, { f0: 2200 * sr, q: 3 });
+            b.o('sine', 900 * sr, 700 * sr, t, 0.03, g * 0.15, { atk: 0.002 });
         })
     };
 

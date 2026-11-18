@@ -155,6 +155,10 @@
         }
     };
     QUEST_JINGLES['*'] = QUEST_JINGLES.start;
+    // Interior creature warning chirps: one pitch per mob kind.
+    const MOB_PITCH = { rat: 1, slime: 0.6, bat: 1.8, spider: 1.3, mummy: 0.5, icewisp: 2, clockbug: 1.5 };
+    const MOB_TELLS = { '*': { synth: 'chirp', sg: 0.3, sr: 1 } };
+    Object.keys(MOB_PITCH).forEach(function (k) { MOB_TELLS[k] = { synth: 'chirp', sg: 0.3, sr: MOB_PITCH[k] }; });
     const CUE_MAP = {
         step: { sound: null, gain: 0.38, cooldown: 220, vary: 0.14 },
         jump: { sound: 'jump', gain: 0.58, cooldown: 90, vary: 0.1 },
@@ -349,8 +353,27 @@
                     '*': { sound: false, synth: 'down', sg: 0.4 }
                 }
             }
-        }
+        },
+        // ---- places: houses, taverns, caves (events carry no x: they play centred, never panned by the world camera) ----
+        place_near: { sound: false, gain: 0.3, cooldown: 800, synth: 'chime', sg: 0.22, sr: 1.3 },
+        place_enter: { sound: false, gain: 0.5, cooldown: 400, by: { key: 'kind', map: { cave: { synth: 'hollow', sg: 0.8 }, '*': { sound: 'door-wood', gain: 0.45, rate: 0.9, synth: 'creak', sg: 1.1, sr: 0.8, also: [{ synth: 'impact', sg: 0.5, sr: 0.5, delay: 0.45 }] } } } },
+        place_leave: { sound: false, gain: 0.45, cooldown: 400, by: { key: 'reason', map: { ko: { synth: 'down', sg: 0.4, sr: 0.7 }, '*': { sound: 'door-wood', gain: 0.35, rate: 1.1, synth: 'creak', sg: 0.8, sr: 1.2, also: [{ synth: 'impact', sg: 0.35, sr: 0.6, delay: 0.3 }] } } } },
+        place_room: { sound: false, gain: 0.4, cooldown: 300, synth: 'creak', sg: 0.6, sr: 1.5, also: [{ synth: 'impact', sg: 0.3, sr: 0.9, delay: 0.2 }] },
+        place_ko: { sound: false, gain: 0.5, cooldown: 500, synth: 'impact', sg: 0.5, sr: 0.5, also: [{ synth: 'down', sg: 0.4, sr: 0.6, delay: 0.1 }] },
+        in_step: { sound: false, gain: 0.3, cooldown: 280, vary: 0.14, synth: 'softstep', sg: 0.3 },
+        in_attack: { sound: false, gain: 0.5, cooldown: 110, vary: 0.1, by: { key: 'hero', map: { knight: { synth: 'sword', sg: 1.1, sr: 0.8 }, ranger: { synth: 'whoosh', sg: 0.3, sr: 1.5, also: [{ synth: 'sword', sg: 0.5, sr: 1.35 }] }, '*': { synth: 'whoosh', sg: 0.4 } } } },
+        in_dash: { sound: false, gain: 0.36, cooldown: 140, synth: 'whoosh', sg: 0.4, sr: 1.3 },
+        in_hit: { sound: false, gain: 0.6, cooldown: 70, vary: 0.14, by: { key: 'target', map: { hero: { sound: 'impact-flesh', gain: 0.66, synth: 'impact', sg: 0.35, sr: 1.3 }, '*': { synth: 'squelch', sg: 0.5, also: [{ synth: 'impact', sg: 0.3, sr: 0.9 }] } } } },
+        in_mob_tell: { sound: false, gain: 0.4, cooldown: 250, by: { key: 'kind', map: MOB_TELLS } },
+        in_mob_attack: { sound: false, gain: 0.5, cooldown: 120, by: { key: 'kind', map: { rat: { synth: 'whoosh', sg: 0.45, sr: 1.3 }, slime: { synth: 'puff', sg: 0.4, sr: 0.9 }, bat: { synth: 'screech', sg: 0.4 }, spider: { synth: 'whoosh', sg: 0.45, sr: 1.8 }, mummy: { synth: 'impact', sg: 0.5, sr: 0.6 }, icewisp: { synth: 'magicping', sg: 0.4, sr: 1.3 }, clockbug: { synth: 'clank', sg: 0.35, sr: 1.2 }, '*': { synth: 'whoosh', sg: 0.4 } } } },
+        in_mob_die: { sound: false, gain: 0.5, cooldown: 80, synth: 'popspark', sg: 0.5, also: [{ synth: 'poof', sg: 0.4 }] },
+        in_chest: { sound: false, gain: 0.5, cooldown: 200, synth: 'creak', sg: 1.6, also: [{ synth: 'shimmer', sg: 0.4, sr: 1.1, delay: 0.55 }], by: { key: 'empty', map: { true: { synth: 'dryclick', sg: 0.5, also: [] } } } },
+        in_pickup: { sound: false, gain: 0.5, cooldown: 40, by: { key: 'kind', map: { coin: { sound: 'pickup', gain: 0.42, ladder: true, synth: 'chime', sg: 0.3 }, heart: { sound: 'pickup', gain: 0.56, rate: 0.88 }, potion: { sound: 'electric-spark', gain: 0.56, rate: 0.86 }, key: { sound: 'electric-spark', gain: 0.72, rate: 0.94, also: [{ synth: 'shimmer', sg: 0.3, sr: 1.1 }] }, '*': { sound: 'pickup', gain: 0.5 } } } },
+        in_clear: { sound: false, gain: 0.6, cooldown: 500, synth: 'fanfare3', sg: 0.6 },
+        in_locked: { sound: false, gain: 0.5, cooldown: 300, synth: 'knock2', sg: 0.5 }
     };
+    // UI sounds played outside the simulation through audio.play(cueId) (cutscene overlay).
+    const UI_CUES = { cut_open: { cooldown: 300, synth: 'cutswell', sg: 0.4, sr: 1 }, cut_next: { cooldown: 80, synth: 'cuttick', sg: 0.25 }, cut_close: { cooldown: 300, synth: 'cutswell', sg: 0.35, sr: 0.9 } };
 
     function validateSoundManifest(manifest) {
         if (!manifest || !Array.isArray(manifest.assets)) {
@@ -849,6 +872,13 @@
             playSample(id, gainScale, rate, 0);
         }
 
+        // UI cue outside the simulation (cutscene overlay); plays while the game is paused, respects mute.
+        function play(cueId) {
+            const cue = UI_CUES[cueId];
+            if (!cue || disposed || !enabled || !ensureContext() || !gate('ui:' + cueId, cue.cooldown)) return;
+            playSynth(cue.synth, { gain: cue.sg, sr: cue.sr || 1, v: hashUnit(cueId, 0) }, 0, true);
+        }
+
         function unlock() {
             if (disposed || !enabled) return;
             const audioCtx = ensureContext();
@@ -1019,6 +1049,7 @@
             setAmbience: setAmbience,
             setAmbienceDuck: setAmbienceDuck,
             playUiClick: function () { playCue('ui-click', 0.5, 50, true); },
+            play: play,
             handleEvents: handleEvents,
             liveSynths: function () { return liveSynths; },
             musicPort: function () { return port; },
@@ -1030,6 +1061,7 @@
         BASE_URL: BASE_URL,
         REQUIRED_SOUNDS: REQUIRED_SOUNDS,
         CUE_MAP: CUE_MAP,
+        UI_CUES: UI_CUES,
         BOSS_VOICES: BOSS_VOICES,
         COIN_LADDER: COIN_LADDER,
         REVERBS: REVERBS,
