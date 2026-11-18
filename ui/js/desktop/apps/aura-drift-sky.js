@@ -466,11 +466,11 @@
             const mu = Object.assign({}, U, {
                 uWave: { value: waveTex }, uDeep: { value: water ? col('#050c1c') : col(look.ground) }, uShallow: { value: water ? col('#0d3a52') : col('#e9e2d8') },
                 uWaveAmp: { value: water ? 1.9 : 0.12 }, uBase: { value: water ? 0.05 : 0.2 }, uFogNear: { value: look.fogFar * look.fogNear }, uFogFar: { value: look.fogFar },
-                uCrack: { value: water ? 0 : 1 }, uGloss: { value: water ? 0 : 0.18 }, uWaterY: { value: water ? -1.6 : -0.25 }, uEmit: { value: emitU }, uEmitCol: { value: emitC }
+                uCrack: { value: water ? 0 : 1 }, uGloss: { value: water ? 0 : 0.18 }, uWaterY: { value: water ? AD.HARBOUR_WATER_Y : -0.25 }, uEmit: { value: emitU }, uEmitCol: { value: emitC }
             });
             const mat = own(new T.ShaderMaterial({ uniforms: mu, vertexShader: MIRROR_V, fragmentShader: MIRROR_F, transparent: !water, depthWrite: water, fog: false }));
             mirror = new T.Mesh(own(new T.PlaneGeometry(7000, 7000).rotateX(-Math.PI / 2)), mat);
-            mirror.position.y = water ? -1.6 : -0.25; mirror.frustumCulled = false; mirror.name = water ? 'sky-water' : 'sky-salt-mirror';
+            mirror.position.y = water ? AD.HARBOUR_WATER_Y : -0.25; mirror.frustumCulled = false; mirror.name = water ? 'sky-water' : 'sky-salt-mirror';
             mirror.renderOrder = water ? -5 : 2;
             root.add(mirror);
         }

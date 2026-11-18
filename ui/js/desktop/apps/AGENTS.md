@@ -3724,6 +3724,15 @@ buttons and menu popovers remain excluded from those gestures.
   car right on screen in every mode. The 2D fallback rotates the world (`AD.screenRotation`).
   The earlier fault was a fixed north-up camera, not the physics. Guard:
   `scripts/test-aura-drift-camera.mjs` and `TestDesktopAuraDriftSteeringBrowser`.
+- Handling contract: the tyres bite harder than the surface grip alone (`AD.ARCADE_GRIP`), because
+  the limit in a fast corner is the friction and not the steering angle - a bigger lock only makes
+  the car turn wider. The solver then delivers the lateral force the pace model assumes
+  (`CORNER_G` in the AI), so the rivals hold the line they aim for. The handbrake is the
+  counterweight (`AD.ARCADE_HANDBRAKE_GRIP`, the rear friction while the lever is pulled): the
+  allowance reaches the rear axle too, and a rear that never lets go costs the drift mode its
+  score. Guard: `scripts/test-aura-drift-physics.mjs` (more than one g on dry asphalt, and a
+  slide that only passes the drift threshold with the lever) and
+  `scripts/test-aura-drift-balance.mjs` (the drift economy against the medal table).
 - 3D: `aura-drift-render3d.js` owns the renderer and requires WebGL2. On `auto`, a software GL
   renderer (SwiftShader, llvmpipe, software) returns to the 2D view; an explicit tier still
   accepts it. `webglcontextlost` switches the window to 2D. Models are the 20 GLBs in
@@ -3807,6 +3816,11 @@ buttons and menu popovers remain excluded from those gestures.
   twelve polish and weather props; every new prop needs a manifest node, a validator entry and
   a placement rule, otherwise it is only dead weight in the GLB. `AD.scatterProps` can only
   reach the biome's own kit, so a prop in `shared.glb` must be placed as furniture.
+- Harbour ground: props stand on the ground the player sees. `AD.groundHeight`
+  (`aura-drift-terrain.js`) reads the same distance field as the rendered terrain, so quay
+  props, cranes, masts and signs sit on the quay, while boats and buoys float on the single
+  water line `AD.HARBOUR_WATER_Y`. Land props need dry ground, water props need ground below
+  the water. Guard: `scripts/test-aura-drift-world.mjs`.
 - Road markings (curbs, dashed centre line, worn racing-line bands, checkered start/finish)
   are world-anchored: dash patterns scale with the camera zoom and never animate with frame
   time. Braking fades out at standstill; a held brake engages a bounded reverse, and steering

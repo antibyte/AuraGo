@@ -23,7 +23,9 @@
                 const off = side * (p.halfWidth + 12), x = p.x + p.nx * off, y = p.y + p.ny * off;
                 const near = AD.sampleTrack(track, x, y), dist = Math.hypot(x - near.x, y - near.y);
                 if (dist < near.halfWidth + 10 || occupied.some(o => Math.hypot(o.x - x, o.y - y) < o.r + 11)) continue;
-                const z = AD.terrainHeight?.(track.biomeId, dist, x, y, near) || 0;
+                /* The ground module knows which side of the loop the site is on, so the
+                   harbour keeps its stages on the quay and not out on the water. */
+                const z = typeof AD.groundHeight === 'function' ? AD.groundHeight(track, track.biomeId, x, y) : 0;
                 if (z < -1 || z > 2.5) continue;
                 sites.push({ s, x, y, z, tx: p.tx, ty: p.ty, r: 9, stage: true, furniture: true, side });
                 break;

@@ -37,7 +37,8 @@
                 if (track.curvature[near.index] > .014 && Math.sign(a.tx * b.ty - a.ty * b.tx) === Math.sign(near.offset)) continue;
                 if (occupied.concat(out).some(o => Math.hypot(x - o.x, y - o.y) < spec.radius + o.r + 2)) continue;
                 let z = 0;
-                if (typeof AD.terrainHeight === 'function') z = AD.terrainHeight(track.biomeId, Math.hypot(x - near.x, y - near.y), x, y, near);
+                if (typeof AD.groundHeight === 'function') z = AD.groundHeight(track, track.biomeId, x, y);
+                else if (typeof AD.terrainHeight === 'function') z = AD.terrainHeight(track.biomeId, Math.hypot(x - near.x, y - near.y), x, y, near);
                 if (!Number.isFinite(z) || (track.biomeId === 'harbour' && z < -1)) continue;
                 out.push({ folder, x, y, z, s, r: spec.radius, h: spec.height, furniture: true,
                     yaw: Math.atan2(-side * p.nx * .8 - p.tx * .6, -side * p.ny * .8 - p.ty * .6) });

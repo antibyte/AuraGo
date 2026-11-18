@@ -158,8 +158,15 @@
         /* D3: the car's own grip stat finally reaches the tyres; a rough
            landing halves the available grip for a moment. */
         const gripNow = grip * c.grip * (v.landWobble > 0 ? 0.55 : 1);
-        const muFront = gripNow * AD.frontWaterGrip(v.planing);
-        const muRear = gripNow * (handbrake ? 0.42 : 1) * (1 - 0.28 * v.planing - 0.52 * slick);
+        /* The arcade allowance lifts the friction ceiling above the surface grip:
+           the tyres have to be able to deliver the lateral force the pace model
+           assumes (see CORNER_G in the AI), otherwise the car pushes wide in every
+           fast corner and the steering feels dead no matter how far it is turned.
+           The handbrake cuts the rear axle loose: the sharper the tyres bite, the
+           harder the lever has to work, otherwise a drift is impossible. */
+        const muFront = gripNow * AD.ARCADE_GRIP * AD.frontWaterGrip(v.planing);
+        const muRear = gripNow * AD.ARCADE_GRIP * (handbrake ? AD.ARCADE_HANDBRAKE_GRIP : 1) *
+            (1 - 0.28 * v.planing - 0.52 * slick);
         const fyf = clamp(-CFm * alphaF, -muFront * fzf, muFront * fzf);
         const fyr = clamp(-CRm * alphaR, -muRear * fzr, muRear * fzr);
 

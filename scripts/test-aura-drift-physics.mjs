@@ -266,6 +266,50 @@ check('input tape round-trips steering sign', unpacked.steer < -0.45 && unpacked
         AD.digitalSteer(0, 1, .3) > .999 && AD.digitalSteer(1, 0, AD.STEP) === 0);
 }
 
+/* Arcade grip: the tyres have to bite harder than the surface alone offers.
+   Without the allowance the front axle saturates at the surface grip, the car
+   washes out of every fast corner and no amount of steering angle helps - the
+   limit is the friction, not the wheel. */
+{
+    const corner = (grip, speed) => {
+        const v = AD.createVehicle(0, 0, 0, 0);
+        const env = { grip: grip, roll: 0.016 };
+        for (let i = 0; i < 720; i++) {
+            v.vx = speed;
+            AD.stepVehicle(v, { throttle: 0.35, brake: 0, steer: 1 }, AD.STEP, env);
+        }
+        return Math.abs(v.vx * v.r) / 9.81;
+    };
+    const dry = corner(AD.SURFACES.asphalt.grip, 30);
+    const wet = corner(AD.SURFACES.wet.grip, 30);
+    check('the tyres pull more than one g on dry asphalt and keep more than half of it on the wet',
+        dry > 1.2 && wet > 0.6 && dry / wet > 1.2, 'dry=' + dry.toFixed(2) + ' wet=' + wet.toFixed(2));
+}
+
+/* The handbrake has to cut through the arcade grip. The sharper the tyres
+   bite, the harder the lever has to work: without a lever that breaks the
+   rear axle loose the car cannot be put sideways and the drift mode loses
+   its score. The slide therefore has to pass the style threshold that the
+   drift scoring uses, while the grip alone stays below it. */
+{
+    const slide = handbrake => {
+        const v = AD.createVehicle(0, 0, 0, 0);
+        const env = { grip: AD.SURFACES.asphalt.grip, roll: 0.016 };
+        let best = 0;
+        for (let i = 0; i < 240; i++) {
+            v.vx = 22;
+            AD.stepVehicle(v, { throttle: 0.4, brake: 0, steer: 0.9, handbrake: handbrake ? 1 : 0 }, AD.STEP, env);
+            best = Math.max(best, Math.abs(Math.atan2(v.vy, Math.max(1, Math.abs(v.vx)))));
+        }
+        return best;
+    };
+    const lever = slide(true), gripOnly = slide(false);
+    check('the handbrake breaks the rear loose: with the lever the slide passes the drift threshold, without it stays below',
+        lever > AD.STYLE.driftAngleMin && gripOnly < AD.STYLE.driftAngleMin,
+        'lever=' + lever.toFixed(3) + ' grip=' + gripOnly.toFixed(3) +
+        ' threshold=' + AD.STYLE.driftAngleMin);
+}
+
 if (failures.length) {
     console.error('\n' + failures.length + ' physics check(s) failed');
     process.exit(1);

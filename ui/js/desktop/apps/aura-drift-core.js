@@ -37,6 +37,22 @@
 
     AD.wetBrakeGrip = (water, planing) => (1 - 0.21 * water) * (1 - 0.30 * planing);
     AD.frontWaterGrip = planing => 1 - 0.55 * planing;
+    /* The surface of the harbour sea. The sky module floats its water plane on
+       it and the boats float on it, so the whole harbour shares one water line. */
+    AD.HARBOUR_WATER_Y = -2.2;
+    /* Arcade tyre allowance. The surface grip is what the surface offers; the tyres
+       of an arcade racer bite harder than that, and the solver's friction ceiling
+       is scaled with it. Without the allowance the tyres saturate at roughly the
+       surface grip, the car washes out of every fast corner and no amount of
+       steering angle helps - the limit is the friction, not the wheel. */
+    AD.ARCADE_GRIP = 1.35;
+    /* Handbrake: the rear friction while the lever is pulled. The grip allowance
+       above makes the tyres bite harder everywhere, so the lever has to cut
+       through that bite - otherwise the rear axle never lets go, the car cannot
+       be put sideways and the drift mode loses its score. Measured: with 0.42 the
+       reference drifter lost a third of its score, with 0.30 the drift economy
+       keeps its calibration while the cornering limit stays at 1.35 g. */
+    AD.ARCADE_HANDBRAKE_GRIP = 0.30;
     /* Presentation text for surfaces lives in locale keys (aura_drift.surface.<type>). */
     AD.SURFACES = {
         asphalt: { grip: 1.00, roll: 0.016 },

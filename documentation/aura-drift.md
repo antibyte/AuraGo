@@ -128,6 +128,13 @@ The opponents are fixed personalities (proper names are not translated):
 Eight biomes, each with its own scenery kit, score arrangement and ambience. The Daily route
 generates a seeded layout in one of them.
 
+The Neon-Hafen has two sides of the loop: the quay inside it and the sea outside it, with one
+water line (`AD.HARBOUR_WATER_Y`) that the sky module floats its water plane on and the boats
+float on. Everything that stands on the ground asks the shared distance field which side it is
+on (`AD.groundHeight`), so the cranes and the container stacks stay on the quay, the boats, the
+buoys and the lighthouse stay in the water, and nothing hovers above either.
+`scripts/test-aura-drift-world.mjs` pins the quay, the sea and the dry ground beside the road.
+
 Animals run across the track at some crossings: cows (Alps, Salt Flats), llamas (Desert, Big
 City), crabs (Harbour), sheep (Forest, Industrial Zone) and penguins (Glacier). Sheep, penguins
 and crabs count as small animals, which is why Big Bertha plows through them.
@@ -355,6 +362,21 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   camera. Braking fades out at standstill, a held brake engages a bounded reverse, and steering
   is identical forward and reverse. Drafting a rival's wake trims drag and refills nitro. All
   gameplay randomness comes from a seeded PRNG; particles use a separate source.
+- **Arcade tyre grip.** The surface grip is what the surface offers; the tyres of the racers bite
+  harder (`AD.ARCADE_GRIP`). Without that allowance the front axle saturates at the surface grip,
+  the car washes out of every fast corner and the steering feels dead: the limit is the friction,
+  not the wheel, and a bigger steering angle only makes the car turn *wider* (the front force
+  falls off with `cos(delta)`). With it the solver delivers the lateral force the pace model
+  assumes (`CORNER_G` in the AI), so the rivals hold the line they aim for and the player can
+  follow. Measured on the Vektor at full lock: 63 m radius at 90 km/h before, 47 m after
+  (1.01 g to 1.37 g); on wet asphalt 87 m to 65 m.
+- **Handbrake and grip.** The grip allowance applies to the rear axle as well, so the lever has to
+  cut through that bite: `AD.ARCADE_HANDBRAKE_GRIP` (0.30) is the rear friction while the lever is
+  pulled. With the old 0.42 the rear axle never let go, the drift angle collapsed below the style
+  threshold and the drift mode lost a third of its score. The lever is therefore the counterweight
+  to the tyres, and `scripts/test-aura-drift-physics.mjs` pins both ends of the contract: more than
+  one g on dry asphalt, and a slide that only passes the drift threshold with the lever pulled.
+  `scripts/test-aura-drift-balance.mjs` keeps the drift economy calibrated against the medal table.
 - **Tracks:** eight authored radial-harmonic layouts with different widths, grip profiles,
   weather, lighting and checkpoint orders, plus a seeded daily generator. Closed Catmull-Rom
   splines are arc-length parameterised into roughly 4 m samples with a 64 m spatial grid.

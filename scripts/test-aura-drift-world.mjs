@@ -100,6 +100,43 @@ for (const manifest of AD.TRACKS) {
 }
 check('distance fields build fast (all eight under 1.5 s in total)', totalMs < 1500, 'total=' + totalMs + ' ms');
 
+/* The harbour: one water line, a quay to stand on and a sea to float on. */
+{
+    const track = AD.buildTrack(AD.trackById('neon-hafen'));
+    const field = AD.trackField(track, 8);
+    const info = {};
+    let quay = 0, sea = 0, mismatch = 0, apron = 0;
+    for (let i = 0; i < track.samples.length; i += 3) {
+        const s = track.samples[i];
+        for (const side of [1, -1]) {
+            for (const off of [12, 30, 60, 140]) {
+                const x = s.x + s.nx * off * side, y = s.y + s.ny * off * side;
+                const h = AD.groundHeight(track, 'harbour', x, y);
+                field.info(x, y, info);
+                const inner = info.inner !== null && info.inner !== undefined ? info.inner : field.inside(x, y);
+                if (inner) { if (h > AD.HARBOUR_WATER_Y) quay++; }
+                else if (h < AD.HARBOUR_WATER_Y) sea++;
+                else apron++;
+                const dist = field.at(x, y);
+                field.info(x, y, info);
+                if (Math.abs(AD.terrainHeight('harbour', dist, x, y, info) - h) > 0.001) mismatch++;
+            }
+        }
+    }
+    check('harbour: the ground helper agrees with the terrain the player sees', mismatch === 0, 'mismatch=' + mismatch);
+    check('harbour: the quay stands above the water line and the sea below it', quay > 0 && sea > 0, 'quay=' + quay + ' sea=' + sea);
+    /* The ground next to the road has to be dry: a car must not drive on the water. */
+    let wet = 0;
+    for (let i = 0; i < track.samples.length; i += 7) {
+        const s = track.samples[i];
+        for (const side of [1, -1]) for (const off of [11, 14, 17]) {
+            const x = s.x + s.nx * off * side, y = s.y + s.ny * off * side;
+            if (AD.groundHeight(track, 'harbour', x, y) < AD.HARBOUR_WATER_Y) wet++;
+        }
+    }
+    check('harbour: the ground beside the road stays dry', wet === 0, 'wet=' + wet);
+}
+
 /* determinism */
 const t1 = AD.buildTrack(AD.TRACKS[0]);
 const f1 = AD.buildDistanceField(t1, 8), f2 = AD.buildDistanceField(t1, 8);

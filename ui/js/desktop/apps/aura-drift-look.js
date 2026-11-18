@@ -73,7 +73,7 @@
     AD.TERRAIN = {
         alpine: { kind: 'hills', amp: 90, wave: 900, ridged: { amp: 220, from: 400 }, flat: true },
         desert: { kind: 'dunes', amp: 18, wave: 240, mesas: { from: 180, quant: 30, amp: 90 } },
-        harbour: { kind: 'flat', base: -0.4, water: { depth: -3, side: 'outer' } },
+        harbour: { kind: 'flat', base: -0.4, water: { depth: -7, side: 'outer', from: 18, to: 40 } },
         salt: { kind: 'flat', base: -0.3, ring: { from: 900, amp: 120 } },
         forest: { kind: 'rolling', amp: 28, wave: 500 },
         industry: { kind: 'embankments', amp: 6, heaps: { from: 200, amp: 30 } },

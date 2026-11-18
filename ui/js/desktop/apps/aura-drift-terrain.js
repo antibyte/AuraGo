@@ -232,7 +232,12 @@
                 let h = base;
                 if (rule.water) {
                     const inner = sample && sample.inner !== null && sample.inner !== undefined ? sample.inner : (sample && sample.field ? sample.field.inside(x, y) : true);
-                    if (!inner) h = lerp(base, rule.water.depth, sstep(14, 26, e));
+                    /* The quay: `from` and `to` are the distances from the road edge
+                       where the ground starts to drop into the water and where it
+                       reaches the bottom of the basin. */
+                    const wFrom = rule.water.from !== undefined ? rule.water.from : 14;
+                    const wTo = rule.water.to !== undefined ? rule.water.to : 26;
+                    if (!inner) h = lerp(base, rule.water.depth, sstep(wFrom, wTo, e));
                     else h += 55 * pow(clamp((fbm(x / 800 + 1.7, y / 800, 3) - 0.5) * 3, 0, 1), 1.5) * sstep(500, 800, dist);
                 }
                 if (rule.ring) h += rule.ring.amp * pow(ridged(x / 700, y / 700, 4), 1.3) * sstep(rule.ring.from * 0.78, rule.ring.from * 1.25, dist);
@@ -491,11 +496,38 @@
         return geo;
     }
 
+    /* ---- ground height for world objects ------------------------------------------------------------ */
+    /* One distance field per track: the terrain mesh, the props, the roadside scenery and the pet
+       decor all have to stand on the same ground. The field also knows which side of the loop a
+       point lies on, and the harbour needs that side: its ground sinks into the sea outside the
+       quay. Without it every object there hovers a metre above the water. */
+    const fieldCache = new WeakMap();
+    AD.trackField = function (track, cell) {
+        cell = cell || 8;
+        let field = fieldCache.get(track);
+        if (!field || field.cell !== cell) {
+            field = AD.buildDistanceField(track, cell);
+            fieldCache.set(track, field);
+        }
+        return field;
+    };
+
+    /* Ground height under a world point, from the same field the terrain mesh is built from. */
+    AD.groundHeight = function (track, biomeId, x, y) {
+        if (!track) return 0;
+        const field = AD.trackField(track, 8);
+        const sample = {};
+        const dist = field.at(x, y);
+        field.info(x, y, sample);
+        const h = AD.terrainHeight(biomeId || track.biomeId, dist, x, y, sample);
+        return isFinite(h) ? h : 0;
+    };
+
     /* ---- the terrain object ---------------------------------------------------------------------- */
     AD.createTerrain = function (T, track, look, q) {
         const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
         const biomeId = track.biomeId;
-        const field = AD.buildDistanceField(track, 8);
+        const field = AD.trackField(track, 8);
         const ctx = { field: field, biomeId: biomeId, pal: AD.terrainPalette(biomeId, look), plants: AD.vergePlants?.(track) || [] };
         const detail = AD.makeTerrainDetail(T, biomeId, look);
         const mat = new T.MeshStandardMaterial({

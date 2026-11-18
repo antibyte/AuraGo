@@ -7,7 +7,10 @@
  * 2. Car parity: slot 0 is forced to each of the 8 cars, everybody else is a
  *    Vektor, weapons off. Slot 0's finish time is compared with the all-Vektor baseline.
  * 3. Drift reference bot: a scripted drifter on drift_attack decides whether the
- *    medal table is reachable.
+ *    medal table is reachable. Its score depends on the arcade grip allowance and on
+ *    the handbrake that cuts the rear axle loose (`AD.ARCADE_GRIP`,
+ *    `AD.ARCADE_HANDBRAKE_GRIP`): grip that bites harder makes the slide smaller, and
+ *    a lever that cannot break the rear loose costs the drift mode its score.
  * 4. Pace parity: the AI straight-line ceiling against the physics solver for
  *    every car, and the AI field against a full-throttle reference car.
  *
