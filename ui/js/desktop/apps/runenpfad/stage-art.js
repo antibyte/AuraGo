@@ -610,6 +610,85 @@
             });
         }
 
+        // ---- grounded hazards: poison cloud and ground fire (the bottom edge always sits on the damage rect's bottom) ----
+        const GO = { height: 0, alpha: 1, composite: '', tint: '', tintAmount: 0.5, flip: false, rotation: 0, scale: 0 };
+
+        function putOpt(clip, time, x, y, height, alpha, comp, tint, amount, flip) {
+            GO.height = height;
+            GO.alpha = alpha;
+            GO.composite = comp || '';
+            GO.tint = tint || '';
+            GO.tintAmount = amount == null ? 0.5 : amount;
+            GO.flip = !!flip;
+            return Art.draw(ctx, h.art, clip, time, x, y, GO);
+        }
+
+        function drawPoison(th, life, view) {
+            const bottom = th.y + th.h;
+            const cx = th.x + th.w / 2;
+            const fade = Math.min(1, life * 3);
+            const t = view.reducedMotion ? 0.3 : view.nowSec;
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(th.x - 10, th.y - 34, th.w + 20, th.h + 34); // nothing paints below the ground line
+            ctx.clip();
+            const g = ctx.createLinearGradient(0, bottom, 0, th.y - 6);
+            g.addColorStop(0, 'rgba(132, 204, 22, ' + 0.5 * fade + ')');
+            g.addColorStop(1, 'rgba(34, 120, 40, 0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(th.x, th.y - 6, th.w, th.h + 6);
+            if (art('fx-poison.loop')) {
+                const n = Math.max(2, Math.round(th.w / 30));
+                for (let i = 0; i < n; i++) {
+                    const px = th.x + (i + 0.5) * (th.w / n);
+                    const ph = t + i * 0.37;
+                    putOpt('fx-poison.loop', ph, px, bottom - th.h * 0.5, th.h * 1.7, 0.85 * fade, 'source-over', '#65a30d', 0.5, i & 1);
+                    putOpt('fx-poison.loop', ph + 0.21, px, bottom - th.h * 0.5, th.h * 1.7, 0.4 * fade, 'lighter', '#a3e635', 0.7, !(i & 1));
+                }
+            } else {
+                ctx.fillStyle = 'rgba(101, 163, 13, ' + 0.45 * fade + ')';
+                ctx.fillRect(th.x, th.y, th.w, th.h);
+            }
+            ctx.restore();
+            h.drawGlow(cx, bottom - th.h * 0.4, 70, 'rgba(163, 230, 53, 0.55)', 0.5 * fade);
+        }
+
+        // Ground fire tiled across [x, x + w) with its bottom exactly on groundY. o: age (s since lit), left (s of life left, for
+        // the fade; omit for permanent fires), view, seed (per-fire phase). Falls back to the pack flame sprite (still grounded, no bob).
+        function drawGroundFire(x, groundY, w, hgt, o) {
+            const view = o.view;
+            const n = Math.max(1, Math.round(w / 48));
+            const seg = w / n;
+            const t = view.reducedMotion ? 0.4 : view.nowSec;
+            const age = o.age == null ? 99 : o.age;
+            const fadeLen = 0.45;
+            const hasFx = !!art('fx-groundfire.loop');
+            const ign = hasFx ? Art.duration(h.art, 'fx-groundfire.ignite') : 0;
+            const fad = hasFx ? Art.duration(h.art, 'fx-groundfire.fade') : 0;
+            const fading = o.left != null && o.left < fadeLen;
+            const base = Math.min(1, Math.max(0, o.left == null ? 1 : o.left / fadeLen));
+            ctx.save();
+            for (let i = 0; i < n; i++) {
+                const cx = x + (i + 0.5) * seg;
+                const ph = ((o.seed || 0) * 0.013 + i * 0.173) % 1;
+                if (hasFx) {
+                    const sa = age - i * 0.04;
+                    let clip = 'fx-groundfire.loop';
+                    let time = t + ph;
+                    if (fading) { clip = 'fx-groundfire.fade'; time = (1 - base) * fad; } else if (sa < ign) { clip = 'fx-groundfire.ignite'; time = Math.max(0, sa); }
+                    putOpt(clip, time, cx, groundY, hgt, 1, 'source-over');
+                    if (!fading && sa >= ign) putOpt(clip, time + 0.11, cx, groundY, hgt, 0.35, 'lighter');
+                } else {
+                    ctx.globalAlpha = fading ? base : 1;
+                    h.drawStaticAsset('jump-and-run', 'fire', cx - seg / 2 - 2, groundY - hgt, seg + 4, hgt);
+                    ctx.globalAlpha = 1;
+                }
+            }
+            ctx.restore();
+            h.drawGlow(x + w / 2, groundY - hgt * 0.35, Math.max(60, w * 0.6), 'rgba(251, 146, 60, 0.6)', 0.55 * (fading ? base : 1));
+            return true;
+        }
+
         function drawOverlay(sim, view) {
             (sim.tempHazards || []).forEach(function (th) {
                 if (th.kind === 'dragonfire' || !visible(view, th.x, th.x + th.w)) return; // dragon fire is drawn by set-pieces.js
@@ -628,17 +707,10 @@
                     ctx.fillStyle = g;
                     ctx.fillRect(th.x - 6, th.y, th.w + 12, th.h);
                     h.drawGlow(cx, th.y + th.h, 90, 'rgba(244, 114, 182, 0.7)', 0.8);
+                } else if (th.kind === 'poison') {
+                    drawPoison(th, life, view);
                 } else {
-                    ctx.globalAlpha = Math.min(1, life * 4) * 0.9;
-                    const g = ctx.createLinearGradient(0, th.y + th.h, 0, th.y - 30);
-                    g.addColorStop(0, 'rgba(234, 88, 12, 0.85)');
-                    g.addColorStop(1, 'rgba(253, 224, 71, 0)');
-                    ctx.fillStyle = g;
-                    ctx.fillRect(th.x, th.y - 30, th.w, th.h + 30);
-                    for (let x = th.x; x < th.x + th.w - 8; x += 44) {
-                        const bob = view.reducedMotion ? 0 : Math.sin(view.nowSec * 12 + x) * 3;
-                        h.drawStaticAsset('jump-and-run', 'fire', x - 2, th.y - 10 + bob, 48, 52);
-                    }
+                    drawGroundFire(th.x, th.y + th.h, th.w, th.h * 1.35, { age: th.dur - th.t, left: th.t, view: view, seed: th.x });
                 }
                 ctx.restore();
             });
@@ -657,6 +729,8 @@
                 if (th.kind === 'dragonfire') return;
                 if (th.kind === 'fire') {
                     for (let x = th.x + 30; x < th.x + th.w; x += 90) lights.push({ x: x, y: th.y + th.h / 2, radius: 120, intensity: 0.7, flicker: true });
+                } else if (th.kind === 'poison') {
+                    lights.push({ x: th.x + th.w / 2, y: th.y + th.h * 0.6, radius: 90, intensity: 0.3, flicker: false });
                 } else {
                     lights.push({ x: th.x + th.w / 2, y: th.y + th.h * 0.6, radius: 200, intensity: 0.9, flicker: true });
                 }
@@ -666,6 +740,7 @@
         return {
             drawWorld: drawWorld,
             drawOverlay: drawOverlay,
+            drawGroundFire: drawGroundFire,
             collectLights: collectLights,
             drawCheckpoints: drawCheckpoints,
             drawPortal: drawPortal,

@@ -72,6 +72,31 @@
         return !!stage.solidMap[tx + ',' + ty];
     }
 
+    // Top of the first solid tile, one-way/solid platform or moving platform at or below (x, y), within maxTiles tiles.
+    // Returns the ground's y or null when nothing is in reach (a point inside solid rock has no ground below it).
+    function groundBelow(sim, x, y, maxTiles) {
+        const stage = sim.stage;
+        const TILE = stage.tileSize;
+        const limit = y + (maxTiles > 0 ? maxTiles : 3) * TILE;
+        let best = null;
+        const tx = Math.floor(x / TILE);
+        if (!isSolidTile(stage, tx, Math.floor((y - 0.5) / TILE))) {
+            for (let ty = Math.ceil((y - 0.5) / TILE); ty * TILE <= limit; ty++) {
+                if (ty >= stage.heightTiles) break;
+                if (isSolidTile(stage, tx, ty)) { best = ty * TILE; break; }
+            }
+        }
+        const lists = [stage.platforms || [], stage.movingPlatforms || []];
+        for (let k = 0; k < lists.length; k++) {
+            for (let i = 0; i < lists[k].length; i++) {
+                const p = lists[k][i];
+                if (k === 0 && p.solid === false) continue;
+                if (x > p.x && x < p.x + p.w && p.y >= y - 0.5 && p.y <= limit && (best === null || p.y < best)) best = p.y;
+            }
+        }
+        return best;
+    }
+
     function resolveHorizontalTiles(stage, entity, w, h) {
         const TILE = stage.tileSize;
         const top = entity.y - h + 2;
@@ -181,6 +206,7 @@
         rand: rand,
         rectOverlap: rectOverlap,
         isSolidTile: isSolidTile,
+        groundBelow: groundBelow,
         resolveHorizontalTiles: resolveHorizontalTiles,
         resolveVerticalTiles: resolveVerticalTiles
     };

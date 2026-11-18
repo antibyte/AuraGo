@@ -298,11 +298,23 @@
         if (Math.hypot(p.x - proj.x, (p.y - 22) - proj.y) < radius) hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
     }
 
-    // A spore bursts into a poison cloud (64x44, 1.6 s) whose bottom edge rests on bottomY.
-    function sporeBurst(sim, x, bottomY) {
+    // A spore bursts into a poison cloud (64x44, 1.6 s) standing on the ground at bottomY.
+    // Without ground in reach (bottomY null) it is only an airborne puff at airY and leaves no hazard behind.
+    function sporeBurst(sim, x, bottomY, airY) {
+        if (bottomY === null || bottomY === undefined) {
+            const ay = typeof airY === 'number' ? airY : sim.player.y;
+            pushEvent(sim, 'spore_burst', { defId: 'sporecap', x: x, y: ay, airborne: true });
+            fxBurst(sim, 'dust', x, ay, 8, { color: '#a3e635', speed: 70, life: 0.5 });
+            return;
+        }
         sim.tempHazards.push({ kind: 'poison', x: x - 32, y: bottomY - 44, w: 64, h: 44, t: 1.6, dur: 1.6, damage: 1 });
         pushEvent(sim, 'spore_burst', { defId: 'sporecap', x: x, y: bottomY });
         fxBurst(sim, 'dust', x, bottomY - 10, 10, { color: '#a3e635', speed: 80, arc: Math.PI, angle: -Math.PI / 2, life: 0.6 });
+    }
+
+    // Ground under a spore: measured from where it was before the step so a wall or ceiling hit still finds the floor in open air.
+    function sporeGround(sim, x, y) {
+        return P().groundBelow(sim, x, y, 3);
     }
 
     function stepProjectiles(sim, dt) {
@@ -313,6 +325,8 @@
         sim.projectiles.forEach(function (proj) {
             if (proj.dead) return;
             if (proj.gravity) proj.vy += proj.gravity * dt;
+            const prevX = proj.x;
+            const prevY = proj.y;
             proj.x += proj.vx * dt;
             proj.y += proj.vy * dt;
             proj.life -= dt;
@@ -330,7 +344,7 @@
             if (isSolidTile(stage, tx, ty)) {
                 proj.dead = true;
                 if (proj.blast) projectileBlast(sim, proj);
-                if (proj.spore) sporeBurst(sim, proj.x, proj.vy > 0 ? ty * TILE : proj.y + 20);
+                if (proj.spore) sporeBurst(sim, prevX, sporeGround(sim, prevX, prevY), prevY);
                 return;
             }
             // Shock waves hug the floor and fade out where the ground ends.
@@ -342,7 +356,7 @@
                 if (rectOverlap(p.x - p.w / 2, p.y - p.h, p.w, p.h, proj.x - r, proj.y - r, r * 2, r * 2)) {
                     proj.dead = true;
                     if (proj.blast) projectileBlast(sim, proj);
-                    else if (proj.spore) sporeBurst(sim, proj.x, p.y);
+                    else if (proj.spore) sporeBurst(sim, proj.x, sporeGround(sim, proj.x, proj.y), proj.y);
                     else hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
                 }
             } else {

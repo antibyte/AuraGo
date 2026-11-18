@@ -511,7 +511,12 @@
                     drawAnimation('jump-and-run', 'spike_trap', spikeElapsed(h, nowSec), h.x, h.y + 4, TILE, TILE, false, 1.0, typeof h.phase01 === 'number');
                 } else if (h.assetId === 'stalactite') {
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y - 4, TILE, TILE);
-                } else if (h.assetId === 'lava' || h.assetId === 'fire') {
+                } else if (h.assetId === 'fire') {
+                    // Tile fire stands on the tile's bottom edge (the damage rect's floor line), animated and unbobbed.
+                    if (!(stageArt && stageArt.drawGroundFire && stageArt.drawGroundFire(h.x, h.y + TILE, h.w || TILE, (h.h || TILE) * 1.25, { view: frameView, seed: h.x }))) {
+                        drawStaticAsset('jump-and-run', 'fire', h.x, h.y + 4, TILE, TILE);
+                    }
+                } else if (h.assetId === 'lava') {
                     drawGlow(h.x + TILE / 2, h.y + TILE / 2, 86, 'rgba(251, 113, 133, 0.55)', 0.7);
                     drawStaticAsset('jump-and-run', h.assetId, h.x, h.y + 4, TILE, TILE);
                 } else {

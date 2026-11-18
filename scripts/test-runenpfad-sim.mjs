@@ -2109,3 +2109,128 @@ console.log('Runenpfad round 4 checks passed: swing ropes, rune sequence, lever 
     assert.equal(slower.profile.bestTimeByLevel[1], 40, 'a slower clear keeps the stored best time');
 }
 console.log('Runenpfad polish checks passed: floating label keys in 16 locales, new-best flag.');
+
+// Round 5: fire and poison never float. Spore bursts and boss fire strips stand on the ground.
+{
+    const Physics = sandbox.RunenpfadPhysics;
+    const mkSim = (levelId) => Sim.createSimulation({ mode: 'campaign', levelId: levelId || 1, hero: 'knight', profile: Levels.defaultProfile ? Levels.defaultProfile() : undefined });
+    const TILE = 48;
+    const sporeAt = (s, x, y, vx, vy) => s.projectiles.push({
+        x: x, y: y, vx: vx, vy: vy, gravity: 0, fromEnemy: true, spore: true, kind: 'spore', damage: 1, radius: 8, life: 2.4, noDeflect: true, dead: false
+    });
+    const poison = (s) => s.tempHazards.filter((h) => h.kind === 'poison');
+    const prep = () => {
+        const s = mkSim(1);
+        s.stage.enemies.length = 0;
+        s.player.x = 100;
+        s.player.y = s.stage.groundY;
+        return s;
+    };
+
+    // Clears columns 10-34 down to a flat floor (no tiles above it, platforms, hazards or enemies) and returns its first column.
+    const openCol = (s) => {
+        const gt = s.stage.groundY / TILE;
+        for (let tx = 10; tx < 35; tx++) {
+            for (let ty = 0; ty < gt; ty++) delete s.stage.solidMap[tx + ',' + ty];
+            s.stage.solidMap[tx + ',' + gt] = true;
+        }
+        s.stage.platforms.length = 0;
+        s.stage.movingPlatforms.length = 0;
+        s.stage.hazards.length = 0;
+        return 12;
+    };
+
+    // groundBelow: floor, rock interior, platform tops and out-of-reach cases.
+    {
+        const s = prep();
+        const gy = s.stage.groundY;
+        const gx = (openCol(s) + 1) * TILE;
+        assert.equal(Physics.groundBelow(s, gx, gy - 100, 3), gy, 'groundBelow finds the floor top below an open point');
+        assert.equal(Physics.groundBelow(s, gx, gy - 4 * TILE - 20, 3), null, 'no ground within three tiles gives null');
+        assert.equal(Physics.groundBelow(s, gx, gy + 10, 3), null, 'a point inside solid rock has no ground below it');
+        s.stage.platforms.push({ x: gx - 40, y: gy - 120, w: 80, h: 16, solid: true, kind: 'oneway' });
+        assert.equal(Physics.groundBelow(s, gx, gy - 160, 3), gy - 120, 'a platform top counts as ground and beats the floor');
+        s.stage.movingPlatforms.push({ x: gx + 300, y: gy - 90, w: 90, h: 16 });
+        assert.equal(Physics.groundBelow(s, gx + 340, gy - 150, 3), gy - 90, 'a moving platform top counts as ground');
+    }
+
+    // A rising spore that hits the wall of a ledge leaves its cloud on the floor in front of the wall.
+    {
+        const s = prep();
+        const gy = s.stage.groundY;
+        const gt = gy / TILE;
+        const bx = openCol(s) + 2;
+        for (let tx = bx; tx < bx + 4; tx++) for (let ty = gt - 3; ty < gt; ty++) s.stage.solidMap[tx + ',' + ty] = true;
+        sporeAt(s, (bx - 1) * TILE + 30, gy - 100, 300, -160);
+        for (let i = 0; i < 20 && !s.projectiles.every((p) => p.dead); i++) Sim.stepSimulation(s, Sim.STEP, {});
+        const cloud = poison(s)[0];
+        assert.ok(cloud, 'a spore hitting a ledge wall leaves a poison cloud');
+        assert.equal(cloud.y + cloud.h, gy, 'the cloud bottom equals the ground top below the impact');
+        assert.ok(cloud.x + cloud.w / 2 < bx * TILE, 'the cloud stays in open air in front of the wall');
+    }
+
+    // A spore that hits a ledge top from above lands on that ledge.
+    {
+        const s = prep();
+        const gy = s.stage.groundY;
+        const gt = gy / TILE;
+        const lx = openCol(s) + 1;
+        for (let tx = lx; tx < lx + 4; tx++) s.stage.solidMap[tx + ',' + (gt - 2)] = true;
+        sporeAt(s, (lx + 1.5) * TILE, gt * TILE - 4 * TILE, 0, 300);
+        for (let i = 0; i < 30 && !s.projectiles.every((p) => p.dead); i++) Sim.stepSimulation(s, Sim.STEP, {});
+        const cloud = poison(s)[0];
+        assert.ok(cloud && cloud.y + cloud.h === (gt - 2) * TILE, 'a spore landing on a ledge top stands the cloud on that ledge');
+    }
+
+    // No ground within reach: only an airborne puff, no lingering hazard.
+    {
+        const s = prep();
+        const gy = s.stage.groundY;
+        const ax = openCol(s) + 2;
+        s.stage.solidMap[ax + ',' + (gy / TILE - 8)] = true;
+        sporeAt(s, (ax - 1) * TILE + 30, gy - 8 * TILE + 20, 300, 0);
+        let burst = null;
+        for (let i = 0; i < 20 && !burst; i++) {
+            Sim.stepSimulation(s, Sim.STEP, {});
+            burst = s.events.find((e) => e.type === 'spore_burst') || null;
+        }
+        assert.ok(burst, 'the spore still bursts');
+        assert.equal(poison(s).length, 0, 'a burst with no ground in reach leaves no poison hazard');
+        assert.equal(burst.detail.airborne, true, 'the burst is flagged as an airborne puff');
+    }
+
+    // A hero hit while jumping also puts the cloud on the ground.
+    {
+        const s = prep();
+        const gy = s.stage.groundY;
+        const hx = (openCol(s) + 1) * TILE;
+        s.player.x = hx;
+        s.player.y = gy - 70;
+        s.player.vy = 0;
+        sporeAt(s, hx, gy - 70 - 20, 0, 0);
+        Sim.stepSimulation(s, Sim.STEP, {});
+        const cloud = poison(s)[0];
+        assert.ok(cloud, 'a spore hitting an airborne hero bursts into a cloud');
+        assert.equal(cloud.y + cloud.h, gy, 'the cloud from an airborne hero hit rests on the ground');
+    }
+
+    // The mech fire strip rests on the ground.
+    {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 25, hero: 'knight' });
+        const boss = s.stage.enemies.find((e) => e.def.boss);
+        assert.ok(boss, 'level 25 has a boss');
+        let strip = null;
+        for (let i = 0; i < 60 * 90 && !strip; i++) {
+            s.player.x = boss.x - 260;
+            s.player.y = s.stage.groundY;
+            s.player.invulnTimer = 5;
+            s.player.hp = s.player.maxHp;
+            if (i === 400 && !strip) boss.ai.cool = 0;
+            Sim.stepSimulation(s, Sim.STEP, {});
+            strip = s.tempHazards.find((h) => h.kind === 'fire') || null;
+        }
+        assert.ok(strip, 'the mech boss lays a fire strip');
+        assert.equal(strip.y + strip.h, s.stage.groundY, 'the fire strip bottom equals the ground top');
+    }
+}
+console.log('Runenpfad round 5 checks passed: grounded poison and fire.');
