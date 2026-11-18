@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Schreibgeschützter Modus",
   "config.newspaper.allow_email": "E-Mail-Versand erlauben",
   "config.newspaper.allow_telegram": "Telegram-Versand erlauben",
+  "config.newspaper.allow_chromecast": "Chromecast erlauben",
+  "config.newspaper.allow_chromecast_help": "Erlaubt die Wiedergabe von Hörfassungen auf einem gespeicherten Chromecast.",
   "config.newspaper.allow_whatsapp": "WhatsApp-Versand erlauben",
   "config.newspaper.max_minutes": "Recherchezeitlimit (Minuten)",
   "config.newspaper.max_pages": "Maximal gelesene Seiten je Ausgabe",

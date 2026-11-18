@@ -304,6 +304,10 @@ Provide a Config UI entry with connection checks and a Dashboard status tile.
    actual installed configuration and result. Update owning DOX contracts and
    user documentation with the implemented behavior.
 
+## Audio delivery
+
+Each immutable revision can have one server-generated bulletin. Cover every published story in order using the active persona and Chat TTS voice. Reuse its bytes in the native player, each enabled delivery channel and the chosen Chromecast. The operator guide describes formats, late playback, read-only replay and how to complete a delivery with pending audio.
+
 ## Acceptance criteria
 
 - A new user can select preset sections plus free-text interests, see the next

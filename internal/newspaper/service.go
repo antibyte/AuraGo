@@ -18,6 +18,7 @@ type Policy struct {
 	MaxEditions int
 	Email       bool
 	Telegram    bool
+	Cast        bool
 	WhatsApp    bool
 	Budget      BudgetConfig
 }
@@ -36,27 +37,35 @@ type DeliveryFunc func(context.Context, Edition, Profile, string) (string, error
 type DestinationFunc func(context.Context, Profile, string) (string, error)
 
 type Options struct {
-	Path        string
-	Policy      func() Policy
-	Research    ResearchFunc
-	Deliver     DeliveryFunc
-	Destination DestinationFunc
-	Now         func() time.Time
+	Path         string
+	Policy       func() Policy
+	Research     ResearchFunc
+	Deliver      DeliveryFunc
+	Narrate      func(context.Context, Edition) (AudioFile, error)
+	DeliverAudio func(context.Context, Edition, Profile, string, bool, AudioFile) (string, error)
+	Cast         func(context.Context, string, AudioFile, func() error) error
+	Destination  DestinationFunc
+	Now          func() time.Time
 }
 
 type Service struct {
-	store       *Store
-	policy      func() Policy
-	research    ResearchFunc
-	deliver     DeliveryFunc
-	destination DestinationFunc
-	now         func() time.Time
-	ctx         context.Context
-	cancel      context.CancelFunc
-	wake        chan struct{}
-	mu          sync.Mutex
-	running     context.CancelFunc
-	wg          sync.WaitGroup
+	store        *Store
+	policy       func() Policy
+	research     ResearchFunc
+	narrate      func(context.Context, Edition) (AudioFile, error)
+	deliverAudio func(context.Context, Edition, Profile, string, bool, AudioFile) (string, error)
+	cast         func(context.Context, string, AudioFile, func() error) error
+	audioJobs    map[string]*audioJob
+	audioSlot    chan struct{}
+	deliver      DeliveryFunc
+	destination  DestinationFunc
+	now          func() time.Time
+	ctx          context.Context
+	cancel       context.CancelFunc
+	wake         chan struct{}
+	mu           sync.Mutex
+	running      context.CancelFunc
+	wg           sync.WaitGroup
 }
 
 func New(opts Options) (*Service, error) {
@@ -73,7 +82,7 @@ func New(opts Options) (*Service, error) {
 		now = time.Now
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Service{store: store, policy: opts.Policy, research: opts.Research, deliver: opts.Deliver, destination: opts.Destination, now: now, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1)}
+	s := &Service{store: store, narrate: opts.Narrate, deliverAudio: opts.DeliverAudio, cast: opts.Cast, audioJobs: make(map[string]*audioJob), audioSlot: make(chan struct{}, 1), policy: opts.Policy, research: opts.Research, deliver: opts.Deliver, destination: opts.Destination, now: now, ctx: ctx, cancel: cancel, wake: make(chan struct{}, 1)}
 	s.wg.Add(1)
 	go s.schedule()
 	return s, nil
@@ -136,8 +145,15 @@ func (s *Service) Start(ctx context.Context, newRevision bool) (Run, error) {
 }
 
 func (s *Service) StartWithCorrection(ctx context.Context, newRevision bool, correction string) (Run, error) {
+	return s.StartEdition(ctx, newRevision, correction, Creation{})
+}
+
+func (s *Service) StartEdition(ctx context.Context, newRevision bool, correction string, choice Creation) (Run, error) {
 	if !s.canWrite() {
 		return Run{}, ErrDisabled
+	}
+	if err := validateFormats(choice.Channels, true); err != nil {
+		return Run{}, err
 	}
 	profile, err := s.store.Profile(ctx)
 	if err != nil {
@@ -149,15 +165,18 @@ func (s *Service) StartWithCorrection(ctx context.Context, newRevision bool, cor
 	loc, _ := time.LoadLocation(profile.TimeZone)
 	now := s.now()
 	date := now.In(loc).Format("2006-01-02")
-	return s.startForDate(ctx, date, newRevision, profile, correction, false)
+	return s.startForDate(ctx, date, newRevision, profile, correction, false, choice)
 }
 
-func (s *Service) startForDate(ctx context.Context, date string, newRevision bool, profile Profile, correction string, scheduled bool) (Run, error) {
+func (s *Service) startForDate(ctx context.Context, date string, newRevision bool, profile Profile, correction string, scheduled bool, choice Creation) (Run, error) {
 	if !s.canWrite() {
 		return Run{}, ErrDisabled
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.ctx.Err() != nil {
+		return Run{}, ErrDisabled
+	}
 	if s.running != nil {
 		return Run{}, ErrBusy
 	}
@@ -182,7 +201,7 @@ func (s *Service) startForDate(ctx context.Context, date string, newRevision boo
 		defer s.wg.Done()
 		defer cancel()
 		defer cancelResearch()
-		s.execute(work, researchCtx, run, profile)
+		s.execute(work, researchCtx, run, profile, choice)
 		s.mu.Lock()
 		s.running = nil
 		s.mu.Unlock()
@@ -210,7 +229,7 @@ func (s *Service) Stop(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Service) execute(ctx, researchCtx context.Context, r Run, p Profile) {
+func (s *Service) execute(ctx, researchCtx context.Context, r Run, p Profile, choice Creation) {
 	started := s.now().UTC()
 	budget, hasBudget := BudgetFromContext(researchCtx)
 	if hasBudget {
@@ -324,15 +343,7 @@ func (s *Service) execute(ctx, researchCtx context.Context, r Run, p Profile) {
 	if errors.Is(ctx.Err(), context.Canceled) {
 		return
 	}
-	if p.EmailDaily && s.policy().Email {
-		_, _ = s.Deliver(publicationCtx, e.ID, "email", "daily", "daily")
-	}
-	if p.TelegramDaily && s.policy().Telegram {
-		_, _ = s.Deliver(publicationCtx, e.ID, "telegram", "daily", "daily")
-	}
-	if p.WhatsAppDaily && s.policy().WhatsApp {
-		_, _ = s.Deliver(publicationCtx, e.ID, "whatsapp", "daily", "daily")
-	}
+	s.afterPublication(ctx, e, p, choice)
 }
 
 func (s *Service) recordFinalRun(r Run, message string) error {
@@ -342,6 +353,21 @@ func (s *Service) recordFinalRun(r Run, message string) error {
 }
 
 func (s *Service) Deliver(ctx context.Context, id, channel, kind, key string) (Delivery, error) {
+	return s.deliverFormat(ctx, id, channel, kind, key, "edition", false)
+}
+
+// SendFormat claims an audio delivery before returning, so polling and client disconnects do not replay it.
+func (s *Service) SendFormat(ctx context.Context, id, channel, kind, key, format string) (Delivery, error) {
+	if format == "" {
+		format = "edition"
+	}
+	return s.deliverFormat(ctx, id, channel, kind, key, format, true)
+}
+
+func (s *Service) deliverFormat(ctx context.Context, id, channel, kind, key, format string, retryAudio bool) (Delivery, error) {
+	if !validFormat(format) {
+		return Delivery{}, errors.New("invalid delivery format")
+	}
 	if !s.canWrite() || s.deliver == nil || s.destination == nil {
 		return Delivery{}, ErrDisabled
 	}
@@ -365,11 +391,66 @@ func (s *Service) Deliver(ctx context.Context, id, channel, kind, key string) (D
 		return Delivery{}, err
 	}
 	digest := sha256.Sum256([]byte(channel + "\x00" + target))
-	d, claimed, err := s.store.ClaimDelivery(ctx, e, channel, kind, hex.EncodeToString(digest[:]), key)
+	d, claimed, err := s.store.ClaimDelivery(ctx, e, channel, kind, hex.EncodeToString(digest[:]), key, format)
 	if err != nil {
 		return Delivery{}, err
 	}
 	if !claimed {
+		return d, nil
+	}
+	if format != "edition" {
+		s.mu.Lock()
+		if s.ctx.Err() != nil {
+			s.mu.Unlock()
+			_ = s.store.FinishDelivery(context.Background(), d, "failed", "Preparation interrupted before send", "")
+			return d, ErrDisabled
+		}
+		s.wg.Add(1)
+		s.mu.Unlock()
+		go func() {
+			defer s.wg.Done()
+			file, audioErr := s.awaitRecording(s.ctx, e, retryAudio)
+			if audioErr != nil && format == "audio" {
+				_ = s.store.FinishDelivery(context.Background(), d, "failed", "Audio unavailable before send", "")
+				return
+			}
+			current, err := s.store.Profile(s.ctx)
+			if err == nil {
+				var currentTarget string
+				currentTarget, err = s.destination(s.ctx, current, channel)
+				if currentTarget != target || channel == "email" && !current.EmailVerified || kind == "daily" && !current.dailyChannel(channel) {
+					err = ErrDisabled
+				}
+			}
+			if err != nil || !s.canWrite() || !s.channelAllowed(channel) {
+				_ = s.store.FinishDelivery(context.Background(), d, "failed", "Delivery permission or destination changed", "")
+				return
+			}
+			// Only the transition to sending can represent an ambiguous external side effect.
+			result, err := s.store.db.ExecContext(s.ctx, `UPDATE newspaper_deliveries SET status='sending' WHERE id=? AND status='preparing'`, d.ID)
+			if err != nil {
+				return
+			}
+			n, _ := result.RowsAffected()
+			if n != 1 {
+				return
+			}
+			work, cancel := context.WithTimeout(s.ctx, 2*time.Minute)
+			defer cancel()
+			var provider string
+			if audioErr != nil {
+				provider, err = s.deliver(work, e, current, channel)
+			} else if s.deliverAudio == nil {
+				err = SafeDelivery(ErrDisabled)
+			} else {
+				provider, err = s.deliverAudio(work, e, current, channel, format == "both", file)
+			}
+			status, reason := deliveryResult(err)
+			if err == nil && audioErr != nil {
+				status, reason = "audio_pending", "Edition sent; audio is pending"
+			}
+			_ = s.store.FinishDelivery(context.Background(), d, status, reason, provider)
+		}()
 		return d, nil
 	}
 	// The adapter cannot always know whether a provider accepted a timed-out send.
@@ -377,22 +458,29 @@ func (s *Service) Deliver(ctx context.Context, id, channel, kind, key string) (D
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	providerID, err := s.deliver(ctx, e, p, channel)
-	if err != nil {
-		var safe *SafeDeliveryError
-		if errors.As(err, &safe) {
-			d.Status = "failed"
-			d.Reason = "No edition was sent; check the channel setup before retrying"
-		} else {
-			d.Status = "uncertain"
-			d.Reason = "Delivery outcome unknown; inspect the destination before retrying"
-		}
-		_ = s.store.FinishDelivery(context.Background(), d, d.Status, d.Reason, providerID)
-		return d, err
-	}
-	d.Status = "sent"
+	d.Status, d.Reason = deliveryResult(err)
 	d.ProviderID = providerID
-	_ = s.store.FinishDelivery(context.Background(), d, "sent", "", providerID)
-	return d, nil
+	finishErr := s.store.FinishDelivery(context.Background(), d, d.Status, d.Reason, providerID)
+	return d, errors.Join(err, finishErr)
+}
+
+func deliveryResult(err error) (string, string) {
+	if err == nil {
+		return "sent", ""
+	}
+	if errors.Is(err, ErrAudioPending) {
+		return "audio_pending", "Edition sent; audio is pending"
+	}
+	var safe *SafeDeliveryError
+	if errors.As(err, &safe) {
+		return "failed", "No edition was sent; check the channel setup before retrying"
+	}
+	return "uncertain", "Delivery outcome unknown; inspect the destination before retrying"
+}
+
+func (s *Service) channelAllowed(channel string) bool {
+	p := s.policy()
+	return channel == "email" && p.Email || channel == "telegram" && p.Telegram || channel == "whatsapp" && p.WhatsApp
 }
 
 func (s *Service) schedule() {
@@ -407,7 +495,7 @@ func (s *Service) schedule() {
 		case <-timer.C:
 		}
 		s.tick()
-		timer.Reset(time.Minute)
+		timer.Reset(time.Until(time.Now().Truncate(time.Minute).Add(time.Minute)))
 	}
 }
 
@@ -416,7 +504,11 @@ func (s *Service) tick() {
 		return
 	}
 	p, err := s.store.Profile(s.ctx)
-	if err != nil || !p.Daily {
+	if err != nil {
+		return
+	}
+	s.processCasts(p)
+	if !p.Daily && !(p.CastDaily && s.policy().Cast) {
 		return
 	}
 	loc, err := time.LoadLocation(p.TimeZone)
@@ -424,19 +516,18 @@ func (s *Service) tick() {
 		return
 	}
 	now := s.now()
-	for _, date := range []time.Time{now.In(loc), now.In(loc).AddDate(0, 0, 1)} {
-		ready, err := readyInstant(date.Format("2006-01-02"), p.ReadyTime, loc)
-		if err != nil {
-			continue
-		}
-		budget := ResolveBudget(p, s.policy().budgetConfig())
-		due := ready.Add(-time.Duration(budget.Minutes+10) * time.Minute)
-		if now.Before(due) || now.After(ready.Add(3*time.Hour)) {
-			continue
-		}
-		_, err = s.startForDate(s.ctx, date.Format("2006-01-02"), false, p, "", true)
-		if err == nil || errors.Is(err, ErrBusy) {
-			return
+	budget := ResolveBudget(p, s.policy().budgetConfig())
+	for offset := 0; offset <= 1; offset++ {
+		date := now.In(loc).AddDate(0, 0, offset).Format("2006-01-02")
+		for _, window := range s.publicationWindows(p) {
+			ready, err := readyInstant(date, window.clock, loc)
+			if err != nil || now.Before(ready.Add(-time.Duration(budget.Minutes+10)*time.Minute)) || now.After(ready.Add(window.grace)) {
+				continue
+			}
+			_, err = s.startForDate(s.ctx, date, false, p, "", true, Creation{})
+			if err == nil || errors.Is(err, ErrBusy) {
+				return
+			}
 		}
 	}
 }
@@ -453,9 +544,15 @@ func (s *Service) NextRun(ctx context.Context) (time.Time, error) {
 	now := s.now()
 	for offset := 0; offset < 3; offset++ {
 		date := now.In(loc).AddDate(0, 0, offset).Format("2006-01-02")
-		ready, e := readyInstant(date, p.ReadyTime, loc)
-		if e == nil && ready.After(now) {
-			return ready, nil
+		var next time.Time
+		for _, window := range s.publicationWindows(p) {
+			ready, err := readyInstant(date, window.clock, loc)
+			if err == nil && ready.After(now) && (next.IsZero() || ready.Before(next)) {
+				next = ready
+			}
+		}
+		if !next.IsZero() {
+			return next, nil
 		}
 	}
 	return time.Time{}, fmt.Errorf("could not calculate next issue time")

@@ -274,19 +274,26 @@ func (s *Server) personalRadioSpeak(ctx context.Context, p personalradio.Station
 	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("personal_radio") {
 		return out, personalradio.ErrLimit
 	}
+	data, err := s.synthesizeChatWAV(ctx, cfg, p.Language, text)
+	return personalradio.Audio{Data: data, Extension: "wav"}, err
+}
+
+// Use one effective chat voice and Speech Lab stack for the entire recording.
+func (s *Server) synthesizeChatWAV(ctx context.Context, cfg *config.Config, language, text string) ([]byte, error) {
+	var err error
 	synth := &sipSpeechSynthesizer{cfg: cfg}
-	tts := buildChatVoiceOutputTTSConfig(cfg, p.Language, s.SpeechLab)
+	tts := buildChatVoiceOutputTTSConfig(cfg, language, s.SpeechLab)
 	if isSpeechLabTTSProvider(tts.Provider) {
 		client := tts.SpeechLab.Client
 		if client == nil {
 			client, err = speechlab.NewClient(cfg.SpeechLab)
 			if err != nil {
-				return out, err
+				return nil, err
 			}
 		}
 		ready, e := client.Require(ctx, false, true)
 		if e != nil {
-			return out, e
+			return nil, e
 		}
 		synth.speechLab = client
 		synth.expectedTTSID = ready.TTSID
@@ -294,20 +301,19 @@ func (s *Server) personalRadioSpeak(ctx context.Context, p personalradio.Station
 	}
 	// The shared synthesizer chunks sentences and requests decodable WAV while
 	// keeping the source rate. Partial synthesis is never made available to air.
-	pcm, rate, err := synth.Synthesize(ctx, text, p.Language)
+	pcm, rate, err := synth.Synthesize(ctx, text, language)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 	if rate != 8000 && rate != 16000 && rate != 24000 {
 		resampler, e := voice.NewSourceResampler(rate, 24000)
 		if e != nil {
-			return out, e
+			return nil, e
 		}
 		pcm = resampler.Process(pcm)
 		rate = 24000
 	}
-	data, err := voice.EncodeWAVPCM16(pcm, rate)
-	return personalradio.Audio{Data: data, Extension: "wav"}, err
+	return voice.EncodeWAVPCM16(pcm, rate)
 }
 func radioBound(v string, n int) string {
 	r := []rune(strings.TrimSpace(v))

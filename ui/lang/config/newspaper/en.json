@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Read-only mode",
   "config.newspaper.allow_email": "Allow email delivery",
   "config.newspaper.allow_telegram": "Allow Telegram delivery",
+  "config.newspaper.allow_chromecast": "Allow Chromecast",
+  "config.newspaper.allow_chromecast_help": "Allow audio editions to play on a saved Chromecast device.",
   "config.newspaper.allow_whatsapp": "Allow WhatsApp delivery",
   "config.newspaper.max_minutes": "Research time limit (minutes)",
   "config.newspaper.max_pages": "Maximum pages read per edition",

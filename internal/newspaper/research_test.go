@@ -27,7 +27,7 @@ func TestNewspaperResearchStatsPersistAndRevocationPreventsPublication(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.execute(ctx, ctx, r, DefaultProfile())
+	s.execute(ctx, ctx, r, DefaultProfile(), Creation{})
 	got, err := s.Run(ctx, r.ID)
 	if err != nil || got.Status != "cancelled" || got.Research == nil || got.Research.Candidates != 120 || got.Research.Rejected["stale"] != 3 {
 		t.Fatalf("run: %+v %v", got, err)
@@ -71,7 +71,7 @@ func TestRunSourceTruncationIsRecordedWithoutDroppingEditionEvidence(t *testing.
 		t.Fatal(err)
 	}
 	budget := ResolveBudget(p, BudgetConfig{Mode: "fixed", MaxPages: 1})
-	s.execute(ctx, WithBudget(ctx, budget), run, p)
+	s.execute(ctx, WithBudget(ctx, budget), run, p, Creation{})
 	got, err := s.Run(ctx, run.ID)
 	if err != nil || got.Status != "published" || got.Research == nil || got.Research.SourceTruncation != 1 || got.Research.Budget == nil || got.Research.Budget.Pages != 1 {
 		t.Fatalf("run: %+v err=%v", got, err)
@@ -106,7 +106,7 @@ func TestFailedRunPersistsResolvedBudgetWithoutProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	budget := ResolveBudget(DefaultProfile(), BudgetConfig{Mode: "auto"})
-	s.execute(ctx, WithBudget(ctx, budget), run, DefaultProfile())
+	s.execute(ctx, WithBudget(ctx, budget), run, DefaultProfile(), Creation{})
 	got, err := s.Run(ctx, run.ID)
 	if err != nil || got.Status != "failed" || got.Research == nil || got.Research.Budget == nil || *got.Research.Budget != budget {
 		t.Fatalf("failed run lost budget snapshot: run=%+v err=%v", got, err)

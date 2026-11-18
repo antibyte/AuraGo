@@ -65,6 +65,10 @@ func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) err
 		req.ContentType = contentType
 	}
 
+	return publishChromecastMedia(cfg, req, baseName, source)
+}
+
+func publishChromecastMedia(cfg *config.Config, req *chromecastArgs, baseName string, source io.Reader) error {
 	destDir := tools.CastMediaDir(cfg.Directories.DataDir)
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("create cast media dir: %w", err)

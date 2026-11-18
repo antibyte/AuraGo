@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Λειτουργία μόνο για ανάγνωση",
   "config.newspaper.allow_email": "Να επιτρέπεται η παράδοση email",
   "config.newspaper.allow_telegram": "Να επιτρέπεται η παράδοση Telegram",
+  "config.newspaper.allow_chromecast": "Να επιτρέπεται το Chromecast",
+  "config.newspaper.allow_chromecast_help": "Επιτρέπει την αναπαραγωγή ηχητικών εκδόσεων σε αποθηκευμένη συσκευή Chromecast.",
   "config.newspaper.allow_whatsapp": "Να επιτρέπεται η παράδοση μέσω WhatsApp",
   "config.newspaper.max_minutes": "Χρονικό όριο έρευνας (λεπτά)",
   "config.newspaper.max_pages": "Μέγιστη ανάγνωση σελίδων ανά έκδοση",

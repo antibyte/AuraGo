@@ -38,11 +38,11 @@ func TestSchedulerMigrationBacksUpLegacyCopy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer migrated.Close()
-	backups, err := filepath.Glob(copyPath + ".pre-v2-*.db")
+	backups, err := filepath.Glob(copyPath + ".pre-v3-*.db")
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("migration backups = %v, %v", backups, err)
 	}
-	for path, want := range map[string]int{legacy: 1, backups[0]: 1, copyPath: 2} {
+	for path, want := range map[string]int{legacy: 1, backups[0]: 1, copyPath: 3} {
 		db, err := sql.Open("sqlite", path)
 		if err != nil {
 			t.Fatal(err)
@@ -468,13 +468,13 @@ func TestCorrectionCreatesLabeledImmutableRevision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.execute(ctx, ctx, first, DefaultProfile())
+	s.execute(ctx, ctx, first, DefaultProfile(), Creation{})
 	note := "The earlier headline stated the wrong opening date."
 	revised, err := s.Store().StartCorrected(ctx, date, true, note, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.execute(ctx, ctx, revised, DefaultProfile())
+	s.execute(ctx, ctx, revised, DefaultProfile(), Creation{})
 	previous, err := s.Get(ctx, first.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -598,7 +598,7 @@ func TestDailyEditionGoesToWhatsAppWhenAllowed(t *testing.T) {
 			}
 			p := DefaultProfile()
 			p.WhatsAppDaily = true
-			s.execute(ctx, ctx, run, p)
+			s.execute(ctx, ctx, run, p, Creation{})
 			if strings.Join(calls, ",") != strings.Join(tc.wantCalls, ",") {
 				t.Fatalf("delivery calls = %v, want %v", calls, tc.wantCalls)
 			}

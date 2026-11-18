@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"aurago/internal/newspaper"
+	"aurago/internal/voice"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 )
@@ -36,6 +38,17 @@ func TestNewspaperTranslations(t *testing.T) {
 				t.Errorf("%s missing %s", locale, key)
 			}
 		}
+		b, err = os.ReadFile(filepath.Join("lang", "config", "newspaper", locale+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var settings map[string]string
+		if err := json.Unmarshal(b, &settings); err != nil {
+			t.Fatal(err)
+		}
+		if settings["config.newspaper.allow_chromecast"] == "" || settings["config.newspaper.allow_chromecast_help"] == "" {
+			t.Errorf("%s missing Cast permission labels", locale)
+		}
 		if labels["desktop.app_newspaper"] == "" {
 			t.Errorf("%s missing app name", locale)
 		}
@@ -58,10 +71,20 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	challengeCode := "agentmail_rejected"
 	challengeAccount := ""
 	challengeCalls := 0
+	audioState := "missing"
+	var audioRequests int
+	var castTimes []string
+	var sentFormat string
+	var creation newspaper.Creation
+	wav, err := voice.EncodeWAVPCM16(make([]int16, 8000), 8000)
+	if err != nil {
+		t.Fatal(err)
+	}
 	localDate := "2026-09-25"
 	p := newspaper.DefaultProfile()
 	p.Version = 1
 	p.Name = "Der Morgen"
+	p.CastDevice = "kitchen"
 	p.EmailTo = "reader@example.org"
 	p.EmailAccountID = "agentmail"
 	now := time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)
@@ -88,7 +111,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/newspaper/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "research_tools": []any{map[string]string{"id": "brave_search", "state": "needs_setup", "reason": "key_missing"}, map[string]string{"id": "ddg_search", "state": "ready", "last_error": "rate_limited"}, map[string]string{"id": "rss", "state": "needs_setup", "reason": "feeds_missing"}, map[string]string{"id": "web_scraper", "state": "ready"}}, "email_ready": false, "telegram_ready": false, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate, "budget_mode": "auto", "effective_budget": newspaper.ResolveBudget(p, newspaper.BudgetConfig{Mode: "auto"}), "monetary_budget_enabled": false})
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "read_only": false, "research_ready": true, "research_tools": []any{map[string]string{"id": "brave_search", "state": "needs_setup", "reason": "key_missing"}, map[string]string{"id": "ddg_search", "state": "ready", "last_error": "rate_limited"}, map[string]string{"id": "rss", "state": "needs_setup", "reason": "feeds_missing"}, map[string]string{"id": "web_scraper", "state": "ready"}}, "email_ready": false, "telegram_ready": true, "cast_allowed": true, "audio_ready": true, "cast_devices": []map[string]string{{"id": "kitchen", "name": "Küche"}}, "email_allowed": true, "telegram_allowed": true, "email_accounts": []any{map[string]string{"id": "agentmail", "name": "AgentMail"}, map[string]string{"id": "gmx_personal", "name": "GMX"}}, "daily": false, "local_date": localDate, "budget_mode": "auto", "effective_budget": newspaper.ResolveBudget(p, newspaper.BudgetConfig{Mode: "auto"}), "monetary_budget_enabled": false})
 		case "budget-preview":
 			var req struct {
 				Profile    newspaper.Profile `json:"profile"`
@@ -110,12 +133,14 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 		case "editions":
 			if r.Method == http.MethodPost {
 				var req struct {
+					newspaper.Creation
 					CorrectionNote string `json:"correction_note"`
 				}
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 					t.Error(err)
 				}
 				correctionRequest = req.CorrectionNote
+				creation = req.Creation
 				json.NewEncoder(w).Encode(newspaper.Run{ID: "run-2", Status: "running"})
 				return
 			}
@@ -123,6 +148,34 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"editions": []any{map[string]any{"id": e.ID, "local_date": e.LocalDate, "revision": 1, "title": e.Title, "lead": e.Stories[0].Headline, "headlines": []string{e.Stories[0].Headline}, "sections": []string{"culture"}, "stories": len(e.Stories)}}, "latest_run": newspaper.Run{Status: "published", Research: &newspaper.ResearchStats{Searches: 24, Candidates: 84, Pages: 40, Read: 25, Accepted: 12, Overviews: 3, EditorCalls: 10, Budget: &budget, Coverage: map[string]int{"culture": 4, "politics": 8}, Gaps: []string{"science", "<script>window.injected=true</script>"}}}})
 		case "editions/issue_1":
 			json.NewEncoder(w).Encode(e)
+		case "editions/issue_1/audio":
+			if r.Method == "POST" {
+				audioRequests++
+				audioState = "ready"
+				json.NewEncoder(w).Encode(map[string]string{"status": audioState})
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"audio": map[string]string{"status": audioState}})
+		case "editions/issue_1/audio/file":
+			w.Header().Set("Content-Type", "audio/wav")
+			http.ServeContent(w, r, "edition.wav", now, bytes.NewReader(wav))
+		case "editions/issue_1/cast":
+			var b struct{ Date, Time string }
+			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+				t.Error(err)
+			}
+			if r.Header.Get("Idempotency-Key") == "" {
+				t.Error("missing cast key")
+			}
+			castTimes = append(castTimes, b.Date+"T"+b.Time)
+			json.NewEncoder(w).Encode(map[string]string{"status": "pending"})
+		case "editions/issue_1/deliver":
+			var b struct{ Format string }
+			if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+				t.Error(err)
+			}
+			sentFormat = b.Format
+			json.NewEncoder(w).Encode(map[string]string{"status": "sent"})
 		case "editions/issue_1/deliveries":
 			json.NewEncoder(w).Encode(map[string]any{"deliveries": []any{}})
 		case "email/challenge":
@@ -144,12 +197,33 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
 	defer launch.Cleanup()
 	defer browser.Close()
-	page := browser.MustPage(srv.URL + "/newspaper-fixture").Timeout(60 * time.Second)
+	page := browser.MustPage(srv.URL + "/newspaper-fixture").Timeout(110 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1440, 900, 1, false)
 	page.MustElement(".np-teaser")
 	if got := page.MustEval(`()=>document.querySelectorAll('.np-teaser[data-story]').length`).Int(); got != 31 {
 		t.Fatalf("edition rendered %d story links, want 31", got)
+	}
+	page.MustElement(`[data-action=audio]`).MustClick()
+	page.MustElement(`[data-action=listen]`)
+	page.MustWait(`()=>{const a=document.querySelector('audio');return a?.src.endsWith('/issue_1/audio/file') && a.controls}`)
+	page.MustEval(`()=>{window.newsPlayer=document.querySelector('audio');return true}`)
+	page.MustElement(`[data-action=listen]`).MustClick()
+	page.MustWait(`()=>document.querySelector('audio').currentTime>0`)
+	page.MustEval(`()=>document.querySelector('audio').pause()`)
+	page.MustElement(`[data-action=cast-now]`).MustClick()
+	page.MustElement(".np-banner")
+	page.MustEval(`()=>{const i=document.querySelector('[name=cast_when]');i.value='2026-09-26T07:45';i.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustElement(`[data-action=cast-later]`).MustClick()
+	page.MustWait(`()=>!document.querySelector('.np-reader-body').hasAttribute('aria-busy') && document.querySelector('[name=cast_when]').value==='2026-09-26T07:45'`)
+	page.MustEval(`()=>{const i=document.querySelector('[name=send_telegram]');i.value='audio';i.dispatchEvent(new Event('input',{bubbles:true}))}`)
+	page.MustElement(`[data-send=telegram]`).MustClick()
+	page.MustElementR(".np-banner", "Ausgabe gesendet")
+	mu.Lock()
+	audioOK := audioRequests == 1 && len(castTimes) == 2 && castTimes[0] == "T" && castTimes[1] == "2026-09-26T07:45" && sentFormat == "audio"
+	mu.Unlock()
+	if !audioOK || !page.MustEval(`()=>document.querySelector('audio')===window.newsPlayer`).Bool() {
+		t.Fatal("audio creation, delivery, timed Cast or player persistence failed")
 	}
 	page.MustElement(`[data-story="story-30"]`).MustClick()
 	if title := page.MustElement(".np-article h2").MustText(); !strings.Contains(title, "Bezirk 30") {
@@ -184,11 +258,15 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if !page.MustEval(`()=>document.querySelector('.np-revision').open`).Bool() {
 		t.Fatal("revision correction editor did not open")
 	}
+	page.MustElement(".np-revision .np-audio-options summary").MustClick()
+	page.MustElement("[name=create_audio]").MustClick()
+	page.MustEval(`()=>{const i=document.querySelector('[name=create_telegram]');i.value='both';i.dispatchEvent(new Event('input',{bubbles:true}))}`)
 	page.MustElement("[name=correction_note]").MustInput("Falsches Eröffnungsdatum")
 	page.MustElement(`[data-action=revision-submit]`).MustClick()
+	page.MustWait(`()=>!document.querySelector('.np-reader-body').hasAttribute('aria-busy')`)
 	page.MustElement(".np-banner")
 	mu.Lock()
-	correctionSent := correctionRequest == "Falsches Eröffnungsdatum"
+	correctionSent := correctionRequest == "Falsches Eröffnungsdatum" && creation.Audio != nil && *creation.Audio && creation.Channels["telegram"] == "both"
 	mu.Unlock()
 	if !correctionSent {
 		t.Fatal("correction note was not sent with the new revision")
@@ -236,10 +314,11 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if !strings.Contains(page.MustElement(".np-rss .np-chips").MustText(), "culture.xml") {
 		t.Fatal("RSS feed was not added")
 	}
+	page.MustEval(`()=>{const form=document.querySelector('.np-prefs');form.elements.pref_telegram.value='both';form.elements.cast_time.value='07:15';form.elements.cast_daily.checked=true;form.elements.audio_daily.checked=true;form.elements.cast_daily.dispatchEvent(new Event('change',{bubbles:true}))}`)
 	page.MustElement(".np-prefs [type=submit]").MustClick()
 	page.MustElementR(".np-banner", "Einstellungen gespeichert.")
 	mu.Lock()
-	saved := p.Name == "Der Neue Morgen" && len(p.Interests) == 1 && p.Interests[0] == "Lokales Theater" && len(p.RSSFeeds) == 1 && p.RSSFeeds[0].Section == "culture"
+	saved := p.AudioDaily && p.Formats["telegram"] == "both" && p.CastDaily && p.CastTime == "07:15" && p.CastDevice == "kitchen" && p.Name == "Der Neue Morgen" && len(p.Interests) == 1 && p.Interests[0] == "Lokales Theater" && len(p.RSSFeeds) == 1 && p.RSSFeeds[0].Section == "culture"
 	gotInterests := append([]string(nil), p.Interests...)
 	mu.Unlock()
 	if !saved {

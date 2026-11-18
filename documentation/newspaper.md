@@ -72,6 +72,18 @@ Delivery is off until you enable a channel in Config and opt into it in Newspape
 
 Each send has a durable receipt bound to its edition hash and destination. A send interrupted after reaching a provider can be marked **outcome unknown**. Inspect the mailbox or chat before choosing to resend; a server restart never automatically replays an open send. The app archive remains available if delivery fails.
 
+## Audio editions
+
+In **Audio and delivery**, select **Generate audio** when creating an edition, or open a saved revision and generate it there. The radio bulletin gives each published story one or two spoken sentences in the edition language. It uses the active persona for the presentation and the effective Chat TTS voice, including Speech Lab when selected for Chat. The app's player, attachments and Chromecast all use the same saved recording. An archived recording is playable in read-only mode. A new revision gets its own recording.
+
+Choose **Edition**, **Audio** or **Edition and audio** separately for email, Telegram and WhatsApp in Preferences. You can override a channel for one issue at creation or choose a format when sending from the archive. Existing profiles send the written edition. Audio is an MP3 when FFmpeg is installed, otherwise a WAV attachment. When both formats are requested and synthesis fails, the written edition can still go out. Its receipt offers **Send audio only** to complete delivery after the voice is available again.
+
+### Chromecast and playback time
+
+Enable Chromecast and the Newspaper **Allow Chromecast** permission in Config. Save the receiver in the Chromecast inventory, then select it in Newspaper Preferences. In an issue, choose immediate playback or a one-time date and time. For a daily bulletin, turn on daily Chromecast playback and set the local time in the publication's time zone. This can run on its own, even with all messaging channels and the regular daily edition schedule switched off.
+
+AuraGo prepares the day's issue ahead of playback. At the selected time it replaces the receiver's current media with the bulletin. If the edition or receiver is late, it tries for up to 15 minutes, then marks the booking missed. A missing spring clock minute moves to the next valid minute. An autumn clock minute plays at its first occurrence. After an unconfirmed playback attempt, check the receiver before starting it again.
+
 ## Research and privacy
 
 The bundled guide tells the model where and how to look: local newsrooms and authorities for regional events, newsrooms for daily affairs, specialist media and original announcements for technology, and research institutions and papers for science. Source choice remains open. Plans use places, events, technical terms, synonyms, suitable languages and targeted `site:` searches. International and specialist coverage can use English or other original languages while the edition follows the selected output language. The editor receives the selected topic or free-text interest and rejects unrelated stories; literal keyword matching does not discard translated original articles. Delivery addresses and account IDs are excluded from planning prompts.

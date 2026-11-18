@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Tryb tylko do odczytu",
   "config.newspaper.allow_email": "Zezwalaj na dostarczanie wiadomości e-mail",
   "config.newspaper.allow_telegram": "Zezwól na dostarczanie telegramu",
+  "config.newspaper.allow_chromecast": "Zezwalaj na Chromecast",
+  "config.newspaper.allow_chromecast_help": "Zezwalaj na odtwarzanie wydań audio na zapisanym urządzeniu Chromecast.",
   "config.newspaper.allow_whatsapp": "Zezwól na dostarczanie przez WhatsApp",
   "config.newspaper.max_minutes": "Limit czasu badania (minuty)",
   "config.newspaper.max_pages": "Maksymalna liczba stron przeczytanych na wydanie",

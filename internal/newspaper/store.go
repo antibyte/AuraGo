@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	_ "modernc.org/sqlite"
 	"os"
 	"path/filepath"
@@ -29,12 +30,12 @@ func Open(path string) (*Store, error) {
 	}
 	db.SetMaxOpenConns(1)
 	var version int
-	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version > 2 {
+	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version > 3 {
 		db.Close()
 		return nil, fmt.Errorf("unsupported newspaper database version %d: %w", version, err)
 	}
-	if version == 1 {
-		backup := fmt.Sprintf("%s.pre-v2-%d.db", path, time.Now().UTC().UnixNano())
+	if version == 1 || version == 2 {
+		backup := fmt.Sprintf("%s.pre-v3-%d.db", path, time.Now().UTC().UnixNano())
 		if _, err := dbutil.BackupSQLite(context.Background(), db, backup); err != nil {
 			_ = db.Close()
 			return nil, fmt.Errorf("back up newspaper database before migration: %w", err)
@@ -58,7 +59,15 @@ CREATE TABLE IF NOT EXISTS newspaper_events(id INTEGER PRIMARY KEY AUTOINCREMENT
 CREATE INDEX IF NOT EXISTS newspaper_events_run ON newspaper_events(run_id,id);
 CREATE TABLE IF NOT EXISTS newspaper_run_sources(run_id TEXT NOT NULL REFERENCES newspaper_runs(id) ON DELETE CASCADE, id TEXT NOT NULL, body BLOB NOT NULL, PRIMARY KEY(run_id,id));
 CREATE TABLE IF NOT EXISTS newspaper_email_challenges(address TEXT PRIMARY KEY, account_id TEXT NOT NULL, digest BLOB NOT NULL, expires_at TEXT NOT NULL, attempts INTEGER NOT NULL);
-PRAGMA user_version=2;`)
+CREATE TABLE IF NOT EXISTS newspaper_audio(edition_id TEXT PRIMARY KEY REFERENCES newspaper_editions(id) ON DELETE CASCADE, hash TEXT NOT NULL, status TEXT NOT NULL, mime TEXT NOT NULL DEFAULT '', data BLOB, reason TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS newspaper_casts(request_key TEXT PRIMARY KEY, edition_id TEXT REFERENCES newspaper_editions(id) ON DELETE CASCADE, day TEXT NOT NULL, device TEXT NOT NULL, due INTEGER NOT NULL, daily INTEGER NOT NULL, status TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS newspaper_cast_due ON newspaper_casts(status,due);`)
+	if err == nil && version < 3 {
+		err = dbutil.MigrateAddColumnChecked(db, "newspaper_deliveries", "format", "TEXT NOT NULL DEFAULT 'edition'", slog.Default())
+		if err == nil {
+			_, err = db.Exec("PRAGMA user_version=3")
+		}
+	}
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate newspaper database: %w", err)
@@ -79,6 +88,10 @@ PRAGMA user_version=2;`)
 	if _, err = db.Exec("UPDATE newspaper_deliveries SET status='uncertain',reason='Delivery outcome unknown after server restart' WHERE status='sending'"); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("reconcile newspaper deliveries: %w", err)
+	}
+	if _, err = db.Exec(`UPDATE newspaper_audio SET status='failed',reason='interrupted' WHERE status='generating'; UPDATE newspaper_casts SET status='uncertain' WHERE status='starting'; UPDATE newspaper_deliveries SET status='failed',reason='Preparation interrupted before send' WHERE status='preparing'`); err != nil {
+		db.Close()
+		return nil, err
 	}
 	return s, nil
 }
@@ -484,7 +497,17 @@ func (s *Store) Events(ctx context.Context, runID string, after int64) ([]Event,
 	return out, rows.Err()
 }
 
-func (s *Store) ClaimDelivery(ctx context.Context, e Edition, channel, kind, targetHash, key string) (Delivery, bool, error) {
+func (s *Store) ClaimDelivery(ctx context.Context, e Edition, channel, kind, targetHash, key string, formats ...string) (Delivery, bool, error) {
+	format, state := "edition", "sending"
+	if len(formats) > 0 {
+		format = formats[0]
+	}
+	if !validFormat(format) {
+		return Delivery{}, false, errors.New("invalid delivery format")
+	}
+	if format != "edition" {
+		state = "preparing"
+	}
 	if channel != "email" && channel != "telegram" && channel != "whatsapp" || kind != "daily" && kind != "manual" && kind != "test" {
 		return Delivery{}, false, errors.New("invalid delivery channel or kind")
 	}
@@ -492,7 +515,7 @@ func (s *Store) ClaimDelivery(ctx context.Context, e Edition, channel, kind, tar
 		return Delivery{}, false, errors.New("invalid delivery target or request key")
 	}
 	now := time.Now().UTC()
-	res, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO newspaper_deliveries(edition_id,hash,channel,kind,target_hash,request_key,status,reason,provider_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", e.ID, e.Hash, channel, kind, targetHash, key, "sending", "", "", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
+	res, err := s.db.ExecContext(ctx, "INSERT OR IGNORE INTO newspaper_deliveries(edition_id,hash,channel,kind,target_hash,request_key,format,status,reason,provider_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", e.ID, e.Hash, channel, kind, targetHash, key, format, state, "", "", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		return Delivery{}, false, err
 	}
@@ -503,20 +526,23 @@ func (s *Store) ClaimDelivery(ctx context.Context, e Edition, channel, kind, tar
 	if n == 0 {
 		d := Delivery{EditionID: e.ID}
 		var created, updated string
-		err = s.db.QueryRowContext(ctx, "SELECT id,hash,channel,kind,target_hash,request_key,status,reason,provider_id,created_at,updated_at FROM newspaper_deliveries WHERE edition_id=? AND channel=? AND target_hash=? AND request_key=?", e.ID, channel, targetHash, key).Scan(&d.ID, &d.Hash, &d.Channel, &d.Kind, &d.TargetHash, &d.Key, &d.Status, &d.Reason, &d.ProviderID, &created, &updated)
+		err = s.db.QueryRowContext(ctx, "SELECT id,hash,channel,kind,target_hash,request_key,format,status,reason,provider_id,created_at,updated_at FROM newspaper_deliveries WHERE edition_id=? AND channel=? AND target_hash=? AND request_key=?", e.ID, channel, targetHash, key).Scan(&d.ID, &d.Hash, &d.Channel, &d.Kind, &d.TargetHash, &d.Key, &d.Format, &d.Status, &d.Reason, &d.ProviderID, &created, &updated)
 		if err != nil {
 			return Delivery{}, false, err
 		}
 		d.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 		d.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
+		if d.Format != format {
+			return Delivery{}, false, ErrConflict
+		}
 		return d, false, nil
 	}
 	id, _ := res.LastInsertId()
-	return Delivery{ID: id, EditionID: e.ID, Hash: e.Hash, Channel: channel, Kind: kind, TargetHash: targetHash, Key: key, Status: "sending", CreatedAt: now, UpdatedAt: now}, true, nil
+	return Delivery{ID: id, EditionID: e.ID, Hash: e.Hash, Channel: channel, Kind: kind, TargetHash: targetHash, Key: key, Format: format, Status: state, CreatedAt: now, UpdatedAt: now}, true, nil
 }
 
 func (s *Store) FinishDelivery(ctx context.Context, d Delivery, status, reason, providerID string) error {
-	if status != "sent" && status != "failed" && status != "uncertain" {
+	if status != "sent" && status != "failed" && status != "uncertain" && status != "audio_pending" {
 		return errors.New("invalid delivery status")
 	}
 	if len(reason) > 300 {
@@ -525,7 +551,13 @@ func (s *Store) FinishDelivery(ctx context.Context, d Delivery, status, reason, 
 	if len(providerID) > 200 {
 		providerID = providerID[:200]
 	}
-	res, err := s.db.ExecContext(ctx, "UPDATE newspaper_deliveries SET status=?,reason=?,provider_id=?,updated_at=? WHERE id=? AND status='sending'", status, reason, providerID, time.Now().UTC().Format(time.RFC3339Nano), d.ID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	res, err := tx.ExecContext(ctx, "UPDATE newspaper_deliveries SET status=?,reason=?,provider_id=?,updated_at=? WHERE id=? AND status IN ('sending','preparing')", status, reason, providerID, now, d.ID)
 	if err != nil {
 		return err
 	}
@@ -536,11 +568,17 @@ func (s *Store) FinishDelivery(ctx context.Context, d Delivery, status, reason, 
 	if n != 1 {
 		return ErrConflict
 	}
-	return nil
+	if status == "sent" && (d.Format == "audio" || d.Format == "both") {
+		_, err = tx.ExecContext(ctx, "UPDATE newspaper_deliveries SET status='sent',reason='Audio delivered separately',updated_at=? WHERE edition_id=? AND channel=? AND target_hash=? AND status='audio_pending' AND id<?", now, d.EditionID, d.Channel, d.TargetHash, d.ID)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Deliveries(ctx context.Context, id string) ([]Delivery, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT id,hash,channel,kind,target_hash,request_key,status,reason,provider_id,created_at,updated_at FROM newspaper_deliveries WHERE edition_id=? ORDER BY id DESC", id)
+	rows, err := s.db.QueryContext(ctx, "SELECT id,hash,channel,kind,target_hash,request_key,format,status,reason,provider_id,created_at,updated_at FROM newspaper_deliveries WHERE edition_id=? ORDER BY id DESC", id)
 	if err != nil {
 		return nil, err
 	}
@@ -550,7 +588,7 @@ func (s *Store) Deliveries(ctx context.Context, id string) ([]Delivery, error) {
 		var d Delivery
 		var created, updated string
 		d.EditionID = id
-		if err = rows.Scan(&d.ID, &d.Hash, &d.Channel, &d.Kind, &d.TargetHash, &d.Key, &d.Status, &d.Reason, &d.ProviderID, &created, &updated); err != nil {
+		if err = rows.Scan(&d.ID, &d.Hash, &d.Channel, &d.Kind, &d.TargetHash, &d.Key, &d.Format, &d.Status, &d.Reason, &d.ProviderID, &created, &updated); err != nil {
 			return nil, err
 		}
 		d.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
@@ -570,6 +608,9 @@ func (s *Store) Prune(ctx context.Context, maxEditions int) error {
 	}
 	defer tx.Rollback()
 	if _, err = tx.ExecContext(ctx, "DELETE FROM newspaper_editions WHERE id NOT IN (SELECT id FROM newspaper_editions ORDER BY local_date DESC,revision DESC LIMIT ?)", maxEditions); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM newspaper_casts WHERE edition_id IS NULL AND day < (SELECT MIN(local_date) FROM newspaper_editions) AND status IN ('missed','cancelled')`); err != nil {
 		return err
 	}
 	// Keep the latest calendar day's claim even after many manual revisions.

@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Režim pouze pro čtení",
   "config.newspaper.allow_email": "Povolit doručování e-mailů",
   "config.newspaper.allow_telegram": "Povolit doručení přes Telegram",
+  "config.newspaper.allow_chromecast": "Povolit Chromecast",
+  "config.newspaper.allow_chromecast_help": "Povolit přehrávání zvukových vydání na uloženém zařízení Chromecast.",
   "config.newspaper.allow_whatsapp": "Povolit doručení přes WhatsApp",
   "config.newspaper.max_minutes": "Časový limit výzkumu (minuty)",
   "config.newspaper.max_pages": "Maximální počet přečtených stránek na vydání",

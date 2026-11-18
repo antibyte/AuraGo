@@ -10,6 +10,8 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ## Local Contracts
 
+- `PlayCastRecording` exposes a server-generated recording through the existing file-specific Cast ticket and inventory-authorized device control. Invoke the caller's durable playback claim just before LOAD. Clean staged media on a pre-LOAD refusal and retain the ticketed file for the receiver after an attempt.
+
 - `ziro_export` exposes only netlist/manufacturing for saved Shared paths. Both
   operations mutate through isolated export/publication and are denied to A2A
   peers. Preserve captured Docker/file/network gates and untrusted result handling;

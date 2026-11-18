@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Endast läsläge",
   "config.newspaper.allow_email": "Tillåt e-postleverans",
   "config.newspaper.allow_telegram": "Tillåt telegramleverans",
+  "config.newspaper.allow_chromecast": "Tillåt Chromecast",
+  "config.newspaper.allow_chromecast_help": "Tillåt uppspelning av ljudutgåvor på en sparad Chromecast.",
   "config.newspaper.allow_whatsapp": "Tillåt leverans via WhatsApp",
   "config.newspaper.max_minutes": "Tidsgräns för forskning (minuter)",
   "config.newspaper.max_pages": "Maximalt antal lästa sidor per upplaga",

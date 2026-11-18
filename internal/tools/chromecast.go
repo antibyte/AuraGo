@@ -22,6 +22,7 @@ type ChromecastConfig struct {
 	ServerHost         string          // Hostname/IP of the AuraGo server (for media playback URLs)
 	ServerPort         int             // Port of the AuraGo media server
 	MediaHostAllowlist []string        // Explicit private media hosts/IPs/CIDRs allowed for Chromecast playback
+	BeforeLoad         func() error    `json:"-"`
 	KnownDevices       []ChromecastDevice
 	ReadOnly           bool
 }
@@ -166,6 +167,11 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType, st
 	}
 	defer app.Close(false)
 
+	if ccCfg.BeforeLoad != nil {
+		if err := ccCfg.BeforeLoad(); err != nil {
+			return jsonErr("Playback cancelled before load")
+		}
+	}
 	// forceDetach=true: return after LOAD is sent, then confirm the receiver state.
 	// Load() without forceDetach waits until playback ends, including live streams.
 	if err := chromecastLoadAndConfirm(app, ccCfg.Context, mediaURL, contentType); err != nil {

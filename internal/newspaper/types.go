@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	ErrAudioPending     = errors.New("edition sent; audio is pending")
 	ErrNotFound         = errors.New("newspaper item not found")
 	ErrConflict         = errors.New("newspaper version conflict")
 	ErrChallengePending = errors.New("newspaper email confirmation was recently requested")
@@ -46,26 +47,31 @@ var clockRE = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
 // Profile is the single installation-owned editorial and delivery preference.
 // EmailVerified is server-owned and cannot be set through a profile update.
 type Profile struct {
-	Version        int64     `json:"version"`
-	Name           string    `json:"name"`
-	Sections       []string  `json:"sections"`
-	Interests      []string  `json:"interests"`
-	Exclusions     []string  `json:"exclusions"`
-	RSSFeeds       []RSSFeed `json:"rss_feeds"`
-	Language       string    `json:"language"`
-	Country        string    `json:"country"`
-	Region         string    `json:"region"`
-	City           string    `json:"city"`
-	TimeZone       string    `json:"time_zone"`
-	ReadyTime      string    `json:"ready_time"`
-	Length         string    `json:"length"`
-	Daily          bool      `json:"daily"`
-	EmailDaily     bool      `json:"email_daily"`
-	EmailAccountID string    `json:"email_account_id"`
-	EmailTo        string    `json:"email_to"`
-	EmailVerified  bool      `json:"email_verified"`
-	TelegramDaily  bool      `json:"telegram_daily"`
-	WhatsAppDaily  bool      `json:"whatsapp_daily"`
+	Version        int64             `json:"version"`
+	Name           string            `json:"name"`
+	Sections       []string          `json:"sections"`
+	Interests      []string          `json:"interests"`
+	Exclusions     []string          `json:"exclusions"`
+	RSSFeeds       []RSSFeed         `json:"rss_feeds"`
+	Language       string            `json:"language"`
+	Country        string            `json:"country"`
+	Region         string            `json:"region"`
+	City           string            `json:"city"`
+	TimeZone       string            `json:"time_zone"`
+	ReadyTime      string            `json:"ready_time"`
+	Length         string            `json:"length"`
+	Daily          bool              `json:"daily"`
+	EmailDaily     bool              `json:"email_daily"`
+	EmailAccountID string            `json:"email_account_id"`
+	EmailTo        string            `json:"email_to"`
+	EmailVerified  bool              `json:"email_verified"`
+	TelegramDaily  bool              `json:"telegram_daily"`
+	AudioDaily     bool              `json:"audio_daily"`
+	Formats        map[string]string `json:"formats,omitempty"`
+	CastDevice     string            `json:"cast_device,omitempty"`
+	CastTime       string            `json:"cast_time,omitempty"`
+	CastDaily      bool              `json:"cast_daily"`
+	WhatsAppDaily  bool              `json:"whatsapp_daily"`
 }
 
 type RSSFeed struct {
@@ -78,6 +84,12 @@ func DefaultProfile() Profile {
 }
 
 func (p *Profile) Validate() error {
+	if err := validateFormats(p.Formats, false); err != nil {
+		return err
+	}
+	if len(p.CastDevice) > 128 || strings.ContainsAny(p.CastDevice, "\r\n\x00") || (p.CastTime != "" && !clockRE.MatchString(p.CastTime)) || (p.CastDaily && (p.CastDevice == "" || p.CastTime == "")) {
+		return errors.New("select a saved Chromecast device and valid local playback time")
+	}
 	p.Name = strings.TrimSpace(p.Name)
 	if p.Name == "" {
 		p.Name = "Newspaper"
@@ -279,6 +291,7 @@ type Delivery struct {
 	Hash       string    `json:"hash"`
 	Channel    string    `json:"channel"`
 	Kind       string    `json:"kind"`
+	Format     string    `json:"format"`
 	TargetHash string    `json:"target_hash"`
 	Key        string    `json:"key"`
 	Status     string    `json:"status"`
