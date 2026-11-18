@@ -172,6 +172,50 @@ func TestPlanLargeLabPacksIslandsAtOneReadableScale(t *testing.T) {
 	}
 }
 
+func TestPlanSparseRoomBeyondTwelveTiles(t *testing.T) {
+	f := &fixture{}
+	f.place(infra.NodeRoom, "room", "Lab", "", 0, 0, 800, 20000)
+	f.asset(infra.NodeDevice, "first", "First", "server", "room", "", "", 200, 100, true)
+	f.asset(infra.NodeDevice, "last", "Last", "server", "room", "", "", 80000, 19900, true)
+	for _, paper := range []Paper{PaperA4, PaperA3, PaperLetter} {
+		d := testDoc(t, f.snapshot(), paper)
+		pages := d.planMap()
+		visible := map[string]bool{}
+		for _, page := range pages[1:] {
+			for _, p := range page.Places {
+				is := &d.islands[p.Island]
+				r := p.boxRect(is, page.Scale)
+				if page.Scale < readableScale || r.X < d.content.X || p.Y < d.content.Y || r.right() > d.content.right()+1e-6 || r.bottom() > d.content.bottom()+1e-6 || r.intersects(page.Locator) {
+					t.Fatalf("%s: detail tile %+v does not fit its page at a readable scale", paper, r)
+				}
+				if len(is.Cards) == 0 {
+					t.Fatalf("%s: generated an empty detail tile", paper)
+				}
+				for _, ci := range is.Cards {
+					card := d.sc.cards[ci]
+					c := card.rect()
+					if c.X >= is.Box.X && c.Y >= is.Box.Y && c.right() <= is.Box.right() && c.bottom() <= is.Box.bottom() {
+						visible[card.ID] = true
+					}
+				}
+			}
+		}
+		if !visible["first"] || !visible["last"] {
+			t.Errorf("%s: fully visible devices = %v", paper, visible)
+		}
+	}
+}
+
+func TestPlanLargeEmptyRoom(t *testing.T) {
+	f := &fixture{}
+	f.place(infra.NodeRoom, "room", "Lab", "", 0, 0, 20000, 20000)
+	d := testDoc(t, f.snapshot(), PaperA4)
+	pages := d.planMap()
+	if len(pages) != 2 || len(d.islands) != 1 || !d.islands[0].regions["room"] || !d.fitsAt(d.islands[0].Box, pages[1].Scale) {
+		t.Fatalf("empty room produced %d pages, %d detail tiles; want one fitting detail", len(pages), len(d.islands))
+	}
+}
+
 func TestRenderLargeLabProducesAMultiPagePDF(t *testing.T) {
 	data, err := Render(largeLab(), Options{Paper: PaperA4, Map: true, Hosts: true, Inventory: true, Now: testNow})
 	if err != nil {

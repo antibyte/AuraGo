@@ -297,21 +297,37 @@ func (d *doc) tileIsland(is island, s float64) []island {
 	}
 	a, _ := d.boxLimits()
 	maxW, maxH := a[0]/s*0.995, a[1]/s*0.995
-	cols := min(12, max(1, int(math.Ceil(is.Box.W*(1+tileOverlap)/maxW))))
-	rows := min(12, max(1, int(math.Ceil(is.Box.H*(1+tileOverlap)/maxH))))
+	if len(is.Cards) == 0 {
+		// The overview shows the full empty place. One detail is enough for its header.
+		is.Box.W = math.Min(is.Box.W, maxW)
+		is.Box.H = math.Min(is.Box.H, maxH)
+		return []island{is}
+	}
+	cols := max(1, int(math.Ceil(is.Box.W*(1+tileOverlap)/maxW)))
+	rows := max(1, int(math.Ceil(is.Box.H*(1+tileOverlap)/maxH)))
 	xs := d.tileSpans(is.Box.X, is.Box.right(), cols, maxW, func(x float64) int { return d.crossing(is.Cards, x, true) })
 	ys := d.tileSpans(is.Box.Y, is.Box.bottom(), rows, maxH, func(y float64) int { return d.crossing(is.Cards, y, false) })
 	var tiles []island
 	for _, y := range ys {
+		row := rect{is.Box.X, y[0], is.Box.W, y[1] - y[0]}
+		var rowCards []int
+		for _, ci := range is.Cards {
+			if row.intersects(d.sc.cards[ci].rect()) {
+				rowCards = append(rowCards, ci)
+			}
+		}
+		if len(rowCards) == 0 {
+			continue
+		}
 		for _, x := range xs {
 			box := rect{x[0], y[0], x[1] - x[0], y[1] - y[0]}
 			var inside []int
-			for _, ci := range is.Cards {
+			for _, ci := range rowCards {
 				if box.intersects(d.sc.cards[ci].rect()) {
 					inside = append(inside, ci)
 				}
 			}
-			if len(is.Cards) > 0 && len(inside) == 0 {
+			if len(inside) == 0 {
 				continue
 			}
 			t := d.newIsland(is.Caption, is.Top, is.TopName, box, inside, nil)
@@ -319,9 +335,6 @@ func (d *doc) tileIsland(is island, s float64) []island {
 			t.Regions = is.Regions
 			tiles = append(tiles, t)
 		}
-	}
-	if len(tiles) == 0 {
-		return []island{is}
 	}
 	for i := range tiles {
 		tiles[i].Part, tiles[i].Parts = i+1, len(tiles)

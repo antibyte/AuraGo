@@ -102,6 +102,9 @@ func desktopInfraRefreshDocker(ctx context.Context, cfg *config.Config, store *i
 		if err := json.Unmarshal(body, &rows); err != nil {
 			return nil, fmt.Errorf("decode Docker list: %w", err)
 		}
+		if rows == nil {
+			return nil, fmt.Errorf("Docker container list must be an array")
+		}
 		if len(rows) > desktopInfraMaxProviderRows {
 			return nil, fmt.Errorf("Docker observation exceeds the supported limit")
 		}
@@ -262,12 +265,13 @@ func desktopInfraRefreshFritz(ctx context.Context, s *Server, cfg *config.Config
 				name = "Fritz!Box host"
 			}
 			interfaces := []infra.NetworkInterface{}
-			if ip := desktopInfraValidIP(host.IPAddress); ip != "" {
-				interfaces = append(interfaces, infra.NetworkInterface{Name: desktopInfraText(host.Interface, 64), IPAddress: ip})
+			ip := desktopInfraValidIP(host.IPAddress)
+			if iface := desktopInfraText(host.Interface, 64); ip != "" && iface != "" {
+				interfaces = append(interfaces, infra.NetworkInterface{Name: iface, IPAddress: ip})
 			}
 			observed := infra.SourceObserved{
 				Kind: infra.NodeDevice, Name: name, Icon: "generic-device", Vendor: "AVM FRITZ!Box",
-				Power: desktopInfraFritzPower(host.Active), IPAddress: desktopInfraValidIP(host.IPAddress),
+				Power: desktopInfraFritzPower(host.Active), IPAddress: ip,
 				Tags: []string{}, Interfaces: interfaces,
 			}
 			observations = append(observations, infra.SourceObservation{
@@ -323,16 +327,18 @@ func desktopInfraRefreshOne(ctx context.Context, runtime *desktopInfraRuntime, s
 			err = store.ObserveSources(writeCtx, kind, instance, observations, true)
 			writeCancel()
 		}
+		code := ""
 		if err != nil {
+			code = desktopInfraRefreshErrorCode(err)
 			markCtx, markCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			_ = store.MarkSourcesStale(markCtx, kind, instance)
 			markCancel()
 		}
 
 		runtime.mu.Lock()
-		previousErr := entry.err
+		previousCode := entry.errorCode
 		entry.configKey = configKey
-		entry.err = err
+		entry.errorCode = code
 		if entry.generation != generation {
 			// A mutation raced this read. Keep the observation, but force the next
 			// explicit client request to reconcile it.
@@ -346,9 +352,9 @@ func desktopInfraRefreshOne(ctx context.Context, runtime *desktopInfraRuntime, s
 		close(done)
 		runtime.mu.Unlock()
 		switch {
-		case err != nil && previousErr == nil:
-			slog.Warn("Infra source refresh failed", "kind", kind, "instance", instance, "code", desktopInfraRefreshErrorCode(err), "error", err)
-		case err == nil && previousErr != nil:
+		case code != "" && previousCode == "":
+			slog.Warn("Infra source refresh failed", "kind", kind, "instance", instance, "code", code)
+		case code == "" && previousCode != "":
 			slog.Info("Infra source refresh recovered", "kind", kind, "instance", instance)
 		}
 		return err == nil
@@ -378,14 +384,14 @@ func (r *desktopInfraRuntime) sourceErrors() map[string]string {
 	defer r.mu.Unlock()
 	result := make(map[string]string)
 	for key, entry := range r.cache {
-		if entry == nil || entry.err == nil {
+		if entry == nil || entry.errorCode == "" {
 			continue
 		}
 		kind, instance, ok := strings.Cut(key, "\x00")
 		if !ok {
 			continue
 		}
-		result[kind+"|"+instance] = desktopInfraRefreshErrorCode(entry.err)
+		result[kind+"|"+instance] = entry.errorCode
 	}
 	if len(result) == 0 {
 		return nil

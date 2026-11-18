@@ -68,12 +68,11 @@ Units mm. Page margins 12; header band 10 (top), footer 8. Map area = rest. Scal
   dot-pill with name if it fits, else dot only) and region headers, and **detail pages** follow:
   1. Partition into clusters: each top-level region (depth 0) is a cluster; loose top-level cards are grouped into
      clusters by proximity (single-link, gap ≤ 600 units); the unplaced block is its own cluster.
-  2. Greedy packing: sort clusters by y then x; try to put neighbouring clusters on one page when their combined
-     bounding box still fits at `readable` scale (merge while it fits) — fewer pages, related things together.
-  3. A cluster that does not fit one page at `readable` is tiled: choose cols×rows (cols,rows ≤ 6) minimising page
-     count with s ≥ readable for the page aspect; tiles overlap by 4 % and are clipped; tile pages are titled
-     "<region> · Part 2/4".
-  4. Each detail page scale = min(fit, 0.42) so a small cluster is not blown up beyond ~1.9× readable.
+  2. Split large clusters at child-place boundaries. Use one scale for all detail pages, between `readable` and
+     1.3 times `readable`, and pack related islands together around the locator inset.
+  3. Tile oversized islands into overlapping rectangles that each fit a page at that scale. Prefer cuts between
+     cards and emit only occupied tiles. A large empty place gets one detail showing its header and a full frame
+     on the overview. Number the emitted parts in reading order.
 - **Locator inset** on each detail page (bottom-right, 52×34 mm, white with 0.3 pt border): whole scene as region
   outlines + grey card dots, the page's world rect highlighted in accent colour.
 - **Off-page connections**: an edge with one end on the page and the other not drawn there is drawn from the card

@@ -61,7 +61,8 @@ func (s *Store) ReserveAction(ctx context.Context, request ActionRequest) (Actio
 	if fingerprint != request.Fingerprint || record.Action != request.Action {
 		return ActionRecord{}, false, ErrActionConflict
 	}
-	return s.healInterruptedAction(ctx, record, updatedAt), false, nil
+	record, err = s.healInterruptedAction(ctx, record, updatedAt)
+	return record, false, err
 }
 
 func (s *Store) FinishAction(ctx context.Context, requestID, fingerprint, status, upid string) (ActionRecord, error) {
@@ -110,22 +111,23 @@ func (s *Store) GetAction(ctx context.Context, requestID string) (ActionRecord, 
 	if err != nil {
 		return ActionRecord{}, err
 	}
-	return s.healInterruptedAction(ctx, record, updatedAt), nil
+	return s.healInterruptedAction(ctx, record, updatedAt)
 }
 
 // healInterruptedAction resolves a reservation that can no longer be running: a
 // dispatch that failed to record its outcome does not stay replayable as running
 // for the rest of the process lifetime.
-func (s *Store) healInterruptedAction(ctx context.Context, record ActionRecord, updatedAt time.Time) ActionRecord {
+func (s *Store) healInterruptedAction(ctx context.Context, record ActionRecord, updatedAt time.Time) (ActionRecord, error) {
 	if record.Status != ActionRunning || time.Since(updatedAt) < actionRunningTimeout {
-		return record
+		return record, nil
 	}
 	if _, err := s.db.ExecContext(ctx, `UPDATE infra_action_requests SET status='unknown', updated_at=?
 		WHERE request_id=? AND status='running'`, formatTime(time.Now().UTC()), record.RequestID); err != nil {
-		return record
+		return ActionRecord{}, fmt.Errorf("resolve interrupted infra action: %w", err)
 	}
-	record.Status = ActionUnknown
-	return record
+	// FinishAction can commit after the initial read and win the conditional update.
+	record, _, _, err := loadAction(ctx, s.db, record.RequestID)
+	return record, err
 }
 
 func loadAction(ctx context.Context, q interface {

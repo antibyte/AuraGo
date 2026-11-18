@@ -270,12 +270,8 @@ func (s *Store) LinkSourceWithLayout(ctx context.Context, nodeID string, identit
 		return Node{}, fmt.Errorf("begin infra source link: %w", err)
 	}
 	defer tx.Rollback()
-	source, err := loadSource(ctx, tx, identity)
-	if err != nil {
+	if _, err := prepareSourceLink(ctx, tx, identity); err != nil {
 		return Node{}, err
-	}
-	if source.State == SourceRemoved {
-		return Node{}, ErrSourceRemoved
 	}
 	node, err := loadNode(ctx, tx, nodeID)
 	if err != nil {
@@ -301,22 +297,8 @@ func (s *Store) LinkSourceWithLayout(ctx context.Context, nodeID string, identit
 		if node.RegistryID != "" && node.RegistryID != identity.Key {
 			return Node{}, fmt.Errorf("%w: node already has a different registry device", ErrValidation)
 		}
-		var exists bool
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM devices WHERE id=?)`, identity.Key).Scan(&exists); err != nil {
-			return Node{}, fmt.Errorf("check registry device: %w", err)
-		}
-		if !exists {
-			return Node{}, ErrSourceNotFound
-		}
-		// The unique registry index owns the one-node-per-device rule. Report a
-		// claim by another node as a link conflict instead of a raw SQL error.
-		var claimedBy string
-		switch err := tx.QueryRowContext(ctx, `SELECT id FROM infra_nodes WHERE registry_id=?`, identity.Key).Scan(&claimedBy); {
-		case errors.Is(err, sql.ErrNoRows):
-		case err != nil:
-			return Node{}, fmt.Errorf("check registry link ownership: %w", err)
-		case claimedBy != nodeID:
-			return Node{}, ErrSourceLinked
+		if err := checkRegistryClaim(ctx, tx, identity.Key, nodeID); err != nil {
+			return Node{}, err
 		}
 		node.RegistryID = identity.Key
 	}
@@ -351,7 +333,7 @@ func (s *Store) LinkSourceWithLayout(ctx context.Context, nodeID string, identit
 		}
 		return Node{}, ErrConflict
 	}
-	res, err = tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=?, ignored_at='' WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`, nodeID, identity.Kind, identity.Instance, identity.Key)
+	res, err = tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=? WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`, nodeID, identity.Kind, identity.Instance, identity.Key)
 	if err != nil {
 		return Node{}, fmt.Errorf("set infra source link: %w", err)
 	}
@@ -365,6 +347,38 @@ func (s *Store) LinkSourceWithLayout(ctx context.Context, nodeID string, identit
 		return Node{}, fmt.Errorf("commit infra source link: %w", err)
 	}
 	return s.GetNode(ctx, nodeID)
+}
+
+// Clearing ignore first takes the SQLite write reservation before checking ownership.
+// A rejected link rolls back this change with the rest of the transaction.
+func prepareSourceLink(ctx context.Context, tx *sql.Tx, id SourceIdentity) (Source, error) {
+	source, err := scanSource(tx.QueryRowContext(ctx, `UPDATE infra_sources SET ignored_at=''
+		WHERE kind=? AND instance=? AND source_key=? RETURNING `+sourceColumns, id.Kind, id.Instance, id.Key))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Source{}, ErrSourceNotFound
+	}
+	if err != nil {
+		return Source{}, fmt.Errorf("prepare infra source link: %w", err)
+	}
+	if source.State == SourceRemoved {
+		return Source{}, ErrSourceRemoved
+	}
+	return source, nil
+}
+
+func checkRegistryClaim(ctx context.Context, tx *sql.Tx, registryID, nodeID string) error {
+	var exists, claimed bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM devices WHERE id=?),
+		EXISTS(SELECT 1 FROM infra_nodes WHERE registry_id=? AND id<>?)`, registryID, registryID, nodeID).Scan(&exists, &claimed); err != nil {
+		return fmt.Errorf("check infra registry claim: %w", err)
+	}
+	if !exists {
+		return ErrSourceNotFound
+	}
+	if claimed {
+		return ErrSourceLinked
+	}
+	return nil
 }
 
 func registryLinkableKind(kind NodeKind) bool {

@@ -205,6 +205,9 @@ func proxmoxGetClusterResourceList(ctx context.Context, cfg ProxmoxConfig, resTy
 	if err := json.Unmarshal(proxmoxExtractData(data), &resources); err != nil {
 		return nil, code, fmt.Errorf("failed to parse cluster resources: %w", err)
 	}
+	if resources == nil {
+		return nil, code, errors.New("proxmox cluster resources must be an array")
+	}
 	return resources, code, nil
 }
 

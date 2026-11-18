@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -100,8 +101,10 @@ func TestDesktopInfraActionConfirmsReplaysAndConflicts(t *testing.T) {
 
 func TestDesktopInfraSnapshotReportsSourceRefreshFailure(t *testing.T) {
 	s, cfg, store, runtime := newDesktopInfraRefreshFixture(t)
+	logs := c12CaptureDefault(t, slog.LevelInfo)
+	const providerDetail = "private upstream response fixture"
 	runtime.dockerRequest = func(context.Context, tools.DockerConfig, string, string, string) ([]byte, int, error) {
-		return nil, http.StatusBadGateway, nil
+		return nil, 0, errors.New(providerDetail)
 	}
 	response := httptest.NewRecorder()
 	desktopInfraSnapshot(response, httptest.NewRequest(http.MethodGet, desktopInfraBasePath+"/snapshot?refresh=1", nil), s, cfg, store, runtime)
@@ -117,6 +120,12 @@ func TestDesktopInfraSnapshotReportsSourceRefreshFailure(t *testing.T) {
 	key := "docker|" + desktopInfraDockerInstance(cfg)
 	if payload.SourceErrors[key] != "provider_unreachable" {
 		t.Fatalf("source_errors = %#v; want a sanitized docker failure code", payload.SourceErrors)
+	}
+	desktopInfraRefreshDocker(context.Background(), cfg, store, runtime, true)
+	logged := logs.String()
+	if strings.Count(logged, "Infra source refresh failed") != 1 || !strings.Contains(logged, "code=provider_unreachable") ||
+		strings.Contains(logged, providerDetail) || strings.Contains(response.Body.String(), providerDetail) {
+		t.Fatal("refresh must log one bounded failure and keep provider details out of the log and response")
 	}
 }
 
@@ -205,6 +214,27 @@ func TestDesktopInfraImportCreatesANodeFromARegistryCandidate(t *testing.T) {
 	desktopInfraImport(replay, httptest.NewRequest(http.MethodPost, desktopInfraBasePath+"/import", strings.NewReader(`{"candidate_id":"`+candidateID+`"}`)), s, cfg, store, runtime)
 	if replay.Code != http.StatusConflict || !strings.Contains(replay.Body.String(), "source_unavailable") {
 		t.Fatalf("second import = %d %s; want 409 source_unavailable", replay.Code, replay.Body.String())
+	}
+	// A recovered inventory may still have an owner for a now-unlinked source.
+	if _, err := s.InventoryDB.Exec(`UPDATE infra_sources SET node_id=NULL WHERE source_key=?`, deviceID); err != nil {
+		t.Fatal(err)
+	}
+	single := httptest.NewRecorder()
+	desktopInfraImport(single, httptest.NewRequest(http.MethodPost, desktopInfraBasePath+"/import", strings.NewReader(`{"candidate_id":"`+candidateID+`"}`)), s, cfg, store, runtime)
+	if single.Code != http.StatusConflict || !strings.Contains(single.Body.String(), "source_unavailable") {
+		t.Fatalf("claimed registry import = %d %s; want 409 source_unavailable", single.Code, single.Body.String())
+	}
+	batch := httptest.NewRecorder()
+	desktopInfraImportBatch(batch, httptest.NewRequest(http.MethodPost, desktopInfraBasePath+"/import/batch", strings.NewReader(`{"items":[{"candidate_id":"`+candidateID+`"}]}`)), s, cfg, store, runtime)
+	var result struct {
+		Nodes  []infra.Node
+		Errors []desktopInfraBatchError
+	}
+	if err := json.Unmarshal(batch.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if batch.Code != http.StatusOK || len(result.Nodes) != 0 || len(result.Errors) != 1 || result.Errors[0].CandidateID != candidateID || result.Errors[0].Error != "source_unavailable" {
+		t.Fatalf("claimed registry batch = %d %+v", batch.Code, result)
 	}
 }
 

@@ -369,8 +369,11 @@ Server-owned HTTP and cross-component integration contracts.
   budget: a client disconnect must not mark a healthy source stale.
 - `Snapshot` and `Candidates` never expose provider payloads. `source_errors`
   maps `kind|instance` to one bounded code (`provider_unreachable`,
-  `auth_failed`, `observation_limit`); a failing provider is logged once per
-  failure streak and its recovery once. Never return provider error text.
+  `auth_failed`, `observation_limit`). Cache the failure code and log it with
+  the provider kind and instance once per failure streak. Log recovery once.
+  Docker and Proxmox require a list. A JSON null leaves the previous sources
+  stale. An empty array confirms an empty enumeration. FRITZ!Box hosts
+  keep their IP when the optional interface type is absent.
 - Actions reserve in `infra_action_requests` before dispatch, revalidate the
   current configuration and source link, and finish with `completed`, `failed`,
   `unknown`, or `accepted`. The Docker protection list is

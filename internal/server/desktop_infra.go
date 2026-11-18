@@ -42,7 +42,7 @@ type desktopInfraProviderCache struct {
 	configKey  string
 	retryAt    time.Time
 	inflight   chan struct{}
-	err        error
+	errorCode  string
 	generation uint64
 }
 

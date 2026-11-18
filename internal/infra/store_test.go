@@ -826,6 +826,34 @@ func TestActionReplayHealsAnInterruptedRunningRow(t *testing.T) {
 	}
 }
 
+func TestActionTimeoutReturnsConcurrentCompletion(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	req := ActionRequest{RequestID: "late-finish", Fingerprint: strings.Repeat("a", 64), Action: "start"}
+	if _, fresh, err := store.ReserveAction(ctx, req); err != nil || !fresh {
+		t.Fatalf("reservation fresh=%v, err=%v", fresh, err)
+	}
+	if _, err := db.Exec(`UPDATE infra_action_requests SET updated_at=? WHERE request_id=?`,
+		formatTime(time.Now().Add(-2*actionRunningTimeout)), req.RequestID); err != nil {
+		t.Fatal(err)
+	}
+	// Complete the row between the stale read and its conditional timeout write.
+	if _, err := db.Exec(`CREATE TRIGGER finish_first BEFORE UPDATE OF status ON infra_action_requests
+		WHEN NEW.status='unknown' BEGIN
+		UPDATE infra_action_requests SET status='accepted', upid='test-task', updated_at=NEW.updated_at WHERE request_id=OLD.request_id;
+		SELECT RAISE(IGNORE); END`); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.GetAction(ctx, req.RequestID)
+	if err != nil || got.Status != ActionAccepted || got.UPID != "test-task" {
+		t.Fatalf("result after racing finish = %+v, %v", got, err)
+	}
+	replay, fresh, err := store.ReserveAction(ctx, req)
+	if err != nil || fresh || replay != got {
+		t.Fatalf("replay = %+v, fresh=%v, err=%v", replay, fresh, err)
+	}
+}
+
 func TestLinkSourceRejectsARegistryDeviceClaimedByAnotherNode(t *testing.T) {
 	store, db, _ := openInfraTestStore(t)
 	ctx := context.Background()
@@ -857,8 +885,53 @@ func TestLinkSourceRejectsARegistryDeviceClaimedByAnotherNode(t *testing.T) {
 	if err := store.ObserveSources(ctx, "registry", "inventory", []SourceObservation{observation}, true); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := store.SetSourcesIgnored(ctx, []SourceIdentity{identity}, true); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := store.LinkSource(ctx, second.ID, identity); !errors.Is(err, ErrSourceLinked) {
 		t.Fatalf("second registry link error = %v; want ErrSourceLinked", err)
+	}
+	if _, err := store.CreateImportedNode(ctx, testNode(NodeDevice, "import", "server"), identity); !errors.Is(err, ErrSourceLinked) {
+		t.Fatalf("import with a different registry owner = %v; want ErrSourceLinked", err)
+	}
+	if got, err := store.GetSource(ctx, identity); err != nil || !got.Ignored {
+		t.Fatalf("unsuccessful claims changed the ignore decision: %+v, %v", got, err)
+	}
+}
+
+func TestConcurrentRegistryImportAndLinkHaveOneOwner(t *testing.T) {
+	store, db, _ := openInfraTestStore(t)
+	ctx := context.Background()
+	deviceID, err := inventory.CreateDevice(db, "printer", "printer", inventory.ProtocolNone, "", 0, "", "", "", "", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := SourceIdentity{Kind: "registry", Instance: "inventory", Key: deviceID}
+	if err := store.UpsertObservation(ctx, SourceObservation{Identity: id, Name: "printer",
+		Observed: SourceObserved{Kind: NodeDevice, Name: "printer", Icon: "generic-device"}}); err != nil {
+		t.Fatal(err)
+	}
+	node := testNode(NodeDevice, "printer", "generic-device")
+	target, err := store.CreateNode(ctx, node)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	go func() {
+		<-start
+		_, err := store.CreateImportedNode(ctx, node, id)
+		results <- err
+	}()
+	go func() {
+		<-start
+		_, err := store.LinkSource(ctx, target.ID, id)
+		results <- err
+	}()
+	close(start)
+	first, second := <-results, <-results
+	if !(first == nil && errors.Is(second, ErrSourceLinked) || second == nil && errors.Is(first, ErrSourceLinked)) {
+		t.Fatalf("competing claims = %v, %v; want one success and one ErrSourceLinked", first, second)
 	}
 }
 
@@ -1226,8 +1299,12 @@ func TestIgnoredSourcesLeaveDiscoveriesAndSurviveRefresh(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.CreateImportedNode(ctx, tvCandidate.Node, tv.Identity); err != nil {
+	imported, err := store.CreateImportedNode(ctx, tvCandidate.Node, tv.Identity)
+	if err != nil {
 		t.Fatalf("importing an ignored source: %v", err)
+	}
+	if len(imported.Sources) != 1 || imported.Sources[0].Ignored {
+		t.Fatalf("import returned sources %+v; want one visible source", imported.Sources)
 	}
 	if source, err := store.GetSource(ctx, tv.Identity); err != nil || source.Ignored {
 		t.Fatalf("imported source = %#v, %v; want the ignore flag cleared by the link", source, err)

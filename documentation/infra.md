@@ -128,6 +128,10 @@ not delete the source device, container or guest. Linked last-known source data
 survives outages and removal; stale and removed are visible states. A failed or
 partial enumeration never proves an object was deleted.
 
+A Docker or Proxmox refresh needs a resource list. A JSON `null` leaves the
+last observations stale. A valid empty list marks missing sources as removed.
+A FRITZ!Box host without an interface type still shows its reported IP address.
+
 Identities use registry IDs, full Docker IDs, Proxmox instance plus guest type
 and VMID, or a server-owned opaque FRITZ!Box reference. Proxmox node migration
 changes routing, not identity. Names and addresses do not merge identities.

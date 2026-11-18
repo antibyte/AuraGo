@@ -107,12 +107,9 @@ func (s *Store) CreateImportedNode(ctx context.Context, node Node, identity Sour
 		return Node{}, fmt.Errorf("begin infra source import: %w", err)
 	}
 	defer tx.Rollback()
-	source, err := loadSource(ctx, tx, identity)
+	source, err := prepareSourceLink(ctx, tx, identity)
 	if err != nil {
 		return Node{}, err
-	}
-	if source.State == SourceRemoved {
-		return Node{}, ErrSourceRemoved
 	}
 	if source.Observed.Kind != node.Kind {
 		return Node{}, fmt.Errorf("%w: imported node kind does not match its source", ErrValidation)
@@ -125,12 +122,8 @@ func (s *Store) CreateImportedNode(ctx context.Context, node Node, identity Sour
 		return Node{}, ErrSourceLinked
 	}
 	if identity.Kind == "registry" {
-		var exists bool
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM devices WHERE id=?)`, identity.Key).Scan(&exists); err != nil {
-			return Node{}, fmt.Errorf("check registry device for source import: %w", err)
-		}
-		if !exists {
-			return Node{}, ErrSourceNotFound
+		if err := checkRegistryClaim(ctx, tx, identity.Key, ""); err != nil {
+			return Node{}, err
 		}
 		node.RegistryID = identity.Key
 	}
@@ -141,7 +134,7 @@ func (s *Store) CreateImportedNode(ctx context.Context, node Node, identity Sour
 	if err := insertNode(ctx, tx, node); err != nil {
 		return Node{}, err
 	}
-	res, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=?, ignored_at='' WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`,
+	res, err := tx.ExecContext(ctx, `UPDATE infra_sources SET node_id=? WHERE kind=? AND instance=? AND source_key=? AND node_id IS NULL`,
 		node.ID, identity.Kind, identity.Instance, identity.Key)
 	if err != nil {
 		return Node{}, fmt.Errorf("link imported infra source: %w", err)

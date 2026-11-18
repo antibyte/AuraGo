@@ -43,6 +43,26 @@ func TestProxmoxInfraResourcesRejectsIncompleteEnumeration(t *testing.T) {
 	}
 }
 
+func TestProxmoxClusterResourcesRequiresArray(t *testing.T) {
+	for _, tc := range []struct {
+		body    string
+		wantErr bool
+	}{
+		{"null", true}, {`{"data":null}`, true}, {"[]", false}, {`{"data":[]}`, false},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				fmt.Fprint(w, tc.body)
+			}))
+			defer srv.Close()
+			rows, code, err := proxmoxGetClusterResourceList(context.Background(), ProxmoxConfig{URL: srv.URL, Insecure: true}, "")
+			if code != http.StatusOK || (err != nil) != tc.wantErr || (!tc.wantErr && (rows == nil || len(rows) != 0)) {
+				t.Fatalf("response %s: rows=%v, code=%d, err=%v", tc.body, rows, code, err)
+			}
+		})
+	}
+}
+
 func TestProxmoxInfraActionReturnsUPIDAndHonorsGates(t *testing.T) {
 	var calls atomic.Int32
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
