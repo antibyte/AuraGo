@@ -1410,6 +1410,45 @@ DUEL_NPCS.forEach((id) => {
     }
 }
 
+// Review fixes: duel coins and the epilogue purse are paid once per save; dialogue changes report dirty state.
+{
+    const wonAt = (profile, id) => {
+        const sim = Sim.createSimulation({ levelId: 2, hero: 'knight', profile });
+        sim.stage = Levels.buildStage({ id: 2, worldIndex: 0, stageInWorld: 2, zones: ['meadow', 'npc_camp:' + id, 'key_sanctum'], enemies: ['slime'] });
+        sim.player.x = sim.stage.spawn.x;
+        sim.player.y = sim.stage.spawn.y;
+        tick(sim, {}, 2);
+        const npc = sim.stage.npcs[0];
+        assert.equal(Npcs.startDuel(sim, npc, { provoked: true }), true);
+        const coins0 = sim.profile.coins;
+        sim.encounter.duel.result = 'won';
+        Npcs.finishDuel(sim);
+        return { sim, gained: sim.profile.coins - coins0 };
+    };
+    DUEL_NPCS.forEach((id) => {
+        const first = wonAt(profileWith({}), id);
+        assert.ok(first.gained >= Npcs.NPCS[id].duelCoins, `${id} first win pays`);
+        assert.equal(Npcs.getFlag(first.sim, id + '.beaten'), 1);
+        const again = wonAt(Profile.importProfile(Profile.exportProfile(first.sim.profile)), id);
+        assert.ok(again.gained < Npcs.NPCS[id].duelCoins, `${id} second win on a new stage pays no duel purse (${again.gained})`);
+        assert.equal(Npcs.getFlag(again.sim, id + '.beaten'), 2, 'the win is still counted');
+        assert.equal(again.sim.storyDirty, true, 'finishing a duel marks the story dirty');
+    });
+
+    const fin = (extra) => { const s = Sim.createSimulation({ levelId: 25, profile: profileWith(extra) }); tick(s, {}, 1); return s; };
+    const a = fin({ rep: { coven: 2, circle: 3, kobolds: 0 } });
+    assert.equal(Npcs.onVictory(a).coins, 100);
+    assert.equal(Npcs.getFlag(a, 'epilogue.paid'), 1);
+    const saved = Profile.importProfile(Profile.exportProfile(a.profile));
+    assert.equal(Npcs.getFlag({ profile: saved }, 'epilogue.paid'), 1, 'the paid flag survives a save round trip');
+    const b = fin({ rep: saved.rep, npcFlags: saved.npcFlags, coins: saved.coins });
+    const coinsB = b.profile.coins;
+    const ep2 = Npcs.onVictory(b);
+    assert.equal(ep2.key, 'runenpfad.npc.end_friend', 'the epilogue text still shows on later clears');
+    assert.equal(ep2.coins, 0);
+    assert.equal(b.profile.coins, coinsB, 'no second purse');
+}
+
 // ---- i18n key coverage: every NPC text key exists in en.json and de.json ----
 {
     const keys = [].concat(Dialogue.textKeys(), Dialogue.tipKeys(), Trade.textKeys(), Npcs.textKeys(),

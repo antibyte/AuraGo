@@ -280,12 +280,15 @@
         const friends = reps.filter(function (r) { return r >= 2; }).length;
         const foes = reps.filter(function (r) { return r <= -2; }).length;
         const kind = friends >= 2 && friends > foes ? 'friend' : (foes >= 2 && foes > friends ? 'feared' : 'neutral');
-        const coins = 50 * friends;
+        // The purse is paid once per save; later clears still show the epilogue text.
+        const paid = hasFlag(sim, 'epilogue.paid');
+        const coins = paid ? 0 : 50 * friends;
         sim.epilogue = { key: 'runenpfad.npc.end_' + kind, coins: coins };
         if (coins > 0) {
             addCoins(sim, coins);
             sim.stageCoins += coins;
         }
+        setFlag(sim, 'epilogue.paid', 1);
         dirty(sim);
         return sim.epilogue;
     }
@@ -363,7 +366,8 @@
         const won = enc.duel && enc.duel.result === 'won';
         const p = sim.player;
         if (won) {
-            addCoins(sim, NPCS[enc.npcId].duelCoins);
+            // The purse is paid only for the first win against this NPC per save (no coin farming by replaying stages).
+            if (getFlag(sim, enc.npcId + '.beaten') === 0) addCoins(sim, NPCS[enc.npcId].duelCoins);
             setFlag(sim, enc.npcId + '.beaten', getFlag(sim, enc.npcId + '.beaten') + 1);
         } else {
             p.hp = Math.max(1, p.hp - 1);

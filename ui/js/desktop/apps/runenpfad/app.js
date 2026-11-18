@@ -123,6 +123,7 @@
         // Dialogue and trade window (dialogue-ui.js); `emit` forwards events raised outside a simulation tick.
         const talk = root.RunenpfadDialogueUi ? root.RunenpfadDialogueUi.create({
             el: el, t: t, fill: fill, hud: hud, Sim: Sim, isBlocked: function () { return anyDialogOpen() || !!cardKind; },
+            flush: function () { flushStory(); },
             emit: function (evs) { if (!sim) return; if (renderer) renderer.handleEvents(evs, sim); if (audio) audio.handleEvents(evs, sim.stage.ambience, renderer ? renderer.getCamera() : null); }
         }) : null;
 
@@ -308,6 +309,21 @@
             writeProfile();
         }
 
+        // Persist unadopted story changes (dialogue choices, purchases) before the profile is replaced or read.
+        function flushStory() { if (sim && sim.storyDirty) adoptSimProfile(); }
+
+        // Fleeing is impossible once a duel started: stage-switching controls lock until it ends.
+        function duelLocked() { return !!(sim && sim.encounter && sim.encounter.kind === 'duel'); }
+        function lockedText() {
+            const v = t('runenpfad.npc.duel.locked');
+            return v === 'runenpfad.npc.duel.locked' ? 'Not during a duel' : v;
+        }
+        function lockHint() {
+            if (!duelLocked()) return false;
+            sim.floatingTexts.push({ x: sim.player.x, y: sim.player.y - 64, text: lockedText(), color: '#fca5a5', timer: 1.1, key: 'runenpfad.npc.duel.locked' });
+            return true;
+        }
+
         function paintSound() {
             const on = !!(audio && audio.isEnabled());
             const label = on ? t('runenpfad.pause_sound_on') : t('runenpfad.pause_sound_off');
@@ -382,6 +398,9 @@
         function paintHud() {
             if (!sim) return;
             const p = sim.player;
+            const locked = duelLocked();
+            levelsBtn.disabled = heroBtn.disabled = locked;
+            levelsBtn.title = heroBtn.title = locked ? lockedText() : '';
             const bossOn = hud.paint(sim, profile);
             if (audio) audio.setAmbienceDuck(bossOn ? 0.55 : 1);
 
@@ -431,6 +450,7 @@
 
         function startStage(options) {
             options = options || {};
+            flushStory();
             userPaused = false;
             disarmHero();
             winCard.hidden = true;
@@ -470,6 +490,8 @@
         }
 
         function openLevels() {
+            if (lockHint()) return;
+            flushStory();
             disarmHero();
             renderLevelsModal();
             levelsDialog.showModal();
@@ -478,15 +500,19 @@
         }
 
         function openShop() {
+            flushStory();
             renderShopModal();
             shopDialog.showModal();
             syncAudioActive();
         }
 
         function openPause() {
+            flushStory();
             userPaused = true;
             resetArmed = false;
             disarmHero();
+            restartBtn.disabled = resetBtn.disabled = duelLocked();
+            restartBtn.title = resetBtn.title = duelLocked() ? lockedText() : '';
             paintStaticCopy();
             pauseDialog.showModal();
             syncAudioActive();
@@ -579,6 +605,7 @@
                 const pick = el('button', chosen ? 'rp-btn-primary' : 'rp-btn', t(chosen ? 'runenpfad.hero_selected' : heroArmed === heroId ? 'runenpfad.hero_switch_confirm' : 'runenpfad.hero_choose'));
                 pick.type = 'button';
                 pick.dataset.rpPickHero = heroId;
+                pick.disabled = duelLocked();
                 if (chosen) pick.setAttribute('aria-current', 'true');
                 pick.addEventListener('click', function () {
                     chooseHero(heroId);
@@ -604,13 +631,16 @@
                 buyBtn.dataset.rpBuyTrack = track.id;
                 buyBtn.disabled = cost === null || profile.coins < cost;
                 buyBtn.addEventListener('click', function () {
+                    flushStory();
                     const res = Sim.buyUpgrade(profile, track.id);
                     if (res.ok) {
                         profile = res.profile;
                         writeProfile();
                         if (audio && audio.isEnabled()) audio.playUiClick();
                         if (sim && sim.state === 'playing') {
-                            sim.profile = Sim.exportProfile(profile);
+                            const ex = Sim.exportProfile(profile); // merge: keep the story state the sim already holds
+                            sim.profile.coins = ex.coins;
+                            sim.profile.upgrades = ex.upgrades;
                             sim.stats = Sim.heroStats(sim.heroId, profile);
                             sim.player.maxHp = sim.stats.maxHp;
                             sim.player.hp = Math.min(sim.player.maxHp, sim.player.hp + 1);
@@ -770,7 +800,7 @@
 
         // Switching heroes restarts the stage, so a run that already has progress asks for a second click first.
         function chooseHero(heroId) {
-            if (heroId === profile.hero) return;
+            if (heroId === profile.hero || lockHint()) return;
             const atRisk = sim && sim.state === 'playing' && (sim.stageScore > 0 || sim.elapsed > 20);
             if (atRisk && heroArmed !== heroId) {
                 disarmHero();
@@ -833,6 +863,7 @@
         pauseCloseX.addEventListener('click', closePause);
         resumeBtn.addEventListener('click', closePause);
         restartBtn.addEventListener('click', function () {
+            if (lockHint()) return;
             closePause();
             startStage();
         });
@@ -864,6 +895,7 @@
         soundBtn.addEventListener('click', toggleSound);
         hudSoundBtn.addEventListener('click', toggleSound);
         resetBtn.addEventListener('click', function () {
+            if (lockHint()) return;
             if (!resetArmed) {
                 resetArmed = true;
                 resetBtn.textContent = t('runenpfad.pause_reset_confirm');
@@ -1014,6 +1046,7 @@
 
         sessions.set(windowId, {
             cleanup: function () {
+                flushStory();
                 disposed = true;
                 controller.abort();
                 if (rafId) {

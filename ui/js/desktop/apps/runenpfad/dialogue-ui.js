@@ -19,6 +19,8 @@
         const hud = o.hud;
         const isBlocked = typeof o.isBlocked === 'function' ? o.isBlocked : function () { return false; };
         const emit = typeof o.emit === 'function' ? o.emit : function () {};
+        // Persist profile changes right after a choice or purchase (the paused/dialogue tick may not).
+        function flush(sim) { if (sim && sim.storyDirty && typeof o.flush === 'function') o.flush(); }
         const perf = root.performance;
 
         let open = false;
@@ -278,6 +280,7 @@
             const before = evCount(sim);
             dlg().choose(sim, i);
             forward(sim, before);
+            flush(sim);
             sync(sim, lastProfile);
         }
 
@@ -410,6 +413,7 @@
                 const before = evCount(sim);
                 const res = trd().buy(sim, npc, off.id);
                 forward(sim, before);
+                flush(sim);
                 // A fake sale looks exactly like a real one; the core reveals it when the dialogue closes.
                 if (res.ok) tradeMsg = { text: fill(UI + 'bought', { name: t(trd().OFFERS[off.id].nameKey) }), ok: true };
                 else tradeMsg = { text: reasonText(res.reason), ok: false };
@@ -422,6 +426,7 @@
             const sim = lastSim;
             if (!sim) return;
             dlg().closeTrade(sim);
+            flush(sim);
             sync(sim, lastProfile);
         }
 
