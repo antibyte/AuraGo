@@ -46,6 +46,7 @@ loadModule('ui/js/desktop/apps/runenpfad/puzzles.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/dragons.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/npcs.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/npc-story.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/npc-story-late.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/dialogue.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/trade.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/levels.js', sandbox);
@@ -1249,7 +1250,7 @@ console.log('Runenpfad round 3 checks passed: new enemies, stomp, runes, chests,
     // Chasers stop instead of flip-flopping (dead zone, pit edges) and resume patrol afterwards.
     {
         const mkW = () => {
-            const s = Sim.createSimulation({ mode: 'campaign', levelId: 2, hero: 'knight', profile });
+            const s = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
             s.stage.enemies.length = 0;
             const T = s.stage.tileSize;
             const w = Levels.createEnemy('wolf', 20 * T, s.stage.groundY, 8 * T, 40 * T, { id: 'wf' });

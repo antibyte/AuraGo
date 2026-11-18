@@ -66,7 +66,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/parallax-art.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js", "/js/desktop/apps/runenpfad/npcs.js", "/js/desktop/apps/runenpfad/npc-story.js", "/js/desktop/apps/runenpfad/dialogue.js", "/js/desktop/apps/runenpfad/trade.js"}},
+		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/parallax-art.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js", "/js/desktop/apps/runenpfad/npcs.js", "/js/desktop/apps/runenpfad/npc-story.js", "/js/desktop/apps/runenpfad/npc-story-late.js", "/js/desktop/apps/runenpfad/dialogue.js", "/js/desktop/apps/runenpfad/trade.js", "/js/desktop/apps/runenpfad/duel-patterns.js", "/js/desktop/apps/runenpfad/duel.js", "/js/desktop/apps/runenpfad/npc-view.js", "/js/desktop/apps/runenpfad/duel-view.js", "/js/desktop/apps/runenpfad/dialogue-ui.js"}},
 		{"js/desktop/core/menus-and-routing.js", []string{"if (appId === 'runenpfad')", "RunenpfadApp.render"}},
 		{"js/desktop/core/desktop-foundation.js", []string{"runenpfad: '/img/runenpfad/icon.svg'", "runenpfad: 'RunenpfadApp'"}},
 		{"js/desktop/core/window-shell-runtime.js", []string{"runenpfad: { width: 1180, height: 740 }"}},
@@ -93,12 +93,18 @@ func TestRunenpfadRegistration(t *testing.T) {
 		{"js/desktop/apps/runenpfad/decor.js", []string{"RunenpfadDecor"}},
 		{"js/desktop/apps/runenpfad/actors.js", []string{"RunenpfadActors"}},
 		{"js/desktop/apps/runenpfad/stage-art.js", []string{"RunenpfadStageArt"}},
+		{"js/desktop/apps/runenpfad/npc-view.js", []string{"RunenpfadNpcView"}},
+		{"js/desktop/apps/runenpfad/duel-view.js", []string{"RunenpfadDuelView", "paintBackdrop", "drawWipe"}},
 		{"js/desktop/apps/runenpfad/postfx.js", []string{"RunenpfadPostfx"}},
 		{"js/desktop/apps/runenpfad/hud.js", []string{"RunenpfadHud", "createElement", "rp-topbar"}},
 		{"js/desktop/apps/runenpfad/npcs.js", []string{"RunenpfadNpcs", "npc_camp"}},
 		{"js/desktop/apps/runenpfad/dialogue.js", []string{"RunenpfadDialogue", "validateGraphs"}},
 		{"js/desktop/apps/runenpfad/npc-story.js", []string{"RunenpfadNpcStory"}},
+		{"js/desktop/apps/runenpfad/npc-story-late.js", []string{"RunenpfadNpcStory", "Saida"}},
 		{"js/desktop/apps/runenpfad/trade.js", []string{"RunenpfadTrade"}},
+		{"js/desktop/apps/runenpfad/duel-patterns.js", []string{"RunenpfadDuelPatterns", "tellTime"}},
+		{"js/desktop/apps/runenpfad/duel.js", []string{"RunenpfadDuel", "hurtHero"}},
+		{"js/desktop/apps/runenpfad/dialogue-ui.js", []string{"RunenpfadDialogueUi", "createElement", "rp-talk"}},
 		{"js/desktop/apps/runenpfad/app.js", []string{"RunenpfadApp", "/api/game-maker/asset-packs/"}},
 	}
 	for _, tc := range checks {

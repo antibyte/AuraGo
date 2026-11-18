@@ -186,7 +186,7 @@
         ctx.scenery.push({ assetId: 'sign', x: (cx + 2.5) * T, y: g * T });
         let gate = null;
         if (gated) gate = placeColumn(ctx, cx + 10);
-        const slots = ids.length > 1 ? [4.5, 8] : [gated ? 8 : 6];
+        const slots = ids.length > 1 ? [4.5, 8] : [gated ? 7 : 6];
         ids.forEach(function (id, i) {
             ctx.extras.npcs.push({
                 ref: 'npc_' + ctx.extras.npcs.length, npcId: id, x: (cx + slots[i]) * T, y: g * T,
@@ -254,9 +254,40 @@
             npc.meetingId = m ? m.id : null;
             relocateEnemies(stage, npc);
         });
+        applySabotage(sim);
         spawnQuestItems(sim);
         if (trade()) trade().applyStageStart(sim);
         refreshAll(sim);
+    }
+
+    // The citadel boss loses a fifth of its hp when the alchemist told us how to sabotage the engine (once per stage).
+    function applySabotage(sim) {
+        const stage = sim.stage;
+        if (sim.mode === 'endless' || sim.levelId !== 25 || stage.sabotaged || !hasFlag(sim, 'alchemist.sabotage')) return;
+        stage.sabotaged = true;
+        (stage.enemies || []).forEach(function (e) {
+            if (!e.def || !e.def.boss) return;
+            e.maxHp = Math.max(1, Math.round(e.maxHp * 0.8));
+            e.hp = Math.min(e.hp, e.maxHp);
+        });
+    }
+
+    // Final stage only: the epilogue plaque and one coin purse per friendly faction. The wizard/alchemist
+    // blessings are once-only dialogue flags and stay untouched here.
+    function onVictory(sim) {
+        if (sim.mode === 'endless' || sim.levelId !== 25 || sim.epilogue) return null;
+        const reps = prof().FACTIONS.map(function (f) { return getRep(sim, f); });
+        const friends = reps.filter(function (r) { return r >= 2; }).length;
+        const foes = reps.filter(function (r) { return r <= -2; }).length;
+        const kind = friends >= 2 && friends > foes ? 'friend' : (foes >= 2 && foes > friends ? 'feared' : 'neutral');
+        const coins = 50 * friends;
+        sim.epilogue = { key: 'runenpfad.npc.end_' + kind, coins: coins };
+        if (coins > 0) {
+            addCoins(sim, coins);
+            sim.stageCoins += coins;
+        }
+        dirty(sim);
+        return sim.epilogue;
     }
 
     // ---- quest items ----
@@ -460,6 +491,7 @@
         has: has,
         build: build,
         resolve: resolve,
+        onVictory: onVictory,
         hold: hold,
         interact: interact,
         refresh: refresh,
