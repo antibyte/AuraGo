@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,13 +12,12 @@ import (
 	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/media"
 	"aurago/internal/tools"
 )
 
 // handleSendVideo resolves a video file path or URL, copies/downloads it into
 // data/generated_videos/, and returns a JSON result for inline chat playback.
-func handleSendVideo(req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
+func handleSendVideo(ctx context.Context, req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return "Tool Output: " + string(b)
@@ -42,7 +42,7 @@ func handleSendVideo(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 	copiedOrDownloaded := false
 
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
-		saved, err := media.SaveURLToDir(req.Path, videoDir)
+		saved, err := downloadSendMediaURL(ctx, cfg, req.Path, videoDir)
 		if err != nil {
 			return encode(map[string]interface{}{"status": "error", "message": "failed to download video: " + err.Error()})
 		}

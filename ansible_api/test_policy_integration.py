@@ -40,6 +40,13 @@ class AnsiblePolicyIntegrationTests(unittest.TestCase):
         self.assertNotEqual(result["rc"], 0, result)
         self.assertIn("outside the static inventory", result["stderr"])
 
+    def test_literal_module_args_reach_declared_group(self):
+        for args in ("data='fixture data'", r'{"data":"fixture\u0020data"}'):
+            with self.subTest(args=args):
+                result = server.run_ansible(["ansible", "lab", "-i", str(self.inventory), "-m", "ping", "-a", args], timeout=60)
+                self.assertEqual(result["rc"], 0, result)
+                self.assertIn("fixture data", result["stdout"])
+
     def test_overrides_fail_with_and_without_readonly(self):
         for readonly in (True, False):
             with patch.object(server, "READ_ONLY", readonly):

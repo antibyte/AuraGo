@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,13 +12,12 @@ import (
 	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/media"
 	"aurago/internal/tools"
 )
 
 // handleSendDocument resolves a document path or URL, copies/downloads it into
 // data/documents/ and returns a JSON result the agent should include in its reply.
-func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
+func handleSendDocument(ctx context.Context, req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return "Tool Output: " + string(b)
@@ -45,7 +45,7 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 	servedWebPath := ""
 
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
-		saved, err := media.SaveURLToDir(req.Path, docDir)
+		saved, err := downloadSendMediaURL(ctx, cfg, req.Path, docDir)
 		if err != nil {
 			return encode(map[string]interface{}{"status": "error", "message": "failed to download document: " + err.Error()})
 		}

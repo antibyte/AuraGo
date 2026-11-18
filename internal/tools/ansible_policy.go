@@ -38,6 +38,24 @@ func validateAnsibleLiteral(value interface{}, depth int) error {
 	return nil
 }
 
+func validateAnsibleModuleArgs(raw string) error {
+	if err := validateAnsibleLiteral(raw, 0); err != nil {
+		return err
+	}
+	if strings.HasPrefix(raw, "{") && strings.HasSuffix(raw, "}") {
+		var arguments map[string]interface{}
+		if err := json.Unmarshal([]byte(raw), &arguments); err != nil {
+			return fmt.Errorf("module arguments must be a valid JSON object")
+		}
+		return validateAnsibleLiteral(arguments, 0)
+	}
+	// Ansible decodes backslash escapes in key=value syntax.
+	if strings.Contains(raw, "\\") {
+		return fmt.Errorf("use JSON for escaped module arguments in read-only mode")
+	}
+	return nil
+}
+
 func validateAnsibleExtraVars(raw string) error {
 	var variables map[string]interface{}
 	if err := json.Unmarshal([]byte(raw), &variables); err != nil || variables == nil {

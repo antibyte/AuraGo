@@ -28,7 +28,7 @@ func TestHandleSendVideoCopiesLocalVideoForChat(t *testing.T) {
 	cfg.Directories.DataDir = dataDir
 	cfg.Directories.WorkspaceDir = workspaceDir
 
-	raw := handleSendVideo(sendMediaArgs{Path: "clips/demo.mp4", Title: "Demo clip"}, cfg, slog.Default(), nil)
+	raw := handleSendVideo(t.Context(), sendMediaArgs{Path: "clips/demo.mp4", Title: "Demo clip"}, cfg, slog.Default(), nil)
 	raw = stringsTrimToolOutput(raw)
 
 	var result struct {
@@ -77,7 +77,7 @@ func TestHandleSendVideoAcceptsGeneratedVideoWebPath(t *testing.T) {
 	cfg.Directories.DataDir = dataDir
 	cfg.Directories.WorkspaceDir = workspaceDir
 
-	raw := handleSendVideo(sendMediaArgs{Path: "/files/generated_videos/video_test.mp4", Title: "Generated clip"}, cfg, slog.Default(), nil)
+	raw := handleSendVideo(t.Context(), sendMediaArgs{Path: "/files/generated_videos/video_test.mp4", Title: "Generated clip"}, cfg, slog.Default(), nil)
 	raw = stringsTrimToolOutput(raw)
 
 	var result struct {

@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"io"
 	"io/fs"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -70,6 +71,10 @@ func SaveAttachment(url, originalFilename, destDir string) (string, error) {
 // SaveAttachmentContext downloads and saves an attachment until ctx is
 // canceled, preserving the same size, filename, and HTTP timeout policies.
 func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir string) (string, error) {
+	return saveAttachmentURLContext(ctx, httpClientMedia, url, originalFilename, destDir, false)
+}
+
+func saveAttachmentURLContext(ctx context.Context, client *http.Client, url, originalFilename, destDir string, rejectHTML bool) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -84,7 +89,7 @@ func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir s
 	if err != nil {
 		return "", fmt.Errorf("failed to create attachment request: %w", err)
 	}
-	resp, err := httpClientMedia.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to download attachment: %w", err)
 	}
@@ -92,6 +97,12 @@ func SaveAttachmentContext(ctx context.Context, url, originalFilename, destDir s
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("download returned status %d", resp.StatusCode)
+	}
+	if rejectHTML {
+		contentType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+		if contentType == "text/html" || contentType == "application/xhtml+xml" {
+			return "", fmt.Errorf("media URL returned an HTML page")
+		}
 	}
 	if err := rejectOversizedResponse(resp, maxAttachmentSize, "attachment"); err != nil {
 		return "", err

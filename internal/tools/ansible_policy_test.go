@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,10 @@ func TestAnsibleSharedLiteralPolicy(t *testing.T) {
 			Name, Raw string
 			Valid     bool
 		} `json:"extra_vars"`
+		ModuleArgs []struct {
+			Name, Raw string
+			Valid     bool
+		} `json:"module_args"`
 		SelectedHosts []struct {
 			Name, Stdout string
 			Valid        bool
@@ -30,6 +35,20 @@ func TestAnsibleSharedLiteralPolicy(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			if err := validateAnsibleExtraVars(c.Raw); (err == nil) != c.Valid {
 				t.Fatalf("accepted=%v, want %v: %v", err == nil, c.Valid, err)
+			}
+		})
+	}
+	for _, c := range cases.ModuleArgs {
+		t.Run(c.Name, func(t *testing.T) {
+			err := validateAnsibleModuleArgs(c.Raw)
+			if (err == nil) != c.Valid {
+				t.Fatalf("accepted=%v, want %v: %v", err == nil, c.Valid, err)
+			}
+			// Deny process execution so the test exercises only admission.
+			cfg := AnsibleLocalConfig{ReadOnly: true, Context: WithRuntimePermissions(context.Background(), RuntimePermissions{})}
+			_, _, runErr := ansibleRunCmd(cfg, "ansible", "server", "-m", "ping", "-a", c.Raw)
+			if runErr == nil || (err != nil && runErr.Error() != err.Error()) || (err == nil && !strings.Contains(runErr.Error(), "shell")) {
+				t.Fatalf("local admission error = %v, validation error = %v", runErr, err)
 			}
 		})
 	}

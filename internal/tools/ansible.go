@@ -49,7 +49,7 @@ func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}
 			SecurityPolicy int `json:"security_policy"`
 		}
 		if err != nil || code != http.StatusOK || json.Unmarshal(data, &status) != nil || status.SecurityPolicy < ansibleSecurityPolicy {
-			return nil, 0, fmt.Errorf("Ansible sidecar requires security policy 3 (literal inventory and bounded targets); rebuild its image")
+			return nil, 0, fmt.Errorf("Ansible sidecar requires security policy %d; rebuild its image", ansibleSecurityPolicy)
 		}
 	}
 	url := strings.TrimRight(cfg.URL, "/") + endpoint
@@ -237,7 +237,7 @@ func AnsibleGatherFacts(cfg AnsibleConfig, hosts, inventoryPath string) string {
 
 const ansibleContainerName = "aurago_ansible"
 const ansibleSidecarImage = "aurago-ansible:latest"
-const ansibleSecurityPolicy = 3
+const ansibleSecurityPolicy = 4
 const ansibleImagePolicyLabel = "io.aurago.ansible.security-policy"
 
 // AnsibleSidecarConfig carries the fields needed to auto-manage the
@@ -410,7 +410,7 @@ func ensureAnsiblePolicyImage(dockerCfg DockerConfig, sidecarCfg AnsibleSidecarC
 	currentImage := imageErr == nil && imageCode == 200 && json.Unmarshal(imageData, &imageInfo) == nil && imageInfo.Config.Labels[ansibleImagePolicyLabel] == strconv.Itoa(ansibleSecurityPolicy)
 	if !currentImage {
 		if !sidecarCfg.AutoBuild {
-			logger.Warn("[Ansible] Image requires security policy 3; rebuild it before starting the sidecar", "image", image)
+			logger.Warn("[Ansible] Rebuild the image before starting the sidecar", "image", image, "required_security_policy", ansibleSecurityPolicy)
 			return false
 		}
 		if err := buildAnsibleImageOnEngine(image, sidecarCfg.DockerfileDir, dockerCfg.Host, logger); err != nil {
@@ -419,7 +419,7 @@ func ensureAnsiblePolicyImage(dockerCfg DockerConfig, sidecarCfg AnsibleSidecarC
 		}
 		imageData, imageCode, imageErr = dockerRequest(dockerCfg, "GET", "/images/"+image+"/json", "")
 		if imageErr != nil || imageCode != 200 || json.Unmarshal(imageData, &imageInfo) != nil || imageInfo.Config.Labels[ansibleImagePolicyLabel] != strconv.Itoa(ansibleSecurityPolicy) {
-			logger.Error("[Ansible] Rebuilt image does not provide security policy 3; existing container retained")
+			logger.Error("[Ansible] Rebuilt image does not provide the required security policy; existing container retained", "required_security_policy", ansibleSecurityPolicy)
 			return false
 		}
 	}
@@ -586,6 +586,14 @@ func ansibleRunCmd(cfg AnsibleLocalConfig, name string, args ...string) (string,
 		for i, arg := range args {
 			if arg == "-m" && i+1 < len(args) && args[i+1] != "ping" && args[i+1] != "setup" {
 				return "", "", fmt.Errorf("ansible.readonly blocks arbitrary modules")
+			}
+			if name == "ansible" && (arg == "-a" || arg == "--args") {
+				if i+1 >= len(args) {
+					return "", "", fmt.Errorf("module arguments are missing")
+				}
+				if err := validateAnsibleModuleArgs(args[i+1]); err != nil {
+					return "", "", err
+				}
 			}
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"aurago/internal/config"
@@ -389,6 +390,86 @@ func TestDispatchMessagingSendYouTubeVideoHonorsDisabledConfig(t *testing.T) {
 	}
 	if !strings.Contains(out, "send_youtube_video is disabled") {
 		t.Fatalf("expected disabled error, got %s", out)
+	}
+}
+
+func TestDispatchMessagingMediaURLRequiresNetworkPermission(t *testing.T) {
+	baseCfg := &config.Config{}
+	baseCfg.Agent.AllowNetworkRequests = true
+	useRuntimePermissionsForTest(t, baseCfg)
+	allowedRun := tools.WithRuntimePermissions(t.Context(), tools.RuntimePermissions{AllowNetworkRequests: true})
+	deniedRun := tools.WithRuntimePermissions(t.Context(), tools.RuntimePermissions{})
+	for _, tc := range []struct {
+		action, ext, mime string
+	}{
+		{"send_document", ".pdf", "application/pdf"},
+		{"send_audio", ".mp3", "audio/mpeg"},
+		{"send_video", ".mp4", "video/mp4"},
+	} {
+		t.Run(tc.action, func(t *testing.T) {
+			var downloads atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				downloads.Add(1)
+				if r.URL.Query().Has("login") {
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					_, _ = io.WriteString(w, "<html>Sign in</html>")
+					return
+				}
+				w.Header().Set("Content-Type", tc.mime)
+				_, _ = io.WriteString(w, "local fixture")
+			}))
+			defer srv.Close()
+
+			cfg := &config.Config{}
+			cfg.Directories.DataDir = t.TempDir()
+			dc := &DispatchContext{Cfg: cfg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+			call := ToolCall{Action: tc.action, Params: map[string]interface{}{"path": srv.URL + "/sample" + tc.ext}}
+
+			out, _ := dispatchMessagingCases(allowedRun, call, dc)
+			if !strings.Contains(out, "agent.allow_network_requests") {
+				t.Fatalf("disabled config: %s", out)
+			}
+			cfg.Agent.AllowNetworkRequests = true
+			out, _ = dispatchMessagingCases(deniedRun, call, dc)
+			if !strings.Contains(out, "agent.allow_network_requests") {
+				t.Fatalf("denied run: %s", out)
+			}
+			baseCfg.Agent.AllowNetworkRequests = false
+			out, _ = dispatchMessagingCases(allowedRun, call, dc)
+			baseCfg.Agent.AllowNetworkRequests = true
+			if !strings.Contains(out, "agent.allow_network_requests") {
+				t.Fatalf("revoked live grant: %s", out)
+			}
+			if got := downloads.Load(); got != 0 {
+				t.Fatalf("blocked calls made %d requests", got)
+			}
+
+			out, _ = dispatchMessagingCases(allowedRun, call, dc)
+			var result struct {
+				Status    string `json:"status"`
+				LocalPath string `json:"local_path"`
+				MimeType  string `json:"mime_type"`
+			}
+			if err := json.Unmarshal([]byte(stringsTrimToolOutput(out)), &result); err != nil {
+				t.Fatalf("decode response: %v, output=%s", err, out)
+			}
+			if result.Status != "success" || result.MimeType != tc.mime || filepath.Ext(result.LocalPath) != tc.ext {
+				t.Fatalf("unexpected response: %s", out)
+			}
+			data, err := os.ReadFile(result.LocalPath)
+			if err != nil || string(data) != "local fixture" || downloads.Load() != 1 {
+				t.Fatalf("downloaded file: %q, err=%v, requests=%d", data, err, downloads.Load())
+			}
+			call.Params["path"] = srv.URL + "/sample" + tc.ext + "?login=1"
+			out, _ = dispatchMessagingCases(allowedRun, call, dc)
+			if !strings.Contains(out, "media URL returned an HTML page") {
+				t.Fatalf("HTML response: %s", out)
+			}
+			entries, err := os.ReadDir(filepath.Dir(result.LocalPath))
+			if err != nil || len(entries) != 1 {
+				t.Fatalf("HTML response left an unexpected file: %v, %v", entries, err)
+			}
+		})
 	}
 }
 

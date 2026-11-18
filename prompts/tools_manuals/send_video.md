@@ -6,7 +6,7 @@ Use `send_video` when the user asks to see an existing video file in the chat, o
 
 - Shows an inline video player in the WebUI chat.
 - Copies local files into `data/generated_videos/` so they can be served safely.
-- Downloads direct HTTP(S) video URLs into `data/generated_videos/`.
+- Downloads direct HTTP(S) video URLs into `data/generated_videos/` when `agent.allow_network_requests` and the effective network grant for the run allow it.
 - Registers the video in the media registry.
 
 ## Arguments

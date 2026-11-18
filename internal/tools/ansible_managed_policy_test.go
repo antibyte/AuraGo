@@ -6,12 +6,14 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
 
 func TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer(t *testing.T) {
-	for _, policy := range []string{"2", "3"} {
+	previous, current := strconv.Itoa(ansibleSecurityPolicy-1), strconv.Itoa(ansibleSecurityPolicy)
+	for _, policy := range []string{previous, current} {
 		for _, rotate := range []bool{false, true} {
 			t.Run(policy+"/rotate="+map[bool]string{false: "false", true: "true"}[rotate], func(t *testing.T) {
 				exists, stopped, deleted, created := true, false, false, false
@@ -31,7 +33,7 @@ func TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer(t *testing.T) {
 							w.WriteHeader(http.StatusNotFound)
 							return
 						}
-						_ = json.NewEncoder(w).Encode(map[string]interface{}{"State": map[string]bool{"Running": true}, "Config": map[string]interface{}{"Env": []string{"AURAGO_ANSIBLE_POLICY=2", "ANSIBLE_READONLY=false", "DEFAULT_INVENTORY="}, "Labels": map[string]string{ansibleImagePolicyLabel: "2"}}})
+						_ = json.NewEncoder(w).Encode(map[string]interface{}{"State": map[string]bool{"Running": true}, "Config": map[string]interface{}{"Env": []string{"AURAGO_ANSIBLE_POLICY=" + previous, "ANSIBLE_READONLY=false", "DEFAULT_INVENTORY="}, "Labels": map[string]string{ansibleImagePolicyLabel: previous}}})
 					case r.Method == http.MethodPost && strings.Contains(path, "/stop"):
 						stopped = true
 						w.WriteHeader(http.StatusNoContent)
@@ -50,7 +52,7 @@ func TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer(t *testing.T) {
 					}
 				}))
 				defer srv.Close()
-				cfg := AnsibleSidecarConfig{Image: "fixture-ansible:3", Token: "fixture-token", PlaybooksDir: t.TempDir(), InventoryDir: t.TempDir()}
+				cfg := AnsibleSidecarConfig{Image: "fixture-ansible:" + policy, Token: "fixture-token", PlaybooksDir: t.TempDir(), InventoryDir: t.TempDir()}
 				logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 				host := "tcp://" + strings.TrimPrefix(srv.URL, "http://")
 				if rotate {
@@ -58,7 +60,7 @@ func TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer(t *testing.T) {
 				} else {
 					EnsureAnsibleSidecarRunning(host, cfg, logger)
 				}
-				if policy == "2" {
+				if policy == previous {
 					if stopped || deleted || created {
 						t.Fatal("obsolete image caused an existing container to be replaced")
 					}
@@ -67,7 +69,7 @@ func TestAnsibleManagedPolicyChecksImageBeforeReplacingContainer(t *testing.T) {
 				if !stopped || !deleted || !created || len(payload.HostConfig.Binds) < 2 {
 					t.Fatalf("policy upgrade did not preserve configured mounts: stopped=%v deleted=%v created=%v binds=%v", stopped, deleted, created, payload.HostConfig.Binds)
 				}
-				if !strings.Contains(strings.Join(payload.Env, "\n"), "AURAGO_ANSIBLE_POLICY=3") || !strings.Contains(strings.Join(payload.Env, "\n"), "ANSIBLE_API_TOKEN=fixture-token") {
+				if !strings.Contains(strings.Join(payload.Env, "\n"), "AURAGO_ANSIBLE_POLICY="+current) || !strings.Contains(strings.Join(payload.Env, "\n"), "ANSIBLE_API_TOKEN=fixture-token") {
 					t.Fatal("replacement lost the current policy or token")
 				}
 			})

@@ -10,7 +10,7 @@
 # Or use via docker-compose.yml (see the commented block in docker-compose.yml).
 # ============================================================
 FROM python:3.12-slim-bookworm
-LABEL io.aurago.ansible.security-policy="3"
+LABEL io.aurago.ansible.security-policy="4"
 
 # SSH client (required by Ansible to connect to managed hosts)
 # sshpass  – needed for password-based SSH auth (host.yml vars: ansible_password)

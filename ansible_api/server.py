@@ -72,6 +72,10 @@ def run_ansible(cmd: list, timeout: int = None) -> dict:
             raise ValueError("invalid host pattern")
         cmd = list(cmd)
         for index, arg in enumerate(cmd):
+            if READ_ONLY and cmd[0] == "ansible" and arg in {"-a", "--args"}:
+                if index + 1 >= len(cmd):
+                    raise ValueError("module arguments are missing")
+                validate_module_args(cmd[index + 1])
             if arg in {"-e", "--extra-vars"}:
                 if index + 1 >= len(cmd):
                     raise ValueError("extra_vars must be a JSON object")
@@ -255,6 +259,21 @@ def validate_literal(value, depth=0):
             validate_literal(item, depth + 1)
 
 
+def validate_module_args(raw):
+    if not isinstance(raw, str):
+        raise ValueError("module arguments must be a string")
+    validate_literal(raw)
+    if raw.startswith("{") and raw.endswith("}"):
+        try:
+            arguments = json.loads(raw)
+        except (ValueError, RecursionError):
+            raise ValueError("module arguments must be a valid JSON object") from None
+        validate_literal(arguments)
+    elif "\\" in raw:
+        # Ansible decodes backslash escapes in key=value syntax.
+        raise ValueError("use JSON for escaped module arguments in read-only mode")
+
+
 def validate_host_pattern(pattern):
     if not isinstance(pattern, str) or not pattern or pattern.startswith(("-", "@")) or any(ord(char) < 32 for char in pattern):
         raise ValueError("invalid host pattern or limit")
@@ -382,7 +401,7 @@ class Handler(BaseHTTPRequestHandler):
         version_line = out["stdout"].split("\n")[0] if out["stdout"] else "unknown"
         self.send_json(200, {
             "status":             "ok",
-            "security_policy":    3,
+            "security_policy":    4,
             "version":            version_line,
             "token_configured":   bool(TOKEN),
             "playbooks_dir":      PLAYBOOKS_DIR,

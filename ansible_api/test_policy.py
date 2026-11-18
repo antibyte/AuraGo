@@ -69,6 +69,14 @@ class ExecutionTargetTests(unittest.TestCase):
             self.assertNotEqual(result["rc"], 0)
             self.assertEqual(calls, [])
 
+    def test_readonly_module_arguments_are_literal_before_any_child(self):
+        cases = json.loads(Path(__file__).with_name("policy_cases.json").read_text(encoding="utf-8"))
+        for case in cases["module_args"]:
+            with self.subTest(case=case["name"]):
+                result, calls = self.simulate(["ansible", "server", "-i", str(self.default), "-m", "ping", "-a", case["raw"]])
+                self.assertEqual(result["rc"] == 0, case["valid"])
+                self.assertEqual(len(calls), 3 if case["valid"] else 0)
+
     def test_raw_and_decoded_inventory_templates_are_rejected(self):
         inventory = self.playbooks / "template.ini"
         inventory.write_text("server ansible_host=\"{{ lookup('env', 'FIXTURE') }}\"\n", encoding="utf-8")

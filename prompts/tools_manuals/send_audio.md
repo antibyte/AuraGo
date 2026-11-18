@@ -1,12 +1,12 @@
 ## Tool: Send Audio (`send_audio`)
 
-Send an audio file to the user. In the Web UI it appears as an inline audio player with play/pause, progress bar, speed control, and a download button. Provide a local workspace path or a direct HTTPS URL to an audio file.
+Send an audio file to the user. In the Web UI it appears as an inline audio player with play/pause, progress bar, speed control, and a download button. Provide a local workspace path or a direct HTTP(S) URL to an audio file. URL downloads require `agent.allow_network_requests` and the effective network grant for the run.
 
 ### Schema
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | yes | Local workspace path (e.g. `output.mp3`) **or** a full HTTPS URL to an audio file |
+| `path` | string | yes | Local workspace path (e.g. `output.mp3`) **or** a full HTTP(S) URL to an audio file |
 | `title` | string | no | Optional title shown above the audio player |
 
 ### Supported Formats

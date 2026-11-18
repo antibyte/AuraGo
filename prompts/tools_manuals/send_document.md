@@ -1,12 +1,12 @@
 ## Tool: Send Document (`send_document`)
 
-Send a document to the user. In the Web UI it appears as a document card with an Open button (inline preview for PDF and text formats) and a Download button. Provide a local workspace path or a direct HTTPS URL to a document.
+Send a document to the user. In the Web UI it appears as a document card with an Open button (inline preview for PDF and text formats) and a Download button. Provide a local workspace path or a direct HTTP(S) URL to a document. URL downloads require `agent.allow_network_requests` and the effective network grant for the run.
 
 ### Schema
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `path` | string | yes | Local workspace path (e.g. `report.pdf`) **or** a full HTTPS URL to a document |
+| `path` | string | yes | Local workspace path (e.g. `report.pdf`) **or** a full HTTP(S) URL to a document |
 | `title` | string | no | Optional title shown on the document card |
 
 ### Supported Formats

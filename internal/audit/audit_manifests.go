@@ -268,7 +268,7 @@ func NetworkClientInventory() []NetworkClientUse {
 		{Path: "internal/rustfs/", Classification: "digest-pinned-managed-docker-private-s3-signed-native-admin-no-redirects", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/retrogames/", Classification: "fixed-archive-org-scrape-api-strict-public-no-redirects", RequiresSSRF: true},
 		{Path: "internal/manus/", Classification: "fixed-manus-api-and-presigned-file-transfer", RequiresSSRF: true, Credentialed: true},
-		{Path: "internal/media/", Classification: "user-requested-media-fetch", RequiresSSRF: true},
+		{Path: "internal/media/", Classification: "public-answer-images-and-permission-gated-explicit-file-transfers", RequiresSSRF: true, AllowsLocalNet: true},
 		{Path: "internal/memory/", Classification: "provider-api", Credentialed: true},
 		{Path: "internal/meshcentral/", Classification: "configured-home-lab", AllowsLocalNet: true, Credentialed: true},
 		{Path: "internal/obsidian/", Classification: "configured-local-api", AllowsLocalNet: true, Credentialed: true},

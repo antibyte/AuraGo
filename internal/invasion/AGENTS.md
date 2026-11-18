@@ -10,7 +10,7 @@ the Egg runtime in `cmd/aurago`.
 
 ## Local contracts
 
-- Name lookup must be unambiguous, case-insensitively. `GetNestByName` rejects
+- Name lookup uses Unicode case folding. `GetNestByName` rejects
   multiple matches and requests `nest_id`; preserve existing duplicate records
   and explicit-ID access. Verify `TestGetNestByNameRejectsAmbiguousNames`.
 

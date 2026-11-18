@@ -93,12 +93,12 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	case "send_audio":
 		req := decodeSendMediaArgs(tc)
 		logger.Info("LLM requested audio send", "path", req.Path, "title", req.Title)
-		return handleSendAudio(req, cfg, logger, mediaRegistryDB), true
+		return handleSendAudio(ctx, req, cfg, logger, mediaRegistryDB), true
 
 	case "send_video":
 		req := decodeSendMediaArgs(tc)
 		logger.Info("LLM requested video send", "path", req.Path, "title", req.Title)
-		return handleSendVideo(req, cfg, logger, mediaRegistryDB), true
+		return handleSendVideo(ctx, req, cfg, logger, mediaRegistryDB), true
 
 	case "send_youtube_video":
 		if !cfg.Tools.SendYouTubeVideo.Enabled {
@@ -111,7 +111,7 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 	case "send_document":
 		req := decodeSendMediaArgs(tc)
 		logger.Info("LLM requested document send", "path", req.Path, "title", req.Title)
-		return handleSendDocument(req, cfg, logger, mediaRegistryDB), true
+		return handleSendDocument(ctx, req, cfg, logger, mediaRegistryDB), true
 
 	case "send_discord":
 		if !cfg.Discord.Enabled {

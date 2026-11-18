@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -19,7 +20,7 @@ import (
 
 // handleSendAudio resolves an audio file path or URL, copies/downloads it into
 // data/audio/ and returns a JSON result the agent should include in its reply.
-func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
+func handleSendAudio(ctx context.Context, req sendMediaArgs, cfg *config.Config, logger *slog.Logger, mediaRegistryDB *sql.DB) string {
 	encode := func(r map[string]interface{}) string {
 		b, _ := json.Marshal(r)
 		return "Tool Output: " + string(b)
@@ -47,7 +48,7 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 	servedWebPath := ""
 
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
-		saved, err := media.SaveURLToDir(req.Path, audioDir)
+		saved, err := downloadSendMediaURL(ctx, cfg, req.Path, audioDir)
 		if err != nil {
 			// Fallback: if the URL is a /tts/{filename} self-reference, try the local TTS cache directly.
 			// This handles the common case where the TTS cache was evicted after generation.
@@ -167,6 +168,13 @@ func audioMIMEType(filename string) string {
 	default:
 		return "audio/mpeg"
 	}
+}
+
+func downloadSendMediaURL(ctx context.Context, cfg *config.Config, rawURL, destDir string) (string, error) {
+	if perms, configured := tools.EffectiveRuntimePermissions(ctx); !cfg.Agent.AllowNetworkRequests || (configured && !perms.AllowNetworkRequests) {
+		return "", fmt.Errorf("media downloads require agent.allow_network_requests")
+	}
+	return media.SaveExplicitMediaContext(ctx, rawURL, destDir)
 }
 
 // resolveTTSURLToLocalPath maps a /tts/{filename} URL to the local data/tts/ path.

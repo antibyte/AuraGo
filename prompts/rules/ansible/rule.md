@@ -44,6 +44,7 @@ Before running any mutating playbook or ad-hoc command:
 
 ### Ad-Hoc Command Discipline
 
+- Use the dedicated `ping` and `facts` operations in read-only mode.
 - Use ad-hoc commands (`adhoc`) only for one-off queries or emergency fixes, not for ongoing configuration.
 - Prefer modules over raw shell commands. Use `shell` or `command` modules only when no native Ansible module exists.
 - Always quote module arguments correctly (e.g., `"cmd='uptime'"` or `"name=nginx state=started"`).
