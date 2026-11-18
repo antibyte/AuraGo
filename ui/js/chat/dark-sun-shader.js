@@ -109,88 +109,127 @@
             vec3 col = vec3(0.0);
             float a = 0.0;
 
-            // Sky: a thin ember nebula over the violet-black backdrop.
-            float neb = fbm(p * 1.5 + vec2(t * 0.012, -t * 0.007));
-            vec3 nebCol = mix(vec3(0.17, 0.05, 0.11), vec3(0.44, 0.13, 0.06), neb);
-            over(col, a, nebCol, 0.04 + neb * 0.1);
+            // Deep astronomical twilight: indigo-obsidian zenith warming toward the caldera horizon.
+            float skyGrad = smoothstep(0.0, 0.92, 1.0 - uv.y);
+            vec3 skyZenith = vec3(0.022, 0.013, 0.042);
+            vec3 skyMid = vec3(0.058, 0.022, 0.044);
+            vec3 skyLow = vec3(0.16, 0.048, 0.032);
+            vec3 skyBase = mix(mix(skyZenith, skyMid, smoothstep(0.0, 0.58, skyGrad)), skyLow, smoothstep(0.52, 1.0, skyGrad));
+            over(col, a, skyBase, 0.52);
 
-            // Stars with a slow, gentle twinkle.
-            vec2 sg = p * 92.0;
+            // Volcanic ash & solar dust veil, illuminated near the eclipse rather than muddying the whole sky.
+            float neb = fbm(p * 1.65 + vec2(t * 0.011, -t * 0.006));
+            float nebDetail = fbm(p * 3.4 - vec2(t * 0.016, t * 0.008));
+            float sunProx = exp(-max(0.0, d - R) * 1.65);
+            vec3 nebCol = mix(vec3(0.11, 0.035, 0.075), vec3(0.56, 0.19, 0.07), clamp(neb * 0.65 + sunProx * 0.55, 0.0, 1.0));
+            over(col, a, nebCol, (0.03 + neb * nebDetail * 0.11) * (0.45 + 0.85 * sunProx));
+
+            // Dual-scale starfield, naturally veiled inside the bright inner corona glare.
+            float glareMask = smoothstep(R * 1.08, R * 2.55, d) * smoothstep(0.10, 0.58, uv.y);
+            vec2 sg = p * 96.0;
             vec2 sc = floor(sg);
             vec2 sf = fract(sg) - 0.5;
             float sh = hash(sc);
-            float star = smoothstep(0.986, 1.0, sh) * (1.0 - smoothstep(0.0, 0.07 + sh * 0.05, length(sf)));
-            float twinkle = 0.72 + 0.28 * sin(t * (0.45 + sh * 0.7) + sh * 40.0);
-            star *= twinkle * smoothstep(0.08, 0.6, uv.y);
-            over(col, a, vec3(1.0, 0.92, 0.82), star * 0.9);
+            float star = smoothstep(0.985, 1.0, sh) * (1.0 - smoothstep(0.0, 0.065 + sh * 0.045, length(sf)));
+            float twinkle = 0.74 + 0.26 * sin(t * (0.45 + sh * 0.75) + sh * 43.0);
+            vec3 starTint = mix(vec3(0.86, 0.90, 1.0), vec3(1.0, 0.88, 0.74), fract(sh * 17.3));
+            over(col, a, starTint, star * twinkle * glareMask * 0.88);
 
-            // Lava glow rising from the plain, bent by heat shimmer.
-            float shimmer = noise(vec2(p.x * 7.0 + t * 0.35, uv.y * 34.0 - t * 1.3)) - 0.5;
-            float low = exp(-(uv.y + shimmer * 0.04) * 6.5);
-            over(col, a, vec3(0.92, 0.36, 0.1), low * (0.36 + u_flare * 0.3));
+            vec2 sg2 = p * 43.0 + vec2(13.7, 7.1);
+            vec2 sc2 = floor(sg2);
+            vec2 sf2 = fract(sg2) - 0.5;
+            float sh2 = hash(sc2);
+            float brightStar = smoothstep(0.992, 1.0, sh2) * exp(-length(sf2) * 26.0);
+            over(col, a, vec3(1.0, 0.95, 0.88), brightStar * glareMask * 0.75);
 
-            // Corona: breathing streamers around the eclipsed disc. The angular noise is
-            // sampled on the unit circle (not on atan) so it has no seam at ±π.
-            float rot = t * 0.02;
+            // Magma glow rising from the plain, bent by heat shimmer and stronger beneath the eclipse.
+            float shimmer = noise(vec2(p.x * 7.5 + t * 0.32, uv.y * 34.0 - t * 1.25)) - 0.5;
+            float low = exp(-(uv.y + shimmer * 0.035) * 6.8);
+            float sunColumn = 0.72 + 0.52 * exp(-pow((uv.x - u_sun.x / max(aspect, 0.001)) * 2.4, 2.0));
+            over(col, a, mix(vec3(0.76, 0.22, 0.08), vec3(1.0, 0.48, 0.14), low), low * sunColumn * (0.34 + u_flare * 0.32));
+
+            // Magnetic K-corona: tilted dipole helmet streamers + fine polar plumes around the disc.
+            // Sampled on the unit circle so there is never an atan seam at ±π.
+            float axisAng = ang - 0.24;
+            float eqWing = pow(abs(cos(axisAng)), 1.35);
+            float polarPlume = pow(abs(sin(axisAng)), 1.8) * (0.55 + 0.45 * sin(axisAng * 18.0 + fbm(q * 9.0) * 3.0));
+            float rot = t * 0.018;
             vec2 dir = q / max(d, 0.0001);
             vec2 dirA = vec2(dir.x * cos(rot) - dir.y * sin(rot), dir.x * sin(rot) + dir.y * cos(rot));
-            float rotB = -rot * 1.7;
+            float rotB = -rot * 1.55;
             vec2 dirB = vec2(dir.x * cos(rotB) - dir.y * sin(rotB), dir.x * sin(rotB) + dir.y * cos(rotB));
-            float streak = fbm(dirA * 2.8 + vec2(d * 3.0 - t * 0.03));
-            float streak2 = fbm(dirB * 6.0 + vec2(d * 6.0, 3.1));
-            float breath = 0.9 + 0.1 * sin(t * 0.35);
-            float radial = exp(-max(0.0, d - R) * (5.5 / breath));
-            float corona = radial * (0.25 + 0.75 * pow(streak, 1.6)) * (0.6 + 0.4 * streak2);
-            corona *= 1.0 + u_glow * 0.6 + u_flare * 0.5;
-            float outside = smoothstep(R - 0.01, R + 0.01, d);
-            vec3 coronaCol = mix(vec3(0.95, 0.42, 0.12), vec3(1.0, 0.86, 0.6), radial * radial);
-            over(col, a, coronaCol, clamp(corona * 0.9, 0.0, 1.0) * outside);
+            float streak = fbm(dirA * 3.1 + vec2(d * 2.6 - t * 0.028));
+            float streak2 = fbm(dirB * 6.8 + vec2(d * 5.4, 3.1));
+            float breath = 0.92 + 0.08 * sin(t * 0.35);
+            float wingFalloff = mix(6.8, 3.85, eqWing) / breath;
+            float radial = exp(-max(0.0, d - R) * wingFalloff);
+            float innerGlow = exp(-max(0.0, d - R) * 16.5);
+            float filaments = (0.28 + 0.72 * pow(streak, 1.45)) * (0.62 + 0.38 * streak2) + polarPlume * 0.16;
+            float corona = (radial * filaments + innerGlow * 0.62) * (1.0 + u_glow * 0.58 + u_flare * 0.52);
+            float outside = smoothstep(R - 0.008, R + 0.008, d);
+            vec3 outerCol = vec3(0.68, 0.16, 0.09);
+            vec3 midCol = vec3(0.98, 0.46, 0.14);
+            vec3 coreCol = vec3(1.0, 0.93, 0.78);
+            vec3 coronaCol = mix(mix(outerCol, midCol, clamp(radial * 1.35, 0.0, 1.0)), coreCol, clamp(innerGlow * 1.15 + radial * radial * 0.45, 0.0, 1.0));
+            over(col, a, coronaCol, clamp(corona * 0.92, 0.0, 1.0) * outside);
 
-            // Prominence loops resting on the rim.
+            // H-alpha prominence loops resting on the limb (coral-rose rim warming to incandescent gold).
             for (int i = 0; i < 3; i++) {
                 float fi = float(i);
-                float pa = 0.9 + fi * 2.1 + sin(t * 0.07 + fi) * 0.15;
+                float pa = 0.85 + fi * 2.12 + sin(t * 0.065 + fi) * 0.14;
                 float da = wrapAngle(ang - pa);
-                float loopH = R * (0.26 + 0.1 * sin(t * 0.3 + fi * 1.3));
-                float prominence = exp(-pow(da * 8.0, 2.0)) * smoothstep(R + loopH * 1.15, R + loopH * 0.2, d) * outside;
-                prominence *= 0.55 + 0.45 * fbm(vec2(da * 20.0, d * 30.0 - t * 0.4));
-                over(col, a, vec3(1.0, 0.56, 0.2), prominence * 0.72);
+                float loopH = R * (0.24 + 0.10 * sin(t * 0.28 + fi * 1.3));
+                float arch = sin(clamp((d - R) / max(loopH, 0.001), 0.0, 1.0) * 3.14159);
+                float prominence = exp(-pow(da * 8.5, 2.0)) * smoothstep(R + loopH * 1.18, R + loopH * 0.12, d) * outside;
+                prominence *= (0.52 + 0.48 * fbm(vec2(da * 22.0, d * 32.0 - t * 0.42))) * (0.65 + 0.35 * arch);
+                vec3 promCol = mix(vec3(0.98, 0.34, 0.20), vec3(1.0, 0.78, 0.44), clamp(1.0 - (d - R) / max(loopH, 0.001), 0.0, 1.0));
+                over(col, a, promCol, prominence * 0.76);
             }
 
             // Eruption plume at the flare angle.
             float fa = wrapAngle(ang - u_flareAngle);
-            float reach = R * (0.3 + 2.3 * u_flare);
-            float plumeShape = smoothstep(R + reach, R + reach * 0.08, d) * outside;
-            float plume = exp(-pow(fa * (3.6 + 4.0 * (1.0 - u_flare)), 2.0)) * plumeShape;
-            plume *= (0.5 + 0.5 * fbm(vec2(fa * 14.0 + t * 0.8, d * 18.0 - t * 1.5))) * u_flare;
-            float plumeCore = exp(-pow(fa * 11.0, 2.0)) * plumeShape * u_flare;
-            over(col, a, vec3(1.0, 0.62, 0.26), plume * 0.95);
-            over(col, a, vec3(1.0, 0.9, 0.66), plumeCore * 0.8);
+            float reach = R * (0.3 + 2.35 * u_flare);
+            float plumeShape = smoothstep(R + reach, R + reach * 0.06, d) * outside;
+            float plume = exp(-pow(fa * (3.5 + 4.0 * (1.0 - u_flare)), 2.0)) * plumeShape;
+            plume *= (0.48 + 0.52 * fbm(vec2(fa * 14.0 + t * 0.8, d * 18.0 - t * 1.5))) * u_flare;
+            float plumeCore = exp(-pow(fa * 11.5, 2.0)) * plumeShape * u_flare;
+            over(col, a, vec3(1.0, 0.56, 0.22), plume * 0.95);
+            over(col, a, vec3(1.0, 0.93, 0.74), plumeCore * 0.84);
 
-            // Light wave: an expanding ring launched by the eruption.
+            // Light wave: an expanding shock ring launched by the eruption.
             if (u_wave > 0.0) {
                 float wr = u_wave * 2.2;
-                float ring = exp(-pow((d - wr) * 14.0, 2.0)) * (1.0 - u_wave);
-                over(col, a, vec3(1.0, 0.8, 0.55), ring * 0.42);
+                float ring = exp(-pow((d - wr) * 15.0, 2.0)) * (1.0 - u_wave);
+                over(col, a, vec3(1.0, 0.82, 0.58), ring * 0.44);
             }
 
-            // The dark sun itself and its burning chromosphere rim.
-            float disc = 1.0 - smoothstep(R - 0.004, R + 0.004, d);
-            over(col, a, vec3(0.012, 0.006, 0.012), disc);
-            float chromo = exp(-abs(d - R) * 55.0) * (0.8 + 0.2 * streak2);
-            over(col, a, vec3(1.0, 0.9, 0.7), chromo * 0.9 * (1.0 - disc * 0.5));
+            // The eclipsed lunar disc with subtle Earthshine Maria relief + razor-sharp chromosphere rim.
+            float disc = 1.0 - smoothstep(R - 0.0032, R + 0.0032, d);
+            vec2 moonUV = q / max(R, 0.001);
+            float maria = fbm(moonUV * 2.6 + vec2(1.7, 3.1));
+            float limbGlow = smoothstep(0.35, 1.0, length(moonUV));
+            vec3 moonCol = vec3(0.010, 0.006, 0.015) + vec3(0.010, 0.007, 0.014) * maria + vec3(0.022, 0.010, 0.006) * limbGlow;
+            over(col, a, moonCol, disc);
 
-            // Diamond-ring glint travelling along the rim.
+            float chromo = exp(-abs(d - R) * 68.0) * (0.78 + 0.22 * streak2);
+            over(col, a, vec3(1.0, 0.91, 0.74), chromo * 0.94 * (1.0 - disc * 0.45));
+
+            // Baily's beads + cinema anamorphic diamond-ring glint travelling along the lunar limb.
             float ga = wrapAngle(ang - u_glint);
-            float glintCore = exp(-pow(ga * 22.0, 2.0)) * exp(-abs(d - R) * 90.0);
+            float beads = exp(-pow(ga * 9.5, 2.0)) * exp(-abs(d - R) * 105.0) * smoothstep(0.42, 0.82, noise(vec2(ang * 28.0, 4.7)));
+            float glintCore = exp(-pow(ga * 24.0, 2.0)) * exp(-abs(d - R) * 95.0);
             vec2 gp = u_sun + vec2(cos(u_glint), sin(u_glint)) * R;
             vec2 gq = p - gp;
-            float streakH = exp(-abs(gq.y) * 160.0) * exp(-abs(gq.x) * 7.0);
-            float streakV = exp(-abs(gq.x) * 160.0) * exp(-abs(gq.y) * 9.0);
-            float glint = (glintCore * 1.2 + (streakH + streakV) * 0.5) * (0.75 + 0.25 * sin(t * 0.8));
-            over(col, a, vec3(1.0, 0.97, 0.9), clamp(glint, 0.0, 1.0));
+            // Tilted anamorphic lens flare (-7.5 deg) + soft secondary diffraction ray + warm iris halo.
+            vec2 ar = vec2(gq.x * 0.991 - gq.y * 0.131, gq.x * 0.131 + gq.y * 0.991);
+            float anamorphic = exp(-abs(ar.y) * 195.0) * exp(-abs(ar.x) * 6.2);
+            float crossRay = exp(-abs(ar.x) * 220.0) * exp(-abs(ar.y) * 14.0) * 0.42;
+            float glintHalo = exp(-length(gq) * 18.0) * 0.34;
+            float glint = (glintCore * 1.28 + beads * 0.55 + anamorphic * 0.62 + crossRay + glintHalo) * (0.78 + 0.22 * sin(t * 0.8));
+            vec3 glintTint = mix(vec3(1.0, 0.82, 0.56), vec3(1.0, 0.98, 0.93), clamp(glintCore + beads, 0.0, 1.0));
+            over(col, a, glintTint, clamp(glint, 0.0, 1.0));
 
-            // Flash tint while the wave passes.
+            // Flash tint while the eruption wave passes.
             over(col, a, vec3(1.0, 0.85, 0.65), u_flash * 0.18);
             a = min(a, 0.98);
 
@@ -473,17 +512,18 @@
     // ═══════════════════════════════════════════════════════════════
 
     const RIDGES = [
-        { crest: 150, amp: [18, 9], wave: [520, 190], fill: '#120a0a', edge: '255, 138, 58', edgeAlpha: 0.32 },
-        { crest: 62, amp: [26, 12], wave: [420, 150], fill: '#090405', edge: '255, 110, 40', edgeAlpha: 0.5 }
+        { crest: 184, amp: [15, 7], wave: [620, 230], fillTop: '#160b12', fillBot: '#0c0508', edgeWarm: '255, 168, 86', edgeCool: '164, 58, 34', edgeAlpha: 0.24 },
+        { crest: 122, amp: [22, 10], wave: [490, 185], fillTop: '#110709', fillBot: '#070305', edgeWarm: '255, 152, 68', edgeCool: '198, 66, 28', edgeAlpha: 0.38 },
+        { crest: 58, amp: [27, 13], wave: [410, 148], fillTop: '#0a0406', fillBot: '#030102', edgeWarm: '255, 194, 112', edgeCool: '224, 82, 32', edgeAlpha: 0.56 }
     ];
 
     function ridgeProfile(index, x) {
         const r = RIDGES[index];
         let y = 0;
         for (let k = 0; k < 2; k++) {
-            const t = (x / r.wave[k]) * Math.PI * 2 + ridgePhases[index * 3 + k];
-            // Volcanic ridges: sharp folded peaks rather than soft waves.
-            y += r.amp[k] * (Math.abs(Math.sin(t)) * 1.4 - 0.7 + 0.3 * Math.sin(2.0 * t + 0.6));
+            const t = (x / r.wave[k]) * Math.PI * 2 + ridgePhases[index * 2 + k];
+            // Volcanic caldera silhouettes: sculpted faulted crags rather than uniform sine waves.
+            y += r.amp[k] * (Math.abs(Math.sin(t)) * 1.38 - 0.68 + 0.32 * Math.sin(2.0 * t + 0.65));
         }
         return y;
     }
@@ -493,7 +533,7 @@
         crackCache = null;
         crackPoints = [];
         if (!sctx) return;
-        const top = Math.max(0, Math.floor(groundLine - RIDGES[0].crest - 60));
+        const top = Math.max(0, Math.floor(groundLine - RIDGES[0].crest - 64));
         const imgH = Math.max(1, height - top);
 
         const image = document.createElement('canvas');
@@ -503,68 +543,105 @@
         if (!c) return;
         c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        // Ridges, far to near, with lava-lit crest edges.
+        const sunX = width * SUN_X;
+
+        // Atmospheric mist between distant volcanic ridges, lit from the eclipse azimuth.
         for (let r = 0; r < RIDGES.length; r++) {
             const ridge = RIDGES[r];
             const crest = groundLine - ridge.crest - top;
+
+            if (r > 0) {
+                const hazeY = crest - 26;
+                const mist = c.createRadialGradient(sunX, crest + 18, 10, sunX, crest + 24, width * 0.62);
+                mist.addColorStop(0, `rgba(255, 118, 46, ${0.06 + r * 0.025})`);
+                mist.addColorStop(0.5, `rgba(128, 36, 22, ${0.035 + r * 0.015})`);
+                mist.addColorStop(1, 'rgba(20, 8, 12, 0)');
+                c.fillStyle = mist;
+                c.fillRect(0, Math.max(0, hazeY), width, imgH - Math.max(0, hazeY));
+            }
+
             c.beginPath();
             c.moveTo(0, imgH);
             for (let x = 0; x <= width; x += 2) c.lineTo(x, crest + ridgeProfile(r, x));
             c.lineTo(width, imgH);
             c.closePath();
-            c.fillStyle = ridge.fill;
+            const bodyGrad = c.createLinearGradient(0, crest - 30, 0, imgH);
+            bodyGrad.addColorStop(0, ridge.fillTop);
+            bodyGrad.addColorStop(1, ridge.fillBot);
+            c.fillStyle = bodyGrad;
             c.fill();
+
+            // Directionally rim-lit ridge crest: brightest gold directly beneath the eclipsed sun,
+            // cooling to smoked ember-crimson toward the shadowed western flank.
             c.beginPath();
             for (let x = 0; x <= width; x += 2) {
                 const y = crest + ridgeProfile(r, x);
                 if (x === 0) c.moveTo(x, y); else c.lineTo(x, y);
             }
-            c.strokeStyle = `rgba(${ridge.edge}, ${ridge.edgeAlpha})`;
-            c.lineWidth = 1.3;
-            c.shadowBlur = 8;
-            c.shadowColor = `rgba(${ridge.edge}, ${ridge.edgeAlpha * 0.8})`;
+            const rimGrad = c.createLinearGradient(0, 0, width, 0);
+            const sunStop = Math.max(0.15, Math.min(0.92, SUN_X));
+            rimGrad.addColorStop(0, `rgba(${ridge.edgeCool}, ${ridge.edgeAlpha * 0.36})`);
+            rimGrad.addColorStop(Math.max(0.05, sunStop - 0.28), `rgba(${ridge.edgeCool}, ${ridge.edgeAlpha * 0.68})`);
+            rimGrad.addColorStop(sunStop, `rgba(${ridge.edgeWarm}, ${ridge.edgeAlpha})`);
+            rimGrad.addColorStop(1, `rgba(${ridge.edgeCool}, ${ridge.edgeAlpha * 0.54})`);
+            c.strokeStyle = rimGrad;
+            c.lineWidth = r === 2 ? 1.45 : 1.15;
+            c.shadowBlur = r === 2 ? 10 : 6;
+            c.shadowColor = `rgba(${ridge.edgeWarm}, ${ridge.edgeAlpha * 0.65})`;
             c.stroke();
             c.shadowBlur = 0;
         }
 
-        // The basalt plain below the near ridge.
-        const plainTop = groundLine - RIDGES[1].crest - top + 10;
+        // Cooled obsidian plain below the foreground ridge.
+        const plainTop = groundLine - RIDGES[RIDGES.length - 1].crest - top + 8;
         const basalt = c.createLinearGradient(0, plainTop, 0, imgH);
-        basalt.addColorStop(0, 'rgba(22, 12, 11, 0)');
-        basalt.addColorStop(0.35, 'rgba(16, 9, 8, 0.9)');
-        basalt.addColorStop(1, 'rgba(4, 2, 2, 1)');
+        basalt.addColorStop(0, 'rgba(18, 9, 10, 0)');
+        basalt.addColorStop(0.32, 'rgba(13, 7, 8, 0.92)');
+        basalt.addColorStop(1, 'rgba(4, 2, 3, 1)');
         c.fillStyle = basalt;
         c.fillRect(0, plainTop, width, imgH - plainTop);
-        plainCache = { image: image, top: top, height: imgH };
 
-        // Cracks: jagged random walks across the plain, cached as a glow layer.
+        // Cracks: perspective-foreshortened magma fissures across the basalt plates.
         const glow = document.createElement('canvas');
         glow.width = image.width;
         glow.height = image.height;
         const g = glow.getContext('2d');
-        if (!g) return;
+        if (!g) {
+            plainCache = { image: image, top: top, height: imgH };
+            return;
+        }
         g.setTransform(dpr, 0, 0, dpr, 0, 0);
         g.lineCap = 'round';
         g.lineJoin = 'round';
-        const bandTop = plainTop + 14;
+        c.lineCap = 'round';
+        c.lineJoin = 'round';
+        const bandTop = plainTop + 12;
         for (let n = 0; n < CRACK_COUNT; n++) {
             const points = [];
             let x = rand(-20, width + 20);
             let y = rand(bandTop, imgH - 4);
-            let dir = Math.random() > 0.5 ? 1 : -1;
+            const dir = Math.random() > 0.5 ? 1 : -1;
             const segments = 8 + Math.floor(rand(0, 16));
             points.push([x, y]);
             for (let i = 0; i < segments; i++) {
-                const len = rand(6, 18);
-                const angle = rand(-0.45, 0.45) + (Math.random() > 0.85 ? rand(-1.0, 1.0) : 0);
+                const depthStep = (y - bandTop) / Math.max(1, imgH - bandTop);
+                const len = rand(7, 20) * (0.72 + depthStep * 0.45);
+                const angle = rand(-0.36, 0.36) + (Math.random() > 0.85 ? rand(-0.9, 0.9) : 0);
                 x += Math.cos(angle) * len * dir;
-                y += Math.sin(angle) * len * 0.55;
+                y += Math.sin(angle) * len * (0.34 + depthStep * 0.28);
                 y = Math.max(bandTop, Math.min(imgH - 2, y));
                 points.push([x, y]);
                 if (i % 3 === 0) crackPoints.push([x, y + top]);
             }
-            // Deeper cracks nearer the viewer glow wider.
             const depth = (y - bandTop) / Math.max(1, imgH - bandTop);
+            // Dark fractured basalt lip on the static plain cache.
+            c.beginPath();
+            c.moveTo(points[0][0], points[0][1]);
+            for (let i = 1; i < points.length; i++) c.lineTo(points[i][0], points[i][1]);
+            c.lineWidth = 3.2 + depth * 3.0;
+            c.strokeStyle = 'rgba(2, 1, 2, 0.72)';
+            c.stroke();
+
             const stroke = (pts, widthPx, color, blur) => {
                 g.beginPath();
                 g.moveTo(pts[0][0], pts[0][1]);
@@ -575,26 +652,29 @@
                 g.shadowColor = color;
                 g.stroke();
             };
-            stroke(points, 2.2 + depth * 2.4, 'rgba(255, 110, 40, 0.5)', 14);
-            stroke(points, 0.8 + depth * 0.9, 'rgba(255, 214, 150, 0.9)', 4);
-            if (Math.random() > 0.5 && points.length > 4) {
+            stroke(points, 2.8 + depth * 2.8, 'rgba(224, 62, 18, 0.36)', 16);
+            stroke(points, 1.5 + depth * 1.6, 'rgba(255, 118, 38, 0.62)', 8);
+            stroke(points, 0.65 + depth * 0.75, 'rgba(255, 232, 182, 0.92)', 3);
+            if (Math.random() > 0.45 && points.length > 4) {
                 const from = points[2 + Math.floor(rand(0, points.length - 3))];
                 const branch = [[from[0], from[1]]];
                 let bx = from[0], by = from[1];
                 for (let i = 0; i < 4; i++) {
-                    bx += rand(4, 12) * (Math.random() > 0.5 ? 1 : -1);
-                    by += rand(-6, 8);
+                    bx += rand(5, 13) * (Math.random() > 0.5 ? 1 : -1);
+                    by += rand(-4, 6);
                     branch.push([bx, by]);
                 }
-                stroke(branch, 1.2, 'rgba(255, 140, 60, 0.55)', 8);
+                stroke(branch, 1.15, 'rgba(255, 134, 52, 0.52)', 7);
+                stroke(branch, 0.5, 'rgba(255, 218, 158, 0.72)', 2);
             }
         }
         g.shadowBlur = 0;
+        plainCache = { image: image, top: top, height: imgH };
         crackCache = glow;
     }
 
     function buildCorona(height, dpr) {
-        const radius = Math.max(140, height * 0.55);
+        const radius = Math.max(150, height * 0.58);
         const size = radius * 2;
         coronaCache = document.createElement('canvas');
         coronaCache.width = Math.max(1, Math.floor(size * dpr));
@@ -604,20 +684,22 @@
         c.setTransform(dpr, 0, 0, dpr, 0, 0);
         c.translate(radius, radius);
         const g = c.createRadialGradient(0, 0, 0, 0, 0, radius);
-        g.addColorStop(0, 'rgba(255, 226, 170, 0.75)');
-        g.addColorStop(0.3, 'rgba(255, 150, 60, 0.3)');
-        g.addColorStop(1, 'rgba(240, 92, 43, 0)');
+        g.addColorStop(0, 'rgba(255, 240, 204, 0.82)');
+        g.addColorStop(0.24, 'rgba(255, 162, 68, 0.36)');
+        g.addColorStop(0.62, 'rgba(224, 78, 32, 0.11)');
+        g.addColorStop(1, 'rgba(180, 48, 24, 0)');
         c.fillStyle = g;
-        for (let i = 0; i < 34; i++) {
-            const a = (i / 34) * Math.PI * 2 + rand(-0.04, 0.04);
-            const w = rand(0.02, 0.06);
-            const len = radius * rand(0.5, 1);
+        for (let i = 0; i < 42; i++) {
+            const a = (i / 42) * Math.PI * 2 + rand(-0.035, 0.035);
+            const eq = Math.pow(Math.abs(Math.cos(a - 0.24)), 1.35);
+            const w = rand(0.018, 0.052) * (0.75 + eq * 0.5);
+            const len = radius * rand(0.46, 0.74 + eq * 0.26);
             c.beginPath();
             c.moveTo(0, 0);
             c.lineTo(Math.cos(a - w) * len, Math.sin(a - w) * len);
             c.lineTo(Math.cos(a + w) * len, Math.sin(a + w) * len);
             c.closePath();
-            c.globalAlpha = rand(0.3, 0.85);
+            c.globalAlpha = rand(0.28, 0.82);
             c.fill();
         }
         c.globalAlpha = 1;
@@ -625,9 +707,14 @@
 
     function buildEmberSprites(dpr) {
         emberSprites = [];
-        const sizes = [8, 14, 22];
-        for (let i = 0; i < sizes.length; i++) {
-            const s = sizes[i];
+        const specs = [
+            { size: 8, core: '255, 250, 236', mid: '255, 212, 134', outer: '255, 124, 44' },
+            { size: 14, core: '255, 242, 214', mid: '255, 180, 92', outer: '244, 92, 32' },
+            { size: 22, core: '255, 226, 184', mid: '255, 142, 58', outer: '214, 58, 22' }
+        ];
+        for (let i = 0; i < specs.length; i++) {
+            const spec = specs[i];
+            const s = spec.size;
             const sprite = document.createElement('canvas');
             sprite.width = Math.max(1, Math.floor(s * dpr));
             sprite.height = sprite.width;
@@ -635,10 +722,10 @@
             if (!c) continue;
             c.setTransform(dpr, 0, 0, dpr, 0, 0);
             const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-            g.addColorStop(0, 'rgba(255, 244, 220, 1)');
-            g.addColorStop(0.22, 'rgba(255, 196, 110, 0.9)');
-            g.addColorStop(0.5, 'rgba(255, 110, 40, 0.42)');
-            g.addColorStop(1, 'rgba(200, 60, 20, 0)');
+            g.addColorStop(0, `rgba(${spec.core}, 1)`);
+            g.addColorStop(0.22, `rgba(${spec.mid}, 0.9)`);
+            g.addColorStop(0.52, `rgba(${spec.outer}, 0.42)`);
+            g.addColorStop(1, 'rgba(180, 42, 16, 0)');
             c.fillStyle = g;
             c.fillRect(0, 0, s, s);
             emberSprites.push({ image: sprite, size: s });
@@ -648,16 +735,25 @@
     function drawPlain(width, height) {
         if (!sctx || !plainCache) return;
         sctx.drawImage(plainCache.image, 0, plainCache.top, width, plainCache.height);
-        // Lava light breathing above the plain, brighter during an eruption.
-        const glowTop = groundLine - 140;
-        const glow = sctx.createLinearGradient(0, glowTop, 0, groundLine + 20);
-        const strength = 0.1 + 0.04 * Math.sin(sceneTime * 0.5) + flareIntensity * 0.22 + afterglow * 0.06;
+        // Directional corona reflection + magma heat breathing above the caldera.
+        const glowTop = groundLine - 155;
+        const glow = sctx.createLinearGradient(0, glowTop, 0, groundLine + 24);
+        const strength = 0.09 + 0.035 * Math.sin(sceneTime * 0.5) + flareIntensity * 0.22 + afterglow * 0.06;
         glow.addColorStop(0, 'rgba(255, 96, 30, 0)');
-        glow.addColorStop(1, `rgba(255, 96, 30, ${strength})`);
+        glow.addColorStop(1, `rgba(255, 92, 28, ${strength})`);
         sctx.fillStyle = glow;
-        sctx.fillRect(0, glowTop, width, groundLine + 20 - glowTop);
+        sctx.fillRect(0, glowTop, width, groundLine + 24 - glowTop);
+
+        const sunPool = sctx.createRadialGradient(width * SUN_X, groundLine + 10, 8, width * SUN_X, groundLine + 10, width * 0.44);
+        const poolAlpha = 0.08 + 0.025 * Math.sin(sceneTime * 0.35) + flareIntensity * 0.16;
+        sunPool.addColorStop(0, `rgba(255, 168, 78, ${poolAlpha})`);
+        sunPool.addColorStop(0.55, `rgba(230, 82, 28, ${poolAlpha * 0.42})`);
+        sunPool.addColorStop(1, 'rgba(160, 40, 16, 0)');
+        sctx.fillStyle = sunPool;
+        sctx.fillRect(0, glowTop, width, height - glowTop);
+
         if (crackCache) {
-            sctx.globalAlpha = Math.min(1, 0.55 + 0.18 * Math.sin(sceneTime * 0.45) + flareIntensity * 0.5 + afterglow * 0.15);
+            sctx.globalAlpha = Math.min(1, 0.58 + 0.16 * Math.sin(sceneTime * 0.45) + flareIntensity * 0.48 + afterglow * 0.15);
             sctx.drawImage(crackCache, 0, plainCache.top, width, plainCache.height);
             sctx.globalAlpha = 1;
         }
@@ -666,35 +762,37 @@
     function drawEclipse2D(width, height) {
         // Without WebGL the scene canvas paints the eclipse itself.
         const cxp = width * SUN_X, cyp = height * SUN_Y, R = height * SUN_RADIUS;
-        const breath = 0.9 + 0.1 * Math.sin(sceneTime * 0.35);
+        const breath = 0.92 + 0.08 * Math.sin(sceneTime * 0.35);
         if (coronaCache) {
             sctx.save();
             sctx.translate(cxp, cyp);
-            sctx.rotate(sceneTime * 0.02);
-            sctx.globalAlpha = (0.55 + afterglow * 0.3 + flareIntensity * 0.3) * breath;
+            sctx.rotate(sceneTime * 0.018);
+            sctx.globalAlpha = (0.62 + afterglow * 0.28 + flareIntensity * 0.3) * breath;
             const r = coronaCache.width / (Math.min(window.devicePixelRatio || 1, 1.75) * 2);
             sctx.drawImage(coronaCache, -r, -r, r * 2, r * 2);
             sctx.restore();
         }
-        const halo = sctx.createRadialGradient(cxp, cyp, R, cxp, cyp, R * 2.6 * breath);
-        halo.addColorStop(0, 'rgba(255, 200, 120, 0.55)');
-        halo.addColorStop(0.3, 'rgba(255, 120, 45, 0.26)');
-        halo.addColorStop(1, 'rgba(240, 92, 43, 0)');
+        const halo = sctx.createRadialGradient(cxp, cyp, R * 0.98, cxp, cyp, R * 2.8 * breath);
+        halo.addColorStop(0, 'rgba(255, 232, 184, 0.62)');
+        halo.addColorStop(0.24, 'rgba(255, 138, 52, 0.3)');
+        halo.addColorStop(0.65, 'rgba(196, 60, 26, 0.09)');
+        halo.addColorStop(1, 'rgba(140, 36, 18, 0)');
         sctx.fillStyle = halo;
         sctx.fillRect(cxp - R * 3, cyp - R * 3, R * 6, R * 6);
         if (flareIntensity > 0.01) {
             sctx.save();
             sctx.translate(cxp, cyp);
             sctx.rotate(flareAngle);
-            const reach = R * (0.3 + 1.7 * flareIntensity);
+            const reach = R * (0.3 + 1.85 * flareIntensity);
             const plume = sctx.createLinearGradient(R, 0, R + reach, 0);
-            plume.addColorStop(0, `rgba(255, 200, 110, ${0.85 * flareIntensity})`);
-            plume.addColorStop(1, 'rgba(255, 120, 40, 0)');
+            plume.addColorStop(0, `rgba(255, 224, 152, ${0.88 * flareIntensity})`);
+            plume.addColorStop(0.45, `rgba(255, 132, 46, ${0.55 * flareIntensity})`);
+            plume.addColorStop(1, 'rgba(210, 62, 24, 0)');
             sctx.fillStyle = plume;
             sctx.beginPath();
             sctx.moveTo(R * 0.95, -R * 0.22);
-            sctx.lineTo(R + reach, -R * 0.08);
-            sctx.lineTo(R + reach, R * 0.08);
+            sctx.lineTo(R + reach, -R * 0.07);
+            sctx.lineTo(R + reach, R * 0.07);
             sctx.lineTo(R * 0.95, R * 0.22);
             sctx.closePath();
             sctx.fill();
@@ -710,23 +808,43 @@
             sctx.fillStyle = ring;
             sctx.fillRect(0, 0, width, height);
         }
+        const moonGrad = sctx.createRadialGradient(cxp - R * 0.25, cyp - R * 0.2, R * 0.1, cxp, cyp, R);
+        moonGrad.addColorStop(0, '#040208');
+        moonGrad.addColorStop(0.82, '#07040a');
+        moonGrad.addColorStop(1, '#120809');
         sctx.beginPath();
         sctx.arc(cxp, cyp, R, 0, Math.PI * 2);
-        sctx.fillStyle = '#030204';
+        sctx.fillStyle = moonGrad;
         sctx.fill();
-        sctx.lineWidth = 2;
-        sctx.strokeStyle = 'rgba(255, 230, 180, 0.9)';
+        sctx.lineWidth = 1.8;
+        sctx.strokeStyle = 'rgba(255, 236, 194, 0.94)';
         sctx.shadowBlur = 18;
-        sctx.shadowColor = 'rgba(255, 180, 90, 0.9)';
+        sctx.shadowColor = 'rgba(255, 176, 84, 0.9)';
         sctx.stroke();
         sctx.shadowBlur = 0;
+
         const gx = cxp + Math.cos(glintAngle) * R, gy = cyp + Math.sin(glintAngle) * R;
-        const glint = sctx.createRadialGradient(gx, gy, 0, gx, gy, R * 0.5);
-        glint.addColorStop(0, 'rgba(255, 252, 240, 0.95)');
-        glint.addColorStop(0.2, 'rgba(255, 230, 180, 0.5)');
-        glint.addColorStop(1, 'rgba(255, 200, 120, 0)');
+        const glint = sctx.createRadialGradient(gx, gy, 0, gx, gy, R * 0.55);
+        glint.addColorStop(0, 'rgba(255, 253, 244, 0.98)');
+        glint.addColorStop(0.18, 'rgba(255, 228, 174, 0.54)');
+        glint.addColorStop(1, 'rgba(255, 186, 104, 0)');
         sctx.fillStyle = glint;
         sctx.fillRect(gx - R, gy - R, R * 2, R * 2);
+
+        // Tilted anamorphic diamond-ring streak matching the WebGL sky shader.
+        sctx.save();
+        sctx.translate(gx, gy);
+        sctx.rotate(-0.13);
+        const streak = sctx.createLinearGradient(-R * 2.2, 0, R * 2.2, 0);
+        streak.addColorStop(0, 'rgba(255, 210, 150, 0)');
+        streak.addColorStop(0.42, 'rgba(255, 234, 196, 0.34)');
+        streak.addColorStop(0.5, 'rgba(255, 252, 242, 0.72)');
+        streak.addColorStop(0.58, 'rgba(255, 234, 196, 0.34)');
+        streak.addColorStop(1, 'rgba(255, 210, 150, 0)');
+        sctx.fillStyle = streak;
+        sctx.fillRect(-R * 2.2, -1.6, R * 4.4, 3.2);
+        sctx.restore();
+
         if (flash > 0.01) {
             sctx.fillStyle = `rgba(255, 210, 160, ${0.12 * flash})`;
             sctx.fillRect(0, 0, width, height);
@@ -855,10 +973,12 @@
             const life = el[i];
             const fade = Math.sin(Math.min(1, Math.max(0, life)) * Math.PI);
             const glow = eb[i] * (0.82 + 0.18 * Math.sin(sceneTime * 2.2 + ep[i]));
-            const alpha = fade * glow * (0.75 + flareIntensity * 0.25);
+            const alpha = fade * glow * (0.76 + flareIntensity * 0.24);
             if (alpha <= 0.01) continue;
-            const sprite = emberSprites[es[i] < 1.9 ? 0 : es[i] < 2.8 ? 1 : 2];
-            const size = sprite.size * (0.6 + es[i] * 0.22);
+            // Newborn embers leave the cracks white-hot, cooling into amber and ruby cinders aloft.
+            const tier = life < 0.24 ? 0 : (es[i] < 2.2 && life < 0.62 ? 1 : 2);
+            const sprite = emberSprites[Math.min(emberSprites.length - 1, tier)];
+            const size = sprite.size * (0.56 + es[i] * 0.21);
             ctx.globalAlpha = Math.min(1, alpha);
             ctx.drawImage(sprite.image, ex[i] - size / 2, ey[i] - size / 2, size, size);
         }
