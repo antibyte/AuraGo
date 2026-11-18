@@ -91,6 +91,7 @@ tints them.
   suitable prefix, such as mA or kΩ. A cross-section offers mm², AWG and kcmil, a temperature offers °C, °F and K, and the copper
   thickness of a PCB trace offers oz (copper weight). Some fields offer special units, such as dBm, dBV and dBu for levels, or
   mAh, Ah and Wh for charge and energy.
+  Switching between °C, °F and K preserves the full internal precision of the entered temperature.
 - **Lists:** the series and parallel calculator takes a list such as `4k7, 10k, 2k2`. Separate the entries with commas,
   semicolons or spaces. A comma directly in front of a digit is a decimal comma, so `4,7k, 10k` is two entries (4.7 kΩ and
   10 kΩ) while `1,2,3` is one entry that cannot be read; put a space after a comma that separates entries.
@@ -352,7 +353,7 @@ The **Codes** category decodes component markings and writes them from a value. 
 
 - **Resistor colour code** and **Inductor colour code**: the colour bands. Click a band to choose its colour in the menu, or use the keyboard: Tab moves to a band, Enter, Space or the down arrow opens its menu, the arrow keys move through the colours, Enter picks one and Escape closes the menu. The page shows the value, the tolerance and, for six-band resistors, the temperature coefficient, and it gives the nearest standard value of the chosen series. Inductors have four or five bands.
 - **SMD resistor codes**: the three-digit code (472 is 4.7 kΩ), the four-digit code, the EIA-96 code (01C) and the R notation (4R7 is 4.7 Ω). A value that you enter shows its three-digit, four-digit and EIA-96 marking.
-- **Capacitor codes**: the picofarad code (104 is 100 nF, 4p7 is 4.7 pF), the tolerance letter and the voltage code. A marking can have up to three parts, for example `104K 1H`: 100 nF, ±10 % and 50 V.
+- **Capacitor codes**: the picofarad code (104 is 100 nF, 4p7 is 4.7 pF), the tolerance letter and the voltage code. A marking can have up to three parts, for example `104K 1H`: 100 nF, ±10 % and 50 V. For `3F`, ECalc shows both manufacturer ratings. TDK uses 3 kV and Murata uses 3.15 kV. Either rating encodes as `3F`.
 - **Ceramic capacitor temperature codes**: class 1 (temperature compensating, for example C0G or NP0) with its temperature coefficient in ppm/K and its tolerance, and class 2 (high permittivity, for example X7R or U2J) with its temperature range and the permitted capacitance change. A class 2 code has no value of its own, so the page shows no number for it.
 
 Resistor colours follow IEC 60062:2016. Where makers still print an older tolerance reading, the page shows it as a warning. Voltage codes are a maker convention, so the page says so and the datasheet decides. Warnings and error messages come from the engine and are in English in every language.

@@ -110,7 +110,8 @@ code,volts,sources,status
 2J,630,"T M",verified
 3A,1000,"T M",verified
 3D,2000,"T M",verified
-3F,3150,"T M","verified code; Murata states 3.15 kV, TDK labels it 3 kV"
+3F,3000,T,"TDK high-voltage C series"
+3F,3150,M,"Murata high-voltage DE series"
 ```
 
 Maker-specific codes (do not decode as general codes): Murata **YA = DC 35 V** (plus Murata safety/AC codes BB, E2,
@@ -153,12 +154,13 @@ datasheets), unrelated to the two-character code.
   capacitors) vs P = ±0.02 % (Wikipedia, resistors); E = ±0.2 pF appears only in TDK. F/G as ±1/±2 pF below 10 pF only
   in Wikipedia; all maker tables read use F/G as %.
 - **Voltage codes**: 4 maker tables (TDK 2013, Nichicon CAT.8100M, Panasonic 10-Nov-23, Murata C02E21) agree on every
-  code they share; no value conflict. Coverage gaps are listed in `status`. Murata replaces 1V by **YA** for 35 V.
+  code they share apart from 3F. Coverage gaps are listed in `status`. Murata replaces 1V by **YA** for 35 V.
+  The two 3F ratings are manufacturer-specific. [TDK high-voltage C series](https://product.tdk.com/system/files/dam/doc/product/capacitor/ceramic/mlcc/catalog/mlcc_commercial_highvoltage_en.pdf) · [Murata DE series](https://media.digikey.com/pdf/Data%20Sheets/Murata%20PDFs/DEx_Part_Numbering.pdf)
   IEC 60062 contains no rated-voltage code (contents of sources 1), so the scheme is a de-facto maker/JIS convention;
   I found no standard text for it → the table is a maker-consensus table, not "the standard".
-- Observation (not used as data): every code fits "digit = power of ten, letter = R10-like mantissa" (A 1.0, B 1.25,
-  C 1.6, D 2.0, E 2.5, F 3.15, G 4.0, H 5.0, J 6.3, K 8.0, plus Q 1.1, Z 1.8, P 2.2, V 3.5, W 4.5, L 5.5, X 6.0) — checked
-  for all 31 rows with a helper script that is not part of the repository. Decode from the table, not from this pattern.
+- Most voltage codes follow "digit = power of ten, letter = R10-like mantissa" (A 1.0, B 1.25,
+  C 1.6, D 2.0, E 2.5, F 3.15, G 4.0, H 5.0, J 6.3, K 8.0, plus Q 1.1, Z 1.8, P 2.2, V 3.5, W 4.5, L 5.5, X 6.0).
+  TDK’s 3 kV rating for 3F is an exception. The decoder uses the published ratings.
 
 ## Notes (en / de)
 - en: Ceramic and film capacitors: the code is in picofarads — 104 = 100 000 pF = 100 nF. de: Keramik- und

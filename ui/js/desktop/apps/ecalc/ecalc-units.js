@@ -86,6 +86,33 @@
         return value.toString(10);
     }
 
+    // Round an exact signed ratio to binary64, including ties to even.
+    function ratioNumber(numerator, denominator) {
+        if (numerator === 0n) return 0;
+        const negative = numerator < 0n;
+        let n = negative ? -numerator : numerator, d = denominator;
+        let exponent = n.toString(2).length - d.toString(2).length;
+        if ((exponent < 0 ? n << BigInt(-exponent) : n) < (exponent > 0 ? d << BigInt(exponent) : d)) exponent--;
+        const step = Math.max(exponent - 52, -1074);
+        if (step < 0) n <<= BigInt(-step);
+        else d <<= BigInt(step);
+        let significand = n / d;
+        const twiceRemainder = 2n * (n % d);
+        if (twiceRemainder > d || (twiceRemainder === d && significand % 2n !== 0n)) significand++;
+        return (negative ? -1 : 1) * Number(significand) * 2 ** step;
+    }
+
+    // Use the same shortest decimal input as Go's convertAffine before applying the catalog offsets.
+    function convertAffine(x, scale, offset, divisor) {
+        if (!Number.isFinite(x)) return x;
+        const [mantissa, exponent] = x.toExponential().split('e');
+        const point = mantissa.indexOf('.');
+        const power = Number(exponent) - (point < 0 ? 0 : mantissa.length - point - 1);
+        const denominator = 10n ** BigInt(Math.max(0, -power));
+        const numerator = BigInt(mantissa.replace('.', '')) * 10n ** BigInt(Math.max(0, power));
+        return ratioNumber(numerator * BigInt(scale) + denominator * BigInt(offset), denominator * BigInt(divisor));
+    }
+
     function create(catalogUnits) {
         const source = catalogUnits || {};
         const prefixFactor = new Map([['', 1]]);
@@ -100,6 +127,14 @@
             const prefixes = (raw.prefixes || []).map(id => ({ id, factor: prefixFactor.has(id) ? prefixFactor.get(id) : 1 })).sort((a, b) => a.factor - b.factor);
             const units = (raw.units || []).map(unit => {
                 const radix = unit.radix || 0;
+                if (unit.affine) {
+                    const { scale, offset, divisor } = unit.affine;
+                    return {
+                        id: unit.id, symbol: unit.symbol, aliases: unit.aliases || [], radix,
+                        toBase: x => convertAffine(x, scale, offset, divisor),
+                        fromBase: k => k === offset / divisor ? 0 : convertAffine(k, divisor, -offset, scale)
+                    };
+                }
                 const linear = !radix && !unit.to;
                 const toAst = linear || radix ? null : expr.parseCached(unit.to), fromAst = linear || radix ? null : expr.parseCached(unit.from);
                 return {

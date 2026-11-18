@@ -255,6 +255,10 @@ func TestCodesItemJSONCarriesTheTables(t *testing.T) {
 	if last["code"] != "3F" || !strings.Contains(last["note"].(string), "Murata führt") || !strings.Contains(last["note_en"].(string), "Murata lists") {
 		t.Errorf("3F = %v", last)
 	}
+	wantRatings := []any{map[string]any{"maker": "TDK", "volts": 3000.0}, map[string]any{"maker": "Murata", "volts": 3150.0}}
+	if last["volts"] != nil || !reflect.DeepEqual(last["ratings"], wantRatings) {
+		t.Errorf("3F manufacturer ratings = %v", last)
+	}
 	if d := data["smd_resistor"]["eia96"].([]any); len(d) != 96 || d[0] != 100.0 || d[95] != 976.0 {
 		t.Errorf("eia96 = %v", d)
 	}
@@ -513,6 +517,9 @@ func TestCodesLoadRejectsBrokenData(t *testing.T) {
 		{"smd_resistor", `eia96: [100, 102,`, `eia96: [100, 103,`, "eia96[1] = 103, the E96 value is 102"},
 		{"smd_resistor", `{letter: "S"}`, `{letter: "Y"}`, "ambiguous[0]"},
 		{"smd_resistor", `{letter: "K", exp: 3}`, `{letter: "k", exp: 3}`, "the letters are L, R, K, M and G"},
+		{"capacitor", `code: "3F", ratings:`, `code: "3F", volts: 3150, ratings:`, "mixes a common and maker-specific rating"},
+		{"capacitor", `maker: "Murata", volts: 3150`, `maker: "TDK", volts: 3150`, "needs distinct makers"},
+		{"capacitor", `maker: "TDK", volts: 3000`, `maker: "TDK", volts: 0`, "finite positive ratings"},
 		{"capacitor", `makers: ["tdk", "nichicon", "panasonic"]}`, `makers: ["tdk"]}`, "at least two makers are required"},
 		{"capacitor", `unit: "pf", when: "lt10pf"`, `unit: "pf", when: "any"`, "a pF tolerance is symmetric and applies below 10 pF"},
 		{"capacitor", `{code: "0E",`, `{code: "0e",`, "a unique code of a digit and a capital letter"},

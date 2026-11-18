@@ -638,6 +638,36 @@ func TestDesktopECalcCodesMarkingsBrowser(t *testing.T) {
 	h.choose(`[data-input="tolerance"]`, "J")
 	h.Wait(`()=>document.querySelector('[data-input="code"]').value==='472J 2A'`)
 	h.same("J is 5 %", h.row(h.read(), field("tolerance")), "±5 %")
+	h.typeInto(`[data-input="code"]`, "104K 3F")
+	h.Wait(`()=>document.querySelector('[data-input="voltage"]').value==='3F'`)
+	h.choose(`[data-input="tolerance"]`, "J")
+	h.same("editing an ambiguous marking keeps both ratings", h.read().Inputs["voltage"], "3F")
+	for _, test := range []struct {
+		voltage string
+		ratings []string
+	}{
+		{"3F", []string{"TDK: 3 kV", "Murata: 3,15 kV"}},
+		{"3000", []string{"TDK: 3 kV"}},
+		{"3150", []string{"Murata: 3,15 kV"}},
+	} {
+		h.choose(`[data-input="voltage"]`, test.voltage)
+		state = h.read()
+		h.same("3F capacitance", state.Inputs["value"], "100 nF")
+		h.same("3F combined marking", state.Chip, []string{"104J", "3F"})
+		var ratings []string
+		for _, maker := range []string{"TDK", "Murata"} {
+			for _, row := range state.Rows {
+				if row[0] == field("voltage")+" ("+maker+")" {
+					ratings = append(ratings, maker+": "+row[1])
+				}
+			}
+		}
+		h.same("3F maker ratings", ratings, test.ratings)
+	}
+	h.CloseWindows()
+	h.OpenApp(".ec-page")
+	h.open("capacitor_code")
+	h.same("3F explicit manufacturer survives reopening", h.read().Inputs["voltage"], "3150")
 	h.typeInto(`[data-input="code"]`, "104 K 1H 3A")
 	h.Wait(`()=>document.querySelector('.ec-code-error').dataset.code==='invalid_code'`)
 	if state = h.read(); !strings.Contains(state.Error, "at most three parts") || !reflect.DeepEqual(state.Invalid, []string{"code"}) {

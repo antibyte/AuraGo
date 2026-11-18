@@ -135,7 +135,18 @@
     // gives way to the automatic prefix, whose text carries the base symbol and parses under any selection. List
     // items lose their blanks to survive the list splitting.
     function exactText(v, value, units, unitOf) {
-        const one = x => units.format(x, v.dim, unitOf(v.id), SIG_EXACT) || units.format(x, v.dim, '', SIG_EXACT);
+        const selected = unitOf(v.id);
+        const one = x => {
+            if (v.dim === 'temperature') {
+                const dim = units.dim(v.dim), unit = dim.unitById.get(selected);
+                if (unit) {
+                    const degrees = unit.fromBase(x);
+                    if (unit.toBase(degrees) === x) return units.fmtNum(degrees) + ' ' + unit.symbol;
+                }
+                return units.fmtNum(x) + ' ' + dim.symbol;
+            }
+            return units.format(x, v.dim, selected, SIG_EXACT) || units.format(x, v.dim, '', SIG_EXACT);
+        };
         return Array.isArray(value) ? value.map(x => one(x).replace(/\s+/g, '')).join(', ') : one(value);
     }
 

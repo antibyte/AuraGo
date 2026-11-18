@@ -449,9 +449,14 @@
               "degC"
             ],
             "factor": 0,
-            "to": "x+273.15",
-            "from": "x-273.15",
-            "radix": 0
+            "to": "",
+            "from": "",
+            "radix": 0,
+            "affine": {
+              "scale": 100,
+              "offset": 27315,
+              "divisor": 100
+            }
           },
           {
             "id": "degF",
@@ -461,9 +466,14 @@
               "degF"
             ],
             "factor": 0,
-            "to": "(x-32)*5/9+273.15",
-            "from": "(x-273.15)*9/5+32",
-            "radix": 0
+            "to": "",
+            "from": "",
+            "radix": 0,
+            "affine": {
+              "scale": 100,
+              "offset": 45967,
+              "divisor": 180
+            }
           }
         ]
       },
@@ -5435,7 +5445,7 @@
       "category": "wiring",
       "name": "PCB conductor spacing finder (IPC-2221)",
       "name_en": "PCB conductor spacing finder (IPC-2221)",
-      "doc": "Finds the minimum spacing between two conductors on a printed board for the voltage between them, from table 6-1 of IPC-2221B or IPC-2221C. Enter the DC voltage or the AC peak value, or choose AC RMS of a sine wave (the peak is then the RMS value times √2). Choose the revision and the column of the table for the board condition: B1 internal conductors, B2 external uncoated up to 3050 m, B3 external uncoated above 3050 m, B4 external with a polymer coating, B5 (A5 in revision B) external with a conformal coating, A6 to A8 component leads; A6 and A7 mean different things in the two revisions (revision B: A6 uncoated, A7 coated; revision C: A6 coated, A7 uncoated up to 3050 m, A8 uncoated above 3050 m). The voltage bands use whole volts, so a voltage between two bands (15.5 V) takes the next band up. Above 500 V the spacing is the value of the 301 to 500 V band plus the per-volt increment of the table for every volt above 500 V. IPC-2221 gives functional spacing for the board, not safety isolation: for mains or SELV separation the creepage and clearance of IEC 60664-1 and IEC 62368-1 apply. The row of the result is highlighted in the table. The defaults (400 V, revision C, column B2) give 2.5 mm.",
+      "doc": "Finds the minimum spacing between two conductors on a printed board for the voltage between them, from table 6-1 of IPC-2221B or IPC-2221C. Enter the DC voltage or the AC peak value, or choose AC RMS of a sine wave (the peak is then the RMS value times √2). Choose the revision and the column of the table for the board condition: B1 internal conductors, B2 external uncoated up to 3050 m, B3 external uncoated above 3050 m (C also in vacuum), B4 external with permanent polymer coating in B or solder mask in C, B5 external coated at any elevation or in vacuum (A5 with conformal coating in revision B), A6 to A8 component leads; A6 and A7 mean different things in the two revisions (revision B: A6 uncoated, A7 coated; revision C: A6 coated at any elevation or in vacuum, A7 uncoated up to 3050 m, A8 without conformal coating above 3050 m or in vacuum). The voltage bands use whole volts, so a voltage between two bands (15.5 V) takes the next band up. Above 500 V the spacing is the value of the 301 to 500 V band plus the per-volt increment of the table for every volt above 500 V. IPC-2221 gives functional spacing for the board, not safety isolation: for mains or SELV separation the creepage and clearance of IEC 60664-1 and IEC 62368-1 apply. The row of the result is highlighted in the table. The defaults (400 V, revision C, column B2) give 2.5 mm.",
       "tags": [
         "pcb",
         "trace spacing",
@@ -5553,7 +5563,7 @@
             },
             {
               "id": "b3",
-              "name": "B3 – external, uncoated, above 3050 m",
+              "name": "B3 – external, uncoated above 3050 m (C also in vacuum)",
               "consts": {
                 "inb": 1
               },
@@ -5565,7 +5575,7 @@
             },
             {
               "id": "b4",
-              "name": "B4 – external, polymer coating",
+              "name": "B4 – external at any elevation, polymer coating (B) / solder mask (C)",
               "consts": {
                 "inb": 1
               },
@@ -5577,7 +5587,7 @@
             },
             {
               "id": "b5",
-              "name": "B5 (Rev. B: A5) – external, conformal coating",
+              "name": "B5 / A5 (B) – external conductors, conformal coating (B) / coated at any elevation or in vacuum (C)",
               "consts": {
                 "inb": 1
               },
@@ -5589,7 +5599,7 @@
             },
             {
               "id": "a6",
-              "name": "A6 – component lead (B: uncoated, C: coated)",
+              "name": "A6 – lead uncoated up to 3050 m (B) / coated at any elevation or in vacuum (C)",
               "consts": {
                 "inb": 1
               },
@@ -5601,7 +5611,7 @@
             },
             {
               "id": "a7",
-              "name": "A7 – component lead (B: coated, C: uncoated, up to 3050 m)",
+              "name": "A7 – conformal coating (B) / uncoated component lead from sea level to 3050 m (C)",
               "consts": {
                 "inb": 1
               },
@@ -5613,7 +5623,7 @@
             },
             {
               "id": "a8",
-              "name": "A8 – component lead, uncoated, above 3050 m (Rev. C only)",
+              "name": "A8 – lead without conformal coating above 3050 m or in vacuum (C only)",
               "consts": {
                 "inb": 0
               },
@@ -16287,7 +16297,7 @@
           "C0G",
           "NP0",
           "I",
-          218.14999999999998,
+          218.15,
           398.15,
           0,
           0.000029999999999999997,
@@ -16299,7 +16309,7 @@
           "X8R",
           null,
           "II",
-          218.14999999999998,
+          218.15,
           423.15,
           null,
           null,
@@ -16311,7 +16321,7 @@
           "X7R",
           null,
           "II",
-          218.14999999999998,
+          218.15,
           398.15,
           null,
           null,
@@ -16323,7 +16333,7 @@
           "X7S",
           null,
           "II",
-          218.14999999999998,
+          218.15,
           398.15,
           null,
           null,
@@ -16335,7 +16345,7 @@
           "X7T",
           null,
           "II",
-          218.14999999999998,
+          218.15,
           398.15,
           null,
           null,
@@ -16347,7 +16357,7 @@
           "X6S",
           null,
           "II",
-          218.14999999999998,
+          218.15,
           378.15,
           null,
           null,
@@ -16359,7 +16369,7 @@
           "X5R",
           null,
           "II",
-          218.14999999999998,
+          218.15,
           358.15,
           null,
           null,
@@ -16371,7 +16381,7 @@
           "Y5V",
           null,
           "III (KEMET)",
-          243.14999999999998,
+          243.15,
           358.15,
           null,
           null,
@@ -21086,7 +21096,7 @@
       "name": "PCB conductor spacing by voltage (IPC-2221C)",
       "name_en": "PCB conductor spacing by voltage (IPC-2221C)",
       "doc": "Minimum spacing between conductors on a printed board by the voltage between them (DC or AC peak), for internal and external conductors and component leads (IPC-2221C table 6-1, December 2023).",
-      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. The last row (above 500 V, per volt; marked 1 in the per-volt column) holds millimetres (or mil) per volt, not a spacing: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. It belongs to no voltage band (its voltage from and to are empty), so a lookup by voltage never selects it; select it with per_volt = 1. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The values were read from the published table and agree in two sources; the wording of the columns B4, A6, A7 and A8 comes from one source only (the pcb-toolkit crate) and has not been checked against IPC-2221C section 6.3.",
+      "notes": "IPC-2221 spacing is functional spacing for printed boards; for mains or safety isolation use the creepage and clearance of IEC 60664-1 and IEC 62368-1. The bands use whole volts, so a voltage between two bands (15.5 V) belongs to the next band up. The last row (above 500 V, per volt; marked 1 in the per-volt column) holds millimetres (or mil) per volt, not a spacing: for a voltage above 500 V add them for every volt above 500 V to the value of the 301 to 500 V row. It belongs to no voltage band (its voltage from and to are empty), so a lookup by voltage never selects it; select it with per_volt = 1. Column B5 was designated A5 before; the old A6 values now appear in A7 and the old A7 values (except 251 to 300 V) in A6; A8 is new. The column categories follow IPC-2221C section 6.3.3.1.",
       "tags": [
         "ipc-2221",
         "pcb",
@@ -21172,7 +21182,7 @@
         },
         {
           "id": "b4",
-          "name": "B4: external, polymer coating (solder-mask type)",
+          "name": "B4: external, solder mask, any elevation",
           "dim": "length",
           "unit": "mm",
           "units": [
@@ -21183,7 +21193,7 @@
         },
         {
           "id": "b5",
-          "name": "B5 (formerly A5): external, conformal coating",
+          "name": "B5 (formerly A5): external, coated, any elevation or vacuum",
           "dim": "length",
           "unit": "mm",
           "units": [
@@ -21194,7 +21204,7 @@
         },
         {
           "id": "a6",
-          "name": "A6: component lead, coated, any elevation",
+          "name": "A6: component lead, coated, any elevation or vacuum",
           "dim": "length",
           "unit": "mm",
           "units": [
@@ -21205,7 +21215,7 @@
         },
         {
           "id": "a7",
-          "name": "A7: component lead, uncoated, up to 3050 m",
+          "name": "A7: uncoated component lead from sea level to 3050 m",
           "dim": "length",
           "unit": "mm",
           "units": [
@@ -21216,7 +21226,7 @@
         },
         {
           "id": "a8",
-          "name": "A8: component lead, uncoated, above 3050 m or vacuum",
+          "name": "A8: component lead, without conformal coating, above 3050 m or vacuum",
           "dim": "length",
           "unit": "mm",
           "units": [
@@ -30344,13 +30354,13 @@
           "Iron",
           "Copper-nickel (constantan)",
           "Fe-CuNi",
-          63.14999999999998,
+          63.15,
           1473.15,
-          233.14999999999998,
+          233.15,
           1023.15,
           1.5,
           0.004,
-          233.14999999999998,
+          233.15,
           1023.15,
           2.5,
           0.0075,
@@ -30372,13 +30382,13 @@
           "Nickel-chromium",
           "Nickel-aluminium",
           "NiCr-NiAl (NiCr-Ni)",
-          3.1499999999999773,
+          3.15,
           1573.15,
-          233.14999999999998,
+          233.15,
           1273.15,
           1.5,
           0.004,
-          233.14999999999998,
+          233.15,
           1473.15,
           2.5,
           0.0075,
@@ -30400,13 +30410,13 @@
           "Copper",
           "Copper-nickel (constantan)",
           "Cu-CuNi",
-          3.1499999999999773,
+          3.15,
           673.15,
-          233.14999999999998,
+          233.15,
           623.15,
           0.5,
           0.004,
-          233.14999999999998,
+          233.15,
           623.15,
           1,
           0.0075,
@@ -30428,13 +30438,13 @@
           "Nickel-chromium",
           "Copper-nickel (constantan)",
           "NiCr-CuNi",
-          3.1499999999999773,
+          3.15,
           1273.15,
-          233.14999999999998,
+          233.15,
           1073.15,
           1.5,
           0.004,
-          233.14999999999998,
+          233.15,
           1173.15,
           2.5,
           0.0075,
@@ -30456,13 +30466,13 @@
           "Nickel-chromium-silicon (Nicrosil)",
           "Nickel-silicon (Nisil)",
           "NiCrSi-NiSi",
-          3.1499999999999773,
+          3.15,
           1573.15,
-          233.14999999999998,
+          233.15,
           1273.15,
           1.5,
           0.004,
-          233.14999999999998,
+          233.15,
           1473.15,
           2.5,
           0.0075,
@@ -30484,7 +30494,7 @@
           "Platinum-13 % rhodium",
           "Platinum",
           "PtRh13-Pt",
-          223.14999999999998,
+          223.15,
           2041.25,
           273.15,
           1873.15,
@@ -30512,7 +30522,7 @@
           "Platinum-10 % rhodium",
           "Platinum",
           "PtRh10-Pt",
-          223.14999999999998,
+          223.15,
           2041.25,
           273.15,
           1873.15,
@@ -31224,7 +31234,16 @@
           },
           {
             "code": "3F",
-            "volts": 3150,
+            "ratings": [
+              {
+                "maker": "TDK",
+                "volts": 3000
+              },
+              {
+                "maker": "Murata",
+                "volts": 3150
+              }
+            ],
             "makers": [
               "tdk",
               "murata"

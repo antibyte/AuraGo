@@ -37,10 +37,16 @@ type codeCapTolerance struct {
 }
 
 type codeCapVoltage struct {
-	Code   string   `yaml:"code"`
-	Volts  float64  `yaml:"volts"`
-	Makers []string `yaml:"makers"`
-	Note   Text     `yaml:"note"`
+	Code    string          `yaml:"code"`
+	Volts   float64         `yaml:"volts"`
+	Makers  []string        `yaml:"makers"`
+	Ratings []codeCapRating `yaml:"ratings"`
+	Note    Text            `yaml:"note"`
+}
+
+type codeCapRating struct {
+	Maker string  `yaml:"maker" json:"maker"`
+	Volts float64 `yaml:"volts" json:"volts"`
 }
 
 type codeCapNotChecked struct {
@@ -108,9 +114,25 @@ func codeLoadCapacitor(raw *yaml.Node, fail func(string, ...any)) any {
 	}
 	for i := range d.Voltages {
 		v := &d.Voltages[i]
-		if len(v.Code) != 2 || v.Code[0] < '0' || v.Code[0] > '9' || v.Code[1] < 'A' || v.Code[1] > 'Z' || d.voltage[v.Code] != nil || !(v.Volts > 0) {
-			fail("data: voltages[%d]: a unique code of a digit and a capital letter and positive volts are required", i)
+		if len(v.Code) != 2 || v.Code[0] < '0' || v.Code[0] > '9' || v.Code[1] < 'A' || v.Code[1] > 'Z' || d.voltage[v.Code] != nil {
+			fail("data: voltages[%d]: a unique code of a digit and a capital letter is required", i)
 			continue
+		}
+		if len(v.Ratings) > 0 {
+			if v.Volts != 0 || len(v.Makers) != 0 {
+				fail("data: voltage code %s mixes a common and maker-specific rating", v.Code)
+			}
+			seen := map[string]bool{}
+			for _, rating := range v.Ratings {
+				maker := strings.ToLower(rating.Maker)
+				if !idRe.MatchString(maker) || seen[maker] || !(rating.Volts > 0) || math.IsInf(rating.Volts, 0) {
+					fail("data: voltage code %s needs distinct makers and finite positive ratings", v.Code)
+				}
+				seen[maker] = true
+				v.Makers = append(v.Makers, maker)
+			}
+		} else if !(v.Volts > 0) || math.IsInf(v.Volts, 0) {
+			fail("data: voltage code %s needs finite positive volts", v.Code)
 		}
 		if len(v.Makers) < 2 {
 			fail("data: voltage code %s: at least two makers are required (a single-source code stays out)", v.Code)
@@ -130,11 +152,12 @@ func codeLoadCapacitor(raw *yaml.Node, fail func(string, ...any)) any {
 func codeUtf8Len(s string) int { return utf8.RuneCountInString(s) }
 
 type codeCapVoltageJSON struct {
-	Code   string   `json:"code"`
-	Volts  float64  `json:"volts"`
-	Makers []string `json:"makers"`
-	Note   string   `json:"note"`
-	NoteEN string   `json:"note_en"` // the English note, which the warnings of a decode use in every language
+	Code    string          `json:"code"`
+	Volts   float64         `json:"volts,omitempty"`
+	Ratings []codeCapRating `json:"ratings,omitempty"`
+	Makers  []string        `json:"makers"`
+	Note    string          `json:"note"`
+	NoteEN  string          `json:"note_en"` // the English note, which the warnings of a decode use in every language
 }
 
 type codeCapacitorDoc struct {
@@ -155,7 +178,7 @@ func codeCapacitorJSON(data any, lang string) any {
 		if len(v.Note) > 0 {
 			note, noteEN = v.Note.in(lang), v.Note.in("en")
 		}
-		out.Voltages = append(out.Voltages, codeCapVoltageJSON{Code: v.Code, Volts: v.Volts, Makers: orEmpty(v.Makers), Note: note, NoteEN: noteEN})
+		out.Voltages = append(out.Voltages, codeCapVoltageJSON{Code: v.Code, Volts: v.Volts, Ratings: v.Ratings, Makers: orEmpty(v.Makers), Note: note, NoteEN: noteEN})
 	}
 	return out
 }
@@ -371,16 +394,24 @@ func (d *codeCapacitorData) decode(u *Units, code string) (CodeResult, error) {
 		codeAddTolerance(&res, rows, whole.hasValue)
 	}
 	if whole.voltage != "" {
-		d.addVoltage(&res, u, d.voltage[whole.voltage], !whole.hasValue)
+		d.addVoltage(&res, u, d.voltage[whole.voltage], 0, !whole.hasValue)
 	}
 	return res, nil
 }
 
 // addVoltage adds the voltage field and the warnings that come with a voltage code; headline makes the voltage the value.
-func (d *codeCapacitorData) addVoltage(res *CodeResult, u *Units, v *codeCapVoltage, headline bool) {
-	res.field("voltage", "Rated voltage", u.Format(v.Volts, "voltage", "", 4), v.Volts, "voltage")
-	if headline {
-		res.Value, res.Dim = v.Volts, "voltage"
+func (d *codeCapacitorData) addVoltage(res *CodeResult, u *Units, v *codeCapVoltage, selected float64, headline bool) {
+	if len(v.Ratings) == 0 {
+		selected = v.Volts
+		res.field("voltage", "Rated voltage", u.Format(selected, "voltage", "", 4), selected, "voltage")
+	}
+	for _, rating := range v.Ratings {
+		if selected == 0 || selected == rating.Volts {
+			res.field("voltage_"+strings.ToLower(rating.Maker), rating.Maker, u.Format(rating.Volts, "voltage", "", 4), rating.Volts, "voltage")
+		}
+	}
+	if headline && selected > 0 {
+		res.Value, res.Dim = selected, "voltage"
 	}
 	res.warn("voltage codes are a maker convention, not part of IEC 60062; check the datasheet (for example Murata writes YA for 35 V)")
 	if len(v.Note) > 0 {
@@ -572,20 +603,36 @@ func (d *codeCapacitorData) encode(u *Units, req EncodeRequest) (CodeResult, err
 		codeAddTolerance(&res, rows, hasValue)
 	}
 	if hasVolt {
-		v, err := u.Parse(req.Voltage, "voltage", "")
-		if err != nil {
-			return CodeResult{}, codeErr(CodeInvalidValue, "voltage: %v", err)
-		}
-		var row *codeCapVoltage
-		for i := range d.Voltages {
-			if codeCloseTo(d.Voltages[i].Volts, v) {
-				row = &d.Voltages[i]
+		// A marking preserves an unresolved rating when another part of a combined code is edited.
+		row := d.voltage[strings.ToUpper(strings.TrimSpace(req.Voltage))]
+		var selected float64
+		if row == nil || len(row.Ratings) == 0 {
+			row = nil
+			v, err := u.Parse(req.Voltage, "voltage", "")
+			if err != nil {
+				return CodeResult{}, codeErr(CodeInvalidValue, "voltage: %v", err)
+			}
+			for i := range d.Voltages {
+				option := &d.Voltages[i]
+				if option.Volts > 0 && codeCloseTo(option.Volts, v) {
+					row = option
+					break
+				}
+				for _, rating := range option.Ratings {
+					if codeCloseTo(rating.Volts, v) {
+						row, selected = option, rating.Volts
+						break
+					}
+				}
+				if row != nil {
+					break
+				}
+			}
+			if row == nil {
+				return CodeResult{}, codeErr(CodeUnsupported, "no standard voltage code for %s", u.Format(v, "voltage", "", 4))
 			}
 		}
-		if row == nil {
-			return CodeResult{}, codeErr(CodeUnsupported, "no standard voltage code for %s", u.Format(v, "voltage", "", 4))
-		}
-		d.addVoltage(&res, u, row, !hasValue)
+		d.addVoltage(&res, u, row, selected, !hasValue)
 		parts = append(parts, row.Code)
 	}
 	res.Code = strings.Join(parts, " ")

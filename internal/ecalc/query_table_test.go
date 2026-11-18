@@ -373,6 +373,16 @@ func TestLookupInTheGeneratedTables(t *testing.T) {
 	}
 }
 
+func TestLookupTemperatureBoundaryAcrossUnits(t *testing.T) {
+	cat := queryCatalog(t)
+	for raw, want := range map[string]string{"-55 °C": "C0G", "218.15 K": "C0G", "-67 °F": "C0G", "218.150001 K": "Y5V"} {
+		hit := lookupOf(t, cat, "mlcc_dielectrics", TableLookup{Column: "t_min_c", Mode: "ge", Value: raw, Output: "code"})
+		if !hit.Found || hit.Result != want {
+			t.Errorf("ge(t_min_c, %s) = %v, want %s", raw, hit, want)
+		}
+	}
+}
+
 // ---- the digits of a transcribed cell ---------------------------------------------------------------------------
 
 // A transcribed cell is a published number (a band edge, a regulatory limit): the answer never shortens it below the
