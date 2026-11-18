@@ -135,8 +135,8 @@
         ctx.translate(x, y);
         if (o.rotation) ctx.rotate(o.rotation);
         if (o.flip) ctx.scale(-1, 1);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        ctx.imageSmoothingEnabled = !o.pixel;
+        if (!o.pixel) ctx.imageSmoothingQuality = 'high';
         if (alpha < 1) ctx.globalAlpha = alpha;
         if (o.composite) ctx.globalCompositeOperation = o.composite;
         const dx = f[4] * sc;

@@ -325,6 +325,21 @@
             const rainWeather = stage.weather === 'rain' && Biomes && Biomes.RAIN_WEATHER ? Biomes.RAIN_WEATHER : null;
             const ambient = Math.min(0.92, (biome.light ? biome.light.ambient : 0) + (stage.darkness || 0));
 
+            // Close-up duel: the arena replaces the level once the intro iris has closed (and again until the outro iris opens).
+            const duelEnc = sim.encounter && sim.encounter.kind === 'duel' && sim.encounter.duel ? sim.encounter : null;
+            if (duelView) duelView.prime(sim);
+            if (duelEnc && duelView && duelView.wantsArena(sim)) {
+                // The window's DOM top bar overlays the canvas: tell the duel HUD how far down it reaches.
+                const shellEl = canvas.closest ? canvas.closest('.rp-app') : null;
+                const bar = shellEl ? shellEl.querySelector('.rp-topbar') : null;
+                const inset = bar ? Math.max(0, bar.getBoundingClientRect().bottom - rect.top) : 0;
+                const af = { nowSec: nowSec, dt: dt, biome: biome, reducedMotion: reduced, worldIndex: stage.worldIndex, viewW: viewW, viewH: viewH, sx: 0, sy: 0, zoom: 1, topInset: inset };
+                duelView.render(sim, af);
+                duelView.drawWipe(sim, viewW, viewH, af);
+                finishFrame(sim, biome, dt, nowSec, null, viewW, viewH, duelEnc.duel.fx);
+                return;
+            }
+
             // Adaptive zoom: about 13 tiles stay visible vertically (clamped 1..2), arenas with a living boss zoom out a little.
             let bossAlive = false;
             for (let i = 0; i < stage.enemies.length; i++) {
@@ -604,6 +619,7 @@
 
             callHook(stageArt, 'drawWorld', sim, frameView);
             callHook(setPieces, 'drawWorld', sim, frameView);
+            callHook(npcView, 'drawWorld', sim, frameView);
             callHook(actors, 'drawEnemies', sim, frameView);
             callHook(actors, 'drawHero', sim, frameView);
             callHook(actors, 'drawProjectiles', sim, frameView);
@@ -619,6 +635,7 @@
 
             callHook(stageArt, 'drawOverlay', sim, frameView);
             callHook(setPieces, 'drawOverlay', sim, frameView);
+            callHook(npcView, 'drawOverlay', sim, frameView);
 
             // Floating feedback: numbers, translated labels (ft.key) and an optional pixel icon (ft.icon) behind the text
             ctx.save();
@@ -653,6 +670,7 @@
                 callHook(decor, 'collectLights', sim, frameView, lights);
                 callHook(stageArt, 'collectLights', sim, frameView, lights);
                 callHook(setPieces, 'collectLights', sim, frameView, lights);
+                callHook(npcView, 'collectLights', sim, frameView, lights);
                 for (let i = 0; i < lights.length; i++) {
                     const lt = lights[i];
                     lt.x = (lt.x - sx) * z;
@@ -661,6 +679,12 @@
                 }
                 atmosphere.paintLighting(biome, 0, 0, viewW, viewH, lights, nowSec, ambient);
             }
+            if (duelEnc && duelView) duelView.drawWipe(sim, viewW, viewH, frameView);
+            finishFrame(sim, biome, dt, nowSec, sunScreen, viewW, viewH, fx);
+        }
+
+        // Grade, screen flash and the GPU composite: the tail shared by the level and the duel arena.
+        function finishFrame(sim, biome, dt, nowSec, sunScreen, viewW, viewH, fx) {
             const gpu = !!(postfx && postfx.isEnabled());
             if (atmosphere && !gpu) {
                 atmosphere.paintGrade(biome, viewW, viewH);
@@ -790,7 +814,7 @@
             if (disposed) return;
             disposed = true;
             // The app owns the post-processing object and disposes it itself.
-            [decor, actors, stageArt, setPieces].forEach(function (m) {
+            [decor, actors, stageArt, setPieces, npcView, duelView].forEach(function (m) {
                 if (m && typeof m.dispose === 'function') {
                     try { m.dispose(); } catch (err) { /* ignore */ }
                 }
@@ -811,7 +835,11 @@
             shake: triggerShake,
             getFrame: getFrame,
             hasAnim: hasAnim,
+            drawParticles: drawParticles,
+            font: floatFamily,
+            get atmosphere() { return atmosphere; },
             get art() { return art; },
+            get t() { return translate; },
             get reducedMotion() { return prefersReducedMotion(); }
         };
         function makeHook(mod) {
@@ -821,6 +849,8 @@
         const actors = makeHook(root.RunenpfadActors);
         const stageArt = makeHook(root.RunenpfadStageArt);
         const setPieces = makeHook(root.RunenpfadSetPieces);
+        const npcView = makeHook(root.RunenpfadNpcView);
+        const duelView = makeHook(root.RunenpfadDuelView);
 
         // Light sources in world space for the 2D light map.
         function collectLights(sim, stage, biome, nowSec, ambient) {
