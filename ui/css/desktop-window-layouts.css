@@ -5,15 +5,49 @@
 }
 
 .vd-window-layout-menu .vd-window-layout-item {
-    grid-template-columns: 20px minmax(0, 1fr);
+    grid-template-columns: 24px minmax(0, 1fr) auto;
     min-height: 38px;
 }
 
+.vd-window-layout-item .vd-window-layout-diagram {
+    display: grid;
+    grid-template: repeat(2, 1fr) / repeat(2, 1fr);
+    place-items: stretch;
+    box-sizing: border-box;
+    width: 23px;
+    height: 17px;
+    padding: 2px;
+    gap: 1px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    /* Window management uses physical left/right even in a right-to-left menu. */
+    direction: ltr;
+}
+
+.vd-window-layout-diagram::before {
+    content: "";
+    grid-area: var(--vd-layout-region);
+    background: currentColor;
+}
+
 .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
-    background: color-mix(in srgb, var(--vd-accent) 17%, transparent);
+    background: var(--vd-mat-selected);
+    color: var(--vd-mat-selected-text);
+}
+
+.vd-window-layout-item[aria-checked="true"]::after {
+    content: "";
+    width: 5px;
+    height: 10px;
+    margin-inline: 5px;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 @media (forced-colors: active) {
+    .vd-window-layout-diagram::before { background: ButtonText; forced-color-adjust: none; }
+    .vd-window-layout-item:disabled .vd-window-layout-diagram::before { background: GrayText; }
     .vd-window-layout-menu .vd-window-layout-item[aria-checked="true"]:not(:disabled) {
         outline: 2px solid Highlight;
         border-color: Highlight;

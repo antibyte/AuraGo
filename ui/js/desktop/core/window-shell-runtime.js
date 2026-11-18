@@ -1147,6 +1147,10 @@
         return [...groups.values()];
     }
 
+    function windowGroupCountMarkup(count) {
+        return count > 1 ? `<span class="vd-task-count" aria-hidden="true">${count}</span>` : '';
+    }
+
     function updateTaskbarButton(btn, group, index) {
         const app = appById(group.appId);
         const active = group.windows.find(win => win.id === state.activeWindowId);
@@ -1171,7 +1175,7 @@
         else btn.removeAttribute('aria-current');
         btn.style.setProperty('--dock-index', index);
         const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
-        const nextHTML = `${icon}<span class="vd-task-label">${esc(label)}</span>${count > 1 ? `<span class="vd-task-count" aria-hidden="true">${count}</span>` : ''}`;
+        const nextHTML = `${icon}<span class="vd-task-label">${esc(label)}</span>${windowGroupCountMarkup(count)}`;
         if (btn.dataset.renderedHtml !== nextHTML) {
             btn.innerHTML = nextHTML;
             btn.dataset.renderedHtml = nextHTML;
@@ -1250,18 +1254,17 @@
         return host.querySelector('[data-fruity-dock-track]');
     }
 
-    function dockButtonHTML(app) {
-        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}<span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>`;
+    function dockButtonHTML(app, count) {
+        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}<span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>${windowGroupCountMarkup(count)}`;
     }
 
     function updateDockButton(btn, app, index, runningWindows) {
-        const running = runningWindows.some(win => win.appId === app.id);
         const count = runningWindows.filter(win => win.appId === app.id).length;
         const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
         const broken = appIsBroken(app);
         btn.type = 'button';
         btn.className = 'vd-dock-button';
-        btn.classList.toggle('running', running);
+        btn.classList.toggle('running', count > 0);
         btn.classList.toggle('active', active);
         btn.classList.toggle('broken', broken);
         btn.dataset.appId = app.id;
@@ -1272,7 +1275,7 @@
         if (count > 1) btn.setAttribute('aria-haspopup', 'dialog');
         else btn.removeAttribute('aria-haspopup');
         btn.style.setProperty('--dock-index', index);
-        const nextHTML = dockButtonHTML(app);
+        const nextHTML = dockButtonHTML(app, count);
         if (btn.dataset.renderedHtml !== nextHTML) {
             btn.innerHTML = nextHTML;
             btn.dataset.renderedHtml = nextHTML;

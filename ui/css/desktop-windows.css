@@ -42,13 +42,13 @@
     background: color-mix(in srgb, var(--vd-theme-accent-soft, var(--vd-accent, #27c7a6)) 18%, transparent);
     pointer-events: none;
     z-index: calc(var(--ds-z-window) - 1);
-    transition:
-        opacity var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized),
-        left var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized),
-        top var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized),
-        width var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized),
-        height var(--ds-motion-duration-fast) var(--ds-motion-ease-emphasized);
     box-shadow: var(--vd-theme-shadow-panel, var(--ds-elevation-4));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .vd-snap-overlay {
+        animation: vd-modal-backdrop-in var(--ds-motion-duration-fast) var(--vd-shell-feedback-ease);
+    }
 }
 
 .vd-snap-overlay[hidden] {

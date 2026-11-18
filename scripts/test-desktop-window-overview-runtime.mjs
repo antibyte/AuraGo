@@ -126,6 +126,7 @@ class FakeElement {
         this.ownerDocument.activeElement = this;
         this.dispatch('focusin');
     }
+    scrollIntoView(options) { this.lastScrollBlock = options.block; }
     getClientRects() { return this.hidden ? [] : [{}]; }
     getBoundingClientRect() { return { top: 0, left: 0, right: 200, bottom: 90 }; }
     closest(selector) {
@@ -280,6 +281,9 @@ observers.at(-1).reveal(firstPreview);
 assert.deepEqual(previewCalls, ['one']);
 overview.cycle(false);
 assert.equal(dialog.querySelector('[data-window-activate="two"]').getAttribute('aria-pressed'), 'true');
+assert.equal(dialog.querySelector('[data-window-activate="one"]').getAttribute('aria-pressed'), 'false');
+assert.equal(dialog.querySelector('[data-overview-window="two"]').lastScrollBlock, 'nearest');
+assert.equal(dialog.querySelector('[data-overview-preview="one"]'), firstPreview, 'cycling preserves the mounted preview');
 overview.finish({ activate: true });
 assert.deepEqual(activated, ['two']);
 assert.equal(overview.isOpen(), false);

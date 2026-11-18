@@ -284,7 +284,7 @@
             'bottom-left': 'desktop.snap_bottom_left',
             'bottom-right': 'desktop.snap_bottom_right'
         };
-        const addButton = (labelKey, icon, action, disabled, checked, title) => {
+        const addButton = (labelKey, action, disabled, checked) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'vd-context-item vd-window-layout-item';
@@ -293,7 +293,13 @@
             const glyph = document.createElement('span');
             glyph.className = 'vd-context-icon';
             glyph.setAttribute('aria-hidden', 'true');
-            glyph.textContent = icon;
+            const region = desktopWindowLayoutRect(action, 2, 2);
+            if (region) {
+                glyph.classList.add('vd-window-layout-diagram');
+                glyph.style.setProperty('--vd-layout-region', `${region.top + 1} / ${region.left + 1} / span ${region.height} / span ${region.width}`);
+            } else {
+                glyph.textContent = '↶';
+            }
             const label = document.createElement('span');
             label.className = 'vd-context-label';
             label.textContent = t(labelKey);
@@ -309,12 +315,11 @@
                     else applyWindowSnap(item.element, action);
                 });
             }
-            if (title) button.title = title;
             menu.appendChild(button);
         };
-        if (windowLayoutCanRestore(id)) addButton('desktop.restore', '↶', 'restore', false, false);
+        if (windowLayoutCanRestore(id)) addButton('desktop.restore', 'restore', false, false);
         windowLayoutOptions(id).forEach(option => {
-            addButton(layoutLabels[option.zone], option.zone === 'maximize' ? '□' : '▦', option.zone,
+            addButton(layoutLabels[option.zone], option.zone,
                 !option.fits, item.snapped === option.zone || (option.zone === 'maximize' && item.maximized));
         });
         document.body.appendChild(menu);

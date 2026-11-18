@@ -461,12 +461,34 @@
 
 .vd-task-count {
     flex: 0 0 auto;
-    min-width: 1.4em;
+    min-width: 1.55em;
     padding: 1px 4px;
-    border: 1px solid var(--vd-border);
-    border-radius: 4px;
+    border: 1px solid var(--vd-mat-btn-border);
+    border-radius: var(--vd-mat-btn-radius);
+    background: var(--vd-mat-btn);
+    color: var(--vd-mat-btn-text);
     font-size: .7rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
     text-align: center;
+    pointer-events: none;
+}
+
+.vd-dock-button .vd-task-count {
+    position: absolute;
+    inset-block-start: 1px;
+    inset-inline-end: 1px;
+    border-color: var(--vd-mat-primary-border);
+    background: var(--vd-mat-primary);
+    color: var(--vd-mat-primary-text);
+    box-shadow: var(--vd-mat-primary-shadow);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .desktop-body:not([data-animations="false"]) .vd-task-count {
+        animation: vd-modal-backdrop-in var(--ds-motion-duration-fast) var(--vd-shell-feedback-ease);
+    }
 }
 
 @media (forced-colors: active) {

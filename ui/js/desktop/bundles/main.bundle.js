@@ -3068,11 +3068,10 @@
                         <h2 id="vd-window-overview-title">${escapeHTML(title)}</h2>
                         ${subtitle ? `<p>${escapeHTML(subtitle)}</p>` : ''}
                     </div>
-                    <div class="vd-window-overview-header-actions">${scopeButtons}${closeAppButton}<button type="button" data-overview-dismiss aria-label="${escapeHTML(translate('desktop.close'))}">×</button></div>
+                    <div class="vd-window-overview-header-actions">${scopeButtons}${closeAppButton}<button type="button" data-overview-dismiss>${escapeHTML(translate('desktop.close'))}</button></div>
                 </header>
                 <div class="vd-window-overview-list" role="list">${cards}</div>
                 ${empty}
-                <footer><button type="button" data-overview-dismiss>${escapeHTML(translate('desktop.close'))}</button></footer>
             </section>`;
         wirePreviewObserver(view);
         if (options.focus) focusPreferred(view);
@@ -3091,16 +3090,20 @@
             ? translate('desktop.snap_partner_select', { name })
             : name;
         const cachedPreview = view.previewCache.get(id);
-        const preview = cachedPreview == null
-            ? `<div class="vd-window-overview-preview" data-overview-preview="${escapeHTML(id)}" aria-hidden="true"><span class="vd-window-overview-preview-placeholder"></span></div>`
-            : `<div class="vd-window-overview-preview" data-overview-preview="${escapeHTML(id)}" aria-hidden="true">${cachedPreview}</div>`;
+        const preview = `<div class="vd-window-overview-preview${cachedPreview == null ? '' : ' is-ready'}" data-overview-preview="${escapeHTML(id)}" aria-hidden="true">${cachedPreview ?? '<span class="vd-window-overview-preview-placeholder"></span>'}</div>`;
         const minimizedLabel = minimized ? `<span class="vd-window-overview-minimized" data-overview-minimized="true">${escapeHTML(translate('desktop.window_minimized'))}</span>` : '';
-        const closeButton = view.mode === 'snap-partner' ? '' : `<button type="button" data-window-close="${escapeHTML(id)}" aria-label="${escapeHTML(translate('desktop.menu_close_window') + ': ' + name)}" ${view.pendingCloses.has(id) ? 'disabled' : ''}>${escapeHTML(translate('desktop.menu_close_window'))}</button>`;
+        const metadata = [
+            !workspace || appLabel !== name ? escapeHTML(appLabel) : '',
+            workspace ? `<span data-overview-workspace-label="${escapeHTML(id)}">${escapeHTML(workspace)}</span>` : '',
+            minimizedLabel
+        ].filter(Boolean).join(' · ');
+        const closeLabel = escapeHTML(translate('desktop.menu_close_window') + ': ' + name);
+        const closeButton = view.mode === 'snap-partner' ? '' : `<button type="button" data-window-close="${escapeHTML(id)}" aria-label="${closeLabel}" title="${closeLabel}" ${view.pendingCloses.has(id) ? 'disabled' : ''}>×</button>`;
         return `<article class="vd-window-overview-card${selected ? ' is-selected' : ''}${active ? ' is-active' : ''}${minimized ? ' is-minimized' : ''}" role="listitem" data-overview-window="${escapeHTML(id)}" data-overview-index="${index}" data-overview-minimized="${minimized ? 'true' : 'false'}" aria-current="${active ? 'true' : 'false'}">
             <button type="button" class="vd-window-overview-activate" data-window-activate="${escapeHTML(id)}" aria-label="${escapeHTML(activateLabel)}" aria-pressed="${selected}">
                 ${preview}
                 <span class="vd-window-overview-card-title">${escapeHTML(name)}</span>
-            <span class="vd-window-overview-card-meta"><span>${escapeHTML(appLabel)}</span>${workspace ? ` · <span data-overview-workspace-label="${escapeHTML(id)}">${escapeHTML(workspace)}</span>` : ''}${minimizedLabel ? ` · ${minimizedLabel}` : ''}</span>
+                <span class="vd-window-overview-card-meta">${metadata}</span>
             </button>
             ${closeButton}
         </article>`;
@@ -3132,7 +3135,8 @@
             let markup = '';
             try {
                 markup = String(config.previewMarkup(win, {
-                    maxW: 340, maxH: 190,
+                    maxW: Math.max(128, Math.min(340, node.clientWidth - 8)),
+                    maxH: Math.max(80, node.clientHeight - 8),
                     bodyOnly: true,
                     titleClass: 'vd-window-overview-preview-title',
                     labelClass: 'vd-window-overview-preview-label',
@@ -3176,6 +3180,7 @@
         const focus = selected || view.dialog.querySelector('[data-overview-scope="current"]')
             || view.dialog.querySelector('button[data-overview-dismiss]') || visibleFocusables(view)[0];
         focus?.focus({ preventScroll: true });
+        selected?.closest('[data-overview-window]').scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     function cssEscape(value) {
@@ -3291,24 +3296,28 @@
         else if (event.key === 'End') nextIndex = view.windows.length - 1;
         else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % view.windows.length;
         else nextIndex = (currentIndex - 1 + view.windows.length) % view.windows.length;
-        selectWindow(view, nextIndex, true);
+        selectWindow(view, nextIndex);
     }
 
-    function selectWindow(view, index, focus) {
+    function selectWindow(view, index) {
         if (!isCurrent(view) || !view.windows.length) return;
         const normalized = (index + view.windows.length) % view.windows.length;
         view.selectedIndex = normalized;
         view.selectedId = windowId(view.windows[normalized]);
-        view.signature = '';
-        render(view, { force: true });
-        if (focus) view.dialog.querySelector(`[data-window-activate="${cssEscape(view.selectedId)}"]`)?.focus({ preventScroll: true });
+        const previous = view.dialog.querySelector('[data-window-activate][aria-pressed="true"]');
+        previous?.setAttribute('aria-pressed', 'false');
+        previous?.closest('[data-overview-window]').classList.remove('is-selected');
+        const button = view.dialog.querySelector(`[data-window-activate="${cssEscape(view.selectedId)}"]`);
+        button.setAttribute('aria-pressed', 'true');
+        button.closest('[data-overview-window]').classList.add('is-selected');
+        focusPreferred(view);
     }
 
     function cycle(reverse = false) {
         const view = current;
         if (!view || view.mode !== 'switcher' || !view.windows.length) return false;
         const index = view.windows.findIndex(win => windowId(win) === view.selectedId);
-        selectWindow(view, (index < 0 ? 0 : index) + (reverse ? -1 : 1), true);
+        selectWindow(view, (index < 0 ? 0 : index) + (reverse ? -1 : 1));
         return true;
     }
 
@@ -10529,6 +10538,10 @@
         return [...groups.values()];
     }
 
+    function windowGroupCountMarkup(count) {
+        return count > 1 ? `<span class="vd-task-count" aria-hidden="true">${count}</span>` : '';
+    }
+
     function updateTaskbarButton(btn, group, index) {
         const app = appById(group.appId);
         const active = group.windows.find(win => win.id === state.activeWindowId);
@@ -10553,7 +10566,7 @@
         else btn.removeAttribute('aria-current');
         btn.style.setProperty('--dock-index', index);
         const icon = iconMarkup(iconForApp(app), iconGlyph(app), 'vd-task-icon', 16);
-        const nextHTML = `${icon}<span class="vd-task-label">${esc(label)}</span>${count > 1 ? `<span class="vd-task-count" aria-hidden="true">${count}</span>` : ''}`;
+        const nextHTML = `${icon}<span class="vd-task-label">${esc(label)}</span>${windowGroupCountMarkup(count)}`;
         if (btn.dataset.renderedHtml !== nextHTML) {
             btn.innerHTML = nextHTML;
             btn.dataset.renderedHtml = nextHTML;
@@ -10632,18 +10645,17 @@
         return host.querySelector('[data-fruity-dock-track]');
     }
 
-    function dockButtonHTML(app) {
-        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}<span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>`;
+    function dockButtonHTML(app, count) {
+        return `${iconMarkup(iconForApp(app), iconGlyph(app), 'vd-dock-icon', 34)}<span class="vd-dock-label">${esc(appName(app))}${brokenAppLabel(app)}</span>${windowGroupCountMarkup(count)}`;
     }
 
     function updateDockButton(btn, app, index, runningWindows) {
-        const running = runningWindows.some(win => win.appId === app.id);
         const count = runningWindows.filter(win => win.appId === app.id).length;
         const active = runningWindows.some(win => win.appId === app.id && win.id === state.activeWindowId);
         const broken = appIsBroken(app);
         btn.type = 'button';
         btn.className = 'vd-dock-button';
-        btn.classList.toggle('running', running);
+        btn.classList.toggle('running', count > 0);
         btn.classList.toggle('active', active);
         btn.classList.toggle('broken', broken);
         btn.dataset.appId = app.id;
@@ -10654,7 +10666,7 @@
         if (count > 1) btn.setAttribute('aria-haspopup', 'dialog');
         else btn.removeAttribute('aria-haspopup');
         btn.style.setProperty('--dock-index', index);
-        const nextHTML = dockButtonHTML(app);
+        const nextHTML = dockButtonHTML(app, count);
         if (btn.dataset.renderedHtml !== nextHTML) {
             btn.innerHTML = nextHTML;
             btn.dataset.renderedHtml = nextHTML;
@@ -12076,7 +12088,7 @@ function windowOverlapsFruityDock(win, dockRect) {
             'bottom-left': 'desktop.snap_bottom_left',
             'bottom-right': 'desktop.snap_bottom_right'
         };
-        const addButton = (labelKey, icon, action, disabled, checked, title) => {
+        const addButton = (labelKey, action, disabled, checked) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'vd-context-item vd-window-layout-item';
@@ -12085,7 +12097,13 @@ function windowOverlapsFruityDock(win, dockRect) {
             const glyph = document.createElement('span');
             glyph.className = 'vd-context-icon';
             glyph.setAttribute('aria-hidden', 'true');
-            glyph.textContent = icon;
+            const region = desktopWindowLayoutRect(action, 2, 2);
+            if (region) {
+                glyph.classList.add('vd-window-layout-diagram');
+                glyph.style.setProperty('--vd-layout-region', `${region.top + 1} / ${region.left + 1} / span ${region.height} / span ${region.width}`);
+            } else {
+                glyph.textContent = '↶';
+            }
             const label = document.createElement('span');
             label.className = 'vd-context-label';
             label.textContent = t(labelKey);
@@ -12101,12 +12119,11 @@ function windowOverlapsFruityDock(win, dockRect) {
                     else applyWindowSnap(item.element, action);
                 });
             }
-            if (title) button.title = title;
             menu.appendChild(button);
         };
-        if (windowLayoutCanRestore(id)) addButton('desktop.restore', '↶', 'restore', false, false);
+        if (windowLayoutCanRestore(id)) addButton('desktop.restore', 'restore', false, false);
         windowLayoutOptions(id).forEach(option => {
-            addButton(layoutLabels[option.zone], option.zone === 'maximize' ? '□' : '▦', option.zone,
+            addButton(layoutLabels[option.zone], option.zone,
                 !option.fits, item.snapped === option.zone || (option.zone === 'maximize' && item.maximized));
         });
         document.body.appendChild(menu);
