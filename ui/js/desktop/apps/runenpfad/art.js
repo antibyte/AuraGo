@@ -27,30 +27,56 @@
             if (text.length > MAX_ATLAS_BYTES) return null;
             const json = JSON.parse(text);
             if (!json || json.version !== 1 || !json.sheets || typeof json.sheets !== 'object') return null;
-            const ids = Object.keys(json.sheets);
+            const all = Object.keys(json.sheets);
+            // Painted parallax sheets (bg-*) are large and biome specific: they load lazily through loadSheet.
+            const ids = all.filter(function (id) { return !LAZY.test(id); });
             const images = await Promise.all(ids.map(function (id) {
                 const file = String(json.sheets[id].file || '');
                 if (!/^[a-z0-9-]+\.webp$/.test(file)) return Promise.resolve(null);
                 return loadImage('/img/runenpfad/' + file + '?v=' + ver, signal).catch(function () { return null; });
             }));
-            const atlas = { sheets: {}, clips: {}, ids: [] };
-            ids.forEach(function (id, i) {
-                const sh = json.sheets[id];
-                if (!images[i] || !Array.isArray(sh.frames) || !sh.clips || !(sh.refH > 0)) return;
-                const sheet = { id: id, img: images[i], frames: sh.frames, refH: sh.refH, def: sh };
-                atlas.sheets[id] = sheet;
-                atlas.ids.push(id);
-                Object.keys(sh.clips).forEach(function (name) {
-                    const c = sh.clips[name];
-                    if (!c || !Array.isArray(c.frames) || !c.frames.length) return;
-                    const clip = { sheet: sheet, name: name, frames: c.frames, ms: Math.max(16, +c.ms || 100), loop: !!c.loop };
-                    atlas.clips[id + '.' + name] = clip;
-                    if (name === sh.default) atlas.clips[id] = clip;
-                });
-            });
-            return atlas.ids.length ? atlas : null;
+            const atlas = { sheets: {}, clips: {}, ids: [], lazy: {}, ver: ver };
+            all.forEach(function (id) { if (LAZY.test(id)) atlas.lazy[id] = json.sheets[id]; });
+            ids.forEach(function (id, i) { register(atlas, id, json.sheets[id], images[i]); });
+            if (!atlas.ids.length) return null;
+            current = atlas;
+            return atlas;
         } catch (err) {
             return null;
+        }
+    }
+
+    const LAZY = /^bg-/;
+    let current = null;
+
+    function register(atlas, id, sh, img) {
+        if (!img || !sh || !Array.isArray(sh.frames) || !sh.clips || !(sh.refH > 0)) return false;
+        const sheet = { id: id, img: img, frames: sh.frames, refH: sh.refH, def: sh };
+        atlas.sheets[id] = sheet;
+        if (atlas.ids.indexOf(id) < 0) atlas.ids.push(id);
+        Object.keys(sh.clips).forEach(function (name) {
+            const c = sh.clips[name];
+            if (!c || !Array.isArray(c.frames) || !c.frames.length) return;
+            const clip = { sheet: sheet, name: name, frames: c.frames, ms: Math.max(16, +c.ms || 100), loop: !!c.loop };
+            atlas.clips[id + '.' + name] = clip;
+            if (name === sh.default) atlas.clips[id] = clip;
+        });
+        return true;
+    }
+
+    // Loads one lazy (bg-*) sheet into the atlas. Resolves true or false and never rejects.
+    function loadSheet(atlas, id, signal) {
+        try {
+            if (!atlas) return Promise.resolve(false);
+            if (atlas.sheets[id]) return Promise.resolve(true);
+            const sh = atlas.lazy && atlas.lazy[id];
+            const file = sh ? String(sh.file || '') : '';
+            if (!/^[a-z0-9-]+\.webp$/.test(file)) return Promise.resolve(false);
+            return loadImage('/img/runenpfad/' + file + '?v=' + atlas.ver, signal).then(function (img) {
+                return register(atlas, id, sh, img);
+            }).catch(function () { return false; });
+        } catch (err) {
+            return Promise.resolve(false);
         }
     }
 
@@ -389,6 +415,8 @@
     root.RunenpfadArt = {
         RUNE_COLORS: RUNE_COLORS,
         load: load,
+        loadSheet: loadSheet,
+        current: function () { return current; },
         has: has,
         duration: duration,
         frameAt: frameAt,

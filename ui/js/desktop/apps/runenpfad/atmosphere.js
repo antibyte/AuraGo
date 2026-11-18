@@ -35,6 +35,7 @@
         let lightCtx = null;
         let weatherSeed = 1;
         let stripSet = null; // { key, layers[] }
+        let parallax = null; // painted parallax strips (parallax-art.js), created on first use
         let sky = { key: '', canvas: null };
         const small = {}; // cached helper canvases (clouds, shafts, aurora, foreground, fog)
 
@@ -108,6 +109,11 @@
             (biome.layers || []).forEach(function (L) { layers.push(bakeLayer(biome, L, d)); });
             stripSet = { key: key, layers: layers };
             return layers;
+        }
+
+        function painted() {
+            if (!parallax && root.RunenpfadParallaxArt && root.RunenpfadParallaxArt.createParallax) parallax = root.RunenpfadParallaxArt.createParallax(ctx, makeCanvas);
+            return parallax;
         }
 
         function purge() {
@@ -396,27 +402,36 @@
             }
             paintTwinkle(biome, viewW, viewH, t);
             paintClouds(biome, camX, viewW, viewH, t, d, groundY);
-            const layers = getLayers(biome);
-            for (let i = 0; i < layers.length; i++) {
-                const e = layers[i];
-                if (!e.canvas) continue;
-                const off = camX * e.L.factor;
-                if (e.top) {
-                    blit(e.canvas, d, off, viewW, 0);
-                } else {
-                    const base = Math.round(groundY + (e.L.lift || 0) * viewH);
-                    const y0 = base - e.L.span;
-                    blit(e.canvas, d, off, viewW, y0);
-                    const fillTop = y0 + e.h;
-                    if (fillTop < viewH) {
-                        ctx.fillStyle = e.solid;
-                        ctx.fillRect(0, fillTop - 1, viewW, viewH - fillTop + 1);
+            // Painted parallax (bg-* sheets) fades in over the procedural silhouettes, which then step aside.
+            const pa = biome.art ? painted() : null;
+            const fade = pa ? pa.prepare(biome, viewH, d, t) : 0;
+            if (fade > 0) paintAurora(biome, camX, viewW, viewH, t, d);
+            if (fade < 1) {
+                const layers = getLayers(biome);
+                for (let i = 0; i < layers.length; i++) {
+                    const e = layers[i];
+                    if (!e.canvas) continue;
+                    const off = camX * e.L.factor;
+                    if (e.top) {
+                        blit(e.canvas, d, off, viewW, 0);
+                    } else {
+                        const base = Math.round(groundY + (e.L.lift || 0) * viewH);
+                        const y0 = base - e.L.span;
+                        blit(e.canvas, d, off, viewW, y0);
+                        const fillTop = y0 + e.h;
+                        if (fillTop < viewH) {
+                            ctx.fillStyle = e.solid;
+                            ctx.fillRect(0, fillTop - 1, viewW, viewH - fillTop + 1);
+                        }
+                        if (e.smoke.length) paintDynamic(e, off, viewW, base, t);
                     }
-                    if (e.smoke.length) paintDynamic(e, off, viewW, base, t);
+                    if (e.tips.length) paintDynamic(e, off, viewW, 0, t);
+                    if (i === 1 && fade <= 0) paintAurora(biome, camX, viewW, viewH, t, d);
+                    if (i === 2 && fade <= 0) paintShafts(biome, camX, viewW, viewH, t, d);
                 }
-                if (e.tips.length) paintDynamic(e, off, viewW, 0, t);
-                if (i === 1) paintAurora(biome, camX, viewW, viewH, t, d);
-                if (i === 2) paintShafts(biome, camX, viewW, viewH, t, d);
+            }
+            if (fade > 0) {
+                pa.paint(camX, viewW, viewH, groundY, fade, function () { paintShafts(biome, camX, viewW, viewH, t, d); });
             }
             if (biome.fog && biome.fog.alpha > 0) {
                 const fogTop = Math.max(0, groundY - viewH * 0.75);
@@ -625,6 +640,7 @@
 
         function dispose() {
             purge();
+            if (parallax) parallax.dispose();
             release(sky.canvas);
             sky = { key: '', canvas: null };
             release(lightCanvas);

@@ -24,6 +24,13 @@
             ],
             shafts: { color: '#ffe7a8', alpha: 0.11, factor: 0.12, count: 7 },
             stars: { count: 40, alpha: 0.5, color: '#e8f6ff' },
+            // Painted parallax (parallax-art.js): far band + mid/near props from the bg-* sheets; the layers above stay the fallback.
+            art: {
+                sheets: { far: 'bg-woodland-far', mid: 'bg-woodland-mid', near: 'bg-woodland-near' },
+                far: { frac: 0.44, lift: -0.04, factor: 0.15, color: '#2f6470', haze: 0.5, dark: 0.1 },
+                mid: { factor: 0.38, lift: -0.075, amp: 20, cells: 9, seed: 301, body: '#1b4647', scale: 0.62, gap: [190, 430], color: '#235558', haze: 0.52, dark: 0.12 },
+                near: { factor: 0.68, lift: 0, scale: 0.4, gap: [120, 330], body: '#0f2b2b', color: '#123a38', haze: 0.3, dark: 0.5 }
+            },
             clouds: { color: '#a9d8d0', alpha: 0.16, speed: 6, count: 8, y: 0.2, scale: 1 },
             surface: { grass: { color: '#6ec24f', color2: '#b9f27c', density: 0.55 } },
             fog: { color: '#8fd8c6', alpha: 0.12 },
@@ -43,6 +50,13 @@
                 { style: 'mushrooms', base: 'hills', color: '#2a2050', factor: 0.35, lift: -0.06, span: 200, amp: 26, cells: 10, seed: 79, mist: 0.2, palette: ['#5eead4', '#c4b5fd', '#7dd3fc'] },
                 { style: 'ceiling', anchor: 'top', color: '#04030c', factor: 0.42, span: 300, seed: 89, len: [60, 250], drips: true }
             ],
+            art: {
+                sheets: { far: 'bg-cavern-far', mid: 'bg-cavern-mid', near: 'bg-cavern-near', ceiling: 'bg-cavern-ceiling' },
+                far: { frac: 0.5, lift: -0.04, factor: 0.14, color: '#2b2152', haze: 0.62, dark: 0.12 },
+                ceiling: { frac: 0.36, factor: 0.3, color: '#241a48', haze: 0.45, dark: 0.22 },
+                mid: { factor: 0.38, lift: -0.075, amp: 20, cells: 9, seed: 311, body: '#1d1538', scale: 0.62, gap: [200, 450], color: '#251b43', haze: 0.5, dark: 0.15 },
+                near: { factor: 0.68, lift: 0, scale: 0.4, gap: [120, 320], body: '#0c0820', color: '#150f2a', haze: 0.3, dark: 0.5 }
+            },
             clouds: { color: '#6f5bd0', alpha: 0.1, speed: 4, count: 6, y: 0.34, scale: 1.3 },
             surface: { grass: { color: '#4fd1c5', color2: '#a7f3d0', density: 0.4 } },
             fog: { color: '#6f5bd0', alpha: 0.16 },
@@ -62,6 +76,12 @@
                 { style: 'cacti', base: 'dunes', color: '#64343a', factor: 0.3, lift: -0.07, span: 200, amp: 50, cells: 7, seed: 107, mist: 0.2 },
                 { style: 'rocks', base: 'hills', color: '#4a2832', factor: 0.46, lift: -0.012, span: 220, amp: 16, cells: 12, seed: 119, mist: 0.1, warm: true }
             ],
+            art: {
+                sheets: { far: 'bg-desert-far', mid: 'bg-desert-mid', near: 'bg-desert-near' },
+                far: { frac: 0.42, lift: -0.04, factor: 0.15, color: '#a65b49', haze: 0.5, dark: 0.08 },
+                mid: { factor: 0.38, lift: -0.075, amp: 18, cells: 7, seed: 321, body: '#7a4140', scale: 0.62, gap: [200, 460], color: '#8d4f45', haze: 0.5, dark: 0.14 },
+                near: { factor: 0.68, lift: 0, scale: 0.4, gap: [130, 340], body: '#3d1f28', color: '#4a2832', haze: 0.3, dark: 0.5 }
+            },
             clouds: { color: '#ffc08a', alpha: 0.17, speed: 9, count: 6, y: 0.28, scale: 1.4 },
             surface: { grass: { color: '#d9b45a', color2: '#f3d98a', density: 0.4 } },
             fog: { color: '#f0b075', alpha: 0.16 },
@@ -83,6 +103,12 @@
             ],
             stars: { count: 95, alpha: 0.7, color: '#ffffff' },
             aurora: { colors: ['#10e08a', '#12d6c8', '#9b6bff'], alpha: 0.4 },
+            art: {
+                sheets: { far: 'bg-glacier-far', mid: 'bg-glacier-mid', near: 'bg-glacier-near' },
+                far: { frac: 0.44, lift: -0.04, factor: 0.15, color: '#2b5578', haze: 0.58, dark: 0.18 },
+                mid: { factor: 0.38, lift: -0.075, amp: 20, cells: 9, seed: 331, body: '#1f4563', scale: 0.62, gap: [190, 430], color: '#27506f', haze: 0.5, dark: 0.2 },
+                near: { factor: 0.68, lift: 0, scale: 0.4, gap: [120, 330], body: '#10304d', color: '#17385a', haze: 0.3, dark: 0.5 }
+            },
             clouds: { color: '#d8efff', alpha: 0.14, speed: 5, count: 7, y: 0.3, scale: 1.2 },
             surface: { grass: { color: '#cfe9ff', color2: '#ffffff', density: 0.35 } },
             fog: { color: '#d8efff', alpha: 0.18 },
@@ -103,6 +129,12 @@
                 { style: 'spires', base: 'flat', color: '#0f0b19', factor: 0.48, lift: -0.01, span: 340, amp: 10, cells: 13, seed: 163, mist: 0.1 }
             ],
             stars: { count: 34, alpha: 0.4, color: '#ffb4a8' },
+            art: {
+                sheets: { far: 'bg-citadel-far', mid: 'bg-citadel-mid', near: 'bg-citadel-near' },
+                far: { frac: 0.46, lift: -0.04, factor: 0.15, color: '#5a3a58', haze: 0.36, dark: 0 },
+                mid: { factor: 0.38, lift: -0.075, amp: 18, cells: 9, seed: 341, body: '#19132a', scale: 0.62, gap: [200, 440], color: '#34264a', haze: 0.38, dark: 0 },
+                near: { factor: 0.68, lift: 0, scale: 0.4, gap: [120, 330], body: '#0b0816', color: '#1a1226', haze: 0.3, dark: 0.35 }
+            },
             clouds: { color: '#8b2f3d', alpha: 0.2, speed: 7, count: 7, y: 0.26, scale: 1.4 },
             surface: { grass: { color: '#7c5a63', color2: '#a1707a', density: 0.25 }, lava: { color: '#ff8a3d', glow: 'rgba(255, 110, 40, 0.6)' } },
             fog: { color: '#8b3a44', alpha: 0.15 },
