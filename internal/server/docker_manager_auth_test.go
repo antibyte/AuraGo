@@ -94,6 +94,7 @@ func TestDockerManagerRoutesStayInTheAdminBearerCatchAll(t *testing.T) {
 		"/api/docker-manager/", "/api/docker-manager/hosts", "/api/docker-manager/hosts/local/containers", "/api/docker-manager/hosts/import-nest/n1",
 		// Live data: the event stream and its subscriptions, the log follows, the disk usage and the terminal.
 		"/api/docker-manager/stream", "/api/docker-manager/stream/subscriptions", "/api/docker-manager/hosts/local/df",
+		"/api/docker-manager/hosts/local/cleanup/preview", "/api/docker-manager/hosts/local/cleanup",
 		"/api/docker-manager/hosts/local/containers/web1/logs", "/api/docker-manager/hosts/local/stacks/web/logs",
 		"/api/docker-manager/hosts/local/projects/shop/logs", "/api/docker-manager/hosts/local/containers/web1/terminal",
 		// Stacks: files, operations (the SSE stream included), lint and the converter.

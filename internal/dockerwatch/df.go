@@ -33,6 +33,13 @@ func (h *Hub) dfEntryFor(host string) *dfEntry {
 	return e
 }
 
+// InvalidateDiskUsage detaches even an in-flight reading made before a cleanup.
+func (h *Hub) InvalidateDiskUsage(host string) {
+	h.dfMu.Lock()
+	defer h.dfMu.Unlock()
+	delete(h.df, host)
+}
+
 // DiskUsage returns Docker's disk use on host, the time it was read and
 // whether it came from the cache. An answer younger than 5 minutes is served
 // from the cache; refresh asks for a new reading but is honoured only when the

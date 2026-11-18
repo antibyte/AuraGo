@@ -178,6 +178,22 @@ func TestAcquireStopsAtTheStreamBudgetPerHost(t *testing.T) {
 	again()
 }
 
+func TestDiskUsageAfterCleanupReadsTheEngineImmediately(t *testing.T) {
+	env := newTestEnv(t, nil)
+	env.fe.set(func(fe *fakeEngine) { fe.df = `{"LayersSize":2048}` })
+	read := func(want int64) {
+		t.Helper()
+		usage, _, cached, err := env.hub.DiskUsage(context.Background(), "h1", false)
+		if err != nil || cached || usage.Total != want {
+			t.Fatalf("usage = %+v, cached = %t, error = %v, want fresh %d bytes", usage, cached, err, want)
+		}
+	}
+	read(2048)
+	env.fe.set(func(fe *fakeEngine) { fe.df = `{"LayersSize":64}` })
+	env.hub.InvalidateDiskUsage("h1")
+	read(64)
+}
+
 func TestDiskUsageIsCachedForFiveMinutesAndRefreshedAfterOneMinute(t *testing.T) {
 	env := newTestEnv(t, nil)
 	env.fe.set(func(fe *fakeEngine) {

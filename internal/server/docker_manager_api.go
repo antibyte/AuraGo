@@ -249,6 +249,10 @@ func (dm *dmRequest) route(segs []string) {
 		dm.overview(segs[1])
 	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "df":
 		dm.diskUsage(segs[1])
+	case len(segs) == 3 && segs[0] == "hosts" && segs[2] == "cleanup":
+		dm.cleanup(segs[1], false)
+	case len(segs) == 4 && segs[0] == "hosts" && segs[2] == "cleanup" && segs[3] == "preview":
+		dm.cleanup(segs[1], true)
 	case len(segs) == 1 && segs[0] == "stream":
 		dm.liveStream()
 	case len(segs) == 2 && segs[0] == "stream" && segs[1] == "subscriptions":

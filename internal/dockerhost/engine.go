@@ -184,6 +184,9 @@ func listContainers(ctx context.Context, c *dockerutil.Client, withEntries bool)
 	if err := engineJSON(ctx, c, http.MethodGet, "containers/json?all=true", &raw); err != nil {
 		return nil, nil, err
 	}
+	if raw == nil {
+		return nil, nil, errors.New("Docker returned no container inventory")
+	}
 	out := make([]ContainerSummary, 0, len(raw))
 	var entries []tools.DockerContainerListEntry
 	if withEntries {
@@ -493,6 +496,8 @@ func (t *tailBuffer) String() string {
 type ImageSummary struct {
 	ID         string   `json:"id"`
 	Tags       []string `json:"tags"`
+	Digests    []string `json:"-"`
+	Managed    bool     `json:"-"`
 	Size       int64    `json:"size"`
 	Created    int64    `json:"created"`
 	Containers int      `json:"containers"` // computed by Annotate from ContainerSummary.ImageID; -1 unknown
@@ -518,6 +523,7 @@ type NetworkSummary struct {
 	Subnets    []string `json:"subnets"`
 	Containers int      `json:"containers"` // computed by Annotate from ContainerSummary.Networks
 	Builtin    bool     `json:"builtin"`    // bridge, host, none
+	Managed    bool     `json:"-"`
 }
 
 // EngineInfo is the host overview.
@@ -545,8 +551,9 @@ func ListImages(ctx context.Context, c *dockerutil.Client) ([]ImageSummary, erro
 		ID          string   `json:"Id"`
 		RepoTags    []string `json:"RepoTags"`
 		RepoDigests []string `json:"RepoDigests"`
-		Created     int64    `json:"Created"`
-		Size        int64    `json:"Size"`
+		Labels      map[string]string
+		Created     int64 `json:"Created"`
+		Size        int64 `json:"Size"`
 	}
 	if err := engineJSON(ctx, c, http.MethodGet, "images/json", &raw); err != nil {
 		return nil, err
@@ -562,6 +569,8 @@ func ListImages(ctx context.Context, c *dockerutil.Client) ([]ImageSummary, erro
 		out = append(out, ImageSummary{
 			ID:         ri.ID,
 			Tags:       tags,
+			Digests:    ri.RepoDigests,
+			Managed:    CleanupManagedLabels(ri.Labels),
 			Size:       ri.Size,
 			Created:    ri.Created,
 			Containers: -1,
@@ -602,11 +611,14 @@ func ListVolumes(ctx context.Context, c *dockerutil.Client) ([]VolumeSummary, er
 // ListNetworks returns the Engine's networks. Containers is 0 until Annotate.
 func ListNetworks(ctx context.Context, c *dockerutil.Client) ([]NetworkSummary, error) {
 	var raw []struct {
-		ID     string `json:"Id"`
-		Name   string `json:"Name"`
-		Driver string `json:"Driver"`
-		Scope  string `json:"Scope"`
-		IPAM   struct {
+		ID      string `json:"Id"`
+		Name    string `json:"Name"`
+		Driver  string `json:"Driver"`
+		Scope   string `json:"Scope"`
+		Ingress bool
+		Labels  map[string]string
+		Options map[string]string
+		IPAM    struct {
 			Config []struct {
 				Subnet string `json:"Subnet"`
 			} `json:"Config"`
@@ -624,6 +636,7 @@ func ListNetworks(ctx context.Context, c *dockerutil.Client) ([]NetworkSummary, 
 			Scope:   rn.Scope,
 			Subnets: []string{},
 			Builtin: rn.Name == "bridge" || rn.Name == "host" || rn.Name == "none",
+			Managed: rn.Ingress || rn.Options["com.docker.network.bridge.default_bridge"] == "true" || CleanupManagedLabels(rn.Labels),
 		}
 		for _, cfg := range rn.IPAM.Config {
 			if cfg.Subnet != "" {

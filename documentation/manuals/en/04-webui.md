@@ -254,7 +254,7 @@ The Virtual Desktop opens workspace-backed apps in AuraGo's browser desktop. It 
 | **Layerling** | Local browser CAD editor (projects as `.lyl`; opens STL, OBJ, 3MF, STEP/STP and SVG, exports STL, OBJ, 3MF, STEP and PNG). Optional; agent access off by default — details in [chapter 8](08-integrations.md#layerling-desktop-cad) |
 | **Homepage Studio** | Build, validate, and deploy managed website projects. The design picker offers 25 bundled DESIGN.md templates with a preview image each, and one selection applies to one site |
 | **Software Store** | Install and operate managed Docker apps such as Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel, and OliveTin |
-| **Docker Manager** | Manage Docker on this server and on remote hosts: compose stacks with up, down, restart, pull and update, live logs and a terminal, live resource figures, and views for images, volumes and networks with a cleanup assistant |
+| **Docker Manager** | Manage local and remote Compose stacks, inspect live logs and resource usage, open a terminal, and free disk space with **Clean up** |
 | **Quick Connect** | Manage SSH/VNC connections |
 | **Network Cameras** | View go2rtc camera streams; person detection with events, zones and arming |
 | **Virtual Computers** | Operate Boring Computers machines and workspaces |
@@ -299,6 +299,12 @@ Use **Page path** and **Recapture** to capture a sub-page. If marks exist, Recap
 With the keyboard, Tab and Shift+Tab move between the page's elements, and Enter adds a mark to the focused element. Tab past the last element moves on to **Page path**, **Recapture** and **Done**. Esc closes an open comment box first; a second Esc leaves annotate mode. Delete on a chip removes its mark.
 
 AuraGo captures the local preview and public deployments. Marks are discarded when you change the target. With a deployed target, switching to another site discards them too. Marks are not saved, so reloading the page removes them.
+
+### Free space in Docker Manager
+
+Open **Docker Manager → Clean up** and choose a host. **Unused images** includes downloaded images with tags. A stopped container still counts as using its image. Select individual images or all images on the visible page, review their combined size and confirm removal. Shared layers can reduce the space you recover.
+
+The category picker also offers stopped containers, unused local networks and unused local volumes. Removing a container discards its writable layer and preserves its volumes. To erase a volume's data, select it and type its exact name. Each result shows whether Docker removed the item or why it was skipped. In read-only mode you can review the candidates.
 
 ### Retro-Net in the Terminal
 
