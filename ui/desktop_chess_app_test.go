@@ -237,10 +237,16 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 		"fitCorners",
 		"applyDefaultAngle",
 		"classList.toggle('is-3d'",
+		/* The brass fillet must stay in the board plane: rotateY would tip
+		   this 4-segment ring into a giant square crossing the scene. */
+		"filletRing.rotateZ(Math.PI / 4);",
 	} {
 		if !strings.Contains(view3d, want) {
 			t.Fatalf("desktop chess 3D board missing marker %q", want)
 		}
+	}
+	if strings.Contains(view3d, "filletRing.rotateY") {
+		t.Fatal("desktop chess 3D fillet must rotate inside its plane, not tip out of the board")
 	}
 }
 

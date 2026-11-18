@@ -304,7 +304,7 @@
       }
     }
     const filletRing = new THREE.RingGeometry(BOARD_SIZE * 0.7071, (BOARD_SIZE + 0.0032) * 0.7071, 4);
-    filletRing.rotateY(Math.PI / 4);
+    filletRing.rotateZ(Math.PI / 4);
     filletRing.rotateX(-Math.PI / 2);
     const filletMesh = new THREE.Mesh(filletRing, brassMaterial);
     filletMesh.position.y = frameTopY + 0.0003;
