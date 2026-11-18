@@ -345,10 +345,10 @@
 
         for (let i = 0; i < race.cars.length; i++) {
             const a = race.cars[i];
-            if (a.v.out || a.v.cloak > 0) continue;
             for (let j = i + 1; j < race.cars.length; j++) {
                 const b = race.cars[j];
-                if (b.v.out || b.v.cloak > 0 || Math.abs(a.v.z - b.v.z) > 1.6) continue;
+                AD.checkNearPass?.(race, a, b);
+                if (a.v.out || b.v.out || a.v.cloak > 0 || b.v.cloak > 0 || Math.abs(a.v.z - b.v.z) > 1.6) continue;
                 const closing = AD.resolveCarPair(a.v, b.v, (a.v.car.radius + b.v.car.radius) / 2);
                 if (closing > 2) {
                     if (a.tally) a.tally.carHits++;

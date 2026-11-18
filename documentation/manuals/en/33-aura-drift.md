@@ -161,11 +161,12 @@ only a small fixed amount.
 | Blue Turbo | 100 | Drift for about a second, then let go |
 | Orange Turbo | 250 | Drift for about two seconds, then let go |
 | Pink Turbo | 500 | Drift for more than three seconds, then let go |
-| Slingshot | 150 | Leave a rival's slipstream at speed |
+| Slingshot | 150 | Three segments fill beside the speedometer in a rival's wake. When they turn gold, pull out for a burst of speed. |
 | Reverse Hero | 200, plus 100 a second | Reverse for two seconds |
 | J-Turn | 400 | Go from reverse back to forward speed quickly |
 
-Sliding sideways pays, and so do loose surfaces, drift zones and near misses. Keep a chain
+Sliding sideways pays, and so do loose surfaces, drift zones and near misses. Pass within a metre
+and keep the cars apart until you're clear to collect the bonus. Keep a drift chain
 going for up to eight times the points. The chain only counts when it ends.
 
 ## Camera

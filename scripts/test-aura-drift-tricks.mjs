@@ -228,6 +228,31 @@ function startRun(holdFrom) {
     check('window edges: 0.31 s misses, 0.29 s hits', events(lo, 'perfect_start').length === 0 && events(hi, 'perfect_start').length === 1);
 }
 
+/* A close pass goes through the same collision and scoring ticks as the race. */
+{
+    function pass(clearance, speedDifference, heading, touch) {
+        const race = newRace({ mode: 'quick', opponents: 2 }), [a, b] = race.cars;
+        const road = AD.pointAt(race.track, 140), psi = heading, tx = Math.cos(psi), ty = Math.sin(psi);
+        b.style.multiplier = 2;
+        for (const along of [5, 2, 1, 0, -1, -2, -5, -6]) {
+            const side = a.v.car.radius + b.v.car.radius + (touch && along === 0 ? -.3 : clearance);
+            Object.assign(a.v, { x:road.x, y:road.y, psi, vx:32 + speedDifference, vy:0, r:0 });
+            Object.assign(b.v, { x:road.x + tx*along - ty*side, y:road.y + ty*along + tx*side, psi, vx:32, vy:0, r:0 });
+            AD.stepRace(race, AD.STEP);
+        }
+        return race;
+    }
+    for (const heading of [0, Math.PI / 2]) {
+        const race = pass(.45, 18, heading, false), [a, b] = race.cars;
+        check('a clean pass in a pack pays once at heading ' + heading,
+            events(race, 'near_miss').length === 1 && a.style.nearMisses === 1 && b.style.nearMisses === 1 &&
+            a.style.banked === 80 && b.style.banked === 160 && events(race, 'near_miss')[0].other === b.index);
+    }
+    check('contact spoils a close pass', !pass(.45, 18, 0, true).cars[0].style.nearMisses);
+    check('parallel pacing and a wide pass do not score',
+        !pass(.45, 2, 0, false).cars[0].style.nearMisses && !pass(1.4, 18, 0, false).cars[0].style.nearMisses);
+}
+
 /* Slingshot, reverse hero, J-turn */
 {
     const race = newRace(), p = race.cars[0], v = p.v;

@@ -143,8 +143,7 @@
         comboWindow: 1.5,
         multiplierStep: 0.5,
         multiplierMax: 8,
-        nearMissDistance: 2.7,
-        nearMissWindow: 0.85,
+        nearMissClearance: 0.9,
         bankRate: 0.75
     };
 

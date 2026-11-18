@@ -46,6 +46,7 @@
         let comms = null;
         const queue = [];
         let posPulse = 0, posDir = 0, slotPulse = 0, hitFlash = 0, goT = 0, clockBig = null, turboFlash = null, blast = 0;
+        let slingAt = -Infinity;
         let wrongWay = 0, curRace = null, commsGrad = null;
         const splits = [null, null, null], prevBest = [Infinity, Infinity, Infinity];
         const animalWarn = [];
@@ -187,24 +188,24 @@
             c.fillStyle = flick ? 'rgba(255,77,77,0.42)' : 'rgba(255,194,51,0.18)'; c.fill();
             c.lineWidth = 1.8; c.strokeStyle = flick ? '#ff6b6b' : '#ffc233'; c.stroke();
             kit.text(c, gear, g.ACx + 3, g.ACy - R * 0.29, R * 0.3, flick ? '#ffffff' : '#ffc233', { align: 'center', weight: 900, sw: 0 });
-            if (v.slipstream > 0.25) kit.text(c, '»»', g.ACx + R * 0.62, g.ACy + R * 0.64, R * 0.26, '#ffc233', { align: 'center', weight: 900, sw: 3 });
-
             /* Bars: nitro, drift turbo with blue/orange/pink segments, damage pips. */
             const small = compact ? 9 : 11;
             kit.text(c, up(labels.nitro) + '  ' + Math.round(v.nitro * 100), g.BX + g.BS, g.nitroY - 5, small, '#bfeaff', { spacing: 2, weight: 800, sw: 2.5 });
             bar(g.BX, g.nitroY, g.BW, g.BH, g.BS, v.nitro, g.nitro);
             if (v.nitro > 0.98) { kit.para(c, g.BX, g.nitroY, g.BW, g.BH, g.BS); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,0.9)'; c.stroke(); }
             const level = v.driftLevel | 0;
-            const tlab = level > 0 ? up(tr('hud.drift' + level)) : up(tr('controls.drift_turbo'));
-            kit.text(c, tlab, g.BX + g.BS, g.turboY - 5, small, level > 0 ? TURBO[level - 1] : '#bfeaff', { spacing: 2, weight: 800, sw: 2.5 });
+            const sling = AD.TRICKS.slingshot, drafting = v.draftTime > 0 && !v.driftCharge && !v.airborne && !v.out;
+            const ready = drafting && v.draftTime >= sling.charge && v.vx > sling.minSpeed;
+            const tlab = drafting ? tr('trick.slingshot', null, 'Slingshot') : level > 0 ? tr('hud.drift' + level) : tr('controls.drift_turbo');
+            kit.text(c, up(tlab) + (ready ? '  »' : ''), g.BX + g.BS, g.turboY - 5, small, ready ? '#ffdc86' : level > 0 ? TURBO[level - 1] : '#bfeaff', { spacing: 2, weight: 800, sw: 2.5 });
             const total = 3.6, gap = 4;
             let sx = g.BX;
             for (let i = 0; i < 3; i++) {
-                const w = (g.BW - gap * 2) * TURBO_LEN[i] / total;
-                const f = clamp((v.driftCharge - TURBO_AT[i]) / TURBO_LEN[i], 0, 1);
+                const w = (g.BW - gap * 2) * (drafting ? 1 / 3 : TURBO_LEN[i] / total);
+                const f = clamp(drafting ? 3 * v.draftTime / sling.charge - i : (v.driftCharge - TURBO_AT[i]) / TURBO_LEN[i], 0, 1);
                 kit.para(c, sx, g.turboY, w, g.BH, g.BS); c.fillStyle = 'rgba(255,255,255,0.07)'; c.fill();
-                if (f > 0) { kit.para(c, sx, g.turboY, w * f, g.BH, g.BS); c.fillStyle = TURBO[i]; c.fill(); }
-                if (level > i) { kit.para(c, sx, g.turboY, w, g.BH, g.BS); c.lineWidth = 2; c.strokeStyle = '#ffffff'; c.stroke(); }
+                if (f > 0) { kit.para(c, sx, g.turboY, w * f, g.BH, g.BS); c.fillStyle = drafting ? (ready ? '#ffcd60' : '#73d8e7') : TURBO[i]; c.fill(); }
+                if (ready || level > i) { kit.para(c, sx, g.turboY, w, g.BH, g.BS); c.lineWidth = 2; c.strokeStyle = '#ffffff'; c.stroke(); }
                 sx += w + gap;
             }
             if (turboFlash) {
@@ -594,10 +595,32 @@
         }
 
         /* ---- render --------------------------------------------------------------------------- */
+        function drawDraftWind(race, v) {
+            if (reduced || race.state !== 'running' || v.airborne || v.out) return;
+            const release = Math.max(0, 1 - (race.time - slingAt) / .55);
+            const wake = Math.min(1, v.draftTime / AD.TRICKS.slingshot.charge) * v.slipstream;
+            if (wake < .05 && !release) return;
+            c.save();
+            c.fillStyle = release ? '#ffe2a2' : '#b9eafa';
+            for (let i = 0; i < 8; i++) {
+                const side = i % 2 ? 1 : -1;
+                const u = (race.time * 1.7 + i * .381) % 1;
+                const x = W * (.5 + side * (.30 + .24 * u));
+                const y = H * (.30 + .092 * Math.floor(i / 2) + .026 * (i % 2));
+                const dx = side * W * (.032 + .060 * release), dy = (y - H * .46) * .27;
+                c.globalAlpha = Math.sin(Math.PI * u) * (.34 * wake + .62 * release);
+                c.beginPath(); c.moveTo(x - dx, y - dy);
+                c.quadraticCurveTo(x, y + 1.4, x + dx, y + dy);
+                c.lineTo(x, y - 1.4); c.closePath(); c.fill();
+            }
+            c.restore();
+        }
+
         /* A new race (restart, next cup track) starts with a clean slate. */
         function adopt(race) {
             if (race === curRace) return;
             curRace = race;
+            slingAt = -Infinity;
             for (let i = 0; i < 3; i++) { splits[i] = null; prevBest[i] = Infinity; }
             callouts.clear(); queue.length = 0; comms = null; animalWarn.length = 0;
             posPulse = 0; slotPulse = 0; hitFlash = 0; goT = 0; clockBig = null; turboFlash = null; blast = 0; wrongWay = 0;
@@ -636,6 +659,7 @@
 
             if (hitFlash > 0) { c.globalAlpha = hitFlash; c.fillStyle = G.hit; c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
             if (blast > 0) { c.globalAlpha = blast * 0.5; c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, H); c.globalAlpha = 1; }
+            drawDraftWind(race, v);
             drawSpeed(race, car);
             drawWeapon(race, car);
             if (race.mode !== 'drift_attack') drawStyle(race, car);
@@ -694,7 +718,9 @@
                 case 'drift_level': if (me) turboFlash = { level: evt.level, t: 0.5 }; break;
                 case 'style_bank': if (me) say('+' + kit.number(evt.points), evt.multiplier > 2 ? WARN_AMBER : '#3ee6ff', 44, 'x' + evt.multiplier.toFixed(1)); break;
                 case 'near_miss': if (me) say(tr('hud.near_miss'), '#ffb066', 38, '+' + kit.number(evt.bonus || 0)); break;
-                case 'slingshot': if (me) say(tr('hud.slingshot'), '#c4f7ff', 52, '+' + kit.number(evt.points || 0)); break;
+                case 'slingshot':
+                    if (me) { slingAt = curRace?.time ?? -Infinity; say(tr('hud.slingshot'), '#ffdc86', 52, '+' + kit.number(evt.points || 0)); }
+                    break;
                 case 'trick': if (me) say(tr('trick.' + evt.id), TRICK_COL[evt.id] || '#a78bfa', 54, '+' + kit.number(evt.points), 1.7); break;
                 case 'landing':
                     if (me) { const q = evt.quality; say(tr('landing.' + (q === 'crash' ? 'pancake' : q)), LAND_COL[q] || '#fff', q === 'perfect' ? 62 : 50, evt.points ? '+' + kit.number(evt.points) : '', 1.6); }

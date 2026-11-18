@@ -203,7 +203,7 @@ chain and are banked on landing; ground tricks pay at once.
 | Blue Turbo | `drift_blue` | 100 | Drift charged to level 1 (1.0 s), released |
 | Orange Turbo | `drift_orange` | 250 | Drift level 2 (2.2 s) |
 | Pink Turbo | `drift_pink` | 500 | Drift level 3 (3.6 s) |
-| Slingshot | `slingshot` | 150 | Leave a slipstream after 1.2 s above 25 m/s |
+| Slingshot | `slingshot` | 150 | Leave a slipstream after 1.2 s above 25 m/s. Three gold HUD segments indicate readiness. |
 | Reverse Hero | `reverse_hero` | 200 + 100 per second | Two seconds reversing at 8 m/s or more |
 | J-Turn | `j_turn` | 400 | Back to forward speed within 1.5 s of reversing |
 
@@ -402,8 +402,10 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   pinned by `scripts/test-aura-drift-weather.mjs` (121 checks).
 - **Style scoring:** sliding above 9 m/s and 10 degrees of slip starts a drift chain. Chains
   link inside a 1.5 s window, grow a multiplier up to ×8 and bank only when they end. Loose
-  surfaces and drift zones pay more; near misses (a rival inside 2.7 m at closing speed) pay a
-  bonus. The HUD shows pending points, the multiplier and the link timer.
+  surfaces and drift zones pay more. Approach within 0.9 m of a rival's collision body at
+  6 m/s relative speed or more, then separate cleanly. Each driver earns 80 points times their
+  own multiplier once per pass. Contact cancels that pair's bonus. The HUD shows pending
+  points, the multiplier and the drift link timer.
 - **AI and balance:** opponents use the identical solver, so their straight-line ceiling is
   the car's full-throttle force-balance speed (`AD.aiTerminalSpeed`), exactly what a player in
   the same car reaches; weather, surface rolling resistance, damage, toast, hot-potato thrust

@@ -166,12 +166,13 @@ multipliziert die Kette, eine Bruchlandung bringt nur einen kleinen festen Betra
 | Blauer Turbo | 100 | Etwa eine Sekunde driften, dann loslassen |
 | Oranger Turbo | 250 | Etwa zwei Sekunden driften, dann loslassen |
 | Pinker Turbo | 500 | Länger als drei Sekunden driften, dann loslassen |
-| Schleuder | 150 | Mit Tempo aus dem Windschatten eines Gegners ausscheren |
+| Schleuder | 150 | Im Windschatten füllen sich drei Segmente am Tacho. Leuchten sie gold, bringt dir das Ausscheren einen Schub. |
 | Rückwärts-Held | 200, plus 100 pro Sekunde | Zwei Sekunden rückwärts fahren |
 | Wendehals | 400 | Aus dem Rückwärtsgang schnell wieder nach vorn |
 
 Seitwärts fahren zahlt sich aus, ebenso lockerer Untergrund, Drift-Zonen und knappe
-Vorbeifahrten. Eine Kette kann bis zum Achtfachen wachsen. Gezählt wird sie erst, wenn sie endet.
+Vorbeifahrten. Lass weniger als einen Meter Platz und zieh sauber vorbei. Eine Berührung kostet
+den Bonus für dieses Manöver. Eine Driftkette kann bis zum Achtfachen wachsen. Gezählt wird sie erst, wenn sie endet.
 
 ## Kamera
 

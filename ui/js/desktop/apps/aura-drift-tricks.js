@@ -28,7 +28,7 @@
         drift_blue: def('drift_blue', 100, 0, { charge: 1.0, burst: 0.5, power: 1.25 }),
         drift_orange: def('drift_orange', 250, 0, { charge: 2.2, burst: 0.9, power: 1.35 }),
         drift_pink: def('drift_pink', 500, 0, { charge: 3.6, burst: 1.4, power: 1.5 }),
-        slingshot: def('slingshot', 150, 0, { burst: 0.8, power: 1.25 }),
+        slingshot: def('slingshot', 150, 0, { charge: 1.2, minSpeed: 25, burst: 0.8, power: 1.25 }),
         reverse_hero: def('reverse_hero', 200, 0, { perSecond: 100 }),
         j_turn: def('j_turn', 400, 0.1)
     };
@@ -373,8 +373,8 @@
     function slingshotStep(race, actor, st, dt) {
         const v = actor.v;
         if (v.slipstream > 0.05) { v.draftTime += dt; return; }
-        if (v.draftTime >= 1.2 && v.vx > 25) {
-            const d = AD.TRICKS.slingshot;
+        const d = AD.TRICKS.slingshot;
+        if (v.draftTime >= d.charge && v.vx > d.minSpeed) {
             giveBurst(v, d.burst, d.power);
             const pts = payNow(actor, 'slingshot', d.points);
             AD.emit(race, 'slingshot', { car: actor.index, x: v.x, y: v.y, points: pts });

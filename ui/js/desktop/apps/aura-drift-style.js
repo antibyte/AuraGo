@@ -18,7 +18,7 @@
             nearMisses: 0,
             lastGain: 0,
             zone: 1,
-            missLatch: 0
+            nearPass: []
         };
     };
 
@@ -133,43 +133,45 @@
                 }
             }
         }
+    };
 
-        /* Near misses: a rival inside arm's length at closing speed is a
-           style event for the driver who survived it. */
-        for (let i = 0; i < cars.length; i++) {
-            for (let j = i + 1; j < cars.length; j++) {
-                const a = cars[i], b = cars[j];
-                if (!a.style || !b.style || a.v.out || b.v.out) continue;
-                if (Math.abs((a.v.z || 0) - (b.v.z || 0)) > 1.6) continue;
-                const dx = b.v.x - a.v.x, dy = b.v.y - a.v.y;
-                const dist = Math.hypot(dx, dy);
-                if (dist > S.nearMissDistance) { a.style.missLatch = 0; b.style.missLatch = 0; continue; }
-                const closing = Math.abs((b.v.vx - a.v.vx) * Math.cos(a.v.psi) +
-                    (b.v.vy - a.v.vy) * Math.sin(a.v.psi));
-                if (closing < 6) continue;
-                if (a.style.missLatch || b.style.missLatch) continue;
-                a.style.missLatch = 1;
-                b.style.missLatch = 1;
-                const bonus = 80 * a.style.multiplier;
-                a.style.banked += bonus;
-                b.style.banked += bonus;
-                a.style.nearMisses++;
-                b.style.nearMisses++;
-                if (closing > 14) {
-                    a.style.multiplier = Math.min(AD.STYLE.multiplierMax, a.style.multiplier + 0.5);
-                    b.style.multiplier = Math.min(AD.STYLE.multiplierMax, b.style.multiplier + 0.5);
-                }
-                /* Only a player's near misses are announced (one event per
-                   participating player, naming the other car); a pack of AI
-                   cars trading paint would be noise. */
-                for (const [me, other] of [[a, b], [b, a]]) {
-                    if (!me.isPlayer) continue;
-                    AD.emit(race, 'near_miss', {
-                        x: (a.v.x + b.v.x) / 2, y: (a.v.y + b.v.y) / 2,
-                        car: me.index, bonus: bonus, other: other.index
-                    });
-                }
+    /* Sample before the contact solver separates the bodies. The first car owns
+       the pair's fastest approach speed; contact spoils it until the cars part. */
+    AD.checkNearPass = function (race, a, b) {
+        if (!a.style || !b.style) return;
+        const passes = a.style.nearPass, slot = b.index, va = a.v, vb = b.v;
+        if (va.out || vb.out || va.cloak > 0 || vb.cloak > 0 || a.finished || b.finished || Math.abs(va.z - vb.z) > 1.6) {
+            passes[slot] = 0;
+            return;
+        }
+        const dx = vb.x - va.x, dy = vb.y - va.y;
+        const gap = Math.hypot(dx, dy) - va.car.radius - vb.car.radius;
+        const previous = passes[slot] || 0;
+        if (gap <= 0) { passes[slot] = -1; return; }
+        if (gap <= AD.STYLE.nearMissClearance) {
+            if (previous < 0) return;
+            const ac = Math.cos(va.psi), as = Math.sin(va.psi), bc = Math.cos(vb.psi), bs = Math.sin(vb.psi);
+            const vx = (vb.airborne ? vb.wx : vb.vx * bc - vb.vy * bs) - (va.airborne ? va.wx : va.vx * ac - va.vy * as);
+            const vy = (vb.airborne ? vb.wy : vb.vx * bs + vb.vy * bc) - (va.airborne ? va.wy : va.vx * as + va.vy * ac);
+            if (dx * vx + dy * vy < 0) passes[slot] = Math.max(previous, Math.hypot(vx, vy));
+            return;
+        }
+        if (!previous) return;
+        passes[slot] = 0;
+        // A rescue or teleport can also separate the cars in one tick.
+        if (previous < 6 || gap > AD.STYLE.nearMissClearance + 3) return;
+        for (const me of [a, b]) {
+            const st = me.style, bonus = 80 * st.multiplier;
+            st.banked += bonus;
+            st.nearMisses++;
+            if (previous > 14) {
+                st.multiplier = Math.min(AD.STYLE.multiplierMax, st.multiplier + 0.5);
+                st.maxMultiplier = Math.max(st.maxMultiplier, st.multiplier);
             }
+            if (me.isPlayer) AD.emit(race, 'near_miss', {
+                car: me.index, other: me === a ? b.index : a.index, bonus,
+                x: (va.x + vb.x) / 2, y: (va.y + vb.y) / 2
+            });
         }
     };
 
