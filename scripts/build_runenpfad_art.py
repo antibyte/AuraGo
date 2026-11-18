@@ -26,6 +26,10 @@ ALPHA_BOX = 48        # trimmed rectangles measure only solid pixels
 MAX_CELL = 256
 MAX_CELL_BOSS = 340
 MAX_CELL_DRAGON = 360
+MAX_CELL_BG_PROPS = 384
+MAX_WIDTH_BG_FAR = 2048
+WEBP_QUALITY_BG = 80
+BIOMES = ("woodland", "cavern", "desert", "glacier", "citadel")
 
 NOTE = "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
 TOOL = "Codex CLI image generation"
@@ -70,10 +74,30 @@ SHEETS = {
     "prop-plate": (4, 1, "feet", "prop"),
     "prop-oracle": (4, 1, "feet", "prop"),
     "prop-swing": (4, 1, "center", "prop"),
+    # round 5: painted parallax backgrounds + grounded fire
+    "fx-groundfire": (4, 3, "base", "fx"),
+    "fx-torchflame": (4, 2, "base", "fx"),
+    "bg-cavern-ceiling": (1, 1, "top", "bg-far"),
 }
+for _b in BIOMES:
+    SHEETS["bg-%s-far" % _b] = (1, 1, "bottom", "bg-far")
+    SHEETS["bg-%s-mid" % _b] = (4, 2, "feet", "bg-props")
+    SHEETS["bg-%s-near" % _b] = (4, 2, "feet", "bg-props")
 
 
 def clips_for(sheet_id, kind, count):
+    if kind == "bg-far":
+        return "band", {"band": {"frames": [0], "ms": 200, "loop": False}}
+    if kind == "bg-props":
+        return "p0", {"p%d" % i: {"frames": [i], "ms": 200, "loop": False} for i in range(8)}
+    if sheet_id == "fx-groundfire":
+        return "loop", {
+            "ignite": {"frames": [0, 1], "ms": 90, "loop": False},
+            "loop": {"frames": [2, 3, 4, 5, 6, 7, 8, 9], "ms": 80, "loop": True},
+            "fade": {"frames": [10, 11], "ms": 120, "loop": False},
+        }
+    if sheet_id == "fx-torchflame":
+        return "loop", {"loop": {"frames": list(range(8)), "ms": 90, "loop": True}}
     if kind == "dragon":
         return "idle", {
             "idle": {"frames": [0, 1, 2, 3], "ms": 130, "loop": True},
@@ -244,10 +268,17 @@ def do_import(raw_dir, prompt_dir, only=None):
         im = Image.open(src).convert("RGBA")
         im = clean_alpha(im)
         limit = MAX_CELL_DRAGON if kind == "dragon" else (MAX_CELL_BOSS if kind == "boss" else MAX_CELL)
-        cw, ch = cell_size(im.width, im.height, cols, rows, limit)
+        if kind == "bg-props":
+            limit = MAX_CELL_BG_PROPS
+        if kind == "bg-far":
+            k = min(1.0, MAX_WIDTH_BG_FAR / float(im.width))
+            cw, ch = max(8, int(round(im.width * k))), max(8, int(round(im.height * k)))
+        else:
+            cw, ch = cell_size(im.width, im.height, cols, rows, limit)
         out = im.resize((cw * cols, ch * rows), Image.LANCZOS)
         out = clean_alpha(out)
-        out.save(IMG_DIR / (sheet_id + ".webp"), "WEBP", quality=90, method=6, alpha_quality=100, exact=False)
+        quality = WEBP_QUALITY_BG if kind in ("bg-far", "bg-props") else 90
+        out.save(IMG_DIR / (sheet_id + ".webp"), "WEBP", quality=quality, method=6, alpha_quality=100, exact=False)
         default, clips = clips_for(sheet_id, kind, cols * rows)
         prompt_file = prompt_dir / (sheet_id + ".txt")
         prompt = prompt_file.read_text(encoding="utf-8").strip() if prompt_file.is_file() else ""
@@ -301,7 +332,18 @@ def build_sheet(entry):
         raise SystemExit("%s: no visible pixels" % entry["file"])
     pivot = entry["pivot"]
     kind = entry["kind"]
-    if pivot == "feet":
+    if pivot == "bottom":
+        # far band: baseline = lowest solid pixel (the flat bottom edge of the band)
+        pivot_dx = cw / 2.0
+        pivot_dy = float(max(rects[i][1] + rects[i][3] for i in range(len(rects)) if rects[i] is not None))
+    elif pivot == "top":
+        pivot_dx = cw / 2.0
+        pivot_dy = float(min(rects[i][1] for i in range(len(rects)) if rects[i] is not None))
+    elif pivot == "feet" and kind == "bg-props":
+        # props share one baseline: the lowest content bottom over all cells, relative to the cell
+        pivot_dy = max(rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(len(rects)) if rects[i] is not None)
+        pivot_dx = cw / 2.0
+    elif pivot == "feet":
         pivot_dy = median([rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(min(4, len(rects))) if rects[i] is not None])
         pivot_dx = cw / 2.0
     elif pivot == "left":

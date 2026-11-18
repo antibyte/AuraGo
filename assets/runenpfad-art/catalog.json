@@ -1790,6 +1790,876 @@
    "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: SWINGING ROPE parts. Exactly 4 cells, precisely arranged in a regular 4-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size. 2048 x 512 target sheet. genuinely transparent alpha background (a real alpha channel, not a painted checkerboard, not white, not black, no solid colour), no text, labels, letters, numbers, watermarks, grid lines, frame borders, floor, shadow plate or backdrop. Four separate objects, one per cell, each centred: cell 1 a heavy iron ring anchor bolted under a short wooden beam (seen from the side), cell 2 a gnarled thick tree branch stub with a rope knot around it, cell 3 a knotted rope end with a worn wooden grip handle, cell 4 a short vertical segment of thick braided rope that can tile seamlessly vertically. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. Each object fits within 80 percent of its cell with fully transparent padding; nothing touches the cell or sheet edges. No characters, no readable letters.",
    "source": "prop-swing.png",
    "sourceSha256": "1897a0fe9b66e5728dd546f077ae1124e97b4afe1dab32c83c912a6cd2065a3b"
+  },
+  {
+   "id": "fx-groundfire",
+   "file": "fx-groundfire.webp",
+   "cols": 4,
+   "rows": 3,
+   "pivot": "base",
+   "kind": "fx",
+   "default": "loop",
+   "clips": {
+    "ignite": {
+     "frames": [
+      0,
+      1
+     ],
+     "ms": 90,
+     "loop": false
+    },
+    "loop": {
+     "frames": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "ms": 80,
+     "loop": true
+    },
+    "fade": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 120,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: GROUND FIRE visual effect, a burning fire segment that sits ON the ground. Exactly 12 cells, precisely arranged in a regular 4-column by 3-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 1536 x 1152 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. Every cell shows the same fire segment seen from the side: a low glowing ember and charcoal bed with orange-red cracks lies along the very bottom of the cell, the ember bed ALWAYS resting exactly on the cell's bottom edge on the same baseline in all twelve frames, spanning about 80 percent of the cell width and centred horizontally; flames rise from this bed straight up, never floating above it, with no detached flame in mid-air below the flame body. Frames: 1-2 ignition (1 a few glowing embers and tiny flickers, 2 small flames about 30 percent of cell height); 3-10 a seamless flickering loop of tall licking flames about 70 to 85 percent of the cell height with a white-yellow core, orange body, red tips, several tongues, each of the eight frames a clearly different flicker shape, frame 10 leading smoothly back into frame 3; 11-12 dying down (11 flames shrinking low, 12 only small flickers over a glowing ember bed). Crisp 16-bit pixel art, bright saturated fire colours, readable on dark and light backgrounds. The flames stay within 90 percent of the cell width and nothing touches the left or right cell edge; no smoke plume, no characters, no wall behind.",
+   "source": "fx-groundfire.png",
+   "sourceSha256": "664da0a35c177bd70a3385a5b5f0a081b32d746b93ac356a91f5187673147fc0"
+  },
+  {
+   "id": "bg-cavern-ceiling",
+   "file": "bg-cavern-ceiling.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "top",
+   "kind": "bg-far",
+   "default": "band",
+   "clips": {
+    "band": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG background layer for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CAVERN CEILING, one single wide horizontal band of a hanging cave ceiling with many stalactites of varied length, a few with faint glowing blue crystals, 2048 x 512 target image (a 1 x 1 grid, a single image). The ceiling spans the FULL width and touches the left edge and the right edge. The TOP edge of the image is completely filled with flat fully opaque dark rock along its whole width (the ceiling continues above the screen, no top outline). The rock mass is about 25 percent of the image height at the left and right edges (similar at both so it can be mirrored) and from it stalactites hang down irregularly, the longest reaching about 85 percent of the image height; everything below the stalactite tips and between them is fully transparent. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-cavern-ceiling.png",
+   "sourceSha256": "c2ffbe2735afbbdfd139bbef900052589f46e9781711a2d37eb2fd016df8da65"
+  },
+  {
+   "id": "bg-woodland-far",
+   "file": "bg-woodland-far.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "bg-far",
+   "default": "band",
+   "clips": {
+    "band": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG background layer for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: WOODLAND FAR BACKGROUND, one single wide horizontal panorama band of distant scenery, 2048 x 768 target image (a 1 x 1 grid, a single image). Content: a misty blue-green distant mountain range with layered ridges and pine-covered slopes, with a faint small castle silhouette on one far ridge. The scenery spans the FULL width of the image and touches both the left edge and the right edge, with a similar silhouette height at the left and right edges so it can be mirrored. The silhouette fills roughly the lower 70 percent of the image height; everything ABOVE the silhouette is fully transparent (no sky). The bottom edge of the image is completely filled with flat fully opaque scenery along its whole width (the scenery continues below the screen, no ground line, no bottom outline). Distant, hazy, low-contrast, with soft atmospheric colour layering. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-woodland-far.png",
+   "sourceSha256": "bc3d218e32e5322010fc4b98dfe37870ba5e197637be4306f0b91038370c8811"
+  },
+  {
+   "id": "bg-woodland-mid",
+   "file": "bg-woodland-mid.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: WOODLAND MID-DISTANCE BACKGROUND SCENERY, eight separate pieces. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1536 target sheet. One distinct piece per cell, in side view, in reading order: 1 a tall slender pine tree; 2 a broad leafy oak tree; 3 a ruined stone watchtower with a broken top; 4 a mossy standing rune stone with faint carved runes; 5 a bare dead tree with twisted branches; 6 a cluster of white birch trees; 7 a mossy ruined stone arch; 8 a giant fern plant. Each piece is horizontally centred in its cell and its bottom (trunk base, foot or ground contact) rests exactly on the cell's bottom edge, the same baseline for every piece, with no ground, no grass strip and no shadow under it. Each piece fills about 85 percent of the cell height and is not wider than 80 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. They are background scenery, not platforms, so no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-woodland-mid.png",
+   "sourceSha256": "c59301c517bcf9fb91f23d3865ce966ca86ddad6f35ed6e90e13d5ddb678172e"
+  },
+  {
+   "id": "bg-woodland-near",
+   "file": "bg-woodland-near.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: WOODLAND NEAR BACKGROUND SCENERY, eight small separate pieces for the horizon right behind the gameplay ground. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. One distinct piece per cell, side view, in reading order: 1 a leafy bush; 2 a clump of ferns; 3 a mossy rock; 4 a short wooden fence piece; 5 a tree stump; 6 a tall grass clump; 7 a small patch of wildflowers; 8 a fallen log. Each piece is horizontally centred in its cell and rests exactly on the cell's bottom edge (same baseline for all eight), with no ground, no grass strip and no shadow under it. Each piece fills about 60 to 80 percent of the cell height and at most 85 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. Slightly darker and softer than gameplay props, low contrast, no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-woodland-near.png",
+   "sourceSha256": "9d104774a3b959bb6556b75a133618758c170c76f336a0f747997a9bead0026a"
+  },
+  {
+   "id": "bg-cavern-far",
+   "file": "bg-cavern-far.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "bg-far",
+   "default": "band",
+   "clips": {
+    "band": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG background layer for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CAVERN FAR BACKGROUND, one single wide horizontal panorama band of distant scenery, 2048 x 768 target image (a 1 x 1 grid, a single image). Content: a far cave wall of dark layered rock with distant glowing blue-violet crystal clusters and thick rock columns reaching up to the top of the band (the silhouette is rock, its lower edge continues to the bottom of the image). The scenery spans the FULL width of the image and touches both the left edge and the right edge, with a similar silhouette height at the left and right edges so it can be mirrored. The silhouette fills roughly the lower 70 percent of the image height; everything ABOVE the silhouette is fully transparent (no sky). The bottom edge of the image is completely filled with flat fully opaque scenery along its whole width (the scenery continues below the screen, no ground line, no bottom outline). Distant, hazy, low-contrast, with soft atmospheric colour layering. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-cavern-far.png",
+   "sourceSha256": "8e7aeee29c421976d7c5cbcb0900fc462b4826e7757445653e21bc69582f2890"
+  },
+  {
+   "id": "bg-cavern-mid",
+   "file": "bg-cavern-mid.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CAVERN MID-DISTANCE BACKGROUND SCENERY, eight separate pieces. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1536 target sheet. One distinct piece per cell, in side view, in reading order: 1 a giant glowing mushroom; 2 a tall glowing crystal pillar; 3 a thick stalagmite column; 4 a carved dwarven stone pillar with rune bands; 5 a glowing fungus tree; 6 a thick gnarled root column; 7 a sharp rock spire; 8 a large crystal cluster. Each piece is horizontally centred in its cell and its bottom (trunk base, foot or ground contact) rests exactly on the cell's bottom edge, the same baseline for every piece, with no ground, no grass strip and no shadow under it. Each piece fills about 85 percent of the cell height and is not wider than 80 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. They are background scenery, not platforms, so no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-cavern-mid.png",
+   "sourceSha256": "96bf791157abc4ac30537231ca1cb2b1f51b433427a89827fe2e3668f1bea1de"
+  },
+  {
+   "id": "bg-cavern-near",
+   "file": "bg-cavern-near.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CAVERN NEAR BACKGROUND SCENERY, eight small separate pieces for the horizon right behind the gameplay ground. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. One distinct piece per cell, side view, in reading order: 1 a group of crystal shards; 2 a few small glowing mushrooms; 3 a pile of rock rubble; 4 glowing moss-covered rocks; 5 a tangle of roots; 6 rocks around a small puddle; 7 a pile of old bones; 8 small stalagmites. Each piece is horizontally centred in its cell and rests exactly on the cell's bottom edge (same baseline for all eight), with no ground, no grass strip and no shadow under it. Each piece fills about 60 to 80 percent of the cell height and at most 85 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. Slightly darker and softer than gameplay props, low contrast, no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-cavern-near.png",
+   "sourceSha256": "fdcd31b38680d9f0aee27722a0fbccc5b38a742fe947837d8db0dacc91662d61"
+  },
+  {
+   "id": "bg-desert-far",
+   "file": "bg-desert-far.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "bg-far",
+   "default": "band",
+   "clips": {
+    "band": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG background layer for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: DESERT FAR BACKGROUND, one single wide horizontal panorama band of distant scenery, 2048 x 768 target image (a 1 x 1 grid, a single image). Content: distant sandstone mesas and buttes in warm hazy ochre and rose tones, with a far pyramid and a thin obelisk silhouette. The scenery spans the FULL width of the image and touches both the left edge and the right edge, with a similar silhouette height at the left and right edges so it can be mirrored. The silhouette fills roughly the lower 70 percent of the image height; everything ABOVE the silhouette is fully transparent (no sky). The bottom edge of the image is completely filled with flat fully opaque scenery along its whole width (the scenery continues below the screen, no ground line, no bottom outline). Distant, hazy, low-contrast, with soft atmospheric colour layering. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-desert-far.png",
+   "sourceSha256": "e7fcca3d43e3f5fdee07ba7834c1b8fcb42c24d0cf7f39f917e0aec5fad374bb"
+  },
+  {
+   "id": "bg-desert-mid",
+   "file": "bg-desert-mid.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: DESERT MID-DISTANCE BACKGROUND SCENERY, eight separate pieces. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1536 target sheet. One distinct piece per cell, in side view, in reading order: 1 a row of ruined sandstone columns; 2 a tall carved obelisk; 3 a natural sandstone arch; 4 a pair of palm trees; 5 a tall saguaro cactus; 6 a broken statue on a base; 7 a tall rock pillar; 8 a small flat-topped mesa. Each piece is horizontally centred in its cell and its bottom (trunk base, foot or ground contact) rests exactly on the cell's bottom edge, the same baseline for every piece, with no ground, no grass strip and no shadow under it. Each piece fills about 85 percent of the cell height and is not wider than 80 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. They are background scenery, not platforms, so no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-desert-mid.png",
+   "sourceSha256": "34af0c6e6efda6366113651bc31608505cf89c098c17637953d4af18f0468a17"
+  },
+  {
+   "id": "bg-desert-near",
+   "file": "bg-desert-near.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: DESERT NEAR BACKGROUND SCENERY, eight small separate pieces for the horizon right behind the gameplay ground. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. One distinct piece per cell, side view, in reading order: 1 a dry thorny shrub; 2 a few small cacti; 3 a pile of rocks; 4 a broken clay pot; 5 an animal skull half buried in sand; 6 a clump of dune grass; 7 sandstone rubble; 8 a small palm tree. Each piece is horizontally centred in its cell and rests exactly on the cell's bottom edge (same baseline for all eight), with no ground, no grass strip and no shadow under it. Each piece fills about 60 to 80 percent of the cell height and at most 85 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. Slightly darker and softer than gameplay props, low contrast, no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-desert-near.png",
+   "sourceSha256": "82d9353e0b2cda0d4099acc39a852a7492df12d2631255506767fd949925c94d"
+  },
+  {
+   "id": "bg-glacier-far",
+   "file": "bg-glacier-far.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "bg-far",
+   "default": "band",
+   "clips": {
+    "band": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG background layer for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: GLACIER FAR BACKGROUND, one single wide horizontal panorama band of distant scenery, 2048 x 768 target image (a 1 x 1 grid, a single image). Content: distant snow-capped mountain peaks with icy blue ridges and glacier ice cliffs. The scenery spans the FULL width of the image and touches both the left edge and the right edge, with a similar silhouette height at the left and right edges so it can be mirrored. The silhouette fills roughly the lower 70 percent of the image height; everything ABOVE the silhouette is fully transparent (no sky). The bottom edge of the image is completely filled with flat fully opaque scenery along its whole width (the scenery continues below the screen, no ground line, no bottom outline). Distant, hazy, low-contrast, with soft atmospheric colour layering. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-glacier-far.png",
+   "sourceSha256": "7a0a486ae99bbc1de4dc5942aea2f91220e5ea7ad4ef8f40a9fc340d6d23c843"
+  },
+  {
+   "id": "bg-glacier-mid",
+   "file": "bg-glacier-mid.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: GLACIER MID-DISTANCE BACKGROUND SCENERY, eight separate pieces. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1536 target sheet. One distinct piece per cell, in side view, in reading order: 1 a snowy pine tree; 2 a tall ice spire; 3 a frozen ruined stone tower covered in ice; 4 an ice-covered boulder; 5 a snowy dead tree; 6 a chunk of a frozen waterfall; 7 a rune-carved ice stone; 8 a cluster of snow-laden fir trees. Each piece is horizontally centred in its cell and its bottom (trunk base, foot or ground contact) rests exactly on the cell's bottom edge, the same baseline for every piece, with no ground, no grass strip and no shadow under it. Each piece fills about 85 percent of the cell height and is not wider than 80 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. They are background scenery, not platforms, so no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-glacier-mid.png",
+   "sourceSha256": "99180b730e64575b08aa97e9187184b8607696354333e9cf82616d4d6631fcc9"
+  },
+  {
+   "id": "bg-glacier-near",
+   "file": "bg-glacier-near.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: GLACIER NEAR BACKGROUND SCENERY, eight small separate pieces for the horizon right behind the gameplay ground. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. One distinct piece per cell, side view, in reading order: 1 a snow-covered bush; 2 a group of ice shards; 3 a snowy rock; 4 frozen reeds; 5 a low snow drift; 6 a rock with hanging icicles; 7 a frozen log; 8 a small snowy fir. Each piece is horizontally centred in its cell and rests exactly on the cell's bottom edge (same baseline for all eight), with no ground, no grass strip and no shadow under it. Each piece fills about 60 to 80 percent of the cell height and at most 85 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. Slightly darker and softer than gameplay props, low contrast, no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-glacier-near.png",
+   "sourceSha256": "146e4ff01c5c4202f61e1edc80692c229e392c7698c192cd181f56a0d00f5e00"
+  },
+  {
+   "id": "bg-citadel-far",
+   "file": "bg-citadel-far.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "bg-far",
+   "default": "band",
+   "clips": {
+    "band": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG background layer for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CITADEL FAR BACKGROUND, one single wide horizontal panorama band of distant scenery, 2048 x 768 target image (a 1 x 1 grid, a single image). Content: a dark skyline of clockwork gear towers, gothic spires and smoking chimneys, with a few small warm lit windows and a huge faint gear wheel. The scenery spans the FULL width of the image and touches both the left edge and the right edge, with a similar silhouette height at the left and right edges so it can be mirrored. The silhouette fills roughly the lower 70 percent of the image height; everything ABOVE the silhouette is fully transparent (no sky). The bottom edge of the image is completely filled with flat fully opaque scenery along its whole width (the scenery continues below the screen, no ground line, no bottom outline). Distant, hazy, low-contrast, with soft atmospheric colour layering. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-citadel-far.png",
+   "sourceSha256": "5b693447254c77b09eb897650a9272f13d515ff681a6738a20de4f7b55a73553"
+  },
+  {
+   "id": "bg-citadel-mid",
+   "file": "bg-citadel-mid.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CITADEL MID-DISTANCE BACKGROUND SCENERY, eight separate pieces. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1536 target sheet. One distinct piece per cell, in side view, in reading order: 1 a tall gear tower with a large cog; 2 a smoking brick chimney stack; 3 a gothic stone spire; 4 a broken wall with a tattered banner; 5 an iron lantern post; 6 a crane and gantry; 7 a vertical pipe tower with valves; 8 a statue on a stone plinth. Each piece is horizontally centred in its cell and its bottom (trunk base, foot or ground contact) rests exactly on the cell's bottom edge, the same baseline for every piece, with no ground, no grass strip and no shadow under it. Each piece fills about 85 percent of the cell height and is not wider than 80 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. They are background scenery, not platforms, so no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-citadel-mid.png",
+   "sourceSha256": "43f7550de80a5d70aa89c1820083ead135449d715145144b552479975f904920"
+  },
+  {
+   "id": "bg-citadel-near",
+   "file": "bg-citadel-near.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "bg-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy side-scrolling pixel-art action platformer with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: CITADEL NEAR BACKGROUND SCENERY, eight small separate pieces for the horizon right behind the gameplay ground. Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. One distinct piece per cell, side view, in reading order: 1 a stack of wooden crates; 2 a few barrels; 3 a pile of cogs; 4 a short bundle of pipes; 5 a chain post with hanging chain; 6 a heap of rubble; 7 a piece of iron fence; 8 a broken large gear standing half upright. Each piece is horizontally centred in its cell and rests exactly on the cell's bottom edge (same baseline for all eight), with no ground, no grass strip and no shadow under it. Each piece fills about 60 to 80 percent of the cell height and at most 85 percent of the cell width, with fully transparent padding left, right and above; pieces never touch each other. Slightly darker and softer than gameplay props, low contrast, no flat standable top surfaces. Painterly pixel-art background scenery in the crisp 16-bit pixel-art style: muted, slightly desaturated colours, soft atmospheric shading, clearly lower contrast than gameplay sprites, no outlines heavier than 1 pixel, light from the upper left. No characters, no creatures, no people. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the scenery, not a painted checkerboard, not white, not black, no solid colour). Absolutely no mist, no haze backdrop, no fog, no sky colour, no gradient, no clouds, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks.",
+   "source": "bg-citadel-near.png",
+   "sourceSha256": "f4639906965fc3fbe8f469b935d916237b86b4cee59712eaa616b6e092e225fa"
   }
  ]
 }
