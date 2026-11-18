@@ -470,6 +470,12 @@
     transition-duration: 0.25s;
 }
 
+/* The duel draws its own bars at the canvas top: keep the overlay rows out of the way. */
+.rp-app[data-rp-encounter="duel"] .rp-notice-row,
+.rp-app[data-rp-encounter="duel"] .rp-controls-hint {
+    visibility: hidden;
+}
+
 /* ---- boss bar and intro card ---- */
 .rp-boss-wrap {
     align-self: center;

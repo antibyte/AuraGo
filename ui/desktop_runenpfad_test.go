@@ -338,6 +338,78 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		return app && app.dataset.rpState === 'playing' && app.dataset.rpLevel === '2' && win && win.hidden;
 	}`)
 
+	// NPC encounter smoke on stage 2 (witch camp): talk, answer, leave, then a duel that ends quickly.
+	page.MustEval(`()=>{
+		const shell = document.querySelector('.rp-app');
+		const sim = shell.__runenpfad.getSim();
+		const npc = (sim.stage.npcs || []).find(n => n.npcId === 'witch');
+		if (!npc) throw Error('no witch camp on stage 2');
+		shell.__runenpfad.setPlayerPosition(npc.x - 40, npc.y);
+	}`)
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpNpcNear === '1'`)
+	page.MustEval(`()=>new Promise(r => setTimeout(r, 450))`)
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'e', bubbles: true }))`)
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		const sim = app && app.__runenpfad.getSim();
+		return app.dataset.rpEncounter === 'dialogue' && sim.encounter && sim.encounter.kind === 'dialogue' && !!document.querySelector('.rp-talk.is-in');
+	}`)
+	page.MustEval(`()=>new Promise(r => setTimeout(r, 600))`)
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit1', key: '1', bubbles: true }))`)
+	// Leave with Esc (repeated: the first press may only advance the typewriter or a node).
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		const sim = app.__runenpfad.getSim();
+		if (!sim.encounter) return true;
+		const now = performance.now();
+		if (!window.__rpEscAt || now - window.__rpEscAt > 500) {
+			window.__rpEscAt = now;
+			window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
+		}
+		return false;
+	}`)
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpEncounter === '' && !document.querySelector('.rp-pause-dialog')?.hasAttribute('open')`)
+
+	page.MustEval(`()=>{
+		const shell = document.querySelector('.rp-app');
+		const sim = shell.__runenpfad.getSim();
+		const npc = sim.stage.npcs.find(n => n.npcId === 'witch');
+		if (!window.RunenpfadNpcs.startDuel(sim, npc, { provoked: true })) throw Error('duel did not start');
+	}`)
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		const sim = app.__runenpfad.getSim();
+		return app.dataset.rpEncounter === 'duel' && sim.encounter && sim.encounter.kind === 'duel';
+	}`)
+	// Hit the NPC for lethal damage as soon as the duel is in its fight phase; the outro and finishDuel follow.
+	page.MustWait(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		const d = sim.encounter && sim.encounter.duel;
+		if (!d) return true;
+		if (d.phase === 'fight') window.RunenpfadDuel.hurtNpc(sim, d, 999, { bypass: true });
+		return d.phase === 'outro';
+	}`)
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		const sim = app.__runenpfad.getSim();
+		if (sim.encounter && sim.encounter.kind === 'dialogue') {
+			// A won duel may open a reaction dialogue; leave it the same way.
+			const now = performance.now();
+			if (!window.__rpEscAt || now - window.__rpEscAt > 500) {
+				window.__rpEscAt = now;
+				window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true }));
+			}
+			return false;
+		}
+		return !sim.encounter && app.dataset.rpState === 'playing' && app.dataset.rpEncounter === '';
+	}`)
+	page.MustEval(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		const npc = sim.stage.npcs.find(n => n.npcId === 'witch');
+		if (sim.player.hp <= 0 || sim.state !== 'playing') throw Error('hero not playing after the duel');
+		if (!npc) throw Error('witch vanished');
+	}`)
+
 	// Close window and verify clean teardown
 	page.MustEval(`()=>{
 		const win = [...window.auditTest.state.windows.values()].find(w => w.appId === 'runenpfad');

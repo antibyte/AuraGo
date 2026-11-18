@@ -466,6 +466,11 @@
         }
 
         // Key legend of the pause dialog: key caps in front of each action.
+        function tf(key, fallback) {
+            const w = t(key);
+            return w && w !== key ? w : fallback;
+        }
+
         function paintLegend(container) {
             container.replaceChildren();
             container.setAttribute('aria-label', t('runenpfad.controls'));
@@ -476,7 +481,10 @@
                 { keys: ['K', 'Shift'], label: t('runenpfad.touch_special') },
                 { keys: ['E', '↑'], label: t('runenpfad.npc.ui.talk') },
                 { keys: ['Q'], label: t('runenpfad.hud_heal') },
-                { keys: ['R'], label: t('runenpfad.pause_restart') }
+                { keys: ['R'], label: t('runenpfad.pause_restart') },
+                { keys: ['↓'], label: tf('runenpfad.npc.duel.legend_block', 'Duel: block') },
+                { keys: ['Shift'], label: tf('runenpfad.npc.duel.legend_roll', 'Duel: roll') },
+                { keys: ['E'], label: tf('runenpfad.npc.duel.legend_special', 'Duel: rune special') }
             ].forEach(function (r) {
                 const keys = el('dt', 'rp-legend-keys');
                 r.keys.forEach(function (k) { keys.append(keycap(k)); });
