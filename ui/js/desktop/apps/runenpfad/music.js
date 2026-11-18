@@ -257,7 +257,8 @@
 
     function themeIdFor(sim, boss) {
         const biome = biomeOf(sim);
-        return boss ? 'boss_' + biome : biome;
+        const duel = boss && root.RunenpfadDuelMusic ? root.RunenpfadDuelMusic.themeFor(sim) : null; // per-NPC duel loop (duel-music.js)
+        return duel && THEMES[duel] ? duel : (boss ? 'boss_' + biome : biome);
     }
 
     // Reads the simulation only; danger rises as the nearest live enemy closes inside 360 px.
@@ -265,6 +266,7 @@
         if (!sim || !sim.stage || !sim.player) return null;
         const p = sim.player;
         const stage = sim.stage;
+        if (sim.encounter && sim.encounter.kind === 'duel') return { danger: 1, boss: true, bossAlive: true, state: sim.state };
         const enemies = stage.enemies || [];
         let nearest = Infinity;
         let boss = null;
@@ -976,6 +978,8 @@
                 const ev = events[evIdx];
                 if (ev && ev.type === 'rune_pickup') kind = 'rune';
                 else if (ev && ev.type === 'checkpoint' && kind !== 'rune') kind = 'checkpoint';
+                else if (ev && ev.type === 'duel_start') kind = 'boss_intro';
+                else if (ev && ev.type === 'duel_end') kind = ev.detail && ev.detail.result === 'won' ? 'victory' : 'defeat';
             }
             if (kind) stinger(kind);
         }

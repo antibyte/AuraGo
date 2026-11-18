@@ -54,7 +54,7 @@
 
     // Optional zone hooks: every zone module takes part when loaded.
     function zoneHook(name, a, b, c) {
-        [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons].forEach(function (z) {
+        [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons, root.RunenpfadNpcs].forEach(function (z) {
             if (z && typeof z[name] === 'function') z[name](a, b, c);
         });
     }
@@ -535,6 +535,8 @@
 
     function stepOneTick(sim, input) {
         if (sim.state !== 'playing') return;
+        // NPC encounters: a dialogue freezes the world, a duel replaces the tick.
+        if (root.RunenpfadNpcs && root.RunenpfadNpcs.hold(sim, input, STEP)) return;
         const dt = STEP;
         const p = sim.player;
         const stage = sim.stage;
@@ -795,6 +797,7 @@
             edgeInput.attackPressed = false;
             edgeInput.dashPressed = false;
             edgeInput.healPressed = false;
+            edgeInput.talkPressed = false;
             sim.accum -= STEP;
             substeps += 1;
         }

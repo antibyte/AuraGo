@@ -581,7 +581,7 @@
             shopGrid.replaceChildren();
             Levels.UPGRADE_DEFS.forEach(function (track) {
                 const lvl = profile.upgrades[track.id] || 1;
-                const cost = Sim.upgradeCost(track.id, lvl);
+                const cost = Sim.upgradeCost(track.id, lvl, profile);
                 const item = el('div', 'rp-shop-item');
                 const head = el('div', 'rp-shop-title', t(track.nameKey));
                 head.title = fill('runenpfad.shop_level', { level: lvl, max: track.maxLevel });

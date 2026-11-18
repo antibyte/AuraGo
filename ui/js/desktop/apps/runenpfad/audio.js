@@ -102,6 +102,59 @@
         magnet: { sound: false, synth: 'hum', sg: 0.5, also: [{ synth: 'shimmer', sg: 0.3, sr: 0.8 }] },
         '*': { sound: false, synth: 'shimmer', sg: 0.45 }
     };
+    // ---- NPC encounters: duel pattern sounds, keyed `<npc>_<a|b|c>` like the pattern table in duel-patterns.js ----
+    // Tells are quiet anticipation cues; attacks are the release. Only existing synths are used.
+    const DUEL_TELLS = {
+        witch_a: { synth: 'charge', sg: 0.35, sr: 1.6 },
+        witch_b: { synth: 'hum', sg: 0.3, sr: 0.7, also: [{ synth: 'ghost', sg: 0.2, sr: 0.7 }] },
+        witch_c: { synth: 'whistle', sg: 0.4, sr: 0.8 },
+        wizard_a: { synth: 'magicping', sg: 0.4, sr: 1.4, also: [{ synth: 'shimmer', sg: 0.25, sr: 1.2 }] },
+        wizard_b: { synth: 'ghost', sg: 0.35, sr: 0.8, also: [{ synth: 'shimmer', sg: 0.25, sr: 0.8 }] },
+        wizard_c: { synth: 'charge', sg: 0.35, sr: 0.6, also: [{ synth: 'hum', sg: 0.25, sr: 0.8 }] },
+        merchant_a: { synth: 'ratchet', sg: 0.4, sr: 1.2 },
+        merchant_b: { synth: 'ratchet', sg: 0.4, sr: 0.8, also: [{ synth: 'hiss', sg: 0.2, sr: 1.2 }] },
+        merchant_c: { synth: 'puff', sg: 0.3, sr: 1.2 },
+        chief_a: { synth: 'charge', sg: 0.4, sr: 0.5, also: [{ synth: 'creak', sg: 0.35, sr: 0.8 }] },
+        chief_b: { synth: 'roar', sg: 0.45, sr: 1.3 },
+        chief_c: { synth: 'stomp', sg: 0.45, sr: 0.8, also: [{ synth: 'charge', sg: 0.3, sr: 0.7 }] },
+        seer_a: { synth: 'whoosh', sg: 0.3, sr: 0.5, also: [{ synth: 'hiss', sg: 0.2, sr: 0.9 }] },
+        seer_b: { synth: 'shimmer', sg: 0.35, sr: 0.7, also: [{ synth: 'ghost', sg: 0.25, sr: 1.1 }] },
+        seer_c: { synth: 'charge', sg: 0.4, sr: 2.6, also: [{ synth: 'hiss', sg: 0.25, sr: 1 }] },
+        alchemist_a: { synth: 'fizzle', sg: 0.4, sr: 1.2 },
+        alchemist_b: { synth: 'ratchet', sg: 0.4, sr: 0.8, also: [{ synth: 'clank', sg: 0.3, sr: 1.1 }] },
+        alchemist_c: { synth: 'hiss', sg: 0.4, sr: 0.9, also: [{ synth: 'steam', sg: 0.3, sr: 1.2 }] },
+        '*': { synth: 'warn', sg: 0.3, sr: 1 }
+    };
+    const DUEL_ATTACKS = {
+        witch_a: { synth: 'zap', sg: 0.4, sr: 0.9 },
+        witch_b: { synth: 'puff', sg: 0.45, sr: 0.7 },
+        witch_c: { synth: 'screech', sg: 0.45, sr: 1 },
+        wizard_a: { synth: 'magicping', sg: 0.45, sr: 1.1 },
+        wizard_b: { synth: 'ghost', sg: 0.45, sr: 1.3 },
+        wizard_c: { synth: 'hum', sg: 0.45, sr: 0.9 },
+        merchant_a: { synth: 'whoosh', sg: 0.5, sr: 1.3 },
+        merchant_b: { synth: 'boom', sg: 0.5, sr: 1.1 },
+        merchant_c: { synth: 'puff', sg: 0.45, sr: 1.5 },
+        chief_a: { synth: 'impact', sg: 0.6, sr: 0.7, also: [{ synth: 'boom', sg: 0.5, sr: 1 }] },
+        chief_b: { synth: 'roar', sg: 0.5, sr: 1 },
+        chief_c: { synth: 'stomp', sg: 0.6, sr: 0.9 },
+        seer_a: { synth: 'steam', sg: 0.5, sr: 0.8 },
+        seer_b: { synth: 'ghost', sg: 0.45, sr: 1 },
+        seer_c: { synth: 'warn', sg: 0.4, sr: 1.4, also: [{ synth: 'flame', sg: 0.5, sr: 1 }] },
+        alchemist_a: { synth: 'puff', sg: 0.45, sr: 1, also: [{ synth: 'fizzle', sg: 0.35, sr: 1 }] },
+        alchemist_b: { synth: 'ratchet', sg: 0.4, sr: 1, also: [{ synth: 'clank', sg: 0.45, sr: 1 }] },
+        alchemist_c: { synth: 'steam', sg: 0.5, sr: 1, also: [{ synth: 'hiss', sg: 0.35, sr: 1 }] },
+        '*': { synth: 'whoosh', sg: 0.4, sr: 1 }
+    };
+    // Quest jingles built from delayed chimes.
+    const QUEST_JINGLES = {
+        start: { synth: 'chime', sg: 0.3, sr: 1, also: [{ synth: 'chime', sg: 0.28, sr: 1.5, delay: 0.1 }, { synth: 'shimmer', sg: 0.2, sr: 1.1, delay: 0.14 }] },
+        done: {
+            synth: 'solved', sg: 0.5, sr: 1.122, sound: 'pickup', rate: 1.2, gain: 0.3,
+            also: [{ synth: 'chime', sg: 0.3, sr: 2, delay: 0.3 }, { synth: 'shimmer', sg: 0.3, sr: 1, delay: 0.4 }]
+        }
+    };
+    QUEST_JINGLES['*'] = QUEST_JINGLES.start;
     const CUE_MAP = {
         step: { sound: null, gain: 0.38, cooldown: 220, vary: 0.14 },
         jump: { sound: 'jump', gain: 0.58, cooldown: 90, vary: 0.1 },
@@ -237,7 +290,65 @@
             by: { key: 'kind', map: { frost: { sound: false, synth: 'dragonbreath_frost' } } }
         },
         dragon_pass: { sound: false, gain: 0.5, cooldown: 800, synth: 'dragonpass', sg: 0.8 },
-        fireball_hit: { sound: 'explosion-small', gain: 0.55, cooldown: 100, rate: 0.9, vary: 0.1, synth: 'puff', sg: 0.5, sr: 0.8 }
+        fireball_hit: { sound: 'explosion-small', gain: 0.55, cooldown: 100, rate: 0.9, vary: 0.1, synth: 'puff', sg: 0.5, sr: 0.8 },
+        // ---- NPC encounters: dialogue, trade, reputation ----
+        npc_near: { sound: false, gain: 0.3, cooldown: 600, synth: 'ping', sg: 0.35, sr: 1.5 },
+        npc_talk: { sound: 'ui-click', gain: 0.4, cooldown: 200, rate: 1.1, synth: 'magicping', sg: 0.35, sr: 1.1 },
+        npc_close: { sound: 'ui-click', gain: 0.3, cooldown: 200, rate: 0.8, synth: 'magicping', sg: 0.25, sr: 0.7 },
+        // Typewriter text: a soft, tiny page blip at a low cooldown; the cue hash varies the pitch per call.
+        npc_text: { sound: false, gain: 0.2, cooldown: 75, synth: 'chime', sg: 0.1, sr: 2.6, vary: 0.2 },
+        npc_choice: { sound: 'ui-click', gain: 0.45, cooldown: 90, rate: 1.25, vary: 0.05 },
+        npc_rep: {
+            sound: false, gain: 0.5, cooldown: 250,
+            by: {
+                key: 'dir',
+                map: {
+                    up: { synth: 'chime', sg: 0.35, sr: 1.5, also: [{ synth: 'shimmer', sg: 0.3, sr: 1.3, delay: 0.08 }] },
+                    down: { synth: 'down', sg: 0.4, sr: 0.8, also: [{ synth: 'boom', sg: 0.45, sr: 1.6 }] },
+                    '*': { synth: 'shimmer', sg: 0.3, sr: 1 }
+                }
+            }
+        },
+        npc_trade: { sound: 'pickup', gain: 0.5, cooldown: 120, rate: 1.1, synth: 'chime', sg: 0.35, sr: 1.8, also: [{ synth: 'chime', sg: 0.25, sr: 2.4, delay: 0.07 }] },
+        npc_quest: { sound: false, gain: 0.5, cooldown: 300, by: { key: 'state', map: QUEST_JINGLES } },
+        quest_pickup: { sound: 'pickup', gain: 0.5, cooldown: 100, rate: 1.1, synth: 'shimmer', sg: 0.3, sr: 1.2 },
+        npc_provoke: { sound: 'impact-stone', gain: 0.55, cooldown: 300, rate: 0.9, synth: 'impact', sg: 0.5, sr: 0.8 },
+        // ---- close-up duel (events carry no x: they play centred) ----
+        duel_start: {
+            sound: 'thunder', gain: 0.55, cooldown: 600, rate: 0.8, synth: 'warn', sg: 0.3, sr: 0.6,
+            also: [{ synth: 'boom', sg: 0.6, sr: 0.7, delay: 0.1 }]
+        },
+        duel_tell: { sound: false, gain: 0.45, cooldown: 250, by: { key: 'pattern', map: DUEL_TELLS } },
+        duel_attack: { sound: false, gain: 0.6, cooldown: 120, by: { key: 'pattern', map: DUEL_ATTACKS } },
+        duel_hit: {
+            sound: false, gain: 0.6, cooldown: 70, vary: 0.14,
+            by: {
+                key: 'target',
+                map: {
+                    hero: { sound: 'impact-flesh', gain: 0.7, synth: 'impact', sg: 0.4, sr: 1.1 },
+                    npc: { sound: false, synth: 'impact', sg: 0.55, sr: 1.3, also: [{ synth: 'crack', sg: 0.2, sr: 1.2 }] },
+                    '*': { sound: false, synth: 'impact', sg: 0.45, sr: 1.2 }
+                }
+            }
+        },
+        duel_block: {
+            sound: 'impact-metal', gain: 0.6, cooldown: 90, vary: 0.1, synth: 'clang', sg: 0.55,
+            by: { key: 'by', map: { npc: { sr: 0.8 }, hero: { sr: 1.1 } } }
+        },
+        duel_roll: { sound: false, gain: 0.4, cooldown: 200, synth: 'whoosh', sg: 0.35, sr: 1.1 },
+        duel_phase: { sound: 'thunder', gain: 0.7, cooldown: 400, synth: 'boom', sg: 0.6, sr: 0.8, also: [{ synth: 'roar', sg: 0.3, sr: 0.9, delay: 0.1 }] },
+        duel_special: { sound: false, gain: 0.7, cooldown: 200, by: { key: 'kind', map: RUNE_PICKUPS } },
+        duel_end: {
+            sound: false, gain: 0.7, cooldown: 500,
+            by: {
+                key: 'result',
+                map: {
+                    won: { synth: 'solved', sg: 0.6, sound: 'pickup', rate: 1.2, gain: 0.4, also: [{ synth: 'shimmer', sg: 0.3, sr: 1, delay: 0.5 }] },
+                    lost: { sound: 'defeat', gain: 0.65 },
+                    '*': { sound: false, synth: 'down', sg: 0.4 }
+                }
+            }
+        }
     };
 
     function validateSoundManifest(manifest) {
@@ -807,7 +918,7 @@
                     const d = ev.detail || null;
                     if (ev.type === 'enemy_kill' && d && d.boss) continue;
                     const cue = resolveCue(ev, base, d);
-                    const key = ev.type + ':' + ((d && (d.pattern || d.kind || d.material || d.enemy || d.defId || (typeof d.glyph === 'number' ? 'g' + d.glyph : ''))) || '');
+                    const key = ev.type + ':' + ((d && (d.pattern || d.kind || d.material || d.enemy || d.defId || d.target || d.by || d.result || (typeof d.glyph === 'number' ? 'g' + d.glyph : ''))) || '');
                     if (!gate(key, cue.cooldown)) continue;
                     let id = cue.sound;
                     if (id === null) {

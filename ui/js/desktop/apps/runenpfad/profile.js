@@ -5,6 +5,11 @@
     const STORAGE_KEY = 'aurago.runenpfad.v1';
     const SAVE_VERSION = 1;
 
+    const FACTIONS = ['coven', 'circle', 'kobolds'];
+    const STORY_ITEMS = { glow_mushroom: 9, sun_shard: 9, gear_part: 9, hex_charm: 1, lucky_amulet: 3, discount_token: 3, rune_attune: 2 };
+    const QUEST_IDS = ['witch_mushrooms', 'seer_shards', 'alchemist_gears'];
+    const FLAG_RE = /^[a-z][a-z0-9_]{0,15}\.[a-z0-9_]{1,23}$/;
+
     function levelsApi() {
         return root.RunenpfadLevels;
     }
@@ -27,7 +32,11 @@
                 alchemy: 1
             },
             starsByLevel: {},
-            bestTimeByLevel: {}
+            bestTimeByLevel: {},
+            rep: { coven: 0, circle: 0, kobolds: 0 },
+            npcFlags: {},
+            inventory: {},
+            quests: { active: [], done: [] }
         };
     }
 
@@ -35,6 +44,47 @@
         const n = Number(val);
         if (!Number.isFinite(n)) return fallback;
         return Math.min(max, Math.max(min, Math.floor(n)));
+    }
+
+    function isPlainObject(v) {
+        return !!v && typeof v === 'object' && !Array.isArray(v);
+    }
+
+    function importStory(raw) {
+        const rep = {};
+        FACTIONS.forEach(function (f) {
+            rep[f] = clampInt(isPlainObject(raw.rep) ? raw.rep[f] : 0, -5, 5, 0);
+        });
+        const npcFlags = {};
+        if (isPlainObject(raw.npcFlags)) {
+            Object.keys(raw.npcFlags).filter(function (k) { return FLAG_RE.test(k); }).sort().forEach(function (k) {
+                const n = clampInt(raw.npcFlags[k], 0, 99, 0);
+                if (n > 0 && Object.keys(npcFlags).length < 64) npcFlags[k] = n;
+            });
+        }
+        const inventory = {};
+        if (isPlainObject(raw.inventory)) {
+            Object.keys(STORY_ITEMS).forEach(function (id) {
+                if (!Object.prototype.hasOwnProperty.call(raw.inventory, id)) return;
+                const n = clampInt(raw.inventory[id], 0, STORY_ITEMS[id], 0);
+                if (n > 0) inventory[id] = n;
+            });
+        }
+        const quests = { active: [], done: [] };
+        if (isPlainObject(raw.quests)) {
+            const list = function (v, cap, skip) {
+                const out = [];
+                if (Array.isArray(v)) {
+                    v.forEach(function (q) {
+                        if (QUEST_IDS.indexOf(q) >= 0 && out.indexOf(q) < 0 && skip.indexOf(q) < 0 && out.length < cap) out.push(q);
+                    });
+                }
+                return out;
+            };
+            quests.done = list(raw.quests.done, 16, []);
+            quests.active = list(raw.quests.active, 8, quests.done);
+        }
+        return { rep: rep, npcFlags: npcFlags, inventory: inventory, quests: quests };
     }
 
     function importProfile(raw) {
@@ -67,6 +117,7 @@
                 }
             });
         }
+        const story = importStory(raw);
         return {
             v: SAVE_VERSION,
             hero: hero,
@@ -79,7 +130,11 @@
             totalScore: clampInt(raw.totalScore, 0, 99999999, 0),
             upgrades: upgrades,
             starsByLevel: starsByLevel,
-            bestTimeByLevel: bestTimeByLevel
+            bestTimeByLevel: bestTimeByLevel,
+            rep: story.rep,
+            npcFlags: story.npcFlags,
+            inventory: story.inventory,
+            quests: story.quests
         };
     }
 
@@ -87,10 +142,15 @@
         return importProfile(profile) || createDefaultProfile();
     }
 
-    function upgradeCost(trackId, currentLevel) {
+    function hasDiscount(profile) {
+        return !!(profile && profile.inventory && profile.inventory.discount_token > 0);
+    }
+
+    function upgradeCost(trackId, currentLevel, profile) {
         const track = levelsApi().UPGRADE_DEFS.find(function (u) { return u.id === trackId; });
         if (!track || currentLevel >= track.maxLevel) return null;
-        return track.baseCost + (currentLevel - 1) * track.stepCost;
+        const cost = track.baseCost + (currentLevel - 1) * track.stepCost;
+        return hasDiscount(profile) ? Math.ceil(cost * 0.7) : cost;
     }
 
     function buyUpgrade(profile, trackId) {
@@ -99,9 +159,13 @@
         if (!track) return { ok: false, reason: 'unknown', profile: clean, cost: 0 };
         const lvl = clean.upgrades[trackId] || 1;
         if (lvl >= track.maxLevel) return { ok: false, reason: 'max', profile: clean, cost: 0 };
-        const cost = upgradeCost(trackId, lvl);
+        const cost = upgradeCost(trackId, lvl, clean);
         if (clean.coins < cost) return { ok: false, reason: 'coins', profile: clean, cost: cost };
         clean.coins -= cost;
+        if (hasDiscount(clean)) {
+            clean.inventory.discount_token -= 1;
+            if (clean.inventory.discount_token <= 0) delete clean.inventory.discount_token;
+        }
         clean.upgrades[trackId] = lvl + 1;
         return { ok: true, profile: clean, cost: cost };
     }
@@ -138,6 +202,10 @@
     root.RunenpfadProfile = {
         STORAGE_KEY: STORAGE_KEY,
         SAVE_VERSION: SAVE_VERSION,
+        FACTIONS: FACTIONS,
+        STORY_ITEMS: STORY_ITEMS,
+        QUEST_IDS: QUEST_IDS,
+        FLAG_RE: FLAG_RE,
         createDefaultProfile: createDefaultProfile,
         importProfile: importProfile,
         exportProfile: exportProfile,

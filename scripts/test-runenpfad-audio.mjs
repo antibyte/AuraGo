@@ -11,7 +11,7 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'sfx.js', 'audio.js', 'music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'sfx.js', 'audio.js', 'music.js', 'duel-music.js'].forEach(load);
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
 const Music = sandbox.RunenpfadMusic;
@@ -198,4 +198,76 @@ themeIds.forEach((id) => {
     ['victory', 'defeat', 'boss_intro', 'rune', 'checkpoint'].forEach((k) => music.stinger(k));
     music.dispose();
 });
+
+// ---- 5. NPC encounters: every pushed event has a cue, duel patterns/themes/stingers exist ----
+const NPC_EVENTS = ['npc_near', 'npc_talk', 'npc_close', 'npc_text', 'npc_choice', 'npc_rep', 'npc_trade', 'npc_quest', 'quest_pickup', 'npc_provoke',
+    'duel_start', 'duel_tell', 'duel_attack', 'duel_hit', 'duel_block', 'duel_roll', 'duel_phase', 'duel_special', 'duel_end'];
+NPC_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], 'cue missing for ' + type));
+['npcs.js', 'dialogue.js', 'trade.js', 'duel.js', 'duel-patterns.js'].forEach((rel) => {
+    const file = path.join(root, 'ui/js/desktop/apps/runenpfad', rel);
+    if (!fs.existsSync(file)) return;
+    const src = fs.readFileSync(file, 'utf8');
+    for (const m of src.matchAll(/pushEvent\x28sim, '([a-z_]+)'/g)) assert.ok(Audio.CUE_MAP[m[1]], rel + ' pushes ' + m[1] + ' without an audio cue');
+});
+const NPC_IDS = ['witch', 'wizard', 'merchant', 'chief', 'seer', 'alchemist'];
+NPC_IDS.forEach((npc) => ['a', 'b', 'c'].forEach((p) => {
+    assert.ok(Audio.CUE_MAP.duel_tell.by.map[npc + '_' + p], 'duel tell sound missing for ' + npc + '_' + p);
+    assert.ok(Audio.CUE_MAP.duel_attack.by.map[npc + '_' + p], 'duel attack sound missing for ' + npc + '_' + p);
+}));
+const DUEL_CASES = [];
+NPC_IDS.forEach((npc) => ['a', 'b', 'c'].forEach((pattern) => ['duel_tell', 'duel_attack'].forEach((type) => DUEL_CASES.push({ type, detail: { npcId: npc, pattern: npc + '_' + pattern } }))));
+DUEL_CASES.push({ type: 'duel_tell', detail: { npcId: 'x', pattern: 'x_a' } }, { type: 'duel_start', detail: { npcId: 'witch' } }, { type: 'duel_roll' }, { type: 'duel_phase', detail: { npcId: 'witch' } },
+    { type: 'duel_hit', detail: { target: 'hero', dmg: 2 } }, { type: 'duel_hit', detail: { target: 'npc', dmg: 4 } }, { type: 'duel_block', detail: { by: 'hero' } }, { type: 'duel_block', detail: { by: 'npc' } },
+    { type: 'duel_end', detail: { npcId: 'witch', result: 'won' } }, { type: 'duel_end', detail: { npcId: 'witch', result: 'lost' } },
+    { type: 'npc_rep', detail: { faction: 'coven', delta: 1, dir: 'up' } }, { type: 'npc_rep', detail: { faction: 'coven', delta: -1, dir: 'down' } },
+    { type: 'npc_quest', detail: { questId: 'q', state: 'start' } }, { type: 'npc_quest', detail: { questId: 'q', state: 'done' } },
+    { type: 'npc_text' }, { type: 'npc_close' }, { type: 'npc_trade', detail: { npcId: 'witch', offerId: 'potion', fake: false } });
+['fire', 'frost', 'storm', 'magnet'].forEach((kind) => DUEL_CASES.push({ type: 'duel_special', detail: { kind } }));
+NPC_EVENTS.forEach((type) => DUEL_CASES.push({ type, detail: {} }, { type }));
+DUEL_CASES.forEach((ev) => {
+    const dc = Audio.createAudioController({ manifest });
+    dc.unlock();
+    sandbox.__t += 5;
+    const nodesBefore = nodeCount;
+    dc.handleEvents([ev], null, { x: 0, w: 800 });
+    assert.ok(nodeCount > nodesBefore, 'duel/npc event builds sound: ' + JSON.stringify(ev));
+    assert.ok(nodeCount - nodesBefore < 700, 'duel/npc event stays within a sane node budget: ' + JSON.stringify(ev));
+    dc.dispose();
+});
+// Typewriter blips are rate-limited and pitch-varied deterministically.
+const tw = Audio.createAudioController({ manifest });
+tw.unlock();
+sandbox.__t += 5;
+const twBase = nodeCount;
+for (let i = 0; i < 10; i++) tw.handleEvents([{ type: 'npc_text' }], null, null);
+assert.ok(nodeCount > twBase && nodeCount - twBase < 40, 'npc_text cooldown limits a burst: ' + (nodeCount - twBase));
+tw.dispose();
+// Duel themes: one per NPC, boss-style, deterministic, dark, and selected during a duel.
+const DuelMusic = sandbox.RunenpfadDuelMusic;
+assert.equal(DuelMusic.THEME_IDS.length, 6);
+NPC_IDS.forEach((npc) => {
+    const th = Music.THEMES['duel_' + npc];
+    assert.ok(th && th.boss && th.bpm >= 90, 'duel theme for ' + npc);
+    assert.ok(!th.scale.includes(4), npc + ' duel theme has no major third');
+    assert.equal(th.prog[0].length, 4);
+    Music.LAYERS.forEach((layer) => assert.equal(JSON.stringify(Music.composeBar('duel_' + npc, layer, 2, 9)), JSON.stringify(Music.composeBar('duel_' + npc, layer, 2, 9))));
+    assert.ok(Music.composeBar('duel_' + npc, 'perc', 0, 1).length > 0 && Music.composeBar('duel_' + npc, 'boss', 0, 1).length > 0, npc + ' has drums and an ostinato');
+});
+assert.equal(new Set(NPC_IDS.map((n) => Music.THEMES['duel_' + n].leadInstr + '/' + Music.THEMES['duel_' + n].bpm)).size, 6, 'every duel loop sounds different');
+const duelSim = { stage, player: { x: 0, y: 0 }, state: 'playing', events: [], bossIntro: null, encounter: { kind: 'duel', npcId: 'seer', duel: { npcId: 'seer' } } };
+const di = Music.intensityFor(duelSim);
+assert.ok(di.boss && di.bossAlive && di.danger === 1, 'intensityFor reports boss during a duel');
+assert.equal(Music.themeIdFor(duelSim, true), 'duel_seer');
+assert.equal(Music.themeIdFor(Object.assign({}, duelSim, { encounter: null }), true), 'boss_woodland', 'no duel, no duel theme');
+{
+    const port = { ctx: new FakeContext(), bus: node('bus'), reverb: node('rev') };
+    const music = Music.createMusicController(port);
+    for (let i = 0; i < 120; i++) { sandbox.__t = i / 30; music.update(Music.intensityFor(duelSim), duelSim); }
+    assert.equal(music.getState().theme, 'duel_seer', 'duel switches the music to the NPC loop');
+    const stingSim = Object.assign({}, duelSim, { events: [{ type: 'duel_start', detail: { npcId: 'seer' } }, { type: 'duel_end', detail: { npcId: 'seer', result: 'won' } }] });
+    music.update(Music.intensityFor(stingSim), stingSim);
+    const after = Object.assign({}, sim, { events: [] });
+    for (let i = 120; i < 240; i++) { sandbox.__t = i / 30; music.update(Music.intensityFor(after), after); }
+    music.dispose();
+}
 console.log('Runenpfad audio checks passed: ' + Object.keys(Audio.CUE_MAP).length + ' cues, ' + Object.keys(Sfx.SYNTHS).length + ' synth recipes, ' + themeIds.length + ' music themes.');

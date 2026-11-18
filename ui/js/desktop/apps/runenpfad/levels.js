@@ -337,7 +337,7 @@
     const R4_ZONES = ['swing_gorge', 'rune_sequence', 'lever_bridge', 'ritual_chain'];
     // Zone modules in dispatch order: the first one whose has(zone) is true builds the zone.
     function zoneModules() {
-        return [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons];
+        return [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons, root.RunenpfadNpcs];
     }
 
     // Zone slots such as 'a|b' resolve by level-id seed, so a campaign level always builds the same variant.
@@ -387,6 +387,8 @@
         for (let i = 0; i < enemyCount; i++) {
             enemies.push(roster[Math.floor(rng() * roster.length)]);
         }
+        // Every fourth floor gets a merchant camp; inserted after all rng draws so seeds stay unchanged.
+        if (idx % 4 === 2) zones.splice(1, 0, 'npc_camp:merchant');
         const bosses = ['boss_boar', 'boss_goblin', 'boss_orb', 'boss_quad', 'boss_mech'];
         return {
             id: 1000 + idx,
@@ -481,7 +483,7 @@
         const flameJets = [];
         const chests = [];
         // Round 4 stage arrays filled by swing.js, puzzles.js and dragons.js.
-        const extras = { swings: [], oracles: [], glyphStones: [], bridgeSegs: [], levers: [], rituals: [], dragonRuns: [] };
+        const extras = { swings: [], oracles: [], glyphStones: [], bridgeSegs: [], levers: [], rituals: [], dragonRuns: [], npcs: [], questItems: [], npcsReady: false };
 
         function setTile(tx, ty, assetId, kind) {
             if (tx < 0 || ty < 0 || ty >= rows) return;
