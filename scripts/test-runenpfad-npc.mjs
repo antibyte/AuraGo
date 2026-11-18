@@ -1410,4 +1410,15 @@ DUEL_NPCS.forEach((id) => {
     }
 }
 
+// ---- i18n key coverage: every NPC text key exists in en.json and de.json ----
+{
+    const keys = [].concat(Dialogue.textKeys(), Dialogue.tipKeys(), Trade.textKeys(), Npcs.textKeys(),
+        ['runenpfad.npc.end_friend', 'runenpfad.npc.end_neutral', 'runenpfad.npc.end_feared']);
+    for (const lang of ['en', 'de']) {
+        const table = JSON.parse(fs.readFileSync(path.join(rootDir, 'ui/lang/runenpfad', lang + '.json'), 'utf8'));
+        const missing = keys.filter(function (k) { return typeof table[k] !== 'string' || !table[k].trim(); });
+        assert.deepStrictEqual(missing, [], lang + '.json misses NPC keys');
+    }
+}
+
 console.log('Runenpfad NPC checks passed: profile story fields, camps and hold hook, dialogue graphs, witch arc, trade, duel, story arcs, campaign placement, quest items, gate, sabotage, epilogue.');
