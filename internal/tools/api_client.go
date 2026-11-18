@@ -41,6 +41,7 @@ var apiLocalOllamaHTTPClient = &http.Client{
 type APIRequestOptions struct {
 	Context                   context.Context
 	AllowedLocalOllamaBaseURL string
+	VaultQuery                string // Trusted raw query for the checked URL's first hop only.
 }
 
 // APIResult is the JSON response returned to the LLM.
@@ -80,7 +81,7 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 	}
 	method = strings.ToUpper(method)
 
-	allowLocalOllama := isAllowedLocalOllamaRequest(rawURL, opts.AllowedLocalOllamaBaseURL)
+	allowLocalOllama := opts.VaultQuery == "" && isAllowedLocalOllamaRequest(rawURL, opts.AllowedLocalOllamaBaseURL)
 
 	// SSRF Protection: Validate URL before request
 	if !allowLocalOllama {
@@ -99,6 +100,9 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 	if err != nil {
 		return encode(APIResult{Status: "error", Message: fmt.Sprintf("Failed to create request: %v", err)})
 	}
+	if opts.VaultQuery != "" {
+		req.URL.RawQuery = opts.VaultQuery
+	}
 
 	// Set headers
 	for k, v := range headers {
@@ -114,6 +118,10 @@ func ExecuteAPIRequestWithOptions(method, rawURL, body string, headers map[strin
 	client := apiRequestClient(apiHTTPClient, headers, &dropped)
 	if allowLocalOllama {
 		client = apiLocalOllamaHTTPClient
+	} else if opts.VaultQuery != "" {
+		singleHop := *client
+		singleHop.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+		client = &singleHop
 	}
 
 	// Execute with shared client (connection pooling)

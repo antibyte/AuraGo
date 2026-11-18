@@ -550,6 +550,7 @@ Die Berechtigungen und geschützten Pfade des Dateisystem-Werkzeugs gelten weite
 
 ## Geheimnisse
 
+- Sendet der HTTP-Schritt ein Vault-Geheimnis als Abfrageparameter, gibt er die erste Antwort zurück. Bei einer Weiterleitung erhältst du den 3xx-Status und den `Location`-Header mit geschwärztem Geheimnis.
 - API-Schlüssel für HTTP-Anfragen legst du als Geheimnis an: **Neues Geheimnis** im Feld *Geheimnis* des Schritts. Ein Wert darf bis zu 4 KiB groß sein, und AuraGo nimmt höchstens 30 Änderungen an Geheimnissen pro Minute an. Gibt es den Namen schon, fragt EasyDrag, bevor es den Wert ersetzt.
 - Geheimnisse liegen im Vault als `easydrag_<name>`. Flows können sie nutzen; der Agent kann sie weder auflisten noch lesen oder ändern. Lauf-Daten und die Ansicht eines Laufs zeigen ihre Werte geschwärzt, mit einer Grenze für sehr kurze Werte (siehe [Kapitel 11](11-missions.md#flow-geheimnisse)).
 - Der Papierkorb neben **Neues Geheimnis** löscht das gewählte Geheimnis nach einer Rückfrage und leert das Feld. Flows, die das Geheimnis nutzen, schlagen fehl, bis es wieder gesetzt ist; nutzen veröffentlichte Flows es noch, nennt eine Benachrichtigung sie.

@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -355,13 +357,23 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 		"zwei": "is not a number",
 	} {
 		setVersion(version)
+		before, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if s, err := OpenStore(path, discardLogger()); err == nil || !strings.Contains(err.Error(), want) {
 			if s != nil {
 				_ = s.Close()
 			}
 			t.Fatalf("OpenStore at schema %q = %v, want %q", version, err, want)
 		}
-		// The file is untouched: no migration ran.
+		var mode string
+		if err := raw.QueryRow(`PRAGMA journal_mode`).Scan(&mode); err != nil || mode != "delete" {
+			t.Fatalf("schema %q: journal mode %q (%v), want delete", version, mode, err)
+		}
+		if after, err := os.ReadFile(path); err != nil || !bytes.Equal(before, after) {
+			t.Fatalf("schema %q: rejected open changed the database (%v)", version, err)
+		}
 		var tables int
 		if err := raw.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'flows'`).Scan(&tables); err != nil || tables != 0 {
 			t.Fatalf("schema %q: flows table count %d (%v), want 0", version, tables, err)
@@ -403,6 +415,36 @@ func TestC16OpenStoreRefusesANewerSchema(t *testing.T) {
 	var stored string
 	if err := s.db.QueryRow(`SELECT value FROM flows_meta WHERE key = 'schema_version'`).Scan(&stored); err != nil || stored != current {
 		t.Fatalf("version row after migration = %q (%v)", stored, err)
+	}
+}
+
+func TestOpenStoreChecksTheSchemaInWAL(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "store with spaces.db")
+	u := url.URL{Path: filepath.ToSlash(path)}
+	dsn := "file:" + u.EscapedPath()
+	writer, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	writer.SetMaxOpenConns(1)
+	if _, err := writer.Exec(`PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0;
+		CREATE TABLE flows_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT INTO flows_meta (key, value) VALUES ('schema_version', '1');
+		PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Exec(`UPDATE flows_meta SET value=? WHERE key='schema_version'`, strconv.Itoa(storeSchemaVersion+1)); err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []string{path, dsn + "?mode=rwc"} {
+		store, err := OpenStore(candidate, discardLogger())
+		if store != nil {
+			defer store.Close()
+		}
+		if err == nil || !strings.Contains(err.Error(), "is newer than this AuraGo supports") {
+			t.Fatalf("open with newer schema in WAL = %v", err)
+		}
 	}
 }
 

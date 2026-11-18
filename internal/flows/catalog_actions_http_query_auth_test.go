@@ -1,6 +1,7 @@
 package flows
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -15,20 +16,23 @@ func queryAuthParams(url string) map[string]any {
 func TestHTTPQueryAuthSetsAndReplacesTheParameter(t *testing.T) {
 	secrets := fakeSecrets{"api_token": "s3cr3t-token-value"}
 	for name, c := range map[string]struct{ url, want string }{
-		"set":      {"https://api.example.com/v1?q=1", "https://api.example.com/v1?q=1&api_key=s3cr3t-token-value"},
-		"replace":  {"https://api.example.com/v1?api_key=typed&q=1#top", "https://api.example.com/v1?q=1&api_key=s3cr3t-token-value#top"},
-		"no query": {"https://api.example.com/v1", "https://api.example.com/v1?api_key=s3cr3t-token-value"},
+		"set":      {"https://api.example.com/v1?q=1", "q=1&api_key=s3cr3t-token-value"},
+		"replace":  {"https://api.example.com/v1?api_key=typed&q=1#top", "q=1&api_key=s3cr3t-token-value"},
+		"no query": {"https://api.example.com/v1", "api_key=s3cr3t-token-value"},
 	} {
 		_, tools, err := runHTTP(t, queryAuthParams(c.url), answerWith(apiAnswer(200, "ok")), secrets)
 		if err != nil || tools.count() != 1 {
 			t.Fatalf("%s: err = %v after %d calls", name, err, tools.count())
 		}
-		args := tools.calls[0].Args
-		if args["url"] != c.want {
-			t.Errorf("%s: url = %v, want %s", name, args["url"], c.want)
+		call := tools.calls[0]
+		if call.VaultQuery != c.want {
+			t.Errorf("%s: Vault query = %q, want %q", name, call.VaultQuery, c.want)
 		}
-		if _, has := args["headers"]; has {
-			t.Errorf("%s: a header was added: %v", name, args["headers"])
+		if call.Args["url"] != c.url {
+			t.Errorf("%s: tool URL = %v, want %s", name, call.Args["url"], c.url)
+		}
+		if _, has := call.Args["headers"]; has {
+			t.Errorf("%s: a header was added: %v", name, call.Args["headers"])
 		}
 	}
 }
@@ -37,7 +41,7 @@ func TestHTTPQueryAuthSetsAndReplacesTheParameter(t *testing.T) {
 // request address (the body, or a final address) shows the marker, not the secret.
 func TestHTTPQueryAuthScrubsTheSecretFromTheOutput(t *testing.T) {
 	echo := func(req ToolRequest) (ToolResponse, error) {
-		return apiAnswer(200, "you called "+Stringify(req.Args["url"])), nil
+		return apiAnswer(200, "request query: "+req.VaultQuery), nil
 	}
 	res, _, err := runHTTP(t, queryAuthParams("https://api.example.com/v1?q=1"), echo, fakeSecrets{"api_token": "s3cr3t-token-value"})
 	if err != nil {
@@ -46,6 +50,17 @@ func TestHTTPQueryAuthScrubsTheSecretFromTheOutput(t *testing.T) {
 	body := Stringify(res.Output["body"])
 	if strings.Contains(body, "s3cr3t-token-value") || !strings.Contains(body, "api_key="+redactedText) {
 		t.Fatalf("body = %q, want the marker in the place of the secret", body)
+	}
+}
+
+func TestHTTPQueryAuthScrubsTheSecretFromDispatchErrors(t *testing.T) {
+	fail := func(req ToolRequest) (ToolResponse, error) {
+		return ToolResponse{}, fmt.Errorf("request failed for %s?%s", req.Args["url"], req.VaultQuery)
+	}
+	_, _, err := runHTTP(t, queryAuthParams("https://api.example.com/v1"), fail,
+		fakeSecrets{"api_token": "North & West"})
+	if err == nil || !strings.Contains(err.Error(), "api_key="+redactedText) || strings.Contains(err.Error(), "North") {
+		t.Fatalf("expected the dispatch error with a redacted URL, got %v", err)
 	}
 }
 

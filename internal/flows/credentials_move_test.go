@@ -51,8 +51,9 @@ func TestMovedQueryAndUserinfoStillReachTheRequest(t *testing.T) {
 	if _, err := execDef(httpNodeDef(t), q.Nodes[0].Params, &Services{Tools: tools, Secrets: fakeSecrets{"svc_q": "qry-token-1234"}}); err != nil {
 		t.Fatal(err)
 	}
-	if got := tools.calls[0].Args["url"]; got != "https://api.example.com/v1?q=1&api_key=qry-token-1234" {
-		t.Fatalf("url = %v", got)
+	call := tools.calls[0]
+	if call.Args["url"] != "https://api.example.com/v1?q=1" || call.VaultQuery != "q=1&api_key=qry-token-1234" {
+		t.Fatalf("url = %v, Vault query = %q", call.Args["url"], call.VaultQuery)
 	}
 
 	u := &Flow{Nodes: []Node{{ID: "n1", Type: TypeHTTPRequest, Params: map[string]any{"url": "https://user:pw1234@files.example.com/list"}}}}

@@ -372,7 +372,7 @@ the contracts below describe the implemented behavior of each delivered slice.
 - Render-time fence: a prompt that reaches a model must show which part came from outside. `checkFlow` keeps the
   taint the lint found anyway (`lintUntrusted`: the root `trigger` when an enabled trigger has `UntrustedOutput`,
   plus the key of every tainted node) in `runState.untrusted`, and `runState.env` hands it on as `Env.Untrusted`.
-  `executeNode` resolves the params flagged `ParamSpec.FenceUntrusted` (the `ai.step` `prompt` and `instructions`, the `ai.decision` `state`)
+  `executeNode` resolves the model params flagged `ParamSpec.FenceUntrusted`
   through `resolveParams`: a template expression whose root is untrusted has its value wrapped by `fenceUntrusted` after
   its filters ran. A string goes through `security.IsolateExternalData` (the fence the agent loop puts around tool
   output: format characters stripped, angle-bracket look-alikes folded, HTML-escaped, a wrapper the body cannot
@@ -383,9 +383,12 @@ the contracts below describe the implemented behavior of each delivered slice.
   other param resolves plain. The `instructions` become the system message and carry the author's authority there;
   they stay a `SensitiveSink` (the lint warns) and are fenced too, because the scan refuses only ThreatHigh and
   a fence is what marks lower-threat outside text as data (the guard instruction names `<external_data>`). The
-  run log shows the fenced prompt and instructions, which are the text the model gets. Fence and HTML escaping
+  run log shows the fenced values. `ai.step` field descriptions use the structured, per-leaf fence and the
+  `fields` sink warns on external references. The same resolved descriptions feed system hints and schema
+  metadata, including during repair. Resolved names and types still undergo field validation. Fence and HTML escaping
   can make a value several times longer (`"` becomes `&#34;`), which counts against the 256 KiB prompt cap. A new node that hands a param to a
-  model as material sets `FenceUntrusted`; a param that `Execute` parses or compares must not. `ai.decision` `state` is a `ParamJSON` and is fenced per leaf (`fenceUntrustedLeaves`): a value a single-expression
+  model as material sets `FenceUntrusted`. Keep executable selectors subject to their own validators.
+  `ai.decision` `state` is a `ParamJSON` and is fenced per leaf (`fenceUntrustedLeaves`): a value a single-expression
   template reads keeps its JSON type; its string leaves and its keys that do not match `^[A-Za-z0-9_.-]{1,64}$` are
   fenced; two keys that fence to the same text fail the step with FLOW_PARAM_INVALID; a value spliced into text gets
   the whole-value fence; the author's literal JSON stays. `executeDecisionNode` encodes the state with
@@ -489,10 +492,11 @@ the contracts below describe the implemented behavior of each delivered slice.
 ## Store
 - Times are stored as fixed-width UTC text (`timeLayout`) so text order is time order. There is no
   corruption auto-recovery: a failed open is an error, so users' flows never vanish silently.
-- Schema version: `flows_meta.schema_version` holds `storeSchemaVersion` (8). `OpenStore` refuses a database
-  with a greater version (or one that is not a number) before any migration runs and leaves the file untouched,
-  so an older AuraGo never writes into a schema a newer one migrated. Raise `storeSchemaVersion` with every
-  migration a previous release cannot work with.
+- `flows_meta.schema_version` holds `storeSchemaVersion`. `OpenStore` checks existing files with a read-only
+  SQLite connection that sees committed WAL data before the normal open can set the journal mode. Newer and
+  invalid versions leave the database contents and journal mode intact. Raise `storeSchemaVersion` with every
+  migration a previous release cannot work with. Verify `TestC16OpenStoreRefusesANewerSchema` and
+  `TestOpenStoreChecksTheSchemaInWAL`.
 - Before v1-to-v2 migration of any on-disk database, `OpenStore` creates a unique SQLite snapshot in a
   `.flows-v1-backup-*` sibling directory, verifies integrity and syncs the backup. A failed backup blocks
   migration. Version 2 creates `flow_test_scenarios` and `flow_checkpoints` transactionally and writes the
@@ -679,7 +683,8 @@ the contracts below describe the implemented behavior of each delivered slice.
   Limits: final prompt, instructions (including field hints) and serialized JSON schema together 256 KiB
   before each stepper call, including repair (`FLOW_PARAM_INVALID`, no truncation or further call); answer text 1 MiB (`FLOW_OUTPUT_TOO_LARGE`, the node's own cap; the
   server's `LLMStepper` refuses answers over 256 KiB first, see Integration), 50 fields, a field description 500
-  runes, a model name 200 bytes. `FLOW_AI_UNAVAILABLE` (no stepper), `FLOW_AI_OUTPUT_INVALID`
+  runes including its data fence, a model name 200 bytes. Verify `TestAIStepFieldDescriptionsFenceExternalValues`.
+  `FLOW_AI_UNAVAILABLE` (no stepper), `FLOW_AI_OUTPUT_INVALID`
   (retried), `FLOW_AI_OUTPUT_CUT` (an answer cut off at the token limit; set by the stepper, not retried, and no
   repair call follows because `aiCall` returns the error before the repair loop; the node has no answer-length
   setting, so the remedy is a shorter answer or fewer fields) and `FLOW_BUDGET_EXCEEDED` (set by the stepper,
@@ -725,7 +730,7 @@ the contracts below describe the implemented behavior of each delivered slice.
   flow was published under, the engine refuses the node at run time before it reads the vault (see Engine
   semantics). `auth_header` and `auth_prefix` must be written out while `auth_secret` is set: a template there is a
   publish error (`PARAM_INVALID`) and `withAuthSecret` refuses it at run time (`FLOW_PARAM_INVALID`, on the raw
-  param, before the vault is read). `auth_in` (`header`, the default, or `query`) and `auth_query` (the address parameter name) follow the same rule. With `auth_in=query`, `withAuthSecret` sets the parameter on the first request's address only (`withQueryParam`); a redirect never gets it again. The node reads the value
+  param, before the vault is read). `auth_in` (`header`, the default, or `query`) and `auth_query` (the address parameter name) follow the same rule. With `auth_in=query`, `queryWithVaultParam` prepares the replacement query in trusted per-call metadata outside tool arguments. The transport sets it on the checked initial URL and returns the first response, including a 3xx and its scrubbed `Location`. Verify `TestFlowHTTPVaultQueryStopsAtRedirect`. The node reads the value
   through `Services.Secrets`; the vault value wins over a user header of the same name; `secretScrubber`
   redacts the value (and its JSON, HTML and URL escapes) from outputs and errors. A `SecretReader` must register
   the value with the global output scrubber too. A missing or unusable secret is `FLOW_SECRET_UNAVAILABLE`.

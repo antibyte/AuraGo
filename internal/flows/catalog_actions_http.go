@@ -215,11 +215,9 @@ func authQueryName(v any) (string, error) {
 	return s, nil
 }
 
-// withQueryParam sets the address parameter name to value: every existing parameter of that
-// name is dropped, whatever its value, and the new one goes last. Other parameters keep their
-// text, so do the host, the path and the fragment. It runs once, on the first request's
-// address: a redirect follows the server's Location and never gets the parameter again.
-func withQueryParam(target, name, value string) (string, error) {
+// queryWithVaultParam replaces every occurrence of name in the raw query and appends the
+// Vault value. The transport applies this query to the already checked first-hop URL.
+func queryWithVaultParam(target, name, value string) (string, error) {
 	u, ok := splitCredentialURL(target)
 	if !ok {
 		return "", NewNodeError("FLOW_PARAM_INVALID", "the web address must start with http:// or https://")
@@ -233,8 +231,7 @@ func withQueryParam(target, name, value string) (string, error) {
 			}
 		}
 	}
-	u.query, u.hasQuery = strings.Join(append(keep, url.QueryEscape(name)+"="+url.QueryEscape(value)), "&"), true
-	return u.String(), nil
+	return strings.Join(append(keep, url.QueryEscape(name)+"="+url.QueryEscape(value)), "&"), nil
 }
 
 // authLiteralParams shape the credential header next to auth_secret. While a secret is set they
@@ -259,9 +256,9 @@ func authLiteralIssues(n *Node) []Issue {
 }
 
 // withAuthSecret adds the credential named by auth_secret to the request and returns the
-// headers, the address and a scrubber for its value (one that removes nothing when no secret is
-// used). With auth_in=header (the default) the secret is a header; with auth_in=query it is the
-// address parameter auth_query, set on the first request's address only. The vault value is
+// headers, an optional Vault query and a scrubber for its value. With auth_in=header (the default)
+// the secret is a header. With auth_in=query the query travels outside tool arguments and the
+// transport sets it on the first request only. The vault value is
 // trimmed (a pasted secret often ends in a newline); an empty one fails instead of sending
 // "Bearer ". When the request already has a header of that name, in any spelling, the vault
 // secret wins: it is the deliberate setting, and data from a template must not be able to
@@ -280,7 +277,7 @@ func withAuthSecret(in ExecInput, headers []httpHeader, target string) ([]httpHe
 		return nil, "", nil, err
 	}
 	if key = strings.TrimSpace(key); key == "" {
-		return headers, target, nil, nil
+		return headers, "", nil, nil
 	}
 	// auth_in, auth_query, auth_header and auth_prefix shape where and how the secret is sent;
 	// like the vault entry they are the author's choice, never data that flows through the run.
@@ -327,11 +324,11 @@ func withAuthSecret(in ExecInput, headers []httpHeader, target string) ([]httpHe
 	}
 	scrub := newSecretScrubber(secret)
 	if mode == "query" {
-		next, err := withQueryParam(target, queryName, secret)
+		query, err := queryWithVaultParam(target, queryName, secret)
 		if err != nil {
 			return nil, "", nil, err
 		}
-		return headers, next, scrub, nil
+		return headers, query, scrub, nil
 	}
 	merged := make([]httpHeader, 0, len(headers)+1)
 	for _, h := range headers {
@@ -343,7 +340,7 @@ func withAuthSecret(in ExecInput, headers []httpHeader, target string) ([]httpHe
 	if err := headerTotals(merged); err != nil {
 		return nil, "", nil, err
 	}
-	return merged, target, scrub, nil
+	return merged, "", scrub, nil
 }
 
 // requestBody builds the request body: a text is sent as it is, anything else as
@@ -447,9 +444,9 @@ func httpRequestEffects(n *Node) []Effect {
 //
 // Secrets: auth_secret names a vault entry whose value goes into the credential
 // header (see withAuthSecret). auth_in=query sends the secret as the address parameter
-// auth_query instead, on the first request only. The value is scrubbed from everything the node
-// returns, errors included, because a server can echo the request headers.
-// api_request follows up to 10 redirects. Once a hop changes the host, the scheme or
+// auth_query instead and returns the first response, including redirects. The value is scrubbed
+// from everything the node returns, errors included, because a server can echo it.
+// Otherwise api_request follows up to 10 redirects. Once a hop changes the host, the scheme or
 // the effective port (only http:80 to https:443 on the same host keeps them), it drops
 // every header the caller set except Accept, Content-Type and User-Agent, so neither
 // Authorization nor a custom auth_header credential reaches another host
@@ -547,7 +544,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		if err != nil {
 			return ExecResult{}, err
 		}
-		headers, target, scrub, err := withAuthSecret(in, headers, target)
+		headers, vaultQuery, scrub, err := withAuthSecret(in, headers, target)
 		if err != nil {
 			return ExecResult{}, err
 		}
@@ -562,7 +559,7 @@ func httpRequestDef(env CatalogEnv) *NodeDef {
 		if hasBody {
 			args["body"] = body
 		}
-		out, err := callTool(ctx, in, "api_request", args)
+		out, err := callToolRequest(ctx, in, ToolRequest{Tool: "api_request", Args: args, VaultQuery: vaultQuery})
 		// The answer is scrubbed before anything is read from it, so no message or
 		// output built below can carry the secret. The body is a text that the tool
 		// may have cut at apiBodyLimit, in the middle of an echoed secret.

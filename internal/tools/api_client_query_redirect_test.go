@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// A secret that http.request puts into the first address (auth_in=query) never reaches a later
-// hop: the next address is the server's Location, to another host and to the same host alike.
+// For ordinary redirects, the destination URL comes from Location. Vault-backed query
+// requests use a separate single-hop policy covered by TestFlowHTTPVaultQueryStopsAtRedirect.
 func TestAPIRequestRedirectDoesNotCarryTheQuerySecret(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 	ConfigureRuntimePermissions(RuntimePermissions{AllowNetworkRequests: true})

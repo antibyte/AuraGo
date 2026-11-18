@@ -91,6 +91,7 @@ func aiStepDef() *NodeDef {
 			{Name: "output_mode", Kind: ParamSegmented, LabelKey: "easydrag.param.ai_output_mode", Default: "text",
 				Options: []Option{option("text", "ai_output_text"), option("fields", "ai_output_fields")}},
 			{Name: "fields", Kind: ParamFields, LabelKey: "easydrag.param.ai_fields", Required: true,
+				SensitiveSink: true, FenceUntrusted: true,
 				VisibleIf: &Visibility{Param: "output_mode", Equals: []string{"fields"}},
 				Fields: []ParamSpec{
 					{Name: "name", Kind: ParamText, LabelKey: "easydrag.param.field_name", Required: true},

@@ -122,12 +122,12 @@ type ParamSpec struct {
 	// FenceUntrusted: untrusted values (Env.Untrusted) that a template splices into the
 	// param reach Execute inside the external-data fence, so a model that reads the param
 	// can tell the author's text from outside data. A text param gets the whole-value fence
-	// (fenceUntrusted). A ParamJSON param is fenced per leaf (fenceUntrustedLeaves): a value
+	// (fenceUntrusted). A structured model param is fenced per leaf (fenceUntrustedLeaves): a value
 	// that a single-expression template reads keeps its JSON type, and its string leaves and
 	// its keys that do not look like identifiers are fenced; a value spliced into text gets the
 	// whole-value fence; the author's literal JSON stays as written. Set it on a param that
-	// goes to a model as material (the ai.step prompt and instructions, the ai.decision
-	// state), never on one that Execute parses or compares. The resolved param, and so the
+	// goes to a model as material. Structured params still validate resolved structural
+	// fields before building the model request. The resolved param, and so the
 	// run log, shows the fenced value. It is not part of the editor's API.
 	FenceUntrusted bool        `json:"-"`
 	Fields         []ParamSpec `json:"fields,omitempty"`
@@ -403,8 +403,8 @@ const (
 	// fenceWhole fences each untrusted value as one text (fenceUntrusted).
 	fenceWhole fenceMode = iota + 1
 	// fenceLeaves keeps the JSON type of a value that a single-expression template reads, and
-	// fences its string leaves and its non-identifier keys (fenceUntrustedLeaves). ParamJSON and
-	// ParamDecisionQuestions use it; a fenced question id, option id or type then fails validation.
+	// fences its string leaves and its non-identifier keys (fenceUntrustedLeaves). Structured
+	// model parameters use it so that fenced names, IDs and types still face their validators.
 	fenceLeaves
 )
 
@@ -418,7 +418,7 @@ func (d *NodeDef) fencedParams() map[string]fenceMode {
 				out = map[string]fenceMode{}
 			}
 			mode := fenceWhole
-			if spec.Kind == ParamJSON || spec.Kind == ParamDecisionQuestions {
+			if spec.Kind == ParamJSON || spec.Kind == ParamDecisionQuestions || spec.Kind == ParamFields {
 				mode = fenceLeaves
 			}
 			out[spec.Name] = mode

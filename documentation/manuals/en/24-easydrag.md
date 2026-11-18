@@ -487,6 +487,7 @@ The filesystem tool's permissions and protected paths still apply.
 
 ## Secrets
 
+- If the HTTP step sends a Vault secret as a query parameter, it returns the first response. For a redirect, the step returns the 3xx status and the `Location` header with the secret redacted.
 - Store API keys for HTTP requests as secrets: **New secret** in the step's *Secret* field. A value may be up to 4 KiB, and AuraGo accepts at most 30 secret changes per minute. A name that exists already asks before its value is replaced.
 - Secrets live in the Vault as `easydrag_<name>`. Flows can use them; the agent cannot list, read or change them. Run data and the run view show their values redacted, with a limit for very short values (see [Chapter 11](11-missions.md#flow-secrets)).
 - The bin next to **New secret** deletes the chosen secret after a confirmation and clears the field. Flows that use the secret fail until it is set again; if published flows still use it, a notification names them.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -199,6 +200,9 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 			return nil, fmt.Errorf("create flows database directory: %w", err)
 		}
 	}
+	if err := preflightStoreSchema(path); err != nil {
+		return nil, err
+	}
 	db, err := dbutil.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open flows database: %w", err)
@@ -345,6 +349,62 @@ func OpenStore(path string, logger *slog.Logger) (*Store, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+// preflightStoreSchema checks existing databases before dbutil.Open sets WAL mode.
+func preflightStoreSchema(dsn string) error {
+	base, rawQuery, _ := strings.Cut(dsn, "?")
+	if base == "" || base == ":memory:" || base == "file::memory:" {
+		return nil
+	}
+	query, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return fmt.Errorf("open flows database read-only: %w", err)
+	}
+	path := base
+	if strings.HasPrefix(base, "file:") {
+		if query.Get("mode") == "memory" {
+			return nil
+		}
+		u, err := url.Parse(base)
+		if err != nil {
+			return fmt.Errorf("open flows database read-only: %w", err)
+		}
+		path = u.Path
+		if u.Opaque != "" {
+			path, err = url.PathUnescape(u.Opaque)
+			if err != nil {
+				return fmt.Errorf("open flows database read-only: %w", err)
+			}
+		}
+		if rest, ok := strings.CutPrefix(path, "/"); ok && filepath.VolumeName(rest) != "" {
+			path = rest
+		}
+	} else {
+		p := url.URL{Path: filepath.ToSlash(base)}
+		escapedPath := p.EscapedPath()
+		// A UNC path needs an empty URI authority so SQLite keeps the server in the path.
+		if strings.HasPrefix(escapedPath, "//") {
+			escapedPath = "//" + escapedPath
+		}
+		base = "file:" + escapedPath
+	}
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect flows database path: %w", err)
+	}
+	// Exclude caller pragmas and immutable mode so the probe reads committed WAL data.
+	probe := url.Values{"mode": {"ro"}, "_pragma": {"busy_timeout(5000)"}}
+	if vfs := query.Get("vfs"); vfs != "" {
+		probe.Set("vfs", vfs)
+	}
+	db, err := sql.Open("sqlite", base+"?"+probe.Encode())
+	if err != nil {
+		return fmt.Errorf("open flows database read-only: %w", err)
+	}
+	defer db.Close()
+	return checkStoreSchema(db)
 }
 
 // checkStoreSchema refuses a database whose flows_meta.schema_version is greater than

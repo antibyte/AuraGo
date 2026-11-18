@@ -38,6 +38,8 @@ type ToolRequest struct {
 	// anything, append included. It is never nil when callTool made the request.
 	Args         map[string]any
 	AllowedTools []string
+	// VaultQuery replaces only the request query after dispatch checks, for one HTTP hop.
+	VaultQuery string `json:"-"`
 }
 
 // ToolResponse is the raw tool result.

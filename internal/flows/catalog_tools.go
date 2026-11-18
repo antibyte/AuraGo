@@ -244,19 +244,22 @@ func nodeIDOf(in ExecInput) string {
 // Whole-answer quarantine notices retain a concise local reason; suspicious or
 // incomplete inspections are denied, while an unavailable scanner may be retried.
 func callTool(ctx context.Context, in ExecInput, tool string, args map[string]any) (map[string]any, error) {
+	return callToolRequest(ctx, in, ToolRequest{Tool: tool, Args: args})
+}
+
+func callToolRequest(ctx context.Context, in ExecInput, req ToolRequest) (map[string]any, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, invokeError(err)
 	}
 	if in.Services == nil || in.Services.Tools == nil {
 		return nil, NewNodeError("FLOW_TOOLS_UNAVAILABLE", "tools are not available in this run")
 	}
-	if args == nil {
-		args = map[string]any{}
+	if req.Args == nil {
+		req.Args = map[string]any{}
 	}
-	resp, err := in.Services.Tools.InvokeTool(ctx, ToolRequest{
-		FlowID: in.Run.FlowID, RunID: in.Run.ID, NodeID: nodeIDOf(in), Mode: in.Run.Mode,
-		Tool: tool, Args: args, AllowedTools: []string{tool},
-	})
+	req.FlowID, req.RunID, req.NodeID, req.Mode = in.Run.FlowID, in.Run.ID, nodeIDOf(in), in.Run.Mode
+	req.AllowedTools = []string{req.Tool}
+	resp, err := in.Services.Tools.InvokeTool(ctx, req)
 	if err != nil {
 		return nil, invokeError(err)
 	}

@@ -91,6 +91,69 @@ func TestAIStepInstructionsStayPlainWithoutUntrustedSources(t *testing.T) {
 	}
 }
 
+func TestAIStepFieldDescriptionsFenceExternalValues(t *testing.T) {
+	const label = "North & West"
+	for _, tc := range []struct {
+		name, trigger, description, want string
+		warn, oversize                   bool
+	}{
+		{"static", TypeTriggerWebhook, label, label, false, false},
+		{"trusted", TypeTriggerManual, "Region: {{prep.label}}", "Region: " + label, false, false},
+		{"external", TypeTriggerWebhook, "Region: {{prep.label}}", "Region: " + Stringify(fenceUntrusted(label)), true, false},
+		{"oversize", TypeTriggerWebhook, "{{prep.label}}", "", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			llm := &fakeLLM{responses: []LLMResponse{{Text: "{}"}, {Text: `{"region":"North"}`}}}
+			reg := catalogRegistry(t, fullEnv())
+			eng := newTestEngine(reg, &Services{LLM: llm, Location: time.UTC}, 4)
+			b := newFlow("Output descriptions")
+			tr := b.node("start", tc.trigger, nil)
+			prep := b.node("prep", TypeSet, map[string]any{"fields": []any{
+				map[string]any{"name": "label", "type": "text", "value": "{{trigger.data.label}}"},
+			}})
+			step := b.node("ask", TypeAIStep, map[string]any{
+				"prompt": "Summarise.", "output_mode": "fields", "fields": []any{
+					map[string]any{"name": "region", "type": "text", "description": tc.description},
+				},
+			})
+			b.edge(tr, PortOut, prep)
+			b.edge(prep, PortOut, step)
+			flow := b.build()
+			warned := false
+			for _, issue := range LintUntrustedData(flow, reg) {
+				if issue.NodeID == step && issue.Param == "fields" && issue.Code == IssueUntrustedData && issue.Severity == SeverityWarning {
+					warned = true
+				}
+			}
+			if warned != tc.warn {
+				t.Fatalf("lint warning = %v, want %v", warned, tc.warn)
+			}
+			value := label
+			if tc.oversize {
+				value = strings.Repeat("a", maxAIFieldDescRunes)
+			}
+			res, _ := runWith(t.Context(), eng, flow, RunRequest{
+				TriggerNode: tr, TriggerData: map[string]any{"label": value},
+			})
+			if tc.oversize {
+				if res.ErrorCode != "FLOW_PARAM_INVALID" || llm.callCount() != 0 {
+					t.Fatalf("oversize run = %s %s, model calls = %d", res.Status, res.ErrorCode, llm.callCount())
+				}
+				return
+			}
+			if res.Status != RunSuccess || llm.callCount() != 2 {
+				t.Fatalf("run = %s %s, model calls = %d", res.Status, res.ErrorCode, llm.callCount())
+			}
+			for _, req := range llm.calls {
+				prop := req.JSONSchema["properties"].(map[string]any)["region"].(map[string]any)
+				if prop["description"] != tc.want || !strings.Contains(req.System, ": "+strings.Join(strings.Fields(tc.want), " ")) {
+					t.Fatalf("schema description = %q, system = %q", prop["description"], req.System)
+				}
+			}
+		})
+	}
+}
+
 // An object or a list from an untrusted node is fenced as one text of its JSON.
 func TestAIStepPromptFencesUntrustedStructuredValues(t *testing.T) {
 	req := fenceRun(t, TypeTriggerWebhook, "{{trigger.data.items}}", "",

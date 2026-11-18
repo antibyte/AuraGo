@@ -145,6 +145,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 
 ### Accepted tool batches and bounded side effects
 
+- The EasyDrag bridge passes `APIRequestVaultQuery` as trusted dispatch metadata. The flow's `api_request` forwards it to the HTTP client after the ordinary tool-argument gates and logs the event without a URL.
 - PDF extraction receives the dispatch context. Only successful extraction may
   enter summary mode; limit, cancellation and parse failures return directly.
   Shared limits and parser ownership: `../pdftext/AGENTS.md`.

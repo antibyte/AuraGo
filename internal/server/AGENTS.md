@@ -833,6 +833,9 @@ Server-owned HTTP and cross-component integration contracts.
 - `/api/models/catalog` uses the bundled provider/model catalog for its list. For exact provider/model matches, its structured-output flag follows the `models.dev` registry instead of the catalog's API-family inference; unmatched models keep their catalog flag. Verify with `TestHandleModelCatalogStructuredOutputMatchesModelsDev`.
 
 ### EasyDrag flows
+- `flowToolInvoker` forwards only `api_request`'s curated Vault query through trusted dispatch
+  metadata. It comes from the node's Vault query binding and stays outside tool arguments.
+  Verify `TestFlowHTTPVaultQueryStopsAtRedirect`.
 - `flowsDecode` accepts one JSON value followed only by whitespace. It checks the bounded body
   through EOF before a handler proceeds, returning 400 for a second value or malformed tail and
   413 when a trailing body exceeds the route limit. Verify `TestFlowsDecodeStrictSingleValue`.

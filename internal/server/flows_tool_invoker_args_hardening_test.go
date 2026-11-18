@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -86,6 +88,66 @@ func TestC13APIRequestArgumentsAreNotLogged(t *testing.T) {
 	}
 	if !strings.Contains(out, "/v1/items?[redacted]") {
 		t.Errorf("the URL is not logged in its redacted form: %s", out)
+	}
+}
+
+func TestFlowHTTPVaultQueryStopsAtRedirect(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	const value = "North & West test value"
+	var initial, landing atomic.Int32
+	mux := http.NewServeMux()
+	mux.HandleFunc("/start", func(w http.ResponseWriter, r *http.Request) {
+		initial.Add(1)
+		if r.URL.Query().Get("key") != value {
+			t.Error("the initial request did not receive its Vault query value")
+		}
+		http.Redirect(w, r, "/landing?label="+url.QueryEscape(value), http.StatusTemporaryRedirect)
+	})
+	mux.HandleFunc("/landing", func(w http.ResponseWriter, r *http.Request) { landing.Add(1) })
+	api := httptest.NewServer(mux)
+	t.Cleanup(api.Close)
+	cfg := &config.Config{}
+	cfg.Agent.AllowNetworkRequests = true
+	inv, s, _ := c13Invoker(cfg, map[string]bool{"api_request": true}, func(ctx context.Context, tc *agent.ToolCall, dc *agent.DispatchContext) agent.ToolDispatchResult {
+		return agent.DispatchToolCallResult(ctx, tc, dc, "")
+	})
+	s.Vault, _ = c14SecretVault(t, map[string]string{"fixture": value})
+	logs := &c13LogBuffer{}
+	s.Logger = slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	s.bindRuntimePermissions()
+	t.Cleanup(func() { tools.SetRuntimePermissionResolver(nil) })
+	reg := flows.NewRegistry()
+	if err := flows.RegisterCatalog(reg, flows.StaticEnv{"api_request": {}}); err != nil {
+		t.Fatal(err)
+	}
+	def, ok := reg.Lookup(flows.TypeHTTPRequest)
+	if !ok {
+		t.Fatal("http.request is missing from the catalog")
+	}
+	in := flows.ExecInput{
+		Run:      flows.RunInfo{ID: "run_query_redirect", FlowID: "flow_aaaaaaaaaa", Mode: flows.ModeTest},
+		Params:   map[string]any{"url": api.URL + "/start", "auth_secret": "fixture", "auth_in": "query", "auth_query": "key"},
+		Services: &flows.Services{Tools: inv, Secrets: flowSecrets{s: s}},
+	}
+	in.Node = &flows.Node{ID: "n_aaaaaaaa", Type: flows.TypeHTTPRequest, Params: in.Params}
+	res, err := def.Execute(t.Context(), in)
+	if err != nil || res.Output["status_code"] != float64(http.StatusTemporaryRedirect) || res.Output["ok"] != true {
+		t.Fatalf("http.request = %+v, %v", res, err)
+	}
+	if initial.Load() != 1 || landing.Load() != 0 {
+		t.Fatalf("requests = %d initial, %d landing", initial.Load(), landing.Load())
+	}
+	if headers, _ := res.Output["headers"].(map[string]any); headers["location"] != "/landing?label=[redacted]" {
+		t.Fatalf("redirect location was not redacted: %v", headers)
+	}
+	if out := logs.String(); !strings.Contains(out, "Flow requested a single-hop API request") || strings.Contains(out, value) || strings.Contains(out, url.QueryEscape(value)) {
+		t.Fatal("dispatch logs are missing the event or contain the Vault query value")
+	}
+	in.Params["headers"] = map[string]any{"X-Fixture": value}
+	_, err = def.Execute(t.Context(), in)
+	var denied *flows.NodeError
+	if !errors.As(err, &denied) || denied.Code != "FLOW_TOOL_DENIED" || initial.Load() != 1 {
+		t.Fatalf("an ordinary argument containing a protected value must still be refused, got %v", err)
 	}
 }
 

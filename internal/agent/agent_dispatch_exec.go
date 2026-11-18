@@ -1345,14 +1345,20 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: [PERMISSION DENIED] api_request is disabled in Danger Zone settings (agent.allow_network_requests: false)."
 			}
 			req := decodeAPIRequestArgs(tc)
-			logger.Info("LLM requested generic API request", "url", req.URL)
-			apiOpts := tools.APIRequestOptions{}
+			apiOpts := tools.APIRequestOptions{Context: ctx}
+			if dc.MessageSource == MessageSourceFlow {
+				apiOpts.VaultQuery = dc.APIRequestVaultQuery
+			}
+			if apiOpts.VaultQuery != "" {
+				logger.Info("Flow requested a single-hop API request")
+			} else {
+				logger.Info("LLM requested generic API request", "url", req.URL)
+			}
 			// Flows never get the local Ollama exception. The exception is inference
 			// and read paths on the configured loopback URL only.
 			if dc.MessageSource != MessageSourceFlow {
 				apiOpts.AllowedLocalOllamaBaseURL = cfg.Ollama.URL
 			}
-			apiOpts.Context = ctx
 			return tools.ExecuteAPIRequestWithOptions(req.Method, req.URL, req.Body, req.Headers, apiOpts)
 
 		case "koofr", "koofr_api", "koofr_op":

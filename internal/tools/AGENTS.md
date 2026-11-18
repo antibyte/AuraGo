@@ -110,6 +110,7 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - `GitHubDeleteRepo` revokes an existing grant before `DELETE`. A non-204 response restores that grant. A transport error leaves it revoked and reports `trust_revoked`.
 - GitHub HTTP uses `NewSSRFProtectedHTTPClientSameOrigin` and the caller context.
 - Outgoing `call_webhook` uses `NewSSRFProtectedHTTPClientSameOrigin`. A cross-origin redirect is refused before the next host is contacted. Verify `TestExecuteOutgoingWebhookDoesNotFollowCrossOriginRedirect`.
+- `api_request` applies EasyDrag's trusted `APIRequestOptions.VaultQuery` to the checked URL's query only. It uses the SSRF-protected transport and keeps the first response, including 3xx. Verify `TestFlowHTTPVaultQueryStopsAtRedirect` in `internal/server`.
 
 ### treg catalog gateway
 - `treg_catalog`, `treg_call` and `treg_status` use the fixed public-only treg transport. Never accept model-supplied origins, authentication, cost headers or polling URLs. Already-sent calls are not replayed after ambiguous failures.

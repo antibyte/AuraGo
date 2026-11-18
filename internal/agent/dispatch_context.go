@@ -28,6 +28,9 @@ const MessageSourceFlow = "flow"
 // It replaces the 30+ individual function parameters that were previously threaded
 // from DispatchToolCall → dispatchInner → dispatchExec/Comm/Services/Infra.
 type DispatchContext struct {
+	// APIRequestVaultQuery is trusted per-call metadata from the flow bridge.
+	APIRequestVaultQuery string `json:"-"`
+
 	Ctx                  context.Context // Per-call owner; populated only on a local dispatch copy.
 	actionLedger         *agentActionLedger
 	actionEvent          *AgentActionEvent

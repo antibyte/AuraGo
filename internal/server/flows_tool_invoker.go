@@ -229,6 +229,9 @@ func (i *flowToolInvoker) InvokeTool(ctx context.Context, req flows.ToolRequest)
 	secrets, release := flowRegisterSecrets(cfg, req.Tool)
 	defer release()
 	dc := i.dispatchContext(flowDispatchConfig(cfg), req.FlowID, action)
+	if action == "api_request" {
+		dc.APIRequestVaultQuery = req.VaultQuery
+	}
 	res := i.dispatch(ctx, &tc, dc)
 	if res.Status == agent.ToolResultDenied && strings.Contains(res.Output, `"code":"action_rule_required"`) {
 		if strings.Contains(res.Output, "copies isolated tool text.") {
