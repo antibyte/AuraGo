@@ -189,9 +189,17 @@ if (check) {
   await fs.mkdir(outDir, { recursive: true });
   const listed = new Set(jobs.map(j => j.lod.file));
   for (const name of await fs.readdir(outDir)) if (name.endsWith('.glb') && !listed.has(name)) await fs.unlink(path.join(outDir, name));
-  await Promise.all(jobs.map((job, i) => fs.writeFile(path.join(outDir, job.lod.file), packed[i])));
-  await fs.writeFile(path.join(outDir, 'LICENSE.txt'), (await fs.readFile('LICENSE', 'utf8')).replaceAll(String.fromCharCode(13, 10), String.fromCharCode(10)));
-  await fs.writeFile(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  const writeStable = async (dest, bytes) => {
+    const prev = await fs.readFile(dest).catch(() => null);
+    if (prev && prev.equals(bytes)) return;
+    for (let attempt = 0; ; attempt++) {
+      try { await fs.writeFile(dest, bytes); return; }
+      catch (err) { if (attempt >= 5 || !['EBUSY', 'EPERM', 'UNKNOWN'].includes(err?.code)) throw err; await new Promise(r => setTimeout(r, 80 * (attempt + 1))); }
+    }
+  };
+  await mapLimited(jobs, 6, (job, i) => writeStable(path.join(outDir, job.lod.file), packed[i]));
+  await writeStable(path.join(outDir, 'LICENSE.txt'), Buffer.from((await fs.readFile('LICENSE', 'utf8')).replaceAll(String.fromCharCode(13, 10), String.fromCharCode(10)), 'utf8'));
+  await writeStable(path.join(outDir, 'manifest.json'), Buffer.from(JSON.stringify(manifest, null, 2) + '\n', 'utf8'));
   const dir = await checkCeiling();
   console.log('System World v3 built: ' + manifest.assets.length + ' designs, ' + jobs.length + ' files, ' +
     total + ' bytes, model directory ' + dir + ' bytes');

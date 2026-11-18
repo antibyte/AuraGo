@@ -94,13 +94,16 @@ def unit(field, lo=2.0, hi=98.0):
 
 
 def asphalt(size):
-    """Fine mottling, light/dark aggregate, meandering cracks (some sealed and glossy), a patch."""
+    """Fine mottling, wheel-track polish, aggregate, meandering cracks (some tar-sealed) and a repair patch."""
     x, y = grid(size)
     base = spectral(size, 11, beta=1.5, lo=6, hi=220)
+    grit = spectral(size, 101, beta=0.8, lo=90, hi=420)
     macro = spectral(size, 12, beta=3.2, lo=1, hi=5)
     d1, _, val = voronoi(size, 150, 13)
     stone = smoothstep(0.45, 0.2, d1)
     light, dark = stone * (val > 0.84), stone * (val < 0.12)
+    track_wave = np.sin(2.0 * np.pi * (y * 2.0 + 0.04 * spectral(size, 102, beta=2.8, lo=1, hi=4)))
+    polish = smoothstep(0.35, 0.92, track_wave) * (0.65 + 0.35 * unit(spectral(size, 103, beta=2.5, lo=1, hi=6)))
     warp = (spectral(size, 14, beta=2.6, lo=2, hi=24) * 0.12, spectral(size, 15, beta=2.6, lo=2, hi=24) * 0.12)
     c1, c2, cval = voronoi(size, 5, 16, jitter=0.95, warp=warp)
     edge = c2 - c1
@@ -111,14 +114,17 @@ def asphalt(size):
     region = unit(spectral(size, 19, beta=3.0, lo=1, hi=2))  # one or two large patches, no small ring islands
     patch = smoothstep(0.74, 0.77, region)
     seam = smoothstep(0.012, 0.0, np.abs(region - 0.755))
-    albedo = (1.0 + 0.06 * base + 0.32 * light - 0.2 * dark - 0.5 * crack - 0.3 * sealed) * (1.0 - 0.13 * patch) - 0.15 * seam
-    rough = (1.0 + 0.07 * base + 0.18 * crack - 0.35 * sealed) * (1.0 - 0.12 * patch)
-    height = 0.5 + 0.13 * macro / 3.0 + 0.16 * stone * (val - 0.5) + 0.05 * base / 3.0 - 0.35 * crack - 0.06 * sealed - 0.08 * seam
+    albedo = ((1.0 + 0.055 * base + 0.028 * grit + 0.32 * light - 0.2 * dark - 0.5 * crack - 0.3 * sealed)
+              * (1.0 - 0.045 * polish) * (1.0 - 0.13 * patch) - 0.15 * seam)
+    rough = ((1.0 + 0.065 * base + 0.03 * grit + 0.18 * crack - 0.36 * sealed)
+             * (1.0 - 0.14 * polish) * (1.0 - 0.12 * patch))
+    height = (0.5 + 0.13 * macro / 3.0 + 0.16 * stone * (val - 0.5) + 0.04 * base / 3.0 + 0.02 * grit / 3.0
+              - 0.012 * polish - 0.35 * crack + 0.022 * sealed - 0.08 * seam)
     return albedo, rough, height
 
 
 def pavers(size):
-    """Running-bond pavers (8 x 16 per tile) with bevels, grout, per-stone tone and tilt."""
+    """Running-bond pavers (8 x 16 per tile) with chipped stone arrises, mica grain, grout, corner patina and tilt."""
     x, y = grid(size)
     rows, per_row = 16, 8
     row = np.floor(y * rows).astype(np.int64)
@@ -127,86 +133,118 @@ def pavers(size):
     col = np.floor(bx).astype(np.int64) % per_row
     lx = bx - np.floor(bx)
     ex, ey = np.minimum(lx, 1.0 - lx) * size / per_row, np.minimum(ly, 1.0 - ly) * size / rows
-    edge = np.minimum(ex, ey)
+    chip = spectral(size, 121, beta=1.3, lo=24, hi=220) * 0.42
+    edge = np.maximum(0.0, np.minimum(ex, ey) + chip)
     grout = smoothstep(2.4, 1.1, edge)
-    bevel = smoothstep(1.1, 7.0, edge)
+    bevel = smoothstep(1.1, 7.2, edge)
+    corner = smoothstep(9.0, 1.6, np.maximum(ex, ey)) * (1.0 - grout)
     rng = np.random.default_rng(21)
     stone = row * per_row + col
     tone, tilt_x, tilt_y, stain = (rng.random(rows * per_row)[stone] for _ in range(4))
     speck = spectral(size, 22, beta=1.1, lo=40, hi=400)
+    mica = spectral(size, 122, beta=0.7, lo=120, hi=480)
     macro = spectral(size, 23, beta=3.2, lo=1, hi=4)
     wear = unit(spectral(size, 24, beta=2.4, lo=2, hi=20))
-    albedo = (0.9 + 0.2 * tone) * (1.0 + 0.045 * speck) * np.where(stain > 0.93, 0.84, 1.0) * (0.96 + 0.08 * wear)
-    albedo = albedo * (1.0 - grout) + 0.58 * grout
-    rough = (0.95 + 0.1 * tone) * (1.0 + 0.05 * speck) * (1.0 - grout) + 1.28 * grout
+    albedo = ((0.9 + 0.2 * tone) * (1.0 + 0.042 * speck + 0.028 * mica)
+              * np.where(stain > 0.93, 0.84, 1.0) * (0.96 + 0.08 * wear) * (1.0 - 0.075 * corner))
+    albedo = albedo * (1.0 - grout) + 0.56 * grout
+    rough = ((0.95 + 0.1 * tone) * (1.0 + 0.045 * speck - 0.04 * np.clip(mica, 0.0, None))
+             * (1.0 + 0.06 * corner) * (1.0 - grout) + 1.28 * grout)
     tilt = ((tilt_x - 0.5) * (lx - 0.5) + (tilt_y - 0.5) * (ly - 0.5)) * 0.12
-    height = 0.28 + 0.46 * bevel + 0.03 * speck / 3.0 + tilt * bevel + 0.12 * macro / 3.0
-    height = height * (1.0 - grout) + 0.14 * grout
+    height = 0.28 + 0.46 * bevel + 0.03 * speck / 3.0 + 0.015 * mica / 3.0 + tilt * bevel + 0.12 * macro / 3.0
+    height = height * (1.0 - grout) + 0.13 * grout
     return albedo, rough, height
 
 
 def concrete(size):
-    """Board-formed concrete: mottling, pores, faint rain streaks, 2 x 1 m form seams and tie holes."""
+    """Board-formed concrete: shuttering timber grain, mottling, pores, rain streaks, form seams and collared tie holes."""
     x, y = grid(size)
+    k = size / 512.0
     mottle = spectral(size, 31, beta=2.4, lo=2, hi=64)
-    fine = spectral(size, 32, beta=1.0, lo=40, hi=256)
+    fine = spectral(size, 32, beta=1.0, lo=40, hi=min(420, size // 2))
+    grain = spectral(size, 132, beta=1.5, lo=8, hi=min(220, size // 2), stretch=(1.0, 9.0))
+    plank = np.floor(y * 16.0).astype(np.int64) % 16
+    plank_y = y * 16.0 - np.floor(y * 16.0)
+    plank_tone = np.random.default_rng(131).random(16)[plank] - 0.5
+    plank_seam = smoothstep(1.15 * k, 0.32 * k, np.minimum(plank_y, 1.0 - plank_y) * size / 16.0)
     d1, _, val = voronoi(size, 110, 33)
     pore = (val < 0.14) * smoothstep(0.24, 0.07, d1)
     streak = np.clip(spectral(size, 34, beta=1.8, lo=6, hi=90, stretch=(1.0, 7.0)), 0.0, None)
     sx = np.abs(x * 2.0 - np.round(x * 2.0)) * size / 2.0
     sy = np.abs(y * 4.0 - np.round(y * 4.0)) * size / 4.0
-    seam = smoothstep(1.7, 0.5, np.minimum(sx, sy))
+    seam = smoothstep(1.8 * k, 0.5 * k, np.minimum(sx, sy))
     hx = np.abs(x * 4.0 - np.floor(x * 4.0) - 0.5) * size / 4.0
     hy = np.abs(y * 8.0 - np.floor(y * 8.0) - 0.5) * size / 8.0
-    tie = smoothstep(2.6, 1.2, np.hypot(hx, hy))
-    albedo = 1.0 + 0.1 * mottle + 0.03 * fine - 0.28 * pore - 0.13 * seam - 0.07 * streak - 0.35 * tie
-    rough = 1.0 + 0.05 * mottle + 0.1 * pore + 0.05 * seam - 0.04 * streak
-    height = 0.5 + 0.05 * mottle / 3.0 + 0.03 * fine / 3.0 - 0.3 * pore - 0.26 * seam - 0.32 * tie
+    hr = np.hypot(hx, hy)
+    tie = smoothstep(2.6 * k, 1.2 * k, hr)
+    collar = smoothstep(4.6 * k, 2.7 * k, hr) * (1.0 - tie)
+    albedo = (1.0 + 0.095 * mottle + 0.035 * plank_tone + 0.024 * grain + 0.03 * fine
+              - 0.28 * pore - 0.13 * seam - 0.055 * plank_seam - 0.07 * streak - 0.36 * tie - 0.06 * collar)
+    rough = 1.0 + 0.05 * mottle + 0.03 * grain + 0.1 * pore + 0.05 * seam + 0.03 * plank_seam - 0.04 * streak
+    height = (0.5 + 0.05 * mottle / 3.0 + 0.025 * plank_tone + 0.018 * grain / 3.0 + 0.025 * fine / 3.0
+              - 0.3 * pore - 0.26 * seam - 0.08 * plank_seam - 0.34 * tie + 0.04 * collar)
     return albedo, rough, height
 
 
 def panels(size):
-    """Metal cladding: 2 x 1 m panels with seams, oil-canning tone, horizontal brushing and corner rivets."""
+    """Metal cladding: 2 x 1 m panels with shadow-gap seams, oil-canning, brushing, corner rivets and vent louvres."""
     x, y = grid(size)
+    k = size / 512.0
     cols, rows = 4, 8
     col, row = np.floor(x * cols).astype(np.int64), np.floor(y * rows).astype(np.int64)
     lx, ly = x * cols - col, y * rows - row
     ex, ey = np.minimum(lx, 1.0 - lx) * size / cols, np.minimum(ly, 1.0 - ly) * size / rows
-    seam = smoothstep(2.0, 0.6, np.minimum(ex, ey))
+    edge = np.minimum(ex, ey)
+    seam = smoothstep(1.9 * k, 0.55 * k, edge)
+    lip = smoothstep(4.2 * k, 2.0 * k, edge) * (1.0 - seam)
     rng = np.random.default_rng(41)
     panel = row * cols + col
     tone, gloss, bulge = (rng.random(cols * rows)[panel] for _ in range(3))
-    brushed = spectral(size, 42, beta=1.4, lo=12, hi=256, stretch=(9.0, 1.0))
-    rivet = smoothstep(2.1, 1.0, np.hypot(ex - 6.0, ey - 6.0))  # inset 6 px from every panel corner
+    brushed = spectral(size, 42, beta=1.35, lo=12, hi=min(420, size // 2), stretch=(9.0, 1.0))
+    rivet = smoothstep(2.1 * k, 1.0 * k, np.hypot(ex - 6.0 * k, ey - 6.0 * k))  # inset from every panel corner
+    vent_zone = (gloss > 0.84) * smoothstep(14.0 * k, 18.0 * k, ex) * smoothstep(10.0 * k, 14.0 * k, ey)
+    louvre_wave = np.abs((ly * 14.0 - np.floor(ly * 14.0)) - 0.5)
+    louvre = vent_zone * smoothstep(0.24, 0.08, louvre_wave)
     dome = np.sin(np.pi * lx) * np.sin(np.pi * ly)
-    albedo = (0.95 + 0.1 * tone) * (1.0 + 0.025 * brushed) - 0.22 * seam + 0.08 * rivet
-    rough = (0.88 + 0.24 * gloss) * (1.0 + 0.05 * brushed) + 0.22 * seam - 0.1 * rivet
-    height = 0.55 + 0.1 * dome * bulge + 0.02 * brushed / 3.0 - 0.4 * seam + 0.28 * rivet
+    albedo = (0.95 + 0.1 * tone) * (1.0 + 0.028 * brushed) - 0.24 * seam + 0.038 * lip + 0.085 * rivet - 0.2 * louvre
+    rough = (0.88 + 0.24 * gloss) * (1.0 + 0.055 * brushed) + 0.22 * seam - 0.05 * lip - 0.1 * rivet + 0.14 * louvre
+    height = 0.55 + 0.1 * dome * bulge + 0.022 * brushed / 3.0 - 0.42 * seam + 0.045 * lip + 0.28 * rivet - 0.22 * louvre
     return albedo, rough, height
 
 
 def gravel(size):
-    """Roof gravel: rounded pebbles of varied tone with dark gaps."""
+    """Roof gravel: two-scale rounded pebbles of varied mineral tone with interstitial grit."""
     warp = (spectral(size, 52, beta=2.6, lo=2, hi=40) * 0.18, spectral(size, 53, beta=2.6, lo=2, hi=40) * 0.18)
     d1, d2, val = voronoi(size, 64, 51, jitter=0.95, warp=warp)
+    f1, _, fval = voronoi(size, 144, 151, jitter=0.9)
     pebble = smoothstep(0.62, 0.12, d1)
+    fine_stone = smoothstep(0.55, 0.15, f1)
     gap = smoothstep(0.09, 0.0, d2 - d1)
-    albedo = (0.72 + 0.56 * val) * (0.9 + 0.1 * pebble) * (1.0 - 0.45 * gap)
-    rough = 1.1 - 0.1 * pebble * val + 0.2 * gap
-    height = 0.22 + 0.62 * pebble * (0.7 + 0.3 * val) - 0.22 * gap
+    grain = spectral(size, 152, beta=0.9, lo=50, hi=240)
+    albedo = ((0.72 + 0.56 * val) * (0.88 + 0.12 * pebble) * (1.0 - 0.38 * gap)
+              + 0.14 * gap * fine_stone * (0.6 + 0.6 * fval)) * (1.0 + 0.025 * grain)
+    rough = 1.08 - 0.1 * pebble * val + 0.18 * gap - 0.04 * gap * fine_stone
+    height = 0.22 + 0.60 * pebble * (0.7 + 0.3 * val) - 0.18 * gap + 0.12 * gap * fine_stone
     return albedo, rough, height
 
 
 def foliage(size):
-    """Leaf clumps with dark gaps and large-scale tone variation."""
+    """Layered leaf clumps with secondary canopy leaflets, midrib veins and large-scale sun/shade tone."""
     warp = (spectral(size, 62, beta=2.6, lo=2, hi=30) * 0.3, spectral(size, 63, beta=2.6, lo=2, hi=30) * 0.3)
     d1, d2, val = voronoi(size, 36, 61, jitter=0.95, warp=warp)
+    d1b, d2b, valb = voronoi(size, 76, 161, jitter=0.95, warp=(warp[0] * 0.6, warp[1] * 0.6))
     leaf = smoothstep(0.62, 0.08, d1)
+    leaflet = smoothstep(0.56, 0.1, d1b)
     gap = smoothstep(0.13, 0.0, d2 - d1)
+    subgap = smoothstep(0.10, 0.0, d2b - d1b)
+    vein = spectral(size, 162, beta=1.2, lo=30, hi=200)
     low = spectral(size, 64, beta=2.5, lo=1, hi=8)
-    albedo = (0.72 + 0.56 * val) * (0.74 + 0.26 * leaf) * (1.0 - 0.5 * gap) * (1.0 + 0.12 * low)
-    rough = 1.0 + 0.15 * gap - 0.1 * leaf
-    height = 0.3 + 0.55 * leaf - 0.3 * gap + 0.05 * low / 3.0
+    albedo = ((0.72 + 0.52 * val + 0.14 * (valb - 0.5))
+              * (0.72 + 0.22 * leaf + 0.10 * leaflet)
+              * (1.0 - 0.46 * gap) * (1.0 - 0.16 * subgap)
+              * (1.0 + 0.12 * low + 0.025 * vein))
+    rough = 1.0 + 0.15 * gap + 0.05 * subgap - 0.09 * leaf - 0.04 * leaflet
+    height = 0.28 + 0.46 * leaf + 0.16 * leaflet - 0.28 * gap - 0.08 * subgap + 0.05 * low / 3.0 + 0.02 * vein / 3.0
     return albedo, rough, height
 
 
@@ -214,11 +252,14 @@ def foliage(size):
 TEXTURES = [
     ('asphalt', asphalt, 1024, 6.0),
     ('pavers', pavers, 1024, 4.8),
-    ('concrete', concrete, 512, 4.0),
-    ('panels', panels, 512, 8.0),
+    ('concrete', concrete, 1024, 4.0),
+    ('panels', panels, 1024, 8.0),
     ('gravel', gravel, 512, 3.0),
     ('foliage', foliage, 512, 3.0),
 ]
+
+# Sibling files in textures/v1/ owned by build_window_life.py.
+SHARED = {'window-life.png', 'window-life.json'}
 
 
 def encode(albedo, rough, height):
@@ -281,7 +322,7 @@ def main():
     files, previews = build()
     if args.check:
         stale = [name for name, data in files.items() if not (OUT / name).exists() or (OUT / name).read_bytes() != data]
-        extra = sorted({p.name for p in OUT.iterdir()} - set(files)) if OUT.exists() else []
+        extra = sorted({p.name for p in OUT.iterdir()} - set(files) - SHARED) if OUT.exists() else []
         if stale or extra:
             print('Rebuild surface textures; stale:', ', '.join(stale) or '-', 'unexpected:', ', '.join(extra) or '-')
             return 1

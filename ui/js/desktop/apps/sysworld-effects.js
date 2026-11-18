@@ -20,16 +20,53 @@ export function createCityEffects(context,destination,ambience=destination){
     play(kind,x=0,y=0,z=0){
       if(!active||transient.size>=16)return;
       const distance=Math.hypot(x-position.x,z-position.z);if(distance>90)return;
-      const spec={step:[.12,240,.16],step_inside:[.1,550,.12],door:[.7,850,.06],lift:[1.5,120,.05],tram:[.8,330,.08],discover:[.45,880,.08],hover:[1.2,160,.07]}[kind];if(!spec)return;
-      const [duration,freq,level]=spec,source=kind.startsWith('step')||kind==='door'||kind==='hover'?context.createBufferSource():context.createOscillator();
-      if('buffer'in source)source.buffer=noise;else{source.type='sine';source.frequency.value=freq;}
-      const low=context.createBiquadFilter(),volume=context.createGain(),pan=context.createStereoPanner();
-      low.type='lowpass';low.frequency.value=inside?freq*.7:freq;
-      volume.gain.setValueAtTime(0,context.currentTime);volume.gain.linearRampToValueAtTime(level/(1+distance*.08),context.currentTime+.015);volume.gain.exponentialRampToValueAtTime(.0001,context.currentTime+duration);
-      pan.pan.value=Math.max(-1,Math.min(1,((x-position.x)*-position.fz+(z-position.z)*position.fx)/Math.max(distance,1)));
-      source.connect(low).connect(volume).connect(pan).connect(destination);
-      const entry={source,release(){if(!transient.delete(entry))return;for(const n of[source,low,volume,pan])n.disconnect();}};
-      transient.add(entry);source.onended=entry.release;source.start();source.stop(context.currentTime+duration+.02);
+      const t=context.currentTime,att=1/(1+distance*.08)*(inside?.78:1);
+      const tone=context.createBiquadFilter(),bus=context.createGain(),pan=context.createStereoPanner(),wet=context.createGain();
+      tone.type='lowpass';tone.frequency.value=inside?2600:Math.max(1800,9200-distance*70);
+      bus.gain.value=att;pan.pan.value=Math.max(-1,Math.min(1,((x-position.x)*-position.fz+(z-position.z)*position.fx)/Math.max(distance,1)));
+      wet.gain.value=inside?.18:.28;
+      tone.connect(bus).connect(pan).connect(destination);pan.connect(wet).connect(ambience);
+      const nodes=[tone,bus,pan,wet],srcs=[];let endAt=0,lastSrc=null;
+      const own=n=>(nodes.push(n),n),reg=(s,stopAt)=>{srcs.push(s);nodes.push(s);if(stopAt>endAt){endAt=stopAt;lastSrc=s;}s.start(t);s.stop(stopAt);};
+      const env=(peak,at,attack,decay)=>{const g=own(context.createGain());g.gain.setValueAtTime(0,at);g.gain.linearRampToValueAtTime(peak,at+attack);g.gain.exponentialRampToValueAtTime(.0001,at+decay);g.connect(tone);return g;};
+      const strike=(base,ratios,peak,at,decay)=>{
+        ratios.forEach((r,i)=>{const o=context.createOscillator(),g=env(peak/((i+1)*.9),at,.004,decay/(1+i*.28));o.type='sine';o.frequency.value=base*r;o.connect(g);srcs.push(o);nodes.push(o);const st=at+decay+.03;if(st>endAt){endAt=st;lastSrc=o;}o.start(at);o.stop(st);});
+      };
+      const hiss=(f0,f1,q,peak,at,attack,decay)=>{
+        const s=context.createBufferSource(),b=own(context.createBiquadFilter()),g=env(peak,at,attack,decay);
+        s.buffer=noise;s.loop=true;b.type='bandpass';b.Q.value=q;b.frequency.setValueAtTime(f0,at);
+        if(f1&&f1!==f0)b.frequency.exponentialRampToValueAtTime(f1,at+decay*.75);
+        s.connect(b).connect(g);srcs.push(s);nodes.push(s);const st=at+decay+.03;if(st>endAt){endAt=st;lastSrc=s;}s.start(at);s.stop(st);
+      };
+      if(kind==='tram'||kind==='tram_bell'){
+        // Two-strike bronze streetcar bell; station arrival adds a soft pneumatic brake release.
+        const f=kind==='tram'?987.77:1046.5,gap=kind==='tram'?.19:.17;
+        strike(f,[1,2.01,2.76,3.84],.055,t,.52);strike(f,[1,2.01,2.76,3.84],.062,t+gap,.62);
+        if(kind==='tram')hiss(2600,1200,1.3,.032,t+.06,.02,.46);
+      }else if(kind==='door'){
+        // Brushless door glide, rubber seal air slide and damped end-stop latch.
+        const o=context.createOscillator(),lp=own(context.createBiquadFilter()),g=env(.038,t,.03,.64);
+        o.type='triangle';o.frequency.setValueAtTime(165,t);o.frequency.linearRampToValueAtTime(215,t+.28);o.frequency.linearRampToValueAtTime(148,t+.62);
+        lp.type='lowpass';lp.frequency.value=560;o.connect(lp).connect(g);reg(o,t+.67);
+        hiss(520,1080,1.2,.042,t,.025,.62);hiss(1750,1100,2.2,.028,t+.54,.003,.045);
+      }else if(kind==='lift'){
+        // Warm traction drive sweep with a soft two-note arrival chime.
+        for(const [f0,f1,pk]of[[98,147,.036],[196,294,.016]]){const o=context.createOscillator(),g=env(pk,t,.08,1.38);o.type='sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+1.1);o.connect(g);reg(o,t+1.42);}
+        strike(659.25,[1,2],.026,t+.12,.42);strike(880,[1,2],.028,t+.32,.55);
+      }else if(kind==='discover'){
+        // Warm harmonic discovery triad.
+        [523.25,783.99,1174.66].forEach((f,i)=>strike(f,[1,2.01,3.02],.036,t+i*.055,.72));
+      }else if(kind==='hover'){
+        // Twin ducted-fan spin sweep and air-cushion downdraft wash.
+        for(const [f0,f1,pk]of[[138,295,.036],[208,442,.02]]){const o=context.createOscillator(),g=env(pk,t,.05,1.05);o.type='sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+.65);o.frequency.exponentialRampToValueAtTime(f0*1.3,t+1.05);o.connect(g);reg(o,t+1.1);}
+        hiss(340,880,.9,.048,t,.04,1.08);
+      }else if(kind==='step'||kind==='step_inside'){
+        hiss(kind==='step_inside'?620:280,kind==='step_inside'?420:190,1.1,kind==='step_inside'?.11:.14,t,.005,.12);
+      }else{
+        for(const n of nodes)try{n.disconnect();}catch(_){}return;
+      }
+      const entry={source:{stop(){for(const s of srcs)try{s.stop();}catch(_){}}},release(){if(!transient.delete(entry))return;for(const s of srcs)try{s.stop();}catch(_){}for(const n of nodes)try{n.disconnect();}catch(_){}}};
+      transient.add(entry);if(lastSrc)lastSrc.onended=entry.release;
     },
     stats:()=>({voices:transient.size,weather,inside}),
     dispose(){active=false;clear();air.stop();for(const s of spaces){s.source.stop();for(const n of[s.source,s.level,s.pan,s.low])n.disconnect();}for(const n of[air,filter,gain])n.disconnect();},

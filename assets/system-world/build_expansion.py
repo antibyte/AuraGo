@@ -81,10 +81,26 @@ def module(g, kind):
             g.box((x, 0, 1.6), (.12, 12, .08), 'bronze')
     elif kind == 'quay':
         g.box((0, 0, -.25), (8, 6, .5), 'stone')
-        for x in (-3.5, 0, 3.5): g.cyl((x, -2.8, .5), .13, 1, 'bronze')
-        g.beam((-3.5,-2.8,.9),(3.5,-2.8,.9), .09, 'bronze')
+        if g.lod < 2:
+            for i in range(4):
+                g.box((-3 + i * 2, -2.86, -.01), (1.92, .26, .06), 'titanium', .01)
+        for x in (-3.5, 0, 3.5):
+            g.cyl((x, -2.8, .5), .11, 1, 'bronze')
+            if g.lod < 2:
+                g.cyl((x, -2.8, .04), .18, .08, 'graphite', n=12)
+        g.beam((-3.5, -2.8, .92), (3.5, -2.8, .92), .09, 'bronze')
+        if g.lod < 2:
+            g.pipe((-3.5, -2.8, .52), (3.5, -2.8, .52), .03, 'titanium')
     elif kind == 'garden':
         g.box((0, 0, .2), (4, 4, .4), 'stone')
+        if g.lod < 2:
+            for side in (-1, 1):
+                g.box((0, side * 1.94, .415), (3.96, .14, .04), 'bronze', .01)
+                g.box((side * 1.94, 0, .415), (.14, 3.68, .04), 'bronze', .01)
+            for sx in (-1.72, 1.72):
+                for sy in (-1.72, 1.72):
+                    g.cyl((sx, sy, .49), .055, .12, 'graphite', n=8)
+                    g.cyl((sx, sy, .57), .045, .05, 'warm', n=8)
         for x,y,h in [(-1,-1,2),(.8,-.6,2.8),(.3,1,1.6)]:
             g.cyl((x,y,h/2), .09, h, 'bronze')
             for z in (.55,.85,1): g.cyl((x,y,h*z), .65, h*.5, 'leaf', top=.15, n=8)
@@ -129,27 +145,83 @@ def furnishing(g, kind):
         # lamps, so the waterline itself stayed cold after dusk. The glowing
         # glass is its own named part, found by the renderer and the bloom pass.
         sides = (12, 10, 8)[g.lod]
-        g.cyl((0,0,.12), .34, .24, 'bronze', n=sides)
-        g.cyl((0,0,.78), .10, 1.10, 'bronze', n=sides)
-        g.cyl((0,0,1.36), .21, .10, 'titanium', n=sides)
+        g.cyl((0,0,.04), .36, .08, 'graphite', n=sides)
+        g.cyl((0,0,.15), .31, .18, 'bronze', top=.24, n=sides)
+        g.cyl((0,0,.78), .10, 1.10, 'bronze', top=.085, n=sides)
+        g.cyl((0,0,1.36), .22, .10, 'titanium', n=sides)
+        if g.lod < 2:
+            g.ring((0,0,1.41), .235, .016, 'bronze')
+            g.ring((0,0,1.96), .235, .016, 'bronze')
+            for i in range(4):
+                a = i * pi / 2 + pi / 4
+                g.pipe((.235 * cos(a), .235 * sin(a), 1.41), (.235 * cos(a), .235 * sin(a), 1.96), .014, 'bronze')
         g.part = 'glow'
-        g.cyl((0,0,1.69), .23, .56, 'lantern-glow', n=sides)
+        g.cyl((0,0,1.69), .215, .54, 'lantern-glow', n=sides)
         g.part = 'structure'
-        g.cyl((0,0,2.01), .29, .08, 'bronze', n=sides)
-        g.cyl((0,0,2.12), .055, .16, 'ivory', n=(8,6,6)[g.lod])
+        g.cyl((0,0,2.02), .30, .09, 'bronze', top=.18, n=sides)
+        g.cyl((0,0,2.13), .05, .15, 'ivory', top=.02, n=(8,6,6)[g.lod])
     elif kind == 'station':
         g.box((0,0,.15),(9,4,.3),'stone')
-        for x in (-4,4): g.box((x,1.5,1.9),(.15,.15,3.8),'bronze')
+        # Tactile boarding edge strip on the open rail side (-Y) and bevelled kerb ends.
+        g.box((0,-1.82,.304),(8.6,.16,.008),'ivory',0)
+        for x in (-4,4):
+            g.box((x,1.5,1.9),(.16,.16,3.8),'bronze')
+            if g.lod < 2:
+                g.box((x,1.5,.34),(.28,.28,.08),'graphite',.01)
+                g.beam((x,1.5,3.25),(x,.35,3.72),.09,'bronze')
+        # Back windbreak glass and route display board along the column line (clear of platform centre).
+        if g.lod < 2:
+            for x in (-2.55,2.55):
+                g.box((x,1.52,1.65),(2.5,.04,2.1),'garden-glass',0)
+                g.box((x,1.52,.58),(2.56,.07,.05),'bronze',0)
+                g.box((x,1.52,2.72),(2.56,.07,.05),'bronze',0)
+            for x in (-2.55,2.55):
+                g.box((x,1.22,.54),(1.7,.34,.06),'bronze',.015)
+                for dx in (-.65,.65):
+                    g.box((x+dx,1.32,.41),(.06,.24,.22),'graphite',0)
+        g.box((0,1.5,2.7),(3.1,.14,.68),'graphite',.02)
+        g.box((0,1.425,2.7),(2.86,.02,.48),'cyan',0)
+        if g.lod == 0:
+            g.box((0,1.418,2.85),(2.6,.015,.08),'ivory',0)
         g.box((0,0,3.8),(9,4,.22),'titanium')
-        g.box((0,1.5,2.7),(3,.1,.6),'cyan')
+        if g.lod < 2:
+            g.box((0,0,3.92),(8.8,3.7,.05),'graphite',.01)
+            for x in (-2.4,2.4):
+                g.box((x,.1,3.68),(2.8,.14,.03),'ivory',0)
     elif kind == 'pad':
         g.cyl((0,0,.15),4,.3,'stone',n=32)
         g.ring((0,0,.33),3.2,.08,'cyan')
         g.box((0,0,.34),(3,.25,.04),'ivory')
+        if g.lod < 2:
+            g.ring((0,0,.31),3.82,.04,'bronze')
+            for x in (-1.1,1.1):
+                g.box((x,0,.335),(.22,2.2,.03),'ivory',0)
+            for i in range(4):
+                a = i * pi / 2 + pi / 4
+                px, py = 3.55 * cos(a), 3.55 * sin(a)
+                g.cyl((px, py, .35), .12, .10, 'graphite', n=8)
+                g.cyl((px, py, .42), .08, .05, 'warm' if i % 2 else 'cyan', n=8)
     elif kind in ('tram', 'service-cart'):
         length = 8 if kind == 'tram' else 3
-        g.box((0,0,.4),(2.8,length,.8),'graphite')
-        g.box((0,0,.84),(2.8,length,.12),'stone')
+        g.box((0,0,.44),(2.78 if kind == 'tram' else 2.8, length-.08 if kind == 'tram' else length, .72 if kind == 'tram' else .8),'graphite')
+        g.box((0,0,.84),(2.76 if kind == 'tram' else 2.8, length-.04 if kind == 'tram' else length, .12),'stone')
+        if kind == 'tram':
+            # Tapered bumper aprons, bogie wheelsets and dual-end light clusters below waist height.
+            for end in (-1, 1):
+                ey = end * (length / 2 - .02)
+                g.box((0, ey, .34), (2.56, .16, .34), 'titanium', .04)
+                for lx in (-.86, .86):
+                    g.box((lx, end * (length / 2 + .02), 1.08), (.38, .05, .14), 'ivory' if end < 0 else 'warm', 0)
+                if g.lod < 2:
+                    for lx in (-1.18, 1.18):
+                        g.box((lx, end * (length / 2 + .01), 1.08), (.12, .04, .10), 'warm', 0)
+                    g.box((0, end * (length / 2 + .015), 1.48), (.52, .03, .08), 'cyan', 0)
+            if g.lod < 2:
+                for by in (-2.35, 2.35):
+                    g.box((0, by, .22), (2.2, 1.35, .24), 'graphite', 0)
+                    for wx in (-1.16, 1.16):
+                        for wy in (-.42, .42):
+                            g.cyl((wx, by + wy, .22), .20, .10, 'bronze', rotation=Matrix.Rotation(pi/2, 3, 'Y'), n=12)
         for y in (-length/2+.2,length/2-.2):
             if kind == 'tram':
                 # Real sight line from the passenger camera through the end
@@ -157,6 +229,11 @@ def furnishing(g, kind):
                 g.box((0,y,1.35),(2.8,.18,1.3),'ceramic')
                 for x in (-1.28,1.28): g.box((x,y,2.55),(.24,.18,1.2),'ceramic')
                 g.box((0,y,3.16),(2.8,.18,.2),'ceramic')
+                if g.lod < 2:
+                    # Illuminated route destination header above the windscreen (clear of Z <= 2.9 sightlines).
+                    sy = y + (.11 if y > 0 else -.11)
+                    g.box((0, sy, 3.16), (1.5, .04, .15), 'graphite', 0)
+                    g.box((0, sy + (.022 if y > 0 else -.022), 3.16), (1.32, .015, .09), 'cyan', 0)
             else:
                 g.box((0,y,2),(2.8,.18,2.5),'ceramic')
                 g.box((0,y-.1,2.4),(2.4,.04,.8),'glass')
@@ -167,6 +244,8 @@ def furnishing(g, kind):
                     # a solid backing wall nor the opaque kit glass may cross them.
                     g.box((x,y,1.375),(.12,length*.23,1.25),'ceramic')
                     g.box((x,y,3.025),(.12,length*.23,.45),'ceramic')
+                    if g.lod < 2:
+                        g.box((x + (.065 if x > 0 else -.065), y, 1.98), (.03, length*.23, .05), 'bronze', 0)
                     for edge in (-1,1):
                         g.box((x,y+edge*length*.105,2.4),(.12,length*.02,.8),'ceramic')
                 else:
@@ -176,13 +255,32 @@ def furnishing(g, kind):
             if kind == 'tram':
                 g.box((x,0,1.425),(.12,1.6,1.15),'ceramic')
                 g.box((x,0,2.975),(.12,1.6,.35),'ceramic')
-                for y in (-.74,.74): g.box((x,y,2.4),(.12,.12,.8),'ceramic')
+                for y in (-.74,.74):
+                    g.box((x,y,2.4),(.12,.12,.8),'ceramic')
+                    if g.lod < 2:
+                        g.box((x + (.065 if x > 0 else -.065), y * .86, 2.1), (.02, .03, 1.2), 'cyan', 0)
             else:
                 g.box((x,0,2),(.12,1.6,2.3),'glass')
             g.part='structure'
             g.box((x*.65,0,1.25),(.6,length*.65,.2),'bronze')
-        g.box((0,0,3.3),(3,length,.18),'graphite')
-        for x in (-.8,.8): g.box((x,-length/2-.1,1.1),(.4,.05,.15),'ivory')
+            if kind == 'tram' and g.lod < 2:
+                # Backrests below window sill (Z <= 1.78) and bulkhead grab poles at Y = +-1.55 (clear of Y = -2.5, 0, 2.5).
+                for sy in (-2.55, 2.55):
+                    g.box((x*.86, sy, 1.56), (.10, 1.45, .36), 'bronze', .02)
+                for py in (-1.55, 1.55):
+                    g.pipe((x*.58, py, .9), (x*.58, py, 3.2), .028, 'titanium')
+        g.box((0,0,3.3),(2.96 if kind == 'tram' else 3,length,.18),'graphite')
+        if kind == 'tram':
+            g.box((0, 0, 3.195), (.32, 6.2, .03), 'ivory', 0)
+            if g.lod < 2:
+                # Roof HVAC shroud and slim collector pantograph.
+                g.box((0, -1.7, 3.45), (1.35, 1.6, .14), 'titanium', .03)
+                g.box((0, 1.4, 3.42), (.9, .8, .08), 'bronze', .02)
+                g.beam((0, 1.15, 3.45), (0, 1.65, 3.74), .035, 'titanium')
+                g.beam((0, 1.65, 3.74), (0, 1.20, 3.96), .035, 'titanium')
+                g.box((0, 1.20, 3.98), (1.35, .08, .03), 'bronze', 0)
+        else:
+            for x in (-.8,.8): g.box((x,-length/2-.1,1.1),(.4,.05,.15),'ivory')
 
 
 def glass_band(g, radius, height, mat, start, arc, n):

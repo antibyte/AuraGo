@@ -311,6 +311,12 @@ def harbour_buoy(g):
         torus(g, (0, 0, 1.2), .3, .02, 'titanium', n=(16, 10)[lod], sides=4)
         g.box((0, 0, 1.55), (.5, .03, .38), 'marking', 0)
         g.box((0, 0, 1.55), (.03, .5, .38), 'marking', 0)
+        # Angled solar collector wings and lantern guard ring.
+        for side in (-1, 1):
+            solar_rot = Matrix.Rotation(side * .52, 3, 'Y')
+            g.box((side * .33, 0, .92), (.26, .34, .025), 'titanium', 0, rot=solar_rot)
+            g.box((side * .335, 0, .935), (.22, .30, .012), 'glass', 0, rot=solar_rot)
+        torus(g, (0, 0, 2.18), .145, .012, 'bronze', n=(14, 10)[lod], sides=4)
     g.part = 'lamp'
     g.cyl((0, 0, 2.17), .1, .24, 'warm', n=(10, 8, 6)[lod])
     g.lathe((0, 0, 0), [(.13, 2.29), (.13, 2.32), (0, 2.4)], 'graphite', n=(10, 8, 6)[lod])
@@ -333,6 +339,10 @@ def mooring_post(g):
         for i in range(4):
             a = i * pi / 2 + pi / 4
             g.cyl((.24 * cos(a), .24 * sin(a), .06), .03, .03, 'titanium', n=6)
+    if lod == 0:
+        # Hawser wrap around the bollard waist leading out to the coiled line.
+        torus(g, (0, 0, .24), .148, .032, 'tactile', tint=.88, n=14, sides=4)
+        g.pipe((.11, -.09, .22), (.46, .04, .05), .03, 'tactile', n=5, tint=.88)
     return {'navigation': {'colliders': [collider(-.3, -.3, .3, .3, .64)]}, 'occlusion': {'ground': 0.0}}
 
 
@@ -397,8 +407,17 @@ def cafe_set(g):
                     g.box((cx + dr * ca - dt * sa, cy + dr * sa + dt * ca, .22), (.03, .03, .44), 'titanium', 0)
     if lod == 0:
         g.cyl((.16, .1, .79), .04, .06, 'ceramic', n=8)
+        g.cyl((.16, .1, .762), .068, .01, 'ceramic', n=8, tint=.9)
         g.cyl((-.13, -.15, .79), .04, .06, 'ceramic', n=8, tint=.8)
+        g.cyl((-.13, -.15, .762), .068, .01, 'ceramic', n=8, tint=.88)
         g.box((0, .02, .85), (.2, .012, .16), 'cyan', 0)
+        # Warm bistro table lantern and parasol spoke ribs.
+        g.cyl((-.02, .18, .775), .048, .03, 'bronze', n=8)
+        g.cyl((-.02, .18, .825), .038, .075, 'warm', n=8)
+        g.cyl((-.02, .18, .87), .052, .018, 'bronze', top=.01, n=8)
+        for k in range(6):
+            ra = k * pi / 3
+            g.pipe((0, 0, 2.48), (1.36 * cos(ra), 1.36 * sin(ra), rim_z + .01), .009, 'titanium', n=4)
     return {'navigation': {'colliders': [collider(-1.0, -1.0, 1.0, 1.0, 1.0)]}, 'occlusion': {'ground': 0.0}}
 
 

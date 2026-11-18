@@ -362,40 +362,40 @@
         {
           "level": 0,
           "file": "garden.lod0.glb",
-          "bytes": 25272,
-          "sha256": "42d486f3b5809f5428d409d7e661646f6a94c4882313366afab2d5fe621b96da",
+          "bytes": 43928,
+          "sha256": "7dfd174c7f8885c639749cdd9dc618faa7f350804ec4854360668b67cf355529",
           "bounds": {
             "min": [
-              -2.0,
+              -2.009999990463257,
               0.0,
-              -2.0
+              -2.009999990463257
             ],
             "max": [
-              2.0,
+              2.009999990463257,
               3.5,
-              2.0
+              2.009999990463257
             ]
           },
-          "triangles": 668
+          "triangles": 1068
         },
         {
           "level": 1,
           "file": "garden.lod1.glb",
-          "bytes": 19028,
-          "sha256": "d818293ca2aa83673e83c099495c30d67102a1ec92136183c16f755cabefe0be",
+          "bytes": 30000,
+          "sha256": "b9322e97efa52a0fd695c92fa3a0221c22a67a766170098e253f5b64b576d385",
           "bounds": {
             "min": [
-              -2.0,
+              -2.009999990463257,
               0.0,
-              -2.0
+              -2.009999990463257
             ],
             "max": [
-              2.0,
+              2.009999990463257,
               3.5,
-              2.0
+              2.009999990463257
             ]
           },
-          "triangles": 492
+          "triangles": 764
         },
         {
           "level": 2,
@@ -443,8 +443,27 @@
         {
           "level": 0,
           "file": "quay.lod0.glb",
-          "bytes": 18480,
-          "sha256": "b68c485767a7701dc1c6c13059dce33f84b27b2403da9988d4942bee31b9e24b",
+          "bytes": 36020,
+          "sha256": "884310f9c775ca4747f34302803b0bddde39db9dd9404c7181df464e231c7f7d",
+          "bounds": {
+            "min": [
+              -4.0,
+              -0.5,
+              -3.0
+            ],
+            "max": [
+              4.0,
+              1.0,
+              3.0
+            ]
+          },
+          "triangles": 812
+        },
+        {
+          "level": 1,
+          "file": "quay.lod1.glb",
+          "bytes": 19692,
+          "sha256": "bc7ab63aa587134cc03f3addc1d21f0c89a0f1cd5571fc4a398ef111fb479b27",
           "bounds": {
             "min": [
               -4.0,
@@ -460,29 +479,10 @@
           "triangles": 460
         },
         {
-          "level": 1,
-          "file": "quay.lod1.glb",
-          "bytes": 10316,
-          "sha256": "13b5a7d387665191b1a51af31703e1c61141a0cd07bce0922ea8138c984c9396",
-          "bounds": {
-            "min": [
-              -4.0,
-              -0.5,
-              -3.0
-            ],
-            "max": [
-              4.0,
-              1.0,
-              3.0
-            ]
-          },
-          "triangles": 252
-        },
-        {
           "level": 2,
           "file": "quay.lod2.glb",
           "bytes": 7432,
-          "sha256": "e6b5c2eeeb0eaceca44d4d1c5279e1f327024860f59a96d2040e1348ade37eb4",
+          "sha256": "7ebec2d85d68a17a4b83059fb036a77779bc29507ec3793969535f3fcf0b77e2",
           "bounds": {
             "min": [
               -4.0,
@@ -1099,59 +1099,59 @@
         {
           "level": 0,
           "file": "tram.lod0.glb",
-          "bytes": 105136,
-          "sha256": "00ca82a3a7291f623248ec580f8640f5a0d57c4ffcc59b4686a5d2551da0982e",
+          "bytes": 164588,
+          "sha256": "c5f272bee3c49c8deac067704e6ce9ec23d43dfd8309411b23cefd2590124d53",
           "bounds": {
             "min": [
-              -1.5,
-              0.0,
-              -4.0
+              -1.4800000190734863,
+              0.019999995827674866,
+              -4.059999942779541
             ],
             "max": [
-              1.5,
-              3.3899998664855957,
-              4.125
+              1.4800000190734863,
+              3.995000123977661,
+              4.059999942779541
             ]
           },
-          "triangles": 1716
+          "triangles": 2908
         },
         {
           "level": 1,
           "file": "tram.lod1.glb",
-          "bytes": 31768,
-          "sha256": "34d9fb5edda555e52426c14185e3e47e8f5aa1a497ec895a59578623b9465856",
+          "bytes": 72192,
+          "sha256": "0242044b6e059fe6d5758c4d35f254f968ad400afb4286f0a582acfefd91f8b5",
           "bounds": {
             "min": [
-              -1.5,
-              0.0,
-              -4.0
+              -1.4800000190734863,
+              0.019999995827674866,
+              -4.059999942779541
             ],
             "max": [
-              1.5,
-              3.3899998664855957,
-              4.125
+              1.4800000190734863,
+              3.995000123977661,
+              4.059999942779541
             ]
           },
-          "triangles": 468
+          "triangles": 1340
         },
         {
           "level": 2,
           "file": "tram.lod2.glb",
-          "bytes": 31768,
-          "sha256": "f67361187ad4ce9caf84634f820a6fd847ad3f2a1275b11b7403df6376739f43",
+          "bytes": 36552,
+          "sha256": "f684b124116eaf4fe74420602a6fb3e8456d174fbda2667aa95fe3331a2ad6fa",
           "bounds": {
             "min": [
-              -1.5,
-              0.0,
-              -4.0
+              -1.4800000190734863,
+              0.07999998331069946,
+              -4.059999942779541
             ],
             "max": [
-              1.5,
+              1.4800000190734863,
               3.3899998664855957,
-              4.125
+              4.059999942779541
             ]
           },
-          "triangles": 468
+          "triangles": 528
         }
       ],
       "navigation": {
@@ -1204,8 +1204,8 @@
         {
           "level": 0,
           "file": "station.lod0.glb",
-          "bytes": 16188,
-          "sha256": "62e3166d65dff62caf8854423833f0639048d20f8f8296aa936be2bfe520e8c4",
+          "bytes": 46856,
+          "sha256": "5004a4725b5693055c2879afa3b511be3ddbef5ef05bde6a1c256173d2654440",
           "bounds": {
             "min": [
               -4.5,
@@ -1214,17 +1214,17 @@
             ],
             "max": [
               4.5,
-              3.9099998474121094,
+              3.945000171661377,
               2.0
             ]
           },
-          "triangles": 220
+          "triangles": 708
         },
         {
           "level": 1,
           "file": "station.lod1.glb",
-          "bytes": 6956,
-          "sha256": "27377136b85530d1dd86234c3dc24e29301428e56bd1264d356fedd7fa450948",
+          "bytes": 23148,
+          "sha256": "b11a8279010f8551cbd19a94da06757caa7f2db2fbc97afe1b54f370bc6f7fcc",
           "bounds": {
             "min": [
               -4.5,
@@ -1233,17 +1233,17 @@
             ],
             "max": [
               4.5,
-              3.9099998474121094,
+              3.945000171661377,
               2.0
             ]
           },
-          "triangles": 60
+          "triangles": 312
         },
         {
           "level": 2,
           "file": "station.lod2.glb",
-          "bytes": 6956,
-          "sha256": "89d41cc3031e1c6baa26d747264459625a81934e621bec2ff8aa12972137e15a",
+          "bytes": 9580,
+          "sha256": "b0804139b8e3fd1584685a01195788ce29c3ef891268c0683cec66b0e57c2a14",
           "bounds": {
             "min": [
               -4.5,
@@ -1256,7 +1256,7 @@
               2.0
             ]
           },
-          "triangles": 60
+          "triangles": 84
         }
       ],
       "navigation": {
@@ -1314,12 +1314,12 @@
         {
           "level": 0,
           "file": "service-cart.lod0.glb",
-          "bytes": 58096,
-          "sha256": "f3a881a336a44f140d8320b918eaea120ee1c4f94f600aed74f9501c53ebd598",
+          "bytes": 58112,
+          "sha256": "2ea4a7196c5b2e5cc5751e812fc480ddd2378a6900759ce6b79a6a225c4d8b28",
           "bounds": {
             "min": [
               -1.5,
-              0.0,
+              0.03999999165534973,
               -1.5
             ],
             "max": [
@@ -1333,12 +1333,12 @@
         {
           "level": 1,
           "file": "service-cart.lod1.glb",
-          "bytes": 20056,
-          "sha256": "762d08a653f0450effe31311911d524afbcc6c4783e1436965aa2793711f01d3",
+          "bytes": 20076,
+          "sha256": "4ee208cea70a0ad93c0fa671331ab8751e2683b20fb74a7b0147ef3e2a11c584",
           "bounds": {
             "min": [
               -1.5,
-              0.0,
+              0.03999999165534973,
               -1.5
             ],
             "max": [
@@ -1352,12 +1352,12 @@
         {
           "level": 2,
           "file": "service-cart.lod2.glb",
-          "bytes": 20056,
-          "sha256": "7d30775a08e1ebd6b848d39e4fbb466d0ad45a32e30deafbee962b02c676e5c2",
+          "bytes": 20076,
+          "sha256": "fa8c0f186d543a9c1c5aee8a353f47c1460a739a5d4cdc48d44bb9260c1d6e73",
           "bounds": {
             "min": [
               -1.5,
-              0.0,
+              0.03999999165534973,
               -1.5
             ],
             "max": [
@@ -1399,8 +1399,8 @@
         {
           "level": 0,
           "file": "pad.lod0.glb",
-          "bytes": 19880,
-          "sha256": "c1fd4803bd640088a8c458eb266a8a4e5ea96d3699e2d6a44d6ac8392c9601c8",
+          "bytes": 41700,
+          "sha256": "67c4f2c1163dca9b2bc6ed4dd46c050cec6b67162b833a552c43a9745dacf34a",
           "bounds": {
             "min": [
               -4.0,
@@ -1409,17 +1409,17 @@
             ],
             "max": [
               4.0,
-              0.3992820382118225,
+              0.4449999928474426,
               4.0
             ]
           },
-          "triangles": 744
+          "triangles": 1568
         },
         {
           "level": 1,
           "file": "pad.lod1.glb",
-          "bytes": 12604,
-          "sha256": "52ed140c7954a228d31e860fd424a1a9b5c99cfdcfac1c884282750e3762b137",
+          "bytes": 29072,
+          "sha256": "c134a2373f468861c433065b330f9a150f274b0d37db2c690032495c4d646bea",
           "bounds": {
             "min": [
               -4.0,
@@ -1428,11 +1428,11 @@
             ],
             "max": [
               4.0,
-              0.4060845375061035,
+              0.4449999928474426,
               4.0
             ]
           },
-          "triangles": 416
+          "triangles": 944
         },
         {
           "level": 2,
@@ -2043,59 +2043,59 @@
         {
           "level": 0,
           "file": "quay-lantern.lod0.glb",
-          "bytes": 11760,
-          "sha256": "e0b3004a96858e17bc99a59a333cd99076be9e9104df75f801c94307f5e9c97b",
+          "bytes": 40280,
+          "sha256": "c4693a57a70096fc38c4748d9e659f58b370b07691fd81a5e5ee97a8d73bef92",
           "bounds": {
             "min": [
-              -0.3400000035762787,
+              -0.36000001430511475,
               0.0,
-              -0.3400000035762787
+              -0.36000001430511475
             ],
             "max": [
-              0.3400000035762787,
-              2.1999998092651367,
-              0.3400000035762787
+              0.36000001430511475,
+              2.205000162124634,
+              0.36000001430511475
             ]
           },
-          "triangles": 248
+          "triangles": 1620
         },
         {
           "level": 1,
           "file": "quay-lantern.lod1.glb",
-          "bytes": 10368,
-          "sha256": "d8dcb524e2f0531177eb325e70f7540a888ae94d13f59762ff939dac2f7aec7f",
+          "bytes": 26080,
+          "sha256": "250d7dccfa10aca5141a667cc1e12cba8b471fedd88d400ec6396db82f025448",
           "bounds": {
             "min": [
-              -0.3400000035762787,
+              -0.36000001430511475,
               0.0,
-              -0.3233592212200165
+              -0.3423803448677063
             ],
             "max": [
-              0.3400000035762787,
-              2.1999998092651367,
-              0.3233592212200165
+              0.36000001430511475,
+              2.205000162124634,
+              0.3423803448677063
             ]
           },
-          "triangles": 200
+          "triangles": 908
         },
         {
           "level": 2,
           "file": "quay-lantern.lod2.glb",
-          "bytes": 9212,
-          "sha256": "927eb663476cf96e7b265ce811390c791fc5334e99dc21a99cb0bf9ed41e2f73",
+          "bytes": 10656,
+          "sha256": "de671fc16fdb8ef4f4793569bf8bac8023936beb7a81747548f578561b1291ad",
           "bounds": {
             "min": [
-              -0.3400000035762787,
+              -0.36000001430511475,
               0.0,
-              -0.3400000035762787
+              -0.36000001430511475
             ],
             "max": [
-              0.3400000035762787,
-              2.1999998092651367,
-              0.3400000035762787
+              0.36000001430511475,
+              2.205000162124634,
+              0.36000001430511475
             ]
           },
-          "triangles": 160
+          "triangles": 188
         }
       ],
       "navigation": {
@@ -4042,11 +4042,11 @@
       ]
     }
   ],
-  "budget_bytes": 50331648,
-  "model_budget_bytes": 12582912,
+  "budget_bytes": 83886080,
+  "model_budget_bytes": 41943040,
   "sources": {
     "build_city.py": "ba4ce3e0300a763b0ce02c43ce7b0a3abc42fbbf6aa0ac1ea3b32351729cb300",
-    "build_expansion.py": "371163ce265a621be47268f8ec436e9d0dba48bb3d814db1cac6b8a2684769fa",
+    "build_expansion.py": "aa0302dfcd96f2db8fe18dce13a6e0e5dd045167e51813ad8ec8c360995c1b86",
     "living_assets.py": "21ca67e291914a3d40ec0b9179b0377dc887ffba940e2295cc409888e815057b",
     "landmark_assets.py": "4cf53ff1a292e5316751f39f8c73688c2efc8929911a4765651072eb922b0159",
     "robot_assets.py": "fbefc791b9211e78920307c0d4f3ff4cdfbb58a5dc1e88f612d865af3f96d117",

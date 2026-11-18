@@ -16,7 +16,7 @@ City life (phase 4) runtime ownership, all in `ui/js/desktop/apps/`:
 | Leaf sway (`city.leaf`, instanced draws above the low tier) | `sysworld-surfaces.js` (`SW_SWAY`, `setWind`) |
 | Banner cloth, near-gate, lawn and paving slabs, wiring of every new module | `sysworld-scene.js` |
 | Instanced pivoted parts | `sysworld-parts.js` |
-| Boats and buoys | `sysworld-harbour.js` |
+| Boats, buoys and instanced foam wakes | `sysworld-harbour.js` |
 | Gulls | `sysworld-gulls.js` |
 | Steam and fireflies | `sysworld-particles.js` |
 | Kit workplaces (charging plaza, harbour cafe) | `sysworld-experience.js` (places), `sysworld-society.js` (no demonstrate prompt) |

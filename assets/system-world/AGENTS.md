@@ -18,7 +18,9 @@ Own the original Blender city kit, deterministic generator and source scene.
 - The complete runtime model directory must stay below 40 MiB; first display
   stays below 20 MiB and the full app below 80 MiB.
 - Surface maps are original procedural data (R albedo factor / 2, G roughness factor / 2,
-  B height), seamless, byte-stable for the pinned numpy/Pillow and verified with `--check`.
+  B height; `asphalt`, `pavers`, `concrete` and `panels` at 1024 px, `gravel` and `foliage`
+  at 512 px), seamless, byte-stable for the pinned numpy/Pillow and verified with `--check`
+  (`SHARED` leaves `build_window_life.py`'s `window-life.{png,json}` in the same directory untouched).
   The GLBs stay texture-free; the renderer projects the maps (see `sysworld-surfaces.js`).
 - Original city-kit designs have no image textures or external URIs. Preserve
   separate rotor and signal nodes. The explicitly requested ThreeDee robot

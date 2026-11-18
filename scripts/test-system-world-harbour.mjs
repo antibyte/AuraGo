@@ -41,6 +41,11 @@ const reuse=craftPoses(5);assert.equal(craftPoses(6,reuse),reuse);for(let i=0;i<
 for(const c of clones){assert.equal(c.count(),0,'update clones '+c.C.name);c.C.prototype.clone=c.o;}
 harbour.update(300,1,{x:1,z:0,strength:.5},true);harbour.setTier('low');await new Promise(r=>setTimeout(r,0));harbour.update(400,1,{x:1,z:0,strength:.5},true);
 assert.ok(loads.includes('harbour-launch:2')&&harbour.stats().lod===2,'low tier loads LOD 2');p.setFromMatrixPosition(at('harbour-launch',0));
+assert.equal(harbour.stats().wakes,0,'low tier hides boat wakes while craft are parked');
+harbour.setTier('high');await new Promise(r=>setTimeout(r,0));harbour.update(300,1,{x:1,z:0,strength:.5},true);
+assert.equal(harbour.stats().wakes,CRAFT.length,'high tier shows boat wakes for every craft');
+harbour.setTier('low');await new Promise(r=>setTimeout(r,0));harbour.update(400,1,{x:1,z:0,strength:.5},true);
+p.setFromMatrixPosition(at('harbour-launch',0));
 assert.ok(Math.abs(p.x-craftPoses(300)[0].x)<1e-3,'low tier: the boats keep their place');assert.equal(harbour.stats().craft,5);
 harbour.dispose();assert.equal(group.children.length,0);
 console.log(`System World harbour: keep-out ${Object.entries(worst).map(([k,v])=>k+' '+v.toFixed(1)).join(', ')} m; wave ride, rig, lanterns, tiers and allocation verified.`);

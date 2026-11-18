@@ -13,6 +13,8 @@ assert.equal(B.rainLevel(false,zone({})),0);assert.ok(B.rainLevel(true,zone({har
 assert.equal(B.patterLevel(true,zone({interior:1,open:true})),0,'no glass in the open court');assert.equal(B.patterLevel(true,zone({interior:1})),B.BEDS.patter);assert.equal(B.patterLevel(false,zone({interior:1})),0);
 const tower=steamVents()[0],near=B.steamLevel(tower.x,2.4,tower.z+3,{}),far=B.steamLevel(0,2.4,300,{});
 assert.ok(near.level>.5*B.BEDS.steam&&near.x===tower.x&&near.z===tower.z,'beside a cooling tower '+JSON.stringify(near));assert.ok(far.level<.02*B.BEDS.steam,'far out at sea '+far.level);
+const fNear=B.fountainLevel(8,2.4,42,{}),fFar=B.fountainLevel(8,2.4,-40,{});
+assert.ok(fNear.level>.75*B.BEDS.fountain&&fNear.x===8&&fNear.z===40,'beside the central fountain '+JSON.stringify(fNear));assert.equal(fFar.level,0,'beyond fountain reach');
 assert.equal(B.lapCrossing(.1,.2),true);assert.equal(B.lapCrossing(.2,.3),false);assert.equal(B.lapCrossing(.2,.1),false);
 const seeded=s=>()=>(s=(Math.imul(s,1664525)+1013904223)>>>0)/4294967296;
 const L=(x,z)=>({x,y:2.4,z,fx:0,fz:-1,origin:{x,z}}),fake=createFakeAudio(),c=fake.context,[outdoor,send,local]=['outdoor','send','local'].map(k=>fake.node(k));

@@ -2,7 +2,7 @@
   "schema": 1,
   "license": "MIT",
   "generator": "assets/system-world/build_textures.py",
-  "generator_sha256": "235b41b978afc9a87d92275efd8d9e1ae8f0b89fefc17732837f932f07766296",
+  "generator_sha256": "9c1c488681ef9701a7c0fe5632917dcbf43a4eccf5c17464248b166e1fe6aa19",
   "encoding": {
     "r": "albedo factor / 2",
     "g": "roughness factor / 2",
@@ -14,48 +14,48 @@
       "file": "asphalt.webp",
       "px": 1024,
       "tile_metres": 6.0,
-      "bytes": 195764,
-      "sha256": "5f7910be7090136502f9bc08953ff7181b24f37f87208ec147b28d74e16d808c"
+      "bytes": 230416,
+      "sha256": "e0461dcf64b675ac0f73c4221c3f14c06f67714448844ed1fd2aa2123665e682"
     },
     {
       "id": "pavers",
       "file": "pavers.webp",
       "px": 1024,
       "tile_metres": 4.8,
-      "bytes": 197296,
-      "sha256": "070779d79da95782776660908f748093382f60134e994e69ffdee3f68a38cde0"
+      "bytes": 205982,
+      "sha256": "1270e6d0f7042383bdd8ccf39a4ec63ec8c533cd8cdd100cfdb8433e69594cb0"
     },
     {
       "id": "concrete",
       "file": "concrete.webp",
-      "px": 512,
+      "px": 1024,
       "tile_metres": 4.0,
-      "bytes": 30312,
-      "sha256": "138f0a170bdc448e6a3b4805de10b89d1971f0e89889013ff26c64bbd37c1c5a"
+      "bytes": 94310,
+      "sha256": "f4a9c59a16868fe6320fd4c9e56396e6a6ad5278454bf453480cbe3979b2176e"
     },
     {
       "id": "panels",
       "file": "panels.webp",
-      "px": 512,
+      "px": 1024,
       "tile_metres": 8.0,
-      "bytes": 24802,
-      "sha256": "ec15acf170481de6a930aac82bcf65ad6e176301133ad9664b6d788f89b5d663"
+      "bytes": 95080,
+      "sha256": "d1621df049ebfdd06aa2e50f7249d847a308e5b08a5d74521b38665b50929f6d"
     },
     {
       "id": "gravel",
       "file": "gravel.webp",
       "px": 512,
       "tile_metres": 3.0,
-      "bytes": 71410,
-      "sha256": "864330d2faece27b5f8121703d0ec44840a959f3a195e740406384e8a5fbddcf"
+      "bytes": 65356,
+      "sha256": "c8cb1562b441b287c9b969109586a56896b8ade816fbf0de842ef00c25303b2c"
     },
     {
       "id": "foliage",
       "file": "foliage.webp",
       "px": 512,
       "tile_metres": 3.0,
-      "bytes": 65060,
-      "sha256": "38797099fecf2dde15cc3ea58d0e9334ae338dc48d4500553966c11281c8a6bf"
+      "bytes": 64172,
+      "sha256": "d3b3e56cd844b15f25d3c89e8097b7b4d19559762dd3db3685e36209cbe13a07"
     }
   ]
 }

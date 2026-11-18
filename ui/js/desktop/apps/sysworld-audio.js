@@ -34,20 +34,23 @@ export function createLimiter(context){
 }
 // Fixed places the city owns. An event either comes from one of these anchors or from a ring
 // around the listener, so the pan always matches the direction the sound arrives from.
-const ANCHORS={harbour:{x:0,z:79},quay:{x:0,z:72},tower:{x:0,z:-12},square:{x:8,z:40}};
+const ANCHORS={harbour:{x:0,z:79},quay:{x:0,z:72},buoy:{x:32,z:112},marina:{x:78,z:72},tower:{x:0,z:-12},square:{x:8,z:40}};
 // Weighted event table. Every entry carries its own mood condition, so the same city sounds different at noon, at
 // night, in rain and while the agent is busy. `zone` scales the weight by where the listener stands (outdoor shares
 // of sysworld-zones.js). Behind glass only `indoor` events stay (loud enough to pass it; the glass damps them), so no
 // bird sings in a machine hall; the open garden court keeps the whole table.
 const EVENTS=[
   {kind:'chime',weight:15,indoor:true},
-  {kind:'swoosh',weight:13,zone:z=>.3+1.4*z.canyon+.4*z.plaza},
+  {kind:'swoosh',weight:14,zone:z=>.3+1.5*z.canyon+.4*z.plaza},
+  {kind:'tramding',weight:5,when:m=>m.day>.18&&m.evening<.85,zone:z=>.15+1.8*z.canyon+.7*z.plaza},
   {kind:'gust',weight:7,zone:z=>.4+z.height+.6*z.harbour+.4*z.green},
   {kind:'birds',weight:8,when:m=>m.day>.45&&m.weather==='clear',zone:z=>.15+2.2*z.green+.3*z.plaza},
   {kind:'gull',weight:6,when:m=>m.day>.2&&m.weather==='clear',zone:z=>.1+2.6*z.harbour+.6*z.height},
   {kind:'pigeon',weight:4,when:m=>m.day>.6&&!m.busy,zone:z=>.2+1.2*z.plaza+.8*z.canyon},
   {kind:'cricket',weight:6,when:m=>m.day<.25&&m.weather!=='rain',zone:z=>.1+2.4*z.green},
   {kind:'horn',weight:4,when:m=>m.day<.45&&m.weather!=='rain',indoor:true,zone:z=>.5+1.5*z.harbour},
+  {kind:'buoybell',weight:4,when:m=>m.day<.65||m.weather==='fog',zone:z=>.05+2.8*z.harbour},
+  {kind:'rigging',weight:4,when:m=>m.weather!=='rain',zone:z=>.04+2.4*z.harbour},
   {kind:'bell',weight:3,when:m=>m.day<.7,indoor:true},
   {kind:'hammer',weight:4,when:m=>m.day>.3,zone:z=>.4+z.canyon+.5*z.plaza},
   {kind:'drip',weight:10,when:m=>m.weather==='rain',zone:z=>.3+z.canyon+.6*z.green},
@@ -115,7 +118,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     const verbReturn=node(context.createGain());verbReturn.gain.value=.55;verb.connect(verbReturn).connect(space.outdoor);
     voice=options.voice===false?null:createTowerVoice(context,voiceBus);effects=createCityEffects(context,effectsBus,ambientBus);effects.environment(inside,weather);
     foley=createCityFoley(context,effectsBus,space.sendLocal,{steps:()=>{const b=recordings?.buffer('steps'),s=recordings?.slices('steps');return b&&s?{buffer:b,slot:s.slot,count:s.count}:null;}});foley.setTier(tier);foley.environment(inside);foley.listener(listener.x,listener.y,listener.z,listener.fx,listener.fz,listener.origin.x,listener.origin.z);
-    for(const [frequency,gain] of [[55,.022],[82.4069,.007],[110,.0032]]) {
+    for(const [frequency,gain] of [[55,.0175],[82.4069,.0056],[110,.0025]]) {
       const oscillator=source(context.createOscillator()), level=node(context.createGain());
       oscillator.frequency.value=frequency;level.gain.value=gain;
       oscillator.connect(level).connect(ambientBus);oscillator.start();
@@ -147,9 +150,9 @@ export function createCityAmbience(onState=()=>{},options={}) {
     // Two spatial beds: harbour water near the quay and a low population murmur.
     // Both are continuous, so they stay far below the transient events.
     const wash=source(context.createBufferSource());wash.buffer=noise;wash.loop=true;
-    const washBand=node(context.createBiquadFilter());washBand.type='bandpass';washBand.frequency.value=620;washBand.Q.value=.5;
+    const washBand=node(context.createBiquadFilter());washBand.type='bandpass';washBand.frequency.value=780;washBand.Q.value=.65;
     const swell=source(context.createOscillator()),swellDepth=node(context.createGain());
-    swell.frequency.value=.08;swellDepth.gain.value=140;swell.connect(swellDepth).connect(washBand.frequency);swell.start();
+    swell.frequency.value=.085;swellDepth.gain.value=210;swell.connect(swellDepth).connect(washBand.frequency);swell.start();
     waterGain=node(context.createGain());waterGain.gain.value=0;
     wash.connect(washBand).connect(waterGain).connect(space.outdoor);wash.start();
     const crowd=source(context.createBufferSource());crowd.buffer=noise;crowd.loop=true;
@@ -202,6 +205,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
   }
   function positionFor(kind){
     if(kind==='gull')return movers?.gull(soundFrame,random,gullSpot)||ANCHORS.harbour;if(kind==='horn')return ANCHORS.harbour;
+    if(kind==='buoybell')return ANCHORS.buoy;if(kind==='rigging')return ANCHORS.marina;
     if(kind==='windchime')return ANCHORS.quay;
     if(kind==='bell')return ANCHORS.tower;
     if(kind==='pigeon')return ANCHORS.square;
@@ -219,16 +223,28 @@ export function createCityAmbience(onState=()=>{},options={}) {
     track([a,b,partial,level,...out(level,pan,1.4)]);a.start(t);b.start(t);a.stop(t+2.9);b.stop(t+2.9);
   }
   function swoosh(position){
-    const t=context.currentTime,src=context.createBufferSource(),band=context.createBiquadFilter(),level=context.createGain();
+    const t=context.currentTime,src=context.createBufferSource(),band=context.createBiquadFilter(),body=context.createBiquadFilter(),bodyGain=context.createGain(),level=context.createGain();
     const {pan,fade}=reach(position);
-    src.buffer=noise;src.loop=true;band.type='bandpass';band.Q.value=1.4;
-    band.frequency.setValueAtTime(260,t);band.frequency.exponentialRampToValueAtTime(1100,t+1.6);band.frequency.exponentialRampToValueAtTime(380,t+3.4);
-    level.gain.setValueAtTime(0,t);level.gain.linearRampToValueAtTime(.03*fade,t+1.6);level.gain.exponentialRampToValueAtTime(.0001,t+3.6);
-    src.connect(band).connect(level);const [panner,reverb]=out(level,pan,.5);
+    src.buffer=noise;src.loop=true;band.type='bandpass';band.Q.value=1.35;
+    band.frequency.setValueAtTime(280,t);band.frequency.exponentialRampToValueAtTime(1180,t+1.6);band.frequency.exponentialRampToValueAtTime(360,t+3.4);
+    body.type='lowpass';body.frequency.setValueAtTime(140,t);body.frequency.exponentialRampToValueAtTime(240,t+1.6);body.frequency.exponentialRampToValueAtTime(110,t+3.4);bodyGain.gain.value=.55;
+    level.gain.setValueAtTime(0,t);level.gain.linearRampToValueAtTime(.032*fade,t+1.6);level.gain.exponentialRampToValueAtTime(.0001,t+3.6);
+    src.connect(band).connect(level);src.connect(body).connect(bodyGain).connect(level);const [panner,reverb]=out(level,pan,.55);
     // A passing vehicle sweeps across the field of view but keeps its own bearing.
     const from=Math.max(-1,pan-.6),to=Math.min(1,pan+.6);
     panner.pan.setValueAtTime(from,t);panner.pan.linearRampToValueAtTime(to,t+3.4);
-    track([src,band,level,panner,reverb]);src.start(t);src.stop(t+3.7);
+    track([src,band,body,bodyGain,level,panner,reverb]);src.start(t);src.stop(t+3.7);
+  }
+  function tramding(position){
+    const t=context.currentTime,base=987.77*(.97+.06*random());
+    const {pan,fade}=reach(position);
+    for(let i=0;i<2&&transient.size<MAX_EVENTS;i++){
+      const at=t+i*.175,level=context.createGain();
+      level.gain.setValueAtTime(0,at);level.gain.linearRampToValueAtTime((i?.024:.021)*fade,at+.004);level.gain.exponentialRampToValueAtTime(.0001,at+.68);
+      const partials=[1,2.01,2.75].map((r,k)=>{const o=context.createOscillator(),g=context.createGain();o.type='sine';o.frequency.value=base*r;g.gain.value=.58/(k+1);o.connect(g).connect(level);return [o,g];});
+      track([...partials.map(p=>p[0]),...partials.map(p=>p[1]),level,...out(level,pan,1.15)]);
+      partials.forEach(([o])=>{o.start(at);o.stop(at+.72);});
+    }
   }
   function gust(){
     const t=context.currentTime,base=weather==='rain'?.18:.16;
@@ -244,14 +260,39 @@ export function createCityAmbience(onState=()=>{},options={}) {
     const tones=[69.3,103.83].map(f=>{const o=context.createOscillator();o.type='sawtooth';o.frequency.value=f;o.detune.value=random()*8-4;o.connect(low);return o;});
     low.connect(level);track([...tones,low,level,...out(level,pan,1.6)]);tones.forEach(o=>{o.start(t);o.stop(t+5.6);});
   }
+  function buoybell(position){
+    const t=context.currentTime,base=311.13*(.98+.04*random()),second=random()<.72?1:0;
+    const {pan,fade}=reach(position);
+    for(let i=0;i<=second&&transient.size<MAX_EVENTS;i++){
+      const at=t+i*(.44+random()*.24),level=context.createGain();
+      level.gain.setValueAtTime(0,at);level.gain.linearRampToValueAtTime((i?.021:.032)*fade,at+.008);level.gain.exponentialRampToValueAtTime(.0001,at+2.8);
+      const partials=[1,2.0,2.42,3.86].map((r,k)=>{const o=context.createOscillator(),g=context.createGain();o.type='sine';o.frequency.value=base*r;g.gain.value=.55/(k+1);o.connect(g).connect(level);return [o,g];});
+      track([...partials.map(p=>p[0]),...partials.map(p=>p[1]),level,...out(level,pan,1.9)]);
+      partials.forEach(([o])=>{o.start(at);o.stop(at+2.9);});
+    }
+  }
+  function rigging(position){
+    const t=context.currentTime,count=2+Math.floor(random()*3);
+    const {pan,fade}=reach(position);
+    for(let i=0;i<count&&transient.size<MAX_EVENTS;i++){
+      const at=t+i*(.16+random()*.22),src=context.createBufferSource(),band=context.createBiquadFilter(),ring=context.createOscillator(),ringGain=context.createGain(),level=context.createGain();
+      src.buffer=noise;src.loop=true;band.type='bandpass';band.frequency.value=2600+random()*700;band.Q.value=2.4;
+      ring.type='sine';ring.frequency.value=1480+random()*320;ringGain.gain.value=.34;
+      level.gain.setValueAtTime(0,at);level.gain.linearRampToValueAtTime(.022*fade,at+.003);level.gain.exponentialRampToValueAtTime(.0001,at+.21);
+      src.connect(band).connect(level);ring.connect(ringGain).connect(level);
+      track([src,band,ring,ringGain,level,...out(level,pan,.85)]);
+      src.start(at);src.stop(at+.23);ring.start(at);ring.stop(at+.23);
+    }
+  }
   function birds(position){
     const t=context.currentTime,count=2+Math.floor(random()*3);
     const {pan,fade}=reach(position);
     for(let i=0;i<count&&transient.size<MAX_EVENTS;i++){
-      const at=t+i*(.12+random()*.1),o=context.createOscillator(),level=context.createGain(),f=2600+random()*900;
-      o.frequency.setValueAtTime(f,at);o.frequency.exponentialRampToValueAtTime(f*1.5,at+.07);
-      level.gain.setValueAtTime(0,at);level.gain.linearRampToValueAtTime(.006*fade,at+.015);level.gain.exponentialRampToValueAtTime(.0001,at+.13);
-      o.connect(level);track([o,level,...out(level,pan,.6)]);o.start(at);o.stop(at+.15);
+      const at=t+i*(.11+random()*.11),o=context.createOscillator(),hp=context.createBiquadFilter(),level=context.createGain(),f=2500+random()*950;
+      hp.type='highpass';hp.frequency.value=1800;
+      o.frequency.setValueAtTime(f,at);o.frequency.exponentialRampToValueAtTime(f*1.44,at+.045);o.frequency.exponentialRampToValueAtTime(f*1.12,at+.11);
+      level.gain.setValueAtTime(0,at);level.gain.linearRampToValueAtTime(.0065*fade,at+.014);level.gain.exponentialRampToValueAtTime(.0001,at+.14);
+      o.connect(hp).connect(level);track([o,hp,level,...out(level,pan,.65)]);o.start(at);o.stop(at+.16);
     }
   }
   function gull(position){
@@ -341,7 +382,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
     level.gain.setValueAtTime(0,t);level.gain.linearRampToValueAtTime(.01*fade,t+.5);level.gain.setValueAtTime(.01*fade,t+2.8);level.gain.exponentialRampToValueAtTime(.0001,t+4.2);
     o.connect(level);track([o,level,...out(level,pan,1.2)]);o.start(t);o.stop(t+4.3);
   }
-  const VOICES={chime,swoosh,gust,horn,birds,gull,pigeon,cricket,bell,hammer,drip,windchime,siren};
+  const VOICES={chime,swoosh,tramding,gust,horn,buoybell,rigging,birds,gull,pigeon,cricket,bell,hammer,drip,windchime,siren};
   // Event weight with the recordings in mind: a loaded, audible birds/gulls recording carries the place, so the matching
   // synthesised call is thinned to RECORDED_THIN (it stays as an occasional positioned accent).
   function weigh(e,z){const w=eventWeight(e,mood,z),id=RECORDED_KIND[e.kind];return w>0&&id&&recordings?.carries(id)?w*RECORDED_THIN:w;}
@@ -359,7 +400,7 @@ export function createCityAmbience(onState=()=>{},options={}) {
   }
   function schedule(){
     clearTimeout(eventTimer);eventTimer=0;if(!running())return;
-    eventTimer=setTimeout(()=>{eventTimer=0;if(!running())return;event();schedule();},(mood.busy?1900:3600)+random()*9000);
+    eventTimer=setTimeout(()=>{eventTimer=0;if(!running())return;event();schedule();},(mood.busy?1400:2200)+random()*4800);
   }
   function progress(){
     clearTimeout(chordTimer);chordTimer=0;if(!running())return;

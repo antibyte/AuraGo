@@ -10,24 +10,24 @@ import * as THREE from 'three';
 // puddle: [none above, full below] in mip-averaged height of the top map (~10% of asphalt,
 // ~7% of pavers and slab tops); gravel roofs, cladding and foliage drain.
 export const KINDS = {
-  'city.road': {top: 'asphalt', side: 'concrete', albedo: .55, rough: .7, bump: .012, wet: 1, puddle: [.447, .442]},
-  'city.stone': {top: 'pavers', side: 'concrete', albedo: .5, rough: .6, bump: .014, wet: 1, puddle: [.523, .516]},
+  'city.road': {top: 'asphalt', side: 'concrete', albedo: .55, rough: .7, bump: .012, wet: 1, puddle: [.448, .443]},
+  'city.stone': {top: 'pavers', side: 'concrete', albedo: .5, rough: .6, bump: .014, wet: 1, puddle: [.520, .503]},
   'city.graphite': {top: 'gravel', side: 'panels', albedo: .42, rough: .5, bump: .016, wet: .8, metalTop: .3},
   'city.titanium': {top: 'panels', side: 'panels', albedo: .2, rough: .45, bump: .006, wet: .6},
   'city.bronze': {top: 'panels', side: 'panels', albedo: .18, rough: .4, bump: .006, wet: .6},
   // Robot-local rubber (soles, flex sleeves, belts): dark, rough, barely wet.
   'city.robot-rubber': {top: 'panels', side: 'panels', albedo: .3, rough: .75, bump: .008, wet: .25},
-  'city.ceramic': {top: 'concrete', side: 'concrete', albedo: .3, rough: .4, bump: .008, wet: .8, puddle: [.464, .460]},
+  'city.ceramic': {top: 'concrete', side: 'concrete', albedo: .3, rough: .4, bump: .008, wet: .8, puddle: [.452, .445]},
   'city.leaf': {top: 'foliage', side: 'foliage', albedo: .7, rough: .3, bump: .03, wet: .5, sway: .045},
   // Kit v3 street materials (baked AO in COLOR_0 multiplies the albedo).
   'city.kerb': {top: 'concrete', side: 'concrete', albedo: .45, rough: .55, bump: .01, wet: 1},
-  'city.setts': {top: 'pavers', side: 'concrete', albedo: .5, rough: .6, bump: .014, wet: 1, topScale: 2, puddle: [.523, .516]},
+  'city.setts': {top: 'pavers', side: 'concrete', albedo: .5, rough: .6, bump: .014, wet: 1, topScale: 2, puddle: [.520, .503]},
   'city.iron': {top: 'panels', side: 'panels', albedo: .25, rough: .45, bump: .008, wet: .9},
-  'city.marking': {top: 'asphalt', side: 'concrete', albedo: .25, rough: .5, bump: .006, wet: 1, puddle: [.447, .442]},
+  'city.marking': {top: 'asphalt', side: 'concrete', albedo: .25, rough: .5, bump: .006, wet: 1, puddle: [.448, .443]},
   'city.tactile': {top: 'concrete', side: 'concrete', albedo: .4, rough: .6, bump: .02, wet: 1},
   // Kit glass (doors and small panes, opaque by design): faint panel detail, streaks when wet.
   'city.glass': {top: 'panels', side: 'panels', albedo: .15, rough: .3, bump: .002, wet: .6},
-  ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.523, .516], waterline: true},
+  ground: {top: 'pavers', side: 'concrete', albedo: .55, rough: .6, bump: .014, wet: 1, topScale: .5, puddle: [.520, .503], waterline: true},
 };
 export const WINDOWS = new Set(['city.ivory', 'city.warm']);
 // Kit v3 window panes belong to sysworld-windows.js and never take the projected maps.
@@ -78,7 +78,7 @@ float swUp=clamp(swN.y,0.0,1.0),swDry=0.0;
 #ifdef SW_WORLD
 for(int i=0;i<3;i++){vec4 r=swShelter[i];swDry=max(swDry,step(r.x,vSwPos.x)*step(vSwPos.x,r.z)*step(r.y,vSwPos.z)*step(vSwPos.z,r.w)*step(vSwPos.y,3.6));}
 #endif
-float swWetness=swWet*SW_WETK*(0.35+0.65*swUp)*(1.0-swDry),swAlbedoF=1.0,swRoughF=1.0,swH=0.5,swPuddle=0.0;
+float swWetness=swWet*SW_WETK*(0.35+0.65*swUp)*(1.0-swDry),swAlbedoF=1.0,swRoughF=1.0,swH=0.5,swPuddle=0.0,swTide=0.0;
 #if SW_LEVEL>0
 vec4 swS=texture2D(swTop,vSwPos.xz*swScale.x)*swW.y+texture2D(swSide,vSwPos.zy*swScale.y)*swW.x+texture2D(swSide,vSwPos.xy*swScale.y)*swW.z;
 vec4 swM=texture2D(swTop,vSwPos.xz*swScale.x*0.125,4.0);
@@ -96,7 +96,8 @@ if(swRain>0.0){
 float swSide=1.0-swW.y;
 swAlbedoF*=mix(1.0,mix(0.64,1.0,smoothstep(0.35,1.9,vSwPos.y)),swSide*step(0.0,vSwPos.y));
 #ifdef SW_WATERLINE
-swAlbedoF*=mix(1.0,0.48,swSide*(1.0-smoothstep(-2.9,-1.7,vSwPos.y)));
+swTide=swSide*(1.0-smoothstep(-3.05,-2.05,vSwPos.y));
+swAlbedoF*=mix(1.0,0.46,swSide*(1.0-smoothstep(-2.9,-1.7,vSwPos.y)));
 #endif
 #endif
 #endif`;
@@ -106,7 +107,7 @@ diffuseColor.rgb*=swAlbedoF*mix(1.0,0.56,swWetness)*mix(1.0,0.7,swPuddle);
 #endif`;
 const APPLY_ROUGHNESS = `
 #ifdef SW_SURFACE
-roughnessFactor=clamp(roughnessFactor*swRoughF,0.04,1.0);roughnessFactor=mix(roughnessFactor,roughnessFactor*0.6,swWetness);roughnessFactor=mix(roughnessFactor,0.04,swPuddle);
+roughnessFactor=clamp(roughnessFactor*swRoughF,0.04,1.0);roughnessFactor=mix(roughnessFactor,roughnessFactor*0.6,swWetness);roughnessFactor=mix(roughnessFactor,0.14,swTide*0.75);roughnessFactor=mix(roughnessFactor,0.04,swPuddle);
 #endif`;
 const APPLY_METALNESS = `
 #ifdef SW_SURFACE

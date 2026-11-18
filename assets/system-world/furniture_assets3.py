@@ -207,6 +207,12 @@ def street_bench(g):
     for i in range((3, 2, 1)[lod]):
         g.box((0, .25 + i * .012, .64 + i * .13), (2.0, .035, (.1 if lod < 2 else .34)), 'bronze', .01, 1,
               rot=Matrix.Rotation(-.18, 3, 'X'), tint=.78)
+    if lod == 0:
+        # Cast armrests aligned over both legs (x = +-0.85) and a centre divider loop anchored front and rear into the seat.
+        for x in (-.85, 0, .85):
+            g.pipe((x, -.20, .47), (x, -.20, .62), .022, 'graphite', n=6)
+            g.pipe((x, -.20, .62), (x, .22, .64), .022, 'graphite', n=6)
+            g.pipe((x, .22, .47), (x, .22, .64), .022, 'graphite', n=6)
     return {'navigation': {'colliders': [collider(-1.0, -.3, 1.0, .32, .9)]}, 'occlusion': {'ground': 0.0}}
 
 
@@ -288,6 +294,15 @@ def kiosk(g):
             g.box((0, -d/2 - .04, 2.26 - i * .02), (2.2, .02, .012), 'titanium', 0)
         for x in (-.7, 0, .7):
             g.cyl((x, -d/2 - .22, 1.26), .07, .16, ('jade', 'ivory', 'cyan')[int(x * 1.5 + 1)], n=8)
+        # Warm counter pendant lights and a compact illuminated side menu board.
+        for x in (-.58, .58):
+            g.pipe((x, -d/2 - .12, 2.30), (x, -d/2 - .12, 2.08), .01, 'titanium', n=5)
+            g.lathe((x, -d/2 - .12, 0), [(0, 2.09), (.09, 2.04), (.10, 2.00)], 'bronze', n=8)
+            g.cyl((x, -d/2 - .12, 1.99), .045, .05, 'warm', n=8)
+        g.box((-w/2 - .035, -.55, 1.55), (.03, .46, .68), 'graphite', .01, 1)
+        g.box((-w/2 - .052, -.55, 1.76), (.008, .38, .12), 'warm', 0)
+        for k in range(3):
+            g.box((-w/2 - .052, -.55, 1.56 - k * .11), (.008, .34, .05), 'ivory' if k % 2 == 0 else 'cyan', 0)
     return {'navigation': {'colliders': [collider(-w/2, -d/2 - .5, w/2, d/2, h + .3)]},
             'occlusion': {'ground': 0.0, 'distance': 2.0}}
 

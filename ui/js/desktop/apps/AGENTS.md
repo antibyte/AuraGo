@@ -4956,17 +4956,19 @@ registration lives in `internal/desktop/types.go`.
     persist like the on/off switch.
   - Score and events: a sub drone, a detuned saw pad through four chords (16 s) into a
     convolution reverb, and air with wind gusts. At most 12 transient events are drawn from
-    a weighted table (mood × zone weight). Behind closed glass only `indoor` events stay
+    a weighted table (mood × zone weight), including outdoor harbour buoy bells, mast rigging
+    clinks and streetcar bells. Behind closed glass only `indoor` events stay
     (`INDOOR_GATE`). An audible birds or gulls recording thins the synthesised call to
     `RECORDED_THIN` (.35). Events come from fixed anchors or from a ring around the acoustic
-    origin, so the pan matches the direction of arrival.
+    origin, so the pan matches the direction of arrival. `sysworld-effects.js` synthesises
+    bounded multi-layer world interaction cues (`tram`, `tram_bell`, `door`, `lift`, `discover`, `hover`).
   - Layers: the harbour water, murmur and lantern beds follow the zones (`zoneWeights`).
     Beds, movers, room tones, spaces and recordings are built in `ensure()`; see the modules below.
   - Frame contract: `sysworld.js` forwards `onSoundFrame` to `sound.frame()`, which runs door
     state, the zone tracker, space, beds, movers, rooms, recordings and the companion in that
     order. It returns at once while silent. `setListener` only refreshes the listener. `setTier`
     follows `onQuality`.
-  - Tiers: low keeps one reverb (no canyon or interior convolver), no leaves, steam or patter
+  - Tiers: low keeps one reverb (no canyon or interior convolver), no leaves, steam, fountain or patter
     beds, one tram, two hover voices, no barge, no gull call positions, the first bed of each
     room tone with no room events, six foley voices, and only the water, city and rain
     recordings. Laps play on every tier. Medium adds the interior convolver; high and ultra
@@ -5031,7 +5033,9 @@ registration lives in `internal/desktop/types.go`.
   Followers yield to their leader; trams retain their rails. Only a passenger's
   own vehicle is excluded. `sysworld-colliders.js` preserves ground apertures
   separately from upper building envelopes. Moving doors wait for clear panels.
-  Trams accelerate and brake before obstacles/stops; yielding residents wait
+  Trams accelerate and brake before obstacles/stops, ride twin rails over instanced
+  flush sleepers, and ring a cooldown-gated courtesy bell (`tram_bell`) while held
+  up by an obstacle; yielding residents wait
   outside the rail corridor until the complete vehicle has passed. Guides
   retain their destination while blocked and resume when a route becomes free.
   Camera flights validate each segment, use nearby clear exits before climbing
@@ -6093,7 +6097,7 @@ registration lives in `internal/desktop/types.go`.
 - `sysworld-audio.js` - Gesture-unlocked opt-in ambient audio, master limiter and shared mixer; owns the score, the event table and the tiers.
 - `sysworld-zones.js` - Pure sound zones: harbour, canyon, green, plaza and height shares, interior rooms and their doors, and `surfaceAt`. Its sampled fields are built once.
 - `sysworld-sound-space.js` - Glass (low pass and gain by door openness), reverb sends, the street-canyon and interior convolvers per tier, and the room bus.
-- `sysworld-sound-beds.js` - Leaves, laps, steam, traffic wash, rain and glass patter, shaped by the zones.
+- `sysworld-sound-beds.js` - Leaves, two-stage quay laps, steam, the central fountain cascade, traffic wash, rain and glass patter, shaped by the zones.
 - `sysworld-sound-movers.js` - Tram hum, whine, rolling noise, squeal and clacks; hover-robot whirs; the launch and the barge; gull call positions.
 - `sysworld-sound-rooms.js` - Room tones for the lobbies and pavilions, with sparse room events.
 - `sysworld-sound-frame.js` - The scene's per-frame sound input (clocks, wind, trams, companion, door openness), filled in place.

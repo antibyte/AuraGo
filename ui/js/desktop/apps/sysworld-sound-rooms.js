@@ -15,15 +15,16 @@ export const ROOM_TONES=Object.freeze({
     events:[{kind:'tick',every:[1,4],gain:.03,f:4000,q:2,dur:.005,count:[2,4],spacing:[.04,.09]},{kind:'blip',every:[4,10],gain:.015,notes:[660,880,990],dur:.12,double:0}]},
   // Departure hall: belt rumble, hall murmur, split-flap boards, a chime before (wordless) announcements.
   departure:{beds:[{wave:'noise',filter:['lowpass',120,.7],gain:.075,lfo:[.8,.3]},{wave:'sine',f:31,gain:.03},{wave:'noise',filter:['bandpass',500,.4],gain:.0225}],
-    events:[{kind:'tick',every:[12,25],gain:.021,f:2200,q:1.5,dur:.006,count:[8,20],spacing:[.04,.04]},{kind:'chime',every:[40,70],gain:.03,notes:[1046.5,1318.5,1568],step:.35,murmur:2.2}]},
+    events:[{kind:'tick',every:[6,13],gain:.068,f:1950,q:1.1,dur:.012,count:[10,22],spacing:[.038,.048]},{kind:'chime',every:[12,24],gain:.052,notes:[1046.5,1318.5,1568],step:.35,murmur:2.2}]},
   // Machine hall: fans, blade pass, coolant flow, mains, an occasional clunk.
   machine:{beds:[{wave:'noise',filter:['bandpass',180,1],gain:.072},{wave:'sine',f:87,gain:.024},{wave:'sine',f:174,gain:.012},{wave:'noise',filter:['bandpass',900,.6],gain:.024,lfo:[.3,.5]},{wave:'sine',f:50,gain:.018}],
     events:[{kind:'clunk',every:[8,20],gain:.045,dur:.06}]},
   // Garden court (open to the sky; leaves come from the green zone): water trickle and drops.
   court:{beds:[{wave:'noise',filter:['bandpass',2400,2],gain:.018,lfo:[5.3,.4]},{wave:'noise',filter:['bandpass',1400,1.2],gain:.009,lfo:[7.1,.3]}],
     events:[{kind:'drop',every:[.7,2.5],gain:.015,from:[1200,1800],to:600,dur:.06}]},
-  // Waterfront pavilions: quiet air handling.
-  pavilion:{beds:[{wave:'noise',filter:['lowpass',400,.5],gain:.0225},{wave:'sine',f:120,gain:.0045}],events:[]},
+  // Waterfront pavilions: quiet air handling and sparse relay ticks.
+  pavilion:{beds:[{wave:'noise',filter:['lowpass',400,.5],gain:.0225},{wave:'sine',f:120,gain:.0045}],
+    events:[{kind:'tick',every:[8,18],gain:.014,f:2600,q:1.6,dur:.008,count:[1,2],spacing:[.08,.14]}]},
 });
 export function createRoomTones(context,{room,send,noise,random=Math.random,tier='high'}){
   let level=tier,current=null,busy=false,fired=0,switches=0;const events=new Set(),fading=new Set(),span=([a,b])=>a+(b-a)*random();

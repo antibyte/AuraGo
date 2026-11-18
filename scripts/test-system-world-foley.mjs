@@ -88,6 +88,10 @@ try{
   assert.equal(ambience.stats().foley.played,1,'A robot action reaches the foley');
   ambience.effect('door',2,0,0);
   assert.equal(ambience.stats().foley.played,1,'A world interaction never reaches the foley');
+  for(const cue of['tram','tram_bell','lift','discover','hover'])ambience.effect(cue,3,0,2);
+  assert.ok(ambience.stats().effects.voices>=5,'Multi-layer world interaction cues allocate bounded voices');
+  flush();
+  assert.equal(ambience.stats().effects.voices,0,'Finished world interaction cues release all nodes');
   ambience.gait('resident-1',0,0,0,false,false);
   ambience.gait('resident-1',1,0,0,true,false);
   assert.equal(ambience.stats().foley.steps,1,'The stride reaches the foley');

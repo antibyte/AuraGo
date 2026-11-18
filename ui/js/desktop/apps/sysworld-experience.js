@@ -54,6 +54,14 @@ export function createExperience(scene,options){
     }
     const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));geometry.setIndex(indices);geometry.computeVertexNormals();geometries.add(geometry);group.add(new THREE.Mesh(geometry,railMaterial));
   }
+  // Flush cast-iron rail ties/clips anchor the twin rail ribbons into the carriageway in a single instanced draw.
+  {
+    const tieCount=Math.max(1,Math.floor(length/1.6)),tieGeo=new THREE.BoxGeometry(2.04,.026,.20),tieMat=new THREE.MeshStandardMaterial({color:0x1b2228,metalness:.48,roughness:.7});
+    geometries.add(tieGeo);materials.add(tieMat);
+    const ties=new THREE.InstancedMesh(tieGeo,tieMat,tieCount),tieM=new THREE.Matrix4(),tieQ=new THREE.Quaternion(),tieS=new THREE.Vector3(1,1,1),tieUp=new THREE.Vector3(0,1,0);
+    for(let i=0;i<tieCount;i++){route.getPointAt(i/tieCount,tmp);route.getTangentAt(i/tieCount,ahead);tmp.y=surfaces.road+.013;tieQ.setFromAxisAngle(tieUp,Math.atan2(ahead.x,ahead.z));ties.setMatrixAt(i,tieM.compose(tmp,tieQ,tieS));}
+    ties.receiveShadow=true;group.add(ties);
+  }
   async function template(id,level=tier==='low'?2:tier==='medium'?1:0){
     const key=id+':'+level;
     if(!cache.has(key))cache.set(key,(async()=>{
@@ -395,12 +403,14 @@ export function createExperience(scene,options){
       const previous={u:t.u,dwell:t.dwell,stop:t.stop};let arrived=false;
       if(t.dwell>0){t.dwell-=step;t.speed=0;}else{
         const gap=s=>((s.u-t.u+1)%1)*length,station=stops.reduce((best,s)=>gap(s)>.00001&&gap(s)<gap(best)?s:best,stops.find(s=>gap(s)>.00001)||stops[0]);
-        let desired=Math.min(11,Math.sqrt(gap(station)*8));
+        let desired=Math.min(11,Math.sqrt(gap(station)*8)),blocked=false;
+        t.bellCooldown=Math.max(0,(t.bellCooldown||0)-step);
         for(let n=1;n<=3;n++){
           const u=(t.u+(1.2+t.speed*.7)*n/3/length)%1;route.getPointAt(u,tmp);route.getTangentAt(u,ahead);
           const probe={x:tmp.x,y:surfaces.road+.03,z:tmp.z,heading:Math.atan2(ahead.x,ahead.z)};
-          if(!traffic.clear(t.body,probe,probe)){desired=0;break;}
+          if(!traffic.clear(t.body,probe,probe)){desired=0;blocked=true;break;}
         }
+        if(blocked&&step>0&&t.bellCooldown<=0){t.bellCooldown=5.5;callSound('tram_bell',t.node.position);}
         t.speed+=THREE.MathUtils.clamp(desired-t.speed,-step*8,step*3.5);
         const advance=step*t.speed/length,previous=t.u;t.u=(t.u+advance)%1;
         const next=stops.findIndex(s=>((s.u-previous+1)%1)>0&&((s.u-previous+1)%1)<=advance+.00001);
