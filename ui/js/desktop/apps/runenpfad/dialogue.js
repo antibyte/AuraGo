@@ -3,8 +3,8 @@
     'use strict';
 
     const SHARED_CHOICES = ['farewell', 'thanks', 'trade', 'leave', 'fight', 'back'];
-    const EFFECT_OPS = ['rep', 'coins', 'item', 'give', 'flag', 'unflag', 'quest', 'questDone', 'trade', 'duel', 'provoke', 'gate', 'leave', 'confront'];
-    const COND_KEYS = ['repMin', 'repMax', 'coinsMin', 'flag', 'notFlag', 'flagMin', 'item', 'hero', 'quest', 'questDone', 'notQuest', 'world', 'feature', 'any', 'not'];
+    const EFFECT_OPS = ['rep', 'coins', 'item', 'give', 'flag', 'unflag', 'quest', 'questDone', 'trade', 'duel', 'provoke', 'gate', 'leave', 'confront', 'ui'];
+    const COND_KEYS = ['repMin', 'repMax', 'coinsMin', 'flag', 'notFlag', 'flagMin', 'item', 'hero', 'quest', 'questDone', 'notQuest', 'world', 'feature', 'any', 'not', 'progress', 'loot'];
     const TIP_KINDS = ['key_dir', 'gems_left', 'secret_wall', 'chest_dir', 'puzzle_hint', 'boss_weakness'];
     const MOODS = ['neutral', 'happy', 'angry'];
     const MARKERS = ['talk', 'quest', 'duel', 'trade', 'heart'];
@@ -24,7 +24,8 @@
     function nodeKey(npcId, local) { return 'runenpfad.npc.' + npcId + '.' + local; }
     function asList(v) { return Array.isArray(v) ? v : [v]; }
     function findNpc(sim, ref) {
-        return ((sim.stage && sim.stage.npcs) || []).filter(function (n) { return n.ref === ref; })[0] || null;
+        const inside = ((sim.interior && sim.interior.npcs) || []).filter(function (n) { return n.ref === ref; })[0];
+        return inside || ((sim.stage && sim.stage.npcs) || []).filter(function (n) { return n.ref === ref; })[0] || null;
     }
 
     // ---- conditions ----
@@ -53,6 +54,8 @@
             else if (key === 'feature') ok = v === 'duel' ? !!root.RunenpfadDuel : false;
             else if (key === 'any') ok = v.some(function (c) { return evalCond(c, sim); });
             else if (key === 'not') ok = !evalCond(v, sim);
+            else if (key === 'progress') ok = pr.unlockedLevel >= v;
+            else if (key === 'loot') ok = (pr.loot || []).indexOf(v) >= 0;
             if (!ok) return false;
         }
         return true;
@@ -65,6 +68,9 @@
         if (what === 'potion') {
             p.potions += 1;
             sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+1', icon: 'potion', color: '#c084fc', timer: 1 });
+        } else if (what === 'meal') {
+            p.hp = p.maxHp;
+            sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: 'FULL', icon: 'heart', color: '#f87171', timer: 1 });
         } else if (what === 'heart') {
             p.hp = Math.min(p.maxHp, p.hp + 1);
             sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: '+1', icon: 'heart', color: '#f87171', timer: 1 });
@@ -103,6 +109,9 @@
                 else if (op === 'provoke') {
                     n.provoke(sim, npc);
                     res.duel = !!(sim.encounter && sim.encounter.kind === 'duel') || res.duel;
+                } else if (op === 'ui') {
+                    sim.uiRequest = v;
+                    close(sim);
                 } else if (op === 'gate') openGate(sim, npc);
                 else if (op === 'leave') {
                     npc.state = 'gone';
@@ -377,13 +386,14 @@
                     if (!prof().STORY_ITEMS[id]) probs.push(where + ': bad item ' + id);
                     else if (v[id] < 0 && !(guard && guard.item && guard.item[id] >= -v[id])) probs.push(where + ': unguarded item ' + id);
                 });
-                if (op === 'give' && !(v === 'potion' || v === 'heart' || /^rune_(fire|frost|storm|magnet)$/.test(v))) probs.push(where + ': bad give ' + v);
+                if (op === 'give' && !(v === 'potion' || v === 'heart' || v === 'meal' || /^rune_(fire|frost|storm|magnet)$/.test(v))) probs.push(where + ': bad give ' + v);
                 if (op === 'flag') {
                     if (typeof v === 'string') { if (!prof().FLAG_RE.test(v)) probs.push(where + ': bad flag ' + v); }
                     else Object.keys(v).forEach(function (k) { if (!prof().FLAG_RE.test(k)) probs.push(where + ': bad flag ' + k); });
                 }
                 if (op === 'unflag') asList(v).forEach(function (k) { if (!prof().FLAG_RE.test(k)) probs.push(where + ': bad flag ' + k); });
                 if ((op === 'quest' || op === 'questDone') && prof().QUEST_IDS.indexOf(v) < 0) probs.push(where + ': bad quest ' + v);
+                if (op === 'ui' && v !== 'workshop' && v !== 'chronicle') probs.push(where + ': bad ui ' + v);
                 if (op === 'gate' && v !== 'open') probs.push(where + ': bad gate');
             });
         });
@@ -399,13 +409,15 @@
             if (k === 'flagMin') Object.keys(v).forEach(function (f) { if (!prof().FLAG_RE.test(f)) probs.push(where + ': bad flag ' + f); });
             if (k === 'item') Object.keys(v).forEach(function (id) { if (!prof().STORY_ITEMS[id]) probs.push(where + ': bad item ' + id); });
             if ((k === 'quest' || k === 'questDone' || k === 'notQuest') && prof().QUEST_IDS.indexOf(v) < 0) probs.push(where + ': bad quest ' + v);
+            if (k === 'progress' && !(Number.isInteger(v) && v >= 1 && v <= 25)) probs.push(where + ': bad progress ' + v);
+            if (k === 'loot' && !prof().LOOT_RE.test(v)) probs.push(where + ': bad loot ' + v);
             if (k === 'any') v.forEach(function (x) { checkCond(x, where, probs); });
             if (k === 'not') checkCond(v, where, probs);
         });
     }
 
     function closesDialogue(c) {
-        return c.to === null || (c.effects || []).some(function (e) { return e.duel || e.provoke; });
+        return c.to === null || (c.effects || []).some(function (e) { return e.duel || e.provoke || e.ui; });
     }
 
     function validateGraphs() {

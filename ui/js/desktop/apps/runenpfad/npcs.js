@@ -85,7 +85,7 @@
         return getFlag(sim, key) > 0;
     }
 
-    // value: number (set; 0 clears); invalid keys and a full table (64 keys) are ignored.
+    // value: number (set; 0 clears); invalid keys and a full table (96 keys) are ignored.
     function setFlag(sim, key, value) {
         if (!prof().FLAG_RE.test(String(key))) return false;
         const flags = story(sim).npcFlags;
@@ -95,7 +95,7 @@
         if (n === 0) {
             delete flags[key];
         } else {
-            if (had === 0 && Object.keys(flags).length >= 64) return false;
+            if (had === 0 && Object.keys(flags).length >= 96) return false;
             flags[key] = n;
         }
         dirty(sim);

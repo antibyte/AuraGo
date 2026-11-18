@@ -8,6 +8,8 @@
     const FACTIONS = ['coven', 'circle', 'kobolds'];
     const STORY_ITEMS = { glow_mushroom: 9, sun_shard: 9, gear_part: 9, hex_charm: 1, lucky_amulet: 3, discount_token: 3, rune_attune: 2 };
     const QUEST_IDS = ['witch_mushrooms', 'seer_shards', 'alchemist_gears'];
+    const LOOT_RE = /^[a-z][a-z0-9_]{1,23}$/;
+    const SEEN_RE = /^[a-z][a-z0-9_]{1,15}$/;
     const FLAG_RE = /^[a-z][a-z0-9_]{0,15}\.[a-z0-9_]{1,23}$/;
 
     function levelsApi() {
@@ -36,7 +38,9 @@
             rep: { coven: 0, circle: 0, kobolds: 0 },
             npcFlags: {},
             inventory: {},
-            quests: { active: [], done: [] }
+            quests: { active: [], done: [] },
+            loot: [],
+            seen: []
         };
     }
 
@@ -59,7 +63,7 @@
         if (isPlainObject(raw.npcFlags)) {
             Object.keys(raw.npcFlags).filter(function (k) { return FLAG_RE.test(k); }).sort().forEach(function (k) {
                 const n = clampInt(raw.npcFlags[k], 0, 99, 0);
-                if (n > 0 && Object.keys(npcFlags).length < 64) npcFlags[k] = n;
+                if (n > 0 && Object.keys(npcFlags).length < 96) npcFlags[k] = n;
             });
         }
         const inventory = {};
@@ -85,6 +89,15 @@
             quests.active = list(raw.quests.active, 8, quests.done);
         }
         return { rep: rep, npcFlags: npcFlags, inventory: inventory, quests: quests };
+    }
+
+    // Sorted, deduplicated list of ids matching `re`, cut at `cap`.
+    function idList(v, re, cap) {
+        const out = [];
+        if (Array.isArray(v)) {
+            v.forEach(function (s) { if (typeof s === 'string' && re.test(s) && out.indexOf(s) < 0) out.push(s); });
+        }
+        return out.sort().slice(0, cap);
     }
 
     function importProfile(raw) {
@@ -134,7 +147,9 @@
             rep: story.rep,
             npcFlags: story.npcFlags,
             inventory: story.inventory,
-            quests: story.quests
+            quests: story.quests,
+            loot: idList(raw.loot, LOOT_RE, 48),
+            seen: idList(raw.seen, SEEN_RE, 24)
         };
     }
 
@@ -206,6 +221,8 @@
         STORY_ITEMS: STORY_ITEMS,
         QUEST_IDS: QUEST_IDS,
         FLAG_RE: FLAG_RE,
+        LOOT_RE: LOOT_RE,
+        SEEN_RE: SEEN_RE,
         createDefaultProfile: createDefaultProfile,
         importProfile: importProfile,
         exportProfile: exportProfile,

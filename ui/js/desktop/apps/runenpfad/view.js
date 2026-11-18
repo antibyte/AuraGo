@@ -328,6 +328,8 @@
             // Close-up duel: the arena replaces the level once the intro iris has closed (and again until the outro iris opens).
             const duelEnc = sim.encounter && sim.encounter.kind === 'duel' && sim.encounter.duel ? sim.encounter : null;
             if (duelView) duelView.prime(sim);
+            if (placeView) placeView.prime(sim);
+            if (interiorView) interiorView.prime(sim);
             if (duelEnc && duelView && duelView.wantsArena(sim)) {
                 // The window's DOM top bar overlays the canvas: tell the duel HUD how far down it reaches.
                 const shellEl = canvas.closest ? canvas.closest('.rp-app') : null;
@@ -337,6 +339,13 @@
                 duelView.render(sim, af);
                 duelView.drawWipe(sim, viewW, viewH, af);
                 finishFrame(sim, biome, dt, nowSec, null, viewW, viewH, duelEnc.duel.fx);
+                return;
+            }
+
+            // Inside a building or cave the top-down room replaces the level.
+            if (sim.interior && interiorView) {
+                interiorView.render(sim, { nowSec: nowSec, dt: dt, reducedMotion: reduced, viewW: viewW, viewH: viewH, biome: biome });
+                finishFrame(sim, biome, dt, nowSec, null, viewW, viewH, null);
                 return;
             }
 
@@ -477,6 +486,8 @@
                 drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x, mp.y - 1, TILE + 1, magicH);
                 drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec + 0.25, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x + TILE, mp.y - 1, TILE + 1, magicH);
             });
+
+            callHook(placeView, 'drawBack', sim, frameView);
 
             // Checkpoints (painted banner stone, campfire fallback grounded at surface)
             const artCheckpoints = !!(art && stageArt && stageArt.drawCheckpoints && stageArt.drawCheckpoints(sim, frameView));
@@ -636,6 +647,7 @@
             callHook(stageArt, 'drawOverlay', sim, frameView);
             callHook(setPieces, 'drawOverlay', sim, frameView);
             callHook(npcView, 'drawOverlay', sim, frameView);
+            callHook(placeView, 'drawFront', sim, frameView);
 
             // Floating feedback: numbers, translated labels (ft.key) and an optional pixel icon (ft.icon) behind the text
             ctx.save();
@@ -814,7 +826,7 @@
             if (disposed) return;
             disposed = true;
             // The app owns the post-processing object and disposes it itself.
-            [decor, actors, stageArt, setPieces, npcView, duelView].forEach(function (m) {
+            [decor, actors, stageArt, setPieces, npcView, duelView, placeView, interiorView].forEach(function (m) {
                 if (m && typeof m.dispose === 'function') {
                     try { m.dispose(); } catch (err) { /* ignore */ }
                 }
@@ -851,6 +863,8 @@
         const setPieces = makeHook(root.RunenpfadSetPieces);
         const npcView = makeHook(root.RunenpfadNpcView);
         const duelView = makeHook(root.RunenpfadDuelView);
+        const placeView = makeHook(root.RunenpfadPlaceView);
+        const interiorView = makeHook(root.RunenpfadInteriorView);
 
         // Light sources in world space for the 2D light map.
         function collectLights(sim, stage, biome, nowSec, ambient) {

@@ -20,7 +20,7 @@ vm.createContext(sandbox);
 
 // Same order as module-loader.js; missing modules are skipped so the suite grows with the phases.
 const MODULES = ['biomes', 'fx', 'physics', 'behaviors', 'bosses', 'variety', 'profile', 'runes', 'zones', 'zones-extra', 'swing', 'puzzles', 'dragons',
-    'npcs', 'npc-story', 'npc-story-late', 'dialogue', 'trade', 'duel-patterns', 'duel', 'levels', 'combat', 'sim'];
+    'npcs', 'npc-story', 'npc-story-late', 'dialogue', 'trade', 'folk', 'folk-story', 'duel-patterns', 'duel', 'levels', 'combat', 'sim'];
 for (const m of MODULES) {
     const rel = `ui/js/desktop/apps/runenpfad/${m}.js`;
     if (fs.existsSync(path.join(rootDir, rel))) loadModule(rel, sandbox);
@@ -74,7 +74,7 @@ function profileWith(extra) {
     flags['zero.v'] = 0;
     flags['big.v'] = 1e9;
     const fp = profileWith({ npcFlags: flags });
-    assert.equal(Object.keys(fp.npcFlags).length, 64, 'flags capped at 64');
+    assert.equal(Object.keys(fp.npcFlags).length, 96, 'flags capped at 96');
     assert.ok(!Object.keys(fp.npcFlags).some((k) => k.length > 30), 'long key dropped');
     assert.ok(!('zero.v' in fp.npcFlags));
     assert.equal(profileWith({ npcFlags: { 'big.v': 1e9 } }).npcFlags['big.v'], 99);
@@ -127,6 +127,8 @@ deepEq(Dialogue.validateGraphs(), [], 'story graphs validate');
 }
 assert.ok(Dialogue.textKeys().includes('runenpfad.npc.witch.hello.c1'));
 assert.ok(Dialogue.textKeys().includes('runenpfad.npc.c.trade'));
+assert.ok(Dialogue.textKeys().includes('runenpfad.npc.elder.hello') && Dialogue.textKeys().includes('runenpfad.npc.witch.tavern'), 'folk graphs are part of the key list');
+assert.ok(Trade.textKeys().includes('runenpfad.npc.item.meal.name'), 'meal offer keys');
 
 // ---- 2.2 camps ----
 const CAMP_CFG = { id: 2, worldIndex: 0, stageInWorld: 2, zones: ['meadow', 'npc_camp:witch', 'key_sanctum'], enemies: ['slime'] };

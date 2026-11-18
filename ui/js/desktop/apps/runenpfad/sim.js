@@ -65,7 +65,9 @@
         const profileRef = profileApi();
         const profile = profileRef ? profileRef.exportProfile(options.profile) : (options.profile || {});
         const mode = options.mode === 'endless' ? 'endless' : 'campaign';
-        const levelId = Math.min(levels.CAMPAIGN_LEVELS.length, Math.max(1, Math.floor(Number(options.levelId) || 1)));
+        // Campaign level 0 is the village hub (only when village.js is loaded).
+        const hubWanted = options.mode !== 'endless' && Number(options.levelId) === 0 && !!root.RunenpfadVillage;
+        const levelId = hubWanted ? 0 : Math.min(levels.CAMPAIGN_LEVELS.length, Math.max(1, Math.floor(Number(options.levelId) || 1)));
         const endlessFloor = Math.min(9999, Math.max(1, Math.floor(Number(options.endlessFloor) || 1)));
         const heroId = options.hero === 'ranger' ? 'ranger' : (options.hero === 'knight' ? 'knight' : profile.hero);
         const stage = levels.buildStage(mode === 'endless' ? { mode: 'endless', endlessFloor: endlessFloor, seed: options.seed || 9001 } : levelId);
@@ -87,12 +89,14 @@
             stepCount: 0,
             damageTaken: 0,
             stageCoins: 0,
+            interior: null,
+            uiRequest: null,
             stageScore: 0,
             gemsCollected: [false, false, false],
             gemCount: 0,
             hasKey: false,
             earnedStars: 0,
-            notice: 'runenpfad.notice.find_key',
+            notice: stage.hub ? '' : 'runenpfad.notice.find_key',
             checkpoint: { x: stage.spawn.x, y: stage.spawn.y },
             checkpointUsed: false,
             player: {
@@ -536,8 +540,12 @@
 
     function stepOneTick(sim, input) {
         if (sim.state !== 'playing') return;
+        // Interiors own the tick while one is open (a dialogue inside is held by the NPC hook below).
+        const places = root.RunenpfadPlaces;
+        if (places && sim.interior && !sim.encounter) { places.step(sim, input, STEP); return; }
         // NPC encounters: a dialogue freezes the world, a duel replaces the tick.
         if (root.RunenpfadNpcs && root.RunenpfadNpcs.hold(sim, input, STEP)) return;
+        if (places && places.tryEnter(sim, input)) return;
         const dt = STEP;
         const p = sim.player;
         const stage = sim.stage;

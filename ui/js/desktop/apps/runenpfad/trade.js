@@ -37,6 +37,11 @@
         rune_frost: runeOffer('frost'),
         rune_storm: runeOffer('storm'),
         rune_magnet: runeOffer('magnet'),
+        meal: offer('meal', 8, 'heart', 'stage', 5, function (sim) {
+            const p = sim.player;
+            p.hp = p.maxHp;
+            sim.floatingTexts.push({ x: p.x, y: p.y - 44, text: 'FULL', icon: 'heart', color: '#f87171', timer: 1 });
+        }),
         map_charm: offer('map_charm', 15, 'map_charm', 'stage', 1, function (sim) { sim.mapCharm = true; }),
         lucky_amulet: offer('lucky_amulet', 25, 'lucky_amulet', 'item', 1, stored('lucky_amulet')),
         discount_token: offer('discount_token', 30, 'discount_token', 'item', 1, stored('discount_token')),
@@ -62,7 +67,8 @@
     function priceOf(sim, npc, offerId) {
         const o = OFFERS[offerId];
         if (!o) return 0;
-        const rep = N().getRep(sim, N().NPCS[npc.npcId].faction);
+        const faction = N().NPCS[npc.npcId].faction;
+        const rep = faction ? N().getRep(sim, faction) : 0;
         if (npc.npcId === 'merchant' && N().hasFlag(sim, 'merchant.haggle')) {
             return Math.max(1, Math.round(o.base * (1 - 0.06 * rep) * HAGGLE));
         }

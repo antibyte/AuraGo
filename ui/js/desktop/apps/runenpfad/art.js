@@ -46,7 +46,7 @@
         }
     }
 
-    const LAZY = /^(bg|portrait|duel|fx-duel)-/;
+    const LAZY = /^(bg|portrait|duel|fx-duel|td|tdp|tex|fac|cut|cutfg|vil)-/;
     let current = null;
 
     function register(atlas, id, sh, img) {
