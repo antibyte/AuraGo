@@ -3821,6 +3821,13 @@ buttons and menu popovers remain excluded from those gestures.
   props, cranes, masts and signs sit on the quay, while boats and buoys float on the single
   water line `AD.HARBOUR_WATER_Y`. Land props need dry ground, water props need ground below
   the water. Guard: `scripts/test-aura-drift-world.mjs`.
+- Prop height: `AD.propHeight` (`aura-drift-props.js`) is the single rule for where a prop
+  stands, and the renderer uses it for every placement. The road surface is 0.4 m above the
+  verge, so lifting a prop to road level makes it hover: the grandstands, hoardings, marshal
+  posts, gnomes, stands, signs and the start gantry all stand on the ground height. The
+  harbour adds the boats, the buoys and the lighthouse, which float or stand on their rock.
+  Guard: `scripts/test-aura-drift-props.mjs` (every prop stands on its ground on all eight
+  tracks and the daily layouts).
 - Road markings (curbs, dashed centre line, worn racing-line bands, checkered start/finish)
   are world-anchored: dash patterns scale with the camera zoom and never animate with frame
   time. Braking fades out at standstill; a held brake engages a bounded reverse, and steering

@@ -267,6 +267,65 @@
         return out;
     };
 
+    /* ---- ground of a placement -------------------------------------------------------------------- */
+    /* The ground the player sees comes from the terrain module, which reads the same
+       distance field the terrain mesh is built from. Without it a prop hovers over
+       the verge, because the road surface is 0.4 m above it. */
+    AD.propGroundAt = function (track, biomeId, x, y) {
+        if (typeof AD.groundHeight === 'function') {
+            try {
+                const h = AD.groundHeight(track, biomeId, x, y);
+                if (isFinite(h)) return h;
+            } catch (_) { /* fall through to the flat rule */ }
+        }
+        if (biomeId === 'harbour') {
+            const smp = AD.sampleTrack(track, x, y);
+            const outer = innerSign(track, x, y, smp) !== Math.sign(smp.offset);
+            return outer && Math.abs(smp.offset) > smp.halfWidth + 14 ? -3 : -0.4;
+        }
+        return biomeId === 'salt' ? -0.3 : biomeId === 'metro' ? -0.2 : 0;
+    };
+
+    /* Which side of the loop a point lies on. The harbour has two: inside is the
+       quay, outside is the sea. */
+    AD.propSide = function (track, biomeId, x, y) {
+        if (biomeId !== 'harbour') return 'land';
+        const field = typeof AD.trackField === 'function' ? AD.trackField(track, 8) : null;
+        if (!field) return 'quay';
+        const info = {};
+        field.info(x, y, info);
+        const inner = info.inner !== null && info.inner !== undefined ? info.inner : field.inside(x, y);
+        return inner ? 'quay' : 'water';
+    };
+
+    /* Height of a placement, or null when the prop does not belong there.
+       Every prop stands on the ground it is placed on; nothing is lifted to road
+       level. The harbour adds its own rule: the boats float on the water, the quay
+       carries the cranes and the container stacks. */
+    AD.propHeight = function (track, biomeId, p) {
+        const gy = AD.propGroundAt(track, biomeId, p.x, p.y);
+        if (biomeId !== 'harbour') return gy;
+        const side = AD.propSide(track, biomeId, p.x, p.y);
+        if (p.kind === 'scatter') {
+            if (WATER_ONLY[p.name]) {
+                /* A boat needs water under it: the ground has to be below the water
+                   line, otherwise the hull would hang over the quay. */
+                if (side !== 'water' || gy > WATER_Y - 0.2) return null;
+                return WATER_Y;
+            }
+            if (p.name === 'lighthouse') {
+                if (side !== 'water' || gy > WATER_Y) return null;
+                return Math.max(gy, WATER_Y - 1);   /* its rock stands in the sea */
+            }
+            /* The quay carries the cranes and the container stacks: the ground has to
+               be clearly above the water line. */
+            if (side !== 'quay' || gy < WATER_Y + 0.8) return null;
+        } else if (p.name !== 'gantry' && (side !== 'quay' || gy < WATER_Y + 0.8)) {
+            return null;                            /* no grandstand on the sea */
+        }
+        return gy;
+    };
+
     /* ---- brand and sign canvases ------------------------------------------------------------------- */
     const BRANDS = [
         { id: 'wurstwerk', name: 'WURSTWERK', tag: 'Seit gestern traditionell', a: '#d62f2f', b: '#ffd23f', icon: 'sausage' },
@@ -434,37 +493,6 @@
         const M = new T.Matrix4(), place = new T.Matrix4(), tmpQ = new T.Quaternion(), tmpP = new T.Vector3(), tmpS = new T.Vector3(), UP = new T.Vector3(0, 1, 0), spinM = new T.Matrix4();
         const colour = new T.Color();
 
-        /* The track's distance field: it knows which side of the loop a point lies on.
-           The harbour needs that side - inside the loop is the quay, outside is the sea -
-           and the terrain mesh is built from the same field, so a prop and the ground
-           under it agree. */
-        const field = typeof AD.trackField === 'function' ? AD.trackField(track, 8) : null;
-        const sideSample = {};
-        function harbourSide(x, y) {
-            if (!field) return 'quay';
-            field.info(x, y, sideSample);
-            const inner = sideSample.inner !== null && sideSample.inner !== undefined ? sideSample.inner : field.inside(x, y);
-            return inner ? 'quay' : 'water';
-        }
-
-        /* Ground height under a placement: the terrain module when present, else the biome's flat rule.
-           The terrain module knows which side of the loop a point lies on, so in the harbour the
-           props stand on the quay and the boats sit in the water instead of hovering over it. */
-        function groundAt(x, y) {
-            if (typeof AD.groundHeight === 'function') {
-                try {
-                    const h = AD.groundHeight(track, biomeId, x, y);
-                    if (isFinite(h)) return h;
-                } catch (_) { /* fall through to the flat rule */ }
-            }
-            if (biomeId === 'harbour') {
-                const smp = AD.sampleTrack(track, x, y);
-                const outer = innerSign(track, x, y, smp) !== Math.sign(smp.offset);
-                return outer && Math.abs(smp.offset) > smp.halfWidth + 14 ? -3 : -0.4;
-            }
-            return biomeId === 'salt' ? -0.3 : biomeId === 'metro' ? -0.2 : 0;
-        }
-
         function swayed(mat, strength) {
             mat.onBeforeCompile = shader => {
                 shader.uniforms.uWind = wind;
@@ -534,32 +562,12 @@
             placements = [];
             const sharedMeta = meta.shared || {};
             for (const p of scatter.concat(furn)) {
-                p.gy = groundAt(p.x, p.y);
-                if (biomeId === 'harbour') {
-                    /* The harbour has two sides of the loop: the quay inside it and the sea
-                       outside it. The cranes and the container stacks belong on the quay, the
-                       boats and the buoys on the water - and nothing may hover above either. */
-                    const side = harbourSide(p.x, p.y);
-                    if (p.kind === 'scatter') {
-                        if (WATER_ONLY[p.name]) {
-                            /* A boat needs water under it: the ground has to be below the
-                               water line, otherwise the hull would hang over the quay. */
-                            if (side !== 'water' || p.gy > WATER_Y - 0.2) continue;
-                            p.gy = WATER_Y;
-                        } else if (p.name === 'lighthouse') {
-                            if (side !== 'water' || p.gy > WATER_Y) continue;
-                            p.gy = Math.max(p.gy, WATER_Y - 1);   /* its rock stands in the sea */
-                        } else {
-                            /* The quay carries the cranes and the container stacks: the
-                               ground has to be clearly above the water line. */
-                            if (side !== 'quay' || p.gy < WATER_Y + 0.8) continue;
-                        }
-                    } else if (p.name !== 'gantry' && (side !== 'quay' || p.gy < WATER_Y + 0.8)) {
-                        continue;                            /* no grandstand on the sea */
-                    }
-                }
+                /* The height rules live in the pure part, so the node checks and the
+                   renderer agree on where a prop stands. */
+                const gy = AD.propHeight(track, biomeId, p);
+                if (gy === null) continue;
+                p.gy = gy;
                 if (p.kind === 'furniture' && p.name !== 'gantry' && sharedMeta[p.name]) { p.r = Math.max(p.r, sharedMeta[p.name].radius * 0.5); }
-                if (p.kind === 'furniture') p.gy = (biomeId === 'harbour' && p.name !== 'gantry') ? p.gy : Math.max(p.gy, 0);
                 p.id = placements.length;
                 placements.push(p);
             }

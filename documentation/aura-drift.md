@@ -135,6 +135,13 @@ on (`AD.groundHeight`), so the cranes and the container stacks stay on the quay,
 buoys and the lighthouse stay in the water, and nothing hovers above either.
 `scripts/test-aura-drift-world.mjs` pins the quay, the sea and the dry ground beside the road.
 
+Every track follows the same rule: props stand on the ground the player sees. The road surface
+is 0.4 m above the verge, so a prop lifted to road level hovers over the verge - that is why the
+grandstands, hoardings, marshal posts, gnomes, stands and signs are placed with the ground
+height and not with the road level. `AD.propHeight` in `aura-drift-props.js` decides the height
+and the harbour's admissibility, `scripts/test-aura-drift-props.mjs` pins it for all eight tracks
+and the daily layouts.
+
 Animals run across the track at some crossings: cows (Alps, Salt Flats), llamas (Desert, Big
 City), crabs (Harbour), sheep (Forest, Industrial Zone) and penguins (Glacier). Sheep, penguins
 and crabs count as small animals, which is why Big Bertha plows through them.

@@ -89,6 +89,59 @@ for (const track of all) {
 }
 check('furniture stays beside the road', furnBad.length === 0, furnBad.slice(0, 3).join(' | '));
 
+/* Nothing hovers. Every prop stands on the ground the player sees: the road
+   surface is 0.4 m above the verge, so a prop lifted to road level floats over
+   the verge. The harbour adds its own rule: the boats float on the water and
+   the quay carries the cranes and the container stacks. */
+{
+    const floaters = [];
+    const harbourBad = [];
+    for (const track of all) {
+        const list = AD.scatterProps(track, track.biomeId, metaFor(track.biomeId)).concat(AD.furnitureProps(track));
+        for (const p of list) {
+            const h = AD.propHeight(track, track.biomeId, p);
+            if (h === null) continue;
+            const ground = AD.groundHeight(track, track.biomeId, p.x, p.y);
+            if (track.biomeId === 'harbour') {
+                /* Only the boats and the lighthouse leave the ground: they float on
+                   the water and stand on their rock. */
+                const afloat = Math.abs(h - AD.HARBOUR_WATER_Y) < 0.001 || Math.abs(h - (AD.HARBOUR_WATER_Y - 1)) < 0.001;
+                if (afloat) {
+                    if (ground > AD.HARBOUR_WATER_Y - 0.2) harbourBad.push(track.id + ':' + p.name + ' floats over dry ground');
+                } else if (Math.abs(h - ground) > 0.001) {
+                    floaters.push(track.id + ':' + p.name + ' ' + h.toFixed(2) + ' vs ' + ground.toFixed(2));
+                }
+            } else if (Math.abs(h - ground) > 0.001) {
+                floaters.push(track.id + ':' + p.name + ' ' + h.toFixed(2) + ' vs ' + ground.toFixed(2));
+            }
+        }
+    }
+    check('every prop stands on the ground it is placed on', floaters.length === 0, floaters.slice(0, 3).join(' | '));
+    check('the harbour boats float on water, not over the quay', harbourBad.length === 0, harbourBad.slice(0, 3).join(' | '));
+}
+
+/* The harbour has two sides: the quay inside the loop and the sea outside it. */
+{
+    const wrong = [];
+    for (const track of all.filter(t => t.biomeId === 'harbour')) {
+        for (const p of AD.furnitureProps(track)) {
+            if (p.name === 'gantry') continue;
+            const h = AD.propHeight(track, 'harbour', p);
+            if (h !== null && h < AD.HARBOUR_WATER_Y + 0.8) wrong.push(track.id + ':' + p.name + ' at ' + h.toFixed(2));
+        }
+        for (const p of AD.scatterProps(track, 'harbour', metaFor('harbour'))) {
+            const h = AD.propHeight(track, 'harbour', p);
+            if (h === null) continue;
+            const side = AD.propSide(track, 'harbour', p.x, p.y);
+            const ground = AD.groundHeight(track, 'harbour', p.x, p.y);
+            if (side === 'water' && h > AD.HARBOUR_WATER_Y + 0.01 && ground < AD.HARBOUR_WATER_Y) {
+                wrong.push(track.id + ':' + p.name + ' hovers over the sea at ' + h.toFixed(2));
+            }
+        }
+    }
+    check('the harbour keeps its quay props on land and its boats on the water', wrong.length === 0, wrong.slice(0, 3).join(' | '));
+}
+
 /* Tall props keep the inside of curves clear. */
 let sight = [];
 for (const track of tracks) {
@@ -190,6 +243,15 @@ for (const name of ['sky', 'props']) {
     check(name + '.js has no network or dynamic import', !/https?:\/\/|XMLHttpRequest|\bimport\(|\bfetch\(/.test(text));
     check(name + '.js avoids ad-filter words', !/banner|sponsor|billboard|promo|advert|\/ads\//i.test(text));
     check(name + '.js has no integer hash noise in GLSL', !/floatBitsToUint|uint\s+\w+\s*=|<<\s*\d+u/.test(text));
+}
+
+/* The renderer has to place the props with the shared height rule. A local clamp
+   would lift the furniture to road level again and everything would hover over
+   the verge once more. */
+{
+    const text = readFileSync(path.join(root, 'ui/js/desktop/apps/aura-drift-props.js'), 'utf8');
+    check('the renderer places the props with the shared height rule',
+        /AD\.propHeight\(/.test(text) && !/Math\.max\(\s*p\.gy/.test(text));
 }
 
 if (failures.length) {
