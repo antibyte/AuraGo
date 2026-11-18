@@ -22,11 +22,16 @@ ATLAS = IMG_DIR / "atlas.json"
 PROVENANCE = IMG_DIR / "provenance.json"
 
 ALPHA_CUT = 24        # below this the generated "fog" is erased
+ALPHA_CUT_NPC = 40    # NPC encounter sheets come with a faint haze up to alpha ~40
+ALPHA_CUT_PORTRAIT = 110  # busts carry a pale semi-transparent halo around the silhouette
 ALPHA_BOX = 48        # trimmed rectangles measure only solid pixels
 MAX_CELL = 256
 MAX_CELL_BOSS = 340
 MAX_CELL_DRAGON = 360
 MAX_CELL_BG_PROPS = 384
+MAX_CELL_DUEL = 384   # close-up duel sheets and dialogue portraits
+WEBP_QUALITY_NPC = 82
+LAZY_KINDS = ("portrait", "duel")
 MAX_WIDTH_BG_FAR = 2048
 WEBP_QUALITY_BG = 80
 BIOMES = ("woodland", "cavern", "desert", "glacier", "citadel")
@@ -78,14 +83,86 @@ SHEETS = {
     "fx-groundfire": (4, 3, "base", "fx"),
     "fx-torchflame": (4, 2, "base", "fx"),
     "bg-cavern-ceiling": (1, 1, "top", "bg-far"),
+    # NPC encounters phase 1: level sprites, dialogue portraits, duel sheets (lazy), duel FX, emote icons
+    "fx-duel-spells": (4, 4, "center", "fx"),
+    "ui-npc-icons": (4, 2, "center", "ui"),
+    "duel-knight": (4, 4, "feet", "duel"),
+    "duel-ranger": (4, 4, "feet", "duel"),
 }
+NPC_IDS = ("witch", "wizard", "merchant", "chief", "seer", "alchemist")
+for _n in NPC_IDS:
+    SHEETS["npc-%s" % _n] = (4, 2, "feet", "npc")
+    SHEETS["portrait-%s" % _n] = (3, 1, "bottom", "portrait")
+    SHEETS["duel-%s" % _n] = (4, 4, "feet", "duel")
 for _b in BIOMES:
     SHEETS["bg-%s-far" % _b] = (1, 1, "bottom", "bg-far")
     SHEETS["bg-%s-mid" % _b] = (4, 2, "feet", "bg-props")
     SHEETS["bg-%s-near" % _b] = (4, 2, "feet", "bg-props")
 
 
+def is_npc_sheet(sheet_id, kind):
+    return kind in ("npc", "portrait", "duel", "ui") or sheet_id == "fx-duel-spells"
+
+
+def is_lazy(sheet_id, kind):
+    """Sheets the loader keeps out of the boot load (decoded on demand)."""
+    return kind in LAZY_KINDS or sheet_id == "fx-duel-spells"
+
+
 def clips_for(sheet_id, kind, count):
+    if kind == "npc":
+        return "idle", {
+            "idle": {"frames": [0, 1], "ms": 320, "loop": True},
+            "talk": {"frames": [2, 3], "ms": 220, "loop": True},
+            "alert": {"frames": [4], "ms": 200, "loop": False},
+            "hurt": {"frames": [5], "ms": 200, "loop": False},
+            "cast": {"frames": [6, 7], "ms": 160, "loop": True},
+        }
+    if kind == "portrait":
+        return "neutral", {
+            "neutral": {"frames": [0], "ms": 200, "loop": False},
+            "happy": {"frames": [1], "ms": 200, "loop": False},
+            "angry": {"frames": [2], "ms": 200, "loop": False},
+        }
+    if kind == "duel" and sheet_id in ("duel-knight", "duel-ranger"):
+        return "idle", {
+            "idle": {"frames": [0, 1], "ms": 260, "loop": True},
+            "run": {"frames": [2, 3], "ms": 120, "loop": True},
+            "jump": {"frames": [4], "ms": 200, "loop": False},
+            "combo": {"frames": [5, 6, 7], "ms": 95, "loop": False},
+            "block": {"frames": [8], "ms": 200, "loop": False},
+            "roll": {"frames": [9, 10], "ms": 80, "loop": False},
+            "hurt": {"frames": [11], "ms": 200, "loop": False},
+            "special": {"frames": [12, 13], "ms": 140, "loop": False},
+            "defeat": {"frames": [14], "ms": 420, "loop": False},
+            "victory": {"frames": [15], "ms": 300, "loop": False},
+        }
+    if kind == "duel":
+        return "idle", {
+            "idle": {"frames": [0, 1], "ms": 280, "loop": True},
+            "walk": {"frames": [2, 3], "ms": 180, "loop": True},
+            "a_tell": {"frames": [4], "ms": 200, "loop": False},
+            "a": {"frames": [5], "ms": 200, "loop": False},
+            "b_tell": {"frames": [6], "ms": 200, "loop": False},
+            "b": {"frames": [7], "ms": 200, "loop": False},
+            "c_tell": {"frames": [8], "ms": 200, "loop": False},
+            "c": {"frames": [9], "ms": 200, "loop": False},
+            "block": {"frames": [10], "ms": 200, "loop": False},
+            "hurt": {"frames": [11], "ms": 200, "loop": False},
+            "enraged": {"frames": [12], "ms": 200, "loop": False},
+            "defeat": {"frames": [13, 14], "ms": 420, "loop": False},
+            "taunt": {"frames": [15], "ms": 300, "loop": False},
+        }
+    if sheet_id == "fx-duel-spells":
+        return "hex", {
+            "hex": {"frames": [0, 1, 2, 3], "ms": 80, "loop": True},
+            "arcane": {"frames": [4, 5, 6, 7], "ms": 70, "loop": True},
+            "acid": {"frames": [8, 9, 10, 11], "ms": 110, "loop": False},
+            "vortex": {"frames": [12, 13, 14, 15], "ms": 90, "loop": True},
+        }
+    if sheet_id == "ui-npc-icons":
+        return "talk", {name: {"frames": [i], "ms": 200, "loop": False}
+                        for i, name in enumerate(("talk", "alert", "ask", "coins", "heart", "duel", "quest", "trade"))}
     if kind == "bg-far":
         return "band", {"band": {"frames": [0], "ms": 200, "loop": False}}
     if kind == "bg-props":
@@ -227,10 +304,10 @@ def dump_json(obj):
     return json.dumps(obj, indent=1, sort_keys=False, ensure_ascii=False) + "\n"
 
 
-def clean_alpha(im):
+def clean_alpha(im, cut=ALPHA_CUT):
     """Zero the near-invisible fog (garbage RGB under low alpha)."""
     r, g, b, a = im.split()
-    a = a.point(lambda v: 0 if v < ALPHA_CUT else v)
+    a = a.point(lambda v: 0 if v < cut else v)
     im = Image.merge("RGBA", (r, g, b, a))
     # RGB below zero alpha is meaningless; make it deterministic and cheap to encode
     black = Image.new("RGBA", im.size, (0, 0, 0, 0))
@@ -266,8 +343,13 @@ def do_import(raw_dir, prompt_dir, only=None):
             raise SystemExit("missing raw sheet: %s" % src)
         raw_bytes = src.read_bytes()
         im = Image.open(src).convert("RGBA")
-        im = clean_alpha(im)
+        cut = ALPHA_CUT_NPC if is_npc_sheet(sheet_id, kind) else ALPHA_CUT
+        if kind == "portrait":
+            cut = ALPHA_CUT_PORTRAIT
+        im = clean_alpha(im, cut)
         limit = MAX_CELL_DRAGON if kind == "dragon" else (MAX_CELL_BOSS if kind == "boss" else MAX_CELL)
+        if kind in ("duel", "portrait"):
+            limit = MAX_CELL_DUEL
         if kind == "bg-props":
             limit = MAX_CELL_BG_PROPS
         if kind == "bg-far":
@@ -276,8 +358,10 @@ def do_import(raw_dir, prompt_dir, only=None):
         else:
             cw, ch = cell_size(im.width, im.height, cols, rows, limit)
         out = im.resize((cw * cols, ch * rows), Image.LANCZOS)
-        out = clean_alpha(out)
+        out = clean_alpha(out, cut)
         quality = WEBP_QUALITY_BG if kind in ("bg-far", "bg-props") else 90
+        if is_npc_sheet(sheet_id, kind):
+            quality = WEBP_QUALITY_NPC
         out.save(IMG_DIR / (sheet_id + ".webp"), "WEBP", quality=quality, method=6, alpha_quality=100, exact=False)
         default, clips = clips_for(sheet_id, kind, cols * rows)
         prompt_file = prompt_dir / (sheet_id + ".txt")
@@ -356,7 +440,7 @@ def build_sheet(entry):
         pivot_dx, pivot_dy = cw / 2.0, float(ground)
     else:
         pivot_dx, pivot_dy = cw / 2.0, ch / 2.0
-    if kind in ("boss", "enemy", "dragon"):
+    if kind in ("boss", "enemy", "dragon", "npc", "duel"):
         ref_h = median([r[3] for r in first])
     else:
         ref_h = max(r[3] for r in rects if r is not None)
@@ -374,7 +458,7 @@ def build_sheet(entry):
         bottoms = [f[5] + f[3] for f in frames if f[3] > 0]
         if max(bottoms) != 0:
             raise SystemExit("%s: base sheet max content bottom offset is %d, expected 0" % (entry["file"], max(bottoms)))
-    return {
+    out = {
         "file": entry["file"],
         "w": im.width,
         "h": im.height,
@@ -388,6 +472,9 @@ def build_sheet(entry):
         "clips": entry["clips"],
         "frames": frames,
     }
+    if is_lazy(entry["id"], kind):
+        out["lazy"] = True
+    return out
 
 
 def load_catalog():
