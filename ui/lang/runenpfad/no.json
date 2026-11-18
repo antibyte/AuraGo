@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz har pause! Nesten. Trenger du en eliksir, kjenner Fitz fortsatt en fyr. Ikke si det til Tilda, hun tror Fitz er konkurranse.",
   "runenpfad.npc.seer.tavern": "Dynene er langt unna, likevel hører jeg dem i ølskummet. Vær hilset, venn. Sirkelen sender varme ønsker og en meget gammel sang.",
   "runenpfad.npc.wizard.tavern": "Aldric, fri og slett ikke moret. Tårnet kan vente én kveld. Stien heler, og jeg vil gjerne skåle for den før det siste fragmentet er funnet.",
-  "runenpfad.npc.alchemist.tavern": "Brass på vertshus, jeg vet. Damp gjør tørst. Over skummet sier jeg det rett ut: Brass bygde kjernen, og Brass angrer. Fullfør det Brass ikke klarte."
+  "runenpfad.npc.alchemist.tavern": "Brass på vertshus, jeg vet. Damp gjør tørst. Over skummet sier jeg det rett ut: Brass bygde kjernen, og Brass angrer. Fullfør det Brass ikke klarte.",
+  "runenpfad.legend.in_move": "Inne: gå",
+  "runenpfad.legend.in_attack": "Inne: angrip",
+  "runenpfad.legend.in_dash": "Inne: dash",
+  "runenpfad.legend.in_talk": "Inne: snakk, åpne, hvil",
+  "runenpfad.notice.inside_locked": "Ikke mens du er inne"
 }

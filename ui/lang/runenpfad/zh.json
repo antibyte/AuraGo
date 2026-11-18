@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "菲茨在休息！差不多吧。要药水的话，菲茨还认识个人。别告诉蒂尔达，她把菲茨当对手。",
   "runenpfad.npc.seer.tavern": "沙丘虽远，我却在麦酒的泡沫里听见它们。你好，朋友。符文之环向你问好，还捎来一首很古老的歌。",
   "runenpfad.npc.wizard.tavern": "奥尔德里克，下班了，而且一点也不高兴。高塔可以等一晚。道路正在愈合，我想在找到最后一块碎片前为它干一杯。",
-  "runenpfad.npc.alchemist.tavern": "布拉斯在酒馆，我知道。蒸汽让人口渴。隔着泡沫直说：核心是布拉斯造的，布拉斯后悔了。把布拉斯没做完的事做完吧。"
+  "runenpfad.npc.alchemist.tavern": "布拉斯在酒馆，我知道。蒸汽让人口渴。隔着泡沫直说：核心是布拉斯造的，布拉斯后悔了。把布拉斯没做完的事做完吧。",
+  "runenpfad.legend.in_move": "室内：移动",
+  "runenpfad.legend.in_attack": "室内：攻击",
+  "runenpfad.legend.in_dash": "室内：冲刺",
+  "runenpfad.legend.in_talk": "室内：交谈、开启、休息",
+  "runenpfad.notice.inside_locked": "室内不可用"
 }

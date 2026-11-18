@@ -689,6 +689,18 @@ check('the smith opens the workshop and the elder the chronicle', () => {
     assert.equal(sim2.uiRequest, 'chronicle');
 });
 
+check('npc_talk inside an interior carries no room coordinates', () => {
+    const sim = hubSim();
+    sim.interior = Interior.create(sim, 'smithy', null);
+    const npc = sim.interior.npcs.filter((n) => n.npcId === 'smith')[0];
+    standBy(sim, npc);
+    tick(sim, {}, 2);
+    const events = tick(sim, { talkPressed: 'e' });
+    const talk = events.filter((e) => e.type === 'npc_talk')[0];
+    assert.ok(talk, 'npc_talk pushed');
+    assert.ok(!('x' in (talk.detail || {})) && !('y' in (talk.detail || {})), 'no x/y');
+});
+
 check('gifts are given once', () => {
     const sim = hubSim();
     sim.interior = Interior.create(sim, 'hermit_hut', null);

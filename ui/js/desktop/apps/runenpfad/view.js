@@ -362,9 +362,12 @@
             const vh = viewH / z;
 
             // Camera in world px: follows the player smoothly and never shows below the stage bottom.
-            const maxX = Math.max(0, stage.width - vw);
+            // The village hub hides the one-tile boundary wall at both ends of the street.
+            const edge = stage.hub ? (stage.tileSize || 48) : 0;
+            const minX = edge;
+            const maxX = Math.max(minX, stage.width - vw - edge);
             const maxY = stage.height - vh;
-            const targetX = Math.max(0, Math.min(maxX, sim.player.x - vw * 0.38));
+            const targetX = Math.max(minX, Math.min(maxX, sim.player.x - vw * 0.38));
             const targetY = maxY <= 0 ? maxY : Math.max(0, Math.min(maxY, sim.player.y - vh * 0.62));
             if (!camInitialized) {
                 camX = targetX;

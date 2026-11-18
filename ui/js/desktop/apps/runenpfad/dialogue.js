@@ -280,7 +280,9 @@
     }
 
     function pushOpen(sim, npc) {
-        P().pushEvent(sim, 'npc_talk', { npcId: npc.npcId, x: npc.x, y: npc.y });
+        // Inside an interior the NPC position is in room pixels: no x/y, so the audio does not pan by the world camera.
+        if (sim.interior) P().pushEvent(sim, 'npc_talk', { npcId: npc.npcId });
+        else P().pushEvent(sim, 'npc_talk', { npcId: npc.npcId, x: npc.x, y: npc.y });
     }
 
     function visibleChoices(sim, node) {

@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz hat Pause! Meistens. Wenn du einen Trank brauchst, Fitz kennt immer noch jemanden. Sag es nicht Tilda, sie hält Fitz für Konkurrenz.",
   "runenpfad.npc.seer.tavern": "Die Dünen sind weit weg, und doch höre ich sie im Schaum des Biers. Sei gegrüßt, Freund. Der Kreis schickt warme Wünsche und ein sehr altes Lied.",
   "runenpfad.npc.wizard.tavern": "Aldric, außer Dienst und überhaupt nicht amüsiert. Der Turm kann einen Abend warten. Der Pfad heilt, und darauf möchte ich anstoßen, bevor die letzte Scherbe gefunden ist.",
-  "runenpfad.npc.alchemist.tavern": "Brass in einer Schenke, ich weiß. Dampf macht durstig. Über dem Schaum sage ich es offen: Brass hat den Kern gebaut, und es tut Brass leid. Beende, was Brass nicht konnte."
+  "runenpfad.npc.alchemist.tavern": "Brass in einer Schenke, ich weiß. Dampf macht durstig. Über dem Schaum sage ich es offen: Brass hat den Kern gebaut, und es tut Brass leid. Beende, was Brass nicht konnte.",
+  "runenpfad.legend.in_move": "Drinnen: gehen",
+  "runenpfad.legend.in_attack": "Drinnen: angreifen",
+  "runenpfad.legend.in_dash": "Drinnen: Sprint",
+  "runenpfad.legend.in_talk": "Drinnen: sprechen, öffnen, rasten",
+  "runenpfad.notice.inside_locked": "Drinnen nicht möglich"
 }

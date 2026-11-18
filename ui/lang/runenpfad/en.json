@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz is on his break! Mostly. If you need a potion, Fitz still knows a guy. Do not tell Tilda, she thinks Fitz is competition.",
   "runenpfad.npc.seer.tavern": "The dunes are far away, yet I hear them in the foam of the ale. Greetings, friend. The circle sends warm wishes and one very old song.",
   "runenpfad.npc.wizard.tavern": "Aldric, off duty and very much not amused. The tower can wait one evening. The path is mending, and I would like to drink to it before the last shard is found.",
-  "runenpfad.npc.alchemist.tavern": "Brass in a tavern, I know. Steam makes a man thirsty. Over the foam I will say it plainly: Brass built the core, and Brass is sorry. Finish what Brass could not."
+  "runenpfad.npc.alchemist.tavern": "Brass in a tavern, I know. Steam makes a man thirsty. Over the foam I will say it plainly: Brass built the core, and Brass is sorry. Finish what Brass could not.",
+  "runenpfad.legend.in_move": "Inside: walk",
+  "runenpfad.legend.in_attack": "Inside: attack",
+  "runenpfad.legend.in_dash": "Inside: dash",
+  "runenpfad.legend.in_talk": "Inside: talk, open, rest",
+  "runenpfad.notice.inside_locked": "Not while inside"
 }

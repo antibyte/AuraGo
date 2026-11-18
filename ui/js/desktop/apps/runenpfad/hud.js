@@ -336,7 +336,16 @@
         function paint(sim, profile) {
             const stage = sim.stage;
             const p = sim.player;
-            if (sim.mode === 'endless') {
+            const Pl = root.RunenpfadPlaces;
+            const place = sim.interior && Pl ? Pl.placeOf(sim) : null;
+            if (place) {
+                // Inside a building: the place name; the world name stays as the sub title.
+                setText(stageTitle, t(place.nameKey));
+                setText(subTitle, t(stage.world.nameKey));
+            } else if (stage.hub) {
+                setText(stageTitle, t(stage.nameKey));
+                setText(subTitle, t(stage.world.nameKey));
+            } else if (sim.mode === 'endless') {
                 setText(stageTitle, t('runenpfad.endless_title'));
                 setText(subTitle, fill('runenpfad.endless_stage', { floor: sim.endlessFloor }) + ' \u00b7 ' + t(stage.world.nameKey));
             } else {
@@ -471,10 +480,16 @@
             return w && w !== key ? w : fallback;
         }
 
-        function paintLegend(container) {
+        // `inside` adds the top-down controls of building interiors.
+        function paintLegend(container, inside) {
             container.replaceChildren();
             container.setAttribute('aria-label', t('runenpfad.controls'));
-            [
+            (inside ? [
+                { keys: ['W', 'A', 'S', 'D'], label: tf('runenpfad.legend.in_move', 'Inside: walk') },
+                { keys: ['J', 'Enter'], label: tf('runenpfad.legend.in_attack', 'Inside: attack') },
+                { keys: ['Space', 'K'], label: tf('runenpfad.legend.in_dash', 'Inside: dash') },
+                { keys: ['E'], label: tf('runenpfad.legend.in_talk', 'Inside: talk, open, rest') }
+            ] : []).concat([
                 { keys: ['A', 'D', '\u2190', '\u2192'], label: t('runenpfad.ctl_move') },
                 { keys: ['W', 'Space'], label: t('runenpfad.touch_jump') },
                 { keys: ['J', 'Enter'], label: t('runenpfad.touch_attack') },
@@ -485,7 +500,7 @@
                 { keys: ['↓'], label: tf('runenpfad.npc.duel.legend_block', 'Duel: block') },
                 { keys: ['Shift'], label: tf('runenpfad.npc.duel.legend_roll', 'Duel: roll') },
                 { keys: ['E'], label: tf('runenpfad.npc.duel.legend_special', 'Duel: rune special') }
-            ].forEach(function (r) {
+            ]).forEach(function (r) {
                 const keys = el('dt', 'rp-legend-keys');
                 r.keys.forEach(function (k) { keys.append(keycap(k)); });
                 container.append(keys, el('dd', 'rp-legend-label', r.label));

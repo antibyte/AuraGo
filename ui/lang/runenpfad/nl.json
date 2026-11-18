@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz heeft pauze! Bijna. Als je een drankje nodig hebt, kent Fitz nog altijd iemand. Zeg het niet tegen Tilda, die denkt dat Fitz concurrentie is.",
   "runenpfad.npc.seer.tavern": "De duinen zijn ver weg, maar ik hoor ze in het schuim van het bier. Gegroet, vriend. De kring stuurt warme wensen en een heel oud lied.",
   "runenpfad.npc.wizard.tavern": "Aldric, buiten dienst en allerminst geamuseerd. De toren kan één avond wachten. Het pad herstelt, en ik wil erop drinken voordat de laatste scherf gevonden is.",
-  "runenpfad.npc.alchemist.tavern": "Brass in een taverne, ik weet het. Stoom maakt dorstig. Boven het schuim zeg ik het eerlijk: Brass bouwde de kern, en Brass heeft er spijt van. Maak af wat Brass niet kon."
+  "runenpfad.npc.alchemist.tavern": "Brass in een taverne, ik weet het. Stoom maakt dorstig. Boven het schuim zeg ik het eerlijk: Brass bouwde de kern, en Brass heeft er spijt van. Maak af wat Brass niet kon.",
+  "runenpfad.legend.in_move": "Binnen: lopen",
+  "runenpfad.legend.in_attack": "Binnen: aanvallen",
+  "runenpfad.legend.in_dash": "Binnen: dash",
+  "runenpfad.legend.in_talk": "Binnen: praten, openen, rusten",
+  "runenpfad.notice.inside_locked": "Niet binnen"
 }

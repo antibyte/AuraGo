@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz har rast! Nästan. Behöver du en dryck känner Fitz fortfarande en kille. Säg inget till Tilda, hon tror att Fitz är konkurrens.",
   "runenpfad.npc.seer.tavern": "Dynerna är långt borta, ändå hör jag dem i ölskummet. Hälsningar, vän. Cirkeln sänder varma önskningar och en mycket gammal sång.",
   "runenpfad.npc.wizard.tavern": "Aldric, ledig och inte det minsta road. Tornet kan vänta en kväll. Stigen läker, och jag vill gärna skåla för den innan den sista skärvan hittas.",
-  "runenpfad.npc.alchemist.tavern": "Brass på krogen, jag vet. Ånga ger törst. Över skummet säger jag det rakt ut: Brass byggde kärnan, och Brass är ledsen. Gör klart det Brass inte kunde."
+  "runenpfad.npc.alchemist.tavern": "Brass på krogen, jag vet. Ånga ger törst. Över skummet säger jag det rakt ut: Brass byggde kärnan, och Brass är ledsen. Gör klart det Brass inte kunde.",
+  "runenpfad.legend.in_move": "Inne: gå",
+  "runenpfad.legend.in_attack": "Inne: attackera",
+  "runenpfad.legend.in_dash": "Inne: rusha",
+  "runenpfad.legend.in_talk": "Inne: prata, öppna, vila",
+  "runenpfad.notice.inside_locked": "Inte inomhus"
 }

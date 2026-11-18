@@ -161,7 +161,7 @@
             who.textContent = def ? t(def.nameKey) : npcId;
             title.textContent = def ? t(def.titleKey) : '';
             title.hidden = !def;
-            if (!def) {
+            if (!def || !def.faction) { // villagers have no faction: no badge, no reputation pips
                 badge.hidden = true;
                 rep.hidden = true;
                 return;

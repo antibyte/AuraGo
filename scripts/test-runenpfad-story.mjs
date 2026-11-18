@@ -142,7 +142,11 @@ test('pending is table-driven for every trigger', () => {
     const wins = { 5: 'after_1', 10: 'after_2', 15: 'after_3', 20: 'after_4' };
     for (let level = 1; level <= 25; level++) {
         const s = Cut.pending({ seen: [] }, camp('stage_start', level));
-        assert.deepEqual(Array.from(s), starts[level] ? [starts[level]] : [], 'start ' + level);
+        // the prologue plays on any first campaign start; world intros follow on their own level
+        const want = level === 1 ? ['prologue'] : starts[level] ? ['prologue', starts[level]] : ['prologue'];
+        assert.deepEqual(Array.from(s), want, 'start ' + level);
+        const later = Cut.pending({ seen: ['prologue'] }, camp('stage_start', level));
+        assert.deepEqual(Array.from(later), starts[level] && level !== 1 ? [starts[level]] : [], 'start (prologue seen) ' + level);
         const w = Cut.pending({ seen: [] }, camp('won', level, { epilogueKey: 'runenpfad.npc.end_friend' }));
         if (wins[level]) assert.deepEqual(Array.from(w), [wins[level]], 'won ' + level);
         else if (level === 25) assert.deepEqual(Array.from(w), ['finale', 'end_friend']);
@@ -159,8 +163,10 @@ test('pending: endless never triggers, seen scenes never return', () => {
     assert.deepEqual(Array.from(Cut.pending({ seen: ['prologue'] }, camp('stage_start', 1))), []);
     assert.deepEqual(Array.from(Cut.pending({ seen: ['after_2'] }, camp('won', 10))), []);
     assert.deepEqual(Array.from(Cut.pending({ seen: ['after_1'] }, camp('stage_start', 1))), ['prologue']);
+    assert.deepEqual(Array.from(Cut.pending({ seen: [] }, camp('stage_start', 13))), ['prologue'], 'prologue on any level');
+    assert.deepEqual(Array.from(Cut.pending({ seen: [] }, camp('stage_start', 0))), [], 'hub never triggers');
     assert.deepEqual(Array.from(Cut.pending({}, camp('stage_start', 1))), ['prologue'], 'profile without seen');
-    assert.deepEqual(Array.from(Cut.pending(null, camp('stage_start', 6))), ['intro_2'], 'no profile');
+    assert.deepEqual(Array.from(Cut.pending(null, camp('stage_start', 6))), ['prologue', 'intro_2'], 'no profile');
     assert.deepEqual(Array.from(Cut.pending({ seen: [] }, null)), []);
     assert.deepEqual(Array.from(Cut.pending({ seen: [] }, { type: 'dead', mode: 'campaign', levelId: 1 })), []);
 });
@@ -285,6 +291,10 @@ test('chronicle lists the 10 main scenes and only the seen end scene', () => {
     assert.deepEqual(Array.from(list.filter((e) => e.seen), (e) => e.id), ['prologue', 'after_2', 'finale', 'end_feared']);
     assert.equal(list[10].id, 'end_feared');
     assert.equal(Cut.chronicle(null).length, 10);
+    // old saves: progress beyond a trigger level counts as seen
+    const old = Cut.chronicle({ seen: [], unlockedLevel: 12 });
+    assert.deepEqual(Array.from(old.filter((e) => e.seen), (e) => e.id), ['prologue', 'intro_2', 'intro_3', 'after_1', 'after_2']);
+    assert.equal(Cut.chronicle({ seen: [], unlockedLevel: 1 }).filter((e) => e.seen).length, 0);
     assert.equal(Cut.chronicle({}).length, 10);
 });
 

@@ -1942,3 +1942,90 @@
         transition: none;
     }
 }
+
+/* ---- scenes: the village hub and building interiors hide the stage-run chips ---- */
+.rp-app[data-rp-scene="interior"] .rp-chip-gems,
+.rp-app[data-rp-scene="interior"] .rp-chip-key,
+.rp-app[data-rp-scene="interior"] .rp-chip-star,
+.rp-app[data-rp-scene="interior"] .rp-chip-time,
+.rp-app[data-rp-scene="hub"] .rp-chip-gems,
+.rp-app[data-rp-scene="hub"] .rp-chip-key,
+.rp-app[data-rp-scene="hub"] .rp-chip-star,
+.rp-app[data-rp-scene="hub"] .rp-chip-time,
+.rp-app[data-rp-scene="interior"] .rp-tag-mod {
+    display: none;
+}
+
+/* Touch: up and down only inside a building (top-down walking); the talk button also shows next to a door. */
+.rp-app:not([data-rp-scene="interior"]) .rp-touch-btn[data-rp-key="ArrowUp"],
+.rp-app:not([data-rp-scene="interior"]) .rp-touch-btn[data-rp-key="ArrowDown"] {
+    display: none;
+}
+
+.rp-app[data-rp-scene="interior"] .rp-touch-btn[data-rp-key="KeyE"],
+.rp-app[data-rp-door-near="1"] .rp-touch-btn[data-rp-key="KeyE"] {
+    display: inline-flex;
+}
+
+/* ---- world map: village entry and the story chronicle ---- */
+.rp-village-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.rp-village-row[hidden] {
+    display: none;
+}
+
+.rp-tabs > .rp-tab:nth-child(7) {
+    grid-column: 1 / -1;
+}
+
+.rp-chron {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+}
+
+.rp-app.rp-narrow .rp-chron {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.rp-chron-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 38px;
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(138, 106, 58, 0.55);
+    border-radius: 2px;
+}
+
+.rp-chron-row.is-seen {
+    border-color: var(--rp-gold-soft);
+}
+
+.rp-chron-no {
+    flex: none;
+    min-width: 1.4em;
+    font-family: var(--rp-px);
+    font-size: 12px;
+    color: var(--rp-parch-dim);
+}
+
+.rp-chron-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--rp-parch);
+    overflow-wrap: anywhere;
+}
+
+.rp-chron-title.is-locked {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--rp-parch-dim);
+}

@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz ma przerwę! Mniej więcej. Jeśli potrzebujesz eliksiru, Fitz wciąż kogoś zna. Nie mów Tildzie, ona myśli, że Fitz to konkurencja.",
   "runenpfad.npc.seer.tavern": "Wydmy są daleko, a jednak słyszę je w piwnej pianie. Witaj. Krąg przesyła ciepłe pozdrowienia i jedną bardzo starą pieśń.",
   "runenpfad.npc.wizard.tavern": "Aldric, po służbie i bynajmniej niezadowolony. Wieża poczeka jeden wieczór. Szlak się goi i chciałbym wznieść toast, nim znajdzie się ostatni odłamek.",
-  "runenpfad.npc.alchemist.tavern": "Brass w karczmie, wiem. Para wywołuje pragnienie. Ponad pianą powiem wprost: Brass zbudował rdzeń i Brass żałuje. Dokończ to, czego Brass nie zdołał."
+  "runenpfad.npc.alchemist.tavern": "Brass w karczmie, wiem. Para wywołuje pragnienie. Ponad pianą powiem wprost: Brass zbudował rdzeń i Brass żałuje. Dokończ to, czego Brass nie zdołał.",
+  "runenpfad.legend.in_move": "Wewnątrz: chód",
+  "runenpfad.legend.in_attack": "Wewnątrz: atak",
+  "runenpfad.legend.in_dash": "Wewnątrz: zryw",
+  "runenpfad.legend.in_talk": "Wewnątrz: rozmowa, otwieranie, odpoczynek",
+  "runenpfad.notice.inside_locked": "Niemożliwe w środku"
 }

@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz má pauzu! Víceméně. Když potřebuješ lektvar, Fitz pořád někoho zná. Neříkej to Tildě, myslí si, že Fitz je konkurence.",
   "runenpfad.npc.seer.tavern": "Duny jsou daleko, a přesto je slyším v pěně piva. Zdravím. Kruh ti posílá vřelé přání a jednu velmi starou píseň.",
   "runenpfad.npc.wizard.tavern": "Aldric, mimo službu a ani trochu pobavený. Věž může jeden večer počkat. Stezka se hojí a rád bych si na ni připil, než se najde poslední střep.",
-  "runenpfad.npc.alchemist.tavern": "Brass v hostinci, já vím. Pára žízní. Nad pěnou to řeknu přímo: Brass postavil jádro a Brass toho lituje. Dokonči, co Brass nedokázal."
+  "runenpfad.npc.alchemist.tavern": "Brass v hostinci, já vím. Pára žízní. Nad pěnou to řeknu přímo: Brass postavil jádro a Brass toho lituje. Dokonči, co Brass nedokázal.",
+  "runenpfad.legend.in_move": "Uvnitř: chůze",
+  "runenpfad.legend.in_attack": "Uvnitř: útok",
+  "runenpfad.legend.in_dash": "Uvnitř: úprk",
+  "runenpfad.legend.in_talk": "Uvnitř: mluvit, otevřít, odpočinout",
+  "runenpfad.notice.inside_locked": "Ne uvnitř"
 }

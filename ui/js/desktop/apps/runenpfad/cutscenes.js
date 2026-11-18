@@ -138,8 +138,11 @@
         const seen = seenList(profile);
         const level = +event.levelId;
         let id = null;
-        if (event.type === 'stage_start') id = START_TRIGGERS[level] || null;
-        else if (event.type === 'won') id = WON_TRIGGERS[level] || null;
+        if (event.type === 'stage_start') {
+            // The prologue plays once on ANY campaign start (existing players see it too); world intros stay on their level.
+            if (level >= 1 && level <= 25 && seen.indexOf('prologue') < 0) out.push('prologue');
+            id = START_TRIGGERS[level] && START_TRIGGERS[level] !== 'prologue' ? START_TRIGGERS[level] : null;
+        } else if (event.type === 'won') id = WON_TRIGGERS[level] || null;
         if (!id || seen.indexOf(id) >= 0) return out;
         out.push(id);
         if (id === 'finale') {
@@ -149,13 +152,25 @@
         return out;
     }
 
+    function triggerLevel(id) {
+        const tables = [START_TRIGGERS, WON_TRIGGERS];
+        for (let i = 0; i < tables.length; i++) {
+            const lv = Object.keys(tables[i]).filter(function (k) { return tables[i][k] === id; })[0];
+            if (lv) return +lv;
+        }
+        return 0;
+    }
+
     // The 10 main scenes plus the end scene the player has seen (the first one found, in table order).
     function chronicle(profile) {
         const seen = seenList(profile);
+        const unlocked = profile && +profile.unlockedLevel > 0 ? +profile.unlockedLevel : 0;
         const list = [];
         IDS.forEach(function (id) {
             if (id.indexOf(END_PREFIX) === 0) return;
-            list.push({ id: id, titleKey: SCENES[id].titleKey, seen: seen.indexOf(id) >= 0 });
+            // Old saves: progress beyond the trigger level means the player has passed the scene.
+            const trigger = triggerLevel(id);
+            list.push({ id: id, titleKey: SCENES[id].titleKey, seen: seen.indexOf(id) >= 0 || (trigger > 0 && unlocked > trigger) });
         });
         for (let i = 0; i < IDS.length; i++) {
             if (IDS[i].indexOf(END_PREFIX) === 0 && seen.indexOf(IDS[i]) >= 0) {

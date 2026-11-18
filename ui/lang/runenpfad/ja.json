@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "フィッツは休憩中！ ほぼね。薬が要るなら、まだ当てがあるよ。ティルダには内緒な。ライバル扱いされるから。",
   "runenpfad.npc.seer.tavern": "砂丘は遠いのに、エールの泡に音が聞こえるわ。やあ、友よ。輪から温かな挨拶と、とても古い歌をひとつ。",
   "runenpfad.npc.wizard.tavern": "アルドリック、非番でまったく上機嫌ではない。塔は一晩くらい待たせる。道が癒えつつある。最後の欠片が見つかる前に、乾杯したい。",
-  "runenpfad.npc.alchemist.tavern": "酒場のブラスとは珍しいだろう。蒸気は喉が渇く。泡の上ではっきり言う。核を作ったのはブラスで、ブラスは悔いている。ブラスにできなかったことを、成し遂げてくれ。"
+  "runenpfad.npc.alchemist.tavern": "酒場のブラスとは珍しいだろう。蒸気は喉が渇く。泡の上ではっきり言う。核を作ったのはブラスで、ブラスは悔いている。ブラスにできなかったことを、成し遂げてくれ。",
+  "runenpfad.legend.in_move": "屋内：移動",
+  "runenpfad.legend.in_attack": "屋内：攻撃",
+  "runenpfad.legend.in_dash": "屋内：ダッシュ",
+  "runenpfad.legend.in_talk": "屋内：会話・開ける・休む",
+  "runenpfad.notice.inside_locked": "屋内では不可"
 }

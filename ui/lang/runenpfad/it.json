@@ -641,5 +641,10 @@
   "runenpfad.npc.merchant.tavern": "Fitz è in pausa! Più o meno. Se ti serve una pozione, Fitz conosce ancora qualcuno. Non dirlo a Tilda, pensa che Fitz sia concorrenza.",
   "runenpfad.npc.seer.tavern": "Le dune sono lontane, eppure le sento nella schiuma della birra. Saluti. Il circolo ti manda calorosi auguri e una canzone antichissima.",
   "runenpfad.npc.wizard.tavern": "Aldric, fuori servizio e per nulla divertito. La torre può aspettare una sera. Il sentiero si sta risanando, e vorrei brindare prima che si trovi l'ultimo frammento.",
-  "runenpfad.npc.alchemist.tavern": "Brass in una taverna, lo so. Il vapore mette sete. Sopra la schiuma lo dico chiaro: Brass ha costruito il nucleo, e Brass è dispiaciuto. Finisci ciò che Brass non ha potuto."
+  "runenpfad.npc.alchemist.tavern": "Brass in una taverna, lo so. Il vapore mette sete. Sopra la schiuma lo dico chiaro: Brass ha costruito il nucleo, e Brass è dispiaciuto. Finisci ciò che Brass non ha potuto.",
+  "runenpfad.legend.in_move": "Dentro: cammina",
+  "runenpfad.legend.in_attack": "Dentro: attacca",
+  "runenpfad.legend.in_dash": "Dentro: scatta",
+  "runenpfad.legend.in_talk": "Dentro: parla, apri, riposa",
+  "runenpfad.notice.inside_locked": "Non all'interno"
 }

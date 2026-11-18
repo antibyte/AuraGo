@@ -66,7 +66,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		path string
 		want []string
 	}{
-		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/parallax-art.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js", "/js/desktop/apps/runenpfad/npcs.js", "/js/desktop/apps/runenpfad/npc-story.js", "/js/desktop/apps/runenpfad/npc-story-late.js", "/js/desktop/apps/runenpfad/dialogue.js", "/js/desktop/apps/runenpfad/trade.js", "/js/desktop/apps/runenpfad/duel-patterns.js", "/js/desktop/apps/runenpfad/duel.js", "/js/desktop/apps/runenpfad/npc-view.js", "/js/desktop/apps/runenpfad/duel-view.js", "/js/desktop/apps/runenpfad/dialogue-ui.js"}},
+		{"js/desktop/core/module-loader.js", []string{"runenpfad", "/css/desktop-app-runenpfad.css", "/js/desktop/apps/runenpfad/levels.js", "/js/desktop/apps/runenpfad/app.js", "/js/desktop/apps/runenpfad/fx.js", "/js/desktop/apps/runenpfad/biomes.js", "/js/desktop/apps/runenpfad/backdrops.js", "/js/desktop/apps/runenpfad/backdrops-biomes.js", "/js/desktop/apps/runenpfad/parallax-art.js", "/js/desktop/apps/runenpfad/atmosphere.js", "/js/desktop/apps/runenpfad/behaviors.js", "/js/desktop/apps/runenpfad/variety.js", "/js/desktop/apps/runenpfad/profile.js", "/js/desktop/apps/runenpfad/physics.js", "/js/desktop/apps/runenpfad/combat.js", "/js/desktop/apps/runenpfad/bosses.js", "/js/desktop/apps/runenpfad/zones.js", "/js/desktop/apps/runenpfad/music.js", "/js/desktop/apps/runenpfad/decor.js", "/js/desktop/apps/runenpfad/actors.js", "/js/desktop/apps/runenpfad/stage-art.js", "/js/desktop/apps/runenpfad/postfx.js", "/js/desktop/apps/runenpfad/hud.js", "/js/desktop/apps/runenpfad/npcs.js", "/js/desktop/apps/runenpfad/npc-story.js", "/js/desktop/apps/runenpfad/npc-story-late.js", "/js/desktop/apps/runenpfad/dialogue.js", "/js/desktop/apps/runenpfad/trade.js", "/js/desktop/apps/runenpfad/duel-patterns.js", "/js/desktop/apps/runenpfad/duel.js", "/js/desktop/apps/runenpfad/npc-view.js", "/js/desktop/apps/runenpfad/duel-view.js", "/js/desktop/apps/runenpfad/dialogue-ui.js", "/js/desktop/apps/runenpfad/place-rooms.js", "/js/desktop/apps/runenpfad/interior-mobs.js", "/js/desktop/apps/runenpfad/interior.js", "/js/desktop/apps/runenpfad/places.js", "/js/desktop/apps/runenpfad/folk.js", "/js/desktop/apps/runenpfad/folk-story.js", "/js/desktop/apps/runenpfad/village-rooms.js", "/js/desktop/apps/runenpfad/village.js", "/js/desktop/apps/runenpfad/cutscenes.js", "/js/desktop/apps/runenpfad/place-music.js", "/js/desktop/apps/runenpfad/story-music.js", "/js/desktop/apps/runenpfad/place-view.js", "/js/desktop/apps/runenpfad/interior-bake.js", "/js/desktop/apps/runenpfad/interior-view.js", "/js/desktop/apps/runenpfad/cutscene-view.js", "/js/desktop/apps/runenpfad/worldmap-ui.js", "/js/desktop/apps/runenpfad/cutscene-ui.js"}},
 		{"js/desktop/core/menus-and-routing.js", []string{"if (appId === 'runenpfad')", "RunenpfadApp.render"}},
 		{"js/desktop/core/desktop-foundation.js", []string{"runenpfad: '/img/runenpfad/icon.svg'", "runenpfad: 'RunenpfadApp'"}},
 		{"js/desktop/core/window-shell-runtime.js", []string{"runenpfad: { width: 1180, height: 740 }"}},
@@ -237,6 +237,11 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		const errCard = document.querySelector('.rp-error');
 		return app && app.dataset.rpState === 'playing' && load && load.hidden && errCard && errCard.hidden;
 	}`)
+
+	// A fresh profile opens the prologue over the paused stage; Skip closes it and the stage runs.
+	page.MustWait(`()=>!!document.querySelector('.rp-cut') && !!document.querySelector('.rp-app').__runenpfad.getCutscene()`)
+	page.MustEval(`()=>document.querySelector('.rp-cut-skip').click()`)
+	page.MustWait(`()=>!document.querySelector('.rp-cut') && !document.querySelector('.rp-app').__runenpfad.getCutscene()`)
 
 	if !page.MustEval(`()=>{
 		const c = document.querySelector('.rp-canvas');
@@ -410,6 +415,20 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		if (!npc) throw Error('witch vanished');
 	}`)
 
+	// The village hub, a building interior and a chronicle replay.
+	page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.startHub()`)
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'hub'`)
+	if !page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.enterPlace('tavern')`).Bool() {
+		t.Fatal("enterPlace('tavern') did not enter the tavern")
+	}
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'interior'`)
+	page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.leavePlace()`)
+	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpScene === 'hub'`)
+	page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.playCutscene('after_1')`)
+	page.MustWait(`()=>{ const c = document.querySelector('.rp-app').__runenpfad.getCutscene(); return !!c && c.open && !!document.querySelector('.rp-cut'); }`)
+	page.MustEval(`()=>document.querySelector('.rp-cut-skip').click()`)
+	page.MustWait(`()=>!document.querySelector('.rp-cut')`)
+
 	// Close window and verify clean teardown
 	page.MustEval(`()=>{
 		const win = [...window.auditTest.state.windows.values()].find(w => w.appId === 'runenpfad');
@@ -423,6 +442,22 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 	page.MustWait(`()=>{
 		const app = document.querySelector('.rp-app');
 		return app && app.dataset.rpState === 'playing' && app.dataset.rpUnlocked === '2' && app.dataset.rpLevel === '2' && app.dataset.rpMaxHp === '6';
+	}`)
+	if page.MustEval(`()=>!!document.querySelector('.rp-cut')`).Bool() {
+		t.Fatal("the prologue must not open again once it was seen")
+	}
+
+	// Reset (two clicks) closes the pause dialog, clears the stored progress and starts level 1 with the prologue again.
+	page.MustEval(`()=>document.querySelector('[data-rp-btn="pause"]').click()`)
+	page.MustWait(`()=>document.querySelector('.rp-pause-dialog')?.hasAttribute('open')`)
+	page.MustEval(`()=>document.querySelector('.rp-pause-dialog .rp-btn-danger').click()`)
+	page.MustEval(`()=>document.querySelector('.rp-pause-dialog .rp-btn-danger').click()`)
+	page.MustWait(`()=>!document.querySelector('.rp-pause-dialog')?.hasAttribute('open') && !!document.querySelector('.rp-cut')`)
+	page.MustEval(`()=>document.querySelector('.rp-cut-skip').click()`)
+	page.MustWait(`()=>{
+		const app = document.querySelector('.rp-app');
+		const saved = JSON.parse(localStorage.getItem('aurago.runenpfad.v1') || '{}');
+		return app && app.dataset.rpLevel === '1' && app.dataset.rpUnlocked === '1' && app.dataset.rpMaxHp === '5' && saved.unlockedLevel === 1 && !document.querySelector('.rp-cut');
 	}`)
 	page.MustEval(`()=>{
 		const win = [...window.auditTest.state.windows.values()].find(w => w.appId === 'runenpfad');
