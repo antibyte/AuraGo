@@ -59,7 +59,7 @@
         const CARD_GUARD_MS = 350;
 
         const keyState = Object.create(null);
-        const edgeState = { jumpPressed: false, attackPressed: false, dashPressed: false, healPressed: false };
+        const edgeState = { jumpPressed: false, attackPressed: false, dashPressed: false, healPressed: false, talkPressed: false };
         const touchState = Object.create(null);
 
         function t(key) {
@@ -120,6 +120,11 @@
         const hudSoundBtn = hud.soundBtn;
         const pauseBtn = hud.pauseBtn;
         const healBtn = hud.healBtn;
+        // Dialogue and trade window (dialogue-ui.js); `emit` forwards events raised outside a simulation tick.
+        const talk = root.RunenpfadDialogueUi ? root.RunenpfadDialogueUi.create({
+            el: el, t: t, fill: fill, hud: hud, Sim: Sim, isBlocked: function () { return anyDialogOpen() || !!cardKind; },
+            emit: function (evs) { if (!sim) return; if (renderer) renderer.handleEvents(evs, sim); if (audio) audio.handleEvents(evs, sim.stage.ambience, renderer ? renderer.getCamera() : null); }
+        }) : null;
 
         // Touch controls (visible when .rp-narrow is active)
         const touch = el('div', 'rp-touch');
@@ -223,6 +228,7 @@
         shopDialog.append(shopHead, shopCoins, heroGrid, shopGrid);
 
         shell.append(stageWrap, hud.root, hud.bossCard, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
+        if (talk) shell.append(talk.root);
         host.replaceChildren(shell);
 
         function anyDialogOpen() {
@@ -298,6 +304,7 @@
         function adoptSimProfile() {
             const keep = { sound: profile.sound, music: profile.music, gfx: profile.gfx };
             profile = Object.assign(Sim.exportProfile(sim.profile), keep);
+            sim.storyDirty = false;
             writeProfile();
         }
 
@@ -319,10 +326,12 @@
                 { group: touchLeftGroup, key: 'ArrowRight', text: t('runenpfad.touch_right') },
                 { group: touchRightGroup, key: 'Space', text: t('runenpfad.touch_jump'), edge: 'jumpPressed' },
                 { group: touchRightGroup, key: 'KeyJ', text: t('runenpfad.touch_attack'), edge: 'attackPressed' },
-                { group: touchRightGroup, key: 'KeyK', text: t('runenpfad.touch_special'), edge: 'dashPressed' }
+                { group: touchRightGroup, key: 'KeyK', text: t('runenpfad.touch_special'), edge: 'dashPressed' },
+                { group: touchRightGroup, key: 'KeyE', text: t('runenpfad.npc.ui.touch_talk'), edge: 'talkPressed' }
             ].forEach(function (spec) {
                 const b = el('button', 'rp-touch-btn', spec.text);
                 b.type = 'button';
+                b.dataset.rpKey = spec.key;
                 b.addEventListener('pointerdown', function (ev) {
                     ev.preventDefault();
                     if (audio) audio.unlock();
@@ -406,6 +415,9 @@
             shell.dataset.rpMode = sim.mode;
             shell.dataset.rpHero = sim.heroId;
             shell.dataset.rpState = sim.state;
+            if (talk) talk.sync(sim, profile);
+            shell.dataset.rpEncounter = sim.encounter ? sim.encounter.kind : '';
+            shell.dataset.rpNpcNear = (sim.stage.npcs || []).some(function (n) { return n.near; }) ? '1' : '0';
             shell.dataset.rpX = String(Math.round(p.x));
             shell.dataset.rpY = String(Math.round(p.y));
             shell.dataset.rpHp = String(p.hp);
@@ -630,7 +642,8 @@
                 jumpKey: !!(keyState.Space || touchState.Space || edgeState.spaceHit),
                 attackPressed: edgeState.attackPressed,
                 dashPressed: edgeState.dashPressed,
-                healPressed: edgeState.healPressed
+                healPressed: edgeState.healPressed,
+                talkPressed: edgeState.talkPressed
             };
             // Edges survive frames without a simulation substep (high refresh rates).
             if (consume) clearEdges();
@@ -643,6 +656,7 @@
             edgeState.attackPressed = false;
             edgeState.dashPressed = false;
             edgeState.healPressed = false;
+            edgeState.talkPressed = false;
         }
 
         function resetInputs() {
@@ -673,7 +687,7 @@
                 const Music = root.RunenpfadMusic;
                 if (music && Music && typeof music.update === 'function') music.update(Music.intensityFor(sim), sim);
                 const after = sim.profile;
-                if (after.coins !== prevCoins || after.unlockedLevel !== prevUnlocked || Sim.totalStars(after) !== prevStars || sim.state !== prevState) {
+                if (after.coins !== prevCoins || after.unlockedLevel !== prevUnlocked || Sim.totalStars(after) !== prevStars || sim.state !== prevState || sim.storyDirty) {
                     adoptSimProfile();
                 }
                 paintHud();
@@ -707,6 +721,7 @@
             if (ctx.isActive && !ctx.isActive()) return;
             if (audio) audio.unlock();
             if (cardKeys(ev)) return;
+            if (talk && talk.handleKey(ev, sim)) return;
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(ev.code)) {
                 if (!anyDialogOpen()) ev.preventDefault();
             }
@@ -718,6 +733,8 @@
                 }
                 if (ev.code === 'KeyK' || ev.code === 'ShiftLeft' || ev.code === 'ShiftRight' || ev.code === 'KeyX') edgeState.dashPressed = true;
                 if (ev.code === 'KeyQ' || ev.code === 'KeyH') edgeState.healPressed = true;
+                if (ev.code === 'KeyE') edgeState.talkPressed = 'e';
+                else if (ev.code === 'ArrowUp' || ev.code === 'KeyW') edgeState.talkPressed = 'up';
                 if (ev.code === 'KeyP' || ev.code === 'Escape') {
                     if (anyDialogOpen()) {
                         if (pauseDialog.open) pauseDialog.close();
@@ -731,7 +748,7 @@
                         openPause();
                     }
                 }
-                if (ev.code === 'KeyR' && !anyDialogOpen() && sim) {
+                if (ev.code === 'KeyR' && !anyDialogOpen() && sim && !sim.encounter) {
                     startStage({ mode: sim.mode, levelId: sim.levelId, endlessFloor: sim.endlessFloor });
                 }
             }
@@ -1006,6 +1023,7 @@
                 if (ro) ro.disconnect();
                 root.clearTimeout(heroArmTimer);
                 hud.dispose();
+                if (talk) talk.dispose();
                 disposeVisuals();
                 if (audio) {
                     audio.dispose();

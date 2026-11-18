@@ -359,6 +359,7 @@
             }
         }
         sim.profile.totalScore += sim.stageScore + stars * 150;
+        if (root.RunenpfadNpcs && typeof root.RunenpfadNpcs.onVictory === 'function') root.RunenpfadNpcs.onVictory(sim);
         pushEvent(sim, 'portal_win', { stars: stars });
         fxFlash(sim, '#fff3c4', 0.35, 0.5);
         fxBurst(sim, 'rune', sim.player.x, sim.player.y - 24, 24, { color: '#7ee8fa', speed: 250, life: 1.1 });

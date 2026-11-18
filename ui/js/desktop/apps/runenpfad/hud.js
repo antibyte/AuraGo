@@ -240,6 +240,10 @@
         const noticeRow = el('div', 'rp-notice-row');
         const notice = el('p', 'rp-notice');
         notice.setAttribute('role', 'status');
+        // Speech-bubble mark shown in front of the notice while a camp NPC is in talking range.
+        const talkMark = el('span', 'rp-notice-icon');
+        talkMark.hidden = true;
+        talkMark.setAttribute('aria-hidden', 'true');
         const tags = el('div', 'rp-tags');
         const modTag = el('span', 'rp-tag rp-tag-mod');
         const runeTag = el('span', 'rp-tag rp-tag-rune');
@@ -269,7 +273,7 @@
         ritualBar.append(ritualFill);
         ritualPlaque.append(ritualMark, ritualNum, ritualBar);
         tags.append(runePlaque, ritualPlaque, modTag, runeTag, comboTag);
-        noticeRow.append(notice, tags);
+        noticeRow.append(talkMark, notice, tags);
 
         // ---- boss bar ----
         const bossWrap = el('div', 'rp-boss-wrap');
@@ -291,6 +295,18 @@
         const bossCardSub = el('span');
         bossCard.setAttribute('aria-hidden', 'true');
         bossCard.append(bossCardName, bossCardSub);
+
+        function paintTalkMark(on) {
+            talkMark.hidden = !on;
+            if (!on || talkMark.firstChild || !atlas || !root.RunenpfadArt.has(atlas, 'ui-npc-icons.talk')) return;
+            const canvas = el('canvas', 'rp-notice-canvas');
+            canvas.width = 56;
+            canvas.height = 56;
+            const cx = canvas.getContext('2d');
+            if (!cx) return;
+            root.RunenpfadArt.draw(cx, atlas, 'ui-npc-icons.talk', 0, 28, 28, { height: 52 });
+            talkMark.append(canvas);
+        }
 
         function paintCopy() {
             setButton(levelsBtn, t('runenpfad.btn_levels'));
@@ -367,6 +383,7 @@
             bossCard.classList.toggle('is-on', introOn);
             setText(notice, sim.notice ? t(sim.notice) : '');
             notice.classList.toggle('is-empty', !sim.notice);
+            paintTalkMark(sim.notice === 'runenpfad.npc.ui.talk_hint');
             // The chosen hero (profile) can run ahead of the stage hero once a stage is finished.
             const heroId = profile && Levels.HERO_DEFS[profile.hero] ? profile.hero : sim.heroId;
             if (heroBtn.__rpHero !== heroId) {
@@ -434,6 +451,18 @@
                 { label: t('runenpfad.hud_coins'), value: '+' + sim.stageCoins, icon: 'coin' },
                 { label: t('runenpfad.hud_score'), value: String(sim.stageScore) }
             ]);
+            // Final stage: the epilogue line of the story and the coins it paid out.
+            const epi = sim.epilogue;
+            if (epi && epi.key) {
+                const box = el('div', 'rp-plaque rp-epilogue');
+                box.append(el('span', 'rp-epilogue-text', t(epi.key)));
+                if (epi.coins > 0) {
+                    const c = el('span', 'rp-plaque-value rp-num');
+                    c.append(icon('coin', 14), el('span', '', '+' + epi.coins));
+                    box.append(c);
+                }
+                plaquesEl.append(box);
+            }
         }
 
         // Key legend of the pause dialog: key caps in front of each action.
@@ -445,6 +474,7 @@
                 { keys: ['W', 'Space'], label: t('runenpfad.touch_jump') },
                 { keys: ['J', 'Enter'], label: t('runenpfad.touch_attack') },
                 { keys: ['K', 'Shift'], label: t('runenpfad.touch_special') },
+                { keys: ['E', '↑'], label: t('runenpfad.npc.ui.talk') },
                 { keys: ['Q'], label: t('runenpfad.hud_heal') },
                 { keys: ['R'], label: t('runenpfad.pause_restart') }
             ].forEach(function (r) {
