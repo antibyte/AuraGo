@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "ODŁAMEK",
   "runenpfad.npc.float_gear": "KOŁO ZĘBATE",
   "runenpfad.npc.float_fake": "FAŁSZ!",
+  "runenpfad.npc.float_attuned": "Zestrojone!",
   "runenpfad.npc.ui.talk": "Rozmawiaj",
   "runenpfad.npc.ui.touch_talk": "Rozmawiaj",
   "runenpfad.npc.ui.talk_hint": "Naciśnij E lub ↑, aby porozmawiać",

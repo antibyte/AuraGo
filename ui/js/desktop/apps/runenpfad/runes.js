@@ -28,13 +28,21 @@
         const p = sim.player;
         if (KINDS.indexOf(kind) < 0) return;
         const bonusBefore = extraAirJumps(sim);
-        p.rune = { kind: kind, timeLeft: DURATIONS[kind], duration: DURATIONS[kind], charges: kind === 'frost' ? 1 : 0 };
+        // A Rune Attune charm (trade item) makes this rune last 1.5x and is used up.
+        const Npcs = root.RunenpfadNpcs;
+        const attuned = !!(sim.profile && Npcs && Npcs.itemCount(sim, 'rune_attune') >= 1 && Npcs.addItem(sim, 'rune_attune', -1) < 0);
+        const dur = DURATIONS[kind] * (attuned ? 1.5 : 1);
+        p.rune = { kind: kind, timeLeft: dur, duration: dur, charges: kind === 'frost' ? 1 : 0 };
         p.airJumpsLeft = Math.max(0, p.airJumpsLeft + extraAirJumps(sim) - bonusBefore);
         sim.stageScore += 100;
         pushEvent(sim, 'rune_pickup', { kind: kind, x: x, y: y });
         sim.floatingTexts.push({ x: x, y: y - 20, text: kind.toUpperCase() + ' RUNE', key: 'runenpfad.rune_' + kind, color: COLORS[kind], timer: 1.1 });
         fxBurst(sim, 'rune', x, y, 16, { color: COLORS[kind], speed: 200, life: 0.8 });
         P().fxFlash(sim, COLORS[kind], 0.2, 0.3);
+        if (attuned) {
+            pushEvent(sim, 'rune_attuned', { x: x, y: y });
+            sim.floatingTexts.push({ x: x, y: y - 42, text: 'Attuned!', key: 'runenpfad.npc.float_attuned', color: '#c4b5fd', timer: 1.2 });
+        }
     }
 
     function expire(sim) {

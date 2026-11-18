@@ -137,7 +137,64 @@
             });
         }
 
+        // Map charm: glow rings on visible gems, edge arrows toward the ones off screen. Read-only; keeps the bottom 40 px clear.
+        function drawCharm(sim, view) {
+            if (!sim.mapCharm) return;
+            const items = (sim.stage && sim.stage.collectibles) || [];
+            const z = view.zoom || 1;
+            const t = view.reducedMotion ? 0 : view.nowSec;
+            const pulse = view.reducedMotion ? 0.8 : 0.65 + 0.35 * Math.sin(t * 3);
+            const x0 = view.sx, y0 = view.sy, x1 = view.sx + view.viewW, y1 = view.sy + view.viewH;
+            const m = 26 / z;
+            const top = y0 + 64 / z;
+            const bottom = y1 - (40 + 26) / z;
+            ctx.save();
+            items.forEach(function (it) {
+                if (it.kind !== 'gem' || it.collected) return;
+                const color = '#7ee8fa';
+                const on = it.x >= x0 && it.x <= x1 && it.y >= y0 && it.y <= y1;
+                ctx.globalAlpha = 0.55 * pulse;
+                ctx.strokeStyle = color;
+                ctx.fillStyle = color;
+                if (on) {
+                    h.drawGlow(it.x, it.y, 46, 'rgba(126, 232, 250, 0.6)', 0.55 * pulse);
+                    ctx.globalAlpha = 0.55 * pulse;
+                    ctx.lineWidth = 3 / z;
+                    ctx.beginPath();
+                    ctx.arc(it.x, it.y, 24 + 4 * pulse, 0, Math.PI * 2);
+                    ctx.stroke();
+                    return;
+                }
+                const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+                const dx = it.x - cx, dy = it.y - cy;
+                const hw = (x1 - x0) / 2 - m, hh = Math.max(10, (bottom - top) / 2);
+                const k = Math.min(hw / Math.max(1e-6, Math.abs(dx)), hh / Math.max(1e-6, Math.abs(dy)));
+                const ax = cx + dx * k;
+                const ay = Math.min(bottom, Math.max(top, (top + bottom) / 2 + dy * k));
+                const ang = Math.atan2(dy, dx);
+                const sz = (11 + 2 * pulse) / z;
+                ctx.globalAlpha = 0.45 + 0.4 * pulse;
+                ctx.save();
+                ctx.translate(ax, ay);
+                ctx.rotate(ang);
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = 2 / z;
+                ctx.strokeStyle = '#09111a';
+                ctx.beginPath();
+                ctx.moveTo(sz, 0);
+                ctx.lineTo(-sz * 0.7, -sz * 0.75);
+                ctx.lineTo(-sz * 0.3, 0);
+                ctx.lineTo(-sz * 0.7, sz * 0.75);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            });
+            ctx.restore();
+        }
+
         function drawOverlay(sim, view) {
+            drawCharm(sim, view);
             const Npcs = root.RunenpfadNpcs;
             const dt = view.dt || 0.016;
             list(sim).forEach(function (npc) {

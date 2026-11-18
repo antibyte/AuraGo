@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "SPLITTER",
   "runenpfad.npc.float_gear": "KUGGHJUL",
   "runenpfad.npc.float_fake": "FALSKT!",
+  "runenpfad.npc.float_attuned": "Instämd!",
   "runenpfad.npc.ui.talk": "Prata",
   "runenpfad.npc.ui.touch_talk": "Prata",
   "runenpfad.npc.ui.talk_hint": "Tryck på E eller ↑ för att prata",

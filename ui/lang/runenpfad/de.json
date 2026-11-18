@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "SPLITTER",
   "runenpfad.npc.float_gear": "ZAHNRAD",
   "runenpfad.npc.float_fake": "FÄLSCHUNG!",
+  "runenpfad.npc.float_attuned": "Eingestimmt!",
   "runenpfad.npc.ui.talk": "Sprechen",
   "runenpfad.npc.ui.touch_talk": "Reden",
   "runenpfad.npc.ui.talk_hint": "Drücke E oder ↑, um zu sprechen",

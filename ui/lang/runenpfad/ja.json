@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "かけら",
   "runenpfad.npc.float_gear": "歯車",
   "runenpfad.npc.float_fake": "偽物！",
+  "runenpfad.npc.float_attuned": "共鳴した！",
   "runenpfad.npc.ui.talk": "話す",
   "runenpfad.npc.ui.touch_talk": "話す",
   "runenpfad.npc.ui.talk_hint": "E または ↑ で話す",

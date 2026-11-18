@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "碎片",
   "runenpfad.npc.float_gear": "齿轮",
   "runenpfad.npc.float_fake": "假货！",
+  "runenpfad.npc.float_attuned": "已共鸣！",
   "runenpfad.npc.ui.talk": "交谈",
   "runenpfad.npc.ui.touch_talk": "交谈",
   "runenpfad.npc.ui.talk_hint": "按 E 或 ↑ 交谈",

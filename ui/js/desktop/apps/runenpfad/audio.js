@@ -200,6 +200,7 @@
         stomp: { sound: 'land', gain: 0.4, cooldown: 80, rate: 1.2, synth: 'stomp', sg: 0.6, also: [{ synth: 'boing', sg: 0.25, sr: 1.3 }] },
         chest_open: { sound: false, gain: 0.5, cooldown: 200, synth: 'creak', sg: 1.6, also: [{ synth: 'shimmer', sg: 0.4, sr: 1.1, delay: 0.55 }] },
         rune_pickup: { sound: false, gain: 0.6, cooldown: 200, by: { key: 'kind', map: RUNE_PICKUPS } },
+        rune_attuned: { sound: false, gain: 0.3, cooldown: 300, synth: 'shimmer', sg: 0.3, sr: 1.3 },
         rune_expire: { sound: false, gain: 0.4, cooldown: 200, synth: 'down', sg: 0.4 },
         rune_shield_break: { sound: false, gain: 0.3, cooldown: 150, synth: 'ice', sg: 1 },
         rune_zap: { sound: 'electric-spark', gain: 0.55, cooldown: 70, rate: 1.2, synth: 'zap', sg: 0.5, also: [{ synth: 'crack', sg: 0.4 }] },

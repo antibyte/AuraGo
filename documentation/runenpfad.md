@@ -84,6 +84,8 @@ Six characters live in camps along the road. Walk up to one and a speech bubble 
 - **Potions and runes.** A healing potion (Grimhild, Fitz, Brass) and a rune orb for the current stage (fire from Grimhild, storm from Aldric, magnet from Saida, frost from Brass; Fitz sells one kind per stage).
 - **Lucky amulet.** Sold by Fitz and Krax. Every coin in your next stage is worth one more.
 - **Discount token.** Sold by Fitz and Brass. The next Rune Workshop upgrade costs 30 % less. Each token pays for one upgrade.
+- **Map charm.** Fitz and the seer sell it. For the rest of the stage, glowing rings mark the gems on screen and arrows at the screen edge point to the ones you have not found yet.
+- **Rune attune.** Aldric sells it (up to 2 at a time). The next rune you pick up lasts 1.5 times longer, and one charm is used up.
 - **Haggling.** Fitz sometimes agrees to 15 % off for the rest of the stage. You can ask once per stage.
 - **Fakes.** When the kobolds think badly of you (`-2` or lower), Fitz may sell a fake: you pay and get nothing. You find out when you close the conversation. Confront him with "That was a fake!" to get half the price back, and the kobolds lose one point.
 

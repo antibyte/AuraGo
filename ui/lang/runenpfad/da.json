@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "SKÅR",
   "runenpfad.npc.float_gear": "TANDHJUL",
   "runenpfad.npc.float_fake": "FALSK!",
+  "runenpfad.npc.float_attuned": "Tunet!",
   "runenpfad.npc.ui.talk": "Tal",
   "runenpfad.npc.ui.touch_talk": "Tal",
   "runenpfad.npc.ui.talk_hint": "Tryk på E eller ↑ for at tale",

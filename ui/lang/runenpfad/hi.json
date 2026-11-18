@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "टुकड़ा",
   "runenpfad.npc.float_gear": "गियर",
   "runenpfad.npc.float_fake": "नकली!",
+  "runenpfad.npc.float_attuned": "सधा हुआ!",
   "runenpfad.npc.ui.talk": "बात करो",
   "runenpfad.npc.ui.touch_talk": "बात करो",
   "runenpfad.npc.ui.talk_hint": "बात करने के लिए E या ↑ दबाओ",

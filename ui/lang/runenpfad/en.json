@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "SHARD",
   "runenpfad.npc.float_gear": "GEAR",
   "runenpfad.npc.float_fake": "FAKE!",
+  "runenpfad.npc.float_attuned": "Attuned!",
   "runenpfad.npc.ui.talk": "Talk",
   "runenpfad.npc.ui.touch_talk": "Talk",
   "runenpfad.npc.ui.talk_hint": "Press E or ↑ to talk",

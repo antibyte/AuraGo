@@ -1460,4 +1460,37 @@ DUEL_NPCS.forEach((id) => {
     }
 }
 
+// ---- map charm and rune attune: effects ----
+{
+    const rich = Sim.createSimulation({ mode: 'endless', endlessFloor: 2, profile: profileWith({ coins: 500, rep: { kobolds: 5 } }) });
+    tick(rich, {}, 2);
+    const merchant = rich.stage.npcs[0];
+    const plain = Sim.createSimulation({ mode: 'endless', endlessFloor: 2, profile: profileWith({ coins: 500 }) });
+    tick(plain, {}, 2);
+    Runes.grant(plain, 'fire', 0, 0);
+    assert.equal(plain.player.rune.timeLeft, 15, 'without the charm the rune keeps its normal duration');
+    assert.ok(!plain.events.some((e) => e.type === 'rune_attuned'));
+    const wizard = { npcId: 'wizard', ref: 'w1', sold: {} };
+    const out = Trade.buy(rich, wizard, 'rune_attune');
+    assert.ok(out && out.ok !== false, 'rune_attune can be bought');
+    assert.equal(Npcs.itemCount(rich, 'rune_attune'), 1);
+    Runes.grant(rich, 'frost', 0, 0);
+    assert.equal(rich.player.rune.timeLeft, 30, 'attuned frost rune lasts 1.5x');
+    assert.equal(rich.player.rune.duration, 30);
+    assert.equal(Npcs.itemCount(rich, 'rune_attune'), 0, 'one attune is consumed');
+    assert.equal(rich.storyDirty, true);
+    assert.ok(rich.events.some((e) => e.type === 'rune_attuned'), 'rune_attuned event pushed');
+    Runes.grant(rich, 'fire', 0, 0);
+    assert.equal(rich.player.rune.timeLeft, 15, 'the next rune is normal again');
+    // two charms last for two runes
+    Npcs.addItem(rich, 'rune_attune', 2);
+    Runes.grant(rich, 'storm', 0, 0);
+    assert.equal(Npcs.itemCount(rich, 'rune_attune'), 1);
+    // the map charm resets on the next stage
+    Trade.buy(rich, merchant, 'map_charm');
+    assert.equal(rich.mapCharm, true);
+    Trade.applyStageStart(rich);
+    assert.equal(rich.mapCharm, false, 'the map charm ends with the stage');
+}
+
 console.log('Runenpfad NPC checks passed: profile story fields, camps and hold hook, dialogue graphs, witch arc, trade, duel, story arcs, campaign placement, quest items, gate, sabotage, epilogue.');

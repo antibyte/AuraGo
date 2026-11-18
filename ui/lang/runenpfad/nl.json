@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "SCHERF",
   "runenpfad.npc.float_gear": "TANDWIEL",
   "runenpfad.npc.float_fake": "NEP!",
+  "runenpfad.npc.float_attuned": "Afgestemd!",
   "runenpfad.npc.ui.talk": "Praten",
   "runenpfad.npc.ui.touch_talk": "Praten",
   "runenpfad.npc.ui.talk_hint": "Druk op E of ↑ om te praten",

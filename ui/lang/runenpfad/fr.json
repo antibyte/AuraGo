@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "ÉCLAT",
   "runenpfad.npc.float_gear": "ENGRENAGE",
   "runenpfad.npc.float_fake": "FAUX !",
+  "runenpfad.npc.float_attuned": "Accordé !",
   "runenpfad.npc.ui.talk": "Parler",
   "runenpfad.npc.ui.touch_talk": "Parler",
   "runenpfad.npc.ui.talk_hint": "Appuie sur E ou ↑ pour parler",

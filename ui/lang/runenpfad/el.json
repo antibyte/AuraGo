@@ -179,6 +179,7 @@
   "runenpfad.npc.float_shard": "ΘΡΑΥΣΜΑ",
   "runenpfad.npc.float_gear": "ΓΡΑΝΑΖΙ",
   "runenpfad.npc.float_fake": "ΚΑΛΠΙΚΟ!",
+  "runenpfad.npc.float_attuned": "Συντονίστηκε!",
   "runenpfad.npc.ui.talk": "Μίλα",
   "runenpfad.npc.ui.touch_talk": "Μίλα",
   "runenpfad.npc.ui.talk_hint": "Πάτα E ή ↑ για να μιλήσεις",
