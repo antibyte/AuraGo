@@ -26,6 +26,17 @@ for (const track of all) {
     const plants = AD.vergePlants(track);
     if (['glacier', 'salt'].includes(track.biomeId)) check(track.id + ' keeps its bare terrain', plants.length === 0);
     else {
+        const blooms = plants.filter(p => p.bloom);
+        check(track.id + ' has flowering patches with finite coloured geometry', blooms.length > 0 && blooms.every(p => {
+            const shades = new Set();
+            const expected = { alpine: 'daisy', forest: 'spike' }[track.biomeId] || 'seed';
+            let valid = !p.shrub && p.bloom === expected;
+            AD.vergeTriangles(p, (a, b, c, shade) => {
+                shades.add(shade);
+                valid = valid && !!p.palette[shade] && [...a, ...b, ...c].every(Number.isFinite);
+            });
+            return valid && shades.has(3) && shades.has(4);
+        }));
         check(track.id + ' has grass and scrub clear of the road and spectators', plants.some(p => p.shrub) &&
             plants.some(p => !p.shrub) && plants.every(p => {
                 const near = AD.sampleTrack(track, p.x, p.y);
@@ -34,6 +45,12 @@ for (const track of all) {
             }));
     }
     const normal = AD.roadsideScenes(track, 0), repeat = AD.roadsideScenes(track, 1);
+    const show = normal[0], fan = show.parts.find(p => p.model === 'gnome_mine');
+    const time = 8 + (fan.x + 6) * .043 + .38;
+    const resting = AD.roadsidePose(fan, show.site, time, {});
+    check(track.id + ' spectators salute a horn then return to their routine',
+        AD.roadsidePose(fan, show.site, time, {}, 8).z > resting.z + .8 &&
+        AD.roadsidePose(fan, show.site, time, {}, 4).z === resting.z);
     const props = AD.scatterProps(track, track.biomeId, metaFor(track.biomeId));
     check(track.id + ' has two clear roadside stages', normal.length === 2 && normal.every(({ site }) => {
         const road = AD.sampleTrack(track, site.x, site.y);

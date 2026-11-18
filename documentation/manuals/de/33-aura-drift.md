@@ -193,6 +193,7 @@ Ergebnis. Wenn du vorher hupst, bekommst du vielleicht Gesellschaft auf dem Bild
 
 Am Alpenpass vergibt sogar das Weidevieh Pokale. Schau beim nächsten Rennen wieder an den
 Streckenrand. Nach ein paar Zieleinläufen haben die Zuschauer gelegentlich etwas anderes vor.
+Wenn du im Vorbeifahren mit **H** hupst, hüpfen die Zuschauer einer nach dem anderen hoch.
 
 ## Wetter
 

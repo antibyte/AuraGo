@@ -3787,7 +3787,11 @@ buttons and menu popovers remain excluded from those gestures.
 - `AD.roadsideScenes` builds two reserved verge sites per track. Both views use the same cast
   and race clock. Reduced motion freezes their poses. Only completed races advance the local
   finish count. Read-only windows keep that progress in memory. Verify the switch on a later
-  visit in `TestDesktopAuraDriftRoadsideBrowser`.
+  visit in `TestDesktopAuraDriftRoadsideBrowser`. A nearby horn timestamps the cast for a
+  staggered salute on the race clock. Both renderers use `AD.roadsidePose` for the response.
+- `AD.vergePlants` and `AD.vergeTriangles` own the seeded grass, flowers and seed heads for
+  both views. Bake them into Canvas tiles and terrain chunks. Anchor 3D roots to the actual
+  triangle for the current detail level so plants sit on sloping ground.
 - Gold lightning plates select a sustained inside bend from spline curvature and leave the
   outside lane open. Gift parcels use alternate crate rows in unrestricted weapon modes.
   Their seeded instant bonuses preserve held ammunition. Both views share the plate and parcel

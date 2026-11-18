@@ -395,7 +395,13 @@
         for (const plant of ctx.plants) {
             if (plant.x < x0 || plant.x >= x0 + size || plant.y < z0 || plant.y >= z0 + size) continue;
             const shades = plant.palette.map(hexLin);
-            AD.vergeTriangles(plant, (a, b, c, shade) => foliage.push({ vertices: [a, b, c], colour: shades[shade] }));
+            // Anchor the roots on the rendered triangle, including on coarse quality tiers.
+            const gx = (plant.x - x0) / cell, gz = (plant.y - z0) / cell;
+            const i = floor(gx), j = floor(gz), u = gx - i, v = gz - j;
+            const k = (j + 1) * pm + i + 1, a = hs[k], b = hs[k + 1], c = hs[k + pm], d = hs[k + pm + 1];
+            const diagonal = (i + j) & 1 ? min(u, v) : max(0, u + v - 1);
+            const z = a + (b - a) * u + (c - a) * v + (a - b - c + d) * diagonal;
+            AD.vergeTriangles({ ...plant, z }, (a, b, c, shade) => foliage.push({ vertices: [a, b, c], colour: shades[shade] }));
         }
         const tris = n * n * 2 + n * 4 * 2 + foliage.length, total = tris * 3;
         const pos = new Float32Array(total * 3), col = new Float32Array(total * 3), uv = new Float32Array(total * 2);

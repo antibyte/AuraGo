@@ -187,6 +187,7 @@ Try sounding the horn before the picture if you fancy some company in the shot.
 
 Even the cattle hand out trophies on the Alpine Pass. Keep an eye on the verge when you come
 back. After a few finishes the spectators occasionally have other plans.
+Tap **H** as you pass the crowd. The spectators who hear you jump up one after another.
 
 ## Weather
 

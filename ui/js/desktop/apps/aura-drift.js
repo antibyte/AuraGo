@@ -904,6 +904,13 @@
                 if (event.code === 'KeyH') {
                     if (typeof audio.horn === 'function') audio.horn();
                     ui.trackCamera?.honk();
+                    if (race.state === 'running' && !reducedMotion) {
+                        const v = race.cars[0].v;
+                        for (const show of sidelines) {
+                            if (Math.hypot(v.x - show.site.x, v.y - show.site.y) < 55 &&
+                                race.time - (show.cheerAt ?? -Infinity) > 2) show.cheerAt = race.time;
+                        }
+                    }
                     return;
                 }
                 audio.unlock();

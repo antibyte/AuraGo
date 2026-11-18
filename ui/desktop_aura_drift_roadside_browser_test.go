@@ -3,6 +3,9 @@ package ui
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
 )
 
 func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
@@ -13,11 +16,24 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 			if tc.renderer == "three" {
 				requireWebGL2(t, page)
 			}
-			settings := map[string]interface{}{"quality": "low", "voice": false, "reducedMotion": true}
+			reduced := tc.renderer == "canvas2d"
+			if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
+				t.Fatal(err)
+			}
+			settings := map[string]interface{}{"quality": "low", "voice": false, "reducedMotion": reduced}
 			auraDriftReopen(page, settings, "")
 			artifacts := auraDriftArtifactDir(t, "trackside-"+tc.renderer)
 			const setup = `async () => {
 				const d = AuraDriftApp.debug, AD = AuraDriftCore;
+				aurora.state.bootstrap.settings['windows.animations'] = true;
+				aurora.applyDesktopSettings();
+				const pose = AD.roadsidePose;
+				window.sawSalute = false;
+				AD.roadsidePose = (part, site, time, out, cheerAt) => {
+					pose(part, site, time, out, cheerAt);
+					if (cheerAt !== undefined && out.z > pose(part, site, time, {}).z + .2) window.sawSalute = true;
+					return out;
+				};
 				const draw = AD.drawRoadside, paint = AD.paintPuddle;
 				window.seenShows = new Set(); window.poolFrames = 0;
 				AD.drawRoadside = function(c, show, ...rest) { seenShows.add(show.story); return draw(c, show, ...rest); };
@@ -58,6 +74,24 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 			}
 			page.MustEval(setup)
 			capture("podium")
+			auraDriftKeyDown(t, page, input.KeyH)
+			auraDriftKeyUp(t, page, input.KeyH)
+			page.MustEval(`() => AuraDriftApp.debug.fastForward(.6, {renderEvery:12})`)
+			if page.MustEval(`() => window.sawSalute`).Bool() == reduced {
+				t.Fatal("Unexpected spectator response to the horn")
+			}
+			page.MustEval(`() => {
+				const AD = AuraDriftCore, d = AuraDriftApp.debug, track = d.race().track;
+				const flower = AD.vergePlants(track).find(p => p.bloom === 'daisy' && p.size > 1.35 && AD.sampleTrack(track,p.x,p.y).offset < 0);
+				const here = AD.sampleTrack(track, flower.x, flower.y);
+				d.warp((here.s - 18) / track.length);
+				const car = d.race().cars[0].v, road = AD.pointAt(track, here.s - 18);
+				car.x -= road.nx * 4; car.y -= road.ny * 4;
+				d.fastForward(.25, {renderEvery:30});
+			}`)
+			if artifacts != "" {
+				page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(artifacts, "meadow.png"))
+			}
 			capture("water")
 			page.MustEval(`async () => {
 				const d = AuraDriftApp.debug;

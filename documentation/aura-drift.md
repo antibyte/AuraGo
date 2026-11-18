@@ -423,8 +423,10 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   plate sits on the inside of a sustained bend. Enter it pointing downtrack for an immediate
   kick of up to 54 km/h and 1.15 seconds of extra thrust. The first hit each lap banks
   500 style points. Shallow circuits skip this plate.
-- **Roadside plants.** Grass grows in tufts and shrubs cluster along the verge, with green
-  meadows and dry scrub in the desert and industrial grounds. The salt flats and glacier stay bare.
+- **Roadside plants.** White and gold daisies grow among the bent blades on the Alpine Pass.
+  The forest has violet flower spikes, quays and city verges have reeds, and dry grass carries
+  seed heads in the desert and industrial grounds. The salt flats and glacier stay bare.
+  Sound the horn near a group of spectators to see them jump in turn. Reduced motion keeps their poses still.
 - **Replays.** The player's quantised input drives the time-trial ghost. Historical best times and
   their cars survive handling updates. The first complete run on the new handling supplies a
   compatible ghost, and faster runs replace it.

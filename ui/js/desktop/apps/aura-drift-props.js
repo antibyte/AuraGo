@@ -458,15 +458,16 @@
                 holder.add(model); group.add(holder);
                 return { part, holder };
             });
-            group.visible = false; scene.add(group); groups.push({ site, group, actors, along, across });
+            group.visible = false; scene.add(group); groups.push({ show, group, actors, along, across });
         }
         return {
             update(eye, time) {
-                for (const { site, group, actors, along, across } of groups) {
+                for (const { show, group, actors, along, across } of groups) {
+                    const site = show.site;
                     group.visible = Math.hypot(eye[0] - site.x, eye[2] - site.y) < 140;
                     if (!group.visible) continue;
                     for (const { part, holder } of actors) {
-                        AD.roadsidePose(part, site, time, pose);
+                        AD.roadsidePose(part, site, time, pose, show.cheerAt);
                         holder.position.set(pose.x, pose.z + along * pose.x + across * pose.y, pose.y);
                         holder.rotation.set(0, Math.PI / 2 - pose.yaw, pose.lean, 'YXZ');
                     }

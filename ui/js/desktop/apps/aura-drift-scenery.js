@@ -82,7 +82,7 @@
     };
 
     /* Local metres along and across the verge. Both views share the same choreography. */
-    AD.roadsidePose = function (part, site, time, pose) {
+    AD.roadsidePose = function (part, site, time, pose, cheerAt) {
         const t = time + part.phase, beat = Math.sin(t * 2.6);
         let x = part.x, y = part.y, z = part.z, yaw = -site.side * 1.75, lean = 0;
         switch (part.motion) {
@@ -98,15 +98,23 @@
             case 'turn': yaw = t * 1.35; break;
             case 'dance': z += .5 * Math.abs(beat); lean = .24 * beat; yaw += .55 * Math.sin(t * 1.3); break;
         }
+        if (cheerAt !== undefined && (part.model === 'gnome_mine' || part.model === 'rubber_duck' || SIDELINE_ANIMALS.has(part.model))) {
+            const beatTime = (time - cheerAt - (part.x + 6) * .043) / .76;
+            if (beatTime > 0 && beatTime < 1) {
+                const wave = Math.sin(Math.PI * beatTime);
+                z += .95 * wave; lean += site.side * .31 * wave;
+            }
+        }
         pose.x = x; pose.y = y; pose.z = z; pose.yaw = yaw; pose.lean = lean;
         return pose;
     };
 
+    const SIDELINE_ANIMALS = new Set(Object.values(SIDELINES).map(([animal]) => animal));
     const ICONS = { rubber_duck: 'ducks', gnome_mine: 'gnome_mine', cow: 'cow', disco_ball: 'disco' };
     AD.drawRoadside = function (c, show, cam, centre, theta, time) {
         const site = show.site, k = cam.scale, pose = {}, angle = Math.atan2(site.ty, site.tx);
         for (const part of show.parts) {
-            AD.roadsidePose(part, site, time, pose);
+            AD.roadsidePose(part, site, time, pose, show.cheerAt);
             const x = centre[0] + (site.tx * pose.x - site.ty * pose.y) * k;
             const y = centre[1] + (site.ty * pose.x + site.tx * pose.y) * k;
             const size = part.height * k, kind = part.model;
@@ -140,14 +148,18 @@
     };
 
     const foliage = new WeakMap();
-    const meadow = ['#497342', '#729447', '#a6b761'], scrub = ['#82603f', '#a18b54', '#c3aa69'];
+    const meadow = ['#497342', '#729447', '#a6b761', '#fff6d4', '#f6bf43'];
+    const woodland = ['#395d47', '#618954', '#94ac6d', '#ae88cf', '#d6b3e4'];
+    const reeds = ['#58694d', '#879660', '#b5ad70', '#866548', '#c59d71'];
+    const scrub = ['#82603f', '#a18b54', '#c3aa69', '#cdad6b', '#e8cf8b'];
     AD.vergePlants = function (track) {
         if (foliage.has(track)) return foliage.get(track);
         const plants = [];
         foliage.set(track, plants);
         if (track.biomeId === 'salt' || track.biomeId === 'glacier') return plants;
         const lush = track.biomeId === 'alpine' || track.biomeId === 'forest';
-        const palette = track.biomeId === 'desert' || track.biomeId === 'industry' ? scrub : meadow;
+        const palette = { alpine: meadow, forest: woodland, harbour: reeds, metro: reeds }[track.biomeId] || scrub;
+        const flowerType = track.biomeId === 'alpine' ? 'daisy' : track.biomeId === 'forest' ? 'spike' : 'seed';
         const occupied = AD.roadsideSites(track).concat(AD.petDecorPlacements?.(track) || [], AD.furnitureProps?.(track) || []);
         const rng = AD.rng(AD.hashString(track.id + '/verge/' + track.seed));
         for (let s = 58; s < track.length - 45; s += (lush ? 24 : 54) + rng() * 44) {
@@ -157,9 +169,11 @@
                 const x = p.x + p.nx * offset, y = p.y + p.ny * offset;
                 const near = AD.sampleTrack(track, x, y), dist = Math.hypot(x - near.x, y - near.y);
                 if (dist < near.halfWidth + 4 || occupied.some(o => Math.hypot(x - o.x, y - o.y) < o.r + 2)) continue;
-                const z = AD.terrainHeight?.(track.biomeId, dist, x, y, near) || 0;
+                const z = AD.groundHeight?.(track, track.biomeId, x, y) || 0;
                 if (z < -1) continue;
-                plants.push({ x, y, z, palette, shrub: rng() < 0.28, size: 0.9 + rng() * 0.85, angle: rng() * Math.PI * 2 });
+                const shrub = rng() < 0.28, size = 0.9 + rng() * 0.85, angle = rng() * Math.PI * 2;
+                const bloom = !shrub && Math.floor(s / 33) % 3 !== 0 && j % 3 !== 2 ? flowerType : null;
+                plants.push({ x, y, z, palette, shrub, size, angle, bloom });
             }
         }
         return plants;
@@ -179,9 +193,31 @@
         } else {
             for (let i = 0; i < 8; i++) {
                 const a = p.angle + i * 2.4, dx = Math.cos(a), dy = Math.sin(a), reach = 0.32 + (i % 4) * 0.17;
-                face(point(dx * 0.19 - dy * 0.10, 0, dy * 0.19 + dx * 0.10),
-                    point(dx * reach, 0.55 + ((i * 3) % 5) * 0.13, dy * reach),
-                    point(dx * 0.19 + dy * 0.10, 0, dy * 0.19 - dx * 0.10), i % 3);
+                const tip = point(dx * reach + .17, .53 + ((i * 3) % 5) * .14, dy * reach);
+                const foot = point(dx * .12, 0, dy * .12);
+                const left = point(dx * .34 - dy * .13, .38, dy * .34 + dx * .13);
+                const right = point(dx * .34 + dy * .13, .38, dy * .34 - dx * .13);
+                face(foot, left, right, i % 2); face(left, tip, right, 1 + i % 2);
+            }
+            if (!p.bloom) return;
+            for (let i = 0; i < 3; i++) {
+                const a = p.angle + i * 2.4, x = .64 * Math.cos(a), y = .56 * Math.sin(a), h = .9 + i * .21;
+                const head = point(x, h, y);
+                face(point(x * .6 - .07, 0, y * .6), head, point(x * .6 + .07, 0, y * .6 + .06), 1);
+                if (p.bloom === 'daisy') {
+                    for (let j = 0; j < 5; j++) {
+                        const dir = a + j * Math.PI * 2 / 5;
+                        const petal = d => point(x + Math.cos(dir + d) * .30, h + .08, y + Math.sin(dir + d) * .30);
+                        face(head, petal(.53), petal(-.53), 3);
+                    }
+                    face(point(x - .10, h + .035, y - .08), point(x, h + .07, y + .12), point(x + .12, h + .035, y - .06), 4);
+                } else {
+                    const w = p.bloom === 'spike' ? .19 : .105, peak = point(x + .09, h + .43, y);
+                    for (let j = 0; j < 4; j++) {
+                        const rim = k => point(x + w * Math.cos(k * Math.PI / 2), h + .13, y + w * Math.sin(k * Math.PI / 2));
+                        face(head, rim(j), rim(j + 1), 3); face(peak, rim(j + 1), rim(j), 3 + j % 2);
+                    }
+                }
             }
         }
     };
