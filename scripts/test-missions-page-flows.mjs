@@ -91,6 +91,38 @@ vm.createContext(sandbox);
 const mainFile = path.join(uiDir, 'js', 'missions', 'main.js');
 vm.runInContext(fs.readFileSync(mainFile, 'utf8'), sandbox, { filename: mainFile });
 const P = sandbox; // page functions are globals of the context
+
+// The server asks before saving an operator command. Retrying keeps the exact payload.
+{
+    const oldQuery = document.querySelector;
+    const loadData = P.loadData;
+    P.loadData = () => {};
+    document.querySelector = (selector) => selector === 'input[name="exec-type"]:checked' ? { value: 'manual' } : oldQuery.call(document, selector);
+    document.getElementById('mission-name').value = 'Check personalities';
+    document.getElementById('mission-prompt').value = '/personality';
+    const sent = [];
+    P.fetch = (url, options = {}) => {
+        if (url !== '/api/missions/v2' || options.method !== 'POST') return fetchStub(url, options);
+        const body = JSON.parse(options.body);
+        sent.push(body);
+        if (body.confirm_operator_command) return Promise.resolve({ ok: true, status: 201 });
+        return Promise.resolve({ status: 409, json: async () => ({ code: 'mission_operator_confirmation_required', error: 'Confirm this operator command' }) });
+    };
+    confirmQueue.push(false, true);
+    await P.saveMission();
+    if (sent.length !== 1 || sent[0].confirm_operator_command) throw new Error('Declining must leave the operator mission unsaved');
+    await P.saveMission();
+    const { confirm_operator_command: confirmed, ...payload } = sent[2] || {};
+    if (sent.length !== 3 || !confirmed || JSON.stringify(payload) !== JSON.stringify(sent[1])) {
+        throw new Error('Confirming must retry the exact operator mission');
+    }
+    P.fetch = fetchStub;
+    P.loadData = loadData;
+    document.querySelector = oldQuery;
+    confirms.length = 0;
+    toasts.length = 0;
+}
+
 // main.js keeps its state in top-level `let`s; a later script in the same context sees them. The page reloads
 // its list after every action, so the list endpoint answers with the same missions.
 function setMissions(list) {

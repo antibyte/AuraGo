@@ -135,6 +135,14 @@ mission_preparation:
 3. Configure name, **prompt**, schedule or trigger
 4. Save the mission
 
+### Scheduling an operator command
+
+Sign in as the owner and enter the single command as the entire prompt of a
+local manual or scheduled mission. Save it and confirm the dialog. The schedule
+or an explicit Run from your signed-in browser can execute the approved command.
+Confirm existing operator-command missions once after updating. Changes to the
+command or schedule require a new confirmation.
+
 ### Via REST API
 
 Use session cookies (`credentials: 'same-origin'`) when calling from the browser. Admin API tokens work for automation.

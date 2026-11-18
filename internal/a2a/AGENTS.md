@@ -17,6 +17,7 @@ This package owns protocol cards, HTTP authentication, peer clients and the remo
 - Worker admission, cancellation, session scope and draining share the agent registry contract in ../agent/AGENTS.md.
 - Peer system queries retain only service `status` and package `detect`, `search`, `list_installed`, `info`. The shared agent role policy denies mutations and `install_package` before approvals, and trims discovery to the same operations.
 - Peers cannot create documents or Desktop Notes, or mutate Office files. Office reads/formula evaluation and Notes list/search/read retain their existing grants; dispatch and discovery share the agent role boundary.
+- Docker, Ansible and MCP expose only inspection to peers. The role gate admits recognized reads and denies Docker Compose, Ansible execution and MCP tool calls. Discovery follows the same gate.
 
 ## Work Guidance
 

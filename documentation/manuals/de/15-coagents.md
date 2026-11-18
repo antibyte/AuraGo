@@ -386,6 +386,10 @@ Co-Agenten können folgende Tools **NICHT** nutzen:
 
 A2A-Anfragen laufen ebenfalls als Co-Agenten, mit weiteren Grenzen: Sie dürfen mit den Datei-Tools und den Editoren keine Dateien schreiben, die Archiv-, PDF-, Bild- und Medien-Tools verlieren ihre Schreiboperationen, und den virtuellen Desktop sowie die Homepage-Projekte dürfen sie nicht ändern (diese Tools behalten nur ihre Lese-Operationen), keine Shell-Befehle, kein Python, keine Skills und keine gespeicherten Tools ausführen, und ihr Text erreicht den Agenten als isolierte externe Daten, nie als Anfrage des Besitzers. Lesezugriffe auf Gedächtnis, Wissensgraph, Journal und Notizen, Web-Tools und die übrigen Lese-Operationen bleiben einem entfernten Agenten offen; andere Tools ohne Einschränkung, etwa die Office-Tools, Desktop-Notizen und QR-Codes, bleiben einer Gegenstelle ebenfalls offen; aktiviere den A2A-Server deshalb nur für Gegenstellen, denen du diesen Zugriff anvertraust.
 
+A2A-Gegenstellen können Docker-Ressourcen einsehen, Ansible-Status und Inventar
+abfragen und MCP-Server und -Tools auflisten. Docker Compose, Ansible-Ausführung
+und Aufrufe von MCP-Tools brauchen einen lokalen Agenten.
+
 ### Zeitliche Limits
 
 Unter **Config → Agent → Co-Agenten** → Circuit Breaker:

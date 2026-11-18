@@ -24,6 +24,9 @@ Workbook and document preservation, editing, and assist.
   unsupported extensions; reject edits that cannot retain their references.
 - Legacy Office/agent writes cannot silently flatten complex XLSX. Same-format
   exports pass through complete packages; explicit simplified copies are separate.
+- Apply the XLSX preservation check to ZIP packages without a file extension.
+  Extensionless plain-text writes retain their existing behavior. Verify
+  `TestLegacyWorkbookRewriteChecksExtensionlessFiles`.
 - Legacy writes reject `.xltx`/`.xltm` templates, including uppercase extensions,
   before rebuilding or replacing their bytes. Reading and separate simplified
   CSV exports remain available. Verify `TestLegacyWorkbookRewriteRejectsTemplates`.

@@ -1,10 +1,12 @@
 package tools
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -20,7 +22,7 @@ func TestApplyShellSandboxDockerGrantRespectsPermission(t *testing.T) {
 
 	denied := exec.Command("true")
 	denied.Env = []string{"PATH=/bin"}
-	ApplyShellSandboxDockerGrant(denied)
+	ApplyShellSandboxDockerGrant(nil, denied)
 	if strings.Join(denied.Env, "\n") != "PATH=/bin" {
 		t.Fatalf("grant without permission changed env: %v", denied.Env)
 	}
@@ -28,7 +30,7 @@ func TestApplyShellSandboxDockerGrantRespectsPermission(t *testing.T) {
 	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
 	allowed := exec.Command("true")
 	allowed.Env = []string{"AURAGO_SBX_RW=/work"}
-	ApplyShellSandboxDockerGrant(allowed)
+	ApplyShellSandboxDockerGrant(nil, allowed)
 	sock := grantedDockerSocketSegment("/var/run/docker.sock")
 	if !containsEnv(allowed.Env, "DOCKER_HOST=unix:///var/run/docker.sock") {
 		t.Fatalf("missing docker host: %v", allowed.Env)
@@ -44,6 +46,34 @@ func TestApplyShellSandboxDockerGrantRespectsPermission(t *testing.T) {
 	}
 }
 
+func TestApplyShellSandboxDockerGrantDeniesReadOnly(t *testing.T) {
+	t.Setenv("DOCKER_HOST", "unix:///inherited-fixture.sock")
+	t.Cleanup(func() {
+		SetShellSandboxDockerHost("")
+		ConfigureRuntimePermissions(defaultRuntimePermissionsForTests())
+	})
+	readOnly := RuntimePermissions{DockerEnabled: true, DockerReadOnly: true}
+	writable := RuntimePermissions{DockerEnabled: true}
+	for _, endpoint := range []string{"unix:///var/run/docker.sock", "tcp://127.0.0.1:2375"} {
+		SetShellSandboxDockerHost(endpoint)
+		for _, perms := range []struct{ live, run RuntimePermissions }{{readOnly, writable}, {writable, readOnly}} {
+			ConfigureRuntimePermissions(perms.live)
+			ctx := WithRuntimePermissions(context.Background(), perms.run)
+			want := []string{"AURAGO_SBX_RW=/work", "AURAGO_SBX_RW_REQUIRED=/work"}
+			cmd := &exec.Cmd{Env: append(slices.Clone(want), "DOCKER_HOST="+endpoint, "DOCKER_CONFIG=/fixture")}
+			ApplyShellSandboxDockerGrant(ctx, cmd)
+			if !slices.Equal(cmd.Env, want) {
+				t.Fatalf("read-only Docker granted an endpoint or socket: %v", cmd.Env)
+			}
+			inherited := &exec.Cmd{}
+			ApplyShellSandboxDockerGrant(ctx, inherited)
+			if leaked := dockerClientEnvEntries(inherited.Env); inherited.Env == nil || len(leaked) != 0 {
+				t.Fatal("readonly child could inherit Docker variables")
+			}
+		}
+	}
+}
+
 func TestApplyShellSandboxDockerGrantTCPHostAddsNoFilesystemPath(t *testing.T) {
 	SetShellSandboxDockerHost("tcp://127.0.0.1:2375")
 	t.Cleanup(func() {
@@ -54,7 +84,7 @@ func TestApplyShellSandboxDockerGrantTCPHostAddsNoFilesystemPath(t *testing.T) {
 
 	cmd := exec.Command("true")
 	cmd.Env = []string{"AURAGO_SBX_RW=/work", "AURAGO_SBX_RW_REQUIRED=/work"}
-	ApplyShellSandboxDockerGrant(cmd)
+	ApplyShellSandboxDockerGrant(nil, cmd)
 	if !containsEnv(cmd.Env, "DOCKER_HOST=tcp://127.0.0.1:2375") {
 		t.Fatalf("missing tcp docker host: %v", cmd.Env)
 	}
@@ -78,7 +108,7 @@ func TestApplyShellSandboxDockerGrantSkipsSocketPathsThatSplitTheList(t *testing
 		SetShellSandboxDockerHost(host)
 		cmd := exec.Command("true")
 		cmd.Env = []string{"AURAGO_SBX_RW=/work", "AURAGO_SBX_RW_REQUIRED=/work"}
-		ApplyShellSandboxDockerGrant(cmd)
+		ApplyShellSandboxDockerGrant(nil, cmd)
 		if !containsEnv(cmd.Env, "DOCKER_HOST="+host) {
 			t.Fatalf("missing docker host %q: %v", host, cmd.Env)
 		}
@@ -103,7 +133,7 @@ func TestApplyShellSandboxDockerGrantDoesNotDuplicateSocketPath(t *testing.T) {
 		"AURAGO_SBX_RW_REQUIRED=/work:" + sock,
 		"DOCKER_HOST=unix:///var/run/docker.sock",
 	}
-	ApplyShellSandboxDockerGrant(cmd)
+	ApplyShellSandboxDockerGrant(nil, cmd)
 	if strings.Join(cmd.Env, "\n") != strings.Join([]string{
 		"AURAGO_SBX_RW=/work:" + sock,
 		"AURAGO_SBX_RW_REQUIRED=/work:" + sock,
@@ -114,7 +144,7 @@ func TestApplyShellSandboxDockerGrantDoesNotDuplicateSocketPath(t *testing.T) {
 
 	partial := exec.Command("true")
 	partial.Env = []string{"AURAGO_SBX_RW=/work:" + sock}
-	ApplyShellSandboxDockerGrant(partial)
+	ApplyShellSandboxDockerGrant(nil, partial)
 	if !containsEnv(partial.Env, "AURAGO_SBX_RW=/work:"+sock) {
 		t.Fatalf("existing socket path was rewritten: %v", partial.Env)
 	}
@@ -135,7 +165,7 @@ func TestApplyShellSandboxDockerGrantLeavesInheritedEnvNil(t *testing.T) {
 	ConfigureRuntimePermissions(RuntimePermissions{DockerEnabled: true})
 
 	cmd := exec.Command("true")
-	ApplyShellSandboxDockerGrant(cmd)
+	ApplyShellSandboxDockerGrant(nil, cmd)
 	if cmd.Env != nil {
 		t.Fatalf("grant replaced an inherited environment: %v", cmd.Env)
 	}

@@ -16,6 +16,11 @@ checks. `command -v`/`-V` and read-only `find` remain usable; `find -exec`,
 heuristic is not a sandbox. Explicit host execution retains the process user's
 permissions and must not be described as safe because its command passed it.
 
+General host shell commands receive Docker client variables and a Unix socket
+grant only when the server and the current run allow Docker writes. Docker
+inspection uses the integration when `docker.readonly` is on. Host processes
+with their own access to an Engine still follow the OS or proxy policy.
+
 The supervisor requires `llm-sandbox[mcp-docker]==0.3.45` (or `mcp-podman`),
 including its MCP dependencies. An operator must provision this package when
 automatic provisioning is disabled. The package version is checked before startup.

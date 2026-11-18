@@ -174,11 +174,12 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 			return
 		}
 
-		var mission tools.MissionV2
-		if err := decodeJSONRequest(w, r, &mission, s); err != nil {
+		var request missionWriteRequest
+		if err := decodeJSONRequest(w, r, &request, s); err != nil {
 			jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 			return
 		}
+		mission := request.MissionV2
 		mission.Prompt = tools.StripMissionExecutionPlanAdvisory(mission.Prompt)
 
 		if mission.Name == "" || mission.Prompt == "" {
@@ -230,6 +231,9 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 			}
 		}
 
+		if !s.prepareMissionOperatorApproval(w, r, &mission, mission.ID, request.ConfirmOperatorCommand) {
+			return
+		}
 		if err := s.MissionManagerV2.Create(&mission); err != nil {
 			s.Logger.Error("Failed to create mission", "error", err)
 			jsonError(w, "Failed to create mission: "+err.Error(), missionErrorStatus(err))
@@ -316,11 +320,12 @@ func handleMissionGetV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 }
 
 func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
-	var updated tools.MissionV2
-	if err := decodeJSONRequest(w, r, &updated, s); err != nil {
+	var request missionWriteRequest
+	if err := decodeJSONRequest(w, r, &request, s); err != nil {
 		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
 		return
 	}
+	updated := request.MissionV2
 	updated.Prompt = tools.StripMissionExecutionPlanAdvisory(updated.Prompt)
 
 	if len(updated.Name) > maxMissionNameLen {
@@ -336,6 +341,9 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 		return
 	}
 
+	if !s.prepareMissionOperatorApproval(w, r, &updated, id, request.ConfirmOperatorCommand) {
+		return
+	}
 	if err := s.MissionManagerV2.Update(id, &updated); err != nil {
 		s.Logger.Error("Failed to update mission", "error", err)
 		jsonError(w, "Failed to update mission: "+err.Error(), missionErrorStatus(err))

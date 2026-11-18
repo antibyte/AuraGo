@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -12,18 +13,30 @@ func dispatchDesktopOwnedMission(s *Server, r *http.Request, id, trigger, data s
 	// the flow service. The owner path (QueueOwnedMission) would queue it for the agent, and
 	// the dispatcher drops flow items, so route flows first. The Desktop write admission of
 	// the request already ran.
-	if mission, ok := s.MissionManagerV2.Get(id); ok && mission.ExecutionType == tools.ExecutionFlow {
+	mission, found := s.MissionManagerV2.Get(id)
+	if found && mission.ExecutionType == tools.ExecutionFlow {
 		if trigger == "manual" {
 			return s.MissionManagerV2.RunNow(id)
 		}
 		return s.MissionManagerV2.TriggerMission(id, trigger, data)
+	}
+	operatorApproval := ""
+	if trigger == "manual" && found && mission.OperatorCommandApproval != "" && s.missionOperatorOwnerSecret(r) != "" {
+		operatorApproval = mission.OperatorCommandApproval
 	}
 	if grant, _ := r.Context().Value(desktopRunContextKey{}).(*desktopRunGrant); grant != nil && grant.server == s {
 		ctx, release, err := s.beginDesktopBackgroundRun(40 * time.Minute)
 		if err != nil {
 			return err
 		}
+		if operatorApproval != "" {
+			ctx = context.WithValue(ctx, missionOperatorRunKey{}, operatorApproval)
+		}
 		return s.MissionManagerV2.QueueOwnedMission(ctx, release, id, trigger, data)
+	}
+	if operatorApproval != "" {
+		ctx := context.WithValue(context.Background(), missionOperatorRunKey{}, operatorApproval)
+		return s.MissionManagerV2.QueueOwnedMission(ctx, nil, id, trigger, data)
 	}
 	if trigger == "manual" {
 		return s.MissionManagerV2.RunNow(id)

@@ -131,6 +131,15 @@ Missionen können Abhängigkeiten untereinander haben und werden in einer Wartes
 3. **Konfiguriere** die Mission (Name, Anweisungen, Zeitplan)
 4. **Speichere** die Mission
 
+### Einen Betreiberbefehl planen
+
+Melde dich als Besitzer an und gib den einzelnen Befehl als gesamten Auftrag
+einer lokalen manuellen oder geplanten Mission ein. Speichere sie und bestätige
+den Dialog. Die Mission kann den freigegebenen Befehl nach Zeitplan ausführen
+oder wenn du sie angemeldet startest. Bestätige vorhandene Betreiberbefehle
+nach dem Update einmal neu. Änderungen am Befehl oder Zeitplan brauchen eine
+neue Bestätigung.
+
 ### Über die REST API
 
 ```bash

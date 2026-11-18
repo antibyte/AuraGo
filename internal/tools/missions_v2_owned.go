@@ -115,6 +115,11 @@ func (m *MissionManagerV2) ActiveOwnerContext(id string) (context.Context, bool)
 	return item.ownerContext, m.queue.running == id && item.RequiresOwner
 }
 
+// ActiveMissionTrigger reports the server-owned trigger of the running invocation.
+func (m *MissionManagerV2) ActiveMissionTrigger(id string) string {
+	return m.queue.activeItem(id).TriggerType
+}
+
 func (q *MissionQueue) persistedSnapshot() missionQueueSnapshot {
 	q.mu.Lock()
 	defer q.mu.Unlock()

@@ -5,6 +5,7 @@ Local and sidecar inventories share the static-file restrictions below. Only the
 Both modes require literal UTF-8 inventories: no Jinja templates/lookups, including escaped forms. Host/group patterns must resolve entirely to explicitly declared inventory hosts; implicit localhost and host-file limits (`@file`) are rejected. With no configured default, AuraGo supplies its own explicit private localhost inventory. Extra variables must be JSON objects containing application data, without templates or Ansible connection/engine overrides (`ansible_*`, `_ansible_*`, `hostvars`, `groups` and other reserved inventory variables). Malformed JSON is an error, not an empty variable set. These checks constrain supplied inputs; approved playbooks remain executable operator code and require write permission.
 
 Run Ansible playbooks, ad-hoc commands, and inventory queries.
+A2A peers can only inspect status, playbook lists and inventories.
 Two execution modes are supported — choose with `ansible.mode` in `config.yaml`:
 
 | Mode | How it works | When to use |

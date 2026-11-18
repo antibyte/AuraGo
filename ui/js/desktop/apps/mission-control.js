@@ -503,7 +503,20 @@
                 editor.setServerError('');
                 try {
                     const url = mode === 'edit' ? '/api/desktop/integrations/missions/v2/' + encodeURIComponent(id) : '/api/desktop/integrations/missions/v2';
-                    const res = await api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const send = (body) => api(url, { method: mode === 'edit' ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                    let res;
+                    try {
+                        res = await send(payload);
+                    } catch (err) {
+                        if (err.status !== 409 || err.body?.code !== 'mission_operator_confirmation_required') throw err;
+                        const confirmed = await confirmDialog(t('desktop.mc_editor_save'), err.body.error);
+                        if (state.disposed) return false;
+                        if (!confirmed || sessionRevision() !== revision) {
+                            editor.setSaving(false);
+                            return false;
+                        }
+                        res = await send({ ...payload, confirm_operator_command: true });
+                    }
                     if (state.disposed) return false;
                     state.sessionActionSavedRevision = revision;
                     notify(t(mode === 'edit' ? 'desktop.mc_toast_saved' : 'desktop.mc_toast_created'));

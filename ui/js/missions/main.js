@@ -1186,25 +1186,37 @@ async function saveMission() {
         mission.trigger_config = null;
     }
 
+    const saveButton = document.getElementById('mission-save-btn');
+    if (saveButton?.disabled) return;
+    if (saveButton) saveButton.disabled = true;
     try {
         const url = editingId ? `/api/missions/v2/${editingId}` : '/api/missions/v2';
         const method = editingId ? 'PUT' : 'POST';
 
-        const response = await fetch(url, {
+        const send = (payload) => fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mission)
+            body: JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-            throw new Error(await response.text());
+        let response = await send(mission);
+        if (response.status === 409) {
+            const problem = await response.json().catch(() => null);
+            if (problem?.code !== 'mission_operator_confirmation_required') {
+                throw new Error(problem?.error || response.statusText);
+            }
+            if (!await showConfirm(t('common.confirm_title'), problem.error)) return;
+            response = await send({ ...mission, confirm_operator_command: true });
         }
+
+        if (!response.ok) throw await requestError(response);
 
         showToast(editingId ? t('missions.toast_mission_updated') : t('missions.toast_mission_created'), 'success');
         closeModal('modal');
         loadData();
     } catch (err) {
         showToast(t('missions.toast_error_prefix') + err.message, 'error');
+    } finally {
+        if (saveButton) saveButton.disabled = false;
     }
 }
 

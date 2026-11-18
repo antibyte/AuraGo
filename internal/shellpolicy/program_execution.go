@@ -20,6 +20,13 @@ func programExecutionReason(command string, escape byte) string {
 		head := strings.TrimSuffix(strings.ToLower(words[0][strings.LastIndexAny(words[0], "/\\")+1:]), ".exe")
 		args := words[1:]
 		switch head {
+		case "cmd":
+			for _, arg := range args {
+				switch strings.ToLower(arg) {
+				case "/c", "/k":
+					return "interpreter command chain that can bypass shell policy"
+				}
+			}
 		case "xargs", "ex", "ed":
 			if len(args) == 1 && (args[0] == "--help" || args[0] == "--version") {
 				return ""

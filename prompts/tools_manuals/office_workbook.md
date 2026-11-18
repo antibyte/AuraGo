@@ -8,6 +8,9 @@ If `tools.office_workbook.readonly` is enabled, only `read` and `evaluate_formul
 
 A2A peers may only read or evaluate formulas, regardless of write grants. Legacy writes cannot preserve `.xltx` or `.xltm` templates and are rejected; read them or export a separate simplified CSV copy instead.
 
+The workbook preservation check also applies to existing Excel files without an
+extension. Use Tabellen or a separate simplified export for complex workbooks.
+
 ## Operations
 
 - `read`: use `path`; returns `entry`, `workbook`, and `office_version`.

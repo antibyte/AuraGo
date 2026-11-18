@@ -163,6 +163,8 @@ type MissionV2 struct {
 	WaitingForID  string         `json:"waiting_for_id,omitempty"` // ID of mission this is waiting for
 	CheatsheetIDs []string       `json:"cheatsheet_ids,omitempty"` // Linked cheat sheet IDs for prompt expansion
 
+	OperatorCommandApproval string `json:"operator_command_approval,omitempty"` // Server signature for an owner-approved local command.
+
 	// Remote execution fields
 	RunnerType       MissionRunner `json:"runner_type,omitempty"`        // local | remote
 	RemoteNestID     string        `json:"remote_nest_id,omitempty"`     // Invasion nest connection target
@@ -1012,6 +1014,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 
 	callback := m.callback
 	prompt := StripMissionExecutionPlanAdvisory(mission.Prompt)
+	hasOperatorApproval := mission.OperatorCommandApproval != ""
 	missionID := mission.ID
 	missionName := mission.Name
 	cheatsheetIDs := mission.CheatsheetIDs
@@ -1086,7 +1089,10 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 		}
 	}
 
-	prompt = appendIsolatedTriggerContext(prompt, item.TriggerType, item.TriggerData)
+	// A saved operator command has no additional arguments from the scheduler.
+	if !hasOperatorApproval || item.TriggerData != "" || (item.TriggerType != "manual" && item.TriggerType != "cron") {
+		prompt = appendIsolatedTriggerContext(prompt, item.TriggerType, item.TriggerData)
+	}
 	// Start timeout guardian to prevent permanent queue blocking if callback hangs
 	guardCtx, guardCancel := context.WithCancel(m.ctx)
 	m.mu.Lock()
@@ -2117,6 +2123,8 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 		}
 	}
 
+	operatorApproval := mission.OperatorCommandApproval
+	mission.OperatorCommandApproval = ""
 	m.missions[mission.ID] = mission
 
 	// Register trigger if needed
@@ -2135,7 +2143,12 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 		}
 	}
 
-	return m.save()
+	mission.OperatorCommandApproval = operatorApproval
+	if err := m.save(); err != nil {
+		mission.OperatorCommandApproval = ""
+		return err
+	}
+	return nil
 }
 
 // ApplySyncedMission installs or updates an egg-local mission received from a master.
@@ -2273,6 +2286,8 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 		}
 	}
 
+	operatorApproval := updated.OperatorCommandApproval
+	updated.OperatorCommandApproval = ""
 	m.missions[id] = updated
 
 	// Register new triggers
@@ -2297,7 +2312,9 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 		InvalidatePreparedMission(m.preparedDB, id)
 	}
 
+	updated.OperatorCommandApproval = operatorApproval
 	if err := m.save(); err != nil {
+		updated.OperatorCommandApproval = ""
 		return err
 	}
 	return nil

@@ -408,6 +408,11 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		// Phase: Command Interception
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && strings.HasPrefix(lastUserMsg.Content, "/") {
+			allowOperator := !isFollowUp || s.missionRunAllowsOperator(missionID, lastUserMsg.Content)
+			if missionID != "" && !allowOperator && commands.IsOperatorCommand(lastUserMsg.Content) {
+				writeMissionOperatorError(w, http.StatusForbidden, "mission_operator_not_approved", turnCfg.Server.UILanguage)
+				return
+			}
 			// Intercept Slash Commands
 			cmdCtx := commands.Context{
 				STM:              s.ShortTermMem,
@@ -420,17 +425,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				WarningsRegistry: s.WarningsRegistry,
 				Lang:             s.Cfg.Server.UILanguage,
 				SessionID:        sessionID,
-				// Owner turns (login session, admin bearer, loopback calls without
-				// X-Internal-FollowUp) may run operator commands. Follow-up
-				// loopback turns may not: follow_up and wait_for_event deliver
-				// model-written prompts unwrapped, while cron, daemon, webhook,
-				// FritzBox, firewall-guard and master-task turns carry fixed
-				// prefixes or wrapped payloads and never start with "/" anyway.
-				// Mission runs (X-Mission-ID) stay allowed so the owner can
-				// schedule a slash-command mission. manage_missions can also store
-				// a model-written mission prompt; that residual gap is a backlog
-				// item, not covered here.
-				AllowOperator: !isFollowUp || missionID != "",
+				AllowOperator:    allowOperator,
 			}
 			cmdResult, isCommand, err := commands.Handle(lastUserMsg.Content, cmdCtx)
 			if err != nil {

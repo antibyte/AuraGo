@@ -32,18 +32,22 @@ func currentShellSandboxDockerHost() string {
 	return host
 }
 
-// ApplyShellSandboxDockerGrant appends DOCKER_HOST when Docker permission
-// allows it and the command already has an environment. A unix:// host also
-// appends its socket to AURAGO_SBX_RW and AURAGO_SBX_RW_REQUIRED. A nil
-// environment stays nil so a later ensureFilteredShellEnv can install the
-// filtered process environment. A tcp host sets DOCKER_HOST and adds no
-// filesystem path.
-func ApplyShellSandboxDockerGrant(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Env == nil {
+// ApplyShellSandboxDockerGrant appends DOCKER_HOST when the live and run-scoped
+// permissions allow Docker mutations and the command already has an environment.
+// A unix:// host also appends its socket to AURAGO_SBX_RW and AURAGO_SBX_RW_REQUIRED.
+// When mutations are denied, remove any inherited Docker client variables.
+func ApplyShellSandboxDockerGrant(ctx context.Context, cmd *exec.Cmd) {
+	if cmd == nil {
 		return
 	}
 	host := currentShellSandboxDockerHost()
-	if host == "" || requireDockerPermission() != nil {
+	perms, configured := EffectiveRuntimePermissions(ctx)
+	if !configured || !perms.DockerEnabled || perms.DockerReadOnly {
+		ensureFilteredEnv(cmd)
+		cmd.Env = withoutDockerClientEnv(cmd.Env)
+		return
+	}
+	if host == "" || cmd.Env == nil {
 		return
 	}
 	if !shellEnvHasKey(cmd.Env, "DOCKER_HOST") {
@@ -140,7 +144,7 @@ func ExecuteShell(ctx context.Context, command, workspaceDir string) (string, st
 	}
 
 	cmd.Dir = absWorkDir
-	ApplyShellSandboxDockerGrant(cmd)
+	ApplyShellSandboxDockerGrant(ctx, cmd)
 	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 
@@ -192,7 +196,7 @@ func ExecuteShellBackground(ctx context.Context, command, workspaceDir string, r
 	}
 
 	cmd.Dir = absWorkDir
-	ApplyShellSandboxDockerGrant(cmd)
+	ApplyShellSandboxDockerGrant(ctx, cmd)
 	ensureFilteredShellEnv(cmd)
 	SetupCmd(cmd)
 

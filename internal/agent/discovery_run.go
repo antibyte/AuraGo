@@ -116,13 +116,18 @@ func applyCatalogEntryPolicies(catalog *ToolCatalog, dc *DispatchContext) {
 		if !entry.Enabled {
 			continue
 		}
-		if entry.Kind != ToolKindNative {
+		peerMCPGateway := isA2ARun(dc) && entry.Name == "mcp_call"
+		if entry.Kind != ToolKindNative && !peerMCPGateway {
 			if catalogRoleToolRestriction(ToolCall{Action: catalogEntryAction(entry)}, dc) != "" {
 				entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusDisabled, "role_restricted"
 			}
 			continue
 		}
 		ops := toolCatalogOperationField(entry, "operation")
+		if peerMCPGateway {
+			// The shared gateway describes its operations in prose.
+			ops = []string{"list_servers", "list_tools", "call_tool"}
+		}
 		if len(ops) == 0 {
 			if catalogRoleToolRestriction(ToolCall{Action: entry.Name}, dc) != "" {
 				entry.Enabled, entry.Active, entry.Status, entry.HiddenReason = false, false, ToolStatusDisabled, "role_restricted"

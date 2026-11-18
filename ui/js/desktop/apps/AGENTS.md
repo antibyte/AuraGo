@@ -3505,6 +3505,8 @@ buttons and menu popovers remain excluded from those gestures.
   scopes document shortcuts with `isActive()`. Local running missions can be
   cancelled via `POST /api/missions/v2/{id}/cancel`; `next_run` comes from the
   mission payload. The editor re-validates live after the first failed save.
+- Operator command saves use the shared confirmation dialog and localized server
+  message. Submit the confirmed payload only while the same editor revision is open.
 - Aggregate Stop refuses saved durable runs before any effect. In this cancel context,
   `FLOW_DURABLE_GENERATION_CONFLICT` shows `desktop.mc_error_durable_cancel`, directing the
   user through the existing EasyDrag open action to an individual generation-checked Stop.

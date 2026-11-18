@@ -2,6 +2,10 @@
 
 Create and manage background automation tasks (missions) with scheduling, triggers, and chaining.
 
+Operator slash commands need explicit approval from the owner's Mission Control
+editor. An agent edit clears that approval. An agent-started run cannot execute
+an operator command.
+
 ## Operations
 
 | Operation | Description | Parameters |

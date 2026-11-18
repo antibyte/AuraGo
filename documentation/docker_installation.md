@@ -228,12 +228,12 @@ To refresh the pin (maintainers):
 
 If the pinned digest ever disappears from Docker Hub, new installs fail to pull it with `manifest unknown`, while existing installs keep running from their cached image (only `docker compose pull` fails) until the pin is refreshed.
 
-The AuraGo container receives `DOCKER_HOST=tcp://docker-proxy:2375` for its Docker integrations. Shell commands (`execute_shell`, `execute_sudo`) and host Python run by the agent only see `DOCKER_HOST` and the other Docker client variables (`DOCKER_TLS_VERIFY`, `DOCKER_CERT_PATH`, `DOCKER_CONFIG`, `DOCKER_CONTEXT`, `DOCKER_API_VERSION`) while the Docker tool is enabled (`docker.enabled`). This is a speed bump, not isolation: it hides the endpoint from an agent shell without the Docker permission, but the `docker-proxy` endpoint stays reachable from any shell on the `docker-control` network and skill execution and provisioning keep the variable by design. Skills (Python skills, daemon skills and Agent Skill scripts) still receive `DOCKER_HOST`: installed skills are treated as trusted, and the Docker manager skill template depends on it.
+The AuraGo container receives `DOCKER_HOST=tcp://docker-proxy:2375` for its Docker integrations. With `docker.readonly: true`, AuraGo withholds Docker client variables and the Unix socket grant from general host shell commands and local Ansible probes. Use the Docker integration for read operations.
 
-Two caveats:
-
-- `docker.readonly` only restricts the Docker tool. With the Docker tool enabled in read-only mode, shells still see `DOCKER_HOST` and can do whatever the proxy allows (including `POST` and `EXEC` calls).
-- In direct-socket mode (below) hiding the variables achieves nothing: the docker CLI and Docker SDKs default to the mounted `/var/run/docker.sock` without any `DOCKER_HOST`.
+Host processes can also have direct access through their OS permissions, a mounted
+socket or the `docker-control` network. That access follows the OS or proxy policy.
+Use the isolated executor for shell commands that must run without those permissions.
+Trusted setup and installed compatibility skills keep their own Docker access paths.
 
 ### Switching to Direct Socket Access (NOT recommended)
 

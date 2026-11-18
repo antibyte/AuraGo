@@ -3,8 +3,7 @@
 // run only when the caller sets Context.AllowOperator: Telegram private chats,
 // WhatsApp owner chats (dedicated owner DMs and the self chat), Discord DMs,
 // Rocket.Chat with rocketchat.allow_operator_commands, the web console and the
-// desktop chat (owner turns and mission runs, not model-written follow-up
-// turns). Everyone else gets a refusal.
+// desktop chat. Mission runs require approval for the exact saved command.
 package commands
 
 import (
@@ -42,8 +41,8 @@ type Context struct {
 	// WhatsApp only for its owner chats (dedicated owner DMs and the self
 	// chat), which the inbound filter guarantees. Rocket.Chat sets it only
 	// when rocketchat.allow_operator_commands opts the shared room in. The web
-	// console and the desktop chat (admin surfaces) set it, except for
-	// model-written follow-up loopback turns.
+	// console and the desktop chat set it for operator turns. The mission
+	// scheduler uses an explicit owner approval for the exact command.
 	AllowOperator bool
 }
 
@@ -55,6 +54,11 @@ var operatorCommands = map[string]bool{
 	"personality": true,
 	"debug":       true,
 	"voice":       true,
+}
+
+// IsOperatorCommand uses the same command name as Handle.
+func IsOperatorCommand(input string) bool {
+	return strings.HasPrefix(input, "/") && operatorCommands[strings.Fields(input)[0][1:]]
 }
 
 // Command defines the interface for a slash command.

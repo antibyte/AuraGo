@@ -155,23 +155,40 @@ func a2aFilesystemWrite(tc ToolCall) bool {
 // physical FindIt inventory is owner-local and remains unavailable to A2A.
 // Reads of memory, the knowledge graph, the journal and notes stay open to it.
 func a2aRestriction(tc ToolCall) string {
+	action := canonicalActionName(tc.Action)
 	switch {
-	case canonicalActionName(tc.Action) == "service_manager" && tc.Operation != "status":
+	case action == "service_manager" && tc.Operation != "status":
 		return `Tool Output: {"status":"policy_denied","message":"A2A requests may only query service status."}`
-	case canonicalActionName(tc.Action) == "package_manager" && !oneOf(tc.Operation, "detect", "search", "list_installed", "info"):
+	case action == "package_manager" && !oneOf(tc.Operation, "detect", "search", "list_installed", "info"):
 		return `Tool Output: {"status":"policy_denied","message":"A2A requests may only query packages (detect, search, list_installed, info)."}`
-	case canonicalActionName(tc.Action) == "findit":
+	case action == "findit":
 		return `Tool Output: {"status":"policy_denied","message":"A2A requests cannot read the owner's FindIt inventory."}`
 	case a2aFilesystemWrite(tc):
 		return `Tool Output: {"status": "policy_denied", "message": "A2A requests cannot change files. Only read operations are allowed."}`
 	case a2aCodeExecution(tc):
 		return `Tool Output: {"status": "policy_denied", "message": "A2A requests cannot run shell commands, Python code, skills or saved tools."}`
+	case a2aIntegrationRestricted(action, tc):
+		return `Tool Output: {"status":"policy_denied","message":"A2A requests may only inspect Docker, Ansible or MCP. They cannot run integration actions."}`
 	case a2aDesktopWrite(tc):
 		return `Tool Output: {"status": "policy_denied", "message": "A2A requests cannot change the virtual desktop. Only read operations are allowed."}`
 	case a2aHomepageWrite(tc):
 		return `Tool Output: {"status": "policy_denied", "message": "A2A requests cannot change or publish homepage projects. Only read operations are allowed."}`
 	}
 	return ""
+}
+
+func a2aIntegrationRestricted(action string, tc ToolCall) bool {
+	switch action {
+	case "docker", "docker_management":
+		return !oneOf(decodeDockerArgs(tc).Operation, "list_containers", "ps", "inspect", "inspect_container", "logs",
+			"list_images", "images", "list_networks", "networks", "list_volumes", "volumes", "info", "system_info", "stats", "top", "port")
+	case "ansible":
+		return !oneOf(decodeAnsibleArgs(tc).Operation, "status", "health", "list_playbooks", "playbooks", "inventory", "list_inventory")
+	case "mcp_call":
+		return !oneOf(strings.ToLower(strings.TrimSpace(decodeMCPCallArgs(tc).Operation)), "list_servers", "list_tools")
+	default:
+		return false
+	}
 }
 
 // a2aCodeExecution reports a call that runs code or a script with the owner's

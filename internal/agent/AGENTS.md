@@ -22,6 +22,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - A2A system tools are read-only: `service_manager` permits only `status`; `package_manager` permits only `detect`, `search`, `list_installed` and `info`; `install_package` is denied. Empty/unknown operations fail closed before action approvals. Discovery uses the same role policy, and package reads are neither mutating nor high risk. Main/local co-agent permissions are unchanged. Verify `TestA2ASystemToolsReadOnly`.
 
 - A2A document tools remain read-only: deny `document_creator`; Office permits explicit reads and workbook formula evaluation through the shared `tools.OfficeOperationMutates` classification; Desktop Notes permits only list/search/read. Reject conflicting typed/map operations before execution. Discovery trims the same operations. Local co-agents retain their grants. Verify `TestA2ADocumentToolsAreReadOnly`.
+- A2A can inspect Docker directly, read Ansible status and inventories, and list MCP servers and tools. Compose commands, Ansible execution and MCP tool invocation are denied before action approvals. Use the dispatch decoders and trim discovery to the same operations. Verify `TestA2AIntegrationToolsAllowInspectionOnly`.
 - Ansible extra-variable bodies must decode to JSON objects; malformed bodies fail before either transport instead of silently dropping arguments. Inventory/target policy belongs to `../../ansible_api/AGENTS.md`. Verify `TestAnsibleExtraVariablesRejectMalformedBody`.
 
 - Trusted mail-policy contexts clear only their session-scoped Inner Voice state at actual ExecuteAgentLoop completion, including cancellation/early errors. Session prefixes never authorize cleanup. Retain persistent user history and delivery receipts; verify TestMailInnerVoiceClearsAtActualTurnCompletion.
@@ -40,6 +41,7 @@ Runtime prompt, tool-discovery, dispatch, and context rules.
 - Storymaker job schemas (`native_tools_storymaker.go`) follow `../storymaker/AGENTS.md`, stay outside the ordinary catalog/strict projection and bind no model-selected project. Compact schemas retain animation timing, easing, SFX, rhythm and revision-bound code access; avoid duplicate enums to meet the existing 900-token bound. The ordinary chat facade still delegates authoring to the isolated job.
 
 - `manage_missions` history uses `MissionManagerV2.QueryMissionHistory`: nonterminal durable entries with an unavailable authoritative source report `unknown` and retain `last_known_status` only as an earlier observation. The bounded source check runs outside manager/history locks; terminal and ordinary history keep their existing semantics. Verify `TestManageMissionsDurableHistoryUnavailableSourceIsUnknown`; see `../tools/AGENTS.md`.
+- An agent edit of a mission clears its owner approval for operator commands. Agent-triggered runs lack a signed-in owner or cron origin.
 
 - MQTT/Frigate relays have server-owned ingress topics and non-nil native/skill
   scopes. `mqtt_relay_policy.go` checks exact tool/operation/target grants and

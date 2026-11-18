@@ -19,9 +19,9 @@ func ensureFilteredEnv(cmd *exec.Cmd) {
 }
 
 // dockerClientEnvNames select the Docker Engine endpoint and its credentials.
-// Operator shells and host Python only see them while the Docker tool is
-// permitted. The global sandbox env has no Docker client variables;
-// ApplyShellSandboxDockerGrant adds them only when Docker permission allows it.
+// Operator shells and host Python only see them with Docker mutation permission.
+// The global sandbox env has no Docker client variables.
+// ApplyShellSandboxDockerGrant adds the endpoint only with Docker mutation permission.
 // Names are upper case; lookups upper-case the variable name like sandbox.FilterEnv.
 var dockerClientEnvNames = map[string]bool{
 	"DOCKER_HOST":        true,
@@ -33,11 +33,10 @@ var dockerClientEnvNames = map[string]bool{
 }
 
 // filteredShellEnv is the environment for operator shells and host Python:
-// sandbox.FilterEnv without the Docker client variables unless the Docker
-// tool is permitted.
+// sandbox.FilterEnv without the Docker client variables unless Docker mutations are permitted.
 func filteredShellEnv() []string {
 	env := sandbox.FilterEnv(os.Environ())
-	if requireDockerPermission() == nil {
+	if requireDockerMutationPermission() == nil {
 		return env
 	}
 	return withoutDockerClientEnv(env)

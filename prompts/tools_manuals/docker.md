@@ -2,6 +2,9 @@
 
 Manage generic Docker containers, images, networks, and volumes directly through the Docker Engine API. AuraGo's managed homepage containers and the `aurago-homepage` image repository are reserved; use `homepage_project`, `homepage_file`, or `homepage_deploy` for homepage work.
 
+A2A peers can use direct Docker inspection only. Compose and Docker mutations
+require a local agent with the corresponding configured grants.
+
 ## Prerequisites
 - Docker must be running on the host
 - `docker.enabled: true` in config.yaml

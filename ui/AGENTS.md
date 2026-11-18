@@ -213,6 +213,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   diagnosis in both card views and Desktop Mission Control, including history.
   EasyDrag localizes `FLOW_ACTION_RULE_REQUIRED` through its existing error-code
   renderer. Status rendering must never retry or request approval automatically.
+- The standalone missions editor retries a save after the server's
+  `mission_operator_confirmation_required` response only when the owner confirms
+  the unchanged payload. Use the shared dialog and the localized server message.
   Keep the four locale families aligned in all sixteen languages. Verify with
   `node scripts/test-action-policy-status-ui.mjs`; the fixture uses source modules,
   real styles and synthetic records without local config or providers.

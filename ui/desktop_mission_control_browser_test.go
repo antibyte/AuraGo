@@ -57,7 +57,14 @@ window.missions=[
 window.queue={items:[{mission_id:'m2'},{mission_id:'m3'}],running:'m2'};
 window.runHistory={entries:[{id:'r1',mission_id:'m1',trigger_type:'scheduled',status:'success',output:'ok',started_at:new Date(now-3600e3).toISOString(),completed_at:new Date(now-3590e3).toISOString(),duration_ms:10000},{id:'r2',mission_id:'m1',trigger_type:'manual',status:'error',output:'Cancelled by user',started_at:new Date(now-7200e3).toISOString(),duration_ms:2000}],total:2,limit:25,offset:0};
 const api=async(url,opts)=>{requests.push([opts&&opts.method||'GET',url,opts&&opts.body||null]);
- if(opts&&opts.method==='POST'&&url==='/api/desktop/integrations/missions/v2'){const m=Object.assign({id:'m4',status:'idle',run_count:0},JSON.parse(opts.body));window.missions.push(m);return m;}
+ if(opts&&opts.method==='POST'&&url==='/api/desktop/integrations/missions/v2'){
+   const payload=JSON.parse(opts.body);
+   if(payload.prompt==='/personality'&&!payload.confirm_operator_command){
+     const err=new Error('Confirm this operator command');
+     err.status=409;err.body={code:'mission_operator_confirmation_required',error:err.message};throw err;
+   }
+   const m=Object.assign({id:'m4',status:'idle',run_count:0},payload);window.missions.push(m);return m;
+ }
  if(url==='/api/desktop/integrations/missions/v2')return {missions:window.missions,queue:window.queue};
  if(url.startsWith('/api/desktop/integrations/missions/v2/history?'))return window.runHistory;
  if(url==='/api/desktop/integrations/missions/v2/remote-targets')return {targets:[{nest_id:'n1',egg_id:'e1',nest_name:'Nest One',egg_name:'Egg A'}]};
@@ -167,7 +174,7 @@ window.MissionControlApp.render(document.getElementById('win'),'w1',ctx);</scrip
 			page.MustEval(`()=>{
 				const f=document.querySelector('.vd-mc-editor');
 				f.elements.name.value='Weekly report';f.elements.name.dispatchEvent(new Event('input',{bubbles:true}));
-				f.elements.prompt.value='Write the weekly report';f.elements.prompt.dispatchEvent(new Event('input',{bubbles:true}));
+				f.elements.prompt.value='/personality';f.elements.prompt.dispatchEvent(new Event('input',{bubbles:true}));
 				f.querySelector('input[name="execution_type"][value="scheduled"]').click();
 			}`)
 			waitForJSBool(t, page, `()=>!document.querySelector('[data-mc-when="scheduled"]').hidden && document.querySelector('[data-mc-sched="mode"]')!==null`)
@@ -183,9 +190,17 @@ window.MissionControlApp.render(document.getElementById('win'),'w1',ctx);</scrip
 			if page.MustEval(`()=>window.beforeClose()`).Bool() {
 				t.Fatal("beforeClose must refuse while the editor is dirty and the user declines")
 			}
+			page.MustElement("[data-mc-editor-save]").MustClick()
+			waitForJSBool(t, page, `()=>requests.filter(x=>x[0]==='POST'&&x[1]==='/api/desktop/integrations/missions/v2').length===1 &&
+				!document.querySelector('[data-mc-editor-save]').disabled && !document.querySelector('.vd-mc-editor').hidden`)
 			page.MustEval(`()=>{window.confirmAnswer=true;document.querySelector('[data-mc-editor-save]').click();}`)
 			waitForJSBool(t, page, `()=>document.querySelector('.vd-mc-editor').hidden && document.querySelector('.vd-mc-hero-title').textContent==='Weekly report'`)
-			if !page.MustEval(`()=>{const r=requests.find(x=>x[0]==='POST'&&x[1]==='/api/desktop/integrations/missions/v2');const b=JSON.parse(r[2]);return b.schedule==='0 9 * * 1,5' && b.execution_type==='scheduled' && b.enabled===true && b.trigger_config===null;}`).Bool() {
+			if !page.MustEval(`()=>{const saved=requests.filter(x=>x[0]==='POST'&&x[1]==='/api/desktop/integrations/missions/v2').map(r=>JSON.parse(r[2]));
+				if(saved.length!==3 || saved.slice(0,2).some(r=>r.confirm_operator_command))return false;
+				const {confirm_operator_command: confirmed,...body}=saved[2];
+				return confirmed && JSON.stringify(body)===JSON.stringify(saved[1]) && body.prompt==='/personality' &&
+					body.schedule==='0 9 * * 1,5' && body.execution_type==='scheduled' && body.enabled===true && body.trigger_config===null;
+			}`).Bool() {
 				t.Fatal("save payload mismatch")
 			}
 			if !page.MustEval(`()=>toasts.some(x=>x[0]===t('desktop.mc_toast_created'))`).Bool() {

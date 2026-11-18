@@ -9,6 +9,10 @@ conditions: ["allow_shell"]
 
 Execute shell commands through the isolated executor by default. Explicitly authorized host execution uses PowerShell (`powershell.exe`) on Windows and `/bin/sh` on Unix.
 
+Use the Docker integration for inspection when Docker is read-only. Agent host
+shell commands receive the Docker endpoint and socket grant only with permission
+to change Docker state.
+
 ## Parameters
 
 | Parameter | Type | Required | Default | Description |

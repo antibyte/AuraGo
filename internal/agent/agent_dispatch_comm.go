@@ -1494,6 +1494,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					existing.Locked = req.Locked
 				}
 
+				existing.OperatorCommandApproval = ""
 				err := missionManagerV2.Update(req.ID, existing)
 				if err != nil {
 					return missionReply("error", err.Error())
