@@ -343,7 +343,7 @@
 
     /* Horn: removes everything physical within r. The cow's shadow and charges stay. */
     const CLEAR_PROJECTILES = { rocket: 1, bullet: 1, duck: 1, grenade: 1, hole_shot: 1, disco_shot: 1, harpoon: 1 };
-    const CLEAR_HAZARDS = { oil: 1, ice: 1, gnome_mine: 1, black_hole: 1, disco: 1 };
+    const CLEAR_HAZARDS = { oil: 1, ice: 1, gnome_mine: 1, bubblegum: 1, black_hole: 1, disco: 1 };
     AD.clearWeaponsIn = function (race, x, y, r) {
         let cleared = 0;
         for (let i = race.projectiles.length - 1; i >= 0; i--) {
@@ -395,6 +395,14 @@
                     });
                 }
                 if (blown) race.hazards.splice(i, 1);
+            } else if (h.type === 'bubblegum') {
+                for (const car of race.cars) {
+                    if (car.index === h.owner || car.v.out || car.v.airborne || car.v.cloak > 0) continue;
+                    if (AD.distance(h.x, h.y, car.v.x, car.v.y) >= h.r + car.v.car.radius) continue;
+                    AD.applyHit(race, car, { by: h.owner, weapon: 'bubblegum', speed: 0.48 });
+                    race.hazards.splice(i, 1);
+                    break;
+                }
             } else if (h.type === 'black_hole') {
                 for (const car of race.cars) {
                     const v = car.v;

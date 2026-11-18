@@ -134,7 +134,7 @@ and crabs count as small animals, which is why Big Bertha plows through them.
 
 ### Weapons
 
-Each pickup rolls a weapon from weights per position band (front, middle, back of the field).
+Standard crates roll a weapon based on your position in the field (front, middle or back).
 Ammo counts shots, cooldown is in seconds and range is in metres. "Hold" weapons keep firing
 while Space is held.
 
@@ -158,6 +158,13 @@ while Space is held.
 | Cow Catapult | `cow` | 1 | 2.0 | 180 | no | Lobs a cow in front of a rival; she lands softly |
 | Cloak | `cloak` | 1 | 1.2 | 0 | no | Three seconds invisible and untouchable, no firing |
 | Overdrive | `overdrive` | 1 | 1.2 | 0 | no | Three seconds of nearly double thrust |
+| Popcorn Cannon | `popcorn` | 2 | 0.7 | 24 | no | Pops grounded rivals in a forward cone into the air |
+| Bubblegum Trap | `bubblegum` | 1 | 0.9 | 4 | no | Drops a pink bubble behind the car. The first rival to burst it loses about half their speed |
+
+The gold parcel in every other crate row opens on contact, even when the weapon slot is full.
+Nitro Soda fills the tank and gives 1.2 seconds of overdrive. Bubble Shield gives 3.5 seconds
+of protection. The Pit Fairy can appear on a damaged car and repairs up to 45 damage points.
+These parcels appear in Quick Race, Cup, Daily and Elimination when weapons are enabled.
 
 Animals and cows only fly, land and trot off. There is no blood, no gore and no removal of
 any character. Elimination and Hot Potato exits park the car and hide it; nothing is gory.
@@ -383,7 +390,12 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   footprint with the tyre model. At speed, deep water reduces front grip and throws spray, while
   an oil slick releases the rear more strongly on the side that touched it. The tyres recover
   progressively after leaving either. Keyboard and touch steering ease into short taps. A boost
-  pad gives an immediate forward nudge and a second of extra thrust.
+  pad gives an immediate forward nudge and a second of extra thrust. The narrow gold lightning
+  plate sits on the inside of a sustained bend. Enter it pointing downtrack for an immediate
+  kick of up to 54 km/h and 1.15 seconds of extra thrust. The first hit each lap banks
+  500 style points. Shallow circuits skip this plate.
+- **Roadside plants.** Grass grows in tufts and shrubs cluster along the verge, with green
+  meadows and dry scrub in the desert and industrial grounds. The salt flats and glacier stay bare.
 - **Replays.** The player's quantised input drives the time-trial ghost. Historical best times and
   their cars survive handling updates. The first complete run on the new handling supplies a
   compatible ghost, and faster runs replace it.
@@ -596,7 +608,7 @@ $env:AURAGO_AURA_DRIFT_SURVEY='1'; $env:AURAGO_BROWSER_ARTIFACT_DIR='D:\tmp\agdr
 
 Scenes: `biome-<id>` (8, parked chase shot), `run-<id>` (8, an autopilot quick race of about 29 s
 of simulated time, sampled every 30 frames), `camera-<mode>` (4), `car-<id>` (8, showcase),
-`weapon-<id>` (18), `trick-air`, `menu`, `results` and `hud`. Fifty built-in scenes in total.
+`weapon-<id>` (20), `night-high`, `night-bumper`, `trick-air`, `menu`, `results` and `hud`.
 
 ### Dev server and harness
 

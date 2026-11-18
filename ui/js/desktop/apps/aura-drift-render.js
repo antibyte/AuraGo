@@ -627,6 +627,10 @@
                 const [sx, sy] = worldToScreen(pad.x, pad.y, cam);
                 if (!onScreen(sx, sy, pad.length * k)) continue;
                 c.save(); c.translate(sx, sy); c.rotate(pad.psi);
+                if (pad.superTurbo) {
+                    c.scale(pad.length * k / 100, pad.width * k / 100); c.translate(-50, -50);
+                    AD.paintSuperPad(c); c.restore(); continue;
+                }
                 c.fillStyle = 'rgba(34,211,238,0.28)';
                 c.fillRect(-pad.length * k / 2, -pad.width * k / 2, pad.length * k, pad.width * k);
                 c.strokeStyle = '#67e8f9'; c.lineWidth = Math.max(1.5, 0.35 * k);
@@ -704,6 +708,8 @@
                     g.addColorStop(1, ice ? 'rgba(125,211,252,0)' : 'rgba(10,10,14,0)');
                     c.fillStyle = g;
                     c.beginPath(); c.ellipse(sx, sy, h.r * k, h.r * k * 0.7, 0, 0, Math.PI * 2); c.fill();
+                } else if (h.type === 'bubblegum') {
+                    AD.drawWeaponGlyph(c, 'bubblegum', sx, sy, h.r * k * 2);
                 } else if (h.type === 'black_hole') {
                     const g = c.createRadialGradient(sx, sy, 0, sx, sy, h.r * k);
                     g.addColorStop(0, 'rgba(0,0,0,0.95)'); g.addColorStop(0.35, 'rgba(76,29,149,0.5)'); g.addColorStop(1, 'rgba(76,29,149,0)');
@@ -837,8 +843,10 @@
             event(evt) {
                 const heavy = !!evt.heavy;
                 switch (evt.type) {
-                    case 'hit': this.burst('spark', evt.x, evt.y, heavy ? 18 : 8, '#ffb347'); break;
+                    case 'hit': this.burst('spark', evt.x, evt.y, heavy ? 18 : 8, AD.WEAPONS[evt.weapon]?.colour || '#ffb347'); break;
                     case 'pickup': this.burst('spark', evt.x, evt.y, 10, '#8ce9ff'); break;
+                    case 'gift': this.burst('spark', evt.x, evt.y, 14, '#ffd879'); break;
+                    case 'weapon': if (evt.id === 'popcorn') this.burst('spark', evt.x, evt.y, 14, '#ffe798'); break;
                     case 'respawn': this.burst('spark', evt.x, evt.y, 14, '#a8e08a'); break;
                     case 'emp_pulse': this.burst('spark', evt.x, evt.y, 22, '#7dd3fc'); break;
                     case 'wall_hit': this.burst('spark', evt.x, evt.y, heavy ? 12 : 5, '#ffb347'); break;
@@ -846,7 +854,7 @@
                     case 'smash': this.burst('spark', evt.x, evt.y, 8, '#e4c15a'); break;
                     case 'animal_hit': this.burst('spark', evt.x, evt.y, 12, '#f5f5f4'); break;
                     case 'turbo_burst': this.burst('boost', evt.x, evt.y, 16, '#8ce9ff'); break;
-                    case 'boost_pad': this.burst('boost', evt.x, evt.y, 8, '#67e8f9'); break;
+                    case 'boost_pad': this.burst('boost', evt.x, evt.y, evt.superTurbo ? 22 : 8, evt.superTurbo ? '#ffbf47' : '#67e8f9'); break;
                     case 'takeoff': for (let i = 0; i < 4; i++) this.smoke(evt.x, evt.y, '#c9cbd0'); break;
                     case 'landing':
                         for (let i = 0; i < (evt.quality === 'crash' ? 10 : 5); i++) this.smoke(evt.x, evt.y, '#c9cbd0');
@@ -978,16 +986,20 @@
                     if (race.time - crate.taken < 8) continue;
                     const [sx, sy] = worldToScreen(crate.x, crate.y, cam);
                     if (!onScreen(sx, sy, 20)) continue;
-                    c.save(); c.translate(sx, sy); c.rotate(frame * 0.02);
+                    c.save(); c.translate(sx, sy); c.rotate(reducedMotion ? 0 : frame * 0.02);
                     const halo = c.createRadialGradient(0, 0, 0, 0, 0, 4 * cam.scale);
-                    halo.addColorStop(0, 'rgba(120,230,255,0.35)');
+                    halo.addColorStop(0, crate.gift ? 'rgba(255,200,74,0.55)' : 'rgba(120,230,255,0.35)');
                     halo.addColorStop(1, 'rgba(120,230,255,0)');
                     c.fillStyle = halo;
                     c.beginPath(); c.arc(0, 0, 4 * cam.scale, 0, Math.PI * 2); c.fill();
-                    c.strokeStyle = 'rgba(140,235,255,0.8)'; c.lineWidth = 1.5;
+                    c.strokeStyle = crate.gift ? '#ffc45d' : 'rgba(140,235,255,0.8)'; c.lineWidth = 1.5;
                     c.beginPath(); c.arc(0, 0, 2.6 * cam.scale, 0, Math.PI * 2); c.stroke();
-                    c.fillStyle = '#8ce9ff';
-                    c.fillRect(-1.1 * cam.scale, -1.1 * cam.scale, 2.2 * cam.scale, 2.2 * cam.scale);
+                    if (crate.gift) {
+                        c.scale(0.036 * cam.scale, 0.036 * cam.scale); c.translate(-50, -50); AD.paintGift(c);
+                    } else {
+                        c.fillStyle = '#8ce9ff';
+                        c.fillRect(-1.1 * cam.scale, -1.1 * cam.scale, 2.2 * cam.scale, 2.2 * cam.scale);
+                    }
                     c.restore();
                 }
                 drawHazards(race, cam);

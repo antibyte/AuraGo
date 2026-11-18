@@ -23,6 +23,16 @@ const all = tracks.concat(daily);
 const metaFor = id => (manifest.props && manifest.props[id]) || {};
 
 for (const track of all) {
+    const plants = AD.vergePlants(track);
+    if (['glacier', 'salt'].includes(track.biomeId)) check(track.id + ' keeps its bare terrain', plants.length === 0);
+    else {
+        check(track.id + ' has grass and scrub clear of the road and spectators', plants.some(p => p.shrub) &&
+            plants.some(p => !p.shrub) && plants.every(p => {
+                const near = AD.sampleTrack(track, p.x, p.y);
+                return Math.hypot(p.x - near.x, p.y - near.y) >= near.halfWidth + 4 &&
+                    AD.roadsideSites(track).every(s => Math.hypot(s.x - p.x, s.y - p.y) >= s.r + 2);
+            }));
+    }
     const normal = AD.roadsideScenes(track, 0), repeat = AD.roadsideScenes(track, 1);
     const props = AD.scatterProps(track, track.biomeId, metaFor(track.biomeId));
     check(track.id + ' has two clear roadside stages', normal.length === 2 && normal.every(({ site }) => {

@@ -282,7 +282,7 @@
        The old key is removed (no migration) unless the desktop is readonly. */
     AD.BEST_KEY = 'aurago.desktop.aura-drift.best.v2';
     AD.OLD_BEST_KEY = 'aurago.desktop.aura-drift.best.v1';
-    AD.GHOST_HANDLING = 2;
+    AD.GHOST_HANDLING = 3;
     const FINISHES_KEY = 'aurago.desktop.aura-drift.finishes.v1';
     AD.readFinishes = function () {
         try {

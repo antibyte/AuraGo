@@ -451,6 +451,9 @@
             if (w === 'mg') {
                 for (let k = cnt(7); k > 0; k--) { const an = rnd() * TAU, sp = rr(5, 14); spark(evt.x, h, evt.y, Math.cos(an) * sp, rr(2, 8), Math.sin(an) * sp, rr(0.25, 0.5), 0.3, HOT, FIRE); }
                 glow(evt.x, h, evt.y, 0, 0, 0, 0.08, 1, 2.2, HOT, FIRE, 0.9);
+            } else if (w === 'popcorn' || w === 'bubblegum') {
+                sparkle(evt.x, evt.y, w === 'popcorn' ? GOLD : PINK, 12);
+                ringBb(evt.x, h, evt.y, 0.6, 4.5, 0.25, w === 'popcorn' ? HOT : PINK, 0.7);
             } else if (w === 'ducks') {
                 creatureBurst(evt.x, evt.y, 'duck', true);
             } else if (w === 'glove') {
@@ -579,6 +582,16 @@
             const v = evt.car !== undefined ? carOf(race, evt.car) : null;
             const ex = evt.x !== undefined ? evt.x : (v ? v.x : 0), ey = evt.y !== undefined ? evt.y : (v ? v.y : 0);
             switch (evt.type) {
+                case 'weapon':
+                    if (evt.id === 'popcorn' && v) {
+                        const x = v.x + Math.cos(v.psi) * 2.5, z = v.y + Math.sin(v.psi) * 2.5;
+                        for (let k = cnt(reduced ? 6 : 22); k > 0; k--) {
+                            const a = v.psi + rr(-0.5, 0.5), speed = rr(13, 28);
+                            bit(F.PUFF, x, v.z + 1, z, Math.cos(a) * speed, rr(3, 8), Math.sin(a) * speed,
+                                rr(0.4, 0.9), rr(0.35, 0.65), WHITE, GOLD, 13, K_BOUNCE, 0.4);
+                        }
+                    }
+                    break;
                 case 'perfect_start': if (v) { turboBurst(v, 1, 1.4); smokeBurst(v, 18); } break;
                 case 'wheelspin': if (v && near(v.x, v.y, 220)) smokeBurst(v, evt.car === 0 ? 16 : 7); break;
                 case 'drift_start': if (v) smokeBurst(v, 5); break;
@@ -593,12 +606,18 @@
                 case 'takeoff': if (v) { dustRing(evt.x, evt.y, 8, 4, profOf(v), 2.4); windStreaks(v, 8); } break;
                 case 'landing': landing(evt, race); break;
                 case 'boost_pad':
+                    if (evt.superTurbo && v) {
+                        if (!reduced) turboBurst(v, 2, 1.5);
+                        ring(evt.x, 0, evt.y, 1, 9, 0.45, GOLD, 0.85);
+                        break;
+                    }
                     glow(evt.x, 0.6, evt.y, 0, 0, 0, 0.25, 2, 7, WHITE, TURBO[0], 0.9);
                     ring(evt.x, 0, evt.y, 0.5, 4.5, 0.4, TURBO[0], 0.7);
                     if (v) windStreaks(v, 14);
                     addLight(evt.x, 1.2, evt.y, TURBO[0], 70, 0.35, 18);
                     break;
                 case 'pickup': crateBurst(evt); break;
+                case 'gift': if (!reduced) confetti(evt.x, evt.y, race, false); sparkle(evt.x, evt.y, GOLD, reduced ? 5 : 14); break;
                 case 'smash': smash(evt, race); break;
                 case 'animal_hit': creatureBurst(evt.x, evt.y, evt.kind, false); break;
                 case 'duck_hit': creatureBurst(evt.x, evt.y, 'duck', true); break;

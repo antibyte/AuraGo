@@ -701,7 +701,11 @@
                     break;
                 case 'reverse_hero': if (me) say(tr('trick.reverse_hero'), '#fde047', 46, '+' + kit.number(evt.points || 0)); break;
                 case 'j_turn': if (me) say(tr('trick.j_turn'), '#fde047', 50, '+' + kit.number(evt.points || 0)); break;
-                case 'boost_pad': if (me) say(tr('hud.boost'), WARN_AMBER, 42, '', 1.0); break;
+                case 'boost_pad':
+                    if (me) say(tr(evt.superTurbo ? 'hud.super_turbo' : 'hud.boost'), WARN_AMBER, evt.superTurbo ? 58 : 42,
+                        evt.points ? '+' + kit.number(evt.points) : '', 1.0);
+                    break;
+                case 'gift': if (me) say(tr('gift.' + evt.bonus), '#ffd879', 44, '', 1.4); break;
                 case 'animal_cross': {
                     /* One row per crossing: a repeat of the same crossing, or a neighbour within 14 m, only refreshes it. */
                     const same = animalWarn.find(a => (evt.crossing !== undefined && a.id === evt.crossing) || Math.hypot(a.x - evt.x, a.y - evt.y) < 14);

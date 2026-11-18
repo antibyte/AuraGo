@@ -199,6 +199,7 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 	weapons := []string{
 		"oil", "gnome_mine", "emp", "rocket", "mg", "shield", "ducks", "railgun", "flamethrower",
 		"frost", "air_horn", "black_hole", "disco", "glove", "harpoon", "cow", "cloak", "overdrive",
+		"popcorn", "bubblegum",
 	}
 	modes := []string{"quick", "time_trial", "cup", "daily", "drift_attack", "elimination", "hot_potato"}
 	ids("mode.", ".desc", modes...)
@@ -210,6 +211,8 @@ func TestAuraDriftLocaleKeysCoverAllLanguages(t *testing.T) {
 	ids("track.", ".blurb", tracks...)
 	ids("weapon.", ".name", weapons...)
 	ids("weapon.", ".hint", weapons...)
+	ids("gift.", "", "nitro", "shield", "repair")
+	ids("hud.", "", "super_turbo")
 	ids("stat.", "", "power", "grip", "mass", "top", "air")
 	ids("trick.", "",
 		"air_time", "barrel_roll", "double_barrel", "front_flip", "back_flip", "flat_spin", "spin_720", "corkscrew",

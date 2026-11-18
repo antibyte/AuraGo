@@ -137,6 +137,82 @@
         }
     };
 
+    const foliage = new WeakMap();
+    const meadow = ['#497342', '#729447', '#a6b761'], scrub = ['#82603f', '#a18b54', '#c3aa69'];
+    AD.vergePlants = function (track) {
+        if (foliage.has(track)) return foliage.get(track);
+        const plants = [];
+        foliage.set(track, plants);
+        if (track.biomeId === 'salt' || track.biomeId === 'glacier') return plants;
+        const lush = track.biomeId === 'alpine' || track.biomeId === 'forest';
+        const palette = track.biomeId === 'desert' || track.biomeId === 'industry' ? scrub : meadow;
+        const occupied = AD.roadsideSites(track).concat(AD.petDecorPlacements?.(track) || [], AD.furnitureProps?.(track) || []);
+        const rng = AD.rng(AD.hashString(track.id + '/verge/' + track.seed));
+        for (let s = 58; s < track.length - 45; s += (lush ? 24 : 54) + rng() * 44) {
+            const side = rng() < 0.5 ? 1 : -1, count = 2 + Math.floor(rng() * 4);
+            for (let j = 0; j < count; j++) {
+                const p = AD.pointAt(track, s + j * 2.6), offset = side * (p.halfWidth + 5 + rng() * 7);
+                const x = p.x + p.nx * offset, y = p.y + p.ny * offset;
+                const near = AD.sampleTrack(track, x, y), dist = Math.hypot(x - near.x, y - near.y);
+                if (dist < near.halfWidth + 4 || occupied.some(o => Math.hypot(x - o.x, y - o.y) < o.r + 2)) continue;
+                const z = AD.terrainHeight?.(track.biomeId, dist, x, y, near) || 0;
+                if (z < -1) continue;
+                plants.push({ x, y, z, palette, shrub: rng() < 0.28, size: 0.9 + rng() * 0.85, angle: rng() * Math.PI * 2 });
+            }
+        }
+        return plants;
+    };
+
+    // World-space triangles feed the terrain mesh and the cached overhead map tiles.
+    AD.vergeTriangles = function (p, face) {
+        const point = (x, h, y) => [p.x + x * p.size, p.z + h * p.size, p.y + y * p.size];
+        if (p.shrub) {
+            for (let clump = 0; clump < 3; clump++) {
+                const dir = p.angle + clump * 2.2, r = 0.78 - clump * 0.13;
+                const x = Math.cos(dir) * clump * 0.31, y = Math.sin(dir) * clump * 0.31;
+                const crown = point(x - 0.1, r * 1.45, y + 0.06);
+                const rim = a => point(x + Math.cos(a) * r, 0.12, y + Math.sin(a) * r);
+                for (let i = 0; i < 6; i++) face(crown, rim(dir + (i + 1) * Math.PI / 3), rim(dir + i * Math.PI / 3), i % 3);
+            }
+        } else {
+            for (let i = 0; i < 8; i++) {
+                const a = p.angle + i * 2.4, dx = Math.cos(a), dy = Math.sin(a), reach = 0.32 + (i % 4) * 0.17;
+                face(point(dx * 0.19 - dy * 0.10, 0, dy * 0.19 + dx * 0.10),
+                    point(dx * reach, 0.55 + ((i * 3) % 5) * 0.13, dy * reach),
+                    point(dx * 0.19 + dy * 0.10, 0, dy * 0.19 - dx * 0.10), i % 3);
+            }
+        }
+    };
+
+    // The two views share the lightning plate and the ribbon on the surprise crate.
+    AD.paintSuperPad = function (g) {
+        g.fillStyle = '#402138'; g.fillRect(0, 0, 100, 100);
+        for (const y of [0, 87]) {
+            g.fillStyle = '#ffa52c'; g.fillRect(0, y, 100, 13);
+            g.fillStyle = '#fff0ac';
+            for (let x = 3; x < 93; x += 15) {
+                g.beginPath(); g.moveTo(x, y + 13); g.lineTo(x + 5, y);
+                g.lineTo(x + 10, y); g.lineTo(x + 5, y + 13); g.fill();
+            }
+        }
+        g.fillStyle = '#ffe97a';
+        g.beginPath(); g.moveTo(12, 57); g.lineTo(54, 20); g.lineTo(49, 42);
+        g.lineTo(89, 37); g.lineTo(41, 83); g.lineTo(47, 57); g.closePath(); g.fill();
+    };
+    AD.paintGift = function (g) {
+        g.fillStyle = '#ffbb46'; g.fillRect(0, 0, 100, 100);
+        g.fillStyle = '#ffd879'; g.fillRect(5, 5, 90, 90);
+        g.fillStyle = '#983856'; g.fillRect(39, 0, 22, 100); g.fillRect(0, 39, 100, 22);
+        g.fillStyle = '#c74a69'; g.fillRect(43, 0, 4, 100); g.fillRect(0, 43, 100, 4);
+        g.beginPath();
+        for (let i = 0; i < 10; i++) {
+            const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 12 : 27;
+            const x = 50 + Math.cos(a) * r, y = 50 + Math.sin(a) * r;
+            if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        }
+        g.closePath(); g.fillStyle = '#fff4b4'; g.fill(); g.strokeStyle = '#713248'; g.lineWidth = 3; g.stroke();
+    };
+
     /* Both road renderers use this waterline, in unit-ellipse coordinates. */
     AD.paintPuddle = function (g) {
         const water = g.createLinearGradient(-.7, -.8, .65, .9);
@@ -285,6 +361,15 @@
                 for (let j = 0; j < 5; j++) { x += (rng() - 0.5) * 60; y += (rng() - 0.5) * 60; c.lineTo(x, y); }
                 c.stroke();
             }
+        }
+        const px = CHUNK_PX / AD.CHUNK_METRES, left = cx * AD.CHUNK_METRES, top = cy * AD.CHUNK_METRES;
+        c.setTransform(px, 0, 0, px, -left * px, -top * px);
+        for (const plant of AD.vergePlants(track)) {
+            if (plant.x < left - 3 || plant.y < top - 3 || plant.x > left + AD.CHUNK_METRES + 3 || plant.y > top + AD.CHUNK_METRES + 3) continue;
+            AD.vergeTriangles(plant, (a, b, d, shade) => {
+                c.fillStyle = plant.palette[shade]; c.beginPath();
+                c.moveTo(a[0], a[2]); c.lineTo(b[0], b[2]); c.lineTo(d[0], d[2]); c.closePath(); c.fill();
+            });
         }
         return canvas;
     };

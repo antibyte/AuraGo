@@ -3711,7 +3711,7 @@ buttons and menu popovers remain excluded from those gestures.
   render, terrain, road, sky, props, pet-decor, actors, carlight, fx-resources, fx, post, render3d, hud, hud-fx,
   audio-bank, engine, audio, music, ui, ui-cards, woof-lines, woof, and last `aura-drift.js`, which exposes
   `window.AuraDriftApp = { render, dispose, stats }`. Shared state lives on
-  `window.AuraDriftCore` (`CARS` 8, `DRIVERS` 8, `WEAPONS` 18, `TRICKS` 16, `MODES` 7,
+  `window.AuraDriftCore` (`CARS` 8, `DRIVERS` 8, `WEAPONS` 20, `TRICKS` 16, `MODES` 7,
   `QUALITY` tiers, `CAMERA_MODES` chase, high, drone, bumper, `CAR_VIEW` body heights).
 - Simulation: fixed 120 Hz via `AD.createScheduler` with a five-substep clamp. Only the seeded
   PRNG (`race.rng`, features rng) drives `AD.stepRace`, so input tapes replay identically at
@@ -3777,6 +3777,11 @@ buttons and menu popovers remain excluded from those gestures.
   and race clock. Reduced motion freezes their poses. Only completed races advance the local
   finish count. Read-only windows keep that progress in memory. Verify the switch on a later
   visit in `TestDesktopAuraDriftRoadsideBrowser`.
+- Gold lightning plates select a sustained inside bend from spline curvature and leave the
+  outside lane open. Gift parcels use alternate crate rows in unrestricted weapon modes.
+  Their seeded instant bonuses preserve held ammunition. Both views share the plate and parcel
+  artwork and the seeded verge triangles baked into terrain tiles. Keep grass and scrub clear
+  of roads, marshals and mascots. Verify the pickups in `TestDesktopAuraDriftExtrasBrowser`.
 - Polish: `aura-drift-fx.js` owns a quiet camera-relative biome mote layer (one `MOTES` profile
   per biome, scaled by the particle tier, disabled by `fx.setReducedMotion` from `render3d.js`)
   and one-shot feedback for near misses, style banks, sectors, cloak changes, bomb ticks and the

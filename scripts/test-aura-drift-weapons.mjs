@@ -88,7 +88,7 @@ console.log('Aura Drift weapons');
 check('calm stretch found for scenes', Number.isFinite(S0));
 check('AD.LEGACY_WEAPON_POOL is gone', AD.LEGACY_WEAPON_POOL === undefined);
 /* The HUD reads locale keys (T5.1 dropped the old plain-name shim), so every weapon carries nameKey and hintKey. */
-check('18 weapons, each with locale name and hint keys derived from its id', AD.WEAPON_IDS.length === 18 &&
+check('20 weapons, each with locale name and hint keys derived from its id', AD.WEAPON_IDS.length === 20 &&
     AD.WEAPON_IDS.every(id => AD.WEAPONS[id].id === id && AD.WEAPONS[id].nameKey === 'aura_drift.weapon.' + id + '.name' &&
         AD.WEAPONS[id].hintKey === 'aura_drift.weapon.' + id + '.hint' && !Object.keys(AD.WEAPONS[id]).includes('name')));
 
@@ -115,6 +115,29 @@ check('18 weapons, each with locale name and hint keys derived from its id', AD.
     const pooled = new Set();
     for (let i = 0; i < 500; i++) pooled.add(AD.rollWeapon(rng, 0.9, ['air_horn', 'shield', 'overdrive']));
     check('pool restricts and renormalises', pooled.size === 3 && [...pooled].every(id => ['air_horn', 'shield', 'overdrive'].includes(id)));
+}
+
+{
+    const r = scene(4), [owner, rival, shielded, side, behind] = r.cars;
+    place(rival, 13, 2, 20); place(shielded, 15, -2, 20); shielded.v.shield = 2;
+    place(side, 3, 12, 20); place(behind, -5, 0, 20);
+    give(r, owner, 'popcorn'); AD.fireWeapon(r, owner);
+    check('popcorn lifts exposed rivals in the cone and leaves a second serving', rival.v.airborne &&
+        !shielded.v.airborne && !side.v.airborne && !behind.v.airborne && owner.ammo === 1 && owner.tally.hitsDealt === 1);
+}
+{
+    const r = scene(2), [owner, rival, next] = r.cars;
+    place(owner, 0, 0, 20); place(rival, -4, 0, 30); place(next, -4, 0, 30);
+    give(r, owner, 'bubblegum'); AD.fireWeapon(r, owner);
+    AD.updateHazards(r, AD.STEP);
+    check('gum slows only the first rival, then pops', rival.v.vx < 15 && next.v.vx === 30 && owner.v.vx === 20 && !r.hazards.length);
+    give(r, owner, 'bubblegum'); AD.fireWeapon(r, owner);
+    rival.v.cloak = 1; next.v.shield = 2;
+    AD.updateHazards(r, AD.STEP);
+    check('cloaked racers pass and a shield pops the gum safely', next.v.vx === 30 && !r.hazards.length && evs(r, 'shield_block').length === 1);
+    give(r, owner, 'bubblegum'); AD.fireWeapon(r, owner);
+    AD.clearWeaponsIn(r, owner.v.x, owner.v.y, 18);
+    check('air horn clears gum', !r.hazards.length);
 }
 
 /* ---- oil, mine ---- */

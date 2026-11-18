@@ -10,6 +10,8 @@
     const BUCKETS = 64;
     const RAMP = { length: 9, height: 1.6 };
     const PAD = { width: 6, length: 10, power: 1.50, duration: 1.0, cooldown: 1.5 };
+    const SUPER_PAD = { width: 4.2, length: 12, power: 3.6, duration: 1.15 };
+    const SUPER_KICK = 15;
     const CRATE = { radius: 4.2, respawn: 8, maxZ: 3.5 };
     const DESTRUCT = {
         cone: { r: 0.4, speed: 0.995, lift: 7, push: 7 },
@@ -63,10 +65,13 @@
         const windows = AD.straightWindows(track, 330);
 
         if (rules.crates !== false) {
+            const giftSide = AD.hashString(base + '/gifts') % 2 ? 1 : -1;
             track.pads.forEach((pad, i) => {
                 const q = place(track, pad.s, pad.offset);
+                const gift = !Array.isArray(rules.weapons) && pad.row % 2 === 1 &&
+                    Math.sign(pad.offset) === (pad.row % 4 === 1 ? giftSide : -giftSide);
                 fs.crates.push(add({
-                    id: i, kind: 'crate', s: pad.s, offset: pad.offset, row: pad.row,
+                    id: i, kind: 'crate', s: pad.s, offset: pad.offset, row: pad.row, gift,
                     x: q.x, y: q.y, taken: -99          /* race time of the last pickup */
                 }));
             });
@@ -114,6 +119,21 @@
                     width: PAD.width, length: PAD.length, power: PAD.power, duration: PAD.duration
                 }));
             }
+            // Only offer the inside line when the road still turns beyond the pad.
+            let sharpest = 0.008, apex = null;
+            for (let i = 0; i < track.samples.length; i++) {
+                const p = track.samples[i];
+                if (track.curvature[i] <= sharpest || nearLine(p.s)) continue;
+                const ahead = track.samples[(i + 6) % track.samples.length];
+                const turn = p.tx * ahead.ty - p.ty * ahead.tx;
+                if (Math.abs(turn) < 0.17 || fs.ramps.some(r => wrapDist(r.s, p.s, length) < 45) ||
+                    fs.pads.some(r => wrapDist(r.s, p.s, length) < 80) ||
+                    track.pads.some(r => wrapDist(r.s, p.s, length) < 20)) continue;
+                const offset = Math.sign(turn) * p.halfWidth * 0.62;
+                apex = { s: p.s, offset, x: p.x + p.nx * offset, y: p.y + p.ny * offset, psi: Math.atan2(p.ty, p.tx) };
+                sharpest = track.curvature[i];
+            }
+            if (apex) fs.pads.push(add({ ...apex, ...SUPER_PAD, kind: 'pad', superTurbo: true, id: fs.pads.length }));
         }
 
         if (rules.animals !== false) {
@@ -318,14 +338,21 @@
     function padStep(race, actor, pad, fs) {
         const v = actor.v;
         if (v.airborne || v.z > 0.5) return;
+        if (pad.superTurbo && (v.vx < 8 || v.disabled > 0 || Math.cos(v.psi - pad.psi) < 0.6)) return;
         const key = actor.index;
         if (race.time - (fs.padAt[key] === undefined ? -99 : fs.padAt[key]) < PAD.cooldown) return;
         if (!inRect(pad, v, pad.length / 2, pad.width / 2, true).inside) return;
         fs.padAt[key] = race.time;
-        if (v.vx > 0 && v.disabled <= 0) v.vx += clamp(95 - v.vx, 0, 0.8);
+        if (v.vx > 0 && v.disabled <= 0) v.vx += clamp(95 - v.vx, 0, pad.superTurbo ? SUPER_KICK : 0.8);
         v.burst = pad.duration * (v.car.quirk === 'pad_time' ? v.car.quirkK : 1);
         v.burstPower = pad.power;
-        AD.emit(race, 'boost_pad', { car: actor.index, x: pad.x, y: pad.y });
+        let points = 0;
+        const lap = actor.lap || 0;
+        if (pad.superTurbo && !actor.ghost && actor.superPadLap !== lap) {
+            points = AD.addStylePoints(actor, 500, false);
+            actor.superPadLap = lap;
+        }
+        AD.emit(race, 'boost_pad', { car: actor.index, x: pad.x, y: pad.y, superTurbo: !!pad.superTurbo, points });
     }
 
     function crateStep(race, actor, crate) {
@@ -334,6 +361,15 @@
         if (race.time - crate.taken < CRATE.respawn) return;
         if (AD.distance(crate.x, crate.y, v.x, v.y) >= CRATE.radius) return;
         crate.taken = race.time;
+        if (crate.gift) {
+            const choices = v.damage >= 1 ? ['nitro', 'shield', 'repair'] : ['nitro', 'shield'];
+            const bonus = choices[Math.floor(race.rng() * choices.length)];
+            if (bonus === 'nitro') { v.nitro = 1; v.overdrive = Math.max(v.overdrive, 1.2); }
+            else if (bonus === 'shield') v.shield = Math.max(v.shield, 3.5);
+            else v.damage = Math.max(0, v.damage - 45);
+            AD.emit(race, 'gift', { x: crate.x, y: crate.y, car: actor.index, bonus });
+            return;
+        }
         if (actor.weapon) return;
         const field = race.cars.length;
         const rank = Math.max(1, race.standings.indexOf(actor) + 1);
@@ -447,8 +483,11 @@
                 const ds = ((f.s - sample.s) % length + length) % length;
                 if (ds < 8 || ds > 80) continue;
                 const gap = f.offset === undefined ? 0 : f.offset - sample.offset;
-                if (f.kind === 'pad' && ds < pullAt) { pullAt = ds; pull = clamp(gap, -3.5, 3.5); }
-                else if (f.kind === 'crate' && race.weapons && !car.weapon && race.time - f.taken >= CRATE.respawn && ds < pullAt) {
+                if (f.kind === 'pad' && ds < pullAt) {
+                    if (f.superTurbo && v.vx + SUPER_KICK > (car.ai?.targetSpeed || 0) + 5) continue;
+                    pullAt = ds; pull = clamp(gap, -3.5, 3.5);
+                }
+                else if (f.kind === 'crate' && race.weapons && (!car.weapon || f.gift) && race.time - f.taken >= CRATE.respawn && ds < pullAt) {
                     pullAt = ds; pull = clamp(gap, -3.5, 3.5) * 0.8;
                 } else if (f.kind === 'ramp' && v.vx > 20 && ds < pullAt) { pullAt = ds; pull = clamp(gap, -3.5, 3.5) * 0.5; }
                 else if (!free && f.state === 'idle' && f.r !== undefined && ds < 45 && Math.abs(gap) < 2.8) {

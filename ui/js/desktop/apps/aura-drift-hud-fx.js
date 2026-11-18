@@ -114,6 +114,19 @@
 
     /* ---- weapon glyphs: unit box [-1, 1], y down -------------------------------------------- */
     const GLYPHS = {
+        popcorn(c) {
+            for (const [x, y] of [[-.48, -.38], [-.21, -.61], [.14, -.57], [.46, -.34], [0, -.27]]) {
+                ell(c, x, y, .26, .24); ink(c, '#fff1b1', .05);
+            }
+            poly(c, [-.76, -.27, .76, -.27, .52, .88, -.52, .88]); ink(c, '#c73e4e');
+            poly(c, [-.43, -.23, -.23, -.23, -.16, .82, -.30, .82]); c.fillStyle = '#fff5dc'; c.fill();
+            poly(c, [.23, -.23, .43, -.23, .30, .82, .16, .82]); c.fill();
+        },
+        bubblegum(c) {
+            ell(c, 0, .48, .89, .30); ink(c, '#df579c', .06);
+            ell(c, .04, -.04, .62, .64); ink(c, '#ff89c2', .07);
+            ell(c, -.17, -.28, .16, .12); c.fillStyle = '#ffe7f1'; c.fill();
+        },
         oil(c) {
             c.beginPath(); c.moveTo(-0.92, 0.12);
             c.bezierCurveTo(-0.95, -0.45, -0.35, -0.62, 0.05, -0.42);
@@ -418,7 +431,7 @@
         }
         return p;
     }
-    const HAZARD = { oil: '#1e1b4b', gnome_mine: '#f97316', ice: '#7dd3fc', black_hole: '#a855f7', disco: '#f472b6', cow_shadow: '#fde68a' };
+    const HAZARD = { oil: '#1e1b4b', gnome_mine: '#f97316', bubblegum: '#ff82bd', ice: '#7dd3fc', black_hole: '#a855f7', disco: '#f472b6', cow_shadow: '#fde68a' };
     const VIEW = 230;           /* metres from the centre to the rim */
 
     /* Circular, track-up minimap: the world rotates so the camera heading points up. */

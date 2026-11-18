@@ -39,7 +39,8 @@
     const WEAPON_GROUP = {
         oil: 'weapon.oil', gnome_mine: 'weapon.mine_drop', emp: 'weapon.emp_charge', rocket: 'weapon.rocket_fire', mg: 'weapon.mg', shield: 'weapon.shield_on',
         ducks: 'weapon.duck_launch', railgun: 'weapon.rail_charge', frost: 'weapon.frost_throw', air_horn: 'weapon.horn_blast', disco: 'weapon.disco_on',
-        glove: 'weapon.glove', harpoon: 'weapon.harpoon_fire', cow: 'weapon.cow_launch', cloak: 'weapon.cloak_on', overdrive: 'weapon.overdrive_on'
+        glove: 'weapon.glove', harpoon: 'weapon.harpoon_fire', cow: 'weapon.cow_launch', cloak: 'weapon.cloak_on', overdrive: 'weapon.overdrive_on',
+        popcorn: 'weapon.glove', bubblegum: 'weapon.oil'
     };
     const PROP_GROUP = { hay: 'prop.hay', cone: 'prop.cone', barrel: 'prop.barrel', tyre: 'prop.tyres' };
     const REVERB = { harbour: 0.34, industry: 0.30, metro: 0.26, glacier: 0.22, alpine: 0.16, forest: 0.12, salt: 0.06, desert: 0.06 };
@@ -311,7 +312,8 @@
                     break;
                 }
                 case 'j_turn': if (sp && (evt.car === 0 || me)) P('tyre.squeal', sp, { dur: 0.8, gain: 0.9 }); break;
-                case 'boost_pad': P('pad.boost', evt.car === 0 ? CENTER : sp); break;
+                case 'boost_pad': P(evt.superTurbo ? 'turbo.3' : 'pad.boost', evt.car === 0 ? CENTER : sp); break;
+                case 'gift': P('roulette.done', evt.car === 0 ? CENTER : sp); break;
                 case 'pickup':
                     P('crate.break', sp);
                     if (evt.car === 0) roulette(CENTER);

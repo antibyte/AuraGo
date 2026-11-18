@@ -144,7 +144,7 @@
 
         const gates = [];
         for (let i = 0; i < 12; i++) gates.push(length * i / 12);
-        /* Six crate rows of three across the corridor, one weapon each. */
+        /* Six rows of three pickup locations across the corridor. */
         const pads = [];
         for (let row = 0; row < 6; row++) {
             const s = length * (row + 0.5) / 6;

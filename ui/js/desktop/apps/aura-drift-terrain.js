@@ -386,7 +386,13 @@
             vp[o * 3] = x; vp[o * 3 + 1] = h; vp[o * 3 + 2] = z;
             vc[o * 3] = c3[0]; vc[o * 3 + 1] = c3[1]; vc[o * 3 + 2] = c3[2];
         }
-        const tris = n * n * 2 + n * 4 * 2, total = tris * 3;
+        const foliage = [];
+        for (const plant of ctx.plants) {
+            if (plant.x < x0 || plant.x >= x0 + size || plant.y < z0 || plant.y >= z0 + size) continue;
+            const shades = plant.palette.map(hexLin);
+            AD.vergeTriangles(plant, (a, b, c, shade) => foliage.push({ vertices: [a, b, c], colour: shades[shade] }));
+        }
+        const tris = n * n * 2 + n * 4 * 2 + foliage.length, total = tris * 3;
         const pos = new Float32Array(total * 3), col = new Float32Array(total * 3), uv = new Float32Array(total * 2);
         let w = 0;
         const seed = (round(x0) * 31 + round(z0)) | 0;
@@ -428,6 +434,12 @@
             const a = ring[k], b = ring[(k + 1) % ring.length];
             put(a, unit, 0.6); put(b, unit, 0.6); putLow(a, unit, 0.5);
             put(b, unit, 0.6); putLow(b, unit, 0.5); putLow(a, unit, 0.5);
+        }
+        for (const face of foliage) {
+            for (const v of face.vertices) {
+                pos.set(v, w * 3); col.set(face.colour, w * 3);
+                uv[w * 2] = v[0] / 32; uv[w * 2 + 1] = v[2] / 32; w++;
+            }
         }
         const geo = new T.BufferGeometry();
         geo.setAttribute('position', new T.BufferAttribute(pos, 3));
@@ -484,7 +496,7 @@
         const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
         const biomeId = track.biomeId;
         const field = AD.buildDistanceField(track, 8);
-        const ctx = { field: field, biomeId: biomeId, pal: AD.terrainPalette(biomeId, look) };
+        const ctx = { field: field, biomeId: biomeId, pal: AD.terrainPalette(biomeId, look), plants: AD.vergePlants?.(track) || [] };
         const detail = AD.makeTerrainDetail(T, biomeId, look);
         const mat = new T.MeshStandardMaterial({
             vertexColors: true, map: detail, flatShading: true, roughness: 0.93, metalness: 0, side: T.DoubleSide,

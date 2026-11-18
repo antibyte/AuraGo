@@ -151,7 +151,59 @@ function step(race, actor, fs, seconds) {
     check('ghost gets the pad boost but emits nothing', ghost.v.burst > 0.8 && gRace.events.length === 0);
 }
 
-/* Crates keep the old behaviour. */
+{
+    let offered = 0;
+    for (const t of tracks) {
+        const fs = AD.createFeatures(t, 11, {}), pads = fs.pads.filter(p => p.superTurbo);
+        if (!pads.length) continue;
+        offered++;
+        const p = pads[0], sm = AD.sampleTrack(t, p.x, p.y), ahead = AD.pointAt(t, p.s + 24);
+        const turn = sm.tx * ahead.ty - sm.ty * ahead.tx;
+        check(t.id + ' super pad sits inside a continuing bend with a free outside lane', pads.length === 1 &&
+            Math.abs(turn) > 0.14 && t.curvature[sm.index] > 0.007 && Math.sign(turn) === Math.sign(p.offset) &&
+            Math.abs(p.offset) > p.width && Math.abs(p.offset) + p.width / 2 < sm.halfWidth);
+    }
+    check('sharp named and daily bends carry the super pad', offered > 8);
+    const fs = AD.createFeatures(track, 1, {}), pad = fs.pads.find(p => p.superTurbo), race = fakeRace(track);
+    const centre = AD.pointAt(track, pad.s), car = fakeActor(track, centre.x, centre.y, pad.psi);
+    car.v.vx = 25;
+    step(race, car, fs, 0.02);
+    check('the centre line can pass the super pad without triggering it', car.v.burst === 0);
+    car.v.x = pad.x; car.v.y = pad.y; car.v.psi += Math.PI;
+    step(race, car, fs, 0.02);
+    check('approaching against the arrows leaves the super pad idle', car.v.burst === 0);
+    car.v.psi = pad.psi;
+    step(race, car, fs, 0.02);
+    const coasting = car.v.vx;
+    for (let i = 0; i < 90; i++) AD.stepVehicle(car.v, { throttle: 1 }, AD.STEP, AD.SURFACES.asphalt);
+    check('super pad gives at least 50 km/h immediately and keeps accelerating', coasting >= 39 && car.v.vx > coasting + 5 &&
+        race.events.filter(e => e.type === 'boost_pad' && e.superTurbo).length === 1);
+    car.v.x = pad.x; car.v.y = pad.y; car.v.psi = pad.psi;
+    race.time += 2; step(race, car, fs, 0.02);
+    check('the apex bonus pays only once per lap', car.style.banked === 500);
+    race.time += 2; car.lap = 1; step(race, car, fs, 0.02);
+    check('a later lap can earn its own apex bonus', car.style.banked === 1000);
+}
+
+/* Surprise crates pay out instantly, even with a full weapon slot. */
+{
+    const fs = AD.createFeatures(track, 5, {}), gifts = fs.crates.filter(c => c.gift);
+    check('three distinct rows offer a gift, restricted modes keep their own pool', new Set(gifts.map(c => c.row)).size === 3 &&
+        !AD.createRace({ track, mode: 'hot_potato' }).features.crates.some(c => c.gift) &&
+        !AD.createRace({ track, mode: 'quick', weapons: false }).features.crates.length);
+    for (const [i, bonus] of ['nitro', 'shield', 'repair'].entries()) {
+        const box = gifts[i], race = fakeRace(track, { rng: () => (i + 0.4) / 3 });
+        const car = fakeActor(track, box.x, box.y, 0);
+        car.weapon = 'mg'; car.ammo = 4; car.v.damage = 60; car.v.nitro = 0.2;
+        step(race, car, fs, 0.05);
+        const actual = bonus === 'nitro' ? car.v.nitro === 1 && car.v.overdrive > 1 :
+            bonus === 'repair' ? car.v.damage === 15 : car.v.shield === 3.5;
+        check(bonus + ' pays once and preserves held ammunition', actual && car.weapon === 'mg' && car.ammo === 4 &&
+            race.events.filter(e => e.type === 'gift' && e.bonus === bonus).length === 1);
+    }
+}
+
+/* Ordinary crates keep the old behaviour. */
 {
     const fs = AD.createFeatures(track, 1, {});
     const crate = fs.crates[0];

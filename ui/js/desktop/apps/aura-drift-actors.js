@@ -328,6 +328,13 @@
         const flat = g => S(g.rotateX(-Math.PI / 2));
         const discGeo = flat(new T.CircleGeometry(1, 28)), quadGeo = flat(new T.PlaneGeometry(1, 1)), ringGeo = flat(new T.RingGeometry(0.88, 1, 48));
         const sphereGeo = S(new T.SphereGeometry(1, 18, 12)), iceGeo = S(new T.IcosahedronGeometry(1, 0));
+        function paintedFeature(geometry, paint) {
+            const map = canvasTex(128, (g, size) => { g.scale(size / 100, size / 100); paint(g); });
+            map.anisotropy = 4;
+            return new T.Mesh(geometry, S(new T.MeshBasicMaterial({ map })));
+        }
+        const superPlate = paintedFeature(quadGeo, AD.paintSuperPad);
+        const giftBox = paintedFeature(S(new T.BoxGeometry(2, 2, 2).translate(0, 1, 0)), AD.paintGift);
         const crystalGeo = S(new T.ConeGeometry(0.3, 1, 5).translate(0, 0.5, 0)), coneGeo = S(new T.ConeGeometry(1, 1, 24, 1, true).translate(0, -0.5, 0));
         const oilGeo = S((() => {
             const g = new T.CircleGeometry(1, 36).rotateX(-Math.PI / 2), p = g.attributes.position;
@@ -435,6 +442,12 @@
             sheen.position.y = 0.01;
             return { group: grp(body, sheen), body: body, sheen: sheen };
         };
+        makers.bubblegum = () => {
+            const gum = P(new T.MeshStandardMaterial({ color: 0xff74ae, roughness: 0.23, emissive: 0x5d1537 }));
+            const base = new T.Mesh(oilGeo, gum), bubble = new T.Mesh(sphereGeo, gum);
+            bubble.position.set(0.15, 0.23, -0.08); bubble.scale.set(0.5, 0.55, 0.5);
+            return { group: grp(base, bubble), bubble };
+        };
         makers.ice = () => {
             const disc = new T.Mesh(discGeo, P(new T.MeshStandardMaterial(road({ color: 0x8fd8f5, roughness: 0.15, envMapIntensity: 0.5, opacity: 0.78, emissive: 0x2a90d0, emissiveIntensity: 0.35 }))));
             const cm = P(new T.MeshStandardMaterial({ color: 0xe6fbff, roughness: 0.1, transparent: true, opacity: 0.85, emissive: 0x6cc8f0, emissiveIntensity: 0.4, flatShading: true }));
@@ -527,13 +540,16 @@
                 if (!list || !list.length) return null;
                 const tpl = getter(name), inst = instancedFrom(T, tpl, list.length, pulse);
                 inst.tpl = tpl; inst.list = list; inst.shadows(gl.casters === 2 && kind !== 'flat');
+                inst.group.name = name;
                 stage.add(inst.group); insts.push(inst);
                 return inst;
             };
             const itm = n => AD.assets.item(n), trk = n => AD.assets.trackPiece(n);
-            f.crates = add(fs.crates, 'crate', itm, null, 'solid');
+            f.crates = add(fs.crates.filter(c => !c.gift), 'crate', itm, null, 'solid');
+            f.gifts = add(fs.crates.filter(c => c.gift), 'gift', () => giftBox, null, 'solid');
             f.ramps = add(fs.ramps, 'ramp', trk, null, 'solid');
-            f.pads = add(fs.pads, 'boost_pad', trk, ['glow_cyan', 'glow_lime'], 'flat');
+            f.pads = add(fs.pads.filter(p => !p.superTurbo), 'boost_pad', trk, ['glow_cyan', 'glow_lime'], 'flat');
+            const superPads = add(fs.pads.filter(p => p.superTurbo), 'super_pad', () => superPlate, null, 'flat');
             const bars = [];
             for (const c of fs.crossings || []) bars.push(c);
             f.bars = add(bars, 'rumble_bars', trk, null, 'flat');
@@ -548,7 +564,11 @@
                 m.multiply(tmp.m2);
             };
             if (f.ramps) { fs.ramps.forEach((r, i) => { fit(tmp.m, f.ramps, r.x, r.y, r.psi, r.length, r.width, r.height, false); f.ramps.set(i, tmp.m); }); f.ramps.flush(); }
-            if (f.pads) { fs.pads.forEach((p, i) => { fit(tmp.m, f.pads, p.x, p.y, p.psi, p.length, p.width, 0, true, 0.03); f.pads.set(i, tmp.m); }); f.pads.flush(); }
+            for (const inst of [f.pads, superPads]) {
+                if (!inst) continue;
+                inst.list.forEach((p, i) => { fit(tmp.m, inst, p.x, p.y, p.psi, p.length, p.width, 0, true, 0.06); inst.set(i, tmp.m); });
+                inst.flush();
+            }
             if (f.bars) {
                 bars.forEach((c, i) => {
                     const p = AD.pointAt(race.track, c.barsS);
@@ -566,20 +586,21 @@
             const f = feat, fs = r.features;
             if (!f || !fs) return;
             const m = tmp.m;
-            if (f.crates) {
-                for (let i = 0; i < fs.crates.length; i++) {
-                    const c = fs.crates[i], since = r.time - c.taken;
+            for (const inst of [f.crates, f.gifts]) {
+                if (!inst) continue;
+                for (let i = 0; i < inst.list.length; i++) {
+                    const c = inst.list[i], since = r.time - c.taken;
                     const grow = clamp((since - (CRATE_RESPAWN - 0.5)) / 0.5, 0, 1), pop = ease(grow);
-                    tmp.e.set(0, time * 1.4 + i, 0);
+                    tmp.e.set(0, (reduced ? 0 : time * 1.4) + c.id, 0);
                     tmp.q.setFromEuler(tmp.e);
                     const bob = reduced ? 0 : Math.sin(time * 2.2 + i * 1.7) * 0.18;
                     tmp.p.set(c.x, 0.9 + bob, c.y);
                     const sc = Math.max(pop, 0.0001) * 1.1 * (1 + (reduced ? 0 : 0.07 * Math.sin(time * 6 + i)));
                     tmp.s.set(sc, sc, sc);
                     m.compose(tmp.p, tmp.q, tmp.s);
-                    f.crates.set(i, m);
+                    inst.set(i, m);
                 }
-                f.crates.flush();
+                inst.flush();
             }
             if (f.pads) {
                 const k = 1.1 + 0.9 * (0.5 + 0.5 * Math.sin(time * 6));
@@ -634,6 +655,11 @@
                     place(o, h.x, 0.05, h.y, h.x * 0.37);
                     o.group.scale.set(s, 1, s * 0.88);
                     o.body.material.opacity = 0.9 * fade; o.sheen.material.opacity = 0.3 * fade;
+                } else if (h.type === 'bubblegum') {
+                    const o = get('bubblegum').next();
+                    place(o, h.x, 0.08, h.y, h.x);
+                    o.group.scale.setScalar(h.r * grow * fade);
+                    o.bubble.scale.y = 0.55 + (reduced ? 0 : 0.12 * Math.sin(time * 5));
                 } else if (h.type === 'ice') {
                     const o = get('ice').next(), s = h.r * grow, k = grow * fade + 0.001;
                     place(o, h.x, 0.05, h.y, 0);
@@ -971,7 +997,7 @@
                 let stand = 0, pooled = 0;
                 for (const s of slots) if (AD.assets.isStandIn(s.template)) stand++;
                 for (const name of Object.keys(pools)) pooled += pools[name].used();
-                return { cars: slots.length, standIns: stand, crates: feat && feat.crates ? feat.crates.list.length : 0, animals: feat ? feat.animals.length : 0,
+                return { cars: slots.length, standIns: stand, crates: race?.features?.crates.length || 0, animals: feat ? feat.animals.length : 0,
                     pooled: pooled, hazards: race ? race.hazards.length : 0, projectiles: race ? race.projectiles.length : 0 };
             },
             dispose() {

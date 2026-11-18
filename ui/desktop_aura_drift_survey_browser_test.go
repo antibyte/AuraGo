@@ -46,7 +46,7 @@ func auraDriftSurveyScenes() []auraDriftSurveyScene {
 		scenes = append(scenes, auraDriftSurveyScene{"car-" + car, fmt.Sprintf(
 			`async()=>{AuraDriftApp.debug.showcase({carId:%q});}`, car)})
 	}
-	for _, weapon := range []string{"oil", "gnome_mine", "emp", "rocket", "mg", "shield", "ducks", "railgun", "flamethrower", "frost", "air_horn", "black_hole", "disco", "glove", "harpoon", "cow", "cloak", "overdrive"} {
+	for _, weapon := range []string{"oil", "gnome_mine", "emp", "rocket", "mg", "shield", "ducks", "railgun", "flamethrower", "frost", "air_horn", "black_hole", "disco", "glove", "harpoon", "cow", "cloak", "overdrive", "popcorn", "bubblegum"} {
 		scenes = append(scenes, auraDriftSurveyScene{"weapon-" + weapon, fmt.Sprintf(
 			`async()=>{await AuraDriftApp.debug.start({mode:'quick'});AuraDriftApp.debug.give(%q);AuraDriftApp.debug.fire();}`, weapon)})
 	}

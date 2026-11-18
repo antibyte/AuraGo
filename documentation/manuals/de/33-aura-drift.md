@@ -105,7 +105,7 @@ Piste. Du kannst sie treffen oder für einen Kuh-Sprung überfliegen.
 
 ## Waffen
 
-Pickups auf der Strecke geben dir jeweils eine Waffe. Welche du bekommst, hängt davon ab, wo du
+Normale Waffenkisten geben dir jeweils eine Waffe. Welche du bekommst, hängt davon ab, wo du
 im Feld liegst. Munition, Abklingzeit und Reichweite stehen in der Tabelle. Waffen mit
 „halten“ feuern weiter, solange du die Leertaste hältst.
 
@@ -129,6 +129,18 @@ im Feld liegst. Munition, Abklingzeit und Reichweite stehen in der Tabelle. Waff
 | Kuh-Katapult | 1 | 2,0 | 180 | nein | Schleudert eine Kuh vor einen Gegner. Sie landet weich, er nicht. |
 | Tarnumhang | 1 | 1,2 | 0 | nein | Drei Sekunden unsichtbar und unantastbar, aber ohne Schießen. |
 | Überdrehmodus | 1 | 1,2 | 0 | nein | Drei Sekunden fast doppelter Schub. Wände haben keinen Sinn für Humor. |
+| Popcornkanone | 2 | 0,7 | 24 | nein | Mit jedem Schuss hüpfen die Autos direkt vor dir wie Maiskörner. |
+| Reifenkaugummi | 1 | 0,9 | 4 | nein | Lass hinter dir eine rosa Blase fallen. Wer sie zuerst überfährt, verliert rund die Hälfte seines Tempos. |
+
+Halte in jeder zweiten Kistenreihe nach einem goldenen Päckchen Ausschau. Die Nitrobrause
+füllt den Tank und gibt kurz Extraschub, die Schutzblase fängt Treffer ab und die Boxenfee
+repariert bis zu 45 Schadenspunkte. Das Geschenk wirkt sofort, auch wenn du eine Waffe trägst.
+Du findest es mit aktivierten Waffen im schnellen Rennen, im Cup, im Tagesrennen und im Ausscheidungsrennen.
+
+Der **Kurven-Superturbo** ist die schmale goldene Platte mit dem Blitz. Sie liegt innen
+in einer engen Kurve. Richte die Nase vor dem Überfahren aus. Der erste Schub bringt
+bis zu 54 km/h zusätzlich, und mit Gas zieht das Auto noch gut eine Sekunde weiter.
+Der erste Treffer pro Runde bringt 500 Style-Punkte. Die äußere Spur lässt dir Platz zum Umfahren.
 
 Im Spiel gibt es kein Blut. Tiere fliegen, landen und traben davon. Ein Auto, das aus dem
 Rennen ist, parkt sich selbst und verschwindet.

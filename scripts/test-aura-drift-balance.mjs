@@ -151,7 +151,7 @@ check('at least one track sees rain or snow above 0.2 mid-race', results.some(r 
     const missing = AD.WEAPON_IDS.filter(id => !totals[id]);
     const top = Object.keys(totals).sort((a, b) => totals[b] - totals[a])[0];
     console.log('  info fires by weapon (' + sum + '): ' + AD.WEAPON_IDS.map(id => id + ' ' + (totals[id] || 0)).join(', '));
-    check('all 18 weapons fire at least once over the field runs', missing.length === 0, 'missing: ' + missing.join(','));
+    check('every weapon fires at least once over the field runs', missing.length === 0, 'missing: ' + missing.join(','));
     check('no weapon above 22 percent of fires', totals[top] / sum <= 0.22, top + ' ' + (100 * totals[top] / sum).toFixed(1) + '%');
     const perTrack = AD.TRACKS.map(m => {
         const rs = results.filter(r => r.id === m.id);

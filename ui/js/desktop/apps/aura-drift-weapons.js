@@ -15,13 +15,13 @@
         return def;
     }
     const list = [
-        weapon('oil', 1, 0.9, 3.2, false, '#1b1b22', 18, 6, 0, null),
-        weapon('gnome_mine', 1, 1.1, 3.2, false, '#f97316', 18, 8, 0, 'item-gnome_mine'),
+        weapon('oil', 1, 0.9, 3.2, false, '#1b1b22', 14, 4, 0, null),
+        weapon('gnome_mine', 1, 1.1, 3.2, false, '#f97316', 14, 6, 0, 'item-gnome_mine'),
         weapon('emp', 1, 1.4, 30, false, '#38bdf8', 2, 6, 8, null),
-        weapon('rocket', 1, 1.6, 90, false, '#fb7185', 4, 12, 10, 'item-rocket'),
+        weapon('rocket', 1, 1.6, 90, false, '#fb7185', 4, 9, 8, 'item-rocket'),
         weapon('mg', 6, 0.16, 68, true, '#facc15', 8, 10, 6, 'item-bratwurst'),
         weapon('shield', 1, 1.2, 0, false, '#5eead4', 16, 6, 4, null),
-        weapon('ducks', 1, 1.4, 80, false, '#fde047', 6, 10, 8, 'item-rubber_duck'),
+        weapon('ducks', 1, 1.4, 80, false, '#fde047', 6, 8, 6, 'item-rubber_duck'),
         weapon('railgun', 1, 2.0, 220, false, '#a5f3fc', 0, 3, 6, null),
         weapon('flamethrower', 1, 0.5, 18, true, '#fb923c', 2, 8, 6, null),
         weapon('frost', 1, 1.2, 30, false, '#bae6fd', 8, 6, 2, 'item-frost_grenade'),
@@ -32,7 +32,9 @@
         weapon('harpoon', 1, 1.6, 60, false, '#94a3b8', 0, 2, 8, 'item-harpoon'),
         weapon('cow', 1, 2.0, 180, false, '#f5f5f4', 0, 2, 7, null),
         weapon('cloak', 1, 1.2, 0, false, '#99f6e4', 0, 2, 6, null),
-        weapon('overdrive', 1, 1.2, 0, false, '#f97316', 0, 0, 10, null)
+        weapon('overdrive', 1, 1.2, 0, false, '#f97316', 0, 0, 8, null),
+        weapon('popcorn', 2, 0.7, 24, false, '#ffe798', 0, 5, 6, null),
+        weapon('bubblegum', 1, 0.9, 4, false, '#ff82bd', 8, 4, 0, null)
     ];
     AD.WEAPONS = {};
     for (const def of list) AD.WEAPONS[def.id] = def;
@@ -134,6 +136,18 @@
     }
 
     const FIRE = {
+        popcorn(race, car, v) {
+            for (const other of kit.rivals(race, car)) {
+                const r = kit.rel(v, other.v);
+                if (!other.v.airborne && r.dist <= AD.WEAPONS.popcorn.range && r.ang < 0.55) {
+                    AD.applyHit(race, other, { by: car.index, weapon: 'popcorn', speed: 0.88, launch: 6.4, shock: true });
+                }
+            }
+        },
+        bubblegum(race, car, v) {
+            const b = behind(v, 4);
+            race.hazards.push({ type: 'bubblegum', x: b.x, y: b.y, r: 2.7, ttl: 9, age: 0, owner: car.index });
+        },
         oil(race, car, v) {
             const b = behind(v, 3.2);
             race.hazards.push({ type: 'oil', x: b.x, y: b.y, r: 7, ttl: 6, age: 0, owner: car.index });
@@ -406,6 +420,8 @@
     }
 
     const PRED = {
+        popcorn: (race, car) => any(race, car, (r, other) => !other.v.airborne && r.dist <= AD.WEAPONS.popcorn.range && r.ang < 0.55),
+        bubblegum: (race, car) => any(race, car, r => r.fwd < 0 && r.dist < 32 && Math.abs(r.lat) < 5),
         oil: (race, car) => any(race, car, r => r.fwd < 0 && r.dist <= 40 && Math.abs(r.lat) < 9),
         gnome_mine: (race, car) => any(race, car, r => r.fwd < 0 && r.dist <= 35 && Math.abs(r.lat) < 8),
         emp: (race, car) => count(race, car, r => r.dist <= 26) >= 2 || any(race, car, r => r.dist <= 14),

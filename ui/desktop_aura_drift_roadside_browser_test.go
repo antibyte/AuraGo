@@ -78,6 +78,71 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 	}
 }
 
+func TestDesktopAuraDriftExtrasBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, tc := range []struct{ renderer, omit string }{{"three", ""}, {"canvas2d", "aura-drift-render3d.js"}} {
+		t.Run(tc.renderer, func(t *testing.T) {
+			page := auraDriftFixtureWithout(t, tc.omit)
+			if tc.renderer == "three" {
+				requireWebGL2(t, page)
+			}
+			auraDriftReopen(page, map[string]interface{}{"quality": "low", "voice": false}, "")
+			page.MustEval(`async () => {
+				const d = AuraDriftApp.debug, AD = AuraDriftCore;
+				await d.start({mode:'quick', trackId:'alpenpass', seed:42});
+				d.freeze(true); d.fastForward(4, {renderEvery:240}); d.setCamera('chase');
+				window.seenDecals = new Set();
+				for (const name of ['paintSuperPad', 'paintGift']) {
+					const draw = AD[name];
+					AD[name] = function(c) { seenDecals.add(name); return draw(c); };
+				}
+			}`)
+			artifacts := auraDriftArtifactDir(t, "extras-"+tc.renderer)
+			for _, feature := range []string{"super_pad", "gift"} {
+				page.MustEval(`(kind, renderer) => {
+					const d = AuraDriftApp.debug, r = d.race(), pad = kind === 'super_pad';
+					const f = pad ? r.features.pads.find(p => p.superTurbo) : r.features.crates.find(c => c.gift);
+					d.warp((f.s - 18) / r.track.length); r.cars[0].v.vx = 0; seenDecals.clear();
+					d.fastForward(.25, {renderEvery:15});
+					if (AuraDriftApp.stats()[0].renderer.kind !== renderer) throw Error('Unexpected renderer');
+					if (renderer === 'canvas2d') {
+						if (!seenDecals.has(pad ? 'paintSuperPad' : 'paintGift')) throw Error('Missing visible decal: ' + kind);
+					} else {
+						const {scene, camera, T} = d.three(), mesh = scene.getObjectByName(kind)?.children[0];
+						if (!mesh?.isInstancedMesh || !mesh.material.map || !mesh.count) throw Error('Missing textured ' + kind);
+						const pos = new T.Vector3(f.x, pad ? .06 : 1.8, f.y).project(camera);
+						if (Math.abs(pos.x) > 1 || Math.abs(pos.y) > 1 || Math.abs(pos.z) > 1) throw Error(kind + ' outside the driving view');
+					}
+				}`, feature, tc.renderer)
+				if artifacts != "" {
+					page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(artifacts, feature+".png"))
+				}
+				page.MustEval(`kind => {
+					const d = AuraDriftApp.debug, r = d.race(), car = r.cars[0], pad = kind === 'super_pad';
+					const f = pad ? r.features.pads.find(p => p.superTurbo) : r.features.crates.find(c => c.gift);
+					d.give('popcorn');
+					Object.assign(car.v, {x:f.x, y:f.y, vx:20, vy:0, r:0, damage:60, nitro:.1, shield:0, overdrive:0});
+					if (pad) car.v.psi = f.psi;
+					d.fastForward(.025, {renderEvery:1});
+					if (pad && !(car.v.vx > 32 && car.v.burstPower > 3)) throw Error('No super turbo impulse');
+					if (!pad && !(car.v.shield > 3 || car.v.damage < 30 || car.v.nitro > .95)) throw Error('No instant bonus');
+					if (car.weapon !== 'popcorn' || car.ammo !== 2) throw Error('Pickup displaced the held weapon');
+				}`, feature)
+			}
+			page.MustEval(`() => {
+				const d = AuraDriftApp.debug, r = d.race(), car = r.cars[0], rival = r.cars[1];
+				for (const other of r.cars.slice(2)) other.v.x += 300;
+				Object.assign(rival.v, {x:car.v.x + 10 * Math.cos(car.v.psi), y:car.v.y + 10 * Math.sin(car.v.psi), airborne:false, shield:0, cloak:0});
+				d.fire(); d.fastForward(.1, {renderEvery:3});
+				if (!rival.v.airborne || car.ammo !== 1) throw Error('Popcorn missed the rival');
+				d.give('bubblegum'); d.fire(); d.fastForward(.1, {renderEvery:3});
+				if (!r.hazards.some(h => h.type === 'bubblegum')) throw Error('No bubblegum on the road');
+			}`)
+			auraDriftNoErrors(t, page)
+		})
+	}
+}
+
 func TestDesktopAuraDriftHandlingReplayBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := auraDriftFixtureWithout(t, "aura-drift-render3d.js")

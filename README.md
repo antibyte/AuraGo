@@ -27,7 +27,7 @@ Your self-hosted AI agent can SSH into your NAS, talk over mesh radio, build a b
 *November 2026*
 
 - **Storymaker.** An illustrated explainer-video studio: stage scenes with cartoon people, props and environments, write the narration, pick a voice and music, then export an MP4 with sound, captions and separate audio tracks. Its AI author writes the film from a topic — in the app or from chat. [Guide](documentation/storymaker.md) · [Chapter 34](documentation/manuals/en/34-storymaker.md)
-- **Aura Drift.** An offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and eighteen weapons. [Guide](documentation/aura-drift.md) · [Chapter 33](documentation/manuals/en/33-aura-drift.md)
+- **Aura Drift.** An offline 3D racer with a 2D fallback: deterministic tyre physics, eight tracks and cars, seven modes, live weather, style scoring and twenty weapons. [Guide](documentation/aura-drift.md) · [Chapter 33](documentation/manuals/en/33-aura-drift.md)
 - **Synth Studio, rebuilt.** Five workspace modes with a library drawer, 3D knobs and faders, a master knob with a dB readout, live EQ and filter response curves, vertical ADSR faders, groove and song generators, stem export — plus a Strudel live-coding mode. [Guide](documentation/synth-studio.md) · [Chapter 36](documentation/manuals/en/36-synth-studio.md)
 - **WhatsApp as a first-class channel.** A linked device with owner-only sending, inbound voice notes, images and documents, read receipts, notifications and newspaper delivery. [Setup](documentation/whatsapp_setup.md)
 - **FindIt, ECalc and Kaggle.** An inventory app for parts, equipment and storage locations; an electronics formula collection with schematics, live results and pinouts; and a Kaggle workspace with a stateful notebook IDE. [FindIt](documentation/findit.md) · [ECalc](documentation/manuals/en/32-ecalc.md) · [Kaggle](documentation/kaggle.md)
@@ -136,7 +136,7 @@ Tools for making things, from code to CAD.
 Take a break. The desktop comes with a small arcade, a chess board and a few places to wander around in. None of it is required for the serious work.
 
 - **Galaxa Deluxe.** Arcade shooter with 50 animated motifs, weapon evolutions, alien attack patterns and a synthwave soundtrack. [Guide](documentation/galaxa-expansion.md)
-- **Aura Drift.** Offline 3D racer with a 2D fallback: eight tracks and cars, seven modes, live weather, style scoring and eighteen weapons. [Guide](documentation/aura-drift.md)
+- **Aura Drift.** Offline 3D racer with a 2D fallback: eight tracks and cars, seven modes, live weather, style scoring and twenty weapons. [Guide](documentation/aura-drift.md)
 - **AuraGolf.** 18 low-poly 3D minigolf holes for 1–4 players on one device. [Guide](documentation/minigolf.md)
 - **Chess.** Play against an agent opponent.
 - **Retro Games.** An archive.org player with about 72,500 titles, a 46-game Hall of Fame and favorites. [Guide](documentation/retro-games.md)

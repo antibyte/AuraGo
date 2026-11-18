@@ -100,7 +100,7 @@ You can hit them, or jump over them for a cow vault.
 
 ## Weapons
 
-Pickups on the track give you one weapon at a time. Which weapon you get depends on where you
+Standard crates give you one weapon at a time. Which weapon you get depends on where you
 are in the race. Ammo, cooldown and range are in the table below. Weapons with "hold" keep
 firing while you hold Space.
 
@@ -124,6 +124,18 @@ firing while you hold Space.
 | Cow Catapult | 1 | 2.0 | 180 | no | Lobs a cow in front of a rival. She lands softly; he does not. |
 | Cloak | 1 | 1.2 | 0 | no | Three seconds invisible and untouchable, but no firing. |
 | Overdrive | 1 | 1.2 | 0 | no | Three seconds of nearly double thrust. Walls have no sense of humour. |
+| Popcorn Cannon | 2 | 0.7 | 24 | no | Pops the cars just ahead of you into the air. |
+| Bubblegum Trap | 1 | 0.9 | 4 | no | Drops a pink bubble behind you. The first rival to burst it loses about half their speed. |
+
+Look for a gold parcel in every other crate row in Quick Race, Cup, Daily and Elimination
+with weapons enabled. Nitro Soda fills the tank and gives a short burst of overdrive.
+Bubble Shield protects you, and the Pit Fairy patches up to 45 points of damage.
+The parcel opens on contact, even with a weapon in hand.
+
+The **corner super turbo** is a narrow gold plate with a lightning bolt on the inside of
+a tight bend. Line up the nose before you touch it. It adds up to 54 km/h on contact and
+keeps pulling for just over a second under throttle. Your first hit each lap banks
+500 style points. The outside lane leaves room to pass it.
 
 Nothing in the game is gory. Animals fly, land and trot off. A car that is out of the race
 parks itself and disappears.
