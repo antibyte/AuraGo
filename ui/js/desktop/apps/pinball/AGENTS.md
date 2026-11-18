@@ -62,6 +62,8 @@ music, and a per-window Desktop game lifecycle.
   active physics worlds.
 - Table layouts pass `tables/validate.js` (unique ids, resolved references, at most 200 lamps and six
   flashers, clearance) and the reachability and soak tests. Layouts reference only `pinball.*` keys.
+- Leviathan's ship scoop ejects past the sonar bank into the lower playfield without immediate
+  recapture. Verify the release trajectory across seeded eject variation in `test-pinball-layout-leviathan.mjs`.
 - Keep every first-party file under `ui/js/desktop/apps/pinball/` at or below 700 lines (repo hard
   limit 1100 in `ui/desktop_js_line_budget_test.go`). Split by responsibility rather than trimming.
 - Cameras: `follow` (ball cam, default, `render/follow.js` is the pure target/zoom/spring maths), `play`,

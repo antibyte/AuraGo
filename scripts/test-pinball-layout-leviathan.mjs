@@ -90,6 +90,21 @@ test('Deep Grab: the magnet holds a ball and the throw toward the ship is captur
     }
 });
 
+test('the ship scoop ejects past the sonar bank without recapturing the ball', () => {
+    const scoop = dev('shipScoop');
+    for (const seed of [1, 2, 3, 17, 42]) {
+        const w = createWorld(layout, { seed });
+        w.placeBall(1, scoop.x, scoop.y, 0, 0);
+        assert.ok(has(play(w, STEP), 'hole', scoop.id));
+        w.command({ type: 'eject', id: scoop.id });
+        const events = play(w, 0.5);
+        assert.ok(has(events, 'eject', scoop.id), 'seed ' + seed + ': ball was ejected');
+        assert.ok(!has(events, 'hole', scoop.id), 'seed ' + seed + ': ball went back into the scoop');
+        const ball = w.ctx.balls.get(1);
+        assert.ok(ball?.mode === 'field' && ball.y < 0.55, 'seed ' + seed + ': ball reached the lower playfield');
+    }
+});
+
 test('tentacleRamp over the helix feeds the left inlane; currentRamp feeds the right inlane', () => {
     let w = fresh();
     w.placeBall(1, 0.128, 0.60, 0, 3.5);

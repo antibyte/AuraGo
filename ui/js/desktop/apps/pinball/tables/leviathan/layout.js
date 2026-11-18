@@ -40,13 +40,13 @@ function pearl() {
     };
 }
 
-// Sunken ship: a scoop with a backstop ring behind it, mouth facing down-left. A fast ball bounces off the ring back through the hole.
+// Sunken ship: the ring guides fast shots into the scoop. The eject angle clears the sonar bank below it.
 function ship() {
     const [sx, sy] = SHIP, ring = arcPoints(sx, sy, 0.030, -30, 120, 10);
     return {
         walls: [wall('shipRing', 'metal', ring, { height: 0.035 })],
         posts: [post('headBase', HEAD[0], HEAD[1], 0.035, 'plastic', 'none')],
-        devices: [{ id: 'shipScoop', type: 'hole', kind: 'scoop', x: sx, y: sy, r: 0.020, captureSpeed: 3.0, capacity: 1, eject: { angleDeg: 240, speed: 1.5 } }]
+        devices: [{ id: 'shipScoop', type: 'hole', kind: 'scoop', x: sx, y: sy, r: 0.020, captureSpeed: 3.0, capacity: 1, eject: { angleDeg: 254, speed: 1.5 } }]
     };
 }
 
