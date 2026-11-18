@@ -386,16 +386,16 @@ func TestBuildRetentionKeepsTheNewestBuilds(t *testing.T) {
 	ctx := context.Background()
 	p := env.createProject(t, "Retention")
 	var ids []string
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		b, err := env.svc.StartBuild(ctx, p.ID, BuildOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		waitBuild(t, env.svc, b.ID)
 		ids = append(ids, b.ID)
-		if i == 0 {
-			if _, err := env.svc.db.Exec(`INSERT INTO cc_devices(id,project_id,name,board,status,token_hash,target_build_id,created_at)
-				VALUES('ccd_1',?,'Device','esp32-2432s028r','active','x',?,'2026-10-10T08:00:00.000Z')`, p.ID, b.ID); err != nil {
+		if i == 1 {
+			if _, err := env.svc.db.Exec(`INSERT INTO cc_devices(id,project_id,name,board,status,token_hash,target_build_id,rollback_build_id,created_at)
+				VALUES('ccd_1',?,'Device','esp32-2432s028r','active','x',?,?,'2026-10-10T08:00:00.000Z')`, p.ID, b.ID, ids[0]); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -404,12 +404,23 @@ func TestBuildRetentionKeepsTheNewestBuilds(t *testing.T) {
 	for i, id := range ids {
 		_, err := env.svc.GetBuild(ctx, id)
 		_, statErr := os.Stat(filepath.Join(artifacts, id))
-		keep := i == 0 || i >= 2 // device target, then the two newest
+		keep := i < 2 || i >= 3 // device fallback and target, then the two newest
 		if keep && (err != nil || statErr != nil) {
 			t.Errorf("build %d (%s) should be kept: %v / %v", i, id, err, statErr)
 		}
 		if !keep && (ErrorCode(err) != CodeNotFound || !os.IsNotExist(statErr)) {
 			t.Errorf("build %d (%s) should be deleted: %v / %v", i, id, err, statErr)
+		}
+	}
+	if err := env.svc.RevokeDevice(ctx, "ccd_1"); err != nil {
+		t.Fatal(err)
+	}
+	env.svc.applyRetention(p.ID)
+	for _, id := range ids[:2] {
+		_, err := env.svc.GetBuild(ctx, id)
+		_, statErr := os.Stat(filepath.Join(artifacts, id))
+		if ErrorCode(err) != CodeNotFound || !os.IsNotExist(statErr) {
+			t.Errorf("revoked device still retains %s: %v / %v", id, err, statErr)
 		}
 	}
 }

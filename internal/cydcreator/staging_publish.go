@@ -227,15 +227,22 @@ func (s *Service) publishStage(ctx context.Context, row projectRow, stage, kind,
 		_ = os.Remove(receipt)
 		return 0, context.Cause(ctx)
 	}
-	if err := fileutil.Rename(target, backup); err != nil {
+	if err := fileutil.RenameContext(ctx, target, backup); err != nil {
 		_ = os.Remove(receipt)
+		if ctx.Err() != nil {
+			return 0, context.Cause(ctx)
+		}
 		return 0, swapError("move project aside", err)
 	}
 	rollback := func(cause error) (int64, error) {
+		var err error
 		if dirExists(target) {
-			_ = fileutil.Rename(target, stage)
+			err = fileutil.Rename(target, stage)
 		}
-		if err := fileutil.Rename(backup, target); err != nil {
+		if err == nil {
+			err = fileutil.Rename(backup, target)
+		}
+		if err != nil {
 			s.setPublicationFence(row.ID, r.ID)
 			s.logger.Error("CYD Creator project could not be put back; the receipt stays for recovery at the next start",
 				"receipt", r.ID, "project_id", row.ID, "error", err, "cause", cause)
@@ -394,6 +401,14 @@ func (s *Service) recoverReceipt(ctx context.Context, p string) (publishReceipt,
 				}
 			}
 			if err := fileutil.Rename(backup, target); err != nil {
+				return r, false, err
+			}
+		}
+		if err := errors.Join(syncDir(s.projectsDir), syncDir(s.stagingRoot())); err != nil {
+			return r, false, fmt.Errorf("sync recovered directories: %w", err)
+		}
+		if r.Kind == receiptPublish && r.ID == receiptPublish+"_"+r.Stage {
+			if err := s.recoverPublicationDraft(ctx, r); err != nil {
 				return r, false, err
 			}
 		}

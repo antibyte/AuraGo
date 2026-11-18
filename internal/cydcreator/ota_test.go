@@ -533,6 +533,112 @@ func TestDeviceFirmwareServesOnlyTheCurrentTarget(t *testing.T) {
 	}
 }
 
+func TestDeviceRollbackKeepsDownloadsBoundToAdminSelections(t *testing.T) {
+	for _, report := range []string{"heartbeat", "result"} {
+		t.Run(report, func(t *testing.T) {
+			env, _ := newDeviceEnv(t)
+			ctx := context.Background()
+			p := env.createProject(t, "Firmware")
+			usb := succeededBuild(t, env, p.ID)
+			minted, token := mintTestDevice(t, env, p.ID, usb.ID)
+			selected := succeededBuild(t, env, p.ID)
+			other := succeededBuild(t, env, p.ID)
+			if _, err := env.svc.UpdateDevice(ctx, minted.Device.ID, DeviceUpdate{TargetBuildID: &selected.ID}); err != nil {
+				t.Fatal(err)
+			}
+			beat := heartbeatFor(minted.Device, other.ID)
+			beat.OTAState = OTAStateRolledBack
+			resp, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), beat)
+			if err != nil || resp.Update == nil || resp.Update.BuildID != selected.ID {
+				t.Fatalf("unnamed rollback changed the selection: %+v, %v", resp.Update, err)
+			}
+			if report == "heartbeat" {
+				beat.OTAError = "rolled back from " + selected.ID
+				resp, err = env.svc.DeviceHeartbeat(ctx, deviceReq(token), beat)
+				if err != nil || resp.Update != nil {
+					t.Fatalf("update after a named rollback: %+v, %v", resp.Update, err)
+				}
+			} else if err := env.svc.DeviceOTAResult(ctx, deviceReq(token), OTAResult{BuildID: selected.ID, Error: OTAStateRolledBack}); err != nil {
+				t.Fatal(err)
+			}
+			d, err := env.svc.loadDeviceRow(ctx, minted.Device.ID)
+			if err != nil || d.TargetBuildID != "" || d.BuildID != other.ID || d.RollbackBuildID != usb.ID {
+				t.Fatalf("unexpected target %q, running %q, fallback %q, error %v", d.TargetBuildID, d.BuildID, d.RollbackBuildID, err)
+			}
+			if f, _, err := env.svc.DeviceFirmware(ctx, deviceReq(token), other.ID); f != nil || ErrorCode(err) != CodeNotFound {
+				if f != nil {
+					f.Close()
+				}
+				t.Fatalf("firmware without a device grant: %v", err)
+			}
+		})
+	}
+}
+
+func TestDeviceApprovedRollbackSurvivesRestartAndLateReports(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Upgrade")
+	usb := succeededBuild(t, env, p.ID)
+	minted, token := mintTestDevice(t, env, p.ID, usb.ID)
+	next := succeededBuild(t, env, p.ID)
+	last := succeededBuild(t, env, p.ID)
+	selectTarget := func(id string) {
+		t.Helper()
+		if _, err := env.svc.UpdateDevice(ctx, minted.Device.ID, DeviceUpdate{TargetBuildID: &id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	selectTarget(next.ID)
+	beat := heartbeatFor(minted.Device, next.ID)
+	if _, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), beat); err != nil {
+		t.Fatal(err)
+	}
+	selectTarget(last.ID)
+	_ = env.svc.Close()
+	env = reopenService(t, env)
+	beat.OTAState, beat.OTAError = OTAStateRolledBack, "rolled back from "+usb.ID
+	resp, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), beat)
+	if err != nil || resp.Update == nil || resp.Update.BuildID != last.ID {
+		t.Fatalf("stale heartbeat changed a later selection: %+v, %v", resp.Update, err)
+	}
+	if err := env.svc.DeviceOTAResult(ctx, deviceReq(token), OTAResult{BuildID: usb.ID, Error: OTAStateRolledBack}); err != nil {
+		t.Fatal(err)
+	}
+	d, err := env.svc.loadDeviceRow(ctx, minted.Device.ID)
+	if err != nil || d.TargetBuildID != last.ID {
+		t.Fatalf("late result changed target to %q: %v", d.TargetBuildID, err)
+	}
+	beat.OTAError = "rolled back from " + last.ID
+	if _, err := env.svc.DeviceHeartbeat(ctx, deviceReq(token), beat); err != nil {
+		t.Fatal(err)
+	}
+	d, err = env.svc.loadDeviceRow(ctx, minted.Device.ID)
+	if err != nil || d.TargetBuildID != next.ID {
+		t.Fatalf("approved rollback target=%q, error=%v", d.TargetBuildID, err)
+	}
+}
+
+func TestLegacyActiveDeviceEstablishesFallbackFromAdminSelection(t *testing.T) {
+	env, _ := newDeviceEnv(t)
+	ctx := context.Background()
+	p := env.createProject(t, "Existing device")
+	first := succeededBuild(t, env, p.ID)
+	minted, _ := mintTestDevice(t, env, p.ID, first.ID)
+	next := succeededBuild(t, env, p.ID)
+	// The value shared by the two v1 fields carries no fallback provenance.
+	if _, err := env.svc.db.Exec(`UPDATE cc_devices SET status='active', rollback_build_id='' WHERE id=?`, minted.Device.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.svc.UpdateDevice(ctx, minted.Device.ID, DeviceUpdate{TargetBuildID: &next.ID}); err != nil {
+		t.Fatal(err)
+	}
+	d, err := env.svc.loadDeviceRow(ctx, minted.Device.ID)
+	if err != nil || d.RollbackBuildID != next.ID {
+		t.Fatalf("first fallback after migration=%q, error=%v", d.RollbackBuildID, err)
+	}
+}
+
 func TestDeviceOTAResultMirrorsTheFirmwareReports(t *testing.T) {
 	env, _ := newDeviceEnv(t)
 	ctx := context.Background()

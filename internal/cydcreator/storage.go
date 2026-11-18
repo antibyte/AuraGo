@@ -14,9 +14,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	_ "modernc.org/sqlite"
 
 	"aurago/internal/dbutil"
+
+	_ "modernc.org/sqlite"
 )
 
 // timeLayout is the fixed-width RFC 3339 UTC form of every stored time, so
@@ -27,7 +28,15 @@ func formatTime(t time.Time) string { return t.UTC().Format(timeLayout) }
 
 // storeMigrations[i] migrates schema version i to i+1. Append new migrations;
 // never edit a released one. Version 0 is an empty database.
-var storeMigrations = []func(tx *sql.Tx) error{migrateStoreV1}
+var storeMigrations = []func(tx *sql.Tx) error{migrateStoreV1, migrateStoreV2}
+
+func migrateStoreV2(tx *sql.Tx) error {
+	// Only pending devices still carry the build ID from USB provisioning.
+	// Active devices' build IDs are telemetry, not a firmware grant.
+	_, err := tx.Exec(`ALTER TABLE cc_devices ADD COLUMN rollback_build_id TEXT NOT NULL DEFAULT '';
+		UPDATE cc_devices SET rollback_build_id=build_id WHERE status='pending'`)
+	return err
+}
 
 // openStore opens (and creates) the CYD Creator database, migrates it and
 // returns the handle. dbutil applies WAL, foreign keys and a busy timeout.

@@ -56,7 +56,7 @@ func TestStoreCreatesTheOverviewSchema(t *testing.T) {
 		"cc_revisions":      {"id", "project_id", "label", "reason", "job_id", "build_id", "layout_sha256", "created_at"},
 		"cc_revision_files": {"revision_id", "path", "sha256", "size"},
 		"cc_devices": {"id", "project_id", "name", "board", "status", "token_hash", "build_id", "target_build_id", "ip", "rssi",
-			"free_heap", "template_version", "ota_state", "last_error", "last_seen", "created_at", "expires_at"},
+			"free_heap", "template_version", "ota_state", "last_error", "last_seen", "created_at", "expires_at", "rollback_build_id"},
 	}
 	for table, cols := range want {
 		if got := tableColumns(t, db, table); !slices.Equal(got, cols) {
@@ -70,8 +70,8 @@ func TestStoreCreatesTheOverviewSchema(t *testing.T) {
 			t.Errorf("index %s missing: %v", index, err)
 		}
 	}
-	if v, err := storeSchemaVersion(db); err != nil || v != 1 {
-		t.Fatalf("schema version = %d, %v; want 1", v, err)
+	if v, err := storeSchemaVersion(db); err != nil || v != 2 {
+		t.Fatalf("schema version = %d, %v; want 2", v, err)
 	}
 	var mode string
 	if err := db.QueryRow(`PRAGMA journal_mode`).Scan(&mode); err != nil || mode != "wal" {
@@ -94,7 +94,7 @@ func TestStoreReopenKeepsDataAndVersion(t *testing.T) {
 	if err := again.QueryRow(`SELECT value FROM cc_meta WHERE key='probe'`).Scan(&probe); err != nil || probe != "1" {
 		t.Fatalf("probe = %q, %v", probe, err)
 	}
-	if v, _ := storeSchemaVersion(again); v != 1 {
+	if v, _ := storeSchemaVersion(again); v != 2 {
 		t.Fatalf("version after reopen = %d", v)
 	}
 }
@@ -112,14 +112,18 @@ func TestStoreRefusesANewerSchema(t *testing.T) {
 }
 
 func TestStoreMigrationBacksUpAnExistingDatabase(t *testing.T) {
-	db, path := openTestStore(t)
-	_ = db.Close()
 	saved := storeMigrations
 	t.Cleanup(func() { storeMigrations = saved })
-	storeMigrations = append(append([]func(*sql.Tx) error(nil), saved...), func(tx *sql.Tx) error {
-		_, err := tx.Exec(`CREATE TABLE cc_probe_v2 (id TEXT)`)
-		return err
-	})
+	storeMigrations = saved[:1]
+	db, path := openTestStore(t)
+	storeMigrations = saved
+	for _, status := range []string{DevicePending, DeviceActive} {
+		if _, err := db.Exec(`INSERT INTO cc_devices(id,project_id,name,board,status,token_hash,build_id,target_build_id,created_at)
+			VALUES(?, 'project', 'board', 'cyd', ?, ?, 'running', 'selected', '')`, status, status, status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = db.Close()
 	again, err := openStore(path)
 	if err != nil {
 		t.Fatalf("migrate to v2: %v", err)
@@ -130,6 +134,13 @@ func TestStoreMigrationBacksUpAnExistingDatabase(t *testing.T) {
 	}
 	if _, err := os.Stat(path + ".v1.bak"); err != nil {
 		t.Fatalf("backup before migration missing: %v", err)
+	}
+	for status, want := range map[string]string{DevicePending: "running", DeviceActive: ""} {
+		var target, fallback string
+		if err := again.QueryRow(`SELECT target_build_id,rollback_build_id FROM cc_devices WHERE id=?`, status).
+			Scan(&target, &fallback); err != nil || target != "selected" || fallback != want {
+			t.Fatalf("%s target=%q fallback=%q, error=%v", status, target, fallback, err)
+		}
 	}
 }
 

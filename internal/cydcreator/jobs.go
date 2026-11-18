@@ -319,32 +319,35 @@ const jobSaveRetryDelay = 100 * time.Millisecond
 // error is logged and returned (CYD_JOB_NOT_FOUND when the row is gone);
 // callers that cannot act on it may ignore it.
 func (s *Service) saveJob(j Job) error {
-	var res sql.Result
-	var err error
-	for attempt := 0; attempt < 2; attempt++ {
-		if attempt > 0 {
-			time.Sleep(jobSaveRetryDelay)
-		}
-		res, err = s.db.Exec(`UPDATE cc_jobs SET status=?, phase=?, prompt=?, plan=?, repair_attempt=?, error_code=?, error_message=?,
-			error_reason=?, build_id=?, started_at=?, finished_at=? WHERE id=?`, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt,
-			j.ErrorCode, j.ErrorMessage, j.ErrorReason, j.BuildID, j.StartedAt, j.FinishedAt, j.ID)
-		if err == nil {
-			break
-		}
-	}
-	var n int64
-	if err == nil {
-		n, err = res.RowsAffected()
+	err := writeJob(s.db, j)
+	if err != nil && ErrorCode(err) != CodeJobNotFound {
+		time.Sleep(jobSaveRetryDelay)
+		err = writeJob(s.db, j)
 	}
 	if err != nil {
 		s.logger.Warn("CYD Creator job state could not be stored", "job_id", j.ID, "status", j.Status, "error", err)
-		return fmt.Errorf("store cyd creator job state: %w", err)
-	}
-	if n == 0 {
-		s.logger.Warn("CYD Creator job state was not stored: the job no longer exists", "job_id", j.ID, "status", j.Status)
-		return NewError(CodeJobNotFound, "job not found", map[string]any{"job_id": j.ID})
+		return err
 	}
 	s.Emit(j.ProjectID, EventJobStatus, j.ID, "", map[string]any{"job": j})
+	return nil
+}
+
+type jobWriter interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
+func writeJob(db jobWriter, j Job) error {
+	res, err := db.Exec(`UPDATE cc_jobs SET status=?, phase=?, prompt=?, plan=?, repair_attempt=?, error_code=?, error_message=?,
+		error_reason=?, build_id=?, started_at=?, finished_at=? WHERE id=?`, j.Status, j.Phase, j.Prompt, planJSON(j.Plan), j.RepairAttempt,
+		j.ErrorCode, j.ErrorMessage, j.ErrorReason, j.BuildID, j.StartedAt, j.FinishedAt, j.ID)
+	if err != nil {
+		return fmt.Errorf("store cyd creator job state: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n != 1 {
+		return NewError(CodeJobNotFound, "job not found", map[string]any{"job_id": j.ID})
+	}
 	return nil
 }
 
@@ -378,14 +381,8 @@ func (s *Service) ListJobs(ctx context.Context, projectID string) ([]Job, error)
 	return out, s.internalError("list jobs", rows.Err())
 }
 
-// setProjectLock sets or clears cc_projects.locked_by_job under the project
-// mutex (so no user write is half done) and emits lock_changed while still
-// holding it (lock order project lock → eventsMu), so lock events of one
-// project are stored in the order the lock changed. An unknown project is
-// *Error CYD_NOT_FOUND and emits nothing.
-func (s *Service) setProjectLock(ctx context.Context, projectID, jobID string) error {
-	unlock := s.lockProject(projectID)
-	defer unlock()
+// The caller holds the project mutex through the lock change and its event.
+func (s *Service) setProjectLockLocked(ctx context.Context, projectID, jobID string) error {
 	res, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET locked_by_job=? WHERE id=?`, jobID, projectID)
 	if err != nil {
 		return fmt.Errorf("set cyd creator project lock: %w", err)

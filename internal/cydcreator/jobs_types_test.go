@@ -244,6 +244,12 @@ func TestSaveJobEmitsOnlyStoredStates(t *testing.T) {
 	}
 }
 
+func (s *Service) setProjectLock(ctx context.Context, projectID, jobID string) error {
+	unlock := s.lockProject(projectID)
+	defer unlock()
+	return s.setProjectLockLocked(ctx, projectID, jobID)
+}
+
 func TestSetProjectLockOnUnknownProject(t *testing.T) {
 	env, _ := newProjectEnv(t)
 	if err := env.svc.setProjectLock(context.Background(), "ccp_missing", "ccj_1"); ErrorCode(err) != CodeNotFound {

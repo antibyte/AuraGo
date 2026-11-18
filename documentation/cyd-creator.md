@@ -173,8 +173,8 @@ output: fine for a single-owner install, no boundary between users.
 - A succeeded build keeps `merged.bin` (complete image for 0x0), `firmware.bin` (app slot, used by OTA and by the
   "Keep settings" flash), `firmware.elf` (only for backtrace decoding), `result.json`, `build.log` and the converted
   fonts (for the ZIP export) in `<data_dir>/cyd_creator/artifacts/<build id>/`. The full log is capped at 2 MiB.
-- Retention after every finished build: the project's last build, the newest `keep_builds_per_project` − 1 other
-  finished builds, the newest succeeded build and every build a device runs or is due to get.
+- After each build, AuraGo keeps the project's last build, the newest `keep_builds_per_project` − 1 other
+  finished builds, the newest successful build and each device's running, target and approved rollback builds.
 - Typical size on the classic CYD: 70–82 % of its 1.875 MiB app slot (template plus a full layout).
 
 ## Boards
@@ -265,10 +265,14 @@ absolute URL below its own base). The device checks size and SHA-256 before it s
 Rollback: a boot counter in RTC memory counts crash resets (panic and watchdogs) and is cleared on power-on, after
 the first successful heartbeat or after 120 s of uptime. After three unstable boots the device returns to the other
 slot, but only to the image it was running before an OTA update, never to a stale build left there by a USB flash.
-The device then reports `rolled_back` with "rolled back from <build id>", and the server resets the target to the
-running build so the failed build is not offered again. Picking that same build again during the same boot is reset
-too: it takes a board restart or a new build to retry (the Devices dialog says so). A failed download or check is
-retried by the firmware after 10 minutes.
+The device reports `rolled_back` with the failed build ID. If it matches the selected target, AuraGo withdraws that
+update. A board running its previously approved fallback keeps that build as its target. Otherwise downloads pause
+until you choose a build for this device. A report without a failed build ID leaves your selection in place.
+If you select the failed build again during that boot, the board reports the same rollback. To retry, restart
+the board or select a new build. The firmware retries a failed download or check after 10 minutes.
+
+Upgrading from schema version 1 keeps existing targets. For a device that was already active, selecting a build
+in the Devices dialog records its first approved fallback.
 
 ## Device URL and certificate pin
 

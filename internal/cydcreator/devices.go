@@ -104,16 +104,17 @@ type DeviceUpdate struct {
 
 type deviceRow struct {
 	Device
-	TokenHash string
-	ExpiresAt string
+	TokenHash       string
+	ExpiresAt       string
+	RollbackBuildID string
 }
 
-const deviceColumns = `id,project_id,name,board,status,token_hash,build_id,target_build_id,ip,rssi,free_heap,template_version,ota_state,last_error,last_seen,created_at,expires_at`
+const deviceColumns = `id,project_id,name,board,status,token_hash,build_id,target_build_id,ip,rssi,free_heap,template_version,ota_state,last_error,last_seen,created_at,expires_at,rollback_build_id`
 
 func scanDevice(row rowScanner) (deviceRow, error) {
 	var d deviceRow
 	err := row.Scan(&d.ID, &d.ProjectID, &d.Name, &d.Board, &d.Status, &d.TokenHash, &d.BuildID, &d.TargetBuildID,
-		&d.IP, &d.RSSI, &d.FreeHeap, &d.TemplateVersion, &d.OTAState, &d.LastError, &d.LastSeen, &d.CreatedAt, &d.ExpiresAt)
+		&d.IP, &d.RSSI, &d.FreeHeap, &d.TemplateVersion, &d.OTAState, &d.LastError, &d.LastSeen, &d.CreatedAt, &d.ExpiresAt, &d.RollbackBuildID)
 	return d, err
 }
 
@@ -268,12 +269,11 @@ func (s *Service) removeExpiredDevice(ctx context.Context, d deviceRow, now time
 	return true, nil
 }
 
-// saveDeviceSettings stores the user-editable fields of d (name, target,
-// last_error). A row that no longer exists is CYD_DEVICE_NOT_FOUND, so the
-// caller emits nothing (no "pending" event after the "revoked" one).
+// saveDeviceSettings stores the admin's changes with the rollback grant and
+// last error. A revoked device returns CYD_DEVICE_NOT_FOUND before any event.
 func (s *Service) saveDeviceSettings(ctx context.Context, d deviceRow) error {
-	res, err := s.db.ExecContext(ctx, `UPDATE cc_devices SET name=?, target_build_id=?, last_error=? WHERE id=?`,
-		d.Name, d.TargetBuildID, d.LastError, d.ID)
+	res, err := s.db.ExecContext(ctx, `UPDATE cc_devices SET name=?, target_build_id=?, last_error=?, rollback_build_id=? WHERE id=?`,
+		d.Name, d.TargetBuildID, d.LastError, d.RollbackBuildID, d.ID)
 	if err != nil {
 		return fmt.Errorf("update cyd creator device: %w", err)
 	}
@@ -398,16 +398,16 @@ func (s *Service) MintDevice(ctx context.Context, projectID string, in MintDevic
 	d := deviceRow{
 		Device: Device{ID: s.ids.NewID("ccd"), ProjectID: projectID, Name: name, Board: board.ID, Status: DevicePending,
 			BuildID: build.ID, TargetBuildID: build.ID, CreatedAt: formatTime(now)},
-		TokenHash: hash,
+		TokenHash: hash, RollbackBuildID: build.ID,
 		ExpiresAt: formatTime(now.Add(DevicePendingTTL)),
 	}
 	blob, err := EncodeDeviceConfig(DeviceConfig{URL: endpoint.URL, DeviceID: d.ID, Token: token, CertSHA256: endpoint.CertSHA256})
 	if err != nil {
 		return MintedDevice{}, err
 	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO cc_devices(id,project_id,name,board,status,token_hash,build_id,target_build_id,created_at,expires_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?)`, d.ID, d.ProjectID, d.Name, d.Board, d.Status, d.TokenHash, d.BuildID, d.TargetBuildID,
-		d.CreatedAt, d.ExpiresAt); err != nil {
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO cc_devices(id,project_id,name,board,status,token_hash,build_id,target_build_id,created_at,expires_at,rollback_build_id)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?)`, d.ID, d.ProjectID, d.Name, d.Board, d.Status, d.TokenHash, d.BuildID, d.TargetBuildID,
+		d.CreatedAt, d.ExpiresAt, d.RollbackBuildID); err != nil {
 		return MintedDevice{}, s.internalError("mint device", err)
 	}
 	return MintedDevice{Device: s.emitDevice(d, now), ConfigBlob: blob, ConfigOffset: offset}, nil
@@ -499,6 +499,13 @@ func (s *Service) UpdateDevice(ctx context.Context, deviceID string, in DeviceUp
 		if build.Board != d.Board {
 			return Device{}, NewError(CodeBadRequest, "the build is for another board",
 				map[string]any{"build_id": build.ID, "board": build.Board, "device_board": d.Board})
+		}
+		// Active v1 rows have no recorded fallback. Only this explicit
+		// selection can establish their first grant under the new policy.
+		if d.RollbackBuildID == "" || build.ID == d.BuildID {
+			d.RollbackBuildID = build.ID
+		} else if d.TargetBuildID != build.ID && d.TargetBuildID == d.BuildID {
+			d.RollbackBuildID = d.TargetBuildID
 		}
 		if d.TargetBuildID != build.ID {
 			d.TargetBuildID = build.ID

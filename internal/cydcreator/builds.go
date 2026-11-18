@@ -544,7 +544,7 @@ func (s *Service) finishBuild(b Build) {
 
 // applyRetention keeps the newest KeepBuildsPerProject finished builds of a
 // project and deletes older rows and artefacts, except builds a device still
-// runs or targets, the project's last_build and its newest succeeded build
+// runs, targets or may roll back to, the project's last_build and its newest succeeded build
 // (so failed builds never prune the only good firmware that exports and OTA
 // use). It also drops events of deleted projects: an Emit that raced
 // DeleteProject can store one after the delete committed (the statement
@@ -554,11 +554,15 @@ func (s *Service) applyRetention(projectID string) {
 		s.logger.Warn("CYD Creator orphaned events could not be dropped", "error", err)
 	}
 	keep := s.Limits().KeepBuildsPerProject
+	// Device grants are validated and saved under the same project lock.
+	unlock := s.lockProject(projectID)
+	defer unlock()
 	rows, err := s.db.Query(`SELECT b.id FROM cc_builds b WHERE b.project_id=? AND b.status NOT IN ('queued','running')
-		AND b.id NOT IN (SELECT build_id FROM cc_devices WHERE project_id=? UNION SELECT target_build_id FROM cc_devices WHERE project_id=?)
+		AND NOT EXISTS (SELECT 1 FROM cc_devices d WHERE d.project_id=b.project_id
+			AND b.id IN (d.build_id, d.target_build_id, d.rollback_build_id))
 		AND b.id <> (SELECT last_build FROM cc_projects WHERE id=?)
 		AND b.id <> COALESCE((SELECT id FROM cc_builds WHERE project_id=? AND status=? ORDER BY created_at DESC, id DESC LIMIT 1), '')
-		ORDER BY b.created_at DESC, b.id DESC`, projectID, projectID, projectID, projectID, projectID, BuildSucceeded)
+		ORDER BY b.created_at DESC, b.id DESC`, projectID, projectID, projectID, BuildSucceeded)
 	if err != nil {
 		s.logger.Warn("CYD Creator build retention failed", "project_id", projectID, "error", err)
 		return

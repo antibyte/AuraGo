@@ -32,7 +32,7 @@ OTA updates and the ZIP export and import.
   `include/board_config.h`, `platformio.ini` and `src/generated/*` (`partitions.csv` comes from `PartitionCSV` in
   `partitions.go`). `testdata/golden/<case>/` holds generator inputs (`cyd.project.json`) with their expected
   output. `generate_builder_it_test.go` is the opt-in compile proof (Docker and the builder image).
-- Plan 2: `storage.go` (SQLite schema v1 with every table, migrations, startup recovery), `builder.go` (the
+- Plan 2: `storage.go` (SQLite schema, migrations, startup recovery), `builder.go` (the
   `Builder` interface and build record types), `service.go` (lifecycle, limits, locking rule, default service),
   `service_projects.go`, `service_layout.go`, `service_generate.go`, `service_capabilities.go`, `files_root.go`,
   `files.go`, `assets.go`, `events.go`, `builds.go`, `builds_log.go`. The server owns the wiring, the Docker adapter
@@ -428,14 +428,15 @@ OTA updates and the ZIP export and import.
 
 - One SQLite database (`sqlite.cyd_creator_path`, default `./data/cyd_creator.db`, listed in
   `config.SQLiteDatabasePaths`; `dbutil.Open`: WAL, foreign keys, busy timeout) with the overview schema: nine `cc_*`
-  tables, `cc_meta.schema_version` 1 and seven indexes, one of them `UNIQUE cc_devices_token(token_hash)` (device
+  tables, `cc_meta.schema_version` 2 and seven indexes, one of them `UNIQUE cc_devices_token(token_hash)` (device
   fixtures need distinct non-empty hashes); `cc_projects.publish_receipt` (plan 3, added before v1 was released) is the
   receipt id of the last committed directory swap; `cc_jobs.error_reason` (plan 4a review, also added to the unreleased
   v1) keeps a failed job's `details.reason`; `cc_messages.code` and `vars` (plan 4a review, also in the unreleased v1)
   keep a system line's translation code and its vars as JSON (`''` for none). Migrations append to `storeMigrations` (never edit a released step; each
   step commits with its version); an existing database is first copied with `VACUUM INTO <db>.v<N>.bak`, and a schema
   newer than the code refuses the start. Times are fixed-width RFC 3339 UTC (`timeLayout`), so SQL order is
-  chronological.
+  chronological. Version 2 adds the private per-device `rollback_build_id`. The migration retains existing targets
+  and seeds the fallback only for pending USB-provisioned devices. Active v1 devices start with no recorded fallback.
 - Startup (`NewService`): one transaction (`recoverStore`) turns queued/running builds into `interrupted`
   (`CYD_BUILD_INTERRUPTED`, a `build_status` event each) and queued/running jobs into `interrupted` and releases
   locks of jobs that are no longer active (only `awaiting_confirmation` stays). Then,
@@ -549,7 +550,7 @@ OTA updates and the ZIP export and import.
   `fonts/`; `BuildFonts` reads them for the ZIP export (plan 5).
 - Retention after every finished build keeps `last_build`, the newest `keep_builds_per_project` − 1 other finished
   builds, the newest succeeded build (failed builds never prune the only good firmware) and every build a device
-  runs or targets. An artefact directory whose removal failed is swept at the next start.
+  runs, targets or has as its approved rollback build. An artefact directory whose removal failed is swept at the next start.
 - `PullToolchain` runs one pull in the background on the service context (`Close` waits for it; a second call while
   it runs is a no-op, `CYD_BUSY` during shutdown); `Toolchain`/`Capabilities` show the progress. `Capabilities`
   always says enabled and writable (the HTTP layer overlays both); `active_job` reads `cc_jobs` rows with status
@@ -559,13 +560,11 @@ OTA updates and the ZIP export and import.
 
 - Slot and lock: one job at a time holds the global agent slot (a `cc_jobs` row with status `queued`, `running` or
   `awaiting_confirmation`, which `activeJob` reads, plus `jobs.active` in memory) and its project's lock.
-  `setProjectLock` writes `locked_by_job` and emits `lock_changed` under the project mutex (an unknown project is
-  `CYD_NOT_FOUND` without an event; callers serialize through `jobs.mu`); the releases in `abortStart`, `finishJob`
-  and the publication emit under the project mutex too, so lock events keep the order of the lock changes.
+  `StartJob` holds `jobs.mu`, then the project mutex, continuously from the fresh project and fence checks through
+  the resume fingerprint comparison and the persistent lock change. Lock events are emitted under the project mutex.
   `StartJob` is `CYD_DISABLED` without a runner and `CYD_BUSY` during shutdown, while another job is active
   (`details.job_id`, `project_id`), while the slot cannot be read (an `activeJob` error never opens a second slot;
-  `Capabilities` then shows none), while the project is locked, and while it is fenced (`publication_review`,
-  checked again after the lock is set).
+  `Capabilities` then shows none), while the project is locked, and while it is fenced (`publication_review`).
 - Requests: prompts and chat messages are at most 8000 runes of UTF-8 without NUL; attachments are kind `log` only,
   at most 4 and 16 KiB together, and reach the agent as untrusted data. An empty prompt is allowed for a resume,
   `generate_code` and log attachments (fixed English prompts).
@@ -615,9 +614,10 @@ OTA updates and the ZIP export and import.
   stopped: <reason>" (scrubbed with `ServiceConfig.Scrub`, at most 300 runes), anything else → `CYD_INTERNAL` with
   a generic text (the cause can name host paths; logged).
 - Job rows: `saveJob` emits `job_status` only for a stored state (one retry; it returns the error, a missing row is
-  `CYD_JOB_NOT_FOUND`). Failed, cancelled and interrupted endings (`finishJob`, `abortStart`) go through
-  `saveTerminalJob` (further tries after 0.2, 0.5 and 1 s), because a lost terminal write keeps the slot taken until
-  a cancel or restart; `succeeded` is written inside the publication's commit transaction.
+  `CYD_JOB_NOT_FOUND`). `finishJob` commits the terminal row, draft pointer and lock release together, including
+  preparation failures. A transient read, write or commit failure retries the whole ending after 0.2, 0.5 and 1 s.
+  Working-copy cleanup and notifications follow the commit. A pending swap keeps its copies and private context for
+  receipt recovery. Successful publication stores `succeeded` in its swap transaction.
 - `CancelJob` answers `CYD_JOB_STATE` for a stored terminal status first (also while the finishing run still holds
   the slot); it cancels a running job together with its running build and finishes a job awaiting confirmation at
   once (under `jobs.mu`, so a concurrent `ConfirmJob` cannot start it).
@@ -712,8 +712,8 @@ OTA updates and the ZIP export and import.
   `new_version`); the commit stores the receipt id in `cc_projects.publish_receipt`. While a swap of a project is
   unresolved the project is fenced in memory: every write, `StartJob` and `ConfirmJob` refuse with `CYD_BUSY`
   (`details.reason` `publication_review`) and `ProjectSummary.publish_review` is true, until a start resolves it.
-- `publishStage` checks the caller context immediately before the first rename and removes the unused receipt
-  when cancelled. Once the swap starts, its transaction, callbacks and rollback finish without cancellation;
+- `publishStage` observes cancellation through every Windows sharing retry of the first rename and removes the unused
+  receipt when cancelled. Once that rename succeeds, its transaction, callbacks and rollback finish without cancellation;
   post-commit revisions and events do too. Verify `TestPublishStageCancellationBoundary`,
   `TestPublicationDoesNotOverwriteAnAcceptedCancel`, `TestPublicationWinsBeforeWaitingForTheProjectLock`,
   `TestPublicationTimeoutBeforeTheSwapKeepsTheStage` and `TestPublicationShutdownBeforeTheSwapKeepsTheStage`.
@@ -724,7 +724,9 @@ OTA updates and the ZIP export and import.
     crash cut short gets its `job` revision, its private conversations cleared and its events, but only while the
     project is still at the receipt's `new_version`; a later state is only logged), uncommitted ones
     roll back while the version is still `previous_version`; anything else stays, is logged and fences its project.
-    An unreadable folder, more than 1000 entries or a receipt naming no project fences every project.
+    Before removing a rolled-back job receipt, recovery records the changed stage of its owning job as a draft,
+    including a job already marked failed. A failed draft write preserves the receipt and both copies for the next start.
+    Discarded or superseded jobs stay discarded. An unreadable folder, more than 1000 entries or a receipt naming no project fences every project.
   - An interrupted job's working copy becomes the draft only when the job got past its preparation (phase not
     `queued` and a `before_job` revision exists) and the copy differs from the project; the older draft is removed
     only after the new one is recorded. A step that fails keeps the copy and fences the project (`recover_<job>`);
@@ -778,9 +780,11 @@ OTA updates and the ZIP export and import.
   the device was offline or its status, builds, target, OTA state, last_error or name changed; a new IP or template
   version at most once per interval. They mirror the firmware (`applyHeartbeat`): a rollback is judged by the
   failed build named in `ota_error` "rolled back from <id>" (template `link_begin`), not by the stored state. While
-  the target is that build the target is reset to the running build and `last_error` becomes `rolled_back[: …]`,
-  also for a second rollback within the same boot; re-picking the failed build during that boot is reset again
-  (retry after a restart or with a new build). Without an id only entering `rolled_back` counts. Entering `failed`
+  the target is that build the server withdraws it and records `rolled_back[: …]`. The reported running build can
+  become the target only if it matches this device's recorded rollback build. USB provisioning sets that fallback;
+  an admin target selection can record a running build already selected for this device. Otherwise the download target
+  stays empty until the admin chooses one. A rollback without a failed ID changes diagnostics only. Re-picking the failed
+  build during the same boot withdraws it again (retry after a restart or with a new build). Entering `failed`
   stores `failed[: …]` and keeps the target (the firmware retries after 10 minutes); reporting the target after
   running another build clears `last_error` (health confirmation). The answer carries `interval_s` and, while the
   target differs from the running build, `update` {build_id, size, sha256, url}; `url` is the path
@@ -791,7 +795,7 @@ OTA updates and the ZIP export and import.
   has its build record's size and fits one app slot (`AppSlotSize`); the reader is cut to that size (a mismatch is
   `CYD_INTERNAL`, logged).
 - `DeviceOTAResult`: `build_id` is the target, the running build or another build of the project; `ok` clears
-  `last_error`, `error: "rolled_back"` resets a target that is the failed build and stores `rolled_back`, any other
+  `last_error`, `error: "rolled_back"` uses the same target and fallback checks as the heartbeat, any other
   error stores `failed: <reason>` and keeps the target.
 - `ExportProject` zips the current version below `<slug>/`. `snapshotExport` reads the project under its mutex
   and refuses a fenced one (`CYD_BUSY` `publication_review`); fonts are read and the archive is compressed after
@@ -865,6 +869,11 @@ OTA updates and the ZIP export and import.
   fails until they match.
 
 ## Verification
+
+- Resume, job completion, publication recovery and Windows cancellation: `TestResumeWaitsForAConcurrentSourceSave`,
+  `TestJobCompletionRetriesTheWholeTransaction`, `TestRestartKeepsTheWorkingCopyOfAFailedPublication`,
+  `TestPublishStageWindowsCancelDuringFirstRename`. Device grants and upgrades: `TestDeviceRollbackKeepsDownloadsBoundToAdminSelections`,
+  `TestDeviceApprovedRollbackSurvivesRestartAndLateReports`, `TestStoreMigrationBacksUpAnExistingDatabase`.
 
 - `go test ./internal/cydcreator/...`
 - `go vet ./internal/cydcreator/...`

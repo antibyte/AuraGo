@@ -82,6 +82,9 @@ func (s *Service) recoverJobs(ctx context.Context, interrupted []string) {
 		for rows.Next() {
 			var projectID, draft string
 			if rows.Scan(&projectID, &draft) == nil {
+				if s.publicationFence(projectID) != "" {
+					continue
+				}
 				// Only a working copy that is certainly gone clears the draft.
 				info, err := os.Stat(s.stagingPath(draft))
 				if errors.Is(err, fs.ErrNotExist) || (err == nil && !info.IsDir()) {
@@ -126,7 +129,10 @@ func (s *Service) settleInterruptedJob(ctx context.Context, id string, announce 
 		}
 		return
 	}
-	keep, err := s.interruptedWork(ctx, row, job)
+	var keep bool
+	if !keepStage[id] {
+		keep, err = s.interruptedWork(ctx, row, job)
+	}
 	if err != nil {
 		keepStage[job.ID] = true
 		s.fenceForRecovery(job, err)
@@ -136,16 +142,12 @@ func (s *Service) settleInterruptedJob(ctx context.Context, id string, announce 
 	case keep:
 		// Record the new draft before the older one is removed, so a failed
 		// write loses neither.
-		if _, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET draft_job=? WHERE id=?`, job.ID, row.ID); err != nil {
+		if err := s.recordRecoveredDraft(ctx, row, job.ID); err != nil {
 			keepStage[job.ID] = true
 			s.fenceForRecovery(job, err)
 			break
 		}
 		draft = true
-		if row.DraftJob != "" && row.DraftJob != job.ID {
-			s.removeStaging(row.DraftJob)
-			_, _ = s.db.ExecContext(ctx, `DELETE FROM cc_agent_context WHERE job_id=?`, row.DraftJob)
-		}
 	case s.publicationFence(row.ID) == "":
 		// No draft: the working copy goes with the sweep, and so does the
 		// private conversation (finishJob does the same). A fenced project
@@ -170,6 +172,49 @@ func (s *Service) settleInterruptedJob(ctx context.Context, id string, announce 
 	s.postSystemMessage(job.ProjectID, job.ID, code, nil)
 }
 
+// A rolled-back job can already be terminal. Bind its recovered stage before
+// removing the receipt, including when an earlier recovery moved the files.
+func (s *Service) recoverPublicationDraft(ctx context.Context, r publishReceipt) error {
+	job, err := scanJob(s.db.QueryRowContext(ctx, `SELECT `+jobColumns+` FROM cc_jobs
+		WHERE id=? AND project_id=? AND staging_dir=? AND status IN ('failed','cancelled','interrupted')
+		AND rowid=(SELECT MAX(rowid) FROM cc_jobs WHERE project_id=?)`, r.Stage, r.ProjectID, stagingRel(r.Stage), r.ProjectID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil // no owning job, or the operator already discarded or superseded it
+	}
+	if err != nil {
+		return err
+	}
+	row, err := s.loadProjectRow(ctx, r.ProjectID)
+	if err != nil {
+		return err
+	}
+	keep, err := s.interruptedWork(ctx, row, job)
+	if err != nil || !keep {
+		return err
+	}
+	return s.recordRecoveredDraft(ctx, row, job.ID)
+}
+
+func (s *Service) recordRecoveredDraft(ctx context.Context, row projectRow, id string) error {
+	if row.DraftJob == id {
+		return nil
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE cc_projects SET draft_job=? WHERE id=?`, id, row.ID)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n != 1 {
+		return errors.New("the recovered draft could not be recorded")
+	}
+	if row.DraftJob != "" {
+		s.removeStaging(row.DraftJob)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM cc_agent_context WHERE job_id=?`, row.DraftJob)
+	}
+	return nil
+}
+
 // interruptedWork reports whether the working copy of an interrupted job is
 // worth a draft: the job got past its preparation (not in phase queued, and
 // its "before_job" revision exists, which a resume needs) and the working
@@ -178,11 +223,21 @@ func (s *Service) settleInterruptedJob(ctx context.Context, id string, announce 
 // resumes, so the older draft stays.
 func (s *Service) interruptedWork(ctx context.Context, row projectRow, job Job) (bool, error) {
 	stage := s.stagingPath(job.ID)
-	if job.Phase == PhaseQueued || !dirExists(stage) {
+	if job.Phase == PhaseQueued {
 		return false, nil
 	}
+	info, err := os.Stat(stage)
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !info.IsDir() {
+		return false, errors.New("the job working copy is not a directory")
+	}
 	var one int
-	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM cc_revisions WHERE job_id=? AND reason=? LIMIT 1`, job.ID, RevisionBeforeJob).Scan(&one)
+	err = s.db.QueryRowContext(ctx, `SELECT 1 FROM cc_revisions WHERE job_id=? AND reason=? LIMIT 1`, job.ID, RevisionBeforeJob).Scan(&one)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -77,8 +78,10 @@ func (s *Service) StartJob(ctx context.Context, projectID string, in StartJobInp
 		}
 		return Job{}, NewError(CodeBusy, "another agent job is active", details)
 	}
-	// A fresh row: the lock and the publication fence may have changed since
-	// the validation above. setProjectLock has no fence check of its own.
+	// File writes do not bump the layout version. Keep the project stable
+	// from the draft comparison until the persistent job lock is in place.
+	unlock := sync.OnceFunc(s.lockProject(projectID))
+	defer unlock()
 	if row, err = s.loadProjectRow(ctx, projectID); err != nil {
 		return Job{}, s.internalError("start job", err)
 	}
@@ -109,17 +112,11 @@ func (s *Service) StartJob(ctx context.Context, projectID string, in StartJobInp
 	if err := s.insertJob(ctx, job); err != nil {
 		return Job{}, s.internalError("start job", err)
 	}
-	// setProjectLock calls are serialized by jobs.mu (held here).
-	if err := s.setProjectLock(ctx, projectID, job.ID); err != nil {
+	err = s.setProjectLockLocked(ctx, projectID, job.ID)
+	unlock()
+	if err != nil {
 		s.abortStart(job, err)
 		return Job{}, s.internalError("start job", err)
-	}
-	// setProjectLock waited for every write that held the project mutex (a
-	// restore whose put-back failed sets the fence), and the job lock now
-	// refuses new ones: a fence seen here is final.
-	if s.publicationFence(projectID) != "" {
-		s.abortStart(job, errors.New("the project is fenced by an unresolved publication"))
-		return Job{}, publicationReviewError()
 	}
 	stage := s.stagingPath(job.ID)
 	if err := s.checkStagingRoot(); err != nil {
@@ -129,7 +126,6 @@ func (s *Service) StartJob(ctx context.Context, projectID string, in StartJobInp
 	_ = os.RemoveAll(stage)
 	userChanges, err := s.prepareJob(ctx, row, job, copyFrom, stage)
 	if err != nil {
-		_ = os.RemoveAll(stage)
 		s.abortStart(job, err)
 		return Job{}, s.internalError("start job", err)
 	}
@@ -280,21 +276,11 @@ func (s *Service) userChangesSinceJob(ctx context.Context, projectID string, sna
 	return out, nil
 }
 
-// abortStart marks a job that could not start as failed and frees its lock.
-// The lock is released and announced under the project mutex (like
-// setProjectLock), so lock events keep the order of the lock changes.
+// An incomplete preparation cannot become a draft.
 func (s *Service) abortStart(job Job, cause error) {
 	s.logger.Warn("CYD Creator job could not start", "job_id", job.ID, "error", cause)
-	job.Status, job.ErrorMessage, job.FinishedAt = JobFailed, "The job could not be prepared.", formatTime(s.now())
-	unlock := s.lockProject(job.ProjectID)
-	res, err := s.db.Exec(`UPDATE cc_projects SET locked_by_job='' WHERE id=? AND locked_by_job=?`, job.ProjectID, job.ID)
-	if err == nil {
-		if n, _ := res.RowsAffected(); n == 1 {
-			s.Emit(job.ProjectID, EventLockChanged, job.ID, "", map[string]any{"locked_by_job": ""})
-		}
-	}
-	unlock()
-	_ = s.saveTerminalJob(job)
+	job.Status, job.ErrorMessage = JobFailed, "The job could not be prepared."
+	_ = s.storeJobCompletion(job, nil)
 }
 
 // launchRun creates the run context and starts the orchestrator. Callers hold

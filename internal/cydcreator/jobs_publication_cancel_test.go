@@ -4,9 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
+
+	"aurago/internal/fileutil"
 )
 
 type publicationCheckContext struct {
@@ -172,5 +177,40 @@ func TestPublishStageCancellationBoundary(t *testing.T) {
 				t.Fatalf("cancel after swap interrupted commit: %v", err)
 			}
 		})
+	}
+}
+
+func TestPublishStageWindowsCancelDuringFirstRename(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("requires Windows directory sharing semantics")
+	}
+	env, p := newProjectEnv(t)
+	row, err := env.svc.loadProjectRow(context.Background(), p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := readProjectFile(t, env, p, "src/app/app_main.cpp")
+	stage := stageCopy(t, env, p, "ccj_retry")
+	file, err := os.Open(filepath.Join(env.svc.projectDir(p.Slug), "src", "app", "app_main.cpp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	var sharingError error
+	ctx = fileutil.WithPublicationGate(ctx, func(rename func() error) error {
+		sharingError = rename()
+		// The next retry would succeed if it ignored the cancellation.
+		cancel(errJobTimeout)
+		_ = file.Close()
+		return sharingError
+	})
+	_, err = env.svc.publishStage(ctx, row, stage, receiptPublish, "publish_ccj_retry", nil)
+	if !isOpenFileError(sharingError) || !errors.Is(err, errJobTimeout) {
+		t.Fatalf("first rename=%v, publication=%v", sharingError, err)
+	}
+	if got := readProjectFile(t, env, p, "src/app/app_main.cpp"); got != original || !dirExists(stage) || receiptsLeft(t, env) != 0 {
+		t.Fatalf("project=%q, stage=%v, receipts=%d", got, dirExists(stage), receiptsLeft(t, env))
 	}
 }

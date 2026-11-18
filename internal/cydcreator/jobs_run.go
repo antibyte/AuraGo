@@ -531,85 +531,109 @@ func (s *Service) classifyJobError(run *jobRun, err error) jobEnding {
 	return jobEnding{status: JobFailed, code: CodeInternal, message: "The job failed because of an internal error; the server log has the details.", msg: "job_failed_internal"}
 }
 
-// terminalSaveDelays are the pauses between further attempts to store a
-// job's final state (saveJob itself retries once). A lost terminal write
-// would leave the cc_jobs row active, and activeJob would refuse every
-// StartJob until CancelJob or a restart repairs it.
+// A failed read, either SQL write or the commit retries the entire ending.
 var terminalSaveDelays = []time.Duration{200 * time.Millisecond, 500 * time.Millisecond, time.Second}
 
-// saveTerminalJob stores a finished job, retrying with backoff. A row that
-// no longer exists (CYD_JOB_NOT_FOUND: the project was deleted) blocks
-// nothing and is not retried.
-func (s *Service) saveTerminalJob(job Job) error {
-	err := s.saveJob(job)
+func (s *Service) finishJob(job Job, end jobEnding) error {
+	job.Status, job.ErrorCode, job.ErrorReason, job.ErrorMessage = end.status, end.code, end.reason, end.message
+	return s.storeJobCompletion(job, &end)
+}
+
+// A job that failed during preparation has no chat ending or resumable stage.
+func (s *Service) storeJobCompletion(job Job, end *jobEnding) error {
+	job.FinishedAt = formatTime(s.now())
+	unlock := s.lockProject(job.ProjectID)
+	defer unlock()
+	err := s.finishJobOnce(job, end)
 	for _, delay := range terminalSaveDelays {
 		if err == nil || ErrorCode(err) == CodeJobNotFound {
 			return err
 		}
+		s.logger.Warn("CYD Creator retrying job completion", "job_id", job.ID, "error", err)
 		time.Sleep(delay)
-		err = s.saveJob(job)
+		err = s.finishJobOnce(job, end)
 	}
 	if err != nil && ErrorCode(err) != CodeJobNotFound {
-		s.logger.Error("CYD Creator could not store the end of a job; cancel the job or restart AuraGo to free the agent slot",
-			"job_id", job.ID, "status", job.Status, "error", err)
+		s.logger.Error("CYD Creator could not finish the job; cancel it or restart AuraGo to retry", "job_id", job.ID, "error", err)
 	}
 	return err
 }
 
-// finishJob ends a job that did not publish: the project stays unchanged, a
-// working copy with changes becomes the project's draft (replacing an older
-// one), the lock is released and the chat gets a status line. It returns the
-// error of the terminal job write (logged).
-func (s *Service) finishJob(job Job, end jobEnding) error {
+// The caller holds the project mutex. Files and notifications follow the commit.
+func (s *Service) finishJobOnce(job Job, end *jobEnding) error {
 	ctx := context.Background()
-	stage := s.stagingPath(job.ID)
-	unlock := s.lockProject(job.ProjectID)
 	row, err := s.loadProjectRow(ctx, job.ProjectID)
-	if err != nil {
-		unlock()
-		s.logger.Warn("CYD Creator job could not be finished", "job_id", job.ID, "error", err)
-		job.Status, job.ErrorCode, job.ErrorReason, job.ErrorMessage, job.FinishedAt = end.status, end.code, end.reason, end.message, formatTime(s.now())
-		if ErrorCode(err) == CodeNotFound {
-			return s.saveTerminalJob(job) // the project is gone; the row must not stay active
-		}
+	if err != nil && ErrorCode(err) != CodeNotFound {
 		return err
 	}
+	// During a failed directory swap the working copy can still be at the
+	// project path. Only receipt recovery can identify and settle it.
+	pendingSwap := row.PublishReview == receiptPublish+"_"+job.ID
 	keep := false
-	if dirExists(stage) {
-		staged, err1 := treeFingerprint(stage)
-		current, err2 := treeFingerprint(s.projectDir(row.Slug))
-		keep = err1 != nil || err2 != nil || staged != current
+	if row.ID != "" && end != nil && !pendingSwap {
+		stage := s.stagingPath(job.ID)
+		info, err := os.Stat(stage)
+		switch {
+		case err == nil && info.IsDir():
+			staged, err1 := treeFingerprint(stage)
+			current, err2 := treeFingerprint(s.projectDir(row.Slug))
+			keep = err1 != nil || err2 != nil || staged != current
+		case err != nil && !errors.Is(err, os.ErrNotExist):
+			return err
+		}
 	}
-	draft := row.DraftJob
-	if keep {
-		draft = job.ID
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
 	}
-	job.Status, job.ErrorCode, job.ErrorReason, job.ErrorMessage, job.FinishedAt = end.status, end.code, end.reason, end.message, formatTime(s.now())
-	released := row.LockedByJob == job.ID
-	if _, err := s.db.Exec(`UPDATE cc_projects SET locked_by_job=CASE WHEN locked_by_job=? THEN '' ELSE locked_by_job END,
-		draft_job=? WHERE id=?`, job.ID, draft, row.ID); err != nil {
-		s.logger.Warn("CYD Creator project state could not be stored", "job_id", job.ID, "error", err)
-		released = false
+	defer tx.Rollback()
+	if row.ID != "" {
+		draft := row.DraftJob
+		if keep {
+			draft = job.ID
+		}
+		res, err := tx.Exec(`UPDATE cc_projects SET locked_by_job=CASE WHEN locked_by_job=? THEN '' ELSE locked_by_job END,
+			draft_job=? WHERE id=?`, job.ID, draft, row.ID)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return fmt.Errorf("check project at job completion: %w", err)
+		} else if n != 1 {
+			return fmt.Errorf("project %s was not updated at job completion", row.ID)
+		}
 	}
-	if released {
-		// Under the project mutex like setProjectLock: lock events keep the
-		// order of the lock changes.
+	if err := writeJob(tx, job); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	if row.LockedByJob == job.ID {
 		s.Emit(row.ID, EventLockChanged, job.ID, "", map[string]any{"locked_by_job": ""})
 	}
-	unlock()
-	if keep && row.DraftJob != "" && row.DraftJob != job.ID {
-		s.removeStaging(row.DraftJob)
-		_, _ = s.db.Exec(`DELETE FROM cc_agent_context WHERE job_id=?`, row.DraftJob)
+	if row.ID != "" && !pendingSwap {
+		discard := job.ID
+		if keep {
+			discard = row.DraftJob
+			if discard == job.ID {
+				discard = ""
+			}
+		}
+		if discard != "" {
+			s.removeStaging(discard)
+			_, _ = s.db.Exec(`DELETE FROM cc_agent_context WHERE job_id=?`, discard)
+		}
 	}
-	if !keep {
-		s.removeStaging(job.ID)
-		_, _ = s.db.Exec(`DELETE FROM cc_agent_context WHERE job_id=?`, job.ID)
+	s.Emit(job.ProjectID, EventJobStatus, job.ID, "", map[string]any{"job": job})
+	if row.ID != "" && end != nil {
+		code := end.msg
+		if keep {
+			code += draftCodeSuffix
+		}
+		s.postSystemMessage(row.ID, job.ID, code, end.vars)
 	}
-	saveErr := s.saveTerminalJob(job)
-	code := end.msg
-	if keep {
-		code += draftCodeSuffix
-	}
-	s.postSystemMessage(row.ID, job.ID, code, end.vars)
-	return saveErr
+	return nil
 }

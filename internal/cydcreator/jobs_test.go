@@ -708,30 +708,22 @@ func TestLockEventsFollowTheLockChangesAcrossJobs(t *testing.T) {
 func TestTerminalJobWriteIsRetried(t *testing.T) {
 	env, runner, p := newJobEnv(t)
 	ctx := context.Background()
-	// Three failed UPDATEs to status 'failed': more than one saveJob call
-	// (two attempts) absorbs. RAISE(FAIL) keeps the counter update.
-	for _, q := range []string{
-		`CREATE TABLE test_fail_terminal(n INTEGER NOT NULL)`,
-		`INSERT INTO test_fail_terminal(n) VALUES(3)`,
-		`CREATE TRIGGER test_fail_terminal_t BEFORE UPDATE ON cc_jobs
-			WHEN NEW.status='failed' AND (SELECT n FROM test_fail_terminal) > 0
-			BEGIN UPDATE test_fail_terminal SET n=n-1; SELECT RAISE(FAIL, 'injected'); END`,
-	} {
-		if _, err := env.svc.db.Exec(q); err != nil {
-			t.Fatal(err)
-		}
+	retry, resume := holdCompletionRetry(t, env)
+	if _, err := env.svc.db.Exec(`CREATE TRIGGER test_fail_terminal_t BEFORE UPDATE ON cc_jobs
+		WHEN NEW.status='failed' BEGIN SELECT RAISE(ABORT, 'injected'); END`); err != nil {
+		t.Fatal(err)
 	}
 	runner.on(PhaseCoding, func(ctx context.Context, run JobRun) error { return errors.New("stop") })
 	first, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeChange, Prompt: "x"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	waitJob(t, env, first.ID, JobFailed)
-	var left int
-	_ = env.svc.db.QueryRow(`SELECT n FROM test_fail_terminal`).Scan(&left)
-	if left != 0 {
-		t.Fatalf("%d injected failures left: the terminal write was not retried", left)
+	waitClosed(t, retry, "failed terminal write")
+	if _, err := env.svc.db.Exec(`DROP TRIGGER test_fail_terminal_t`); err != nil {
+		t.Fatal(err)
 	}
+	resume()
+	waitJob(t, env, first.ID, JobFailed)
 	scriptSuccess(t, env, runner)
 	second, err := env.svc.StartJob(ctx, p.ID, StartJobInput{Mode: JobModeChange, Prompt: "y"})
 	if err != nil {

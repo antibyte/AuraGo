@@ -373,19 +373,31 @@ func rolledBackFrom(message string) string {
 	return strings.TrimSpace(id)
 }
 
+// A named failure withdraws only the selected target. A replacement download
+// is allowed only for the fallback recorded for this device by an admin.
+func (d *deviceRow) rollbackTarget(failed, running string) bool {
+	if failed == "" || failed != d.TargetBuildID || failed == running {
+		return false
+	}
+	d.TargetBuildID = ""
+	if running == d.RollbackBuildID {
+		d.TargetBuildID = d.RollbackBuildID
+	}
+	return true
+}
+
 // applyHeartbeat returns the device state after a heartbeat, mirroring the
 // firmware (plan 1b "Device behaviour"). The first heartbeat activates a
 // pending device. ota_state "rolled_back" with ota_error "rolled back from
 // <id>" is reported for the whole boot after a rollback. The rollback is
 // judged by that failed build, not by the stored state: while the target is
-// the failed build, the target is reset to the running build and last_error
-// stored, so the build that did not start is not offered again. That also
+// the failed build, the target is withdrawn and last_error stored. That also
 // catches a second rollback in the same rolled_back state (the user picked
 // another build during the boot and it failed too), and keeps any other
 // target the user picks meanwhile. Picking the failed build again during the
 // same boot is reset as well; it can be retried once the board restarted.
-// Without a build id in the message only the transition into the state
-// counts. "failed" is reported after a failed download or verification until
+// Without a failed build ID only the diagnostic changes. "failed" is
+// reported after a failed download or verification until
 // the next attempt: entering it stores last_error and keeps the target,
 // because the firmware retries a failed build after 10 minutes. A device that
 // reports the target build after running another one finished its update
@@ -397,14 +409,7 @@ func applyHeartbeat(d deviceRow, hb Heartbeat, now time.Time) deviceRow {
 	}
 	switch hb.OTAState {
 	case OTAStateRolledBack:
-		failed := rolledBackFrom(hb.OTAError)
-		if failed == "" && d.OTAState != OTAStateRolledBack {
-			failed = d.TargetBuildID
-		}
-		if failed != "" && failed == d.TargetBuildID && failed != running {
-			d.LastError = otaError(OTAStateRolledBack, hb.OTAError)
-			d.TargetBuildID = running
-		} else if d.OTAState != OTAStateRolledBack {
+		if d.rollbackTarget(rolledBackFrom(hb.OTAError), running) || d.OTAState != OTAStateRolledBack {
 			d.LastError = otaError(OTAStateRolledBack, hb.OTAError)
 		}
 	case OTAStateFailed:
@@ -594,10 +599,7 @@ func (s *Service) DeviceOTAResult(ctx context.Context, req DeviceRequest, res OT
 	case cleanDeviceText(res.Error) == OTAStateRolledBack:
 		// Judged by the failed build like the heartbeat: a target that is the
 		// failed build is reset even when the state already is rolled_back.
-		if res.BuildID == d.TargetBuildID && res.BuildID != d.BuildID {
-			d.TargetBuildID = d.BuildID
-			d.LastError = OTAStateRolledBack
-		} else if d.OTAState != OTAStateRolledBack {
+		if d.rollbackTarget(res.BuildID, d.BuildID) || d.OTAState != OTAStateRolledBack {
 			d.LastError = OTAStateRolledBack
 		}
 		d.OTAState = OTAStateRolledBack
