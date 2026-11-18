@@ -9,6 +9,7 @@
 """
 import hashlib
 import json
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -32,6 +33,16 @@ MAX_CELL_BG_PROPS = 384
 MAX_CELL_DUEL = 384   # close-up duel sheets and dialogue portraits
 WEBP_QUALITY_NPC = 82
 LAZY_KINDS = ("portrait", "duel")
+# new sheets (places / village / story round); the pre-existing bg-* sheets stay eager in the atlas
+LAZY_ID_RE = re.compile(r"^(tdp|td|tex|fac|cutfg|cut|vil)-")
+TD_CHAR_KINDS = ("td-hero", "td-mob", "td-folk")   # top-down characters, treated like npc sheets
+MAX_CELL_TD_PROPS = 256
+MAX_CELL_FACADE = 512
+TEX_CELL = 320        # tex sheets: opaque 2x2, every cell exactly 320x320
+WEBP_QUALITY_TEX = 86
+CUT_SIZE = (1280, 720)
+WEBP_QUALITY_TD = 70   # new top-down characters, props and facades (alpha_quality stays 100)
+WEBP_QUALITY_CUT = 80  # story panels (opaque) and cutfg overlays
 MAX_WIDTH_BG_FAR = 2048
 WEBP_QUALITY_BG = 80
 BIOMES = ("woodland", "cavern", "desert", "glacier", "citadel")
@@ -99,17 +110,72 @@ for _b in BIOMES:
     SHEETS["bg-%s-mid" % _b] = (4, 2, "feet", "bg-props")
     SHEETS["bg-%s-near" % _b] = (4, 2, "feet", "bg-props")
 
+# places / village / story round: top-down characters, props, textures, facades, villagers, cutscene art
+for _h in ("knight", "ranger"):
+    SHEETS["td-%s" % _h] = (4, 4, "feet", "td-hero")
+for _m in ("rat", "slime", "bat", "spider", "mummy", "icewisp", "clockbug"):
+    SHEETS["td-%s" % _m] = (4, 2, "feet", "td-mob")
+for _f in ("village", "guests", "world", "story-a", "story-b"):
+    SHEETS["td-folk-%s" % _f] = (4, 4, "feet", "td-folk")
+for _p in ("tavern", "trade", "cave", "ruin"):
+    SHEETS["tdp-%s" % _p] = (4, 4, "self", "td-props")
+for _t in ("wood", "cave", "tomb", "ice", "works"):
+    SHEETS["tex-%s" % _t] = (2, 2, "corner", "tex")
+for _fa in ("village-a", "village-b", "wild-a", "wild-b"):
+    SHEETS["fac-%s" % _fa] = (2, 2, "self", "facade")
+SHEETS["vil-props"] = (4, 2, "feet", "bg-props")
+for _n in ("villager", "guard"):
+    SHEETS["npc-%s" % _n] = (4, 2, "feet", "npc")
+for _n in ("elder", "innkeeper", "smith", "shopkeeper", "bard", "hermit", "barkeep", "scribe", "climber", "automaton"):
+    SHEETS["portrait-%s" % _n] = (3, 1, "bottom", "portrait")
+CUT_IDS = ("prologue-1", "prologue-2", "prologue-3", "prologue-4", "prologue-5",
+           "intro2-1", "intro2-2", "intro3-1", "intro3-2", "intro4-1", "intro4-2", "intro5-1", "intro5-2",
+           "after1-1", "after1-2", "after2-1", "after2-2", "after3-1", "after3-2", "after4-1", "after4-2",
+           "finale-1", "finale-2", "finale-3", "end-friend", "end-neutral", "end-feared")
+for _c in CUT_IDS:
+    SHEETS["cut-%s" % _c] = (1, 1, "corner", "cut")
+for _b in BIOMES:
+    SHEETS["cutfg-%s" % _b] = (1, 1, "corner", "cutfg")
+
 
 def is_npc_sheet(sheet_id, kind):
-    return kind in ("npc", "portrait", "duel", "ui") or sheet_id == "fx-duel-spells"
+    return kind in ("npc", "portrait", "duel", "ui") + TD_CHAR_KINDS or sheet_id == "fx-duel-spells"
 
 
 def is_lazy(sheet_id, kind):
     """Sheets the loader keeps out of the boot load (decoded on demand)."""
-    return kind in LAZY_KINDS or sheet_id == "fx-duel-spells"
+    return kind in LAZY_KINDS or sheet_id == "fx-duel-spells" or bool(LAZY_ID_RE.match(sheet_id))
 
 
 def clips_for(sheet_id, kind, count):
+    if kind == "td-hero":
+        clips = {
+            "down": {"frames": [0, 1, 2, 3], "ms": 110, "loop": True},
+            "up": {"frames": [4, 5, 6, 7], "ms": 110, "loop": True},
+            "right": {"frames": [8, 9, 10, 11], "ms": 110, "loop": True},
+        }
+        for name, idx in (("atk_down", 12), ("atk_up", 13), ("atk_right", 14), ("hurt", 15)):
+            clips[name] = {"frames": [idx], "ms": 200, "loop": False}
+        return "down", clips
+    if kind == "td-mob":
+        return "move", {
+            "move": {"frames": [0, 1, 2, 3], "ms": 120, "loop": True},
+            "tell": {"frames": [4], "ms": 200, "loop": False},
+            "attack": {"frames": [5], "ms": 200, "loop": False},
+            "hurt": {"frames": [6], "ms": 200, "loop": False},
+            "death": {"frames": [7], "ms": 200, "loop": False},
+        }
+    if kind == "td-folk":
+        clips = {}
+        for r in range(4):
+            clips["r%d_idle" % r] = {"frames": [4 * r, 4 * r + 1], "ms": 420, "loop": True}
+            clips["r%d_talk" % r] = {"frames": [4 * r + 2, 4 * r + 3], "ms": 220, "loop": True}
+        return "r0_idle", clips
+    if kind in ("td-props", "facade", "tex"):
+        letter = {"td-props": "p", "facade": "f", "tex": "t"}[kind]
+        return letter + "0", {"%s%d" % (letter, i): {"frames": [i], "ms": 200, "loop": False} for i in range(count)}
+    if kind in ("cut", "cutfg"):
+        return "full", {"full": {"frames": [0], "ms": 200, "loop": False}}
     if kind == "npc":
         return "idle", {
             "idle": {"frames": [0, 1], "ms": 320, "loop": True},
@@ -321,6 +387,47 @@ def cell_size(src_w, src_h, cols, rows, limit):
     return max(8, int(round(cw * k))), max(8, int(round(ch * k)))
 
 
+def crop_16_9(im):
+    """Centre-crop to exactly 16:9."""
+    w, h = im.size
+    if w * 9 > h * 16:
+        nw = int(round(h * 16 / 9.0))
+        x0 = (w - nw) // 2
+        return im.crop((x0, 0, x0 + nw, h))
+    nh = int(round(w * 9 / 16.0))
+    y0 = (h - nh) // 2
+    return im.crop((0, y0, w, y0 + nh))
+
+
+def import_opaque(src, cols, rows, kind):
+    """Opaque kinds: no alpha channel at all. tex = exact 320 cells, cut = cropped 16:9 panel."""
+    im = Image.open(src).convert("RGB")
+    if kind == "tex":
+        cw = ch = TEX_CELL
+        return im.resize((cw * cols, ch * rows), Image.LANCZOS), cw, ch
+    cw, ch = CUT_SIZE
+    return crop_16_9(im).resize(CUT_SIZE, Image.LANCZOS), cw, ch
+
+
+def catalog_entry(sheet_id, src, raw_bytes, prompt_dir, cols, rows, pivot, kind):
+    default, clips = clips_for(sheet_id, kind, cols * rows)
+    prompt_file = prompt_dir / (sheet_id + ".txt")
+    prompt = prompt_file.read_text(encoding="utf-8").strip() if prompt_file.is_file() else ""
+    return {
+        "id": sheet_id,
+        "file": sheet_id + ".webp",
+        "cols": cols,
+        "rows": rows,
+        "pivot": pivot,
+        "kind": kind,
+        "default": default,
+        "clips": clips,
+        "prompt": prompt,
+        "source": src.name,
+        "sourceSha256": sha256_bytes(raw_bytes),
+    }
+
+
 def do_import(raw_dir, prompt_dir, only=None):
     raw_dir, prompt_dir = Path(raw_dir), Path(prompt_dir)
     only = set(only or [])
@@ -342,8 +449,17 @@ def do_import(raw_dir, prompt_dir, only=None):
         if not src.is_file():
             raise SystemExit("missing raw sheet: %s" % src)
         raw_bytes = src.read_bytes()
+        if kind in ("tex", "cut"):
+            out, cw, ch = import_opaque(src, cols, rows, kind)
+            out.save(IMG_DIR / (sheet_id + ".webp"), "WEBP",
+                     quality=WEBP_QUALITY_TEX if kind == "tex" else WEBP_QUALITY_CUT, method=6)
+            sheets.append(catalog_entry(sheet_id, src, raw_bytes, prompt_dir, cols, rows, pivot, kind))
+            print("imported %-18s %dx%d cell %dx%d" % (sheet_id, cols, rows, cw, ch))
+            continue
         im = Image.open(src).convert("RGBA")
-        cut = ALPHA_CUT_NPC if is_npc_sheet(sheet_id, kind) else ALPHA_CUT
+        if kind == "cutfg":
+            im = crop_16_9(im)
+        cut = ALPHA_CUT_NPC if (is_npc_sheet(sheet_id, kind) or kind in ("td-props", "facade")) else ALPHA_CUT
         if kind == "portrait":
             cut = ALPHA_CUT_PORTRAIT
         im = clean_alpha(im, cut)
@@ -352,7 +468,13 @@ def do_import(raw_dir, prompt_dir, only=None):
             limit = MAX_CELL_DUEL
         if kind == "bg-props":
             limit = MAX_CELL_BG_PROPS
-        if kind == "bg-far":
+        if kind == "td-props":
+            limit = MAX_CELL_TD_PROPS
+        if kind == "facade":
+            limit = MAX_CELL_FACADE
+        if kind == "cutfg":
+            cw, ch = CUT_SIZE
+        elif kind == "bg-far":
             k = min(1.0, MAX_WIDTH_BG_FAR / float(im.width))
             cw, ch = max(8, int(round(im.width * k))), max(8, int(round(im.height * k)))
         else:
@@ -360,25 +482,14 @@ def do_import(raw_dir, prompt_dir, only=None):
         out = im.resize((cw * cols, ch * rows), Image.LANCZOS)
         out = clean_alpha(out, cut)
         quality = WEBP_QUALITY_BG if kind in ("bg-far", "bg-props") else 90
-        if is_npc_sheet(sheet_id, kind):
+        if kind == "cutfg":
+            quality = WEBP_QUALITY_CUT
+        if is_npc_sheet(sheet_id, kind) or kind in ("td-props", "facade"):
             quality = WEBP_QUALITY_NPC
+        if kind in TD_CHAR_KINDS or kind in ("td-props", "facade"):
+            quality = WEBP_QUALITY_TD
         out.save(IMG_DIR / (sheet_id + ".webp"), "WEBP", quality=quality, method=6, alpha_quality=100, exact=False)
-        default, clips = clips_for(sheet_id, kind, cols * rows)
-        prompt_file = prompt_dir / (sheet_id + ".txt")
-        prompt = prompt_file.read_text(encoding="utf-8").strip() if prompt_file.is_file() else ""
-        sheets.append({
-            "id": sheet_id,
-            "file": sheet_id + ".webp",
-            "cols": cols,
-            "rows": rows,
-            "pivot": pivot,
-            "kind": kind,
-            "default": default,
-            "clips": clips,
-            "prompt": prompt,
-            "source": src.name,
-            "sourceSha256": sha256_bytes(raw_bytes),
-        })
+        sheets.append(catalog_entry(sheet_id, src, raw_bytes, prompt_dir, cols, rows, pivot, kind))
         print("imported %-18s %dx%d cell %dx%d" % (sheet_id, cols, rows, cw, ch))
     CATALOG.write_text(dump_json({"version": 1, "sheets": sheets}), encoding="utf-8", newline="\n")
 
@@ -411,6 +522,19 @@ def build_sheet(entry):
     if im.width % cols or im.height % rows:
         raise SystemExit("%s: size %dx%d is not an exact %dx%d grid" % (entry["file"], im.width, im.height, cols, rows))
     cw, ch, rects = trimmed_rects(im, cols, rows)
+    kind = entry["kind"]
+    if kind in ("tex", "cut", "cutfg"):
+        # full cells, no trimming, pivot = top-left corner of each cell
+        if kind == "tex" and (cw, ch) != (TEX_CELL, TEX_CELL):
+            raise SystemExit("%s: tex cell is %dx%d, expected %d" % (entry["file"], cw, ch, TEX_CELL))
+        if kind != "tex" and (cw, ch) != CUT_SIZE:
+            raise SystemExit("%s: size %dx%d, expected %dx%d" % (entry["file"], cw, ch, CUT_SIZE[0], CUT_SIZE[1]))
+        frames = [[(i % cols) * cw, (i // cols) * ch, cw, ch, 0, 0] for i in range(cols * rows)]
+        out = {"file": entry["file"], "w": im.width, "h": im.height, "cols": cols, "rows": rows, "cw": cw, "ch": ch,
+               "pivot": "corner", "refH": ch, "default": entry["default"], "clips": entry["clips"], "frames": frames}
+        if is_lazy(entry["id"], kind):
+            out["lazy"] = True
+        return out
     first = [r for r in rects[:4] if r is not None] or [r for r in rects if r is not None]
     if not first:
         raise SystemExit("%s: no visible pixels" % entry["file"])
@@ -427,6 +551,12 @@ def build_sheet(entry):
         # props share one baseline: the lowest content bottom over all cells, relative to the cell
         pivot_dy = max(rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(len(rects)) if rects[i] is not None)
         pivot_dx = cw / 2.0
+    elif pivot == "feet" and kind in TD_CHAR_KINDS:
+        # one shared baseline over all frames (every row/character of the sheet)
+        pivot_dy = median([rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(len(rects)) if rects[i] is not None])
+        pivot_dx = cw / 2.0
+    elif pivot == "self":
+        pivot_dx = pivot_dy = 0.0  # unused: every frame is anchored at its own bottom centre
     elif pivot == "feet":
         pivot_dy = median([rects[i][1] + rects[i][3] - (i // cols) * ch for i in range(min(4, len(rects))) if rects[i] is not None])
         pivot_dx = cw / 2.0
@@ -440,7 +570,7 @@ def build_sheet(entry):
         pivot_dx, pivot_dy = cw / 2.0, float(ground)
     else:
         pivot_dx, pivot_dy = cw / 2.0, ch / 2.0
-    if kind in ("boss", "enemy", "dragon", "npc", "duel"):
+    if kind in ("boss", "enemy", "dragon", "npc", "duel") + TD_CHAR_KINDS:
         ref_h = median([r[3] for r in first])
     else:
         ref_h = max(r[3] for r in rects if r is not None)
@@ -449,6 +579,10 @@ def build_sheet(entry):
         col, row = idx % cols, idx // cols
         if r is None:
             frames.append([col * cw, row * ch, 0, 0, 0, 0])
+            continue
+        if pivot == "self":
+            # x = centre of the content box, y = its bottom edge
+            frames.append([r[0], r[1], r[2], r[3], -int(round(r[2] / 2.0)), -r[3]])
             continue
         # offsets are relative to the pivot inside the same cell, in sheet pixels
         ox = r[0] - (col * cw + pivot_dx)
