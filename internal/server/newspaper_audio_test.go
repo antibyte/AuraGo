@@ -25,6 +25,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/newspaper"
+	"aurago/internal/phonon"
 	"aurago/internal/voice"
 )
 
@@ -357,7 +358,14 @@ func TestNewspaperAudioPhononSmoke(t *testing.T) {
 	if root == "" {
 		t.Skip("set AURAGO_PHONON_SMOKE_DIR to the prepared local Phonon resources")
 	}
-	t.Setenv("AURAGO_PHONON_DIR", root)
+	// The installed Chat TTS route resolves the bundle ID below AURAGO_PHONON_DIR.
+	t.Setenv("AURAGO_PHONON_DIR", t.TempDir())
+	if err := os.CopyFS(phonon.Root(), os.DirFS(root)); err != nil {
+		t.Fatal(err)
+	}
+	if err := phonon.Ready(phonon.Root()); err != nil {
+		t.Fatal(err)
+	}
 	cfg := &config.Config{}
 	cfg.Directories.DataDir = t.TempDir()
 	cfg.TTS.Provider = "phonon"
@@ -368,6 +376,9 @@ func TestNewspaperAudioPhononSmoke(t *testing.T) {
 	cfg.VirtualDesktop.Enabled = true
 	cfg.LLM.Model = "test-editor"
 	cfg.Personality.CorePersonality = "professional"
+	if _, err := phonon.VoicePath(phonon.Root(), cfg.Directories.DataDir, phonon.DefaultVoice("de", cfg.Personality.CorePersonality)); err != nil {
+		t.Fatal(err)
+	}
 	e := newspaper.Edition{Language: "de", LocalDate: "2026-09-25", Stories: []newspaper.Story{
 		{ID: "library", Headline: "Stadtrat beschließt Bibliotheksbau", Deck: "Die Planung beginnt im Frühjahr."},
 		{ID: "sports", Headline: "Stadtfinale am Sonntag"},
@@ -375,7 +386,10 @@ func TestNewspaperAudioPhononSmoke(t *testing.T) {
 	const output = `{"opening":"Guten Morgen aus der Nachrichtenredaktion.","items":[{"id":"library","text":"Der Stadtrat hat den Bau einer neuen Bibliothek beschlossen. Die Planung beginnt im Frühjahr."},{"id":"sports","text":"Und noch eine Nachricht vom Sport: Das Stadtfinale findet am Sonntag statt."}],"closing":"Das war unsere kurze Beispielausgabe."}`
 	client := &newspaperStoryTestClient{response: openai.ChatCompletionResponse{Choices: []openai.ChatCompletionChoice{{FinishReason: openai.FinishReasonStop, Message: openai.ChatCompletionMessage{Content: output}}}}}
 	file, err := (&Server{Cfg: cfg, LLMClient: client, newspaperSkillReady: true}).narrateNewspaper(ctx, e)
-	if len(client.request.Messages) != 2 || !strings.Contains(newspaperUnwrap(client.request.Messages[1].Content), "persona_style") {
+	var payload struct {
+		Style string `json:"persona_style"`
+	}
+	if len(client.request.Messages) != 2 || json.Unmarshal([]byte(newspaperUnwrap(client.request.Messages[1].Content)), &payload) != nil || strings.TrimSpace(payload.Style) == "" {
 		t.Fatal("active persona was not passed to the editor")
 	}
 	if err != nil || len(file.Data) < 15000 {
