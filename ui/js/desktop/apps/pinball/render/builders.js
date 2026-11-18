@@ -19,12 +19,12 @@ function makeCtx(host, D) {
     const { layout, mats, env, tier } = host, meta = layout.meta || {};
     const accent = meta.accent || '#37d9ff', secondary = meta.secondary || '#ff48c4', low = isLow(tier);
     const std = o => D.m(new THREE.MeshStandardMaterial({ envMap: env, ...o }));
-    const rubber = std({ color: '#262932', roughness: 0.46, metalness: 0, envMapIntensity: 0.8 });
+    const rubber = std({ color: '#262932', roughness: 0.55, metalness: 0, envMapIntensity: 0.45 });
     const flipperTop = low
-        ? std({ color: new THREE.Color(accent).multiplyScalar(0.8), roughness: 0.3, emissive: new THREE.Color(accent).multiplyScalar(0.14), envMapIntensity: 1 })
-        : D.m(new THREE.MeshPhysicalMaterial({ color: new THREE.Color(accent).multiplyScalar(0.8), roughness: 0.28, clearcoat: 0.8, clearcoatRoughness: 0.12, emissive: new THREE.Color(accent).multiplyScalar(0.14), envMap: env, envMapIntensity: 1.1 }));
-    const chrome = D.m(mats.chrome.clone()); chrome.envMapIntensity = 0.7;
-    const wire = D.m(mats.chrome.clone()); wire.color.set('#8d98a8'); wire.envMapIntensity = 0.32; wire.roughness = 0.52;
+        ? std({ color: new THREE.Color(accent).multiplyScalar(0.8), roughness: 0.42, emissive: new THREE.Color(accent).multiplyScalar(0.14), envMapIntensity: 0.5 })
+        : D.m(new THREE.MeshPhysicalMaterial({ color: new THREE.Color(accent).multiplyScalar(0.8), roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.28, emissive: new THREE.Color(accent).multiplyScalar(0.14), envMap: env, envMapIntensity: 0.55 }));
+    const chrome = D.m(mats.chrome.clone()); chrome.envMapIntensity = 0.4;
+    const wire = D.m(mats.chrome.clone()); wire.color.set('#8d98a8'); wire.envMapIntensity = 0.22; wire.roughness = 0.62;
     const lampList = layout.lamps || [];
     const ctx = {
         host, layout, mats: { ...mats, chrome, wire, rubber, flipperTop }, env, tier, low, accent, secondary, D, idx: buildAnimIndex(layout),
@@ -85,8 +85,8 @@ export function buildSling(ctx, def) {
     root.add(band);
     const col = new THREE.Color(ctx.secondary), inner = M.insetPolygon(tri, 0.0058), bounds = M.slingBounds(inner);
     const plate = M.planarUV(M.polygonPlate(inner, 0.0018, 0.0006, ctx.low).translate(0, 0.0188, 0), bounds), art = ctx.D.t(M.slingArtTexture(inner, bounds, ctx.secondary, ctx.accent));
-    const plasticMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: art, transparent: true, opacity: 0.88, roughness: 0.16, metalness: 0, envMap: ctx.env, envMapIntensity: 0.9,
-        clearcoat: ctx.low ? 0 : 0.8, clearcoatRoughness: 0.1, emissive: new THREE.Color(0.32, 0.32, 0.32), emissiveMap: art, emissiveIntensity: 1, depthWrite: false }));
+    const plasticMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: art, transparent: true, opacity: 0.88, roughness: 0.3, metalness: 0, envMap: ctx.env, envMapIntensity: 0.5,
+        clearcoat: ctx.low ? 0 : 0.4, clearcoatRoughness: 0.28, emissive: new THREE.Color(0.32, 0.32, 0.32), emissiveMap: art, emissiveIntensity: 1, depthWrite: false }));
     const glowMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(1.8), transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }));
     const plastic = mesh(ctx, plate, plasticMat, def.id + '_plastic'); plastic.renderOrder = 2;
     root.add(plastic);
@@ -133,12 +133,12 @@ export function buildBumper(ctx, def) {
     const gp = g => g.translate(def.x, 0, -def.y);
     ctx.statics.dark.push(gp(geo.base)); ctx.statics.chrome.push(gp(geo.stud));
     const ring = mesh(ctx, geo.ring, ctx.mats.chrome, def.id + '_ring');
-    const skirtMat = ctx.D.m(new THREE.MeshStandardMaterial({ color: sc.clone().multiplyScalar(0.82), roughness: 0.28, metalness: 0.14, emissive: sc, emissiveIntensity: 0.14, envMap: ctx.env, envMapIntensity: 1.0 }));
+    const skirtMat = ctx.D.m(new THREE.MeshStandardMaterial({ color: sc.clone().multiplyScalar(0.82), roughness: 0.4, metalness: 0.14, emissive: sc, emissiveIntensity: 0.14, envMap: ctx.env, envMapIntensity: 0.5 }));
     const skirt = mesh(ctx, geo.skirt, skirtMat, def.id + '_skirt');
     const coreMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.55), toneMapped: false }));
     const core = mesh(ctx, geo.core, coreMat, def.id + '_core'); core.castShadow = false;
-    const capMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.32), transparent: true, opacity: 0.72, roughness: 0.1, metalness: 0, emissive: lc, emissiveIntensity: 0.22,
-        envMap: ctx.env, envMapIntensity: 1.4, clearcoat: ctx.low ? 0 : 1, depthWrite: false }));
+    const capMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.32), transparent: true, opacity: 0.72, roughness: 0.25, metalness: 0, emissive: lc, emissiveIntensity: 0.22,
+        envMap: ctx.env, envMapIntensity: 0.6, clearcoat: ctx.low ? 0 : 0.5, depthWrite: false }));
     const cap = mesh(ctx, geo.cap, capMat, def.id + '_cap'); cap.renderOrder = 2;
     const coreBase = lc.clone().lerp(new THREE.Color('#ffffff'), 0.52);
     root.add(ring, skirt, core, cap);
@@ -219,7 +219,7 @@ export function buildGate(ctx, def) {
 
 export function buildDoor(ctx, def) {
     const len = Math.hypot(def.b[0] - def.a[0], def.b[1] - def.a[1]), g = at(new THREE.Group(), (def.a[0] + def.b[0]) / 2, (def.a[1] + def.b[1]) / 2, 0, dirAngle(def.a, def.b));
-    const mat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: new THREE.Color(ctx.accent).multiplyScalar(0.6), transparent: true, opacity: 0.7, roughness: 0.2, envMap: ctx.env, emissive: new THREE.Color(ctx.accent).multiplyScalar(0.2) }));
+    const mat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: new THREE.Color(ctx.accent).multiplyScalar(0.6), transparent: true, opacity: 0.7, roughness: 0.3, envMap: ctx.env, envMapIntensity: 0.45, emissive: new THREE.Color(ctx.accent).multiplyScalar(0.2) }));
     g.add(mesh(ctx, new THREE.BoxGeometry(len, 0.03, 0.0035).translate(0, 0.015, 0), mat, def.id));
     const slot = ctx.slot(def.id);
     return { object: g, update(anim) { g.position.y = -A(anim, slot) * 0.034; } };
@@ -287,7 +287,7 @@ export function buildPlunger(ctx) {
     // Translucent lane cover with chrome edges, above ball height.
     const x0 = pl.laneX[0] + 0.0015, x1 = pl.laneX[1] - 0.0015, y0 = 0.16, y1 = 0.7;
     const cover = mesh(ctx, new THREE.BoxGeometry(x1 - x0, 0.0014, y1 - y0).translate((x0 + x1) / 2, 0.0315, -(y0 + y1) / 2), ctx.D.m(new THREE.MeshPhysicalMaterial({
-        color: '#9fb4c8', transparent: true, opacity: 0.16, roughness: 0.05, envMap: ctx.env, envMapIntensity: 1.4, depthWrite: false })), 'laneCover');
+        color: '#9fb4c8', transparent: true, opacity: 0.16, roughness: 0.25, envMap: ctx.env, envMapIntensity: 0.5, depthWrite: false })), 'laneCover');
     cover.castShadow = false; cover.renderOrder = 2;
     for (const x of [x0, x1]) ctx.statics.chrome.push(new THREE.BoxGeometry(0.0013, 0.0058, y1 - y0).translate(x, 0.0293, -(y0 + y1) / 2));
     const root = new THREE.Group(); root.add(g, cover);
@@ -330,7 +330,7 @@ export function buildMechanics(host) {
         let faceMat = null;
         if (atlas) {
             D.t(atlas.texture);
-            faceMat = D.m(new THREE.MeshStandardMaterial({ map: atlas.texture, emissive: new THREE.Color('#ffffff'), emissiveMap: atlas.texture, emissiveIntensity: 0.32, roughness: 0.34, metalness: 0, envMap: host.env, envMapIntensity: 0.6 }));
+            faceMat = D.m(new THREE.MeshStandardMaterial({ map: atlas.texture, emissive: new THREE.Color('#ffffff'), emissiveMap: atlas.texture, emissiveIntensity: 0.32, roughness: 0.4, metalness: 0, envMap: host.env, envMapIntensity: 0.35 }));
         }
         const rollovers = [];
         for (const d of layout.devices || []) {

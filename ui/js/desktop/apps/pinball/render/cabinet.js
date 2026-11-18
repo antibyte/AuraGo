@@ -130,7 +130,7 @@ export function buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass, 
     const mx = sideOut + 0.0006;
     const left = quad([-mx, bottom, -backY], [-mx, bottom, -frontY], [-mx, top, -frontY], [-mx, top, -backY], [0, 0, 1, 1]);
     const right = quad([mx, bottom, -frontY], [mx, bottom, -backY], [mx, top, -backY], [mx, top, -frontY], [0, 0, 1, 1]);
-    const sideMat = new THREE.MeshStandardMaterial({ map: sa, roughness: 0.55, metalness: 0.05, envMap: mats.chrome.envMap, envMapIntensity: 0.22 }); own.push(sideMat);
+    const sideMat = new THREE.MeshStandardMaterial({ map: sa, roughness: 0.6, metalness: 0.05, envMap: mats.chrome.envMap, envMapIntensity: 0.15 }); own.push(sideMat);
     add(merge([left, right]), sideMat, 'sideArt');
 
     // Chrome: side-rail caps, lockdown bar, front trim, bezel lines.
@@ -170,7 +170,7 @@ export function buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass, 
     const scoreText = new Intl.NumberFormat('en-US').format((layout.meta && layout.meta.replayScore) || 40000000);
     const cardMat = (canvasEl, hex) => {
         const t = canvasTexture(canvasEl, { aniso: Math.min(4, aniso) }); textures.push(t);
-        const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.32, metalness: 0, emissive: '#ffffff', emissiveMap: t, emissiveIntensity: 0.42, envMap: mats.chrome.envMap, envMapIntensity: 0.5 });
+        const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.4, metalness: 0, emissive: '#ffffff', emissiveMap: t, emissiveIntensity: 0.42, envMap: mats.chrome.envMap, envMapIntensity: 0.3 });
         own.push(m); return m;
     };
     const cardQuad = (x, y, w, h) => quad([x - w / 2, 0.0052, -(y - h / 2)], [x + w / 2, 0.0052, -(y - h / 2)], [x + w / 2, 0.0052, -(y + h / 2)], [x - w / 2, 0.0052, -(y + h / 2)]);
@@ -189,7 +189,7 @@ export function buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass, 
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.05, glassH), glassMat);
     glass.position.set(0, gy0 + glassH / 2, 0.002); head.add(glass); meshes.push(glass);
     const sp = canvasTexture(speakerPanel(accent), { aniso: Math.min(4, aniso) }); textures.push(sp);
-    const panelMat = new THREE.MeshStandardMaterial({ map: sp, roughness: 0.5, metalness: 0.2, envMap: mats.chrome.envMap, envMapIntensity: 0.4 }); own.push(panelMat);
+    const panelMat = new THREE.MeshStandardMaterial({ map: sp, roughness: 0.55, metalness: 0.2, envMap: mats.chrome.envMap, envMapIntensity: 0.28 }); own.push(panelMat);
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.05, 0.19), panelMat);
     panel.position.set(0, 0.033 + 0.095, 0.002); head.add(panel); meshes.push(panel);
     const dmd = createDmdScreen(accent);

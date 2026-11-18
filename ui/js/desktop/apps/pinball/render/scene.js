@@ -76,7 +76,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const palette = { accent: layout.meta && layout.meta.accent, secondary: layout.meta && layout.meta.secondary };
     const maxAniso = renderer.capabilities.getMaxAnisotropy();
     const aniso = () => Math.min(maxAniso, tier.aniso);
-    renderer.setClearColor('#03050a'); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+    renderer.setClearColor('#03050a'); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.98;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.enabled = tier.shadow > 0;
     canvas.className = 'pb-canvas'; canvas.setAttribute('aria-hidden', 'true'); canvas.style.width = '100%'; canvas.style.height = '100%'; canvas.style.display = 'block';
@@ -109,7 +109,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
 
     // Placeholder balls (T13 replaces them with real ball meshes through addMechanics + useSimpleBalls(false)).
     const ballGeo = new THREE.SphereGeometry(BALL_RADIUS, 24, 16);
-    const ballMat = new THREE.MeshStandardMaterial({ color: '#dfe7f1', metalness: 1, roughness: 0.07, envMap: env.texture, envMapIntensity: 3 });
+    const ballMat = new THREE.MeshStandardMaterial({ color: '#dfe7f1', metalness: 1, roughness: 0.2, envMap: env.texture, envMapIntensity: 0.65 });
     const ballMesh = new THREE.InstancedMesh(ballGeo, ballMat, 16); ballMesh.count = 0; ballMesh.frustumCulled = false; ballMesh.castShadow = true; ballMesh.name = 'simpleBalls';
     tableRoot.add(ballMesh);
     const tmpM = new THREE.Matrix4();
@@ -131,7 +131,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: tier.samples });
     const composer = new EffectComposer(renderer, rt);
     const renderPass = new RenderPass(scene, camera);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.6, 0.4, 0.85);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(4, 4), 0.3, 0.32, 1.65);
     const outPass = new OutputPass();
     composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(outPass);
     let sceneCalls = 0, sceneTris = 0;

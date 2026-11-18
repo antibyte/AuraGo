@@ -6,8 +6,9 @@ import { rngNext } from '../config.js';
 // DPR cap, bloom, shadow map size (0 = none), art size, point lights, MSAA samples, anisotropy.
 export const TIERS = Object.freeze({
     low: { dpr: 1, bloom: null, shadow: 0, art: [1024, 2048], lights: 2, samples: 2, aniso: 1, lampGain: 1.9 },
-    medium: { dpr: 1.25, bloom: { strength: 0.42, radius: 0.38, threshold: 1.3, half: true }, shadow: 1024, art: [2048, 4096], lights: 6, samples: 4, aniso: 4, lampGain: 1.4 },
-    high: { dpr: 1.5, bloom: { strength: 0.5, radius: 0.4, threshold: 1.3, half: false }, shadow: 2048, art: [2048, 4096], lights: 6, samples: 4, aniso: 8, lampGain: 1.45 }
+    // Bloom threshold sits above the brightest environment panel: only lamps/flashers glow, reflections do not.
+    medium: { dpr: 1.25, bloom: { strength: 0.26, radius: 0.3, threshold: 1.65, half: true }, shadow: 1024, art: [2048, 4096], lights: 6, samples: 4, aniso: 4, lampGain: 1.4 },
+    high: { dpr: 1.5, bloom: { strength: 0.3, radius: 0.32, threshold: 1.65, half: false }, shadow: 2048, art: [2048, 4096], lights: 6, samples: 4, aniso: 8, lampGain: 1.45 }
 });
 export const tierOf = q => TIERS[q] || TIERS.high;
 
@@ -109,14 +110,16 @@ export function createMaterials({ envMap, palette, aniso = 1 }) {
     const std = (o, env = 1) => new THREE.MeshStandardMaterial({ envMap, envMapIntensity: env, ...o });
     const woodTex = canvasTexture(woodCanvas(), { aniso, repeat: true });
     const mats = {
-        chrome: std({ color: '#c9d3df', metalness: 0.85, roughness: 0.42 }, 0.9),
-        steel: std({ color: '#76818f', metalness: 1, roughness: 0.4 }, 0.85),
-        darkMetal: std({ color: '#232832', metalness: 0.9, roughness: 0.42 }, 0.9),
-        wood: new THREE.MeshPhysicalMaterial({ color: '#a8754c', map: woodTex, metalness: 0, roughness: 0.46, clearcoat: 0.7, clearcoatRoughness: 0.16, envMap, envMapIntensity: 0.7 }),
-        rail: std({ color: '#ffffff', vertexColors: true, metalness: 0.88, roughness: 0.55 }, 0.34),
-        plasticWall: new THREE.MeshPhysicalMaterial({ color: '#ffffff', vertexColors: true, transparent: true, opacity: 0.55, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMap, envMapIntensity: 0.7, depthWrite: false }),
-        laminate: std({ color: '#0c0f16', metalness: 0.15, roughness: 0.38 }, 0.5),
-        apron: std({ color: '#10141d', metalness: 0.1, roughness: 0.3 }, 0.9),
+        // Brushed, satin metals: higher roughness spreads the highlight, lower env intensity keeps it
+        // from crossing the bloom threshold on the long side rails.
+        chrome: std({ color: '#c9d3df', metalness: 0.78, roughness: 0.55 }, 0.45),
+        steel: std({ color: '#76818f', metalness: 0.9, roughness: 0.58 }, 0.4),
+        darkMetal: std({ color: '#232832', metalness: 0.9, roughness: 0.55 }, 0.45),
+        wood: new THREE.MeshPhysicalMaterial({ color: '#a8754c', map: woodTex, metalness: 0, roughness: 0.55, clearcoat: 0.35, clearcoatRoughness: 0.3, envMap, envMapIntensity: 0.4 }),
+        rail: std({ color: '#ffffff', vertexColors: true, metalness: 0.75, roughness: 0.68 }, 0.18),
+        plasticWall: new THREE.MeshPhysicalMaterial({ color: '#ffffff', vertexColors: true, transparent: true, opacity: 0.55, roughness: 0.3, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.25, envMap, envMapIntensity: 0.32, depthWrite: false }),
+        laminate: std({ color: '#0c0f16', metalness: 0.15, roughness: 0.5 }, 0.28),
+        apron: std({ color: '#10141d', metalness: 0.1, roughness: 0.45 }, 0.4),
         rubberBlack: std({ color: '#0a0a0c', metalness: 0, roughness: 0.8 }, 0.1),
         glow: new THREE.MeshBasicMaterial({ color: new THREE.Color(palette.accent || '#37d9ff').multiplyScalar(1.7) }),
         glowSecondary: new THREE.MeshBasicMaterial({ color: new THREE.Color(palette.secondary || '#ff48c4').multiplyScalar(1.7) })

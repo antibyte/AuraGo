@@ -75,7 +75,7 @@ export function createEffects({ root, layout, palette = {}, tier }) {
 
     // 1. Under-ball dynamic bounce halos on the playfield / ramps.
     const haloGeo = new THREE.PlaneGeometry(0.082, 0.082); haloGeo.rotateX(-Math.PI / 2);
-    const haloMat = new THREE.MeshBasicMaterial({ map: discTex, color: '#ffffff', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const haloMat = new THREE.MeshBasicMaterial({ map: discTex, color: '#ffffff', transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     const halos = new THREE.InstancedMesh(haloGeo, haloMat, MAX_BALLS);
     halos.count = 0; halos.frustumCulled = false; halos.renderOrder = 2; halos.name = 'ballHalos';
     for (let i = 0; i < MAX_BALLS; i++) halos.setColorAt(i, accent);
@@ -83,7 +83,7 @@ export function createEffects({ root, layout, palette = {}, tier }) {
 
     // 2. Tapered speed trails behind fast balls.
     const trailGeo = new THREE.PlaneGeometry(1, 1); trailGeo.rotateX(-Math.PI / 2);
-    const trailMat = new THREE.MeshBasicMaterial({ map: discTex, color: '#ffffff', transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const trailMat = new THREE.MeshBasicMaterial({ map: discTex, color: '#ffffff', transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     const trails = new THREE.InstancedMesh(trailGeo, trailMat, MAX_TRAIL);
     trails.count = 0; trails.frustumCulled = false; trails.renderOrder = 3; trails.name = 'ballTrails';
     for (let i = 0; i < MAX_TRAIL; i++) trails.setColorAt(i, accent);
@@ -91,7 +91,7 @@ export function createEffects({ root, layout, palette = {}, tier }) {
 
     // 3. Expanding shockwave rings on bumpers, scoops, magnet & jackpots.
     const ringGeo = new THREE.PlaneGeometry(1, 1); ringGeo.rotateX(-Math.PI / 2);
-    const ringMat = new THREE.MeshBasicMaterial({ map: ringTex, color: '#ffffff', transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    const ringMat = new THREE.MeshBasicMaterial({ map: ringTex, color: '#ffffff', transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     const rings = new THREE.InstancedMesh(ringGeo, ringMat, MAX_RINGS);
     rings.count = 0; rings.frustumCulled = false; rings.renderOrder = 4; rings.name = 'impactRings';
     for (let i = 0; i < MAX_RINGS; i++) rings.setColorAt(i, accent);
@@ -103,7 +103,7 @@ export function createEffects({ root, layout, palette = {}, tier }) {
     const sparkGeo = new THREE.BufferGeometry();
     sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
     sparkGeo.setAttribute('color', new THREE.BufferAttribute(sparkCol, 3));
-    const sparkMat = new THREE.PointsMaterial({ map: discTex, size: 0.013, vertexColors: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true });
+    const sparkMat = new THREE.PointsMaterial({ map: discTex, size: 0.013, vertexColors: true, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true });
     const sparks = new THREE.Points(sparkGeo, sparkMat);
     sparks.frustumCulled = false; sparks.renderOrder = 7; sparks.name = 'impactSparks';
     group.add(sparks);

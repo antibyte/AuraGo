@@ -34,8 +34,10 @@ function blobTexture() {
     return t;
 }
 
-// Hard polished chrome needs contrast: a near-black room, big crisp softboxes overhead, a hot window highlight, a dim playfield below
-// and a few coloured insert-light spots near the horizon. Returns a PMREM render target (sigma 0, so the boxes stay sharp).
+// Brushed chrome, not a mirror: a near-black room with soft, dim softboxes overhead, a modest window highlight,
+// a dim playfield below and a few coloured insert-light spots near the horizon. Peak panel values stay below the
+// bloom threshold (see TIERS in materials.js) so reflections never blow out into white glare. Returns a PMREM
+// render target with a little blur (sigma 0.02) to keep the highlight edges soft.
 function chromeEnvironment(renderer, accent, secondary) {
     const s = new THREE.Scene();
     s.add(new THREE.Mesh(new THREE.SphereGeometry(20, 32, 16), new THREE.MeshBasicMaterial({ color: '#020307', side: THREE.BackSide })));
@@ -45,16 +47,16 @@ function chromeEnvironment(renderer, accent, secondary) {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.DoubleSide }));
         m.position.set(...pos); m.lookAt(0, 0, 0); s.add(m);
     };
-    box(7, 0.55, [0, 6, -2.7], '#f4f8ff', 5);                   // two long overhead tubes with a dark gap between
-    box(7, 0.55, [0, 6.2, 0.2], '#f4f8ff', 5);
-    box(5, 1.2, [-3.6, 4.6, 3.2], '#fff3e2', 3.6);              // warm key from the player's left
-    box(1.4, 3.8, [5.6, 2.6, 1.0], '#dbe7ff', 2.4);              // cool strip on the right
-    box(0.55, 0.55, [-2.6, 3.4, 1.8], '#ffffff', 11);          // hot window: the crisp specular highlight
-    box(1.6, 0.5, [-5.2, 0.9, -2.4], accent, 3.5);               // neon room strips near the horizon
-    box(1.6, 0.5, [5.0, 0.8, -3.0], secondary, 3.5);
-    box(2.4, 0.5, [0, 0.6, 5.5], '#ffffff', 1.4);                // faint rim at the player's end
+    box(7, 0.55, [0, 6, -2.7], '#f4f8ff', 1.5);                 // two long overhead tubes with a dark gap between
+    box(7, 0.55, [0, 6.2, 0.2], '#f4f8ff', 1.5);
+    box(5, 1.2, [-3.6, 4.6, 3.2], '#fff3e2', 1.25);             // warm key from the player's left
+    box(1.4, 3.8, [5.6, 2.6, 1.0], '#dbe7ff', 1.0);             // cool strip on the right
+    box(0.55, 0.55, [-2.6, 3.4, 1.8], '#ffffff', 2.2);          // window: a soft specular highlight, not a white flare
+    box(1.6, 0.5, [-5.2, 0.9, -2.4], accent, 1.1);               // neon room strips near the horizon
+    box(1.6, 0.5, [5.0, 0.8, -3.0], secondary, 1.1);
+    box(2.4, 0.5, [0, 0.6, 5.5], '#ffffff', 0.6);                // faint rim at the player's end
     const pm = new THREE.PMREMGenerator(renderer);
-    const target = pm.fromScene(s, 0);
+    const target = pm.fromScene(s, 0.02);
     pm.dispose();
     s.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     return target;
@@ -65,7 +67,7 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
     const group = new THREE.Group(); group.name = 'balls'; root.add(group);
     const geo = new THREE.SphereGeometry(BALL_RADIUS, low ? 20 : 36, low ? 12 : 22);
     const tex = scratchTexture(), blob = blobTexture();
-    const mat = new THREE.MeshStandardMaterial({ color: '#eef2f8', map: tex, metalness: 1, roughness: 0.03, envMap: env, envMapIntensity: 1.25 });
+    const mat = new THREE.MeshStandardMaterial({ color: '#eef2f8', map: tex, metalness: 1, roughness: 0.18, envMap: env, envMapIntensity: 0.65 });
     const mesh = new THREE.InstancedMesh(geo, mat, MAX_BALLS); mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = true; mesh.name = 'balls'; group.add(mesh);
     const shGeo = new THREE.PlaneGeometry(0.066, 0.066); shGeo.rotateX(-Math.PI / 2);
     const shMat = new THREE.MeshBasicMaterial({ map: blob, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -80,7 +82,7 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
         if (!renderer) return;
         if (chromeRT) chromeRT.dispose();
         try { chromeRT = chromeEnvironment(renderer, accent, secondary); } catch (_) { chromeRT = null; return; }
-        mat.envMap = chromeRT.texture; mat.envMapIntensity = 1.0; mat.needsUpdate = true;
+        mat.envMap = chromeRT.texture; mat.envMapIntensity = 0.6; mat.needsUpdate = true;
     }
 
     function update(snap, dt) {

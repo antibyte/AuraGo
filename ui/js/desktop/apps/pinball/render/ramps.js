@@ -113,8 +113,8 @@ function plasticRamp(def, F, ctx, group, D) {
     const idx = indicesEvery(F.count, low ? 6 : 2);
     const body = sweep(F, idx, [[-half - lt, -th], [-half - lt, lh], [-half, lh], [-half, 0], [half, 0], [half, lh], [half + lt, lh], [half + lt, -th]]);
     D.g(body);
-    const bodyMat = new THREE.MeshPhysicalMaterial({ color: color.clone().multiplyScalar(0.4), roughness: 0.14, metalness: 0, transparent: true, opacity: 0.36, side: THREE.DoubleSide, depthWrite: false,
-        envMap: env, envMapIntensity: 1.0, clearcoat: low ? 0 : 0.6, clearcoatRoughness: 0.3, emissive: color.clone().multiplyScalar(0.07), emissiveIntensity: 1 });
+    const bodyMat = new THREE.MeshPhysicalMaterial({ color: color.clone().multiplyScalar(0.4), roughness: 0.28, metalness: 0, transparent: true, opacity: 0.36, side: THREE.DoubleSide, depthWrite: false,
+        envMap: env, envMapIntensity: 0.45, clearcoat: low ? 0 : 0.35, clearcoatRoughness: 0.4, emissive: color.clone().multiplyScalar(0.07), emissiveIntensity: 1 });
     D.m(bodyMat);
     const mesh = new THREE.Mesh(body, bodyMat); mesh.name = def.id + '_channel'; mesh.renderOrder = 2; mesh.frustumCulled = false; group.add(mesh);
     // Edge highlight along both lip tops.
@@ -150,7 +150,7 @@ function plasticRamp(def, F, ctx, group, D) {
     // Entry flap: a hinged lip that lowers when a ball arrives.
     const fi = Math.min(3, F.count - 2);
     const flapGeo = new THREE.BoxGeometry(w - 0.002, 0.0012, 0.02); flapGeo.translate(0, 0.0006, -0.01); D.g(flapGeo);
-    const flapMat = new THREE.MeshPhysicalMaterial({ color: color.clone().multiplyScalar(0.8), transparent: true, opacity: 0.6, roughness: 0.15, envMap: env, emissive: color.clone().multiplyScalar(0.2) }); D.m(flapMat);
+    const flapMat = new THREE.MeshPhysicalMaterial({ color: color.clone().multiplyScalar(0.8), transparent: true, opacity: 0.6, roughness: 0.3, envMap: env, envMapIntensity: 0.45, emissive: color.clone().multiplyScalar(0.2) }); D.m(flapMat);
     const flap = new THREE.Mesh(flapGeo, flapMat); flap.name = def.id + '_flap';
     const fb = new THREE.Matrix4().makeBasis(new THREE.Vector3(F.r[3 * fi], F.r[3 * fi + 1], F.r[3 * fi + 2]), new THREE.Vector3(F.u[3 * fi], F.u[3 * fi + 1], F.u[3 * fi + 2]),
         new THREE.Vector3(-F.t[3 * fi], -F.t[3 * fi + 1], -F.t[3 * fi + 2]));
@@ -196,8 +196,8 @@ function tubeRamp(def, F, ctx, group, D) {
     const pts = idx.map(i => at(F, i, 0, BALL_R, new THREE.Vector3()));
     const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
     const geo = new THREE.TubeGeometry(curve, idx.length * (low ? 1 : 2), rad, low ? 8 : 14, false); D.g(geo);
-    const mat = new THREE.MeshPhysicalMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.2), transparent: true, opacity: 0.1, roughness: 0.05, metalness: 0, side: THREE.DoubleSide, depthWrite: false,
-        envMap: env, envMapIntensity: 0.7, emissive: color.clone().multiplyScalar(0.1) }); D.m(mat);
+    const mat = new THREE.MeshPhysicalMaterial({ color: color.clone().lerp(new THREE.Color('#ffffff'), 0.2), transparent: true, opacity: 0.1, roughness: 0.25, metalness: 0, side: THREE.DoubleSide, depthWrite: false,
+        envMap: env, envMapIntensity: 0.35, emissive: color.clone().multiplyScalar(0.1) }); D.m(mat);
     const mesh = new THREE.Mesh(geo, mat); mesh.name = def.id + '_tube'; mesh.renderOrder = 2; mesh.frustumCulled = false; group.add(mesh);
     // Metal collars at both ends.
     const ring = new THREE.TorusGeometry(rad + 0.0006, 0.0012, 5, low ? 12 : 20); D.g(ring);

@@ -88,8 +88,8 @@ export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.
         giTintLo: { value: hexToLinear(giColors.lower || '#ffe9d0') }, giTintUp: { value: hexToLinear(giColors.upper || '#ffe9d0') }
     };
     const material = new THREE.MeshPhysicalMaterial({
-        map: artTex, color: '#ffffff', roughness: 0.55, metalness: 0.04, clearcoat: 0.55, clearcoatRoughness: 0.12,
-        envMap, envMapIntensity: 0.4, emissive: '#000000'
+        map: artTex, color: '#ffffff', roughness: 0.62, metalness: 0.04, clearcoat: 0.28, clearcoatRoughness: 0.32,
+        envMap, envMapIntensity: 0.25, emissive: '#000000'
     });
     let patched = !forceFallback;
     const patch = shader => {

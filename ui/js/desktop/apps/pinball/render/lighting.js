@@ -20,15 +20,17 @@ export function createEnvironment(renderer, palette) {
         m.position.set(...pos); m.rotation.set(...rot); s.add(m);
     };
     const acc = palette.accent || '#37d9ff', sec = palette.secondary || '#ff48c4';
-    panel(9, 1.4, [0, 5.6, -4.6], [0, 0, 0], '#e8f1ff', 1.3);                   // back-high soft box (glossy sheen in the play view)
-    panel(8, 1.1, [0, 5.4, 4.8], [0, 0, 0], '#fff0dc', 1.6);
-    panel(0.5, 5, [-6, 2.6, 0], [0, Math.PI / 2, 0], acc, 3);                  // neon strips on both sides
-    panel(0.5, 5, [6, 2.6, 0], [0, Math.PI / 2, 0], sec, 3);
-    panel(6, 0.4, [0, 1.6, -7], [0, 0, 0], acc, 3);
-    panel(4, 0.3, [0, 1.2, 6.8], [0, Math.PI, 0], sec, 2.2);
+    // Soft, dim boxes: peaks stay below the bloom threshold so rails and ramps show a brushed sheen
+    // instead of a blown-out white reflection.
+    panel(9, 1.4, [0, 5.6, -4.6], [0, 0, 0], '#e8f1ff', 0.65);                 // back-high soft box (glossy sheen in the play view)
+    panel(8, 1.1, [0, 5.4, 4.8], [0, 0, 0], '#fff0dc', 0.8);
+    panel(0.5, 5, [-6, 2.6, 0], [0, Math.PI / 2, 0], acc, 1.2);               // neon strips on both sides
+    panel(0.5, 5, [6, 2.6, 0], [0, Math.PI / 2, 0], sec, 1.2);
+    panel(6, 0.4, [0, 1.6, -7], [0, 0, 0], acc, 1.1);
+    panel(4, 0.3, [0, 1.2, 6.8], [0, Math.PI, 0], sec, 0.9);
     s.children.forEach(o => { if (o.isMesh && o.geometry.type === 'PlaneGeometry') o.lookAt(0, 0.5, 0); });
     const pm = new THREE.PMREMGenerator(renderer);
-    const target = pm.fromScene(s, 0.03);
+    const target = pm.fromScene(s, 0.06);
     pm.dispose();
     s.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     return target;
@@ -129,14 +131,14 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
         }
         if (domes) for (let j = 0; j < flashers.length; j++) {
             const v = fl ? fl[j] || 0 : 0;
-            tmp.copy(flashColor[j]).multiplyScalar(0.12 + 5 * v); domes.setColorAt(j, tmp);
+            tmp.copy(flashColor[j]).multiplyScalar(0.1 + 2.6 * v); domes.setColorAt(j, tmp);
         }
         if (domes) domes.instanceColor.needsUpdate = true;
         if (bulbMesh) {
             const sig = gl ? Array.from(gl, v => v.toFixed(2)).join() : '';
             if (sig !== lastGi || !bulbMesh.instanceColor) {
                 lastGi = sig;
-                bulbs.forEach((b, i) => { const lv = gl ? gl[b.gi] : 1; tmp.copy(giColor[b.gi]).multiplyScalar(0.04 + 0.5 * lv); bulbMesh.setColorAt(i, tmp); });
+                bulbs.forEach((b, i) => { const lv = gl ? gl[b.gi] : 1; tmp.copy(giColor[b.gi]).multiplyScalar(0.04 + 0.35 * lv); bulbMesh.setColorAt(i, tmp); });
                 bulbMesh.instanceColor.needsUpdate = true;
             }
         }
