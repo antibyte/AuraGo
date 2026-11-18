@@ -914,8 +914,9 @@
                 mode: state.mode,
                 root,
                 getAnalyser: () => (state.graph ? state.graph.analyser : null),
-                onEnergy: bass => {
-                    root.style.setProperty('--pl-pulse', (Number(bass) || 0).toFixed(3));
+                onEnergy: (bass, energy) => {
+                    const pulse = Math.max(0, Math.min(1, (Number(bass) || 0) * 0.78 + (Number(energy) || 0) * 0.30));
+                    root.style.setProperty('--pl-pulse', pulse.toFixed(3));
                 }
             });
         }
