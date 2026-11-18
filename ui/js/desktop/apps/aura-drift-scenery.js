@@ -205,12 +205,14 @@
                 const head = point(x, h, y);
                 face(point(x * .6 - .07, 0, y * .6), head, point(x * .6 + .07, 0, y * .6 + .06), 1);
                 if (p.bloom === 'daisy') {
+                    // Tilt the flowers towards different sides so their faces read at driving height.
+                    const flower = (dx, dy, lift) => point(x + dx, h + lift + .58 * (dx * Math.cos(a) + dy * Math.sin(a)), y + dy);
                     for (let j = 0; j < 5; j++) {
                         const dir = a + j * Math.PI * 2 / 5;
-                        const petal = d => point(x + Math.cos(dir + d) * .30, h + .08, y + Math.sin(dir + d) * .30);
+                        const petal = d => flower(Math.cos(dir + d) * .32, Math.sin(dir + d) * .32, .08);
                         face(head, petal(.53), petal(-.53), 3);
                     }
-                    face(point(x - .10, h + .035, y - .08), point(x, h + .07, y + .12), point(x + .12, h + .035, y - .06), 4);
+                    face(flower(-.10, -.08, .035), flower(0, .12, .07), flower(.12, -.06, .035), 4);
                 } else {
                     const w = p.bloom === 'spike' ? .19 : .105, peak = point(x + .09, h + .43, y);
                     for (let j = 0; j < 4; j++) {
