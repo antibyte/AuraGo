@@ -105,7 +105,7 @@
             aurora: { colors: ['#10e08a', '#12d6c8', '#9b6bff'], alpha: 0.4 },
             art: {
                 sheets: { far: 'bg-glacier-far', mid: 'bg-glacier-mid', near: 'bg-glacier-near' },
-                far: { frac: 0.44, lift: -0.04, factor: 0.15, color: '#2b5578', haze: 0.58, dark: 0.18 },
+                far: { frac: 0.44, lift: -0.04, factor: 0.15, color: '#2b5578', haze: 0.38, dark: 0.08 },
                 mid: { factor: 0.38, lift: -0.075, amp: 20, cells: 9, seed: 331, body: '#1f4563', scale: 0.62, gap: [190, 430], color: '#27506f', haze: 0.5, dark: 0.2 },
                 near: { factor: 0.68, lift: 0, scale: 0.4, gap: [120, 330], body: '#10304d', color: '#17385a', haze: 0.3, dark: 0.5 }
             },
