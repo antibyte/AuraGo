@@ -541,6 +541,7 @@
                 '/js/vendor/OrbitControls.min.js',
                 '/js/desktop/apps/chess-engine.js',
                 '/js/desktop/apps/chess-agent.js',
+                '/js/desktop/apps/chess-commentary.js',
                 '/js/desktop/apps/chess-fx.js',
                 '/js/desktop/apps/chess-3d.js',
                 '/js/desktop/apps/chess.js'

@@ -3930,12 +3930,16 @@ buttons and menu popovers remain excluded from those gestures.
   (Stockfish), move-history click-to-review with first/prev/next/last scrubber,
   last-move and check highlights, resign/draw confirmation modals with cancel,
   game-over result overlay with win confetti, CSS move/capture/check/thinking
-  effects (`prefers-reduced-motion` aware), and Web Audio synthesized
-  move/capture/check/castle/promote/game-over sounds. Split across `chess.js`
-  (core game loop), `chess-fx.js` (template, effects, audio, skin helpers, the
-  promotion dialog, the move list and the tab strip), `chess-engine.js`
-  (Stockfish worker bridge), `chess-agent.js` (AuraGo agent move API client)
-  and `chess-3d.js` (the optional 3D board).
+  effects (`prefers-reduced-motion` aware), Web Audio Staunton wood/baize
+  move/capture/check/castle/promote/game-over sounds with a mute pill, and an
+  optional sarcastic Phonon TTS commentator (`chess-commentary.js` →
+  `POST /api/desktop/chess/commentary`, default off,
+  `aurago.desktop.chess.commentary`). Split across `chess.js` (core game loop),
+  `chess-fx.js` (template, effects, audio, chrome helpers via
+  `window.ChessChrome`, skin helpers, the promotion dialog, the move list and
+  the tab strip), `chess-commentary.js` (situation classifier and TTS client),
+  `chess-engine.js` (Stockfish worker bridge), `chess-agent.js` (AuraGo agent
+  move API client) and `chess-3d.js` (the optional 3D board).
 - `chess-3d.js` owns the optional 3D board mode of the Chess app. It renders
   the live position with the original AuraGo piece kit from `/3d/chess/v1/`
   through the vendored global Three.js, GLTFLoader and OrbitControls, and
@@ -5271,9 +5275,10 @@ registration lives in `internal/desktop/types.go`.
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
-- Keep Chess split across `chess.js`, `chess-fx.js`, `chess-engine.js`, and
-  `chess-agent.js`; do not fold worker, API bridge, template, or FX/audio
-  helpers into the main app file. `chess-fx.js` must load before `chess.js`.
+- Keep Chess split across `chess.js`, `chess-fx.js`, `chess-commentary.js`,
+  `chess-engine.js`, `chess-agent.js` and `chess-3d.js`; do not fold worker,
+  API bridge, template, FX/audio, or commentary helpers into the main app
+  file. `chess-fx.js` and `chess-commentary.js` must load before `chess.js`.
 - Keep Cheater split across `cheater.js`, `cheater-toolbar.js`,
   `cheater-spotlight.js`, `cheater-templates.js`, and `cheater-attachments.js`;
   do not fold the toolbar, spotlight, or attachment logic into the main app
@@ -5716,17 +5721,20 @@ registration lives in `internal/desktop/types.go`.
   when it is empty and disables the save button while the request runs.
   Verify with `TestDesktopPeopleUxBrowser` and `TestContactPrivacyControlsBrowser`.
   No child DOX file needed.
-- `chess.js` / `chess-fx.js` - Chess app and board FX. Result-modal
-  fallbacks use `desktop.chess_new_game` and `desktop.ok`; pass `t`
-  into `createChessFx`. Opponent-move errors use
-  `desktop.chess_*` codes via `formatOpponentError`. Vendor-load
-  status and the missing-template fallback use
-  `desktop.chess_load_failed`. The draw action ends the game and uses
-  `desktop.chess_draw` with `desktop.chess_confirm_draw`. The move list
-  (`window.ChessMoveList`) and the tab strip (`window.ChessTabs`) live in
-  `chess-fx.js`. Exposes
-  `window.ChessApp` and `window.createChessFx`. No child DOX file
-  needed.
+- `chess.js` / `chess-fx.js` / `chess-commentary.js` - Chess app, board FX
+  and optional Phonon commentary. Result-modal fallbacks use
+  `desktop.chess_new_game` and `desktop.ok`; pass `t` into `createChessFx`.
+  Opponent-move errors use `desktop.chess_*` codes via
+  `window.ChessChrome.formatOpponentError`. Vendor-load status and the
+  missing-template fallback use `desktop.chess_load_failed`. The draw
+  action ends the game and uses `desktop.chess_draw` with
+  `desktop.chess_confirm_draw`. Sound/commentary chrome, move audio and
+  PGN/FEN copy live in `chess-fx.js` (`window.ChessChrome`,
+  `window.ChessInfoTools`, `window.ChessMoveList`, `window.ChessTabs`).
+  Commentary phrases and Phonon synthesis stay server-owned. Exposes
+  `window.ChessApp`, `window.createChessFx` and
+  `window.createChessCommentary`. Verify `TestDesktopChess*` and
+  `TestDesktopChessCommentary*`. No child DOX file needed.
 - `calendar.js` / `calendar-views.js` / `calendar-editor.js` - Calendar
   session shell, pure view renderers and editor/peek continuations bundled
   inside the shared Desktop IIFE (see Local Contracts for order and behavior).

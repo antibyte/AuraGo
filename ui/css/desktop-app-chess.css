@@ -13,8 +13,8 @@
     --chess-danger: #d35448;
     --chess-good: #3dba8c;
     --chess-board-frame: #5a3f28;
-    --chess-board-frame-hi: #7a5636;
-    --chess-board-frame-lo: #3d2a1a;
+    --chess-board-frame-hi: #7f5a39;
+    --chess-board-frame-lo: #382515;
     --chess-felt: #d7e5dc;
     --chess-shadow: var(--vd-theme-shadow-panel);
     --chess-radius: 14px;
@@ -40,6 +40,7 @@
         var(--vd-theme-app-bg));
     color: var(--chess-ink);
     overflow: hidden;
+    outline: none;
     font-feature-settings: "tnum" 1;
 }
 
@@ -48,29 +49,117 @@
     min-height: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
-    padding: 16px 16px 14px;
-    gap: 10px;
+    padding: 14px 16px 12px;
+    gap: 9px;
 }
 
-/* One centered column: view switch and material score above the board. Keeps a
-   wide window from stretching a compact row across the whole pane. */
+/* One centered column: view switch, audio/commentary tools and material score above the board. */
 .vd-chess-pane-head {
     display: flex;
     align-items: center;
-    gap: 10px;
-    /* The head follows the board width, so the switch and the material meter
-       stay in the same optical column as the board and the status ribbon. */
+    flex-wrap: wrap;
+    gap: 8px;
     width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
     max-width: 100%;
     margin-inline: auto;
     box-sizing: border-box;
 }
 
-.vd-chess-pane-head .vd-chess-material-bar {
-    /* A balance meter, not a full-width bar: it keeps its own size and sits
-       at the far end of the head row. */
-    flex: 0 1 380px;
+.vd-chess-head-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
+    flex-wrap: wrap;
+}
+
+.vd-chess-head-pill {
+    appearance: none;
+    height: 30px;
+    min-width: 30px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 999px;
+    background: var(--vd-mat-field, var(--chess-panel));
+    border: 1px solid var(--vd-mat-field-border, var(--chess-line));
+    box-shadow: var(--vd-mat-field-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.05));
+    color: var(--chess-muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+
+.vd-chess-head-pill[hidden] {
+    display: none;
+}
+
+.vd-chess-head-pill:hover {
+    color: var(--chess-ink);
+    border-color: color-mix(in srgb, var(--chess-accent) 45%, var(--chess-line));
+}
+
+.vd-chess-head-pill:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--chess-accent) 75%, transparent);
+    outline-offset: 2px;
+}
+
+.vd-chess-head-pill.is-active {
+    background: color-mix(in srgb, var(--chess-accent) 18%, var(--vd-mat-field-color, var(--chess-panel)));
+    color: var(--chess-ink);
+    border-color: color-mix(in srgb, var(--chess-accent) 52%, transparent);
+}
+
+.vd-chess-head-pill.is-muted {
+    opacity: 0.58;
+}
+
+.vd-chess-pill-label {
+    white-space: nowrap;
+}
+
+.vd-chess-voice-wave {
+    display: none;
+    align-items: flex-end;
+    gap: 2px;
+    height: 11px;
+    margin-left: 1px;
+}
+
+.vd-chess-commentary-btn.is-speaking .vd-chess-voice-wave {
+    display: inline-flex;
+}
+
+.vd-chess-voice-wave i {
+    display: block;
+    width: 2.5px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--chess-accent);
+    animation: vd-chess-wave 0.68s ease-in-out infinite;
+}
+
+.vd-chess-voice-wave i:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.vd-chess-voice-wave i:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes vd-chess-wave {
+    0%, 100% { height: 3px; opacity: 0.6; }
+    50% { height: 11px; opacity: 1; }
+}
+
+.vd-chess-pane-head .vd-chess-material-bar {
+    flex: 1 1 170px;
+    max-width: 280px;
+    min-width: 120px;
     margin-left: auto;
 }
 
@@ -79,7 +168,7 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
-    padding: 6px 10px;
+    padding: 5px 10px;
     border-radius: var(--chess-radius-sm);
     background: var(--vd-mat-bar, var(--chess-panel));
     border: 1px solid var(--chess-divider);
@@ -101,7 +190,7 @@
     height: 8px;
     border-radius: 999px;
     overflow: hidden;
-    background: linear-gradient(90deg, #1a1a1a 0%, #1a1a1a 50%, #f2f2f2 50%, #f2f2f2 100%);
+    background: linear-gradient(90deg, #1d2026 0%, #1d2026 50%, #f3f0e8 50%, #f3f0e8 100%);
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
@@ -144,10 +233,10 @@
 .vd-chess-board-shell::before {
     content: "";
     position: absolute;
-    inset: 10% 12%;
+    inset: 8% 10%;
     border-radius: 28px;
-    background: radial-gradient(circle at 50% 45%, rgba(47, 159, 132, 0.14), transparent 62%);
-    filter: blur(18px);
+    background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--chess-accent) 16%, transparent), transparent 64%);
+    filter: blur(20px);
     pointer-events: none;
     z-index: 0;
 }
@@ -181,30 +270,38 @@
     padding: var(--chess-rim);
     box-sizing: border-box;
     background:
+        repeating-linear-gradient(
+            92deg,
+            rgba(255, 255, 255, 0.02) 0px,
+            rgba(255, 255, 255, 0.02) 3px,
+            rgba(0, 0, 0, 0.025) 3px,
+            rgba(0, 0, 0, 0.025) 7px
+        ),
         linear-gradient(
-            180deg,
+            165deg,
             var(--chess-board-frame-hi) 0%,
-            var(--chess-board-frame) 38%,
+            var(--chess-board-frame) 42%,
             var(--chess-board-frame-lo) 100%
         );
-    border: 1px solid color-mix(in srgb, var(--chess-board-frame-hi) 70%, #fff 12%);
+    border: 1px solid color-mix(in srgb, var(--chess-board-frame-hi) 68%, #f5deb3 16%);
     box-shadow:
-        0 16px 36px rgba(0, 0, 0, 0.38),
-        0 0 0 1px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.22),
-        inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+        0 18px 40px rgba(0, 0, 0, 0.42),
+        0 0 0 1px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 245, 225, 0.26),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.34);
     transition: transform 0.28s ease, box-shadow 0.28s ease, filter 0.28s ease;
 }
 
-/* Inner lip: crisp square edge between wood rim and board */
+/* Inner brass & shadow fillet between walnut rim and playing surface */
 .vd-chess-board-frame::before {
     content: "";
     position: absolute;
-    inset: var(--chess-rim);
+    inset: calc(var(--chess-rim) - 1px);
     border-radius: 4px;
+    border: 1px solid rgba(212, 173, 99, 0.42);
     box-shadow:
-        0 0 0 1px rgba(0, 0, 0, 0.45),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        0 0 0 1px rgba(0, 0, 0, 0.46),
+        inset 0 1px 3px rgba(0, 0, 0, 0.28);
     pointer-events: none;
     z-index: 2;
 }
@@ -224,8 +321,6 @@
     aspect-ratio: auto;
 }
 
-/* In 3D the scene fills the whole board area, so the head and the ribbon
-   follow that area again instead of the square board width. */
 .vd-chess.is-3d .vd-chess-pane-head,
 .vd-chess.is-3d .vd-chess-ribbon {
     width: 100%;
@@ -255,6 +350,45 @@
     background: var(--chess-felt);
 }
 
+/* Tactile elevation & crisp silhouettes on 2D pieces + refined board markers */
+.vd-chess-board .cm-chessboard .pieces-layer .piece {
+    filter: drop-shadow(0 2px 2.2px rgba(0, 0, 0, 0.32));
+}
+
+.vd-chess-board .cm-chessboard .coordinates .coordinate {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.vd-chess-board .cm-chessboard .markers .marker.marker-frame-primary {
+    stroke: #f0b429;
+    stroke-width: 2.3px;
+    opacity: 0.88;
+}
+
+.vd-chess-board .cm-chessboard .markers .marker.marker-frame-danger {
+    stroke: #eb4d4b;
+    stroke-width: 2.6px;
+    opacity: 0.95;
+}
+
+.vd-chess-board .cm-chessboard .markers .marker.marker-frame {
+    stroke: #27c7a6;
+    stroke-width: 2.4px;
+    opacity: 0.92;
+}
+
+.vd-chess-board .cm-chessboard .markers .marker.marker-dot {
+    fill: #12211a;
+    opacity: 0.28;
+}
+
+.vd-chess-board .cm-chessboard .markers .marker.marker-circle {
+    stroke: #12211a;
+    stroke-width: 3.2px;
+    opacity: 0.36;
+}
+
 /* Keep cm-chessboard SVG border flush; wood rim is owned by the frame padding */
 .vd-chess-board .cm-chessboard.border-type-thin .board .border {
     stroke-width: 0.35%;
@@ -281,7 +415,7 @@
 }
 
 .vd-chess-board-shell.is-promote-fx .vd-chess-board-frame {
-    animation: vd-chess-promote-glow 0.5s ease;
+    animation: vd-chess-promote-glow 0.52s ease;
 }
 
 .vd-chess-board-shell.is-thinking .vd-chess-board-frame {
@@ -307,7 +441,7 @@
 
 @keyframes vd-chess-capture-pop {
     0% { transform: scale(1); }
-    40% { transform: scale(1.018); }
+    40% { transform: scale(1.016); }
     100% { transform: scale(1); }
 }
 
@@ -330,7 +464,7 @@
     100% { background-position: -40% 0; opacity: 0.3; }
 }
 
-/* Burst particles */
+/* Square-localized burst particles & shockwave ring */
 .vd-chess-burst {
     position: absolute;
     left: 50%;
@@ -341,6 +475,26 @@
     pointer-events: none;
 }
 
+.vd-chess-burst-ring {
+    position: absolute;
+    left: -20px;
+    top: -20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--chess-accent);
+    opacity: 0;
+    animation: vd-chess-ring-out 0.52s cubic-bezier(0.16, 0.84, 0.3, 1) forwards;
+}
+
+.vd-chess-burst.is-danger .vd-chess-burst-ring {
+    border-color: var(--chess-danger);
+}
+
+.vd-chess-burst.is-gold .vd-chess-burst-ring {
+    border-color: var(--chess-warn);
+}
+
 .vd-chess-burst span {
     position: absolute;
     width: 6px;
@@ -349,7 +503,7 @@
     border-radius: 50%;
     background: var(--chess-accent);
     box-shadow: 0 0 8px color-mix(in srgb, var(--chess-accent) 70%, transparent);
-    animation: vd-chess-burst-out 0.5s ease-out forwards;
+    animation: vd-chess-burst-out 0.52s ease-out forwards;
     transform: rotate(calc(var(--a) * 1deg)) translateY(0);
 }
 
@@ -358,23 +512,32 @@
     box-shadow: 0 0 8px color-mix(in srgb, var(--chess-danger) 70%, transparent);
 }
 
+.vd-chess-burst.is-gold span {
+    background: var(--chess-warn);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--chess-warn) 75%, transparent);
+}
+
+@keyframes vd-chess-ring-out {
+    0% { opacity: 0.85; transform: scale(0.35); }
+    100% { opacity: 0; transform: scale(1.85); }
+}
+
 @keyframes vd-chess-burst-out {
     0% { opacity: 1; transform: rotate(calc(var(--a) * 1deg)) translateY(0) scale(1); }
-    100% { opacity: 0; transform: rotate(calc(var(--a) * 1deg)) translateY(-56px) scale(0.4); }
+    100% { opacity: 0; transform: rotate(calc(var(--a) * 1deg)) translateY(-52px) scale(0.35); }
 }
 
 .vd-chess-ribbon {
     width: var(--chess-frame-size, min(100%, var(--chess-column), 100cqh));
     max-width: 100%;
     margin-inline: auto;
-    /* The ribbon has the width of the board, padding included. */
     box-sizing: border-box;
     min-height: 46px;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-content: center;
-    gap: 2px;
-    padding: 8px 12px;
+    gap: 3px;
+    padding: 8px 13px;
     border-radius: var(--chess-radius-sm);
     background: var(--vd-mat-bar, var(--chess-panel));
     border: 1px solid var(--chess-divider);
@@ -384,10 +547,14 @@
     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
-/* The turn ring is an outline, so the bar keeps its material edge. */
 .vd-chess.is-your-turn .vd-chess-ribbon {
     border-color: color-mix(in srgb, var(--chess-accent) 45%, transparent);
     outline: 1px solid color-mix(in srgb, var(--chess-accent) 20%, transparent);
+}
+
+.vd-chess.is-commentary-speaking .vd-chess-ribbon {
+    border-color: color-mix(in srgb, var(--chess-warn) 55%, var(--chess-accent));
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--chess-accent) 22%, rgba(0, 0, 0, 0.2));
 }
 
 .vd-chess.is-check .vd-chess-ribbon {
@@ -406,7 +573,7 @@
 .vd-chess-status {
     min-width: 0;
     font-family: var(--chess-head-font);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: var(--vd-mat-heading-weight, 700);
     color: var(--vd-mat-heading-color, var(--chess-ink));
     white-space: nowrap;
@@ -458,23 +625,27 @@
 .vd-chess-comment {
     min-height: 16px;
     font-size: 12px;
+    line-height: 1.35;
     color: var(--chess-muted);
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+}
+
+.vd-chess-comment.has-quips {
+    color: color-mix(in srgb, var(--chess-ink) 88%, var(--chess-warn));
+    font-style: italic;
 }
 
 .vd-chess-side {
     min-width: 0;
     min-height: 0;
     container-type: inline-size;
-    /* A flex column keeps the panels in the free space: a grid row would
-       hand the leftover height to an empty auto row instead. */
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 16px 16px 16px 0;
-    /* The side never clips: it scrolls when the window gets too short. */
+    padding: 14px 16px 14px 0;
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -495,8 +666,6 @@
     background-clip: padding-box;
 }
 
-/* Fixed sizes: a hidden clock must not push the move list out of the
-   flexible row. */
 .vd-chess-clocks,
 .vd-chess-controls,
 .vd-chess-tabs {
@@ -520,21 +689,19 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 9px 12px;
+    padding: 8px 12px;
     border-radius: var(--chess-card-radius-sm);
-    /* A small tile: the flat card colour, without the corner studs of the full card material. */
     background: var(--chess-card-color);
     border: 1px solid var(--vd-mat-card-border, var(--chess-line));
     box-shadow: var(--vd-mat-card-shadow, 0 8px 18px rgba(0, 0, 0, 0.16));
     transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
-/* The side to move is the call to action: the theme's primary material. */
 .vd-chess-clock.is-active {
     background: var(--vd-mat-primary, linear-gradient(135deg, var(--chess-accent-deep), var(--chess-accent)));
     border-color: var(--vd-mat-primary-border, transparent);
     color: var(--vd-mat-primary-text, #ffffff);
-    transform: scale(1.03);
+    transform: scale(1.02);
     box-shadow: var(--vd-mat-primary-shadow, 0 10px 24px color-mix(in srgb, var(--chess-accent) 35%, transparent));
 }
 
@@ -543,7 +710,6 @@
     color: var(--vd-mat-primary-text, #ffffff);
 }
 
-/* A low clock keeps its red gradient, so its digits stay white whatever the primary text colour is. */
 .vd-chess-clock.is-low.is-active .vd-chess-clock-side,
 .vd-chess-clock.is-low.is-active .vd-chess-clock-time {
     color: #ffffff;
@@ -586,9 +752,7 @@
     -webkit-backdrop-filter: blur(10px);
 }
 
-/* The panels carry their own display rule, so the hidden attribute of the
-   tab switch needs an explicit reset. Without it every panel stays in the
-   column and squeezes the move list out of the sidebar. */
+/* Panels carry their own display rule and need the hidden reset */
 .vd-chess-moves[hidden],
 .vd-chess-captured-panel[hidden],
 .vd-chess-info-panel[hidden],
@@ -600,15 +764,12 @@
 .vd-chess-controls {
     display: grid;
     gap: 10px;
-    padding: 14px;
+    padding: 13px;
 }
 
-/* Settings fold away: the sidebar keeps the game state and the move list,
-   the game setup opens only when it is needed. */
 .vd-chess-settings {
     border-radius: 9px;
     border: 1px solid var(--chess-divider);
-    /* A recessed well inside the controls card. */
     background: var(--vd-mat-well, color-mix(in srgb, var(--chess-accent) 8%, transparent));
     box-shadow: var(--vd-mat-well-shadow, none);
     overflow: hidden;
@@ -653,7 +814,6 @@
     transform: rotate(180deg);
 }
 
-/* Two fields per row whenever the column is wide enough for it. */
 .vd-chess-settings-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
@@ -730,7 +890,8 @@
 .vd-chess-segment button,
 .vd-chess-actions button,
 .vd-chess-promotion button,
-.vd-chess-replay button {
+.vd-chess-replay button,
+.vd-chess-info-tools button {
     min-width: 0;
     border: 0;
     border-radius: 7px;
@@ -765,7 +926,8 @@
     gap: 8px;
 }
 
-.vd-chess-actions button {
+.vd-chess-actions button,
+.vd-chess-info-tools button {
     min-height: 34px;
     display: inline-flex;
     align-items: center;
@@ -792,7 +954,8 @@
 .vd-chess-actions button:hover,
 .vd-chess-segment button:hover,
 .vd-chess-promotion button:hover,
-.vd-chess-replay button:hover {
+.vd-chess-replay button:hover,
+.vd-chess-info-tools button:hover {
     filter: brightness(1.06);
     transform: translateY(-1px);
 }
@@ -801,13 +964,15 @@
 .vd-chess-segment button:focus-visible,
 .vd-chess-tabs button:focus-visible,
 .vd-chess-replay button:focus-visible,
+.vd-chess-info-tools button:focus-visible,
 .vd-chess-modal-actions button:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--chess-accent) 70%, transparent);
     outline-offset: 2px;
 }
 
 .vd-chess-actions button:active,
-.vd-chess-replay button:active {
+.vd-chess-replay button:active,
+.vd-chess-info-tools button:active {
     transform: translateY(0);
 }
 
@@ -815,7 +980,6 @@
     display: none;
 }
 
-/* An action that does not apply right now reads as resting, not as broken. */
 .vd-chess-actions button:disabled {
     opacity: 0.42;
     cursor: not-allowed;
@@ -880,7 +1044,6 @@
     gap: 2px;
     padding: 3px;
     border-radius: var(--vd-mat-field-radius, var(--chess-radius-sm));
-    /* A compact segmented switch like the view switch: a recessed track, not a full-height bar. */
     background: var(--vd-mat-field, color-mix(in srgb, var(--chess-accent) 10%, transparent));
     border: 1px solid var(--vd-mat-field-border, var(--chess-line));
     box-shadow: var(--vd-mat-field-shadow, none);
@@ -915,7 +1078,6 @@
     color: var(--chess-ink);
 }
 
-/* The move count rides on the tab label, so the panel keeps its own space. */
 .vd-chess-tab-badge {
     display: inline-block;
     min-width: 18px;
@@ -947,18 +1109,14 @@
 }
 
 .vd-chess-moves ol {
-    /* The list fills the panel and scrolls, otherwise a long game grows the
-       list instead of scrolling it and pushes the sidebar out of the window. */
     flex: 1 1 auto;
     min-height: 0;
     margin: 0;
-    padding: 0 10px 12px;
+    padding: 6px 10px 12px;
     list-style: none;
     overflow: auto;
-    /* A column, so the empty state can sit in the middle of the panel. */
     display: flex;
     flex-direction: column;
-    /* The move list is a recessed well under the panel title. */
     background: var(--vd-mat-well, transparent);
     box-shadow: var(--vd-mat-well-shadow, none);
 }
@@ -977,7 +1135,7 @@
 }
 
 .vd-chess-moves li:nth-child(odd) {
-    background: color-mix(in srgb, var(--chess-accent) 8%, transparent);
+    background: color-mix(in srgb, var(--chess-accent) 7%, transparent);
 }
 
 .vd-chess-moves li.is-review {
@@ -986,17 +1144,17 @@
     box-shadow: var(--vd-mat-selected-edge, inset 0 0 0 1px color-mix(in srgb, var(--chess-warn) 40%, transparent));
 }
 
-/* A move cell is a real button now, so it works with the keyboard and with
-   the screen reader. The native button chrome is reset, the cell keeps the
-   look of a list entry. */
 .vd-chess-move-cell {
     min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
-    border-radius: 4px;
-    padding: 2px 4px;
+    border-radius: 5px;
+    padding: 2px 6px;
     transition: background 0.12s, color 0.12s;
     appearance: none;
     border: 0;
@@ -1005,6 +1163,21 @@
     color: inherit;
     text-align: left;
     width: 100%;
+}
+
+.vd-chess-move-fig {
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.86;
+}
+
+.vd-chess-move-cell.is-check {
+    color: var(--chess-warn);
+}
+
+.vd-chess-move-cell.is-mate {
+    color: var(--chess-danger);
+    font-weight: 800;
 }
 
 .vd-chess-move-cell:hover {
@@ -1017,13 +1190,11 @@
     outline-offset: 1px;
 }
 
-/* The empty half of a move row is a placeholder, not a target. */
 .vd-chess-move-cell.is-empty {
     cursor: default;
     background: none;
 }
 
-/* The move the board currently shows. */
 .vd-chess-move-cell[aria-current="true"] {
     background: color-mix(in srgb, var(--chess-warn) 24%, transparent);
     font-weight: 700;
@@ -1034,16 +1205,13 @@
     font-weight: 700;
 }
 
-/* The empty move list: a quiet placeholder instead of a bare word in a
-   large empty card. */
 .vd-chess-empty {
     grid-template-columns: 1fr !important;
     display: grid;
     justify-items: center;
     gap: 10px;
-    /* The empty state sits in the middle of the panel. */
     margin: auto;
-    padding: 34px 12px;
+    padding: 28px 12px;
     color: var(--chess-muted);
     font-size: 13px;
     text-align: center;
@@ -1061,13 +1229,17 @@
     gap: 12px;
     padding: 14px;
     overflow: auto;
+    align-content: start;
 }
 
 .vd-chess-captured-row {
     display: grid;
-    grid-template-columns: 60px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
     align-items: center;
     gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--chess-accent) 6%, transparent);
 }
 
 .vd-chess-captured-label {
@@ -1080,10 +1252,10 @@
 }
 
 .vd-chess-captured-pieces {
-    min-height: 32px;
+    min-height: 30px;
     display: flex;
     flex-wrap: wrap;
-    gap: 2px;
+    gap: 3px;
     align-content: center;
 }
 
@@ -1107,8 +1279,15 @@
     to { transform: scale(1); opacity: 1; }
 }
 
-.vd-chess-captured-row:nth-child(1) .vd-chess-piece { color: #f5f5f5; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
-.vd-chess-captured-row:nth-child(2) .vd-chess-piece { color: #2a2a2a; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.15); }
+.vd-chess-captured-row:nth-child(1) .vd-chess-piece {
+    color: #f6f2e8;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 0, 0, 0.8);
+}
+
+.vd-chess-captured-row:nth-child(2) .vd-chess-piece {
+    color: #20232a;
+    text-shadow: 0 0 2px rgba(255, 255, 255, 0.72), 0 1px 0 rgba(255, 255, 255, 0.45);
+}
 
 .vd-chess-captured-empty {
     color: var(--chess-muted);
@@ -1118,9 +1297,10 @@
 
 .vd-chess-info-panel {
     display: grid;
-    gap: 10px;
-    padding: 14px;
+    gap: 8px;
+    padding: 12px 14px;
     overflow: auto;
+    align-content: start;
 }
 
 .vd-chess-info-row {
@@ -1128,7 +1308,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 7px 10px;
     border-radius: 8px;
     background: color-mix(in srgb, var(--chess-accent) 7%, transparent);
     font-size: 13px;
@@ -1147,17 +1327,30 @@
     color: var(--chess-ink);
 }
 
-.vd-chess-promotion {
+.vd-chess-info-tools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.vd-chess-promotion-backdrop {
     position: absolute;
-    left: 50%;
-    top: 50%;
-    z-index: 8;
+    inset: 0;
+    z-index: 18;
+    display: grid;
+    place-items: center;
+    background: rgba(8, 14, 12, 0.48);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.vd-chess-promotion {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     width: min(380px, calc(100% - 40px));
     padding: 14px;
-    transform: translate(-50%, -50%);
     border-radius: var(--chess-card-radius);
     background: var(--vd-mat-card, color-mix(in srgb, var(--chess-panel-strong) 92%, #000));
     border: 1px solid var(--vd-mat-card-border, var(--chess-line));
@@ -1340,8 +1533,6 @@
 @media (max-width: 820px) {
     .vd-chess {
         grid-template-columns: 1fr;
-        /* Board and sidebar share the height, so the board keeps a usable
-           size and the sidebar scrolls inside its own pane. */
         grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
     }
 
@@ -1353,22 +1544,21 @@
         --chess-rim: 10px;
     }
 
-.vd-chess-side {
+    .vd-chess-side {
         padding: 0 12px 12px;
     }
 
     .vd-chess-moves,
     .vd-chess-captured-panel,
     .vd-chess-info-panel {
-        /* The stacked sidebar scrolls, so the panels keep a usable height
-           instead of being squeezed into a strip. */
         flex: 0 1 220px;
         min-height: 150px;
     }
 }
 
 @media (max-width: 560px) {
-    .vd-chess-actions {
+    .vd-chess-actions,
+    .vd-chess-info-tools {
         grid-template-columns: 1fr;
     }
 
@@ -1383,6 +1573,10 @@
     .vd-chess-modal-actions {
         grid-template-columns: 1fr;
     }
+
+    .vd-chess-pill-label {
+        display: none;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1391,7 +1585,9 @@
     .vd-chess-board-shell.is-thinking::after,
     .vd-chess-piece.is-new,
     .vd-chess-confetti span,
-    .vd-chess-burst span {
+    .vd-chess-burst span,
+    .vd-chess-burst-ring,
+    .vd-chess-voice-wave i {
         animation: none !important;
     }
 
@@ -1404,6 +1600,7 @@
     .vd-chess-actions button:hover,
     .vd-chess-segment button:hover,
     .vd-chess-replay button:hover,
+    .vd-chess-info-tools button:hover,
     .vd-chess-modal-actions button:hover {
         transform: none;
     }
@@ -1429,9 +1626,9 @@
     color: var(--chess-muted);
     font: inherit;
     font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    padding: 5px 14px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 4px 13px;
     border-radius: 999px;
     cursor: pointer;
     transition: background 0.18s ease, color 0.18s ease;
@@ -1455,7 +1652,7 @@
 .vd-chess-board-3d {
     position: absolute;
     inset: var(--chess-rim);
-    border-radius: 8px;
+    border-radius: 6px;
     overflow: hidden;
     background: #0d1017;
 }

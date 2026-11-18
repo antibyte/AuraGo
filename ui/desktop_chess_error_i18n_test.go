@@ -12,18 +12,8 @@ func TestDesktopChessErrorI18n(t *testing.T) {
 
 	app := readDesktopAssetText(t, "js/desktop/apps/chess.js")
 	for _, want := range []string{
-		"function formatOpponentError(state, err)",
 		"err.chessCode = code",
-		"'desktop.chess_agent_unavailable'",
-		"'desktop.chess_agent_no_move'",
-		"'desktop.chess_engine_unavailable'",
-		"'desktop.chess_engine_no_move'",
-		"'desktop.chess_engine_worker_failed'",
-		"'desktop.chess_engine_timeout'",
-		"'desktop.chess_engine_illegal'",
-		"'desktop.chess_opponent_illegal'",
-		"'desktop.chess_move_failed'",
-		"const message = formatOpponentError(state, err)",
+		"ChessChrome?.formatOpponentError",
 		"notify(state, message)",
 		"setStatus(state, message)",
 	} {
@@ -33,6 +23,24 @@ func TestDesktopChessErrorI18n(t *testing.T) {
 	}
 	if strings.Contains(app, "notify(state, (err && err.message)") {
 		t.Fatal("chess notify must not show raw err.message")
+	}
+
+	fx := readDesktopAssetText(t, "js/desktop/apps/chess-fx.js")
+	for _, want := range []string{
+		"function formatOpponentError(state, err)",
+		"'desktop.chess_agent_unavailable'",
+		"'desktop.chess_agent_no_move'",
+		"'desktop.chess_engine_unavailable'",
+		"'desktop.chess_engine_no_move'",
+		"'desktop.chess_engine_worker_failed'",
+		"'desktop.chess_engine_timeout'",
+		"'desktop.chess_engine_illegal'",
+		"'desktop.chess_opponent_illegal'",
+		"'desktop.chess_move_failed'",
+	} {
+		if !strings.Contains(fx, want) {
+			t.Fatalf("chess fx error i18n missing marker %q", want)
+		}
 	}
 
 	engine := readDesktopAssetText(t, "js/desktop/apps/chess-engine.js")

@@ -586,6 +586,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/desktop/chat", layerling.chat(handleDesktopChat(s)))
 	mux.HandleFunc("/api/desktop/chat/stream", layerling.chat(handleDesktopChatStream(s)))
 	mux.HandleFunc("/api/desktop/chess/agent-move", handleDesktopChessAgentMove(s))
+	mux.HandleFunc("/api/desktop/chess/commentary", handleDesktopChessCommentary(s))
 	mux.HandleFunc("/api/desktop/logs/files", handleDesktopLogFiles(s))
 	mux.HandleFunc("/api/desktop/logs/tail", handleDesktopLogTail(s))
 	mux.HandleFunc("/api/desktop/logs/stream", handleDesktopLogStream(s))

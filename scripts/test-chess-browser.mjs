@@ -38,12 +38,26 @@ try {
         const page = await browser.newPage({viewport: {width, height: 620}});
         const errors = [];
         page.on('pageerror', e => errors.push(e.message));
-        await page.route('**/api/desktop/chess/**', route => route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({ok: true})}));
+        await page.route('**/api/desktop/chess/commentary', async route => {
+            const req = JSON.parse(route.request().postData() || '{}');
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    category: req.category || 'opening_e4',
+                    variant: 0,
+                    language: 'de',
+                    text: `Sarkastischer Kommentar (${req.category || 'move'}) auf ${req.square || 'e4'}.`,
+                    audio_unavailable: true
+                })
+            });
+        });
+        await page.route('**/api/desktop/chess/agent-move', route => route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({ok: true})}));
         await page.goto(origin);
         await page.addStyleTag({url: `${origin}/css/desktop-shell.bundle.css`});
         await page.addStyleTag({url: `${origin}/css/cm-chessboard.css`});
         await page.addStyleTag({url: `${origin}/css/desktop-app-chess.css`});
-        for (const file of ['vendor/three.min.js', 'vendor/GLTFLoader.min.js', 'vendor/OrbitControls.min.js', 'desktop/apps/chess-engine.js', 'desktop/apps/chess-agent.js', 'desktop/apps/chess-fx.js', 'desktop/apps/chess-3d.js', 'desktop/apps/chess.js']) {
+        for (const file of ['vendor/three.min.js', 'vendor/GLTFLoader.min.js', 'vendor/OrbitControls.min.js', 'desktop/apps/chess-engine.js', 'desktop/apps/chess-agent.js', 'desktop/apps/chess-commentary.js', 'desktop/apps/chess-fx.js', 'desktop/apps/chess-3d.js', 'desktop/apps/chess.js']) {
             await page.addScriptTag({url: `${origin}/js/${file}`});
         }
         await page.evaluate(words => {
@@ -126,6 +140,20 @@ try {
         const square = await page.locator('.vd-chess-board-frame').evaluate(node => { const rect = node.getBoundingClientRect(); return [rect.width, rect.height]; });
         assert(Math.abs(square[0] - square[1]) < 2, `the 2D board must stay square, got ${square.join('x')}`);
         assert(square[0] > 180, `the 2D board must keep a usable size, got ${square[0]}`);
+
+        // Verify sound & optional Phonon commentary toggles and contextual move remark
+        await page.locator('[data-sound-toggle]').click();
+        assert.equal(await page.locator('[data-sound-toggle]').getAttribute('aria-pressed'), 'false', 'sound toggle must mute on click');
+        await page.locator('[data-sound-toggle]').click();
+        assert.equal(await page.locator('[data-sound-toggle]').getAttribute('aria-pressed'), 'true', 'sound toggle must unmute on second click');
+
+        assert.equal(await page.locator('[data-commentary-toggle]').getAttribute('aria-pressed'), 'false', 'voice commentary starts opt-in off');
+        await page.locator('[data-commentary-toggle]').click();
+        assert.equal(await page.locator('[data-commentary-toggle]').getAttribute('aria-pressed'), 'true', 'voice commentary enables on click');
+        await move('g1', 'h3');
+        await page.waitForFunction(() => (document.querySelector('[data-comment]')?.textContent || '').includes('knight_rim'));
+        await page.screenshot({path: path.join(report, `chess-2d-${width}.png`)});
+        await page.locator('[data-commentary-toggle]').click();
 
         await page.locator('[data-chess-view="3d"]').click();
         await page.waitForTimeout(1800);

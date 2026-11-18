@@ -1318,6 +1318,15 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   use `publishDesktopResult` or the inherited file publication gate; never hold
   that gate during provider/network work. Keep the shared Desktop service alive
   when only readonly changes, so readers, stores and encrypted drafts survive.
+- `POST /api/desktop/chess/commentary` (`desktop_chess_commentary*.go`) is a
+  same-origin Desktop read exception (POST but `desktopRead`, like
+  `/api/desktop/embed-token`). It validates a strict JSON body, picks a
+  server-owned sarcastic line for de/en/es/fr/pt (other languages fall back to
+  English), synthesizes with default Phonon via
+  `tools.TTSSynthesizeInMemoryContext`, and returns text plus optional base64
+  audio. Audio failures degrade to text-only; one in-flight synth slot, a small
+  response cache and `Cache-Control: no-store` apply. Never expose free-form
+  agent-written speech. Verify `TestDesktopChessCommentary*`.
 - Shared integrations used by Desktop enter through the administrator-only
   `/api/desktop/integrations/` allowlist, retaining the original handler's
   permissions. Client Origin/header claims never select Desktop policy.

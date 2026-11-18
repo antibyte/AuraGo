@@ -19,6 +19,7 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"'/css/desktop-app-chess.css'",
 		"'/js/desktop/apps/chess-engine.js'",
 		"'/js/desktop/apps/chess-agent.js'",
+		"'/js/desktop/apps/chess-commentary.js'",
 		"'/js/desktop/apps/chess-fx.js'",
 		"'/js/desktop/apps/chess-3d.js'",
 		"'/js/desktop/apps/chess.js'",
@@ -250,6 +251,7 @@ func TestDesktopChessAppFilesStaySmall(t *testing.T) {
 		"js/desktop/apps/chess.js",
 		"js/desktop/apps/chess-engine.js",
 		"js/desktop/apps/chess-agent.js",
+		"js/desktop/apps/chess-commentary.js",
 		"js/desktop/apps/chess-fx.js",
 		"js/desktop/apps/chess-3d.js",
 	} {
@@ -316,6 +318,75 @@ func TestDesktopChessUsesThemeIcons(t *testing.T) {
 		} {
 			if strings.Contains(source, unwanted) {
 				t.Fatalf("desktop chess must not use unavailable rotate icon key %q", unwanted)
+			}
+		}
+	}
+}
+
+func TestDesktopChessCommentaryAndPolishContracts(t *testing.T) {
+	t.Parallel()
+
+	commentary := readEmbeddedText(t, "js/desktop/apps/chess-commentary.js")
+	for _, want := range []string{
+		"'/api/desktop/chess/commentary'",
+		"'aurago.desktop.chess.commentary'",
+		"window.createChessCommentary",
+		"AbortController",
+	} {
+		if !strings.Contains(commentary, want) {
+			t.Fatalf("chess commentary module missing marker %q", want)
+		}
+	}
+
+	fx := readEmbeddedText(t, "js/desktop/apps/chess-fx.js")
+	for _, want := range []string{
+		"data-sound-toggle",
+		"data-commentary-toggle",
+		"data-chess-reset-cam",
+		"data-copy-pgn",
+		"data-copy-fen",
+		"playVoice",
+		"stopVoice",
+		"window.ChessChrome",
+		"syncCommentaryUI",
+		"playMoveSound",
+	} {
+		if !strings.Contains(fx, want) {
+			t.Fatalf("chess fx/template missing polish marker %q", want)
+		}
+	}
+
+	newKeys := []string{
+		"desktop.chess_sound",
+		"desktop.chess_sound_on",
+		"desktop.chess_sound_off",
+		"desktop.chess_commentary",
+		"desktop.chess_commentary_hint",
+		"desktop.chess_commentary_on",
+		"desktop.chess_commentary_off",
+		"desktop.chess_commentary_speaking",
+		"desktop.chess_commentary_no_audio",
+		"desktop.chess_reset_camera",
+		"desktop.chess_copy_pgn",
+		"desktop.chess_copy_fen",
+		"desktop.chess_copied",
+		"desktop.chess_phase",
+		"desktop.chess_phase_opening",
+		"desktop.chess_phase_middlegame",
+		"desktop.chess_phase_endgame",
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		raw, err := Content.ReadFile("lang/desktop/" + lang + ".json")
+		if err != nil {
+			t.Fatalf("read %s locale: %v", lang, err)
+		}
+		var dict map[string]string
+		if err := json.Unmarshal(raw, &dict); err != nil {
+			t.Fatalf("parse %s locale: %v", lang, err)
+		}
+		for _, key := range newKeys {
+			if strings.TrimSpace(dict[key]) == "" {
+				t.Fatalf("locale %s missing %s", lang, key)
 			}
 		}
 	}
