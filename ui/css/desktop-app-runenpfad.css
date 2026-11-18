@@ -1761,3 +1761,184 @@
     font-style: italic;
     overflow-wrap: anywhere;
 }
+
+/* ---- story cutscenes (cutscene-ui.js): full-screen overlay above every dialog, transitions only ---- */
+.rp-cut {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    overflow: hidden;
+    container-type: size;
+    background: #000;
+    color: var(--rp-parch, #f3e3c0);
+    font-family: var(--rp-ui, "Segoe UI", system-ui, sans-serif);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    touch-action: manipulation;
+    user-select: none;
+    cursor: pointer;
+    outline: none;
+}
+
+.rp-cut.is-fixed {
+    position: fixed;
+    z-index: 9999;
+}
+
+.rp-cut.is-open {
+    opacity: 1;
+}
+
+.rp-cut-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+.rp-cut-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: calc(4.5cqh + 4px) max(12px, 2.5cqw) 14px;
+    background: linear-gradient(to bottom, rgba(4, 3, 8, 0.72), rgba(4, 3, 8, 0));
+}
+
+.rp-cut-title {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--rp-gold, #ffd56b);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-overflow: ellipsis;
+    text-shadow: 0 1px 3px #000;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.rp-cut-sub {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 44px max(14px, 3cqw) calc(4.5cqh + 8px);
+    background: linear-gradient(to top, rgba(4, 3, 8, 0.92), rgba(4, 3, 8, 0.72) 55%, rgba(4, 3, 8, 0));
+}
+
+.rp-cut-text {
+    width: 100%;
+    max-width: 62ch;
+    min-height: 2.9em;
+    margin: 0;
+    color: #fff6dc;
+    font-size: 17px;
+    font-size: clamp(15px, 2.4cqw, 30px);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-align: center;
+    text-shadow: 0 2px 4px #000, 0 0 12px rgba(0, 0, 0, 0.8);
+}
+
+.rp-cut-rest {
+    color: transparent;
+    text-shadow: none;
+}
+
+.rp-cut-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.rp-cut-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    max-width: 900px;
+}
+
+.rp-cut-pips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rp-cut-pips i {
+    display: block;
+    width: 9px;
+    height: 9px;
+    border: 1px solid rgba(255, 213, 107, 0.65);
+    background: transparent;
+    transform: rotate(45deg);
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.rp-cut-pips i.is-done {
+    background: rgba(255, 213, 107, 0.5);
+}
+
+.rp-cut-pips i.is-on {
+    background: var(--rp-gold, #ffd56b);
+    transform: rotate(45deg) scale(1.3);
+}
+
+.rp-cut-btn {
+    min-width: 44px;
+    min-height: 40px;
+    padding: 8px 18px;
+    border: 2px solid var(--rp-bronze-hi, #b8935a);
+    border-radius: 6px;
+    background: linear-gradient(#3a2c1d, #1d150e);
+    color: var(--rp-parch, #f3e3c0);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.rp-cut-btn:hover {
+    border-color: var(--rp-gold, #ffd56b);
+    color: #fff;
+}
+
+.rp-cut-btn:focus-visible {
+    outline: 2px solid var(--rp-gold, #ffd56b);
+    outline-offset: 2px;
+}
+
+.rp-cut-next {
+    border-color: var(--rp-gold, #ffd56b);
+    color: var(--rp-gold, #ffd56b);
+}
+
+.rp-cut-skip {
+    min-height: 36px;
+    padding: 6px 12px;
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(0, 0, 0, 0.5);
+    font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rp-cut,
+    .rp-cut-btn,
+    .rp-cut-pips i {
+        transition: none;
+    }
+}
