@@ -174,8 +174,8 @@
         '#include <colorspace_fragment>',
         '}'
     ].join('\n');
-    /* Drift aura: a flat sigil on the road plus a rotating shell around the player's car. Both are
-       pure geometry with a closed-form shader - no textures, no extra draw state per frame. */
+    /* Drift aura: a flat sigil on the road under the player's car. It is pure geometry with a
+       closed-form shader - no textures, no extra draw state per frame. */
     const AURA_G_VS = 'varying vec2 vP;\nvoid main() { vP = position.xz * 2.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
     const AURA_G_FS = [
         'uniform vec3 uColor; uniform vec3 uColor2; uniform float uAlpha; uniform float uSpin; varying vec2 vP;',
@@ -196,23 +196,9 @@
         '#include <colorspace_fragment>',
         '}'
     ].join('\n');
-    const AURA_S_VS = 'varying vec2 vUv;\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-    const AURA_S_FS = [
-        'uniform vec3 uColor; uniform float uAlpha; uniform float uSpin; varying vec2 vUv;',
-        'void main() {',
-        // MSAA can extrapolate UVs at silhouette edges; fractional powers require non-negative input.
-        '  float up = clamp(vUv.y, 0.0, 1.0);',
-        '  float band = pow(max(0.0, sin(vUv.x * 31.4159 - uSpin * 2.4)), 4.0);',
-        '  float a = (pow(up, 2.6) * 0.42 + band * pow(up, 2.0) * 0.8) * uAlpha;',
-        '  if (a < 0.004) discard;',
-        '  gl_FragColor = vec4(uColor * (0.65 + 0.65 * band), a);',
-        '#include <tonemapping_fragment>',
-        '#include <colorspace_fragment>',
-        '}'
-    ].join('\n');
 
     AD.createFxResources = function (T) {
         return { atlas: buildAtlas(T), frames: F,
-            PARTICLE_VS, PARTICLE_FS, RING_VS, RING_FS, BEAM_VS, BEAM_FS, AURA_G_VS, AURA_G_FS, AURA_S_VS, AURA_S_FS };
+            PARTICLE_VS, PARTICLE_FS, RING_VS, RING_FS, BEAM_VS, BEAM_FS, AURA_G_VS, AURA_G_FS };
     };
 })();

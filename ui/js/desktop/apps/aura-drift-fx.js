@@ -25,7 +25,7 @@
         const colour = new T.Color();
         const col = (hex, k) => { colour.set(hex); k = k || 1; return [colour.r * k, colour.g * k, colour.b * k]; };
         const { atlas, frames: F,
-            PARTICLE_VS, PARTICLE_FS, RING_VS, RING_FS, BEAM_VS, BEAM_FS, AURA_G_VS, AURA_G_FS, AURA_S_VS, AURA_S_FS } = AD.createFxResources(T);
+            PARTICLE_VS, PARTICLE_FS, RING_VS, RING_FS, BEAM_VS, BEAM_FS, AURA_G_VS, AURA_G_FS } = AD.createFxResources(T);
         const U = {
             uMap: { value: atlas }, uSunDir: { value: new T.Vector3(0, 1, 0) }, uSunCol: { value: new T.Color(1, 1, 1) },
             uAmb: { value: new T.Color(0.4, 0.4, 0.4) }, uFog: { value: new T.Color(0.7, 0.7, 0.7) }, uFogR: { value: new T.Vector2(100, 900) }
@@ -208,7 +208,7 @@
             r.mesh.visible = true;
         }
 
-        /* ---- drift aura: a ground sigil and a rotating shell on the player's car -------- */
+        /* ---- drift aura: a ground sigil on the player's car -------- */
         const auraMatG = new T.ShaderMaterial({
             uniforms: { uColor: { value: new T.Color() }, uColor2: { value: new T.Color() }, uAlpha: { value: 0 }, uSpin: { value: 0 } },
             vertexShader: AURA_G_VS, fragmentShader: AURA_G_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
@@ -217,13 +217,6 @@
         const auraGround = new T.Mesh(ringGeo, auraMatG);
         auraGround.visible = false; auraGround.renderOrder = 4; auraGround.frustumCulled = false; auraGround.name = 'fx-aura-ground';
         root.add(auraGround);
-        const auraMatS = new T.ShaderMaterial({
-            uniforms: { uColor: { value: new T.Color() }, uAlpha: { value: 0 }, uSpin: { value: 0 } },
-            vertexShader: AURA_S_VS, fragmentShader: AURA_S_FS, transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide
-        });
-        const auraShell = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 48, 1, true), auraMatS);
-        auraShell.visible = false; auraShell.renderOrder = 4; auraShell.frustumCulled = false; auraShell.name = 'fx-aura-shell';
-        root.add(auraShell);
 
         /* ---- beams ----------------------------------------------------------- */
         const beams = [];
@@ -301,7 +294,7 @@
         let reduced = false, moteAcc = 0;
         /* Drift aura: target set by the simulation every frame, eased in `update` so the halo never pops. */
         let auraTarget = 0, auraSeen = -1e9, auraA = 0, auraSpin = 0, auraR = 3.1, auraRT = 3.1;
-        let auraX = 0, auraZ = 0, auraH = 0;
+        let auraX = 0, auraZ = 0;
         const auraC = [0.4, 0.8, 1], auraCT = [0.4, 0.8, 1];
         const cst = [], timers = [], ufos = [];
         const carState = i => cst[i] || (cst[i] = { wl: { has: false }, wr: { has: false }, gear: 1, thr: 0 });
@@ -499,8 +492,8 @@
 
         /* ---- drift aura ------------------------------------------------------------- */
         /* The aura reads only presentation state (drift level, overdrive, slip) and never writes to
-           the vehicle. It is the payoff for a long drift: a road sigil plus a rotating shell that
-           climbs in colour with the charge level. */
+           the vehicle. It is the payoff for a long drift: a road sigil that climbs in colour with
+           the charge level. */
         function auraEmit(race) {
             const car = race.cars && race.cars[0], v = car && car.v;
             if (!v || v.out) { auraTarget = 0; return; }
@@ -512,7 +505,7 @@
             if (lvl <= 0 && !charging) { auraTarget = 0; return; }
             auraTarget = (reduced ? 0.5 : 1) * (lvl > 0 ? 1 : 0.4);
             auraSeen = time;
-            auraX = v.x; auraZ = v.y; auraH = v.z;
+            auraX = v.x; auraZ = v.y;
             const c = lvl === 4 ? OVER_CORE : lvl > 0 ? TURBO[clamp(lvl - 1, 0, 2)] : TEAL;
             auraCT[0] = c[0]; auraCT[1] = c[1]; auraCT[2] = c[2];
             auraRT = (lvl === 4 ? 3.6 : lvl > 0 ? 3.1 + 0.35 * (lvl - 1) : 2.7) + 0.7 * Math.min(1, Math.abs(v.r) * 0.45);
@@ -527,14 +520,14 @@
             const target = time - auraSeen < 0.25 ? auraTarget : 0;
             auraA += (target - auraA) * (1 - Math.exp(-(target > auraA ? 10 : 5) * dt));
             if (auraA < 0.004) {
-                if (auraGround.visible) { auraGround.visible = false; auraShell.visible = false; }
+                if (auraGround.visible) { auraGround.visible = false; }
                 return;
             }
             const k = 1 - Math.exp(-6 * dt);
             auraR += (auraRT - auraR) * k;
             for (let i = 0; i < 3; i++) auraC[i] += (auraCT[i] - auraC[i]) * k;
             if (!reduced) auraSpin += dt * (1.3 + 2.6 * auraA);
-            auraGround.visible = true; auraShell.visible = true;
+            auraGround.visible = true;
             auraGround.position.set(auraX, 0.075, auraZ);
             auraGround.scale.set(auraR, 1, auraR);
             const g = auraMatG.uniforms;
@@ -542,13 +535,6 @@
             g.uSpin.value = auraSpin;
             g.uColor.value.setRGB(auraC[0], auraC[1], auraC[2]);
             g.uColor2.value.setRGB(auraC[0] * 0.45 + 0.35, auraC[1] * 0.45 + 0.4, auraC[2] * 0.45 + 0.45);
-            const hr = auraR * 0.78;
-            auraShell.position.set(auraX, auraH + 0.97, auraZ);
-            auraShell.scale.set(hr, 1.9, hr);
-            const s = auraMatS.uniforms;
-            s.uAlpha.value = auraA * 0.6;
-            s.uSpin.value = auraSpin;
-            s.uColor.value.setRGB(auraC[0], auraC[1], auraC[2]);
         }
 
         /* ---- weather animations ------------------------------------------------------- */
@@ -1058,7 +1044,7 @@
                 skid.geo.dispose(); skid.mat.dispose();
                 for (const r of rings) r.mat.dispose();
                 for (const r of ripples) r.mat.dispose();
-                auraMatG.dispose(); auraMatS.dispose(); auraShell.geometry.dispose();
+                auraMatG.dispose();
                 for (const b of beams) { b.mesh.geometry.dispose(); b.mat.dispose(); }
                 ringGeo.dispose(); atlas.dispose();
                 root.removeFromParent();

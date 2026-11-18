@@ -279,8 +279,8 @@ weather motion are removed by reduced motion.
   lean the same way, wet roads throw headlamp-lit spray and splash sounds, and a strike adds a
   full-screen flash plus a ground ring. Three further layers answer the player's own driving:
   rain leaves short-lived ripple rings, but only where `AD.sampleTrack` still finds tarmac around
-  the camera; a drifting car carries a teal-to-turbo sigil on the road plus a rotating shell
-  (radius follows the yaw rate, the palette the drift level, OVER_CORE the overdrive); a gust
+  the camera; a drifting car carries a teal-to-turbo sigil on the road (radius follows the yaw
+  rate, the palette the drift level, OVER_CORE the overdrive); a gust
   sweeps a broad wave of biome motes with leaves past the camera and hard braking above 30 units
   leaves glowing brake dust at the rear wheels.
 - The 3D view needs WebGL2. Without it the game falls back to the Canvas 2D view.

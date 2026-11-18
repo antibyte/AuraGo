@@ -3809,8 +3809,8 @@ buttons and menu popovers remain excluded from those gestures.
   shader definitions. `AD.createFxResources` returns a new atlas per FX instance;
   `createFx` retains texture/material disposal. Missing resources safely omit optional
   FX, as when an older loader omits the FX module itself.
-  The drift aura is its own presentation layer (`auraEmit`/`stepAura`, meshes `fx-aura-ground` and
-  `fx-aura-shell`): it reads only `driftLevel`, `overdrive`, `slip` and `driftCharge`, tints teal
+  The drift aura is its own presentation layer (`auraEmit`/`stepAura`, mesh `fx-aura-ground`):
+  it reads only `driftLevel`, `overdrive`, `slip` and `driftCharge`, tints teal
   while charging and uses the drift-level palettes otherwise, and follows the yaw rate with its
   radius. Its ambient layers are gated by reduced motion, so probe screenshots need the
   harness `?reduced=0` (headless browsers report `prefers-reduced-motion: reduce`).
