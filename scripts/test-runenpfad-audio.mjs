@@ -355,17 +355,20 @@ NEW_THEMES.forEach((id) => {
             notes.forEach((n) => assert.ok(Number.isFinite(n.t) && Number.isFinite(n.dur) && (n.midi === null || Number.isFinite(n.midi)), id + ' note is finite'));
         }
     });
-    assert.ok(Music.composeBar(id, 'melody', 0, 7).length > 0 && Music.composeBar(id, 'pad', 0, 7).length > 0, id + ' has a melody and a pad');
+    const bars8 = (layer) => [0, 1, 2, 3, 4, 5, 6, 7].reduce((n, b) => n + Music.composeBar(id, layer, b, 7).length, 0);
+    assert.ok(bars8('melody') > 0 && bars8('pad') > 0, id + ' has a melody and a pad or drone');
 });
 ['in_cave', 'story_dark'].forEach((id) => assert.ok(!Music.THEMES[id].scale.includes(4), id + ' has no major third'));
 ['village', 'in_cozy', 'story_dawn', 'story_triumph'].forEach((id) => assert.ok(Music.THEMES[id].scale.includes(4), id + ' is a major or mixolydian tune'));
 assert.ok(Music.THEMES.in_cave.bpm < 70 && Music.THEMES.story_dark.bpm < 70 && Music.THEMES.story_dawn.bpm < 80, 'dark and dawn loops are slow');
 assert.ok(Music.THEMES.in_cozy.bpm > Music.THEMES.village.bpm, 'the tavern jig is livelier than the village');
-assert.ok(Music.THEMES.in_cozy.vol < 1 && Music.THEMES.village.vol < 1 && Music.THEMES.village.arpInstr !== Music.THEMES.woodland.arpInstr, 'place loops are gentle and distinct from the woodland theme');
-assert.ok(Music.composeBar('story_dark', 'perc', 0, 1).some((n) => n.type === 'tick'), 'story_dark ticks like a clock');
+assert.ok(Music.THEMES.story_triumph.vol > Music.THEMES.story_dawn.vol && Music.THEMES.story_triumph.vol > Music.THEMES.story_dark.vol && Music.THEMES.story_triumph.bpm >= 116, 'the fanfare is the loudest story loop');
+assert.ok(Music.composeBar('in_cozy', 'pad', 0, 1).every((n) => n.dur <= 0.5) && Music.composeBar('in_cozy', 'melody', 0, 1).every((n) => n.dur <= 1), 'the tavern plays short plucked notes');
+assert.ok(Music.composeBar('in_cozy', 'perc', 0, 1).some((n) => n.type === 'tamb') && Music.composeBar('in_cozy', 'perc', 0, 1).some((n) => n.type === 'tom'), 'stomp and tambourine');
+assert.ok(Music.composeBar('story_dark', 'perc', 0, 1).some((n) => n.type === 'clock'), 'story_dark ticks like a clock');
 assert.ok(Music.composeBar('story_triumph', 'perc', 0, 1).length >= 4, 'story_triumph marches');
-assert.ok(Music.composeBar('in_cave', 'perc', 3, 1).every((n) => n.type === 'kick'), 'the cave has only a heartbeat');
-['lute', 'harp', 'flute', 'fiddle', 'plink', 'cello'].forEach((v) => assert.equal(typeof PlaceMusic.VOICES[v], 'function', 'voice ' + v));
+assert.ok(Music.composeBar('in_cave', 'perc', 3, 1).length === 0 && Music.composeBar('in_cave', 'perc', 5, 1).some((n) => n.type === 'taiko'), 'the cave has only an occasional low hit');
+['lute', 'harp', 'flute', 'fiddle', 'plink', 'cello', 'brass', 'growl', 'metal', 'clock', 'tamb'].forEach((v) => assert.equal(typeof PlaceMusic.VOICES[v], 'function', 'voice ' + v));
 // themeFor: interior room music, the hub stage, otherwise nothing.
 const interiorSim = (music) => ({ stage: { id: 1, biome: { id: 'woodland' }, enemies: [], bossId: null }, player: { x: 0, y: 0 }, state: 'playing', events: [], interior: { room: { def: { music } } } });
 assert.equal(PlaceMusic.themeFor(interiorSim('in_cave')), 'in_cave');

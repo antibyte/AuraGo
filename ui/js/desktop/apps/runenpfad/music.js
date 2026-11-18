@@ -141,6 +141,7 @@
     function composeBar(themeId, layer, bar, seed) {
         const theme = THEMES[themeId];
         if (!theme) return [];
+        if (theme.compose) return theme.compose(theme, layer, bar, seed >>> 0); // hand-written tunes (place-music.js, story-music.js)
         const s = seed >>> 0;
         const section = Math.floor(bar / 4) % 2;
         const phrase = ((bar % 4) + 4) % 4;
