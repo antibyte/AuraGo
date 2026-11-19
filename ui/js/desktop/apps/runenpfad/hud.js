@@ -248,7 +248,8 @@
         const modTag = el('span', 'rp-tag rp-tag-mod');
         const runeTag = el('span', 'rp-tag rp-tag-rune');
         const comboTag = el('span', 'rp-tag rp-tag-combo');
-        [modTag, runeTag, comboTag].forEach(function (tag) { tag.hidden = true; });
+        const pathTag = el('span', 'rp-tag rp-tag-rune rp-tag-path');
+        [modTag, runeTag, comboTag, pathTag].forEach(function (tag) { tag.hidden = true; });
         // Active rune power-up plaque: orb icon, name, short effect text and a draining timer bar.
         const runePlaque = el('div', 'rp-rune-plaque');
         runePlaque.hidden = true;
@@ -272,7 +273,7 @@
         const ritualFill = el('span', 'rp-ritual-fill');
         ritualBar.append(ritualFill);
         ritualPlaque.append(ritualMark, ritualNum, ritualBar);
-        tags.append(runePlaque, ritualPlaque, modTag, runeTag, comboTag);
+        tags.append(runePlaque, ritualPlaque, pathTag, modTag, runeTag, comboTag);
         noticeRow.append(talkMark, notice, tags);
 
         // ---- boss bar ----
@@ -379,6 +380,13 @@
             if (power) setText(runeTag, t('runenpfad.hud_rune') + ' ' + Math.ceil(sim.blessing.runePower) + 's');
             paintRune(p);
             paintRitual(stage);
+            const path = stage.resonancePath;
+            pathTag.hidden = !path || path.complete || path.needsLeave || sim.state !== 'playing' || !!sim.interior || !!sim.encounter ||
+                (path.nextRune === 0 && Math.abs(p.x - path.runes[0].x) > 180);
+            if (!pathTag.hidden) {
+                setText(pathTag, path.nextRune === 0 ? t('runenpfad.resonance_hint') :
+                    fill('runenpfad.resonance_progress', { count: path.nextRune, total: path.runes.length, seconds: Math.ceil(path.timeLeft) }));
+            }
             const combo = sim.combo;
             comboTag.hidden = !(combo && combo.count >= 2);
             if (!comboTag.hidden) setText(comboTag, fill('runenpfad.hud_combo', { n: String.fromCharCode(215) + (Math.round((combo.mul || 1) * 10) / 10) }));

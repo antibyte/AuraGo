@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Rör vid den lysande runan",
+  "runenpfad.resonance_progress": "Runspår {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Runspåret är avklarat!",
+  "runenpfad.notice.resonance_expire": "Tiden är ute. Rör vid den första runan för att försöka igen.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Laddar 2D-världarna och Game Maker-paketen...",
   "runenpfad.error_assets": "Game Makers 2D-sprites eller ljud går inte att nå just nu.",

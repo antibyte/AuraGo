@@ -52,8 +52,9 @@ sandbox.AudioContext = FakeContext;
 
 // ---- 1. contract coverage ----
 const CONTRACT_EVENTS = [
-    'enemy_block', 'enemy_phase', 'enemy_windup', 'enemy_slam', 'spore_burst', 'spore_lob', 'stomp', 'chest_open',
-    'rune_pickup', 'rune_expire', 'rune_shield_break', 'rune_zap', 'geyser_burst', 'switch_on', 'gate_open', 'jet_warn', 'jet_fire',
+    'enemy_block', 'enemy_phase', 'enemy_windup', 'enemy_slam', 'spore_burst', 'spore_lob', 'stomp', 'chest_open', 'land',
+    'rune_pickup', 'rune_expire', 'rune_shield_break', 'rune_zap', 'resonance_start', 'resonance_rune', 'resonance_complete', 'resonance_expire',
+    'geyser_burst', 'switch_on', 'gate_open', 'jet_warn', 'jet_fire',
     'boss_intro', 'boss_phase', 'boss_defeat', 'boss_slam', 'boss_telegraph', 'boss_attack', 'enemy_attack', 'enemy_dive'
 ];
 CONTRACT_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], `cue missing for ${type}`));
@@ -124,8 +125,82 @@ assert.equal(nodeCount, before, 'unknown events are silent');
 assert.ok(controller.liveSynths() > 0 && controller.liveSynths() <= 40, 'live synth voices stay under the hard cap: ' + controller.liveSynths());
 controller.dispose();
 
+// Landing layers use the world surface and impact speed; legacy callers still get the land sample.
+assert.equal(Audio.CUE_MAP.land.sound, null);
+assert.equal(Audio.CUE_MAP.land.speed, 'impactSpeed');
+['step-grass', 'step-stone', 'step-gravel', 'step-wood', 'step-metal'].forEach((surface) => {
+    assert.ok(Audio.CUE_MAP.land.by.map[surface], 'landing tail for ' + surface);
+});
+const requestedSamples = [];
+const savedFetch = sandbox.fetch;
+sandbox.fetch = (url) => { requestedSamples.push(url); return Promise.reject(new Error('offline test')); };
+const landingSpeeds = [];
+const originalLanding = Sfx.SYNTHS.landing;
+Sfx.SYNTHS.landing = function (ctx, noise, dest, time, options) {
+    landingSpeeds.push(options.speed);
+    return originalLanding(ctx, noise, dest, time, options);
+};
+const lander = Audio.createAudioController({ manifest });
+lander.unlock();
+const landBefore = nodeCount;
+lander.handleEvents([{ type: 'land', detail: { x: 20, y: 30, sound: 'step-metal', impactSpeed: 740 } }], null, null);
+assert.ok(nodeCount > landBefore, 'landing creates the impact and material layers');
+assert.ok(requestedSamples.some((url) => url.includes('step-metal.wav')), 'landing loads its metal surface sample');
+assert.deepEqual(landingSpeeds, [740], 'landing impact keeps its incoming speed');
+assert.ok(Audio.CUE_MAP.land.by.map['step-metal'].also.some((layer) => layer.synth === 'clank'), 'metal landing rings after the thump');
+const slamBefore = nodeCount;
+lander.handleEvents([{ type: 'land', detail: { x: 20, y: 30, sound: 'step-metal', impactSpeed: 740, slam: true } }], null, null);
+assert.equal(nodeCount, slamBefore, 'slam landing does not double-play the ordinary landing cue');
+lander.dispose();
+sandbox.fetch = savedFetch;
+Sfx.SYNTHS.landing = originalLanding;
+
+// Resonance notes follow each biome scale and keep every contact distinct.
+const resonanceFreqs = [];
+const resonancePhrases = [];
+const originalResonance = Sfx.SYNTHS.resonance;
+Sfx.SYNTHS.resonance = function (ctx, noise, dest, time, options) {
+    resonanceFreqs.push(options.freq);
+    resonancePhrases.push(options.notes || null);
+    return originalResonance(ctx, noise, dest, time, options);
+};
+const resonance = Audio.createAudioController({ manifest });
+resonance.unlock();
+resonance.setAmbience('forest-night');
+[
+    { type: 'resonance_start', detail: { index: 0 } },
+    { type: 'resonance_rune', detail: { index: 1 } },
+    { type: 'resonance_rune', detail: { index: 2 } },
+    { type: 'resonance_complete', detail: { index: 3 } }
+].forEach((event) => {
+    sandbox.__t += 100;
+    resonance.handleEvents([event], null, null);
+});
+const cavern = Music.THEMES.cavern;
+const expectedResonanceFreqs = [0, 1, 2, 3].map((index) => 440 * Math.pow(2, (cavern.root + 12 + cavern.scale[index] - 69) / 12));
+assert.deepEqual(resonanceFreqs, expectedResonanceFreqs, 'resonance contacts follow the current biome scale');
+assert.equal(new Set(resonanceFreqs).size, 4, 'each resonance stage has its own pitch');
+assert.deepEqual(resonancePhrases.slice(0, 3), [null, null, null], 'rune contacts do not add extra musical phrases');
+assert.deepEqual(Array.from(resonancePhrases[3]), [0, 2, 4].map((degree) => 440 * Math.pow(2, (cavern.root + 12 + cavern.scale[degree] - 69) / 12)), 'the final cue resolves in the biome scale');
+resonance.dispose();
+Sfx.SYNTHS.resonance = originalResonance;
+const mutedResonance = Audio.createAudioController({ manifest, enabled: false });
+const mutedBefore = nodeCount;
+mutedResonance.handleEvents([{ type: 'resonance_start', detail: { index: 0 } }], null, null);
+assert.equal(nodeCount, mutedBefore, 'the sound mute silences resonance contacts');
+mutedResonance.dispose();
+const independentSfx = Audio.createAudioController({ manifest });
+independentSfx.unlock();
+const mutedMusic = Music.createMusicController(independentSfx.musicPort());
+mutedMusic.setEnabled(false);
+const sfxWithMusicMuted = nodeCount;
+independentSfx.handleEvents([{ type: 'resonance_start', detail: { index: 0 } }], null, null);
+assert.ok(nodeCount > sfxWithMusicMuted, 'the music mute leaves sound effects enabled');
+mutedMusic.dispose();
+independentSfx.dispose();
+
 // ---- 3b. round 4 events: every new event, glyph and pattern maps to a cue and plays ----
-const R4_EVENTS = ['swing_grab', 'swing_release', 'seq_show', 'seq_hit', 'seq_fail', 'seq_solved', 'lever_pull', 'bridge_toggle', 'bridge_done',
+const R4_EVENTS = ['swing_grab', 'swing_release', 'seq_show', 'seq_hit', 'seq_fail', 'seq_solved', 'resonance_start', 'resonance_rune', 'resonance_complete', 'resonance_expire', 'lever_pull', 'bridge_toggle', 'bridge_done',
     'plate_down', 'stairs_up', 'stairs_down', 'brazier_lit', 'ritual_done', 'ritual_fail', 'dragon_roar', 'dragon_warn', 'dragon_breath', 'dragon_pass', 'fireball_hit'];
 R4_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], 'cue missing for ' + type));
 [0, 1, 2, 3].forEach((g) => ['seq_show', 'seq_hit'].forEach((type) => assert.ok(Audio.CUE_MAP[type].by.map[g], type + ' glyph ' + g)));

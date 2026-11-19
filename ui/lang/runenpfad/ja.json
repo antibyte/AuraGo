@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "光っているルーンに触れよう",
+  "runenpfad.resonance_progress": "ルーンの小道 {count}/{total} · 残り{seconds}秒",
+  "runenpfad.notice.resonance_complete": "ルーンの小道を踏破！",
+  "runenpfad.notice.resonance_expire": "時間切れ。最初のルーンに触れると再挑戦できる。",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "2Dの世界とGame Maker素材パックを読み込んでいます...",
   "runenpfad.error_assets": "Game Makerの2Dスプライトまたはサウンドパックに現在アクセスできません。",

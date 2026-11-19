@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Touch the glowing rune",
+  "runenpfad.resonance_progress": "Rune trail {count}/{total} · {seconds}s",
+  "runenpfad.notice.resonance_complete": "Rune trail complete!",
+  "runenpfad.notice.resonance_expire": "Time’s up. Touch the first rune to try again.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Loading the 2D realms and Game Maker sprite packs...",
   "runenpfad.error_assets": "The Game Maker 2D sprite or sound packs are currently unreachable.",

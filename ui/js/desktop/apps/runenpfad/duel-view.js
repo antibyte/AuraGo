@@ -180,7 +180,7 @@
             ctx.translate(vw / 2, vh);
             ctx.scale(k, k);
             ctx.translate(-vw / 2, -vh);
-            atm.paintBackdrop(biome, frame.reducedMotion ? 0 : d.t * 14, vw, vh, vh + (floorScreen - vh) / k, frame.nowSec);
+            atm.paintBackdrop(biome, frame.reducedMotion ? 0 : d.t * 14, vw, vh, vh + (floorScreen - vh) / k, frame.nowSec, frame.reducedMotion);
             ctx.restore();
             ctx.fillStyle = 'rgba(8, 6, 18, 0.26)';
             ctx.fillRect(0, 0, vw, vh);

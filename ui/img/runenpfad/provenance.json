@@ -1,6 +1,6 @@
 {
  "version": 1,
- "tool": "Codex CLI image generation",
+ "tool": "Codex image generation",
  "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack.",
  "files": [
   {
@@ -321,6 +321,16 @@
    "tool": "Codex CLI image generation",
    "source": "prop-glyphs.png",
    "sourceSha256": "9a3b52dcdd539ce70598ac1902c59372b28e44d2af3ea56086a5ea9faed6e1cb",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-waystones.webp",
+   "sha256": "5c6459f94c30ff7c27d7b97cba55c8a6614e58d1f9d46276dbd3fc4c7431b13c",
+   "bytes": 35254,
+   "prompt": "One professional RGBA sprite sheet for Runenpfad, a richly illustrated 16-bit fantasy side-scrolling platform game. Landscape, ideally 1536 by 1024 or wider. Exactly FIVE separate upright ancient resonance waystones side by side on a SINGLE ROW. Divide the whole width into five equal invisible columns. Empty fully transparent background. One sprite centered in each column on one common baseline at 78 percent of sheet height, each about 52 percent of canvas height and no more than 76 percent of its column width. Leave clear transparent gutters around all sides. Full objects. Art-directed hand-pixelled 1990s adventure game look with big intentional color clusters, stepped edges, dark navy outline, warm upper-left light, readable at 80px tall. Each is a tall, striking asymmetrical landmark, with a luminous turquoise circular lens or inset rune near its crown, and moss or rubble at its own narrow feet. From left to right: 1. a weathered moss-clad woodland menhir with an antler-shaped twisted root embracing a carved moon disc, a few hanging leaves and two tiny orange mushrooms at its base; 2. a dark root-cavern cairn split open around a violet geode cluster with a mint-green rune inset and pale cave mushrooms; 3. an ochre sandstone pillar with a broken sun wheel, a lapis and turquoise rune core, a small tattered copper-red fabric tassel; 4. a frosty blue slate pillar crowned with a split icicle, a warm brass collar with turquoise lens and a little snow on the shoulders; 5. an upright oxidized brass clockwork shrine with a toothed crown, small rivets, dark iron housing, mint glass central lens and a copper pipe. Different silhouettes, shared visual language. No inscriptions, letters, numbers, UI, effects outside the silhouette, words, logos, backdrop, floor strip, cast shadows, frame lines or cell dividers. Keep generous transparent gutters. Front/side elevation suitable for a side view game; do not use isometric perspective.",
+   "tool": "Codex image generation",
+   "source": "prop-waystones.png",
+   "sourceSha256": "a3418978cac02073428bc68f5cbe2f659cea1a5581886b063014d17abd1244b5",
    "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
   },
   {

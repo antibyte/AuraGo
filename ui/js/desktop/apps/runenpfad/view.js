@@ -111,25 +111,12 @@
             magic_platform: { sx: 8, sy: 35, sw: 48, sh: 24 }
         };
 
-        // Fill tiles pick a neighbouring texture so long walls stop looking like wallpaper.
+        // Keep each stratum's material continuous. Isolated inclusions share the host soil's palette.
         const TILE_VARIANTS = {
             earth_block: ['earth_block', 'earth_light', 'earth_stones'],
             earth_light: ['earth_light', 'earth_block', 'earth_stones'],
             earth_stones: ['earth_stones', 'earth_block', 'earth_light'],
-            earth_dark: ['earth_dark', 'earth_roots', 'earth_block'],
-            earth_roots: ['earth_roots', 'earth_dark', 'earth_block'],
-            stone_round: ['stone_round', 'stone_moss', 'stone_cracked'],
-            stone_cracked: ['stone_cracked', 'stone_dark', 'stone_round'],
-            stone_dark: ['stone_dark', 'stone_round', 'stone_moss'],
-            stone_moss: ['stone_moss', 'stone_round', 'stone_dark'],
-            sand_block: ['sand_block', 'sand_pebbles', 'sand_waves'],
-            sand_pebbles: ['sand_pebbles', 'sand_block', 'sand_waves'],
-            sand_waves: ['sand_waves', 'sand_block', 'sand_pebbles'],
-            sand_bricks: ['sand_bricks', 'sand_block', 'sand_cracked'],
-            sand_cracked: ['sand_cracked', 'sand_block', 'sand_bricks'],
-            snow_block: ['snow_block', 'ice_block', 'ice_stone'],
-            ice_stone: ['ice_stone', 'ice_block', 'snow_block'],
-            ice_block: ['ice_block', 'ice_stone', 'snow_block']
+            earth_roots: ['earth_roots', 'earth_dark']
         };
 
         const WORLD_BACKING = ['#3b2313', '#271e38', '#6e4720', '#2c4a63', '#252c3d'];
@@ -398,7 +385,7 @@
             ctx.imageSmoothingEnabled = true;
             if (atmosphere) {
                 const groundScreenY = Math.min(viewH * 1.15, Math.max(viewH * 0.5, (stage.groundY - sy) * z));
-                atmosphere.paintBackdrop(biome, sx * z, viewW, viewH, groundScreenY, nowSec);
+                atmosphere.paintBackdrop(biome, sx * z, viewW, viewH, groundScreenY, nowSec, reduced);
                 if (typeof atmosphere.sunPosition === 'function') sunScreen = atmosphere.sunPosition(biome, sx * z, viewW, viewH, groundScreenY) || null;
                 callHook(setPieces, 'drawFar', sim, frameView, viewW, viewH);
                 atmosphere.paintWeather(biome, viewW, viewH, nowSec, reduced ? 0.35 : 1, groundScreenY, rainWeather);
@@ -429,6 +416,9 @@
             // Solid terrain tiles (subterranean fill + cropped interior so zero sky seams appear)
             const backingColor = WORLD_BACKING[stage.worldIndex] || '#3b2313';
             const solidMap = stage.solidMap || {};
+            const depthShade = ctx.createLinearGradient(0, stage.groundY, 0, stage.groundY + 3 * TILE);
+            depthShade.addColorStop(0, 'rgba(14,17,29,0)');
+            depthShade.addColorStop(1, 'rgba(14,17,29,0.44)');
             stage.tiles.forEach(function (tile) {
                 if (tile.broken) return;
                 const tx = tile.tx * TILE;
@@ -437,10 +427,15 @@
                 const hasAbove = !!solidMap[tile.tx + ',' + (tile.ty - 1)];
                 ctx.fillStyle = backingColor;
                 ctx.fillRect(tx, ty + (hasAbove ? 0 : 4), TILE + 1, TILE - (hasAbove ? -1 : 3));
-                const cropY = hasAbove ? 4 : 2;
-                const cropH = hasAbove ? 55 : 57;
-                const assetId = hasAbove ? tile.assetId : tileVariant(tile.assetId, tile.tx, tile.ty, stage.worldIndex);
-                drawCroppedAsset('jump-and-run', assetId, 4, cropY, 56, cropH, tx, ty, TILE + 1, TILE + 1);
+                const assetId = hasAbove ? tileVariant(tile.assetId, tile.tx, tile.ty, stage.worldIndex) : tile.assetId;
+                const flip = hasAbove && ((tile.tx + tile.ty * 3) & 2) !== 0;
+                // Buried blocks use the texture inside the sprite's sunlit rim.
+                const cropX = hasAbove ? 5 + ((tile.tx * 3 + tile.ty) & 3) : 4;
+                drawCroppedAsset('jump-and-run', assetId, cropX, hasAbove ? 9 : 2, hasAbove ? 50 : 56, hasAbove ? 45 : 57, tx, ty, TILE + 1, TILE + 1, flip);
+                if (hasAbove) {
+                    ctx.fillStyle = depthShade;
+                    ctx.fillRect(tx, ty, TILE, TILE);
+                }
             });
 
             // Edge definition: sunlit rim on exposed tops, shaded flanks on exposed sides

@@ -362,6 +362,93 @@
         };
     }
 
+    // Place the optional rune path on a wide, flat, hazard-free stretch of existing ground.
+    function createResonancePath(stage, cfg) {
+        if (cfg.hub || cfg.id === 0) return null;
+        const tile = stage.tileSize;
+        const patternIndex = stage.id === 1 ? 0 : ((stage.mode === 'endless' ? cfg.endlessFloor : stage.id) - 2) % 3 + 1;
+        const patterns = [
+            { offsets: [0, 24, 120], lifts: [0, -64, 0] },
+            { offsets: [0, 24, 60, 120], lifts: [0, -64, -88, 0] },
+            { offsets: [0, 24, 70, 120], lifts: [0, -64, 0, -64] },
+            { offsets: [0, 24, 60, 120], lifts: [0, -54, -88, -64] }
+        ];
+        const pattern = patterns[patternIndex];
+        const surfaces = [];
+        function safeSurface(tx, ty) {
+            const top = ty * tile;
+            const left = tx * tile;
+            const right = left + tile;
+            if (!stage.solidMap[tx + ',' + ty]) return false;
+            for (let head = 1; head <= 3; head++) {
+                if (stage.solidMap[tx + ',' + (ty - head)]) return false;
+            }
+            if ((stage.platforms || []).some(function (p) {
+                return left < p.x + p.w && right > p.x && p.y >= top - 144 && p.y < top;
+            }) || (stage.movingPlatforms || []).some(function (p) {
+                return left < p.x + p.w && right > p.x && p.y >= top - 144 && p.y < top;
+            })) return false;
+            if ((stage.hazards || []).some(function (h) {
+                const hx = h.x + h.w;
+                const hy = h.y + tile - h.h + 4;
+                return left < hx && right > h.x && top > hy && top - 44 < h.y + tile;
+            })) return false;
+            if ((stage.crates || []).some(function (c) {
+                return left < c.x + c.w && right > c.x && top > c.y && top - 44 < c.y + c.h;
+            })) return false;
+            return true;
+        }
+
+        for (let ty = 2; ty < stage.heightTiles; ty++) {
+            let start = -1;
+            for (let tx = 1; tx < stage.widthTiles; tx++) {
+                if (safeSurface(tx, ty)) {
+                    if (start < 0) start = tx;
+                } else if (start >= 0) {
+                    if (tx - start >= 5) surfaces.push({ start: start, end: tx - 1, y: ty });
+                    start = -1;
+                }
+            }
+            if (start >= 0 && stage.widthTiles - start >= 5) surfaces.push({ start: start, end: stage.widthTiles - 1, y: ty });
+        }
+        if (!surfaces.length) return null;
+
+        const spawnTile = stage.spawn.x / tile;
+        surfaces.sort(function (a, b) {
+            const aContains = spawnTile >= a.start && spawnTile <= a.end ? 0 : 1;
+            const bContains = spawnTile >= b.start && spawnTile <= b.end ? 0 : 1;
+            return aContains - bContains || Math.abs((a.start + a.end) / 2 - spawnTile) - Math.abs((b.start + b.end) / 2 - spawnTile) || (b.end - b.start) - (a.end - a.start);
+        });
+        const desiredX = stage.spawn.x + 34;
+        const eligible = surfaces.filter(function (s) {
+            return (s.end + 1) * tile - Math.max((s.start + 0.5) * tile, desiredX) >= pattern.offsets[pattern.offsets.length - 1];
+        });
+        if (!eligible.length) return null;
+        let span = eligible[0];
+        if (stage.id !== 1) {
+            const seed = stage.mode === 'endless'
+                ? ((cfg.seed || 9001) + (cfg.endlessFloor || 1) * 10007)
+                : ((cfg.id || 1) * 48271 + 17);
+            span = eligible[Math.floor(makeRng(seed)() * eligible.length)];
+        }
+        if (!span) return null;
+        const startX = Math.max((span.start + 0.5) * tile, desiredX);
+        return {
+            groundY: span.y * tile,
+            runes: Array.from({ length: pattern.offsets.length }, function (_, i) {
+                return { x: startX + pattern.offsets[i], y: span.y * tile - 22 + pattern.lifts[i] };
+            }),
+            nextRune: 0,
+            timeLimit: 12,
+            timeLeft: 12,
+            started: false,
+            expired: false,
+            needsLeave: false,
+            complete: false,
+            rewardCoins: 3
+        };
+    }
+
     function createEndlessConfig(floor, seed) {
         const idx = Math.max(1, Math.floor(Number(floor) || 1));
         const rng = makeRng((seed || 9001) + idx * 7919);
@@ -956,6 +1043,7 @@
             }
             variety.applyToStage(stage, mod);
         }
+        stage.resonancePath = createResonancePath(stage, cfg);
         return stage;
     }
 

@@ -356,6 +356,144 @@ assert.ok(sawBossPhase, 'boss emits a phase-change cue in phase 2');
 const Variety = sandbox.RunenpfadVariety;
 assert.equal(Variety.MODS.length, 6, 'expected 6 rune trials');
 assert.equal(Variety.pickMod(1, 0), null, 'the tutorial level carries no trial');
+const resonanceLevel1 = Levels.buildStage(1).resonancePath;
+assert.ok(resonanceLevel1, 'the tutorial shows an optional resonance path');
+assert.equal(resonanceLevel1.timeLimit, 12, 'resonance path exposes its timed window');
+assert.equal(resonanceLevel1.runes.length, 3, 'the tutorial path teaches a short ordered sequence');
+assert.equal(resonanceLevel1.runes[1].y, resonanceLevel1.runes[0].y - 64, 'level 1 visibly teaches a jump');
+assert.ok(resonanceLevel1.runes[0].x > Levels.buildStage(1).spawn.x + 30, 'the first rune sits ahead of the hero spawn');
+const resonanceStarts = new Set();
+for (let lvl = 1; lvl <= 25; lvl++) {
+    const stage = Levels.buildStage(lvl);
+    const path = stage.resonancePath;
+    assert.ok(path && path.groundY > 0, `level ${lvl} places its path on a safe existing ground stretch`);
+    assert.equal(path.runes.length, lvl === 1 ? 3 : 4);
+    if (lvl > 1) resonanceStarts.add(path.runes[0].x);
+    assert.deepEqual(path.runes, Levels.buildStage(lvl).resonancePath.runes, `level ${lvl} path placement is deterministic`);
+    assert.ok(path.runes.every((r, i) => i === 0 || Math.hypot(r.x - path.runes[i - 1].x, r.y - path.runes[i - 1].y) > 30), `level ${lvl} keeps rune hitboxes distinct`);
+    for (const rune of path.runes) {
+        const tx = Math.floor(rune.x / stage.tileSize);
+        const ty = Math.floor(path.groundY / stage.tileSize);
+        assert.ok(stage.solidMap[tx + ',' + ty], `level ${lvl} rune stays over solid ground`);
+        for (let head = 1; head <= 3; head++) assert.ok(!stage.solidMap[tx + ',' + (ty - head)], `level ${lvl} keeps jump headroom`);
+        assert.ok(!(stage.platforms || []).some((p) => rune.x > p.x - 14 && rune.x < p.x + p.w + 14 && p.y >= path.groundY - 144 && p.y < path.groundY), `level ${lvl} avoids a platform overhang`);
+    }
+}
+assert.ok(resonanceStarts.size > 1, 'later levels deterministically vary their safe path location');
+assert.notDeepEqual(Levels.buildStage(2).resonancePath.runes.map((r) => r.y), Levels.buildStage(3).resonancePath.runes.map((r) => r.y), 'later levels rotate the jump arrangement');
+const endlessResonance = new Set();
+for (let floor = 1; floor <= 20; floor++) {
+    const stage = Levels.buildStage({ mode: 'endless', endlessFloor: floor, seed: 9001 });
+    assert.ok(stage.resonancePath && stage.resonancePath.groundY > 0, `endless floor ${floor} gets a safe resonance path`);
+    assert.deepEqual(stage.resonancePath.runes, Levels.buildStage({ mode: 'endless', endlessFloor: floor, seed: 9001 }).resonancePath.runes, `endless floor ${floor} placement is deterministic`);
+    endlessResonance.add(stage.resonancePath.runes[0].x);
+}
+assert.ok(endlessResonance.size > 1, 'endless floors vary their path location');
+
+// Exercise the generated sequences with real fixed-step movement and jump inputs, never rune-position teleports.
+function runResonanceWithInputs(levelId, hero) {
+    const s = Sim.createSimulation({ mode: 'campaign', levelId, hero, profile });
+    const path = s.stage.resonancePath;
+    s.stage.enemies = [];
+    s.stage.hazards = [];
+    s.stage.boulders = [];
+    s.stage.crates = [];
+    s.stats = Object.assign({}, s.stats, { maxAirJumps: 0 });
+    s.player.airJumpsLeft = 0;
+    if (levelId > 1) {
+        s.player.x = path.runes[0].x - 36;
+        s.player.y = path.groundY;
+        s.player.vx = 0;
+        s.player.vy = 0;
+        s.player.onGround = true;
+    }
+    const events = [];
+    const jumpedAt = new Set();
+    for (let frame = 0; frame < 1200 && !path.complete; frame++) {
+        const index = path.nextRune;
+        const target = path.runes[index];
+        const dx = target.x - s.player.x;
+        const elevated = target.y < path.runes[0].y - 30;
+        let right = dx > 18;
+        let left = dx < -18;
+        if (!elevated && path.started && dx > 0 && dx < 48) right = false;
+        const jumpPressed = elevated && s.player.onGround && dx <= 52 && !jumpedAt.has(index);
+        if (jumpPressed) jumpedAt.add(index);
+        Sim.stepSimulation(s, Sim.STEP, { right, left, jumpPressed });
+        events.push(...s.events);
+    }
+    const target = path.runes[path.nextRune] || path.runes[path.runes.length - 1];
+    assert.equal(path.complete, true, `level ${levelId} ${hero} completes its path by moving and jumping (rune ${path.nextRune}/${path.runes.length}, x ${Math.round(s.player.x)}, y ${Math.round(s.player.y)}, target ${Math.round(target.x)},${Math.round(target.y)}, ground ${path.groundY}, jumps ${events.filter((e) => e.type === 'jump').length}, issued ${Array.from(jumpedAt)})`);
+    assert.ok(events.some((e) => e.type === 'resonance_start'), 'first touch starts the path timer');
+    assert.ok(events.some((e) => e.type === 'resonance_complete'), 'last touch emits the single completion event');
+    const requiredJumps = levelId === 3 ? 2 : 1;
+    assert.ok(events.filter((e) => e.type === 'jump').length >= requiredJumps, `level ${levelId} pattern is possible without double jump`);
+    assert.equal(s.profile.coins, profile.coins + 3, 'one successful path grants three coins');
+    assert.ok(s.floatingTexts.some((ft) => ft.text === '+3' && ft.icon === 'coin'), 'path reward shows the existing coin icon');
+    return s;
+}
+for (let levelId = 1; levelId <= 4; levelId++) {
+    runResonanceWithInputs(levelId, 'knight');
+    runResonanceWithInputs(levelId, 'ranger');
+}
+
+const landingSim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
+landingSim.player.y = landingSim.stage.resonancePath.groundY - 100;
+landingSim.player.vy = 300;
+landingSim.player.onGround = false;
+let landingEvent = null;
+for (let frame = 0; frame < 30 && !landingEvent; frame++) {
+    landingEvent = Sim.stepSimulation(landingSim, Sim.STEP, {}).find((e) => e.type === 'land') || null;
+}
+assert.ok(landingEvent && landingEvent.detail.impactSpeed > 0, 'landing event reports a positive impact speed');
+assert.equal(landingEvent.detail.sound, landingSim.stage.world.stepSound, 'landing sound follows the stage biome');
+
+// A timeout rearms only after leaving Rune 0, and paused impact frames do not spend path time.
+const retrySim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
+const retryPath = retrySim.stage.resonancePath;
+retrySim.player.x = retryPath.runes[0].x;
+retrySim.player.y = retryPath.runes[0].y + 22;
+Variety.stepResonance(retrySim, 0);
+assert.equal(retryPath.started, true);
+retryPath.timeLeft = Sim.STEP / 2;
+retrySim.events = [];
+Variety.stepResonance(retrySim, Sim.STEP);
+assert.equal(retryPath.expired, true);
+assert.equal(retryPath.needsLeave, true);
+assert.equal(retrySim.events.filter((e) => e.type === 'resonance_expire').length, 1);
+retrySim.events = [];
+Variety.stepResonance(retrySim, 20);
+assert.equal(retrySim.events.length, 0, 'standing on rune 0 does not loop the failure sound');
+retrySim.player.x += 60;
+Variety.stepResonance(retrySim, 0);
+assert.equal(retryPath.needsLeave, false, 'leaving rune 0 rearms a retry');
+retrySim.player.x = retryPath.runes[0].x;
+Variety.stepResonance(retrySim, 0);
+assert.equal(retryPath.started, true, 're-entering rune 0 restarts the path');
+assert.equal(retrySim.notice, 'runenpfad.notice.find_key', 'retry clears only the stale timeout notice');
+
+const pauseSim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: 'knight', profile });
+pauseSim.player.x = pauseSim.stage.resonancePath.runes[0].x;
+pauseSim.player.y = pauseSim.stage.resonancePath.runes[0].y + 22;
+Variety.stepResonance(pauseSim, 0);
+pauseSim.stage.resonancePath.timeLeft = 8;
+pauseSim.fx.hitstop = Sim.STEP;
+Sim.stepSimulation(pauseSim, Sim.STEP, {});
+assert.equal(pauseSim.stage.resonancePath.timeLeft, 8, 'impact freeze pauses the resonance timer');
+
+const respawnPathSim = runResonanceWithInputs(2, 'knight');
+const paidCoins = respawnPathSim.profile.coins;
+respawnPathSim.player.hp = 1;
+respawnPathSim.player.invulnTimer = 0;
+respawnPathSim.player.y = respawnPathSim.stage.height + 80;
+Sim.stepSimulation(respawnPathSim, Sim.STEP, {});
+assert.equal(respawnPathSim.state, 'playing', 'the first defeat respawns at the checkpoint');
+assert.equal(respawnPathSim.stage.resonancePath.complete, true, 'respawn retains the completed path state');
+respawnPathSim.player.x = respawnPathSim.stage.resonancePath.runes.at(-1).x;
+respawnPathSim.player.y = respawnPathSim.stage.resonancePath.runes.at(-1).y + 22;
+Variety.stepResonance(respawnPathSim, 0);
+assert.equal(respawnPathSim.profile.coins, paidCoins, 'respawn cannot farm the path reward');
+
 for (let lvl = 2; lvl <= 25; lvl++) {
     const stage = Levels.buildStage(lvl);
     assert.ok(stage.mod, `level ${lvl} must carry a rune trial`);

@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Berühre die leuchtende Rune",
+  "runenpfad.resonance_progress": "Runenspur {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Runenspur vollendet!",
+  "runenpfad.notice.resonance_expire": "Zeit vorbei. An der ersten Rune kannst Du neu starten.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Die 2D-Welten und Game-Maker-Pakete werden geladen...",
   "runenpfad.error_assets": "Die 2D-Sprites oder Klänge des Game Makers sind gerade nicht erreichbar.",

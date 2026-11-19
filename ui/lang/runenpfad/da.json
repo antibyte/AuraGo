@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Rør ved den lysende rune",
+  "runenpfad.resonance_progress": "Runespor {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Runesporet er fuldført!",
+  "runenpfad.notice.resonance_expire": "Tiden er gået. Berør den første rune for at prøve igen.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Indlæser 2D-verdener og Game Maker-pakker...",
   "runenpfad.error_assets": "Game Makers 2D-sprites eller lyde kan ikke nås lige nu.",

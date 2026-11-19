@@ -22,7 +22,7 @@
                 { style: 'oaks', base: 'hills', color: '#1b4443', factor: 0.27, lift: -0.07, span: 240, amp: 24, cells: 11, seed: 47, mist: 0.25 },
                 { style: 'trunks', base: 'flat', color: '#11302f', factor: 0.45, lift: -0.01, span: 360, amp: 8, cells: 13, seed: 59, mist: 0.15 }
             ],
-            shafts: { color: '#ffe7a8', alpha: 0.11, factor: 0.12, count: 7 },
+            shafts: { color: '#ffe7a8', alpha: 0.065, factor: 0.12, count: 5 },
             stars: { count: 40, alpha: 0.5, color: '#e8f6ff' },
             // Painted parallax (parallax-art.js): far band + mid/near props from the bg-* sheets; the layers above stay the fallback.
             art: {

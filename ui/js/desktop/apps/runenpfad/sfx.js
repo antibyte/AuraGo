@@ -448,6 +448,30 @@
             b.o('sine', f * 5.4, f * 5.4, t, 0.1, g * 0.07, { atk: 0.001 });
             b.n(t, 0.012, g * 0.18, { type: 'highpass', f0: 4000 });
         }),
+        // Runic resonance: a warm fundamental with a hollow fifth and octave tail.
+        resonance: wrap(function (b, t, g, sr, o) {
+            if (Array.isArray(o.notes) && o.notes.length) {
+                o.notes.forEach(function (f, i) {
+                    const tt = t + i * 0.09;
+                    b.bell(f, tt, i === o.notes.length - 1 ? 0.78 : 0.45, g * (i === o.notes.length - 1 ? 0.24 : 0.16));
+                    b.o('sine', f, f * 0.995, tt, i === o.notes.length - 1 ? 0.62 : 0.32, g * 0.12, { atk: 0.006 });
+                });
+                return;
+            }
+            const f = (o.freq || 523.25) * sr;
+            b.o('sine', f, f * 0.995, t, 0.62, g * 0.42, { atk: 0.006 });
+            b.bell(f * 1.5, t + 0.018, 0.72, g * 0.2);
+            b.bell(f * 2, t + 0.035, 0.9, g * 0.16);
+            b.n(t, 0.009, g * 0.08, { type: 'highpass', f0: 4200, q: 0.7 });
+        }),
+        // Grounded impact: higher incoming speed makes a louder, lower thump.
+        landing: wrap(function (b, t, g, sr, o) {
+            const speed = Math.max(0, Math.min(1100, Number(o.speed) || 0));
+            const weight = 0.58 + speed / 1100 * 0.5;
+            b.o('sine', (150 - speed * 0.065) * sr, (48 - speed * 0.015) * sr, t, 0.24, g * weight, { atk: 0.002 });
+            b.n(t, 0.028, g * weight * 0.38, { type: 'lowpass', f0: 900, f1: 160, q: 0.7, atk: 0.003 });
+            b.n(t, 0.01, g * 0.25, { type: 'highpass', f0: 2300, q: 0.7 });
+        }),
         // Soft dissonant down-chime (minor second falling), never harsh.
         seqfail: wrap(function (b, t, g, sr) {
             b.bell(392 * sr, t, 0.7, g * 0.2);
@@ -580,5 +604,18 @@
         }
     }
 
-    root.RunenpfadSfx = { SYNTHS: SYNTHS, builder: builder };
+    function resonanceNotes(theme, index, phrase) {
+        const scale = theme && theme.scale && theme.scale.length ? theme.scale : [0, 2, 4, 7, 9, 12, 14];
+        const rootMidi = theme ? theme.root : 60;
+        const degree = Math.max(0, Math.floor(Number(index) || 0));
+        const note = function (step) {
+            return 440 * Math.pow(2, (rootMidi + 12 + step - 69) / 12);
+        };
+        return {
+            freq: note(scale[degree % scale.length] + 12 * Math.floor(degree / scale.length)),
+            notes: phrase ? [0, 2, 4].map(function (step) { return note(scale[step]); }) : null
+        };
+    }
+
+    root.RunenpfadSfx = { SYNTHS: SYNTHS, builder: builder, resonanceNotes: resonanceNotes };
 })(typeof window !== 'undefined' ? window : globalThis);

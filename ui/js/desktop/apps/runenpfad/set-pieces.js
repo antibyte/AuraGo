@@ -889,6 +889,72 @@
             heatNow = heat;
         }
 
+        function drawResonancePath(path, view) {
+            if (!path) return;
+            const runes = path.runes;
+            if (!vis(view, runes[0].x, runes[runes.length - 1].x)) return;
+            put('prop-waystones.' + view.biome.id, 0, runes[0].x - 24, path.groundY + 1, { height: 93 });
+            if (path.complete) return;
+            const first = path.nextRune;
+            const time = view.reducedMotion ? 0 : view.nowSec;
+            ctx.save();
+            // The thread leads the eye to the next seal even against bright snow or sand.
+            for (let i = Math.max(1, first); i < runes.length; i++) {
+                const a = runes[i - 1], b = runes[i];
+                const bright = i === first || (first === 0 && i === 1);
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.quadraticCurveTo((a.x + b.x) / 2, Math.min(a.y, b.y) - 16, b.x, b.y);
+                ctx.setLineDash([]);
+                ctx.strokeStyle = bright ? 'rgba(8,37,51,.72)' : 'rgba(8,37,51,.38)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.setLineDash([3, 9]);
+                ctx.lineDashOffset = -time * 15;
+                ctx.strokeStyle = bright ? '#9bfbe3' : '#73a9ac';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+            for (let i = first; i < runes.length; i++) {
+                const rune = runes[i];
+                const lit = i === first;
+                const radius = lit ? 15 : 10;
+                const y = rune.y + Math.sin(time * 2.5) * 2;
+                if (lit) glow(rune.x, y, 44, '106,255,225', 0.55);
+                ctx.save();
+                ctx.translate(rune.x, y);
+                // Chiseled brass bevel around a dark enamel face and a different engraved sign per stop.
+                ctx.beginPath();
+                for (let side = 0; side < 8; side++) {
+                    const angle = side * TAU / 8 - Math.PI / 2;
+                    const x = Math.cos(angle) * radius, dy = Math.sin(angle) * radius * 1.18;
+                    if (side === 0) ctx.moveTo(x, dy);
+                    else ctx.lineTo(x, dy);
+                }
+                ctx.closePath();
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#17272c';
+                ctx.stroke();
+                ctx.fillStyle = lit ? '#194e50' : '#26383c';
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = lit ? '#f8dfa2' : '#96ad9f';
+                ctx.stroke();
+                glyphShape(i % 4, 0, 0, radius - 4, lit ? '#c3ffec' : '#9ebeb5');
+                if (lit) {
+                    ctx.beginPath();
+                    const fraction = first === 0 ? 1 : clamp(path.timeLeft / path.timeLimit, 0, 1);
+                    ctx.arc(0, 0, radius + 7, -Math.PI / 2, -Math.PI / 2 + TAU * fraction);
+                    ctx.strokeStyle = fraction < 0.25 ? '#ffd48b' : '#9bfbe3';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
         function drawWorld(sim, view) {
             step(sim, view);
             drawBridge(sim, view);
@@ -897,6 +963,7 @@
             drawLevers(sim, view);
             drawStones(sim, view);
             drawOracles(sim, view);
+            drawResonancePath(sim.stage.resonancePath, view);
             const runs = sim.stage.dragonRuns;
             if (runs) for (let i = 0; i < runs.length; i++) drawRunWorld(runs[i], sim, view);
             // fire stays behind the hero so the hero never disappears in the flames
@@ -911,6 +978,11 @@
 
         function collectLights(sim, view, lights) {
             const st = sim.stage;
+            const path = st.resonancePath;
+            if (path && !path.complete) {
+                const next = path.runes[path.nextRune];
+                lights.push({ x: next.x, y: next.y, radius: 86, intensity: 0.72, flicker: false });
+            }
             (st.rituals || []).forEach(function (r) {
                 (r.braziers || []).forEach(function (b) {
                     if (b.lit) lights.push({ x: b.x, y: b.y - 50, radius: 140, intensity: 0.75, flicker: true });

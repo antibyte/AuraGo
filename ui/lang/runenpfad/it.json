@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Tocca la runa luminosa",
+  "runenpfad.resonance_progress": "Sentiero runico {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Sentiero runico completato!",
+  "runenpfad.notice.resonance_expire": "Tempo scaduto. Tocca la prima runa per riprovare.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Caricamento dei regni 2D e dei pacchetti Game Maker...",
   "runenpfad.error_assets": "Gli sprite o i suoni 2D di Game Maker non sono al momento raggiungibili.",

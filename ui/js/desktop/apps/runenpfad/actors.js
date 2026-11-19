@@ -615,6 +615,7 @@
                 ctx.restore();
             }
             const rune = activeRune(sim);
+            if (!rune) glow(p.x, p.y - 28, 34, 'rgba(255, 238, 202, 0.48)', 0.24);
             if (rune) drawRuneAura(sim, view, p, rune);
             const blink = p.invulnTimer > 0 && Math.floor(view.nowSec * 16) % 2 === 0 ? 0.45 : 1;
             const flash = p.hurtTimer > 0 ? clamp(p.hurtTimer * 5, 0, 0.8) : 0;

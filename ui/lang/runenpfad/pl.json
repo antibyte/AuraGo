@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Dotknij świecącej runy",
+  "runenpfad.resonance_progress": "Runiczny szlak {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Runiczny szlak ukończony!",
+  "runenpfad.notice.resonance_expire": "Czas minął. Dotknij pierwszej runy, by spróbować ponownie.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Wczytywanie światów 2D i zasobów Game Maker...",
   "runenpfad.error_assets": "Sprite’y 2D lub dźwięki Game Makera są teraz niedostępne.",

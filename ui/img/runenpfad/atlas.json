@@ -3949,6 +3949,97 @@
     ]
    ]
   },
+  "prop-waystones": {
+   "file": "prop-waystones.webp",
+   "w": 385,
+   "h": 256,
+   "cols": 5,
+   "rows": 1,
+   "cw": 77,
+   "ch": 256,
+   "pivot": "feet",
+   "refH": 146,
+   "default": "woodland",
+   "clips": {
+    "woodland": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "cavern": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "desert": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "glacier": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "citadel": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "frames": [
+    [
+     6,
+     62,
+     71,
+     146,
+     -32,
+     -146
+    ],
+    [
+     78,
+     77,
+     73,
+     132,
+     -38,
+     -131
+    ],
+    [
+     155,
+     68,
+     76,
+     139,
+     -38,
+     -140
+    ],
+    [
+     231,
+     61,
+     77,
+     145,
+     -38,
+     -147
+    ],
+    [
+     308,
+     73,
+     69,
+     135,
+     -38,
+     -135
+    ]
+   ]
+  },
   "prop-lever": {
    "file": "prop-lever.webp",
    "w": 768,

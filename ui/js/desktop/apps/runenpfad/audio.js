@@ -165,7 +165,20 @@
         dash: { sound: 'jump', gain: 0.36, cooldown: 140, rate: 1.32, vary: 0.08, synth: 'whoosh', sg: 0.4, sr: 1.3 },
         spring: { sound: 'jump', gain: 0.5, cooldown: 90, rate: 1.45, vary: 0.08, synth: 'boing', sg: 0.35 },
         bounce: { sound: 'jump', gain: 0.4, cooldown: 90, rate: 1.6, vary: 0.08, synth: 'boing', sg: 0.4, sr: 1.2 },
-        land: { sound: 'land', gain: 0.5, cooldown: 110, vary: 0.12 },
+        land: {
+            sound: null, gain: 0.28, cooldown: 110, vary: 0.06, synth: 'landing', sg: 0.72, speed: 'impactSpeed',
+            by: {
+                key: 'sound',
+                map: {
+                    'step-grass': { also: [{ synth: 'softstep', sg: 0.18, delay: 0.04 }] },
+                    'step-stone': { also: [{ synth: 'hollow', sg: 0.12, sr: 0.55, delay: 0.05 }] },
+                    'step-gravel': { also: [{ synth: 'dryclick', sg: 0.18, sr: 0.8, delay: 0.015 }] },
+                    'step-wood': { also: [{ synth: 'knock2', sg: 0.1, sr: 0.9, delay: 0.04 }] },
+                    'step-metal': { also: [{ synth: 'clank', sg: 0.16, sr: 0.8, delay: 0.05 }] },
+                    '*': {}
+                }
+            }
+        },
         slam: { sound: 'shotgun', gain: 0.78, cooldown: 120, rate: 0.92, also: [{ synth: 'boom', sg: 0.5, sr: 1.1 }] },
         slam_land: { sound: 'impact-stone', gain: 0.74, cooldown: 120, rate: 0.95, also: [{ synth: 'impact', sg: 0.7, sr: 0.9 }, { synth: 'boom', sg: 0.4, sr: 1.3 }] },
         attack_melee: { sound: false, gain: 0.5, cooldown: 110, vary: 0.12, synth: 'whoosh', sg: 0.2, also: [{ synth: 'sword', sg: 1.3 }] },
@@ -276,6 +289,10 @@
         seq_hit: { sound: false, gain: 0.5, cooldown: 60, by: { key: 'glyph', map: GLYPH_TONES }, sg: 0.65, also: [{ synth: 'ping', sg: 0.1, sr: 0.7 }] },
         seq_fail: { sound: false, gain: 0.5, cooldown: 300, synth: 'seqfail', sg: 0.55 },
         seq_solved: Object.assign({ cooldown: 500, synth: 'solved', sg: 0.6 }, SOLVED_FANFARE),
+        resonance_start: { sound: false, gain: 0.44, cooldown: 60, synth: 'resonance', sg: 0.48, scaleByIndex: true },
+        resonance_rune: { sound: false, gain: 0.44, cooldown: 60, synth: 'resonance', sg: 0.48, scaleByIndex: true },
+        resonance_complete: { sound: false, gain: 0.55, cooldown: 300, synth: 'resonance', sg: 0.58, scaleByIndex: true, scalePhrase: true },
+        resonance_expire: { sound: false, gain: 0.42, cooldown: 300, synth: 'seqfail', sg: 0.46 },
         bridge_done: Object.assign({ cooldown: 500, synth: 'solved', sg: 0.6, sr: 1.122 }, SOLVED_FANFARE),
         ritual_done: Object.assign({ cooldown: 500, synth: 'solved', sg: 0.6, sr: 0.89, also: [{ synth: 'shimmer', sg: 0.25, sr: 1, delay: 0.5 }] }, SOLVED_FANFARE),
         lever_pull: { sound: 'impact-metal', gain: 0.5, cooldown: 150, rate: 0.7, synth: 'clank', sg: 0.5, sr: 0.5, also: [{ synth: 'ratchet', sg: 0.35, sr: 0.9, delay: 0.04 }] },
@@ -947,14 +964,19 @@
                     const base = ev && CUE_MAP[ev.type];
                     if (!base) continue;
                     const d = ev.detail || null;
+                    if (ev.type === 'land' && d && d.slam) continue;
                     if (ev.type === 'enemy_kill' && d && d.boss) continue;
                     const cue = resolveCue(ev, base, d);
-                    const key = ev.type + ':' + ((d && (d.pattern || d.kind || d.material || d.enemy || d.defId || d.target || d.by || d.result || (typeof d.glyph === 'number' ? 'g' + d.glyph : ''))) || '');
+                    const detailKey = d && ev.type.indexOf('resonance_') === 0 && Number.isInteger(d.index)
+                        ? 'i' + d.index
+                        : ((d && (d.pattern || d.kind || d.material || d.enemy || d.defId || d.target || d.by || d.result || (typeof d.glyph === 'number' ? 'g' + d.glyph : ''))) || '');
+                    const key = ev.type + ':' + detailKey;
                     if (!gate(key, cue.cooldown)) continue;
                     let id = cue.sound;
                     if (id === null) {
                         id = (d && d.sound) || null;
                         if (!id && ev.type === 'step') id = 'step-grass';
+                        if (!id && ev.type === 'land') id = 'land';
                         if (!id && ev.type === 'player_hurt') id = 'impact-flesh';
                     }
                     const pan = panFor(d && (d.x !== undefined ? d.x : d.x1), camera);
@@ -974,8 +996,11 @@
                         sr *= k;
                         if (cue.scale.gain) sg *= 0.6 + 0.4 * k;
                     }
+                    const resonance = cue.scaleByIndex && d && Number.isInteger(d.index) && root.RunenpfadSfx
+                        ? root.RunenpfadSfx.resonanceNotes(root.RunenpfadMusic && root.RunenpfadMusic.THEMES && root.RunenpfadMusic.THEMES[biome], d.index, cue.scalePhrase)
+                        : null;
                     if (id && assetsById[id]) playSample(id, cue.gain, rate, pan);
-                    if (cue.synth) playSynth(cue.synth, { gain: sg, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: cue.ladder ? 1046 : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
+                    if (cue.synth) playSynth(cue.synth, { gain: sg, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: resonance ? resonance.freq : (cue.ladder ? 1046 : 0), notes: resonance && resonance.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
                     if (cue.also || cue.voice) playExtras(cue, key, d, pan);
                 }
             }

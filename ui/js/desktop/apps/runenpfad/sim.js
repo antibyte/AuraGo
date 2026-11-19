@@ -388,7 +388,7 @@
         hurtPlayer(sim, p.maxHp, p.x, sound);
     }
 
-    function stepInteractables(sim) {
+    function stepInteractables(sim, dt) {
         const p = sim.player;
         const stage = sim.stage;
         const TILE = stage.tileSize;
@@ -524,6 +524,7 @@
         }
 
         zoneHook('interact', sim);
+        if (varietyApi()) varietyApi().stepResonance(sim, dt);
     }
 
     // Potion heal is shared by the normal tick and the impact-freeze tick.
@@ -558,7 +559,7 @@
             if (input.healPressed) applyPotionHeal(sim);
             if (input.attackPressed) performPlayerAttack(sim, input);
             abyssCheck(sim, 'impact-flesh');
-            stepInteractables(sim);
+            stepInteractables(sim, 0);
             return;
         }
 
@@ -706,6 +707,7 @@
         zoneHook('applyForces', sim, p, dt);
         const prevY = p.y;
         const wasOnGround = p.onGround;
+        const impactSpeed = Math.max(0, p.vy);
         let landResult;
         if (!swung) {
             p.x += p.vx * dt;
@@ -721,7 +723,8 @@
         }
 
         if (!wasOnGround && p.onGround) {
-            pushEvent(sim, 'land', { x: p.x, y: p.y });
+            const landing = { x: p.x, y: p.y, sound: stage.world.stepSound, impactSpeed: impactSpeed, slam: !!p.slamActive };
+            pushEvent(sim, 'land', landing);
             fxBurst(sim, 'dust', p.x, p.y, 7, {
                 color: '#d9c9a8',
                 speed: 130,
@@ -732,7 +735,7 @@
             if (p.slamActive) {
                 p.slamActive = false;
                 sim.effects.push({ animId: 'explosion', x: p.x, y: p.y - 16, timer: 0.45 });
-                pushEvent(sim, 'slam_land', { x: p.x, y: p.y });
+                pushEvent(sim, 'slam_land', landing);
                 fxBurst(sim, 'shard', p.x, p.y - 8, 18, { color: '#ffd08a', speed: 300, life: 0.7 });
                 fxBurst(sim, 'dust', p.x, p.y, 16, { color: '#e8d8b8', speed: 230, arc: Math.PI, angle: Math.PI / 2, life: 0.5 });
                 if (sim.fx) {
@@ -771,7 +774,7 @@
         stepEnemies(sim, dt, input);
         combatApi().stepProjectiles(sim, dt);
         combatApi().tick(sim, dt);
-        stepInteractables(sim);
+        stepInteractables(sim, dt);
 
         // Cleanup transient visual effects & floating text
         sim.effects.forEach(function (fx) { fx.timer -= dt; });

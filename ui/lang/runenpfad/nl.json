@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Raak de gloeiende rune aan",
+  "runenpfad.resonance_progress": "Runenspoor {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Runenspoor voltooid!",
+  "runenpfad.notice.resonance_expire": "De tijd is om. Raak de eerste rune aan om het opnieuw te proberen.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "De 2D-werelden en Game Maker-pakketten worden geladen...",
   "runenpfad.error_assets": "De 2D-sprites of geluiden van Game Maker zijn nu niet bereikbaar.",

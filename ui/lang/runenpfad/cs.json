@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Dotkni se zářící runy",
+  "runenpfad.resonance_progress": "Runová stezka {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Runová stezka dokončena!",
+  "runenpfad.notice.resonance_expire": "Čas vypršel. Zkus to znovu od první runy.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Načítání 2D světů a balíčků Game Maker...",
   "runenpfad.error_assets": "2D sprity nebo zvuky Game Makeru teď nejsou dostupné.",

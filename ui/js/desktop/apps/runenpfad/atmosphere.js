@@ -231,7 +231,7 @@
         function sunPosition(biome, camX, viewW, viewH) {
             const c = biome.celestial;
             if (!c || !c.rays) return null;
-            return { x: viewW * c.x, y: viewH * c.y, strength: clamp(c.alpha * 1.2, 0.25, 1) };
+            return { x: viewW * c.x, y: viewH * c.y, strength: clamp(c.alpha * 0.42, 0.08, 0.36) };
         }
 
         function paintTwinkle(biome, viewW, viewH, t) {
@@ -321,6 +321,8 @@
             const sh = biome.shafts;
             if (!sh) return;
             const e = cached('shafts|' + biome.id, P, 520, d, function (g) {
+                g.save();
+                g.filter = 'blur(14px)';
                 for (let i = 0; i < sh.count; i++) {
                     const x = ((i + 0.2 + hash1(i, 81) * 0.6) * P) / sh.count;
                     const w0 = 16 + hash1(i, 82) * 26;
@@ -340,6 +342,7 @@
                         g.fill();
                     });
                 }
+                g.restore();
             });
             blit(e.canvas, d, camX * sh.factor, viewW, 0, sh.alpha * (0.8 + 0.2 * Math.sin(t * 0.35)));
         }
@@ -391,21 +394,22 @@
             }
         }
 
-        function paintBackdrop(biome, camX, viewW, viewH, groundY, timeSec) {
+        function paintBackdrop(biome, camX, viewW, viewH, groundY, timeSec, reducedMotion) {
             const d = dpr();
             const t = timeSec || 0;
+            const motionTime = reducedMotion ? 0 : t;
             const skyCv = getSky(biome, viewW, viewH, d);
             if (skyCv) ctx.drawImage(skyCv, 0, 0, viewW, viewH);
             else {
                 ctx.fillStyle = biome.sky[0];
                 ctx.fillRect(0, 0, viewW, viewH);
             }
-            paintTwinkle(biome, viewW, viewH, t);
-            paintClouds(biome, camX, viewW, viewH, t, d, groundY);
+            paintTwinkle(biome, viewW, viewH, motionTime);
+            paintClouds(biome, camX, viewW, viewH, motionTime, d, groundY);
             // Painted parallax (bg-* sheets) fades in over the procedural silhouettes, which then step aside.
             const pa = biome.art ? painted() : null;
             const fade = pa ? pa.prepare(biome, viewH, d, t) : 0;
-            if (fade > 0) paintAurora(biome, camX, viewW, viewH, t, d);
+            if (fade > 0) paintAurora(biome, camX, viewW, viewH, motionTime, d);
             if (fade < 1) {
                 const layers = getLayers(biome);
                 for (let i = 0; i < layers.length; i++) {
@@ -423,15 +427,15 @@
                             ctx.fillStyle = e.solid;
                             ctx.fillRect(0, fillTop - 1, viewW, viewH - fillTop + 1);
                         }
-                        if (e.smoke.length) paintDynamic(e, off, viewW, base, t);
+                        if (e.smoke.length) paintDynamic(e, off, viewW, base, motionTime);
                     }
-                    if (e.tips.length) paintDynamic(e, off, viewW, 0, t);
-                    if (i === 1 && fade <= 0) paintAurora(biome, camX, viewW, viewH, t, d);
-                    if (i === 2 && fade <= 0) paintShafts(biome, camX, viewW, viewH, t, d);
+                    if (e.tips.length) paintDynamic(e, off, viewW, 0, motionTime);
+                    if (i === 1 && fade <= 0) paintAurora(biome, camX, viewW, viewH, motionTime, d);
+                    if (i === 2 && fade <= 0) paintShafts(biome, camX, viewW, viewH, motionTime, d);
                 }
             }
             if (fade > 0) {
-                pa.paint(camX, viewW, viewH, groundY, fade, function () { paintShafts(biome, camX, viewW, viewH, t, d); });
+                pa.paint(camX, viewW, viewH, groundY, fade, function () { paintShafts(biome, camX, viewW, viewH, motionTime, d); });
             }
             if (biome.fog && biome.fog.alpha > 0) {
                 const fogTop = Math.max(0, groundY - viewH * 0.75);

@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Touche la rune qui brille",
+  "runenpfad.resonance_progress": "Piste runique {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Piste runique terminée !",
+  "runenpfad.notice.resonance_expire": "Temps écoulé. Touche la première rune pour réessayer.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Chargement des mondes 2D et des packs Game Maker...",
   "runenpfad.error_assets": "Les sprites ou sons 2D de Game Maker sont momentanément indisponibles.",

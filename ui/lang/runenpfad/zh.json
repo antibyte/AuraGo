@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "触碰发光的符文",
+  "runenpfad.resonance_progress": "符文小径 {count}/{total} · 剩余 {seconds} 秒",
+  "runenpfad.notice.resonance_complete": "符文小径已完成！",
+  "runenpfad.notice.resonance_expire": "时间到了。触碰第一枚符文即可重试。",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "正在加载2D世界与Game Maker素材包...",
   "runenpfad.error_assets": "目前无法访问Game Maker 2D精灵图或音效包。",

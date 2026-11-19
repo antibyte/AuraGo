@@ -160,6 +160,88 @@
         return blessing && blessing.runePower > 0 ? 2 : 1;
     }
 
+    function resonanceNotice(sim, key) {
+        const replaceable = ['', 'runenpfad.notice.find_key', 'runenpfad.notice.resonance_complete', 'runenpfad.notice.resonance_expire'];
+        if (replaceable.indexOf(sim.notice || '') >= 0) sim.notice = key;
+    }
+
+    function resonanceEvent(sim, type, rune, index, timeLeft) {
+        const P = physics();
+        if (P) P.pushEvent(sim, type, {
+            x: rune.x,
+            y: rune.y,
+            index: index,
+            nextRune: sim.stage.resonancePath.nextRune,
+            timeLeft: timeLeft == null ? sim.stage.resonancePath.timeLeft : timeLeft,
+            timeLimit: sim.stage.resonancePath.timeLimit
+        });
+    }
+
+    // Collect one visible rune at a time; only the normal simulation tick advances its timer.
+    function stepResonance(sim, dt) {
+        const path = sim && sim.stage && sim.stage.resonancePath;
+        if (!path || path.complete || sim.state !== 'playing' || !path.runes || !path.runes.length) return;
+        const P = physics();
+        if (path.started) {
+            path.timeLeft = Math.max(0, path.timeLeft - Math.max(0, Number(dt) || 0));
+            if (path.timeLeft <= 0) {
+                const missed = path.runes[path.nextRune];
+                const index = path.nextRune;
+                path.started = false;
+                path.expired = true;
+                path.needsLeave = true;
+                path.nextRune = 0;
+                path.timeLeft = path.timeLimit;
+                resonanceEvent(sim, 'resonance_expire', missed, index, 0);
+                resonanceNotice(sim, 'runenpfad.notice.resonance_expire');
+                if (P) P.fxBurst(sim, 'rune', missed.x, missed.y, 5, { color: '#7ee8fa', speed: 90, life: 0.45 });
+                return;
+            }
+        }
+
+        const index = path.nextRune;
+        const rune = path.runes[index];
+        if (!rune) return;
+        const distance = Math.hypot(rune.x - sim.player.x, rune.y - (sim.player.y - 22));
+        if (path.needsLeave) {
+            if (distance >= 30) path.needsLeave = false;
+            return;
+        }
+        if (distance >= 30) return;
+        const first = index === 0;
+        const last = index === path.runes.length - 1;
+        path.nextRune += 1;
+        if (first) {
+            if (path.expired && sim.notice === 'runenpfad.notice.resonance_expire') sim.notice = 'runenpfad.notice.find_key';
+            path.started = true;
+            path.expired = false;
+            path.timeLeft = path.timeLimit;
+            resonanceEvent(sim, 'resonance_start', rune, index);
+        } else if (last) {
+            path.started = false;
+            path.complete = true;
+            path.expired = false;
+            path.timeLeft = 0;
+            const coins = Math.max(1, Math.floor(Number(path.rewardCoins) || 3));
+            sim.stageCoins += coins;
+            sim.profile.coins += coins;
+            sim.stageScore += coins * 25;
+            sim.floatingTexts.push({ x: rune.x, y: rune.y - 12, text: '+' + coins, icon: 'coin', color: '#ffd65a', timer: 0.9 });
+            resonanceEvent(sim, 'resonance_complete', rune, index);
+            resonanceNotice(sim, 'runenpfad.notice.resonance_complete');
+            if (P) {
+                P.fxBurst(sim, 'rune', rune.x, rune.y, 18, { color: '#7ee8fa', speed: 210, life: 0.85 });
+                P.ring(sim, rune.x, rune.y, { color: '#7ee8fa', size: 12, grow: 180, life: 0.4 });
+                P.fxFlash(sim, '#7ee8fa', 0.2, 0.3);
+                P.fxShake(sim, 2.5);
+            }
+            return;
+        } else {
+            resonanceEvent(sim, 'resonance_rune', rune, index);
+        }
+        if (P) P.fxBurst(sim, 'rune', rune.x, rune.y, first ? 6 : 8, { color: '#7ee8fa', speed: 120, life: 0.5 });
+    }
+
     root.RunenpfadVariety = {
         MODS: MODS,
         RUNE_POWER_DURATION: RUNE_POWER_DURATION,
@@ -170,6 +252,7 @@
         stepWind: stepWind,
         windPush: windPush,
         createBlessing: createBlessing,
-        damageMultiplier: damageMultiplier
+        damageMultiplier: damageMultiplier,
+        stepResonance: stepResonance
     };
 })(typeof window !== 'undefined' ? window : globalThis);

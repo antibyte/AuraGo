@@ -100,9 +100,21 @@
             g.drawImage(b.img, f[0], f[1], f[2], f[3], 0, 0, w, h);
             g.restore();
             veil(g, period, h, cfg);
+            const solid = mix(cfg.color, '#06080e', 0.35);
+            if (!top) {
+                // Dissolve the painted ridge into the same fill used below the band.
+                const fadeY = Math.floor(h * 0.7);
+                const fade = g.createLinearGradient(0, fadeY, 0, h);
+                fade.addColorStop(0, rgba(solid, 0));
+                fade.addColorStop(0.45, rgba(solid, 0.34));
+                fade.addColorStop(0.82, rgba(solid, 0.88));
+                fade.addColorStop(1, solid);
+                g.fillStyle = fade;
+                g.fillRect(0, fadeY, period, h - fadeY);
+            }
             return {
                 canvas: cv, d: d, period: period, h: h, span: h, factor: cfg.factor, lift: cfg.lift || 0, top: !!top,
-                solid: mix(cfg.color, '#06080e', 0.35), fill: !top
+                solid: solid, fill: !top
             };
         }
 
@@ -173,7 +185,9 @@
             pg.imageSmoothingQuality = 'high';
             const bottom = mix(cfg.body, cfg.color, 0.35);
             const grad = g.createLinearGradient(0, Math.max(0, span - amp - 10), 0, span + 24);
-            grad.addColorStop(0, cfg.body);
+            // Let the distant painting show through the crest beneath the grounded props.
+            grad.addColorStop(0, rgba(cfg.body, 0));
+            grad.addColorStop(0.6, rgba(cfg.body, 0.48));
             grad.addColorStop(1, bottom);
             g.fillStyle = grad;
             g.beginPath();

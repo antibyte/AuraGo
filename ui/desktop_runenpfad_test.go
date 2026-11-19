@@ -147,6 +147,10 @@ func TestRunenpfadRegistration(t *testing.T) {
 		"runenpfad.win_goal_gems",
 		"runenpfad.win_goal_swift",
 		"runenpfad.ctl_move",
+		"runenpfad.resonance_hint",
+		"runenpfad.resonance_progress",
+		"runenpfad.notice.resonance_complete",
+		"runenpfad.notice.resonance_expire",
 	}
 	for _, lang := range runenpfadLocales {
 		rpPath := path.Join("lang", "runenpfad", lang+".json")
@@ -165,6 +169,11 @@ func TestRunenpfadRegistration(t *testing.T) {
 		}
 		if !strings.Contains(dict["runenpfad.win_goal_swift"], "{time}") {
 			t.Fatalf("%s runenpfad.win_goal_swift must keep the {time} placeholder", rpPath)
+		}
+		for _, placeholder := range []string{"{count}", "{total}", "{seconds}"} {
+			if !strings.Contains(dict["runenpfad.resonance_progress"], placeholder) {
+				t.Errorf("%s resonance progress is missing %s", rpPath, placeholder)
+			}
 		}
 
 		deskPath := path.Join("lang", "desktop", lang+".json")
@@ -254,6 +263,23 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		t.Fatalf("expected initial hero knight, got %q", got)
 	}
 
+	if !page.MustEval(`() => {
+		const canvas = document.createElement('canvas');
+		canvas.width = 320; canvas.height = 180;
+		const sky = RunenpfadAtmosphere.createAtmosphere(canvas.getContext('2d'));
+		const biome = RunenpfadBiomes.biomeFor(3);
+		const paint = (t, reduced) => {
+			sky.paintBackdrop(biome, 0, 320, 180, 150, t, reduced);
+			return canvas.toDataURL();
+		};
+		try {
+			paint(1, true);
+			return paint(5, true) === paint(15, true) && paint(5, false) !== paint(15, false);
+		} finally { sky.dispose(); }
+	}`).Bool() {
+		t.Fatal("the glacier sky must animate normally and hold still with reduced motion")
+	}
+
 	// Switch hero Knight -> Ranger -> Knight
 	page.MustEval(`()=>document.querySelector('[data-rp-btn="hero"]').click()`)
 	page.MustWait(`()=>document.querySelector('.rp-app')?.dataset.rpHero === 'ranger'`)
@@ -310,6 +336,26 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		shell.__runenpfad.setPlayerPosition(coin.x, coin.y + 10);
 	}`)
 	page.MustWait(fmt.Sprintf(`()=>Number(document.querySelector('.rp-app').dataset.rpCoins) > %d`, coinsBefore))
+
+	// Each pickup passes through the live simulation, world renderer and translated HUD.
+	total := page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.getSim().stage.resonancePath.runes.length`).Int()
+	for i := 0; i < total; i++ {
+		page.MustEval(`(i)=>{
+			const game = document.querySelector('.rp-app').__runenpfad;
+			const rune = game.getSim().stage.resonancePath.runes[i];
+			game.setPlayerPosition(rune.x, rune.y + 20);
+		}`, i)
+		if i+1 < total {
+			page.MustWait(fmt.Sprintf(`()=>{const tag = document.querySelector('.rp-tag-path'); return !tag.hidden && tag.textContent.includes('%d/%d');}`, i+1, total))
+			if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" && i == 0 {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+				page.MustElement(".rp-app").MustScreenshot(filepath.Join(dir, "runenspur.png"))
+			}
+		}
+	}
+	page.MustWait(`()=>document.querySelector('.rp-app').__runenpfad.getSim().stage.resonancePath.complete && document.querySelector('.rp-tag-path').hidden`)
 
 	// Play through Stage 1 key + portal through the live RAF loop
 	page.MustEval(`()=>{

@@ -48,7 +48,7 @@ WEBP_QUALITY_BG = 80
 BIOMES = ("woodland", "cavern", "desert", "glacier", "citadel")
 
 NOTE = "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
-TOOL = "Codex CLI image generation"
+TOOL = "Codex image generation"
 
 # id -> (cols, rows, pivot, kind)
 SHEETS = {
@@ -85,6 +85,7 @@ SHEETS = {
     "fx-dragonfire": (2, 4, "left", "fx"),
     "fx-fireball": (4, 2, "center", "fx"),
     "prop-glyphs": (4, 2, "feet", "prop"),
+    "prop-waystones": (5, 1, "feet", "prop"),
     "prop-lever": (4, 1, "feet", "prop"),
     "prop-brazier": (4, 2, "feet", "prop"),
     "prop-plate": (4, 1, "feet", "prop"),
@@ -262,6 +263,8 @@ def clips_for(sheet_id, kind, count):
             "loop": {"frames": [0, 1, 2, 3], "ms": 70, "loop": True},
             "impact": {"frames": [4, 5, 6, 7], "ms": 65, "loop": False},
         }
+    if sheet_id == "prop-waystones":
+        return BIOMES[0], {name: {"frames": [i], "ms": 200, "loop": False} for i, name in enumerate(BIOMES)}
     if sheet_id == "prop-glyphs":
         clips = {}
         for g in range(4):
@@ -423,6 +426,7 @@ def catalog_entry(sheet_id, src, raw_bytes, prompt_dir, cols, rows, pivot, kind)
         "default": default,
         "clips": clips,
         "prompt": prompt,
+        "tool": TOOL,
         "source": src.name,
         "sourceSha256": sha256_bytes(raw_bytes),
     }
@@ -633,7 +637,7 @@ def compute():
             "sha256": sha256_bytes(data),
             "bytes": len(data),
             "prompt": entry["prompt"],
-            "tool": TOOL,
+            "tool": entry.get("tool", "Codex CLI image generation"),
             "source": entry["source"],
             "sourceSha256": entry["sourceSha256"],
             "note": NOTE,

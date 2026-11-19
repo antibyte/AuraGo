@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Toca na runa que brilha",
+  "runenpfad.resonance_progress": "Trilho rúnico {count}/{total} · {seconds} s",
+  "runenpfad.notice.resonance_complete": "Trilho rúnico concluído!",
+  "runenpfad.notice.resonance_expire": "O tempo acabou. Toca na primeira runa para tentares de novo.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "A carregar os reinos 2D e os pacotes do Game Maker...",
   "runenpfad.error_assets": "Os sprites ou sons 2D do Game Maker estão indisponíveis de momento.",

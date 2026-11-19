@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "Άγγιξε τον φωτεινό ρούνο",
+  "runenpfad.resonance_progress": "Μονοπάτι ρούνων {count}/{total} · {seconds} δ.",
+  "runenpfad.notice.resonance_complete": "Ολοκλήρωσες το μονοπάτι των ρούνων!",
+  "runenpfad.notice.resonance_expire": "Ο χρόνος τελείωσε. Άγγιξε τον πρώτο ρούνο για νέα προσπάθεια.",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "Φόρτωση των 2D κόσμων και πακέτων του Game Maker...",
   "runenpfad.error_assets": "Τα 2D sprites ή οι ήχοι του Game Maker δεν είναι προσβάσιμα τώρα.",

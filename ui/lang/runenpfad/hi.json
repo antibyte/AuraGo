@@ -1,4 +1,8 @@
 {
+  "runenpfad.resonance_hint": "चमकती रूण छुओ",
+  "runenpfad.resonance_progress": "रूण पथ {count}/{total} · {seconds} सेकंड",
+  "runenpfad.notice.resonance_complete": "रूण पथ पूरा हुआ!",
+  "runenpfad.notice.resonance_expire": "समय समाप्त। फिर से कोशिश करने के लिए पहली रूण छुओ।",
   "runenpfad.title": "Runenpfad",
   "runenpfad.loading": "2D दुनिया और Game Maker पैक लोड हो रहे हैं...",
   "runenpfad.error_assets": "Game Maker 2D स्प्राइट्स या ध्वनि पैक अभी उपलब्ध नहीं हैं।",
