@@ -200,6 +200,9 @@ Am Alpenpass vergibt sogar das Weidevieh Pokale. Etwa nach einem Drittel der Str
 Gnom mit einer Schar Enten unterwegs. Im Hafen jongliert sein Kollege mit Verkehrshütchen.
 Schau nach dem ersten und zweiten Zieleinlauf wieder hin. Wer führt hier eigentlich wen vor?
 Wenn du im Vorbeifahren mit **H** hupst, hüpfen die Zuschauer einer nach dem anderen hoch.
+Ziehst du dicht an der ersten Reihe vorbei, zuckt sie zurück. Für einen Drift gibt es zwei
+Jubelsprünge. Streifst du vor dem Imbiss im Neon-Hafen die Leitplanke, macht die Krabbe
+vorsichtshalber einen großen Schritt zur Seite.
 
 ## Wetter
 

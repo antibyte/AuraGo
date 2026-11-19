@@ -48,8 +48,8 @@
         } else if (scene === 'slalom') {
             for (const x of [-3.2, 0, 3.2]) add('cone', x, 0, 0, 1.35);
             add(animal, 0, 0, 0, 2.9, 'weave');
-            add('gnome_mine', 5.7, 1.6, 0, 2.6);
-            add('cone', 5.7, 1.6, 2.15, 1.45);
+            add('gnome_mine', 5.7, 1.6, 0, 2.6, 'marshal');
+            add('cone', 5.7, 1.6, 2.15, 1.45, 'marshal');
         } else if (scene === 'snack') {
             add('hay_bale', 2.7, 0, 0, 1.55);
             add('bratwurst', 2.7, 0, 1.65, 1.25, 'turn');
@@ -105,8 +105,49 @@
         });
     };
 
+    /* Each audience remembers its own cue until the car leaves earshot. */
+    AD.watchRoadside = function (race, shows, stands) {
+        const car = race.cars[0], v = car.v;
+        if (race.state !== 'running' || v.out) return;
+        const cs = Math.cos(v.psi), sn = Math.sin(v.psi);
+        for (const group of [shows, stands]) {
+            if (!group) continue;
+            for (const audience of group) {
+                const site = audience.site || audience, dx = site.x - v.x, dy = site.y - v.y;
+                const distance2 = dx * dx + dy * dy;
+                if (distance2 > 65 * 65) { audience.reaction = null; continue; }
+                if (distance2 > 52 * 52) continue;
+                const ahead = dx * cs + dy * sn, sideways = Math.abs(dy * cs - dx * sn);
+                let kind;
+                if (!v.airborne && car.style?.drifting) kind = 'drift';
+                else if (!v.airborne && v.vx > 20 && ahead >= 0 && ahead < Math.min(42, v.vx * .8) && sideways < 17) kind = 'pass';
+                for (const e of race.events) {
+                    if (!(e.car === 0 || (e.type === 'car_hit' && (e.a === 0 || e.b === 0)))) continue;
+                    if (!(Math.hypot(e.x - site.x, e.y - site.y) < 52)) continue;
+                    if (e.type === 'near_miss') kind = kind || 'pass';
+                    if (e.type === 'car_hit' || e.type === 'wall_hit' || e.type === 'smash' || e.type === 'animal_hit') {
+                        kind = 'bump'; break;
+                    }
+                }
+                const last = audience.reaction;
+                if (!kind || last?.kind === kind) continue;
+                if (last && race.time - last.at < 1.8 && (kind === 'pass' || last.kind === 'bump')) continue;
+                audience.reaction = { kind, at: race.time };
+            }
+        }
+    };
+
+    AD.roadsidePulse = function (reaction, time, delay = 0) {
+        if (!reaction) return 0;
+        const u = (time - reaction.at - delay) / (reaction.kind === 'pass' ? .82 : 1.35);
+        if (u <= 0 || u >= 1) return 0;
+        if (reaction.kind === 'bump') return Math.min(1, u * 9, (1 - u) * 3);
+        if (reaction.kind === 'drift') return Math.abs(Math.sin(2 * Math.PI * u));
+        return Math.sin(Math.PI * Math.sqrt(u));
+    };
+
     /* Local metres along and across the verge. Both views share the same choreography. */
-    AD.roadsidePose = function (part, site, time, pose, cheerAt) {
+    AD.roadsidePose = function (part, site, time, pose, cheerAt, reaction) {
         const t = time + part.phase, beat = Math.sin(t * 2.6);
         let x = part.x, y = part.y, z = part.z, yaw = -site.side * 1.75, lean = 0;
         switch (part.motion) {
@@ -138,11 +179,27 @@
                 break;
             }
         }
-        if (cheerAt !== undefined && (part.motion === 'balance' || part.model === 'gnome_mine' || part.model === 'rubber_duck' || SIDELINE_ANIMALS.has(part.model))) {
+        const spectator = part.motion === 'balance' || part.motion === 'marshal' || part.model === 'gnome_mine' || part.model === 'rubber_duck' || SIDELINE_ANIMALS.has(part.model);
+        if (cheerAt !== undefined && spectator) {
             const beatTime = (time - cheerAt - (part.x + 6) * .043) / .76;
             if (beatTime > 0 && beatTime < 1) {
                 const wave = Math.sin(Math.PI * beatTime);
                 z += .95 * wave; lean += site.side * .31 * wave;
+            }
+        }
+        const pulse = spectator && AD.roadsidePulse(reaction, time, (part.x + 6) * .018);
+        if (pulse) {
+            const planted = part.z > 0 || part.motion === 'balance' || part.motion === 'ride' || part.motion === 'marshal';
+            if (reaction.kind === 'drift') {
+                z += 1.15 * pulse;
+                lean += site.side * .34 * pulse;
+                if (part.model === 'llama') yaw += 1.35 * pulse;
+            } else {
+                const bump = reaction.kind === 'bump';
+                if (!planted) y += site.side * pulse * (part.model === 'crab' ? 2.4 : 1.1);
+                lean -= site.side * pulse * (part.model === 'penguin' && bump ? 1.18 : .52);
+                if (part.model === 'cow' && bump) yaw += 1.45 * pulse;
+                if (part.model === 'sheep' || !bump) z += .65 * pulse;
             }
         }
         pose.x = x; pose.y = y; pose.z = z; pose.yaw = yaw; pose.lean = lean;
@@ -154,7 +211,7 @@
     AD.drawRoadside = function (c, show, cam, centre, theta, time) {
         const site = show.site, k = cam.scale, pose = {}, angle = Math.atan2(site.ty, site.tx);
         for (const part of show.parts) {
-            AD.roadsidePose(part, site, time, pose, show.cheerAt);
+            AD.roadsidePose(part, site, time, pose, show.cheerAt, show.reaction);
             const x = centre[0] + (site.tx * pose.x - site.ty * pose.y) * k;
             const y = centre[1] + (site.ty * pose.x + site.tx * pose.y) * k;
             const size = part.height * k, kind = part.model;
@@ -695,7 +752,7 @@
         return items.filter(item => stages.every(site => Math.hypot(item.x - site.x, item.y - site.y) > site.r + (item.width || 6) / 2));
     };
 
-    AD.drawFurniture = function (c, item, sx, sy, scale, frame) {
+    AD.drawFurniture = function (c, item, sx, sy, scale, frame, time = 0) {
         const s = scale;
         const size = (item.size || 1) * s;
         c.save();
@@ -716,6 +773,8 @@
                 for (let i = 0; i < tiers; i++) {
                     const x = -d / 2 + (i / tiers) * seatDepth;
                     const band = seatDepth / tiers;
+                    const pulse = AD.roadsidePulse(item.reaction, time, i * .055);
+                    const shift = pulse * s * (item.reaction?.kind === 'drift' ? -1.35 : 1.15);
                     c.fillStyle = i % 2 ? '#2b313a' : '#242a33';
                     c.fillRect(x, -w / 2, band, w);
                     for (let j = 0; j < 30; j++) {
@@ -723,7 +782,7 @@
                         const cx = x + band * (0.22 + ((j * 17) % 52) / 100);
                         c.fillStyle = ['rgba(226,234,246,0.55)', 'rgba(160,190,220,0.45)',
                             'rgba(236,198,162,0.42)', 'rgba(200,214,236,0.38)'][j % 4];
-                        c.fillRect(cx, cy, 1.1 * s, 1.7 * s);
+                        c.fillRect(cx + shift, cy, (1.1 + pulse * .5) * s, 1.7 * s);
                     }
                 }
                 /* Roof over the outer half, carried on pillars. */

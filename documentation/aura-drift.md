@@ -65,6 +65,9 @@ Three scenes sit beside each circuit, including daily layouts. Local animals que
 weave around cones or take the podium. About a third of the way round, a duck parade or a juggler
 puts on a three-act routine. Each finish advances the act for the next race.
 Read-only desktops keep discoveries for the current window. Reduced motion holds the cast still.
+Spectators at these scenes and in the start-line grandstands respond to the player's driving.
+A fast, close approach makes them recoil, a scored slide earns two jumps, and local contact
+interrupts the applause. Each audience reacts independently on the race clock.
 
 ### Modes
 

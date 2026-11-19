@@ -14,7 +14,7 @@
         let theta = 0;                 /* current screen rotation, see AD.screenRotation */
         let showcaseSpec = { carId: 'vektor', livery: 0, biomeId: 'alpine' };
         let showcaseTime = 0;
-        let lastRace = null, shows = [];
+        let lastRace = null, shows = [], stands = [];
         const zonePaths = new Map();
 
         /* Rotated worlds show a disc, not a rectangle. */
@@ -807,6 +807,7 @@
                 c.setTransform(dpr, 0, 0, dpr, 0, 0);
             },
             setQuality(q) { quality = AD.QUALITY[q] || AD.QUALITY.high; },
+            get grandstands() { return stands; },
             setTrack(track, race, sidelines) {
                 shows = sidelines || AD.roadsideScenes?.(track, 0) || [];
                 zonePaths.clear();
@@ -831,9 +832,11 @@
                 }
                 /* Trackside furniture: grandstands, hoardings, tyre walls,
                    marshal posts, braking boards and the biome set pieces. */
+                stands = [];
                 if (typeof AD.trackFurniture === 'function') {
                     const items = AD.trackFurniture(track);
                     for (const item of items) furniture.push(item);
+                    stands = items.filter(item => item.kind === 'grandstand');
                 }
             },
             addDecal(x, y, angle, alpha) {
@@ -991,7 +994,7 @@
                 for (const item of furniture) {
                     const [sx, sy] = worldToScreen(item.x, item.y, cam);
                     if (!onScreen(sx, sy, 220)) continue;
-                    AD.drawFurniture(c, item, sx, sy, cam.scale, frame);
+                    AD.drawFurniture(c, item, sx, sy, cam.scale, frame, reducedMotion ? 0 : race.time);
                 }
                 drawFeatures(race, cam);
                 for (const show of shows) {

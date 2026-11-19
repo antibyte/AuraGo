@@ -542,6 +542,7 @@
                 applySize();
                 tierDirty = true;
             },
+            get grandstands() { return props?.grandstands; },
             setTrack(next, r, sidelines) {
                 track = next; race = r || race; shows = sidelines || AD.roadsideScenes?.(track, 0) || [];
                 buildTrack();
@@ -580,7 +581,10 @@
                 if (carLights) carLights.update(r, carHalf);
                 if (fallback) { fallback.dome.position.copy(camera.position); }
                 if (sky && sky.update) sky.update(dt, pose, r.conditions ? r.conditions.state : null);
-                if (props && props.update) props.update(pose, r);
+                if (props && props.update) {
+                    props.setReduced?.(reduced);
+                    props.update(pose, r);
+                }
                 if (petDecor) petDecor.update(pose, r, dt, reduced);
                 if (roadside) roadside.update(pose.eye, reduced ? 0 : r.time);
                 if (fx && fx.setReducedMotion) fx.setReducedMotion(reduced);

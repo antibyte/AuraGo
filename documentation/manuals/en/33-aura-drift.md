@@ -194,6 +194,8 @@ Even the cattle hand out trophies on the Alpine Pass. About a third of the way r
 is out walking his ducks. Down at the harbour his colleague juggles traffic cones. Look again
 after your first and second finishes. Who exactly is in charge of this act?
 Tap **H** as you pass the crowd. The spectators who hear you jump up one after another.
+Skim past the front row and it flinches. Hold a drift and the crowd jumps twice. Clip the
+barrier by the sausage stand in Neon Harbour and the crab takes one very deliberate step sideways.
 
 ## Weather
 

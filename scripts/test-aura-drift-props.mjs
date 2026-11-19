@@ -72,6 +72,35 @@ for (const track of all) {
     })));
 }
 
+const stage = { site: {x: 20, y: 14} }, stand = {x: 20, y: 14}, distant = {x: 500, y: 14};
+const player = { v: {x: 0, y: 0, psi: 0, vx: 10}, style: {drifting: false} };
+const race = {state: 'running', time: 2, events: [], cars: [player]};
+function watch() { AD.watchRoadside(race, [stage], [stand, distant]); }
+watch();
+player.v.vx = 35; player.v.y = -12; watch();
+check('a slow or wide pass draws no flinch', !stage.reaction && !stand.reaction);
+player.v.y = 0; watch();
+check('a quick close approach reaches only its roadside cast and stand',
+    stage.reaction?.kind === 'pass' && stand.reaction?.kind === 'pass' && !distant.reaction);
+player.style.drifting = true; watch();
+const applause = stage.reaction;
+race.time += 2; watch();
+check('a held drift takes over once', applause.kind === 'drift' && stage.reaction === applause);
+race.events = [{type:'car_hit', a:1, b:2, x:20, y:14}, {type:'wall_hit', car:0, x:500, y:14}]; watch();
+check('rival and distant contacts do not interrupt the applause', stage.reaction === applause);
+race.events = [{type:'car_hit', a:2, b:0, x:20, y:14}]; watch();
+const flinch = stage.reaction;
+race.events = []; race.time += .1; watch();
+check('a player bump interrupts applause and holds its pose', flinch.kind === 'bump' && stage.reaction === flinch);
+player.v.x = 150; watch(); player.v.x = 0; player.v.vx = 10; player.style.drifting = false;
+race.events = [{type:'near_miss', car:0, x:20, y:14}]; watch();
+check('a new visit recognises a scored near miss', stage.reaction?.kind === 'pass');
+const poseAt = (model, t, cue) => AD.roadsidePose({model, x:0, y:0, z:0, phase:0}, {side:-1}, t, {}, undefined, cue);
+const bump = {kind:'bump', at:3};
+check('crabs sidestep, penguins flop and the cast settles back',
+    poseAt('crab', 3.6, bump).y < -2 && poseAt('penguin', 3.6, bump).lean > 1 &&
+    poseAt('cone', 3.6, bump).lean === 0 && poseAt('penguin', 5, bump).lean === 0);
+
 /* Same seed, same placements; another seed, other placements. */
 let unequal = [];
 for (const track of all) {

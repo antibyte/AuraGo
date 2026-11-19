@@ -29,9 +29,9 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 				aurora.applyDesktopSettings();
 				const pose = AD.roadsidePose;
 				window.sawSalute = false;
-				AD.roadsidePose = (part, site, time, out, cheerAt) => {
-					pose(part, site, time, out, cheerAt);
-					if (cheerAt !== undefined && out.z > pose(part, site, time, {}).z + .2) window.sawSalute = true;
+				AD.roadsidePose = (part, site, time, out, cheerAt, reaction) => {
+					pose(part, site, time, out, cheerAt, reaction);
+					if (cheerAt !== undefined && out.z > pose(part, site, time, {}, undefined, reaction).z + .2) window.sawSalute = true;
 					return out;
 				};
 				const draw = AD.drawRoadside, paint = AD.paintPuddle;
@@ -119,6 +119,79 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 				d.fastForward(10, {renderEvery:60}); d.freeze(true);
 			}`)
 			capture("duck-juggler")
+			auraDriftNoErrors(t, page)
+		})
+	}
+}
+
+func TestDesktopAuraDriftTracksideReactionsBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	for _, tc := range []struct {
+		name, omit string
+		reduced    bool
+	}{{"three", "", false}, {"canvas", "aura-drift-render3d.js", false}, {"still", "aura-drift-render3d.js", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			page := auraDriftFixtureWithout(t, tc.omit)
+			if tc.omit == "" {
+				requireWebGL2(t, page)
+			}
+			if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
+				t.Fatal(err)
+			}
+			auraDriftReopen(page, map[string]interface{}{"quality": "low", "voice": false, "reducedMotion": tc.reduced}, "")
+			page.MustEval(`async () => {
+				const d = AuraDriftApp.debug, AD = AuraDriftCore;
+				aurora.state.bootstrap.settings['windows.animations'] = true; aurora.applyDesktopSettings();
+				await d.start({mode:'drift_attack',trackId:'neon-hafen',seed:42});
+				d.freeze(true); d.fastForward(9, {renderEvery:120});
+				const race = d.race(), site = AD.roadsideSites(race.track)[0], v = race.cars[0].v;
+				const watch = AD.watchRoadside, pulse = AD.roadsidePulse;
+				let stands = [];
+				AD.watchRoadside = (race, shows, seats) => { stands = seats || []; watch(race, shows, seats); };
+				window.seatsMoved = false;
+				AD.roadsidePulse = (cue, time, delay) => {
+					const amount = pulse(cue, time, delay);
+					if (amount > .2 && stands.some(s => s.reaction === cue)) window.seatsMoved = true;
+					return amount;
+				};
+				window.driftByStand = () => {
+					const stand = stands.find(s => AD.sampleTrack(race.track, s.x, s.y).s < 160);
+					if (!stand) throw Error('No spectator stand on the start straight');
+					const s = AD.sampleTrack(race.track, stand.x, stand.y).s;
+					d.warp((s-22)/race.track.length); v.vx = 32; v.vy = 12;
+					d.fastForward(.4, {renderEvery:4});
+					if (!window.seatsMoved) throw Error('Grandstand crowd did not move');
+				};
+				const pose = AD.roadsidePose;
+				window.seenReactions = new Set();
+				AD.roadsidePose = function(part, site, time, out, cheer, reaction) {
+					pose(part, site, time, out, cheer, reaction);
+					if (reaction && part.model === 'crab') {
+						const base = pose(part, site, time, {}, cheer);
+						if (Math.hypot(out.y-base.y, out.z-base.z, out.lean-base.lean) > .15) seenReactions.add(reaction.kind);
+					}
+					return out;
+				};
+				window.drivePastCrowd = kind => {
+					const s = site.s - 22, p = AD.pointAt(race.track, s);
+					d.warp(s / race.track.length);
+					const offset = kind === 'drift' ? 0 : site.side * (p.halfWidth + (kind === 'bump' ? .1 : -2));
+					Object.assign(v,{x:p.x+p.nx*offset, y:p.y+p.ny*offset, vx:32, vy:kind==='drift' ? 12 : kind==='bump' ? site.side*7 : 0});
+					d.fastForward(.4, {renderEvery:4});
+				};
+			}`)
+			for _, kind := range []string{"pass", "drift", "bump"} {
+				page.MustEval(`kind => drivePastCrowd(kind)`, kind)
+				if page.MustEval(`kind => seenReactions.has(kind)`, kind).Bool() == tc.reduced {
+					t.Fatalf("unexpected %s reaction with reduced motion %v", kind, tc.reduced)
+				}
+			}
+			if dir := auraDriftArtifactDir(t, "harbour-reaction-"+tc.name); dir != "" {
+				page.MustElement(".agdrift-root").MustScreenshot(filepath.Join(dir, "bump.png"))
+			}
+			if !tc.reduced {
+				page.MustEval(`() => driftByStand()`)
+			}
 			auraDriftNoErrors(t, page)
 		})
 	}

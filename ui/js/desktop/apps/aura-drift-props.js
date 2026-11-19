@@ -467,7 +467,7 @@
                     group.visible = Math.hypot(eye[0] - site.x, eye[2] - site.y) < 140;
                     if (!group.visible) continue;
                     for (const { part, holder } of actors) {
-                        AD.roadsidePose(part, site, time, pose, show.cheerAt);
+                        AD.roadsidePose(part, site, time, pose, show.cheerAt, show.reaction);
                         holder.position.set(pose.x, pose.z + along * pose.x + across * pose.y, pose.y);
                         holder.rotation.set(0, Math.PI / 2 - pose.yaw, pose.lean, 'YXZ');
                     }
@@ -488,7 +488,7 @@
         const wind = { value: 0 };
         let reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
         let glq = q;
-        let placements = [], cells = new Map(), kinds = new Map(), emitters = [], loose = [], gantry = null, ufo = null;
+        let placements = [], stands = [], cells = new Map(), kinds = new Map(), emitters = [], loose = [], gantry = null, ufo = null;
         let owned = [], texOwn = [], signPool = [], brandMats = [], brandTex = [], signTex = null;
         let lastView = null, lastTime = -1, selected = 0, tris = 0, visibleKinds = 0, clock = 0, prevNow = 0;
         const M = new T.Matrix4(), place = new T.Matrix4(), tmpQ = new T.Quaternion(), tmpP = new T.Vector3(), tmpS = new T.Vector3(), UP = new T.Vector3(0, 1, 0), spinM = new T.Matrix4();
@@ -572,6 +572,7 @@
                 p.id = placements.length;
                 placements.push(p);
             }
+            stands = placements.filter(p => p.name === 'grandstand');
             cells = AD.propIndex(placements);
             emitters = placements.filter(p => EMIT[p.name] && p.kind === 'scatter');
             kinds = new Map();
@@ -761,6 +762,9 @@
                         if (f && f.count < f.mesh.instanceMatrix.count) f.mesh.setMatrixAt(f.count++, M);
                     } else if (part.mesh && part.count < part.mesh.instanceMatrix.count) {
                         if (part.role === 'rotor') live.push({ kind: 'rotor', part: part, slot: part.count, base: place.clone() });
+                        else if (p.name === 'grandstand' && (part.role === 'crowd' || part.role === 'crowd_arms')) {
+                            live.push({ kind: 'crowd', part, slot: part.count, base: M.clone(), stand: p, offset: 0 });
+                        }
                         else if (WATER_ONLY[p.name]) live.push({ kind: 'boat', part: part, slot: part.count, base: place.clone(), phase: p.x * 0.07 + p.y * 0.11 });
                         part.mesh.setMatrixAt(part.count, M);
                         part.mesh.setColorAt(part.count, tint);
@@ -801,6 +805,7 @@
         }
 
         const api = {
+            get grandstands() { return stands; },
             update(pose, race) {
                 const now = typeof performance !== 'undefined' ? performance.now() : 0;
                 const dt = prevNow ? clamp((now - prevNow) / 1000, 0, 0.1) : 0;
@@ -820,7 +825,12 @@
                 if (live.length) {
                     const ang = reduced ? 0.6 : clock * 1.2;
                     for (const l of live) {
-                        if (l.kind === 'boat') {
+                        if (l.kind === 'crowd') {
+                            const cue = l.stand.reaction;
+                            const offset = cue && !reduced && race ? AD.roadsidePulse(cue, race.time) * (cue.kind === 'drift' ? .95 : -.52) : 0;
+                            if (offset === l.offset) continue;
+                            l.offset = offset; M.copy(l.base); M.elements[13] += offset;
+                        } else if (l.kind === 'boat') {
                             if (reduced) continue;
                             spinM.makeRotationZ(Math.sin(clock * 1.6 + l.phase) * 0.045);
                             M.multiplyMatrices(l.base, l.part.local).multiply(spinM);

@@ -3793,6 +3793,10 @@ buttons and menu popovers remain excluded from those gestures.
   finish count. Read-only windows keep that progress in memory. Verify the switch on a later
   visit in `TestDesktopAuraDriftRoadsideBrowser`. A nearby horn timestamps the cast for a
   staggered salute on the race clock. Both renderers use `AD.roadsidePose` for the response.
+- Before draining race events, `AD.watchRoadside` updates nearby cast and grandstands from
+  the player's approach, scored slide and local contact or near-miss events. Keep cues on the
+  presentation objects. Both views use the race clock and skip reactions for reduced motion.
+  Verify the driving sequence in `TestDesktopAuraDriftTracksideReactionsBrowser`.
 - `AD.vergePlants` and `AD.vergeTriangles` own the seeded grass, flowers and seed heads for
   both views. Bake them into Canvas tiles and terrain chunks. Anchor 3D roots to the actual
   triangle for the current detail level so plants sit on sloping ground.

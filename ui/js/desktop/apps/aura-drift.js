@@ -521,6 +521,7 @@
         }
 
         function drainEvents() {
+            if (!reducedMotion) AD.watchRoadside?.(race, sidelines, renderer.grandstands);
             for (const evt of race.events) {
                 renderer.event(evt, race);
                 hud.event(evt, race);
