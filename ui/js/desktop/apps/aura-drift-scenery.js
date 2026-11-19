@@ -16,7 +16,7 @@
     AD.roadsideSites = function (track) {
         if (sitesByTrack.has(track)) return sitesByTrack.get(track);
         const sites = [], occupied = (AD.furnitureProps?.(track) || []).concat(AD.petDecorPlacements?.(track) || []);
-        for (const [index, fraction] of [0.055, 0.58].entries()) {
+        for (const [index, fraction] of [0.055, 0.58, 0.31].entries()) {
             for (let attempt = 0; attempt < 50; attempt++) {
                 const s = track.length * fraction + Math.floor(attempt / 2) * 11;
                 const p = AD.pointAt(track, s), side = (attempt + index) % 2 ? 1 : -1;
@@ -27,7 +27,7 @@
                    harbour keeps its stages on the quay and not out on the water. */
                 const z = typeof AD.groundHeight === 'function' ? AD.groundHeight(track, track.biomeId, x, y) : 0;
                 if (z < -1 || z > 2.5) continue;
-                sites.push({ s, x, y, z, tx: p.tx, ty: p.ty, r: 9, stage: true, furniture: true, side });
+                sites.push({ slot: index, s, x, y, z, tx: p.tx, ty: p.ty, r: 9, stage: true, furniture: true, side });
                 break;
             }
         }
@@ -61,22 +61,46 @@
             add(animal, .65, 0, 2.65, 2.8, 'ride');
             add('gnome_mine', -5.8, 2.8, 0, 2.5, 'bow');
             add('gnome_mine', 5.7, 2.6, 0, 2.5, 'bow', 1.5);
-        } else {
+        } else if (scene === 'disco') {
             add('tyre_stack', 0, 1.8, 0, 2.35);
             add('disco_ball', 0, 1.8, 2.35, 3.25, 'turn');
             add(animal, -3.7, -.4, 0, 3.2, 'dance');
             add('rubber_duck', 0, -2.4, 0, 2.2, 'dance', 1.6);
             add('gnome_mine', 3.7, -.4, 0, 2.7, 'dance', 3.2);
+        } else if (scene === 'duck-parade' || scene === 'gnome-parade') {
+            const ducksLead = scene === 'gnome-parade';
+            add(animal, 5.6, 2.9, 0, 2.9, 'bow');
+            add(ducksLead ? 'rubber_duck' : 'gnome_mine', 0, 0, 0, ducksLead ? 3.8 : 2.7, 'waddle', .85);
+            for (const phase of [0, -.85, -1.7]) {
+                add(ducksLead ? 'gnome_mine' : 'rubber_duck', 0, 0, 0, ducksLead ? 2.1 : 1.65, 'waddle', phase);
+            }
+        } else if (scene === 'duck-tower') {
+            add('gnome_mine', -4.8, .3, 0, 2.7, 'bow');
+            add(animal, 4.8, .3, 0, 3, 'bow', 1.2);
+            for (const [z, height] of [[0, 3], [2.15, 2.2], [3.78, 1.6]]) add('rubber_duck', 0, 0, z, height, 'balance');
+            add('cone', 0, 0, 4.95, 1.35, 'balance');
+        } else if (scene === 'cone-juggler' || scene === 'sausage-juggler' || scene === 'duck-juggler') {
+            const finale = scene === 'duck-juggler';
+            add(animal, 5.5, 2.5, 0, 2.9, 'bow');
+            add(finale ? 'rubber_duck' : 'gnome_mine', 0, 0, 0, 3, 'bow');
+            const prop = scene === 'sausage-juggler' ? 'bratwurst' : 'cone';
+            for (let i = 0; i < 3; i++) {
+                const gnome = finale && i === 1;
+                add(gnome ? 'gnome_mine' : prop, 0, 0, 2.6, gnome ? 2.2 : 1.45, 'toss', i * 2 / 3);
+            }
         }
         return parts;
     }
 
-    AD.roadsideScenes = function (track, finishes) {
+    AD.roadsideScenes = function (track, finishes = 0) {
         const [animal, first, second] = SIDELINES[track.biomeId] || SIDELINES.alpine;
         const encore = finishes >= 2 && finishes % 3 === 2 ? 'taxi' :
             finishes >= 4 && finishes % 3 === 1 ? 'disco' : second;
-        return AD.roadsideSites(track).map((site, i) => {
-            const story = i ? encore : first;
+        const acts = animal === 'crab' || animal === 'llama'
+            ? ['cone-juggler', 'sausage-juggler', 'duck-juggler'] : ['duck-parade', 'gnome-parade', 'duck-tower'];
+        const stories = [first, encore, acts[finishes % acts.length]];
+        return AD.roadsideSites(track).map(site => {
+            const story = stories[site.slot];
             return { site, story, parts: cast(story, animal) };
         });
     };
@@ -97,8 +121,24 @@
             case 'bow': lean = .20 * beat; break;
             case 'turn': yaw = t * 1.35; break;
             case 'dance': z += .5 * Math.abs(beat); lean = .24 * beat; yaw += .55 * Math.sin(t * 1.3); break;
+            case 'waddle': {
+                const angle = time * .78 + part.phase;
+                x += 4.3 * Math.sin(angle); y += 2.5 * Math.cos(angle);
+                yaw = Math.atan2(-2.5 * Math.sin(angle), 4.3 * Math.cos(angle));
+                lean = .16 * Math.sin(6 * angle); z += Math.abs(lean);
+                break;
+            }
+            case 'balance':
+                lean = .13 * Math.sin(t * 2); x += z * lean;
+                break;
+            case 'toss': {
+                const flight = time * .85 + part.phase, turn = Math.floor(flight), u = flight - turn;
+                x += (turn % 2 ? -1 : 1) * 2.1 * (2 * u - 1);
+                z += 4 * u * (1 - u) * 3.5; lean = flight * Math.PI * 2;
+                break;
+            }
         }
-        if (cheerAt !== undefined && (part.model === 'gnome_mine' || part.model === 'rubber_duck' || SIDELINE_ANIMALS.has(part.model))) {
+        if (cheerAt !== undefined && (part.motion === 'balance' || part.model === 'gnome_mine' || part.model === 'rubber_duck' || SIDELINE_ANIMALS.has(part.model))) {
             const beatTime = (time - cheerAt - (part.x + 6) * .043) / .76;
             if (beatTime > 0 && beatTime < 1) {
                 const wave = Math.sin(Math.PI * beatTime);

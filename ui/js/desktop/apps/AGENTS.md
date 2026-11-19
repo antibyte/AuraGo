@@ -3787,7 +3787,8 @@ buttons and menu popovers remain excluded from those gestures.
 - `AD.digitalSteer` eases keyboard and touch input on the fixed simulation step. Boost pads
   give a forward impulse and timed thrust on activation. Time-trial records retain the historical
   time and car separately from the fastest complete tape and car for `AD.GHOST_HANDLING`.
-- `AD.roadsideScenes` builds two reserved verge sites per track. Both views use the same cast
+- `AD.roadsideScenes` builds three reserved verge sites per track. The third hosts a three-act
+  parade or juggling routine selected by biome and completed races modulo three. Both views use the same cast
   and race clock. Reduced motion freezes their poses. Only completed races advance the local
   finish count. Read-only windows keep that progress in memory. Verify the switch on a later
   visit in `TestDesktopAuraDriftRoadsideBrowser`. A nearby horn timestamps the cast for a

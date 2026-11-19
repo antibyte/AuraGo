@@ -190,8 +190,9 @@ The track camera snaps a jump, a drift or a stretch at speed. The postcard appea
 beside the track, then returns with your speed and its caption on the results screen.
 Try sounding the horn before the picture if you fancy some company in the shot.
 
-Even the cattle hand out trophies on the Alpine Pass. Keep an eye on the verge when you come
-back. After a few finishes the spectators occasionally have other plans.
+Even the cattle hand out trophies on the Alpine Pass. About a third of the way round, a gnome
+is out walking his ducks. Down at the harbour his colleague juggles traffic cones. Look again
+after your first and second finishes. Who exactly is in charge of this act?
 Tap **H** as you pass the crowd. The spectators who hear you jump up one after another.
 
 ## Weather

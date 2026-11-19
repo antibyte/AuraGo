@@ -52,13 +52,24 @@ for (const track of all) {
         AD.roadsidePose(fan, show.site, time, {}, 8).z > resting.z + .8 &&
         AD.roadsidePose(fan, show.site, time, {}, 4).z === resting.z);
     const props = AD.scatterProps(track, track.biomeId, metaFor(track.biomeId));
-    check(track.id + ' has two clear roadside stages', normal.length === 2 && normal.every(({ site }) => {
+    check(track.id + ' has three clear roadside stages', normal.length === 3 && normal.every(({ site }) => {
         const road = AD.sampleTrack(track, site.x, site.y);
         return Math.abs(road.offset) >= road.halfWidth + site.r && site.z >= -1 &&
             props.every(p => Math.hypot(p.x - site.x, p.y - site.y) >= p.r + site.r);
     }));
     check(track.id + ' has encores after two and four finishes', normal[1].story === repeat[1].story &&
         AD.roadsideScenes(track, 2)[1].story === 'taxi' && AD.roadsideScenes(track, 4)[1].story === 'disco');
+    const acts = [normal[2], repeat[2], AD.roadsideScenes(track, 2)[2]];
+    check(track.id + ' changes the third scene on both return visits', acts.every(Boolean) &&
+        new Set(acts.map(a => a.story)).size === 3 && AD.roadsideScenes(track, 3)[2].story === acts[0].story);
+    check(track.id + ' keeps the moving cast clear of the racing surface', acts.every(a => a && a.parts.every(part => {
+        for (let t = 0; t < 9; t += .25) {
+            const p = AD.roadsidePose(part, a.site, t, {}), { x, y, tx, ty } = a.site;
+            const road = AD.sampleTrack(track, x + tx * p.x - ty * p.y, y + ty * p.x + tx * p.y);
+            if (!Object.values(p).every(Number.isFinite) || Math.abs(road.offset) < road.halfWidth + 4) return false;
+        }
+        return true;
+    })));
 }
 
 /* Same seed, same placements; another seed, other placements. */

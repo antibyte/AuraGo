@@ -39,7 +39,7 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 				AD.drawRoadside = function(c, show, ...rest) { seenShows.add(show.story); return draw(c, show, ...rest); };
 				AD.paintPuddle = function(c) { poolFrames++; return paint(c); };
 				await d.start({ mode: 'drift_attack', trackId: 'alpenpass', seed: 42 });
-				d.fastForward(7, {renderEvery: 300}); d.freeze(true);
+				d.fastForward(10, {renderEvery: 60}); d.freeze(true);
 			}`
 			const inspect = `(kind, renderer) => {
 				const AD = AuraDriftCore, d = AuraDriftApp.debug, track = d.race().track;
@@ -73,6 +73,7 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 				}
 			}
 			page.MustEval(setup)
+			capture("duck-parade")
 			capture("podium")
 			auraDriftKeyDown(t, page, input.KeyH)
 			auraDriftKeyUp(t, page, input.KeyH)
@@ -98,15 +99,26 @@ func TestDesktopAuraDriftRoadsideBrowser(t *testing.T) {
 				const start = () => d.start({mode:'drift_attack', trackId:'alpenpass', seed:42});
 				await start();
 				if (AuraDriftCore.readFinishes() !== 0) throw Error('Restart counted as a finish');
-				for (let n = 1; n <= 2; n++) {
-					d.fastForward(100, {renderEvery:100000});
-					if (!d.view().results || AuraDriftCore.readFinishes() !== n) throw Error('Race result count: ' + n);
-					if (n === 1) await start();
-				}
+				d.fastForward(100, {renderEvery:100000});
+				if (!d.view().results || AuraDriftCore.readFinishes() !== 1) throw Error('Missing first finish');
+				await start(); d.fastForward(10, {renderEvery:60}); d.freeze(true);
+			}`)
+			capture("gnome-parade")
+			page.MustEval(`() => {
+				const d = AuraDriftApp.debug;
+				d.fastForward(100, {renderEvery:100000});
+				if (!d.view().results || AuraDriftCore.readFinishes() !== 2) throw Error('Missing second finish');
 			}`)
 			auraDriftReopen(page, settings, "")
 			page.MustEval(setup)
 			capture("taxi")
+			capture("duck-tower")
+			page.MustEval(`async () => {
+				const d = AuraDriftApp.debug;
+				await d.start({mode:'drift_attack', trackId:'neon-hafen', seed:42});
+				d.fastForward(10, {renderEvery:60}); d.freeze(true);
+			}`)
+			capture("duck-juggler")
 			auraDriftNoErrors(t, page)
 		})
 	}

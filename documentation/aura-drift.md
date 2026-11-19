@@ -61,8 +61,9 @@ uses the current 3D or 2D view, shows the speed at exposure, and appears again o
 results screen. The horn can invite a rubber duck into the picture. Occasionally a curious
 animal turns up on its own. The window releases the print when you leave or start again.
 
-Two scenes sit beside each circuit, including daily layouts. Local animals queue for a sausage,
-weave around cones or take the podium. Finishing races changes what can turn up on later visits.
+Three scenes sit beside each circuit, including daily layouts. Local animals queue for a sausage,
+weave around cones or take the podium. About a third of the way round, a duck parade or a juggler
+puts on a three-act routine. Each finish advances the act for the next race.
 Read-only desktops keep discoveries for the current window. Reduced motion holds the cast still.
 
 ### Modes

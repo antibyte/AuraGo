@@ -196,8 +196,9 @@ Bei einem Sprung, einem Drift oder auf der nächsten schnellen Passage knipst di
 ein Foto. Du siehst es kurz am Streckenrand und später mit deinem Tempo und einem Spruch im
 Ergebnis. Wenn du vorher hupst, bekommst du vielleicht Gesellschaft auf dem Bild.
 
-Am Alpenpass vergibt sogar das Weidevieh Pokale. Schau beim nächsten Rennen wieder an den
-Streckenrand. Nach ein paar Zieleinläufen haben die Zuschauer gelegentlich etwas anderes vor.
+Am Alpenpass vergibt sogar das Weidevieh Pokale. Etwa nach einem Drittel der Strecke ist ein
+Gnom mit einer Schar Enten unterwegs. Im Hafen jongliert sein Kollege mit Verkehrshütchen.
+Schau nach dem ersten und zweiten Zieleinlauf wieder hin. Wer führt hier eigentlich wen vor?
 Wenn du im Vorbeifahren mit **H** hupst, hüpfen die Zuschauer einer nach dem anderen hoch.
 
 ## Wetter
