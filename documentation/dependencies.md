@@ -50,6 +50,18 @@ FindIt and CYD icon authoring pin Pillow 13.0.0 in their respective
 and `scripts/test_export_cyd_icons.py` in that environment before changing them.
 Pillow is an authoring dependency, not part of the Go runtime.
 
+The CommandCode image installs `command-code` 1.74.1 with
+`@opentelemetry/semantic-conventions` pinned to 1.43.0. The CLI
+default-imports that package; from 1.44.0 its import entry is native ESM with
+named exports only and the CLI aborts on start with "does not provide an export
+named 'default'". 1.43.0 is the newest release whose import entry still has a
+default export and it satisfies the CLI's `^1.30.0` range, so one hoisted copy
+serves the whole global tree. Request both
+versions in the same `npm install -g` call in
+`internal/desktopstore/commandcode_assets/Dockerfile`; the image build runs
+`command-code --version` as the unprivileged user and fails on a broken
+resolution.
+
 The root npm lock retains `deepmerge` 4.3.1 through
 `@rollup/plugin-node-resolve` 16.0.3. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
 has no patched release as of 2026-11-02. The installed plugin calls `deepMerge`

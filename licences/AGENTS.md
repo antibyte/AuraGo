@@ -39,6 +39,10 @@ This folder owns `UEBERSICHT.md`, `THIRD_PARTY_NOTICES.md`, `THIRD_PARTY_LIBRARI
 - Floating image tags describe the upstream project, not a digest-pinned legal snapshot.
 - Leave Datatype and any image whose license file was not read marked as unverified. Do not invent an SPDX id.
 - `command-code` npm metadata `UNLICENSED` stays stated as no granted license.
+- The CommandCode image installs `@opentelemetry/semantic-conventions` 1.43.0
+  (Apache-2.0) as a pinned runtime dependency of `command-code`; keep that row
+  and the Dockerfile pin aligned, and keep the `command-code` version in the
+  image row in step with the Dockerfile.
 - Copyleft and the special terms for n8n, Open WebUI, Redis, C64 Pro Mono, and CanvasUI stay visible in the Sonderfälle section.
 - Running an unmodified container does not relicense AuraGo's own MIT code.
 - Desktop icon notices are generated into `ui/img/{tela,candy,fluent,buuf-nestort}/` for the external resource set. Preserve imported GPL-3.0 artwork and noncommercial CC BY-NC-SA 2.5 Buuf separately from original MIT supplements; see `../assets/desktop-icon-themes/AGENTS.md`.

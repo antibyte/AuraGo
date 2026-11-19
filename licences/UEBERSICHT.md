@@ -116,6 +116,7 @@ Diese Einträge binden enger als MIT.
 | Open WebUI | eigene Lizenz | BSD-Gerüst plus Markenbindung: „Open WebUI“-Branding darf nur weg, wenn höchstens 50 Personen in 30 Tagen Zugriff haben, oder mit schriftlicher Erlaubnis. Text: `texts/Open-WebUI.txt`. |
 | Redis 7 | RSALv2 OR SSPL-1.0 | Keine OSI-Open-Source-Lizenz. Dograh zieht `redis:7`. Texte: `texts/Redis-7.4.txt` und `texts/SSPL-1.0.txt`. |
 | command-code 1.74.1 | UNLICENSED | npm-Metadaten räumen keine Lizenz ein. Das CommandCode-Image installiert dieses Paket. |
+| @opentelemetry/semantic-conventions 1.43.0 | Apache-2.0 | Fest gepinnte Laufzeitabhängigkeit des CommandCode-Images. 1.43.0 ist die neueste Version, deren Import-Eintrag noch einen Default-Export hat; ab 1.44.0 startet die CLI nicht mehr. Text: `texts/Apache-2.0.txt`. |
 | Datatype | nicht belegt | Schrift in `ui/fonts/`, ohne Lizenzdatei im Baum. |
 | Manifest | nicht belegt | Image `manifestdotbuild/manifest:5`. Öffentliches Lizenzfile war nicht abrufbar. |
 | Wikipedia-Text | CC BY-SA 4.0 | Erst nach Admin-Installation eines ZIM, nicht im Quellbaum. Medien haben eigene Lizenzen. |
@@ -201,7 +202,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 | code-server | `ghcr.io/linuxserver/code-server:latest` | Die App ist MIT. Das linuxserver-Image packt sie mit Distributionspaketen. |
 | Termix | `ghcr.io/lukegus/termix:latest` | Apache-2.0 |
 | Termix guacd | `guacamole/guacd:1.6.0` | Apache-2.0 |
-| CommandCode | `ghcr.io/antibyte/aurago-commandcode:latest` | Eigenes Image. Enthält `command-code@1.74.1`, npm-Lizenz `UNLICENSED`. |
+| CommandCode | `ghcr.io/antibyte/aurago-commandcode:latest` | Eigenes Image. Enthält `command-code@1.74.1`, npm-Lizenz `UNLICENSED`, und `@opentelemetry/semantic-conventions` 1.43.0 (Apache-2.0). |
 | OpenSCAD | `openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37` | GPL-2.0 plus CGAL-Linking-Ausnahme |
 
 ### Von AuraGo gesteuerte Produkte

@@ -75,8 +75,15 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --p
     && /usr/local/cargo/bin/cargo install just --locked \
     && chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
 
+# command-code default-imports @opentelemetry/semantic-conventions. From 1.44.0
+# the package's import entry is native ESM with named exports only, so the CLI
+# aborts on start with "does not provide an export named 'default'". 1.43.0 is
+# the newest release whose import entry still has a default export and it
+# satisfies the CLI's ^1.30.0 range. Request it in the same install so the
+# global tree keeps one hoisted copy that command-code resolves.
 RUN npm install -g --force \
         command-code@1.74.1 \
+        @opentelemetry/semantic-conventions@1.43.0 \
         http-server \
         nodemon \
         pnpm \
@@ -111,6 +118,9 @@ RUN chmod 0755 /usr/local/bin/commandcode-preview.js /usr/local/bin/commandcode-
 
 USER developer
 WORKDIR /workspace
+# Fails the build when the CLI cannot start, so a broken dependency resolution
+# never reaches a published or locally built image.
+RUN command-code --version
 EXPOSE 80
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/commandcode-entrypoint"]

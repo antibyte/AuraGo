@@ -34,10 +34,20 @@ Store app configuration, runtime, assets, and publication.
 
 ### CommandCode Image
 
-- `commandcode_assets/Dockerfile` pins `command-code@1.74.1` on Node 22.
+- `commandcode_assets/Dockerfile` pins `command-code@1.74.1` and
+  `@opentelemetry/semantic-conventions` 1.43.0 on Node 22. The CLI
+  default-imports that package; from 1.44.0 its import entry is native ESM with
+  named exports only and the CLI aborts on start with "does not provide an
+  export named 'default'". 1.43.0 is the newest release whose import entry
+  still has a default export and it satisfies the CLI's `^1.30.0` range, so one
+  hoisted copy serves the whole global tree.
+  Request both versions in the same `npm install -g` call; a later global
+  install can re-resolve the range to the newest 1.x and break the CLI again.
   The release workflow and embedded fallback build share this build context;
-  update the exact package version here to invalidate Docker's install cache.
-  Verify `command-code --version` as the unprivileged image user after updates.
+  update the exact package versions here to invalidate Docker's install cache.
+  The build runs `command-code --version` as the unprivileged image user, so a
+  broken resolution fails the image build instead of the first start. Verify
+  `command-code --version` as the unprivileged image user after updates.
 - The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
   require image publication and a Store update before installed apps change.
 - The entrypoint adds one absolute import of image-owned

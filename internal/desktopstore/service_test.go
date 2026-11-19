@@ -364,6 +364,38 @@ func TestCommandCodeDockerfileInstallsJustOutsideBookwormApt(t *testing.T) {
 	}
 }
 
+// command-code default-imports @opentelemetry/semantic-conventions, which has
+// no default export from 1.44.0 on. A global install that resolves the newest
+// 1.x aborts the CLI on start, so the 1.43.0 pin must ride in the same install
+// as command-code and the build must start the CLI as the image user.
+func TestCommandCodeDockerfilePinsSemanticConventionsAndChecksCLIStarts(t *testing.T) {
+	embeddedDockerfile, _, err := commandCodeBuildContext()
+	if err != nil {
+		t.Fatalf("load embedded CommandCode Dockerfile: %v", err)
+	}
+	text := strings.ReplaceAll(string(embeddedDockerfile), "\r\n", "\n")
+
+	start := strings.Index(text, "RUN npm install -g")
+	if start < 0 {
+		t.Fatal("CommandCode Dockerfile must install command-code with a global npm install")
+	}
+	install := text[start:]
+	if end := strings.Index(install, "\n\n"); end >= 0 {
+		install = install[:end]
+	}
+	for _, want := range []string{"command-code@1.74.1", "@opentelemetry/semantic-conventions@1.43.0"} {
+		if !strings.Contains(install, want) {
+			t.Fatalf("CommandCode global npm install must request %q in the same call:\n%s", want, install)
+		}
+	}
+
+	user := strings.Index(text, "\nUSER developer\n")
+	gate := strings.Index(text, "\nRUN command-code --version\n")
+	if user < 0 || gate < 0 || gate < user {
+		t.Fatal("CommandCode Dockerfile must run `command-code --version` after USER developer so a broken dependency tree fails the build")
+	}
+}
+
 func TestCommandCodePreviewGatewayAutoDiscoversAndRefreshesTargets(t *testing.T) {
 	t.Parallel()
 
