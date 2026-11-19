@@ -88,6 +88,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- System backup exports existing required SQLite databases as consistent snapshots. An unreadable required store, including Retro Games, aborts the export. Hugging Face job records remain best effort. A missing database is permitted before an optional store has initialized. For databases outside the legacy restore layout, archive stable names under `data/.sqlite/` and use only the active configuration to resolve them on import. Keep the approved local locations in staged config and pin their destinations until startup. Scrub generated Store credentials from the private export snapshot before writing it to the archive. Verify the external SQLite round trip and the unreadable Retro Games and legacy Store export regressions.
+
 - Ziro Store exports require the verified binding's execute grant plus live and
   captured Docker write/file-write gates. Resolve containerized job storage from
   proven self mounts: bind paths or named-volume subpaths (Docker API >=1.45).

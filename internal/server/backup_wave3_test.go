@@ -3,7 +3,9 @@ package server
 import (
 	"archive/zip"
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -93,39 +95,142 @@ func TestBackupCreateExcludesMatchRelativePathOnly(t *testing.T) {
 	}
 }
 
-func TestBackupCreateReportsSkippedDatabaseOutsideConfigRoot(t *testing.T) {
-	s := newBackupCreateTestServer(t)
-	outside := filepath.Join(t.TempDir(), "elsewhere.db")
-	writeTestSQLiteDB(t, outside)
-	s.Cfg.SQLite.ShortTermPath = outside
-	for _, d := range []*string{&s.Cfg.Directories.PromptsDir, &s.Cfg.Directories.SkillsDir, &s.Cfg.Directories.ToolsDir, &s.Cfg.Directories.WorkspaceDir} {
-		*d = filepath.Join(t.TempDir(), "none")
+func TestBackupRoundTripMapsExternalSQLiteToLocalConfiguration(t *testing.T) {
+	source, _ := newBackupTestServer(t)
+	source.Cfg.SQLite.ShortTermPath = filepath.Join(t.TempDir(), "external # state.db")
+	writeTestSQLiteDB(t, source.Cfg.SQLite.ShortTermPath)
+	source.Cfg.Directories.DataDir = t.TempDir()
+	writeTestSQLiteDB(t, filepath.Join(source.Cfg.Directories.DataDir, config.GalaxaDBFilename))
+	if err := os.WriteFile(source.Cfg.ConfigPath, []byte("sqlite:\n  short_term_path: foreign-short.db\ndirectories:\n  data_dir: foreign-data\n"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	rec := httptest.NewRecorder()
-	handleBackupCreate(s).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/backup/create", strings.NewReader(`{}`)))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %.200s", rec.Code, rec.Body.String())
+	archive := createTestBackup(t, source)
+	if archive.Code != http.StatusOK || archive.Header().Get("X-AuraGo-Backup-Skipped") != "" {
+		t.Fatalf("backup: %d %.200s", archive.Code, archive.Body.Bytes())
 	}
-	if rec.Header().Get("X-AuraGo-Backup-Skipped") == "" {
-		t.Fatal("skipped header missing")
+	zr, err := zip.NewReader(bytes.NewReader(archive.Body.Bytes()), int64(archive.Body.Len()))
+	if err != nil {
+		t.Fatal(err)
 	}
-	zr, _ := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
-	for _, f := range zr.File {
-		if f.Name != "manifest.json" {
+	files := make(map[string][]byte)
+	for _, file := range zr.File {
+		if file.FileInfo().IsDir() {
 			continue
 		}
-		rc, _ := f.Open()
-		var m agoManifest
-		if err := json.NewDecoder(rc).Decode(&m); err != nil {
+		rc, err := file.Open()
+		if err != nil {
 			t.Fatal(err)
 		}
+		data, err := io.ReadAll(rc)
 		rc.Close()
-		if len(m.Skipped) == 0 || !strings.Contains(m.Skipped[0], "elsewhere.db") {
-			t.Fatalf("manifest.skipped = %v", m.Skipped)
+		if err != nil {
+			t.Fatal(err)
 		}
-		return
+		files[file.Name] = data
 	}
-	t.Fatal("manifest missing")
+	for _, base := range []string{"short_term_path.db", "galaxa.db"} {
+		if len(files[config.SQLiteArchivePrefix+base]) == 0 {
+			t.Fatalf("portable database entry %s is missing", base)
+		}
+	}
+
+	target, root := newPendingTestServer(t)
+	target.Cfg.SQLite.ShortTermPath = filepath.Join(t.TempDir(), "target.db")
+	target.Cfg.Directories.DataDir = t.TempDir()
+	imported := importArchiveForTest(t, target, files)
+	if imported.Code != http.StatusOK {
+		t.Fatalf("import: %d %s", imported.Code, imported.Body.String())
+	}
+	var status struct {
+		RestoreID string `json:"restore_id"`
+		Awaiting  bool   `json:"awaiting_confirmation"`
+	}
+	if err := json.Unmarshal(imported.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status.Awaiting {
+		confirmRestoreForTest(t, target, status.RestoreID)
+	}
+	opts := restorepending.Options{ResolveDirs: func() (restorepending.Dirs, error) { return target.restoreDirs(), nil }}
+	affected, err := restorepending.AffectedDataDirectories(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{filepath.Dir(target.Cfg.SQLite.ShortTermPath), target.Cfg.Directories.DataDir} {
+		found := false
+		for _, candidate := range affected {
+			found = found || sameRestorePath(dir, candidate)
+		}
+		if !found {
+			t.Fatalf("restore would not lock %s", dir)
+		}
+	}
+	result, err := restorepending.Apply(root, opts)
+	if err != nil || result.Status != restorepending.StatusApplied {
+		t.Fatalf("restore: %+v, %v", result, err)
+	}
+	for _, path := range []string{target.Cfg.SQLite.ShortTermPath, filepath.Join(target.Cfg.Directories.DataDir, config.GalaxaDBFilename)} {
+		db, err := sql.Open("sqlite", agoSQLiteURI(path, "mode=ro"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var name string
+		err = db.QueryRow("SELECT name FROM test_items").Scan(&name)
+		db.Close()
+		if err != nil || name != "backup-test" {
+			t.Fatalf("restore contents at %s = %q, %v", path, name, err)
+		}
+	}
+	restored, err := config.LoadReadOnly(target.Cfg.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sameRestorePath(target.Cfg.SQLite.ShortTermPath, restored.SQLite.ShortTermPath) ||
+		!sameRestorePath(target.Cfg.Directories.DataDir, restored.Directories.DataDir) {
+		t.Fatal("restored config did not retain its locally mapped database paths")
+	}
+}
+
+func TestBackupCreateScrubsLegacyStoreDatabaseEvenBeforeStoreStartup(t *testing.T) {
+	s, dataDir := newBackupTestServer(t)
+	s.Vault = newTestVault(t, filepath.Join(dataDir, "vault.bin"), "aa")
+	storePath := filepath.Join(dataDir, config.DesktopStoreDBFilename)
+	db, err := sql.Open("sqlite", storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const fixture = "legacy-store-encryption-fixture"
+	if _, err := db.Exec(`CREATE TABLE desktop_store_apps (app_id TEXT PRIMARY KEY, env_json TEXT NOT NULL);
+		INSERT INTO desktop_store_apps VALUES ('homarr', ?);`, "[\"SECRET_ENCRYPTION_KEY="+fixture+"\",\"PUID=1000\"]"); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	db.Close()
+
+	rec := createTestBackup(t, s)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("backup: %d %s", rec.Code, rec.Body.String())
+	}
+	zr, err := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := zr.Open("data/desktop_store.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(fixture)) || !bytes.Contains(data, []byte("PUID=1000")) {
+		t.Fatal("staged Store database did not retain only ordinary environment data")
+	}
+	value, err := s.Vault.ReadSecret("desktop_store_homarr_secret_encryption_key")
+	if err != nil || value != fixture {
+		t.Fatalf("legacy credential was not preserved in the Vault: %v", err)
+	}
 }
 
 func TestBackupImportMapsConfiguredDirectoriesFromActiveConfigOnly(t *testing.T) {
@@ -386,5 +491,38 @@ func TestRebindingGuardTsnetNameRules(t *testing.T) {
 		if got := mk(tc.enabled).rebindingSafeHost(req); got != tc.want {
 			t.Errorf("tsnet enabled=%v host %q = %v, want %v", tc.enabled, tc.host, got, tc.want)
 		}
+	}
+}
+
+func TestBackupCreateFailsWhenInitializedDatabaseIsMissing(t *testing.T) {
+	s, dataDir := newBackupTestServer(t)
+	s.Cfg.SQLite.InventoryPath = filepath.Join(dataDir, "missing-inventory.db")
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	s.InventoryDB = db
+	rec := createTestBackup(t, s)
+	if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "missing-inventory.db") {
+		t.Fatalf("missing initialized database was not reported: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestBackupImportRejectsChangedPortableDatabaseDestination(t *testing.T) {
+	s, root := newPendingTestServer(t)
+	s.Cfg.SQLite.InventoryPath = filepath.Join(t.TempDir(), "before.db")
+	archiveName := config.SQLiteArchivePrefix + "inventory_path.db"
+	rec := importArchiveForTest(t, s, map[string][]byte{archiveName: makeUserVersionDB(t, 1)})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("import: %d %s", rec.Code, rec.Body.String())
+	}
+	s.Cfg.SQLite.InventoryPath = filepath.Join(t.TempDir(), "after.db")
+	opts := restorepending.Options{ResolveDirs: func() (restorepending.Dirs, error) { return s.restoreDirs(), nil }}
+	if result, err := restorepending.Apply(root, opts); err == nil || result == nil || result.Status != restorepending.StatusFailed {
+		t.Fatalf("changed target was accepted: %+v, %v", result, err)
+	}
+	if _, err := os.Stat(s.Cfg.SQLite.InventoryPath); !os.IsNotExist(err) {
+		t.Fatalf("unapproved target has been touched: %v", err)
 	}
 }

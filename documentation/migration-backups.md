@@ -13,13 +13,18 @@ migration. Parent permissions remain as configured. Private staging is removed
 after either success or failure.
 
 Each store retains its existing filename prefix. Examples include
-`desktop_store.db.before-install-journal.bak`, `<db>.looper-v2.bak`, `<db>.v1.bak`
-and `<db>.v<N>.bak`. An existing filename is preserved, including an empty file
+`desktop_store.db.before-install-journal.bak`, `<db>.registry-v5.bak`,
+`<db>.looper-v2.bak`, `<db>.v1.bak` and `<db>.v<N>.bak`. An existing filename is preserved, including an empty file
 or a backup created concurrently during publication.
 A collision produces `<stem>.<random-suffix><extension>` in the same directory;
 find copies by their prefix and check their contents and modification time.
 Existing private Memory snapshots, Flow rehearsal copies and `.ago` archives
 retain their own layouts and recovery workflows.
+
+The Desktop Store preserves legacy generated credentials in the Vault before
+copying a legacy database for schema migration. Use a password-protected system
+backup with its Vault data when migrating installed Store apps to a new
+installation. Copies made before this cleanup may contain generated credentials.
 
 Memory's migration copies use `BackupSQLiteForMigration`: the filename contains
 the migration label and the SHA-256 of the consistent copy. A retry or restart

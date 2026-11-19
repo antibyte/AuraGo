@@ -119,6 +119,8 @@ Memory retrieval, hygiene, indexing, and maintenance.
 
 ### Conflict and graph integrity
 
+- Graph maintenance needs a successful access-count flush before destructive pruning. A lost database write marks counts unreliable for the current graph instance even below the queue-drop threshold. Flush failures stop optimization and stale cleanup. Verify `TestKGFailedAccessWriteBlocksPruning`.
+
 - Automatic conflict confirmation preserves unrelated archival and replacement state. Graph cleanup aborts the complete SQL transaction after any delete failure, then updates semantic indexes only for committed deletes and reports index errors.
 - Node merges retain both claim histories and prefer accepted active edges over retracted collisions. Canonical repair preserves the analysis envelope and provenance independently of graph identity. Batch large identifier lists; propagate identity-query failures before destructive writes.
 - OptimizeGraph keeps its explicit low-confidence/degree/protection policy; no implicit age threshold. Pending-write dedupe retains exhausted state and retry scheduling; enqueue does not reactivate work.

@@ -89,7 +89,8 @@ type KnowledgeGraph struct {
 	ftsMu                    sync.Mutex
 	semantic                 *kgsemantic.Index
 	semanticMu               sync.RWMutex
-	droppedHits              atomic.Int64 // count of access-queue hits dropped due to full channel
+	droppedHits              atomic.Int64
+	accessWriteFailed        atomic.Bool
 	minSemanticSimilarity    atomic.Uint32
 	excludedNodeTypes        map[string]bool
 	excludedNodeTypesMu      sync.RWMutex
@@ -283,6 +284,7 @@ func (kg *KnowledgeGraph) drainAccessQueue() {
 			cancel()
 			if execErr != nil {
 				kg.droppedHits.Add(1)
+				kg.accessWriteFailed.Store(true)
 				kg.logger.Warn("KG access count update failed during drain", "hit", hit, "error", execErr)
 			}
 		default:
@@ -318,6 +320,7 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 		dropPendingHits := func(count int64) {
 			if count > 0 {
 				kg.droppedHits.Add(count)
+				kg.accessWriteFailed.Store(true)
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphWriteTimeout)
@@ -423,7 +426,7 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 }
 
 func (kg *KnowledgeGraph) accessCountReliable() bool {
-	return kg != nil && kg.DroppedAccessHits() < knowledgeGraphDroppedAccessHitsThreshold
+	return kg != nil && !kg.accessWriteFailed.Load() && kg.DroppedAccessHits() < knowledgeGraphDroppedAccessHitsThreshold
 }
 
 // FlushAccessHits drains the async access queue and waits for the worker batch flush.
@@ -437,6 +440,9 @@ func (kg *KnowledgeGraph) FlushAccessHits() error {
 	case kg.flushAccessHits <- ack:
 		select {
 		case <-ack:
+			if !kg.accessCountReliable() {
+				return fmt.Errorf("knowledge graph access counts are incomplete (%d dropped hits)", kg.DroppedAccessHits())
+			}
 			return nil
 		case <-time.After(knowledgeGraphWriteTimeout):
 			return fmt.Errorf("flush access hits ack timed out")

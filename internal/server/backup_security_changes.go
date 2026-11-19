@@ -35,12 +35,14 @@ func (s *Server) restoreDirs() restorepending.Dirs {
 	defer s.CfgMu.RUnlock()
 	d := s.Cfg.Directories
 	return restorepending.Dirs{
+		DataDir:     d.DataDir,
 		VectorDB:    d.VectorDBDir,
 		Prompts:     d.PromptsDir,
 		Skills:      d.SkillsDir,
 		AgentSkills: d.AgentSkillsDir,
 		Tools:       d.ToolsDir,
 		Workspace:   d.WorkspaceDir,
+		SQLite:      config.SQLiteArchivePaths(s.Cfg),
 	}
 }
 

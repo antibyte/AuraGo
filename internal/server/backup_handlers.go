@@ -24,13 +24,16 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/desktopstore"
 	"aurago/internal/fileutil"
 	"aurago/internal/memory"
 	"aurago/internal/restorepending"
@@ -440,7 +443,7 @@ func agoIsSQLiteRelatedPath(clean string) bool {
 }
 
 func agoValidateSQLiteDB(path string) error {
-	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro&immutable=1")
+	db, err := sql.Open("sqlite", agoSQLiteURI(path, "mode=ro&immutable=1"))
 	if err != nil {
 		return fmt.Errorf("open sqlite: %w", err)
 	}
@@ -519,6 +522,16 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		contents := []string{}
 		seenZipPaths := map[string]struct{}{}
 		totalSelectedBytes := int64(0)
+		backupDirs := s.restoreDirs()
+		sqlitePaths := backupDirs.SQLite
+		rawSQLiteFiles := make(map[string]bool)
+		for _, database := range sqlitePaths {
+			if abs, err := filepath.Abs(database); err == nil {
+				for _, suffix := range []string{"", "-wal", "-shm", "-journal"} {
+					rawSQLiteFiles[restoreDestinationKey(abs+suffix)] = true
+				}
+			}
+		}
 
 		// addFile adds a single file to the ZIP at the given zip-internal path.
 		var skipOversized bool
@@ -528,6 +541,9 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			return addFileLimit(zipPath, filePath, agoMaxBackupEntrySize)
 		}
 		addFileLimit = func(zipPath, filePath string, limit int64) (bool, error) {
+			if rawSQLiteFiles[restoreDestinationKey(filepath.Clean(filePath))] {
+				return false, nil
+			}
 			info, err := os.Lstat(filePath)
 			if err != nil {
 				if os.IsNotExist(err) {
@@ -774,7 +790,6 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			contents = append(contents, "data/findit-images/")
 		}
 
-		sqlitePaths := config.SQLiteDatabasePaths(s.Cfg)
 		sqliteStagingDir, err := os.MkdirTemp("", "aurago-sqlite-backup-*")
 		if err != nil {
 			jsonError(w, "Failed to prepare SQLite backup staging area", http.StatusInternalServerError)
@@ -815,48 +830,61 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		sqliteAdded := 0
 		dbUserVersions := map[string]int{}
 		var sqliteSkipped []string
-		for _, dbPath := range sqlitePaths {
-			if dbPath == "" {
-				continue
-			}
-			absDB, err := filepath.Abs(dbPath)
+		seenDatabases := make(map[string]bool)
+		requiredDatabases := s.initializedBackupDatabases(sqlitePaths)
+		for _, archiveName := range slices.Sorted(maps.Keys(sqlitePaths)) {
+			absDB, err := filepath.Abs(sqlitePaths[archiveName])
 			if err != nil {
+				jsonError(w, "Invalid configured SQLite backup path", http.StatusInternalServerError)
+				return
+			}
+			pathKey := restoreDestinationKey(absDB)
+			if seenDatabases[pathKey] {
 				continue
 			}
+			seenDatabases[pathKey] = true
 			zipPath, ok := agoRelZipPath(configRoot, absDB)
-			if corpus, err := filepath.Abs(config.DocumentCorpusPath(s.Cfg)); err == nil && absDB == corpus {
+			if archiveName == config.SQLiteArchivePrefix+"documents.db" {
 				zipPath, ok = "data/vectordb/documents.sqlite", true
 			}
-			if !ok {
-				s.Logger.Warn("[Backup] Skipping SQLite path outside config root", "path", absDB)
-				sqliteSkipped = append(sqliteSkipped, fmt.Sprintf("sqlite/%s skipped (outside the config root)", filepath.Base(absDB)))
-				continue
+			if ok {
+				root, rel, _, mapErr := backupDirs.MapPath(configRoot, zipPath)
+				ok = mapErr == nil && sameRestorePath(filepath.Join(root, filepath.FromSlash(rel)), absDB)
 			}
-			if !agoIsAllowedRestorePath(zipPath) {
-				// Restore only accepts data/, so the import would reject the whole archive.
-				s.Logger.Warn("[Backup] Skipping SQLite path that restore would reject", "path", absDB, "zip_path", zipPath)
-				sqliteSkipped = append(sqliteSkipped, fmt.Sprintf("sqlite/%s skipped (not a restorable location)", filepath.Base(absDB)))
-				continue
+			if !ok || !agoIsSQLiteDBPath(zipPath) || !agoIsAllowedRestorePath(zipPath) || restorepending.IsReservedPath(zipPath) {
+				zipPath = archiveName
 			}
-			before := len(seenZipPaths)
 			snapshotPath := memoryCopies[absDB]
 			var snapshotErr error
 			if snapshotPath == "" {
-				snapshotPath, snapshotErr = agoCreateSQLiteSnapshot(absDB, sqliteStagingDir)
+				snapshotPath, snapshotErr = agoCreateSQLiteSnapshot(r.Context(), absDB, sqliteStagingDir)
 			}
 			if snapshotErr != nil {
-				if os.IsNotExist(snapshotErr) {
+				if os.IsNotExist(snapshotErr) && !requiredDatabases[pathKey] {
 					continue
 				}
 				if config.IsBestEffortSQLiteBackup(s.Cfg, absDB) {
-					// The rebuildable Retro Games index must never fail the
-					// whole backup; the manifest says what is missing.
 					s.Logger.Warn("[Backup] Skipping an unreadable optional SQLite database", "path", absDB, "error", snapshotErr)
 					sqliteSkipped = append(sqliteSkipped, fmt.Sprintf("sqlite/%s skipped (snapshot failed)", filepath.Base(absDB)))
 					continue
 				}
 				s.Logger.Warn("[Backup] Failed to create SQLite snapshot", "path", absDB, "error", snapshotErr)
-				jsonError(w, "Failed to create a consistent SQLite backup", http.StatusInternalServerError)
+				jsonError(w, "Failed to create a consistent SQLite backup: "+filepath.Base(absDB), http.StatusInternalServerError)
+				return
+			}
+			if store := sqlitePaths[config.SQLiteArchivePrefix+"desktop_store.db"]; store != "" && sameRestorePath(absDB, store) {
+				var vault desktopstore.SecretStore
+				if s.Vault != nil {
+					vault = s.Vault
+				}
+				if err := desktopstore.SanitizeBackup(r.Context(), snapshotPath, vault); err != nil {
+					s.Logger.Warn("[Backup] Failed to protect Store secrets", "error", err)
+					jsonError(w, "Failed to protect Store credentials in backup", http.StatusInternalServerError)
+					return
+				}
+			}
+			if _, duplicate := seenZipPaths[filepath.ToSlash(zipPath)]; duplicate {
+				jsonError(w, "Conflicting SQLite backup paths", http.StatusInternalServerError)
 				return
 			}
 			added, err := addFileLimit(zipPath, snapshotPath, agoMaxExtractSize)
@@ -865,11 +893,14 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				jsonError(w, agoBackupFailMsg("Failed to add SQLite backup to archive", err), http.StatusInternalServerError)
 				return
 			}
-			if added && len(seenZipPaths) > before {
+			if added {
 				sqliteAdded++
 				if v, vErr := agoSQLiteUserVersion(snapshotPath); vErr == nil {
 					dbUserVersions[zipPath] = v
 				}
+			} else {
+				jsonError(w, "A staged SQLite snapshot disappeared", http.StatusInternalServerError)
+				return
 			}
 		}
 		if sqliteAdded > 0 {
@@ -1157,6 +1188,7 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 		var importEntries []agoImportEntry
 		var totalBytes int64
 		restoreDirs := s.restoreDirs()
+		restoreDestinations := make(map[string]bool)
 		for _, f := range zr.File {
 			clean := filepath.Clean(filepath.FromSlash(f.Name))
 			if clean == "." {
@@ -1268,6 +1300,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				jsonError(w, "Restore target path is unsafe", http.StatusBadRequest)
 				return
 			}
+			destKey := restoreDestinationKey(destPath)
+			if restoreDestinations[destKey] || (strings.HasPrefix(filepath.ToSlash(clean), config.SQLiteArchivePrefix) && f.FileInfo().IsDir()) {
+				jsonError(w, "Backup archive contains conflicting restore entries", http.StatusBadRequest)
+				return
+			}
+			restoreDestinations[destKey] = true
 			importEntries = append(importEntries, agoImportEntry{
 				file:    f,
 				clean:   clean,
@@ -1346,6 +1384,12 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 				jsonError(w, "Backup contains a corrupted SQLite database", http.StatusBadRequest)
 				return
 			}
+		}
+
+		if err := agoKeepMappedSQLiteLocations(importEntries, restoreDirs); err != nil {
+			s.Logger.Warn("[Backup] Could not retain local SQLite paths", "error", err)
+			jsonError(w, "Backup configuration cannot retain local SQLite paths", http.StatusBadRequest)
+			return
 		}
 
 		// Version check: a backup that is newer than the running binary cannot be
@@ -1463,11 +1507,16 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			if agoIsSQLiteRelatedPath(entry.clean) {
 				perm = 0o600
 			}
+			var pinnedDestination string
+			if strings.HasPrefix(filepath.ToSlash(entry.clean), config.SQLiteArchivePrefix) {
+				pinnedDestination = entry.dest
+			}
 			pendingEntries = append(pendingEntries, restorepending.Entry{
-				Clean:  filepath.ToSlash(entry.clean),
-				Dir:    entry.isDir,
-				Mode:   uint32(perm),
-				SQLite: agoIsSQLiteRelatedPath(entry.clean),
+				Clean:             filepath.ToSlash(entry.clean),
+				Dir:               entry.isDir,
+				Mode:              uint32(perm),
+				SQLite:            agoIsSQLiteRelatedPath(entry.clean),
+				PinnedDestination: pinnedDestination,
 			})
 			if !entry.isDir {
 				staged++

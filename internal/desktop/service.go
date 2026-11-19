@@ -202,6 +202,9 @@ func (s *Service) Init(ctx context.Context) error {
 	if s.closed {
 		return fmt.Errorf("desktop service is closed")
 	}
+	if s.db != nil {
+		return nil
+	}
 	s.invalidateBootstrapCache()
 	var createdDirs []string
 	ensureDir := func(path string) error {
@@ -237,26 +240,31 @@ func (s *Service) Init(ctx context.Context) error {
 	}
 	cleanup := func() {
 		for i := len(createdDirs) - 1; i >= 0; i-- {
-			_ = os.RemoveAll(createdDirs[i])
+			_ = os.Remove(createdDirs[i])
 		}
 	}
-	if s.db == nil {
-		db, err := dbutil.Open(s.cfg.DBPath)
-		if err != nil {
-			cleanup()
-			return fmt.Errorf("open desktop database: %w", err)
-		}
-		s.db = db
-	}
-	if err := s.migrateLocked(ctx); err != nil {
+	db, err := dbutil.Open(s.cfg.DBPath)
+	if err != nil {
 		cleanup()
+		return fmt.Errorf("open desktop database: %w", err)
+	}
+	s.db = db
+	ready := false
+	defer func() {
+		if !ready {
+			_ = db.Close()
+			s.db = nil
+			cleanup()
+		}
+	}()
+	if err := s.migrateLocked(ctx); err != nil {
 		return err
 	}
 	s.cleanupStaleDeletes()
 	if err := s.seedDefaultPetLocked(ctx); err != nil {
-		cleanup()
 		return fmt.Errorf("seed default pet: %w", err)
 	}
+	ready = true
 	return nil
 }
 
@@ -376,6 +384,26 @@ func (s *Service) ensureReady(ctx context.Context) error {
 }
 
 func (s *Service) migrateLocked(ctx context.Context) error {
+	const registryVersion = "5"
+	var hasRegistry, hasMeta bool
+	if err := s.db.QueryRowContext(ctx, `SELECT
+		EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name IN
+			('desktop_meta','desktop_apps','desktop_app_visibility','desktop_widgets','desktop_settings','desktop_shortcuts','desktop_audit')),
+		EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'desktop_meta')`).Scan(&hasRegistry, &hasMeta); err != nil {
+		return fmt.Errorf("inspect desktop registry: %w", err)
+	}
+	var version string
+	if hasMeta {
+		err := s.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = 'schema_version'`).Scan(&version)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("read desktop registry version: %w", err)
+		}
+	}
+	if hasRegistry && version != registryVersion {
+		if _, err := dbutil.BackupSQLite(ctx, s.db, s.cfg.DBPath+".registry-v5.bak"); err != nil {
+			return fmt.Errorf("back up desktop registry before migration: %w", err)
+		}
+	}
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS desktop_meta (
 			key TEXT PRIMARY KEY,
@@ -436,8 +464,6 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 			user_agent TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL
 		)`,
-		`INSERT INTO desktop_meta(key, value) VALUES('schema_version', '4')
-			ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
@@ -473,6 +499,12 @@ func (s *Service) migrateLocked(ctx context.Context) error {
 	}
 	if err := s.seedDesktopShortcutsLocked(ctx); err != nil {
 		return err
+	}
+	if version != registryVersion {
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO desktop_meta(key, value) VALUES('schema_version', ?)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`, registryVersion); err != nil {
+			return fmt.Errorf("mark desktop registry migration: %w", err)
+		}
 	}
 	return nil
 }

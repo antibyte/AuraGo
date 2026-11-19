@@ -12,6 +12,8 @@ The Service owns authorization, read-only state, mutation locks and cache invali
 
 ## Local Contracts
 
+- Registry initialization publishes readiness only after migration and seeding complete. Failure closes the opening handle and allows retry. An older registry gets a private `.registry-v5.bak` before writes, and its version marker advances after the schema steps and seeds succeed. Looper backs up existing presets and run schema before changes, checks every column addition, and commits preset conversion with its v2 marker. Verify `TestDesktopInitRetriesAfterMigrationFailure`, `TestDesktopRegistryBacksUpBeforeChangingLegacySchema` and `TestLooperPresetStoreMigratesLegacyUserPreset`.
+
 - `ziro_export.go` snapshots only saved KiCad files in a dedicated Shared project
   directory (2048 entries, 32 levels, at most 64 MiB). Relative libraries stay in
   the snapshot; links and special files are refused. One cancellable export runs

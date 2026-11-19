@@ -10,6 +10,8 @@ This package owns manifests, mapped destinations, rollback journals and staged V
 
 ## Local Contracts
 
+- Portable SQLite entries under `data/.sqlite/` map only to known locations from the active configuration. Stage and recheck the approved destination before publication, reject duplicate targets, and include every resolved database directory in startup lock admission. Archived configuration cannot select a portable SQLite destination.
+
 - Production callers acquire `aurago-data.lock` for active SQLite directories, the restore state directory and every validated restore destination before `Apply`, including cleanup. Keep locks for the process lifetime.
 - `AffectedDataDirectories` is read-only and includes sealed rollback-journal destinations after interrupted publication. Invalid input returns the restore state directory and an error; normal rejection may run only after that directory is locked.
 - Resolve mapped destinations from the active configuration. After configuration publication, acquire additional configured SQLite directory locks before opening databases. Use `config.LoadReadOnly` for preflight/validation so invalid YAML cannot write diagnostic copies before locking.

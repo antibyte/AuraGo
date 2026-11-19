@@ -523,7 +523,7 @@ func TestDockerCreatePayloadEnablesNoNewPrivileges(t *testing.T) {
 func TestInstallByteStashGeneratesAndPreservesJWTSecret(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
-	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19190))
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19190), &fakeSecretStore{})
 
 	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "bytestash", BindMode: BindModeLocal})
 	if err != nil {
@@ -536,9 +536,12 @@ func TestInstallByteStashGeneratesAndPreservesJWTSecret(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("get installed bytestash: ok=%v err=%v", ok, err)
 	}
-	secret, ok := envValue(before.Env, "JWT_SECRET")
+	if _, present := envValue(before.Env, "JWT_SECRET"); present {
+		t.Fatal("generated key persisted in the installed record")
+	}
+	secret, ok := envValue(docker.created[0].Env, "JWT_SECRET")
 	if !ok || len(secret) != 64 {
-		t.Fatalf("installed bytestash JWT_SECRET missing or wrong length: %#v", before.Env)
+		t.Fatal("ByteStash runtime did not receive a generated key")
 	}
 	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/jordan-dalby/bytestash:latest" {
 		t.Fatalf("unexpected bytestash container spec: %#v", docker.created)
@@ -559,9 +562,12 @@ func TestInstallByteStashGeneratesAndPreservesJWTSecret(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("get updated bytestash: ok=%v err=%v", ok, err)
 	}
-	updatedSecret, ok := envValue(after.Env, "JWT_SECRET")
+	if _, present := envValue(after.Env, "JWT_SECRET"); present {
+		t.Fatal("updated installed record contains a generated key")
+	}
+	updatedSecret, ok := envValue(docker.created[len(docker.created)-1].Env, "JWT_SECRET")
 	if !ok || updatedSecret != secret {
-		t.Fatalf("bytestash JWT_SECRET after update = %q/%v, want original %q", updatedSecret, ok, secret)
+		t.Fatal("updated container did not receive the original generated key")
 	}
 }
 
@@ -733,6 +739,15 @@ func TestInstallRomMCreatesDatabaseCompanionNetworkAndSecrets(t *testing.T) {
 	}
 	if !containsString(db.Env, "MYSQL_PASSWORD="+dbPassword) || !containsString(db.Env, "MYSQL_ROOT_PASSWORD="+rootPassword) {
 		t.Fatalf("romm database env missing generated credentials: %#v", db.Env)
+	}
+	var appEnv, companionJSON string
+	if err := svc.db.QueryRowContext(ctx, "SELECT env_json, companions_json FROM desktop_store_apps WHERE app_id='romm'").Scan(&appEnv, &companionJSON); err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{dbPassword, rootPassword, authSecret} {
+		if strings.Contains(appEnv, secret) || strings.Contains(companionJSON, secret) {
+			t.Fatal("generated credential was saved in the SQLite record")
+		}
 	}
 	assertVolumeBinding(t, app.Volumes, "aurago_store_romm_resources", "/romm/resources")
 	assertVolumeBinding(t, app.Volumes, "aurago_store_romm_library", "/romm/library")
@@ -1114,8 +1129,11 @@ func TestInstallCodeServerGeneratesVaultPasswordAndPreservesItOnUpdate(t *testin
 	if !ok || len(password) < 24 {
 		t.Fatalf("generated code-server password missing or too short: %#v", secrets.data)
 	}
-	if got, ok := envValue(stored.Env, "PASSWORD"); !ok || got != password {
-		t.Fatalf("stored env PASSWORD = %q/%v, want vault password", got, ok)
+	if _, present := envValue(stored.Env, "PASSWORD"); present {
+		t.Fatal("installed record contains the Vault password")
+	}
+	if got, found := envValue(docker.created[0].Env, "PASSWORD"); !found || got != password {
+		t.Fatal("container did not receive the Vault password")
 	}
 	if len(stored.SecretRefs) != 1 || !stored.SecretRefs[0].Expose {
 		t.Fatalf("stored secret refs = %#v, want exposed password ref", stored.SecretRefs)
@@ -1139,8 +1157,11 @@ func TestInstallCodeServerGeneratesVaultPasswordAndPreservesItOnUpdate(t *testin
 	if err != nil || !ok {
 		t.Fatalf("get updated code-server: ok=%v err=%v", ok, err)
 	}
-	if got, _ := envValue(updated.Env, "PASSWORD"); got != password {
-		t.Fatalf("code-server password changed on update: %q want %q", got, password)
+	if _, present := envValue(updated.Env, "PASSWORD"); present {
+		t.Fatal("updated installed record contains the Vault password")
+	}
+	if got, found := envValue(docker.created[len(docker.created)-1].Env, "PASSWORD"); !found || got != password {
+		t.Fatal("updated container did not receive the original Vault password")
 	}
 }
 
@@ -1388,7 +1409,7 @@ func TestInstallOliveTinKeepsExistingWorkspaceConfig(t *testing.T) {
 
 func TestInstalledAppJSONDoesNotExposeRuntimeEnv(t *testing.T) {
 	ctx := context.Background()
-	svc := newTestService(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19181))
+	svc := newTestServiceWithSecrets(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19181), &fakeSecretStore{})
 
 	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
 	if err != nil {
@@ -1401,14 +1422,15 @@ func TestInstalledAppJSONDoesNotExposeRuntimeEnv(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("get installed: ok=%v err=%v", ok, err)
 	}
-	if len(stored.Env) == 0 {
-		t.Fatal("expected internal env to be retained for lifecycle operations")
+	if _, present := envValue(stored.Env, "SECRET_ENCRYPTION_KEY"); present {
+		t.Fatal("installed record contains the Homarr encryption key")
 	}
+	stored.Env = append(stored.Env, "HOMARR_FIXTURE_SETTING=runtime-only")
 	data, err := json.Marshal(stored)
 	if err != nil {
 		t.Fatalf("marshal installed app: %v", err)
 	}
-	if strings.Contains(string(data), "SECRET_ENCRYPTION_KEY") || strings.Contains(string(data), `"env"`) {
+	if strings.Contains(string(data), "SECRET_ENCRYPTION_KEY") || strings.Contains(string(data), "HOMARR_FIXTURE_SETTING") || strings.Contains(string(data), `"env"`) {
 		t.Fatalf("installed app JSON leaked env data: %s", data)
 	}
 }
@@ -1442,7 +1464,7 @@ func TestInstallDesktopFailureCleansRunningContainer(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
 	desktopAdapter := &fakeDesktopAdapter{installErr: errors.New("desktop install failed")}
-	svc := newTestService(t, docker, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19183))
+	svc := newTestServiceWithSecrets(t, docker, desktopAdapter, &fakeLaunchpadAdapter{}, fixedPorts(19183), &fakeSecretStore{})
 
 	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
 	if err != nil {
@@ -1947,7 +1969,7 @@ func TestUpdateOperationRefreshesCatalogEnv(t *testing.T) {
 func TestUpdateOperationPreservesHomarrSecretEnv(t *testing.T) {
 	ctx := context.Background()
 	docker := &fakeDockerAdapter{}
-	svc := newTestService(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19339))
+	svc := newTestServiceWithSecrets(t, docker, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(19339), &fakeSecretStore{})
 
 	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
 	if err != nil {
@@ -1960,9 +1982,12 @@ func TestUpdateOperationPreservesHomarrSecretEnv(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("get installed homarr: ok=%v err=%v", ok, err)
 	}
-	secret, ok := envValue(before.Env, "SECRET_ENCRYPTION_KEY")
+	if _, present := envValue(before.Env, "SECRET_ENCRYPTION_KEY"); present {
+		t.Fatal("generated key persisted in the installed record")
+	}
+	secret, ok := envValue(docker.created[0].Env, "SECRET_ENCRYPTION_KEY")
 	if !ok || secret == "" {
-		t.Fatalf("installed homarr secret env missing: %#v", before.Env)
+		t.Fatal("Homarr runtime did not receive a generated key")
 	}
 
 	updateOp, err := svc.StartAppOperation(ctx, "homarr", OperationUpdate, OperationRequest{})
@@ -1977,9 +2002,12 @@ func TestUpdateOperationPreservesHomarrSecretEnv(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("get updated homarr: ok=%v err=%v", ok, err)
 	}
-	updatedSecret, ok := envValue(after.Env, "SECRET_ENCRYPTION_KEY")
+	if _, present := envValue(after.Env, "SECRET_ENCRYPTION_KEY"); present {
+		t.Fatal("updated installed record contains a generated key")
+	}
+	updatedSecret, ok := envValue(docker.created[len(docker.created)-1].Env, "SECRET_ENCRYPTION_KEY")
 	if !ok || updatedSecret != secret {
-		t.Fatalf("homarr secret after update = %q/%v, want original %q", updatedSecret, ok, secret)
+		t.Fatal("updated container did not receive the original generated key")
 	}
 }
 
@@ -2063,7 +2091,7 @@ func TestUninstallRemovesVolumesOnlyWhenRequested(t *testing.T) {
 	docker := &fakeDockerAdapter{}
 	desktopAdapter := &fakeDesktopAdapter{}
 	launchpad := &fakeLaunchpadAdapter{}
-	svc := newTestService(t, docker, desktopAdapter, launchpad, fixedPorts(19444))
+	svc := newTestServiceWithSecrets(t, docker, desktopAdapter, launchpad, fixedPorts(19444), &fakeSecretStore{})
 
 	installOp, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
 	if err != nil {
@@ -3030,4 +3058,53 @@ func (f *fakeLaunchpadAdapter) UpsertStoreLink(_ context.Context, link Launchpad
 func (f *fakeLaunchpadAdapter) DeleteStoreLink(_ context.Context, id string) error {
 	f.deletedID = id
 	return nil
+}
+
+func TestStoreMigratesLegacyGeneratedEnvWithoutRotatingKeys(t *testing.T) {
+	ctx := context.Background()
+	secrets := &fakeSecretStore{data: map[string]string{}}
+	svc := newTestServiceWithSecrets(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(17676), secrets)
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "homarr", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatal(err)
+	}
+	const fixture = "existing-generated-environment-fixture"
+	key := storeSecretVaultKey("homarr", "secret_encryption_key")
+	if err := secrets.DeleteSecret(key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.db.Exec("UPDATE desktop_store_apps SET env_json=? WHERE app_id='homarr'", "[\"SECRET_ENCRYPTION_KEY="+fixture+"\",\"PUID=1000\"]"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := NewService(svc.cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	if err := reopened.Init(ctx); err != nil {
+		t.Fatal(err)
+	}
+	app, ok, err := reopened.GetInstalled(ctx, "homarr")
+	if err != nil || !ok {
+		t.Fatalf("legacy row unavailable: %v", err)
+	}
+	if _, present := envValue(app.Env, "SECRET_ENCRYPTION_KEY"); present {
+		t.Fatal("legacy credential survived in the stored environment")
+	}
+	spec, err := reopened.runtimeContainerSpec(ctx, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value, found := envValue(spec.Env, "SECRET_ENCRYPTION_KEY"); !found || value != fixture {
+		t.Fatal("container recreation lost its original credential")
+	}
+	if value, found := envValue(spec.Env, "PUID"); !found || value != "1000" {
+		t.Fatal("container recreation lost a non-sensitive setting")
+	}
 }

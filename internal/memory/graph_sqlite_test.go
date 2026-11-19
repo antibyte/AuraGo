@@ -415,12 +415,31 @@ func TestKGAccessBatchFlushFailureCountsDroppedHits(t *testing.T) {
 	if dropped := kg.DroppedAccessHits(); dropped != 1 {
 		t.Fatalf("DroppedAccessHits = %d, want 1 after failed batch flush", dropped)
 	}
-	if !kg.accessCountReliable() {
-		t.Fatal("access counts should remain reliable after a single failed batch flush")
+	if kg.accessCountReliable() || kg.FlushAccessHits() == nil {
+		t.Fatal("a failed batch must leave access counts unreliable")
 	}
-	kg.droppedHits.Store(knowledgeGraphDroppedAccessHitsThreshold)
-	if kg.accessCountReliable() {
-		t.Fatal("access counts should be unreliable after reaching dropped-hit threshold")
+}
+
+func TestKGFailedAccessWriteBlocksPruning(t *testing.T) {
+	kg := newTestKG(t)
+	if err := kg.AddNode("recently_read", "Recently read", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := kg.db.Exec(`UPDATE kg_nodes SET updated_at = datetime('now', '-90 days') WHERE id = 'recently_read';
+		CREATE TRIGGER reject_access_hit BEFORE UPDATE OF access_count ON kg_nodes
+		BEGIN SELECT RAISE(ABORT, 'fixture write failed'); END;`); err != nil {
+		t.Fatal(err)
+	}
+	kg.enqueueAccessHit(knowledgeGraphAccessHit{nodeID: "recently_read"})
+	if removed, err := kg.OptimizeGraph(10); removed != 0 || err == nil {
+		t.Fatalf("OptimizeGraph = %d, %v", removed, err)
+	}
+	if _, removed, err := kg.CleanupStaleGraph(30); removed != 0 || err == nil {
+		t.Fatalf("CleanupStaleGraph = %d, %v", removed, err)
+	}
+	var count int
+	if err := kg.db.QueryRow("SELECT count(*) FROM kg_nodes WHERE id = 'recently_read'").Scan(&count); err != nil || count != 1 {
+		t.Fatalf("node count = %d, %v", count, err)
 	}
 }
 

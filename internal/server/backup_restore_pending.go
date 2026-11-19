@@ -18,7 +18,7 @@ import (
 // agoSQLiteUserVersion reads PRAGMA user_version from a SQLite file without
 // modifying it.
 func agoSQLiteUserVersion(path string) (int, error) {
-	db, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	db, err := sql.Open("sqlite", agoSQLiteURI(path, "mode=ro&_pragma=busy_timeout%285000%29"))
 	if err != nil {
 		return 0, err
 	}

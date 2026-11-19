@@ -3,6 +3,7 @@ package desktop
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -285,7 +286,8 @@ func TestLooperPresetStorePersistsV2Fields(t *testing.T) {
 
 func TestLooperPresetStoreMigratesLegacyUserPreset(t *testing.T) {
 	t.Parallel()
-	db, err := sql.Open("sqlite", ":memory:")
+	path := filepath.Join(t.TempDir(), "looper.db")
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -317,8 +319,22 @@ func TestLooperPresetStoreMigratesLegacyUserPreset(t *testing.T) {
 	}
 
 	store := NewLooperPresetStore(db)
+	store.SetDBPath(filepath.Join(t.TempDir(), "missing", "looper.db"))
+	if err := store.Init(context.Background()); err == nil {
+		t.Fatal("migration proceeded without its backup")
+	}
+	if has, err := store.tableHasColumn(context.Background(), "desktop_looper_presets", "goal"); err != nil || has {
+		t.Fatalf("goal column after failed backup = %v, %v", has, err)
+	}
+	store.SetDBPath(path)
 	if err := store.Init(context.Background()); err != nil {
 		t.Fatalf("init: %v", err)
+	}
+
+	backup := openTestSQLite(t, path+".looper-v2.bak")
+	assertSingleString(t, backup, "SELECT prepare FROM desktop_looper_presets WHERE name='Legacy User'", nil, "prep text")
+	if has, err := NewLooperPresetStore(backup).tableHasColumn(context.Background(), "desktop_looper_presets", "goal"); err != nil || has {
+		t.Fatalf("goal column in pre-migration backup = %v, %v", has, err)
 	}
 
 	presets, err := store.ListPresets(context.Background())

@@ -24,6 +24,7 @@ type QueueItem struct {
 
 type missionQueueSnapshot struct {
 	PlannerEvents        map[string]*plannerMissionAdmission `json:"planner_events,omitempty"`
+	RunningRunID         string                              `json:"running_run_id,omitempty"`
 	RunningEventID       string                              `json:"running_event_id,omitempty"`
 	Items                []QueueItem                         `json:"items"`
 	Running              string                              `json:"running,omitempty"`

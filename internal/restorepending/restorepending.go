@@ -19,9 +19,11 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
+	"aurago/internal/config"
 	"aurago/internal/fileutil"
 	"aurago/internal/security"
 )
@@ -55,14 +57,15 @@ const (
 )
 
 // Entry describes one destination of the pending restore. Destinations are
-// derived from Clean at apply time; nothing absolute is stored.
+// derived from Clean at apply time. Portable database restores pin the approved destination.
 type Entry struct {
 	// Clean is the slash-separated archive-relative path (also the location of
 	// the staged file below the files tree).
-	Clean  string `json:"clean"`
-	Dir    bool   `json:"dir,omitempty"`
-	Mode   uint32 `json:"mode,omitempty"`
-	SQLite bool   `json:"sqlite,omitempty"`
+	Clean             string `json:"clean"`
+	Dir               bool   `json:"dir,omitempty"`
+	Mode              uint32 `json:"mode,omitempty"`
+	SQLite            bool   `json:"sqlite,omitempty"`
+	PinnedDestination string `json:"pinned_destination,omitempty"`
 }
 
 // Manifest is stored next to the staged files.
@@ -164,7 +167,8 @@ type Options struct {
 // Dirs holds the configured destination directories of the archive prefixes
 // that are not fixed below the config root. Empty values use the config root.
 type Dirs struct {
-	VectorDB, Prompts, Skills, AgentSkills, Tools, Workspace string
+	DataDir, VectorDB, Prompts, Skills, AgentSkills, Tools, Workspace string
+	SQLite                                                            map[string]string
 }
 
 // MapPath maps an archive-relative slash path to its destination root and the
@@ -173,6 +177,17 @@ type Dirs struct {
 // directories are made absolute. mapped reports whether a configured directory
 // was used.
 func (d Dirs) MapPath(configRoot, clean string) (root, rel string, mapped bool, err error) {
+	if isPortableSQLitePath(clean) {
+		file, ok := d.SQLite[clean]
+		if !ok {
+			return "", "", false, fmt.Errorf("no local database configured for %q", clean)
+		}
+		abs, err := filepath.Abs(file)
+		if err != nil {
+			return "", "", false, err
+		}
+		return filepath.Dir(abs), filepath.Base(abs), true, nil
+	}
 	for _, m := range []struct{ prefix, dir string }{
 		{vectorPrefix, d.VectorDB}, {promptsPrefix, d.Prompts}, {skillsPrefix, d.Skills},
 		{agentSkillsPrefix, d.AgentSkills}, {toolsPrefix, d.Tools}, {workspacePrefix, d.Workspace},
@@ -418,6 +433,7 @@ func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, er
 	var dirs Dirs
 	dirsResolved := false
 	targets := make([]target, 0, len(m.Entries))
+	destinations := make(map[string]bool, len(m.Entries))
 	for _, e := range m.Entries {
 		clean := path.Clean(strings.ReplaceAll(e.Clean, "\\", "/"))
 		if e.Clean == "" || clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || strings.HasPrefix(clean, "/") || filepath.IsAbs(filepath.FromSlash(clean)) || filepath.VolumeName(filepath.FromSlash(clean)) != "" {
@@ -441,6 +457,11 @@ func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, er
 			return nil, err
 		}
 		dest := filepath.Join(root, filepath.FromSlash(rel))
+		if isPortableSQLitePath(clean) {
+			if e.PinnedDestination != dest && (runtime.GOOS != "windows" || !strings.EqualFold(e.PinnedDestination, dest)) {
+				return nil, fmt.Errorf("target of %q changed since restore staging", clean)
+			}
+		}
 		if !within(root, dest) {
 			return nil, fmt.Errorf("destination of %q escapes the restore root", clean)
 		}
@@ -451,6 +472,9 @@ func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, er
 		if !within(files, src) {
 			return nil, fmt.Errorf("staged file of %q escapes the pending tree", clean)
 		}
+		if isPortableSQLitePath(clean) && (e.Dir || !e.SQLite) {
+			return nil, fmt.Errorf("portable database %q must be a SQLite file", clean)
+		}
 		if !e.Dir {
 			info, err := os.Lstat(src)
 			if err != nil || !info.Mode().IsRegular() {
@@ -460,13 +484,28 @@ func resolve(configRoot, pending string, m Manifest, opts Options) ([]target, er
 				return nil, fmt.Errorf("staged file of %q: %w", clean, err)
 			}
 		}
+		key := dest
+		if runtime.GOOS == "windows" {
+			key = strings.ToLower(key)
+		}
+		if destinations[key] {
+			return nil, fmt.Errorf("duplicate restore destination for %q", clean)
+		}
+		destinations[key] = true
 		e.Clean = clean
 		targets = append(targets, target{Entry: e, src: src, dest: dest})
 	}
 	return targets, nil
 }
 
+func isPortableSQLitePath(clean string) bool {
+	return clean == strings.TrimSuffix(config.SQLiteArchivePrefix, "/") || strings.HasPrefix(clean, config.SQLiteArchivePrefix)
+}
+
 func isMappedPath(clean string) bool {
+	if isPortableSQLitePath(clean) {
+		return true
+	}
 	for _, p := range []string{vectorPrefix, promptsPrefix, skillsPrefix, agentSkillsPrefix, toolsPrefix, workspacePrefix} {
 		if clean == strings.TrimSuffix(p, "/") || strings.HasPrefix(clean, p) {
 			return true

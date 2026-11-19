@@ -184,6 +184,8 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 
 ## Shared runtime contracts
 
+- SQLite backup and agent protection share the database inventory in `internal/config/sqlite_paths.go`. Keep portable SQLite archive names stable. Restore resolves them through active local configuration under the locks described in `internal/restorepending/AGENTS.md`.
+
 - Web Push `Manager.SendPush` calls its optional before-send observers only after local credential/database checks, immediately before each provider attempt. The mail receipt observer must not classify a local preparation failure as a possible send; ordinary callers retain their existing API. Notification receipt ownership and operator recovery: `internal/tools/AGENTS.md` and `documentation/mail-notification-receipts.md`.
 
 

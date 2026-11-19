@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -232,6 +231,57 @@ func NormalizeLooperPreset(p *LooperPreset) {
 
 // Init ensures the looper tables exist, migrates to model v2, and seeds builtins.
 func (ps *LooperPresetStore) Init(ctx context.Context) error {
+	columns := []struct{ name, definition string }{
+		{"context_mode", `TEXT DEFAULT ''`},
+		{"finish_context", `TEXT DEFAULT ''`},
+		{"prepare_truncation", `INTEGER DEFAULT 0`},
+		{"summarize_iterations", `INTEGER DEFAULT 0`},
+		{"goal", `TEXT DEFAULT ''`},
+		{"work", `TEXT DEFAULT ''`},
+		{"evaluate", `TEXT DEFAULT ''`},
+		{"target_score", `INTEGER DEFAULT 85`},
+		{"stall_rounds", `INTEGER DEFAULT 3`},
+		{"builtin_key", `TEXT DEFAULT ''`},
+		{"max_rounds", `INTEGER DEFAULT 0`},
+		{"created_at", `TEXT DEFAULT ''`},
+		{"updated_at", `TEXT DEFAULT ''`},
+	}
+	var existing bool
+	if err := ps.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_schema
+		WHERE type = 'table' AND name IN ('desktop_looper_presets','desktop_looper_runs','desktop_looper_active'))`).Scan(&existing); err != nil {
+		return fmt.Errorf("inspect looper schema: %w", err)
+	}
+	if existing {
+		var hasMeta bool
+		if err := ps.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM sqlite_schema
+			WHERE type = 'table' AND name = 'desktop_meta')`).Scan(&hasMeta); err != nil {
+			return fmt.Errorf("inspect looper metadata: %w", err)
+		}
+		var migrated string
+		if hasMeta {
+			err := ps.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = ?`, LooperSchemaV2Key).Scan(&migrated)
+			if err != nil && err != sql.ErrNoRows {
+				return fmt.Errorf("read looper schema marker: %w", err)
+			}
+		}
+		needsBackup := migrated != "true"
+		for _, column := range columns {
+			has, err := ps.tableHasColumn(ctx, "desktop_looper_presets", column.name)
+			if err != nil {
+				return err
+			}
+			needsBackup = needsBackup || !has
+		}
+		hasRunSettings, err := ps.tableHasColumn(ctx, "desktop_looper_runs", "config_json")
+		if err != nil {
+			return err
+		}
+		if needsBackup || !hasRunSettings {
+			if err := ps.backupBeforeV2(ctx); err != nil {
+				return err
+			}
+		}
+	}
 	if _, err := ps.db.ExecContext(ctx,
 		`CREATE TABLE IF NOT EXISTS desktop_meta (
 			key TEXT PRIMARY KEY,
@@ -258,22 +308,10 @@ func (ps *LooperPresetStore) Init(ctx context.Context) error {
 		)`); err != nil {
 		return fmt.Errorf("migrate looper table: %w", err)
 	}
-	for _, stmt := range []string{
-		`ALTER TABLE desktop_looper_presets ADD COLUMN context_mode TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN finish_context TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN prepare_truncation INTEGER DEFAULT 0`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN summarize_iterations INTEGER DEFAULT 0`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN goal TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN work TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN evaluate TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN target_score INTEGER DEFAULT 85`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN stall_rounds INTEGER DEFAULT 3`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN builtin_key TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN max_rounds INTEGER DEFAULT 0`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN created_at TEXT DEFAULT ''`,
-		`ALTER TABLE desktop_looper_presets ADD COLUMN updated_at TEXT DEFAULT ''`,
-	} {
-		_, _ = ps.db.ExecContext(ctx, stmt)
+	for _, column := range columns {
+		if err := ps.ensureColumn(ctx, "desktop_looper_presets", column.name, column.definition); err != nil {
+			return err
+		}
 	}
 	if err := ps.ensureRunsTable(ctx); err != nil {
 		return err
@@ -312,14 +350,16 @@ func (ps *LooperPresetStore) ensureRunsTable(ctx context.Context) error {
 	// Older databases lack the stored run settings. The column is looked up
 	// first so a real failure (locked or read-only database) is reported
 	// instead of being mistaken for "column already there".
-	has, err := ps.tableHasColumn(ctx, "desktop_looper_runs", "config_json")
-	if err != nil {
+	return ps.ensureColumn(ctx, "desktop_looper_runs", "config_json", `TEXT DEFAULT ''`)
+}
+
+func (ps *LooperPresetStore) ensureColumn(ctx context.Context, table, column, definition string) error {
+	has, err := ps.tableHasColumn(ctx, table, column)
+	if err != nil || has {
 		return err
 	}
-	if !has {
-		if _, err := ps.db.ExecContext(ctx, `ALTER TABLE desktop_looper_runs ADD COLUMN config_json TEXT DEFAULT ''`); err != nil {
-			return fmt.Errorf("add looper run settings column: %w", err)
-		}
+	if _, err := ps.db.ExecContext(ctx, "ALTER TABLE "+table+" ADD COLUMN "+column+" "+definition); err != nil {
+		return fmt.Errorf("add looper column %s.%s: %w", table, column, err)
 	}
 	return nil
 }
@@ -360,18 +400,22 @@ func (ps *LooperPresetStore) ensureActiveRunTable(ctx context.Context) error {
 func (ps *LooperPresetStore) migrateToV2(ctx context.Context) error {
 	var marker string
 	err := ps.db.QueryRowContext(ctx, `SELECT value FROM desktop_meta WHERE key = ?`, LooperSchemaV2Key).Scan(&marker)
-	if err == nil && strings.TrimSpace(marker) == "true" {
-		return ps.removeObsoleteBuiltins(ctx)
-	}
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("read looper schema marker: %w", err)
 	}
-
-	if backupErr := ps.backupBeforeV2(ctx); backupErr != nil {
-		slog.Default().Warn("looper v2 backup failed; continuing additive migration", "error", backupErr)
+	tx, err := ps.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := removeObsoleteLooperBuiltins(ctx, tx); err != nil {
+		return err
+	}
+	if strings.TrimSpace(marker) == "true" {
+		return tx.Commit()
 	}
 
-	if _, err := ps.db.ExecContext(ctx, `
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE desktop_looper_presets
 		SET
 			goal = CASE WHEN TRIM(COALESCE(goal, '')) = '' THEN prepare ELSE goal END,
@@ -389,16 +433,12 @@ func (ps *LooperPresetStore) migrateToV2(ctx context.Context) error {
 		return fmt.Errorf("migrate user looper presets to v2: %w", err)
 	}
 
-	if err := ps.removeObsoleteBuiltins(ctx); err != nil {
-		return err
-	}
-
-	if _, err := ps.db.ExecContext(ctx,
+	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO desktop_meta(key, value) VALUES(?, 'true')
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, LooperSchemaV2Key); err != nil {
 		return fmt.Errorf("mark looper schema v2: %w", err)
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (ps *LooperPresetStore) backupBeforeV2(ctx context.Context) error {
@@ -420,9 +460,9 @@ func builtinPresetNames() map[string]struct{} {
 	return out
 }
 
-func (ps *LooperPresetStore) removeObsoleteBuiltins(ctx context.Context) error {
+func removeObsoleteLooperBuiltins(ctx context.Context, tx *sql.Tx) error {
 	keep := builtinPresetNames()
-	rows, err := ps.db.QueryContext(ctx, `SELECT name FROM desktop_looper_presets WHERE is_builtin = 1`)
+	rows, err := tx.QueryContext(ctx, `SELECT name FROM desktop_looper_presets WHERE is_builtin = 1`)
 	if err != nil {
 		return fmt.Errorf("list builtin looper presets: %w", err)
 	}
@@ -441,7 +481,7 @@ func (ps *LooperPresetStore) removeObsoleteBuiltins(ctx context.Context) error {
 		return err
 	}
 	for _, name := range obsolete {
-		if _, err := ps.db.ExecContext(ctx, `DELETE FROM desktop_looper_presets WHERE name = ? AND is_builtin = 1`, name); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM desktop_looper_presets WHERE name = ? AND is_builtin = 1`, name); err != nil {
 			return fmt.Errorf("delete obsolete builtin %s: %w", name, err)
 		}
 	}

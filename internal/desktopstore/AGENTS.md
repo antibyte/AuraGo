@@ -367,6 +367,8 @@ Store app configuration, runtime, assets, and publication.
 
 ### Store Install Cleanup
 
+- Persist generated environment credentials in the Vault. Store app records keep ordinary environment values and Vault references. Resolve and register generated values at container creation, including update rollback. Before Store schema backups, move legacy values to missing Vault keys and scrub the database rows. The system backup applies the same cleanup to the private snapshot before archiving it, including when the Store has never started. Verify `TestStoreMigratesLegacyGeneratedEnvWithoutRotatingKeys`, `TestInstallRomMCreatesDatabaseCompanionNetworkAndSecrets` and `TestBackupCreateScrubsLegacyStoreDatabaseEvenBeforeStoreStartup`.
+
 - An install records what it creates in `desktop_store_install_resources`
   (`install_journal.go`): an attempt marker, workspace dirs and generated-secret
   Vault keys that did not exist, volumes and the private network that did not

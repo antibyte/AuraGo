@@ -72,18 +72,15 @@ func TestIsBestEffortSQLiteBackupOnlyForRebuildableStores(t *testing.T) {
 	cfg.SQLite.ShortTermPath = filepath.Join(dataDir, "short_term.db")
 
 	index := filepath.Join(dataDir, "retrogames", "retrogames.db")
-	if !IsBestEffortSQLiteBackup(cfg, index) {
-		t.Fatalf("%s must be best-effort", index)
-	}
-	if !IsBestEffortSQLiteBackup(cfg, filepath.Join(dataDir, "retrogames", ".", "retrogames.db")) {
-		t.Fatal("an uncleaned spelling of the index path must match")
+	if IsBestEffortSQLiteBackup(cfg, index) {
+		t.Fatal("Retro Games holds user data and must be required")
 	}
 	hf := filepath.Join(dataDir, "huggingface.db")
 	if !IsBestEffortSQLiteBackup(cfg, hf) {
 		t.Fatalf("%s (job ledger) must be best-effort", hf)
 	}
 	for _, path := range append(SQLiteDatabasePaths(cfg), filepath.Join(dataDir, "retrogames.db"), filepath.Join(dataDir, "retrogames", "other.db"), "") {
-		if path == index || path == hf {
+		if path == hf {
 			continue
 		}
 		if IsBestEffortSQLiteBackup(cfg, path) {
@@ -91,13 +88,13 @@ func TestIsBestEffortSQLiteBackupOnlyForRebuildableStores(t *testing.T) {
 		}
 	}
 	if !containsPath(SQLiteDatabasePaths(cfg), index) {
-		t.Fatalf("the best-effort index must still be backed up: %v", SQLiteDatabasePaths(cfg))
+		t.Fatalf("the required Retro Games database must be backed up: %v", SQLiteDatabasePaths(cfg))
 	}
 
 	// A relative data_dir matches the absolute path the backup works with.
 	rel := &Config{}
 	rel.Directories.DataDir = filepath.Join("data", "dir")
-	abs, err := filepath.Abs(filepath.Join("data", "dir", "retrogames", "retrogames.db"))
+	abs, err := filepath.Abs(filepath.Join("data", "dir", "huggingface.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

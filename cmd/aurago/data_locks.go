@@ -98,7 +98,7 @@ func prepareStartupRestore(configFile string, apply bool, locks dataDirectoryLoc
 			if cfg == nil {
 				return restorepending.Dirs{}, nil
 			}
-			return restorepending.Dirs{VectorDB: cfg.Directories.VectorDBDir, Prompts: cfg.Directories.PromptsDir, Skills: cfg.Directories.SkillsDir, AgentSkills: cfg.Directories.AgentSkillsDir, Tools: cfg.Directories.ToolsDir, Workspace: cfg.Directories.WorkspaceDir}, nil
+			return restorepending.Dirs{VectorDB: cfg.Directories.VectorDBDir, Prompts: cfg.Directories.PromptsDir, Skills: cfg.Directories.SkillsDir, AgentSkills: cfg.Directories.AgentSkillsDir, Tools: cfg.Directories.ToolsDir, Workspace: cfg.Directories.WorkspaceDir, SQLite: config.SQLiteArchivePaths(cfg)}, nil
 		},
 	}
 	dirs := append(configuredDataDirectories(cfg), filepath.Join(root, "data"))

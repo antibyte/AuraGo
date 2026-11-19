@@ -222,6 +222,11 @@ func (s *Service) Init(ctx context.Context) error {
 		return fmt.Errorf("open desktop store database: %w", err)
 	}
 	s.db = db
+	if err := migrateGeneratedEnv(ctx, db, s.cfg.Secrets, s.catalog); err != nil {
+		db.Close()
+		s.db = nil
+		return fmt.Errorf("migrate Store environment secrets: %w", err)
+	}
 	if err := s.migrateLocked(ctx); err != nil {
 		db.Close()
 		s.db = nil
@@ -2247,26 +2252,30 @@ func (s *Service) resolveEnv(entry CatalogEntry, app InstalledApp, previousEnv [
 			continue
 		}
 		vaultKey := storeSecretVaultKey(entry.ID, secret.Key)
-		value := ""
-		if s.cfg.Secrets != nil {
-			if stored, err := s.cfg.Secrets.ReadSecret(vaultKey); err == nil {
-				value = stored
-			}
+		if s.cfg.Secrets == nil {
+			return nil, nil, fmt.Errorf("Store Vault is unavailable")
 		}
-		if value == "" && secret.Env != "" {
-			value, _ = envValue(previousEnv, secret.Env)
+		value, err := s.cfg.Secrets.ReadSecret(vaultKey)
+		if err != nil && !errors.Is(err, security.ErrSecretNotFound) {
+			return nil, nil, fmt.Errorf("read generated secret %s: %w", secret.Key, err)
 		}
 		if value == "" {
-			value = randomHex(32)
-		}
-		if s.cfg.Secrets != nil {
+			value, _ = envValue(previousEnv, secret.Env)
+			if value == "" && secret.Env != "" && !IsRelayApp(entry.ID) {
+				for _, previous := range previousRefs {
+					if previous.VaultKey == vaultKey {
+						return nil, nil, fmt.Errorf("missing Store Vault secret %s; restore the matching Vault", secret.Key)
+					}
+				}
+			}
+			if value == "" {
+				value = randomHex(32)
+			}
 			if err := s.cfg.Secrets.WriteSecret(vaultKey, value); err != nil {
 				return nil, nil, fmt.Errorf("write generated secret %s: %w", secret.Key, err)
 			}
 		}
-		if secret.Env != "" {
-			env = appendEnvValue(env, secret.Env, value)
-		}
+		security.RegisterSensitive(value)
 		refs = append(refs, SecretRef{
 			Key:      secret.Key,
 			VaultKey: vaultKey,
@@ -2735,7 +2744,8 @@ func (s *Service) saveInstalled(ctx context.Context, app InstalledApp) error {
 	portsJSON, _ := json.Marshal(app.Ports)
 	volumesJSON, _ := json.Marshal(app.Volumes)
 	hostBindsJSON, _ := json.Marshal(app.HostBinds)
-	envJSON, _ := json.Marshal(app.Env)
+	env, _ := splitGeneratedEnv(app.Env, s.catalogByID[app.AppID])
+	envJSON, _ := json.Marshal(env)
 	extraHostsJSON, _ := json.Marshal(app.ExtraHosts)
 	secretRefsJSON, _ := json.Marshal(secretRefsForStorage(app.SecretRefs))
 	companionsJSON, _ := json.Marshal(app.Companions)

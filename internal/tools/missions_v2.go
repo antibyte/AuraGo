@@ -154,6 +154,7 @@ type MissionV2 struct {
 	Priority      string         `json:"priority"` // low | medium | high
 	Enabled       bool           `json:"enabled"`
 	Status        string         `json:"status"` // idle | queued | running | waiting
+	ActiveRunID   string         `json:"active_run_id,omitempty"`
 	LastRun       time.Time      `json:"last_run,omitzero"`
 	LastResult    string         `json:"last_result"` // success | error | ""
 	LastOutput    string         `json:"last_output"` // truncated last response
@@ -431,7 +432,7 @@ func (m *MissionManagerV2) StartContext(parent context.Context) error {
 			if isFlowMission(mission) {
 				// Flow runs never survive a restart; the flow service marks them interrupted.
 				mission.Status = MissionStatusIdle
-			} else if mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued {
+			} else if isRemoteMission(mission) && mission.Status == MissionStatusRunning {
 				mission.Status = MissionStatusQueued
 			}
 		}
@@ -443,6 +444,12 @@ func (m *MissionManagerV2) StartContext(parent context.Context) error {
 		return err
 	}
 	for _, mission := range m.missions {
+		if (mission.Status == MissionStatusRunning || mission.ActiveRunID != "") && !isRemoteMission(mission) && !isFlowMission(mission) {
+			if err := m.reconcileInterruptedRunLocked(mission, mission.ActiveRunID); err != nil {
+				return err
+			}
+			queueStatusChanged = true
+		}
 		if mission.Status != MissionStatusQueued || isRemoteMission(mission) || !mission.Enabled {
 			continue
 		}
@@ -575,6 +582,7 @@ func (m *MissionManagerV2) save() error {
 func (m *MissionManagerV2) saveQueueLocked() error {
 	snapshot := m.queue.persistedSnapshot()
 	snapshot.PlannerEvents = m.plannerEvents
+	snapshot.RunningRunID = m.activeRunID[snapshot.Running]
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
 		return err
@@ -618,6 +626,24 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 			}
 		}
 	}
+	if mission := m.missions[snapshot.Running]; mission != nil && !isRemoteMission(mission) && !isFlowMission(mission) {
+		runID := snapshot.RunningRunID
+		if runID == "" {
+			runID = mission.ActiveRunID
+		}
+		if err := m.reconcileInterruptedRunLocked(mission, runID); err != nil {
+			return false, err
+		}
+		statusChanged = true
+	}
+	for _, mission := range m.missions {
+		if (mission.Status == MissionStatusRunning || mission.ActiveRunID != "") && !isRemoteMission(mission) && !isFlowMission(mission) {
+			if err := m.reconcileInterruptedRunLocked(mission, mission.ActiveRunID); err != nil {
+				return false, err
+			}
+			statusChanged = true
+		}
+	}
 	items := make([]QueueItem, 0, len(snapshot.Items))
 
 	for _, id := range snapshot.NonReplayableIDs {
@@ -645,41 +671,44 @@ func (m *MissionManagerV2) loadQueueLocked() (bool, error) {
 			statusChanged = true
 		}
 	}
-	running := ""
-	if snapshot.RunningRequiresOwner {
-		if mission, ok := m.missions[snapshot.Running]; ok {
-			mission.Status = MissionStatusIdle
-			statusChanged = true
-		}
-	}
-	if snapshot.RunningEventID != "" {
-		if mission, ok := m.missions[snapshot.Running]; ok {
-			mission.Status = MissionStatusIdle
-			mission.LastResult = MissionResultError
-			mission.LastOutput = "Planner mission interrupted; verify effects before an explicit retry"
-			statusChanged = true
-		}
-	}
-	if snapshot.Running != "" && !snapshot.RunningRequiresOwner && snapshot.RunningEventID == "" {
-		if mission, ok := m.missions[snapshot.Running]; ok && mission.Enabled && !isRemoteMission(mission) && !isFlowMission(mission) {
-			item := QueueItem{
-				MissionID:   snapshot.Running,
-				Priority:    prioFromString(mission.Priority),
-				EnqueuedAt:  time.Now(),
-				TriggerType: "restart_recovery",
-				EventID:     snapshot.RunningEventID,
-			}
-			items = append(items, item)
-			if mission.Status != MissionStatusQueued {
-				mission.Status = MissionStatusQueued
-				statusChanged = true
-			}
-		}
-	}
-	m.queue.Restore(items, running)
+	m.queue.Restore(items, "")
 	m.queue.restoreNonReplayable(snapshot.NonReplayableIDs)
 	return statusChanged, nil
 }
+
+// The queue's running item had permission to produce side effects before restart.
+func (m *MissionManagerV2) reconcileInterruptedRunLocked(mission *MissionV2, runID string) error {
+	wasRunning := mission.Status == MissionStatusRunning || mission.ActiveRunID != ""
+	mission.Status = MissionStatusIdle
+	mission.ActiveRunID = ""
+	if runID != "" && m.historyDB != nil {
+		run, err := GetMissionRun(m.historyDB, runID)
+		if err != nil {
+			return fmt.Errorf("read interrupted mission run %s: %w", runID, err)
+		}
+		if run != nil && run.MissionID == mission.ID {
+			if run.Status != "running" {
+				mission.LastResult = run.Status
+				mission.LastOutput = truncateString(run.Output, 500)
+				if run.Status == MissionResultError {
+					mission.LastOutput = run.ErrorMsg
+				}
+				if wasRunning {
+					mission.RunCount++
+				}
+				return nil
+			}
+			if err := RecordMissionError(m.historyDB, runID, missionInterruptedOutput); err != nil {
+				return err
+			}
+		}
+	}
+	mission.LastResult = MissionResultError
+	mission.LastOutput = missionInterruptedOutput
+	return nil
+}
+
+const missionInterruptedOutput = "Mission interrupted by restart; verify effects before an explicit retry"
 
 // setupTriggersLocked initializes all active triggers. Caller must hold m.mu.
 func (m *MissionManagerV2) setupTriggersLocked() {
@@ -959,6 +988,7 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 				m.mu.Lock()
 				if mission, ok := m.missions[item.MissionID]; ok {
 					mission.Status = MissionStatusIdle
+					mission.ActiveRunID = ""
 					mission.LastResult = MissionResultError
 					mission.LastOutput = truncateString(fmt.Sprintf("mission dispatch panic: %v", r), 500)
 				}
@@ -996,20 +1026,47 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 		return
 	}
 
-	mission.Status = MissionStatusRunning
-	mission.LastRun = time.Now()
-	m.setActiveChainDepthLocked(mission.ID, chainDepth)
-	m.save()
-	if err := m.saveQueueLocked(); err != nil {
-		slog.Error("[MissionV2] Failed to persist queue after starting mission", "mission_id", mission.ID, "error", err)
-		if item.EventID != "" {
-			mission.Status = MissionStatusQueued
+	triggerType := item.TriggerType
+	if triggerType == "" {
+		triggerType = "manual"
+	}
+	var runID string
+	if m.historyDB != nil {
+		var err error
+		runID, err = RecordMissionStart(m.historyDB, mission.ID, mission.Name, triggerType, item.TriggerData)
+		if err != nil {
+			slog.Error("[MissionV2] Failed to record mission start", "mission_id", mission.ID, "error", err)
 			m.queue.Done()
 			m.queue.enqueueItem(item)
+			dispatched = true
 			m.mu.Unlock()
 			muLocked = false
 			return
 		}
+		m.activeRunID[mission.ID] = runID
+	}
+	mission.Status = MissionStatusRunning
+	mission.ActiveRunID = runID
+	mission.LastRun = time.Now()
+	m.setActiveChainDepthLocked(mission.ID, chainDepth)
+	if err := m.saveQueueLocked(); err != nil {
+		slog.Error("[MissionV2] Failed to persist queue before dispatch", "mission_id", mission.ID, "error", err)
+		mission.Status = MissionStatusQueued
+		mission.ActiveRunID = ""
+		delete(m.activeRunID, mission.ID)
+		delete(m.activeChainDepth, mission.ID)
+		if runID != "" {
+			_ = RecordMissionError(m.historyDB, runID, "Mission could not persist dispatch")
+		}
+		m.queue.Done()
+		m.queue.enqueueItem(item)
+		dispatched = true // The requeued item retains ownership of the invocation.
+		m.mu.Unlock()
+		muLocked = false
+		return
+	}
+	if err := m.save(); err != nil {
+		slog.Error("[MissionV2] Failed to persist mission status", "mission_id", mission.ID, "error", err)
 	}
 
 	callback := m.callback
@@ -1026,23 +1083,12 @@ func (m *MissionManagerV2) dispatchQueuedMission(item QueueItem) {
 	}
 	cheatsheetDB := m.cheatsheetDB
 	preparedDB := m.preparedDB
-	historyDB := m.historyDB
 	auditRecorder := m.auditRecorder
 	m.mu.Unlock()
 	muLocked = false
 
-	// Record mission start in history
-	if historyDB != nil {
-		triggerType := item.TriggerType
-		if triggerType == "" {
-			triggerType = "manual"
-		}
-		if runID, err := RecordMissionStart(historyDB, missionID, missionName, triggerType, item.TriggerData); err == nil {
-			m.mu.Lock()
-			m.activeRunID[missionID] = runID
-			m.mu.Unlock()
-			recordMissionAuditStart(auditRecorder, runID, missionID, missionName, triggerType, item.TriggerData)
-		}
+	if runID != "" {
+		recordMissionAuditStart(auditRecorder, runID, missionID, missionName, triggerType, item.TriggerData)
 	}
 
 	if callback == nil {
@@ -1308,6 +1354,7 @@ func (m *MissionManagerV2) completeMissionLocked(missionID, result, output strin
 	// Update mission status
 	if mission, ok := m.missions[missionID]; ok {
 		mission.Status = MissionStatusIdle
+		mission.ActiveRunID = ""
 		for _, item := range m.queue.List() {
 			if item.MissionID == missionID { // queued again while it ran; the queue runs it next
 				mission.Status = MissionStatusQueued
@@ -2108,6 +2155,7 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 		mission.ExecutionType = ExecutionManual
 	}
 	mission.Status = MissionStatusIdle
+	mission.ActiveRunID = ""
 	mission.CreatedAt = time.Now()
 	mission.Enabled = true
 
@@ -2259,6 +2307,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	// Preserve metadata
 	updated.ID = id
 	updated.CreatedAt = mission.CreatedAt
+	updated.ActiveRunID = mission.ActiveRunID
 	updated.LastRun = mission.LastRun
 	updated.LastResult = mission.LastResult
 	updated.LastOutput = mission.LastOutput

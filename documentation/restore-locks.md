@@ -1,5 +1,11 @@
 # Restore startup and directory locks
 
+System backups use fixed logical names for SQLite files outside the standard
+archive layout. Import looks up these files in the active local configuration,
+retains the corresponding locations in the staged config and records the
+approved targets. If a target changes between staging and restart, create a new
+restore from the backup so AuraGo can validate and lock the new destination.
+
 AuraGo acquires its installation lock and then `aurago-data.lock` in each
 configured SQLite directory before applying a pending system restore. It also
 locks the restore state directory, actual mapped restore destinations and any

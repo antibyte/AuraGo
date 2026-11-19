@@ -1438,8 +1438,8 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 }
 
 func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
-	if err := kg.FlushAccessHits(); err != nil && kg.logger != nil {
-		kg.logger.Warn("OptimizeGraph: failed to flush access hits", "error", err)
+	if err := kg.FlushAccessHits(); err != nil {
+		return 0, fmt.Errorf("flush access hits before graph optimization: %w", err)
 	}
 
 	tx, err := kg.db.Begin()
@@ -1469,10 +1469,7 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 			if kg.isKnowledgeGraphOptimizeProtected(id, source) {
 				continue
 			}
-			priority := degree * 2
-			if kg.accessCountReliable() {
-				priority += accessCount
-			}
+			priority := degree*2 + accessCount
 			if priority < threshold {
 				toRemove = append(toRemove, id)
 			}
@@ -1524,6 +1521,9 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	}
 	if err := cleanupKGClaimsAndOrphanEvidenceTx(tx); err != nil {
 		return 0, fmt.Errorf("cleanup orphan KG evidence after optimization: %w", err)
+	}
+	if !kg.accessCountReliable() {
+		return 0, fmt.Errorf("access counts became unreliable during graph optimization")
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
@@ -1649,8 +1649,8 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 	options = kg.normalizeCleanupOptions(options)
 	policy := kg.qualityPolicy()
 
-	if err := kg.FlushAccessHits(); err != nil && kg.logger != nil {
-		kg.logger.Warn("CleanupStaleGraph: failed to flush access hits", "error", err)
+	if err := kg.FlushAccessHits(); err != nil {
+		return 0, 0, fmt.Errorf("flush access hits before graph cleanup: %w", err)
 	}
 
 	tx, err := kg.db.Begin()
@@ -1801,6 +1801,9 @@ func (kg *KnowledgeGraph) CleanupStaleGraphWithOptions(options KnowledgeGraphCle
 		}
 	}
 
+	if !kg.accessCountReliable() {
+		return 0, 0, fmt.Errorf("access counts became unreliable during graph cleanup")
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0, fmt.Errorf("commit cleanup graph: %w", err)
 	}

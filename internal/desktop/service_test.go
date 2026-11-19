@@ -2792,3 +2792,43 @@ func TestServiceSetWidgetVisibleRejectsUnknownWidget(t *testing.T) {
 		t.Fatal("expected unknown widget visibility toggle to fail")
 	}
 }
+
+func TestDesktopInitRetriesAfterMigrationFailure(t *testing.T) {
+	root := t.TempDir()
+	cfg := Config{Enabled: true, WorkspaceDir: filepath.Join(root, "workspace"), DBPath: filepath.Join(root, "desktop.db")}
+	svc, err := NewService(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = svc.Close() })
+	svc.SetIntegritySecretStore(newTestIntegritySecretStore())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := svc.Init(ctx); err == nil || svc.DB() != nil {
+		t.Fatal("a failed migration exposed a desktop database handle")
+	}
+	if err := svc.ensureReady(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(cfg.WorkspaceDir); err != nil {
+		t.Fatal(err)
+	}
+	assertSingleString(t, svc.DB(), "SELECT value FROM desktop_meta WHERE key='schema_version'", nil, "5")
+}
+
+func TestDesktopRegistryBacksUpBeforeChangingLegacySchema(t *testing.T) {
+	root := t.TempDir()
+	cfg := Config{Enabled: true, WorkspaceDir: filepath.Join(root, "workspace"), DBPath: filepath.Join(root, "desktop.db")}
+	legacy := openTestSQLite(t, cfg.DBPath)
+	if _, err := legacy.Exec(`CREATE TABLE desktop_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT INTO desktop_meta VALUES ('schema_version','4');
+		CREATE TABLE desktop_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
+		INSERT INTO desktop_settings VALUES ('legacy_fixture','preserved','');`); err != nil {
+		t.Fatal(err)
+	}
+	svc := testServiceWithConfig(t, cfg)
+	backup := openTestSQLite(t, cfg.DBPath+".registry-v5.bak")
+	assertSingleString(t, backup, "SELECT value FROM desktop_meta WHERE key='schema_version'", nil, "4")
+	assertSingleString(t, backup, "SELECT value FROM desktop_settings WHERE key='legacy_fixture'", nil, "preserved")
+	assertSingleString(t, svc.DB(), "SELECT value FROM desktop_meta WHERE key='schema_version'", nil, "5")
+}

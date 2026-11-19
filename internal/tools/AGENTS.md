@@ -301,6 +301,8 @@ Agent filesystem, external service and Docker tool safety boundaries.
 - Keep Space Agent auth keys under the persistent `space_agent.data_path` mount through `SPACE_AUTH_DATA_DIR`. Admin password and bridge token remain Vault-only; Space Agent provider credentials remain separate from AuraGo.
 
 ### Mission and Home Assistant Lifetimes
+
+- Local prompt dispatch persists the queue running marker and its history run ID before execution. On restart, reconcile that run ID with terminal history and restore explicit waiting items. Mark a running invocation of unknown outcome as interrupted for operator review. Never replay it from a stale running marker or emit completion dependents again. Verify `TestCompletedMissionDoesNotReplayAfterQueueSaveFailure` and `TestMissionQueueDoesNotReplayLegacyRunningSnapshot`.
 - `HAServiceRefusal` is shared by tools, agent dispatch and EasyDrag. Script,
   shell_command, python_script and hassio services require an exact explicit
   allowed_services entry even when the list is otherwise unrestricted; blocked

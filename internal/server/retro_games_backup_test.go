@@ -3,7 +3,6 @@ package server
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -51,7 +50,7 @@ func createTestBackup(t *testing.T, s *Server) *httptest.ResponseRecorder {
 	return rec
 }
 
-func TestHandleBackupCreateSkipsAnUnreadableRetroGamesIndex(t *testing.T) {
+func TestHandleBackupCreateFailsOnUnreadableRetroGamesData(t *testing.T) {
 	t.Parallel()
 	cases := map[string]func(t *testing.T, path string){
 		"garbage": func(t *testing.T, path string) {
@@ -77,39 +76,8 @@ func TestHandleBackupCreateSkipsAnUnreadableRetroGamesIndex(t *testing.T) {
 			breakIt(t, index)
 
 			rec := createTestBackup(t, s)
-			if rec.Code != http.StatusOK {
-				t.Fatalf("an unreadable game index failed the backup: %d %s", rec.Code, rec.Body.String())
-			}
-			zr, err := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
-			if err != nil {
-				t.Fatal(err)
-			}
-			entries := map[string]bool{}
-			for _, f := range zr.File {
-				entries[f.Name] = true
-			}
-			for _, want := range []string{"config.yaml", "data/short_term.db", "data/galaxa.db", "manifest.json"} {
-				if !entries[want] {
-					t.Fatalf("backup misses %s: %v", want, entries)
-				}
-			}
-			if entries["data/retrogames/retrogames.db"] {
-				t.Fatal("the unreadable index was put into the backup")
-			}
-			mf, err := zr.Open("manifest.json")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer mf.Close()
-			var manifest agoManifest
-			if err := json.NewDecoder(mf).Decode(&manifest); err != nil {
-				t.Fatal(err)
-			}
-			if !containsString(manifest.Contents, "sqlite/retrogames.db skipped (snapshot failed)") {
-				t.Fatalf("manifest does not report the skipped index: %v", manifest.Contents)
-			}
-			if !containsString(manifest.Contents, "sqlite/ (2 consistent database snapshot(s))") {
-				t.Fatalf("the other databases were not snapshotted: %v", manifest.Contents)
+			if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "consistent SQLite backup") {
+				t.Fatalf("unreadable Retro Games data must fail the backup: %d %s", rec.Code, rec.Body.String())
 			}
 		})
 	}

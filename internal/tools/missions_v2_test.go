@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -1587,7 +1588,7 @@ func TestMissionQueuePersistsAndRehydrates(t *testing.T) {
 	}
 }
 
-func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
+func TestMissionQueueDoesNotReplayLegacyRunningSnapshot(t *testing.T) {
 	tmpDir := tempSystemTaskDir(t)
 	mm := NewMissionManagerV2(tmpDir, nil)
 	mm.missions["mission_running"] = &MissionV2{ID: "mission_running", Name: "Running", Priority: "medium", Enabled: true}
@@ -1602,8 +1603,8 @@ func TestMissionQueueRequeuesRunningSnapshotAfterRestart(t *testing.T) {
 		t.Fatalf("loadQueueLocked: %v", err)
 	}
 	items := restarted.queue.List()
-	if len(items) != 1 || items[0].MissionID != "mission_running" {
-		t.Fatalf("running mission was not requeued: %+v", items)
+	if len(items) != 0 || restarted.missions["mission_running"].LastOutput != missionInterruptedOutput {
+		t.Fatalf("legacy running mission replayed or not marked interrupted: %+v", items)
 	}
 	if restarted.queue.GetRunning() != "" {
 		t.Fatalf("running marker should be cleared on restart, got %q", restarted.queue.GetRunning())
@@ -2077,4 +2078,65 @@ func TestMissionManagerV2CancelCheck(t *testing.T) {
 		t.Fatalf("cancel must respect the mission mutation permission")
 	}
 	ConfigureRuntimePermissions(RuntimePermissions{MissionsEnabled: true, SchedulerEnabled: true, AllowFilesystemWrite: true})
+}
+
+func TestCompletedMissionDoesNotReplayAfterQueueSaveFailure(t *testing.T) {
+	dir := tempSystemTaskDir(t)
+	db, err := InitMissionHistoryDB(filepath.Join(dir, "history.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	manager := NewMissionManagerV2(dir, nil)
+	manager.SetHistoryDB(db)
+	if err := manager.Create(&MissionV2{ID: "fixture", Name: "Fixture", Prompt: "test task", Enabled: true,
+		ExecutionType: ExecutionManual, Priority: "medium"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := manager.TriggerMission("fixture", "manual", ""); err != nil {
+		t.Fatal(err)
+	}
+	queue := manager.queueFile
+	done := make(chan struct{})
+	manager.SetCallback(func(_, id string) {
+		defer close(done)
+		manager.mu.Lock()
+		manager.queueFile = filepath.Join(dir, "missing", "queue.json")
+		manager.mu.Unlock()
+		manager.OnMissionComplete(id, MissionResultSuccess, "fixture completed")
+	})
+	manager.processNext()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("mission did not complete")
+	}
+	raw, err := os.ReadFile(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted missionQueueSnapshot
+	if err := json.Unmarshal(raw, &persisted); err != nil || persisted.Running != "fixture" || persisted.RunningRunID == "" {
+		t.Fatalf("expected a durable running marker with a run ID, got %+v, %v", persisted, err)
+	}
+	manager.Stop()
+	restarted := NewMissionManagerV2(dir, nil)
+	restarted.SetHistoryDB(db)
+	if err := restarted.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(restarted.Stop)
+	if items := restarted.queue.List(); len(items) != 0 {
+		t.Fatalf("finished invocation was queued again: %+v", items)
+	}
+	restarted.mu.Lock()
+	restored := *restarted.missions["fixture"]
+	restarted.mu.Unlock()
+	if restored.Status != MissionStatusIdle || restored.LastResult != MissionResultSuccess || restored.LastOutput != "fixture completed" || restored.RunCount != 1 {
+		t.Fatalf("completion was not reconciled: %+v", restored)
+	}
+	page, err := QueryMissionHistory(db, MissionHistoryFilter{MissionID: "fixture", Limit: 10})
+	if err != nil || len(page.Entries) != 1 || page.Entries[0].ID != persisted.RunningRunID {
+		t.Fatalf("history not reconciled to the same run: %+v, %v", page, err)
+	}
 }

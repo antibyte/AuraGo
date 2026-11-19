@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -35,85 +36,89 @@ func FlowsDBPath(cfg *Config) string {
 	return filepath.Join(filepath.Dir(cfg.SQLite.GameMakerPath), FlowsDBFilename)
 }
 
-// SQLiteDatabasePaths returns absolute SQLite database paths that should be
-// included in backups. The canonical document corpus always participates;
-// sqlite.long_term_path is legacy-only and included only while it exists.
-func SQLiteDatabasePaths(cfg *Config) []string {
+// SQLiteArchivePrefix contains logical database names in portable backups.
+const SQLiteArchivePrefix = "data/.sqlite/"
+
+// SQLiteArchivePaths maps stable archive names to files from the local configuration.
+// Empty locations are omitted. A known location can be absent on a fresh install.
+func SQLiteArchivePaths(cfg *Config) map[string]string {
 	if cfg == nil {
 		return nil
 	}
-
-	paths := []string{
-		DocumentCorpusPath(cfg),
-		cfg.SQLite.ShortTermPath,
-		cfg.SQLite.InventoryPath,
-		cfg.SQLite.InvasionPath,
-		cfg.SQLite.CheatsheetPath,
-		cfg.SQLite.ImageGalleryPath,
-		cfg.SQLite.RemoteControlPath,
-		cfg.SQLite.MediaRegistryPath,
-		cfg.SQLite.HomepageRegistryPath,
-		cfg.SQLite.ContactsPath,
-		cfg.SQLite.PlannerPath,
-		cfg.SQLite.VirtualDesktopPath,
-		cfg.SQLite.VirtualComputersPath,
-		cfg.SQLite.SiteMonitorPath,
-		cfg.SQLite.SQLConnectionsPath,
-		cfg.SQLite.SkillsPath,
-		cfg.SQLite.KnowledgeGraphPath,
-		cfg.SQLite.OptimizationPath,
-		cfg.SQLite.PreparedMissionsPath,
-		cfg.SQLite.MissionHistoryPath,
-		cfg.SQLite.PushPath,
-		cfg.SQLite.LaunchpadPath,
-		cfg.SQLite.NetworkSharesPath,
-		cfg.SQLite.CYDCreatorPath,
-		cfg.SQLite.GameMakerPath,
-		FlowsDBPath(cfg),
+	paths := map[string]string{
+		"documents":              DocumentCorpusPath(cfg),
+		"flows":                  FlowsDBPath(cfg),
+		"short_term_path":        cfg.SQLite.ShortTermPath,
+		"inventory_path":         cfg.SQLite.InventoryPath,
+		"invasion_path":          cfg.SQLite.InvasionPath,
+		"cheatsheet_path":        cfg.SQLite.CheatsheetPath,
+		"image_gallery_path":     cfg.SQLite.ImageGalleryPath,
+		"remote_control_path":    cfg.SQLite.RemoteControlPath,
+		"media_registry_path":    cfg.SQLite.MediaRegistryPath,
+		"homepage_registry_path": cfg.SQLite.HomepageRegistryPath,
+		"contacts_path":          cfg.SQLite.ContactsPath,
+		"planner_path":           cfg.SQLite.PlannerPath,
+		"virtual_desktop_path":   cfg.SQLite.VirtualDesktopPath,
+		"virtual_computers_path": cfg.SQLite.VirtualComputersPath,
+		"site_monitor_path":      cfg.SQLite.SiteMonitorPath,
+		"sql_connections_path":   cfg.SQLite.SQLConnectionsPath,
+		"skills_path":            cfg.SQLite.SkillsPath,
+		"knowledge_graph_path":   cfg.SQLite.KnowledgeGraphPath,
+		"optimization_path":      cfg.SQLite.OptimizationPath,
+		"prepared_missions_path": cfg.SQLite.PreparedMissionsPath,
+		"mission_history_path":   cfg.SQLite.MissionHistoryPath,
+		"push_path":              cfg.SQLite.PushPath,
+		"launchpad_path":         cfg.SQLite.LaunchpadPath,
+		"network_shares_path":    cfg.SQLite.NetworkSharesPath,
+		"cyd_creator_path":       cfg.SQLite.CYDCreatorPath,
+		"game_maker_path":        cfg.SQLite.GameMakerPath,
+		"detective_path":         cfg.SQLite.DetectivePath,
+		"long_term_path":         cfg.SQLite.LongTermPath,
 	}
-
 	if dataDir := cfg.Directories.DataDir; dataDir != "" {
-		paths = append(paths,
-			filepath.Join(dataDir, SystemTasksDBFilename),
-			filepath.Join(dataDir, GalaxaDBFilename),
-			filepath.Join(dataDir, DesktopStoreDBFilename),
-			filepath.Join(dataDir, TresorDBFilename),
-			filepath.Join(dataDir, RetroGamesDirName, RetroGamesDBFilename),
-			// Stores whose location is fixed by their package (see the guard test
-			// TestSQLiteOpensAreBackedUpOrExcluded for the full inclusion/exclusion list).
-			filepath.Join(dataDir, "mailer", "mailer.db"),
-			filepath.Join(dataDir, HuggingFaceDBFilename),
-			filepath.Join(dataDir, KaggleDBFilename),
-			filepath.Join(dataDir, "manus.db"),
-			filepath.Join(dataDir, "sip_calls.db"),
-			filepath.Join(dataDir, "docker_manager.db"),
-			filepath.Join(dataDir, "meshcore.db"),
-			filepath.Join(dataDir, "personal-radio", "radio.db"),
-			filepath.Join(dataDir, "rtl-sdr", "receiver.db"),
-			filepath.Join(dataDir, "go2rtc", "detections.db"),
-			filepath.Join(dataDir, "bookshelf", "catalog.sqlite"),
-			filepath.Join(dataDir, "findit.db"),
-		)
+		paths["system_tasks"] = filepath.Join(dataDir, SystemTasksDBFilename)
+		paths["galaxa"] = filepath.Join(dataDir, GalaxaDBFilename)
+		paths["desktop_store"] = filepath.Join(dataDir, DesktopStoreDBFilename)
+		paths["tresor"] = filepath.Join(dataDir, TresorDBFilename)
+		paths["retro_games"] = filepath.Join(dataDir, RetroGamesDirName, RetroGamesDBFilename)
+		paths["mailer"] = filepath.Join(dataDir, "mailer", "mailer.db")
+		paths["huggingface"] = filepath.Join(dataDir, HuggingFaceDBFilename)
+		paths["kaggle"] = filepath.Join(dataDir, KaggleDBFilename)
+		paths["manus"] = filepath.Join(dataDir, "manus.db")
+		paths["sip_calls"] = filepath.Join(dataDir, "sip_calls.db")
+		paths["docker_manager"] = filepath.Join(dataDir, "docker_manager.db")
+		paths["meshcore"] = filepath.Join(dataDir, "meshcore.db")
+		paths["personal_radio"] = filepath.Join(dataDir, "personal-radio", "radio.db")
+		paths["rtl_sdr"] = filepath.Join(dataDir, "rtl-sdr", "receiver.db")
+		paths["person_detection"] = filepath.Join(dataDir, "go2rtc", "detections.db")
+		paths["bookshelf"] = filepath.Join(dataDir, "bookshelf", "catalog.sqlite")
+		paths["findit"] = filepath.Join(dataDir, "findit.db")
 	}
-
-	// Detective cases: the configured path, plus the pre-data-dir location next
-	// to the Game Maker database that an upgraded install may still be using.
-	paths = append(paths, cfg.SQLite.DetectivePath)
 	if gm := cfg.SQLite.GameMakerPath; gm != "" {
-		legacy := filepath.Join(filepath.Dir(gm), "detective.db")
-		if _, err := os.Stat(legacy); err == nil {
-			paths = append(paths, legacy)
-		}
-		// Newspaper editions live next to the Game Maker database, like flows.db.
-		paths = append(paths, filepath.Join(filepath.Dir(gm), "newspaper.db"))
+		paths["detective_legacy"] = filepath.Join(filepath.Dir(gm), "detective.db")
+		paths["newspaper"] = filepath.Join(filepath.Dir(gm), "newspaper.db")
 	}
-
-	if legacy := cfg.SQLite.LongTermPath; legacy != "" {
-		if _, err := os.Stat(legacy); err == nil {
-			paths = append(paths, legacy)
+	archivePaths := make(map[string]string, len(paths))
+	for key, path := range paths {
+		if path != "" {
+			archivePaths[SQLiteArchivePrefix+key+".db"] = path
 		}
 	}
+	return archivePaths
+}
 
+// SQLiteDatabasePaths lists configured and existing legacy SQLite stores.
+func SQLiteDatabasePaths(cfg *Config) []string {
+	var paths []string
+	for name, file := range SQLiteArchivePaths(cfg) {
+		if name == SQLiteArchivePrefix+"long_term_path.db" || name == SQLiteArchivePrefix+"detective_legacy.db" {
+			if _, err := os.Stat(file); err != nil {
+				continue
+			}
+		}
+		paths = append(paths, file)
+	}
+	slices.Sort(paths)
 	return dedupeNonEmptyPaths(paths)
 }
 
@@ -126,14 +131,8 @@ func DocumentCorpusPath(cfg *Config) string {
 }
 
 // IsBestEffortSQLiteBackup reports whether path (one of SQLiteDatabasePaths)
-// is backed up only on a best-effort basis: a failed snapshot skips that file
-// instead of failing the whole backup. Only rebuildable stores qualify:
-//   - the Retro Games index: rebuildable and opened lazily, so a damaged file
-//     can sit unnoticed until Retro Games is used again;
-//   - the Hugging Face job ledger: transient job records that are re-created by
-//     running the jobs again.
-//
-// Everything else holds user data and must fail the backup loudly.
+// is backed up only on a best-effort basis. The Hugging Face ledger holds
+// transient job records that are recreated by running the jobs again.
 // Paths are compared cleaned and absolute.
 func IsBestEffortSQLiteBackup(cfg *Config, path string) bool {
 	if cfg == nil || strings.TrimSpace(cfg.Directories.DataDir) == "" || strings.TrimSpace(path) == "" {
@@ -143,13 +142,8 @@ func IsBestEffortSQLiteBackup(cfg *Config, path string) bool {
 	if err != nil {
 		return false
 	}
-	for _, rel := range [][]string{{RetroGamesDirName, RetroGamesDBFilename}, {HuggingFaceDBFilename}} {
-		want, err := filepath.Abs(filepath.Join(append([]string{cfg.Directories.DataDir}, rel...)...))
-		if err == nil && got == want {
-			return true
-		}
-	}
-	return false
+	want, err := filepath.Abs(filepath.Join(cfg.Directories.DataDir, HuggingFaceDBFilename))
+	return err == nil && got == want
 }
 
 // SQLiteProtectedPaths returns SQLite database paths plus WAL/SHM sidecars that
