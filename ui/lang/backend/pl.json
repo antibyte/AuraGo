@@ -123,6 +123,7 @@
   "backend.handler_sync_error": "Wystąpił błąd wewnętrzny. Sprawdź logi serwera.",
   "backend.handler_tool_limit_final_response_invalid": "Agent osiągnął limit narzędzi i zamiast końcowej odpowiedzi zażądał kolejnej akcji. Nie wykonano żadnej dodatkowej akcji. Spróbuj ponownie wykonać zadanie.",
   "backend.handler_context_budget_error": "Żądanie przekracza limit kontekstu modelu. Skróć rozmowę lub ogranicz włączone narzędzia.",
+  "backend.handler_tool_schema_budget_error": "Wymagane schematy narzędzi przekraczają ustawiony limit. Sprawdź ustawienia narzędzi agenta.",
   "backend.handler_llm_quota_error": "Dostawca LLM odrzucił żądanie, ponieważ przekroczono limit modelu lub limit szybkości. Poczekaj chwilę, zmniejsz kontekst/narzędzia albo zmień dostawcę/model.",
   "backend.handler_llm_auth_error": "Dostawca LLM odrzucił uwierzytelnianie. Sprawdź klucz API i uprawnienia konta.",
   "backend.handler_llm_config_error": "Dostawca LLM odrzucił żądanie, ponieważ konfiguracja dostawcy/modelu jest niezgodna. Sprawdź model, dostawcę, narzędzia i ustawienia wyjścia strukturalnego.",

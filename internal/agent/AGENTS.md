@@ -815,17 +815,20 @@ Tools are defined in `internal/tools/`:
   before send when they cannot fit. Escape source headings so rule bodies cannot
   become optional ledger sections. Compact structured memory source text before
   isolation, and preserve a closed external-data boundary when shedding entries.
-- Enforce the configured schema budget after Strict projection and on the final
-  request. Optional schemas may be shed; an oversized required set blocks with
-  `tool_schema_budget_exceeded`. Unchanged wire schemas do not require a new
-  training pin. Frequency and decay-score ties use canonical tool names and one
-  shared clock sample per ranking.
+- Budget Strict-projected schemas in initial selection and discovery refresh,
+  and recheck the final request. `always_include` is a preferred selection
+  class and can be shed. Preserve hard tools, resolved explicit routes, and
+  pending native calls when their schemas are available. An oversized required
+  set blocks HTTP admission or model send with `tool_schema_budget_exceeded`.
+  Log its tool names, estimate, and limit for the operator. Schema definitions
+  that stay unchanged do not require a new training pin. Frequency and decay
+  ties use canonical tool names and a shared clock sample per ranking.
 - The model-driven maintenance review is read-only; deterministic nightly cleanup
   retains its existing authorization. Keep tool manuals and maintenance calls
   aligned with canonical schema operations and selectors. Verify
   `TestContextDiffAndProcessManualExamplesMatchNativeSchemas`,
-  `TestProjectedStrictSchemaBudgetShedsOptionalOrBlocksRequired` and prompt
-  atomic-context tests.
+  `TestProjectedStrictSchemaBudgetShedsOptionalOrBlocksRequired`,
+  `TestAdaptiveStrictSchemaBudgetWithHomepageAndGameMaker` and prompt atomic-context tests.
 
 
 - Prompt analytics separate buffered base builds from buffered request fits.

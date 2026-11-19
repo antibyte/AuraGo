@@ -364,8 +364,13 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	}
 
 	if useNativeFunctions {
-		ntSchemas := make([]openai.Tool, len(allSchemas))
-		copy(ntSchemas, allSchemas)
+		ntSchemas := allSchemas
+		if toolingPolicy.StructuredOutputsEnabled {
+			ntSchemas = strictSchemasForActiveTools(schemaSnapshot, allSchemas)
+			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
+		} else if toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
+			logger.Warn("[NativeTools] Strict tool definitions not supported by Ollama, ignoring strict mode")
+		}
 		filterReport := toolSchemaFilterReport{}
 
 		// Adaptive tool filtering removes rarely used tools to save tokens. The
@@ -420,7 +425,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				Config:    cfg,
 				RunConfig: runCfg,
 				Features:  ff,
-				Schemas:   ntSchemas,
+				Schemas:   allSchemas,
 				Query:     adaptiveUserContext,
 				Messages:  req.Messages,
 				Usage:     frequent,
@@ -436,6 +441,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 				MaxTotal:        toolingPolicy.EffectiveMaxTotalTools,
 				MaxSchemaTokens: toolingPolicy.EffectiveMaxSchemaTokens,
 			})
+			plan.Options.HardAlwaysTools = sortedKeys(requiredToolSchemasForState(&agentLoopState{
+				runCfg: runCfg, toolingPolicy: toolingPolicy, req: req,
+				currentToolRoute: currentRoute, pendingTCs: pendingTCs,
+			}))
 			// The refresh treats the requests consumed here like its own
 			// (toolSchemaFilterOptions.PinnedTools) and keeps the plan's classes.
 			adaptiveRequested = recordRequestedTools(adaptiveRequested, plan.Requested)
@@ -471,19 +480,6 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			reconcileToolPromptModeWithSchemas(&flags, &toolingPolicy, &useNativeFunctions, len(ntSchemas), logger)
 		}
 
-		// Structured Outputs: set Strict=true on every tool definition so the
-		// provider uses constrained decoding for tool-call arguments.
-		// Only enable this for models that support structured outputs (e.g. GPT-4o,
-		// some OpenRouter models). Ollama supports structured outputs via
-		// response_format, but does not yet honor Function.Strict=true in the
-		// OpenAI-compatible chat completions API, so we skip it to avoid sending
-		// an unsupported field.
-		if useNativeFunctions && toolingPolicy.StructuredOutputsEnabled {
-			ntSchemas = strictSchemasForActiveTools(schemaSnapshot, ntSchemas)
-			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
-		} else if useNativeFunctions && toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
-			logger.Warn("[NativeTools] Strict tool definitions not supported by Ollama, ignoring strict mode")
-		}
 		if useNativeFunctions {
 			req.Tools = ntSchemas
 			if req.ToolChoice == nil {

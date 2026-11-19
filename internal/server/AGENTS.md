@@ -6,6 +6,12 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Ownership
 
+- The OpenAI-compatible Chat endpoint rejects an oversized required native schema set before SSE admission and
+  history persistence with HTTP 413, `tool_schema_budget_exceeded`, and a
+  localized message. A schema overflow discovered during an admitted turn uses
+  the same code and message in streamed errors. Tool names and counts belong
+  only in operator logs. Verify `TestHandleChatCompletionsRejectsRequiredSchemaOverflowBeforeStreaming`.
+
 - Desktop `/stop` bypasses the session turn gate. After SSE admission, every terminal
   preparation/model error ends with `llm_stream_done` (`finish_reason: error`, scrubbed
   `error`) before `[DONE]`; never replay a historical assistant response on failure.

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,6 +21,8 @@ func chatCompletionErrorMessage(lang string, err error) string {
 		return i18n.T(lang, "backend.handler_sync_error")
 	case agent.IsToolLimitFinalResponseInvalid(err):
 		return i18n.T(lang, "backend.handler_tool_limit_final_response_invalid")
+	case isToolSchemaBudgetExceeded(err):
+		return i18n.T(lang, "backend.handler_tool_schema_budget_error")
 	case agent.IsContextBudgetExceeded(err) || llm.IsContextLimitError(err):
 		return i18n.T(lang, "backend.handler_context_budget_error")
 	case llm.IsImageNotSupportedError(err):
@@ -35,6 +38,27 @@ func chatCompletionErrorMessage(lang string, err error) string {
 	default:
 		return i18n.T(lang, "backend.handler_sync_error")
 	}
+}
+
+func isToolSchemaBudgetExceeded(err error) bool {
+	var exceeded *agent.ToolSchemaBudgetExceededError
+	return errors.As(err, &exceeded)
+}
+
+func writeChatBudgetError(w http.ResponseWriter, lang string, err error) bool {
+	var body map[string]string
+	switch {
+	case isToolSchemaBudgetExceeded(err):
+		body = map[string]string{"error": "tool_schema_budget_exceeded", "message": chatCompletionErrorMessage(lang, err)}
+	case agent.IsContextBudgetExceeded(err):
+		body = map[string]string{"error": "context_budget_exceeded"}
+	default:
+		return false
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusRequestEntityTooLarge)
+	_ = json.NewEncoder(w).Encode(body)
+	return true
 }
 
 func writeChatCompletionStreamError(w http.ResponseWriter, code, message string, status int) {
@@ -61,6 +85,9 @@ func emitStreamedAgentError(w http.ResponseWriter, flusher http.Flusher, broker 
 	status := http.StatusInternalServerError
 	if agent.IsToolLimitFinalResponseInvalid(err) {
 		code = "tool_limit_final_response_invalid"
+	} else if isToolSchemaBudgetExceeded(err) {
+		code = "tool_schema_budget_exceeded"
+		status = http.StatusRequestEntityTooLarge
 	} else if agent.IsContextBudgetExceeded(err) || llm.IsContextLimitError(err) {
 		code = "context_budget_exceeded"
 		status = http.StatusRequestEntityTooLarge

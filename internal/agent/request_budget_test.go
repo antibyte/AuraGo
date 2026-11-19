@@ -242,21 +242,26 @@ func TestAllowedToolsAreScopeNotMandatorySchemas(t *testing.T) {
 	}
 }
 
-func TestRequiredToolSchemasIncludeHardChannelAndExpandedConfigTools(t *testing.T) {
+func TestRequiredToolSchemasKeepChannelAndOpenCallsButNotConfigPreferences(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{"shell"}
 	state := &agentLoopState{
 		runCfg:        RunConfig{Config: cfg, MessageSource: "virtual_desktop_chat"},
 		toolingPolicy: buildToolingPolicy(cfg, "run a command"),
+		pendingTCs:    []ToolCall{{Action: "pending_tool"}},
+		explicitTools: []string{"explicit_tool"},
+		req: openai.ChatCompletionRequest{Messages: []openai.ChatCompletionMessage{{
+			Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{Function: openai.FunctionCall{Name: "open_tool"}}},
+		}}},
 	}
 	required := requiredToolSchemasForState(state)
-	for _, name := range []string{"discover_tools", "invoke_tool", "execute_skill", "run_tool", "question_user", "execute_shell"} {
+	for _, name := range []string{"discover_tools", "invoke_tool", "execute_skill", "run_tool", "question_user", "pending_tool", "explicit_tool", "open_tool"} {
 		if !required[name] {
 			t.Fatalf("required schema %q missing from %v", name, required)
 		}
 	}
-	if required["shell"] {
-		t.Fatal("unexpanded shell alias was marked required instead of execute_shell")
+	if required["shell"] || required["execute_shell"] {
+		t.Fatal("AlwaysInclude preference was treated as mandatory")
 	}
 	if required["activate_tools"] {
 		t.Fatal("legacy activate_tools handler must not be reserved as a model-visible schema")
@@ -285,7 +290,7 @@ func TestValidateMinimumRequestBudgetUsesOnlyMandatoryNativeSchemas(t *testing.T
 	if err := ValidateMinimumRequestBudget(context.Background(), req, runCfg); err != nil {
 		t.Fatalf("optional native schema caused false preflight rejection: %v", err)
 	}
-	minimumTools := minimumBudgetToolSchemas(runCfg, req)
+	minimumTools := minimumBudgetToolSchemas(runCfg, req, false)
 	if len(minimumTools) != 1 || minimumTools[0].Function == nil || minimumTools[0].Function.Name != "discover_tools" {
 		t.Fatalf("minimum schemas = %#v, want only discover_tools", minimumTools)
 	}

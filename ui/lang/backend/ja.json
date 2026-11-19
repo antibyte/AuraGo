@@ -123,6 +123,7 @@
   "backend.handler_sync_error": "内部エラーが発生しました。詳細はサーバーログを確認してください。",
   "backend.handler_tool_limit_final_response_invalid": "エージェントはツール上限に達した後、最終回答ではなく別の操作を要求しました。追加の操作は実行されていません。タスクを再試行してください。",
   "backend.handler_context_budget_error": "リクエストがモデルのコンテキスト上限を超えています。会話を短くするか、有効なツールを減らしてください。",
+  "backend.handler_tool_schema_budget_error": "必須ツールのスキーマが設定された上限を超えています。エージェントのツール設定を確認してください。",
   "backend.handler_llm_quota_error": "LLMプロバイダーが、モデルのクォータまたはレート制限超過のためリクエストを拒否しました。少し待つか、コンテキスト/ツールを減らすか、プロバイダー/モデルを変更してください。",
   "backend.handler_llm_auth_error": "LLMプロバイダーが認証を拒否しました。APIキーとアカウント権限を確認してください。",
   "backend.handler_llm_config_error": "LLMプロバイダーが、プロバイダー/モデル設定の非互換によりリクエストを拒否しました。モデル、プロバイダー、ツール、構造化出力設定を確認してください。",

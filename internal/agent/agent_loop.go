@@ -350,6 +350,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			ScheduleProactiveHistoryCompression(runCfg)
 		} else if IsContextBudgetExceeded(retErr) {
 			recordContextBudgetFailure(runCfg, req.Model, retErr)
+		} else {
+			logToolSchemaBudgetFailure(runCfg.Logger, retErr)
 		}
 	}()
 	if runCfg.ExecutionHooks != nil && runCfg.ExecutionHooks.OnAcquire != nil {
@@ -722,6 +724,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		s.req = req
+		s.pendingTCs = pendingTCs
+		s.explicitTools = explicitTools
+		requiredSchemas := requiredToolSchemasForState(s)
 		if !toolLimitFinalizing && discoveryReinjectsSchemas(runCfg, useNativeFunctions) {
 			ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 			s.nativeSchemaSnapshot = BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, manifest, ff, s.currentLogger)
@@ -744,6 +750,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					req.Tools = append(req.Tools, schema)
 				}
 			}
+			if toolingPolicy.StructuredOutputsEnabled {
+				req.Tools = strictSchemasForActiveTools(s.nativeSchemaSnapshot, req.Tools)
+			}
 			maxAdaptive := toolingPolicy.EffectiveMaxAdaptiveTools
 			if !cfg.Agent.AdaptiveTools.Enabled {
 				maxAdaptive = 0
@@ -754,7 +763,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Tools kept from the session are never swapped out; without a plan a
 			// kept or requested non-displacing tool is ranked like any other kept
 			// or requested tool (toolSchemaFilterOptions.SwapProtectedTools).
-			filtered := filterToolSchemasWithReport(req.Tools, adaptiveRefreshFilterOptions(adaptiveRefreshInput{
+			filterOptions := adaptiveRefreshFilterOptions(adaptiveRefreshInput{
 				Config:          cfg,
 				RunConfig:       runCfg,
 				Features:        ff,
@@ -771,7 +780,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				MaxSchemaTokens: toolingPolicy.EffectiveMaxSchemaTokens,
 				AdditiveTools:   s.adaptiveAdditiveTools,
 				AdditiveSwaps:   s.adaptiveSwaps,
-			}), s.currentLogger)
+			})
+			filterOptions.HardAlwaysTools = sortedKeys(requiredSchemas)
+			filtered := filterToolSchemasWithReport(req.Tools, filterOptions, s.currentLogger)
 			req.Tools = filtered.Tools
 			s.adaptiveSwapped = recordAdaptiveSwaps(s.adaptiveSwapped, filtered.Report)
 		}
@@ -784,9 +795,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// and gives optional schemas another chance to shed as history grows.
 		s.req = req
 		s.flags = flags
-		s.pendingTCs = pendingTCs
-		s.explicitTools = explicitTools
-		requiredSchemas := requiredToolSchemasForState(s)
 		if runCfg.PreparedPrompt != nil {
 			for _, tool := range req.Tools {
 				if tool.Function != nil {

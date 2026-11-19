@@ -624,10 +624,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 		req.Messages = finalMessages
 		if err := agent.ValidateMinimumRequestBudget(r.Context(), req, runCfg); err != nil {
-			if agent.IsContextBudgetExceeded(err) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusRequestEntityTooLarge)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": "context_budget_exceeded"})
+			if writeChatBudgetError(w, s.Cfg.Server.UILanguage, err) {
 				return
 			}
 			s.Logger.Error("Chat request budget preflight failed", "error", err)
@@ -727,10 +724,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					return
 				}
 				s.Logger.Error("Sync agent loop failed", "error", err)
-				if agent.IsContextBudgetExceeded(err) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusRequestEntityTooLarge)
-					_ = json.NewEncoder(w).Encode(map[string]string{"error": "context_budget_exceeded"})
+				if writeChatBudgetError(w, s.Cfg.Server.UILanguage, err) {
 					return
 				}
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500

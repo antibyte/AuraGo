@@ -123,6 +123,7 @@
   "backend.handler_sync_error": "Der opstod en intern fejl. Tjek serverlogfiler for detaljer.",
   "backend.handler_tool_limit_final_response_invalid": "Agenten nåede værktøjsgrænsen og anmodede om endnu en handling i stedet for et endeligt svar. Ingen yderligere handling blev udført. Prøv opgaven igen.",
   "backend.handler_context_budget_error": "Anmodningen overskrider modellens kontekstgrænse. Forkort samtalen eller reducer de aktiverede værktøjer.",
+  "backend.handler_tool_schema_budget_error": "De påkrævede værktøjsskemaer overskrider den angivne grænse. Kontrollér agentens værktøjsindstillinger.",
   "backend.handler_llm_quota_error": "LLM-udbyderen afviste anmodningen, fordi modelkvoten eller hastighedsgrænsen er overskredet. Vent kort, reducer kontekst/værktøjer eller skift udbyder/model.",
   "backend.handler_llm_auth_error": "LLM-udbyderen afviste godkendelsen. Kontrollér API-nøglen og kontotilladelser.",
   "backend.handler_llm_config_error": "LLM-udbyderen afviste anmodningen, fordi udbyder-/modelkonfigurationen er inkompatibel. Kontrollér model, udbyder, værktøjer og struktureret output.",

@@ -1,11 +1,14 @@
 package agent
 
 import (
-	"aurago/internal/llm"
 	"errors"
-	"github.com/sashabaranov/go-openai"
+	"slices"
 	"strings"
 	"testing"
+
+	"aurago/internal/llm"
+
+	"github.com/sashabaranov/go-openai"
 )
 
 func TestProjectedStrictSchemaBudgetShedsOptionalOrBlocksRequired(t *testing.T) {
@@ -35,5 +38,69 @@ func TestProjectedStrictSchemaBudgetShedsOptionalOrBlocksRequired(t *testing.T) 
 	}
 	if original[0].Function.Strict {
 		t.Fatal("budget check mutated original schemas")
+	}
+}
+
+func TestAdaptiveStrictSchemaBudgetWithHomepageAndGameMaker(t *testing.T) {
+	runCfg, client, cleanup := newPromptPipelineTestRunConfig(t, t.Name(), "web_chat")
+	t.Cleanup(cleanup)
+	runCfg.SuppressTurnSideEffects = true
+	cfg := runCfg.Config
+	cfg.LLM.Provider, cfg.LLM.ProviderType, cfg.LLM.Model = "main", "openai", "gpt-4o"
+	cfg.LLM.UseNativeFunctions, cfg.LLM.StructuredOutputs = true, true
+	cfg.Agent.ContextWindow = 128000
+	cfg.Agent.AllowFilesystemWrite, cfg.Agent.AllowShell = true, true
+	cfg.Tools.Memory.Enabled = true
+	cfg.Homepage.Enabled, cfg.Homepage.AllowLocalServer = true, true
+	cfg.GameMaker.Enabled = true
+	cfg.Agent.AdaptiveTools.Enabled = true
+	cfg.Agent.AdaptiveTools.MaxSchemaTokens = 6500
+	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
+		"filesystem", "query_memory", "manage_memory", "execute_shell",
+		"homepage_deploy", "homepage_file", "homepage_git", "homepage_project", "homepage_quality",
+		"game_maker_asset", "game_maker_file", "game_maker_preview", "game_maker_project",
+	}
+	hard := []string{"discover_tools", "invoke_tool", "execute_skill"}
+	runCfg.AllowedTools = slices.Concat(hard, cfg.Agent.AdaptiveTools.AlwaysInclude)
+	req := openai.ChatCompletionRequest{
+		Model: cfg.LLM.Model, Messages: []openai.ChatCompletionMessage{{Role: openai.ChatMessageRoleUser, Content: "List existing projects."}},
+	}
+	policy := buildToolingPolicy(cfg, "List existing projects.")
+	snapshot := BuildNativeToolSchemaSnapshot(cfg.Directories.SkillsDir, nil, buildToolFeatureFlags(runCfg, policy), runCfg.Logger)
+	raw := filterSchemasByAllowedTools(snapshot.FullSchemas(), runCfg.AllowedTools)
+	rawTokens := estimateToolSchemaListTokens(raw)
+	strictTokens := estimateToolSchemaListTokens(strictSchemasForActiveTools(snapshot, raw))
+	limit := cfg.Agent.AdaptiveTools.MaxSchemaTokens
+	if len(raw) != len(runCfg.AllowedTools) || rawTokens > limit || strictTokens <= limit {
+		t.Fatalf("fixture no longer reproduces the Strict overflow: %d tools, raw=%d strict=%d limit=%d", len(raw), rawTokens, strictTokens, limit)
+	}
+	if err := ValidateMinimumRequestBudget(t.Context(), req, runCfg); err != nil {
+		t.Fatalf("preflight rejected a request with sheddable preferences: %v", err)
+	}
+	discovery := acquireDiscoveryRun()
+	t.Cleanup(func() { releaseDiscoveryRun(discovery) })
+	initRunCfg := runCfg
+	initRunCfg.DiscoveryRunID = discovery
+	state := initAgentLoopState(req, initRunCfg, nil, false)
+	if tokens := estimateToolSchemaListTokens(state.req.Tools); tokens > limit {
+		t.Fatalf("first selection exceeded the projected budget: %d > %d", tokens, limit)
+	}
+	if _, err := ExecuteAgentLoop(t.Context(), req, runCfg, false, &usageRegressionBroker{}); err != nil {
+		t.Fatalf("agent loop should reach the model: %v", err)
+	}
+	wire := client.lastReq.Tools
+	wireNames := toolSchemaNames(wire)
+	if client.calls != 1 || len(wire) <= len(hard) || len(wire) >= len(raw) || estimateToolSchemaListTokens(wire) > limit {
+		t.Fatalf("expected a budgeted model request with some preferred tools: calls=%d tools=%v", client.calls, wireNames)
+	}
+	for _, name := range hard {
+		if !slices.Contains(wireNames, name) {
+			t.Errorf("missing hard tool %s", name)
+		}
+	}
+	for _, tool := range wire {
+		if !tool.Function.Strict {
+			t.Errorf("tool %s lost its Strict projection", tool.Function.Name)
+		}
 	}
 }

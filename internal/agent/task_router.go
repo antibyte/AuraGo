@@ -408,7 +408,7 @@ func PrepareTaskRouting(ctx context.Context, req *openai.ChatCompletionRequest, 
 			break
 		}
 	}
-	probe.Tools = minimumBudgetToolSchemas(*run, probe)
+	probe.Tools = minimumBudgetToolSchemas(*run, probe, VoiceOutputSuppressed(ctx))
 	routes := client.CandidateRoutes(probe)
 	if len(routes) == 0 || routes[0].ProviderID != p.ID || routes[0].Model != p.Model {
 		d.Reason = "capability_mismatch"

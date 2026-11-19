@@ -123,6 +123,7 @@
   "backend.handler_sync_error": "Ocorreu um erro interno. Verifique os logs do servidor para detalhes.",
   "backend.handler_tool_limit_final_response_invalid": "O agente atingiu o limite de ferramentas e solicitou outra ação em vez de fornecer uma resposta final. Nenhuma ação adicional foi executada. Tente a tarefa novamente.",
   "backend.handler_context_budget_error": "O pedido excede o limite de contexto do modelo. Encurte a conversa ou reduza as ferramentas ativadas.",
+  "backend.handler_tool_schema_budget_error": "Os esquemas das ferramentas obrigatórias excedem o limite configurado. Verifica as definições das ferramentas do agente.",
   "backend.handler_llm_quota_error": "O fornecedor LLM rejeitou o pedido porque a quota do modelo ou o limite de taxa foi excedido. Aguarde um pouco, reduza contexto/ferramentas ou mude de fornecedor/modelo.",
   "backend.handler_llm_auth_error": "O fornecedor LLM rejeitou a autenticação. Verifique a chave API e as permissões da conta.",
   "backend.handler_llm_config_error": "O fornecedor LLM rejeitou o pedido porque a configuração fornecedor/modelo é incompatível. Verifique modelo, fornecedor, ferramentas e saída estruturada.",

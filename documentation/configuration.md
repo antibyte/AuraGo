@@ -133,7 +133,8 @@ Core agent behaviour settings.
 | `adaptive_tools.enabled` | `true` | Enable adaptive tool filtering to reduce token usage. Explicit `false` keeps all enabled tools visible. |
 | `adaptive_tools.max_tools` | `10` | Maximum adaptive/preferred tool schemas before required and always-include tools are added. Only tools the request ranked (name, search, manuals, family, your usage) take these slots: free slots stay empty instead of being filled by unranked schemas, and `generate_image`, `generate_music` and `generate_video` stay always-visible only when the request asks for that kind of media (otherwise they compete for a slot like any other tool). |
 | `adaptive_tools.max_total_tools` | `20` | Maximum final native tool schemas after hard-required tools are kept. |
-| `adaptive_tools.max_schema_tokens` | `6500` | Optional schema-token cap for adaptive native tools. Explicit `0` disables the token cap. |
+| `adaptive_tools.max_schema_tokens` | `6500` | Estimated token cap for the final native schemas, including Strict projection. Optional tools are dropped when needed. A required set above the limit stops the request with `tool_schema_budget_exceeded`. Explicit `0` disables the configured cap. |
+| `adaptive_tools.always_include` | `[filesystem, query_memory, manage_memory, execute_shell]` | Prefer these tools before ranked tools. Their schemas can be dropped to fit the request. |
 | `adaptive_tools.provider_profiles_enabled` | `true` | Apply provider-specific stability overlays for tool budgets and response-header timeouts. |
 | `adaptive_tools.session_tool_retention_turns` | `8` | Keep tools used in recent turns visible as soft always-include tools. |
 | `importance_scoring.enabled` | `true` | Score messages so context trimming keeps the most useful conversation entries. |

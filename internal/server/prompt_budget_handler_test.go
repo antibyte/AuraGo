@@ -13,14 +13,56 @@ import (
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/ui"
 
 	openai "github.com/sashabaranov/go-openai"
 )
 
 type rejectingBudgetTestClient struct {
 	called bool
+}
+
+func TestHandleChatCompletionsRejectsRequiredSchemaOverflowBeforeStreaming(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	i18n.Load(ui.Content, logger)
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+	cfg := &config.Config{}
+	cfg.Server.UILanguage = "de"
+	cfg.LLM.Provider, cfg.LLM.ProviderType, cfg.LLM.Model = "main", "openai", "gpt-4o"
+	cfg.LLM.UseNativeFunctions, cfg.LLM.StructuredOutputs = true, true
+	cfg.Agent.ContextWindow = 128000
+	cfg.Agent.AdaptiveTools.MaxSchemaTokens = 100
+	client := &rejectingBudgetTestClient{}
+	s := &Server{Cfg: cfg, Logger: logger, LLMClient: client, ShortTermMem: stm, HistoryManager: memory.NewEphemeralHistoryManager()}
+	t.Cleanup(s.HistoryManager.Close)
+	const question = "List the available tools."
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(
+		`{"stream":true,"messages":[{"role":"user","content":"`+question+`"}]}`))
+	rec := httptest.NewRecorder()
+	handleChatCompletions(s, nil).ServeHTTP(rec, req)
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v; body=%s", err, rec.Body.String())
+	}
+	if rec.Code != http.StatusRequestEntityTooLarge || rec.Flushed || client.called ||
+		body["error"] != "tool_schema_budget_exceeded" || !strings.Contains(body["message"], "Werkzeugschemas") {
+		t.Fatalf("unexpected result: status=%d, flushed=%v, model called=%v, body=%v", rec.Code, rec.Flushed, client.called, body)
+	}
+	if strings.Contains(rec.Body.String(), "discover_tools") || !strings.Contains(logs.String(), "tool_names=") ||
+		!strings.Contains(logs.String(), "discover_tools") || !strings.Contains(logs.String(), "max_schema_tokens=100") {
+		t.Fatal("schema diagnostics must be present in the operator log only")
+	}
+	if messages, err := stm.GetSessionMessages("default"); err != nil || len(messages) != 0 {
+		t.Fatalf("rejected request persisted STM messages: count=%d err=%v", len(messages), err)
+	}
 }
 
 func (c *rejectingBudgetTestClient) CreateChatCompletion(context.Context, openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {

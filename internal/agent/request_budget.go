@@ -1195,13 +1195,6 @@ func requiredToolSchemasForState(s *agentLoopState) map[string]bool {
 	for _, name := range s.explicitTools {
 		required[strings.TrimSpace(name)] = true
 	}
-	if s.runCfg.Config != nil {
-		for _, name := range s.runCfg.Config.Agent.AdaptiveTools.AlwaysInclude {
-			for _, expanded := range expandAdaptiveAlwaysIncludeAlias(name) {
-				required[strings.TrimSpace(expanded)] = true
-			}
-		}
-	}
 	if s.currentToolRoute.valid() {
 		required[strings.TrimSpace(s.currentToolRoute.ToolName)] = true
 	}
@@ -1217,7 +1210,7 @@ func requiredToolSchemasForState(s *agentLoopState) map[string]bool {
 	return required
 }
 
-func minimumBudgetToolSchemas(runCfg RunConfig, req openai.ChatCompletionRequest) []openai.Tool {
+func minimumBudgetToolSchemas(runCfg RunConfig, req openai.ChatCompletionRequest, voiceOutputSuppressed bool) []openai.Tool {
 	if runCfg.Config == nil {
 		return req.Tools
 	}
@@ -1233,59 +1226,81 @@ func minimumBudgetToolSchemas(runCfg RunConfig, req openai.ChatCompletionRequest
 		}
 	}
 	policy := buildToolingPolicy(runCfg.Config, intent)
+	if shouldSuppressCoAgentTools(runCfg) {
+		return nil
+	}
 	if !policy.UseNativeFunctions {
 		return req.Tools
 	}
 	ff := buildToolFeatureFlags(runCfg, policy)
+	if voiceOutputSuppressed || speechLabOwnsAutomaticWebChatOutput(runCfg.Config, runCfg) {
+		ff.TTSEnabled = false
+	}
 	var snapshot *nativeToolSchemaSnapshot
-	if runCfg.NativeToolSchemas != nil {
+	switch {
+	case runCfg.PreparedPrompt != nil:
+		snapshot = newNativeToolSchemaSnapshot(runCfg.PreparedPrompt.Tools())
+	case runCfg.NativeToolSchemas != nil:
 		snapshot = newNativeToolSchemaSnapshot(runCfg.NativeToolSchemas)
-	} else {
+	default:
 		snapshot = BuildNativeToolSchemaSnapshot(runCfg.Config.Directories.SkillsDir, runCfg.Manifest, ff, runCfg.Logger)
 	}
 	schemas := filterSchemasByAllowedTools(snapshot.FullSchemas(), runCfg.AllowedTools)
 	if runCfg.VaultSecretPrompter == nil {
 		schemas = filterSchemasByName(schemas, "request_vault_secret")
 	}
-	if shouldSuppressCoAgentTools(runCfg) {
-		return nil
-	}
-	required := requiredToolSchemasForState(&agentLoopState{runCfg: runCfg, toolingPolicy: policy})
-	requiredNames := make([]string, 0, len(required))
-	for name := range required {
-		requiredNames = append(requiredNames, name)
-	}
-	schemas = filterSchemasByAllowedTools(schemas, requiredNames)
 	if policy.StructuredOutputsEnabled {
 		schemas = strictSchemasForActiveTools(snapshot, schemas)
 	}
-	return schemas
+	state := &agentLoopState{runCfg: runCfg, req: req, toolingPolicy: policy, currentLogger: runCfg.Logger}
+	if runCfg.PreparedPrompt == nil {
+		if policy.ProviderToolProfile == "aurago_local_context" {
+			schemas = stableLocalToolSchemas(schemas, runCfg.Config, runCfg, ff, voiceOutputSuppressed, nil).Tools
+		}
+		schemas = filterSchemasByAllowedTools(schemas, sortedKeys(requiredToolSchemasForState(state)))
+	}
+	return scopedCatalogSchemas(schemas, state.makeDispatchContext(runCfg.Logger))
 }
 
 // ValidateMinimumRequestBudget is a cheap public preflight for HTTP callers.
 // It prevents opening an SSE response for a request that cannot possibly fit.
 func ValidateMinimumRequestBudget(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig) error {
-	req.Tools = minimumBudgetToolSchemas(runCfg, req)
+	req.Tools = minimumBudgetToolSchemas(runCfg, req, VoiceOutputSuppressed(ctx))
 	budget, err := newRequestBudget(ctx, runCfg.Config, runCfg.LLMClient, req, runCfg.Logger)
 	if err != nil {
+		return err
+	}
+	if err := budget.validateProjectedSchemaBudget(req.Tools); err != nil {
+		logToolSchemaBudgetFailure(runCfg.Logger, err)
 		return err
 	}
 	return budget.validateMinimum(req.Messages, req.Tools, newTokenCountCache(128))
 }
 
-// ToolSchemaBudgetExceededError carries numeric metadata only. The cap applies
-// to the final wire schemas, including Strict's nullable/required projection.
-type ToolSchemaBudgetExceededError struct{ RequiredTokens, Limit int }
+// ToolSchemaBudgetExceededError describes the projected wire schemas that exceed the cap.
+type ToolSchemaBudgetExceededError struct {
+	RequiredTokens, Limit int
+	toolNames             []string
+}
 
 func (e *ToolSchemaBudgetExceededError) Error() string {
 	return fmt.Sprintf("tool_schema_budget_exceeded: required=%d limit=%d", e.RequiredTokens, e.Limit)
 }
 func (e *ToolSchemaBudgetExceededError) Code() string { return "tool_schema_budget_exceeded" }
+
+func logToolSchemaBudgetFailure(logger *slog.Logger, err error) {
+	var exceeded *ToolSchemaBudgetExceededError
+	if logger != nil && errors.As(err, &exceeded) {
+		logger.Warn("[PromptBudget] Required tool schemas exceed the configured limit",
+			"tool_names", exceeded.toolNames, "schema_tokens", exceeded.RequiredTokens, "max_schema_tokens", exceeded.Limit)
+	}
+}
+
 func (b *RequestBudget) validateProjectedSchemaBudget(tools []openai.Tool) error {
-	if b.MaxSchemaTokens > 0 {
+	if b.MaxSchemaTokens > 0 && len(tools) > 0 {
 		tokens := estimateToolSchemaListTokens(tools)
 		if tokens > b.MaxSchemaTokens {
-			return &ToolSchemaBudgetExceededError{RequiredTokens: tokens, Limit: b.MaxSchemaTokens}
+			return &ToolSchemaBudgetExceededError{RequiredTokens: tokens, Limit: b.MaxSchemaTokens, toolNames: toolSchemaNames(tools)}
 		}
 	}
 	return nil
