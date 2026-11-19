@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Ljudutgåva",
   "newspaper.listen": "Lyssna",
   "newspaper.audio_generating": "Förbereder ljudutgåvan…",
+  "newspaper.script_model_failed": "Språkmodellen kunde inte skriva manuset. Försök igen.",
+  "newspaper.script_budget_blocked": "Språkmodellens utgiftsgräns har nåtts. Försök igen när den har återställts.",
   "newspaper.script_failed": "Manuset kunde inte slutföras för alla nyheter.",
   "newspaper.tts_failed": "Talsyntesen misslyckades.",
   "newspaper.audio_unavailable": "Ställ in tidningens modell och talutmatning för att skapa inspelningar.",

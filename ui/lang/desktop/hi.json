@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "ऑडियो संस्करण",
   "newspaper.listen": "सुनें",
   "newspaper.audio_generating": "ऑडियो संस्करण बन रहा है…",
+  "newspaper.script_model_failed": "भाषा मॉडल स्क्रिप्ट नहीं बना पाया। फिर कोशिश करें।",
+  "newspaper.script_budget_blocked": "भाषा मॉडल की खर्च सीमा पूरी हो गई है। सीमा रीसेट होने के बाद फिर कोशिश करें।",
   "newspaper.script_failed": "सभी समाचारों की स्क्रिप्ट पूरी नहीं हो सकी।",
   "newspaper.tts_failed": "आवाज़ बनाने में विफलता।",
   "newspaper.audio_unavailable": "रिकॉर्डिंग के लिए अख़बार का मॉडल और वॉइस आउटपुट सेट करें।",

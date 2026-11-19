@@ -71,7 +71,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	challengeCode := "agentmail_rejected"
 	challengeAccount := ""
 	challengeCalls := 0
-	audioState := "missing"
+	audioState := "failed"
 	var audioRequests int
 	var castTimes []string
 	var sentFormat string
@@ -155,7 +155,11 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 				json.NewEncoder(w).Encode(map[string]string{"status": audioState})
 				return
 			}
-			json.NewEncoder(w).Encode(map[string]any{"audio": map[string]string{"status": audioState}})
+			audio := map[string]string{"status": audioState}
+			if audioState == "failed" {
+				audio["reason"] = "script_budget_blocked"
+			}
+			json.NewEncoder(w).Encode(map[string]any{"audio": audio})
 		case "editions/issue_1/audio/file":
 			w.Header().Set("Content-Type", "audio/wav")
 			http.ServeContent(w, r, "edition.wav", now, bytes.NewReader(wav))
@@ -204,6 +208,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if got := page.MustEval(`()=>document.querySelectorAll('.np-teaser[data-story]').length`).Int(); got != 31 {
 		t.Fatalf("edition rendered %d story links, want 31", got)
 	}
+	page.MustWait(`()=>document.querySelector('.np-broadcast [role=status]')?.textContent.includes('Kostenlimit')`)
 	page.MustElement(`[data-action=audio]`).MustClick()
 	page.MustElement(`[data-action=listen]`)
 	page.MustWait(`()=>{const a=document.querySelector('audio');return a?.src.endsWith('/issue_1/audio/file') && a.controls}`)

@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Wydanie audio",
   "newspaper.listen": "Posłuchaj",
   "newspaper.audio_generating": "Przygotowywanie wydania audio…",
+  "newspaper.script_model_failed": "Model językowy nie zdołał przygotować tekstu nagrania. Spróbuj ponownie.",
+  "newspaper.script_budget_blocked": "Osiągnięto limit wydatków na model językowy. Spróbuj ponownie po jego odnowieniu.",
   "newspaper.script_failed": "Nie udało się przygotować tekstu wszystkich wiadomości.",
   "newspaper.tts_failed": "Synteza mowy nie powiodła się.",
   "newspaper.audio_unavailable": "Aby tworzyć nagrania, skonfiguruj model gazety i wyjście głosowe.",

@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Édition audio",
   "newspaper.listen": "Écouter",
   "newspaper.audio_generating": "Préparation de l’édition audio…",
+  "newspaper.script_model_failed": "Le modèle de langage n’a pas pu rédiger le texte. Réessaie.",
+  "newspaper.script_budget_blocked": "Le plafond de dépenses du modèle de langage est atteint. Réessaie après sa réinitialisation.",
   "newspaper.script_failed": "Le texte de certaines nouvelles n’a pas pu être préparé.",
   "newspaper.tts_failed": "La synthèse vocale a échoué.",
   "newspaper.audio_unavailable": "Configure le modèle du journal et la sortie vocale pour créer des enregistrements.",

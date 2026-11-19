@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "音频版",
   "newspaper.listen": "收听",
   "newspaper.audio_generating": "正在准备音频版…",
+  "newspaper.script_model_failed": "语言模型未能生成播报稿。请重试。",
+  "newspaper.script_budget_blocked": "语言模型的支出已达上限。请在额度重置后重试。",
   "newspaper.script_failed": "未能为所有新闻编写完整的播报稿。",
   "newspaper.tts_failed": "语音合成失败。",
   "newspaper.audio_unavailable": "请先设置报纸模型和语音输出，再制作录音。",

@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Edição em áudio",
   "newspaper.listen": "Ouvir",
   "newspaper.audio_generating": "Preparando a edição em áudio…",
+  "newspaper.script_model_failed": "O modelo de linguagem não conseguiu criar o roteiro. Tente novamente.",
+  "newspaper.script_budget_blocked": "O limite de gastos do modelo de linguagem foi atingido. Tente novamente após a renovação do limite.",
   "newspaper.script_failed": "Não foi possível concluir o roteiro de todas as notícias.",
   "newspaper.tts_failed": "Falha na síntese de voz.",
   "newspaper.audio_unavailable": "Configure o modelo do jornal e a saída de voz para criar gravações.",

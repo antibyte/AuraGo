@@ -82,7 +82,7 @@ func (s *Server) newspaperCompletion(ctx context.Context, cfg *config.Config, cl
 		return "", err
 	}
 	if s.BudgetTracker != nil && s.BudgetTracker.IsBlocked("newspaper") {
-		return "", errors.New("provider spending policy blocks research")
+		return "", fmt.Errorf("provider spending policy blocks research: %w", budget.ErrCompletionBudgetBlocked)
 	}
 	route := llm.ModelRoute{ProviderID: cfg.LLM.Provider, ProviderType: cfg.LLM.ProviderType, BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model, Primary: true}
 	if provider := cfg.FindProvider(cfg.LLM.Provider); provider != nil {
@@ -107,7 +107,7 @@ func (s *Server) newspaperCompletion(ctx context.Context, cfg *config.Config, cl
 		inputTokens := prompts.CountTokensForModel(guide, candidate.Model) + prompts.CountTokensForModel(input, candidate.Model) + 32
 		reserve, err := llm.JSONCompletionOutputBudget(limits, min(request.MaxTokens, limits.ContextWindow-inputTokens-256), inputTokens)
 		if err != nil {
-			return "", fmt.Errorf("budget newspaper output: %w", err)
+			return "", fmt.Errorf("budget newspaper output: %w: %w", budget.ErrCompletionBudgetUnavailable, err)
 		}
 		request.MaxTokens = min(request.MaxTokens, reserve)
 	}

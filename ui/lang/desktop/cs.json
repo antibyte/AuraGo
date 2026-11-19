@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Zvukové vydání",
   "newspaper.listen": "Poslechnout",
   "newspaper.audio_generating": "Připravuje se zvukové vydání…",
+  "newspaper.script_model_failed": "Jazykovému modelu se nepodařilo vytvořit scénář. Zkus to znovu.",
+  "newspaper.script_budget_blocked": "Byl dosažen výdajový limit jazykového modelu. Zkus to znovu po jeho obnovení.",
   "newspaper.script_failed": "Nepodařilo se připravit scénář pro všechny zprávy.",
   "newspaper.tts_failed": "Převod textu na řeč selhal.",
   "newspaper.audio_unavailable": "Pro nahrávání nastav model novin a hlasový výstup.",

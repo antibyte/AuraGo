@@ -35,8 +35,14 @@ func TestNewspaperChargesPlanningAndRejectedResponses(t *testing.T) {
 		t.Fatalf("two completed calls must be charged once each: %f", spent)
 	}
 	tracker.RecordCostForCategory("chat", 1)
-	if _, err := s.newspaperCompletion(context.Background(), cfg, client, "Task: PLAN RESEARCH", "{}"); err == nil || !strings.Contains(err.Error(), "spending") {
+	if _, err := s.newspaperCompletion(context.Background(), cfg, client, "Task: PLAN RESEARCH", "{}"); !errors.Is(err, budget.ErrCompletionBudgetBlocked) {
 		t.Fatalf("budget not enforced: %v", err)
+	}
+	cfg.TTS.Provider = "phonon"
+	s.newspaperSkillReady = true
+	e := newspaper.Edition{Stories: []newspaper.Story{{ID: "story-1"}}}
+	if audio, err := s.narrateNewspaper(context.Background(), e); err == nil || err.Error() != "script_budget_blocked" || len(audio.Data) != 0 {
+		t.Fatalf("blocked recording: %v", err)
 	}
 	if spent := tracker.CategorySpendUSD("newspaper"); spent > .401 {
 		t.Fatalf("blocked request charged: %f", spent)

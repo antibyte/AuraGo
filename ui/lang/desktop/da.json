@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Lydudgave",
   "newspaper.listen": "Lyt",
   "newspaper.audio_generating": "Forbereder lydudgaven…",
+  "newspaper.script_model_failed": "Sprogmodellen kunne ikke skrive manuskriptet. Prøv igen.",
+  "newspaper.script_budget_blocked": "Sprogmodellens udgiftsgrænse er nået. Prøv igen, når den er nulstillet.",
   "newspaper.script_failed": "Manuskriptet kunne ikke færdiggøres for alle nyheder.",
   "newspaper.tts_failed": "Talesyntesen mislykkedes.",
   "newspaper.audio_unavailable": "Indstil avisens model og taleoutput for at lave optagelser.",

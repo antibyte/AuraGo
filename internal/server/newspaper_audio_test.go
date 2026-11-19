@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 
 	"aurago/internal/config"
+	"aurago/internal/llm"
 	"aurago/internal/newspaper"
 	"aurago/internal/phonon"
 	"aurago/internal/voice"
@@ -58,7 +60,14 @@ func TestNewspaperBroadcastCoversEveryStoryInPersona(t *testing.T) {
 					t.Fatalf("payload: %+v", p)
 				}
 				if calls == 1 {
-					return `{"items":[]}`, nil
+					return "", llm.ErrJSONCompletionTruncated
+				}
+				if strings.Contains(guide, "one supplied story") {
+					if len(p.Stories) != 1 {
+						t.Fatal("repair requested more than one story")
+					}
+					b, _ := json.Marshal(map[string]string{"opening": "Ansage.", "closing": "Abspann.", "text": "Beitrag " + p.Stories[0].ID + "."})
+					return string(b), nil
 				}
 				var items []map[string]string
 				for _, story := range p.Stories {
@@ -70,7 +79,7 @@ func TestNewspaperBroadcastCoversEveryStoryInPersona(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if calls != (size+5)/6+1 || strings.Count(script, "Ansage.") != 1 || strings.Count(script, "Abspann.") != 1 || !strings.Contains(script, "Korrektur zum Vortag.") {
+			if calls != (size+5)/6+min(size, 6) || strings.Count(script, "Ansage.") != 1 || strings.Count(script, "Abspann.") != 1 || !strings.Contains(script, "Korrektur zum Vortag.") {
 				t.Fatalf("script: %s", script)
 			}
 			for _, story := range e.Stories {
@@ -88,6 +97,42 @@ func TestNewspaperBroadcastCoversEveryStoryInPersona(t *testing.T) {
 	})
 	if err == nil || calls != 2 {
 		t.Fatal("duplicate story IDs passed coverage validation")
+	}
+}
+
+func TestNewspaperBroadcastRepairsOnlyUnusableStories(t *testing.T) {
+	e := newspaper.Edition{Stories: []newspaper.Story{{ID: "story-1"}, {ID: "story-2"}, {ID: "story-3"}, {ID: "story-4"}, {ID: "story-5"}}}
+	initial := `{"opening":"Hallo.","items":[{"id":"story-5","text":"Fünf."},{"id":"unpublished","text":"Fremd."},{"id":"story-3","text":"A."},{"id":"story-1","text":"Eins."},{"id":"story-3","text":"B."},{"id":"story-4","text":"` + strings.Repeat("ä", 501) + `"}],"closing":"Bis morgen."}`
+	calls := 0
+	script, err := newspaperBroadcastScript(context.Background(), e, "", func(_ context.Context, _ string, input string) (string, error) {
+		calls++
+		if calls == 1 {
+			return initial, nil
+		}
+		var p struct {
+			Stories     []struct{ ID string }
+			First, Last bool
+		}
+		if err := json.Unmarshal([]byte(newspaperUnwrap(input)), &p); err != nil || len(p.Stories) != 1 || p.Stories[0].ID != fmt.Sprintf("story-%d", calls) || p.First || p.Last {
+			t.Fatalf("unexpected repair request %d: %+v", calls, p)
+		}
+		return fmt.Sprintf(`{"text":"Beitrag %d."}`, calls), nil
+	})
+	if err != nil || calls != 4 || script != "Hallo.\nEins.\nBeitrag 2.\nBeitrag 3.\nBeitrag 4.\nFünf.\nBis morgen." {
+		t.Fatalf("calls=%d script=%q err=%v", calls, script, err)
+	}
+}
+
+func TestNewspaperBroadcastStopsOnProviderError(t *testing.T) {
+	e := newspaper.Edition{Stories: []newspaper.Story{{ID: "story-1"}}}
+	failure := errors.New("provider unavailable")
+	calls := 0
+	script, err := newspaperBroadcastScript(context.Background(), e, "", func(context.Context, string, string) (string, error) {
+		calls++
+		return "", failure
+	})
+	if !errors.Is(err, failure) || calls != 1 || script != "" {
+		t.Fatalf("calls=%d script=%q err=%v", calls, script, err)
 	}
 }
 
@@ -261,10 +306,14 @@ func TestNewspaperAudioStreamPermissionsAndSeeking(t *testing.T) {
 	s.Cfg.Newspaper.Enabled = true
 	ctx := context.Background()
 	file := []byte("a complete recorded edition")
+	var attempted atomic.Bool
 	var err error
 	s.Newspaper, err = newspaper.New(newspaper.Options{Path: filepath.Join(t.TempDir(), "news.db"), Policy: func() newspaper.Policy { return newspaper.Policy{Enabled: true, ReadOnly: s.Cfg.Newspaper.ReadOnly} }, Research: func(context.Context, newspaper.Profile, time.Time, func(newspaper.Progress)) (newspaper.Draft, error) {
 		return newspaper.Draft{}, nil
 	}, Narrate: func(context.Context, newspaper.Edition) (newspaper.AudioFile, error) {
+		if !attempted.Swap(true) {
+			return newspaper.AudioFile{}, errors.New("script_model_failed")
+		}
 		return newspaper.AudioFile{MIME: "audio/mpeg", Data: file}, nil
 	}})
 	if err != nil {
@@ -310,21 +359,26 @@ func TestNewspaperAudioStreamPermissionsAndSeeking(t *testing.T) {
 	if w := call("GET", "audio/file", admin); w.Code != 404 {
 		t.Fatal(w.Code)
 	}
-	if w := call("POST", "audio", admin); w.Code != 202 {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	for deadline := time.Now().Add(5 * time.Second); ; {
-		a, err := s.Newspaper.Store().AudioState(ctx, e.ID)
-		if err != nil {
-			t.Fatal(err)
+	for _, want := range []string{"failed", "ready"} {
+		if w := call("POST", "audio", admin); w.Code != 202 {
+			t.Fatal(w.Code, w.Body.String())
 		}
-		if a.Status == "ready" {
-			break
+		for deadline := time.Now().Add(5 * time.Second); ; {
+			a, err := s.Newspaper.Store().AudioState(ctx, e.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if a.Status == want {
+				if want == "failed" && (a.Reason != "script_model_failed" || call("GET", "audio/file", admin).Code != 404) {
+					t.Fatal("incorrect failed recording state", a)
+				}
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal(a)
+			}
+			time.Sleep(5 * time.Millisecond)
 		}
-		if time.Now().After(deadline) {
-			t.Fatal(a)
-		}
-		time.Sleep(5 * time.Millisecond)
 	}
 	s.Cfg.Newspaper.ReadOnly = true
 	if w := call("POST", "audio", admin); w.Code != 403 {

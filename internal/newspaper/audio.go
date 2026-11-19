@@ -137,7 +137,7 @@ func (s *Service) startAudio(ctx context.Context, e Edition, retry bool) (*audio
 		if err != nil {
 			reason := "audio_failed"
 			switch err.Error() {
-			case "tts_unavailable", "script_failed", "tts_failed", "encoding_failed":
+			case "tts_unavailable", "script_failed", "script_budget_blocked", "script_model_failed", "tts_failed", "encoding_failed":
 				reason = err.Error()
 			}
 			_, _ = s.store.db.Exec(`UPDATE newspaper_audio SET status='failed',reason=? WHERE edition_id=? AND status='generating'`, reason, e.ID)

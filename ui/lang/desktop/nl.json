@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Audio-editie",
   "newspaper.listen": "Luisteren",
   "newspaper.audio_generating": "Audio-editie wordt voorbereid…",
+  "newspaper.script_model_failed": "Het taalmodel kon het script niet schrijven. Probeer het opnieuw.",
+  "newspaper.script_budget_blocked": "De bestedingslimiet voor het taalmodel is bereikt. Probeer het opnieuw zodra de limiet is gereset.",
   "newspaper.script_failed": "Het script kon niet voor alle berichten worden voltooid.",
   "newspaper.tts_failed": "Spraaksynthese mislukt.",
   "newspaper.audio_unavailable": "Stel het krantenmodel en de spraakuitvoer in om opnamen te maken.",

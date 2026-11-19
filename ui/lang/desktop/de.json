@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Hörfassung",
   "newspaper.listen": "Anhören",
   "newspaper.audio_generating": "Hörfassung wird erstellt …",
+  "newspaper.script_model_failed": "Das Sprachmodell konnte das Manuskript nicht erstellen. Versuche es erneut.",
+  "newspaper.script_budget_blocked": "Das Kostenlimit für das Sprachmodell ist erreicht. Versuche es nach dem Zurücksetzen erneut.",
   "newspaper.script_failed": "Das Manuskript konnte nicht für alle Meldungen erstellt werden.",
   "newspaper.tts_failed": "Die Sprachausgabe ist fehlgeschlagen.",
   "newspaper.audio_unavailable": "Für neue Aufnahmen müssen Zeitungsmodell und Sprachausgabe eingerichtet sein.",

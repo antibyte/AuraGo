@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Lydutgave",
   "newspaper.listen": "Lytt",
   "newspaper.audio_generating": "Forbereder lydutgaven…",
+  "newspaper.script_model_failed": "Språkmodellen klarte ikke å skrive manuset. Prøv igjen.",
+  "newspaper.script_budget_blocked": "Utgiftsgrensen for språkmodellen er nådd. Prøv igjen når grensen er nullstilt.",
   "newspaper.script_failed": "Manuset kunne ikke fullføres for alle nyhetene.",
   "newspaper.tts_failed": "Talesyntesen mislyktes.",
   "newspaper.audio_unavailable": "Konfigurer avismodellen og taleutgangen for å lage opptak.",

@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Edición de audio",
   "newspaper.listen": "Escuchar",
   "newspaper.audio_generating": "Preparando la edición de audio…",
+  "newspaper.script_model_failed": "El modelo de lenguaje no pudo generar el guion. Inténtalo de nuevo.",
+  "newspaper.script_budget_blocked": "Se ha alcanzado el límite de gasto del modelo de lenguaje. Vuelve a intentarlo cuando se restablezca.",
   "newspaper.script_failed": "No se pudo completar el guion de todas las noticias.",
   "newspaper.tts_failed": "No se pudo sintetizar la voz.",
   "newspaper.audio_unavailable": "Configura el modelo del periódico y la salida de voz para crear grabaciones.",

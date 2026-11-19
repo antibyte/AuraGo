@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Edizione audio",
   "newspaper.listen": "Ascolta",
   "newspaper.audio_generating": "Preparazione dell’edizione audio…",
+  "newspaper.script_model_failed": "Il modello linguistico non è riuscito a scrivere il copione. Riprova.",
+  "newspaper.script_budget_blocked": "È stato raggiunto il limite di spesa del modello linguistico. Riprova dopo il suo azzeramento.",
   "newspaper.script_failed": "Non è stato possibile completare il copione per tutte le notizie.",
   "newspaper.tts_failed": "Sintesi vocale non riuscita.",
   "newspaper.audio_unavailable": "Configura il modello del giornale e la voce per creare le registrazioni.",

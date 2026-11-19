@@ -7425,6 +7425,8 @@
   "newspaper.audio_edition": "Audio edition",
   "newspaper.listen": "Listen",
   "newspaper.audio_generating": "Preparing audio edition…",
+  "newspaper.script_model_failed": "The language model could not generate the script. Try again.",
+  "newspaper.script_budget_blocked": "The language model’s spending limit has been reached. Try again after it resets.",
   "newspaper.script_failed": "The script could not be completed for every story.",
   "newspaper.tts_failed": "Speech synthesis failed.",
   "newspaper.audio_unavailable": "Set up the newspaper model and speech output to make recordings.",

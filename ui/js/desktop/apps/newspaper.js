@@ -160,9 +160,12 @@
             if(!('audio_ready' in st.caps))return '';
             const state=st.audio.status, pending=state==='generating', ready=state==='ready';
             const showCast=st.caps.cast_allowed && st.profile?.cast_device;
+            let reason='';
+            if(!st.caps.audio_ready || st.audio.reason==='tts_unavailable') reason='audio_unavailable';
+            else if(state==='failed') reason=['script_failed','script_budget_blocked','script_model_failed','tts_failed'].includes(st.audio.reason)?st.audio.reason:'audio_failed';
             return `<section class="np-broadcast"><h2>${esc(tr('audio_edition'))}</h2>
                 <div class="np-actions">${ready?`<button type="button" data-action="listen">▶ ${esc(tr('listen'))}</button>`:`<button type="button" data-action="audio" ${readOnly()||pending||!st.caps.audio_ready?'disabled':''}>${esc(tr(pending?'audio_generating':'generate_audio'))}</button>`}
-                ${!ready&&(!st.caps.audio_ready||state==='failed')?`<small role="status">${esc(tr(st.audio.reason==='script_failed'?'script_failed':st.audio.reason==='tts_failed'?'tts_failed':!st.caps.audio_ready?'audio_unavailable':'audio_failed'))}</small>`:''}</div>
+                ${!ready&&reason?`<small role="status">${esc(tr(reason))}</small>`:''}</div>
                 ${showCast?`<div class="np-cast np-actions"><button type="button" data-action="cast-now" ${readOnly()?'disabled':''}>${esc(tr('cast_now'))}</button><label>${esc(tr('cast_time'))} · ${esc(st.profile.time_zone)}<input type="datetime-local" name="cast_when" value="${esc(st.castWhen)}" ${readOnly()?'disabled':''}></label><button type="button" data-action="cast-later" ${readOnly()?'disabled':''}>${esc(tr('cast_once'))}</button></div>`:''}
                 ${st.casts.slice(0,3).map(b=>`<small class="np-cast-status">Chromecast · ${esc(new Intl.DateTimeFormat(document.documentElement.lang||'de',{dateStyle:'short',timeStyle:'short',timeZone:st.profile.time_zone}).format(new Date(b.due)))} · ${esc(tr('cast_'+b.status))}</small>`).join('')}</section>`;
         }

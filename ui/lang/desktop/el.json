@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "Ηχητική έκδοση",
   "newspaper.listen": "Ακρόαση",
   "newspaper.audio_generating": "Ετοιμάζεται η ηχητική έκδοση…",
+  "newspaper.script_model_failed": "Το γλωσσικό μοντέλο δεν μπόρεσε να συντάξει το κείμενο. Δοκίμασε ξανά.",
+  "newspaper.script_budget_blocked": "Συμπληρώθηκε το όριο δαπανών του γλωσσικού μοντέλου. Δοκίμασε ξανά όταν ανανεωθεί.",
   "newspaper.script_failed": "Δεν ολοκληρώθηκε το κείμενο για όλες τις ειδήσεις.",
   "newspaper.tts_failed": "Η σύνθεση ομιλίας απέτυχε.",
   "newspaper.audio_unavailable": "Ρύθμισε το μοντέλο της εφημερίδας και την έξοδο ομιλίας για να δημιουργήσεις ηχογραφήσεις.",

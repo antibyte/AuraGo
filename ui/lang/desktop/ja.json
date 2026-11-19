@@ -6105,6 +6105,8 @@
   "newspaper.audio_edition": "音声版",
   "newspaper.listen": "聴く",
   "newspaper.audio_generating": "音声版を準備中…",
+  "newspaper.script_model_failed": "言語モデルが原稿を作成できませんでした。もう一度お試しください。",
+  "newspaper.script_budget_blocked": "言語モデルの利用額が上限に達しました。上限がリセットされてからもう一度お試しください。",
   "newspaper.script_failed": "すべての記事を含む原稿を作成できませんでした。",
   "newspaper.tts_failed": "音声の合成に失敗しました。",
   "newspaper.audio_unavailable": "録音を作成するには新聞のモデルと音声出力を設定してください。",
