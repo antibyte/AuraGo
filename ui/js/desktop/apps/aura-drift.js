@@ -634,7 +634,7 @@
 
         /* One presentation tick for the events and effects a batch of steps produced (the RAF loop minus the wall clock). */
         function presentTick(dt) {
-            renderer.emit(race, dt);
+            renderer.emit(race, dt, reducedMotion);
             audio.update(race, true, lastPose);
             if (banter) {
                 const msg = banter.update(dt);
@@ -699,7 +699,7 @@
             if (!paused && !frozen) {
                 scheduler.advance(simDt, stepOnce);
                 drainEvents();
-                renderer.emit(race, simDt);
+                renderer.emit(race, simDt, reducedMotion);
                 audio.update(race, true, lastPose);
                 if (banter) {
                     const msg = banter.update(dt);

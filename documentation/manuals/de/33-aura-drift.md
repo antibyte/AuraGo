@@ -170,6 +170,10 @@ multipliziert die Kette, eine Bruchlandung bringt nur einen kleinen festen Betra
 | Rückwärts-Held | 200, plus 100 pro Sekunde | Zwei Sekunden rückwärts fahren |
 | Wendehals | 400 | Aus dem Rückwärtsgang schnell wieder nach vorn |
 
+Auf längeren Anfahrten zur Drift-Zone zählst du am äußeren Fahrbahnrand drei violette Striche, dann zwei,
+dann einen. In der Kurve stehen die Striche an beiden Rändern. Driftest du dort, zeigt
+der Tacho **×1,75** für die Driftpunkte an, die du in diesem Moment sammelst.
+
 Seitwärts fahren zahlt sich aus, ebenso lockerer Untergrund, Drift-Zonen und knappe
 Vorbeifahrten. Lass weniger als einen Meter Platz und zieh sauber vorbei. Eine Berührung kostet
 den Bonus für dieses Manöver. Eine Driftkette kann bis zum Achtfachen wachsen. Gezählt wird sie erst, wenn sie endet.

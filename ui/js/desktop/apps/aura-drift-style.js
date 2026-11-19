@@ -66,6 +66,10 @@
         return 1;
     };
 
+    AD.earnedDriftZone = function (car) {
+        return car.style?.drifting && !car.v.out && !car.v.airborne ? car.style.zone : 1;
+    };
+
     /* Loose surfaces reward sideways commitment: a rally slide is worth more
        than a polished tarmac slide. */
     function surfaceBonus(surface) {

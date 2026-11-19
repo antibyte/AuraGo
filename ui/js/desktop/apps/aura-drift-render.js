@@ -15,6 +15,7 @@
         let showcaseSpec = { carId: 'vektor', livery: 0, biomeId: 'alpine' };
         let showcaseTime = 0;
         let lastRace = null, shows = [];
+        const zonePaths = new Map();
 
         /* Rotated worlds show a disc, not a rectangle. */
         function onScreen(sx, sy, margin) {
@@ -320,6 +321,11 @@
             c.setLineDash([]);
             c.globalAlpha = 1;
             c.lineCap = 'round';
+            c.save();
+            c.translate(width / 2 - cam.x * scale, height / 2 - cam.y * scale);
+            c.scale(scale, scale);
+            for (const [colour, path] of zonePaths) { c.fillStyle = colour; c.fill(path); }
+            c.restore();
             drawStartLine(cam, track);
         }
 
@@ -803,6 +809,14 @@
             setQuality(q) { quality = AD.QUALITY[q] || AD.QUALITY.high; },
             setTrack(track, race, sidelines) {
                 shows = sidelines || AD.roadsideScenes?.(track, 0) || [];
+                zonePaths.clear();
+                AD.driftZonePaint?.(track, (colour, points) => {
+                    if (!zonePaths.has(colour)) zonePaths.set(colour, new Path2D());
+                    const path = zonePaths.get(colour);
+                    path.moveTo(...points[0]);
+                    for (let i = 1; i < points.length; i++) path.lineTo(...points[i]);
+                    path.closePath();
+                });
                 chunks.clear(); decals.length = 0; particles.length = 0;
                 lights.length = 0; furniture.length = 0;
                 /* Lamp posts every ~110 m alternate sides of the road. */
@@ -866,11 +880,16 @@
                 }
             },
             /* Continuous effects: dust, tyre marks, nitro plume, damage smoke, spray. */
-            emit(race) {
+            emit(race, dt, reducedMotion) {
                 if (!race || race.state !== 'running') return;
                 fxTick++;
                 const v = race.cars[0].v;
                 const speed = Math.max(0, v.vx);
+                if (!reducedMotion && dt > 0 && quality.particles > 0 && fxTick % 2 === 0 && AD.earnedDriftZone?.(race.cars[0]) > 1) {
+                    const side = fxTick % 4 === 0 ? 1 : -1, cs = Math.cos(v.psi), sn = Math.sin(v.psi);
+                    spawn('spark', v.x - cs * 1.7 - sn * side, v.y - sn * 1.7 + cs * side,
+                        { vx: -cs * 4 - sn * side * 3, vy: -sn * 4 + cs * side * 3, colour: '#d3a8ff', size: .34, life: .26 });
+                }
                 const surface = v.surface || 'asphalt';
                 const dustColour =
                     surface === 'sand' ? '#d8b078' :

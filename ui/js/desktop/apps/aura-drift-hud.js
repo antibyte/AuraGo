@@ -36,6 +36,7 @@
         const kit = AD.hudKit;
         if (!kit || typeof AD.drawMinimap !== 'function') return noopHud(canvas);
         const tr = kit.makeTr(t);
+        const factorFormat = new Intl.NumberFormat(document.documentElement.lang || undefined, { maximumFractionDigits: 2 });
         const c = canvas.getContext('2d');
         const callouts = kit.createCallouts(3);
         const up = s => String(s).toUpperCase();
@@ -226,6 +227,13 @@
             kit.text(c, String(Math.round(hp * 100)), g.BX + g.BW * 0.55 + 14, g.dmgY + g.BH * 0.55 + 1, small + 1, hcol, { mono: true, weight: 800, sw: 2.5 });
             const ix = g.BX - 9, iy = g.dmgY + g.BH * 0.27;
             c.fillStyle = hcol; c.fillRect(ix - 5, iy - 1.5, 10, 3); c.fillRect(ix - 1.5, iy - 5, 3, 10);
+            const factor = AD.earnedDriftZone?.(car);
+            if (factor > 1) {
+                const x = g.BX, y = g.dmgY - (compact ? 10 : 12);
+                kit.para(c, x - 3, y - 20, 86, 25, 7); c.fillStyle = '#38254b'; c.fill();
+                kit.para(c, x + 1, y - 16, 4, 16, 5); c.fillStyle = '#ac78e6'; c.fill();
+                kit.text(c, '×' + factorFormat.format(factor), x + 17, y, 18, '#eee2ff', { weight: 900, sw: 0 });
+            }
         }
 
         function drawWeapon(race, car) {

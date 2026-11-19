@@ -527,6 +527,11 @@
                     }
                 }
             }
+            AD.driftZonePaint?.(track, (colour, points) => {
+                const base = kb.n, rgb = W.hexLin(colour);
+                for (const [x, z] of points) vert(kb, x, .023, z, rgb, 0, 0);
+                quad(kb, base, base + 1, base + 2, base + 3);
+            });
             const kg = own(makeGeo(T, { pos: kb.pos, col: kb.col, idx: kb.idx, normals: false }));
             const km = own(new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
             const kmesh = new T.Mesh(kg, km);

@@ -165,6 +165,10 @@ only a small fixed amount.
 | Reverse Hero | 200, plus 100 a second | Reverse for two seconds |
 | J-Turn | 400 | Go from reverse back to forward speed quickly |
 
+On longer approaches to a drift zone, look for three violet stripes on the outside edge, then two,
+then one. Inside the corner the stripes appear on both sides. Hold a slide between them
+and the speedometer shows **×1.75** for the drift points you're earning there.
+
 Sliding sideways pays, and so do loose surfaces, drift zones and near misses. Pass within a metre
 and keep the cars apart until you're clear to collect the bonus. Keep a drift chain
 going for up to eight times the points. The chain only counts when it ends.

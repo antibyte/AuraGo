@@ -3835,6 +3835,10 @@ buttons and menu popovers remain excluded from those gestures.
   harbour adds the boats, the buoys and the lighthouse, which float or stand on their rock.
   Guard: `scripts/test-aura-drift-props.mjs` (every prop stands on its ground on all eight
   tracks and the daily layouts).
+- `AD.driftZonePaint` builds approach and scoring marks from the same zone boundaries used
+  by style scoring. Batch its quads into the kerb mesh and cache its Canvas paths per track.
+  The multiplier badge and rear-wheel sparks read `AD.earnedDriftZone`; reduced motion keeps
+  the paint and badge. Verify with `test-aura-drift-tracks.mjs` and `TestDesktopAuraDriftZonePaintBrowser`.
 - Road markings (curbs, dashed centre line, worn racing-line bands, checkered start/finish)
   are world-anchored: dash patterns scale with the camera zoom and never animate with frame
   time. Braking fades out at standstill; a held brake engages a bounded reverse, and steering

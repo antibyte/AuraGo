@@ -3,7 +3,7 @@
  */
 import { loadSim } from './aura-drift-sim-loader.mjs';
 
-const AD = loadSim();
+const AD = loadSim(['scenery']);
 const failures = [];
 function check(name, condition, detail) {
     if (condition) console.log('  ok  ' + name);
@@ -52,6 +52,29 @@ for (const track of built) {
     }
 }
 check('every layout has drift zones inside the lap', zoneOk, zoneReasons.slice(0, 3).join(' | '));
+
+// A straight makes the countdown distances exact; the following short gap must stay clear.
+const strip = {
+    length: 300, driftZones: [{ from: 100, to: 143 }, { from: 154, to: 180 }],
+    samples: [0, 100, 200, 299].map(s => ({ s, x: s, y: 0, tx: 1, ty: 0, nx: 0, ny: 1, halfWidth: 10 }))
+};
+const approach = [];
+AD.driftZonePaint(strip, (shade, points) => {
+    if (shade === '#ac78e6' && AD.driftZoneAt(strip, points[0][0]) === 1) approach.push(points[0][0]);
+});
+check('three, two and one approach stripes precede a bonus corner', approach.length === 6 &&
+    [52, 54.6, 57.2, 68, 70.6, 84].every((s, i) => Math.abs(s - approach[i]) < .001));
+for (const t of [...built, AD.buildTrack(AD.dailyTrack(7919))]) {
+    let valid = true, count = 0;
+    AD.driftZonePaint(t, (_, points) => {
+        count++;
+        for (const [x,y] of points) {
+            const road = AD.sampleTrack(t, x, y), edge = road.halfWidth - Math.abs(road.offset);
+            valid &&= Number.isFinite(edge) && edge > 0 && edge < 5;
+        }
+    });
+    check(t.id + ' keeps drift paint on the outer strip of asphalt', valid && count > 0);
+}
 
 let sectorOk = true, sectorReasons = [];
 for (const track of built) {

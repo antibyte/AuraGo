@@ -147,6 +147,39 @@
         }
     };
 
+    /* Two-colour road paint in world metres. Both renderers bake the same quads at track setup. */
+    AD.driftZonePaint = function (track, draw) {
+        const zones = track.driftZones || [];
+        function slash(s, side, reach, depth) {
+            const p = AD.pointAt(track, s);
+            const point = (inset, along) => [
+                p.x + p.nx * side * (p.halfWidth - 1.4 - inset) + p.tx * along,
+                p.y + p.ny * side * (p.halfWidth - 1.4 - inset) + p.ty * along
+            ];
+            const split = reach * .68;
+            for (const [u, v, colour] of [[0, split, '#ac78e6'], [split, reach, '#eee2ff']]) {
+                draw(colour, [point(u, u * .55), point(v, v * .55), point(v, v * .55 + depth), point(u, u * .55 + depth)]);
+            }
+        }
+        for (let i = 0; i < zones.length; i++) {
+            const zone = zones[i];
+            if (zone.to <= zone.from) continue;
+            const a = AD.pointAt(track, zone.from), b = AD.pointAt(track, Math.min(zone.to, zone.from + 30));
+            const outside = a.tx * b.ty - a.ty * b.tx >= 0 ? -1 : 1;
+            const previous = zones[(i + zones.length - 1) % zones.length];
+            const clear = zone.from - previous.to + (i === 0 ? track.length : 0);
+            // Leave a short gap between adjacent scoring sections clear of another countdown.
+            if (clear >= 52) {
+                for (let count = 3; count > 0; count--) {
+                    for (let bar = 0; bar < count; bar++) slash(zone.from - count * 16 + bar * 2.6, outside, 2.9, .95);
+                }
+            }
+            for (let s = zone.from; s + 2.8 <= zone.to; s += 17) {
+                slash(s, -1, 1.25, 2.1);
+                slash(s, 1, 1.25, 2.1);
+            }
+        }
+    };
     const foliage = new WeakMap();
     const meadow = ['#497342', '#729447', '#a6b761', '#fff6d4', '#f6bf43'];
     const woodland = ['#395d47', '#618954', '#94ac6d', '#ae88cf', '#d6b3e4'];

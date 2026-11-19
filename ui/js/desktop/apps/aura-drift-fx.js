@@ -762,6 +762,12 @@
                 if (Math.max(k, brakeK) > 0.12) skidAdd(st, wx, wz, 0.3, (SKID[surf] || SKID.asphalt));
                 else st.has = false;
                 if (!gnd) continue;
+                if (i === 0 && !reduced && AD.earnedDriftZone?.(car) > 1) {
+                    for (let n = N(27 * dens * dt); n > 0; n--) {
+                        spark(wx, .18, wz, wvx * .45 + rx * side * 2, rr(1.2, 3.4), wvz * .45 + rz * side * 2,
+                            rr(.19, .32), .36, ICE0, PURPLE);
+                    }
+                }
                 /* Tyre smoke / dust / spray, sized and lit by the surface. */
                 const loose = prof.powder || prof.clods || prof.stones || surf === 'sand';
                 let rate = 0;

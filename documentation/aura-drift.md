@@ -390,6 +390,10 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   Ground and props are generated per 320 m chunk with an LRU cache capped by quality tier.
   `AD.validateTrack` checks length, width, spacing, corner radius and overlapping sections.
   Each layout has three timing sectors and drift zones at its sharpest corners.
+  On longer approaches, groups of three, two and one violet-and-white stripes count down
+  to the zone. Paired slashes mark the scoring section. The speedometer shows the
+  zone multiplier while the slide earns points, with short sparks from the rear tyres
+  when motion effects are enabled.
 - **Weather:** every race runs a seeded schedule (rain, snow, fog, mist, haze, glare, heat).
   It is part of the deterministic simulation, changes grip for every driver equally, and drives
   the score's ambience. `aura-drift-conditions.js` turns the schedule into a closed-form state:
