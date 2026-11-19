@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Skrivebeskyttet modus",
   "config.newspaper.allow_email": "Tillat e-postlevering",
   "config.newspaper.allow_telegram": "Tillat telegramlevering",
+  "config.newspaper.allow_chromecast": "Tillat Chromecast",
+  "config.newspaper.allow_chromecast_help": "Tillat avspilling av lydutgaver på en lagret Chromecast.",
   "config.newspaper.allow_whatsapp": "Tillat levering via WhatsApp",
   "config.newspaper.max_minutes": "Tidsbegrensning for forskning (minutter)",
   "config.newspaper.max_pages": "Maksimalt antall leste sider per utgave",

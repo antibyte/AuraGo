@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -507,7 +508,18 @@ func TestChromecastPlayEchoesLiveHintWithoutTicket(t *testing.T) {
 		chromecastHTTPClientFactory = origFactory
 		connectChromecastController = origConnect
 	}()
-	raw := ChromecastPlay("192.168.6.130", 8009, "https://media.example.test/live.mp3?cast_ticket=secret", "audio/mpeg", "live", knownLivingRoom(), chromecastTestLogger())
+	cfg := knownLivingRoom()
+	claims := 0
+	cfg.BeforeLoad = func() error { claims++; return errors.New("cancelled") }
+	raw := ChromecastPlay("192.168.6.130", 8009, "https://media.example.test/live.mp3?cast_ticket=secret", "audio/mpeg", "live", cfg, chromecastTestLogger())
+	if claims != 1 || fake.loadURL != "" || !strings.Contains(raw, "cancelled") {
+		t.Fatalf("refused pre-load claim: %q, load=%q", raw, fake.loadURL)
+	}
+	cfg.BeforeLoad = func() error { claims++; return nil }
+	raw = ChromecastPlay("192.168.6.130", 8009, "https://media.example.test/live.mp3?cast_ticket=secret", "audio/mpeg", "live", cfg, chromecastTestLogger())
+	if claims != 2 {
+		t.Fatalf("claims = %d", claims)
+	}
 	if strings.Contains(raw, "secret") || strings.Contains(raw, "cast_ticket") || !strings.Contains(raw, `"stream_type":"live"`) {
 		t.Fatalf("result = %s", raw)
 	}

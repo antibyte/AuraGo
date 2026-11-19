@@ -114,7 +114,7 @@ func (s *sipSpeechSynthesizer) SynthesizeStream(ctx context.Context, text, langu
 		if language == "auto" {
 			language = ""
 		}
-		chunks := splitTelephoneTTSChunks(text, 500)
+		chunks := splitTelephoneTTSChunks(text, tools.TTSSpeechChunkLimit(s.chunkTTSConfig(language).Provider))
 		if len(chunks) == 0 {
 			send(voice.SpeechSynthesisChunk{Err: fmt.Errorf("text is required")})
 			return

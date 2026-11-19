@@ -127,12 +127,17 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			accounts = append(accounts, map[string]string{"id": "agentmail", "name": "AgentMail"})
 		}
 		var next time.Time
-		if p.Daily {
+		automatic := p.Daily || p.CastDaily && newspaperCastAllowed(cfg)
+		if automatic {
 			next, _ = s.Newspaper.NextRun(r.Context())
 		}
 		localDate := ""
 		if loc, err := time.LoadLocation(p.TimeZone); err == nil {
 			localDate = time.Now().In(loc).Format("2006-01-02")
+		}
+		var dailyCast *newspaper.CastBooking
+		if p.CastDaily && newspaperCastAllowed(cfg) {
+			dailyCast, _ = s.Newspaper.Store().DailyCast(r.Context(), localDate)
 		}
 		accountReady := false
 		for _, account := range accounts {
@@ -151,7 +156,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "effective_budget": newspaperBudget(cfg, p), "budget_mode": newspaperBudget(cfg, p).Mode, "overview_sources": cfg.Newspaper.OverviewSources, "monetary_budget_enabled": cfg.Budget.Enabled, "max_searches": newspaperBudget(cfg, p).Searches, "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "whatsapp_allowed": cfg.Newspaper.AllowWhatsApp, "whatsapp_ready": s.newspaperWhatsAppReady(cfg), "email_accounts": accounts, "daily": p.Daily, "local_date": localDate, "next_run": next, "max_minutes": newspaperBudget(cfg, p).Minutes, "max_pages": newspaperBudget(cfg, p).Pages, "max_editions": cfg.Newspaper.MaxEditions})
+		newspaperJSON(w, 200, map[string]any{"enabled": cfg.Newspaper.Enabled, "read_only": cfg.Newspaper.ReadOnly || cfg.VirtualDesktop.ReadOnly, "research_ready": researchCaps.Ready, "research_tools": researchCaps.Tools, "research_reason": researchCaps.Reason, "effective_budget": newspaperBudget(cfg, p), "budget_mode": newspaperBudget(cfg, p).Mode, "overview_sources": cfg.Newspaper.OverviewSources, "monetary_budget_enabled": cfg.Budget.Enabled, "max_searches": newspaperBudget(cfg, p).Searches, "email_allowed": cfg.Newspaper.AllowEmail, "email_ready": cfg.Newspaper.AllowEmail && p.EmailVerified && p.EmailTo != "" && accountReady, "telegram_allowed": cfg.Newspaper.AllowTelegram, "telegram_ready": cfg.Newspaper.AllowTelegram && cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0, "whatsapp_allowed": cfg.Newspaper.AllowWhatsApp, "whatsapp_ready": s.newspaperWhatsAppReady(cfg), "audio_ready": chatVoiceOutputTTSConfigured(cfg) && s.LLMClient != nil && s.newspaperSkillReady, "cast_allowed": newspaperCastAllowed(cfg), "cast_devices": s.newspaperCastDevices(cfg), "daily_cast": dailyCast, "email_accounts": accounts, "daily": automatic, "local_date": localDate, "next_run": next, "max_minutes": newspaperBudget(cfg, p).Minutes, "max_pages": newspaperBudget(cfg, p).Pages, "max_editions": cfg.Newspaper.MaxEditions})
 		return
 	}
 	if path == "profile" {
@@ -177,6 +182,20 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("If-Match") != fmt.Sprintf("\"%d\"", p.Version) {
 				newspaperError(w, newspaper.ErrConflict)
 				return
+			}
+			if p.CastDevice != "" {
+				old, err := s.Newspaper.Profile(r.Context())
+				if err != nil {
+					newspaperError(w, err)
+					return
+				}
+				if p.CastDevice != old.CastDevice || p.CastDaily && !old.CastDaily {
+					_, ok := chromecastInventoryDevice(s, p.CastDevice)
+					if !newspaperCastAllowed(cfg) || !ok {
+						newspaperError(w, errors.New("select an available saved Chromecast"))
+						return
+					}
+				}
 			}
 			out, err := s.Newspaper.SaveProfile(r.Context(), p)
 			if err != nil {
@@ -319,6 +338,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			newspaperJSON(w, 200, map[string]any{"editions": out, "latest_run": run})
 		case http.MethodPost:
 			var req struct {
+				newspaper.Creation
 				NewRevision    bool   `json:"new_revision"`
 				CorrectionNote string `json:"correction_note"`
 			}
@@ -326,7 +346,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 				newspaperError(w, err)
 				return
 			}
-			run, err := s.Newspaper.StartWithCorrection(r.Context(), req.NewRevision, req.CorrectionNote)
+			run, err := s.Newspaper.StartEdition(r.Context(), req.NewRevision, req.CorrectionNote, req.Creation)
 			if err != nil {
 				newspaperError(w, err)
 				return
@@ -343,6 +363,13 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := parts[1]
+	if len(parts) >= 3 {
+		op := strings.Join(parts[2:], "/")
+		if op == "audio" || op == "audio/file" || op == "cast" {
+			s.newspaperAudioRoute(w, r, id, op)
+			return
+		}
+	}
 	if len(parts) == 2 && r.Method == http.MethodGet {
 		e, err := s.Newspaper.Get(r.Context(), id)
 		if errors.Is(err, newspaper.ErrNotFound) {
@@ -409,6 +436,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var req struct {
+			Format  string `json:"format"`
 			Channel string `json:"channel"`
 			Kind    string `json:"kind"`
 		}
@@ -428,7 +456,7 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			newspaperError(w, errors.New("a unique Idempotency-Key header is required"))
 			return
 		}
-		d, err := s.Newspaper.Deliver(r.Context(), id, req.Channel, req.Kind, key)
+		d, err := s.Newspaper.SendFormat(r.Context(), id, req.Channel, req.Kind, key, req.Format)
 		if err != nil {
 			if d.ID != 0 {
 				newspaperJSON(w, http.StatusAccepted, d)
@@ -437,7 +465,11 @@ func (s *Server) handleNewspaper(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		newspaperJSON(w, 200, d)
+		if d.Status == "preparing" || d.Status == "sending" {
+			newspaperJSON(w, 202, d)
+		} else {
+			newspaperJSON(w, 200, d)
+		}
 	case "export":
 		if r.Method != http.MethodGet || r.URL.Query().Get("format") != "pdf" {
 			jsonError(w, "Unsupported export", 405)

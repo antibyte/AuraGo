@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Skrivebeskyttet tilstand",
   "config.newspaper.allow_email": "Tillad levering af e-mail",
   "config.newspaper.allow_telegram": "Tillad telegramlevering",
+  "config.newspaper.allow_chromecast": "Tillad Chromecast",
+  "config.newspaper.allow_chromecast_help": "Tillad afspilning af lydudgaver på en gemt Chromecast.",
   "config.newspaper.allow_whatsapp": "Tillad levering via WhatsApp",
   "config.newspaper.max_minutes": "Tidsgrænse for forskning (minutter)",
   "config.newspaper.max_pages": "Maksimalt antal læste sider pr. udgave",

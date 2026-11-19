@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Alleen-lezen-modus",
   "config.newspaper.allow_email": "Bezorging van e-mail toestaan",
   "config.newspaper.allow_telegram": "Telegrambezorging toestaan",
+  "config.newspaper.allow_chromecast": "Chromecast toestaan",
+  "config.newspaper.allow_chromecast_help": "Sta toe dat audio-edities worden afgespeeld op een opgeslagen Chromecast.",
   "config.newspaper.allow_whatsapp": "Bezorging via WhatsApp toestaan",
   "config.newspaper.max_minutes": "Onderzoeksduurlimiet (minuten)",
   "config.newspaper.max_pages": "Maximaal gelezen pagina's per editie",

@@ -91,7 +91,7 @@ func TestCancelledResearchCannotPublishValidDraftButDeadlineCan(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			s.execute(ctx, researchCtx, r, DefaultProfile())
+			s.execute(ctx, researchCtx, r, DefaultProfile(), Creation{})
 			e, err := s.Get(context.Background(), r.ID)
 			if fixture.cancelled && !errors.Is(err, ErrNotFound) {
 				t.Fatalf("cancel published: %v", err)

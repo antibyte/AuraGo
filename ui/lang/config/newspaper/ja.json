@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "読み取り専用モード",
   "config.newspaper.allow_email": "メール配信を許可する",
   "config.newspaper.allow_telegram": "Telegram配信を許可する",
+  "config.newspaper.allow_chromecast": "Chromecast を許可",
+  "config.newspaper.allow_chromecast_help": "登録済みの Chromecast で音声版を再生できるようにします。",
   "config.newspaper.allow_whatsapp": "WhatsApp 配信を許可する",
   "config.newspaper.max_minutes": "研究制限時間（分）",
   "config.newspaper.max_pages": "エディションあたりの最大読み取りページ数",

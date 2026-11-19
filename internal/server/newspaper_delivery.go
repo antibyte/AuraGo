@@ -88,7 +88,7 @@ func (s *Server) newspaperDelivery(ctx context.Context, e newspaper.Edition, p n
 	}
 }
 
-func (s *Server) newspaperSendEmail(ctx context.Context, accountID, to, subject, plain, rich string) (string, error) {
+func (s *Server) newspaperSendEmail(ctx context.Context, accountID, to, subject, plain, rich string, audio ...newspaperMailAudio) (string, error) {
 	if accountID == "agentmail" {
 		cfg := s.ConfigSnapshot()
 		if cfg == nil || !cfg.AgentMail.Enabled || cfg.AgentMail.ReadOnly || cfg.AgentMail.APIKey == "" || cfg.AgentMail.InboxID == "" {
@@ -98,7 +98,15 @@ func (s *Server) newspaperSendEmail(ctx context.Context, accountID, to, subject,
 		if err != nil {
 			return "", newspaper.SafeDelivery(err)
 		}
-		message, err := client.SendMessage(ctx, cfg.AgentMail.InboxID, agentmail.SendMessageRequest{To: []string{to}, Subject: subject, Text: plain, HTML: rich})
+		request := agentmail.SendMessageRequest{To: []string{to}, Subject: subject, Text: plain, HTML: rich}
+		if len(audio) > 0 {
+			a := audio[0]
+			if len(a.Data) > agentmail.ConfigFromAppConfig(cfg.AgentMail).MaxAttachmentMB<<20 {
+				return "", newspaper.SafeDelivery(errors.New("audio exceeds AgentMail attachment limit"))
+			}
+			request.Attachments = []agentmail.OutgoingAttachment{{Filename: a.Name, ContentType: a.MIME, ContentBase64: base64.StdEncoding.EncodeToString(a.Data), ContentDisposition: "attachment"}}
+		}
+		message, err := client.SendMessage(ctx, cfg.AgentMail.InboxID, request)
 		if err != nil {
 			var apiErr *agentmail.APIError
 			if errors.As(err, &apiErr) {
@@ -118,7 +126,7 @@ func (s *Server) newspaperSendEmail(ctx context.Context, accountID, to, subject,
 	if err != nil {
 		return "", newspaper.SafeDelivery(err)
 	}
-	return "", sendNewspaperSMTP(ctx, account, to, subject, plain, rich)
+	return "", sendNewspaperSMTP(ctx, account, to, subject, plain, rich, audio...)
 }
 
 func (s *Server) newspaperEmailAccount(id string) (config.EmailAccount, error) {
@@ -147,7 +155,7 @@ func (s *Server) newspaperEmailAccount(id string) (config.EmailAccount, error) {
 	return config.EmailAccount{}, errors.New("selected email account is unavailable")
 }
 
-func sendNewspaperSMTP(ctx context.Context, a config.EmailAccount, to, subject, plain, rich string) (outErr error) {
+func sendNewspaperSMTP(ctx context.Context, a config.EmailAccount, to, subject, plain, rich string, audio ...newspaperMailAudio) (outErr error) {
 	potentiallySent := false
 	defer func() {
 		if outErr != nil && !potentiallySent {
@@ -193,8 +201,15 @@ func sendNewspaperSMTP(ctx context.Context, a config.EmailAccount, to, subject, 
 	if err = mw.Close(); err != nil {
 		return err
 	}
+	contentType := fmt.Sprintf("multipart/alternative; boundary=%q", mw.Boundary())
+	if len(audio) > 0 {
+		contentType, err = newspaperMixedMail(&body, contentType, audio[0])
+		if err != nil {
+			return err
+		}
+	}
 	var msg bytes.Buffer
-	fmt.Fprintf(&msg, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%q\r\n\r\n", fromAddress.String(), toAddress.String(), mime.QEncoding.Encode("utf-8", subject), time.Now().Format(time.RFC1123Z), mw.Boundary())
+	fmt.Fprintf(&msg, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: %s\r\n\r\n", fromAddress.String(), toAddress.String(), mime.QEncoding.Encode("utf-8", subject), time.Now().Format(time.RFC1123Z), contentType)
 	msg.Write(body.Bytes())
 	address := net.JoinHostPort(a.SMTPHost, fmt.Sprint(a.SMTPPort))
 	deadline := time.Now().Add(2 * time.Minute)
@@ -285,9 +300,7 @@ func sendNewspaperTelegram(ctx context.Context, token string, chatID int64, e ne
 			return "", newspaper.SafeDelivery(err)
 		}
 	}
-	security.RegisterSensitive(token)
-	client := &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
-	bot, err := tgbotapi.NewBotAPIWithClient(token, newspaperTelegramEndpoint, client)
+	bot, err := newspaperTelegramBot(token)
 	if err != nil {
 		return "", newspaper.SafeDelivery(fmt.Errorf("Telegram client failed: %s", security.Scrub(err.Error())))
 	}

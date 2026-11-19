@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "只读模式",
   "config.newspaper.allow_email": "允许电子邮件传送",
   "config.newspaper.allow_telegram": "允许电报传送",
+  "config.newspaper.allow_chromecast": "允许使用 Chromecast",
+  "config.newspaper.allow_chromecast_help": "允许在已保存的 Chromecast 设备上播放音频版。",
   "config.newspaper.allow_whatsapp": "允许通过 WhatsApp 发送",
   "config.newspaper.max_minutes": "研究时间限制（分钟）",
   "config.newspaper.max_pages": "每个版本的最大阅读页数",

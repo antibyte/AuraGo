@@ -94,6 +94,14 @@ const (
 	ttsGoogleRuneLimit = 200
 )
 
+// TTSSpeechChunkLimit keeps long-form narration within each provider's input limit.
+func TTSSpeechChunkLimit(provider string) int {
+	if strings.EqualFold(provider, "google") {
+		return ttsGoogleRuneLimit
+	}
+	return ttsFileRuneLimit
+}
+
 // TTSSynthesisMeta reports file-path truncation and a Phonon fallback.
 type TTSSynthesisMeta struct {
 	FallbackProvider string

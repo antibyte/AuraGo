@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "केवल पढ़ने योग्य मोड",
   "config.newspaper.allow_email": "ईमेल डिलीवरी की अनुमति दें",
   "config.newspaper.allow_telegram": "टेलीग्राम डिलीवरी की अनुमति दें",
+  "config.newspaper.allow_chromecast": "Chromecast की अनुमति दें",
+  "config.newspaper.allow_chromecast_help": "सहेजे गए Chromecast डिवाइस पर ऑडियो संस्करण चलाने की अनुमति देता है।",
   "config.newspaper.allow_whatsapp": "WhatsApp डिलीवरी की अनुमति दें",
   "config.newspaper.max_minutes": "शोध समय सीमा (मिनट)",
   "config.newspaper.max_pages": "प्रति संस्करण पढ़े जाने वाले अधिकतम पृष्ठ",

@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Modo de solo lectura",
   "config.newspaper.allow_email": "Permitir la entrega de correo electrónico",
   "config.newspaper.allow_telegram": "Permitir entrega de Telegram",
+  "config.newspaper.allow_chromecast": "Permitir Chromecast",
+  "config.newspaper.allow_chromecast_help": "Permite reproducir ediciones de audio en un Chromecast guardado.",
   "config.newspaper.allow_whatsapp": "Permitir entrega por WhatsApp",
   "config.newspaper.max_minutes": "Límite de tiempo de investigación (minutos)",
   "config.newspaper.max_pages": "Máximo de páginas leídas por edición",

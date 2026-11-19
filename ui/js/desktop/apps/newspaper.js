@@ -11,6 +11,13 @@
         const ctx = context || {}, controller = new AbortController();
         const tr = key => { const id = 'newspaper.' + key, value = ctx.t?.(id); return value && value !== id ? value : key.replaceAll('_',' '); };
         const st = {host, controller, view:'today', edition:null, editionId:'', followLatest:true, deliveries:[], articleId:'', profile:null, draft:null, rssInput:'', rssSection:'', confirmCode:'', caps:{}, budgetPreview:null, budgetPreviewSignature:'', budgetPreviewVersion:0, budgetPreviewPending:false, budgetPreviewError:false, previewTimer:null, archive:[], run:null, events:[], runSources:[], runSourcesRun:'', search:'', filter:'', frontScroll:0, busy:false, error:'', notice:'', disposed:false, timer:null};
+        const channels = ['email','telegram','whatsapp'];
+        const channelName = id => id === 'email' ? tr('email') : id === 'telegram' ? 'Telegram' : 'WhatsApp';
+        const layout = document.createElement('div'), frame = document.createElement('div'), dock = document.createElement('div');
+        layout.className='np-reader-layout'; frame.className='np-reader-body'; dock.className='np-player'; dock.hidden=true;
+        const player = document.createElement('audio'), playerTitle = document.createElement('strong');
+        player.controls=true; player.preload='none'; dock.append(playerTitle,player); layout.append(frame,dock); host.replaceChildren(layout);
+        Object.assign(st,{player,audio:{status:'missing'},casts:[],creation:{},sendFormats:{},castWhen:''});
         instances.set(windowId, st);
         window.AuraDesktopEmail?.attach(windowId, '.np-toolbar > div', () => {
             const edition=st.edition;
@@ -70,7 +77,8 @@
             if(Boolean(draft.email_daily)!==Boolean(profile.email_daily))return true;
             if(Boolean(draft.telegram_daily)!==Boolean(profile.telegram_daily))return true;
             if(Boolean(draft.whatsapp_daily)!==Boolean(profile.whatsapp_daily))return true;
-            return false;
+            if(!!draft.audio_daily!==!!profile.audio_daily || !!draft.cast_daily!==!!profile.cast_daily || (draft.cast_device||'')!==(profile.cast_device||'') || (draft.cast_time||'')!==(profile.cast_time||''))return true;
+            return channels.some(k=>(draft.formats?.[k]||'edition')!==(profile.formats?.[k]||'edition'));
         }
         function updateDirtyHint() {
             const node=host.querySelector('.np-dirty');
@@ -114,17 +122,75 @@
             const count=(story.source_ids||[]).length,sourceLabel=story.single_source?tr('single_source_short'):count+' '+tr('sources');
             return `<button type="button" class="np-teaser ${lead?'np-lead':''}" data-story="${esc(story.id)}"><span class="np-eyebrow">${esc(tr('section_'+story.section))}</span><strong>${esc(story.headline)}</strong><span class="np-deck">${esc(story.deck)}</span><small>${esc(sourceLabel)} <span class="np-teaser-go" aria-hidden="true">→</span></small></button>`;
         }
+        function formatSelect(channel,scope,value,allowOff=false) {
+            const options = allowOff ? ['off','edition','audio','both'] : ['edition','audio','both'];
+            return `<label class="np-format"><span>${esc(channelName(channel))}</span><select name="${scope}_${channel}" data-format-scope="${scope}" data-channel="${channel}">${options.map(id=>`<option value="${id}" ${value===id?'selected':''}>${esc(tr('format_'+id))}</option>`).join('')}</select></label>`;
+        }
+        function creationOptions() {
+            const p=st.profile || {}, c=st.creation;
+            return `<details class="np-audio-options"><summary>${esc(tr('audio_and_delivery'))}</summary><div class="np-audio-fields">
+                <label><input type="checkbox" name="create_audio" ${(c.audio??p.audio_daily)?'checked':''}> ${esc(tr('generate_audio'))}</label>
+                ${channels.filter(k=>st.caps[k+'_ready']).map(k=>formatSelect(k,'create',c[k]??(p[k+'_daily']?(p.formats?.[k]||'edition'):'off'),true)).join('')}
+                </div></details>`;
+        }
+        function creationBody() {
+            const channelsForRun={};
+            for(const channel of channels) if(st.creation[channel]!==undefined) channelsForRun[channel]=st.creation[channel];
+            return {audio:st.creation.audio,channels:channelsForRun};
+        }
+        function audioPreferences(p) {
+            const devices=st.caps.cast_devices||[], saved=p.cast_device;
+            return `<section class="np-pref-section np-audio-prefs"><div></div><div><h3>${esc(tr('audio_and_delivery'))}</h3><label class="np-check"><input type="checkbox" name="audio_daily" ${p.audio_daily?'checked':''}>${esc(tr('generate_audio'))}</label>
+                <div class="np-audio-fields">${channels.filter(k=>st.caps[k+'_allowed']).map(k=>formatSelect(k,'pref',p.formats?.[k]||'edition')).join('')}</div>
+                ${st.caps.cast_allowed?`<div class="np-audio-fields"><label>Chromecast<select name="cast_device"><option value="">—</option>${saved&&!devices.some(d=>d.id===saved)?`<option selected value="${esc(saved)}">${esc(tr('cast_unavailable'))}</option>`:''}${devices.map(d=>`<option value="${esc(d.id)}" ${d.id===saved?'selected':''}>${esc(d.name)}</option>`).join('')}</select></label><label>${esc(tr('cast_time'))} · ${esc(p.time_zone)}<input type="time" name="cast_time" value="${esc(p.cast_time||'')}"></label></div><label class="np-check"><input type="checkbox" name="cast_daily" ${p.cast_daily?'checked':''}><span><b>${esc(tr('cast_daily'))}</b><small>${esc(tr('cast_policy'))}</small></span></label>`:''}
+                </div></section>`;
+        }
+        function captureAudioPreferences(data,p) {
+            p.audio_daily=data.has('audio_daily');
+            p.formats={...p.formats};
+            for(const k of channels) if(data.has('pref_'+k))p.formats[k]=String(data.get('pref_'+k));
+            if(data.has('cast_device')){
+                p.cast_device=String(data.get('cast_device'));p.cast_time=String(data.get('cast_time')||'');p.cast_daily=data.has('cast_daily');
+            }
+        }
+        function sendInProgress(channel) {
+            return st.deliveries.some(d=>d.channel===channel && ['preparing','sending'].includes(d.status));
+        }
+        function audioPanel() {
+            if(!('audio_ready' in st.caps))return '';
+            const state=st.audio.status, pending=state==='generating', ready=state==='ready';
+            const showCast=st.caps.cast_allowed && st.profile?.cast_device;
+            return `<section class="np-broadcast"><h2>${esc(tr('audio_edition'))}</h2>
+                <div class="np-actions">${ready?`<button type="button" data-action="listen">▶ ${esc(tr('listen'))}</button>`:`<button type="button" data-action="audio" ${readOnly()||pending||!st.caps.audio_ready?'disabled':''}>${esc(tr(pending?'audio_generating':'generate_audio'))}</button>`}
+                ${!ready&&(!st.caps.audio_ready||state==='failed')?`<small role="status">${esc(tr(st.audio.reason==='script_failed'?'script_failed':st.audio.reason==='tts_failed'?'tts_failed':!st.caps.audio_ready?'audio_unavailable':'audio_failed'))}</small>`:''}</div>
+                ${showCast?`<div class="np-cast np-actions"><button type="button" data-action="cast-now" ${readOnly()?'disabled':''}>${esc(tr('cast_now'))}</button><label>${esc(tr('cast_time'))} · ${esc(st.profile.time_zone)}<input type="datetime-local" name="cast_when" value="${esc(st.castWhen)}" ${readOnly()?'disabled':''}></label><button type="button" data-action="cast-later" ${readOnly()?'disabled':''}>${esc(tr('cast_once'))}</button></div>`:''}
+                ${st.casts.slice(0,3).map(b=>`<small class="np-cast-status">Chromecast · ${esc(new Intl.DateTimeFormat(document.documentElement.lang||'de',{dateStyle:'short',timeStyle:'short',timeZone:st.profile.time_zone}).format(new Date(b.due)))} · ${esc(tr('cast_'+b.status))}</small>`).join('')}</section>`;
+        }
+        function updatePlayer(){
+            const id=st.audio.status==='ready'?st.edition?.id:'';
+            if(player.dataset.edition!==(id||'')){
+                player.pause();player.removeAttribute('src');
+                if(id)player.src=base+'/editions/'+encodeURIComponent(id)+'/audio/file';
+                player.load();player.dataset.edition=id||'';
+            }
+            dock.hidden=!id;
+            if(id){playerTitle.textContent=tr('audio_edition')+' · '+st.edition.local_date;player.setAttribute('aria-label',playerTitle.textContent);}
+        }
         function revisionForm() {
             if(st.edition?.local_date!==st.caps.local_date)return '';
             const blocked=readOnly()?tr('reason_read_only'):!st.caps.research_ready?tr('research_unavailable'):st.run?.status==='running'?tr('running'):'';
             if(blocked)return `<span class="np-revision-blocked" title="${esc(blocked)}"><button type="button" disabled aria-label="${esc(tr('new_revision'))}: ${esc(blocked)}">${esc(tr('new_revision'))}</button></span>`;
-            return `<details class="np-revision"><summary>${esc(tr('new_revision'))}</summary><div class="np-revision-panel"><p>${esc(tr('revision_confirm'))}</p><label>${esc(tr('correction'))}<input name="correction_note" maxlength="300" placeholder="${esc(tr('correction_help'))}"></label><button type="button" data-action="revision-submit" class="np-primary">${esc(tr('new_revision'))}</button></div></details>`;
+            return `<details class="np-revision"><summary>${esc(tr('new_revision'))}</summary><div class="np-revision-panel"><p>${esc(tr('revision_confirm'))}</p><label>${esc(tr('correction'))}<input name="correction_note" maxlength="300" placeholder="${esc(tr('correction_help'))}"></label>${creationOptions()}<button type="button" data-action="revision-submit" class="np-primary">${esc(tr('new_revision'))}</button></div></details>`;
+        }
+        function dailyCastStatus(){
+            const b=st.caps.daily_cast;
+            return b?`<p class="np-cast-status">Chromecast · ${esc(st.profile.cast_time)} · ${esc(tr('cast_'+b.status))}</p>`:'';
         }
         function today() {
             const e=st.edition;
-            if(!e)return `<div class="np-paper">${masthead(null)}${progress()}<section class="np-empty"><span class="np-eyebrow">${esc(tr('first_edition'))}</span><h2>${esc(tr('empty_title'))}</h2><p>${esc(tr('empty_text'))}</p><div class="np-actions"><button type="button" class="np-primary" data-action="create" ${readOnly()||!st.caps.research_ready||st.run?.status==='running'?'disabled':''}>${esc(tr('create_today'))}</button><button type="button" data-view="preferences">${esc(tr('set_preferences'))}</button></div></section></div>`;
+            if(!e)return `<div class="np-paper">${masthead(null)}${progress()}${dailyCastStatus()}<section class="np-empty"><span class="np-eyebrow">${esc(tr('first_edition'))}</span><h2>${esc(tr('empty_title'))}</h2><p>${esc(tr('empty_text'))}</p><div class="np-actions"><button type="button" class="np-primary" data-action="create" ${readOnly()||!st.caps.research_ready||st.run?.status==='running'?'disabled':''}>${esc(tr('create_today'))}</button><button type="button" data-view="preferences">${esc(tr('set_preferences'))}</button></div>${creationOptions()}</section></div>`;
             const stories=e.stories||[],newDay=st.followLatest&&st.caps.local_date&&!st.archive.some(item=>item.local_date===st.caps.local_date);
-            return `<div class="np-paper">${masthead(e)}${newDay?`<section class="np-new-day"><strong>${esc(tr('today'))} · ${esc(dateLabel(st.caps.local_date))}</strong><button type="button" class="np-primary" data-action="create" ${readOnly()||!st.caps.research_ready||st.run?.status==='running'?'disabled':''}>${esc(tr('create_today'))}</button></section>`:''}${progress()}${e.partial?`<p class="np-partial">${esc(tr('partial'))}</p>`:''}${(e.corrections||[]).map(note=>`<p class="np-correction"><b>${esc(tr('correction'))}:</b> ${esc(note)}</p>`).join('')}<div class="np-toolbar"><span class="np-toolbar-meta"><span>${esc(tr('published'))} <time>${esc(time(e.created_at))}</time></span><i aria-hidden="true">·</i><span>${stories.length} ${esc(tr('stories'))}</span><i aria-hidden="true">·</i><span>${e.sources.length} ${esc(tr('sources'))}</span></span><div>${revisionForm()}<button type="button" data-action="pdf">${esc(tr('download_pdf'))}</button></div></div><div class="np-front"><section class="np-front-lead">${stories[0]?teaser(stories[0],true):''}</section><section class="np-front-side">${stories.slice(1,3).map(x=>teaser(x)).join('')}</section><aside class="np-front-brief"><h2>${esc(tr('in_brief'))}</h2>${stories.slice(3,6).map(x=>teaser(x)).join('')}</aside></div>${stories.length>6?`<section class="np-more"><h2>${esc(tr('more_news'))}</h2><div>${stories.slice(6).map(x=>teaser(x)).join('')}</div></section>`:''}<footer class="np-footer"><span>${esc(e.title)} · ${esc(e.local_date)} · r${e.revision}</span><span>${esc(tr('checked_sources'))}</span></footer><section class="np-share"><h2>${esc(tr('share_edition'))}</h2><p>${esc(tr('delivery_intro'))}</p><div class="np-actions"><button type="button" data-send="email" ${readOnly()||!st.caps.email_ready?'disabled':''}>${esc(tr('send_email'))}</button><button type="button" data-send="telegram" ${readOnly()||!st.caps.telegram_ready?'disabled':''}>${esc(tr('send_telegram'))}</button><button type="button" data-send="whatsapp" ${readOnly()||!st.caps.whatsapp_ready?'disabled':''}>${esc(tr('send_whatsapp'))}</button></div>${!st.caps.email_ready||!st.caps.telegram_ready||!st.caps.whatsapp_ready?`<small>${esc(tr('delivery_setup'))}</small>`:''}${st.deliveries.length?`<div class="np-delivery-history"><b>${esc(tr('delivery_history'))}</b>${st.deliveries.slice(0,4).map(d=>`<span class="np-delivery np-delivery-${esc(deliveryState(d.status))}"><b>${esc(({email:tr('email'),telegram:'Telegram',whatsapp:'WhatsApp'})[d.channel]||d.channel)}</b><span>${esc(tr('delivery_'+d.status))}</span><time>${esc(time(d.updated_at))}</time></span>`).join('')}</div>`:''}</section></div>`;
+            return `<div class="np-paper">${masthead(e)}${newDay?`<section class="np-new-day"><strong>${esc(tr('today'))} · ${esc(dateLabel(st.caps.local_date))}</strong><button type="button" class="np-primary" data-action="create" ${readOnly()||!st.caps.research_ready||st.run?.status==='running'?'disabled':''}>${esc(tr('create_today'))}</button>${creationOptions()}${dailyCastStatus()}</section>`:''}${progress()}${e.partial?`<p class="np-partial">${esc(tr('partial'))}</p>`:''}${(e.corrections||[]).map(note=>`<p class="np-correction"><b>${esc(tr('correction'))}:</b> ${esc(note)}</p>`).join('')}<div class="np-toolbar"><span class="np-toolbar-meta"><span>${esc(tr('published'))} <time>${esc(time(e.created_at))}</time></span><i aria-hidden="true">·</i><span>${stories.length} ${esc(tr('stories'))}</span><i aria-hidden="true">·</i><span>${e.sources.length} ${esc(tr('sources'))}</span></span><div>${revisionForm()}<button type="button" data-action="pdf">${esc(tr('download_pdf'))}</button></div></div>${audioPanel()}<div class="np-front"><section class="np-front-lead">${stories[0]?teaser(stories[0],true):''}</section><section class="np-front-side">${stories.slice(1,3).map(x=>teaser(x)).join('')}</section><aside class="np-front-brief"><h2>${esc(tr('in_brief'))}</h2>${stories.slice(3,6).map(x=>teaser(x)).join('')}</aside></div>${stories.length>6?`<section class="np-more"><h2>${esc(tr('more_news'))}</h2><div>${stories.slice(6).map(x=>teaser(x)).join('')}</div></section>`:''}<footer class="np-footer"><span>${esc(e.title)} · ${esc(e.local_date)} · r${e.revision}</span><span>${esc(tr('checked_sources'))}</span></footer><section class="np-share"><h2>${esc(tr('share_edition'))}</h2><p>${esc(tr('delivery_intro'))}</p><div class="np-actions">${st.caps.email_ready?formatSelect('email','send',st.sendFormats.email||st.profile?.formats?.email||'edition'):''}<button type="button" data-send="email" ${readOnly()||sendInProgress('email')||!st.caps.email_ready?'disabled':''}>${esc(tr('send_email'))}</button>${st.caps.telegram_ready?formatSelect('telegram','send',st.sendFormats.telegram||st.profile?.formats?.telegram||'edition'):''}<button type="button" data-send="telegram" ${readOnly()||sendInProgress('telegram')||!st.caps.telegram_ready?'disabled':''}>${esc(tr('send_telegram'))}</button>${st.caps.whatsapp_ready?formatSelect('whatsapp','send',st.sendFormats.whatsapp||st.profile?.formats?.whatsapp||'edition'):''}<button type="button" data-send="whatsapp" ${readOnly()||sendInProgress('whatsapp')||!st.caps.whatsapp_ready?'disabled':''}>${esc(tr('send_whatsapp'))}</button></div>${!st.caps.email_ready||!st.caps.telegram_ready||!st.caps.whatsapp_ready?`<small>${esc(tr('delivery_setup'))}</small>`:''}${st.deliveries.length?`<div class="np-delivery-history"><b>${esc(tr('delivery_history'))}</b>${st.deliveries.slice(0,4).map(d=>`<span class="np-delivery np-delivery-${esc(deliveryState(d.status))}"><b>${esc(({email:tr('email'),telegram:'Telegram',whatsapp:'WhatsApp'})[d.channel]||d.channel)}</b><span>${esc(tr('format_'+(d.format||'edition')))} · ${esc(tr('delivery_'+d.status))}</span>${d.status==='audio_pending'?`<button type="button" data-send="${esc(d.channel)}" data-audio-only="1" ${readOnly()||sendInProgress(d.channel)?'disabled':''}>${esc(tr('resend_audio'))}</button>`:''}<time>${esc(time(d.updated_at))}</time></span>`).join('')}</div>`:''}</section></div>`;
         }
         function article() {
             const e=st.edition, story=e?.stories?.find(x=>x.id===st.articleId);if(!story)return today();
@@ -187,6 +253,7 @@
             st.draft.sections=data.getAll('sections');
             for(const key of ['name','language','country','region','city','time_zone','ready_time','length'])st.draft[key]=String(data.get(key)||'');
             st.draft.daily=data.has('daily');
+            captureAudioPreferences(data,st.draft);
             if(st.caps.email_allowed){st.draft.email_account_id=String(data.get('email_account_id')||'');st.draft.email_to=String(data.get('email_to')||'');st.draft.email_daily=data.has('email_daily');}
             if(st.caps.telegram_ready)st.draft.telegram_daily=data.has('telegram_daily');
             if(st.caps.whatsapp_ready)st.draft.whatsapp_daily=data.has('whatsapp_daily');
@@ -217,10 +284,13 @@
         }
         function draw() {
             if(st.disposed)return;
+            const preferencesScroll=st.view==='preferences'&&frame.querySelector('.np-preferences')?frame.querySelector('.np-scroll').scrollTop:null;
             const active=document.activeElement;
             const token=focusToken(active),selection=selectionOf(active);
-            st.host.innerHTML=shell(st.view==='article'?article():st.view==='archive'?archive():st.view==='preferences'?preferences():today());
-            if(st.view==='preferences')st.host.querySelector('.np-prefs .np-pref-section:last-of-type')?.insertAdjacentHTML('afterend',budgetPanel());
+            frame.innerHTML=shell(st.view==='article'?article():st.view==='archive'?archive():st.view==='preferences'?preferences():today());
+            if(st.view==='preferences')st.host.querySelector('.np-prefs .np-pref-section:last-of-type')?.insertAdjacentHTML('afterend',audioPreferences(st.draft||st.profile)+budgetPanel());
+            updatePlayer();
+            if(preferencesScroll!==null)frame.querySelector('.np-scroll').scrollTop=preferencesScroll;
             if(st.view==='today')st.host.querySelector('.np-scroll').scrollTop=st.frontScroll;
             if(st.view==='article'&&st.edition)st.host.querySelector('.np-scroll').scrollTop=Number(localStorage.getItem('aurago.newspaper.read.'+st.edition.id+'.'+st.articleId)||0);
             const restored=resolveFocus(token);
@@ -235,24 +305,36 @@
             const [caps,profile,list]=await Promise.all([request('/capabilities'),request('/profile'),request('/editions')]);if(st.disposed)return;
             st.caps=caps;st.profile=profile;st.archive=list.editions||[];st.run=list.latest_run||null;if(!st.draft||st.view!=='preferences')st.draft=clone(profile);queueBudgetPreview(st.draft||profile);
             const wanted=st.followLatest?st.archive[0]?.id:st.editionId;if(wanted&&st.edition?.id!==wanted){st.edition=await request('/editions/'+encodeURIComponent(wanted));st.editionId=wanted;}
+            if(wanted && 'audio_ready' in caps){
+                const info=await request('/editions/'+encodeURIComponent(wanted)+'/audio');
+                if(st.edition?.id===wanted){st.audio=info.audio||{status:'missing'};st.casts=info.casts||[];}
+            }
             if(wanted)st.deliveries=(await request('/editions/'+encodeURIComponent(wanted)+'/deliveries')).deliveries||[];
             if(st.run?.status==='running'||(['failed','cancelled','interrupted'].includes(st.run?.status)&&st.runSourcesRun!==st.run.id)){const data=await request('/editions/'+encodeURIComponent(st.run.id)+'/events?after='+(st.events.at(-1)?.id||0));st.events=[...st.events,...(data.events||[])].slice(-30);st.runSources=data.sources||[];st.runSourcesRun=st.run.id;}else if(st.run?.status==='published'){st.events=[];st.runSources=[];st.runSourcesRun='';}
             if(!st.disposed&&redraw)draw();
         }
         async function poll() {
             if(st.disposed)return;
-            try{const old=st.run?.updated_at,latest=st.archive[0]?.id,day=st.caps.local_date;await refresh(false);if(st.view==='today'&&(old!==st.run?.updated_at||latest!==st.archive[0]?.id||day!==st.caps.local_date)){st.frontScroll=host.querySelector('.np-scroll')?.scrollTop||0;draw();}}catch(err){if(err.name!=='AbortError'){st.error=err.message||tr('error');draw();}}
+            if(st.busy){st.timer=setTimeout(poll,5000);return;}
+            try{const audioBefore=JSON.stringify([st.audio,st.casts,st.deliveries]),old=st.run?.updated_at,latest=st.archive[0]?.id,day=st.caps.local_date,castStatus=st.caps.daily_cast?.status;await refresh(false);if(st.view==='today'&&(old!==st.run?.updated_at||latest!==st.archive[0]?.id||day!==st.caps.local_date||castStatus!==st.caps.daily_cast?.status||audioBefore!==JSON.stringify([st.audio,st.casts,st.deliveries]))){st.frontScroll=host.querySelector('.np-scroll')?.scrollTop||0;draw();}}catch(err){if(err.name!=='AbortError'){st.error=err.message||tr('error');draw();}}
             if(!st.disposed)st.timer=setTimeout(poll,5000);
         }
-        async function act(fn){if(st.busy)return;st.busy=true;st.error='';st.notice='';try{await fn();await refresh(false);draw();}catch(err){if(err.name!=='AbortError'){try{await refresh(false);}catch(_){}st.error=err.message||tr('error');draw();}}finally{st.busy=false;}}
+        async function act(fn){if(st.busy)return;st.busy=true;frame.setAttribute('aria-busy','true');st.error='';st.notice='';try{await fn();await refresh(false);draw();}catch(err){if(err.name!=='AbortError'){try{await refresh(false);}catch(_){}st.error=err.message||tr('error');draw();}}finally{st.busy=false;frame.removeAttribute('aria-busy');}}
         host.addEventListener('toggle',ev=>{if(ev.target.matches('.np-tools'))st.toolsOpen=ev.target.open;},{capture:true,signal:controller.signal});
         host.addEventListener('scroll',ev=>{if(!ev.target.matches('.np-scroll'))return;if(st.view==='today')st.frontScroll=ev.target.scrollTop;if(st.view==='article'&&st.edition)localStorage.setItem('aurago.newspaper.read.'+st.edition.id+'.'+st.articleId,String(ev.target.scrollTop));},{capture:true,signal:controller.signal});
         host.addEventListener('input',ev=>{if(ev.target.name==='archive_search'){st.search=ev.target.value;draw();return;}if(ev.target.name==='rss_url'){host.querySelector('.np-rss-error').textContent='';ev.target.removeAttribute('aria-invalid');}else if(ev.target.name==='email_to')syncChallengeAction();if(ev.target.name==='confirmation_code')st.confirmCode=ev.target.value;if(ev.target.closest('.np-prefs')){capturePreferences();updateDirtyHint();}},{signal:controller.signal});
         host.addEventListener('change',ev=>{if(ev.target.name==='archive_filter'){st.filter=ev.target.value;draw();}else if(ev.target.name==='email_account_id')syncChallengeAction();else if(ev.target.name==='sections'){capturePreferences();const select=host.querySelector('[name=rss_section]');if(select){const chosen=select.value,choices=st.draft.sections.concat((st.draft.interests||[]).length?['interests']:[]);select.replaceChildren(...choices.map(section=>{const option=document.createElement('option');option.value=section;option.textContent=tr('section_'+section);return option;}));if(choices.includes(chosen))select.value=chosen;st.rssSection=select.value;host.querySelector('[data-action=add-rss]').disabled=readOnly()||!choices.length;}}},{signal:controller.signal});
         host.addEventListener('change',ev=>{if(ev.target.name==='sections'||ev.target.name==='length'){capturePreferences();queueBudgetPreview(st.draft);}},{signal:controller.signal});
         host.addEventListener('change',ev=>{if(ev.target.closest('.np-prefs')){capturePreferences();updateDirtyHint();}},{signal:controller.signal});
+        host.addEventListener('input',ev=>{
+            if(ev.target.name==='cast_when')st.castWhen=ev.target.value;
+            if(ev.target.name==='create_audio')st.creation.audio=ev.target.checked;
+            const {formatScope,channel}=ev.target.dataset;
+            if(formatScope==='send')st.sendFormats[channel]=ev.target.value;
+            if(formatScope==='create')st.creation[channel]=ev.target.value;
+        },{signal:controller.signal});
         host.addEventListener('keydown',ev=>{if(ev.key!=='Escape'||st.view!=='article')return;ev.preventDefault();st.view='today';st.error='';draw();host.querySelector('.np-scroll')?.focus();},{signal:controller.signal});
-        host.addEventListener('submit',ev=>{if(!ev.target.matches('.np-prefs'))return;ev.preventDefault();if(readOnly())return;const data=new FormData(ev.target),next=clone(st.profile);next.sections=data.getAll('sections');next.interests=st.draft.interests;next.exclusions=st.draft.exclusions;next.rss_feeds=st.draft.rss_feeds||[];for(const key of ['name','language','country','region','city','time_zone','ready_time','length'])next[key]=String(data.get(key)||'');if(st.caps.email_allowed){next.email_account_id=String(data.get('email_account_id')||'');next.email_to=String(data.get('email_to')||'');next.email_daily=data.has('email_daily');}next.daily=data.has('daily');if(st.caps.telegram_ready)next.telegram_daily=data.has('telegram_daily');if(st.caps.whatsapp_ready)next.whatsapp_daily=data.has('whatsapp_daily');act(async()=>{const saved=await request('/profile',{method:'PUT',headers:{'If-Match':'"'+st.profile.version+'"'},body:next});st.profile=saved;st.draft=clone(saved);st.notice=tr('saved');});},{signal:controller.signal});
+        host.addEventListener('submit',ev=>{if(!ev.target.matches('.np-prefs'))return;ev.preventDefault();if(readOnly())return;const data=new FormData(ev.target),next=clone(st.profile);next.sections=data.getAll('sections');next.interests=st.draft.interests;next.exclusions=st.draft.exclusions;next.rss_feeds=st.draft.rss_feeds||[];for(const key of ['name','language','country','region','city','time_zone','ready_time','length'])next[key]=String(data.get(key)||'');if(st.caps.email_allowed){next.email_account_id=String(data.get('email_account_id')||'');next.email_to=String(data.get('email_to')||'');next.email_daily=data.has('email_daily');}next.daily=data.has('daily');captureAudioPreferences(data,next);if(st.caps.telegram_ready)next.telegram_daily=data.has('telegram_daily');if(st.caps.whatsapp_ready)next.whatsapp_daily=data.has('whatsapp_daily');act(async()=>{const saved=await request('/profile',{method:'PUT',headers:{'If-Match':'"'+st.profile.version+'"'},body:next});st.profile=saved;st.draft=clone(saved);st.notice=tr('saved');});},{signal:controller.signal});
         host.addEventListener('click',ev=>{
             const el=ev.target.closest('button,a[data-source]');if(!el||el.disabled)return;
             if(el.dataset.view){if(st.view==='today')st.frontScroll=host.querySelector('.np-scroll')?.scrollTop||0;if(el.dataset.view==='today'&&el.closest('.np-chrome')){st.followLatest=true;st.editionId='';st.frontScroll=0;st.view='today';act(async()=>{});return;}st.view=el.dataset.view;st.error='';draw();return;}
@@ -261,11 +343,19 @@
             if(el.dataset.edition){act(async()=>{st.editionId=el.dataset.edition;st.followLatest=false;st.edition=await request('/editions/'+encodeURIComponent(st.editionId));st.deliveries=(await request('/editions/'+encodeURIComponent(st.editionId)+'/deliveries')).deliveries||[];st.view='today';st.frontScroll=0;});return;}
             if(el.dataset.remove){const kind=String(el.dataset.remove||'').replace(/[^\w-]/g,''),index=Number(el.dataset.index);capturePreferences();(st.draft[kind]||[]).splice(index,1);queueBudgetPreview(st.draft);draw();const remaining=host.querySelectorAll('[data-remove="'+kind+'"]');remaining[Math.min(index,remaining.length-1)]?.focus({preventScroll:true});return;}
             if(el.dataset.add){const kind=el.dataset.add,input=host.querySelector('[name='+kind+'_input]'),value=input?.value.trim(),list=st.draft[kind]||(st.draft[kind]=[]);if(value&&list.length<20&&!list.some(x=>x.toLowerCase()===value.toLowerCase())){capturePreferences();list.push(value);queueBudgetPreview(st.draft);draw();host.querySelector('[name='+kind+'_input]')?.focus();}return;}
-            if(el.dataset.send){act(async()=>{const last=st.deliveries.find(d=>d.channel===el.dataset.send);if(['uncertain','sending'].includes(last?.status)&&ctx.confirmDialog&&!(await ctx.confirmDialog(tr('delivery_uncertain'),tr('resend_confirm'))))return;const key=crypto.randomUUID();const result=await request('/editions/'+encodeURIComponent(st.edition.id)+'/deliver',{method:'POST',headers:{'Idempotency-Key':key},body:{channel:el.dataset.send,kind:'manual'}});st.notice=result.status==='sent'?tr('delivery_sent'):tr('delivery_uncertain');st.deliveries=(await request('/editions/'+encodeURIComponent(st.edition.id)+'/deliveries')).deliveries||[];});return;}
+            if(el.dataset.send){const format=el.dataset.audioOnly?'audio':st.sendFormats[el.dataset.send]||st.profile?.formats?.[el.dataset.send]||'edition';act(async()=>{const last=st.deliveries.find(d=>d.channel===el.dataset.send);if(['uncertain','sending'].includes(last?.status)&&ctx.confirmDialog&&!(await ctx.confirmDialog(tr('delivery_uncertain'),tr('resend_confirm'))))return;const key=crypto.randomUUID();const result=await request('/editions/'+encodeURIComponent(st.edition.id)+'/deliver',{method:'POST',headers:{'Idempotency-Key':key},body:{channel:el.dataset.send,kind:'manual',format}});st.notice=tr('delivery_'+result.status);st.deliveries=(await request('/editions/'+encodeURIComponent(st.edition.id)+'/deliveries')).deliveries||[];});return;}
             const action=el.dataset.action;
+            if(action==='listen'){player.play().catch(()=>{st.error=tr('audio_failed');draw();});return;}
+            if(action==='audio'){act(async()=>{st.audio=await request('/editions/'+encodeURIComponent(st.edition.id)+'/audio',{method:'POST',body:{}});});return;}
+            if(action==='cast-now'||action==='cast-later'){
+                const input=host.querySelector('[name=cast_when]');
+                if(action==='cast-later'&&!input?.value){if(input){input.required=true;input.reportValidity();}return;}
+                const [date,time]=(action==='cast-later'?input.value:'').split('T');
+                act(async()=>{if(st.casts[0]?.status==='uncertain'&&ctx.confirmDialog&&!(await ctx.confirmDialog(tr('cast_uncertain'),tr('resend_confirm'))))return;await request('/editions/'+encodeURIComponent(st.edition.id)+'/cast',{method:'POST',headers:{'Idempotency-Key':crypto.randomUUID()},body:{date:date||'',time:time||''}});st.notice=tr('cast_pending');});return;
+            }
             if(action==='add-rss'){const input=host.querySelector('[name=rss_url]'),url=input?.value.trim(),section=host.querySelector('[name=rss_section]')?.value,feeds=st.draft.rss_feeds||(st.draft.rss_feeds=[]);if(!url){input?.focus();return;}const valid=safeURL(url)&&!new URL(url).hash;if(valid&&section&&feeds.length<10&&!feeds.some(x=>x.url.toLowerCase()===url.toLowerCase())){capturePreferences();feeds.push({url,section});st.rssInput='';draw();}else{input.setAttribute('aria-invalid','true');host.querySelector('.np-rss-error').textContent=tr('rss_invalid');input.focus();}return;}
             if(action==='dismiss'){st.error='';st.notice='';draw();return;}
-            if(action==='create'||action==='revision-submit'){const correction=action==='revision-submit'?host.querySelector('[name=correction_note]')?.value.trim()||'':'';act(async()=>{st.run=await request('/editions',{method:'POST',body:{new_revision:action==='revision-submit',correction_note:correction}});st.view='today';st.notice=tr('started');});return;}
+            if(action==='create'||action==='revision-submit'){const correction=action==='revision-submit'?host.querySelector('[name=correction_note]')?.value.trim()||'':'';act(async()=>{st.run=await request('/editions',{method:'POST',body:{new_revision:action==='revision-submit',correction_note:correction,...creationBody()}});st.creation={};st.view='today';st.notice=tr('started');});return;}
             if(action==='stop'){act(async()=>{await request('/editions/'+encodeURIComponent(st.run.id)+'/stop',{method:'POST',body:{}});st.notice=tr('stopping');});return;}
             if(action==='email-challenge'){act(async()=>{await saveEmailDestinationForChallenge();try{await request('/email/challenge',{method:'POST',body:{}});}catch(err){throw new Error(challengeError(err));}st.notice=tr('code_sent');});return;}
             if(action==='email-confirm'){const code=host.querySelector('[name=confirmation_code]')?.value.trim();act(async()=>{st.profile=await request('/email/confirm',{method:'POST',body:{code}});st.draft=clone(st.profile);st.notice=tr('email_verified');});return;}
@@ -275,6 +365,6 @@
         },{signal:controller.signal});
         (async()=>{try{await refresh();poll();}catch(err){st.error=err.message||tr('error');draw();}})();
     }
-    function dispose(id){const st=instances.get(id);if(!st)return;st.disposed=true;clearTimeout(st.timer);clearTimeout(st.previewTimer);st.controller.abort();instances.delete(id);}
+    function dispose(id){const st=instances.get(id);if(!st)return;st.disposed=true;st.player.pause();st.player.removeAttribute('src');st.player.load();clearTimeout(st.timer);clearTimeout(st.previewTimer);st.controller.abort();instances.delete(id);}
     window.NewspaperApp={render,dispose};
 })();

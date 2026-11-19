@@ -24,6 +24,8 @@
   "config.newspaper.readonly": "Mode lecture seule",
   "config.newspaper.allow_email": "Autoriser l'envoi d'e-mails",
   "config.newspaper.allow_telegram": "Autoriser la livraison de télégrammes",
+  "config.newspaper.allow_chromecast": "Autoriser Chromecast",
+  "config.newspaper.allow_chromecast_help": "Permet d’écouter les éditions audio sur un Chromecast enregistré.",
   "config.newspaper.allow_whatsapp": "Autoriser l'envoi par WhatsApp",
   "config.newspaper.max_minutes": "Délai de recherche (minutes)",
   "config.newspaper.max_pages": "Nombre maximum de pages lues par édition",
