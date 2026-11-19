@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Falena lanterna · Esci dalla sua traiettoria!",
+  "runenpfad.encounter_toad": "Rospo campana · Interrompi il richiamo o salta l’onda.",
+  "runenpfad.encounter_roller": "Ruota di spine · Salta oltre le spine.",
+  "runenpfad.encounter_moon": "Gradini lunari · Le pietre accese ti sostengono.",
   "runenpfad.sky_ray_hint": "Salta sul dorso della manta volante",
   "runenpfad.resonance_hint": "Tocca la runa luminosa",
   "runenpfad.resonance_progress": "Sentiero runico {count}/{total} · {seconds} s",

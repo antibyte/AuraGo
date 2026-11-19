@@ -603,6 +603,50 @@
             const f = (o.freq || 440) * sr;
             b.o('sine', f * 1.5, f * 1.54, t, 0.4, g * 0.1, { atk: 0.1, filter: 'lowpass', ff: 2800, q: 0.7 });
             b.n(t + 0.03, 0.38, g * 0.13, { type: 'highpass', f0: f * 4.2, f1: f * 2.5, q: 0.55, atk: 0.15 });
+        }),
+        // Bell toad: a throaty, filtered call with a restrained metallic formant.
+        toad_bellow: wrap(function (b, t, g, sr) {
+            const f = 104 * sr;
+            b.o('sine', f * 0.9, f * 1.12, t, 0.58, g * 0.52, { atk: 0.2 });
+            b.o('triangle', f * 1.9, f * 2.2, t + 0.025, 0.55, g * 0.2, { filter: 'lowpass', ff: 520 * sr, q: 1.3, atk: 0.18 });
+            b.o('triangle', f * 3.1, f * 3.5, t + 0.055, 0.47, g * 0.14, { filter: 'bandpass', ff: 430 * sr, q: 3.2, atk: 0.14 });
+            b.bell(f * 5.05, t + 0.1, 0.68, g * 0.17);
+            b.n(t + 0.04, 0.4, g * 0.055, { type: 'lowpass', f0: 420 * sr, f1: 300 * sr, q: 0.7, atk: 0.18 });
+        }),
+        toad_roll: wrap(function (b, t, g, sr) {
+            const f = 82 * sr;
+            b.o('sine', f * 1.4, f * 0.62, t, 0.8, g * 0.38, { atk: 0.16 });
+            b.o('triangle', f * 2.3, f * 1.1, t + 0.04, 0.72, g * 0.14, { filter: 'lowpass', ff: 360 * sr, q: 0.8, atk: 0.13 });
+            for (let i = 0; i < 5; i++) {
+                const tt = t + i * 0.13;
+                const pulse = (1 - i * 0.13) * g;
+                b.o('sine', (145 - i * 12) * sr, (96 - i * 8) * sr, tt, 0.18, pulse * 0.26, { atk: 0.035 });
+                b.n(tt, 0.16, pulse * 0.045, { type: 'lowpass', f0: 420 * sr, f1: 180 * sr, q: 0.7, atk: 0.05 });
+            }
+        }),
+        // A lantern moth flutters in short, tapering wing-like pulses before diving.
+        moth_flutter: wrap(function (b, t, g, sr, o) {
+            for (let i = 0; i < 4; i++) {
+                const tt = t + i * 0.075;
+                const f = (1580 + i * 95 + jit(o, i) * 70) * sr;
+                const level = g * (0.28 - i * 0.035);
+                b.o('sine', f, f * (i % 2 ? 0.96 : 1.04), tt, 0.095, level, { atk: 0.018 });
+                b.n(tt + 0.012, 0.048, level * 0.15, { type: 'highpass', f0: 2600 * sr, f1: 3300 * sr, q: 0.65, atk: 0.02 });
+            }
+        }),
+        moth_dive: wrap(function (b, t, g, sr) {
+            b.n(t, 0.46, g * 0.48, { type: 'bandpass', f0: 2300 * sr, f1: 520 * sr, q: 0.65, atk: 0.14 });
+            b.n(t + 0.035, 0.38, g * 0.19, { type: 'highpass', f0: 3600 * sr, f1: 1700 * sr, q: 0.55, atk: 0.13 });
+            b.o('sine', 1180 * sr, 280 * sr, t + 0.025, 0.48, g * 0.18, { atk: 0.12 });
+        }),
+        roller_turn: wrap(function (b, t, g, sr) {
+            b.o('sawtooth', 168 * sr, 112 * sr, t, 0.37, g * 0.18, { filter: 'lowpass', ff: 520 * sr, q: 1.2, atk: 0.035 });
+            [0, 0.095, 0.19].forEach(function (dt, i) {
+                const f = (760 - i * 95) * sr;
+                b.o('triangle', f, f * 0.9, t + dt, 0.065, g * (0.2 - i * 0.035), { filter: 'bandpass', ff: 1200 * sr, q: 1.4, atk: 0.009 });
+                b.n(t + dt, 0.026, g * (0.13 - i * 0.02), { type: 'lowpass', f0: 1800 * sr, f1: 900 * sr, q: 0.75, atk: 0.004 });
+            });
+            b.o('sine', 130 * sr, 72 * sr, t + 0.24, 0.2, g * 0.26, { atk: 0.008 });
         })
     };
 
@@ -641,5 +685,14 @@
         return Number.isInteger(index) ? resonanceNotes(theme, index, !!cue.scalePhrase) : null;
     }
 
-    root.RunenpfadSfx = { SYNTHS: SYNTHS, builder: builder, resonanceNotes: resonanceNotes, cueTuning: cueTuning };
+    const CUES = {
+        moth_tell: { sound: false, gain: 0.42, cooldown: 700, synth: 'moth_flutter', sg: 0.3, sr: 1, also: [{ synth: 'shimmer', sg: 0.1, sr: 1.7, delay: 0.12 }] },
+        moth_dive: { sound: false, gain: 0.48, cooldown: 320, synth: 'moth_dive', sg: 0.42, sr: 1, also: [{ synth: 'whistle', sg: 0.15, sr: 0.82, delay: 0.035 }] },
+        toad_tell: { sound: false, gain: 0.48, cooldown: 850, synth: 'toad_bellow', sg: 0.58, sr: 0.9, also: [{ synth: 'clank', sg: 0.22, sr: 0.62, delay: 0.08 }] },
+        toad_wave: { sound: false, gain: 0.58, cooldown: 450, synth: 'toad_roll', sg: 0.56, sr: 1, also: [{ synth: 'hollow', sg: 0.19, sr: 0.65, delay: 0.12 }] },
+        roller_turn: { sound: false, gain: 0.44, cooldown: 420, synth: 'roller_turn', sg: 0.35, sr: 0.82, also: [{ synth: 'clank', sg: 0.18, sr: 0.7, delay: 0.14 }] },
+        moon_step: { sound: 'step-stone', gain: 0.26, cooldown: 170, synth: 'landing', sg: 0.42, speed: 'impactSpeed', also: [{ synth: 'hollow', sg: 0.16, sr: 0.72, delay: 0.035 }] }
+    };
+
+    root.RunenpfadSfx = { SYNTHS: SYNTHS, CUES: CUES, builder: builder, resonanceNotes: resonanceNotes, cueTuning: cueTuning };
 })(typeof window !== 'undefined' ? window : globalThis);

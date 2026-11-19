@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Lyktmal · Flytta dig ur flygbanan!",
+  "runenpfad.encounter_toad": "Klockpadda · Avbryt ropet eller hoppa över vågen.",
+  "runenpfad.encounter_roller": "Tagghjul · Hoppa över taggarna.",
+  "runenpfad.encounter_moon": "Månsteg · De lysande stenarna bär dig.",
   "runenpfad.sky_ray_hint": "Hoppa upp på den flygande rockans rygg",
   "runenpfad.resonance_hint": "Rör vid den lysande runan",
   "runenpfad.resonance_progress": "Runspår {count}/{total} · {seconds} s",

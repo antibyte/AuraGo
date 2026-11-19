@@ -164,6 +164,7 @@
                             }
                             entity.vy = 0;
                             entity.onGround = true;
+                            if (p.kind === 'moon_step') entity.onPlatformRide = p;
                             return;
                         }
                     }

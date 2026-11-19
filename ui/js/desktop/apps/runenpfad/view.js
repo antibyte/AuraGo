@@ -463,7 +463,7 @@
 
             // Static / crumbling / spring platforms (deck top sits flush at p.y, edge-to-edge tiles)
             stage.platforms.forEach(function (p) {
-                if (!p.solid) return;
+                if (p.kind === 'moon_step' || !p.solid) return;
                 if (p.x + p.w < sx || p.x > sx + vw) return;
                 const jitter = p.crumbleTimer > 0 && !prefersReducedMotion() ? Math.sin(nowSec * 55) * 2.5 : 0;
                 const crop = PLATFORM_CROPS[p.assetId];

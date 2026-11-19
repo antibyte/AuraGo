@@ -357,7 +357,7 @@
                     proj.dead = true;
                     if (proj.blast) projectileBlast(sim, proj);
                     else if (proj.spore) sporeBurst(sim, proj.x, sporeGround(sim, proj.x, proj.y), proj.y);
-                    else hurtPlayer(sim, proj.damage, proj.x, 'impact-metal');
+                    else hurtPlayer(sim, proj.damage, proj.x, proj.hitSound || 'impact-metal');
                 }
             } else {
                 stage.enemies.forEach(function (e) {

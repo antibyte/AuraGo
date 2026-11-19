@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Lygtemøl · Kom væk fra dens flyvebane!",
+  "runenpfad.encounter_toad": "Klokketudse · Afbryd kaldet, eller hop over bølgen.",
+  "runenpfad.encounter_roller": "Tornhjul · Hop over tornene.",
+  "runenpfad.encounter_moon": "Månetrin · De lysende sten bærer dig.",
   "runenpfad.sky_ray_hint": "Hop op på ryggen af den flyvende rokke",
   "runenpfad.resonance_hint": "Rør ved den lysende rune",
   "runenpfad.resonance_progress": "Runespor {count}/{total} · {seconds} s",

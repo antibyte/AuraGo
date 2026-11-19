@@ -58,6 +58,8 @@ SHEETS = {
     "boss-quad": (4, 3, "center", "boss"),
     "boss-mech": (4, 3, "feet", "boss"),
     "enemy-sporecap": (4, 3, "feet", "enemy"),
+    "enemy-bell-toad": (4, 3, "self", "enemy"),
+    "enemy-lantern-moth": (4, 3, "center", "enemy"),
     "enemy-crystalbat": (4, 3, "center", "enemy"),
     "enemy-scarab": (4, 3, "feet", "enemy"),
     "enemy-frostwraith": (4, 3, "center", "enemy"),
@@ -86,6 +88,7 @@ SHEETS = {
     "fx-fireball": (4, 2, "center", "fx"),
     "prop-glyphs": (4, 2, "feet", "prop"),
     "prop-waystones": (5, 1, "feet", "prop"),
+    "prop-moon-thorns": (2, 1, "center", "prop"),
     "creature-sky-ray": (2, 2, "center", "creature"),
     "prop-lever": (4, 1, "feet", "prop"),
     "prop-brazier": (4, 2, "feet", "prop"),
@@ -266,6 +269,8 @@ def clips_for(sheet_id, kind, count):
         }
     if sheet_id == "prop-waystones":
         return BIOMES[0], {name: {"frames": [i], "ms": 200, "loop": False} for i, name in enumerate(BIOMES)}
+    if sheet_id == "prop-moon-thorns":
+        return "roller", {name: {"frames": [i], "ms": 200, "loop": False} for i, name in enumerate(("roller", "moon"))}
     if sheet_id == "creature-sky-ray":
         return "glide", {"glide": {"frames": [0, 1, 0, 2, 3, 2], "ms": 175, "loop": True}}
     if sheet_id == "prop-glyphs":

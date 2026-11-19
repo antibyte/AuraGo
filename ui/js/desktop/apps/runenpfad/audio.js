@@ -963,10 +963,10 @@
                 const audioCtx = ensureContext();
                 for (let i = 0; audioCtx && i < events.length; i++) {
                     const ev = events[i];
-                    const base = ev && CUE_MAP[ev.type];
+                    const base = ev && ((root.RunenpfadSfx && root.RunenpfadSfx.CUES && root.RunenpfadSfx.CUES[ev.type]) || CUE_MAP[ev.type]);
                     if (!base) continue;
                     const d = ev.detail || null;
-                    if (d && (d.skyRay && (ev.type === 'step' || ev.type === 'land') || ev.type === 'land' && d.slam)) continue;
+                    if (d && (d.skyRay && (ev.type === 'step' || ev.type === 'land') || ev.type === 'land' && (d.slam || d.moonStep))) continue;
                     if (ev.type === 'enemy_kill' && d && d.boss) continue;
                     const cue = resolveCue(ev, base, d);
                     const detailKey = d && ev.type.indexOf('resonance_') === 0 && Number.isInteger(d.index)

@@ -391,6 +391,13 @@
                     p.x > ray.x - 100 && p.x < ray.x + ray.w + 100)) {
                     hint = t('runenpfad.sky_ray_hint');
                 }
+                if (!hint) {
+                    const foe = stage.enemies.find(e => !e.dead && (e.moth || e.toad) &&
+                        Math.abs(e.x - p.x) < 380 && Math.abs(e.y - p.y) < 245);
+                    if (foe) hint = t(foe.moth ? 'runenpfad.encounter_moth' : 'runenpfad.encounter_toad');
+                    else if (stage.thornRollers?.some(r => Math.abs(r.x - p.x) < 190 && Math.abs(r.y - p.y) < 125)) hint = t('runenpfad.encounter_roller');
+                    else if (stage.moonSteps?.some(s => s.index === 0 && Math.abs(s.routeStartX - p.x) < 170 && Math.abs(s.y - p.y) < 170)) hint = t('runenpfad.encounter_moon');
+                }
             }
             pathTag.hidden = !hint;
             if (hint) setText(pathTag, hint);

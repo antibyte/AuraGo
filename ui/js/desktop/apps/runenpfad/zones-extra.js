@@ -2,7 +2,7 @@
 (function (root) {
     'use strict';
 
-    const ZONE_IDS = ['geyser_field', 'rune_gate', 'flame_jets'];
+    const ZONE_IDS = ['geyser_field', 'rune_gate', 'flame_jets', 'thorn_roller', 'moon_steps'];
     const RUNE_KINDS = ['fire', 'frost', 'storm', 'magnet'];
 
     const GEYSER_PERIOD = 2.6;
@@ -124,7 +124,64 @@
         return 17;
     }
 
-    const BUILDERS = { geyser_field: buildGeyserField, rune_gate: buildRuneGate, flame_jets: buildFlameJets };
+    // A short, visible rolling lane over the continuous floor; the bounds are real turn points.
+    function buildThornRoller(ctx) {
+        const cx = ctx.cursorX;
+        const g = ctx.groundY;
+        const T = ctx.TILE;
+        const r = 28;
+        ctx.fillGround(cx, 18, g);
+        const startX = (cx + 5) * T + r;
+        const endX = (cx + 12) * T - r;
+        ctx.thornRollers.push({
+            id: 'tr_' + ctx.thornRollers.length,
+            kind: 'thorn_roller',
+            x: startX,
+            y: g * T - r,
+            r: r,
+            startX: startX,
+            endX: endX,
+            speed: 112,
+            dir: 1,
+            angle: 0
+        });
+        return 18;
+    }
+
+    // Three sequential lunar decks rise above a floor that remains safe and walkable.
+    function buildMoonSteps(ctx) {
+        const cx = ctx.cursorX;
+        const g = ctx.groundY;
+        const T = ctx.TILE;
+        const routeStartX = cx * T;
+        ctx.fillGround(cx, 18, g);
+        for (let i = 0; i < 3; i++) {
+            const x = (cx + 3 + i * 3) * T;
+            const y = (g - (i + 1) * 2) * T;
+            const step = {
+                id: 'ms_' + ctx.moonSteps.length,
+                kind: 'moon_step',
+                x: x,
+                y: y,
+                w: 144,
+                h: 16,
+                solid: false,
+                state: 'hidden',
+                phase01: 0,
+                offset: i * 1.55,
+                index: i,
+                routeStartX: routeStartX,
+                prevX: x,
+                prevY: y
+            };
+            ctx.moonSteps.push(step);
+            ctx.platforms.push(step);
+            ctx.addCoinLine(cx + 3 + i * 3, 2, g - (i + 1) * 2 - 1, false);
+        }
+        return 18;
+    }
+
+    const BUILDERS = { geyser_field: buildGeyserField, rune_gate: buildRuneGate, flame_jets: buildFlameJets, thorn_roller: buildThornRoller, moon_steps: buildMoonSteps };
 
     function build(zone, ctx) {
         const fn = BUILDERS[zone];
@@ -172,12 +229,68 @@
         });
     }
 
+    function stepObstacles(sim, dt) {
+        const p = sim.player;
+        (sim.stage.thornRollers || []).forEach(function (roller) {
+            const oldDir = roller.dir;
+            const moveDir = roller.dir;
+            roller.x += roller.dir * roller.speed * dt;
+            if (roller.x >= roller.endX || roller.x <= roller.startX) {
+                roller.x = Math.max(roller.startX, Math.min(roller.endX, roller.x));
+                roller.dir *= -1;
+                if (oldDir !== roller.dir && near(sim, roller.x)) {
+                    pushEvent(sim, 'roller_turn', { id: roller.id, x: roller.x, y: roller.y, dir: roller.dir });
+                }
+            }
+            roller.angle += moveDir * roller.speed * dt / roller.r;
+            const left = p.x - p.w / 2 + 3;
+            const top = p.y - p.h + 4;
+            const closestX = Math.max(left, Math.min(roller.x, left + p.w - 6));
+            const closestY = Math.max(top, Math.min(roller.y, top + p.h - 6));
+            const dx = roller.x - closestX;
+            const dy = roller.y - closestY;
+            if (sim.state === 'playing' && p.invulnTimer <= 0 && dx * dx + dy * dy < (roller.r - 2) * (roller.r - 2)) {
+                pushEvent(sim, 'hazard', { kind: 'thorn_roller', x: roller.x, y: roller.y });
+                root.RunenpfadCombat.hurtPlayer(sim, 1, roller.x, 'impact-metal');
+            }
+        });
+        (sim.stage.moonSteps || []).forEach(function (step) {
+            const t = sim.elapsed - step.offset;
+            const phase = t < 0 ? -1 : ((t % 8.6) + 8.6) % 8.6;
+            if (phase < 0 || phase < 0.45) {
+                step.state = 'hidden';
+                step.phase01 = phase < 0 ? 0 : phase / 0.45;
+            } else if (phase < 0.85) {
+                step.state = 'rising';
+                step.phase01 = (phase - 0.45) / 0.4;
+            } else if (phase < 2.45) {
+                step.state = 'solid';
+                step.phase01 = 1;
+            } else if (phase < 3.1) {
+                step.state = 'warning';
+                step.phase01 = (phase - 2.45) / 0.65;
+            } else {
+                step.state = 'hidden';
+                step.phase01 = Math.max(0, 1 - (phase - 3.1) / 0.35);
+            }
+            const occupied = p.onGround && p.onPlatformRide === step;
+            if (occupied) {
+                step.state = 'warning';
+                step.phase01 = 1;
+                step.solid = true;
+            } else {
+                step.solid = step.state === 'solid' || step.state === 'warning';
+            }
+        });
+    }
+
     function step(sim, dt) {
         (sim.stage.switches || []).forEach(function (s) {
             if (s.hitFlash > 0) s.hitFlash = Math.max(0, s.hitFlash - dt);
         });
         stepGeysers(sim);
         stepJets(sim);
+        stepObstacles(sim, dt);
     }
 
     // Eruptions throw the hero skyward, once per eruption.

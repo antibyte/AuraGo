@@ -263,6 +263,145 @@
         });
     }
 
+    function lanternMothUpdate(sim, e, dt) {
+        const p = sim.player;
+        const stage = sim.stage;
+        const m = e.moth || (e.moth = { state: 'hover', cooldown: 0.8 });
+        const moveTo = function (x, y, speed) {
+            const dx = x - e.x;
+            const dy = y - e.y;
+            const distance = Math.hypot(dx, dy);
+            const step = Math.min(distance, speed * dt);
+            if (distance > 0.01) {
+                e.x += dx / distance * step;
+                e.y += dy / distance * step;
+            }
+            e.vx = dt > 0 ? (dx / Math.max(distance, 0.01)) * (step / dt) : 0;
+            if (Math.abs(dx) > 1) e.facing = dx > 0 ? 1 : -1;
+        };
+
+        if (m.state === 'hover') {
+            const homeX = e.spawnX + Math.sin(e.animTime * 0.55) * 26;
+            const hoverY = e.spawnY - 104 + Math.sin(e.animTime * 2.1) * 16;
+            moveTo(Math.max(e.minX + 20, Math.min(e.maxX - 20, homeX)), hoverY, 95);
+            e.facing = p.x >= e.x ? 1 : -1;
+            m.cooldown = Math.max(0, (m.cooldown || 0) - dt);
+            if (m.cooldown === 0 && Math.abs(p.x - e.x) < 430 && Math.abs((p.y - 22) - e.y) < 300) {
+                m.state = 'tell';
+                m.timer = 0.56;
+                m.targetX = Math.max(20, Math.min(stage.width - 20, p.x));
+                m.targetY = Math.max(40, Math.min(stage.groundY - 12, p.y - 20));
+                m.sx = e.x;
+                m.sy = e.y;
+                e.vx = 0;
+                e.facing = m.targetX >= e.x ? 1 : -1;
+                e.windup = m.timer;
+                pushEvent(sim, 'moth_tell', { id: e.id, defId: e.defId, x: e.x, y: e.y, targetX: m.targetX, targetY: m.targetY });
+            }
+            return;
+        }
+        if (m.state === 'tell') {
+            m.timer -= dt;
+            e.windup = Math.max(0, m.timer);
+            e.vx = 0;
+            if (m.timer <= 0) {
+                m.state = 'dive';
+                m.timer = Math.max(0.2, Math.min(0.72, Math.hypot(m.targetX - m.sx, m.targetY - m.sy) / 470));
+                m.diveDuration = m.timer;
+                e.windup = 0;
+                e.attackTimer = m.diveDuration;
+                e.attackKind = 'dive';
+                e.diving = true;
+                pushEvent(sim, 'moth_dive', { id: e.id, defId: e.defId, x: e.x, y: e.y, targetX: m.targetX, targetY: m.targetY });
+            }
+            return;
+        }
+        if (m.state === 'dive') {
+            m.timer -= dt;
+            const progress = Math.max(0, Math.min(1, 1 - m.timer / m.diveDuration));
+            e.x = m.sx + (m.targetX - m.sx) * progress;
+            e.y = m.sy + (m.targetY - m.sy) * progress;
+            e.vx = dt > 0 ? (m.targetX - m.sx) / m.diveDuration : 0;
+            e.facing = e.vx >= 0 ? 1 : -1;
+            if (m.timer <= 0) {
+                e.x = m.targetX;
+                e.y = m.targetY;
+                e.vx = 0;
+                e.diving = false;
+                m.state = 'recover';
+                m.recoverT = 0.9;
+            }
+            return;
+        }
+        if (m.state === 'recover') {
+            e.vx = 0;
+            m.recoverT -= dt;
+            if (m.recoverT <= 0) m.state = 'return';
+            return;
+        }
+        const homeX = Math.max(e.minX + 20, Math.min(e.maxX - 20, e.spawnX));
+        const homeY = e.spawnY - 104;
+        moveTo(homeX, homeY, 220);
+        if (Math.hypot(homeX - e.x, homeY - e.y) < 8) {
+            m.state = 'hover';
+            m.cooldown = 1.35;
+        }
+    }
+
+    function bellToadUpdate(sim, e, dt) {
+        const p = sim.player;
+        const t = e.toad || (e.toad = { state: 'sit', cooldown: 1.25 });
+        e.x = e.spawnX;
+        e.y = e.spawnY;
+        e.vx = 0;
+        e.vy = 0;
+        e.onGround = true;
+        if (t.state === 'tell' && e.hurtTimer > 0) {
+            t.state = 'rest';
+            t.cooldown = 1.1;
+            e.windup = 0;
+            e.attackTimer = 0;
+            return;
+        }
+        if (t.state === 'sit') {
+            t.cooldown = Math.max(0, (t.cooldown || 0) - dt);
+            if (t.cooldown === 0 && e.hurtTimer <= 0 && Math.abs(p.x - e.x) < 390 && Math.abs(p.y - e.y) < 180) {
+                t.state = 'tell';
+                t.timer = 0.72;
+                t.targetX = p.x;
+                t.dir = t.targetX >= e.x ? 1 : -1;
+                e.facing = t.dir;
+                e.windup = t.timer;
+                pushEvent(sim, 'toad_tell', { id: e.id, defId: e.defId, x: e.x, y: e.y, targetX: t.targetX, dir: t.dir });
+            }
+            return;
+        }
+        if (t.state === 'tell') {
+            t.timer -= dt;
+            e.windup = Math.max(0, t.timer);
+            if (t.timer <= 0) {
+                const wave = {
+                    x: e.x + t.dir * 24, y: e.y - 8,
+                    vx: t.dir * 270, vy: 0, fromEnemy: true, damage: e.def.damage, radius: 8,
+                    life: 1.8, kind: 'toad_wave', groundHug: true, noDeflect: true, hitSound: 'impact-flesh', dead: false
+                };
+                sim.projectiles.push(wave);
+                t.state = 'rest';
+                t.cooldown = 1.5;
+                e.windup = 0;
+                e.attackTimer = 0.34;
+                e.attackKind = 'wave';
+                pushEvent(sim, 'toad_wave', { id: e.id, defId: e.defId, x: wave.x, y: wave.y, dir: t.dir });
+            }
+            return;
+        }
+        t.cooldown -= dt;
+        if (t.cooldown <= 0) {
+            t.state = 'sit';
+            t.cooldown = 1.1;
+        }
+    }
+
     // Each behaviour decides the horizontal intent of an enemy. Movement resolution is shared.
     function update(sim, e, dt, api) {
         const p = sim.player;
@@ -280,6 +419,14 @@
         }
         if (def.behavior === 'drakeling') {
             drakelingUpdate(sim, e, dt);
+            return;
+        }
+        if (def.behavior === 'lantern_moth') {
+            lanternMothUpdate(sim, e, dt);
+            return;
+        }
+        if (def.behavior === 'bell_toad') {
+            bellToadUpdate(sim, e, dt);
             return;
         }
         if (def.flying) {

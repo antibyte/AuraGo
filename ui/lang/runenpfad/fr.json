@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Phalène-lanterne · Écarte-toi de sa trajectoire !",
+  "runenpfad.encounter_toad": "Crapaud-cloche · Interromps son chant ou saute par-dessus l’onde.",
+  "runenpfad.encounter_roller": "Roue d’épines · Saute par-dessus les épines.",
+  "runenpfad.encounter_moon": "Marches lunaires · Les pierres lumineuses te portent.",
   "runenpfad.sky_ray_hint": "Saute sur le dos de la raie volante",
   "runenpfad.resonance_hint": "Touche la rune qui brille",
   "runenpfad.resonance_progress": "Piste runique {count}/{total} · {seconds} s",

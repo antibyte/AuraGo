@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Polilla farol · ¡Sal de su trayectoria!",
+  "runenpfad.encounter_toad": "Sapo campana · Interrumpe su canto o salta la onda.",
+  "runenpfad.encounter_roller": "Rueda de espinas · Salta por encima de las espinas.",
+  "runenpfad.encounter_moon": "Peldaños lunares · Las piedras iluminadas te sostienen.",
   "runenpfad.sky_ray_hint": "Salta al lomo de la mantarraya voladora",
   "runenpfad.resonance_hint": "Toca la runa que brilla",
   "runenpfad.resonance_progress": "Senda rúnica {count}/{total} · {seconds} s",

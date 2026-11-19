@@ -11,7 +11,7 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'sfx.js', 'audio.js', 'music.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio.js', 'sfx.js', 'music.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
 const Music = sandbox.RunenpfadMusic;
@@ -54,11 +54,15 @@ sandbox.AudioContext = FakeContext;
 const CONTRACT_EVENTS = [
     'enemy_block', 'enemy_phase', 'enemy_windup', 'enemy_slam', 'spore_burst', 'spore_lob', 'stomp', 'chest_open', 'land',
     'rune_pickup', 'rune_expire', 'rune_shield_break', 'rune_zap', 'resonance_start', 'resonance_rune', 'resonance_complete', 'resonance_expire', 'sky_ray_board', 'sky_ray_leap',
+    'moth_tell', 'moth_dive', 'toad_tell', 'toad_wave', 'roller_turn', 'moon_step',
     'geyser_burst', 'switch_on', 'gate_open', 'jet_warn', 'jet_fire',
     'boss_intro', 'boss_phase', 'boss_defeat', 'boss_slam', 'boss_telegraph', 'boss_attack', 'enemy_attack', 'enemy_dive'
 ];
-CONTRACT_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], `cue missing for ${type}`));
+CONTRACT_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type] || Sfx.CUES[type], `cue missing for ${type}`));
 assert.equal(Audio.CUE_MAP.jump.synth, 'whoosh', 'the common jump keeps its sample and adds a soft lift layer');
+assert.notEqual(Sfx.CUES.moth_tell.synth, Sfx.CUES.moth_dive.synth, 'moth warning differs from its dive');
+assert.notEqual(Sfx.CUES.toad_tell.synth, Sfx.CUES.toad_wave.synth, 'toad warning differs from its wave');
+assert.ok(Sfx.CUES.moth_tell.cooldown >= Sfx.CUES.moth_dive.cooldown && Sfx.CUES.toad_tell.cooldown >= Sfx.CUES.toad_wave.cooldown, 'enemy tells have deliberate cooldowns');
 const PATTERNS = ['charge', 'ground_pound', 'leap', 'volley', 'summon', 'ring', 'laser', 'dive', 'missiles', 'fire_strip'];
 const table = (sandbox.RunenpfadBosses && sandbox.RunenpfadBosses.PATTERNS) || {};
 const bossPatterns = [].concat(...Object.keys(table).map((id) => [].concat(table[id].p1 || [], table[id].p2 || [])));
@@ -80,6 +84,7 @@ function walkCue(name, cue) {
     if (cue.byEnemy) Object.keys(cue.byEnemy).forEach((k) => walkCue(name + '/' + k, cue.byEnemy[k]));
 }
 Object.keys(Audio.CUE_MAP).forEach((n) => walkCue(n, Audio.CUE_MAP[n]));
+Object.keys(Sfx.CUES).forEach((n) => walkCue(n, Sfx.CUES[n]));
 Object.keys(Audio.BOSS_VOICES).forEach((b) => Audio.BOSS_VOICES[b].forEach((v) => assert.ok(Audio.hasSynth(v.synth), `voice ${v.synth}`)));
 
 // ---- 2. every synth recipe builds without throwing on a strict context ----
@@ -99,13 +104,13 @@ const controller = Audio.createAudioController({ manifest });
 controller.unlock();
 const detailsFor = (type) => {
     const base = { x: 100, y: 100, id: 1 };
-    const cue = Audio.CUE_MAP[type];
+    const cue = Audio.CUE_MAP[type] || Sfx.CUES[type];
     if (!cue.by) return [base];
     const keys = Object.keys(cue.by.map).filter((k) => k !== '*').concat(['unknown_kind']);
     return keys.map((k) => Object.assign({}, base, { [cue.by.key]: k }));
 };
 let clock = 0;
-Object.keys(Audio.CUE_MAP).forEach((type) => {
+Object.keys(Audio.CUE_MAP).concat(Object.keys(Sfx.CUES)).forEach((type) => {
     detailsFor(type).forEach((detail) => {
         clock += 5;
         sandbox.__t = clock;
@@ -125,6 +130,16 @@ controller.handleEvents([{ type: 'totally_unknown_event', detail: { x: 1 } }, nu
 assert.equal(nodeCount, before, 'unknown events are silent');
 assert.ok(controller.liveSynths() > 0 && controller.liveSynths() <= 40, 'live synth voices stay under the hard cap: ' + controller.liveSynths());
 controller.dispose();
+
+// Cues kept in sfx.js resolve at event time even though audio.js loaded first.
+Object.keys(Sfx.CUES).forEach((type) => {
+    const lateCue = Audio.createAudioController({ manifest });
+    lateCue.unlock();
+    const before = nodeCount;
+    lateCue.handleEvents([{ type }], null, null);
+    assert.ok(nodeCount > before, type + ' resolves without detail after late SFX load');
+    lateCue.dispose();
+});
 
 // Landing layers use the world surface and impact speed; legacy callers still get the land sample.
 assert.equal(Audio.CUE_MAP.land.sound, null);
@@ -157,6 +172,12 @@ lander.handleEvents([
 ], null, null);
 assert.equal(nodeCount, raySurfaceBefore, 'Windray riding suppresses terrain and ordinary landing synths');
 assert.equal(requestedSamples.length, raySamplesBefore, 'Windray riding does not request terrain samples');
+const moonLandBefore = nodeCount;
+lander.handleEvents([{ type: 'land', detail: { sound: 'step-stone', impactSpeed: 420, moonStep: true } }], null, null);
+assert.equal(nodeCount, moonLandBefore, 'moon-step contact suppresses the ordinary landing cue');
+lander.handleEvents([{ type: 'moon_step', detail: { x: 20, y: 30, impactSpeed: 420 } }], null, null);
+assert.deepEqual(landingSpeeds.slice(1), [420], 'moon_step plays its own impact layer');
+assert.ok(requestedSamples.some((url) => url.includes('step-stone.wav')), 'moon_step keeps its stone surface sample');
 const slamBefore = nodeCount;
 lander.handleEvents([{ type: 'land', detail: { x: 20, y: 30, sound: 'step-metal', impactSpeed: 740, slam: true } }], null, null);
 assert.equal(nodeCount, slamBefore, 'slam landing does not double-play the ordinary landing cue');
@@ -233,8 +254,8 @@ assert.equal(nodeCount, mutedBefore, 'the sound mute silences resonance contacts
 mutedResonance.dispose();
 const mutedRay = Audio.createAudioController({ manifest, enabled: false });
 const mutedRayBefore = nodeCount;
-mutedRay.handleEvents([{ type: 'sky_ray_board', detail: { x: 1, y: 1 } }, { type: 'sky_ray_leap', detail: { x: 1, y: 1 } }], null, null);
-assert.equal(nodeCount, mutedRayBefore, 'the sound mute silences Windray cues');
+mutedRay.handleEvents(Object.keys(Sfx.CUES).map((type) => ({ type, detail: { x: 1, y: 1 } })), null, null);
+assert.equal(nodeCount, mutedRayBefore, 'the sound mute silences all encounter and obstacle cues');
 mutedRay.dispose();
 const independentSfx = Audio.createAudioController({ manifest });
 independentSfx.unlock();
@@ -242,7 +263,8 @@ const mutedMusic = Music.createMusicController(independentSfx.musicPort());
 mutedMusic.setEnabled(false);
 const sfxWithMusicMuted = nodeCount;
 independentSfx.handleEvents([{ type: 'sky_ray_board', detail: { x: 1, y: 1 } }], null, null);
-assert.ok(nodeCount > sfxWithMusicMuted, 'the music mute leaves Windray sound effects enabled');
+independentSfx.handleEvents([{ type: 'toad_tell' }], null, null);
+assert.ok(nodeCount > sfxWithMusicMuted, 'the music mute leaves SFX-module encounter cues enabled');
 mutedMusic.dispose();
 independentSfx.dispose();
 
@@ -537,4 +559,4 @@ assert.equal(Music.themeIdFor(Object.assign({}, duelSim, { interior: { room: { d
     music.dispose();
     music.setOverride('story_dawn'); // after dispose: harmless
 }
-console.log('Runenpfad audio checks passed: ' + Object.keys(Audio.CUE_MAP).length + ' cues, ' + Object.keys(Sfx.SYNTHS).length + ' synth recipes, ' + themeIds.length + ' music themes.');
+console.log('Runenpfad audio checks passed: ' + (Object.keys(Audio.CUE_MAP).length + Object.keys(Sfx.CUES).length) + ' cues, ' + Object.keys(Sfx.SYNTHS).length + ' synth recipes, ' + themeIds.length + ' music themes.');

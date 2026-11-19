@@ -755,10 +755,14 @@
 
         if (!wasOnGround && p.onGround) {
             const onSkyRay = !!(p.onPlatformRide && p.onPlatformRide.kind === 'sky_ray');
-            const landing = { x: p.x, y: p.y, sound: stage.world.stepSound, impactSpeed: impactSpeed, slam: !!p.slamActive, skyRay: onSkyRay };
+            const moonStep = p.onPlatformRide && p.onPlatformRide.kind === 'moon_step' ? p.onPlatformRide : null;
+            const landing = { x: p.x, y: p.y, sound: stage.world.stepSound, impactSpeed: impactSpeed, slam: !!p.slamActive, skyRay: onSkyRay, moonStep: !!moonStep };
             pushEvent(sim, 'land', landing);
             if (onSkyRay) {
                 fxBurst(sim, 'rune', p.x, p.y - 4, 5, { color: '#b8f2ff', speed: 64, life: 0.28 });
+            } else if (moonStep) {
+                if (!p.slamActive) pushEvent(sim, 'moon_step', { id: moonStep.id, x: p.x, y: p.y, impactSpeed: impactSpeed });
+                fxBurst(sim, 'rune', p.x, p.y - 4, 6, { color: '#d8c8ff', speed: 72, life: 0.32 });
             } else {
                 fxBurst(sim, 'dust', p.x, p.y, 7, {
                     color: '#d9c9a8',

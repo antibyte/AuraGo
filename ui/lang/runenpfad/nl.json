@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Lantaarnmot · Ga uit zijn vliegbaan!",
+  "runenpfad.encounter_toad": "Klokpad · Onderbreek zijn roep of spring over de golf.",
+  "runenpfad.encounter_roller": "Doornwiel · Spring over de stekels.",
+  "runenpfad.encounter_moon": "Maantrappen · De gloeiende stenen dragen je.",
   "runenpfad.sky_ray_hint": "Spring op de rug van de vliegende rog",
   "runenpfad.resonance_hint": "Raak de gloeiende rune aan",
   "runenpfad.resonance_progress": "Runenspoor {count}/{total} · {seconds} s",

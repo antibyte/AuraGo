@@ -294,8 +294,9 @@
             ctx.translate(e.x, py);
             if (!rm) ctx.scale(st.sx, st.sy);
             aoReset(target, flip);
+            AO.pixel = !!(e.moth || e.toad);
             AO.alpha = alpha;
-            AO.frame = frame;
+            AO.frame = AO.pixel && rm && clip === artId + '.idle' ? 0 : frame;
             AO.flash = flash;
             AO.tint = tint;
             Art.draw(ctx, h.art, clip, time, 0, 0, AO);
@@ -982,7 +983,7 @@
             else if (pr.kind === 'orb') drawOrbBullet(pr, view);
             else if (pr.kind === 'shock') drawShockCrest(pr, view);
             else if (pr.kind === 'spore') drawSpore(pr, view);
-            else if (pr.kind === 'fireball') return true; // painted by set-pieces.js
+            else if (pr.kind === 'fireball' || pr.kind === 'toad_wave') return true; // painted in the world pass
             else if (!pr.kind && pr.fromEnemy && pr.color === '#fb923c') drawCannonBolt(pr, ang, view);
             else if (!pr.kind && !pr.fromEnemy) drawRangerBolt(pr, ang, view);
             else return false;

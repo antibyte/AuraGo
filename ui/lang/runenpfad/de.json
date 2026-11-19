@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Laternenmotte · Raus aus der Flugbahn!",
+  "runenpfad.encounter_toad": "Glockenkröte · Unterbrich den Ruf oder spring über die Welle.",
+  "runenpfad.encounter_roller": "Dornenwalze · Spring über die Dornen.",
+  "runenpfad.encounter_moon": "Mondstufen · Die leuchtenden Steine tragen Dich.",
   "runenpfad.sky_ray_hint": "Spring auf den Rücken des Windrochens",
   "runenpfad.resonance_hint": "Berühre die leuchtende Rune",
   "runenpfad.resonance_progress": "Runenspur {count}/{total} · {seconds} s",

@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "लालटेन पतंगा · उसकी उड़ान के रास्ते से हटो!",
+  "runenpfad.encounter_toad": "घंटी वाला मेंढक · उसकी टर्राहट रोको या लहर के ऊपर से कूदो।",
+  "runenpfad.encounter_roller": "काँटेदार पहिया · काँटों के ऊपर से कूदो।",
+  "runenpfad.encounter_moon": "चाँद की सीढ़ियाँ · चमकते पत्थरों पर पैर रख सकते हो।",
   "runenpfad.sky_ray_hint": "उड़ती मंता रे की पीठ पर कूदो",
   "runenpfad.resonance_hint": "चमकती रूण छुओ",
   "runenpfad.resonance_progress": "रूण पथ {count}/{total} · {seconds} सेकंड",

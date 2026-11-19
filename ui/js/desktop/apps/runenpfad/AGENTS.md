@@ -83,6 +83,9 @@ Round 5 adds enterable houses and caves (top-down interiors with free 8-directio
 
 ## Local Contracts
 
+- `levels.js` substitutes a regular campaign or tower enemy for a lantern moth or bell toad. `behaviors.js` locks the moth's dive target when the lantern lights and gives it a recovery window within melee reach. A bell toad's interruptible call releases a low, non-deflectable `toad_wave` along its support. Preserve both heroes' opportunities to dodge and counterattack.
+- `actors.js` draws the enemy atlas poses. `stage-art.js` draws the locked flight line, target diamond and sound-wave arcs even with the optional atlas unavailable. Reduced motion keeps the warnings legible. The localized HUD hint yields to an active rune trail. Audio events are `moth_tell`, `moth_dive`, `toad_tell`, `toad_wave`, `roller_turn` and `moon_step`.
+- `zones-extra.js` builds and steps `thorn_roller` and `moon_steps`. Each `stage.thornRollers` entry stores the centre and radius of its hitbox and the visible turn limits `startX/endX`. Each `stage.moonSteps` entry shares its upper-left position and collision state with the same object in `stage.platforms`. The steps light up in order and hold while occupied. Keep ordinary ground under the coin route. A landing sets `land.detail.moonStep` and emits `moon_step` with its ID, position and impact speed. A slam plays `slam_land` alone.
 - `levels.js` places the optional three- or four-rune resonance path on an existing traversable stretch. `variety.js` owns ordered pickup, the 12-second simulation timer, retry and one reward per stage attempt. `set-pieces.js` draws the engraved seals, connecting thread and shrinking ring around the next seal. `hud.js` provides a localized approach hint and progress counter. The hub has no path. Keep the path independent of the key, stars, campaign unlocks and save schema.
 - A sky ray is an optional one-way moving platform. `stage.skyRays` references the same objects as `stage.movingPlatforms`; its `x/y/w` describe the walkable back, with `y` at the rider's feet. Both heroes can board from below with a regular jump, ride and leave without changing the campaign route. Coins above the flight path are ordinary stage pickups. `sky_ray_board` and `sky_ray_leap` play once per boarding or intentional jump. The renderer follows the simulation in reduced motion but holds the wings still and omits the wake.
 - `stage-art.js` paints a brass lock on the inactive exit. With the key, the lock disappears and lights move towards the centre; reduced motion holds the open portal on one frame. The standard sprite pack supplies the portal when its optional painted atlas is unavailable.
@@ -178,6 +181,7 @@ Round 5 adds enterable houses and caves (top-down interiors with free 8-directio
 
 ## Verification
 
+- Thorn roller contact, moon step timing and obstacle placement: `node scripts/test-runenpfad-obstacles.mjs`.
 - Simulation, real pack manifest, floating-label key and new-best checks: `node scripts/test-runenpfad-sim.mjs`
 - NPC encounters: dialogue graph validation, profile story clamping, camps, talk and attack hooks, trade and fakes, the witch, Krax and finale flows, story and key coverage (`en` and `de`), and the duel simulation (robustness, determinism, telegraphs, bot wins, losing, no escape, phase 2, specials, provoke): `node scripts/test-runenpfad-npc.mjs`
 - Audio recipe, sound manifest checks, NPC and duel cue coverage and duel music themes: `node scripts/test-runenpfad-audio.mjs`

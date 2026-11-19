@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Φωτεινή νυχτοπεταλούδα · Βγες από την πορεία της!",
+  "runenpfad.encounter_toad": "Καμπανόφρυνος · Διάκοψε το κάλεσμα ή πήδα πάνω από το κύμα.",
+  "runenpfad.encounter_roller": "Αγκαθωτός τροχός · Πήδα πάνω από τα αγκάθια.",
+  "runenpfad.encounter_moon": "Σεληνιακά σκαλοπάτια · Οι φωτεινές πέτρες σε στηρίζουν.",
   "runenpfad.sky_ray_hint": "Πήδα στη ράχη του ιπτάμενου σαλαχιού",
   "runenpfad.resonance_hint": "Άγγιξε τον φωτεινό ρούνο",
   "runenpfad.resonance_progress": "Μονοπάτι ρούνων {count}/{total} · {seconds} δ.",

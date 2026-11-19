@@ -624,6 +624,164 @@
             ctx.restore();
         }
 
+        function drawMothSignal(e, view) {
+            const m = e.moth;
+            const y = e.y - 19 * (e.def.scale || 1);
+            h.drawGlow(e.x, y + 2, m.state === 'tell' ? 64 : 34, 'rgba(255,168,59,0.66)', 0.6);
+            if (m.state !== 'tell' && m.state !== 'dive') return;
+            ctx.save();
+            if (m.state === 'tell') {
+                const targetY = m.targetY - (e.y - y);
+                ctx.setLineDash([6, 8]);
+                ctx.lineDashOffset = view.reducedMotion ? 0 : -view.nowSec * 28;
+                ctx.beginPath();
+                ctx.moveTo(e.x, y);
+                ctx.lineTo(m.targetX, targetY);
+                ctx.strokeStyle = '#523947';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+                ctx.strokeStyle = '#ffcf72';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.translate(m.targetX, targetY);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillStyle = '#553441';
+                ctx.fillRect(-5, -5, 10, 10);
+                ctx.strokeRect(-5, -5, 10, 10);
+            } else if (!view.reducedMotion) {
+                const angle = Math.atan2(m.targetY - m.sy, m.targetX - m.sx);
+                ctx.translate(e.x, y);
+                ctx.rotate(angle);
+                const streak = ctx.createLinearGradient(-58, 0, 0, 0);
+                streak.addColorStop(0, 'rgba(239,135,64,0)');
+                streak.addColorStop(1, 'rgba(255,209,113,0.85)');
+                ctx.fillStyle = streak;
+                ctx.beginPath();
+                ctx.moveTo(-58, 0);
+                ctx.lineTo(-3, -5);
+                ctx.lineTo(0, 5);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawBellArcs(x, y, dir, size, travelling) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(dir, 0.83);
+            ctx.lineCap = 'round';
+            for (let i = 0; i < 3; i++) {
+                const r = size - i * 3;
+                ctx.beginPath();
+                ctx.arc(-i * 6, 0, r, -0.98, 0.98);
+                ctx.strokeStyle = '#4d354a';
+                ctx.lineWidth = 4.5;
+                ctx.stroke();
+                ctx.strokeStyle = i === 0 ? '#fff2b1' : '#e6a75d';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            if (travelling) {
+                ctx.fillStyle = '#ffe7a3';
+                ctx.fillRect(-7, 6, 5, 2);
+                ctx.fillRect(-16, 7, 3, 2);
+            }
+            ctx.restore();
+        }
+
+        const OB = { height: 0, rotation: 0, alpha: 1, flip: false, composite: '', pixel: true };
+
+        function drawThornRollers(sim, view) {
+            for (const r of sim.stage.thornRollers || []) {
+                if (!visible(view, r.startX - r.r, r.endX + r.r)) continue;
+                const floor = r.y + r.r;
+                ctx.save();
+                ctx.strokeStyle = 'rgba(31, 28, 45, 0.82)';
+                ctx.lineWidth = 10;
+                ctx.beginPath(); ctx.moveTo(r.startX - r.r, floor - 2); ctx.lineTo(r.endX + r.r, floor - 2); ctx.stroke();
+                ctx.strokeStyle = 'rgba(213, 156, 97, 0.78)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(r.startX - r.r, floor - 5); ctx.lineTo(r.endX + r.r, floor - 5); ctx.stroke();
+                [r.startX, r.endX].forEach(function (x) {
+                    ctx.strokeStyle = '#f4c889'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(x, floor - 22); ctx.lineTo(x, floor + 2); ctx.stroke();
+                    ctx.fillStyle = '#793a58'; ctx.beginPath(); ctx.moveTo(x, floor - 28); ctx.lineTo(x - 7, floor - 20); ctx.lineTo(x + 7, floor - 20); ctx.fill();
+                });
+                if (!view.reducedMotion) {
+                    const trail = ctx.createLinearGradient(r.x - r.dir * 54, 0, r.x - r.dir * 14, 0);
+                    trail.addColorStop(0, 'rgba(190, 221, 204, 0)'); trail.addColorStop(1, 'rgba(190, 221, 204, 0.52)');
+                    ctx.strokeStyle = trail; ctx.lineWidth = 2; ctx.lineCap = 'round';
+                    for (let i = 0; i < 3; i++) {
+                        const y = r.y - 12 + i * 12;
+                        ctx.beginPath(); ctx.moveTo(r.x - r.dir * 54, y); ctx.lineTo(r.x - r.dir * 16, y - 2); ctx.stroke();
+                    }
+                }
+                if (art('prop-moon-thorns.roller')) {
+                    OB.height = 56; OB.rotation = view.reducedMotion ? 0 : r.angle; OB.alpha = 1;
+                    Art.draw(ctx, h.art, 'prop-moon-thorns.roller', 0, r.x, r.y, OB);
+                } else {
+                    ctx.translate(r.x, r.y); ctx.rotate(view.reducedMotion ? 0 : r.angle);
+                    const ball = ctx.createRadialGradient(-9, -10, 3, 0, 0, r.r);
+                    ball.addColorStop(0, '#65805b'); ball.addColorStop(0.62, '#384632'); ball.addColorStop(1, '#542c48');
+                    ctx.fillStyle = ball; ctx.strokeStyle = '#211d31'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, r.r - 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    for (let i = 0; i < 10; i++) {
+                        const a = i * Math.PI / 5;
+                        ctx.fillStyle = i % 2 ? '#d5d1ad' : '#e8b56e';
+                        ctx.beginPath(); ctx.moveTo(Math.cos(a) * (r.r - 2), Math.sin(a) * (r.r - 2));
+                        ctx.lineTo(Math.cos(a + 0.24) * 12, Math.sin(a + 0.24) * 12);
+                        ctx.lineTo(Math.cos(a - 0.24) * 12, Math.sin(a - 0.24) * 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+                    }
+                    ctx.fillStyle = '#e9899d'; ctx.beginPath(); ctx.arc(-5, -4, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.restore();
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawMoonSteps(sim, view) {
+            for (const p of sim.stage.moonSteps || []) {
+                if (!visible(view, p.x, p.x + p.w)) continue;
+                const alpha = p.state === 'hidden' ? 0.18 + 0.12 * p.phase01
+                    : p.state === 'rising' ? 0.22 + 0.3 * p.phase01
+                    : p.state === 'warning' ? (view.reducedMotion ? 0.76 : 0.68 + 0.15 * Math.sin(view.nowSec * 8)) : 1;
+                if (art('prop-moon-thorns.moon')) {
+                    const height = p.w * 199 / 241;
+                    OB.height = height; OB.rotation = 0; OB.alpha = alpha;
+                    Art.draw(ctx, h.art, 'prop-moon-thorns.moon', 0, p.x + p.w / 2, p.y + height * 28 / 199, OB);
+                } else {
+                    ctx.save(); ctx.globalAlpha = alpha;
+                    ctx.fillStyle = p.state === 'warning' ? '#745b76' : '#403d69';
+                    ctx.strokeStyle = p.state === 'warning' ? '#ffd27c' : '#b7b2e5'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(p.x + 7, p.y); ctx.lineTo(p.x + p.w - 7, p.y);
+                    ctx.lineTo(p.x + p.w, p.y + 9); ctx.lineTo(p.x + p.w - 7, p.y + 47);
+                    ctx.lineTo(p.x + 7, p.y + 47); ctx.lineTo(p.x, p.y + 9); ctx.closePath(); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = p.state === 'warning' ? '#ffd27c' : '#e3dcff';
+                    ctx.fillRect(p.x + 3, p.y, p.w - 6, 4);
+                    const mx = p.x + p.w / 2; const my = p.y + 25;
+                    ctx.beginPath(); ctx.moveTo(mx + 8, my - 11); ctx.quadraticCurveTo(mx - 12, my - 5, mx - 5, my + 9);
+                    ctx.quadraticCurveTo(mx - 1, my + 16, mx + 8, my + 12); ctx.quadraticCurveTo(mx - 3, my + 5, mx - 2, my);
+                    ctx.quadraticCurveTo(mx - 1, my - 6, mx + 8, my - 11); ctx.fill();
+                    ctx.fillStyle = '#ffe4a2'; ctx.fillRect(mx + 18, my - 4, 3, 3); ctx.fillRect(mx - 19, my + 8, 2, 2);
+                    ctx.restore();
+                }
+                ctx.save();
+                ctx.globalAlpha = p.state === 'warning' ? 1 : alpha;
+                ctx.lineWidth = 3; ctx.lineCap = 'square';
+                if (p.state === 'solid') {
+                    ctx.strokeStyle = '#f4f2ff'; ctx.beginPath(); ctx.moveTo(p.x + 7, p.y + 1); ctx.lineTo(p.x + p.w - 7, p.y + 1); ctx.stroke();
+                    ctx.strokeStyle = '#88edff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x + 9, p.y + 3); ctx.lineTo(p.x + p.w - 9, p.y + 3); ctx.stroke();
+                } else if (p.state === 'warning') {
+                    ctx.strokeStyle = '#ffd27c'; ctx.beginPath(); ctx.moveTo(p.x + 7, p.y + 1); ctx.lineTo(p.x + 61, p.y + 1); ctx.moveTo(p.x + 76, p.y + 1); ctx.lineTo(p.x + p.w - 7, p.y + 1); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(p.x + 61, p.y - 2); ctx.lineTo(p.x + 68, p.y + 5); ctx.lineTo(p.x + 73, p.y - 1); ctx.stroke();
+                } else if (p.state === 'rising') {
+                    ctx.strokeStyle = '#a8a0dc'; ctx.setLineDash([8, 9]); ctx.beginPath(); ctx.moveTo(p.x + 8, p.y + 1); ctx.lineTo(p.x + p.w - 8, p.y + 1); ctx.stroke(); ctx.setLineDash([]);
+                }
+                ctx.restore();
+            }
+        }
+
         function drawWorld(sim, view) {
             drawConveyors(sim, view);
             drawWind(sim, view);
@@ -634,11 +792,23 @@
             drawGates(sim, view);
             drawGeysers(sim, view);
             drawFlameJets(sim, view);
+            drawThornRollers(sim, view);
+            drawMoonSteps(sim, view);
             drawSwitches(sim, view);
             drawChests(sim, view);
             sim.stage.enemies.forEach(function (e) {
                 if (e.def.boss && !e.dead && e.telegraph) drawTelegraph(sim, e, view);
+                if (e.dead || !visible(view, e.x, e.x)) return;
+                if (e.moth) drawMothSignal(e, view);
+                if (e.toad && e.toad.state === 'tell') {
+                    drawBellArcs(e.x + e.toad.dir * 24, e.y - 16, e.toad.dir, 11 + 4 * pulseK(view, 7), false);
+                }
             });
+            for (const pr of sim.projectiles || []) {
+                if (!pr.dead && pr.kind === 'toad_wave' && visible(view, pr.x, pr.x)) {
+                    drawBellArcs(pr.x, pr.y, Math.sign(pr.vx) || 1, pr.radius + 3, true);
+                }
+            }
         }
 
         // ---- grounded hazards: poison cloud and ground fire (the bottom edge always sits on the damage rect's bottom) ----
@@ -845,6 +1015,11 @@
         }
 
         function collectLights(sim, view, lights) {
+            for (const e of sim.stage.enemies) {
+                if (e.moth && !e.dead && visible(view, e.x, e.x)) {
+                    lights.push({ x: e.x, y: e.y - 18, radius: e.moth.state === 'tell' ? 100 : 58, intensity: 0.52, flicker: false });
+                }
+            }
             const Z = root.RunenpfadZones;
             if (Z && typeof Z.lights === 'function') Z.lights(sim).forEach(function (l) { lights.push(l); });
             (sim.stage.chests || []).forEach(function (c) {

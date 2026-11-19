@@ -31,6 +31,9 @@ Level `1` stays a clean tutorial without a trial. Endless floors pick a trial pe
 
 ## Stage Variety
 
+- **Lantern moths** first appear on level 3. When the lantern brightens, the dotted line ends at the spot the moth has chosen. Step off the line, then strike while the moth recovers near the ground.
+- **Bell toads** first appear on level 4. Watch for the rings at the toad's mouth and listen for its low call. A hit can interrupt the call. Once the wave is moving along the ground, jump over it.
+- **Thorn rollers** travel between two markers. Jump as the thorns approach, then leave the track before the roller returns. **Moon steps** offer an upper route with coins. A bright, continuous edge marks a solid step. The slab under your feet holds while you wait for the next one to light up. You can also walk underneath. Both obstacles appear on selected tower floors.
 - **Sky rays** first appear in the second woodland stage. Jump onto a ray's back to ride it past a line of coins. You can move along its back and jump off at any point. The ground route stays open. Look for more rays in later worlds and on some endless floors.
 - **Rune trails** first appear in Whisperwood. Look for the carved waystone. Touch the seal with the bright ring, then follow the thread and jump through the other seals in order. Short trails have three seals, longer ones have four. You have 12 seconds from the first touch. The ring shows how much time is left, and the counter shows how many seals you have collected. Finishing earns three coins. If time runs out, return to the first seal to try again. You can also head straight for the key and portal.
 - **Variety zones** beyond the classic meadow, bridge and crate layouts:

@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Mariposa-lanterna · Sai da trajetória dela!",
+  "runenpfad.encounter_toad": "Sapo-sino · Interrompe o canto ou salta sobre a onda.",
+  "runenpfad.encounter_roller": "Roda de espinhos · Salta por cima dos espinhos.",
+  "runenpfad.encounter_moon": "Degraus lunares · As pedras iluminadas suportam o teu peso.",
   "runenpfad.sky_ray_hint": "Salta para o dorso da raia voadora",
   "runenpfad.resonance_hint": "Toca na runa que brilha",
   "runenpfad.resonance_progress": "Trilho rúnico {count}/{total} · {seconds} s",

@@ -64,6 +64,26 @@
    "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
   },
   {
+   "file": "enemy-bell-toad.webp",
+   "sha256": "92ae360f9203bc48270a5ed3a4ef63719dd754d41dbea248408f416a6b221f4a",
+   "bytes": 212504,
+   "prompt": "Production 2D game sprite sheet for Runenpfad. True alpha transparent background. Regular grid of EXACTLY four equal-width columns and three equal-height rows, twelve isolated full sprites in row-major order. Wide landscape 4:3 canvas. No grid lines, labels, shadows on a floor, external glow, stray particles, lettering or marks outside a sprite. Classic hand-clustered 1990s pixel art with crisp dark outlines and small color ramps. 3/4 side view toward RIGHT only; constant overall scale, anatomy and color, generous even padding around every sprite. Reading order frames 0–3 idle loop, 4–5 warning, 6–7 attack, 8–9 recoil, 10–11 defeat. No other subjects. A squat moss-green fantasy toad with a brass bell-shaped throat sac and small bronze ridges across its back, expressive pale-gold eyes. It crouches on heavy folk-art hind legs with three-toed feet, viewed from side facing right on a common invisible baseline in every grid cell. Big compelling silhouette, weathered copper details, outline navy, warm creamy underbelly. Idle short breathing/throat variations; warning inflates the copper sound sac; attack opens its mouth and thrusts the inflated throat out to release a low ringing call; recoil sinks back on its haunches; defeat flattens into a tired curled pose. NO sound waves or separated effects in any cell. Reads at 50px high.",
+   "tool": "Codex image generation",
+   "source": "enemy-bell-toad.png",
+   "sourceSha256": "8e49d1ac8ee9b829b8c35bfeddc504d8d176733a3848c8469a5548946738f759",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "enemy-lantern-moth.webp",
+   "sha256": "63a048748e0b268d7da782c4f83d3d698421d844c527432a075715c2b198c9b3",
+   "bytes": 141130,
+   "prompt": "Production 2D game sprite sheet for Runenpfad. True alpha transparent background. Regular grid of EXACTLY four equal-width columns and three equal-height rows, twelve isolated full sprites in row-major order. Wide landscape 4:3 canvas. No grid lines, labels, shadows on a floor, external glow, stray particles, lettering or marks outside a sprite. Classic hand-clustered 1990s pixel art with crisp dark outlines and small color ramps. 3/4 side view toward RIGHT only; constant overall scale, anatomy and color, generous even padding around every sprite. Reading order frames 0–3 idle loop, 4–5 warning, 6–7 attack, 8–9 recoil, 10–11 defeat. No other subjects. A magical nocturnal lantern moth, with big jewel-shaped midnight-violet and plum wings with cream scalloped markings, an amber lantern-shaped abdomen emitting warm orange light from inside its silhouette, dark velvet antennae and a small head with bright eyes at right. Expressive angular wing silhouettes, no legs touching ground. Idle four wingbeat positions around the same body center; warn folded wings pointing at a target and glowing gold belly; attack plunging forward stretched like an arrow, same profile orientation; recoil wings flex back; defeat wings fold down around the drooping still recognizable body. Render it compact enough to read at 56 pixels high.",
+   "tool": "Codex image generation",
+   "source": "enemy-lantern-moth.png",
+   "sourceSha256": "827b381e045099bfa72ce2636562571ffaa43e9886f824a15327618991a909c9",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
    "file": "enemy-crystalbat.webp",
    "sha256": "4c011acf73db4d5ecbc45354fefd8a3fc9acb804f949d439e93d96bad94cfd02",
    "bytes": 129958,
@@ -331,6 +351,16 @@
    "tool": "Codex image generation",
    "source": "prop-waystones.png",
    "sourceSha256": "a3418978cac02073428bc68f5cbe2f659cea1a5581886b063014d17abd1244b5",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
+   "file": "prop-moon-thorns.webp",
+   "sha256": "ed35a25d79043a44aaa3eb2ea068b8fd3357bd6724d6e366bcce6fb8a94ff24b",
+   "bytes": 26716,
+   "prompt": "Production TRANSPARENT RGBA horizontal sprite atlas for a hand-painted pixel-art fantasy side-scrolling platformer. EXACTLY TWO isolated sprites arranged in two equal SQUARE cells in ONE horizontal row, fairly wide 2:1 canvas. Both center-aligned within each cell, with a wide transparent gutter. LEFT CELL: front elevation of a perfectly round rolling bramble wheel, a natural sphere of dark interwoven thorny vines with about twelve thick ivory radial thorns forming a clearly dangerous circular silhouette, reddish-purple seed core, little copper scars, no axle or perspective ellipse. RIGHT CELL: a very wide horizontal floating moonstone stepping slab, flat level top, ideal for a person to jump on. A weathered amethyst and indigo crystalline rocky underside tapers below, cyan moonlit cracks and exactly one luminous pearly crescent inlay in the beveled front, short chunky silhouette, width 3x height. Distinct colorful palette, rendered as highly readable premium 1990s pixel art with crisp dark contour and minimal dithering, consistent light upper-left, fully contained silhouettes with no trailing sparkles. No typography, no frames, no second row, no ground shadows, no surrounding scene or glow cloud.",
+   "tool": "Codex image generation",
+   "source": "prop-moon-thorns.png",
+   "sourceSha256": "6f27c9a3232beabc4c7b754aef6718ef4db3153cc00f58166e634cabd22eadc9",
    "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
   },
   {

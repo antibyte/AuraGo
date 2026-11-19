@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -150,6 +151,10 @@ func TestRunenpfadRegistration(t *testing.T) {
 		"runenpfad.ctl_move",
 		"runenpfad.resonance_hint",
 		"runenpfad.sky_ray_hint",
+		"runenpfad.encounter_moth",
+		"runenpfad.encounter_toad",
+		"runenpfad.encounter_roller",
+		"runenpfad.encounter_moon",
 		"runenpfad.resonance_progress",
 		"runenpfad.notice.resonance_complete",
 		"runenpfad.notice.resonance_expire",
@@ -554,6 +559,96 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		const saved = JSON.parse(localStorage.getItem('aurago.runenpfad.v1') || '{}');
 		return app && app.dataset.rpLevel === '1' && app.dataset.rpUnlocked === '1' && app.dataset.rpMaxHp === '5' && saved.unlockedLevel === 1 && !document.querySelector('.rp-cut');
 	}`)
+
+	// Approach the encounters in their campaign stages and observe the live renderer.
+	if !page.MustEval(`()=> {
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+		const painter = RunenpfadStageArt.create({ctx, art:null, drawGlow() {}});
+		const moth = {x:40, y:42, def:{scale:1}, moth:{state:'tell', targetX:154, targetY:104}};
+		const sim = {stage:{platforms:[], enemies:[moth]}, projectiles:[]};
+		const paint = nowSec => {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			painter.drawWorld(sim, {sx:0, viewW:canvas.width, reducedMotion:true, nowSec});
+			return canvas.toDataURL();
+		};
+		const warning = paint(0);
+		if (warning !== paint(0.8)) return false;
+		moth.moth.targetX += 40;
+		if (warning === paint(0)) return false;
+		moth.moth.state = 'hover';
+		const clear = paint(0);
+		sim.projectiles.push({kind:'toad_wave', x:150, y:103, vx:270, radius:8});
+		return clear !== paint(0);
+	}`).Bool() {
+		t.Fatal("the fixed moth target and travelling bell wave must remain visible without painted art or animation")
+	}
+	page.MustWait(`()=>['enemy-lantern-moth.telegraph','enemy-bell-toad.attack','prop-moon-thorns.roller','prop-moon-thorns.moon']
+		.every(id => RunenpfadArt.has(RunenpfadArt.current(), id))`)
+	page.MustEval(`()=> {
+		const draw = RunenpfadArt.draw;
+		window.rpDrawnClips = new Set();
+		RunenpfadArt.draw = function(ctx, atlas, clip, ...args) {
+			const drawn = draw.call(this, ctx, atlas, clip, ...args);
+			if (drawn) window.rpDrawnClips.add(clip);
+			return drawn;
+		};
+	}`)
+	for _, encounter := range []struct {
+		level            int
+		kind, clip, file string
+	}{
+		{3, "lantern_moth", "enemy-lantern-moth.telegraph", "laternenmotte.png"},
+		{4, "bell_toad", "enemy-bell-toad.attack", "glockenkroete.png"},
+		{3, "roller", "prop-moon-thorns.roller", "dornenwalze.png"},
+		{6, "moon", "prop-moon-thorns.moon", "mondstufen.png"},
+	} {
+		t.Logf("approaching %s on campaign stage %d", encounter.kind, encounter.level)
+		dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
+		frame := page.MustEval(`async (level, kind, clip, capture)=>{
+			const game = document.querySelector('.rp-app').__runenpfad;
+			game.startStage({mode:'campaign', levelId:level});
+			const sim = game.getSim(), stage = sim.stage;
+			const foe = stage.enemies.find(e => e.defId === kind);
+			window.rpDrawnClips.clear();
+			if (kind === 'roller') {
+				const roller = stage.thornRollers[0];
+				game.setPlayerPosition(roller.startX - 75, stage.groundY);
+			} else if (kind === 'moon') {
+				const step = stage.moonSteps[0];
+				game.setPlayerPosition(step.x + step.w / 2, stage.groundY);
+			} else {
+				if (!foe) throw Error('missing campaign enemy ' + kind);
+				game.setPlayerPosition(foe.spawnX - 150, foe.spawnY);
+			}
+			const until = performance.now() + 12000;
+			let jumped = false;
+			while (performance.now() < until) {
+				await new Promise(requestAnimationFrame);
+				if (kind === 'moon' && !jumped && sim.player.onGround && stage.moonSteps[0].state === 'solid') {
+					jumped = true;
+					window.dispatchEvent(new KeyboardEvent('keydown', {code:'Space', key:' ', bubbles:true}));
+					requestAnimationFrame(() => window.dispatchEvent(new KeyboardEvent('keyup', {code:'Space', key:' ', bubbles:true})));
+				}
+				if (!window.rpDrawnClips.has(clip)) continue;
+				if (kind === 'lantern_moth' && foe.moth?.state !== 'tell') continue;
+				if (kind === 'bell_toad' && !sim.projectiles.some(p => !p.dead && p.kind === 'toad_wave' && Math.abs(p.x - foe.x) > 52)) continue;
+				if (kind === 'roller' && stage.thornRollers[0].x < stage.thornRollers[0].startX + 65) continue;
+				if (kind === 'moon' && !(sim.player.onPlatformRide === stage.moonSteps[0] && stage.moonSteps[1].solid)) continue;
+				return capture ? document.querySelector('.rp-canvas').toDataURL('image/png').split(',')[1] : '';
+			}
+			throw Error('no visible gameplay frame for ' + kind);
+		}`, encounter.level, encounter.kind, encounter.clip, dir != "").Str()
+		if dir != "" {
+			png, err := base64.StdEncoding.DecodeString(frame)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, encounter.file), png, 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	page.MustEval(`()=>{
 		const win = [...window.auditTest.state.windows.values()].find(w => w.appId === 'runenpfad');
 		if (!win) throw Error('runenpfad window missing');

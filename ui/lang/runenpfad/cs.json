@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Lucernová můra · Uhni jí z dráhy!",
+  "runenpfad.encounter_toad": "Zvonová ropucha · Přeruš její volání nebo přeskoč vlnu.",
+  "runenpfad.encounter_roller": "Trnité kolo · Přeskoč trny.",
+  "runenpfad.encounter_moon": "Měsíční schody · Svítící kameny tě unesou.",
   "runenpfad.sky_ray_hint": "Skoč létající mantě na hřbet",
   "runenpfad.resonance_hint": "Dotkni se zářící runy",
   "runenpfad.resonance_progress": "Runová stezka {count}/{total} · {seconds} s",

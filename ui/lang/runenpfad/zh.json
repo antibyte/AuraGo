@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "灯蛾 · 快躲开它的俯冲路线！",
+  "runenpfad.encounter_toad": "钟鸣蟾蜍 · 打断鸣叫，或跳过声波。",
+  "runenpfad.encounter_roller": "荆棘滚轮 · 跳过尖刺。",
+  "runenpfad.encounter_moon": "月光石阶 · 发光的石头可以落脚。",
   "runenpfad.sky_ray_hint": "跳到飞天鳐的背上",
   "runenpfad.resonance_hint": "触碰发光的符文",
   "runenpfad.resonance_progress": "符文小径 {count}/{total} · 剩余 {seconds} 秒",

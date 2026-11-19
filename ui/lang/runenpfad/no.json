@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Lyktemøll · Kom deg ut av flygebanen!",
+  "runenpfad.encounter_toad": "Klokkepadde · Avbryt kvekket eller hopp over bølgen.",
+  "runenpfad.encounter_roller": "Tornehjul · Hopp over tornene.",
+  "runenpfad.encounter_moon": "Månetrinn · De lysende steinene bærer deg.",
   "runenpfad.sky_ray_hint": "Hopp opp på ryggen til den flygende rokken",
   "runenpfad.resonance_hint": "Berør runen som lyser",
   "runenpfad.resonance_progress": "Runespor {count}/{total} · {seconds} s",

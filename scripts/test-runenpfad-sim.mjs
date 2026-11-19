@@ -2607,3 +2607,205 @@ console.log('Runenpfad round 5 checks passed: grounded poison and fire.');
     assert.equal(mkSim(24).stage.weather, 'rain', 'the citadel storm keeps its rain');
 }
 console.log('Runenpfad round 5 checks passed: storm gusts.');
+
+// ---- Round 6: lantern moth and bell toad enemy patterns ----
+{
+    const STEP = Sim.STEP;
+    const TILE = Levels.TILE;
+    const mothLevels = [3, 8, 14, 19, 23];
+    const toadLevels = [4, 9, 13, 18, 24];
+    const specialKinds = ['lantern_moth', 'bell_toad'];
+    mothLevels.forEach((id) => {
+        const a = Levels.buildStage(id);
+        const b = Levels.buildStage(id);
+        const moths = a.enemies.filter((e) => e.defId === 'lantern_moth');
+        assert.equal(moths.length, 1, 'campaign level ' + id + ' replaces one enemy with a lantern moth');
+        assert.equal(moths[0].def.art, 'enemy-lantern-moth');
+        assert.deepEqual(a.enemies.map((e) => [e.defId, e.spawnX, e.spawnY]), b.enemies.map((e) => [e.defId, e.spawnX, e.spawnY]), 'moth placement stays deterministic on level ' + id);
+        assert.ok(!(a.npcs || []).some((npc) => moths[0].spawnX >= npc.campX0 - TILE * 2 && moths[0].spawnX <= npc.campX1 + TILE * 2), 'moth is outside camp reach on level ' + id);
+    });
+    toadLevels.forEach((id) => {
+        const stage = Levels.buildStage(id);
+        const toads = stage.enemies.filter((e) => e.defId === 'bell_toad');
+        assert.equal(toads.length, 1, 'campaign level ' + id + ' replaces one enemy with a bell toad');
+        assert.equal(toads[0].def.art, 'enemy-bell-toad');
+        assert.ok(stage.solidMap[Math.floor(toads[0].spawnX / TILE) + ',' + Math.floor(toads[0].spawnY / TILE)], 'toad begins on solid ground on level ' + id);
+        assert.ok(!(stage.npcs || []).some((npc) => toads[0].spawnX >= npc.campX0 - TILE * 2 && toads[0].spawnX <= npc.campX1 + TILE * 2), 'toad is outside camp reach on level ' + id);
+        if (id === 4 && stage.skyRays.length) {
+            const ray = stage.skyRays[0];
+            const inRayArea = toads[0].spawnX >= ray.startX - 130 && toads[0].spawnX <= ray.endX + ray.w + 130
+                && toads[0].spawnY >= ray.y - 88 && toads[0].spawnY <= ray.y + 120;
+            assert.equal(inRayArea, false, 'level 4 toad stays clear of the wind-ray route');
+        }
+    });
+    [1, 2, 7, 8].forEach((floor) => {
+        const stage = Levels.buildStage({ mode: 'endless', endlessFloor: floor, seed: 7331 });
+        const expected = floor % 6 === 1 ? 'lantern_moth' : 'bell_toad';
+        assert.equal(stage.enemies.filter((e) => e.defId === expected).length, 1, 'endless floor ' + floor + ' contains one ' + expected);
+        assert.equal(stage.enemies.filter((e) => specialKinds.includes(e.defId)).length, 1, 'endless floor ' + floor + ' replaces instead of adding');
+    });
+    const hub = Levels.buildStage(0);
+    assert.equal(hub.enemies.filter((e) => specialKinds.includes(e.defId)).length, 0, 'the village hub has neither new enemy');
+
+    const arena = (hero, floorRow) => {
+        const sim = Sim.createSimulation({ mode: 'campaign', levelId: 1, hero: hero || 'knight' });
+        const stage = sim.stage;
+        const row = floorRow == null ? 13 : floorRow;
+        stage.enemies.length = 0;
+        stage.npcs.length = 0;
+        stage.platforms.length = 0;
+        stage.movingPlatforms.length = 0;
+        stage.hazards.length = 0;
+        stage.solidMap = {};
+        for (let tx = 0; tx < stage.widthTiles; tx++) {
+            for (let ty = row; ty < stage.heightTiles; ty++) stage.solidMap[tx + ',' + ty] = true;
+        }
+        sim.projectiles.length = 0;
+        sim.player.x = 10 * TILE;
+        sim.player.y = row * TILE;
+        sim.player.vx = 0;
+        sim.player.vy = 0;
+        sim.player.onGround = true;
+        sim.player.coyoteTimer = 0.1;
+        sim.player.invulnTimer = 0;
+        sim.player.hurtTimer = 0;
+        sim.player.attackCooldown = 0;
+        sim.player.hp = sim.player.maxHp;
+        sim.damageTaken = 0;
+        return sim;
+    };
+    const spawnEnemy = (sim, kind, x, y) => {
+        const enemy = Levels.createEnemy(kind, x, y, x - 4 * TILE, x + 4 * TILE, { id: 'test_' + kind });
+        sim.stage.enemies.push(enemy);
+        return enemy;
+    };
+    const step = (sim, input) => Sim.stepSimulation(sim, STEP, input || {});
+
+    // The moth fixes its aim at the tell, dives on that same point and can be hit after a miss.
+    {
+        const sim = arena('knight');
+        const floorY = sim.stage.groundY;
+        const moth = spawnEnemy(sim, 'lantern_moth', 20.5 * TILE, floorY);
+        sim.player.x = moth.x - 130;
+        sim.player.facing = 1;
+        let tell = null;
+        for (let i = 0; i < 150 && !tell; i++) tell = step(sim).find((e) => e.type === 'moth_tell') || null;
+        assert.ok(tell, 'the moth announces its dive');
+        const lockedX = moth.moth.targetX;
+        const lockedY = moth.moth.targetY;
+        assert.equal(lockedX, sim.player.x, 'the moth aims at the player position when telegraphing');
+        assert.equal(lockedY, sim.player.y - 20, 'the moth aims at the body target line');
+        for (let i = 0; i < 12; i++) step(sim, { left: true });
+        assert.equal(moth.moth.targetX, lockedX, 'moving during telegraph does not retarget the moth');
+        let dive = null;
+        for (let i = 0; i < 60 && !dive; i++) dive = step(sim).find((e) => e.type === 'moth_dive') || null;
+        assert.ok(dive, 'the moth begins its dive after the tell');
+        assert.equal(dive.detail.targetX, lockedX, 'the dive event preserves its locked target');
+        step(sim);
+        const progress = 1 - moth.moth.timer / moth.moth.diveDuration;
+        assert.ok(Math.abs(moth.x - (moth.moth.sx + (lockedX - moth.moth.sx) * progress)) < 0.01, 'the dive follows a straight line');
+        for (let i = 0; i < 80 && moth.moth.state === 'dive'; i++) step(sim);
+        assert.equal(moth.moth.state, 'recover', 'a miss leaves the moth in its vulnerable recovery');
+        assert.equal(moth.phased, false, 'recovery is not phased');
+        const hp = moth.hp;
+        const hit = step(sim, { right: true, attackPressed: true });
+        assert.ok(hit.some((e) => e.type === 'enemy_hit' && e.detail.defId === 'lantern_moth'), 'the knight can punish the recovery with a real slash');
+        assert.ok(moth.hp < hp, 'the moth takes recovery damage');
+    }
+
+    // Both hero attacks interrupt a charged call, and the toad can announce another attempt after resting.
+    ['knight', 'ranger'].forEach((hero) => {
+        const sim = arena(hero);
+        const floorY = sim.stage.groundY;
+        const toad = spawnEnemy(sim, 'bell_toad', 20.5 * TILE, floorY);
+        const gap = hero === 'knight' ? 50 : 110;
+        sim.player.x = toad.x - gap;
+        sim.player.y = floorY;
+        sim.player.facing = 1;
+        toad.toad = { state: 'sit', cooldown: 0 };
+        const announced = step(sim);
+        assert.ok(announced.some((e) => e.type === 'toad_tell'), hero + ' sees the toad telegraph');
+        assert.equal(toad.toad.state, 'tell');
+        const hp = toad.hp;
+        const attackEvents = step(sim, { attackPressed: true });
+        let hit = attackEvents.some((e) => e.type === 'enemy_hit');
+        const laterEvents = [];
+        for (let i = 0; i < 20 && !hit; i++) {
+            const evs = step(sim);
+            laterEvents.push(...evs);
+            hit = evs.some((e) => e.type === 'enemy_hit');
+        }
+        assert.ok(hit && toad.hp < hp, hero + ' attack damages the toad during its call');
+        for (let i = 0; i < 3 && toad.toad.state === 'tell'; i++) step(sim);
+        assert.equal(toad.toad.state, 'rest', hero + ' interrupts the call into a rest');
+        assert.equal(toad.windup, 0, hero + ' clears the call telegraph');
+        const retryEvents = [];
+        for (let i = 0; i < 145; i++) retryEvents.push(...step(sim));
+        assert.ok(retryEvents.some((e) => e.type === 'toad_tell'), hero + ' gets another telegraphed attempt after resting');
+        assert.equal(retryEvents.some((e) => e.type === 'toad_wave'), false, hero + ' can interrupt before a wave is emitted');
+    });
+
+    // A ground wave can be jumped over by either hero with normal jump input.
+    ['knight', 'ranger'].forEach((hero) => {
+        const sim = arena(hero);
+        const floorY = sim.stage.groundY;
+        const toad = spawnEnemy(sim, 'bell_toad', 24.5 * TILE, floorY);
+        sim.player.x = toad.x - 340;
+        sim.player.y = floorY;
+        sim.player.vx = 0;
+        sim.player.onGround = true;
+        toad.toad = { state: 'sit', cooldown: 0 };
+        const log = [];
+        for (let i = 0; i < 60 && !log.some((e) => e.type === 'toad_wave'); i++) log.push(...step(sim));
+        const waveEvent = log.find((e) => e.type === 'toad_wave');
+        assert.ok(waveEvent, hero + ' receives a warned ground wave');
+        const wave = sim.projectiles.find((p) => p.kind === 'toad_wave');
+        assert.ok(wave && wave.groundHug && wave.fromEnemy, 'the wave uses the normal enemy projectile path');
+        assert.equal(wave.y, toad.y - 8, 'the wave spawns from the toad local surface');
+        for (let i = 0; i < 42; i++) step(sim);
+        assert.ok(wave.x > sim.player.x && wave.x - sim.player.x < 160 && !wave.dead, 'the wave approaches along the floor before the jump');
+        step(sim, { jumpPressed: true, jump: true });
+        for (let i = 0; i < 45; i++) step(sim, { jump: i < 20 });
+        assert.ok(wave.x < sim.player.x - sim.player.w, hero + ' clears the wave through a normal jump');
+        assert.equal(sim.damageTaken, 0, hero + ' takes no damage when jumping the low wave');
+    });
+
+    // A grounded hit uses the toad wave's flesh impact cue.
+    {
+        const sim = arena('knight');
+        const toad = spawnEnemy(sim, 'bell_toad', 20.5 * TILE, sim.stage.groundY);
+        sim.player.x = toad.x - 90;
+        sim.player.y = sim.stage.groundY;
+        sim.player.onGround = true;
+        toad.toad = { state: 'sit', cooldown: 0 };
+        let hit = null;
+        for (let i = 0; i < 100 && !hit; i++) hit = step(sim).find((e) => e.type === 'player_hurt') || null;
+        assert.ok(hit, 'an unjumped ground wave hits the player');
+        assert.equal(hit.detail.sound, 'impact-flesh', 'the wave does not reuse a metal projectile impact');
+    }
+
+    // The wave keeps the toad's raised local height and ends at a drop or a blocking wall.
+    ['pit', 'wall'].forEach((obstacle) => {
+        const sim = arena('knight', 12);
+        const surfaceY = 12 * TILE;
+        const toad = spawnEnemy(sim, 'bell_toad', 20.5 * TILE, surfaceY);
+        sim.player.x = toad.x + 300;
+        sim.player.y = surfaceY;
+        sim.player.onGround = true;
+        toad.toad = { state: 'sit', cooldown: 0 };
+        const obstacleTile = 23;
+        if (obstacle === 'pit') delete sim.stage.solidMap[obstacleTile + ',12'];
+        else sim.stage.solidMap[obstacleTile + ',11'] = true;
+        let wave = null;
+        for (let i = 0; i < 60 && !wave; i++) {
+            step(sim);
+            wave = sim.projectiles.find((p) => p.kind === 'toad_wave') || null;
+        }
+        assert.ok(wave, 'the toad releases a wave toward the ' + obstacle);
+        assert.equal(wave.y, surfaceY - 8, 'the wave tracks the local raised floor instead of stage.groundY');
+        for (let i = 0; i < 90 && !wave.dead; i++) step(sim);
+        assert.equal(wave.dead, true, 'the wave ends safely at the ' + obstacle);
+        assert.equal(sim.damageTaken, 0, 'the wave cannot hit across the ' + obstacle);
+    });
+}
+console.log('Runenpfad round 6 checks passed: lantern moth, bell toad, and counters.');

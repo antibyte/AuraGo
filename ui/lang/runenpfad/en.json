@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Lantern moth · Step out of its flight path!",
+  "runenpfad.encounter_toad": "Bell toad · Interrupt the call or jump over the wave.",
+  "runenpfad.encounter_roller": "Thorn roller · Jump over the thorns.",
+  "runenpfad.encounter_moon": "Moon steps · The glowing stones hold your weight.",
   "runenpfad.sky_ray_hint": "Jump onto the sky ray’s back",
   "runenpfad.resonance_hint": "Touch the glowing rune",
   "runenpfad.resonance_progress": "Rune trail {count}/{total} · {seconds}s",

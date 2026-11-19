@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "Ćma latarnik · Zejdź z linii lotu!",
+  "runenpfad.encounter_toad": "Ropucha dzwonnik · Przerwij jej rechot lub przeskocz falę.",
+  "runenpfad.encounter_roller": "Cierniste koło · Przeskocz kolce.",
+  "runenpfad.encounter_moon": "Księżycowe stopnie · Świecące kamienie cię utrzymają.",
   "runenpfad.sky_ray_hint": "Wskocz na grzbiet latającej manty",
   "runenpfad.resonance_hint": "Dotknij świecącej runy",
   "runenpfad.resonance_progress": "Runiczny szlak {count}/{total} · {seconds} s",

@@ -1,4 +1,8 @@
 {
+  "runenpfad.encounter_moth": "灯火ガ · 飛んでくる軌道から逃げよう！",
+  "runenpfad.encounter_toad": "鐘ガエル · 鳴き声を止めるか、波を飛び越えよう。",
+  "runenpfad.encounter_roller": "いばら車輪 · トゲを飛び越えよう。",
+  "runenpfad.encounter_moon": "月の足場 · 光っている石に乗ろう。",
   "runenpfad.sky_ray_hint": "空飛ぶマンタの背中に飛び乗ろう",
   "runenpfad.resonance_hint": "光っているルーンに触れよう",
   "runenpfad.resonance_progress": "ルーンの小道 {count}/{total} · 残り{seconds}秒",
