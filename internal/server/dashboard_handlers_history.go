@@ -94,12 +94,9 @@ func handleDashboardEmotionHistory(s *Server) http.HandlerFunc {
 		for _, e := range entries {
 			summary.AverageValence += e.Valence
 			summary.AverageArousal += e.Arousal
-			trigger := strings.TrimSpace(e.TriggerSummary)
+			trigger := e.TriggerSummary
 			if trigger == "" {
 				trigger = "conversation"
-			}
-			if len(trigger) > 64 {
-				trigger = trigger[:64]
 			}
 			summary.TriggerCounts[trigger]++
 		}

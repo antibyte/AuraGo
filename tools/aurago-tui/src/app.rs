@@ -304,11 +304,7 @@ impl Default for AppState {
                 is_estimated: false,
                 is_final: false,
             },
-            personality: PersonalityUpdatePayload {
-                mood: Some("Neutral".to_string()),
-                trigger: None,
-                current_emotion: Some("calm".to_string()),
-            },
+            personality: PersonalityUpdatePayload::default(),
             agent_status: "idle".to_string(),
             show_help: false,
             toast: None,

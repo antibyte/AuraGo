@@ -5,12 +5,16 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
+
+	"aurago/internal/security"
 )
 
 const (
@@ -19,11 +23,12 @@ const (
 )
 
 var (
-	emailRegex  = regexp.MustCompile(`(?i)[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}`)
-	phoneRegex  = regexp.MustCompile(`(?i)\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b`)
-	ipRegex     = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
-	tokenRegex  = regexp.MustCompile(`(?i)\b(?:sk-[a-z0-9]{16,}|ghp_[a-z0-9]{20,}|api[_-]?key|access[_-]?token|secret[_-]?key)\b`)
-	hexKeyRegex = regexp.MustCompile(`\b[a-f0-9]{32,}\b`)
+	emailRegex           = regexp.MustCompile(`(?i)[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}`)
+	phoneRegex           = regexp.MustCompile(`(?i)\b(?:\+?\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b`)
+	ipRegex              = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
+	tokenRegex           = regexp.MustCompile(`(?i)\b(?:sk-[a-z0-9]{16,}|ghp_[a-z0-9]{20,}|api[_-]?key|access[_-]?token|secret[_-]?key)\b`)
+	hexKeyRegex          = regexp.MustCompile(`(?i)\b[a-f0-9]{32,}\b`)
+	profileCredentialKey = regexp.MustCompile(`(?:^|_)(?:passwort|kennwort|password|passwd|pwd|passphrase|pin|secret|token|credentials?|(?:api|access|master|private|secret|session)_key)$`)
 )
 
 var validProfileCategories = map[string]bool{
@@ -314,14 +319,32 @@ func normalizeProfileValue(value string) string {
 }
 
 func containsProfilePII(value string) bool {
-	if value == "" {
-		return false
-	}
-	return emailRegex.MatchString(value) ||
+	if emailRegex.MatchString(value) ||
 		phoneRegex.MatchString(value) ||
 		ipRegex.MatchString(value) ||
 		tokenRegex.MatchString(value) ||
-		hexKeyRegex.MatchString(value)
+		hexKeyRegex.MatchString(value) {
+		return true
+	}
+	if strings.Count(value, ":") < 2 {
+		return false
+	}
+	for _, token := range strings.FieldsFunc(value, func(r rune) bool {
+		return unicode.IsSpace(r) || strings.ContainsRune("[](){}<>,;\"'`/=@!?", r)
+	}) {
+		if addr, err := netip.ParseAddr(strings.TrimRight(token, ".")); err == nil && addr.Is6() {
+			return true
+		}
+	}
+	return false
+}
+
+func hasStrongProfileCredential(value string) bool {
+	return durableKeyMaterial.MatchString(value) || security.ScrubSecrets(value) != value
+}
+
+func containsSensitiveProfileData(key, value string) bool {
+	return profileCredentialKey.MatchString(key) || containsProfilePII(value) || hasStrongProfileCredential(value)
 }
 
 func isValidProfileCategory(category string) bool {
@@ -353,7 +376,6 @@ func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) e
 	category = strings.ToLower(strings.TrimSpace(category))
 	// Normalize key to canonical form and discard rejected keys
 	key = normalizeProfileKey(key)
-	value = normalizeProfileValue(value)
 	if isRejectedProfileKey(key) {
 		return nil
 	}
@@ -363,6 +385,10 @@ func (s *SQLiteMemory) UpsertProfileEntry(category, key, value, source string) e
 	if !isValidProfileKey(key) {
 		return fmt.Errorf("invalid profile key %q", key)
 	}
+	if containsSensitiveProfileData(key, value) {
+		return fmt.Errorf("profile value contains sensitive data")
+	}
+	value = normalizeProfileValue(value)
 	if containsProfilePII(value) {
 		return fmt.Errorf("profile value contains sensitive data")
 	}

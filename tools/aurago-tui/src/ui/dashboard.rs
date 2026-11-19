@@ -259,27 +259,27 @@ fn draw_agent_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
             .collect()
     };
 
-    let text = Text::from(
-        vec![
-            Line::from(vec![
-                Span::styled("🌙 Mood: ", Style::default().fg(theme.fg)),
-                Span::styled(
-                    &p.mood,
-                    Style::default()
-                        .fg(theme.accent)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("💭 Emotion: ", Style::default().fg(theme.fg)),
-                Span::styled(&p.emotion, Style::default().fg(theme.accent)),
-            ]),
-            Line::from(""),
-        ]
-        .into_iter()
-        .chain(traits_text)
-        .collect::<Vec<_>>(),
-    );
+    let mut lines = vec![Line::from(vec![
+        Span::styled("🌙 Mood: ", Style::default().fg(theme.fg)),
+        Span::styled(
+            p.status.mood.as_deref().unwrap_or_default(),
+            Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
+        ),
+    ])];
+    if let Some(emotion) = p
+        .status
+        .current_emotion
+        .as_deref()
+        .filter(|text| !text.trim().is_empty())
+    {
+        lines.push(Line::from(vec![
+            Span::styled("💭 Emotion: ", Style::default().fg(theme.fg)),
+            Span::styled(emotion, Style::default().fg(theme.accent)),
+        ]));
+    }
+    lines.push(Line::from(""));
+    lines.extend(traits_text);
+    let text = Text::from(lines);
 
     let block = Block::default()
         .title(i18n::current().personality_title)

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"aurago/internal/security"
 )
 
 func evidenceInput(session, turn, text string, at time.Time) *HumanInput {
@@ -659,5 +661,68 @@ func TestPersonalityProfileValueMustBeSaidByTheHuman(t *testing.T) {
 	entries, _ := stm.GetProfileEntries("prefs")
 	if len(entries) != 2 {
 		t.Fatalf("values in the human's words were not stored: %+v", entries)
+	}
+}
+
+func TestPersonalityProfileRejectsSensitiveData(t *testing.T) {
+	registered := "FixtureOnlyMixedCaseProfileSecret"
+	security.RegisterSensitive(registered)
+	pem := "-----BEGIN " + "PRIVATE KEY-----\nFixtureText\n-----END PRIVATE KEY-----"
+	awsID := "AKIA" + strings.Repeat("A", 16)
+	for _, tc := range []struct {
+		name, key, value, human string
+		rejectBeforeFolding     bool
+		wantStored              bool
+	}{
+		{name: "PEM", key: "editor", value: pem, rejectBeforeFolding: true},
+		{name: "AWS ID", key: "editor", value: awsID, rejectBeforeFolding: true},
+		{name: "registered mixed case", key: "editor", value: registered, rejectBeforeFolding: true},
+		{name: "model changed case", key: "editor", value: strings.ToLower(registered), human: registered},
+		{name: "unrelated update on sensitive turn", key: "editor", value: "Vim", human: "I use Vim. " + pem},
+		{name: "German compound field", key: "WLAN-Passwort", value: "Sommerfest", rejectBeforeFolding: true},
+		{name: "credential suffix", key: "service_pin", value: "1234", rejectBeforeFolding: true},
+		{name: "IPv6", key: "server", value: "server 2001:db8::1.", rejectBeforeFolding: true},
+		{name: "bracketed IPv6", key: "server", value: "[2001:db8::1]:443", rejectBeforeFolding: true},
+		{name: "ordinary preference", key: "password_manager", value: "KeePassXC", wantStored: true},
+		{name: "ordinary text with colons", key: "schedule", value: "18:30:05", wantStored: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stm := newTestPersonalityDB(t)
+			raw := []ProfileUpdate{{Category: "tech", Key: tc.key, Value: tc.value}}
+			parsed := sanitizeProfileUpdates(raw)
+			if (len(parsed) == 0) != tc.rejectBeforeFolding {
+				t.Fatal("unexpected profile extraction result")
+			}
+			if tc.rejectBeforeFolding {
+				parsed = raw // The storage boundary must also handle direct callers.
+				if err := stm.UpsertProfileEntry("tech", tc.key, tc.value, "manual"); err == nil {
+					t.Fatal("manual edit accepted sensitive data")
+				}
+			}
+			human := tc.human
+			if human == "" {
+				human = tc.value
+			}
+			input := evidenceInput("chat", "privacy", human, time.Now().UTC())
+			before, err := stm.GetPersonalitySnapshotAt(input.OccurredAt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := stm.ApplyPersonalityObservation(PersonalityObservation{
+				ID: input.TurnID, Input: input, Source: "helper", Semantic: true, ProfileUpdates: parsed,
+				TraitDeltas: map[string]float64{TraitCuriosity: 0.1},
+			})
+			if err != nil || after.Traits[TraitCuriosity] <= before.Traits[TraitCuriosity] {
+				t.Fatalf("profile policy suppressed the personality observation: %v", err)
+			}
+			entries, err := stm.GetProfileEntries("")
+			if err != nil || (len(entries) == 1) != tc.wantStored {
+				t.Fatalf("unexpected visible profile count %d: %v", len(entries), err)
+			}
+			var evidence int
+			if err := stm.db.QueryRow(`SELECT COUNT(*) FROM personality_profile_evidence`).Scan(&evidence); err != nil || evidence != len(entries) {
+				t.Fatalf("unexpected profile evidence count %d: %v", evidence, err)
+			}
+		})
 	}
 }

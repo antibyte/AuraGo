@@ -1,10 +1,9 @@
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
-use reqwest::Client;
 use serde_json::Value;
 use std::time::Duration;
 
-use super::types::SseEventWrapper;
+use super::{ApiClient, auth, types::SseEventWrapper};
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -27,10 +26,7 @@ pub enum SseEvent {
 /// Connect to the SSE stream with automatic reconnection and exponential backoff.
 /// This function runs indefinitely, reconnecting whenever the connection drops.
 pub async fn connect_sse(
-    client: Client,
-    url: String,
-    origin: String,
-    cookie: Option<String>,
+    client: &ApiClient,
     tx: tokio::sync::mpsc::UnboundedSender<SseEvent>,
 ) {
     let mut retry_delay_secs: u64 = 1;
@@ -40,7 +36,7 @@ pub async fn connect_sse(
         // Notify UI that we're connecting
         let _ = tx.send(SseEvent::AgentStatus("connecting".to_string()));
 
-        let connected = connect_sse_once(&client, &url, &origin, cookie.as_deref(), &tx).await;
+        let connected = connect_sse_once(client, &tx).await;
 
         if connected {
             // Reset backoff after successful connection so next retry starts fresh
@@ -66,14 +62,14 @@ pub async fn connect_sse(
 /// successfully established (even if it later dropped), `false` if the
 /// initial connection failed.
 async fn connect_sse_once(
-    client: &Client,
-    url: &str,
-    origin: &str,
-    cookie: Option<&str>,
+    client: &ApiClient,
     tx: &tokio::sync::mpsc::UnboundedSender<SseEvent>,
 ) -> bool {
-    let mut req = client.get(url).header("Origin", origin);
-    if let Some(c) = cookie {
+    let mut req = client
+        .client
+        .get(client.sse_url("/events"))
+        .header("Origin", &client.base_url);
+    if let Some(c) = client.get_session_cookie() {
         req = req.header("Cookie", c);
     }
 
@@ -88,12 +84,30 @@ async fn connect_sse_once(
     // Connection succeeded — reset backoff hint (caller resets based on return value)
     let _ = tx.send(SseEvent::AgentStatus("connected".to_string()));
 
+    let mut needs_initial_personality = resp.status().is_success();
+    let initial_personality = auth::fetch_personality_state(client);
+    tokio::pin!(initial_personality);
     let mut stream = resp.bytes_stream().eventsource();
-    while let Some(event) = stream.next().await {
+    loop {
+        let event = tokio::select! {
+            event = stream.next() => event,
+            result = &mut initial_personality, if needs_initial_personality => {
+                needs_initial_personality = false;
+                if let Ok(state) = result {
+                    let _ = tx.send(SseEvent::PersonalityUpdate(state.status));
+                }
+                continue;
+            }
+        };
+        let Some(event) = event else { break };
         match event {
             Ok(ev) => {
                 if let Ok(wrapper) = serde_json::from_str::<SseEventWrapper>(&ev.data) {
                     let parsed = parse_sse_event(wrapper);
+                    // An update received on this connection supersedes the initial fetch.
+                    if matches!(parsed, SseEvent::PersonalityUpdate(_)) {
+                        needs_initial_personality = false;
+                    }
                     let _ = tx.send(parsed);
                 } else if let Ok(val) = serde_json::from_str::<Value>(&ev.data) {
                     if let Some(event_name) = val.get("event").and_then(|v| v.as_str()) {
@@ -212,9 +226,21 @@ fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::ApiClient;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
+
+    #[test]
+    fn personality_update_keeps_mood_without_emotion() {
+        let wrapper = SseEventWrapper {
+            event_type: "personality_update".into(),
+            payload: serde_json::json!({"enabled": true, "mood": "focused"}),
+        };
+        let SseEvent::PersonalityUpdate(state) = parse_sse_event(wrapper) else {
+            panic!("expected a personality update");
+        };
+        assert_eq!(state.mood.as_deref(), Some("focused"));
+        assert_eq!(state.current_emotion, None);
+    }
 
     #[tokio::test]
     async fn streaming_survives_thirty_seconds_while_regular_requests_expire() {
@@ -222,7 +248,7 @@ mod tests {
         let url = format!("http://{}", listener.local_addr().unwrap());
         let server = std::thread::spawn(move || {
             let mut workers = Vec::new();
-            for connection in listener.incoming().take(2) {
+            for connection in listener.incoming().take(3) {
                 let mut connection = connection.unwrap();
                 workers.push(std::thread::spawn(move || {
                     connection.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -230,11 +256,22 @@ mod tests {
                     let mut line = String::new();
                     reader.read_line(&mut line).unwrap();
                     let streaming = line.starts_with("GET /events ");
+                    let personality = line.starts_with("GET /api/personality/state ");
                     loop {
                         line.clear();
                         if reader.read_line(&mut line).unwrap() == 0 || line == "\r\n" {
                             break;
                         }
+                    }
+                    if personality {
+                        let body = r#"{"enabled":true,"mood":"focused","current_emotion":"attentive","traits":{"empathy":0.5}}"#;
+                        write!(
+                            connection,
+                            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                            body.len()
+                        )
+                        .unwrap();
+                        return;
                     }
                     if streaming {
                         connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\ndata: {\"type\":\"llm_stream_delta\",\"payload\":{\"content\":\"before\"}}\n\n").unwrap();
@@ -253,8 +290,7 @@ mod tests {
         });
         let client = ApiClient::new(&url, false).unwrap();
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        let stream_url = client.sse_url("/events");
-        let stream = connect_sse_once(&client.client, &stream_url, &url, None, &tx);
+        let stream = connect_sse_once(&client, &tx);
         let request = client.request::<(), Value>(reqwest::Method::GET, "/slow", None);
         let (connected, response) = tokio::time::timeout(Duration::from_secs(40), async {
             tokio::join!(stream, request)
@@ -262,10 +298,18 @@ mod tests {
         assert!(connected);
         assert!(response.unwrap_err().downcast_ref::<reqwest::Error>().is_some_and(|err| err.is_timeout()));
         let mut completed = false;
+        let mut initial_personality = None;
         while let Ok(event) = rx.try_recv() {
             completed |= matches!(event, SseEvent::DeltaDone);
+            if let SseEvent::PersonalityUpdate(state) = event {
+                assert!(!completed, "the snapshot arrived after the final stream event");
+                initial_personality = Some(state);
+            }
         }
         assert!(completed, "the stream lost its event after the ordinary request deadline");
+        let state = initial_personality.expect("no initial personality for the idle stream");
+        assert_eq!(state.mood.as_deref(), Some("focused"));
+        assert_eq!(state.current_emotion.as_deref(), Some("attentive"));
         server.join().unwrap();
     }
 }

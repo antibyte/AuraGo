@@ -15,6 +15,10 @@ Rust terminal client for AuraGo's authenticated HTTP API and chat event stream.
 - Bound connection establishment to 30 seconds. Ordinary API requests use the
   shared request builder's 30-second total timeout; SSE has no total lifetime
   deadline and retains the existing reconnect behavior.
+- Each SSE connection seeds chat personality from `/api/personality/state`
+  while processing live events. A live `personality_update` supersedes that
+  initial fetch. REST and SSE both read optional `current_emotion`; hide absent
+  emotion in Chat and the Agent dashboard tab.
 - Persist session cookies in the platform configuration directory. Unix files
   use mode `0600`, including existing files; repair permissions before truncating
   or writing credentials. Windows retains inherited profile/file ACLs.

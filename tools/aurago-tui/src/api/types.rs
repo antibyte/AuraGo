@@ -87,7 +87,7 @@ pub struct TokenUpdatePayload {
     pub is_final: bool,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct PersonalityUpdatePayload {
     pub mood: Option<String>,
     pub trigger: Option<String>,
@@ -165,10 +165,8 @@ pub struct OverviewInfo {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct PersonalityState {
-    #[serde(default)]
-    pub mood: String,
-    #[serde(default)]
-    pub emotion: String,
+    #[serde(flatten)]
+    pub status: PersonalityUpdatePayload,
     #[serde(default)]
     pub traits: std::collections::HashMap<String, f64>,
 }
@@ -507,6 +505,18 @@ pub struct MediaResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn personality_state_decodes_current_emotion_and_traits() {
+        let state: PersonalityState = serde_json::from_value(serde_json::json!({
+            "enabled": true, "mood": "focused", "current_emotion": "attentive", "traits": {"empathy": 0.5}
+        })).unwrap();
+        assert_eq!(state.status.mood.as_deref(), Some("focused"));
+        assert_eq!(state.status.current_emotion.as_deref(), Some("attentive"));
+        assert_eq!(state.traits["empathy"], 0.5);
+        let disabled: PersonalityState = serde_json::from_value(serde_json::json!({"enabled": false})).unwrap();
+        assert_eq!(disabled.status.current_emotion, None);
+    }
 
     #[test]
     fn container_list_decodes_the_server_envelope() {

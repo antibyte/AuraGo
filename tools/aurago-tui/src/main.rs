@@ -888,10 +888,6 @@ pub fn start_chat_session(
             }
         }
 
-        let url = client.sse_url("/events");
-        let c = client.client.clone();
-        let origin = client.base_url.clone();
-        let cookie = client.get_session_cookie();
         let (sse_tx, mut sse_rx) = mpsc::unbounded_channel::<sse::SseEvent>();
 
         let tx2 = tx.clone();
@@ -903,7 +899,7 @@ pub fn start_chat_session(
             }
         });
 
-        sse::connect_sse(c, url, origin, cookie, sse_tx).await;
+        sse::connect_sse(&client, sse_tx).await;
     })
 }
 

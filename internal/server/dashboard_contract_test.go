@@ -401,6 +401,7 @@ func TestHandleDashboardEmotionHistoryContract(t *testing.T) {
 		t.Fatalf("NewSQLiteMemory: %v", err)
 	}
 	t.Cleanup(func() { stm.Close() })
+	trigger := strings.Repeat("a", 63) + "überstanden"
 	if err := stm.InsertEmotionStateHistory(memory.EmotionState{
 		Description:              "I feel calmer after the successful fix.",
 		PrimaryMood:              memory.MoodFocused,
@@ -411,7 +412,7 @@ func TestHandleDashboardEmotionHistoryContract(t *testing.T) {
 		Cause:                    "the deployment issue was resolved",
 		Source:                   "llm_structured",
 		RecommendedResponseStyle: "calm_and_precise",
-	}, "plan_completed"); err != nil {
+	}, trigger); err != nil {
 		t.Fatalf("InsertEmotionStateHistory: %v", err)
 	}
 
@@ -449,6 +450,10 @@ func TestHandleDashboardEmotionHistoryContract(t *testing.T) {
 		if _, ok := summary[key]; !ok {
 			t.Fatalf("summary missing key %q", key)
 		}
+	}
+	counts, ok := summary["trigger_counts"].(map[string]interface{})
+	if !ok || counts[trigger] != float64(1) {
+		t.Fatalf("trigger counts lost the sanitized UTF-8 label: %#v", summary["trigger_counts"])
 	}
 }
 

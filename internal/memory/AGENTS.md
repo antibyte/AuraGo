@@ -75,6 +75,12 @@ Memory retrieval, hygiene, indexing, and maintenance.
   recheck ownership/protection/fingerprints and fence late writes. Preserve manual
   corrections, shared evidence and numeric development. Keep additive counts and
   unknown legacy state accurate. Explicit profile deletion fences old analyses.
+- Check proposed profile values before case folding or truncation, including
+  manual edits, corrections and legacy adoption. Reject credential fields,
+  registered secrets, recognizable key material and PII including IPv6. If the
+  original human turn contains recognized key material or a registered secret,
+  skip profile writes for that turn and still apply its other observations.
+  Verify `TestPersonalityProfileRejectsSensitiveData`.
 - A profile value is a fact about the user, written by the helper model that may
   have read a web page in the same turn. A valid human turn proves that the human
   spoke, not that the value is theirs, so `applyPersonalityProfilesTx` drops an

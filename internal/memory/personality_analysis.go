@@ -466,15 +466,15 @@ func sanitizeProfileUpdates(updates []ProfileUpdate) []ProfileUpdate {
 	if len(updates) == 0 {
 		return nil
 	}
-	validCategories := map[string]bool{
-		"tech": true, "prefs": true, "interests": true, "context": true, "comm": true,
-	}
 	cleaned := make([]ProfileUpdate, 0, 1)
 	for _, update := range updates {
 		update.Category = strings.ToLower(strings.TrimSpace(update.Category))
 		update.Key = normalizeProfileKey(update.Key)
+		if !isValidProfileCategory(update.Category) || !isValidProfileKey(update.Key) || containsSensitiveProfileData(update.Key, update.Value) {
+			continue
+		}
 		update.Value = normalizeProfileValue(update.Value)
-		if !validCategories[update.Category] || !isValidProfileKey(update.Key) || update.Value == "" || containsProfilePII(update.Value) {
+		if update.Value == "" || containsProfilePII(update.Value) {
 			continue
 		}
 		cleaned = append(cleaned, ProfileUpdate{

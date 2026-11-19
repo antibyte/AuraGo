@@ -10,12 +10,16 @@ import (
 )
 
 func applyPersonalityProfilesTx(tx *sql.Tx, input *HumanInput, updates []ProfileUpdate) error {
-	if !input.Valid() || strings.TrimSpace(input.Text) == "" {
+	if len(updates) == 0 || !input.Valid() || strings.TrimSpace(input.Text) == "" || hasStrongProfileCredential(input.Text) {
 		return nil
 	}
 	for _, update := range updates {
-		category, key, value := strings.ToLower(strings.TrimSpace(update.Category)), normalizeProfileKey(update.Key), normalizeProfileValue(update.Value)
-		if !isValidProfileCategory(category) || !isValidProfileKey(key) || isRejectedProfileKey(key) || value == "" || containsProfilePII(value) || HasDurableCredential(key+"="+value) {
+		category, key := strings.ToLower(strings.TrimSpace(update.Category)), normalizeProfileKey(update.Key)
+		if !isValidProfileCategory(category) || !isValidProfileKey(key) || isRejectedProfileKey(key) || containsSensitiveProfileData(key, update.Value) {
+			continue
+		}
+		value := normalizeProfileValue(update.Value)
+		if value == "" || containsProfilePII(value) || HasDurableCredential(key+"="+value) {
 			continue
 		}
 		// The helper model writes the value and may have read a web page or mail
@@ -143,8 +147,12 @@ func adoptPersonalityLegacyTx(tx *sql.Tx, kind, payload string) error {
 		if err := json.Unmarshal([]byte(payload), &p); err != nil {
 			return err
 		}
-		p.Category, p.Key, p.Value = strings.ToLower(strings.TrimSpace(p.Category)), normalizeProfileKey(p.Key), normalizeProfileValue(p.Value)
-		if !isValidProfileCategory(p.Category) || !isValidProfileKey(p.Key) || isRejectedProfileKey(p.Key) || p.Value == "" || containsProfilePII(p.Value) || HasDurableCredential(p.Key+"="+p.Value) || utf8.RuneCountInString(p.Value) > 200 {
+		p.Category, p.Key = strings.ToLower(strings.TrimSpace(p.Category)), normalizeProfileKey(p.Key)
+		if !isValidProfileCategory(p.Category) || !isValidProfileKey(p.Key) || isRejectedProfileKey(p.Key) || containsSensitiveProfileData(p.Key, p.Value) {
+			return fmt.Errorf("invalid legacy profile value")
+		}
+		p.Value = normalizeProfileValue(p.Value)
+		if p.Value == "" || containsProfilePII(p.Value) || HasDurableCredential(p.Key+"="+p.Value) || utf8.RuneCountInString(p.Value) > 200 {
 			return fmt.Errorf("invalid legacy profile value")
 		}
 		var locked bool

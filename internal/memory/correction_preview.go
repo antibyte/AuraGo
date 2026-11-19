@@ -170,7 +170,7 @@ func (c *MemoryCorrectionService) validateChange(ctx context.Context, change Mem
 				return err
 			}
 		}
-		if !isValidProfileCategory(change.Reference.Category) || !isValidProfileKey(change.Reference.Key) || isRejectedProfileKey(change.Reference.Key) || normalizeProfileKey(change.Reference.Key) != change.Reference.Key || containsProfilePII(change.Value) || utf8.RuneCountInString(change.Value) > 200 {
+		if !isValidProfileCategory(change.Reference.Category) || !isValidProfileKey(change.Reference.Key) || isRejectedProfileKey(change.Reference.Key) || normalizeProfileKey(change.Reference.Key) != change.Reference.Key || containsSensitiveProfileData(change.Reference.Key, change.Value) || utf8.RuneCountInString(change.Value) > 200 {
 			return fmt.Errorf("replacement violates profile policy")
 		}
 	case "kg_node":
@@ -231,6 +231,9 @@ func (c *MemoryCorrectionService) Preview(ctx context.Context, sessionID, runID,
 		}
 		change := changes[index]
 		if change.Reference.Store == "profile" && change.Operation == "replace" {
+			if containsSensitiveProfileData(change.Reference.Key, change.Value) {
+				return nil, fmt.Errorf("replacement violates profile policy")
+			}
 			change.Value = normalizeProfileValue(change.Value)
 		}
 		key := correctionReferenceKey(change.Reference)

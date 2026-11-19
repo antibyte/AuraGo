@@ -61,8 +61,17 @@ pub fn draw_chat(f: &mut Frame, app: &AppState, theme: &Theme) {
 fn draw_header(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let wave = wave_line(area.width as usize, app.tick_counter);
     let mood = app.personality.mood.as_deref().unwrap_or("Neutral");
-    let emotion = app.personality.current_emotion.as_deref().unwrap_or("calm");
-    let right = format!("🌙 Mood: {} | {} ", mood, emotion);
+    let mut right = format!("🌙 Mood: {mood}");
+    if let Some(emotion) = app
+        .personality
+        .current_emotion
+        .as_deref()
+        .filter(|text| !text.trim().is_empty())
+    {
+        right.push_str(" | ");
+        right.push_str(emotion);
+    }
+    right.push(' ');
 
     let left_len = wave.len();
     let right_len = right.len();
@@ -334,6 +343,33 @@ fn draw_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);
     let para = Paragraph::new(text).style(Style::default().fg(theme.accent_dim));
     f.render_widget(para, area);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::{sse::SseEvent, types::PersonalityUpdatePayload};
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn chat_header_clears_emotion_when_server_omits_it() {
+        let mut app = AppState::default();
+        let mut terminal = Terminal::new(TestBackend::new(120, 3)).unwrap();
+        for (mood, emotion) in [("focused", Some("attentive")), ("curious", None)] {
+            app.apply_sse_event(SseEvent::PersonalityUpdate(PersonalityUpdatePayload {
+                mood: Some(mood.into()),
+                current_emotion: emotion.map(str::to_owned),
+                ..Default::default()
+            }));
+            terminal
+                .draw(|f| draw_header(f, &app, &Theme::dark(), f.area()))
+                .unwrap();
+            let buf = terminal.backend().buffer();
+            let header: String = (0..120).map(|x| buf[(x, 0)].symbol()).collect();
+            let expected = emotion.map_or(mood.to_owned(), |text| format!("{mood} | {text}"));
+            assert_eq!(header.split("Mood: ").nth(1).map(str::trim), Some(expected.as_str()));
+        }
+    }
 }
 
 
