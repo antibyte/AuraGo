@@ -9,8 +9,9 @@ gradients.
 
 Material contract (read by the runtime from the glTF material ``extras``): every
 datablock carries ``aurago_kind``; ``emissive``/``glow`` add ``aurago_strength``
-(snapped to ``EMISSION_STEPS``, or ``GLOW_STEPS`` for ``glow``), flames add ``aurago_flicker`` and
-``foliage``/``cloth`` add ``aurago_sway`` (metres). Only ``foliage``, ``cloth``
+(snapped to ``EMISSION_STEPS``, or ``GLOW_STEPS`` for ``glow``), flames add ``aurago_flicker``,
+``foliage``/``cloth`` add ``aurago_sway`` (metres) and falling water adds
+``aurago_flow`` (metres per second). Only ``foliage``, ``cloth``
 and ``glass`` are double sided; every other kind culls back faces.
 """
 
@@ -54,14 +55,16 @@ def snap_strength(strength, kind="emissive"):
     return min(steps, key=lambda step: (abs(step - strength), step))
 
 
-def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
+def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0, flow=0.0):
     """Return the shared material ``kind`` (created on first use).
 
     ``strength`` applies to ``emissive`` (self-lit, base nearly black) and ``glow``
     (lit surface plus a soft emission, for gems and eyes) and is snapped to
     ``EMISSION_STEPS`` (``GLOW_STEPS`` for ``glow``); ``flicker`` (0-1) marks flames; ``sway`` (metres) is the
     wind amplitude of ``foliage`` and ``cloth``; ``bump`` adds a render-only
-    ripple to ``water``. Variants get their own datablock name (for example
+    ripple to ``water``; ``flow`` (metres per second) marks falling water, which
+    the runtime draws as a thin double sided sheet with filaments scrolling down
+    at that speed. Variants get their own datablock name (for example
     ``kit-emissive-1.6-f0.35`` or ``kit-foliage-s0.06``) so repeated calls with
     the same arguments return the same material.
     """
@@ -82,6 +85,8 @@ def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
         sway = 0.0
     if kind == "water" and bump:
         name += "-b%g" % bump
+    if flow:
+        name += "-flow%g" % flow
     mat = bpy.data.materials.get(name)
     if mat is not None:
         return mat
@@ -94,6 +99,8 @@ def get(kind, strength=3.0, bump=0.0, flicker=0.0, sway=0.0):
         mat["aurago_flicker"] = flicker
     if sway:
         mat["aurago_sway"] = sway
+    if flow:
+        mat["aurago_flow"] = flow
     mat.use_nodes = True
     tree = mat.node_tree
     for node in list(tree.nodes):

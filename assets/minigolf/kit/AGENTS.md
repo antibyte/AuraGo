@@ -59,8 +59,12 @@ Nothing here writes `ui/` except `generate.py` through its runtime paths.
     (1.0, 1.6, 2.5) or, for `glow`, `GLOW_STEPS` (0.3, 0.7, 1.0), so a prop never
     needs a primitive per brightness;
   - `aurago_flicker` (0–1) for flames, set on `emissive`/`glow`;
-  - `aurago_sway` (metres) on `foliage` and `cloth`.
-- The runtime reads `aurago_kind`, `aurago_flicker` and `aurago_sway`. It does not
+  - `aurago_sway` (metres) on `foliage` and `cloth`;
+  - `aurago_flow` (metres per second) on falling water.
+- The runtime reads `aurago_kind`, `aurago_flicker`, `aurago_sway` and
+  `aurago_flow`. A material with `aurago_flow` is drawn as a thin, double sided
+  sheet (transparent, no depth write) whose filaments scroll down the surface at
+  that speed; the falling water of the temple waterfall uses it. It does not
   read `aurago_strength`: the emission it draws is the exported glTF emission,
   multiplied by `COLOR_0`. Keep the exported emission strength near 1–2.5, because
   Neutral tone mapping desaturates highlights above about 0.8.

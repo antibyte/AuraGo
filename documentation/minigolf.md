@@ -356,6 +356,13 @@ Placed props are not in the course GLB. They come from the world's kit: the
 manifest lists each course's placements as `[name, x, y, z, yaw, scale]`, and the
 game draws each primitive of a prop with one `InstancedMesh`.
 
+The temple waterfall is a prop of the temple kit: a mossy rock wall with a
+carved channel, a translucent sheet of water with many overlapping streaks,
+white water rolling over the lip and churning at the foot, and a rippling pool.
+Its water carries the material extra `aurago_flow` (metres per second); the game
+draws such a material as a thin, double sided sheet and scrolls the foam
+filaments down it, so the fall moves instead of standing still.
+
 The collision is read from the course GLB itself: the game collects the
 nodes with `aurago_collider`, welds the vertices of each surface and feeds them to
 Rapier, so physics and picture come from the same Blender geometry and nothing is

@@ -50,14 +50,15 @@ class Prop:
         ``paint=False`` keeps colour attributes the caller wrote itself (their
         vertex order must survive ``finish``, i.e. ``dens=0``). ``fn(x, y, z)``
         paints by final position (after finish and placement) instead of a
-        gradient, which is vertex-order independent. ``strength``, ``flicker`` and
-        ``sway`` select the material variant (see ``materials.get``).
+        gradient, which is vertex-order independent. ``strength``, ``flicker``,
+        ``sway`` and ``flow`` select the material variant (see ``materials.get``).
         """
         fin = {k: opts.pop(k) for k in list(opts) if k in _FINISH_KEYS}
         pnt = {k: opts.pop(k) for k in list(opts) if k in _PAINT_KEYS}
         strength = opts.pop("strength", 3.0)
         flicker = opts.pop("flicker", 0.0)
         sway = opts.pop("sway", 0.0)
+        flow = opts.pop("flow", 0.0)
         if opts:
             raise TypeError("unknown options: %s" % sorted(opts))
         if finish:
@@ -70,7 +71,7 @@ class Prop:
             if ao is None:
                 ao = 0.0 if mat == "emissive" else 0.65
             colors.paint(obj, lo, hi, rng=self.rng, ao=ao, **pnt)
-        obj.data.materials.append(materials.get(mat, strength=strength, flicker=flicker, sway=sway))
+        obj.data.materials.append(materials.get(mat, strength=strength, flicker=flicker, sway=sway, flow=flow))
         self.parts.append(obj)
         return obj
 
