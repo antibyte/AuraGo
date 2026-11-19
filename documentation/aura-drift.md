@@ -426,7 +426,9 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   `scripts/test-aura-drift-balance.mjs` checks the ceiling against the solver for all eight
   cars and the field against a full-throttle reference car.
 - **Road feel.** Wet asphalt lengthens braking distances. Visible puddles share their elliptical
-  footprint with the tyre model. At speed, deep water reduces front grip and throws spray, while
+  footprint with the tyre model. At speed the rear tyres leave short, widening foam crests at
+  their contact points. Boost casts twin cyan streaks on the road, brighter in rain and amber
+  during overdrive. Reduced motion hides both effects. Deep water reduces front grip and throws spray, while
   an oil slick releases the rear more strongly on the side that touched it. The tyres recover
   progressively after leaving either. Keyboard and touch steering ease into short taps. A boost
   pad gives an immediate forward nudge and a second of extra thrust. The narrow gold lightning

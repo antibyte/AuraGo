@@ -622,11 +622,37 @@
                 stats.triangles += 2; stats.meshes++;
             }
         }
-        stats.ms = typeof performance !== 'undefined' ? performance.now() - t0 : 0;
         const nightBase = look.night ? 0.38 : 0;
+        const surfacePrints = AD.createSurfacePrints?.(), printMeshes = [], printMaps = new Map();
+        if (surfacePrints) {
+            const plane = own(new T.PlaneGeometry(1, 1).rotateX(-Math.PI / 2));
+            for (const kind of ['wake', 'cyan', 'amber']) {
+                const map = own(new T.CanvasTexture(AD.surfacePrintCanvas(kind)));
+                map.colorSpace = T.SRGBColorSpace; printMaps.set(kind, map);
+            }
+            for (const mark of surfacePrints.marks) {
+                const mat = own(new T.MeshBasicMaterial({ map: printMaps.get(mark.kind), transparent: true, depthWrite: false }));
+                const mesh = new T.Mesh(plane, mat);
+                mesh.name = mark.kind === 'wake' ? 'tyre-wake' : 'boost-reflection';
+                mesh.visible = false; mesh.renderOrder = 2; group.add(mesh); printMeshes.push(mesh);
+                stats.triangles += 2; stats.meshes++;
+            }
+        }
+        stats.ms = typeof performance !== 'undefined' ? performance.now() - t0 : 0;
         let applied = -1;
         const api = {
             group: group,
+            updateSurfacePrints(race, reduced) {
+                if (!surfacePrints) return;
+                surfacePrints.update(race, reduced);
+                surfacePrints.marks.forEach((m, i) => {
+                    const mesh = printMeshes[i]; mesh.visible = m.alpha > 0;
+                    if (!mesh.visible) return;
+                    mesh.position.set(m.x, .075, m.y); mesh.rotation.y = -m.angle;
+                    mesh.scale.set(m.length, 1, m.width);
+                    mesh.material.map = printMaps.get(m.kind); mesh.material.opacity = m.alpha;
+                });
+            },
             setWetness(w, surfaceWetness = 0) {
                 if (rainPocket) {
                     rainPools.opacity = 0.76 * AD.puddleLevel(rainPocket, surfaceWetness);

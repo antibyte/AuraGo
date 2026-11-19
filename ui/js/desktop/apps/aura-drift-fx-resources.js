@@ -5,6 +5,90 @@
     const rnd = Math.random, TAU = Math.PI * 2;
     const F = { PUFF: 0, SPARK: 1, FLAME: 2, FEATHER: 3, CONFETTI: 4, RING: 5, SHARD: 6, DROP: 7, STAR: 8, BOLT: 9, HEX: 10, LEAF: 11, PUFF2: 12, GLOW: 13, STREAK: 14, DOT: 15 };
 
+    /* Each texture faces right, with one trail on either side of the car. */
+    AD.surfacePrintCanvas = function (kind) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 128;
+        const c = canvas.getContext('2d');
+        c.translate(0, 64);
+        for (const side of [-1, 1]) {
+            c.save(); c.scale(1, side);
+            if (kind === 'wake') {
+                const foam = c.createLinearGradient(8, 0, 242, 0);
+                foam.addColorStop(0, '#82cddd00'); foam.addColorStop(.38, '#b8e8f29c');
+                foam.addColorStop(.75, '#f1ffffe8'); foam.addColorStop(1, '#daf7ff00');
+                c.fillStyle = foam; c.beginPath(); c.moveTo(8, 60);
+                c.bezierCurveTo(83, 55, 150, 49, 242, 23);
+                c.bezierCurveTo(174, 51, 100, 59, 8, 60); c.fill();
+                c.strokeStyle = foam; c.lineWidth = 1.6; c.beginPath();
+                c.moveTo(25, 48); c.bezierCurveTo(78, 48, 142, 42, 196, 29); c.stroke();
+                for (let i = 0; i < 9; i++) {
+                    c.beginPath(); c.ellipse(40 + i * 16, 60 - i * 2.6 + Math.sin(i * 3) * 3, 3.5, 1.2, -.24, 0, TAU); c.fill();
+                }
+            } else {
+                const gold = kind === 'amber', rgb = gold ? '255,154,38' : '44,199,255';
+                c.translate(0, 13);
+                c.save(); c.translate(167, 18); c.scale(105, 21);
+                const halo = c.createRadialGradient(0, 0, 0, 0, 0, 1);
+                halo.addColorStop(0, 'rgba(' + rgb + ',.72)'); halo.addColorStop(.45, 'rgba(' + rgb + ',.26)');
+                halo.addColorStop(1, 'rgba(' + rgb + ',0)'); c.fillStyle = halo; c.fillRect(-1,-1,2,2); c.restore();
+                const core = c.createLinearGradient(8, 0, 250, 0);
+                core.addColorStop(0, 'rgba(' + rgb + ',0)'); core.addColorStop(.5, 'rgba(' + rgb + ',.66)');
+                core.addColorStop(.85, gold ? '#fff1bd' : '#c9faff'); core.addColorStop(1, 'rgba(' + rgb + ',0)');
+                c.fillStyle = core; c.beginPath(); c.moveTo(7, 23);
+                c.quadraticCurveTo(133, 19, 243, 11); c.quadraticCurveTo(218, 29, 7, 23); c.fill();
+            }
+            c.restore();
+        }
+        return canvas;
+    };
+
+    /* One attached pool of exhaust light and four world-anchored crests, shared by both views. */
+    AD.createSurfacePrints = function () {
+        const marks = Array.from({length: 5}, (_, i) => ({kind: i ? 'wake' : 'cyan', alpha: 0, born: -Infinity}));
+        let previousRace, previousTime = 0, nextWake = 1, lastWake = -Infinity;
+        return { marks, update(race, reduced) {
+            const t = race.time, dt = Math.min(.1, Math.max(0, t - previousTime));
+            const v = race.cars[0].v, lamp = marks[0];
+            if (race !== previousRace || t < previousTime || reduced || race.state !== 'running' || v.out) {
+                for (const m of marks) { m.alpha = 0; m.born = -Infinity; }
+                lastWake = -Infinity;
+            }
+            previousRace = race; previousTime = t;
+            if (reduced || race.state !== 'running' || v.out) return;
+            const speed = Math.max(0, v.vx), cp = Math.cos(v.psi), sp = Math.sin(v.psi);
+            const tail = v.car.radius, wet = race.conditions?.state.wetness || 0;
+            const boost = speed > 6 && (v.boost || v.overdrive > 0 || (v.burst > 0 && v.burstPower > 1));
+            const light = boost ? .50 + .23 * wet + .12 * Math.min(1, speed / 45) : 0;
+            lamp.alpha += (light - lamp.alpha) * (1 - Math.exp(-dt * (boost ? 32 : 15)));
+            if (v.airborne || lamp.alpha < .008) lamp.alpha = 0;
+            if (lamp.alpha) {
+                if (boost) lamp.kind = v.overdrive > 0 ? 'amber' : 'cyan';
+                lamp.length = 3.2 + Math.min(6.8, speed * .12);
+                lamp.width = tail * 1.8;
+                const offset = tail + lamp.length * .45;
+                lamp.x = v.x - cp * offset; lamp.y = v.y - sp * offset; lamp.angle = v.psi;
+            }
+            if (!v.airborne && v.planing > .10 && speed > 15 && t - lastWake >= .115) {
+                const axle = {x: v.x - cp * tail, y: v.y - sp * tail};
+                const sample = AD.sampleTrack(race.track, axle.x, axle.y);
+                lastWake = t;
+                if (AD.drivingSurface(race.track, sample, axle, race.conditions?.state).puddle > .025) {
+                    const m = marks[nextWake]; nextWake = nextWake % 4 + 1;
+                    m.x = axle.x; m.y = axle.y; m.angle = v.psi;
+                    m.strength = Math.min(1, v.planing); m.born = t;
+                }
+            }
+            for (let i = 1; i < marks.length; i++) {
+                const m = marks[i], age = (t - m.born) / .46;
+                if (age >= 1) { m.alpha = 0; continue; }
+                m.alpha = (.38 + .57 * m.strength) * (1 - age) ** 1.3;
+                m.width = tail * 1.4 + age * (3.2 + 3.8 * m.strength);
+                m.length = 3.2 + age * 4;
+            }
+        } };
+    };
+
     function buildAtlas(T) {
         const S = 512, C = 128;
         const cv = document.createElement('canvas');

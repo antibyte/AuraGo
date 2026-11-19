@@ -16,6 +16,7 @@
         let showcaseTime = 0;
         let lastRace = null, shows = [], stands = [];
         const zonePaths = new Map();
+        const surfacePrints = AD.createSurfacePrints?.(), printArt = new Map();
 
         /* Rotated worlds show a disc, not a rectangle. */
         function onScreen(sx, sy, margin) {
@@ -997,6 +998,16 @@
                     AD.drawFurniture(c, item, sx, sy, cam.scale, frame, reducedMotion ? 0 : race.time);
                 }
                 drawFeatures(race, cam);
+                if (surfacePrints) {
+                    surfacePrints.update(race, reducedMotion);
+                    for (const m of surfacePrints.marks) {
+                        if (!m.alpha) continue;
+                        if (!printArt.has(m.kind)) printArt.set(m.kind, AD.surfacePrintCanvas(m.kind));
+                        const [x, y] = worldToScreen(m.x, m.y, cam), w = m.length * cam.scale, h = m.width * cam.scale;
+                        c.save(); c.translate(x, y); c.rotate(m.angle); c.globalAlpha = m.alpha;
+                        c.drawImage(printArt.get(m.kind), -w / 2, -h / 2, w, h); c.restore();
+                    }
+                }
                 for (const show of shows) {
                     const centre = worldToScreen(show.site.x, show.site.y, cam);
                     if (onScreen(centre[0], centre[1], 12 * cam.scale)) AD.drawRoadside(c, show, cam, centre, theta, reducedMotion ? 0 : race.time);
