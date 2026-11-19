@@ -12,7 +12,7 @@
         harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
         minor: [0, 2, 3, 5, 7, 8, 10]
     };
-    const LAYERS = ['pad', 'bass', 'arp', 'melody', 'perc', 'boss'];
+    const LAYERS = ['pad', 'bass', 'arp', 'melody', 'perc', 'boss', 'drama'];
     const BIOME_ORDER = ['woodland', 'cavern', 'desert', 'glacier', 'citadel'];
     const VOICE_CAP = 48;
     const CROSSFADE = 1.4;
@@ -193,6 +193,12 @@
                 const fast = (theme.ostGrid || EIGHTHS).length > 8;
                 out.push({ t: t, dur: fast ? 0.2 : 0.4, midi: fold(degMidi(theme, d + OSTINATO[(fast ? i >> 1 : i) % 8]), theme.ostLow ? r - 18 : r - 12, theme.ostLow ? r - 6 : r + 2), vel: i % 2 === 0 ? 1 : 0.7, type: theme.ostInstr || 'ostinato' });
             });
+        } else if (layer === 'drama') {
+            OSTINATO.forEach(function (step, i) {
+                out.push({ t: i * 0.5, dur: 0.4, midi: fold(degMidi(theme, d + step), r - 12, r + 2), vel: i % 2 === 0 ? 0.92 : 0.72, type: 'ostinato' });
+            });
+            [0, 1.5, 2.5].forEach(function (t) { out.push({ t: t, dur: 0.45, midi: null, vel: 0.85, type: 'taiko' }); });
+            [1, 3].forEach(function (t) { out.push({ t: t, dur: 0.2, midi: null, vel: 0.78, type: 'snare' }); });
         }
         return out;
     }
@@ -218,20 +224,136 @@
         if (!sim || !sim.stage || !sim.player) return null;
         const p = sim.player;
         const stage = sim.stage;
-        if (sim.encounter && sim.encounter.kind === 'duel') return { danger: 1, boss: true, bossAlive: true, state: sim.state };
+        if (sim.encounter && sim.encounter.kind === 'duel') {
+            const d = sim.encounter.duel;
+            const enraged = !!(d && d.npc && d.npc.phase >= 2);
+            return { danger: 1, drama: 1, boss: true, bossAlive: true, enraged: enraged, scene: enraged ? 'duel_p2' : 'duel', urgency: enraged ? 0.9 : 0.5, heroic: 0, state: sim.state };
+        }
+        if (sim.interior) {
+            const hero = sim.interior.hero || p;
+            const mobs = sim.interior.mobs || [];
+            let nearestMob = Infinity;
+            let aggroed = 0;
+            for (let i = 0; i < mobs.length; i++) {
+                const m = mobs[i];
+                if (!m || m.dead) continue;
+                const dMob = Math.hypot((m.x || 0) - hero.x, (m.y || 0) - hero.y);
+                if (dMob < nearestMob) nearestMob = dMob;
+                if (m.state && m.state !== 'idle') aggroed++;
+            }
+            const baseIn = nearestMob < 320 ? clamp((1 - nearestMob / 320) * 0.95, 0, 0.95) : 0;
+            let inDanger = clamp(baseIn + (aggroed > 0 && nearestMob < 320 ? 0.25 : 0), 0, 0.95);
+            const shots = sim.interior.shots || [];
+            for (let i = 0; i < shots.length; i++) {
+                const s = shots[i];
+                if (s && !s.dead && Math.hypot((s.x || 0) - hero.x, (s.y || 0) - hero.y) < 240) { inDanger = Math.max(inDanger, 0.58); break; }
+            }
+            if (hero.hurtTimer > 0) inDanger = Math.max(inDanger, 0.72);
+            return { danger: inDanger, drama: inDanger, boss: false, bossAlive: false, enraged: false, scene: inDanger > 0.35 ? 'combat' : 'calm', urgency: 0, heroic: 0, state: sim.state };
+        }
         const enemies = stage.enemies || [];
         let nearest = Infinity;
+        let nearCount = 0;
+        let activeEnemy = false;
         let boss = null;
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
             if (!e || e.dead) continue;
             const dist = Math.hypot(e.x - p.x, e.y - p.y);
             if (dist < nearest) nearest = dist;
+            if (dist < 460) {
+                nearCount++;
+                if (e.hurtTimer > 0 || (e.ai && e.ai.state === 'attack')) activeEnemy = true;
+            }
             if (stage.bossId !== undefined && stage.bossId !== null && e.id === stage.bossId) boss = { e: e, dist: dist };
         }
         const danger = nearest < 360 ? clamp(1 - nearest / 360, 0, 1) : 0;
+        let drama = Math.min(1, danger + Math.max(0, nearCount - 1) * 0.22 + (activeEnemy ? 0.18 : 0));
+        let urgency = 0;
+        let heroic = 0;
+        let scene = '';
+
+        const projs = sim.projectiles || [];
+        for (let i = 0; i < projs.length; i++) {
+            const pr = projs[i];
+            if (pr && pr.fromEnemy && !pr.dead && Math.hypot((pr.x || 0) - p.x, (pr.y || 0) - p.y) < 380) {
+                drama = Math.max(drama, 0.58);
+                break;
+            }
+        }
+        const dragonRuns = stage.dragonRuns || [];
+        for (let i = 0; i < dragonRuns.length; i++) {
+            const r = dragonRuns[i];
+            if (r && (r.state === 'warn' || r.state === 'strafe' || r.state === 'leave')) {
+                drama = Math.max(drama, r.state === 'strafe' ? 1 : 0.88);
+                urgency = Math.max(urgency, 0.92);
+                scene = 'dragon';
+                break;
+            }
+        }
+        const rituals = stage.rituals || [];
+        for (let i = 0; i < rituals.length; i++) {
+            const r = rituals[i];
+            if (r && r.state === 'active') {
+                const frac = clamp((r.t || 0) / (r.timeLimit || 10), 0, 1);
+                drama = Math.max(drama, 0.68 + 0.32 * frac);
+                urgency = Math.max(urgency, 0.55 + 0.45 * frac);
+                if (!scene) scene = 'ritual';
+                break;
+            }
+        }
+        const rPath = stage.resonancePath;
+        if (rPath && rPath.started && !rPath.complete) {
+            const frac = 1 - clamp((rPath.timeLeft || 0) / (rPath.timeLimit || 12), 0, 1);
+            heroic = Math.max(heroic, 0.72);
+            urgency = Math.max(urgency, 0.45 + 0.45 * frac);
+            drama = Math.max(drama, 0.52 + 0.36 * frac);
+            if (!scene) scene = 'resonance';
+        }
+        if (sim.tempHazards && sim.tempHazards.length > 0) drama = Math.max(drama, 0.55);
+        const boulders = stage.boulders || [];
+        for (let i = 0; i < boulders.length; i++) {
+            if (boulders[i] && boulders[i].state === 'falling') { drama = Math.max(drama, 0.68); break; }
+        }
+        const flameJets = stage.flameJets || [];
+        for (let i = 0; i < flameJets.length; i++) {
+            const j = flameJets[i];
+            if (j && (j.state === 'warn' || j.state === 'fire') && Math.hypot((j.x || 0) - p.x, (j.y || 0) - p.y) < 280) {
+                drama = Math.max(drama, j.state === 'fire' ? 0.62 : 0.48);
+                break;
+            }
+        }
+        const geysers = stage.geysers || [];
+        for (let i = 0; i < geysers.length; i++) {
+            const gy = geysers[i];
+            if (gy && gy.active && Math.hypot((gy.x || 0) - p.x, (gy.y || 0) - p.y) < 280) { drama = Math.max(drama, 0.52); break; }
+        }
+        const rollers = stage.thornRollers || [];
+        for (let i = 0; i < rollers.length; i++) {
+            const tr = rollers[i];
+            if (tr && Math.hypot((tr.x || 0) - p.x, (tr.y || 0) - p.y) < 260) { drama = Math.max(drama, 0.56); break; }
+        }
+        if (!stage.hub && p.hp > 0 && p.maxHp > 0 && (p.hp <= 1 || p.hp / p.maxHp <= 0.34)) {
+            urgency = Math.max(urgency, p.hp <= 1 ? 0.95 : 0.62);
+            drama = Math.max(drama, p.hp <= 1 ? 0.74 : 0.5);
+            if (!scene) scene = 'lowhp';
+        }
+        if (p.hurtTimer > 0) drama = Math.max(drama, 0.78);
+        if (p.rune && p.rune.timeLeft > 0) heroic = Math.max(heroic, 0.85);
+        if (sim.hasKey) heroic = Math.max(heroic, 0.55);
+        if (sim.combo && sim.combo.count >= 3) {
+            heroic = Math.max(heroic, 0.65);
+            drama = Math.max(drama, 0.55);
+        }
         const engaged = !!(boss && (sim.bossIntro || boss.dist < 640 || (boss.e.ai && boss.e.ai.state && boss.e.ai.state !== 'wait')));
-        return { danger: danger, boss: engaged, bossAlive: !!boss, state: sim.state };
+        const enraged = !!(engaged && boss && (boss.e.phase >= 2 || (boss.e.ai && boss.e.ai.enraged)));
+        if (engaged) {
+            drama = Math.max(drama, enraged ? 1 : 0.86);
+            scene = enraged ? 'boss_p2' : 'boss';
+        }
+        if (!scene) scene = drama >= 0.55 ? 'combat' : (drama >= 0.22 ? 'skirmish' : (heroic >= 0.5 ? 'heroic' : 'calm'));
+        drama = clamp(drama, 0, 1);
+        return { danger: danger, drama: drama, boss: engaged, bossAlive: !!boss, enraged: enraged, scene: scene, urgency: clamp(urgency, 0, 1), heroic: clamp(heroic, 0, 1), state: sim.state };
     }
 
     function createMusicController(port) {
@@ -257,6 +379,16 @@
         let prevState = null;
         let prevIntro = null;
         let lastDanger = 0;
+        let smoothDrama = 0;
+        let smoothUrgency = 0;
+        let smoothHeroic = 0;
+        let dramaHoldUntil = 0;
+        let lastTickTime = null;
+        let lastScene = 'calm';
+        let lastEnraged = false;
+        let lastTempoMul = 1;
+        let lastDramaApplied = -1;
+        let lastStingerAt = -10;
         let evRef = null;
         let evIdx = 0;
         let override = null;
@@ -276,6 +408,11 @@
             [out, wetOut, send, stingOut].forEach(function (n) { if (n) disc(n); });
             master = out = wetOut = send = stingOut = noise = ctx = null;
             voiceCount = 0;
+            lastTickTime = null;
+            lastDramaApplied = -1;
+            smoothDrama = smoothUrgency = smoothHeroic = dramaHoldUntil = 0;
+            lastScene = 'calm';
+            lastEnraged = false;
         }
 
         function ensureGraph() {
@@ -341,6 +478,8 @@
 
         function makeDeck(themeId, seed) {
             const theme = THEMES[themeId];
+            const Scores = root.RunenpfadMusicScores;
+            const stMul = Scores && typeof Scores.stageTempoMul === 'function' ? Scores.stageTempoMul(theme, seed) : 1;
             const g = ctx.createGain();
             g.gain.value = 0;
             g.connect(out);
@@ -351,7 +490,11 @@
                 n.connect(g);
                 layers[l] = { node: n, v: -1 };
             });
-            return { themeId: themeId, theme: theme, seed: seed, gain: g, layers: layers, bar: 0, next: null, queue: [], voices: new Set(), retireAt: null, spb: 60 / theme.bpm };
+            return {
+                themeId: themeId, theme: theme, seed: seed, gain: g, layers: layers,
+                bar: 0, next: null, queue: [], voices: new Set(), retireAt: null,
+                stageTempoMul: stMul, tempoMul: stMul, spb: 60 / (theme.bpm * stMul)
+            };
         }
 
         function switchTo(themeId, seed) {
@@ -364,35 +507,56 @@
                 old.retireAt = now + CROSSFADE + 0.4;
                 old.queue.length = 0;
             }
-            if (!themeId) { curDeck = null; return; }
+            if (!themeId) { curDeck = null; lastTempoMul = 1; return; }
             const deck = makeDeck(themeId, seed);
             deck.gain.gain.setValueAtTime(0, now);
             deck.gain.gain.linearRampToValueAtTime(deck.theme.vol || 1, now + (old ? CROSSFADE : 0.35));
+            lastTempoMul = deck.tempoMul;
             if (master) {
-                master.setTempo(deck.theme.bpm);
+                master.setTempo(deck.theme.bpm * deck.tempoMul);
                 master.setAmbientWet(deck.theme.biome === 'cavern' || deck.theme.biome === 'glacier' || deck.theme.biome === 'citadel' ? 0.42 : 0.28);
             }
             decks.push(deck);
             curDeck = deck;
         }
 
-        function setLayers(deck, danger, now) {
+        function setLayers(deck, st, now) {
             const th = deck.theme;
-            const dd = clamp(danger, 0, 1);
-            const target = {
-                pad: th.boss ? 0.55 : 0.92 - 0.16 * dd,
-                bass: th.boss ? 0.58 + 0.16 * dd : 0.92 + 0.28 * dd,
-                arp: th.boss ? (th.bossArp || 0) * 1.35 : 0.68 + 0.42 * dd,
-                melody: th.boss ? 0.96 : 0.98 - 0.14 * dd,
-                perc: th.boss ? 0.78 : (dd > 0.12 ? 0.56 + 0.62 * dd : th.perc || 0),
-                boss: th.boss ? 0.78 : 0
-            };
+            const s = typeof st === 'object' && st !== null ? st : { drama: st || 0, heroic: 0, enraged: false };
+            const d = clamp(s.drama || 0, 0, 1);
+            const h = clamp(s.heroic || 0, 0, 1);
+            let target;
+            if (th.boss) {
+                const enr = s.enraged ? 1 : 0;
+                target = {
+                    pad: 0.52,
+                    bass: 0.62 + 0.14 * d,
+                    arp: (th.bossArp || 0) * 1.32,
+                    melody: 0.96 + 0.08 * enr,
+                    perc: 0.78 + 0.16 * enr,
+                    boss: 0.76 + 0.14 * enr,
+                    drama: enr ? 0.96 : (d > 0.85 ? 0.22 : 0)
+                };
+            } else {
+                const calmPerc = Math.min(0.20, (th.perc || 0) * 0.65);
+                target = {
+                    pad: 0.94 - 0.44 * d,
+                    bass: 0.80 + 0.38 * d,
+                    arp: 0.78 + 0.20 * d,
+                    melody: 1.00 + 0.14 * h + 0.06 * d,
+                    perc: calmPerc + (1.06 - calmPerc) * clamp(d * 1.35, 0, 1),
+                    boss: 0,
+                    drama: d > 0.14 ? clamp((d - 0.14) / 0.62, 0, 1) * 0.98 : 0
+                };
+            }
             LAYERS.forEach(function (l) {
                 const L = deck.layers[l];
                 const tv = target[l];
-                if (L.v >= 0 && Math.abs(L.v - tv) < 0.04 && (L.v === 0) === (tv === 0)) return;
+                if (L.v >= 0 && Math.abs(L.v - tv) < 0.03 && (L.v === 0) === (tv === 0)) return;
+                const rising = tv > (L.v < 0 ? 0 : L.v);
                 L.v = tv;
-                L.node.gain.setTargetAtTime(tv, now, l === 'perc' ? 0.55 : 0.45);
+                const tau = (l === 'drama' || l === 'perc') ? (rising ? 0.22 : 0.75) : 0.45;
+                L.node.gain.setTargetAtTime(tv, now, tau);
             });
         }
 
@@ -498,10 +662,12 @@
         }
 
         function playNote(deck, ev, at) {
+            const L = deck.layers[ev.layer];
+            if (L && L.v >= 0 && L.v < 0.025) return;
             if (voiceCount >= VOICE_CAP) retireExpired(deck, at);
             if (voiceCount >= VOICE_CAP) return;
             const layer = ev.layer;
-            const dest = deck.layers[layer].node;
+            const dest = L.node;
             const f = ev.midi === null ? 0 : 440 * Math.pow(2, (ev.midi - 69) / 12);
             let voice = null;
             try {
@@ -516,19 +682,41 @@
             };
         }
 
+        function pushQueued(deck, n) {
+            let i = deck.queue.length;
+            while (i > 0 && deck.queue[i - 1].at > n.at) i--;
+            deck.queue.splice(i, 0, n);
+        }
+
         function composeInto(deck) {
+            const tMul = override ? (deck.stageTempoMul || 1)
+                : clamp((deck.stageTempoMul || 1) * (1 + 0.07 * smoothDrama + 0.04 * smoothUrgency + (lastEnraged ? 0.07 : 0)), 0.85, 1.24);
+            deck.tempoMul = tMul;
+            lastTempoMul = tMul;
+            const effBpm = deck.theme.bpm * tMul;
+            deck.spb = 60 / effBpm;
+            if (master) master.setTempo(effBpm);
             const t0 = deck.next;
             LAYERS.forEach(function (layer) {
                 const L = deck.layers[layer];
-                if (L.v >= 0 && L.v < 0.03) return;
+                if (layer !== 'drama' && layer !== 'perc' && L.v >= 0 && L.v < 0.03) return;
                 composeBar(deck.themeId, layer, deck.bar, deck.seed).forEach(function (n) {
                     n.layer = layer;
                     n.at = t0 + n.t * deck.spb;
-                    let i = deck.queue.length;
-                    while (i > 0 && deck.queue[i - 1].at > n.at) i--;
-                    deck.queue.splice(i, 0, n);
+                    pushQueued(deck, n);
                 });
             });
+            if (!override && smoothUrgency > 0.58 && (lastScene === 'ritual' || lastScene === 'lowhp')) {
+                if (lastScene === 'ritual') {
+                    EIGHTHS.forEach(function (t, idx) {
+                        pushQueued(deck, { t: t, dur: 0.08, midi: null, vel: idx % 2 ? 0.42 : 0.64, type: 'clock', layer: 'drama', at: t0 + t * deck.spb });
+                    });
+                } else {
+                    [0, 0.35, 2, 2.35].forEach(function (t, idx) {
+                        pushQueued(deck, { t: t, dur: 0.32, midi: null, vel: idx % 2 ? 0.62 : 0.82, type: 'taiko', layer: 'drama', at: t0 + t * deck.spb });
+                    });
+                }
+            }
             deck.next += BEATS * deck.spb;
             deck.bar++;
         }
@@ -573,19 +761,61 @@
             } catch (err) { /* cosmetic */ }
         }
 
-        function scanEvents(events) {
+        function scanEvents(events, now) {
             if (!Array.isArray(events)) return;
             if (events !== evRef) { evRef = events; evIdx = 0; }
             if (evIdx > events.length) evIdx = 0;
             let kind = null;
+            let isPrio = false;
+            const setSting = function (k, prio) {
+                if (prio) { kind = k; isPrio = true; }
+                else if (!isPrio) kind = k;
+            };
             for (; evIdx < events.length; evIdx++) {
                 const ev = events[evIdx];
-                if (ev && ev.type === 'rune_pickup') kind = 'rune';
-                else if (ev && ev.type === 'checkpoint' && kind !== 'rune') kind = 'checkpoint';
-                else if (ev && ev.type === 'duel_start') kind = 'boss_intro';
-                else if (ev && ev.type === 'duel_end') kind = ev.detail && ev.detail.result === 'won' ? 'victory' : 'defeat';
+                if (!ev) continue;
+                const type = ev.type;
+                if (type === 'boss_phase' || type === 'duel_phase') {
+                    smoothDrama = 1;
+                    dramaHoldUntil = Math.max(dramaHoldUntil, now + 3.0);
+                    setSting('phase_up', true);
+                } else if (type === 'dragon_roar') {
+                    smoothDrama = 1;
+                    dramaHoldUntil = Math.max(dramaHoldUntil, now + 3.0);
+                    setSting('dragon_warn', true);
+                } else if (type === 'duel_start') {
+                    setSting('boss_intro', true);
+                } else if (type === 'duel_end') {
+                    setSting(ev.detail && ev.detail.result === 'won' ? 'victory' : 'defeat', true);
+                } else if (type === 'rune_pickup') {
+                    setSting('rune', false);
+                } else if (type === 'pickup_key' || type === 'door_open') {
+                    setSting('key', false);
+                } else if (type === 'seq_solved' || type === 'ritual_done' || type === 'bridge_done' || type === 'in_clear' || type === 'resonance_complete') {
+                    setSting('solved', false);
+                } else if (type === 'secret_break') {
+                    setSting('secret', false);
+                } else if (type === 'plate_down') {
+                    smoothDrama = Math.max(smoothDrama, 0.72);
+                    dramaHoldUntil = Math.max(dramaHoldUntil, now + 2.2);
+                    setSting('tension', false);
+                } else if (type === 'player_hurt') {
+                    if (ev.detail && ev.detail.hp === 1) {
+                        smoothDrama = Math.max(smoothDrama, 0.8);
+                        dramaHoldUntil = Math.max(dramaHoldUntil, now + 2.2);
+                        setSting('danger', false);
+                    } else {
+                        smoothDrama = Math.max(smoothDrama, 0.65);
+                        dramaHoldUntil = Math.max(dramaHoldUntil, now + 1.8);
+                    }
+                } else if (type === 'checkpoint' && kind !== 'rune') {
+                    setSting('checkpoint', false);
+                }
             }
-            if (kind) stinger(kind);
+            if (kind && (isPrio || now - lastStingerAt >= 0.7)) {
+                lastStingerAt = now;
+                stinger(kind);
+            }
         }
 
         function retireDecks(now) {
@@ -602,13 +832,21 @@
                 if (!ensureGraph()) return;
                 const state = sim.state;
                 const running = ctx.state === 'running';
+                const now = ctx.currentTime;
                 const newStage = sim.stage !== stageRef;
                 if (newStage) {
                     stageRef = sim.stage;
-                    stageSeed = hash32(sim.stage.id === undefined ? 0 : sim.stage.id);
+                    const rawId = sim.stage.id === undefined ? 0 : sim.stage.id;
+                    const slot = sim.stage.stageInWorld ? ((((sim.stage.stageInWorld - 1) % 5) + 5) % 5) : (hash32(rawId) % 5);
+                    stageSeed = (slot + 5 * (hash32(rawId) % 100000)) >>> 0;
                     latched = false;
                     if (fadedOut) { fadedOut = false; applyOut(false); }
                     prevIntro = null;
+                    smoothDrama = smoothUrgency = smoothHeroic = dramaHoldUntil = 0;
+                    lastTickTime = null;
+                    lastDramaApplied = -1;
+                    lastScene = 'calm';
+                    lastEnraged = false;
                 } else if (prevState !== null && state !== prevState && (state === 'won' || state === 'lost')) {
                     if (running) stinger(state === 'won' ? 'victory' : 'defeat');
                     fadedOut = true;
@@ -617,15 +855,34 @@
                 prevState = state;
                 if (sim.bossIntro && sim.bossIntro !== prevIntro && running) stinger('boss_intro');
                 prevIntro = sim.bossIntro || null;
-                if (running && enabled && active) scanEvents(sim.events);
+                if (running && enabled && active) scanEvents(sim.events, now);
                 if (!running || !enabled || !active || fadedOut || state !== 'playing') return;
                 if (intensity.boss) latched = true;
                 if (!intensity.bossAlive) latched = false;
                 const id = forced || themeIdFor(sim, latched);
-                const now = ctx.currentTime;
                 if (!curDeck || curDeck.themeId !== id || newStage) switchTo(id, stageSeed);
+                const dtTick = lastTickTime !== null ? clamp(now - lastTickTime, 0, 0.25) : 0.05;
+                lastTickTime = now;
+                const rawDrama = clamp(intensity.drama !== undefined ? intensity.drama : (intensity.danger || 0), 0, 1);
+                const rawUrgency = clamp(intensity.urgency || 0, 0, 1);
+                const rawHeroic = clamp(intensity.heroic || 0, 0, 1);
+                if (rawDrama >= 0.45) dramaHoldUntil = Math.max(dramaHoldUntil, now + 1.8);
+                if (intensity.scene === 'dragon' || intensity.enraged) dramaHoldUntil = Math.max(dramaHoldUntil, now + 2.4);
+                const effDrama = rawDrama < smoothDrama && now < dramaHoldUntil ? Math.max(rawDrama, Math.min(smoothDrama, 0.58)) : rawDrama;
+                const alphaD = effDrama >= smoothDrama ? (1 - Math.exp(-dtTick / 0.28)) : (1 - Math.exp(-dtTick / 1.9));
+                const alphaU = rawUrgency >= smoothUrgency ? (1 - Math.exp(-dtTick / 0.30)) : (1 - Math.exp(-dtTick / 1.4));
+                const alphaH = rawHeroic >= smoothHeroic ? (1 - Math.exp(-dtTick / 0.35)) : (1 - Math.exp(-dtTick / 1.6));
+                smoothDrama = clamp(smoothDrama + (effDrama - smoothDrama) * alphaD, 0, 1);
+                smoothUrgency = clamp(smoothUrgency + (rawUrgency - smoothUrgency) * alphaU, 0, 1);
+                smoothHeroic = clamp(smoothHeroic + (rawHeroic - smoothHeroic) * alphaH, 0, 1);
                 lastDanger = intensity.danger || 0;
-                setLayers(curDeck, lastDanger, now);
+                lastScene = intensity.scene || (smoothDrama >= 0.55 ? 'combat' : 'calm');
+                lastEnraged = !!intensity.enraged;
+                if (master && typeof master.setDrama === 'function' && (lastDramaApplied < 0 || Math.abs(lastDramaApplied - smoothDrama) >= 0.02)) {
+                    master.setDrama(smoothDrama, smoothUrgency);
+                    lastDramaApplied = smoothDrama;
+                }
+                setLayers(curDeck, { drama: smoothDrama, heroic: smoothHeroic, enraged: lastEnraged }, now);
                 schedule(curDeck, now);
                 retireDecks(now);
             } catch (err) { /* music must never break game loop */ }
@@ -637,6 +894,10 @@
                 if (!ensureGraph() || ctx.state !== 'running' || !enabled || !active) return;
                 if (!curDeck || curDeck.themeId !== override) switchTo(override, hash32(override));
                 const now = ctx.currentTime;
+                if (master && typeof master.setDrama === 'function' && (lastDramaApplied < 0 || Math.abs(lastDramaApplied) >= 0.02)) {
+                    master.setDrama(0, 0);
+                    lastDramaApplied = 0;
+                }
                 setLayers(curDeck, 0, now);
                 schedule(curDeck, now);
                 retireDecks(now);
@@ -674,6 +935,9 @@
                 voices: voiceCount,
                 decks: decks.length,
                 danger: lastDanger,
+                drama: smoothDrama,
+                scene: lastScene,
+                tempoMul: lastTempoMul,
                 fadedOut: fadedOut,
                 latched: latched,
                 enabled: enabled,

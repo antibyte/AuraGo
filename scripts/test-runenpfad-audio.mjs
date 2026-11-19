@@ -565,7 +565,7 @@ assert.equal(Music.themeIdFor(Object.assign({}, duelSim, { interior: { room: { d
 // ---- 7. Audio DSP, voice engine, multi-section scores, and determinism checks ----
 assert.ok(AudioDsp && AudioDsp.SAMPLE_NAMES.includes('harp') && AudioDsp.SAMPLE_NAMES.includes('sword_ring') && AudioDsp.SAMPLE_NAMES.includes('darbuka_doum'), 'physical-model samples registered');
 assert.ok(MusicVoices && MusicVoices.MODEL_NAMES.includes('celesta') && MusicVoices.WAVE_NAMES.includes('horn'), 'music voice maps populated');
-assert.ok(MusicScores && typeof MusicScores.compose === 'function', 'music scores loaded');
+assert.ok(MusicScores && typeof MusicScores.compose === 'function' && typeof MusicScores.stageTempoMul === 'function', 'music scores loaded');
 {
     const dspCtx = new FakeContext();
     AudioDsp.SAMPLE_NAMES.forEach((id) => {
@@ -576,27 +576,84 @@ assert.ok(MusicScores && typeof MusicScores.compose === 'function', 'music score
         const ir = AudioDsp.buildRoomImpulse(dspCtx, biome);
         assert.ok(ir, 'room IR builds for ' + biome);
     });
-    // Multi-section biome & boss scores strictly obey scale membership across bars 0..15.
+    // Every biome provides 5 distinct stage compositions across seeds 0..4 plus distinct tempo multipliers.
+    ['woodland', 'cavern', 'desert', 'glacier', 'citadel'].forEach((biome) => {
+        const th = Music.THEMES[biome];
+        const stageSigs = new Set();
+        for (let seed = 0; seed < 5; seed++) {
+            const tm = MusicScores.stageTempoMul(th, seed);
+            assert.ok(tm >= 0.85 && tm <= 1.15, `${biome} stage ${seed} tempoMul in range: ${tm}`);
+            const melBars = [0, 1, 2, 3, 4].map((b) => Music.composeBar(biome, 'melody', b, seed));
+            const bassBar = Music.composeBar(biome, 'bass', 0, seed);
+            stageSigs.add(JSON.stringify([melBars, bassBar]));
+        }
+        assert.equal(stageSigs.size, 5, `${biome} produces 5 distinct stage compositions across levels 1..5`);
+    });
+    // Multi-section biome & boss scores strictly obey scale membership across bars 0..15 and seeds 0..4 (including drama).
     Object.keys(Music.THEMES).forEach((id) => {
         const th = Music.THEMES[id];
-        Music.LAYERS.forEach((layer) => {
-            for (let bar = 0; bar < 16; bar++) {
-                const evs = Music.composeBar(id, layer, bar, 3);
-                evs.forEach((ev) => {
-                    assert.ok(ev.t >= 0 && ev.t < 4 && ev.dur > 0, `${id} bar ${bar} ${layer} timing valid`);
-                    if (ev.midi !== null) {
-                        const pc = (((ev.midi - th.root) % 12) + 12) % 12;
-                        assert.ok(th.scale.includes(pc), `${id} bar ${bar} ${layer} pitch ${ev.midi} in scale`);
-                    }
-                });
-            }
+        [0, 1, 2, 3, 4].forEach((seed) => {
+            Music.LAYERS.forEach((layer) => {
+                for (let bar = 0; bar < 16; bar++) {
+                    const evs = Music.composeBar(id, layer, bar, seed);
+                    evs.forEach((ev) => {
+                        assert.ok(ev.t >= 0 && ev.t < 4 && ev.dur > 0, `${id} seed ${seed} bar ${bar} ${layer} timing valid`);
+                        if (ev.midi !== null) {
+                            const pc = (((ev.midi - th.root) % 12) + 12) % 12;
+                            assert.ok(th.scale.includes(pc), `${id} seed ${seed} bar ${bar} ${layer} pitch ${ev.midi} in scale`);
+                        }
+                    });
+                }
+            });
         });
     });
-    // Master ducking bridge connects cleanly from Audio controller to Music controller.
+    // Dramatic scene analyzer reacts to dragons, rituals, resonance, low HP, boss/duel Phase 2, interiors, and heroic surges.
+    const mkSim = (over) => Object.assign({ stage: { id: 1, stageInWorld: 1, biome: { id: 'woodland' }, enemies: [], bossId: null }, player: { x: 100, y: 100, hp: 5, maxHp: 5 }, state: 'playing', events: [], projectiles: [] }, over);
+    const dragInt = Music.intensityFor(mkSim({ stage: { id: 8, biome: { id: 'cavern' }, enemies: [], dragonRuns: [{ state: 'strafe' }] } }));
+    assert.equal(dragInt.scene, 'dragon');
+    assert.ok(dragInt.drama >= 0.9 && dragInt.urgency >= 0.9, 'dragon strafe drives drama and urgency');
+    const ritEarly = Music.intensityFor(mkSim({ stage: { id: 6, biome: { id: 'cavern' }, enemies: [], rituals: [{ state: 'active', t: 2, timeLimit: 10 }] } }));
+    const ritLate = Music.intensityFor(mkSim({ stage: { id: 6, biome: { id: 'cavern' }, enemies: [], rituals: [{ state: 'active', t: 9, timeLimit: 10 }] } }));
+    assert.equal(ritEarly.scene, 'ritual');
+    assert.ok(ritLate.urgency > ritEarly.urgency && ritLate.drama > ritEarly.drama, 'ritual urgency rises with countdown');
+    const resInt = Music.intensityFor(mkSim({ stage: { id: 2, biome: { id: 'woodland' }, enemies: [], resonancePath: { started: true, complete: false, timeLeft: 4, timeLimit: 12 } } }));
+    assert.equal(resInt.scene, 'resonance');
+    assert.ok(resInt.heroic >= 0.7 && resInt.urgency > 0.6, 'resonance boosts heroic & urgency');
+    const lowInt = Music.intensityFor(mkSim({ player: { x: 100, y: 100, hp: 1, maxHp: 6 } }));
+    assert.equal(lowInt.scene, 'lowhp');
+    assert.ok(lowInt.urgency >= 0.9 && lowInt.drama >= 0.7, 'critical HP triggers lowhp urgency');
+    const bossP2Int = Music.intensityFor(mkSim({ stage: { id: 5, biome: { id: 'woodland' }, bossId: 99, enemies: [{ id: 99, x: 180, y: 100, phase: 2, ai: { state: 'attack', enraged: true } }] } }));
+    assert.equal(bossP2Int.scene, 'boss_p2');
+    assert.ok(bossP2Int.enraged && bossP2Int.drama === 1, 'boss phase 2 sets enraged and max drama');
+    const duelP2Int = Music.intensityFor(mkSim({ encounter: { kind: 'duel', npcId: 'witch', duel: { npcId: 'witch', npc: { phase: 2 } } } }));
+    assert.equal(duelP2Int.scene, 'duel_p2');
+    assert.ok(duelP2Int.enraged && duelP2Int.drama === 1, 'duel phase 2 sets enraged and max drama');
+    const inFightInt = Music.intensityFor(mkSim({ interior: { hero: { x: 100, y: 100 }, mobs: [{ x: 180, y: 100, dead: false, state: 'chase' }] } }));
+    const inClearInt = Music.intensityFor(mkSim({ interior: { hero: { x: 100, y: 100 }, mobs: [{ x: 180, y: 100, dead: true }] } }));
+    assert.ok(inFightInt.drama > 0.5 && inClearInt.drama === 0, 'interior drama tracks living dungeon mobs');
+    const heroInt = Music.intensityFor(mkSim({ hasKey: true, player: { x: 100, y: 100, hp: 5, maxHp: 5, rune: { timeLeft: 4 } }, combo: { count: 4 } }));
+    assert.ok(heroInt.heroic >= 0.85 && heroInt.drama >= 0.55, 'key + rune + combo drive heroic surge');
+
+    // Controller smooth drama ramp, hold & release, dynamic tempo push, stingers, and ducking bridge.
     const aCtrl = Audio.createAudioController({ manifest });
     aCtrl.unlock();
     const mCtrl = Music.createMusicController(aCtrl.musicPort());
-    mCtrl.update(Music.intensityFor(sim), sim);
+    sandbox.__t = 100;
+    const calmStage = mkSim({ stage: { id: 3, stageInWorld: 3, biome: { id: 'woodland' }, enemies: [], bossId: null } });
+    for (let i = 0; i < 15; i++) { sandbox.__t += 0.05; mCtrl.update(Music.intensityFor(calmStage), calmStage); }
+    const baseState = mCtrl.getState();
+    assert.ok(baseState.drama < 0.1 && baseState.tempoMul > 1.05, 'level 3 woodland starts calm with agile canopy tempo');
+    const actionStage = mkSim({ stage: calmStage.stage, events: [{ type: 'dragon_roar', detail: { kind: 'ember' } }] });
+    actionStage.stage.dragonRuns = [{ state: 'strafe' }];
+    for (let i = 0; i < 60; i++) { sandbox.__t += 0.05; mCtrl.update(Music.intensityFor(actionStage), actionStage); }
+    const peakState = mCtrl.getState();
+    assert.ok(peakState.drama > 0.8 && peakState.tempoMul > baseState.tempoMul && peakState.scene === 'dragon', 'dramatic scene raises drama and pushes tempo');
+    actionStage.stage.dragonRuns = [{ state: 'off' }];
+    for (let i = 0; i < 10; i++) { sandbox.__t += 0.05; mCtrl.update(Music.intensityFor(actionStage), actionStage); }
+    assert.ok(mCtrl.getState().drama > 0.45, 'drama holds cleanly for brief relief pauses');
+    for (let i = 0; i < 160; i++) { sandbox.__t += 0.05; mCtrl.update(Music.intensityFor(actionStage), actionStage); }
+    assert.ok(mCtrl.getState().drama < 0.25, 'drama eases back down cleanly when danger subsides');
+    ['phase_up', 'dragon_warn', 'key', 'solved', 'secret', 'tension', 'danger'].forEach((k) => mCtrl.stinger(k));
     aCtrl.handleEvents([{ type: 'dragon_roar', detail: { kind: 'ember' } }], null, null);
     mCtrl.dispose();
     aCtrl.dispose();

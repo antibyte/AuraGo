@@ -146,6 +146,19 @@
                         type: s.ostInstr
                     });
                 });
+            } else if (layer === 'drama') {
+                const stabType = npc === 'wizard' ? 'glass' : (npc === 'witch' ? 'darkbell' : (npc === 'chief' ? 'horn' : 'brass'));
+                [[0, d + 4, 0.88], [1.5, d + 1, 0.82], [2.75, d + 6, 0.9]].forEach(function (n) {
+                    out.push({ t: n[0], dur: 0.42, midi: fold(degMidi(th, n[1]), r + 4, r + 18), vel: n[2], type: stabType });
+                });
+                [0, 0.75, 1.5, 2.5, 3].forEach(function (t, i) {
+                    out.push({ t: t, dur: 0.42, midi: null, vel: i % 2 === 0 ? 0.92 : 0.78, type: 'taiko' });
+                });
+                [1, 2.25, 3.5].forEach(function (t) {
+                    out.push({ t: t, dur: 0.18, midi: null, vel: 0.8, type: 'snare' });
+                });
+                if (phr % 2 === 0) out.push({ t: 0, dur: 0.45, midi: null, vel: 0.6, type: 'anvil' });
+                if (phr === 3) out.push({ t: 0, dur: 3.9, midi: null, vel: 0.95, type: 'swell' });
             }
             return out;
         };

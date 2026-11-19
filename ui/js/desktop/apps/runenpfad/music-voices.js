@@ -40,12 +40,12 @@
         presence.type = 'peaking';
         presence.frequency.value = 3400;
         presence.Q.value = 0.85;
-        presence.gain.value = 2.6;
+        presence.gain.value = 2.0;
 
         const air = keep(ctx.createBiquadFilter());
         air.type = 'highshelf';
         air.frequency.value = 7200;
-        air.gain.value = 2.8;
+        air.gain.value = 2.0;
 
         const duckGain = keep(ctx.createGain());
         duckGain.gain.value = 1.0;
@@ -58,10 +58,11 @@
         lowWarm.connect(presence);
         presence.connect(air);
 
+        let preSat = null;
         let lastStage = air;
         if (typeof ctx.createWaveShaper === 'function' && dsp) {
-            const preSat = keep(ctx.createGain());
-            preSat.gain.value = 0.58;
+            preSat = keep(ctx.createGain());
+            preSat.gain.value = 0.50;
             const shaper = keep(ctx.createWaveShaper());
             shaper.curve = dsp.getCurve(ctx, 'tape');
             shaper.oversample = '2x';
@@ -150,8 +151,23 @@
             duckGain.gain.setTargetAtTime(1.0, now + h, Math.max(0.08, r * 0.35));
         }
 
+        let baseWet = 0.34;
+        let lastDrama = 0;
+
         function setAmbientWet(level) {
-            revSend.gain.setTargetAtTime(Math.max(0.14, Math.min(0.6, level)), ctx.currentTime, 0.4);
+            baseWet = Math.max(0.14, Math.min(0.6, level));
+            revSend.gain.setTargetAtTime(Math.max(0.14, Math.min(0.56, baseWet * (1.12 - 0.36 * lastDrama))), ctx.currentTime, 0.4);
+        }
+
+        function setDrama(level, urgency) {
+            const d = Math.max(0, Math.min(1, level || 0));
+            const u = Math.max(0, Math.min(1, urgency || 0));
+            lastDrama = d;
+            const now = ctx.currentTime;
+            presence.gain.setTargetAtTime(2.0 + 1.8 * d, now, 0.35);
+            air.gain.setTargetAtTime(2.0 + 1.6 * d, now, 0.35);
+            revSend.gain.setTargetAtTime(Math.max(0.14, Math.min(0.56, baseWet * (1.12 - 0.36 * d))), now, 0.35);
+            if (preSat) preSat.gain.setTargetAtTime(0.50 + 0.24 * d + 0.06 * u, now, 0.35);
         }
 
         function dispose() {
@@ -159,7 +175,7 @@
             nodes.length = 0;
         }
 
-        return { input, wetInput: wetSend, setTempo, duck, setAmbientWet, dispose };
+        return { input, wetInput: wetSend, setTempo, setDrama, duck, setAmbientWet, dispose };
     }
 
     // Play a pre-baked physical-model sample pitched cleanly by f / refHz.
@@ -433,6 +449,39 @@
             [0, 1, 4].forEach((d, i) => {
                 emit({ type: 'brass', vel: 0.78 }, t + 0.84, hz(step(d) - 12), 1.7, (i - 1) * 0.3);
             });
+        } else if (kind === 'phase_up') {
+            emit({ type: 'taiko', vel: 0.95 }, t, 50, 0.8, -0.18);
+            emit({ type: 'taiko', vel: 0.98 }, t + 0.22, 54, 0.85, 0.18);
+            emit({ type: 'anvil', vel: 0.65 }, t + 0.44, 240, 1.0, 0.25);
+            [0, 1, 4, 7].forEach((d, i) => {
+                emit({ type: i % 2 ? 'brass' : 'horn', vel: 0.82 }, t + 0.44 + i * 0.04, hz(step(d) - 12), 1.55, (i - 1.5) * 0.24);
+            });
+        } else if (kind === 'dragon_warn') {
+            emit({ type: 'taiko', vel: 0.95 }, t, 46, 0.9, -0.2);
+            emit({ type: 'swell', vel: 0.9 }, t, 0, 0.85, 0);
+            [0, 4].forEach((d, i) => {
+                emit({ type: 'horn', vel: 0.84 }, t + 0.12, hz(step(d) - 12), 1.45, i ? 0.25 : -0.25);
+            });
+        } else if (kind === 'key') {
+            [0, 2, 4, 7].forEach((d, i) => {
+                emit({ type: 'horn', vel: 0.74 }, t + i * 0.08, hz(step(d) - 12), i === 3 ? 1.2 : 0.45, (i - 1.5) * 0.2);
+                emit({ type: 'harp', vel: 0.66 }, t + i * 0.08, hz(step(d) + 12), 1.1, (i % 2 ? 0.3 : -0.3));
+            });
+        } else if (kind === 'solved') {
+            [0, 2, 4, 7, 9].forEach((d, i) => {
+                emit({ type: i === 4 ? 'celesta' : 'harp', vel: 0.7 }, t + i * 0.07, hz(step(d) + (i === 4 ? 12 : 0)), 1.15, (i - 2) * 0.18);
+            });
+        } else if (kind === 'secret') {
+            [4, 2, 5, 7].forEach((d, i) => {
+                emit({ type: i % 2 ? 'glass' : 'harp', vel: 0.62 }, t + i * 0.09, hz(step(d) + 12), 1.05, (i - 1.5) * 0.25);
+            });
+        } else if (kind === 'tension') {
+            emit({ type: 'taiko', vel: 0.86 }, t, 56, 0.65, -0.15);
+            emit({ type: 'pizz', vel: 0.74 }, t + 0.04, hz(step(0)), 0.45, 0.22);
+            emit({ type: 'horn', vel: 0.7 }, t + 0.12, hz(step(4) - 12), 0.9, -0.2);
+        } else if (kind === 'danger') {
+            emit({ type: 'cello', vel: 0.78 }, t, hz(step(0) - 12), 0.95, -0.22);
+            emit({ type: 'darkbell', vel: 0.56 }, t + 0.08, hz(step(1)), 1.35, 0.22);
         }
     }
 

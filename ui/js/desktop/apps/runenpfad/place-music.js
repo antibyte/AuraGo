@@ -135,6 +135,12 @@
         } else if (layer === 'perc') {
             if (bar % 8 === 5) out.push(note(0, 0.6, null, 0.8, 'taiko'));
             if (bar % 8 === 2) out.push(note(2.5, 0.35, null, 0.55, 'tom'));
+        } else if (layer === 'drama') {
+            [0, 1, 0, 4, 0, 1, 5, 4].forEach(function (d, i) {
+                out.push(note(i * 0.5, 0.42, fold(deg(th, d), th.root - 12, th.root + 2), i % 2 === 0 ? 0.9 : 0.72, 'cello'));
+            });
+            [0, 1.5, 3].forEach(function (t, i) { out.push(note(t, 0.45, null, i === 0 ? 0.9 : 0.76, 'taiko')); });
+            [1, 2.5].forEach(function (t) { out.push(note(t, 0.25, null, 0.76, 'tom')); });
         }
         return out;
     }
