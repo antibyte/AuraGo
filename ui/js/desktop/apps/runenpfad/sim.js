@@ -129,6 +129,8 @@
                 hurtTimer: 0,
                 swing: null,
                 swingCool: 0,
+                climbRopeId: null,
+                climbTilt: 0,
                 stepTimer: 0,
                 animState: 'idle',
                 animTime: 0
@@ -636,12 +638,14 @@
                 if (p.y + 2 >= l.y && p.y + 2 < l.y + TILE) ladderBelow = true;
             }
         }
+        const swingApi = root.RunenpfadSwing;
         if (swung) {
             nearLadder = false;
         } else if (!nearLadder && stage.ropes) {
             for (let i = 0; i < stage.ropes.length; i++) {
                 const r = stage.ropes[i];
-                if (Math.abs(p.x - r.x) <= 14 && p.y > r.top && p.y - p.h < r.bottom) {
+                const rx = swingApi && swingApi.ropeX ? swingApi.ropeX(r, p.y - 26) : r.x;
+                if ((Math.abs(p.x - rx) <= 16 || Math.abs(p.x - r.x) <= 14) && p.y > r.top && p.y - p.h < r.bottom) {
                     nearLadder = true;
                     nearKind = 'rope';
                     nearRope = r;
@@ -662,21 +666,54 @@
         const moveDir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
         if (moveDir !== 0 && p.dashTimer <= 0) p.facing = moveDir;
 
+        const prevRopeId = p.climbRopeId;
+        const prevRope = prevRopeId && stage.ropes ? stage.ropes.find(function (r) { return r.id === prevRopeId; }) : null;
         if (swung) {
             p.climbDir = 0;
+            p.climbRopeId = null;
+            p.climbTilt = 0;
         } else if (p.dashTimer > 0) {
+            if (prevRope && swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, prevRope, p.y - 26, moveDir || p.facing, false);
             p.dashTimer -= dt;
+            p.climbRopeId = null;
+            p.climbTilt = 0;
         } else if (p.onLadder) {
+            const grabVx = p.vx;
+            const grabVy = p.vy;
             p.vx = moveDir * stats.speed * (p.climbKind === 'rope' ? 0.4 : 0.65);
             p.vy = input.up ? -190 : input.down ? 190 : 0;
             p.climbDir = input.up ? -1 : input.down ? 1 : 0;
-            if (nearRope && moveDir === 0) p.x += (nearRope.x - p.x) * 0.3;
-            if (input.jumpPressed) {
-                p.onLadder = false;
-                p.vy = -stats.jumpVel;
-                pushJump(sim);
+            if (p.climbKind === 'rope' && nearRope) {
+                if (prevRopeId !== nearRope.id) {
+                    if (prevRope && swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, prevRope, p.y - 26, moveDir || p.facing, false);
+                    p.climbRopeId = nearRope.id;
+                    if (swingApi && swingApi.onClimbGrab) swingApi.onClimbGrab(sim, nearRope, p.y - 26, grabVx, grabVy);
+                }
+                if (input.jumpPressed) {
+                    if (swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, nearRope, p.y - 26, moveDir || p.facing, true);
+                    p.climbRopeId = null;
+                    p.climbTilt = 0;
+                    p.onLadder = false;
+                    p.vy = -stats.jumpVel;
+                    pushJump(sim);
+                } else {
+                    const targetX = swingApi && swingApi.holdClimbRope ? swingApi.holdClimbRope(sim, nearRope, p, moveDir, p.climbDir, dt) : nearRope.x;
+                    if (moveDir === 0) p.x += (targetX - p.x) * 0.35;
+                }
+            } else {
+                if (prevRope && swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, prevRope, p.y - 26, moveDir || p.facing, false);
+                p.climbRopeId = null;
+                p.climbTilt = 0;
+                if (input.jumpPressed) {
+                    p.onLadder = false;
+                    p.vy = -stats.jumpVel;
+                    pushJump(sim);
+                }
             }
         } else {
+            if (prevRope && swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, prevRope, p.y - 26, moveDir || p.facing, false);
+            p.climbRopeId = null;
+            p.climbTilt = 0;
             const targetVx = moveDir * stats.speed * (runesApi() ? runesApi().speedMul(sim) : 1) + (varietyApi() ? varietyApi().windPush(sim, moveDir !== 0) : 0);
             const accel = p.onGround ? (stage.world.friction < 1 ? 650 : 2400) : 1400;
             const diff = targetVx - p.vx;

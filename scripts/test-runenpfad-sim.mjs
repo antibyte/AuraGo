@@ -2317,6 +2317,169 @@ console.log('Runenpfad round 3 review fixes passed.');
 }
 console.log('Runenpfad round 4 checks passed: swing ropes, rune sequence, lever bridge, ritual chain, drakeling, dragon strafe, dragon boss.');
 
+// ---- Multi-link Verlet rope physics (swing_gorge & rope_chasm) ----
+{
+    const STEP = Sim.STEP;
+    const mk = (levelId, hero) => Sim.createSimulation({ mode: 'campaign', levelId, hero: hero || 'knight' });
+    const tickN = (s, n, inp, fn) => {
+        for (let i = 0; i < n; i++) {
+            if (fn) fn(s, i);
+            Sim.stepSimulation(s, STEP, typeof inp === 'function' ? inp(i) : (inp || {}));
+        }
+    };
+    const checkChain = (nodes, ax, ay, segLen, label) => {
+        assert.equal(nodes[0].x, ax, label + ' root x pinned');
+        assert.equal(nodes[0].y, ay, label + ' root y pinned');
+        for (let k = 0; k < nodes.length; k++) {
+            assert.ok(Number.isFinite(nodes[k].x) && Number.isFinite(nodes[k].y), label + ' finite node ' + k);
+            if (k > 0) {
+                const d = Math.hypot(nodes[k].x - nodes[k - 1].x, nodes[k].y - nodes[k - 1].y);
+                assert.ok(Math.abs(d - segLen) <= 2.0, `${label} seg ${k} len ${d.toFixed(2)} vs ${segLen}`);
+            }
+        }
+    };
+    const lineDist = (px, py, ax, ay, bx, by) => {
+        const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 1;
+        return Math.abs((px - ax) * (-dy / d) + (py - ay) * (dx / d));
+    };
+
+    // 1. Chain integrity on swinging and climbing ropes
+    const s3 = mk(3);
+    s3.stage.enemies.length = 0;
+    tickN(s3, 30, {});
+    const sw0 = s3.stage.swings[0];
+    assert.equal(sw0.nodes.length, 13, 'swing rope has 13 Verlet nodes');
+    checkChain(sw0.nodes, sw0.ax, sw0.ay, sw0.segLen, 'swing');
+
+    const s9 = mk(9);
+    s9.stage.enemies.length = 0;
+    tickN(s9, 30, {});
+    const rp0 = s9.stage.ropes[0];
+    assert.equal(rp0.nodes.length, 11, 'climb rope has 11 Verlet nodes');
+    checkChain(rp0.nodes, rp0.x, rp0.top, rp0.segLen, 'climb');
+
+    // 2. Momentum transfer on grab: moving hero imparts omega; zero-vx hero does not
+    const sm = mk(3);
+    sm.stage.enemies.length = 0;
+    const rm = sm.stage.swings[0];
+    rm.angle = 0; rm.omega = 0;
+    sm.player.x = rm.ax; sm.player.y = rm.ay + rm.len + 40; sm.player.vx = 280; sm.player.vy = 0; sm.player.onGround = false;
+    tickN(sm, 1, {});
+    assert.ok(sm.player.swing && rm.omega > 0.45, 'moving grab imparts swing omega: ' + rm.omega);
+
+    const sz = mk(3);
+    sz.stage.enemies.length = 0;
+    const rz = sz.stage.swings[0];
+    rz.angle = 0; rz.omega = 0;
+    sz.player.x = rz.ax; sz.player.y = rz.ay + rz.len + 40; sz.player.vx = 0; sz.player.vy = 0; sz.player.onGround = false;
+    tickN(sz, 1, {});
+    assert.ok(sz.player.swing && Math.abs(rz.omega) < 0.05, 'stationary grab keeps omega near zero: ' + rz.omega);
+
+    // 3. Climbing partway up & swinging bends free tail away from anchor->hands line while gripLen stays within 3 px
+    const sc = mk(3);
+    sc.stage.enemies.length = 0;
+    const rc = sc.stage.swings[0];
+    rc.angle = 0; rc.omega = 0;
+    sc.player.x = rc.ax; sc.player.y = rc.ay + rc.len + 40; sc.player.vx = 0; sc.player.vy = 0; sc.player.onGround = false;
+    tickN(sc, 2, {});
+    tickN(sc, 50, { up: true });
+    assert.ok(sc.player.swing && sc.player.swing.grip < rc.len * 0.78, 'climbed partway up');
+    let maxTailDev = 0;
+    let maxBodyLag = 0;
+    tickN(sc, 45, { right: true }, (sim) => {
+        const p = sim.player;
+        const sw = p.swing;
+        assert.ok(Number.isFinite(sw.bodyAngle), 'bodyAngle is finite');
+        maxBodyLag = Math.max(maxBodyLag, Math.abs(sw.bodyAngle - rc.angle));
+        const gripLen = Math.hypot(p.x - rc.ax, p.y - 40 - rc.ay);
+        assert.ok(Math.abs(gripLen - sw.grip) < 3, 'hands stay bound to grip length: ' + gripLen + ' vs ' + sw.grip);
+        const startK = Math.ceil(sw.grip / rc.segLen) + 1;
+        for (let k = startK; k < rc.nodes.length; k++) {
+            maxTailDev = Math.max(maxTailDev, lineDist(rc.nodes[k].x, rc.nodes[k].y, rc.ax, rc.ay, p.x, p.y - 40));
+        }
+    });
+    assert.ok(maxTailDev > 3, 'free tail bends away from anchor->hands line: ' + maxTailDev);
+    assert.ok(maxBodyLag > 0.01, 'hero bodyAngle dynamically lags behind rope angle: ' + maxBodyLag);
+
+    // 4. Recoil wave after jump-boost release creates visible S-curve bend
+    let guard = 0;
+    while (!(rc.omega > 1 && rc.angle > 0.3) && guard++ < 300) tickN(sc, 1, { right: true });
+    tickN(sc, 1, { right: true, jumpPressed: true, jumpKey: true });
+    assert.ok(!sc.player.swing, 'released with jump boost');
+    let maxChordDev = 0;
+    tickN(sc, 20, {}, () => {
+        const n0 = rc.nodes[0], nN = rc.nodes[rc.nodes.length - 1];
+        for (let k = 1; k < rc.nodes.length - 1; k++) {
+            maxChordDev = Math.max(maxChordDev, lineDist(rc.nodes[k].x, rc.nodes[k].y, n0.x, n0.y, nN.x, nN.y));
+        }
+    });
+    assert.ok(maxChordDev > 2.5, 'release recoil produces S-curve bend: ' + maxChordDev);
+
+    // 5. Fly-by brush deflects unheld swinging and climbing ropes
+    const sbBase = mk(3); sbBase.stage.enemies.length = 0;
+    const sbHit = mk(3); sbHit.stage.enemies.length = 0;
+    const rbBase = sbBase.stage.swings[0], rbHit = sbHit.stage.swings[0];
+    sbHit.player.x = rbHit.ax - 24; sbHit.player.y = rbHit.ay + rbHit.len * 0.6 + 40;
+    sbHit.player.vx = 480; sbHit.player.vy = 0; sbHit.player.onGround = false; sbHit.player.swingCool = 1;
+    tickN(sbBase, 10, {});
+    tickN(sbHit, 10, {});
+    let swingBrushDiff = 0;
+    for (let k = 1; k < rbHit.nodes.length; k++) {
+        swingBrushDiff = Math.max(swingBrushDiff, Math.abs(rbHit.nodes[k].x - rbBase.nodes[k].x));
+    }
+    assert.ok(swingBrushDiff > 2, 'hero fly-by deflects unheld swing rope: ' + swingBrushDiff);
+
+    const cbBase = mk(9); cbBase.stage.enemies.length = 0;
+    const cbHit = mk(9); cbHit.stage.enemies.length = 0;
+    const crBase = cbBase.stage.ropes[0], crHit = cbHit.stage.ropes[0];
+    cbHit.player.x = crHit.x - 20; cbHit.player.y = crHit.top + 130;
+    cbHit.player.vx = 480; cbHit.player.vy = 0; cbHit.player.onGround = false;
+    tickN(cbBase, 10, {});
+    tickN(cbHit, 10, {});
+    let climbBrushDiff = 0;
+    for (let k = 1; k < crHit.nodes.length; k++) {
+        climbBrushDiff = Math.max(climbBrushDiff, Math.abs(crHit.nodes[k].x - crBase.nodes[k].x));
+    }
+    assert.ok(climbBrushDiff > 2, 'hero fly-by deflects unheld climbing rope: ' + climbBrushDiff);
+
+    // 6. Storm gusts push both swinging and climbing ropes downwind
+    const swWind = mk(3); swWind.stage.enemies.length = 0;
+    swWind.wind = { state: 'gust', strength: 1, dir: -1, t: 2, dur: 2 };
+    tickN(swWind, 45, {});
+    const rw = swWind.stage.swings[0];
+    assert.ok(rw.nodes[rw.nodes.length - 1].x < rw.ax - 10, 'storm gust pushes free swing rope downwind');
+
+    const clWind = mk(9); clWind.stage.enemies.length = 0;
+    clWind.wind = { state: 'gust', strength: 1, dir: -1, t: 2, dur: 2 };
+    tickN(clWind, 45, {});
+    const cw = clWind.stage.ropes[0];
+    assert.ok(cw.nodes[cw.nodes.length - 1].x < cw.x - 10, 'storm gust pushes free climb rope downwind');
+
+    // 7. Climbing rope grab momentum + jump-off recoil
+    const cg = mk(9); cg.stage.enemies.length = 0;
+    const crg = cg.stage.ropes[0];
+    cg.player.x = crg.x - 8; cg.player.y = crg.top + 140; cg.player.vx = 220; cg.player.vy = 0; cg.player.onGround = false;
+    tickN(cg, 1, { up: true });
+    assert.ok(cg.player.onLadder && cg.player.climbKind === 'rope' && Math.abs(cg.player.x - crg.x) <= 14, 'climbing rope grabs cleanly within tolerance');
+    tickN(cg, 3, { up: true });
+    const maxRight = Math.max.apply(null, crg.nodes.map((n) => n.x));
+    assert.ok(maxRight > crg.x + 2, 'climbing rope deflects on lateral grab: ' + (maxRight - crg.x));
+    tickN(cg, 1, { jumpPressed: true, right: true });
+    tickN(cg, 12, { right: true });
+    const minLeft = Math.min.apply(null, crg.nodes.map((n) => n.x));
+    assert.ok(minLeft < crg.x - 6, 'jumping off climbing rope kicks rope backward: ' + (minLeft - crg.x));
+
+    // 8. Determinism across identical runs
+    const d3a = mk(3), d3b = mk(3);
+    const d9a = mk(9), d9b = mk(9);
+    const seq = (i) => ({ right: i < 40, up: i >= 15 && i < 25, jumpPressed: i === 55, jumpKey: i === 55 });
+    tickN(d3a, 70, seq); tickN(d3b, 70, seq);
+    tickN(d9a, 70, seq); tickN(d9b, 70, seq);
+    assert.deepEqual(d3a.stage.swings[0].nodes, d3b.stage.swings[0].nodes, 'swinging rope simulation is deterministic');
+    assert.deepEqual(d9a.stage.ropes[0].nodes, d9b.stage.ropes[0].nodes, 'climbing rope simulation is deterministic');
+    console.log('Runenpfad multi-link Verlet rope physics checks passed.');
+}
+
 // ---- Polish round: translated floating labels and the "new best time" flag ----
 {
     const Runes = sandbox.RunenpfadRunes;

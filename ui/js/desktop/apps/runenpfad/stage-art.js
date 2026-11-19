@@ -181,44 +181,71 @@
                 ctx.fillRect(b.x - 20, b.y + 8, b.w + 40, 4);
             });
             ropes.forEach(function (r) {
-                if (!visible(view, r.x, r.x)) return;
-                const len = r.bottom - r.top;
-                const swayAmp = view.reducedMotion ? 0 : 4;
-                function swayAt(y) {
-                    const k = (y - r.top) / len;
-                    return Math.sin(view.nowSec * 1.4 + r.x * 0.013) * swayAmp * k * k;
-                }
+                if (!visible(view, r.x - 100, r.x + 100)) return;
+                const pts = (r.nodes && r.nodes.length >= 2) ? r.nodes : [{ x: r.x, y: r.top }, { x: r.x, y: r.bottom }];
                 ctx.save();
                 ctx.lineCap = 'round';
-                for (let y = r.top, i = 0; y < r.bottom; y += 7, i++) {
-                    const x0 = r.x + swayAt(y);
-                    const x1 = r.x + swayAt(y + 7);
-                    ctx.strokeStyle = i % 2 ? '#a77d47' : '#7b5a30';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.moveTo(x0 - 2.4, y);
-                    ctx.lineTo(x1 + 2.4, y + 7);
-                    ctx.stroke();
-                    ctx.strokeStyle = 'rgba(255, 230, 170, 0.35)';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(x0 - 1, y);
-                    ctx.lineTo(x1 + 3, y + 7);
-                    ctx.stroke();
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = 'rgba(26, 17, 10, 0.45)';
+                ctx.lineWidth = 7.5;
+                ctx.beginPath();
+                ctx.moveTo(pts[0].x, pts[0].y);
+                for (let k = 1; k < pts.length - 1; k++) {
+                    ctx.quadraticCurveTo(pts[k].x, pts[k].y, (pts[k].x + pts[k + 1].x) * 0.5, (pts[k].y + pts[k + 1].y) * 0.5);
                 }
-                // hook at the beam
+                ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+                ctx.stroke();
+                let strandIdx = 0;
+                for (let k = 0; k < pts.length - 1; k++) {
+                    const a = pts[k], b = pts[k + 1];
+                    const dx = b.x - a.x, dy = b.y - a.y, sl = Math.hypot(dx, dy) || 1;
+                    const ux = dx / sl, uy = dy / sl, nx = -uy, ny = ux;
+                    const steps = Math.max(1, Math.round(sl / 7));
+                    for (let j = 0; j < steps; j++, strandIdx++) {
+                        const t0 = j / steps, t1 = (j + 1) / steps;
+                        const x0 = a.x + dx * t0, y0 = a.y + dy * t0;
+                        const x1 = a.x + dx * t1, y1 = a.y + dy * t1;
+                        ctx.strokeStyle = strandIdx % 2 ? '#a77d47' : '#7b5a30';
+                        ctx.lineWidth = 5.5;
+                        ctx.beginPath();
+                        ctx.moveTo(x0 - nx * 2.2, y0 - ny * 2.2);
+                        ctx.lineTo(x1 + nx * 2.2, y1 + ny * 2.2);
+                        ctx.stroke();
+                        ctx.strokeStyle = 'rgba(255, 230, 170, 0.35)';
+                        ctx.lineWidth = 1.4;
+                        ctx.beginPath();
+                        ctx.moveTo(x0 - nx * 0.8, y0 - ny * 0.8);
+                        ctx.lineTo(x1 + nx * 2.6, y1 + ny * 2.6);
+                        ctx.stroke();
+                    }
+                }
+                ctx.save();
+                ctx.translate(r.x, r.top);
+                ctx.rotate(Math.atan2(-(pts[1].x - pts[0].x), pts[1].y - pts[0].y) * 0.4);
                 ctx.strokeStyle = '#9aa3b5';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.arc(r.x, r.top - 6, 7, 0.1 * Math.PI, 1.9 * Math.PI);
+                ctx.arc(0, -6, 7, 0.1 * Math.PI, 1.9 * Math.PI);
                 ctx.stroke();
                 ctx.fillStyle = '#5a6275';
-                ctx.fillRect(r.x - 5, r.top - 2, 10, 8);
-                // knot at the bottom
+                ctx.fillRect(-5, -2, 10, 8);
+                ctx.restore();
+                const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+                ctx.save();
+                ctx.translate(last.x, last.y);
+                ctx.rotate(Math.atan2(-(last.x - prev.x), last.y - prev.y));
                 ctx.fillStyle = '#5e4424';
                 ctx.beginPath();
-                ctx.ellipse(r.x + swayAt(r.bottom), r.bottom + 4, 7, 8, 0, 0, TAU);
+                ctx.ellipse(0, 4, 7, 8, 0, 0, TAU);
                 ctx.fill();
+                ctx.strokeStyle = '#a77d47';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.moveTo(-3, 11); ctx.lineTo(-4.5, 18);
+                ctx.moveTo(0, 12); ctx.lineTo(0, 20);
+                ctx.moveTo(3, 11); ctx.lineTo(4.5, 18);
+                ctx.stroke();
+                ctx.restore();
                 ctx.restore();
             });
         }

@@ -130,7 +130,20 @@
         const STYLE_TINT = { chain: ['#8b93a3', 0.8], vine: ['#4f7d3a', 0.55] };
 
         function swingEnd(s) {
+            if (s.nodes && s.nodes.length) return s.nodes[s.nodes.length - 1];
             return { x: s.ax + s.len * Math.sin(s.angle || 0), y: s.ay + s.len * Math.cos(s.angle || 0) };
+        }
+
+        function strokeSpline(pts, color, width) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            for (let k = 1; k < pts.length - 1; k++) {
+                ctx.quadraticCurveTo(pts[k].x, pts[k].y, (pts[k].x + pts[k + 1].x) * 0.5, (pts[k].y + pts[k + 1].y) * 0.5);
+            }
+            ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+            ctx.stroke();
         }
 
         function drawSwings(sim, view) {
@@ -140,78 +153,87 @@
             let held = null;
             for (let i = 0; i < list.length; i++) {
                 const s = list[i];
-                if (!(s.len > 0) || !vis(view, s.ax - s.len, s.ax + s.len)) continue;
+                if (!(s.len > 0)) continue;
+                const pts = (s.nodes && s.nodes.length >= 2) ? s.nodes : [{ x: s.ax, y: s.ay }, swingEnd(s)];
+                let minX = s.ax - 24, maxX = s.ax + 24;
+                for (let k = 0; k < pts.length; k++) {
+                    if (pts[k].x < minX) minX = pts[k].x;
+                    if (pts[k].x > maxX) maxX = pts[k].x;
+                }
+                if (!vis(view, minX - 20, maxX + 20)) continue;
                 const style = s.style || 'rope';
-                const end = swingEnd(s);
-                const lag = clamp(-(s.omega || 0) * s.len * 0.00022, -9, 9);
-                const dxs = end.x - s.ax;
-                const dys = end.y - s.ay;
-                const len = Math.hypot(dxs, dys) || 1;
-                const nx = dys / len;
-                const ny = -dxs / len;
-                const curve = function (k) {
-                    const b = Math.sin(k * Math.PI) * lag;
-                    return { x: s.ax + dxs * k + nx * b, y: s.ay + dys * k + ny * b };
-                };
-                const segN = Math.max(2, Math.round(len / 34));
                 const tint = STYLE_TINT[style];
+                ctx.save();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                strokeSpline(pts, 'rgba(16, 12, 10, 0.35)', 6.5);
+                if (!has('prop-swing.rope')) {
+                    strokeSpline(pts, style === 'chain' ? '#8b93a3' : style === 'vine' ? '#4f7d3a' : '#8a6440', 5);
+                    strokeSpline(pts, style === 'chain' ? 'rgba(220,230,245,0.4)' : style === 'vine' ? 'rgba(160,220,120,0.3)' : 'rgba(255,225,170,0.3)', 1.5);
+                }
+                ctx.restore();
                 if (has('prop-swing.rope')) {
-                    for (let k = 0; k < segN; k++) {
-                        const a = curve(k / segN);
-                        const b = curve((k + 1) / segN);
-                        const sl = Math.hypot(b.x - a.x, b.y - a.y);
-                        const th = Math.atan2(-(b.x - a.x), b.y - a.y);
+                    for (let k = 0; k < pts.length - 1; k++) {
+                        const a = pts[k], b = pts[k + 1];
+                        const dx = b.x - a.x, dy = b.y - a.y;
+                        const sl = Math.hypot(dx, dy) || 1;
                         ctx.save();
-                        ctx.translate((a.x + b.x) / 2, (a.y + b.y) / 2);
-                        ctx.rotate(th);
-                        ctx.scale(1, (sl + 1.5) / (179 * 0.2));
+                        ctx.translate((a.x + b.x) * 0.5, (a.y + b.y) * 0.5);
+                        ctx.rotate(Math.atan2(-dx, dy));
+                        ctx.scale(1, (sl + 3) / (179 * 0.2));
                         put('prop-swing.rope', 0, 0, 0, { scale: 0.2, tint: tint ? tint[0] : '', amount: tint ? tint[1] : 0 });
                         ctx.restore();
                     }
-                } else {
-                    ctx.save();
-                    ctx.lineCap = 'round';
-                    ctx.strokeStyle = style === 'chain' ? '#8b93a3' : style === 'vine' ? '#4f7d3a' : '#8a6440';
-                    ctx.lineWidth = 5;
-                    ctx.beginPath();
-                    for (let k = 0; k <= segN; k++) {
-                        const q = curve(k / segN);
-                        if (k) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
-                    }
-                    ctx.stroke();
-                    ctx.restore();
                 }
                 if (style === 'chain') {
                     ctx.save();
-                    ctx.strokeStyle = 'rgba(25, 28, 38, 0.75)';
-                    ctx.lineWidth = 1.5;
-                    for (let k = 0; k < segN * 2; k++) {
-                        const q = curve((k + 0.5) / (segN * 2));
-                        ctx.beginPath();
-                        ctx.ellipse(q.x, q.y, 4, 2.4, Math.atan2(dys, dxs) + Math.PI / 2 + 1.57, 0, TAU);
-                        ctx.stroke();
+                    for (let k = 0; k < pts.length - 1; k++) {
+                        const a = pts[k], b = pts[k + 1], ang = Math.atan2(b.y - a.y, b.x - a.x);
+                        for (let m = 0; m < 2; m++) {
+                            const u = (m + 0.5) / 2, lx = a.x + (b.x - a.x) * u, ly = a.y + (b.y - a.y) * u;
+                            const flat = (k * 2 + m) % 2 === 0;
+                            ctx.strokeStyle = 'rgba(25, 28, 38, 0.8)';
+                            ctx.lineWidth = 1.6;
+                            ctx.beginPath(); ctx.ellipse(lx, ly, 4.6, flat ? 2.6 : 1.3, ang, 0, TAU); ctx.stroke();
+                            ctx.strokeStyle = 'rgba(215, 225, 240, 0.55)';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath(); ctx.ellipse(lx - 0.5, ly - 0.5, 3.2, flat ? 1.5 : 0.7, ang, 0, Math.PI); ctx.stroke();
+                        }
+                    }
+                    ctx.restore();
+                } else if (style === 'vine') {
+                    ctx.save();
+                    for (let k = 2; k < pts.length - 1; k += 2) {
+                        const a = pts[k - 1], b = pts[k + 1], n = pts[k], side = (k / 2) % 2 === 0 ? 1 : -1;
+                        ctx.save();
+                        ctx.translate(n.x, n.y);
+                        ctx.rotate(Math.atan2(-(b.x - a.x), b.y - a.y) + side * 0.85);
+                        ctx.fillStyle = '#3f6e2d';
+                        ctx.beginPath(); ctx.ellipse(side * 6, 0, 6.5, 2.8, side * 0.2, 0, TAU); ctx.fill();
+                        ctx.fillStyle = '#74b84d';
+                        ctx.beginPath(); ctx.ellipse(side * 5.5, -0.6, 4.2, 1.4, side * 0.2, 0, TAU); ctx.fill();
+                        ctx.restore();
                     }
                     ctx.restore();
                 }
                 // anchor (ring under a beam, branch for vines) painted over the rope start
                 const anchorClip = style === 'vine' ? 'prop-swing.branch' : 'prop-swing.ring';
-                if (!put(anchorClip, 0, s.ax, s.ay - 11, { scale: style === 'vine' ? 0.4 : 0.34 })) {
-                    ctx.fillStyle = '#5a6275';
-                    ctx.fillRect(s.ax - 22, s.ay - 14, 44, 10);
-                    ctx.strokeStyle = '#9aa3b5';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(s.ax, s.ay, 7, 0, TAU);
-                    ctx.stroke();
-                }
-                // grip at the rope end
-                const eq = curve(1);
                 ctx.save();
-                ctx.translate(eq.x, eq.y);
-                ctx.rotate(-(s.angle || 0));
+                ctx.translate(s.ax, s.ay);
+                if (style !== 'vine') ctx.rotate(Math.atan2(-(pts[1].x - pts[0].x), pts[1].y - pts[0].y) * 0.35);
+                if (!put(anchorClip, 0, 0, -11, { scale: style === 'vine' ? 0.4 : 0.34 })) {
+                    ctx.fillStyle = '#5a6275'; ctx.fillRect(-22, -14, 44, 10);
+                    ctx.strokeStyle = '#9aa3b5'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.stroke();
+                }
+                ctx.restore();
+                // grip at the rope end aligned with the final segment tangent
+                const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+                ctx.save();
+                ctx.translate(last.x, last.y);
+                ctx.rotate(Math.atan2(-(last.x - prev.x), last.y - prev.y));
                 if (!put('prop-swing.grip', 0, 0, 86 * 0.2 - 4, { scale: 0.2, tint: tint ? tint[0] : '', amount: tint ? 0.35 : 0 })) {
-                    ctx.fillStyle = '#6b4a2f';
-                    ctx.fillRect(-12, -2, 24, 8);
+                    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(-12, -2, 24, 8);
                 }
                 ctx.restore();
                 if (p && p.swing && p.swing.id === s.id) held = s;

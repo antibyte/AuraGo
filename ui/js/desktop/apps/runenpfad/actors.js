@@ -552,7 +552,8 @@
             const T = sim.stage.tileSize || 48;
             const ropes = sim.stage.ropes || [];
             const ladders = sim.stage.ladders || [];
-            for (let i = 0; i < ropes.length; i++) if (Math.abs(p.x - ropes[i].x) <= 14) return ropes[i].x;
+            const sw = root.RunenpfadSwing;
+            for (let i = 0; i < ropes.length; i++) if (Math.abs(p.x - ropes[i].x) <= 16) return sw && sw.ropeX ? sw.ropeX(ropes[i], p.y - 26) : ropes[i].x;
             for (let i = 0; i < ladders.length; i++) if (Math.abs(p.x - (ladders[i].x + T / 2)) < 20) return ladders[i].x + T / 2;
             return p.x;
         }
@@ -728,9 +729,10 @@
             const blink = p.invulnTimer > 0 && Math.floor(view.nowSec * 16) % 2 === 0 ? 0.45 : 1;
             const flash = p.hurtTimer > 0 ? clamp(p.hurtTimer * 5, 0, 0.8) : 0;
             if (p.swing) {
-                // Hanging on a rope: the jump pose pivots around the hands (feet are 40 px below) and leans with the rope.
-                sprite(def.pack, clipFor(def.pack, def.prefix, 'jump'), p.animTime, false, p.x, p.y - 40, 64, -19, flipHero, blink, 1, 1, flash, -(p.swing.angle || 0) * 0.8);
-            } else sprite(def.pack, anim, clock, hold, drawX, p.y, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, heroVis.tilt);
+                // Hanging on a rope: the jump pose pivots around the hands (feet are 40 px below) and leans with the body pendulum.
+                const hangAng = p.swing.bodyAngle != null ? p.swing.bodyAngle : (p.swing.angle || 0) * 0.8;
+                sprite(def.pack, clipFor(def.pack, def.prefix, 'jump'), p.animTime, false, p.x, p.y - 40, 64, -19, flipHero, blink, 1, 1, flash, -hangAng);
+            } else sprite(def.pack, anim, clock, hold, drawX, p.y, 64, -59, flipHero, blink, heroVis.sx, heroVis.sy, flash, p.climbKind === 'rope' && p.climbTilt ? p.climbTilt : heroVis.tilt);
             if (sim.heroId === 'knight' && p.attackTimer > 0) drawSwoosh(sim);
             if (sim.heroId === 'ranger' && p.attackTimer > 0) {
                 const mx = p.x + p.facing * 22;
