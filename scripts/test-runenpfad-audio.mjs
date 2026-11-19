@@ -11,10 +11,13 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio.js', 'sfx.js', 'music.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
 const Music = sandbox.RunenpfadMusic;
+const AudioDsp = sandbox.RunenpfadAudioDsp;
+const MusicVoices = sandbox.RunenpfadMusicVoices;
+const MusicScores = sandbox.RunenpfadMusicScores;
 
 // ---- strict fake Web Audio ----
 let nodeCount = 0;
@@ -46,7 +49,7 @@ class FakeContext {
     decodeAudioData() { return Promise.reject(new Error('no decode')); }
     createBuffer() { return node('buffer'); }
 }
-['createGain', 'createOscillator', 'createBiquadFilter', 'createBufferSource', 'createDynamicsCompressor', 'createConvolver', 'createStereoPanner', 'createWaveShaper']
+['createGain', 'createOscillator', 'createBiquadFilter', 'createBufferSource', 'createDynamicsCompressor', 'createConvolver', 'createStereoPanner', 'createWaveShaper', 'createDelay', 'createPeriodicWave']
     .forEach((m) => { FakeContext.prototype[m] = function () { return node(m); }; });
 sandbox.AudioContext = FakeContext;
 
@@ -559,4 +562,47 @@ assert.equal(Music.themeIdFor(Object.assign({}, duelSim, { interior: { room: { d
     music.dispose();
     music.setOverride('story_dawn'); // after dispose: harmless
 }
+// ---- 7. Audio DSP, voice engine, multi-section scores, and determinism checks ----
+assert.ok(AudioDsp && AudioDsp.SAMPLE_NAMES.includes('harp') && AudioDsp.SAMPLE_NAMES.includes('sword_ring') && AudioDsp.SAMPLE_NAMES.includes('darbuka_doum'), 'physical-model samples registered');
+assert.ok(MusicVoices && MusicVoices.MODEL_NAMES.includes('celesta') && MusicVoices.WAVE_NAMES.includes('horn'), 'music voice maps populated');
+assert.ok(MusicScores && typeof MusicScores.compose === 'function', 'music scores loaded');
+{
+    const dspCtx = new FakeContext();
+    AudioDsp.SAMPLE_NAMES.forEach((id) => {
+        const s = AudioDsp.getSample(dspCtx, id);
+        assert.ok(s && s.buf && s.refHz > 0, 'DSP sample builds: ' + id);
+    });
+    ['woodland', 'cavern', 'desert', 'glacier', 'citadel'].forEach((biome) => {
+        const ir = AudioDsp.buildRoomImpulse(dspCtx, biome);
+        assert.ok(ir, 'room IR builds for ' + biome);
+    });
+    // Multi-section biome & boss scores strictly obey scale membership across bars 0..15.
+    Object.keys(Music.THEMES).forEach((id) => {
+        const th = Music.THEMES[id];
+        Music.LAYERS.forEach((layer) => {
+            for (let bar = 0; bar < 16; bar++) {
+                const evs = Music.composeBar(id, layer, bar, 3);
+                evs.forEach((ev) => {
+                    assert.ok(ev.t >= 0 && ev.t < 4 && ev.dur > 0, `${id} bar ${bar} ${layer} timing valid`);
+                    if (ev.midi !== null) {
+                        const pc = (((ev.midi - th.root) % 12) + 12) % 12;
+                        assert.ok(th.scale.includes(pc), `${id} bar ${bar} ${layer} pitch ${ev.midi} in scale`);
+                    }
+                });
+            }
+        });
+    });
+    // Master ducking bridge connects cleanly from Audio controller to Music controller.
+    const aCtrl = Audio.createAudioController({ manifest });
+    aCtrl.unlock();
+    const mCtrl = Music.createMusicController(aCtrl.musicPort());
+    mCtrl.update(Music.intensityFor(sim), sim);
+    aCtrl.handleEvents([{ type: 'dragon_roar', detail: { kind: 'ember' } }], null, null);
+    mCtrl.dispose();
+    aCtrl.dispose();
+}
+['audio-dsp.js', 'sfx.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((rel) => {
+    const src = fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8');
+    assert.ok(!src.includes('Math.random') && !src.includes('Date.now'), rel + ' stays deterministic');
+});
 console.log('Runenpfad audio checks passed: ' + (Object.keys(Audio.CUE_MAP).length + Object.keys(Sfx.CUES).length) + ' cues, ' + Object.keys(Sfx.SYNTHS).length + ' synth recipes, ' + themeIds.length + ' music themes.');

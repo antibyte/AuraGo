@@ -876,7 +876,7 @@ console.log('Runenpfad simulation checks passed: 6 packs, sound manifest, 25 lev
     music.dispose();
     music.update(Music.intensityFor(musSim), musSim);
 
-    ['audio.js', 'music.js'].forEach((f) => {
+    ['audio-dsp.js', 'sfx.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((f) => {
         const src = fs.readFileSync(path.join(rootDir, 'ui/js/desktop/apps/runenpfad', f), 'utf8');
         assert.ok(!src.includes('Math.random'), `${f} must not use Math.random`);
         assert.ok(!src.includes('Date.now'), `${f} must not use Date.now`);
