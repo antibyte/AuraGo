@@ -204,5 +204,28 @@ func sessionGraphNodeEligible(props map[string]string, marker string) bool {
 }
 
 func sessionGraphEdgeEligible(props map[string]string, marker string) bool {
-	return props["session_id"] == marker && !privacyPropertyTrue(props["protected"]) && !privacyPropertyTrue(props["keep_forever"]) && props["contact_sync_id"] == ""
+	if marker == "" || props["session_id"] != marker || privacyPropertyTrue(props["protected"]) || privacyPropertyTrue(props["keep_forever"]) {
+		return false
+	}
+	if !privacyClaimSourceDeletable(props["source"]) && props["source"] != "auto_extraction" {
+		return false
+	}
+	for key, value := range props {
+		switch key {
+		case "source", "session_id", "confidence", "extracted_at", "created_at", "updated_at", "last_seen", "protected", "keep_forever":
+		case "source_sessions":
+			var sessions []string
+			if json.Unmarshal([]byte(value), &sessions) != nil || len(sessions) == 0 {
+				return false
+			}
+			for _, session := range sessions {
+				if session != marker {
+					return false
+				}
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }

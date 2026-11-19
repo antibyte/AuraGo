@@ -32,9 +32,6 @@ const (
 	// A durable memory text longer than this is no fact: StandingOrder refuses
 	// it unread, which keeps its cost bounded and leaves no unread tail.
 	standingOrderMaxBytes = 64 << 10
-	// A run without sentence punctuation is judged in overlapping windows.
-	standingWindow = 600
-	standingStep   = 400
 )
 
 // phraseList holds phrases matched as whole words in lowercase text; a trailing
@@ -58,6 +55,7 @@ func (p phraseList) scan(s string, mask bool) string {
 	for _, phrase := range p {
 		prefix := strings.HasSuffix(phrase, "*")
 		phrase = strings.TrimSuffix(phrase, "*")
+		changed := false
 		for from := 0; from < len(s); {
 			i := strings.Index(s[from:], phrase)
 			if i < 0 {
@@ -75,9 +73,12 @@ func (p phraseList) scan(s string, mask bool) string {
 				for k := i; k < end; k++ {
 					out[k] = ' '
 				}
-				s = string(out)
+				changed = true
 			}
 			from = i + 1
+		}
+		if changed {
+			s = string(out)
 		}
 	}
 	if mask {
@@ -188,7 +189,7 @@ var standingTurn = regexp.MustCompile(
 		`|\b(?:vor|beim)\s+(?:dem\s+)?antworten\b`)
 
 // standingTool matches the tool names such an order invokes.
-var standingTool = regexp.MustCompile(`\b(?:execute|exec|invoke|send|call|manage|save|run)_[a-z0-9_]+\b|\b(?:api_request|fetch_url|http_request|curl|wget)\b`)
+var standingTool = regexp.MustCompile(`\b(?:execute|exec|invoke|send|call|manage|save|run)_[a-z0-9_]+\b|\b(?:read_file|write_file|edit_file|list_files|list_dir|file_patch|search_file|file_search|file_read_advanced|api_request|fetch_url|http_request|curl|wget)\b`)
 
 var standingSecrets = phraseList{
 	"vault", "api key", "api keys", "api-key", "api-keys", "apikey", "apikeys", "access key", "access keys",
@@ -287,11 +288,11 @@ func StandingOrder(text string) (category string, hit bool) {
 			if standingOverrideHit(segment) {
 				return OverrideOrderCategory, true
 			}
-			if standingWindowsHit(segment) {
+			if standingSegmentHit(segment) {
 				return StandingOrderCategory, true
 			}
 			// A marker and its target may sit in neighbouring sentences.
-			if i+1 < len(segments) && standingWindowsHit(segment+" "+segments[i+1]) {
+			if i+1 < len(segments) && standingSegmentHit(segment+" "+segments[i+1]) {
 				return StandingOrderCategory, true
 			}
 		}
@@ -358,30 +359,6 @@ func standingSegments(view string) []string {
 		flush()
 	}
 	return segments
-}
-
-// standingWindowsHit judges a segment, or the overlapping windows of a run
-// longer than standingWindow.
-func standingWindowsHit(segment string) bool {
-	if len(segment) <= standingWindow {
-		return standingSegmentHit(segment)
-	}
-	for from := 0; from < len(segment); from += standingStep {
-		for from < len(segment) && !utf8.RuneStart(segment[from]) {
-			from++
-		}
-		end := min(from+standingWindow, len(segment))
-		for end < len(segment) && !utf8.RuneStart(segment[end]) {
-			end++
-		}
-		if standingSegmentHit(segment[from:end]) {
-			return true
-		}
-		if end == len(segment) {
-			break
-		}
-	}
-	return false
 }
 
 func standingSegmentHit(segment string) bool {

@@ -1245,9 +1245,27 @@ func (s *SQLiteMemory) GetJournalStats(from, to string) (map[string]int, error) 
 	return stats, rows.Err()
 }
 
-// FormatJournalEntriesJSON marshals a slice of JournalEntry to JSON.
+// ModelJournalEntry omits the private source identifier from model-facing JSON.
+type ModelJournalEntry struct {
+	JournalEntry
+	SessionID *struct{} `json:"session_id,omitempty"`
+}
+
+func JournalEntriesForModel(entries []JournalEntry) []ModelJournalEntry {
+	if entries == nil {
+		return nil
+	}
+	result := make([]ModelJournalEntry, 0, len(entries))
+	for _, entry := range entries {
+		entry.SessionID = ""
+		result = append(result, ModelJournalEntry{JournalEntry: entry})
+	}
+	return result
+}
+
+// FormatJournalEntriesJSON projects journal entries for the model-facing tool.
 func FormatJournalEntriesJSON(entries []JournalEntry) string {
-	b, err := json.Marshal(entries)
+	b, err := json.Marshal(JournalEntriesForModel(entries))
 	if err != nil {
 		return "[]"
 	}

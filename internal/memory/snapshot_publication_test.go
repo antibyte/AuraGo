@@ -392,7 +392,7 @@ func TestStartupSweepClearsLeftoverPublicationMarkersOnReopen(t *testing.T) {
 		}
 		left = append(left, k)
 	}
-	want := []string{"file_index.replacement.x.y", "snapshot.publication.correction.c1", "snapshot.publication.privacy.job1"}
+	want := []string{"file_index.replacement.x.y", "snapshot.publication.correction.c1", "snapshot.publication.privacy.job1", "snapshot.publication.uncertain"}
 	if !slices.Equal(left, want) {
 		t.Fatalf("left=%v want=%v", left, want)
 	}

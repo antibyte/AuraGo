@@ -39,12 +39,9 @@ var ErrMemorySnapshotBlocked = errors.New("memory snapshot blocked by unfinished
 
 // sweepAbandonedMemoryPublications runs once per process when the short-term
 // store opens (NewSQLiteMemory, after the instance lock). After a restart no
-// owner exists that could still finish or roll back a publication, and the
-// persisted retry path tolerates a missing marker, so every leftover generic
-// marker is cleared. Each one is logged first (key and value hold the created
-// doc IDs) so orphans can be found manually. Correction and privacy markers
-// have their own resume path and file_index.replacement.% is never touched.
-// Within a running process markers keep blocking snapshots (fail closed).
+// owner exists for leftover generic markers. An explicit uncertain outcome
+// without a receipt may be a legacy replacement and still blocks certification
+// until reviewed. Journaled replacements have their own recovery path.
 func sweepAbandonedMemoryPublications(db *sql.DB, logger *slog.Logger) error {
 	const where = `key LIKE 'snapshot.publication.%' AND key NOT LIKE 'snapshot.publication.correction.%' AND key NOT LIKE 'snapshot.publication.privacy.%'`
 	rows, err := db.Query(`SELECT key,value FROM memory_maintenance_meta WHERE ` + where)
@@ -59,9 +56,15 @@ func sweepAbandonedMemoryPublications(db *sql.DB, logger *slog.Logger) error {
 			rows.Close()
 			return fmt.Errorf("sweep abandoned memory publications: %w", err)
 		}
+		if m.value == memoryPublicationUncertainValue {
+			if logger != nil {
+				logger.Warn("Retaining uncertain publication without a recovery receipt", "key", m.key)
+			}
+			continue
+		}
 		found = append(found, m)
 	}
-	if err := rows.Close(); err != nil {
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return err
 	}
 	for _, m := range found {
@@ -119,8 +122,8 @@ func (p *memoryPublication) finish(complete bool) error {
 	}
 	defer p.release()
 	if !complete && !p.rolledBack && !p.nothingWritten {
-		// Something may be half-published. Keep the marker (fail closed for this
-		// process); the value is only a hint for the startup sweep's log line.
+		// Something may be half-published. Keep the marker until recovery can
+		// prove what happened or an operator reviews an unidentified outcome.
 		value := memoryPublicationUncertainValue
 		if len(p.createdIDs) > 0 {
 			data, err := json.Marshal(p.createdIDs)

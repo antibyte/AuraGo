@@ -78,6 +78,16 @@ func (s *SQLiteMemory) RecoverAutomaticMemoryPublicationsContext(ctx context.Con
 		activeKeys[item.key] = struct{}{}
 	}
 	for _, item := range entries {
+		if strings.HasPrefix(item.key, memoryReplacementPublicationPrefix) {
+			if !isNative {
+				allErr = errors.Join(allErr, fmt.Errorf("memory replacement recovery requires the canonical corpus"))
+			} else if _, err := s.resumeMemoryReplacement(pubCtx, native, item.key, item.value, validate); err != nil {
+				allErr = errors.Join(allErr, fmt.Errorf("recover memory replacement %s: %w", item.key, err))
+			} else {
+				delete(activeKeys, item.key)
+			}
+			continue
+		}
 		var journal automaticMemoryPublicationJournal
 		if err := json.Unmarshal([]byte(item.value), &journal); err != nil || journal.Version != 1 || (journal.Status != automaticMemoryPublicationStaged && journal.Status != automaticMemoryPublicationReady) {
 			if err == nil {
@@ -118,7 +128,11 @@ func (s *SQLiteMemory) RecoverAutomaticMemoryPublicationsContext(ctx context.Con
 			continue
 		}
 		if archived {
-			if err := backend.CleanupAutomaticMemoryWriteContext(pubCtx, item.key, journal.Documents); err != nil {
+			if !isNative {
+				allErr = errors.Join(allErr, fmt.Errorf("cannot classify staged and activated archived documents for %s", item.key))
+				continue
+			}
+			if err := native.cleanupStagedMemoryPublication(pubCtx, item.key, journal.Documents, true); err != nil {
 				allErr = errors.Join(allErr, fmt.Errorf("clean archived ready automatic memory publication %s: %w", item.key, err))
 				continue
 			}
@@ -208,6 +222,17 @@ func retireCompletedAutomaticMemoryPublicationTokens(ctx context.Context, s *SQL
 				quarantineErr := vector.BlockCompletedAutomaticMemoryPublicationTokenContext(ctx, publicationID, MemoryPublicationDocument{ID: doc.ID, Hash: contentSHA256(doc.Content)})
 				return needsReconcile, errors.Join(fmt.Errorf("read completed memory metadata %s: %w", doc.ID, err), quarantineErr)
 			}
+			receipt := MemoryPublicationDocument{ID: doc.ID, Hash: contentSHA256(doc.Content)}
+			if strings.HasPrefix(publicationID, memoryReplacementPublicationPrefix) {
+				// The replacement released its journal in the metadata transaction
+				// that finalized retirement. Legacy sources may have no provenance.
+				reindex, err := vector.RetireCompletedAutomaticMemoryPublicationTokenContext(ctx, publicationID, receipt, !IsMemoryArchived(meta))
+				if err != nil {
+					return needsReconcile, err
+				}
+				needsReconcile = needsReconcile || reindex
+				continue
+			}
 			var identity string
 			if err := s.db.QueryRowContext(ctx, `SELECT identity FROM memory_document_identities WHERE doc_id=?`, doc.ID).Scan(&identity); err != nil || identity == "" {
 				if err == nil {
@@ -224,7 +249,6 @@ func retireCompletedAutomaticMemoryPublicationTokens(ctx context.Context, s *SQL
 				quarantineErr := vector.BlockCompletedAutomaticMemoryPublicationTokenContext(ctx, publicationID, MemoryPublicationDocument{ID: doc.ID, Hash: contentSHA256(doc.Content)})
 				return needsReconcile, errors.Join(fmt.Errorf("read completed memory provenance %s: %w", doc.ID, err), quarantineErr)
 			}
-			receipt := MemoryPublicationDocument{ID: doc.ID, Hash: contentSHA256(doc.Content)}
 			// This is an already-published row. A later chat deletion or policy
 			// change does not revoke an existing fact when the user kept memories;
 			// only prove completion, durable identity and provenance here. The

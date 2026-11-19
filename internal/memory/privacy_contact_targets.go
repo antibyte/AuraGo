@@ -168,6 +168,13 @@ func (kg *KnowledgeGraph) applyContactPrivacyTarget(ctx context.Context, target 
 		if props["contact_sync_id"] != target.SourceMarker || props["source"] != contactSyncSource || privacyPropertyTrue(props["protected"]) || privacyPropertyTrue(props["keep_forever"]) {
 			return false, nil
 		}
+		for key := range props {
+			switch key {
+			case "source", "contact_sync_id", "confidence", "extracted_at", "protected", "keep_forever":
+			default:
+				return false, nil
+			}
+		}
 		blocked, err := contactPrivacyProtectedEndpoints(ctx, tx, a, b)
 		if err != nil || blocked {
 			return false, err

@@ -1380,7 +1380,7 @@ type memoryReflectionInput struct {
 	Focus               string                     `json:"focus"`
 	OutputFormat        string                     `json:"output_format"`
 	ScopeNote           string                     `json:"scope_note,omitempty"`
-	JournalEntries      []memory.JournalEntry      `json:"journal_entries,omitempty"`
+	JournalEntries      []memory.ModelJournalEntry `json:"journal_entries,omitempty"`
 	RecentActivity      interface{}                `json:"recent_activity,omitempty"`
 	KnowledgeGraph      string                     `json:"knowledge_graph,omitempty"`
 	CoreMemoryFacts     []memory.CoreMemoryFact    `json:"core_memory_facts,omitempty"`
@@ -1388,7 +1388,7 @@ type memoryReflectionInput struct {
 	FrequentErrors      []memory.ErrorPattern      `json:"frequent_errors,omitempty"`
 	RecentErrors        []memory.ErrorPattern      `json:"recent_errors,omitempty"`
 	LearnedRules        []memory.LearnedRule       `json:"learned_rules,omitempty"`
-	PreviousReflections []memory.JournalEntry      `json:"previous_reflections,omitempty"`
+	PreviousReflections []memory.ModelJournalEntry `json:"previous_reflections,omitempty"`
 	HasData             bool                       `json:"-"`
 }
 
@@ -1495,7 +1495,7 @@ func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGr
 		if err != nil {
 			return input, fmt.Errorf("read reflection journal entries: %w", err)
 		}
-		input.JournalEntries = entries
+		input.JournalEntries = memory.JournalEntriesForModel(entries)
 		if req.Scope == "recent" || req.Scope == "day" || req.Scope == "monthly" || req.Scope == "session" || req.Scope == "project" {
 			days := 7
 			if req.Scope == "day" {
@@ -1535,7 +1535,7 @@ func buildMemoryReflectionInput(stm *memory.SQLiteMemory, kg *memory.KnowledgeGr
 		if err != nil {
 			return input, fmt.Errorf("read previous reflections: %w", err)
 		}
-		input.PreviousReflections = previous
+		input.PreviousReflections = memory.JournalEntriesForModel(previous)
 		usageStats, err := stm.GetMemoryUsageStats(14, 5)
 		if err != nil {
 			return input, fmt.Errorf("read reflection memory usage: %w", err)

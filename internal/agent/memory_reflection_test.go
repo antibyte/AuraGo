@@ -103,6 +103,33 @@ func TestBuildMemoryReflectionInputIncludesErrorLearningAndRules(t *testing.T) {
 	}
 }
 
+func TestBuildMemoryReflectionPromptOmitsJournalSessions(t *testing.T) {
+	stm := newReflectionTestDB(t)
+	for _, entry := range []memory.JournalEntry{
+		{EntryType: "milestone", Title: "Workshop opened", Content: "The workshop is open.", SessionID: "private-journal-origin"},
+		{EntryType: "reflection", Title: "Workshop review", Content: "The workshop has room for another table.", SessionID: "private-reflection-origin"},
+	} {
+		if _, err := stm.InsertModelJournalEntry(entry); err != nil {
+			t.Fatal(err)
+		}
+	}
+	input, err := buildMemoryReflectionInput(stm, nil, nil, memoryReflectionRequest{Scope: "week"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prompt := buildMemoryReflectionPrompt(input, false)
+	for _, want := range []string{"Workshop opened", "Workshop review", "previous_reflections"} {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("model prompt omitted %q", want)
+		}
+	}
+	for _, private := range []string{"session_id", "private-journal-origin", "private-reflection-origin"} {
+		if strings.Contains(prompt, private) {
+			t.Errorf("model prompt exposed %q", private)
+		}
+	}
+}
+
 func TestParseMemoryReflectionResultFlagsLowQualityAndAcceptsActionableJSON(t *testing.T) {
 	low, err := parseMemoryReflectionResult(`{"summary":"ok"}`)
 	if err != nil {

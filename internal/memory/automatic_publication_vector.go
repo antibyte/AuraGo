@@ -13,6 +13,10 @@ import (
 )
 
 func (cv *ChromemVectorDB) PrepareAutomaticMemoryWriteContext(ctx context.Context, concept, content string) (*PreparedAutomaticMemoryWrite, error) {
+	return cv.prepareMemoryWriteContext(ctx, concept, content, VectorStoreDeduplicate)
+}
+
+func (cv *ChromemVectorDB) prepareMemoryWriteContext(ctx context.Context, concept, content string, mode VectorStoreMode) (*PreparedAutomaticMemoryWrite, error) {
 	if err := validateMemoryDocument(concept, content); err != nil {
 		return nil, err
 	}
@@ -36,6 +40,12 @@ func (cv *ChromemVectorDB) PrepareAutomaticMemoryWriteContext(ctx context.Contex
 		release()
 		return nil, err
 	}
+	if mode == VectorStoreForceCreate {
+		if err := cv.corpus.checkCapacity(ctx, 0); err != nil {
+			release()
+			return nil, err
+		}
+	}
 	fullContent := buildContentString(concept, content)
 	metadata := map[string]string{"concept": concept, "timestamp": fmt.Sprintf("%d", time.Now().Unix())}
 	if len(fullContent) <= 4000 {
@@ -50,13 +60,15 @@ func (cv *ChromemVectorDB) PrepareAutomaticMemoryWriteContext(ctx context.Contex
 			release()
 			return nil, err
 		}
-		docID, err := cv.findIdenticalMemory(ctx, concept, content, "", docs[0].Embedding)
-		if err != nil {
-			release()
-			return nil, err
-		}
-		if docID != "" {
-			return &PreparedAutomaticMemoryWrite{Result: VectorStoreResult{ReusedIDs: []string{docID}}, release: release}, nil
+		if mode == VectorStoreDeduplicate {
+			docID, err := cv.findIdenticalMemory(ctx, concept, content, "", docs[0].Embedding)
+			if err != nil {
+				release()
+				return nil, err
+			}
+			if docID != "" {
+				return &PreparedAutomaticMemoryWrite{Result: VectorStoreResult{ReusedIDs: []string{docID}}, release: release}, nil
+			}
 		}
 		docs[0].ID = fmt.Sprintf("mem_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
 		docs[0].Metadata = cv.addEmbeddingMetadata(metadata)
@@ -134,6 +146,13 @@ func (cv *ChromemVectorDB) StageAutomaticMemoryWriteContext(ctx context.Context,
 	}
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
+	docs := make([]chromem.Document, 0, len(documents))
+	for _, document := range documents {
+		docs = append(docs, chromem.Document{ID: document.ID, Content: document.Content, Metadata: document.Metadata, Embedding: document.Embedding})
+	}
+	if err := cv.corpus.checkCapacity(ctx, estimatedCorpusBytes(docs, int(cv.embeddingDimension.Load()))); err != nil {
+		return err
+	}
 	tx, err := cv.corpus.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -347,6 +366,10 @@ func (cv *ChromemVectorDB) activateAutomaticMemoryWriteContext(ctx context.Conte
 }
 
 func (cv *ChromemVectorDB) CleanupAutomaticMemoryWriteContext(ctx context.Context, publicationID string, receipts []MemoryPublicationDocument) error {
+	return cv.cleanupStagedMemoryPublication(ctx, publicationID, receipts, false)
+}
+
+func (cv *ChromemVectorDB) cleanupStagedMemoryPublication(ctx context.Context, publicationID string, receipts []MemoryPublicationDocument, preserveActivated bool) error {
 	if cv.corpus == nil || publicationID == "" {
 		return fmt.Errorf("automatic memory publication cleanup is incomplete")
 	}
@@ -365,8 +388,9 @@ func (cv *ChromemVectorDB) CleanupAutomaticMemoryWriteContext(ctx context.Contex
 		if receipt.ID == "" || receipt.Hash == "" {
 			return fmt.Errorf("automatic memory cleanup receipt is incomplete")
 		}
-		var content, metadataRaw string
-		err := tx.QueryRowContext(ctx, `SELECT content,metadata FROM documents WHERE collection='aurago_memories' AND id=?`, receipt.ID).Scan(&content, &metadataRaw)
+		var content, metadataRaw, blocked string
+		var pending int
+		err := tx.QueryRowContext(ctx, `SELECT content,metadata,pending,blocked_reason FROM documents WHERE collection='aurago_memories' AND id=?`, receipt.ID).Scan(&content, &metadataRaw, &pending, &blocked)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
@@ -377,8 +401,17 @@ func (cv *ChromemVectorDB) CleanupAutomaticMemoryWriteContext(ctx context.Contex
 		if err := json.Unmarshal([]byte(metadataRaw), &metadata); err != nil {
 			return fmt.Errorf("read staged automatic memory metadata: %w", err)
 		}
-		if metadata["memory_publication_id"] != publicationID || contentSHA256(content) != receipt.Hash {
+		if metadata["memory_publication_id"] != publicationID {
 			continue
+		}
+		if contentSHA256(content) != receipt.Hash {
+			return fmt.Errorf("memory publication document %s changed before staged cleanup", receipt.ID)
+		}
+		if pending == 0 && preserveActivated {
+			continue // Token retirement preserves the archived source after journal removal.
+		}
+		if pending != 1 || blocked != automaticMemoryPublicationPending {
+			return fmt.Errorf("memory publication document %s is no longer staged", receipt.ID)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM documents WHERE collection='aurago_memories' AND id=? AND metadata=? AND content=?`, receipt.ID, metadataRaw, content); err != nil {
 			return err

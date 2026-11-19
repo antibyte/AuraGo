@@ -174,14 +174,11 @@ func memoryMetaEqual(left, right MemoryMeta) bool {
 // snapshot to every replacement ID in one SQLite transaction. The transaction
 // first compares every field exactly; a concurrent metadata write after that
 // read causes SQLite's snapshot upgrade to fail instead of overwriting it.
-func (s *SQLiteMemory) archiveAndCopyMemoryMeta(oldID string, expected MemoryMeta, newIDs []string, reason, actor string) error {
+func (s *SQLiteMemory) archiveAndCopyMemoryMeta(ctx context.Context, expected MemoryMeta, newIDs []string, reason, actor string, journal *memoryReplacementTransition) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("memory metadata store is unavailable")
 	}
-	oldID = strings.TrimSpace(oldID)
-	if oldID == "" || expected.DocID != oldID {
-		return fmt.Errorf("memory replacement metadata snapshot does not match old document")
-	}
+	oldID := expected.DocID
 	if len(newIDs) == 0 {
 		return fmt.Errorf("memory replacement requires at least one new document ID")
 	}
@@ -195,7 +192,7 @@ func (s *SQLiteMemory) archiveAndCopyMemoryMeta(oldID string, expected MemoryMet
 		actor = "system"
 	}
 
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin memory replacement metadata transaction: %w", err)
 	}
@@ -268,6 +265,15 @@ func (s *SQLiteMemory) archiveAndCopyMemoryMeta(oldID string, expected MemoryMet
 		VALUES (?, 'replace', ?, ?, ?, ?, 0)
 	`, oldID, actor, expected.VerificationStatus, MemoryVerificationArchived, reason); err != nil {
 		return fmt.Errorf("record memory replacement event %s: %w", oldID, err)
+	}
+	if journal != nil {
+		result, err := tx.ExecContext(ctx, `UPDATE memory_maintenance_meta SET value=? WHERE key=? AND value=?`, journal.ready, journal.key, journal.staged)
+		if err != nil {
+			return fmt.Errorf("mark memory replacement ready: %w", err)
+		}
+		if count, err := result.RowsAffected(); err != nil || count != 1 {
+			return errors.Join(fmt.Errorf("memory replacement journal changed before commit"), err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return &memoryReplacementMetadataCommitError{
@@ -347,7 +353,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		return nil, err
 	}
 	oldID = strings.TrimSpace(oldID)
-	if s == nil || ltm == nil || oldID == "" || strings.TrimSpace(expectedContent) == "" || strings.TrimSpace(replacement) == "" {
+	if s == nil || s.db == nil || ltm == nil || oldID == "" || strings.TrimSpace(expectedContent) == "" || strings.TrimSpace(replacement) == "" {
 		return nil, fmt.Errorf("memory replacement requires store, old document ID, expected content, and replacement content")
 	}
 	owned, ok := ltm.(OwnershipAwareVectorDB)
@@ -359,6 +365,32 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 	}
 	if expected.DocID != oldID {
 		return nil, fmt.Errorf("memory replacement snapshot document ID %q does not match %q", expected.DocID, oldID)
+	}
+
+	native, journaled := ltm.(*ChromemVectorDB)
+	journaled = journaled && native.hasCanonicalMemoryCorpus()
+	if journaled {
+		if err := lockMemoryMutex(ctx, &s.automaticMemoryMu); err != nil {
+			return nil, err
+		}
+		defer s.automaticMemoryMu.Unlock()
+		var raw string
+		key := memoryReplacementKey(oldID)
+		switch err := s.db.QueryRowContext(ctx, `SELECT value FROM memory_maintenance_meta WHERE key=?`, key).Scan(&raw); {
+		case err == nil:
+			journal, err := s.resumeMemoryReplacement(ctx, native, key, raw, nil)
+			if err != nil {
+				return journal.documentIDs(), errors.Join(ErrAutomaticMemoryPublicationPending, err)
+			}
+			if journal.Status == automaticMemoryPublicationReady {
+				if journal.OldHash != contentSHA256(expectedContent) || journal.ReplacementHash != contentSHA256(buildContentString(concept, replacement)) {
+					return nil, fmt.Errorf("a different replacement of %s has already committed", oldID)
+				}
+				return journal.documentIDs(), nil
+			}
+		case !errors.Is(err, sql.ErrNoRows):
+			return nil, fmt.Errorf("read earlier memory replacement: %w", err)
+		}
 	}
 
 	oldContent, err := ltm.GetByID(oldID)
@@ -383,7 +415,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		return nil, fmt.Errorf("memory replacement source %s metadata changed before staging", oldID)
 	}
 
-	ctx, publication := prepareMemoryPublication(ctx, s, func() error {
+	validate := func() error {
 		current, err := s.GetMemoryMeta(oldID)
 		if err != nil {
 			return err
@@ -399,7 +431,11 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 			return fmt.Errorf("memory replacement content changed during preparation")
 		}
 		return nil
-	})
+	}
+	if journaled {
+		return s.replaceMemoryWithJournal(ctx, native, oldHash, concept, replacement, expected, reason, actor, validate)
+	}
+	ctx, publication := prepareMemoryPublication(ctx, s, validate)
 	complete := false
 	defer func() { resultErr = errors.Join(resultErr, publication.finish(complete)) }()
 	if _, native := ltm.(*ChromemVectorDB); !native {
@@ -472,7 +508,7 @@ func (s *SQLiteMemory) ReplaceMemoryDocumentContext(ctx context.Context, ltm Vec
 		}
 		return nil, base
 	}
-	if err := s.archiveAndCopyMemoryMeta(oldID, expected, stored.CreatedIDs, reason, actor); err != nil {
+	if err := s.archiveAndCopyMemoryMeta(ctx, expected, stored.CreatedIDs, reason, actor, nil); err != nil {
 		var commitErr *memoryReplacementMetadataCommitError
 		if errors.As(err, &commitErr) {
 			return stored.CreatedIDs, err

@@ -457,6 +457,34 @@ func TestAlreadyArchivedReadyPublicationConditionallyCleansItsCorpus(t *testing.
 	}
 }
 
+func TestAlreadyArchivedReadyPublicationPreservesActivatedCorpus(t *testing.T) {
+	stm, vector, _ := automaticPublicationFixture(t, func(context.Context, string) ([]float32, error) { return []float32{1, 0, 0}, nil })
+	key, receipts := prepareReadyPublicationForRecovery(t, stm, vector, "default")
+	if err := vector.ActivateAutomaticMemoryWriteContext(t.Context(), key, receipts); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stm.db.Exec(`UPDATE memory_meta SET verification_status='archived',archived_at=CURRENT_TIMESTAMP WHERE doc_id=?`, receipts[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	vector.embeddingFingerprint = "test|changed-model|3"
+	if err := stm.RecoverAutomaticMemoryPublicationsContext(t.Context(), vector, func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := vector.GetByID(receipts[0].ID); err != nil {
+		t.Fatalf("activated archived content was lost: %v", err)
+	}
+	if value, err := stm.GetMemoryMaintenanceState(key); value != "" || err != nil {
+		t.Fatalf("journal remains=%v err=%v", value != "", err)
+	}
+	if vector.collection.Count() != 0 {
+		t.Fatal("archived document remained in the semantic index")
+	}
+	state, err := vector.ReadAutomaticMemoryPublicationCorpusStateContext(t.Context(), []string{receipts[0].ID})
+	if err != nil || len(state) != 0 {
+		t.Fatalf("archived publication token was not retired: %v (%v)", state, err)
+	}
+}
+
 func TestCompletedArchivedPublicationTokenIsRetiredWithoutIndexing(t *testing.T) {
 	stm, vector, _ := automaticPublicationFixture(t, func(context.Context, string) ([]float32, error) { return []float32{1, 0, 0}, nil })
 	key, receipts := prepareReadyPublicationForRecovery(t, stm, vector, "default")

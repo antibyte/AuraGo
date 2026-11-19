@@ -95,11 +95,7 @@ func (s *SQLiteMemory) BeginSessionTurn(ctx context.Context, sessionID string) (
 
 // RegisterSessionRun makes deletion cancel every active run before removing its plan.
 func (s *SQLiteMemory) RegisterSessionRun(ctx context.Context, sessionID string) (context.Context, func(), error) {
-	if err := lockMemoryMutex(ctx, &s.sessionWriteMu); err != nil {
-		return ctx, nil, err
-	}
-	defer s.sessionWriteMu.Unlock()
-	if err := s.checkSessionWritable(ctx, sessionID); err != nil {
+	if err := ctx.Err(); err != nil {
 		return ctx, nil, err
 	}
 	runCtx, cancel := context.WithCancel(ctx)
@@ -127,6 +123,16 @@ func (s *SQLiteMemory) RegisterSessionRun(ctx context.Context, sessionID string)
 			delete(s.sessionRuns, sessionID)
 		}
 		s.sessionRuntimeMu.Unlock()
+	}
+	if err := lockMemoryMutex(runCtx, &s.sessionWriteMu); err != nil {
+		release()
+		return ctx, nil, err
+	}
+	err := s.checkSessionWritable(runCtx, sessionID)
+	s.sessionWriteMu.Unlock()
+	if err != nil {
+		release()
+		return ctx, nil, err
 	}
 	return runCtx, release, nil
 }
@@ -183,7 +189,7 @@ func (s *SQLiteMemory) checkSessionWritable(ctx context.Context, sessionID strin
 	if deleted {
 		return ErrSessionDeleted
 	}
-	return nil
+	return ctx.Err()
 }
 
 func (s *SQLiteMemory) cancelSessionRuns(sessionID string) {

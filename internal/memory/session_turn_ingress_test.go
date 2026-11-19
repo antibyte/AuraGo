@@ -64,6 +64,58 @@ func TestBeginSessionTurnRegistersQueuedRunBeforeWaitingAndStopCancelsIt(t *test
 	}
 	nextRelease()
 }
+
+func TestBeginSessionTurnStopCancelsRegistrationWaitingForWriteLock(t *testing.T) {
+	store, err := NewSQLiteMemory(":memory:", slog.Default())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	const id = "waiting-ingress"
+	unlock, err := store.LockSessionWrite(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	done := make(chan error, 1)
+	go func() {
+		_, release, err := store.BeginSessionTurn(ctx, id)
+		if release != nil {
+			release()
+		}
+		done <- err
+	}()
+	for {
+		store.sessionRuntimeMu.Lock()
+		registered := len(store.sessionRuns[id]) == 1
+		store.sessionRuntimeMu.Unlock()
+		if registered {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("ingress was invisible while waiting for the write lock")
+		case <-time.After(time.Millisecond):
+		}
+	}
+	store.CancelSessionRuns(id)
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("waiting ingress returned %v, want context.Canceled", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("waiting ingress did not stop while the write lock was held")
+	}
+	store.sessionRuntimeMu.Lock()
+	remaining := len(store.sessionRuns[id])
+	store.sessionRuntimeMu.Unlock()
+	if remaining != 0 {
+		t.Fatalf("cancelled registration leaked %d entries", remaining)
+	}
+}
 func TestBeginSessionTurnKeepsHistoryAssemblyAfterPriorPublication(t *testing.T) {
 	store, err := NewSQLiteMemory(":memory:", slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {

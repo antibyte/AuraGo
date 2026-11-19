@@ -130,6 +130,10 @@ func (s *SQLiteMemory) RepairCanonicalMemoryNamesContext(ctx context.Context, lt
 			joinedErr = errors.Join(joinedErr, err)
 			report.Items = append(report.Items, item)
 			report.SkippedCount++
+			var commitErr *memoryReplacementMetadataCommitError
+			if errors.As(err, &commitErr) || errors.Is(err, ErrAutomaticMemoryPublicationPending) {
+				return report, joinedErr
+			}
 			continue
 		}
 		item.NewDocIDs = append([]string(nil), newIDs...)

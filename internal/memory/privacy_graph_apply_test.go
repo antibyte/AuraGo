@@ -67,9 +67,9 @@ func TestSessionGraphPrivacyEdgeRetainsProtectedOrKeepForeverState(t *testing.T)
 			if err := kg.AddNode("privacy_destination", "Destination", nil); err != nil {
 				t.Fatal(err)
 			}
-			properties := `{"session_id":"` + marker + `"}`
+			properties := `{"source":"chat","session_id":"` + marker + `"}`
 			if scenario == "edge_keep_forever" {
-				properties = `{"keep_forever":"true","session_id":"` + marker + `"}`
+				properties = `{"source":"chat","keep_forever":"true","session_id":"` + marker + `"}`
 			}
 			if _, err := kg.db.ExecContext(ctx, `INSERT INTO kg_edges(source,target,relation,properties) VALUES('privacy_source','privacy_destination','privacy_relation',?)`, properties); err != nil {
 				t.Fatal(err)
@@ -92,6 +92,51 @@ func TestSessionGraphPrivacyEdgeRetainsProtectedOrKeepForeverState(t *testing.T)
 			}
 			if count != 1 {
 				t.Fatalf("protected edge count=%d, want 1 (%s)", count, scenario)
+			}
+		})
+	}
+}
+
+func TestPrivacyEdgesRequireExclusiveProperties(t *testing.T) {
+	const marker = "deleted:example"
+	for _, tc := range []struct {
+		name, store, properties string
+		wantDeleted             bool
+	}{
+		{"chat exclusively owned", "kg_edge", `{"session_id":"deleted:example","source":"chat","confidence":"0.80"}`, true},
+		{"chat same source listed", "kg_edge", `{"session_id":"deleted:example","source":"chat","source_sessions":"[\"deleted:example\"]"}`, true},
+		{"chat mixed sessions", "kg_edge", `{"session_id":"deleted:example","source":"chat","source_sessions":"[\"deleted:example\",\"other\"]"}`, false},
+		{"chat unknown sessions", "kg_edge", `{"session_id":"deleted:example","source":"chat","source_sessions":"uncertain"}`, false},
+		{"chat manual", "kg_edge", `{"session_id":"deleted:example","source":"manual"}`, false},
+		{"chat merged", "kg_edge", `{"session_id":"deleted:example","source":"chat","external_note":"curated"}`, false},
+		{"contact exclusively owned", "kg_contact_edge", `{"contact_sync_id":"deleted:example","source":"contacts_sync","confidence":"0.50","extracted_at":"2026-01-01"}`, true},
+		{"contact merged", "kg_contact_edge", `{"contact_sync_id":"deleted:example","source":"contacts_sync","external_note":"curated"}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			kg := contactSyncTestGraph(t)
+			for _, id := range []string{"person", "club"} {
+				if err := kg.AddNode(id, id, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := kg.db.Exec(`INSERT INTO kg_edges(source,target,relation,properties) VALUES('person','club','belongs_to',?)`, tc.properties); err != nil {
+				t.Fatal(err)
+			}
+			target := privacyDeletionTarget{
+				Store: tc.store, TargetID: graphPrivacyEdgeID("person", "club", "belongs_to"), SourceMarker: marker,
+				ExpectedFingerprint: privacyFingerprint("person", "club", "belongs_to", tc.properties),
+			}
+			apply := kg.applySessionGraphPrivacyTarget
+			if tc.store == "kg_contact_edge" {
+				apply = kg.applyContactPrivacyTarget
+			}
+			deleted, err := apply(t.Context(), target)
+			if err != nil || deleted != tc.wantDeleted {
+				t.Fatalf("deleted=%v want=%v err=%v", deleted, tc.wantDeleted, err)
+			}
+			var remaining int
+			if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_edges`).Scan(&remaining); err != nil || (remaining == 0) != tc.wantDeleted {
+				t.Fatalf("remaining=%d err=%v", remaining, err)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"encoding/json"
 	"log/slog"
 	"os"
 	"testing"
@@ -283,11 +284,17 @@ func TestGetJournalStats(t *testing.T) {
 
 func TestFormatJournalEntriesJSON(t *testing.T) {
 	entries := []JournalEntry{
-		{ID: 1, EntryType: "milestone", Title: "Test", Importance: 4},
+		{ID: 1, EntryType: "milestone", Title: "Test", Importance: 4, SessionID: "private-session"},
 	}
-	result := FormatJournalEntriesJSON(entries)
-	if result == "[]" || result == "" {
-		t.Error("Expected non-empty JSON output")
+	var result []map[string]any
+	if err := json.Unmarshal([]byte(FormatJournalEntriesJSON(entries)), &result); err != nil || len(result) != 1 {
+		t.Fatalf("expected one JSON entry, got %v (%v)", result, err)
+	}
+	if _, exists := result[0]["session_id"]; exists || entries[0].SessionID != "private-session" {
+		t.Fatal("tool projection exposed or mutated the stored session")
+	}
+	if result[0]["title"] != "Test" || result[0]["importance"] != float64(4) {
+		t.Fatalf("tool projection lost entry fields: %v", result[0])
 	}
 }
 
