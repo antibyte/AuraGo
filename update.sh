@@ -1708,11 +1708,11 @@ else
 fi
 
 # ── Detect install mode ───────────────────────────────────────────────────
-# Binary-only installs (no .git directory) are fully supported.
+# A Git checkout has .git metadata as a directory or a worktree file.
 BINARY_ONLY=false
 PRE_UPDATE_REF=""
 GIT_VER=""
-if [ ! -d "$DIR/.git" ]; then
+if [ ! -e "$DIR/.git" ] && [ ! -L "$DIR/.git" ]; then
     BINARY_ONLY=true
 fi
 
@@ -2143,45 +2143,14 @@ copy_tree_merge() {
     fi
 }
 
-repair_worktree_permissions() {
-    # Make changed tracked files and parent directories writable so git can
-    # overwrite/unlink them during update.
-    local changed
-    changed="$(git -C "$DIR" status --porcelain --untracked-files=no 2>/dev/null | awk '{print $2}')"
-    [ -n "$changed" ] || return 0
-
-    while IFS= read -r rel; do
-        [ -n "$rel" ] || continue
-        local abs="$DIR/$rel"
-        local parent
-        parent="$(dirname "$abs")"
-
-        if [ -e "$abs" ]; then
-            chmod u+rw "$abs" 2>/dev/null || true
-            if [ ! -w "$abs" ] && command -v sudo >/dev/null 2>&1; then
-                $SUDO chown "$(id -u):$(id -g)" "$abs" 2>/dev/null || true
-                $SUDO chmod u+rw "$abs" 2>/dev/null || true
-            fi
-        fi
-
-        chmod u+rwx "$parent" 2>/dev/null || true
-        if [ ! -w "$parent" ] && command -v sudo >/dev/null 2>&1; then
-            $SUDO chown "$(id -u):$(id -g)" "$parent" 2>/dev/null || true
-            $SUDO chmod u+rwx "$parent" 2>/dev/null || true
-        fi
-    done <<< "$changed"
-}
-
-clean_tracked_changes() {
-    # Reset only tracked changes; user data/custom files are restored from backup.
-    repair_worktree_permissions
-
-    git -C "$DIR" restore --source=HEAD --staged --worktree . 2>/dev/null || true
-    git -C "$DIR" checkout -- . 2>/dev/null || true
-    git -C "$DIR" reset --quiet HEAD 2>/dev/null || true
-
-    # Return success if tracked changes are gone.
-    git -C "$DIR" diff --quiet && git -C "$DIR" diff --cached --quiet
+require_clean_source_checkout() {
+    local tracked_changes
+    tracked_changes="$(git -C "$DIR" status --porcelain --untracked-files=no --ignore-submodules=none)" || return 1
+    if [ -n "$tracked_changes" ]; then
+        warn "The checkout contains staged or unstaged tracked changes:"
+        printf '%s\n' "$tracked_changes" >&2
+        return 1
+    fi
 }
 
 GIT_LOCAL_AHEAD=0
@@ -2221,8 +2190,8 @@ integrate_origin_main() {
 
     if $FORCE_RESET; then
         warn "Branches have diverged. --force-reset was supplied; resetting tracked files to origin/main."
-        if git -C "$DIR" reset --hard origin/main; then
-            ok "Hard reset complete."
+        if git -C "$DIR" reset --keep origin/main; then
+            ok "Reset complete."
             return 0
         fi
         GIT_INTEGRATION_ERROR="force_reset_failed"
@@ -2254,9 +2223,11 @@ integrate_origin_main() {
     fi
 
     if git -C "$DIR" rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
-        git -C "$DIR" merge --abort >/dev/null 2>&1 || \
-            git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || true
-        GIT_INTEGRATION_ERROR="merge_conflict"
+        if git -C "$DIR" merge --abort; then
+            GIT_INTEGRATION_ERROR="merge_conflict"
+        else
+            GIT_INTEGRATION_ERROR="merge_abort_failed"
+        fi
     else
         GIT_INTEGRATION_ERROR="merge_failed"
     fi
@@ -2542,6 +2513,9 @@ if $BINARY_ONLY; then
     echo ""
     confirm "Proceed with update to $RELEASE_TAG?" || { info "Update cancelled."; exit 0; }
 else
+    if [ "$(git -C "$DIR" rev-parse --show-toplevel)" != "$DIR" ]; then
+        die "Invalid Git checkout at $DIR. Repair its Git metadata before updating."
+    fi
     if ! git_fetch_origin_main; then
         die "Failed to fetch updates from GitHub without interactive authentication. Verify network access and the origin URL, then retry."
     fi
@@ -2583,6 +2557,7 @@ else
         echo ""
     fi
 
+    require_clean_source_checkout || die "Source update requires a clean tracked checkout. Commit or save local changes and retry."
     confirm "Proceed with update?" || { info "Update cancelled."; exit 0; }
 fi
 
@@ -2856,6 +2831,7 @@ abort_before_file_changes() {
     # This helper restarts the unchanged install itself; the EXIT handler must not repeat it.
     UPDATE_RECOVERY=done
     if restart_unchanged_after_failed_stop; then
+        if [ "${UPDATE_OUTCOME:-}" = pending ]; then update_manifest rolled_back; fi
         if [ "$PRE_START_MODE" = "stopped" ]; then
             die "${reason} AuraGo was not running before the update; no restart was needed and no update files were touched."
         fi
@@ -2863,6 +2839,10 @@ abort_before_file_changes() {
     fi
     die "${reason} AuraGo could not be restarted automatically and is currently stopped. Start it manually with 'sudo systemctl start aurago' or './start.sh'. No update files were touched."
 }
+
+if ! $BINARY_ONLY; then
+    require_clean_source_checkout || die "The checkout changed during update preparation. AuraGo was not stopped."
+fi
 
 # From here on AuraGo may be down: an INT/TERM or unexpected failure must
 # restore service (see update_recover_interrupted).
@@ -3207,7 +3187,7 @@ restore_service_stop_timeout_dropin() {
 
 abort_update() {
     local msg="$1"
-    local rollback_ok=true
+    local rollback_ok=true current_ref
     # The rollback below is the recovery; die/exit must not trigger it again.
     UPDATE_RECOVERY=done
     warn "Update failed after shutdown; rolling back to the previous working state."
@@ -3215,29 +3195,35 @@ abort_update() {
         timeout 60s $SUDO systemctl stop aurago >/dev/null 2>&1 || true
     fi
     _kill_proc "updated AuraGo" "bin/aurago_linux" "bin/aurago" >/dev/null 2>&1 || true
-    restore_previous_aurago_binary || rollback_ok=false
-    if [ -n "${PRE_UPDATE_REF:-}" ] && [ -d "$DIR/.git" ]; then
-        git -C "$DIR" reset --hard "$PRE_UPDATE_REF" >/dev/null 2>&1 || rollback_ok=false
+    if [ -n "${PRE_UPDATE_REF:-}" ]; then
+        if ! current_ref="$(git -C "$DIR" rev-parse HEAD)" || ! require_clean_source_checkout; then
+            warn "Rollback could not verify the Git checkout is clean."
+            update_manifest uncertain
+            die "${msg} AuraGo was not restarted. Recover the installation from $BACKUP_DIR before starting it."
+        fi
+        if [ "$current_ref" != "$PRE_UPDATE_REF" ]; then
+            git -C "$DIR" reset --keep "$PRE_UPDATE_REF" || { warn "Rollback could not restore the Git revision."; rollback_ok=false; }
+        fi
     fi
-    restore_untracked_merge_collisions_after_failure || rollback_ok=false
-    restore_binary_update_resources_after_failure || rollback_ok=false
-    # Local edits to tracked prompts/skills/tools were reset by the update; the
-    # transaction is deleted by retention once rolled_back, so they must be
-    # back in place before that happens.
-    restore_user_edits_after_failure || rollback_ok=false
-    restore_critical_user_data_after_failure || rollback_ok=false
-    restore_tsnet_state_backup || rollback_ok=false
-    restore_service_stop_timeout_dropin || rollback_ok=false
+    restore_previous_aurago_binary || { warn "Rollback could not restore the previous binary."; rollback_ok=false; }
+    restore_untracked_merge_collisions_after_failure || { warn "Rollback could not restore conflicting untracked files."; rollback_ok=false; }
+    restore_binary_update_resources_after_failure || { warn "Rollback could not restore release resources."; rollback_ok=false; }
+    restore_user_edits_after_failure || { warn "Rollback could not restore custom prompts, tools or skills."; rollback_ok=false; }
+    restore_critical_user_data_after_failure || { warn "Rollback could not restore user configuration or data."; rollback_ok=false; }
+    restore_tsnet_state_backup || { warn "Rollback could not restore Tailscale state."; rollback_ok=false; }
+    restore_service_stop_timeout_dropin || { warn "Rollback could not restore the service stop configuration."; rollback_ok=false; }
+    if ! $rollback_ok; then
+        update_manifest uncertain
+        die "${msg} Rollback is incomplete. AuraGo was not restarted. Recover the installation from $BACKUP_DIR before starting it."
+    fi
     if ! restart_previous_after_rollback; then
         update_manifest uncertain
         die "${msg} The previous files were restored, but AuraGo is stopped; start it manually with 'sudo systemctl start aurago' or './start.sh'."
     fi
     if $NO_RESTART; then
         # Nothing runs to health-check; the file rollback itself is the outcome.
-        if $rollback_ok; then
-            update_manifest rolled_back
-            warn "Files were rolled back; AuraGo was not started (--no-restart). Start it manually with 'sudo systemctl start aurago' or './start.sh'."
-        fi
+        update_manifest rolled_back
+        warn "Files were rolled back; AuraGo was not started (--no-restart). Start it manually with 'sudo systemctl start aurago' or './start.sh'."
     else
         if $rollback_ok && [ "$TSNET_WAS_READY" = ready ]; then
             "$CURRENT_AURAGO_BIN" --config "$DIR/config.yaml" --healthcheck --healthcheck-timeout 30s --healthcheck-require-tsnet || rollback_ok=false
@@ -3410,20 +3396,13 @@ if $BINARY_ONLY; then
 else
     # Git-based update.
     if ! $GIT_UP_TO_DATE; then
-        PRE_UPDATE_REF="$(git -C "$DIR" rev-parse HEAD 2>/dev/null || true)"
+        if ! require_clean_source_checkout; then
+            abort_before_file_changes "The checkout changed after shutdown."
+        fi
+        PRE_UPDATE_REF="$(git -C "$DIR" rev-parse HEAD)" || abort_update "Could not identify the pre-update Git revision."
         if ! prepare_untracked_merge_collisions; then
             abort_update "Update aborted because an untracked file conflicts with incoming repository content."
         fi
-        if ! git diff --quiet || ! git diff --cached --quiet; then
-            info "Cleaning local tracked changes before update..."
-            if ! clean_tracked_changes; then
-                warn "Automatic cleanup of tracked changes failed."
-                warn "Changed files still present:"
-                git -C "$DIR" status --porcelain --untracked-files=no | head -20 || true
-                abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."
-            fi
-        fi
-
         # Integrate the origin/main state already fetched and shown in the
         # changelog. Refetching after shutdown can fail independently and
         # must not leave a reviewed update dependent on a second network call.
@@ -3560,84 +3539,6 @@ if [ -d "$CUSTOM_PROMPTS" ] && [ "$(ls -A "$CUSTOM_PROMPTS")" ]; then
 fi
 
 ok "All user data preserved."
-
-# ── Offer to migrate .env → /etc/aurago/master.key ─────────────────────
-# If .env is still in the install directory, offer to move the key to a
-# root-owned credential file outside the application directory.
-# This is the same mechanism used by install.sh for new systemd installs.
-ENV_FILE="$DIR/.env"
-CREDENTIAL_DIR="/etc/aurago"
-CREDENTIAL_FILE="${CREDENTIAL_DIR}/master.key"
-
-if [ -f "$ENV_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$ENV_FILE"; then
-    # Only offer if not already migrated
-    if [ -f "$CREDENTIAL_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
-        info "Master key already exists at $CREDENTIAL_FILE."
-        info "Removing leftover $ENV_FILE ..."
-        rm -f "$ENV_FILE"
-        ok "Removed $ENV_FILE (key is in $CREDENTIAL_FILE)."
-    else
-        echo ""
-        tui_box warn "SECURITY RECOMMENDATION" \
-            "Your vault master key is stored in ${BOLD}.env${NC} inside the AuraGo" \
-            "directory. This file is readable by your user account." \
-            "" \
-            "It is ${BOLD}strongly recommended${NC} to move it to a root-protected" \
-            "location at ${BOLD}/etc/aurago/master.key${NC} (mode 0600, root:root)." \
-            "systemd will inject it automatically — no manual sourcing."
-        echo ""
-
-        if confirm "Move master key to /etc/aurago/master.key? (strongly recommended)"; then
-            AURAGO_MASTER_KEY="$(read_master_key_from_env "$ENV_FILE")"
-            if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
-                warn "Could not read AURAGO_MASTER_KEY from .env — skipping migration."
-            else
-                $SUDO mkdir -p "$CREDENTIAL_DIR"
-                $SUDO chmod 700 "$CREDENTIAL_DIR"
-                printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | $SUDO tee "$CREDENTIAL_FILE" > /dev/null
-                $SUDO chmod 600 "$CREDENTIAL_FILE"
-                $SUDO chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
-                rm -f "$ENV_FILE"
-                ok "Master key moved to $CREDENTIAL_FILE (root-only, mode 0600)."
-                ok "Removed $ENV_FILE."
-
-                # Update systemd unit if it exists and still references .env
-                SVC_FILE="/etc/systemd/system/aurago.service"
-                if [ -f "$SVC_FILE" ]; then
-                    if grep -q "EnvironmentFile=.*\.env" "$SVC_FILE" || grep -q "Environment=.*AURAGO_MASTER_KEY" "$SVC_FILE"; then
-                        info "Updating systemd unit to use $CREDENTIAL_FILE ..."
-                        # Replace EnvironmentFile pointing to .env
-                        $SUDO sed -i "s|EnvironmentFile=.*\.env|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
-                        # Replace inline Environment= with EnvironmentFile=
-                        $SUDO sed -i "s|Environment=\"AURAGO_MASTER_KEY=.*\"|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
-                        # Remove dash prefix (fail-silent) if present
-                        $SUDO sed -i "s|EnvironmentFile=-|EnvironmentFile=|g" "$SVC_FILE"
-                        # Add security hardening if not already present
-                        if ! grep -q "NoNewPrivileges" "$SVC_FILE"; then
-                            $SUDO sed -i "/^\[Install\]/i\\
-# Security hardening\\
-NoNewPrivileges=true\\
-ProtectSystem=strict\\
-ReadWritePaths=${DIR} ${CREDENTIAL_DIR}\\
-ProtectHome=read-only\\
-PrivateTmp=true" "$SVC_FILE"
-                        fi
-                        $SUDO systemctl daemon-reload
-                        ok "systemd unit updated and reloaded."
-                    fi
-                fi
-
-                echo ""
-                tui_box ok "MASTER KEY SECURED" \
-                    "Location: ${BOLD}/etc/aurago/master.key${NC} (root-only, mode 0600)" \
-                    "The key is injected into AuraGo via systemd." \
-                    "${YELLOW}Back up this file! Losing it = losing your vault.${NC}"
-            fi
-        else
-            warn "Keeping .env in place. You can migrate later by re-running this update."
-        fi
-    fi
-fi
 
 # ── Merge config.yaml ──────────────────────────────────────────────────
 section "Merging configuration"

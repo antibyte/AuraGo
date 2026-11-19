@@ -73,7 +73,9 @@ The installer always installs the latest release. For an older version, use the 
 
 ### Step 1: Download
 
-Download two files from the [GitHub Releases](https://github.com/antibyte/AuraGo/releases) page:
+Stage the executable and `resources.dat` from the same tagged release in a
+separate directory. Complete [manual release verification](release-signatures.md#verify-a-manual-release)
+before running the executable or unpacking resources.
 
 | File | Description |
 |---|---|
@@ -216,17 +218,24 @@ cd ~/aurago
 ./update.sh
 ```
 
-**Manual install:** replace the executable (on arm64 download `aurago_linux_arm64`):
+**Manual install (Linux, macOS, Windows):**
 
-```bash
-cd ~/aurago
-curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux
-chmod +x aurago
-# Restart
-sudo systemctl restart aurago   # or just ./aurago
-```
-
-`resources.dat` does **not** need to be re-extracted — the setup skips files that already exist (especially `config.yaml` is never overwritten).
+1. Download the matching executable and `resources.dat` into a staging
+   directory. [Verify both files](release-signatures.md#verify-a-manual-release)
+   before stopping AuraGo or replacing any installed files.
+2. Stop the running instance and pause any automatic restart. Take a restorable
+   backup of the entire installation, including `config.yaml`, the original
+   master key and all data. Include any configured data directories or key files
+   outside the installation. Keep the backup private.
+3. Copy both verified files into the installation. Keep the executable name
+   used by your service or scheduled task. From the installation directory, run
+   the executable with `--setup` to install the matched resources, then with
+   `--check-assets` to verify the installed pair. Make the original master key
+   available to setup if the normal service supplies it. On Unix, set the
+   executable permission before running it.
+4. Restart your normal instance and confirm readiness. If setup, asset
+   verification or startup fails, stop the candidate and restore the previous
+   installation and any external data from the same backup before restarting.
 
 ---
 

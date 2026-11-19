@@ -84,9 +84,9 @@ func InstallDir(configPath string) string {
 	return d
 }
 
-// IsBinaryInstall returns true when the install dir has no .git directory.
+// IsBinaryInstall returns true when the install dir has no .git metadata entry.
 func IsBinaryInstall(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, ".git"))
+	_, err := os.Lstat(filepath.Join(dir, ".git"))
 	return os.IsNotExist(err)
 }
 

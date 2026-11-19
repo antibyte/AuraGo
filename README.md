@@ -250,7 +250,7 @@ cd AuraGo
 docker compose up -d
 ```
 
-Open **http://localhost:8088**. The stack uses persistent volumes and a restricted Docker socket proxy; it creates a vault key if none is supplied. Back up the data and key. [Docker guide](documentation/docker_installation.md).
+Open **https://localhost:8443**. The stack uses persistent volumes and creates a vault key if none is supplied. Host Docker access is optional. Back up the data and key. [Docker guide](documentation/docker_installation.md).
 
 </details>
 

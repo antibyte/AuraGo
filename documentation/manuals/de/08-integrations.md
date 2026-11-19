@@ -1863,7 +1863,7 @@ AuraGo kann **statische Sites / Homepages** per Agent-Tools anlegen, bearbeiten,
 | Build & Deploy | `homepage_deploy`, `homepage_quality` |
 | Design-Regeln | Globales `prompts/rules/homepage/DESIGN.md`; projekt-eigenes `DESIGN.md` nur als Design-Kontext |
 
-**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der Standard-Socket-Proxy aus Compose lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
+**Docker-Socket-Proxy:** Das Homepage-Tool baut sein Dev-Image `aurago-homepage:latest` bei der ersten Nutzung. Der optionale Compose-Socket-Proxy lehnt Builds ab (`BUILD=0`); `init` scheitert dann mit `homepage_image_build_forbidden`, und **Config → Homepage** zeigt den Befehl, mit dem du das Image auf dem Docker-Host baust: `docker exec aurago /app/aurago --print-homepage-dockerfile | docker build -t aurago-homepage:latest -`. Siehe [Docker-Socket-Sicherheit](../../docker_installation.md#4-docker-socket-security).
 
 Vor größeren Änderungen `list_history`, danach `add_history`. Bei `init_project` automatische Registrierung.
 
@@ -2711,7 +2711,7 @@ Solange der erste Build des Images mit Ratenbegrenzung oder das erste Herunterla
 #### AuraGo in Docker (Compose)
 Läuft AuraGo selbst in einem Container, existieren seine Pfade und sein Containername nur innerhalb von Docker. Der Proxy bindet dann das Datenvolume von AuraGo ein (Docker Engine 26 oder neuer, für Volume-Unterpfade) oder dessen Bind-Mount-Datenverzeichnis, tritt dem nicht-internen Netzwerk von AuraGo bei (bei Compose das `default`-Netzwerk des Projekts) und erreicht AuraGo über den Containernamen. Ohne ein solches Netzwerk nutzt er `host.docker.internal` und den veröffentlichten Port von AuraGo. Da der Proxy-Container am Compose-Netzwerk hängt, drückst du **Entfernen**, bevor `docker compose down` dieses Netzwerk löscht.
 
-Der Socket-Proxy aus der Standard-Compose-Datei behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt du `BUILD=1` beim Dienst `docker-proxy`, oder du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
+Der optionale Compose-Socket-Proxy behält `BUILD=0`, dort kann AuraGo das Image für die Ratenbegrenzung also nicht bauen. Entweder setzt du `BUILD=1` beim Dienst `docker-proxy`, oder du baust das Image einmalig auf dem Docker-Host. AuraGo verwendet ein vorhandenes Image mit genau diesem Tag wieder; er gehört zu den festen Caddy- und Modulversionen dieses AuraGo-Release:
 
 ```bash
 docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'

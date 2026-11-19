@@ -58,6 +58,19 @@ func TestCheckUpdatesBinaryUnknownVersionAllowsInstallation(t *testing.T) {
 	}
 }
 
+func TestIsBinaryInstallRecognizesGitWorktreeFile(t *testing.T) {
+	dir := t.TempDir()
+	if !IsBinaryInstall(dir) {
+		t.Fatal("an installation without Git metadata must be treated as binary")
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: ../source/.git/worktrees/test\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if IsBinaryInstall(dir) {
+		t.Fatal("a Git worktree metadata file must select source mode")
+	}
+}
+
 func TestCheckUpdatesGitCountsPendingCommits(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dir, ".git"), 0o755); err != nil {

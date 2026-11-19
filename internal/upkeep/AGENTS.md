@@ -73,6 +73,12 @@ The updater owns transaction manifests; this package verifies them before collec
   Builders still sign and verify the finished manifest before publication;
   `AURAGO_ALLOW_UNSIGNED_RELEASES=1` only controls explicit legacy publication.
   See `internal/releaseverify/AGENTS.md` and `documentation/release-signatures.md`.
+- A local `.git` directory or worktree file selects source mode. Any staged or
+  unstaged tracked change blocks a source update before shutdown. Recheck before
+  integration and use non-destructive Git rollback. An incomplete rollback
+  remains unresolved and must leave the service stopped.
+- Updates retain the current master-key storage, including legacy `.env` files.
+  A key migration is a separate operator action.
 - Updater self-refresh downloads into a private same-filesystem temporary file,
   verifies the signed manifest's asset checksum and sets executable permissions
   before atomic replacement. Failure or interruption preserves the installed

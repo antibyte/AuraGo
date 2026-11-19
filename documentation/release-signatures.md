@@ -28,14 +28,66 @@ Missing, damaged or oversized signatures stop official installations and updates
 before payload installation or service shutdown. `AURAGO_ALLOW_UNSIGNED_RELEASES`
 does not bypass this consumer policy. Unsigned local development builds are separate.
 
-Historical keyless releases use automatically provisioned, pinned Cosign v3.1.4,
+Keyless releases use automatically provisioned, pinned Cosign v3.1.4,
 retaining the GitHub Actions issuer and repository identity checks. The ordinary
 keyed path does not download Cosign. An explicit `AURAGO_RELEASE_PUBLIC_KEY` remains
 an operator/fork override; it never falls back to a certificate or the AuraGo root.
 Unsupported custom key types are checked by pinned Cosign. Legacy unsigned forks
 retain the previous optional policy unless strict verification or a key is set.
 
-### Bootstrap publication and reproducibility
+## Verify a manual release
+
+Use an empty, private staging directory. Download the platform executable,
+`resources.dat`, `SHA256SUMS` and `SHA256SUMS.sig` from the same
+[GitHub release tag](https://github.com/antibyte/AuraGo/releases). Keep the
+original filenames until verification is complete. If the tag includes
+`SHA256SUMS.pem`, download it and follow the keyless branch below.
+
+### Releases with the AuraGo public-key signature
+
+1. Get the platform's small verifier from the immutable
+   [release-verifier-v1 bootstrap release](https://github.com/antibyte/AuraGo/releases/tag/release-verifier-v1).
+   Check its byte size and SHA-256 against the corresponding entry in the
+   [reviewed bootstrap pins](../scripts/release-verifier.json). Use `sha256sum`
+   on Linux, `shasum -a 256` on macOS, or `Get-FileHash -Algorithm SHA256` on
+   Windows. Only execute the verifier after both checks match.
+2. Verify the manifest using the trusted verifier's embedded public key:
+
+   ```bash
+   chmod +x ./release-verifier_linux_amd64
+   ./release-verifier_linux_amd64 --manifest SHA256SUMS --signature SHA256SUMS.sig
+   ```
+
+   Use the actual verifier filename for your platform. For example on Windows:
+
+   ```powershell
+   .\release-verifier_windows_amd64.exe --manifest SHA256SUMS --signature SHA256SUMS.sig
+   ```
+
+   If the release publishes a successor keyring, download both
+   `release-keyring.json` and `release-keyring.json.sig` from the same tag and
+   add `--keyring release-keyring.json --keyring-signature release-keyring.json.sig`.
+   A failed verification ends the procedure.
+
+### Releases with a GitHub Actions certificate
+
+For a release accompanied by `SHA256SUMS.pem`, use a trusted installation of
+[Cosign](https://docs.sigstore.dev/cosign/system_config/installation/) and verify
+the signature, AuraGo repository identity and GitHub OIDC issuer together:
+
+```sh
+cosign verify-blob --certificate SHA256SUMS.pem --signature SHA256SUMS.sig --certificate-identity-regexp '^https://github[.]com/antibyte/AuraGo/' --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' SHA256SUMS
+```
+
+### Verify both payloads against the signed manifest
+
+After the manifest verification succeeds, calculate the SHA-256 of the exact
+platform executable and `resources.dat` with the platform hash command above.
+Compare both results to their exact filenames in the verified manifest. Stop
+if an entry is missing or differs. After both match, rename and install the
+verified files.
+
+## Bootstrap publication and reproducibility
 
 `python scripts/build-release-verifier.py --check` rebuilds Linux/macOS/Windows
 amd64/arm64 helpers with pinned Go 1.27.2, CGO disabled, trimpath, no VCS stamping and

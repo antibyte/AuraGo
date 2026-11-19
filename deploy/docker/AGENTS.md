@@ -16,6 +16,13 @@ This folder owns the Ansible, Browser Automation and browser-egress Dockerfiles,
 - Compose names these Dockerfiles explicitly. Native auto-builds also find them under `deploy/docker/`, retaining context-root Dockerfiles for existing custom build contexts.
 - Root `Dockerfile` copies `docker-entrypoint.sh` to `/app/docker-entrypoint.sh`; `.dockerignore` must include that source despite the general shell-script exclusion.
 - Release cleanup must preserve this entire source folder.
+- The base Compose file starts without Docker API access. `compose.docker-access.yml`
+  provides the opt-in socket proxy, private control network and AuraGo dependency.
+  Keep proxy permissions, image pins and the operator migration guide in sync.
+- Publish fresh container configs and fallback keys by same-directory replacement.
+  Recover empty configs with container HTTPS port 8443, preserving explicit
+  settings in existing deployments. Read external key files as the container UID
+  and report access errors without printing the key.
 - The entrypoint preserves /app/data/.env and queries the backend loader through `config-merger -data-dir <config>` before Vault setup. Check vault.bin in that resolved directory; a missing original key refuses startup, including nested/custom Egg data directories. The query performs no state initialization or writes.
 
 ## Work Guidance

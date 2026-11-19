@@ -38,13 +38,22 @@ read_master_key_from_env_file() {
     printf '%s' "$raw"
 }
 
-persist_master_key_fallback() {
-    local key="$1"
-    if [ -z "$key" ]; then
-        return 0
+persist_master_key_fallback() (
+    local key="$1" pending
+    umask 077
+    pending="$(mktemp "$ENV_FILE.XXXXXX")" || exit 1
+    trap 'rm -f -- "$pending"' EXIT
+    printf 'AURAGO_MASTER_KEY="%s"\n' "$key" > "$pending" &&
+        mv -fT -- "$pending" "$ENV_FILE"
+)
+
+read_master_key_file() {
+    local path="$1" raw
+    if ! raw="$(cat -- "$path")"; then
+        echo "[Entrypoint] FATAL: Cannot read master key file $path as UID $(id -u)." >&2
+        return 1
     fi
-    printf 'AURAGO_MASTER_KEY="%s"\n' "$key" > "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
+    printf '%s' "$raw" | tr -d '[:space:]'
 }
 
 is_valid_master_key() {
@@ -131,21 +140,25 @@ elif [ -d "$LEGACY_USER_CONFIG" ]; then
     echo "[Entrypoint] =========================================================="
 fi
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "[Entrypoint] No config.yaml found, creating initial configuration..."
+config_is_empty() {
+    local status=0
+    [ -f "$1" ] && [ -r "$1" ] || return 1
+    grep -qEv '^[[:space:]]*(#.*)?$' "$1" || status=$?
+    [ "$status" -eq 1 ]
+}
 
-    FRESH_CONFIG=false
-    if [ -n "$USER_CONFIG" ] && [ -f "$USER_CONFIG" ]; then
+publish_initial_config() (
+    local pending
+    umask 077
+    pending="$(mktemp "$CONFIG_FILE.XXXXXX")" || exit 1
+    trap 'rm -f -- "$pending"' EXIT
+    if [ "$FRESH_CONFIG" = false ]; then
         echo "[Entrypoint] Using user-supplied config from $USER_CONFIG..."
-        cp "$USER_CONFIG" "$CONFIG_FILE"
+        cp -- "$USER_CONFIG" "$pending" || exit 1
     elif [ -f "$TEMPLATE_FILE" ]; then
-        echo "[Entrypoint] No user config found — copying built-in template to $CONFIG_FILE"
-        FRESH_CONFIG=true
-        cp "$TEMPLATE_FILE" "$CONFIG_FILE"
+        cp -- "$TEMPLATE_FILE" "$pending" || exit 1
     else
-        FRESH_CONFIG=true
-        echo "[Entrypoint] Creating minimal config..."
-        cat > "$CONFIG_FILE" << 'EOF'
+        cat > "$pending" << 'EOF' || exit 1
 server:
     port: 8088
     host: 0.0.0.0
@@ -158,13 +171,31 @@ docker:
     allow_host_access: false
 EOF
     fi
-    
-    normalize_file "$CONFIG_FILE"
-    chmod 600 "$CONFIG_FILE"
+    normalize_file "$pending"
     if [ "$FRESH_CONFIG" = true ]; then
-        /app/aurago --config "$CONFIG_FILE" --init-only --https=true --host=0.0.0.0 --cert-mode=selfsigned --https-port=8443 --http-port=0 || exit 1
+        /app/aurago --config "$pending" --init-only --https=true --host=0.0.0.0 --cert-mode=selfsigned --https-port=8443 --http-port=0 || exit 1
+    fi
+    mv -fT -- "$pending" "$CONFIG_FILE"
+)
+
+# Recover the exact template left by an interrupted older first boot only
+# while the resolved data directory still has no Vault.
+FRESH_CONFIG=false
+RECOVER_INITIAL_CONFIG=false
+if [ -f "$CONFIG_FILE" ] && cmp -s "$CONFIG_FILE" "$TEMPLATE_FILE" &&
+   INITIAL_DATA_DIR="$("$MERGER_BIN" -data-dir "$CONFIG_FILE")" &&
+   [ ! -e "$INITIAL_DATA_DIR/vault.bin" ] && [ ! -L "$INITIAL_DATA_DIR/vault.bin" ]; then
+    RECOVER_INITIAL_CONFIG=true
+fi
+
+if [ ! -e "$CONFIG_FILE" ] || config_is_empty "$CONFIG_FILE" || [ "$RECOVER_INITIAL_CONFIG" = true ]; then
+    if [ -z "$USER_CONFIG" ] || config_is_empty "$USER_CONFIG"; then
+        FRESH_CONFIG=true
+    fi
+    publish_initial_config
+    if [ "$FRESH_CONFIG" = true ]; then
         echo "[Entrypoint] HTTPS uses container port 8443 with a local certificate."
-        echo "[Entrypoint] Open https://localhost (Compose default), or your configured published HTTPS port."
+        echo "[Entrypoint] Open https://localhost:8443 (Compose default), or your configured published HTTPS port."
     fi
     echo "[Entrypoint] Initial config created successfully"
 fi
@@ -278,10 +309,12 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
 
     if [ -f "$DOCKER_SECRET" ]; then
         echo "[Entrypoint] Loading master key from Docker secret ($DOCKER_SECRET)"
-        export AURAGO_MASTER_KEY="$(cat "$DOCKER_SECRET" | tr -d '[:space:]')"
+        AURAGO_MASTER_KEY="$(read_master_key_file "$DOCKER_SECRET")" || exit 1
+        export AURAGO_MASTER_KEY
     elif [ -n "$OPTIONAL_SECRET_FILE" ]; then
         echo "[Entrypoint] Loading master key from optional host secret ($OPTIONAL_SECRET_FILE)"
-        export AURAGO_MASTER_KEY="$(cat "$OPTIONAL_SECRET_FILE" | tr -d '[:space:]')"
+        AURAGO_MASTER_KEY="$(read_master_key_file "$OPTIONAL_SECRET_FILE")" || exit 1
+        export AURAGO_MASTER_KEY
     elif [ -f "$ENV_FILE" ]; then
         echo "[Entrypoint] Loading master key from $ENV_FILE"
         export AURAGO_MASTER_KEY="$(read_master_key_from_env_file "$ENV_FILE")"
@@ -305,13 +338,7 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         echo "⚠️  IMPORTANT: A new Master Key was generated"
         echo "   Saved to: $ENV_FILE (inside container volume)"
         echo ""
-        echo "   BACKUP THIS KEY IMMEDIATELY:"
-        echo "   docker compose exec aurago sh -c 'cat /app/data/.env | grep AURAGO_MASTER_KEY'"
-        echo ""
-        echo "   For better security on next restart, place the key on the host:"
-        echo "   1. mkdir -p secrets"
-        echo "   2. echo '<your-key>' > secrets/aurago_master.key && chmod 600 secrets/aurago_master.key"
-        echo "   3. Restart: docker compose down && docker compose up -d"
+        echo "   Store a protected backup of the data volume and its original key."
         echo "=========================================================================="
     fi
 fi

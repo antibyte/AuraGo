@@ -98,7 +98,7 @@ docker compose up -d
 
 Open **https://localhost**. The image ships volumes and the UI set. It creates a vault key if none is supplied. Keep that key with the backups.
 
-Docker access goes through a restricted socket proxy. It reduces the attack surface but does not contain a compromised AuraGo; see section 4 of the [Docker guide](../../docker_installation.md#4-docker-socket-security).
+The default stack starts without Docker daemon access. To enable Docker management, use the Compose extension in the [Docker guide](../../docker_installation.md#4-docker-socket-security).
 
 Do **not** curl `config.yaml` from the GitHub root — that file is not in the repo. The template is `config_template.yaml`. A host bind named `./config.yaml` easily becomes a directory under Docker. Optional: `config/config.yaml`. Details: [Docker guide](../../docker_installation.md).
 
@@ -109,6 +109,9 @@ Do **not** curl `config.yaml` from the GitHub root — that file is not in the r
 ### Option C: Manual Installation
 
 **Step 1: Download**
+
+[Download and verify the executable and `resources.dat` from the same release](../../release-signatures.md#verify-a-manual-release) before executing or unpacking them.
+
 
 Download from GitHub Releases:
 
@@ -322,14 +325,14 @@ cd ~/aurago
 ./update.sh
 ```
 
-### Manual Installation (Option C)
-Replace the executable (on arm64 download `aurago_linux_arm64`):
-```bash
-cd ~/aurago
-curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux
-chmod +x aurago
-sudo systemctl restart aurago
-```
+### Manual installation (Option C)
+
+[Verify the target release's executable and resources](../../release-signatures.md#verify-a-manual-release)
+in a staging directory. Stop AuraGo and back up the existing installation,
+including its configuration, data and original key. Install the verified pair
+together. Run `--setup` and `--check-assets` before restarting the service.
+Restore the entire previous installation if any step fails. See the
+[installation guide](../../installation.md#updating) for the exact sequence.
 
 ### Docker
 ```bash

@@ -1,14 +1,14 @@
+# Host Docker access is opt-in via deploy/docker/compose.docker-access.yml.
 services:
   aurago:
     # Pre-built image from GitHub Container Registry (recommended).
     #
     # Tag strategy:
     #   latest   — latest stable release (default for release installs)
-    #   main     — current main branch
     #   v1.2.3   — pinned stable release
     #
     # Override with AURAGO_IMAGE_TAG if desired, e.g.:
-    #   AURAGO_IMAGE_TAG=main docker compose up -d
+    #   AURAGO_IMAGE_TAG=<release-tag> docker compose up -d
     #   AURAGO_IMAGE_TAG=v1.2.3 docker compose up -d
     image: ghcr.io/antibyte/aurago:${AURAGO_IMAGE_TAG:-latest}
 
@@ -34,9 +34,6 @@ services:
 
     # --- Environment ---
     environment:
-      # Connect to Docker via the docker-proxy service (recommended).
-      # If you prefer direct socket access (less secure), see the alternative below.
-      - DOCKER_HOST=tcp://docker-proxy:2375
       # Soft memory limit for the Go runtime (leaves headroom for sidecars).
       - GOMEMLIMIT=1600MiB
       # Time zone of the server clock (default UTC). Schedules such as the person
@@ -76,7 +73,7 @@ services:
       # Mount this as a named volume so installed pip packages survive restarts.
       - aurago_workdir:/app/agent_workspace/workdir
 
-      # Optional but secure host-managed master key directory.
+      # Optional host-managed master key directory (container UID 1001 needs read access).
       # If ./secrets/aurago_master.key exists, AuraGo loads it read-only.
       # If the directory or file is missing, AuraGo auto-generates a key and
       # stores it in /app/data/.env inside the persistent volume.
@@ -87,17 +84,6 @@ services:
 
       # Optional: persist log files on the host for debugging.
       # - ./log:/app/log
-
-      # Docker socket — required for Invasion Control "Docker (Lokal)" deployments.
-      # This allows AuraGo to spawn egg containers on the host Docker daemon.
-      #
-      # SECURITY NOTE: Mounting the Docker socket grants root-equivalent access
-      # to the host. The docker-proxy service below is enabled by default and
-      # provides a safer alternative that only exposes the needed API subset.
-      #
-      # Only uncomment the line below if you explicitly need direct socket access
-      # AND have disabled the docker-proxy service further below.
-      # - /var/run/docker.sock:/var/run/docker.sock:ro
 
     # host.docker.internal resolves to the host machine from inside containers.
     # On Linux Docker Engine (non-Desktop) this is NOT injected automatically —
@@ -137,13 +123,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-    depends_on:
-      docker-proxy:
-        condition: service_healthy
     networks:
       - default
       - aurago-app
-      - docker-control
 
   # ============================================================================
   # Gotenberg Sidecar  — PDF creation, document conversion, screenshots
@@ -374,85 +356,6 @@ services:
   #     # - ./ansible/known_hosts:/home/ansibleuser/.ssh/known_hosts:ro
   #   restart: unless-stopped
 
-  # ============================================================================
-  # Docker Socket Proxy  (ACTIVE — safer alternative to mounting the socket)
-  # ============================================================================
-  # Instead of mounting /var/run/docker.sock directly into the AuraGo container
-  # (which grants root-equivalent host access), this proxy only exposes the API
-  # subset AuraGo actually needs. This is the default and recommended setup.
-  #
-  # SECURITY NOTES:
-  #   - The proxy filters API paths, not request bodies. It reduces attack surface
-  #     but does not contain a compromised AuraGo: container create with host
-  #     binds is allowed. Keep the docker-control network private.
-  #   - The proxy is isolated on the docker-control network, shared only with AuraGo
-  #   - POST=1 allows create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
-  #   - IMAGES=1 + POST=1 allow AuraGo to pull pinned managed sidecar images
-  #     such as go2rtc, Code Studio, and the optional llama.cpp GPU embedding probes
-  #   - BUILD=0 keeps Docker build API access disabled; Code Studio and most managed
-  #     sidecars pull published images. Images AuraGo builds through the Engine API
-  #     (the Homepage dev image on first use, the CommandCode fallback build, local
-  #     Code Studio runtime images, the security proxy's rate-limit Caddy image when
-  #     rate limiting is on) need BUILD=1 or must already exist on the host.
-  #     The browser-automation auto-build needs the Docker CLI, which the AuraGo
-  #     image does not include; build that image on the host if you need it.
-  #   - EXEC=1 is used by the agent's Docker exec, the Homepage tool, Code Studio
-  #     terminals, the built-in OpenSCAD compiler container, the CYD Creator
-  #     builder, Web UI container
-  #     terminals (including the CommandCode Store terminal), the code sandbox
-  #     and security-proxy reloads; see documentation/docker_installation.md §4
-  #     before setting 0
-  #
-  # To switch to direct socket access (NOT recommended):
-  #   1. Uncomment the docker.sock volume mount in the aurago service above.
-  #   2. Change DOCKER_HOST in aurago service to: unix:///var/run/docker.sock
-  #   3. Comment out the docker-proxy service below and remove the depends_on.
-  docker-proxy:
-    # Pinned release tag plus multi-arch index digest; update both together
-    # (refresh procedure: documentation/docker_installation.md §4).
-    image: tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
-    container_name: aurago_docker_proxy
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro  # :ro is no security gain: API calls still pass through the socket
-    environment:
-      - CONTAINERS=1
-      - IMAGES=1
-      - NETWORKS=1
-      - VOLUMES=1
-      - INFO=1          # passive runtime inventory (including NVIDIA container runtime availability)
-      - VERSION=1       # negotiate a mutually supported Engine API before operations
-      - POST=1          # allow create/start/stop/remove (managed sidecars, Software Store, Invasion Control)
-      - BUILD=0          # Docker build API stays disabled; images AuraGo builds itself need BUILD=1 (see SECURITY NOTES)
-      - COMMIT=0
-      - EXEC=1          # agent Docker exec, Homepage tool, Code Studio, OpenSCAD compiler, CYD Creator builder, container terminals, code sandbox, security-proxy reloads; see documentation/docker_installation.md §4 before setting 0
-      - SWARM=0
-    healthcheck:
-      # Enhanced healthcheck: verify both ping and container list API work
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:2375/_ping && wget -q --spider http://localhost:2375/containers/json?limit=1 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-        reservations:
-          cpus: '0.05'
-          memory: 32M
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    networks:
-      - docker-control
 
 volumes:
   aurago_data:
@@ -467,6 +370,4 @@ volumes:
 networks:
   aurago-app:
     name: aurago-app
-    internal: true
-  docker-control:
     internal: true

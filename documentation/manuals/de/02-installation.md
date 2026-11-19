@@ -1,6 +1,6 @@
 # Kapitel 2: Installation
 
-Neue Installationen verwenden HTTPS mit einem lokalen Zertifikat: nativ Port 443 oder 8443, im Docker-Container Port 8443 mit Freigabe auf 443. Nutze die bei der Installation angezeigte Adresse. Bestehende HTTP-Konfigurationen bleiben erhalten. Siehe [HTTPS und Browservertrauen](../../https.md).
+Neue Installationen verwenden HTTPS mit einem lokalen Zertifikat: nativ Port 443 oder 8443, im Docker-Container Port 8443 mit Freigabe auf 8443. Nutze die bei der Installation angezeigte Adresse. Bestehende HTTP-Konfigurationen bleiben erhalten. Siehe [HTTPS und Browservertrauen](../../https.md).
 
 <p align="center">
   <a href="../images/manual-install.webp"><img src="../images/manual-install.webp" width="560" alt="AuraGo-Gopher packt Binary und Ressourcenpaket an der Werkbank aus"></a>
@@ -98,7 +98,7 @@ docker compose up -d
 
 Öffne **https://localhost**. Das Image bringt Volumes und das UI-Paket mit. Es erzeugt einen Vault-Key, wenn keiner gesetzt ist. Key mit den Daten sichern.
 
-Der Docker-Zugriff läuft über einen eingeschränkten Socket-Proxy. Er verkleinert die Angriffsfläche, hält ein kompromittiertes AuraGo aber nicht auf; siehe Abschnitt 4 im [Docker-Guide](../../docker_installation.md#4-docker-socket-security).
+Der Standardstack startet ohne Zugriff auf den Docker-Daemon. Aktiviere Docker-Verwaltung bei Bedarf über die Compose-Erweiterung im [Docker-Guide](../../docker_installation.md#4-docker-socket-security).
 
 Lege **kein** `config.yaml` aus dem GitHub-Root daneben — die Datei existiert im Repo nicht. Vorlage ist `config_template.yaml`. Ein Host-Mount namens `./config.yaml` wird unter Docker leicht zum Verzeichnis. Optional: `config/config.yaml`. Details: [Docker-Guide](../../docker_installation.md).
 
@@ -109,6 +109,9 @@ Lege **kein** `config.yaml` aus dem GitHub-Root daneben — die Datei existiert 
 ### Option C: Manuelle Installation
 
 **Schritt 1: Download**
+
+[Lade und prüfe das Binary und `resources.dat` aus demselben Release](../../release-signatures.md#verify-a-manual-release), bevor Du Dateien ausführst oder entpackst.
+
 
 Lade von GitHub Releases:
 
@@ -320,13 +323,14 @@ cd ~/aurago
 ```
 
 ### Manuelle Installation (Option C)
-Ersetze die Executable (auf arm64 lädst du `aurago_linux_arm64`):
-```bash
-cd ~/aurago
-curl -fSL -o aurago https://github.com/antibyte/AuraGo/releases/latest/download/aurago_linux
-chmod +x aurago
-sudo systemctl restart aurago
-```
+
+[Prüfe Binary und Ressourcen des Ziel-Releases](../../release-signatures.md#verify-a-manual-release)
+in einem separaten Verzeichnis. Stoppe AuraGo und sichere die bisherige
+Installation einschließlich Konfiguration, Daten und Originalschlüssel.
+Übernimm beide geprüften Dateien gemeinsam. Führe `--setup` und danach
+`--check-assets` aus, bevor Du den Dienst neu startest. Stelle bei einem
+Fehler den vollständigen vorherigen Stand wieder her. Die genauen Schritte
+stehen in der [Installationsanleitung](../../installation.md#updating).
 
 ### Docker
 ```bash

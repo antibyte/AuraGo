@@ -195,13 +195,14 @@ func TestUpdateAbortRestoresUserEditsBeforeMarkingRolledBack(t *testing.T) {
 	// Restore failure must keep the transaction unresolved (not rolled_back).
 	root, out, _ := runRecoveryBash(t, []string{abortUpdateStart, abortUpdateEnd}, recoveryPrelude+abortStubs+`
 restore_user_edits_after_failure() { echo "EDITS" >> "$FIXTURE_ROOT/calls"; return 1; }
+restart_previous_after_rollback() { echo "RESTART" >> "$FIXTURE_ROOT/calls"; }
 abort_update "boom"
 `)
 	if readCalls(root) != "EDITS\n" {
-		t.Fatalf("edits restore must run: %q\n%s", readCalls(root), out)
+		t.Fatalf("the failed restore must leave AuraGo stopped: %q\n%s", readCalls(root), out)
 	}
-	if m := readManifestStatus(t, root); strings.Contains(m, "rolled_back") {
-		t.Fatalf("failed edit restore must not mark rolled_back: %s", m)
+	if m := readManifestStatus(t, root); !strings.Contains(m, "uncertain") {
+		t.Fatalf("failed edit restore must mark the transaction uncertain: %s", m)
 	}
 
 	root, out, _ = runRecoveryBash(t, []string{abortUpdateStart, abortUpdateEnd}, recoveryPrelude+abortStubs+`
@@ -276,7 +277,7 @@ func TestUpdateRecoveryContract(t *testing.T) {
 		t.Error("abort_before_file_changes must mark recovery handled before it can exit")
 	}
 	abort := body("abort_update() {", "\nbackup_current_aurago_binary\nbackup_tsnet_state")
-	edits := strings.Index(abort, "restore_user_edits_after_failure || rollback_ok=false")
+	edits := strings.Index(abort, "restore_user_edits_after_failure ||")
 	rolled := strings.Index(abort, "update_manifest rolled_back")
 	cleanup := strings.Index(abort, "update_retention_cleanup")
 	if edits < 0 || rolled < edits || cleanup < edits {

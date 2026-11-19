@@ -38,15 +38,23 @@ func TestDockerInstallationDocStatesSocketProxyResidualRisk(t *testing.T) {
 		}
 	}
 
-	compose := readRepoFile(t, "docker-compose.yml")
+	base := readRepoFile(t, "docker-compose.yml")
+	for _, forbidden := range []string{"docker-proxy:", "docker-control", "DOCKER_HOST=", "/var/run/docker.sock"} {
+		if strings.Contains(base, forbidden) {
+			t.Errorf("base Compose unexpectedly enables host Docker access through %q", forbidden)
+		}
+	}
+	compose := readRepoFile(t, "deploy/docker/compose.docker-access.yml")
 	for _, want := range []string{
 		"does not contain a compromised AuraGo",
+		"DOCKER_HOST=tcp://docker-proxy:2375",
+		"condition: service_healthy",
 		":ro is no security gain",
 		"Homepage tool",
 		"OpenSCAD",
 	} {
 		if !strings.Contains(compose, want) {
-			t.Fatalf("docker-compose.yml proxy comments are missing %q", want)
+			t.Fatalf("Docker-access extension comments are missing %q", want)
 		}
 	}
 

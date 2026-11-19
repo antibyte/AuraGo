@@ -1216,9 +1216,9 @@ func TestGitHubWorkflowsHaveNoFloatingActionRefs(t *testing.T) {
 func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 	t.Parallel()
 
-	proxyBlock := composeServiceBlock(readRepoFile(t, "docker-compose.yml"), "docker-proxy")
+	proxyBlock := composeServiceBlock(readRepoFile(t, "deploy/docker/compose.docker-access.yml"), "docker-proxy")
 	if proxyBlock == "" {
-		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
+		t.Fatal("the Docker-access extension must define the docker-proxy sidecar")
 	}
 	for _, needle := range []string{
 		"security_opt:",
@@ -1240,9 +1240,9 @@ func TestDockerComposeProxySidecarHasHardening(t *testing.T) {
 func TestDockerComposeProxyImageIsPinnedByTagAndDigest(t *testing.T) {
 	t.Parallel()
 
-	proxyBlock := composeServiceBlock(readRepoFile(t, "docker-compose.yml"), "docker-proxy")
+	proxyBlock := composeServiceBlock(readRepoFile(t, "deploy/docker/compose.docker-access.yml"), "docker-proxy")
 	if proxyBlock == "" {
-		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
+		t.Fatal("the Docker-access extension must define the docker-proxy sidecar")
 	}
 	if !composeProxyImagePinned(proxyBlock) {
 		t.Fatal("docker-proxy image must be pinned as tecnativa/docker-socket-proxy:vX.Y.Z@sha256:<digest>")
@@ -1323,9 +1323,9 @@ func TestComposeServiceBlockStopsAtTheNextService(t *testing.T) {
 func TestDockerComposeProxyDoesNotRequireCodeStudioImageBuilds(t *testing.T) {
 	t.Parallel()
 
-	proxyBlock := composeServiceBlock(readRepoFile(t, "docker-compose.yml"), "docker-proxy")
+	proxyBlock := composeServiceBlock(readRepoFile(t, "deploy/docker/compose.docker-access.yml"), "docker-proxy")
 	if proxyBlock == "" {
-		t.Fatal("docker-compose.yml must define the docker-proxy sidecar")
+		t.Fatal("the Docker-access extension must define the docker-proxy sidecar")
 	}
 	if strings.Contains(proxyBlock, "- BUILD=1") {
 		t.Fatal("docker-proxy must not require Docker build API calls for the managed Code Studio image")

@@ -1,6 +1,6 @@
 # AuraGo Docker Installation Guide
 
-AuraGo provides a fully automated Docker deployment with a secure default configuration. The setup uses a Docker socket proxy for safe container management, persistent volumes for your data, and an optional host-managed secret file for the vault master key.
+AuraGo uses persistent Docker volumes for its data and master key. Host Docker access and a host-managed key file are optional.
 
 ## Hardware Requirements
 
@@ -27,22 +27,23 @@ cd ~/aurago-docker
 
 ### Step 2: Download docker-compose.yml
 ```bash
-curl -O https://raw.githubusercontent.com/antibyte/AuraGo/main/docker-compose.yml
+curl -fLO https://raw.githubusercontent.com/antibyte/AuraGo/main/docker-compose.yml
 ```
 
-### Step 3: Create the Master Key (recommended, optional)
+### Step 3: Choose where to keep the master key
 
-Generate the encryption key **before** the first start so it is stored outside the container:
+Start with the automatic key on a new installation. AuraGo stores it in
+`/app/data/.env` in the persistent data volume. Keep a protected backup of that
+file with the Vault and its data volume. Existing installations must keep
+their original key.
 
-```bash
-mkdir -p secrets
-openssl rand -hex 32 > secrets/aurago_master.key
-chmod 600 secrets/aurago_master.key
-```
-
-The `docker-compose.yml` mounts `./secrets` read-only into the container. If `secrets/aurago_master.key` exists, AuraGo loads it on startup without exposing it in the normal config.
-
-> If you skip this step, AuraGo auto-generates a master key on first start and stores it in `/app/data/.env` inside the persistent Docker volume. That works out of the box, but a host-managed key file is better for backup and migration.
+For an optional host-managed key, place the original key (or a new 64-digit
+hexadecimal key for a fresh install) in `secrets/aurago_master.key`. Compose
+mounts `./secrets` read-only. The file must be readable by the container's UID
+1001, including traversal of the mounted directory. For regular rootful Linux
+without user-namespace remapping, grant ownership to UID 1001 and keep mode
+`600`. For remapped or rootless engines use the mapped UID. The automatic volume
+key works without host permission setup.
 
 ### Step 4: Optional host config override
 
@@ -66,7 +67,7 @@ That's it!
 - If `secrets/aurago_master.key` exists, AuraGo loads it as the master key.
 - Otherwise AuraGo auto-generates a key and stores it in `/app/data/.env` inside the persistent volume.
 - A default config is generated inside the container from the built-in template.
-- The Docker socket proxy (`docker-proxy`) starts automatically and provides safe, filtered access to the host Docker daemon.
+- The default stack starts without access to the host Docker daemon. See [Docker Socket Security](#4-docker-socket-security) to enable Docker management.
 - The Web UI is now available at `https://<your-server-ip>:8443`.
 
 Open the Web UI to finish setting up your LLM Provider and API keys!
@@ -109,7 +110,7 @@ your Compose override; see [Quick Connect serial access](quick-connect-serial.md
 > docker logs aurago 2>&1 | grep bootstrap_token
 > ```
 >
-> The log line also contains a path like `/setup#bootstrap=<token>`. Open `https://<your-server-ip>` followed by that path and the wizard fills in the token for you. Each restart creates a new token, and it stops working once setup is finished.
+> The log line also contains a path like `/setup#bootstrap=<token>`. Open `https://<your-server-ip>:8443` (or your configured published HTTPS port) followed by that path and the wizard fills in the token for you. Each restart creates a new token, and it stops working once setup is finished.
 
 ---
 
@@ -120,7 +121,6 @@ The AuraGo Docker image is published to GitHub Container Registry (`ghcr.io/anti
 | Tag | Description | Use Case |
 |-----|-------------|----------|
 | `latest` | Always points to the latest stable release | Default for release installs |
-| `main` | Current main branch build | Testing / unreleased fixes |
 | `v1.2.3` | Pinned to a specific release | Reproducible deployments |
 
 > **Recommendation:** For production, pin to a specific version tag. For example:
@@ -128,11 +128,12 @@ The AuraGo Docker image is published to GitHub Container Registry (`ghcr.io/anti
 > image: ghcr.io/antibyte/aurago:v1.2.3
 > ```
 
-If you want the current branch build instead of the latest release, override the tag without editing the compose file:
-
-```bash
-AURAGO_IMAGE_TAG=main docker compose up -d
-```
+To deploy a specific build, choose a published release tag or pin its
+registry digest in `image:`. The publishing workflow signs AuraGo images with
+Cosign. A normal Compose pull checks image integrity against the registry
+digest. For signature verification, verify the exact digest against the AuraGo
+`docker-publish.yml` GitHub Actions identity and GitHub OIDC issuer before
+deployment.
 
 ---
 
@@ -145,13 +146,11 @@ If you use a Docker management stack like **Dockge** or **Portainer**, deploymen
 2. Create a new stack named `aurago`.
 3. Paste the contents of the `docker-compose.yml` from the AuraGo repository into the editor.
 
-### Step 2: Create the Master Key
-On the host where Docker runs, create the secret file in the stack directory:
-```bash
-mkdir -p secrets
-openssl rand -hex 32 > secrets/aurago_master.key
-chmod 600 secrets/aurago_master.key
-```
+### Step 2: Keep the persistent key
+
+The stack generates a master key on first boot. Back up the persistent data
+volume with its original key. To supply an external key, follow the
+[host-file permission requirements](#step-3-choose-where-to-keep-the-master-key).
 
 ### Step 3: Optional pre-filled config
 
@@ -180,7 +179,23 @@ Access the Web UI at `https://<your-server-ip>` and navigate to the **CONFIG** t
 
 ## 4. Docker Socket Security
 
-By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/docker-socket-proxy`) instead of mounting the Docker socket directly into the AuraGo container. The proxy filters Docker API calls by path; it does not inspect request bodies.
+The base stack has no Docker socket, proxy, or `DOCKER_HOST`. To enable
+Docker Manager, local Invasion deployments or AuraGo-managed containers:
+
+```bash
+curl -fLO https://raw.githubusercontent.com/antibyte/AuraGo/main/deploy/docker/compose.docker-access.yml
+docker compose -f docker-compose.yml -f compose.docker-access.yml up -d
+```
+
+From a source checkout, use `-f deploy/docker/compose.docker-access.yml` for
+the second file. Use the same file list and Compose project for later operations.
+
+**Upgrading from the former default proxy:** Keep the same Compose project,
+named volumes, and key. Save your current Compose file before replacing it.
+To disable Docker access, stop its `docker-proxy` service while the old
+definition is still available, then recreate AuraGo with the new base file.
+To retain Docker integrations, start with both files and carry over any prior
+proxy overrides to the extension.
 
 | | Socket Proxy (default) | Direct Socket Mount |
 |---|---|---|
@@ -190,7 +205,7 @@ By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/
 
 The proxy reduces attack surface but does not contain a compromised AuraGo: container create with host binds is allowed.
 
-The default proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. Keep the `docker-control` network private and do not attach unrelated sidecars to it. The enabled permissions map to these features:
+The opt-in proxy is attached to an internal `docker-control` network that is shared only with the AuraGo container. Keep the `docker-control` network private and do not attach unrelated sidecars to it. The enabled permissions map to these features:
 
 Optional [managed RustFS storage](rustfs.md) uses the existing container/image/volume/network and information/version permissions with `POST=1`. It works with `BUILD=0` and `EXEC=0`; its S3 traffic stays on the shared application network, outside `docker-control`. Enable and operate it from **Configuration → S3**.
 
@@ -219,12 +234,12 @@ Optional [managed RustFS storage](rustfs.md) uses the existing container/image/v
 
 The `:ro` flag on the socket mount (`/var/run/docker.sock:/var/run/docker.sock:ro`) is no security gain: it does not stop API calls through the socket. Access control comes only from the proxy's filters and the private `docker-control` network.
 
-The proxy image is pinned to a release tag plus its multi-arch index digest (`tecnativa/docker-socket-proxy:<tag>@sha256:<digest>`, the version pinned in `docker-compose.yml`); tag and digest always change together. The first `docker compose up -d` after an AuraGo upgrade that changes this image string recreates the `aurago_docker_proxy` container once; that is expected.
+The proxy image is pinned to a release tag plus its multi-arch index digest (`tecnativa/docker-socket-proxy:<tag>@sha256:<digest>`, the version pinned in `compose.docker-access.yml`); tag and digest always change together. The first `docker compose up -d` after an AuraGo upgrade that changes this image string recreates the `aurago_docker_proxy` container once; that is expected.
 
 To refresh the pin (maintainers):
 
 1. Pick the release tag (`vX.Y.Z`; never the moving `latest`, `master` or `nightly` tags) and read its index digest with `docker buildx imagetools inspect tecnativa/docker-socket-proxy:vX.Y.Z` (the `Digest:` line; no running Docker daemon is needed).
-2. Put `tecnativa/docker-socket-proxy:vX.Y.Z@sha256:<digest>` into the `docker-proxy` service in `docker-compose.yml` and run `docker compose -f docker-compose.yml config -q`.
+2. Put `tecnativa/docker-socket-proxy:vX.Y.Z@sha256:<digest>` into the `docker-proxy` service in `compose.docker-access.yml`, then validate the two-file Compose configuration with `config --quiet`.
 
 If the pinned digest ever disappears from Docker Hub, new installs fail to pull it with `manifest unknown`, while existing installs keep running from their cached image (only `docker compose pull` fails) until the pin is refreshed.
 
@@ -234,17 +249,6 @@ Host processes can also have direct access through their OS permissions, a mount
 socket or the `docker-control` network. That access follows the OS or proxy policy.
 Use the isolated executor for shell commands that must run without those permissions.
 Trusted setup and installed compatibility skills keep their own Docker access paths.
-
-### Switching to Direct Socket Access (NOT recommended)
-
-If you have a specific reason to bypass the proxy:
-
-1. In `docker-compose.yml`, comment out the `docker-proxy` service and the `depends_on` block.
-2. Uncomment the `docker.sock` volume mount in the `aurago` service.
-3. Change `DOCKER_HOST` in the `aurago` environment to `unix:///var/run/docker.sock`.
-4. Remove or comment out the `docker-proxy` service block.
-
-> **Warning:** Direct socket access grants root-equivalent access to the host machine. Only use this if you fully trust the AuraGo agent and all its tool calls.
 
 ---
 
@@ -257,7 +261,11 @@ docker compose pull
 docker compose up -d
 ```
 
-This pulls the latest image and restarts the container. Your data is preserved in Docker volumes:
+Before upgrading, record the current image digest and make a consistent backup
+of the stopped data volume and original key. Use the same Compose files and
+project name as your current deployment. Check container health after starting
+the new image. To recover from a failed migration, stop the new image and
+restore the matching pre-upgrade volume and image digest. Your data is preserved in Docker volumes:
 - `aurago_data` — config, memory, chat history, vault, vector DB
 - `aurago_workdir` — Python venv and generated tools
 
@@ -273,7 +281,8 @@ The `aurago_workdir` volume preserves the Python virtual environment across rest
 docker compose down
 
 # Remove the old venv (it will be recreated on next start)
-docker volume rm aurago_aurago_workdir
+project=aurago-docker  # Use your actual Compose project name.
+docker volume rm "${project}_aurago_workdir"
 
 # Restart with new image
 docker compose up -d
@@ -317,20 +326,12 @@ docker compose up -d     # start fresh
 
 ## 6. Migrating an Existing Installation to a Host-Managed Secret File
 
-If you already have a running AuraGo container that stores the key in `data/.env`:
-
-```bash
-# 1. Extract the existing key
-mkdir -p secrets
-docker compose exec aurago cat /app/data/.env | grep AURAGO_MASTER_KEY | cut -d= -f2 | tr -d '"' > secrets/aurago_master.key
-chmod 600 secrets/aurago_master.key
-
-# 2. Restart — the entrypoint now picks up /run/optional-secrets/aurago_master.key
-docker compose down && docker compose up -d
-
-# 3. (Optional) Remove the old .env from the volume
-docker compose exec aurago rm -f /app/data/.env
-```
+Retain a protected backup of the original master key and Vault. Copy the same
+key from the volume's `/app/data/.env` to `secrets/aurago_master.key` without
+printing it to the terminal. Use the host-file ownership and permissions from
+[step 3](#step-3-choose-where-to-keep-the-master-key). Recreate AuraGo with the
+existing Compose project and verify it can open the original Vault. Keep the
+original key backup.
 
 ---
 
@@ -353,10 +354,10 @@ docker compose up -d
 ```
 
 ### Healthcheck fails during first start
-The healthcheck has a 3-minute startup window (`start-period: 180s`) to allow for VectorDB initialization. On very slow systems this may not be enough. You can override it in `docker-compose.yml`:
+The healthcheck has a 5-minute startup window (`start-period: 300s`) to allow for VectorDB initialization. On very slow systems this may not be enough. You can override it in `docker-compose.yml`:
 ```yaml
 healthcheck:
-  start_period: 300s
+  start_period: 420s
 ```
 
 ---
@@ -480,19 +481,14 @@ docker compose logs aurago
 
 **Common issues:**
 
-1. **Master key not found**: Check if `aurago_master.key` exists and has correct permissions:
-   ```bash
-   ls -la aurago_master.key
-   # Should show: -rw------- (600)
-   ```
-
-2. **Port already in use**: Change host port in `docker-compose.yml`
-
-3. **Volume permission issues**:
-   ```bash
-   docker volume rm aurago_aurago_data
-   docker compose up -d
-   ```
+1. **Master key unavailable**: Check the entrypoint logs for the exact path.
+   For the optional `secrets/aurago_master.key`, verify that UID 1001 (or its
+   mapped host UID) can read the private file. Restore the original key for an
+   existing Vault.
+2. **Port already in use**: Set `AURAGO_HTTPS_PORT` to a free host port.
+3. **Volume permission issues**: Find the resolved volume name in the
+   `volumes` section of `docker compose config`, then inspect its ownership and mount
+   options. Back up the volume before repairing permissions.
 
 ### Healthcheck Fails
 
@@ -536,10 +532,11 @@ If container management fails:
 ```bash
 # Stop and remove everything
 docker compose down
-docker volume rm aurago_aurago_data aurago_aurago_workdir
+project=aurago-docker  # Use your actual Compose project name.
+docker volume rm "${project}_aurago_data" "${project}_aurago_workdir"
 
 # Remove master key (if you want to regenerate)
-rm aurago_master.key
+rm secrets/aurago_master.key
 
 # Start fresh
 docker compose up -d
@@ -551,15 +548,15 @@ docker compose up -d
 
 ## 9. Security Checklist
 
-- [ ] Master key created with `chmod 600` permissions
+- [ ] External key file, if supplied, is private and readable by the container UID
 - [ ] Master key backed up securely (password manager, encrypted storage)
-- [ ] Docker socket proxy enabled (not direct socket mount)
+- [ ] Host Docker access enabled only for deployments that need it
 - [ ] Docker socket proxy reachable only through the internal `docker-control` network
 - [ ] `IMAGES=1`, `POST=1`, and `EXEC=1` kept enabled if you use managed Docker features; keep `BUILD=0` unless you explicitly need local Docker image builds
 - [ ] Resource limits configured appropriately for your hardware
 - [ ] SSH keys for Ansible are dedicated keys, not your personal keys
 - [ ] Regular security updates applied to host system
-- [ ] Firewall rules restrict access to port 8088 if needed
+- [ ] Firewall rules limit access to the published HTTPS port and any required legacy HTTP port
 - [ ] Logs reviewed periodically for suspicious activity
 
 ---
@@ -568,7 +565,7 @@ docker compose up -d
 
 For production environments:
 
-1. **Pin image version**: Don't use `latest`, use specific version tag
+1. **Pin image digest**: Record the verified digest used by the deployment.
    ```yaml
    image: ghcr.io/antibyte/aurago:v1.2.3
    ```

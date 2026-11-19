@@ -2945,7 +2945,7 @@ While the first build of the rate-limit image or the first pull of the official 
 #### AuraGo in Docker (Compose)
 When AuraGo itself runs in a container, its paths and its container name only exist inside Docker. The proxy then mounts AuraGo's data volume (Docker Engine 26 or newer, for volume subpaths) or its bind-mounted data directory, joins AuraGo's non-internal network (in Compose the project's `default` network) and reaches AuraGo by container name. Without such a network it falls back to `host.docker.internal` and AuraGo's published port. Because the proxy container is attached to the Compose network, press **Destroy** before `docker compose down` removes that network.
 
-The default Compose socket proxy keeps `BUILD=0`, so AuraGo cannot build the rate-limit image there. Either set `BUILD=1` on the `docker-proxy` service, or build the image once on the Docker host. AuraGo reuses an existing image with exactly this tag, which belongs to the pinned Caddy and module versions of this AuraGo release:
+The opt-in Compose socket proxy keeps `BUILD=0`, so AuraGo cannot build the rate-limit image there. Either set `BUILD=1` on the `docker-proxy` service, or build the image once on the Docker host. AuraGo reuses an existing image with exactly this tag, which belongs to the pinned Caddy and module versions of this AuraGo release:
 
 ```bash
 docker build -t aurago-proxy:ratelimit-2.11.6-5625512f24f6 - <<'EOF'

@@ -2335,21 +2335,19 @@ _go_version_ok() {
     version_ge "$installed" "$GO_VERSION"
 }
 
-if _go_version_ok && $INTERACTIVE_TTY; then
-    export PATH="$GO_INSTALL_DIR/go/bin:$PATH"
-    ok "Go $(go version | awk '{print $3}') found — will build from source."
-    BUILD_FROM_SOURCE=true
-elif _go_version_ok; then
-    ok "Go $(go version | awk '{print $3}') found; non-interactive safe default selects the binary install."
-else
-    info "Go $GO_VERSION+ not found."
+MODE_REPLY=1
+if $INTERACTIVE_TTY; then
     echo ""
     echo -e "  ${BOLD}Choose installation mode:${NC}"
-    echo -e "    ${CYAN}1)${NC} Binary install — download pre-built binaries (no Go needed, fast)"
-    echo -e "    ${CYAN}2)${NC} Source build   — install Go $GO_VERSION, clone repo, build from source"
+    echo -e "    ${CYAN}1)${NC} Binary install — download and verify the signed release"
+    echo -e "    ${CYAN}2)${NC} Source build — clone the repository and build with Go ${GO_VERSION}+"
     echo ""
     prompt_value MODE_REPLY "Install mode [1/2, default=1]: " "1" "1"
-    if [[ "${MODE_REPLY:-1}" == "2" ]]; then
+fi
+if [ "$MODE_REPLY" = 2 ]; then
+    if _go_version_ok; then
+        ok "Go $(go version | awk '{print $3}') found."
+    else
         info "Installing Go $GO_VERSION for $GOARCH..."
         GO_TAR="go${GO_VERSION}.linux-${GOARCH}.tar.gz"
         GO_URL="https://go.dev/dl/${GO_TAR}"
@@ -2366,10 +2364,14 @@ else
 export PATH="/usr/local/go/bin:$PATH"
 GOPATH
         ok "Go $GO_VERSION installed to $GO_INSTALL_DIR/go"
-        BUILD_FROM_SOURCE=true
-    else
-        ok "Binary install selected — no Go required."
     fi
+    BUILD_FROM_SOURCE=true
+else
+    ok "Signed binary install selected — no Go required."
+fi
+
+if ! $BUILD_FROM_SOURCE && { [ -e "$INSTALL_DIR/.git" ] || [ -L "$INSTALL_DIR/.git" ]; }; then
+    die "Refusing to install a binary release over a Git checkout at $INSTALL_DIR. Use update.sh or choose a separate install directory."
 fi
 
 # ══════════════════════════════════════════════════════════════════════════
