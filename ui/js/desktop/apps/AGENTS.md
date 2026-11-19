@@ -438,6 +438,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Docker Manager
 
+- **Clean up** in the toolbar and window menu opens the host and category picker in `docker-manager-dialogs.js`. A host or category change clears the selection. Page checkboxes select visible images only. Volume deletion also requires typing each name. Keep preview available in read-only mode, the size total an estimate, and per-item outcomes visible until refresh. Verify `TestDesktopDockerManagerCleanupBrowser`.
+
 - Load order (module-loader `docker-manager`, pinned by `TestDockerManagerWiring`; `xterm.css`, `xterm.min.js` and `xterm-addon-fit.min.js`
   come first, no WebGL renderer): `docker-manager-model.js` (pure: container
   status and problem derivation, grouping by compose project, search and state filters, the multi-host merge, host health,
@@ -493,7 +495,7 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   single containers, stacks, external projects) and every opened group renders at most 200 entries and ends with "Show 200 more (N hidden)"
   (`data-action="show-more"`; a row of its own in the table, a nested item in the list); Enter on that row works too. The table is patched row
   by row from `views.tbodyItems` (`panes.patchRows`: an unchanged row keeps its element, the roving tab stop and the load cells follow); the
-  Stacks list, bounded now, is still replaced as a whole. Group-level bulk actions come with the cleanup assistant (phase 4).
+  Stacks list, bounded now, is still replaced as a whole.
   The drawer never sits on a row that is not on the page: `openDetail` (row menu, palette Logs and Terminal, service link) first opens the image
   group that holds the container (`Groups.reveal`), the open drawer's row is pinned (listed after the first 200 of its group or section, left out of
   the hidden count), closing a group that holds the drawer's row closes the drawer, and closing the drawer focuses the row, or its group row or the

@@ -66,6 +66,7 @@
             + '<section class="dm-main" aria-label="' + esc(t('nav_stacks')) + '" data-main>'
             + '<div class="dm-toolbar"><div class="dm-search">' + views.glyph('search') + '<input type="search" class="dm-search-input" data-search autocomplete="off" spellcheck="false" placeholder="' + esc(t('search_placeholder')) + '" aria-label="' + esc(t('search_label')) + '"></div>'
             + '<button type="button" class="dm-btn is-primary" data-action="new-stack" data-new-stack data-focus-id="new-stack">' + views.glyph('plus') + '<span>' + esc(t('new_stack')) + '</span></button>'
+            + '<button type="button" class="dm-btn" data-action="cleanup" data-focus-id="cleanup">' + views.glyph('trash') + '<span>' + esc(t('cleanup_title')) + '</span></button>'
             + '<div class="dm-filters" role="group" aria-label="' + esc(t('filter_group')) + '" data-filters>' + filterButtons + '</div>'
             + '<span class="dm-result-count" data-result-count></span><span class="dm-readonly-chip" data-readonly-chip hidden>' + esc(t('readonly_chip')) + '</span>'
             + '<button type="button" class="dm-icon-btn" data-action="palette" data-focus-id="palette" aria-label="' + esc(t('palette_button')) + '" title="' + esc(t('palette_button')) + ' (Ctrl+K)">' + views.glyph('command') + '</button>'
@@ -468,6 +469,7 @@
                 { label: t('palette_button'), action: () => openPalette() },
                 { type: 'separator' },
                 { label: t('manage_hosts'), icon: 'server', action: () => dialogs.openHosts() },
+                { label: t('cleanup_title'), icon: 'trash', action: () => dialogs.openCleanup() },
                 { label: t('host_add'), disabled: !store.canEditHosts(), action: () => dialogs.openHostForm(null) },
                 { type: 'separator' },
                 ...sm.SECTIONS.map(name => ({ label: t('nav_' + name), checked: ui.section === name, action: () => void setSection(name) })),
@@ -816,6 +818,7 @@
                 case 'pick-host': void pickHost(el.dataset.hostId); break;
                 case 'pick-section': setSection(el.dataset.section); break;
                 case 'manage-hosts': dialogs.openHosts(); break;
+                case 'cleanup': dialogs.openCleanup(); break;
                 case 'refresh': void store.refresh({ force: true }); break;
                 case 'toggle-group': toggleGroup(el.dataset.groupKey); break;
                 case 'show-more': showMore(el.dataset.moreKey); break;

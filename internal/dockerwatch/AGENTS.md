@@ -20,6 +20,8 @@
 
 ## Work guidance
 
+- After a cleanup batch, `InvalidateDiskUsage(host)` detaches the host's cached reading, including one already in flight. The next request reads the Engine again.
+
 - Tests use the fake Engine in `fakeengine_test.go` (an `httptest` server with `/version`, `/info`, `/containers/json`, `/system/df`, per-container stats generators and an `/events` feed the test writes to and drops), `newTestEnv` (a hub over host `h1` with intervals of a few milliseconds and an injected clock) and the `waitFor`/`waitUntil` helpers; none needs Docker. Keep waits short and drive time with `Options.Now`; sleeps over a few tens of milliseconds are a smell. `live_test.go` runs a throw-away container against a real Engine and is gated by `AURAGO_DOCKER_WATCH_LIVE=1`.
 - New producers send through `Hub.publishLocked`/`Client.push` while holding `Hub.mu`; anything that calls into an Engine does so without it. A new background loop is started from `reconcileLocked` (with `h.wg.Add(1)`), stops with `h.ctx`, and clears its own flag under `Hub.mu` when it ends.
 - The log follower tests use `logsFakeEngine` (`logs_fake_test.go`): a `logEnv` whose Engine calls, event feed, stream budget and timing are fakes, so project cases (history merge, attach on a `start` event, budget, restart) run in milliseconds; `FollowContainer` has one test over a real `httptest` Engine. Their helpers are prefixed `logs`.

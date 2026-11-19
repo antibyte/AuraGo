@@ -236,7 +236,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | God's Eye View Store | `internal/desktopstore/AGENTS.md` | Store app config/runtime/assets/publication. |
 | Detective | `internal/detective/AGENTS.md` | Isolated Desktop research cases/evidence/budgets/revisions/exports. |
 | Docker Engine | `internal/dockerutil/AGENTS.md` | Transport/API negotiation, mutation retry, streaming cancellation. |
-| Docker Manager hosts | `internal/dockerhost/AGENTS.md` | Host registry, vault secrets, TLS/SSH transport shared with Invasion, Engine reads and container actions behind `/api/docker-manager`. |
+| Docker Manager hosts | `internal/dockerhost/AGENTS.md` | Host registry, vault secrets, TLS/SSH transport shared with Invasion, Engine reads, container actions and per-host cleanup behind `/api/docker-manager`. |
 | Docker Manager stacks | `internal/dockerstacks/AGENTS.md` | Stack folders per host, compose runner/lister/IO containers, file revisions, operations journal, reattach after restart, lint and `docker run` converter behind `/api/docker-manager`. |
 | Docker Manager live data | `internal/dockerwatch/AGENTS.md` | Engine events watcher per host, container stats rings and host gauges, disk-usage cache, stream budget and the stream-client hub behind `/api/docker-manager/stream`. |
 | ECalc | `internal/ecalc/AGENTS.md`, `internal/server/AGENTS.md`, `ui/js/desktop/apps/AGENTS.md` | Electronics formula catalog, expression language, units, E-series and solver with shared Go/JS parity vectors; `GET /api/ecalc/catalog`; Desktop app and manual. |

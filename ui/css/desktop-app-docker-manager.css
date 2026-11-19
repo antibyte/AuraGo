@@ -232,6 +232,12 @@
 .dm-advanced { margin-top: var(--ds-space-3); }
 .dm-advanced summary { width: fit-content; color: var(--dm-link); cursor: pointer; }
 .dm-check { display: flex; align-items: center; gap: var(--ds-space-2); margin-top: var(--ds-space-3); }
+.dm-cleanup-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: var(--ds-space-2); }
+.dm-cleanup-list { max-height: min(38vh, 360px); overflow: auto; padding: 0; list-style: none; border-block: 1px solid var(--dm-line); }
+.dm-cleanup-list li { padding: var(--ds-space-2); overflow-wrap: anywhere; }
+.dm-cleanup-list li + li { border-top: 1px solid var(--dm-line); }
+.dm-cleanup-row > label:first-child { display: flex; align-items: center; gap: var(--ds-space-2); cursor: pointer; }
+.dm-cleanup-row small { flex: none; margin-inline-start: auto; color: var(--vd-theme-muted); }
 .dm-test-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-3); margin-top: var(--ds-space-4); }
 .dm-test-result { min-height: 24px; margin-top: var(--ds-space-2); }
 .dm-result { display: inline-flex; align-items: center; gap: var(--ds-space-2); font-weight: 600; }

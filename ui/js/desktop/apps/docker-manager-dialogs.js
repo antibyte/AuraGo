@@ -140,6 +140,149 @@
                 note: views.protectedText(c), confirmLabel: t('action_remove'), danger: true
             });
         }
+
+        function openCleanup() {
+            const hosts = store.state.hosts.length ? store.state.hosts : [{ id: 'local', name: 'Local' }];
+            const kinds = { images: t('cleanup_images'), containers: t('cleanup_containers'), networks: t('cleanup_networks'), volumes: t('cleanup_volumes') };
+            const hints = { images: t('cleanup_images_hint'), containers: t('cleanup_containers_hint'), networks: '', volumes: t('cleanup_volumes_hint') };
+            let hostId = hosts.find(h => h.id === store.state.scope)?.id || hosts[0].id;
+            let kind = 'images', items = [], results = null, error = '', busy = '', page = 0, generation = 0, limit = 200;
+            const pageSize = 50, selection = new Map();
+            const hostName = () => hosts.find(h => h.id === hostId).name;
+            const size = n => window.DockerManagerCharts.bytes(n, document.documentElement.lang);
+            const selectOption = (value, name, selected) => '<option value="' + esc(value) + '"' + (value === selected ? ' selected' : '') + '>' + esc(name) + '</option>';
+            const field = (label, key, options) => '<label class="dm-field"><span>' + esc(label) + '</span><select data-cleanup-' + key + (busy === 'apply' ? ' disabled' : '') + '>' + options + '</select></label>';
+            const pickedSize = () => {
+                const known = [...selection.keys()].map(item => item.size).filter(n => n >= 0);
+                return known.length ? size(known.reduce((a, b) => a + b, 0)) : '—';
+            };
+            const note = () => t('cleanup_selection', { count: selection.size, size: pickedSize() });
+            const canApply = () => store.canMutate() && !busy && !results && !error && selection.size > 0 &&
+                (kind !== 'volumes' || [...selection].every(([item, typed]) => typed === item.id));
+            function listRow(item, index) {
+                const checked = selection.has(item);
+                return '<li class="dm-cleanup-row"><label><input type="checkbox" data-pick="' + index + '"' + (checked ? ' checked' : '')
+                    + (!store.canMutate() || (!checked && selection.size >= limit) ? ' disabled' : '') + '><span>' + esc(item.name) + '</span>'
+                    + (item.size >= 0 ? '<small>' + esc(size(item.size)) + '</small>' : '') + '</label>'
+                    + (kind === 'volumes' ? '<label class="dm-field"' + (checked ? '' : ' hidden') + '><span>' + esc(t('delete_type', { name: item.id })) + '</span><input autocomplete="off" data-volume-name="' + index + '" value="' + esc(selection.get(item) || '') + '"></label>' : '') + '</li>';
+            }
+            const outcome = { removed: t('diff_removed'), skipped: t('cleanup_skipped'), failed: t('cleanup_failed') };
+            function body() {
+                if (busy) return '<p role="status">' + esc(busy === 'apply' ? t('cleanup_working') : t('loading')) + '</p>';
+                if (error) return '<p class="dm-form-error" role="alert">' + esc(error) + '</p>';
+                if (results) {
+                    const names = new Map(items.map(item => [item.id, item.name]));
+                    return '<p role="status">' + esc(t('cleanup_result', { removed: results.filter(r => r.state === 'removed').length, total: results.length })) + '</p><ul class="dm-cleanup-list">'
+                        + results.map(r => '<li><strong>' + esc(names.get(r.id) || r.id) + '</strong> · ' + esc(outcome[r.state] || outcome.failed)
+                            + (r.message ? '<div class="dm-hint">' + esc(r.message) + '</div>' : '') + '</li>').join('') + '</ul>';
+                }
+                if (!items.length) return '<p role="status">' + esc(t('cleanup_empty')) + '</p>';
+                const start = page * pageSize, end = Math.min(items.length, start + pageSize);
+                return (hints[kind] ? '<p class="dm-dialog-copy">' + esc(hints[kind]) + '</p>' : '')
+                    + (kind === 'images' && store.canMutate() ? '<label class="dm-check"><input type="checkbox" data-cleanup-page><span>' + esc(t('cleanup_select_page')) + '</span></label>' : '')
+                    + '<ul class="dm-cleanup-list">' + items.slice(start, end).map((item, i) => listRow(item, start + i)).join('') + '</ul>'
+                    + (items.length > pageSize ? '<div class="dm-dialog-actions">' + button('prev', dt('desktop.cal_previous'), { disabled: page === 0 })
+                        + '<span>' + (start + 1) + '–' + end + ' / ' + items.length + '</span>' + button('next', dt('desktop.cal_next'), { disabled: end === items.length }) + '</div>' : '')
+                    + (store.canMutate() ? '<p class="dm-hint" role="status" data-selection>' + esc(note()) + '</p>' : '<p class="dm-note">' + esc(t('readonly_chip')) + '</p>');
+            }
+            const repaint = () => { if (top() === view) paint(); };
+            async function preview() {
+                const request = ++generation;
+                selection.clear();
+                items = []; results = null; error = ''; busy = 'preview'; page = 0;
+                repaint();
+                try {
+                    const data = await store.previewCleanup(hostId, kind);
+                    if (generation !== request) return;
+                    items = data.items; limit = data.limit;
+                } catch (e) {
+                    if (generation === request) error = views.errorText(e.dm);
+                } finally {
+                    if (generation === request) { busy = ''; repaint(); }
+                }
+            }
+            async function apply() {
+                if (!canApply()) return;
+                const picks = [...selection].map(([item, typed]) => ({ id: item.id, revision: item.revision, ...(kind === 'volumes' ? { confirm_name: typed } : {}) }));
+                if (!await confirm({ title: t('cleanup_title'), message: t('cleanup_confirm', { count: picks.length, host: hostName() }), note: hints[kind], confirmLabel: t('action_remove'), danger: true })) return;
+                if (top() !== view || !canApply()) return;
+                busy = 'apply'; repaint();
+                try {
+                    const data = await store.applyCleanup(hostId, kind, picks);
+                    results = data.results;
+                    if (top() !== view) toast(t('cleanup_result', { removed: results.filter(r => r.state === 'removed').length, total: results.length }));
+                } catch (e) {
+                    error = views.errorText(e.dm);
+                    if (top() !== view) toast(error, 'error');
+                } finally { selection.clear(); busy = ''; repaint(); }
+            }
+            let writable = store.canMutate();
+            const unsubscribe = store.subscribe(() => {
+                if (writable !== store.canMutate()) { writable = store.canMutate(); selection.clear(); repaint(); }
+            });
+            const view = {
+                title: t('cleanup_title'), wide: true,
+                html: () => '<div class="dm-cleanup-fields">' + field(t('ns_host'), 'host', hosts.map(h => selectOption(h.id, h.name, hostId)).join(''))
+                    + field(t('cleanup_category'), 'kind', Object.entries(kinds).map(([k, label]) => selectOption(k, label, kind)).join('')) + '</div>' + body()
+                    + actions(button('refresh', t('refresh'), { disabled: !!busy }), button('close', dt('desktop.close'))
+                        + (store.canMutate() && !results && !error ? button('apply', t('action_remove'), { danger: true, disabled: !canApply() }) : '')),
+                bind(c) {
+                    c.querySelector('[data-cleanup-host]').onchange = e => { hostId = e.target.value; void preview(); };
+                    c.querySelector('[data-cleanup-kind]').onchange = e => { kind = e.target.value; void preview(); };
+                    c.querySelector('[data-dact="refresh"]').onclick = () => void preview();
+                    c.querySelector('[data-dact="close"]').onclick = () => pop(false);
+                    const applyButton = c.querySelector('[data-dact="apply"]');
+                    if (applyButton) applyButton.onclick = () => void apply();
+                    const boxes = [...c.querySelectorAll('[data-pick]')], pageBox = c.querySelector('[data-cleanup-page]');
+                    const syncSelection = () => {
+                        if (applyButton) {
+                            applyButton.disabled = !canApply();
+                            applyButton.removeAttribute('aria-busy');
+                        }
+                        const summary = c.querySelector('[data-selection]');
+                        if (summary) summary.textContent = note();
+                        for (const box of boxes) {
+                            box.checked = selection.has(items[box.dataset.pick]);
+                            box.disabled = !writable || (!box.checked && selection.size >= limit);
+                        }
+                        if (pageBox) {
+                            pageBox.checked = boxes.every(box => box.checked);
+                            pageBox.indeterminate = !pageBox.checked && boxes.some(box => box.checked);
+                            pageBox.disabled = !pageBox.checked && selection.size + boxes.filter(box => !box.checked).length > limit;
+                        }
+                    };
+                    if (pageBox) pageBox.onchange = () => {
+                        for (const box of boxes) {
+                            const item = items[box.dataset.pick];
+                            if (pageBox.checked) selection.set(item, ''); else selection.delete(item);
+                        }
+                        syncSelection();
+                    };
+                    for (const box of boxes) box.onchange = () => {
+                        const i = box.dataset.pick, item = items[i], input = c.querySelector('[data-volume-name="' + i + '"]');
+                        if (box.checked) selection.set(item, ''); else selection.delete(item);
+                        if (input) {
+                            input.value = '';
+                            input.parentElement.hidden = !box.checked;
+                            if (box.checked) input.focus({ preventScroll: true });
+                        }
+                        syncSelection();
+                    };
+                    c.querySelectorAll('[data-volume-name]').forEach(input => { input.oninput = () => {
+                        selection.set(items[input.dataset.volumeName], input.value);
+                        if (applyButton) applyButton.disabled = !canApply();
+                    }; });
+                    syncSelection();
+                    for (const [act, delta] of [['prev', -1], ['next', 1]]) {
+                        const btn = c.querySelector('[data-dact="' + act + '"]');
+                        if (btn) btn.onclick = () => { page += delta; repaint(); };
+                    }
+                },
+                onClose() { generation++; unsubscribe(); }
+            };
+            push(view);
+            void preview();
+        }
         // `info` is the server's 409 container_protected_confirmation_required answer when there is one. Its owner says what is
         // protected and gets the same translated sentence as a lock the client already knew about; the server's message is
         // not shown (it is English and ends with the instruction to repeat the request with confirm=protected).
@@ -610,7 +753,7 @@
             disposed = true;
         }
 
-        return { openHosts, openHostForm, openNests, confirm, confirmRemove, confirmProtectedAction, confirmDelete, confirmDownVolumes, confirmConflict, confirmPrepare, closeAll, dispose, isOpen: () => dialog.open };
+        return { openHosts, openHostForm, openNests, openCleanup, confirm, confirmRemove, confirmProtectedAction, confirmDelete, confirmDownVolumes, confirmConflict, confirmPrepare, closeAll, dispose, isOpen: () => dialog.open };
     }
 
     window.DockerManagerDialogs = { create };

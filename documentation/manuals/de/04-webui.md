@@ -254,7 +254,7 @@ Der Virtual Desktop öffnet Workspace-basierte Apps direkt im AuraGo-Browser-Des
 | **Layerling** | Lokaler Browser-CAD-Editor (Projekte als `.lyl`; öffnet STL, OBJ, 3MF, STEP/STP und SVG, exportiert STL, OBJ, 3MF, STEP und PNG). Optional; Agent-Zugriff standardmäßig aus — Details in [Kapitel 8](08-integrations.md#layerling-desktop-cad) |
 | **Homepage Studio** | Verwaltete Website-Projekte bauen, prüfen und deployen. Der Design-Picker bietet 25 mitgelieferte DESIGN.md-Templates mit je einem Vorschaubild, und eine Auswahl gilt für eine Website |
 | **Software Store** | Verwaltete Docker-Apps wie Homarr, n8n, Node-RED, Open WebUI, Arcane, Termix, code-server, Dozzle, Beszel und OliveTin installieren und bedienen |
-| **Docker Manager** | Docker auf diesem Server und auf entfernten Hosts verwalten: Compose-Stacks mit Up, Down, Restart, Pull und Update, Live-Logs und ein Terminal, Live-Ressourcenwerte sowie Ansichten für Images, Volumes und Netzwerke mit einem Aufräum-Assistenten |
+| **Docker Manager** | Lokale und entfernte Compose-Stacks verwalten, Live-Logs und Ressourcenverbrauch ansehen, ein Terminal öffnen und mit **Aufräumen** Speicherplatz freigeben |
 | **Quick Connect** | SSH-/VNC-Verbindungen verwalten |
 | **Network Cameras** | go2rtc-Kamera-Streams ansehen; Personenerkennung mit Ereignissen, Zonen und Scharfschaltung |
 | **Virtual Computers** | Boring-Computers-Maschinen und Workspaces steuern |
@@ -299,6 +299,12 @@ Mit **Seitenpfad** und **Neu erfassen** markierst du eine Unterseite. Wenn Marki
 Per Tastatur wechseln Tab und Umschalt+Tab zwischen den Elementen der Seite, und Enter setzt eine Markierung am markierten Element. Nach dem letzten Element geht Tab weiter zu **Seitenpfad**, **Neu erfassen** und **Fertig**. Esc schließt zuerst das offene Kommentarfeld; ein zweites Esc beendet den Annotationsmodus. Entf auf einem Chip löscht dessen Markierung.
 
 AuraGo erfasst die lokale Vorschau und öffentliche Deployments. Markierungen werden verworfen, wenn du das Ziel wechselst. Bei einem Deployment-Ziel verwirft auch der Wechsel zu einer anderen Website sie. Markierungen werden nicht gespeichert; nach einem Neuladen der Seite sind sie weg.
+
+### Speicherplatz im Docker Manager freigeben
+
+Öffne **Docker Manager → Aufräumen** und wähle einen Host. Unter **Ungenutzte Images** findest Du auch heruntergeladene Images mit Tag. Ein gestoppter Container zählt als Nutzer seines Images. Wähle einzelne Images oder alle Images auf der sichtbaren Seite aus, prüfe ihre Gesamtgröße und bestätige das Löschen. Gemeinsam genutzte Schichten können den tatsächlichen Platzgewinn verringern.
+
+Über die Kategorieauswahl kannst Du auch gestoppte Container, ungenutzte lokale Netzwerke und Volumes aufräumen. Beim Entfernen eines Containers gehen Änderungen in seiner beschreibbaren Schicht verloren. Seine Volumes bleiben erhalten. Um die Daten eines Volumes zu löschen, wähle es aus und gib seinen Namen ein. Anschließend siehst Du das Ergebnis für jeden Eintrag. Im Nur-Lese-Modus kannst Du die Vorschau öffnen.
 
 ### Retro-Net im Terminal
 

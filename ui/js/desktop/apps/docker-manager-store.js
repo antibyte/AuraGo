@@ -421,6 +421,23 @@
         async function guarded(run) {
             try { return await run(); } catch (error) { noteError(error); emit(); throw error; }
         }
+        function previewCleanup(hostId, kind) {
+            return guarded(() => request('/hosts/' + enc(hostId) + '/cleanup/preview', { method: 'POST', body: { kind }, timeout: DF_TIMEOUT_MS }));
+        }
+        async function applyCleanup(hostId, kind, items) {
+            if (!canMutate()) throw Object.assign(new Error('read_only'), { dm: { code: 'read_only' } });
+            try {
+                return await guarded(() => request('/hosts/' + enc(hostId) + '/cleanup', { method: 'POST', body: { kind, items }, timeout: DF_TIMEOUT_MS }));
+            } finally {
+                if (!state.disposed) {
+                    void loadDf(hostId, { refresh: true });
+                    if (kind === 'containers') {
+                        void reloadContainers(hostId);
+                        if (state.section === 'stacks') void loadStacks(hostId, true);
+                    }
+                }
+            }
+        }
         // The draft is not saved. When it belongs to a stored host its id goes along, so the server reuses the stored secrets.
         async function testDraft(payload, id) {
             const draft = id ? Object.assign({}, payload, { id }) : payload;
@@ -969,7 +986,7 @@
             liveRing: (host, id) => (live ? live.ring(host, id) : []), liveHostStats: host => (live ? live.hostStats(host) : null), liveRejected: () => (live ? live.rejected() : []),
             onStats: listener => { statsListeners.add(listener); return () => statsListeners.delete(listener); },
             onHostStats: listener => { hostStatsListeners.add(listener); return () => hostStatsListeners.delete(listener); },
-            testDraft, saveHost, deleteHost, testHost, loadNests, importNest,
+            testDraft, saveHost, deleteHost, testHost, loadNests, importNest, previewCleanup, applyCleanup,
             loadStacks, openStack, closeStack, setStackTab, loadStack, saveFiles, createStack, loadHelpers, loadVolumes, lint, convertDockerRun, projectAction,
             startOp, prepareHost, deleteStack, loadOperations, loadOperation, loadActiveOperations, attachOperation, trackOperation, onOperationDone, activeOps, dispose
         };
