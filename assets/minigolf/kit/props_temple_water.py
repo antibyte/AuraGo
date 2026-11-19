@@ -19,9 +19,11 @@ HEIGHT = 3.5
 BACK_Y = 1.9
 LIP_Z = HEIGHT - 0.3  # water level at the notch in the top edge
 CHANNEL = 0.62  # half width of the carved channel at the top
-FALL_TOP = LIP_Z + 0.06  # where the water leaves the lip
+FALL_TOP = LIP_Z - 0.06  # where the water leaves the lip, just inside the notch
 FALL_BOTTOM = 0.12  # where it meets the pool
 FALL_SPEED = 2.2  # metres per second, read by the runtime as aurago_flow
+LIP_ROLL = 0.14  # how far the water bulges forward below the lip
+LIP_GAP = 0.02  # the water still lies in the channel at the lip
 
 
 def _wall_y(x, z, off):
@@ -38,6 +40,18 @@ def _top_z(x):
     return HEIGHT - 0.3 * math.exp(-(x / 0.75) ** 2)
 
 
+def _fall_gap(s, extra=0.0):
+    """Distance between the falling water and the rock face.
+
+    At the lip the water still lies in the channel, only a hair in front of the
+    rock; a little lower it bulges forward over the lip and then falls away.
+    Keeping the top edge close to the rock means the cliff hides it completely
+    when the waterfall is seen from behind - otherwise the sheet pokes out of
+    the back of the rock.
+    """
+    return LIP_GAP + (0.07 + LIP_ROLL + 0.62 * s ** 3.0) * smoothstep(s, 0.0, 0.14) + extra
+
+
 def _fall_point(xi, s, off, drift=0.0, out=0.0, wobble=0.0, ph=0.0):
     """A point of the falling water.
 
@@ -47,9 +61,7 @@ def _fall_point(xi, s, off, drift=0.0, out=0.0, wobble=0.0, ph=0.0):
     """
     z = FALL_TOP - (FALL_TOP - FALL_BOTTOM) * s ** 1.05
     x = xi * (1.0 + 0.55 * s) + drift * s + wobble * math.sin(5.0 * s + ph) * s
-    y = _wall_y(x, z, off) - 0.09 - 0.62 * s ** 3.0 + out
-    if s < 0.1:  # arc over the lip from behind the edge
-        y += 0.3 * (1.0 - s / 0.1) ** 2
+    y = _wall_y(x, z, off) - _fall_gap(s, 0.03 + out)
     return (x, y, z)
 
 
@@ -109,9 +121,7 @@ def _sheet(p, rng, off):
         s = i / steps
         x = 0.05 * math.sin(3.1 * s + 0.6) * s
         z = FALL_TOP - (FALL_TOP - FALL_BOTTOM) * s ** 1.05
-        y = _wall_y(x, z, off) - 0.05 - 0.62 * s ** 3.0
-        if s < 0.1:
-            y += 0.3 * (1.0 - s / 0.1) ** 2
+        y = _wall_y(x, z, off) - _fall_gap(s)
         spine.append((x, y, z))
         widths.append(CHANNEL * (1.0 + 0.55 * s) * (0.88 + 0.12 * math.sin(5.3 * s)))
     sheet = shapes.ribbon("sheet", spine, widths, normal_hint=(0, -1, 0), fold=-0.12, across=6)
@@ -151,13 +161,15 @@ def _strands(p, rng, off):
 
 def _crest(p, rng, off):
     """The rolled lip: white water turning over the notch, so the top edge of the
-    fall is a rounded crest instead of a row of cut-off ribbons."""
+    fall is a rounded crest instead of a row of cut-off ribbons. It hugs the
+    rock just below the rim, so it covers the cut edge of the water without
+    poking out of the back of the cliff."""
     spine, widths = [], []
     for i in range(11):
         u = i / 10.0 * 2.0 - 1.0
         x = u * 0.54
-        z = _top_z(x) - 0.05
-        y = _wall_y(x, z, off) - 0.08
+        z = _top_z(x) - 0.07
+        y = _wall_y(x, z, off) - 0.04
         spine.append((x, y, z))
         widths.append(0.1 + 0.05 * math.sin(u * 4.6 + 0.8) ** 2)
     crest = shapes.ribbon("crest", spine, widths, normal_hint=(0, 0, 1), fold=-0.9, across=3)
@@ -191,8 +203,8 @@ def _splash(p, rng):
               scale=(1.0, 1.0, 1.3), solidify=0.0, bevel=0, dens=0, ao=0.2, smooth_angle=80.0, jitter=0.0)
     for _ in range(4):  # foam left on the rim of the pool
         a = rng.uniform(0.0, math.tau)
-        x = 1.55 * math.cos(a)
-        y = -0.95 + 1.0 * math.sin(a)
+        x = 1.3 * math.cos(a)
+        y = -0.95 + 0.85 * math.sin(a)
         foam = shapes.ico_sphere("foam", rng.uniform(0.07, 0.12), 1)
         p.add(foam, "glow", "foam", stops=stops, strength=0.3, flow=FALL_SPEED,
               loc=(x, y, rng.uniform(0.02, 0.08)), scale=(1.0, 1.0, 0.55), solidify=0.0, bevel=0,
@@ -215,7 +227,9 @@ def _pool(p, rng):
     pool = shapes.lathe("pool", [(0.0, 0.04), (1.0, 0.04), (1.08, 0.02), (1.14, 0.0)], seg=32, caps=False)
     stops = [(0.0, p.pal.c("water_deep")), (0.55, p.pal.c("water")), (0.85, p.pal.c("water_light")), (1.0, p.pal.c("water_white"))]
     # the ripples spread from the point where the fall hits the pool
-    p.add(pool, "glow", "water", stops=stops, loc=(0, cy, 0.0), scale=(1.85, 1.1, 1), bevel=0, dens=0, ao=0.2, strength=0.3,
+    # the pond stays inside the footprint of the rock: a wider disc would push
+    # its bright rim past the cliff and show up as a sliver behind the rock
+    p.add(pool, "glow", "water", stops=stops, loc=(0, cy, 0.0), scale=(1.45, 1.1, 1), bevel=0, dens=0, ao=0.2, strength=0.3,
           mode="radial", center=(0, cy), span=(0.0, 2.0), smooth_angle=80.0, jitter=0.0,
           pattern=lambda x, y, z: 1.0 + 0.16 * math.sin(math.hypot(x, y + 0.16) * 21.0))
 
