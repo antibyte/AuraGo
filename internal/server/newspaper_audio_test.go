@@ -124,15 +124,64 @@ func TestNewspaperBroadcastRepairsOnlyUnusableStories(t *testing.T) {
 }
 
 func TestNewspaperBroadcastStopsOnProviderError(t *testing.T) {
-	e := newspaper.Edition{Stories: []newspaper.Story{{ID: "story-1"}}}
+	e := newspaper.Edition{Stories: []newspaper.Story{{ID: "story-1", Deck: "Published summary."}}}
 	failure := errors.New("provider unavailable")
+	for _, failAt := range []int{1, 2} {
+		calls := 0
+		script, err := newspaperBroadcastScript(context.Background(), e, "", func(context.Context, string, string) (string, error) {
+			calls++
+			if calls == failAt {
+				return "", failure
+			}
+			return `{"items":[]}`, nil
+		})
+		if !errors.Is(err, failure) || calls != failAt || script != "" {
+			t.Fatalf("calls=%d script=%q err=%v", calls, script, err)
+		}
+	}
+}
+
+func TestNewspaperBroadcastSurvivesRejectedSingleStoryRepairs(t *testing.T) {
+	e := newspaper.Edition{
+		Language: "de-DE", Partial: true, Corrections: []string{"Korrektur zum Vortag."},
+		Stories: []newspaper.Story{
+			{ID: "a", Deck: "A aus der Zeitung."},
+			{ID: "b", Deck: "B aus der Zeitung."},
+			{ID: "c", Deck: "C aus der Zeitung.", SingleSource: true},
+			{ID: "d", Headline: "D aus dem Archiv."},
+		},
+	}
 	calls := 0
-	script, err := newspaperBroadcastScript(context.Background(), e, "", func(context.Context, string, string) (string, error) {
+	script, err := newspaperBroadcastScript(context.Background(), e, "dry humour", func(_ context.Context, _ string, input string) (string, error) {
 		calls++
-		return "", failure
+		var p struct{ Stories []struct{ ID string } }
+		if err := json.Unmarshal([]byte(newspaperUnwrap(input)), &p); err != nil {
+			t.Fatal(err)
+		}
+		switch p.Stories[0].ID {
+		case "a":
+			if len(p.Stories) == 1 {
+				t.Fatal("a missing greeting caused a completed story to be regenerated")
+			}
+			return `{"items":[{"id":"a","text":"A aus dem Studio."}],"closing":"Bis morgen."}`, nil
+		case "b":
+			return `{"items":[{"id":"b","text":"B aus dem Studio."}]}`, nil
+		case "c":
+			return "", llm.ErrJSONCompletionTruncated
+		default:
+			return `{"items":[{"id":"unknown","text":"Fremd."}],"text":"` + strings.Repeat("ü", 501) + `"}`, nil
+		}
 	})
-	if !errors.Is(err, failure) || calls != 1 || script != "" {
-		t.Fatalf("calls=%d script=%q err=%v", calls, script, err)
+	if err != nil || calls != 4 {
+		t.Fatalf("calls=%d err=%v", calls, err)
+	}
+	for _, s := range []string{"Teilausgabe", "Korrektur zum Vortag.", "A aus dem Studio.", "B aus dem Studio.", "C aus der Zeitung.", "Quelle", "D aus dem Archiv.", "Bis morgen."} {
+		if strings.Count(script, s) != 1 {
+			t.Fatalf("expected %q once in %q", s, script)
+		}
+	}
+	if strings.Contains(script, "Fremd.") || strings.Contains(script, "B aus der Zeitung.") {
+		t.Fatalf("unmatched or duplicate material in %q", script)
 	}
 }
 

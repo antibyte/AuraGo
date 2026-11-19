@@ -5,8 +5,24 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"aurago/internal/i18n"
 )
+
+// AudioNotices uses the reader's wording, with the print labels available offline.
+func (e Edition) AudioNotices() (partial, singleSource string) {
+	lang, _, _ := strings.Cut(e.Language, "-")
+	localize := func(key, fallback string) string {
+		if value := i18n.T(lang, key); value != key && value != "" {
+			return value
+		}
+		return fallback
+	}
+	l := labels(e)
+	return localize("newspaper.partial", l.Partial), localize("newspaper.single_source", l.SingleSource)
+}
 
 type Creation struct {
 	Audio    *bool             `json:"audio,omitempty"`
