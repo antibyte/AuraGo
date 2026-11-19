@@ -796,3 +796,67 @@ func TestDesktopECalcBrowser(t *testing.T) {
 		t.Fatal(errors)
 	}
 }
+
+func TestDesktopECalcTemperatureUnitSwitchBrowser(t *testing.T) {
+	f := newECalcBrowserFixture(t, "() => {}")
+	f.OpenApp(".ec-page")
+	f.Page.MustElement(".ec-rail-btn[data-rail='passive']").MustClick()
+	f.Page.MustElement(".ec-item[data-id='wire_resistance']").MustClick()
+	const field = ".ec-field[data-var='t']"
+	display := func() string { return f.Page.MustElement(field + " .ec-input").MustProperty("value").Str() }
+	choose := func(unit string) {
+		t.Helper()
+		f.Page.MustEval(`(selector, unit) => {
+			const el = document.querySelector(selector);
+			el.value = unit;
+			if (el.value !== unit) throw Error("missing unit " + unit);
+			el.dispatchEvent(new Event("change", {bubbles: true}));
+		}`, field+" .ec-unit", unit)
+	}
+	typeValue := func(value string) {
+		t.Helper()
+		el := f.Page.MustElement(field + " .ec-input")
+		el.MustClick()
+		el.MustSelectAllText()
+		el.MustInput(value)
+		el.MustType(input.Enter)
+	}
+	check := func(want string) {
+		t.Helper()
+		if got := display(); got != want {
+			t.Fatalf("displayed temperature = %q, want %q", got, want)
+		}
+	}
+	choose("degF")
+	typeValue("0")
+	check("0 °F")
+	choose("")
+	check("255,4 K")
+	stored := f.Page.MustEval(`() => {
+		const prefs = JSON.parse(localStorage.getItem('aurago.ecalc.v1'));
+		return [prefs.units['wire_resistance.t'], prefs.values.wire_resistance.inputs.t].join('|');
+	}`).Str()
+	if stored != "auto|255.37222222222223 K" {
+		t.Fatalf("unit and input saved on change = %q", stored)
+	}
+
+	f.CloseWindows()
+	f.OpenApp(".ec-page")
+	f.Page.MustElement(".ec-rail-btn[data-rail='passive']").MustClick()
+	f.Page.MustElement(".ec-item[data-id='wire_resistance']").MustClick()
+	check("255,4 K")
+	choose("degC")
+	choose("degF")
+	check("0 °F")
+
+	typeValue("0,125")
+	choose("prefix:")
+	choose("degF")
+	check("0,125 °F")
+	choose("degC")
+	typeValue("-40")
+	choose("prefix:")
+	check("233,2 K")
+	typeValue("233,15 K")
+	check("233,2 K")
+}

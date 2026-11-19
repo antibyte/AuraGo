@@ -511,9 +511,13 @@
                 if (has(state.inputs, v.id)) {
                     try { exact = readText(v, state.inputs[v.id], unitOf(v.id)); } catch (error) { exact = null; }
                 }
+                if (exact !== null) {
+                    const text = S.exactText(v, exact, units, () => target.value);
+                    state = Object.assign({}, state, { inputs: Object.assign({}, state.inputs, { [v.id]: text }) });
+                    persist();
+                }
+                // setUnit commits the pending input and its new unit in the same storage write.
                 store.setUnit(calc.id, v.id, target.value || 'auto');
-                if (exact !== null) state = Object.assign({}, state, { inputs: Object.assign({}, state.inputs, { [v.id]: S.exactText(v, exact, units, unitOf) }) });
-                persist();
                 paint();
             } else if (target.type === 'radio' && target.closest('.ec-choice')) {
                 const id = target.closest('.ec-choice').dataset.choice;

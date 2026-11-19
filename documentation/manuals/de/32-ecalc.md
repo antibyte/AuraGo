@@ -102,6 +102,7 @@ Strom, Widerstand und Leistung. Die Felder, die du ausfüllst, sind **Eingaben**
   **Automatisch** wählt ein passendes Präfix, etwa mA oder kΩ. Ein Querschnitt bietet mm², AWG und kcmil, eine Temperatur °C, °F
   und K, und die Kupferdicke einer Leiterbahn oz (Kupfergewicht). Manche Felder bieten besondere Einheiten, etwa dBm, dBV und dBu
   für Pegel oder mAh, Ah und Wh für Ladung und Energie.
+  Beim Wechsel zwischen °C, °F und K behält ECalc den eingegebenen Temperaturwert in voller interner Genauigkeit.
 - **Listen:** Der Rechner für Reihen- und Parallelschaltung nimmt eine Liste wie `4k7, 10k, 2k2`. Trenne die Einträge mit
   Kommas, Semikolons oder Leerzeichen. Ein Komma direkt vor einer Ziffer ist ein Dezimalkomma: `4,7k, 10k` sind zwei Einträge
   (4,7 kΩ und 10 kΩ), `1,2,3` dagegen ein Eintrag, der sich nicht lesen lässt. Setze nach einem Komma zwischen Einträgen ein
@@ -365,7 +366,7 @@ Die Kategorie **Bauteilcodes** liest Kennzeichnungen von Bauteilen und schreibt 
 
 - **Widerstands-Farbcode** und **Spulen-Farbcode**: die Farbringe. Klicke auf einen Ring, um seine Farbe im Menü zu wählen, oder bediene die Seite mit der Tastatur: Tab führt zu einem Ring, Eingabe, Leertaste oder Pfeil nach unten öffnet sein Menü, mit den Pfeiltasten wählst du die Farben, Eingabe übernimmt eine Farbe und Escape schließt das Menü. Die Seite zeigt den Wert, die Toleranz und bei Widerständen mit sechs Ringen den Temperaturkoeffizienten sowie den nächsten Normwert der gewählten Reihe. Spulen haben vier oder fünf Ringe.
 - **SMD-Widerstandscodes**: der Dreistellen-Code (472 ist 4,7 kΩ), der Vierstellen-Code, der EIA-96-Code (01C) und die R-Schreibweise (4R7 ist 4,7 Ω). Ein Wert, den du eingibst, zeigt seine Dreistellen-, Vierstellen- und EIA-96-Kennzeichnung.
-- **Kondensatorcodes**: der Pikofarad-Code (104 ist 100 nF, 4p7 ist 4,7 pF), der Toleranzbuchstabe und der Spannungscode. Eine Kennzeichnung kann bis zu drei Teile haben, zum Beispiel `104K 1H`: 100 nF, ±10 % und 50 V.
+- **Kondensatorcodes**: der Pikofarad-Code (104 ist 100 nF, 4p7 ist 4,7 pF), der Toleranzbuchstabe und der Spannungscode. Eine Kennzeichnung kann bis zu drei Teile haben, zum Beispiel `104K 1H`: 100 nF, ±10 % und 50 V. Für `3F` zeigt ECalc beide Herstellerwerte an. TDK verwendet 3 kV, Murata 3,15 kV. Beide Werte lassen sich als `3F` codieren.
 - **Temperaturcodes für Keramikkondensatoren**: Klasse 1 (temperaturkompensierend, zum Beispiel C0G oder NP0) mit Temperaturkoeffizient in ppm/K und Toleranz, Klasse 2 (hohe Permittivität, zum Beispiel X7R oder U2J) mit Temperaturbereich und zulässiger Kapazitätsänderung. Ein Code der Klasse 2 hat keinen eigenen Wert, deshalb zeigt die Seite dafür keine Zahl.
 
 Widerstandsfarben folgen IEC 60062:2016. Wo Hersteller noch eine ältere Toleranzangabe drucken, zeigt die Seite sie als Warnung. Spannungscodes sind eine Herstellerkonvention; die Seite sagt das, und das Datenblatt entscheidet. Warnungen und Fehlermeldungen kommen aus dem Rechenkern und bleiben in jeder Sprache englisch.

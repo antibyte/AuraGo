@@ -4,7 +4,7 @@
 # dims:     a mapping, order significant. A dimension has a base symbol, optional aliases that are accepted as a
 #           suffix on input, the prefixes it may be written with ("" = the bare base unit), positive (values must
 #           be greater than zero) and optional explicit units. An explicit unit is either linear (factor: base =
-#           x * factor) or non-linear (to/from expressions in the expression language, x = the value in the unit).
+#           x * factor), decimal affine (base = (scale * x + offset) / divisor), or non-linear (to/from expressions).
 #           A unit may list aliases: extra spellings that input accepts like the symbol (25degC) and that are never shown.
 #           A dimension with integer: true has radix units only (see the integer dimension below).
 prefixes:
@@ -34,8 +34,8 @@ dims:
   # mm is explicit although m takes the prefix m: a table column can then be written and shown in plain millimetres.
   length: {symbol: m, prefixes: [µ, m, "", k], positive: true, units: [{id: mil, symbol: mil, factor: 25.4e-6}, {id: in, symbol: in, factor: 0.0254}, {id: ft, symbol: ft, factor: 0.3048}, {id: oz, symbol: oz, factor: 35e-6}, {id: AWG, symbol: AWG, to: "0.000127*92^((36-x)/39)", from: "36-39*ln(x/0.000127)/ln(92)"}, {id: mm, symbol: mm, factor: 1e-3}]}
   area: {symbol: m², prefixes: [""], positive: true, units: [{id: mm2, symbol: mm², aliases: [mm2], factor: 1e-6}, {id: mil2, symbol: mil², factor: 6.4516e-10}, {id: kcmil, symbol: kcmil, factor: 5.067074790975e-7}, {id: AWG, symbol: AWG, to: "pi/4*(0.000127*92^((36-x)/39))^2", from: "36-39*ln(sqrt(4*x/pi)/0.000127)/ln(92)"}]}
-  # Temperature has an offset unit (degC, degF); a temperature difference (tempdiff) only scales.
-  temperature: {symbol: K, prefixes: [""], positive: true, units: [{id: degC, symbol: °C, aliases: [C, degC], to: "x+273.15", from: "x-273.15"}, {id: degF, symbol: °F, aliases: [F, degF], to: "(x-32)*5/9+273.15", from: "(x-273.15)*9/5+32"}]}
+  # Kelvin = (scale * degrees + offset) / divisor, rounded once from the decimal input.
+  temperature: {symbol: K, prefixes: [""], positive: true, units: [{id: degC, symbol: °C, aliases: [C, degC], affine: {scale: 100, offset: 27315, divisor: 100}}, {id: degF, symbol: °F, aliases: [F, degF], affine: {scale: 100, offset: 45967, divisor: 180}}]}
   tempdiff: {symbol: K, prefixes: [""], units: [{id: degC, symbol: °C, factor: 1}, {id: degF, symbol: °F, factor: 0.5555555555555556}]}
   thermal_resistance: {symbol: K/W, prefixes: [""], positive: true, units: [{id: degCW, symbol: °C/W, factor: 1}]}
   resistivity: {symbol: Ω·m, prefixes: [n, µ, m, ""], positive: true, units: [{id: ohmmm2m, symbol: Ω·mm²/m, factor: 1e-6}]}

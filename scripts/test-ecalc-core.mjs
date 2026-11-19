@@ -40,6 +40,26 @@ const calcOf = id => {
 };
 const calculators = catalog.items.filter(item => item.kind === 'calculator');
 
+// Table 6-1 reuses the column IDs with different meanings in IPC-2221B and IPC-2221C.
+const spacingB = calcOf('ipc2221b_conductor_spacing').columns;
+const spacingC = calcOf('ipc2221c_conductor_spacing').columns;
+const conditions = calcOf('trace_spacing_finder').choices.find(c => c.id === 'cond').options;
+for (const [id, revB, revC, finder] of [
+    ['b3', /above 3050 m$/, /3050 m or vacuum/, /C also in vacuum/],
+    ['b4', /permanent polymer coating/, /solder mask, any elevation/, /polymer coating .*solder mask/],
+    ['b5', /conformal coating/, /coated, any elevation or vacuum/, /coated at any elevation or in vacuum/],
+    ['a6', /uncoated, up to 3050 m/, /coated, any elevation or vacuum/, /uncoated up to 3050 m .*coated at any elevation or in vacuum/],
+    ['a7', /conformal coating/, /uncoated component lead from sea level to 3050 m/, /conformal coating .*uncoated component lead from sea level to 3050 m/],
+    ['a8', null, /without conformal coating, above 3050 m or vacuum/, /3050 m.*vacuum/]
+]) {
+    const old = spacingB.find(c => c.id === (id === 'b5' ? 'a5' : id));
+    if (revB) assert.match(old.name, revB);
+    else assert.equal(old, undefined);
+    assert.match(spacingC.find(c => c.id === id).name, revC);
+    assert.match(conditions.find(c => c.id === id).name, finder);
+}
+
+
 const decode = value => {
     if (typeof value !== 'string') return value;
     const word = value.toLowerCase();
@@ -115,7 +135,11 @@ assert.ok(vectors.combine.length >= 6, 'core.json has at least six combiner case
 assert.ok(vectors.eseries_tables, 'core.json carries the E-series tables');
 for (const [name, table] of Object.entries(vectors.eseries_tables)) { eq(core.eseries.TABLES[name], table, 'table ' + name); count += 1; }
 eq(Object.keys(core.eseries.TABLES), Object.keys(vectors.eseries_tables), 'the same series');
-for (const v of vectors.units_parse) { same(units.parse(v.in, v.dim, v.unit || ''), v.want, `parse ${JSON.stringify(v.in)} as ${v.dim} ${v.unit || ''}`); count += 1; }
+for (const v of vectors.units_parse) {
+    const value = units.parse(v.in, v.dim, v.unit || '');
+    (v.exact ? assert.strictEqual : same)(value, v.want, `parse ${JSON.stringify(v.in)} as ${v.dim} ${v.unit || ''}`);
+    count += 1;
+}
 for (const v of vectors.units_parse_error) { throwsCode(() => units.parse(v.in, v.dim, v.unit || ''), 'parse', `parse error ${JSON.stringify(v.in)} as ${v.dim} ${v.unit || ''}`); count += 1; }
 for (const v of vectors.units_list) { eq(units.parseList(v.in, v.dim, v.unit || '').map((x, i) => (Math.abs(x - v.want[i]) <= 1e-12 * Math.abs(v.want[i]) ? v.want[i] : x)), v.want, `list ${JSON.stringify(v.in)}`); count += 1; }
 for (const v of vectors.units_list_error) { throwsCode(() => units.parseList(v.in, v.dim, v.unit || ''), 'parse', `list error ${JSON.stringify(v.in)}`); count += 1; }
@@ -405,6 +429,13 @@ for (const item of calculators) {
     assert.equal(S.exactText(vd, 0, units, dbv), '0 V', 'zero volts');
     assert.equal(S.exactText(vd, 10, units, dbv), '20 dBV', 'a value dBV can show keeps the unit');
     assert.equal(S.exactText(volts, [10, -2, 0.5], units, dbv), '20dBV, -2V, -6.02059991328dBV', 'a list falls back per item');
+    const temperature = { id: 't', dim: 'temperature' };
+    for (const kelvin of [1e-20, 0.0001, 218.15, 255.37222222222223, 273.15]) {
+        for (const unit of ['', 'prefix:', 'degC', 'degF']) {
+            const text = S.exactText(temperature, kelvin, units, () => unit);
+            assert.equal(units.parse(text, 'temperature', unit), kelvin, 'temperature input retains its SI value: ' + text);
+        }
+    }
     const back = units.parseList(S.exactText(volts, [10, -2, 0.5], units, dbv), 'voltage', 'dBV');
     [10, -2, 0.5].forEach((want, index) => same(back[index], want, 'list item ' + index, 1e-9));
     const wheatstone = calcOf('wheatstone'), start = S.defaultState(wheatstone, units, auto);

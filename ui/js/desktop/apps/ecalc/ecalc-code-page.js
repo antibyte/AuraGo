@@ -569,6 +569,7 @@
         const st = { code: '', value: '', tolerance: '', voltage: '', valueSI: NaN };
         let root = null, artEl = null, codeInput = null, valueInput = null, toleranceSelect = null, voltageSelect = null, timer = 0;
         const voltageCodes = new Set(data.voltages.map(v => v.code));
+        const makerRatings = data.voltages.flatMap(v => v.ratings || []);
 
         const rowText = row => {
             if (row.unit === 'pf') return '±' + units.fmtSig(row.minus, 6) + ' pF';
@@ -579,7 +580,13 @@
             return [{ value: '', label: t(KEY.none) }].concat(letters.map(letter => ({ value: letter, label: letter + ' · ' + ctx.comma(data.tolerances.filter(row => row.letter === letter).map(rowText).join(' / ')) })));
         }
         function voltageOptions() {
-            return [{ value: '', label: t(KEY.none) }].concat(data.voltages.map(v => ({ value: String(v.volts), label: ctx.comma(units.format(v.volts, 'voltage', '', 4)) + ' · ' + v.code })));
+            const label = volts => ctx.comma(units.format(volts, 'voltage', '', 4));
+            return [{ value: '', label: t(KEY.none) }].concat(data.voltages.flatMap(v => {
+                if (!v.ratings) return [{ value: String(v.volts), label: label(v.volts) + ' · ' + v.code }];
+                const options = v.ratings.map(r => ({ value: String(r.volts), label: r.maker + ' ' + label(r.volts) }));
+                return [{ value: v.code, label: v.code + ' · ' + options.map(o => o.label).join(' / ') }]
+                    .concat(options.map(o => ({ value: o.value, label: o.label + ' · ' + v.code })));
+            }));
         }
         const optionsHTML = (options, selected) => options.map(option => '<option value="' + esc(option.value) + '"' + (option.value === selected ? ' selected' : '') + '>' + esc(option.label) + '</option>').join('');
 
@@ -615,15 +622,21 @@
             }
             return '';
         }
-        function fromCode() {
+        function fromCode(savedMaker) {
             const out = ctx.run(() => codes.decode(item, st.code, units), 'code');
             if (out.result) {
                 const result = out.result, voltage = result.fields.find(field => field.id === 'voltage');
                 st.valueSI = result.dim === 'capacitance' ? result.value : NaN;
                 st.value = Number.isFinite(st.valueSI) ? ctx.fmt(st.valueSI, 'capacitance') : '';
                 st.tolerance = letterOf(result.code);
-                const volts = voltage ? voltageOptions().find(option => option.value !== '' && closeTo(Number(option.value), voltage.value)) : null;
-                st.voltage = volts ? volts.value : '';
+                const code = result.code.split(' ').find(part => voltageCodes.has(part));
+                st.voltage = voltage ? String(voltage.value) : code || '';
+                const saved = savedMaker && result.fields.find(f => f.id === 'voltage_' + savedMaker.toLowerCase());
+                if (saved) {
+                    st.voltage = String(saved.value);
+                    fromFields();
+                    return;
+                }
             }
             sync();
             paintArt();
@@ -664,11 +677,14 @@
             },
             valueHTML() { return ''; },
             handleClick() { return false; },
-            state() { return { inputs: { code: st.code, value: st.value, tolerance: st.tolerance, voltage: st.voltage }, choices: {} }; },
+            state() {
+                const rating = makerRatings.find(r => String(r.volts) === st.voltage);
+                return { inputs: { code: st.code, value: st.value, tolerance: st.tolerance, voltage: st.voltage }, choices: rating ? { voltageMaker: rating.maker } : {} };
+            },
             restore(saved) {
                 const inputs = saved && saved.inputs ? saved.inputs : {};
                 st.code = text64(inputs.code) || '104K 1H';
-                fromCode();
+                fromCode(text64(saved && saved.choices && saved.choices.voltageMaker));
             },
             reset() { st.code = '104K 1H'; fromCode(); },
             refresh() {
@@ -891,7 +907,9 @@
             }
             for (const entry of result.fields) {
                 const text = comma(entry.text), special = ctrl.valueHTML(entry);
-                out.push({ name: FIELD_KEY[entry.id] ? t(FIELD_KEY[entry.id]) : entry.name, text, html: special || esc(text) });
+                const name = entry.id.startsWith('voltage_') ? t(FIELD_KEY.voltage) + ' (' + entry.name + ')'
+                    : FIELD_KEY[entry.id] ? t(FIELD_KEY[entry.id]) : entry.name;
+                out.push({ name, text, html: special || esc(text) });
             }
             return out;
         }

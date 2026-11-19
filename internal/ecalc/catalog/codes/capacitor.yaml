@@ -58,7 +58,7 @@
       - {code: "2J", volts: 630, makers: ["tdk", "murata"]}
       - {code: "3A", volts: 1000, makers: ["tdk", "murata"]}
       - {code: "3D", volts: 2000, makers: ["tdk", "murata"]}
-      - {code: "3F", volts: 3150, makers: ["tdk", "murata"], note: {en: "Murata lists 3F as 3.15 kV, TDK as 3 kV.", de: "Murata führt 3F als 3,15 kV, TDK als 3 kV."}}
+      - {code: "3F", ratings: [{maker: "TDK", volts: 3000}, {maker: "Murata", volts: 3150}], note: {en: "Murata lists 3F as 3.15 kV, TDK as 3 kV.", de: "Murata führt 3F als 3,15 kV, TDK als 3 kV."}}
     not_cross_checked: {tolerance: ["E", "H", "N", "P", "S", "Y"], multiplier: ["7"]}
     notes:
       - {en: "Ceramic and film capacitors: the code is in picofarads - 104 = 100 000 pF = 100 nF. Aluminium electrolytic part numbers use microfarads (101 = 100 µF); that reading is not offered.", de: "Keramik- und Folienkondensatoren: der Code ist in Pikofarad - 104 = 100 000 pF = 100 nF. Aluminium-Elko-Bestellnummern verwenden Mikrofarad (101 = 100 µF); diese Lesart wird nicht angeboten."}

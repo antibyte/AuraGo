@@ -670,9 +670,17 @@
     }
 
     // The voltage field and the warnings that come with a voltage code; headline makes the voltage the value.
-    function addVoltage(res, units, v, headline) {
-        addField(res, 'voltage', 'Rated voltage', units.format(v.volts, 'voltage', '', 4), v.volts, 'voltage');
-        if (headline) { res.value = v.volts; res.dim = 'voltage'; }
+    function addVoltage(res, units, v, headline, selected = v.volts) {
+        if (v.ratings) {
+            for (const { maker, volts } of v.ratings) {
+                if (selected === undefined || selected === volts) {
+                    addField(res, 'voltage_' + maker.toLowerCase(), maker, units.format(volts, 'voltage', '', 4), volts, 'voltage');
+                }
+            }
+        } else {
+            addField(res, 'voltage', 'Rated voltage', units.format(v.volts, 'voltage', '', 4), v.volts, 'voltage');
+        }
+        if (headline && selected !== undefined) { res.value = selected; res.dim = 'voltage'; }
         res.warnings.push(VOLTAGE_WARNING);
         if (v.note_en) res.warnings.push(v.code + ': ' + v.note_en);
     }
@@ -821,11 +829,18 @@
         }
         if (pick.letter !== '') addTolerance(res, pick.rows, hasValue);
         if (hasVolt) {
-            let v;
-            try { v = units.parse(req.voltage, 'voltage', ''); } catch (error) { throw parseFail('voltage', error); }
-            const row = ix.data.voltages.filter(x => closeTo(x.volts, v)).pop() || null;
-            if (!row) throw unsupported('no standard voltage code for ' + units.format(v, 'voltage', '', 4));
-            addVoltage(res, units, row, !hasValue);
+            let row = ix.voltage.get(String(req.voltage).trim().toUpperCase()), selected;
+            if (!row || !row.ratings) {
+                let volts;
+                try { volts = units.parse(req.voltage, 'voltage', ''); } catch (error) { throw parseFail('voltage', error); }
+                row = ix.data.voltages.find(option => {
+                    const rating = (option.ratings || []).find(entry => closeTo(entry.volts, volts));
+                    if (rating) selected = rating.volts;
+                    return rating || closeTo(option.volts, volts);
+                });
+                if (!row) throw unsupported('no standard voltage code for ' + units.format(volts, 'voltage', '', 4));
+            }
+            addVoltage(res, units, row, !hasValue, selected);
             parts.push(row.code);
         }
         res.code = parts.join(' ');

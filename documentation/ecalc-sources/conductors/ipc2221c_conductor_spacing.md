@@ -14,11 +14,11 @@ Aktuelle Revision; Spalten B1–B5 (Leiter) und A6–A8 (Bauteilanschlüsse).
 | b1 | B1 — internal conductors | B1 — Innenlagen | mm (mm/V) | yes |
 | b2 | B2 — external conductors, uncoated, sea level to 3050 m | B2 — Außenlagen, unbeschichtet, bis 3050 m | mm (mm/V) | yes |
 | b3 | B3 — external conductors, uncoated, over 3050 m or vacuum | B3 — Außenlagen, unbeschichtet, über 3050 m oder Vakuum | mm (mm/V) | yes |
-| b4 | B4 — external conductors with polymer (solder-mask-type) coating, any elevation (wording per pcb-toolkit; verify) | B4 — Außenlagen mit Polymerbeschichtung, jede Höhe (Wortlaut prüfen) | mm (mm/V) | yes |
-| b5 | B5 (formerly A5) — external conductors with conformal coating, any elevation | B5 (früher A5) — Außenlagen mit Schutzlack, jede Höhe | mm (mm/V) | yes |
-| a6 | A6 — external component lead/termination, coated, any elevation (wording per pcb-toolkit; verify) | A6 — Bauteilanschluss außen, beschichtet (Wortlaut prüfen) | mm (mm/V) | yes |
-| a7 | A7 — external component lead/termination, uncoated, sea level to 3050 m (per pcb-toolkit; verify) | A7 — Bauteilanschluss außen, unbeschichtet, bis 3050 m (prüfen) | mm (mm/V) | yes |
-| a8 | A8 — external component lead/termination, uncoated, over 3050 m or vacuum (per pcb-toolkit; verify) | A8 — Bauteilanschluss außen, unbeschichtet, über 3050 m (prüfen) | mm (mm/V) | yes |
+| b4 | B4 — external traces with solder mask, any elevation | B4 — Außenleiter mit Lötstoppmaske in jeder Höhe | mm (mm/V) | yes |
+| b5 | B5 (A5 in revision B) — coated external conductors at any elevation or in vacuum | B5 (A5 in Revision B) — beschichtete Außenleiter in jeder Höhe oder im Vakuum | mm (mm/V) | yes |
+| a6 | A6 — coated external component leads at any elevation or in vacuum | A6 — beschichtete äußere Bauteilanschlüsse in jeder Höhe oder im Vakuum | mm (mm/V) | yes |
+| a7 | A7 — uncoated external component leads from sea level to 3050 m | A7 — unbeschichtete äußere Bauteilanschlüsse von Meereshöhe bis 3050 m | mm (mm/V) | yes |
+| a8 | A8 — external component leads without conformal coating above 3050 m or in vacuum | A8 — äußere Bauteilanschlüsse ohne Schutzlack über 3050 m oder im Vakuum | mm (mm/V) | yes |
 | per_volt | 1 for the ">500 V" row (mm per volt), else 0 | 1 für Zeile „>500 V" (mm je Volt), sonst 0 | — | yes |
 
 ## Rows
@@ -40,9 +40,11 @@ v_min,v_max,b1,b2,b3,b4,b5,a6,a7,a8,per_volt
 1. S. V. Chavez, Siemens EDA blog, "PCB high voltage spacing: What every engineer should know" (2025-04-29), Figure 1: image of "Table 6-1 Electrical Conductor Spacing" from IPC-2221C (2023-December, p. 58, "used with permission of IPC International, Inc."), including table notes 1–5: https://blogs.sw.siemens.com/electronic-systems-design/2025/04/29/pcb-high-voltage-spacing-what-every-engineer-should-know/ (image: https://blogs.sw.siemens.com/wp-content/uploads/sites/65/2025/04/IPC-table.png) — read from the image; accessed 2026-11-02.
 2. pcb-toolkit 0.1.5 (Rust crate), `src/spacing.rs`, constant `TABLE_MM` and `SLOPE_MM_PER_V` "IPC-2221C (2023) Table 6-1, p.58", plus `DeviceType` doc comments for the column meanings: https://docs.rs/crate/pcb-toolkit/latest/source/src/spacing.rs — accessed 2026-11-02.
 
+3. IPC, IPC-2221C, sections 6.3.3.1.1–6.3.3.1.8. The section headings identify each spacing category. [IPC table of contents](https://www.electronics.org/TOC/IPC-2221C-TOC.pdf)
+
 ## Cross-check
 - Sources 1 and 2 agree on all 80 cells (9 voltage bands × 8 columns + per-volt row).
-- Column meanings: source 1 (image) shows only the column groups "Conductors (creepage on same layer, internal or external)" and "Component lead (corona effect)" and note 4 (B5 = former A5); the per-column wording above comes from source 2 only → wording to be verified against IPC-2221C §6.3 before release (values are verified).
+- Column names follow source 3. Source 1, note 4 identifies B5 as the successor to A5.
 - Differences to IPC-2221B (see ipc2221b_conductor_spacing): B2 31–150 V and B3 31–50 V 0.6 → 0.64 mm; B4 changed (e.g. 0–30 V 0.05 → 0.075 mm, 31–100 V 0.13 → 0.3 mm, 101–300 V 0.4 → 0.8 mm, 301–500 V 0.8 → 1.6 mm); B5 (old A5) 0–30 V 0.13 → 0.075 mm; the old A6 values now appear in A7, the old A7 values (except 251–300 V: 0.8 → 0.4 mm) in A6; new column A8.
 
 ## Notes (en / de)

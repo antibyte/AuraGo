@@ -128,6 +128,7 @@ Use `ecalc` for electronics formulas: Ohm's law, voltage dividers, filters, time
 | `ceramic_temp` | `X7R`, `C0G`, `NP0`, `U2J` | `class` (required); class 1: `tempco`, `tolerance`; class 2: `value` as a range (`-55..125`), `tolerance` (`15%`) | class 1: `class`, `tc`, `tolerance`, `industry_code`; class 2: `class`, `temp_low`, `temp_high`, `change` |
 
 - The answer has `kind`, `code` (the canonical text), `bands` (colour ids), `value` (SI) with `formatted`, `dim`, `fields` (`id`, `name`, `text` and `value` where it is a number) and `warnings`. A code without a value (a class 2 ceramic code) has none of `value`, `dim` and `formatted`. Pass the `warnings` on: they say that an older tolerance reading exists, that voltage codes are a maker convention (check the datasheet), or that a symbol is ambiguous between makers.
+- For a capacitor marked `3F`, report both voltage fields. `voltage_tdk` is 3 kV and `voltage_murata` is 3.15 kV. Encoding either voltage returns `3F` with the matching maker.
 
 ## Errors
 

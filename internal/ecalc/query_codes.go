@@ -50,8 +50,8 @@ var codeFormsByKind = map[string]codeForms{
 	},
 	"capacitor": {
 		decode: []string{"up to three parts as printed: a value (104, 4p7), a tolerance letter (K) and a voltage code (1H), for example 104K 1H"},
-		encode: []string{"value (for example 100n)", "tolerance (a letter such as K, or a percentage)", "voltage (for example 50V)"},
-		fields: []string{"family", "tolerance (with tolerance_minus and tolerance_plus)", "voltage", "value_code and rkm (encode)"},
+		encode: []string{"value (for example 100n)", "tolerance (a letter such as K, or a percentage)", "voltage (for example 50V, 3 kV for TDK 3F, or 3.15 kV for Murata 3F)"},
+		fields: []string{"family", "tolerance (with tolerance_minus and tolerance_plus)", "voltage", "voltage_tdk and voltage_murata (3F)", "value_code and rkm (encode)"},
 	},
 	"ceramic_temp": {
 		decode: []string{"a ceramic temperature code as printed: X7R, C0G, NP0, U2J"},

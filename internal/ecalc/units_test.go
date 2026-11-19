@@ -24,10 +24,11 @@ func testUnits(t *testing.T) *Units {
 func TestUnitsVectors(t *testing.T) {
 	var f struct {
 		Parse []struct {
-			In   string  `json:"in"`
-			Dim  string  `json:"dim"`
-			Unit string  `json:"unit"`
-			Want float64 `json:"want"`
+			In    string  `json:"in"`
+			Dim   string  `json:"dim"`
+			Unit  string  `json:"unit"`
+			Want  float64 `json:"want"`
+			Exact bool    `json:"exact"`
 		} `json:"units_parse"`
 		ParseError []struct {
 			In   string `json:"in"`
@@ -67,7 +68,7 @@ func TestUnitsVectors(t *testing.T) {
 		got, err := u.Parse(v.In, v.Dim, v.Unit)
 		if err != nil {
 			t.Errorf("Parse(%q, %s, %q): %v", v.In, v.Dim, v.Unit, err)
-		} else if !near(got, v.Want, 1e-12) {
+		} else if (v.Exact && got != v.Want) || !near(got, v.Want, 1e-12) {
 			t.Errorf("Parse(%q, %s, %q) = %v, want %v", v.In, v.Dim, v.Unit, got, v.Want)
 		}
 	}
@@ -142,6 +143,8 @@ func TestLoadUnitsRejectsBrokenDefinitions(t *testing.T) {
 		{"radix that is not supported", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, radix: 3}]}\n", "radix must be 2, 8, 10 or 16"},
 		{"radix unit with a factor", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, radix: 2, factor: 2}]}\n", "must not have a factor"},
 		{"radix unit with an alias", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, radix: 2, aliases: [x]}]}\n", "must not have a factor"},
+		{"zero affine divisor", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, affine: {scale: 1, divisor: 0}}]}\n", "positive scale and divisor"},
+		{"two conversions", "prefixes: []\ndims:\n  a: {symbol: A, units: [{id: u, symbol: u, factor: 2, affine: {scale: 1, divisor: 1}}]}\n", "no other conversion"},
 		{"integer dimension with a linear unit", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, units: [{id: u, symbol: u, factor: 2}]}\n", "only has radix units"},
 		{"integer dimension with prefixes", "prefixes: [{id: k, factor: 1e3}]\ndims:\n  a: {symbol: A, integer: true, prefixes: [k]}\n", "no prefixes"},
 		{"positive integer dimension", "prefixes: []\ndims:\n  a: {symbol: A, integer: true, positive: true}\n", "cannot be positive"},

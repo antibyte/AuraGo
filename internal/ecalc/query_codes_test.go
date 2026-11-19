@@ -156,6 +156,19 @@ func TestQueryDecodeReadsTheCodes(t *testing.T) {
 	if err != nil || got.Formatted != "100 nF" || len(got.Fields) < 3 || len(got.Warnings) == 0 {
 		t.Errorf("104K 1H = %+v (%v)", got, err)
 	}
+	got, err = cat.QueryDecode("capacitor", "3F")
+	if err != nil || got.Value != nil || got.Formatted != "" || got.Dim != "" || len(got.Fields) != 2 {
+		t.Fatalf("3F = %+v (%v)", got, err)
+	}
+	for i, want := range []struct {
+		id    string
+		volts float64
+	}{{"voltage_tdk", 3000}, {"voltage_murata", 3150}} {
+		f := got.Fields[i]
+		if f.ID != want.id || f.Value == nil || *f.Value != want.volts || f.Dim != "voltage" {
+			t.Errorf("3F field %d = %+v", i, f)
+		}
+	}
 	got, err = cat.QueryDecode("ceramic_temp", "X7R")
 	if err != nil || got.Value != nil || got.Formatted != "" || got.Dim != "" || len(got.Fields) == 0 {
 		t.Errorf("X7R = %+v (%v)", got, err)

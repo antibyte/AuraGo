@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"regexp"
 	"sort"
 	"strconv"
@@ -69,19 +70,21 @@ type Prefix struct {
 	Factor float64 `yaml:"factor" json:"factor"`
 }
 
-// Unit is an explicit display unit of a dimension. A linear unit has a Factor (base = x * Factor); a non-linear one
+// Unit is an explicit display unit of a dimension. A linear unit has a Factor (base = x * Factor), an affine unit
+// converts decimal degrees with integer coefficients (base = (x * scale + offset) / divisor), and a non-linear unit
 // has To and From expressions in the expression language, where x is the value in this unit (To) or in the base
 // unit (From). Aliases are further spellings that input accepts exactly like the Symbol (the longest spelling is
 // tried first); they are never shown. A radix unit (Radix 2, 8, 10 or 16, only in an integer dimension) is a number
 // system: it has no conversion, Parse reads the digits of that base and Format writes them.
 type Unit struct {
-	ID      string   `json:"id"`
-	Symbol  string   `json:"symbol"`
-	Aliases []string `json:"aliases"`
-	Factor  float64  `json:"factor"`
-	To      string   `json:"to"`
-	From    string   `json:"from"`
-	Radix   int      `json:"radix"`
+	ID      string      `json:"id"`
+	Symbol  string      `json:"symbol"`
+	Aliases []string    `json:"aliases"`
+	Factor  float64     `json:"factor"`
+	To      string      `json:"to"`
+	From    string      `json:"from"`
+	Radix   int         `json:"radix"`
+	Affine  *affineUnit `json:"affine,omitempty"`
 
 	to, from *Node
 }
@@ -118,13 +121,33 @@ type Units struct {
 }
 
 type rawUnit struct {
-	ID      string   `yaml:"id"`
-	Symbol  string   `yaml:"symbol"`
-	Aliases []string `yaml:"aliases"`
-	Factor  float64  `yaml:"factor"`
-	To      string   `yaml:"to"`
-	From    string   `yaml:"from"`
-	Radix   int      `yaml:"radix"`
+	ID      string      `yaml:"id"`
+	Symbol  string      `yaml:"symbol"`
+	Aliases []string    `yaml:"aliases"`
+	Factor  float64     `yaml:"factor"`
+	To      string      `yaml:"to"`
+	From    string      `yaml:"from"`
+	Radix   int         `yaml:"radix"`
+	Affine  *affineUnit `yaml:"affine"`
+}
+
+// An affine unit defines SI = (scale*x + offset)/divisor with exact integer coefficients.
+type affineUnit struct {
+	Scale   int32 `yaml:"scale" json:"scale"`
+	Offset  int32 `yaml:"offset" json:"offset"`
+	Divisor int32 `yaml:"divisor" json:"divisor"`
+}
+
+func convertAffine(x float64, scale, offset, divisor int64) float64 {
+	// The catalog and input fields carry decimal values. Round only the final ratio to binary64.
+	value, ok := new(big.Rat).SetString(strconv.FormatFloat(x, 'g', -1, 64))
+	if !ok {
+		return x // NaN or infinity
+	}
+	value.Mul(value, big.NewRat(scale, 1))
+	value.Add(value, big.NewRat(offset, 1))
+	result, _ := value.Quo(value, big.NewRat(divisor, 1)).Float64()
+	return result
 }
 
 type rawDim struct {
@@ -213,7 +236,7 @@ func loadUnits(data []byte) (*Units, error) {
 			spell(a, "an alias of the dimension")
 		}
 		for _, ru := range rd.Units {
-			un := Unit{ID: ru.ID, Symbol: ru.Symbol, Aliases: ru.Aliases, Factor: ru.Factor, To: ru.To, From: ru.From, Radix: ru.Radix}
+			un := Unit{ID: ru.ID, Symbol: ru.Symbol, Aliases: ru.Aliases, Factor: ru.Factor, To: ru.To, From: ru.From, Radix: ru.Radix, Affine: ru.Affine}
 			if un.Aliases == nil {
 				un.Aliases = []string{}
 			}
@@ -226,6 +249,10 @@ func loadUnits(data []byte) (*Units, error) {
 			switch {
 			case un.ID == "" || un.Symbol == "" || seen[un.ID]:
 				fail("dim %q: unit %q needs a unique id and a symbol", d.ID, un.ID)
+			case un.Affine != nil:
+				if un.Affine.Scale <= 0 || un.Affine.Divisor <= 0 || d.Integer || un.Radix != 0 || un.Factor != 0 || un.To != "" || un.From != "" {
+					fail("dim %q: affine unit %q needs positive scale and divisor and no other conversion", d.ID, un.ID)
+				}
 			case un.Radix != 0:
 				switch {
 				case !d.Integer:
@@ -335,6 +362,9 @@ func evalUnitExpr(n *Node, x float64) float64 {
 
 // ToBase converts a value in this unit to the SI base unit.
 func (un *Unit) ToBase(x float64) float64 {
+	if a := un.Affine; a != nil {
+		return convertAffine(x, int64(a.Scale), int64(a.Offset), int64(a.Divisor))
+	}
 	if un.to != nil {
 		return evalUnitExpr(un.to, x)
 	}
@@ -343,6 +373,13 @@ func (un *Unit) ToBase(x float64) float64 {
 
 // FromBase converts a value in the SI base unit to this unit.
 func (un *Unit) FromBase(v float64) float64 {
+	if a := un.Affine; a != nil {
+		// The SI value of zero degrees can be a recurring decimal (0 °F is 45967/180 K).
+		if v == float64(a.Offset)/float64(a.Divisor) {
+			return 0
+		}
+		return convertAffine(v, int64(a.Divisor), -int64(a.Offset), int64(a.Scale))
+	}
 	if un.from != nil {
 		return evalUnitExpr(un.from, v)
 	}

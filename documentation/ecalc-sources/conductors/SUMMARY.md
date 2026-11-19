@@ -16,7 +16,7 @@
 | nec_ampacity_awg | transcribed standard (NEC 2023 Table 310.16) | 20 × 6 (18 AWG – 500 kcmil, Cu & Al, 60/75/90 °C) | 4 | all verified |
 | iec60228_cross_sections | transcribed standard (IEC 60228) | 30 × 4 (0.5–2500 mm²; class 2 Cu/Al, class 5 Cu plain/coated R20) | 3 | 10 UNVERIFIED (class 2, 1400–2500 mm²) |
 | ipc2221b_conductor_spacing | transcribed standard (IPC-2221B Table 6-1, B1–B4, A5–A7) | 10 × 7 | 4 | all verified; 1 disagreement resolved (B2 251–300 V = 1.25 mm) |
-| ipc2221c_conductor_spacing | transcribed standard (IPC-2221C 2023 Table 6-1, B1–B5, A6–A8) | 10 × 8 | 2 | values verified; per-column wording from one source |
+| ipc2221c_conductor_spacing | transcribed standard (IPC-2221C 2023 Table 6-1, B1–B5, A6–A8) | 10 × 8 | 3 | values cross-checked; category names verified against IPC §6.3.3.1 |
 | pcb_copper_weight | formula-derived + typical | 7 × 7 (0.25–4 oz) | 6 | n/a |
 
 Skipped as instructed: the IPC-2221 width × copper weight × ΔT grid and AWG diameter/area (ECalc computes both).
@@ -32,12 +32,11 @@ Skipped as instructed: the IPC-2221 width × copper weight × ΔT grid and AWG d
    b1_3 = 28 only within ±1 A — still UNVERIFIED.
 3. DIN vs IEC vs BS: DIN VDE 0298-4 (2013) 1.5 mm² A1/A2 2-loaded = 15.5 A vs IEC 14.5/14 A; BS 7671 2.5 mm² Method A
    2-cable = 20 A vs IEC/DIN 19.5 A (chose 19.5). DIN VDE 0298-4:2023-06 (current edition) not checked.
-4. IPC-2221C column wording (B4, A6–A8) from a third-party code library; verify against IPC-2221C §6.3.
-5. NEC 2026 first-draft FR-8257 adds 10 A at 60 °C for 16 AWG Cu and 14 AWG CCA; final text not checked, table stays NEC
+4. NEC 2026 first-draft FR-8257 adds 10 A at 60 °C for 16 AWG Cu and 14 AWG CCA; final text not checked, table stays NEC
    2023.
-6. Flexible cords: column D (rubber cables ≥ 0.6/1 kV) only from Lapp (1.5–4 mm²); H07RN-F table (DIN Tab. 13)
+5. Flexible cords: column D (rubber cables ≥ 0.6/1 kV) only from Lapp (1.5–4 mm²); H07RN-F table (DIN Tab. 13)
    single-source, left out.
-7. Subsets chosen: Cu 1.5–240 mm², Al 16–240 mm²; methods D1/D2 and G not included; tray tables B.52.20/B.52.21 not
+6. Subsets chosen: Cu 1.5–240 mm², Al 16–240 mm²; methods D1/D2 and G not included; tray tables B.52.20/B.52.21 not
    included (sources exist: Schneider EIG Fig. G17, ABB EIH Tables 6–7, ABB DE Tab. 8, Lapp 12-7/12-8).
 
 ## Finder (a) — cable cross-section
