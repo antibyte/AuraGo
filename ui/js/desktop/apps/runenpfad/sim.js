@@ -112,6 +112,7 @@
                 climbKind: null,
                 climbDir: 0,
                 onPlatformRide: null,
+                coyotePlatformRide: null,
                 coyoteTimer: 0,
                 jumpBuffer: 0,
                 airJumpsLeft: stats.maxAirJumps,
@@ -150,6 +151,7 @@
         const stage = sim.stage;
         stage.movingPlatforms.forEach(function (mp) {
             mp.prevX = mp.x;
+            mp.prevY = mp.y;
             mp.x += mp.speed * mp.dir * dt;
             if (mp.x >= mp.endX) {
                 mp.x = mp.endX;
@@ -157,6 +159,15 @@
             } else if (mp.x <= mp.startX) {
                 mp.x = mp.startX;
                 mp.dir = 1;
+            }
+            if (mp.kind === 'sky_ray') {
+                mp.motionTime += dt;
+                const angle = (mp.motionTime / mp.bobPeriod) * Math.PI * 2;
+                mp.y = mp.baseY + Math.sin(angle) * mp.bobAmplitude;
+                mp.bob = mp.y - mp.baseY;
+                mp.pitch = Math.max(-0.12, Math.min(0.12, Math.cos(angle) * (mp.bobAmplitude * Math.PI * 2 / mp.bobPeriod) * 0.002));
+                mp.wingPhase = (mp.motionTime * 1.15) % 1;
+                mp.facing = mp.dir;
             }
         });
         stage.platforms.forEach(function (p) {
@@ -606,6 +617,7 @@
         // Carry standing player on moving platforms
         if (!swung && p.onGround && p.onPlatformRide) {
             p.x += p.onPlatformRide.x - p.onPlatformRide.prevX;
+            p.y += p.onPlatformRide.y - p.onPlatformRide.prevY;
         }
 
         // Check ladder overlap
@@ -675,20 +687,29 @@
             if (p.onGround) {
                 p.coyoteTimer = 0.11;
                 p.airJumpsLeft = stats.maxAirJumps + (runesApi() ? runesApi().extraAirJumps(sim) : 0);
+                p.coyotePlatformRide = p.onPlatformRide && p.onPlatformRide.kind === 'sky_ray' ? p.onPlatformRide : null;
             } else {
                 p.coyoteTimer = Math.max(0, p.coyoteTimer - dt);
+                if (p.coyoteTimer <= 0) p.coyotePlatformRide = null;
             }
             if (input.jumpPressed) p.jumpBuffer = 0.11;
             else p.jumpBuffer = Math.max(0, p.jumpBuffer - dt);
 
             if (p.jumpBuffer > 0) {
                 if (p.coyoteTimer > 0) {
+                    const launchPlatform = p.onPlatformRide || p.coyotePlatformRide;
                     p.vy = -stats.jumpVel;
                     p.onGround = false;
                     p.coyoteTimer = 0;
                     p.jumpBuffer = 0;
                     p.slamActive = false;
                     pushJump(sim);
+                    if (launchPlatform && launchPlatform.kind === 'sky_ray') {
+                        launchPlatform.ridden = false;
+                        p.coyotePlatformRide = null;
+                        pushEvent(sim, 'sky_ray_leap', { x: p.x, y: p.y, id: launchPlatform.id });
+                        fxBurst(sim, 'trail', p.x, p.y - 20, 7, { color: '#8fe8ff', speed: 100, life: 0.42 });
+                    }
                 } else if (p.airJumpsLeft > 0) {
                     p.airJumpsLeft -= 1;
                     p.vy = -stats.jumpVel * 0.92;
@@ -707,6 +728,7 @@
         zoneHook('applyForces', sim, p, dt);
         const prevY = p.y;
         const wasOnGround = p.onGround;
+        const previousPlatformRide = p.onPlatformRide;
         const impactSpeed = Math.max(0, p.vy);
         let landResult;
         if (!swung) {
@@ -722,16 +744,30 @@
             fxShake(sim, 2.6);
         }
 
+        (stage.skyRays || []).forEach(function (ray) {
+            const boarded = p.onGround && p.onPlatformRide === ray;
+            ray.ridden = boarded;
+            if (boarded && previousPlatformRide !== ray) {
+                pushEvent(sim, 'sky_ray_board', { x: p.x, y: ray.y, id: ray.id });
+                fxBurst(sim, 'rune', p.x, ray.y, 9, { color: '#8fe8ff', speed: 125, life: 0.52 });
+            }
+        });
+
         if (!wasOnGround && p.onGround) {
-            const landing = { x: p.x, y: p.y, sound: stage.world.stepSound, impactSpeed: impactSpeed, slam: !!p.slamActive };
+            const onSkyRay = !!(p.onPlatformRide && p.onPlatformRide.kind === 'sky_ray');
+            const landing = { x: p.x, y: p.y, sound: stage.world.stepSound, impactSpeed: impactSpeed, slam: !!p.slamActive, skyRay: onSkyRay };
             pushEvent(sim, 'land', landing);
-            fxBurst(sim, 'dust', p.x, p.y, 7, {
-                color: '#d9c9a8',
-                speed: 130,
-                arc: Math.PI * 0.9,
-                angle: Math.PI / 2,
-                life: 0.38
-            });
+            if (onSkyRay) {
+                fxBurst(sim, 'rune', p.x, p.y - 4, 5, { color: '#b8f2ff', speed: 64, life: 0.28 });
+            } else {
+                fxBurst(sim, 'dust', p.x, p.y, 7, {
+                    color: '#d9c9a8',
+                    speed: 130,
+                    arc: Math.PI * 0.9,
+                    angle: Math.PI / 2,
+                    life: 0.38
+                });
+            }
             if (p.slamActive) {
                 p.slamActive = false;
                 sim.effects.push({ animId: 'explosion', x: p.x, y: p.y - 16, timer: 0.45 });
@@ -767,7 +803,7 @@
             p.stepTimer -= dt;
             if (p.stepTimer <= 0) {
                 p.stepTimer = 0.28;
-                pushEvent(sim, 'step', { sound: stage.world.stepSound });
+                pushEvent(sim, 'step', { sound: stage.world.stepSound, skyRay: !!(p.onPlatformRide && p.onPlatformRide.kind === 'sky_ray') });
             }
         }
 

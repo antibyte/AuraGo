@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "उड़ती मंता रे की पीठ पर कूदो",
   "runenpfad.resonance_hint": "चमकती रूण छुओ",
   "runenpfad.resonance_progress": "रूण पथ {count}/{total} · {seconds} सेकंड",
   "runenpfad.notice.resonance_complete": "रूण पथ पूरा हुआ!",

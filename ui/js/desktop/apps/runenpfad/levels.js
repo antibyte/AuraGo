@@ -374,43 +374,8 @@
             { offsets: [0, 24, 60, 120], lifts: [0, -54, -88, -64] }
         ];
         const pattern = patterns[patternIndex];
-        const surfaces = [];
-        function safeSurface(tx, ty) {
-            const top = ty * tile;
-            const left = tx * tile;
-            const right = left + tile;
-            if (!stage.solidMap[tx + ',' + ty]) return false;
-            for (let head = 1; head <= 3; head++) {
-                if (stage.solidMap[tx + ',' + (ty - head)]) return false;
-            }
-            if ((stage.platforms || []).some(function (p) {
-                return left < p.x + p.w && right > p.x && p.y >= top - 144 && p.y < top;
-            }) || (stage.movingPlatforms || []).some(function (p) {
-                return left < p.x + p.w && right > p.x && p.y >= top - 144 && p.y < top;
-            })) return false;
-            if ((stage.hazards || []).some(function (h) {
-                const hx = h.x + h.w;
-                const hy = h.y + tile - h.h + 4;
-                return left < hx && right > h.x && top > hy && top - 44 < h.y + tile;
-            })) return false;
-            if ((stage.crates || []).some(function (c) {
-                return left < c.x + c.w && right > c.x && top > c.y && top - 44 < c.y + c.h;
-            })) return false;
-            return true;
-        }
-
-        for (let ty = 2; ty < stage.heightTiles; ty++) {
-            let start = -1;
-            for (let tx = 1; tx < stage.widthTiles; tx++) {
-                if (safeSurface(tx, ty)) {
-                    if (start < 0) start = tx;
-                } else if (start >= 0) {
-                    if (tx - start >= 5) surfaces.push({ start: start, end: tx - 1, y: ty });
-                    start = -1;
-                }
-            }
-            if (start >= 0 && stage.widthTiles - start >= 5) surfaces.push({ start: start, end: stage.widthTiles - 1, y: ty });
-        }
+        const variety = root.RunenpfadVariety;
+        const surfaces = variety ? variety.safeGroundSpans(stage, 5, 144) : [];
         if (!surfaces.length) return null;
 
         const spawnTile = stage.spawn.x / tile;
@@ -986,6 +951,7 @@
             tiles: tiles,
             platforms: platforms,
             movingPlatforms: movingPlatforms,
+            skyRays: [],
             ladders: ladders,
             hazards: hazards,
             boulders: boulders,
@@ -1044,6 +1010,7 @@
             variety.applyToStage(stage, mod);
         }
         stage.resonancePath = createResonancePath(stage, cfg);
+        stage.skyRays = variety ? variety.placeSkyRay(stage, cfg) : [];
         return stage;
     }
 

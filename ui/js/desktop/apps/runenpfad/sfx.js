@@ -585,6 +585,24 @@
         cuttick: wrap(function (b, t, g, sr) {
             b.n(t, 0.02, g * 0.5, { f0: 2200 * sr, q: 3 });
             b.o('sine', 900 * sr, 700 * sr, t, 0.03, g * 0.15, { atk: 0.002 });
+        }),
+        // Windray: a breathy, living lift with a separate soft harmonic glint.
+        ray_board: wrap(function (b, t, g, sr, o) {
+            const f = (o.freq || 440) * sr;
+            const tone = b.o('sine', f * 0.92, f * 1.035, t, 0.5, g * 0.46, { atk: 0.15 });
+            b.lfo(tone.osc.frequency, 3.6, f * 0.004, t, 0.5);
+            b.n(t, 0.42, g * 0.06, { f0: f * 1.8, f1: f * 3.8, q: 0.62, atk: 0.17 });
+        }),
+        ray_leap: wrap(function (b, t, g, sr, o) {
+            const f = (o.freq || 440) * sr;
+            const tone = b.o('sine', f * 0.86, f * 1.18, t, 0.38, g * 0.44, { atk: 0.09 });
+            b.lfo(tone.osc.frequency, 5, f * 0.006, t, 0.38);
+            b.n(t, 0.3, g * 0.065, { f0: f * 1.7, f1: f * 4.2, q: 0.58, atk: 0.1 });
+        }),
+        ray_glint: wrap(function (b, t, g, sr, o) {
+            const f = (o.freq || 440) * sr;
+            b.o('sine', f * 1.5, f * 1.54, t, 0.4, g * 0.1, { atk: 0.1, filter: 'lowpass', ff: 2800, q: 0.7 });
+            b.n(t + 0.03, 0.38, g * 0.13, { type: 'highpass', f0: f * 4.2, f1: f * 2.5, q: 0.55, atk: 0.15 });
         })
     };
 
@@ -617,5 +635,11 @@
         };
     }
 
-    root.RunenpfadSfx = { SYNTHS: SYNTHS, builder: builder, resonanceNotes: resonanceNotes };
+    function cueTuning(theme, cue, detail) {
+        if (!cue) return null;
+        const index = cue.scaleByIndex && detail && Number.isInteger(detail.index) ? detail.index : cue.themeIndex;
+        return Number.isInteger(index) ? resonanceNotes(theme, index, !!cue.scalePhrase) : null;
+    }
+
+    root.RunenpfadSfx = { SYNTHS: SYNTHS, builder: builder, resonanceNotes: resonanceNotes, cueTuning: cueTuning };
 })(typeof window !== 'undefined' ? window : globalThis);

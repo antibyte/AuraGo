@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "Salta para o dorso da raia voadora",
   "runenpfad.resonance_hint": "Toca na runa que brilha",
   "runenpfad.resonance_progress": "Trilho rúnico {count}/{total} · {seconds} s",
   "runenpfad.notice.resonance_complete": "Trilho rúnico concluído!",

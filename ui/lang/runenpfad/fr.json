@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "Saute sur le dos de la raie volante",
   "runenpfad.resonance_hint": "Touche la rune qui brille",
   "runenpfad.resonance_progress": "Piste runique {count}/{total} · {seconds} s",
   "runenpfad.notice.resonance_complete": "Piste runique terminée !",

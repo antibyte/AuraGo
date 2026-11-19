@@ -161,7 +161,9 @@
     Object.keys(MOB_PITCH).forEach(function (k) { MOB_TELLS[k] = { synth: 'chirp', sg: 0.3, sr: MOB_PITCH[k] }; });
     const CUE_MAP = {
         step: { sound: null, gain: 0.38, cooldown: 220, vary: 0.14 },
-        jump: { sound: 'jump', gain: 0.58, cooldown: 90, vary: 0.1 },
+        jump: { sound: 'jump', gain: 0.58, cooldown: 90, vary: 0.1, synth: 'whoosh', sg: 0.2, sr: 1.35 },
+        sky_ray_board: { sound: false, gain: 0.55, cooldown: 300, synth: 'ray_board', sg: 0.58, themeIndex: 4, also: [{ synth: 'ray_glint', sg: 0.25, delay: 0.05 }] },
+        sky_ray_leap: { sound: false, gain: 0.55, cooldown: 200, synth: 'ray_leap', sg: 0.62, themeIndex: 5, also: [{ synth: 'ray_glint', sg: 0.3, delay: 0.025 }] },
         dash: { sound: 'jump', gain: 0.36, cooldown: 140, rate: 1.32, vary: 0.08, synth: 'whoosh', sg: 0.4, sr: 1.3 },
         spring: { sound: 'jump', gain: 0.5, cooldown: 90, rate: 1.45, vary: 0.08, synth: 'boing', sg: 0.35 },
         bounce: { sound: 'jump', gain: 0.4, cooldown: 90, rate: 1.6, vary: 0.08, synth: 'boing', sg: 0.4, sr: 1.2 },
@@ -943,11 +945,11 @@
         }
 
         // Extra synth layers and the per-biome boss voice of a resolved cue.
-        function playExtras(cue, key, d, pan) {
+        function playExtras(cue, key, d, pan, tuned) {
             if (liveSynths >= SYNTH_CAP) return;
             const v = hashUnit(key, counters.get(key) || 0);
             (cue.also || []).forEach(function (a) {
-                playSynth(a.synth, { gain: a.sg || 0.4, sr: a.sr || 1, v: v, delay: a.delay || 0, count: d && d.count }, pan);
+                playSynth(a.synth, { gain: a.sg || 0.4, sr: a.sr || 1, v: v, delay: a.delay || 0, count: d && d.count, freq: a.freq || (tuned && tuned.freq) || cue.freq || 0 }, pan);
             });
             if (cue.voice) {
                 (dragonVoice(d) || BOSS_VOICES[biome] || BOSS_VOICES.woodland).forEach(function (bv) {
@@ -964,7 +966,7 @@
                     const base = ev && CUE_MAP[ev.type];
                     if (!base) continue;
                     const d = ev.detail || null;
-                    if (ev.type === 'land' && d && d.slam) continue;
+                    if (d && (d.skyRay && (ev.type === 'step' || ev.type === 'land') || ev.type === 'land' && d.slam)) continue;
                     if (ev.type === 'enemy_kill' && d && d.boss) continue;
                     const cue = resolveCue(ev, base, d);
                     const detailKey = d && ev.type.indexOf('resonance_') === 0 && Number.isInteger(d.index)
@@ -996,12 +998,10 @@
                         sr *= k;
                         if (cue.scale.gain) sg *= 0.6 + 0.4 * k;
                     }
-                    const resonance = cue.scaleByIndex && d && Number.isInteger(d.index) && root.RunenpfadSfx
-                        ? root.RunenpfadSfx.resonanceNotes(root.RunenpfadMusic && root.RunenpfadMusic.THEMES && root.RunenpfadMusic.THEMES[biome], d.index, cue.scalePhrase)
-                        : null;
+                    const tuned = root.RunenpfadSfx && root.RunenpfadSfx.cueTuning(root.RunenpfadMusic && root.RunenpfadMusic.THEMES && root.RunenpfadMusic.THEMES[biome], cue, d);
                     if (id && assetsById[id]) playSample(id, cue.gain, rate, pan);
-                    if (cue.synth) playSynth(cue.synth, { gain: sg, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: resonance ? resonance.freq : (cue.ladder ? 1046 : 0), notes: resonance && resonance.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
-                    if (cue.also || cue.voice) playExtras(cue, key, d, pan);
+                    if (cue.synth) playSynth(cue.synth, { gain: sg, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: tuned ? tuned.freq : (cue.freq || (cue.ladder ? 1046 : 0)), notes: tuned && tuned.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
+                    if (cue.also || cue.voice) playExtras(cue, key, d, pan, tuned);
                 }
             }
             if (worldAmbience) {

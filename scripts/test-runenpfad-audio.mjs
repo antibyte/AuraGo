@@ -53,11 +53,12 @@ sandbox.AudioContext = FakeContext;
 // ---- 1. contract coverage ----
 const CONTRACT_EVENTS = [
     'enemy_block', 'enemy_phase', 'enemy_windup', 'enemy_slam', 'spore_burst', 'spore_lob', 'stomp', 'chest_open', 'land',
-    'rune_pickup', 'rune_expire', 'rune_shield_break', 'rune_zap', 'resonance_start', 'resonance_rune', 'resonance_complete', 'resonance_expire',
+    'rune_pickup', 'rune_expire', 'rune_shield_break', 'rune_zap', 'resonance_start', 'resonance_rune', 'resonance_complete', 'resonance_expire', 'sky_ray_board', 'sky_ray_leap',
     'geyser_burst', 'switch_on', 'gate_open', 'jet_warn', 'jet_fire',
     'boss_intro', 'boss_phase', 'boss_defeat', 'boss_slam', 'boss_telegraph', 'boss_attack', 'enemy_attack', 'enemy_dive'
 ];
 CONTRACT_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type], `cue missing for ${type}`));
+assert.equal(Audio.CUE_MAP.jump.synth, 'whoosh', 'the common jump keeps its sample and adds a soft lift layer');
 const PATTERNS = ['charge', 'ground_pound', 'leap', 'volley', 'summon', 'ring', 'laser', 'dive', 'missiles', 'fire_strip'];
 const table = (sandbox.RunenpfadBosses && sandbox.RunenpfadBosses.PATTERNS) || {};
 const bossPatterns = [].concat(...Object.keys(table).map((id) => [].concat(table[id].p1 || [], table[id].p2 || [])));
@@ -148,6 +149,14 @@ assert.ok(nodeCount > landBefore, 'landing creates the impact and material layer
 assert.ok(requestedSamples.some((url) => url.includes('step-metal.wav')), 'landing loads its metal surface sample');
 assert.deepEqual(landingSpeeds, [740], 'landing impact keeps its incoming speed');
 assert.ok(Audio.CUE_MAP.land.by.map['step-metal'].also.some((layer) => layer.synth === 'clank'), 'metal landing rings after the thump');
+const raySurfaceBefore = nodeCount;
+const raySamplesBefore = requestedSamples.length;
+lander.handleEvents([
+    { type: 'step', detail: { sound: 'step-grass', skyRay: true } },
+    { type: 'land', detail: { sound: 'step-grass', impactSpeed: 500, skyRay: true } }
+], null, null);
+assert.equal(nodeCount, raySurfaceBefore, 'Windray riding suppresses terrain and ordinary landing synths');
+assert.equal(requestedSamples.length, raySamplesBefore, 'Windray riding does not request terrain samples');
 const slamBefore = nodeCount;
 lander.handleEvents([{ type: 'land', detail: { x: 20, y: 30, sound: 'step-metal', impactSpeed: 740, slam: true } }], null, null);
 assert.equal(nodeCount, slamBefore, 'slam landing does not double-play the ordinary landing cue');
@@ -184,18 +193,56 @@ assert.deepEqual(resonancePhrases.slice(0, 3), [null, null, null], 'rune contact
 assert.deepEqual(Array.from(resonancePhrases[3]), [0, 2, 4].map((degree) => 440 * Math.pow(2, (cavern.root + 12 + cavern.scale[degree] - 69) / 12)), 'the final cue resolves in the biome scale');
 resonance.dispose();
 Sfx.SYNTHS.resonance = originalResonance;
+
+// Windray cues use two synth layers and take stable pitches from each biome scale.
+const rayPitches = [];
+const rayLayers = [];
+const originalRayBoard = Sfx.SYNTHS.ray_board;
+const originalRayLeap = Sfx.SYNTHS.ray_leap;
+const originalRayGlint = Sfx.SYNTHS.ray_glint;
+['ray_board', 'ray_leap', 'ray_glint'].forEach((name) => {
+    const original = Sfx.SYNTHS[name];
+    Sfx.SYNTHS[name] = function (ctx, buffer, dest, time, options) {
+        rayLayers.push(name);
+        rayPitches.push([name, options.freq]);
+        return original(ctx, buffer, dest, time, options);
+    };
+});
+const windray = Audio.createAudioController({ manifest });
+windray.unlock();
+const biomeAmbience = { woodland: 'forest-day', cavern: 'forest-night', desert: 'wind-strong', glacier: 'wind-gentle', citadel: 'industrial' };
+Object.keys(biomeAmbience).forEach((biome) => {
+    windray.setAmbience(biomeAmbience[biome]);
+    ['sky_ray_board', 'sky_ray_leap'].forEach((type) => {
+        sandbox.__t += 350;
+        windray.handleEvents([{ type, detail: { x: 120, y: 80 } }], null, null);
+    });
+});
+const expectedRayPitches = Object.keys(biomeAmbience).flatMap((biome) => [4, 5].flatMap((index) => {
+    const freq = Sfx.resonanceNotes(Music.THEMES[biome], index).freq;
+    return [[index === 4 ? 'ray_board' : 'ray_leap', freq], ['ray_glint', freq]];
+}));
+assert.deepEqual(rayPitches, expectedRayPitches, 'Windray layers stay in each biome scale and differ between boarding and leaping');
+assert.equal(rayLayers.filter((name) => name === 'ray_glint').length, 10, 'each Windray event has one soft harmonic layer');
+windray.dispose();
+[ ['ray_board', originalRayBoard], ['ray_leap', originalRayLeap], ['ray_glint', originalRayGlint] ].forEach(([name, original]) => { Sfx.SYNTHS[name] = original; });
 const mutedResonance = Audio.createAudioController({ manifest, enabled: false });
 const mutedBefore = nodeCount;
 mutedResonance.handleEvents([{ type: 'resonance_start', detail: { index: 0 } }], null, null);
 assert.equal(nodeCount, mutedBefore, 'the sound mute silences resonance contacts');
 mutedResonance.dispose();
+const mutedRay = Audio.createAudioController({ manifest, enabled: false });
+const mutedRayBefore = nodeCount;
+mutedRay.handleEvents([{ type: 'sky_ray_board', detail: { x: 1, y: 1 } }, { type: 'sky_ray_leap', detail: { x: 1, y: 1 } }], null, null);
+assert.equal(nodeCount, mutedRayBefore, 'the sound mute silences Windray cues');
+mutedRay.dispose();
 const independentSfx = Audio.createAudioController({ manifest });
 independentSfx.unlock();
 const mutedMusic = Music.createMusicController(independentSfx.musicPort());
 mutedMusic.setEnabled(false);
 const sfxWithMusicMuted = nodeCount;
-independentSfx.handleEvents([{ type: 'resonance_start', detail: { index: 0 } }], null, null);
-assert.ok(nodeCount > sfxWithMusicMuted, 'the music mute leaves sound effects enabled');
+independentSfx.handleEvents([{ type: 'sky_ray_board', detail: { x: 1, y: 1 } }], null, null);
+assert.ok(nodeCount > sfxWithMusicMuted, 'the music mute leaves Windray sound effects enabled');
 mutedMusic.dispose();
 independentSfx.dispose();
 

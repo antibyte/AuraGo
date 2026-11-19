@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "Πήδα στη ράχη του ιπτάμενου σαλαχιού",
   "runenpfad.resonance_hint": "Άγγιξε τον φωτεινό ρούνο",
   "runenpfad.resonance_progress": "Μονοπάτι ρούνων {count}/{total} · {seconds} δ.",
   "runenpfad.notice.resonance_complete": "Ολοκλήρωσες το μονοπάτι των ρούνων!",

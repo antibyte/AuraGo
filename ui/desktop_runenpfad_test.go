@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"aurago/internal/desktop"
 )
@@ -148,6 +149,7 @@ func TestRunenpfadRegistration(t *testing.T) {
 		"runenpfad.win_goal_swift",
 		"runenpfad.ctl_move",
 		"runenpfad.resonance_hint",
+		"runenpfad.sky_ray_hint",
 		"runenpfad.resonance_progress",
 		"runenpfad.notice.resonance_complete",
 		"runenpfad.notice.resonance_expire",
@@ -237,7 +239,7 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 
 	page := desktopAuditBrowserWithAPI(t, map[string]http.Handler{
 		"/api/game-maker/asset-packs/": packHandler,
-	})
+	}).CancelTimeout().Timeout(90 * time.Second)
 
 	page.MustEval(`()=>{ localStorage.removeItem('aurago.runenpfad.v1'); window.auditTest.openApp('runenpfad'); }`)
 	page.MustWait(`()=>{
@@ -388,6 +390,53 @@ func TestDesktopRunenpfadBrowser(t *testing.T) {
 		const win = document.querySelector('.rp-win');
 		return app && app.dataset.rpState === 'playing' && app.dataset.rpLevel === '2' && win && win.hidden;
 	}`)
+
+	page.MustWait(`()=>RunenpfadArt.has(RunenpfadArt.current(), "creature-sky-ray.glide")`)
+	if !page.MustEval(`()=>{
+		const canvas = document.createElement('canvas'); canvas.width = 160; canvas.height = 140;
+		const ctx = canvas.getContext('2d');
+		const painter = RunenpfadStageArt.create({ctx, art: RunenpfadArt.current(), drawGlow() {}});
+		const stage = {portal: {x: 80, y: 74}, tileSize: 48};
+		const paint = (hasKey, nowSec, reducedMotion) => {
+			ctx.clearRect(0, 0, 160, 140);
+			painter.drawPortal({stage, hasKey}, {sx: 0, viewW: 160, nowSec, reducedMotion});
+			return canvas.toDataURL();
+		};
+		const locked = paint(false, 0, false), open = paint(true, 0, true);
+		return locked !== open && locked === paint(false, 1.5, false) &&
+			open === paint(true, 1.5, true) && open !== paint(true, 1.5, false);
+	}`).Bool() {
+		t.Fatal("the portal must show its lock, animate when open and hold still with reduced motion")
+	}
+
+	// Board from the ground, travel on the ray and jump off using the regular control.
+	page.MustEval(`()=>{
+		const game = document.querySelector('.rp-app').__runenpfad;
+		const sim = game.getSim(), ray = sim.stage.skyRays[0];
+		game.setPlayerPosition(ray.x + ray.w / 2 + ray.dir * 30, sim.stage.groundY);
+	}`)
+	page.MustWait(`()=>{
+		const tag = document.querySelector('.rp-tag-path');
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		return sim.player.onGround && !tag.hidden && tag.textContent.trim() && !tag.textContent.includes('runenpfad.');
+	}`)
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent("keydown", {code: "Space", key: " ", bubbles: true}))`)
+	page.MustWait(`()=>document.querySelector('.rp-app').__runenpfad.getSim().stage.skyRays[0].ridden`)
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent("keyup", {code: "Space", key: " ", bubbles: true}))`)
+	startX := page.MustEval(`()=>document.querySelector('.rp-app').__runenpfad.getSim().player.x`).Int()
+	page.MustWait(fmt.Sprintf(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		return sim.stage.skyRays[0].ridden && Math.abs(sim.player.x - %d) > 36;
+	}`, startX))
+	if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
+		page.MustElement(".rp-app").MustScreenshot(filepath.Join(dir, "windrochen.png"))
+	}
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent("keydown", {code: "Space", key: " ", bubbles: true}))`)
+	page.MustWait(`()=>{
+		const sim = document.querySelector('.rp-app').__runenpfad.getSim();
+		return !sim.stage.skyRays[0].ridden && sim.player.y < sim.stage.skyRays[0].y - 15;
+	}`)
+	page.MustEval(`()=>window.dispatchEvent(new KeyboardEvent("keyup", {code: "Space", key: " ", bubbles: true}))`)
 
 	// NPC encounter smoke on stage 2 (witch camp): talk, answer, leave, then a duel that ends quickly.
 	page.MustEval(`()=>{

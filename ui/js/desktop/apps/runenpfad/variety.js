@@ -108,6 +108,109 @@
         return stage;
     }
 
+    function safeGroundSpans(stage, minTiles, clearance, options) {
+        const tile = stage.tileSize;
+        const required = Math.max(1, Math.floor(minTiles || 1));
+        const headroom = Math.max(tile, Number(clearance) || 144);
+        const opts = options || {};
+        const spans = [];
+        const platforms = (stage.platforms || []).concat(stage.movingPlatforms || []);
+        function safeSurface(tx, ty) {
+            const top = ty * tile;
+            const left = tx * tile;
+            const right = left + tile;
+            if (!stage.solidMap[tx + ',' + ty]) return false;
+            for (let head = 1; head <= 3; head++) {
+                if (stage.solidMap[tx + ',' + (ty - head)]) return false;
+            }
+            if (platforms.some(function (p) {
+                const pLeft = opts.allMotion && Number.isFinite(p.startX) ? p.startX : p.x;
+                const pRight = opts.allMotion && Number.isFinite(p.endX) ? p.endX + p.w : p.x + p.w;
+                return left < pRight && right > pLeft && p.y >= top - headroom && p.y < top;
+            })) return false;
+            if ((stage.hazards || []).some(function (h) {
+                const hx = h.x + h.w;
+                const hy = h.y + tile - h.h + 4;
+                return left < hx && right > h.x && top > hy && top - 44 < h.y + tile;
+            })) return false;
+            if ((stage.crates || []).some(function (c) {
+                return left < c.x + c.w && right > c.x && top > c.y && top - 44 < c.y + c.h;
+            })) return false;
+            if (opts.gates && (stage.gates || []).some(function (g) {
+                return left < g.x + g.w && right > g.x && top - headroom < g.y + g.h && top > g.y;
+            })) return false;
+            return true;
+        }
+
+        for (let ty = 2; ty < stage.heightTiles; ty++) {
+            if (Number.isFinite(opts.surfaceY) && ty !== opts.surfaceY) continue;
+            let start = -1;
+            for (let tx = 1; tx < stage.widthTiles; tx++) {
+                if (safeSurface(tx, ty)) {
+                    if (start < 0) start = tx;
+                } else if (start >= 0) {
+                    if (tx - start >= required) spans.push({ start: start, end: tx - 1, y: ty });
+                    start = -1;
+                }
+            }
+            if (start >= 0 && stage.widthTiles - start >= required) spans.push({ start: start, end: stage.widthTiles - 1, y: ty });
+        }
+        return spans;
+    }
+
+    function placeSkyRay(stage, cfg) {
+        if (stage.hub || cfg.hub || cfg.id === 0) return [];
+        const floor = stage.mode === 'endless' ? stage.endlessFloor : 0;
+        if (stage.mode === 'endless' ? floor % 3 !== 2 : stage.stageInWorld !== 2 && stage.stageInWorld !== 4) return [];
+
+        const tile = stage.tileSize;
+        const width = 144;
+        const height = 16;
+        const lift = 82;
+        const travel = 240;
+        const padding = tile;
+        const minTiles = Math.ceil((width + travel + padding * 2) / tile);
+        const floorRow = Math.floor(stage.groundY / tile);
+        const spans = safeGroundSpans(stage, minTiles, 144, { allMotion: true, gates: true, surfaceY: floorRow });
+        const spawnTile = stage.spawn.x / tile;
+        const camps = stage.npcs || [];
+        const ahead = spans.filter(function (span) {
+            if (span.start <= spawnTile + 1) return false;
+            const spanLeft = span.start * tile - padding;
+            const spanRight = (span.end + 1) * tile + padding;
+            return !camps.some(function (npc) { return spanLeft < npc.campX1 && spanRight > npc.campX0; });
+        });
+        if (!ahead.length) return [];
+        let span;
+        if (stage.id === 2) {
+            span = ahead.slice().sort(function (a, b) { return a.start - b.start || (b.end - b.start) - (a.end - a.start); })[0];
+        } else {
+            const seed = stage.mode === 'endless'
+                ? ((cfg.seed || 9001) + floor * 10007)
+                : ((cfg.id || 1) * 7919 + 43);
+            const state = (Math.imul((Number(seed) || 1) >>> 0, 1664525) + 1013904223) >>> 0;
+            span = ahead[state % ahead.length];
+        }
+        if (!span) return [];
+        const minX = (span.start + 1) * tile;
+        const maxX = Math.min(minX + travel, (span.end + 1) * tile - padding - width);
+        if (maxX - minX < travel) return [];
+        const baseY = span.y * tile - lift;
+        const ray = {
+            id: 'sky_ray_0', kind: 'sky_ray',
+            x: minX, y: baseY, prevX: minX, prevY: baseY,
+            w: width, h: height, startX: minX, endX: maxX,
+            baseY: baseY, bob: 0, bobAmplitude: 8, bobPeriod: 5.2, motionTime: 0,
+            pitch: 0, wingPhase: 0, facing: 1, speed: 52, dir: 1, ridden: false
+        };
+        stage.movingPlatforms.push(ray);
+        const lastCoinX = maxX + width - 24;
+        stage.collectibles.push({ id: 'sky_ray_coin_0_a', kind: 'coin', assetId: 'coin', animated: false, x: minX + 24, y: baseY - 26, collected: false });
+        stage.collectibles.push({ id: 'sky_ray_coin_0_b', kind: 'coin', assetId: 'coin', animated: false, x: minX + 120, y: baseY - 26, collected: false });
+        stage.collectibles.push({ id: 'sky_ray_coin_0_c', kind: 'coin', assetId: 'coin', animated: false, x: lastCoinX, y: baseY - 26, collected: false });
+        return [ray];
+    }
+
     // ---- Storm gusts: calm -> warn (telegraph) -> gust -> calm, scheduled only with the gameplay RNG ----
     const GUST = { calmMin: 3.5, calmMax: 6, warn: 0.9, gustMin: 1.6, gustMax: 2.2, fade: 0.3, groundPush: -35, airPush: -60 };
 
@@ -248,6 +351,8 @@
         modById: modById,
         pickMod: pickMod,
         applyToStage: applyToStage,
+        safeGroundSpans: safeGroundSpans,
+        placeSkyRay: placeSkyRay,
         GUST: GUST,
         stepWind: stepWind,
         windPush: windPush,

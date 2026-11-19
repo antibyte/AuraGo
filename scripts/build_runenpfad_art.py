@@ -86,6 +86,7 @@ SHEETS = {
     "fx-fireball": (4, 2, "center", "fx"),
     "prop-glyphs": (4, 2, "feet", "prop"),
     "prop-waystones": (5, 1, "feet", "prop"),
+    "creature-sky-ray": (2, 2, "center", "creature"),
     "prop-lever": (4, 1, "feet", "prop"),
     "prop-brazier": (4, 2, "feet", "prop"),
     "prop-plate": (4, 1, "feet", "prop"),
@@ -265,6 +266,8 @@ def clips_for(sheet_id, kind, count):
         }
     if sheet_id == "prop-waystones":
         return BIOMES[0], {name: {"frames": [i], "ms": 200, "loop": False} for i, name in enumerate(BIOMES)}
+    if sheet_id == "creature-sky-ray":
+        return "glide", {"glide": {"frames": [0, 1, 0, 2, 3, 2], "ms": 175, "loop": True}}
     if sheet_id == "prop-glyphs":
         clips = {}
         for g in range(4):
@@ -591,6 +594,9 @@ def build_sheet(entry):
         # offsets are relative to the pivot inside the same cell, in sheet pixels
         ox = r[0] - (col * cw + pivot_dx)
         oy = r[1] - (row * ch + pivot_dy)
+        if entry["id"] == "creature-sky-ray" and row == 1:
+            # The downstroke poses sit higher in their source cells. Anchor the rider to the dorsal markings.
+            oy += round(ch * 0.06)
         frames.append([r[0], r[1], r[2], r[3], int(round(ox)), int(round(oy))])
     if pivot == "base":
         bottoms = [f[5] + f[3] for f in frames if f[3] > 0]

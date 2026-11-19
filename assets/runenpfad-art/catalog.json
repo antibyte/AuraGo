@@ -1632,6 +1632,33 @@
    "sourceSha256": "a3418978cac02073428bc68f5cbe2f659cea1a5581886b063014d17abd1244b5"
   },
   {
+   "id": "creature-sky-ray",
+   "file": "creature-sky-ray.webp",
+   "cols": 2,
+   "rows": 2,
+   "pivot": "center",
+   "kind": "creature",
+   "default": "glide",
+   "clips": {
+    "glide": {
+     "frames": [
+      0,
+      1,
+      0,
+      2,
+      3,
+      2
+     ],
+     "ms": 175,
+     "loop": true
+    }
+   },
+   "prompt": "Use case: stylized-concept, production game sprite atlas, pixel art on transparent alpha. A perfectly regular 2 by 2 atlas (two columns two rows) of FOUR successive looping flap animation frames of ONE friendly flying SKY MANTA RAY shown in side profile facing RIGHT, for a fairytale side-scrolling platform game. Four isolated sprites at identical scale, same right-facing orientation, same head and same flat-back position at the exact center of each equal grid cell. Render a wide, graceful compact winged ray with a clear near-horizontal brightly lit upper back that a tiny knight could stand on, smiling small blunt head at right, little gold visible eye, broad soft wing in foreground and forked tapered long floating ribbon tail at left. The back is natural skin with a subtle band of three gold dorsal markings, no equipment. Vivid kingfisher turquoise/cerulean upper skin, deep indigo and violet wing undersides, warm ivory fins, muted gold edges and small bright blue spots. Four distinct flapping wing poses in reading order: wings rising, up, falling, down. Keep head, spine and tail root stable throughout animation. Strong readable silhouette and chunky hand-clustered pixels with dark navy keyline, whimsical carefully shaded 1990s pixel artist game aesthetic, three or four value steps per material, little details read at 120px wide. Side view, detailed but uncluttered. Each sprite entirely contained in its cell, generous transparent gutter, separate from others. No labels, no typography, no borders, no checkerboard, no backgrounds, no glow or shadow outside the body, no detached particles or coins, no ground, no humans. Square canvas, 2x2 cells.",
+   "tool": "Codex image generation",
+   "source": "creature-sky-ray.png",
+   "sourceSha256": "12f56a491940cee5d5cefc3f8fb5a45940a224be23f1e0025d637c17f349d6ce"
+  },
+  {
    "id": "prop-lever",
    "file": "prop-lever.webp",
    "cols": 4,

@@ -334,6 +334,16 @@
    "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
   },
   {
+   "file": "creature-sky-ray.webp",
+   "sha256": "92e8e57f85d8cc370f1149ba152025e4b35694c7bdb7a5b39120580c67a5cf14",
+   "bytes": 39108,
+   "prompt": "Use case: stylized-concept, production game sprite atlas, pixel art on transparent alpha. A perfectly regular 2 by 2 atlas (two columns two rows) of FOUR successive looping flap animation frames of ONE friendly flying SKY MANTA RAY shown in side profile facing RIGHT, for a fairytale side-scrolling platform game. Four isolated sprites at identical scale, same right-facing orientation, same head and same flat-back position at the exact center of each equal grid cell. Render a wide, graceful compact winged ray with a clear near-horizontal brightly lit upper back that a tiny knight could stand on, smiling small blunt head at right, little gold visible eye, broad soft wing in foreground and forked tapered long floating ribbon tail at left. The back is natural skin with a subtle band of three gold dorsal markings, no equipment. Vivid kingfisher turquoise/cerulean upper skin, deep indigo and violet wing undersides, warm ivory fins, muted gold edges and small bright blue spots. Four distinct flapping wing poses in reading order: wings rising, up, falling, down. Keep head, spine and tail root stable throughout animation. Strong readable silhouette and chunky hand-clustered pixels with dark navy keyline, whimsical carefully shaded 1990s pixel artist game aesthetic, three or four value steps per material, little details read at 120px wide. Side view, detailed but uncluttered. Each sprite entirely contained in its cell, generous transparent gutter, separate from others. No labels, no typography, no borders, no checkerboard, no backgrounds, no glow or shadow outside the body, no detached particles or coins, no ground, no humans. Square canvas, 2x2 cells.",
+   "tool": "Codex image generation",
+   "source": "creature-sky-ray.png",
+   "sourceSha256": "12f56a491940cee5d5cefc3f8fb5a45940a224be23f1e0025d637c17f349d6ce",
+   "note": "Original generated art for AuraGo Runenpfad; not copied from any third-party game or asset pack."
+  },
+  {
    "file": "prop-lever.webp",
    "sha256": "1e5db8cc01b25f0ec1e6296b0d37ee1453784b6d00fe92fc6aba7a361baeea7b",
    "bytes": 36490,

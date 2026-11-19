@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "空飛ぶマンタの背中に飛び乗ろう",
   "runenpfad.resonance_hint": "光っているルーンに触れよう",
   "runenpfad.resonance_progress": "ルーンの小道 {count}/{total} · 残り{seconds}秒",
   "runenpfad.notice.resonance_complete": "ルーンの小道を踏破！",

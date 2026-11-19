@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "Jump onto the sky ray’s back",
   "runenpfad.resonance_hint": "Touch the glowing rune",
   "runenpfad.resonance_progress": "Rune trail {count}/{total} · {seconds}s",
   "runenpfad.notice.resonance_complete": "Rune trail complete!",

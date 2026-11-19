@@ -257,12 +257,43 @@
 
         function drawPortal(sim, view) {
             const p = sim.stage.portal;
-            if (!p || !art('prop-portal.loop')) return false;
+            if (!p) return false;
+            if (!visible(view, p.x - 70, p.x + 70)) return true;
             const feet = p.y + (sim.stage.tileSize || 48);
             const open = !!sim.hasKey;
+            const time = open && !view.reducedMotion ? view.nowSec : 0;
             if (open) h.drawGlow(p.x, feet - 52, 150, 'rgba(126, 232, 250, 0.55)', 0.75);
-            put('prop-portal.loop', view.nowSec, p.x, feet, 112, open ? 1 : 0.5);
-            if (open) put('prop-portal.loop', view.nowSec + 0.3, p.x, feet, 112, 0.28, 'lighter');
+            const painted = art('prop-portal.loop');
+            if (painted) put('prop-portal.loop', time, p.x, feet, 112, open ? 1 : 0.62);
+            else h.drawAnimation('assets-animated', 'portal', time, p.x - 32, p.y - 10, 64, 64, false, open ? 1 : 0.62);
+            ctx.save();
+            ctx.translate(p.x, painted ? feet - 52 : p.y + 20);
+            if (open) {
+                // Inward-moving lights draw the eye through the open arch.
+                for (let i = 0; i < 8; i++) {
+                    const depth = (i / 8 + time * 0.28) % 1;
+                    const angle = i * 2.4 + depth * 0.7;
+                    const radius = painted ? 29 : 18;
+                    const x = Math.cos(angle) * radius * (1 - depth);
+                    const y = Math.sin(angle) * radius * 1.3 * (1 - depth);
+                    ctx.fillStyle = i % 2 ? '#b8fff9' : '#fff3bd';
+                    ctx.globalAlpha = Math.sin(depth * Math.PI) * 0.92;
+                    ctx.fillRect(x - 1, y - 2, 3, 4);
+                }
+            } else {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffdc92';
+                ctx.beginPath();
+                ctx.arc(0, -5, 6, Math.PI, Math.PI * 2);
+                ctx.lineTo(6, 0);
+                ctx.stroke();
+                ctx.fillStyle = '#493529';
+                ctx.fillRect(-9, -3, 18, 14);
+                ctx.strokeRect(-9, -3, 18, 14);
+                ctx.fillStyle = '#ffdc92';
+                ctx.fillRect(-2, 1, 4, 5);
+            }
+            ctx.restore();
             return true;
         }
 

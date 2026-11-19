@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "跳到飞天鳐的背上",
   "runenpfad.resonance_hint": "触碰发光的符文",
   "runenpfad.resonance_progress": "符文小径 {count}/{total} · 剩余 {seconds} 秒",
   "runenpfad.notice.resonance_complete": "符文小径已完成！",

@@ -381,12 +381,19 @@
             paintRune(p);
             paintRitual(stage);
             const path = stage.resonancePath;
-            pathTag.hidden = !path || path.complete || path.needsLeave || sim.state !== 'playing' || !!sim.interior || !!sim.encounter ||
-                (path.nextRune === 0 && Math.abs(p.x - path.runes[0].x) > 180);
-            if (!pathTag.hidden) {
-                setText(pathTag, path.nextRune === 0 ? t('runenpfad.resonance_hint') :
-                    fill('runenpfad.resonance_progress', { count: path.nextRune, total: path.runes.length, seconds: Math.ceil(path.timeLeft) }));
+            let hint = '';
+            if (sim.state === 'playing' && !sim.interior && !sim.encounter) {
+                if (path && !path.complete && !path.needsLeave && (path.nextRune > 0 || Math.abs(p.x - path.runes[0].x) <= 180)) {
+                    hint = path.nextRune === 0 ? t('runenpfad.resonance_hint') :
+                        fill('runenpfad.resonance_progress', { count: path.nextRune, total: path.runes.length, seconds: Math.ceil(path.timeLeft) });
+                } else if (stage.skyRays && stage.skyRays.some(ray =>
+                    !ray.ridden && p.y >= ray.y && p.y - ray.y < 200 &&
+                    p.x > ray.x - 100 && p.x < ray.x + ray.w + 100)) {
+                    hint = t('runenpfad.sky_ray_hint');
+                }
             }
+            pathTag.hidden = !hint;
+            if (hint) setText(pathTag, hint);
             const combo = sim.combo;
             comboTag.hidden = !(combo && combo.count >= 2);
             if (!comboTag.hidden) setText(comboTag, fill('runenpfad.hud_combo', { n: String.fromCharCode(215) + (Math.round((combo.mul || 1) * 10) / 10) }));

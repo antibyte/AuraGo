@@ -31,6 +31,7 @@ Level `1` stays a clean tutorial without a trial. Endless floors pick a trial pe
 
 ## Stage Variety
 
+- **Sky rays** first appear in the second woodland stage. Jump onto a ray's back to ride it past a line of coins. You can move along its back and jump off at any point. The ground route stays open. Look for more rays in later worlds and on some endless floors.
 - **Rune trails** first appear in Whisperwood. Look for the carved waystone. Touch the seal with the bright ring, then follow the thread and jump through the other seals in order. Short trails have three seals, longer ones have four. You have 12 seconds from the first touch. The ring shows how much time is left, and the counter shows how many seals you have collected. Finishing earns three coins. If time runs out, return to the first seal to try again. You can also head straight for the key and portal.
 - **Variety zones** beyond the classic meadow, bridge and crate layouts:
   - `bounce_grove`: bounce mushrooms launch the hero up to high ledges.
@@ -140,6 +141,7 @@ The Pause menu shows the main keys as a legend. Narrow viewports automatically r
 
 ## Presentation
 
+- **Exit portal**: a brass lock marks a closed portal. When you collect the key, the seal opens and points of light flow into the arch. With reduced motion enabled, both states have a steady appearance.
 - **Biome backdrops** (`biomes.js`, `backdrops.js`, `backdrops-biomes.js`, `atmosphere.js`): each world paints its own sky gradient, celestial body, several parallax silhouette layers (rolling ridges, forest crests, crystal shards, dunes, ice spires, clockwork gears), horizon haze, biome weather and a colour grade with vignette. The backdrop layers are rendered once and cached.
 - **Dynamic 2D lighting**: a light map darkens the world in the caves and the citadel, then campfires, lava, runes, the portal, lanterns, projectiles and the hero punch holes back out of it.
 - **Terrain detail**: grass and snow form continuous ledges. Below them, loose stones break up the soil texture and a depth gradient darkens the lower layers.
@@ -150,6 +152,7 @@ The Pause menu shows the main keys as a legend. Narrow viewports automatically r
 
 ## Audio & Local Saves
 
+- **Sky ray calls**: boarding sounds a soft rising note, and leaping off adds a shorter rush of air. Both are tuned to the current biome and follow the Sound switch. Ordinary jumps have a light whoosh.
 - **Rune trails and landings**: each seal plays a note from the current biome's scale. The last seal resolves the phrase. A landing uses the biome's ground sound and the hero's downward speed. These cues follow the Sound switch.
 - **Sound effects and ambience**: enabled by default (`Sound` toggle in the top bar or Pause menu). They unlock on the first keyboard, mouse, or touch interaction using the `aurago-sounds` pack. Each biome mixes a primary and a secondary ambience bed (e.g. `forest-night` + `space-hum` in the caves), the master bus runs through a limiter, and repeated cues get a small random detune so they never machine-gun.
 - **Adaptive music**: procedural music is enabled by default and can be switched off with the `Music on` / `Music off` button in the Pause menu. Each world has its own theme, and boss stages play a heavier boss theme. A duel with a character plays that character's own tense loop.

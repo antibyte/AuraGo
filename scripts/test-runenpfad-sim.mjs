@@ -118,6 +118,126 @@ assert.ok(endlessA.bossId, 'endless floor 3 has a boss');
 assert.equal(endlessA.widthTiles, endlessB.widthTiles, 'seeded endless generation must be deterministic');
 assert.equal(endlessA.collectibles.filter((c) => c.kind === 'gem').length, 3);
 
+// Optional Windrochen rides use regular one-way platform collision and coin pickups.
+{
+    const rayLevels = [2, 4, 7, 9, 14, 17, 19, 22, 24];
+    rayLevels.forEach((id) => {
+        const stage = Levels.buildStage(id);
+        assert.equal(stage.skyRays.length, 1, 'campaign level ' + id + ' has one optional sky ray');
+        const ray = stage.skyRays[0];
+        assert.ok(stage.movingPlatforms.includes(ray), 'the rendered ray is the rideable moving-platform object');
+        assert.equal(ray.w, 144, 'the collision deck stays on the back');
+        assert.equal(ray.h, 16);
+        assert.equal(ray.endX - ray.startX, 240, 'the horizontal flight route is bounded');
+        assert.equal(ray.baseY, stage.groundY - 82, 'the deck can be reached with one normal jump from flat ground');
+        const floorRow = stage.groundY / stage.tileSize;
+        for (let tx = Math.floor(ray.startX / stage.tileSize); tx <= Math.floor((ray.endX + ray.w - 1) / stage.tileSize); tx++) {
+            assert.ok(stage.solidMap[tx + ',' + floorRow], 'the ray route has continuous ground below it (level ' + id + ')');
+        }
+        for (const camp of stage.npcs || []) {
+            assert.ok(ray.endX + ray.w <= camp.campX0 || ray.startX >= camp.campX1, 'the ray avoids NPC camp and access area (level ' + id + ')');
+        }
+        const rayCoins = stage.collectibles.filter((item) => item.id.indexOf('sky_ray_coin_') === 0);
+        assert.equal(rayCoins.length, 3, 'the route carries three ordinary coin pickups');
+        assert.ok(rayCoins.every((item) => item.kind === 'coin' && item.collected === false && item.assetId === 'coin'));
+    });
+    assert.equal(Levels.buildStage(1).skyRays.length, 0, 'the starter tutorial remains unchanged');
+    assert.equal(Levels.buildStage(5).skyRays.length, 0, 'boss arenas do not receive an extra platform route');
+    const endlessRay = Levels.buildStage(Levels.createEndlessConfig(2, 4242)).skyRays[0];
+    const endlessRayAgain = Levels.buildStage(Levels.createEndlessConfig(2, 4242)).skyRays[0];
+    assert.ok(endlessRay, 'an early endless floor can have a ray');
+    assert.deepEqual([endlessRay.startX, endlessRay.endX, endlessRay.baseY], [endlessRayAgain.startX, endlessRayAgain.endX, endlessRayAgain.baseY], 'ray placement is deterministic for an endless seed');
+    assert.equal(Levels.buildStage(Levels.createEndlessConfig(3, 4242)).skyRays.length, 0, 'every third endless boss floor stays clear');
+
+    for (const hero of ['knight', 'ranger']) {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 2, hero: hero });
+        const ray = s.stage.skyRays[0];
+        assert.ok(ray, hero + ' gets the level 2 ray opportunity');
+        const floorRow = s.stage.groundY / s.stage.tileSize;
+        for (let tx = 0; tx < s.stage.widthTiles; tx++) {
+            for (let ty = 0; ty < floorRow; ty++) delete s.stage.solidMap[tx + ',' + ty];
+            s.stage.solidMap[tx + ',' + floorRow] = true;
+        }
+        s.stage.platforms.length = 0;
+        s.stage.hazards.length = 0;
+        s.stage.crates.length = 0;
+        s.stage.enemies.length = 0;
+        s.stage.movingPlatforms = [ray];
+
+        let board = null;
+        let boardAttempts = 0;
+        let boardedLand = null;
+        let jumpTowardRay = false;
+        let jumpDriveFrames = 0;
+        for (let i = 0; i < 1800 && !board; i++) {
+            if (s.player.onGround) jumpTowardRay = false;
+            const input = { right: !jumpTowardRay || jumpDriveFrames > 0 };
+            if (jumpDriveFrames > 0) jumpDriveFrames--;
+            const nearRay = s.player.x >= ray.x - 72 && s.player.x <= ray.x + ray.w + 20;
+            if (s.player.onGround && nearRay && boardAttempts < 8) {
+                input.jumpPressed = true;
+                jumpTowardRay = true;
+                jumpDriveFrames = 8;
+                boardAttempts++;
+            }
+            const events = Sim.stepSimulation(s, Sim.STEP, input);
+            board = events.find((event) => event.type === 'sky_ray_board') || null;
+            boardedLand = events.find((event) => event.type === 'land' && event.detail.skyRay) || boardedLand;
+        }
+        assert.ok(board, hero + ' boards through a real jump and moving-platform collision (no teleport)');
+        assert.equal(boardedLand && boardedLand.detail.skyRay, true, 'a ray landing is identified for soft audio/material handling');
+        assert.equal(ray.ridden, true, 'the rider state is visible to the renderer');
+
+        let repeatedBoards = 0;
+        let stepsOnRay = 0;
+        s.player.stepTimer = 0;
+        for (let i = 0; i < 3; i++) {
+            const events = Sim.stepSimulation(s, Sim.STEP, { left: true });
+            repeatedBoards += events.filter((event) => event.type === 'sky_ray_board').length;
+            stepsOnRay += events.filter((event) => event.type === 'step' && event.detail.skyRay).length;
+        }
+        assert.equal(stepsOnRay, 1, 'a moving rider footstep carries the ray surface marker');
+
+        const center = ray.w / 2;
+        for (let i = 0; i < 24; i++) {
+            const offset = s.player.x - ray.x;
+            const input = offset < center - 22 ? { right: true } : offset > center + 22 ? { left: true } : {};
+            const events = Sim.stepSimulation(s, Sim.STEP, input);
+            repeatedBoards += events.filter((event) => event.type === 'sky_ray_board').length;
+        }
+        assert.equal(repeatedBoards, 0, 'standing or riding does not repeat the boarding event');
+        assert.equal(s.player.onPlatformRide, ray, hero + ' remains carried by the ray');
+
+        const rideOffset = s.player.x - ray.x;
+        const directionBeforeTurn = ray.dir;
+        let turned = false;
+        for (let i = 0; i < 360 && !turned; i++) {
+            Sim.stepSimulation(s, Sim.STEP, {});
+            turned = ray.dir !== directionBeforeTurn;
+            assert.equal(s.player.onPlatformRide, ray, hero + ' stays aboard through the route');
+            assert.ok(Math.abs((s.player.x - ray.x) - rideOffset) < 3, hero + ' is carried across horizontal travel and the endpoint turn');
+        }
+        assert.equal(turned, true, 'the ride test reaches a route endpoint and reversal');
+
+        const pausedAt = [ray.x, ray.y, s.player.x, s.player.y];
+        s.state = 'paused';
+        Sim.stepSimulation(s, Sim.STEP, { right: true });
+        assert.deepEqual([ray.x, ray.y, s.player.x, s.player.y], pausedAt, 'pause freezes the ray and rider');
+        s.state = 'playing';
+        s.fx.hitstop = 0.08;
+        Sim.stepSimulation(s, Sim.STEP, { right: true });
+        assert.deepEqual([ray.x, ray.y, s.player.x, s.player.y], pausedAt, 'hitstop freezes the ray and rider');
+        s.fx.hitstop = 0;
+
+        const leap = Sim.stepSimulation(s, Sim.STEP, { jumpPressed: true }).filter((event) => event.type === 'sky_ray_leap');
+        assert.equal(leap.length, 1, hero + ' gets one departure event from an intentional jump');
+        assert.equal(ray.ridden, false, 'the renderer stops treating an airborne hero as a rider');
+        assert.ok(s.player.vy < 0, hero + ' actually jumped off the ray');
+        const following = Sim.stepSimulation(s, Sim.STEP, {}).filter((event) => event.type === 'sky_ray_leap');
+        assert.equal(following.length, 0, 'the leap cue is edge-triggered');
+    }
+}
+
 // 3. Knight simulation on Level 1 (movement, jump, melee break/attack, ground slam)
 let profile = Sim.createDefaultProfile();
 assert.equal(profile.unlockedLevel, 1);

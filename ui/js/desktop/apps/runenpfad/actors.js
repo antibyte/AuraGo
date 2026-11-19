@@ -216,6 +216,10 @@
         const BOSS_GLOW = { boss_boar: '110,231,120', boss_goblin: '250,204,21', boss_orb: '167,139,250', boss_quad: '125,211,252', boss_mech: '251,146,60' };
         const AO = { height: 0, flip: false, alpha: 1, composite: '', rotation: 0, scale: 0, frame: undefined, flash: 0, tint: '', tintAmount: 0.55 };
         const BOSS_DEFEAT_HOLD = 2.2;
+        const SKY_RAY_CLIP = 'creature-sky-ray.glide';
+        const SKY_RAY_SCALE = 236 / 122;
+        const SKY_RAY_BACK_OFFSET = 15 / 122;
+        const SKY_RAY_OPTIONS = { height: 0, flip: false, rotation: 0, pixel: true, frame: undefined };
 
         function artIdFor(e) {
             if (!h.art || !Art) return '';
@@ -331,12 +335,115 @@
             }
         }
 
+        function drawSkyRayFallback(w, h) {
+            const fill = ctx.createLinearGradient(-w * 0.2, -h * 0.46, w * 0.35, h * 0.42);
+            fill.addColorStop(0, '#58c7e0');
+            fill.addColorStop(0.48, '#2768ad');
+            fill.addColorStop(1, '#172f66');
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = '#b2f1ed';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.31, h * 0.08);
+            ctx.quadraticCurveTo(-w * 0.43, h * 0.13, -w * 0.5, h * 0.16); ctx.quadraticCurveTo(-w * 0.43, h * 0.05, -w * 0.24, -h * 0.04);
+            ctx.quadraticCurveTo(-w * 0.03, -h * 0.28, w * 0.1, -h * 0.5); ctx.quadraticCurveTo(w * 0.22, -h * 0.36, w * 0.23, -h * 0.13);
+            ctx.quadraticCurveTo(w * 0.4, -h * 0.12, w * 0.49, 0); ctx.quadraticCurveTo(w * 0.4, h * 0.12, w * 0.29, h * 0.14);
+            ctx.quadraticCurveTo(w * 0.25, h * 0.38, w * 0.15, h * 0.45); ctx.quadraticCurveTo(w * 0.07, h * 0.29, w * 0.03, h * 0.15);
+            ctx.quadraticCurveTo(-w * 0.13, h * 0.12, -w * 0.31, h * 0.08); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(251,225,158,0.8)';
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.06, h * 0.11);
+            ctx.quadraticCurveTo(w * 0.1, h * 0.19, w * 0.28, h * 0.12); ctx.quadraticCurveTo(w * 0.23, h * 0.3, w * 0.16, h * 0.36);
+            ctx.quadraticCurveTo(w * 0.08, h * 0.23, -w * 0.06, h * 0.11); ctx.fill();
+            ctx.fillStyle = '#152849';
+            ctx.beginPath(); ctx.arc(w * 0.44, -h * 0.025, 2.3, 0, TAU); ctx.fill();
+        }
+
+        function drawSkyRayWake(w, h, phase, x, y, facing, pitch) {
+            const drift = Math.sin(phase * TAU) * h * 0.018;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(pitch * 0.6);
+            ctx.scale(facing, 1);
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.lineCap = 'round';
+            const g = ctx.createLinearGradient(-w * 0.84, 0, -w * 0.47, 0);
+            g.addColorStop(0, 'rgba(86,216,255,0)');
+            g.addColorStop(0.65, 'rgba(86,216,255,0.22)');
+            g.addColorStop(1, 'rgba(177,244,255,0.48)');
+            ctx.strokeStyle = g;
+            for (let i = 0; i < 3; i++) {
+                const y = h * (0.035 + i * 0.065);
+                ctx.lineWidth = 1.1 + i * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(-w * 0.49, y);
+                ctx.bezierCurveTo(-w * 0.6, y + drift, -w * 0.72, y - drift, -w * 0.84, y + drift * 0.55);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawSkyRayDeck(ray) {
+            const inset = ray.w * 0.06;
+            const length = ray.w * 0.18;
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 2.5;
+            for (let side = 0; side < 2; side++) {
+                const from = side ? ray.x + ray.w - inset : ray.x + inset;
+                const to = from + (side ? -length : length);
+                const g = ctx.createLinearGradient(from, ray.y, to, ray.y);
+                g.addColorStop(0, 'rgba(255,222,151,0.82)');
+                g.addColorStop(0.48, 'rgba(136,233,250,0.52)');
+                g.addColorStop(1, 'rgba(136,233,250,0)');
+                ctx.strokeStyle = g;
+                ctx.beginPath();
+                ctx.moveTo(from, ray.y);
+                ctx.lineTo(to, ray.y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawSkyRays(sim, view) {
+            const rays = sim.stage.skyRays || [];
+            const reduced = !!view.reducedMotion;
+            for (let i = 0; i < rays.length; i++) {
+                const ray = rays[i];
+                if (!ray || !(ray.w > 0) || ray.x + ray.w < view.sx - 220 || ray.x > view.sx + view.viewW + 220) continue;
+                const facing = ray.facing < 0 ? -1 : 1;
+                const width = ray.w * SKY_RAY_SCALE;
+                const centerX = ray.x + ray.w * 0.5 - facing * width * 0.12;
+                const centerY = ray.y + ray.w * SKY_RAY_BACK_OFFSET;
+                const pitch = reduced ? 0 : clamp(+ray.pitch || 0, -0.08, 0.08);
+                const phase = reduced ? 0 : clamp(typeof ray.wingPhase === 'number' ? ray.wingPhase : view.nowSec / 0.7 % 1, 0, 0.999);
+                if (!reduced) drawSkyRayWake(width, ray.w, phase, centerX, centerY, facing, pitch);
+                SKY_RAY_OPTIONS.height = ray.w;
+                SKY_RAY_OPTIONS.flip = facing < 0;
+                SKY_RAY_OPTIONS.rotation = 0;
+                SKY_RAY_OPTIONS.frame = reduced ? 0 : undefined;
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(pitch);
+                ctx.scale(1, 0.94);
+                const drawn = Art && h.art && Art.has(h.art, SKY_RAY_CLIP) && Art.draw(ctx, h.art, SKY_RAY_CLIP, phase * Art.duration(h.art, SKY_RAY_CLIP), 0, 0, SKY_RAY_OPTIONS);
+                if (!drawn) {
+                    ctx.scale(facing, 1);
+                    drawSkyRayFallback(width, ray.w);
+                }
+                ctx.restore();
+                drawSkyRayDeck(ray);
+            }
+        }
+
         function drawEnemies(sim, view) {
             step(view);
             const stage = sim.stage;
             const sx0 = view.sx;
             const dt = lastDt;
             const rm = view.reducedMotion;
+            drawSkyRays(sim, view);
             for (let i = 0; i < stage.enemies.length; i++) {
                 const e = stage.enemies[i];
                 const artId = artIdFor(e);
@@ -957,7 +1064,7 @@
                 heroVis.sy = 1 - 0.18 * k;
                 heroVis.vsx = 0;
                 heroVis.vsy = 0;
-                for (let i = 0; i < 8; i++) {
+                if (!d.skyRay) for (let i = 0; i < 8; i++) {
                     const dir = i % 2 ? 1 : -1;
                     addPart('dust', p.x + dir * 6, p.y - 2, dir * (50 + rnd() * 110), -8 - rnd() * 22, 0.45 + rnd() * 0.2, 4 + rnd() * 4, '#d8cdb6');
                 }

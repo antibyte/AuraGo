@@ -1,4 +1,5 @@
 {
+  "runenpfad.sky_ray_hint": "Salta al lomo de la mantarraya voladora",
   "runenpfad.resonance_hint": "Toca la runa que brilla",
   "runenpfad.resonance_progress": "Senda rúnica {count}/{total} · {seconds} s",
   "runenpfad.notice.resonance_complete": "¡Senda rúnica completada!",

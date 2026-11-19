@@ -480,7 +480,9 @@
             // Moving magic platforms
             const magicCrop = PLATFORM_CROPS.magic_platform;
             const magicH = Math.round(magicCrop.sh * (TILE / magicCrop.sw));
+            const skyRays = stage.skyRays || [];
             stage.movingPlatforms.forEach(function (mp) {
+                if (skyRays.indexOf(mp) >= 0) return;
                 drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x, mp.y - 1, TILE + 1, magicH);
                 drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec + 0.25, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x + TILE, mp.y - 1, TILE + 1, magicH);
             });
@@ -508,9 +510,7 @@
             }
 
             // Exit Portal
-            if (stage.portal && art && stageArt && stageArt.drawPortal && stageArt.drawPortal(sim, frameView)) {
-                // painted portal handled by stage art
-            } else if (stage.portal) {
+            if (stage.portal && !(stageArt && stageArt.drawPortal(sim, frameView))) {
                 const unlocked = sim.hasKey;
                 if (unlocked) drawGlow(stage.portal.x, stage.portal.y + 14, 132, 'rgba(126, 232, 250, 0.55)', 0.8);
                 drawAnimation('assets-animated', 'portal', nowSec, stage.portal.x - 32, stage.portal.y - 10, 64, 64, false, unlocked ? 1.0 : 0.45);
