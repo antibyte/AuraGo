@@ -51,6 +51,30 @@ func TestBuildDesktopAgentPromptKeepsCodeStudioOutOfHomepageWorkspace(t *testing
 	}
 }
 
+func TestBuildDesktopAgentPromptMapsCodeStudioWorkspacePaths(t *testing.T) {
+	t.Parallel()
+
+	prompt := buildDesktopAgentPrompt("Schreibe ein Hello World in die Datei.", desktopChatContext{
+		Source:          "code-studio",
+		CurrentFile:     "/workspace/main.cpp",
+		CurrentLanguage: "cpp",
+		OpenFiles:       []string{"/workspace/main.cpp"},
+	})
+
+	for _, want := range []string{
+		"never claim a Code Studio file is unreachable because of the /workspace prefix",
+		"write the complete file with virtual_desktop_files write_file to the workspace-relative path",
+		`virtual_desktop_apps open_in_app with app_id "code-studio"`,
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("Code Studio prompt missing workspace mapping marker %q in:\n%s", want, prompt)
+		}
+	}
+	if strings.Contains(buildDesktopAgentContext(desktopChatContext{Source: "desktop-file", CurrentFile: "Documents/report.md"}), "never claim a Code Studio file is unreachable") {
+		t.Fatalf("Code Studio workspace mapping instruction leaked into the generic desktop file context")
+	}
+}
+
 func TestBuildDesktopAgentPromptRoutesHomepageStudioToHomepageTools(t *testing.T) {
 	t.Parallel()
 

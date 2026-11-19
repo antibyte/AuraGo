@@ -541,6 +541,15 @@ Server-owned HTTP and cross-component integration contracts.
   Verify `TestCodeStudioGitBranchGetDoesNotMutate`,
   `TestCodeStudioGitCommitStagesOnlyGivenPaths` and
   `TestCodeStudioGitIdentityIsLocal`.
+- The Code Studio agent chat prepares its turn through
+  `buildDesktopAgentContext`: the code-studio context states that a
+  `/workspace/<name>` container path equals the workspace-relative `<name>`
+  path of `virtual_desktop_files` (the container binds that workspace at
+  `/workspace`) and directs file changes through `virtual_desktop_files
+  write_file` plus `virtual_desktop_apps open_in_app` with app id
+  `code-studio`. Never claim a Code Studio file is unreachable because of the
+  `/workspace` prefix; no separate filesystem route replaces the desktop file
+  tools. Verify `TestBuildDesktopAgentPromptMapsCodeStudioWorkspacePaths`.
 
 ### Game Maker agent run
 
