@@ -48,42 +48,55 @@
             </div>
         </header>
 
-        <!-- Tab bar -->
-        <div class="media-tabs pw-tabs" role="tablist" data-i18n-aria-label="media.tablist_label">
-            <button class="media-tab pw-tab active" type="button" id="tab-images" role="tab" aria-selected="true"
-                aria-controls="panel-images" tabindex="0" data-media-tab="images">
-                <span class="media-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m5 17 4-4 3 3 2-2 5 5"></path></svg></span>
-                <span data-i18n="media.tab_images"></span>
-            </button>
-            <button class="media-tab pw-tab" type="button" id="tab-audio" role="tab" aria-selected="false"
-                aria-controls="panel-audio" tabindex="-1" data-media-tab="audio">
-                <span class="media-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="16" cy="16" r="3"></circle></svg></span>
-                <span data-i18n="media.tab_audio"></span>
-            </button>
-            <button class="media-tab pw-tab" type="button" id="tab-videos" role="tab" aria-selected="false"
-                aria-controls="panel-videos" tabindex="-1" data-media-tab="videos">
-                <span class="media-tab-icon" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m10 9 5 3-5 3Z"></path></svg></span>
-                <span data-i18n="media.tab_videos"></span>
-            </button>
-            <button class="media-tab pw-tab" type="button" id="tab-documents" role="tab" aria-selected="false"
-                aria-controls="panel-documents" tabindex="-1" data-media-tab="documents">
-                <span class="media-tab-icon" aria-hidden="true"><path d="M6 3h8l4 4v14H6Z"></path><path d="M14 3v5h4M9 12h6M9 16h6"></path></svg></span>
-                <span data-i18n="media.tab_documents"></span>
-            </button>
-        </div>
+        <!-- Tab bar + toolbar stay reachable while a long grid scrolls. -->
+        <div class="media-chrome">
+            <!-- Tab bar -->
+            <div class="media-tabs pw-tabs" role="tablist" data-i18n-aria-label="media.tablist_label">
+                <button class="media-tab pw-tab active" type="button" id="tab-images" role="tab" aria-selected="true"
+                    aria-controls="panel-images" tabindex="0" data-media-tab="images">
+                    <span class="media-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m5 17 4-4 3 3 2-2 5 5"></path></svg></span>
+                    <span data-i18n="media.tab_images"></span>
+                </button>
+                <button class="media-tab pw-tab" type="button" id="tab-audio" role="tab" aria-selected="false"
+                    aria-controls="panel-audio" tabindex="-1" data-media-tab="audio">
+                    <span class="media-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="16" cy="16" r="3"></circle></svg></span>
+                    <span data-i18n="media.tab_audio"></span>
+                </button>
+                <button class="media-tab pw-tab" type="button" id="tab-videos" role="tab" aria-selected="false"
+                    aria-controls="panel-videos" tabindex="-1" data-media-tab="videos">
+                    <span class="media-tab-icon" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m10 9 5 3-5 3Z"></path></svg></span>
+                    <span data-i18n="media.tab_videos"></span>
+                </button>
+                <button class="media-tab pw-tab" type="button" id="tab-documents" role="tab" aria-selected="false"
+                    aria-controls="panel-documents" tabindex="-1" data-media-tab="documents">
+                    <span class="media-tab-icon" aria-hidden="true"><path d="M6 3h8l4 4v14H6Z"></path><path d="M14 3v5h4M9 12h6M9 16h6"></path></svg></span>
+                    <span data-i18n="media.tab_documents"></span>
+                </button>
+            </div>
 
-        <div id="media-bulk-toolbar" class="pw-toolbar media-bulk-toolbar" aria-live="polite">
-            <input type="search" id="media-search" class="gallery-search pw-search"
-                placeholder="" data-i18n-placeholder="media.search_placeholder">
-            <select id="gallery-provider-filter" class="gallery-filter">
-                <option value="" data-i18n="gallery.all_providers"></option>
-            </select>
-            <div class="pw-toolbar-spacer"></div>
-            <button id="media-select-mode-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" data-media-action="toggle-selection" data-i18n="media.bulk_select"></button>
-            <button id="media-select-visible-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" data-media-action="select-visible" data-i18n="media.bulk_select_visible"></button>
-            <button id="media-clear-selection-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" data-media-action="clear-selection" data-i18n="media.bulk_clear_selection"></button>
-            <button id="media-delete-selected-btn" type="button" class="btn btn-danger btn-sm btn-gallery-nav" data-media-action="delete-selected" disabled data-i18n="media.bulk_delete_selected"></button>
-            <span id="media-selected-count" class="media-selected-count" data-i18n="media.bulk_selected_none"></span>
+            <div id="media-bulk-toolbar" class="pw-toolbar media-bulk-toolbar" aria-live="polite">
+                <div class="media-search-wrap">
+                    <input type="search" id="media-search" class="gallery-search pw-search"
+                        placeholder="" data-i18n-placeholder="media.search_placeholder"
+                        data-i18n-aria-label="media.search_label">
+                    <button type="button" id="media-search-clear" class="media-search-clear" hidden
+                        data-i18n-title="media.clear_search" data-i18n-aria-label="media.clear_search">
+                        <span data-pw-icon="x" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <select id="gallery-provider-filter" class="gallery-filter" data-i18n-aria-label="media.filter_label">
+                    <option value="" data-i18n="gallery.all_providers"></option>
+                </select>
+                <div class="pw-toolbar-spacer"></div>
+                <button id="media-select-mode-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" data-media-action="toggle-selection" data-i18n="media.bulk_select"></button>
+                <!-- Bulk actions only appear while selection mode is on, so the default toolbar stays quiet. -->
+                <div id="media-bulk-actions" class="media-bulk-actions is-hidden">
+                    <button id="media-select-visible-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" data-media-action="select-visible" data-i18n="media.bulk_select_visible"></button>
+                    <button id="media-clear-selection-btn" type="button" class="btn btn-secondary btn-sm btn-gallery-nav" data-media-action="clear-selection" data-i18n="media.bulk_clear_selection"></button>
+                    <button id="media-delete-selected-btn" type="button" class="btn btn-danger btn-sm btn-gallery-nav" data-media-action="delete-selected" disabled data-i18n="media.bulk_delete_selected"></button>
+                    <span id="media-selected-count" class="media-selected-count" data-i18n="media.bulk_selected_none"></span>
+                </div>
+            </div>
         </div>
 
         <!-- Tab panels -->
@@ -92,11 +105,11 @@
                 <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="gallery-pagination" class="gallery-pagination is-hidden">
-                <button id="gallery-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="gallery-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first">⇤</button>
-                <button id="gallery-prev" type="button" class="btn-gallery-nav" data-media-page="gallery-prev">← <span data-i18n="common.pagination_previous"></span></button>
-                <span id="gallery-page-info"></span>
-                <button id="gallery-next" type="button" class="btn-gallery-nav" data-media-page="gallery-next"><span data-i18n="common.pagination_next"></span> →</button>
-                <button id="gallery-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="gallery-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last">⇥</button>
+                <button id="gallery-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="gallery-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first"><span data-pw-icon="chevrons-left" aria-hidden="true"></span></button>
+                <button id="gallery-prev" type="button" class="btn-gallery-nav" data-media-page="gallery-prev"><span data-pw-icon="chevron-left" aria-hidden="true"></span> <span data-i18n="common.pagination_previous"></span></button>
+                <span id="gallery-page-info" class="gallery-page-info" role="status" aria-live="polite"></span>
+                <button id="gallery-next" type="button" class="btn-gallery-nav" data-media-page="gallery-next"><span data-i18n="common.pagination_next"></span> <span data-pw-icon="chevron-right" aria-hidden="true"></span></button>
+                <button id="gallery-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="gallery-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last"><span data-pw-icon="chevrons-right" aria-hidden="true"></span></button>
             </div>
         </div>
 
@@ -105,11 +118,11 @@
                 <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="audio-pagination" class="gallery-pagination is-hidden">
-                <button id="audio-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="audio-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first">⇤</button>
-                <button id="audio-prev" type="button" class="btn-gallery-nav" data-media-page="audio-prev">← <span data-i18n="common.pagination_previous"></span></button>
-                <span id="audio-page-info"></span>
-                <button id="audio-next" type="button" class="btn-gallery-nav" data-media-page="audio-next"><span data-i18n="common.pagination_next"></span> →</button>
-                <button id="audio-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="audio-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last">⇥</button>
+                <button id="audio-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="audio-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first"><span data-pw-icon="chevrons-left" aria-hidden="true"></span></button>
+                <button id="audio-prev" type="button" class="btn-gallery-nav" data-media-page="audio-prev"><span data-pw-icon="chevron-left" aria-hidden="true"></span> <span data-i18n="common.pagination_previous"></span></button>
+                <span id="audio-page-info" class="gallery-page-info" role="status" aria-live="polite"></span>
+                <button id="audio-next" type="button" class="btn-gallery-nav" data-media-page="audio-next"><span data-i18n="common.pagination_next"></span> <span data-pw-icon="chevron-right" aria-hidden="true"></span></button>
+                <button id="audio-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="audio-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last"><span data-pw-icon="chevrons-right" aria-hidden="true"></span></button>
             </div>
         </div>
 
@@ -118,11 +131,11 @@
                 <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="video-pagination" class="gallery-pagination is-hidden">
-                <button id="video-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="video-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first">⇤</button>
-                <button id="video-prev" type="button" class="btn-gallery-nav" data-media-page="video-prev">← <span data-i18n="common.pagination_previous"></span></button>
-                <span id="video-page-info"></span>
-                <button id="video-next" type="button" class="btn-gallery-nav" data-media-page="video-next"><span data-i18n="common.pagination_next"></span> →</button>
-                <button id="video-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="video-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last">⇥</button>
+                <button id="video-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="video-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first"><span data-pw-icon="chevrons-left" aria-hidden="true"></span></button>
+                <button id="video-prev" type="button" class="btn-gallery-nav" data-media-page="video-prev"><span data-pw-icon="chevron-left" aria-hidden="true"></span> <span data-i18n="common.pagination_previous"></span></button>
+                <span id="video-page-info" class="gallery-page-info" role="status" aria-live="polite"></span>
+                <button id="video-next" type="button" class="btn-gallery-nav" data-media-page="video-next"><span data-i18n="common.pagination_next"></span> <span data-pw-icon="chevron-right" aria-hidden="true"></span></button>
+                <button id="video-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="video-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last"><span data-pw-icon="chevrons-right" aria-hidden="true"></span></button>
             </div>
         </div>
 
@@ -131,11 +144,11 @@
                 <div class="gallery-loading" data-i18n="gallery.loading"></div>
             </div>
             <div id="doc-pagination" class="gallery-pagination is-hidden">
-                <button id="doc-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="doc-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first">⇤</button>
-                <button id="doc-prev" type="button" class="btn-gallery-nav" data-media-page="doc-prev">← <span data-i18n="common.pagination_previous"></span></button>
-                <span id="doc-page-info"></span>
-                <button id="doc-next" type="button" class="btn-gallery-nav" data-media-page="doc-next"><span data-i18n="common.pagination_next"></span> →</button>
-                <button id="doc-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="doc-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last">⇥</button>
+                <button id="doc-first" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="doc-first" data-i18n-title="common.pagination_first" data-i18n-aria-label="common.pagination_first"><span data-pw-icon="chevrons-left" aria-hidden="true"></span></button>
+                <button id="doc-prev" type="button" class="btn-gallery-nav" data-media-page="doc-prev"><span data-pw-icon="chevron-left" aria-hidden="true"></span> <span data-i18n="common.pagination_previous"></span></button>
+                <span id="doc-page-info" class="gallery-page-info" role="status" aria-live="polite"></span>
+                <button id="doc-next" type="button" class="btn-gallery-nav" data-media-page="doc-next"><span data-i18n="common.pagination_next"></span> <span data-pw-icon="chevron-right" aria-hidden="true"></span></button>
+                <button id="doc-last" type="button" class="btn-gallery-nav btn-gallery-nav-icon" data-media-page="doc-last" data-i18n-title="common.pagination_last" data-i18n-aria-label="common.pagination_last"><span data-pw-icon="chevrons-right" aria-hidden="true"></span></button>
             </div>
         </div>
     </main>

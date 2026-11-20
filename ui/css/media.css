@@ -7,6 +7,10 @@
 
 .pw-page[data-workspace-page="media"] .media-container {
     min-width: 0;
+    /* gallery.css uses overflow-x: hidden here, which turns <main> into a
+       scroll container and stops the sticky chrome from sticking to the
+       viewport. clip keeps the horizontal overflow away without one. */
+    overflow-x: clip;
 }
 
 .pw-page[data-workspace-page="media"] .media-bulk-toolbar, .pw-page[data-workspace-page="media"] .media-extra-controls {
@@ -26,7 +30,7 @@
     min-height: 34px;
 }
 
-.pw-page[data-workspace-page="media"] .gallery-search:focus-visible, .pw-page[data-workspace-page="media"] .gallery-filter:focus-visible, .pw-page[data-workspace-page="media"] .media-tab:focus-visible, .pw-page[data-workspace-page="media"] .btn-gallery-nav:focus-visible, .pw-page[data-workspace-page="media"] .btn-gallery-action:focus-visible, .pw-page[data-workspace-page="media"] .lightbox-close:focus-visible, .pw-page[data-workspace-page="media"] .audio-play-btn:focus-visible, .pw-page[data-workspace-page="media"] .audio-speed-btn:focus-visible, .pw-page[data-workspace-page="media"] .audio-download-btn:focus-visible, .pw-page[data-workspace-page="media"] .media-doc-row-actions a:focus-visible, .pw-page[data-workspace-page="media"] .media-doc-row-actions button:focus-visible {
+.pw-page[data-workspace-page="media"] .gallery-search:focus-visible, .pw-page[data-workspace-page="media"] .gallery-filter:focus-visible, .pw-page[data-workspace-page="media"] .media-tab:focus-visible, .pw-page[data-workspace-page="media"] .btn-gallery-nav:focus-visible, .pw-page[data-workspace-page="media"] .btn-gallery-action:focus-visible, .pw-page[data-workspace-page="media"] .lightbox-close:focus-visible, .pw-page[data-workspace-page="media"] .audio-play-btn:focus-visible, .pw-page[data-workspace-page="media"] .audio-speed-btn:focus-visible, .pw-page[data-workspace-page="media"] .audio-download-btn:focus-visible, .pw-page[data-workspace-page="media"] .media-doc-row-actions a:focus-visible, .pw-page[data-workspace-page="media"] .media-doc-row-actions button:focus-visible, .pw-page[data-workspace-page="media"] .gallery-card:focus-visible, .pw-page[data-workspace-page="media"] .media-search-clear:focus-visible, .pw-page[data-workspace-page="media"] .media-video-poster:focus-visible {
     outline: 2px solid var(--pw-accent);
     outline-offset: 2px;
     box-shadow: none;
@@ -44,6 +48,13 @@
 .pw-page[data-workspace-page="media"] .gallery-filter {
     border-color: var(--pw-mat-field-border);
     background: var(--pw-mat-field);
+    /* A <select> stretches to the full toolbar width as a flex child in
+       Chrome, which pushed the toolbar onto three rows. Size it to its
+       content instead and keep the row on one line. */
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: 9rem;
+    max-width: 14rem;
 }
 
 .pw-page[data-workspace-page="media"] .media-tab .media-tab-icon {
@@ -144,6 +155,181 @@
     margin-left: auto;
 }
 
+/* ── Sticky chrome: tabs + toolbar stay reachable in a long grid ── */
+
+.pw-page[data-workspace-page="media"] .media-chrome {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    display: flow-root;
+    padding-bottom: var(--pw-space-5);
+    background: var(--pw-canvas);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="media"] .media-chrome .media-tabs {
+    margin-bottom: var(--pw-space-3);
+}
+
+.pw-page[data-workspace-page="media"][data-density="compact"] .media-chrome .media-tabs {
+    margin-bottom: var(--pw-space-2);
+}
+
+.pw-page[data-workspace-page="media"] .media-chrome .media-bulk-toolbar {
+    margin-bottom: 0;
+}
+
+/* ── Search field with an inline clear affordance ── */
+
+.pw-page[data-workspace-page="media"] .media-search-wrap {
+    position: relative;
+    display: flex;
+    flex: 1 1 240px;
+    min-width: min(100%, 200px);
+    align-items: center;
+}
+
+.pw-page[data-workspace-page="media"] .media-search-wrap .gallery-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-right: 2.4rem;
+}
+
+.pw-page[data-workspace-page="media"] .media-search-clear {
+    position: absolute;
+    right: 0.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--pw-radius-sm);
+    background: transparent;
+    background-image: none;
+    color: var(--pw-muted);
+    cursor: pointer;
+    transition: color var(--pw-duration-fast) var(--pw-ease),
+                background var(--pw-duration-fast) var(--pw-ease),
+                border-color var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="media"] .media-search-clear[hidden] {
+    display: none;
+}
+
+.pw-page[data-workspace-page="media"] .media-search-clear:hover {
+    background: var(--pw-mat-hover);
+    border-color: var(--pw-line);
+    color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="media"] .media-search-clear .pw-ic {
+    width: 0.9rem;
+    height: 0.9rem;
+}
+
+/* ── Contextual bulk actions (only while selection mode is on) ── */
+
+.pw-page[data-workspace-page="media"] .media-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.pw-page[data-workspace-page="media"] .media-bulk-actions.is-hidden {
+    display: none;
+}
+
+/* ── Loading skeletons ── */
+
+.pw-page[data-workspace-page="media"] .media-skeleton-grid {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: var(--pw-space-4);
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton-list {
+    grid-template-columns: 1fr;
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton {
+    overflow: hidden;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--pw-radius-lg);
+    background: var(--pw-surface);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton-tile {
+    aspect-ratio: 1;
+    background: var(--pw-surface-elevated);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton-body {
+    padding: var(--space-3);
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton-line {
+    height: 0.7rem;
+    margin-bottom: var(--space-2);
+    border-radius: var(--pw-radius-sm);
+    background: var(--pw-surface-elevated);
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton-line.is-short {
+    width: 55%;
+    margin-bottom: 0;
+}
+
+.pw-page[data-workspace-page="media"] .media-skeleton-tile,
+.pw-page[data-workspace-page="media"] .media-skeleton-line {
+    animation: media-skeleton-pulse 1.5s var(--pw-ease) infinite;
+}
+
+@keyframes media-skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ── Empty states: flat, calm and actionable ── */
+
+.pw-page[data-workspace-page="media"] .gallery-empty::before {
+    background-image: none;
+}
+
+.pw-page[data-workspace-page="media"] .gallery-empty-icon {
+    animation: none;
+    filter: none;
+    opacity: 1;
+    color: var(--pw-muted);
+}
+
+.pw-page[data-workspace-page="media"] .gallery-empty {
+    color: var(--pw-muted);
+}
+
+.pw-page[data-workspace-page="media"] .gallery-empty h3 {
+    margin: 0 0 var(--space-2);
+    color: var(--pw-text);
+    font-size: var(--pw-font-lg);
+}
+
+.pw-page[data-workspace-page="media"] .gallery-empty p {
+    margin-bottom: var(--space-4);
+    font-size: var(--pw-meta-size);
+    line-height: 1.6;
+}
+
+.pw-page[data-workspace-page="media"] .gallery-empty .btn-gallery-action {
+    margin: 0 auto;
+}
+
 .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-card-info, .pw-page[data-workspace-page="media"][data-density="compact"] .media-audio-card, .pw-page[data-workspace-page="media"][data-density="compact"] .media-video-card, .pw-page[data-workspace-page="media"][data-density="compact"] .media-doc-row {
     padding: 0.75rem;
 }
@@ -156,6 +342,11 @@
     border-color: var(--pw-line-strong);
     box-shadow: none;
     transform: none;
+}
+
+/* Image cards get an accent edge instead of the legacy lift-and-glow. */
+.pw-page[data-workspace-page="media"] .gallery-card:hover {
+    border-color: color-mix(in srgb, var(--pw-accent) 45%, var(--pw-line));
 }
 
 .pw-page[data-workspace-page="media"] .gallery-card, .pw-page[data-workspace-page="media"] .media-audio-card, .pw-page[data-workspace-page="media"] .media-video-card, .pw-page[data-workspace-page="media"] .media-doc-row, .pw-page[data-workspace-page="media"] .chat-audio-player {
@@ -266,7 +457,7 @@
     font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: var(--space-2);
     flex-wrap: wrap;
 }
@@ -313,7 +504,7 @@
     font-size: var(--pw-font-xs);
     color: var(--pw-muted);
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: var(--space-2);
     flex-wrap: wrap;
     margin-bottom: var(--space-2);
@@ -324,6 +515,13 @@
     object-fit: contain;
 }
 
+/* A tall image must not push the meta and actions out of the viewport. */
+.pw-page[data-workspace-page="media"] #lightbox-img {
+    max-height: min(68vh, 640px);
+    margin: 0 auto;
+    border-radius: var(--pw-radius-sm);
+}
+
 .pw-page[data-workspace-page="media"] .media-video-player {
     display: block;
     width: 100%;
@@ -332,6 +530,59 @@
     background: var(--pw-terminal-bg);
     border: 1px solid var(--pw-line);
     border-radius: var(--radius-lg);
+}
+
+/* Poster tile: a video card loads its player only after a click, so a grid
+   of 30 cards no longer pulls 30 metadata responses up front. */
+.pw-page[data-workspace-page="media"] .media-video-poster {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-height: 360px;
+    aspect-ratio: 16 / 9;
+    padding: 0;
+    border: 1px solid var(--pw-line);
+    border-radius: var(--radius-lg);
+    background: var(--pw-terminal-bg);
+    background-image: none;
+    color: var(--pw-muted);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color var(--pw-duration-fast) var(--pw-ease),
+                color var(--pw-duration-fast) var(--pw-ease);
+}
+
+.pw-page[data-workspace-page="media"] .media-video-poster:hover {
+    border-color: var(--pw-accent);
+    color: var(--pw-text);
+}
+
+.pw-page[data-workspace-page="media"] .media-video-poster-play {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid var(--pw-line-strong);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pw-canvas) 72%, transparent);
+}
+
+.pw-page[data-workspace-page="media"] .media-video-poster .pw-ic {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.pw-page[data-workspace-page="media"] .media-video-poster-duration {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--pw-radius-sm);
+    background: color-mix(in srgb, var(--pw-canvas) 82%, transparent);
+    color: var(--pw-text);
+    font-size: var(--pw-font-2xs);
+    font-variant-numeric: tabular-nums;
 }
 
 .pw-page[data-workspace-page="media"] .media-video-card-actions {
@@ -695,7 +946,8 @@
 }
 
 .pw-page[data-workspace-page="media"]:where(:root[data-theme="light"] *) .media-bulk-toolbar {
-    background: color-mix(in srgb, var(--pw-surface) 85%, transparent);
+    /* Opaque: the toolbar is sticky, so grid content must not show through it. */
+    background: var(--pw-surface);
 }
 
 .pw-page[data-workspace-page="media"] .audio-error {
@@ -750,12 +1002,16 @@
         max-height: 60vh;
     }
 
+    .pw-page[data-workspace-page="media"] .media-video-poster {
+        max-height: 60vh;
+    }
+
     .pw-page[data-workspace-page="media"] .chat-audio-player {
         gap: var(--space-2);
         padding: var(--space-2) var(--space-3);
     }
 
-    .pw-page[data-workspace-page="media"][data-density="compact"] .btn-theme, .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-search, .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-filter, .pw-page[data-workspace-page="media"][data-density="compact"] .media-tab, .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-nav, .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-action, .pw-page[data-workspace-page="media"][data-density="compact"] .media-select-check-wrap {
+    .pw-page[data-workspace-page="media"][data-density="compact"] .btn-theme, .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-search, .pw-page[data-workspace-page="media"][data-density="compact"] .gallery-filter, .pw-page[data-workspace-page="media"][data-density="compact"] .media-tab, .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-nav, .pw-page[data-workspace-page="media"][data-density="compact"] .btn-gallery-action, .pw-page[data-workspace-page="media"][data-density="compact"] .media-select-check-wrap, .pw-page[data-workspace-page="media"][data-density="compact"] .media-search-clear, .pw-page[data-workspace-page="media"][data-density="compact"] .media-video-poster {
         min-width: 44px;
         min-height: 44px;
     }
@@ -765,7 +1021,7 @@
         min-height: 44px;
     }
 
-    .pw-page[data-workspace-page="media"] .btn-theme, .pw-page[data-workspace-page="media"] .gallery-search, .pw-page[data-workspace-page="media"] .gallery-filter, .pw-page[data-workspace-page="media"] .media-tab, .pw-page[data-workspace-page="media"] .btn-gallery-nav, .pw-page[data-workspace-page="media"] .btn-gallery-action, .pw-page[data-workspace-page="media"] .media-select-check-wrap, .pw-page[data-workspace-page="media"] .lightbox-close, .pw-page[data-workspace-page="media"] .lightbox-actions .btn-gallery-action, .pw-page[data-workspace-page="media"] .audio-play-btn, .pw-page[data-workspace-page="media"] .audio-speed-btn, .pw-page[data-workspace-page="media"] .audio-download-btn, .pw-page[data-workspace-page="media"] .media-doc-row-actions a, .pw-page[data-workspace-page="media"] .media-doc-row-actions button {
+    .pw-page[data-workspace-page="media"] .btn-theme, .pw-page[data-workspace-page="media"] .gallery-search, .pw-page[data-workspace-page="media"] .gallery-filter, .pw-page[data-workspace-page="media"] .media-tab, .pw-page[data-workspace-page="media"] .btn-gallery-nav, .pw-page[data-workspace-page="media"] .btn-gallery-action, .pw-page[data-workspace-page="media"] .media-select-check-wrap, .pw-page[data-workspace-page="media"] .lightbox-close, .pw-page[data-workspace-page="media"] .lightbox-actions .btn-gallery-action, .pw-page[data-workspace-page="media"] .audio-play-btn, .pw-page[data-workspace-page="media"] .audio-speed-btn, .pw-page[data-workspace-page="media"] .audio-download-btn, .pw-page[data-workspace-page="media"] .media-doc-row-actions a, .pw-page[data-workspace-page="media"] .media-doc-row-actions button, .pw-page[data-workspace-page="media"] .media-search-clear, .pw-page[data-workspace-page="media"] .media-video-poster {
         min-width: 44px;
         min-height: 44px;
     }
@@ -792,6 +1048,30 @@
         width: 100%;
         max-height: calc(100dvh - 1rem);
         border-radius: 20px 20px 0 0;
+    }
+}
+
+/* The operational toolbar stacks into a column below 900px, so the search
+   wrapper must switch from a row flex-basis to a full-width block. */
+@media (width < 900px) {
+    .pw-page[data-workspace-page="media"] .media-search-wrap {
+        flex: 0 0 auto;
+        width: 100%;
+    }
+
+    .pw-page[data-workspace-page="media"] .media-search-wrap .gallery-search {
+        width: 100%;
+        padding-right: 3rem;
+    }
+
+    .pw-page[data-workspace-page="media"] .media-search-clear {
+        right: 0.1rem;
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .pw-page[data-workspace-page="media"] .media-bulk-actions {
+        width: 100%;
     }
 }
 
@@ -837,5 +1117,13 @@
         animation: none;
         transition: none;
         transform: none;
+    }
+
+    .pw-page[data-workspace-page="media"] .media-skeleton-tile, .pw-page[data-workspace-page="media"] .media-skeleton-line {
+        animation: none;
+    }
+
+    .pw-page[data-workspace-page="media"] .media-search-clear {
+        transition: none;
     }
 }

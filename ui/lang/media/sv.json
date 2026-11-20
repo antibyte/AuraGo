@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Välj synliga",
   "media.bulk_selected_count": "{count} valda",
   "media.bulk_selected_none": "0 valda",
+  "media.clear_filters": "Rensa sökning och filter",
+  "media.clear_search": "Rensa sökning",
   "media.doc_open": "Öppna",
   "media.empty_audio": "Inga ljudfiler ännu. Be agenten skicka en ljudfil!",
   "media.empty_audio_title": "Inget ljud ännu",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Inga videor ännu. Be agenten skapa eller skicka en video!",
   "media.empty_videos_title": "Inga videor ännu",
   "media.file_not_available": "Fil inte tillgänglig",
+  "media.filter_label": "Filtrera efter leverantör",
+  "media.no_results": "Ingen media matchar den aktuella sökningen eller filtret.",
+  "media.no_results_title": "Inga träffar",
+  "media.page_info": "Sida {page} av {pages} · {total} objekt",
   "media.page_title": "AuraGo – Medievy",
+  "media.search_label": "Sök bland media",
   "media.search_placeholder": "Sök media...",
   "media.subtitle": "Medievy",
   "media.subtitle_description": "Bläddra, sök och hantera dina genererade medier.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Videor",
   "media.tablist_label": "Mediekategorier",
   "media.title": "Medievy",
+  "media.video_play": "Spela upp video",
   "media.video_type_video": "Video"
 }

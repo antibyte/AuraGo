@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Vybrat viditelné",
   "media.bulk_selected_count": "{count} vybráno",
   "media.bulk_selected_none": "0 vybráno",
+  "media.clear_filters": "Zrušit hledání a filtry",
+  "media.clear_search": "Zrušit hledání",
   "media.doc_open": "Otevřít",
   "media.empty_audio": "Zatím žádné zvukové soubory. Požádejte agenta, aby odeslal zvukový soubor!",
   "media.empty_audio_title": "Zatím žádné audio",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Zatím žádná videa. Požádejte agenta, aby vytvořil nebo odeslal video!",
   "media.empty_videos_title": "Zatím žádná videa",
   "media.file_not_available": "Soubor není dostupný",
+  "media.filter_label": "Filtrovat podle poskytovatele",
+  "media.no_results": "Žádná média neodpovídají aktuálnímu hledání ani filtru.",
+  "media.no_results_title": "Žádné výsledky",
+  "media.page_info": "Strana {page} z {pages} · {total} položek",
   "media.page_title": "AuraGo – Mediální pohled",
+  "media.search_label": "Hledat v médiích",
   "media.search_placeholder": "Hledat média...",
   "media.subtitle": "Zobrazení médií",
   "media.subtitle_description": "Procházejte, hledejte a spravujte vygenerovaná média.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Videa",
   "media.tablist_label": "Kategorie médií",
   "media.title": "Zobrazení médií",
+  "media.video_play": "Přehrát video",
   "media.video_type_video": "Video"
 }

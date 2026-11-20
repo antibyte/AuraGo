@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Selecionar visíveis",
   "media.bulk_selected_count": "{count} selecionados",
   "media.bulk_selected_none": "0 selecionados",
+  "media.clear_filters": "Limpar pesquisa e filtros",
+  "media.clear_search": "Limpar pesquisa",
   "media.doc_open": "Abrir",
   "media.empty_audio": "Nenhum arquivo de áudio ainda. Peça ao agente para enviar um arquivo de áudio!",
   "media.empty_audio_title": "Ainda não há áudio",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Nenhum vídeo ainda. Peça ao agente para criar ou enviar um vídeo!",
   "media.empty_videos_title": "Ainda não há vídeos",
   "media.file_not_available": "Arquivo não disponível",
+  "media.filter_label": "Filtrar por provedor",
+  "media.no_results": "Nenhuma mídia corresponde à pesquisa ou ao filtro atual.",
+  "media.no_results_title": "Sem resultados",
+  "media.page_info": "Página {page} de {pages} · {total} itens",
   "media.page_title": "AuraGo – Visualização de mídia",
+  "media.search_label": "Pesquisar mídia",
   "media.search_placeholder": "Pesquisar mídia...",
   "media.subtitle": "Vista de mídia",
   "media.subtitle_description": "Navegue, pesquise e gira os seus meios gerados.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Vídeos",
   "media.tablist_label": "Categorias de media",
   "media.title": "Vista de mídia",
+  "media.video_play": "Reproduzir vídeo",
   "media.video_type_video": "Vídeo"
 }

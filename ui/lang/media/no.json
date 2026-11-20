@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Velg synlige",
   "media.bulk_selected_count": "{count} valgt",
   "media.bulk_selected_none": "0 valgt",
+  "media.clear_filters": "Tøm søk og filtre",
+  "media.clear_search": "Tøm søk",
   "media.doc_open": "Åpne",
   "media.empty_audio": "Ingen lydfiler ennå. Be agenten sende en lydfil!",
   "media.empty_audio_title": "Ingen lyd ennå",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Ingen videoer ennå. Be agenten opprette eller sende en video!",
   "media.empty_videos_title": "Ingen videoer ennå",
   "media.file_not_available": "Fil ikke tilgjengelig",
+  "media.filter_label": "Filtrer etter leverandør",
+  "media.no_results": "Ingen medier samsvarer med det gjeldende søket eller filteret.",
+  "media.no_results_title": "Ingen treff",
+  "media.page_info": "Side {page} av {pages} · {total} elementer",
   "media.page_title": "AuraGo – Medievisning",
+  "media.search_label": "Søk i medier",
   "media.search_placeholder": "Søk i medier...",
   "media.subtitle": "Mediavisning",
   "media.subtitle_description": "Bla gjennom, søk i og administrer genererte medier.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Videoer",
   "media.tablist_label": "Mediekategorier",
   "media.title": "Mediavisning",
+  "media.video_play": "Spill av video",
   "media.video_type_video": "Video"
 }

@@ -20,13 +20,117 @@ let currentAudioModalId = null;
 let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
 
-function mediaStatusNode(icon, message, title) {
+function mediaStatusNode(icon, message, title, action) {
     const wrap = document.createElement('div');
     wrap.className = 'empty-state pw-empty-state gallery-empty';
     wrap.innerHTML = '<div class="empty-icon pw-empty-icon gallery-empty-icon">' + (icon ? pwIcon(icon) : '') + '</div>' +
         (title ? '<h3>' + escapeHtml(title) + '</h3>' : '') +
         '<p>' + escapeHtml(message) + '</p>';
+    if (action && action.label) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-gallery-action';
+        btn.textContent = action.label;
+        if (typeof action.onClick === 'function') btn.addEventListener('click', action.onClick);
+        wrap.appendChild(btn);
+    }
     return wrap;
+}
+
+/**
+ * Skeleton placeholders shown while a tab loads. `variant` picks the shape:
+ * 'tile' for the image grid, 'card' for audio/video cards, 'list' for documents.
+ */
+function mediaSkeletonGrid(count, variant) {
+    const wrap = document.createElement('div');
+    wrap.className = 'media-skeleton-grid' + (variant === 'list' ? ' media-skeleton-list' : '');
+    wrap.setAttribute('role', 'status');
+    wrap.setAttribute('aria-label', t('common.loading'));
+    for (let i = 0; i < count; i++) {
+        const card = document.createElement('div');
+        card.className = 'media-skeleton';
+        if (variant === 'tile') {
+            const tile = document.createElement('div');
+            tile.className = 'media-skeleton-tile';
+            card.appendChild(tile);
+        }
+        const body = document.createElement('div');
+        body.className = 'media-skeleton-body';
+        const line = document.createElement('div');
+        line.className = 'media-skeleton-line';
+        const short = document.createElement('div');
+        short.className = 'media-skeleton-line is-short';
+        body.appendChild(line);
+        body.appendChild(short);
+        card.appendChild(body);
+        wrap.appendChild(card);
+    }
+    return wrap;
+}
+
+/** True while a search term or the provider filter narrows the result set. */
+function hasActiveMediaFilter() {
+    if (getSearchQuery()) return true;
+    const provider = document.getElementById('gallery-provider-filter');
+    return !!(provider && provider.value);
+}
+
+/** "Nothing matched" state with a one-click reset of search and filter. */
+function mediaNoResultsNode(icon) {
+    return mediaStatusNode(icon || 'search', t('media.no_results'), t('media.no_results_title'), {
+        label: t('media.clear_filters'),
+        onClick: clearMediaFilters
+    });
+}
+
+/** Clears the shared search box and the provider filter, then reloads the tab. */
+function clearMediaFilters() {
+    const search = document.getElementById('media-search');
+    if (search) search.value = '';
+    const gallerySearch = document.getElementById('gallery-search');
+    if (gallerySearch) gallerySearch.value = '';
+    const provider = document.getElementById('gallery-provider-filter');
+    if (provider) provider.value = '';
+    updateMediaSearchClear();
+    clearAllMediaSelections();
+    reloadCurrentMediaTab();
+}
+
+/** Reloads the active tab from its first page. */
+function reloadCurrentMediaTab() {
+    if (currentTab === 'images') {
+        galleryOffset = 0;
+        loadGallery();
+    } else if (currentTab === 'audio') {
+        audioOffset = 0;
+        loadAudio();
+    } else if (currentTab === 'videos') {
+        videoOffset = 0;
+        loadVideos();
+    } else if (currentTab === 'documents') {
+        docOffset = 0;
+        loadDocuments();
+    }
+}
+
+/** Localized "Page 2 of 5 · 120 items" label for the pagers. */
+function mediaPageInfo(page, pages, total) {
+    const template = t('media.page_info');
+    if (!template || template === 'media.page_info') {
+        return page + ' / ' + pages + ' (' + total + ')';
+    }
+    return String(template)
+        .replace('{page}', String(page))
+        .replace('{pages}', String(pages))
+        .replace('{total}', String(total));
+}
+
+/** The inline clear button only shows while the search box holds a term. */
+function updateMediaSearchClear() {
+    const clearBtn = document.getElementById('media-search-clear');
+    if (!clearBtn) return;
+    const search = document.getElementById('media-search');
+    clearBtn.hidden = !(search && search.value);
 }
 
 function lastMediaOffset(total) {
@@ -38,6 +142,8 @@ let videoItems = [];
 let videoOffset = 0;
 let videoTotal = 0;
 let isLoadingVideos = false;
+// Ids whose player is already open, so a re-render keeps the player.
+const activatedVideoCards = new Set();
 
 // ── Document tab state ───────────────────────────────────────────────────────
 let docItems = [];
@@ -62,6 +168,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Keep gallery-search in sync for the Images tab (gallery.js reads from it)
         const gallerySearchEl = document.getElementById('gallery-search');
         if (gallerySearchEl) gallerySearchEl.value = this.value;
+        updateMediaSearchClear();
         mediaSearchDebounce = setTimeout(function () {
             clearAllMediaSelections();
             if (currentTab === 'images') {
@@ -79,6 +186,24 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }, 400);
     });
+
+    // One-click reset of the shared search box.
+    const searchClearBtn = document.getElementById('media-search-clear');
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', function () {
+            const search = document.getElementById('media-search');
+            if (search) {
+                search.value = '';
+                search.focus();
+            }
+            const gallerySearchEl = document.getElementById('gallery-search');
+            if (gallerySearchEl) gallerySearchEl.value = '';
+            updateMediaSearchClear();
+            clearAllMediaSelections();
+            reloadCurrentMediaTab();
+        });
+    }
+    updateMediaSearchClear();
 
     // Override gallery search source so it reads from media-search too
     const gallerySearchEl = document.getElementById('gallery-search');
@@ -161,19 +286,37 @@ const MEDIA_TABS_ORDER = ['images', 'audio', 'videos', 'documents'];
 
 document.addEventListener('keydown', function (e) {
     // Only handle arrow keys when no modal is open and no input focused
-    if (document.getElementById('audio-modal').classList.contains('active')) return;
-    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        const idx = MEDIA_TABS_ORDER.indexOf(currentTab);
-        if (idx < 0) return;
-        const next = e.key === 'ArrowRight'
-            ? MEDIA_TABS_ORDER[(idx + 1) % MEDIA_TABS_ORDER.length]
-            : MEDIA_TABS_ORDER[(idx - 1 + MEDIA_TABS_ORDER.length) % MEDIA_TABS_ORDER.length];
-        switchTab(next);
-        const tabEl = document.getElementById('tab-' + next);
-        if (tabEl) tabEl.focus();
-        e.preventDefault();
+    const audioModal = document.getElementById('audio-modal');
+    if (audioModal && audioModal.classList.contains('active')) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
+
+    const tablist = document.querySelector('.media-tabs');
+    if (!tablist) return;
+    // ARIA tablist pattern: arrows drive the tabs while the tab bar owns the
+    // focus (or while nothing else is focused); elsewhere the keys stay free.
+    const focusInTablist = tablist.contains(active);
+    const focusOnPage = !active || active === document.body || active === document.documentElement;
+    if (!focusInTablist && !focusOnPage) return;
+
+    const idx = MEDIA_TABS_ORDER.indexOf(currentTab);
+    if (idx < 0) return;
+    let next = null;
+    if (e.key === 'ArrowRight') {
+        next = MEDIA_TABS_ORDER[(idx + 1) % MEDIA_TABS_ORDER.length];
+    } else if (e.key === 'ArrowLeft') {
+        next = MEDIA_TABS_ORDER[(idx - 1 + MEDIA_TABS_ORDER.length) % MEDIA_TABS_ORDER.length];
+    } else if (e.key === 'Home') {
+        next = MEDIA_TABS_ORDER[0];
+    } else if (e.key === 'End') {
+        next = MEDIA_TABS_ORDER[MEDIA_TABS_ORDER.length - 1];
     }
+    if (!next) return;
+
+    switchTab(next);
+    const tabEl = document.getElementById('tab-' + next);
+    if (tabEl) tabEl.focus();
+    e.preventDefault();
 });
 
 function switchTab(tab) {
@@ -185,6 +328,7 @@ function switchTab(tab) {
     document.querySelectorAll('.media-tab, .pw-tab').forEach(function (btn) {
         btn.classList.remove('active');
         btn.setAttribute('aria-selected', 'false');
+        btn.setAttribute('tabindex', '-1');
     });
     document.querySelectorAll('.media-panel').forEach(function (panel) {
         panel.classList.remove('active');
@@ -192,7 +336,12 @@ function switchTab(tab) {
 
     const activeTab = document.getElementById('tab-' + tab);
     const activePanel = document.getElementById('panel-' + tab);
-    if (activeTab) { activeTab.classList.add('active'); activeTab.setAttribute('aria-selected', 'true'); }
+    if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.setAttribute('aria-selected', 'true');
+        // Roving tabindex: only the selected tab stays in the tab order.
+        activeTab.setAttribute('tabindex', '0');
+    }
     if (activePanel) { activePanel.classList.add('active'); }
 
     if (tab === 'images') {
@@ -219,7 +368,7 @@ async function loadAudio() {
     if (isLoadingAudio) return;
     isLoadingAudio = true;
     const grid = document.getElementById('audio-grid');
-    grid.replaceChildren(mediaStatusNode('', t('common.loading')));
+    grid.replaceChildren(mediaSkeletonGrid(6, 'card'));
 
     const params = new URLSearchParams({
         type: 'audio',
@@ -242,7 +391,9 @@ async function loadAudio() {
         audioTotal = data.total || 0;
 
         if (audioItems.length === 0) {
-            grid.replaceChildren(mediaStatusNode('music', t('media.empty_audio'), t('media.empty_audio_title')));
+            grid.replaceChildren(hasActiveMediaFilter()
+                ? mediaNoResultsNode('music')
+                : mediaStatusNode('music', t('media.empty_audio'), t('media.empty_audio_title')));
             document.getElementById('audio-pagination').classList.add('is-hidden');
             return;
         }
@@ -385,7 +536,7 @@ function updateAudioPagination() {
     document.getElementById('audio-last').disabled = isLastPage;
     const page = Math.floor(audioOffset / MEDIA_LIMIT) + 1;
     const pages = Math.ceil(audioTotal / MEDIA_LIMIT);
-    document.getElementById('audio-page-info').textContent = page + ' / ' + pages + ' (' + audioTotal + ')';
+    document.getElementById('audio-page-info').textContent = mediaPageInfo(page, pages, audioTotal);
 }
 
 function audioFirst() { clearCurrentMediaSelection(false); audioOffset = 0; loadAudio(); }
@@ -520,8 +671,12 @@ function updateMediaBulkToolbar() {
     const clearBtn = document.getElementById('media-clear-selection-btn');
     const deleteBtn = document.getElementById('media-delete-selected-btn');
     const countEl = document.getElementById('media-selected-count');
+    const bulkActions = document.getElementById('media-bulk-actions');
     const count = selectedMediaCount();
 
+    // The bulk actions only exist while selecting, so the default toolbar
+    // carries search, filter and the entry point alone.
+    if (bulkActions) bulkActions.classList.toggle('is-hidden', !mediaSelectionMode);
     if (selectBtn) {
         selectBtn.textContent = mediaSelectionMode ? t('media.bulk_select_done') : t('media.bulk_select');
         selectBtn.classList.toggle('active', mediaSelectionMode);
@@ -728,8 +883,10 @@ function handleMediaGalleryCardClick(event, id, source) {
 async function loadVideos() {
     if (isLoadingVideos) return;
     isLoadingVideos = true;
+    // A fresh page of videos starts with fresh posters.
+    activatedVideoCards.clear();
     const grid = document.getElementById('video-grid');
-    grid.replaceChildren(mediaStatusNode('', t('common.loading')));
+    grid.replaceChildren(mediaSkeletonGrid(6, 'card'));
 
     const params = new URLSearchParams({
         type: 'video',
@@ -752,7 +909,9 @@ async function loadVideos() {
         videoTotal = data.total || 0;
 
         if (videoItems.length === 0) {
-            grid.replaceChildren(mediaStatusNode('video', t('media.empty_videos'), t('media.empty_videos_title')));
+            grid.replaceChildren(hasActiveMediaFilter()
+                ? mediaNoResultsNode('video')
+                : mediaStatusNode('video', t('media.empty_videos'), t('media.empty_videos_title')));
             document.getElementById('video-pagination').classList.add('is-hidden');
             return;
         }
@@ -825,16 +984,24 @@ function renderVideoCard(item) {
     card.appendChild(metaEl);
 
     if (hasFile) {
-        const video = document.createElement('video');
-        video.className = 'media-video-player';
-        video.controls = true;
-        video.preload = 'metadata';
-        video.playsInline = true;
-        const source = document.createElement('source');
-        source.src = videoPath;
-        source.type = videoMimeType(item.filename || videoPath);
-        video.appendChild(source);
-        card.appendChild(video);
+        // A poster tile stands in for the player: the video element (and its
+        // metadata request) is only created once the user asks for it.
+        if (activatedVideoCards.has(String(item.id))) {
+            // The card is re-rendered when the selection changes; keep the
+            // player instead of dropping back to the poster.
+            card.appendChild(buildVideoPlayer(videoPath, item.filename || ''));
+        } else {
+            const poster = document.createElement('button');
+            poster.type = 'button';
+            poster.className = 'media-video-poster';
+            poster.setAttribute('aria-label', t('media.video_play'));
+            poster.innerHTML = '<span class="media-video-poster-play">' + pwIcon('play') + '</span>' +
+                (durationLabel ? '<span class="media-video-poster-duration">' + escapeHtml(durationLabel) + '</span>' : '');
+            poster.addEventListener('click', function () {
+                activateVideoCard(poster, videoPath, item.filename || '', item.id);
+            });
+            card.appendChild(poster);
+        }
 
         const actionsEl = document.createElement('div');
         actionsEl.className = 'media-video-card-actions';
@@ -863,6 +1030,31 @@ function renderVideoCard(item) {
     }
 
     return card;
+}
+
+/** Builds the player element for a video card. */
+function buildVideoPlayer(videoPath, filename) {
+    const video = document.createElement('video');
+    video.className = 'media-video-player';
+    video.controls = true;
+    video.preload = 'metadata';
+    video.playsInline = true;
+    const source = document.createElement('source');
+    source.src = videoPath;
+    source.type = videoMimeType(filename || videoPath);
+    video.appendChild(source);
+    return video;
+}
+
+/** Swaps the poster tile for a real player and starts playback. */
+function activateVideoCard(poster, videoPath, filename, id) {
+    if (!poster || !poster.parentNode) return;
+    activatedVideoCards.add(String(id));
+    const video = buildVideoPlayer(videoPath, filename);
+    poster.parentNode.replaceChild(video, poster);
+    try { video.focus(); } catch (e) { /* focus is best effort */ }
+    const started = video.play();
+    if (started && typeof started.catch === 'function') started.catch(function () { /* autoplay may be blocked */ });
 }
 
 function shouldUpdateVideoCard(item, el) {
@@ -895,7 +1087,7 @@ function updateVideoPagination() {
     document.getElementById('video-last').disabled = isLastPage;
     const page = Math.floor(videoOffset / MEDIA_LIMIT) + 1;
     const pages = Math.ceil(videoTotal / MEDIA_LIMIT);
-    document.getElementById('video-page-info').textContent = page + ' / ' + pages + ' (' + videoTotal + ')';
+    document.getElementById('video-page-info').textContent = mediaPageInfo(page, pages, videoTotal);
 }
 
 function videoFirst() { clearCurrentMediaSelection(false); videoOffset = 0; loadVideos(); }
@@ -950,7 +1142,7 @@ async function loadDocuments() {
     if (isLoadingDocs) return;
     isLoadingDocs = true;
     const list = document.getElementById('doc-list');
-    list.replaceChildren(mediaStatusNode('', t('common.loading')));
+    list.replaceChildren(mediaSkeletonGrid(6, 'list'));
 
     const params = new URLSearchParams({
         type: 'document',
@@ -973,7 +1165,9 @@ async function loadDocuments() {
         docTotal = data.total || 0;
 
         if (docItems.length === 0) {
-            list.replaceChildren(mediaStatusNode('doc', t('media.empty_documents'), t('media.empty_documents_title')));
+            list.replaceChildren(hasActiveMediaFilter()
+                ? mediaNoResultsNode('doc')
+                : mediaStatusNode('doc', t('media.empty_documents'), t('media.empty_documents_title')));
             document.getElementById('doc-pagination').classList.add('is-hidden');
             return;
         }
@@ -1029,10 +1223,10 @@ function renderDocItemHTML(item) {
     html += '</div>';
     html += '<div class="media-doc-row-actions">';
     if (previewHref) {
-        html += '<a href="' + previewHref + '" target="_blank" title="' + t('media.doc_open') + '" aria-label="' + escapeHtml(t('media.doc_open')) + '">' + pwIcon('search') + '</a>';
+        html += '<a href="' + previewHref + '" target="_blank" title="' + escapeHtml(t('media.doc_open')) + '" aria-label="' + escapeHtml(t('media.doc_open')) + '">' + pwIcon('search') + '</a>';
     }
-    html += '<a href="' + dlHref + '" download="' + filename + '" title="' + t('gallery.download') + '" aria-label="' + escapeHtml(t('gallery.download')) + '">' + pwIcon('download') + '</a>';
-    html += '<button class="btn-danger" onclick="docDelete(' + item.id + ')" title="' + t('gallery.delete') + '" aria-label="' + escapeHtml(t('gallery.delete')) + '">' + pwIcon('trash') + '</button>';
+    html += '<a href="' + dlHref + '" download="' + filename + '" title="' + escapeHtml(t('gallery.download')) + '" aria-label="' + escapeHtml(t('gallery.download')) + '">' + pwIcon('download') + '</a>';
+    html += '<button class="btn-danger" onclick="docDelete(' + item.id + ')" title="' + escapeHtml(t('gallery.delete')) + '" aria-label="' + escapeHtml(t('gallery.delete')) + '">' + pwIcon('trash') + '</button>';
     html += '</div>';
     html += '</div>';
     return html;
@@ -1074,7 +1268,7 @@ function updateDocPagination() {
     document.getElementById('doc-last').disabled = isLastPage;
     const page = Math.floor(docOffset / MEDIA_LIMIT) + 1;
     const pages = Math.ceil(docTotal / MEDIA_LIMIT);
-    document.getElementById('doc-page-info').textContent = page + ' / ' + pages + ' (' + docTotal + ')';
+    document.getElementById('doc-page-info').textContent = mediaPageInfo(page, pages, docTotal);
 }
 
 function docFirst() { clearCurrentMediaSelection(false); docOffset = 0; loadDocuments(); }

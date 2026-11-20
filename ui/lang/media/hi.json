@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "दिख रहे चुनें",
   "media.bulk_selected_count": "{count} चयनित",
   "media.bulk_selected_none": "0 चयनित",
+  "media.clear_filters": "खोज और फ़िल्टर हटाएँ",
+  "media.clear_search": "खोज हटाएँ",
   "media.doc_open": "खोलें",
   "media.empty_audio": "अभी तक कोई ऑडियो फ़ाइल नहीं। एजेंट से ऑडियो फ़ाइल भेजने के लिए कहें!",
   "media.empty_audio_title": "अभी तक कोई ऑडियो नहीं",
@@ -22,7 +24,12 @@
   "media.empty_videos": "अभी तक कोई वीडियो नहीं। एजेंट से वीडियो बनाने या भेजने के लिए कहें!",
   "media.empty_videos_title": "अभी तक कोई वीडियो नहीं",
   "media.file_not_available": "फ़ाइल उपलब्ध नहीं है",
+  "media.filter_label": "प्रदाता के अनुसार फ़िल्टर करें",
+  "media.no_results": "वर्तमान खोज या फ़िल्टर से कोई मीडिया मेल नहीं खाता।",
+  "media.no_results_title": "कोई परिणाम नहीं",
+  "media.page_info": "पृष्ठ {page} / {pages} · {total} आइटम",
   "media.page_title": "AuraGo – मीडिया दृश्य",
+  "media.search_label": "मीडिया खोजें",
   "media.search_placeholder": "मीडिया खोजें...",
   "media.subtitle": "मीडिया दृश्य",
   "media.subtitle_description": "अपने जेनरेट किए गए मीडिया को ब्राउज़ करें, खोजें और प्रबंधित करें।",
@@ -32,5 +39,6 @@
   "media.tab_videos": "वीडियो",
   "media.tablist_label": "मीडिया श्रेणियाँ",
   "media.title": "मीडिया दृश्य",
+  "media.video_play": "वीडियो चलाएँ",
   "media.video_type_video": "वीडियो"
 }

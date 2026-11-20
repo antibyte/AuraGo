@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Επιλογή ορατών",
   "media.bulk_selected_count": "{count} επιλεγμένα",
   "media.bulk_selected_none": "0 επιλεγμένα",
+  "media.clear_filters": "Καθαρισμός αναζήτησης και φίλτρων",
+  "media.clear_search": "Καθαρισμός αναζήτησης",
   "media.doc_open": "Άνοιγμα",
   "media.empty_audio": "Δεν υπάρχουν ακόμη αρχεία ήχου. Ζητήστε από τον πράκτορα να στείλει ένα αρχείο ήχου!",
   "media.empty_audio_title": "Δεν υπάρχει ήχος ακόμα",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Δεν υπάρχουν ακόμη βίντεο. Ζητήστε από τον πράκτορα να δημιουργήσει ή να στείλει ένα βίντεο!",
   "media.empty_videos_title": "Δεν υπάρχουν βίντεο ακόμα",
   "media.file_not_available": "Το αρχείο δεν είναι διαθέσιμο",
+  "media.filter_label": "Φιλτράρισμα ανά πάροχο",
+  "media.no_results": "Κανένα μέσο δεν ταιριάζει με την τρέχουσα αναζήτηση ή το φίλτρο.",
+  "media.no_results_title": "Κανένα αποτέλεσμα",
+  "media.page_info": "Σελίδα {page} από {pages} · {total} στοιχεία",
   "media.page_title": "AuraGo – Προβολή πολυμέσων",
+  "media.search_label": "Αναζήτηση στα μέσα",
   "media.search_placeholder": "Αναζήτηση πολυμέσων...",
   "media.subtitle": "Προβολή πολυμέσων",
   "media.subtitle_description": "Περιηγηθείτε, αναζητήστε και διαχειριστείτε τα μέσα σας.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Βίντεο",
   "media.tablist_label": "Κατηγορίες πολυμέσων",
   "media.title": "Προβολή πολυμέσων",
+  "media.video_play": "Αναπαραγωγή βίντεο",
   "media.video_type_video": "Βίντεο"
 }

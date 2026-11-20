@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Zichtbare selecteren",
   "media.bulk_selected_count": "{count} geselecteerd",
   "media.bulk_selected_none": "0 geselecteerd",
+  "media.clear_filters": "Zoekopdracht en filters wissen",
+  "media.clear_search": "Zoekopdracht wissen",
   "media.doc_open": "Openen",
   "media.empty_audio": "Nog geen audiobestanden. Vraag de agent een audiobestand te sturen!",
   "media.empty_audio_title": "Nog geen audio",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Nog geen video's. Vraag de agent een video te maken of te sturen!",
   "media.empty_videos_title": "Nog geen video's",
   "media.file_not_available": "Bestand niet beschikbaar",
+  "media.filter_label": "Filteren op aanbieder",
+  "media.no_results": "Geen media komt overeen met de huidige zoekopdracht of het filter.",
+  "media.no_results_title": "Geen resultaten",
+  "media.page_info": "Pagina {page} van {pages} · {total} items",
   "media.page_title": "AuraGo – Mediaweergave",
+  "media.search_label": "Media doorzoeken",
   "media.search_placeholder": "Media zoeken...",
   "media.subtitle": "Mediaoverzicht",
   "media.subtitle_description": "Blader door, zoek in en beheer je gegenereerde media.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Video's",
   "media.tablist_label": "Mediacategorieën",
   "media.title": "Mediaoverzicht",
+  "media.video_play": "Video afspelen",
   "media.video_type_video": "Video"
 }

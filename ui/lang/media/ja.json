@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "表示中を選択",
   "media.bulk_selected_count": "{count} 件選択中",
   "media.bulk_selected_none": "0 件選択中",
+  "media.clear_filters": "検索とフィルターを解除",
+  "media.clear_search": "検索をクリア",
   "media.doc_open": "開く",
   "media.empty_audio": "まだ音声ファイルがありません。エージェントに音声ファイルを送るよう頼んでください！",
   "media.empty_audio_title": "音声はまだありません",
@@ -22,7 +24,12 @@
   "media.empty_videos": "まだ動画がありません。エージェントに動画の作成または送信を依頼してください！",
   "media.empty_videos_title": "動画はまだありません",
   "media.file_not_available": "ファイルが利用できません",
+  "media.filter_label": "プロバイダーで絞り込む",
+  "media.no_results": "現在の検索またはフィルターに一致するメディアはありません。",
+  "media.no_results_title": "該当なし",
+  "media.page_info": "{pages} ページ中 {page} ページ · {total} 件",
   "media.page_title": "AuraGo – メディアビュー",
+  "media.search_label": "メディアを検索",
   "media.search_placeholder": "メディアを検索...",
   "media.subtitle": "メディアビュー",
   "media.subtitle_description": "生成されたメディアを閲覧、検索、管理します。",
@@ -32,5 +39,6 @@
   "media.tab_videos": "動画",
   "media.tablist_label": "メディアカテゴリ",
   "media.title": "メディアビュー",
+  "media.video_play": "動画を再生",
   "media.video_type_video": "動画"
 }

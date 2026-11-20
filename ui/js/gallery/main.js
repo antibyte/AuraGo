@@ -6,6 +6,7 @@ let galleryTotal = 0;
 const GALLERY_LIMIT = 30;
 let currentLightboxId = null;
 let currentLightboxSource = '';
+let lightboxLastFocus = null;
 let galleryDeleteInFlight = false;
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -56,9 +57,22 @@ function makeStatusNode(icon, message, title) {
     return wrap;
 }
 
+/** Skeleton tiles while the image grid loads. */
+function gallerySkeletonGrid(count) {
+    if (typeof mediaSkeletonGrid === 'function') return mediaSkeletonGrid(count, 'tile');
+    return makeStatusNode('', t('gallery.loading'));
+}
+
+/** "Nothing here yet" and "nothing matched" are different problems. */
+function galleryEmptyState() {
+    const filtered = typeof hasActiveMediaFilter === 'function' && hasActiveMediaFilter();
+    if (filtered && typeof mediaNoResultsNode === 'function') return mediaNoResultsNode('image');
+    return makeStatusNode('image', t('gallery.empty'), (t('media.empty_images_title') !== 'media.empty_images_title' ? t('media.empty_images_title') : ''));
+}
+
 async function loadGallery() {
     const grid = document.getElementById('gallery-grid');
-    grid.replaceChildren(makeStatusNode('', t('gallery.loading')));
+    grid.replaceChildren(gallerySkeletonGrid(8));
 
     const q = (document.getElementById('gallery-search') || document.getElementById('media-search') || {value: ''}).value;
     const provider = document.getElementById('gallery-provider-filter').value;
@@ -86,7 +100,7 @@ async function loadGallery() {
         populateProviderFilter(galleryImages);
 
         if (galleryImages.length === 0) {
-            grid.replaceChildren(makeStatusNode('image', t('gallery.empty'), (t('media.empty_images_title') !== 'media.empty_images_title' ? t('media.empty_images_title') : '')));
+            grid.replaceChildren(galleryEmptyState());
             document.getElementById('gallery-pagination').classList.add('is-hidden');
             return;
         }
@@ -126,8 +140,9 @@ function renderGalleryCard(img) {
     const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
     const isSelected = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey);
     const selectedClass = isSelected ? ' media-card-selected' : '';
+    const cardLabel = img.prompt || img.filename || t('media.tab_images');
 
-    let html = '<div class="gallery-card' + selectedClass + '" data-source="' + escapeHtml(sourceDB) + '" data-media-id="' + img.id + '" data-snapshot="' + esc(galleryCardSnapshot(img)) + '" onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)">';
+    let html = '<div class="gallery-card' + selectedClass + '" role="button" tabindex="0" data-source="' + escapeHtml(sourceDB) + '" data-media-id="' + img.id + '" data-snapshot="' + esc(galleryCardSnapshot(img)) + '" aria-label="' + escapeHtml(cardLabel) + '" onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)">';
     if (selectionActive) {
         html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
         html += '<input type="checkbox" class="media-select-check" data-tab="images" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + img.id + '" data-source="' + escapeHtml(sourceDB) + '"' + (isSelected ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
@@ -141,7 +156,16 @@ function renderGalleryCard(img) {
 
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
-    return tpl.content.firstElementChild;
+    const card = tpl.content.firstElementChild;
+    if (card) {
+        // The card is a button for keyboards, not just for pointers.
+        card.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+            event.preventDefault();
+            handleGalleryCardClick(event, card.dataset.mediaId, card.dataset.source);
+        });
+    }
+    return card;
 }
 
 function shouldUpdateGalleryCard(img, el) {
@@ -184,7 +208,9 @@ function updatePagination() {
 
     const page = Math.floor(galleryOffset / GALLERY_LIMIT) + 1;
     const pages = Math.ceil(galleryTotal / GALLERY_LIMIT);
-    info.textContent = page + ' / ' + pages + ' (' + galleryTotal + ' ' + t('gallery.images') + ')';
+    info.textContent = typeof mediaPageInfo === 'function'
+        ? mediaPageInfo(page, pages, galleryTotal)
+        : page + ' / ' + pages + ' (' + galleryTotal + ' ' + t('gallery.images') + ')';
 }
 
 function galleryLastOffset() {
@@ -247,7 +273,9 @@ function openLightbox(id, source = '') {
     currentLightboxSource = img.source_db || '';
     const webPath = img.web_path || ('/files/generated_images/' + img.filename);
 
-    document.getElementById('lightbox-img').src = webPath;
+    const lightboxImg = document.getElementById('lightbox-img');
+    lightboxImg.src = webPath;
+    lightboxImg.alt = img.prompt || img.filename || t('media.tab_images');
     document.getElementById('lightbox-download').href = webPath;
 
     let meta = '';
@@ -268,7 +296,14 @@ function openLightbox(id, source = '') {
     }
     document.getElementById('lightbox-meta').innerHTML = meta;
 
-    document.getElementById('lightbox').classList.remove('is-hidden');
+    const lightbox = document.getElementById('lightbox');
+    lightbox.classList.remove('is-hidden');
+    // Hand the focus to the dialog so Escape and Tab work where the user expects.
+    if (!lightbox.contains(document.activeElement)) {
+        lightboxLastFocus = document.activeElement;
+        const closeBtn = lightbox.querySelector('.lightbox-close');
+        if (closeBtn) closeBtn.focus();
+    }
 }
 
 function closeLightbox(event) {
@@ -276,6 +311,11 @@ function closeLightbox(event) {
     document.getElementById('lightbox').classList.add('is-hidden');
     currentLightboxId = null;
     currentLightboxSource = '';
+    // Return the focus to the card that opened the dialog.
+    if (lightboxLastFocus && document.contains(lightboxLastFocus)) {
+        lightboxLastFocus.focus();
+    }
+    lightboxLastFocus = null;
 }
 
 function handleGalleryCardClick(event, id, source = '') {

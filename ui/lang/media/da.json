@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Vælg synlige",
   "media.bulk_selected_count": "{count} valgt",
   "media.bulk_selected_none": "0 valgt",
+  "media.clear_filters": "Ryd søgning og filtre",
+  "media.clear_search": "Ryd søgning",
   "media.doc_open": "Åbn",
   "media.empty_audio": "Ingen lydfiler endnu. Bed agenten om at sende en lydfil!",
   "media.empty_audio_title": "Ingen lyd endnu",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Ingen videoer endnu. Bed agenten om at oprette eller sende en video!",
   "media.empty_videos_title": "Ingen videoer endnu",
   "media.file_not_available": "Fil ikke tilgængelig",
+  "media.filter_label": "Filtrer efter udbyder",
+  "media.no_results": "Ingen medier matcher den aktuelle søgning eller filtrering.",
+  "media.no_results_title": "Ingen resultater",
+  "media.page_info": "Side {page} af {pages} · {total} elementer",
   "media.page_title": "AuraGo – Medievisning",
+  "media.search_label": "Søg i medier",
   "media.search_placeholder": "Søg i medier...",
   "media.subtitle": "Medievisning",
   "media.subtitle_description": "Gennemse, søg i og administrer genererede medier.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Videoer",
   "media.tablist_label": "Mediekategorier",
   "media.title": "Medievisning",
+  "media.video_play": "Afspil video",
   "media.video_type_video": "Video"
 }

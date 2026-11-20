@@ -13,6 +13,8 @@
   "media.bulk_select_visible": "Sichtbare auswählen",
   "media.bulk_selected_count": "{count} ausgewählt",
   "media.bulk_selected_none": "0 ausgewählt",
+  "media.clear_filters": "Suche und Filter zurücksetzen",
+  "media.clear_search": "Suche löschen",
   "media.doc_open": "Öffnen",
   "media.empty_audio": "Noch keine Audiodateien. Bitte den Agenten, eine Audiodatei zu senden!",
   "media.empty_audio_title": "Noch kein Audio",
@@ -22,7 +24,12 @@
   "media.empty_videos": "Noch keine Videos. Bitte den Agenten, ein Video zu erstellen oder zu senden!",
   "media.empty_videos_title": "Noch keine Videos",
   "media.file_not_available": "Datei nicht verfügbar",
+  "media.filter_label": "Nach Anbieter filtern",
+  "media.no_results": "Keine Medien passen zur aktuellen Suche oder Filterauswahl.",
+  "media.no_results_title": "Keine Treffer",
+  "media.page_info": "Seite {page} von {pages} · {total} Elemente",
   "media.page_title": "AuraGo – Medienansicht",
+  "media.search_label": "Medien durchsuchen",
   "media.search_placeholder": "Medien durchsuchen...",
   "media.subtitle": "Medienansicht",
   "media.subtitle_description": "Generierte Medien durchsuchen, suchen und verwalten.",
@@ -32,5 +39,6 @@
   "media.tab_videos": "Videos",
   "media.tablist_label": "Medienkategorien",
   "media.title": "Medienansicht",
+  "media.video_play": "Video abspielen",
   "media.video_type_video": "Video"
 }
