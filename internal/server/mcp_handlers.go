@@ -163,8 +163,7 @@ func persistMCPSectionUpdateLocked(s *Server, mutate func(map[string]interface{}
 	generation := shutdownExternalMCPManager()
 	s.CfgMu.Unlock()
 	syncExternalMCPRuntime(newCfg, s.Vault, s.Logger, generation)
-	_ = s.syncStoreMCP("n8n")
-	_ = s.syncStoreMCP("bytestash")
+	s.syncStoreMCPs()
 	return nil
 }
 

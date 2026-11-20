@@ -31,6 +31,7 @@ type storeIntegrationRuntime struct {
 	sync.Mutex
 	started  bool
 	closed   bool
+	settling map[string]bool
 	bindings map[string]storeIntegrationBinding
 	failures map[string]string
 }
@@ -76,8 +77,9 @@ func (s *Server) revokeStoreIntegration(id string) {
 
 func (s *Server) revokeStoreIntegrations() bool {
 	s.revokeStoreRelay("", false)
-	revokeStoreMCP("n8n")
-	revokeStoreMCP("bytestash")
+	for _, id := range storeMCPApps {
+		revokeStoreMCP(id)
+	}
 	s.storeIntegrations.Lock()
 	defer s.storeIntegrations.Unlock()
 	for id, binding := range s.storeIntegrations.bindings {
@@ -157,8 +159,17 @@ func (s *Server) refreshStoreIntegrations() {
 }
 
 func (s *Server) refreshStoreIntegration(store *desktopstore.Service, id string) {
+	tested, err := s.refreshStoreIntegrationOnce(store, id)
+	if tested && err != nil && storeIntegrationSettleBudget[id] > 0 {
+		s.settleStoreIntegration(store, id)
+	}
+}
+
+// refreshStoreIntegrationOnce runs one verified connection test. tested is false
+// when the app has no saved connection or the operation slot was not available.
+func (s *Server) refreshStoreIntegrationOnce(store *desktopstore.Service, id string) (tested bool, err error) {
 	if !desktopstore.HasIntegration(id) {
-		return
+		return false, nil
 	}
 	ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 20*time.Second)
 	defer cancel()
@@ -172,11 +183,13 @@ func (s *Server) refreshStoreIntegration(store *desktopstore.Service, id string)
 	if err != nil {
 		return
 	}
+	tested = true
 	err = s.testStoreIntegration(ctx, store, id, settings)
 	finish(err)
 	if err == nil && id == "uptime-kuma" {
 		s.restartUptimeKumaPoller()
 	}
+	return tested, err
 }
 
 func storeLegacyConflict(cfg *config.Config, id string, settings desktopstore.IntegrationSettings) bool {
@@ -194,7 +207,7 @@ func (s *Server) storeIntegrationURL(ctx context.Context, app desktopstore.Insta
 	if app.AppID == "ziro-designer" {
 		return "", nil
 	}
-	if settings.URL != "" {
+	if settings.URL != "" && app.AppID != desktopstore.VelxioAppID {
 		return settings.URL, security.ValidateHTTPBaseURL(settings.URL)
 	}
 	if !printGuardEngineIsLocal(cfg.Docker.Host, cfg.Runtime.IsDocker) {
@@ -215,7 +228,7 @@ func (s *Server) storeIntegrationURL(ctx context.Context, app desktopstore.Insta
 			return "", errors.New("Store update required: select a Docker network shared with AuraGo")
 		}
 	}
-	return desktopstore.IntegrationURL(app, settings.AdminPort, cfg.Runtime.IsDocker)
+	return desktopstore.IntegrationURL(app, desktopstore.IntegrationPortID(app.AppID, settings.AdminPort), cfg.Runtime.IsDocker)
 }
 
 func (s *Server) storeIntegrationStatus(ctx context.Context, store *desktopstore.Service, id string) (map[string]any, error) {
@@ -230,6 +243,10 @@ func (s *Server) storeIntegrationStatus(ctx context.Context, store *desktopstore
 	address, addressErr := s.storeIntegrationURL(ctx, app, settings)
 	cfg := s.ConfigSnapshot()
 	credentialStored := settings.Credential != ""
+	if id == desktopstore.VelxioAppID {
+		_, tokenErr := s.velxioMCPToken()
+		credentialStored = tokenErr == nil
+	}
 	if id == "adguard-home" {
 		credentialStored = cfg.AdGuard.StoreManaged && cfg.AdGuard.Password != ""
 	}
@@ -361,6 +378,9 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 	if storeLegacyConflict(cfg, id, previous) && !req.SelectStoreInstance {
 		return errors.New("Existing manual integration: explicitly select the Store instance")
 	}
+	if id == desktopstore.VelxioAppID {
+		req.URL, req.Credential, req.ClearCredential = "", "", false
+	}
 	if len(req.Credential) > 4096 || strings.IndexFunc(req.Credential, unicode.IsControl) >= 0 || (req.ClearCredential && req.Credential != "") {
 		return errors.New("Invalid credential")
 	}
@@ -410,13 +430,16 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 		next.Read = false
 		next.Execute, next.Create, next.Process, next.Sign = false, false, false, false
 	}
+	if id == desktopstore.VelxioAppID {
+		next.URL, next.Credential = "", ""
+	}
 	app, exists, err := store.GetInstalled(ctx, id)
 	if err != nil || !exists {
 		return errors.New("Store app is not installed")
 	}
 	if next.URL == "" {
 		if cfg.Runtime.IsDocker && next.DockerNetwork != "" {
-			next.URL, err = desktopstore.IntegrationURL(app, next.AdminPort, true)
+			next.URL, err = desktopstore.IntegrationURL(app, desktopstore.IntegrationPortID(app.AppID, next.AdminPort), true)
 		} else {
 			next.URL, err = s.storeIntegrationURL(ctx, app, next)
 		}
@@ -512,7 +535,7 @@ func validateStoreIntegrationGrants(id string, p desktopstore.IntegrationSetting
 			return errors.New("Choose a specific LAN address for DNS port 53")
 		}
 	}
-	if p.Execute && id != "adguard-home" && id != "node-red" && id != "olivetin" && id != "n8n" && id != "ziro-designer" {
+	if p.Execute && id != "adguard-home" && id != "node-red" && id != "olivetin" && id != "n8n" && id != "ziro-designer" && id != desktopstore.VelxioAppID {
 		return errors.New("Execution is not supported by this integration")
 	}
 	if p.Create && id != "bytestash" {
@@ -585,7 +608,12 @@ func (s *Server) testStoreIntegration(ctx context.Context, store *desktopstore.S
 		if err := storeAppConnection(settings).StirlingProbe(ctx, settings.Process, settings.Sign); err != nil {
 			return err
 		}
-	case "n8n", "bytestash":
+	case "n8n", "bytestash", desktopstore.VelxioAppID:
+		if id == desktopstore.VelxioAppID {
+			if settings.URL, err = s.storeIntegrationURL(ctx, app, settings); err != nil {
+				return err
+			}
+		}
 		if err := s.probeStoreMCP(ctx, id, settings); err != nil {
 			return err
 		}
@@ -658,8 +686,9 @@ func (s *Server) storeIntegrationAdminPort(id string) string {
 
 func (s *Server) stopStoreIntegrations() {
 	s.revokeStoreRelay("", true)
-	revokeStoreMCP("n8n")
-	revokeStoreMCP("bytestash")
+	for _, id := range storeMCPApps {
+		revokeStoreMCP(id)
+	}
 	s.storeIntegrations.Lock()
 	s.storeIntegrations.closed = true
 	for id, b := range s.storeIntegrations.bindings {
@@ -692,4 +721,80 @@ func (s *Server) deleteStoreIntegrationData(ctx context.Context, id string) erro
 		return ctx.Err()
 	}
 	return s.persistStoreIntegrationPatch(cfg, patch, mutations)
+}
+
+// A Velxio MCP server starts after its web port, so the post-operation check
+// can fail on a healthy install. The settle loop retries without holding the
+// operation slot or CfgSaveMu until the server answers.
+var (
+	storeIntegrationSettleBudget   = map[string]time.Duration{desktopstore.VelxioAppID: 5 * time.Minute}
+	storeIntegrationSettleInterval = 10 * time.Second
+)
+
+func (s *Server) settleStoreIntegration(store *desktopstore.Service, id string) {
+	budget := storeIntegrationSettleBudget[id]
+	if budget <= 0 {
+		return
+	}
+	s.storeIntegrations.Lock()
+	if s.storeIntegrations.closed || s.storeIntegrations.settling[id] {
+		s.storeIntegrations.Unlock()
+		return
+	}
+	if s.storeIntegrations.settling == nil {
+		s.storeIntegrations.settling = map[string]bool{}
+	}
+	s.storeIntegrations.settling[id] = true
+	s.storeIntegrations.Unlock()
+	go func() {
+		defer func() {
+			s.storeIntegrations.Lock()
+			delete(s.storeIntegrations.settling, id)
+			s.storeIntegrations.Unlock()
+		}()
+		deadline := time.Now().Add(budget)
+		for time.Now().Before(deadline) {
+			select {
+			case <-time.After(storeIntegrationSettleInterval):
+			case <-s.ShutdownCh:
+				return
+			}
+			if s.storeIntegrationSettleStep(store, id) {
+				return
+			}
+		}
+	}()
+}
+
+// storeIntegrationSettleStep returns true when the loop should stop.
+func (s *Server) storeIntegrationSettleStep(store *desktopstore.Service, id string) bool {
+	s.storeIntegrations.Lock()
+	closed := s.storeIntegrations.closed
+	s.storeIntegrations.Unlock()
+	settings, err := desktopstore.ReadIntegration(s.Vault, id)
+	if closed || err != nil || settings.Revision == "" || !settings.Read {
+		return true
+	}
+	ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 5*time.Second)
+	defer cancel()
+	app, exists, err := store.GetInstalled(ctx, id)
+	if err != nil || !exists || app.Status != desktopstore.AppStatusRunning {
+		return true
+	}
+	if settings.URL, err = s.storeIntegrationURL(ctx, app, settings); err != nil {
+		return false
+	}
+	cfg, err := s.storeMCPConfig(id, settings)
+	if err != nil {
+		return false
+	}
+	if _, err = storeMCPProbeTools(ctx, *cfg, s.Logger); err != nil {
+		return false
+	}
+	tested, err := s.refreshStoreIntegrationOnce(store, id)
+	if tested && err == nil {
+		s.broadcastDesktopStoreChanged("")
+		return true
+	}
+	return false
 }

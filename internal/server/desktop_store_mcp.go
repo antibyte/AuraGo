@@ -14,16 +14,49 @@ import (
 
 var storeMCPProbeTools = tools.ProbeMCPServerTools
 
+// storeMCPApps are the Store apps that connect to the agent through a managed MCP server.
+var storeMCPApps = []string{"n8n", "bytestash", desktopstore.VelxioAppID}
+
+var velxioDesignTools = []string{"create_circuit", "update_circuit", "import_wokwi_json", "export_wokwi_json", "generate_code_files"}
+
 func storeMCPName(id string) string {
-	if id == "n8n" || id == "bytestash" {
+	if slices.Contains(storeMCPApps, id) {
 		return "aurago-store-" + id
 	}
 	return ""
 }
 
+func (s *Server) syncStoreMCPs() {
+	for _, id := range storeMCPApps {
+		_ = s.syncStoreMCP(id)
+	}
+}
+
+// velxioMCPToken reads the generated MCP bearer token from the Vault.
+func (s *Server) velxioMCPToken() (string, error) {
+	missing := errors.New("Velxio's agent token is missing in the AuraGo vault; run a Store Update or reinstall Velxio")
+	if s.Vault == nil {
+		return "", missing
+	}
+	token, err := s.Vault.ReadSecret(desktopstore.VelxioMCPTokenKey())
+	token = strings.TrimSpace(token)
+	if err != nil || token == "" {
+		return "", missing
+	}
+	security.RegisterSensitive(token)
+	return token, nil
+}
+
 func (s *Server) storeMCPConfig(id string, settings desktopstore.IntegrationSettings) (*tools.MCPServerConfig, error) {
 	name := storeMCPName(id)
-	if name == "" || settings.Credential == "" {
+	credential := settings.Credential
+	if id == desktopstore.VelxioAppID {
+		var err error
+		if credential, err = s.velxioMCPToken(); err != nil {
+			return nil, err
+		}
+	}
+	if name == "" || credential == "" {
 		return nil, errors.New("Enter this app's MCP access token")
 	}
 	cfg := s.ConfigSnapshot()
@@ -40,12 +73,17 @@ func (s *Server) storeMCPConfig(id string, settings desktopstore.IntegrationSett
 		if settings.Execute && !cfg.VirtualDesktop.ReadOnly {
 			allowed = append(allowed, "execute_workflow")
 		}
+	} else if id == desktopstore.VelxioAppID {
+		allowed = slices.Clone(velxioDesignTools)
+		if settings.Execute && !cfg.VirtualDesktop.ReadOnly {
+			allowed = append(allowed, "compile_project", "run_project")
+		}
 	} else if settings.Create && !cfg.VirtualDesktop.ReadOnly {
 		allowed = append(allowed, "create_snippet")
 	}
-	security.RegisterSensitive(settings.Credential)
+	security.RegisterSensitive(credential)
 	permissions := tools.RuntimePermissionsFromConfig(cfg)
-	return &tools.MCPServerConfig{Name: name, Transport: "streamable_http", URL: strings.TrimRight(settings.URL, "/") + path, Headers: map[string]string{"Authorization": "Bearer " + settings.Credential}, Enabled: true, AllowPrivateNetwork: true, AllowedTools: allowed, ManagedRevision: settings.Revision, AllowDestructive: (settings.Execute || settings.Create) && !cfg.VirtualDesktop.ReadOnly, ExecutionPermissions: &permissions, MCPEnabled: true}, nil
+	return &tools.MCPServerConfig{Name: name, Transport: "streamable_http", URL: strings.TrimRight(settings.URL, "/") + path, Headers: map[string]string{"Authorization": "Bearer " + credential}, Enabled: true, AllowPrivateNetwork: true, AllowedTools: allowed, ManagedRevision: settings.Revision, AllowDestructive: (settings.Execute || settings.Create) && !cfg.VirtualDesktop.ReadOnly, ExecutionPermissions: &permissions, MCPEnabled: true}, nil
 }
 
 func (s *Server) probeStoreMCP(ctx context.Context, id string, settings desktopstore.IntegrationSettings) error {
@@ -55,6 +93,9 @@ func (s *Server) probeStoreMCP(ctx context.Context, id string, settings desktops
 	}
 	names, err := storeMCPProbeTools(ctx, *runtime, s.Logger)
 	if err != nil {
+		if id == desktopstore.VelxioAppID {
+			return errors.New("Velxio's MCP server is not reachable yet. After a start it can take a few minutes (the first start installs Arduino cores); AuraGo keeps retrying.")
+		}
 		return errors.New("MCP connection failed; check the saved token and enable the official MCP endpoint in the app")
 	}
 	for _, name := range runtime.AllowedTools {
