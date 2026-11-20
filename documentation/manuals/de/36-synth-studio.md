@@ -113,10 +113,13 @@ Stopp/Pause der Haupttransportleiste halten ihn sofort an. Ein Start der Arrangi
 Arrangierung nicht. Das Schließen des Fensters, das Verbergen des Browser-Tabs oder das Entziehen der Desktop-Schreibrechte
 stoppen ebenfalls den Evaluator.
 
-Die Beispiele Melody, Groove und Ambient benutzen eingebaute Synthesizer. Tutorial-Patterns wie `s("bd sd cp hh")`
-funktionieren mit lokal synthetisierten Kick, Snare, Clap und Hi-Hat statt mit den Samples des Online-REPLs. Es wird nichts
-aus dem Netz geladen und kein Sample heruntergeladen. Externe Sample-Bänke (`samples(...)`), MIDI und Mikrofonzugriff sind im
-Evaluator gesperrt.
+Die acht eingebauten Demo-Stücke (Neon-Synthwave, Acid-Techno, Liquid Drum & Bass,
+Klangfläche, Dub-Techno, Melodie, Rhythmus und 8-Bit-Chiptune) benutzen eingebaute
+Synthesizer und AudioWorklet-Effekte. Lokal synthetisierte Drum-Stimmen (`bd`, `sd`,
+`cp`, `hh`, `oh`, `rim`, `cb`, `lt`, `mt`, `ht`) ersetzen die Drum-Samples des
+Online-REPLs, sodass Patterns wie `s("bd sd cp hh")` ohne Netz und Downloads
+funktionieren. Externe Sample-Bänke (`samples(...)`), MIDI und Mikrofonzugriff
+sind im Evaluator gesperrt.
 
 Der Skizzenentwurf (höchstens 64 KiB) bleibt in diesem Browser. **Open** importiert eine `.strudel`-Textdatei nach einer
 Rückfrage; **Download code** speichert eine portable Kopie. Dieser Code ist getrennt von der `.aurasynth`-Datei der

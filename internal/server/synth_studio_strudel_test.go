@@ -94,8 +94,8 @@ func TestSynthStudioStrudelBrowser(t *testing.T) {
 	mux.HandleFunc("/fixture", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprint(w, `<!doctype html><link rel="stylesheet" href="/css/desktop-app-synth-studio.css"><div class="ss-app" style="height:600px"><section id="studio"></section></div><script src="/js/desktop/apps/synth-studio-strudel.js"></script><script>
 window.errors=[];addEventListener('error',e=>errors.push(e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
-window.life=new AbortController();window.readonly=false;window.before=0;
-window.studio=SynthStudioStrudel.create(document.querySelector('#studio'),{tr:k=>k,signal:life.signal,blocked:()=>readonly,readonly:()=>readonly,beforePlay:()=>before++,confirm:async()=>true});
+window.life=new AbortController();window.readonly=false;window.before=0;window.confirms=0;
+window.studio=SynthStudioStrudel.create(document.querySelector('#studio'),{tr:k=>k,signal:life.signal,blocked:()=>readonly,readonly:()=>readonly,beforePlay:()=>before++,confirm:async()=>{confirms++;return true;}});
 </script>`)
 	})
 	srv := httptest.NewServer(securityHeadersMiddleware(mux, false, false))
@@ -106,20 +106,27 @@ window.studio=SynthStudioStrudel.create(document.querySelector('#studio'),{tr:k=
 	setCode := func(code string) {
 		page.MustEval(`code=>{const el=document.querySelector('textarea');el.value=code;el.dispatchEvent(new Event('input'));}`, code)
 	}
+	waitReadyPlaying := func() *rod.Page {
+		page.MustWait(`()=>['playing','sound','error'].includes(document.querySelector('output').dataset.strudelState)`)
+		if page.MustEval(`()=>document.querySelector('output').dataset.strudelState==='error'`).Bool() {
+			t.Fatal(page.MustElement("output").MustText())
+		}
+		frame := page.MustElement("iframe").MustFrame()
+		if page.MustEval(`()=>document.querySelector('output').dataset.strudelState==='sound'`).Bool() {
+			frame.MustElement("#sound").MustClick()
+		}
+		page.MustWait(`()=>document.querySelector('output').dataset.strudelState==='playing'`)
+		return frame
+	}
 	setCode(`note("c4*8").s("sine").gain(.2).analyze(1)`)
 	page.MustElement("[data-strudel-run]").MustClick()
-	page.MustWait(`()=>['playing','sound','error'].includes(document.querySelector('output').dataset.strudelState)`)
-	if page.MustEval(`()=>document.querySelector('output').dataset.strudelState==='error'`).Bool() {
-		t.Fatal(page.MustElement("output").MustText())
-	}
-	frame := page.MustElement("iframe").MustFrame()
-	if page.MustEval(`()=>document.querySelector('output').dataset.strudelState==='sound'`).Bool() {
-		frame.MustElement("#sound").MustClick()
-	}
-	page.MustWait(`()=>document.querySelector('output').dataset.strudelState==='playing'`)
+	frame := waitReadyPlaying()
 	frame.MustWait(`()=>{const a=strudel.analysers[1];if(!a)return false;const b=new Float32Array(a.fftSize);a.getFloatTimeDomainData(b);return b.some(v=>Math.abs(v)>.001);}`)
-	if !frame.MustEval(`()=>['bd','sd','cp','hh'].every(name=>strudel.getSound(name)?.data.type==='synth')`).Bool() {
-		t.Fatal("tutorial drum synthesis unavailable")
+	if !frame.MustEval(`()=>['bd','sd','cp','hh','oh','rim','cb','lt','mt','ht'].every(name=>strudel.getSound(name)?.data.type==='synth')`).Bool() {
+		t.Fatal("local drum synthesis unavailable")
+	}
+	if !frame.MustEval(`()=>{try{const n=new AudioWorkletNode(strudel.getAudioContext(),'supersaw-oscillator');n.disconnect();return true}catch{return false}}`).Bool() {
+		t.Fatal("AudioWorklet supersaw-oscillator failed to register")
 	}
 	if !page.MustEval(`()=>{try{document.querySelector('iframe').contentWindow.document;return false}catch(e){return e.name==='SecurityError'}}`).Bool() {
 		t.Fatal("frame shares desktop origin")
@@ -127,19 +134,49 @@ window.studio=SynthStudioStrudel.create(document.querySelector('#studio'),{tr:k=
 	if !frame.MustEval(`async()=>{try{await fetch('/api/desktop/bootstrap');return false}catch{return true}}`).Bool() {
 		t.Fatal("frame can fetch APIs")
 	}
-	setCode(`note("g4*8").s("triangle").gain(.2).analyze(1)`)
+	setCode(`note("c4*4").s("supersaw").unison(4).distort(.4).gain(.2).analyze(1)`)
 	page.MustElement("[data-strudel-run]").MustClick()
-	page.MustWait(`()=>document.querySelector('output').dataset.strudelState==='playing'`)
+	page.MustWait(`()=>['playing','error'].includes(document.querySelector('output').dataset.strudelState)`)
+	if page.MustEval(`()=>document.querySelector('output').dataset.strudelState==='error'`).Bool() {
+		t.Fatal(page.MustElement("output").MustText())
+	}
+	frame.MustWait(`()=>{const a=strudel.analysers[1];if(!a)return false;const b=new Float32Array(a.fftSize);a.getFloatTimeDomainData(b);return b.some(v=>Math.abs(v)>.001);}`)
 	if page.MustEval(`()=>before`).Int() != 2 {
 		t.Fatal("live update lost transport handoff")
 	}
-	for _, code := range page.MustEval(`()=>Object.values(SynthStudioStrudel.examples)`).Arr() {
-		setCode(code.Str())
+	exampleKeys := page.MustEval(`()=>Object.keys(SynthStudioStrudel.examples)`).Arr()
+	if len(exampleKeys) != 8 {
+		t.Fatalf("expected 8 Strudel examples, got %d", len(exampleKeys))
+	}
+	for _, k := range exampleKeys {
+		key := k.Str()
+		code := page.MustEval(`key=>SynthStudioStrudel.examples[key]`, key).Str()
+		setCode(code)
 		page.MustElement("[data-strudel-run]").MustClick()
 		page.MustWait(`()=>['playing','error'].includes(document.querySelector('output').dataset.strudelState)`)
 		if page.MustEval(`()=>document.querySelector('output').dataset.strudelState==='error'`).Bool() {
-			t.Fatal(page.MustElement("output").MustText())
+			t.Fatalf("example %q failed verbatim: %s", key, page.MustElement("output").MustText())
 		}
+		page.MustElement("[data-strudel-stop]").MustClick()
+		page.MustWait(`()=>document.querySelector('output').dataset.strudelState==='idle'&&!document.querySelector('iframe')`)
+		setCode(code + "\n.analyze(1)")
+		page.MustElement("[data-strudel-run]").MustClick()
+		exFrame := waitReadyPlaying()
+		exFrame.MustWait(`()=>{const a=strudel.analysers[1];if(!a)return false;const b=new Float32Array(a.fftSize);a.getFloatTimeDomainData(b);return b.some(v=>Math.abs(v)>.001);}`)
+	}
+	page.MustElement("[data-strudel-stop]").MustClick()
+	page.MustWait(`()=>document.querySelector('output').dataset.strudelState==='idle'&&!document.querySelector('iframe')`)
+	setCode(page.MustEval(`()=>SynthStudioStrudel.examples.synthwave`).Str())
+	page.MustEval(`()=>{const s=document.querySelector('.ss-strudel-tools select');s.value='acid';s.dispatchEvent(new Event('change'));}`)
+	page.MustWait(`()=>document.querySelector('textarea').value===SynthStudioStrudel.examples.acid`)
+	if page.MustEval(`()=>confirms`).Int() != 0 {
+		t.Fatal("switching between unmodified examples should not prompt for confirmation")
+	}
+	setCode(page.MustEval(`()=>SynthStudioStrudel.examples.acid`).Str() + "\n// user edit")
+	page.MustEval(`()=>{const s=document.querySelector('.ss-strudel-tools select');s.value='dnb';s.dispatchEvent(new Event('change'));}`)
+	page.MustWait(`()=>document.querySelector('textarea').value===SynthStudioStrudel.examples.dnb`)
+	if page.MustEval(`()=>confirms`).Int() != 1 {
+		t.Fatal("switching away from a custom-edited draft must prompt for confirmation")
 	}
 	setCode(`note(`)
 	page.MustElement("[data-strudel-run]").MustClick()

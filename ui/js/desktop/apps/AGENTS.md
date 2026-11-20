@@ -643,8 +643,16 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 - `synth-studio-strudel.js` owns the Strudel workbench, a 64 KiB browser-local
   scratch draft (`aurago:synth-studio:strudel:1`), explicit `.strudel` import/download
-  and three sample-free examples. `bd`, `sd`, `cp` and `hh` use local Strudel
-  synthesis so the introductory tutorial works without sample downloads.
+  and eight sample-free showcase examples (`synthwave`, `acid`, `dnb`, `ambient`,
+  `dub_techno`, `melody`, `groove`, `chiptune`). `bd`, `sd`, `cp`, `hh`, `oh`,
+  `rim`, `cb`, `lt`, `mt` and `ht` use local Web Audio / Strudel drum synthesis
+  registered in `synth-studio-strudel-player.js`, which also bridges superdough's
+  inlined `data:` AudioWorklet modules to temporary `blob:` URLs during `initAudio`
+  under the existing `blob:` CSP so AudioWorklet synths and effects (`supersaw`,
+  `pulse`, `ladder`, `distort`, `crush`, `phaser`) run without network access.
+  Switching between unmodified examples replaces the editor text without a
+  confirm prompt and re-evaluates automatically when already playing; modified
+  drafts still prompt before replacement.
   Strudel 1.3.0 is bundled locally by
   `scripts/build-strudel-vendor.mjs`; its sources and notices ship alongside it.
   Code evaluates only in the opaque-origin frame at

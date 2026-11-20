@@ -18,12 +18,14 @@ Stop/Pause stop it immediately. Starting the arrangement stops Strudel, and
 starting Strudel stops the arrangement. Closing the window, hiding the browser
 tab or revoking Desktop write access also stops its evaluator.
 
-The Melody, Groove and Ambient examples use built-in synthesizers. Tutorial
-patterns such as `s("bd sd cp hh")` work with local synthesized kick, snare,
-clap and hi-hat counterparts, rather than the online REPL's samples. No network
-or sample download is needed. External sample banks (`samples(...)`), MIDI and
-microphone access are blocked in the evaluator; other sampled instruments and
-drum-machine banks from the online REPL are not bundled.
+The eight built-in demo pieces (Synthwave, Acid Techno, Liquid Drum & Bass,
+Ambient, Dub Techno, Melody, Groove and Chiptune) use built-in synthesizers and
+AudioWorklet effects. Local synthesized percussion (`bd`, `sd`, `cp`, `hh`, `oh`,
+`rim`, `cb`, `lt`, `mt`, `ht`) replaces the online REPL's drum samples, so
+patterns like `s("bd sd cp hh")` run with no network or sample downloads. External
+sample banks (`samples(...)`), MIDI and microphone access are blocked in the
+evaluator; other sampled instruments and drum-machine banks from the online REPL
+are not bundled.
 
 The scratch draft (maximum 64 KiB) is retained in this browser. Open imports a
 `.strudel` text file after confirmation; **Download code** saves a portable copy.
