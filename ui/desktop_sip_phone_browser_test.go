@@ -61,3 +61,71 @@ func TestDesktopSIPPhoneKeypadFocusBrowser(t *testing.T) {
 		})
 	}
 }
+
+// TestDesktopSIPPhoneLaunchDialBrowser covers the People handoff: a launch
+// context with a dial value preselects the number on the keypad, the app's
+// open() handler re-selects it in an already mounted phone without dialing,
+// and the keypad view is reachable again after the preselect.
+func TestDesktopSIPPhoneLaunchDialBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := browser.MustPage()
+	defer page.MustClose()
+	page.MustSetViewport(390, 844, 1, true)
+	page.MustEval(`() => {
+		document.body.innerHTML = '<div id="phone"></div>';
+		window.phoneState = {
+			appState: {status: {enabled: true, registered: true}, capabilities: {dial: true}},
+			preferences: {favorites: []}, call: null, secureContext: true
+		};
+		window.dialed = [];
+		window.SipPhoneRuntime = {
+			getState: () => phoneState,
+			subscribe: fn => { fn(phoneState); return () => {}; },
+			initialize: () => {}, refreshDevices: async () => {},
+			dial: async target => { dialed.push(target); }
+		};
+	}`)
+	page.MustEval(`() => {` + readDesktopAssetText(t, "js/desktop/apps/sip-phone.js") + `}`)
+	page.MustEval(`async () => {
+		SipPhoneApp.render(document.querySelector('#phone'), 'test-phone', {
+			t: key => key, esc: value => String(value || ''), iconMarkup: () => '',
+			api: async () => [], dial: '+49 30 123456'
+		});
+		await Promise.resolve();
+	}`)
+	if !page.MustEval(`() => document.querySelector('[data-sip-phone="target"]').value === '+49 30 123456' && document.querySelector('[data-sip-tab="keypad"]').classList.contains('is-active')`).Bool() {
+		t.Fatal("a dial launch context must preselect the number on the keypad view")
+	}
+	page.MustEval(`() => SipPhoneApp.open('test-phone', { dial: 'sip:ada@example.test' })`)
+	if !page.MustEval(`() => document.querySelector('[data-sip-phone="target"]').value === 'sip:ada@example.test' && dialed.length === 0`).Bool() {
+		t.Fatal("open() must re-select the number without dialing it")
+	}
+	page.MustEval(`() => {
+		const contactsTab = document.querySelector('[data-sip-tab="contacts"]');
+		contactsTab.click();
+		SipPhoneApp.open('test-phone', { dial: '102' });
+	}`)
+	if !page.MustEval(`() => document.querySelector('[data-sip-phone="target"]').value === '102' && document.querySelector('[data-sip-tab="keypad"]').classList.contains('is-active')`).Bool() {
+		t.Fatal("open() must return from any tab to the keypad with the dial value")
+	}
+	page.MustEval(`() => {
+		SipPhoneApp.open('test-phone', {});
+		SipPhoneApp.open('missing-window', { dial: '103' });
+	}`)
+	if !page.MustEval(`() => document.querySelector('[data-sip-phone="target"]').value === '102' && dialed.length === 0`).Bool() {
+		t.Fatal("open() without a dial value must keep the current keypad value and never dial")
+	}
+	page.MustEval(`() => SipPhoneApp.dispose('test-phone')`)
+	page.MustEval(`async () => {
+		SipPhoneApp.render(document.querySelector('#phone'), 'test-phone', {
+			t: key => key, esc: value => String(value || ''), iconMarkup: () => '',
+			api: async () => []
+		});
+		await Promise.resolve();
+	}`)
+	if !page.MustEval(`() => document.querySelector('[data-sip-phone="target"]').value === ''`).Bool() {
+		t.Fatal("mounting without a dial context must open with an empty keypad value")
+	}
+	page.MustEval(`() => SipPhoneApp.dispose('test-phone')`)
+}

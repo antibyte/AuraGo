@@ -4748,12 +4748,16 @@ registration lives in `internal/desktop/types.go`.
   `ui/lang/desktop/*.json` files (section registered as `'system-world':
   ['sysworld']` in `APP_I18N_SECTIONS`); the dock/start name uses
   `desktop.app_system_world`.
-- SIP Phone exposes `window.SipPhoneApp = { render, dispose }`; every window
+- SIP Phone exposes `window.SipPhoneApp = { render, dispose, open }`; every window
   instance owns its runtime subscription, 1-second clock/duration timer, tab
   state (`keypad`/`favorites`/`recents`/`contacts`/`settings`), address-book
   search state, long-press `0`→`+`
   handling, and its Web Audio keypad-tone context (DTMF hold-to-play
-  feedback, closed on dispose). All call media flows through
+  feedback, closed on dispose). A launch context or `open(windowId, context)`
+  with a `context.dial` string preselects that number in the keypad target
+  without dialing and returns the view to `keypad`; an empty `dial` value
+  keeps the current target. `window-shell-runtime.js` routes a `dial`
+  context in an already open phone window through `open`. All call media flows through
   `window.SipPhoneRuntime`; the app
   must keep the `data-sip-phone*` hooks, observer-disabled controls, and the
   always-enabled hangup control asserted in `ui/desktop_sip_phone_test.go`,
@@ -5799,7 +5803,14 @@ registration lives in `internal/desktop/types.go`.
   `desktop.people_kg_readonly` instead of the edit and delete actions. The
   add/edit dialog traps Tab, closes on Escape, marks the name field invalid
   when it is empty and disables the save button while the request runs.
-  Verify with `TestDesktopPeopleUxBrowser` and `TestContactPrivacyControlsBrowser`.
+  Detail-panel phone and mobile numbers are dial buttons (`data-people-dial`)
+  that call `openApp('sip-phone', { dial: number })` from the app context and
+  open the phone with the number preselected — never raw `tel:` links; the
+  tooltip is `desktop.people_dial` in all sixteen locales and the button
+  shares the email-link styling plus `:focus-visible` feedback.
+  Verify with `TestDesktopPeopleUxBrowser`, `TestDesktopPeopleDialI18n`,
+  `TestContactPrivacyControlsBrowser` and
+  `TestDesktopSIPPhoneLaunchDialBrowser`.
   No child DOX file needed.
 - `chess.js` / `chess-fx.js` / `chess-commentary.js` - Chess app, board FX
   and optional Phonon commentary. Result-modal fallbacks use

@@ -1979,7 +1979,7 @@ if (appId === 'pixel') {
                 window.AuraDesktopModules.loadAppScript('people').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
                 return;
             }
-            if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification }));
+            if (typeof window.PeopleApp.render === 'function') return window.PeopleApp.render(contentEl(id), id, Object.assign({}, context || {}, { esc, api, t, iconMarkup, notify: showDesktopNotification, openApp }));
         }
         if (appId === 'mailer') {
             if (!window.MailerApp) {

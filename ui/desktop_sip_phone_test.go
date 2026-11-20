@@ -37,11 +37,19 @@ func TestDesktopSIPPhoneRegistrationAndLazyLifecycle(t *testing.T) {
 			"function mount(host, windowId, context)",
 			"dispose(windowId);",
 			"function dispose(windowId)",
-			"window.SipPhoneApp = { render: mount, dispose }",
+			"function launchDial(context)",
+			"target: launchDial(context),",
+			"window.SipPhoneApp = { render: mount, dispose, open }",
 		},
 		"js/desktop/core/window-shell-runtime.js": {
 			"'sip-phone': { width: 420, height: 760 }",
 			"'sip-phone': { width: 340, height: 580 }",
+			"window.SipPhoneApp?.open?.(existing.id, context)",
+		},
+		"js/desktop/apps/people.js": {
+			"function openSipDial(inst, number)",
+			"openApp('sip-phone', { dial: value })",
+			"data-people-dial",
 		},
 	}
 	for path, markers := range checks {

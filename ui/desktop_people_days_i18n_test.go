@@ -50,3 +50,30 @@ func TestDesktopPeopleDaysI18n(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopPeopleDialI18n(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/people.js")
+	for _, want := range []string{
+		"t(inst.context, 'desktop.people_dial')",
+		"data-people-dial",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("people dial i18n missing marker %q", want)
+		}
+	}
+	if strings.Contains(source, "tel:") {
+		t.Fatal("people must open the SIP phone app on a dial click instead of navigating tel: links")
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		path := filepath.ToSlash(filepath.Join("lang", "desktop", lang+".json"))
+		var values map[string]string
+		if err := json.Unmarshal([]byte(rawDesktopAssetText(t, path)), &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		if strings.TrimSpace(values["desktop.people_dial"]) == "" {
+			t.Fatalf("%s missing non-empty desktop.people_dial", path)
+		}
+	}
+}

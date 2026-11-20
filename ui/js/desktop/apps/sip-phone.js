@@ -29,6 +29,10 @@
         return value === translationKey ? fallback : value;
     }
 
+    function launchDial(context) {
+        return context && typeof context.dial === 'string' ? context.dial.trim() : '';
+    }
+
     function normalizeParty(value) {
         let result = String(value || '').trim().toLowerCase();
         if (result.startsWith('sip:')) result = result.slice(4);
@@ -640,7 +644,7 @@
             context,
             contacts: [],
             contactSearch: '',
-            target: '',
+            target: launchDial(context),
             tab: 'keypad',
             keypadOpen: false,
             snapshot: runtime.getState(),
@@ -671,5 +675,14 @@
         instances.delete(windowId);
     }
 
-    window.SipPhoneApp = { render: mount, dispose };
+    function open(windowId, context) {
+        const instance = instances.get(windowId);
+        const dial = launchDial(context);
+        if (!instance || !dial) return;
+        instance.target = dial;
+        instance.tab = 'keypad';
+        render(instance, window.SipPhoneRuntime.getState());
+    }
+
+    window.SipPhoneApp = { render: mount, dispose, open };
 })();

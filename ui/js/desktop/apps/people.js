@@ -96,8 +96,12 @@
         return 'mailto:' + encodeURIComponent(String(email || '').trim());
     }
 
-    function telHref(number) {
-        return 'tel:' + String(number || '').replace(/[^\d+*#,;]/g, '');
+    function openSipDial(inst, number) {
+        const value = String(number || '').trim();
+        const openApp = inst && inst.context ? inst.context.openApp : null;
+        if (!value || typeof openApp !== 'function') return false;
+        openApp('sip-phone', { dial: value });
+        return true;
     }
 
     function focusWithoutScroll(node) {
@@ -291,6 +295,11 @@
         });
 
         detail.addEventListener('click', event => {
+            const dial = event.target.closest('[data-people-dial]');
+            if (dial) {
+                openSipDial(inst, dial.dataset.peopleDial);
+                return;
+            }
             if (event.target.closest('.vd-people-detail-close')) {
                 closeDetail(inst);
                 return;
@@ -595,6 +604,12 @@
         return `<div class="vd-people-detail-field"><label>${esc(label)}</label><a class="vd-people-detail-link" href="${esc(href)}">${esc(value)}</a></div>`;
     }
 
+    function detailDialLink(inst, label, value) {
+        const number = String(value || '').trim();
+        if (!number) return '';
+        return `<div class="vd-people-detail-field"><label>${esc(label)}</label><button type="button" class="vd-people-detail-link vd-people-detail-dial" data-people-dial="${esc(number)}" title="${esc(t(inst.context, 'desktop.people_dial'))}">${esc(value)}</button></div>`;
+    }
+
     async function openDetail(inst, contact) {
         inst.selectedContact = contact;
         const detail = inst.host.querySelector('.vd-people-detail');
@@ -646,8 +661,8 @@
             </div>
             <div class="vd-people-detail-fields">
                 ${detailLink(t(inst.context, 'desktop.people_email'), contact.email, mailtoHref(contact.email))}
-                ${detailLink(t(inst.context, 'desktop.people_phone'), contact.phone, telHref(contact.phone))}
-                ${detailLink(t(inst.context, 'desktop.people_mobile'), contact.mobile, telHref(contact.mobile))}
+                ${detailDialLink(inst, t(inst.context, 'desktop.people_phone'), contact.phone)}
+                ${detailDialLink(inst, t(inst.context, 'desktop.people_mobile'), contact.mobile)}
                 ${detailField(t(inst.context, 'desktop.people_address'), contact.address)}
                 ${detailField(t(inst.context, 'desktop.people_birthday'), birthdayInfo)}
                 ${detailField(t(inst.context, 'desktop.people_reminder'), reminder)}

@@ -41,7 +41,7 @@ func TestDesktopPeopleUxBrowser(t *testing.T) {
  const peopleSource=await(await fetch('/js/desktop/apps/people.js')).text();
  const contacts=[
    {id:'c-1',name:'Ada Lovelace',relationship:'friend',email:'ada@example.test',phone:'+49123456789',birthday:'1990-05-04'},
-   {id:'c-2',name:'Grace Hopper',relationship:'friend',email:'grace@example.test'},
+   {id:'c-2',name:'Grace Hopper',relationship:'friend',email:'grace@example.test',mobile:'+49170111222'},
    {id:'c-3',name:'Alan Turing',relationship:'colleague',email:'alan@example.test'}
  ];
  const kgPersons=[{id:'kg-1',label:'Graph Person',properties:{email:'graph@example.test'}}];
@@ -59,8 +59,9 @@ func TestDesktopPeopleUxBrowser(t *testing.T) {
   return {ok:true,json:async()=>[]};
  };
  window.t=(key,vars)=>Object.entries(vars||{}).reduce((text,[name,value])=>text.replace('{'+name+'}',value),key);
+ window.openAppCalls=[];
  (0,eval)(peopleSource);
- PeopleApp.render(document.getElementById('people'),'ux',{t,notify:()=>{}});
+ PeopleApp.render(document.getElementById('people'),'ux',{t,notify:()=>{},openApp:(app,ctx)=>{openAppCalls.push({app,ctx});}});
  await until(()=>document.querySelectorAll('.vd-people-card').length===3);
 
  const cards=()=>document.querySelectorAll('.vd-people-card');
@@ -96,6 +97,26 @@ func TestDesktopPeopleUxBrowser(t *testing.T) {
  first.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
  await until(()=>document.querySelector('.vd-people-detail')?.classList.contains('open'));
  if(document.querySelector('.vd-people-detail-name')?.textContent!=='Ada Lovelace')failures.push('keyboard did not open the first contact');
+
+ // Clicking a phone number opens the SIP phone with the number preselected.
+ const dialButtons=()=>[...document.querySelectorAll('.vd-people-detail-dial')];
+ if(dialButtons().length!==1)failures.push('Ada detail exposes '+dialButtons().length+' dial buttons');
+ const adaDial=dialButtons()[0];
+ if(adaDial&&adaDial.getAttribute('title')!=='desktop.people_dial')failures.push('Ada dial title is '+adaDial.getAttribute('title'));
+ if(adaDial&&adaDial.dataset.peopleDial!=='+49123456789')failures.push('Ada dial number is '+adaDial.dataset.peopleDial);
+ adaDial&&adaDial.click();
+ if(openAppCalls[0]?.app!=='sip-phone'||openAppCalls[0]?.ctx?.dial!=='+49123456789')failures.push('dial click did not open sip-phone with the number preselected');
+
+ document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+ await until(()=>!document.querySelector('.vd-people-detail')?.classList.contains('open'));
+
+ // Grace reaches the phone through her mobile number the same way.
+ cards()[1].click();
+ await until(()=>document.querySelector('.vd-people-detail')?.classList.contains('open'));
+ const graceDial=document.querySelector('.vd-people-detail-dial');
+ if(!graceDial||graceDial.dataset.peopleDial!=='+49170111222')failures.push('Grace mobile dial button missing or wrong');
+ graceDial&&graceDial.click();
+ if(openAppCalls[1]?.app!=='sip-phone'||openAppCalls[1]?.ctx?.dial!=='+49170111222')failures.push('mobile dial click did not reach sip-phone');
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
  await until(()=>!document.querySelector('.vd-people-detail')?.classList.contains('open'));
 

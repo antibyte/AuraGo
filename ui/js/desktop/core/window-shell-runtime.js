@@ -1670,6 +1670,9 @@
                     .then(() => window.CalculatorApp?.openExpression?.(existing.id, context.expression))
                     .catch(() => {}); // The original lazy renderer reports load failures.
             }
+            if (appId === 'sip-phone' && context && typeof context.dial === 'string' && context.dial.trim()) {
+                window.SipPhoneApp?.open?.(existing.id, context);
+            }
             if (appId === 'meshcore' && context && window.MeshCoreApp) window.MeshCoreApp.openConversation(existing.id, context);
             if (appId === 'software-store' && context && context.app_id) {
                 updateWindowContext(existing.id, { app_id: context.app_id });

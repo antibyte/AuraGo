@@ -596,6 +596,15 @@
     overflow-wrap: anywhere;
 }
 .vd-people-detail-link:hover { border-bottom-color: var(--vd-accent); }
+button.vd-people-detail-link {
+    background: none;
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--vd-accent) 40%, transparent);
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+}
 .vd-people-detail-notes span {
     white-space: pre-wrap;
     font-size: 12px;
@@ -862,6 +871,7 @@
 .vd-people-add-btn:focus-visible,
 .vd-people-search-clear:focus-visible,
 .vd-people-detail-close:focus-visible,
+.vd-people-detail-dial:focus-visible,
 .vd-people-detail-edit:focus-visible,
 .vd-people-detail-delete:focus-visible,
 .vd-people-modal-cancel:focus-visible,
