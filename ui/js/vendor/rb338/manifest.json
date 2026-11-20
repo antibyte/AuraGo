@@ -1,0 +1,31 @@
+{
+  "upstream": "https://github.com/pingw33n/OpenRB-338",
+  "rev": "0bebfcdfd544b3cdea14536f19fb28a8de314df5",
+  "toolchain": {
+    "rust": "1.99.1",
+    "target": "wasm32-unknown-unknown"
+  },
+  "crate": "tools/rb338-wasm",
+  "files": {
+    "rb338-engine.wasm": {
+      "bytes": 265875,
+      "sha256": "3dbf3c39c319f2a943ee72c665504af6dd48b9cb80effcabef4560583a9d6205"
+    },
+    "Standard.rbm": {
+      "bytes": 2572792,
+      "sha256": "6355b5f14fc2ebfe7ed9e6e42208f97817f96c5e30ed42fdca4205d3cdab5fbe"
+    },
+    "sources.zip": {
+      "bytes": 4079330,
+      "sha256": "b10e2f16f53304ea6bac1d95ecfc8f0bbbded34124f581bd50f8392d5525d7ca"
+    },
+    "LICENSE.txt": {
+      "bytes": 34674,
+      "sha256": "fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0"
+    },
+    "LICENSES.md": {
+      "bytes": 1313,
+      "sha256": "e7655c54b1cf93f0dcd5bec5a7f7148c3b8f0e5bff9a3b3b4c5311655f2e0f44"
+    }
+  }
+}

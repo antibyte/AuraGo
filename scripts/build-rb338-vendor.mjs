@@ -51,11 +51,47 @@ async function walk(dir, skip) {
 // Vendored sources and the kit stay byte for byte (cargo checks their hashes); our own files are LF-normalised.
 const add = (zip, name, bytes) => { zip[name] = [/^(vendor|assets)\//.test(name) ? Buffer.from(bytes) : lf(Buffer.from(bytes), name), { mtime: MTIME }]; };
 
-// 1. wasm
-run('cargo', [`+${TOOLCHAIN}`, 'build', '--release', '--locked', '--target', TARGET, '--manifest-path', manifestPath]);
-const wasm = await fs.readFile(path.join(crate, 'target', TARGET, 'release', 'aurago_rb338.wasm'));
+// 1. Standard.rbm from the pinned OpenRB checkout
+const meta = JSON.parse(run('cargo', ['metadata', '--format-version', '1', '--manifest-path', manifestPath], { quiet: true }));
+const rbmPkg = meta.packages.find((p) => p.name === 'rbm');
+if (!rbmPkg) throw new Error('cargo metadata: package rbm not found');
+const kitPath = path.join(path.dirname(rbmPkg.manifest_path), '..', '..', 'assets', 'Standard.rbm');
+const kit = await fs.readFile(kitPath);
+if (kit.length !== KIT_BYTES || sha256(kit) !== KIT_SHA256) throw new Error('Standard.rbm mismatch: ' + kit.length + ' bytes, sha256 ' + sha256(kit));
 
-// 2. checks
+
+// 2. wasm: built against the vendored sources with remapped paths, so it is the same bytes in any checkout.
+const cargoHome = process.env.CARGO_HOME || path.join(os.homedir(), '.cargo');
+const fwd = (p) => p.replaceAll('\x5c', '/');
+// Remapped prefixes, longest first; the same flags are documented in the sources.zip README.
+const rustflags = (crateDir, vendorDir) => [`--remap-path-prefix=${crateDir}=/aurago-rb338`, `--remap-path-prefix=${vendorDir}=/vendor`, `--remap-path-prefix=${cargoHome}=/cargo`];
+const buildEnv = (flags) => ({ ...process.env, RUSTFLAGS: '', CARGO_ENCODED_RUSTFLAGS: flags.join(String.fromCharCode(31)) });
+const vendorConfig = (dir) => `[source.crates-io]
+replace-with = "vendored-sources"
+
+[source."git+${UPSTREAM}?rev=${REV}"]
+git = "${UPSTREAM}"
+rev = "${REV}"
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "${dir}"
+`;
+const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rb338-vendor-'));
+let wasm;
+let sourcesZip;
+try {
+    const vendorDir = path.join(tmp, 'vendor');
+    run('cargo', [`+${TOOLCHAIN}`, 'vendor', '--versioned-dirs', '--locked', '--manifest-path', manifestPath, vendorDir], { quiet: true });
+    // rbm includes "../../../assets/Standard.rbm" relative to vendor/rbm-*/src, i.e. <tmp>/assets/.
+    await fs.mkdir(path.join(tmp, 'assets'), { recursive: true });
+    await fs.writeFile(path.join(tmp, 'assets/Standard.rbm'), kit);
+    const cfg = path.join(tmp, 'vendor-config.toml');
+    await fs.writeFile(cfg, vendorConfig(fwd(vendorDir)));
+    run('cargo', [`+${TOOLCHAIN}`, 'build', '--release', '--locked', '--offline', '--config', cfg, '--target', TARGET, '--manifest-path', manifestPath], { env: buildEnv(rustflags(crate, vendorDir)) });
+    wasm = await fs.readFile(path.join(crate, 'target', TARGET, 'release', 'aurago_rb338.wasm'));
+
+// 3. checks
 const module = await WebAssembly.compile(wasm);
 const imports = WebAssembly.Module.imports(module);
 if (imports.length) throw new Error('wasm must have no imports: ' + JSON.stringify(imports));
@@ -64,25 +100,11 @@ const missing = REQUIRED_EXPORTS.filter((n) => !exported.has(n));
 if (missing.length) throw new Error('wasm lacks exports: ' + missing.join(', '));
 if (wasm.length >= MAX_WASM_BYTES) throw new Error('wasm too large: ' + wasm.length);
 
-// 3. Standard.rbm from the pinned OpenRB checkout
-const meta = JSON.parse(run('cargo', ['metadata', '--format-version', '1', '--manifest-path', manifestPath], { quiet: true }));
-const rbmPkg = meta.packages.find((p) => p.name === 'rbm');
-if (!rbmPkg) throw new Error('cargo metadata: package rbm not found');
-const kitPath = path.join(path.dirname(rbmPkg.manifest_path), '..', '..', 'assets', 'Standard.rbm');
-const kit = await fs.readFile(kitPath);
-if (kit.length !== KIT_BYTES || sha256(kit) !== KIT_SHA256) throw new Error('Standard.rbm mismatch: ' + kit.length + ' bytes, sha256 ' + sha256(kit));
 
 // 4. sources.zip
-const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'rb338-vendor-'));
-let sourcesZip;
-try {
-    const vendorDir = path.join(tmp, 'vendor');
-    run('cargo', [`+${TOOLCHAIN}`, 'vendor', '--versioned-dirs', '--locked', '--manifest-path', manifestPath, vendorDir], { quiet: true });
     const zip = {};
     for (const rel of await walk(crate, (r) => r.startsWith('target/') || r.startsWith('.git/'))) add(zip, 'aurago-rb338/' + rel, await fs.readFile(path.join(crate, rel)));
     for (const rel of await walk(vendorDir, (r) => r.startsWith('.git/'))) add(zip, 'vendor/' + rel, await fs.readFile(path.join(vendorDir, rel)));
-    // rbm includes "../../../assets/Standard.rbm" relative to vendor/rbm-*/src, which resolves to the zip root.
-    add(zip, 'assets/Standard.rbm', kit);
     add(zip, '.cargo/config.toml', `[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source."git+${UPSTREAM}?rev=${REV}"]\ngit = "${UPSTREAM}"\nrev = "${REV}"\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n`);
     const present = [];
     for (const name of EXPECTED_JS) {
@@ -98,17 +120,29 @@ The OpenRB-338 ReBirth RB-338 engine compiled to WebAssembly for AuraGo's Synth 
 - Upstream: ${UPSTREAM}, commit ${REV} (orb-engine, rbs and rbm are used unchanged).
 - Wrapper crate: aurago-rb338/ (raw extern "C" ABI, no imports). Pinned toolchain: Rust ${TOOLCHAIN}, target ${TARGET}.
 - vendor/ holds the exact sources of every dependency (cargo vendor --versioned-dirs). .cargo/config.toml redirects cargo to it, so the build works offline.
-- assets/Standard.rbm is the kit that rbm embeds through include_bytes!("../../../assets/Standard.rbm") (relative to vendor/rbm-0.1.0/src, that path is assets/ at the root of this archive). SHA-256 ${KIT_SHA256}, ${KIT_BYTES} bytes. The shipped wasm itself does not contain it; the host passes the kit to orb_create.
+- The kit Standard.rbm is not repeated in this archive; it ships next to it as Standard.rbm (SHA-256 ${KIT_SHA256}, ${KIT_BYTES} bytes). rbm references it through include_bytes!("../../../assets/Standard.rbm"), which from vendor/rbm-0.1.0/src is assets/Standard.rbm at the root of the unpacked archive, so copy it there before building (step 1 below). The shipped wasm itself does not contain it; the host passes the kit to orb_create.
 - aurago/ holds the AuraGo JavaScript of the module (model, host, worklet, worker and panel) and the build script. Names the build script collects when they exist: ${EXPECTED_JS.join(', ')}. This archive was built with: ${present.join(', ') || 'none of them yet'}.
 
 ## Rebuild the wasm
 
+Unpack this archive into a directory D (absolute path, no need for a particular location), then:
+
 \`\`\`
-cd aurago-rb338
-cargo +${TOOLCHAIN} build --release --locked --offline --target ${TARGET}
+1. mkdir D/assets && cp Standard.rbm D/assets/Standard.rbm      (the Standard.rbm shipped next to this archive; check its SHA-256)
+2. cd D/aurago-rb338
+3. set the path-remap flags (below)
+4. cargo +${TOOLCHAIN} build --release --locked --offline --target ${TARGET}
 \`\`\`
 
-The result is target/${TARGET}/release/aurago_rb338.wasm (rb338-engine.wasm in the AuraGo tree).
+The result is target/${TARGET}/release/aurago_rb338.wasm (rb338-engine.wasm in the AuraGo tree). Absolute build paths would otherwise end up in the binary, so the shipped wasm was built with these rustc flags (cargo reads them from CARGO_ENCODED_RUSTFLAGS, separated by the byte 0x1f, which keeps paths with spaces intact; plain RUSTFLAGS works when no path contains a space):
+
+\`\`\`
+--remap-path-prefix=D/aurago-rb338=/aurago-rb338
+--remap-path-prefix=D/vendor=/vendor
+--remap-path-prefix=$CARGO_HOME=/cargo      (CARGO_HOME defaults to ~/.cargo)
+\`\`\`
+
+With the same toolchain the rebuilt wasm is byte-identical to rb338-engine.wasm. node scripts/build-rb338-vendor.mjs --verify-sources in an AuraGo checkout performs exactly these steps.
 
 ## Rebuild every artefact in an AuraGo checkout
 
@@ -125,9 +159,14 @@ AuraGo: https://github.com/antibyte/AuraGo
         const files = unzipSync(sourcesZip);
         const dir = path.join(tmp, 'verify');
         for (const [name, bytes] of Object.entries(files)) { const t = path.join(dir, name); await fs.mkdir(path.dirname(t), { recursive: true }); await fs.writeFile(t, bytes); }
-        run('cargo', [`+${TOOLCHAIN}`, 'build', '--release', '--locked', '--offline', '--target', TARGET, '--manifest-path', path.join(dir, 'aurago-rb338/Cargo.toml')], { cwd: path.join(dir, 'aurago-rb338'), quiet: true });
+        // README step 1: the shipped kit goes to assets/Standard.rbm of the unpacked tree.
+        const shipped = await fs.readFile(path.join(out, 'Standard.rbm'));
+        if (sha256(shipped) !== KIT_SHA256) throw new Error('shipped Standard.rbm has the wrong SHA-256');
+        await fs.mkdir(path.join(dir, 'assets'), { recursive: true });
+        await fs.writeFile(path.join(dir, 'assets/Standard.rbm'), shipped);
+        run('cargo', [`+${TOOLCHAIN}`, 'build', '--release', '--locked', '--offline', '--target', TARGET, '--manifest-path', path.join(dir, 'aurago-rb338/Cargo.toml')], { cwd: path.join(dir, 'aurago-rb338'), quiet: true, env: buildEnv(rustflags(path.join(dir, 'aurago-rb338'), path.join(dir, 'vendor'))) });
         const rebuilt = await fs.readFile(path.join(dir, 'aurago-rb338/target', TARGET, 'release/aurago_rb338.wasm'));
-        console.log('sources.zip rebuild ' + (rebuilt.equals(wasm) ? 'is identical to the shipped wasm' : 'differs from the shipped wasm (build paths); sha256 ' + sha256(rebuilt)));
+        console.log('sources.zip rebuild ' + (rebuilt.equals(wasm) ? 'is identical to the shipped wasm' : 'DIFFERS from the shipped wasm; sha256 ' + sha256(rebuilt)));
     }
 } finally {
     await fs.rm(tmp, { recursive: true, force: true, maxRetries: 3 });
