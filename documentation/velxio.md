@@ -12,8 +12,11 @@ through Velxio's own MCP server.
 2. The image is about 7 GB unpacked. Keep that much free space for Docker.
 3. The first start downloads the Arduino cores. It needs internet access and
    takes several minutes on a slow link. Measured on Docker Desktop with fresh
-   volumes: the web UI answered after 75 s and the agent endpoint after 79 s.
-   The Store waits up to 15 minutes for the web UI.
+   volumes: the web UI answered after about 75 s and the agent endpoint after
+   about 80 s. The Store's readiness check only waits until the published port
+   accepts connections, and Docker's port proxy accepts them right away, so the
+   Store can report Velxio as running before the page loads. If the first open
+   shows a connection error, wait a minute and reload.
 4. On a very slow link, run `docker pull` for the pinned image before you
    install. The Store allows 30 minutes for the image pull and the first start
    together.
@@ -122,22 +125,36 @@ release that updates the pin.
 
 ## Live verification
 
-Recorded on 2026-11-20 with Docker Desktop 29.9.3 (linux/amd64). The launcher
-wrapper was run by hand against the pinned image. The run did not go through
-the Store install.
+Recorded on 2026-11-20/21 with Docker Desktop 29.9.3 (linux/amd64).
+
+By hand, with the launcher wrapper against the pinned image:
 
 - First start, fresh volumes: web UI `/health` answered after 75 s; the MCP
   server listened after 79 s.
 - Restart, existing volumes: web UI after 17 s; MCP server after 24 s.
 - The MCP server lists the 7 tools. A wrong or missing token gets 401. The
   right token gets an `initialize` answer 200.
-- Compiling the blink sketch for `arduino:avr:uno` succeeded in about 1 s and
-  returned a 2556-byte hex file.
 
-**Still open:** the Store-path run. That covers the install through the Store,
-the Connect to agent test, uninstall with Delete data, and containerized AuraGo
-on a shared network. An agent chat that uses the tools has not been tested
-either. ESP32 emulation and arm64 hosts have not been tested.
+Through the Store (an opt-in Go test kept outside the repo: real Docker
+adapter, real Vault, LAN bind mode):
+
+- Install: the web port is bound on `0.0.0.0`, the MCP port on `127.0.0.1`
+  only; exactly the five named volumes; the wrapper entrypoint and
+  `VELXIO_NEWS=off` are set. The install returned after about 2 s (TCP
+  readiness, see Install); the MCP server answered 74-104 s later.
+- AuraGo's own MCP client lists the 7 tools with the Vault token; a wrong
+  token gets 401. `compile_project` for the blink sketch on `arduino:avr:uno`
+  succeeded in about 1.2 s (2556-character hex); `create_circuit` answered.
+- PID 1 in the container has neither the token nor the launcher script in its
+  environment.
+- Restart through the Store: the MCP server answered 16-18 s later, host ports
+  unchanged.
+- Uninstall with Delete data removed the container, the five volumes and the
+  Vault token.
+
+**Not tested:** the Connect to agent dialog in a browser, containerized AuraGo
+on a shared network, an agent chat that uses the tools, ESP32 emulation and
+arm64 hosts.
 
 ## Troubleshooting
 

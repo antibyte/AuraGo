@@ -285,9 +285,17 @@ Store app configuration, runtime, assets, and publication.
   2556-byte hex in about 1 s. Root sends `X-Frame-Options: SAMEORIGIN`.
   Importing `app.mcp.server` runs the arduino-cli init, which is why the launcher
   waits for `:8001/health`.
+- Store-path evidence (2026-11-21, opt-in Go test outside the repo, real Docker
+  adapter and Vault, LAN bind mode): web on `0.0.0.0`, `agent-mcp` on
+  `127.0.0.1` only, five named volumes, wrapper entrypoint; MCP answered 74-104 s
+  after the install returned (the TCP readiness check passes at once because
+  Docker's port proxy accepts early), 16-18 s after a Store restart; AuraGo's
+  MCP client compiled blink with the Vault token, a wrong token got 401; PID 1
+  holds neither token nor script; uninstall with `delete_data` removed the
+  container, volumes and token. Rerun: `C:\disposable\_velxio-live` (overlay
+  test `TestVelxioLive`, `AURAGO_VELXIO_LIVE=1`), not in the repo.
 - Not verified: ESP32 emulation, arm64, containerized AuraGo on a shared network,
-  an agent chat that uses the tools, and the Store-path install (Batch 5 live
-  run, still open).
+  an agent chat that uses the tools, the Connect to agent dialog in a browser.
 - Verify `TestVelxio*`, `TestInstallVelxio*`, `TestCatalogPinnedPortHostMustBeLoopback`,
   `TestDefaultCatalogContainsInitialApps`, and the server `TestVelxio*` tests.
   See `documentation/velxio.md`.
