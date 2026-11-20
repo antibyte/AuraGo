@@ -277,7 +277,11 @@ func handleVirtualWorkspaceRoot(w http.ResponseWriter, r *http.Request, manager 
 		workspace, err := manager.Get(r.Context(), identity, workspaceID)
 		writeVirtualWorkspaceResult(w, map[string]interface{}{"workspace": workspace}, err)
 	case http.MethodDelete:
-		writeVirtualWorkspaceResult(w, nil, manager.CloseWorkspace(r.Context(), cfg, identity, workspaceID))
+		released := false
+		if workspace, err := manager.Get(r.Context(), identity, workspaceID); err == nil {
+			released = workspace.Origin == virtualcomputers.WorkspaceOriginAdopted
+		}
+		writeVirtualWorkspaceResult(w, map[string]interface{}{"released": released}, manager.CloseWorkspace(r.Context(), cfg, identity, workspaceID))
 	default:
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}

@@ -155,6 +155,12 @@ type Machine struct {
 	CreatedAt  *time.Time             `json:"created_at,omitempty"`
 	WebPorts   []int                  `json:"web_ports,omitempty"`
 	Raw        map[string]interface{} `json:"raw,omitempty"`
+
+	// Output-only fields merged from the AuraGo ledger; never read from boringd.
+	Label           string `json:"label,omitempty"`
+	VolumeID        string `json:"volume_id,omitempty"`
+	WorkspaceID     string `json:"workspace_id,omitempty"`
+	WorkspaceOrigin string `json:"workspace_origin,omitempty"`
 }
 
 func (m *Machine) UnmarshalJSON(data []byte) error {

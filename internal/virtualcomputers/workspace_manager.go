@@ -188,6 +188,7 @@ type WorkspaceManager struct {
 	closeOnce         sync.Once
 	mu                sync.Mutex
 	lastConfig        ToolConfig
+	adoptMu           sync.Mutex
 	legacyImportMu    sync.Mutex
 	legacyImports     map[string]*pendingLegacyVolumeImport
 
@@ -353,13 +354,21 @@ func (m *WorkspaceManager) Open(ctx context.Context, cfg ToolConfig, identity Wo
 		}
 		return Workspace{}, err
 	}
+	maxExpires := now.Add(time.Duration(cfg.AgentControl.MaxWorkspaceSeconds) * time.Second)
+	lease := now.Add(time.Duration(launchTTL) * time.Second)
+	if machine.ExpiresAt != nil && machine.ExpiresAt.Before(lease) {
+		lease = machine.ExpiresAt.UTC()
+	}
+	if lease.After(maxExpires) {
+		lease = maxExpires
+	}
 	workspace := Workspace{
 		ID: uid.NewString(), OwnerSessionID: strings.TrimSpace(identity.SessionID), MissionID: strings.TrimSpace(identity.MissionID),
 		Actor: firstNonEmpty(identity.Actor, "agent"), MachineID: machine.ID, State: WorkspaceStateOpening,
 		Template: template, NetworkProfile: firstNonEmpty(request.NetworkProfile, cfg.AgentControl.NetworkProfile),
 		VolumeID: request.VolumeID, ControlOwner: ControlOwnerAgent, CreatedAt: now, UpdatedAt: now, LastActivityAt: now,
-		LeaseExpiresAt: now.Add(time.Duration(cfg.AgentControl.IdleTTLSeconds) * time.Second),
-		MaxExpiresAt:   now.Add(time.Duration(cfg.AgentControl.MaxWorkspaceSeconds) * time.Second),
+		LeaseExpiresAt: lease,
+		MaxExpiresAt:   maxExpires,
 	}
 	if err := m.ledger.UpsertWorkspace(ctx, workspace); err != nil {
 		_ = client.DestroyMachine(context.Background(), machine.ID)
@@ -448,6 +457,9 @@ func (m *WorkspaceManager) CloseWorkspace(ctx context.Context, cfg ToolConfig, i
 	workspace, err := m.ownedWorkspace(ctx, identity, workspaceID)
 	if err != nil {
 		return err
+	}
+	if workspace.Origin == WorkspaceOriginAdopted {
+		return m.releaseAdoptedWorkspace(ctx, cfg, workspace)
 	}
 	if workspace.State == WorkspaceStateClosed {
 		return nil
@@ -1220,15 +1232,7 @@ func (m *WorkspaceManager) Reconcile(ctx context.Context, cfg ToolConfig) error 
 			continue
 		}
 		if _, err := client.GetMachine(ctx, workspace.MachineID); err != nil {
-			workspace.State = WorkspaceStateLost
-			workspace.LastError = "machine unavailable after AuraGo restart"
-			workspace.UpdatedAt = m.now()
-			_ = m.ledger.UpsertWorkspace(ctx, workspace)
-			_ = m.ledger.InterruptActiveWorkspaceJobs(ctx, workspace.ID, workspace.LastError)
-			m.closeBrowserSessions(ctx, workspace.ID)
-			m.revokeWorkspaceGrants(ctx, workspace.ID, m.now())
-			_ = m.recordEvent(ctx, workspace.ID, "workspace_lost", workspace.LastError, nil)
-			m.reportIssue(WorkspaceOperationalIssue{Kind: "machine_lost", WorkspaceID: workspace.ID, Detail: workspace.LastError, Severity: "error"})
+			m.markWorkspaceLost(ctx, workspace, "machine unavailable after AuraGo restart")
 			continue
 		}
 		capabilities, err := WorkspaceHandshake(ctx, transport, workspace.MachineID, workspace.InstanceNonce)
@@ -1347,6 +1351,27 @@ func (m *WorkspaceManager) reconcileLeases(ctx context.Context) {
 					m.syncBrowserControl(ctx, workspace)
 				}
 			}
+			if workspace.Origin == WorkspaceOriginAdopted && clientErr == nil {
+				machine, getErr := client.GetMachine(ctx, workspace.MachineID)
+				if getErr != nil {
+					if workspaceMachineAlreadyGone(getErr) {
+						m.markWorkspaceLost(ctx, workspace, "the assigned computer no longer exists")
+						continue
+					}
+				} else {
+					synced := workspace.MaxExpiresAt
+					if machine.Persistent || machine.ExpiresAt == nil {
+						synced = m.now().AddDate(100, 0, 0)
+					} else {
+						synced = machine.ExpiresAt.UTC()
+					}
+					if !synced.Equal(workspace.MaxExpiresAt) {
+						if updErr := m.ledger.UpdateWorkspaceMaxExpiry(ctx, workspace.ID, synced); updErr == nil {
+							workspace.MaxExpiresAt = synced
+						}
+					}
+				}
+			}
 			hasActiveJob := m.refreshWorkspaceJobs(ctx, workspace, transport)
 			if hasActiveJob && clientErr == nil && workspace.MaxExpiresAt.After(m.now()) {
 				if err := m.touch(ctx, cfg, client, workspace); err != nil {
@@ -1354,10 +1379,7 @@ func (m *WorkspaceManager) reconcileLeases(ctx context.Context) {
 				} else {
 					now := m.now()
 					workspace.LastActivityAt = now
-					workspace.LeaseExpiresAt = now.Add(time.Duration(cfg.AgentControl.IdleTTLSeconds) * time.Second)
-					if workspace.LeaseExpiresAt.After(workspace.MaxExpiresAt) {
-						workspace.LeaseExpiresAt = workspace.MaxExpiresAt
-					}
+					workspace.LeaseExpiresAt = nextWorkspaceLease(cfg, workspace, now)
 				}
 			}
 			if !workspace.MaxExpiresAt.After(m.now()) || !workspace.LeaseExpiresAt.After(m.now()) {
@@ -1499,9 +1521,10 @@ func (m *WorkspaceManager) ensureJobOwnership(ctx context.Context, workspaceID, 
 
 func (m *WorkspaceManager) touch(ctx context.Context, cfg ToolConfig, client *Client, workspace Workspace) error {
 	now := m.now()
-	lease := now.Add(time.Duration(cfg.AgentControl.IdleTTLSeconds) * time.Second)
-	if lease.After(workspace.MaxExpiresAt) {
-		lease = workspace.MaxExpiresAt
+	lease := nextWorkspaceLease(cfg, workspace, now)
+	if workspace.Origin == WorkspaceOriginAdopted {
+		// The machine belongs to the user; extending it could shorten the VM or end persistence.
+		return m.ledger.UpdateWorkspaceActivity(ctx, workspace.ID, now, lease)
 	}
 	remaining := int(lease.Sub(now).Seconds())
 	if remaining < MinTTLSeconds {

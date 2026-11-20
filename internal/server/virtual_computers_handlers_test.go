@@ -821,6 +821,12 @@ func TestVirtualComputersManualLaunchInternetPolicy(t *testing.T) {
 			calls := 0
 			var forwarded map[string]interface{}
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet && r.URL.Path == "/v1/templates" {
+					// Template validation is best effort; an empty list never blocks a launch.
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`[]`))
+					return
+				}
 				calls++
 				if r.Method != http.MethodPost || r.URL.Path != "/v1/machines" {
 					t.Errorf("unexpected upstream request %s %s", r.Method, r.URL.Path)

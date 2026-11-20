@@ -44,6 +44,46 @@ var mutatingOperations = map[string]bool{
 	"cancel_agent_task": true,
 }
 
+// defaultMaxForks applies when virtual_computers.max_forks is unset (0 never means unlimited).
+const defaultMaxForks = 3
+
+// machineOwnedOps are the machine-addressed operations a workspace-owned
+// machine must refuse; "get" and "get_machine" stay read-only allowed.
+var machineOwnedOps = map[string]bool{
+	"destroy": true, "delete": true, "extend": true, "fork": true, "exec": true, "screenshot": true,
+	"upload": true, "download": true, "publish": true, "save_machine": true,
+	"run_shell_task": true, "run_desktop_task": true,
+}
+
+// workspaceOwnedMachineGuard returns a ready-made error payload when the
+// machine belongs to an active agent workspace, otherwise an empty string.
+// Without a ledger no workspace can exist, so the guard is skipped.
+func workspaceOwnedMachineGuard(ctx context.Context, cfg ToolConfig, machineID string) string {
+	machineID = strings.TrimSpace(machineID)
+	if machineID == "" || strings.TrimSpace(cfg.LedgerPath) == "" {
+		return ""
+	}
+	var workspace Workspace
+	var found bool
+	var err error
+	if manager := DefaultWorkspaceManager(); manager != nil {
+		workspace, found, err = manager.ActiveWorkspaceForMachine(ctx, machineID)
+	} else {
+		ledger, openErr := openToolLedger(cfg)
+		if openErr != nil {
+			return ""
+		}
+		defer ledger.Close()
+		workspace, found, err = ledger.ActiveWorkspaceForMachine(ctx, machineID)
+	}
+	if err != nil || !found {
+		return ""
+	}
+	return toolJSON("error", "machine_owned_by_workspace",
+		"machine "+machineID+" belongs to Agent Workspace "+workspace.ID+"; use virtual_workspace / virtual_browser with workspace_id="+workspace.ID,
+		map[string]interface{}{"workspace_id": workspace.ID})
+}
+
 func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{}) string {
 	if !cfg.Enabled {
 		return toolJSON("error", "disabled", "virtual computers are disabled in config", nil)
@@ -74,6 +114,12 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 
 	if op == "list_agent_tasks" || op == "get_agent_task" || op == "cancel_agent_task" {
 		return executeAgentTaskLedgerOperation(op, args)
+	}
+
+	if machineOwnedOps[op] {
+		if refusal := workspaceOwnedMachineGuard(ctx, cfg, requiredMachineID(args)); refusal != "" {
+			return refusal
+		}
 	}
 
 	client, err := NewClient(ClientConfig{
@@ -131,7 +177,11 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 		return toolJSON("ok", "", "machine extended", map[string]interface{}{"machine": machine})
 	case "fork":
 		count := toolInt(args, 1, "count")
-		if count < 1 || (cfg.MaxForks > 0 && count > cfg.MaxForks) {
+		maxForks := cfg.MaxForks
+		if maxForks <= 0 {
+			maxForks = defaultMaxForks
+		}
+		if count < 1 || count > maxForks {
 			return toolJSON("error", "invalid_argument", "count must be within the configured fork limit", nil)
 		}
 		machines, err := client.ForkMachines(ctx, requiredMachineID(args), count)
