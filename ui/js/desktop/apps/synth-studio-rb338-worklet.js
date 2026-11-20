@@ -5,8 +5,8 @@
 // Protocol: see plans/2026-11-20-synth-studio-rb338.md section A4.
 //   main -> worklet: init{module|bytes, kit, song?} msgs{buf, seq} load{id, bytes} new{id} save{id} startup
 //   worklet -> main: ready{defaults, patterns, info} loaded{id, ok, code, patterns, info}
-//                    saved{id, bytes} snap{buf} error{code} crash{message}
-// Error codes: 1..3 = orb_last_error (kit), 10 = wasm ABI mismatch, 11 = command queue overflow, 12 = save failed.
+//                    saved{id, bytes} snap{buf} error{code, id?} crash{message}
+// Error codes: 1..3 = orb_last_error (kit), 10 = wasm ABI mismatch, 11 = command queue overflow, 12 = save failed, 20 = no engine, 21 = engine crashed.
 
 (function () {
     'use strict';
@@ -124,7 +124,14 @@
         }
 
         onMessage(d) {
-            if (!d || this.dead) return;
+            if (!d) return;
+            if (this.dead) {
+                // answer id-bearing requests so the host never waits forever
+                if (d.id && (d.type === 'load' || d.type === 'new' || d.type === 'save')) {
+                    this.port.postMessage({ type: 'error', code: 21, id: d.id });
+                }
+                return;
+            }
             try {
                 const x = this.x;
                 switch (d.type) {
@@ -138,18 +145,18 @@
                         break;
                     }
                     case 'load': {
-                        if (!this.h) break;
+                        if (!this.h) { this.noEngine(d); break; }
                         const code = this.withBytes(d.bytes, (p, n) => x.orb_load_song(this.h, p, n));
                         this.postLoaded(d.id, code);
                         break;
                     }
                     case 'new':
-                        if (!this.h) break;
+                        if (!this.h) { this.noEngine(d); break; }
                         x.orb_new_song(this.h);
                         this.postLoaded(d.id, 0);
                         break;
                     case 'save': {
-                        if (!this.h) break;
+                        if (!this.h) { this.noEngine(d); break; }
                         const rc = x.orb_save_song(this.h);
                         if (rc !== 0) {
                             this.port.postMessage({ type: 'error', code: 12, id: d.id });
@@ -168,6 +175,10 @@
             } catch (err) {
                 this.fail(err);
             }
+        }
+
+        noEngine(d) {
+            if (d.id) this.port.postMessage({ type: 'error', code: 20, id: d.id });
         }
 
         postLoaded(id, code) {

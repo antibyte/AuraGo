@@ -3,13 +3,14 @@
 
 // Module Worker: offline WAV renderer of the OpenRB-338 engine (own wasm instance, never WebAudio).
 //   main -> worker: init{module|bytes, kit} render{id, song: ArrayBuffer, mode: 'song'|'pattern'|0|1, bars, preroll}
-//   worker -> main: ready{} rendered{id, wav: ArrayBuffer, frames} error{id, code}
+//                   check{id, song: ArrayBuffer}
+//   worker -> main: ready{} rendered{id, wav: ArrayBuffer, frames} checked{id, ok, code} error{id, code}
 // Error codes: 1 not a song, 2 cannot convert, 3 engine refused the load / kit failed, 10 ABI mismatch,
 // 20 not initialised, 21 wasm trap or bad request.
 
 let x = null;
 let h = 0;
-
+let stored = null; // { mod, kit } kept so a trapped instance can be re-created
 const IDLE_BLOCKS = 9088;
 
 function u8() {
@@ -27,22 +28,60 @@ function withBytes(src, fn) {
     }
 }
 
-function init(d) {
-    const mod = d.module || new WebAssembly.Module(d.bytes);
-    x = new WebAssembly.Instance(mod, {}).exports;
-    if (typeof x.orb_abi_version !== 'function' || x.orb_abi_version() !== 1) {
-        x = null;
-        self.postMessage({ type: 'error', id: 0, code: 10 });
-        return;
+// Instantiates the engine from the stored module + kit. Returns 0 on success, else an error code.
+function instantiate() {
+    x = null;
+    h = 0;
+    const inst = new WebAssembly.Instance(stored.mod, {}).exports;
+    if (typeof inst.orb_abi_version !== 'function' || inst.orb_abi_version() !== 1) return 10;
+    const ptr = inst.orb_alloc(stored.kit.length);
+    let handle = 0;
+    try {
+        new Uint8Array(inst.memory.buffer).set(stored.kit, ptr);
+        handle = inst.orb_create(ptr, stored.kit.length);
+    } finally {
+        inst.orb_free(ptr, stored.kit.length);
     }
-    h = withBytes(new Uint8Array(d.kit), (p, n) => x.orb_create(p, n));
-    if (!h) {
-        const code = x.orb_last_error() || 3;
+    if (!handle) return inst.orb_last_error() || 3;
+    x = inst;
+    h = handle;
+    return 0;
+}
+
+function init(d) {
+    stored = { mod: d.module || new WebAssembly.Module(d.bytes), kit: new Uint8Array(d.kit) };
+    const code = instantiate();
+    if (code) {
         x = null;
+        h = 0;
         self.postMessage({ type: 'error', id: 0, code });
         return;
     }
     self.postMessage({ type: 'ready' });
+}
+
+// Re-creates a dropped (trapped) instance on demand. Returns true when the engine is usable.
+function ensure() {
+    if (x && h) return true;
+    if (!stored) return false;
+    try {
+        return instantiate() === 0;
+    } catch (_err) {
+        x = null;
+        h = 0;
+        return false;
+    }
+}
+
+// Pre-check of a song file: loads it into this worker's own engine and resets it again.
+function check(d) {
+    if (!ensure()) {
+        self.postMessage({ type: 'error', id: d.id, code: 20 });
+        return;
+    }
+    const code = withBytes(new Uint8Array(d.song), (p, n) => x.orb_load_song(h, p, n));
+    if (code === 0) x.orb_new_song(h);
+    self.postMessage({ type: 'checked', id: d.id, ok: code === 0, code });
 }
 
 // Keeps the second of two equal cycles of a 16-bit stereo 44.1 kHz WAV (44-byte header).
@@ -63,7 +102,7 @@ function secondCycle(wav) {
 }
 
 function render(d) {
-    if (!x || !h) {
+    if (!ensure()) {
         self.postMessage({ type: 'error', id: d.id, code: 20 });
         return;
     }
@@ -92,7 +131,11 @@ self.onmessage = (e) => {
     try {
         if (d.type === 'init') init(d);
         else if (d.type === 'render') render(d);
+        else if (d.type === 'check') check(d);
     } catch (err) {
+        // a trapped instance is unusable: drop it, the next request re-instantiates
+        x = null;
+        h = 0;
         self.postMessage({ type: 'error', id: d.id || 0, code: 21, message: String((err && err.message) || err) });
     }
 };

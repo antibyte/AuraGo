@@ -75,6 +75,7 @@
 
         let node = null;
         let closed = false;
+        let failed = null; // Error once the engine crashed or failed to boot
         let nextId = 1;
         const pendingOut = [];
         const waiting = new Map();
@@ -93,6 +94,11 @@
         const rejectAll = (err) => {
             for (const w of waiting.values()) w.reject(err);
             waiting.clear();
+        };
+
+        const markFailed = (err) => {
+            if (!failed) failed = err;
+            pendingOut.length = 0;
         };
 
         const settleReady = (ok, value) => {
@@ -135,6 +141,7 @@
                         waiting.delete(d.id);
                         w.reject(err);
                     } else if (d.code === 1 || d.code === 2 || d.code === 3 || d.code === 10) {
+                        markFailed(err);
                         settleReady(false, err);
                     }
                     if (o.onError) o.onError(d.code);
@@ -142,6 +149,7 @@
                 }
                 case 'crash': {
                     const err = new Error(d.message || 'rb338 crash');
+                    markFailed(err);
                     settleReady(false, err);
                     rejectAll(err);
                     if (o.onCrash) o.onCrash(d.message || 'crash');
@@ -153,6 +161,8 @@
         };
 
         const request = (type, extra, transfer) => new Promise((resolve, reject) => {
+            if (closed) { reject(new Error('rb338 closed')); return; }
+            if (failed) { reject(failed); return; }
             const id = nextId++;
             waiting.set(id, { resolve, reject });
             post(Object.assign({ type, id }, extra || {}), transfer);
@@ -169,7 +179,9 @@
             });
             node.port.onmessage = onMessage;
             node.onprocessorerror = () => {
+                if (closed) return;
                 const err = new Error('rb338 worklet processor error');
+                markFailed(err);
                 settleReady(false, err);
                 rejectAll(err);
                 if (o.onCrash) o.onCrash(err.message);
@@ -181,8 +193,11 @@
             for (const [msg, transfer] of pendingOut.splice(0)) node.port.postMessage(msg, transfer || []);
         })();
         boot.catch((err) => {
+            if (closed) return;
+            markFailed(err);
             settleReady(false, err);
             rejectAll(err);
+            if (context.state !== 'closed') context.close().catch(() => {});
             if (o.onError) o.onError(err && err.name === 'DataCloneError' ? 10 : 0);
         });
 
@@ -226,71 +241,136 @@
         let closed = false;
         const waiting = new Map();
         let ready = null;
+        let upReject = null; // rejects the pending worker start-up, if any
 
         const fail = (err) => {
-            for (const w of waiting.values()) w.reject(err);
+            const list = Array.from(waiting.values());
             waiting.clear();
+            for (const w of list) w.reject(err);
+        };
+
+        // Drops the current worker and everything waiting on it; the next request starts a fresh one.
+        const teardown = (err) => {
+            const w = worker;
+            worker = null;
+            ready = null;
+            const rej = upReject;
+            upReject = null;
+            if (w) {
+                w.onmessage = null;
+                w.onerror = null;
+                try { w.terminate(); } catch (_err) { /* already gone */ }
+            }
+            if (rej) rej(err);
+            fail(err);
         };
 
         const start = () => {
             if (ready) return ready;
-            ready = (async () => {
+            const p = (async () => {
                 const a = await assets();
                 if (closed) throw new Error('rb338 renderer closed');
-                worker = new root.Worker(versioned(WORKER_URL), { type: 'module' });
+                const w = new root.Worker(versioned(WORKER_URL), { type: 'module' });
+                worker = w;
                 const up = new Promise((resolve, reject) => {
-                    worker.onmessage = (e) => {
+                    upReject = reject;
+                    w.onmessage = (e) => {
+                        if (worker !== w) return;
                         const d = e.data;
                         if (!d) return;
-                        if (d.type === 'ready') { resolve(); return; }
+                        if (d.type === 'ready') { upReject = null; resolve(); return; }
                         if (d.type === 'rendered') {
-                            const w = waiting.get(d.id);
-                            if (w) { waiting.delete(d.id); w.resolve({ wav: d.wav, frames: d.frames }); }
+                            const q = waiting.get(d.id);
+                            if (q) { waiting.delete(d.id); q.resolve({ wav: d.wav, frames: d.frames }); }
+                        } else if (d.type === 'checked') {
+                            const q = waiting.get(d.id);
+                            if (q) { waiting.delete(d.id); q.resolve({ ok: !!d.ok, code: d.code }); }
                         } else if (d.type === 'error') {
                             const err = new Error('rb338 render error ' + d.code);
                             err.code = d.code;
-                            const w = waiting.get(d.id);
-                            if (w) { waiting.delete(d.id); w.reject(err); } else { reject(err); fail(err); }
+                            const q = d.id ? waiting.get(d.id) : null;
+                            if (q) { waiting.delete(d.id); q.reject(err); } else teardown(err);
                         }
                     };
-                    worker.onerror = (ev) => {
-                        const err = new Error((ev && ev.message) || 'rb338 worker error');
-                        reject(err);
-                        fail(err);
+                    w.onerror = (ev) => {
+                        if (worker !== w) return;
+                        teardown(new Error((ev && ev.message) || 'rb338 worker error'));
                     };
                 });
-                postInit(worker, a);
+                up.catch(() => { /* surfaced through the awaiting caller */ });
+                postInit(w, a);
                 await up;
+                if (closed || worker !== w) throw new Error('rb338 renderer closed');
             })();
-            ready.catch(() => { ready = null; });
-            return ready;
+            ready = p;
+            p.catch(() => { if (ready === p) ready = null; });
+            return p;
         };
+
+        const call = async (msg, transfer) => {
+            await start();
+            if (closed || !worker) throw new Error('rb338 renderer closed');
+            return new Promise((resolve, reject) => {
+                const id = nextId++;
+                waiting.set(id, { resolve, reject });
+                try {
+                    worker.postMessage(Object.assign({ id }, msg), transfer);
+                } catch (err) {
+                    waiting.delete(id);
+                    reject(err);
+                }
+            });
+        };
+
+        const copyOf = (src) => (src instanceof ArrayBuffer ? src.slice(0) : new Uint8Array(src).slice().buffer);
 
         return {
             async render(req) {
                 const r = req || {};
-                await start();
-                if (closed) throw new Error('rb338 renderer closed');
-                const song = r.song instanceof ArrayBuffer ? r.song.slice(0) : new Uint8Array(r.song).slice().buffer;
-                return new Promise((resolve, reject) => {
-                    const id = nextId++;
-                    waiting.set(id, { resolve, reject });
-                    worker.postMessage({
-                        type: 'render', id, song,
-                        mode: r.mode === 'pattern' || r.mode === 1 ? 'pattern' : 'song',
-                        bars: r.bars || 4,
-                        preroll: !!r.preroll
-                    }, [song]);
-                });
+                const song = copyOf(r.song);
+                return call({
+                    type: 'render', song,
+                    mode: r.mode === 'pattern' || r.mode === 1 ? 'pattern' : 'song',
+                    bars: r.bars || 4,
+                    preroll: !!r.preroll
+                }, [song]);
+            },
+            // Pre-check of a .rbs in the worker's own engine: resolves {ok, code}.
+            async check(bytes) {
+                const song = copyOf(bytes);
+                return call({ type: 'check', song }, [song]);
             },
             close() {
                 closed = true;
-                fail(new Error('rb338 renderer closed'));
-                if (worker) worker.terminate();
-                worker = null;
-                ready = null;
+                teardown(new Error('rb338 renderer closed'));
             }
         };
+    }
+
+    // Shared, lazily created renderer for song pre-checks; released after 30 s of idleness.
+    const CHECK_IDLE_MS = 30000;
+    let checkRend = null;
+    let checkTimer = null;
+    let checkBusy = 0;
+
+    function stopCheckRenderer() {
+        if (checkTimer) { root.clearTimeout(checkTimer); checkTimer = null; }
+        if (checkRend) { checkRend.close(); checkRend = null; }
+    }
+
+    function checkSong(bytes) {
+        if (!checkRend) checkRend = renderer();
+        if (checkTimer) { root.clearTimeout(checkTimer); checkTimer = null; }
+        checkBusy++;
+        const rend = checkRend;
+        const done = () => {
+            checkBusy--;
+            if (checkBusy > 0 || checkRend !== rend) return;
+            if (checkTimer) root.clearTimeout(checkTimer);
+            checkTimer = root.setTimeout(stopCheckRenderer, CHECK_IDLE_MS);
+            if (checkTimer && typeof checkTimer.unref === 'function') checkTimer.unref();
+        };
+        return rend.check(bytes).then((v) => { done(); return v; }, (err) => { done(); throw err; });
     }
 
     // ---- audio clips ----------------------------------------------------------------------------
@@ -325,6 +405,8 @@
         const cache = new Map(); // key -> AudioBuffer | 'pending' | 'failed'
         let rend = null;
         let queue = Promise.resolve();
+        let epoch = 0; // bumped by close(); stale queue runs stop touching the cache
+        let holders = 0;
 
         const renderClip = async (clip) => {
             const a = clip.audio;
@@ -337,7 +419,7 @@
             return wavToBuffer(out.wav);
         };
 
-        return {
+        const api = {
             buffer(clip) {
                 const v = cache.get(clipKey(clip));
                 return v && typeof v === 'object' ? v : null;
@@ -360,12 +442,17 @@
                 }
                 if (!todo.length) return Promise.resolve();
                 for (const [k] of todo) cache.set(k, 'pending');
+                const mine = epoch;
                 const run = queue.then(async () => {
                     for (const [k, clip] of todo) {
+                        if (epoch !== mine) return;
                         try {
-                            cache.set(k, await renderClip(clip));
+                            const buf = await renderClip(clip);
+                            if (epoch !== mine) return;
+                            cache.set(k, buf);
                             if (onReady) onReady(clip);
                         } catch (_err) {
+                            if (epoch !== mine) return;
                             cache.set(k, 'failed');
                         }
                     }
@@ -376,12 +463,31 @@
             failed(clip) {
                 return cache.get(clipKey(clip)) === 'failed';
             },
+            // Counts users of the clip renderer; the last release() frees worker and cache.
+            retain() {
+                holders++;
+                let released = false;
+                return () => {
+                    if (released) return;
+                    released = true;
+                    holders--;
+                    if (holders <= 0) {
+                        holders = 0;
+                        api.close();
+                        stopCheckRenderer();
+                    }
+                };
+            },
             close() {
+                epoch++;
                 if (rend) rend.close();
                 rend = null;
+                queue = Promise.resolve();
+                cache.clear();
             }
         };
+        return api;
     }
 
-    return { assets, live, renderer, clips: createClips(), wavToBuffer, clipKey };
+    return { assets, live, renderer, checkSong, clips: createClips(), wavToBuffer, clipKey };
 });
