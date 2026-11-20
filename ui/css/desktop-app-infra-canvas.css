@@ -38,7 +38,7 @@
 .infra-card[data-state="stale"] { --infra-state: var(--infra-warn-ring); }
 .infra-card[data-state="removed"] { --infra-state: var(--infra-bad-ring); }
 .infra-card[data-state="unknown"] { --infra-state: var(--vd-theme-muted); }
-.infra-card-icon { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--ds-radius-sm); background: var(--infra-field-color); box-shadow: 0 0 0 2px var(--infra-state); }
+.infra-card-icon { position: relative; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--ds-radius-sm); background: var(--infra-field-color); box-shadow: 0 0 0 2px var(--infra-state); --infra-live-ring: var(--infra-card-color); }
 .infra-card-icon img { width: 28px; height: 28px; object-fit: contain; pointer-events: none; }
 .infra-card-text { display: grid; min-width: 0; }
 /* A1 semantic zoom: --infra-name-k / --infra-header-k / --infra-lane-k come from paintLevels (infra-canvas.js). A label is counter-scaled with a transform, never by font size, and its box shrinks by the same factor so it keeps the width it had in the card. */

@@ -219,8 +219,9 @@ func desktopInfraProjectNodes(ctx context.Context, s *Server, cfg *config.Config
 	if nodes == nil {
 		return []infra.Node{}
 	}
+	liveness := desktopInfraLivenessView(s)
 	for i := range nodes {
-		nodes[i] = desktopInfraProjectNode(nodes[i], cfg, targetSet, storeAppsByContainer)
+		nodes[i] = desktopInfraProjectNode(nodes[i], cfg, targetSet, storeAppsByContainer, liveness)
 	}
 	return nodes
 }
@@ -230,7 +231,7 @@ func desktopInfraDecorateNode(ctx context.Context, s *Server, cfg *config.Config
 	return projected[0]
 }
 
-func desktopInfraProjectNode(node infra.Node, cfg *config.Config, targets map[string]struct{}, storeAppsByContainer map[string]string) infra.Node {
+func desktopInfraProjectNode(node infra.Node, cfg *config.Config, targets map[string]struct{}, storeAppsByContainer map[string]string, liveness desktopInfraLiveness) infra.Node {
 	node.Sources = desktopInfraProjectSourceStates(cfg, node.Sources)
 	node.AvailableActions, node.ActionReasons, node.SourceActions, node.SourceActionReasons = desktopInfraActionProjection(node, cfg)
 	node.AppLinks = make([]infra.AppLink, 0, len(node.Profile.AppBindings)+2)
@@ -271,6 +272,7 @@ func desktopInfraProjectNode(node infra.Node, cfg *config.Config, targets map[st
 		}
 	}
 	node.Power = desktopInfraProjectPower(node.Sources)
+	node.Live = desktopInfraProjectLive(node, liveness)
 	return node
 }
 

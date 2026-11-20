@@ -256,6 +256,11 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   spacing and reveal the active tab within their own horizontal scrollport, including a remembered tab after repaint;
   they never scroll the page. Verify `TestDesktopInfraListRecoveryBrowser`,
   `TestDesktopInfraListInitialStateBrowser` and `TestDesktopInfraInspectorTabVisibilityBrowser`.
+- The reachability of an asset rides on its icon. `model.liveState(node)` reads the server's `live`
+  projection (`live`, `offline`, `unknown`, or nothing without a signal). The map card and the List row
+  show the `.infra-live-dot` next to the icon, and the inspector names the state in an
+  `.infra-live-pill`. The dot is decorative (`aria-hidden`); the List row names the state for a screen
+  reader. The legend lists the three states. Verify `TestDesktopInfraLiveIndicatorBrowser`.
 - Load order (module-loader `infra`): `infra-model.js` (pure helpers: viewport math, geometry, regions, drop rules,
   guests, filters, scene builder, layout intents, history), `infra-lanes.js` (Topology lanes, auto layout; `window.InfraAppLanes`,
   `app.lanes`), `infra-store.js` (state, API, polling and visibility,

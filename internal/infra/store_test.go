@@ -219,6 +219,7 @@ func TestNodeRuntimeProjectionFieldsAreNotTrustedOrPersisted(t *testing.T) {
 	node := testNode(NodeDevice, "Observed Device", "generic-device")
 	node.AvailableActions = []string{"reboot", "delete-all"}
 	node.Power = PowerRunning
+	node.Live = LiveLive
 	node.AppLinks = []AppLink{{App: "terminal", TargetID: "arbitrary-target"}}
 	node.ActionReasons = map[string]string{"restart": "forged"}
 	node.SourceActions = map[string][]string{"docker:host": {"restart", "delete"}}
@@ -228,11 +229,11 @@ func TestNodeRuntimeProjectionFieldsAreNotTrustedOrPersisted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(created.AvailableActions) != 0 || created.AvailableActions == nil || created.Power != "" || len(created.AppLinks) != 0 || created.AppLinks == nil || created.ActionReasons != nil || created.SourceActions != nil || created.SourceActionReasons != nil {
+	if len(created.AvailableActions) != 0 || created.AvailableActions == nil || created.Power != "" || created.Live != "" || len(created.AppLinks) != 0 || created.AppLinks == nil || created.ActionReasons != nil || created.SourceActions != nil || created.SourceActionReasons != nil {
 		t.Fatalf("untrusted node projection fields were returned: %#v", created)
 	}
 	loaded, err := store.GetNode(ctx, created.ID)
-	if err != nil || loaded.AvailableActions == nil || len(loaded.AvailableActions) != 0 || loaded.Power != "" || loaded.AppLinks == nil || len(loaded.AppLinks) != 0 {
+	if err != nil || loaded.AvailableActions == nil || len(loaded.AvailableActions) != 0 || loaded.Power != "" || loaded.Live != "" || loaded.AppLinks == nil || len(loaded.AppLinks) != 0 {
 		t.Fatalf("stored node projection fields = actions %#v app links %#v, err %v", loaded.AvailableActions, loaded.AppLinks, err)
 	}
 	if len(loaded.Profile.AppBindings) != 1 || loaded.Profile.AppBindings[0] != (AppLink{App: "terminal", TargetID: "terminal-1"}) {
@@ -240,12 +241,13 @@ func TestNodeRuntimeProjectionFieldsAreNotTrustedOrPersisted(t *testing.T) {
 	}
 	loaded.AvailableActions = []string{"shutdown"}
 	loaded.Power = PowerStopped
+	loaded.Live = LiveOffline
 	loaded.AppLinks = []AppLink{{App: "terminal", TargetID: "forged"}}
 	loaded.ActionReasons = map[string]string{"shutdown": "forged"}
 	loaded.SourceActions = map[string][]string{"inventory:local": {"wake"}}
 	loaded.SourceActionReasons = map[string]map[string]string{"inventory:local": {"wake": "forged"}}
 	updated, err := store.UpdateNode(ctx, loaded)
-	if err != nil || len(updated.AvailableActions) != 0 || updated.Power != "" || len(updated.AppLinks) != 0 || updated.ActionReasons != nil || updated.SourceActions != nil || updated.SourceActionReasons != nil {
+	if err != nil || len(updated.AvailableActions) != 0 || updated.Power != "" || updated.Live != "" || len(updated.AppLinks) != 0 || updated.ActionReasons != nil || updated.SourceActions != nil || updated.SourceActionReasons != nil {
 		t.Fatalf("updated runtime fields = actions %#v app links %#v reasons %#v source actions %#v source reasons %#v, err %v", updated.AvailableActions, updated.AppLinks, updated.ActionReasons, updated.SourceActions, updated.SourceActionReasons, err)
 	}
 	loaded, err = store.GetNode(ctx, created.ID)

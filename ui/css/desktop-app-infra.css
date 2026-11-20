@@ -306,6 +306,18 @@
 .infra-power-pill[data-power="running"] { color: var(--infra-ok-text); }
 .infra-power-pill[data-power="stopped"] { color: var(--infra-bad-text); }
 .infra-power-pill[data-power="paused"] { color: var(--infra-warn-text); }
+/* The live dot rides on the asset icon: green while the asset answers, red while it stays unreachable, muted while the state is unknown. The ring takes the colour of the surface it sits on. */
+.infra-live-dot { position: absolute; left: -4px; top: -4px; width: 11px; height: 11px; border: 2px solid var(--infra-live-ring, var(--infra-card-color)); border-radius: 50%; background: var(--vd-theme-muted); }
+.infra-live-dot[data-live="live"] { background: var(--ds-color-success-fg); }
+.infra-live-dot[data-live="offline"] { background: var(--ds-color-danger-fg); }
+.infra-table-icon { position: relative; flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; }
+.infra-table-icon .infra-live-dot { --infra-live-ring: var(--vd-mat-well, var(--vd-theme-panel-bg)); }
+.infra-live-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 6px; border: 1px solid var(--infra-line); border-radius: 12px; color: var(--vd-theme-muted); font-size: 14px; white-space: nowrap; }
+.infra-live-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--vd-theme-muted); }
+.infra-live-pill[data-live="live"] { color: var(--infra-ok-text); }
+.infra-live-pill[data-live="live"] i { background: var(--infra-ok); }
+.infra-live-pill[data-live="offline"] { color: var(--infra-bad-text); }
+.infra-live-pill[data-live="offline"] i { background: var(--infra-bad); }
 .infra-inspector { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; border-left: 1px solid var(--infra-line); background: var(--vd-mat-side, var(--vd-theme-panel-bg)); }
 .infra-table-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; container: infra-table / inline-size; }
 .infra-table-head { min-height: 48px; padding: 0 var(--ds-space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-2); }
@@ -589,6 +601,8 @@ th[aria-sort="descending"] .infra-sort-arrow { border-top: 5px solid currentColo
 .infra-legend-dot[data-power="running"] { background: var(--ds-color-success-fg); }
 .infra-legend-dot[data-power="paused"] { background: var(--ds-color-warning-fg); }
 .infra-legend-dot[data-power="stopped"] { background: var(--ds-color-danger-fg); }
+.infra-legend-dot[data-live="live"] { background: var(--ds-color-success-fg); }
+.infra-legend-dot[data-live="offline"] { background: var(--ds-color-danger-fg); }
 .infra-legend-line line { stroke: color-mix(in srgb, var(--vd-theme-muted) 70%, var(--vd-text)); stroke-width: 2; }
 .infra-legend-line[data-kind="wifi"] line { stroke-dasharray: 6 5; }
 .infra-legend-line[data-kind="fiber"] line { stroke: var(--ds-color-info-fg); stroke-width: 4; }

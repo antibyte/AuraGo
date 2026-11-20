@@ -52,6 +52,7 @@ func normalizeNodeRuntime(node *Node) {
 	node.AvailableActions = []string{}
 	node.AppLinks = []AppLink{}
 	node.Power = ""
+	node.Live = ""
 	node.ActionReasons = nil
 	node.SourceActions = nil
 	node.SourceActionReasons = nil

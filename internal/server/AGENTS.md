@@ -375,6 +375,14 @@ Server-owned HTTP and cross-component integration contracts.
   through `desktopInfraRefreshContext`, so config revocation cancels them like a
   write. The observation write phase uses `context.WithoutCancel` with a 5 s
   budget: a client disconnect must not mark a healthy source stale.
+- The reachability pass (`desktop_infra_liveness.go`) runs after the providers of
+  one refresh: it probes the addresses of the visible devices, guests and
+  services (ICMP echo, then a TCP connect on 22/80/443) and caches the verdict
+  per address for 60 s. It is bounded (64 addresses, 8 workers, 12 s budget),
+  skips the addresses of the AuraGo host itself and never probes a place. A
+  provider that already knows the state of an asset wins over the probe except
+  when the asset answers. `Node.Live` projects `live`, `offline`, `unknown` or
+  nothing; it is a runtime projection and never stored.
 - `Snapshot` and `Candidates` never expose provider payloads. `source_errors`
   maps `kind|instance` to one bounded code (`provider_unreachable`,
   `auth_failed`, `observation_limit`). Cache the failure code and log it with

@@ -36,6 +36,11 @@ type desktopInfraRuntime struct {
 	configKey      string
 	configSnapshot *config.Config
 	dockerRequest  func(context.Context, tools.DockerConfig, string, string, string) ([]byte, int, error)
+	// liveness holds the last reachability verdict per probed address.
+	liveness        map[string]desktopInfraLivenessEntry
+	livenessAt      time.Time
+	livenessRunning bool
+	livenessPass    uint64
 }
 
 type desktopInfraProviderCache struct {
@@ -199,6 +204,7 @@ func (r *desktopInfraRuntime) beginOperation(parent context.Context, configKey s
 		// Provider identities are part of the config key; cached freshness for the
 		// previous configuration never applies to the new one.
 		r.cache = make(map[string]*desktopInfraProviderCache)
+		r.liveness = make(map[string]desktopInfraLivenessEntry)
 	}
 	r.configKey = configKey
 	r.configSnapshot = snapshot
@@ -228,6 +234,7 @@ func (r *desktopInfraRuntime) cancelOperations(configKey string, snapshot *confi
 	operations := r.operations
 	r.operations = make(map[uint64]context.CancelFunc)
 	r.cache = make(map[string]*desktopInfraProviderCache)
+	r.liveness = make(map[string]desktopInfraLivenessEntry)
 	r.configKey = configKey
 	r.configSnapshot = snapshot
 	r.mu.Unlock()
@@ -284,8 +291,9 @@ func (s *Server) desktopInfraRuntime() (*desktopInfraRuntime, error) {
 		return nil, s.infraRuntimeErr
 	}
 	s.infraRuntime = &desktopInfraRuntime{
-		store: store,
-		cache: make(map[string]*desktopInfraProviderCache),
+		store:    store,
+		cache:    make(map[string]*desktopInfraProviderCache),
+		liveness: make(map[string]desktopInfraLivenessEntry),
 	}
 	return s.infraRuntime, nil
 }
@@ -820,6 +828,10 @@ func desktopInfraRefreshConfigured(ctx context.Context, s *Server, cfg *config.C
 		refreshes = append(refreshes, func(ctx context.Context) { desktopInfraRefreshFritz(ctx, s, cfg, store, runtime, force) })
 	}
 	desktopInfraRunRefreshes(ctx, 15*time.Second, refreshes...)
+	// The reachability pass runs after the providers: a provider that already
+	// knows the state of an asset is the cheaper signal, and the probe only
+	// fills the gaps the providers leave.
+	desktopInfraRefreshLiveness(ctx, store, runtime, force)
 }
 
 func desktopInfraRunRefreshes(ctx context.Context, timeout time.Duration, refreshes ...func(context.Context)) {

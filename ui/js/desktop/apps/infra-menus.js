@@ -8,6 +8,7 @@
     const LEGEND_STATES = ['current', 'stale', 'unknown', 'removed', 'manual'];
     const LEGEND_MARKS = { current: '●', stale: '◐', unknown: '○', removed: '✕', manual: '' };
     const LEGEND_POWER = ['running', 'paused', 'stopped'];
+    const LEGEND_LIVE = ['live', 'offline', 'unknown'];
     const LEGEND_EDGES = ['ethernet', 'fiber', 'wifi', 'depends_on', 'powered_by'];
     const isEditable = target => !!target?.closest?.('input, textarea, select, [contenteditable="true"], [contenteditable=""]');
 
@@ -200,8 +201,10 @@
         function legendHTML() {
             const states = LEGEND_STATES.map(name => `<li><span class="infra-legend-ring" data-state="${name}" aria-hidden="true">${LEGEND_MARKS[name]}</span>${esc(app.statusLabel(name))}</li>`).join('');
             const powers = LEGEND_POWER.map(power => `<li><i class="infra-legend-dot" data-power="${power}" aria-hidden="true"></i>${esc(t(model.powerLabel(power)))}</li>`).join('');
+            const live = LEGEND_LIVE.map(state => `<li><i class="infra-legend-dot" data-live="${state}" aria-hidden="true"></i>${esc(t(model.liveLabelKey(state)))}</li>`).join('');
             const edges = LEGEND_EDGES.map(kind => `<li><svg class="infra-legend-line" data-kind="${kind}" viewBox="0 0 40 8" width="40" height="8" aria-hidden="true" focusable="false"><line x1="2" y1="4" x2="38" y2="4"/></svg>${esc(t(`desktop.infra_edge_${kind}`))}</li>`).join('');
             return `<section><h3>${esc(t('desktop.infra_legend_status'))}</h3><ul>${states}</ul></section>`
+                + `<section><h3>${esc(t('desktop.infra_legend_live'))}</h3><ul>${live}</ul></section>`
                 + `<section><h3>${esc(t('desktop.infra_legend_power'))}</h3><ul>${powers}</ul></section>`
                 + `<section><h3>${esc(t('desktop.infra_tab_connections'))}</h3><ul>${edges}</ul><p class="infra-legend-note">${esc(t('desktop.infra_legend_quiet_connections'))}</p></section>`;
         }

@@ -270,17 +270,18 @@
         // ---- cards and host stacks ----------------------------------------------
         function cardSig(node, card, guestList) {
             const guestsSig = guestList.map(guest => `${guest.id}:${guest.name}:${guest.power || ''}`).join(',');
-            return [node.name, node.kind, model.iconURL(node.icon), model.sourceState(node), node.power || '', cardMeta(node), guestsSig, store.state.expandedHosts.has(node.id), store.canWrite()].join('\x1f');
+            return [node.name, node.kind, model.iconURL(node.icon), model.sourceState(node), node.power || '', node.live || '', cardMeta(node), guestsSig, store.state.expandedHosts.has(node.id), store.canWrite()].join('\x1f');
         }
         function cardHTML(node, guestList) {
             const id = esc(node.id), name = esc(node.name || node.id), safe = safeOf(node.id);
             const state = model.sourceState(node), power = powerOf(node), expanded = store.state.expandedHosts.has(node.id);
-            const label = [node.name || node.id, kindLabel(node.kind), app.statusLabel(state), power ? t(model.powerLabel(power)) : '',
+            const live = model.liveState(node);
+            const label = [node.name || node.id, kindLabel(node.kind), app.statusLabel(state), live ? t(model.liveLabelKey(live)) : '', power ? t(model.powerLabel(power)) : '',
                 guestList.length ? model.countText(guestList.length, t('desktop.infra_guest_count_one'), t('desktop.infra_guest_count')) : ''].filter(Boolean).join(', ');
             const handles = store.canWrite() ? CONNECT_HANDLES.map(side => `<span class="infra-card-handle" data-connect-handle="${side}" aria-hidden="true"></span>`).join('') : '';
             let html = `<button type="button" class="infra-card" data-node="${id}" data-kind="${esc(node.kind)}" data-state="${esc(state)}"${power ? ` data-power="${power}"` : ''} tabindex="-1" aria-pressed="false" aria-label="${esc(label)}" title="${name}">`
-                // The status glyph and the power dot ride on the icon, so the name keeps the whole text column.
-                + `<span class="infra-card-icon">${app.icon(node.icon)}${STATUS_GLYPH[state] ? `<span class="infra-card-status" aria-hidden="true">${STATUS_GLYPH[state]}</span>` : ''}${power ? `<i class="infra-card-power" data-power="${power}" aria-hidden="true"></i>` : ''}</span>`
+                // The status glyph, the live dot and the power dot ride on the icon, so the name keeps the whole text column.
+                + `<span class="infra-card-icon">${app.icon(node.icon)}${STATUS_GLYPH[state] ? `<span class="infra-card-status" aria-hidden="true">${STATUS_GLYPH[state]}</span>` : ''}${live ? `<i class="infra-live-dot" data-live="${esc(live)}" aria-hidden="true"></i>` : ''}${power ? `<i class="infra-card-power" data-power="${power}" aria-hidden="true"></i>` : ''}</span>`
                 + `<span class="infra-card-text"><strong class="infra-card-name">${name}</strong><small class="infra-card-meta">${esc(cardMeta(node))}</small></span>`
                 + handles + '</button>';
             if (!guestList.length) return html;

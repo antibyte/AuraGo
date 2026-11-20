@@ -361,7 +361,7 @@ func TestDesktopInfraProxmoxHostHasNoMetadataEditorOrPowerActions(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	projected := desktopInfraProjectNode(node, cfg, nil, nil)
+	projected := desktopInfraProjectNode(node, cfg, nil, nil, desktopInfraLiveness{})
 	if len(projected.AvailableActions) != 0 || len(projected.ActionReasons) != 0 {
 		t.Fatalf("hypervisor source exposed power controls: actions=%#v reasons=%#v", projected.AvailableActions, projected.ActionReasons)
 	}
@@ -614,7 +614,7 @@ func TestDesktopInfraProjectionValidatesAppLinksAndUsesOnlyCurrentSources(t *tes
 		"software-store\x00radarr":      {},
 		"meshcore\x00conversation-1":    {},
 	}
-	projected := desktopInfraProjectNode(node, cfg, links, map[string]string{"docker-full-id": "radarr"})
+	projected := desktopInfraProjectNode(node, cfg, links, map[string]string{"docker-full-id": "radarr"}, desktopInfraLiveness{})
 	wantLinks := []infra.AppLink{
 		{App: "quick-connect", TargetID: "registry-1"},
 		{App: "network-cameras", TargetID: "front-door"},
@@ -626,7 +626,7 @@ func TestDesktopInfraProjectionValidatesAppLinksAndUsesOnlyCurrentSources(t *tes
 	}
 	oldDockerOnly := node
 	oldDockerOnly.Sources = []infra.Source{node.Sources[1]}
-	projectedOldDocker := desktopInfraProjectNode(oldDockerOnly, cfg, links, map[string]string{"docker-full-id": "radarr"})
+	projectedOldDocker := desktopInfraProjectNode(oldDockerOnly, cfg, links, map[string]string{"docker-full-id": "radarr"}, desktopInfraLiveness{})
 	wantOldDockerLinks := []infra.AppLink{
 		{App: "network-cameras", TargetID: "front-door"},
 		{App: "meshcore", TargetID: "conversation-1"},
@@ -652,7 +652,7 @@ func TestDesktopInfraProjectionValidatesAppLinksAndUsesOnlyCurrentSources(t *tes
 		stale.Sources[i].State = infra.SourceStale
 	}
 	stale.Profile.Custom = map[string]string{"action": "restart", "target": "network-cameras/front-door"}
-	projected = desktopInfraProjectNode(stale, cfg, links, map[string]string{"docker-full-id": "radarr"})
+	projected = desktopInfraProjectNode(stale, cfg, links, map[string]string{"docker-full-id": "radarr"}, desktopInfraLiveness{})
 	wantStaleLinks := []infra.AppLink{
 		{App: "network-cameras", TargetID: "front-door"},
 		{App: "meshcore", TargetID: "conversation-1"},
@@ -676,7 +676,7 @@ func TestDesktopInfraActionProjectionBlocksStaleAndProtectedSources(t *testing.T
 		SourceIdentity: infra.SourceIdentity{Kind: "docker", Instance: desktopInfraDockerInstance(cfg), Key: "managed"},
 		State:          infra.SourceCurrent, Observed: infra.SourceObserved{Protected: true},
 	}}}
-	projected := desktopInfraProjectNode(protected, cfg, nil, nil)
+	projected := desktopInfraProjectNode(protected, cfg, nil, nil, desktopInfraLiveness{})
 	if len(projected.AvailableActions) != 0 || projected.ActionReasons["start"] != "managed_container" {
 		t.Fatalf("protected Docker projection = actions %#v reasons %#v", projected.AvailableActions, projected.ActionReasons)
 	}
@@ -687,7 +687,7 @@ func TestDesktopInfraActionProjectionBlocksStaleAndProtectedSources(t *testing.T
 	oldSource := infra.Node{Sources: []infra.Source{{
 		SourceIdentity: infra.SourceIdentity{Kind: "docker", Instance: "old-docker-instance", Key: "ordinary"}, State: infra.SourceCurrent,
 	}}}
-	projected = desktopInfraProjectNode(oldSource, cfg, nil, nil)
+	projected = desktopInfraProjectNode(oldSource, cfg, nil, nil, desktopInfraLiveness{})
 	if len(projected.AvailableActions) != 0 || projected.ActionReasons["start"] != "source_disabled" {
 		t.Fatalf("old-instance Docker projection = actions %#v reasons %#v", projected.AvailableActions, projected.ActionReasons)
 	}
@@ -706,7 +706,7 @@ func TestDesktopInfraActionProjectionBlocksStaleAndProtectedSources(t *testing.T
 		{SourceIdentity: infra.SourceIdentity{Kind: "docker", Instance: desktopInfraDockerInstance(cfg), Key: "container-a"}, State: infra.SourceCurrent},
 		{SourceIdentity: infra.SourceIdentity{Kind: "docker", Instance: desktopInfraDockerInstance(cfg), Key: "container-b"}, State: infra.SourceCurrent},
 	}}
-	projected = desktopInfraProjectNode(ambiguous, cfg, nil, nil)
+	projected = desktopInfraProjectNode(ambiguous, cfg, nil, nil, desktopInfraLiveness{})
 	if len(projected.AvailableActions) != 0 || len(projected.SourceActions) != 0 {
 		t.Fatalf("ambiguous source identities exposed actions: %#v / %#v", projected.AvailableActions, projected.SourceActions)
 	}
@@ -807,21 +807,21 @@ func TestDesktopInfraProjectPowerUsesOnlyCurrentAgreement(t *testing.T) {
 		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "a"}, State: infra.SourceCurrent, Observed: infra.SourceObserved{Power: infra.PowerRunning}},
 		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "b"}, State: infra.SourceCurrent, Observed: infra.SourceObserved{Power: infra.PowerStopped}},
 	}}
-	projected := desktopInfraProjectNode(conflict, cfg, nil, nil)
+	projected := desktopInfraProjectNode(conflict, cfg, nil, nil, desktopInfraLiveness{})
 	if projected.Power != infra.PowerUnknown {
 		t.Fatalf("conflicting current power = %q", projected.Power)
 	}
 	stale := infra.Node{Sources: []infra.Source{
 		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "a"}, State: infra.SourceStale, Observed: infra.SourceObserved{Power: infra.PowerRunning}},
 	}}
-	projected = desktopInfraProjectNode(stale, cfg, nil, nil)
+	projected = desktopInfraProjectNode(stale, cfg, nil, nil, desktopInfraLiveness{})
 	if projected.Power != "" {
 		t.Fatalf("stale power = %q", projected.Power)
 	}
 	stopped := infra.Node{Sources: []infra.Source{
 		{SourceIdentity: infra.SourceIdentity{Kind: "registry", Instance: "inventory", Key: "a"}, State: infra.SourceCurrent, Observed: infra.SourceObserved{Power: infra.PowerStopped}},
 	}}
-	projected = desktopInfraProjectNode(stopped, cfg, nil, nil)
+	projected = desktopInfraProjectNode(stopped, cfg, nil, nil, desktopInfraLiveness{})
 	if projected.Power != infra.PowerStopped {
 		t.Fatalf("current stopped power = %q", projected.Power)
 	}

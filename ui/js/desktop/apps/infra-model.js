@@ -39,6 +39,14 @@
         const states = (node.sources || []).map(source => source.state);
         return states.includes('current') ? 'current' : states.includes('stale') ? 'stale' : states.includes('unknown') ? 'unknown' : states.includes('removed') ? 'removed' : 'manual';
     };
+    const LIVES = new Set(['live', 'offline', 'unknown']);
+    // liveState reads the reachability the server projects: live, offline or
+    // unknown. An asset without a signal has no state at all and shows nothing.
+    const liveState = node => {
+        const live = node?.live;
+        return LIVES.has(live) ? live : '';
+    };
+    const liveLabelKey = live => LIVES.has(live) ? `desktop.infra_live_${live}` : '';
     const visibleByCollapsed = (nodes, collapsed) => {
         const byParent = new Map();
         for (const node of nodes) if (node.parent_id) { const children = byParent.get(node.parent_id) || []; children.push(node); byParent.set(node.parent_id, children); }
@@ -919,6 +927,7 @@
     }).filter(item => item.reasons.length).sort((a, b) => naturalCompare(a.node.name, b.node.name) || String(a.node.id).localeCompare(String(b.node.id))).map(item => ({ id: item.node.id, reasons: item.reasons }));
     window.InfraAppModel = {
         esc, clone, iconId, iconURL, assetURL, iconLabelKey, sourceActions, sourceIdentity, virtualSlice, sourceState,
+        liveState, liveLabelKey,
         visibleByCollapsed, isPlaced, validCIDR, validHTTPLink, iconIds: () => [...ICON_LIST],
         acceptsIcon, rememberIcon, versionedAsset, containerKinds: () => [...CONTAINER_KINDS], isContainer, powerLabel,
         edgeSegment, edgeCurve, edgeCaption, edgeLabelClash, gridPositions, snapshotStamp,

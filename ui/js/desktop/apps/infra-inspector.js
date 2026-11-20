@@ -83,6 +83,8 @@
             const dirty = state.dirty.has(node.id), write = canWrite();
             const stateName = sourceState(node), crumbs = model.placePath(node.id, store.nodeById);
             const powerKey = node.power ? model.powerLabel(node.power) : '';
+            const live = model.liveState(node);
+            const livePill = live ? `<span class="infra-live-pill" data-live="${esc(live)}"><i></i>${esc(t(model.liveLabelKey(live)))}</span>` : '';
             const link = (node.app_links || []).find(item => model.APP_LINK_TARGETS.has(item.app));
             const quick = link
                 ? `<button type="button" class="infra-button infra-button-primary" data-action="open-first-app" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(model.fill(t('desktop.infra_open_in_app'), { app: appLabel(link.app) }))}</button>`
@@ -100,7 +102,7 @@
       <h2 class="infra-head-title" id="${titleId}">${name}</h2>
       <input class="infra-head-name-input" data-node-field="name" form="infra-detail-form-${S}" value="${esc(draft.name)}" maxlength="120" required autocomplete="off" aria-label="${esc(t('desktop.infra_name'))}" hidden${write ? '' : ' readonly'}>
       <div class="infra-head-meta"><span>${esc(app.labelForKind(node.kind))}</span>${crumbs.length ? `<nav class="infra-crumbs" aria-label="${esc(t('desktop.infra_place'))}"><ol>${crumbs.map(crumb => `<li><button type="button" data-crumb="${esc(crumb.id)}">${esc(crumb.name)}</button></li>`).join('')}</ol></nav>` : ''}</div>
-      <p class="infra-head-pills"><span class="infra-state-pill" data-state="${esc(stateName)}"><i></i>${esc(app.statusLabel(stateName))}</span>${powerKey ? `<span class="infra-power-pill" data-power="${esc(node.power)}">${esc(t(powerKey))}</span>` : ''}${quick}</p>
+      <p class="infra-head-pills"><span class="infra-state-pill" data-state="${esc(stateName)}"><i></i>${esc(app.statusLabel(stateName))}</span>${livePill}${powerKey ? `<span class="infra-power-pill" data-power="${esc(node.power)}">${esc(t(powerKey))}</span>` : ''}${quick}</p>
     </div>
     <div class="infra-head-actions"><button type="button" class="infra-cmd-icon" data-action="node-more" aria-haspopup="menu" aria-label="${esc(t('desktop.infra_more_actions'))}" title="${esc(t('desktop.infra_more_actions'))}">${app.glyph('more')}</button>${closeButton()}</div>
   </header>

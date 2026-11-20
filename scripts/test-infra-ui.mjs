@@ -25,6 +25,17 @@ assert.deepEqual(Array.from(model.sourceActions('fritzbox')), ['wake']);
 assert.equal(model.sourceIdentity({ kind: 'docker', instance: 'engine-a', key: 'protected-container' }), 'infra_ZG9ja2VyAGVuZ2luZS1hAHByb3RlY3RlZC1jb250YWluZXI');
 assert.equal(model.sourceState({ sources: [{ state: 'stale' }, { state: 'current' }] }), 'current');
 assert.equal(model.sourceState({ sources: [{ state: 'removed' }] }), 'removed');
+// The live state is the reachability the server projects: live, offline or unknown. An asset without a signal has no state.
+assert.equal(model.liveState({ live: 'live' }), 'live');
+assert.equal(model.liveState({ live: 'offline' }), 'offline');
+assert.equal(model.liveState({ live: 'unknown' }), 'unknown');
+assert.equal(model.liveState({ live: 'surprise' }), '');
+assert.equal(model.liveState({}), '');
+assert.equal(model.liveState(undefined), '');
+assert.equal(model.liveLabelKey('live'), 'desktop.infra_live_live');
+assert.equal(model.liveLabelKey('offline'), 'desktop.infra_live_offline');
+assert.equal(model.liveLabelKey('unknown'), 'desktop.infra_live_unknown');
+assert.equal(model.liveLabelKey('surprise'), '');
 assert.equal(model.iconLabelKey('disk-shelf'), 'desktop.infra_icon_disk_shelf');
 assert.equal(model.validCIDR('192.168.10.0/24'), true);
 assert.equal(model.validCIDR('192.168.10.0/44'), false);

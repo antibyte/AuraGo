@@ -62,13 +62,15 @@
             const powerKey = model.powerLabel(node.power);
             const power = powerKey ? `<span class="infra-power-pill" data-power="${esc(node.power)}">${esc(t(powerKey))}</span>` : '—';
             const nodeState = model.sourceState(node);
+            const live = model.liveState(node);
+            const liveLabel = live ? t(model.liveLabelKey(live)) : '';
             const place = memo.placeOf(node.id) || '—';
             const disclosure = row.guests
                 ? `<button type="button" class="infra-library-disclosure" data-row-expand="${id}" aria-expanded="${row.expanded}" aria-label="${esc(model.fill(row.expanded ? t('desktop.infra_hide_guests') : t('desktop.infra_show_guests'), { name: node.name }))}">${app.glyph('chevron')}</button>`
                 : '<span class="infra-disclosure-spacer" aria-hidden="true"></span>';
             return `<tr data-row="${id}" data-depth="${row.depth}" class="${selected ? 'is-selected' : ''}${row.context ? ' is-context' : ''}">`
                 + `<td class="infra-col-check"><input type="checkbox" data-row-check="${id}" aria-label="${esc(model.fill(t('desktop.infra_select_row'), { name: node.name }))}"${selected ? ' checked' : ''}></td>`
-                + `<td class="infra-col-name"><div class="infra-table-name-cell" style="--infra-depth:${row.depth}">${disclosure}<button type="button" class="infra-table-name" data-select="${id}" aria-current="${selected ? 'true' : 'false'}" title="${name}">${app.icon(node.icon)}<span>${name}</span>${row.guests ? `<small class="infra-library-count">${row.guests}</small>` : ''}</button></div></td>`
+                + `<td class="infra-col-name"><div class="infra-table-name-cell" style="--infra-depth:${row.depth}">${disclosure}<button type="button" class="infra-table-name" data-select="${id}" aria-current="${selected ? 'true' : 'false'}" title="${name}"><i class="infra-table-icon" aria-hidden="true">${app.icon(node.icon)}${live ? `<i class="infra-live-dot" data-live="${esc(live)}"></i>` : ''}</i><span>${name}</span>${row.guests ? `<small class="infra-library-count">${row.guests}</small>` : ''}</button>${liveLabel ? `<span class="infra-sr-only">· ${esc(liveLabel)}</span>` : ''}</div></td>`
                 + `<td>${esc(app.labelForKind(node.kind))}</td><td title="${esc(place)}">${esc(place)}</td><td class="infra-col-address">${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td>`
                 + `<td>${esc([node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ') || '—')}</td><td>${esc(memo.sourceOf(node) || t('desktop.infra_manual'))}</td>`
                 + `<td><span class="infra-state-pill" data-state="${esc(nodeState)}"><i></i>${esc(app.statusLabel(nodeState))}</span></td><td>${power}</td></tr>`;

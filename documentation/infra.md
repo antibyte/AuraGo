@@ -81,6 +81,27 @@ use **Refresh** to retry. A paused status is not a device error.
 Use the clear button in the search field to remove only the search text and keep your filters. The reset action in
 the status bar clears the search and all filters together. It appears only while a search or filter is active.
 
+## Reachability
+
+Every asset carries a reachability indicator next to its icon: green while the asset answers, red while it is
+known to be down and grey while the state is unknown. An asset without any signal shows no dot at all. The map
+and the List view show the dot on the icon, the inspector names the state next to the source status, and the
+legend explains the three states.
+
+Two sources feed the state:
+
+- what a source already knows, such as a running guest or container, an active FRITZ!Box host or a stopped one;
+- a probe of the address of the asset: one ICMP echo request, plus a TCP connect on the ports 22, 80 and 443
+  when the echo is blocked by a firewall.
+
+The probe runs with every source refresh, at most once per minute, and covers at most 64 addresses within a
+twelve-second budget. The addresses of the AuraGo host itself are never probed, and a place (site, room, rack,
+group) is never probed. A provider that knows the state of an asset wins over the probe, except when the asset
+answers: an asset that answers is live.
+
+The probe sends read-only network requests to the addresses of your own inventory. It needs no extra grant and
+runs while Infra is enabled.
+
 ## Source edits and actions
 
 | Source | Editable source metadata | Control |

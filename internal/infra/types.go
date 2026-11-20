@@ -38,6 +38,7 @@ type Node struct {
 	AvailableActions    []string                     `json:"available_actions"`
 	AppLinks            []AppLink                    `json:"app_links"`
 	Power               string                       `json:"power,omitempty"`
+	Live                string                       `json:"live,omitempty"`
 	ActionReasons       map[string]string            `json:"action_reasons,omitempty"`
 	SourceActions       map[string][]string          `json:"source_actions,omitempty"`
 	SourceActionReasons map[string]map[string]string `json:"source_action_reasons,omitempty"`
@@ -116,6 +117,14 @@ const (
 	PowerStopped = "stopped"
 	PowerPaused  = "paused"
 	PowerUnknown = "unknown"
+)
+
+// Live is the reachability projection of a node: it answers whether the asset
+// answers right now. It is a runtime projection like Power and is never stored.
+const (
+	LiveLive    = "live"
+	LiveOffline = "offline"
+	LiveUnknown = "unknown"
 )
 
 type SourceIdentity struct {

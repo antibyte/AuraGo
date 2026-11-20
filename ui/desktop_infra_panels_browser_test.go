@@ -393,13 +393,13 @@ func TestDesktopInfraMenusAndShortcutsBrowser(t *testing.T) {
 	page.Timeout(5 * time.Second).MustEval(`async()=>{await infraShortcutsClosed;}`)
 	page.MustWait(`()=>!document.querySelector('[data-dialog]').open`)
 
-	// The legend: More > Legend shows the status, power and connection keys and takes the focus.
+	// The legend: More > Legend shows the status, live, power and connection keys and takes the focus.
 	page.MustEval(`()=>document.querySelector('[data-action="more"]').click()`)
 	page.MustWait(`()=>!document.querySelector('[data-menu="more"]').hidden`)
 	page.MustEval(`()=>document.querySelector('[data-menu="more"] [data-action="legend"]').click()`)
 	page.MustWait(`()=>!document.querySelector('[data-popover="legend"]').hidden&&document.activeElement===document.querySelector('[data-popover="legend"]')`)
-	if got := page.MustEval(`()=>[document.querySelectorAll('.infra-legend-ring').length,document.querySelectorAll('.infra-legend-dot').length,document.querySelectorAll('.infra-legend-line').length].join()`).Str(); got != "5,3,5" {
-		t.Fatalf("legend has %s status, power and connection keys; want 5,3,5", got)
+	if got := page.MustEval(`()=>[document.querySelectorAll('.infra-legend-ring').length,document.querySelectorAll('.infra-legend-dot[data-power]').length,document.querySelectorAll('.infra-legend-dot[data-live]').length,document.querySelectorAll('.infra-legend-line').length].join()`).Str(); got != "5,3,3,5" {
+		t.Fatalf("legend has %s status, power, live and connection keys; want 5,3,3,5", got)
 	}
 	// A29: the legend says that Topology shows power and dependency connections on demand.
 	if want := infraGermanWord(t, "desktop.infra_legend_quiet_connections"); page.MustEval(`()=>document.querySelector('.infra-legend-note')?.textContent.trim()||''`).Str() != want {
