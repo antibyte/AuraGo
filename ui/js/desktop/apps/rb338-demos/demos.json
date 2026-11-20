@@ -1,0 +1,56 @@
+[
+  {
+    "id": "acid-sunrise",
+    "title": "Acid Sunrise",
+    "style": "Acid house",
+    "bpm": 124,
+    "bars": 64,
+    "file": "acid-sunrise.rbs",
+    "seconds": 123.9
+  },
+  {
+    "id": "midnight-platform",
+    "title": "Midnight Platform",
+    "style": "Deep techno",
+    "bpm": 128,
+    "bars": 64,
+    "file": "midnight-platform.rbs",
+    "seconds": 120
+  },
+  {
+    "id": "plastic-circuits",
+    "title": "Plastic Circuits",
+    "style": "Electro breakbeat",
+    "bpm": 118,
+    "bars": 64,
+    "file": "plastic-circuits.rbs",
+    "seconds": 130.2
+  },
+  {
+    "id": "iron-voltage",
+    "title": "Iron Voltage",
+    "style": "Hard acid techno",
+    "bpm": 138,
+    "bars": 72,
+    "file": "iron-voltage.rbs",
+    "seconds": 125.2
+  },
+  {
+    "id": "subwoofer-sunset",
+    "title": "Subwoofer Sunset",
+    "style": "Miami bass",
+    "bpm": 100,
+    "bars": 56,
+    "file": "subwoofer-sunset.rbs",
+    "seconds": 134.4
+  },
+  {
+    "id": "dub-station-zero",
+    "title": "Dub Station Zero",
+    "style": "Minimal dub",
+    "bpm": 122,
+    "bars": 64,
+    "file": "dub-station-zero.rbs",
+    "seconds": 125.9
+  }
+]

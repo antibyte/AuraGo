@@ -229,9 +229,47 @@ async function wasmSection() {
     console.log('rb338 wasm: ok');
 }
 
+// The demo songs (scripts/rb338-demos, built by scripts/build-rb338-demos.mjs) load in the vendored
+// engine, open in song mode with the loop over the whole song, and are what the build script makes.
+async function demosSection() {
+    const { buildAll, OUT_DIR, SONGS } = await import('./build-rb338-demos.mjs');
+    const { openEngine } = await import('./rb338-demos/lib.mjs');
+    const manifest = JSON.parse(fs.readFileSync(OUT_DIR + '/demos.json', 'utf8'));
+    assert.deepEqual(manifest.map((d) => d.id), SONGS);
+    assert.ok(manifest.length >= 6, 'six demo songs');
+    assert.equal(new Set(manifest.map((d) => d.title)).size, manifest.length, 'unique titles');
+    const engine = await openEngine();
+    try {
+        for (const d of manifest) {
+            assert.deepEqual(Object.keys(d), ['id', 'title', 'style', 'bpm', 'bars', 'file', 'seconds']);
+            assert.ok(d.bpm >= 90 && d.bpm <= 160, d.id + ' bpm');
+            assert.ok(Math.abs(d.seconds - d.bars * 240 / d.bpm) < 0.1, d.id + ' seconds');
+            assert.ok(d.seconds >= 90 && d.seconds <= 180, d.id + ' length ' + d.seconds);
+            const bytes = fs.readFileSync(OUT_DIR + '/' + d.file);
+            assert.equal(bytes.toString('latin1', 0, 4), 'CAT ', d.id + ' is an RBS file');
+            assert.equal(engine.load(bytes), 0, d.id + ' loads');
+            assert.equal(engine.info().title, d.title);
+            const snap = M.decodeSnapshot(new Uint8Array(engine.x.memory.buffer.slice(engine.x.orb_snapshot(engine.h), engine.x.orb_snapshot(engine.h) + M.SNAPSHOT_SIZE)));
+            assert.ok(snap.songMode && snap.loopOn, d.id + ' opens in song mode with the loop on');
+            assert.deepEqual([snap.loopStart, snap.loopEnd, snap.tempo], [0, d.bars * M.BAR, d.bpm * 1000], d.id + ' loop range and tempo');
+            assert.equal(Buffer.compare(engine.save(), bytes), 0, d.id + ' saves back to the same bytes');
+        }
+    } finally {
+        engine.destroy();
+    }
+    // --check: rebuilding every song (which also renders each one, and checks length, headroom and
+    // silence) gives the committed files
+    const { files } = await buildAll();
+    for (const [name, bytes] of files) {
+        assert.equal(Buffer.compare(fs.readFileSync(OUT_DIR + '/' + name), bytes), 0, name + ' is up to date');
+    }
+    console.log('rb338 demos: ok (' + manifest.length + ' songs)');
+}
+
 async function main() {
     await modelSection();
     await wasmSection();
+    await demosSection();
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
