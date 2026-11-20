@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "重新启动",
   "synthStudio.rb_new": "新建歌曲",
   "synthStudio.rb_open": "打开歌曲",
+  "synthStudio.rb_demos": "演示",
+  "synthStudio.rb_demos_failed": "无法加载演示歌曲。",
   "synthStudio.rb_save": "保存歌曲",
   "synthStudio.rb_export_wav": "导出 WAV",
   "synthStudio.rb_send_arrange": "发送到 Arrange",

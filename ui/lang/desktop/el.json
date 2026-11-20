@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Επανεκκίνηση",
   "synthStudio.rb_new": "Νέο τραγούδι",
   "synthStudio.rb_open": "Άνοιγμα τραγουδιού",
+  "synthStudio.rb_demos": "Demo",
+  "synthStudio.rb_demos_failed": "Δεν ήταν δυνατή η φόρτωση των demo.",
   "synthStudio.rb_save": "Αποθήκευση τραγουδιού",
   "synthStudio.rb_export_wav": "Εξαγωγή WAV",
   "synthStudio.rb_send_arrange": "Αποστολή στο Arrange",

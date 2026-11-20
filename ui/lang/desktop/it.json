@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Riavvia",
   "synthStudio.rb_new": "Nuovo brano",
   "synthStudio.rb_open": "Apri brano",
+  "synthStudio.rb_demos": "Demo",
+  "synthStudio.rb_demos_failed": "Impossibile caricare i brani demo.",
   "synthStudio.rb_save": "Salva brano",
   "synthStudio.rb_export_wav": "Esporta WAV",
   "synthStudio.rb_send_arrange": "Invia ad Arrange",

@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Genstart",
   "synthStudio.rb_new": "Ny sang",
   "synthStudio.rb_open": "Åbn sang",
+  "synthStudio.rb_demos": "Demoer",
+  "synthStudio.rb_demos_failed": "Demoerne kunne ikke indlæses.",
   "synthStudio.rb_save": "Gem sang",
   "synthStudio.rb_export_wav": "Eksportér WAV",
   "synthStudio.rb_send_arrange": "Send til Arrange",

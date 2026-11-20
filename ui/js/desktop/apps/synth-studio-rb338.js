@@ -88,8 +88,11 @@
             [1, 2, 4, 8, 16].map(n => '<option value="' + n + '"' + (n === 4 ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>';
         const patMenu = '<span class="ss-rb-patmenu" role="group" aria-label="' + E(tr('rb_pattern_menu')) + '">' +
             tbtn('rb-cut', 'rb_cut') + tbtn('rb-copy', 'rb_copy') + tbtn('rb-paste', 'rb_paste') + tbtn('rb-duplicate', 'rb_duplicate') + tbtn('rb-undo', 'rb_undo') + '</span>';
+        const demosMarkup = '<span class="ss-rb-demos" data-rb-demos>' +
+            '<button type="button" class="ss-rb-tool" data-action="rb-demos" aria-haspopup="menu" aria-expanded="false" disabled><span>' + E(tr('rb_demos')) + '</span></button>' +
+            '<div class="ss-rb-demomenu" role="menu" aria-label="' + E(tr('rb_demos')) + '" hidden></div></span>';
         const toolbar = '<div class="ss-rb-toolbar" role="toolbar" aria-label="RB-338">' +
-            tbtn('rb-new', 'rb_new') + tbtn('rb-open', 'rb_open') + tbtn('rb-save', 'rb_save') + tbtn('rb-export', 'rb_export_wav') + barsSel + tbtn('rb-send-arrange', 'rb_send_arrange', 'is-primary') +
+            tbtn('rb-new', 'rb_new') + tbtn('rb-open', 'rb_open') + demosMarkup + tbtn('rb-save', 'rb_save') + tbtn('rb-export', 'rb_export_wav') + barsSel + tbtn('rb-send-arrange', 'rb_send_arrange', 'is-primary') +
             patMenu + '<output class="ss-rb-docstate" data-rb-docstate role="status"></output>' +
             '<span class="ss-rb-toolgap"></span>' +
             '<button type="button" class="ss-rb-tool" data-action="rb-keys" aria-pressed="false" disabled><i class="ss-rb-led" aria-hidden="true"></i><span>' + E(tr('rb_keys')) + '</span></button>' +
@@ -1080,6 +1083,7 @@
             try { res = await host.load(bytes); } catch (_) { say(tr('rb_err_memory')); return false; }
             if (!res || res.ok === false) { say(tr(LOAD_ERR[res && res.code] || 'rb_err_not_song')); return false; }
             docName = String(name || '').replace(/\.rbs$/i, '');
+            titleLock = '';
             say('');
             return true;
         }
@@ -1107,7 +1111,7 @@
             if (!ready()) return;
             if (!(await confirmReplace('rb_new'))) return;
             dropPending();
-            try { await host.newSong(); docName = ''; say(''); } catch (_) { say(tr('rb_err_memory')); }
+            try { await host.newSong(); docName = ''; titleLock = ''; say(''); } catch (_) { say(tr('rb_err_memory')); }
         }
         async function saveSong() {
             if (!ready()) return;
@@ -1328,10 +1332,12 @@
         function renderToolbar() {
             const paste = $('[data-action="rb-paste"]'), und = $('[data-action="rb-undo"]');
             if (paste) { const d = !clip || rowKind(clip.row) !== rowKind(focusRow); if (paste._d !== d) { paste._d = d; paste.disabled = d; } }
+            const dm = $('[data-action="rb-demos"]');
+            if (dm) { const d = !ready() || demoBusy; if (dm._d !== d) { dm._d = d; dm.disabled = d; if (d) closeDemos(false); } }
             if (und) { const d = !undo; if (und._d !== d) { und._d = d; und.disabled = d; } }
             const st = $('[data-rb-docstate]');
             if (st) {
-                const name = (info && info.title ? String(info.title) : '') || docName;
+                const name = titleLock || (info && info.title ? String(info.title) : '') || docName;
                 setText(st, (name ? name + ' \u00b7 ' : '') + (modified ? tr('rb_unsaved') : autoSavedAt ? tr('rb_autosaved') : ''));
             }
             const bars = $('[data-rb-bars]');
@@ -1342,9 +1348,115 @@
             if (t && t.matches && t.matches('[data-rb-bars]')) { exportBars = Number(t.value) || 4; }
         });
 
+        // ---- demo songs menu --------------------------------------------------------------------
+        let titleLock = '', demoBusy = false, demoList = null, demoOpen = false, demoLoading = null;
+        const demoBtn = () => $('[data-action="rb-demos"]');
+        const demoMenu = () => $('.ss-rb-demomenu');
+        const demoVersioned = url => {
+            const lazy = root.AuraLazyAssets;
+            if (lazy && typeof lazy.versionedURL === 'function') return lazy.versionedURL(url);
+            return url + '?v=' + encodeURIComponent(root.BUILD_VERSION || 'dev');
+        };
+        const DEMO_BASE = '/js/desktop/apps/rb338-demos/';
+        function loadDemoList() {
+            if (demoList) return Promise.resolve(demoList);
+            if (!demoLoading) {
+                demoLoading = fetch(demoVersioned(DEMO_BASE + 'demos.json'), { signal: sig }).then(r => {
+                    if (!r.ok) throw new Error('http ' + r.status);
+                    return r.json();
+                }).then(list => {
+                    if (!Array.isArray(list) || !list.length) throw new Error('empty');
+                    demoList = list;
+                    return list;
+                }).finally(() => { demoLoading = null; });
+            }
+            return demoLoading;
+        }
+        function demoItems() { const m = demoMenu(); return m ? Array.prototype.slice.call(m.querySelectorAll('[role=menuitem]')) : []; }
+        function closeDemos(refocus) {
+            const m = demoMenu(), b = demoBtn();
+            demoOpen = false;
+            if (m) m.hidden = true;
+            if (b) b.setAttribute('aria-expanded', 'false');
+            if (refocus && b && !b.disabled) b.focus();
+        }
+        async function toggleDemos() {
+            if (demoOpen) { closeDemos(true); return; }
+            if (!ready() || demoBusy) return;
+            const m = demoMenu(), b = demoBtn();
+            if (!m || !b) return;
+            try { await loadDemoList(); } catch (_) { if (!disposed) say(tr('rb_demos_failed')); return; }
+            if (disposed || !ready() || demoOpen) return;
+            m.textContent = '';
+            demoList.forEach((d, i) => {
+                const it = document.createElement('button');
+                it.type = 'button';
+                it.setAttribute('role', 'menuitem');
+                it.tabIndex = -1;
+                it.dataset.demo = String(i);
+                const t = document.createElement('b');
+                t.textContent = String(d.title || '');
+                const sub = document.createElement('small');
+                sub.textContent = [d.style, d.bpm ? d.bpm + ' BPM' : ''].filter(Boolean).join(' \u00b7 ');
+                it.appendChild(t);
+                it.appendChild(sub);
+                m.appendChild(it);
+            });
+            m.hidden = false;
+            demoOpen = true;
+            b.setAttribute('aria-expanded', 'true');
+            const first = demoItems()[0];
+            if (first) first.focus();
+        }
+        async function playDemo(d) {
+            if (!d || !d.file || demoBusy || !ready()) return;
+            closeDemos(true);
+            demoBusy = true;
+            section.dataset.rbBusy = 'demo';
+            renderToolbar();
+            try {
+                let bytes;
+                try {
+                    const r = await fetch(demoVersioned(DEMO_BASE + String(d.file).replace(/^\/+/, '')), { signal: sig });
+                    if (!r.ok) throw new Error('http ' + r.status);
+                    bytes = new Uint8Array(await r.arrayBuffer());
+                } catch (_) { if (!disposed) say(tr('rb_demos_failed')); return; }
+                if (disposed || !(await confirmReplace('rb_demos'))) return;
+                if (await openBytes(bytes, String(d.title || ''))) { titleLock = String(d.title || ''); modified = false; renderToolbar(); }
+            } finally {
+                demoBusy = false;
+                section.removeAttribute('data-rb-busy');
+                if (!disposed) renderToolbar();
+            }
+        }
+        on(section, 'keydown', e => {
+            if (!demoOpen) return;
+            const items = demoItems();
+            const i = items.indexOf(document.activeElement);
+            let n = -1;
+            if (e.key === 'ArrowDown') n = (i + 1) % items.length;
+            else if (e.key === 'ArrowUp') n = (i <= 0 ? items.length : i) - 1;
+            else if (e.key === 'Home') n = 0;
+            else if (e.key === 'End') n = items.length - 1;
+            else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeDemos(true); return; }
+            else if (e.key === 'Tab') { closeDemos(false); return; }
+            else return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (items[n]) items[n].focus();
+        });
+        on(section, 'click', e => {
+            const it = e.target.closest ? e.target.closest('.ss-rb-demomenu [role=menuitem]') : null;
+            if (it && demoList) playDemo(demoList[Number(it.dataset.demo)]);
+        });
+        on(document, 'pointerdown', e => {
+            if (demoOpen && !(e.target.closest && e.target.closest('[data-rb-demos]'))) closeDemos(false);
+        });
+
         // toolbar actions
         setAction('rb-new', newSong);
         setAction('rb-open', pickFile);
+        setAction('rb-demos', toggleDemos);
         setAction('rb-save', saveSong);
         setAction('rb-export', exportWav);
         if (typeof o.sendToArrange === 'function') setAction('rb-send-arrange', sendToArrange);

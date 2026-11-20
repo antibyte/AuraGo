@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "再起動",
   "synthStudio.rb_new": "新規ソング",
   "synthStudio.rb_open": "ソングを開く",
+  "synthStudio.rb_demos": "デモ",
+  "synthStudio.rb_demos_failed": "デモ曲を読み込めませんでした。",
   "synthStudio.rb_save": "ソングを保存",
   "synthStudio.rb_export_wav": "WAV を書き出す",
   "synthStudio.rb_send_arrange": "Arrange に送る",

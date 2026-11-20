@@ -269,3 +269,18 @@
 /* drum steps paint under a dragging pointer: no scroll or text selection */
 .ss-rb-steps.is-drum { touch-action: none; user-select: none; -webkit-user-select: none; }
 .ss-rb-legend { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+/* ---- demo songs menu ---- */
+.ss-rb-demos { position: relative; display: inline-flex; }
+.ss-rb-demomenu {
+    position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 232px; display: flex; flex-direction: column; gap: 2px; padding: 4px;
+    background: var(--ss-card); border: 1px solid var(--ss-card-border); border-radius: 6px; box-shadow: var(--ss-edge), 0 10px 26px rgba(0, 0, 0, .5);
+}
+.ss-rb-demomenu[hidden] { display: none; }
+.ss-rb-demomenu > button {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 7px 10px; text-align: left; cursor: pointer;
+    color: var(--ss-ink); background: transparent; border: 0; border-radius: 4px; font: inherit;
+}
+.ss-rb-demomenu > button b { font: 600 12.5px/1.2 var(--ss-label-font); letter-spacing: .04em; }
+.ss-rb-demomenu > button small { font-size: 11px; color: var(--ss-ink-soft); }
+.ss-rb-demomenu > button:hover, .ss-rb-demomenu > button:focus-visible { background: rgba(255, 255, 255, .07); outline: 1px solid var(--ss-phosphor); outline-offset: -1px; }

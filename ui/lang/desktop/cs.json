@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Restartovat",
   "synthStudio.rb_new": "Nová skladba",
   "synthStudio.rb_open": "Otevřít skladbu",
+  "synthStudio.rb_demos": "Ukázky",
+  "synthStudio.rb_demos_failed": "Ukázky se nepodařilo načíst.",
   "synthStudio.rb_save": "Uložit skladbu",
   "synthStudio.rb_export_wav": "Exportovat WAV",
   "synthStudio.rb_send_arrange": "Odeslat do Arrange",

@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Reiniciar",
   "synthStudio.rb_new": "Canción nueva",
   "synthStudio.rb_open": "Abrir canción",
+  "synthStudio.rb_demos": "Demos",
+  "synthStudio.rb_demos_failed": "No se pudieron cargar las canciones de demostración.",
   "synthStudio.rb_save": "Guardar canción",
   "synthStudio.rb_export_wav": "Exportar WAV",
   "synthStudio.rb_send_arrange": "Enviar a Arrange",

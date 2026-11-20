@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "फिर से शुरू करें",
   "synthStudio.rb_new": "नया गाना",
   "synthStudio.rb_open": "गाना खोलें",
+  "synthStudio.rb_demos": "डेमो",
+  "synthStudio.rb_demos_failed": "डेमो गाने लोड नहीं हो सके।",
   "synthStudio.rb_save": "गाना सहेजें",
   "synthStudio.rb_export_wav": "WAV निर्यात करें",
   "synthStudio.rb_send_arrange": "Arrange में भेजें",

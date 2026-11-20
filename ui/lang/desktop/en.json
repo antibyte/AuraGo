@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Restart",
   "synthStudio.rb_new": "New song",
   "synthStudio.rb_open": "Open song",
+  "synthStudio.rb_demos": "Demos",
+  "synthStudio.rb_demos_failed": "The demo songs could not be loaded.",
   "synthStudio.rb_save": "Save song",
   "synthStudio.rb_export_wav": "Export WAV",
   "synthStudio.rb_send_arrange": "Send to Arrange",

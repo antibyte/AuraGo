@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Opnieuw starten",
   "synthStudio.rb_new": "Nieuw nummer",
   "synthStudio.rb_open": "Nummer openen",
+  "synthStudio.rb_demos": "Demo's",
+  "synthStudio.rb_demos_failed": "De demonummers konden niet worden geladen.",
   "synthStudio.rb_save": "Nummer opslaan",
   "synthStudio.rb_export_wav": "WAV exporteren",
   "synthStudio.rb_send_arrange": "Naar Arrange sturen",

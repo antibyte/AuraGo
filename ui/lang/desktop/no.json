@@ -200,6 +200,8 @@
   "synthStudio.rb_restart": "Start på nytt",
   "synthStudio.rb_new": "Ny låt",
   "synthStudio.rb_open": "Åpne låt",
+  "synthStudio.rb_demos": "Demoer",
+  "synthStudio.rb_demos_failed": "Demolåtene kunne ikke lastes.",
   "synthStudio.rb_save": "Lagre låt",
   "synthStudio.rb_export_wav": "Eksporter WAV",
   "synthStudio.rb_send_arrange": "Send til Arrange",
