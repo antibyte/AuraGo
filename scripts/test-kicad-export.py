@@ -2,6 +2,7 @@
 import argparse
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -94,10 +95,14 @@ def unit():
 
 
 def live(image, platform):
+    # Run as the caller's uid:gid, as internal/desktop/ziro_export.go does. The job
+    # directory is mode 0700 and owned by the caller, so root with --cap-drop ALL
+    # cannot even read /job/request.json on a Linux runner.
+    user = ["--user", f"{os.getuid()}:{os.getgid()}"] if hasattr(os, "getuid") else []
     for operation in ("probe", "netlist", "manufacturing"):
         with tempfile.TemporaryDirectory() as temp:
             job = Path(temp); prepare(job, operation)
-            result = subprocess.run(["docker", "run", "--rm", "--platform", platform, "--network", "none", "--read-only",
+            result = subprocess.run(["docker", "run", "--rm", "--platform", platform, *user, "--network", "none", "--read-only",
                                      "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true", "--pids-limit", "128",
                                      "--memory", "2g", "--cpus", "2", "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m",
                                      "-v", str(job) + ":/job", image], timeout=300, check=False)
