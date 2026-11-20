@@ -52,6 +52,10 @@ licences/storymaker-colord-LICENSE.txt text eol=lf -whitespace
 ui/fonts/qr/OFL-*.txt text eol=lf -whitespace
 ui/fonts/qr/Go-fonts-LICENSE.txt text eol=lf -whitespace
 ui/js/vendor/** text=auto eol=lf -whitespace
+ui/js/vendor/rb338/*.wasm binary
+ui/js/vendor/rb338/*.rbm binary
+ui/js/vendor/rb338/*.zip binary
+tools/rb338-wasm/tests/data/*.rbs binary
 internal/desktop/bundled_apps/nasscad/** text=auto eol=lf -whitespace
 internal/gamemaker/runtime/three-*.min.js text eol=lf -whitespace
 

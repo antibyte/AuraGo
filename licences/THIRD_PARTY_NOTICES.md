@@ -27,6 +27,27 @@ integration sources, build inputs and version/hash records ship in
 `ui/js/vendor/strudel/LICENSES.md`, `sources.zip` and `manifest.json`.
 Upstream: https://codeberg.org/uzu/strudel. No external sample banks are bundled.
 
+## Synth Studio — OpenRB-338 (RB-338 mode)
+
+The RB-338 engine is the OpenRB-338 crates orb-engine, rbs and rbm
+(GPL-3.0-only, Copyright (C) 2026 the OpenRB-338 authors; upstream
+https://github.com/pingw33n/OpenRB-338 at commit
+0bebfcdfd544b3cdea14536f19fb28a8de314df5), compiled unchanged to WebAssembly.
+AuraGo's RB-338 module (wrapper crate `tools/rb338-wasm`, its JavaScript host,
+worklet, worker, model and panel, and the build script) was added 2026-11-20
+under GPL-3.0-only. The browser combination containing it is distributed under
+the GPL-3.0-only terms; independent MIT sources retain their license, and
+nothing of it is linked into the Go binaries. The complete corresponding source
+(wrapper crate, every vendored dependency, build script and rebuild steps), the
+licence text and the hash records ship in `ui/js/vendor/rb338/sources.zip`,
+`LICENSE.txt`, `LICENSES.md` and `manifest.json`.
+
+`ui/js/vendor/rb338/Standard.rbm` is Propellerhead material: the standard mod of
+ReBirth 2.01 (46 drum samples plus 58 panel JPEGs and the splash screen,
+recrypted standard mod, SHA-256 6355b5f14fc2ebfe7ed9e6e42208f97817f96c5e30ed42fdca4205d3cdab5fbe).
+It is shipped by the project owner's decision of 2026-11-20, with provenance as
+documented in OpenRB-338 `assets/README.md`. The panel images are not displayed.
+
 ## Storymaker renderer
 
 Storymaker locally bundles PixiJS 8.22.0 (MIT, Copyright PixiJS contributors)

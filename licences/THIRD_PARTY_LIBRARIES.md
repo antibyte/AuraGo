@@ -13,6 +13,14 @@ hashes ship in `ui/js/vendor/strudel/`; the workbench links the source ZIP.
 The browser combination containing Strudel follows AGPL terms; independent MIT
 source retains its license, and this JavaScript dependency is not linked into Go.
 
+Synth Studio's RB-338 mode runs the OpenRB-338 engine (orb-engine, rbs, rbm;
+GPL-3.0-only) compiled to WebAssembly, with its drum kit `Standard.rbm`
+(Propellerhead ReBirth 2.01 material, shipped by the owner's decision of
+2026-11-20). Licence texts, source ZIP and pinned hashes ship in
+`ui/js/vendor/rb338/`. The browser combination containing it follows GPL
+terms; independent MIT source retains its license, and this module is not
+linked into Go.
+
 Optional Horizon Labs `prompt-injection-guard-small` (Apache-2.0), revision
 `0e3774536debbcd71dbb8534ef71451b583853b8`: unchanged official quantized ONNX model
 and tokenizer, administrator-initiated download, size/SHA-256 pins in

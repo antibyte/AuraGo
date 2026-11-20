@@ -151,6 +151,7 @@ AuraGo-eigene Oberflächen ohne Fremdcode stehen hier nicht.
 | TeeVee | hls.js 1.7.3, Bootstrap Icons | Apache-2.0, MIT (`ui/img/teevee/ICONS-LICENSE.txt`) |
 | CYD-Flasher | esp-web-tools 10.4.0, esptool-js | Apache-2.0 |
 | Synth Studio | `@tonejs/midi` 2.0.28, Tabellen aus webaudio-tinysynth 1.1.4; Strudel `@strudel/web` 1.3.0 | MIT, Apache-2.0; Strudel-Browserkombination AGPL-3.0-or-later, vollständige Paket-/Integrationsquellen und Lizenztexte unter `ui/js/vendor/strudel/` und Download im Arbeitsbereich |
+| Synth Studio RB-338 | OpenRB-338 (Rust→WebAssembly: orb-engine, rbs, rbm), `Standard.rbm` (ReBirth-2.01-Samples, Propellerhead) | GPL-3.0-only; Samples: Propellerhead-Material, auf Nutzerentscheid mitgeliefert; Quellen, Lizenztext und Hashes unter `ui/js/vendor/rb338/` |
 | RuView | ruview, Copyright 2024 rUv | MIT |
 | Login und City-Rain | CanvasUI | MIT plus Commons Clause |
 | Galaxy-Bedienelemente | Lucide | ISC |

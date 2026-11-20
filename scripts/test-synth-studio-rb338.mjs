@@ -2,6 +2,7 @@
 // RB-338 mode tests. Sections are separate async functions called from main().
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 
 // The package is "type": "module", so load the UMD file as a CommonJS function body.
 const loadUmd = (file) => {
@@ -164,8 +165,71 @@ async function modelSection() {
     console.log('rb338 model: ok');
 }
 
+
+async function wasmSection() {
+    const dir = 'ui/js/vendor/rb338/';
+    const module = await WebAssembly.compile(fs.readFileSync(dir + 'rb338-engine.wasm'));
+    assert.equal(WebAssembly.Module.imports(module).length, 0);
+    const x = (await WebAssembly.instantiate(module, {})).exports;
+    assert.equal(x.orb_abi_version(), 1);
+    // typed-array views are re-created on every access: any call may grow the memory
+    const u8 = () => new Uint8Array(x.memory.buffer);
+    const put = (bytes) => { const p = x.orb_alloc(bytes.length); u8().set(bytes, p); return p; };
+    const kit = fs.readFileSync(dir + 'Standard.rbm');
+    const kp = put(kit);
+    const h = x.orb_create(kp, kit.length);
+    assert.notEqual(h, 0, 'orb_create failed, error ' + x.orb_last_error());
+    x.orb_free(kp, kit.length);
+
+    // wasm == native, bit for bit: the song-mode export hashes the OpenRB-338 corpus WAV
+    const readme = fs.readFileSync('tools/rb338-wasm/tests/data/README.md', 'utf8');
+    for (const name of ['909_bass', '303_slide']) {
+        const row = readme.split('\n').find((line) => line.includes('`' + name + '.rbs`'));
+        const want = /`([0-9a-f]{64})`/.exec(row)[1];
+        const song = fs.readFileSync('tools/rb338-wasm/tests/data/' + name + '.rbs');
+        const sp = put(song);
+        const r = x.orb_export_wav(h, sp, song.length, 0, 0, 9088);
+        x.orb_free(sp, song.length);
+        assert.ok(r >= 0, name + ' export failed: ' + r);
+        const wav = Buffer.from(u8().slice(x.orb_io_ptr(h), x.orb_io_ptr(h) + x.orb_io_len(h)));
+        assert.equal(wav.length, 44 + 176400 * 4);
+        assert.equal(createHash('sha256').update(wav).digest('hex'), want, name + ' WAV hash');
+    }
+
+    // live path: load a song, push "play", render non-silent blocks
+    const song = fs.readFileSync('tools/rb338-wasm/tests/data/909_bass.rbs');
+    const sp = put(song);
+    assert.ok(x.orb_load_song(h, sp, song.length) >= 0);
+    x.orb_free(sp, song.length);
+    const msg = Uint8Array.of(3, 0, 35, 1, 1);
+    const mp = put(msg);
+    assert.equal(x.orb_push(h, mp, msg.length, 1), 0);
+    x.orb_free(mp, msg.length);
+    let peak = 0;
+    for (let i = 0; i < 40; i++) {
+        const f = new Float32Array(x.memory.buffer, x.orb_render(h), 2048);
+        assert.ok(f.every(Number.isFinite));
+        for (const v of f) peak = Math.max(peak, Math.abs(v));
+    }
+    assert.ok(peak > 0.001, 'playback is silent, peak ' + peak);
+    assert.equal(x.orb_snapshot(h) > 0, true);
+
+    // cost of one 1024-frame engine call
+    for (let i = 0; i < 20; i++) x.orb_render(h);
+    const t0 = process.hrtime.bigint();
+    let timedPeak = 0;
+    for (let i = 0; i < 200; i++) { const f = new Float32Array(x.memory.buffer, x.orb_render(h), 2048); timedPeak = Math.max(timedPeak, Math.abs(f[100]), Math.abs(f[1124])); }
+    const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 200;
+    console.log('rb338 wasm: orb_render ' + ms.toFixed(3) + ' ms/call (budget 1024 frames = 23.2 ms), peak sample ~' + timedPeak.toFixed(3) + '');
+    if (ms > 1.5) console.warn('WARN: orb_render above 1.5 ms per call');
+    assert.ok(ms <= 5, 'orb_render too slow: ' + ms + ' ms');
+    x.orb_destroy(h);
+    console.log('rb338 wasm: ok');
+}
+
 async function main() {
     await modelSection();
+    await wasmSection();
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
