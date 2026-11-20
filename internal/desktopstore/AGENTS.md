@@ -219,6 +219,73 @@ Store app configuration, runtime, assets, and publication.
   password 401, the password never appears in the container log. Verify
   `TestNode64*`, `TestCatalogHardening*` and `TestDefaultCatalogContainsInitialApps`.
 
+### Velxio
+
+- `velxio` (category `dev`, icon `code`, `open_external`) is pinned to
+  `ghcr.io/davidmonterocrespo24/velxio@sha256:6aa5200e…0429` (image tag
+  `master` built 2026-11-18, source commit `5ed52d7332b8bd87f4dcd71f1ed49d8ffad964aa`,
+  AGPL-3.0). The image has no HEALTHCHECK; readiness is the Store's web-port
+  check. An image bump needs a new digest, a re-probe of the steps below, and
+  updates to the catalog comment, `documentation/velxio.md` and the licence table.
+- Ports: `PrimaryPort` web on container 80. `ExtraPorts` `agent-mcp` on container
+  8002 with `HostIP 127.0.0.1`. The MCP port is always loopback in LAN mode too.
+  `IsAgentOnlyPort` (any ID starting with `agent-`) makes `IsHTTPPort` false, so
+  `agent-*` ports are never openable, previewed or put on Tailscale. The UI
+  hides them from the extra-port buttons.
+- Generic rule: a catalog `HostIP` pin must be a loopback address. `NewService`
+  rejects anything else for primary and extra ports. `allocatePortBindings` and
+  `updatePortBindings` use the pinned address. No other entry sets `HostIP` on
+  app ports, and no other ID starts with `agent-`.
+- Volumes: `data` (`/app/data`), `arduino15` (`/root/.arduino15`), `arduino`
+  (`/root/Arduino`), `ccache` (`/var/cache/ccache`), `build`
+  (`/var/lib/velxio-build`). Env is `VELXIO_NEWS=off` only. No `Hardening`, no
+  companions, no host or workspace binds. The image runs as root.
+- Token: generic generated secret `mcp_token` (env `AURAGO_VELXIO_MCP_TOKEN`,
+  Vault key from `VelxioMCPTokenKey()`, `desktop_store_velxio_mcp_token`,
+  `Expose` false, so no credentials button). `addGeneratedRuntimeEnv` injects it
+  at every create (install, update, rollback recreate). The installed record
+  never holds it. A missing Vault value fails the create closed.
+- Wrapper: `velxioContainerSpec` (called from `runtimeContainerSpec` after the
+  token is injected) sets `Entrypoint` to `/bin/sh -c <velxioWrapper>
+  aurago-velxio`, and adds `AURAGO_VELXIO_MCP_PORT=8002` (Go constant
+  `velxioMCPPort`) and `AURAGO_VELXIO_MCP_PY` (the embedded launcher). The
+  wrapper runs `python -I -c "$AURAGO_VELXIO_MCP_PY"` in a 5-second restart loop
+  in a background subshell, unsets the script and token in the shell, then runs
+  `exec /app/entrypoint.sh "$@"`. Keep `"$@"`: the image has no Cmd once an
+  Entrypoint is set, so the list is empty. `-I` keeps `/app` and `PYTHON*` out of
+  the import path; the script inserts `/app` itself. Do not change the wrapper
+  text without a re-probe.
+- Launcher (`velxio_assets/aurago_velxio_mcp.py`, `AGPL-3.0-or-later`): waits up
+  to 30 minutes for `http://127.0.0.1:8001/health` before importing
+  `app.mcp.server`, because that import runs arduino-cli config and a core
+  install. Disables FastMCP DNS-rebinding protection (the token replaces it),
+  sets `stateless_http` and `json_response`, serves `streamable_http_app()` on
+  `0.0.0.0:8002` behind a bearer check (`hmac.compare_digest`, 401 otherwise).
+- Readiness: `velxioReadinessTimeout` is 15 minutes on the web port only. A late
+  MCP start never fails an install.
+- Agent connection: `IntegrationApps`, `storeMCPApps` and
+  `IntegrationPortID` (returns `agent-mcp`) include Velxio. Read is the five
+  design tools; Execute adds `compile_project` and `run_project`; read-only
+  Desktop withholds the compile tools. The URL is always derived. The probe
+  checks `tools/list` only. After a failed post-operation check, a settle loop
+  pre-probes `tools/list` every 10 s for up to 5 minutes without the operation
+  slot or `CfgSaveMu`.
+- Probe evidence (Docker Desktop 29.9.3, linux/amd64, 2026-11-20, wrapper run by
+  hand, not through the Store): image entrypoint `null`, Cmd
+  `["/app/entrypoint.sh"]`, root, workdir `/app`, about 7.15 GB unpacked,
+  Python 3.12.16, mcp 1.30.0. Web `/health` 200 after 75 s and MCP after 79 s on
+  fresh volumes; 17 s and 24 s on restart. `tools/list` returns 7 tools. Wrong or
+  missing token gets 401. `compile_project` (blink, `arduino:avr:uno`) returns a
+  2556-byte hex in about 1 s. Root sends `X-Frame-Options: SAMEORIGIN`.
+  Importing `app.mcp.server` runs the arduino-cli init, which is why the launcher
+  waits for `:8001/health`.
+- Not verified: ESP32 emulation, arm64, containerized AuraGo on a shared network,
+  an agent chat that uses the tools, and the Store-path install (Batch 5 live
+  run, still open).
+- Verify `TestVelxio*`, `TestInstallVelxio*`, `TestCatalogPinnedPortHostMustBeLoopback`,
+  `TestDefaultCatalogContainsInitialApps`, and the server `TestVelxio*` tests.
+  See `documentation/velxio.md`.
+
 ### God's Eye View Store Contract
 
 - `internal/desktopstore/gods_eye.go` owns app-specific setup for catalog ID

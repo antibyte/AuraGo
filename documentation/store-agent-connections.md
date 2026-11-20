@@ -94,8 +94,9 @@ ByteStash uses `/mcp` with a dedicated user API key. Its exact read allowlist is
 `list_snippets`, `get_snippet`, `list_metadata`; the separate create grant adds
 `create_snippet`. Updates and deletion stay blocked. Both connections obey global
 MCP/network/Desktop gates. Missing capabilities require a compatible Store update.
-Reserved managed names are `aurago-store-n8n` and `aurago-store-bytestash`; rename
-a colliding manual connection first. No manual connection is overwritten.
+Reserved managed names are `aurago-store-n8n`, `aurago-store-bytestash` and
+`aurago-store-velxio`; rename a colliding manual connection first. No manual
+connection is overwritten.
 
 Node-RED requires `adminAuth` and an access token. Select Inject IDs in the dialog.
 `node_red.list_flows` returns tab names/IDs and selected active Inject nodes, with
@@ -113,6 +114,37 @@ Upstream: [n8n MCP](https://docs.n8n.io/connect/connect-to-n8n-mcp-server/),
 [Node-RED security](https://nodered.org/docs/user-guide/runtime/securing-node-red),
 [OliveTin keys](https://docs.olivetin.app/security/api_keys.html),
 [ByteStash MCP](https://github.com/jordan-dalby/ByteStash).
+
+## Velxio (Arduino simulator)
+
+Velxio uses its built-in MCP server behind a generated bearer token. Install
+creates the token and stores it in the Vault. You enter no URL and no token:
+save **Read**, optionally **Execute**, then test the connection. The reserved
+managed name is `aurago-store-velxio`.
+
+The exact Read allowlist is `create_circuit`, `update_circuit`,
+`import_wokwi_json`, `export_wokwi_json` and `generate_code_files`. Execute adds
+`compile_project` and `run_project`. In read-only Virtual Desktop mode the
+compile tools are withheld, even when Execute is saved.
+
+The URL is always derived and any client-sent URL or credential is ignored.
+Native AuraGo uses the published loopback port of the agent endpoint.
+Containerized AuraGo uses the Docker network selected in this dialog, so select
+it and run an explicit Store update. A remote Docker Engine is refused, because
+the loopback port on that host cannot be reached. The agent port is never shown
+as an openable port and never placed on Tailscale.
+
+The connection test reads `tools/list` only and checks that every allowed tool
+exists. It never compiles.
+
+The MCP server can start later than the web UI, for example after a restart,
+an update, an AuraGo start or a Docker host reboot. When the normal check after
+such an operation fails, AuraGo retries in the background for up to five
+minutes. It checks `tools/list` every 10 seconds without holding the Store
+operation slot. Once the server answers, it runs the normal verified test and
+saves the connection.
+
+Tool results go to the agent. They do not open in an editor.
 
 ## Metrics, files and PDFs
 

@@ -98,7 +98,7 @@ Diese Einträge binden enger als MIT.
 | Layerling 1.154.1 | AGPL-3.0-only | Optionale CAD-App. Lizenz und Quellarchiv (`source.zip`) liegen in `ui/js/vendor/layerling/`. Die japanische Schrift ist Zen Maru Gothic (SIL OFL-1.1), mit `OFL.txt` daneben. |
 | NASSCAD 4.7.0 | AGPL-3.0-only | NassLab-Code. Persönliche und kommerzielle Nutzung ist erlaubt; Modelle bleiben bei dir. Fremde Komponenten behalten ihre eigenen Lizenzen (`THIRD-PARTY.md`). `LICENSE`, die Lizenzseite und die IFC-Lizenz werden mitgeliefert. |
 | ByteStash, IT-Tools, AdGuard Home | GPL-3.0 | Store-Images, unverändert aus der Registry. |
-| OliveTin, RomM, MinIO, Garage | AGPL-3.0 | Store- oder Sidecar-Images. Änderungen an diesen Programmen bleiben AGPL, und Nutzer des laufenden Dienstes bekommen dessen Quellcode. |
+| OliveTin, RomM, MinIO, Garage, Velxio | AGPL-3.0 | Store- oder Sidecar-Images. Änderungen an diesen Programmen bleiben AGPL, und Nutzer des laufenden Dienstes bekommen dessen Quellcode. |
 | SDRangel 7.27.2 | GPL-3.0 | Im RTL-SDR-Image zusammengesetzt. Hinweise bleiben im Image. |
 | welle.io 2.7, rtl-sdr-blog 1.4.0 | GPL-2.0 | Ebenfalls im RTL-SDR-Image. Text: `texts/GPL-2.0-only.txt`. |
 | OpenSCAD | GPL-2.0 plus CGAL-Ausnahme | Store- und Desktop-Laufzeit, Digest in `internal/desktopstore/catalog.go`. Die Ausnahme steht in `texts/OpenSCAD-CGAL-exception.txt`. |
@@ -204,6 +204,7 @@ Quelle: `internal/desktopstore/catalog.go`.
 | Termix | `ghcr.io/lukegus/termix:latest` | Apache-2.0 |
 | Termix guacd | `guacamole/guacd:1.6.0` | Apache-2.0 |
 | CommandCode | `ghcr.io/antibyte/aurago-commandcode:latest` | Eigenes Image. Enthält `command-code@1.74.1`, npm-Lizenz `UNLICENSED`, und `@opentelemetry/semantic-conventions` 1.43.0 (Apache-2.0). |
+| Velxio | `ghcr.io/davidmonterocrespo24/velxio@sha256:6aa5200e4d5f51235ce6ce024a17bba93d72ca1162653315e0b44f6197000429` (Tag master, Build vom 18.11.2026) | AGPL-3.0; der Autor bietet zusätzlich eine kommerzielle Lizenz an. Unverändertes Image; Quellcode zum Upstream-Commit `5ed52d7332b8bd87f4dcd71f1ed49d8ffad964aa`. Der AuraGo-Starter für den eingebauten MCP-Server (`internal/desktopstore/velxio_assets/`) steht unter AGPL-3.0-or-later. |
 | OpenSCAD | `openscad/openscad@sha256:147e48525bec392bcf628d7a6d5ea4ccac71b16251952328f86e1061cbf47c37` | GPL-2.0 plus CGAL-Linking-Ausnahme |
 
 ### Von AuraGo gesteuerte Produkte
