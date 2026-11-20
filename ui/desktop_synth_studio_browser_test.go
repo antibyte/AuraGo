@@ -492,6 +492,34 @@ func TestDesktopSynthStudioBrowser(t *testing.T) {
 	page.MustElement("[data-work-tab=notes]").MustClick()
 	check("leaving the mixer closes what it opened", `()=>document.querySelector('[data-master-panel]').hidden`)
 	check("mode is remembered", `()=>JSON.parse(localStorage.getItem('aurago:synth-studio:view:2')).panel==='notes'`)
+	// RB-338: the real wasm engine runs in a Worker; the rack, a step edit and Send to Arrange.
+	for _, asset := range []string{"/js/vendor/rb338/rb338-engine.wasm", "/js/vendor/rb338/Standard.rbm"} {
+		resp, err := http.Get(srv.URL + asset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		size := resp.ContentLength
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || size == 0 {
+			t.Fatalf("%s is not served: status %d, length %d", asset, resp.StatusCode, size)
+		}
+	}
+	page.MustElement("[data-work-tab=rb338]").MustClick()
+	waitForJSBool(t, page, `()=>!!document.querySelector('.ss-rb338-workbench[data-rb-ready]')||document.querySelector('.ss-rb338-workbench')?.dataset.rbState==='error'`)
+	check("RB-338 engine is ready", `()=>fixtureErrors.length===0&&!!document.querySelector('.ss-rb338-workbench[data-rb-ready]')`)
+	rbCounts := page.MustEval(`()=>{const q=s=>document.querySelectorAll('.ss-rb338-workbench '+s).length;return {d303:[...document.querySelectorAll('.ss-rb338-workbench .ss-rb-row[data-kind="303"]')].map(r=>r.querySelectorAll('.ss-rb-d303 [data-rb]').length),d303inputs:[...document.querySelectorAll('.ss-rb338-workbench .ss-rb-row[data-kind="303"]')].map(r=>r.querySelectorAll('.ss-rb-d303 input[data-rb], .ss-rb-d303 button[data-rb], .ss-rb-d303 [role=group][data-rb]').length),d808:q('.ss-rb-row[data-kind="808"] .ss-rb-device [data-rb]'),d909:q('.ss-rb-row[data-kind="909"] .ss-rb-device [data-rb]'),flam:q('[data-rb="tr909.flam"]'),faders:q('input[type=range][data-ss-kind=vfader][data-rb$=".level"]'),masterFader:q('input[type=range][data-rb="master.fader"]'),pcf:q('input[type=range][data-rb^="pcf."]')}}`)
+	if got := rbCounts.JSON("", ""); got != `{"d303":[7,7],"d303inputs":[7,7],"d808":27,"d909":28,"faders":4,"flam":1,"masterFader":1,"pcf":4}` {
+		t.Fatalf("RB-338 rack controls: %s", got)
+	}
+	page.MustEval(`()=>document.querySelector('.ss-rb338-workbench [data-rb-act=step][data-row="3"][data-step="0"]')?.scrollIntoView({block:'center'})`)
+	stepBefore := page.MustEval(`()=>{const b=document.querySelector('.ss-rb338-workbench [data-rb-act=step][data-row="3"][data-step="0"]');return b?b.getAttribute('aria-pressed'):'missing'}`).Str()
+	page.MustElement(".ss-rb338-workbench [data-rb-act=step][data-row=\"3\"][data-step=\"0\"]").MustClick()
+	waitForJSBool(t, page, `()=>document.querySelector('.ss-rb338-workbench [data-rb-act=step][data-row="3"][data-step="0"]').getAttribute('aria-pressed')!==`+fmt.Sprintf("%q", stepBefore))
+	page.MustElement(".ss-rb338-workbench [data-action=rb-send-arrange]").MustClick()
+	waitForJSBool(t, page, `()=>{const p=synthInstance().project(),t=p.tracks.find(x=>x.instrument==='audio'&&x.clips[0]?.audio?.kind==='rb338');return !!t||fixtureErrors.length>0}`)
+	waitForJSBool(t, page, `()=>{const p=synthInstance().project(),t=p.tracks.find(x=>x.instrument==='audio'&&x.clips[0]?.audio?.kind==='rb338');const b=t&&SynthStudioRB338Host.clips.buffer(t.clips[0]);if(!b)return false;let m=0;for(let c=0;c<b.numberOfChannels;c++){const d=b.getChannelData(c);for(let i=0;i<d.length;i++)m=Math.max(m,Math.abs(d[i]))}window.rbPeak=m;return m>0}`)
+	check("Send to Arrange adds a rendered RB-338 audio clip in a v4 project", `()=>fixtureErrors.length===0&&synthInstance().project().version===4&&window.rbPeak>0`)
+	page.MustElement("[data-work-tab=notes]").MustClick()
 	page.MustEval(`()=>{const w=document.querySelector('[data-app-id="synth-studio"]');w.classList.remove('maximized');w.style.width='420px';w.style.height='800px';w.style.left='8px';w.style.top='8px';}`)
 	page.MustElement("[data-work-tab=performance]").MustClick()
 	page.MustEval(`()=>{const t=synthInstance().project().tracks[1];synthInstance().editor.select(t.id,t.clips[0].id);window.beforeTouch=JSON.stringify(synthInstance().project());document.querySelector('[data-xy]').scrollIntoView({block:'center'});}`)
