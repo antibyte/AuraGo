@@ -173,7 +173,7 @@ func (m *WorkspaceManager) ConfirmLegacyVolumeImport(ctx context.Context, cfg To
 		return Volume{}, err
 	}
 	if ttlSeconds <= 0 {
-		ttlSeconds = 30 * 24 * 60 * 60
+		ttlSeconds = cfg.VolumeMaxTTL()
 	}
 	var volume Volume
 	if targetVolumeID == "" {
@@ -188,6 +188,10 @@ func (m *WorkspaceManager) ConfirmLegacyVolumeImport(ctx context.Context, cfg To
 		}
 		m.legacyImportMu.Unlock()
 	} else {
+		// Keep the tracked name, lock and retention of an existing target.
+		if existing, ok, lookupErr := m.ledger.GetVolume(ctx, targetVolumeID); lookupErr == nil && ok {
+			volume = existing
+		}
 		volume.ID = targetVolumeID
 	}
 	if _, err := client.SaveMachineWithFormat(ctx, machineID, targetVolumeID, WorkspaceVolumeFormat); err != nil {

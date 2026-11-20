@@ -1386,6 +1386,8 @@ virtual_computers:
         bucket: boring-volumes                             # external_s3 bucket; managed always uses boring-volumes
         region: ""                                         # external_s3 region; managed uses garage; blank external test falls back to us-east-1
         use_ssl: false                                     # external_s3 TLS; managed Garage is loopback HTTP only
+        volume_quota_mb: 2048                              # per-volume snapshot limit 64-65536 MB; applied by Install / Repair
+        volume_max_ttl_days: 30                            # longest non-permanent retention 1-365 days; applied by Install / Repair
     # Vault-only fields saved via UI, never config.yaml:
     # boring_token: optional; AuraGo auto-generates this for managed setup. For an existing boringd, it must match BORING_TOKEN.
     # ssh_secret: optional SSH secret material

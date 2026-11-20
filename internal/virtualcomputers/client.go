@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -295,16 +296,76 @@ func (c *Client) Publish(ctx context.Context, id, name string) (map[string]inter
 	return payload, nil
 }
 
+// VolumeCreateOptions describes a new volume. Persistent and Locked need the
+// patched boringd (patch 0009); they are only sent when true so an unpatched
+// control plane receives exactly the pre-0009 request body.
+type VolumeCreateOptions struct {
+	TTLSeconds int
+	Persistent bool
+	Locked     bool
+}
+
+// VolumeUpdate changes a volume's retention. Nil fields stay untouched.
+type VolumeUpdate struct {
+	TTLSeconds *int  `json:"ttl_seconds,omitempty"`
+	Persistent *bool `json:"persistent,omitempty"`
+	Locked     *bool `json:"locked,omitempty"`
+}
+
 func (c *Client) CreateVolume(ctx context.Context, ttlSeconds int) (Volume, error) {
-	if ttlSeconds <= 0 {
+	return c.CreateVolumeWithOptions(ctx, VolumeCreateOptions{TTLSeconds: ttlSeconds})
+}
+
+func (c *Client) CreateVolumeWithOptions(ctx context.Context, opts VolumeCreateOptions) (Volume, error) {
+	if opts.TTLSeconds <= 0 && !opts.Persistent {
 		return Volume{}, fmt.Errorf("volume ttl_seconds must be positive")
 	}
 	var volume Volume
-	payload := map[string]interface{}{"ttl_seconds": ttlSeconds}
+	payload := map[string]interface{}{}
+	if opts.TTLSeconds > 0 {
+		payload["ttl_seconds"] = opts.TTLSeconds
+	}
+	if opts.Persistent {
+		payload["persistent"] = true
+	}
+	if opts.Locked {
+		payload["locked"] = true
+	}
 	if err := c.doJSON(ctx, http.MethodPost, "/v1/volumes", payload, &volume); err != nil {
 		return Volume{}, err
 	}
 	return volume, nil
+}
+
+// UpdateVolume changes retention of an existing volume (patched boringd only).
+func (c *Client) UpdateVolume(ctx context.Context, id string, update VolumeUpdate) (Volume, error) {
+	var volume Volume
+	if err := c.doJSON(ctx, http.MethodPatch, "/v1/volumes/"+pathEscapeID(id), update, &volume); err != nil {
+		return Volume{}, err
+	}
+	return volume, nil
+}
+
+// ProbeVolumeRetention reports whether boringd runs the retention patch. The
+// patched handler validates the body before it looks the volume up, so a JSON
+// 404 or 400 on a nonexistent volume proves the route exists. 405 means the
+// route is missing and a non-JSON 404 means the S3 routes are inactive.
+func (c *Client) ProbeVolumeRetention(ctx context.Context) (bool, error) {
+	err := c.doJSON(ctx, http.MethodPatch, "/v1/volumes/vol-0000000000", map[string]interface{}{"locked": false}, nil)
+	if err == nil {
+		return true, nil
+	}
+	var restErr RESTError
+	if !errors.As(err, &restErr) {
+		return false, err
+	}
+	switch restErr.StatusCode {
+	case http.StatusNotFound, http.StatusBadRequest:
+		return looksLikeJSON(restErr.Body), nil
+	case http.StatusMethodNotAllowed:
+		return false, nil
+	}
+	return false, err
 }
 
 func (c *Client) GetVolume(ctx context.Context, id string) (Volume, error) {

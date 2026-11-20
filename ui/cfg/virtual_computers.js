@@ -30,6 +30,8 @@ function vcCfgEnsureData() {
     if (!cp.boringd_url) cp.boringd_url = 'http://127.0.0.1:18082';
 	if (!storage.mode) storage.mode = 'managed_garage';
 	if (!storage.bucket) storage.bucket = 'boring-volumes';
+	if (!storage.volume_quota_mb) storage.volume_quota_mb = 2048;
+	if (!storage.volume_max_ttl_days) storage.volume_max_ttl_days = 30;
 	if (typeof storage.use_ssl !== 'boolean') storage.use_ssl = storage.mode === 'external_s3';
 	if (!agentControl.default_template) agentControl.default_template = 'desktop';
 	if (!agentControl.max_active_workspaces) agentControl.max_active_workspaces = 2;
@@ -232,6 +234,12 @@ function renderVirtualComputersSection(section) {
 		html += '<input class="field-input cfg-secret-input" type="password" id="vc-s3-secret-input" data-path="virtual_computers.s3_secret_key" value="' + escapeAttr(cfgSecretValue(data.s3_secret_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.s3_secret_key, 'secret-key')) + '" autocomplete="off">';
 		html += '<button type="button" class="password-toggle" data-visible="false" data-vc-action="toggle-password">' + EYE_OPEN_SVG + '</button></div></div>';
 	}
+	html += '<div class="field-grid two-cols">';
+	html += vcCfgField('config.virtual_computers.volume_quota_label', 'help.virtual_computers.volume_quota_mb',
+		'<input class="field-input" type="number" min="64" max="65536" data-path="virtual_computers.storage.volume_quota_mb" value="' + escapeAttr(storage.volume_quota_mb || 2048) + '">');
+	html += vcCfgField('config.virtual_computers.volume_max_ttl_label', 'help.virtual_computers.volume_max_ttl_days',
+		'<input class="field-input" type="number" min="1" max="365" data-path="virtual_computers.storage.volume_max_ttl_days" value="' + escapeAttr(storage.volume_max_ttl_days || 30) + '">');
+	html += '</div>';
 	html += '<button class="btn-save dc-test-btn" data-vc-action="test-storage" id="vc-storage-test-btn" data-config-action-draft="true">' + t('config.virtual_computers.storage_test_button') + '</button>';
 	html += cfgActionResult.html('vc-storage-test-result');
 	html += '<div id="vc-storage-test-lock" class="field-help"></div></div>';

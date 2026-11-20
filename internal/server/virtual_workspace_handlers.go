@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -216,13 +218,34 @@ func handleVirtualWorkspace(s *Server) http.HandlerFunc {
 				return
 			}
 			var request struct {
-				TTLSeconds int `json:"ttl_seconds"`
+				TTLSeconds int    `json:"ttl_seconds"`
+				Name       string `json:"name"`
+				Persistent bool   `json:"persistent"`
+				VolumeID   string `json:"volume_id"`
 			}
 			if err := decodeWorkspaceJSON(r, &request); err != nil {
 				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
-			volume, err := manager.Checkpoint(r.Context(), cfg, identity, workspaceID, request.TTLSeconds)
+			name, nameErr := virtualComputersNormalizeLabel(request.Name)
+			if nameErr != nil {
+				writeVirtualWorkspaceError(w, virtualcomputers.WorkspaceRPCError{Code: "invalid_name", Message: nameErr.Error()})
+				return
+			}
+			if request.TTLSeconds > cfg.VolumeMaxTTL() {
+				writeVirtualWorkspaceError(w, virtualcomputers.WorkspaceRPCError{Code: "volume_ttl_too_long", Message: "volume retention exceeds the configured maximum"})
+				return
+			}
+			if request.Persistent {
+				client, clientErr := virtualComputersClient(s)
+				if clientErr != nil || !virtualComputersVolumeRetention(r.Context(), client) {
+					writeVirtualWorkspaceError(w, virtualcomputers.WorkspaceRPCError{Code: "volume_retention_requires_repair", Message: virtualComputersRetentionRepairMessage})
+					return
+				}
+			}
+			volume, err := manager.CheckpointWithOptions(r.Context(), cfg, identity, workspaceID, virtualcomputers.CheckpointOptions{
+				TTLSeconds: request.TTLSeconds, Name: name, Persistent: request.Persistent, VolumeID: strings.TrimSpace(request.VolumeID),
+			})
 			writeVirtualWorkspaceResult(w, map[string]interface{}{"volume": volume}, err)
 		case "control":
 			if r.Method != http.MethodPost {
@@ -483,13 +506,31 @@ func writeVirtualWorkspaceResult(w http.ResponseWriter, payload map[string]inter
 func writeVirtualWorkspaceError(w http.ResponseWriter, err error) {
 	code := "workspace_error"
 	message := security.Scrub(strings.TrimSpace(err.Error()))
-	status := http.StatusBadRequest
-	if rpc, ok := err.(virtualcomputers.WorkspaceRPCError); ok {
-		code, message = rpc.Code, rpc.Message
-	} else if rpc, ok := err.(*virtualcomputers.WorkspaceRPCError); ok {
-		code, message = rpc.Code, rpc.Message
+	status := http.StatusInternalServerError
+	var rpcValue virtualcomputers.WorkspaceRPCError
+	var rpcPointer *virtualcomputers.WorkspaceRPCError
+	var restErr virtualcomputers.RESTError
+	switch {
+	case errors.As(err, &rpcValue):
+		code, message, status = rpcValue.Code, rpcValue.Message, http.StatusBadRequest
+	case errors.As(err, &rpcPointer) && rpcPointer != nil:
+		code, message, status = rpcPointer.Code, rpcPointer.Message, http.StatusBadRequest
+	case errors.As(err, &restErr):
+		classified := virtualcomputers.ClassifyError(err)
+		code, message, status = classified.Code, security.Scrub(classified.Message), classified.HTTPStatus
+	case errors.Is(err, context.DeadlineExceeded):
+		code, message, status = "workspace_timeout", "virtual workspace operation timed out", http.StatusGatewayTimeout
+	default:
+		slog.Default().Warn("[VirtualWorkspace] operation failed", "error", message)
+		message = "virtual workspace operation failed"
 	}
 	switch code {
+	case "volume_ttl_too_long", "invalid_name":
+		status = http.StatusBadRequest
+	case "machine_owned_by_workspace", "machine_not_running", "volume_retention_requires_repair", "volume_locked", "volume_in_use":
+		status = http.StatusConflict
+	case "readonly", "disabled", "agent_control_disabled":
+		status = http.StatusForbidden
 	case "not_found":
 		status = http.StatusNotFound
 	case "forbidden", "owner_mismatch":

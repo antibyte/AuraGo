@@ -38,6 +38,11 @@ func ClassifyError(err error) ClassifiedError {
 		classified.Code, classified.HTTPStatus = "machine_not_connected", http.StatusConflict
 	case strings.Contains(lower, "busy"):
 		classified.Code, classified.HTTPStatus = "machine_busy", http.StatusConflict
+	case restErr.StatusCode == http.StatusLocked:
+		classified.Code, classified.HTTPStatus = "volume_locked", http.StatusConflict
+	case restErr.StatusCode == http.StatusRequestEntityTooLarge:
+		classified.Code, classified.HTTPStatus = "volume_quota_exceeded", http.StatusRequestEntityTooLarge
+		classified.Message = "The computer's data is larger than the volume quota. Increase virtual_computers.storage.volume_quota_mb and run Install / Repair."
 	case restErr.StatusCode == http.StatusNotFound && strings.Contains(restErr.Path, "/v1/volumes") && !looksLikeJSON(restErr.Body):
 		classified.Code, classified.HTTPStatus = "storage_unavailable", http.StatusServiceUnavailable
 		classified.Message = "boringd volume storage is unavailable because its S3 routes are not active; verify the Virtual Computers S3 settings and run Install / Repair"

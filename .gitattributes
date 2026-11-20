@@ -105,3 +105,6 @@ internal/tools/go2rtc_sidecar/*.patch text eol=lf whitespace=-blank-at-eol,-spac
 ui/3d/pets/*/NOTICE.txt text eol=lf
 ui/3d/pets/*/LICENSE-CC0.txt text eol=lf
 ui/3d/pets/*/LICENSE-MIT.txt text eol=lf
+
+# AuraGo boringd patch series must apply byte-exact from Windows checkouts.
+internal/virtualcomputers/patches/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab

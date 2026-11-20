@@ -37,6 +37,11 @@ const (
 
 	ControlOwnerAgent = "agent"
 	ControlOwnerHuman = "human"
+
+	WorkspaceOriginLaunched        = "launched"
+	WorkspaceOriginAdopted         = "adopted"
+	AdoptedWorkspaceOwnerSessionID = "virtual-desktop"
+	WorkspaceNetworkProfileMachine = "machine"
 )
 
 type WorkspaceIdentity struct {
@@ -66,6 +71,7 @@ type Workspace struct {
 	LastActivityAt        time.Time  `json:"last_activity_at"`
 	LeaseExpiresAt        time.Time  `json:"lease_expires_at"`
 	MaxExpiresAt          time.Time  `json:"max_expires_at"`
+	Origin                string     `json:"origin"`
 }
 
 type WorkspaceJob struct {

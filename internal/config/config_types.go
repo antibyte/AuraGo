@@ -841,6 +841,11 @@ type VirtualComputersStorage struct {
 	Bucket   string `yaml:"bucket" json:"bucket"`     // external bucket; managed always uses ManagedGarageBucket
 	Region   string `yaml:"region" json:"region"`
 	UseSSL   bool   `yaml:"use_ssl" json:"use_ssl"`
+	// VolumeQuotaMB is the per-volume snapshot limit (64-65536). VolumeMaxTTLDays
+	// is the longest non-permanent retention (1-365). Both reach boringd at
+	// Install / Repair and do not change the storage identity.
+	VolumeQuotaMB    int `yaml:"volume_quota_mb" json:"volume_quota_mb"`
+	VolumeMaxTTLDays int `yaml:"volume_max_ttl_days" json:"volume_max_ttl_days"`
 }
 
 type VirtualComputersControlPlane struct {

@@ -70,12 +70,16 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 		"templates.go":     "b48d9702ec3ea5b05db5b241af37b07a3e2a2a2d641234cfbdcf90bf69b38d92",
 		"machinevolume.go": "6a6a9e58cd5cebb8def27a25722245ed546530a3eb3770bed81bcf8048551e15",
 		"machine.go":       "eb294a8e665cfe7d9e1855afb5edc4b829ca6ab7cbc149ca38f33d915fab22f9",
+		"volumes.go":       "e6c427d759f361b217d49b4f7e21ff5ac37b83b2e279a35cc3a0114a0b1a8309",
+		"storage.go":       "3d7d010a642e08359527ae9fb132e605e3ecf83a37112a2175ebd16293103c1f",
 	}
 	gotSourceHashes := map[string]string{
 		"server.go":        workspaceServerSHA256,
 		"templates.go":     workspaceTemplateSHA256,
 		"machinevolume.go": workspaceMachineVolumeSHA256,
 		"machine.go":       workspaceMachineSHA256,
+		"volumes.go":       workspaceVolumesSHA256,
+		"storage.go":       workspaceStorageSHA256,
 	}
 	for name, want := range wantSourceHashes {
 		if got := gotSourceHashes[name]; got != want {
@@ -113,6 +117,8 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 		workspaceSnapshotSHA256,
 		workspaceFirecrackerSHA256,
 		workspaceDesktopRootfsSHA256,
+		workspaceVolumesSHA256,
+		workspaceStorageSHA256,
 		"0001-workspace-vsock-proxy.patch",
 		"0002-python-template-vsock.patch",
 		"0003-workspace-v2-volumes.patch",
@@ -120,6 +126,8 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 		"0005-workspace-capability-status.patch",
 		"0006-workspace-snapshot-vsock.patch",
 		"0007-desktop-app-launchers.patch",
+		"0008-native-desktop-image.patch",
+		"0009-volume-retention.patch",
 	} {
 		if !strings.Contains(patchScript, required) {
 			t.Fatalf("patch install script is missing %q", required)
@@ -172,6 +180,21 @@ func TestWorkspaceAssetsArePinnedAndComplete(t *testing.T) {
 	vsock := strings.Index(string(snapshotPatch), "+api PUT /vsock")
 	if vsock < 0 || !strings.Contains(string(snapshotPatch), "@@ -142,0 +143,4 @@") || !strings.Contains(string(snapshotPatch), `load["vsock_override"] = map[string]any{"uds_path": d.apiVsock}`) {
 		t.Fatal("Python snapshots need a vsock device before boot and a per-machine socket on restore")
+	}
+}
+
+func TestWorkspaceVolumeRetentionPatchIsPinned(t *testing.T) {
+	data, err := workspaceAssets.ReadFile("patches/0009-volume-retention.patch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "") {
+		t.Fatal("volume retention patch must stay LF-only")
+	}
+	for _, required := range []string{"PATCH /v1/volumes/{id}", "StatusLocked", "StatusRequestEntityTooLarge", "!m.Persistent && !m.Locked"} {
+		if !strings.Contains(string(data), required) {
+			t.Fatalf("volume retention patch is missing %q", required)
+		}
 	}
 }
 

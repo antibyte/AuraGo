@@ -93,6 +93,8 @@ func FromAuraConfig(cfg *config.Config) ToolConfig {
 		AllowPublish:        vc.AllowPublish,
 		AllowVolumes:        vc.AllowVolumes,
 		AllowAgentTasks:     vc.AllowAgentTasks,
+		VolumeQuotaMB:       vc.Storage.VolumeQuotaMB,
+		VolumeMaxTTLSeconds: vc.Storage.VolumeMaxTTLDays * 86400,
 		AgentControl: AgentControlConfig{
 			NativeAppsEnabled:           vc.AgentControl.NativeAppsEnabled,
 			Enabled:                     vc.AgentControl.Enabled,

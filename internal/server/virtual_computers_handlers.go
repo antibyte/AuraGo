@@ -236,6 +236,12 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 				}
 			}
 		}
+		volumeRetention := false
+		if cfg.AllowVolumes && controlPlaneHealthy {
+			if client, clientErr := virtualComputersClient(s); clientErr == nil {
+				volumeRetention = virtualComputersVolumeRetention(r.Context(), client)
+			}
+		}
 		payload := map[string]interface{}{
 			"status":               "ok",
 			"enabled":              cfg.Enabled,
@@ -253,8 +259,9 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 				"volumes": cfg.AllowVolumes, "agent_tasks": cfg.AllowAgentTasks,
 				"legacy_agent_tasks_ready": legacyAgentTasksReady,
 				"publish":                  cfg.AllowPublish, "persistent": cfg.AllowPersistent, "agent_control": cfg.AgentControl.Enabled, "native_apps": cfg.AgentControl.Enabled && cfg.AgentControl.NativeAppsEnabled && !cfg.ReadOnly,
-				"internet": cfg.AllowInternet,
+				"internet": cfg.AllowInternet, "volume_retention": volumeRetention,
 			},
+			"limits":                           virtualComputersLimits(cfg),
 			"workspace_protocol":               virtualcomputers.WorkspaceProtocolVersion,
 			"workspace_asset_fingerprint":      virtualcomputers.WorkspaceAssetFingerprint(),
 			"workspace_ready":                  workspaceReady,
@@ -368,6 +375,7 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 			jsonError(w, status.Message, http.StatusBadGateway)
 			return
 		}
+		virtualcomputers.ResetVolumeRetentionCache()
 		state := "installed"
 		if !status.Healthy {
 			state = "unhealthy"
@@ -785,13 +793,7 @@ func handleVirtualComputersMachine(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
 				return
 			}
-			payload, err := client.SaveMachine(r.Context(), machineID, req.VolumeID)
-			if err != nil {
-				writeVirtualComputersError(w, err)
-				return
-			}
-			virtualComputersRecordAction(s, r, "save", "machine", machineID, nil)
-			writeJSON(w, map[string]interface{}{"status": "ok", "result": payload})
+			virtualComputersSaveMachine(s, w, r, machineID, req.VolumeID, client)
 		default:
 			jsonError(w, "Not found", http.StatusNotFound)
 		}
@@ -839,47 +841,9 @@ func handleVirtualComputersVolumes(s *Server) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodGet:
-			ledger, owned, err := virtualComputersLedger(s)
-			if err != nil || ledger == nil {
-				writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
-				return
-			}
-			if owned {
-				defer ledger.Close()
-			}
-			volumes, err := virtualcomputers.ListTrackedVolumes(r.Context(), ledger, client)
-			if err != nil {
-				writeVirtualComputersError(w, err)
-				return
-			}
-			writeJSON(w, map[string]interface{}{"status": "ok", "volumes": volumes})
+			virtualComputersVolumeList(s, w, r, client)
 		case http.MethodPost:
-			if cfg.ReadOnly {
-				jsonError(w, "virtual computers are read-only", http.StatusForbidden)
-				return
-			}
-			if !cfg.AllowVolumes {
-				jsonError(w, "virtual computer volumes are disabled", http.StatusForbidden)
-				return
-			}
-			var req struct {
-				TTLSeconds int `json:"ttl_seconds"`
-			}
-			if err := decodeVirtualComputersJSON(w, r, &req); err != nil {
-				jsonError(w, "Invalid JSON body", http.StatusBadRequest)
-				return
-			}
-			volume, err := client.CreateVolume(r.Context(), req.TTLSeconds)
-			if err != nil {
-				writeVirtualComputersError(w, err)
-				return
-			}
-			now := time.Now().UTC()
-			volume.LastVerifiedAt = &now
-			volume.VerificationStatus = "verified"
-			virtualComputersUpsertVolume(s, r, volume)
-			virtualComputersRecordAction(s, r, "create_volume", "volume", volume.ID, nil)
-			writeJSON(w, map[string]interface{}{"status": "ok", "volume": volume})
+			virtualComputersVolumeCreate(s, w, r, cfg, client)
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -908,29 +872,11 @@ func handleVirtualComputersVolume(s *Server) http.HandlerFunc {
 		}
 		switch r.Method {
 		case http.MethodGet:
-			volume, err := client.GetVolume(r.Context(), volumeID)
-			if err != nil {
-				writeVirtualComputersError(w, err)
-				return
-			}
-			now := time.Now().UTC()
-			volume.LastVerifiedAt = &now
-			volume.VerificationStatus = "verified"
-			virtualComputersUpsertVolume(s, r, volume)
-			writeJSON(w, map[string]interface{}{"status": "ok", "volume": volume})
+			virtualComputersVolumeGet(s, w, r, volumeID, client)
+		case http.MethodPatch:
+			virtualComputersVolumePatch(s, w, r, cfg, volumeID, client)
 		case http.MethodDelete:
-			if !virtualComputersMutationAllowed(s, w) {
-				return
-			}
-			if err := client.DeleteVolume(r.Context(), volumeID); err != nil {
-				writeVirtualComputersError(w, err)
-				return
-			}
-			virtualComputersWithLedger(s, r, func(ledger *virtualcomputers.Ledger) error {
-				return ledger.DeleteVolume(r.Context(), volumeID)
-			})
-			virtualComputersRecordAction(s, r, "delete_volume", "volume", volumeID, nil)
-			writeJSON(w, map[string]interface{}{"status": "ok"})
+			virtualComputersVolumeDelete(s, w, r, volumeID, client)
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -1735,30 +1681,32 @@ func virtualComputersSetupOptions(cfg virtualcomputers.ToolConfig, token string,
 		s3UseSSL = false
 	}
 	return virtualcomputers.SetupInstallOptions{
-		InstallDir:         cfg.ControlPlane.InstallDir,
-		BoringdURL:         boringdURL,
-		Token:              token,
-		AnthropicKey:       cfg.BoringAnthropicKey,
-		OpenRouterKey:      cfg.BoringOpenRouterKey,
-		StorageMode:        mode,
-		S3AccessKeyID:      cfg.S3AccessKeyID,
-		S3SecretKey:        cfg.S3SecretKey,
-		S3Endpoint:         s3Endpoint,
-		S3Bucket:           s3Bucket,
-		S3Region:           s3Region,
-		S3UseSSL:           s3UseSSL,
-		GarageRPCSecret:    cfg.GarageRPCSecret,
-		ControlPlaneMode:   cfg.ControlPlane.Mode,
-		ControlPlaneHost:   cfg.ControlPlane.Host,
-		MaxRunningMachines: cfg.MaxRunningMachines,
-		MaxForks:           cfg.MaxForks,
-		AllowInternet:      cfg.AllowInternet,
-		AllowPersistent:    cfg.AllowPersistent,
-		AllowPublish:       cfg.AllowPublish,
-		AllowVolumes:       cfg.AllowVolumes,
-		SkipDesktop:        req.SkipDesktop,
-		VerifyWorkspace:    true,
-		ProjectGarage:      projectGarage,
+		InstallDir:          cfg.ControlPlane.InstallDir,
+		BoringdURL:          boringdURL,
+		Token:               token,
+		AnthropicKey:        cfg.BoringAnthropicKey,
+		OpenRouterKey:       cfg.BoringOpenRouterKey,
+		StorageMode:         mode,
+		S3AccessKeyID:       cfg.S3AccessKeyID,
+		S3SecretKey:         cfg.S3SecretKey,
+		S3Endpoint:          s3Endpoint,
+		S3Bucket:            s3Bucket,
+		S3Region:            s3Region,
+		S3UseSSL:            s3UseSSL,
+		GarageRPCSecret:     cfg.GarageRPCSecret,
+		ControlPlaneMode:    cfg.ControlPlane.Mode,
+		ControlPlaneHost:    cfg.ControlPlane.Host,
+		MaxRunningMachines:  cfg.MaxRunningMachines,
+		MaxForks:            cfg.MaxForks,
+		AllowInternet:       cfg.AllowInternet,
+		AllowPersistent:     cfg.AllowPersistent,
+		AllowPublish:        cfg.AllowPublish,
+		AllowVolumes:        cfg.AllowVolumes,
+		SkipDesktop:         req.SkipDesktop,
+		VerifyWorkspace:     true,
+		ProjectGarage:       projectGarage,
+		VolumeQuotaMB:       cfg.VolumeQuota(),
+		VolumeMaxTTLSeconds: cfg.VolumeMaxTTL(),
 	}
 }
 

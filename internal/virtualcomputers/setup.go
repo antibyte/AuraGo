@@ -378,6 +378,14 @@ func (m SetupManager) installScript() string {
 	if opts.SkipDesktop {
 		skipDesktop = "1"
 	}
+	volumeQuotaMB := opts.VolumeQuotaMB
+	if volumeQuotaMB <= 0 {
+		volumeQuotaMB = defaultVolumeQuotaMB
+	}
+	volumeMaxTTL := opts.VolumeMaxTTLSeconds
+	if volumeMaxTTL <= 0 {
+		volumeMaxTTL = defaultVolumeMaxTTLSeconds
+	}
 	s3UseSSL := "0"
 	if opts.S3UseSSL {
 		s3UseSSL = "1"
@@ -409,6 +417,8 @@ BORING_PER_IP_MAX_VALUE=%d
 BORING_CREATE_RATE_VALUE=%d
 BORING_MAX_FORKS_VALUE=%d
 BORING_MAX_TEMPLATES_VALUE=%d
+BORING_VOLUME_QUOTA_MB_VALUE=%d
+BORING_VOLUME_TTL_MAX_VALUE=%d
 BORING_ALLOW_PERSISTENT_VALUE=%s
 BORING_NET_VALUE=%s
 SKIP_DESKTOP_VALUE=%s
@@ -614,6 +624,8 @@ BORING_S3_ENDPOINT=${BORING_S3_ENDPOINT_VALUE}
 BORING_S3_BUCKET=${BORING_S3_BUCKET_VALUE}
 BORING_S3_REGION=${BORING_S3_REGION_VALUE}
 BORING_S3_SSL=${BORING_S3_SSL_VALUE}
+BORING_VOLUME_QUOTA_MB=${BORING_VOLUME_QUOTA_MB_VALUE}
+BORING_VOLUME_TTL_MAX=${BORING_VOLUME_TTL_MAX_VALUE}
 EOF
 
 log "starting boringd"
@@ -659,7 +671,7 @@ if [ "${BORING_HEALTHY}" != "1" ]; then
 	exit 1
 fi
 	curl -fsS --max-time 8 "${BORING_HEALTH_URL_VALUE}"
-`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(envLine(NormalizeStorageMode(opts.StorageMode, opts.S3Endpoint))), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, allowPersistent, guestNet, skipDesktop)
+`, shellQuote(installDir), shellQuote(PinnedUpstreamRevision), shellQuote(envLine(token)), shellQuote(envLine(opts.AnthropicKey)), shellQuote(envLine(opts.OpenRouterKey)), shellQuote(envLine(opts.S3AccessKeyID)), shellQuote(envLine(opts.S3SecretKey)), shellQuote(envLine(opts.S3Endpoint)), shellQuote(envLine(opts.S3Bucket)), shellQuote(envLine(opts.S3Region)), shellQuote(s3UseSSL), shellQuote(envLine(NormalizeStorageMode(opts.StorageMode, opts.S3Endpoint))), shellQuote(boringdAddr), shellQuote(healthURL), maxMachines, maxMachines, createRatePerMinute, maxForks, maxTemplates, volumeQuotaMB, volumeMaxTTL, allowPersistent, guestNet, skipDesktop)
 	script = strings.Replace(script, "__AURAGO_WORKSPACE_ASSET_FINGERPRINT__", shellQuote(WorkspaceAssetFingerprint()), 1)
 	script = strings.Replace(script, "__AURAGO_WORKSPACE_PATCH_SNIPPET__", workspacePatchInstallSnippet(), 1)
 	script = strings.Replace(script, "__AURAGO_WORKSPACE_GUEST_SNIPPET__", workspaceGuestInstallSnippet(), 1)

@@ -81,7 +81,32 @@ type ToolConfig struct {
 	AllowPublish        bool
 	AllowVolumes        bool
 	AllowAgentTasks     bool
+	// VolumeQuotaMB and VolumeMaxTTLSeconds mirror storage.volume_quota_mb and
+	// storage.volume_max_ttl_days. Use VolumeQuota / VolumeMaxTTL for defaults.
+	VolumeQuotaMB       int
+	VolumeMaxTTLSeconds int
 	AgentControl        AgentControlConfig
+}
+
+const (
+	defaultVolumeQuotaMB       = 2048
+	defaultVolumeMaxTTLSeconds = 30 * 86400
+)
+
+// VolumeMaxTTL is the longest non-permanent volume retention in seconds.
+func (cfg ToolConfig) VolumeMaxTTL() int {
+	if cfg.VolumeMaxTTLSeconds <= 0 {
+		return defaultVolumeMaxTTLSeconds
+	}
+	return cfg.VolumeMaxTTLSeconds
+}
+
+// VolumeQuota is the per-volume snapshot limit in MB.
+func (cfg ToolConfig) VolumeQuota() int {
+	if cfg.VolumeQuotaMB <= 0 {
+		return defaultVolumeQuotaMB
+	}
+	return cfg.VolumeQuotaMB
 }
 
 type AgentControlConfig struct {
@@ -212,7 +237,19 @@ type Volume struct {
 	StorageEpochID     int64                  `json:"storage_epoch_id,omitempty"`
 	Availability       string                 `json:"availability,omitempty"` // available | previous_store | unavailable
 	Format             string                 `json:"format,omitempty"`       // legacy_root | workspace_v2
+	Persistent         bool                   `json:"persistent"`
+	Locked             bool                   `json:"locked"`
+	UsedBytes          int64                  `json:"used_bytes"`
+	FileCount          int                    `json:"files"`
+	AttachedTo         []VolumeAttachment     `json:"attached_to,omitempty"`
 	Raw                map[string]interface{} `json:"raw,omitempty"`
+}
+
+// VolumeAttachment names one consumer that currently uses a volume. Kind is
+// "workspace" or "machine".
+type VolumeAttachment struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
 }
 
 func (v *Volume) UnmarshalJSON(data []byte) error {
@@ -223,6 +260,12 @@ func (v *Volume) UnmarshalJSON(data []byte) error {
 		CreatedAt string `json:"created_at"`
 		ExpiresAt string `json:"expires_at"`
 		QuotaMB   int64  `json:"quota_mb"`
+		// Patched boringd (0009) additionally reports these. expires_at is empty
+		// for a persistent volume, which parseOptionalTime maps to nil.
+		Persistent bool  `json:"persistent"`
+		Locked     bool  `json:"locked"`
+		UsedBytes  int64 `json:"used_bytes"`
+		Files      int   `json:"files"`
 	}
 	if err := json.Unmarshal(data, &wire); err != nil {
 		return err
@@ -231,7 +274,8 @@ func (v *Volume) UnmarshalJSON(data []byte) error {
 	_ = json.Unmarshal(data, &raw)
 	*v = Volume{ID: wire.ID, Name: wire.Name, SizeBytes: wire.SizeBytes,
 		CreatedAt: parseOptionalTime(wire.CreatedAt), ExpiresAt: parseOptionalTime(wire.ExpiresAt),
-		QuotaMB: wire.QuotaMB, Raw: raw}
+		QuotaMB: wire.QuotaMB, Persistent: wire.Persistent, Locked: wire.Locked,
+		UsedBytes: wire.UsedBytes, FileCount: wire.Files, Raw: raw}
 	return nil
 }
 
@@ -336,6 +380,10 @@ type SetupInstallOptions struct {
 	AllowVolumes       bool
 	SkipDesktop        bool
 	VerifyWorkspace    bool
+	// VolumeQuotaMB and VolumeMaxTTLSeconds feed boringd's snapshot quota and
+	// longest non-permanent retention. Zero means the AuraGo defaults.
+	VolumeQuotaMB       int
+	VolumeMaxTTLSeconds int
 	// ProjectGarage when true runs managed Garage ensure before boringd.
 	ProjectGarage bool
 }

@@ -72,7 +72,7 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if version >= 4 {
+	if version >= 5 {
 		return nil
 	}
 	// Fresh DB or pre-v2: run full base schema as v2 first, then v3.
@@ -107,6 +107,61 @@ func (l *Ledger) Migrate(ctx context.Context) error {
 		if err := l.migrateToV4(ctx); err != nil {
 			return err
 		}
+		version = 4
+	}
+	if version < 5 {
+		if err := l.backupBeforeV5(ctx); err != nil {
+			return err
+		}
+		if err := l.migrateToV5(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// migrateToV5 adds volume retention (persistent/locked/usage), user-chosen
+// machine labels and volume bindings, and the workspace origin.
+func (l *Ledger) migrateToV5(ctx context.Context) error {
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin virtual computers v5 migration: %w", err)
+	}
+	defer tx.Rollback()
+	for _, column := range []struct{ table, name, definition string }{
+		{"volumes", "persistent", "INTEGER NOT NULL DEFAULT 0"},
+		{"volumes", "locked", "INTEGER NOT NULL DEFAULT 0"},
+		{"volumes", "used_bytes", "INTEGER NOT NULL DEFAULT 0"},
+		{"volumes", "file_count", "INTEGER NOT NULL DEFAULT 0"},
+		{"machines", "label", "TEXT NOT NULL DEFAULT ''"},
+		{"machines", "volume_id", "TEXT NOT NULL DEFAULT ''"},
+		{"workspaces", "origin", "TEXT NOT NULL DEFAULT 'launched'"},
+	} {
+		if err := ensureColumn(ctx, tx, column.table, column.name, column.definition); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO schema_meta (key, value) VALUES ('schema_version', '5')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`); err != nil {
+		return fmt.Errorf("write virtual computers schema version v5: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit virtual computers v5 migration: %w", err)
+	}
+	return nil
+}
+
+func (l *Ledger) backupBeforeV5(ctx context.Context) error {
+	if strings.TrimSpace(l.path) == "" || l.path == ":memory:" {
+		return nil
+	}
+	version, err := l.schemaVersion(ctx)
+	if err != nil || version != 4 {
+		return err
+	}
+	backupPath := l.path + ".v4.bak"
+	if _, err := dbutil.BackupSQLite(ctx, l.db, backupPath); err != nil {
+		return fmt.Errorf("backup virtual computers database before v5 migration: %w", err)
 	}
 	return nil
 }
@@ -469,7 +524,7 @@ func (l *Ledger) currentSchemaInstalled(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return version >= 4, nil
+	return version >= 5, nil
 }
 
 func (l *Ledger) needsV2Migration(ctx context.Context) (bool, error) {
@@ -816,10 +871,11 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 		volumeFormat = "legacy_root"
 	}
 	_, err := l.db.ExecContext(ctx, `INSERT INTO volumes
-		(id, name, size_bytes, created_at, expires_at, quota_mb, last_verified_at, verification_status, storage_epoch_id, availability, format, raw_json, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		(id, name, size_bytes, created_at, expires_at, quota_mb, last_verified_at, verification_status, storage_epoch_id, availability, format, raw_json, updated_at,
+			persistent, locked, used_bytes, file_count)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
-			name = excluded.name,
+			name = CASE WHEN excluded.name <> '' THEN excluded.name ELSE volumes.name END,
 			size_bytes = excluded.size_bytes,
 			created_at = excluded.created_at,
 			expires_at = excluded.expires_at,
@@ -830,38 +886,133 @@ func (l *Ledger) UpsertVolume(ctx context.Context, volume Volume) error {
 			availability = excluded.availability,
 			format = excluded.format,
 			raw_json = excluded.raw_json,
-			updated_at = excluded.updated_at`,
+			updated_at = excluded.updated_at,
+			persistent = excluded.persistent,
+			locked = excluded.locked,
+			used_bytes = excluded.used_bytes,
+			file_count = excluded.file_count`,
 		volume.ID, volume.Name, volume.SizeBytes, timePtrText(volume.CreatedAt), timePtrText(volume.ExpiresAt),
-		volume.QuotaMB, timePtrText(volume.LastVerifiedAt), status, volume.StorageEpochID, availability, volumeFormat, mustJSON(volume), nowText())
+		volume.QuotaMB, timePtrText(volume.LastVerifiedAt), status, volume.StorageEpochID, availability, volumeFormat, mustJSON(volume), nowText(),
+		boolInt(volume.Persistent), boolInt(volume.Locked), volume.UsedBytes, volume.FileCount)
 	if err != nil {
 		return fmt.Errorf("upsert virtual computer volume: %w", err)
 	}
 	return nil
 }
 
+const volumeSelectColumns = `id, name, size_bytes, created_at, expires_at, quota_mb,
+		last_verified_at, verification_status, COALESCE(storage_epoch_id, 0), COALESCE(availability, 'available'), COALESCE(format, 'legacy_root'), raw_json,
+		persistent, locked, used_bytes, file_count`
+
+type volumeRowScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func scanVolume(row volumeRowScanner) (Volume, error) {
+	var volume Volume
+	var createdAt, expiresAt, verifiedAt, raw string
+	var persistent, locked int
+	if err := row.Scan(&volume.ID, &volume.Name, &volume.SizeBytes, &createdAt, &expiresAt,
+		&volume.QuotaMB, &verifiedAt, &volume.VerificationStatus, &volume.StorageEpochID, &volume.Availability, &volume.Format, &raw,
+		&persistent, &locked, &volume.UsedBytes, &volume.FileCount); err != nil {
+		return Volume{}, err
+	}
+	volume.CreatedAt = parseStoredOptionalTime(createdAt)
+	volume.ExpiresAt = parseStoredOptionalTime(expiresAt)
+	volume.LastVerifiedAt = parseStoredOptionalTime(verifiedAt)
+	volume.Persistent = persistent != 0
+	volume.Locked = locked != 0
+	_ = json.Unmarshal([]byte(raw), &volume.Raw)
+	return volume, nil
+}
+
 func (l *Ledger) ListVolumes(ctx context.Context) ([]Volume, error) {
-	rows, err := l.db.QueryContext(ctx, `SELECT id, name, size_bytes, created_at, expires_at, quota_mb,
-		last_verified_at, verification_status, COALESCE(storage_epoch_id, 0), COALESCE(availability, 'available'), COALESCE(format, 'legacy_root'), raw_json
-		FROM volumes ORDER BY updated_at DESC`)
+	rows, err := l.db.QueryContext(ctx, `SELECT `+volumeSelectColumns+` FROM volumes ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list tracked virtual computer volumes: %w", err)
 	}
 	defer rows.Close()
 	var volumes []Volume
 	for rows.Next() {
-		var volume Volume
-		var createdAt, expiresAt, verifiedAt, raw string
-		if err := rows.Scan(&volume.ID, &volume.Name, &volume.SizeBytes, &createdAt, &expiresAt,
-			&volume.QuotaMB, &verifiedAt, &volume.VerificationStatus, &volume.StorageEpochID, &volume.Availability, &volume.Format, &raw); err != nil {
+		volume, err := scanVolume(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan tracked virtual computer volume: %w", err)
 		}
-		volume.CreatedAt = parseStoredOptionalTime(createdAt)
-		volume.ExpiresAt = parseStoredOptionalTime(expiresAt)
-		volume.LastVerifiedAt = parseStoredOptionalTime(verifiedAt)
-		_ = json.Unmarshal([]byte(raw), &volume.Raw)
 		volumes = append(volumes, volume)
 	}
 	return volumes, rows.Err()
+}
+
+// GetVolume returns one tracked volume.
+func (l *Ledger) GetVolume(ctx context.Context, id string) (Volume, bool, error) {
+	if l == nil || l.db == nil || strings.TrimSpace(id) == "" {
+		return Volume{}, false, nil
+	}
+	volume, err := scanVolume(l.db.QueryRowContext(ctx, `SELECT `+volumeSelectColumns+` FROM volumes WHERE id = ?`, strings.TrimSpace(id)))
+	if err == sql.ErrNoRows {
+		return Volume{}, false, nil
+	}
+	if err != nil {
+		return Volume{}, false, fmt.Errorf("read tracked virtual computer volume: %w", err)
+	}
+	return volume, true, nil
+}
+
+// SetVolumeName changes (or clears) the user-chosen volume name.
+func (l *Ledger) SetVolumeName(ctx context.Context, id, name string) (bool, error) {
+	if l == nil || l.db == nil || strings.TrimSpace(id) == "" {
+		return false, nil
+	}
+	result, err := l.db.ExecContext(ctx, `UPDATE volumes SET name = ?, updated_at = ? WHERE id = ?`, strings.TrimSpace(name), nowText(), strings.TrimSpace(id))
+	if err != nil {
+		return false, fmt.Errorf("rename tracked virtual computer volume: %w", err)
+	}
+	n, _ := result.RowsAffected()
+	return n > 0, nil
+}
+
+// ActiveWorkspacesForVolume lists open workspaces bound to a volume.
+func (l *Ledger) ActiveWorkspacesForVolume(ctx context.Context, volumeID string) ([]Workspace, error) {
+	if l == nil || l.db == nil || strings.TrimSpace(volumeID) == "" {
+		return nil, nil
+	}
+	rows, err := l.db.QueryContext(ctx, `SELECT `+workspaceSelectColumns+` FROM workspaces
+		WHERE volume_id = ? AND state IN (?, ?, ?) ORDER BY created_at`,
+		strings.TrimSpace(volumeID), string(WorkspaceStateOpening), string(WorkspaceStateReady), string(WorkspaceStateClosing))
+	if err != nil {
+		return nil, fmt.Errorf("list workspaces for volume: %w", err)
+	}
+	defer rows.Close()
+	var out []Workspace
+	for rows.Next() {
+		workspace, err := scanWorkspace(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, workspace)
+	}
+	return out, rows.Err()
+}
+
+// MachinesWithVolume lists machine IDs the ledger knows to be bound to a volume.
+func (l *Ledger) MachinesWithVolume(ctx context.Context, volumeID string) ([]string, error) {
+	if l == nil || l.db == nil || strings.TrimSpace(volumeID) == "" {
+		return nil, nil
+	}
+	rows, err := l.db.QueryContext(ctx, `SELECT id FROM machines WHERE volume_id = ? ORDER BY id`, strings.TrimSpace(volumeID))
+	if err != nil {
+		return nil, fmt.Errorf("list machines for volume: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func (l *Ledger) DeleteVolume(ctx context.Context, id string) error {

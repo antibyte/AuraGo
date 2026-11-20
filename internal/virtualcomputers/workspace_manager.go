@@ -768,7 +768,21 @@ func (m *WorkspaceManager) WriteFile(ctx context.Context, cfg ToolConfig, identi
 	return err
 }
 
+// CheckpointOptions refines a workspace checkpoint. The agent tool never sets
+// Persistent; only the human-facing HTTP API does.
+type CheckpointOptions struct {
+	TTLSeconds int
+	Name       string
+	Persistent bool
+	// VolumeID overwrites an existing workspace_v2 volume instead of creating one.
+	VolumeID string
+}
+
 func (m *WorkspaceManager) Checkpoint(ctx context.Context, cfg ToolConfig, identity WorkspaceIdentity, workspaceID string, ttlSeconds int) (Volume, error) {
+	return m.CheckpointWithOptions(ctx, cfg, identity, workspaceID, CheckpointOptions{TTLSeconds: ttlSeconds})
+}
+
+func (m *WorkspaceManager) CheckpointWithOptions(ctx context.Context, cfg ToolConfig, identity WorkspaceIdentity, workspaceID string, options CheckpointOptions) (Volume, error) {
 	if !cfg.AllowVolumes {
 		return Volume{}, WorkspaceRPCError{Code: "volumes_disabled", Message: "virtual computer volumes are disabled"}
 	}
@@ -776,16 +790,25 @@ func (m *WorkspaceManager) Checkpoint(ctx context.Context, cfg ToolConfig, ident
 	if err != nil {
 		return Volume{}, err
 	}
+	ttlSeconds := options.TTLSeconds
 	if ttlSeconds <= 0 {
-		ttlSeconds = 30 * 24 * 60 * 60
+		ttlSeconds = cfg.VolumeMaxTTL()
 	}
-	volumeID := workspace.VolumeID
+	volumeID := strings.TrimSpace(options.VolumeID)
+	if volumeID == "" {
+		volumeID = workspace.VolumeID
+	}
 	var volume Volume
 	if volumeID == "" {
-		volume, err = client.CreateVolume(ctx, ttlSeconds)
+		createTTL := ttlSeconds
+		if options.Persistent {
+			createTTL = 0
+		}
+		volume, err = client.CreateVolumeWithOptions(ctx, VolumeCreateOptions{TTLSeconds: createTTL, Persistent: options.Persistent})
 		if err != nil {
 			return Volume{}, err
 		}
+		volume.Name = strings.TrimSpace(options.Name)
 		volumeID = volume.ID
 	} else if existing, ok, lookupErr := m.workspaceVolume(ctx, volumeID); lookupErr != nil {
 		return Volume{}, lookupErr
@@ -810,6 +833,12 @@ func (m *WorkspaceManager) Checkpoint(ctx context.Context, cfg ToolConfig, ident
 	volume.LastVerifiedAt = &now
 	if err := m.ledger.UpsertVolume(ctx, volume); err != nil {
 		return Volume{}, err
+	}
+	// Best effort: pick up the real usage and retention after the save.
+	if fresh, getErr := client.GetVolume(ctx, volumeID); getErr == nil {
+		if tracked, trackErr := TrackUpstreamVolume(ctx, m.ledger, fresh); trackErr == nil {
+			volume = tracked
+		}
 	}
 	workspace.VolumeID = volumeID
 	workspace.UpdatedAt = now

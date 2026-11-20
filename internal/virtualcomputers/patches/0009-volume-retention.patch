@@ -1,0 +1,265 @@
+diff --git a/boringd/machinevolume.go b/boringd/machinevolume.go
+index 1aa57ae..95b7dcc 100644
+--- a/boringd/machinevolume.go
++++ b/boringd/machinevolume.go
+@@ -113,11 +113,37 @@ func (s *Server) handleSaveVolume(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	defer conn.Close()
+ 	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
+-	// Cap the stream at the volume quota so a runaway /root can't blow past it.
+-	limited := io.LimitReader(conn, s.storage.quotaBytes)
+-	if err := s.storage.PutFile(volumeID, volumeSnapshot, limited, -1); err != nil {
++	// Stream into a partial object, read one byte past the quota so an
++	// oversized workspace is detected instead of silently truncated, and only
++	// replace the previous snapshot once the new one is complete.
++	partial := volumeSnapshot + ".partial"
++	counter := &countingReader{r: io.LimitReader(conn, s.storage.quotaBytes+1)}
++	if err := s.storage.PutFile(volumeID, partial, counter, -1); err != nil {
++		s.storage.DeleteFile(volumeID, partial)
++		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't save to the volume"})
++		return
++	}
++	if counter.n > s.storage.quotaBytes {
++		s.storage.DeleteFile(volumeID, partial)
++		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]any{"error": "the workspace is larger than the volume quota"})
++		return
++	}
++	if err := s.storage.Promote(volumeID, partial, volumeSnapshot); err != nil {
++		s.storage.DeleteFile(volumeID, partial)
+ 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't save to the volume"})
+ 		return
+ 	}
+ 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "volume": volumeID})
+ }
++
++// countingReader counts the bytes read through it.
++type countingReader struct {
++	r io.Reader
++	n int64
++}
++
++func (c *countingReader) Read(p []byte) (int, error) {
++	n, err := c.r.Read(p)
++	c.n += int64(n)
++	return n, err
++}
+diff --git a/boringd/server.go b/boringd/server.go
+index cf5d9f1..ffd2c84 100644
+--- a/boringd/server.go
++++ b/boringd/server.go
+@@ -76,6 +76,7 @@ func NewServer(cfg Config, mgr *Manager) *Server {
+ 	if s.storage != nil {
+ 		s.mux.Handle("POST /v1/volumes", s.auth(http.HandlerFunc(s.handleCreateVolume)))
+ 		s.mux.Handle("GET /v1/volumes/{id}", s.auth(http.HandlerFunc(s.handleGetVolume)))
++		s.mux.Handle("PATCH /v1/volumes/{id}", s.auth(http.HandlerFunc(s.handleUpdateVolume)))
+ 		s.mux.Handle("DELETE /v1/volumes/{id}", s.auth(http.HandlerFunc(s.handleDeleteVolume)))
+ 		s.mux.Handle("GET /v1/volumes/{id}/files", s.auth(http.HandlerFunc(s.handleListVolumeFiles)))
+ 		s.mux.Handle("PUT /v1/volumes/{id}/file", s.auth(http.HandlerFunc(s.handlePutVolumeFile)))
+diff --git a/boringd/storage.go b/boringd/storage.go
+index 4c737f1..be1ce60 100644
+--- a/boringd/storage.go
++++ b/boringd/storage.go
+@@ -37,8 +37,16 @@ type VolumeMeta struct {
+ 	CreatedAt time.Time `json:"created_at"`
+ 	ExpiresAt time.Time `json:"expires_at"`
+ 	QuotaMB   int       `json:"quota_mb"`
++	// Persistent volumes never expire; ExpiresAt is parked far in the future so
++	// a binary that predates the flag still keeps them. Locked volumes cannot
++	// be deleted (or have files removed) and are never GC'd.
++	Persistent bool `json:"persistent,omitempty"`
++	Locked     bool `json:"locked,omitempty"`
+ }
+ 
++// persistentSpan is how far ExpiresAt is pushed for a persistent volume.
++const persistentSpan = 100 * 365 * 24 * time.Hour
++
+ func newStorage(cfg Config) (*Storage, error) {
+ 	if cfg.S3Endpoint == "" {
+ 		return nil, nil // storage disabled
+@@ -80,12 +88,19 @@ func fileKey(id, p string) string {
+ }
+ 
+ // Create writes a new volume marker and returns its metadata.
+-func (s *Storage) Create(id string, ttl time.Duration) (*VolumeMeta, error) {
++func (s *Storage) Create(id string, ttl time.Duration, persistent, locked bool) (*VolumeMeta, error) {
+ 	now := time.Now()
+-	m := &VolumeMeta{ID: id, CreatedAt: now, ExpiresAt: now.Add(ttl), QuotaMB: int(s.quotaBytes >> 20)}
++	if persistent {
++		ttl = persistentSpan
++	}
++	m := &VolumeMeta{ID: id, CreatedAt: now, ExpiresAt: now.Add(ttl), QuotaMB: int(s.quotaBytes >> 20),
++		Persistent: persistent, Locked: locked}
+ 	return m, s.putMeta(m)
+ }
+ 
++// Update rewrites a volume's metadata.
++func (s *Storage) Update(m *VolumeMeta) error { return s.putMeta(m) }
++
+ func (s *Storage) putMeta(m *VolumeMeta) error {
+ 	buf, _ := json.Marshal(m)
+ 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+@@ -180,6 +195,20 @@ func (s *Storage) DeleteFile(id, p string) error {
+ 	return s.client.RemoveObject(ctx, s.bucket, fileKey(id, p), minio.RemoveObjectOptions{})
+ }
+ 
++// Promote moves an object inside a volume with a server-side copy, so a new
++// file only replaces the old one once it has been stored completely.
++func (s *Storage) Promote(id, from, to string) error {
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
++	defer cancel()
++	_, err := s.client.CopyObject(ctx,
++		minio.CopyDestOptions{Bucket: s.bucket, Object: fileKey(id, to)},
++		minio.CopySrcOptions{Bucket: s.bucket, Object: fileKey(id, from)})
++	if err != nil {
++		return err
++	}
++	return s.DeleteFile(id, from)
++}
++
+ // Delete removes an entire volume (marker + all files).
+ func (s *Storage) Delete(id string) error {
+ 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+@@ -212,7 +241,7 @@ func (s *Storage) GCExpired() int {
+ 			continue
+ 		}
+ 		id := strings.TrimSuffix(o.Key, "/.volume.json")
+-		if m, err := s.Get(id); err == nil && now.After(m.ExpiresAt) {
++		if m, err := s.Get(id); err == nil && !m.Persistent && !m.Locked && now.After(m.ExpiresAt) {
+ 			expired = append(expired, id)
+ 		}
+ 	}
+diff --git a/boringd/volumes.go b/boringd/volumes.go
+index 96f6ff8..318ca17 100644
+--- a/boringd/volumes.go
++++ b/boringd/volumes.go
+@@ -55,7 +55,9 @@ func (s *Server) handleCreateVolume(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 	var req struct {
+-		TTLSeconds int `json:"ttl_seconds"`
++		TTLSeconds int  `json:"ttl_seconds"`
++		Persistent bool `json:"persistent"`
++		Locked     bool `json:"locked"`
+ 	}
+ 	if r.Body != nil {
+ 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+@@ -63,12 +65,82 @@ func (s *Server) handleCreateVolume(w http.ResponseWriter, r *http.Request) {
+ 			return
+ 		}
+ 	}
+-	m, err := s.storage.Create(newVolumeID(), s.volumeTTL(req.TTLSeconds))
++	m, err := s.storage.Create(newVolumeID(), s.volumeTTL(req.TTLSeconds), req.Persistent, req.Locked)
+ 	if err != nil {
+ 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't create the volume"})
+ 		return
+ 	}
+-	writeJSON(w, http.StatusOK, m)
++	writeJSON(w, http.StatusOK, volumeView(m, 0, 0))
++}
++
++// volumeView is the JSON shape of a volume. expires_at is empty for a
++// persistent volume.
++func volumeView(m *VolumeMeta, used int64, files int) map[string]any {
++	expires := ""
++	if !m.Persistent {
++		expires = m.ExpiresAt.UTC().Format(time.RFC3339)
++	}
++	return map[string]any{
++		"id": m.ID, "created_at": m.CreatedAt, "expires_at": expires,
++		"quota_mb": m.QuotaMB, "used_bytes": used, "files": files,
++		"persistent": m.Persistent, "locked": m.Locked,
++	}
++}
++
++// handleUpdateVolume changes a volume's retention: extend the TTL, make it
++// persistent, or lock it against deletion.
++func (s *Server) handleUpdateVolume(w http.ResponseWriter, r *http.Request) {
++	var req struct {
++		TTLSeconds *int  `json:"ttl_seconds"`
++		Persistent *bool `json:"persistent"`
++		Locked     *bool `json:"locked"`
++	}
++	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
++		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON: " + err.Error()})
++		return
++	}
++	if req.TTLSeconds == nil && req.Persistent == nil && req.Locked == nil {
++		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "ttl_seconds, persistent or locked required"})
++		return
++	}
++	m, err := s.storage.Get(r.PathValue("id"))
++	if err != nil {
++		writeJSON(w, http.StatusNotFound, map[string]any{"error": "no such volume (it may have expired)"})
++		return
++	}
++	if req.Persistent != nil && *req.Persistent {
++		m.Persistent = true
++		m.ExpiresAt = time.Now().Add(persistentSpan)
++	} else if req.Persistent != nil || req.TTLSeconds != nil {
++		ttl := 0
++		if req.TTLSeconds != nil {
++			ttl = *req.TTLSeconds
++		}
++		m.Persistent = false
++		m.ExpiresAt = time.Now().Add(s.volumeTTL(ttl))
++	}
++	if req.Locked != nil {
++		m.Locked = *req.Locked
++	}
++	if err := s.storage.Update(m); err != nil {
++		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't update the volume"})
++		return
++	}
++	files, used, err := s.storage.ListFiles(m.ID)
++	if err != nil {
++		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't list volume files"})
++		return
++	}
++	writeJSON(w, http.StatusOK, volumeView(m, used, len(files)))
++}
++
++// volumeLocked answers 423 and returns true when the volume is locked.
++func (s *Server) volumeLocked(w http.ResponseWriter, id string) bool {
++	if m, err := s.storage.Get(id); err == nil && m.Locked {
++		writeJSON(w, http.StatusLocked, map[string]any{"error": "volume is locked"})
++		return true
++	}
++	return false
+ }
+ 
+ func (s *Server) handleGetVolume(w http.ResponseWriter, r *http.Request) {
+@@ -82,10 +154,7 @@ func (s *Server) handleGetVolume(w http.ResponseWriter, r *http.Request) {
+ 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't list volume files"})
+ 		return
+ 	}
+-	writeJSON(w, http.StatusOK, map[string]any{
+-		"id": m.ID, "created_at": m.CreatedAt, "expires_at": m.ExpiresAt,
+-		"quota_mb": m.QuotaMB, "used_bytes": used, "files": len(files),
+-	})
++	writeJSON(w, http.StatusOK, volumeView(m, used, len(files)))
+ }
+ 
+ func (s *Server) handleListVolumeFiles(w http.ResponseWriter, r *http.Request) {
+@@ -173,6 +242,9 @@ func (s *Server) handleDeleteVolumeFile(w http.ResponseWriter, r *http.Request)
+ 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid path"})
+ 		return
+ 	}
++	if s.volumeLocked(w, id) {
++		return
++	}
+ 	if err := s.storage.DeleteFile(id, p); err != nil {
+ 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't delete"})
+ 		return
+@@ -181,7 +253,11 @@ func (s *Server) handleDeleteVolumeFile(w http.ResponseWriter, r *http.Request)
+ }
+ 
+ func (s *Server) handleDeleteVolume(w http.ResponseWriter, r *http.Request) {
+-	if err := s.storage.Delete(r.PathValue("id")); err != nil {
++	id := r.PathValue("id")
++	if s.volumeLocked(w, id) {
++		return
++	}
++	if err := s.storage.Delete(id); err != nil {
+ 		writeJSON(w, http.StatusBadGateway, map[string]any{"error": "couldn't delete the volume"})
+ 		return
+ 	}

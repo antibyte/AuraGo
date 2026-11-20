@@ -34,6 +34,11 @@ func normalizeVirtualComputersBoringdURL(rawURL string) string {
 	}
 }
 
+const (
+	VirtualComputersDefaultVolumeQuotaMB    = 2048
+	VirtualComputersDefaultVolumeMaxTTLDays = 30
+)
+
 // normalizeVirtualComputersStorage normalizes storage.mode and related fields.
 // Legacy configs without mode: non-empty endpoint => external_s3, else managed_garage.
 // Managed endpoint/bucket/region/ssl are derived at runtime; YAML may still hold
@@ -66,6 +71,21 @@ func normalizeVirtualComputersStorage(vc *VirtualComputersConfig) {
 	}
 	vc.Storage.Endpoint = endpoint
 	vc.Storage.Region = strings.TrimSpace(vc.Storage.Region)
+	if vc.Storage.VolumeQuotaMB <= 0 {
+		vc.Storage.VolumeQuotaMB = VirtualComputersDefaultVolumeQuotaMB
+	}
+	if vc.Storage.VolumeQuotaMB < 64 {
+		vc.Storage.VolumeQuotaMB = 64
+	}
+	if vc.Storage.VolumeQuotaMB > 65536 {
+		vc.Storage.VolumeQuotaMB = 65536
+	}
+	if vc.Storage.VolumeMaxTTLDays <= 0 {
+		vc.Storage.VolumeMaxTTLDays = VirtualComputersDefaultVolumeMaxTTLDays
+	}
+	if vc.Storage.VolumeMaxTTLDays > 365 {
+		vc.Storage.VolumeMaxTTLDays = 365
+	}
 }
 
 // EffectiveVirtualComputersStorage returns the runtime S3 settings boringd and
@@ -735,6 +755,8 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	cfg.VirtualComputers.Storage.Mode = VirtualComputersStorageModeManagedGarage
 	cfg.VirtualComputers.Storage.Bucket = ManagedGarageBucket
 	cfg.VirtualComputers.Storage.UseSSL = false
+	cfg.VirtualComputers.Storage.VolumeQuotaMB = VirtualComputersDefaultVolumeQuotaMB
+	cfg.VirtualComputers.Storage.VolumeMaxTTLDays = VirtualComputersDefaultVolumeMaxTTLDays
 	cfg.VirtualComputers.DefaultTemplate = "python"
 	cfg.VirtualComputers.DefaultTTLSeconds = 600
 	cfg.VirtualComputers.MaxTTLSeconds = 900

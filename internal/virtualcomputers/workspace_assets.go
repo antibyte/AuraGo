@@ -24,6 +24,8 @@ const (
 	workspaceSnapshotSHA256      = "d8dc45aeba926903b4321001a56a2714dab035510aa63ce6c936e4a957dbb51d"
 	workspaceFirecrackerSHA256   = "80723bfd39819fb2c7a8d1b136533345a400e2c13b97b162f71681b352c0cf3d"
 	workspaceDesktopRootfsSHA256 = "79327d3142e81c172d3f75668f448c2d8fafcd37741f86fa3ebd89b3209b9cb3"
+	workspaceVolumesSHA256       = "e6c427d759f361b217d49b4f7e21ff5ac37b83b2e279a35cc3a0114a0b1a8309"
+	workspaceStorageSHA256       = "3d7d010a642e08359527ae9fb132e605e3ecf83a37112a2175ebd16293103c1f"
 )
 
 // The guest sources compile in the AuraGo module for tests. module.txt and
@@ -100,7 +102,7 @@ printf '%s  %s\n' \
     '` + workspaceMachineVolumeSHA256 + `' "${REPO_DIR}/boringd/machinevolume.go" \
     '` + workspaceMachineSHA256 + `' "${REPO_DIR}/boringd/machine.go" \
     '` + workspaceSnapshotSHA256 + `' "${REPO_DIR}/infra/latitude/build-template.sh" \
-    '` + workspaceFirecrackerSHA256 + `' "${REPO_DIR}/boringd/firecracker.go" \
+    '` + workspaceFirecrackerSHA256 + `' "${REPO_DIR}/boringd/firecracker.go"     '` + workspaceVolumesSHA256 + `' "${REPO_DIR}/boringd/volumes.go"     '` + workspaceStorageSHA256 + `' "${REPO_DIR}/boringd/storage.go" \
     '` + workspaceDesktopRootfsSHA256 + `' "${REPO_DIR}/infra/latitude/build-desktop-rootfs.sh" | sha256sum -c -
 for patch in "${PATCH_DIR}"/*.patch; do
   git -C "${REPO_DIR}" apply --unidiff-zero --check "${patch}"

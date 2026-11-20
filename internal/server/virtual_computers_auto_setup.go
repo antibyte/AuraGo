@@ -257,6 +257,7 @@ func runVirtualComputersAutoSetup(ctx context.Context, s *Server, cfg virtualcom
 	if err := virtualComputersRecordWorkspaceSetupVerified(); err != nil {
 		return errors.New("record workspace verification: " + err.Error())
 	}
+	virtualcomputers.ResetVolumeRetentionCache()
 	resetVirtualComputersManagementTunnel()
 	clearWebhostsCache()
 	return nil

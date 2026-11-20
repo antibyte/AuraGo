@@ -209,15 +209,13 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 		if err != nil {
 			return toolErrorJSON(err)
 		}
-		now := time.Now().UTC()
-		volume.LastVerifiedAt = &now
-		volume.VerificationStatus = "verified"
 		ledger, err := openToolLedger(cfg)
 		if err != nil {
 			return toolJSON("error", "storage_unavailable", err.Error(), nil)
 		}
 		defer ledger.Close()
-		if err := ledger.UpsertVolume(ctx, volume); err != nil {
+		volume, err = TrackUpstreamVolume(ctx, ledger, volume)
+		if err != nil {
 			return toolJSON("error", "storage_unavailable", err.Error(), nil)
 		}
 		return toolJSON("ok", "", "volume loaded", map[string]interface{}{"volume": volume})
@@ -240,14 +238,20 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 		return toolJSON("ok", "", "volume created", map[string]interface{}{"volume": volume})
 	case "delete_volume":
 		volumeID := toolString(args, "volume_id", "id")
-		if err := client.DeleteVolume(ctx, volumeID); err != nil {
-			return toolErrorJSON(err)
-		}
 		ledger, err := openToolLedger(cfg)
 		if err != nil {
 			return toolJSON("error", "storage_unavailable", err.Error(), nil)
 		}
 		defer ledger.Close()
+		// Locking is a human decision: refuse before boringd is even asked.
+		if tracked, found, lookupErr := ledger.GetVolume(ctx, volumeID); lookupErr != nil {
+			return toolJSON("error", "storage_unavailable", lookupErr.Error(), nil)
+		} else if found && tracked.Locked {
+			return toolJSON("error", "volume_locked", "This volume is locked by the user and cannot be deleted. Ask the user to unlock it in the Virtual Computers app.", nil)
+		}
+		if err := client.DeleteVolume(ctx, volumeID); err != nil {
+			return toolErrorJSON(err)
+		}
 		if err := ledger.DeleteVolume(ctx, volumeID); err != nil {
 			return toolJSON("error", "storage_unavailable", err.Error(), nil)
 		}

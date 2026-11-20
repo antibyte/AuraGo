@@ -197,6 +197,8 @@ func TestVirtualComputersStorageUsesVaultFieldsAndReadOnlyConnectionTest(t *test
 		`data-path="virtual_computers.storage.endpoint"`,
 		`data-path="virtual_computers.storage.bucket"`,
 		`data-path="virtual_computers.storage.region"`,
+		`data-path="virtual_computers.storage.volume_quota_mb"`,
+		`data-path="virtual_computers.storage.volume_max_ttl_days"`,
 		`'virtual_computers.storage.use_ssl'`,
 		// The S3 credentials travel with the save dock (the server writes them to the Vault).
 		`data-path="virtual_computers.s3_access_key_id"`,
@@ -301,6 +303,8 @@ func TestVirtualComputersNewTranslationsExist(t *testing.T) {
 		"config.virtual_computers.storage_ssl_label", "config.virtual_computers.storage_test_button",
 		"config.virtual_computers.s3_access_key_label", "config.virtual_computers.s3_secret_key_label",
 		"help.virtual_computers.storage_mode",
+		"config.virtual_computers.volume_quota_label", "help.virtual_computers.volume_quota_mb",
+		"config.virtual_computers.volume_max_ttl_label", "help.virtual_computers.volume_max_ttl_days",
 	}
 	desktopKeys := []string{
 		"desktop.virtual_computers_headless", "desktop.virtual_computers_task_start",

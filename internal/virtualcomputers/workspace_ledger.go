@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+const workspaceSelectColumns = `id, owner_session_id, mission_id, actor, machine_id, state, template,
+		network_profile, volume_id, capabilities_json, instance_nonce, control_owner, control_lease_expires_at,
+		last_error, created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at, origin`
+
 func (l *Ledger) UpsertWorkspace(ctx context.Context, workspace Workspace) error {
 	if l == nil || l.db == nil {
 		return fmt.Errorf("virtual computers ledger is not open")
@@ -29,6 +33,9 @@ func (l *Ledger) UpsertWorkspace(ctx context.Context, workspace Workspace) error
 	if workspace.ControlOwner == "" {
 		workspace.ControlOwner = ControlOwnerAgent
 	}
+	if strings.TrimSpace(workspace.Origin) == "" {
+		workspace.Origin = WorkspaceOriginLaunched
+	}
 	capabilities, err := json.Marshal(workspace.Capabilities)
 	if err != nil {
 		return fmt.Errorf("encode workspace capabilities: %w", err)
@@ -36,8 +43,8 @@ func (l *Ledger) UpsertWorkspace(ctx context.Context, workspace Workspace) error
 	_, err = l.db.ExecContext(ctx, `INSERT INTO workspaces
 		(id, owner_session_id, mission_id, actor, machine_id, state, template, network_profile, volume_id,
 		 capabilities_json, instance_nonce, control_owner, control_lease_expires_at, last_error,
-		 created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at, origin)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			owner_session_id = excluded.owner_session_id,
 			mission_id = excluded.mission_id,
@@ -55,12 +62,13 @@ func (l *Ledger) UpsertWorkspace(ctx context.Context, workspace Workspace) error
 			updated_at = excluded.updated_at,
 			last_activity_at = excluded.last_activity_at,
 			lease_expires_at = excluded.lease_expires_at,
-			max_expires_at = excluded.max_expires_at`,
+			max_expires_at = excluded.max_expires_at,
+			origin = excluded.origin`,
 		workspace.ID, workspace.OwnerSessionID, workspace.MissionID, workspace.Actor, workspace.MachineID,
 		workspace.State, workspace.Template, workspace.NetworkProfile, workspace.VolumeID, string(capabilities),
 		workspace.InstanceNonce, workspace.ControlOwner, timePtrText(workspace.ControlLeaseExpiresAt), workspace.LastError,
 		timeText(workspace.CreatedAt), timeText(workspace.UpdatedAt), timeText(workspace.LastActivityAt),
-		timeText(workspace.LeaseExpiresAt), timeText(workspace.MaxExpiresAt))
+		timeText(workspace.LeaseExpiresAt), timeText(workspace.MaxExpiresAt), workspace.Origin)
 	if err != nil {
 		return fmt.Errorf("upsert virtual workspace: %w", err)
 	}
@@ -71,10 +79,7 @@ func (l *Ledger) GetWorkspace(ctx context.Context, id string) (Workspace, bool, 
 	if l == nil || l.db == nil {
 		return Workspace{}, false, fmt.Errorf("virtual computers ledger is not open")
 	}
-	row := l.db.QueryRowContext(ctx, `SELECT id, owner_session_id, mission_id, actor, machine_id, state, template,
-		network_profile, volume_id, capabilities_json, instance_nonce, control_owner, control_lease_expires_at,
-		last_error, created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at
-		FROM workspaces WHERE id = ?`, strings.TrimSpace(id))
+	row := l.db.QueryRowContext(ctx, `SELECT `+workspaceSelectColumns+` FROM workspaces WHERE id = ?`, strings.TrimSpace(id))
 	workspace, err := scanWorkspace(row)
 	if err == sql.ErrNoRows {
 		return Workspace{}, false, nil
@@ -92,9 +97,7 @@ func (l *Ledger) ListWorkspaces(ctx context.Context, ownerSessionID string, incl
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	query := `SELECT id, owner_session_id, mission_id, actor, machine_id, state, template,
-		network_profile, volume_id, capabilities_json, instance_nonce, control_owner, control_lease_expires_at,
-		last_error, created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at FROM workspaces`
+	query := `SELECT ` + workspaceSelectColumns + ` FROM workspaces`
 	args := make([]interface{}, 0, 3)
 	clauses := make([]string, 0, 2)
 	if strings.TrimSpace(ownerSessionID) != "" {
@@ -127,9 +130,7 @@ func (l *Ledger) ListWorkspaces(ctx context.Context, ownerSessionID string, incl
 }
 
 func (l *Ledger) ListLeaseScanPage(ctx context.Context, afterID string) ([]Workspace, error) {
-	rows, err := l.db.QueryContext(ctx, `SELECT id, owner_session_id, mission_id, actor, machine_id, state, template,
-		network_profile, volume_id, capabilities_json, instance_nonce, control_owner, control_lease_expires_at,
-		last_error, created_at, updated_at, last_activity_at, lease_expires_at, max_expires_at
+	rows, err := l.db.QueryContext(ctx, `SELECT `+workspaceSelectColumns+`
 		FROM workspaces WHERE state NOT IN (?, ?) AND id > ? ORDER BY id LIMIT 500`,
 		WorkspaceStateClosed, WorkspaceStateFailed, afterID)
 	if err != nil {
@@ -224,7 +225,7 @@ func scanWorkspace(scanner workspaceScanner) (Workspace, error) {
 		&workspace.ID, &workspace.OwnerSessionID, &workspace.MissionID, &workspace.Actor, &workspace.MachineID,
 		&workspace.State, &workspace.Template, &workspace.NetworkProfile, &workspace.VolumeID, &capabilitiesJSON,
 		&workspace.InstanceNonce, &workspace.ControlOwner, &controlLease, &workspace.LastError,
-		&created, &updated, &activity, &lease, &maxExpires,
+		&created, &updated, &activity, &lease, &maxExpires, &workspace.Origin,
 	); err != nil {
 		return Workspace{}, err
 	}
