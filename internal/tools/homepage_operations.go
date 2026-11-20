@@ -47,7 +47,7 @@ func HomepageOperationMutates(name string) bool {
 		return true
 	}
 	switch name {
-	case "init", "start", "stop", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "publish_local", "webserver_start", "webserver_stop", "tunnel", "git_init", "git_commit", "git_rollback", "save_revision", "restore_revision":
+	case "init", "start", "stop", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "install_library", "compile_tailwind", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "publish_local", "webserver_start", "webserver_stop", "tunnel", "git_init", "git_commit", "git_rollback", "save_revision", "restore_revision":
 		return true
 	}
 	return false
@@ -90,6 +90,13 @@ func ExecuteHomepageOperation(cfg HomepageConfig, db *sql.DB, op HomepageOperati
 		return ErrorJSON(err.Error())
 	}
 	defer mu.Unlock()
+	if op.Name == "install_library" || op.Name == "compile_tailwind" {
+		project, err := openHomepageLibraryProject(cfg, op.ProjectDir)
+		if err != nil {
+			return ErrorJSON(err.Error())
+		}
+		project.Close()
+	}
 	if op.ProjectDir == "" && op.ProjectID == 0 {
 		sites, err := ListHomepageManagedSites(db)
 		if err != nil {

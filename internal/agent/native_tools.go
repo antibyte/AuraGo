@@ -715,7 +715,8 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 var focusedHomepageToolOperations = map[string]map[string]bool{
 	"homepage_project": {
 		"init": true, "start": true, "stop": true, "status": true, "rebuild": true, "destroy": true,
-		"exec": true, "init_project": true, "build": true, "install_deps": true, "dev": true,
+		"exec": true, "init_project": true, "build": true, "install_deps": true, "install_library": true,
+		"compile_tailwind": true, "dev": true,
 		"webserver_start": true, "webserver_stop": true, "webserver_status": true, "publish_local": true,
 		"tunnel": true, "test_connection": true,
 	},

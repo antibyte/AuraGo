@@ -216,10 +216,8 @@ func invalidateDockerAvailabilityCache(dockerHost string) {
 }
 
 // startPythonServer starts a Python HTTP server as fallback when Docker is not available.
-// Returns the URL and process info or error.
-// startPythonServer starts a Python HTTP server as fallback when Docker is not available.
 // Returns the URL and process info or error. Kills any previously started server first.
-func startPythonServer(port int, directory string) (string, int, error) {
+func startPythonServer(port int, directory string, publicSnapshot bool) (string, int, error) {
 	if port <= 0 {
 		port = 8080
 	}
@@ -233,8 +231,17 @@ func startPythonServer(port int, directory string) (string, int, error) {
 	}
 	activePythonServerMu.Unlock()
 
-	cmd := exec.Command("python3", "-m", "http.server",
-		strconv.Itoa(port), "--directory", directory, "--bind", "127.0.0.1")
+	args := []string{"-m", "http.server", strconv.Itoa(port), "--directory", directory, "--bind", "127.0.0.1"}
+	if publicSnapshot {
+		// The Studio iframe has an opaque origin, so browser modules in a public
+		// snapshot need CORS even when their URL is relative to the page.
+		args = []string{"-c", homepagePythonSnapshotServer, strconv.Itoa(port), directory}
+	}
+	python := "python3"
+	if _, err := exec.LookPath(python); err != nil {
+		python = "python"
+	}
+	cmd := exec.Command(python, args...)
 	if err := cmd.Start(); err != nil {
 		return "", 0, fmt.Errorf("failed to start Python server: %w", err)
 	}
@@ -249,6 +256,23 @@ func startPythonServer(port int, directory string) (string, int, error) {
 	url := fmt.Sprintf("http://localhost:%d", port)
 	return url, cmd.Process.Pid, nil
 }
+
+const homepagePythonSnapshotServer = `
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
+import sys
+
+class SnapshotHandler(SimpleHTTPRequestHandler):
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.js': 'text/javascript', '.mjs': 'text/javascript'}
+
+    def end_headers(self):
+        if self.command in ('GET', 'HEAD') and urlsplit(self.path).path.lower().endswith(('.js', '.mjs')):
+            self.send_header('Access-Control-Allow-Origin', '*')
+        super().end_headers()
+
+ThreadingHTTPServer(('127.0.0.1', int(sys.argv[1])), partial(SnapshotHandler, directory=sys.argv[2])).serve_forever()
+`
 
 // HomepageInit builds the image (if needed) and creates the dev container.
 // If Docker is not available, falls back to Python HTTP server (only if AllowLocalServer is true).
@@ -291,7 +315,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		}
 
 		// Try to start Python server as fallback
-		url, pid, err := startPythonServer(cfg.WebServerPort, cfg.WorkspacePath)
+		url, pid, err := startPythonServer(cfg.WebServerPort, cfg.WorkspacePath, false)
 		if err != nil {
 			return errJSON("Docker not available (%v) and Python fallback failed: %v. "+
 				"Please ensure either Docker is running (systemctl start docker) or Python is installed.",

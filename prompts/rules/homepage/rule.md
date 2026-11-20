@@ -52,6 +52,8 @@ When adding local images, videos, fonts, downloads, or other static files, place
 
 Before editing an existing project, inspect it with `homepage_file` `list_files` and `read_file`. Prefer source edits through `homepage_file` `write_file` or `edit_file`; do not write directly into generated output directories such as `dist`, `build`, or `out`.
 
+When the site needs a supported browser library, ask `homepage_project` `install_library` to install it under the selected project with a reason. Use the returned local asset paths and load mode in the page. Supported IDs are `bootstrap`, `alpinejs`, `htmx`, `chartjs`, `swiper`, `three`, and `tailwindcss`. For managed Tailwind CSS, run `compile_tailwind` with the installed version after editing classes and before preview or publication. Reuse an existing framework Tailwind integration when present. Keep site URLs based on local project assets and verify they load in the preview.
+
 For build and deploy work, use this sequence: inspect project, edit source, run `homepage_deploy` `build`, preview or publish locally when useful, verify the rendered page, then deploy through `homepage_deploy` `deploy_netlify`, `deploy_vercel`, or `deploy` as appropriate.
 
 For Netlify static exports, pass the directory that actually contains the deployable `index.html`. If a framework project cannot build but a sibling static export such as `my-site-static/` exists, deploy that static directory with `build_dir: "."` or rely on the Netlify fallback result when it reports `fallback_project_dir`.

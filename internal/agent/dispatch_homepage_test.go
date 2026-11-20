@@ -50,6 +50,48 @@ func TestDispatchHomepageDestroyRequiresForce(t *testing.T) {
 	}
 }
 
+func TestDispatchHomepageLibraryUsesPermissionsAndLedger(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Homepage.Enabled = true
+	cfg.Homepage.WorkspacePath = t.TempDir()
+	if err := os.Mkdir(filepath.Join(cfg.Homepage.WorkspacePath, "site"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfg.Homepage.WorkspacePath, "site", "index.html"), []byte("<h1>Homepage</h1>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	db, err := tools.InitHomepageRegistryDB(filepath.Join(t.TempDir(), "homepage.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	site, err := tools.EnsureHomepageProjectForDir(db, tools.HomepageConfig{WorkspacePath: cfg.Homepage.WorkspacePath}, "site", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dispatch := &DispatchContext{Cfg: cfg, Logger: testLogger, HomepageRegistryDB: db, RunID: "library-test"}
+	call := ToolCall{Action: "homepage_project", Operation: "install_library", Reason: "Use a chart on the site", Params: map[string]any{"library": "unknown", "managed_site_id": site.ID}}
+	output, handled := dispatchServices(t.Context(), call, dispatch)
+	if !handled || !strings.Contains(homepageToolOutputMessage(t, output), "allow_network_requests") {
+		t.Fatalf("network permission: %s", output)
+	}
+	cfg.Agent.AllowNetworkRequests = true
+	call.Params["library"] = "tailwindcss"
+	output, _ = dispatchServices(t.Context(), call, dispatch)
+	if !strings.Contains(homepageToolOutputMessage(t, output), "Docker write access") {
+		t.Fatalf("Tailwind container permission: %s", output)
+	}
+	call.Params["library"] = "unknown"
+	output, _ = dispatchServices(t.Context(), call, dispatch)
+	if !strings.Contains(homepageToolOutputMessage(t, output), "unknown library") || !strings.Contains(output, `"ledger_updated":true`) {
+		t.Fatalf("expected a recorded failed attempt: %s", output)
+	}
+	events, err := tools.ListHomepageSiteEvents(db, site.ID, 10, 0)
+	if err != nil || len(events) != 3 || events[0].EventType != "operation_finished" || events[0].Outcome != "failed" || events[2].EventType != "operation_started" || events[0].OperationID != events[2].OperationID {
+		t.Fatalf("site events = %+v, %v", events, err)
+	}
+}
+
 func TestDispatchHomepageInitProjectRegistersProjectDir(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Homepage.Enabled = true

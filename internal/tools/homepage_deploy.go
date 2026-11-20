@@ -637,7 +637,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		}
 
 		// Use Python HTTP server as fallback
-		url, pid, err := startPythonServer(port, hostBuildPath)
+		url, pid, err := startPythonServer(port, hostBuildPath, true)
 		if err != nil {
 			return errJSON("Failed to start web server (Docker not available, Python fallback failed): %v", err)
 		}

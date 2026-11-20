@@ -90,6 +90,7 @@ func TestRoleToolRestrictionHoldsA2APeersToReadsOnDesktopHomepageAndCode(t *test
 		{Action: "homepage", Operation: "write_file"}, {Action: "homepage", Operation: "edit_file"},
 		{Action: "homepage", Operation: "exec"}, {Action: "homepage", Operation: "deploy_netlify"},
 		{Action: "homepage", Operation: "publish_local"}, {Action: "homepage", Operation: "save_revision"},
+		{Action: "homepage_project", Operation: "install_library"}, {Action: "homepage_project", Operation: "compile_tailwind"},
 		{Action: "homepage"}, {Action: "homepage_file", Operation: "write_file"}, {Action: "homepage_deploy", Operation: "deploy"},
 		// The dispatcher redirects a homepage operation named as the tool.
 		{Action: "write_file"}, {Action: "deploy_vercel"}, {Action: "build"}, {Action: "restore_revision"},

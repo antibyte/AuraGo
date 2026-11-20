@@ -178,7 +178,8 @@ async function renderHomepageSection(section) {
     if (dockerEnabled) {
         html += `<div class="field-group">
             <div class="field-group-title">${cfgIcon('lock')} ${t('config.homepage.permissions_title')}</div>
-            <div class="field-group-desc">${t('config.homepage.permissions_desc')}</div>`;
+            <div class="field-group-desc">${t('config.homepage.permissions_desc')}</div>
+            <div class="field-help">${t('config.homepage.libraries_help')}</div>`;
 
         html += `<div class="field-grid two-cols">`;
 

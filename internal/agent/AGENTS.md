@@ -997,6 +997,7 @@ None.
 ### Managed website context and mutation intent
 
 - Homepage mutations require a purpose in reason before execution and use tools.ExecuteHomepageOperation. Do not duplicate routine events with manual notes.
+- Homepage `install_library` and `compile_tailwind` bind the existing project or managed-site ID and require effective network permission. Tailwind also requires managed Homepage container permission and Docker writes. Keep discovery, A2A denial, manuals, and the external training catalog aligned with dispatch.
 - Managed-site context is a required request-local addendum independent of ReuseContext, including prepared/stable and scoped minimal loops. Refresh after cache lookup on every physical request; never widen scoped registry access.
 - Keep active identity, locations, unknown outcomes and reasons visible. The registry overview/get_site/list_events operations expose the complete paginated read model.
 - Verify rendered-inventory and focused dispatch regression tests.

@@ -1,4 +1,5 @@
 {
+  "config.homepage.libraries_help": "De agent kan Bootstrap, Alpine.js, htmx, Chart.js, Swiper, Three.js en Tailwind CSS in het project installeren. Voor downloads is netwerktoegang nodig. Voor het compileren van Tailwind CSS is de ontwikkelcontainer vereist.",
   "config.homepage.allow_container": "Containerbeheer toestaan (starten/stoppen/herbouwen)",
   "config.homepage.allow_deploy": "Deployment naar externe servers toestaan",
   "config.homepage.allow_temporary_token_budget_overflow": "Sta een tijdelijke overloop van het tokenbudget toe voor stromen op de startpagina",

@@ -36,6 +36,27 @@ record rather than cascading its history.
 ## Change recording
 
 Every agent Homepage mutation requires a short reason describing its purpose.
+
+### Project libraries
+
+Ask the Homepage Studio agent to use Bootstrap, Alpine.js, htmx, Chart.js,
+Swiper, Three.js, or Tailwind CSS on a selected site. The agent installs a
+versioned copy under `vendor/` in the public asset directory and links it from
+the site. This is the project root for plain HTML, `public/` for Vite, Next.js,
+Astro and Nuxt, and `static/` for SvelteKit. The installer uses those standard
+directories. Installing a newer release leaves older URLs available.
+
+The six browser libraries come from jsDelivr and are checked against the
+version's file sizes and SHA-256 hashes. Tailwind uses the official npm CLI in
+the managed Homepage container and publishes only compiled CSS. Ask the agent
+to recompile after changing Tailwind classes, then refresh or republish the
+site. The installed files are served by the website after publication. A
+third-party preview host needs to allow CORS for browser modules when opened
+inside the Studio's sandboxed preview.
+
+Installation uses the existing Homepage mutation journal. Downloads require
+the agent's network permission. Tailwind also requires a running Homepage
+development container with Docker write access and Homepage container management.
 All focused tools accept it. Missing reasons fail before execution. System
 lifecycle calls supply their known trigger.
 

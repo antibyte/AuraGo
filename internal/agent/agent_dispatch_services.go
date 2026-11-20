@@ -953,6 +953,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 
 			// Permission checks for restricted operations
 			switch req.Operation {
+			case "install_library", "compile_tailwind":
+				if perms, configured := tools.EffectiveRuntimePermissions(ctx); !cfg.Agent.AllowNetworkRequests || (configured && !perms.AllowNetworkRequests) {
+					return "Tool Output: " + tools.ErrorJSON("Homepage libraries require agent.allow_network_requests for downloads")
+				}
+				if req.Operation == "compile_tailwind" || req.Library == "tailwindcss" {
+					if !cfg.Homepage.AllowContainerManagement || !cfg.Docker.Enabled || cfg.Docker.ReadOnly {
+						return "Tool Output: " + tools.ErrorJSON("Tailwind CSS requires the Homepage dev container, Docker write access and homepage.allow_container_management")
+					}
+				}
 			case "deploy", "test_connection":
 				if !cfg.Homepage.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Remote deployment is disabled by administrator. The homepage.allow_deploy setting is false in config.yaml. For local serving use operation 'publish_local' instead — it does not require allow_deploy. Do NOT retry this operation — use publish_local or inform the user that remote deployment must be enabled in the configuration."}`
@@ -977,7 +986,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				req.ProjectDir = resolved
 			}
 			switch req.Operation {
-			case "publish_local", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "build", "install_deps", "git_init", "git_commit", "git_rollback":
+			case "publish_local", "deploy", "deploy_netlify", "deploy_here_now", "deploy_vercel", "build", "install_deps", "install_library", "compile_tailwind", "git_init", "git_commit", "git_rollback":
 				if validation := homepageProjectDirRequired(req.Operation, req.ProjectDir); validation != "" {
 					return validation
 				}
@@ -1109,6 +1118,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				case "install_deps":
 					logger.Info("LLM requested homepage install_deps", "packages", req.Packages)
 					return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, req.ProjectDir, req.Packages, logger)
+				case "install_library":
+					return tools.InstallHomepageLibrary(homepageCfg, req.ProjectDir, req.Library)
+				case "compile_tailwind":
+					return tools.CompileHomepageTailwind(homepageCfg, req.ProjectDir, req.Version)
 				case "lighthouse":
 					logger.Info("LLM requested homepage lighthouse", "url", req.URL)
 					result := tools.HomepageLighthouse(homepageCfg, req.URL, logger)
@@ -1538,7 +1551,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					logger.Info("LLM requested homepage revision_status", "dir", req.ProjectDir)
 					return "Tool Output: " + tools.HomepageRevisionStatus(homepageCfg, homepageRegistryDB, req.ProjectDir, logger)
 				default:
-					return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_here_now, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
+					return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, install_library, compile_tailwind, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_here_now, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
 				}
 			})
 

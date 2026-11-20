@@ -1,4 +1,5 @@
 {
+  "config.homepage.libraries_help": "एजेंट प्रोजेक्ट में Bootstrap, Alpine.js, htmx, Chart.js, Swiper, Three.js और Tailwind CSS इंस्टॉल कर सकता है। डाउनलोड के लिए नेटवर्क की अनुमति चाहिए। Tailwind CSS को कंपाइल करने के लिए डेवलपमेंट कंटेनर चाहिए।",
   "config.homepage.allow_container": "कंटेनर प्रबंधन की अनुमति दें (शुरू/बंद/पुनर्निर्माण)",
   "config.homepage.allow_deploy": "रिमोट सर्वर पर डिप्लॉयमेंट की अनुमति दें",
   "config.homepage.allow_temporary_token_budget_overflow": "मुखपृष्ठ प्रवाह के लिए अस्थायी टोकन बजट अतिप्रवाह की अनुमति दें",

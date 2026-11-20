@@ -1,4 +1,5 @@
 {
+  "config.homepage.libraries_help": "Ο βοηθός μπορεί να εγκαταστήσει τα Bootstrap, Alpine.js, htmx, Chart.js, Swiper, Three.js και Tailwind CSS στο έργο. Οι λήψεις απαιτούν άδεια δικτύου. Η μεταγλώττιση του Tailwind CSS απαιτεί το κοντέινερ ανάπτυξης.",
   "config.homepage.allow_container": "Να επιτρέπεται η διαχείριση containers (εκκίνηση/διακοπή/ανακατασκευή)",
   "config.homepage.allow_deploy": "Να επιτρέπεται η ανάπτυξη σε απομακρυσμένους διακομιστές",
   "config.homepage.allow_temporary_token_budget_overflow": "Να επιτρέπεται η προσωρινή υπερχείλιση προϋπολογισμού διακριτικών για ροές αρχικής σελίδας",

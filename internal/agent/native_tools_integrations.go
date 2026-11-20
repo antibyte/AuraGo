@@ -91,23 +91,25 @@ func operationProperty(description string, ops []string) map[string]interface{} 
 }
 
 func appendHomepageFocusedSchemas(toolSchemas []openai.Tool, ff ToolFeatureFlags) []openai.Tool {
-	projectDesc := "Manage homepage project lifecycle in the homepage workspace."
+	projectDesc := "Manage homepage projects and install local browser libraries in the homepage workspace."
 	if !ff.HomepageAllowLocalServer {
 		projectDesc += " Docker is required when local server fallback is disabled."
 	}
 	toolSchemas = append(toolSchemas,
 		tool("homepage_project", projectDesc, schema(map[string]interface{}{
-			"operation":   operationProperty("Project operation.", []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "dev", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "test_connection"}),
+			"operation":   operationProperty("Project operation.", []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "install_library", "compile_tailwind", "dev", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "test_connection"}),
 			"command":     prop("string", "Shell command for exec inside the homepage container."),
 			"framework":   prop("string", "Framework for init_project: next, vite, astro, svelte, vue, html."),
 			"name":        prop("string", "Project name for init_project."),
-			"project_dir": prop("string", "Required workspace-relative project subdirectory for build, install_deps, dev, publish_local, and other project-scoped mutations."),
+			"project_dir": prop("string", "Workspace-relative directory for project-scoped mutations. Library operations require this or managed_site_id."),
 			"build_dir":   prop("string", "Build output directory."),
 			"template":    prop("string", "Optional starter template."),
 			"design":      prop("string", "Optional design template id for init_project (from the homepage design catalog, e.g. genesis). Writes the matching DESIGN.md into the new project so the design system applies."),
 			"auto_fix":    prop("boolean", "Retry common build fixes when true."),
 			"force":       prop("boolean", "Required true only for destructive destroy."),
 			"packages":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "NPM packages for install_deps."},
+			"library":     operationProperty("Required for install_library. Installs the latest stable release as local project assets.", []string{"bootstrap", "alpinejs", "htmx", "chartjs", "swiper", "three", "tailwindcss"}),
+			"version":     prop("string", "Required for compile_tailwind. Exact installed Tailwind CSS version returned by install_library."),
 			"port":        prop("integer", "Port for tunnel; defaults to 3000."),
 		}, "operation")),
 		tool("homepage_file", "Read, write, and edit files inside the homepage workspace. Use paths with the project directory prefix.", schema(map[string]interface{}{

@@ -1,4 +1,5 @@
 {
+  "config.homepage.libraries_help": "代理可以在项目中安装 Bootstrap、Alpine.js、htmx、Chart.js、Swiper、Three.js 和 Tailwind CSS。下载需要网络权限，编译 Tailwind CSS 需要开发容器。",
   "config.homepage.allow_container": "允许容器管理（启动/停止/重建）",
   "config.homepage.allow_deploy": "允许部署到远程服务器",
   "config.homepage.allow_temporary_token_budget_overflow": "允许主页流程临时令牌预算溢出",

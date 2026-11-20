@@ -506,7 +506,7 @@ var externalReachOrdinary = []struct {
 	{"local build and container work behind homepage.allow_container_management, or local binaries and certificates", map[string][]string{
 		"cloudflare_tunnel": {"install"},
 		"homepage_deploy":   {"build", "dev"},
-		"homepage_project":  {"init", "start", "rebuild", "exec", "init_project", "build", "install_deps", "dev"},
+		"homepage_project":  {"init", "start", "rebuild", "exec", "init_project", "build", "install_deps", "install_library", "compile_tailwind", "dev"},
 		"netlify":           {"provision_ssl"},
 		"vercel":            {"verify_domain"},
 	}},
