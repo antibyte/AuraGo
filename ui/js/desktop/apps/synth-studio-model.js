@@ -577,7 +577,6 @@
         validate(project);
         assertInstrument(instrument, instrument === 'audio' ? 4 : project.version);
         if (instrument === 'audio' && project.version < 3) throw error('E_PROJECT_VERSION', 'Audio tracks require project version 3 or later.');
-        if (instrument === 'audio') project.version = 4;
         if (project.tracks.length >= MAX_TRACKS) throw error('E_PROJECT_LIMIT', `A project may contain at most ${MAX_TRACKS} tracks.`);
         const drums = project.tracks.filter(track => isDrumInstrument(track.instrument)).length;
         if (isDrumInstrument(instrument) ? drums >= 1 : project.tracks.length - drums >= 15) {
@@ -597,6 +596,7 @@
             ...(project.version >= 3 ? {fx:{inserts:defaultInsertsFor(instrument)}} : {}),
             clips: []
         };
+        if (instrument === 'audio') project.version = 4;
         project.tracks.push(track);
         return track;
     }

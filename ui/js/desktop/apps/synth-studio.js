@@ -76,8 +76,8 @@
         }
         function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select(p.tracks[0]?.id||'',p.tracks[0]?.clips[0]?.id||'');workspace.performance.scrollTop=0;refresh();}
         function mutate(fn,kind='timeline'){
-            if(blocked())return;
-            try{const next=M.clone(project());fn(next);M.validate(next);if(playing){if(kind==='mix')audio.updateTracks(next);else if(kind==='automation')audio.setAutomation(next);else if(kind!=='metadata'){audio.queueProject({...stage.runtime(next),metronome},undefined,()=>{notice('');stage.sceneApplied();});notice(tr('change_queued'));}}history.commit(next);currentProject=history.current();storage.changed();refresh();}catch(error){fail(error);}
+            if(blocked())return false;
+            try{const next=M.clone(project());fn(next);M.validate(next);if(playing){if(kind==='mix')audio.updateTracks(next);else if(kind==='automation')audio.setAutomation(next);else if(kind!=='metadata'){audio.queueProject({...stage.runtime(next),metronome},undefined,()=>{notice('');stage.sceneApplied();});notice(tr('change_queued'));}}history.commit(next);currentProject=history.current();storage.changed();refresh();return true;}catch(error){fail(error);return false;}
         }
         function updatedHistory(direction){if(blocked())return;stop();history[direction]();currentProject=history.current();storage.changed();refresh();}
         function insert(data,tid,tick){

@@ -30,7 +30,7 @@
             '<div class="ss-generator-actions">'+label('generator',select('generator',[['chord',tr('chord')],['arp',tr('arpeggiator')],['variation',tr('variation_lab')],['rhythm',tr('rhythm_generator')],['progression',tr('progression')],['bassline',tr('bassline')],['groove',tr('groove_lab')],['reverse',tr('reverse_notes')],['scale',tr('scale_apply')]]))+button('generate')+'<span data-compose-target></span></div><div class="ss-preview" hidden role="group" aria-label="'+esc(tr('preview'))+'">'+button('original')+button('variant')+button('apply')+button('cancel')+'<span data-preview-state role="status"></span></div></div>';
         const q=key=>host.querySelector('[data-music="'+key+'"]');
         const settings=()=>Object.fromEntries([...host.querySelectorAll('[data-music]')].map(e=>[e.dataset.music,e.type==='checkbox'?e.checked:e.type==='number'||e.type==='range'||['root','seventh','division','octaves','steps','accent','pitch','groove_grid','progression_rate'].includes(e.dataset.music)?Number(e.value):e.value]));
-        function selection(){const p=options.project(),s=options.selection(),track=p.tracks.find(t=>t.id===s.trackId);return {p,track,clip:track?.clips.find(c=>c.id===s.clipId)};}
+        function selection(){const p=options.project(),s=options.selection(),track=p.tracks.find(t=>t.id===s.trackId);const clip=track?.clips.find(c=>c.id===s.clipId);return {p,track,clip:clip&&!clip.audio?clip:undefined};}
         function cancel(){epoch++;previewAudio.stop();preview=null;host.querySelector('.ss-preview').hidden=true;}
         function stopLive(){epoch++;clearInterval(timer);timer=null;held.clear();physical.clear();for(const v of scheduled)v.cancel();scheduled=[];padReleases.forEach(fn=>fn());padReleases=[];}
         function stop(){cancel();stopLive();}
@@ -117,7 +117,7 @@
             if(action==='generate')generate();
             if(action==='cancel')cancel();
             if(action==='original'||action==='variant')compare(action==='variant');
-            if(action==='apply'&&preview&&!options.blocked()){const current=preview;if(current.base!==JSON.stringify(options.project())){cancel();return;}const notes=current.p.tracks.find(t=>t.id===current.track).clips.find(c=>c.id===current.clip).notes;cancel();options.mutate(p=>{p.tracks.find(t=>t.id===current.track).clips.find(c=>c.id===current.clip).notes=notes;});options.showNotes();}
+            if(action==='apply'&&preview&&!options.blocked()){const current=preview;if(current.base!==JSON.stringify(options.project())){cancel();return;}const notes=current.p.tracks.find(t=>t.id===current.track).clips.find(c=>c.id===current.clip).notes;cancel();if(options.mutate(p=>{p.tracks.find(t=>t.id===current.track).clips.find(c=>c.id===current.clip).notes=notes;}))options.showNotes();}
         }catch(error){options.fail(error);}},{signal});
         host.addEventListener('input',e=>{const out=e.target.parentElement.querySelector('output');if(out)out.textContent=e.target.value;},{signal});
         host.addEventListener('change',e=>{if(!e.target.dataset.music)return;cancel();stopLive();const s=settings();

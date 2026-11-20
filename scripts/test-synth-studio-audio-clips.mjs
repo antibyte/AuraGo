@@ -61,6 +61,11 @@ const clip = (extra = {}) => ({ id: 'ac1', name: 'RB', start: 0, length: 1920, n
   const withAudio = structuredClone(v3);
   Model.addTrack(withAudio, 'user-test').clips.push(clip());
   assert.throws(() => Model.validate(withAudio), /audio|unknown|key/i, 'clip.audio is rejected in v3');
+  const full = structuredClone(v3);
+  for (let i = 0; i < 15; i++) Model.addTrack(full, 'user-test');
+  assert.equal(full.tracks.length, 15, 'the v3 project holds 15 melodic tracks');
+  assert.throws(() => Model.addTrack(full, 'audio'), /15 melodic/, 'a project with 15 melodic tracks rejects an audio track');
+  assert.equal(full.version, 3, 'a rejected audio addTrack leaves the v3 project at version 3');
 }
 
 // ---- scheduling ----------------------------------------------------------
