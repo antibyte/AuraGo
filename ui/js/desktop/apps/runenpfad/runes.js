@@ -211,6 +211,7 @@
                 && !stage.checkpoints.some(function (c) { return Math.abs(c.x - (tx + 0.5) * T) < 70; })
                 && !stage.boulders.some(function (b) { return b.x < x1 && b.x + b.w > x0; })
                 && !stage.cannons.some(function (c) { return Math.abs(c.x - (tx + 0.5) * T) < 100; })
+                && !(stage.gauntlets || []).some(function (gz) { return gz.x0 < x1 && gz.x1 > x0; })
                 && ![stage.key, stage.door, stage.portal].some(function (o) { return o && Math.abs(o.x - (tx + 0.5) * T) < 90; });
             if (clear && (best < 0 || Math.abs(tx - target) < Math.abs(best - target))) best = tx;
         }

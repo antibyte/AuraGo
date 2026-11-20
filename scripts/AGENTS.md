@@ -80,7 +80,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
   requested-music queue priority; the full run also decodes assets with FFmpeg.
   `node scripts/test-aura-drift-fx-resources.mjs` checks ordered FX initialization
   and the optional fallback when a stale loader omits its resource module.
-- Runenpfad: `node scripts/test-runenpfad-sim.mjs` validates sprite packs, campaign and tower stages, hero abilities, enemy counterplay, rune trails, sky rays, upgrades, saves and floating-label keys. `node scripts/test-runenpfad-obstacles.mjs` covers thorn rollers and moon steps. `node scripts/test-runenpfad-audio.mjs` checks the event audio. `scripts/build_runenpfad_art.py --check` verifies generated sheets and provenance. `TestDesktopRunenpfadBrowser` plays through the encounters in Chrome.
+- Runenpfad: `node scripts/test-runenpfad-sim.mjs` validates sprite packs, campaign and tower stages, hero abilities, enemy counterplay, rune trails, sky rays, upgrades, saves and floating-label keys. `node scripts/test-runenpfad-obstacles.mjs` covers thorn rollers and moon steps. `node scripts/test-runenpfad-gauntlets.mjs` covers the campaign gauntlets (structure, scripted solutions for both heroes, fairness windows and naive-run failures). `node scripts/test-runenpfad-audio.mjs` checks the event audio. `scripts/build_runenpfad_art.py --check` verifies generated sheets and provenance. `TestDesktopRunenpfadBrowser` plays through the encounters in Chrome.
 - Sprite packing: `pack_game_sprites.py` fills the declared ten-column grid from
   reviewed rectangles and anchors in the production manifest; human packs append
   two climbing rows without renumbering existing cells. `test_pack_game_sprites.py`

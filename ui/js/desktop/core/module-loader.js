@@ -55,6 +55,7 @@
                 '/js/desktop/apps/runenpfad/runes.js',
                 '/js/desktop/apps/runenpfad/zones.js',
                 '/js/desktop/apps/runenpfad/zones-extra.js',
+                '/js/desktop/apps/runenpfad/gauntlets.js',
                 '/js/desktop/apps/runenpfad/swing.js',
                 '/js/desktop/apps/runenpfad/puzzles.js',
                 '/js/desktop/apps/runenpfad/dragons.js',

@@ -19,7 +19,7 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
 // Same order as module-loader.js; missing modules are skipped so the suite grows with the phases.
-const MODULES = ['biomes', 'fx', 'physics', 'behaviors', 'bosses', 'variety', 'profile', 'runes', 'zones', 'zones-extra', 'swing', 'puzzles', 'dragons',
+const MODULES = ['biomes', 'fx', 'physics', 'behaviors', 'bosses', 'variety', 'profile', 'runes', 'zones', 'zones-extra', 'gauntlets', 'swing', 'puzzles', 'dragons',
     'npcs', 'npc-story', 'npc-story-late', 'dialogue', 'trade', 'folk', 'folk-story', 'duel-patterns', 'duel', 'levels', 'combat', 'sim'];
 for (const m of MODULES) {
     const rel = `ui/js/desktop/apps/runenpfad/${m}.js`;

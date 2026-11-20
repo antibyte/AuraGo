@@ -13,7 +13,7 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
 // Same order as module-loader.js; the interiors modules sit between the duel and levels modules.
-const MODULES = ['biomes', 'fx', 'physics', 'behaviors', 'bosses', 'variety', 'profile', 'runes', 'zones', 'zones-extra', 'swing', 'puzzles', 'dragons',
+const MODULES = ['biomes', 'fx', 'physics', 'behaviors', 'bosses', 'variety', 'profile', 'runes', 'zones', 'zones-extra', 'gauntlets', 'swing', 'puzzles', 'dragons',
     'npcs', 'npc-story', 'npc-story-late', 'dialogue', 'trade', 'duel-patterns', 'duel', 'place-rooms', 'interior-mobs', 'interior', 'places', 'folk', 'folk-story', 'village-rooms', 'village',
     'levels', 'combat', 'sim'];
 for (const m of MODULES) {

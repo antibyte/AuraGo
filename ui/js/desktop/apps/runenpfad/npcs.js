@@ -299,7 +299,7 @@
         const T = stage.tileSize;
         const first = (stage.npcs || []).reduce(function (m, n) { return Math.min(m, n.campX1); }, Infinity);
         const from = Number.isFinite(first) ? first : 0;
-        const plats = (stage.platforms || []).filter(function (pl) { return pl.kind === 'platform' && !pl.puzzle && pl.x >= from; }).sort(function (a, b) { return a.x - b.x || a.y - b.y; });
+        const plats = (stage.platforms || []).filter(function (pl) { return pl.kind === 'platform' && !pl.puzzle && !pl.gauntlet && pl.x >= from; }).sort(function (a, b) { return a.x - b.x || a.y - b.y; });
         const n = plats.length;
         const idx = [Math.floor(n / 4), Math.floor(n / 2), Math.floor(3 * n / 4)];
         const spots = [];

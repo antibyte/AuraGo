@@ -300,35 +300,35 @@
 
     // 25 campaign stages (5 worlds x 5 stages). Every 5th stage culminates in a Boss Arena.
     const CAMPAIGN_LEVELS = [
-        { id: 1, worldIndex: 0, stageInWorld: 1, nameKey: 'runenpfad.level_1', parTime: 75, zones: ['meadow', 'step_ledge', 'place:hermit_hut', 'crate_yard', 'key_sanctum'], enemies: ['slime', 'slime', 'goblin'] },
-        { id: 2, worldIndex: 0, stageInWorld: 2, nameKey: 'runenpfad.level_2', parTime: 110, zones: ['meadow', 'npc_camp:witch', 'bridge_gap', 'mushroom_canopy', 'rune_sequence:vault', 'key_sanctum'], enemies: ['slime', 'goblin', 'wolf'] },
-        { id: 3, worldIndex: 0, stageInWorld: 3, nameKey: 'runenpfad.level_3', parTime: 135, zones: ['meadow', 'ladder_tower', 'swing_gorge', 'bounce_grove', 'place:beast_den', 'thorn_hollow', 'spike_gallery', 'npc_camp:merchant', 'thorn_roller', 'key_sanctum'], enemies: ['goblin', 'wolf', 'sporecap', 'slime'] },
-        { id: 4, worldIndex: 0, stageInWorld: 4, nameKey: 'runenpfad.level_4', parTime: 145, zones: ['meadow', 'npc_camp:witch', 'mushroom_canopy', 'lantern_path', 'lever_bridge', 'secret_vault', 'rune_gate', 'key_sanctum'], enemies: ['wolf', 'boar', 'sporecap', 'wolf'] },
-        { id: 5, worldIndex: 0, stageInWorld: 5, nameKey: 'runenpfad.level_5', parTime: 125, zones: ['meadow', 'step_ledge', 'bounce_grove', 'boss_arena'], enemies: ['slime', 'sporecap'], boss: 'boss_boar' },
+        { id: 1, worldIndex: 0, stageInWorld: 1, nameKey: 'runenpfad.level_1', parTime: 75, zones: ['meadow', 'step_ledge', 'place:hermit_hut', 'crate_yard', 'gauntlet:thorn_hop', 'key_sanctum'], enemies: ['slime', 'slime', 'goblin'] },
+        { id: 2, worldIndex: 0, stageInWorld: 2, nameKey: 'runenpfad.level_2', parTime: 110, zones: ['meadow', 'npc_camp:witch', 'bridge_gap', 'mushroom_canopy', 'rune_sequence:vault', 'gauntlet:crumble_steps', 'key_sanctum'], enemies: ['slime', 'goblin', 'wolf'] },
+        { id: 3, worldIndex: 0, stageInWorld: 3, nameKey: 'runenpfad.level_3', parTime: 135, zones: ['meadow', 'ladder_tower', 'swing_gorge', 'bounce_grove', 'place:beast_den', 'thorn_hollow', 'spike_gallery', 'npc_camp:merchant', 'thorn_roller', 'gauntlet:spike_tunnel', 'key_sanctum'], enemies: ['goblin', 'wolf', 'sporecap', 'slime'] },
+        { id: 4, worldIndex: 0, stageInWorld: 4, nameKey: 'runenpfad.level_4', parTime: 145, zones: ['meadow', 'npc_camp:witch', 'mushroom_canopy', 'lantern_path', 'lever_bridge', 'secret_vault', 'rune_gate', 'gauntlet:pendulum_bridge', 'key_sanctum'], enemies: ['wolf', 'boar', 'sporecap', 'wolf'] },
+        { id: 5, worldIndex: 0, stageInWorld: 5, nameKey: 'runenpfad.level_5', parTime: 125, zones: ['meadow', 'step_ledge', 'bounce_grove', 'gauntlet:trap_isle', 'boss_arena'], enemies: ['slime', 'sporecap'], boss: 'boss_boar' },
 
-        { id: 6, worldIndex: 1, stageInWorld: 1, nameKey: 'runenpfad.level_6', parTime: 120, zones: ['meadow', 'ritual_chain', 'lantern_path', 'place:kobold_den', 'rune_gate', 'mushroom_canopy', 'moon_steps', 'key_sanctum'], enemies: ['slime', 'sporecap', 'spider_drone', 'drakeling'] },
-        { id: 7, worldIndex: 1, stageInWorld: 2, nameKey: 'runenpfad.level_7', parTime: 140, zones: ['meadow', 'npc_camp:witch', 'crumble_chasm', 'pendulum_hall', 'swing_gorge', 'thorn_hollow', 'key_sanctum'], enemies: ['goblin', 'crystal_bat', 'boar'] },
-        { id: 8, worldIndex: 1, stageInWorld: 3, nameKey: 'runenpfad.level_8', parTime: 150, zones: ['meadow', 'dragon_strafe', 'ladder_tower', 'crumble_chasm', 'updraft_shaft', 'boulder_gallery', 'npc_camp:chief_gate', 'key_sanctum'], enemies: ['spider_drone', 'boar', 'crystal_bat', 'drakeling'] },
-        { id: 9, worldIndex: 1, stageInWorld: 4, nameKey: 'runenpfad.level_9', parTime: 175, zones: ['meadow', 'npc_camp:merchant', 'thorn_hollow', 'secret_vault', 'rope_chasm', 'place:crystal_grotto', 'rune_sequence', 'lantern_path', 'mushroom_canopy', 'key_sanctum'], enemies: ['boar', 'crystal_bat', 'drakeling', 'stalker'] },
-        { id: 10, worldIndex: 1, stageInWorld: 5, nameKey: 'runenpfad.level_10', parTime: 135, zones: ['meadow', 'crumble_chasm', 'lantern_path', 'boss_arena'], enemies: ['crystal_bat', 'spider_drone', 'drakeling'], boss: 'boss_goblin' },
+        { id: 6, worldIndex: 1, stageInWorld: 1, nameKey: 'runenpfad.level_6', parTime: 120, zones: ['meadow', 'ritual_chain', 'lantern_path', 'place:kobold_den', 'rune_gate', 'mushroom_canopy', 'moon_steps', 'gauntlet:spike_tunnel', 'key_sanctum'], enemies: ['slime', 'sporecap', 'spider_drone', 'drakeling'] },
+        { id: 7, worldIndex: 1, stageInWorld: 2, nameKey: 'runenpfad.level_7', parTime: 140, zones: ['meadow', 'npc_camp:witch', 'crumble_chasm', 'pendulum_hall', 'swing_gorge', 'thorn_hollow', 'gauntlet:guarded_isle', 'key_sanctum'], enemies: ['goblin', 'crystal_bat', 'boar'] },
+        { id: 8, worldIndex: 1, stageInWorld: 3, nameKey: 'runenpfad.level_8', parTime: 150, zones: ['meadow', 'dragon_strafe', 'ladder_tower', 'crumble_chasm', 'updraft_shaft', 'boulder_gallery', 'npc_camp:chief_gate', 'gauntlet:crumble_chain', 'key_sanctum'], enemies: ['spider_drone', 'boar', 'crystal_bat', 'drakeling'] },
+        { id: 9, worldIndex: 1, stageInWorld: 4, nameKey: 'runenpfad.level_9', parTime: 175, zones: ['meadow', 'npc_camp:merchant', 'thorn_hollow', 'secret_vault', 'rope_chasm', 'place:crystal_grotto', 'rune_sequence', 'lantern_path', 'mushroom_canopy', 'gauntlet:ferry', 'key_sanctum'], enemies: ['boar', 'crystal_bat', 'drakeling', 'stalker'] },
+        { id: 10, worldIndex: 1, stageInWorld: 5, nameKey: 'runenpfad.level_10', parTime: 135, zones: ['meadow', 'crumble_chasm', 'lantern_path', 'gauntlet:crumble_steps', 'boss_arena'], enemies: ['crystal_bat', 'spider_drone', 'drakeling'], boss: 'boss_goblin' },
 
-        { id: 11, worldIndex: 2, stageInWorld: 1, nameKey: 'runenpfad.level_11', parTime: 125, zones: ['meadow', 'npc_camp:seer', 'lever_bridge', 'updraft_shaft', 'place:nomad_tent', 'cannon_bastion', 'geyser_field', 'key_sanctum'], enemies: ['scarab', 'wolf', 'quadcopter'] },
-        { id: 12, worldIndex: 2, stageInWorld: 2, nameKey: 'runenpfad.level_12', parTime: 145, zones: ['meadow', 'npc_camp:merchant', 'crumble_chasm', 'bounce_grove|secret_vault', 'cannon_bastion', 'rune_shrine', 'dragon_strafe', 'key_sanctum'], enemies: ['wolf', 'scarab', 'drakeling', 'quadcopter'] },
-        { id: 13, worldIndex: 2, stageInWorld: 3, nameKey: 'runenpfad.level_13', parTime: 160, zones: ['meadow', 'npc_camp:chief', 'ladder_tower', 'conveyor_works', 'rope_chasm', 'ritual_chain:req', 'cannon_bastion', 'key_sanctum'], enemies: ['boar', 'scarab', 'security_orb', 'wolf'] },
-        { id: 14, worldIndex: 2, stageInWorld: 4, nameKey: 'runenpfad.level_14', parTime: 170, zones: ['meadow', 'thorn_hollow', 'updraft_shaft', 'cannon_bastion', 'place:sun_tomb', 'secret_vault', 'rune_sequence:vault', 'npc_camp:seer', 'key_sanctum'], enemies: ['security_orb', 'quadcopter', 'scarab', 'drakeling'] },
-        { id: 15, worldIndex: 2, stageInWorld: 5, nameKey: 'runenpfad.level_15', parTime: 140, zones: ['meadow', 'cannon_bastion', 'updraft_shaft', 'boss_arena'], enemies: ['scarab', 'quadcopter', 'drakeling'], boss: 'boss_orb' },
+        { id: 11, worldIndex: 2, stageInWorld: 1, nameKey: 'runenpfad.level_11', parTime: 125, zones: ['meadow', 'npc_camp:seer', 'lever_bridge', 'updraft_shaft', 'place:nomad_tent', 'cannon_bastion', 'geyser_field', 'gauntlet:cannon_islands', 'key_sanctum'], enemies: ['scarab', 'wolf', 'quadcopter'] },
+        { id: 12, worldIndex: 2, stageInWorld: 2, nameKey: 'runenpfad.level_12', parTime: 145, zones: ['meadow', 'npc_camp:merchant', 'crumble_chasm', 'bounce_grove|secret_vault', 'cannon_bastion', 'rune_shrine', 'dragon_strafe', 'gauntlet:jet_islands', 'key_sanctum'], enemies: ['wolf', 'scarab', 'drakeling', 'quadcopter'] },
+        { id: 13, worldIndex: 2, stageInWorld: 3, nameKey: 'runenpfad.level_13', parTime: 160, zones: ['meadow', 'npc_camp:chief', 'ladder_tower', 'conveyor_works', 'rope_chasm', 'ritual_chain:req', 'cannon_bastion', 'gauntlet:guarded_isle', 'key_sanctum'], enemies: ['boar', 'scarab', 'security_orb', 'wolf'] },
+        { id: 14, worldIndex: 2, stageInWorld: 4, nameKey: 'runenpfad.level_14', parTime: 170, zones: ['meadow', 'thorn_hollow', 'updraft_shaft', 'cannon_bastion', 'place:sun_tomb', 'secret_vault', 'rune_sequence:vault', 'npc_camp:seer', 'gauntlet:cannon_crossfire', 'key_sanctum'], enemies: ['security_orb', 'quadcopter', 'scarab', 'drakeling'] },
+        { id: 15, worldIndex: 2, stageInWorld: 5, nameKey: 'runenpfad.level_15', parTime: 140, zones: ['meadow', 'cannon_bastion', 'updraft_shaft', 'gauntlet:trap_isle', 'boss_arena'], enemies: ['scarab', 'quadcopter', 'drakeling'], boss: 'boss_orb' },
 
-        { id: 16, worldIndex: 3, stageInWorld: 1, nameKey: 'runenpfad.level_16', parTime: 130, zones: ['meadow', 'ice_slide', 'dragon_strafe', 'lantern_path', 'place:summit_hut', 'ambush_den', 'crate_yard', 'key_sanctum'], enemies: ['wolf', 'frost_wraith', 'spider_drone'] },
-        { id: 17, worldIndex: 3, stageInWorld: 2, nameKey: 'runenpfad.level_17', parTime: 155, zones: ['meadow', 'npc_camp:wizard', 'ice_slide', 'lever_bridge', 'bounce_grove', 'rune_gate', 'secret_vault', 'thorn_roller', 'key_sanctum'], enemies: ['service_robot', 'crystal_bat', 'frost_wraith', 'spider_drone'] },
-        { id: 18, worldIndex: 3, stageInWorld: 3, nameKey: 'runenpfad.level_18', parTime: 160, zones: ['meadow', 'npc_camp:merchant', 'moving_bridge', 'ice_slide', 'ladder_tower', 'pendulum_hall', 'ritual_chain:vault', 'key_sanctum'], enemies: ['spider_drone', 'crystal_bat', 'frost_wraith', 'wolf'] },
-        { id: 19, worldIndex: 3, stageInWorld: 4, nameKey: 'runenpfad.level_19', parTime: 180, zones: ['meadow', 'swing_gorge', 'ice_slide', 'rope_chasm', 'place:ice_cave', 'updraft_shaft', 'rune_sequence', 'npc_camp:wizard', 'key_sanctum'], enemies: ['quadcopter', 'frost_wraith', 'security_orb', 'sentry_bot'] },
-        { id: 20, worldIndex: 3, stageInWorld: 5, nameKey: 'runenpfad.level_20', parTime: 145, zones: ['meadow', 'ice_slide', 'pendulum_hall', 'boss_arena'], enemies: ['frost_wraith', 'spider_drone'], boss: 'boss_quad' },
+        { id: 16, worldIndex: 3, stageInWorld: 1, nameKey: 'runenpfad.level_16', parTime: 130, zones: ['meadow', 'ice_slide', 'dragon_strafe', 'lantern_path', 'place:summit_hut', 'ambush_den', 'crate_yard', 'gauntlet:trap_isle', 'key_sanctum'], enemies: ['wolf', 'frost_wraith', 'spider_drone'] },
+        { id: 17, worldIndex: 3, stageInWorld: 2, nameKey: 'runenpfad.level_17', parTime: 155, zones: ['meadow', 'npc_camp:wizard', 'ice_slide', 'lever_bridge', 'bounce_grove', 'rune_gate', 'secret_vault', 'thorn_roller', 'gauntlet:ferry', 'key_sanctum'], enemies: ['service_robot', 'crystal_bat', 'frost_wraith', 'spider_drone'] },
+        { id: 18, worldIndex: 3, stageInWorld: 3, nameKey: 'runenpfad.level_18', parTime: 160, zones: ['meadow', 'npc_camp:merchant', 'moving_bridge', 'ice_slide', 'ladder_tower', 'pendulum_hall', 'ritual_chain:vault', 'gauntlet:crumble_steps', 'key_sanctum'], enemies: ['spider_drone', 'crystal_bat', 'frost_wraith', 'wolf'] },
+        { id: 19, worldIndex: 3, stageInWorld: 4, nameKey: 'runenpfad.level_19', parTime: 180, zones: ['meadow', 'swing_gorge', 'ice_slide', 'rope_chasm', 'place:ice_cave', 'updraft_shaft', 'rune_sequence', 'npc_camp:wizard', 'gauntlet:pendulum_bridge', 'key_sanctum'], enemies: ['quadcopter', 'frost_wraith', 'security_orb', 'sentry_bot'] },
+        { id: 20, worldIndex: 3, stageInWorld: 5, nameKey: 'runenpfad.level_20', parTime: 145, zones: ['meadow', 'ice_slide', 'pendulum_hall', 'gauntlet:thorn_hop', 'boss_arena'], enemies: ['frost_wraith', 'spider_drone'], boss: 'boss_quad' },
 
-        { id: 21, worldIndex: 4, stageInWorld: 1, nameKey: 'runenpfad.level_21', parTime: 150, zones: ['meadow', 'npc_camp:alchemist', 'cannon_bastion', 'swing_gorge', 'moving_bridge', 'flame_jets', 'moon_steps', 'key_sanctum'], enemies: ['service_robot', 'spider_drone', 'clock_knight', 'drakeling'] },
-        { id: 22, worldIndex: 4, stageInWorld: 2, nameKey: 'runenpfad.level_22', parTime: 150, zones: ['meadow', 'thorn_hollow', 'lantern_path', 'ladder_tower', 'place:brass_lab', 'pendulum_hall', 'rune_sequence:vault', 'rune_shrine', 'key_sanctum'], enemies: ['spider_drone', 'clock_knight', 'combat_mech', 'security_orb'] },
-        { id: 23, worldIndex: 4, stageInWorld: 3, nameKey: 'runenpfad.level_23', parTime: 175, zones: ['meadow', 'npc_camp:merchant+alchemist', 'crumble_chasm', 'conveyor_works', 'dragon_strafe', 'secret_vault', 'cannon_bastion', 'key_sanctum'], enemies: ['combat_mech', 'clock_knight', 'security_orb', 'drakeling', 'bomber_drone'] },
-        { id: 24, worldIndex: 4, stageInWorld: 4, nameKey: 'runenpfad.level_24', parTime: 175, zones: ['meadow', 'npc_camp:wizard', 'cannon_bastion', 'thorn_hollow', 'pendulum_hall|conveyor_works', 'lever_bridge', 'place:boiler_room', 'ritual_chain:req', 'mushroom_canopy', 'key_sanctum'], enemies: ['combat_mech', 'clock_knight', 'quadcopter', 'spider_drone', 'security_orb'] },
-        { id: 25, worldIndex: 4, stageInWorld: 5, nameKey: 'runenpfad.level_25', parTime: 170, zones: ['meadow', 'moving_bridge', 'conveyor_works', 'npc_camp:wizard+alchemist', 'boss_arena'], enemies: ['clock_knight', 'security_orb', 'quadcopter'], boss: 'boss_mech' }
+        { id: 21, worldIndex: 4, stageInWorld: 1, nameKey: 'runenpfad.level_21', parTime: 150, zones: ['meadow', 'npc_camp:alchemist', 'cannon_bastion', 'swing_gorge', 'moving_bridge', 'flame_jets', 'moon_steps', 'gauntlet:jet_islands', 'key_sanctum'], enemies: ['service_robot', 'spider_drone', 'clock_knight', 'drakeling'] },
+        { id: 22, worldIndex: 4, stageInWorld: 2, nameKey: 'runenpfad.level_22', parTime: 150, zones: ['meadow', 'thorn_hollow', 'lantern_path', 'ladder_tower', 'place:brass_lab', 'pendulum_hall', 'rune_sequence:vault', 'rune_shrine', 'gauntlet:conveyor_gauntlet', 'key_sanctum'], enemies: ['spider_drone', 'clock_knight', 'combat_mech', 'security_orb'] },
+        { id: 23, worldIndex: 4, stageInWorld: 3, nameKey: 'runenpfad.level_23', parTime: 175, zones: ['meadow', 'npc_camp:merchant+alchemist', 'crumble_chasm', 'conveyor_works', 'dragon_strafe', 'secret_vault', 'cannon_bastion', 'gauntlet:crumble_chain', 'key_sanctum'], enemies: ['combat_mech', 'clock_knight', 'security_orb', 'drakeling', 'bomber_drone'] },
+        { id: 24, worldIndex: 4, stageInWorld: 4, nameKey: 'runenpfad.level_24', parTime: 175, zones: ['meadow', 'npc_camp:wizard', 'cannon_bastion', 'thorn_hollow', 'pendulum_hall|conveyor_works', 'lever_bridge', 'place:boiler_room', 'ritual_chain:req', 'mushroom_canopy', 'gauntlet:cannon_crossfire', 'key_sanctum'], enemies: ['combat_mech', 'clock_knight', 'quadcopter', 'spider_drone', 'security_orb'] },
+        { id: 25, worldIndex: 4, stageInWorld: 5, nameKey: 'runenpfad.level_25', parTime: 170, zones: ['meadow', 'moving_bridge', 'conveyor_works', 'npc_camp:wizard+alchemist', 'gauntlet:spike_tunnel', 'boss_arena'], enemies: ['clock_knight', 'security_orb', 'quadcopter'], boss: 'boss_mech' }
     ];
 
     // Variety zones (zones.js) join the endless pool next to the classic archetypes.
@@ -339,7 +339,7 @@
     const R4_ZONES = ['swing_gorge', 'rune_sequence', 'lever_bridge', 'ritual_chain'];
     // Zone modules in dispatch order: the first one whose has(zone) is true builds the zone.
     function zoneModules() {
-        return [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons, root.RunenpfadNpcs, root.RunenpfadPlaces, root.RunenpfadVillage];
+        return [root.RunenpfadZones, root.RunenpfadZonesExtra, root.RunenpfadGauntlets, root.RunenpfadSwing, root.RunenpfadPuzzles, root.RunenpfadDragons, root.RunenpfadNpcs, root.RunenpfadPlaces, root.RunenpfadVillage];
     }
 
     // Zone slots such as 'a|b' resolve by level-id seed, so a campaign level always builds the same variant.
@@ -388,7 +388,7 @@
         });
         const desiredX = stage.spawn.x + 34;
         const eligible = surfaces.filter(function (s) {
-            return (s.end + 1) * tile - Math.max((s.start + 0.5) * tile, desiredX) >= pattern.offsets[pattern.offsets.length - 1];
+            return (s.end + 1) * tile - Math.max((s.start + 0.5) * tile, desiredX) >= pattern.offsets[pattern.offsets.length - 1] && !(stage.gauntlets || []).some(function (gz) { return gz.x0 < (s.end + 1) * tile && gz.x1 > s.start * tile; });
         });
         if (!eligible.length) return null;
         let span = eligible[0];
@@ -663,7 +663,7 @@
             cfg: cfg, world: world, rows: rows, groundY: groundY, TILE: TILE, rng: rng, cursorX: 1, zIdx: 0,
             setTile: setTile, fillGround: fillGround, addPlatformRow: addPlatformRow, addCoinLine: addCoinLine,
             addEnemy: addEnemy, nextEnemyId: nextEnemyId, placeGem: placeGem, gemCount: function () { return gemIndex; },
-            addProp: addProp, addCheckpoint: addCheckpoint,
+            addProp: addProp, addCheckpoint: addCheckpoint, movingPlatforms: movingPlatforms, cannons: cannons,
             solidMap: solidMap, tiles: tiles, platforms: platforms, hazards: hazards, collectibles: collectibles,
             crates: crates, scenery: scenery, enemies: enemies,
             windZones: windZones, pendulums: pendulums, secretWalls: secretWalls, lanterns: lanterns, ropes: ropes,
@@ -946,7 +946,7 @@
                 secondary: biome ? biome.ambience.secondary : ''
             },
             nameKey: cfg.nameKey,
-            parTime: cfg.parTime,
+            parTime: cfg.parTime + (root.RunenpfadGauntlets ? root.RunenpfadGauntlets.parBonusFor(cfg.zones) : 0),
             tileSize: TILE,
             widthTiles: widthTiles,
             heightTiles: rows,
@@ -996,15 +996,24 @@
         const variety = root.RunenpfadVariety || null;
         if (variety) {
             const mod = variety.pickMod(cfg.mode === 'endless' ? 0 : cfg.id, cfg.mode === 'endless' ? cfg.endlessFloor : 0);
+            // Trial spawns keep their rng draws but stay out of gauntlet spans (a patrol is clamped at the span edge).
+            const gSpans = (stage.gauntlets || []).map(function (gz) { return [gz.x0 / TILE, gz.x1 / TILE]; });
+            const inGauntlet = function (tx) { return gSpans.some(function (sp) { return tx + 0.5 >= sp[0] && tx + 0.5 < sp[1]; }); };
             if (mod && mod.effects.extraEnemies) {
                 for (let i = 0; i < mod.effects.extraEnemies; i++) {
                     const tx = 6 + Math.floor(rng() * Math.max(1, widthTiles - 14));
-                    addEnemy(enemyPool[Math.floor(rng() * enemyPool.length)], tx, groundY, Math.max(1, tx - 4), Math.min(widthTiles - 1, tx + 4));
+                    const defId = enemyPool[Math.floor(rng() * enemyPool.length)];
+                    if (inGauntlet(tx)) { rng(); continue; }
+                    let lo = Math.max(1, tx - 4);
+                    let hi = Math.min(widthTiles - 1, tx + 4);
+                    gSpans.forEach(function (sp) { if (tx < sp[0] && hi >= sp[0]) hi = sp[0] - 1; else if (tx >= sp[1] && lo < sp[1]) lo = sp[1]; });
+                    addEnemy(defId, tx, groundY, lo, hi);
                 }
             }
             if (mod && mod.effects.heartBonus) {
                 for (let i = 0; i < mod.effects.heartBonus; i++) {
                     const tx = 4 + Math.floor(rng() * Math.max(1, widthTiles - 10));
+                    if (inGauntlet(tx)) continue;
                     collectibles.push({
                         id: 'hb_' + collectibles.length,
                         kind: 'heart',
@@ -1027,7 +1036,7 @@
             const camps = (stage.npcs || []).map(function (npc) { return [npc.campX0, npc.campX1]; });
             const candidates = stage.enemies.map(function (enemy, index) { return { enemy: enemy, index: index }; }).filter(function (entry) {
                 const e = entry.enemy;
-                if (e.dead || (e.def && e.def.boss) || camps.some(function (span) { return e.spawnX >= span[0] - TILE * 2 && e.spawnX <= span[1] + TILE * 2; })) return false;
+                if (e.dead || e.gauntlet || (e.def && e.def.boss) || camps.some(function (span) { return e.spawnX >= span[0] - TILE * 2 && e.spawnX <= span[1] + TILE * 2; })) return false;
                 return specialEnemy !== 'bell_toad' || !!stage.solidMap[Math.floor(e.spawnX / TILE) + ',' + Math.floor(e.spawnY / TILE)];
             });
             if (candidates.length) {

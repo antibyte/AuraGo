@@ -12,7 +12,7 @@ vm.createContext(sandbox);
 
 for (const file of [
     'biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'variety.js', 'profile.js', 'runes.js',
-    'zones.js', 'zones-extra.js', 'swing.js', 'puzzles.js', 'dragons.js', 'npcs.js', 'npc-story.js',
+    'zones.js', 'zones-extra.js', 'gauntlets.js', 'swing.js', 'puzzles.js', 'dragons.js', 'npcs.js', 'npc-story.js',
     'npc-story-late.js', 'dialogue.js', 'trade.js', 'levels.js', 'combat.js', 'sim.js'
 ]) {
     const abs = path.join(rootDir, 'ui/js/desktop/apps/runenpfad', file);

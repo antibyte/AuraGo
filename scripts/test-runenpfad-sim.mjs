@@ -41,6 +41,7 @@ loadModule('ui/js/desktop/apps/runenpfad/profile.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/runes.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/zones.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/zones-extra.js', sandbox);
+loadModule('ui/js/desktop/apps/runenpfad/gauntlets.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/swing.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/puzzles.js', sandbox);
 loadModule('ui/js/desktop/apps/runenpfad/dragons.js', sandbox);

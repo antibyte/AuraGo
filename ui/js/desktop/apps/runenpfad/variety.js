@@ -120,6 +120,9 @@
             const left = tx * tile;
             const right = left + tile;
             if (!stage.solidMap[tx + ',' + ty]) return false;
+            // Gauntlets and flame jets are never a calm span for rays or rune paths.
+            if ((stage.gauntlets || []).some(function (gz) { return left < gz.x1 && right > gz.x0; })) return false;
+            if ((stage.flameJets || []).some(function (j) { return left < j.x + j.w / 2 && right > j.x - j.w / 2; })) return false;
             for (let head = 1; head <= 3; head++) {
                 if (stage.solidMap[tx + ',' + (ty - head)]) return false;
             }
