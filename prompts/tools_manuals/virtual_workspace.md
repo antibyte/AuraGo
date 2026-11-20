@@ -5,9 +5,10 @@ Create and control a stateful agent workspace inside a boring-computers Firecrac
 ## Lifecycle
 
 - Use `open` with `template=desktop` when a visible browser is needed, or `template=python` for shell-only work.
-- Workspaces are ephemeral by default. `checkpoint` creates an explicit `workspace_v2` volume that contains only `/workspace`.
-- Use `get` and `list` to inspect state. Always use `close` when the work is complete; closing stops jobs and browser sessions, revokes grants, clears runtime state, and destroys the VM.
-- A missing workspace-agent capability returns `workspace_agent_upgrade_required`. Never fall back silently to legacy Boring LLM tasks.
+- Workspaces are ephemeral by default. `checkpoint` creates an explicit `workspace_v2` volume that contains only `/workspace`. Checkpoints made by the agent are temporary: they keep the configured volume retention, clamped to the maximum, and are never permanent or locked. A checkpoint into a locked volume is refused with `volume_locked`; ask the user to unlock it.
+- Use `get` and `list` to inspect state. Always use `close` when the work is complete. For a launched workspace, closing stops jobs and browser sessions, revokes grants, clears runtime state, and destroys the VM.
+- A computer the user assigned to the agent has `origin` `adopted`. It otherwise behaves like any workspace. Closing it releases it: jobs are cancelled and grants revoked, but the VM is kept and the user's desktop is not reset. If a release returns `desktop_control_unconfirmed`, the workspace stays open and the VM is untouched; retry the close later.
+- A missing workspace-agent capability returns `workspace_agent_upgrade_required`. For an assigned computer, the user must run Install / Repair and start a new computer. Never fall back silently to legacy Boring LLM tasks.
 
 ## Shell and files
 

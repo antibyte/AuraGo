@@ -88,13 +88,29 @@ An empty LAN list permits public internet only. Entries must be IPv4 RFC1918 CID
 
 The native `virtual_workspace` tool owns lifecycle, shell/PTY jobs, paginated output, `/workspace` file transfer, checkpoints, and credential-grant requests. `virtual_browser` owns tabs, navigation, compact DOM/accessibility inspection, reference/selector actions, visual coordinate fallbacks, screenshots, uploads, and downloads. Workspace ownership comes from AuraGo's trusted chat/mission dispatch context, never model arguments. Co-agents cannot use either tool.
 
-Only `workspace_v2` volumes may be attached. They persist `/workspace` and exclude `/root`, `/run`, browser profiles, history, and credential material. The browser profile is under `/run/aurago/chromium`. On close, AuraGo stops guest jobs and Chromium, revokes grants, destroys the VM, and retains only a checkpoint explicitly requested by the user.
+Only `workspace_v2` volumes may be attached. They persist `/workspace` and exclude `/root`, `/run`, browser profiles, history, and credential material. The browser profile is under `/run/aurago/chromium`. On close of a launched workspace, AuraGo stops guest jobs and Chromium, revokes grants, destroys the VM, and retains only a checkpoint explicitly requested by the user. Closing a computer that was assigned to the agent releases it instead and keeps the VM; see [Assign a running computer to the agent](#assign-a-running-computer-to-the-agent).
 
 Legacy `/root` volumes are never attached to Agent Workspaces or migrated automatically. An administrator can start a two-step import with `POST /api/virtual-computers/legacy-volume-imports`, supplying `source_volume_id` and one to 32 relative `/root` paths. AuraGo boots a ten-minute migration VM, rejects traversal, links, special files, common credential locations/material, more than 50,000 files, or more than 512 MiB, and returns only a metadata preview. A separate authenticated `POST /api/virtual-computers/legacy-volume-imports/{id}/confirm` rechecks the content digest, copies the approved selection into `/workspace`, and creates a new `workspace_v2` volume. `DELETE` on the preview cancels it. Preview expiry or AuraGo shutdown destroys the migration VM.
 
 Credential metadata becomes visible to the agent only when the credential has `allow_virtual_computers`. A grant remains pending until an authenticated administrator approves it in the Agent Workspaces UI. Shell grants bind to one queued job and enter only that process environment; revocation or expiry cancels the job. Browser grants bind to one exact HTTP(S) origin and one fill action. Secret values never appear in tool output, workspace events, audit records, or checkpoints.
 
 The administrative API is rooted at `/api/virtual-computers/workspaces`, with job, browser-session, credential-grant, checkpoint, control, and event-WebSocket subresources. Human takeover cancels and drains structured browser/native input for two minutes or until control is explicitly returned to the agent. Startup reconciliation keeps a job only when the same guest instance confirms it; missing machines, changed instance nonces, and unconfirmed jobs become explicit lost/interrupted records.
+
+### Assign a running computer to the agent
+
+A computer started in the Machines section can be handed to the agent with **Assign to agent**, or with `POST /api/virtual-computers/machines/{id}/assign-agent`. AuraGo creates an Agent Workspace of origin `adopted` for that machine. The assignment does not start, copy, or replace the VM. `GET /api/virtual-computers/workspaces` reports the origin of each workspace.
+
+- **Access.** The request needs administrator scope (`desktop:admin`); a token with only write scope gets 403. It also needs `virtual_computers.readonly=false` and `virtual_computers.agent_control.enabled=true`. The machine must not be stopped, stopping, exited, expired, failed, errored, or destroyed; those states return `machine_not_running`.
+- **Guest handshake.** Before anything is recorded, AuraGo checks that the guest runs the current AuraGo workspace agent. If it does not, for example because the VM was started from an older image, the request fails with `workspace_agent_upgrade_required` and this message: run Install / Repair, then start a new computer. The existing VM is neither changed nor destroyed.
+- **Reuse and conflicts.** If the machine is already assigned and ready, the existing workspace is returned with `reused: true`. If it belongs to another active workspace, the request returns `machine_owned_by_workspace`.
+- **Limits.** Assigned workspaces count toward `max_active_workspaces`. When the limit is reached, the request returns `workspace_limit_reached`; close or release another workspace first.
+- **Capabilities.** The workspace uses the machine's template (`desktop` or `python`) and the `machine` network profile. Shell, file, browser, and credential-grant actions work as for any workspace. Native desktop control (`virtual_computer_ui`) is available on an assigned desktop workspace when `agent_control.native_apps_enabled` is set.
+- **Release.** **Release** (the same action as closing a workspace, `DELETE /api/virtual-computers/workspaces/{id}`) returns `"released": true` for assigned workspaces. AuraGo cancels queued and running jobs, revokes the workspace's credential grants, closes its browser-session records, and marks the workspace closed. The release does not send `workspace.close` to the guest, so the guest's Chromium, its browser profile, and the user's desktop session are not stopped or reset. The VM is never destroyed, and the machine stays in the Machines list for direct use.
+- **Release that cannot stop input.** If the agent's desktop input cannot be confirmed stopped, the release returns `desktop_control_unconfirmed` (409). The workspace stays active with the reason recorded, and the VM is untouched. Retry the release once the guest display responds.
+- **Lease and expiry.** The workspace uses the normal idle lease (`agent_control.idle_ttl_seconds`), but it cannot outlive the machine. Its hard expiry is the machine's expiry, and persistent machines have none. Extending the machine moves that expiry. Agent activity never extends the machine itself. When the lease ends, the workspace is released automatically. If the machine is really gone, the workspace is marked lost; a temporary error while checking the machine does not mark it lost.
+- **Destroy guard.** While the workspace owns the machine, the Machines section cannot destroy it (see [Machines, screenshots, and files](#machines-screenshots-and-files)).
+
+In the app, the Machines detail offers **Assign to agent**, Rename, Extend, Save to volume, Upload, and Download. The Agent Workspaces picker has a **Running computers** group, which lists machines that have no workspace yet. Adopted workspace cards show **Assigned VM** and **Release**.
 
 ## Browser access
 
@@ -137,6 +153,8 @@ Do not publish ports `18081` or `18082`. Remote browser access should expose the
 - `management`: configured and healthy state for the Boring Computers web application
 - `sudo_password_stored`: safe boolean indicating whether the central Vault secret is available; the value itself is never returned
 
+`capabilities` stays a map of booleans and includes `volume_retention`. Numeric limits are returned in `limits`: `max_ttl_seconds`, `default_ttl_seconds`, `volume_max_ttl_seconds`, `volume_quota_mb`, and `max_forks`.
+
 The passive status request never submits the stored password to sudo. When passwordless sudo is unavailable but a Vault credential exists, `has_sudo_or_root` remains `null` until the explicit Preflight action validates the credential.
 
 If `/boring-computers/` returns `503`:
@@ -153,6 +171,13 @@ Never solve a `503` by opening either loopback port, copying the Vault token int
 AuraGo follows the pinned boringd API contract. Desktop screenshots are read as bounded `image/png` data and exposed as `{mime_type,data_base64}`. The UI offers screenshots only for machines reporting `display=true`; a direct request for a headless machine returns `capability_unavailable`. Uploads accept a filename, send only its safe basename, and report the actual `/root/<filename>` destination. File operations on a disconnected machine return `machine_not_connected`.
 
 Publishing requires a template name. Forking uses `count`; command execution accepts one complete command string rather than a separate argument array. Persistent machines may return an empty expiry timestamp, which AuraGo treats as no expiry.
+
+- **Names.** A machine can be launched with a `name` of at most 64 characters without control characters. boringd ignores names, so AuraGo stores the label in its own ledger and returns it as `label`. `PATCH /api/virtual-computers/machines/{id}` with `{"name": "..."}` renames a machine; an empty name clears the label. Labels of machines that boringd no longer lists are removed when the machine list is refreshed. Machine entries also show `volume_id`, `workspace_id`, and `workspace_origin` when they apply.
+- **Launch rules.** `persistent: true` requires `virtual_computers.allow_persistent`; otherwise the request returns `persistent_disabled` (403). An explicit `ttl_seconds` above `max_ttl_seconds` returns `ttl_too_long` (400); an omitted TTL is capped silently. A `volume_id` must be known to AuraGo (import it first, otherwise `volume_not_found`) and must be `available` (otherwise `volume_unavailable`). Its format comes from AuraGo's record, not from the request. An unknown template returns `invalid_template` when boringd's template list can be read.
+- **Destroy guard.** `DELETE` returns `machine_owned_by_workspace` (409, with `workspace_id` and `origin`) while an active workspace owns the machine. The machine is not contacted. Release or close the workspace first, as described in [Assign a running computer to the agent](#assign-a-running-computer-to-the-agent).
+- **Extend.** `ttl_seconds` must be between 1 and `max_ttl_seconds`; an omitted value uses the default. Malformed JSON returns 400. Extending a machine that an assigned workspace owns also moves that workspace's expiry.
+- **Downloads.** Downloads are always attachments: `Content-Type: application/octet-stream`, `Content-Disposition: attachment` with a sanitized file name (the base name, limited to letters, digits, `.`, `_`, and `-`), and `X-Content-Type-Options: nosniff`. Guest files are never rendered inline.
+- **Forks.** `count` must stay within `virtual_computers.max_forks`. When that setting is unset, the limit is 3; a value of 0 does not mean unlimited.
 
 ## Live VNC in Virtual Computers
 
@@ -194,7 +219,20 @@ The REST API provides `GET|POST /api/virtual-computers/tasks` and `GET|DELETE /a
 
 ## Volume storage
 
-boringd intentionally has no global volume discovery endpoint. AuraGo keeps a local ledger of known unguessable volume IDs, verifies them with `GET /v1/volumes/{id}`, removes confirmed missing entries, and marks temporarily unreachable entries stale. Volumes marked `previous_store` after a storage switch without migration are never auto-deleted on JSON 404. `GET /api/virtual-computers/volumes/{id}` imports a known ID. Creation uses a TTL, save attaches a machine snapshot to a selected volume, and launch accepts at most one `volume_id`.
+boringd intentionally has no global volume discovery endpoint. AuraGo keeps a local ledger of known unguessable volume IDs, verifies them with `GET /v1/volumes/{id}`, removes confirmed missing entries, and marks temporarily unreachable entries stale. Volumes marked `previous_store` after a storage switch without migration are never auto-deleted on JSON 404. `GET /api/virtual-computers/volumes/{id}` imports a known ID and keeps AuraGo's local name, format, and availability. Creation takes a retention (a TTL, or permanent), save attaches a machine snapshot to a selected volume, and launch accepts at most one `volume_id`. Refreshes keep local names and formats. The volume list shows `attached_to` for active workspaces and running machines that use a volume.
+
+### Retention, permanent volumes, locks, and quota
+
+- **Retention.** A non-permanent volume expires after its TTL. If `ttl_seconds` is omitted, the TTL is one day (86400 seconds), capped at the maximum. A TTL above `virtual_computers.storage.volume_max_ttl_days` is rejected with `volume_ttl_too_long` (400) instead of being shortened silently.
+- **Permanent.** A permanent volume does not expire, and boringd's garbage collection skips it. Creating one with `persistent: true` ignores `ttl_seconds`. An existing `available` volume can be made permanent with `PATCH /api/virtual-computers/volumes/{id}`. Ending permanence without a new TTL gives the volume the default one-day retention, capped at the maximum.
+- **Lock.** A locked volume cannot be deleted. AuraGo refuses the request with `volume_locked` (409). An upstream `423` is reported the same way. Garbage collection also skips locked volumes. The agent has no tool to lock, unlock, or rename a volume; these changes are made in the Virtual Computers app or through the API.
+- **Rename.** The name is an AuraGo label, at most 64 characters with no control characters. Renaming does not need the retention capability.
+- **Delete guard.** `DELETE` returns `volume_in_use` (409, with `attached_to`) while an active workspace (not closed, failed, or lost) references the volume, or while a machine that boringd still lists was launched or saved with it. Machines that boringd no longer lists do not block deletion. If boringd's machine list cannot be read, every recorded machine counts as attached, so deletion fails closed. If the ledger is unavailable, `DELETE` returns `storage_unavailable` (503) without contacting boringd. The legacy agent tool `delete_volume` applies the same in-use rule, and it also refuses locked volumes before it contacts boringd.
+- **Retention capability.** Permanent volumes, locks, and retention changes need the upstream retention patch (0009), which Install / Repair applies. `GET /api/virtual-computers/setup/status` reports the result as `capabilities.volume_retention`. Without it, these operations return `volume_retention_requires_repair` (409) with the message to run Install / Repair. Temporary volumes and renames still work.
+- **Limits.** `virtual_computers.storage.volume_max_ttl_days` (default 30, range 1–365) sets the longest non-permanent retention. `virtual_computers.storage.volume_quota_mb` (default 2048, range 64–65536) sets the per-volume snapshot limit. Install / Repair writes both into boringd's environment as `BORING_VOLUME_TTL_MAX` (days × 86400) and `BORING_VOLUME_QUOTA_MB`. Saving the settings alone does not change the running boringd. Run **Install / Repair** after changing either value.
+- **Quota.** With the retention patch, a save whose data exceeds the volume quota returns `volume_quota_exceeded` (413) and keeps the previous snapshot. Increase `volume_quota_mb`, run Install / Repair, and save again.
+- **Checkpoints.** A workspace checkpoint without an explicit TTL uses `volume_max_ttl_days`. Agent checkpoints are never permanent or locked. An agent checkpoint or legacy `save_machine` into a locked volume is refused with `volume_locked`. A TTL above the maximum is clamped to it for agent checkpoints and for the agent's `create_volume`, which does not fail. The HTTP checkpoint endpoint `POST /api/virtual-computers/workspaces/{id}/checkpoint` instead rejects a TTL above the maximum with `volume_ttl_too_long` (400). It accepts `name`, `persistent`, `volume_id`, and `ttl_seconds`, and a user-initiated checkpoint or save may write into a locked volume.
+- **Upstream views.** When boringd's volume response omits `persistent` or `locked`, AuraGo keeps the locally known values instead of resetting them. Explicit `false` values from boringd are applied.
 
 ### Managed Garage (default)
 
@@ -287,5 +325,7 @@ captures live privately under the configured data directory and are deleted
 after expiry, invalidation or shutdown. Startup also removes orphaned capture
 files left by an interrupted process. They are excluded from `/workspace` checkpoints.
 Activity stores operation/outcome only. Window content and image analysis are
-untrusted input. Native control is limited to the owning main-agent chat/mission;
-manual VMs, Python workspaces, co-agents and A2A peers are excluded.
+untrusted input. Native control is limited to the owning main-agent chat/mission.
+Python workspaces, co-agents and A2A peers are excluded. A computer assigned to
+the agent is treated like a launched desktop workspace: it may use native control
+when it is a desktop computer with the native capability.

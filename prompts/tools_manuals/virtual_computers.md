@@ -18,6 +18,7 @@ Manage short-lived boring-computers microVMs through AuraGo's private Virtual Co
 - A `503` from `/boring-computers/` means that the private management service or its SSH tunnel is not healthy. Check `/api/virtual-computers/setup/status`, then use the setup repair action; never expose ports `18081` or `18082` as a workaround.
 - Screenshots require a machine with `display=true`. A headless machine returns `capability_unavailable`; file transfer to a disconnected machine returns `machine_not_connected`.
 - boringd has no global volume-list endpoint. AuraGo lists only locally tracked IDs and verifies each with `GET /v1/volumes/{id}`. Import a known unguessable ID with `get_volume`.
+- Volume retention is human-only: permanent volumes, locks, unlocks, renames, and retention changes are made by the user in the Virtual Computers app. The agent has no tool for them.
 - `run_shell_task` and `run_desktop_task` are legacy Boring-LLM operations. They return a persistent task ID immediately; read progress with `get_agent_task` or `list_agent_tasks` and cancel only with `cancel_agent_task`. For new AuraGo-controlled work use `virtual_workspace` and `virtual_browser`. Upstream event text is isolated as external data.
 
 ## Operations
@@ -30,5 +31,9 @@ Manage short-lived boring-computers microVMs through AuraGo's private Virtual Co
 - Legacy: `run_shell_task`, `run_desktop_task`, `list_agent_tasks`, `get_agent_task`, `cancel_agent_task` when agent tasks are enabled (existing history remains readable after disabling)
 
 `exec` accepts a complete `command` string and optional timeout; boringd does not support a separate `args` list. `fork` uses `count`. A launch accepts at most one `volume_id`. Upload uses a safe `filename` and returns its `/root/<filename>` destination.
+
+`delete_volume` refuses a locked volume with `volume_locked`, and a volume that an active workspace or a running machine still uses with `volume_in_use`. Do not retry a locked refusal; ask the user to unlock it in the Virtual Computers app. `save_machine` refuses a locked target volume with `volume_locked`. `create_volume` creates temporary volumes only, and a `ttl_seconds` above the configured maximum is clamped to that maximum.
+
+A machine owned by an Agent Workspace is refused by this tool with `machine_owned_by_workspace`. The error names the `workspace_id`. Use `virtual_workspace` or `virtual_browser` with that `workspace_id` for work on the machine. `get` and `get_machine` still work. The refused operations are `destroy`, `extend`, `fork`, `exec`, `screenshot`, `upload`, `download`, `publish`, `save_machine`, `run_shell_task`, and `run_desktop_task`. If AuraGo cannot read its ledger to check ownership, the tool returns `storage_unavailable` and does not run the operation.
 
 TTL values are clamped to boringd's 15-900 second range and to `virtual_computers.max_ttl_seconds`.
