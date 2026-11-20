@@ -142,7 +142,11 @@ teleporter, a cannon).
 | 18 | `moon-18` | Orbit Loop | 5 | 35 m | boost plate, vertical loop, fork (blast door detour or half-pipe), funnel |
 
 - **Pirate Bay:** sand around a turquoise lagoon, a ship as the hero prop,
-  palms, barrels, a cannon, a treasure chest, a pier and a lighthouse. A warm
+  palms, barrels, a cannon, a treasure chest, a pier and a lighthouse. Surrounding
+  sea life patrols the lagoon around the island: reef and hammerhead sharks (with
+  dorsal fins breaking the surface and wake rings), sea turtles, manta rays, a
+  surfacing whale with blow puffs, moon jellies and tropical fish schools that
+  scatter when sharks pass. A warm
   white sun from above, a light aqua haze and a turquoise-to-light-blue sky with
   soft drifting clouds.
 - **Jungle Temple:** a carved stone head as the hero prop, totems, torches, lianas,
@@ -260,7 +264,8 @@ disables:
   the cup glow while aiming,
 - sway, flicker, the dish, the teleporter rings and the waving of the flags (a
   flag near the cup still opens, without waving),
-- the animation of the water and the sky.
+- the animation of the water, the sky and Pirate Bay's sea life (creatures stay
+  visible on `medium` and `high`, frozen in pose).
 
 The ball trail stays, because it only follows the ball. Obstacles keep moving,
 since that is gameplay.
@@ -279,6 +284,7 @@ more, and at least 12 seconds after the last change.
 | Sky | gradient, sun, Earth; no clouds or twinkle | + clouds | + star twinkle |
 | Water | static gradient and shore foam | animated | + glints |
 | Scatter props | off | on | on |
+| Sea life (Pirate Bay) | off | medium (10 sharks, 6 schools, turtles, mantas, whale, jellies) | full (15 sharks, 11 schools, turtles, mantas, whale, jellies) |
 | Sway, flicker, dish | off | on | on |
 | Particles (max per pool; confetti: half) | 60 | 160 | 320 |
 | Ball trail | off | on | on |
@@ -477,11 +483,13 @@ npm run test:synth-studio
 node scripts/build-ui-bundles.js --check
 ```
 
-`npm run test:minigolf` runs the model, look, UI, physics, collision, asset, course
-and audio checks, all without environment variables. The look test
+`npm run test:minigolf` runs the model, look, sea-life, UI, physics, collision,
+asset, course and audio checks, all without environment variables. The look test
 (`scripts/test-minigolf-look.mjs`) checks the look table, that the world id is the
 look (and that an old world id is not mapped), the quality tiers, the placement
-matrix and the intro flight. The physics test covers gravity, bumpers, boost
+matrix and the intro flight; `scripts/test-minigolf-sealife.mjs` checks Pirate
+Bay sea-life paths, shore clearance, dorsal-fin surfacing, shader guards, asset
+manifests and runtime lifecycle. The physics test covers gravity, bumpers, boost
 plates, teleporters, the cannon, every obstacle kind, the loop prototype and the
 seam cases; the collision test reads a small test GLB (hierarchy, transforms,
 welding, digest).

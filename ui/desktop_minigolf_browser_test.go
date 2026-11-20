@@ -105,7 +105,7 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	waitOr := func(timeout time.Duration, label, condition string) {
 		t.Helper()
 		if err := page.Timeout(timeout).Wait(rod.Eval(condition)); err != nil {
-			t.Fatalf("%s: %v; state: %s", label, err, page.MustEval(`()=>{const s=golfFixture.inspect(),c=document.querySelector('.mg-chip[data-active] .mg-chip-score'),m=document.querySelector('[data-plaque-meta]');return JSON.stringify({busy:s.busy,panel:s.panel,tutorial:s.tutorial,turn:s.round?.turnIndex,strokes:s.round?.players.map(p=>p.strokes),chip:c?.textContent,plaque:m?{text:m.textContent,hidden:m.hidden}:null,toasts:s.hud.toasts,graphics:s.graphics&&{aimDots:s.graphics.aimDots,cupGlow:s.graphics.cupGlow,tween:s.graphics.tween,orbit:s.graphics.orbit,shake:s.graphics.shake,ballScale:s.graphics.ballScale,camera:s.graphics.camera}})}`).Str())
+			t.Fatalf("%s: %v; state: %s", label, err, page.MustEval(`()=>{const s=golfFixture.inspect(),c=document.querySelector('.mg-chip[data-active] .mg-chip-score'),m=document.querySelector('[data-plaque-meta]');return JSON.stringify({busy:s.busy,panel:s.panel,tutorial:s.tutorial,turn:s.round?.turnIndex,strokes:s.round?.players.map(p=>p.strokes),chip:c?.textContent,plaque:m?{text:m.textContent,hidden:m.hidden}:null,toasts:s.hud.toasts,errors:golfFixture.errors,graphics:s.graphics&&{quality:s.graphics.quality,tier:s.graphics.tier,seaLife:s.graphics.seaLife,aimDots:s.graphics.aimDots,cupGlow:s.graphics.cupGlow,tween:s.graphics.tween,orbit:s.graphics.orbit,shake:s.graphics.shake,ballScale:s.graphics.ballScale,camera:s.graphics.camera}})}`).Str())
 		}
 	}
 	// A freshly loaded course flies the camera from tee to cup unless the browser asks for
@@ -159,6 +159,19 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 	page.MustElement(`[data-action="start"]`).MustClick()
 	page.MustWait(`()=>{const s=golfFixture.inspect();return !s.loading&&s.panel===''&&s.tutorial==='aim'&&s.course==='pirate-01'&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`)
 	skipIntro()
+	setQualityPreset := func(preset string) {
+		before := page.MustEval(`()=>golfFixture.inspect().panel`).Str()
+		page.MustElement(`[data-action="settings"]`).MustClick()
+		page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
+		page.MustEval(`preset=>{const select=document.querySelector('[data-quality]');select.value=preset;select.dispatchEvent(new Event('change',{bubbles:true}));}`, preset)
+		page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
+		page.MustWait(`args=>{const s=golfFixture.inspect(),settings=JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1'));return s.panel===args[0]&&settings?.quality===args[1]&&(!s.graphics||s.graphics.quality===args[1]);}`, []string{before, preset})
+	}
+	setQualityPreset("medium")
+	waitOr(15*time.Second, "pirate sea life loaded", `()=>{const sl=golfFixture.inspect().graphics?.seaLife;return !!sl&&sl.active&&sl.loaded&&sl.failures===0&&sl.sharks>=7&&sl.hammerheads>=3&&sl.fish>0&&sl.visibleBig>0&&sl.drawCalls>0}`)
+	if !functionalSmoke {
+		setQualityPreset("auto")
+	}
 	if !page.MustEval(`()=>golfFixture.inspect().audio.unlocked && golfFixture.inspect().round.players.length===2`).Bool() {
 		t.Fatal("first gesture did not unlock audio or two-player mode was not applied")
 	}
@@ -176,15 +189,13 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 			return
 		}
 		// Functional smoke checks do not need expensive software-rendered scenery.
-		before := page.MustEval(`()=>golfFixture.inspect().panel`).Str()
-		page.MustElement(`[data-action="settings"]`).MustClick()
-		page.MustWait(`()=>golfFixture.inspect().panel==='settings'`)
-		page.MustEval(`()=>{const select=document.querySelector('[data-quality]');select.value='low';select.dispatchEvent(new Event('change',{bubbles:true}));}`)
-		page.MustElement(`.mg-panel [data-action="close"]`).MustClick()
-		page.MustWait(`before=>{const s=golfFixture.inspect(),settings=JSON.parse(localStorage.getItem('aurago.desktop.minigolf.settings.v1'));return s.panel===before&&settings?.quality==='low'&&(!s.graphics||s.graphics.quality==='low');}`, before)
+		setQualityPreset("low")
 		t.Logf("functional graphics preset: low; device scale %.1f", page.MustEval(`()=>devicePixelRatio`).Num())
 	}
 	setFunctionalQuality()
+	if functionalSmoke {
+		waitOr(5*time.Second, "sea life disabled on low tier", `()=>golfFixture.inspect().graphics?.seaLife?.drawCalls===0`)
+	}
 	// All recorded effects decode in the background after the first gesture; wait
 	// for them so the underrun measurement below does not overlap that work.
 	page.Timeout(30*time.Second).MustWait(`count=>{const s=golfFixture.inspect().audio.samples;return s.loaded===count&&s.failed===0}`, sfxFiles)
@@ -586,6 +597,11 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 		page.Timeout(30*time.Second).MustWait(`id=>{const s=golfFixture.inspect();return !s.loading&&s.course===id&&s.graphics?.geometries>0&&s.graphics?.triangles>0}`, course.ID)
 		page.Timeout(15*time.Second).MustWait(`look=>{const g=golfFixture.inspect().graphics;return g.look===look&&g.props>0&&g.env===true}`, course.World)
 		worldsSeen[course.World] = true
+		if course.World != "pirate" {
+			if !page.MustEval(`()=>{const sl=golfFixture.inspect().graphics?.seaLife;return !!sl&&sl.active===false&&sl.drawCalls===0}`).Bool() {
+				t.Fatalf("%s: sea life stayed active outside Pirate Bay: %s", course.ID, page.MustEval(`()=>JSON.stringify(golfFixture.inspect().graphics?.seaLife)`).Str())
+			}
+		}
 		if !introChecked {
 			if !page.MustEval(`()=>golfFixture.inspect().graphics.intro===true`).Bool() {
 				t.Fatalf("%s: loading a course did not start the intro flight", course.ID)
@@ -616,10 +632,21 @@ func TestDesktopMinigolfBrowser(t *testing.T) {
 				page.MustEval(`()=>{const e=document.querySelector('[data-quality]');e.value='high';e.dispatchEvent(new Event('change',{bubbles:true}));}`)
 				page.MustElement(`[data-action="close"]`).MustClick()
 				page.MustWait(`()=>golfFixture.inspect().panel===''&&golfFixture.inspect().graphics?.quality==='high'`)
+				if course.World == "pirate" {
+					waitOr(15*time.Second, "pirate sea life high tier", `()=>{const sl=golfFixture.inspect().graphics?.seaLife;return !!sl&&sl.loaded&&sl.tier==='high'&&sl.sharks>=10&&sl.hammerheads>=5&&sl.visibleBig>0&&sl.drawCalls>0}`)
+				}
 				page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
 				page.MustScreenshot(filepath.Join(artifactDir, "minigolf-"+course.World+"-high.png"))
 			} else {
+				if course.World == "pirate" {
+					setQualityPreset("medium")
+					waitOr(15*time.Second, "pirate sea life screenshot ready", `()=>{const sl=golfFixture.inspect().graphics?.seaLife;return !!sl&&sl.loaded&&sl.visibleBig>0&&sl.drawCalls>0}`)
+					page.MustEval(`()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`)
+				}
 				page.MustScreenshot(filepath.Join(artifactDir, "minigolf-"+course.World+".png"))
+				if course.World == "pirate" {
+					setQualityPreset("auto")
+				}
 			}
 			worldCaptured[course.World] = true
 		}

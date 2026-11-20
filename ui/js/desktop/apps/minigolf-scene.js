@@ -13,6 +13,7 @@ import { createSky, createEnvironment } from './minigolf-sky.js';
 import { createWater } from './minigolf-water.js';
 import { buildProps, createShaderState, patchMaterial } from './minigolf-props.js';
 import { createFx } from './minigolf-fx.js';
+import { createPirateSeaLife } from './minigolf-sealife.js';
 
 const [POWER_A, POWER_B, POWER_C] = POWER_STOPS.map(([, hex]) => new THREE.Color(hex));
 const powerTint = new THREE.Color();
@@ -214,6 +215,17 @@ export function createScene(host, options) {
     const shaderState = createShaderState();
     const fx = createFx(scene, LOOKS.pirate);
     fx.setReduced(reduced);
+    const seaAbort = new AbortController();
+    async function loadSeaModel(path) {
+        const response = await fetch(options.assetURL('/3d/' + path), { signal: seaAbort.signal });
+        if (!response.ok) throw Error('sea_asset');
+        const bytes = await response.arrayBuffer();
+        if (disposed) throw Error('disposed');
+        const gltf = await new GLTFLoader().parseAsync(bytes, '');
+        return gltf.scene;
+    }
+    const seaLife = createPirateSeaLife({ load: loadSeaModel });
+    scene.add(seaLife.group);
     const kits = new Map(), environments = new Map(), fxContext = { ball: ball.position, moving: false, speed: 0, color: undefined, surface: undefined, waterLevel: -1.15, groundY: 0 };
     let lookId = 'pirate', look = LOOKS.pirate, sky = null, water = null, props = null;
     let intro = null, introTime = 0, pendingTurn = null;
@@ -259,7 +271,7 @@ export function createScene(host, options) {
             sun.shadow.mapSize.set(shadowSize, shadowSize);
         }
         const next = cfg();
-        sky?.setTier(next); water?.setTier(next); fx.setTier(next);
+        sky?.setTier(next); water?.setTier(next); fx.setTier(next); seaLife.setTier(level);
         shaderState.golfMotion.value = next.motion && !reduced ? 1 : 0;
         if (props && course && props.scatter !== next.scatter) void rebuildProps();
         resize();
@@ -530,6 +542,8 @@ export function createScene(host, options) {
         applyLook();
         sky = createSky(look, cfg(), shaderState); scene.add(sky.group);
         water = createWater(look, cfg(), shaderState, overview.waterRadius); scene.add(water.group);
+        if (lookId === 'pirate') seaLife.configure({ course: next, look, waterRadius: overview.waterRadius, tier: tier() });
+        else seaLife.clear();
         // Large islands are viewed from up to 60 m: widen the orbit limit and the far plane to match.
         const viewDistance = Math.hypot(...overview.position.map((value, a) => value - overview.target[a]));
         controls.maxDistance = Math.max(38, viewDistance * 1.15);
@@ -755,6 +769,7 @@ export function createScene(host, options) {
             controls.target.lerp(ball.position, reduced ? 1 : Math.min(1, dt * 2.5));
         }
         controls.enableDamping = !reduced; controls.update();
+        seaLife.update(dt, camera, motion);
         if (zoomWatch > 0) {
             zoomWatch -= dt;
             if (!camTween && !orbit && !intro && Math.abs(camera.position.distanceTo(controls.target) - zoomRef) > .5) { userZoomed = true; zoomWatch = 0; }
@@ -790,12 +805,13 @@ export function createScene(host, options) {
         stats() { const effects = fx.stats(); return { fps: governor.fps, triangles: renderer.info.render.triangles, calls: renderer.info.render.calls, particles: effects.particles, quality, tier: tier(), geometries: renderer.info.memory.geometries, preview: preview?.points?.length || 0,
             look: lookId, props: props?.instances || 0, env: !!scene.environment, intro: !!intro, trail: effects.trail,
             aimDots: aimDots.visible ? aimCount : 0, cupGlow: cupGlow.visible, flagLift, orbit: !!orbit, tween: !!camTween, userZoomed, shake: shakeRest, ballScale,
+            seaLife: seaLife.stats(),
             camera: { position: camera.position.toArray(), target: controls.target.toArray(), ball: ball.position.toArray(), projectedBall: ball.position.clone().project(camera).toArray(), distance: camera.position.distanceTo(controls.target) } }; },
         dispose() {
-            if (disposed) return; disposed = true; generation++; request?.abort(); observer.disconnect(); controls.dispose();
+            if (disposed) return; disposed = true; generation++; request?.abort(); seaAbort.abort(); observer.disconnect(); controls.dispose();
             canvas.removeEventListener('pointerdown', down, { capture: true }); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointermove', hover); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', lost);
             // Props, sky, water and effects leave the scene first so shared kit geometry is freed exactly once below.
-            props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose(); aimDots.dispose();
+            seaLife.dispose(); props?.dispose(); sky?.dispose(); water?.dispose(); fx.dispose(); aimDots.dispose();
             for (const target of environments.values()) target.dispose();
             for (const pending of kits.values()) pending.then(kit => kit && disposeTree(kit));
             canvas.removeEventListener('wheel', wheel);

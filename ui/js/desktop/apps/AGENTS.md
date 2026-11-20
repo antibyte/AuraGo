@@ -798,6 +798,23 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   loads courses, runs the composer and exposes the public API. New modules import
   only `three`, `minigolf-shared.js` and each other; the pure parts are covered by
   `scripts/test-minigolf-look.mjs`.
+- Pirate Bay sea life (`world === 'pirate'` only; `low` tier drops and clears it,
+  switching to `temple`/`moon` clears it): `minigolf-sealife-paths.js` (DOM- and
+  three-free deterministic contour loops, superellipse shore clearance, boids
+  habitats, surfacing/leap schedules, `seaRemap`, `place`), `minigolf-sealife-shaders.js`
+  (reusing `chat/ocean-life-shaders.js` GLSL chunks with lagoon absorption,
+  superellipse `insideIsle` discard, fog, `NeutralToneMapping` and sRGB output)
+  and `minigolf-sealife.js` (`createPirateSeaLife`, caching the existing
+  `system-world/sea-life/v1/`, `chat-ocean-life/v1/` and `screensaver/abyss/v1/`
+  GLBs across courses, instancing merged meshes, shark-scattered boids schools,
+  leaping fish, dorsal-fin surface wake rings, whale surfacing/blow, and reduced-motion
+  pose freeze). Counts: `medium` 7 reef sharks, 3 hammerheads, 3 turtles, 2 mantas,
+  1 whale, 4 moon jellies, 6 fish schools; `high` 10 reef sharks, 5 hammerheads,
+  4 turtles, 3 mantas, 1 whale, 6 moon jellies, 11 fish schools. `stats().seaLife`
+  exposes `{ active, loaded, failures, tier, sharks, hammerheads, turtles, mantas,
+  whale, jellies, schools, fish, visibleBig, visibleFish, drawCalls }`. Verified by
+  `scripts/test-minigolf-sealife.mjs` (included in `npm run test:minigolf`) and
+  `TestDesktopMinigolfBrowser`.
 - P3 physics modules, DOM- and three-free so Node tests cover them. `minigolf-collision.js`
   (`readColliders(glb)`, `colliderDigest(groups)`) reads physics meshes from the course GLB:
   mesh nodes with the extra `aurago_collider` (`grass|sand|wood|stone|metal`), world
@@ -990,8 +1007,8 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   and is played by the game from the matching physics events.
 - The browser test's zero-tolerance underrun assertion can flake under heavy
   machine load; rerun once before suspecting a regression.
-- Validate `npm run test:minigolf` (model, `scripts/test-minigolf-look.mjs`, UI,
-  physics, asset, course and audio checks), `npm run test:synth-studio`,
+- Validate `npm run test:minigolf` (model, `scripts/test-minigolf-look.mjs`,
+  `scripts/test-minigolf-sealife.mjs`, UI, physics, asset, course and audio checks), `npm run test:synth-studio`,
   `node scripts/build-minigolf-audio.mjs --check`, `node scripts/build-minigolf.mjs --check`
   (6 MiB cap, pinned Three.js 0.186.1 and Rapier 0.21.0), `TestDesktopMinigolf*`,
   `TestFrontend_StaticI18nKeysExistInEnglishBundle` and the desktop bundle checks.
