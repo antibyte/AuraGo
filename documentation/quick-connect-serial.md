@@ -35,7 +35,9 @@ truncation marker. Export preserves the retained bytes exactly.
 
 Serial access is disabled by default. Enable only the source you need with
 `virtual_desktop.serial_browser_enabled` and/or
-`virtual_desktop.serial_host_enabled`; read-only mode overrides both. The
+`virtual_desktop.serial_host_enabled`; read-only mode overrides both. When a
+grant is missing, Quick Connect names the switch that is off instead of showing
+an empty port list, so a disabled grant never looks like a missing adapter. The
 console does not reconnect automatically, send data to AuraGo's agent, run
 macros or tools, update firmware, or access filesystems.
 

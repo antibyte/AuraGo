@@ -456,7 +456,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
   on the Desktop WebSocket disconnect, and dispose on `aurago:auth-ended` before
   logout or expiry redirects. `aurago:desktop-policy` carries serial grants,
   readonly and remote timeout values; device traffic never renews authentication.
-  Embedded apps retain `serial 'none'`. Keep all sixteen serial/profile and
+  Embedded apps retain `serial 'none'`. A missing grant names its config switch
+  instead of showing an empty port list. Keep all sixteen serial/profile and
   configuration translations aligned. See `js/desktop/apps/AGENTS.md` and
   `documentation/quick-connect-serial.md` for lifecycle and hardware acceptance.
 - Retro-Net in the Desktop Terminal follows the live `retronet_enabled` grant

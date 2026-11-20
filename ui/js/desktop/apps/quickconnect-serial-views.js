@@ -60,8 +60,11 @@
         }
 
         // Keeps a saved port that is currently missing visible as unavailable.
-        function portOptionsMarkup(selectedPort, ports, portsError, tr) {
+        // disabledText replaces the whole list when the source is not granted:
+        // an empty list would read like a missing adapter instead of a policy.
+        function portOptionsMarkup(selectedPort, ports, portsError, tr, disabledText) {
             const current = String(selectedPort || '');
+            if (disabledText) return `<option value="" selected disabled>${esc(disabledText)}</option>`;
             let output = `<option value="">${esc(tr('desktop.qc_serial_choose_port'))}</option>`;
             if (current && !ports.some(port => port.name === current)) output += `<option value="${esc(current)}" selected disabled>${esc(current)} — ${esc(tr('desktop.qc_serial_unavailable_port'))}</option>`;
             if (portsError) return output;
@@ -70,13 +73,15 @@
         }
 
         // Renders the editor for an existing profile, or a new-profile form when
-        // current is undefined.
-        function profileFormMarkup({ current, readonly, ports, portsError, tr }) {
+        // current is undefined. hostStatus and browserStatus carry the live
+        // grant state for the matching source.
+        function profileFormMarkup({ current, readonly, ports, portsError, tr, hostStatus, browserStatus }) {
             const profile = current || { id: '', name: '', source: 'browser', port: '', options: { ...DEFAULT_OPTIONS } };
             const source = profile.source;
             const optsValue = normalizeOptions(profile.options, source);
             const baudValue = BAUD_PRESETS.includes(optsValue.baud_rate) ? String(optsValue.baud_rate) : 'custom';
-            const hostOptions = portOptionsMarkup(profile.port, ports, portsError, tr);
+            const hostOptions = portOptionsMarkup(profile.port, ports, portsError, tr, source === 'host' ? hostStatus : '');
+            const statusText = source === 'host' ? (hostStatus || (portsError ? tr('desktop.load_failed') : '')) : (browserStatus || '');
             return `<form class="vd-qc-serial-profile-form" data-serial-profile-form>
                 <h3>${esc(current ? current.name : tr('desktop.qc_serial_create_profile'))}</h3>
                 <label>${esc(tr('desktop.qc_serial_profile_name'))}<input name="name" type="text" maxlength="80" required value="${esc(profile.name)}" ${readonly ? 'disabled' : ''}></label>
@@ -89,7 +94,7 @@
                     <label>${esc(tr('desktop.qc_serial_port'))}<select name="port" ${readonly ? 'disabled' : ''}>${hostOptions}</select></label>
                     <button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-refresh-ports ${readonly ? 'disabled' : ''}>${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 12)}<span>${esc(tr('desktop.retry'))}</span></button>
                 </div>
-                <div class="vd-qc-serial-inline-status" data-serial-port-error role="status" ${portsError && source === 'host' ? '' : 'hidden'}>${portsError && source === 'host' ? esc(tr('desktop.load_failed')) : ''}</div>
+                <div class="vd-qc-serial-inline-status" data-serial-port-error role="status" ${statusText ? '' : 'hidden'}>${esc(statusText)}</div>
                 <details class="vd-qc-serial-options" open><summary>${esc(tr('desktop.qc_serial_settings'))}</summary>
                     <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_baud_rate'))}<select name="baud_preset">${BAUD_PRESETS.map(rate => `<option value="${rate}" ${baudValue === String(rate) ? 'selected' : ''}>${rate}</option>`).join('')}<option value="custom" ${baudValue === 'custom' ? 'selected' : ''}>${esc(tr('desktop.qc_serial_custom'))}</option></select></label><label data-custom-baud ${baudValue === 'custom' ? '' : 'hidden'}>${esc(tr('desktop.qc_serial_custom'))}<input name="baud_custom" type="number" min="1" max="4000000" value="${optsValue.baud_rate}" ${readonly ? 'disabled' : ''}></label></div>
                     <div class="vd-qc-serial-pair"><label>${esc(tr('desktop.qc_serial_data_bits'))}<select name="data_bits"><option value="7" ${optsValue.data_bits === 7 ? 'selected' : ''}>7</option><option value="8" ${optsValue.data_bits === 8 ? 'selected' : ''}>8</option></select></label><label>${esc(tr('desktop.qc_serial_stop_bits'))}<select name="stop_bits"><option value="1" ${optsValue.stop_bits === 1 ? 'selected' : ''}>1</option><option value="2" ${optsValue.stop_bits === 2 ? 'selected' : ''}>2</option></select></label></div>

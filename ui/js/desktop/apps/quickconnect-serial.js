@@ -9,6 +9,12 @@
         const MAX_PENDING_RX_BYTES = 1024 * 1024;
         const MAX_PENDING_TX_BYTES = 256 * 1024;
         const MAX_SEND_BYTES = 64 * 1024;
+        // The config keys that grant a serial source; named in the UI so a
+        // missing grant points at the switch that turns it on.
+        const SERIAL_GRANTS = Object.freeze({
+            browser: 'virtual_desktop.serial_browser_enabled',
+            host: 'virtual_desktop.serial_host_enabled'
+        });
 
         function create(options) {
             const opts = options || {};
@@ -68,16 +74,28 @@
                 return true;
             }
 
-            function tr(key) { return translate(key); }
+            function tr(key, vars) {
+                const text = translate(key);
+                if (!vars) return text;
+                return Object.keys(vars).reduce((value, name) => value.split('{' + name + '}').join(String(vars[name])), text);
+            }
             function bootstrap() { return policySnapshot || getBootstrap() || {}; }
             function readonly() { const b = bootstrap(); return authEnded || window._logoutInProgress === true || !!b.readonly || b.enabled === false; }
             function allowed(source) {
                 const b = bootstrap();
                 return !readonly() && (source === 'browser' ? b.serial_browser_enabled === true : b.serial_host_enabled === true);
             }
-            function sourceDiagnostic(profile) {
+            // The live grant state of one source. An empty string means granted:
+            // a missing grant and a read-only desktop are told apart, because
+            // they need different remedies.
+            function grantStatus(source) {
                 if (readonly()) return tr('desktop.qc_serial_read_only');
-                if (!allowed(profile.source)) return tr('desktop.qc_serial_permission_disabled');
+                if (!allowed(source)) return tr('desktop.qc_serial_grant_disabled', { grant: SERIAL_GRANTS[source] || '' });
+                return '';
+            }
+            function sourceDiagnostic(profile) {
+                const status = grantStatus(profile.source);
+                if (status) return status;
                 if (profile.source === 'browser') {
                     if (!secureContext()) return tr('desktop.qc_serial_secure_context_required');
                     const policy = document.permissionsPolicy || document.featurePolicy;
@@ -309,7 +327,7 @@
                 const editor = content.querySelector('[data-serial-editor]');
                 if (!editor) return;
                 const current = profiles.find(profile => profile.id === selectedId);
-                editor.innerHTML = profileFormMarkup({ current, readonly: readonly(), ports, portsError, tr });
+                editor.innerHTML = profileFormMarkup({ current, readonly: readonly(), ports, portsError, tr, hostStatus: grantStatus('host'), browserStatus: grantStatus('browser') });
                 const form = editor.querySelector('[data-serial-profile-form]');
                 form.addEventListener('submit', event => { event.preventDefault(); void saveProfile(form); });
                 form.querySelector('[name="source"]').addEventListener('change', event => {
@@ -326,6 +344,7 @@
                     if (nextSource === 'host' && form.querySelector('[name="flow_control"]').value === 'hardware') form.querySelector('[name="flow_control"]').value = 'none';
                     form.querySelector('[name="rts"]').disabled = readonly() || (nextSource === 'browser' && form.querySelector('[name="flow_control"]').value === 'hardware');
                     if (nextSource === 'host' && allowed('host') && !ports.length && !portsLoading) void refreshPorts();
+                    updateHostPortControls();
                 });
                 form.querySelector('[name="baud_preset"]').addEventListener('change', event => {
                     form.querySelector('[data-custom-baud]').hidden = event.target.value !== 'custom';
@@ -340,16 +359,29 @@
 
             function updateHostPortControls() {
                 const form = content && content.querySelector('[data-serial-profile-form]');
-                if (!form || form.elements.source.value !== 'host') return;
-                const port = form.elements.port;
-                const selected = port.value || (profiles.find(item => item.id === selectedId) || {}).port || '';
-                port.innerHTML = portOptionsMarkup(selected, ports, portsError, tr);
-                if (selected) port.value = selected;
-                const error = form.querySelector('[data-serial-port-error]');
-                if (error) {
-                    error.hidden = !portsError;
-                    error.textContent = portsError ? tr('desktop.load_failed') : '';
+                if (!form) return;
+                if (form.elements.source.value === 'host') {
+                    const port = form.elements.port;
+                    const selected = port.value || (profiles.find(item => item.id === selectedId) || {}).port || '';
+                    port.innerHTML = portOptionsMarkup(selected, ports, portsError, tr, grantStatus('host'));
+                    if (selected && Array.from(port.options).some(option => option.value === selected)) port.value = selected;
                 }
+                updateSourceStatus(form);
+            }
+
+            // Shows the live reason why the selected source cannot be used:
+            // a missing grant, a read-only desktop or a failed port list.
+            function updateSourceStatus(form) {
+                const target = form || (content && content.querySelector('[data-serial-profile-form]'));
+                if (!target) return;
+                const element = target.querySelector('[data-serial-port-error]');
+                if (!element) return;
+                const source = target.elements.source.value;
+                const text = source === 'host'
+                    ? (grantStatus('host') || (portsError ? tr('desktop.load_failed') : ''))
+                    : grantStatus('browser');
+                element.textContent = text;
+                element.hidden = !text;
             }
 
             function resetTerminalDisplay() {
@@ -904,6 +936,10 @@
                 const source = connection && connection.source;
                 if (source && !allowed(source)) void disconnect('policy');
                 updateButtons();
+                // A grant change must reach the list and the form; the editor is
+                // patched in place so unsaved profile input survives.
+                renderList();
+                updateHostPortControls();
             }
 
             function onAuthEnded() {

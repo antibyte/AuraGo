@@ -492,7 +492,7 @@ window.TestTerminal=TestTerminal;window.TestFitAddon=TestFitAddon;window.TestSoc
         serialTest.requestPort=async(options)=>{serialTest.lastChooserOptions=options;return serialTest.makePort();};
         serialTest.context=context;serialTest.api=api;serialTest.navigator={serial:{requestPort:options=>{serialTest.lastChooserOptions=options;return serialTest.requestPort(options);}}};
         serialTest.onSessionStart=()=>{serialTest.sessionStarts++;return ()=>true;};serialTest.onSessionEnd=(_owner,reason)=>{serialTest.sessionEnds++;serialTest.sessionEndReasons.push(reason);};
-        serialTest.makeApp=(list,content)=>QuickConnectSerial.create({list,content,context:serialTest.context,api:serialTest.api,t:key=>key,navigator:serialTest.navigator,window:serialTest.ownerWindow,WebSocket:TestSocket,Terminal:TestTerminal,FitAddon:{FitAddon:TestFitAddon},onSessionStart:serialTest.onSessionStart,onSessionEnd:serialTest.onSessionEnd});
+        serialTest.makeApp=(list,content,overrides={})=>QuickConnectSerial.create({list,content,context:serialTest.context,api:serialTest.api,t:key=>key,navigator:serialTest.navigator,window:serialTest.ownerWindow,WebSocket:TestSocket,Terminal:TestTerminal,FitAddon:{FitAddon:TestFitAddon},onSessionStart:serialTest.onSessionStart,onSessionEnd:serialTest.onSessionEnd,...overrides});
         serialTest.app=serialTest.makeApp(document.querySelector('#list'),document.querySelector('#content'));
         serialTest.app.render();
     }`)

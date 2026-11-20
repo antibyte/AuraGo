@@ -2677,6 +2677,15 @@ buttons and menu popovers remain excluded from those gestures.
   counts as user activity. Verify `TestQuickConnectSerialTranslations`, serial
   browser tests, existing Quick Connect/SFTP checks and both themes at narrow and
   wide window sizes. USB adapter acceptance is a separate hardware check.
+- A missing serial grant never reads like a missing adapter. The host port list
+  replaces its entries with `desktop.qc_serial_grant_disabled` naming the
+  `virtual_desktop.serial_host_enabled` or
+  `virtual_desktop.serial_browser_enabled` switch; the profile diagnostic and
+  the editor status carry the same text, and a read-only desktop keeps its own
+  message. `grantStatus(source)` owns that distinction, `portOptionsMarkup`
+  takes the resulting text as its last argument and the policy event repaints
+  the list and the port control without discarding an unsaved profile draft.
+  Keep all sixteen `desktop.qc_serial_grant_disabled` translations aligned.
 - Quick Connect synthetic AuraGo host uses `desktop.qc_aurago_host`
   and `desktop.qc_aurago_host_description`. Detect the host by
   `id === '__aurago-host__'`, matching IP, or the English sentinel

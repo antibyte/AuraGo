@@ -1,6 +1,9 @@
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestQuickConnectSerialProfileEditorBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
@@ -20,6 +23,50 @@ func TestQuickConnectSerialProfileEditorBrowser(t *testing.T) {
 			t.Fatal("browser policy denial did not block the chooser independently of host access")
 		}
 	})
+	t.Run("a missing host grant names the switch instead of reporting no ports", func(t *testing.T) {
+		page := newQuickConnectSerialPage(t, browser, "standard", 1200, 760)
+		defer page.Close()
+
+		result := page.MustEval(`async()=>{
+            serialTest.app.dispose();
+            const list=document.createElement('aside'),content=document.createElement('main');
+            list.id='serial-grant-list';content.id='serial-grant-content';document.body.append(list,content);
+            serialTest.context={state:{bootstrap:{enabled:true,readonly:false,serial_browser_enabled:true,serial_host_enabled:false,settings:{'quick_connect.serial_profiles':JSON.stringify({version:1,profiles:serialTest.profiles})}}}};
+            const words={'desktop.qc_serial_grant_disabled':'Grant off: {grant}','desktop.qc_serial_no_ports':'no ports','desktop.qc_serial_read_only':'read only'};
+            const requestsBefore=serialTest.requests.length;
+            const app=serialTest.makeApp(list,content,{t:key=>words[key]||key});
+            app.render();
+            await serialTest.wait(()=>content.querySelector('[data-serial-profile-form]'));
+            list.querySelector('[data-serial-profile="host"]').click();
+            const form=content.querySelector('[data-serial-profile-form]');
+            const option=form.elements.port.options[0];
+            const status=content.querySelector('[data-serial-port-error]');
+            const requested=serialTest.requests.slice(requestsBefore).some(([url])=>url==='/api/desktop/serial/ports');
+            const result={
+                option:option.textContent,
+                optionDisabled:option.disabled,
+                status:status.textContent,
+                statusHidden:status.hidden,
+                diagnostic:list.querySelector('[data-serial-profile="host"]').textContent,
+                requested
+            };
+            app.dispose();
+            return result;
+        }`)
+		if result.Get("option").Str() != "Grant off: virtual_desktop.serial_host_enabled" || !result.Get("optionDisabled").Bool() {
+			t.Fatalf("the port list did not name the missing grant: %s", result.JSON("", ""))
+		}
+		if result.Get("status").Str() != "Grant off: virtual_desktop.serial_host_enabled" || result.Get("statusHidden").Bool() {
+			t.Fatalf("the editor status did not name the missing grant: %s", result.JSON("", ""))
+		}
+		if !strings.Contains(result.Get("diagnostic").Str(), "virtual_desktop.serial_host_enabled") {
+			t.Fatalf("the profile diagnostic did not name the missing grant: %s", result.JSON("", ""))
+		}
+		if result.Get("requested").Bool() {
+			t.Fatalf("the port list was requested although the host grant is off: %s", result.JSON("", ""))
+		}
+	})
+
 	t.Run("new window cannot connect during logout", func(t *testing.T) {
 		page := newQuickConnectSerialPage(t, browser, "standard", 1200, 760)
 		defer page.Close()
