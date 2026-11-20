@@ -450,7 +450,8 @@
     const CTRL_KEYS_EDIT = { KeyX: 'cut', KeyC: 'copy', KeyV: 'paste', KeyD: 'duplicate', KeyZ: 'undo' };
 
     // Maps a key to an action object, or null (the caller then leaves the event alone).
-    // opts: {shift, ctrl, mode: 'synth'|'patterns', focusRow: 0..3, playing}.
+    // opts: {shift, ctrl, mode: 'synth'|'patterns', focusRow: 0..3, playing, bare}; bare = the target keeps no key of its own
+    // (Tab taps the playing step only then, otherwise it moves the focus as usual).
     // Actions: {type:'transport', name} | {type:'focus', delta} | {type:'scroll', delta}
     // | {type:'pattern', row, button} | {type:'note303', note} | {type:'step303', name}
     // | {type:'tap303', rest} | {type:'tapDrum', inst} | {type:'edit', cmd} | {type:'save'}.
@@ -477,7 +478,7 @@
         if (row === 0 || row === 1) {
             if (code in NOTE_KEYS) return { type: 'note303', note: NOTE_KEYS[code] };
             if (KEY_303[code]) return { type: 'step303', name: KEY_303[code] };
-            if (code === 'Tab' && o.playing) return { type: 'tap303', rest: !!o.shift };
+            if (code === 'Tab' && o.playing && o.bare) return { type: 'tap303', rest: !!o.shift };
         } else if ((row === 2 || row === 3) && code in DRUM_KEYS) {
             return { type: 'tapDrum', inst: DRUM_KEYS[code] };
         }

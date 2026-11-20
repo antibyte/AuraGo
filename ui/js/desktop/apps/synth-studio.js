@@ -46,12 +46,17 @@
         const root=host.firstElementChild, find=q=>root.querySelector(q);
         window.SynthStudioControls?.observe(root,signal);
         editor=window.SynthStudioEditor.create(find('[data-editor-host]'),{getProject:project,readonly:blocked,tr,mutate,onTrackVolume:true,onAudioClip:renderAudioClip,onSelect:()=>{workspace?.setClip(!!editor?.selection().clipId);renderInspector();composer?.refresh();stage?.refresh();},onAdd:()=>insert({type:'instrument',id:selectedInstrument},'',0),onDrop:insert,onNewClip:newClip,onSeek:seek,onAudition:p=>audition(p),onNoteOn:p=>noteOn(p,.8,performance.now(),17),onNoteOff:p=>noteOff(p,performance.now(),17),onError:fail,onTrackMenu:(action,trackId)=>{if(action==='delete')deleteTrackById(trackId);else if(action==='duplicate')duplicateTrackById(trackId);}});
-        workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked,onTour:()=>{tourIndex=0;renderTour();},onMix:()=>renderMaster(),onRb338:active=>rb338?.activate?.(active)});
+        workspace=window.SynthStudioWorkspace.create(root,{tr,signal,project,blocked,onTour:()=>{tourIndex=0;renderTour();},onMix:()=>renderMaster(),onRb338:active=>{if(active)ensureRb338();rb338?.activate?.(active);}});
         workspace.setClip(!!editor.selection().clipId);
         strudel=window.SynthStudioStrudel.create(workspace.strudel,{tr,signal,blocked,readonly,beforePlay:()=>{rb338?.stop?.();generation++;composer?.stop();if(playing)stop();else{audio.stop();panic();}},confirm:()=>ctx.confirmDialog?.(tr('workspace_strudel'),tr('strudel_replace'))});
-        // RB-338 mode (optional module). Its Play stops Synth Studio and Strudel through beforePlay.
-        if(window.SynthStudioRB338)rb338=window.SynthStudioRB338.create(workspace.rb338,{tr,esc,signal,notice,blocked,readonly,confirm:(title,text)=>ctx.confirmDialog?.(title,text),beforePlay:()=>{generation++;strudel?.stop();composer?.stop();if(playing)stop();else{audio.stop();panic();}},sendToArrange});
-        if(workspace.isRb338?.())rb338?.activate?.(true);
+        // RB-338 mode (optional module), built on the first visit to its tab: nothing of it exists before that.
+        // Its Play stops Synth Studio and Strudel through beforePlay.
+        function ensureRb338(){
+            if(!rb338&&!disposed&&window.SynthStudioRB338)rb338=window.SynthStudioRB338.create(workspace.rb338,{tr,esc,signal,root,windowId:id,notice,blocked,readonly,confirm:(title,text)=>ctx.confirmDialog?.(title,text),beforePlay:()=>{generation++;strudel?.stop();composer?.stop();if(playing)stop();else{audio.stop();panic();}},sendToArrange});
+            return rb338;
+        }
+        // A restored RB-338 view must not boot the engine without a gesture: the rack waits for a click.
+        if(workspace.isRb338?.())ensureRb338()?.activate?.(true,{restored:true});
         composer=window.SynthStudioCompose.create(workspace.performance,{tr,esc,signal,project,selection:()=>editor.selection(),cursor:()=>cursor,blocked,mutate,audio,fail,stopTransport:()=>stop(false,true),showNotes:()=>workspace.panel('notes'),onArpNote:captureArp});
         const midi=window.SynthStudioMIDI.create({onNoteOn:e=>noteOn(e.pitch,e.velocity,e.time,e.channel),onNoteOff:e=>noteOff(e.pitch,e.time,e.channel),onController:e=>controller(e),onState:s=>{midiState=s;if(s.status!=='connected'){if(recording)stop();else panic();}renderMIDI();}});
         stage=window.SynthStudioStage.create(workspace.performance,{tr,esc,signal,audio,project,track,mutate,playing:()=>playing,cursor:()=>cursor,editable:()=>!disposed&&ready&&!readonly()&&!busy&&!storageState.loading&&!recording,canPlay:()=>!disposed&&ready&&!busy&&!storageState.loading,play,stop,refresh,fail,prompt:(title,value)=>ctx.promptDialog?.(title,value),confirm:(title,message)=>ctx.confirmDialog?.(title,message),adopt:p=>storage.newDocument(p,{dirty:true}),transport:find('.ss-transport'),whenReady:()=>storage.ready,sessionKey:ctx.sessionKey||ctx.state?.windows?.get(id)?.sessionKey||id});
@@ -76,13 +81,16 @@
         }
         // RB-338 audio clips: the PCM is re-rendered from the clip's song by the host module and cached there.
         const rbHost=()=>window.SynthStudioRB338Host?.clips?window.SynthStudioRB338Host:null;
-        let rbMissingNoticed=false;
+        let rbMissingNoticed=false,rbRetained=false,rbRelease=null;
+        // The clip cache is shared between windows: hold one reference from the first use, give it back on dispose.
+        function retainClips(){if(rbRetained)return;rbRetained=true;rbRelease=window.SynthStudioRB338Host?.clips?.retain?.()||null;}
         function clipBuffer(clip){return rbHost()?.clips.buffer(clip)||null;}
         // Renders missing clip buffers. Load does not wait for it (the editor refreshes as each clip becomes ready); exports await it.
         function prepareClips(p){
             if(!p.tracks.some(t=>t.clips.some(c=>c.audio)))return Promise.resolve();
             const H=rbHost();
             if(!H){if(!rbMissingNoticed){rbMissingNoticed=true;notice(tr('rb_clip_failed'));}return Promise.resolve();}
+            retainClips();
             return H.clips.prepare(p,()=>{if(!disposed)refresh();}).then(()=>{if(!disposed)refresh();},()=>{});
         }
         function bytesOfBase64(b64){const s=atob(String(b64||'')),out=new Uint8Array(s.length);for(let i=0;i<s.length;i++)out[i]=s.charCodeAt(i);return out;}
@@ -91,6 +99,7 @@
             if(readonly()){notice(tr('readonly'));return false;}
             if(blocked())return false;
             const H=rbHost();if(!H||!payload?.buffer||!payload.song){notice(tr('rb_clip_failed'));return false;}
+            retainClips();
             const existing=project().tracks.find(t=>t.instrument==='audio'&&t.name==='RB-338');
             if(!existing&&project().tracks.length>=16){fail('E_PROJECT_LIMIT');return false;}
             let tempo=project().tempo;const rb=Math.round(Number(payload.tempo));
@@ -120,12 +129,11 @@
         function renderAudioClip(info){
             const h=info.host,a=info.clip.audio,H=rbHost();if(!h||!a)return;
             const bars=Math.max(1,Math.round((a.end-a.start)/768)),state=!H?'failed':H.clips.failed(info.clip)?'failed':H.clips.buffer(info.clip)?'ready':'rendering';
-            h.innerHTML='<strong>'+esc(info.clip.name)+'</strong><span>'+'RB-338 · '+esc(tr(a.mode==='song'?'rb_song_mode':'rb_pattern_mode'))+' · '+bars+'</span>'+(state==='ready'?'':'<em class="ss-audio-state" data-state="'+state+'" role="status">'+esc(tr(state==='failed'?'rb_clip_failed':'rb_clip_rendering'))+'</em>')+'<button type="button" data-audio-edit'+(!window.SynthStudioRB338||!rb338?' disabled':'')+'>'+esc(tr('rb_clip_edit'))+'</button>';
+            h.innerHTML='<strong>'+esc(info.clip.name)+'</strong><span>'+'RB-338 · '+esc(tr(a.mode==='song'?'rb_song_mode':'rb_pattern_mode'))+' · '+bars+'</span>'+(state==='ready'?'':'<em class="ss-audio-state" data-state="'+state+'" role="status">'+esc(tr(state==='failed'?'rb_clip_failed':'rb_clip_rendering'))+'</em>')+'<button type="button" data-audio-edit'+(!window.SynthStudioRB338?' disabled':'')+'>'+esc(tr('rb_clip_edit'))+'</button>';
             h.querySelector('[data-audio-edit]')?.addEventListener('click',()=>{
-                if(!rb338)return;
                 let bytes;try{bytes=bytesOfBase64(a.song);}catch(_){notice(tr('rb_clip_failed'));return;}
                 root.querySelector('[data-work-tab="rb338"]')?.click();
-                rb338.openSong(bytes,info.clip.name);
+                ensureRb338()?.openSong(bytes,info.clip.name);
             },{signal});
         }
         function loadProject(p){stop();history=M.history(M.upgrade(p));currentProject=history.current();cursor=0;editor.select(p.tracks[0]?.id||'',p.tracks[0]?.clips[0]?.id||'');workspace.performance.scrollTop=0;refresh();prepareClips(currentProject);}
@@ -534,6 +542,8 @@
         const keyboard={a:60,w:61,s:62,e:63,d:64,f:65,t:66,g:67,y:68,h:69,u:70,j:71,k:72};
         root.addEventListener('keydown',e=>{
             if(e.defaultPrevented||e.target.matches('input,textarea,select')||e.repeat)return;
+            // The RB-338 rack owns the keyboard while its tab is shown (it checks focus and target itself).
+            if(workspace.isRb338?.()){if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s')e.preventDefault();return;}
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();storage.save(e.shiftKey).catch(fail);return;}
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();updatedHistory(e.shiftKey?'redo':'undo');return;}
             if(e.ctrlKey||e.metaKey||e.altKey)return;
@@ -545,7 +555,7 @@
         document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();},{signal});
         document.addEventListener('aurago:desktop-policy',e=>{if(typeof e.detail?.readonly==='boolean'){revoked=e.detail.readonly;ctx.readonly=revoked;if(revoked)stop();refresh();}},{signal});
         document.addEventListener('aurago:auth-ended',()=>dispose(id),{signal});
-        window.addEventListener('beforeunload',e=>{if(storage.state.dirty){e.preventDefault();e.returnValue='';}},{signal});
+        window.addEventListener('beforeunload',e=>{if(storage.state.dirty||rb338?.isModified?.()){e.preventDefault();e.returnValue='';}},{signal});
         window.addEventListener('pagehide',()=>dispose(id),{signal});
         const guard=async()=>{stop();await stage?.guard();return storage.guard();};
         ctx.setWindowBeforeClose?.(id,guard);
@@ -562,7 +572,7 @@
             }
         });
         ctx.registerWindowCleanup?.(id,()=>dispose(id));
-        const instance={guard,dispose(){if(disposed)return;stage?.stop();disposed=true;generation++;cancelAnimationFrame(analyserFrame);audio.stop();composer?.stop();rb338?.dispose?.();panic();timers.forEach(clearTimeout);timers.clear();life.abort();midi.dispose();audio.dispose();storage.dispose();editor.dispose();},project:()=>M.clone(project()),editor,storage,stage,audio};
+        const instance={guard,dispose(){if(disposed)return;stage?.stop();disposed=true;generation++;cancelAnimationFrame(analyserFrame);audio.stop();composer?.stop();rb338?.dispose?.();rbRelease?.();rbRelease=null;panic();timers.forEach(clearTimeout);timers.clear();life.abort();midi.dispose();audio.dispose();storage.dispose();editor.dispose();},project:()=>M.clone(project()),editor,storage,stage,audio};
         instances.set(id,instance);renderLibrary();refresh();analyserFrame=requestAnimationFrame(drawAnalyser);
         Promise.resolve(storage.ready).catch(fail).finally(()=>{if(!disposed){ready=true;refresh();}});
         return instance;

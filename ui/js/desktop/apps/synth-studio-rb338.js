@@ -106,8 +106,8 @@
             seg('transport.mode', 'MODE', '', [tr('rb_pattern_mode'), tr('rb_song_mode')], { cls: 'is-wide' }) +
             '<div class="ss-rb-tbtns">' + tbutton('rewind', 'rew', tr('rb_rewind')) + tbutton('stop', 'stop', tr('rb_stop')) + tbutton('play', 'play', tr('rb_play'), 'is-play is-toggle') + tbutton('ff', 'ff', tr('rb_forward')) +
             tbutton('record', 'rec', tr('rb_record'), 'is-rec is-toggle') + '</div>' +
-            lcd('transport.position', 'BAR', tr('rb_bar')) + lcd('transport.loop_start', 'LOOP START', tr('rb_loop_start')) + lcd('transport.loop_end', 'LOOP LENGTH', tr('rb_loop_length')) +
-            key('transport.loop', 'LOOP', '', { aria: tr('rb_loop'), cls: 'is-loop' }) + '</div>';
+            '<div class="ss-rb-loopgrp">' + lcd('transport.position', 'BAR', tr('rb_bar')) + lcd('transport.loop_start', 'LOOP START', tr('rb_loop_start')) + lcd('transport.loop_end', 'LOOP LENGTH', tr('rb_loop_length')) +
+            key('transport.loop', 'LOOP', '', { aria: tr('rb_loop'), cls: 'is-loop' }) + '</div></div>';
 
         // ---- rows ----------------------------------------------------------------------------
         const patternPlate = r => {
@@ -171,7 +171,7 @@
         const channel = r => {
             const R = ROWS[r], c = r + 1, id = 'mixer' + c;
             return '<div class="ss-rb-plate ss-rb-channel" role="group" aria-label="' + E(R.name + ' MIXER') + '">' + title('CH ' + c, 'is-small') +
-                '<div class="ss-rb-chtop">' + key(id + '.mute', 'MUTE', R.name, { cls: 'is-mute', tone: 'red' }) + key(id + '.dist', 'DIST', R.name) + '</div>' +
+                '<div class="ss-rb-chtop">' + key(id + '.mute', 'ON', R.name, { aria: 'CH ' + c + ' ON', cls: 'is-on' }) + key(id + '.dist', 'DIST', R.name) + '</div>' +
                 '<div class="ss-rb-chfader">' + ctl(id + '.level', 'LEVEL', R.name, { kind: 'vfader', def: 100, cls: 'is-mixer' }) + meter(id + '.meter', 'v') + '</div>' +
                 '<div class="ss-rb-chknobs">' + ctl(id + '.pan', 'PAN', R.name, { cls: 'is-small' }) + ctl(id + '.delay', 'DELAY', R.name, { cls: 'is-small', def: 0 }) + '</div>' +
                 '<div class="ss-rb-chfx">' + key('mixer.pcf_id', 'PCF', R.name, { value: c, cls: 'is-radio' }) + key('mixer.comp_id', 'COMP', R.name, { value: c + 1, cls: 'is-radio' }) + '</div></div>';
@@ -241,7 +241,7 @@
         // T8/T9 state
         let keyMode = 'synth', exportBars = 4;
         let undo = null, deferred = null, clip = null, lastMerges = null;
-        let docName = '', draftDirty = false, autoTimer = 0, autoBusy = false, autoAgain = false, autoSavedAt = 0;
+        let docName = '', draftDirty = false, autoTimer = 0, autoBusy = false, autoAgain = false, autoSavedAt = 0, autoInflight = null, editSeq = 0;
         let draftRec = null, draftState = 'idle', draftPromise = null, restoreUsed = false, restoreModified = false, lastSaved = null;
         let exporting = false, paint = null, prefsSig = '', prefsTimer = 0;
         const draftId = 'rb' + Math.random().toString(36).slice(2, 10);
@@ -251,6 +251,7 @@
         section.classList.add('ss-rb338-workbench');
         section.dataset.rbState = 'idle';
         section.innerHTML = rackMarkup(M, tr, E);
+        section.tabIndex = -1; // a click on the bare rack focuses it, so the keys know which window is meant
         const $ = (sel, scope) => (scope || section).querySelector(sel);
         const $$ = (sel, scope) => Array.from((scope || section).querySelectorAll(sel));
         const Controls = () => root.SynthStudioControls;
@@ -346,6 +347,7 @@
         }
         function markModified() {
             const first = !modified;
+            editSeq++;
             modified = true;
             draftDirty = true;
             autoSavedAt = 0;
@@ -354,7 +356,7 @@
         }
 
         function setControl(id, value) {
-            if (lock()) return;
+            if (!ready() || lock()) return;
             const c = M.control(id);
             if (!c || c.readOnly) return;
             const r = rowOf(id);
@@ -380,12 +382,14 @@
             if (name !== 'play' && name !== 'stop' && /^(loop|mode|tempo_)/.test(name)) markModified();
         }
         function toggle(id) {
+            if (!ready()) return undefined;
             if (id === 'transport.loop') return press('loop');
             if (id === 'transport.record') return press('record');
             if (id === 'tr909.flam') { vals[id] = vals[id] ? 0 : 1; return undefined; }
             return setControl(id, getVal(id) ? 0 : 1);
         }
         function bump(id, dir) {
+            if (!ready()) return undefined;
             if (TRANSPORT_ARROWS[id]) return press(TRANSPORT_ARROWS[id][dir > 0 ? 0 : 1]);
             const c = M.control(id);
             if (!c) return undefined;
@@ -503,6 +507,18 @@
                 host = null;
                 fail('rb_load_failed', err && err.message ? err.message : '');
             }
+        }
+        // The engine is not booted outside a gesture: the rack waits for the first click or key inside it.
+        function awaitGesture() {
+            if (host || hostState !== 'idle' || disposed) return;
+            section.dataset.rbState = 'waiting';
+            setLoadText(tr('rb_audio_blocked'), false);
+        }
+        function gestureBoot() {
+            if (!active || disposed || host || hostState !== 'idle') return;
+            setLoadText(tr('rb_loading'), false);
+            ensureHost();
+            wake();
         }
         function wake() {
             if (!host || typeof host.resume !== 'function') return;
@@ -661,6 +677,7 @@
             const row = t && t.closest ? t.closest('.ss-rb-row') : null;
             if (row) focusRow = Number(row.dataset.row);
         });
+        for (const type of ['pointerdown', 'click', 'keydown']) on(section, type, gestureBoot, { capture: true });
         on(window, 'pointerup', () => held.clear());
         on(window, 'pointercancel', () => held.clear());
 
@@ -920,19 +937,33 @@
             default: break;
             }
         }
+        // The window this rack lives in (the Synth Studio root). Only the window that holds the focus reacts.
+        const appRoot = () => o.root || (section.closest ? section.closest('.ss-app') : null) || section;
+        const FOCUSABLE = 'button, a, summary, input, select, textarea, [role=button], [role=tab], [role=checkbox], [role=switch], [role=menuitem], [role=link], [role=slider]';
+        // Anything that keeps a key of its own: Space/Enter activate it natively, Tab moves on from it.
+        function focusable(t) {
+            if (!t || !t.closest || t === document.body || t === document.documentElement || t === section || t === appRoot()) return false;
+            return !!t.closest(FOCUSABLE);
+        }
+        // A range input has no native Space/Enter action, so those keys still reach the transport from a knob.
+        const nativeActivation = t => focusable(t) && !(t.type === 'range');
         on(window, 'keydown', e => {
             if (!active || disposed || e.defaultPrevented || e.isComposing || e.altKey || !ready()) return;
-            const t = e.target;
+            const t = e.target, ae = document.activeElement, win = appRoot();
+            if (!win || !ae || !win.contains(ae)) return;
+            const combo = e.ctrlKey || e.metaKey;
+            if (combo && !section.contains(ae)) return;
             if (typing(t)) return;
             if (t && t.closest && t.closest('dialog, [role=dialog], [aria-modal=true]')) return;
             if (t && t.type === 'range' && /^(Arrow|Page|Home|End)/.test(e.code)) return;
-            if ((e.code === 'Space' || e.code === 'Enter') && t && t.closest && t !== document.body && !section.contains(t) && t.closest('button, a, summary, [role=button]')) return;
-            const a = M.keyAction(e.code, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, mode: keyMode, focusRow, playing: transport.playing });
+            if ((e.code === 'Space' || e.code === 'Enter') && nativeActivation(t)) return;
+            const a = M.keyAction(e.code, { shift: e.shiftKey, ctrl: combo, mode: keyMode, focusRow, playing: transport.playing, bare: !focusable(t) });
             if (!a) return;
             e.preventDefault();
             handledKeys.add(e.code);
             if (!e.repeat) runKey(a);
         });
+        on(window, 'blur', () => { handledKeys.clear(); });
         // a handled Space/Enter must not click the focused button on release either
         on(window, 'keyup', e => { if (handledKeys.delete(e.code)) e.preventDefault(); });
         function setKeyMode(mode) {
@@ -1000,7 +1031,10 @@
 
         // ---- T9: song document ------------------------------------------------------------------
         const NAMESPACE = 'synth-studio';
-        const draftKey = () => (typeof location !== 'undefined' ? location.origin : '') + ':synth-studio:rb338:current';
+        const origin = () => (typeof location !== 'undefined' ? location.origin : '');
+        // One draft per Synth Studio window; the old shared key is read once as a migration fallback.
+        const draftKey = () => origin() + ':synth-studio:rb338:' + (o.windowId ? 'window:' + o.windowId : 'current');
+        const legacyDraftKey = () => origin() + ':synth-studio:rb338:current';
         const draftApi = () => (root.OfficeSession && typeof root.OfficeSession.draft === 'function' ? root.OfficeSession : null);
         const fileBase = () => {
             const raw = (info && info.title ? String(info.title) : '') || docName || 'rb338-song';
@@ -1030,9 +1064,17 @@
             return !!(await r);
         }
         function dropPending() { outbox.length = 0; flushToken++; held.clear(); }
-        const LOAD_ERR = { 1: 'rb_err_not_song', 2: 'rb_err_convert', 3: 'rb_err_memory' };
+        const LOAD_ERR = { 1: 'rb_err_not_song', 2: 'rb_err_convert', 3: 'rb_err_memory', 21: 'rb_err_convert' };
         async function openBytes(bytes, name) {
             if (!ready()) return false;
+            // The worker pre-validates the song, so a refused or crashing file never touches the live engine.
+            const Host = root.SynthStudioRB338Host;
+            if (Host && typeof Host.checkSong === 'function') {
+                let chk;
+                try { chk = await Host.checkSong(bytes); } catch (_) { chk = { ok: false, code: 21 }; }
+                if (disposed || !ready()) return false;
+                if (!chk || chk.ok === false) { say(tr(LOAD_ERR[chk && chk.code] || 'rb_err_not_song')); return false; }
+            }
             dropPending();
             let res;
             try { res = await host.load(bytes); } catch (_) { say(tr('rb_err_memory')); return false; }
@@ -1069,10 +1111,11 @@
         }
         async function saveSong() {
             if (!ready()) return;
+            const ticket = editSeq;
             let bytes;
             try { bytes = await saveBytes(); } catch (_) { say(tr('rb_err_export')); return; }
             download(new Blob([bytes], { type: 'application/octet-stream' }), fileBase() + '.rbs');
-            modified = false;
+            if (editSeq === ticket) modified = false; // an edit made while the engine answered stays unsaved
             draftDirty = true;
             scheduleAutosave();
         }
@@ -1167,33 +1210,53 @@
             autoTimer = setTimeout(() => { autoTimer = 0; autosave(); }, 1500);
         }
         // Writes the current song to the draft store; `h` is the host to ask (it may be closing).
-        async function autosave(h) {
+        // Returns the promise of the write in flight (or a settled one when there is nothing to write).
+        function autosave(h) {
             if (autoTimer) { clearTimeout(autoTimer); autoTimer = 0; }
             const target = h || host;
             const api = draftApi();
-            if (!draftDirty || !api || !target || (!h && !ready())) return;
-            if (autoBusy) { autoAgain = true; return; }
+            if (!draftDirty || !api || !target || (!h && !ready())) return autoInflight || Promise.resolve();
+            if (autoBusy) { autoAgain = true; return autoInflight; }
             autoBusy = true;
+            // an edit made while the write runs sets draftDirty again and so schedules the next one
             draftDirty = false;
-            try {
-                const bytes = bytesOf(await target.save());
-                const rec = { id: draftId, bytes, name: fileBase() === 'rb338-song' ? docName : fileBase(), modified, updated: Date.now() };
-                await api.draft('put', draftKey(), rec, NAMESPACE);
-                lastSaved = rec;
-                autoSavedAt = Date.now();
-            } catch (_) {
-                draftDirty = true;
-            } finally {
-                autoBusy = false;
-                if (autoAgain) { autoAgain = false; if (draftDirty && !disposed) scheduleAutosave(); }
-            }
+            autoInflight = (async () => {
+                try {
+                    const bytes = bytesOf(await target.save());
+                    const rec = { id: draftId, bytes, name: fileBase() === 'rb338-song' ? docName : fileBase(), modified, updated: Date.now() };
+                    await api.draft('put', draftKey(), rec, NAMESPACE);
+                    lastSaved = rec;
+                    autoSavedAt = Date.now();
+                } catch (_) {
+                    draftDirty = true;
+                } finally {
+                    autoBusy = false;
+                    autoInflight = null;
+                    if (autoAgain) { autoAgain = false; if (draftDirty && !disposed) scheduleAutosave(); }
+                }
+            })();
+            return autoInflight;
+        }
+        // Everything still owed to the draft store: the write in flight, then the edits made meanwhile.
+        async function flushDraft(h) {
+            if (autoInflight) { try { await autoInflight; } catch (_) { /* reported by autosave */ } }
+            if (draftDirty) await autosave(h);
         }
         function readDraft() {
             const api = draftApi();
             if (!api || typeof indexedDB === 'undefined') { draftState = 'done'; return; }
             draftState = 'reading';
             let p;
-            try { p = Promise.resolve(api.draft('get', draftKey(), undefined, NAMESPACE)); } catch (_) { p = Promise.resolve(null); }
+            const fetchDraft = key => { try { return Promise.resolve(api.draft('get', key, undefined, NAMESPACE)).catch(() => null); } catch (_) { return Promise.resolve(null); } };
+            const usable = rec => (rec && rec.bytes && rec.bytes.byteLength ? rec : null);
+            p = fetchDraft(draftKey()).then(rec => {
+                if (usable(rec) || !o.windowId) return rec;
+                // the shared key is migrated by the first window to ask; later windows start empty
+                return fetchDraft(legacyDraftKey()).then(old => {
+                    if (usable(old)) { try { Promise.resolve(api.draft('delete', legacyDraftKey(), undefined, NAMESPACE)).catch(() => {}); } catch (_) { /* kept */ } }
+                    return old;
+                });
+            });
             draftPromise = p.then(rec => { draftRec = rec && rec.bytes && rec.bytes.byteLength ? rec : null; }, () => {}).then(() => { draftState = 'done'; if (host) lateRestore(); });
         }
         // The draft arrived after the host was created: load it once the engine is ready and nothing was edited.
@@ -1298,13 +1361,16 @@
             const b = $('[data-action="' + name + '"]');
             if (b) b.disabled = !fn;
         }
-        function activate(next) {
+        function activate(next, opts) {
             if (disposed) return;
             const was = active;
             active = !!next;
             section.dataset.rbActive = active ? 'true' : 'false';
             if (active) {
-                if (!host) ensureHost(); else wake();
+                if (!host) {
+                    // restored view: no AudioContext outside a gesture, the first click or key in the rack starts the engine
+                    if (opts && opts.restored) awaitGesture(); else ensureHost();
+                } else wake();
                 renderAll();
                 startLoop();
             } else {
@@ -1318,7 +1384,7 @@
         function dispose() {
             if (disposed) return;
             const h = host;
-            const last = h && ready() && draftDirty && draftApi() ? autosave(h) : null;
+            const last = h && ready() && draftApi() && (draftDirty || autoInflight) ? flushDraft(h) : null;
             disposed = true;
             if (hooks.leave) hooks.leave();
             stopLoop();
@@ -1331,7 +1397,7 @@
             // the engine must stay up until its last autosave answered
             if (last) { let done = false; const once = () => { if (!done) { done = true; closeHost(); } }; last.then(once, once); setTimeout(once, 1500); } else closeHost();
         }
-        const api = { activate, stop, openSong, isPlaying: () => !!(transport.playing || (snap && snap.playing)), dispose };
+        const api = { activate, stop, openSong, isModified: () => modified, isPlaying: () => !!(transport.playing || (snap && snap.playing)), dispose };
         // Internals for the later tasks (T8 behaviours/keys, T9 documents, T11 arrange): same file, no public contract.
         api.internals = { M, tr, E, section, rows, vals, mirror: () => mirror, setMirror, getVal, setControl, press, bump, toggle, emit, emitMany, flush, curPattern,
             transport: () => transport, snapshot: () => snap, host: () => host, state: () => hostState, info: () => info, setInfo, behaviours, actions, setAction, hooks,

@@ -115,7 +115,9 @@ async function modelSection() {
     assert.deepEqual(k('Minus', { mode: 'synth', focusRow: 2 }), { type: 'tapDrum', inst: 0 });
     assert.deepEqual(k('Minus', { mode: 'synth', focusRow: 0 }), { type: 'step303', name: 'note_pause' });
     assert.equal(k('Tab', { mode: 'synth', focusRow: 0, playing: false }), null);
-    assert.deepEqual(k('Tab', { mode: 'synth', focusRow: 0, playing: true, shift: true }), { type: 'tap303', rest: true });
+    assert.deepEqual(k('Tab', { mode: 'synth', focusRow: 0, playing: true, shift: true, bare: true }), { type: 'tap303', rest: true });
+    assert.equal(k('Tab', { mode: 'synth', focusRow: 0, playing: true, shift: true }), null, 'Tab on a focusable target moves the focus');
+    assert.equal(k('Tab', { mode: 'synth', focusRow: 0, playing: true, bare: false }), null);
     assert.equal(k('Tab', { mode: 'synth', focusRow: 2, playing: true }), null);
     assert.deepEqual(k('KeyQ', { mode: 'patterns', focusRow: 0 }), { type: 'pattern', row: 1, button: 1 });
     assert.deepEqual(k('Comma', { mode: 'patterns', focusRow: 0 }), { type: 'pattern', row: 3, button: 8 });
