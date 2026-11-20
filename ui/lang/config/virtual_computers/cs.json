@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Sériové porty na serveru AuraGo",
   "help.virtual_desktop.serial_host_enabled": "Povolit správcům otevírat v Quick Connect sériová zařízení připojená k serveru AuraGo. Kontejnerové instalace vyžadují předání zařízení a oprávnění operačního systému. V režimu jen pro čtení je tato možnost vypnutá.",
   "config.virtual_desktop.retronet_label": "Retro-Net v Terminálu",
-  "help.virtual_desktop.retronet_enabled": "Povolit uživatelům Desktopu s oprávněním k zápisu vytáčet Telnet BBS, MUDy a anonymní hry přes SSH z adresáře Retro-Net v aplikaci Terminál; vlastní položky spravují jen správci. Spojení navazuje server AuraGo, takže provozovatelé služeb vidí jeho veřejnou IP adresu, a Telnet není šifrovaný: nikdy tam nezadávej hesla, která používáš jinde. Ve výchozím stavu zapnuto; v režimu jen pro čtení je tato možnost vypnutá."
+  "help.virtual_desktop.retronet_enabled": "Povolit uživatelům Desktopu s oprávněním k zápisu vytáčet Telnet BBS, MUDy a anonymní hry přes SSH z adresáře Retro-Net v aplikaci Terminál; vlastní položky spravují jen správci. Spojení navazuje server AuraGo, takže provozovatelé služeb vidí jeho veřejnou IP adresu, a Telnet není šifrovaný: nikdy tam nezadávej hesla, která používáš jinde. Ve výchozím stavu zapnuto; v režimu jen pro čtení je tato možnost vypnutá.",
+  "config.virtual_computers.setup_running": "Instalace / oprava probíhá {seconds} s — tuto stránku můžete zavřít.",
+  "config.virtual_computers.setup_running_hint": "Běh pokračuje na pozadí. Spuštěné virtuální počítače se zastaví, až se na konci restartuje boringd.",
+  "config.virtual_computers.setup_finished_installed": "Instalace / oprava byla dokončena.",
+  "config.virtual_computers.setup_finished_failed": "Instalace / oprava selhala:",
+  "config.virtual_computers.setup_finished_unhealthy": "Instalace / oprava byla dokončena, ale nastavení není v pořádku:"
 }

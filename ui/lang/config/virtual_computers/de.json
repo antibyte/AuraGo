@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Serielle Anschlüsse auf dem AuraGo-Server",
   "help.virtual_desktop.serial_host_enabled": "Erlaube Administratoren, serielle Geräte am AuraGo-Server in Quick Connect zu öffnen. Containerinstallationen benötigen Geräte-Durchreichung und Betriebssystemberechtigungen. Im Nur-Lesen-Modus deaktiviert.",
   "config.virtual_desktop.retronet_label": "Retro-Net im Terminal",
-  "help.virtual_desktop.retronet_enabled": "Erlaube Desktop-Benutzern mit Schreibzugriff, Telnet-BBS, MUDs und anonyme SSH-Spiele aus einem Retro-Net-Verzeichnis in der Terminal-App anzuwählen; eigene Einträge verwalten nur Administratoren. Der AuraGo-Server baut die Verbindung auf, daher sehen die Betreiber der Dienste seine öffentliche IP-Adresse, und Telnet ist unverschlüsselt: Du solltest dort nie Passwörter eingeben, die du anderswo verwendest. Standardmäßig eingeschaltet; im Nur-Lesen-Modus deaktiviert."
+  "help.virtual_desktop.retronet_enabled": "Erlaube Desktop-Benutzern mit Schreibzugriff, Telnet-BBS, MUDs und anonyme SSH-Spiele aus einem Retro-Net-Verzeichnis in der Terminal-App anzuwählen; eigene Einträge verwalten nur Administratoren. Der AuraGo-Server baut die Verbindung auf, daher sehen die Betreiber der Dienste seine öffentliche IP-Adresse, und Telnet ist unverschlüsselt: Du solltest dort nie Passwörter eingeben, die du anderswo verwendest. Standardmäßig eingeschaltet; im Nur-Lesen-Modus deaktiviert.",
+  "config.virtual_computers.setup_running": "Installieren / Reparieren läuft seit {seconds} s — du kannst diese Seite schließen.",
+  "config.virtual_computers.setup_running_hint": "Der Lauf wird im Hintergrund fortgesetzt. Laufende virtuelle Computer werden gestoppt, wenn boringd am Ende neu startet.",
+  "config.virtual_computers.setup_finished_installed": "Installieren / Reparieren abgeschlossen.",
+  "config.virtual_computers.setup_finished_failed": "Installieren / Reparieren fehlgeschlagen:",
+  "config.virtual_computers.setup_finished_unhealthy": "Installieren / Reparieren abgeschlossen, aber das Setup ist nicht gesund:"
 }

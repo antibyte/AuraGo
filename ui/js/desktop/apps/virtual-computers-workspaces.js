@@ -53,17 +53,23 @@
         return machine ? machineName(machine) : shortId(workspace.machine_id || workspace.id);
     }
 
+    // Handing a computer to the agent is refused while Install / Repair runs or is still pending.
+    function assignBlocked(state) {
+        return !!(state.status && ((state.status.setup && state.status.setup.running === true) || state.status.repair_required === true));
+    }
+
     function agentRequest(state, ui) {
         const c = state.context;
         const esc = ui.esc;
         const selected = state.agentWorkspaceId || '';
         const available = readyWorkspaces(state);
         const running = state.machines.filter(machine => machine && machine.id && !machine.workspace_id && String(machine.status || '').toLowerCase() === 'running');
+        const blocked = assignBlocked(state);
         const workspaceOptions = available.map(w => `<option value="${esc(w.id)}" ${w.id === selected ? 'selected' : ''}>${esc(workspaceName(state, w))} · ${esc(valueLabel(c, 'template', w.template, ui))}</option>`).join('');
         const machineOptions = running.map(machine => `<option value="machine:${esc(machine.id)}" ${'machine:' + machine.id === selected ? 'selected' : ''}>${esc(machineName(machine))} · ${esc(valueLabel(c, 'template', machine.template, ui))}</option>`).join('');
         const missing = selected && !available.some(w => w.id === selected) && !running.some(machine => 'machine:' + machine.id === selected);
         const missingLabel = selected.startsWith('machine:') ? shortId(selected.slice('machine:'.length)) : shortId(selected);
-        const groups = `${workspaceOptions ? `<optgroup label="${esc(ui.tx(c, K + 'agent_workspaces'))}">${workspaceOptions}</optgroup>` : ''}${machineOptions ? `<optgroup label="${esc(ui.tx(c, K + 'picker_running_computers'))}">${machineOptions}</optgroup>` : ''}`;
+        const groups = `${workspaceOptions ? `<optgroup label="${esc(ui.tx(c, K + 'agent_workspaces'))}">${workspaceOptions}</optgroup>` : ''}${machineOptions ? `<optgroup label="${esc(ui.tx(c, K + 'picker_running_computers') + (blocked ? ' (' + ui.tx(c, K + 'assign_blocked') + ')' : ''))}"${blocked ? ' disabled' : ''}>${machineOptions}</optgroup>` : ''}`;
         const selector = `<label class="vc-agent-workspace"><span>${esc(ui.tx(c, K + 'agent_workspaces'))}</span><select data-role="agent-workspace"><option value="">${esc(ui.tx(c, K + 'workspace_auto'))}</option>${groups}${missing ? `<option value="${esc(selected)}" selected disabled>${esc(missingLabel)} · ${esc(ui.tx(c, K + 'workspace_unavailable'))}</option>` : ''}</select></label>`;
         const draft = state.agentRequestDraft || '';
         return `<div class="vc-agent-request">${selector}<div class="vc-agent-field"><label><span>${esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="${maxRequestLength}" placeholder="${esc(ui.tx(c, K + 'request_placeholder'))}">${esc(draft)}</textarea></label><small class="vc-agent-count" data-role="agent-request-count">${esc(requestCountText(c, draft.length))}</small></div><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${esc(ui.tx(c, K + 'task_start'))}</button></div>`;

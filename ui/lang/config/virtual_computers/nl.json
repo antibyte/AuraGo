@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Seriële poorten op de AuraGo-server",
   "help.virtual_desktop.serial_host_enabled": "Sta beheerders toe om in Quick Connect seriële apparaten te openen die op de AuraGo-server zijn aangesloten. Containerinstallaties vereisen apparaattoegang en machtigingen van het besturingssysteem. Uitgeschakeld in de alleen-lezenmodus.",
   "config.virtual_desktop.retronet_label": "Retro-Net in Terminal",
-  "help.virtual_desktop.retronet_enabled": "Sta Desktop-gebruikers met schrijftoegang toe om vanuit een Retro-Net-gids in de Terminal-app verbinding te maken met Telnet-BBS'en, MUD's en anonieme SSH-games; alleen beheerders kunnen eigen vermeldingen toevoegen en bewerken. De AuraGo-server legt de verbinding, dus exploitanten van de diensten zien het openbare IP-adres van de server, en Telnet is onversleuteld: typ nooit wachtwoorden die je elders gebruikt. Standaard aan; uitgeschakeld in de alleen-lezenmodus."
+  "help.virtual_desktop.retronet_enabled": "Sta Desktop-gebruikers met schrijftoegang toe om vanuit een Retro-Net-gids in de Terminal-app verbinding te maken met Telnet-BBS'en, MUD's en anonieme SSH-games; alleen beheerders kunnen eigen vermeldingen toevoegen en bewerken. De AuraGo-server legt de verbinding, dus exploitanten van de diensten zien het openbare IP-adres van de server, en Telnet is onversleuteld: typ nooit wachtwoorden die je elders gebruikt. Standaard aan; uitgeschakeld in de alleen-lezenmodus.",
+  "config.virtual_computers.setup_running": "Installeren / repareren is al {seconds} s bezig — je kunt deze pagina sluiten.",
+  "config.virtual_computers.setup_running_hint": "De run gaat op de achtergrond door. Actieve virtuele computers worden gestopt wanneer boringd aan het einde herstart.",
+  "config.virtual_computers.setup_finished_installed": "Installeren / repareren is voltooid.",
+  "config.virtual_computers.setup_finished_failed": "Installeren / repareren is mislukt:",
+  "config.virtual_computers.setup_finished_unhealthy": "Installeren / repareren is voltooid, maar de setup is niet gezond:"
 }

@@ -133,6 +133,7 @@
     font-size: 12px;
 }
 .vc-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.vc-banner-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .vc-banner.is-error, .vc-inline-error { border-color: color-mix(in srgb, var(--vc-danger) 30%, var(--vc-line)); background: color-mix(in srgb, var(--vc-danger) 9%, var(--vc-card)); }
 
 .vc-content { flex: 1; min-height: 0; overflow: hidden; }

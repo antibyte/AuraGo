@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Serielporte på AuraGo-serveren",
   "help.virtual_desktop.serial_host_enabled": "Tillad administratorer at åbne serielle enheder, der er tilsluttet AuraGo-serveren, i Quick Connect. Containerinstallationer kræver enhedsgennemgang og tilladelser i operativsystemet. Deaktiveret i skrivebeskyttet tilstand.",
   "config.virtual_desktop.retronet_label": "Retro-Net i Terminal",
-  "help.virtual_desktop.retronet_enabled": "Tillad Desktop-brugere med skriveadgang at oprette forbindelse til Telnet-BBS'er, MUD'er og anonyme SSH-spil fra et Retro-Net-katalog i Terminal-appen; kun administratorer kan tilføje og redigere egne poster. AuraGo-serveren opretter forbindelsen, så udbyderne af tjenesterne ser serverens offentlige IP-adresse, og Telnet er ukrypteret: indtast aldrig adgangskoder, du bruger andre steder. Slået til som standard; deaktiveret i skrivebeskyttet tilstand."
+  "help.virtual_desktop.retronet_enabled": "Tillad Desktop-brugere med skriveadgang at oprette forbindelse til Telnet-BBS'er, MUD'er og anonyme SSH-spil fra et Retro-Net-katalog i Terminal-appen; kun administratorer kan tilføje og redigere egne poster. AuraGo-serveren opretter forbindelsen, så udbyderne af tjenesterne ser serverens offentlige IP-adresse, og Telnet er ukrypteret: indtast aldrig adgangskoder, du bruger andre steder. Slået til som standard; deaktiveret i skrivebeskyttet tilstand.",
+  "config.virtual_computers.setup_running": "Installer / reparer har kørt i {seconds} s — du kan lukke denne side.",
+  "config.virtual_computers.setup_running_hint": "Kørslen fortsætter i baggrunden. Kørende virtuelle computere stoppes, når boringd genstarter til sidst.",
+  "config.virtual_computers.setup_finished_installed": "Installer / reparer er færdig.",
+  "config.virtual_computers.setup_finished_failed": "Installer / reparer mislykkedes:",
+  "config.virtual_computers.setup_finished_unhealthy": "Installer / reparer er færdig, men opsætningen er ikke sund:"
 }

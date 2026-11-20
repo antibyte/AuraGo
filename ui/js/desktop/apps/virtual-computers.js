@@ -3,6 +3,10 @@
     const instances = new Map();
     const machinePollIntervalMs = 5000;
     const expiryCountdownIntervalMs = 1000;
+    // While Install / Repair runs the status is re-read this often to notice the end of the run.
+    const setupStatusPollIntervalMs = 10000;
+    // The install request lasts for the whole run; the dialog closes after this long.
+    const setupAcceptDelayMs = 3000;
     // The desktop JSON endpoints accept 1 MiB; base64 inflates a file by a third.
     const uploadLimitBytes = 700 * 1024;
     const K = 'desktop.virtual_computers_';
@@ -14,6 +18,7 @@
         'cancel-workspace-job': { title: 'desktop.virtual_computers_confirm_cancel_job', message: 'desktop.virtual_computers_confirm_cancel_job_desc', confirmAction: 'confirm-cancel-workspace-job', label: 'desktop.virtual_computers_task_cancel' },
         'approve-workspace-grant': { title: 'desktop.virtual_computers_confirm_approve_grant', message: 'desktop.virtual_computers_confirm_approve_grant_desc', confirmAction: 'confirm-approve-workspace-grant', label: 'desktop.virtual_computers_approve_grant', danger: false },
         'revoke-workspace-grant': { title: 'desktop.virtual_computers_confirm_revoke_grant', message: 'desktop.virtual_computers_confirm_revoke_grant_desc', confirmAction: 'confirm-revoke-workspace-grant', label: 'desktop.virtual_computers_revoke_grant' },
+        'run-setup': { title: 'desktop.virtual_computers_confirm_run_setup', message: 'desktop.virtual_computers_confirm_run_setup_desc', confirmAction: 'confirm-run-setup', label: 'desktop.virtual_computers_repair_run' },
         'takeover-workspace': { title: 'desktop.virtual_computers_confirm_takeover', message: 'desktop.virtual_computers_confirm_takeover_desc', confirmAction: 'confirm-takeover-workspace', label: 'desktop.virtual_computers_take_control', danger: false }
     };
     function esc(value) {
@@ -130,6 +135,9 @@
             machinePollTimer: null,
             machinePollInFlight: false,
             expiryCountdownTimer: null,
+            setupPollTimer: null,
+            setupAcceptTimer: null,
+            setupSeenAt: 0,
             disposed: false
         };
         instances.set(windowId, state);
@@ -235,6 +243,9 @@
             node.textContent = value;
             node.setAttribute('aria-label', `${node.dataset.expiryLabel || ''}: ${value}`);
         });
+        state.host.querySelectorAll('[data-setup-elapsed]').forEach(node => {
+            node.textContent = formatDuration((now - Number(node.dataset.setupElapsed || now)) / 1000, state.context);
+        });
     }
 
     function scheduleExpiryCountdown(state) {
@@ -305,7 +316,7 @@
             (state.volumes || []).map(item => item && [item.id, item.name]),
             state.vncWorkspaceId, state.vncMachineId, state.nativeDesktopStatus || null,
             state.resourceErrors.workspaces, state.resourceLoading.workspaces && !state.workspaces.length,
-            !!caps.native_apps
+            !!caps.native_apps, !!(state.status && ((state.status.setup && state.status.setup.running === true) || state.status.repair_required === true))
         ]);
     }
 
@@ -479,6 +490,22 @@
         }).join('')}</div>`;
     }
 
+    // Install / Repair fields of GET setup/status; an older backend sends neither and shows no banner.
+    function setupRunning(state) {
+        return !!(state.status && state.status.setup && state.status.setup.running === true);
+    }
+
+    function repairRequired(state) {
+        return !!(state.status && state.status.repair_required === true && !setupRunning(state));
+    }
+
+    function setupStartedMs(state) {
+        const parsed = Date.parse((state.status && state.status.setup && state.status.setup.started_at) || '');
+        if (Number.isFinite(parsed)) return parsed;
+        if (!state.setupSeenAt) state.setupSeenAt = Date.now();
+        return state.setupSeenAt;
+    }
+
     function statusPane(state) {
         const c = state.context;
         if (state.resourceErrors.status) {
@@ -487,6 +514,16 @@
         if (!state.status || state.resourceLoading.status) return '';
         if (!state.status.enabled) {
             return `<div class="vc-banner" role="status"><span>${esc(tx(c, 'desktop.virtual_computers_state_disabled'))}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
+        }
+        if (setupRunning(state)) {
+            const started = setupStartedMs(state);
+            const elapsed = `<span data-setup-elapsed="${esc(started)}">${esc(formatDuration((Date.now() - started) / 1000, c))}</span>`;
+            const message = esc(txv(c, 'desktop.virtual_computers_setup_running', { elapsed: '@@elapsed@@' })).replace('@@elapsed@@', elapsed);
+            return `<div class="vc-banner is-info" role="status" data-role="setup-banner"><span>${message}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
+        }
+        if (repairRequired(state)) {
+            const runButton = isMutable(state) ? `<button type="button" class="vc-btn vc-btn-sm danger" data-action="run-setup">${esc(tx(c, 'desktop.virtual_computers_repair_run'))}</button>` : '';
+            return `<div class="vc-banner is-warning" role="alert" data-role="repair-banner"><span>${esc(tx(c, 'desktop.virtual_computers_repair_required'))}</span><span class="vc-banner-actions">${runButton}<button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></span></div>`;
         }
         if (!isHealthy(state)) {
             return `<div class="vc-banner is-warning" role="status"><span>${esc(tx(c, 'desktop.virtual_computers_health_degraded'))}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
@@ -562,7 +599,10 @@
                 manage.push(`<span class="vc-button-group" role="group" aria-label="${esc(tx(c, 'desktop.virtual_computers_extend_group'))}">${extendChoices.map(seconds => `<button type="button" class="vc-btn vc-btn-sm" data-action="extend-machine" data-id="${esc(machine.id)}" data-ttl="${seconds}">${esc(txv(c, 'desktop.virtual_computers_extend_minutes', { count: Math.round(seconds / 60) }))}</button>`).join('')}</span>`);
             }
             if (caps.volumes) manage.push(actionButton(state, 'save-machine', machine.id, 'desktop.virtual_computers_save_to_volume'));
-            if (caps.agent_control && !owned) manage.push(actionButton(state, 'assign-agent', machine.id, 'desktop.virtual_computers_assign_agent'));
+            if (caps.agent_control && !owned) {
+                const assignBlocked = !!(state.status && ((state.status.setup && state.status.setup.running === true) || state.status.repair_required === true));
+                manage.push(actionButton(state, 'assign-agent', machine.id, 'desktop.virtual_computers_assign_agent', assignBlocked ? { disabled: true, title: tx(c, 'desktop.virtual_computers_assign_blocked') } : undefined));
+            }
             manage.push(actionButton(state, 'upload-file', machine.id, 'desktop.virtual_computers_upload'));
             manage.push(actionButton(state, 'download-file', machine.id, 'desktop.virtual_computers_download'));
             if (owned) {
@@ -981,6 +1021,7 @@
             if (target.dataset.role === 'modal-submit' && state.modal && state.modal.pending) return;
             if (action === 'refresh') refresh(state);
             else if (action === 'config') window.location.href = '/config#virtual_computers';
+            else if (action === 'run-setup') confirmRunSetup(state, target);
             else if (action === 'section') switchSection(state, target.dataset.section || 'machines');
             else if (action === 'new-agent-job') {
                 switchSection(state, 'workspaces');
@@ -1175,6 +1216,10 @@
     async function assignAndSend(state, machineId, requestText) {
         const key = 'assign-' + machineId;
         if (isPending(state, key)) return;
+        if (setupRunning(state) || repairRequired(state)) {
+            notify(state, tx(state.context, K + 'assign_blocked'), 'error');
+            return;
+        }
         setPending(state, key, true);
         try {
             const result = await request('/api/virtual-computers/machines/' + encodeURIComponent(machineId) + '/assign-agent', jsonRequest('POST'));
@@ -1305,6 +1350,7 @@
         reconcileTerminal(state);
         draw(state);
         scheduleWorkspaceRefresh(state);
+        scheduleSetupStatusRefresh(state);
     }
 
     async function refreshResource(state, resource) {
@@ -1955,6 +2001,84 @@
         notify(state, message, 'success');
     }
 
+    // Install / Repair: confirm, start the request and follow the run through the status.
+    function confirmRunSetup(state, trigger) {
+        if (!isMutable(state) || setupRunning(state)) return;
+        openConfirmModal(state, {
+            kind: 'run-setup',
+            trigger,
+            run: () => startSetupInstall(state),
+            success: tx(state.context, K + 'toast_setup_started')
+        });
+    }
+
+    // The install request answers only when the whole run has finished (10-25 minutes). A quick
+    // refusal (403, 409) is thrown into the dialog; otherwise the dialog closes after a short wait
+    // and the running banner takes over while the request completes in the background.
+    async function startSetupInstall(state) {
+        const pending = request('/api/virtual-computers/setup/install', jsonRequest('POST', {}));
+        let failure = null;
+        const settled = pending.then(() => { failure = null; }, error => { failure = error; });
+        const wait = new Promise(resolve => {
+            state.setupAcceptTimer = setTimeout(() => {
+                state.setupAcceptTimer = null;
+                resolve();
+            }, setupAcceptDelayMs);
+        });
+        await Promise.race([settled, wait]);
+        if (state.setupAcceptTimer) {
+            clearTimeout(state.setupAcceptTimer);
+            state.setupAcceptTimer = null;
+        }
+        if (state.disposed) return null;
+        if (failure) throw failure;
+        state.status = Object.assign({}, state.status, {
+            repair_required: false,
+            setup: { running: true, action: 'install', started_at: new Date().toISOString(), finished_at: '', last_state: '', last_message: '' }
+        });
+        state.setupSeenAt = Date.now();
+        scheduleSetupStatusRefresh(state);
+        settled.then(() => {
+            if (state.disposed) return;
+            const ok = !failure;
+            notify(state, tx(state.context, K + (ok ? 'toast_setup_done' : 'toast_setup_failed')) + (ok ? '' : ' ' + errorText(state, failure)), ok ? 'success' : 'error');
+            refresh(state);
+        });
+        return null;
+    }
+
+    // While a run is active the status is re-read every few seconds; the end of the run reloads everything.
+    function scheduleSetupStatusRefresh(state) {
+        if (state.setupPollTimer) {
+            clearTimeout(state.setupPollTimer);
+            state.setupPollTimer = null;
+        }
+        if (state.disposed || !setupRunning(state)) return;
+        state.setupPollTimer = setTimeout(async () => {
+            state.setupPollTimer = null;
+            await refreshSetupStatus(state);
+            scheduleSetupStatusRefresh(state);
+        }, setupStatusPollIntervalMs);
+    }
+
+    async function refreshSetupStatus(state) {
+        if (state.disposed || !isMachinePollingVisible(state)) return;
+        const generation = state.refreshGeneration;
+        try {
+            const status = await request('/api/virtual-computers/setup/status');
+            if (state.disposed || generation !== state.refreshGeneration || !status) return;
+            const wasRunning = setupRunning(state);
+            state.status = status;
+            if (wasRunning && !setupRunning(state)) {
+                await refresh(state);
+                return;
+            }
+            draw(state);
+        } catch (_) {
+            // Best-effort; the next tick tries again.
+        }
+    }
+
     function normalizeMachineList(body) {
         return body && Array.isArray(body.machines) ? body.machines : [];
     }
@@ -2032,6 +2156,10 @@
         if (state.workspaceRefreshTimer) clearTimeout(state.workspaceRefreshTimer);
         if (state.machinePollTimer) clearTimeout(state.machinePollTimer);
         if (state.expiryCountdownTimer) clearTimeout(state.expiryCountdownTimer);
+        if (state.setupPollTimer) clearTimeout(state.setupPollTimer);
+        if (state.setupAcceptTimer) clearTimeout(state.setupAcceptTimer);
+        state.setupPollTimer = null;
+        state.setupAcceptTimer = null;
         state.machinePollTimer = null;
         state.workspaceRefreshTimer = null;
         state.expiryCountdownTimer = null;

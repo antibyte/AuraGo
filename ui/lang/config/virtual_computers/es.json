@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Puertos serie en el servidor de AuraGo",
   "help.virtual_desktop.serial_host_enabled": "Permitir que los administradores abran en Quick Connect dispositivos serie conectados al servidor de AuraGo. Las instalaciones en contenedores requieren pasar el dispositivo y contar con permisos del sistema operativo. Desactivado en modo de solo lectura.",
   "config.virtual_desktop.retronet_label": "Retro-Net en el Terminal",
-  "help.virtual_desktop.retronet_enabled": "Permitir que los usuarios del Desktop con acceso de escritura se conecten a BBS de Telnet, MUD y juegos SSH anónimos desde un directorio Retro-Net en la aplicación Terminal; solo los administradores gestionan las entradas propias. El servidor de AuraGo establece la conexión, así que los operadores de los servicios ven su dirección IP pública, y Telnet no está cifrado: nunca escribas contraseñas que uses en otros sitios. Activado de forma predeterminada; desactivado en modo de solo lectura."
+  "help.virtual_desktop.retronet_enabled": "Permitir que los usuarios del Desktop con acceso de escritura se conecten a BBS de Telnet, MUD y juegos SSH anónimos desde un directorio Retro-Net en la aplicación Terminal; solo los administradores gestionan las entradas propias. El servidor de AuraGo establece la conexión, así que los operadores de los servicios ven su dirección IP pública, y Telnet no está cifrado: nunca escribas contraseñas que uses en otros sitios. Activado de forma predeterminada; desactivado en modo de solo lectura.",
+  "config.virtual_computers.setup_running": "Instalar / Reparar lleva {seconds} s en curso — puedes cerrar esta página.",
+  "config.virtual_computers.setup_running_hint": "La ejecución continúa en segundo plano. Los equipos virtuales en ejecución se detienen cuando boringd se reinicia al final.",
+  "config.virtual_computers.setup_finished_installed": "Instalar / Reparar ha terminado.",
+  "config.virtual_computers.setup_finished_failed": "Instalar / Reparar ha fallado:",
+  "config.virtual_computers.setup_finished_unhealthy": "Instalar / Reparar ha terminado, pero la configuración no está en buen estado:"
 }

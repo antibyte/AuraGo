@@ -300,12 +300,14 @@ function renderVirtualComputersSection(section) {
     html += '<button class="btn-save dc-test-btn" data-vc-action="preflight" id="vc-preflight-btn">' + t('config.virtual_computers.preflight_button') + '</button>';
     html += '<button class="btn-save dc-test-btn" data-vc-action="install" id="vc-install-btn">' + t('config.virtual_computers.install_button') + '</button>';
     html += cfgActionResult.html('vc-cfg-result');
+    html += '<div class="field-help" id="vc-setup-hint" hidden>' + t('config.virtual_computers.setup_running_hint') + '</div>';
     html += '</div></div>';
 
     document.getElementById('content').innerHTML = html;
     vcCfgWireActions(document.getElementById('content'));
     attachChangeListeners();
     if (isLocalHost) void vcCfgRefreshSudoPasswordStatus();
+    void vcCfgResumeSetupWatch();
 }
 
 function vcCfgOnModeChange(el) {
@@ -433,7 +435,109 @@ async function vcCfgPreflight() {
 }
 
 async function vcCfgInstall() {
-    await vcCfgPostSetup('/api/virtual-computers/setup/install', 'vc-install-btn', true);
+    const localStart = Date.now();
+    const outcome = await vcCfgPostSetup('/api/virtual-computers/setup/install', 'vc-install-btn', true);
+    // No HTTP response (dropped connection, closed laptop, proxy timeout): the install keeps running
+    // on the server, so watch its status instead of reporting a failure.
+    if (outcome && outcome.network) vcCfgStartSetupWatch(null, localStart);
+    else if (outcome && !outcome.skipped) { vcCfgStopSetupWatch(); vcCfgSetupButtons(false); }
+}
+
+// ---- Install / Repair watch --------------------------------------------------------------
+// The run is detached from the HTTP request on the server. After a dropped request or a page
+// reload the page follows GET setup/status (setup.running) until the run has finished.
+let _vcSetupWatch = null; // {startedAt (ms), localStart (ms), tick, poll, polling}
+
+function vcCfgSetupElapsedSeconds(watch) {
+    return Math.max(0, Math.floor((Date.now() - watch.startedAt) / 1000));
+}
+
+function vcCfgSetupButtons(disabled) {
+    const btn = document.getElementById('vc-install-btn');
+    if (btn) btn.disabled = disabled;
+    const hint = document.getElementById('vc-setup-hint');
+    if (hint) hint.hidden = !disabled;
+}
+
+function vcCfgStopSetupWatch() {
+    if (!_vcSetupWatch) return;
+    if (_vcSetupWatch.tick !== null) window.clearInterval(_vcSetupWatch.tick);
+    if (_vcSetupWatch.poll !== null) window.clearInterval(_vcSetupWatch.poll);
+    _vcSetupWatch = null;
+}
+
+function vcCfgDrawSetupWatch() {
+    const watch = _vcSetupWatch;
+    if (!watch) return;
+    if (!document.getElementById('vc-install-btn')) { vcCfgStopSetupWatch(); return; }
+    vcCfgSetupButtons(true);
+    cfgActionResult.show('vc-cfg-result', 'pending', t('config.virtual_computers.setup_running', { seconds: vcCfgSetupElapsedSeconds(watch) }));
+}
+
+function vcCfgStartSetupWatch(setup, localStart) {
+    const parsed = setup && setup.started_at ? Date.parse(setup.started_at) : NaN;
+    const startedAt = Number.isFinite(parsed) ? parsed : (localStart || Date.now());
+    if (_vcSetupWatch) {
+        _vcSetupWatch.startedAt = startedAt;
+    } else {
+        _vcSetupWatch = { startedAt: startedAt, localStart: localStart || 0, tick: null, poll: null, polling: false };
+        _vcSetupWatch.tick = window.setInterval(vcCfgDrawSetupWatch, 1000);
+        _vcSetupWatch.poll = window.setInterval(() => { void vcCfgPollSetup(); }, 5000);
+    }
+    vcCfgDrawSetupWatch();
+}
+
+async function vcCfgFetchSetupStatus() {
+    try {
+        const response = await fetch('/api/virtual-computers/setup/status');
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (_) {
+        return null;
+    }
+}
+
+function vcCfgShowSetupFinished(setup) {
+    const message = String(setup.last_message || '').trim();
+    const state = String(setup.last_state || '');
+    let kind = 'success';
+    let label = t('config.virtual_computers.setup_finished_installed');
+    if (state === 'failed') { kind = 'error'; label = t('config.virtual_computers.setup_finished_failed'); }
+    else if (state === 'unhealthy') { kind = 'warning'; label = t('config.virtual_computers.setup_finished_unhealthy'); }
+    cfgActionResult.show('vc-cfg-result', kind, message ? label + ' ' + message : label);
+}
+
+async function vcCfgPollSetup() {
+    const watch = _vcSetupWatch;
+    if (!watch || watch.polling) return;
+    if (!document.getElementById('vc-install-btn')) { vcCfgStopSetupWatch(); return; }
+    watch.polling = true;
+    const body = await vcCfgFetchSetupStatus();
+    watch.polling = false;
+    if (_vcSetupWatch !== watch) return;
+    const setup = body && body.setup;
+    if (!setup || setup.running) {
+        if (setup && setup.started_at) watch.startedAt = Date.parse(setup.started_at) || watch.startedAt;
+        return;
+    }
+    vcCfgStopSetupWatch();
+    vcCfgSetupButtons(false);
+    const finished = Date.parse(setup.finished_at || '');
+    // After a dropped request, an older finished run is not the answer to the click.
+    if (watch.localStart && !(Number.isFinite(finished) && finished >= watch.localStart - 60000)) {
+        cfgActionResult.show('vc-cfg-result', 'error', t('config.virtual_computers.status_error') + ' ' + t('config.common.network_error'));
+        return;
+    }
+    vcCfgShowSetupFinished(setup);
+}
+
+// On (re)load: a run that is still active on the server is picked up again.
+async function vcCfgResumeSetupWatch() {
+    if (_vcSetupWatch) { vcCfgDrawSetupWatch(); return; }
+    const body = await vcCfgFetchSetupStatus();
+    if (!body || !body.setup || body.setup.running !== true) return;
+    if (!document.getElementById('vc-install-btn')) return;
+    vcCfgStartSetupWatch(body.setup, 0);
 }
 
 function vcCfgToggleAgentTasks(el) {

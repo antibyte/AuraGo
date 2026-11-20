@@ -36,6 +36,10 @@ var virtualComputersWorkspaceOverhaulKeys = []string{
 	"virtual_computers_err_legacy_import_in_progress", "virtual_computers_err_storage_unavailable",
 	"virtual_computers_err_desktop_control_unconfirmed", "virtual_computers_err_workspace_timeout",
 	"virtual_computers_err_workspace_error",
+	"virtual_computers_setup_running", "virtual_computers_repair_required", "virtual_computers_repair_run",
+	"virtual_computers_confirm_run_setup", "virtual_computers_confirm_run_setup_desc", "virtual_computers_toast_setup_started",
+	"virtual_computers_toast_setup_done", "virtual_computers_toast_setup_failed", "virtual_computers_assign_blocked",
+	"virtual_computers_err_control_plane_repair_required",
 }
 
 func TestVirtualComputersOverhaulTranslations(t *testing.T) {

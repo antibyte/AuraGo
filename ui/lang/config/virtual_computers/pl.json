@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Porty szeregowe na serwerze AuraGo",
   "help.virtual_desktop.serial_host_enabled": "Zezwól administratorom otwierać w Quick Connect urządzenia szeregowe podłączone do serwera AuraGo. Instalacje kontenerowe wymagają przekazania urządzenia i uprawnień systemu operacyjnego. Wyłączone w trybie tylko do odczytu.",
   "config.virtual_desktop.retronet_label": "Retro-Net w Terminalu",
-  "help.virtual_desktop.retronet_enabled": "Zezwól użytkownikom Desktop z prawem zapisu łączyć się z BBS-ami Telnet, MUD-ami i anonimowymi grami SSH z katalogu Retro-Net w aplikacji Terminal; własnymi wpisami zarządzają tylko administratorzy. Połączenie nawiązuje serwer AuraGo, więc operatorzy usług widzą jego publiczny adres IP, a Telnet nie jest szyfrowany: nigdy nie wpisuj haseł, których używasz gdzie indziej. Domyślnie włączone; wyłączone w trybie tylko do odczytu."
+  "help.virtual_desktop.retronet_enabled": "Zezwól użytkownikom Desktop z prawem zapisu łączyć się z BBS-ami Telnet, MUD-ami i anonimowymi grami SSH z katalogu Retro-Net w aplikacji Terminal; własnymi wpisami zarządzają tylko administratorzy. Połączenie nawiązuje serwer AuraGo, więc operatorzy usług widzą jego publiczny adres IP, a Telnet nie jest szyfrowany: nigdy nie wpisuj haseł, których używasz gdzie indziej. Domyślnie włączone; wyłączone w trybie tylko do odczytu.",
+  "config.virtual_computers.setup_running": "Zainstaluj / Napraw trwa już {seconds} s — możesz zamknąć tę stronę.",
+  "config.virtual_computers.setup_running_hint": "Przebieg trwa dalej w tle. Uruchomione komputery wirtualne zostaną zatrzymane, gdy na końcu boringd uruchomi się ponownie.",
+  "config.virtual_computers.setup_finished_installed": "Zakończono Zainstaluj / Napraw.",
+  "config.virtual_computers.setup_finished_failed": "Zainstaluj / Napraw nie powiodło się:",
+  "config.virtual_computers.setup_finished_unhealthy": "Zakończono Zainstaluj / Napraw, ale konfiguracja nie jest zdrowa:"
 }

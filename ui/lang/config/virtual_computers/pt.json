@@ -158,5 +158,10 @@
   "config.virtual_desktop.serial_host_label": "Portas seriais no servidor AuraGo",
   "help.virtual_desktop.serial_host_enabled": "Permitir que administradores abram no Quick Connect dispositivos seriais conectados ao servidor AuraGo. Instalações em contêiner exigem passagem do dispositivo e permissões do sistema operacional. Desativado no modo somente leitura.",
   "config.virtual_desktop.retronet_label": "Retro-Net no Terminal",
-  "help.virtual_desktop.retronet_enabled": "Permitir que usuários do Desktop com acesso de escrita se conectem a BBS Telnet, MUDs e jogos SSH anônimos a partir de um diretório Retro-Net no aplicativo Terminal; só administradores gerenciam as entradas próprias. O servidor AuraGo faz a conexão, então os operadores dos serviços veem o endereço IP público do servidor, e o Telnet não é criptografado: nunca digite senhas que você usa em outros lugares. Ativado por padrão; desativado no modo somente leitura."
+  "help.virtual_desktop.retronet_enabled": "Permitir que usuários do Desktop com acesso de escrita se conectem a BBS Telnet, MUDs e jogos SSH anônimos a partir de um diretório Retro-Net no aplicativo Terminal; só administradores gerenciam as entradas próprias. O servidor AuraGo faz a conexão, então os operadores dos serviços veem o endereço IP público do servidor, e o Telnet não é criptografado: nunca digite senhas que você usa em outros lugares. Ativado por padrão; desativado no modo somente leitura.",
+  "config.virtual_computers.setup_running": "Instalar / Reparar está em curso há {seconds} s — pode fechar esta página.",
+  "config.virtual_computers.setup_running_hint": "A execução continua em segundo plano. Os computadores virtuais em execução são parados quando o boringd reinicia no final.",
+  "config.virtual_computers.setup_finished_installed": "Instalar / Reparar concluído.",
+  "config.virtual_computers.setup_finished_failed": "Instalar / Reparar falhou:",
+  "config.virtual_computers.setup_finished_unhealthy": "Instalar / Reparar concluído, mas a configuração não está saudável:"
 }
