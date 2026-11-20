@@ -168,6 +168,7 @@
           clip.controllers.push({ tick, type: controller.type, value, absoluteTick: start + tick });
           endTick = Math.max(endTick, start + tick);
         }
+        if (input.audio && typeof input.audio === "object") clip.audio = input.audio;
         track.clips.push(clip);
         endTick = Math.max(endTick, start + length);
       }
@@ -210,6 +211,7 @@
         for (const controller of clip.controllers) {
           events.push({ type: "controller", tick: controller.absoluteTick, track, controller });
         }
+        if (clip.audio) events.push({ type: "audio", tick: clip.start, track, clip });
       }
     }
     if (info.metronome) {
@@ -220,9 +222,36 @@
         events.push({ type: "metronome", tick, accent: Math.floor(tick / info.ppq) % info.beatsPerBar === 0 });
       }
     }
-    const order = { automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3 };
+    const order = { automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, audio: 3 };
     events.sort((a, b) => a.tick - b.tick || order[a.type] - order[b.type]);
     return events;
+  }
+
+  // Audio clips that began before `atTick` but are still sounding there start
+  // at `atTick` with an offset into their buffer.
+  function straddlingAudio(events, atTick) {
+    const output = [];
+    for (const event of events) {
+      if (event.type !== "audio" || event.tick >= atTick || event.tick + event.clip.length <= atTick) continue;
+      output.push({ ...event, tick: atTick, offsetTicks: atTick - event.tick });
+    }
+    return output;
+  }
+
+  // Start one clip on the track bus. Returns null when there is nothing left
+  // to play. `limitSeconds` caps the run (loop end).
+  function startAudioSource(context, bus, buffer, event, at, secPerTick, limitSeconds = Infinity) {
+    if (!buffer || !bus || !(buffer.duration > 0)) return null;
+    const offsetTicks = event.offsetTicks || 0;
+    const offset = offsetTicks * secPerTick;
+    const seconds = Math.min(buffer.duration - offset, (event.clip.length - offsetTicks) * secPerTick, limitSeconds);
+    if (!(seconds > 0) || offset >= buffer.duration) return null;
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(bus.input);
+    source.start(at, offset);
+    source.stop(at + seconds);
+    return { source, endTime: at + seconds };
   }
 
   function seedState(events, info, startTick) {
@@ -359,6 +388,8 @@
     // the editor's established reserve by default, while allowing consumers
     // such as Minigolf to keep more notes queued during a render hitch.
     const lookAhead = clamp(options?.lookAhead, 0.05, MAX_LOOKAHEAD, DEFAULT_LOOKAHEAD);
+    const audioBuffer = typeof options?.audioBuffer === "function" ? options.audioBuffer : null;
+    const audioSources = new Set();
     let context = null;
     let mix = null;
     let buses = new Map();
@@ -466,6 +497,7 @@
       if (!retireBuses || !context) return;
       const now = context.currentTime;
       for (const voice of voices) if (voice.endTime > now) return;
+      for (const entry of audioSources) if (entry.endTime > now) return;
       disconnectBuses();
     }
 
@@ -515,7 +547,16 @@
       return liveStates.get(track.id);
     }
 
+    function stopAudio(at) {
+      for (const entry of audioSources) {
+        if (entry.endTime <= at) continue;
+        try { entry.source.stop(Math.max(at, 0)); } catch (_) {}
+        entry.endTime = Math.min(entry.endTime, at);
+      }
+    }
+
     function clearVoices(at) {
+      stopAudio(at + 0.006);
       for (const voice of voices) {
         voice.releaseRequested = true;
         for (const source of voice.sources) {
@@ -614,6 +655,7 @@
         }
         const scheduleCycle = (baseTime, cycleStart, firstCycle, cycleIndex) => {
           const anchor = firstCycle ? cycleStart : loopStart;
+          const straddlers = straddlingAudio(all, anchor).map(event => ({ ...event, at: baseTime }));
           const cycleEvents = all.filter(event => {
             if (event.type === "noteOff") return event.ownerTick >= cycleStart && event.ownerTick < loopEnd;
             if (firstCycle) return event.tick >= cycleStart && event.tick < loopEnd;
@@ -623,8 +665,8 @@
             const key = event.type === "noteOn" || event.type === "noteOff" ? `${event.key}@${cycleIndex}` : event.key;
             return { ...event, key, at: baseTime + (eventTick - anchor) * secPerTick };
           });
-          if (firstCycle) return cycleEvents;
-          return [{type:'rangeEnd',at:baseTime}, ...loopSeeds.map(event => ({ ...event, at: baseTime })), ...cycleEvents];
+          if (firstCycle) return [...straddlers, ...cycleEvents];
+          return [{type:'rangeEnd',at:baseTime}, ...loopSeeds.map(event => ({ ...event, at: baseTime })), ...straddlers, ...cycleEvents];
         };
         let pending = [];
         let nextCycleTime = startTime;
@@ -635,10 +677,10 @@
           pending = scheduleCycle(startTime, tick, true, 0);
           nextCycleTime = startTime + firstDuration * secPerTick;
         } else {
-          pending = all.filter(event => event.tick >= tick).map(event => ({ ...event, at: startTime + (event.tick - tick) * secPerTick }));
+          pending = [...straddlingAudio(all, tick), ...all.filter(event => event.tick >= tick)].map(event => ({ ...event, at: startTime + (event.tick - tick) * secPerTick }));
           pending.push({ type: "end", tick: info.endTick, at: endTime });
         }
-        const priority = { rangeEnd:-1, automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 };
+        const priority = { rangeEnd:-1, automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, audio: 3, end: 4 };
         let automatic=[],stopAt=Infinity,stopScheduled=false;
         pending.sort((a, b) => a.at - b.at || priority[a.type] - priority[b.type]);
         for (const track of info.tracks) if (isAudible(track, anySolo)) busFor(track);
@@ -657,7 +699,23 @@
             scheduleMetronome(context, mix, event.at, event.accent);
             return;
           }
+          if (event.type === "audio") {
+            if (!audioBuffer || !isAudible(event.track, anySolo)) return;
+            const buffer = audioBuffer(event.clip);
+            const position = event.clip.start + (event.offsetTicks || 0);
+            const started = startAudioSource(context, busFor(event.track), buffer, event, Math.max(event.at, context.currentTime), secPerTick, loop ? (loopEnd - position) * secPerTick : Infinity);
+            if (started) {
+              audioSources.add(started);
+              started.source.onended = () => {
+                audioSources.delete(started);
+                try { started.source.disconnect(); } catch (_) {}
+                retireBusesIfIdle();
+              };
+            }
+            return;
+          }
           if (event.type === "end" || event.type === "rangeEnd") {
+            stopAudio(event.at);
             for (const track of info.tracks) releaseTrackState(context, states.get(track.id), track, event.at);
             if(event.type==="rangeEnd")stateKeys.clear();
             return;
@@ -686,6 +744,7 @@
               // Future voices are cancelled at the bar; held voices release into the existing effect buses.
               while (pending.length && pending[0].at < change.at) process(pending.shift());
               for (const track of info.tracks) releaseTrackState(context, states.get(track.id), track, change.at);
+              stopAudio(change.at);
               const previous = playback.previous && now < playback.startTime ? playback.previous : { ...playback, previous: null };
               info = change.info; currentInfo = info; all = allEvents(info);
               anySolo = info.tracks.some(t => t.solo); secPerTick = 60 / info.tempo / info.ppq;
@@ -773,6 +832,7 @@
           const boundary = Math.ceil(raw / bar) * bar;
           const at = change?.at || (applied&&context.currentTime<applied.at?applied.at:startTime + (boundary - tick) * secPerTick);
           for(const voice of voices)if(voice.startTime>=at){voice.voiceGain.gain.cancelScheduledValues(at);voice.voiceGain.gain.setValueAtTime(0,at);voice.endTime=at;voice.releaseRequested=true;voice.releaseAt=at;for(const source of voice.sources)try{source.stop(at);}catch(_){}}
+          stopAudio(at);
           if(applied&&at===applied.at)applied=null;
           const mapped = loop && boundary >= loopEnd ? loopStart + ((boundary - loopStart) % (loopEnd - loopStart)) : boundary;
           change = { info: next, tick: target ?? mapped, at, onApplied: callback };
@@ -966,7 +1026,8 @@
     return {info,events,selected,startTick,endTick,audibleEndTick,duration,secPerTick};
   }
 
-  async function renderWav(project) {
+  async function renderWav(project, renderOptions = {}) {
+    const audioBuffer = typeof renderOptions?.audioBuffer === "function" ? renderOptions.audioBuffer : null;
     const Constructor = offlineContextConstructor();
     if (!Constructor) throw codedError("SYNTH_STUDIO_AUDIO_UNAVAILABLE", "Offline Web Audio is unavailable in this browser.");
     const {info,events,selected,startTick,endTick,audibleEndTick,duration,secPerTick}=prepareRender(project);
@@ -986,9 +1047,10 @@
     const initial = seedState(events, info, startTick);
     const schedule = [
       ...initial.map(event => ({ ...event, tick: startTick })),
+      ...straddlingAudio(events, startTick),
       ...selected,
       { type: "end", tick: audibleEndTick }
-    ].sort((a, b) => a.tick - b.tick || ({ automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 }[a.type] - ({ automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, end: 4 }[b.type])));
+    ].sort((a, b) => a.tick - b.tick || ({ automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, audio: 3, end: 4 }[a.type] - ({ automation:0, metronome: 0, controller: 1, noteOff: 2, noteOn: 3, audio: 3, end: 4 }[b.type])));
     const active = new Map();
     for (const event of schedule) {
       const at = Math.max(0, (event.tick - startTick) * secPerTick);
@@ -999,6 +1061,12 @@
       }
       if (event.type === "end") {
         for (const track of info.tracks) releaseTrackState(context, states.get(track.id), track, at);
+        continue;
+      }
+      if (event.type === "audio") {
+        if (!audioBuffer || !isAudible(event.track, anySolo)) continue;
+        const position = event.clip.start + (event.offsetTicks || 0);
+        startAudioSource(context, buses.get(event.track.id), audioBuffer(event.clip), event, at, secPerTick, looping ? (endTick - position) * secPerTick : Infinity);
         continue;
       }
       const state = states.get(event.track.id);

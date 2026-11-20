@@ -531,9 +531,12 @@
     const qComp = 1 / (1 + resonance * 0.22);
     set(bus.input.gain, track.mute ? 0 : 1);
     set(bus.gain.gain, track.volume * qComp);
-    set(bus.filter.frequency, 240 + tone * 18500);
-    set(bus.filter.Q, 0.7 + tone * 0.8 + Math.pow(resonance, 1.35) * 11.5);
-    if (bus.drive) bus.drive.curve = DRIVE_CURVES[Math.round(driveAmount * 32)] || DRIVE_CURVES[0];
+    // An audio track plays rendered PCM: the filter stays fully open and the
+    // drive off, so only volume, pan, inserts and sends colour the clip.
+    const isAudio = track.instrument === "audio";
+    set(bus.filter.frequency, isAudio ? 20000 : 240 + tone * 18500);
+    set(bus.filter.Q, isAudio ? 0.7 : 0.7 + tone * 0.8 + Math.pow(resonance, 1.35) * 11.5);
+    if (bus.drive) bus.drive.curve = isAudio ? DRIVE_CURVES[0] : DRIVE_CURVES[Math.round(driveAmount * 32)] || DRIVE_CURVES[0];
     if (bus.pan.pan) set(bus.pan.pan, track.pan);
     else if (bus.pan.setPosition) bus.pan.setPosition(track.pan, 0, 1 - Math.abs(track.pan));
     const reverbAmount = clamp(p.reverb, 0, 1, 0);

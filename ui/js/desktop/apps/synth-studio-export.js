@@ -138,12 +138,12 @@
     async function renderStems(project, options = {}) {
         const audio = root.SynthStudioAudio;
         if (!audio || typeof audio.renderWav !== 'function') throw codedError('SYNTH_STUDIO_EXPORT_UNAVAILABLE', 'WAV rendering is unavailable.');
-        const tracks = project.tracks.filter(track => track.clips.some(clip => clip.notes.length));
+        const tracks = project.tracks.filter(track => track.clips.some(clip => clip.notes.length || clip.audio));
         if (!tracks.length) throw codedError('SYNTH_STUDIO_EXPORT_EMPTY', 'The project has no notes to export.');
         const files = [];
         for (let index = 0; index < tracks.length; index++) {
             const track = tracks[index];
-            const blob = await audio.renderWav(stemProject(project, track.id));
+            const blob = await audio.renderWav(stemProject(project, track.id), { audioBuffer: options.audioBuffer });
             files.push({ name: String(index + 1).padStart(2, '0') + ' ' + sanitize(track.name) + '.wav', blob });
             options.onProgress?.(index + 1, tracks.length, track.name);
         }

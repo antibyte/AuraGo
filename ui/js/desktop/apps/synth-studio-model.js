@@ -241,7 +241,8 @@
     // sound panel offers to design it again.
     const USER_INSTRUMENT = /^user-[A-Za-z0-9_-]{1,95}$/;
 
-    function assertInstrument(value) {
+    function assertInstrument(value, version = 3) {
+        if (value === 'audio' && version >= 4) return value;
         if (typeof value !== 'string' || !ID_PATTERN.test(value)
             || !(USER_INSTRUMENT.test(value) || instrumentIds().has(value))) {
             throw error('E_PROJECT_INSTRUMENT', `Unknown Synth Studio instrument: ${String(value)}.`);
@@ -258,8 +259,29 @@
         return !!preset && preset.category === 'drums';
     }
 
-    function normalizedClip(source, ids, totals) {
-        const clip = plainObject(source, 'clip', clipKeys);
+    const MAX_AUDIO_SONG_BYTES = 512 * 1024;
+
+    // A v4 audio clip carries the RB-338 song that renders its PCM at runtime.
+    function normalizedAudio(source) {
+        const audio = plainObject(source, 'clip.audio', ['kind', 'song', 'mode', 'start', 'end', 'frames']);
+        if (required(audio, 'kind', 'clip.audio') !== 'rb338') throw error('E_PROJECT_TYPE', 'clip.audio.kind must be rb338.');
+        const song = required(audio, 'song', 'clip.audio');
+        if (typeof song !== 'string' || song.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(song)) {
+            throw error('E_PROJECT_TYPE', 'clip.audio.song must be base64.');
+        }
+        const padding = song.endsWith('==') ? 2 : song.endsWith('=') ? 1 : 0;
+        if (song.length / 4 * 3 - padding > MAX_AUDIO_SONG_BYTES) throw error('E_PROJECT_SIZE', 'clip.audio.song exceeds 512 KiB.');
+        const mode = required(audio, 'mode', 'clip.audio');
+        if (mode !== 'song' && mode !== 'pattern') throw error('E_PROJECT_TYPE', 'clip.audio.mode must be song or pattern.');
+        const start = number(required(audio, 'start', 'clip.audio'), 'clip.audio.start', 0, MAX_TICK, true);
+        const end = number(required(audio, 'end', 'clip.audio'), 'clip.audio.end', 0, MAX_TICK, true);
+        if (end <= start) throw error('E_PROJECT_TICK', 'clip.audio.end must be after clip.audio.start.');
+        const frames = number(required(audio, 'frames', 'clip.audio'), 'clip.audio.frames', 1, 2147483647, true);
+        return { kind: 'rb338', song, mode, start, end, frames };
+    }
+
+    function normalizedClip(source, ids, totals, allowAudio = true) {
+        const clip = plainObject(source, 'clip', allowAudio ? [...clipKeys, 'audio'] : clipKeys);
         const result = {
             id: id(required(clip, 'id', 'clip'), 'clip.id', ids),
             name: text(required(clip, 'name', 'clip'), 'clip.name'),
@@ -268,6 +290,7 @@
             notes: [],
             controllers: []
         };
+        if (clip.audio !== undefined) result.audio = normalizedAudio(clip.audio);
         if (result.start + result.length > MAX_TICK) throw error('E_PROJECT_TICK', 'clip.start + clip.length exceeds the timeline limit.');
 
         const notes = list(required(clip, 'notes', 'clip'), 'clip.notes', MAX_EVENTS);
@@ -288,6 +311,7 @@
             }
             return normalized;
         });
+        if (result.audio && result.notes.length) throw error('E_PROJECT_TYPE', 'An audio clip cannot contain notes.');
 
         const controllers = list(required(clip, 'controllers', 'clip'), 'clip.controllers', MAX_EVENTS);
         totals.events += controllers.length;
@@ -305,6 +329,7 @@
                 value: number(required(controller, 'value', 'controller'), 'controller.value', min, 1)
             };
         });
+        if (result.audio && result.controllers.length) throw error('E_PROJECT_TYPE', 'An audio clip cannot contain controllers.');
         return result;
     }
 
@@ -412,7 +437,7 @@
         }
         const project = plainObject(source, 'project', ['version', 'name', 'tempo', 'ppq', 'beatsPerBar', 'loop', 'tracks', 'harmony', 'scenes', 'master']);
         const version = required(project, 'version', 'project');
-        if (![1, 2, 3].includes(version)) throw error('E_PROJECT_VERSION', 'Only Synth Studio project versions 1, 2 and 3 are supported.');
+        if (![1, 2, 3, 4].includes(version)) throw error('E_PROJECT_VERSION', 'Only Synth Studio project versions 1, 2, 3 and 4 are supported.');
         if (version === 1 && ('harmony' in project || 'scenes' in project)) throw error('E_PROJECT_FIELD_UNKNOWN', 'Version 1 does not support harmony or scenes.');
         if (version < 3 && 'master' in project) throw error('E_PROJECT_FIELD_UNKNOWN', 'The master strip requires project version 3.');
         const result = {
@@ -456,7 +481,7 @@
             return {
                 id: id(required(track, 'id', 'track'), 'track.id', ids),
                 name: text(required(track, 'name', 'track'), 'track.name'),
-                instrument: assertInstrument(required(track, 'instrument', 'track')),
+                instrument: assertInstrument(required(track, 'instrument', 'track'), version),
                 volume: number(required(track, 'volume', 'track'), 'track.volume', 0, 1),
                 pan: number(required(track, 'pan', 'track'), 'track.pan', -1, 1),
                 mute: bool(required(track, 'mute', 'track'), 'track.mute'),
@@ -474,11 +499,18 @@
                         phaser: optionalParam(params, 'phaser', 0, 1, 0)
                     } : {})
                 },
-                clips: clips.map(sourceClip => normalizedClip(sourceClip, ids, totals)),
+                clips: clips.map(sourceClip => normalizedClip(sourceClip, ids, totals, version >= 4)),
                 ...(version >= 2 ? {automation: normalizedAutomation(required(track,'automation','track'),totals,version)} : {}),
                 ...(version >= 3 ? {fx: normalizedFx(required(track,'fx','track'))} : {})
             };
         });
+        for (const track of result.tracks) {
+            for (const clip of track.clips) {
+                if ((track.instrument === 'audio') !== !!clip.audio) {
+                    throw error('E_PROJECT_TYPE', 'Audio tracks hold only audio clips, and audio clips live only on audio tracks.');
+                }
+            }
+        }
         const drumTracks = result.tracks.filter(track => isDrumInstrument(track.instrument)).length;
         if (drumTracks > 1 || result.tracks.length - drumTracks > 15) {
             throw error('E_PROJECT_LIMIT', 'A project supports up to 15 melodic tracks and one drum rack.');
@@ -543,7 +575,9 @@
 
     function addTrack(project, instrument) {
         validate(project);
-        assertInstrument(instrument);
+        assertInstrument(instrument, instrument === 'audio' ? 4 : project.version);
+        if (instrument === 'audio' && project.version < 3) throw error('E_PROJECT_VERSION', 'Audio tracks require project version 3 or later.');
+        if (instrument === 'audio') project.version = 4;
         if (project.tracks.length >= MAX_TRACKS) throw error('E_PROJECT_LIMIT', `A project may contain at most ${MAX_TRACKS} tracks.`);
         const drums = project.tracks.filter(track => isDrumInstrument(track.instrument)).length;
         if (isDrumInstrument(instrument) ? drums >= 1 : project.tracks.length - drums >= 15) {

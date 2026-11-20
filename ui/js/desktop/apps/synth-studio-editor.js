@@ -5,6 +5,8 @@
     const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const drums = () => window.SynthStudioPresets.drums;
     const isDrum = t => t && (t.instrument === 'drums-kit' || t.instrument === 'gm-drums' || t.instrument.startsWith('drum-'));
+    const isAudioTrack = t => !!t && t.instrument === 'audio';
+    const audioLabel = c => 'RB-338 \u00b7 ' + Math.max(1, Math.round(c.length / BAR));
     function create(host, options) {
         const life = new AbortController(), signal = life.signal, tr = options.tr;
         host.tabIndex = 0;
@@ -30,13 +32,21 @@
             const ruler = Array.from({length:bars},(_,i) => '<span style="left:'+px(i*BAR)+'px">'+(i+1)+'</span>').join('');
             inner.style.setProperty('--ss-beat', beatWidth+'px');
             inner.innerHTML = '<div class="ss-ruler"><div class="ss-track-label">'+esc(tr('tracks'))+'</div><div class="ss-ruler-grid" data-seek style="width:'+width+'px">'+ruler+['start','end'].map(edge=>'<button class="ss-loop-handle" data-loop-handle="'+edge+'" style="left:'+px(project.loop[edge])+'px" aria-label="'+esc(tr('loop_'+edge))+'">'+(edge==='start'?'[':']')+'</button>').join('')+'</div></div>' +
-                project.tracks.map((t,i) => '<div class="ss-track '+(t.id===trackId?'is-selected':'')+'" data-track="'+t.id+'" style="--ss-track-color:var(--ss-color-'+(i%6)+')"><div class="ss-track-head"><button class="ss-track-name" data-select-track="'+t.id+'">'+esc(t.name)+'</button><div class="ss-track-buttons">'+['mute','solo'].map(a => '<button data-track-action="'+a+'" data-id="'+t.id+'" aria-label="'+esc(tr(a))+'" aria-pressed="'+!!t[a]+'">'+(a==='mute'?'M':'S')+'</button>').join('')+'<button data-track-action="arm" data-id="'+t.id+'" aria-label="'+esc(tr('arm'))+'" aria-pressed="'+(t.id===trackId)+'">●</button><button class="ss-track-menu-button" data-track-menu="'+t.id+'" aria-label="'+esc(tr('track_menu'))+'" aria-haspopup="menu" aria-expanded="false">⋯</button></div><input type="range" min="0" max="1" step=".01" value="'+t.volume+'" data-track-volume="'+t.id+'" aria-label="'+esc(tr('volume'))+'"'+(options.readonly()?' disabled':'')+'></div><div class="ss-lane" data-lane="'+t.id+'" style="width:'+width+'px">'+t.clips.map(c => '<div role="button" tabindex="0" class="ss-clip '+(c.id===clipId?'is-selected':'')+'" data-clip="'+c.id+'" data-track-id="'+t.id+'" aria-label="'+esc(c.name)+'" style="left:'+px(c.start)+'px;width:'+Math.max(16,px(c.length)-2)+'px"><span>'+esc(c.name)+'</span><div class="ss-clip-notes" aria-hidden="true">'+c.notes.slice(0,128).map(n => '<i style="left:'+(n.start/c.length*100)+'%;width:'+Math.max(.7,n.duration/c.length*100)+'%;top:'+((84-n.pitch)%24/24*20)+'px"></i>').join('')+'</div><b class="ss-clip-resize" data-resize aria-label="'+esc(tr('resize'))+'"></b></div>').join('')+'</div></div>').join('') +
+                project.tracks.map((t,i) => '<div class="ss-track '+(t.id===trackId?'is-selected':'')+'" data-track="'+t.id+'" style="--ss-track-color:var(--ss-color-'+(i%6)+')"><div class="ss-track-head"><button class="ss-track-name" data-select-track="'+t.id+'">'+esc(t.name)+'</button><div class="ss-track-buttons">'+['mute','solo'].map(a => '<button data-track-action="'+a+'" data-id="'+t.id+'" aria-label="'+esc(tr(a))+'" aria-pressed="'+!!t[a]+'">'+(a==='mute'?'M':'S')+'</button>').join('')+'<button data-track-action="arm" data-id="'+t.id+'" aria-label="'+esc(tr('arm'))+'" aria-pressed="'+(t.id===trackId)+'">●</button><button class="ss-track-menu-button" data-track-menu="'+t.id+'" aria-label="'+esc(tr('track_menu'))+'" aria-haspopup="menu" aria-expanded="false">⋯</button></div><input type="range" min="0" max="1" step=".01" value="'+t.volume+'" data-track-volume="'+t.id+'" aria-label="'+esc(tr('volume'))+'"'+(options.readonly()?' disabled':'')+'></div><div class="ss-lane" data-lane="'+t.id+'" style="width:'+width+'px">'+t.clips.map(c => '<div role="button" tabindex="0" class="ss-clip '+(c.audio?'ss-clip-audio ':'')+(c.id===clipId?'is-selected':'')+'" data-clip="'+c.id+'" data-track-id="'+t.id+'" aria-label="'+esc(c.name)+'" style="left:'+px(c.start)+'px;width:'+Math.max(16,px(c.length)-2)+'px"><span>'+esc(c.audio?audioLabel(c):c.name)+'</span><div class="ss-clip-notes" aria-hidden="true">'+(c.audio?'':c.notes.slice(0,128).map(n => '<i style="left:'+(n.start/c.length*100)+'%;width:'+Math.max(.7,n.duration/c.length*100)+'%;top:'+((84-n.pitch)%24/24*20)+'px"></i>').join(''))+'</div><b class="ss-clip-resize" data-resize aria-label="'+esc(tr('resize'))+'"></b></div>').join('')+'</div></div>').join('') +
                 '<div class="ss-add-lane" style="min-width:'+(width+180)+'px" data-empty-drop><button data-add-track>＋ '+esc(tr('add_track'))+'</button><span>'+esc(tr('drop_hint'))+'</span></div><div class="ss-playhead" aria-hidden="true"></div>';
             arrangement.scrollLeft = oldX; arrangement.scrollTop = oldY;
             setPlayhead(playingTick);
             const oldRoll = editor.querySelector('.ss-roll-scroll'); if(oldRoll) rollScroll = {left:oldRoll.scrollLeft,top:oldRoll.scrollTop};
             if (!clip) {
                 editor.innerHTML = '<div class="ss-editor-empty"><span aria-hidden="true">♫</span><strong>'+esc(tr('select_clip'))+'</strong><p>'+esc(tr('note_hint'))+'</p></div>'; return;
+            }
+            if (clip.audio) {
+                // Audio clips have no notes: show a plain panel and let the host
+                // (RB-338) fill it through options.onAudioClip.
+                editor.innerHTML = '<div class="ss-audio-panel" data-audio-panel data-track-id="'+esc(track.id)+'" data-clip-id="'+esc(clip.id)+'"><strong>'+esc(clip.name)+'</strong><span>'+esc(audioLabel(clip))+'</span></div>';
+                previousClip = clipId;
+                options.onAudioClip?.({host: editor.firstElementChild, trackId: track.id, clipId: clip.id, track, clip});
+                return;
             }
             const drum = isDrum(track), pitches = drum ? drums().map(d => d.drumNote) : Array.from({length:128},(_,i) => 127-i), rowH = drum ? 25 : 17;
             // Imported GM percussion outside the custom kit remains editable.
@@ -95,8 +105,8 @@
         function deleteNotes() { if(!selected.size)return;change(p=>{const c=p.tracks.find(t=>t.id===trackId)?.clips.find(c=>c.id===clipId);if(c)c.notes=c.notes.filter(n=>!selected.has(n.id));});selected.clear();render(); }
 
         function copyNotes(){const c=get().clip;if(!c)return;clipboard=c.notes.filter(n=>selected.has(n.id)).map(n=>({...n}));if(!clipboard.length)clipboard=null;render();}
-        function pasteNotes(){const c=get().clip;if(!c||!clipboard)return;const start=Math.min(...clipboard.map(n=>n.start));const offset=Math.max(0,Math.round((playingTick-c.start)/snap)*snap);const ids=[];change(p=>{const clip=p.tracks.find(t=>t.id===trackId).clips.find(c=>c.id===clipId);for(const n of clipboard){const at=n.start-start+offset;if(at>=clip.length)continue;const id=uid();ids.push(id);clip.notes.push({...n,id,start:at,duration:Math.min(n.duration,clip.length-at)});}});selected=new Set(ids);render();}
-        function dropItem(data, tid, tick) {options.onDrop?.(data,tid,quantize(tick));}
+        function pasteNotes(){const c=get().clip;if(!c||c.audio||!clipboard)return;const start=Math.min(...clipboard.map(n=>n.start));const offset=Math.max(0,Math.round((playingTick-c.start)/snap)*snap);const ids=[];change(p=>{const clip=p.tracks.find(t=>t.id===trackId).clips.find(c=>c.id===clipId);for(const n of clipboard){const at=n.start-start+offset;if(at>=clip.length)continue;const id=uid();ids.push(id);clip.notes.push({...n,id,start:at,duration:Math.min(n.duration,clip.length-at)});}});selected=new Set(ids);render();}
+        function dropItem(data, tid, tick) {if(isAudioTrack(get().project.tracks.find(t=>t.id===tid)))return;options.onDrop?.(data,tid,quantize(tick));}
         host.addEventListener('dragover',e=>{if(options.readonly())return;e.preventDefault();e.dataTransfer.dropEffect='copy';},{signal});
         host.addEventListener('drop',e=>{
             if(options.readonly())return;e.preventDefault();
@@ -123,6 +133,7 @@
         },{signal});
         host.addEventListener('dblclick',e=>{
             const lane=e.target.closest('[data-lane]');if(!lane||e.target.closest('[data-clip]')||options.readonly())return;
+            if(isAudioTrack(get().project.tracks.find(t=>t.id===lane.dataset.lane)))return;
             options.onNewClip?.(lane.dataset.lane,quantize((e.clientX-lane.getBoundingClientRect().left)/beatWidth*PPQ));
         },{signal});
         host.addEventListener('pointerdown',e=>{
@@ -173,7 +184,7 @@
                 change(p=>{
                     const src=p.tracks.find(t=>t.id===g.track),dst=p.tracks.find(t=>t.id===target)||src;
                     if(g.kind==='clipMove'){
-                        if(isDrum(src)!==isDrum(dst))return;
+                        if(isDrum(src)!==isDrum(dst)||isAudioTrack(src)!==isAudioTrack(dst))return;
                         const c=g.copy?window.SynthStudioModel.cloneClip(g.clip,Math.max(0,g.clip.start+delta)):src.clips.find(c=>c.id===g.clip.id);
                         if(!g.copy)src.clips=src.clips.filter(x=>x.id!==c.id);
                         c.start=Math.max(0,g.clip.start+delta);dst.clips.push(c);trackId=dst.id;clipId=c.id;

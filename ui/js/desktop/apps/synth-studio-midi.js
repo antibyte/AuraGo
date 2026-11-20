@@ -168,6 +168,7 @@
 
         let nextMelodicChannel = 0;
         for (const sourceTrack of project.tracks) {
+            if (sourceTrack.instrument === 'audio') continue;
             const category = categoryFor(sourceTrack.instrument);
             const drums = category === 'drums';
             const channel = drums ? DRUM_CHANNEL : nextMelodicChannel++ + (nextMelodicChannel > DRUM_CHANNEL ? 1 : 0);
