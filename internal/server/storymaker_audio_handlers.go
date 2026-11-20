@@ -96,7 +96,7 @@ func handleStorymakerNarration(s *Server, w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	_, answer, ok := s.storymakerStoryAudio(w, r, acc, id)
+	_, answer, ok := s.storymakerStoryAudio(w, r, acc, id, false)
 	if !ok {
 		return
 	}
@@ -118,7 +118,7 @@ func handleStorymakerNarrate(s *Server, w http.ResponseWriter, r *http.Request, 
 	if refuseStorymakerWhileAgentRuns(w, acc.rt, id) {
 		return
 	}
-	story, answer, ok := s.storymakerStoryAudio(w, r, acc, id)
+	story, answer, ok := s.storymakerStoryAudio(w, r, acc, id, true)
 	if !ok {
 		return
 	}
@@ -155,8 +155,10 @@ func handleStorymakerNarrate(s *Server, w http.ResponseWriter, r *http.Request, 
 }
 
 // storymakerStoryAudio reads the story with its defaults applied, the way a render job sees it, and
-// its audio answer. On a failure it has answered the request and returns false.
-func (s *Server) storymakerStoryAudio(w http.ResponseWriter, r *http.Request, acc *storymakerAccess, id string) (*storymaker.Story, storymaker.AudioAnswer, bool) {
+// its audio answer. On a failure it has answered the request and returns false. The exact answer
+// counts a piece that was spoken with another voice as missing; the narration route asks for it,
+// because there the voice of the story decides what has to be made.
+func (s *Server) storymakerStoryAudio(w http.ResponseWriter, r *http.Request, acc *storymakerAccess, id string, exact bool) (*storymaker.Story, storymaker.AudioAnswer, bool) {
 	ctx := r.Context()
 	data, _, err := acc.rt.projects.LoadStory(ctx, id)
 	if err != nil {
@@ -170,7 +172,12 @@ func (s *Server) storymakerStoryAudio(w http.ResponseWriter, r *http.Request, ac
 	}
 	storymaker.ApplyDefaults(&story)
 	storymaker.ApplyPhononVoices(&story, acc.rt.catalog)
-	answer, err := acc.rt.projects.AudioAnswer(ctx, id, &story, s.storymakerMusicKey)
+	var answer storymaker.AudioAnswer
+	if exact {
+		answer, err = acc.rt.projects.AudioAnswerExact(ctx, id, &story, s.storymakerMusicKey)
+	} else {
+		answer, err = acc.rt.projects.AudioAnswer(ctx, id, &story, s.storymakerMusicKey)
+	}
 	if err != nil {
 		mapStorymakerError(w, err, "project_not_found")
 		return nil, storymaker.AudioAnswer{}, false

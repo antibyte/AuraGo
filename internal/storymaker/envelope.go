@@ -57,6 +57,11 @@ type Envelope struct {
 	DurationMS int    `json:"duration_ms"`
 	Rate       int    `json:"rate"` // 100
 	Levels     Levels `json:"levels"`
+	// Text and Language name the words of the piece and the language they were spoken in. The file
+	// name is the hash of the voice and the text, so a piece whose voice changed is only found
+	// through them. Envelopes written before this field stay valid: they have no text.
+	Text     string `json:"text,omitempty"`
+	Language string `json:"language,omitempty"`
 }
 
 // levelByte is round((clamp(dBFS,-60,0)+60)*255/60), silence 0.

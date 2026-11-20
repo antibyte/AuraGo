@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Komentář",
   "storymaker.voice.no_text": "Tento příběh nemá žádný komentář k namluvení.",
   "storymaker.voice.missing": "Zvuk ještě potřebují bloky: {blocks} ({chars} z {total} znaků).",
+  "storymaker.voice.revoiced": "{blocks} bloků bylo přečteno jiným hlasem. Znovu vygeneruj naraci, abys slyšel/a aktuální hlas.",
   "storymaker.voice.complete": "Celý komentář má zvuk (znaků: {total}).",
   "storymaker.voice.generate": "Vytvořit komentář",
   "storymaker.voice.generating": "Spouštím…",

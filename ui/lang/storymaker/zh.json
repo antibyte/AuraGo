@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "旁白",
   "storymaker.voice.no_text": "此故事没有需要朗读的旁白。",
   "storymaker.voice.missing": "还有 {blocks} 个片段需要音频：{total} 个字符中的 {chars} 个。",
+  "storymaker.voice.revoiced": "{blocks} 个块用其他声音朗读过。重新生成旁白以听到当前的声音。",
   "storymaker.voice.complete": "所有旁白都有音频（共 {total} 个字符）。",
   "storymaker.voice.generate": "生成旁白",
   "storymaker.voice.generating": "正在启动…",

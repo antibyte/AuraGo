@@ -562,6 +562,9 @@ type AudioAnswer struct {
 	Chars      CharCounts            `json:"chars"`
 	Music      *MusicRef             `json:"music"`
 	MusicIssue string                `json:"music_issue,omitempty"` // "source_missing"
+	// Revoiced names the blocks whose audio was spoken with another voice: the words are the same,
+	// the voice changed. They have audio and are not missing, but the narration job makes them again.
+	Revoiced []MissingBlock `json:"revoiced,omitempty"`
 }
 
 // Info returns the part of the answer that compile reads.
@@ -622,7 +625,22 @@ func limitAudioBlock(b *AudioBlock, total *int, perBlock, all int) {
 // AudioAnswer builds the answer for a decoded story. A block enters Narration only when every piece
 // has audio and a valid envelope; otherwise it enters Missing and JS estimates it. A missing music
 // source sets MusicIssue and keeps the narration; any other resolver error is returned.
+//
+// A piece whose voice changed since it was spoken is found by its text and by the voice the story
+// file names, so the film keeps the words it had. Such a block enters Revoiced: it has audio, but
+// the voice of another one.
 func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error) {
+	return p.audioAnswer(ctx, id, s, resolve, true)
+}
+
+// AudioAnswerExact is the answer without the voice fallback: a piece that is not stored under the
+// hash of the current voice counts as missing, even when the same words were spoken with another
+// voice. The narration job uses it, because there the voice decides what has to be made.
+func (p *ProjectStore) AudioAnswerExact(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error) {
+	return p.audioAnswer(ctx, id, s, resolve, false)
+}
+
+func (p *ProjectStore) audioAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver, fallback bool) (AudioAnswer, error) {
 	key := ""
 	capture := resolve
 	if resolve != nil {
@@ -634,7 +652,7 @@ func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, res
 			return k, err
 		}
 	}
-	answer, err := p.narrationAnswer(ctx, id, s, capture)
+	answer, err := p.narrationAnswer(ctx, id, s, capture, fallback)
 	if err != nil || key == "" {
 		return answer, err
 	}
@@ -650,35 +668,64 @@ func (p *ProjectStore) AudioAnswer(ctx context.Context, id string, s *Story, res
 	return answer, nil
 }
 
-// narrationAnswer collects the narration part of the answer and the music issue.
-func (p *ProjectStore) narrationAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver) (AudioAnswer, error) {
+// narrationAnswer collects the narration part of the answer and the music issue. With the fallback,
+// a block whose pieces are not stored under the hash of its voice is looked up by its text and with
+// the voice the story file names.
+func (p *ProjectStore) narrationAnswer(ctx context.Context, id string, s *Story, resolve MusicKeyResolver, fallback bool) (AudioAnswer, error) {
 	files, err := p.PieceFiles(ctx, id)
 	if err != nil {
 		return AudioAnswer{}, err
 	}
 	ans := AudioAnswer{Narration: map[string]SceneAudio{}, Missing: []MissingBlock{}}
+	// The voice the story file names and the texts of the stored pieces: both are only needed when a
+	// piece is not stored under the hash of its own voice.
+	var stored map[string]Voice
+	var index *pieceTextIndex
+	if fallback {
+		stored = p.storedBlockVoices(ctx, id)
+		index = &pieceTextIndex{p: p, ctx: ctx, id: id, files: files}
+	}
 	totalLevels := 0
 	for _, b := range Blocks(s) {
 		pieces := PiecesOf(b)
 		inputs := make([]AudioPieceInput, 0, len(pieces))
 		missing := 0
+		chars := 0
+		revoiced := false
 		for _, piece := range pieces {
-			chars := runeLen(piece.Text)
-			ans.Chars.Total += chars
-			in, ok, err := p.storedPiece(ctx, id, b.Voice, piece, files)
+			count := runeLen(piece.Text)
+			ans.Chars.Total += count
+			chars += count
+			in, ok, err := p.storedPiece(ctx, id, b.Voice, piece, files, index)
 			if err != nil {
 				return AudioAnswer{}, err
 			}
 			if !ok {
-				missing += chars
+				missing += count
 				continue
 			}
+			if in.Hash != PieceKey(b.Voice, piece.Text) {
+				// The words were spoken with another voice.
+				revoiced = true
+			}
 			inputs = append(inputs, in)
+		}
+		if missing > 0 && fallback {
+			// The same words may have been spoken with the voice the story file names. The pieces are
+			// split again with the chunk limit of that provider, so the hashes are the ones of it.
+			if old, ok, err := p.storedBlockWithVoice(ctx, id, b, stored[b.ID], files, index); err != nil {
+				return AudioAnswer{}, err
+			} else if ok {
+				inputs, missing, revoiced = old, 0, true
+			}
 		}
 		if missing > 0 {
 			ans.Chars.Missing += missing
 			ans.Missing = append(ans.Missing, MissingBlock{SceneID: b.SceneID, BlockID: b.ID, Chars: missing})
 			continue
+		}
+		if revoiced {
+			ans.Revoiced = append(ans.Revoiced, MissingBlock{SceneID: b.SceneID, BlockID: b.ID, Chars: chars})
 		}
 		scene := ans.Narration[b.SceneID]
 		block := AssembleBlock(b, inputs, s.Format.FPS)
@@ -700,9 +747,26 @@ func (p *ProjectStore) narrationAnswer(ctx context.Context, id string, s *Story,
 }
 
 // storedPiece returns the input of a piece whose audio and valid envelope exist. Envelopes are
-// ordinary workspace files, so an unreadable or invalid one counts as missing.
-func (p *ProjectStore) storedPiece(ctx context.Context, id string, v Voice, piece Piece, files map[string]PieceFile) (AudioPieceInput, bool, error) {
-	hash := PieceKey(v, piece.Text)
+// ordinary workspace files, so an unreadable or invalid one counts as missing. A piece that is not
+// stored under the hash of its voice is looked up by its text, so words spoken with another voice
+// are still heard.
+func (p *ProjectStore) storedPiece(ctx context.Context, id string, v Voice, piece Piece, files map[string]PieceFile, index *pieceTextIndex) (AudioPieceInput, bool, error) {
+	in, ok, err := p.storedPieceHash(ctx, id, PieceKey(v, piece.Text), piece, files)
+	if err != nil || ok {
+		return in, ok, err
+	}
+	if index == nil {
+		return AudioPieceInput{}, false, nil
+	}
+	hash, ok := index.lookup(piece.Text, v.Language)
+	if !ok {
+		return AudioPieceInput{}, false, nil
+	}
+	return p.storedPieceHash(ctx, id, hash, piece, files)
+}
+
+// storedPieceHash returns the input of the stored piece with this hash.
+func (p *ProjectStore) storedPieceHash(ctx context.Context, id, hash string, piece Piece, files map[string]PieceFile) (AudioPieceInput, bool, error) {
 	f := files[hash]
 	if f.Ext == "" || !f.HasEnv {
 		return AudioPieceInput{}, false, nil

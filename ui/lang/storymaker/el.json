@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Αφήγηση",
   "storymaker.voice.no_text": "Αυτή η ιστορία δεν έχει αφήγηση για εκφώνηση.",
   "storymaker.voice.missing": "{blocks} τμήματα χρειάζονται ακόμη ήχο: {chars} από {total} χαρακτήρες.",
+  "storymaker.voice.revoiced": "{blocks} μπλοκ διαβάστηκαν με άλλη φωνή. Δημιουργήστε ξανά την αφήγηση για να ακούσετε τη σημερινή φωνή.",
   "storymaker.voice.complete": "Όλη η αφήγηση έχει ήχο ({total} χαρακτήρες).",
   "storymaker.voice.generate": "Δημιουργία αφήγησης",
   "storymaker.voice.generating": "Έναρξη…",

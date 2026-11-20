@@ -51,7 +51,11 @@ func SeedNarration(ctx context.Context, p *storymaker.ProjectStore, id string, s
 			if f, ok := files[hash]; ok && f.HasEnv {
 				continue
 			}
-			if err := p.WritePiece(ctx, id, hash, ext, data, env); err != nil {
+			// The envelope names the words of the piece, like the narration job does.
+			pieceEnv := env
+			pieceEnv.Text = piece.Text
+			pieceEnv.Language = block.Voice.Language
+			if err := p.WritePiece(ctx, id, hash, ext, data, pieceEnv); err != nil {
 				return err
 			}
 			files[hash] = storymaker.PieceFile{Ext: ext, HasEnv: true}

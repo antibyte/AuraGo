@@ -955,7 +955,9 @@ func (j *storymakerAgentJob) narrate(runCtx, jobCtx context.Context) string {
 		return render.CodeNarrationFailed
 	}
 	storymaker.ApplyDefaults(&story)
-	answer, err := j.rt.projects.AudioAnswer(read, id, &story, nil)
+	// The exact answer: the job that follows decides what the film says, and there the voice of the
+	// story decides which pieces have to be made.
+	answer, err := j.rt.projects.AudioAnswerExact(read, id, &story, nil)
 	if err != nil {
 		j.logger.Warn("[Storymaker] The agent could not read the narration state", "job_id", j.job.ID, "error", err)
 		return render.CodeNarrationFailed

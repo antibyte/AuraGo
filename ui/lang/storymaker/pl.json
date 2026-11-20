@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Narracja",
   "storymaker.voice.no_text": "Ta historia nie ma tekstu lektora do odczytania.",
   "storymaker.voice.missing": "Bloki wymagające jeszcze dźwięku: {blocks} ({chars} z {total} znaków).",
+  "storymaker.voice.revoiced": "{blocks} bloków zostało przeczytanych innym głosem. Wygeneruj narrację ponownie, aby usłyszeć obecny głos.",
   "storymaker.voice.complete": "Cały tekst lektora ma dźwięk (znaków: {total}).",
   "storymaker.voice.generate": "Wygeneruj głos lektora",
   "storymaker.voice.generating": "Uruchamianie…",

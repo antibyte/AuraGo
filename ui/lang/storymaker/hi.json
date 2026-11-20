@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "वर्णन",
   "storymaker.voice.no_text": "इस कहानी में बोलने के लिए कोई वर्णन नहीं है।",
   "storymaker.voice.missing": "{blocks} खंडों को अभी ऑडियो चाहिए: {total} में से {chars} अक्षर।",
+  "storymaker.voice.revoiced": "{blocks} ब्लॉक दूसरी आवाज़ में पढ़े गए थे। मौजूदा आवाज़ सुनने के लिए नैरेशन फिर से बनाएँ।",
   "storymaker.voice.complete": "पूरे वर्णन की ऑडियो मौजूद है ({total} अक्षर)।",
   "storymaker.voice.generate": "वर्णन बनाएँ",
   "storymaker.voice.generating": "शुरू हो रहा है…",

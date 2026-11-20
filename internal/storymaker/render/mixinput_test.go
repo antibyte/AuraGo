@@ -156,7 +156,9 @@ func TestBuildMixInputDecodesEachHashOnceWithItsLimits(t *testing.T) {
 	}
 	for i, startMS := range []int64{500, 3000} {
 		c := in.Narration[i]
-		if c.Start != startMS*48 || c.In != int64(piece.InMS)*48 || c.Voice != "phonon|thorsten" {
+		// The voice of the story is the one the policy resolved, not the id the fixture names.
+		wantVoice := story.Voice.Provider + "|" + story.Voice.Voice
+		if c.Start != startMS*48 || c.In != int64(piece.InMS)*48 || c.Voice != wantVoice {
 			t.Errorf("clip %d = %+v", i, c)
 		}
 		// The decode may end up to 10 ms early, which is 480 frames.

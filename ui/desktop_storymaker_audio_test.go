@@ -797,6 +797,12 @@ function makeInst(answer) {
   eq(f('narration-summary').textContent, 'storymaker.voice.complete {"total":640}', 'complete');
   eq([panel.marker.hidden, f('narration-generate').disabled], [true, true], 'nothing to generate');
 
+  // Blocks that were spoken with another voice have sound, but the panel offers the voice of the story.
+  inst.audioInfo = { narration: {}, missing: [], revoiced: [{ scene_id: 's1', block_id: 's1:n', chars: 120 }], chars: { total: 640, missing: 0 }, music: null };
+  inst.bus.emit('audio');
+  eq(f('narration-summary').textContent, 'storymaker.voice.revoiced {"blocks":1}', 'the blocks of another voice');
+  eq([panel.marker.hidden, f('narration-generate').disabled], [true, false], 'the narration of the story can be made again');
+
   // The toggle writes style.captions and leaves the rest of the style alone.
   eq(f('captions-toggle').checked, true, 'captions start on');
   f('captions-toggle').checked = false; f('captions-toggle').fire('change');

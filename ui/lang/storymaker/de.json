@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Sprechtext",
   "storymaker.voice.no_text": "Diese Geschichte hat keinen Sprechtext.",
   "storymaker.voice.missing": "{blocks} Blöcke brauchen noch Audio: {chars} von {total} Zeichen.",
+  "storymaker.voice.revoiced": "{blocks} Blöcke wurden mit einer anderen Stimme gesprochen. Erzeuge die Narration erneut, um die aktuelle Stimme zu hören.",
   "storymaker.voice.complete": "Der gesamte Sprechtext hat Audio ({total} Zeichen).",
   "storymaker.voice.generate": "Sprachausgabe erzeugen",
   "storymaker.voice.generating": "Wird gestartet…",

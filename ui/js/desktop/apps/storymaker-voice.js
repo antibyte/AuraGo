@@ -3,8 +3,9 @@
 // provider's languages (a free-text field for a provider with "*"), the "not tested" mark and the facts of the provider's note.
 // One button writes {provider, voice, language} into the story. The audition plays the first stored piece of the current
 // /narration answer and never synthesises, so no paid call starts here. Server texts are set as text only. Classic script, publishes
-// S.createVoicePanel. The narration half shows what still needs audio and the progress of the narrate job, starts it with Generate
-// (the only paid path, and it runs in the job loop with its caps), stops it with Stop, switches the burned captions and owns the "no audio" marker.
+// S.createVoicePanel. The narration half shows what still needs audio, what was spoken with another voice and the progress of the
+// narrate job, starts it with Generate (the only paid path, and it runs in the job loop with its caps), stops it with Stop, switches
+// the burned captions and owns the "no audio" marker.
 (function () {
     'use strict';
 
@@ -127,12 +128,15 @@
             const answer = inst.audioInfo;
             const chars = answer && answer.chars ? answer.chars : { total: 0, missing: 0 };
             const missing = answer && Array.isArray(answer.missing) ? answer.missing : [];
+            // Blocks whose audio was spoken with another voice: they have sound, but not the voice of the story.
+            const revoiced = answer && Array.isArray(answer.revoiced) ? answer.revoiced : [];
             // A failed first read must not look like loading forever: the reason and a way to read again.
             const readFailed = !answer && !!inst.audioError;
             readRetry.hidden = !readFailed;
             if (readFailed) summary.textContent = S.errors.describe(t, inst.audioError);
             else if (!answer) summary.textContent = t('storymaker.loading');
             else if (missing.length) summary.textContent = t('storymaker.voice.missing', { blocks: missing.length, chars: chars.missing, total: chars.total });
+            else if (revoiced.length) summary.textContent = t('storymaker.voice.revoiced', { blocks: revoiced.length });
             else if (chars.total > 0) summary.textContent = t('storymaker.voice.complete', { total: chars.total });
             else summary.textContent = t('storymaker.voice.no_text');
             paintJob();
@@ -141,7 +145,7 @@
             generateLabel.textContent = t(starting ? 'storymaker.voice.generating' : 'storymaker.voice.generate');
             const differs = voiceDiffers();
             voiceHint.hidden = !differs;
-            generate.disabled = inst.readonly || starting || jobIsActive(job) || !missing.length || differs;
+            generate.disabled = inst.readonly || starting || jobIsActive(job) || (!missing.length && !revoiced.length) || differs;
             cancelButton.hidden = inst.readonly || !jobIsActive(job);
             cancelButton.disabled = cancelling;
             const style = inst.story && inst.story.style;

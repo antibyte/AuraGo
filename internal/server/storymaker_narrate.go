@@ -331,6 +331,9 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	if err != nil {
 		return false, render.Fail(render.CodeNarrationFailed, "The voice provider %s returned audio that could not be decoded.", provider)
 	}
+	// The envelope names the words of the piece: a voice that changes later must still find them.
+	env.Text = target.piece.Text
+	env.Language = target.block.Voice.Language
 	if err := run.rt.projects.WritePiece(ctx, run.id, target.hash, ext, data, env); err != nil {
 		return false, s.storymakerNarrateFailed(ctx, err)
 	}
@@ -355,7 +358,9 @@ func (s *Server) storymakerNarrateRead(ctx context.Context, run *storymakerNarra
 	}
 	storymaker.ApplyDefaults(&story)
 	storymaker.ApplyPhononVoices(&story, run.rt.catalog)
-	answer, err := run.rt.projects.AudioAnswer(ctx, run.id, &story, nil)
+	// The exact answer: a piece that was spoken with another voice has to be made again, because
+	// this job decides what the film says with the voice of the story.
+	answer, err := run.rt.projects.AudioAnswerExact(ctx, run.id, &story, nil)
 	if err != nil {
 		return storymaker.Story{}, storymaker.AudioAnswer{}, nil, err
 	}
@@ -424,6 +429,9 @@ func (s *Server) storymakerVerifyPiece(ctx context.Context, run *storymakerNarra
 		}
 		return nil
 	}
+	// The envelope names the words of the piece: a voice that changes later must still find them.
+	env.Text = target.piece.Text
+	env.Language = target.block.Voice.Language
 	if err := run.rt.projects.WriteEnvelope(ctx, run.id, target.hash, env); err != nil {
 		return s.storymakerNarrateFailed(ctx, err)
 	}

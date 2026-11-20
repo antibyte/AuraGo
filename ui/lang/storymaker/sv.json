@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Berättarröst",
   "storymaker.voice.no_text": "Den här berättelsen har ingen berättartext att läsa upp.",
   "storymaker.voice.missing": "{blocks} block behöver fortfarande ljud: {chars} av {total} tecken.",
+  "storymaker.voice.revoiced": "{blocks} block läses med en annan röst. Generera berättelsen igen för att höra den nuvarande rösten.",
   "storymaker.voice.complete": "Hela berättarrösten har ljud ({total} tecken).",
   "storymaker.voice.generate": "Skapa berättarröst",
   "storymaker.voice.generating": "Startar…",

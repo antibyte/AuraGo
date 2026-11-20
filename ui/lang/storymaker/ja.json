@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "ナレーション",
   "storymaker.voice.no_text": "このストーリーには読み上げるナレーションがありません。",
   "storymaker.voice.missing": "{blocks} 個のブロックにまだ音声が必要です: {total} 文字中 {chars} 文字。",
+  "storymaker.voice.revoiced": "{blocks} ブロックは別の声で読み上げられました。現在の声で聞くにはナレーションを再生成してください。",
   "storymaker.voice.complete": "すべてのナレーションに音声があります（{total} 文字）。",
   "storymaker.voice.generate": "ナレーションを生成",
   "storymaker.voice.generating": "開始しています…",

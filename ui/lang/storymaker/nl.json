@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Voice-over",
   "storymaker.voice.no_text": "Dit verhaal heeft geen voice-overtekst.",
   "storymaker.voice.missing": "{blocks} blokken hebben nog audio nodig: {chars} van {total} tekens.",
+  "storymaker.voice.revoiced": "{blocks} blokken zijn met een andere stem gelezen. Genereer de narratie opnieuw om de huidige stem te horen.",
   "storymaker.voice.complete": "De hele voice-over heeft audio ({total} tekens).",
   "storymaker.voice.generate": "Voice-over maken",
   "storymaker.voice.generating": "Starten…",

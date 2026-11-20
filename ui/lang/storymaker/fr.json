@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Commentaire",
   "storymaker.voice.no_text": "Cette histoire n'a aucun commentaire à dire.",
   "storymaker.voice.missing": "{blocks} blocs ont encore besoin d'audio : {chars} caractères sur {total}.",
+  "storymaker.voice.revoiced": "{blocks} blocs ont été lus avec une autre voix. Régénérez la narration pour entendre la voix actuelle.",
   "storymaker.voice.complete": "Tout le commentaire a de l'audio ({total} caractères).",
   "storymaker.voice.generate": "Générer le commentaire",
   "storymaker.voice.generating": "Démarrage…",

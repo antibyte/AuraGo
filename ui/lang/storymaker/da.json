@@ -250,6 +250,7 @@
   "storymaker.voice.status_title": "Fortællertekst",
   "storymaker.voice.no_text": "Denne historie har ingen fortællertekst, der skal læses op.",
   "storymaker.voice.missing": "{blocks} blokke mangler stadig lyd: {chars} af {total} tegn.",
+  "storymaker.voice.revoiced": "{blocks} blokke blev læst med en anden stemme. Generér fortællingen igen for at høre den nuværende stemme.",
   "storymaker.voice.complete": "Hele fortællerteksten har lyd ({total} tegn).",
   "storymaker.voice.generate": "Opret lyd til fortællerteksten",
   "storymaker.voice.generating": "Starter…",
