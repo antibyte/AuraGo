@@ -788,6 +788,9 @@ type CheckpointOptions struct {
 	Persistent bool
 	// VolumeID overwrites an existing workspace_v2 volume instead of creating one.
 	VolumeID string
+	// AllowLocked lets the checkpoint overwrite a locked volume. Only the HTTP
+	// API (an explicit human action) sets it; the agent never does.
+	AllowLocked bool
 }
 
 func (m *WorkspaceManager) Checkpoint(ctx context.Context, cfg ToolConfig, identity WorkspaceIdentity, workspaceID string, ttlSeconds int) (Volume, error) {
@@ -803,7 +806,7 @@ func (m *WorkspaceManager) CheckpointWithOptions(ctx context.Context, cfg ToolCo
 		return Volume{}, err
 	}
 	ttlSeconds := options.TTLSeconds
-	if ttlSeconds <= 0 {
+	if ttlSeconds <= 0 || ttlSeconds > cfg.VolumeMaxTTL() {
 		ttlSeconds = cfg.VolumeMaxTTL()
 	}
 	volumeID := strings.TrimSpace(options.VolumeID)
@@ -826,6 +829,8 @@ func (m *WorkspaceManager) CheckpointWithOptions(ctx context.Context, cfg ToolCo
 		return Volume{}, lookupErr
 	} else if !ok || existing.Format != WorkspaceVolumeFormat {
 		return Volume{}, WorkspaceRPCError{Code: "workspace_volume_required", Message: "checkpoint target is not a workspace_v2 volume"}
+	} else if existing.Locked && !options.AllowLocked {
+		return Volume{}, WorkspaceRPCError{Code: "volume_locked", Message: "the checkpoint target volume is locked by the user and cannot be overwritten"}
 	} else {
 		volume = existing
 	}
@@ -1232,6 +1237,12 @@ func (m *WorkspaceManager) Reconcile(ctx context.Context, cfg ToolConfig) error 
 			continue
 		}
 		if _, err := client.GetMachine(ctx, workspace.MachineID); err != nil {
+			if workspace.Origin == WorkspaceOriginAdopted && !workspaceMachineAlreadyGone(err) {
+				// A user-owned machine is only lost when boringd says it is gone;
+				// a transient control-plane error must not release it.
+				m.reportIssue(WorkspaceOperationalIssue{Kind: "machine_check", WorkspaceID: workspace.ID, Detail: security.Scrub(err.Error()), Severity: "warning"})
+				continue
+			}
 			m.markWorkspaceLost(ctx, workspace, "machine unavailable after AuraGo restart")
 			continue
 		}

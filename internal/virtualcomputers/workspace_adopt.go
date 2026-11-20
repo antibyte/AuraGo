@@ -154,7 +154,26 @@ func (m *WorkspaceManager) releaseAdoptedWorkspace(ctx context.Context, cfg Tool
 		return nil
 	}
 	// closeWorkspace=false: true would destroy the machine when the guest is silent.
-	releaseGUI, _ := m.revokeGUI(ctx, cfg, workspace, false)
+	releaseGUI, revokeErr := m.revokeGUI(ctx, cfg, workspace, false)
+	if revokeErr != nil {
+		client, clientErr := m.clientFactory(cfg)
+		gone := false
+		if clientErr == nil && client != nil {
+			_, getErr := client.GetMachine(ctx, workspace.MachineID)
+			gone = getErr != nil && workspaceMachineAlreadyGone(getErr)
+		}
+		if !gone {
+			workspace.LastError = security.Scrub("desktop input could not be stopped: " + revokeErr.Error())
+			workspace.UpdatedAt = m.now()
+			_ = m.ledger.UpsertWorkspace(ctx, workspace)
+			return WorkspaceRPCError{Code: "desktop_control_unconfirmed", Message: "the agent's desktop input could not be stopped; retry the release"}
+		}
+		m.markWorkspaceLost(ctx, workspace, "machine unavailable during release")
+		workspace.State = WorkspaceStateClosed
+		workspace.LastError = ""
+		workspace.UpdatedAt = m.now()
+		return m.ledger.UpsertWorkspace(ctx, workspace)
+	}
 	if releaseGUI != nil {
 		defer releaseGUI()
 	}

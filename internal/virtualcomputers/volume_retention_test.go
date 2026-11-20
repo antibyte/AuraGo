@@ -220,7 +220,7 @@ func TestListTrackedVolumesPreservesNameAndTakesUpstreamRetention(t *testing.T) 
 		t.Fatalf("upstream retention not applied: %+v", got)
 	}
 	// An untracked volume becomes legacy_root / available.
-	tracked, err := TrackUpstreamVolume(ctx, ledger, Volume{ID: "vol-b", Locked: true})
+	tracked, err := TrackUpstreamVolume(ctx, ledger, Volume{ID: "vol-b", Locked: true, RetentionReported: true})
 	if err != nil || tracked.Format != "legacy_root" || tracked.Availability != "available" || !tracked.Locked {
 		t.Fatalf("TrackUpstreamVolume = %+v, %v", tracked, err)
 	}

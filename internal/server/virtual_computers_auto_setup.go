@@ -18,6 +18,9 @@ import (
 const virtualComputersAutoSetupRetryCooldown = 5 * time.Minute
 const virtualComputersAutoSetupMaxRetries = 3
 
+// virtualComputersAutoSetupManualBackoff delays the next automatic attempt when a manual install/repair is running.
+const virtualComputersAutoSetupManualBackoff = 30 * time.Second
+
 var (
 	virtualComputersAutoSetupNeeded = defaultVirtualComputersAutoSetupNeeded
 	virtualComputersAutoSetupRunner = runVirtualComputersAutoSetup
@@ -103,6 +106,16 @@ func virtualComputersTriggerAutoSetupWithForce(s *Server, cfg virtualcomputers.T
 		virtualComputersAutoSetupState.Unlock()
 		return false
 	}
+	// A manual install/repair owns virtualComputersManualSetup; never start a
+	// second install next to it. Probe only, the runner takes the lock itself.
+	if !virtualComputersManualSetup.TryLock() {
+		virtualComputersAutoSetupState.desiredServer = s
+		virtualComputersAutoSetupState.desiredConfig = cfg
+		virtualComputersAutoSetupState.retryAfter = time.Now().Add(virtualComputersAutoSetupManualBackoff)
+		virtualComputersAutoSetupState.Unlock()
+		return false
+	}
+	virtualComputersManualSetup.Unlock()
 	virtualComputersAutoSetupState.generation++
 	virtualComputersAutoSetupState.desiredServer = s
 	virtualComputersAutoSetupState.desiredConfig = cfg
@@ -142,11 +155,26 @@ func reconcileVirtualComputersAutoSetup() {
 		virtualComputersAutoSetupState.cancelGeneration = generation
 		virtualComputersAutoSetupState.Unlock()
 
+		// Single flight with manual install/repair: skip, never wait, when a
+		// manual run holds the shared mutex.
+		if !virtualComputersManualSetup.TryLock() {
+			cancel()
+			virtualComputersAutoSetupState.Lock()
+			if virtualComputersAutoSetupState.cancelGeneration == generation {
+				virtualComputersAutoSetupState.cancel = nil
+				virtualComputersAutoSetupState.cancelGeneration = 0
+			}
+			virtualComputersAutoSetupState.running = false
+			virtualComputersAutoSetupState.retryAfter = time.Now().Add(virtualComputersAutoSetupManualBackoff)
+			virtualComputersAutoSetupState.Unlock()
+			return
+		}
 		attempted := virtualComputersAutoSetupNeeded(s, cfg)
 		var runErr error
 		if attempted {
 			runErr = virtualComputersAutoSetupRunner(ctx, s, cfg)
 		}
+		virtualComputersManualSetup.Unlock()
 		cancel()
 
 		virtualComputersAutoSetupState.Lock()

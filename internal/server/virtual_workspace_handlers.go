@@ -244,7 +244,7 @@ func handleVirtualWorkspace(s *Server) http.HandlerFunc {
 				}
 			}
 			volume, err := manager.CheckpointWithOptions(r.Context(), cfg, identity, workspaceID, virtualcomputers.CheckpointOptions{
-				TTLSeconds: request.TTLSeconds, Name: name, Persistent: request.Persistent, VolumeID: strings.TrimSpace(request.VolumeID),
+				TTLSeconds: request.TTLSeconds, Name: name, Persistent: request.Persistent, VolumeID: strings.TrimSpace(request.VolumeID), AllowLocked: true,
 			})
 			writeVirtualWorkspaceResult(w, map[string]interface{}{"volume": volume}, err)
 		case "control":
@@ -531,7 +531,7 @@ func writeVirtualWorkspaceError(w http.ResponseWriter, err error) {
 	switch code {
 	case "volume_ttl_too_long", "invalid_name":
 		status = http.StatusBadRequest
-	case "machine_owned_by_workspace", "machine_not_running", "volume_retention_requires_repair", "volume_locked", "volume_in_use":
+	case "machine_owned_by_workspace", "machine_not_running", "desktop_control_unconfirmed", "volume_retention_requires_repair", "volume_locked", "volume_in_use":
 		status = http.StatusConflict
 	case "readonly", "disabled", "agent_control_disabled":
 		status = http.StatusForbidden

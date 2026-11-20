@@ -339,6 +339,10 @@ func virtualComputersMachineAssignAgent(s *Server, w http.ResponseWriter, r *htt
 		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Handing a machine to the agent is an admin decision, not just a write.
+	if !authenticateDesktopPermission(s, w, r, desktopScopeAdmin) {
+		return
+	}
 	if !virtualComputersMutationAllowed(s, w) {
 		return
 	}
@@ -348,7 +352,9 @@ func virtualComputersMachineAssignAgent(s *Server, w http.ResponseWriter, r *htt
 		return
 	}
 	cfg := virtualComputersConfigSnapshot(s)
-	workspace, reused, err := manager.AdoptMachine(r.Context(), cfg, virtualWorkspaceIdentity(), machineID)
+	identity := virtualWorkspaceIdentity()
+	identity.Admin = true // verified by the admin scope gate above
+	workspace, reused, err := manager.AdoptMachine(r.Context(), cfg, identity, machineID)
 	if err != nil {
 		writeVirtualWorkspaceError(w, err)
 		return

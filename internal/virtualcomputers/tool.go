@@ -57,7 +57,8 @@ var machineOwnedOps = map[string]bool{
 
 // workspaceOwnedMachineGuard returns a ready-made error payload when the
 // machine belongs to an active agent workspace, otherwise an empty string.
-// Without a ledger no workspace can exist, so the guard is skipped.
+// Without a configured ledger no workspace can exist, so the guard is skipped;
+// when a ledger is configured but unreadable the guard fails closed.
 func workspaceOwnedMachineGuard(ctx context.Context, cfg ToolConfig, machineID string) string {
 	machineID = strings.TrimSpace(machineID)
 	if machineID == "" || strings.TrimSpace(cfg.LedgerPath) == "" {
@@ -71,12 +72,15 @@ func workspaceOwnedMachineGuard(ctx context.Context, cfg ToolConfig, machineID s
 	} else {
 		ledger, openErr := openToolLedger(cfg)
 		if openErr != nil {
-			return ""
+			return toolJSON("error", "storage_unavailable", "cannot verify workspace ownership of the machine: "+openErr.Error(), nil)
 		}
 		defer ledger.Close()
 		workspace, found, err = ledger.ActiveWorkspaceForMachine(ctx, machineID)
 	}
-	if err != nil || !found {
+	if err != nil {
+		return toolJSON("error", "storage_unavailable", "cannot verify workspace ownership of the machine: "+err.Error(), nil)
+	}
+	if !found {
 		return ""
 	}
 	return toolJSON("error", "machine_owned_by_workspace",
@@ -270,7 +274,7 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 		}
 		return toolJSON("ok", "", "volume loaded", map[string]interface{}{"volume": volume})
 	case "create_volume":
-		volume, err := client.CreateVolume(ctx, toolInt(args, 86400, "ttl_seconds"))
+		volume, err := client.CreateVolume(ctx, clampVolumeTTL(cfg, toolInt(args, 86400, "ttl_seconds")))
 		if err != nil {
 			return toolErrorJSON(err)
 		}
@@ -293,6 +297,11 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 			return toolJSON("error", "storage_unavailable", err.Error(), nil)
 		}
 		defer ledger.Close()
+		if inUse, usageErr := VolumeInUse(ctx, ledger, client, volumeID); usageErr != nil {
+			return toolJSON("error", "storage_unavailable", usageErr.Error(), nil)
+		} else if inUse != "" {
+			return toolJSON("error", "volume_in_use", inUse, nil)
+		}
 		// Locking is a human decision: refuse before boringd is even asked.
 		if tracked, found, lookupErr := ledger.GetVolume(ctx, volumeID); lookupErr != nil {
 			return toolJSON("error", "storage_unavailable", lookupErr.Error(), nil)
@@ -307,6 +316,20 @@ func ExecuteTool(ctx context.Context, cfg ToolConfig, args map[string]interface{
 		}
 		return toolJSON("ok", "", "volume deleted", nil)
 	case "save_machine":
+		if targetID := toolString(args, "volume_id"); targetID != "" {
+			ledger, err := openToolLedger(cfg)
+			if err != nil {
+				return toolJSON("error", "storage_unavailable", err.Error(), nil)
+			}
+			tracked, found, lookupErr := ledger.GetVolume(ctx, targetID)
+			ledger.Close()
+			if lookupErr != nil {
+				return toolJSON("error", "storage_unavailable", lookupErr.Error(), nil)
+			}
+			if found && tracked.Locked {
+				return toolJSON("error", "volume_locked", "This volume is locked by the user and cannot be overwritten. Ask the user to unlock it in the Virtual Computers app.", nil)
+			}
+		}
 		payload, err := client.SaveMachine(ctx, requiredMachineID(args), toolString(args, "volume_id"))
 		if err != nil {
 			return toolErrorJSON(err)
@@ -606,4 +629,12 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// clampVolumeTTL bounds an agent-requested volume lifetime to the configured maximum.
+func clampVolumeTTL(cfg ToolConfig, ttl int) int {
+	if max := cfg.VolumeMaxTTL(); max > 0 && ttl > max {
+		return max
+	}
+	return ttl
 }

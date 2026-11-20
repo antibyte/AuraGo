@@ -20,13 +20,18 @@ type adoptRecordingTransport struct {
 	mu          sync.Mutex
 	methods     []string
 	handshakeOK bool
+	failMethod  string
 }
 
 func (t *adoptRecordingTransport) Call(_ context.Context, machineID, method string, _ interface{}, result interface{}) error {
 	t.mu.Lock()
 	t.methods = append(t.methods, method)
 	ok := t.handshakeOK
+	fail := t.failMethod != "" && t.failMethod == method
 	t.mu.Unlock()
+	if fail {
+		return errors.New("forced " + method + " failure")
+	}
 	if method == "system.capabilities" {
 		if !ok {
 			return errors.New("guest agent missing")
@@ -62,6 +67,7 @@ type adoptFixture struct {
 	requests   []string
 	machine    string // JSON returned for GET /v1/machines/vm-9; empty means 404 not found
 	machineMux int
+	machineErr bool // GET /v1/machines/vm-9 answers 500 instead of the machine
 }
 
 func (f *adoptFixture) seen(prefix string) int {
@@ -89,6 +95,7 @@ func newAdoptFixture(t *testing.T, machineJSON string) *adoptFixture {
 		f.mu.Lock()
 		f.requests = append(f.requests, r.Method+" "+r.URL.Path)
 		machine := f.machine
+		machineErr := f.machineErr
 		f.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		switch {
@@ -97,6 +104,11 @@ func newAdoptFixture(t *testing.T, machineJSON string) *adoptFixture {
 				ProtocolVersion: WorkspaceProtocolVersion, AssetFingerprint: WorkspaceAssetFingerprint(),
 			})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/machines/vm-9":
+			if machineErr {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = io.WriteString(w, `{"error":"boom"}`)
+				return
+			}
 			if machine == "" {
 				w.WriteHeader(http.StatusNotFound)
 				_, _ = io.WriteString(w, `{"error":"not found"}`)

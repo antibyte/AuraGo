@@ -249,6 +249,11 @@ type Volume struct {
 	FileCount          int                    `json:"files"`
 	AttachedTo         []VolumeAttachment     `json:"attached_to,omitempty"`
 	Raw                map[string]interface{} `json:"raw,omitempty"`
+	// RetentionReported / UsageReported record whether the upstream response
+	// carried persistent+locked / used_bytes+files at all, so an unpatched or
+	// partial boringd view cannot reset locally known state to zero values.
+	RetentionReported bool `json:"-"`
+	UsageReported     bool `json:"-"`
 }
 
 // VolumeAttachment names one consumer that currently uses a volume. Kind is
@@ -268,10 +273,10 @@ func (v *Volume) UnmarshalJSON(data []byte) error {
 		QuotaMB   int64  `json:"quota_mb"`
 		// Patched boringd (0009) additionally reports these. expires_at is empty
 		// for a persistent volume, which parseOptionalTime maps to nil.
-		Persistent bool  `json:"persistent"`
-		Locked     bool  `json:"locked"`
-		UsedBytes  int64 `json:"used_bytes"`
-		Files      int   `json:"files"`
+		Persistent *bool  `json:"persistent"`
+		Locked     *bool  `json:"locked"`
+		UsedBytes  *int64 `json:"used_bytes"`
+		Files      *int   `json:"files"`
 	}
 	if err := json.Unmarshal(data, &wire); err != nil {
 		return err
@@ -280,8 +285,21 @@ func (v *Volume) UnmarshalJSON(data []byte) error {
 	_ = json.Unmarshal(data, &raw)
 	*v = Volume{ID: wire.ID, Name: wire.Name, SizeBytes: wire.SizeBytes,
 		CreatedAt: parseOptionalTime(wire.CreatedAt), ExpiresAt: parseOptionalTime(wire.ExpiresAt),
-		QuotaMB: wire.QuotaMB, Persistent: wire.Persistent, Locked: wire.Locked,
-		UsedBytes: wire.UsedBytes, FileCount: wire.Files, Raw: raw}
+		QuotaMB: wire.QuotaMB, Raw: raw}
+	if wire.Persistent != nil || wire.Locked != nil {
+		v.RetentionReported = true
+		v.Persistent = wire.Persistent != nil && *wire.Persistent
+		v.Locked = wire.Locked != nil && *wire.Locked
+	}
+	if wire.UsedBytes != nil || wire.Files != nil {
+		v.UsageReported = true
+		if wire.UsedBytes != nil {
+			v.UsedBytes = *wire.UsedBytes
+		}
+		if wire.Files != nil {
+			v.FileCount = *wire.Files
+		}
+	}
 	return nil
 }
 

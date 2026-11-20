@@ -296,30 +296,36 @@ func virtualComputersVolumeDelete(s *Server, w http.ResponseWriter, r *http.Requ
 	if !virtualComputersMutationAllowed(s, w) {
 		return
 	}
-	ledger, owned, _ := virtualComputersLedger(s)
+	// Fail closed: without the ledger the lock and attachment checks cannot run.
+	ledger, owned, ledgerErr := virtualComputersLedger(s)
+	if ledgerErr != nil || ledger == nil {
+		writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if owned {
 		defer ledger.Close()
 	}
-	if ledger != nil {
-		if tracked, found, err := ledger.GetVolume(r.Context(), volumeID); err == nil && found && tracked.Locked {
-			writeVirtualComputersAPIError(w, "volume_locked", "volume is locked; unlock it before deleting", http.StatusConflict)
-			return
-		}
-		machines := virtualComputersRunningMachineSet(r.Context(), client)
-		if attached := virtualComputersVolumeAttachments(r.Context(), ledger, volumeID, machines); len(attached) > 0 {
-			writeVirtualComputersAPIErrorDetails(w, "volume_in_use", "volume is attached to a running computer or workspace", http.StatusConflict,
-				map[string]interface{}{"attached_to": attached})
-			return
-		}
+	tracked, found, lookupErr := ledger.GetVolume(r.Context(), volumeID)
+	if lookupErr != nil {
+		writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if found && tracked.Locked {
+		writeVirtualComputersAPIError(w, "volume_locked", "volume is locked; unlock it before deleting", http.StatusConflict)
+		return
+	}
+	machines := virtualComputersRunningMachineSet(r.Context(), client)
+	if attached := virtualComputersVolumeAttachments(r.Context(), ledger, volumeID, machines); len(attached) > 0 {
+		writeVirtualComputersAPIErrorDetails(w, "volume_in_use", "volume is attached to a running computer or workspace", http.StatusConflict,
+			map[string]interface{}{"attached_to": attached})
+		return
 	}
 	if err := client.DeleteVolume(r.Context(), volumeID); err != nil {
 		writeVirtualComputersError(w, err)
 		return
 	}
-	if ledger != nil {
-		if err := ledger.DeleteVolume(r.Context(), volumeID); err != nil {
-			virtualComputersLogLedgerError(s, err)
-		}
+	if err := ledger.DeleteVolume(r.Context(), volumeID); err != nil {
+		virtualComputersLogLedgerError(s, err)
 	}
 	virtualComputersRecordAction(s, r, "delete_volume", "volume", volumeID, nil)
 	writeJSON(w, map[string]interface{}{"status": "ok"})

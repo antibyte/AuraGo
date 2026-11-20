@@ -20,6 +20,17 @@ func mergeUpstreamVolume(local, fresh Volume) Volume {
 	if merged.Name == "" {
 		merged.Name = fresh.Name
 	}
+	if !fresh.RetentionReported {
+		merged.Persistent = local.Persistent
+		merged.Locked = local.Locked
+		if local.Persistent && merged.ExpiresAt == nil {
+			merged.ExpiresAt = local.ExpiresAt
+		}
+	}
+	if !fresh.UsageReported {
+		merged.UsedBytes = local.UsedBytes
+		merged.FileCount = local.FileCount
+	}
 	return merged
 }
 
@@ -168,4 +179,57 @@ func ListTrackedVolumes(ctx context.Context, ledger *Ledger, client *Client) ([]
 		return nil, firstErr
 	}
 	return ledger.ListVolumes(ctx)
+}
+
+// VolumeInUse reports a human-readable reason when a volume is attached to an
+// active workspace or to a machine boringd still lists; empty means free.
+// Ledger lookup errors are returned so callers can fail closed.
+func VolumeInUse(ctx context.Context, ledger *Ledger, client *Client, volumeID string) (string, error) {
+	attached, err := VolumeAttachments(ctx, ledger, client, volumeID)
+	if err != nil {
+		return "", err
+	}
+	if len(attached) == 0 {
+		return "", nil
+	}
+	return "volume is attached to a running computer or workspace (" + attached[0].Kind + " " + attached[0].ID + ")", nil
+}
+
+// VolumeAttachments lists active consumers of a volume. Machine references that
+// boringd no longer lists are stale and ignored; if boringd cannot be listed the
+// machine references are all kept (fail closed).
+func VolumeAttachments(ctx context.Context, ledger *Ledger, client *Client, volumeID string) ([]VolumeAttachment, error) {
+	var out []VolumeAttachment
+	if ledger == nil {
+		return nil, fmt.Errorf("volume ledger is required")
+	}
+	workspaces, err := ledger.ActiveWorkspacesForVolume(ctx, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	for _, workspace := range workspaces {
+		out = append(out, VolumeAttachment{Kind: "workspace", ID: workspace.ID})
+	}
+	ids, err := ledger.MachinesWithVolume(ctx, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	var listed map[string]bool
+	if client != nil && len(ids) > 0 {
+		listCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		machines, listErr := client.ListMachines(listCtx)
+		cancel()
+		if listErr == nil {
+			listed = make(map[string]bool, len(machines))
+			for _, machine := range machines {
+				listed[machine.ID] = true
+			}
+		}
+	}
+	for _, id := range ids {
+		if listed == nil || listed[id] {
+			out = append(out, VolumeAttachment{Kind: "machine", ID: id})
+		}
+	}
+	return out, nil
 }
