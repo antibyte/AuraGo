@@ -725,3 +725,6 @@ body[data-animations="false"] .ss-app :is(*, *::before, *::after) { transition: 
 .ss-clip.ss-clip-audio > span { letter-spacing: .04em; }
 .ss-audio-panel { display: flex; align-items: center; gap: 12px; padding: 14px 16px; color: var(--ss-track-color); }
 .ss-audio-panel > span { opacity: .75; font-size: 12px; }
+.ss-audio-panel > .ss-audio-state { font-style: normal; font-size: 12px; opacity: .85; }
+.ss-audio-panel > .ss-audio-state[data-state="failed"] { color: var(--ss-danger, #ff6b6b); }
+.ss-audio-panel > [data-audio-edit] { margin-left: auto; }

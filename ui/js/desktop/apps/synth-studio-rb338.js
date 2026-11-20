@@ -1114,6 +1114,53 @@
             }
         }
 
+        // ---- T11: Send to Arrange ---------------------------------------------------------------
+        // Renders the live song in the Worker (pattern mode with the seamless pre-roll cycle), then hands
+        // the PCM plus its recipe to Synth Studio, which owns the project mutation.
+        let sending = false;
+        async function sendToArrange() {
+            const Host = root.SynthStudioRB338Host;
+            if (!ready() || sending || exporting || typeof o.sendToArrange !== 'function') return;
+            if (!Host || typeof Host.renderer !== 'function' || typeof Host.wavToBuffer !== 'function') { say(tr('rb_clip_failed')); return; }
+            sending = true;
+            section.dataset.rbBusy = 'arrange';
+            const btn = $('[data-action="rb-send-arrange"]');
+            if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+            say(tr('rb_clip_rendering'));
+            let rend = null;
+            try {
+                const song = await saveBytes();
+                const mode = transport.songMode ? 'song' : 'pattern';
+                const bars = exportBars;
+                rend = Host.renderer();
+                const out = await rend.render({ song: song.slice().buffer, mode, bars, preroll: mode === 'pattern' });
+                const buffer = Host.wavToBuffer(out.wav);
+                let peak = 0;
+                for (let c = 0; c < buffer.numberOfChannels; c++) {
+                    const d = buffer.getChannelData(c);
+                    for (let i = 0; i < d.length; i++) { const v = d[i] < 0 ? -d[i] : d[i]; if (v > peak) peak = v; }
+                }
+                if (peak === 0) { say(tr('rb_clip_empty')); return; }
+                say('');
+                await o.sendToArrange({ song, mode, start: 0, end: bars * 768, frames: out.frames || buffer.length, tempo: transport.tempo / 1000, buffer, name: fileBase() });
+            } catch (_) {
+                say(tr('rb_clip_failed'));
+            } finally {
+                if (rend) rend.close();
+                sending = false;
+                delete section.dataset.rbBusy;
+                if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+            }
+        }
+        // Loads a clip's song into the rack (Edit in RB-338 on an audio clip). The engine may still be
+        // starting when the tab was just opened, so wait for it; the replace confirm applies as usual.
+        async function openSong(bytes, name) {
+            for (let i = 0; i < 200 && !ready() && hostState !== 'error' && !disposed; i++) await new Promise(r => setTimeout(r, 100));
+            if (!ready() || disposed) return false;
+            if (!(await confirmReplace('rb_open'))) return false;
+            return openBytes(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), name);
+        }
+
         // ---- T9: autosave, restore, crash recovery ----------------------------------------------
         function scheduleAutosave() {
             if (autoTimer || disposed) return;
@@ -1237,6 +1284,7 @@
         setAction('rb-open', pickFile);
         setAction('rb-save', saveSong);
         setAction('rb-export', exportWav);
+        if (typeof o.sendToArrange === 'function') setAction('rb-send-arrange', sendToArrange);
         setAction('rb-keys', () => setKeyMode(keyMode === 'patterns' ? 'synth' : 'patterns'));
         ['cut', 'copy', 'paste', 'duplicate', 'undo'].forEach(cmd => setAction('rb-' + cmd, () => patternCommand(cmd)));
         loadPrefs();
@@ -1283,7 +1331,7 @@
             // the engine must stay up until its last autosave answered
             if (last) { let done = false; const once = () => { if (!done) { done = true; closeHost(); } }; last.then(once, once); setTimeout(once, 1500); } else closeHost();
         }
-        const api = { activate, stop, isPlaying: () => !!(transport.playing || (snap && snap.playing)), dispose };
+        const api = { activate, stop, openSong, isPlaying: () => !!(transport.playing || (snap && snap.playing)), dispose };
         // Internals for the later tasks (T8 behaviours/keys, T9 documents, T11 arrange): same file, no public contract.
         api.internals = { M, tr, E, section, rows, vals, mirror: () => mirror, setMirror, getVal, setControl, press, bump, toggle, emit, emitMany, flush, curPattern,
             transport: () => transport, snapshot: () => snap, host: () => host, state: () => hostState, info: () => info, setInfo, behaviours, actions, setAction, hooks,
