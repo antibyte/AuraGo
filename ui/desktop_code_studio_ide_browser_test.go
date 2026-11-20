@@ -100,9 +100,12 @@ func TestDesktopCodeStudioIDEPanelBrowser(t *testing.T) {
 	// Clicking a problem jumps to the offending line.
 	page.MustEval(`()=>{csRoot().querySelector('[data-panel-tab="problems"]').click();}`)
 	page.MustEval(`()=>{csRoot().querySelector('.cs-problem').click();}`)
-	check("clicking a problem jumps to its line", `()=>{
-		const text=csRoot().querySelector('.code-studio-statusbar').textContent;
-		return text.includes('6:') || text.includes('Zeile 6');
+	check("clicking a problem jumps to its line", `async()=>{
+		await csWait(()=>{
+			const text=csRoot().querySelector('.code-studio-statusbar').textContent;
+			return text.includes('6:') || text.includes('Zeile 6');
+		},5000);
+		return true;
 	}`)
 
 	// The inline gutter marks the same finding.

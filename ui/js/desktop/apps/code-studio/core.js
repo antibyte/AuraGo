@@ -1377,6 +1377,38 @@
         });
     }
 
+    function tabHasLocalState(tab) {
+        return !tab || tab.kind === 'diff' || tab.modified || !!tab.pathMutation || !!tab.pendingSave;
+    }
+
+    // An open tab goes stale when something else (the agent) writes its file. A tab without
+    // local changes re-reads the file; the new text only lands while the buffer is still untouched.
+    async function reloadCleanTabFromDisk(target, tab) {
+        if (tabHasLocalState(tab)) return;
+        const path = tab.path;
+        let content;
+        try {
+            const result = await apiClient.file(path);
+            content = result && typeof result.content === 'string' ? result.content : '';
+        } catch (_) {
+            return;
+        }
+        if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.path !== path || tabHasLocalState(tab)) return;
+        runWithInstance(target, () => {
+            if (content === editorValue(tab)) return;
+            tab.content = content;
+            tab.revision = (tab.revision || 0) + 1;
+            // Drop the live views and both snapshots: createCodeMirrorEditor reuses a snapshot's state
+            // and renderEditor would take a fresh snapshot of a live view, either brings the stale text back.
+            destroyTabView(tab, true);
+            if (activeTab() === tab) renderEditor();
+            renderTabs();
+            renderStatus();
+            updateSuggestionStatus();
+            scheduleDocumentCheck();
+        });
+    }
+
     async function openFile(path, persist) {
         const target = state;
         if (!target) return;
@@ -1388,7 +1420,9 @@
         }
         const existing = state.openTabs.findIndex(tab => tab.path === path && tab.kind !== 'diff');
         if (existing >= 0) {
+            const tab = state.openTabs[existing];
             activateTab(existing);
+            await reloadCleanTabFromDisk(target, tab);
             return;
         }
         renderStatus(tr('codeStudio.editorLoading', 'Loading editor...'));
