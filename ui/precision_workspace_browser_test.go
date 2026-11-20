@@ -94,7 +94,7 @@ func TestPrecisionWorkspaceClientBrowserSmoke(t *testing.T) {
 			active: document.getElementById('mission-link').getAttribute('aria-current'),
 			inactive: document.getElementById('media-link').hasAttribute('aria-current'),
 			missionIcons: document.querySelectorAll('#mission-link svg.pw-radial-outline-icon').length,
-			mediaIconKey: document.querySelector('#media-link .radial-item-icon').dataset.pwIcon
+			mediaIconKey: document.querySelector('#media-link .radial-item-icon').dataset.pwRadialIcon
 		})`).Map()
 		if state["density"].String() != "compact" || state["bodyDensity"].String() != "compact" || state["stored"].String() != "compact" {
 			t.Fatalf("compact density state was not synchronized: %#v", state)
@@ -156,6 +156,50 @@ func TestPrecisionWorkspaceClientBrowserSmoke(t *testing.T) {
 			t.Fatalf("blocked-storage density state = %q, want compact:compact", got)
 		}
 	})
+}
+
+func TestPrecisionWorkspaceRadialIconsSurvivePageStartupBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	pages := map[string]string{
+		"/missions/v2": renderUIPage(t, "missions_v2.html"),
+		"/knowledge":   renderUIPage(t, "knowledge.html"),
+		"/media":       renderUIPage(t, "media.html"),
+		"/cheatsheets": renderUIPage(t, "cheatsheets.html"),
+	}
+	assets := http.FileServer(http.FS(Content))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if html, ok := pages[r.URL.Path]; ok {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(html))
+			return
+		}
+		if r.URL.Path == "/api/auth/status" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"enabled":true,"authenticated":true}`))
+			return
+		}
+		assets.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	browser := newSmokeBrowser(t)
+	for route := range pages {
+		t.Run(route, func(t *testing.T) {
+			page := browser.MustPage(srv.URL + route).MustWaitLoad()
+			defer page.MustClose()
+			page.MustElement("#radialTrigger").MustClick()
+			page.MustWait(`() => document.querySelector('#radialMenu.open #radialLogout:not(.is-hidden)') !== null`)
+			missing := page.MustEval(`() => Array.from(document.querySelectorAll('#radialMenu .radial-item:not(.is-hidden)'))
+				.filter(item => {
+					const shape = item.querySelector('.radial-item-icon > svg > *');
+					return !shape || getComputedStyle(shape).stroke === 'none';
+				})
+				.map(item => item.getAttribute('href') || item.id)`).Arr()
+			if len(missing) != 0 {
+				t.Errorf("missing radial icons after page startup: %v", missing)
+			}
+		})
+	}
 }
 
 func TestPrecisionWorkspaceModalFocusBrowserSmoke(t *testing.T) {

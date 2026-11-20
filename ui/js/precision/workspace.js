@@ -194,9 +194,9 @@
             }
 
             const icon = item.querySelector('.radial-item-icon');
-            if (!icon || !RADIAL_ICONS[iconKey] || icon.dataset.pwIcon === iconKey) return;
+            if (!icon || !RADIAL_ICONS[iconKey] || icon.dataset.pwRadialIcon === iconKey) return;
             icon.innerHTML = outlineIcon(iconKey);
-            icon.dataset.pwIcon = iconKey;
+            icon.dataset.pwRadialIcon = iconKey;
         });
     }
 

@@ -800,6 +800,9 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `data-workspace-page`, `precision-workspace.css`, `precision-pages.css`, and
   `js/precision/workspace.js`. Entry templates use `.pw-page.pw-entry-page`,
   `precision-workspace.css`, and `precision-entry.css` only.
+- Radial menu SVGs use `data-pw-radial-icon` to track the rendered route.
+  `data-pw-icon` is reserved for page placeholders hydrated by `pwIcon`.
+  Verify `TestPrecisionWorkspaceRadialIconsSurvivePageStartupBrowser`.
 - Wave 4 contract (guarded by `ui_consistency_wave4_test.go`; ratchet baselines
   in `testdata/wave4_{colours,fontsizes,breakpoints,emoji}.txt`, refreshed with
   `AURAGO_UPDATE_WAVE4_BASELINES=1`, counts only ever go down):
