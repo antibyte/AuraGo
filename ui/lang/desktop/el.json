@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "Δεν ήταν δυνατή η φόρτωση της μηχανής RB-338.",
   "synthStudio.rb_audio_blocked": "Το πρόγραμμα περιήγησης μπλοκάρει τον ήχο. Κάντε κλικ στον πίνακα για να ενεργοποιήσετε τον ήχο.",
   "synthStudio.rb_crashed": "Η μηχανή RB-338 σταμάτησε απροσδόκητα και επανεκκινήθηκε.",
+  "synthStudio.rb_restart": "Επανεκκίνηση",
   "synthStudio.rb_new": "Νέο τραγούδι",
   "synthStudio.rb_open": "Άνοιγμα τραγουδιού",
   "synthStudio.rb_save": "Αποθήκευση τραγουδιού",

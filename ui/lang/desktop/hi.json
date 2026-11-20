@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "RB-338 इंजन लोड नहीं हो सका।",
   "synthStudio.rb_audio_blocked": "ब्राउज़र ने ऑडियो रोक दिया है। ध्वनि चालू करने के लिए पैनल पर क्लिक करें।",
   "synthStudio.rb_crashed": "RB-338 इंजन अचानक रुक गया और दोबारा शुरू किया गया।",
+  "synthStudio.rb_restart": "फिर से शुरू करें",
   "synthStudio.rb_new": "नया गाना",
   "synthStudio.rb_open": "गाना खोलें",
   "synthStudio.rb_save": "गाना सहेजें",

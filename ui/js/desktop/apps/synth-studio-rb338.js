@@ -84,8 +84,13 @@
 
         // ---- toolbar -------------------------------------------------------------------------
         const tbtn = (action, key, cls) => '<button type="button" class="ss-rb-tool' + (cls ? ' ' + cls : '') + '" data-action="' + action + '" disabled><span>' + E(tr(key)) + '</span></button>';
+        const barsSel = '<label class="ss-rb-bars"><span class="ss-rb-sil">' + E(tr('rb_bars')) + '</span><select data-rb-bars aria-label="' + E(tr('rb_bars')) + '">' +
+            [1, 2, 4, 8, 16].map(n => '<option value="' + n + '"' + (n === 4 ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>';
+        const patMenu = '<span class="ss-rb-patmenu" role="group" aria-label="' + E(tr('rb_pattern_menu')) + '">' +
+            tbtn('rb-cut', 'rb_cut') + tbtn('rb-copy', 'rb_copy') + tbtn('rb-paste', 'rb_paste') + tbtn('rb-duplicate', 'rb_duplicate') + tbtn('rb-undo', 'rb_undo') + '</span>';
         const toolbar = '<div class="ss-rb-toolbar" role="toolbar" aria-label="RB-338">' +
-            tbtn('rb-new', 'rb_new') + tbtn('rb-open', 'rb_open') + tbtn('rb-save', 'rb_save') + tbtn('rb-export', 'rb_export_wav') + tbtn('rb-send-arrange', 'rb_send_arrange', 'is-primary') +
+            tbtn('rb-new', 'rb_new') + tbtn('rb-open', 'rb_open') + tbtn('rb-save', 'rb_save') + tbtn('rb-export', 'rb_export_wav') + barsSel + tbtn('rb-send-arrange', 'rb_send_arrange', 'is-primary') +
+            patMenu + '<output class="ss-rb-docstate" data-rb-docstate role="status"></output>' +
             '<span class="ss-rb-toolgap"></span>' +
             '<button type="button" class="ss-rb-tool" data-action="rb-keys" aria-pressed="false" disabled><i class="ss-rb-led" aria-hidden="true"></i><span>' + E(tr('rb_keys')) + '</span></button>' +
             '<button type="button" class="ss-rb-tool" data-action="rb-vintage" data-rb="song.vintage" aria-pressed="false"><i class="ss-rb-led" aria-hidden="true"></i><span>' + E(tr('rb_vintage')) + '</span></button>' +
@@ -150,7 +155,8 @@
                 for (const n of names) {
                     const c = M.control(p + '.' + n);
                     if (!c) continue;
-                    if (c.kind === 'switch') inner += seg(c.id, c.label, R.name, c.label.split('/'), { cls: 'is-slot' });
+                    // value 0 plays the upper label (LC, MC, HC, CL, MA), non-zero the lower legend (ui_spec section 6)
+                    if (c.kind === 'switch') inner += seg(c.id, c.label, R.name, c.label.split('/').reverse(), { cls: 'is-slot' });
                     else inner += ctl(c.id, c.label.replace(/^\S+\s*/, '') || 'LEVEL', R.name, { aria: c.label, cls: c.level && is808 ? 'is-level' : '' });
                 }
                 return '<div class="ss-rb-grp" role="group" aria-label="' + E(R.name + ' ' + name) + '"><span class="ss-rb-grptitle">' + E(name) + '</span><div class="ss-rb-grpknobs">' + inner + '</div></div>';
@@ -226,11 +232,20 @@
         const outbox = [];
         const held = new Set();
         const vals = Object.create(null);
-        const rows = [0, 1, 2, 3].map(() => ({ bank: 0, inst: 1, editStep: 0, pitch: false, lastPattern: -1 }));
+        const rows = [0, 1, 2, 3].map(() => ({ bank: 0, inst: 1, editStep: 0, pitch: false, lastPattern: -1, flashUntil: 0 }));
         const actions = Object.create(null); // toolbar data-action -> handler (T9/T11 fill these)
         const behaviours = Object.create(null); // data-rb-act -> (button, event) (T8 fills these)
         const hooks = {}; // ready/loaded/saved/crash/modified/activate/leave: later tasks subscribe
         const bindings = { ranges: [], pressed: [], outs: [], meters: [], songOnly: [], steps: [] };
+
+        // T8/T9 state
+        let keyMode = 'synth', exportBars = 4;
+        let undo = null, deferred = null, clip = null, lastMerges = null;
+        let docName = '', draftDirty = false, autoTimer = 0, autoBusy = false, autoAgain = false, autoSavedAt = 0;
+        let draftRec = null, draftState = 'idle', draftPromise = null, restoreUsed = false, restoreModified = false, lastSaved = null;
+        let exporting = false, paint = null, prefsSig = '', prefsTimer = 0;
+        const draftId = 'rb' + Math.random().toString(36).slice(2, 10);
+        const handledKeys = new Set();
 
         if (!section) return { activate() {}, stop() {}, isPlaying: () => false, dispose() {} };
         section.classList.add('ss-rb338-workbench');
@@ -290,6 +305,10 @@
         function ingest() {
             if (!snap) return;
             if (snap.appliedSeq >= lastSent && outbox.length === 0) adopt(snap);
+            // a change of the recorded merges is an edit (A7)
+            if (lastMerges !== null && snap.merges !== lastMerges) markModified();
+            lastMerges = snap.merges;
+            followDeferred();
         }
 
         // ---- sending ---------------------------------------------------------------------------
@@ -325,15 +344,23 @@
             msgs.forEach(m => queue(m));
             flush();
         }
-        function markModified() { if (!modified) { modified = true; if (hooks.modified) hooks.modified(); } }
+        function markModified() {
+            const first = !modified;
+            modified = true;
+            draftDirty = true;
+            autoSavedAt = 0;
+            scheduleAutosave();
+            if (first && hooks.modified) hooks.modified();
+        }
 
         function setControl(id, value) {
             if (lock()) return;
             const c = M.control(id);
             if (!c || c.readOnly) return;
             const r = rowOf(id);
-            if (c.msg === 'patternField') mirror[M.patternOffset(r, curPattern(r)) + c.field] = value;
+            if (c.msg === 'patternField') { touchDeferred(r, curPattern(r)); mirror[M.patternOffset(r, curPattern(r)) + c.field] = value; }
             else vals[id] = value;
+            if (r >= 0 && c.msg === 'param' && c.ctrl === 1) { touchDeferred(r, value); rows[r].bank = value >> 3; focusRow = r; }
             if (c.uiOnly) return;
             const msg = M.encodeControl(id, value, r >= 0 ? curPattern(r) : 0);
             if (!msg) return;
@@ -368,12 +395,26 @@
         }
 
         // ---- host ------------------------------------------------------------------------------
+        function setLoadText(text, withRestart) {
+            const t = $('[data-rb-loadtext]');
+            if (t) t.textContent = text;
+            const bar = $('.ss-rb-loading');
+            if (!bar) return;
+            let b = $('[data-rb-restart]', bar);
+            if (withRestart && !b) {
+                b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'ss-rb-tool';
+                b.dataset.rbRestart = '';
+                b.textContent = tr('rb_restart');
+                bar.appendChild(b);
+            } else if (!withRestart && b) b.remove();
+        }
         function fail(key, detail) {
             hostState = 'error';
             section.dataset.rbState = 'error';
             section.removeAttribute('data-rb-ready');
-            const t = $('[data-rb-loadtext]');
-            if (t) t.textContent = tr(key);
+            setLoadText(tr(key), true);
             say(detail ? tr(key) + ' ' + detail : tr(key));
             if (hooks.crash) hooks.crash(key, detail);
         }
@@ -407,7 +448,10 @@
             hostState = 'ready';
             section.dataset.rbState = 'ready';
             section.setAttribute('data-rb-ready', '');
+            lastMerges = null;
+            if (restoreModified) { modified = true; restoreModified = false; }
             if (hooks.ready) hooks.ready(m);
+            lateRestore();
             ingest();
             if (active) { renderAll(); wake(); }
         }
@@ -423,20 +467,38 @@
                 setInfo(msg.info);
                 rows.forEach(r => { r.editStep = 0; r.pitch = false; });
                 modified = false;
+                undo = null;
+                deferred = null;
+                lastMerges = null;
+                draftDirty = true;
+                scheduleAutosave();
             }
             if (hooks.loaded) hooks.loaded(msg);
         }
         function onSaved(msg) { if (!disposed && hooks.saved) hooks.saved(msg); }
         function onCrash(msg) { if (!disposed) fail('rb_crashed', msg ? String(msg.message || msg) : ''); }
         // Creates the live host; the AudioContext inside must be made in the user's gesture.
-        function ensureHost() {
+        function ensureHost(song) {
             if (host || hostState === 'error') return;
             const Host = root.SynthStudioRB338Host;
             if (!Host || typeof Host.live !== 'function') { fail('rb_load_failed'); return; }
             hostState = 'loading';
             section.dataset.rbState = 'loading';
+            // a draft read in time goes in as the initial song; otherwise lateRestore loads it
+            let initial = song;
+            if (!initial && draftState === 'done' && draftRec && !restoreUsed) {
+                initial = bytesOf(draftRec.bytes);
+                restoreUsed = true;
+                restoreModified = !!draftRec.modified;
+                docName = String(draftRec.name || '');
+                lastSaved = draftRec;
+            }
             try {
-                host = Host.live({ onReady, onSnapshot, onCrash, onLoaded, onSaved });
+                host = Host.live({
+                    onReady, onSnapshot, onCrash, onLoaded, onSaved,
+                    onError: code => { if (hostState === 'loading') fail('rb_load_failed', 'E' + code); },
+                    song: initial || undefined
+                });
             } catch (err) {
                 host = null;
                 fail('rb_load_failed', err && err.message ? err.message : '');
@@ -479,7 +541,7 @@
             $$('[data-rb-act=pitch]').forEach(b => { const r = Number(b.dataset.row); addPressed(b, () => rows[r].pitch); });
             // 303 editor LEDs read the step under the edit cursor from the pattern mirror
             const stepOf = r => M.patternOffset(r, curPattern(r)) + M.stepIndex(r, rows[r].editStep, 0);
-            $$('[data-rb-act=note]').forEach(b => { const r = Number(b.dataset.row), n = Number(b.dataset.note); addPressed(b, () => mirror[stepOf(r) + 5] === 0 && mirror[stepOf(r)] === n); });
+            $$('[data-rb-act=note]').forEach(b => { const r = Number(b.dataset.row), n = Number(b.dataset.note); addPressed(b, () => mirror[stepOf(r)] === n && (!rows[r].pitch || now() < rows[r].flashUntil)); });
             const FLAG_FIELD = { slide: 1, accent: 2, up: 3, down: 4 };
             $$('[data-rb-act=flag]').forEach(b => { const r = Number(b.dataset.row), f = FLAG_FIELD[b.dataset.flag]; addPressed(b, () => mirror[stepOf(r) + f] !== 0); });
             $$('[data-rb-act=note_pause]').forEach(b => { const r = Number(b.dataset.row); addPressed(b, () => mirror[stepOf(r) + 5] === 0); });
@@ -571,6 +633,8 @@
             const rowEls = section._rows || (section._rows = $$('.ss-rb-row'));
             rowEls.forEach((el, i) => { const f = i === focusRow; if (el._f !== f) { el._f = f; el.classList.toggle('is-focus', f); } });
             renderMeters();
+            renderToolbar();
+            watchPrefs();
         }
         function frame() {
             rafId = 0;
@@ -631,6 +695,7 @@
         on(section, 'click', e => {
             const b = e.target.closest ? e.target.closest('button') : null;
             if (!b || !section.contains(b) || b.disabled) return;
+            if (b.dataset.rbRestart !== undefined) { restart(); return; }
             if (b.dataset.rbRepeat !== undefined) { if (e.detail === 0) bump(b.dataset.rbRepeat, Number(b.dataset.dir)); return; }
             if (b.dataset.rbAct) { runAct(b.dataset.rbAct, b, e); return; }
             if (b.dataset.rb !== undefined) {
@@ -644,11 +709,540 @@
                 if (id === 'transport.mode') { if (+transport.songMode !== v) press('mode'); }
                 else if (/\.pattern$/.test(id)) setControl(id, M.patternIndex(rows[rowOf(id)].bank, v));
                 else setControl(id, v);
+                const slot = /^tr808\.slot(\d)_switch$/.exec(id);
+                if (slot) rows[2].inst = Number(slot[1]);
                 return;
             }
             const action = b.dataset.action;
             if (action && actions[action]) actions[action](b, e);
         });
+
+        // ---- T8: 303 editor, drum steps, taps ---------------------------------------------------
+        const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        const stepMsg = (r, p, step, field, value) => M.encodeDevice({ type: 'step', dev: M.ROW_LAYOUT[r].dev, p, step, field, value });
+        const canEdit = () => ready() && !lock();
+        // A pattern held back by the deferred Undo goes at once when it is selected or edited (link.rs).
+        function sendDeferred() {
+            if (!deferred) return;
+            const d = deferred;
+            deferred = null;
+            emit(M.encodeDevice({ type: 'pattern', dev: M.ROW_LAYOUT[d.row].dev, p: d.pattern, bytes: d.bytes }));
+        }
+        function touchDeferred(r, p) { if (deferred && deferred.row === r && deferred.pattern === p) sendDeferred(); }
+        function followDeferred() {
+            if (!deferred || !snap) return;
+            if (snap.appliedSeq >= deferred.after && (!snap.playing || snap.playingPattern[deferred.row] !== deferred.pattern)) sendDeferred();
+        }
+        // Writes `bytes` into pattern p of row r: mirror and wire. False when it held them already.
+        function writePatternBytes(r, p, bytes) {
+            const same = M.patternBytes(mirror, r, p);
+            let equal = same.length === bytes.length;
+            for (let i = 0; equal && i < same.length; i++) if (same[i] !== bytes[i]) equal = false;
+            if (equal) return false;
+            mirror.set(bytes, M.patternOffset(r, p));
+            emit(M.encodeDevice({ type: 'pattern', dev: M.ROW_LAYOUT[r].dev, p, bytes }));
+            return true;
+        }
+        function moveEdit(r, d) { rows[r].editStep = (((rows[r].editStep + d) % 16) + 16) % 16; }
+        // One press on a 303 editor control (model.rs press_303): key0..key12, slide, accent, up, down,
+        // note_pause, step, back, pitch, clear.
+        function press303(r, name) {
+            if (!canEdit() || r < 0 || r > 1) return;
+            const R = rows[r], p = curPattern(r), edit = R.editStep;
+            touchDeferred(r, p);
+            let sent = null;
+            const flip = field => { sent = [field, M.stepField(mirror, r, p, edit, field) ? 0 : 1]; };
+            if (/^key\d+$/.test(name)) {
+                const note = clamp(Number(name.slice(3)), 0, 12);
+                sent = [0, note];
+                R.flashUntil = now() + 400;
+                if (R.pitch) moveEdit(r, 1);
+            } else if (name === 'slide') flip(1);
+            else if (name === 'accent') flip(2);
+            else if (name === 'up') flip(3);
+            else if (name === 'down') flip(4);
+            else if (name === 'note_pause') flip(5);
+            else if (name === 'step') moveEdit(r, 1);
+            else if (name === 'back') moveEdit(r, -1);
+            else if (name === 'pitch') { R.pitch = !R.pitch; if (R.pitch) R.editStep = 0; }
+            else if (name === 'clear') {
+                const bytes = M.emptiedPattern(r, M.patternBytes(mirror, r, p));
+                mirror.set(bytes, M.patternOffset(r, p));
+                emit(M.encodeDevice({ type: 'pattern', dev: M.ROW_LAYOUT[r].dev, p, bytes }));
+                markModified();
+                return;
+            }
+            if (!sent) return;
+            M.setStepField(mirror, r, p, edit, sent[0], sent[1]);
+            emit(stepMsg(r, p, edit, sent[0], sent[1]));
+            markModified();
+        }
+        function putStep808(inst, step, on) {
+            const r = 2, p = curPattern(r), v = on ? 1 : 0;
+            if (M.stepField(mirror, r, p, step, inst) === v) return false;
+            touchDeferred(r, p);
+            M.setStepField(mirror, r, p, step, inst, v);
+            emit(stepMsg(r, p, step, inst, v));
+            markModified();
+            return true;
+        }
+        function putStep909(inst, step, value) {
+            const r = 3, p = curPattern(r);
+            if (M.stepField(mirror, r, p, step, inst) === value) return false;
+            touchDeferred(r, p);
+            const msgs = [];
+            M.setStepField(mirror, r, p, step, inst, value);
+            msgs.push(stepMsg(r, p, step, inst, value));
+            const other = M.otherHat909(inst, value);
+            if (other >= 0 && M.stepField(mirror, r, p, step, other) !== 0) {
+                M.setStepField(mirror, r, p, step, other, 0);
+                msgs.push(stepMsg(r, p, step, other, 0));
+            }
+            emitMany(msgs);
+            markModified();
+            return true;
+        }
+        // Mouse down on a drum step: the new state, then a drag paints the crossed steps with it.
+        function stepDown(r, step, mods) {
+            const inst = rows[r].inst, p = curPattern(r);
+            const cur = M.stepField(mirror, r, p, step, inst);
+            if (r === 2) {
+                const on = cur === 0;
+                putStep808(inst, step, on);
+                return { row: r, inst, value: on ? 1 : 0, last: step };
+            }
+            const value = M.tr909StepValue(cur, inst === 0, !!vals['tr909.flam'], mods);
+            putStep909(inst, step, value);
+            return { row: r, inst, value, last: step };
+        }
+        function paintTo(d, step) {
+            if (step === d.last) return;
+            const dir = step > d.last ? 1 : -1;
+            for (let s = d.last + dir; ; s += dir) {
+                if (d.row === 2) putStep808(d.inst, s, d.value !== 0); else putStep909(d.inst, s, d.value);
+                if (s === step) break;
+            }
+            d.last = step;
+        }
+        const modsOf = e => ({ ctrl: !!(e && (e.ctrlKey || e.metaKey)), alt: !!(e && e.altKey) });
+        // model.rs tap_303 / tap_drum: set what plays right now.
+        function playingStep(r) {
+            if (!snap || !snap.playing) return -1;
+            const s = snap.playStep[r];
+            return s >= 0 && s < 16 ? s : -1;
+        }
+        function tap303(r, rest) {
+            if (!canEdit()) return;
+            const step = playingStep(r);
+            if (step < 0) return;
+            const p = curPattern(r), v = rest ? 1 : 0;
+            if (M.stepField(mirror, r, p, step, 5) === v) return;
+            touchDeferred(r, p);
+            M.setStepField(mirror, r, p, step, 5, v);
+            emit(stepMsg(r, p, step, 5, v));
+            markModified();
+        }
+        function tapDrum(is808, inst) {
+            if (!canEdit()) return;
+            const r = is808 ? 2 : 3, step = playingStep(r);
+            if (step < 0) return;
+            if (is808) putStep808(inst, step, true); else putStep909(inst, step, M.tapDrumValue(false, inst));
+        }
+        function selectPattern(r, p) { focusRow = r; setControl(M.ROW_LAYOUT[r].section + '.pattern', p); }
+
+        behaviours.note = b => press303(Number(b.dataset.row), 'key' + b.dataset.note);
+        behaviours.flag = b => press303(Number(b.dataset.row), b.dataset.flag);
+        behaviours.note_pause = b => press303(Number(b.dataset.row), 'note_pause');
+        behaviours.back = b => press303(Number(b.dataset.row), 'back');
+        behaviours.step_next = b => press303(Number(b.dataset.row), 'step');
+        behaviours.pitch = b => press303(Number(b.dataset.row), 'pitch');
+        behaviours.clear = b => press303(Number(b.dataset.row), 'clear');
+        // Drum steps act on pointerdown (so a drag can paint); a keyboard click (detail 0) toggles here.
+        behaviours.step = (b, e) => {
+            const r = Number(b.dataset.row);
+            if (r < 2 || (e && e.detail !== 0) || !canEdit()) return;
+            stepDown(r, Number(b.dataset.step), modsOf(e));
+        };
+
+        // drag state: paint (drum steps) or legend (instrument selection while held)
+        on(section, 'pointerdown', e => {
+            if (e.button !== 0 || !e.target.closest) return;
+            const st = e.target.closest('.ss-rb-step');
+            if (st && !st.disabled && Number(st.dataset.row) >= 2) {
+                if (canEdit()) paint = Object.assign({ kind: 'paint' }, stepDown(Number(st.dataset.row), Number(st.dataset.step), modsOf(e)));
+                return;
+            }
+            const lg = e.target.closest('[data-rb-act=inst]');
+            if (lg) { rows[Number(lg.dataset.row)].inst = Number(lg.dataset.inst); paint = { kind: 'legend', row: Number(lg.dataset.row) }; }
+        });
+        on(window, 'pointermove', e => {
+            if (!paint) return;
+            const el = typeof document.elementFromPoint === 'function' ? document.elementFromPoint(e.clientX, e.clientY) : null;
+            if (!el || !el.closest) return;
+            if (paint.kind === 'legend') {
+                const lg = el.closest('[data-rb-act=inst]');
+                if (lg && Number(lg.dataset.row) === paint.row) rows[paint.row].inst = Number(lg.dataset.inst);
+                return;
+            }
+            const st = el.closest('.ss-rb-step');
+            if (st && Number(st.dataset.row) === paint.row) paintTo(paint, Number(st.dataset.step));
+        });
+        const endPaint = () => { paint = null; };
+        on(window, 'pointerup', endPaint);
+        on(window, 'pointercancel', endPaint);
+
+        // ---- T8: keyboard (ui_spec section 10) --------------------------------------------------
+        function typing(t) {
+            if (!t || !t.tagName) return false;
+            if (t.isContentEditable) return true;
+            const n = t.tagName;
+            if (n === 'TEXTAREA' || n === 'SELECT') return true;
+            if (n === 'INPUT') return ['range', 'checkbox', 'radio', 'button', 'submit'].indexOf((t.type || 'text').toLowerCase()) < 0;
+            return false;
+        }
+        function runKey(a) {
+            switch (a.type) {
+            case 'transport': press(a.name); break;
+            case 'focus': {
+                focusRow = (focusRow + a.delta + 4) % 4;
+                const plate = $('.ss-rb-row[data-row="' + focusRow + '"] > .ss-rb-device');
+                if (plate && plate.scrollIntoView) plate.scrollIntoView({ block: 'nearest' });
+                break;
+            }
+            case 'scroll': section.scrollTop += a.delta * Math.max(80, section.clientHeight * 0.85); break;
+            case 'pattern': selectPattern(a.row, M.patternIndex(rows[a.row].bank, a.button)); break;
+            case 'note303': press303(focusRow, 'key' + a.note); break;
+            case 'step303': press303(focusRow, a.name); break;
+            case 'tap303': tap303(focusRow, a.rest); break;
+            case 'tapDrum': tapDrum(focusRow === 2, a.inst); break;
+            case 'edit': patternCommand(a.cmd); break;
+            case 'save': if (actions['rb-save']) actions['rb-save'](); break;
+            default: break;
+            }
+        }
+        on(window, 'keydown', e => {
+            if (!active || disposed || e.defaultPrevented || e.isComposing || e.altKey || !ready()) return;
+            const t = e.target;
+            if (typing(t)) return;
+            if (t && t.closest && t.closest('dialog, [role=dialog], [aria-modal=true]')) return;
+            if (t && t.type === 'range' && /^(Arrow|Page|Home|End)/.test(e.code)) return;
+            if ((e.code === 'Space' || e.code === 'Enter') && t && t.closest && t !== document.body && !section.contains(t) && t.closest('button, a, summary, [role=button]')) return;
+            const a = M.keyAction(e.code, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, mode: keyMode, focusRow, playing: transport.playing });
+            if (!a) return;
+            e.preventDefault();
+            handledKeys.add(e.code);
+            if (!e.repeat) runKey(a);
+        });
+        // a handled Space/Enter must not click the focused button on release either
+        on(window, 'keyup', e => { if (handledKeys.delete(e.code)) e.preventDefault(); });
+        function setKeyMode(mode) {
+            keyMode = mode === 'patterns' ? 'patterns' : 'synth';
+            const b = $('[data-action="rb-keys"]');
+            if (b) {
+                const label = tr(keyMode === 'patterns' ? 'rb_keys_patterns' : 'rb_keys_synth');
+                b.setAttribute('aria-pressed', keyMode === 'patterns' ? 'true' : 'false');
+                b.title = label;
+                b.setAttribute('aria-label', tr('rb_keys') + ': ' + label);
+                const sp = b.querySelector('span');
+                if (sp) sp.textContent = label;
+            }
+        }
+
+        // ---- T9: pattern menu (menu.rs copy / paste / duplicate / undo) -------------------------
+        const patternName = p => String.fromCharCode(65 + (p >> 3)) + ((p & 7) + 1);
+        const rowKind = r => (r < 2 ? 0 : r);
+        function patternCommand(cmd) {
+            if (!canEdit()) return;
+            const r = focusRow, p = curPattern(r), R = M.ROW_LAYOUT[r];
+            const status = text => say(R.name + ' ' + patternName(p) + ' \u00b7 ' + text);
+            if (cmd === 'copy' || cmd === 'cut') {
+                const bytes = M.patternBytes(mirror, r, p);
+                clip = { row: r, bytes };
+                if (cmd === 'cut' && writePatternBytes(r, p, M.emptiedPattern(r, bytes))) {
+                    markModified();
+                    undo = { what: 'cut', row: r, pattern: p, bytes, select: null };
+                }
+                status(tr(cmd === 'cut' ? 'rb_cut' : 'rb_copy'));
+            } else if (cmd === 'paste') {
+                if (!clip || rowKind(clip.row) !== rowKind(r)) return;
+                const before = M.patternBytes(mirror, r, p);
+                if (writePatternBytes(r, p, clip.bytes)) { markModified(); undo = { what: 'paste', row: r, pattern: p, bytes: before, select: null }; }
+                status(tr('rb_paste_done'));
+            } else if (cmd === 'duplicate') {
+                const pl = M.ROW_PATTERN[r];
+                const to = M.nextEmptyPattern(r, mirror.subarray(pl.base, pl.base + 32 * pl.plen), p);
+                if (to === null) { say(R.name + ' \u00b7 ' + tr('rb_no_empty')); return; }
+                const bytes = M.patternBytes(mirror, r, p), before = M.patternBytes(mirror, r, to);
+                writePatternBytes(r, to, bytes);
+                markModified();
+                selectPattern(r, to);
+                undo = { what: 'duplicate', row: r, pattern: to, bytes: before, select: p };
+                say(R.name + ' ' + patternName(p) + ' \u2192 ' + patternName(to) + ' \u00b7 ' + tr('rb_dup_done'));
+            } else if (cmd === 'undo') {
+                if (!undo) return;
+                const u = undo;
+                undo = null;
+                if (u.select !== null) selectPattern(u.row, u.select);
+                if (curPattern(u.row) === u.pattern) {
+                    if (writePatternBytes(u.row, u.pattern, u.bytes)) markModified();
+                } else {
+                    // the engine may still play it: it goes once the engine stops playing it (link.rs follow)
+                    sendDeferred();
+                    flush();
+                    mirror.set(u.bytes, M.patternOffset(u.row, u.pattern));
+                    deferred = { row: u.row, pattern: u.pattern, bytes: u.bytes, after: lastSent };
+                    markModified();
+                    followDeferred();
+                }
+                say(M.ROW_LAYOUT[u.row].name + ' ' + patternName(u.pattern) + ' \u00b7 ' + tr('rb_undo'));
+            }
+        }
+
+        // ---- T9: song document ------------------------------------------------------------------
+        const NAMESPACE = 'synth-studio';
+        const draftKey = () => (typeof location !== 'undefined' ? location.origin : '') + ':synth-studio:rb338:current';
+        const draftApi = () => (root.OfficeSession && typeof root.OfficeSession.draft === 'function' ? root.OfficeSession : null);
+        const fileBase = () => {
+            const raw = (info && info.title ? String(info.title) : '') || docName || 'rb338-song';
+            const clean = raw.replace(/[\\/:*?"<>|\x00-\x1f]+/g, '-').replace(/^[\s.-]+|[\s.]+$/g, '').slice(0, 60);
+            return clean || 'rb338-song';
+        };
+        function download(blob, name) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }
+        async function saveBytes() {
+            if (!ready() || typeof host.save !== 'function') throw new Error('not ready');
+            return bytesOf(await host.save());
+        }
+        async function confirmReplace(titleKey) {
+            if (!modified) return true;
+            const text = tr('rb_replace_confirm');
+            const r = typeof o.confirm === 'function' ? o.confirm(tr(titleKey), text) : undefined;
+            if (r === undefined) return typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(text) : true;
+            return !!(await r);
+        }
+        function dropPending() { outbox.length = 0; flushToken++; held.clear(); }
+        const LOAD_ERR = { 1: 'rb_err_not_song', 2: 'rb_err_convert', 3: 'rb_err_memory' };
+        async function openBytes(bytes, name) {
+            if (!ready()) return false;
+            dropPending();
+            let res;
+            try { res = await host.load(bytes); } catch (_) { say(tr('rb_err_memory')); return false; }
+            if (!res || res.ok === false) { say(tr(LOAD_ERR[res && res.code] || 'rb_err_not_song')); return false; }
+            docName = String(name || '').replace(/\.rbs$/i, '');
+            say('');
+            return true;
+        }
+        async function openFile(file) {
+            if (!file || !ready()) return;
+            if (file.size > 32 * 1024 * 1024) { say(tr('rb_err_not_song')); return; }
+            let bytes;
+            try { bytes = new Uint8Array(await file.arrayBuffer()); } catch (_) { say(tr('rb_err_not_song')); return; }
+            if (!(await confirmReplace('rb_open'))) return;
+            await openBytes(bytes, file.name);
+        }
+        let fileInput = null;
+        function pickFile() {
+            if (!fileInput) {
+                fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.rbs,.RBS';
+                fileInput.hidden = true;
+                fileInput.addEventListener('change', () => { const f = fileInput.files && fileInput.files[0]; fileInput.value = ''; if (f) openFile(f); }, { signal: sig });
+                section.appendChild(fileInput);
+            }
+            fileInput.click();
+        }
+        async function newSong() {
+            if (!ready()) return;
+            if (!(await confirmReplace('rb_new'))) return;
+            dropPending();
+            try { await host.newSong(); docName = ''; say(''); } catch (_) { say(tr('rb_err_memory')); }
+        }
+        async function saveSong() {
+            if (!ready()) return;
+            let bytes;
+            try { bytes = await saveBytes(); } catch (_) { say(tr('rb_err_export')); return; }
+            download(new Blob([bytes], { type: 'application/octet-stream' }), fileBase() + '.rbs');
+            modified = false;
+            draftDirty = true;
+            scheduleAutosave();
+        }
+        // drag and drop a .rbs onto the rack
+        const hasFiles = e => !!(e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') >= 0);
+        on(section, 'dragover', e => { if (!hasFiles(e)) return; e.preventDefault(); section.classList.add('is-drop'); });
+        on(section, 'dragleave', e => { if (!e.relatedTarget || !section.contains(e.relatedTarget)) section.classList.remove('is-drop'); });
+        on(section, 'drop', e => {
+            if (!hasFiles(e)) return;
+            e.preventDefault();
+            section.classList.remove('is-drop');
+            const f = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) openFile(f);
+        });
+
+        // WAV export: the live engine's song as saved, rendered in the Worker (no pre-roll).
+        async function exportWav() {
+            const Host = root.SynthStudioRB338Host;
+            if (!ready() || exporting || !Host || typeof Host.renderer !== 'function') return;
+            exporting = true;
+            section.dataset.rbBusy = 'export';
+            const btn = $('[data-action="rb-export"]');
+            if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+            say(tr('rb_export_wav') + '\u2026');
+            let rend = null;
+            try {
+                const song = await saveBytes();
+                rend = Host.renderer();
+                const out = await rend.render({ song: song.slice().buffer, mode: transport.songMode ? 'song' : 'pattern', bars: exportBars, preroll: false });
+                download(new Blob([out.wav], { type: 'audio/wav' }), fileBase() + '.wav');
+                say('');
+            } catch (_) {
+                say(tr('rb_err_export'));
+            } finally {
+                if (rend) rend.close();
+                exporting = false;
+                delete section.dataset.rbBusy;
+                if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+            }
+        }
+
+        // ---- T9: autosave, restore, crash recovery ----------------------------------------------
+        function scheduleAutosave() {
+            if (autoTimer || disposed) return;
+            autoTimer = setTimeout(() => { autoTimer = 0; autosave(); }, 1500);
+        }
+        // Writes the current song to the draft store; `h` is the host to ask (it may be closing).
+        async function autosave(h) {
+            if (autoTimer) { clearTimeout(autoTimer); autoTimer = 0; }
+            const target = h || host;
+            const api = draftApi();
+            if (!draftDirty || !api || !target || (!h && !ready())) return;
+            if (autoBusy) { autoAgain = true; return; }
+            autoBusy = true;
+            draftDirty = false;
+            try {
+                const bytes = bytesOf(await target.save());
+                const rec = { id: draftId, bytes, name: fileBase() === 'rb338-song' ? docName : fileBase(), modified, updated: Date.now() };
+                await api.draft('put', draftKey(), rec, NAMESPACE);
+                lastSaved = rec;
+                autoSavedAt = Date.now();
+            } catch (_) {
+                draftDirty = true;
+            } finally {
+                autoBusy = false;
+                if (autoAgain) { autoAgain = false; if (draftDirty && !disposed) scheduleAutosave(); }
+            }
+        }
+        function readDraft() {
+            const api = draftApi();
+            if (!api || typeof indexedDB === 'undefined') { draftState = 'done'; return; }
+            draftState = 'reading';
+            let p;
+            try { p = Promise.resolve(api.draft('get', draftKey(), undefined, NAMESPACE)); } catch (_) { p = Promise.resolve(null); }
+            draftPromise = p.then(rec => { draftRec = rec && rec.bytes && rec.bytes.byteLength ? rec : null; }, () => {}).then(() => { draftState = 'done'; if (host) lateRestore(); });
+        }
+        // The draft arrived after the host was created: load it once the engine is ready and nothing was edited.
+        function lateRestore() {
+            if (restoreUsed || draftState !== 'done' || !draftRec || !ready()) return;
+            if (modified || draftDirty) return;
+            restoreUsed = true;
+            const rec = draftRec;
+            const wasModified = !!rec.modified;
+            openBytes(bytesOf(rec.bytes), rec.name || '').then(ok => {
+                if (!ok) return;
+                modified = wasModified;
+                draftDirty = false;
+                if (autoTimer) { clearTimeout(autoTimer); autoTimer = 0; }
+                lastSaved = rec;
+            });
+        }
+        // Crash recovery: a new live host (its AudioContext is made in this click) from the last autosave.
+        function restart() {
+            if (disposed) return;
+            const old = host;
+            host = null;
+            if (old) { try { old.close(); } catch (_) { /* closed */ } }
+            hostState = 'idle';
+            outbox.length = 0;
+            flushToken++;
+            seq = 0;
+            lastSent = 0;
+            snap = null;
+            lastMerges = null;
+            undo = null;
+            deferred = null;
+            transport = M.createTransport();
+            setLoadText(tr('rb_loading'), false);
+            const rec = lastSaved;
+            restoreModified = !!(rec && rec.modified);
+            if (rec) docName = String(rec.name || docName || '');
+            ensureHost(rec ? bytesOf(rec.bytes) : undefined);
+        }
+
+        // ---- T9: UI prefs -----------------------------------------------------------------------
+        const PREFS_KEY = 'aurago:synth-studio:rb338:1';
+        function loadPrefs() {
+            try {
+                const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(PREFS_KEY) : null;
+                const p = raw ? JSON.parse(raw) : null;
+                if (!p || typeof p !== 'object') return;
+                if (p.keys === 'patterns' || p.keys === 'synth') keyMode = p.keys;
+                if (Number.isInteger(p.focus)) focusRow = clamp(p.focus, 0, 3);
+                if (Array.isArray(p.banks)) p.banks.slice(0, 4).forEach((v, i) => { if (Number.isInteger(v)) rows[i].bank = clamp(v, 0, 3); });
+                if (Array.isArray(p.insts)) p.insts.slice(0, 4).forEach((v, i) => { if (Number.isInteger(v)) rows[i].inst = clamp(v, 0, 11); });
+                if ([1, 2, 4, 8, 16].indexOf(p.bars) >= 0) exportBars = p.bars;
+            } catch (_) { /* unreadable prefs: defaults */ }
+        }
+        function savePrefs() {
+            prefsTimer = 0;
+            try {
+                if (typeof localStorage === 'undefined') return;
+                localStorage.setItem(PREFS_KEY, JSON.stringify({ keys: keyMode, focus: focusRow, banks: rows.map(r => r.bank), insts: rows.map(r => r.inst), bars: exportBars }));
+            } catch (_) { /* storage blocked or full */ }
+        }
+        function watchPrefs() {
+            const sigNow = keyMode + focusRow + rows.map(r => r.bank + ':' + r.inst).join(',') + exportBars;
+            if (sigNow === prefsSig) return;
+            prefsSig = sigNow;
+            if (!prefsTimer) prefsTimer = setTimeout(savePrefs, 400);
+        }
+        // Toolbar state: pattern menu availability, document status line.
+        function renderToolbar() {
+            const paste = $('[data-action="rb-paste"]'), und = $('[data-action="rb-undo"]');
+            if (paste) { const d = !clip || rowKind(clip.row) !== rowKind(focusRow); if (paste._d !== d) { paste._d = d; paste.disabled = d; } }
+            if (und) { const d = !undo; if (und._d !== d) { und._d = d; und.disabled = d; } }
+            const st = $('[data-rb-docstate]');
+            if (st) {
+                const name = (info && info.title ? String(info.title) : '') || docName;
+                setText(st, (name ? name + ' \u00b7 ' : '') + (modified ? tr('rb_unsaved') : autoSavedAt ? tr('rb_autosaved') : ''));
+            }
+            const bars = $('[data-rb-bars]');
+            if (bars && bars._v !== exportBars) { bars._v = exportBars; bars.value = String(exportBars); }
+        }
+        on(section, 'change', e => {
+            const t = e.target;
+            if (t && t.matches && t.matches('[data-rb-bars]')) { exportBars = Number(t.value) || 4; }
+        });
+
+        // toolbar actions
+        setAction('rb-new', newSong);
+        setAction('rb-open', pickFile);
+        setAction('rb-save', saveSong);
+        setAction('rb-export', exportWav);
+        setAction('rb-keys', () => setKeyMode(keyMode === 'patterns' ? 'synth' : 'patterns'));
+        ['cut', 'copy', 'paste', 'duplicate', 'undo'].forEach(cmd => setAction('rb-' + cmd, () => patternCommand(cmd)));
+        loadPrefs();
+        setKeyMode(keyMode);
+        on(window, 'pagehide', () => { autosave(); });
+        readDraft();
 
         // ---- api -------------------------------------------------------------------------------
         function setAction(name, fn) {
@@ -667,7 +1261,7 @@
                 startLoop();
             } else {
                 stopLoop();
-                if (was && hooks.leave) hooks.leave();
+                if (was) { autosave(); if (hooks.leave) hooks.leave(); }
                 if (host && !transport.playing && typeof host.suspend === 'function') { try { host.suspend(); } catch (_) { /* closing */ } }
             }
             if (hooks.activate) hooks.activate(active);
@@ -675,19 +1269,27 @@
         function stop() { if (ready() && transport.playing) press('stop'); }
         function dispose() {
             if (disposed) return;
+            const h = host;
+            const last = h && ready() && draftDirty && draftApi() ? autosave(h) : null;
             disposed = true;
             if (hooks.leave) hooks.leave();
             stopLoop();
             stopRepeat();
+            if (autoTimer) { clearTimeout(autoTimer); autoTimer = 0; }
+            if (prefsTimer) { clearTimeout(prefsTimer); savePrefs(); }
             ac.abort();
-            if (host && typeof host.close === 'function') { try { host.close(); } catch (_) { /* already closed */ } }
             host = null;
+            const closeHost = () => { if (h && typeof h.close === 'function') { try { h.close(); } catch (_) { /* already closed */ } } };
+            // the engine must stay up until its last autosave answered
+            if (last) { let done = false; const once = () => { if (!done) { done = true; closeHost(); } }; last.then(once, once); setTimeout(once, 1500); } else closeHost();
         }
         const api = { activate, stop, isPlaying: () => !!(transport.playing || (snap && snap.playing)), dispose };
         // Internals for the later tasks (T8 behaviours/keys, T9 documents, T11 arrange): same file, no public contract.
         api.internals = { M, tr, E, section, rows, vals, mirror: () => mirror, setMirror, getVal, setControl, press, bump, toggle, emit, emitMany, flush, curPattern,
             transport: () => transport, snapshot: () => snap, host: () => host, state: () => hostState, info: () => info, setInfo, behaviours, actions, setAction, hooks,
-            focusRow: () => focusRow, setFocusRow: r => { focusRow = r; }, markModified, isModified: () => modified, clearModified: () => { modified = false; }, renderAll, say, fmt, lock };
+            focusRow: () => focusRow, setFocusRow: r => { focusRow = r; }, markModified, isModified: () => modified, clearModified: () => { modified = false; }, renderAll, say, fmt, lock,
+            press303, putStep808, putStep909, stepDown, paintTo, tap303, tapDrum, patternCommand, selectPattern, keyMode: () => keyMode, setKeyMode, undo: () => undo, clip: () => clip,
+            openBytes, newSong, saveSong, saveBytes, exportWav, autosave, restart, docName: () => docName, fileBase };
         return api;
     }
 

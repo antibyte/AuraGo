@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "RB-338-motoren kunne ikke indlæses.",
   "synthStudio.rb_audio_blocked": "Browseren blokerer lyden. Klik på panelet for at aktivere lyd.",
   "synthStudio.rb_crashed": "RB-338-motoren stoppede uventet og blev genstartet.",
+  "synthStudio.rb_restart": "Genstart",
   "synthStudio.rb_new": "Ny sang",
   "synthStudio.rb_open": "Åbn sang",
   "synthStudio.rb_save": "Gem sang",

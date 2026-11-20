@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "Le moteur RB-338 n'a pas pu être chargé.",
   "synthStudio.rb_audio_blocked": "Le navigateur bloque l'audio. Cliquez sur le panneau pour activer le son.",
   "synthStudio.rb_crashed": "Le moteur RB-338 s'est arrêté de façon inattendue et a été redémarré.",
+  "synthStudio.rb_restart": "Redémarrer",
   "synthStudio.rb_new": "Nouveau morceau",
   "synthStudio.rb_open": "Ouvrir un morceau",
   "synthStudio.rb_save": "Enregistrer le morceau",

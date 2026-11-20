@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "RB-338-motorn kunde inte läsas in.",
   "synthStudio.rb_audio_blocked": "Webbläsaren blockerar ljudet. Klicka på panelen för att aktivera ljud.",
   "synthStudio.rb_crashed": "RB-338-motorn stoppades oväntat och startades om.",
+  "synthStudio.rb_restart": "Starta om",
   "synthStudio.rb_new": "Ny låt",
   "synthStudio.rb_open": "Öppna låt",
   "synthStudio.rb_save": "Spara låt",

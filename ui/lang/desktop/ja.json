@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "RB-338 エンジンを読み込めませんでした。",
   "synthStudio.rb_audio_blocked": "ブラウザが音声をブロックしています。パネルをクリックすると音が出ます。",
   "synthStudio.rb_crashed": "RB-338 エンジンが予期せず停止したため、再起動しました。",
+  "synthStudio.rb_restart": "再起動",
   "synthStudio.rb_new": "新規ソング",
   "synthStudio.rb_open": "ソングを開く",
   "synthStudio.rb_save": "ソングを保存",

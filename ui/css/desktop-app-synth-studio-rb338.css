@@ -251,3 +251,18 @@
     .ss-rb338-workbench { padding: 12px; }
     .ss-rb-loading { margin: -12px -12px 12px; padding: 0 12px; }
 }
+
+/* ---- document, pattern menu, export (T8/T9) ---- */
+.ss-rb-patmenu { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--ss-cut); }
+.ss-rb-bars { display: inline-flex; align-items: center; gap: 6px; }
+.ss-rb-bars select {
+    min-height: 32px; padding: 0 8px; color: var(--ss-ink); font: 600 12px/1 var(--ss-mono-font); background: var(--ss-screen); border: 1px solid #08090a; border-radius: var(--ss-key-radius);
+}
+.ss-rb338-workbench[data-rb-mode=song] .ss-rb-bars { display: none; }
+.ss-rb-docstate { margin-left: 12px; font: 600 11.5px/1.2 var(--ss-label-font); letter-spacing: .07em; color: var(--ss-ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch; }
+.ss-rb338-workbench[data-rb-busy] .ss-rb-docstate { color: var(--ss-amber); }
+.ss-rb338-workbench.is-drop .ss-rb-rack { outline: 2px dashed var(--ss-phosphor); outline-offset: 6px; }
+.ss-rb-loading .ss-rb-tool { margin-left: auto; min-height: 26px; padding: 0 12px; }
+/* drum steps paint under a dragging pointer: no scroll or text selection */
+.ss-rb-steps.is-drum { touch-action: none; user-select: none; -webkit-user-select: none; }
+.ss-rb-legend { touch-action: none; user-select: none; -webkit-user-select: none; }

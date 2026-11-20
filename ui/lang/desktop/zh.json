@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "无法加载 RB-338 引擎。",
   "synthStudio.rb_audio_blocked": "浏览器已阻止音频。点击面板即可开启声音。",
   "synthStudio.rb_crashed": "RB-338 引擎意外停止,已重新启动。",
+  "synthStudio.rb_restart": "重新启动",
   "synthStudio.rb_new": "新建歌曲",
   "synthStudio.rb_open": "打开歌曲",
   "synthStudio.rb_save": "保存歌曲",

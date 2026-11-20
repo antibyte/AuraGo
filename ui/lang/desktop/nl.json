@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "De RB-338-engine kon niet worden geladen.",
   "synthStudio.rb_audio_blocked": "De browser blokkeert audio. Klik op het paneel om het geluid in te schakelen.",
   "synthStudio.rb_crashed": "De RB-338-engine is onverwacht gestopt en opnieuw gestart.",
+  "synthStudio.rb_restart": "Opnieuw starten",
   "synthStudio.rb_new": "Nieuw nummer",
   "synthStudio.rb_open": "Nummer openen",
   "synthStudio.rb_save": "Nummer opslaan",

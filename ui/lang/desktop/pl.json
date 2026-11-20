@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "Nie udało się wczytać silnika RB-338.",
   "synthStudio.rb_audio_blocked": "Przeglądarka blokuje dźwięk. Kliknij panel, aby włączyć dźwięk.",
   "synthStudio.rb_crashed": "Silnik RB-338 nieoczekiwanie się zatrzymał i został uruchomiony ponownie.",
+  "synthStudio.rb_restart": "Uruchom ponownie",
   "synthStudio.rb_new": "Nowy utwór",
   "synthStudio.rb_open": "Otwórz utwór",
   "synthStudio.rb_save": "Zapisz utwór",

@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "Die RB-338-Engine konnte nicht geladen werden.",
   "synthStudio.rb_audio_blocked": "Der Browser blockiert die Audioausgabe. Klicke auf das Panel, um den Ton zu aktivieren.",
   "synthStudio.rb_crashed": "Die RB-338-Engine ist unerwartet angehalten worden und wurde neu gestartet.",
+  "synthStudio.rb_restart": "Neu starten",
   "synthStudio.rb_new": "Neuer Song",
   "synthStudio.rb_open": "Song öffnen",
   "synthStudio.rb_save": "Song speichern",

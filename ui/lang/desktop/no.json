@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "RB-338-motoren kunne ikke lastes.",
   "synthStudio.rb_audio_blocked": "Nettleseren blokkerer lyden. Klikk på panelet for å slå på lyd.",
   "synthStudio.rb_crashed": "RB-338-motoren stoppet uventet og ble startet på nytt.",
+  "synthStudio.rb_restart": "Start på nytt",
   "synthStudio.rb_new": "Ny låt",
   "synthStudio.rb_open": "Åpne låt",
   "synthStudio.rb_save": "Lagre låt",

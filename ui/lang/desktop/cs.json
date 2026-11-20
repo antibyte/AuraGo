@@ -197,6 +197,7 @@
   "synthStudio.rb_load_failed": "Nepodařilo se načíst jádro RB-338.",
   "synthStudio.rb_audio_blocked": "Prohlížeč blokuje zvuk. Kliknutím na panel zvuk zapnete.",
   "synthStudio.rb_crashed": "Jádro RB-338 se neočekávaně zastavilo a bylo znovu spuštěno.",
+  "synthStudio.rb_restart": "Restartovat",
   "synthStudio.rb_new": "Nová skladba",
   "synthStudio.rb_open": "Otevřít skladbu",
   "synthStudio.rb_save": "Uložit skladbu",
