@@ -1,0 +1,3 @@
+/target/
+# The pinned build (cargo --locked) needs the lock file; the root .gitignore ignores *.lock.
+!Cargo.lock

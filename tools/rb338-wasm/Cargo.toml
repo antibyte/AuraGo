@@ -1,0 +1,28 @@
+[package]
+name = "aurago-rb338"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+publish = false
+description = "OpenRB-338 ReBirth engine as a WebAssembly module with a raw C ABI (AuraGo Synth Studio)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+orb-engine = { git = "https://github.com/pingw33n/OpenRB-338", rev = "0bebfcdfd544b3cdea14536f19fb28a8de314df5" }
+rbs = { git = "https://github.com/pingw33n/OpenRB-338", rev = "0bebfcdfd544b3cdea14536f19fb28a8de314df5" }
+rbm = { git = "https://github.com/pingw33n/OpenRB-338", rev = "0bebfcdfd544b3cdea14536f19fb28a8de314df5" }
+
+[dev-dependencies]
+sha2 = "0.10"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.test]
+opt-level = 3
