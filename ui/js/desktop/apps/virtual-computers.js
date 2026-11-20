@@ -10,7 +10,7 @@
         destroy: { title: 'desktop.virtual_computers_confirm_destroy', message: 'desktop.virtual_computers_confirm_destroy_desc', confirmAction: 'confirm-destroy', label: 'desktop.virtual_computers_destroy' },
         'delete-volume': { title: 'desktop.virtual_computers_confirm_delete_volume', message: 'desktop.virtual_computers_confirm_delete_volume_desc', confirmAction: 'confirm-delete-volume', label: 'desktop.virtual_computers_volume_delete' },
         'close-workspace': { title: 'desktop.virtual_computers_confirm_close_workspace', message: 'desktop.virtual_computers_confirm_close_workspace_desc', confirmAction: 'confirm-close-workspace', label: 'desktop.virtual_computers_close_workspace' },
-        'release-workspace': { title: 'desktop.virtual_computers_confirm_release_workspace', message: 'desktop.virtual_computers_confirm_release_workspace_desc', confirmAction: 'confirm-release-workspace', label: 'desktop.virtual_computers_release_workspace' },
+        'release-workspace': { title: 'desktop.virtual_computers_confirm_release_workspace', message: 'desktop.virtual_computers_confirm_release_workspace_desc', confirmAction: 'confirm-release-workspace', label: 'desktop.virtual_computers_release_workspace', danger: false },
         'cancel-workspace-job': { title: 'desktop.virtual_computers_confirm_cancel_job', message: 'desktop.virtual_computers_confirm_cancel_job_desc', confirmAction: 'confirm-cancel-workspace-job', label: 'desktop.virtual_computers_task_cancel' },
         'approve-workspace-grant': { title: 'desktop.virtual_computers_confirm_approve_grant', message: 'desktop.virtual_computers_confirm_approve_grant_desc', confirmAction: 'confirm-approve-workspace-grant', label: 'desktop.virtual_computers_approve_grant', danger: false },
         'revoke-workspace-grant': { title: 'desktop.virtual_computers_confirm_revoke_grant', message: 'desktop.virtual_computers_confirm_revoke_grant_desc', confirmAction: 'confirm-revoke-workspace-grant', label: 'desktop.virtual_computers_revoke_grant' },
@@ -269,7 +269,8 @@
 
     // A selector that finds the same control again after its container was re-rendered.
     function stableSelector(element) {
-        if (!element || !element.dataset || !element.dataset.action) return '';
+        if (!element || !element.dataset) return '';
+        if (!element.dataset.action) return element.dataset.role ? `[data-role="${escapeAttr(element.dataset.role)}"]` : '';
         let selector = `[data-action="${escapeAttr(element.dataset.action)}"]`;
         ['id', 'section', 'jobId', 'grantId', 'ttl', 'machineId', 'workspaceId'].forEach(key => {
             if (element.dataset[key]) selector += `[data-${key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}="${escapeAttr(element.dataset[key])}"]`;
@@ -293,6 +294,19 @@
         let target = null;
         try { target = state.host.querySelector(selector); } catch (_) { target = null; }
         if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
+    }
+
+    // Everything the workspace cards render, so an unchanged poll result does not rebuild them.
+    function workspacePaneKey(state) {
+        const caps = capabilities(state);
+        return JSON.stringify([
+            state.workspaces, state.workspaceSummaries,
+            state.machines.map(item => item && [item.id, item.label, item.name, item.status, item.template, item.display, item.workspace_id]),
+            (state.volumes || []).map(item => item && [item.id, item.name]),
+            state.vncWorkspaceId, state.vncMachineId, state.nativeDesktopStatus || null,
+            state.resourceErrors.workspaces, state.resourceLoading.workspaces && !state.workspaces.length,
+            !!caps.native_apps
+        ]);
     }
 
     function draw(state) {
@@ -326,10 +340,23 @@
             workspaceLiveMount = content.querySelector('[data-role="workspace-vnc-mount"]');
         }
         if (liveMount) {
+            delete content.dataset.paneKey;
             const list = content.querySelector('[data-role="machine-list"]');
             if (list) list.innerHTML = machineList(state);
         } else if (state.activeSection === 'workspaces') {
+            // Skip the rebuild while nothing the cards show has changed: it keeps the open picker,
+            // focus and caret stable across the 3-second background refresh.
+            const paneKey = workspacePaneKey(state);
+            if (content.dataset.section === 'workspaces' && content.dataset.paneKey === paneKey) {
+                restoreFocus(state, focusSelector);
+                drawModal(state, modal);
+                applyVNCLayoutState(state);
+                return;
+            }
+            content.dataset.paneKey = paneKey;
             content.innerHTML = workspacePane(state);
+            const agentWorkspace = content.querySelector('[data-role="agent-workspace"]');
+            if (agentWorkspace && Array.from(agentWorkspace.options).some(option => option.value === state.agentWorkspaceId)) agentWorkspace.value = state.agentWorkspaceId;
             const nextAgentRequest = content.querySelector('[data-role="agent-request"]');
             if (agentRequest && nextAgentRequest) {
                 nextAgentRequest.replaceWith(agentRequest);
@@ -341,12 +368,14 @@
                 else disconnectVNC(state);
             }
         } else if (state.activeSection === 'volumes') {
+            delete content.dataset.paneKey;
             content.innerHTML = volumePane(state);
         } else {
+            delete content.dataset.paneKey;
             content.innerHTML = machinesPane(state);
         }
         content.dataset.section = state.activeSection;
-        content.setAttribute('aria-labelledby', `vc-tab-${state.activeSection}`);
+        content.setAttribute('aria-labelledby', `${state.panelId}-tab-${state.activeSection}`);
         scrolls.forEach(([selector, top]) => {
             const node = top ? content.querySelector(selector) : null;
             if (node) node.scrollTop = top;
@@ -390,9 +419,14 @@
         const progress = host.querySelector('[data-role="modal-progress"]');
         if (progress) progress.hidden = !modal.pending;
         host.querySelectorAll('[data-role="modal-submit"]').forEach(button => {
-            button.disabled = !!modal.pending;
-            if (modal.pending) button.setAttribute('aria-busy', 'true');
-            else button.removeAttribute('aria-busy');
+            // aria-disabled (not disabled) keeps the focused submit focusable, so Escape and the Tab trap keep working.
+            if (modal.pending) {
+                button.setAttribute('aria-disabled', 'true');
+                button.setAttribute('aria-busy', 'true');
+            } else {
+                button.removeAttribute('aria-disabled');
+                button.removeAttribute('aria-busy');
+            }
         });
     }
 
@@ -441,7 +475,7 @@
         return `<div class="vc-tab-track" role="tablist">${tabs.map(tab => {
             const active = state.activeSection === tab.id;
             const count = tab.id === 'machines' ? state.machines.length : tab.id === 'workspaces' ? state.workspaces.length : state.volumes.length;
-            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-controls="${esc(state.panelId)}" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}</span><span class="vc-tab-count">${count}</span></button>`;
+            return `<button type="button" id="${esc(state.panelId)}-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-controls="${esc(state.panelId)}" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}</span><span class="vc-tab-count">${count}</span></button>`;
         }).join('')}</div>`;
     }
 
@@ -763,14 +797,14 @@
     function modalShell(state, title, body, footer) {
         const c = state.context;
         const modal = state.modal;
-        return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="vc-modal-title"><header><h3 id="vc-modal-title">${esc(title)}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header><div class="vc-modal-error" role="alert" data-role="modal-error" ${modal.error ? '' : 'hidden'}>${esc(modal.error || '')}</div>${body}<p class="vc-form-note vc-modal-progress" role="status" data-role="modal-progress" ${modal.pending ? '' : 'hidden'}>${esc(tx(c, modal.progressKey || 'desktop.virtual_computers_working'))}</p><div class="vc-actions">${footer}</div></div></div>`;
+        return `<div class="vc-modal-backdrop" data-role="modal"><div class="vc-modal" role="dialog" aria-modal="true" aria-labelledby="${esc(state.panelId)}-modal-title"><header><h3 id="${esc(state.panelId)}-modal-title">${esc(title)}</h3><button type="button" class="vc-icon-btn" data-action="close-modal" aria-label="${esc(tx(c, 'desktop.close'))}">${icon(state, 'x', '×')}</button></header><div class="vc-modal-error" role="alert" data-role="modal-error" ${modal.error ? '' : 'hidden'}>${esc(modal.error || '')}</div>${body}<p class="vc-form-note vc-modal-progress" role="status" data-role="modal-progress" ${modal.pending ? '' : 'hidden'}>${esc(tx(c, modal.progressKey || 'desktop.virtual_computers_working'))}</p><div class="vc-actions">${footer}</div></div></div>`;
     }
 
     function modalButtons(state, submitAction, submitLabelKey, options) {
         const c = state.context;
         const opts = options || {};
         const pending = state.modal && state.modal.pending;
-        return `<button type="button" class="vc-btn" data-action="close-modal" ${opts.cancelFocus ? 'data-autofocus' : ''}>${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn ${opts.danger ? 'danger' : 'vc-primary'}" data-action="${esc(submitAction)}" data-role="modal-submit"${opts.confirmAction ? ` data-confirm-action="${esc(opts.confirmAction)}"` : ''} ${pending ? 'disabled aria-busy="true"' : ''}>${esc(tx(c, submitLabelKey))}</button>`;
+        return `<button type="button" class="vc-btn" data-action="close-modal" ${opts.cancelFocus ? 'data-autofocus' : ''}>${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn ${opts.danger ? 'danger' : 'vc-primary'}" data-action="${esc(submitAction)}" data-role="modal-submit"${opts.confirmAction ? ` data-confirm-action="${esc(opts.confirmAction)}"` : ''} ${pending ? 'aria-disabled="true" aria-busy="true"' : ''}>${esc(tx(c, submitLabelKey))}</button>`;
     }
 
     function launchModal(state, modal) {
@@ -882,7 +916,7 @@
     function confirmModal(state, modal) {
         const c = state.context;
         const body = `<p>${esc(tx(c, modal.message))}</p><strong class="vc-confirm-target">${esc(modal.target || '')}</strong>`;
-        const footer = `<button type="button" class="vc-btn" data-action="close-modal" data-autofocus>${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn ${modal.danger ? 'danger' : 'vc-primary'}" data-action="modal-confirm" data-role="modal-submit" data-confirm-action="${esc(modal.confirmAction)}" ${modal.pending ? 'disabled aria-busy="true"' : ''}>${esc(tx(c, modal.confirmLabel))}</button>`;
+        const footer = `<button type="button" class="vc-btn" data-action="close-modal" data-autofocus>${esc(tx(c, 'desktop.cancel'))}</button><button type="button" class="vc-btn ${modal.danger ? 'danger' : 'vc-primary'}" data-action="modal-confirm" data-role="modal-submit" data-confirm-action="${esc(modal.confirmAction)}" ${modal.pending ? 'aria-disabled="true" aria-busy="true"' : ''}>${esc(tx(c, modal.confirmLabel))}</button>`;
         return modalShell(state, tx(c, modal.title), body, footer);
     }
 
@@ -944,6 +978,7 @@
             if (!target || !state.host.contains(target)) return;
             const action = target.dataset.action;
             const id = target.dataset.id || '';
+            if (target.dataset.role === 'modal-submit' && state.modal && state.modal.pending) return;
             if (action === 'refresh') refresh(state);
             else if (action === 'config') window.location.href = '/config#virtual_computers';
             else if (action === 'section') switchSection(state, target.dataset.section || 'machines');
@@ -1020,7 +1055,7 @@
                     requestCloseModal(state);
                 } else if (event.key === 'Enter' && state.modal.type !== 'confirm' && event.target && event.target.tagName === 'INPUT' && event.target.type !== 'file' && event.target.type !== 'checkbox') {
                     const submit = state.host.querySelector('[data-role="modal-host"] [data-role="modal-submit"]');
-                    if (submit && !submit.disabled) {
+                    if (submit && !submit.disabled && submit.getAttribute('aria-disabled') !== 'true') {
                         event.preventDefault();
                         submit.click();
                     }
@@ -1162,6 +1197,10 @@
                 state.agentWorkspaceId = workspace.id;
                 const select = state.host.querySelector('[data-role="agent-workspace"]');
                 if (select && Array.from(select.options).some(option => option.value === workspace.id)) select.value = workspace.id;
+                // Rebuild now so the stale "unavailable" entry of the handed-over computer disappears.
+                const pane = state.host.querySelector('[data-role="content"]');
+                if (pane) delete pane.dataset.paneKey;
+                draw(state);
             }
         } catch (error) {
             if (!state.disposed) notify(state, tx(state.context, 'desktop.virtual_computers_error') + ' ' + errorText(state, error), 'error');
@@ -1584,6 +1623,7 @@
             modal.pending = false;
             if (state.modal === modal) modal.error = errorText(state, error);
             draw(state);
+            if (state.modal === modal) focusModalRetry(state);
             return false;
         }
         if (state.disposed) return false;
@@ -1593,6 +1633,14 @@
         if (message) toast(state, message);
         if (typeof after === 'function') after(result);
         return true;
+    }
+
+    // After a failed submit the focus returns to the first invalid field, else to the submit button.
+    function focusModalRetry(state) {
+        const host = state.host.querySelector('[data-role="modal-host"]');
+        if (!host) return;
+        const target = host.querySelector('[data-role="modal"] [aria-invalid="true"]') || host.querySelector('[data-role="modal-submit"]');
+        if (target && typeof target.focus === 'function') target.focus();
     }
 
     function closeModal(state, restoreFocus = true) {

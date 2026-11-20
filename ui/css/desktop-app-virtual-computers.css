@@ -106,6 +106,7 @@
 .vc-icon-btn.danger { color: var(--vc-danger); }
 .vc-btn.danger { border-color: color-mix(in srgb, var(--vc-danger) 38%, var(--vd-theme-border)); color: var(--vc-danger); background: color-mix(in srgb, var(--vc-danger) 8%, var(--vd-theme-control-bg)); }
 .vc-app button:disabled { opacity: .52; cursor: not-allowed; }
+.vc-app button[aria-disabled="true"] { opacity: .52; cursor: progress; }
 .vc-app button[aria-busy="true"] { cursor: progress; }
 .vc-app :is(button, select, input, textarea, a, summary, [tabindex]):focus-visible { outline: 3px solid var(--vc-accent); outline-offset: 2px; box-shadow: 0 0 0 5px color-mix(in srgb, var(--vc-accent) 28%, transparent); }
 .vc-visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

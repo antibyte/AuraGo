@@ -29,6 +29,13 @@ var virtualComputersWorkspaceOverhaulKeys = []string{
 	"virtual_computers_network_machine", "virtual_computers_badge_assigned_vm", "virtual_computers_picker_running_computers",
 	"virtual_computers_request_placeholder", "virtual_computers_request_count", "virtual_computers_checkpoint_hint",
 	"virtual_computers_checkpoint_permanent", "virtual_computers_vnc_view_only_locked",
+	"virtual_computers_err_forbidden", "virtual_computers_err_not_found", "virtual_computers_err_owner_mismatch",
+	"virtual_computers_err_workspace_manager_unavailable", "virtual_computers_err_job_limit_reached",
+	"virtual_computers_err_browser_session_limit_reached", "virtual_computers_err_browser_human_control",
+	"virtual_computers_err_agent_control_disabled", "virtual_computers_err_invalid_control_owner",
+	"virtual_computers_err_legacy_import_in_progress", "virtual_computers_err_storage_unavailable",
+	"virtual_computers_err_desktop_control_unconfirmed", "virtual_computers_err_workspace_timeout",
+	"virtual_computers_err_workspace_error",
 }
 
 func TestVirtualComputersOverhaulTranslations(t *testing.T) {

@@ -29,6 +29,8 @@
         let lastError = '';
         let expanded = false;
         let fullscreenListening = false;
+        let captureListening = false;
+        let closed = false;
         const preferences = { viewOnly: settings.viewOnly === true, scaleMode: 'fit' };
         const lockNoteId = 'vc-vnc-lock-note-' + (++mountCounter);
 
@@ -123,6 +125,8 @@
         }
 
         function connect() {
+            closed = false;
+            listenForInput();
             disconnectConnection();
             stopListeningForFullscreen();
             listenForFullscreen();
@@ -190,19 +194,30 @@
         const reportInputActivity = () => {
             if (!preferences.viewOnly) onInputActivity();
         };
-        container.addEventListener('pointerdown', reportInputActivity, true);
-        container.addEventListener('keydown', reportInputActivity, true);
-        container.addEventListener('wheel', reportInputActivity, true);
+        function listenForInput() {
+            if (captureListening) return;
+            container.addEventListener('pointerdown', reportInputActivity, true);
+            container.addEventListener('keydown', reportInputActivity, true);
+            container.addEventListener('wheel', reportInputActivity, true);
+            captureListening = true;
+        }
+        function stopListeningForInput() {
+            if (!captureListening) return;
+            container.removeEventListener('pointerdown', reportInputActivity, true);
+            container.removeEventListener('keydown', reportInputActivity, true);
+            container.removeEventListener('wheel', reportInputActivity, true);
+            captureListening = false;
+        }
+        listenForInput();
         container.querySelector('[data-vnc-action="ctrl-alt-del"]')?.addEventListener('click', () => {
             if (rfb && typeof rfb.sendCtrlAltDel === 'function') rfb.sendCtrlAltDel();
         });
         container.querySelector('[data-vnc-action="reconnect"]')?.addEventListener('click', () => connect());
         container.querySelector('[data-vnc-action="retry"]')?.addEventListener('click', () => connect());
         container.querySelector('[data-vnc-action="disconnect"]')?.addEventListener('click', () => {
-            disconnectConnection();
+            // disconnect() is idempotent, so owners that also call session.disconnect() from onClose are safe.
+            disconnect();
             setStatus('desktop.virtual_computers_vnc_disconnected', 'disconnected');
-            expanded = false;
-            onExpandedChange(false);
             onClose();
         });
         expandButton?.addEventListener('click', () => {
@@ -225,11 +240,11 @@
         });
 
         function disconnect() {
+            if (closed) return;
+            closed = true;
             disconnectConnection();
             stopListeningForFullscreen();
-            container.removeEventListener('pointerdown', reportInputActivity, true);
-            container.removeEventListener('keydown', reportInputActivity, true);
-            container.removeEventListener('wheel', reportInputActivity, true);
+            stopListeningForInput();
             expanded = false;
             onExpandedChange(false);
             if (document.fullscreenElement === container && typeof document.exitFullscreen === 'function') {

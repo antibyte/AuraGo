@@ -82,6 +82,12 @@
             <div class="vc-workspace-grid">${state.workspaces.map(workspace => workspaceCard(state, workspace, summaries.get(workspace.id) || {}, ui)).join('')}</div></section>`;
     }
 
+    // Carries the data-expiry-countdown hooks so the app's 1 s ticker keeps it live between redraws.
+    function expiryMarkup(expiresAt, value, c, ui) {
+        const label = ui.tx(c, K + 'expires');
+        return `<span data-expiry-countdown data-expires-at="${ui.esc(expiresAt || '')}" data-expiry-label="${ui.esc(label)}" aria-label="${ui.esc(label)}: ${ui.esc(value)}">${ui.esc(value)}</span>`;
+    }
+
     function workspaceCard(state, workspace, summary, ui) {
         const c = state.context;
         const esc = ui.esc;
@@ -116,7 +122,7 @@
         return `<article class="vc-workspace-card ${showLiveVNC ? 'is-live' : ''}" data-workspace-id="${esc(workspace.id)}" data-origin="${esc(workspace.origin || 'launched')}">
             <header class="vc-detail-header"><div><span class="vc-eyebrow">${esc(valueLabel(c, 'template', workspace.template || 'desktop', ui))} · ${esc(valueLabel(c, 'network', workspace.network_profile || 'internet_lan', ui))}</span><h3>${esc(name)}</h3><div class="vc-workspace-tags"><span class="vc-state-chip" data-state="${esc(workspace.state || '')}"><span class="vc-state-dot"></span>${esc(valueLabel(c, 'ws_state', workspace.state, ui) || '—')}</span>${adoptedBadge}</div></div>
             <div class="vc-actions">${observe}${checkpoint}${closeButton}</div></header>
-            <dl class="vc-meta-grid"><div><dt>${esc(ui.tx(c, K + 'machine'))}</dt><dd title="${esc(workspace.machine_id || '')}">${esc(machine ? machineName(machine) : (workspace.machine_id ? shortId(workspace.machine_id) : '—'))}</dd></div><div><dt>${esc(ui.tx(c, K + 'expires'))}</dt><dd>${esc(ui.formatExpiryCountdown(workspace.lease_expires_at, undefined, c))}</dd></div><div><dt>${esc(ui.tx(c, K + 'control'))}</dt><dd>${esc(valueLabel(c, 'control', workspace.control_owner || 'agent', ui))}</dd></div><div><dt>${esc(ui.tx(c, K + 'volume'))}</dt><dd title="${esc(workspace.volume_id || '')}">${esc(volumeText)}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, K + 'browser_url'))}</dt><dd>${esc(activeBrowser && activeBrowser.url_origin ? activeBrowser.url_origin : '—')}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, K + 'current_job'))}</dt><dd>${activeJob ? `${esc(activeJob.command_summary || activeJob.id)} <button type="button" class="vc-text-button" data-action="cancel-workspace-job" data-id="${esc(workspace.id)}" data-job-id="${esc(activeJob.id)}">${esc(ui.tx(c, K + 'task_cancel'))}</button>` : '—'}</dd></div></dl>
+            <dl class="vc-meta-grid"><div><dt>${esc(ui.tx(c, K + 'machine'))}</dt><dd title="${esc(workspace.machine_id || '')}">${esc(machine ? machineName(machine) : (workspace.machine_id ? shortId(workspace.machine_id) : '—'))}</dd></div><div><dt>${esc(ui.tx(c, K + 'expires'))}</dt><dd>${expiryMarkup(workspace.lease_expires_at, ui.formatExpiryCountdown(workspace.lease_expires_at, undefined, c), c, ui)}</dd></div><div><dt>${esc(ui.tx(c, K + 'control'))}</dt><dd>${esc(valueLabel(c, 'control', workspace.control_owner || 'agent', ui))}</dd></div><div><dt>${esc(ui.tx(c, K + 'volume'))}</dt><dd title="${esc(workspace.volume_id || '')}">${esc(volumeText)}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, K + 'browser_url'))}</dt><dd>${esc(activeBrowser && activeBrowser.url_origin ? activeBrowser.url_origin : '—')}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, K + 'current_job'))}</dt><dd>${activeJob ? `${esc(activeJob.command_summary || activeJob.id)} <button type="button" class="vc-text-button" data-action="cancel-workspace-job" data-id="${esc(workspace.id)}" data-job-id="${esc(activeJob.id)}">${esc(ui.tx(c, K + 'task_cancel'))}</button>` : '—'}</dd></div></dl>
             ${nativePanel}
             ${runtimeView}
             <footer class="vc-workspace-grants"><strong>${esc(ui.tx(c, K + 'active_grants'))}: ${activeGrants.length}</strong>${activeGrants.map(grant => `<span class="vc-workspace-grant"><span>${esc(grant.credential_id)} · ${esc(valueLabel(c, 'usage', grant.usage_type, ui))} · ${esc(grant.origin || grant.job_id || '')} · ${esc(valueLabel(c, 'grant_state', grant.status, ui))}</span>${grant.status === 'pending_approval' ? `<button type="button" class="vc-text-button" data-action="approve-workspace-grant" data-id="${esc(workspace.id)}" data-grant-id="${esc(grant.id)}">${esc(ui.tx(c, K + 'approve_grant'))}</button>` : ''}<button type="button" class="vc-text-button" data-action="revoke-workspace-grant" data-id="${esc(workspace.id)}" data-grant-id="${esc(grant.id)}">${esc(ui.tx(c, K + 'revoke_grant'))}</button></span>`).join('')}</footer>
@@ -127,7 +133,7 @@
         const machine = state.machines.find(item => item.id === machineId);
         if (!api.canUseVNC(state, machine) || !window.VirtualComputersVNC || typeof window.VirtualComputersVNC.mount !== 'function') {
             api.notify(state, api.tx(state.context, 'desktop.virtual_computers_vnc_unavailable'), 'error');
-            return;
+            return false;
         }
         api.disconnectRemoteSessions(state, true);
         state.activeSection = 'workspaces';
@@ -137,7 +143,11 @@
         state.workspaceControlRenewedAt = Date.now();
         api.draw(state);
         const mountPoint = state.host.querySelector('[data-role="workspace-vnc-mount"]');
-        if (!mountPoint) return;
+        if (!mountPoint) {
+            // No session will exist: disconnectVNC releases the human control that was just taken.
+            api.disconnectVNC(state);
+            return false;
+        }
         const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const url = proto + '//' + window.location.host + '/api/virtual-computers/machines/' + encodeURIComponent(machine.id) + '/vnc';
         try {
@@ -154,6 +164,7 @@
             api.notify(state, api.tx(state.context, 'desktop.virtual_computers_vnc_unavailable'), 'error');
             api.draw(state);
         }
+        return true;
     }
 
     async function controlAndOpen(state, workspaceId, machineId, takeControl, api) {
@@ -167,16 +178,24 @@
         const ok = await api.workspaceMutation(state, workspaceId, '/control', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ owner })
         });
-        if (ok) openVNC(state, workspaceId, machineId, takeControl, api);
+        if (!ok) return;
+        // openVNC returns false before it records any takeover state; hand control back to the agent then.
+        if (openVNC(state, workspaceId, machineId, takeControl, api) === false && takeControl) await releaseControl(state, workspaceId, api);
     }
 
     function closeWorkspaceVNC(state, workspaceId, api) {
+        if (state.vncWorkspaceId !== workspaceId) return;
         const release = state.vncWorkspaceTakeover;
+        const session = state.vncSession;
         state.vncSession = null;
         state.vncMachineId = null;
         state.vncWorkspaceId = null;
         state.vncWorkspaceTakeover = false;
         api.setVNCExpanded(state, false);
+        // The session's own disconnect is idempotent; it removes the fullscreen and capture listeners.
+        if (session && typeof session.disconnect === 'function') {
+            try { session.disconnect(); } catch (_) {}
+        }
         if (release) releaseControl(state, workspaceId, api);
         api.draw(state);
     }
