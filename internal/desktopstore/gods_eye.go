@@ -247,6 +247,9 @@ func (s *Service) runtimeContainerSpec(ctx context.Context, app InstalledApp) (C
 	if app.AppID == DeepTutorAppID {
 		return s.deepTutorContainerSpec(ctx, spec)
 	}
+	if app.AppID == VelxioAppID {
+		return velxioContainerSpec(spec), nil
+	}
 	if app.AppID != GodsEyeAppID {
 		return spec, nil
 	}

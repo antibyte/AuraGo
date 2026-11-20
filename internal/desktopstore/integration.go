@@ -34,7 +34,7 @@ type IntegrationSettings struct {
 	DockerNetwork          string   `json:"docker_network,omitempty"`
 }
 
-var IntegrationApps = []string{"adguard-home", "uptime-kuma", "n8n", "node-red", "olivetin", "open-webui", "bytestash", "beszel", "filebrowser-quantum", "stirling-pdf", "ziro-designer"}
+var IntegrationApps = []string{"adguard-home", "uptime-kuma", "n8n", "node-red", "olivetin", "open-webui", "bytestash", "beszel", "filebrowser-quantum", "stirling-pdf", "ziro-designer", VelxioAppID}
 
 func HasIntegration(id string) bool {
 	for _, app := range IntegrationApps {
@@ -49,7 +49,7 @@ func IntegrationKey(id string) string { return "desktop_store_integration_" + id
 
 // DNS sockets belong to the LAN profile, never to the HTTP preview/proxy.
 func IsHTTPPort(port PortBinding) bool {
-	return (port.Protocol == "" || port.Protocol == "tcp") && port.ID != "dns-tcp" && port.ID != "dns-udp"
+	return (port.Protocol == "" || port.Protocol == "tcp") && port.ID != "dns-tcp" && port.ID != "dns-udp" && !IsAgentOnlyPort(port.ID)
 }
 
 func (s *Service) integrationAdminReady(ctx context.Context, app InstalledApp) bool {
@@ -194,4 +194,18 @@ func (s *Service) applyIntegrationRuntime(app *InstalledApp, network string) err
 		}
 	}
 	return nil
+}
+
+// IsAgentOnlyPort reports ports that carry an agent protocol (for example
+// Velxio's MCP server). They are never opened, previewed or put on the tailnet.
+func IsAgentOnlyPort(id string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(id)), "agent-")
+}
+
+// IntegrationPortID is the port that the app's agent connection talks to.
+func IntegrationPortID(appID, adminPort string) string {
+	if appID == VelxioAppID {
+		return VelxioMCPPortID
+	}
+	return adminPort
 }

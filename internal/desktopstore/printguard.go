@@ -322,6 +322,8 @@ func appReadinessTimeoutFor(app InstalledApp) time.Duration {
 		return 5 * time.Minute
 	case DeepTutorAppID:
 		return deepTutorReadinessTimeout
+	case VelxioAppID:
+		return velxioReadinessTimeout
 	}
 	return appReadinessTimeout
 }

@@ -147,6 +147,9 @@ func NewService(cfg Config) (*Service, error) {
 		if entry.PrimaryPort.ContainerPort <= 0 && entry.Runtime != RuntimeNativeManagedApp {
 			return nil, fmt.Errorf("catalog app %s container port is required", entry.ID)
 		}
+		if err := validatePinnedHost(entry.ID, entry.PrimaryPort); err != nil {
+			return nil, err
+		}
 		for i := range entry.ExtraPorts {
 			if entry.ExtraPorts[i].ID == "" {
 				entry.ExtraPorts[i].ID = fmt.Sprintf("port-%d", i+2)
@@ -159,6 +162,9 @@ func NewService(cfg Config) (*Service, error) {
 			}
 			if entry.ExtraPorts[i].ContainerPort <= 0 {
 				return nil, fmt.Errorf("catalog app %s extra port %s is invalid", entry.ID, entry.ExtraPorts[i].ID)
+			}
+			if err := validatePinnedHost(entry.ID, entry.ExtraPorts[i]); err != nil {
+				return nil, err
 			}
 		}
 		for _, bind := range entry.HostBinds {
@@ -1931,12 +1937,16 @@ func (s *Service) allocatePortBindings(ctx context.Context, entry CatalogEntry, 
 			}
 			hostPort = allocated
 		}
+		bindIP := hostIP
+		if pinned := strings.TrimSpace(port.HostIP); pinned != "" {
+			bindIP = pinned
+		}
 		out = append(out, PortBinding{
 			ID:            port.ID,
 			Name:          port.Name,
 			ContainerPort: port.ContainerPort,
 			Protocol:      strings.ToLower(port.Protocol),
-			HostIP:        hostIP,
+			HostIP:        bindIP,
 			HostPort:      hostPort,
 		})
 	}
@@ -1970,6 +1980,9 @@ func (s *Service) updatePortBindings(ctx context.Context, entry CatalogEntry, ap
 		binding.Protocol = strings.ToLower(port.Protocol)
 		if strings.TrimSpace(binding.HostIP) == "" {
 			binding.HostIP = app.HostIP
+		}
+		if pinned := strings.TrimSpace(port.HostIP); pinned != "" {
+			binding.HostIP = pinned
 		}
 		out = append(out, binding)
 	}
@@ -3299,3 +3312,15 @@ func normalizeBindMode(mode string) string {
 }
 
 // DesktopAppID returns the managed generated desktop app ID for a store app.
+
+// validatePinnedHost accepts a catalog HostIP pin only for loopback addresses.
+func validatePinnedHost(appID string, port PortSpec) error {
+	pinned := strings.TrimSpace(port.HostIP)
+	if pinned == "" {
+		return nil
+	}
+	if ip := net.ParseIP(pinned); ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("catalog app %s port %s must be pinned to a loopback address", appID, port.ID)
+	}
+	return nil
+}

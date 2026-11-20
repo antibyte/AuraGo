@@ -35,6 +35,7 @@ func TestDefaultCatalogContainsInitialApps(t *testing.T) {
 		"node-red":            {image: "ghcr.io/node-red/node-red:latest", port: 1880, icon: "node-red", runtime: RuntimeContainerWebApp},
 		"open-webui":          {image: "ghcr.io/open-webui/open-webui:main", port: 8080, icon: "open-webui", runtime: RuntimeContainerWebApp},
 		"deeptutor":           {image: "ghcr.io/hkuds/deeptutor@sha256:9b8b21ea8861434868ba20adf70966ad9dce193c507c2dcceffbe57264306da8", port: 3782, icon: "book", runtime: RuntimeContainerWebApp},
+		"velxio":              {image: "ghcr.io/davidmonterocrespo24/velxio@sha256:6aa5200e4d5f51235ce6ce024a17bba93d72ca1162653315e0b44f6197000429", port: 80, icon: "code", runtime: RuntimeContainerWebApp},
 		"adguard-home":        {image: "adguard/adguardhome", port: 3000, icon: "network", runtime: RuntimeContainerWebApp},
 		"excalidraw":          {image: "excalidraw/excalidraw:latest", port: 80, icon: "editor", runtime: RuntimeContainerWebApp},
 		"uptime-kuma":         {image: "ghcr.io/louislam/uptime-kuma:2", port: 3001, icon: "monitor", runtime: RuntimeContainerWebApp},

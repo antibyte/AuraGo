@@ -621,6 +621,41 @@ func DefaultCatalog() []CatalogEntry {
 			},
 		},
 		{
+			// Velxio (AGPL-3.0; last tagged release v3.0.5), image tag "master", pinned to the
+			// amd64+arm64 index digest, built 2026-11-18 from revision 5ed52d7332b8bd87f4dcd71f1ed49d8ffad964aa.
+			// Live-probed 2026-11-20 on Docker Desktop 29.9.3 (linux/amd64).
+			// It runs nginx, uvicorn, arduino-cli and QEMU as root, so it opts
+			// into no hardening. Its root sends X-Frame-Options SAMEORIGIN, so
+			// it opens in its own browser tab. The Store starts Velxio's built-in
+			// MCP server through an entrypoint wrapper (see velxio.go).
+			ID:          VelxioAppID,
+			Category:    "dev",
+			Name:        "Velxio",
+			Description: "Arduino, ESP32 and Raspberry Pi Pico simulator in the browser: write sketches, wire virtual circuits and run them without hardware. This self-hosted edition covers Arduino AVR boards, ATtiny, the Raspberry Pi Pico and the ESP32 family (emulated with QEMU); STM32 and Raspberry Pi Linux boards exist only on velxio.dev. The image needs about 7 GB of disk space, and the first start downloads the Arduino cores (internet required), which can take several minutes. It opens in its own browser tab. Velxio has no login of its own, so keep access on this machine unless the network is trusted. Connect to agent lets AuraGo design circuits and compile sketches through Velxio's MCP tools; the in-editor AI assistant of velxio.dev is not part of this edition.",
+			Image:       "ghcr.io/davidmonterocrespo24/velxio@sha256:6aa5200e4d5f51235ce6ce024a17bba93d72ca1162653315e0b44f6197000429",
+			Icon:        "code",
+			LogoSlug:    "velxio",
+			LogoURL:     "",
+			PrimaryPort: PortSpec{ID: "web", Name: "Web UI", ContainerPort: 80, Protocol: "tcp"},
+			ExtraPorts: []PortSpec{
+				{ID: VelxioMCPPortID, Name: "Agent MCP (loopback only)", ContainerPort: velxioMCPPort, Protocol: "tcp", HostIP: "127.0.0.1"},
+			},
+			Volumes: []VolumeTemplate{
+				{NameSuffix: "data", ContainerPath: "/app/data"},
+				{NameSuffix: "arduino15", ContainerPath: "/root/.arduino15"},
+				{NameSuffix: "arduino", ContainerPath: "/root/Arduino"},
+				{NameSuffix: "ccache", ContainerPath: "/var/cache/ccache"},
+				{NameSuffix: "build", ContainerPath: "/var/lib/velxio-build"},
+			},
+			Env: []string{"VELXIO_NEWS=off"},
+			GeneratedSecrets: []GeneratedSecret{
+				{Key: velxioTokenKey, Env: velxioTokenEnv, Label: "AuraGo MCP token"},
+			},
+			Metadata: map[string]string{
+				"open_external": "true",
+			},
+		},
+		{
 			ID:           "openscad",
 			Category:     "creative",
 			Name:         "OpenSCAD",
