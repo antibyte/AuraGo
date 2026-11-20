@@ -47,6 +47,13 @@ expected = ("Bearer " + token).encode()
 
 
 async def guarded(scope, receive, send):
+    if scope["type"] == "lifespan":
+        await inner(scope, receive, send)
+        return
+    if scope["type"] != "http":
+        if scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+        return
     if scope["type"] == "http":
         auth = b""
         for key, value in scope.get("headers", []):

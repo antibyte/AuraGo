@@ -107,9 +107,7 @@ func TestVelxioConnectionSettlesWhenMCPStartsLate(t *testing.T) {
 	if err := s.saveStoreIntegration(t.Context(), store, "velxio", storeIntegrationUpdate{Read: true}, false); err != nil {
 		t.Fatal(err)
 	}
-	originalProbe, originalInterval := storeMCPProbeTools, storeIntegrationSettleInterval
-	t.Cleanup(func() { storeMCPProbeTools, storeIntegrationSettleInterval = originalProbe, originalInterval })
-	storeIntegrationSettleInterval = 20 * time.Millisecond
+	overrideSettleVars(t, s)
 	var calls atomic.Int32
 	storeMCPProbeTools = func(context.Context, tools.MCPServerConfig, *slog.Logger) ([]string, error) {
 		if calls.Add(1) <= 2 {
@@ -127,5 +125,118 @@ func TestVelxioConnectionSettlesWhenMCPStartsLate(t *testing.T) {
 	}
 	if calls.Load() < 3 {
 		t.Fatalf("probe calls = %d, want at least 3", calls.Load())
+	}
+}
+
+// overrideSettleVars shortens the settle interval and restores the package
+// vars only after no settle loop is running for velxio, so a loop never reads
+// a var while the cleanup writes it.
+func overrideSettleVars(t *testing.T, s *Server) {
+	t.Helper()
+	originalProbe, originalInterval := storeMCPProbeTools, storeIntegrationSettleInterval
+	storeIntegrationSettleInterval = 20 * time.Millisecond
+	t.Cleanup(func() {
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) {
+			s.storeIntegrations.Lock()
+			running := s.storeIntegrations.settling["velxio"]
+			s.storeIntegrations.Unlock()
+			if !running {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		storeMCPProbeTools, storeIntegrationSettleInterval = originalProbe, originalInterval
+	})
+}
+
+func TestVelxioReadOnlyDesktopKeepsOnlyDesignTools(t *testing.T) {
+	s, _ := storeIntegrationFixture(t, "velxio")
+	if err := s.Vault.WriteSecret(desktopstore.VelxioMCPTokenKey(), "velxio-token-readonly-1234567890abcdef"); err != nil {
+		t.Fatal(err)
+	}
+	s.CfgMu.Lock()
+	s.Cfg.VirtualDesktop.ReadOnly = true
+	s.CfgMu.Unlock()
+	cfg, err := s.storeMCPConfig("velxio", desktopstore.IntegrationSettings{Revision: "r1", URL: "http://127.0.0.1:18080", Read: true, Execute: true, Create: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.AllowedTools) != 5 || !slices.Equal(cfg.AllowedTools, velxioDesignTools) || cfg.AllowDestructive {
+		t.Fatalf("read-only config = %#v", cfg)
+	}
+}
+
+func TestVelxioSettleLoopStopsWhenAppIsNotRunning(t *testing.T) {
+	s, store := storeIntegrationFixture(t, "velxio")
+	if err := s.Vault.WriteSecret(desktopstore.VelxioMCPTokenKey(), "velxio-token-stopped-1234567890abcdef"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.saveStoreIntegration(t.Context(), store, "velxio", storeIntegrationUpdate{Read: true}, false); err != nil {
+		t.Fatal(err)
+	}
+	op, err := store.StartAppOperation(t.Context(), "velxio", desktopstore.OperationStop, desktopstore.OperationRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.RunOperation(t.Context(), op.ID); err != nil {
+		t.Fatal(err)
+	}
+	if app, ok, _ := store.GetInstalled(t.Context(), "velxio"); !ok || app.Status == desktopstore.AppStatusRunning {
+		t.Fatalf("app still running: %#v", app.Status)
+	}
+	overrideSettleVars(t, s)
+	var calls atomic.Int32
+	storeMCPProbeTools = func(context.Context, tools.MCPServerConfig, *slog.Logger) ([]string, error) {
+		calls.Add(1)
+		return nil, errors.New("connection refused")
+	}
+	s.settleStoreIntegration("velxio")
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		s.storeIntegrations.Lock()
+		running := s.storeIntegrations.settling["velxio"]
+		s.storeIntegrations.Unlock()
+		if !running {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("settle loop still running for a stopped app")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("probe calls = %d, want 0", calls.Load())
+	}
+}
+
+func TestVelxioDisconnectSucceedsWhenURLCannotBeDerived(t *testing.T) {
+	s, store := storeIntegrationFixture(t, "velxio")
+	if err := s.Vault.WriteSecret(desktopstore.VelxioMCPTokenKey(), "velxio-token-disconnect-1234567890abcdef"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.saveStoreIntegration(t.Context(), store, "velxio", storeIntegrationUpdate{Read: true}, false); err != nil {
+		t.Fatal(err)
+	}
+	before, err := desktopstore.ReadIntegration(s.Vault, "velxio")
+	if err != nil || before.URL == "" {
+		t.Fatalf("saved settings = %#v err=%v", before, err)
+	}
+	s.CfgMu.Lock()
+	s.Cfg.Docker.Host = "tcp://docker.remote.example:2375"
+	s.CfgMu.Unlock()
+	app, _, _ := store.GetInstalled(t.Context(), "velxio")
+	if _, err = s.storeIntegrationURL(t.Context(), app, before); err == nil {
+		t.Fatal("test setup: URL derivation should fail for a remote Docker host")
+	}
+	if err = s.saveStoreIntegration(t.Context(), store, "velxio", storeIntegrationUpdate{}, true); err != nil {
+		t.Fatalf("disconnect failed: %v", err)
+	}
+	after, err := desktopstore.ReadIntegration(s.Vault, "velxio")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Read || after.Execute || after.URL != before.URL || after.Credential != "" {
+		t.Fatalf("settings after disconnect = %#v", after)
 	}
 }

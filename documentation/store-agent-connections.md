@@ -142,7 +142,7 @@ an update, an AuraGo start or a Docker host reboot. When the normal check after
 such an operation fails, AuraGo retries in the background for up to five
 minutes. It checks `tools/list` every 10 seconds without holding the Store
 operation slot. Once the server answers, it runs the normal verified test and
-saves the connection.
+activates the saved connection.
 
 Tool results go to the agent. They do not open in an editor.
 

@@ -3161,6 +3161,31 @@ func (s *Service) companionRuntimeSpec(app InstalledApp, companion CompanionApp)
 	return spec
 }
 
+// enforceCatalogHostPins rewrites the HostIP of every binding whose ID matches a
+// catalog port with a HostIP pin, so a stale or edited record can never publish
+// a pinned port on a wider interface. bindings is modified in place (it is the
+// copy made by containerSpecFromRecord).
+func (s *Service) enforceCatalogHostPins(appID string, bindings []PortBinding) {
+	entry, ok := s.catalogByID[normalizeAppID(appID)]
+	if !ok {
+		return
+	}
+	pins := map[string]string{}
+	for _, port := range append([]PortSpec{entry.PrimaryPort}, entry.ExtraPorts...) {
+		if pin := strings.TrimSpace(port.HostIP); pin != "" {
+			pins[port.ID] = pin
+		}
+	}
+	if len(pins) == 0 {
+		return
+	}
+	for i := range bindings {
+		if pin, ok := pins[bindings[i].ID]; ok {
+			bindings[i].HostIP = pin
+		}
+	}
+}
+
 // catalogHardening returns a copy of the opt-in hardening the catalog declares
 // for an app (companionID == "") or one of its companions. Installed records
 // do not store it, so a catalog change applies on the next create without a
@@ -3310,8 +3335,6 @@ func normalizeBindMode(mode string) string {
 		return ""
 	}
 }
-
-// DesktopAppID returns the managed generated desktop app ID for a store app.
 
 // validatePinnedHost accepts a catalog HostIP pin only for loopback addresses.
 func validatePinnedHost(appID string, port PortSpec) error {

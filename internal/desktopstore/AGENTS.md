@@ -261,6 +261,12 @@ Store app configuration, runtime, assets, and publication.
   install. Disables FastMCP DNS-rebinding protection (the token replaces it),
   sets `stateless_http` and `json_response`, serves `streamable_http_app()` on
   `0.0.0.0:8002` behind a bearer check (`hmac.compare_digest`, 401 otherwise).
+  Only `lifespan` scopes pass unchecked; any other non-HTTP scope (websocket)
+  is closed without reaching FastMCP. Without a token it prints one stderr line
+  and idles (`time.sleep(3600)`) instead of exiting, so the restart loop does
+  not log every 5 seconds. These two points differ from the probed script.
+- Persisted records are not trusted for the pin: the runtime spec re-applies
+  each catalog `HostIP` pin to the matching port binding before every create.
 - Readiness: `velxioReadinessTimeout` is 15 minutes on the web port only. A late
   MCP start never fails an install.
 - Agent connection: `IntegrationApps`, `storeMCPApps` and

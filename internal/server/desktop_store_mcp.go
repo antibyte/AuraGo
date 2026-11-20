@@ -123,6 +123,8 @@ func (s *Server) syncStoreMCP(id string) error {
 	}
 	runtime, err := s.storeMCPConfig(id, binding.settings)
 	if err != nil {
+		// Fail closed: a stale live server must not outlive a config that cannot be built.
+		_ = tools.SetManagedMCPServer(name, nil)
 		return err
 	}
 	runtime.CheckAccess = func() error {

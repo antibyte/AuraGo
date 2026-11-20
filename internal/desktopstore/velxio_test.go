@@ -173,6 +173,7 @@ func TestVelxioLauncherScriptAndWrapper(t *testing.T) {
 	for _, want := range []string{
 		"hmac.compare_digest", "enable_dns_rebinding_protection=False", "streamable_http_app()", "stateless_http = True",
 		"http://127.0.0.1:8001/health", "AURAGO_VELXIO_MCP_TOKEN", "AURAGO_VELXIO_MCP_PORT", "time.sleep(3600)",
+		`scope["type"] == "lifespan"`, `scope["type"] != "http"`, `"type": "websocket.close", "code": 1008`,
 	} {
 		if !strings.Contains(velxioMCPLauncher, want) {
 			t.Fatalf("launcher misses %q", want)
@@ -194,6 +195,33 @@ func TestVelxioLauncherScriptAndWrapper(t *testing.T) {
 			t.Fatalf("launcher does not parse: %s", out)
 		}
 		t.Skipf("python is not usable here: %v %s", err, out)
+	}
+}
+
+func TestRuntimeSpecReEnforcesVelxioMCPHostPin(t *testing.T) {
+	s := newTestServiceWithSecrets(t, &fakeDockerAdapter{}, &fakeDesktopAdapter{}, &fakeLaunchpadAdapter{}, fixedPorts(18080, 18002), &fakeSecretStore{data: map[string]string{}})
+	app := InstalledApp{
+		AppID: VelxioAppID, ContainerName: "aurago-store-velxio", Image: "example/velxio:1",
+		Ports: []PortBinding{
+			{ID: "web", ContainerPort: 80, Protocol: "tcp", HostIP: "0.0.0.0", HostPort: 18080},
+			{ID: VelxioMCPPortID, ContainerPort: velxioMCPPort, Protocol: "tcp", HostIP: "0.0.0.0", HostPort: 18002},
+		},
+	}
+	spec, err := s.runtimeContainerSpec(context.Background(), app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, binding := range spec.PortBindings {
+		want := "0.0.0.0"
+		if binding.ID == VelxioMCPPortID {
+			want = "127.0.0.1"
+		}
+		if binding.HostIP != want {
+			t.Fatalf("binding %s HostIP = %q, want %q", binding.ID, binding.HostIP, want)
+		}
+	}
+	if app.Ports[1].HostIP != "0.0.0.0" {
+		t.Fatal("the stored record must not be mutated")
 	}
 }
 

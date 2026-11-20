@@ -161,7 +161,7 @@ func (s *Server) refreshStoreIntegrations() {
 func (s *Server) refreshStoreIntegration(store *desktopstore.Service, id string) {
 	tested, err := s.refreshStoreIntegrationOnce(store, id)
 	if tested && err != nil && storeIntegrationSettleBudget[id] > 0 {
-		s.settleStoreIntegration(store, id)
+		s.settleStoreIntegration(id)
 	}
 }
 
@@ -430,14 +430,20 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 		next.Read = false
 		next.Execute, next.Create, next.Process, next.Sign = false, false, false, false
 	}
+	// A Velxio disconnect keeps the stored URL so it can never fail on URL
+	// derivation (containerized AuraGo without a network, remote Docker host).
+	velxioDisconnect := id == desktopstore.VelxioAppID && disconnect
 	if id == desktopstore.VelxioAppID {
-		next.URL, next.Credential = "", ""
+		next.Credential = ""
+		if !disconnect {
+			next.URL = ""
+		}
 	}
 	app, exists, err := store.GetInstalled(ctx, id)
 	if err != nil || !exists {
 		return errors.New("Store app is not installed")
 	}
-	if next.URL == "" {
+	if next.URL == "" && !velxioDisconnect {
 		if cfg.Runtime.IsDocker && next.DockerNetwork != "" {
 			next.URL, err = desktopstore.IntegrationURL(app, desktopstore.IntegrationPortID(app.AppID, next.AdminPort), true)
 		} else {
@@ -449,6 +455,8 @@ func (s *Server) saveStoreIntegration(ctx context.Context, store *desktopstore.S
 	}
 	if id == "ziro-designer" {
 		next.URL, next.Credential, next.Username, next.DockerNetwork = "", "", "", ""
+	} else if velxioDisconnect && next.URL == "" {
+		// Nothing to validate: a disconnect that never had a URL.
 	} else if err = security.ValidateHTTPBaseURL(next.URL); err != nil {
 		return err
 	}
@@ -731,7 +739,7 @@ var (
 	storeIntegrationSettleInterval = 10 * time.Second
 )
 
-func (s *Server) settleStoreIntegration(store *desktopstore.Service, id string) {
+func (s *Server) settleStoreIntegration(id string) {
 	budget := storeIntegrationSettleBudget[id]
 	if budget <= 0 {
 		return
@@ -759,7 +767,7 @@ func (s *Server) settleStoreIntegration(store *desktopstore.Service, id string) 
 			case <-s.ShutdownCh:
 				return
 			}
-			if s.storeIntegrationSettleStep(store, id) {
+			if s.storeIntegrationSettleStep(id) {
 				return
 			}
 		}
@@ -767,18 +775,36 @@ func (s *Server) settleStoreIntegration(store *desktopstore.Service, id string) 
 }
 
 // storeIntegrationSettleStep returns true when the loop should stop.
-func (s *Server) storeIntegrationSettleStep(store *desktopstore.Service, id string) bool {
+// The store is resolved on every step because a Virtual Desktop config change
+// or shutdown closes and replaces it; a missing store, a read error and a
+// GetInstalled error are transient and retried until the budget ends.
+func (s *Server) storeIntegrationSettleStep(id string) bool {
 	s.storeIntegrations.Lock()
 	closed := s.storeIntegrations.closed
 	s.storeIntegrations.Unlock()
-	settings, err := desktopstore.ReadIntegration(s.Vault, id)
-	if closed || err != nil || settings.Revision == "" || !settings.Read {
+	if closed {
 		return true
+	}
+	settings, err := desktopstore.ReadIntegration(s.Vault, id)
+	if err != nil {
+		return false
+	}
+	if settings.Revision == "" || !settings.Read {
+		return true
+	}
+	s.DesktopMu.Lock()
+	store := s.DesktopStore
+	s.DesktopMu.Unlock()
+	if store == nil {
+		return false
 	}
 	ctx, cancel := desktopStoreOperationContext(s.ShutdownCh, 5*time.Second)
 	defer cancel()
 	app, exists, err := store.GetInstalled(ctx, id)
-	if err != nil || !exists || app.Status != desktopstore.AppStatusRunning {
+	if err != nil {
+		return false
+	}
+	if !exists || app.Status != desktopstore.AppStatusRunning {
 		return true
 	}
 	if settings.URL, err = s.storeIntegrationURL(ctx, app, settings); err != nil {
@@ -791,7 +817,14 @@ func (s *Server) storeIntegrationSettleStep(store *desktopstore.Service, id stri
 	if _, err = storeMCPProbeTools(ctx, *cfg, s.Logger); err != nil {
 		return false
 	}
-	tested, err := s.refreshStoreIntegrationOnce(store, id)
+	// The store may have been replaced while probing; use the current one.
+	s.DesktopMu.Lock()
+	current := s.DesktopStore
+	s.DesktopMu.Unlock()
+	if current == nil {
+		return false
+	}
+	tested, err := s.refreshStoreIntegrationOnce(current, id)
 	if tested && err == nil {
 		s.broadcastDesktopStoreChanged("")
 		return true

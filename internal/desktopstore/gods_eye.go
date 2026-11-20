@@ -234,6 +234,7 @@ func (s *Service) godsEyeEnvironment() ([]string, []SecretRef, error) {
 // PrintGuard settings and the DeepTutor relay token and settings.
 func (s *Service) runtimeContainerSpec(ctx context.Context, app InstalledApp) (ContainerSpec, error) {
 	spec := containerSpecFromRecord(app)
+	s.enforceCatalogHostPins(app.AppID, spec.PortBindings)
 	spec.Hardening = s.catalogHardening(app.AppID, "")
 	if err := s.addGeneratedRuntimeEnv(app, &spec); err != nil {
 		return spec, err
