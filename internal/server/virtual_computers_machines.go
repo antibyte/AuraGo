@@ -346,6 +346,10 @@ func virtualComputersMachineAssignAgent(s *Server, w http.ResponseWriter, r *htt
 	if !virtualComputersMutationAllowed(s, w) {
 		return
 	}
+	if virtualComputersSetupRunning() {
+		writeVirtualComputersAPIError(w, "setup_in_progress", "Install / Repair is running. Wait until it has finished, then start a new computer.", http.StatusConflict)
+		return
+	}
 	manager := virtualWorkspaceManager(s)
 	if manager == nil {
 		writeVirtualComputersAPIError(w, "workspace_manager_unavailable", "virtual workspace manager is unavailable", http.StatusServiceUnavailable)

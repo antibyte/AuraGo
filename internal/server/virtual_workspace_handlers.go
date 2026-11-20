@@ -539,7 +539,7 @@ func writeVirtualWorkspaceError(w http.ResponseWriter, err error) {
 		status = http.StatusNotFound
 	case "forbidden", "owner_mismatch":
 		status = http.StatusForbidden
-	case "workspace_manager_unavailable", "workspace_agent_upgrade_required":
+	case "workspace_manager_unavailable", "workspace_agent_upgrade_required", "control_plane_repair_required":
 		status = http.StatusServiceUnavailable
 	case "workspace_limit_reached", "job_limit_reached", "browser_session_limit_reached", "browser_human_control":
 		status = http.StatusConflict

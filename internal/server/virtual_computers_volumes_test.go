@@ -387,6 +387,7 @@ func TestVirtualWorkspaceErrorMapping(t *testing.T) {
 		{"not found", virtualcomputers.WorkspaceRPCError{Code: "not_found", Message: "x"}, http.StatusNotFound, "not_found"},
 		{"forbidden", virtualcomputers.WorkspaceRPCError{Code: "forbidden", Message: "x"}, http.StatusForbidden, "forbidden"},
 		{"upgrade", virtualcomputers.WorkspaceRPCError{Code: "workspace_agent_upgrade_required", Message: "x"}, http.StatusServiceUnavailable, "workspace_agent_upgrade_required"},
+		{"control plane repair", virtualcomputers.WorkspaceRPCError{Code: "control_plane_repair_required", Message: "x"}, http.StatusServiceUnavailable, "control_plane_repair_required"},
 		{"limit", virtualcomputers.WorkspaceRPCError{Code: "workspace_limit_reached", Message: "x"}, http.StatusConflict, "workspace_limit_reached"},
 		{"owned machine", virtualcomputers.WorkspaceRPCError{Code: "machine_owned_by_workspace", Message: "x"}, http.StatusConflict, "machine_owned_by_workspace"},
 		{"retention repair", virtualcomputers.WorkspaceRPCError{Code: "volume_retention_requires_repair", Message: "x"}, http.StatusConflict, "volume_retention_requires_repair"},

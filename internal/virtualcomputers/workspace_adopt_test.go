@@ -63,11 +63,12 @@ type adoptFixture struct {
 	cfg       ToolConfig
 	admin     WorkspaceIdentity
 
-	mu         sync.Mutex
-	requests   []string
-	machine    string // JSON returned for GET /v1/machines/vm-9; empty means 404 not found
-	machineMux int
-	machineErr bool // GET /v1/machines/vm-9 answers 500 instead of the machine
+	mu              sync.Mutex
+	requests        []string
+	machine         string // JSON returned for GET /v1/machines/vm-9; empty means 404 not found
+	machineMux      int
+	machineErr      bool // GET /v1/machines/vm-9 answers 500 instead of the machine
+	oldControlPlane bool // GET /v1/workspace/capabilities reports a mismatching fingerprint
 }
 
 func (f *adoptFixture) seen(prefix string) int {
@@ -96,12 +97,16 @@ func newAdoptFixture(t *testing.T, machineJSON string) *adoptFixture {
 		f.requests = append(f.requests, r.Method+" "+r.URL.Path)
 		machine := f.machine
 		machineErr := f.machineErr
+		fingerprint := WorkspaceAssetFingerprint()
+		if f.oldControlPlane {
+			fingerprint = "stale-fingerprint"
+		}
 		f.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/workspace/capabilities":
 			_ = json.NewEncoder(w).Encode(WorkspaceControlPlaneStatus{
-				ProtocolVersion: WorkspaceProtocolVersion, AssetFingerprint: WorkspaceAssetFingerprint(),
+				ProtocolVersion: WorkspaceProtocolVersion, AssetFingerprint: fingerprint,
 			})
 		case r.Method == http.MethodGet && r.URL.Path == "/v1/machines/vm-9":
 			if machineErr {
@@ -481,5 +486,19 @@ func TestExecuteToolForkDefaultsMaxWhenUnset(t *testing.T) {
 	out := ExecuteTool(context.Background(), cfg, map[string]interface{}{"operation": "fork", "machine_id": "vm-1", "count": 4})
 	if !strings.Contains(out, "invalid_argument") || calls != 0 {
 		t.Fatalf("fork with unset limit = %s calls=%d", out, calls)
+	}
+}
+
+func TestAdoptMachineIncompatibleControlPlaneRequiresRepair(t *testing.T) {
+	t.Parallel()
+	f := newAdoptFixture(t, adoptMachineJSON(true, time.Time{}))
+	f.oldControlPlane = true
+	_, _, err := f.manager.AdoptMachine(context.Background(), f.cfg, f.admin, "vm-9")
+	var rpc WorkspaceRPCError
+	if !errors.As(err, &rpc) || rpc.Code != "control_plane_repair_required" {
+		t.Fatalf("error = %v", err)
+	}
+	if _, ok, _ := f.ledger.WorkspaceByMachine(context.Background(), "vm-9"); ok {
+		t.Fatal("repair-required adopt left a ledger row")
 	}
 }

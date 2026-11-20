@@ -62,6 +62,13 @@ func (m *WorkspaceManager) AdoptMachine(ctx context.Context, cfg ToolConfig, ide
 		return Workspace{}, false, err
 	}
 	if err := requireWorkspaceControlPlane(ctx, client); err != nil {
+		var rpcErr WorkspaceRPCError
+		if errors.As(err, &rpcErr) && rpcErr.Code == "workspace_agent_upgrade_required" {
+			return Workspace{}, false, WorkspaceRPCError{
+				Code:    "control_plane_repair_required",
+				Message: "AuraGo was updated, but Install / Repair has not finished on the virtual computer host yet. Run Install / Repair, then start a new computer.",
+			}
+		}
 		return Workspace{}, false, err
 	}
 	machine, err := client.GetMachine(ctx, machineID)

@@ -172,7 +172,13 @@ func reconcileVirtualComputersAutoSetup() {
 		attempted := virtualComputersAutoSetupNeeded(s, cfg)
 		var runErr error
 		if attempted {
+			virtualComputersBeginSetupRun("auto")
 			runErr = virtualComputersAutoSetupRunner(ctx, s, cfg)
+			if runErr != nil {
+				virtualComputersEndSetupRun("failed", runErr.Error())
+			} else {
+				virtualComputersEndSetupRun("installed", "Automatic setup completed")
+			}
 		}
 		virtualComputersManualSetup.Unlock()
 		cancel()

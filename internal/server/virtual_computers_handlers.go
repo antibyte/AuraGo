@@ -268,6 +268,8 @@ func handleVirtualComputersSetupStatus(s *Server) http.HandlerFunc {
 			"workspace_install_verified":       workspaceInstallVerified,
 			"workspace_agent_upgrade_required": workspaceUpgradeRequired,
 			"workspace_message":                workspaceMessage,
+			"setup":                            virtualComputersSetupRunSnapshot(),
+			"repair_required":                  virtualComputersRepairRequired(s, cfg, controlPlaneHealthy),
 		}
 		for key, value := range virtualComputersSetupMetadata(s, cfg, nil) {
 			payload[key] = value
@@ -341,7 +343,13 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 			writeVirtualComputersAPIError(w, "setup_in_progress", "Install / Repair is already running", http.StatusConflict)
 			return
 		}
-		defer virtualComputersManualSetup.Unlock()
+		// The install goroutine owns the lock once started; every earlier return releases it here.
+		lockHandedOff := false
+		defer func() {
+			if !lockHandedOff {
+				virtualComputersManualSetup.Unlock()
+			}
+		}()
 		if virtualComputersAutoSetupRunning() {
 			writeVirtualComputersAPIError(w, "setup_in_progress", "Install / Repair is already running", http.StatusConflict)
 			return
@@ -370,47 +378,96 @@ func handleVirtualComputersSetupInstall(s *Server) http.HandlerFunc {
 			return
 		}
 		manager.InstallOptions = virtualComputersSetupOptions(cfg, token, req)
-		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Minute)
-		defer cancel()
 		if err := virtualComputersClearWorkspaceSetupVerified(); err != nil {
 			virtualComputersRecordSetupState(s, r, "install", "failed")
 			jsonError(w, "previous workspace verification could not be cleared", http.StatusInternalServerError)
 			return
 		}
-		status, err := manager.Install(ctx)
-		if err != nil {
-			virtualComputersRecordSetupState(s, r, "install", "failed")
-			virtualComputersRecordAction(s, r, "install_failed", "setup", "", map[string]interface{}{"message": status.Message})
-			jsonError(w, status.Message, http.StatusBadGateway)
-			return
+		action := "install"
+		if strings.HasSuffix(strings.TrimRight(r.URL.Path, "/"), "/repair") {
+			action = "repair"
 		}
-		virtualcomputers.ResetVolumeRetentionCache()
-		state := "installed"
-		if !status.Healthy {
-			state = "unhealthy"
-		}
-		if status.Healthy && status.WorkspaceAgent.Healthy && !req.SkipDesktop {
-			if markerErr := virtualComputersRecordWorkspaceSetupVerified(); markerErr != nil {
-				virtualComputersRecordSetupState(s, r, "install", "failed")
-				jsonError(w, "workspace verification succeeded but could not be recorded", http.StatusInternalServerError)
+		// The run outlives the request: closing the page must not kill a 10-25 minute build.
+		detached := r.Clone(context.WithoutCancel(r.Context()))
+		results := make(chan virtualComputersInstallResult, 1)
+		virtualComputersBeginSetupRun(action)
+		lockHandedOff = true
+		go func() {
+			defer virtualComputersManualSetup.Unlock()
+			defer func() {
+				if rec := recover(); rec != nil {
+					virtualComputersEndSetupRun("failed", "Install / Repair stopped unexpectedly")
+					results <- virtualComputersInstallResult{status: http.StatusInternalServerError, errMsg: "Install / Repair stopped unexpectedly"}
+				}
+			}()
+			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Minute)
+			defer cancel()
+			result, state, message := virtualComputersRunManualInstall(ctx, s, detached, cfg, manager, req, generatedToken)
+			virtualComputersEndSetupRun(state, message)
+			results <- result
+		}()
+		select {
+		case result := <-results:
+			if result.payload == nil {
+				jsonError(w, result.errMsg, result.status)
 				return
 			}
+			writeJSON(w, result.payload)
+		case <-r.Context().Done():
+			// The client went away; the install keeps running and its outcome shows in setup/status.
 		}
-		virtualComputersRecordSetupState(s, r, "install", state)
-		virtualComputersRecordAction(s, r, "install", "setup", "", map[string]interface{}{"healthy": status.Healthy, "token_generated": generatedToken})
-		payload := map[string]interface{}{
-			"status":           state,
-			"setup":            status,
-			"token_configured": true,
-			"token_generated":  generatedToken,
-			"boringd_url":      cfg.BoringdURL,
-			"message":          virtualComputersInstalledMessage(cfg),
-		}
-		for key, value := range virtualComputersSetupMetadata(s, cfg, status.Preflight.Checks) {
-			payload[key] = value
-		}
-		writeJSON(w, payload)
 	}
+}
+
+type virtualComputersInstallResult struct {
+	status  int
+	errMsg  string
+	payload map[string]interface{}
+}
+
+// virtualComputersRunManualInstall performs the install and all bookkeeping. It returns the HTTP
+// result plus the final run state and a safe message. It never touches a ResponseWriter.
+func virtualComputersRunManualInstall(ctx context.Context, s *Server, r *http.Request, cfg virtualcomputers.ToolConfig, manager virtualcomputers.SetupManager, req virtualComputersSetupRequest, generatedToken bool) (virtualComputersInstallResult, string, string) {
+	status, err := virtualComputersSetupInstall(ctx, manager)
+	if err != nil {
+		virtualComputersRecordSetupState(s, r, "install", "failed")
+		virtualComputersRecordAction(s, r, "install_failed", "setup", "", map[string]interface{}{"message": status.Message})
+		message := status.Message
+		if message == "" {
+			message = "Install / Repair failed"
+		}
+		return virtualComputersInstallResult{status: http.StatusBadGateway, errMsg: status.Message}, "failed", message
+	}
+	virtualcomputers.ResetVolumeRetentionCache()
+	state := "installed"
+	if !status.Healthy {
+		state = "unhealthy"
+	}
+	if status.Healthy && status.WorkspaceAgent.Healthy && !req.SkipDesktop {
+		if markerErr := virtualComputersRecordWorkspaceSetupVerified(); markerErr != nil {
+			virtualComputersRecordSetupState(s, r, "install", "failed")
+			msg := "workspace verification succeeded but could not be recorded"
+			return virtualComputersInstallResult{status: http.StatusInternalServerError, errMsg: msg}, "failed", msg
+		}
+	}
+	virtualComputersRecordSetupState(s, r, "install", state)
+	virtualComputersRecordAction(s, r, "install", "setup", "", map[string]interface{}{"healthy": status.Healthy, "token_generated": generatedToken})
+	message := virtualComputersInstalledMessage(cfg)
+	payload := map[string]interface{}{
+		"status":           state,
+		"setup":            status,
+		"token_configured": true,
+		"token_generated":  generatedToken,
+		"boringd_url":      cfg.BoringdURL,
+		"message":          message,
+	}
+	for key, value := range virtualComputersSetupMetadata(s, cfg, status.Preflight.Checks) {
+		payload[key] = value
+	}
+	if state == "unhealthy" && status.Message != "" {
+		message = status.Message
+	}
+	return virtualComputersInstallResult{status: http.StatusOK, payload: payload}, state, message
 }
 
 func handleVirtualComputersStorageTest(s *Server) http.HandlerFunc {
