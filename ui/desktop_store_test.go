@@ -420,3 +420,55 @@ func TestSoftwareStoreTranslatesStructuredOperationErrors(t *testing.T) {
 		}
 	}
 }
+
+// Velxio connects through the managed MCP path: no URL or credential fields,
+// the agent-only port never gets an open button, and the grant labels carry
+// the velxio_ prefix.
+func TestSoftwareStoreVelxioAgentConnection(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"'ziro-designer', 'velxio']);",
+		"startsWith('agent-')",
+		"'velxio_' + name",
+		"['ziro-designer', 'velxio'].includes(appId) ? '' : field('url')",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing Velxio marker %q", want)
+		}
+	}
+	required := []string{
+		"desktop.store.ig_help_velxio",
+		"desktop.store.ig_velxio_read",
+		"desktop.store.ig_velxio_execute",
+	}
+	entries, err := Content.ReadDir("lang/desktop")
+	if err != nil {
+		t.Fatalf("read desktop translations: %v", err)
+	}
+	checked := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		path := "lang/desktop/" + entry.Name()
+		raw, err := Content.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(raw, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty translation for %s", path, key)
+			}
+		}
+		checked++
+	}
+	if checked != 16 {
+		t.Fatalf("checked %d desktop locales, want 16", checked)
+	}
+}

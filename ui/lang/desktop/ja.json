@@ -12481,5 +12481,8 @@
   "desktop.store.ig_help_beszel": "対象システム用の通常の Beszel 閲覧ユーザーを使用してください。スーパーユーザーの認証情報は使用しません。",
   "desktop.store.ig_help_filebrowser-quantum": "専用 API ユーザーを作成します。Store の /folder ボリューム上のソースを一つだけ許可し、View/Download のみ、共有・管理権限なしにします。API トークンとソース名を保存します。",
   "desktop.store.ig_help_stirling-pdf": "Stirling API キーを保存します。署名は別途許可するまで無効です。Stirling でサーバー証明書を選び、SHA-256 フィンガープリントを入力します。証明書が変わると署名を停止します。",
-  "desktop.store.ig_help_ziro-designer": "Shared に保存したプロジェクトを KiCad 10 でエクスポートします。ネットリストと製造データには実行、Docker、ファイル書き込みの権限が必要です。未保存の編集内容は含まれません。テストはエクスポート用コンテナのみを確認します。"
+  "desktop.store.ig_help_ziro-designer": "Shared に保存したプロジェクトを KiCad 10 でエクスポートします。ネットリストと製造データには実行、Docker、ファイル書き込みの権限が必要です。未保存の編集内容は含まれません。テストはエクスポート用コンテナのみを確認します。",
+  "desktop.store.ig_help_velxio": "アカウントもトークンも不要です。AuraGo は、保管庫に保存された生成済みトークンを使って Velxio 内蔵の MCP サーバーに接続します。設計ツールは回路 JSON とコードを返し、コンパイルは Velxio コンテナー内の arduino-cli で実行されます。結果はエージェントに渡され、開いているエディターには入りません。Velxio でインポートしてください。起動直後は接続に 1 分ほどかかることがあります。",
+  "desktop.store.ig_velxio_read": "回路とコードを設計する (作成、更新、インポート、エクスポート、生成)",
+  "desktop.store.ig_velxio_execute": "Velxio コンテナーでスケッチをコンパイル・実行する"
 }

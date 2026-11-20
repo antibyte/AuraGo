@@ -12481,5 +12481,8 @@
   "desktop.store.ig_help_beszel": "Bruk en vanlig Beszel-lesebruker for ønskede systemer, aldri superbrukertilgang.",
   "desktop.store.ig_help_filebrowser-quantum": "Opprett en egen API-bruker: én kilde på Store-volumet /folder, bare View/Download, uten deling eller administrasjon. Lagre API-token og kildenavn.",
   "desktop.store.ig_help_stirling-pdf": "Lagre en Stirling-API-nøkkel. Signering er separat avslått: velg serversertifikatet i Stirling og oppgi SHA-256-fingeravtrykket. Sertifikatendringer blokkerer signering.",
-  "desktop.store.ig_help_ziro-designer": "Eksporterer lagrede Shared-prosjekter med KiCad 10. Nettlister og produksjonsfiler krever kjøring, Docker og skrivetilgang. Ulagrede utkast utelates. Testen kontrollerer bare eksportcontaineren."
+  "desktop.store.ig_help_ziro-designer": "Eksporterer lagrede Shared-prosjekter med KiCad 10. Nettlister og produksjonsfiler krever kjøring, Docker og skrivetilgang. Ulagrede utkast utelates. Testen kontrollerer bare eksportcontaineren.",
+  "desktop.store.ig_help_velxio": "Du trenger ingen konto eller token: AuraGo kobler til Velxios innebygde MCP-server med en generert token som lagres i hvelvet. Designverktøy returnerer krets-JSON og kode; kompilering kjører arduino-cli i Velxio-containeren. Resultatene går til agenten, ikke inn i en åpen editor; importer dem i Velxio. Rett etter en start kan tilkoblingen ta et minutt.",
+  "desktop.store.ig_velxio_read": "Designe kretser og kode (opprette, oppdatere, importere, eksportere, generere)",
+  "desktop.store.ig_velxio_execute": "Kompilere og kjøre sketcher i Velxio-containeren"
 }

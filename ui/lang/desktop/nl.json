@@ -12481,5 +12481,8 @@
   "desktop.store.ig_help_beszel": "Gebruik een gewone Beszel-leesgebruiker voor de gewenste systemen, nooit superusergegevens.",
   "desktop.store.ig_help_filebrowser-quantum": "Maak een aparte API-gebruiker: één bron op het Store-volume /folder, alleen View/Download, zonder deel- of beheerrechten. Sla API-token en bronnaam op.",
   "desktop.store.ig_help_stirling-pdf": "Sla een Stirling-API-sleutel op. Ondertekenen staat apart uit: kies het servercertificaat in Stirling en voer de SHA-256-vingerafdruk in. Een certificaatwijziging blokkeert ondertekenen.",
-  "desktop.store.ig_help_ziro-designer": "Exporteert opgeslagen Shared-projecten met KiCad 10. Netlijsten en productiebestanden vereisen uitvoering, Docker en schrijfrechten. Niet-opgeslagen ontwerpen worden uitgesloten. De test controleert alleen de exportcontainer."
+  "desktop.store.ig_help_ziro-designer": "Exporteert opgeslagen Shared-projecten met KiCad 10. Netlijsten en productiebestanden vereisen uitvoering, Docker en schrijfrechten. Niet-opgeslagen ontwerpen worden uitgesloten. De test controleert alleen de exportcontainer.",
+  "desktop.store.ig_help_velxio": "Je hebt geen account of token nodig: AuraGo verbindt met de ingebouwde MCP-server van Velxio met een gegenereerd token dat in de kluis staat. Ontwerptools geven circuit-JSON en code terug; compileren draait arduino-cli in de Velxio-container. Resultaten gaan naar de agent, niet naar een geopende editor; importeer ze in Velxio. Direct na een start kan de verbinding een minuut duren.",
+  "desktop.store.ig_velxio_read": "Circuits en code ontwerpen (maken, bijwerken, importeren, exporteren, genereren)",
+  "desktop.store.ig_velxio_execute": "Sketches compileren en uitvoeren in de Velxio-container"
 }

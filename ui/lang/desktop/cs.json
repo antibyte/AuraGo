@@ -12481,5 +12481,8 @@
   "desktop.store.ig_help_beszel": "Použij běžného čtenáře Beszel pro požadované systémy, nikoli přístup superuživatele.",
   "desktop.store.ig_help_filebrowser-quantum": "Vytvoř samostatného API uživatele: jediný zdroj na svazku Store /folder, pouze View/Download, bez sdílení a správy. Ulož API token a název zdroje.",
   "desktop.store.ig_help_stirling-pdf": "Ulož API klíč Stirling. Podepisování je samostatně vypnuté: vyber serverový certifikát ve Stirling a zadej otisk SHA-256. Změna certifikátu podepisování zablokuje.",
-  "desktop.store.ig_help_ziro-designer": "Exportuje uložené projekty ze Shared pomocí KiCad 10. Seznamy spojů a výrobní soubory vyžadují spouštění, Docker a zápis souborů. Neuložené návrhy se vynechají. Test kontroluje pouze exportní kontejner."
+  "desktop.store.ig_help_ziro-designer": "Exportuje uložené projekty ze Shared pomocí KiCad 10. Seznamy spojů a výrobní soubory vyžadují spouštění, Docker a zápis souborů. Neuložené návrhy se vynechají. Test kontroluje pouze exportní kontejner.",
+  "desktop.store.ig_help_velxio": "Není potřeba účet ani token: AuraGo se připojuje k vestavěnému serveru MCP ve Velxiu pomocí vygenerovaného tokenu uloženého v trezoru. Návrhové nástroje vracejí JSON obvodu a kód; kompilace spouští arduino-cli v kontejneru Velxio. Výsledky jdou agentovi, ne do otevřeného editoru; importujte je ve Velxiu. Hned po spuštění může připojení trvat minutu.",
+  "desktop.store.ig_velxio_read": "Navrhovat obvody a kód (vytvořit, upravit, importovat, exportovat, generovat)",
+  "desktop.store.ig_velxio_execute": "Kompilovat a spouštět skeče v kontejneru Velxio"
 }

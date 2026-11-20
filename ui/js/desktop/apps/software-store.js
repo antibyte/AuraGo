@@ -3,7 +3,7 @@
 
     const instances = new Map();
     const retiredStoreAppIDs = new Set(['emulatorjs']);
-    const integrationApps = new Set(['adguard-home', 'uptime-kuma', 'n8n', 'node-red', 'olivetin', 'open-webui', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer']);
+    const integrationApps = new Set(['adguard-home', 'uptime-kuma', 'n8n', 'node-red', 'olivetin', 'open-webui', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer', 'velxio']);
 
     function activeStoreCatalogEntries(items) {
         return (Array.isArray(items) ? items : []).filter(entry => !retiredStoreAppIDs.has(String(entry && entry.id || '').toLowerCase()));
@@ -314,7 +314,9 @@
 
         function extraPortButtons(entry, app, actionDisabled) {
             if (!entry || !app || app.status !== 'running' || !Array.isArray(entry.extra_ports) || !entry.extra_ports.length) return '';
-            return entry.extra_ports.map(port => {
+            const ports = entry.extra_ports.filter(port => !String(port.id || '').startsWith('agent-'));
+            if (!ports.length) return '';
+            return ports.map(port => {
                 const label = port.name || port.id || port.container_port;
                 return `<button type="button" class="vd-store-btn" data-action="open-port" data-port-id="${esc(port.id || '')}" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(label)}</span></button>`;
             }).join('');
@@ -573,7 +575,7 @@
                 const overlay = document.createElement('div');
                 overlay.className = 'vd-modal-backdrop';
                 const grants = ['read'];
-                if (['adguard-home', 'n8n', 'node-red', 'olivetin', 'ziro-designer'].includes(appId)) grants.push('execute');
+                if (['adguard-home', 'n8n', 'node-red', 'olivetin', 'ziro-designer', 'velxio'].includes(appId)) grants.push('execute');
                 if (appId === 'bytestash') grants.push('create');
                 if (appId === 'stirling-pdf') grants.push('process', 'sign');
                 if (appId === 'uptime-kuma') grants.push('notify');
@@ -581,15 +583,15 @@
                 overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true" aria-label="${label('connect')}">
                     <div class="vd-modal-title">${esc(catalog.find(item => item.id === appId)?.name || appId)} · ${label('connect')}</div>
                     <p class="vd-store-modal-copy">${label('intro')}</p>
-                    ${['n8n', 'node-red', 'olivetin', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
+                    ${['n8n', 'node-red', 'olivetin', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer', 'velxio'].includes(appId) ? `<p class="vd-store-modal-copy">${label('help_' + appId)}</p>` : ''}
                     <button type="button" class="vd-button" data-ig-open>${esc(t('desktop.store.open'))}</button>
                     ${saved.containerized && appId !== 'ziro-designer' ? `<label class="vd-store-field"><span>${esc(t('desktop.store.pg_network'))}</span><select name="docker_network"><option value="">—</option>${(saved.networks || []).map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}</select></label>` : ''}
-                    ${appId === 'ziro-designer' ? '' : field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
-                    ${appId === 'ziro-designer' ? '' : field('credential', 'password')}<p data-ig-stored></p>
+                    ${['ziro-designer', 'velxio'].includes(appId) ? '' : field('url')}${['adguard-home', 'beszel', 'filebrowser-quantum'].includes(appId) ? field('username') : ''}
+                    ${['ziro-designer', 'velxio'].includes(appId) ? '' : field('credential', 'password')}<p data-ig-stored></p>
                     ${appId === 'open-webui' ? `<p class="vd-store-modal-copy">${label('relay_hint')}</p>${field('relay_port', 'number')}` : ''}
-                    ${appId === 'ziro-designer' ? '' : `<label class="vd-store-choice"><input type="checkbox" name="clear_credential"><span>${label('clear_credential')}</span></label>`}
+                    ${['ziro-designer', 'velxio'].includes(appId) ? '' : `<label class="vd-store-choice"><input type="checkbox" name="clear_credential"><span>${label('clear_credential')}</span></label>`}
                     ${saved.conflict ? `<label class="vd-store-choice"><input type="checkbox" name="select_store_instance"><span>${label('conflict')}</span></label>` : ''}
-                    ${grants.map(name => `<label class="vd-store-choice"><input type="checkbox" name="${name}"><span>${label(appId === 'open-webui' && name === 'read' ? 'relay_enable' : name)}</span></label>`).join('')}
+                    ${grants.map(name => `<label class="vd-store-choice"><input type="checkbox" name="${name}"><span>${label(appId === 'open-webui' && name === 'read' ? 'relay_enable' : appId === 'velxio' ? 'velxio_' + name : name)}</span></label>`).join('')}
                     ${['node-red', 'olivetin'].includes(appId) ? field('allowed_ids') : ''}
                     ${appId === 'filebrowser-quantum' ? field('source') : ''}
                     ${appId === 'stirling-pdf' ? field('certificate_fingerprint') : ''}

@@ -12481,5 +12481,8 @@
   "desktop.store.ig_help_beszel": "Use a normal Beszel reader for the intended systems, never superuser credentials.",
   "desktop.store.ig_help_filebrowser-quantum": "Create a dedicated API user: one source on the Store /folder volume, View/Download only, no sharing or admin rights. Save its API token and source name.",
   "desktop.store.ig_help_stirling-pdf": "Save a Stirling API key. Signing is separately off by default: select the server certificate in Stirling and enter its SHA-256 fingerprint. Certificate changes block signing.",
-  "desktop.store.ig_help_ziro-designer": "Exports saved Shared projects with KiCad 10. Netlists and manufacturing files require execution, Docker and file-write permissions. Unsaved drafts are excluded. The test only checks the export container."
+  "desktop.store.ig_help_ziro-designer": "Exports saved Shared projects with KiCad 10. Netlists and manufacturing files require execution, Docker and file-write permissions. Unsaved drafts are excluded. The test only checks the export container.",
+  "desktop.store.ig_help_velxio": "No account or token is needed: AuraGo connects to Velxio's built-in MCP server with a generated token kept in the vault. Design tools return circuit JSON and code; compiling runs arduino-cli inside the Velxio container. Results go to the agent, not into an open editor; import them in Velxio. Right after a start the connection can take a minute.",
+  "desktop.store.ig_velxio_read": "Design circuits and code (create, update, import, export, generate)",
+  "desktop.store.ig_velxio_execute": "Compile and run sketches in the Velxio container"
 }

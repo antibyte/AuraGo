@@ -12481,5 +12481,8 @@
   "desktop.store.ig_help_beszel": "Użyj zwykłego użytkownika odczytu Beszel dla wybranych systemów, nigdy konta superużytkownika.",
   "desktop.store.ig_help_filebrowser-quantum": "Utwórz osobnego użytkownika API: jedno źródło na wolumenie Store /folder, tylko View/Download, bez udostępniania i administracji. Zapisz token API oraz nazwę źródła.",
   "desktop.store.ig_help_stirling-pdf": "Zapisz klucz API Stirling. Podpisywanie jest osobno wyłączone: wybierz certyfikat serwera w Stirling i wpisz odcisk SHA-256. Zmiana certyfikatu blokuje podpisywanie.",
-  "desktop.store.ig_help_ziro-designer": "Eksportuje zapisane projekty Shared przez KiCad 10. Listy połączeń i pliki produkcyjne wymagają uruchamiania, Docker i zapisu plików. Niezapisane szkice są pomijane. Test sprawdza tylko kontener eksportu."
+  "desktop.store.ig_help_ziro-designer": "Eksportuje zapisane projekty Shared przez KiCad 10. Listy połączeń i pliki produkcyjne wymagają uruchamiania, Docker i zapisu plików. Niezapisane szkice są pomijane. Test sprawdza tylko kontener eksportu.",
+  "desktop.store.ig_help_velxio": "Nie potrzeba konta ani tokenu: AuraGo łączy się z wbudowanym serwerem MCP Velxio przy użyciu wygenerowanego tokenu przechowywanego w sejfie. Narzędzia projektowe zwracają JSON obwodu i kod; kompilacja uruchamia arduino-cli w kontenerze Velxio. Wyniki trafiają do agenta, a nie do otwartego edytora; zaimportuj je w Velxio. Zaraz po uruchomieniu połączenie może potrwać minutę.",
+  "desktop.store.ig_velxio_read": "Projektowanie obwodów i kodu (tworzenie, aktualizacja, import, eksport, generowanie)",
+  "desktop.store.ig_velxio_execute": "Kompilowanie i uruchamianie szkiców w kontenerze Velxio"
 }
