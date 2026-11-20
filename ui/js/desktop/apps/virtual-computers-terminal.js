@@ -7,6 +7,14 @@
         }[ch]));
     }
 
+    // The console colours come from the app's CSS variables; the literals are the dark fallbacks.
+    function terminalTheme(container) {
+        const read = (name, fallback) => {
+            try { return (window.getComputedStyle(container).getPropertyValue(name) || '').trim() || fallback; } catch (_) { return fallback; }
+        };
+        return { background: read('--vc-console-bg', '#101419'), foreground: read('--vc-console-fg', '#e9eef4'), cursor: read('--vc-console-cursor', '#7ec8ff') };
+    }
+
     function mount(container, options) {
         if (!container) throw new Error('Terminal container is required');
         const settings = options || {};
@@ -33,10 +41,16 @@
                     <button type="button" class="vc-terminal-tool" data-terminal-action="disconnect">${esc(t('desktop.virtual_computers_terminal_disconnect'))}</button>
                 </div>
             </div>
-            <div class="vc-terminal-stage" data-role="terminal-stage"></div>`;
+            <div class="vc-terminal-body">
+                <div class="vc-terminal-stage" data-role="terminal-stage"></div>
+                <div class="vc-terminal-message" data-role="terminal-message" role="alert" hidden><p data-role="terminal-message-text"></p><button type="button" class="vc-terminal-tool" data-terminal-action="retry">${esc(t('desktop.retry'))}</button></div>
+            </div>`;
 
         const stage = container.querySelector('[data-role="terminal-stage"]');
         const status = container.querySelector('[data-role="terminal-status"]');
+        const message = container.querySelector('[data-role="terminal-message"]');
+        const messageText = container.querySelector('[data-role="terminal-message-text"]');
+        const retryButton = container.querySelector('[data-terminal-action="retry"]');
         const reconnectButton = container.querySelector('[data-terminal-action="reconnect"]');
         const disconnectButton = container.querySelector('[data-terminal-action="disconnect"]');
         const encoder = new TextEncoder();
@@ -45,6 +59,12 @@
             if (!status) return;
             status.textContent = t(key);
             status.dataset.state = state || '';
+        }
+
+        function setMessage(text) {
+            if (!message) return;
+            if (messageText) messageText.textContent = text || '';
+            message.hidden = !text;
         }
 
         function clearFitTimer() {
@@ -85,6 +105,7 @@
         function handleOpen(event) {
             if (disposed || (event && event.currentTarget && event.currentTarget !== socket)) return;
             connectionFailed = false;
+            setMessage('');
             setStatus('desktop.virtual_computers_terminal_connected', 'connected');
             scheduleFit();
             terminal?.focus();
@@ -107,9 +128,10 @@
         function handleError() {
             if (disposed) return;
             connectionFailed = true;
-            const message = t('desktop.virtual_computers_terminal_error');
+            const errorMessage = t('desktop.virtual_computers_terminal_error');
             setStatus('desktop.virtual_computers_terminal_error', 'error');
-            notify(message, 'error');
+            setMessage(errorMessage);
+            notify(errorMessage, 'error');
         }
 
         function handleClose(event) {
@@ -125,6 +147,7 @@
             if (disposed) return;
             disconnectConnection();
             connectionFailed = false;
+            setMessage('');
             setStatus('desktop.virtual_computers_terminal_connecting', 'connecting');
             try {
                 const nextSocket = new window.WebSocket(settings.url);
@@ -169,6 +192,7 @@
             clearFitTimer();
             disconnectConnection();
             reconnectButton?.removeEventListener?.('click', handleReconnect);
+            retryButton?.removeEventListener?.('click', handleReconnect);
             disconnectButton?.removeEventListener?.('click', handleDisconnect);
             if (resizeObserver) {
                 resizeObserver.disconnect();
@@ -203,7 +227,7 @@
                 fontFamily: '"Cascadia Mono", "SFMono-Regular", Consolas, monospace',
                 fontSize: 13,
                 scrollback: 5000,
-                theme: { background: '#101419', foreground: '#e9eef4', cursor: '#7ec8ff' }
+                theme: terminalTheme(container)
             });
             fitAddon = new window.FitAddon.FitAddon();
             terminal.loadAddon(fitAddon);
@@ -216,6 +240,7 @@
             resizeObserver = new ResizeObserver(scheduleFit);
             resizeObserver.observe(container);
             reconnectButton?.addEventListener('click', handleReconnect);
+            retryButton?.addEventListener('click', handleReconnect);
             disconnectButton?.addEventListener('click', handleDisconnect);
             scheduleFit();
             connect();

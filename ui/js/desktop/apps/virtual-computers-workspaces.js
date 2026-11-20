@@ -1,49 +1,72 @@
 (function () {
     'use strict';
 
-    const localizedValues = {
-        native: { disabled: 'desktop.virtual_computers_native_disabled', ready: 'desktop.virtual_computers_native_ready', repair_required: 'desktop.virtual_computers_native_repair', session_unreachable: 'desktop.virtual_computers_native_unreachable', unchecked: 'desktop.virtual_computers_native_unchecked', checking: 'desktop.virtual_computers_native_checking' },
-        control: { agent: 'desktop.virtual_computers_control_agent', human: 'desktop.virtual_computers_control_human' },
-        template: { desktop: 'desktop.virtual_computers_template_desktop', python: 'desktop.virtual_computers_template_python' },
-        network: { internet_lan: 'desktop.virtual_computers_network_internet_lan' },
-        state: {
-            opening: 'desktop.virtual_computers_terminal_connecting', ready: 'desktop.virtual_computers_health_operational',
-            closing: 'desktop.virtual_computers_terminal_disconnected', closed: 'desktop.virtual_computers_terminal_disconnected',
-            failed: 'desktop.virtual_computers_section_error', lost: 'desktop.virtual_computers_section_error',
-            queued: 'desktop.virtual_computers_terminal_connecting', running: 'desktop.virtual_computers_terminal_connected',
-            completed: 'desktop.virtual_computers_completed_jobs', canceled: 'desktop.virtual_computers_terminal_disconnected',
-            interrupted: 'desktop.virtual_computers_terminal_disconnected', open: 'desktop.virtual_computers_terminal_connected',
-            active: 'desktop.virtual_computers_state_enabled', pending_approval: 'desktop.virtual_computers_approve_grant',
-            revoked: 'desktop.virtual_computers_revoke_grant', expired: 'desktop.virtual_computers_expires',
-            consumed: 'desktop.virtual_computers_completed_jobs'
-        },
-        usage: { shell: 'desktop.virtual_computers_terminal', browser: 'desktop.virtual_computers_browser_url' },
-        event: {
-            workspace_open_failed: 'desktop.virtual_computers_section_error', workspace_opened: 'desktop.virtual_computers_health_operational',
-            workspace_closed: 'desktop.virtual_computers_close_workspace', shell_exec: 'desktop.virtual_computers_terminal',
-            job_started: 'desktop.virtual_computers_task_start', job_canceled: 'desktop.virtual_computers_task_cancel',
-            file_written: 'desktop.virtual_computers_activity', checkpoint_created: 'desktop.virtual_computers_checkpoint',
-            desktop_action: 'desktop.virtual_computers_native_title', browser_action: 'desktop.virtual_computers_browser_url', control_changed: 'desktop.virtual_computers_control',
-            credential_grant_requested: 'desktop.virtual_computers_approve_grant', credential_grant_approved: 'desktop.virtual_computers_active_grants',
-            credential_grant_revoked: 'desktop.virtual_computers_revoke_grant', credential_grant_consumed: 'desktop.virtual_computers_completed_jobs',
-            workspace_lost: 'desktop.virtual_computers_section_error', workspace_instance_reset: 'desktop.virtual_computers_runtime'
-        }
+    const K = 'desktop.virtual_computers_';
+    const maxRequestLength = 4000;
+    // Every kind maps to a family of dedicated language keys (K + prefix + value). An
+    // unknown value falls back to a readable form of the raw value instead of an unrelated label.
+    const labelPrefixes = {
+        native: 'native_', control: 'control_', template: 'template_', network: 'network_',
+        ws_state: 'ws_state_', job_state: 'job_state_', grant_state: 'grant_state_',
+        usage: 'usage_', event: 'event_'
     };
+    const nativeAliases = { repair_required: 'repair', session_unreachable: 'unreachable' };
+
+    function humanize(value) {
+        const text = String(value == null ? '' : value).replace(/[_-]+/g, ' ').trim();
+        return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
+    }
 
     function valueLabel(context, kind, value, ui) {
         const normalized = String(value || '').trim();
-        const key = localizedValues[kind] && localizedValues[kind][normalized];
-        return key ? ui.tx(context, key) : normalized;
+        if (!normalized) return '';
+        let slug = normalized.toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+        if (kind === 'native' && nativeAliases[slug]) slug = nativeAliases[slug];
+        const prefix = labelPrefixes[kind];
+        if (!prefix) return humanize(normalized);
+        const key = K + prefix + slug;
+        const text = ui.tx(context, key);
+        return text && text !== key ? text : humanize(normalized);
+    }
+
+    function shortId(id) {
+        const text = String(id == null ? '' : id);
+        return text.length > 14 ? text.slice(0, 12) + '…' : text;
+    }
+
+    function machineName(machine) {
+        return (machine && (machine.label || machine.name || machine.id)) || '';
+    }
+
+    function requestCountText(context, length) {
+        const count = Math.max(0, Number(length) || 0);
+        const text = context && typeof context.t === 'function' ? context.t(K + 'request_count', { count, max: maxRequestLength }) : '';
+        return text && text !== K + 'request_count' ? text : count + ' / ' + maxRequestLength;
+    }
+
+    function readyWorkspaces(state) {
+        return state.workspaces.filter(w => w.state === 'ready' && w.owner_session_id === 'virtual-desktop' && !w.mission_id);
+    }
+
+    function workspaceName(state, workspace) {
+        const machine = state.machines.find(item => item.id === workspace.machine_id);
+        return machine ? machineName(machine) : shortId(workspace.machine_id || workspace.id);
     }
 
     function agentRequest(state, ui) {
         const c = state.context;
+        const esc = ui.esc;
         const selected = state.agentWorkspaceId || '';
-        const available = state.workspaces.filter(w => w.state === 'ready' && w.owner_session_id === 'virtual-desktop' && !w.mission_id);
-        const options = available.map(w => `<option value="${ui.esc(w.id)}" ${w.id === selected ? 'selected' : ''}>${ui.esc(w.id)} · ${ui.esc(valueLabel(c, 'template', w.template, ui))}</option>`).join('');
-        const missing = selected && !available.some(w => w.id === selected);
-        const selector = `<label class="vc-agent-workspace"><span>${ui.esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces'))}</span><select data-role="agent-workspace"><option value="">${ui.esc(ui.tx(c, 'desktop.virtual_computers_workspace_auto'))}</option>${options}${missing ? `<option value="${ui.esc(selected)}" selected disabled>${ui.esc(selected)} · ${ui.esc(ui.tx(c, 'desktop.virtual_computers_workspace_unavailable'))}</option>` : ''}</select></label>`;
-        return `<div class="vc-agent-request">${selector}<label><span>${ui.esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="4000" placeholder="${ui.esc(ui.tx(c, 'desktop.chat_placeholder'))}">${ui.esc(state.agentRequestDraft || '')}</textarea></label><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${ui.esc(ui.tx(c, 'desktop.virtual_computers_task_start'))}</button></div>`;
+        const available = readyWorkspaces(state);
+        const running = state.machines.filter(machine => machine && machine.id && !machine.workspace_id && String(machine.status || '').toLowerCase() === 'running');
+        const workspaceOptions = available.map(w => `<option value="${esc(w.id)}" ${w.id === selected ? 'selected' : ''}>${esc(workspaceName(state, w))} · ${esc(valueLabel(c, 'template', w.template, ui))}</option>`).join('');
+        const machineOptions = running.map(machine => `<option value="machine:${esc(machine.id)}" ${'machine:' + machine.id === selected ? 'selected' : ''}>${esc(machineName(machine))} · ${esc(valueLabel(c, 'template', machine.template, ui))}</option>`).join('');
+        const missing = selected && !available.some(w => w.id === selected) && !running.some(machine => 'machine:' + machine.id === selected);
+        const missingLabel = selected.startsWith('machine:') ? shortId(selected.slice('machine:'.length)) : shortId(selected);
+        const groups = `${workspaceOptions ? `<optgroup label="${esc(ui.tx(c, K + 'agent_workspaces'))}">${workspaceOptions}</optgroup>` : ''}${machineOptions ? `<optgroup label="${esc(ui.tx(c, K + 'picker_running_computers'))}">${machineOptions}</optgroup>` : ''}`;
+        const selector = `<label class="vc-agent-workspace"><span>${esc(ui.tx(c, K + 'agent_workspaces'))}</span><select data-role="agent-workspace"><option value="">${esc(ui.tx(c, K + 'workspace_auto'))}</option>${groups}${missing ? `<option value="${esc(selected)}" selected disabled>${esc(missingLabel)} · ${esc(ui.tx(c, K + 'workspace_unavailable'))}</option>` : ''}</select></label>`;
+        const draft = state.agentRequestDraft || '';
+        return `<div class="vc-agent-request">${selector}<div class="vc-agent-field"><label><span>${esc(ui.tx(c, 'desktop.agent_task_for_agent'))}</span><textarea data-role="agent-request" rows="3" maxlength="${maxRequestLength}" placeholder="${esc(ui.tx(c, K + 'request_placeholder'))}">${esc(draft)}</textarea></label><small class="vc-agent-count" data-role="agent-request-count">${esc(requestCountText(c, draft.length))}</small></div><button type="button" class="vc-btn vc-primary" data-action="ask-agent">${ui.icon(state, 'agent', 'A')}${esc(ui.tx(c, K + 'task_start'))}</button></div>`;
     }
 
     function renderPane(state, ui) {
@@ -51,11 +74,11 @@
         const esc = ui.esc;
         if (state.resourceLoading.workspaces && !state.workspaces.length) return `<section class="vc-section-page">${ui.skeletonRows()}</section>`;
         if (state.resourceErrors.workspaces && !state.workspaces.length) return `<section class="vc-section-page">${ui.resourceErrorPane(state, 'workspaces')}</section>`;
-        if (!state.workspaces.length) return `<section class="vc-section-page"><div class="vc-empty-state"><span class="vc-empty-icon">${ui.icon(state, 'agent', 'A')}</span><strong>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces_empty'))}</strong><p>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces_hint'))}</p>${agentRequest(state, ui)}</div></section>`;
+        if (!state.workspaces.length) return `<section class="vc-section-page"><div class="vc-empty-state"><span class="vc-empty-icon">${ui.icon(state, 'agent', 'A')}</span><strong>${esc(ui.tx(c, K + 'agent_workspaces_empty'))}</strong><p>${esc(ui.tx(c, K + 'agent_workspaces_hint'))}</p>${agentRequest(state, ui)}</div></section>`;
         const summaries = new Map(state.workspaceSummaries.map(item => [item.workspace && item.workspace.id, item]));
-        return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(ui.tx(c, 'desktop.virtual_computers_title'))}</span><h3>${esc(ui.tx(c, 'desktop.virtual_computers_agent_workspaces'))}</h3></div></header>
+        return `<section class="vc-section-page"><header class="vc-section-header"><div><span class="vc-eyebrow">${esc(ui.tx(c, K + 'title'))}</span><h3>${esc(ui.tx(c, K + 'agent_workspaces'))}</h3></div></header>
             ${agentRequest(state, ui)}
-            ${state.resourceErrors.workspaces ? `<div class="vc-inline-error">${esc(state.resourceErrors.workspaces)}</div>` : ''}
+            ${state.resourceErrors.workspaces ? `<div class="vc-inline-error" role="alert">${esc(state.resourceErrors.workspaces)}</div>` : ''}
             <div class="vc-workspace-grid">${state.workspaces.map(workspace => workspaceCard(state, workspace, summaries.get(workspace.id) || {}, ui)).join('')}</div></section>`;
     }
 
@@ -71,19 +94,32 @@
         const activeGrants = grants.filter(grant => grant.status === 'active' || grant.status === 'pending_approval');
         const activeBrowser = browserSessions.find(session => session.state === 'open');
         const machine = state.machines.find(item => item.id === workspace.machine_id);
+        const adopted = workspace.origin === 'adopted';
+        // Closed, failed and lost workspaces keep their history but offer no actions.
+        const isReady = workspace.state === 'ready';
+        const isLive = isReady || workspace.state === 'opening';
+        const name = workspaceName(state, workspace);
+        const volume = workspace.volume_id ? (state.volumes || []).find(item => item.id === workspace.volume_id) : null;
+        const volumeText = workspace.volume_id ? ((volume && volume.name) || shortId(workspace.volume_id)) : ui.tx(c, K + 'volume_none');
         const nativeEnabled = !!(state.status && state.status.capabilities && state.status.capabilities.native_apps);
         const nativeStatus = nativeEnabled ? ((state.nativeDesktopStatus || {})[workspace.id] || { state: 'unchecked' }) : { state: 'disabled' };
-        const nativePanel = workspace.template === 'desktop' ? `<div class="vc-inline-note"><strong>${esc(ui.tx(c, 'desktop.virtual_computers_native_title'))}</strong>: <span role="status">${esc(valueLabel(c, 'native', nativeStatus.state, ui))}${nativeStatus.version ? ' · ' + esc(nativeStatus.version) : ''}</span> <button type="button" class="vc-btn" data-action="check-native-desktop" data-id="${esc(workspace.id)}" ${nativeStatus.state === 'checking' ? 'disabled' : ''}>${esc(ui.tx(c, 'desktop.virtual_computers_native_check'))}</button></div>` : '';
+        const nativePanel = workspace.template === 'desktop' && isLive ? `<div class="vc-inline-note"><strong>${esc(ui.tx(c, K + 'native_title'))}</strong>: <span role="status">${esc(valueLabel(c, 'native', nativeStatus.state, ui))}${nativeStatus.version ? ' · ' + esc(nativeStatus.version) : ''}</span> <button type="button" class="vc-btn" data-action="check-native-desktop" data-id="${esc(workspace.id)}" ${nativeStatus.state === 'checking' ? 'disabled' : ''}>${esc(ui.tx(c, K + 'native_check'))}</button></div>` : '';
         const showLiveVNC = !!(machine && machine.display && state.vncWorkspaceId === workspace.id);
-        const outputAndActivity = `<div class="vc-workspace-split"><section><h4>${esc(ui.tx(c, 'desktop.virtual_computers_job_output'))}</h4><pre>${esc(jobOutput || (activeJob ? (activeJob.command_summary || valueLabel(c, 'state', activeJob.state, ui)) : ui.tx(c, 'desktop.virtual_computers_no_active_job')))}</pre></section><section><h4>${esc(ui.tx(c, 'desktop.virtual_computers_activity'))}</h4><ol>${events.map(event => `<li><span>${esc(valueLabel(c, 'event', event.type, ui) || ui.tx(c, 'desktop.virtual_computers_activity'))}</span><small>${esc(ui.formatDate(event.created_at))}</small><p>${esc(event.type === 'desktop_action' ? ui.tx(c, 'desktop.virtual_computers_native_title') : (event.summary || ''))}</p></li>`).join('') || '<li>—</li>'}</ol></section></div>`;
-        const runtimeView = showLiveVNC ? `<div class="vc-workspace-live"><section class="vc-workspace-vnc-panel"><h4>${esc(ui.tx(c, 'desktop.virtual_computers_vnc_live'))}</h4><div class="vc-vnc-mount" data-role="workspace-vnc-mount" data-workspace-id="${esc(workspace.id)}"></div></section>${outputAndActivity}</div>` : outputAndActivity;
-        return `<article class="vc-workspace-card ${showLiveVNC ? 'is-live' : ''}">
-            <header class="vc-detail-header"><div><span class="vc-eyebrow">${esc(valueLabel(c, 'template', workspace.template || 'desktop', ui))} · ${esc(valueLabel(c, 'network', workspace.network_profile || 'internet_lan', ui))}</span><h3>${esc(workspace.id)}</h3><span class="vc-state-chip" data-state="${esc(workspace.state || '')}"><span class="vc-state-dot"></span>${esc(valueLabel(c, 'state', workspace.state, ui) || '—')}</span></div>
-            <div class="vc-actions">${machine && machine.display ? `<button type="button" class="vc-btn" data-action="observe-workspace" data-id="${esc(workspace.id)}" data-machine-id="${esc(workspace.machine_id)}">${esc(ui.tx(c, 'desktop.virtual_computers_observe'))}</button><button type="button" class="vc-btn" data-action="takeover-workspace" data-id="${esc(workspace.id)}" data-machine-id="${esc(workspace.machine_id)}">${esc(ui.tx(c, 'desktop.virtual_computers_take_control'))}</button>` : ''}<button type="button" class="vc-btn" data-action="checkpoint-workspace" data-id="${esc(workspace.id)}">${esc(ui.tx(c, 'desktop.virtual_computers_checkpoint'))}</button><button type="button" class="vc-btn danger" data-action="close-workspace" data-id="${esc(workspace.id)}">${esc(ui.tx(c, 'desktop.virtual_computers_close_workspace'))}</button></div></header>
-            <dl class="vc-meta-grid"><div><dt>${esc(ui.tx(c, 'desktop.virtual_computers_machine'))}</dt><dd>${esc(workspace.machine_id || '—')}</dd></div><div><dt>${esc(ui.tx(c, 'desktop.virtual_computers_expires'))}</dt><dd>${esc(ui.formatExpiryCountdown(workspace.lease_expires_at, undefined, c))}</dd></div><div><dt>${esc(ui.tx(c, 'desktop.virtual_computers_control'))}</dt><dd>${esc(valueLabel(c, 'control', workspace.control_owner || 'agent', ui))}</dd></div><div><dt>${esc(ui.tx(c, 'desktop.virtual_computers_volume'))}</dt><dd>${esc(workspace.volume_id || ui.tx(c, 'desktop.virtual_computers_volume_none'))}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, 'desktop.virtual_computers_browser_url'))}</dt><dd>${esc(activeBrowser && activeBrowser.url_origin ? activeBrowser.url_origin : '—')}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, 'desktop.virtual_computers_current_job'))}</dt><dd>${activeJob ? `${esc(activeJob.command_summary || activeJob.id)} <button type="button" class="vc-text-button" data-action="cancel-workspace-job" data-id="${esc(workspace.id)}" data-job-id="${esc(activeJob.id)}">${esc(ui.tx(c, 'desktop.virtual_computers_task_cancel'))}</button>` : '—'}</dd></div></dl>
+        const outputAndActivity = `<div class="vc-workspace-split"><section><h4>${esc(ui.tx(c, K + 'job_output'))}</h4><pre>${esc(jobOutput || (activeJob ? (activeJob.command_summary || valueLabel(c, 'job_state', activeJob.state, ui)) : ui.tx(c, K + 'no_active_job')))}</pre></section><section><h4>${esc(ui.tx(c, K + 'activity'))}</h4><ol>${events.map(event => `<li><span>${esc(valueLabel(c, 'event', event.type, ui) || ui.tx(c, K + 'activity'))}</span><small>${esc(ui.formatDate(event.created_at))}</small><p>${esc(event.type === 'desktop_action' ? ui.tx(c, K + 'native_title') : (event.summary || ''))}</p></li>`).join('') || '<li>—</li>'}</ol></section></div>`;
+        const runtimeView = showLiveVNC ? `<div class="vc-workspace-live"><section class="vc-workspace-vnc-panel"><h4>${esc(ui.tx(c, K + 'vnc_live'))}</h4><div class="vc-vnc-mount" data-role="workspace-vnc-mount" data-workspace-id="${esc(workspace.id)}"></div></section>${outputAndActivity}</div>` : outputAndActivity;
+        const observe = isReady && machine && machine.display ? `<button type="button" class="vc-btn" data-action="observe-workspace" data-id="${esc(workspace.id)}" data-machine-id="${esc(workspace.machine_id)}">${esc(ui.tx(c, K + 'observe'))}</button><button type="button" class="vc-btn" data-action="takeover-workspace" data-id="${esc(workspace.id)}" data-machine-id="${esc(workspace.machine_id)}">${esc(ui.tx(c, K + 'take_control'))}</button>` : '';
+        const checkpoint = isReady ? `<button type="button" class="vc-btn" data-action="checkpoint-workspace" data-id="${esc(workspace.id)}">${esc(ui.tx(c, K + 'checkpoint'))}</button>` : '';
+        const closeButton = !isLive ? '' : adopted
+            ? `<button type="button" class="vc-btn" data-action="close-workspace" data-id="${esc(workspace.id)}" title="${esc(ui.tx(c, K + 'confirm_release_workspace_desc'))}">${esc(ui.tx(c, K + 'release_workspace'))}</button>`
+            : `<button type="button" class="vc-btn danger" data-action="close-workspace" data-id="${esc(workspace.id)}">${esc(ui.tx(c, K + 'close_workspace'))}</button>`;
+        const adoptedBadge = adopted ? `<span class="vc-badge is-assigned">${esc(ui.tx(c, K + 'badge_assigned_vm'))}</span>` : '';
+        return `<article class="vc-workspace-card ${showLiveVNC ? 'is-live' : ''}" data-workspace-id="${esc(workspace.id)}" data-origin="${esc(workspace.origin || 'launched')}">
+            <header class="vc-detail-header"><div><span class="vc-eyebrow">${esc(valueLabel(c, 'template', workspace.template || 'desktop', ui))} · ${esc(valueLabel(c, 'network', workspace.network_profile || 'internet_lan', ui))}</span><h3>${esc(name)}</h3><div class="vc-workspace-tags"><span class="vc-state-chip" data-state="${esc(workspace.state || '')}"><span class="vc-state-dot"></span>${esc(valueLabel(c, 'ws_state', workspace.state, ui) || '—')}</span>${adoptedBadge}</div></div>
+            <div class="vc-actions">${observe}${checkpoint}${closeButton}</div></header>
+            <dl class="vc-meta-grid"><div><dt>${esc(ui.tx(c, K + 'machine'))}</dt><dd title="${esc(workspace.machine_id || '')}">${esc(machine ? machineName(machine) : (workspace.machine_id ? shortId(workspace.machine_id) : '—'))}</dd></div><div><dt>${esc(ui.tx(c, K + 'expires'))}</dt><dd>${esc(ui.formatExpiryCountdown(workspace.lease_expires_at, undefined, c))}</dd></div><div><dt>${esc(ui.tx(c, K + 'control'))}</dt><dd>${esc(valueLabel(c, 'control', workspace.control_owner || 'agent', ui))}</dd></div><div><dt>${esc(ui.tx(c, K + 'volume'))}</dt><dd title="${esc(workspace.volume_id || '')}">${esc(volumeText)}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, K + 'browser_url'))}</dt><dd>${esc(activeBrowser && activeBrowser.url_origin ? activeBrowser.url_origin : '—')}</dd></div><div class="vc-meta-wide"><dt>${esc(ui.tx(c, K + 'current_job'))}</dt><dd>${activeJob ? `${esc(activeJob.command_summary || activeJob.id)} <button type="button" class="vc-text-button" data-action="cancel-workspace-job" data-id="${esc(workspace.id)}" data-job-id="${esc(activeJob.id)}">${esc(ui.tx(c, K + 'task_cancel'))}</button>` : '—'}</dd></div></dl>
             ${nativePanel}
             ${runtimeView}
-            <footer class="vc-workspace-grants"><strong>${esc(ui.tx(c, 'desktop.virtual_computers_active_grants'))}: ${activeGrants.length}</strong>${activeGrants.map(grant => `<span class="vc-workspace-grant"><span>${esc(grant.credential_id)} · ${esc(valueLabel(c, 'usage', grant.usage_type, ui))} · ${esc(grant.origin || grant.job_id || '')} · ${esc(valueLabel(c, 'state', grant.status, ui))}</span>${grant.status === 'pending_approval' ? `<button type="button" class="vc-text-button" data-action="approve-workspace-grant" data-id="${esc(workspace.id)}" data-grant-id="${esc(grant.id)}">${esc(ui.tx(c, 'desktop.virtual_computers_approve_grant'))}</button>` : ''}<button type="button" class="vc-text-button" data-action="revoke-workspace-grant" data-id="${esc(workspace.id)}" data-grant-id="${esc(grant.id)}">${esc(ui.tx(c, 'desktop.virtual_computers_revoke_grant'))}</button></span>`).join('')}</footer>
+            <footer class="vc-workspace-grants"><strong>${esc(ui.tx(c, K + 'active_grants'))}: ${activeGrants.length}</strong>${activeGrants.map(grant => `<span class="vc-workspace-grant"><span>${esc(grant.credential_id)} · ${esc(valueLabel(c, 'usage', grant.usage_type, ui))} · ${esc(grant.origin || grant.job_id || '')} · ${esc(valueLabel(c, 'grant_state', grant.status, ui))}</span>${grant.status === 'pending_approval' ? `<button type="button" class="vc-text-button" data-action="approve-workspace-grant" data-id="${esc(workspace.id)}" data-grant-id="${esc(grant.id)}">${esc(ui.tx(c, K + 'approve_grant'))}</button>` : ''}<button type="button" class="vc-text-button" data-action="revoke-workspace-grant" data-id="${esc(workspace.id)}" data-grant-id="${esc(grant.id)}">${esc(ui.tx(c, K + 'revoke_grant'))}</button></span>`).join('')}</footer>
         </article>`;
     }
 
@@ -187,5 +223,5 @@
         api.draw(state);
     }
 
-    window.VirtualComputersWorkspaces = { renderPane, controlAndOpen, releaseControl, checkNativeDesktop };
+    window.VirtualComputersWorkspaces = { renderPane, controlAndOpen, releaseControl, checkNativeDesktop, requestCountText };
 }());

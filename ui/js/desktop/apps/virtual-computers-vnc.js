@@ -14,6 +14,8 @@
         rfb.resizeSession = fit;
     }
 
+    let mountCounter = 0;
+
     function mount(container, options) {
         if (!container) throw new Error('VNC container is required');
         const settings = options || {};
@@ -28,6 +30,7 @@
         let expanded = false;
         let fullscreenListening = false;
         const preferences = { viewOnly: settings.viewOnly === true, scaleMode: 'fit' };
+        const lockNoteId = 'vc-vnc-lock-note-' + (++mountCounter);
 
         container.classList.add('vc-vnc-session');
         container.dataset.machineId = String(settings.machineId || '');
@@ -37,34 +40,39 @@
                 <div class="vc-vnc-toolbar-group">
                     <button type="button" class="vc-vnc-tool active" data-vnc-scale="fit" aria-pressed="true">${esc(t('desktop.virtual_computers_vnc_fit'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-scale="one-to-one" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_one_to_one'))}</button>
-                    <button type="button" class="vc-vnc-tool ${preferences.viewOnly ? 'active' : ''}" data-vnc-action="view-only" aria-pressed="${preferences.viewOnly ? 'true' : 'false'}">${esc(t('desktop.virtual_computers_vnc_view_only'))}</button>
+                    <button type="button" class="vc-vnc-tool ${preferences.viewOnly ? 'active' : ''}" data-vnc-action="view-only" aria-pressed="${preferences.viewOnly ? 'true' : 'false'}">${esc(t('desktop.virtual_computers_vnc_view_only'))}</button>${lockViewOnly ? `<span id="${lockNoteId}" class="vc-visually-hidden">${esc(t('desktop.virtual_computers_vnc_view_only_locked'))}</span>` : ''}
                     <button type="button" class="vc-vnc-tool" data-vnc-action="ctrl-alt-del">${esc(t('desktop.virtual_computers_vnc_ctrl_alt_del'))}</button>
                 </div>
                 <div class="vc-vnc-toolbar-group vc-vnc-session-actions">
                     <button type="button" class="vc-vnc-tool" data-vnc-action="reconnect">${esc(t('desktop.virtual_computers_vnc_reconnect'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-action="disconnect">${esc(t('desktop.virtual_computers_vnc_disconnect'))}</button>
-                    <button type="button" class="vc-vnc-tool" data-vnc-action="expand" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_expand'))}</button>
+                    <button type="button" class="vc-vnc-tool" data-vnc-action="expand" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_maximize'))}</button>
                     <button type="button" class="vc-vnc-tool" data-vnc-action="fullscreen" aria-pressed="false">${esc(t('desktop.virtual_computers_vnc_fullscreen'))}</button>
                 </div>
             </div>
             <div class="vc-vnc-stage">
                 <div class="vc-vnc-canvas" data-role="vnc-canvas"></div>
-                <div class="vc-vnc-message" data-role="vnc-message" hidden></div>
+                <div class="vc-vnc-message" data-role="vnc-message" role="alert" hidden><p data-role="vnc-message-text"></p><button type="button" class="vc-vnc-tool" data-vnc-action="retry">${esc(t('desktop.retry'))}</button></div>
             </div>`;
 
         const canvas = container.querySelector('[data-role="vnc-canvas"]');
         const status = container.querySelector('[data-role="vnc-status"]');
         const message = container.querySelector('[data-role="vnc-message"]');
+        const messageText = container.querySelector('[data-role="vnc-message-text"]');
         const expandButton = container.querySelector('[data-vnc-action="expand"]');
         const fullscreenButton = container.querySelector('[data-vnc-action="fullscreen"]');
         const viewOnlyButton = container.querySelector('[data-vnc-action="view-only"]');
         if (viewOnlyButton && lockViewOnly) viewOnlyButton.disabled = true;
+        if (viewOnlyButton && lockViewOnly) {
+            viewOnlyButton.title = t('desktop.virtual_computers_vnc_view_only_locked');
+            viewOnlyButton.setAttribute('aria-describedby', lockNoteId);
+        }
 
         function updateExpandButton() {
             if (!expandButton) return;
             expandButton.classList.toggle('active', expanded);
             expandButton.setAttribute('aria-pressed', expanded ? 'true' : 'false');
-            expandButton.textContent = t(expanded ? 'desktop.virtual_computers_vnc_collapse' : 'desktop.virtual_computers_vnc_expand');
+            expandButton.textContent = t(expanded ? 'desktop.virtual_computers_vnc_restore' : 'desktop.virtual_computers_vnc_maximize');
         }
 
         function setStatus(key, type, detail) {
@@ -74,7 +82,7 @@
         }
 
         function setMessage(text) {
-            message.textContent = text || '';
+            messageText.textContent = text || '';
             message.hidden = !text;
         }
 
@@ -189,6 +197,7 @@
             if (rfb && typeof rfb.sendCtrlAltDel === 'function') rfb.sendCtrlAltDel();
         });
         container.querySelector('[data-vnc-action="reconnect"]')?.addEventListener('click', () => connect());
+        container.querySelector('[data-vnc-action="retry"]')?.addEventListener('click', () => connect());
         container.querySelector('[data-vnc-action="disconnect"]')?.addEventListener('click', () => {
             disconnectConnection();
             setStatus('desktop.virtual_computers_vnc_disconnected', 'disconnected');

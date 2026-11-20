@@ -87,6 +87,8 @@
         dispose(windowId);
         const state = {
             host,
+            windowId,
+            panelId: 'vc-panel-' + String(windowId == null ? '' : windowId).replace(/[^A-Za-z0-9_-]+/g, '-'),
             context: context || {},
             activeSection: 'machines',
             machines: [],
@@ -122,6 +124,7 @@
             changeHandler: null,
             pointerHandler: null,
             keyHandler: null,
+            inputHandler: null,
             workspaceRefreshTimer: null,
             machineSnapshot: JSON.stringify([]),
             machinePollTimer: null,
@@ -134,7 +137,7 @@
             <header class="vc-app-toolbar" data-role="toolbar"></header>
             <nav class="vc-section-tabs" data-role="sections" aria-label="${esc(tx(state.context, 'desktop.virtual_computers_title'))}"></nav>
             <div class="vc-status-region" data-role="status-region" aria-live="polite"></div>
-            <main class="vc-content" data-role="content" role="tabpanel"></main>
+            <main class="vc-content" id="${esc(state.panelId)}" data-role="content" role="tabpanel"></main>
             <div data-role="modal-host"></div>
         </div>`;
         bindActions(state);
@@ -421,10 +424,10 @@
                 <span class="vc-status ${tone}"><span class="vc-status-dot"></span>${esc(tx(c, stateKey))}</span></div>
             </div>
             <div class="vc-actions vc-toolbar-actions">
-                <button type="button" class="vc-btn vc-icon-label" data-action="refresh" ${refreshing ? 'disabled aria-busy="true"' : ''}>${icon(state, 'refresh', '↻')}<span>${esc(tx(c, 'desktop.virtual_computers_refresh'))}</span></button>
-                <button type="button" class="vc-btn vc-icon-label" data-action="config">${icon(state, 'settings', '⚙')}<span>${esc(tx(c, 'desktop.virtual_computers_open_config'))}</span></button>
-                <button type="button" class="vc-btn vc-primary vc-icon-label" data-action="new-agent-job" title="${esc(tx(c, capabilities(state).agent_control ? 'desktop.virtual_computers_agent_workspaces_hint' : 'desktop.virtual_computers_state_disabled'))}" ${capabilities(state).agent_control && isMutable(state) ? '' : 'disabled'}>${icon(state, 'agent', 'A')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</span></button>
-                <button type="button" class="vc-btn vc-primary vc-icon-label" data-action="new-machine" ${isMutable(state) && !isPending(state, 'launch') ? '' : 'disabled'}>${icon(state, 'plus', '+')}<span>${esc(tx(c, 'desktop.virtual_computers_new'))}</span></button>
+                <button type="button" class="vc-btn vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_refresh'))}" data-action="refresh" ${refreshing ? 'disabled aria-busy="true"' : ''}>${icon(state, 'refresh', '↻')}<span>${esc(tx(c, 'desktop.virtual_computers_refresh'))}</span></button>
+                <button type="button" class="vc-btn vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_open_config'))}" data-action="config">${icon(state, 'settings', '⚙')}<span>${esc(tx(c, 'desktop.virtual_computers_open_config'))}</span></button>
+                <button type="button" class="vc-btn vc-primary vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_task_start'))}" data-action="new-agent-job" title="${esc(tx(c, capabilities(state).agent_control ? 'desktop.virtual_computers_agent_workspaces_hint' : 'desktop.virtual_computers_state_disabled'))}" ${capabilities(state).agent_control && isMutable(state) ? '' : 'disabled'}>${icon(state, 'agent', 'A')}<span>${esc(tx(c, 'desktop.virtual_computers_task_start'))}</span></button>
+                <button type="button" class="vc-btn vc-primary vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_new'))}" data-action="new-machine" ${isMutable(state) && !isPending(state, 'launch') ? '' : 'disabled'}>${icon(state, 'plus', '+')}<span>${esc(tx(c, 'desktop.virtual_computers_new'))}</span></button>
             </div>`;
     }
 
@@ -438,23 +441,23 @@
         return `<div class="vc-tab-track" role="tablist">${tabs.map(tab => {
             const active = state.activeSection === tab.id;
             const count = tab.id === 'machines' ? state.machines.length : tab.id === 'workspaces' ? state.workspaces.length : state.volumes.length;
-            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}</span><span class="vc-tab-count">${count}</span></button>`;
+            return `<button type="button" id="vc-tab-${tab.id}" class="vc-section-tab ${active ? 'active' : ''}" role="tab" aria-controls="${esc(state.panelId)}" aria-selected="${active ? 'true' : 'false'}" tabindex="${active ? '0' : '-1'}" data-action="section" data-section="${tab.id}">${icon(state, tab.icon, '')}<span>${esc(tx(c, tab.key))}</span><span class="vc-tab-count">${count}</span></button>`;
         }).join('')}</div>`;
     }
 
     function statusPane(state) {
         const c = state.context;
         if (state.resourceErrors.status) {
-            return `<div class="vc-banner is-error"><span>${esc(tx(c, 'desktop.virtual_computers_section_error'))} ${esc(state.resourceErrors.status)}</span><button type="button" class="vc-text-button" data-action="retry-resource" data-resource="status">${esc(tx(c, 'desktop.retry'))}</button></div>`;
+            return `<div class="vc-banner is-error" role="alert"><span>${esc(tx(c, 'desktop.virtual_computers_section_error'))} ${esc(state.resourceErrors.status)}</span><button type="button" class="vc-text-button" data-action="retry-resource" data-resource="status">${esc(tx(c, 'desktop.retry'))}</button></div>`;
         }
         if (!state.status || state.resourceLoading.status) return '';
         if (!state.status.enabled) {
-            return `<div class="vc-banner"><span>${esc(tx(c, 'desktop.virtual_computers_state_disabled'))}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
+            return `<div class="vc-banner" role="status"><span>${esc(tx(c, 'desktop.virtual_computers_state_disabled'))}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
         }
         if (!isHealthy(state)) {
-            return `<div class="vc-banner is-warning"><span>${esc(tx(c, 'desktop.virtual_computers_health_degraded'))}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
+            return `<div class="vc-banner is-warning" role="status"><span>${esc(tx(c, 'desktop.virtual_computers_health_degraded'))}</span><button type="button" class="vc-text-button" data-action="config">${esc(tx(c, 'desktop.virtual_computers_open_config'))}</button></div>`;
         }
-        if (!isMutable(state)) return `<div class="vc-banner is-info">${esc(tx(c, 'desktop.virtual_computers_readonly'))}</div>`;
+        if (!isMutable(state)) return `<div class="vc-banner is-info" role="status">${esc(tx(c, 'desktop.virtual_computers_readonly'))}</div>`;
         return '';
     }
 
@@ -538,9 +541,9 @@
         return `<article class="vc-machine-detail">
             <header class="vc-detail-header"><div><span class="vc-eyebrow">${esc(templateLabel(state, machine.template))}</span><h3>${esc(machineName(machine))}</h3><span class="vc-detail-status"><span class="vc-state-dot" data-state="${esc(machine.status || '')}"></span>${esc(statusLabel(state, machine.status))}</span>${workspaceBadge(state, machine)}</div>
             <div class="vc-actions vc-detail-actions">
-                ${machine.display === true ? `<button type="button" class="vc-btn vc-icon-label" data-action="screenshot" data-id="${esc(machine.id)}">${icon(state, 'image', '▧')}<span>${esc(tx(c, 'desktop.virtual_computers_screenshot'))}</span></button>` : ''}
-                ${canUseVNC(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="vnc" data-id="${esc(machine.id)}">${icon(state, 'monitor', '▣')}<span>${esc(tx(c, 'desktop.virtual_computers_vnc_live'))}</span></button>` : ''}
-                ${canUseTerminal(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" data-action="terminal" data-id="${esc(machine.id)}">${icon(state, 'terminal', '>_')}<span>${esc(tx(c, 'desktop.virtual_computers_terminal'))}</span></button>` : ''}
+                ${machine.display === true ? `<button type="button" class="vc-btn vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_screenshot'))}" data-action="screenshot" data-id="${esc(machine.id)}">${icon(state, 'image', '▧')}<span>${esc(tx(c, 'desktop.virtual_computers_screenshot'))}</span></button>` : ''}
+                ${canUseVNC(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_vnc_live'))}" data-action="vnc" data-id="${esc(machine.id)}">${icon(state, 'monitor', '▣')}<span>${esc(tx(c, 'desktop.virtual_computers_vnc_live'))}</span></button>` : ''}
+                ${canUseTerminal(state, machine) ? `<button type="button" class="vc-btn vc-primary vc-icon-label" aria-label="${esc(tx(c, 'desktop.virtual_computers_terminal'))}" data-action="terminal" data-id="${esc(machine.id)}">${icon(state, 'terminal', '>_')}<span>${esc(tx(c, 'desktop.virtual_computers_terminal'))}</span></button>` : ''}
             </div></header>
             ${manage.length ? `<div class="vc-actions vc-manage-actions" role="toolbar" aria-label="${esc(tx(c, 'desktop.virtual_computers_manage'))}">${manage.join('')}</div>` : ''}
             <dl class="vc-meta-grid">
@@ -733,7 +736,7 @@
 
     function workspacePane(state) {
         if (!window.VirtualComputersWorkspaces) return '';
-        return window.VirtualComputersWorkspaces.renderPane(state, { esc, tx, icon, skeletonRows, resourceErrorPane, formatExpiryCountdown, formatDate });
+        return window.VirtualComputersWorkspaces.renderPane(state, { esc, tx, txv, icon, skeletonRows, resourceErrorPane, formatExpiryCountdown, formatDate });
     }
 
     function launchTTLChoices(state) {
@@ -804,6 +807,21 @@
             <label data-role="save-new-fields" ${preselected ? 'hidden' : ''}><span>${esc(tx(c, 'desktop.virtual_computers_save_new_name'))}</span><input type="text" data-role="save-name" maxlength="64" autocomplete="off" value="${esc(modal.suggestedName || '')}"></label>
             <p class="vc-form-note">${esc(tx(c, 'desktop.virtual_computers_save_hint'))}</p>`;
         return modalShell(state, tx(c, 'desktop.virtual_computers_save_title'), body, modalButtons(state, 'confirm-save-machine', 'desktop.virtual_computers_save'));
+    }
+
+    function checkpointModal(state, modal) {
+        const c = state.context;
+        const retention = capabilities(state).volume_retention === true;
+        const existing = state.volumes.filter(volume => volumeAvailable(volume) && volume.format === 'workspace_v2')
+            .map(volume => `<option value="${esc(volume.id)}">${esc(volumeOptionLabel(state, volume))}</option>`).join('');
+        const body = `<p>${esc(tx(c, 'desktop.virtual_computers_checkpoint_hint'))}</p><strong class="vc-confirm-target">${esc(modal.label || '')}</strong>
+            <label><span>${esc(tx(c, 'desktop.virtual_computers_save_target'))}</span><select data-role="checkpoint-target" data-autofocus><option value="__new__" selected>${esc(tx(c, 'desktop.virtual_computers_save_new_volume'))}</option>${existing}</select></label>
+            <div class="vc-modal-fields" data-role="checkpoint-new-fields">
+                <label><span>${esc(tx(c, 'desktop.virtual_computers_save_new_name'))}</span><input type="text" data-role="checkpoint-name" maxlength="64" autocomplete="off"></label>
+                <label class="vc-check"><input type="checkbox" data-role="checkpoint-permanent" ${retention ? '' : 'disabled'}><span>${esc(tx(c, 'desktop.virtual_computers_checkpoint_permanent'))}</span></label>
+                ${retention ? '' : `<p class="vc-form-note">${esc(tx(c, 'desktop.virtual_computers_volume_banner_repair'))}</p>`}
+            </div>`;
+        return modalShell(state, tx(c, 'desktop.virtual_computers_checkpoint'), body, modalButtons(state, 'confirm-checkpoint', 'desktop.virtual_computers_checkpoint'));
     }
 
     function assignAgentModal(state, modal) {
@@ -881,6 +899,7 @@
         if (modal.type === 'create-volume') return createVolumeModal(state);
         if (modal.type === 'import-volume') return importVolumeModal(state);
         if (modal.type === 'volume-retention') return volumeRetentionModal(state, modal);
+        if (modal.type === 'checkpoint') return checkpointModal(state, modal);
         if (modal.type === 'confirm') return confirmModal(state, modal);
         return '';
     }
@@ -899,6 +918,10 @@
         } else if (modal.type === 'save-machine') {
             const target = modalField(state, 'save-target');
             const fields = modalField(state, 'save-new-fields');
+            if (fields && target) fields.hidden = target.value !== '__new__';
+        } else if (modal.type === 'checkpoint') {
+            const target = modalField(state, 'checkpoint-target');
+            const fields = modalField(state, 'checkpoint-new-fields');
             if (fields && target) fields.hidden = target.value !== '__new__';
         }
     }
@@ -965,7 +988,8 @@
             else if (action === 'close-modal') requestCloseModal(state);
             else if (action === 'retry-resource') refreshResource(state, target.dataset.resource || 'status');
             else if (action === 'close-workspace') confirmCloseWorkspace(state, id, target);
-            else if (action === 'checkpoint-workspace') workspaceMutation(state, id, '/checkpoint', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }, { success: tx(state.context, K + 'toast_checkpoint_created') });
+            else if (action === 'checkpoint-workspace') openCheckpoint(state, id, target);
+            else if (action === 'confirm-checkpoint') checkpointWorkspace(state);
             else if (action === 'observe-workspace') observeWorkspace(state, id, target.dataset.machineId || '', false);
             else if (action === 'check-native-desktop') window.VirtualComputersWorkspaces.checkNativeDesktop(state, id, { request, draw });
             else if (action === 'takeover-workspace') {
@@ -1031,6 +1055,11 @@
         state.host.addEventListener('change', state.changeHandler);
         state.host.addEventListener('mousedown', state.pointerHandler);
         state.host.addEventListener('keydown', state.keyHandler);
+        state.inputHandler = event => {
+            const field = event.target;
+            if (field && typeof field.matches === 'function' && field.matches('[data-role="agent-request"]')) updateAgentRequestCount(state, field);
+        };
+        state.host.addEventListener('input', state.inputHandler);
     }
 
     function machineLabel(state, id) {
@@ -1069,10 +1098,25 @@
         return true;
     }
 
+    function updateAgentRequestCount(state, input) {
+        const counter = state.host.querySelector('[data-role="agent-request-count"]');
+        const workspaces = window.VirtualComputersWorkspaces;
+        if (!counter || !input || !workspaces || typeof workspaces.requestCountText !== 'function') return;
+        counter.textContent = workspaces.requestCountText(state.context, input.value.length);
+    }
+
     function openAgentRequest(state) {
         const input = state.host.querySelector('[data-role="agent-request"]');
-        const workspaceId = state.host.querySelector('[data-role="agent-workspace"]')?.value || '';
-        if (workspaceId && !state.workspaces.some(w => w.id === workspaceId && w.state === 'ready' && w.owner_session_id === 'virtual-desktop' && !w.mission_id)) {
+        const choice = state.host.querySelector('[data-role="agent-workspace"]')?.value || '';
+        const machineId = choice.startsWith('machine:') ? choice.slice('machine:'.length) : '';
+        const workspaceId = machineId ? '' : choice;
+        if (machineId) {
+            const machine = state.machines.find(item => item.id === machineId);
+            if (!machine || machine.workspace_id || String(machine.status || '').toLowerCase() !== 'running') {
+                notify(state, tx(state.context, 'desktop.virtual_computers_workspace_unavailable'), 'error');
+                return;
+            }
+        } else if (workspaceId && !state.workspaces.some(w => w.id === workspaceId && w.state === 'ready' && w.owner_session_id === 'virtual-desktop' && !w.mission_id)) {
             notify(state, tx(state.context, 'desktop.virtual_computers_workspace_unavailable'), 'error');
             return;
         }
@@ -1081,9 +1125,49 @@
             if (input) input.focus();
             return;
         }
+        if (machineId) {
+            assignAndSend(state, machineId, requestText);
+            return;
+        }
         const workspace = state.workspaces.find(w => w.id === workspaceId);
         sendToAgent(state, workspaceId, requestText, !!(workspace && workspace.origin === 'adopted'));
         input.value = '';
+        updateAgentRequestCount(state, input);
+    }
+
+    // A running computer picked in the request box is handed to the agent first; the chat
+    // then opens with the workspace the server created (or reused) for it.
+    async function assignAndSend(state, machineId, requestText) {
+        const key = 'assign-' + machineId;
+        if (isPending(state, key)) return;
+        setPending(state, key, true);
+        try {
+            const result = await request('/api/virtual-computers/machines/' + encodeURIComponent(machineId) + '/assign-agent', jsonRequest('POST'));
+            if (state.disposed) return;
+            const workspace = result && result.workspace;
+            if (!workspace || !workspace.id) throw new Error(tx(state.context, 'desktop.virtual_computers_workspace_unavailable'));
+            state.agentWorkspaceId = workspace.id;
+            toast(state, tx(state.context, K + 'toast_assigned'));
+            if (sendToAgent(state, workspace.id, requestText, workspace.origin !== 'launched')) {
+                state.agentRequestDraft = '';
+                const input = state.host.querySelector('[data-role="agent-request"]');
+                if (input) {
+                    input.value = '';
+                    updateAgentRequestCount(state, input);
+                }
+            }
+            await refresh(state);
+            if (!state.disposed) {
+                // The refresh re-read the old selection from the page; select the new workspace.
+                state.agentWorkspaceId = workspace.id;
+                const select = state.host.querySelector('[data-role="agent-workspace"]');
+                if (select && Array.from(select.options).some(option => option.value === workspace.id)) select.value = workspace.id;
+            }
+        } catch (error) {
+            if (!state.disposed) notify(state, tx(state.context, 'desktop.virtual_computers_error') + ' ' + errorText(state, error), 'error');
+        } finally {
+            setPending(state, key, false);
+        }
     }
 
     function selectMachine(state, id) {
@@ -1592,6 +1676,33 @@
         }, tx(state.context, K + 'toast_saved'));
     }
 
+    // The checkpoint dialog needs the current volume list, so it is loaded before the dialog opens.
+    async function openCheckpoint(state, id, trigger) {
+        if (!id) return;
+        if (capabilities(state).volumes) await refreshResource(state, 'volumes');
+        if (state.disposed) return;
+        openModal(state, { type: 'checkpoint', id, label: workspaceLabel(state, id), progressKey: K + 'save_progress' }, trigger);
+    }
+
+    async function checkpointWorkspace(state) {
+        const modal = state.modal;
+        if (!modal || modal.type !== 'checkpoint') return;
+        const target = modalField(state, 'checkpoint-target')?.value || '__new__';
+        const body = {};
+        if (target === '__new__') {
+            const name = (modalField(state, 'checkpoint-name')?.value || '').trim();
+            if (name) body.name = name;
+            const permanent = modalField(state, 'checkpoint-permanent');
+            if (permanent && permanent.checked && !permanent.disabled) body.persistent = true;
+        } else {
+            body.volume_id = target;
+        }
+        await runModalAction(state, async () => {
+            await workspaceCall(state, modal.id, '/checkpoint', jsonRequest('POST', body));
+            if (capabilities(state).volumes) await refreshResource(state, 'volumes');
+        }, tx(state.context, K + 'toast_checkpoint_created'));
+    }
+
     async function assignMachine(state) {
         const modal = state.modal;
         if (!modal || modal.type !== 'assign-agent') return;
@@ -1881,6 +1992,7 @@
         if (state.changeHandler) state.host.removeEventListener('change', state.changeHandler);
         if (state.pointerHandler) state.host.removeEventListener('mousedown', state.pointerHandler);
         if (state.keyHandler) state.host.removeEventListener('keydown', state.keyHandler);
+        if (state.inputHandler) state.host.removeEventListener('input', state.inputHandler);
         instances.delete(windowId);
     }
 
