@@ -188,6 +188,9 @@ body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
 .ss-app :is(.ss-sound-workbench, .ss-performance-workbench, .ss-strudel-workbench) { flex: 1 1 0; max-height: none; min-height: 0; }
 .ss-app[data-mode=mix] .ss-workspace { display: none !important; }
 .ss-app[data-mode=mix] .ss-master-panel { flex: 1; overflow: auto; align-content: start; padding: 20px 24px; gap: 20px 28px; }
+.ss-app[data-mode=rb338] :is(.ss-workspace, .ss-transport, .ss-master-panel, .ss-midi-panel) { display: none !important; }
+.ss-app .ss-rb338-workbench { display: none; }
+.ss-app[data-mode=rb338] .ss-rb338-workbench:not([hidden]) { display: block; flex: 1; min-height: 0; overflow: auto; }
 .ss-app .ss-workbench-grip { flex: 0 0 9px; }
 
 /* ---- library drawer ---- */

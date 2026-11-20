@@ -26,6 +26,7 @@ const modules = context.AuraDesktopModules;
 const assets = modules.DESKTOP_APP_ASSETS['synth-studio'];
 assert.ok(assets, 'Synth Studio is registered for lazy loading');
 assert.ok(assets.styles.includes('/css/desktop-app-synth-studio.css'));
+assert.ok(assets.styles.includes('/css/desktop-app-synth-studio-rb338.css'));
 assert.deepEqual(Array.from(assets.scripts), [
     '/js/desktop/apps/writer-session.js',
     '/js/vendor/synth-studio/gm-data.js',
@@ -40,7 +41,9 @@ assert.deepEqual(Array.from(assets.scripts), [
     '/js/desktop/apps/synth-studio-storage.js',
     '/js/desktop/apps/synth-studio-editor.js',
     '/js/desktop/apps/synth-studio-controls.js', '/js/desktop/apps/synth-studio-curves.js', '/js/desktop/apps/synth-studio-workspace.js', '/js/desktop/apps/synth-studio-compose.js', '/js/desktop/apps/synth-studio-performance.js', '/js/desktop/apps/synth-studio-stage.js',
-    '/js/desktop/apps/synth-studio-strudel.js', '/js/desktop/apps/synth-studio.js'
+    '/js/desktop/apps/synth-studio-strudel.js',
+    '/js/desktop/apps/synth-studio-rb338-model.js', '/js/desktop/apps/synth-studio-rb338-host.js', '/js/desktop/apps/synth-studio-rb338.js',
+    '/js/desktop/apps/synth-studio.js'
 ]);
 for (const url of assets.scripts) {
     assert.ok(existsSync('ui' + url), 'registered app script exists: ' + url);

@@ -1,7 +1,7 @@
 (function () {
     'use strict';
-    const MODES = ['notes', 'sound', 'performance', 'strudel', 'mix'];
-    const MODE_NAME = { notes: 'arrange', sound: 'sound', performance: 'perform', strudel: 'strudel', mix: 'mix' };
+    const MODES = ['notes', 'sound', 'performance', 'strudel', 'mix', 'rb338'];
+    const MODE_NAME = { notes: 'arrange', sound: 'sound', performance: 'perform', strudel: 'strudel', mix: 'mix', rb338: 'rb338' };
     function create(root, options) {
         const { tr, signal } = options, key = 'aurago:synth-studio:view:2';
         const LIMITS = { height: [160, 900] };
@@ -36,6 +36,10 @@
         const performance = document.createElement('section'); performance.className = 'ss-performance-workbench'; performance.dataset.workPanel = 'performance'; host.append(performance);
         const strudel = document.createElement('section'); strudel.className = 'ss-strudel-workbench'; strudel.dataset.workPanel = 'strudel'; host.append(strudel);
 
+        const rb338 = document.createElement('section'); rb338.className = 'ss-rb338-workbench'; rb338.dataset.rb338Panel = ''; rb338.hidden = true;
+        root.insertBefore(rb338, root.querySelector('.ss-notice'));
+        let rbActive = false;
+
         const save = () => { try { localStorage.setItem(key, JSON.stringify(view)); } catch (_) { /* private mode */ } };
         function workbenchHeight() {
             const available = host.clientHeight || 0;
@@ -67,6 +71,9 @@
                     if (started && typeof options.onMix === 'function') options.onMix();
                 } else if (forcedMaster) { master.hidden = true; forcedMaster = false; }
             }
+            const rbOn = view.panel === 'rb338';
+            rb338.hidden = !rbOn;
+            if (rbOn !== rbActive) { rbActive = rbOn; if (started && typeof options.onRb338 === 'function') options.onRb338(rbOn); }
             root.querySelectorAll('[data-action="library"]').forEach(b => b.setAttribute('aria-expanded', String(view.library)));
         }
         function panel(name) { if (!MODES.includes(name)) return; view.panel = name; render(); save(); }
@@ -113,7 +120,8 @@
             if (signal && typeof signal.addEventListener === 'function') signal.addEventListener('abort', () => observer.disconnect(), { once: true });
         }
         return {
-            panel, performance, sound, strudel, welcome,
+            panel, performance, sound, strudel, rb338, welcome,
+            isRb338: () => rbActive,
             setClip(value) { const next = !!value; if (next !== hasClip) { hasClip = next; render(); } },
             toggleLibrary() { view.library = !view.library; render(); save(); },
             refresh() { welcome.hidden = options.project().tracks.length > 0; welcome.querySelectorAll('[data-template]').forEach(b => b.disabled = options.blocked()); }
