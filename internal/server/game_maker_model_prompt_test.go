@@ -258,8 +258,12 @@ func TestGameMakerSlowSteadyStreamOutlastsCallTimeout(t *testing.T) {
 		if !finished.Load() || err != nil && strings.Contains(err.Error(), "deadline") {
 			t.Fatalf("slow steady stream was cut off: finished=%v err=%v", finished.Load(), err)
 		}
-		if got := requestedMaxTokens.Load(); got != 8192 {
-			t.Fatalf("provider received max_tokens=%d, want provider ceiling 8192", got)
+		// The runner must set its own output reserve: without it the agent falls
+		// back to the generic 4096 (8192 for reasoning routes) and every reply that
+		// carries a whole source file is cut off. This route allows 16384 answer
+		// plus 16384 reasoning, within its 32768 output limit.
+		if got := requestedMaxTokens.Load(); got != 32768 {
+			t.Fatalf("provider received max_tokens=%d, want the building reserve 32768", got)
 		}
 	case <-time.After(20 * time.Second):
 		t.Fatal("planning round did not end")

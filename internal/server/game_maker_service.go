@@ -317,6 +317,14 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		}},
 		Stream: true,
 	}
+	// The agent writes whole source files inside tool-call arguments, and reasoning
+	// models spend output tokens before them. Without an explicit reserve the agent
+	// loop falls back to its generic 4096 (8192 on reasoning routes) and cuts every
+	// large reply; this is what failed all jobs on aurago-test after the free-agent
+	// rewrite dropped the reserve. Small routes still keep the generic reserve.
+	if tokens := gameMakerOutputTokens(gameMakerRouteLimits(&cfg), gameMakerBuildAnswerTokens); tokens > 0 {
+		req.MaxTokens = tokens
+	}
 	broker := &gameMakerBroker{service: r.service, projectID: run.Project.ID, jobID: run.Job.ID}
 	req.Messages = append(history, req.Messages...)
 	defer func() {
