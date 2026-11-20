@@ -5664,7 +5664,9 @@ registration lives in `internal/desktop/types.go`.
   plaque/switch tooltips so similarly named HA entities can be distinguished.
   Use the existing admin-only `/api/desktop/home-assistant/{entities,states,switch}`
   routes and shared validated `ha_switchboard.board` setting, never browser HA
-  credentials or a second connection setup. The native dialog searches locally,
+  credentials or a second connection setup; seed initial bays from the saved
+  setting so offline startups keep saved switches visible and disabled until a
+  live read confirms state. The native dialog searches locally,
   preserves failed-save drafts and detects changed selections before saving.
   Poll every five seconds only while visible, cancel obsolete reads, pause in
   inactive Spaces, and release requests/timers/listeners on dispose. Explicit

@@ -22,7 +22,7 @@ const nativeFetch=window.fetch.bind(window),key='ha_switchboard.board';
 window.fixtureEntities=['Wohnbereich','Küche','Schlafzimmer','Werkstatt','Gartenlicht','Terrasse'].map((name,i)=>({entity_id:'switch.test_'+i,friendly_name:name,state:i%2?'off':'on'}));
 window.fixtureEntities.push({entity_id:'switch.extra',friendly_name:'Steckdose Büro',state:'off'});
 window.fixtureSettings=JSON.parse(sessionStorage.getItem('ha-fixture-settings')||'null')||{[key]:JSON.stringify({version:1,switches:fixtureEntities.slice(0,6).map(e=>({entity_id:e.entity_id}))})};
-window.fixtureRequests=[];window.fixtureWrites=[];window.heldStates=[];window.heldWrites=[];window.ready=true;window.readonly=false;window.failed=false;window.saveFailed=false;window.holdStates=false;window.holdWrites=false;
+window.fixtureRequests=[];window.fixtureWrites=[];window.heldStates=[];window.heldWrites=[];window.ready=true;window.readonly=false;window.failed=new URLSearchParams(location.search).has('ha-offline');window.saveFailed=false;window.holdStates=false;window.holdWrites=false;
 const jsonResponse=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
 function haSnapshot(all){const board=JSON.parse(fixtureSettings[key]);return {ready,readonly,board_readonly:false,can_on:!readonly,can_off:!readonly,board,entities:fixtureEntities.filter(e=>all||board.switches.some(b=>b.entity_id===e.entity_id)).map(e=>({...e})),checked_at:new Date().toISOString()};}
 window.fetch=async(url,opts={})=>{
@@ -37,7 +37,7 @@ window.fetch=async(url,opts={})=>{
   return readonly?jsonResponse({error:'switch_not_allowed'},403):finish();
  }
  if(path==='/api/desktop/settings'){
-  if(opts.method==='PUT'){if(saveFailed)return jsonResponse({error:'save failed'},500);const b=JSON.parse(opts.body);fixtureSettings[b.key]=b.value;sessionStorage.setItem('ha-fixture-settings',JSON.stringify(fixtureSettings));}
+  if(opts.method==='PUT'){if(saveFailed)return jsonResponse({error:'save failed'},500);const b=JSON.parse(opts.body);if(b.settings&&typeof b.settings==='object')Object.assign(fixtureSettings,b.settings);else fixtureSettings[b.key]=b.value;sessionStorage.setItem('ha-fixture-settings',JSON.stringify(fixtureSettings));}
   return jsonResponse({settings:fixtureSettings});
  }
  return jsonResponse({});
@@ -93,9 +93,18 @@ func TestHASwitchboardBrowser(t *testing.T) {
 	page := newSmokeBrowser(t).MustPage().Timeout(150 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1440, 1000, 1, false)
+	page.MustNavigate(srv.URL + "/fixture?ha-offline").MustWaitLoad()
+	page.MustEval(`async()=>{await fixtureReady;}`)
+	waitForJSBool(t, page, `()=>document.querySelector('[data-ha=status]')?.textContent==='Verbindung nicht verfügbar'`)
+	if !page.MustEval(`()=>document.querySelectorAll('.ha-bay.ha-stale').length===6 && document.querySelectorAll('.ha-switch:not(:disabled)').length===0 && document.querySelector('[data-ha=total]').textContent==='— / 6' && JSON.stringify([...document.querySelectorAll('.ha-bay')].map(e=>e.dataset.entity))===JSON.stringify(JSON.parse(fixtureSettings[key]).switches.map(e=>e.entity_id)) && fixtureWrites.length===0 && fixtureErrors.length===0`).Bool() {
+		t.Fatal("offline startup must retain the saved board with disabled switches")
+	}
+	if artifacts != "" {
+		page.MustScreenshot(filepath.Join(artifacts, "switchboard-offline-start.png"))
+	}
 	page.MustNavigate(srv.URL + "/fixture").MustWaitLoad()
 	page.MustEval(`async()=>{await fixtureReady;}`)
-	waitForJSBool(t, page, `()=>document.querySelectorAll('.ha-bay').length===6 && document.querySelector('.ha-board').classList.contains('ha-art-ready')`)
+	waitForJSBool(t, page, `()=>document.querySelectorAll('.ha-bay').length===6 && document.querySelector('.ha-board').classList.contains('ha-art-ready') && !document.querySelector('.ha-switch').disabled`)
 	check := func(name, js string) {
 		t.Helper()
 		if !page.MustEval(js).Bool() {

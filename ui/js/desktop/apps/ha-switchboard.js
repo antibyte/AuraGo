@@ -4,14 +4,32 @@
     const KEY = 'ha_switchboard.board';
     const BASE = '/api/desktop/home-assistant/';
     const instances = new Map();
+    const ENTITY_RE = /^switch\.[a-z0-9_]+$/;
     const boardJSON = board => JSON.stringify({ version: 1, switches: (board.switches || []).map(e => ({ entity_id: e.entity_id, label: e.label || '' })) });
     const copyBoard = board => JSON.parse(boardJSON(board));
+    function parseBoard(raw) {
+        let parsed = raw;
+        if (typeof raw === 'string') {
+            if (!raw.trim()) return null;
+            try { parsed = JSON.parse(raw); } catch (_) { return null; }
+        }
+        if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.switches)) return null;
+        const seen = new Set(), switches = [];
+        for (const entry of parsed.switches) {
+            if (!entry || typeof entry.entity_id !== 'string' || !ENTITY_RE.test(entry.entity_id) || seen.has(entry.entity_id)) continue;
+            seen.add(entry.entity_id);
+            switches.push({ entity_id: entry.entity_id, label: typeof entry.label === 'string' ? entry.label : '' });
+            if (switches.length >= 60) break;
+        }
+        return { version: 1, switches };
+    }
 
     function render(host, windowId, ctx) {
         dispose(windowId);
         const esc = ctx.esc;
         const win = host.closest('.vd-window');
-        let board = { version: 1, switches: [] }, data = {}, loaded = false, connected = false;
+        const initialRaw = typeof ctx.settingValue === 'function' ? ctx.settingValue(KEY) : ctx.state?.bootstrap?.settings?.[KEY];
+        let board = parseBoard(initialRaw) || { version: 1, switches: [] }, data = {}, loaded = false, connected = false;
         let disposed = false, generation = 0, poll = null, visible = false, checkedAt = '';
         let drawer = null, draft = null, draftBase = '', conflict = false, saving = false;
         let catalog = [], catalogReady = false, catalogRequest = null;
@@ -83,14 +101,15 @@
         }
 
         function adoptBoard(next) {
-            if (!next || next.version !== 1 || !Array.isArray(next.switches)) return;
-            const raw = boardJSON(next);
+            const parsed = parseBoard(next);
+            if (!parsed) return;
+            const raw = boardJSON(parsed);
             if (raw === boardJSON(board)) return;
             if (draft && raw !== draftBase && !(saving && raw === boardJSON(draft))) {
                 conflict = true;
                 drawerMessage('conflict');
             }
-            board = copyBoard(next);
+            board = parsed;
             for (const id of pending.keys()) if (!board.switches.some(e => e.entity_id === id)) pending.delete(id);
             renderBays();
         }
@@ -182,6 +201,7 @@
                 loaded = true;
                 // A read failure does not mean setup is missing.
                 if (typeof data.ready !== 'boolean') data.ready = true;
+                if (typeof data.board_readonly !== 'boolean') data.board_readonly = !!ctx.state?.bootstrap?.readonly;
             } finally {
                 if (poll === current) poll = null;
                 update();
