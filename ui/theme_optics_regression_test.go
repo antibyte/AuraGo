@@ -374,6 +374,64 @@ func TestThemeOpticsFilesAreShipped(t *testing.T) {
 	}
 }
 
+// TestThemeOpticsLatticeGuardsTheHorizon pins the shared backdrop of the 8bit
+// and retro-crt themes. The lattice grid lives above the horizon; dividing by
+// a clamped near-zero depth in the sky half fed fract() with ~10^5 coordinates
+// and made the whole lower half flicker on every frame.
+func TestThemeOpticsLatticeGuardsTheHorizon(t *testing.T) {
+	t.Parallel()
+
+	core := readEmbeddedText(t, "js/shared/theme-optics-core.js")
+	start := strings.Index(core, "lattice: `")
+	if start < 0 {
+		t.Fatal("theme optics core has no lattice shader")
+	}
+	rest := core[start:]
+	end := strings.Index(rest, "`,")
+	if end < 0 {
+		t.Fatal("lattice shader is not terminated")
+	}
+	lattice := rest[:end]
+
+	for _, marker := range []string{
+		"float depth = p.y - horizon;",
+		"float gridFade = smoothstep(0.0, 0.15, depth);",
+		"float safeDepth = max(depth, 0.15);",
+		"float period = safeDepth * 64.0 / 1.6;",
+		"line * fade * gridFade * 0.75",
+	} {
+		if !strings.Contains(lattice, marker) {
+			t.Errorf("lattice shader missing horizon guard %q", marker)
+		}
+	}
+	for _, forbidden := range []string{
+		"max(0.0001, p.y - horizon)",
+		"line * fade * 0.75",
+	} {
+		if strings.Contains(lattice, forbidden) {
+			t.Errorf("lattice shader regressed to the flickering sky half: %q", forbidden)
+		}
+	}
+
+	// Both retro chat themes share this optics, so the fix has to be in the
+	// engine rather than in either theme's stylesheet.
+	recipes := readEmbeddedText(t, "js/chat/theme-optics-recipes.js")
+	for _, theme := range []string{"'8bit': {", "'retro-crt': {"} {
+		idx := strings.Index(recipes, theme)
+		if idx < 0 {
+			t.Errorf("chat optics recipes missing %s", theme)
+			continue
+		}
+		block := recipes[idx:]
+		if closeAt := strings.Index(block, "},"); closeAt >= 0 {
+			block = block[:closeAt]
+		}
+		if !strings.Contains(block, "optics: 'lattice'") {
+			t.Errorf("%s must keep using the shared lattice optics", theme)
+		}
+	}
+}
+
 // TestThemeOpticsEngineSurvivesWithoutWebGL is a static guard on the engine's
 // defensive path: a missing context must never leave a broken canvas behind.
 func TestThemeOpticsEngineSurvivesWithoutWebGL(t *testing.T) {

@@ -146,21 +146,36 @@
             alpha = energy * 0.38 * u_intensity;
         `,
 
-        // A receding grid with a glowing horizon.
+        // A receding grid with a glowing horizon. gl_FragCoord is bottom-up,
+        // so the grid lives above the horizon and the sky wash below it.
+        // Only the grid side may be divided by its depth: clamping the sky
+        // side to a tiny epsilon used to feed fract() with ~10^5 coordinates,
+        // which painted the whole lower half with per-pixel noise that changed
+        // on every frame (8bit and retro-crt both flickered).
         lattice: `
             vec2 p = uv * vec2(u_res.x / u_res.y, 1.0);
             p.x += (u_pointer.x - 0.5) * 0.06;
             float horizon = 0.52;
-            float depth = max(0.0001, p.y - horizon);
-            vec2 grid = vec2(p.x * 9.0 / depth, u_time * 1.6 / depth);
+            float depth = p.y - horizon;
+            // Fade the grid in away from the horizon and bound the divisor.
+            // Close to the horizon the perspective frequency exceeds one
+            // cycle per pixel, which aliases even on the grid side.
+            float gridFade = smoothstep(0.0, 0.15, depth);
+            float safeDepth = max(depth, 0.15);
+            // Wrap at exactly 64 grid cycles: an ever-growing
+            // u_time / safeDepth loses float precision after a long session.
+            // An integer cycle wrap is seamless because fract() is periodic.
+            float period = safeDepth * 64.0 / 1.6;
+            float phase = mod(u_time, period) * 1.6 / safeDepth;
+            vec2 grid = vec2(p.x * 9.0 / safeDepth, phase);
             vec2 cell = abs(fract(grid) - 0.5);
             float line = smoothstep(0.46, 0.5, max(cell.x, cell.y));
-            float fade = smoothstep(0.55, 0.03, depth);
+            float fade = smoothstep(0.55, 0.03, safeDepth);
             float sky = smoothstep(0.0, 0.55, horizon - p.y);
             float pulse = 0.6 + 0.4 * sin(u_time * 1.7 + p.x * 4.0);
             vec3 c = mix(u_color_b, u_color_c, fade);
             col = c * (0.7 + pulse * 0.5);
-            alpha = (line * fade * 0.75 + sky * 0.22) * u_intensity;
+            alpha = (line * fade * gridFade * 0.75 + sky * 0.22) * u_intensity;
         `,
 
         // Interfering waves, for synth and plasma themes.
