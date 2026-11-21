@@ -752,6 +752,9 @@ var toolCallStringFields = map[string]struct{}{
 	// Params keeps what was sent (restoreOriginalToolArgTypes), so a tool that forwards or reads the raw value sees it.
 	"code":  {},
 	"value": {},
+	// text is the text of the TTS tools, but virtual_workspace declares it a boolean (read_file: also return the decoded text).
+	// A schema-conforming "text": false must not fail the whole call; Params keeps the boolean the tool reads.
+	"text": {},
 }
 
 var toolCallStringMapFields = map[string]struct{}{
@@ -1028,7 +1031,7 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	restoreOriginalArrayToolArgs(raw, originalData, "to", "cc")
-	restoreOriginalToolArgTypes(raw, originalData, "code", "value")
+	restoreOriginalToolArgTypes(raw, originalData, "code", "value", "text")
 
 	merged := make(map[string]interface{})
 	// Start with the explicit `params` object if present.
