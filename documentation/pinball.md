@@ -1,14 +1,18 @@
 # AuraPinball
 
-AuraPinball is a built-in Games app with three original tables: Cyber Neon
-Metropolis, Deep Sea Leviathan and Lost Temple of the Sun. All tables are available
+AuraPinball is a built-in Games app with four original tables: Cyber Neon
+Metropolis, Deep Sea Leviathan, Lost Temple of the Sun and Clockwork Observatory. All tables are available
 immediately. Play alone, or with up to four alternating players on the same computer.
 No provider key or internet service is required. The game, its tables, lights,
 sound and music ship inside AuraGo.
 
-The physics is a custom deterministic 2.5D engine at a fixed 480 Hz tick. The tables
-are built procedurally in three.js, the lamps and the 192×48 dot-matrix display (DMD)
-are drawn in code, and all sound effects and music are synthesized at runtime.
+The physics is a custom deterministic 2.5D engine at a fixed 480 Hz tick. The ball has
+spin as well as speed: it slides, then settles into rolling on the playfield, and friction at
+walls, posts, rubbers and flippers changes its spin. The tables are built procedurally in
+three.js, with painted playfields, backglasses, side art and printed plastics. The
+observatory's orrery, telescope, gear train and dome are 3D toys loaded from one GLB file.
+The lamps and the 192×48 dot-matrix display (DMD) are drawn in code, and all sound effects
+and music are synthesized at runtime.
 
 ## Tables
 
@@ -74,6 +78,85 @@ are drawn in code, and all sound effects and music are synthesized at runtime.
 - **Solar Secret (secret combo).** Shoot the left ramp, left orbit and idol scoop in
   order within 12 seconds for 750,000 points and a bonus multiplier step.
 
+### Clockwork Observatory
+
+A steampunk observatory at night: brass and mahogany instruments under a night-sky
+blue dome. Six shots: left orbit, comet ramp, the orrery lane, the telescope, the
+meridian ramp and the right orbit. The 3D toys are the orrery on the disc, the telescope
+on its pier, the gear train on the left back corner and the dome on the right back corner.
+The clock hands are on the clock face of the dome. The dome shutter opens during multiball
+and the wizard.
+
+- **Orrery disc.** A turntable set flush in the upper middle of the playfield. A ball that
+  rolls onto it is carried round and curls off the rim. The disc turns faster in the wizard
+  and multiball and slower in GRAND CONJUNCTION. Shooting the orrery lane reverses it.
+- **Pendulum.** A pendulum swings across the mouth of the telescope channel and knocks
+  balls on. Each strike advances the clock. It swings fast during TRANSIT OF VENUS and
+  parks out of the way while the wizard runs or S-T-A-R has latched it.
+- **Telescope.** The telescope kicks the ball up the brass tube along the barrel, then
+  drops it onto the rim of the disc.
+- **Gravity wells.** Two magnets sit either side of the telescope channel. A ball held by a
+  well for 0.8 seconds is thrown at the mouth of the channel. A telescope shot within
+  2 seconds of the throw pays 1,000,000 as GRAVITY SLINGSHOT.
+- **S-T-A-R.** Hit the four standups S, T, A and R on the slanted bank to the right of the
+  disc. Completing them scores 100,000 and lights the mode start. The clock moves on by
+  one, both gravity wells grab balls for 10 seconds, and the pendulum parks for 12 seconds.
+- **Clock and midnight.** Twelve lamps ring the disc and show the hour, and the clock face on the dome shows it too.
+A brass bezel with twelve marks sits flush around the disc, inside the lamps. Each shot moves the
+  hour on by one, and the telescope by two. A pendulum strike moves it by one, at most once
+  every 0.6 seconds. The clock does not move during a multiball. At twelve, MIDNIGHT
+  MULTIBALL starts and the clock returns to zero. If the mode select is open at midnight,
+  the multiball starts when it closes.
+- **Modes.** The telescope starts one of four modes from the mode select:
+  - **METEOR SHOWER:** hit the two ramps five times within 40 seconds. Each spinner hit
+    during the mode is worth 4,000.
+  - **TRANSIT OF VENUS:** hit the left orbit, the orrery lane, the telescope and the right
+    orbit in that order within 45 seconds. The pendulum swings fast.
+  - **GRAND CONJUNCTION:** four hits on a lit shot within 45 seconds. The lit shot moves to
+    another shot every five seconds. The disc turns slowly and the gravity wells stay on.
+  - **SUPERNOVA:** 20 hits on the bumpers, standups and pendulum within 35 seconds. The
+    lighting dims during the mode.
+- **Mode extra ball.** After two completed modes the extra ball is lit. It is collected
+  at the telescope shot.
+- **GRAND ORRERY (wizard).** Complete all four modes and the next telescope shot starts the
+  wizard: four balls, a 20-second ball save, and jackpots on the four multiball shots that
+  start at 5,000,000 and rise by 1,000,000. Six jackpots light the super jackpot at the
+  telescope.
+- **MIDNIGHT MULTIBALL.** Three balls and a 10-second ball save. The comet ramp, meridian
+  ramp, orrery lane and left orbit are jackpot shots, starting at 1,000,000 and rising by
+  250,000. Four jackpots light the super jackpot at the telescope for 20 seconds. The right
+  orbit can add a ball during the multiball.
+- **Super skill shot.** Hit the telescope within 8 seconds of launch for 1,000,000.
+- **Stargazer (secret combo).** Shoot the orrery lane, the telescope and the meridian ramp in
+  sequence, each step within 12 seconds of the last, for 750,000 points and a bonus
+  multiplier step.
+
+The table has its own music, a clockwork night theme in D minor, and its own ambience with
+crickets, wind and a soft clock tick.
+
+## Cabinet and look
+
+The cabinet is a wedge. The glass rests on the rails and tilts up toward the back wall: its
+underside is 0.065 m above the playfield at the lockdown bar and 0.14 m at the back wall.
+Every ramp, wire and tube fits under the glass, and every table is checked for that, for its
+outline and for the crossings of its paths.
+
+- **Wood, metal and chrome.** The inner side boards are wood with printed side art on each
+  table. The apron is dark brushed metal with a pinstripe and chrome edges. The lane guides
+  are metal with a rolled bead and mounting tabs, and the posts carry screw heads.
+- **Habitrails.** Wire habitrails are polished stainless steel, with straps and standoffs. Plastic
+  ramps are clear and have a stainless entry flap. Tubes are faint, with collars at their
+  ends. Ramps that a ball enters from the playfield have a printed entrance sign.
+- **Plastics.** Slings, lane guides, back-corner panels and the apron badge are printed
+  acrylic pieces with real transparency, stood on chrome standoffs. The pop bumper caps carry
+  a printed disc.
+- **Reflections and shadows.** On high and medium quality the playfield reflects the balls
+  the lights and the flipper tops faintly. Balls cast a tight contact shadow and a softer
+  key-light shadow. Painted playfields have soft contact shadows under posts,
+  bumpers and standups.
+- **Room.** The table stands in a room with a parquet floor and a back wall. The wall shows
+  a painted picture shared by all four tables.
+
 ## Controls
 
 Keyboard defaults:
@@ -134,13 +217,18 @@ two key-up events.
 - **Tilt.** Hard nudges add up and give a warning. The third warning tilts the ball: the
   flippers and the coils go dead, the lights and music stop, and the bonus is lost. Passive
   walls and ball contacts keep working. The next ball restores everything.
+- **Ball spin.** A ball that is struck or bounced can spin, not just move. A sliding ball
+  settles into rolling and loses some speed on the way (on a flat floor it keeps 5/7 of it),
+  and wall, post, rubber and flipper contacts can turn spin into sideways motion or back. A
+  launched ball starts without spin. On screen the ball turns with its spin.
 - **Training.** One player, unlimited balls, no replay awards, and no high-score entry.
   R resets the training ball.
 
 ## Settings
 
-- **Graphics quality** (low, balanced, high) changes resolution, shadows, bloom and
-  transparent materials. It never changes the simulation or the table collisions.
+- **Graphics quality** (low, balanced, high) changes resolution, shadows, bloom, transparent
+  materials and the playfield reflection (high and medium only). It never changes the
+  simulation or the table collisions.
 - **Camera:** ball cam (the default: the view behind the flippers, zoomed in on about half the
   table, smoothly following the ball), play (the fixed view that keeps the whole playfield
   visible), overhead (for shot placement) and showcase (pauses the game and lets you orbit the
@@ -184,17 +272,22 @@ AuraPinball is split into a DOM-free simulation and a thin browser layer:
 - `ui/js/desktop/apps/pinball/config.js`, `contracts.js` and `session.js` hold settings,
   the shared vocabulary and the core loop. They import under Node.
 - `physics/` runs the 480 Hz engine: `world.js`, `collide.js`, `grid.js`, `flipper.js`,
-  `devices*.js` (bumpers, slings, drop targets, holes, magnets, captives, gates) and
-  `paths.js` (ramps, wire habitrails and VUK tubes).
+  `spin.js` (ball spin and friction), `devices*.js` (bumpers, slings, drop targets, holes,
+  magnets, captives, gates), `devices-motion.js` (the observatory's orrery disc and
+  pendulum) and `paths.js` (ramps, wire habitrails and VUK tubes).
 - `rules/` holds the framework (`core.js` lifecycle, `features.js` scoring and lanes,
   `modes.js` modes, locks and multiball, `lamps.js`, `highscore.js`).
-- `tables/` contains the three tables. Each table has `layout.js` (geometry), `rules.js`
-  (the rule pack), `lamps.js`, and `art.js` and `toys.js` for its look. `tables/kit/` holds
-  the shared shell and lower playfield.
+- `tables/` contains the four tables. Each table has `layout.js` (geometry), `rules.js`
+  (the rule pack), `lamps.js`, and `art.js` and `toys.js` for its look (`art-accents.js`
+  adds the lit accents over a painted playfield). `tables/kit/` holds the shared shell,
+  lower playfield, the cabinet dimensions (`cabinet-dims.js`) and the printed plastics
+  sheet (`plastics.js`). `tables/validate.js` and `tables/validate-paths.js` check every
+  layout, including that its ramps and wires fit under the glass.
 - `lights/` (lamp shapes, mask, controller and shows), `dmd/` (core, scenes, font,
   raster and the DOM view), `audio/` (engine, SFX recipes, voice, music and the songs in
-  `audio/songs/`) and `render/` (three.js scene, art kit, cameras and mechanical objects)
-  complete the runtime. `game.js` mounts it, `presenter.js` turns rule commands into
+  `audio/songs/`) and `render/` (three.js scene, art kit, cameras, the cabinet, room and
+  apron, ramps, hardware and plastics, the GLB toy loader in `models.js` and the playfield
+  reflection) complete the runtime. `game.js` mounts it, `presenter.js` turns rule commands into
   shows, DMD scenes and sound, and `ui/` holds the views and HUD.
 
 Dev tools:
@@ -204,7 +297,7 @@ node scripts/pinball-dev-server.mjs
 # http://127.0.0.1:8792/harness?table=neon&mode=2d
 ```
 
-The harness takes these parameters: `table` (neon, leviathan or temple), `mode` (`2d`,
+The harness takes these parameters: `table` (neon, leviathan, temple or observatory), `mode` (`2d`,
 `engine` or `game`), `quality`, `camera`, `debug=1`, `lang`, `scene`, `seed` and
 `autoplay=1`. `2d` draws the physics, the flippers, the devices and the event log for
 debugging; `engine` renders the three.js table; `game` runs the real app, with `autoplay=1`
@@ -245,9 +338,10 @@ go test ./ui -run TestDesktopPinballBrowser -count=1 -timeout 20m
 ```
 
 `npm run test:pinball` runs the pinball suites in order: config, rules, input, physics,
-devices, paths, tables, reachability, the three layouts, the three rule packs, lights, DMD,
-audio, music, session and assets. The assets suite also checks that every `pinball.*`
-English key exists in all 16 locales.
+devices, paths, tables, reachability, the four layouts, the four rule packs, lights, DMD,
+audio, music, session and assets. The tables suite includes the path-fit checks (glass,
+outline and crossings). The assets suite also checks that every `pinball.*` English key
+exists in all 16 locales.
 
 The browser test covers the lobby and attract loop, each table's canvas and DMD, training
 play, the flipper response, a long frame that does not pause, focus loss, settings
@@ -262,19 +356,30 @@ separate acceptance step.
 
 Asset builds are described in `assets/pinball/AGENTS.md` and `ui/3d/pinball/AGENTS.md`.
 
+Art pipeline: `node scripts/pinball-art-guide.mjs playfield <id|all>` and
+`node scripts/pinball-art-guide.mjs plastics` write the layout guides to the git-ignored
+`reports/pinball-guide/`. The painted playfields, plastics sheets, side art, the observatory
+backglass and the room wall are made with the Codex CLI image tool, using these guides as
+reference images, and each prompt is recorded in `assets/pinball/prompts.json`.
+`assets/pinball/prepare.py` converts the masters into the delivered WebP files, and
+`node scripts/build-pinball-assets.mjs` writes `ui/3d/pinball/v1/manifest.json` (version 3).
+The observatory toys are one GLB built by `assets/pinball/blender/observatory_toys.py` in
+Blender's background mode. The script is the source; there is no `.blend` file to keep.
+
 ## Credits
 
-Original table artwork: built-in ImageGen. The nine retained masters (concept,
-backglass and playfield per table), their prompts and source hashes are in
-`assets/pinball/`. The lobby table cards (`<id>-preview.webp`, 640x320) are not painted art but
+Original table artwork: the concept and backglass masters of the first three tables were
+made with the built-in ImageGen. The painted playfields, plastics sheets, side art, the
+observatory backglass and the room wall were made with the Codex CLI image tool. The 20
+retained masters, their prompts and source hashes are in `assets/pinball/`. The lobby table cards (`<id>-preview.webp`, 640x320) are not painted art but
 renders of the real procedural tables from the survey harness. To re-make them run
 `AURAGO_RUN_BROWSER_SMOKE=1 AURAGO_PINBALL_SURVEY=1 AURAGO_PINBALL_SCENES="neon:preview:high,leviathan:preview:high,temple:preview:high" go test -run TestDesktopPinballSurvey -count=1 -timeout 20m ./ui` from the repo root, then encode the
 `reports/pinball-survey/<id>-preview-high.png` shots with ffmpeg as described in
 `ui/3d/pinball/AGENTS.md`.
 
-Sound samples: 13 mechanical and jingle recordings from the Kenney Impact Sounds and
-Music Jingles packs, both CC0 1.0. Each delivered clip records its source member, archive
-pin and SHA-256 hash in `ui/3d/pinball/v1/manifest.json`.
+Sound samples: 29 CC0 1.0 recordings from seven archives: the Kenney Impact Sounds and Music
+Jingles packs, and five other CC0 packs listed in the manifest. Each delivered clip records
+its source member, archive pin and SHA-256 hash in `ui/3d/pinball/v1/manifest.json`.
 
-Graphics runtime: Three.js (MIT). All other sound effects, music and table geometry are
+Graphics runtime: Three.js (MIT), including its GLTFLoader for the observatory toys. All other sound effects, music and table geometry are
 synthesized or generated procedurally in code.

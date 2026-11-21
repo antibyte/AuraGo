@@ -214,7 +214,7 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 | Game Maker presentation | `assets/game-maker-presentation/AGENTS.md` | Effects/audio sources, licensing, builds, runtime limits. |
 | Game Maker worlds | `assets/game-maker-worlds/AGENTS.md` | Maritime/isometric Blender sources, catalog counts, exports, runtime limits. |
 | AuraGolf | `assets/minigolf/kit/AGENTS.md` | Procedural Blender tracks/courses/props, exports, collisions. |
-| AuraPinball | `assets/pinball/AGENTS.md`, `ui/js/desktop/apps/pinball/AGENTS.md`, `ui/3d/pinball/AGENTS.md` | Three original ImageGen-artwork tables built procedurally in three.js, a deterministic 480 Hz 2.5D physics engine, insert lamps, 192×48 DMD, synthesized audio, local hotseat/training, desktop integration and reproducible payloads; operator guide `documentation/pinball.md`. |
+| AuraPinball | `assets/pinball/AGENTS.md`, `ui/js/desktop/apps/pinball/AGENTS.md`, `ui/3d/pinball/AGENTS.md` | Four original tables with painted art, printed plastics and GLB toys, built procedurally in three.js, a deterministic 480 Hz 2.5D physics engine, insert lamps, 192×48 DMD, synthesized audio, local hotseat/training, desktop integration and reproducible payloads; operator guide `documentation/pinball.md`. |
 | Aura Drift assets | `assets/aura-drift/AGENTS.md` | Deterministic Blender model kit (20 GLBs in `ui/3d/aura-drift/v1`), own-synthesis audio generator and CC0 override hook. |
 | Tiefsee screensaver | `assets/screensaver-abyss/AGENTS.md` | Creature generator, deterministic exports, asset checks. |
 | System World assets | `assets/system-world/AGENTS.md` | Blender city authoring/original sources/reproducible compact exports; hash-pinned BSD-3-Clause companion and its compact meshopt derivative. |
