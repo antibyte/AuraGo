@@ -18,6 +18,8 @@
 //                     setActive(id, on) switches the whole group. onHit fires after the response with the pre-impact approach speed vn
 //                     (the info object is reused: copy what you keep). A ball touching a shape with onHit is exempt from the
 //                     passive-energy ceiling for that substep, so a kicker may add energy.
+//   addFloor(floor)   register a moving floor {contains(x, y) -> bool, velocity(x, y, out) -> out}, out = {svx, svy, mu, moving};
+//                     a ball whose centre is inside gets floor friction towards (svx, svy); moving floors exempt it from the energy ceiling
 //   emit(type, id, ball, extra)   queue an event {type, id, ball: ball.id|null, tick, x, y, ...extra}
 //   addBallAt(id, x, y, vx, vy, mode) -> Ball, removeBall(id) (no trough), returnToTrough(id) (trough + 1)
 //   Order per substep: integrate, flippers, contacts (2 passes + ball-ball), devices.substep(h), paths.substep(h), drain, plunger seat.
@@ -122,8 +124,19 @@ export function createWorld(layout, { seed = 1 } = {}) {
     }
     function returnToTrough(id) { if (removeBall(id)) trough = Math.min(troughSize, trough + 1); }
 
+    // Moving floors (orrery disc): the first floor containing a ball's centre feeds floorStep.
+    const floors = [], FL = { svx: 0, svy: 0, mu: 0, moving: false };
+    function floorAt(b) {
+        for (let i = 0; i < floors.length; i++) {
+            if (!floors[i].contains(b.x, b.y)) continue;
+            floors[i].velocity(b.x, b.y, FL);
+            return FL;
+        }
+        return null;
+    }
+
     const ctx = {
-        layout, rng, balls, shapes, emit, addBallAt, removeBall, returnToTrough,
+        layout, rng, balls, shapes, emit, addBallAt, removeBall, returnToTrough, addFloor: floor => { floors.push(floor); },
         get tick() { return tick; }, get coils() { return coils; }
     };
     const devices = createDevices(layout.devices || [], ctx);
@@ -246,7 +259,9 @@ export function createWorld(layout, { seed = 1 } = {}) {
             if (!live(b)) continue;
             b.e0 = specificEnergy(b, G_SLOPE);
             b.vy -= G_SLOPE * h;
-            floorStep(b, h, ROLL_DECEL.field, null);       // S3 replaces null with the moving-floor lookup
+            const fl = floors.length ? floorAt(b) : null;
+            floorStep(b, h, ROLL_DECEL.field, fl);
+            if (fl && fl.moving) b.exempt = true;           // the disc motor may add energy
             const s2 = b.vx * b.vx + b.vy * b.vy;
             if (s2 > MAX_SPEED * MAX_SPEED) { const k = MAX_SPEED / Math.sqrt(s2); b.vx *= k; b.vy *= k; }
             b.x += b.vx * h; b.y += b.vy * h;

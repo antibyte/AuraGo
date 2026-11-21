@@ -102,7 +102,7 @@ export function crossShots(layout, flipperId, reached) {
     });
 }
 
-const SWITCH_TYPES = new Set(['bumper', 'sling', 'drop', 'bankDown', 'standup', 'spinner', 'rollover', 'trigger', 'gate', 'hole', 'pathMade', 'pathSwitch', 'kickback', 'captive', 'pathEnter', 'bankReset', 'eject']);
+const SWITCH_TYPES = new Set(['bumper', 'sling', 'drop', 'bankDown', 'standup', 'spinner', 'rollover', 'trigger', 'gate', 'hole', 'pathMade', 'pathSwitch', 'kickback', 'captive', 'pathEnter', 'bankReset', 'eject', 'orrery', 'pendulum']);
 
 export function soak(layout, { seed = 7, balls = 4, seconds = 60, restLimit = 8, restRadius = 0.02 } = {}) {
     const world = createWorld(layout, { seed }), bot = createBot(layout, seed * 31 + 5), box = outline(layout);

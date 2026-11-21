@@ -2,7 +2,8 @@
 export const EVENT_TYPES = Object.freeze([
     'launch', 'drain', 'flipper', 'bumper', 'sling', 'drop', 'bankDown', 'bankReset', 'standup', 'spinner',
     'rollover', 'trigger', 'gate', 'hole', 'eject', 'kickback', 'magnet', 'captive',
-    'pathEnter', 'pathSwitch', 'pathMade', 'pathFail', 'impact', 'clack', 'search', 'searchFail', 'shooter'
+    'pathEnter', 'pathSwitch', 'pathMade', 'pathFail', 'impact', 'clack', 'search', 'searchFail', 'shooter',
+    'orrery', 'pendulum'            // orrery {dir: 1}: a ball entered the disc; pendulum {speed}: the bob struck a ball (m/s)
 ]);
 
 const NOT_SCORING = new Set(['impact', 'clack', 'flipper', 'launch', 'search', 'shooter', 'eject', 'pathEnter', 'magnet']);
@@ -10,7 +11,8 @@ export const SCORING_EVENTS = Object.freeze(EVENT_TYPES.filter(type => !NOT_SCOR
 
 export const PHYSICS_COMMANDS = Object.freeze([
     'addBall', 'coils', 'eject', 'lockBall', 'releaseToTrough', 'holeEnable', 'resetBank', 'dropBank',
-    'diverter', 'gate', 'door', 'kickback', 'magnet', 'kick', 'nudge', 'removeBall', 'clearBalls'
+    'diverter', 'gate', 'door', 'kickback', 'magnet', 'kick', 'nudge', 'removeBall', 'clearBalls',
+    'orrery', 'pendulum'            // {type: 'orrery', id, speed} target rad/s; {type: 'pendulum', id, mode: 'park'|'swing'|'fast'}
 ]);
 export const PRESENTATION_COMMANDS = Object.freeze(['dmd', 'dmdBase', 'show', 'flash', 'gi', 'cue', 'music', 'say', 'shake', 'lampColor']);
 

@@ -1,9 +1,10 @@
-// Device suite (T03): bumper, sling, drop bank, spinner, gate, hole, kickback, magnet, captive, door, ball search.
+// Device suite (T03): bumper, sling, drop bank, spinner, gate, hole, kickback, magnet, captive, door, ball search,
+// orrery disc, pendulum.
 import assert from 'node:assert/strict';
 import { createWorld } from '../ui/js/desktop/apps/pinball/physics/world.js';
 import { STEP } from '../ui/js/desktop/apps/pinball/physics/constants.js';
 import { rngNext } from '../ui/js/desktop/apps/pinball/config.js';
-import { run, energy } from './lib/pinball-sim.mjs';
+import { run, runFrames, energy } from './lib/pinball-sim.mjs';
 
 // A closed box x +-0.15, y 0.2..1.0 (no plunger lane, no drain) plus the given devices and extra walls.
 function boxLayout(devices, walls = []) {
@@ -289,6 +290,134 @@ function until(w, maxTicks, pred) {
     assert.equal(ofType(events, 'search').length, 5, 'five search cycles');
     assert.equal(ofType(events, 'searchFail').length, 1, 'searchFail');
     assert.equal(w.stats().balls, 0);
+}
+
+// ---- orrery: a moving floor drags the ball; one event per entry -----------------------------------------------------
+const disc = (speed, extra = {}) => ({ id: 'o', type: 'orrery', x: 0, y: 0.6, r: 0.05, speed, ...extra });
+{
+    // At the top of the disc the radius vector is (0, 0.03): counter-clockwise drag means vx < 0, i.e. cross(r, v) > 0.
+    const probe = (speed, posts = [], ticks = 1440) => {
+        const lay = boxLayout([disc(speed)]);
+        lay.posts = posts;
+        const w = createWorld(lay);
+        w.placeBall(1, 0, 0.63, 0, 0);
+        let cross = null, leave = -1, maxV = 0;
+        const events = run(w, ticks, null, (t, ww) => {
+            const b = ballOf(ww, 1), rx = b.x, ry = b.y - 0.6;
+            assert.ok(Number.isFinite(b.x + b.y + b.vx + b.vy + b.wx + b.wy + b.wz), 'finite ball state');
+            maxV = Math.max(maxV, speedOf(b));
+            if (t < 144 && (cross === null || Math.abs(rx * b.vy - ry * b.vx) > Math.abs(cross))) cross = rx * b.vy - ry * b.vx;
+            if (leave < 0 && Math.hypot(rx, ry) > 0.05) leave = (t + 1) * STEP;
+        });
+        return { cross, leave, maxV, events: ofType(events, 'orrery', 'o') };
+    };
+    for (const sp of [4, 8, 16]) {
+        const ccw = probe(sp), cw = probe(-sp);
+        assert.ok(ccw.cross > 0.0005, 'CCW disc at ' + sp + ' drags counter-clockwise: ' + ccw.cross);
+        assert.ok(cw.cross < -0.0005, 'CW disc at ' + sp + ' drags clockwise: ' + cw.cross);
+        for (const r of [ccw, cw]) {
+            assert.ok(r.leave > 0 && r.leave < 3, 'the ball leaves the disc within 3 s at ' + sp + ': ' + r.leave);
+            assert.equal(r.events.length, 1, 'one orrery event per entry'); assert.equal(r.events[0].dir, 1);
+        }
+    }
+    // a hub post in the centre: no jitter, no energy runaway, no NaN (the ball may stay on the disc against the post or leave)
+    for (const [bx, by] of [[0, 0.63], [0.02, 0.6], [0, 0.57], [-0.02, 0.6], [0.015, 0.615]]) {
+        const lay = boxLayout([disc(16)]);
+        lay.posts = [{ id: 'hub', x: 0, y: 0.6, r: 0.0055, material: 'metal' }];
+        const w = createWorld(lay);
+        w.placeBall(1, bx, by, 0, 0);
+        let maxV = 0, moved = 0, prev = null;
+        run(w, 2400, null, (t, ww) => {
+            const b = ballOf(ww, 1);
+            assert.ok(Number.isFinite(b.x + b.y + b.vx + b.vy + b.wx + b.wy + b.wz), 'hub: finite ball state');
+            maxV = Math.max(maxV, speedOf(b));
+            if (prev) moved += Math.hypot(b.x - prev.x, b.y - prev.y);
+            prev = b;
+        });
+        assert.ok(maxV < 4, 'hub: speed stays bounded: ' + maxV);
+        assert.ok(moved > 0.05 || Math.hypot(ballOf(w, 1).x, ballOf(w, 1).y - 0.6) > 0.05, 'hub: the ball keeps moving or leaves');
+    }
+    // the speed command is clamped; coils off spins the disc down
+    const w = createWorld(boxLayout([disc(4, { maxSpeed: 10 })]));
+    w.command({ type: 'orrery', id: 'o', speed: 99 });
+    run(w, 480);
+    assert.equal(w.debug().devices.find(d => d.id === 'o').omega, 10, 'speed clamped to maxSpeed');
+    w.command({ type: 'coils', on: false });
+    run(w, 480);
+    assert.equal(w.debug().devices.find(d => d.id === 'o').omega, 0, 'tilt stops the disc');
+    assert.ok(Math.abs(w.snapshot().anim[w.animIndex.get('o')]) <= Math.PI, 'disc angle wrapped');
+    assert.ok(w.animIndex.spin.includes(w.animIndex.get('o')), 'disc angle interpolates as a spin slot');
+}
+
+// ---- pendulum: contact, park, never inside the bob -----------------------------------------------------------------
+const pend = (extra = {}) => ({ id: 'p', type: 'pendulum', pivot: [0, 0.5], pivotH: 0.0885, length: 0.075, bobR: 0.011, axis: [1, 0], ...extra });
+{
+    const BALL_R = 0.0135, rr = BALL_R + 0.011;
+    let hits = 0, maxHit = 0;
+    for (let i = 0; i < 20; i++) {
+        const w = createWorld(boxLayout([pend()]));
+        const slot = w.animIndex.get('p');
+        run(w, i * 45);
+        w.placeBall(1, 0, 0.57, 0, -0.6);
+        const events = run(w, 240, null, (t, ww) => {
+            const b = ballOf(ww, 1), th = ww.snapshot().anim[slot];
+            const dh = 0.0885 - 0.075 * Math.cos(th) - BALL_R;
+            if (Math.abs(dh) >= rr) return;
+            const reff = Math.sqrt(rr * rr - dh * dh), d = Math.hypot(b.x - 0.075 * Math.sin(th), b.y - 0.5);
+            assert.ok(d >= reff - 1e-6, 'run ' + i + ' tick ' + t + ': the ball is inside the bob (' + d + ' < ' + reff + ')');
+        });
+        const strikes = ofType(events, 'pendulum', 'p');
+        hits += strikes.length > 0 ? 1 : 0;
+        for (const s of strikes) maxHit = Math.max(maxHit, s.speed);
+    }
+    assert.ok(hits >= 3, 'the swinging bob strikes the ball for some timings: ' + hits + '/20');
+
+    const parked = createWorld(boxLayout([pend({ mode: 'park' })]));
+    run(parked, 480);
+    let parkHits = 0;
+    for (let i = 0; i < 8; i++) {
+        parked.placeBall(1, 0, 0.57, 0, -0.6);
+        parkHits += ofType(run(parked, 200), 'pendulum').length;
+        assert.ok(ballOf(parked, 1).y < 0.5, 'the ball passes under the parked bob');
+        run(parked, i * 40);
+    }
+    assert.equal(parkHits, 0, 'a parked bob never touches a ball');
+    const theta = () => parked.snapshot().anim[parked.animIndex.get('p')];
+    assert.ok(Math.abs(theta() - 1.10) < 0.01, 'parked at the park angle: ' + theta());
+    parked.command({ type: 'pendulum', id: 'p', mode: 'swing' });
+    run(parked, 240);
+    let lo = 9, hi = -9;
+    run(parked, 960, null, () => { lo = Math.min(lo, theta()); hi = Math.max(hi, theta()); });
+    assert.ok(hi > 0.38 && lo < -0.38, 'swinging again after park: ' + lo + '..' + hi);
+    parked.command({ type: 'coils', on: false });
+    run(parked, 960);
+    assert.ok(Math.abs(theta()) < 1e-3, 'coils off: the bob hangs at ' + theta());
+}
+
+// ---- snapshots stay deterministic with both devices at 30/60/144 Hz --------------------------------------------------
+{
+    const lay = boxLayout([disc(8), pend({ pivot: [0.1, 0.45] })]);
+    lay.posts = [{ id: 'hub', x: 0, y: 0.6, r: 0.0055, material: 'metal' }];
+    const script = (t, w) => {
+        if (t === 0) { w.placeBall(1, 0.02, 0.6, 0, 0); w.placeBall(2, 0.1, 0.55, 0, -0.5); }
+        if (t === 300) w.command({ type: 'orrery', id: 'o', speed: -12 });
+        if (t === 500) w.command({ type: 'pendulum', id: 'p', mode: 'fast' });
+        if (t === 800) w.command({ type: 'pendulum', id: 'p', mode: 'park' });
+        if (t === 1000) w.placeBall(3, 0.1, 0.57, 0, -0.7);
+        return undefined;
+    };
+    const play = hz => {
+        const w = createWorld(lay, { seed: 3 }), events = runFrames(w, hz, 1440, script);
+        return { snap: JSON.parse(JSON.stringify(w.snapshot())), events, dbg: w.debug().devices };
+    };
+    const ref = play(60);
+    assert.ok(ofType(ref.events, 'orrery').length >= 1, 'the determinism script exercises the disc');
+    for (const hz of [30, 144]) {
+        const got = play(hz);
+        assert.deepEqual(got.snap, ref.snap, 'snapshots equal at ' + hz + ' Hz');
+        assert.deepEqual(got.events, ref.events, 'events equal at ' + hz + ' Hz');
+        assert.deepEqual(got.dbg, ref.dbg, 'device state equal at ' + hz + ' Hz');
+    }
 }
 
 console.log('pinball devices ok');

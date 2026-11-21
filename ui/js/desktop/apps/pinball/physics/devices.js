@@ -1,5 +1,6 @@
 // Playfield devices (plan 3.2, 4): bumper, sling, drop bank, standup, spinner, rollover, trigger, gate, door, kickback,
-// diverter; holes, magnet and the captive channel live in devices-holes.js. DOM-free, deterministic (rngNext only).
+// diverter; holes, magnet and the captive channel live in devices-holes.js, the orrery disc and the pendulum in
+// devices-motion.js. DOM-free, deterministic (rngNext only).
 //
 //   createDevices(defs, ctx) -> DeviceSystem {ids, preTick, substep(h), postTick, command(cmd), search(cycle), reset, writeAnim, debug}
 //
@@ -14,6 +15,7 @@
 //   bumper {} · sling {speed} · drop {bank, speed} · bankDown {} · bankReset {} · standup {speed} · spinner {rate}
 //   rollover {dir} · trigger {dir} · gate {dir} (dir = +1 along the device normal (-dy, dx), gate: along `pass`)
 //   hole {via, count} · eject {via, speed, count} · kickback {} · magnet {state} · captive {speed}
+//   orrery {dir: 1} (a ball entered the disc) · pendulum {speed} (the bob struck a ball)
 // Coils off (tilt): bumpers and slings act passive (no kick, no event), the kickback does not fire, the magnet drops its
 // ball and switches off, holes give their balls back after 0.5 s. Switch-type devices (standup, targets, spinner,
 // rollover, trigger, gate) keep reporting.
@@ -21,6 +23,7 @@ import { STEP, BALL_R, G_SLOPE } from './constants.js';
 import { capEnergy } from './collide.js';
 import { buildAnimIndex } from './snapshot.js';
 import { createHole, createMagnet, createCaptive } from './devices-holes.js';
+import { createOrrery, createPendulum } from './devices-motion.js';
 
 const decay = (t, t0, dur) => { const k = 1 - (t - t0) / dur; return k > 0 ? k : 0; };
 const TWO_PI = Math.PI * 2;
@@ -366,7 +369,8 @@ export function createDevices(defs, ctx) {
 
     const FACTORIES = {
         bumper, sling, standup, dropBank, spinner, rollover, trigger, gate, door, kickback, diverter,
-        hole: d => createHole(d, ctx, clk), magnet: d => createMagnet(d, ctx, clk), captive: d => createCaptive(d, ctx, clk)
+        hole: d => createHole(d, ctx, clk), magnet: d => createMagnet(d, ctx, clk), captive: d => createCaptive(d, ctx, clk),
+        orrery: d => createOrrery(d, ctx, clk), pendulum: d => createPendulum(d, ctx, clk)
     };
     for (const def of defs || []) {
         const make = FACTORIES[def.type];

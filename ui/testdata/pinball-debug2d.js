@@ -124,13 +124,30 @@ export function mount2d(h) {
     }
 
     // Devices: whatever world.debug().devices reports (objects with x,y[,r] or a,b), else the layout definitions.
-    function drawDevices() {
+    function drawDevices(snap) {
         const dbg = itemsOf(frameDebug.devices);
         const list = dbg.length ? dbg : (layout.devices || []);
         for (const d of list) {
             if (!d || typeof d !== 'object') continue;
             const hot = flash.get(d.id) > 0;
             ctx.strokeStyle = hot ? '#ffffff' : '#ff9ae6'; ctx.fillStyle = hot ? '#ff9ae6aa' : '#ff9ae633'; ctx.lineWidth = hot ? 3 : 1.5;
+            if (d.type === 'orrery') {      // disc outline plus a radius line at the animated angle
+                const slot = world.animIndex.get(d.id), a = snap && slot !== undefined ? snap.anim[slot] : 0;
+                ctx.beginPath(); ctx.arc(sx(d.x), sy(d.y), d.r * s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                line(d.x, d.y, d.x + Math.cos(a) * d.r, d.y + Math.sin(a) * d.r);
+                if (show.ids) label(`${d.id} (orrery) w${(d.omega || 0).toFixed(1)}`, d.x, d.y, '#ffb8ef');
+                continue;
+            }
+            if (d.type === 'pendulum') {    // rod from the pivot to the bob; the bob is filled only while it can touch a ball
+                if (isPt(d.pivot) && isPt(d.bob)) {
+                    line(d.pivot[0], d.pivot[1], d.bob[0], d.bob[1]);
+                    ctx.beginPath(); ctx.arc(sx(d.bob[0]), sy(d.bob[1]), Math.max(2, (d.reff || d.bobR) * s), 0, Math.PI * 2);
+                    if (d.reff > 0) ctx.fill();
+                    ctx.stroke();
+                    if (show.ids) label(`${d.id} (pendulum) ${d.mode}`, d.bob[0], d.bob[1], '#ffb8ef');
+                }
+                continue;
+            }
             const lines = [];
             if (isPt(d.a) && isPt(d.b)) lines.push([d.a, d.b]);
             if (d.channel && isPt(d.channel.a) && isPt(d.channel.b)) lines.push([d.channel.a, d.channel.b]);
@@ -191,7 +208,7 @@ export function mount2d(h) {
         for (const [k, v] of flash) { if (v - dt <= 0) flash.delete(k); else flash.set(k, v - dt); }
         frameDebug = world.debug();
         const snap = h.renderSnapshot(alpha);
-        drawField(); drawLamps(); drawPaths(); drawShapes(); drawDevices(); drawFlippers(snap); drawBalls(snap); drawHud(snap);
+        drawField(); drawLamps(); drawPaths(); drawShapes(); drawDevices(snap); drawFlippers(snap); drawBalls(snap); drawHud(snap);
     }
 
     // ---- input ------------------------------------------------------------------------------------------------------

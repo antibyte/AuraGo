@@ -5,13 +5,13 @@
 import { STEP } from './constants.js';
 
 // One slot per device (layout order) plus one per drop target, keyed by target id. The returned Map
-// carries `spin` (slot indices of spinners).
+// carries `spin` (slot indices of spinners and orrery discs: angles).
 export function buildAnimIndex(layout) {
     const index = new Map(), spin = [];
     const slot = id => { if (!index.has(id)) index.set(id, index.size); return index.get(id); };
     for (const d of layout.devices || []) {
         const i = slot(d.id);
-        if (d.type === 'spinner') spin.push(i);
+        if (d.type === 'spinner' || d.type === 'orrery') spin.push(i);
         if (d.type === 'dropBank') for (const t of d.targets || []) slot(t.id);
     }
     index.spin = spin;
