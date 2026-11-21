@@ -357,7 +357,9 @@ func TestNewspaperAudioStreamPermissionsAndSeeking(t *testing.T) {
 	file := []byte("a complete recorded edition")
 	var attempted atomic.Bool
 	var err error
-	s.Newspaper, err = newspaper.New(newspaper.Options{Path: filepath.Join(t.TempDir(), "news.db"), Policy: func() newspaper.Policy { return newspaper.Policy{Enabled: true, ReadOnly: s.Cfg.Newspaper.ReadOnly} }, Research: func(context.Context, newspaper.Profile, time.Time, func(newspaper.Progress)) (newspaper.Draft, error) {
+	s.Newspaper, err = newspaper.New(newspaper.Options{Path: filepath.Join(t.TempDir(), "news.db"), Policy: func() newspaper.Policy {
+		return newspaper.Policy{Enabled: true, ReadOnly: s.ConfigSnapshot().Newspaper.ReadOnly}
+	}, Research: func(context.Context, newspaper.Profile, time.Time, func(newspaper.Progress)) (newspaper.Draft, error) {
 		return newspaper.Draft{}, nil
 	}, Narrate: func(context.Context, newspaper.Edition) (newspaper.AudioFile, error) {
 		if !attempted.Swap(true) {
@@ -429,7 +431,11 @@ func TestNewspaperAudioStreamPermissionsAndSeeking(t *testing.T) {
 			time.Sleep(5 * time.Millisecond)
 		}
 	}
-	s.Cfg.Newspaper.ReadOnly = true
+	cfg := s.ConfigSnapshot().Clone()
+	cfg.Newspaper.ReadOnly = true
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(cfg)
+	s.CfgMu.Unlock()
 	if w := call("POST", "audio", admin); w.Code != 403 {
 		t.Fatal(w.Code)
 	}

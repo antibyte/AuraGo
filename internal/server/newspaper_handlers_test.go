@@ -20,8 +20,10 @@ func TestNewspaperHTTPAuthOriginAndReadOnly(t *testing.T) {
 	s.Cfg.VirtualDesktop.Enabled = true
 	s.Cfg.Newspaper.Enabled = true
 	service, err := newspaper.New(newspaper.Options{
-		Path:   filepath.Join(t.TempDir(), "newspaper.db"),
-		Policy: func() newspaper.Policy { return newspaper.Policy{Enabled: true, ReadOnly: s.Cfg.Newspaper.ReadOnly} },
+		Path: filepath.Join(t.TempDir(), "newspaper.db"),
+		Policy: func() newspaper.Policy {
+			return newspaper.Policy{Enabled: true, ReadOnly: s.ConfigSnapshot().Newspaper.ReadOnly}
+		},
 		Research: func(context.Context, newspaper.Profile, time.Time, func(newspaper.Progress)) (newspaper.Draft, error) {
 			return newspaper.Draft{}, nil
 		},
@@ -65,7 +67,11 @@ func TestNewspaperHTTPAuthOriginAndReadOnly(t *testing.T) {
 	if w := request(http.MethodPost, "/api/desktop/newspaper/editions", "session", "http://foreign.example"); w.Code != http.StatusForbidden {
 		t.Fatalf("foreign origin: %d", w.Code)
 	}
-	s.Cfg.Newspaper.ReadOnly = true
+	cfg := s.ConfigSnapshot().Clone()
+	cfg.Newspaper.ReadOnly = true
+	s.CfgMu.Lock()
+	s.replaceConfigSnapshot(cfg)
+	s.CfgMu.Unlock()
 	if w := request(http.MethodPost, "/api/desktop/newspaper/editions", adminToken, "http://example.com"); w.Code != http.StatusForbidden {
 		t.Fatalf("read-only research: %d %s", w.Code, w.Body.String())
 	}

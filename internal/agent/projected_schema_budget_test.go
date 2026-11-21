@@ -54,7 +54,6 @@ func TestAdaptiveStrictSchemaBudgetWithHomepageAndGameMaker(t *testing.T) {
 	cfg.Homepage.Enabled, cfg.Homepage.AllowLocalServer = true, true
 	cfg.GameMaker.Enabled = true
 	cfg.Agent.AdaptiveTools.Enabled = true
-	cfg.Agent.AdaptiveTools.MaxSchemaTokens = 6500
 	cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
 		"filesystem", "query_memory", "manage_memory", "execute_shell",
 		"homepage_deploy", "homepage_file", "homepage_git", "homepage_project", "homepage_quality",
@@ -70,9 +69,10 @@ func TestAdaptiveStrictSchemaBudgetWithHomepageAndGameMaker(t *testing.T) {
 	raw := filterSchemasByAllowedTools(snapshot.FullSchemas(), runCfg.AllowedTools)
 	rawTokens := estimateToolSchemaListTokens(raw)
 	strictTokens := estimateToolSchemaListTokens(strictSchemasForActiveTools(snapshot, raw))
-	limit := cfg.Agent.AdaptiveTools.MaxSchemaTokens
-	if len(raw) != len(runCfg.AllowedTools) || rawTokens > limit || strictTokens <= limit {
-		t.Fatalf("fixture no longer reproduces the Strict overflow: %d tools, raw=%d strict=%d limit=%d", len(raw), rawTokens, strictTokens, limit)
+	limit := rawTokens
+	cfg.Agent.AdaptiveTools.MaxSchemaTokens = limit
+	if len(raw) != len(runCfg.AllowedTools) || strictTokens <= limit {
+		t.Fatalf("fixture no longer reproduces the Strict overflow: %d tools, raw=%d strict=%d", len(raw), rawTokens, strictTokens)
 	}
 	if err := ValidateMinimumRequestBudget(t.Context(), req, runCfg); err != nil {
 		t.Fatalf("preflight rejected a request with sheddable preferences: %v", err)

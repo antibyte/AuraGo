@@ -685,7 +685,7 @@ func doKoofrRequest(method, reqURL, username, password, contentType string, body
 
 	resp, err := koofrHTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Koofr request failed: %s", security.Scrub(err.Error()))
+		return nil, toolHTTPRequestError(req, "Koofr request failed", err)
 	}
 	defer resp.Body.Close()
 

@@ -2,10 +2,13 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // Native calls carry their own context. Shared clients/transports never store it.
@@ -38,6 +41,14 @@ func waitToolHTTP(ctx context.Context, delay time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+// toolHTTPRequestError keeps cancellation recognizable without exposing the URL or credentials.
+func toolHTTPRequestError(req *http.Request, message string, err error) error {
+	if cause := req.Context().Err(); cause != nil {
+		return fmt.Errorf("%s: %w", message, cause)
+	}
+	return fmt.Errorf("%s: %s", message, security.Scrub(err.Error()))
 }
 
 func newToolHTTPRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {

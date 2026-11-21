@@ -87,7 +87,7 @@ virtual_computer_ui:
 
 node_red:
   en: ["Node-RED flows", "Node-RED Inject", "list Node-RED workflows", "trigger Node-RED flow", "allowed Node-RED nodes", "Node-RED automation", "start existing Node-RED flow", "Node-RED flow names"]
-  de: ["Node-RED Flows", "Node-RED auslösen", "Node-RED Abläufe auflisten", "Node-RED Inject starten", "freigegebene Node-RED Knoten", "Node-RED Automatisierung", "bestehenden Node-RED Flow starten", "Node-RED Flownamen"]
+  de: ["Node-RED Abläufe finden", "Node-RED auslösen", "Node-RED Abläufe auflisten", "Node-RED Inject starten", "freigegebene Node-RED Knoten", "Node-RED Automatisierung", "bestehenden Node-RED Flow starten", "Node-RED Flownamen"]
 olivetin:
   en: ["OliveTin actions", "run OliveTin action", "OliveTin execution status", "allowed OliveTin actions", "OliveTin argument validation", "predefined OliveTin command", "OliveTin automation", "OliveTin action result"]
   de: ["OliveTin Aktionen", "OliveTin Aktion ausführen", "OliveTin Ausführungsstatus", "freigegebene OliveTin Aktionen", "OliveTin Argumente prüfen", "vordefinierte OliveTin Aktion", "OliveTin Automatisierung", "OliveTin Aktionsergebnis"]
@@ -97,7 +97,7 @@ beszel:
   de: ["Beszel Systeme", "Beszel Hostmesswerte", "Beszel Containerauslastung", "Beszel CPU-Nutzung", "Beszel Speicherverbrauch", "veraltete Beszel Messwerte", "Beszel Systemliste", "letzte Beszel Messung"]
 filebrowser:
   en: ["FileBrowser source", "FileBrowser read file", "FileBrowser search", "FileBrowser directory", "FileBrowser scoped access", "FileBrowser download", "FileBrowser import file", "FileBrowser file list"]
-  de: ["FileBrowser Quelle", "FileBrowser Datei lesen", "FileBrowser Suche", "FileBrowser Verzeichnis", "begrenzter FileBrowser Zugriff", "FileBrowser Download", "FileBrowser Datei übernehmen", "FileBrowser Dateiliste"]
+  de: ["FileBrowser Quelle", "FileBrowser Datei lesen", "FileBrowser Suche", "FileBrowser Verzeichnis", "begrenzter FileBrowser Zugriff", "Datei aus FileBrowser herunterladen", "FileBrowser Datei übernehmen", "FileBrowser Dateiliste"]
 stirling_pdf:
   en: ["Stirling PDF OCR", "Stirling PDF split", "Stirling PDF merge", "Stirling PDF certificate signature", "Stirling server certificate", "Stirling OCR languages", "Stirling PDF processing", "Stirling signed document"]
   de: ["Stirling PDF Texterkennung", "Stirling PDF teilen", "Stirling PDF zusammenfügen", "Stirling PDF Zertifikatssignatur", "Stirling Serverzertifikat", "Stirling OCR-Sprachen", "Stirling PDF verarbeiten", "Stirling signiertes Dokument"]

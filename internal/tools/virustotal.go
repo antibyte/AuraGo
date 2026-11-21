@@ -453,7 +453,7 @@ func virustotalDoRequest(apiKey, method, endpoint string, body io.Reader, conten
 
 	resp, err := virustotalHTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("VirusTotal request failed: %s", security.Scrub(err.Error()))
+		return nil, toolHTTPRequestError(req, "VirusTotal request failed", err)
 	}
 	defer resp.Body.Close()
 

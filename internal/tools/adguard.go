@@ -75,7 +75,7 @@ func adguardRequest(cfg AdGuardConfig, method, endpoint string, body string) ([]
 
 	resp, err := getAdGuardClient().Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %s", security.Scrub(err.Error()))
+		return nil, 0, toolHTTPRequestError(req, "request failed", err)
 	}
 	defer resp.Body.Close()
 

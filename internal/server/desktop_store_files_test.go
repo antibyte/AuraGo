@@ -37,6 +37,15 @@ func TestStorePDFSeparatesGrantsAndPublishesNewFiles(t *testing.T) {
 	s.CfgMu.Lock()
 	s.replaceConfigSnapshot(cfg)
 	s.CfgMu.Unlock()
+	previous, configured := tools.EffectiveRuntimePermissions(nil)
+	tools.ConfigureRuntimePermissions(tools.RuntimePermissionsFromConfig(cfg))
+	t.Cleanup(func() {
+		if configured {
+			tools.ConfigureRuntimePermissions(previous)
+		} else {
+			tools.ClearRuntimePermissionsForTest()
+		}
+	})
 	svc, _, err := s.getDesktopService(t.Context())
 	if err != nil {
 		t.Fatal(err)

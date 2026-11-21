@@ -97,7 +97,7 @@ func TestRegressionMCPInFlightReconnectSurvivesClose(t *testing.T) {
 		return "executed after shutdown", nil
 	}
 	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{}, configs: map[string]MCPServerConfig{
-		"fixture": {Name: "fixture", Transport: "streamable_http", Enabled: true},
+		"fixture": {Name: "fixture", Transport: "streamable_http", Enabled: true, AllowedTools: []string{"read"}},
 	}}
 	done := make(chan string, 1)
 	go func() {
@@ -107,11 +107,22 @@ func TestRegressionMCPInFlightReconnectSurvivesClose(t *testing.T) {
 		}
 		done <- result
 	}()
-	<-entered
+	select {
+	case <-entered:
+	case result := <-done:
+		t.Fatalf("call ended before reconnect: %s", result)
+	case <-time.After(2 * time.Second):
+		t.Fatal("reconnect did not start")
+	}
 	mgr.Close()
 	close(release)
-	if result := <-done; result == "executed after shutdown" {
-		t.Fatalf("unexpected result %s", result)
+	select {
+	case result := <-done:
+		if result == "executed after shutdown" {
+			t.Fatalf("unexpected result %s", result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("reconnect did not end after shutdown")
 	}
 }
 

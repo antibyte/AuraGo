@@ -118,8 +118,8 @@ Upstream: [n8n MCP](https://docs.n8n.io/connect/connect-to-n8n-mcp-server/),
 ## Velxio (Arduino simulator)
 
 Velxio uses its built-in MCP server behind a generated bearer token. Install
-creates the token and stores it in the Vault. You enter no URL and no token:
-save **Read**, optionally **Execute**, then test the connection. The reserved
+creates the token, stores it in the Vault and fills in the connection details.
+Enable **Read**, optionally **Execute**, then test the connection. The reserved
 managed name is `aurago-store-velxio`.
 
 The exact Read allowlist is `create_circuit`, `update_circuit`,
