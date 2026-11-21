@@ -66,8 +66,14 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 				return gameMakerToolError(err), true
 			}
 			return gameMakerToolJSON(map[string]any{"status": "ok", "runtime": service.RuntimeContext(ctx, jobID)}), true
+		case "add_library":
+			res, err := service.AddLibrary(ctx, jobID, toolArgString(tc.Params, "library"))
+			if err != nil {
+				return gameMakerToolError(err), true
+			}
+			return gameMakerToolJSON(map[string]any{"status": "ok", "result": res}), true
 		case "reference":
-			return gameMakerToolJSON(map[string]any{"status": "ok", "runtime": service.FrameworkReference(ctx, jobID, toolArgString(tc.Params, "framework"))}), true
+			return gameMakerToolJSON(map[string]any{"status": "ok", "runtime": service.FrameworkReference(ctx, jobID, toolArgString(tc.Params, "framework"), toolArgString(tc.Params, "topic"))}), true
 		case "list_files":
 			files, err := service.ListJobFiles(ctx, jobID)
 			if err != nil {
@@ -76,7 +82,19 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			return gameMakerToolJSON(map[string]any{"status": "ok", "files": files}), true
 		case "inspect":
 			manifest, _ := service.ReadJobFile(ctx, jobID, "game.json")
-			return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest}), true
+			mediaAllowed := dc != nil && dc.Cfg != nil && dc.Cfg.GameMaker.AllowMediaGeneration
+			imageReady := mediaAllowed && project.UseImageGeneration && dc.Cfg.ImageGeneration.Enabled && dc.Cfg.ImageGeneration.APIKey != ""
+			musicReady := mediaAllowed && project.UseMusicGeneration && dc.Cfg.MusicConfigured()
+			capabilities := map[string]any{
+				"sfx_generation_ready":    true,
+				"media_generation_allowed": mediaAllowed,
+				"image_generation_ready":  imageReady,
+				"music_generation_ready":  musicReady,
+				"available_templates":     gamemaker.StudioTemplateNames(),
+				"available_libraries":     []string{"phaser", "three", "voxel", "effects-2d", "effects-3d", "zzfx", "all"},
+				"available_topics":        gamemaker.CraftRecipeTopics(),
+			}
+			return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "capabilities": capabilities}), true
 		case "get_plan":
 			plan, err := service.GetPlan(ctx, jobID)
 			if err != nil {
@@ -84,7 +102,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			}
 			return gameMakerToolJSON(map[string]any{"status": "ok", "legacy_plan": plan}), true
 		default:
-			return gameMakerToolError(fmt.Errorf("unknown project operation; use inspect, list_files, build, finish, reference or use_template")), true
+			return gameMakerToolError(fmt.Errorf("unknown project operation; use inspect, list_files, build, finish, reference, use_template or add_library")), true
 		}
 
 	case "game_maker_file":
@@ -216,7 +234,7 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 		if err := json.Unmarshal(data, &actions); err != nil {
 			return gameMakerToolError(err), true
 		}
-		result, err := service.AgentPreview(ctx, jobID, firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")), actions)
+		result, err := service.AgentPreview(ctx, jobID, firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")), actions, toolArgString(tc.Params, "viewport"))
 		if err != nil {
 			return gameMakerToolError(err), true
 		}
@@ -247,7 +265,6 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 		}
 		return gameMakerToolJSON(map[string]any{"status": "ok", "matches": matches, "next_action": "Call game_maker_asset operation=describe_asset with pack_id AND asset_id (or assembly_id) from the same match."})
 	case "describe_asset":
-		// The accepted plan already owns exact bindings; never guess across packs.
 		if packID == "" {
 			if plan, planErr := service.GetPlan(ctx, jobID); planErr == nil && plan != nil {
 				for _, asset := range plan.Assets {
@@ -255,11 +272,14 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 						continue
 					}
 					if packID != "" && packID != asset.PackID {
-						return gameMakerToolError(fmt.Errorf("asset ID is used in multiple packs; supply the exact pack_id from the plan"))
+						return gameMakerToolError(fmt.Errorf("asset ID is used in multiple packs; supply the exact pack_id"))
 					}
 					packID = asset.PackID
 				}
 			}
+		}
+		if packID == "" {
+			packID = service.ResolveAssetPackID(toolArgString(tc.Params, "asset_id"), toolArgString(tc.Params, "assembly_id"))
 		}
 		detail, err := service.DescribeAsset(packID, toolArgString(tc.Params, "asset_id"), toolArgString(tc.Params, "assembly_id"))
 		if err != nil {
@@ -303,6 +323,32 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 	path := firstNonEmptyToolString(tc.Path, tc.FilePath, toolArgString(tc.Params, "path"))
 	if prompt == "" || path == "" {
 		return `Tool Output: {"status":"error","message":"prompt and path are required"}`
+	}
+	if kind == "sfx" {
+		if !strings.EqualFold(filepath.Ext(path), ".wav") {
+			path = strings.TrimSuffix(path, filepath.Ext(path)) + ".wav"
+		}
+		var durationSeconds float64
+		if v, ok := tc.Params["duration_seconds"].(float64); ok {
+			durationSeconds = v
+		}
+		var seed int64
+		if v, ok := tc.Params["seed"].(float64); ok {
+			seed = int64(v)
+		}
+		wav, preset, params := gamemaker.SynthesizeSFX(prompt, durationSeconds, seed)
+		stored, err := service.StoreJobAsset(ctx, jobID, path, "sfx", "procedural-sfx", prompt, wav)
+		if err != nil {
+			return gameMakerToolError(err)
+		}
+		return gameMakerToolJSON(map[string]any{
+			"status":       "ok",
+			"path":         stored,
+			"generator":    "procedural-sfx",
+			"preset":       preset,
+			"zzfx_params":  params,
+			"zzfx_snippet": fmt.Sprintf("import { playSfx, zzfx } from '../vendor/zzfx.js'; playSfx(%q);", preset),
+		})
 	}
 	if dc == nil || dc.Cfg == nil || !dc.Cfg.GameMaker.AllowMediaGeneration {
 		return proceduralGameMakerFallback(ctx, service, jobID, kind, path, prompt, "media generation is disabled")
@@ -377,7 +423,7 @@ func dispatchGameMakerAsset(ctx context.Context, tc ToolCall, dc *DispatchContex
 		}
 		return gameMakerToolJSON(map[string]any{"status": "ok", "path": stored, "provider": result.Provider, "model": result.Model})
 	default:
-		return `Tool Output: {"status":"error","message":"kind must be image or music"}`
+		return `Tool Output: {"status":"error","message":"kind must be image, music or sfx"}`
 	}
 }
 

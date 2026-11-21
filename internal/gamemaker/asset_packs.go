@@ -508,3 +508,27 @@ func (s *Service) importAssetPack(ctx context.Context, jobID, id string) (Import
 	_, _ = s.emit(ctx, job.ProjectID, jobID, "asset_changed", map[string]any{"path": rel, "kind": "sprite_pack", "generator": "builtin"})
 	return result, nil
 }
+
+// ResolveAssetPackID finds a unique pack ID across the catalog when an exact
+// assetID or assemblyID is supplied without pack_id. Returns "" if missing or ambiguous.
+func (s *Service) ResolveAssetPackID(assetID, assemblyID string) string {
+	assetID = strings.TrimSpace(assetID)
+	assemblyID = strings.TrimSpace(assemblyID)
+	if (assetID == "") == (assemblyID == "") {
+		return ""
+	}
+	packs, err := s.ListAssetPacks()
+	if err != nil {
+		return ""
+	}
+	matched := ""
+	for _, pack := range packs {
+		if _, err := s.describeAsset(pack.ID, assetID, assemblyID); err == nil {
+			if matched != "" && matched != pack.ID {
+				return ""
+			}
+			matched = pack.ID
+		}
+	}
+	return matched
+}

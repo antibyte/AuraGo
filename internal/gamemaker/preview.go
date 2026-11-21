@@ -89,7 +89,7 @@ func (s *Service) PreviewFile(token, rawPath string) ([]byte, string, error) {
 	}
 	if err != nil {
 		if os.IsNotExist(err) {
-			if fallback, bundled, fallbackErr := bundledRuntimeFile(project.Dimension, rawPath); bundled {
+			if fallback, bundled, fallbackErr := bundledRuntimeFileAny(project.Dimension, rawPath); bundled {
 				if fallbackErr != nil {
 					return nil, "", fallbackErr
 				}

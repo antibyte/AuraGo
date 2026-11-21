@@ -37,7 +37,7 @@ func TestWorldPackExportBrowser(t *testing.T) {
 	}
 	for _, dimension := range []string{"2d", "3d"} {
 		for _, r := range bundledRuntimeAssets(dimension) {
-			data, err := runtimeFS.ReadFile(r.embeddedPath)
+			data, err := readRuntimeAsset(r.embeddedPath)
 			if err != nil {
 				t.Fatal(err)
 			}

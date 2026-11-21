@@ -27,9 +27,11 @@ use optional local frameworks/assets and explicitly finish.
   HTML/CSS/JS run directly. Existing src/main.ts is bundled to dist/game.js by
   esbuild. Builds never rewrite source or require framework/AuraGo hooks.
   Libraries remain local; no CDN/npm infrastructure is introduced.
-- Frameworks, templates, scene/Voxel definitions and asset packs are optional.
-  Their helper contracts apply when used, never as publication criteria.
-  Preserve existing runtime versions, source, asset licenses and exports.
+- Frameworks, templates (`canvas` plus optional Phaser/Three/Voxel starters),
+  local library bundles (`add_library`), craft recipes (`reference` `topic`),
+  procedural local `sfx` generation (`vendor/zzfx.js` / `.wav`) and asset packs
+  are optional. Their helper contracts apply when used, never as publication
+  criteria. Preserve existing runtime versions, source, asset licenses and exports.
 - Explicit finish builds and requests publication of that exact snapshot.
   Publication rechecks active ownership, permissions, cancellation and public
   source/build hashes under source/build locks. Private conversation changes
@@ -46,7 +48,13 @@ use optional local frameworks/assets and explicitly finish.
   snapshot's build ID. Diagnostics are untrusted, bounded and host-path redacted.
 - Screenshots include the rendered HTML viewport and preserve running state.
   No capture count quota: bound each image to 2 MiB, pending images to 8 MiB,
-  and retained UI images to three. Keyboard/mouse/waits are voluntary tools.
+  and retained UI images to three. Keyboard/mouse/touch/wait actions, inline
+  `capture` contact sheets (2–6 frames), `viewport` presets (`landscape`,
+  `hd`, `portrait`, `tablet`, `WIDTHxHEIGHT`) and read-only `probe` telemetry
+  (`window.__gameDebug`) are voluntary tools.
+- Technical learnings extracted without file/condition bindings from a
+  `game-maker:<project>` run also share into `game-maker:studio` so craft tips
+  can carry across projects within existing memory/learning controls.
 - Browser/vision failures are recoverable tool errors. Multimodal coding models
   receive pixels before context fitting; text models use the configured vision
   provider. All model calls retain normal total-budget accounting.

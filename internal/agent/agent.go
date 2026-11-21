@@ -1130,6 +1130,7 @@ type RunConfig struct {
 	AllowProjectLearnings bool
 	// LearningScope is supplied only by server-owned workspace/project resolution.
 	LearningScope        memory.LearningScope
+	SharedLearningScopes []memory.LearningScope
 	LearningTargetScope  func(action, resource string) (memory.LearningScope, bool)
 	LearningProjectValid func(codegraph.Project) bool
 	LearningFingerprint  string

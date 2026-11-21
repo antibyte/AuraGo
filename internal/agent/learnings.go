@@ -175,7 +175,12 @@ func dispatchLearning(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 	if !learningScopeAuthorized(scope, dc.CodeProject, dc.LearningProjectValid) || !learningPolicy(dc.Cfg, true) {
 		return learningResponse(nil, fmt.Errorf("learning authorization revoked"))
 	}
-	l, err := dc.ShortTermMem.ObserveLearning(ctx, evidencedLearningDraft(args.LearningDraft, source), scope, source, fingerprint)
+	draft := evidencedLearningDraft(args.LearningDraft, source)
+	l, err := dc.ShortTermMem.ObserveLearning(ctx, draft, scope, source, fingerprint)
+	if err == nil && strings.HasPrefix(scope.Project, "game-maker:") && scope.Project != "game-maker:studio" &&
+		draft.Kind == "technical" && draft.Condition == nil && scope.Resource == "" {
+		_, _ = dc.ShortTermMem.ObserveLearning(ctx, draft, memory.LearningScope{Project: "game-maker:studio"}, source, "")
+	}
 	return learningResponse(map[string]any{"status": "ok", "learning": l}, err)
 }
 
@@ -208,6 +213,10 @@ func applyExtractedLearnings(ctx context.Context, cfg *config.Config, stm *memor
 		if _, err := stm.ObserveLearning(ctx, draft, scope.Scope, source, scope.Fingerprint); err != nil {
 			continue
 		}
+		if strings.HasPrefix(scope.Scope.Project, "game-maker:") && scope.Scope.Project != "game-maker:studio" &&
+			draft.Kind == "technical" && draft.Condition == nil && scope.Scope.Resource == "" {
+			_, _ = stm.ObserveLearning(ctx, draft, memory.LearningScope{Project: "game-maker:studio"}, source, "")
+		}
 	}
 }
 
@@ -234,6 +243,7 @@ func learningPromptContext(ctx context.Context, run RunConfig, query, model stri
 	}
 	content := ""
 	selected := 0
+	seenStatements := map[string]bool{}
 	for _, l := range list {
 		if selected >= 3 {
 			break
@@ -270,6 +280,43 @@ func learningPromptContext(ctx context.Context, run RunConfig, query, model stri
 		}
 		content = candidate
 		selected++
+		seenStatements[strings.ToLower(strings.TrimSpace(l.Statement))] = true
+	}
+	if selected < 3 && len(run.SharedLearningScopes) > 0 {
+		for _, sharedScope := range run.SharedLearningScopes {
+			if selected >= 3 {
+				break
+			}
+			sharedList, sharedErr := run.ShortTermMem.ListLearnings(ctx, sharedScope, query, "active", 50)
+			if sharedErr != nil {
+				continue
+			}
+			for _, l := range sharedList {
+				if selected >= 3 {
+					break
+				}
+				if l.Kind != "technical" || l.Scope.Project != sharedScope.Project || l.Scope.Resource != "" {
+					continue
+				}
+				key := strings.ToLower(strings.TrimSpace(l.Statement))
+				if seenStatements[key] {
+					continue
+				}
+				source := ""
+				if len(l.Sources) > 0 {
+					source = l.Sources[len(l.Sources)-1].Reference
+				}
+				line := fmt.Sprintf("[learning:%s revision=%d scope=%s source=%s selected=%s] %s Reason: %s\n", l.ID, l.Revision, sharedScope.Project, source, "shared studio craft", l.Statement, l.Rationale)
+				candidate := content + line
+				wrapped := isolateAgentPromptExternalData(security.Scrub(candidate))
+				if prompts.CountTokensForModel(wrapped, model) > 600 {
+					continue
+				}
+				content = candidate
+				selected++
+				seenStatements[key] = true
+			}
+		}
 	}
 	if !coAgent && learningPolicy(run.Config, true) {
 		_ = run.ShortTermMem.RecordLearningMetric(ctx, "retrievals", 1)

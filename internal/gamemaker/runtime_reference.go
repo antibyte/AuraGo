@@ -46,10 +46,10 @@ api:
 - damagePlayer(amount): no effect in creative mode.
 - player: read-only snapshot {x, y, z, yaw, pitch, health, ...}. progress: read-only counters keyed "collect:<item>", "craft:<item>", "place:<item>" and "defeat".
 - dispose().
-Only these APIs change the grid or inventory. Checks read real block, inventory and player evidence, so never fake counters or add another input or frame loop.`
+Use these APIs to mutate the grid or inventory so meshing, collision, UI and saves stay synchronized.`
 
 const phaserRuntimeReference = `Phaser GameScene API (installed helper phaser-2 in src/common.ts). This is the complete public contract: do not read common.ts or vendor files to rediscover it.
-Entry: src/main.ts imports {GameScene, start} from './common', declares class Main extends GameScene {...} and ends with start(Main, gravity). gravity is the Arcade y gravity (0 top-down, about 1000 for platformers). The logical canvas keeps the plan width and height.
+Entry: src/main.ts imports {GameScene, start} from './common', declares class Main extends GameScene {...} and ends with start(Main, gravity). gravity is the Arcade y gravity (0 top-down, about 1000 for platformers). The logical canvas defaults to 960×540 with FIT scaling.
 Hooks (override these; never override preload, create or update):
 - setup(): build the stage. Keep "if (this.setupScene()) return;" first when scene.json may hold nodes. Assign this.player. Reset custom cooldowns, spawn clocks and per-run flags here: restarts reuse the instance, so class field initializers do not run again.
 - step(dt): per-frame gameplay. dt is in SECONDS (at most 0.05). Call super.step(dt) to keep built-in arrow/WASD movement and jumping.
@@ -57,29 +57,29 @@ Hooks (override these; never override preload, create or update):
 - tick(): once per second while playing.
 - paintHUD(): compact live status only, via this.hud.setText(...).
 Fields:
-- this.player: the controlled object; the validator binds to it, so assign it in setup().
-- this.state: counters the validator reads: score, actions, hits, spawns, turns, ticks, pickup_events, lives, health, goal_remaining, outcome (0 playing, 1 won, 2 lost), ended. Change them only when the real event happens.
+- this.player: the controlled object followed by the camera and default movement; assign it in setup().
+- this.state: shared HUD and flow counters: score, actions, hits, spawns, turns, ticks, pickup_events, lives, health, goal_remaining, outcome (0 playing, 1 won, 2 lost), ended.
 - this.elapsed: MILLISECONDS since the stage started; it resets on restart. Compare cooldowns in milliseconds.
 - this.levelIndex: current stage (0-based); choose the layout from it in setup().
 - this.inputKeys: down(...names) held, pressed(name) newly pressed, vector() gives {x,y} in -1..1 from arrows and WASD. Keys: LEFT RIGHT UP DOWN W A S D SPACE R P ESC ENTER. R restarts, P pauses and ESC ends the game. Other keys are not registered: use this.input.keyboard.addKey('F') for them.
 - this.flow.message(text, seconds): short on-screen notice. this.hud is the HUD text object.
 Helpers:
-- body(x, y, w, h, color, fixed = false, role = ''): rectangle with an Arcade body (static when fixed) and the planned artwork for role; returns the GameObject. The collider stays w×h. role makes it a validation target: player, enemy, item, projectile, goal, obstacle or a custom role. Set object.__gmRole on objects created otherwise.
+- body(x, y, w, h, color, fixed = false, role = ''): rectangle with an Arcade body (static when fixed) and optional artwork for role (player, enemy, item, projectile, goal, obstacle or custom); returns the GameObject while keeping the collider at w×h.
 - configureLevels([{id, title}, ...]) declares stages; nextLevel() advances after a win; restartGame() returns to stage 0.
 - configureWorld(width, height, follow = true): world and camera bounds, camera follows this.player.
 - setCheckpoint(x, y); damagePlayer() consumes a life on real harmful contact with feedback and a protected respawn, ends the game at 0 lives and returns true when damage applied. Set this.state.lives in setup() for life-based games.
-- feedback(name, object = this.player, material = 'flesh'): effect and sound for hit, pickup, shot, jump, land, damage, death, win, lose, interact and similar events. The validator counts feedback('pickup', item) as pickup_events.
+- feedback(name, object = this.player, material = 'flesh'): effect and sound for hit, pickup, shot, jump, land, damage, death, win, lose, interact and similar events. feedback('pickup', item) also increments this.state.pickup_events.
 - end(won): result screen with Continue or Restart.
-- assetRoles(prefix): planned asset roles named prefix or prefix_*.
+- assetRoles(prefix): configured asset roles named prefix or prefix_*.
 Physics: pass GameObjects returned by body() to this.physics.add.collider/overlap; register groups and overlaps once in setup(); movers use fixed = false. Arcade bodies have no setPosition: use object.setPosition(x, y) plus object.body.reset(x, y), or body.updateFromGameObject() for static bodies.
-Checks: hits = this.state.hits, incremented inside the real collision callback; pickup_events = feedback('pickup', ...) calls; player_x/player_y come from this.player; stage_count = configured levels.`
+Lifecycle & state: hits = this.state.hits, incremented inside collision callbacks; pickup_events = feedback('pickup', ...) calls; player position lives on this.player; configureLevels sets the stage list.`
 
 const threeRuntimeReference = `Three.js startGame API (installed helper three-4 in src/common.ts). This is the complete public contract: do not read common.ts or vendor files to rediscover it.
 Entry: src/main.ts imports {startGame} from './common' and calls startGame(config) once. The helper owns renderer, camera, player, input, clock, HUD, start/pause/result UI, presentation and disposal.
 config:
-- mode: fps, exploration, transport, flight or space (the plan base). goal: count to win. speed: metres per second. duration: seconds, 0 disables the countdown. lives: default 3.
-- objects: [{role, at: [x, y, z], scale?, blocksShots?}] using planned asset roles. Built-in behaviour: item (collected within 1.5 m) and cargo (2 m, then carried) raise score, hits and pickup_events; goal collects like an item in flight and completes a cargo delivery in transport; enemy is hit by the primary action in fps and space (hits, score) and attacks the player within combat range; tree, building, obstacle and terrain are scenery that can block shots.
-- levels: [{id, title, objects?, goal?, worldBounds?, mode?}, ...]; each entry overrides config for its stage. Only stages with a distinct layout count.
+- mode: fps, exploration, transport, flight or space (camera and control preset). goal: count to win. speed: metres per second. duration: seconds, 0 disables the countdown. lives: default 3.
+- objects: [{role, at: [x, y, z], scale?, blocksShots?}] using configured asset roles. Built-in behaviour: item (collected within 1.5 m) and cargo (2 m, then carried) raise score, hits and pickup_events; goal collects like an item in flight and completes a cargo delivery in transport; enemy is hit by the primary action in fps and space (hits, score) and attacks the player within combat range; tree, building, obstacle and terrain are scenery that can block shots.
+- levels: [{id, title, objects?, goal?, worldBounds?, mode?}, ...]; each entry overrides config for its stage. Each stage can define its own layout and objective.
 - worldBounds: {min: [x, y, z], max: [x, y, z]}. combat: {enemyRange, enemyDamage, enemyCooldown}. playerUI: {movement, action, instructions?}.
 - Hooks: setup(api) after assets load; step(dt, api) every frame with dt in seconds; action(api) on the primary action, return false to cancel the built-in action or true after a real custom interaction; reset(api) on restart; dispose(api) on teardown.
 api:
@@ -90,19 +90,19 @@ api:
 - setCheckpoint([x, y, z]); hasLineOfSight(from, to) returns false when cover blocks the line.
 - event(name, point?): feedback effects and sound only; it never changes counters.
 - levelIndex (current stage), nextLevel(), win(), lose(), reset(), dispose().
-Counters: score, hits and pickup_events change only through the built-in role behaviour above or scene-builder rules; custom code cannot add to them. Give every checked target a real config.objects role.
+State & roles: built-in role behaviour and scene-builder rules update score, hits and pickup_events automatically for config.objects roles; custom Three.js meshes and rules can also be added freely in setup/step/action.
 Movement is camera-relative: D/RIGHT moves toward screen right and W/UP away from the camera.`
 
 // CompactRuntimeReference bounds a complete runtime reference for small-model
 // runs. Only whole lines are kept. Cutting from the tail used to drop the
-// Checks, counters and feedback lines that weak models need most, so selection
+// Lifecycle, state and feedback lines that weak models need most, so selection
 // now follows importance while the emitted lines keep their original order.
 const compactRuntimeReferenceTail = "\n- Cheat sheet only: read bounded src/common.ts ranges for the remaining members."
 
 var compactReferencePriorities = []string{
-	"Checks:",
+	"Lifecycle & state:",
 	"feedback(",
-	"Counters:",
+	"State & roles:",
 	"this.state:",
 	"this.player:",
 	"step(dt)",

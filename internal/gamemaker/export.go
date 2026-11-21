@@ -82,6 +82,7 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 		}
 		return nil
 	}
+	var sourceText strings.Builder
 	for _, file := range files {
 		if err := ctx.Err(); err != nil {
 			return "", err
@@ -99,13 +100,20 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 		if int64(len(data)) != file.Size || hex.EncodeToString(sum[:]) != file.Hash {
 			return "", fmt.Errorf("exported revision integrity check failed for %s", file.Path)
 		}
+		if !included["src/main.ts"] {
+			switch strings.ToLower(filepath.Ext(file.Path)) {
+			case ".html", ".js", ".mjs", ".css":
+				sourceText.Write(data)
+				sourceText.WriteByte('\n')
+			}
+		}
 		if err := writeFile(file.Path, data); err != nil {
 			return "", err
 		}
 	}
 	assets := bundledRuntimeAssets(project.Dimension, project.Variant)
 	if !included["src/main.ts"] {
-		assets = nil
+		assets = referencedBundledRuntimeAssets(sourceText.String())
 	}
 	if included[legacyThreeRuntimeAssets[0].projectPath] && included["vendor/three-"+ThreeVersion+".module.min.js"] {
 		assets = append(assets, legacyThreeRuntimeAssets...)
@@ -123,13 +131,13 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 		if included[asset.projectPath] {
 			continue
 		}
-		if project.Variant == "voxel" {
+		if project.Variant == "voxel" && asset.projectPath != "vendor/zzfx.js" {
 			return "", fmt.Errorf("published voxel runtime is incomplete: %s", asset.projectPath)
 		}
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		data, err := runtimeFS.ReadFile(asset.embeddedPath)
+		data, err := readRuntimeAsset(asset.embeddedPath)
 		if err != nil {
 			return "", fmt.Errorf("read exported game runtime %s: %w", asset.embeddedPath, err)
 		}
@@ -146,6 +154,43 @@ func (s *Service) WriteExport(ctx context.Context, projectID string, output io.W
 		return "", fmt.Errorf("finish game maker export: %w", err)
 	}
 	return project.Slug + ".zip", nil
+}
+
+func referencedBundledRuntimeAssets(source string) []runtimeAsset {
+	if source == "" {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []runtimeAsset
+	var notices *runtimeAsset
+	for _, list := range [][]runtimeAsset{bundledRuntimeAssets("2d"), bundledRuntimeAssets("3d", "voxel")} {
+		for _, a := range list {
+			if a.projectPath == "THIRD_PARTY_NOTICES.md" {
+				copyA := a
+				notices = &copyA
+				continue
+			}
+			if seen[a.projectPath] {
+				continue
+			}
+			if strings.Contains(source, a.projectPath) {
+				seen[a.projectPath] = true
+				out = append(out, a)
+			}
+		}
+	}
+	// aurago-three-assets-1 imports three module and three module imports core.
+	if seen["vendor/aurago-three-assets-1.js"] && !seen["vendor/three-"+ThreeVersion+".module.min.js"] {
+		out = append(out, runtimeAsset{embeddedPath: "runtime/three-" + ThreeVersion + ".module.min.js", projectPath: "vendor/three-" + ThreeVersion + ".module.min.js"})
+		seen["vendor/three-"+ThreeVersion+".module.min.js"] = true
+	}
+	if seen["vendor/three-"+ThreeVersion+".module.min.js"] && !seen["vendor/three-"+ThreeVersion+".core.min.js"] {
+		out = append(out, runtimeAsset{embeddedPath: "runtime/three-" + ThreeVersion + ".core.min.js", projectPath: "vendor/three-" + ThreeVersion + ".core.min.js"})
+	}
+	if len(out) > 0 && notices != nil {
+		out = append(out, *notices)
+	}
+	return out
 }
 
 const exportInstructions = `PLAYING THIS GAME / SPIEL STARTEN

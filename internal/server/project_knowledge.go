@@ -67,6 +67,7 @@ func (s *Server) authorizeGraphProject(p codegraph.Project) bool {
 // Job roots originate from the Game Maker service, never model or browser arguments.
 func (s *Server) configureGameKnowledge(run *agent.RunConfig, projectID, jobID, root string) func() {
 	run.LearningScope = memory.LearningScope{Project: "game-maker:" + projectID}
+	run.SharedLearningScopes = []memory.LearningScope{{Project: "game-maker:studio"}}
 	run.WorkChainID = "game-maker:" + jobID
 	run.AllowProjectLearnings = true
 	p := codegraph.Project{ID: "game-maker-job:" + jobID, Root: root}

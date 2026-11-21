@@ -1,9 +1,14 @@
 package gamemaker
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"math"
 	"mime"
 	"net"
@@ -11,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +26,7 @@ import (
 	"github.com/go-rod/rod/lib/input"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"golang.org/x/image/draw"
 )
 
 type PreviewInput struct {
@@ -38,27 +45,88 @@ type AgentCapture struct {
 }
 
 type agentPreview struct {
-	browser   *security.EgressBrowser
-	cancel    context.CancelFunc
-	page      *rod.Page
-	server    *http.Server
-	url       string
-	directory string
-	buildID   string
-	mu        sync.Mutex
-	logs      []Diagnostic
-	emitted   int
-	captures  []AgentCapture
-	pending   []AgentCapture
-	requests  map[proto.NetworkRequestID]string
+	browser      *security.EgressBrowser
+	cancel       context.CancelFunc
+	page         *rod.Page
+	server       *http.Server
+	url          string
+	directory    string
+	dimension    string
+	buildID      string
+	width        int
+	height       int
+	mobile       bool
+	touchEnabled bool
+	mu           sync.Mutex
+	logs         []Diagnostic
+	emitted      int
+	captures     []AgentCapture
+	pending      []AgentCapture
+	requests     map[proto.NetworkRequestID]string
+}
+
+func parsePreviewViewport(spec string) (width, height int, mobile, specified bool, err error) {
+	trimmed := strings.ToLower(strings.TrimSpace(spec))
+	if trimmed == "" {
+		return 0, 0, false, false, nil
+	}
+	switch trimmed {
+	case "landscape", "desktop":
+		return 1024, 768, false, true, nil
+	case "hd", "widescreen":
+		return 1280, 720, false, true, nil
+	case "portrait", "mobile":
+		return 430, 932, true, true, nil
+	case "tablet":
+		return 768, 1024, true, true, nil
+	}
+	normalized := strings.ReplaceAll(trimmed, "×", "x")
+	parts := strings.Split(normalized, "x")
+	if len(parts) != 2 {
+		return 0, 0, false, false, fmt.Errorf("invalid viewport %q; use landscape, hd, portrait, tablet or WIDTHxHEIGHT (320..1920)", spec)
+	}
+	w, errW := strconv.Atoi(strings.TrimSpace(parts[0]))
+	h, errH := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if errW != nil || errH != nil || w < 320 || w > 1920 || h < 320 || h > 1920 {
+		return 0, 0, false, false, fmt.Errorf("viewport dimensions must be 320..1920")
+	}
+	return w, h, w < h, true, nil
+}
+
+func applyPreviewViewport(ctx context.Context, page *rod.Page, width, height int, mobile bool) error {
+	if page == nil {
+		return nil
+	}
+	pctx := page.Context(ctx)
+	if err := pctx.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+		Width:             width,
+		Height:            height,
+		DeviceScaleFactor: 1,
+		Mobile:            mobile,
+	}); err != nil {
+		return err
+	}
+	if mobile {
+		_ = proto.EmulationSetTouchEmulationEnabled{Enabled: true}.Call(pctx)
+	}
+	return nil
 }
 
 // AgentPreview operates a job-owned browser; it never uses the Studio iframe.
-func (s *Service) AgentPreview(ctx context.Context, jobID, operation string, actions []PreviewInput) (map[string]any, error) {
+func (s *Service) AgentPreview(ctx context.Context, jobID, operation string, actions []PreviewInput, viewport ...string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if err := s.CheckJobMutation(ctx, jobID); err != nil {
 		return nil, err
+	}
+	var vw, vh int
+	var vmobile, vspecified bool
+	if len(viewport) > 0 && strings.TrimSpace(viewport[0]) != "" {
+		var err error
+		vw, vh, vmobile, vspecified, err = parsePreviewViewport(viewport[0])
+		if err != nil {
+			return nil, err
+		}
 	}
 	if operation == "close" {
 		s.closeAgentPreview(jobID)
@@ -80,11 +148,13 @@ func (s *Service) AgentPreview(ctx context.Context, jobID, operation string, act
 		default:
 		}
 	}
-	if operation == "reload" || operation == "open" && p == nil {
+	reloaded := false
+	if operation == "reload" || (operation == "open" && p == nil) {
 		result := s.BuildJob(ctx, jobID)
 		if !result.OK {
 			return map[string]any{"status": "build_failed", "result": result}, nil
 		}
+		project, _, _ := s.ProjectForJob(ctx, jobID)
 		stage, err := s.JobDirectory(jobID)
 		if err != nil {
 			return nil, err
@@ -108,19 +178,22 @@ func (s *Service) AgentPreview(ctx context.Context, jobID, operation string, act
 			return nil, err
 		}
 		if p == nil {
-			p, err = s.newAgentPreview(ctx, jobID)
+			p, err = s.newAgentPreview(ctx, jobID, project.Dimension)
 			if err != nil {
 				_ = os.RemoveAll(dir)
 				return nil, fmt.Errorf("open preview: %w", err)
 			}
 			s.agentPreviews[jobID] = p
 		}
+		if vspecified {
+			p.width, p.height, p.mobile = vw, vh, vmobile
+		}
 		if p.page != nil {
 			_ = p.page.Close()
 		}
 		p.mu.Lock()
 		old := p.directory
-		p.directory, p.buildID, p.logs, p.emitted = dir, result.BuildID, nil, 0
+		p.directory, p.dimension, p.buildID, p.logs, p.emitted = dir, project.Dimension, result.BuildID, nil, 0
 		p.requests = map[proto.NetworkRequestID]string{}
 		p.mu.Unlock()
 		if old != "" {
@@ -136,11 +209,25 @@ func (s *Service) AgentPreview(ctx context.Context, jobID, operation string, act
 			delete(s.agentPreviews, jobID)
 			return nil, fmt.Errorf("load preview: %w", err)
 		}
+		reloaded = true
 	}
 	if p == nil {
 		return nil, fmt.Errorf("preview is closed; call open first")
 	}
-	response := map[string]any{"status": "ok", "build_id": p.buildID}
+	if vspecified && !reloaded {
+		if err := applyPreviewViewport(ctx, p.page, vw, vh, vmobile); err != nil {
+			return nil, p.browser.Wrap(err)
+		}
+		p.width, p.height, p.mobile = vw, vh, vmobile
+		if vmobile {
+			p.touchEnabled = true
+		}
+	}
+	response := map[string]any{
+		"status":   "ok",
+		"build_id": p.buildID,
+		"viewport": map[string]any{"width": p.width, "height": p.height, "mobile": p.mobile},
+	}
 	switch operation {
 	case "open", "reload":
 	case "logs":
@@ -148,49 +235,238 @@ func (s *Service) AgentPreview(ctx context.Context, jobID, operation string, act
 		response["diagnostics"] = append([]Diagnostic(nil), p.logs...)
 		p.mu.Unlock()
 	case "screenshot":
-		quality := 80
-		data, err := p.page.Context(ctx).Screenshot(false, &proto.PageCaptureScreenshot{Format: proto.PageCaptureScreenshotFormatJpeg, Quality: &quality})
+		data, err := capturePreviewJPEG(ctx, p.page)
 		if err != nil {
 			return nil, p.browser.Wrap(err)
 		}
-		if len(data) > 2<<20 {
-			return nil, fmt.Errorf("preview image exceeds 2 MiB; reduce viewport content")
+		capture, err := s.recordAgentCapture(ctx, jobID, p, data)
+		if err != nil {
+			return nil, err
 		}
-		capture := AgentCapture{ID: randomID("capture"), BuildID: p.buildID, Image: "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data)}
-		p.mu.Lock()
-		pendingBytes := len(capture.Image)
-		for _, previous := range p.pending {
-			pendingBytes += len(previous.Image)
-		}
-		if pendingBytes > 8<<20 {
-			p.mu.Unlock()
-			return nil, fmt.Errorf("pending preview images exceed 8 MiB; consume images before capturing again")
-		}
-		p.pending = append(p.pending, capture)
-		p.captures = append(p.captures, capture)
-		if len(p.captures) > 3 {
-			p.captures = append([]AgentCapture(nil), p.captures[len(p.captures)-3:]...)
-		}
-		p.mu.Unlock()
 		response["capture"] = capture
-		job, _ := s.GetJob(ctx, jobID)
-		_, _ = s.emit(ctx, job.ProjectID, jobID, "agent_capture", map[string]any{"id": capture.ID, "build_id": capture.BuildID, "url": "/api/game-maker/projects/" + job.ProjectID + "/agent-captures/" + jobID + "/" + capture.ID})
 	case "input":
 		if len(actions) == 0 || len(actions) > 64 {
 			return nil, fmt.Errorf("input requires 1–64 actions")
 		}
+		captureCount := 0
+		for _, a := range actions {
+			if a.Type == "capture" {
+				captureCount++
+			}
+		}
+		if captureCount > 6 {
+			return nil, fmt.Errorf("input supports at most 6 capture actions per call")
+		}
+		var frames [][]byte
 		for _, action := range actions {
-			if err := previewInput(ctx, p.page, action); err != nil {
+			if action.Type == "capture" {
+				frame, err := capturePreviewJPEG(ctx, p.page)
+				if err != nil {
+					return nil, p.browser.Wrap(err)
+				}
+				frames = append(frames, frame)
+				continue
+			}
+			if (strings.HasPrefix(action.Type, "touch_") || action.Type == "tap") && !p.touchEnabled {
+				_ = proto.EmulationSetTouchEmulationEnabled{Enabled: true}.Call(p.page.Context(ctx))
+				p.touchEnabled = true
+			}
+			if err := previewInput(ctx, p.page, action, p.width, p.height); err != nil {
 				return nil, p.browser.Wrap(err)
 			}
 		}
+		if len(frames) == 1 {
+			capture, err := s.recordAgentCapture(ctx, jobID, p, frames[0])
+			if err != nil {
+				return nil, err
+			}
+			response["capture"] = capture
+			response["capture_count"] = 1
+		} else if len(frames) > 1 {
+			sheet, err := stitchContactSheet(frames)
+			if err != nil {
+				return nil, err
+			}
+			capture, err := s.recordAgentCapture(ctx, jobID, p, sheet)
+			if err != nil {
+				return nil, err
+			}
+			response["capture"] = capture
+			response["capture_count"] = len(frames)
+			response["contact_sheet"] = true
+		}
+	case "probe":
+		probe, err := s.probeAgentPage(ctx, p.page)
+		if err != nil {
+			return nil, p.browser.Wrap(err)
+		}
+		p.mu.Lock()
+		logCount := len(p.logs)
+		p.mu.Unlock()
+		response["probe"] = probe
+		response["log_count"] = logCount
 	default:
 		return nil, fmt.Errorf("unknown preview operation")
 	}
 	return response, nil
 }
 
-func (s *Service) newAgentPreview(ctx context.Context, jobID string) (*agentPreview, error) {
+func capturePreviewJPEG(ctx context.Context, page *rod.Page) ([]byte, error) {
+	quality := 80
+	return page.Context(ctx).Screenshot(false, &proto.PageCaptureScreenshot{
+		Format:  proto.PageCaptureScreenshotFormatJpeg,
+		Quality: &quality,
+	})
+}
+
+func (s *Service) recordAgentCapture(ctx context.Context, jobID string, p *agentPreview, data []byte) (AgentCapture, error) {
+	if len(data) > 2<<20 {
+		return AgentCapture{}, fmt.Errorf("preview image exceeds 2 MiB; reduce viewport content")
+	}
+	capture := AgentCapture{ID: randomID("capture"), BuildID: p.buildID, Image: "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data)}
+	p.mu.Lock()
+	pendingBytes := len(capture.Image)
+	for _, previous := range p.pending {
+		pendingBytes += len(previous.Image)
+	}
+	if pendingBytes > 8<<20 {
+		p.mu.Unlock()
+		return AgentCapture{}, fmt.Errorf("pending preview images exceed 8 MiB; consume images before capturing again")
+	}
+	p.pending = append(p.pending, capture)
+	p.captures = append(p.captures, capture)
+	if len(p.captures) > 3 {
+		p.captures = append([]AgentCapture(nil), p.captures[len(p.captures)-3:]...)
+	}
+	p.mu.Unlock()
+	job, _ := s.GetJob(ctx, jobID)
+	_, _ = s.emit(ctx, job.ProjectID, jobID, "agent_capture", map[string]any{"id": capture.ID, "build_id": capture.BuildID, "url": "/api/game-maker/projects/" + job.ProjectID + "/agent-captures/" + jobID + "/" + capture.ID})
+	return capture, nil
+}
+
+func (s *Service) probeAgentPage(ctx context.Context, page *rod.Page) (map[string]any, error) {
+	res, err := page.Context(ctx).Eval(`() => {
+		const out = { title: document.title || '', hud: '', canvasCount: 0, canvas: null, debug: null, debugError: '' };
+		const hud = document.getElementById('hud') || document.querySelector('[data-hud="true"], .aurago-player-hud');
+		if (hud) out.hud = String(hud.textContent || '').trim().slice(0, 512);
+		const canvases = document.querySelectorAll('canvas');
+		out.canvasCount = canvases.length;
+		if (canvases.length > 0) {
+			const c = canvases[0];
+			const r = c.getBoundingClientRect();
+			out.canvas = { width: c.width, height: c.height, clientWidth: Math.round(r.width), clientHeight: Math.round(r.height) };
+		}
+		try {
+			const raw = typeof window.__gameDebug === 'function' ? window.__gameDebug() : window.__gameDebug;
+			if (raw !== undefined) {
+				const encoded = JSON.stringify(raw);
+				if (encoded !== undefined) {
+					out.debug = encoded.length > 16384 ? encoded.slice(0, 16384) + '...(truncated)' : JSON.parse(encoded);
+				}
+			}
+		} catch (e) {
+			out.debugError = String(e && e.message ? e.message : e).slice(0, 512);
+		}
+		return out;
+	}`)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := res.Value.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	redacted := s.RedactHostPaths(string(raw))
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(redacted), &parsed); err != nil {
+		return map[string]any{"raw": redacted}, nil
+	}
+	return parsed, nil
+}
+
+func stitchContactSheet(frames [][]byte) ([]byte, error) {
+	if len(frames) == 0 {
+		return nil, fmt.Errorf("no frames to stitch")
+	}
+	decoded := make([]image.Image, 0, len(frames))
+	for i, raw := range frames {
+		img, err := jpeg.Decode(bytes.NewReader(raw))
+		if err != nil {
+			return nil, fmt.Errorf("decode capture frame %d: %w", i+1, err)
+		}
+		decoded = append(decoded, img)
+	}
+	cols := 2
+	if len(decoded) == 3 || len(decoded) >= 5 {
+		cols = 3
+	}
+	rows := (len(decoded) + cols - 1) / cols
+	const gap = 8
+	srcW := max(1, decoded[0].Bounds().Dx())
+	srcH := max(1, decoded[0].Bounds().Dy())
+	panelW := min(srcW, max(160, (1280-gap*(cols+1))/cols))
+	panelH := max(90, panelW*srcH/srcW)
+	canvasW := cols*panelW + (cols+1)*gap
+	canvasH := rows*panelH + (rows+1)*gap
+	sheet := image.NewRGBA(image.Rect(0, 0, canvasW, canvasH))
+	bg := color.RGBA{R: 11, G: 18, B: 32, A: 255}
+	draw.Draw(sheet, sheet.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
+
+	for i, src := range decoded {
+		col := i % cols
+		row := i / cols
+		ox := gap + col*(panelW+gap)
+		oy := gap + row*(panelH+gap)
+		dstRect := image.Rect(ox, oy, ox+panelW, oy+panelH)
+		draw.ApproxBiLinear.Scale(sheet, dstRect, src, src.Bounds(), draw.Over, nil)
+		drawFrameBadge(sheet, ox+6, oy+6, i+1)
+	}
+
+	for _, quality := range []int{80, 65, 50} {
+		var buf bytes.Buffer
+		if err := jpeg.Encode(&buf, sheet, &jpeg.Options{Quality: quality}); err != nil {
+			return nil, fmt.Errorf("encode contact sheet: %w", err)
+		}
+		if buf.Len() <= 2<<20 || quality == 50 {
+			return buf.Bytes(), nil
+		}
+	}
+	return nil, fmt.Errorf("contact sheet exceeded size limit")
+}
+
+// 3x5 pixel bitmaps for digits 1..9 to label contact sheet panels cleanly.
+var frameDigitGlyphs = map[int][5]uint8{
+	1: {0b010, 0b110, 0b010, 0b010, 0b111},
+	2: {0b111, 0b001, 0b111, 0b100, 0b111},
+	3: {0b111, 0b001, 0b111, 0b001, 0b111},
+	4: {0b101, 0b101, 0b111, 0b001, 0b001},
+	5: {0b111, 0b100, 0b111, 0b001, 0b111},
+	6: {0b111, 0b100, 0b111, 0b101, 0b111},
+}
+
+func drawFrameBadge(img *image.RGBA, x, y, number int) {
+	const scale = 3
+	badgeW, badgeH := 20, 22
+	badgeRect := image.Rect(x, y, x+badgeW, y+badgeH).Intersect(img.Bounds())
+	draw.Draw(img, badgeRect, &image.Uniform{C: color.RGBA{R: 15, G: 23, B: 42, A: 235}}, image.Point{}, draw.Over)
+	glyph, ok := frameDigitGlyphs[number]
+	if !ok {
+		return
+	}
+	fg := color.RGBA{R: 56, G: 189, B: 248, A: 255}
+	gx, gy := x+5, y+4
+	for row := 0; row < 5; row++ {
+		bits := glyph[row]
+		for col := 0; col < 3; col++ {
+			if bits&(1<<(2-col)) != 0 {
+				pxRect := image.Rect(gx+col*scale, gy+row*scale, gx+(col+1)*scale, gy+(row+1)*scale).Intersect(img.Bounds())
+				draw.Draw(img, pxRect, &image.Uniform{C: fg}, image.Point{}, draw.Src)
+			}
+		}
+	}
+}
+
+func (s *Service) newAgentPreview(ctx context.Context, jobID, dimension string) (*agentPreview, error) {
 	s.mu.RLock()
 	jobCtx := s.jobContexts[jobID]
 	s.mu.RUnlock()
@@ -205,7 +481,12 @@ func (s *Service) newAgentPreview(ctx context.Context, jobID string) (*agentPrev
 	if err != nil {
 		return nil, err
 	}
-	p := &agentPreview{url: "http://" + listener.Addr().String() + "/" + randomID("preview") + "/"}
+	p := &agentPreview{
+		url:       "http://" + listener.Addr().String() + "/" + randomID("preview") + "/",
+		dimension: dimension,
+		width:     1024,
+		height:    768,
+	}
 	base, _ := url.Parse(p.url)
 	p.server = &http.Server{ReadHeaderTimeout: 5 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.Host != base.Host || !strings.HasPrefix(r.URL.Path, base.Path) {
@@ -226,7 +507,20 @@ func (s *Service) newAgentPreview(ctx context.Context, jobID string) (*agentPrev
 		if err == nil {
 			data, err = os.ReadFile(path)
 		}
+		dim := p.dimension
 		p.mu.Unlock()
+		if err != nil {
+			if os.IsNotExist(err) {
+				if fallback, bundled, fallbackErr := bundledRuntimeFileAny(dim, rel); bundled {
+					if fallbackErr != nil {
+						http.NotFound(w, r)
+						return
+					}
+					data = fallback
+					err = nil
+				}
+			}
+		}
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -278,8 +572,19 @@ func (s *Service) openAgentPage(ctx context.Context, jobID string, p *agentPrevi
 		return err
 	}
 	p.page = page
-	if err := page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{Width: 1024, Height: 768, DeviceScaleFactor: 1, Mobile: false}); err != nil {
+	if p.width <= 0 {
+		p.width = 1024
+	}
+	if p.height <= 0 {
+		p.height = 768
+	}
+	if err := applyPreviewViewport(ctx, page, p.width, p.height, p.mobile); err != nil {
 		return err
+	}
+	if p.mobile {
+		p.touchEnabled = true
+	} else {
+		p.touchEnabled = false
 	}
 	job, _ := s.GetJob(ctx, jobID)
 	relative := func(raw string) string { return strings.TrimPrefix(raw, p.url) }
@@ -365,10 +670,21 @@ func (s *Service) openAgentPage(ctx context.Context, jobID string, p *agentPrevi
 	return page.Context(ctx).WaitLoad()
 }
 
-func previewInput(ctx context.Context, page *rod.Page, action PreviewInput) error {
+func previewInput(ctx context.Context, page *rod.Page, action PreviewInput, width, height int) error {
 	page = page.Context(ctx)
-	if math.IsNaN(action.X) || math.IsInf(action.X, 0) || math.IsNaN(action.Y) || math.IsInf(action.Y, 0) || action.X < 0 || action.X > 1024 || action.Y < 0 || action.Y > 768 {
-		return fmt.Errorf("mouse coordinates must be inside the 1024×768 viewport")
+	if width <= 0 {
+		width = 1024
+	}
+	if height <= 0 {
+		height = 768
+	}
+	needsCoords := strings.HasPrefix(action.Type, "mouse_") || action.Type == "click" ||
+		action.Type == "touch_start" || action.Type == "touch_move" || action.Type == "tap"
+	if needsCoords {
+		if math.IsNaN(action.X) || math.IsInf(action.X, 0) || math.IsNaN(action.Y) || math.IsInf(action.Y, 0) ||
+			action.X < 0 || action.X > float64(width) || action.Y < 0 || action.Y > float64(height) {
+			return fmt.Errorf("coordinates must be inside the %d×%d viewport", width, height)
+		}
 	}
 	button := proto.InputMouseButton(action.Button)
 	if button == "" {
@@ -389,6 +705,7 @@ func previewInput(ctx context.Context, page *rod.Page, action PreviewInput) erro
 			key = input.Key(action.Key[0])
 		}
 	}
+	touchID := 0.0
 	switch action.Type {
 	case "key_down":
 		return page.Keyboard.Press(key)
@@ -410,6 +727,32 @@ func previewInput(ctx context.Context, page *rod.Page, action PreviewInput) erro
 			return err
 		}
 		return page.Mouse.Click(button, 1)
+	case "touch_start":
+		return proto.InputDispatchTouchEvent{
+			Type:        proto.InputDispatchTouchEventTypeTouchStart,
+			TouchPoints: []*proto.InputTouchPoint{{X: action.X, Y: action.Y, ID: &touchID}},
+		}.Call(page)
+	case "touch_move":
+		return proto.InputDispatchTouchEvent{
+			Type:        proto.InputDispatchTouchEventTypeTouchMove,
+			TouchPoints: []*proto.InputTouchPoint{{X: action.X, Y: action.Y, ID: &touchID}},
+		}.Call(page)
+	case "touch_end":
+		return proto.InputDispatchTouchEvent{
+			Type:        proto.InputDispatchTouchEventTypeTouchEnd,
+			TouchPoints: []*proto.InputTouchPoint{},
+		}.Call(page)
+	case "tap":
+		if err := (proto.InputDispatchTouchEvent{
+			Type:        proto.InputDispatchTouchEventTypeTouchStart,
+			TouchPoints: []*proto.InputTouchPoint{{X: action.X, Y: action.Y, ID: &touchID}},
+		}).Call(page); err != nil {
+			return err
+		}
+		return proto.InputDispatchTouchEvent{
+			Type:        proto.InputDispatchTouchEventTypeTouchEnd,
+			TouchPoints: []*proto.InputTouchPoint{},
+		}.Call(page)
 	case "wait":
 		if action.Milliseconds < 0 || action.Milliseconds > 10000 {
 			return fmt.Errorf("wait must be 0–10000 milliseconds")

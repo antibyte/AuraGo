@@ -24,7 +24,14 @@ packs are optional; framework references are fetched only when needed. CDN and
 npm infrastructure are not supported.
 
 Writes save the draft. An explicit build, preview reload or finish processes the
-current files. The agent's finish operation ends the job; a successful current
+current files. `add_library` copies bundled `phaser`, `three`, `voxel`,
+`effects-2d`, `effects-3d` or `zzfx` helpers into `vendor/` without overwriting
+existing source; `use_template` installs optional starters including a
+framework-free HTML5 `canvas` starter; `reference` also supplies optional craft
+recipes (`juice`, `particles`, `procedural-audio`, `procgen`, `pathfinding`, `save`,
+`tweening`, `ui-hud`); and `game_maker_asset` `generate` supports local
+procedural sound effects (`kind: "sfx"`, `.wav` + ZzFX) without external media
+permissions. The agent's finish operation ends the job; a successful current
 build publishes one consistent source/build revision. Runtime errors and pictures
 are observations, never publication gates. Cancelled, exhausted, incomplete or
 failed runs publish nothing. Try again resumes the saved draft and conversation.
@@ -41,8 +48,11 @@ when source maps exist. Browser failure is a tool error that can be retried.
 
 Screenshots show the rendered viewport, including HTML controls. They neither
 reload nor reset the game. The agent can request as many as useful within the job's
-overall budget; size bounds and cleanup limit memory use. Keyboard/mouse/wait
-actions allow free exploration without prescribed scenarios or success counters.
+overall budget; size bounds and cleanup limit memory use. Keyboard/mouse/touch/wait
+actions, inline `capture` contact sheets (up to 6 frames per `input` batch),
+optional `viewport` presets (`landscape`, `hd`, `portrait`, `tablet`, `WIDTHxHEIGHT`)
+and read-only `probe` inspection (`window.__gameDebug` + HUD/canvas info) allow
+free exploration without prescribed scenarios or success counters.
 Image-capable coding models receive real image messages. Text-only models receive
 descriptions from the configured Vision model. Missing Vision is a concrete tool
 error, not a new judging or repair phase.

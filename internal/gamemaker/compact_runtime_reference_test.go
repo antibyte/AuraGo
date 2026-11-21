@@ -10,7 +10,7 @@ func TestCompactRuntimeReferenceKeepsChecksAndPickupFeedback(t *testing.T) {
 	if len(got) > 2000 {
 		t.Fatalf("compact reference exceeds its budget: %d bytes", len(got))
 	}
-	for _, required := range []string{"feedback('pickup'", "Checks:", "this.state:", "pickup_events"} {
+	for _, required := range []string{"feedback('pickup'", "Lifecycle & state:", "this.state:", "pickup_events"} {
 		if !strings.Contains(got, required) {
 			t.Fatalf("compact reference dropped %q", required)
 		}
@@ -33,13 +33,13 @@ func TestCompactRuntimeReferenceKeepsCompleteShortReference(t *testing.T) {
 }
 
 func TestCompactRuntimeReferenceNeverSplitsALine(t *testing.T) {
-	long := strings.Repeat("x", 40) + "\nChecks: feedback('pickup', item) counts."
+	long := strings.Repeat("x", 40) + "\nLifecycle & state: feedback('pickup', item) counts."
 	const budget = len(compactRuntimeReferenceTail) + 80
 	got := CompactRuntimeReference(long, budget)
 	if len(got) > budget {
 		t.Fatalf("tiny budget exceeded: %d bytes", len(got))
 	}
-	if !strings.Contains(got, "Checks: feedback('pickup', item) counts.") {
+	if !strings.Contains(got, "Lifecycle & state: feedback('pickup', item) counts.") {
 		t.Fatal("priority line was lost to a preceding long line")
 	}
 }
