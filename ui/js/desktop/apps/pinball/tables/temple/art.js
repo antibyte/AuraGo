@@ -3,6 +3,7 @@
 // paintArt(kit) runs above the underlay and below lane strips, wall shadows and inserts, so every insert stays readable.
 // Deterministic: all scatter comes from rngNext on fixed seeds.
 import { FONT_STACK, rngNext } from '../../config.js';
+import { paintAccents } from './art-accents.js';
 
 const GOLD = '#ffcb65', GOLD_D = '#b9852a', AMBER = '#ffb347', JADE = '#8ad6a3', FOLIAGE = ['#1f5a2c', '#2f7a38', '#3f9444', '#2a6b33'];
 const MAND = { x: 0, y: 0.70 };
@@ -276,6 +277,7 @@ function logo(kit) {
 }
 
 export function paintArt(kit) {
+    if (kit.artRev >= 2) { paintAccents(kit); return; }   // painted underlay: functional accents only
     const { ctx } = kit;
     stoneWash(kit);
     flagstones(kit);

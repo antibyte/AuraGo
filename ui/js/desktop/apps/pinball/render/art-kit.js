@@ -21,13 +21,13 @@ export function trText(tr, key, vars, fallback) {
 
 const WALL_W = { wood: 0.010, metal: 0.0036, rubber: 0.008, plastic: 0.006 };
 
-export function createArtKit(ctx, { W, H, layout, tr, palette = {}, underlay = null } = {}) {
+export function createArtKit(ctx, { W, H, layout, tr, palette = {}, underlay = null, artRev = 1 } = {}) {
     const S = W / FIELD_W;
     const accent = hexRgb(palette.accent || (layout && layout.meta && layout.meta.accent), [55, 217, 255]);
     const secondary = hexRgb(palette.secondary || (layout && layout.meta && layout.meta.secondary), [255, 72, 196]);
     const px = (x, y) => canvasPx(x, y, W, H);
     const m = v => v * S;
-    const kit = { ctx, W, H, S, px, m, layout, tr, accent, secondary, palette: { ...palette, accentRgb: accent, secondaryRgb: secondary } };
+    const kit = { ctx, W, H, S, px, m, layout, tr, artRev: Number(artRev) || 1, accent, secondary, palette: { ...palette, accentRgb: accent, secondaryRgb: secondary } };
 
     function path(points, closed) {
         ctx.beginPath();
@@ -215,12 +215,48 @@ export function createArtKit(ctx, { W, H, layout, tr, palette = {}, underlay = n
         }
     };
 
+    // Soft drop shadows under hardware so it sits on the print (offset +x, toward the player; deterministic, no random).
+    kit.contactShadows = () => {
+        const L = layout || {}, OX = 0.0025, OY = -0.002;      // metres; playfield y points up, so "down the canvas" is -y
+        ctx.save();
+        const blob = (x, y, rx, ry, rot, a) => {
+            const c = px(x + OX, y + OY), r = m(Math.max(rx, ry));
+            ctx.save(); ctx.translate(c[0], c[1]); ctx.rotate(-rot); ctx.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
+            const g = ctx.createRadialGradient(0, 0, r * 0.35, 0, 0, r);
+            g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        };
+        for (const p of L.posts || []) if (p.render !== 'none' && p.r) blob(p.x, p.y, (p.r + 0.004) * 1.5, (p.r + 0.004) * 1.5, 0, 0.42);
+        for (const d of L.devices || []) {
+            if (d.type === 'bumper') { const r = (d.r ?? 0.0215) * 1.35; blob(d.x, d.y, r * 1.45, r * 1.45, 0, 0.5); }
+            else if (d.type === 'standup') blob(d.x, d.y, (d.width || 0.02) * 0.85, 0.009, d.angle || 0, 0.4);
+            else if (d.type === 'dropBank') for (const t of d.targets || []) blob(t.x, t.y, (d.width || 0.022) * 0.85, 0.009, d.angle || 0, 0.4);
+        }
+        // sling bases and wall feet: a shadow stroke under each wall that stands on the field
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const walls = (L.walls || []).filter(w => w.render && w.render !== 'none' && w.points && w.points.length > 1);
+        if ('filter' in ctx) ctx.filter = 'blur(' + Math.max(1, m(0.0035)).toFixed(1) + 'px)';
+        for (const w of walls) {
+            if (w.render === 'wood') continue;
+            ctx.strokeStyle = w.render === 'rubber' ? 'rgba(0,0,0,.45)' : 'rgba(0,0,0,.36)';
+            ctx.lineWidth = m((WALL_W[w.render] || 0.006) + 0.004);
+            ctx.beginPath();
+            w.points.forEach((p, i) => { const q = px(p[0] + OX, p[1] + OY); if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); });
+            if (w.closed) ctx.closePath();
+            ctx.stroke();
+        }
+        ctx.filter = 'none';
+        ctx.restore();
+    };
+
     // Full layer stack. `paint` is the table's paintArt hook (theme decoration), drawn above the underlay.
     kit.autoArt = ({ paint = null, brightness = 0.42, saturate = 0.9 } = {}) => {
+        const rev2 = kit.artRev >= 2;
         kit.underlay(underlay, { brightness, saturate });
         if (paint) { ctx.save(); try { paint(kit); } finally { ctx.restore(); } }
+        if (rev2) kit.contactShadows();
         kit.lanes(); kit.wallShadows(); kit.inserts(); kit.labels(); kit.rolloverStars();
-        kit.vignette(0.5); kit.grain(0.07);
+        kit.vignette(rev2 ? 0.22 : 0.5); kit.grain(rev2 ? 0.035 : 0.07);
     };
     return kit;
 }

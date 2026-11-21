@@ -12,12 +12,12 @@ export const FIELD_CENTER = [0, FIELD_H / 2];
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
 // Paints the whole art stack for the table into a fresh canvas texture.
-export function paintPlayfieldArt({ layout, tr, tableId, size, underlay, aniso }) {
+export function paintPlayfieldArt({ layout, tr, tableId, size, underlay, artRev, aniso }) {
     const [W, H] = size, canvas = makeCanvas(W, H), ctx = canvas.getContext('2d');
     const palette = { accent: layout.meta && layout.meta.accent, secondary: layout.meta && layout.meta.secondary };
-    const kit = createArtKit(ctx, { W, H, layout, tr, palette, underlay });
-    const visual = VISUALS[tableId] || null;
-    kit.autoArt({ paint: visual && visual.paintArt ? visual.paintArt : null, brightness: 0.78 });
+    const kit = createArtKit(ctx, { W, H, layout, tr, palette, underlay, artRev: artRev || 1 });
+    const visual = VISUALS[tableId] || null, rev2 = kit.artRev >= 2;
+    kit.autoArt({ paint: visual && visual.paintArt ? visual.paintArt : null, brightness: rev2 ? 0.95 : 0.78, saturate: rev2 ? 1.0 : 0.9 });
     const tex = canvasTexture(canvas, { aniso });
     return { texture: tex, canvas, kit };
 }
