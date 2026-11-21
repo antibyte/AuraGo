@@ -15,7 +15,17 @@
     const CR = 68000;          /* rear cornering stiffness N/rad */
     const DRAG = 0.85;
     const BRAKE_FORCE = 14000;
-    const MAX_STEER = 0.50;
+    /* Wheel lock. A held key now reaches a wider angle at every speed, so tight
+       corners can be taken deliberately. The progressive player control axis
+       (AD.steerCurve in readInput) keeps short corrections gentle; cos(delta)
+       trims the saturated front force at full lock, so the wider angle turns the
+       car slightly less, not more. The AI writes its own input straight into
+       this solver, so both drivers share the same wheel limit. */
+    const MAX_STEER = 0.58;
+    /* The taper stays at the original 0.018: widening the lock alone keeps the
+       slide economy of the drift reference bot on the medal table. */
+    const SPEED_TAPER = 0.018;
+    const STEER_BUILD_RATE = 14;
     const WALL_MARGIN = 1.5;
 
     AD.createVehicle = function (x, y, heading, carIndex) {
@@ -94,8 +104,8 @@
            -1 below -0.6 m/s) and inverted the steering in between. */
         const dir = clamp(v.vx / 0.6, -1, 1);
         const steerMag = Math.abs(dir);
-        const steerLimit = MAX_STEER * c.steerK / (1 + speed * 0.018);
-        v.steer = AD.smooth(v.steer, clamp(input.steer || 0, -1, 1) * steerLimit, 14, dt);
+        const steerLimit = MAX_STEER * c.steerK / (1 + speed * SPEED_TAPER);
+        v.steer = AD.smooth(v.steer, clamp(input.steer || 0, -1, 1) * steerLimit, STEER_BUILD_RATE, dt);
         const delta = v.steer;
 
         const denom = Math.max(speed, 2.5);

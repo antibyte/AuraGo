@@ -297,7 +297,9 @@
        The old key is removed (no migration) unless the desktop is readonly. */
     AD.BEST_KEY = 'aurago.desktop.aura-drift.best.v2';
     AD.OLD_BEST_KEY = 'aurago.desktop.aura-drift.best.v1';
-    AD.GHOST_HANDLING = 3;
+    /* v3 was the linear 0.50 rad lock; v4 adds the progressive steering map and
+       the wider lock, so tapes recorded against the old response cannot replay. */
+    AD.GHOST_HANDLING = 4;
     const FINISHES_KEY = 'aurago.desktop.aura-drift.finishes.v1';
     AD.readFinishes = function () {
         try {
@@ -335,6 +337,17 @@
     };
 
     AD.digitalSteer = (previous, direction, dt) => direction ? AD.smooth(previous, direction, 52, dt) : 0;
+    /* Progressive steering ratio for the player's control axis (keyboard and
+       touch). A short correction must not throw the car into the same cornering
+       force as a held key, but full-scale input still reaches 1 and therefore
+       the complete wheel lock. The AI writes its own controller output straight
+       into stepVehicle, so this curve is a control, not a physics asymmetry. */
+    AD.STEER_LINEAR = 0.60;
+    AD.steerCurve = function (value) {
+        const u = AD.clamp(value || 0, -1, 1);
+        const a = Math.abs(u);
+        return Math.sign(u) * a * (AD.STEER_LINEAR + (1 - AD.STEER_LINEAR) * a * a);
+    };
     AD.createInput = function () {
         return { throttle: 0, brake: 0, steer: 0, handbrake: 0, fire: 0, boost: 0 };
     };

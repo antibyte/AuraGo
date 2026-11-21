@@ -3770,6 +3770,16 @@ buttons and menu popovers remain excluded from those gestures.
   car right on screen in every mode. The 2D fallback rotates the world (`AD.screenRotation`).
   The earlier fault was a fixed north-up camera, not the physics. Guard:
   `scripts/test-aura-drift-camera.mjs` and `TestDesktopAuraDriftSteeringBrowser`.
+- Control feel (Andi's play-test): short corrections must be restrained, while a held key may
+  wind on a wider wheel lock. `readInput` maps the digital ramp through `AD.steerCurve`
+  (progressive, `AD.STEER_LINEAR` = 0.60, odd/clamped, ±1 still full scale); the AI writes its
+  controller output straight into `stepVehicle`, so it shares the solver but not the keyboard
+  ramp. `aura-drift-physics.js` owns the wider lock (`MAX_STEER` 0.58 rad) for every car and
+  keeps `SPEED_TAPER` at 0.018 (a changed taper breaks the drift medal calibration);
+  `cos(delta)` keeps full-lock cornering from getting stronger. Bump
+  `AD.GHOST_HANDLING` with every handling change: tapes from the linear 0.50 rad lock cannot
+  replay. Guards: the tap, ratio, wheel-lock and one-g checks in
+  `scripts/test-aura-drift-physics.mjs`, plus the camera and browser direction checks above.
 - Handling contract: the tyres bite harder than the surface grip alone (`AD.ARCADE_GRIP`), because
   the limit in a fast corner is the friction and not the steering angle - a bigger lock only makes
   the car turn wider. The solver then delivers the lateral force the pace model assumes

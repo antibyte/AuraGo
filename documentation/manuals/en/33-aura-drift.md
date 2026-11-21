@@ -185,6 +185,8 @@ Press C to change the view.
 | Bumper | Right at the bumper, looking far ahead |
 
 The camera turns with the car, so holding right always moves the car to the right on screen.
+Steering eases in: a short tap corrects your line gently, while holding the key winds on the
+full wheel lock for tight hairpins.
 
 The track camera snaps a jump, a drift or a stretch at speed. The postcard appears briefly
 beside the track, then returns with your speed and its caption on the results screen.

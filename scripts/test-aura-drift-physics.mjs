@@ -266,6 +266,51 @@ check('input tape round-trips steering sign', unpacked.steer < -0.45 && unpacked
         AD.digitalSteer(0, 1, .3) > .999 && AD.digitalSteer(1, 0, AD.STEP) === 0);
 }
 
+/* Control ratio and wheel lock. readInput applies AD.steerCurve on top of the
+   digital ramp, so a short correction is gentler than a held key. The wheel
+   limit is wider than the old 0.50 rad lock, and cos(delta) keeps the saturated
+   front force from turning the car harder at full lock (the old linear axis
+   measured 0.325 rad at 30 m/s and 1.477 g). */
+{
+    const asphalt = AD.SURFACES.asphalt;
+    const shapedAxis = (previous, direction, dt) => AD.steerCurve(AD.digitalSteer(previous, direction, dt));
+    const tap = axis => {
+        const v = AD.createVehicle(0, 0, 0, 0);
+        let axisValue = 0;
+        for (let i = 0; i < 120; i++) {
+            v.vx = 30;
+            axisValue = axis(axisValue, i < 12 ? 1 : 0, AD.STEP);
+            AD.stepVehicle(v, { throttle: 0.35, brake: 0, steer: axisValue, handbrake: 0, boost: 0, fire: 0 }, AD.STEP, asphalt);
+        }
+        return v.psi;
+    };
+    const shaped = tap(shapedAxis), unshaped = tap(AD.digitalSteer);
+    check('a 100 ms key tap on the progressive control axis is 15 to 40 percent gentler',
+        shaped > unshaped * 0.6 && shaped < unshaped * 0.85,
+        shaped.toFixed(4) + ' vs ' + unshaped.toFixed(4));
+    const lock = speed => {
+        const v = AD.createVehicle(0, 0, 0, 0);
+        for (let i = 0; i < 240; i++) {
+            v.vx = speed;
+            AD.stepVehicle(v, { throttle: 0.35, brake: 0, steer: 1, handbrake: 0, boost: 0, fire: 0 }, AD.STEP, asphalt);
+        }
+        return v;
+    };
+    const at30 = lock(30), at60 = lock(60);
+    check('full lock is wider than the old 0.50 rad limit at 30 and 60 m/s',
+        at30.steer > 0.36 && at60.steer > 0.27,
+        at30.steer.toFixed(4) + ' / ' + at60.steer.toFixed(4) + ' rad');
+    const g30 = Math.abs(at30.vx * at30.r) / 9.81;
+    check('the wider lock keeps more than one g without turning harder than the old limit',
+        g30 > 1.2 && g30 < 1.48, g30.toFixed(3) + ' g');
+    check('the steering ratio is odd, clamped and still reaches full scale',
+        AD.steerCurve(0) === 0 && AD.steerCurve(1) === 1 && AD.steerCurve(-1) === -1 &&
+        AD.steerCurve(0.5) > 0.25 && AD.steerCurve(0.5) < 0.4 &&
+        AD.steerCurve(-0.4) === -AD.steerCurve(0.4) &&
+        AD.steerCurve(2) === 1 && AD.steerCurve(-2) === -1,
+        'half input=' + AD.steerCurve(0.5).toFixed(4));
+}
+
 /* Arcade grip: the tyres have to bite harder than the surface alone offers.
    Without the allowance the front axle saturates at the surface grip, the car
    washes out of every fast corner and no amount of steering angle helps - the

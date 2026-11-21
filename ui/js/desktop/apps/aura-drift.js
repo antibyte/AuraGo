@@ -14,6 +14,7 @@
         ['aura-drift-core.js', 'createScheduler'],
         ['aura-drift-core.js', 'createQualityGovernor'],
         ['aura-drift-core.js', 'digitalSteer'],
+        ['aura-drift-core.js', 'steerCurve'],
         ['aura-drift-physics.js', 'createVehicle'],
         ['aura-drift-track.js', 'buildTrack'],
         ['aura-drift-track.js', 'drivingSurface'],
@@ -513,7 +514,9 @@
             /* Sample buttons on fixed ticks so a short tap feels the same at every frame rate. */
             const direction = ((key('ArrowRight') || key('KeyD') || touch.right) ? 1 : 0) -
                 ((key('ArrowLeft') || key('KeyA') || touch.left) ? 1 : 0);
-            input.steer = AD.digitalSteer(input.steer, direction, step);
+            /* Digital keys ramp fast; the progressive ratio keeps a short tap
+               gentle while a held key still winds on the full wheel lock. */
+            input.steer = AD.steerCurve(AD.digitalSteer(input.steer, direction, step));
             input.handbrake = (key('ShiftLeft') || key('ShiftRight') || touch.handbrake) ? 1 : 0;
             input.fire = (key('Space') || touch.fire) ? 1 : 0;
             /* Ctrl+W closes a browser tab, so nitro is also on E (D6). */

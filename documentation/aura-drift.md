@@ -12,9 +12,11 @@ the earlier top-down plan `plans/2026-11-04-aura-drift-racing-plan.md`, which is
 - **The first human play-test happened:** the owner reported that every opponent was slower
   than the player, which made races dull. `aura-drift-ai.js` now shares the player's
   full-throttle ceiling and brakes against the track radius; `scripts/test-aura-drift-balance.mjs`
-  pins that parity. Sound mix, visual taste and the rest of the driving feel are still
-  unverified by a person, and nobody has listened to the pack yet. The tests below check
-  contracts and numbers, not enjoyment; further tuning waits for more play feedback.
+  pins that parity. A later play-test found the steering too strong: the control axis is now
+  progressive and the wheel lock wider (see "Control feel" below). Sound mix, visual taste and
+  the rest of the driving feel are still unverified by a person, and nobody has listened to the
+  pack yet. The tests below check contracts and numbers, not enjoyment; further tuning waits for
+  more play feedback.
 - **Frame cost is measured on one GPU only:** an Intel Arc B580 at the High tier, 1536×1152,
   during the countdown only: about 13 ms median per frame (about 4 ms JavaScript, 9 ms GPU).
   Nothing has been measured on an integrated GPU, and nothing during a full race.
@@ -363,6 +365,30 @@ so the heading points up the screen (`screenRotation`). Two guards exist:
   It settles the camera, holds steer right and left, and asserts that the aim point moves right
   and left on screen in 3D and in 2D, and that the nose points up the screen.
 - `TestDesktopAuraDriftSteeringBrowser` repeats the check in a real browser, in 3D and in 2D.
+
+### Control feel: gentler corrections, wider lock
+
+A later play-test found the steering too intense: a short key press threw the nose around,
+while a held key had little wheel angle left for a tight corner. The answer splits the two
+complaints without giving the rivals a different solver:
+
+- `readInput` (`aura-drift.js`) maps the digital key ramp through `AD.steerCurve`
+  (`AD.STEER_LINEAR` = 0.60). Light input is damped, ±1 still reaches full scale, so a held
+  key winds on the complete lock. The AI writes its controller output straight into
+  `stepVehicle`: it shares the physics, not the keyboard ramp.
+- `aura-drift-physics.js` raises `MAX_STEER` from 0.50 to 0.58 rad and keeps the 0.018 speed
+  taper: the wider lock is the same percentage at every speed, which leaves the drift mode's
+  medal calibration intact. Full lock at 30 m/s grows from 0.325 to 0.377 rad (18.6° to
+  21.6°), at 60 m/s from 0.240 to 0.279 rad. The saturated front force scales with
+  `cos(delta)`, so full-lock cornering falls slightly from 1.477 to 1.450 g instead of
+  getting stronger.
+- In the held-speed probe a 100 ms key tap changes the heading by 0.122 rad after one second
+  at 30 m/s, against 0.163 rad for the old linear axis and lock: about 25 percent gentler.
+  A key held for half a second still reaches the same heading change.
+  `scripts/test-aura-drift-physics.mjs` pins the tap, the ratio, both wheel angles and the
+  one-g corner; the camera checks above still own the direction.
+- Recorded tapes from the old response cannot replay: `AD.GHOST_HANDLING` moved from 3 to 4.
+  Bump it with every further handling change.
 
 ## Physics, tracks and style
 

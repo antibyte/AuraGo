@@ -190,7 +190,9 @@ Mit C wechselst du die Ansicht.
 | Stoßstange | Ganz dicht an der Stoßstange, mit weitem Blick nach vorn |
 
 Die Kamera dreht sich mit dem Auto. Wenn du nach rechts lenkst, wandert das Auto auf dem
-Bildschirm nach rechts.
+Bildschirm nach rechts. Die Lenkung setzt sanft ein: Ein kurzer Tipp korrigiert die Linie
+behutsam, und wenn du die Taste hältst, schlagen die Vorderräder bis zum vollen Lenkwinkel
+ein – genug Spielraum für enge Kehren.
 
 Bei einem Sprung, einem Drift oder auf der nächsten schnellen Passage knipst die Streckenkamera
 ein Foto. Du siehst es kurz am Streckenrand und später mit deinem Tempo und einem Spruch im
