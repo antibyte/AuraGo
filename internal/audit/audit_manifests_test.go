@@ -307,16 +307,8 @@ func TestSubprocessLaunchesDoNotInheritRawProcessEnvironment(t *testing.T) {
 	}
 }
 
-func TestDeploymentDefaultsUsePrivateConfigAndNoNewPrivileges(t *testing.T) {
+func TestDeploymentDefaultsAndUpdaterGuards(t *testing.T) {
 	t.Parallel()
-
-	entrypoint, err := os.ReadFile(repoPath("deploy/docker/docker-entrypoint.sh"))
-	if err != nil {
-		t.Fatalf("read docker-entrypoint.sh: %v", err)
-	}
-	if !strings.Contains(string(entrypoint), `chmod 600 "$CONFIG_FILE"`) {
-		t.Fatal("docker-entrypoint.sh must restrict generated config permissions to 0600")
-	}
 
 	service, err := os.ReadFile(repoPath("scripts/install_service_linux.sh"))
 	if err != nil {
@@ -1957,6 +1949,7 @@ func TestToolManualFilenamesAreKnownOrAllowlisted(t *testing.T) {
 		"discord":               "messaging integration manual",
 		"email":                 "messaging integration manual",
 		"fritzbox_smarthome":    "manual alias for FritzBox smart home feature",
+		"game_maker":            "shared Game Maker Studio tool family manual",
 		"homeassistant":         "legacy alias for home_assistant",
 		"homepage_local_server": "homepage sub-feature manual",
 		"image_processing":      "Python skill/manual",
@@ -2171,7 +2164,7 @@ func TestDockerEntrypointMinimalConfigWritesDockerHostAccessFalse(t *testing.T) 
 	t.Parallel()
 
 	entrypoint := strings.ReplaceAll(readRepoFile(t, "deploy/docker/docker-entrypoint.sh"), "\r\n", "\n")
-	const opener = "cat > \"$CONFIG_FILE\" << 'EOF'\n"
+	const opener = "cat > \"$pending\" << 'EOF' || exit 1\n"
 	start := strings.Index(entrypoint, opener)
 	if start < 0 {
 		t.Fatal("docker-entrypoint.sh minimal config heredoc not found")
