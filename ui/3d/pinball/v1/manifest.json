@@ -1,35 +1,47 @@
 {
-  "version": 2,
+  "version": 3,
   "tables": [
     {
       "id": "neon",
+      "underlay": "neon-playfield.webp",
       "backglass": "neon-backglass.webp",
       "preview": "neon-preview.webp",
-      "underlay": "neon-playfield.webp"
+      "artRev": 2,
+      "plastics": "neon-plastics.webp",
+      "side": "neon-side.webp"
     },
     {
       "id": "leviathan",
+      "underlay": "leviathan-playfield.webp",
       "backglass": "leviathan-backglass.webp",
       "preview": "leviathan-preview.webp",
-      "underlay": "leviathan-playfield.webp"
+      "artRev": 2,
+      "plastics": "leviathan-plastics.webp",
+      "side": "leviathan-side.webp"
     },
     {
       "id": "temple",
+      "underlay": "temple-playfield.webp",
       "backglass": "temple-backglass.webp",
       "preview": "temple-preview.webp",
-      "underlay": "temple-playfield.webp"
+      "artRev": 2,
+      "plastics": "temple-plastics.webp",
+      "side": "temple-side.webp"
     }
   ],
+  "room": {
+    "wall": "room-wall.webp"
+  },
   "files": [
     {
       "path": "neon-playfield.webp",
-      "bytes": 573546,
-      "sha256": "00068810bd8c5117c3f36c3fa673a8b17eb396c5b0d9bd0e801da73c70f8fa3a"
+      "bytes": 541568,
+      "sha256": "1255b27f4b964374a860de025478753ad2c50d25de8928e9b377a10f5574f0c3"
     },
     {
       "path": "neon-backglass.webp",
-      "bytes": 685858,
-      "sha256": "7cd14fa0b1a8aba34cf2927fac613ae86cd03cd583116ccf37bc7587bd5a8229"
+      "bytes": 688782,
+      "sha256": "3200a97a5caa1a71ab58b28b1326bab4de4478ca8d6b9ea9572c2eb6c6e67462"
     },
     {
       "path": "neon-preview.webp",
@@ -37,14 +49,24 @@
       "sha256": "0d5f69c04ca62ecc524984410c4408c6978f38465386c22b7e2e45f8b8e14265"
     },
     {
+      "path": "neon-plastics.webp",
+      "bytes": 288620,
+      "sha256": "3eeed4f566727b432ad602b425da6ee6462208a3e93d2b94220bef3027c83945"
+    },
+    {
+      "path": "neon-side.webp",
+      "bytes": 356256,
+      "sha256": "87d9b7462e90f89b7455283fd3db18f5ef8999d2d52b6f29835dbe59db7bf164"
+    },
+    {
       "path": "leviathan-playfield.webp",
-      "bytes": 728792,
-      "sha256": "99485fb013673b5dc1cc943774183b193fa8e51514a8e95a9fcbc9c2a3053657"
+      "bytes": 543676,
+      "sha256": "59bc84eb5909f0423417a2f670ecc15d1ee892b35b5d358875b171dd97e51286"
     },
     {
       "path": "leviathan-backglass.webp",
-      "bytes": 746782,
-      "sha256": "c5508d8feb2b01ece1ab3bcde5f84f9d0d93c831699f3e6bb8d8b6faf142c89b"
+      "bytes": 748976,
+      "sha256": "5224c81b5148cd9d101ed802d6be2b55feb1af843c4f852c5657c3c3bf9d4874"
     },
     {
       "path": "leviathan-preview.webp",
@@ -52,19 +74,44 @@
       "sha256": "d8b30f90f56bc86ddca4961f862e74a57e03600e06538e3463c0b994d4690939"
     },
     {
+      "path": "leviathan-plastics.webp",
+      "bytes": 322934,
+      "sha256": "dde01181539d3c2193a11dc7d83df332bed9f2436ce516e4aaa309b9674a1b4b"
+    },
+    {
+      "path": "leviathan-side.webp",
+      "bytes": 300874,
+      "sha256": "37c16eaeff72347c0a638b78995adc191bcdadd0c9e41f79d3159d5c1f8a5639"
+    },
+    {
       "path": "temple-playfield.webp",
-      "bytes": 768762,
-      "sha256": "358d531d3986e96f97b4532c714ce7d0944ff51c9d5059321d57dafbc144e7f8"
+      "bytes": 636418,
+      "sha256": "abe2c18f0ef4c115172828343e5208c8d388d5f7be3e7a364ca2880ee8fbc082"
     },
     {
       "path": "temple-backglass.webp",
-      "bytes": 797916,
-      "sha256": "f1d93de6b618de252792d99bf2d7ac9254fd693f58769da6fcb3597ec69e6548"
+      "bytes": 793198,
+      "sha256": "35efc99200e3734a4362eb30d83499bf21b84fe429739bbe566574270bbf2195"
     },
     {
       "path": "temple-preview.webp",
       "bytes": 44052,
       "sha256": "37b9e177e653b97d76733262fc0fbc84a251aad7aa348e9b92b6e55eb4fddbe6"
+    },
+    {
+      "path": "temple-plastics.webp",
+      "bytes": 357428,
+      "sha256": "010ba180422a32d5e878009c4101f8b7a2055185a62ea51f01989d41c84b0234"
+    },
+    {
+      "path": "temple-side.webp",
+      "bytes": 381548,
+      "sha256": "3cc3af559b5ef00671a9c5fc169c24d80c8abbe0c96863b212ba107ceb15b503"
+    },
+    {
+      "path": "room-wall.webp",
+      "bytes": 170066,
+      "sha256": "ff4495a53a5f67c92d93ed070d957ebc83d1325c745e8e1efde7459cd3b5b7a7"
     },
     {
       "path": "audio/drift-impact-metal-1.ogg",

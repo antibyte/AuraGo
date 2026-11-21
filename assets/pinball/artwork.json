@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generator": "Built-in ImageGen",
+  "generator": "Built-in ImageGen and Codex CLI",
   "assets": [
     {
       "table": "neon",
@@ -18,7 +18,20 @@
       "table": "neon",
       "role": "playfield",
       "file": "masters/neon-playfield.png",
-      "sha256": "f5f20788f7e350e7266ec6db9d8c11d9adaa8c8c82fdbff94475e8a06bd986f2"
+      "sha256": "d53f8c28eff8482901e31b6750041d0f1dca07599f4e029916908826ca961bff",
+      "rev": 2
+    },
+    {
+      "table": "neon",
+      "role": "plastics",
+      "file": "masters/neon-plastics.png",
+      "sha256": "8fcdfa43fcd643b6076e5e0e60fa458ec157dbd314f017b28c740395f161c89c"
+    },
+    {
+      "table": "neon",
+      "role": "side",
+      "file": "masters/neon-side.png",
+      "sha256": "e727f74f795191f3d6acfb54c85de2e000d7a99c7080a7b5561b7731120193e4"
     },
     {
       "table": "leviathan",
@@ -36,7 +49,20 @@
       "table": "leviathan",
       "role": "playfield",
       "file": "masters/leviathan-playfield.png",
-      "sha256": "8c0a948b1963d4608db65015b591ce3347312b7202b227f803070441205e117b"
+      "sha256": "8c7ff327fd410022eeb0eb4cbe540d803f77fa7930d1b2cae9dec38e42f80883",
+      "rev": 2
+    },
+    {
+      "table": "leviathan",
+      "role": "plastics",
+      "file": "masters/leviathan-plastics.png",
+      "sha256": "2fcedc122a36d8c013532dedb73ad3bfd6b49b93f39fc0bd81726e1ca675c3e7"
+    },
+    {
+      "table": "leviathan",
+      "role": "side",
+      "file": "masters/leviathan-side.png",
+      "sha256": "95096434c708880fb30b9a59debf85d3de8d903894075ec8e1b6e9f8fcc3da9b"
     },
     {
       "table": "temple",
@@ -54,7 +80,44 @@
       "table": "temple",
       "role": "playfield",
       "file": "masters/temple-playfield.png",
-      "sha256": "5372f260ffef7d3c2b00a7465f2c386ff0b98d5861f730a4ee3a8062116e243a"
+      "sha256": "f9dd773fbacdfc392289053e41b9e38927311586f96974ecad2cf11d4455abe5",
+      "rev": 2
+    },
+    {
+      "table": "temple",
+      "role": "plastics",
+      "file": "masters/temple-plastics.png",
+      "sha256": "e34a9d37cb124ea53f1d6496a266177316275b1d836dc28f591add6b2b425f17"
+    },
+    {
+      "table": "temple",
+      "role": "side",
+      "file": "masters/temple-side.png",
+      "sha256": "010af20c7eb4220d77bf621a6cba023dca286b600ad1976e5d37462862486f6c"
+    },
+    {
+      "table": "observatory",
+      "role": "backglass",
+      "file": "masters/observatory-backglass.png",
+      "sha256": "1bbe98265f2e366d5c4e7efbc719dd848147b4400c7b4b41670f3d6d2aefdb87"
+    },
+    {
+      "table": "observatory",
+      "role": "plastics",
+      "file": "masters/observatory-plastics.png",
+      "sha256": "a58b8660875ee8a12da7d7f331cd64a144605cadb0b846d307d63deb2db25138"
+    },
+    {
+      "table": "observatory",
+      "role": "side",
+      "file": "masters/observatory-side.png",
+      "sha256": "ae7e81ea5d56acdf6531934efadab552c4d0b0cc8fd4e23749e0168c3087b874"
+    },
+    {
+      "table": "room",
+      "role": "wall",
+      "file": "masters/room-wall.png",
+      "sha256": "74e551af3ccaf0c350e60790439a828984530e9c8ad5d8bd783f33878a973cc5"
     }
   ]
 }
