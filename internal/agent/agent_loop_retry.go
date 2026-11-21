@@ -172,7 +172,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		} else {
 			recoveryTool = Truncate(strings.ReplaceAll(strings.ReplaceAll(recoveryTool, "\n", " "), "\r", " "), 80)
 		}
-		feedbackMsg := applyEmotionRecoveryNudge(FormatInvalidNativeToolFeedback(recoveryTool), emotionPolicy)
+		feedbackMsg := applyEmotionRecoveryNudge(FormatInvalidNativeToolArgsFeedback(recoveryTool, tc.NativeArgsError), emotionPolicy)
 		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 			SessionID:            sessionID,
 			FeedbackMsg:          feedbackMsg,

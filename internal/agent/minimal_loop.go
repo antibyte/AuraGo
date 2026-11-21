@@ -529,7 +529,7 @@ func executeMinimalToolCall(
 
 	toolCall := NativeToolCallToToolCall(tc, logger)
 	if toolCall.NativeArgsMalformed {
-		return `{"status":"error","code":"invalid_arguments","message":"Supply a complete JSON object matching the tool schema."}`
+		return invalidArgumentsResult(toolCall.NativeArgsError)
 	}
 	dispatched := DispatchToolCallResult(ctx, &toolCall, dispatchCtx, userContext)
 	if len(boundaries) > 0 && boundaries[0] != nil {

@@ -65,7 +65,7 @@ func prepareToolCall(tc ToolCall, dc *DispatchContext) ToolCall {
 		return tc
 	}
 	if tc.NativeArgsMalformed {
-		tc.PreparationError = `Tool Output: {"status":"error","code":"invalid_arguments","message":"Supply a complete JSON object matching the tool schema."}`
+		tc.PreparationError = "Tool Output: " + invalidArgumentsResult(tc.NativeArgsError)
 		return tc
 	}
 	tc = normalizeDirectToolCall(tc, dc)
