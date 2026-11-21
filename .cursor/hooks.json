@@ -16,6 +16,11 @@
       {
         "command": "node \"C:\\Users\\Andi\\Documents\\repo\\AuraGo\\.cursor\\hooks\\graft-hooks.cjs\" cursor-session-end || exit 0"
       }
+    ],
+    "sessionStart": [
+      {
+        "command": "node \"C:\\Users\\Andi\\Documents\\repo\\AuraGo\\.cursor\\hooks\\graft-hooks.cjs\" cursor-session-start || exit 0"
+      }
     ]
   }
 }
