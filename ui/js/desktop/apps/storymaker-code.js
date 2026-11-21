@@ -257,7 +257,9 @@
             const text = file.text;
             const list = [];
             if (staleMarks) return list;
-            const issues = S.model.visibleIssues(S.model.mergeIssues(inst.issues, inst.report ? inst.report.issues : []));
+            const issues = S.model.visibleIssues(file.errors.length
+                ? file.errors
+                : S.model.mergeIssues(inst.issues, inst.report ? inst.report.issues : []));
             issues.filter(issue => issue.code !== 'narration_missing').forEach(issue => {
                 let from = 0, to = 0, found = false;
                 const where = S.model.positionFromMessage(issue.message);
@@ -359,8 +361,14 @@
                     if (!file.loaded) return;
                     if (file.text !== text) editRevision++;
                     file.text = text;
-                    if (!staleMarks) { staleMarks = true; paintProblems(); }
-                    paintState();
+                    const clearMarks = !staleMarks;
+                    staleMarks = true;
+                    // Painting can dispatch CodeMirror transactions. Leave its update listener first.
+                    queueMicrotask(() => {
+                        if (disposed || current !== file.key) return;
+                        if (clearMarks) paintProblems();
+                        paintState();
+                    });
                 },
                 onSave: () => save(),
                 onEscape: () => { const button = fileList.querySelector('[aria-current="true"]'); if (button) button.focus(); },
@@ -407,14 +415,17 @@
                 if (file.kind === 'story') {
                     const result = await inst.saveStoryText(sent);
                     if (result.ok) {
+                        file.errors = [];
                         const persisted = storyText();
                         file.base = persisted;
                         if (file.text === sent) {
+                            staleMarks = false;
                             file.text = persisted;
                             if (fileFor(current) === file && editor && editor.getText() === sent) editor.setText(file.text);
                         }
                         saved = true;
-                    } else {
+                    } else if (file.text === sent) {
+                        file.errors = Array.isArray(result.issues) ? result.issues : [];
                         staleMarks = false;
                     }
                 } else {

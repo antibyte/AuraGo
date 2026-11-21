@@ -193,7 +193,7 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 
 	// Library: a person and a prop go into the selected scene; the environment follows the card.
 	storymakerClick(t, page, `[data-stm="side-tab"][data-tab="library"]`)
-	storymakerClick(t, page, `[data-stm="library-card"][data-id="char.office-woman-1"]`)
+	storymakerClick(t, page, `[data-stm="library-card"][data-id="char.hoodie"]`)
 	storymakerWait(t, page, `()=>document.querySelectorAll('[data-stm="scene-items"] [data-kind="actor"]').length===1`)
 	storymakerClick(t, page, `[data-stm="library-tab"][data-kind="prop"]`)
 	storymakerClick(t, page, `[data-stm="library-card"][data-id="prop.laptop"]`)
@@ -213,17 +213,20 @@ func storymakerTour(t *testing.T, fixture storymakerBackend) {
 	// Code tab: story.json in CodeMirror; an invalid value is saved, reported by the server and marked at its line.
 	storymakerClick(t, page, `[data-stm="tab"][data-tab="code"]`)
 	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="code-editor"] .cm-editor') && document.querySelector('[data-stm="code-editor"] .cm-content').textContent.includes('storymaker/1')`)
-	storymakerEditorReplace(page, `"variant": "day"`, `"variant": "dusk"`)
-	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-state"]')?.dataset.state==='dirty'`)
+	storymakerEditorReplace(page, `"variant": "day"`, `"variant": "invalid-preview-variant"`)
+	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-state"]')?.dataset.state==='dirty' && !document.querySelector('[data-stm="code-save"]')?.disabled`)
 	storymakerClick(t, page, `[data-stm="code-save"]`)
-	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-problems"]')?.dataset.count!=='0' && !!document.querySelector('[data-stm="code-editor"] .cm-lint-marker')`)
+	storymakerWait(t, page, `()=>Number(document.querySelector('[data-stm="code-problems"]')?.dataset.count)>0`)
+	storymakerClick(t, page, `[data-stm="code-problems"] .stm-problem-go`)
+	storymakerWait(t, page, `()=>!!document.querySelector('[data-stm="code-editor"] .cm-lint-marker')`)
 	if !strings.Contains(storymakerText(page, `[data-stm="code-problems"]`), "Invalid value") {
 		t.Fatalf("the problem list does not name the issue: %q", storymakerText(page, `[data-stm="code-problems"]`))
 	}
 	storymakerShot(t, page, "05-code-issue")
 	storymakerNoErrors(t, page)
 	// Put it right again and save: the server's story comes back into the editor and the problem list is empty.
-	storymakerEditorReplace(page, `"variant": "dusk"`, `"variant": "night"`)
+	storymakerEditorReplace(page, `"variant": "invalid-preview-variant"`, `"variant": "night"`)
+	storymakerWait(t, page, `()=>!document.querySelector('[data-stm="code-save"]')?.disabled`)
 	storymakerClick(t, page, `[data-stm="code-save"]`)
 	storymakerWait(t, page, `()=>document.querySelector('[data-stm="code-problems"]')?.dataset.count==='0' && document.querySelector('[data-stm="code-state"]')?.dataset.state==='saved'`)
 	story, _ = fixture.storedStory(id)
