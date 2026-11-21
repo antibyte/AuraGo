@@ -13,10 +13,11 @@ import { TAKES } from '/js/desktop/apps/pinball/audio/samples.js';
 import neon from '/js/desktop/apps/pinball/audio/songs/neon.js';
 import leviathan from '/js/desktop/apps/pinball/audio/songs/leviathan.js';
 import temple from '/js/desktop/apps/pinball/audio/songs/temple.js';
+import observatory from '/js/desktop/apps/pinball/audio/songs/observatory.js';
 import { mixScript } from '/testdata/pinball-audio-mix.js';
 
 const RATE = 44100, STEP = 0.025;
-const SONGS = { neon, leviathan, temple };
+const SONGS = { neon, leviathan, temple, observatory };
 const TABLES = Object.keys(SONGS);
 const VOLUMES = { effects: 0.65, music: 0.5, ambience: 0.3 };
 const SAMPLE_COUNT = SAMPLE_NAMES.length;

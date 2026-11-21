@@ -6,7 +6,7 @@ import { SAMPLE_NAMES, LOOPS, makeLoop } from './samples.js';
 export { SAMPLE_NAMES };
 // The effects bus is trimmed up so mechanical hits stand above the music bed at the default sliders; the limiter catches peaks.
 export const EFFECTS_TRIM = 3.2;
-export const REVERB_SECONDS = Object.freeze({ neon: 1.2, leviathan: 2.2, temple: 1.2 });
+export const REVERB_SECONDS = Object.freeze({ neon: 1.2, leviathan: 2.2, temple: 1.2, observatory: 1.6 });
 
 // Perceptual volume curve; a true zero stays exactly zero.
 export function volumeGain(v) {
@@ -173,6 +173,15 @@ export function createEngine({ tableId = 'neon', assetURL = path => path, assetR
                 v.frequency.value = 5; vg.gain.value = base * .02; v.connect(vg); vg.connect(o.frequency);
                 g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.09, t + dur * .4); g.gain.linearRampToValueAtTime(0, t + dur);
                 o.connect(g); g.connect(out); g.connect(reverbSend); o.start(t); v.start(t); o.stop(t + dur + .1); v.stop(t + dur + .1);
+            });
+        } else if (id === 'observatory') {
+            const crickets = loopNoise('pink', 'bandpass', 4200, 7, .05); lfo(crickets.g.gain, 7, .03);
+            loopNoise('brown', 'lowpass', 260, .4, .12);
+            every(1, 1, () => { // soft clock tick: a short bandpassed noise click
+                const t = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+                src.buffer = noise('white'); f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 3;
+                g.gain.setValueAtTime(.04, t); g.gain.exponentialRampToValueAtTime(.0005, t + .03);
+                src.connect(f); f.connect(g); g.connect(out); src.start(t); src.stop(t + .05);
             });
         } else if (id === 'temple') {
             const bugs = loopNoise('pink', 'bandpass', 4600, 6, .05); lfo(bugs.g.gain, 9, .035); lfo(bugs.g.gain, .13, .02);

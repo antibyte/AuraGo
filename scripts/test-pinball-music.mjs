@@ -7,15 +7,16 @@ import { INSTRUMENTS } from '../ui/js/desktop/apps/pinball/audio/instruments.js'
 import neon from '../ui/js/desktop/apps/pinball/audio/songs/neon.js';
 import leviathan from '../ui/js/desktop/apps/pinball/audio/songs/leviathan.js';
 import temple from '../ui/js/desktop/apps/pinball/audio/songs/temple.js';
+import observatory from '../ui/js/desktop/apps/pinball/audio/songs/observatory.js';
 
-const SONGS = { neon, leviathan, temple };
-const BPM = { neon: 112, leviathan: 80, temple: 100 };
+const SONGS = { neon, leviathan, temple, observatory };
+const BPM = { neon: 112, leviathan: 80, temple: 100, observatory: 92 };
 let passed = 0;
 function test(name, fn) { fn(); passed++; console.log('ok   ' + name); }
 const barsOf = (song, s) => song.sections[s].reduce((n, p) => n + song.patterns[p].bars, 0);
 
 test('files stay under 700 lines', () => {
-    for (const f of ['audio/music.js', 'audio/instruments.js', 'audio/songs/neon.js', 'audio/songs/leviathan.js', 'audio/songs/temple.js', 'audio/songs/notation.js']) {
+    for (const f of ['audio/music.js', 'audio/instruments.js', 'audio/songs/neon.js', 'audio/songs/leviathan.js', 'audio/songs/temple.js', 'audio/songs/observatory.js', 'audio/songs/notation.js']) {
         const n = readFileSync(new URL('../ui/js/desktop/apps/pinball/' + f, import.meta.url), 'utf8').split('\n').length;
         assert.ok(n <= 700, f + ' has ' + n + ' lines');
     }

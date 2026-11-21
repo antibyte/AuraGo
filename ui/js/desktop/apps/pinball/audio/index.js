@@ -7,8 +7,9 @@ import { createVoice } from './voice.js';
 import neon from './songs/neon.js';
 import leviathan from './songs/leviathan.js';
 import temple from './songs/temple.js';
+import observatory from './songs/observatory.js';
 
-export const SONGS = Object.freeze({ neon, leviathan, temple });
+export const SONGS = Object.freeze({ neon, leviathan, temple, observatory });
 
 export function createAudio({ tableId = 'neon', settings = {}, assetURL = path => path, locale = 'en', tr = key => key, parts = {} } = {}) {
     const engine = (parts.createEngine || createEngine)({ tableId, assetURL, settings, ...(parts.engine || {}) });

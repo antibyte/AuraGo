@@ -39,6 +39,8 @@ export function soundFor(ev) {
         case 'drop': return s('drop', .9);
         case 'bankReset': return s('bankReset', .9);
         case 'standup': return s('standup', .8);
+        case 'pendulum': return s('standup', .85, .8);
+        case 'orrery': return s('gate', .35, .7);
         case 'spinner': return s('spinnerTick', .6, clamp(.92 + (ev.rate ?? 0) / 60, .92, 1.25) * rate);
         case 'rollover': case 'trigger': return s('rollover', .6);
         case 'gate': case 'pathSwitch': case 'pathEnter': return s('gate', ev.type === 'gate' ? .55 : .38);
