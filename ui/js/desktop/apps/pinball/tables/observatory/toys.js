@@ -16,7 +16,7 @@ const num = (v, d) => (Number.isFinite(v) ? v : d);
 const wrapDelta = d => { while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
 
 export function buildToys(THREE, kit, layout, opts = {}) {
-    const low = opts.low === true, models = opts.models, tier = opts.tier || (low ? 'low' : 'high');
+    const low = opts.low === true, models = opts.models;
     const reducedNow = () => (typeof opts.isReduced === 'function' ? !!opts.isReduced() : opts.reduced === true);
     const group = new THREE.Group(); group.name = 'observatoryToys';
     const own = { geo: [], mat: [] }, drivers = [];
@@ -259,18 +259,16 @@ export function buildToys(THREE, kit, layout, opts = {}) {
         mark.dispose(); tick.position.set(tClock.x, num(tClock.h, 0), -tClock.y); group.add(tick);
     }
 
-    let t0 = null;
     return {
         group,
         update(dt, t, snap, toyState) {
             const step = Math.min(0.1, Math.max(0, num(dt, 0)));
-            t0 = t;
             for (const d of drivers) d(step, snap, toyState || null);
         },
         dispose() {
             if (group.parent) group.parent.remove(group);
             own.geo.forEach(g => g.dispose()); own.mat.forEach(m => m.dispose());
-            own.geo.length = own.mat.length = 0; drivers.length = 0; void t0; void tier;
+            own.geo.length = own.mat.length = 0; drivers.length = 0;
         }
     };
 }

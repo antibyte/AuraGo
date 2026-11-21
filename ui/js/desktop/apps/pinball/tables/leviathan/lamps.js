@@ -55,8 +55,8 @@ export function leviathanLamps() {
     add('spinnerLit', 0.2055, 0.688, 'roundRect', 0.014, 0.012, C.gold, { label: 'lamp_spinner' });
     [-0.090, -0.050, -0.010].forEach((x, i) => add('laneT' + (i + 1), x, 0.985, 'circle', 0.016, 0.016, C.amber, { device: 'laneT' + (i + 1), group: 'topLanes' }));
     // The Leviathan's eyes glow on the head toy.
-    add('eyeL', HEAD_TOY[0] - 0.014, HEAD_TOY[1] + 0.012, 'circle', 0.012, 0.012, C.red, { mount: 'toy', group: 'eyes' });
-    add('eyeR', HEAD_TOY[0] + 0.014, HEAD_TOY[1] + 0.012, 'circle', 0.012, 0.012, C.red, { mount: 'toy', group: 'eyes' });
+    add('eyeL', HEAD_TOY[0] - 0.0118, HEAD_TOY[1] + 0.0125, 'circle', 0.012, 0.012, C.red, { mount: 'toy', group: 'eyes' });
+    add('eyeR', HEAD_TOY[0] + 0.0118, HEAD_TOY[1] + 0.0125, 'circle', 0.012, 0.012, C.red, { mount: 'toy', group: 'eyes' });
     // Coral pops light their bumpers.
     CORAL.forEach(([id, x, y]) => add(id, x, y, 'circle', 0.030, 0.030, C.coral, { mount: 'bumper', device: id }));
     // Sonar pings: three rollovers across the lower field, where every shot up the middle crosses.

@@ -10,10 +10,10 @@ const root='ui/3d/pinball/v1',manifest=JSON.parse(await fs.readFile(root+'/manif
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
 const MiB=1024*1024;
 assert.equal(manifest.version,3);
-// Tables are a subset of TABLE_IDS, in TABLE_IDS order (a table joins the manifest once its art exists).
+// Every registered table ships in the manifest, in TABLE_IDS order.
 const ids=manifest.tables.map(t=>t.id);
-assert.ok(ids.length>0&&ids.every(id=>TABLE_IDS.includes(id)),'manifest tables are registered: '+ids);
-assert.deepEqual(ids,TABLE_IDS.filter(id=>ids.includes(id)),'manifest tables follow TABLE_IDS order');
+assert.deepEqual([...ids].sort(),[...TABLE_IDS].sort(),'manifest tables equal TABLE_IDS: '+ids);
+assert.deepEqual(ids,TABLE_IDS,'manifest tables follow TABLE_IDS order');
 for(const file of manifest.files){const bytes=await fs.readFile(root+'/'+file.path);assert.equal(bytes.length,file.bytes,file.path);assert.equal(sha(bytes),file.sha256,file.path);}
 assert.ok(manifest.files.reduce((n,f)=>n+f.bytes,0)<=20*MiB,'payload cap');
 

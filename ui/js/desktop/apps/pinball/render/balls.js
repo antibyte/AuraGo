@@ -41,8 +41,8 @@ function blobTexture() {
 // render target with a little blur (sigma 0.02) to keep the highlight edges soft.
 function chromeEnvironment(renderer, accent, secondary) {
     const s = new THREE.Scene();
-    s.add(new THREE.Mesh(new THREE.SphereGeometry(20, 32, 16), new THREE.MeshBasicMaterial({ color: '#020307', side: THREE.BackSide })));
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(19, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(accent).multiplyScalar(0.03).add(new THREE.Color('#05030a')) }));
+    s.add(new THREE.Mesh(new THREE.SphereGeometry(20, 32, 16), new THREE.MeshBasicMaterial({ color: '#6f798c', side: THREE.BackSide })));
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(19, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(accent).multiplyScalar(0.06).add(new THREE.Color('#3c3f4a')) }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -1.2; s.add(floor);
     const box = (w, h, pos, color, k) => {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.DoubleSide }));
@@ -71,10 +71,21 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
     const mat = new THREE.MeshStandardMaterial({ color: '#eef2f8', map: tex, metalness: 1, roughness: 0.10, envMap: env, envMapIntensity: 0.65 });
     const mesh = new THREE.InstancedMesh(geo, mat, MAX_BALLS); mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = true; mesh.name = 'balls'; mesh.layers.enable(REFLECT_LAYER); group.add(mesh);
     // Two blob layers: a tight dark contact shadow under the ball and a soft key-light shadow that drifts away with height.
-    const shGeoC = new THREE.PlaneGeometry(0.030, 0.030); shGeoC.rotateX(-Math.PI / 2);
+    const shGeoC = new THREE.PlaneGeometry(0.038, 0.038); shGeoC.rotateX(-Math.PI / 2);
     const shGeoS = new THREE.PlaneGeometry(0.056, 0.056); shGeoS.rotateX(-Math.PI / 2);
+    // Per-instance fade (aFade, 0..1) multiplies the blob alpha: the key-light shadow dies out with ball height.
+    const fadeC = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BALLS * 2).fill(1), 1), fadeS = new THREE.InstancedBufferAttribute(new Float32Array(MAX_BALLS * 2).fill(1), 1);
+    shGeoC.setAttribute('aFade', fadeC); shGeoS.setAttribute('aFade', fadeS);
     const shOpts = { map: blob, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
-    const shMatC = new THREE.MeshBasicMaterial({ ...shOpts, opacity: 0.85 }), shMatS = new THREE.MeshBasicMaterial({ ...shOpts, opacity: 0.42 });
+    const fadePatch = m => {
+        m.onBeforeCompile = sh => {
+            sh.vertexShader = 'attribute float aFade; varying float vFade;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFade = aFade;');
+            sh.fragmentShader = 'varying float vFade;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', 'diffuseColor.a *= vFade;\n#include <opaque_fragment>');
+        };
+        m.customProgramCacheKey = () => 'ball-shadow-fade';
+        return m;
+    };
+    const shMatC = fadePatch(new THREE.MeshBasicMaterial({ ...shOpts, opacity: 0.9 })), shMatS = fadePatch(new THREE.MeshBasicMaterial({ ...shOpts, opacity: 0.36 }));
     const contact = new THREE.InstancedMesh(shGeoC, shMatC, MAX_BALLS * 2); contact.count = 0; contact.frustumCulled = false; contact.renderOrder = 1; contact.name = 'ballContactShadows'; group.add(contact);
     const soft = new THREE.InstancedMesh(shGeoS, shMatS, MAX_BALLS * 2); soft.count = 0; soft.frustumCulled = false; soft.renderOrder = 1; soft.name = 'ballShadows'; group.add(soft);
 
@@ -87,7 +98,7 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
         if (!renderer) return;
         if (chromeRT) chromeRT.dispose();
         try { chromeRT = chromeEnvironment(renderer, accent, secondary); } catch (_) { chromeRT = null; return; }
-        mat.envMap = chromeRT.texture; mat.envMapIntensity = 0.6; mat.needsUpdate = true;
+        mat.envMap = chromeRT.texture; mat.envMapIntensity = 0.85; mat.needsUpdate = true;
     }
 
     function update(snap, dt) {
@@ -117,16 +128,20 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
             m4.compose(pos, st.q, one); mesh.setMatrixAt(n++, m4);
             // Soft key-light shadow on the playfield (offset away from the key light, wider with height); tight contact shadow
             // under a ball that is on the field; on a ramp the contact shadow sits on its surface.
-            const onRamp = b.mode === 'path' && h > 0.004, k = 1 + Math.min(1.5, h * 9);
-            pos.set(x + 0.0025 + 0.5 * h, 0.0005, z - (0.002 + 0.4 * h));
-            m4.compose(pos, q.identity(), sc.set(k, 1, k)); soft.setMatrixAt(s++, m4);
-            if (onRamp) { pos.set(x + 0.001, h + 0.0007, z - 0.0008); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); contact.setMatrixAt(c++, m4); }
-            else if (h < 0.02) { pos.set(x, 0.0007, z); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); contact.setMatrixAt(c++, m4); }
+            // The playfield shadow of a raised ball (ramp, telescope, tube) fades out by ~25 mm and widens meanwhile; above that it is dropped.
+            const onRamp = b.mode === 'path' && h > 0.004, k = 1 + Math.min(1.2, h * 30);
+            const fs = h <= 0.004 ? 1 : 1 - Math.min(1, (h - 0.004) / 0.021);
+            if (fs > 0.02) {
+                pos.set(x + 0.0065 + 0.3 * h, 0.0005, z - (0.0015 + 0.25 * h));
+                m4.compose(pos, q.identity(), sc.set(k, 1, k)); fadeS.setX(s, fs * fs * (3 - 2 * fs)); soft.setMatrixAt(s++, m4);
+            }
+            if (onRamp) { pos.set(x + 0.001, h + 0.0007, z - 0.0008); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); fadeC.setX(c, 1); contact.setMatrixAt(c++, m4); }
+            else if (h < 0.02) { pos.set(x, 0.0007, z); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); fadeC.setX(c, 1); contact.setMatrixAt(c++, m4); }
         }
         for (const id of state.keys()) if (!seen.has(id)) state.delete(id);
         mesh.count = n; soft.count = s; contact.count = c;
         if (n) mesh.instanceMatrix.needsUpdate = true;
-        if (s) soft.instanceMatrix.needsUpdate = true;
+        if (s) { soft.instanceMatrix.needsUpdate = true; fadeS.needsUpdate = true; }
         if (c) contact.instanceMatrix.needsUpdate = true;
     }
 

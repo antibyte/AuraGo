@@ -82,7 +82,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     let domes = null;
     if (flashers.length) {
         const g = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-        domes = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: '#ffffff' }), flashers.length);
+        domes = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), flashers.length);   // additive: an unlit dome is a faint tint, not a hard dark disc
         domes.frustumCulled = false; domes.layers.enable(REFLECT_LAYER);
         flashers.forEach((f, i) => domes.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(f.x, 0.001, -f.y), new THREE.Quaternion(), new THREE.Vector3().setScalar(f.r || 0.012))));
         tableRoot.add(domes);
@@ -124,16 +124,17 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
             } else if (liveBalls && ballIdx < liveBalls.length && ballIdx < 2 && n >= 4) {
                 const b = liveBalls[ballIdx++];
                 const sp = Math.min(1, Math.hypot(b.vx || 0, b.vy || 0) * 0.35);
-                light.position.set(b.x, 0.048 + (b.h || 0), -b.y);
+                // High and weak: close to the ball its specular on the clearcoat playfield showed up as a white blob beside it.
+                light.position.set(b.x, 0.085 + (b.h || 0), -b.y);
                 light.color.copy(ballLightColor);
-                light.intensity = (0.12 + 0.14 * sp) * giAvg;
+                light.intensity = (0.035 + 0.04 * sp) * giAvg;
             } else {
                 light.intensity = 0;
             }
         }
         if (domes) for (let j = 0; j < flashers.length; j++) {
             const v = fl ? fl[j] || 0 : 0;
-            tmp.copy(flashColor[j]).multiplyScalar(0.1 + 2.6 * v); domes.setColorAt(j, tmp);
+            tmp.copy(flashColor[j]).multiplyScalar(0.06 + 2.6 * v); domes.setColorAt(j, tmp);
         }
         if (domes) domes.instanceColor.needsUpdate = true;
         if (bulbMesh) {

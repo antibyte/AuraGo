@@ -78,7 +78,9 @@ const AFTER_EMISSIVE = `
     float pfInk = smoothstep(0.015, 0.14, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)));
     float pfPeak = max(pfLit.r, max(pfLit.g, pfLit.b));
     vec3 pfCore = pfLit * (0.55 + 0.95 * pfHot * pfHot) + vec3(pfPeak * pfHot * pfHot * pfHot * 0.14);
-    totalEmissiveRadiance += pfCore * lampGain * mix(0.1, 1.0, pfInk);
+    vec3 pfEm = pfCore * lampGain * mix(0.1, 1.0, pfInk);
+    pfEm /= 1.0 + 0.4 * max(0.0, max(pfEm.r, max(pfEm.g, pfEm.b)) - 1.0);   // soft knee: white inserts stay just under the bloom threshold
+    totalEmissiveRadiance += pfEm;
   } else {
     float pfHalo = floor(pfMask.g * 255.0 + 0.5);
     if (pfHalo > 0.5) totalEmissiveRadiance += pow(lampRgb(pfHalo), vec3(2.2)) * pfMask.b * 0.55 * lampGain;
@@ -106,7 +108,7 @@ export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.
             .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + AFTER_EMISSIVE);
     };
     if (patched) material.onBeforeCompile = patch;
-    material.customProgramCacheKey = () => (patched ? 'pf-lamp-v4' : 'pf-plain');
+    material.customProgramCacheKey = () => (patched ? 'pf-lamp-v5' : 'pf-plain');
     // CPU fallback: an emissive canvas redrawn at 30 Hz from the lamp state (insets + soft glow).
     let fb = null;
     const fallback = {

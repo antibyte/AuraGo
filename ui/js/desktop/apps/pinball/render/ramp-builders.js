@@ -165,13 +165,21 @@ function entranceSign(def, F, rc, group, metal, { cell, postLat, postBase, flang
 }
 
 // ---- plastic ramp: clear tinted polycarbonate U-channel, 22 mm walls ------------------------------------------------
+// Clear polycarbonate: no transmission pass (it milked the playfield art on bright accents); a low alpha so the art shows through,
+// a light tint in the accent colour and a fresnel term that lifts the alpha towards the grazing edges.
 function plasticMaterial(rc, color) {
-    const tier = tierName(rc), clear = color.clone().lerp(new THREE.Color('#ffffff'), tier === 'high' ? 0.78 : 0.4);   // blended tiers need more tint to read as coloured
-    const o = { color: clear, roughness: 0.12, metalness: 0, side: THREE.DoubleSide, depthWrite: false, transparent: true, envMap: rc.env, envMapIntensity: 0.6, emissive: color.clone().multiplyScalar(0.05) };
-    if (tier === 'high') Object.assign(o, { transmission: 0.85, thickness: 0.0025, ior: 1.49, attenuationColor: color.clone(), attenuationDistance: 0.02, clearcoat: 0.4, clearcoatRoughness: 0.2 });
-    else if (tier === 'medium') Object.assign(o, { opacity: 0.42, clearcoat: 0.3, clearcoatRoughness: 0.25 });
-    else Object.assign(o, { opacity: 0.35, roughness: 0.2 });
-    return rc.D.m(new THREE.MeshPhysicalMaterial(o));
+    const tier = tierName(rc), tint = color.clone().lerp(new THREE.Color('#ffffff'), 0.5);
+    const o = { color: tint, roughness: 0.1, metalness: 0, side: THREE.DoubleSide, depthWrite: false, transparent: true, opacity: tier === 'low' ? 0.22 : 0.18,
+        envMap: rc.env, envMapIntensity: 0.45, emissive: color.clone().multiplyScalar(0.04) };
+    if (tier === 'high') Object.assign(o, { clearcoat: 0.5, clearcoatRoughness: 0.12 });
+    else if (tier === 'medium') Object.assign(o, { clearcoat: 0.3, clearcoatRoughness: 0.2 });
+    const m = new THREE.MeshPhysicalMaterial(o);
+    m.onBeforeCompile = sh => {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>',
+            'float rampRim = pow(1.0 - clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0), 2.5);\n  diffuseColor.a = clamp(diffuseColor.a + rampRim * 0.45, 0.0, 0.8);\n#include <opaque_fragment>');
+    };
+    m.customProgramCacheKey = () => 'ramp-clear-v1';
+    return rc.D.m(m);
 }
 
 function entryFlap(F, rc, group, w) {
@@ -180,7 +188,7 @@ function entryFlap(F, rc, group, w) {
     const geo = merge([new THREE.BoxGeometry(W, 0.0008, 0.022).translate(0, -0.0008, -0.011),
         ...[-1, 1].map(s => new THREE.BoxGeometry(0.004, 0.0024, 0.004).translate(s * (W / 2 - 0.004), 0, 0))]);
     rc.D.g(geo);
-    const flap = new THREE.Mesh(geo, rc.steel); flap.name = 'flap'; flap.castShadow = !rc.low;
+    const flap = new THREE.Mesh(geo, rc.D.m(new THREE.MeshStandardMaterial({ color: '#4a525c', metalness: 0.8, roughness: 0.55, envMap: rc.env, envMapIntensity: 0.22 }))); flap.name = 'flap'; flap.castShadow = !rc.low;
     const pivot = new THREE.Group(); pivot.quaternion.setFromRotationMatrix(frame(F, fi).setPosition(0, 0, 0));
     pivot.position.copy(at(F, fi, 0, 0.0012, new THREE.Vector3()));
     const hinge = new THREE.CylinderGeometry(0.0009, 0.0009, w - 0.001, rc.low ? 6 : 8).rotateZ(Math.PI / 2); rc.D.g(hinge);
@@ -201,7 +209,7 @@ export function plasticRamp(def, F, rc, group, withSign) {
         glowParts.push(sweep(F, idx, [[a - e, lh + 0.0004], [a + e, lh + 0.0004], [a + e, lh + 0.0016], [a - e, lh + 0.0016]]));
     }
     const glow = merge(glowParts); D.g(glow);
-    const glowMat = D.m(new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.9) }));
+    const glowMat = D.m(new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(1.25) }));
     const gm = new THREE.Mesh(glow, glowMat); gm.name = def.id + '_edge'; gm.frustumCulled = false; group.add(gm);
     const metal = standoffs(F, rc, { step: low ? 0.2 : 0.1, from: half - 0.004, foot: half + lt + 0.0058, uTop: -th - 0.0014 });
     let sign = null;

@@ -304,7 +304,7 @@ export function buildToys(THREE, kit, layout, opts) {
     jawPivot.add(jawMesh);
 
     // ---- eyes + pupils (instanced; pupils track the nearest ball) ----
-    const EYE_R = 0.0068, EX = 0.014 / HS, EZ = -0.012 / HS, EYE_POS = [[-EX, 0.0075, EZ], [EX, 0.0075, EZ]], D0 = [new THREE.Vector3(-0.55, 0.10, 0.83).normalize(), new THREE.Vector3(0.55, 0.10, 0.83).normalize()];
+    const EYE_R = 0.0066, EX = 0.0118 / HS, EZ = -0.0125 / HS, EYE_POS = [[-EX, 0.0072, EZ], [EX, 0.0072, EZ]], D0 = [new THREE.Vector3(-0.55, 0.10, 0.83).normalize(), new THREE.Vector3(0.55, 0.10, 0.83).normalize()];
     const eyeMat = own(new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }));
     const eyes = new THREE.InstancedMesh(own(new THREE.SphereGeometry(EYE_R, low ? 10 : 16, low ? 8 : 12)), eyeMat, 2); eyes.frustumCulled = false; eyes.name = 'leviathanEyes';
     const pupilMat = own(new THREE.MeshBasicMaterial({ color: '#02070b', toneMapped: false }));
@@ -315,7 +315,7 @@ export function buildToys(THREE, kit, layout, opts) {
     const hg = own(new THREE.BufferGeometry());
     hg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([EYE_POS[0][0], EYE_POS[0][1], EYE_POS[0][2] + 0.003, EYE_POS[1][0], EYE_POS[1][1], EYE_POS[1][2] + 0.003, 0, -0.004, 0.006]), 3));
     hg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(9), 3));
-    const hgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.040, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
+    const hgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.022, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
     const headGlow = new THREE.Points(hg, hgMat); headGlow.frustumCulled = false; headGlow.renderOrder = 8; headTop.add(headGlow);
 
     // ---- sunken ship ----
@@ -396,7 +396,7 @@ export function buildToys(THREE, kit, layout, opts) {
     const wg = own(new THREE.BufferGeometry());
     wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([lanPos[0] + 0.001, lanH + 0.0045, lanPos[2], sx, 0.012, -sy, cx, 0.012, -cy]), 3));
     wg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(9), 3));
-    const wgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.055, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
+    const wgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.038, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
     const worldGlow = new THREE.Points(wg, wgMat); worldGlow.frustumCulled = false; worldGlow.renderOrder = 6; group.add(worldGlow);
 
     // ---- kelp: instanced blades with a vertex-shader sway ----
@@ -541,7 +541,7 @@ export function buildToys(THREE, kit, layout, opts) {
             const lid = (0.22 + 0.78 * clamp(open + flare * 0.5, 0, 1)) * (blink > 0 ? 0.12 : 1);
                         ['eyeL', 'eyeR'].forEach((id, e) => {
                 const lv = clamp(Math.max(lampLevel(lamps, id, 0), open * 0.8) + flare * 0.7, 0, 1.5), fl = 0.94 + 0.06 * Math.sin(t * 8 + e * 1.9);
-                eyeLvl[e] = (0.35 + lv * 1.9) * fl;
+                eyeLvl[e] = (0.5 + lv * 1.5) * fl;
                 tmpC.copy(eyeColor).lerp(white, flare * 0.4).multiplyScalar(eyeLvl[e]); eyes.setColorAt(e, tmpC);
                 const E = EYE_POS[e];
                 eyeObj.position.set(E[0], E[1], E[2]); eyeObj.rotation.set(0, 0, 0); eyeObj.scale.set(1, lid, 1); eyeObj.updateMatrix(); eyes.setMatrixAt(e, eyeObj.matrix);
@@ -554,7 +554,7 @@ export function buildToys(THREE, kit, layout, opts) {
                 pupObj.position.set(E[0] + dir.x * EYE_R * 0.9, E[1] + dir.y * EYE_R * 0.9 * lid, E[2] + dir.z * EYE_R * 0.9);
                 pupObj.quaternion.setFromUnitVectors(zAxis, dir);
                 pupObj.scale.set(0.42, 1.05 * Math.max(0.3, lid), 0.45); pupObj.updateMatrix(); pupils.setMatrixAt(e, pupObj.matrix);
-                const gc = hg.attributes.color; const hv = eyeLvl[e] * 0.22; gc.setXYZ(e, eyeColor.r * hv, eyeColor.g * hv, eyeColor.b * hv);
+                const gc = hg.attributes.color; const hv = eyeLvl[e] * 0.09; gc.setXYZ(e, eyeColor.r * hv, eyeColor.g * hv, eyeColor.b * hv);
             });
             eyes.instanceMatrix.needsUpdate = true; eyes.instanceColor.needsUpdate = true; pupils.instanceMatrix.needsUpdate = true;
             { const mv = clamp(jawA * 1.6 + flare * 0.25, 0, 1) * 0.55; hg.attributes.color.setXYZ(2, eyeColor.r * mv, eyeColor.g * mv, eyeColor.b * mv); hg.attributes.color.needsUpdate = true; }
@@ -564,10 +564,10 @@ export function buildToys(THREE, kit, layout, opts) {
             for (let v = 0; v < lanVerts; v++) lightCol.setXYZ(v, 1.0 * lv, 0.72 * lv, 0.30 * lv);
             for (let v = lanVerts; v < beadsEnd; v++) { const ph = 0.55 + 0.45 * Math.sin(t * 1.7 + v * 0.37); lightCol.setXYZ(v, 0.25 * ph * (0.8 + flare), 0.95 * ph * (0.8 + flare), 0.85 * ph * (0.8 + flare)); }
             lightCol.needsUpdate = true;
-            const wc = wg.attributes.color, lh = 0.20 + lantern * 0.55;
+            const wc = wg.attributes.color, lh = 0.12 + lantern * 0.34;
             wc.setXYZ(0, 1.0 * lh, 0.72 * lh, 0.30 * lh);
             wc.setXYZ(1, 0.9 * (0.07 + lantern * 0.12), 0.65 * (0.07 + lantern * 0.12), 0.25 * (0.07 + lantern * 0.12));
-            const hp = 0.10 + flare * 0.25 + lit * 0.15; wc.setXYZ(2, eyeColor.r * hp * 0.4, eyeColor.g * hp * 0.4, eyeColor.b * hp * 0.4); wc.needsUpdate = true;
+            const hp = 0.10 + flare * 0.25 + lit * 0.15; wc.setXYZ(2, eyeColor.r * hp * 0.22, eyeColor.g * hp * 0.22, eyeColor.b * hp * 0.22); wc.needsUpdate = true;
 
             // kelp, bubbles, plankton
             writeKelp(t, 1 + flare * 0.8);

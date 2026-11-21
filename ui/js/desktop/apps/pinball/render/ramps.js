@@ -104,7 +104,7 @@ export function buildRamps(paths, ctx) {
                 f.state += ((near ? 0 : 1) - f.state) * Math.min(1, dt * 14);
                 if (f.flap) f.flap.rotation.x = 0.38 * f.state;
                 f.pulse = riding ? Math.min(1, f.pulse + dt * 10) : Math.max(0, f.pulse - dt * 3.5);
-                if (f.glowMat) f.glowMat.color.copy(f.baseColor).multiplyScalar(1.9 + 1.5 * f.pulse);
+                if (f.glowMat) f.glowMat.color.copy(f.baseColor).multiplyScalar(1.25 + 1.5 * f.pulse);
                 if (f.signMat) f.signMat.emissiveIntensity = f.signBase + 1.4 * f.pulse;
             }
         },

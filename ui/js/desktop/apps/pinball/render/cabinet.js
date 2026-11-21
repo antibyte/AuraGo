@@ -195,12 +195,13 @@ export function buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass, 
     const sideMat = new THREE.MeshStandardMaterial({ map: sa, roughness: 0.6, metalness: 0.05, envMap: mats.chrome.envMap, envMapIntensity: 0.15 }); own.push(sideMat);
     add(merge([left, right]), sideMat, 'sideArt');
 
+    const chromeSoft = mats.chrome.clone(); chromeSoft.color.set('#9ea8b4'); chromeSoft.roughness = 0.62; chromeSoft.envMapIntensity = 0.26; own.push(chromeSoft);   // the tall glass-channel strips caught the key light as a white streak
     // Chrome: glass channel strips, lockdown bar, front trim, bezel lines.
     add(merge([
         wedgeBox(sideIn - 0.004, sideIn, frontY + 0.01, backY - 0.01, y => glassHeight(y) - 0.004, topAt), wedgeBox(-sideIn, -sideIn + 0.004, frontY + 0.01, backY - 0.01, y => glassHeight(y) - 0.004, topAt),
         box(0, topFront - 0.007, -(frontY + 0.009), sideIn * 2, 0.014, 0.014), box(0, 0.002, -(frontY - 0.0005), sideOut * 2 + 0.004, 0.012, 0.004),
         box(0, bottom + 0.05, -(frontY - 0.0005), 0.22, 0.12, 0.003)
-    ]), mats.chrome, 'chrome');
+    ]), chromeSoft, 'chrome');
     add(wedgeBox(sideIn - 0.004, sideOut + 0.004, frontY - 0.002, backY + 0.002, wallTop, topAt), mats.darkMetal, 'siderailCap');
     add(wedgeBox(-sideOut - 0.004, -sideIn + 0.004, frontY - 0.002, backY + 0.002, wallTop, topAt), mats.darkMetal, 'siderailCapL');
     add(merge([box(sideIn - 0.005, topFront / 2, -(frontY + 0.016), 0.010, topFront, 0.03), box(-sideIn + 0.005, topFront / 2, -(frontY + 0.016), 0.010, topFront, 0.03)]), mats.steel, 'lockdownBlocks');
