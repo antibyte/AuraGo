@@ -22,10 +22,10 @@ export function createEnvironment(renderer, palette) {
     const acc = palette.accent || '#37d9ff', sec = palette.secondary || '#ff48c4';
     // Soft, dim boxes: peaks stay below the bloom threshold so rails and ramps show a brushed sheen
     // instead of a blown-out white reflection.
-    panel(9, 1.4, [0, 5.6, -4.6], [0, 0, 0], '#e8f1ff', 0.65);                 // back-high soft box (glossy sheen in the play view)
-    panel(8, 1.1, [0, 5.4, 4.8], [0, 0, 0], '#fff0dc', 0.8);
-    panel(0.5, 5, [-6, 2.6, 0], [0, Math.PI / 2, 0], acc, 1.2);               // neon strips on both sides
-    panel(0.5, 5, [6, 2.6, 0], [0, Math.PI / 2, 0], sec, 1.2);
+    panel(9, 1.4, [0, 5.6, -4.6], [0, 0, 0], '#e8f1ff', 1.0);                 // back-high soft box (glossy sheen in the play view)
+    panel(8, 1.1, [0, 5.4, 4.8], [0, 0, 0], '#fff0dc', 1.1);
+    panel(0.5, 5, [-6, 2.6, 0], [0, Math.PI / 2, 0], acc, 1.0);               // neon strips on both sides
+    panel(0.5, 5, [6, 2.6, 0], [0, Math.PI / 2, 0], sec, 1.0);
     panel(6, 0.4, [0, 1.6, -7], [0, 0, 0], acc, 1.1);
     panel(4, 0.3, [0, 1.2, 6.8], [0, Math.PI, 0], sec, 0.9);
     s.children.forEach(o => { if (o.isMesh && o.geometry.type === 'PlaneGeometry') o.lookAt(0, 0.5, 0); });
@@ -57,8 +57,8 @@ function autoBulbs(layout, group) {
 
 export function createLights({ scene, tableRoot, layout, tier, palette, shadows }) {
     const accent = palette.accent || '#37d9ff', secondary = palette.secondary || '#ff48c4';
-    const hemi = new THREE.HemisphereLight('#9db6dc', '#0b0d14', 0.5);
-    const key = new THREE.DirectionalLight('#fff4e6', 1.1);
+    const hemi = new THREE.HemisphereLight('#9db6dc', '#0b0d14', 0.35 + 0.7);
+    const key = new THREE.DirectionalLight('#fff4e6', 1.25);
     key.position.set(-0.55, 1.9, 0.35);
     const target = new THREE.Object3D(); target.position.set(0, 0.05, -0.5); scene.add(target); key.target = target;
     const rim = new THREE.DirectionalLight(secondary, 0.55); rim.position.set(0.7, 0.6, -1.6); rim.target = target;
@@ -108,7 +108,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     function update(lamps, reduced, balls = null) {
         const fl = lamps && lamps.flashLevel, gl = lamps && lamps.giLevel;
         const giAvg = gl && gl.length ? gl.reduce((a, v) => a + v, 0) / gl.length : 1;
-        hemi.intensity = 0.25 + 0.65 * giAvg; rim.intensity = 0.2 + 0.4 * giAvg; fill.intensity = 0.08 + 0.22 * giAvg;
+        hemi.intensity = 0.35 + 0.7 * giAvg; rim.intensity = 0.2 + 0.4 * giAvg; fill.intensity = 0.08 + 0.22 * giAvg;
         const n = points.length;
         let ballIdx = 0;
         const liveBalls = !reduced && balls ? balls.filter(b => !b.hidden && b.mode !== 'held') : null;

@@ -11,7 +11,8 @@ import { VISUALS } from '../tables/visuals.js';
 import { TIERS, tierOf, createMaterials, disposeMaterials } from './materials.js';
 import { paintPlayfieldArt, createLampTextures, createPlayfieldMaterial, buildWallGeometry } from './playfield.js';
 import { createEnvironment, createLights, BALL_RADIUS } from './lighting.js';
-import { buildCabinet, buildRoom } from './cabinet.js';
+import { buildCabinet } from './cabinet.js';
+import { buildRoom } from './room.js';
 import { createCameraRig } from './camera.js';
 import { buildMechanics } from './builders.js';
 import { createEffects } from './fx.js';
@@ -63,20 +64,22 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     } catch (e) { if (signal && signal.aborted) fail(abortError()); fail(e && e.message === 'load_error' ? e : new Error('load_error')); }
     const list = Array.isArray(manifest.tables) ? manifest.tables : Object.entries(manifest.tables || {}).map(([id, v]) => ({ id, ...v }));
     const entry = list.find(t => t.id === tableId) || {};
-    let underlay = null, glassImg = null;
+    // Optional bitmaps (missing key or failed load -> null): table underlay, backglass, side art, plastics sheet, room wall.
+    let underlay = null, glassImg = null, sideImg = null, plasticsImg = null, wallImg = null;
+    const optional = file => file ? loadBitmap(assetURL(ASSET_ROOT + file), signal) : null;
     try {
-        [underlay, glassImg] = await Promise.all([
+        [underlay, glassImg, sideImg, plasticsImg, wallImg] = await Promise.all([
             (entry.underlay || entry.playfield) ? loadBitmap(assetURL(ASSET_ROOT + (entry.underlay || entry.playfield)), signal) : null,
-            entry.backglass ? loadBitmap(assetURL(ASSET_ROOT + entry.backglass), signal) : null
+            optional(entry.backglass), optional(entry.side), optional(entry.plastics), optional(manifest.room && manifest.room.wall)
         ]);
     } catch (e) { fail(e); }
-    if (signal && signal.aborted) { for (const b of [underlay, glassImg]) if (b && b.close) b.close(); fail(abortError()); }
+    if (signal && signal.aborted) { for (const b of [underlay, glassImg, sideImg, plasticsImg, wallImg]) if (b && b.close) b.close(); fail(abortError()); }
 
     // ---- renderer / scene ----
     const palette = { accent: layout.meta && layout.meta.accent, secondary: layout.meta && layout.meta.secondary };
     const maxAniso = renderer.capabilities.getMaxAnisotropy();
     const aniso = () => Math.min(maxAniso, tier.aniso);
-    renderer.setClearColor('#03050a'); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.98;
+    renderer.setClearColor('#03050a'); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.enabled = tier.shadow > 0;
     canvas.className = 'pb-canvas'; canvas.setAttribute('aria-hidden', 'true'); canvas.style.width = '100%'; canvas.style.height = '100%'; canvas.style.display = 'block';
@@ -91,7 +94,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const lamps0 = { texture: createLampTextures(layout) };
 
     const forceFallback = /[?&]shader=fallback/.test((typeof location !== 'undefined' && location.search) || '') || settings.forceFallback === true;
-    let art = paintPlayfieldArt({ layout, tr, tableId, size: tier.art, underlay, aniso: aniso() });
+    let art = paintPlayfieldArt({ layout, tr, tableId, size: tier.art, underlay, artRev: entry.artRev || 1, aniso: aniso() });
     const pf = createPlayfieldMaterial({ artTex: art.texture, lampTex: lamps0.texture, envMap: env.texture, lampGain: tier.lampGain, forceFallback, giColors: Object.fromEntries((layout.gi || []).map(g => [g.id, g.color])) });
     if (forceFallback) pf.fallback.enable();
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_W, FIELD_H), pf.material);
@@ -102,8 +105,9 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         if (!geo) continue;
         const m = new THREE.Mesh(geo, mat); m.name = name; m.castShadow = name !== 'plasticWalls'; m.receiveShadow = true; if (name === 'plasticWalls') m.renderOrder = 2; tableRoot.add(m); wallMeshes.push(m);
     }
-    const cabinet = buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass: backglassCanvas(glassImg, palette), aniso: aniso() });
-    const room = buildRoom({ scene, tableRoot, mats, accent: palette.accent, secondary: palette.secondary });
+    const images = { plastics: plasticsImg, side: sideImg, roomWall: wallImg };
+    const cabinet = buildCabinet({ tableRoot, layout, mats, tr, tableId, backglass: backglassCanvas(glassImg, palette), images, aniso: aniso(), low: quality === 'low' });
+    const room = buildRoom({ scene, tableRoot, mats, accent: palette.accent, secondary: palette.secondary, images });
     const lights = createLights({ scene, tableRoot, layout, tier, palette, shadows: true });
     cabinet.meshes.forEach(m => { if (m.name === 'body' || m.name === 'headBody') m.castShadow = true; });
 
@@ -162,7 +166,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     }
     function rebuildArt() {
         if (art.canvas.width === tier.art[0]) return;
-        const old = art; art = paintPlayfieldArt({ layout, tr, tableId, size: tier.art, underlay, aniso: aniso() });
+        const old = art; art = paintPlayfieldArt({ layout, tr, tableId, size: tier.art, underlay, artRev: entry.artRev || 1, aniso: aniso() });
         pf.material.map = art.texture; pf.material.needsUpdate = true; old.texture.dispose(); old.canvas.width = old.canvas.height = 1;
     }
     function resize() {
@@ -239,7 +243,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         // T13 contract: builder({THREE, root, layout, mats, env, tier, kit, assetURL, renderer, scene}) -> {update?(ctx), setQuality?(tier), dispose?()}.
         // `root` is a Group inside tableRoot (X = x, Y = h, Z = -y). ctx = {snap, lamps, toyState, dt, time, reduced, scene}.
         addMechanics(builder) {
-            const handle = builder({ THREE, root: mechanicsGroup, layout, mats, env: env.texture, tier, kit: art.kit, assetURL, renderer, scene, tableRoot, camera });
+            const handle = builder({ THREE, root: mechanicsGroup, layout, mats, env: env.texture, tier, kit: art.kit, assetURL, renderer, scene, tableRoot, camera, images });
             if (handle) mechs.add(handle);
             return handle;
         },
@@ -266,7 +270,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
             art.texture.dispose(); art.canvas.width = art.canvas.height = 1;
             const t = lamps0.texture; t.maskTex.dispose(); t.stateTex.dispose(); t.giTex.dispose();
             pf.fallback.dispose(); pf.material.dispose(); disposeMaterials(mats);
-            for (const b of [underlay, glassImg]) if (b && b.close) b.close();
+            for (const b of [underlay, glassImg, sideImg, plasticsImg, wallImg]) if (b && b.close) b.close();
             env.dispose();
             composer.passes.forEach(p => p.dispose && p.dispose()); composer.renderTarget1.dispose(); composer.renderTarget2.dispose(); rt.dispose();
             renderer.dispose();

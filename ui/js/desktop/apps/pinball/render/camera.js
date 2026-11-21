@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { FOLLOW, followGoal, createFollow, stepFollow } from './follow.js';
+import { topAt } from '../tables/kit/cabinet-dims.js';
 
 const TILT = 6.5 * Math.PI / 180;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -46,7 +47,7 @@ export const fitDistance = (cam, corners, aspect, insets, margin) => fitCamera(c
 
 export const FIELD_CORNERS_LOCAL = (() => {
     const out = [];
-    for (const x of [-0.2975, 0.2975]) for (const y of [-0.12, 1.07]) for (const h of [0, 0.075]) out.push([x, h, -y]);
+    for (const x of [-0.2975, 0.2975]) for (const y of [-0.12, 1.07]) for (const h of [0, topAt(y)]) out.push([x, h, -y]);
     return out;
 })();
 
@@ -65,7 +66,7 @@ export function createCameraRig({ camera, domElement, tableRoot, reduced = false
     const dirWorld = p => { const v = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(rot); return [v.x, v.y, v.z]; };
     const corners = FIELD_CORNERS_LOCAL.map(toWorld), playCorners = PLAY_CORNERS_LOCAL.map(toWorld);
     // Showcase frames the whole machine: backbox top and the legs down to the floor.
-    const machine = corners.concat([[-0.3, 0.64, -1.12], [0.3, 0.64, -1.12], [-0.28, -0.8, 0.1], [0.28, -0.8, 0.1], [-0.28, -0.8, -1.05], [0.28, -0.8, -1.05]].map(toWorld));
+    const machine = corners.concat([[-0.3, 0.76, -1.2], [0.3, 0.76, -1.2], [-0.28, -0.8, 0.1], [0.28, -0.8, 0.1], [-0.28, -0.8, -1.05], [0.28, -0.8, -1.05]].map(toWorld));
     const controls = new OrbitControls(camera, domElement);
     controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 0.55; controls.maxDistance = 3.2;
     controls.maxPolarAngle = Math.PI * 0.495; controls.enablePan = false; controls.enabled = false; controls.autoRotateSpeed = 0.9;
