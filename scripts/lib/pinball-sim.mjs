@@ -1,5 +1,5 @@
 // Headless helpers for the pinball physics tests and shot tools (Node, no DOM).
-import { BALL_M, G_SLOPE, STEP } from '../../ui/js/desktop/apps/pinball/physics/constants.js';
+import { BALL_M, BALL_R, G_SLOPE, STEP, SPIN } from '../../ui/js/desktop/apps/pinball/physics/constants.js';
 import { segIntersect } from '../../ui/js/desktop/apps/pinball/tables/kit/geom.js';
 
 // Steps `world` for `ticks` ticks. `inputFn(tick, world)` returns the controls ({left, right, plunger}) for that tick
@@ -14,9 +14,11 @@ export function run(world, ticks, inputFn, onTick) {
     return events;
 }
 
-// Mechanical energy (J) of a ball: kinetic plus slope potential. Accepts a world ball or a snapshot ball.
+// Mechanical energy (J) of a ball: translation, rotation and slope potential. Accepts a world ball or a snapshot ball.
 export function energy(ball) {
-    return 0.5 * BALL_M * (ball.vx * ball.vx + ball.vy * ball.vy) + BALL_M * G_SLOPE * ball.y;
+    const wx = ball.wx ?? 0, wy = ball.wy ?? 0, wz = ball.wz ?? 0;
+    return 0.5 * BALL_M * (ball.vx * ball.vx + ball.vy * ball.vy) + 0.5 * BALL_M * SPIN.inertia * BALL_R * BALL_R * (wx * wx + wy * wy + wz * wz)
+        + BALL_M * G_SLOPE * ball.y;
 }
 
 // Collision outline of a layout: every wall segment (closed walls include the closing edge) and a containment test

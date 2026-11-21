@@ -5,9 +5,11 @@
 //     anim(a), dbg() }
 // `clk.t` is the simulation time in seconds, refreshed by devices.preTick. `balls` is the cached array of field balls.
 // Held balls are mode 'held' (holder = device id); the world neither integrates nor collides them.
-import { STEP, BALL_R, G_SLOPE } from './constants.js';
+import { STEP, BALL_R, G_SLOPE, SPIN } from './constants.js';
 import { rngNext } from '../config.js';
+import { clearSpin, setRolling } from './spin.js';
 
+const ROLL_SHARE = 1 / (1 + SPIN.inertia);   // share of gravity a rolling ball feels
 const SPACING = 0.6;            // seconds between balls of an "eject all"
 const RECAPTURE = 0.35;         // seconds a freshly ejected ball cannot be captured again
 const TILT_EJECT = 0.5;         // coils off: holes give their balls back after this long
@@ -26,7 +28,7 @@ export function createHole(def, ctx, clk) {
 
     function take(ball, via) {
         ball.mode = 'held'; ball.holder = id; ball.hidden = !!def.hidden; ball.h = 0; ball.path = null;
-        ball.vx = 0; ball.vy = 0; ball.x = ball.px = x; ball.y = ball.py = y;
+        ball.vx = 0; ball.vy = 0; clearSpin(ball); ball.x = ball.px = x; ball.y = ball.py = y;
         const late = ctx.coils ? clk.t + autoEject : clk.t + TILT_EJECT + SPACING * slots.length;
         slots.push({ ball, ejectAt: late, locked: false });
         ctx.emit('hole', id, ball, { via, count: slots.length });
@@ -35,7 +37,7 @@ export function createHole(def, ctx, clk) {
         slots.splice(slots.indexOf(slot), 1);
         const ball = slot.ball;
         ball.hidden = false; ball.holder = null; ball.captive = false; ball.mode = 'field'; ball.h = 0; ball.path = null;
-        ball.x = ball.px = x; ball.y = ball.py = y;
+        ball.x = ball.px = x; ball.y = ball.py = y; clearSpin(ball);
         const speed = (eject.speed ?? 2) * (1 + (rngNext(ctx.rng) * 2 - 1) * 0.02);
         const jitter = (rngNext(ctx.rng) * 2 - 1) * 0.02;
         let via = 'field';
@@ -127,7 +129,7 @@ export function createMagnet(def, ctx, clk) {
 
     function free(vx, vy, state) {
         const b = held; held = null;
-        b.mode = 'field'; b.holder = null; b.hidden = false; b.vx = vx; b.vy = vy; b.h = 0;
+        b.mode = 'field'; b.holder = null; b.hidden = false; b.vx = vx; b.vy = vy; b.h = 0; clearSpin(b);
         ctx.emit('magnet', id, b, { state });
     }
     return {
@@ -145,9 +147,12 @@ export function createMagnet(def, ctx, clk) {
                 let ax = pull * dx - damp * b.vx, ay = pull * dy - damp * b.vy;
                 const am = Math.sqrt(ax * ax + ay * ay);
                 if (am > maxAcc) { ax *= maxAcc / am; ay *= maxAcc / am; }
-                b.vx += ax * h; b.vy += (ay + G_SLOPE) * h;
+                // The field couples to the whole ball: spin follows the velocity (rolling) and the gravity it cancels is the
+                // rolling share of it (floorStep already applied g/(1 + K) to a ball that rolls).
+                b.vx += ax * h; b.vy += (ay + G_SLOPE * ROLL_SHARE) * h;
+                setRolling(b, b.vx, b.vy);
                 if (d2 < 9e-6 && b.vx * b.vx + b.vy * b.vy < 0.0016) {
-                    b.mode = 'held'; b.holder = id; b.vx = 0; b.vy = 0; b.x = b.px = x; b.y = b.py = y;
+                    b.mode = 'held'; b.holder = id; b.vx = 0; b.vy = 0; clearSpin(b); b.x = b.px = x; b.y = b.py = y;
                     held = b;
                     ctx.emit('magnet', id, b, { state: 'held' });
                     break;
@@ -206,6 +211,7 @@ export function createCaptive(def, ctx, clk) {
     function place() {
         if (!ball) return;
         ball.x = ball.px = ax + ux * s; ball.y = ball.py = ay + uy * s; ball.vx = w * ux; ball.vy = w * uy;
+        ball.wx = -w * uy / BALL_R; ball.wy = w * ux / BALL_R; ball.wz = 0;   // rolling along the channel axis
     }
     function spawn() {
         s = sMin; w = 0; atEnd = false;

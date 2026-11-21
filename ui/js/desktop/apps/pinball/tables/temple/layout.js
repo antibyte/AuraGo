@@ -49,7 +49,7 @@ function idolTemple() {
 // Orbit lock in the right orbit lane: captures only while enabled; ejects down the lane into the upper flipper.
 function orbitLock() {
     return {
-        devices: [{ id: 'orbitLock', type: 'hole', kind: 'kickhole', x: 0.2055, y: 0.770, r: 0.016, capacity: 3, hidden: true, enabled: false, captureSpeed: 4.5, eject: { angleDeg: 270, speed: 0.6 } }]
+        devices: [{ id: 'orbitLock', type: 'hole', kind: 'kickhole', x: 0.2055, y: 0.770, r: 0.016, capacity: 3, hidden: true, enabled: false, captureSpeed: 4.5, eject: { angleDeg: 270, speed: 0.57 } }]
     };
 }
 

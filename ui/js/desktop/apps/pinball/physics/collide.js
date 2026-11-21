@@ -1,5 +1,6 @@
 // Ball-versus-shape contact maths: closest point, push-out, impulse response, energy ceiling. DOM-free, allocation-free.
-import { MATERIALS } from './constants.js';
+import { MATERIALS, BALL_R, SPIN } from './constants.js';
+import { contactFriction } from './spin.js';
 
 // Ball (x, y, r) against segment a-b. On contact fills out {nx, ny, pen, cx, cy} (normal points at the ball,
 // cx/cy is the closest point on the shape) and returns true. (prx, pry) is the previous ball position; it only
@@ -40,7 +41,8 @@ export function restitutionOf(mat, vn) {
 
 // Velocity response against a surface that moves with (svx, svy). Returns the approach speed vn
 // (0 when the ball is separating) measured before the response.
-// Friction only acts on impacts (vn >= 0.03); resting contacts roll free so a ball can run down a raised bat.
+// Friction (tangential and vertical-roll exchange, spin.js) only acts on impacts (vn >= 0.03); resting contacts roll free
+// so a ball can run down a raised bat.
 export function resolveVelocity(ball, nx, ny, material, svx, svy) {
     const rvx = ball.vx - svx, rvy = ball.vy - svy;
     const vn = -(rvx * nx + rvy * ny);
@@ -48,23 +50,18 @@ export function resolveVelocity(ball, nx, ny, material, svx, svy) {
     const mat = MATERIALS[material] || MATERIALS.metal;
     const e = restitutionOf(mat, vn), j = (1 + e) * vn;
     ball.vx += nx * j; ball.vy += ny * j;
-    if (vn >= 0.03) {
-        const tx = -ny, ty = nx, vt = rvx * tx + rvy * ty, avt = vt < 0 ? -vt : vt;
-        if (avt > 0) {
-            const cap = mat.mu * j, lim = (2 / 7) * avt, dv = (cap < lim ? cap : lim) * (vt < 0 ? -1 : 1);
-            ball.vx -= dv * tx; ball.vy -= dv * ty;
-        }
-    }
+    if (vn >= 0.03) contactFriction(ball, nx, ny, mat.mu, j, rvx, rvy);
     return vn;
 }
 
-// Passive-energy ceiling: after a substep of contacts the specific energy 0.5 v^2 + gSlope y must not exceed e0.
-// Push-out never adds energy this way: v is scaled down (to zero at worst).
+// Passive-energy ceiling: after a substep of contacts the specific energy (translation + rotation + slope) must not
+// exceed e0. Push-out never adds energy this way: v and w are scaled down (to zero at worst).
+const KR2 = 0.5 * SPIN.inertia * BALL_R * BALL_R;
 export function capEnergy(ball, e0, gSlope) {
-    const v2 = ball.vx * ball.vx + ball.vy * ball.vy;
     const ke = e0 - gSlope * ball.y;
-    if (0.5 * v2 <= ke) return;
-    if (ke <= 0) { ball.vx = 0; ball.vy = 0; return; }
-    const s = Math.sqrt(2 * ke / v2);
-    ball.vx *= s; ball.vy *= s;
+    const cur = 0.5 * (ball.vx * ball.vx + ball.vy * ball.vy) + KR2 * (ball.wx * ball.wx + ball.wy * ball.wy + ball.wz * ball.wz);
+    if (cur <= ke) return;
+    if (ke <= 0) { ball.vx = 0; ball.vy = 0; ball.wx = 0; ball.wy = 0; ball.wz = 0; return; }
+    const s = Math.sqrt(ke / cur);
+    ball.vx *= s; ball.vy *= s; ball.wx *= s; ball.wy *= s; ball.wz *= s;
 }

@@ -1,5 +1,5 @@
 // Render-facing physics snapshot (plan 3.6): write, anim slot index, interpolation. DOM-free.
-//   { tick, time, balls: [{id, x, y, h, vx, vy, mode, hidden}], flippers: Float64Array(2n) [angle, omega],
+//   { tick, time, balls: [{id, x, y, h, vx, vy, wx, wy, wz, mode, hidden}], flippers: Float64Array(2n) [angle, omega],
 //     plunger, anim: Float32Array, spin: Int32Array }
 // `spin` lists the anim slots that hold spinner angles (rad), so lerpSnapshot can take the shortest delta.
 import { STEP } from './constants.js';
@@ -25,7 +25,7 @@ export function createSnapshot(flipperCount, animCount, spin) {
     };
 }
 
-function ballEntry() { return { id: 0, x: 0, y: 0, h: 0, vx: 0, vy: 0, mode: 'field', hidden: false }; }
+function ballEntry() { return { id: 0, x: 0, y: 0, h: 0, vx: 0, vy: 0, wx: 0, wy: 0, wz: 0, mode: 'field', hidden: false }; }
 
 // Fills `out` (or a fresh snapshot) from live state. `anim` is cleared and then written by `writeAnim`.
 export function writeSnapshot(out, { tick, balls, flippers, plunger, animIndex, writeAnim }) {
@@ -37,7 +37,7 @@ export function writeSnapshot(out, { tick, balls, flippers, plunger, animIndex, 
     while (out.balls.length < balls.length) out.balls.push(ballEntry());
     for (let i = 0; i < balls.length; i++) {
         const b = balls[i], e = out.balls[i];
-        e.id = b.id; e.x = b.x; e.y = b.y; e.h = b.h; e.vx = b.vx; e.vy = b.vy; e.mode = b.mode; e.hidden = !!b.hidden;
+        e.id = b.id; e.x = b.x; e.y = b.y; e.h = b.h; e.vx = b.vx; e.vy = b.vy; e.wx = b.wx; e.wy = b.wy; e.wz = b.wz; e.mode = b.mode; e.hidden = !!b.hidden;
     }
     for (let i = 0; i < flippers.length; i++) { out.flippers[2 * i] = flippers[i].a; out.flippers[2 * i + 1] = flippers[i].w; }
     out.anim.fill(0);
@@ -66,6 +66,7 @@ export function lerpSnapshot(a, b, t, out) {
         e.id = nb.id; e.mode = nb.mode; e.hidden = nb.hidden;
         e.x = p.x + (nb.x - p.x) * k; e.y = p.y + (nb.y - p.y) * k; e.h = p.h + (nb.h - p.h) * k;
         e.vx = p.vx + (nb.vx - p.vx) * k; e.vy = p.vy + (nb.vy - p.vy) * k;
+        e.wx = p.wx + (nb.wx - p.wx) * k; e.wy = p.wy + (nb.wy - p.wy) * k; e.wz = p.wz + (nb.wz - p.wz) * k;
     }
     for (let i = 0; i < b.flippers.length; i++) out.flippers[i] = a.flippers[i] + (b.flippers[i] - a.flippers[i]) * t;
     for (let i = 0; i < b.anim.length; i++) out.anim[i] = a.anim[i] + (b.anim[i] - a.anim[i]) * t;

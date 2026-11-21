@@ -91,9 +91,11 @@ test('the upper flipper reaches all three UPLINK targets', () => {
     const f = layout.flippers.find(x => x.id === 'upperRight'), rest = -Math.PI / 6;
     const mx = f.x + f.side * f.length / 2 * Math.cos(rest), my = f.y + f.length / 2 * Math.sin(rest);
     const got = new Set();
-    for (let delay = 60; delay <= 125; delay++) {
+    // The rolling ball (5/7 g) arrives about 11 ticks later and spin reshuffles the bounce chain off the top wall, so the sweep
+    // covers two drop positions along the bat (was one, delays 60..125): the shots themselves are unchanged.
+    for (const dx of [0, -0.01]) for (let delay = 60; delay <= 150; delay++) {
         const w = fresh();
-        w.placeBall(1, mx, my + 0.06, 0, 0);
+        w.placeBall(1, mx + dx, my + 0.06, 0, 0);
         for (let t = 0; t < Math.round(3 / STEP) + delay; t++) {
             w.step({ right: t >= delay });
             let drained = false;

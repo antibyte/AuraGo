@@ -9,7 +9,7 @@
 //   rng               {seed}: use rngNext(ctx.rng) from ../config.js, never Math.random
 //   tick              getter, current tick (events of the running step carry it)
 //   coils             getter, false while tilted (flippers drop, kickers act passive)
-//   balls             Map<id, Ball>; Ball = {id, x, y, vx, vy, px, py, h, mode, hidden, captive, holder, path, lastSwitch, ...}
+//   balls             Map<id, Ball>; Ball = {id, x, y, vx, vy, wx, wy, wz (spin, rad/s, spin.js), px, py, h, mode, hidden, captive, holder, path, lastSwitch, ...}
 //                     px/py is the position at the start of the substep. mode: 'field'|'path'|'held'|'shooter'|'captive'.
 //                     Only 'field' and 'shooter' balls are integrated and collided by the world; devices and paths own the rest.
 //   shapes            {add(def) -> Shape, byId(id) -> first Shape|null, group(id) -> Shape[], setActive(idOrShape, on), all() -> Shape[]}
@@ -23,7 +23,8 @@
 //   Order per substep: integrate, flippers, contacts (2 passes + ball-ball), devices.substep(h), paths.substep(h), drain, plunger seat.
 //   world.command() handles addBall/coils/nudge/removeBall/clearBalls itself and forwards every other command to
 //   devices.command() then paths.command(); removeBall/clearBalls are also forwarded so holders can drop references.
-import { STEP, BALL_R, G_SLOPE, MAX_SPEED, SUBSTEP_TRAVEL, SUBSTEP_MIN, SUBSTEP_MAX, ROLL_DECEL } from './constants.js';
+import { STEP, BALL_R, G_SLOPE, MAX_SPEED, SUBSTEP_TRAVEL, SUBSTEP_MIN, SUBSTEP_MAX, ROLL_DECEL, MATERIALS } from './constants.js';
+import { specificEnergy, clearSpin, floorStep, contactFriction } from './spin.js';
 import { rngNext } from '../config.js';
 import { createGrid } from './grid.js';
 import { segContact, circleContact, resolveVelocity, capEnergy } from './collide.js';
@@ -33,6 +34,7 @@ import { createPaths } from './paths.js';
 import { buildAnimIndex, writeSnapshot } from './snapshot.js';
 
 const PLUNGER = { x: 0.2405, yRest: 0.0535, travel: 0.06, pullRate: 1.6, vMin: 0.55, vMax: 3.4, vAuto: 3.0, laneX: [0.2235, 0.2575], zoneYMax: 0.12 };
+const MATERIALS_BALL_MU = MATERIALS.ball.mu;
 const IMPACT_GAP = 10;                  // ticks (about 20 ms) between impact events per ball
 const AUTO_DELAY = Math.round(0.6 / STEP);
 const SEARCH_IDLE = Math.round(10 / STEP), SEARCH_EVERY = Math.round(2 / STEP), SEARCH_CYCLES = 5;
@@ -100,13 +102,13 @@ export function createWorld(layout, { seed = 1 } = {}) {
     }
     function makeBall(id, x, y, vx, vy, mode) {
         return {
-            id, x, y, vx, vy, px: x, py: y, h: 0, mode: mode || 'field', hidden: false, captive: false, holder: null, path: null,
+            id, x, y, vx, vy, wx: 0, wy: 0, wz: 0, px: x, py: y, h: 0, mode: mode || 'field', hidden: false, captive: false, holder: null, path: null,
             lastSwitch: null, impactTick: -IMPACT_GAP, clackTick: -IMPACT_GAP, e0: 0, exempt: false, pushed: false, auto: false, serveTick: 0
         };
     }
     function addBallAt(id, x, y, vx, vy, mode) {
         let b = balls.get(id);
-        if (b) { b.x = b.px = x; b.y = b.py = y; b.vx = vx; b.vy = vy; b.mode = mode || 'field'; b.h = 0; b.holder = null; b.path = null; b.captive = false; b.hidden = false; return b; }
+        if (b) { b.x = b.px = x; b.y = b.py = y; b.vx = vx; b.vy = vy; clearSpin(b); b.mode = mode || 'field'; b.h = 0; b.holder = null; b.path = null; b.captive = false; b.hidden = false; return b; }
         b = makeBall(id, x, y, vx, vy, mode);
         balls.set(id, b); list.push(b);
         return b;
@@ -177,11 +179,15 @@ export function createWorld(layout, { seed = 1 } = {}) {
         const d = Math.sqrt(d2);
         const nx = d > 1e-9 ? dx / d : 0, ny = d > 1e-9 ? dy / d : 1, pen = rr - d;
         a.x += nx * pen * 0.5; a.y += ny * pen * 0.5; b.x -= nx * pen * 0.5; b.y -= ny * pen * 0.5;
-        const vn = -((a.vx - b.vx) * nx + (a.vy - b.vy) * ny);
+        const rvx = a.vx - b.vx, rvy = a.vy - b.vy, vn = -(rvx * nx + rvy * ny);
         a.exempt = true; b.exempt = true;
         if (vn > 0) {
             const j = (1 + 0.93) * vn * 0.5;
             a.vx += nx * j; a.vy += ny * j; b.vx -= nx * j; b.vy -= ny * j;
+            if (vn >= 0.03) {       // friction in the pair's centre-of-mass frame: each ball sees half the relative velocity
+                contactFriction(a, nx, ny, MATERIALS_BALL_MU, j, rvx * 0.5, rvy * 0.5);
+                contactFriction(b, -nx, -ny, MATERIALS_BALL_MU, j, -rvx * 0.5, -rvy * 0.5);
+            }
             if (vn > 0.2 && tick - a.clackTick >= IMPACT_GAP && tick - b.clackTick >= IMPACT_GAP) {
                 a.clackTick = b.clackTick = tick;
                 emit('clack', 'ball', a, { other: b.id, speed: vn });
@@ -206,7 +212,7 @@ export function createWorld(layout, { seed = 1 } = {}) {
         return best;
     }
     function launch(ball, speed, auto) {
-        ball.vx = 0; ball.vy = speed; ball.mode = 'field'; ball.auto = false;
+        ball.vx = 0; ball.vy = speed; clearSpin(ball); ball.mode = 'field'; ball.auto = false;
         emit('launch', 'plunger', ball, { speed, auto });
     }
     function plungerTick(cmd) {
@@ -238,13 +244,11 @@ export function createWorld(layout, { seed = 1 } = {}) {
             const b = list[i];
             b.px = b.x; b.py = b.y; b.exempt = false;
             if (!live(b)) continue;
-            b.e0 = 0.5 * (b.vx * b.vx + b.vy * b.vy) + G_SLOPE * b.y;
+            b.e0 = specificEnergy(b, G_SLOPE);
             b.vy -= G_SLOPE * h;
+            floorStep(b, h, ROLL_DECEL.field, null);       // S3 replaces null with the moving-floor lookup
             const s2 = b.vx * b.vx + b.vy * b.vy;
-            if (s2 > 0) {
-                const s = Math.sqrt(s2), ns = Math.min(MAX_SPEED, s - ROLL_DECEL.field * h);
-                if (ns <= 0) { b.vx = 0; b.vy = 0; } else { const k = ns / s; b.vx *= k; b.vy *= k; }
-            }
+            if (s2 > MAX_SPEED * MAX_SPEED) { const k = MAX_SPEED / Math.sqrt(s2); b.vx *= k; b.vy *= k; }
             b.x += b.vx * h; b.y += b.vy * h;
         }
         for (let i = 0; i < flippers.length; i++) advanceFlipper(flippers[i], h);

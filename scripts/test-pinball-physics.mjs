@@ -15,8 +15,8 @@ const flip = id => neon.flippers.find(f => f.id === id);
 const near = (a, b, tol, what) => assert.ok(Math.abs(a - b) <= tol, what + ': ' + a + ' vs ' + b + ' (tol ' + tol + ')');
 
 // A closed box with thin interior walls and posts; no plunger zone, no drain.
-function boxLayout(half = 0.15, withObstacles = true) {
-    const walls = [{ id: 'box', material: 'metal', closed: true, points: [[-half, 0.2], [half, 0.2], [half, 0.8], [-half, 0.8]] }];
+function boxLayout(half = 0.15, withObstacles = true, material = 'metal') {
+    const walls = [{ id: 'box', material, closed: true, points: [[-half, 0.2], [half, 0.2], [half, 0.8], [-half, 0.8]] }];
     const posts = [];
     if (withObstacles) {
         walls.push({ id: 'bar1', material: 'wood', closed: false, points: [[-0.12, 0.35], [-0.02, 0.45]] });
@@ -147,9 +147,10 @@ const cradle = {};
     w.placeBall(1, L.x + 0.04, L.y + 0.07, 0, 0);
     const pos = [];
     run(w, 3 * 480, () => ({ left: true }), (t, ww) => { const b = ww.snapshot().balls[0]; pos.push([b.x, b.y, Math.hypot(b.vx, b.vy)]); });
-    const last = pos[pos.length - 1], ref = pos[480];
+    // The ball rolls (5/7 g) and needs up to 1.6 s to come to rest in the pivot wedge (1.0 s before spin): measure from 1.5 s.
+    const last = pos[pos.length - 1], ref = pos[720];
     let drift = 0;
-    for (let i = 480; i < pos.length; i++) drift = Math.max(drift, Math.hypot(pos[i][0] - ref[0], pos[i][1] - ref[1]));
+    for (let i = 720; i < pos.length; i++) drift = Math.max(drift, Math.hypot(pos[i][0] - ref[0], pos[i][1] - ref[1]));
     Object.assign(cradle, { speed: last[2], drift, pivot: Math.hypot(last[0] - L.x, last[1] - L.y) });
     assert.ok(last[2] < 0.02, 'cradle speed ' + last[2]);
     assert.ok(drift < 0.003, 'cradle drift ' + drift);
@@ -274,6 +275,7 @@ const pair = {};
     };
     const base = play(0), ref = play(60);
     assert.ok(base.events.some(e => e.type === 'launch'), 'balls launched');
+    assert.ok(ref.snap.balls[0].wx !== undefined && Number.isFinite(ref.snap.balls[0].wz), 'the snapshot carries spin');
     for (const hz of [30, 144]) {
         const got = play(hz);
         assert.deepEqual(got.snap, ref.snap, 'snapshots equal at ' + hz + ' Hz');
@@ -286,6 +288,36 @@ const pair = {};
     a.placeBall(1, 0, 0.5, 0, 0); b.placeBall(1, 0.01, 0.5, 0, 0);
     const mid = lerpSnapshot(a.snapshot(), b.snapshot(), 0.5);
     near(mid.balls[0].x, 0.005, 1e-12, 'lerp');
+}
+
+// 11. Rolling: a struck ball without spin slides, then rolls at 5/7 of its speed (vx + K R wy is conserved by floor friction).
+{
+    const w = createWorld(boxLayout(0.8, false));
+    const ball = w.placeBall(1, -0.7, 0.78, 1, 0);
+    assert.equal(ball.wy, 0);
+    run(w, 480);
+    const b = w.snapshot().balls[0];
+    near(BALL_R * b.wy, b.vx, 1e-3, 'rolling: R*wy equals vx');
+    near(-BALL_R * b.wx, b.vy, 1e-3, 'rolling: -R*wx equals vy');
+    near(b.vx, 5 / 7, 0.06, 'rolling speed 5/7 of the struck speed');
+}
+
+// 12. Spin exchange: a ball with side spin that strikes a rubber wall head-on leaves with a tangential velocity.
+{
+    const hit = wz => {
+        const w = createWorld(boxLayout(0.15, false, 'rubber'));
+        const ball = w.placeBall(1, 0, 0.26, 0, -1);
+        ball.wz = wz;
+        let out = null;
+        for (let t = 0; t < 200 && !out; t++) { w.step({}); if (w.events().some(e => e.type === 'impact')) out = w.snapshot().balls[0]; }
+        assert.ok(out, 'the ball hits the wall');
+        return out;
+    };
+    // The wall is below the ball (n = +y, t = -x); wz > 0 turns the contact point toward +x, so friction pushes the ball to -x.
+    const spun = hit(150), plain = hit(0);
+    assert.ok(spun.vx < -0.05, 'side spin gives a tangential velocity: ' + spun.vx);
+    assert.ok(Math.abs(plain.vx) < 1e-6, 'no spin, no tangential velocity: ' + plain.vx);
+    assert.ok(spun.wz < 150, 'the spin gave up some of its angular velocity');
 }
 
 // Cost of a 4-ball step: Neon with flippers working, drained balls are put back so four are always in play.

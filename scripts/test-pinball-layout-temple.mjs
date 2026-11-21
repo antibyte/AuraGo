@@ -4,6 +4,7 @@ import { TABLES } from '../ui/js/desktop/apps/pinball/tables/index.js';
 import { validateTable } from '../ui/js/desktop/apps/pinball/tables/validate.js';
 import { createWorld } from '../ui/js/desktop/apps/pinball/physics/world.js';
 import { STEP, FLIPPER, BALL_R } from '../ui/js/desktop/apps/pinball/physics/constants.js';
+import { setRolling } from '../ui/js/desktop/apps/pinball/physics/spin.js';
 import { distPointSeg } from '../ui/js/desktop/apps/pinball/tables/kit/geom.js';
 
 const layout = TABLES.temple.layout;
@@ -94,7 +95,7 @@ test('the right orbit exit feeds the upper flipper, which throws the ball back u
     const f = layout.flippers.find(x => x.id === 'upperRight'), rest = FLIPPER.rest;
     const tip = [f.x + f.side * FLIPPER.length * Math.cos(rest), f.y + FLIPPER.length * Math.sin(rest)];
     const w = fresh();
-    w.placeBall(1, 0.2055, 0.80, 0, -0.8);
+    setRolling(w.placeBall(1, 0.2055, 0.80, 0, -1.2), 0, -1.2);   // the ball comes down the orbit already rolling (1.2 m/s: the bounce chain is chaotic, 0.8 m/s was a lucky pocket before spin)
     let touched = false, hit = -1, maxAfter = 0;
     play(w, 4, t => ({ right: hit >= 0 && t >= hit }), (b, t) => {
         const d = distPointSeg(b.x, b.y, f.x, f.y, tip[0], tip[1]);

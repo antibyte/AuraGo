@@ -13,6 +13,10 @@ export const SUBSTEP_MAX = 32;
 
 export const ROLL_DECEL = Object.freeze({ field: 0.055, plastic: 0.16, wire: 0.26, tube: 0.30 });
 
+// Ball spin (spin.js): inertia = I/(m R^2) of a solid sphere, floorMu = playfield friction, discMu = moving-disc friction,
+// zDecel = pivot friction about the playfield normal (rad/s^2), maxW = spin clamp (rad/s).
+export const SPIN = Object.freeze({ inertia: 0.4, floorMu: 0.10, discMu: 0.18, zDecel: 3.0, maxW: 1000 });
+
 // e = vn < 0.03 ? 0 : clamp(e0 - eSlope * vn, eMin, e0); mu is the friction coefficient.
 export const MATERIALS = Object.freeze({
     wood: Object.freeze({ e0: 0.55, eSlope: 0.05, eMin: 0.35, mu: 0.15 }),

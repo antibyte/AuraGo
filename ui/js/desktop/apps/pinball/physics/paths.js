@@ -16,6 +16,7 @@
 //                                                              state set by the `diverter` command (defaults from layout).
 // position(ball) returns a shared scratch array: copy it if you keep it.
 import { BALL_R, G_SLOPE, G_NORMAL, MAX_SPEED, ROLL_DECEL } from './constants.js';
+import { setRolling } from './spin.js';
 
 const SEGMENTS = 200;
 const SEP = 2 * BALL_R;
@@ -116,6 +117,7 @@ export function createPaths(defs, ctx) {
         lookup(P, st.s);
         ball.x = S.x; ball.y = S.y; ball.h = S.h;
         ball.vx = S.tx * st.v; ball.vy = S.ty * st.v;
+        setRolling(ball, ball.vx, ball.vy); ball.wz = 0;   // rolling along the tangent; toField keeps the spin
     }
     function attach(P, ball, v, ex, ey) {
         const st = { id: P.id, s: 0, v: Math.min(MAX_SPEED, v), ps: 0, ex, ey };
