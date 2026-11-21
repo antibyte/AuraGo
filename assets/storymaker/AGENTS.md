@@ -18,6 +18,7 @@ Offline production of three articulated Desktop-pet characters, illustrated envi
 - Preserve storymaker/1, all twelve old character IDs through aliases, and pose/gesture/expression/mouth names. Aliases resolve saved stories but never add library entries.
 - Mouths are actual openings in the face mesh, with attached textured lips, recessed oral cavities, teeth and tongues. Keep matching skin weights at the cut boundary; never project a dark mouth plate onto closed skin. Speech deforms the lips/lower jaw; it never swaps heads or translates the skull. Review hands, proportions, sitting and walking in rendered motion at display size.
 - Model production is deterministic and offline. Keep source hashes, copied notices and generator hashes. Geometry and motion rights remain distinct. Builds never invoke providers.
+- The delivered model notices and licenses use LF on every checkout so the catalog hashes match on Windows.
 - Inventory every delivery dependency with exact size/hash and image dimensions. Total budget: 256 MiB; per-file limit: 8 MiB. Model bounds belong to ASSET-CONTRACT.md.
 
 ## Work Guidance
