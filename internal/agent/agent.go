@@ -793,6 +793,87 @@ func isToolCallBoolType(typ reflect.Type) bool {
 	return typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Bool
 }
 
+// toolCallSharedFieldKind is the JSON type the typed ToolCall field of a shared key holds.
+type toolCallSharedFieldKind int
+
+const (
+	sharedFieldString     toolCallSharedFieldKind = iota // string field: a JSON number or array does not fit
+	sharedFieldInt                                       // int field: a JSON string does not fit
+	sharedFieldStringList                                // []string field: a JSON string or object does not fit
+)
+
+// toolCallSharedFieldKinds lists the JSON keys whose typed ToolCall field belongs to ONE tool while another tool declares
+// the same property with a different JSON type (priority is an int for co-agents and memory notes but a label for
+// notifications and todos; channel is the notification channel name but a slot number for meshcore; and so on). The
+// ToolCall struct is shared, so one such value used to fail the whole call (invalid_arguments) although it matches the
+// schema of the tool that was called. Handlers of these tools read the flat Params map, not the typed field.
+//
+// withholdMismatchedSharedFields takes a value of the listed mismatching JSON type out of the typed decode: the typed
+// field stays at its zero value and Params keeps what the model sent. Every other type, null and a value that fits the
+// field are left alone, so a real mistake still fails. Unlike toolCallStringFields nothing is converted: the typed field
+// has no meaningful text for these values.
+var toolCallSharedFieldKinds = map[string]toolCallSharedFieldKind{
+	"priority":        sharedFieldInt,        // ToolCall.Priority int; send_notification, send_telegram, cyd_display, manage_todos send a label
+	"power_action":    sharedFieldInt,        // ToolCall.PowerAction int; meshcentral sends off, reset, sleep, amt_on, ...
+	"channel":         sharedFieldString,     // ToolCall.Channel string; meshcore sends a slot number
+	"quality":         sharedFieldString,     // ToolCall.Quality string; remote_control screenshots send 1-100
+	"allowed_domains": sharedFieldString,     // ToolCall.AllowedDomains string; here_now_site sends a list of domains
+	"command":         sharedFieldString,     // ToolCall.Command string; huggingface job_run_container sends a list of words
+	"env":             sharedFieldStringList, // ToolCall.Env []string; huggingface sends an object or an object text
+}
+
+// withholdMismatchedSharedFields removes the toolCallSharedFieldKinds keys whose JSON type does not fit their typed field
+// from the data used for the typed decode and returns their raw JSON. When there is nothing to withhold (not an object,
+// not parseable, no key present, every value fits or has another type) it returns data itself, untouched.
+func withholdMismatchedSharedFields(data []byte) ([]byte, map[string]json.RawMessage) {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return data, nil
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return data, nil
+	}
+	var withheld map[string]json.RawMessage
+	for key, kind := range toolCallSharedFieldKinds {
+		val, ok := raw[key]
+		if !ok {
+			continue
+		}
+		v := bytes.TrimSpace(val)
+		if len(v) == 0 || !kind.mismatches(v[0]) {
+			continue
+		}
+		if withheld == nil {
+			withheld = make(map[string]json.RawMessage)
+		}
+		withheld[key] = val
+		delete(raw, key)
+	}
+	if len(withheld) == 0 {
+		return data, nil
+	}
+	out, err := json.Marshal(raw)
+	if err != nil {
+		return data, nil
+	}
+	return out, withheld
+}
+
+// mismatches reports whether a JSON value starting with first is one of the types the typed field cannot hold, but that
+// the other tool sharing the key sends. Booleans, null and everything else are not listed on purpose.
+func (kind toolCallSharedFieldKind) mismatches(first byte) bool {
+	switch kind {
+	case sharedFieldString:
+		return first == '[' || first == '-' || (first >= '0' && first <= '9')
+	case sharedFieldInt:
+		return first == '"'
+	case sharedFieldStringList:
+		return first == '"' || first == '{'
+	}
+	return false
+}
+
 func coerceToolCallStringFields(data []byte) []byte {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 || trimmed[0] != '{' {
@@ -1016,6 +1097,9 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	data = coerceToolCallStringFields(data)
 	data = coerceToolCallBoolFields(data)
 	data = coerceToolCallStringMapFields(data)
+	// Keys that another tool declares with a different JSON type than their typed field (priority, channel, command, ...)
+	// stay out of the typed decode; they are put back into Params below.
+	data, withheld := withholdMismatchedSharedFields(data)
 
 	// Start from the current state so absent JSON fields do not zero-out values that
 	// were set programmatically (e.g. native-tool shortcut prefill).
@@ -1032,6 +1116,16 @@ func (tc *ToolCall) UnmarshalJSON(data []byte) error {
 	}
 	restoreOriginalArrayToolArgs(raw, originalData, "to", "cc")
 	restoreOriginalToolArgTypes(raw, originalData, "code", "value", "text")
+	// The withheld values are not in raw (they were removed from data): the flat Params map keeps them as sent, a number
+	// as a number, a list as a list, an object as an object. raw is overlaid last below, so this also covers the plain
+	// json.Unmarshal path where Params has no pre-filled copy.
+	for key, value := range withheld {
+		var decoded interface{}
+		if err := json.Unmarshal(value, &decoded); err != nil {
+			continue
+		}
+		raw[key] = decoded
+	}
 
 	merged := make(map[string]interface{})
 	// Start with the explicit `params` object if present.
