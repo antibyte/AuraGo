@@ -232,7 +232,7 @@
                             </div>
                             <div class="gm-visual-strip" data-gm-visual hidden aria-live="polite"><span data-gm-visual-status>${esc(t('game_maker.agent_view'))}</span></div>
                             <details class="gm-diagnostics" data-gm-diagnostics>
-                                <summary>${esc(t('game_maker.diagnostics'))} <span data-gm-diagnostic-count>0</span></summary>
+                                <summary>${esc(t('game_maker.diagnostics'))} <span data-gm-diagnostic-count>0</span> <button type="button" class="gm-diagnostics-fix" data-gm-action="fix_diagnostics" data-gm-fix-diagnostics hidden>${esc(t('game_maker.fix_diagnostics'))}</button></summary>
                                 <ul data-gm-diagnostic-list></ul>
                             </details>
                         </section>
@@ -293,6 +293,8 @@
                 setStudioStep(state, stepButton.dataset.gmStep);
                 return;
             }
+            const fixButton = event.target.closest('[data-gm-fix-diagnostics]');
+            if (fixButton) event.preventDefault();
             const button = event.target.closest('[data-gm-action]');
             if (!button) return;
             closeMoreMenu(state, true);
@@ -321,6 +323,7 @@
                     } catch (error) { addDiagnostic(state, { level: 'error', message: error.message }); }
                 },
                 adopt: () => adoptWorkspace(state),
+                fix_diagnostics: () => fixDiagnostics(state),
                 scene_debug: () => preview && preview.setSceneDebug(state, !state.sceneDebug),
                 fullscreen: () => preview && preview.toggleFullscreen(state),
                 open_tab: () => preview && preview.openTab(state),
@@ -434,6 +437,7 @@
             availability.status === 'ready' ? '' : state.context.t('game_maker.creation_unavailable');
         notice.querySelector('[data-gm-capability-message]').textContent = message;
         if (message) showNotice(state, message, 'warning');
+        syncDiagnosticsControls(state);
     }
 
     function capabilityState(capabilities) {
@@ -1078,7 +1082,7 @@
             const job = await state.api.startJob(state.project.id, Object.assign({
                 prompt: '',
                 resume: true,
-                preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
+                preview_diagnostics: currentPreviewDiagnostics(state),
                 asset_pack_ids: selection.asset_pack_ids,
                 model_asset_ids: selection.model_asset_ids,
                 asset_selections: selection.asset_selections,
@@ -1302,6 +1306,47 @@
         window.GameMakerStudioPreview.handleMessage(state, event);
     }
 
+    function errorDiagnostics(state) {
+        return (state.diagnostics || []).filter(item =>
+            item && (item.level === 'error' || item.level === 'runtime') && String(item.message || '').trim());
+    }
+
+    function currentPreviewDiagnostics(state) {
+        const items = [];
+        const seen = new Set();
+        const push = item => {
+            if (!item || !String(item.message || '').trim()) return;
+            const level = String(item.level || 'runtime');
+            const message = String(item.message).trim();
+            const file = String(item.file || '').trim();
+            const key = `${level}\0${message}\0${file}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            items.push(file ? { level, message, file } : { level, message });
+        };
+        if (state.previewProjectID === state.project?.id) {
+            (state.previewDiagnostics || []).forEach(push);
+        }
+        errorDiagnostics(state).forEach(push);
+        return items;
+    }
+
+    function syncDiagnosticsControls(state) {
+        const button = state.container?.querySelector('[data-gm-fix-diagnostics]');
+        if (!button) return;
+        const hasErrors = errorDiagnostics(state).length > 0;
+        button.hidden = !hasErrors;
+        const otherBusy = typeof otherProjectBusy === 'function' ? otherProjectBusy(state) : false;
+        const editable = Boolean(state.project && !state.jobActive &&
+            state.capabilities && state.capabilities.allow_edit && !otherBusy);
+        button.disabled = !editable;
+        if (!editable && state.capabilities && (state.capabilities.readonly || !state.capabilities.allow_edit)) {
+            button.title = state.context.t('game_maker.readonly_notice');
+        } else {
+            button.removeAttribute('title');
+        }
+    }
+
     function addDiagnostic(state, diagnostic) {
         state.diagnostics.push({
             level: String(diagnostic.level || 'info').slice(0, 32),
@@ -1317,11 +1362,11 @@
         </li>`).join('');
         state.container.querySelector('[data-gm-diagnostic-count]').textContent = String(state.diagnostics.length);
         const panel = state.container.querySelector('[data-gm-diagnostics]');
-        panel.classList.toggle('has-errors',
-            state.diagnostics.some(item => item.level === 'error' || item.level === 'runtime'));
+        panel.classList.toggle('has-errors', errorDiagnostics(state).length > 0);
         if (diagnostic.level === 'error' || diagnostic.level === 'runtime') {
             panel.open = true;
         }
+        syncDiagnosticsControls(state);
     }
 
     function clearDiagnostics(state) {
@@ -1333,6 +1378,7 @@
         const panel = state.container.querySelector('[data-gm-diagnostics]');
         panel.classList.remove('has-errors');
         panel.open = false;
+        syncDiagnosticsControls(state);
     }
 
     function postedSelection(state, resume, dimension) {
@@ -1490,11 +1536,15 @@
         });
     }
 
-    async function submitChange(state, resume = false) {
+    async function submitChange(state, resume = false, customPrompt = '') {
         const form = state.container.querySelector('[data-gm-change-form]');
         const input = form.querySelector('textarea');
-        const prompt = resume ? '' : input.value.trim();
-        if ((!resume && !prompt) || !state.project || state.jobActive || input.disabled) return;
+        const hasCustomPrompt = !resume && Boolean(String(customPrompt || '').trim());
+        const prompt = resume ? '' : (hasCustomPrompt ? String(customPrompt).trim() : input.value.trim());
+        const otherBusy = typeof otherProjectBusy === 'function' ? otherProjectBusy(state) : false;
+        const editable = Boolean(state.project && !state.jobActive &&
+            state.capabilities && state.capabilities.allow_edit && !otherBusy);
+        if ((!resume && !prompt) || !state.project || state.jobActive || (!hasCustomPrompt && input.disabled) || (hasCustomPrompt && !editable)) return;
         const selectionError=window.GameMakerStudioAssets?.selectionError(state,state.project.dimension);
         if(selectionError){fail(state,new Error(selectionError));return;}
         if (state.project.dimension !== '3d' && state.selectedModelAssetIDs?.length) {
@@ -1507,9 +1557,12 @@
         state.container.querySelector('[data-gm-outcome]')?.remove();
         input.disabled = true;
         form.querySelector('button[type="submit"]').disabled = true;
+        if (typeof syncDiagnosticsControls === 'function') syncDiagnosticsControls(state);
         if (!resume) {
-            input.value = '';
-            autoGrow(input);
+            if (!hasCustomPrompt) {
+                input.value = '';
+                autoGrow(input);
+            }
             state.messages.push({ role: 'user', content: prompt });
             renderConversation(state);
             scrollConversation(state);
@@ -1520,7 +1573,9 @@
             state.job = await state.api.startJob(state.project.id, {
                 prompt,
                 resume,
-                preview_diagnostics: state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : [],
+                preview_diagnostics: typeof currentPreviewDiagnostics === 'function'
+                    ? currentPreviewDiagnostics(state)
+                    : (state.previewProjectID === state.project.id ? (state.previewDiagnostics || []) : []),
                 asset_pack_ids: selection.asset_pack_ids,
                 model_asset_ids: selection.model_asset_ids,
                 asset_selections: selection.asset_selections,
@@ -1536,16 +1591,40 @@
             applyStartedJob(state, state.job);
         } catch (error) {
             if (!resume) {
-                input.value = prompt;
-                autoGrow(input);
+                if (!hasCustomPrompt) {
+                    input.value = prompt;
+                    autoGrow(input);
+                }
                 state.messages.pop();
                 renderConversation(state);
             }
             state.jobActive = false;
             input.disabled = false;
             form.querySelector('button[type="submit"]').disabled = false;
+            if (typeof syncDiagnosticsControls === 'function') syncDiagnosticsControls(state);
             fail(state, error);
         }
+    }
+
+    async function fixDiagnostics(state) {
+        const otherBusy = typeof otherProjectBusy === 'function' ? otherProjectBusy(state) : false;
+        if (!state.project || state.jobActive || !state.capabilities?.allow_edit || otherBusy) return;
+        const errors = errorDiagnostics(state);
+        if (!errors.length) return;
+        const seen = new Set();
+        const lines = [];
+        errors.forEach(item => {
+            const msg = String(item.message || '').trim();
+            const file = String(item.file || '').trim();
+            const line = file && !msg.includes(file) ? `${msg} (${file})` : msg;
+            if (!line || seen.has(line)) return;
+            seen.add(line);
+            lines.push(line);
+        });
+        if (!lines.length) return;
+        const prompt = state.context.t('game_maker.fix_diagnostics_prompt', { errors: lines.join('\n') });
+        if (stepBarShown(state)) await setStudioStep(state, 'agent');
+        return submitChange(state, false, prompt);
     }
 
     async function stopJob(state) {
@@ -1597,6 +1676,7 @@
                 state.container.innerHTML = shell(state);
                 state.activity = window.GameMakerStudioActivity?.create(state);
                 bindShell(state);
+                clearDiagnostics(state);
                 applyCapabilities(state);
                 renderProjects(state);
                 syncJobControls(state);
@@ -1770,6 +1850,7 @@
         const textarea = form.querySelector('textarea');
         textarea.disabled = !editable;
         form.querySelector('button').disabled = !editable;
+        if (typeof syncDiagnosticsControls === 'function') syncDiagnosticsControls(state);
         renderProjectContext(state);
         if (window.GameMakerStudioPreview && window.GameMakerStudioPreview.updateStaleBadge) {
             window.GameMakerStudioPreview.updateStaleBadge(state);

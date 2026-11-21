@@ -6354,6 +6354,13 @@ registration lives in `internal/desktop/types.go`.
   status text and thumbnails must not squeeze the live game into a narrow band.
   Verify capture retention/disposal with `TestGameMakerAgentCaptureBrowser`
   and local, channel-bound diagnostics with `TestGameMakerDiagnosticFramesBrowser`.
+  The diagnostics header exposes `[data-gm-fix-diagnostics]`
+  (`data-gm-action="fix_diagnostics"`, localized via `game_maker.fix_diagnostics`
+  and `game_maker.fix_diagnostics_prompt`) only while `error`/`runtime`
+  diagnostics exist; it respects edit/job locks, keeps `<details>` open on
+  click, submits the formatted errors plus `preview_diagnostics` without
+  overwriting textarea drafts, and is verified by
+  `TestGameMakerDiagnosticsFixActionBrowser`.
   `scripts/test-ui-regressions.mjs` covers the three-image limit, build-scoped
   diagnostic reset, bounded local feedback, explicit change requests and optional
   asset/model selections. Interactive reload keeps build diagnostics and Agent

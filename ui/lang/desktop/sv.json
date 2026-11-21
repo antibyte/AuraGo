@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "Exempel: Ett mysigt leveransspel i rymden med korta uppdrag, uppgraderingar och ett oändligt poängläge.",
   "game_maker.details": "Detaljer",
   "game_maker.diagnostics": "Diagnostik",
+  "game_maker.fix_diagnostics": "Skicka till agenten för åtgärd",
+  "game_maker.fix_diagnostics_prompt": "Åtgärda detta fel i spelet:\n{{errors}}",
   "game_maker.dimension": "Speltyp",
   "game_maker.disabled_notice": "Game Maker Studio är inaktiverat eller skrivskyddat. En administratör kan aktivera det i konfigurationen.",
   "game_maker.empty_hint": "Beskriv ett spel eller en ändring. Agenten väljer arbetssätt och ramverk.",

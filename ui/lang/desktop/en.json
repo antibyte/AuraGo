@@ -5131,6 +5131,8 @@
   "game_maker.description_placeholder": "Example: A cozy space delivery game with short missions, upgrades, and an endless score mode.",
   "game_maker.details": "Details",
   "game_maker.diagnostics": "Diagnostics",
+  "game_maker.fix_diagnostics": "Send to agent to fix",
+  "game_maker.fix_diagnostics_prompt": "Please fix this error in the game:\n{{errors}}",
   "game_maker.dimension": "Game type",
   "game_maker.disabled_notice": "Game Maker Studio is disabled or read-only. An administrator can enable it in the configuration.",
   "game_maker.empty_hint": "Describe a game or an edit. The agent chooses its approach and framework.",

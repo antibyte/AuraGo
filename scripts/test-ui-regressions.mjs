@@ -660,7 +660,9 @@ async function testGameMakerDiagnosticsFollowBuildLifetime() {
     toggle(_name, value) { panel.hasErrors = value; },
     remove() { panel.hasErrors = false; }
   } };
+  const fixButton = { hidden: true, disabled: false, removeAttribute() {} };
   nodes.set('[data-gm-diagnostics]', panel);
+  nodes.set('[data-gm-fix-diagnostics]', fixButton);
   nodes.set('[data-gm-preview]', { replaceChildren() {}, querySelector: () => null });
   nodes.set('[data-gm-diagnostic-list]', {});
   nodes.set('[data-gm-diagnostic-count]', {});
@@ -693,6 +695,7 @@ async function testGameMakerDiagnosticsFollowBuildLifetime() {
   } };
   context.handlePreviewMessage(state, oldEvent);
   assert.equal(panel.hasErrors, true);
+  assert.equal(fixButton.hidden, false);
   assert.equal(state.previewDiagnostics.length, 1);
   await context.refreshPreview(state);
   context.handlePreviewMessage(state, { ...oldEvent, data: { ...oldEvent.data, message: 'late old frame' } });
@@ -705,6 +708,7 @@ async function testGameMakerDiagnosticsFollowBuildLifetime() {
   assert.equal(nodes.get('[data-gm-diagnostic-list]').innerHTML, '');
   assert.equal(nodes.get('[data-gm-diagnostic-count]').textContent, '0');
   assert.equal(panel.hasErrors, false);
+  assert.equal(fixButton.hidden, true);
   assert.equal(panel.open, false);
   const currentEvent = { ...oldEvent, source: state.frame.contentWindow,
     data: { ...oldEvent.data, channel: state.channelID } };

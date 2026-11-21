@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "Esempio: un accogliente gioco di consegne nello spazio con missioni brevi, potenziamenti e una modalità punteggio infinita.",
   "game_maker.details": "Dettagli",
   "game_maker.diagnostics": "Diagnostica",
+  "game_maker.fix_diagnostics": "Invia all'agente per la correzione",
+  "game_maker.fix_diagnostics_prompt": "Correggi questo errore nel gioco:\n{{errors}}",
   "game_maker.dimension": "Tipo di gioco",
   "game_maker.disabled_notice": "Game Maker Studio è disattivato o in sola lettura. Un amministratore può abilitarlo nella configurazione.",
   "game_maker.empty_hint": "Descrivi un gioco o una modifica. L’agente sceglie l’approccio e il framework.",

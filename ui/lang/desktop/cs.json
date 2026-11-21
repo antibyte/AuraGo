@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "Příklad: Útulná vesmírná doručovací hra s krátkými misemi, vylepšeními a nekonečným režimem skóre.",
   "game_maker.details": "Podrobnosti",
   "game_maker.diagnostics": "Diagnostika",
+  "game_maker.fix_diagnostics": "Odeslat agentovi k opravě",
+  "game_maker.fix_diagnostics_prompt": "Oprav prosím tuto chybu ve hře:\n{{errors}}",
   "game_maker.dimension": "Typ hry",
   "game_maker.disabled_notice": "Game Maker Studio je zakázáno nebo je pouze pro čtení. Správce jej může povolit v konfiguraci.",
   "game_maker.empty_hint": "Popiš hru nebo úpravu. Agent si zvolí postup i framework.",

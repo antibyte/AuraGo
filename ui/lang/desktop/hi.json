@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "उदाहरण: छोटे मिशन, अपग्रेड और एक अंतहीन स्कोर मोड वाला आरामदायक अंतरिक्ष डिलीवरी खेल।",
   "game_maker.details": "विवरण",
   "game_maker.diagnostics": "निदान",
+  "game_maker.fix_diagnostics": "सुधार के लिए एजेंट को भेजें",
+  "game_maker.fix_diagnostics_prompt": "कृपया गेम में इस त्रुटि को ठीक करें:\n{{errors}}",
   "game_maker.dimension": "गेम प्रकार",
   "game_maker.disabled_notice": "Game Maker Studio अक्षम है या केवल पढ़ने के लिए है। व्यवस्थापक इसे कॉन्फ़िगरेशन में सक्षम कर सकता है।",
   "game_maker.empty_hint": "कोई खेल या बदलाव बताओ। एजेंट तरीका और फ़्रेमवर्क चुनता है।",

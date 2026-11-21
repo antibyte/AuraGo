@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "Exemplo: Um jogo acolhedor de entregas no espaço, com missões curtas, melhorias e um modo de pontuação infinito.",
   "game_maker.details": "Detalhes",
   "game_maker.diagnostics": "Diagnósticos",
+  "game_maker.fix_diagnostics": "Enviar ao agente para corrigir",
+  "game_maker.fix_diagnostics_prompt": "Por favor, corrija este erro no jogo:\n{{errors}}",
   "game_maker.dimension": "Tipo de jogo",
   "game_maker.disabled_notice": "O Game Maker Studio está desativado ou em modo de apenas leitura. Um administrador pode ativá-lo na configuração.",
   "game_maker.empty_hint": "Descreve um jogo ou uma alteração. O agente escolhe a abordagem e o framework.",

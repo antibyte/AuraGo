@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "Eksempel: Et hyggeligt rumleveringsspil med korte missioner, opgraderinger og en endeløs scoretilstand.",
   "game_maker.details": "Detaljer",
   "game_maker.diagnostics": "Diagnostik",
+  "game_maker.fix_diagnostics": "Send til agent til rettelse",
+  "game_maker.fix_diagnostics_prompt": "Ret venligst denne fejl i spillet:\n{{errors}}",
   "game_maker.dimension": "Spiltype",
   "game_maker.disabled_notice": "Game Maker Studio er deaktiveret eller skrivebeskyttet. En administrator kan aktivere det i konfigurationen.",
   "game_maker.empty_hint": "Beskriv et spil eller en ændring. Agenten vælger fremgangsmåde og framework.",

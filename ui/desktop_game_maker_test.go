@@ -71,6 +71,9 @@ func TestGameMakerStudioDesktopRegistrationAndIsolation(t *testing.T) {
 		`data-gm-retry-model`,
 		`showAgentCapture`,
 		`game_maker.agent_view`,
+		`data-gm-fix-diagnostics`,
+		`game_maker.fix_diagnostics`,
+		`game_maker.fix_diagnostics_prompt`,
 	} {
 		if !strings.Contains(app+modals+preview, marker) {
 			t.Errorf("Game Maker UI missing lifecycle/security marker %q", marker)
@@ -176,6 +179,7 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.compact_opt_in",
 		"game_maker.compact_mode_title", "game_maker.compact_mode_body",
 		"game_maker.revision_paths_truncated",
+		"game_maker.fix_diagnostics", "game_maker.fix_diagnostics_prompt",
 	}
 	for _, file := range files {
 		data, err := os.ReadFile(file)
@@ -219,6 +223,7 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 			"game_maker.check_prompt_role":        {"{{id}}"},
 			"game_maker.revision_paths_truncated": {"{{count}}"},
 			"game_maker.deleted_notice":           {"{{name}}"},
+			"game_maker.fix_diagnostics_prompt":   {"{{errors}}"},
 		} {
 			for _, placeholder := range placeholders {
 				if !strings.Contains(values[key], placeholder) {

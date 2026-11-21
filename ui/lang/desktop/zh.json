@@ -5130,6 +5130,8 @@
   "game_maker.description_placeholder": "示例：一款温馨的太空配送游戏，包含短任务、升级，以及无尽得分模式。",
   "game_maker.details": "详情",
   "game_maker.diagnostics": "诊断",
+  "game_maker.fix_diagnostics": "发送给智能体修复",
+  "game_maker.fix_diagnostics_prompt": "请修复游戏中的以下错误：\n{{errors}}",
   "game_maker.dimension": "游戏类型",
   "game_maker.disabled_notice": "Game Maker Studio 已禁用或为只读。管理员可以在配置中启用它。",
   "game_maker.empty_hint": "描述游戏或修改需求，代理会自行选择开发方式和框架。",
