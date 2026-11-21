@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {springStep,stanceWeight,solveLeg,findRig,adaptFeet,soleLift,soleGaps,SOLE} from '../ui/js/desktop/apps/sysworld-footing.js';
+import {springStep,stanceWeight,solveLeg,findRig,adaptFeet,soleLift,soleGaps,hopStep,HOP_SPEED,HOP_GRAVITY,SOLE} from '../ui/js/desktop/apps/sysworld-footing.js';
 import {lobbyGround,treadCentre,PODIUMS} from '../ui/js/desktop/apps/sysworld-lobbies.js';
 import {createContactShadows} from '../ui/js/desktop/apps/sysworld-contact.js';
 
@@ -20,6 +20,35 @@ import {createContactShadows} from '../ui/js/desktop/apps/sysworld-contact.js';
   const jump={y:0,v:0};springStep(jump,2,dt);assert.equal(jump.y,2,'teleports snap');
   const still={y:0,v:0};springStep(still,.14,0);assert.equal(still.y,.14,'reduced motion snaps');
   const unset={y:NaN,v:0};springStep(unset,.3,dt);assert.equal(unset.y,.3,'an unset spring starts at its target');
+}
+// --- Street hop ---
+{
+  const dt=1/60,stand=2.9;
+  // A flat hop rises towards the closed-form apex and lands back on the same floor.
+  const hop={vy:HOP_SPEED,y:stand};let peak=stand,steps=0;
+  while(hop.vy!==0&&steps<200){peak=Math.max(peak,hopStep(hop,stand,dt));steps++;}
+  assert.equal(hop.vy,0,'the hop lands');
+  assert.equal(hop.y,stand,'landing snaps onto the floor');
+  assert.ok(peak>stand+.5&&peak<=stand+HOP_SPEED*HOP_SPEED/(2*HOP_GRAVITY)+1e-9,'apex stays under the closed-form height: '+(peak-stand));
+  assert.ok(steps*dt>.45&&steps*dt<.8,'airtime is about 0.6 s: '+(steps*dt));
+  assert.equal(hopStep(hop,stand,dt),stand,'a landed hop stays grounded');
+  // A floor that drops mid-hop (walking off a kerb) keeps the arc falling to the lower level.
+  const drop={vy:HOP_SPEED,y:stand};let dropped=0;
+  while(drop.vy!==0&&dropped<240){dropped++;hopStep(drop,dropped>12?stand-.12:stand,dt);}
+  assert.equal(drop.vy,0,'the arc falls to the lower floor');
+  assert.equal(drop.y,stand-.12,'landing snaps onto the lower floor');
+  assert.ok(dropped*dt>steps*dt,'crossing down takes longer than the flat hop');
+  // A floor that rises above the arc mid-hop (walking onto a kerb) catches it at once.
+  const rise={vy:HOP_SPEED,y:stand};let risen=0;
+  while(rise.vy!==0&&risen<240){risen++;hopStep(rise,risen>12?stand+2:stand,dt);}
+  assert.equal(rise.vy,0,'the rising floor catches the arc');
+  assert.equal(rise.y,stand+2,'landing snaps onto the higher floor');
+  assert.ok(risen<=13,'the arc ends the step the floor rises');
+  // Grounded, frozen and degenerate states leave the hop untouched.
+  const still={vy:0,y:stand+.2};assert.equal(hopStep(still,stand,dt),stand+.2);assert.equal(still.vy,0,'grounded stays grounded');
+  const frozen={vy:HOP_SPEED,y:stand};hopStep(frozen,stand,0);
+  assert.equal(frozen.y,stand);assert.equal(frozen.vy,HOP_SPEED,'dt 0 freezes the arc (reduced motion cancels it in the scene)');
+  const unsetHop={vy:HOP_SPEED,y:NaN};assert.ok(Number.isNaN(hopStep(unsetHop,stand,dt)),'an unset hop does not move');
 }
 // --- Stance weight ---
 assert.equal(stanceWeight(0),1);assert.equal(stanceWeight(.01),1);assert.equal(stanceWeight(.1),0);

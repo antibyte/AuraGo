@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Quelle",
   "sysworld.city.stale": "Veraltete Daten",
   "sysworld.city.street": "Straße",
-  "sysworld.city.street_help": "WASD / Pfeile zum Bewegen · Ziehen zum Umsehen · Esc zur Übersicht",
+  "sysworld.city.street_help": "WASD / Pfeile zum Bewegen · Leertaste zum Springen · Ziehen zum Umsehen · Esc zur Übersicht",
   "sysworld.city.tour": "Rundgang",
   "sysworld.city.tour_step": "Station {{index}} von {{total}}",
   "sysworld.city.unavailable": "Nicht verfügbar",

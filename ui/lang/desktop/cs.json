@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Zdroj",
   "sysworld.city.stale": "Zastaralá data",
   "sysworld.city.street": "Ulice",
-  "sysworld.city.street_help": "WASD / šipky pro pohyb · tažením se rozhlédni · Esc pro přehled",
+  "sysworld.city.street_help": "WASD / šipky pro pohyb · mezerníkem skoč · tažením se rozhlédni · Esc pro přehled",
   "sysworld.city.tour": "Prohlídka",
   "sysworld.city.tour_step": "Zastávka {{index}} z {{total}}",
   "sysworld.city.unavailable": "Nedostupné",

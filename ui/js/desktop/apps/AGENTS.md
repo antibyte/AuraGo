@@ -5237,8 +5237,12 @@ registration lives in `internal/desktop/types.go`.
   asynchronous city loading. Verify `AURAGO_SYSTEM_WORLD_MOTION=1` with the city
   browser test (all moving groups, pause, persistence and system changes).
   Effective reduced motion suppresses camera flights/tours and the decorative
-  pulse. Street mode owns WASD only while its canvas is
-  focused; pointer lock is explicit and Escape/blur/close release control.
+  pulse. Street mode owns WASD and the Space hop only while its canvas is
+  focused; Space jumps in a bounded ballistic arc onto the walkable floor
+  (pure `HOP_SPEED`/`hopStep` in `sysworld-footing.js`; no ride, hover flight
+  or reduced motion offers it, any other camera placement cancels it, and key
+  repeat does not chain jumps); pointer lock is explicit and Escape/blur/close
+  release control.
 - HUD presentation: district labels are ranked (selected, hovered, error, running,
   then distance with hysteresis) and never overlap each other or HUD panels; a
   label cut by a panel's lower edge slides down its building by at most 90 px.
@@ -5315,7 +5319,8 @@ registration lives in `internal/desktop/types.go`.
   blockade/sidestep units and a 60-minute five-robot simulation), `node
   scripts/build-system-world.js --check`, `node scripts/build-system-world-spot.mjs --check`,
   `node scripts/test-system-world-companion.mjs`, `node scripts/test-system-world-foley.mjs`,
-  `node scripts/test-system-world-expansion.mjs`, the sound tests
+  `node scripts/test-system-world-expansion.mjs`, `node scripts/test-system-world-footing.mjs`
+  (spring, feet and the visitor's street hop), the sound tests
   (`node scripts/test-system-world-{soundscape,zones,sound-meter,sound-space,sound-beds,sound-movers,sound-rooms,sound-frame,recordings}.mjs`)
   and the sound survey (`node scripts/system-world-sound-survey.mjs --label <name> [--baseline <label>] --strict`;
   output in the git-ignored `reports/system-world-sound/`), focused Sysworld Go tests, `go test
@@ -6194,7 +6199,7 @@ registration lives in `internal/desktop/types.go`.
   `ui/js/vendor/system-world/`; never classic-script load this source.
 - `sysworld-furniture-lod.js` - Furniture near and far instance sets: the thresholds (`FURNITURE_LOD`, `nearFlag`), the designs that get sets (`setDesigns`) and the instanced sets `sysworld-scene.js` syncs.
 - `sysworld-windows.js` - The shared `city.window` material: interior-mapped rooms, wall tones (`WINDOW_TONES`), the glass's own environment intensity (`WINDOW_ENV`) and the lit-room cap.
-- `sysworld-footing.js` - Pure resident footing: the critically damped height spring, the two-bone leg solve, the stance weight and `adaptFeet` with the optional stair `snap`.
+- `sysworld-footing.js` - Pure footing: the critically damped height spring, the visitor's street hop (`HOP_SPEED`, `hopStep`), the two-bone leg solve, the stance weight and `adaptFeet` with the optional stair `snap`.
 - `sysworld-lobbies.js` - The lobby registry (podiums, stairs, halls, doors, wall and solid boxes) with `treadCentre` and `FOOT_HALF` for the feet on the flights.
 - `sysworld-hud.js` - Theme-native, localized HTML metrics with CPU/RAM sparklines,
   district navigation with state badges, entity search, inspector, SVG plan map, street

@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Källa",
   "sysworld.city.stale": "Inaktuella data",
   "sysworld.city.street": "Gata",
-  "sysworld.city.street_help": "WASD / pilar för att gå · dra för att se dig omkring · Esc för översikt",
+  "sysworld.city.street_help": "WASD / pilar för att gå · mellanslag för att hoppa · dra för att se dig omkring · Esc för översikt",
   "sysworld.city.tour": "Rundtur",
   "sysworld.city.tour_step": "Stopp {{index}} av {{total}}",
   "sysworld.city.unavailable": "Ej tillgänglig",

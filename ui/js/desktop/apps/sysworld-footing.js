@@ -17,6 +17,19 @@ export function springStep(state,target,dt,omega=14,snap=.6){
   state.v=(state.v-omega*t)*e;state.y=target+(x+t)*e;return state.y;
 }
 
+// The visitor's street hop (Space): a small ballistic arc that lands on the walkable floor.
+// `hop` is `{vy, y}`; the scene starts it at HOP_SPEED while walking. `y` is the height the hop
+// last wrote, `vy` its speed (0 while grounded). A floor that drops mid-hop keeps the arc
+// falling to the lower level; landing snaps onto `stand` and clears `vy`. dt <= 0 freezes the
+// arc unchanged: the scene cancels the hop under reduced motion instead of stepping it.
+export const HOP_SPEED=4.4,HOP_GRAVITY=14;
+export function hopStep(hop,stand,dt){
+  if(hop.vy===0||!(dt>0)||!Number.isFinite(hop.y))return hop.y;
+  hop.vy=-HOP_GRAVITY*dt+hop.vy;
+  if(hop.y+hop.vy*dt<=stand){hop.vy=0;hop.y=stand;return stand;}
+  hop.y+=hop.vy*dt;return hop.y;
+}
+
 // 1 while the animated sole is on its ground plane (lift <= 2.5 cm), 0 in swing (lift >= 7 cm).
 export function stanceWeight(lift,low=.025,high=.07){
   const t=Math.min(1,Math.max(0,(lift-low)/(high-low)));return 1-t*t*(3-2*t);

@@ -7107,7 +7107,7 @@
   "sysworld.city.source": "Source",
   "sysworld.city.stale": "Stale data",
   "sysworld.city.street": "Street",
-  "sysworld.city.street_help": "WASD / arrows to move · drag to look · Esc for overview",
+  "sysworld.city.street_help": "WASD / arrows to move · Space to jump · drag to look · Esc for overview",
   "sysworld.city.tour": "Tour",
   "sysworld.city.tour_step": "Stop {{index}} of {{total}}",
   "sysworld.city.unavailable": "Unavailable",

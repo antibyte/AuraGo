@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Fonte",
   "sysworld.city.stale": "Dati obsoleti",
   "sysworld.city.street": "Strada",
-  "sysworld.city.street_help": "WASD / frecce per muoverti · trascina per guardare · Esc per tornare",
+  "sysworld.city.street_help": "WASD / frecce per muoverti · barra spaziatrice per saltare · trascina per guardare · Esc per tornare",
   "sysworld.city.tour": "Visita",
   "sysworld.city.tour_step": "Tappa {{index}} di {{total}}",
   "sysworld.city.unavailable": "Non disponibile",

@@ -17,7 +17,7 @@ import { createDrones } from './sysworld-drones.js';
 import { createExperience } from './sysworld-experience.js';
 import { createWeather } from './sysworld-weather.js';
 import { interiors, groundHeight } from './sysworld-exploration.js';
-import { springStep } from './sysworld-footing.js';
+import { springStep, hopStep, HOP_SPEED } from './sysworld-footing.js';
 import { streets, towers, surfaces as groundLevels } from './sysworld-layout.js';
 import { createCompanion } from './sysworld-companion.js';
 import { createContactShadows } from './sysworld-contact.js';
@@ -507,7 +507,7 @@ export async function createCity(host, options) {
   function setMode(value) {
     experience.endRide();
     experience.society.suspend();
-    keys.clear(); flight = null; mode = value; controls.enabled = mode === 'orbit' || mode === 'tour';
+    keys.clear(); flight = null; hop.vy = 0; mode = value; controls.enabled = mode === 'orbit' || mode === 'tour';
     visitor.minY=mode==='street'?-2.3:-.4;visitor.ignore=visitor.follow=null;
     visitor.circles[0].r=visitor.reach=mode==='street'?.24:.38;
     if (document.pointerLockElement === canvas) document.exitPointerLock();
@@ -575,6 +575,8 @@ export async function createCity(host, options) {
     // Hover pack: Space climbs and C descends; shortcuts such as Ctrl+C keep their meaning.
     if (mode === 'street' && ['Space','KeyC'].includes(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey) {
       keys.add(e.code); e.preventDefault(); e.stopPropagation();
+      // Walking the street, the same Space hops once per press; key repeat does not chain jumps.
+      if (e.code === 'Space' && !e.repeat) startHop();
     }
   });
   listen(canvas, 'keyup', e => keys.delete(e.code));
@@ -585,6 +587,15 @@ export async function createCity(host, options) {
   observer = new ResizeObserver(resize); observer.observe(host);
   // The visitor's eye follows the ground with the residents' critically damped spring.
   const eye = { y: NaN, v: 0 };
+  // Street hop: Space jumps while walking. Not offered on a ride, on the hover pack or under
+  // reduced motion (rides are instant there as well); the arc runs on the same fixed step.
+  const hop = { vy: 0, y: NaN };
+  function startHop() {
+    if (mode !== 'street' || reduced || hop.vy !== 0 || experience.hovering() || experience.isRiding()) return;
+    const stand = 2.4 + experience.floor(camera.position.x, camera.position.z);
+    if (camera.position.y > stand + .05) return; // still easing down onto the floor
+    hop.vy = HOP_SPEED; hop.y = camera.position.y;
+  }
   function move(dt) {
     const speed = (keys.has('ShiftLeft') ? 25 : 11) * dt;
     let forward = Number(keys.has('KeyW') || keys.has('ArrowUp')) - Number(keys.has('KeyS') || keys.has('ArrowDown'));
@@ -602,6 +613,15 @@ export async function createCity(host, options) {
       if (performance.now() - steeredAt > STEER_HOLD * 1000) levelView(reduced ? Infinity : dt);
     }
     if (experience.isRiding()) { eye.y = NaN; return; }
+    // The hop owns the height while airborne; landing hands the floor back to the spring.
+    if (hop.vy !== 0) {
+      // Anything else that placed the camera (ride, teleport, traffic correction) ends the hop.
+      if (Math.abs(camera.position.y - hop.y) > 1e-6) { hop.vy = 0; }
+      else {
+        camera.position.y = hopStep(hop, 2.4 + experience.floor(camera.position.x, camera.position.z), dt);
+        return;
+      }
+    }
     // Anything else that placed the camera (a visit, a landing, a refused step) restarts the spring there.
     if (!(Math.abs(camera.position.y - eye.y) < 1e-6)) { eye.y = camera.position.y; eye.v = 0; }
     camera.position.y = springStep(eye, 2.4 + experience.floor(camera.position.x, camera.position.z), reduced ? 0 : dt);
@@ -737,7 +757,7 @@ export async function createCity(host, options) {
     visit(id){setMode('street');experience.visit(id);settleCamera();},enter(id){setMode('street');experience.destination(id);settleCamera();},
     setEnvironment(value){weather.set(value);renderer.shadowMap.needsUpdate=true;},
     setVisible(value) { visible = value; if(!value) { simulate(0);experience.suspend();life?.update(0,false);keys.clear(); down = null; if(document.pointerLockElement===canvas) document.exitPointerLock(); } },
-    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value); windows.setReducedMotion(!!value);if(value){flight=null;experience.endRide();experience.society.suspend();} if(value && mode === 'tour') setMode('orbit'); },
+    setReducedMotion(value) { reduced = value; hologram.setReducedMotion(!!value); windows.setReducedMotion(!!value);if(value){flight=null;hop.vy=0;experience.endRide();experience.society.suspend();} if(value && mode === 'tour') setMode('orbit'); },
     setHologram(texts, source) { hologram.setTexts(texts, source); experience.setMemory(texts); },
     setWorld(snapshot,replay) { experience.setWorld(snapshot,replay); },
     moveKey(key, pressed) { if(pressed) keys.add(key); else keys.delete(key); },

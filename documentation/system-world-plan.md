@@ -65,7 +65,7 @@ Camera modes:
 - Orbit overview and searchable entity focus.
 - Accessible 2D map and list.
 - Explicit guided tour; any user navigation immediately stops the tour.
-- Street mode with WASD, mouse look activated by an explicit pointer-lock action,
+- Street mode with WASD, a Space hop over the walkable ground, mouse look activated by an explicit pointer-lock action,
   Escape to release, simple building collision and a safe return to overview.
   Touch uses drag look and movement controls; map destinations remain available.
 - No automatic camera takeover after inactivity. Reduced motion disables ambient

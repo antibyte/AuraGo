@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Fonte",
   "sysworld.city.stale": "Dados antigos",
   "sysworld.city.street": "Rua",
-  "sysworld.city.street_help": "WASD / setas para mover · arrasta para olhar · Esc para voltar",
+  "sysworld.city.street_help": "WASD / setas para mover · espaço para saltar · arrasta para olhar · Esc para voltar",
   "sysworld.city.tour": "Visita",
   "sysworld.city.tour_step": "Parada {{index}} de {{total}}",
   "sysworld.city.unavailable": "Indisponível",

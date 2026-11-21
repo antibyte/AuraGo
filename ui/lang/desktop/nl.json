@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Bron",
   "sysworld.city.stale": "Verouderde gegevens",
   "sysworld.city.street": "Straat",
-  "sysworld.city.street_help": "WASD / pijlen om te bewegen · slepen om rond te kijken · Esc voor overzicht",
+  "sysworld.city.street_help": "WASD / pijlen om te bewegen · spatiebalk om te springen · slepen om rond te kijken · Esc voor overzicht",
   "sysworld.city.tour": "Rondleiding",
   "sysworld.city.tour_step": "Halte {{index}} van {{total}}",
   "sysworld.city.unavailable": "Niet beschikbaar",

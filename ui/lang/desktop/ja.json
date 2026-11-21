@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "情報源",
   "sysworld.city.stale": "古いデータ",
   "sysworld.city.street": "ストリート",
-  "sysworld.city.street_help": "WASD / 矢印で移動・ドラッグで見回す・Escで概要へ",
+  "sysworld.city.street_help": "WASD / 矢印で移動・スペースでジャンプ・ドラッグで見回す・Escで概要へ",
   "sysworld.city.tour": "ツアー",
   "sysworld.city.tour_step": "{{total}} か所中 {{index}} か所目",
   "sysworld.city.unavailable": "利用不可",

@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Kilde",
   "sysworld.city.stale": "Utdaterte data",
   "sysworld.city.street": "Gate",
-  "sysworld.city.street_help": "WASD / piler for å gå · dra for å se rundt · Esc for oversikt",
+  "sysworld.city.street_help": "WASD / piler for å gå · mellomrom for å hoppe · dra for å se rundt · Esc for oversikt",
   "sysworld.city.tour": "Omvisning",
   "sysworld.city.tour_step": "Stopp {{index}} av {{total}}",
   "sysworld.city.unavailable": "Utilgjengelig",

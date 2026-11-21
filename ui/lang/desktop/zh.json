@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "来源",
   "sysworld.city.stale": "数据已过时",
   "sysworld.city.street": "街道",
-  "sysworld.city.street_help": "WASD / 方向键移动 · 拖动环顾 · Esc 返回概览",
+  "sysworld.city.street_help": "WASD / 方向键移动 · 空格键跳跃 · 拖动环顾 · Esc 返回概览",
   "sysworld.city.tour": "游览",
   "sysworld.city.tour_step": "第 {{index}} 站，共 {{total}} 站",
   "sysworld.city.unavailable": "不可用",

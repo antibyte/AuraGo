@@ -63,7 +63,9 @@ coplanar overlays with draw order or depth-test exceptions. Upper-floor navigati
 is limited to the actual gallery and a docked lift; the open atrium is not a floor.
 On the sky deck it is the terrace ring and, with the cab docked, the lift bridge.
 
-WASD/arrow keys move in focused street view; E or the visible interaction button
+WASD/arrow keys move in focused street view; Space hops in a small arc onto the
+walkable floor (not offered on rides, hover flights or under reduced motion);
+E or the visible interaction button
 opens a door, uses a lift, looks through a viewer, visits a discovery, boards a tram,
 starts a drone tour or straps on a hover pack at a dock.
 The exploration panel also offers explicit district/interior destinations. Tram

@@ -5787,7 +5787,7 @@
   "sysworld.city.source": "Πηγή",
   "sysworld.city.stale": "Παρωχημένα δεδομένα",
   "sysworld.city.street": "Δρόμος",
-  "sysworld.city.street_help": "WASD / βέλη για κίνηση · σύρε για να κοιτάξεις · Esc για επισκόπηση",
+  "sysworld.city.street_help": "WASD / βέλη για κίνηση · πλήκτρο διαστήματος για άλμα · σύρε για να κοιτάξεις · Esc για επισκόπηση",
   "sysworld.city.tour": "Περιήγηση",
   "sysworld.city.tour_step": "Στάση {{index}} από {{total}}",
   "sysworld.city.unavailable": "Μη διαθέσιμο",
