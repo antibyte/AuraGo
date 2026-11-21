@@ -1,6 +1,6 @@
 // AuraPinball shared configuration: storage keys, helpers, settings and score normalisation. DOM-free.
 export const STORAGE = Object.freeze({ settings: 'aurago.desktop.pinball.settings.v1', scores: 'aurago.desktop.pinball.scores.v1' });
-export const TABLE_IDS = Object.freeze(['neon', 'leviathan', 'temple']);
+export const TABLE_IDS = Object.freeze(['neon', 'leviathan', 'temple', 'observatory']);
 export const ASSET_ROOT = '/3d/pinball/v1/';
 export const FONT_STACK = '"Segoe UI","Noto Sans","Helvetica Neue",Arial,"Microsoft YaHei","PingFang SC","Hiragino Sans","Nirmala UI","Noto Sans Devanagari",sans-serif';
 

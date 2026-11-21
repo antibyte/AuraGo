@@ -37,7 +37,8 @@ const rows = Array.from({ length: 14 }, (_, i) => ({ name: 'P' + i, score: i * 1
 rows.push({ name: 5, score: 1, date: 1 }, { name: 'x', score: -1, date: 1 }, { name: 'x', score: 1.5, date: 1 }, { name: 'x', score: 1, date: NaN }, null);
 const sc = normalizeScores({ neon: rows, bogus: rows });
 assert.equal(sc.neon.length, 10); assert.equal(sc.neon[0].score, 1300); assert.equal(sc.neon[9].score, 400);
-assert.deepEqual(Object.keys(sc), [...TABLE_IDS]); assert.deepEqual(sc.temple, []);
+assert.deepEqual([...TABLE_IDS], ['neon', 'leviathan', 'temple', 'observatory']);
+assert.deepEqual(Object.keys(sc), [...TABLE_IDS]); assert.deepEqual(sc.temple, []); assert.deepEqual(sc.observatory, []);
 
 // rngNext is deterministic and keeps its state in holder.seed.
 const a = { seed: 7 }, b = { seed: 7 };
