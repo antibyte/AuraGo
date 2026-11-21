@@ -35,6 +35,8 @@ export function makeCtx(g) {
         advanceBonusX: () => advanceBonusX(g),
         modeActive: () => !!g.mode.id,
         mbActive: () => mbActive(g),
+        // Starts the pack's multiball (no lock needed) unless a multiball or the wizard already runs; false when it did not start.
+        startMultiball: () => { if (mbActive(g) || !pack(g).multiball) return false; startMultiball(g, null); return true; },
         rng: () => rngNext(g)
     };
 }

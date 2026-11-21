@@ -1,6 +1,7 @@
 // Rules framework tests (plan T06) against an in-file synthetic pack: 4 modes, physical lock, lanes, kickback.
 import assert from 'node:assert/strict';
 import { createGame, startGame, tick, handle, button, nudge, take, lampModes, dmdState, toyState, resetTraining, debugBalls } from '../ui/js/desktop/apps/pinball/rules/core.js';
+import { makeCtx } from '../ui/js/desktop/apps/pinball/rules/modes.js';
 import { copy, rngNext } from '../ui/js/desktop/apps/pinball/config.js';
 import { LAMP_MODES, CUES, MUSIC_SECTIONS } from '../ui/js/desktop/apps/pinball/contracts.js';
 
@@ -447,5 +448,20 @@ for (const equal of [true, false]) {
     const sq = take(g);
     assert.ok(sq.some(c => c.type === 'dmd' && c.scene === 'surprise' && c.params.text === 'dmd_secret_neon'));
     assert.ok(sq.some(c => c.type === 'cue' && c.name === 'surprise'));
+}
+// ctx.startMultiball(): starts the pack's multiball without a lock, once; packs without a multiball refuse
+{
+    const g = createGame({ layout, rules: { ...rules, lock: undefined } }, { players: ['A'], seed: 7 });
+    startGame(g); take(g); launch(g);
+    assert.equal(g.mb.state, 'off');
+    assert.equal(makeCtx(g).startMultiball(), true);
+    assert.equal(g.mb.state, 'running');
+    assert.equal(g.balls.ids.length, 3);
+    assert.equal(makeCtx(g).startMultiball(), false, 'a running multiball is not restarted');
+    assert.equal(g.balls.ids.length, 3);
+    const none = createGame({ layout, rules: { ...rules, multiball: undefined, lock: undefined } }, { players: ['A'], seed: 7 });
+    startGame(none);
+    assert.equal(makeCtx(none).startMultiball(), false, 'no multiball in the pack');
+    assert.equal(none.mb.state, 'off');
 }
 console.log('pinball rules ok');
