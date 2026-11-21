@@ -16,7 +16,7 @@ func TestVirtualComputersTerminalAssetsLoadInDependencyOrder(t *testing.T) {
 	xterm := strings.Index(loader, `'/js/vendor/xterm.min.js'`)
 	fit := strings.Index(loader, `'/js/vendor/xterm-addon-fit.min.js'`)
 	controller := strings.Index(loader, `'/js/desktop/apps/virtual-computers-terminal.js'`)
-	app := strings.Index(loader, `'/js/desktop/apps/virtual-computers.js'`)
+	app := strings.Index(loader, `'/js/desktop/bundles/virtual-computers.bundle.js'`)
 	if xtermCSS < 0 || appCSS < 0 || xterm < 0 || fit < 0 || controller < 0 || app < 0 {
 		t.Fatalf("virtual computers loader missing terminal dependency: xtermCSS=%d appCSS=%d xterm=%d fit=%d controller=%d app=%d", xtermCSS, appCSS, xterm, fit, controller, app)
 	}
@@ -60,7 +60,7 @@ func TestVirtualComputersTerminalControllerUsesRawBinaryTTY(t *testing.T) {
 func TestVirtualComputersTerminalLifecycleAndMachineGating(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, want := range []string{
 		`function canUseTerminal(state, machine)`,
 		`machine.display === false`,

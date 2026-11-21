@@ -10,7 +10,7 @@ import (
 func TestDesktopVirtualComputersDurationI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/virtual-computers.js")
+	source := readDesktopAssetText(t, "js/desktop/bundles/virtual-computers.bundle.js")
 	for _, want := range []string{
 		"function formatDuration(seconds, context)",
 		"function formatExpiryCountdown(expiresAt, nowMs, context)",

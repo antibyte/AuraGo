@@ -12,7 +12,7 @@ func loadWorkspaceFixtureApp(t *testing.T, windowID string) *rod.Page {
 	page := newSmokeBrowser(t).MustPage("about:blank").Timeout(60 * time.Second)
 	page.MustWaitLoad()
 	page.MustEval(virtualComputersWorkspaceFixture)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`id => window.VirtualComputersApp.render(document.querySelector('#app'),id,{t:k=>window.dict[k]||k})`, windowID)
@@ -57,7 +57,7 @@ func TestVirtualComputersWorkspaceVNCCloseReleasesListenersBrowser(t *testing.T)
  window.RFB = function () { this.addEventListener = () => {}; this.disconnect = () => { window.rfbDisconnects++; }; };
  }`)
 	page.MustEval(virtualComputersWorkspaceFixture)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers-vnc.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers-vnc.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'vnc-close',{t:k=>window.dict[k]||k})`)
@@ -98,7 +98,7 @@ func TestVirtualComputersWindowsKeepUniqueIdsBrowser(t *testing.T) {
 	page.MustWaitLoad()
 	page.MustEval(virtualComputersWorkspaceFixture)
 	page.MustEval(`() => { document.body.innerHTML = '<div id="app"></div><div id="app2"></div>'; }`)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => { window.VirtualComputersApp.render(document.querySelector('#app'),'win-a',{t:k=>k}); window.VirtualComputersApp.render(document.querySelector('#app2'),'win-b',{t:k=>k}); }`)
@@ -138,7 +138,7 @@ func TestVirtualComputersModalKeepsFocusOnPendingSubmitBrowser(t *testing.T) {
    return inner(path, options);
  };
  }`)
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'pending-fixture',{t:k=>k})`)
 	page.MustElement(`[data-action="new-machine"]:not([disabled])`).MustClick()
 	page.MustElement(`[data-role="launch-name"]`).MustInput("Box")

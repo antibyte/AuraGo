@@ -641,6 +641,8 @@ after the built-in installers and before the markup exists. DOM work belongs in 
 
 ## Synth Studio
 
+- The RB-338 panel bundle concatenates the rack and sequencer sources in a single scope. Keep the model and host ahead of the panel in the module loader. Include both panel sources when regenerating the corresponding-source archive with scripts/build-rb338-vendor.mjs.
+
 - `synth-studio-strudel.js` owns the Strudel workbench, a 64 KiB browser-local
   scratch draft (`aurago:synth-studio:strudel:1`), explicit `.strudel` import/download
   and eight sample-free showcase examples (`synthwave`, `acid`, `dnb`, `ambient`,
@@ -2611,6 +2613,7 @@ buttons and menu popovers remain excluded from those gestures.
   there.
 - People KG toggle, active label, and card badge use
   `desktop.people_kg`. Do not hardcode `KG` there.
+- The Virtual Computers bundle concatenates the view, controls and operations sources in that order. Keep the workspace, terminal and VNC dependencies ahead of the bundle in the module loader.
 - Virtual Computers duration and expiry-day labels use
   `desktop.virtual_computers_duration_*` and
   `desktop.virtual_computers_expiry_days`. Volume TTL options use

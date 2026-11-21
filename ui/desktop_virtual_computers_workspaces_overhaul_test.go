@@ -78,7 +78,7 @@ func TestVirtualComputersWorkspaceLabelsAreDedicatedAndAccessible(t *testing.T) 
 		}
 	}
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, marker := range []string{
 		`aria-controls="${esc(state.panelId)}"`,
 		`id="${esc(state.panelId)}" data-role="content" role="tabpanel"`,
@@ -199,7 +199,7 @@ func TestVirtualComputersWorkspaceCardsBrowser(t *testing.T) {
 	page := newSmokeBrowser(t).MustPage("about:blank").Timeout(40 * time.Second)
 	page.MustWaitLoad()
 	page.MustEval(virtualComputersWorkspaceFixture)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'ws-fixture',{t:k=>window.dict[k]||k,openApp:(app,context)=>window.selectedLaunch={app,context}})`)
@@ -243,7 +243,7 @@ func TestVirtualComputersRunningMachinePickerBrowser(t *testing.T) {
 	page := newSmokeBrowser(t).MustPage("about:blank").Timeout(40 * time.Second)
 	page.MustWaitLoad()
 	page.MustEval(virtualComputersWorkspaceFixture)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'picker-fixture',{t:(k,v)=>window.dict[k]||k,openApp:(app,context)=>window.selectedLaunch={app,context}})`)
@@ -286,7 +286,7 @@ func TestVirtualComputersCheckpointDialogBrowser(t *testing.T) {
 	page := newSmokeBrowser(t).MustPage("about:blank").Timeout(40 * time.Second)
 	page.MustWaitLoad()
 	page.MustEval(virtualComputersWorkspaceFixture)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'cp-fixture',{t:(k,v)=>window.dict[k]||k,notify:n=>window.lastToast=n})`)

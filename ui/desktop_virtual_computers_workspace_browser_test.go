@@ -21,7 +21,7 @@ func TestVirtualComputersWorkspaceSelectionBrowser(t *testing.T) {
    return new Response(JSON.stringify(path.endsWith('/status') ? {enabled:true, capabilities:{agent_control:true}} : path.endsWith('/workspaces') ? {workspaces:window.fixtureWorkspaces} : {}), {headers:{'Content-Type':'application/json'}});
  };
  }`)
-	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/apps/virtual-computers.js"} {
+	for _, file := range []string{"js/desktop/apps/virtual-computers-workspaces.js", "js/desktop/bundles/virtual-computers.bundle.js"} {
 		page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, file)))
 	}
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'fixture',{t:k=>k,openApp:(app,context)=>window.selectedLaunch={app,context}})`)
@@ -85,7 +85,7 @@ func TestVirtualComputersManualNetworkChoiceBrowser(t *testing.T) {
    return json({});
  };
  }`)
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'network-fixture',{t:k=>k})`)
 	page.MustElement(`[data-action="new-machine"]:not([disabled])`).MustClick()
 	if got := page.MustEval(`() => document.querySelector('[data-role="network"]').value`).Str(); got != "internet" {

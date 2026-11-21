@@ -273,7 +273,7 @@ func TestVirtualComputersAgentProviderUsesConfiguredProviderReference(t *testing
 
 func TestVirtualComputersDesktopUsesMainAgentVolumesAndModal(t *testing.T) {
 	t.Parallel()
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, want := range []string{
 		`machine.display === true`, `/api/virtual-computers/volumes`, `data-action="new-agent-job"`,
 		`volume_id`, `ttl_seconds`, `data-role="modal"`,

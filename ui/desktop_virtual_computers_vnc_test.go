@@ -14,7 +14,7 @@ func TestVirtualComputersVNCAssetsLoadInDependencyOrder(t *testing.T) {
 	novnc := strings.Index(loader, `'/js/vendor/novnc.min.js'`)
 	controller := strings.Index(loader, `'/js/desktop/apps/virtual-computers-vnc.js'`)
 	workspaceController := strings.Index(loader, `'/js/desktop/apps/virtual-computers-workspaces.js'`)
-	app := strings.Index(loader, `'/js/desktop/apps/virtual-computers.js'`)
+	app := strings.Index(loader, `'/js/desktop/bundles/virtual-computers.bundle.js'`)
 	if novnc < 0 || controller < 0 || workspaceController < 0 || app < 0 {
 		t.Fatalf("virtual computers loader missing VNC dependency: noVNC=%d controller=%d workspace=%d app=%d", novnc, controller, workspaceController, app)
 	}
@@ -93,7 +93,7 @@ func TestVirtualComputersVNCControllerProvidesSafeInteractiveControls(t *testing
 func TestVirtualComputersVNCLifecycleAndPermissionGating(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, want := range []string{
 		`function canUseVNC(state, machine)`,
 		`machine.display === true`,
@@ -129,7 +129,7 @@ func TestVirtualComputersVNCLifecycleAndPermissionGating(t *testing.T) {
 func TestVirtualComputerWorkspaceVNCIsSplitViewAndLeaseAware(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	workspaceController := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers-workspaces.js"))
 	for _, want := range []string{
 		`window.VirtualComputersWorkspaces.renderPane`,

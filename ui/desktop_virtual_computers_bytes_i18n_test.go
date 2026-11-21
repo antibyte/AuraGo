@@ -10,7 +10,7 @@ import (
 func TestDesktopVirtualComputersBytesI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/virtual-computers.js")
+	source := readDesktopAssetText(t, "js/desktop/bundles/virtual-computers.bundle.js")
 	for _, want := range []string{
 		"function formatBytes(value, context)",
 		"label('desktop.bytes', bytes)",

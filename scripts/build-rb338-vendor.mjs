@@ -27,7 +27,7 @@ const KIT_BYTES = 2572792;
 const MAX_WASM_BYTES = 1.5 * 1024 * 1024;
 const REQUIRED_EXPORTS = ['memory', 'orb_abi_version', 'orb_alloc', 'orb_free', 'orb_create', 'orb_last_error', 'orb_destroy', 'orb_new_song', 'orb_load_song', 'orb_save_song', 'orb_song_info', 'orb_patterns', 'orb_defaults', 'orb_push', 'orb_apply', 'orb_render', 'orb_snapshot', 'orb_startup_sound', 'orb_io_ptr', 'orb_io_len', 'orb_export_wav'];
 // GPL JS files of the module. Whatever exists at build time goes into sources.zip.
-const EXPECTED_JS = ['model', 'host', 'worklet', 'worker'].map((n) => `ui/js/desktop/apps/synth-studio-rb338-${n}.js`).concat('ui/js/desktop/apps/synth-studio-rb338.js');
+const EXPECTED_JS = ['model', 'host', 'worklet', 'worker', 'rack', 'sequencer'].map((n) => `ui/js/desktop/apps/synth-studio-rb338-${n}.js`);
 const MTIME = new Date('2000-01-01T00:00:00Z');
 const TEXT = /\.(rs|toml|md|txt|js|mjs|json|lock|yml|yaml|cfg|h|c|in|html|css)$|^(LICENSE|COPYING|NOTICE|README|AUTHORS)[^/]*$|\/(LICENSE|COPYING|NOTICE)[^/]*$/i;
 
@@ -121,7 +121,7 @@ The OpenRB-338 ReBirth RB-338 engine compiled to WebAssembly for AuraGo's Synth 
 - Wrapper crate: aurago-rb338/ (raw extern "C" ABI, no imports). Pinned toolchain: Rust ${TOOLCHAIN}, target ${TARGET}.
 - vendor/ holds the exact sources of every dependency (cargo vendor --versioned-dirs). .cargo/config.toml redirects cargo to it, so the build works offline.
 - The kit Standard.rbm is not repeated in this archive; it ships next to it as Standard.rbm (SHA-256 ${KIT_SHA256}, ${KIT_BYTES} bytes). rbm references it through include_bytes!("../../../assets/Standard.rbm"), which from vendor/rbm-0.1.0/src is assets/Standard.rbm at the root of the unpacked archive, so copy it there before building (step 1 below). The shipped wasm itself does not contain it; the host passes the kit to orb_create.
-- aurago/ holds the AuraGo JavaScript of the module (model, host, worklet, worker and panel) and the build script. Names the build script collects when they exist: ${EXPECTED_JS.join(', ')}. This archive was built with: ${present.join(', ') || 'none of them yet'}.
+- aurago/ holds the AuraGo JavaScript of the module (model, host, worklet, worker and panel sources) and the build script. Concatenate the rack and sequencer sources in that order to assemble the panel. Names the build script collects when they exist: ${EXPECTED_JS.join(', ')}. This archive was built with: ${present.join(', ') || 'none of them yet'}.
 
 ## Rebuild the wasm
 
