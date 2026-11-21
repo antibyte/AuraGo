@@ -7,10 +7,13 @@ import { paintArt as leviathanArt } from './leviathan/art.js';
 import { buildToys as leviathanToys } from './leviathan/toys.js';
 import { paintArt as templeArt } from './temple/art.js';
 import { buildToys as templeToys } from './temple/toys.js';
+import { paintArt as observatoryArt } from './observatory/art.js';
+import { buildToys as observatoryToys } from './observatory/toys.js';
 
 export const VISUALS = {
     neon: { paintArt: neonArt, buildToys: neonToys },
     leviathan: { paintArt: leviathanArt, buildToys: leviathanToys },
-    temple: { paintArt: templeArt, buildToys: templeToys }
+    temple: { paintArt: templeArt, buildToys: templeToys },
+    observatory: { paintArt: observatoryArt, buildToys: observatoryToys }
 };
 export default VISUALS;
