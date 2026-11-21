@@ -18,7 +18,7 @@ When a Storymaker project is created, the user picks how its pictures come about
 
 ## Vocabulary
 
-"Template" already means the story template in this code base (`concept_explainer`, `how_to`, ... in `Project.Template`, `studioTemplates`). The new field is therefore called `mode`, with the values `catalog` and `free`. The UI labels are "From templates" and "Create freely" (translated into all desktop languages).
+"Template" already means the story template in this code base (`concept_explainer`, `how_to`, ... in `Project.Template`, `studioTemplates`). The new field is therefore called `mode`, with the values `catalog` and `free`. The UI labels are "From templates" and "Create freely" (translated into all 16 Storymaker languages).
 
 ## Data model
 
@@ -39,7 +39,7 @@ When a Storymaker project is created, the user picks how its pictures come about
 - The agent panel of an open blank project shows the project's mode as a read-only chip. A blank project is started with the mode it has.
 - Free projects carry a small marker in the project list.
 - The editor does not change: the mode steers the agent only. Manual code scenes keep going through the Code tab.
-- New keys `storymaker.mode.*` go into all 15 `ui/lang/desktop/*.json` files; `check:ui` and the static i18n test must stay green.
+- New keys `storymaker.mode.*` go into all 16 `ui/lang/storymaker/*.json` files (the Storymaker app strings live there, as flat key-to-string maps, not in `ui/lang/desktop/`). Each language gets a real translation: the Storymaker locale tests reject a copy of the English text. `check:ui` and the static i18n test must stay green.
 
 ## Agent path in free mode
 
@@ -101,5 +101,5 @@ The tool guide for text-mode models lists the free operations and examples. The 
 `internal/storymaker`: project.go, voices.go, studio.go, studio_check.go, studio_story_scenes.go, studio_catalog.go, agentfacade.go and tests.
 `internal/server`: storymaker_handlers.go, storymaker_agent_handlers.go, storymaker_agent.go, storymaker_agent_profile.go and tests.
 `internal/agent`: storymaker_tool.go, native_tools_storymaker_chat.go and tests.
-`ui`: js/desktop/apps/storymaker-projects.js, storymaker-agent.js, storymaker-api.js, storymaker.js, css/desktop-app-storymaker.css, lang/desktop/*.json, generated main.bundle.js.
+`ui`: js/desktop/apps/storymaker-projects.js, storymaker-agent.js, storymaker-api.js, storymaker.js, css/desktop-app-storymaker.css, lang/storymaker/*.json, generated main.bundle.js.
 Docs as listed above.
