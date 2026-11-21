@@ -31,6 +31,7 @@ const HARNESS_TEXT = {
     card_rules_neon: 'DROP FIREWALL · LOCK 3 BALLS\nDATA CORE STARTS MODES\nN-E-O-N ADVANCES BONUS ×',
     card_rules_leviathan: 'PEARL LIGHTS LOCK\nSHIP STARTS MODES\nSONAR LIGHTS DEEP GRAB',
     card_rules_temple: 'SUN OPENS THE IDOL\nPOPS LIGHT THE LOCK\nIDOL STARTS MODES',
+    card_rules_observatory: 'TELESCOPE STARTS MODES\nORRERY DISC LIGHTS THE HOURS\nS-T-A-R ADVANCES THE WELLS',
     lamp_extra_ball: 'EXTRA BALL', lamp_shoot_again: 'SHOOT AGAIN', lamp_lock: 'LOCK', lamp_jackpot: 'JACKPOT', lamp_super: 'SUPER',
     lamp_kickback: 'KICKBACK', lamp_mode: 'MODE', lamp_combo: 'COMBO', lamp_wizard: 'WIZARD', lamp_spinner: 'SPINNER',
     dmd_press_start: 'PRESS START', dmd_free_play: 'FREE PLAY', dmd_high_scores: 'HIGH SCORES', dmd_replay_at: 'REPLAY AT', dmd_game_over: 'GAME OVER'
@@ -41,8 +42,8 @@ const harnessTr = (key, vars) => {
     return text.replace(/\{(\w+)\}/g, (m, k) => (vars && vars[k] !== undefined ? vars[k] : m));
 };
 
-// Lobby preview framings (x,y,h in metres) for the `preview` scene: neon Data Core, leviathan sea monster head, temple sun idol.
-const PREVIEW_SPOTS = { neon: '0,0.72,0.04', leviathan: '0.105,0.84,0.2', temple: '0,0.8,0.05' };
+// Lobby preview framings (x,y,h in metres) for the `preview` scene: neon Data Core, leviathan sea monster head, temple sun idol, observatory orrery disc.
+const PREVIEW_SPOTS = { neon: '0,0.72,0.04', leviathan: '0.105,0.84,0.2', temple: '0,0.8,0.05', observatory: '-0.04,0.80,0.06' };
 
 // T12 engine mode: render core + lamp controller (attract playlist) + DMD, physics balls from the harness world.
 async function modeEngine(h) {

@@ -40,6 +40,7 @@ export function createView(host, tr, assetURL, tables) {
             const choice = button('', 'table-' + table.id); choice.classList.add('pb-table'); choice.dataset.table = table.id;
             choice.setAttribute('aria-pressed', String(data.table === table.id));
             const image = el('img'); image.src = assetURL(ASSET_ROOT + table.id + '-preview.webp'); image.alt = ''; image.width = 640; image.height = 320;
+            image.onerror = () => { image.hidden = true; choice.classList.add('pb-noimage'); };
             choice.append(image, el('strong', table.title), el('span', tr(table.id + '_description'))); choices.append(choice);
         }
         card.append(choices);

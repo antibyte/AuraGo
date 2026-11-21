@@ -61,13 +61,16 @@ window.fixture=mountGame(document.getElementById('host'),{t:k=>words[k]||k,asset
 		page.MustEval(`()=>new Promise(resolve=>{let first=0,count=0;function frame(now){if(!first)first=now;if(++count<120)requestAnimationFrame(frame);else{window.pinballBaselineFPS=119000/(now-first);resolve(true)}}requestAnimationFrame(frame)})`)
 		t.Logf("Unrendered requestAnimationFrame baseline: %.2f fps", page.MustEval(`()=>pinballBaselineFPS`).Num())
 	}
-	for _, table := range []string{"neon", "leviathan", "temple"} {
+	for _, table := range []string{"neon", "leviathan", "temple", "observatory"} {
 		if table != "neon" {
 			page.MustElement(`[data-action="table-` + table + `"]`).MustClick()
 			page.MustWait(`id=>fixture.inspect().table===id&&fixture.inspect().panel==='lobby'`, table)
 		}
 		if !page.MustEval(`()=>fixture.inspect().graphics.ready&&!!fixture.inspect().graphics.flipperOrder&&document.querySelectorAll('.pb-canvas').length===1&&!!document.querySelector('.pb-dmd canvas')&&fixture.inspect().audio.unlocked===false`).Bool() {
 			t.Fatal("table preview or gesture audio lifecycle failed")
+		}
+		if n := page.MustEval(`()=>fixture.inspect().graphics.glassViolations`).Int(); n != 0 {
+			t.Fatalf("%s has %d glass violations: %s", table, n, page.MustEval(`()=>JSON.stringify(fixture.inspect().graphics.glassViolationList)`).Str())
 		}
 		t.Logf("%s graphics: %s", table, page.MustEval(`()=>JSON.stringify(fixture.inspect().graphics)`).Str())
 		if benchmark {
