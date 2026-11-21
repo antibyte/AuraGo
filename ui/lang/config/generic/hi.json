@@ -79,6 +79,7 @@
   "config.home_assistant.allowed_services_label": "अनुमत सेवाएँ",
   "config.home_assistant.blocked_services_label": "अवरुद्ध सेवाएँ",
   "config.home_assistant.enabled_label": "Home Assistant सक्षम",
+  "config.home_assistant.readonly_label": "केवल पढ़ने के लिए",
   "config.home_assistant.url_label": "Home Assistant URL",
   "config.llm.anthropic_thinking.budget_tokens_label": "थिंकिंग बजट (टोकन)",
   "config.llm.anthropic_thinking.enabled_label": "Anthropic थिंकिंग",

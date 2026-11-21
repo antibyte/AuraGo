@@ -703,7 +703,7 @@ button.ed-foot-item:hover { background: var(--ed-control-hover); color: var(--ed
 .ed-palette-scope-text { min-width: 0; overflow-wrap: anywhere; }
 .ed-palette-scope-dot { flex: none; color: var(--ed-muted); }
 .ed-palette-scope .ed-btn { flex: none; margin-left: auto; }
-.ed-palette-hint { margin: 0; padding: 8px 12px 10px; font-size: var(--ed-font-label); color: var(--ed-muted); border-top: 1px solid var(--ed-border); }
+.ed-palette-hint { margin: 0; padding: 8px 12px 10px; font-size: var(--ed-font-label); color: var(--ed-muted); border-top: 1px solid var(--ed-border); overflow-wrap: anywhere; }
 .ed-palette-cat { margin-bottom: 2px; }
 .ed-palette-cat-head {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 6px; border: 0; background: transparent;

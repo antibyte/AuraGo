@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestMCPConfigEmptyAllowedToolsMeansAllDiscovered(t *testing.T) {
+func TestMCPConfigEmptyAllowlistRequiresDestructiveGrant(t *testing.T) {
 	t.Parallel()
 
 	mcpJS, err := os.ReadFile(filepath.Join("cfg", "mcp.js"))
@@ -17,11 +17,11 @@ func TestMCPConfigEmptyAllowedToolsMeansAllDiscovered(t *testing.T) {
 	}
 	js := string(mcpJS)
 	for _, marker := range []string{
-		"allowedToolsCount > 0 ? String(allowedToolsCount) : t('config.mcp.card_allowed_tools_all')",
+		"allowedToolsCount > 0 ? String(allowedToolsCount) : (s.allow_destructive ? t('config.mcp.card_allowed_tools_all') : '0')",
 		"escapeAttr(allowedToolsLabel)",
 	} {
 		if !strings.Contains(js, marker) {
-			t.Fatalf("cfg/mcp.js missing empty-allowlist-as-all marker %q", marker)
+			t.Fatalf("cfg/mcp.js missing empty-allowlist policy marker %q", marker)
 		}
 	}
 
@@ -47,11 +47,6 @@ func TestMCPConfigEmptyAllowedToolsMeansAllDiscovered(t *testing.T) {
 		hint := entries["config.mcp.field_allowed_tools_hint"]
 		if hint == "" {
 			t.Fatalf("%s missing field_allowed_tools_hint translation", path)
-		}
-		if strings.Contains(strings.ToLower(hint), "no tools") ||
-			strings.Contains(strings.ToLower(hint), "keine tools") ||
-			strings.Contains(strings.ToLower(hint), "keine werkzeuge") {
-			t.Fatalf("%s still describes empty allowed_tools as no tools: %q", path, hint)
 		}
 	}
 }

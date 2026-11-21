@@ -256,7 +256,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		{
 			name:      "calculator",
 			source:    calcText,
-			signature: "function renderCalculator(id)",
+			signature: "function renderCalculator(id, renderCtx)",
 			markers: []string{
 				"wireContextMenuBoundary(root",
 				"showCalculatorContextMenu",

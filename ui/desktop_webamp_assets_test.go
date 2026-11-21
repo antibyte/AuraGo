@@ -118,7 +118,8 @@ func TestDesktopFiltersInternalAppsFromUserLaunchers(t *testing.T) {
 		"return allApps().filter(app => app.internal !== true)",
 		"return userFacingApps().filter(app => app.start_visible !== false)",
 		"const available = userFacingApps().filter(app => app.dock_visible !== false || runningIds.has(app.id))",
-		"pinned.concat(available).forEach(app =>",
+		"const pinned = dockPinIds().map(id => available.find(app => app.id === id)).filter(Boolean)",
+		"pinned.concat(available, running).forEach(app =>",
 		"return userFacingApps().map(app => {",
 	} {
 		if !strings.Contains(text, want) {

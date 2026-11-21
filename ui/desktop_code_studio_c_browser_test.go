@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/go-rod/rod"
 )
 
 func TestDesktopCodeStudioC(t *testing.T) {
@@ -90,10 +93,12 @@ func TestDesktopCodeStudioC(t *testing.T) {
     }`).Bool() {
 		t.Fatal("restoring the C tab replaced existing tabs or the active selection")
 	}
-	if !page.MustEval(`()=>{
-        const root=csRoot().getBoundingClientRect(),run=csRoot().querySelector('[data-action="run"]').getBoundingClientRect();
-        return run.width>0 && run.right<=innerWidth && run.right<=root.right+1 && csRoot().querySelector('.cm-editor').getBoundingClientRect().width>100;
-    }`).Bool() {
-		t.Fatal("C example or Run became inaccessible in the narrow layout")
+	if err := page.Timeout(5 * time.Second).Wait(rod.Eval(`()=>{
+        const studio=csRoot(),button=studio?.querySelector('[data-action="run"]'),editor=studio?.querySelector('.cm-editor');
+        if (!button || !editor) return false;
+        const root=studio.getBoundingClientRect(),run=button.getBoundingClientRect();
+        return run.width>0 && run.left>=0 && run.right<=innerWidth && run.right<=root.right+1 && editor.getBoundingClientRect().width>100;
+    }`)); err != nil {
+		t.Fatalf("C example or Run became inaccessible in the narrow layout: %v", err)
 	}
 }
