@@ -27,6 +27,18 @@
       "artRev": 2,
       "plastics": "temple-plastics.webp",
       "side": "temple-side.webp"
+    },
+    {
+      "id": "observatory",
+      "underlay": "observatory-playfield.webp",
+      "backglass": "observatory-backglass.webp",
+      "preview": "observatory-preview.webp",
+      "artRev": 2,
+      "plastics": "observatory-plastics.webp",
+      "side": "observatory-side.webp",
+      "glb": {
+        "toys": "observatory-toys.glb"
+      }
     }
   ],
   "room": {
@@ -107,6 +119,36 @@
       "path": "temple-side.webp",
       "bytes": 381548,
       "sha256": "3cc3af559b5ef00671a9c5fc169c24d80c8abbe0c96863b212ba107ceb15b503"
+    },
+    {
+      "path": "observatory-playfield.webp",
+      "bytes": 544814,
+      "sha256": "6636cf3782ae860aebb605e05aa259aab49e324aa959e6f404e4d00c5f46bd24"
+    },
+    {
+      "path": "observatory-backglass.webp",
+      "bytes": 689748,
+      "sha256": "a856b67506109dbceb58dca1a22cd2c757181dff50e7dd7c75f29f5031860f00"
+    },
+    {
+      "path": "observatory-preview.webp",
+      "bytes": 71864,
+      "sha256": "e17ec8e51fe82fbf5f31c3b3bd15c23f430bda22392d929440a922e9ef133cc0"
+    },
+    {
+      "path": "observatory-plastics.webp",
+      "bytes": 339038,
+      "sha256": "e1a1641d2dc9eefef80a6aa322978f0c27b03c46c55ab8e93f480d0ac136edc8"
+    },
+    {
+      "path": "observatory-side.webp",
+      "bytes": 499816,
+      "sha256": "eb3041cf2d06f5b0d4bd9d1932ad8f0e8556e72d446b067c6cb66752f1536c78"
+    },
+    {
+      "path": "observatory-toys.glb",
+      "bytes": 473908,
+      "sha256": "ba191ab6dd1315934ed8d268e1a6da463ee35e9db8c7d2564f780306ce127dc4"
     },
     {
       "path": "room-wall.webp",

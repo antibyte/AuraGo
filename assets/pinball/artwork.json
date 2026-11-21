@@ -103,6 +103,13 @@
     },
     {
       "table": "observatory",
+      "role": "playfield",
+      "file": "masters/observatory-playfield.png",
+      "sha256": "17d6dc41f6a1d3a559366db76b041abd95a4c444e9dfa12c176d1ac45d48146d",
+      "rev": 2
+    },
+    {
+      "table": "observatory",
       "role": "plastics",
       "file": "masters/observatory-plastics.png",
       "sha256": "a58b8660875ee8a12da7d7f331cd64a144605cadb0b846d307d63deb2db25138"

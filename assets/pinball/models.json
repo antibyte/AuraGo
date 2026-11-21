@@ -1,1 +1,13 @@
-{ "version": 1, "models": [] }
+{
+  "version": 1,
+  "models": [
+    {
+      "table": "observatory",
+      "key": "toys",
+      "file": "models/observatory-toys.glb",
+      "sha256": "ba191ab6dd1315934ed8d268e1a6da463ee35e9db8c7d2564f780306ce127dc4",
+      "triangles": 13772,
+      "script": "blender/observatory_toys.py"
+    }
+  ]
+}
