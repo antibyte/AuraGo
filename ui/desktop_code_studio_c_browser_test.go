@@ -96,9 +96,18 @@ func TestDesktopCodeStudioC(t *testing.T) {
 	if err := page.Timeout(5 * time.Second).Wait(rod.Eval(`()=>{
         const studio=csRoot(),button=studio?.querySelector('[data-action="run"]'),editor=studio?.querySelector('.cm-editor');
         if (!button || !editor) return false;
-        const root=studio.getBoundingClientRect(),run=button.getBoundingClientRect();
-        return run.width>0 && run.left>=0 && run.right<=innerWidth && run.right<=root.right+1 && editor.getBoundingClientRect().width>100;
+        // The compact desktop keeps Code Studio's contents horizontally scrollable.
+        button.scrollIntoView({block:'nearest',inline:'nearest'});
+        const run=button.getBoundingClientRect(), edit=editor.getBoundingClientRect();
+        const hit=document.elementFromPoint(run.left+run.width/2,run.top+run.height/2);
+        return button.contains(hit) && run.left>=0 && run.right<=innerWidth && Math.min(edit.right,innerWidth)-Math.max(edit.left,0)>100;
     }`)); err != nil {
-		t.Fatalf("C example or Run became inaccessible in the narrow layout: %v", err)
+		layout := page.MustEval(`() => {
+            const box = element => element?.getBoundingClientRect().toJSON();
+            const studio = csRoot();
+            const run = studio?.querySelector('[data-action="run"]');
+            return { viewportWidth: innerWidth, studio: box(studio), run: box(run), editor: box(studio?.querySelector('.cm-editor')), errors: fixtureErrors };
+        }`)
+		t.Fatalf("C example or Run became inaccessible in the narrow layout: %v (%s)", err, layout.JSON("", ""))
 	}
 }

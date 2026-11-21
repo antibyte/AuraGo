@@ -71,7 +71,7 @@ func TestDesktopWindowCanOpenMetadataAppsMaximized(t *testing.T) {
 		"function shouldOpenMaximized(app)",
 		"app.metadata.open_maximized === 'true'",
 		"app.metadata.store_app_id === 'quakejs-rootless'",
-		"if (shouldOpenMaximized(app)) toggleMaximizeWindow(id);",
+		"else if (!sessionRestore && shouldOpenMaximized(app)) toggleMaximizeWindow(id);",
 	} {
 		if !strings.Contains(source, marker) {
 			t.Fatalf("desktop window runtime missing maximized metadata marker %q", marker)
