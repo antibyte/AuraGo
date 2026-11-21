@@ -7231,6 +7231,8 @@
   "videoStudio.projectStorageFull": "このプロジェクトは保存容量の上限に達しました。メディアを削除するか、別のプロジェクトを使用してください。",
   "videoStudio.generatedImportFailed": "生成されたクリップをこのプロジェクトに追加できませんでした。",
   "videoStudio.generationStatusUnknown": "プロバイダー側の状態が不明で、処理が続いている可能性があります。再度有料リクエストを送信する前に、状態を確認してください。",
+  "videoStudio.generationProviderRejected": "プロバイダーがリクエストを拒否しました（HTTP {{status}}）。",
+  "videoStudio.generationProviderFailed": "プロバイダーから動画生成の失敗が報告されました。",
   "videoStudio.renderSegmentFailed": "{{from}}～{{to}}の間でレンダリングに失敗しました。その部分のクリップを確認して、もう一度お試しください。",
   "videoStudio.diskSpaceLow": "サーバーに、この書き出しに必要な空きディスク容量がありません。",
   "videoStudio.tooManyClipsAtOnce": "タイムラインの一部で同時に再生されるクリップが多すぎます。重なっているクリップの一部を削除するか短くしてください。",

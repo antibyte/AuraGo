@@ -305,6 +305,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
 
 ## Local Contracts
 
+- The Video Generation config exposes Agnes Video 2.5 models and their valid size and duration ranges. The automatic choice displays the effective model even when the selected provider supplies a chat model.
+
 - Homepage configuration explains local project libraries and the Tailwind container requirement in the existing permissions help. Keep the message translated in all Homepage configuration locales. The Studio preview retains its sandbox and loads public modules from preview origins that allow CORS.
 
 - Everyday shell modules are bundled from `js/desktop/core/`. `window-layouts-runtime.js` provides the same nine layout rectangles for preview and snap; minimum- or maximum-size violations disable a layout instead of changing its rectangle. Half-to-quarter keyboard transitions retain the original restore bounds. Session snapshots store the free geometry with a validated snap zone; unsupported layouts fall back to bounded free geometry after reload. A no-op or cancelled resize retains its snap state. Maximize-button context/long-press and window menus expose layouts; the partner chooser uses eligible windows on the current workspace. `closeWindow` resolves `accepted`, `cancelled` or `skipped`; snapshot batches wait sequentially and stop at cancellation.

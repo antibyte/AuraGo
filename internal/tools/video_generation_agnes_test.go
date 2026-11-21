@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -36,8 +37,8 @@ func TestGenerateVideoAgnesFlow(t *testing.T) {
 			}
 			_, _ = w.Write([]byte(`{"task_id":"task-1","video_id":"video-1","status":"queued"}`))
 		case "/agnesapi":
-			if r.URL.Query().Get("video_id") != "video-1" {
-				t.Fatalf("video_id = %q, want video-1", r.URL.Query().Get("video_id"))
+			if r.URL.Query().Get("video_id") != "video-1" || r.URL.Query().Get("model_name") != defaultAgnesVideoModel {
+				t.Fatalf("poll query = %v", r.URL.Query())
 			}
 			pollCount++
 			if pollCount == 1 {
@@ -63,7 +64,7 @@ func TestGenerateVideoAgnesFlow(t *testing.T) {
 	cfg.VideoGeneration.ProviderType = "agnes"
 	cfg.VideoGeneration.BaseURL = server.URL + "/v1"
 	cfg.VideoGeneration.APIKey = "test-key"
-	cfg.VideoGeneration.ResolvedModel = defaultAgnesVideoModel
+	cfg.VideoGeneration.ResolvedModel = "agnes-3.0-flash"
 	cfg.VideoGeneration.DefaultDurationSeconds = 6
 	cfg.VideoGeneration.DefaultResolution = "768P"
 	cfg.VideoGeneration.DefaultAspectRatio = "16:9"
@@ -79,17 +80,15 @@ func TestGenerateVideoAgnesFlow(t *testing.T) {
 	if result.Provider != "agnes" || result.Model != defaultAgnesVideoModel {
 		t.Fatalf("provider/model = %q/%q", result.Provider, result.Model)
 	}
-	if createPayload["model"] != defaultAgnesVideoModel {
-		t.Fatalf("model = %v", createPayload["model"])
+	wantPayload := map[string]interface{}{
+		"model": defaultAgnesVideoModel, "prompt": "a firefly forest\nAvoid: blurry",
+		"mode": "text", "seconds": "6", "size": "720P", "aspect_ratio": "16:9",
 	}
-	if createPayload["width"] != float64(1366) || createPayload["height"] != float64(768) {
-		t.Fatalf("dimensions = %vx%v, want 1366x768", createPayload["width"], createPayload["height"])
+	if !reflect.DeepEqual(createPayload, wantPayload) {
+		t.Fatalf("create payload = %#v, want %#v", createPayload, wantPayload)
 	}
-	if createPayload["num_frames"] != float64(145) || createPayload["frame_rate"] != float64(24) {
-		t.Fatalf("frames/rate = %v/%v, want 145/24", createPayload["num_frames"], createPayload["frame_rate"])
-	}
-	if result.TaskID != "task-1" {
-		t.Fatalf("task_id = %q, want task-1", result.TaskID)
+	if result.TaskID != "video-1" {
+		t.Fatalf("task_id = %q, want video-1", result.TaskID)
 	}
 	if result.FileSize != int64(len(videoBytes)) {
 		t.Fatalf("file_size = %d, want %d", result.FileSize, len(videoBytes))
@@ -110,62 +109,20 @@ func TestAgnesVideoModelNormalization(t *testing.T) {
 
 	for input, want := range map[string]string{
 		"":                        defaultAgnesVideoModel,
-		"agnes-2.0-flash":         defaultAgnesVideoModel,
+		"agnes-3.0-flash":         defaultAgnesVideoModel,
+		"agnes-video-v2.0":        defaultAgnesVideoModel,
+		" AGNES-VIDEO-2.5 ":       "agnes-video-2.5",
 		"not-a-video-model":       defaultAgnesVideoModel,
 		"agnes-video-v1.5":        "agnes-video-v1.5",
 		" Agnes-Video-Future-v1 ": "Agnes-Video-Future-v1",
 	} {
-		if got := normalizeAgnesVideoModel(input); got != want {
-			t.Fatalf("normalizeAgnesVideoModel(%q) = %q, want %q", input, got, want)
+		if got := AgnesVideoModel(input); got != want {
+			t.Fatalf("AgnesVideoModel(%q) = %q, want %q", input, got, want)
 		}
 	}
 }
 
-func TestAgnesVideoFrameSettingsPreserveRequestedDuration(t *testing.T) {
-	frames, frameRate, err := agnesVideoFrameSettings(6)
-	if err != nil || frames != 145 || frameRate != 24 {
-		t.Fatalf("6 seconds = %d frames at %v fps, error %v", frames, frameRate, err)
-	}
-	frames, frameRate, err = agnesVideoFrameSettings(30)
-	if err != nil || frames != 441 || frameRate != 14.7 {
-		t.Fatalf("30 seconds = %d frames at %v fps, error %v", frames, frameRate, err)
-	}
-	for _, seconds := range []int{0, 31} {
-		if _, _, err := agnesVideoFrameSettings(seconds); err == nil {
-			t.Fatalf("duration %d unexpectedly accepted", seconds)
-		}
-	}
-}
-
-func TestAgnesVideoDimensions(t *testing.T) {
-	tests := []struct {
-		resolution string
-		aspect     string
-		width      int
-		height     int
-	}{
-		{"480p", "16:9", 854, 480}, {"480p", "9:16", 480, 854}, {"480p", "1:1", 480, 480}, {"480p", "4:3", 640, 480}, {"480p", "3:4", 480, 640},
-		{"720p", "16:9", 1280, 720}, {"720p", "9:16", 720, 1280}, {"720p", "1:1", 720, 720}, {"720p", "4:3", 960, 720}, {"720p", "3:4", 720, 960},
-		{"768P", "16:9", 1366, 768}, {"768P", "9:16", 768, 1366}, {"768P", "1:1", 768, 768}, {"768P", "4:3", 1024, 768}, {"768P", "3:4", 768, 1024},
-		{"1080P", "16:9", 1920, 1080}, {"1080P", "9:16", 1080, 1920}, {"1080P", "1:1", 1080, 1080}, {"1080P", "4:3", 1440, 1080}, {"1080P", "3:4", 1080, 1440},
-	}
-	for _, tt := range tests {
-		width, height, err := agnesVideoDimensions(tt.resolution, tt.aspect)
-		if err != nil || width != tt.width || height != tt.height {
-			t.Fatalf("%s %s = %dx%d, error %v; want %dx%d", tt.resolution, tt.aspect, width, height, err, tt.width, tt.height)
-		}
-	}
-	for _, invalid := range []struct{ resolution, aspect string }{
-		{"4k", "16:9"},
-		{"720p", "3:2"},
-	} {
-		if _, _, err := agnesVideoDimensions(invalid.resolution, invalid.aspect); err == nil {
-			t.Fatalf("invalid dimensions %+v unexpectedly accepted", invalid)
-		}
-	}
-}
-
-func TestAgnesVideoImageInputsValidateAndOrderKeyframes(t *testing.T) {
+func TestAgnesVideoPayload(t *testing.T) {
 	originalValidator := validatePublicImageURL
 	defer func() { validatePublicImageURL = originalValidator }()
 	validatePublicImageURL = func(rawURL string) error {
@@ -175,37 +132,33 @@ func TestAgnesVideoImageInputsValidateAndOrderKeyframes(t *testing.T) {
 		return nil
 	}
 
-	first, keyframes, err := agnesVideoImageInputs(VideoGenParams{
-		FirstFrameImage: "https://public.example/first.png",
-		LastFrameImage:  "https://public.example/last.png",
-		ReferenceImages: []string{
-			"https://public.example/ref-1.png",
-			"https://public.example/ref-2.png",
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
+	first, last := "https://public.example/first.png", "https://public.example/last.png"
+	params := VideoGenParams{Prompt: "animate", DurationSeconds: 4, AspectRatio: "21:9", FirstFrameImage: first, LastFrameImage: last}
+	payload, err := agnesVideoPayload(defaultAgnesVideoModel, params)
+	if err != nil || payload.Mode != "keyframe" || payload.FirstFrame != first || payload.LastFrame != last || payload.Seconds != "4" || payload.Size != "720P" {
+		t.Fatalf("keyframe payload = %+v, error %v", payload, err)
 	}
-	if first != "https://public.example/first.png" {
-		t.Fatalf("first image = %q", first)
+	params = VideoGenParams{Prompt: "animate", DurationSeconds: 12, Resolution: "1080p", AspectRatio: "16:9", ReferenceImages: []string{first}}
+	payload, err = agnesVideoPayload("agnes-video-2.5", params)
+	if err != nil || payload.Mode != "reference" || !reflect.DeepEqual(payload.Images, []string{first}) || payload.Size != "1080P" {
+		t.Fatalf("reference payload = %+v, error %v", payload, err)
 	}
-	want := []string{
-		"https://public.example/first.png",
-		"https://public.example/ref-1.png",
-		"https://public.example/ref-2.png",
-		"https://public.example/last.png",
-	}
-	if strings.Join(keyframes, "|") != strings.Join(want, "|") {
-		t.Fatalf("keyframes = %#v, want %#v", keyframes, want)
-	}
-
-	for _, params := range []VideoGenParams{
-		{LastFrameImage: "https://public.example/last.png"},
-		{ReferenceImages: []string{"https://public.example/only.png"}},
+	for _, overrides := range []VideoGenParams{
+		{DurationSeconds: 3}, {DurationSeconds: 13}, {Resolution: "1080P"}, {AspectRatio: "3:2"},
 		{FirstFrameImage: "data:image/png;base64,AA=="},
+		{FirstFrameImage: first, ReferenceImages: []string{last}},
+		{ReferenceImages: []string{first, first, first, first, first, first}},
+		{ReferenceImages: []string{"http://127.0.0.1/ref.png"}},
 	} {
-		if _, _, err := agnesVideoImageInputs(params); err == nil {
-			t.Fatalf("invalid image inputs %+v unexpectedly accepted", params)
+		params := VideoGenParams{DurationSeconds: 6, AspectRatio: "16:9", Resolution: overrides.Resolution, FirstFrameImage: overrides.FirstFrameImage, ReferenceImages: overrides.ReferenceImages}
+		if overrides.DurationSeconds != 0 {
+			params.DurationSeconds = overrides.DurationSeconds
+		}
+		if overrides.AspectRatio != "" {
+			params.AspectRatio = overrides.AspectRatio
+		}
+		if _, err := agnesVideoPayload(defaultAgnesVideoModel, params); err == nil {
+			t.Fatalf("invalid parameters %+v unexpectedly accepted", params)
 		}
 	}
 }
@@ -227,8 +180,8 @@ func TestAgnesVideoConnectionUsesFreeResultEndpoint(t *testing.T) {
 				if r.Method != http.MethodGet || r.URL.Path != "/agnesapi" {
 					t.Fatalf("request = %s %s, want GET /agnesapi", r.Method, r.URL.Path)
 				}
-				if r.URL.Query().Get("video_id") != "video_aurago_connection_test" {
-					t.Fatalf("video_id = %q", r.URL.Query().Get("video_id"))
+				if r.URL.Query().Get("video_id") != "video_aurago_connection_test" || r.URL.Query().Get("model_name") != defaultAgnesVideoModel {
+					t.Fatalf("connection query = %v", r.URL.Query())
 				}
 				if r.Header.Get("Authorization") != "Bearer test-key" {
 					t.Fatalf("authorization = %q", r.Header.Get("Authorization"))

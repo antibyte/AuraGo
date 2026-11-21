@@ -7231,6 +7231,8 @@
   "videoStudio.projectStorageFull": "Dieses Projekt hat sein Speicherlimit erreicht. Entferne Medien oder verwende ein anderes Projekt.",
   "videoStudio.generatedImportFailed": "Der erzeugte Clip konnte diesem Projekt nicht hinzugefügt werden.",
   "videoStudio.generationStatusUnknown": "Der Anbieterstatus ist unklar; die Verarbeitung läuft möglicherweise noch. Prüfe den Status, bevor Du eine weitere kostenpflichtige Anfrage startest.",
+  "videoStudio.generationProviderRejected": "Der Anbieter hat die Anfrage abgelehnt (HTTP {{status}}).",
+  "videoStudio.generationProviderFailed": "Der Anbieter meldet, dass die Videoerzeugung fehlgeschlagen ist.",
   "videoStudio.renderSegmentFailed": "Das Rendern ist zwischen {{from}} und {{to}} fehlgeschlagen. Prüfe die Clips dort und versuche es erneut.",
   "videoStudio.diskSpaceLow": "Auf dem Server ist nicht genug Speicherplatz für diesen Export frei.",
   "videoStudio.tooManyClipsAtOnce": "In einem Teil der Timeline laufen zu viele Clips gleichzeitig. Entferne oder kürze einige der überlappenden Clips.",

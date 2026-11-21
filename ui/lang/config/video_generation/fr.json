@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "Contrôlez l'usage quotidien et l'attente des tâches vidéo asynchrones.",
   "config.video_gen.test_title": "Tester la connexion",
   "config.video_gen.model_hint": "vide = valeur par défaut du fournisseur",
+  "config.video_gen.model_default": "Automatique",
+  "config.video_gen.agnes_duration_help": "Agnes accepte des durées de 4 à 12 secondes. La durée par défaut est de 6 secondes.",
   "config.video_gen.disabled_notice": "La génération vidéo est désactivée.",
   "config.video_gen.max_daily_label": "Générations max par jour",
   "config.video_gen.enabled_label": "Génération vidéo activée :",

@@ -158,6 +158,8 @@ The **AI** tab in the library creates short clips from a text prompt through the
 integration must be on, with a provider and its API key. Otherwise the tab explains what is missing. The provider decides
 which durations, resolutions and start images you can pick. Generation uses the existing `video_generation` budget and
 stops when the budget is used up or the project is at its storage limit. Finished clips appear in the library.
+Agnes Video 2.5 generates text-to-video clips from 4 to 12 seconds here. If the provider profile uses a chat model,
+the automatic choice is Agnes Video 2.5 Flash at 720p.
 
 ## Good to Know: Limits
 

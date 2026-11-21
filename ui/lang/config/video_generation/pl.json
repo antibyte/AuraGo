@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "Kontroluj dzienne użycie i czas oczekiwania na asynchroniczne zadania wideo.",
   "config.video_gen.test_title": "Test połączenia",
   "config.video_gen.model_hint": "puste = domyślne dostawcy",
+  "config.video_gen.model_default": "Automatycznie",
+  "config.video_gen.agnes_duration_help": "Agnes obsługuje filmy trwające od 4 do 12 sekund. Domyślna długość to 6 sekund.",
   "config.video_gen.disabled_notice": "Generowanie wideo jest wyłączone.",
   "config.video_gen.max_daily_label": "Maks. generacji dziennie",
   "config.video_gen.enabled_label": "Generowanie wideo włączone:",

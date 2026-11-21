@@ -7231,6 +7231,8 @@
   "videoStudio.projectStorageFull": "Este projeto atingiu o limite de armazenamento. Remova arquivos de mídia ou use outro projeto.",
   "videoStudio.generatedImportFailed": "Não foi possível adicionar o clipe gerado a este projeto.",
   "videoStudio.generationStatusUnknown": "O status do provedor não está claro; o processamento pode continuar em andamento. Verifique o status antes de enviar outra solicitação paga.",
+  "videoStudio.generationProviderRejected": "O fornecedor rejeitou o pedido (HTTP {{status}}).",
+  "videoStudio.generationProviderFailed": "O fornecedor informou que a geração do vídeo falhou.",
   "videoStudio.renderSegmentFailed": "A renderização falhou entre {{from}} e {{to}}. Verifique os clipes nesse trecho e tente novamente.",
   "videoStudio.diskSpaceLow": "O servidor não tem espaço livre em disco suficiente para esta exportação.",
   "videoStudio.tooManyClipsAtOnce": "Muitos clipes são reproduzidos ao mesmo tempo em uma parte da linha do tempo. Remova ou encurte alguns dos clipes sobrepostos.",

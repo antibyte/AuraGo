@@ -15,6 +15,8 @@
   "config.video_gen.poll_interval_label": "Poll interval (seconds)",
   "config.video_gen.limits_desc": "Control daily usage and how long AuraGo waits for asynchronous video jobs.",
   "config.video_gen.model_hint": "empty = provider default",
+  "config.video_gen.model_default": "Automatic",
+  "config.video_gen.agnes_duration_help": "Agnes supports 4 to 12 seconds. The default duration is 6 seconds.",
   "config.video_gen.defaults_desc": "Defaults used when the tool call does not specify clip settings.",
   "config.video_gen.limits_title": "Limits and polling",
   "config.video_gen.max_daily_label": "Max generations per day",

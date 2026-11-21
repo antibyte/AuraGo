@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "Styr dagligt forbrug og ventetid for asynkrone videojobs.",
   "config.video_gen.test_title": "Test forbindelse",
   "config.video_gen.model_hint": "tom = udbyderens standard",
+  "config.video_gen.model_default": "Automatisk",
+  "config.video_gen.agnes_duration_help": "Agnes understøtter 4 til 12 sekunder. Standardlængden er 6 sekunder.",
   "config.video_gen.disabled_notice": "Videogenerering er deaktiveret.",
   "config.video_gen.max_daily_label": "Maks. genereringer pr. dag",
   "config.video_gen.enabled_label": "Videogenerering aktiveret:",

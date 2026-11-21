@@ -71,11 +71,12 @@ func TestVideoStudioStatusResponseShapeAndProviderCapabilities(t *testing.T) {
 		t.Fatalf("unexpected status limits/canvas shape: %+v", status.Limits)
 	}
 	s.Cfg.VideoGeneration.ProviderType = "agnes"
+	s.Cfg.VideoGeneration.ResolvedModel = "agnes-3.0-flash"
 	response = videoStudioAPIRequest(s, readToken, "GET", "/status", nil, nil)
 	if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
 		t.Fatal(err)
 	}
-	if len(status.Generation.ImageModes) != 0 || len(status.Generation.DurationsSeconds) != 30 || status.Generation.DurationsSeconds[0] != 1 || status.Generation.DurationsSeconds[29] != 30 {
+	if status.Generation.Model != "agnes-video-2.5-flash" || len(status.Generation.ImageModes) != 0 || len(status.Generation.DurationsSeconds) != 9 || status.Generation.DurationsSeconds[0] != 4 || status.Generation.DurationsSeconds[8] != 12 {
 		t.Fatalf("unexpected Agnes capabilities: %+v", status.Generation)
 	}
 }

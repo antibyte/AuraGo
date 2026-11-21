@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "控制每日用量以及等待异步视频任务的时间。",
   "config.video_gen.test_title": "测试连接",
   "config.video_gen.model_hint": "留空 = 提供商默认",
+  "config.video_gen.model_default": "自动",
+  "config.video_gen.agnes_duration_help": "Agnes 支持 4 至 12 秒的视频，默认时长为 6 秒。",
   "config.video_gen.disabled_notice": "视频生成已关闭。",
   "config.video_gen.max_daily_label": "每日最大生成次数",
   "config.video_gen.enabled_label": "视频生成已启用：",

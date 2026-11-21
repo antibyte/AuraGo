@@ -8,7 +8,7 @@ function videoGenerationProviderType(providerId) {
 }
 
 function videoGenerationProviderChanged(select) {
-    setNestedValue(configData, 'video_generation.provider', select.value);
+    setNestedValue(configData, select.dataset.path, select.value);
     if (typeof markDirty === 'function') markDirty();
     renderVideoGenerationSection(null);
 }
@@ -31,22 +31,34 @@ function renderVideoGenerationSection(section) {
         const curProvider = cfg.provider || '';
         const providers = configGeneralProviders();
         const isAgnes = videoGenerationProviderType(curProvider) === 'agnes';
-        const resolutionOptions = isAgnes ? ['480p','720p','768P','1080p'] : ['768P','1080P','720p','4k'];
-        const aspectRatioOptions = isAgnes ? ['16:9','9:16','1:1','4:3','3:4'] : ['16:9','9:16','1:1'];
+        const agnesFlash = 'agnes-video-2.5-flash';
+        const agnesModel = cfg.model || '';
+        const providerModel = providers.find(p => p.id === curProvider)?.model || '';
+        const effectiveAgnes = String(agnesModel || providerModel).trim().toLowerCase();
+        const agnesLimited = !effectiveAgnes.startsWith('agnes-video-') || effectiveAgnes === agnesFlash || effectiveAgnes === 'agnes-video-v2.0';
+        const resolutionOptions = isAgnes ? (agnesLimited ? ['720P'] : ['720P','1080P','1K','2K']) : ['768P','1080P','720p','4k'];
+        const aspectRatioOptions = isAgnes ? ['16:9','9:16','1:1','4:3','3:4','21:9'] : ['16:9','9:16','1:1'];
         const currentResolution = String(cfg.default_resolution || '768P').toLowerCase();
         const currentAspectRatio = String(cfg.default_aspect_ratio || '16:9');
+        const currentDuration = Number(cfg.default_duration_seconds || 6);
         const providerOptions = [{ value: '', label: key('select_provider') }].concat(providers.map(p => ({
             value: p.id,
             label: (p.name || p.id) + (p.type ? ' [' + p.type + ']' : '') + (p.model ? ' - ' + p.model : '')
         })));
         const providerSelect = form.select({ label: key('provider_label'), help: key('provider_help'), path: 'video_generation.provider', value: curProvider, options: providerOptions, onchange: 'videoGenerationProviderChanged(this)', extraOptionsHTML: configPreservedProviderOptionHTML(curProvider, providers) });
+        const modelField = { label: key('model_label'), path: 'video_generation.model', value: cfg.model || '' };
+        const agnesModels = [...new Set([agnesFlash, 'agnes-video-2.5', agnesModel].filter(Boolean))];
+        const agnesDefaultModel = providerModel.toLowerCase().startsWith('agnes-video-') && providerModel.toLowerCase() !== 'agnes-video-v2.0' ? providerModel : agnesFlash;
+        const modelControl = isAgnes
+            ? form.select({ ...modelField, options: [{ value: '', label: key('model_default') + ' · ' + agnesDefaultModel }, ...agnesModels.map(model => ({ value: model, label: model }))], onchange: 'videoGenerationProviderChanged(this)' })
+            : form.field({ ...modelField, help: key('model_hint'), placeholder: 'MiniMax-Hailuo-2.3, veo-3.1-generate-preview...' });
         groups.push({ title: key('provider_title'), desc: key('provider_desc'), fields: [
             providerSelect,
-            form.field({ label: key('model_label'), help: key('model_hint'), path: 'video_generation.model', value: cfg.model || '', placeholder: 'MiniMax-Hailuo-2.3, veo-3.1-generate-preview...' })
+            modelControl
         ] });
         groups.push({ title: key('defaults_title'), desc: key('defaults_desc'), fields: [
-            form.number({ label: key('duration_label'), help: key('duration_help'), path: 'video_generation.default_duration_seconds', value: cfg.default_duration_seconds || 6, min: 1, max: 30 }),
-            form.select({ label: key('resolution_label'), help: key('resolution_help'), path: 'video_generation.default_resolution', value: (resolutionOptions.find(v => v.toLowerCase() === currentResolution) || ''), options: resolutionOptions.map(v => ({ value: v, label: v })) }),
+            form.number({ label: key('duration_label'), help: key(isAgnes ? 'agnes_duration_help' : 'duration_help'), path: 'video_generation.default_duration_seconds', value: isAgnes && (currentDuration < 4 || currentDuration > 12) ? 6 : currentDuration, min: isAgnes ? 4 : 1, max: isAgnes ? 12 : 30 }),
+            form.select({ label: key('resolution_label'), help: key('resolution_help'), path: 'video_generation.default_resolution', value: (resolutionOptions.find(v => v.toLowerCase() === currentResolution) || resolutionOptions[0]), options: resolutionOptions.map(v => ({ value: v, label: v })) }),
             form.select({ label: key('aspect_ratio_label'), help: key('aspect_ratio_help'), path: 'video_generation.default_aspect_ratio', value: currentAspectRatio, options: aspectRatioOptions.map(v => ({ value: v, label: v })) })
         ] });
         groups.push({ title: key('limits_title'), desc: key('limits_desc'), fields: [

@@ -537,13 +537,16 @@ func TestDesktopVideoStudioBrowser(t *testing.T) {
 			{id:'quota',kind:'generate',status:'failed',error:'project_size_limit'},
 			{id:'asset',kind:'generate',status:'failed',error:'asset_size_limit'},
 			{id:'import',kind:'generate',status:'failed',error:'generation_import_failed'},
+			{id:'rejected',kind:'generate',status:'failed',error:'generation_provider_failed',result:{provider_http_status:400}},
+			{id:'provider-failed',kind:'generate',status:'failed',error:'generation_provider_failed'},
 			{id:'uncertain',kind:'generate',status:'failed',error:'generation_failed',external_status_unknown:true},
 			{id:'interrupted',kind:'generate',status:'interrupted',external_status_unknown:true},
 			{id:'running',kind:'generate',status:'running',external_status_unknown:true}
 		];
-		await wait(()=>document.querySelectorAll('.vs-job-error').length===5);
+		await wait(()=>document.querySelectorAll('.vs-job-error').length===7);
 		const messages=Array.from(document.querySelectorAll('.vs-job-error'),el=>el.textContent),locale=window.fixtureLocales.en;
-		for(const key of ['projectStorageFull','fileTooLarge','generatedImportFailed','generationStatusUnknown'])if(!messages.includes(locale['videoStudio.'+key]))throw new Error('missing localized job error: '+key);
+		for(const key of ['projectStorageFull','fileTooLarge','generatedImportFailed','generationStatusUnknown','generationProviderFailed'])if(!messages.includes(locale['videoStudio.'+key]))throw new Error('missing localized job error: '+key);
+		if(!messages.includes(locale['videoStudio.generationProviderRejected'].replace('{{status}}','400')))throw new Error('missing localized provider rejection');
 		if(document.querySelector('.vs-job-running .vs-job-error'))throw new Error('running provider request was reported as uncertain');
 	}`)
 

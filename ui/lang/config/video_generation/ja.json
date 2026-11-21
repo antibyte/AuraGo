@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "1日の使用量と非同期動画ジョブの待機時間を制御します。",
   "config.video_gen.test_title": "接続テスト",
   "config.video_gen.model_hint": "空 = プロバイダー既定",
+  "config.video_gen.model_default": "自動",
+  "config.video_gen.agnes_duration_help": "Agnes は 4～12 秒に対応します。既定の長さは 6 秒です。",
   "config.video_gen.disabled_notice": "動画生成は無効です。",
   "config.video_gen.max_daily_label": "1日あたり最大生成数",
   "config.video_gen.enabled_label": "動画生成を有効化:",

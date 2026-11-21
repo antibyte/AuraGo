@@ -2941,6 +2941,8 @@ buttons and menu popovers remain excluded from those gestures.
 
 ### Video Studio contract
 
+- Generation tasks show confirmed provider failures with the numeric HTTP status when available. The uncertainty warning applies when a provider outcome is still unconfirmed.
+
 - Video Studio is a lazy app. Load `desktop-app-video-studio.css` and `desktop-stickers.css`, then
   `shared/sticker-catalog.js`, `shared/sticker-library.js`,
   `video-studio-icons.js`, `video-studio-time.js`, `video-studio-effects.js` (DOM-free registry mirror and shared

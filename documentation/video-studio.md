@@ -722,11 +722,14 @@ A project that has already reached its storage quota cannot start a paid
 generation. The quota is checked again before importing the result because
 other edits may have used space in the meantime. Local storage or import errors
 are reported separately from provider failures; they do not imply a refund.
+Video Studio shows a confirmed provider rejection with its HTTP status when
+available. If the outcome is unclear, check it with the provider before
+submitting another paid request.
 
 MiniMax and Veo can receive a supported local start image through their existing
-provider-specific image payloads. Agnes supports text-to-video in this app;
-local project files are not automatically published to obtain a public image
-URL. Images leave the server only after the user submits a supported AI request.
+provider-specific image payloads. Agnes Video 2.5 supports 4–12 second text-to-video
+clips in this app. The automatic Agnes model is Video 2.5 Flash at 720P when
+the provider profile uses a chat model. Local project files are kept private. Images leave the server only after the user submits a supported AI request.
 MiniMax has no independent aspect-ratio control in the current adapter, so the
 editor does not offer that selection for MiniMax generation. The project's
 landscape, portrait, or square export format remains independently selectable.

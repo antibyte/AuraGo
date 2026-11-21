@@ -58,6 +58,11 @@
     const clockSeconds = value => window.VideoStudioTime.clockSeconds(value);
     function jobFailure(job) {
         if (job.external_status_unknown && ['failed', 'cancelled', 'interrupted'].includes(job.status)) return ['generationStatusUnknown', 'The provider status is unclear; it may still be processing. Check its status before making another paid request.'];
+        if (job.error === 'generation_provider_failed') {
+            const status = Number(job.result?.provider_http_status);
+            if (Number.isInteger(status) && status >= 400 && status < 500) return ['generationProviderRejected', 'The provider rejected the request (HTTP {{status}}).', { status }];
+            return ['generationProviderFailed', 'The provider reported that video generation failed.'];
+        }
         if (job.error === 'render_segment_failed') {
             const result = job.result || {};
             return ['renderSegmentFailed', 'Rendering failed between {{from}} and {{to}}. Check the clips there and try again.', { from: clockSeconds(result.failed_from_seconds), to: clockSeconds(result.failed_to_seconds) }];

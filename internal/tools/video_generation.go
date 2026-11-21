@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -30,7 +31,6 @@ const (
 	defaultMiniMaxVideoModel       = "MiniMax-Hailuo-2.3"
 	legacyMiniMaxHailuo23Preset    = "Hailuo-2.3-768P"
 	defaultGoogleVideoModel        = "veo-3.1-generate-preview"
-	defaultAgnesVideoModel         = "agnes-video-v2.0"
 	maxGeneratedVideoBytes         = int64(512 * 1024 * 1024)
 	maxVideoGenerationImageBytes   = 20 << 20
 	videoProviderOutcomeUnknownMsg = "The video provider received the request and its outcome is unknown."
@@ -76,6 +76,9 @@ type VideoGenResult struct {
 	CostEstimate float64 `json:"cost_estimate,omitempty"`
 	Message      string  `json:"message,omitempty"`
 	Error        string  `json:"error,omitempty"`
+
+	ProviderFailure    bool `json:"-"`
+	ProviderHTTPStatus int  `json:"-"`
 }
 
 type videoDailyCounter struct {
@@ -143,12 +146,17 @@ func GenerateVideoResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 
 	providerType := strings.ToLower(cfg.VideoGeneration.ProviderType)
 	apiKey := cfg.VideoGeneration.APIKey
-	model := cfg.VideoGeneration.ResolvedModel
+	model := firstNonEmpty(cfg.VideoGeneration.ResolvedModel, cfg.VideoGeneration.Model)
 	if params.Model != "" {
 		model = params.Model
 	}
 	if providerType == "agnes" {
-		model = normalizeAgnesVideoModel(model)
+		if params.Resolution == "" && !slices.Contains(agnesVideoSizes(model), normalizeAgnesVideoSize(cfg.VideoGeneration.DefaultResolution)) {
+			params.Resolution = "720P"
+		}
+		if params.DurationSeconds <= 0 && (cfg.VideoGeneration.DefaultDurationSeconds < AgnesVideoMinSeconds || cfg.VideoGeneration.DefaultDurationSeconds > AgnesVideoMaxSeconds) {
+			params.DurationSeconds = 6
+		}
 	}
 	params = applyVideoDefaults(cfg, params)
 
@@ -166,7 +174,9 @@ func GenerateVideoResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 
 	videoDir := filepath.Join(cfg.Directories.DataDir, "generated_videos")
 	if err := os.MkdirAll(videoDir, 0755); err != nil {
-		videoCounterRelease()
+		if cfg.VideoGeneration.MaxDaily > 0 {
+			videoCounterRelease()
+		}
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Failed to create generated_videos directory: %v", err)}
 	}
 
@@ -179,12 +189,14 @@ func GenerateVideoResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 	case "agnes":
 		result = generateVideoAgnes(ctx, cfg.VideoGeneration.BaseURL, apiKey, model, params, cfg.VideoGeneration.PollIntervalSeconds, cfg.VideoGeneration.TimeoutSeconds, videoDir)
 	default:
-		videoCounterRelease()
+		if cfg.VideoGeneration.MaxDaily > 0 {
+			videoCounterRelease()
+		}
 		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Unknown video generation provider type: %q. Supported: minimax, google, agnes", providerType)}
 	}
 
 	if result.Status != "ok" {
-		if result.Status != "external_status_unknown" {
+		if cfg.VideoGeneration.MaxDaily > 0 && result.Status != "external_status_unknown" && result.TaskID == "" {
 			videoCounterRelease()
 		}
 		return result
@@ -380,6 +392,15 @@ func videoCreateTransportFailure(err error, reached *atomic.Bool, fallback strin
 	return VideoGenResult{Status: "error", Error: fmt.Sprintf(fallback, err)}
 }
 
+func videoCreateHTTPFailure(status int, message string) VideoGenResult {
+	if status < 400 || status >= 500 || status == http.StatusRequestTimeout {
+		result := videoTaskOutcomeUnknown("")
+		result.ProviderHTTPStatus = status
+		return result
+	}
+	return VideoGenResult{Status: "error", Error: message, ProviderFailure: true, ProviderHTTPStatus: status}
+}
+
 func videoTaskOutcomeUnknown(taskID string) VideoGenResult {
 	return VideoGenResult{
 		Status: "external_status_unknown",
@@ -472,7 +493,7 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 	defer resp.Body.Close()
 	respBody, readErr := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500))}
+		return videoCreateHTTPFailure(resp.StatusCode, fmt.Sprintf("MiniMax API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500)))
 	}
 	// The provider accepted the create request. An unread or non-JSON body
 	// has no task id, so the daily slot stays reserved. A parsed rejection
@@ -486,7 +507,7 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 		return VideoGenResult{Status: "external_status_unknown", Error: videoProviderOutcomeUnknownMsg}
 	}
 	if createResp.BaseResp.StatusCode != 0 {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API error: %s (code %d)", createResp.BaseResp.StatusMsg, createResp.BaseResp.StatusCode)}
+		return VideoGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API error: %s (code %d)", createResp.BaseResp.StatusMsg, createResp.BaseResp.StatusCode), ProviderFailure: true}
 	}
 	taskID := firstNonEmpty(createResp.TaskID, stringFromAny(createResp.Data["task_id"]))
 	if taskID == "" {
@@ -688,7 +709,7 @@ func generateVideoGoogle(ctx context.Context, baseURL, apiKey, model string, par
 	defer resp.Body.Close()
 	respBody, readErr := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return VideoGenResult{Status: "error", Error: fmt.Sprintf("Google Veo API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500))}
+		return videoCreateHTTPFailure(resp.StatusCode, fmt.Sprintf("Google Veo API returned status %d: %s", resp.StatusCode, truncateString(string(respBody), 500)))
 	}
 	// The provider accepted the create request. An unread or non-JSON body
 	// has no task id, so the daily slot stays reserved. A parsed operation
@@ -1001,7 +1022,7 @@ func TestVideoConnection(ctx context.Context, provider, apiKey, baseURL string) 
 		return false, fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncateString(string(body), 200))
 	case "agnes":
 		_, resultEndpoint := agnesVideoEndpoints(baseURL)
-		statusURL := resultEndpoint + "?video_id=" + url.QueryEscape("video_aurago_connection_test")
+		statusURL := resultEndpoint + "?video_id=video_aurago_connection_test&model_name=" + defaultAgnesVideoModel
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, statusURL, nil)
 		if err != nil {
 			return false, fmt.Sprintf("Request creation failed: %v", err)

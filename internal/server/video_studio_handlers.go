@@ -21,6 +21,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/desktop"
+	"aurago/internal/tools"
 	"aurago/internal/uid"
 	"aurago/internal/videostudio"
 )
@@ -172,6 +173,9 @@ func handleVideoStudioStatus(s *Server, w http.ResponseWriter, r *http.Request) 
 	if model == "" {
 		model = cfg.VideoGeneration.Model
 	}
+	if provider == "agnes" {
+		model = tools.AgnesVideoModel(model)
+	}
 	configured := cfg.VideoGeneration.Enabled && strings.TrimSpace(cfg.VideoGeneration.APIKey) != "" && provider != ""
 	issue := ""
 	switch {
@@ -273,9 +277,9 @@ func videoStudioDurationOptions(cfg *config.Config, resolution string, hasRefere
 		}
 		return []int{6, 10}
 	case "agnes":
-		values := make([]int, 30)
+		values := make([]int, tools.AgnesVideoMaxSeconds-tools.AgnesVideoMinSeconds+1)
 		for i := range values {
-			values[i] = i + 1
+			values[i] = i + tools.AgnesVideoMinSeconds
 		}
 		return values
 	default:
@@ -998,6 +1002,7 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		}
 	}
 	if kind == "generate" {
+		provider := strings.ToLower(cfg.VideoGeneration.ProviderType)
 		if !cfg.VideoGeneration.Enabled || cfg.VideoGeneration.APIKey == "" || cfg.VideoGeneration.ProviderType == "" {
 			writeVideoStudioError(w, http.StatusConflict, "generation_unavailable", "Video generation is not configured.")
 			return
@@ -1012,11 +1017,14 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 		}
 		if request.DurationSeconds == 0 {
 			request.DurationSeconds = cfg.VideoGeneration.DefaultDurationSeconds
+			if provider == "agnes" && (request.DurationSeconds < tools.AgnesVideoMinSeconds || request.DurationSeconds > tools.AgnesVideoMaxSeconds) {
+				request.DurationSeconds = 6
+			}
 		}
 		if request.DurationSeconds <= 0 {
 			request.DurationSeconds = 6
 		}
-		if request.Resolution == "" {
+		if request.Resolution == "" && provider != "agnes" {
 			request.Resolution = cfg.VideoGeneration.DefaultResolution
 		}
 		if request.AspectRatio == "" {
@@ -1026,7 +1034,6 @@ func handleVideoStudioJobCreate(s *Server, w http.ResponseWriter, r *http.Reques
 			writeVideoStudioError(w, http.StatusBadRequest, "unsupported_duration", "Requested duration is not available for the configured provider and settings.")
 			return
 		}
-		provider := strings.ToLower(cfg.VideoGeneration.ProviderType)
 		if provider == "agnes" && (request.FirstFrameAssetID != "" || request.LastFrameAssetID != "" || len(request.ReferenceAssetIDs) != 0) {
 			writeVideoStudioError(w, http.StatusBadRequest, "unsupported_image_mode", "This provider accepts text-only generation in Video Studio.")
 			return

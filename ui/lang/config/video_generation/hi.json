@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "दैनिक उपयोग और यह नियंत्रित करें कि AuraGo अतुल्यकालिक वीडियो जॉब का कितना इंतज़ार करे.",
   "config.video_gen.test_title": "कनेक्शन परीक्षण",
   "config.video_gen.model_hint": "खाली = प्रदाता डिफ़ॉल्ट",
+  "config.video_gen.model_default": "स्वचालित",
+  "config.video_gen.agnes_duration_help": "Agnes में वीडियो 4 से 12 सेकंड के हो सकते हैं। डिफ़ॉल्ट अवधि 6 सेकंड है।",
   "config.video_gen.disabled_notice": "वीडियो जनरेशन बंद है.",
   "config.video_gen.max_daily_label": "प्रतिदिन अधिकतम निर्माण",
   "config.video_gen.enabled_label": "वीडियो जनरेशन सक्षम:",

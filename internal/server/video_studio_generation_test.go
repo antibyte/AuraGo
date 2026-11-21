@@ -91,6 +91,49 @@ func submitVideoStudioGeneration(t *testing.T, s *Server, token, projectID, key 
 	return body.Job.ID
 }
 
+func TestVideoStudioGenerationDistinguishesProviderRejectionFromUncertainty(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		httpStatus int
+		code       string
+		unknown    bool
+	}{
+		{"rejected", http.StatusBadRequest, "generation_provider_failed", false},
+		{"unavailable", http.StatusBadGateway, "generation_failed", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _, writeToken := videoStudioAPIFixture(t)
+			project, _ := videoStudioAPICreate(t, s, writeToken)
+			var calls atomic.Int32
+			provider := &videoStudioGenerationProvider{server: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost || r.URL.Path != "/v1/videos" {
+					t.Errorf("unexpected provider request %s %s", r.Method, r.URL.Path)
+				}
+				calls.Add(1)
+				http.Error(w, "private provider response", tc.httpStatus)
+			}))}
+			defer provider.server.Close()
+			token := configureVideoStudioGenerationTest(t, s, provider)
+			s.Cfg.VideoGeneration.ProviderType = "agnes"
+			s.Cfg.VideoGeneration.ResolvedModel = "agnes-3.0-flash"
+			manager, err := s.videoStudioManager()
+			if err != nil {
+				t.Fatal(err)
+			}
+			job := waitVideoStudioJobTerminal(t, manager, submitVideoStudioGeneration(t, s, token, project.ID, tc.name))
+			if job.Status != "failed" || job.Error != tc.code || job.ExternalStatusUnknown != tc.unknown || calls.Load() != 1 {
+				t.Fatalf("job = %+v, provider calls = %d", job, calls.Load())
+			}
+			if !tc.unknown && (job.Result["provider_http_status"] != tc.httpStatus || !strings.Contains(job.Message, "HTTP 400")) {
+				t.Fatalf("missing provider status in job: %+v", job)
+			}
+			if strings.Contains(job.Message, "private provider response") {
+				t.Fatalf("provider body leaked in job: %+v", job)
+			}
+		})
+	}
+}
+
 func waitVideoStudioJobTerminal(t *testing.T, manager *videoStudioManager, jobID string) *videoStudioJob {
 	t.Helper()
 	deadline := time.Now().Add(15 * time.Second)

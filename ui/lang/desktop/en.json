@@ -8551,6 +8551,8 @@
   "videoStudio.projectStorageFull": "This project has reached its storage limit. Remove media or use another project.",
   "videoStudio.generatedImportFailed": "The generated clip could not be added to this project.",
   "videoStudio.generationStatusUnknown": "The provider status is unclear; it may still be processing. Check its status before making another paid request.",
+  "videoStudio.generationProviderRejected": "The provider rejected the request (HTTP {{status}}).",
+  "videoStudio.generationProviderFailed": "The provider reported that video generation failed.",
   "videoStudio.renderSegmentFailed": "Rendering failed between {{from}} and {{to}}. Check the clips there and try again.",
   "videoStudio.diskSpaceLow": "The server does not have enough free disk space for this export.",
   "videoStudio.tooManyClipsAtOnce": "Too many clips play at the same time in one part of the timeline. Remove or shorten some of the overlapping clips.",

@@ -1119,6 +1119,15 @@ func videoStudioUncertainCancelMessage(code string) string {
 	}
 }
 
+type videoStudioProviderFailure int
+
+func (status videoStudioProviderFailure) Error() string {
+	if status > 0 {
+		return fmt.Sprintf("video provider rejected generation (HTTP %d)", status)
+	}
+	return "video provider reported generation failed"
+}
+
 func videoStudioJobFailure(kind string, err error, ctx context.Context) (string, string, string) {
 	if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 		return "cancelled", "cancelled", "The job was cancelled or revoked."
@@ -1185,17 +1194,25 @@ func videoStudioJobFailure(kind string, err error, ctx context.Context) (string,
 		if errors.Is(err, errVideoStudioGenerationImport) {
 			return "failed", "generation_import_failed", "The provider returned a video, but AuraGo could not import it into this project."
 		}
+		var providerFailure videoStudioProviderFailure
+		if errors.As(err, &providerFailure) {
+			return "failed", "generation_provider_failed", providerFailure.Error()
+		}
 		return "failed", "generation_failed", "The configured video provider could not complete this request."
 	default:
 		return "failed", "job_failed", "The video job failed."
 	}
 }
 
-// videoStudioFailureResult carries where a render failed, so the editor can name the time range in its language.
+// videoStudioFailureResult carries safe values for localized failure messages.
 func videoStudioFailureResult(err error) map[string]interface{} {
 	var segment *videostudio.SegmentError
 	if errors.As(err, &segment) {
 		return map[string]interface{}{"failed_from_seconds": segment.Start, "failed_to_seconds": segment.End}
+	}
+	var providerFailure videoStudioProviderFailure
+	if errors.As(err, &providerFailure) && providerFailure > 0 {
+		return map[string]interface{}{"provider_http_status": int(providerFailure)}
 	}
 	return nil
 }

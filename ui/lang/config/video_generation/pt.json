@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "Controle o uso diário e a espera por trabalhos de vídeo assíncronos.",
   "config.video_gen.test_title": "Testar conexão",
   "config.video_gen.model_hint": "vazio = padrão do provedor",
+  "config.video_gen.model_default": "Automático",
+  "config.video_gen.agnes_duration_help": "A Agnes aceita durações de 4 a 12 segundos. A duração predefinida é de 6 segundos.",
   "config.video_gen.disabled_notice": "A geração de vídeo está desativada.",
   "config.video_gen.max_daily_label": "Máx. gerações por dia",
   "config.video_gen.enabled_label": "Geração de vídeo ativada:",

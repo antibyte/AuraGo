@@ -18,6 +18,8 @@
   "config.video_gen.limits_desc": "Beheer dagelijks gebruik en wachttijd voor asynchrone videotaken.",
   "config.video_gen.test_title": "Verbinding testen",
   "config.video_gen.model_hint": "leeg = providerstandaard",
+  "config.video_gen.model_default": "Automatisch",
+  "config.video_gen.agnes_duration_help": "Agnes ondersteunt 4 tot 12 seconden. De standaardduur is 6 seconden.",
   "config.video_gen.disabled_notice": "Videogeneratie is uitgeschakeld.",
   "config.video_gen.max_daily_label": "Max. generaties per dag",
   "config.video_gen.enabled_label": "Videogeneratie ingeschakeld:",

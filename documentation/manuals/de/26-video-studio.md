@@ -166,6 +166,8 @@ Der Reiter **KI** in der Bibliothek erzeugt kurze Clips aus einem Textprompt üb
 reicht nicht: Die Videogenerierung muss eingeschaltet sein, mit einem Anbieter und seinem API-Schlüssel. Sonst erklärt der
 Reiter, was fehlt. Der Anbieter bestimmt Dauern, Auflösungen und Startbilder. Die Erzeugung nutzt das Budget der Kategorie
 `video_generation` und stoppt, wenn es aufgebraucht ist oder das Projekt seine Speichergrenze erreicht hat.
+Agnes Video 2.5 erzeugt hier Text-zu-Video-Clips mit 4 bis 12 Sekunden. Bei einem Chatmodell im Anbieterprofil
+wählt die Automatik Agnes Video 2.5 Flash mit 720p.
 
 ## Gut zu wissen: Grenzwerte
 

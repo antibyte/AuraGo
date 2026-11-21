@@ -1955,7 +1955,7 @@ music_generation:
 video_generation:
     enabled: false
     provider: ""                   # references a ProviderEntry ID (type: minimax, google, or agnes)
-    model: ""                      # model override (empty = use provider default, e.g. MiniMax-Hailuo-2.3, veo-3.1-generate-preview, or agnes-video-v2.0)
+    model: ""                      # model override (Agnes falls back to agnes-video-2.5-flash when the provider uses a chat or legacy v2.0 model)
     default_duration_seconds: 6    # default clip duration
     default_resolution: "768P"     # provider-specific resolution preset (model is configured separately)
     default_aspect_ratio: "16:9"

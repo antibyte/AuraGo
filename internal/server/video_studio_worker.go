@@ -611,6 +611,15 @@ func (m *videoStudioManager) processGenerate(ctx context.Context, svc *desktop.S
 		return nil, nil, err
 	}
 	if result.Status != "ok" {
+		if result.ProviderFailure {
+			if err := m.markExternalStatusResolved(job.ID); err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, videoStudioProviderFailure(result.ProviderHTTPStatus)
+		}
+		if result.ProviderHTTPStatus != 0 {
+			return nil, nil, fmt.Errorf("provider_generation_failed (HTTP %d)", result.ProviderHTTPStatus)
+		}
 		return nil, nil, fmt.Errorf("provider_generation_failed")
 	}
 	providerReturnedVideo = true
