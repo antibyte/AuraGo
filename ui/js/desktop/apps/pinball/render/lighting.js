@@ -2,6 +2,7 @@
 // flasher domes and GI bulbs (instanced emissive meshes). The light count never changes at runtime.
 import * as THREE from 'three';
 import { hexToLinear } from './playfield.js';
+import { REFLECT_LAYER } from './reflect.js';
 
 const BALL_R = 0.0135;
 
@@ -64,6 +65,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     const rim = new THREE.DirectionalLight(secondary, 0.55); rim.position.set(0.7, 0.6, -1.6); rim.target = target;
     const fill = new THREE.DirectionalLight(accent, 0.28); fill.position.set(0.9, 0.7, 1.2); fill.target = target;
     scene.add(hemi, key, rim, fill);
+    for (const l of [hemi, key, rim, fill]) l.layers.enable(REFLECT_LAYER);   // lights only reach the mirror camera's layer if enabled
     const cam = key.shadow.camera;
     cam.left = -0.5; cam.right = 0.5; cam.top = 0.9; cam.bottom = -0.9; cam.near = 0.5; cam.far = 4.5;
     key.shadow.bias = -0.00015; key.shadow.normalBias = 0.0015;
@@ -72,7 +74,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     const points = [];
     function setLightCount(n) {
         while (points.length > n) { const l = points.pop(); tableRoot.remove(l); l.dispose && l.dispose(); }
-        while (points.length < n) { const l = new THREE.PointLight('#ffffff', 0, 0.6, 1.5); l.position.set(0, 0.06, -0.5); tableRoot.add(l); points.push(l); }
+        while (points.length < n) { const l = new THREE.PointLight('#ffffff', 0, 0.6, 1.5); l.position.set(0, 0.06, -0.5); l.layers.enable(REFLECT_LAYER); tableRoot.add(l); points.push(l); }
     }
     setLightCount(tier.lights);
 
@@ -81,7 +83,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     if (flashers.length) {
         const g = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
         domes = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: '#ffffff' }), flashers.length);
-        domes.frustumCulled = false;
+        domes.frustumCulled = false; domes.layers.enable(REFLECT_LAYER);
         flashers.forEach((f, i) => domes.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(f.x, 0.001, -f.y), new THREE.Quaternion(), new THREE.Vector3().setScalar(f.r || 0.012))));
         tableRoot.add(domes);
     }
@@ -95,7 +97,7 @@ export function createLights({ scene, tableRoot, layout, tier, palette, shadows 
     let bulbMesh = null;
     if (bulbs.length) {
         bulbMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0027, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffffff' }), bulbs.length);
-        bulbMesh.frustumCulled = false;
+        bulbMesh.frustumCulled = false; bulbMesh.layers.enable(REFLECT_LAYER);
         bulbs.forEach((b, i) => bulbMesh.setMatrixAt(i, new THREE.Matrix4().makeTranslation(b.x, 0.001, -b.y)));
         tableRoot.add(bulbMesh);
     }

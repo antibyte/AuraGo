@@ -52,6 +52,7 @@ export function createLampTextures(layout) {
 const FRAG_HEAD = `
 uniform sampler2D lampMask; uniform sampler2D lampState; uniform sampler2D giMap;
 uniform vec2 giLevel; uniform float lampGain; uniform float giFloor; uniform float giLift; uniform vec3 giTintLo; uniform vec3 giTintUp;
+uniform sampler2D reflectMap; uniform float reflectStrength; varying vec4 vReflectUv;
 vec3 lampRgb(float idx){ return texture2D(lampState, vec2((idx + 0.5) / 256.0, 0.5)).rgb; }
 `;
 const AFTER_MAP = `
@@ -60,7 +61,10 @@ const AFTER_MAP = `
   float pfGi = clamp(pfGw.x * giLevel.x + pfGw.y * giLevel.y, 0.0, 1.0);
   diffuseColor.rgb *= mix(giFloor, 1.0, pfGi);
 `;
+const VERT_HEAD = 'uniform mat4 reflectMatrix; varying vec4 vReflectUv;\n';
+const AFTER_PROJECT = '\n  vReflectUv = reflectMatrix * modelMatrix * vec4(transformed, 1.0);';
 const AFTER_EMISSIVE = `
+  totalEmissiveRadiance += min(texture2DProj(reflectMap, vReflectUv).rgb, vec3(1.6)) * (reflectStrength * step(0.0, vReflectUv.w));
   totalEmissiveRadiance += diffuseColor.rgb * (pfGw.x * giLevel.x * giTintLo + pfGw.y * giLevel.y * giTintUp) * giLift;
   float pfIns = floor(pfMask.r * 255.0 + 0.5);
   if (pfIns > 0.5) {
@@ -85,7 +89,9 @@ export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.
     const uniforms = {
         lampMask: { value: lampTex.maskTex }, lampState: { value: lampTex.stateTex }, giMap: { value: lampTex.giTex },
         giLevel: { value: new THREE.Vector2(1, 1) }, lampGain: { value: lampGain }, giFloor: { value: 0.35 }, giLift: { value: 0.42 },
-        giTintLo: { value: hexToLinear(giColors.lower || '#ffe9d0') }, giTintUp: { value: hexToLinear(giColors.upper || '#ffe9d0') }
+        giTintLo: { value: hexToLinear(giColors.lower || '#ffe9d0') }, giTintUp: { value: hexToLinear(giColors.upper || '#ffe9d0') },
+        // Planar reflection (reflect.js): scene.js points reflectMap / reflectMatrix at the live render target each frame; strength 0 = off.
+        reflectMap: { value: null }, reflectMatrix: { value: new THREE.Matrix4() }, reflectStrength: { value: 0 }
     };
     const material = new THREE.MeshPhysicalMaterial({
         map: artTex, color: '#ffffff', roughness: 0.62, metalness: 0.04, clearcoat: 0.28, clearcoatRoughness: 0.32,
@@ -94,12 +100,13 @@ export function createPlayfieldMaterial({ artTex, lampTex, envMap, lampGain = 2.
     let patched = !forceFallback;
     const patch = shader => {
         Object.assign(shader.uniforms, uniforms);
+        shader.vertexShader = VERT_HEAD + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>' + AFTER_PROJECT);
         shader.fragmentShader = FRAG_HEAD + shader.fragmentShader
             .replace('#include <map_fragment>', '#include <map_fragment>\n' + AFTER_MAP)
             .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + AFTER_EMISSIVE);
     };
     if (patched) material.onBeforeCompile = patch;
-    material.customProgramCacheKey = () => (patched ? 'pf-lamp-v3' : 'pf-plain');
+    material.customProgramCacheKey = () => (patched ? 'pf-lamp-v4' : 'pf-plain');
     // CPU fallback: an emissive canvas redrawn at 30 Hz from the lamp state (insets + soft glow).
     let fb = null;
     const fallback = {

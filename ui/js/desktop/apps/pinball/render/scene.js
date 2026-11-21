@@ -15,9 +15,11 @@ import { buildCabinet } from './cabinet.js';
 import { buildRoom } from './room.js';
 import { createCameraRig } from './camera.js';
 import { buildMechanics } from './builders.js';
+import { createPlayfieldReflection } from './reflect.js';
 import { createEffects } from './fx.js';
 import { glassViolations } from './clearance.js';
 import { glassHeight } from '../tables/kit/cabinet-dims.js';
+import { loadModels, disposeModels } from './models.js';
 
 const TILT = 6.5 * Math.PI / 180;
 const abortError = () => Object.assign(new Error('cancelled'), { name: 'AbortError' });
@@ -92,6 +94,12 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const tableRoot = new THREE.Group(); tableRoot.name = 'tableRoot'; tableRoot.rotation.x = TILT; scene.add(tableRoot);
     const mechanicsGroup = new THREE.Group(); mechanicsGroup.name = 'mechanics'; tableRoot.add(mechanicsGroup);
     let env = createEnvironment(renderer, palette);
+    // Optional GLB models (entry.glb = { key: file }); a missing or failed file leaves the key out and the toys draw their procedural fallback.
+    let models = new Map();
+    if (entry.glb) {
+        try { models = await loadModels(entry.glb, { assetURL, signal, env: env.texture, tier: quality }); } catch (e) { env.dispose(); fail(e); }
+        if (signal && signal.aborted) { disposeModels(models); env.dispose(); fail(abortError()); }
+    }
     const mats = createMaterials({ envMap: env.texture, palette, aniso: aniso() });
     const lamps0 = { texture: createLampTextures(layout) };
 
@@ -127,7 +135,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         if (!visual.buildToys) return;
         if (toys) { if (toys.dispose) toys.dispose(); toys = null; }
         toysLow = quality === 'low'; glassCache = null;
-        toys = visual.buildToys(THREE, art.kit, layout, { tier: quality, low: toysLow });
+        toys = visual.buildToys(THREE, art.kit, layout, { tier: quality, low: toysLow, models, reduced: settings.reduced === true, isReduced: () => reducedNow });
         if (toys && toys.group) tableRoot.add(toys.group);
     };
     buildToysNow();
@@ -144,6 +152,13 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const origRender = renderPass.render.bind(renderPass);
     renderPass.render = (...a) => { origRender(...a); sceneCalls = renderer.info.render.calls; sceneTris = renderer.info.render.triangles; };
     renderer.debug.onShaderError = () => { if (!pf.fallback.active) pf.fallback.enable(); };
+    // Planar playfield reflection (reflect.js): one extra mirrored pass on high / medium, none on low.
+    const refl = createPlayfieldReflection({ renderer, scene, camera, tableRoot });
+    const syncReflection = () => {
+        const sz = renderer.getDrawingBufferSize(new THREE.Vector2());
+        refl.setTier(tier, sz.x, sz.y);
+        pf.uniforms.reflectMap.value = refl.texture; pf.uniforms.reflectStrength.value = refl.strength;
+    };
 
     let width = 0, height = 0, frames = 0, tAnim = 0, lastDmd = -1, lost = false, reducedNow = settings.reduced === true;
     const cachedRgba = new Uint8Array(1024), mechs = new Set();
@@ -179,6 +194,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         renderer.setSize(w, h, false); composer.setSize(w, h);
         if (tier.bloom && tier.bloom.half) bloom.setSize(Math.max(1, w >> 1), Math.max(1, h >> 1));
         rig.resize(w, h);
+        syncReflection();
     }
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
     if (observer) observer.observe(host);
@@ -230,6 +246,8 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         fx.update({ snap, dt: step, reduced });
         if (toys && toys.update) toys.update(step, tAnim, snap, toyState, lamps, events);
         rig.update(step, tAnim, { reducedNow: reduced, interactive, balls: snap && snap.balls });
+        refl.update(frames < 3);
+        pf.uniforms.reflectMatrix.value.copy(refl.matrix);
         composer.render(step);
         frames++;
     }
@@ -245,7 +263,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         // T13 contract: builder({THREE, root, layout, mats, env, tier, kit, assetURL, renderer, scene}) -> {update?(ctx), setQuality?(tier), dispose?()}.
         // `root` is a Group inside tableRoot (X = x, Y = h, Z = -y). ctx = {snap, lamps, toyState, dt, time, reduced, scene}.
         addMechanics(builder) {
-            const handle = builder({ THREE, root: mechanicsGroup, layout, mats, env: env.texture, tier, kit: art.kit, assetURL, renderer, scene, tableRoot, camera, images });
+            const handle = builder({ THREE, root: mechanicsGroup, layout, mats, env: env.texture, tier, kit: art.kit, assetURL, renderer, scene, tableRoot, camera, images, models });
             if (handle) mechs.add(handle);
             glassCache = null;
             return handle;
@@ -256,7 +274,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
             let gpu = 'webgl2';
             try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)); } catch (_) { /* ignore */ }
             if (!glassCache) glassCache = glassViolations([mechanicsGroup, toys && toys.group], { glassHeight });
-            return { glassViolations: glassCache.length, glassViolationList: glassCache.slice(0, 10), ready: !disposed && !lost, quality, frames, drawCalls: sceneCalls, triangles: sceneTris, textures: info.memory.textures, geometries: info.memory.geometries, width, height, flipperOrder: true, renderer: gpu, fallback: pf.fallback.active, lights: lights.points.length };
+            return { glassViolations: glassCache.length, glassViolationList: glassCache.slice(0, 10), ready: !disposed && !lost, quality, frames, drawCalls: sceneCalls, reflectCalls: refl.drawCalls, triangles: sceneTris, textures: info.memory.textures, geometries: info.memory.geometries, width, height, flipperOrder: true, renderer: gpu, fallback: pf.fallback.active, lights: lights.points.length };
         },
         // Handles for T13/T16 and tests.
         three: { THREE, renderer, scene, camera, tableRoot, mechanics: mechanicsGroup, materials: mats, get env() { return env.texture; }, kit: () => art.kit, rig, lights, composer },
@@ -267,8 +285,9 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
             for (const m of mechs) if (m.dispose) m.dispose();
             mechs.clear();
             if (toys && toys.dispose) toys.dispose();
+            disposeModels(models);
             fx.dispose();
-            rig.dispose(); lights.dispose(); cabinet.dispose(); room.dispose();
+            refl.dispose(); rig.dispose(); lights.dispose(); cabinet.dispose(); room.dispose();
             for (const m of [plane, ...wallMeshes]) m.geometry.dispose();
             ballGeo.dispose(); ballMat.dispose(); ballMesh.dispose();
             art.texture.dispose(); art.canvas.width = art.canvas.height = 1;

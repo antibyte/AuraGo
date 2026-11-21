@@ -9,8 +9,10 @@ import { merge } from './materials.js';
 import * as M from './mechs.js';
 import { buildRamps } from './ramps.js';
 import { createBalls } from './balls.js';
+import { REFLECT_LAYER } from './reflect.js';
 import { buildHardware, isHardwarePost } from './hardware.js';
 import { buildPlastics } from './plastics.js';
+import { buildOrrery, buildPendulum } from './builders-motion.js';
 
 const EMPTY = new Float32Array(0);
 const isLow = tier => !!tier && tier.shadow === 0 && tier.lights <= 2;
@@ -53,7 +55,8 @@ export function buildFlipper(ctx, def, i) {
     const { rubber, top, spine } = M.flipperGeometry(p, ctx.low);
     const spineMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: new THREE.Color(ctx.accent).lerp(new THREE.Color('#ffffff'), 0.35), toneMapped: false }));
     const root = at(new THREE.Group(), def.x, def.y), bat = new THREE.Group(); root.add(bat);
-    bat.add(mesh(ctx, rubber, ctx.mats.rubber, def.id + '_rubber'), mesh(ctx, top, ctx.mats.flipperTop, def.id + '_top'));
+    const topMesh = mesh(ctx, top, ctx.mats.flipperTop, def.id + '_top'); topMesh.layers.enable(REFLECT_LAYER);
+    bat.add(mesh(ctx, rubber, ctx.mats.rubber, def.id + '_rubber'), topMesh);
     if (spine) { const sp = mesh(ctx, spine, spineMat, def.id + '_spine'); sp.castShadow = false; bat.add(sp); }
     const { cap, dot } = M.pivotCap(def.x, def.y, ctx.low);
     ctx.statics.chrome.push(cap); ctx.statics.glow.push(dot);
@@ -140,10 +143,10 @@ export function buildBumper(ctx, def) {
     const skirtMat = ctx.D.m(new THREE.MeshStandardMaterial({ color: sc.clone().multiplyScalar(0.82), roughness: 0.4, metalness: 0.14, emissive: sc, emissiveIntensity: 0.14, envMap: ctx.env, envMapIntensity: 0.5 }));
     const skirt = mesh(ctx, geo.skirt, skirtMat, def.id + '_skirt');
     const coreMat = ctx.D.m(new THREE.MeshBasicMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.55), toneMapped: false }));
-    const core = mesh(ctx, geo.core, coreMat, def.id + '_core'); core.castShadow = false;
+    const core = mesh(ctx, geo.core, coreMat, def.id + '_core'); core.castShadow = false; core.layers.enable(REFLECT_LAYER);
     const capMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: lc.clone().lerp(new THREE.Color('#ffffff'), 0.32), transparent: true, opacity: 0.72, roughness: 0.25, metalness: 0, emissive: lc, emissiveIntensity: 0.22,
         envMap: ctx.env, envMapIntensity: 0.6, clearcoat: ctx.low ? 0 : 0.5, depthWrite: false }));
-    const cap = mesh(ctx, geo.cap, capMat, def.id + '_cap'); cap.renderOrder = 2;
+    const cap = mesh(ctx, geo.cap, capMat, def.id + '_cap'); cap.renderOrder = 2; cap.layers.enable(REFLECT_LAYER);
     const coreBase = lc.clone().lerp(new THREE.Color('#ffffff'), 0.52);
     root.add(ring, skirt, core, cap);
     const print = ctx.plastics ? ctx.plastics.capDisc(r) : null;
@@ -355,6 +358,8 @@ export function buildMechanics(host) {
             else if (d.type === 'magnet') keep(buildMagnet(ctx, d));
             else if (d.type === 'captive') keep(buildCaptive(ctx, d));
             else if (d.type === 'diverter') keep(buildDiverter(ctx, d));
+            else if (d.type === 'orrery') keep(buildOrrery(ctx, d));
+            else if (d.type === 'pendulum') keep(buildPendulum(ctx, d));
         }
         if (rollovers.length) keep(buildRollovers(ctx, rollovers));
         keep(buildPlunger(ctx));
@@ -363,7 +368,7 @@ export function buildMechanics(host) {
         let ramps = null;
         if ((layout.paths || []).length) {
             const debug = createPaths(layout.paths, { layout }).debug();
-            ramps = buildRamps(debug, { mats: ctx.mats, low, env: host.env });
+            ramps = buildRamps(debug, { mats: ctx.mats, low, env: host.env, tier: host.tier, layout, images: host.images });
             ctx.root.add(ramps.group);
         }
         root.add(ctx.root);

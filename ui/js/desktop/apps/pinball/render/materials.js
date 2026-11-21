@@ -117,7 +117,7 @@ export function createMaterials({ envMap, palette, aniso = 1 }) {
         darkMetal: std({ color: '#232832', metalness: 0.9, roughness: 0.55 }, 0.45),
         wood: new THREE.MeshPhysicalMaterial({ color: '#a8754c', map: woodTex, metalness: 0, roughness: 0.55, clearcoat: 0.35, clearcoatRoughness: 0.3, envMap, envMapIntensity: 0.4 }),
         // Brushed stainless guide rails (vertex colours tint the lit top edge); star posts are translucent plastic; screws are chrome with a dark slot.
-        rail: std({ color: '#ffffff', vertexColors: true, metalness: 0.8, roughness: 0.42 }, 0.3),
+        rail: std({ color: '#ffffff', vertexColors: true, metalness: 1, roughness: 0.2 }, 1.0),
         starPost: new THREE.MeshPhysicalMaterial({ color: '#ffffff', vertexColors: true, transmission: 0, transparent: true, opacity: 0.85, roughness: 0.22, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.2, envMap, envMapIntensity: 0.55 }),
         screw: std({ color: '#ffffff', vertexColors: true, metalness: 0.85, roughness: 0.38 }, 0.45),
         plasticWall: new THREE.MeshPhysicalMaterial({ color: '#ffffff', vertexColors: true, transparent: true, opacity: 0.55, roughness: 0.3, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.25, envMap, envMapIntensity: 0.32, depthWrite: false }),

@@ -1,8 +1,9 @@
 // AuraPinball balls (plan 7 "Ball"): hard polished chrome instanced balls reflecting a contrasty studio environment (softboxes in a dark room),
-// micro-scratch map so rolling is visible, spin derived from displacement, blob shadows on the playfield and on ramps.
+// micro-scratch map so rolling is visible, orientation integrated from the physics spin (displacement fallback), contact + soft blob shadows on the playfield and on ramps.
 import * as THREE from 'three';
 import { rngNext } from '../config.js';
 import { BALL_RADIUS } from './lighting.js';
+import { REFLECT_LAYER } from './reflect.js';
 
 const MAX_BALLS = 16;
 const TELEPORT = 0.05;
@@ -67,11 +68,15 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
     const group = new THREE.Group(); group.name = 'balls'; root.add(group);
     const geo = new THREE.SphereGeometry(BALL_RADIUS, low ? 20 : 36, low ? 12 : 22);
     const tex = scratchTexture(), blob = blobTexture();
-    const mat = new THREE.MeshStandardMaterial({ color: '#eef2f8', map: tex, metalness: 1, roughness: 0.18, envMap: env, envMapIntensity: 0.65 });
-    const mesh = new THREE.InstancedMesh(geo, mat, MAX_BALLS); mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = true; mesh.name = 'balls'; group.add(mesh);
-    const shGeo = new THREE.PlaneGeometry(0.066, 0.066); shGeo.rotateX(-Math.PI / 2);
-    const shMat = new THREE.MeshBasicMaterial({ map: blob, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-    const shadows = new THREE.InstancedMesh(shGeo, shMat, MAX_BALLS * 2); shadows.count = 0; shadows.frustumCulled = false; shadows.renderOrder = 1; shadows.name = 'ballShadows'; group.add(shadows);
+    const mat = new THREE.MeshStandardMaterial({ color: '#eef2f8', map: tex, metalness: 1, roughness: 0.10, envMap: env, envMapIntensity: 0.65 });
+    const mesh = new THREE.InstancedMesh(geo, mat, MAX_BALLS); mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = true; mesh.name = 'balls'; mesh.layers.enable(REFLECT_LAYER); group.add(mesh);
+    // Two blob layers: a tight dark contact shadow under the ball and a soft key-light shadow that drifts away with height.
+    const shGeoC = new THREE.PlaneGeometry(0.030, 0.030); shGeoC.rotateX(-Math.PI / 2);
+    const shGeoS = new THREE.PlaneGeometry(0.056, 0.056); shGeoS.rotateX(-Math.PI / 2);
+    const shOpts = { map: blob, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 };
+    const shMatC = new THREE.MeshBasicMaterial({ ...shOpts, opacity: 0.85 }), shMatS = new THREE.MeshBasicMaterial({ ...shOpts, opacity: 0.42 });
+    const contact = new THREE.InstancedMesh(shGeoC, shMatC, MAX_BALLS * 2); contact.count = 0; contact.frustumCulled = false; contact.renderOrder = 1; contact.name = 'ballContactShadows'; group.add(contact);
+    const soft = new THREE.InstancedMesh(shGeoS, shMatS, MAX_BALLS * 2); soft.count = 0; soft.frustumCulled = false; soft.renderOrder = 1; soft.name = 'ballShadows'; group.add(soft);
 
     let chromeRT = null, frames = 0;
     const state = new Map();
@@ -88,7 +93,7 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
     function update(snap, dt) {
         frames++;
         if (frames === 3) capture();
-        let n = 0, s = 0;
+        let n = 0, s = 0, c = 0;
         const seen = new Set();
         if (snap && snap.balls) for (const b of snap.balls) {
             if (b.hidden || b.mode === 'held' || n >= MAX_BALLS) continue;
@@ -97,24 +102,32 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
             let st = state.get(b.id);
             if (!st) { st = { x, z, h, q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0.3, 0.7, 0.2).normalize(), b.id * 1.7) }; state.set(b.id, st); }
             const dx = x - st.x, dz = z - st.z, dh = h - st.h, d = Math.hypot(dx, dh, dz);
-            if (d > TELEPORT) { /* teleported: do not spin */ } else if (d > 1e-7) {
-                axis.set(dz, 0, -dx);                          // up x displacement: rolling without slip on a horizontal floor
+            if (d > TELEPORT) { /* teleported: do not spin */ }
+            else if (b.wx !== undefined) {
+                // True rotation from the physics spin (physics x, y, z = three X, -Z, Y): omega3 = (wx, wz, -wy) rad/s.
+                axis.set(b.wx, b.wz, -b.wy);
+                const w = axis.length();
+                if (w > 1e-6 && dt > 0) { dq.setFromAxisAngle(axis.multiplyScalar(1 / w), w * dt); st.q.premultiply(dq); }
+            } else if (d > 1e-7) {
+                axis.set(dz, 0, -dx);                          // fallback without spin data: rolling without slip on a horizontal floor
                 if (axis.lengthSq() > 1e-18) { axis.normalize(); dq.setFromAxisAngle(axis, Math.hypot(dx, dz) / BALL_RADIUS); st.q.premultiply(dq); }
             }
             st.x = x; st.z = z; st.h = h;
             pos.set(x, BALL_RADIUS + h, z);
             m4.compose(pos, st.q, one); mesh.setMatrixAt(n++, m4);
-            // Blob shadow on the playfield (softer and wider with height) and, on a ramp, on its surface.
-            const k = 1 + Math.min(1.5, h * 9);
-            pos.set(x + 0.003 + h * 0.5, 0.0005, z - 0.002);
-            m4.compose(pos, q.identity(), sc.set(k, 1, k)); shadows.setMatrixAt(s++, m4);
-            if (b.mode === 'path' && h > 0.004) { pos.set(x + 0.001, h + 0.0007, z - 0.0008); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); shadows.setMatrixAt(s++, m4); }
+            // Soft key-light shadow on the playfield (offset away from the key light, wider with height); tight contact shadow
+            // under a ball that is on the field; on a ramp the contact shadow sits on its surface.
+            const onRamp = b.mode === 'path' && h > 0.004, k = 1 + Math.min(1.5, h * 9);
+            pos.set(x + 0.0025 + 0.5 * h, 0.0005, z - (0.002 + 0.4 * h));
+            m4.compose(pos, q.identity(), sc.set(k, 1, k)); soft.setMatrixAt(s++, m4);
+            if (onRamp) { pos.set(x + 0.001, h + 0.0007, z - 0.0008); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); contact.setMatrixAt(c++, m4); }
+            else if (h < 0.02) { pos.set(x, 0.0007, z); m4.compose(pos, q.identity(), sc.set(1, 1, 1)); contact.setMatrixAt(c++, m4); }
         }
         for (const id of state.keys()) if (!seen.has(id)) state.delete(id);
-        mesh.count = n; shadows.count = s;
+        mesh.count = n; soft.count = s; contact.count = c;
         if (n) mesh.instanceMatrix.needsUpdate = true;
-        if (s) shadows.instanceMatrix.needsUpdate = true;
-        void dt;
+        if (s) soft.instanceMatrix.needsUpdate = true;
+        if (c) contact.instanceMatrix.needsUpdate = true;
     }
 
     return {
@@ -122,7 +135,7 @@ export function createBalls({ root, renderer, scene, tableRoot, env, tier, accen
         setQuality(t) { low = t.shadow === 0 && t.lights <= 2; },
         dispose() {
             root.remove(group);
-            geo.dispose(); mat.dispose(); tex.dispose(); blob.dispose(); shGeo.dispose(); shMat.dispose(); mesh.dispose(); shadows.dispose();
+            geo.dispose(); mat.dispose(); tex.dispose(); blob.dispose(); shGeoC.dispose(); shGeoS.dispose(); shMatC.dispose(); shMatS.dispose(); mesh.dispose(); contact.dispose(); soft.dispose();
             if (chromeRT) chromeRT.dispose();
         }
     };
