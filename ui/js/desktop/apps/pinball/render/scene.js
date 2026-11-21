@@ -16,6 +16,8 @@ import { buildRoom } from './room.js';
 import { createCameraRig } from './camera.js';
 import { buildMechanics } from './builders.js';
 import { createEffects } from './fx.js';
+import { glassViolations } from './clearance.js';
+import { glassHeight } from '../tables/kit/cabinet-dims.js';
 
 const TILT = 6.5 * Math.PI / 180;
 const abortError = () => Object.assign(new Error('cancelled'), { name: 'AbortError' });
@@ -119,12 +121,12 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
     const tmpM = new THREE.Matrix4();
 
     const visual = VISUALS[tableId] || {};
-    let toys = null, toysLow = false;
+    let toys = null, toysLow = false, glassCache = null; // glassCache: lazy clearance audit, dropped on quality change and toy rebuild
     const fx = createEffects({ root: tableRoot, layout, palette, tier });
     const buildToysNow = () => {
         if (!visual.buildToys) return;
         if (toys) { if (toys.dispose) toys.dispose(); toys = null; }
-        toysLow = quality === 'low';
+        toysLow = quality === 'low'; glassCache = null;
         toys = visual.buildToys(THREE, art.kit, layout, { tier: quality, low: toysLow });
         if (toys && toys.group) tableRoot.add(toys.group);
     };
@@ -234,7 +236,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
 
     const api = {
         update,
-        setQuality(q) { if (!TIERS[q] || q === quality) return; quality = q; applyTier(); rebuildArt(); if ((q === 'low') !== toysLow) buildToysNow(); },
+        setQuality(q) { if (!TIERS[q] || q === quality) return; quality = q; applyTier(); glassCache = null; rebuildArt(); if ((q === 'low') !== toysLow) buildToysNow(); },
         setCamera(mode) { setCam(mode); },
         setInsets(i) { rig.setInsets(i); },
         shake(dx, dy, strength) { rig.shake(dx, dy, strength); },
@@ -245,6 +247,7 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
         addMechanics(builder) {
             const handle = builder({ THREE, root: mechanicsGroup, layout, mats, env: env.texture, tier, kit: art.kit, assetURL, renderer, scene, tableRoot, camera, images });
             if (handle) mechs.add(handle);
+            glassCache = null;
             return handle;
         },
         useSimpleBalls(on) { simpleBalls = !!on; },
@@ -252,7 +255,8 @@ export async function createScene(host, { tableId, layout, settings = {}, assetU
             const info = renderer.info;
             let gpu = 'webgl2';
             try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); if (ext) gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)); } catch (_) { /* ignore */ }
-            return { ready: !disposed && !lost, quality, frames, drawCalls: sceneCalls, triangles: sceneTris, textures: info.memory.textures, geometries: info.memory.geometries, width, height, flipperOrder: true, renderer: gpu, fallback: pf.fallback.active, lights: lights.points.length };
+            if (!glassCache) glassCache = glassViolations([mechanicsGroup, toys && toys.group], { glassHeight });
+            return { glassViolations: glassCache.length, glassViolationList: glassCache.slice(0, 10), ready: !disposed && !lost, quality, frames, drawCalls: sceneCalls, triangles: sceneTris, textures: info.memory.textures, geometries: info.memory.geometries, width, height, flipperOrder: true, renderer: gpu, fallback: pf.fallback.active, lights: lights.points.length };
         },
         // Handles for T13/T16 and tests.
         three: { THREE, renderer, scene, camera, tableRoot, mechanics: mechanicsGroup, materials: mats, get env() { return env.texture; }, kit: () => art.kit, rig, lights, composer },
