@@ -57,8 +57,8 @@
     },
     {
       "path": "neon-preview.webp",
-      "bytes": 45746,
-      "sha256": "0d5f69c04ca62ecc524984410c4408c6978f38465386c22b7e2e45f8b8e14265"
+      "bytes": 65226,
+      "sha256": "734a4cbc8f98e996be3d9e2309119925397d132290f7f34793c8a35db9a604f6"
     },
     {
       "path": "neon-plastics.webp",
@@ -82,8 +82,8 @@
     },
     {
       "path": "leviathan-preview.webp",
-      "bytes": 29024,
-      "sha256": "d8b30f90f56bc86ddca4961f862e74a57e03600e06538e3463c0b994d4690939"
+      "bytes": 33712,
+      "sha256": "441320abe4bbd252651ab7770b27fc29168fa33aa111e16d7e5034ba91e0f301"
     },
     {
       "path": "leviathan-plastics.webp",
@@ -107,8 +107,8 @@
     },
     {
       "path": "temple-preview.webp",
-      "bytes": 44052,
-      "sha256": "37b9e177e653b97d76733262fc0fbc84a251aad7aa348e9b92b6e55eb4fddbe6"
+      "bytes": 67576,
+      "sha256": "a8f9c55191a31ab9c52335455cc32f308b1c8637694c0c377db4b37932aa5eec"
     },
     {
       "path": "temple-plastics.webp",
@@ -132,8 +132,8 @@
     },
     {
       "path": "observatory-preview.webp",
-      "bytes": 71864,
-      "sha256": "e17ec8e51fe82fbf5f31c3b3bd15c23f430bda22392d929440a922e9ef133cc0"
+      "bytes": 52446,
+      "sha256": "95b5c9b7f3a34d3539693ef383fe58ea3e844247e94d552b265eaa675a0b1e48"
     },
     {
       "path": "observatory-plastics.webp",
