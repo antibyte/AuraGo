@@ -9,6 +9,8 @@ import { merge } from './materials.js';
 import * as M from './mechs.js';
 import { buildRamps } from './ramps.js';
 import { createBalls } from './balls.js';
+import { buildHardware, isHardwarePost } from './hardware.js';
+import { buildPlastics } from './plastics.js';
 
 const EMPTY = new Float32Array(0);
 const isLow = tier => !!tier && tier.shadow === 0 && tier.lights <= 2;
@@ -28,7 +30,7 @@ function makeCtx(host, D) {
     const lampList = layout.lamps || [];
     const ctx = {
         host, layout, mats: { ...mats, chrome, wire, rubber, flipperTop }, env, tier, low, accent, secondary, D, idx: buildAnimIndex(layout),
-        statics: { chrome: [], steel: [], dark: [], rubber: [], glow: [], glow2: [] }, updaters: [], root: new THREE.Group(),
+        statics: { chrome: [], steel: [], dark: [], rubber: [], glow: [], glow2: [] }, updaters: [], screws: [], plastics: null, root: new THREE.Group(),
         lampIndex: (pred) => lampList.findIndex(pred),
         slot: id => (ctx.idx.has(id) ? ctx.idx.get(id) : -1),
         nearestLamp(x, y, maxD = 0.045) {
@@ -83,6 +85,9 @@ export function buildSling(ctx, def) {
     if (nx * ((a[0] + b[0]) / 2 - cx) + ny * ((a[1] + b[1]) / 2 - cy) < 0) { nx = -nx; ny = -ny; }
     const root = new THREE.Group(), band = mesh(ctx, M.bandGeometry(a, b, ctx.low, [-nx * 0.0022, -ny * 0.0022]), ctx.mats.rubber, def.id + '_kick');
     root.add(band);
+    // With the printed sheet (plastics.js) the sling plastic is drawn there and flashes through its own material.
+    const printed = ctx.plastics && ctx.plastics.slingMats[def.id], slot = ctx.slot(def.id);
+    if (printed) return { object: root, update(anim) { const k = A(anim, slot); band.position.set(nx * 0.0055 * k, 0, -ny * 0.0055 * k); printed.emissiveIntensity = 0.2 + 2.2 * k; } };
     const col = new THREE.Color(ctx.secondary), inner = M.insetPolygon(tri, 0.0058), bounds = M.slingBounds(inner);
     const plate = M.planarUV(M.polygonPlate(inner, 0.0018, 0.0006, ctx.low).translate(0, 0.0188, 0), bounds), art = ctx.D.t(M.slingArtTexture(inner, bounds, ctx.secondary, ctx.accent));
     const plasticMat = ctx.D.m(new THREE.MeshPhysicalMaterial({ color: '#ffffff', map: art, transparent: true, opacity: 0.88, roughness: 0.3, metalness: 0, envMap: ctx.env, envMapIntensity: 0.5,
@@ -92,7 +97,6 @@ export function buildSling(ctx, def) {
     root.add(plastic);
     let glow = null;
     if (!ctx.low) { glow = mesh(ctx, M.polygonPlate(M.insetPolygon(tri, 0.0075), 0.0004, 0, true).translate(0, 0.0182, 0), glowMat, def.id + '_glow'); glow.castShadow = false; root.add(glow); }
-    const slot = ctx.slot(def.id);
     return { object: root, update(anim) {
         const k = A(anim, slot);
         band.position.set(nx * 0.0055 * k, 0, -ny * 0.0055 * k);
@@ -118,7 +122,7 @@ function buildStaticRubbers(ctx) {
 
 function buildPosts(ctx) {
     for (const p of ctx.layout.posts || []) {
-        if (p.render !== 'post') continue;
+        if (p.render !== 'post' || isHardwarePost(p)) continue; // hardware.js draws star and metal posts
         const g = M.postGeometry(p, ctx.low);
         if (g.rubber) ctx.statics.rubber.push(g.rubber);
         ctx.statics.chrome.push(g.chrome);
@@ -142,11 +146,14 @@ export function buildBumper(ctx, def) {
     const cap = mesh(ctx, geo.cap, capMat, def.id + '_cap'); cap.renderOrder = 2;
     const coreBase = lc.clone().lerp(new THREE.Color('#ffffff'), 0.52);
     root.add(ring, skirt, core, cap);
+    const print = ctx.plastics ? ctx.plastics.capDisc(r) : null;
+    if (print) root.add(print.group);
     const slot = ctx.slot(def.id);
     return { object: root, update(anim, snap, ex) {
         const k = A(anim, slot), lit = lamp && ex.lamps ? ex.lamps.intensity[li] : 0.45;
         ring.position.y = -k * 0.0026; skirt.position.y = -k * 0.0024; cap.position.y = -k * 0.0012; core.position.y = -k * 0.0012;
         capMat.emissiveIntensity = 0.10 + 0.62 * lit + 1.15 * k;
+        if (print) { print.group.position.y = print.h - k * 0.0012; print.mat.emissiveIntensity = 0.2 + 0.4 * lit + 1.3 * k; }
         skirtMat.emissiveIntensity = 0.08 + 0.28 * lit + 1.35 * k;
         coreMat.color.copy(coreBase).multiplyScalar(0.35 + 1.35 * lit + 1.8 * k);
     } };
@@ -324,6 +331,7 @@ export function buildMechanics(host) {
         ctx.low = low;
         const items = [], upd = [];
         const keep = b => { if (b) { items.push(b); ctx.root.add(b.object); upd.push(b); } };
+        ctx.plastics = buildPlastics(ctx, (host.images || {}).plastics); // before the sling and bumper builders and before buildHardware
         (layout.flippers || []).forEach((f, i) => keep(buildFlipper(ctx, f, i)));
         buildStaticRubbers(ctx); buildPosts(ctx);
         const atlasItems = faceAtlasItems(ctx), atlas = atlasItems.length ? M.createAtlas(atlasItems) : null;
@@ -350,6 +358,7 @@ export function buildMechanics(host) {
         }
         if (rollovers.length) keep(buildRollovers(ctx, rollovers));
         keep(buildPlunger(ctx));
+        buildHardware(ctx);
         flushStatics(ctx, ctx.root);
         let ramps = null;
         if ((layout.paths || []).length) {
