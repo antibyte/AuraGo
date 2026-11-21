@@ -2,6 +2,7 @@
 import { EVENT_TYPES, PHYSICS_COMMANDS, parsePattern } from '../contracts.js';
 import { FIELD } from '../physics/constants.js';
 import { distPointSeg, distSegSeg } from './kit/geom.js';
+import { checkPathFit } from './validate-paths.js';
 
 const MAX_LAMPS = 200, MAX_FLASHERS = 6;
 const TOUCH = 0.002, CLEAR = 0.030;
@@ -9,7 +10,7 @@ const KEY_RE = /^(dmd|mode|lamp|card|help)_[a-z0-9_]+$/;
 const EPS = 1e-6;
 // Commands whose id names a ball rather than a table device.
 const BALL_COMMANDS = new Set(['addBall', 'lockBall', 'releaseToTrough', 'removeBall']);
-const DEVICE_COMMANDS = new Set(['eject', 'holeEnable', 'resetBank', 'dropBank', 'diverter', 'gate', 'door', 'kickback', 'magnet', 'kick']);
+const DEVICE_COMMANDS = new Set(['eject', 'holeEnable', 'resetBank', 'dropBank', 'diverter', 'gate', 'door', 'kickback', 'magnet', 'kick', 'orrery', 'pendulum']);
 
 const list = value => Array.isArray(value) ? value : [];
 
@@ -26,6 +27,7 @@ export function validateTable(table) {
     checkConventions(layout, rules, ids, err);
     collectKeys(layout, rules, keys);
     checkClearance(layout, err);
+    checkPathFit(layout, err);
     return { ok: errors.length === 0, errors, warnings, keys: [...keys].sort() };
 }
 
@@ -81,6 +83,14 @@ function checkBounds(layout, err) {
         if (d.b) at(d.type, d.id, d.b[0], d.b[1]);
         if (d.at) at(d.type, d.id, d.at[0], d.at[1]);
         for (const t of list(d.targets)) at('target', t.id, t.x, t.y);
+        if (Array.isArray(d.pivot)) {
+            at(d.type, d.id, d.pivot[0], d.pivot[1]);
+            if (d.type === 'pendulum') {      // the bob swings along `axis` up to one rod length either side of the pivot
+                const ax = d.axis || [1, 0], k = (d.length ?? 0.075) / (Math.hypot(ax[0], ax[1]) || 1);
+                at('pendulum reach', d.id, d.pivot[0] + ax[0] * k, d.pivot[1] + ax[1] * k);
+                at('pendulum reach', d.id, d.pivot[0] - ax[0] * k, d.pivot[1] - ax[1] * k);
+            }
+        }
     }
     for (const p of list(layout.paths)) {
         if (!Array.isArray(p.points) || p.points.length < 2) err('short-path', 'path "' + p.id + '" needs at least 2 points');

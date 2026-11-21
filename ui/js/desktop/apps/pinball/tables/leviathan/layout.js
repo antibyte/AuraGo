@@ -4,7 +4,7 @@ import { composeLayout } from '../kit/compose.js';
 import { shell, leftChannel, rightChannel } from '../kit/shell.js';
 import { lowerKit, CX } from '../kit/lower.js';
 import { wall, post, arcPoints } from '../kit/geom.js';
-import { leviathanLamps, leviathanFlashers, leviathanGI, SONAR, CORAL, PING, PEARL_X, SHIP, HEAD, MAGNET } from './lamps.js';
+import { leviathanLamps, leviathanFlashers, leviathanGI, SONAR, CORAL, PING, PEARL_X, SHIP, HEAD, HEAD_TOY, MAGNET } from './lamps.js';
 
 const TEAL = '#43e3d5', GOLD = '#dcad63', BLUE = '#5aa8ff', CORAL_COLOR = '#ff7a5c';
 
@@ -78,20 +78,20 @@ function channels() {
 }
 
 function rampPaths(entries) {
-    // Tentacle helix: 270 degrees round the head (r 0.05) from the east side, rising 0.095 to 0.145, then over the top-left at h 0.17.
+    // Tentacle helix: 270 degrees round the slim coil (r 0.05) from the east side, rising 0.060 to 0.086, then over the top-left at h 0.090.
     const helix = [-20, 40, 100, 160, 220, 250].map((deg, i) => {
         const a = deg * Math.PI / 180;
-        return [+(HEAD[0] + 0.05 * Math.cos(a)).toFixed(4), +(HEAD[1] + 0.05 * Math.sin(a)).toFixed(4), [0.095, 0.108, 0.118, 0.128, 0.138, 0.145][i]];
+        return [+(HEAD[0] + 0.05 * Math.cos(a)).toFixed(4), +(HEAD[1] + 0.05 * Math.sin(a)).toFixed(4), [0.060, 0.066, 0.072, 0.078, 0.083, 0.086][i]];
     });
     return [
         { id: 'currentRamp', kind: 'wire', entry: entries.left, width: 0.034, color: BLUE, switches: [{ id: 'currentTop', at: 0.5 }],
-          points: [[-0.156, 0.625, 0], [-0.158, 0.700, 0.030], [-0.150, 0.790, 0.065], [-0.115, 0.880, 0.100], [-0.050, 0.960, 0.120], [0.030, 0.985, 0.122], [0.120, 0.970, 0.118],
-              [0.185, 0.900, 0.105], [0.210, 0.780, 0.085], [0.208, 0.640, 0.062], [0.192, 0.500, 0.035], [0.172, 0.432, 0.008], [0.1685, 0.418, 0]],
+          points: [[-0.156, 0.625, 0], [-0.158, 0.700, 0.028], [-0.150, 0.790, 0.044], [-0.115, 0.880, 0.050], [-0.050, 0.960, 0.050], [0.030, 0.990, 0.052], [0.130, 0.985, 0.052],
+              [0.205, 0.905, 0.048], [0.214, 0.780, 0.042], [0.208, 0.640, 0.034], [0.192, 0.500, 0.020], [0.172, 0.432, 0.006], [0.1685, 0.418, 0]],
           exit: { kind: 'field', dir: [0, -1], speedScale: 0.7 } },
         { id: 'tentacleRamp', kind: 'plastic', entry: entries.right, width: 0.05, color: CORAL_COLOR, switches: [{ id: 'tentacleTop', at: 0.5 }],
-          points: [[0.128, 0.640, 0], [0.140, 0.720, 0.040], [0.162, 0.790, 0.075], ...helix,
-              [0.030, 0.880, 0.162], [-0.040, 0.940, 0.172], [-0.130, 0.960, 0.170], [-0.205, 0.870, 0.150], [-0.222, 0.780, 0.125], [-0.224, 0.680, 0.090],
-              [-0.214, 0.540, 0.052], [-0.2025, 0.440, 0.014], [-0.2025, 0.425, 0]],
+          points: [[0.128, 0.640, 0], [0.140, 0.720, 0.034], [0.162, 0.790, 0.052], ...helix,
+              [0.030, 0.880, 0.088], [-0.040, 0.940, 0.090], [-0.130, 0.955, 0.090], [-0.205, 0.870, 0.084], [-0.219, 0.780, 0.074], [-0.220, 0.680, 0.062],
+              [-0.214, 0.540, 0.044], [-0.2025, 0.440, 0.014], [-0.2025, 0.425, 0]],
           exit: { kind: 'field', dir: [0, -1], speedScale: 0.7 } }
     ];
 }
@@ -120,7 +120,8 @@ function build() {
             ],
             lamps: leviathanLamps(), flashers: leviathanFlashers(), gi: leviathanGI(),
             toys: [
-                { id: 'head', kind: 'leviathan', x: HEAD[0], y: HEAD[1], h: 0, rot: 0, scale: 1 },
+                { id: 'head', kind: 'leviathan', x: HEAD_TOY[0], y: HEAD_TOY[1], h: 0.043, rot: 0, scale: 1 },
+                { id: 'coil', kind: 'tentacleCoil', x: HEAD[0], y: HEAD[1], h: 0, rot: 0, scale: 1 },
                 { id: 'hull', kind: 'ship', x: SHIP[0], y: SHIP[1], h: 0, rot: 0.6, scale: 1 },
                 ...[[-0.246, 0.565], [-0.238, 0.588], [0.213, 0.565], [0.206, 0.588]].map(([x, y], i) => ({ id: 'kelp' + (i + 1), kind: 'kelp', x, y, h: 0, rot: i, scale: 1 }))
             ],

@@ -110,4 +110,31 @@ for (const [id, { layout }] of Object.entries(TABLES)) {
         }
     }
 }
+// 8. Path fit: glass, outline and crossing rules (section 1 already runs them on every table).
+{
+    const { checkPathFit } = await import('../ui/js/desktop/apps/pinball/tables/validate-paths.js');
+    const codes = layout => { const out = []; checkPathFit(layout, code => out.push(code)); return out; };
+    const neon = () => copy(TABLES.neon).layout;
+    assert.deepEqual(codes(neon()), [], 'neon fits');
+    const high = neon();
+    high.paths.find(p => p.id === 'rightRamp').points[5][2] = 0.155;
+    assert.deepEqual(codes(high), ['path-glass'], 'a ramp raised to h 0.155 sticks into the glass');
+    const wide = neon();
+    wide.paths.find(p => p.id === 'leftReturn').points[3][0] = 0.25;
+    assert.deepEqual(codes(wide), ['path-outline'], 'a path point at x 0.25 leaves the outer wall');
+    const outer = neon().walls.find(w => w.id === 'outer');
+    const wires = (hA, hB) => ({
+        walls: [outer],
+        paths: [
+            { id: 'across', kind: 'wire', points: [[-0.05, 0.5, hA], [0, 0.5, hA], [0.05, 0.5, hA]] },
+            { id: 'along', kind: 'wire', points: [[0, 0.45, hB], [0, 0.5, hB], [0, 0.55, hB]] }
+        ]
+    });
+    assert.deepEqual(codes(wires(0.02, 0.045)), ['path-cross'], 'wire paths 25 mm apart collide');
+    assert.deepEqual(codes(wires(0.02, 0.06)), [], 'wire paths 40 mm apart cross cleanly (the glass at y 0.45 allows h 0.063)');
+    const topped = neon();
+    const probe = topped.paths.find(p => p.id === 'rightRamp');
+    probe.top = 0.045;
+    assert.deepEqual(codes(topped), ['path-glass'], 'a path def top allowance is honoured');
+}
 console.log('pinball tables ok');

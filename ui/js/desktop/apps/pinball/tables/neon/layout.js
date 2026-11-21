@@ -39,7 +39,7 @@ function dataCore() {
         devices: [{ id: 'dataCore', type: 'hole', kind: 'vuk', x: 0, y: 0.640, r: 0.017, capacity: 1, eject: { path: 'coreTube', speed: 2.6 } }],
         paths: [{
             id: 'coreTube', kind: 'tube', entry: { a: [-0.017, 0.640], b: [0.017, 0.640] }, minSpeed: CHAINED, width: 0.034, color: CYAN,
-            points: [[0, 0.640, 0], [0, 0.650, 0.06], [0.005, 0.730, 0.090], [0, 0.800, 0.070], [0, 0.880, 0.03]],
+            points: [[0, 0.640, 0], [0, 0.652, 0.048], [0.005, 0.730, 0.068], [0, 0.800, 0.058], [0, 0.880, 0.030]],
             exit: { kind: 'field', dir: [0, -1], speedScale: 0.3 }
         }]
     };
@@ -52,7 +52,7 @@ function firewall() {
             { id: 'firewall', type: 'dropBank', angle: FW_ANGLE, width: 0.024, targets: [
                 { id: 'fw1', x: -0.128, y: 0.700 }, { id: 'fw2', x: -0.104, y: 0.711 }, { id: 'fw3', x: -0.080, y: 0.722 }] },
             { id: 'vault', type: 'hole', kind: 'kickhole', x: -0.121, y: 0.724, r: 0.016, capacity: 3, hidden: true, eject: { angleDeg: 295, speed: 1.4 } },
-            { id: 'lockDiverter', type: 'diverter', at: [-0.150, 0.885, 0.130], on: false }
+            { id: 'lockDiverter', type: 'diverter', at: [-0.150, 0.885, 0.082], on: false }
         ]
     };
 }
@@ -69,19 +69,19 @@ function orbitsAndRamps() {
         devices: [{ id: 'spinnerL', type: 'spinner', a: [-0.2575, 0.660], b: [-0.2215, 0.660] }],
         paths: [
             { id: 'leftRamp', kind: 'plastic', entry: lc.entry, width: 0.05, color: PINK,
-              points: [[-0.156, 0.625, 0], [-0.156, 0.700, 0.035], [-0.150, 0.790, 0.068], [-0.110, 0.870, 0.090]],
+              points: [[-0.156, 0.625, 0], [-0.156, 0.700, 0.022], [-0.150, 0.790, 0.031], [-0.110, 0.865, 0.034]],
               exit: { kind: 'path', path: 'leftReturn' } },
             { id: 'leftReturn', kind: 'wire', entry: { a: [-0.130, 0.860], b: [-0.090, 0.860] }, minSpeed: CHAINED, width: 0.034, color: PINK,
-              points: [[-0.110, 0.870, 0.090], [0, 0.935, 0.100], [0.120, 0.900, 0.100], [0.200, 0.780, 0.090], [0.208, 0.620, 0.065], [0.192, 0.490, 0.035], [0.172, 0.430, 0.008], [0.1685, 0.418, 0]],
+              points: [[-0.110, 0.865, 0.034], [0, 0.928, 0.046], [0.120, 0.898, 0.042], [0.200, 0.780, 0.042], [0.208, 0.620, 0.034], [0.192, 0.490, 0.020], [0.172, 0.430, 0.006], [0.1685, 0.418, 0]],
               exit: { kind: 'field', dir: [0, -1], speedScale: 0.7 } },
             { id: 'rightRamp', kind: 'wire', entry: rc.entry, width: 0.034, color: CYAN,
-              points: [[0.128, 0.640, 0], [0.130, 0.720, 0.040], [0.130, 0.800, 0.085], [0.100, 0.880, 0.125], [0.020, 0.965, 0.155], [-0.080, 0.955, 0.150], [-0.150, 0.885, 0.130]],
+              points: [[0.128, 0.640, 0], [0.130, 0.720, 0.036], [0.128, 0.800, 0.064], [0.100, 0.880, 0.088], [0.020, 0.962, 0.090], [-0.080, 0.952, 0.090], [-0.150, 0.885, 0.082]],
               exit: { kind: 'switch', diverter: 'lockDiverter', on: { kind: 'path', path: 'vaultFeed' }, off: { kind: 'path', path: 'rightReturn' } } },
             { id: 'rightReturn', kind: 'wire', entry: { a: [-0.170, 0.870], b: [-0.130, 0.870] }, minSpeed: CHAINED, width: 0.034, color: CYAN,
-              points: [[-0.150, 0.885, 0.130], [-0.205, 0.800, 0.110], [-0.218, 0.680, 0.085], [-0.212, 0.540, 0.050], [-0.2025, 0.440, 0.012], [-0.2025, 0.425, 0]],
+              points: [[-0.150, 0.885, 0.082], [-0.205, 0.800, 0.070], [-0.218, 0.680, 0.058], [-0.212, 0.540, 0.040], [-0.2025, 0.440, 0.012], [-0.2025, 0.425, 0]],
               exit: { kind: 'field', dir: [0, -1], speedScale: 0.7 } },
             { id: 'vaultFeed', kind: 'tube', entry: { a: [-0.170, 0.870], b: [-0.130, 0.870] }, minSpeed: CHAINED, width: 0.034, color: VIOLET,
-              points: [[-0.150, 0.885, 0.130], [-0.165, 0.895, 0.06], [-0.172, 0.900, 0.03]],
+              points: [[-0.150, 0.885, 0.082], [-0.165, 0.895, 0.048], [-0.172, 0.900, 0.030]],
               exit: { kind: 'hole', hole: 'vault' } }
         ]
     };
