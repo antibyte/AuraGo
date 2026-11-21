@@ -6,8 +6,8 @@
 // Draw calls: high 12 (neck, skull, jaw, eyes, pupils, head glow, hull, lights, kelp, glow, bubbles, plankton), low 10.
 import { rngNext } from '../../config.js';
 
-const HEAD = [0.105, 0.880], SHIP = [0.100, 0.780], PEARL = [-0.082, 0.6102];
-const HEAD_H = 0.184;
+const HEAD = [0.105, 0.880], HEAD_TOY = [0.205, 1.025], SHIP = [0.100, 0.780], PEARL = [-0.082, 0.6102];
+const HEAD_C = 0.036, HS = 0.74;      // skull centre above the head's base (the toy h) and the skull's scale: top <= 0.1227
 const TEAL = '#43e3d5', GOLD = '#dcad63';
 
 function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
@@ -163,8 +163,8 @@ export function buildToys(THREE, kit, layout, opts) {
     const disposables = [];
     const own = o => { disposables.push(o); return o; };
     const find = id => ((layout && layout.toys) || []).find(t => t.id === id);
-    const headToy = find('head') || { x: HEAD[0], y: HEAD[1] }, shipToy = find('hull') || { x: SHIP[0], y: SHIP[1], rot: 0.6 };
-    const hx = headToy.x, hy = headToy.y, sx = shipToy.x, sy = shipToy.y;
+    const headToy = find('head') || { x: HEAD_TOY[0], y: HEAD_TOY[1], h: 0.043 }, coilToy = find('coil') || { x: HEAD[0], y: HEAD[1] }, shipToy = find('hull') || { x: SHIP[0], y: SHIP[1], rot: 0.6 };
+    const hx = headToy.x, hy = headToy.y, hb = Number.isFinite(headToy.h) ? headToy.h : 0.043, cx = coilToy.x, cy = coilToy.y, sx = shipToy.x, sy = shipToy.y;
     const rng = { seed: 0x1E71A7 };
     const seg = low ? 8 : 14;
 
@@ -173,46 +173,61 @@ export function buildToys(THREE, kit, layout, opts) {
     const boneMat = own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.1, emissive: '#2a2418', emissiveIntensity: 0.5, side: THREE.DoubleSide }));
     void boneMat;
 
-    // ---- neck, coils and rocky mound (static, breathes by scaling) ----
-    const neckParts = [];
-    const neckPath = spline(THREE, [[0, 0.004, 0.002], [0, 0.050, -0.008], [0, 0.100, -0.010], [0, 0.140, -0.002], [0, 0.166, 0.008], [0, 0.182, 0.010]], low ? 22 : 40);
-    const neckR = s => 0.0255 - 0.0085 * Math.min(1, s * 1.15) + (s > 0.9 ? 0.0035 * (s - 0.9) / 0.1 : 0);
-    const neck = sweep(THREE, neckPath, seg, (s, c, sn, i) => {
-        const ring = 1 + 0.085 * Math.max(0, Math.sin(i * 1.55)) ** 2;
-        const r = neckR(s) * ring; return [c * r, sn * r * 0.96];
-    }, [0, 0, 1], 2, Math.max(2, Math.round(0.19 / 0.0085 / 8)));
-    shade(THREE, neck, (nm, p, i) => {
-        const front = clamp(nm.z * 1.4 + 0.1, 0, 1), n = ((i * 2654435761) >>> 0) / 4294967296;
-        return mix(THREE, mix(THREE, '#134f66', '#1f8c97', n * 0.8), '#a6ece0', front * 0.85);
-    });
-    neckParts.push(neck);
-    const mound = new THREE.LatheGeometry([[0.001, 0.0], [0.038, 0.0], [0.039, 0.005], [0.033, 0.013], [0.027, 0.024], [0.0235, 0.040], [0.021, 0.055]].map(p => new THREE.Vector2(p[0], p[1])), low ? 12 : 22);
-    { const p = mound.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + (rngNext(rng) - 0.5) * 0.10 * (p.getY(i) < 0.03 ? 1 : 0.4); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); } mound.computeVertexNormals(); }
-    shade(THREE, mound, (nm, p) => mix(THREE, '#1a2f38', '#4a6a70', rngNext(rng) * 0.8 + p.y * 3));
-    neckParts.push(mound);
-    for (const [r, h, tr, col] of [[0.0305, 0.011, 0.0068, '#1c7080'], [0.0255, 0.028, 0.0058, '#23909a'], [0.0235, 0.043, 0.0050, '#1c7080']]) {
+    // ---- coil: a twisted tentacle column inside the wire helix of tentacleRamp (radius <= 0.020, top <= 0.110; breathes by scaling) ----
+    const coilParts = [];
+    const strandR = s => 0.0105 * (1 - 0.45 * s), strandW = s => 0.0012 + 0.0060 * (1 - s) ** 0.8;
+    const strandAt = (k, s) => { const a = k * Math.PI * 2 / 3 + s * Math.PI * 2 * 1.6, r = strandR(s); return [Math.cos(a) * r, 0.012 + 0.090 * s, Math.sin(a) * r]; };
+    for (let k = 0; k < 3; k++) {
+        const pts = []; for (let i = 0; i < (low ? 18 : 30); i++) pts.push(strandAt(k, i / ((low ? 18 : 30) - 1)));
+        const st = sweep(THREE, pts, low ? 6 : 8, (s, c, sn) => [c * strandW(s), sn * strandW(s)], [0, 0, 1], 2, 3);
+        coilParts.push(shade(THREE, st, (nm, p) => mix(THREE, mix(THREE, '#134f66', '#1f8c97', ((k * 0.37) % 1)), '#a6ece0', clamp(p.y * 8 - 0.2 + nm.y * 0.3, 0, 1) * 0.8)));
+        const tp = strandAt(k, 1);
+        coilParts.push(shade(THREE, spike(THREE, tp, [0, 1, 0], 0.0022, 0.006, 5), () => GOLD));
+    }
+    coilParts.push(shade(THREE, spike(THREE, [0, 0.010, 0], [0, 1, 0], 0.0085, 0.086, 8), (nm, p) => mix(THREE, '#0f4258', '#1c8794', p.y * 10)));
+    const mound = new THREE.LatheGeometry([[0.001, 0.0], [0.037, 0.0], [0.038, 0.004], [0.031, 0.011], [0.023, 0.018], [0.015, 0.022]].map(p => new THREE.Vector2(p[0], p[1])), low ? 12 : 22);
+    { const p = mound.attributes.position; for (let i = 0; i < p.count; i++) { const k = 1 + (rngNext(rng) - 0.5) * 0.10 * (p.getY(i) < 0.012 ? 1 : 0.4); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); } mound.computeVertexNormals(); }
+    shade(THREE, mound, (nm, p) => mix(THREE, '#1a2f38', '#4a6a70', rngNext(rng) * 0.8 + p.y * 6));
+    coilParts.push(mound);
+    for (const [r, h, tr, col] of [[0.0305, 0.007, 0.0060, '#1c7080'], [0.0215, 0.0175, 0.0050, '#23909a']]) {
         const t = new THREE.TorusGeometry(r, tr, 8, low ? 20 : 34); t.rotateX(Math.PI / 2); t.translate(0, h, 0);
         const uv = t.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 6, uv.getY(i) * 2);
         shade(THREE, t, (nm, p) => mix(THREE, col, '#a6ece0', clamp(nm.y * 0.5 + 0.2, 0, 1) * 0.6));
-        neckParts.push(t);
+        coilParts.push(t);
     }
-    // jagged rocks and coral spikes round the mound
+    // jagged rocks and coral spikes round the mound (they stay below the helix ball path)
     for (let i = 0; i < (low ? 8 : 14); i++) {
-        const a = i / (low ? 8 : 14) * Math.PI * 2 + rngNext(rng) * 0.3, r = 0.034 + rngNext(rng) * 0.004;
-        neckParts.push(shade(THREE, spike(THREE, [Math.cos(a) * r, 0, Math.sin(a) * r], [Math.cos(a) * 0.5, 1, Math.sin(a) * 0.5], 0.0035 + rngNext(rng) * 0.003, 0.012 + rngNext(rng) * 0.016, 5), (nm, p) => mix(THREE, '#27414a', '#6f9aa0', p.y * 28)));
+        const a = i / (low ? 8 : 14) * Math.PI * 2 + rngNext(rng) * 0.3, r = 0.033 + rngNext(rng) * 0.004;
+        coilParts.push(shade(THREE, spike(THREE, [Math.cos(a) * r, 0, Math.sin(a) * r], [Math.cos(a) * 0.5, 1, Math.sin(a) * 0.5], 0.0035 + rngNext(rng) * 0.003, 0.010 + rngNext(rng) * 0.012, 5), (nm, p) => mix(THREE, '#27414a', '#6f9aa0', p.y * 36)));
     }
-    // dorsal spines down the back of the neck, side frills lower down (small: the helix ramp wraps the neck)
-    const backAt = s => { const i = Math.round(s * (neckPath.length - 1)); return neckPath[i]; };
-    for (let i = 0; i < (low ? 7 : 11); i++) {
-        const s = 0.12 + i * 0.082, p = backAt(Math.min(0.99, s)), r = neckR(s) * 0.98, len = 0.016 - i * 0.0009;
-        neckParts.push(shade(THREE, spike(THREE, [p[0], p[1], p[2] - r], [0, 0.55, -1], 0.0036, len, 4), () => (i % 2 ? GOLD : '#f0d393')));
+    const coilGeo = own(mergeGeos(THREE, coilParts.map(g => (g.attributes.color ? g : tint(THREE, g, '#ffffff')))));
+    const coilMesh = new THREE.Mesh(coilGeo, creatureMat); coilMesh.name = 'leviathanCoil'; coilMesh.frustumCulled = false; coilMesh.position.set(cx, 0, -cy);
+    group.add(coilMesh);
+
+    // ---- neck stub: the head stands on the printed back-corner panel (base at the head toy's h) ----
+    const neckParts = [];
+    const neckPath = spline(THREE, [[0, 0.002, 0.004], [0, 0.014, -0.002], [0, 0.026, -0.004], [0, 0.034, 0.002]], low ? 10 : 16);
+    const neckR = s => 0.0195 - 0.0055 * s;
+    const neck = sweep(THREE, neckPath, seg, (s, c, sn, i) => { const r = neckR(s) * (1 + 0.08 * Math.max(0, Math.sin(i * 1.55)) ** 2); return [c * r, sn * r * 0.96]; }, [0, 0, 1], 2, 1);
+    shade(THREE, neck, (nm, p, i) => mix(THREE, mix(THREE, '#134f66', '#1f8c97', ((i * 2654435761) >>> 0) / 4294967296 * 0.8), '#a6ece0', clamp(nm.z * 1.4 + 0.1, 0, 1) * 0.85));
+    neckParts.push(neck);
+    const perch = new THREE.LatheGeometry([[0.001, 0.0], [0.027, 0.0], [0.028, 0.004], [0.022, 0.010], [0.017, 0.016]].map(p => new THREE.Vector2(p[0], p[1])), low ? 12 : 20);
+    shade(THREE, perch, (nm, p) => mix(THREE, '#1a2f38', '#4a6a70', rngNext(rng) * 0.8 + p.y * 8));
+    neckParts.push(perch);
+    for (let i = 0; i < (low ? 5 : 8); i++) {
+        const a = i / (low ? 5 : 8) * Math.PI * 2 + rngNext(rng) * 0.3, r = 0.024 + rngNext(rng) * 0.003;
+        neckParts.push(shade(THREE, spike(THREE, [Math.cos(a) * r, 0, Math.sin(a) * r], [Math.cos(a) * 0.5, 1, Math.sin(a) * 0.5], 0.003 + rngNext(rng) * 0.002, 0.007 + rngNext(rng) * 0.008, 5), (nm, p) => mix(THREE, '#27414a', '#6f9aa0', p.y * 50)));
+    }
+    for (let i = 0; i < (low ? 3 : 5); i++) {       // short dorsal spines down the back of the stub
+        const s = 0.1 + i * 0.2, p = neckPath[Math.round(s * (neckPath.length - 1))];
+        neckParts.push(shade(THREE, spike(THREE, [p[0], p[1], p[2] - neckR(s)], [0, 0.55, -1], 0.0030, 0.011 - i * 0.0012, 4), () => (i % 2 ? GOLD : '#f0d393')));
     }
     const neckGeo = own(mergeGeos(THREE, neckParts.map(g => (g.attributes.color ? g : tint(THREE, g, '#ffffff')))));
-    const neckMesh = new THREE.Mesh(neckGeo, creatureMat); neckMesh.name = 'leviathanNeck'; neckMesh.frustumCulled = false; neckMesh.position.set(hx, 0, -hy);
+    const neckMesh = new THREE.Mesh(neckGeo, creatureMat); neckMesh.name = 'leviathanNeck'; neckMesh.frustumCulled = false; neckMesh.position.set(hx, hb, -hy);
     group.add(neckMesh);
 
     // ---- skull (yaws, pitches and tracks; local frame: +Z forward, +Y up, origin mid-skull) ----
-    const headTop = new THREE.Group(); headTop.position.set(hx, HEAD_H, -hy); headTop.name = 'leviathanHead'; group.add(headTop);
+    const headTop = new THREE.Group(); headTop.position.set(hx, hb + HEAD_C, -hy); headTop.scale.setScalar(HS); headTop.name = 'leviathanHead'; group.add(headTop);
     const RX = [[-0.032, 0.006], [-0.026, 0.015], [-0.013, 0.0215], [0.0, 0.0215], [0.012, 0.0175], [0.022, 0.0125], [0.031, 0.0090], [0.036, 0.0050]];
     const RY = [[-0.032, 0.005], [-0.026, 0.012], [-0.013, 0.0175], [0.0, 0.0175], [0.012, 0.0130], [0.022, 0.0090], [0.031, 0.0068], [0.036, 0.0035]];
     const skullPath = []; for (let i = 0; i < (low ? 16 : 26); i++) { const z = -0.032 + 0.068 * i / ((low ? 16 : 26) - 1); skullPath.push([0, -0.0006 * Math.sin(i * 0.4), z]); }
@@ -289,7 +304,7 @@ export function buildToys(THREE, kit, layout, opts) {
     jawPivot.add(jawMesh);
 
     // ---- eyes + pupils (instanced; pupils track the nearest ball) ----
-    const EYE_R = 0.0068, EYE_POS = [[-0.0155, 0.0075, -0.0125], [0.0155, 0.0075, -0.0125]], D0 = [new THREE.Vector3(-0.55, 0.10, 0.83).normalize(), new THREE.Vector3(0.55, 0.10, 0.83).normalize()];
+    const EYE_R = 0.0068, EX = 0.014 / HS, EZ = -0.012 / HS, EYE_POS = [[-EX, 0.0075, EZ], [EX, 0.0075, EZ]], D0 = [new THREE.Vector3(-0.55, 0.10, 0.83).normalize(), new THREE.Vector3(0.55, 0.10, 0.83).normalize()];
     const eyeMat = own(new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }));
     const eyes = new THREE.InstancedMesh(own(new THREE.SphereGeometry(EYE_R, low ? 10 : 16, low ? 8 : 12)), eyeMat, 2); eyes.frustumCulled = false; eyes.name = 'leviathanEyes';
     const pupilMat = own(new THREE.MeshBasicMaterial({ color: '#02070b', toneMapped: false }));
@@ -300,7 +315,7 @@ export function buildToys(THREE, kit, layout, opts) {
     const hg = own(new THREE.BufferGeometry());
     hg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([EYE_POS[0][0], EYE_POS[0][1], EYE_POS[0][2] + 0.003, EYE_POS[1][0], EYE_POS[1][1], EYE_POS[1][2] + 0.003, 0, -0.004, 0.006]), 3));
     hg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(9), 3));
-    const hgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.048, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
+    const hgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.040, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
     const headGlow = new THREE.Points(hg, hgMat); headGlow.frustumCulled = false; headGlow.renderOrder = 8; headTop.add(headGlow);
 
     // ---- sunken ship ----
@@ -369,8 +384,8 @@ export function buildToys(THREE, kit, layout, opts) {
     for (let i = 0; i < bioPos.length; i += 3) lights.push(tint(THREE, new THREE.SphereGeometry(0.0010, 5, 4).translate(bioPos[i], bioPos[i + 1], bioPos[i + 2]), '#ffffff'));
     // glowing sea-life beads along the creature's neck and coils
     for (let i = 0; i < (low ? 8 : 16); i++) {
-        const s = 0.08 + (i % 8) * 0.095, p = backAt(Math.min(0.97, s)), side = i < 8 ? -1 : 1, r = neckR(s) * 0.96;
-        lights.push(tint(THREE, new THREE.SphereGeometry(0.0012, 5, 4).translate(hx + p[0] + side * r, p[1], -hy + p[2] + r * 0.2), '#ffffff'));
+        const s = 0.10 + (i % 8) * 0.11, k = i < 8 ? 0 : 1, p = strandAt(k, s), r = strandW(s) * 0.9;
+        lights.push(tint(THREE, new THREE.SphereGeometry(0.0012, 5, 4).translate(cx + p[0] * (1 + r / strandR(s)), p[1], -cy + p[2] * (1 + r / strandR(s))), '#ffffff'));
     }
     const lightsGeo = own(mergeGeos(THREE, lights));
     const lightCol = lightsGeo.attributes.color;
@@ -379,7 +394,7 @@ export function buildToys(THREE, kit, layout, opts) {
 
     // world glow: lantern halo and soft pools around the head base and ship
     const wg = own(new THREE.BufferGeometry());
-    wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([lanPos[0] + 0.001, lanH + 0.0045, lanPos[2], sx, 0.012, -sy, hx, 0.012, -hy]), 3));
+    wg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([lanPos[0] + 0.001, lanH + 0.0045, lanPos[2], sx, 0.012, -sy, cx, 0.012, -cy]), 3));
     wg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(9), 3));
     const wgMat = own(new THREE.PointsMaterial({ map: glowTex, size: 0.055, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, sizeAttenuation: true }));
     const worldGlow = new THREE.Points(wg, wgMat); worldGlow.frustumCulled = false; worldGlow.renderOrder = 6; group.add(worldGlow);
@@ -387,7 +402,7 @@ export function buildToys(THREE, kit, layout, opts) {
     // ---- kelp: instanced blades with a vertex-shader sway ----
     const kelpToys = ((layout && layout.toys) || []).filter(t => t.kind === 'kelp');
     const kelpList = kelpToys.length ? kelpToys : [{ x: -0.246, y: 0.565, rot: 0 }, { x: -0.238, y: 0.588, rot: 1 }, { x: 0.213, y: 0.565, rot: 2 }, { x: 0.206, y: 0.588, rot: 3 }];
-    const BL_H = 0.070, blade = new THREE.PlaneGeometry(0.0075, BL_H, 1, 7); blade.translate(0, BL_H / 2, 0);
+    const BL_H = 0.064, blade = new THREE.PlaneGeometry(0.0075, BL_H, 1, 7); blade.translate(0, BL_H / 2, 0);
     {
         const p = blade.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color();
         for (let i = 0; i < p.count; i++) {
@@ -405,7 +420,7 @@ export function buildToys(THREE, kit, layout, opts) {
     for (const kt of kelpList) {
         for (let k = 0; k < perToy; k++) {
             kelpData.push({ x: kt.x + (rngNext(rng) - 0.5) * 0.012, y: kt.y + (rngNext(rng) - 0.5) * 0.016, yaw: rngNext(rng) * Math.PI, lean: (rngNext(rng) - 0.5) * 0.25,
-                sx: 0.9 + rngNext(rng) * 0.5, sc: 0.7 + rngNext(rng) * 0.8, ph: rngNext(rng) * 6.28, sp: 1.1 + rngNext(rng) * 0.8 });
+                sx: 0.9 + rngNext(rng) * 0.5, sc: 0.7 + rngNext(rng) * 0.55, ph: rngNext(rng) * 6.28, sp: 1.1 + rngNext(rng) * 0.8 });
         }
     }
     const writeKelp = (t, amp) => {
@@ -459,7 +474,7 @@ export function buildToys(THREE, kit, layout, opts) {
         for (let i = 0; i < BN; i++) {
             if (bub.life[i] > 0) {
                 bub.life[i] -= dt; bub.h[i] += bub.v[i] * dt; bub.ph[i] += dt * 4;
-                if (bub.life[i] <= 0 || bub.h[i] > 0.24) { bub.life[i] = 0; bub.h[i] = -1; }
+                if (bub.life[i] <= 0 || bub.h[i] > 0.098) { bub.life[i] = 0; bub.h[i] = -1; }
                 a.setXYZ(i, bub.x[i] + Math.sin(bub.ph[i]) * 0.0022, bub.h[i], bub.z[i] + Math.cos(bub.ph[i] * 0.8) * 0.0018);
             } else a.setXYZ(i, 0, -1, 0);
         }
@@ -506,11 +521,12 @@ export function buildToys(THREE, kit, layout, opts) {
             const near = Math.hypot(gdx, gdz);
             const yawGoal = clamp(Math.atan2(gdx, gdz + 0.0001) * 0.45, -0.5, 0.5) * (near < 0.012 ? 0 : 1);
             const pitchGoal = 0.20 + clamp(0.04 / Math.max(0.03, near), 0, 0.2) + 0.06 * Math.sin(t * 1.3) + snap * 0.10 - lit * 0.18;
-            yaw += (yawGoal - yaw) * k(5); pitch += (pitchGoal - pitch) * k(6);
+            yaw += (yawGoal - yaw) * k(5); pitch += (Math.min(0.45, pitchGoal) - pitch) * k(6);
             const breath = Math.sin(t * 1.35), breath2 = Math.sin(t * 1.35 - 0.6);
-            headTop.position.set(hx, HEAD_H + breath * 0.0014, -hy);
+            headTop.position.set(hx, hb + HEAD_C + breath * 0.0014, -hy);
             headTop.rotation.set(pitch, yaw, Math.sin(t * 0.7) * 0.015);
-            neckMesh.scale.set(1 + 0.022 * breath2, 1 + breath * 0.0014 / HEAD_H, 1 + 0.022 * breath2);
+            neckMesh.scale.set(1 + 0.022 * breath2, 1 + breath * 0.04, 1 + 0.022 * breath2);
+            coilMesh.scale.set(1 + 0.022 * breath2, 1 + breath * 0.008, 1 + 0.022 * breath2);
             headTop.updateMatrix();
 
             // jaw: spring toward the open amount (multiball / wizard) plus a snap on scoop and ramp events
@@ -562,10 +578,10 @@ export function buildToys(THREE, kit, layout, opts) {
                     bubbleT = 0.5 + rngNext(rng) * 0.9;
                     const r = rngNext(rng);
                     if (r < 0.45) { const kt = kelpList[Math.floor(rngNext(rng) * kelpList.length)]; emit(kt.x, kt.y, 0.05, 1, 0.01); }
-                    else if (r < 0.7) emit(hx + 0.006 * Math.sin(idleT), hy - 0.030, HEAD_H - 0.012, 1 + (lit > 0.3 ? 2 : 0), 0.008);
+                    else if (r < 0.7) emit(cx + 0.006 * Math.sin(idleT), cy, 0.045, 1 + (lit > 0.3 ? 2 : 0), 0.012);
                     else emit(sx - 0.02, sy + 0.01, 0.03, 1, 0.02);
                 }
-                if (snap > 0.9) emit(hx, hy - 0.032, HEAD_H - 0.012, 5, 0.012);
+                if (snap > 0.9) emit(hx, hy - 0.020, hb + HEAD_C - 0.012, 5, 0.012);
                 updateBubbles(dt, t); updateMotes(t);
             }
         },

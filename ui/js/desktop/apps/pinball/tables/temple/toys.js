@@ -210,7 +210,7 @@ export function buildToys(THREE, kit, layout, opts) {
     const glowTex = own(glowTexture(THREE)), flameTex = own(glowTexture(THREE, true));
     const haloGeo = own(mergeGeos(THREE, [-1, 1].map(s => tint(THREE, new THREE.PlaneGeometry(0.030, 0.030).translate(ix + s * 0.0095, 0.0415, fz + 0.0030), '#ffffff'))));
     const haloMat = own(new THREE.MeshBasicMaterial({ map: glowTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-    const halo = new THREE.Mesh(haloGeo, haloMat); halo.renderOrder = 6; halo.frustumCulled = false; group.add(halo);
+    const halo = new THREE.Mesh(haloGeo, haloMat); halo.name = 'idolHalo'; halo.renderOrder = 6; halo.frustumCulled = false; group.add(halo);
     const eyeCol = eyeGeo.attributes.color, haloCol = haloGeo.attributes.color;
     const eyeVerts = eyeCol.count / 2, haloVerts = haloCol.count / 2;
 
@@ -222,10 +222,10 @@ export function buildToys(THREE, kit, layout, opts) {
 
     const capMat = own(new THREE.MeshBasicMaterial({ color: GOLD, toneMapped: false }));
     const capstone = new THREE.Mesh(own(new THREE.ConeGeometry(0.0072 * Math.SQRT2, 0.0105, 4, 1).rotateY(Math.PI / 4)), capMat);
-    capstone.position.set(px0, capY, pz0); capstone.frustumCulled = false; group.add(capstone);
+    capstone.name = 'pyramidCapstone'; capstone.position.set(px0, capY, pz0); capstone.frustumCulled = false; group.add(capstone);
     const beamMat = own(new THREE.MeshBasicMaterial({ color: '#ffd27a', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
-    const beam = new THREE.Mesh(own(new THREE.CylinderGeometry(0.0016, 0.0085, 0.062, 14, 1, true).translate(0, 0.031, 0)), beamMat);
-    beam.position.set(px0, capY + 0.004, pz0); beam.renderOrder = 6; beam.frustumCulled = false; group.add(beam);
+    const beam = new THREE.Mesh(own(new THREE.CylinderGeometry(0.0016, 0.0085, 0.046, 14, 1, true).translate(0, 0.023, 0)), beamMat);
+    beam.name = 'pyramidBeam'; beam.position.set(px0, capY + 0.004, pz0); beam.renderOrder = 6; beam.frustumCulled = false; group.add(beam);
 
     // ---- sun disc + crown of rays ----
     const sd = find('sunDisc') || { x: 0, y: 1.0 }, sy = Math.min(1.045, sd.y + 0.045), sh = 0.058, sz = frontZ(sy);
@@ -235,12 +235,12 @@ export function buildToys(THREE, kit, layout, opts) {
         const a = i / 16 * Math.PI * 2, g = new THREE.ConeGeometry(0.0050, i % 2 ? 0.0095 : 0.0140, 4, 1); g.translate(0, 0.0335 + (i % 2 ? 0.0048 : 0.0070), 0); g.rotateZ(a - Math.PI * 0 );
         rotorGeos.push(tint(THREE, g, i % 2 ? GOLD_D : GOLD));
     }
-    const rotorMesh = new THREE.Mesh(own(mergeGeos(THREE, rotorGeos)), goldMat); rotorMesh.frustumCulled = false; rotor.add(rotorMesh); group.add(rotor);
+    const rotorMesh = new THREE.Mesh(own(mergeGeos(THREE, rotorGeos)), goldMat); rotorMesh.name = 'sunRotor'; rotorMesh.frustumCulled = false; rotor.add(rotorMesh); group.add(rotor);
     const faceTex = own(sunFaceTexture(THREE));
     const faceMat = own(new THREE.MeshBasicMaterial({ map: faceTex, color: new THREE.Color(1.1, 1.0, 0.9), toneMapped: false }));
-    const face = new THREE.Mesh(own(new THREE.CircleGeometry(0.0315, low ? 28 : 44)), faceMat); face.position.set(sd.x, sh, sz + 0.0006); face.frustumCulled = false; group.add(face);
+    const face = new THREE.Mesh(own(new THREE.CircleGeometry(0.0315, low ? 28 : 44)), faceMat); face.name = 'sunFace'; face.position.set(sd.x, sh, sz + 0.0006); face.frustumCulled = false; group.add(face);
     const sunHaloMat = own(new THREE.MeshBasicMaterial({ map: glowTex, color: '#ffb347', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-    const sunHalo = new THREE.Mesh(own(new THREE.PlaneGeometry(0.17, 0.17)), sunHaloMat); sunHalo.position.set(sd.x, sh, sz - 0.004); sunHalo.renderOrder = 5; sunHalo.frustumCulled = false; group.add(sunHalo);
+    const sunHalo = new THREE.Mesh(own(new THREE.PlaneGeometry(0.125, 0.125)), sunHaloMat); sunHalo.name = 'sunHalo'; sunHalo.position.set(sd.x, sh, sz - 0.004); sunHalo.renderOrder = 5; sunHalo.frustumCulled = false; group.add(sunHalo);
 
     // crown: six rays standing on the top arc at the ray lamp positions, tilted outward (static gold) + lamp-lit glow quads
     const rayX = [-0.150, -0.090, -0.030, 0.030, 0.090, 0.150], crownGold = [], rayGlowGeos = [];
@@ -249,15 +249,15 @@ export function buildToys(THREE, kit, layout, opts) {
         const g = new THREE.CylinderGeometry(0.0011, 0.0072, 0.060, 4, 1); g.translate(0, 0.030, 0); g.rotateZ(-tilt); g.translate(x, 0.0, frontZ(y)); crownGold.push(tint(THREE, g, i % 2 ? GOLD_D : GOLD));
         const gl = new THREE.PlaneGeometry(0.016, 0.052); gl.translate(0, 0.026, 0.002); gl.rotateZ(-tilt); gl.translate(x, 0.004, frontZ(y)); rayGlowGeos.push(tint(THREE, gl, '#ffffff'));
     });
-    const crownMesh = new THREE.Mesh(own(mergeGeos(THREE, crownGold)), goldMat); crownMesh.frustumCulled = false; group.add(crownMesh);
+    const crownMesh = new THREE.Mesh(own(mergeGeos(THREE, crownGold)), goldMat); crownMesh.name = 'sunCrown'; crownMesh.frustumCulled = false; group.add(crownMesh);
     const rayGeo = own(mergeGeos(THREE, rayGlowGeos)), rayCol = rayGeo.attributes.color, rayVerts = rayCol.count / 6;
     const rayMat = own(new THREE.MeshBasicMaterial({ map: glowTex, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-    const rayMesh = new THREE.Mesh(rayGeo, rayMat); rayMesh.renderOrder = 6; rayMesh.frustumCulled = false; group.add(rayMesh);
+    const rayMesh = new THREE.Mesh(rayGeo, rayMat); rayMesh.name = 'sunRayGlow'; rayMesh.renderOrder = 6; rayMesh.frustumCulled = false; group.add(rayMesh);
     const rayLevel = new Float32Array(6);
 
     // ---- jungle foliage (instanced, swaying) ----
     const leafTex = own(leafTexture(THREE));
-    const frond = new THREE.PlaneGeometry(0.038, 0.078, 1, 4).translate(0, 0.039, 0);
+    const frond = new THREE.PlaneGeometry(0.036, 0.066, 1, 4).translate(0, 0.033, 0);
     { const p = frond.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, -y * y * 2.4); } frond.computeVertexNormals(); }
     own(frond);
     const leafMat = own(new THREE.MeshStandardMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.7, metalness: 0, emissive: '#10300c', emissiveIntensity: 0.6 }));
@@ -268,8 +268,8 @@ export function buildToys(THREE, kit, layout, opts) {
     const leafData = [], palette = ['#2c7a3a', '#3f9a47', '#1f6a30', '#58b04f', '#2f8a58'].map(c => new THREE.Color(c));
     clusters.forEach(([x, y, side]) => {
         for (let k = 0; k < perCluster; k++) {
-            const sc = 0.6 + rngNext(frng) * 0.55;
-            leafData.push({ x: x + (rngNext(frng) - 0.5) * 0.012, y: y + (rngNext(frng) - 0.5) * 0.05, h: 0.034 + rngNext(frng) * 0.02, side, yaw: -side * Math.PI / 2 + (rngNext(frng) - 0.5) * 1.0, pitch: 0.6 + rngNext(frng) * 0.4, sc, ph: rngNext(frng) * 6.28, sp: 0.5 + rngNext(frng) * 0.5 });
+            const sc = 0.55 + rngNext(frng) * 0.35;
+            leafData.push({ x: x + (rngNext(frng) - 0.5) * 0.012, y: y + (rngNext(frng) - 0.5) * 0.05, h: 0.028 + rngNext(frng) * 0.012, side, yaw: -side * Math.PI / 2 + (rngNext(frng) - 0.5) * 1.0, pitch: 0.75 + rngNext(frng) * 0.35, sc, ph: rngNext(frng) * 6.28, sp: 0.5 + rngNext(frng) * 0.5 });
             foliage.setColorAt(leafData.length - 1, palette[Math.floor(rngNext(frng) * palette.length)]);
         }
     });
@@ -348,7 +348,7 @@ export function buildToys(THREE, kit, layout, opts) {
             // capstone and beam
             capMat.color.set(GOLD).lerp(white, 0.2 + 0.5 * pyr).multiplyScalar(0.7 + 1.9 * pyr + 0.12 * Math.sin(t * 3));
             beamMat.opacity = pyr * (0.28 + 0.08 * Math.sin(t * 2.4)); beam.visible = pyr > 0.02;
-            beam.scale.set(1, 0.7 + 0.5 * pyr, 1);
+            beam.scale.set(1, 0.7 + 0.4 * pyr, 1);
 
             // sun disc: slow turn, faster with the ray level; crown glow follows the ray lamps
             rotor.rotation.z = -t * (0.12 + 0.5 * rays);

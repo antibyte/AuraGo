@@ -155,20 +155,20 @@ export function buildToys(THREE, kit, layout, opts) {
     const sp = find('spire') || { x: 0, y: 0.7 };
     const spire = new THREE.Group(); spire.position.set(sp.x, 0, -sp.y); group.add(spire);
     const baseMat = own(new THREE.MeshStandardMaterial({ color: '#10121c', metalness: 0.9, roughness: 0.3, emissive: '#000000' }));
-    const base = new THREE.Mesh(own(new THREE.CylinderGeometry(0.023, 0.026, 0.016, low ? 20 : 32)), baseMat); base.position.y = 0.008; spire.add(base);
+    const base = new THREE.Mesh(own(new THREE.CylinderGeometry(0.023, 0.026, 0.016, low ? 20 : 32)), baseMat); base.name = 'spireBase'; base.position.y = 0.008; spire.add(base);
     const emitterMat = own(new THREE.MeshBasicMaterial({ color: '#37d9ff', transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
     const emitter = new THREE.Mesh(own(new THREE.TorusGeometry(0.0195, 0.0015, 6, low ? 28 : 48)), emitterMat);
-    emitter.rotation.x = Math.PI / 2; emitter.position.y = 0.0165; spire.add(emitter);
-    const HH = 0.115, holoU = { uColor: { value: new THREE.Color('#37d9ff') }, uTime: { value: 0 }, uPulse: { value: 0 }, uHeight: { value: HH } };
+    emitter.name = 'spireEmitter'; emitter.rotation.x = Math.PI / 2; emitter.position.y = 0.0165; spire.add(emitter);
+    const HH = 0.086, holoU = { uColor: { value: new THREE.Color('#37d9ff') }, uTime: { value: 0 }, uPulse: { value: 0 }, uHeight: { value: HH } };
     const holoMat = own(new THREE.ShaderMaterial({ uniforms: holoU, vertexShader: HOLO_VERT, fragmentShader: HOLO_FRAG, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    const prism = new THREE.Mesh(own(prismGeometry(THREE, 0.021, 0.006, HH, 2.6)), holoMat); prism.position.y = 0.017 + HH / 2; prism.renderOrder = 5; spire.add(prism);
+    const prism = new THREE.Mesh(own(prismGeometry(THREE, 0.024, 0.007, HH, 2.6)), holoMat); prism.name = 'spirePrism'; prism.position.y = 0.017 + HH / 2; prism.renderOrder = 5; spire.add(prism);
     const crystalMat = own(new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, wireframe: true }));
-    const crystal = new THREE.Mesh(own(new THREE.OctahedronGeometry(0.0085, 0)), crystalMat); crystal.position.y = 0.017 + HH * 0.5; crystal.renderOrder = 6; spire.add(crystal);
+    const crystal = new THREE.Mesh(own(new THREE.OctahedronGeometry(0.0085, 0)), crystalMat); crystal.name = 'spireCrystal'; crystal.position.y = 0.017 + HH * 0.5; crystal.renderOrder = 6; spire.add(crystal);
     const rings = [];
     for (let i = 0; i < (low ? 2 : 3); i++) {
         const mat = own(new THREE.MeshBasicMaterial({ color: '#37d9ff', transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
         const ring = new THREE.Mesh(own(new THREE.TorusGeometry(0.0125 + (1 - i) * 0.004 * (i === 1 ? 0 : 1) + i * 0.002, 0.0005, 5, low ? 28 : 56)), mat);
-        ring.rotation.x = Math.PI / 2; ring.position.y = 0.04 + i * 0.03; ring.renderOrder = 6; spire.add(ring); rings.push(ring);
+        ring.rotation.x = Math.PI / 2; ring.name = 'spireRing' + i; ring.position.y = 0.034 + i * 0.022; ring.renderOrder = 6; spire.add(ring); rings.push(ring);
     }
     let motes = null, moteBase = null;
     if (!low) {
@@ -186,7 +186,7 @@ export function buildToys(THREE, kit, layout, opts) {
     group.add(sub);
     const capMat = own(new THREE.MeshStandardMaterial({ color: '#2a2f42', metalness: 0.85, roughness: 0.32, side: THREE.DoubleSide }));
     const arch = new THREE.Mesh(own(new THREE.CylinderGeometry(0.021, 0.021, 0.05, 20, 1, true, 0, Math.PI)), capMat);
-    arch.rotation.z = Math.PI / 2; sub.add(arch);
+    arch.name = 'subwayArch'; arch.rotation.z = Math.PI / 2; sub.add(arch);
     const stripMat = own(new THREE.MeshBasicMaterial({ color: '#a98bff' }));
     const strip = new THREE.Mesh(own(new THREE.BoxGeometry(0.046, 0.0016, 0.004)), stripMat); strip.position.set(0, 0.0212, 0); sub.add(strip);
     void sw;
@@ -199,7 +199,7 @@ export function buildToys(THREE, kit, layout, opts) {
         curve = new THREE.CatmullRomCurve3(rr.points.map(q => new THREE.Vector3(q[0], q[2] + 0.028, -q[1])));
         const tg = own(new THREE.PlaneGeometry(0.014, 0.0022).rotateX(-Math.PI / 2));
         const tm = own(new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
-        traffic = new THREE.InstancedMesh(tg, tm, TN); traffic.frustumCulled = false; traffic.renderOrder = 4;
+        traffic = new THREE.InstancedMesh(tg, tm, TN); traffic.name = 'neonTraffic'; traffic.frustumCulled = false; traffic.renderOrder = 4;
         const pink = new THREE.Color('#ff48c4'), cy = new THREE.Color('#37d9ff');
         for (let i = 0; i < TN; i++) traffic.setColorAt(i, i % 2 ? pink : cy);
         group.add(traffic);
@@ -230,12 +230,12 @@ export function buildToys(THREE, kit, layout, opts) {
             crystal.rotation.y = -t * speed * 1.3; crystal.rotation.x = t * speed * 0.7;
             crystalMat.color.copy(hue).lerp(hot, 0.4 + 0.5 * pulse);
             emitterMat.color.copy(hue).multiplyScalar(0.8 + 1.1 * pulse);
-            rings.forEach((r, i) => { r.rotation.z = t * speed * (i % 2 ? -1.2 : 1.2) * (1 + i * 0.4); r.material.color.copy(hue); r.position.y = 0.04 + i * 0.03 + Math.sin(t * speed * 0.6 + i * 2) * 0.004; });
+            rings.forEach((r, i) => { r.rotation.z = t * speed * (i % 2 ? -1.2 : 1.2) * (1 + i * 0.4); r.material.color.copy(hue); r.position.y = 0.034 + i * 0.022 + Math.sin(t * speed * 0.6 + i * 2) * 0.003; });
             if (motes) {
                 const a = motes.geometry.attributes.position;
                 for (let i = 0; i < a.count; i++) {
                     const ph = (moteBase[i * 3 + 1] + t * (0.05 + 0.08 * speed)) % 1, an = moteBase[i * 3] + t * speed * 0.8;
-                    a.setXYZ(i, Math.cos(an) * moteBase[i * 3 + 2], 0.02 + ph * 0.09, Math.sin(an) * moteBase[i * 3 + 2]);
+                    a.setXYZ(i, Math.cos(an) * moteBase[i * 3 + 2], 0.02 + ph * 0.07, Math.sin(an) * moteBase[i * 3 + 2]);
                 }
                 a.needsUpdate = true; motes.material.color.copy(hue).lerp(hot, 0.4);
             }
