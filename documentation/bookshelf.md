@@ -33,7 +33,7 @@ catalog, with cover, spine and compact list views for different collection sizes
 EPUB, DRM-free MOBI/KF8, FB2, FB2.ZIP, CBZ, TXT and standalone HTML use the local
 book renderer. PDF uses the existing local PDF.js runtime. EPUB supports both
 flowing text and fixed layouts; available controls depend on the layout.
-Text books offer fonts, size, line spacing, width and light/sepia/dark surfaces.
+Text books offer size, line spacing, width and paper/sepia/dark surfaces.
 PDFs and comics offer page fit, zoom, page navigation and page thumbnails.
 Text/HTML encoding can be corrected in the reader settings.
 
@@ -51,6 +51,8 @@ are not sent to an LLM or a metadata provider.
 ## Optional conversion
 
 CBR, RTF, DOCX, ODT, LIT, PDB and LRF may be converted to a managed EPUB copy.
+Folder scans skip `*.pdb` files because that extension is shared with Windows
+debug-symbol databases, so add PDB books explicitly (upload or Add books).
 Conversion is explicit; it never replaces the original and layout may change.
 Ordinary EPUB/PDF reading does not require Calibre.
 

@@ -745,7 +745,7 @@
   "config.telephone_agent.provider_unavailable": "leverandør utilgjengelig",
   "config.decisions.lifecycle_busy": "En installasjon eller start kjører allerede.",
   "config.virtual_desktop.bookshelf_enabled_label": "Aktiver Bookshelf",
-  "help.virtual_desktop.bookshelf_enabled": "Aktiver Bookshelf for å organisere og lese bøker fra valgte lokale mapper og tilkoblede kilder. Funksjonen er slått av som standard.",
+  "help.virtual_desktop.bookshelf_enabled": "Aktiver Bookshelf for å organisere og lese bøker fra valgte lokale mapper og tilkoblede kilder. Funksjonen er slått på som standard.",
   "config.virtual_desktop.bookshelf_converter_path_label": "Program for bokkonvertering",
   "help.virtual_desktop.bookshelf_converter_path": "Linux-sti til ebook-convert. Konvertering krever også isolering med bwrap og prlimit; la feltet stå tomt for å deaktivere. Eksempel: /usr/bin/ebook-convert eller /opt/calibre/ebook-convert. Importer en ferdig konvertert bok på plattformer som ikke støttes.",
   "config.virtual_desktop.code_studio_heading": "Code Studio",

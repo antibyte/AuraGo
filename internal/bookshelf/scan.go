@@ -101,7 +101,7 @@ func (s *Service) Scan(ctx context.Context, sourceID string) (ScanResult, error)
 				continue
 			}
 			format := normalizeFormat(entry.Format, entryPath)
-			if !validFormat(format) {
+			if !validFormat(format) || scanSkipsFormat(format) {
 				continue
 			}
 			result.Seen++
@@ -237,6 +237,15 @@ func (s *Service) applyScan(ctx context.Context, source Source, seen map[string]
 		return fmt.Errorf("commit bookshelf scan: %w", err)
 	}
 	return nil
+}
+
+// scanSkipsFormat reports formats that folder scans never index on their own.
+// The "pdb" extension collides with Windows debug-symbol databases and Protein
+// Data Bank files, so a connected folder would otherwise fill the catalog with
+// non-books. Such files are still accepted when added explicitly (AddBook or
+// upload), which keeps validFormat unchanged.
+func scanSkipsFormat(format string) bool {
+	return format == "pdb"
 }
 
 func normalizeFormat(format, filename string) string {

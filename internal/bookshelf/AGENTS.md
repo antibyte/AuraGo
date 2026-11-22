@@ -20,6 +20,10 @@ The server owns HTTP authorization and injects authorized source adapters.
 - Scan failures, cancellation, denied directories and limits never mark unseen
   books unavailable. Only a complete scan may do so. Bound entry count, depth,
   text fields, locators, covers, transfers and cache bytes.
+- Folder scans never index `pdb` entries on their own; the extension collides
+  with Windows debug-symbol files. Explicit add and upload still accept LIT, PDB
+  and LRF, which convert like CBR, RTF, DOCX and ODT. Verify
+  `TestScanSkipsPDBButKeepsOtherConvertibleFormats`.
 - Uploads use the effective `limits.max_book_bytes` capability, including the
   Desktop file-size cap. HTTP 413 responses include `max_bytes`; the dialog
   explains the limit, restores its controls and retains successful batch items

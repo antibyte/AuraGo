@@ -580,6 +580,36 @@ func TestScanSkipsOversizedEntriesAndPreservesKnownBooks(t *testing.T) {
 	}
 }
 
+func TestScanSkipsPDBButKeepsOtherConvertibleFormats(t *testing.T) {
+	ctx := context.Background()
+	adapter := newMemoryAdapter()
+	epub := adapter.setFile("book.epub", []byte("epub"), "r1")
+	pdb := adapter.setFile("notes.pdb", []byte("pdb"), "r1")
+	lit := adapter.setFile("reader.lit", []byte("lit"), "r1")
+	lrf := adapter.setFile("sony.lrf", []byte("lrf"), "r1")
+	adapter.directories[""] = []Entry{epub, pdb, lit, lrf}
+	svc := newTestService(t, adapter, 1<<20)
+	source := addTestSource(t, svc, false)
+
+	result, err := svc.Scan(ctx, source.ID)
+	if err != nil || !result.Complete || result.Seen != 3 || result.Added != 3 {
+		t.Fatalf("Scan() = %#v, %v; want 3 indexed books without the pdb entry", result, err)
+	}
+	for _, name := range []string{"book.epub", "reader.lit", "sony.lrf"} {
+		book, err := svc.GetBook(ctx, bookID(source.ID, name))
+		if err != nil || !book.Available {
+			t.Fatalf("scan did not index %s: %#v, %v", name, book, err)
+		}
+	}
+	if _, err := svc.GetBook(ctx, bookID(source.ID, "notes.pdb")); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("scan indexed notes.pdb: %v", err)
+	}
+	// Skipping the extension during scans must not stop an explicit add.
+	if _, err := svc.AddBook(ctx, source.ID, pdb, Metadata{Title: "Palm document"}); err != nil {
+		t.Fatalf("AddBook() rejected an explicit pdb: %v", err)
+	}
+}
+
 func TestCollectionBookIDsPreservesMembershipOrder(t *testing.T) {
 	ctx := context.Background()
 	adapter := newMemoryAdapter()

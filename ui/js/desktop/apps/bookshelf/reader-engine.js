@@ -138,7 +138,8 @@ function applyPreferences(settings) {
     const size = Math.max(12, Math.min(36, Number(preferences.fontSize) || 19));
     const line = Math.max(1.2, Math.min(2.2, Number(preferences.lineHeight) || 1.6));
     const families = { serif: 'Georgia,serif', sans: 'Arial,sans-serif', mono: 'monospace' };
-    const colors = { light: ['#fffdf8', '#28231d'], sepia: ['#eee3cb', '#30281e'], dark: ['#23221f', '#eee5d6'] };
+    const colors = { paper: ['#fffdf8', '#28231d'], sepia: ['#eee3cb', '#30281e'], dark: ['#23221f', '#eee5d6'] };
+    colors.light = colors.paper; // Alias for preferences stored before the paper theme was named.
     const [background, foreground] = colors[preferences.theme] || colors.sepia;
     document.documentElement.style.background = background;
     if (view.isFixedLayout) {

@@ -794,7 +794,7 @@ func validID(value string) bool {
 
 func validFormat(format string) bool {
 	switch format {
-	case "epub", "pdf", "mobi", "azw", "azw3", "kfx", "fb2", "fb2.zip", "cbz", "cbr", "txt", "html", "htm", "rtf", "docx", "odt", "djvu", "acsm":
+	case "epub", "pdf", "mobi", "azw", "azw3", "kfx", "fb2", "fb2.zip", "cbz", "cbr", "txt", "html", "htm", "rtf", "docx", "odt", "djvu", "acsm", "lit", "pdb", "lrf":
 		return true
 	default:
 		return false

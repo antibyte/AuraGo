@@ -30,7 +30,7 @@ Technical details for administrators (catalog, source adapters, the converter sa
   the Bookshelf switch has no effect.
 - **Bookshelf on.** Under **Config → Virtual Desktop**, the switch **Enable Bookshelf** (`virtual_desktop.bookshelf_enabled`).
   It is on by default: `config_template.yaml` sets `bookshelf_enabled: true`, and the config loader also enables it when
-  the key is missing. The help text under the switch still says "off by default". That text is wrong.
+  the key is missing.
 - **No restart needed.** Saving the switch takes effect at once. Turning Bookshelf off cancels its running scans and
   conversions and revokes open reader links. Your catalog stays on disk.
 - **Read-only mode.** With **Read-only mode** (`virtual_desktop.readonly`) on, you can still open and read books. You
@@ -131,8 +131,9 @@ Click **Read book** to open a book in the reader. The toolbar above the page off
 Some formats cannot be read directly. If the server has an ebook converter, Bookshelf can make an EPUB copy of them.
 Reading EPUB, PDF, MOBI and the other supported formats does not need a converter.
 
-- **Formats:** CBR, RTF, DOCX and ODT. LIT, PDB and LRF appear in the conversion code, but the catalog does not accept
-  those files in this version, so they cannot be converted yet.
+- **Formats:** CBR, RTF, DOCX, ODT, LIT, PDB and LRF. Bookshelf accepts these files on upload and converts them like CBR,
+  RTF, DOCX and ODT. Folder scans pick up LIT and LRF but skip PDB files, because the `.pdb` extension is shared with
+  Windows debug-symbol files. Add PDB books explicitly, with **Add books** and **Upload books**.
 - **For administrators:** install Calibre's `ebook-convert`, `bubblewrap` (`bwrap`) and `prlimit` on a Linux host or
   container, through your usual system administration. Then set **Ebook converter executable**
   (`virtual_desktop.bookshelf_converter_path`) to `/usr/bin/ebook-convert` or `/opt/calibre/ebook-convert`. An empty
@@ -156,16 +157,15 @@ Reading EPUB, PDF, MOBI and the other supported formats does not need a converte
 | CBZ (comics) | Yes | Page images: PNG, JPEG, WebP, GIF or AVIF |
 | TXT, HTML, HTM | Yes | The text encoding can be corrected |
 | PDF | Yes | Password prompt if needed. No OCR. |
-| CBR, RTF, DOCX, ODT | As an EPUB copy only | Needs the converter, see [Optional EPUB Copies](#optional-epub-copies) |
+| CBR, RTF, DOCX, ODT, LIT, PDB, LRF | As an EPUB copy only | Needs the converter, see [Optional EPUB Copies](#optional-epub-copies) |
 | DjVu, Kindle KFX, ACSM | No | They can appear in the library but cannot be opened |
-| LIT, PDB, LRF | No | Refused on upload and skipped by scans in this version |
 
 - **Size per book:** the smaller of 256 MiB and **Max file size (MB)** in the Virtual Desktop settings (50 MB by
   default). Larger files are refused on upload and skipped by scans.
 - **Scans:** up to 10,000 files per scan, folders up to 64 levels deep, and up to four scans at the same time.
 - **Reader archives:** an EPUB, FB2.ZIP or CBZ file may hold at most 10,000 entries, 32 MiB per entry and 256 MiB
   unpacked.
-- **Cover images:** PNG or JPEG, at most 8 MB in the dialog.
+- **Cover images:** PNG or JPEG, at most 12 MB in the dialog.
 - **Read cache:** 1 GiB by default for prepared copies. **Keep on this AuraGo server** keeps a copy that stays readable
   if the source goes offline. The cache summary shows used space, kept copies and the limit.
 - **Platforms:** only conversion is Linux-only. The library and the reader work wherever the Virtual Desktop runs.
@@ -219,7 +219,7 @@ Reading EPUB, PDF, MOBI and the other supported formats does not need a converte
 | "Add this location as a source before opening its book." | Add the folder as a source first, under **Add books**. |
 | "This file is not in a connected library." | Add the folder with **Add books**, then open the book again. |
 | "This link cannot be opened from Bookshelf." | Some links are refused. Do not try to open them. |
-| "The cover image must be smaller than 8 MB." | Use a smaller PNG or JPEG image. |
+| "The cover image must be smaller than 12 MB." | Use a smaller PNG or JPEG image. |
 | `unsupported`, `limit_exceeded`, `source_readonly`, `source_access_denied`, `revision_conflict` | Shown as the raw code when there is no text for it. `unsupported`: the format is not accepted. `limit_exceeded`: a size or scan limit. `source_readonly`: the source or the Desktop is read-only. `source_access_denied`: check **Show in File Manager** for WebDAV or Koofr. `revision_conflict`: the book changed elsewhere, so reload. |
 | `bookshelf_archive_limit`, `bookshelf_invalid_archive`, `bookshelf_unsupported_format`, `bookshelf_reader_timeout` | Shown as they are. The book is too large inside, damaged, not a format the reader handles, or it took too long to open. |
 
