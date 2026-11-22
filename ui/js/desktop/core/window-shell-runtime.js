@@ -1353,6 +1353,7 @@
             findit: { width: 1320, height: 820 },
             ecalc: { width: 1100, height: 760 },
             storymaker: { width: 1320, height: 840 },
+            'chibi-sensei': { width: 1280, height: 820 },
             tresor: { width: 1060, height: 700 },
             launchpad: { width: 1100, height: 700 },
             'system-info': { width: 800, height: 600 },
@@ -1397,6 +1398,7 @@
         if (appId === 'findit') return { width: 360, height: 480 };
         if (appId === 'ecalc') return { width: 640, height: 480 };
         if (appId === 'storymaker') return { width: 640, height: 480 };
+        if (appId === 'chibi-sensei') return { width: 900, height: 600 };
         if (appId === 'radio') return { width: 360, height: 540 };
         if (appId === 'teevee') return { width: 1140, height: 540 }; // Keep the sidebar above its 1050px content breakpoint plus wood trim.
         if (appId === 'meshcore') return { width: 360, height: 480 };
@@ -1493,7 +1495,7 @@
             const requestedPath = normalizeDesktopPath(context.path);
             return win.context && normalizeDesktopPath(win.context.path) === requestedPath;
         }
-        return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling'].includes(appId);
+        return !['editor', 'writer', 'sheets', 'synth-studio', 'layerling', 'chibi-sensei'].includes(appId);
     }
 
     function findExistingAppWindow(appId, context) {

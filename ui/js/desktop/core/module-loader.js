@@ -34,6 +34,10 @@
             styles: appStyles('/css/desktop-app-storymaker.css'),
             scripts: ['/js/desktop/apps/storymaker-core.js', '/js/desktop/apps/storymaker-model.js', '/js/desktop/apps/storymaker-api.js', '/js/desktop/apps/storymaker-assets.js', '/js/desktop/apps/storymaker-player.js', '/js/desktop/apps/storymaker-projects.js', '/js/desktop/apps/storymaker-strip.js', '/js/desktop/apps/storymaker-inspector.js', '/js/desktop/apps/storymaker-code.js', '/js/desktop/apps/storymaker-export.js', '/js/desktop/apps/storymaker-audio.js', '/js/desktop/apps/storymaker-voice.js', '/js/desktop/apps/storymaker-music.js', '/js/desktop/apps/storymaker-agent.js', '/js/desktop/apps/storymaker-dialog.js', '/js/desktop/apps/storymaker-handoff.js', '/js/desktop/apps/storymaker.js']
         },
+        'chibi-sensei': {
+            styles: appStyles('/css/desktop-app-chibi-sensei.css'),
+            scripts: ['/js/desktop/apps/chibi-sensei/chibi-sensei-core.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-api.js', '/js/desktop/apps/chibi-sensei/chibi-sensei-mascot.js', '/js/desktop/apps/chibi-sensei/chibi-sensei.js']
+        },
         'minigolf': {
             styles: appStyles('/css/desktop-app-minigolf.css'),
             scripts: ['/js/desktop/apps/minigolf.js']
@@ -861,6 +865,7 @@
         'pixel': ['pixel', 'stickers'],
         'system-world': ['sysworld'],
         storymaker: ['storymaker'],
+        'chibi-sensei': ['chibi_sensei'],
         'viewer': ['viewer'],
         'viewer-3d': ['viewer'],
         'zipper': ['zipper'],

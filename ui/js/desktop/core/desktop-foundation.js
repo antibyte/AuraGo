@@ -642,6 +642,7 @@
             findit: 'FindItApp',
             ecalc: 'ECalcApp',
             storymaker: 'StorymakerApp',
+            'chibi-sensei': 'ChibiSenseiApp',
             tresor: 'TresorApp',
             openscad: 'OpenSCADApp',
             looper: 'LooperApp',

@@ -1813,6 +1813,19 @@ if (appId === 'system-info') {
                 }));
             }
         }
+        if (appId === 'chibi-sensei') {
+            if (!window.ChibiSenseiApp) {
+                window.AuraDesktopModules.loadAppScript('chibi-sensei').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
+                return;
+            }
+            if (typeof window.ChibiSenseiApp.render === 'function') {
+                return window.ChibiSenseiApp.render(contentEl(id), id, withDesktopFileDialogs(context, {
+                    esc, api, t, iconMarkup, notify: showDesktopNotification, readonly: desktopReadonly(), openApp, confirmDialog, modalDialog,
+                    setWindowBeforeClose: (winId, handler) => { const win = state.windows.get(winId); if (win) win.beforeClose = handler; },
+                    isActive: () => state.activeWindowId === id
+                }));
+            }
+        }
         if (appId === 'tresor') {
             if (!window.TresorApp) {
                 window.AuraDesktopModules.loadAppScript('tresor').then(() => renderAppContent(id, appId, context)).catch(err => renderAppError(id, appId, err));
