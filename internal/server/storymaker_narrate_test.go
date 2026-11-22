@@ -606,3 +606,89 @@ func TestStorymakerNarrateReleaseGivesTheCharactersBackToTheJob(t *testing.T) {
 		t.Fatalf("a 700 character piece after a released 400: %v", err)
 	}
 }
+
+// The daily count of the test day, read through the same call the budget uses.
+func narrateTodayChars(t *testing.T, env *narrateJobEnv, maxDaily int) int {
+	t.Helper()
+	used, err := env.rt.usage.today(maxDaily)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return used
+}
+
+func TestStorymakerNarrateReleaseGivesTheDailyCountBack(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	run := &storymakerNarrateRun{rt: env.rt}
+	copied := *env.s.ConfigSnapshot()
+	cfg := &copied
+	cfg.Storymaker.Narration.MaxJobChars = 1000
+	cfg.Storymaker.Narration.MaxDailyChars = 5000
+	before := narrateTodayChars(t, env, 5000)
+	charge, err := storymakerReserve(run, cfg, "openai", strings.Repeat("a", 400))
+	if err != nil || charge != 400 {
+		t.Fatalf("reserve: %d, %v", charge, err)
+	}
+	if got := narrateTodayChars(t, env, 5000); got != before+400 || run.sent != 400 {
+		t.Fatalf("after the reserve: daily %d (was %d), sent %d", got, before, run.sent)
+	}
+	storymakerRelease(run, cfg, charge)
+	if got := narrateTodayChars(t, env, 5000); got != before || run.sent != 0 {
+		t.Fatalf("after the release: daily %d, want %d; sent %d", got, before, run.sent)
+	}
+}
+
+// A first take that fails with no bytes goes back through storymakerNarrateStep itself: the job cap and the daily count both.
+func TestStorymakerNarrateAFailedFirstTakeGivesTheCharactersBack(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	narrateJobSetConfig(env.s, func(c *config.Config) {
+		c.Storymaker.Narration.MaxJobChars = 1000
+		c.Storymaker.Narration.MaxDailyChars = 5000
+	})
+	env.mustSave(t, narrateJobStory(`{"provider":"openai","voice":"alloy","language":"de"}`, narrateJobFirst))
+	before := narrateTodayChars(t, env, 5000)
+	var calls int
+	env.s.storymakerSynthOverride = func(context.Context, tools.TTSConfig, string) ([]byte, string, error) {
+		calls++
+		return nil, "", errors.New("provider down")
+	}
+	type result struct {
+		more bool
+		err  error
+		sent int
+	}
+	got := make(chan result, 1)
+	stub, err := render.NewManager(render.ManagerOptions{
+		Dir:     t.TempDir(),
+		Kinds:   []string{render.KindNarrate},
+		Workers: 1,
+		Run: func(ctx context.Context, _ render.Job, _ any, h *render.Handle) (render.Output, error) {
+			run := &storymakerNarrateRun{rt: env.rt, id: env.id, h: h, verified: map[string]bool{}}
+			more, err := env.s.storymakerNarrateStep(ctx, run)
+			got <- result{more, err, run.sent}
+			return render.Output{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(stub.Close)
+	if _, _, err := stub.Enqueue(render.EnqueueRequest{ProjectID: env.id, Kind: render.KindNarrate, Payload: storymakerNarratePayload{ProjectID: env.id}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case r := <-got:
+		var failed *render.JobError
+		if !errors.As(r.err, &failed) || failed.Code != render.CodeNarrationFailed || r.more {
+			t.Fatalf("step = %+v", r)
+		}
+		if r.sent != 0 || calls != 1 {
+			t.Fatalf("sent = %d, calls = %d", r.sent, calls)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("the step did not run")
+	}
+	if after := narrateTodayChars(t, env, 5000); after != before {
+		t.Fatalf("daily count %d, want %d again", after, before)
+	}
+}
