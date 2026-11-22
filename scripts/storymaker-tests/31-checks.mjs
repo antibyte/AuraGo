@@ -284,3 +284,16 @@ check('worker player: the checks message runs the probe through checks.run on th
 check('compile: the report keeps an empty checks list, because only the probe fills it', () => {
     assert.deepEqual(plain(t.compiled().report.checks), []);
 });
+
+check('checks.run: the flash fix names put_code for a code scene and patch_scene for a storyboard scene', () => {
+    const code = plain(SM.checks.run(probeOf(strobe(120, 70, 110, 0.4)), film(120)))[0];
+    assert.equal(code.scene_id, 'b');
+    assert.match(code.fix, /put_code/);
+    assert.match(code.fix, /put_scene/);
+    assert.match(code.fix, /3 times a second|at most 3/);
+    assert.doesNotMatch(code.fix, /patch_scene/);
+    const board = plain(SM.checks.run(probeOf(strobe(120, 10, 50, 0.4)), film(120)))[0];
+    assert.equal(board.scene_id, 'a');
+    assert.match(board.fix, /patch_scene/);
+    assert.doesNotMatch(board.fix, /put_code/);
+});

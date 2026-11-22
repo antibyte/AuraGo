@@ -3548,8 +3548,11 @@
             var index = sceneAt(sched, frame);
             if (reported[index]) return;
             reported[index] = true;
-            add(index, 'flash', 'The picture flashes more than 3 times in one second here.',
-                'Slow the change down: keep big brightness jumps at least a third of a second apart and avoid blinking full-screen colours. Rewrite this scene with patch_scene or put_scene, then check again.', frame);
+            // A code scene is changed through its source, not through its fields.
+            var fix = scenes[index].kind === 'code'
+                ? 'Slow the change down: change the scene\'s source with put_code so the brightness changes at most 3 times a second (keep big jumps at least a third of a second apart, no blinking full-screen colours), then activate it with put_scene and check again.'
+                : 'Slow the change down: keep big brightness jumps at least a third of a second apart and avoid blinking full-screen colours. Rewrite this scene with patch_scene or put_scene, then check again.';
+            add(index, 'flash', 'The picture flashes more than 3 times in one second here.', fix, frame);
         });
 
         var d = probe.d || [], reach = Math.min(y.length, d.length);
