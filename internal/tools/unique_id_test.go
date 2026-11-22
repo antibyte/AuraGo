@@ -33,3 +33,15 @@ func TestProcessUniqueNanoIncreasesWhenClockRepeats(t *testing.T) {
 		previous = got
 	}
 }
+
+func TestZeroValueCronManagerFallsBackToWallClock(t *testing.T) {
+	before := time.Now()
+	got := (&CronManager{}).currentTime()
+	if got.Before(before) || time.Since(got) > time.Minute {
+		t.Fatalf("currentTime() = %v, want the current wall clock", got)
+	}
+	fixed := time.Unix(0, 42)
+	if got := (&CronManager{now: func() time.Time { return fixed }}).currentTime(); !got.Equal(fixed) {
+		t.Fatalf("injected clock ignored: %v", got)
+	}
+}

@@ -373,6 +373,14 @@ func (m *CronManager) jobsWithRuntimeStatusLocked() []CronJobRuntimeStatus {
 
 // jobIDTakenLocked reports whether a persisted, registered or runtime job uses
 // id. Must be called with m.mu held.
+// currentTime reads the injectable clock; a zero-value CronManager has none.
+func (m *CronManager) currentTime() time.Time {
+	if m.now == nil {
+		return time.Now()
+	}
+	return m.now()
+}
+
 func (m *CronManager) jobIDTakenLocked(id string) bool {
 	if _, registered := m.cronEntryIDs[id]; registered {
 		return true
@@ -440,7 +448,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 
 		jobID := id
 		if jobID == "" {
-			jobID = freeNanoID("", m.now(), m.jobIDTakenLocked)
+			jobID = freeNanoID("", m.currentTime(), m.jobIDTakenLocked)
 		}
 
 		if !m.canAddJobLocked(jobID) {
