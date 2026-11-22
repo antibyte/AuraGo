@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Geändert: {scenes}",
   "storymaker.agent.unchanged_scenes": "Unverändert: {scenes}",
   "storymaker.agent.removed_scenes": "Entfernt: {scenes}",
-  "storymaker.agent.restore_confirm": "Sprache wiederherstellen? Änderungen an der Geschichte seit dem Stummschalten gehen verloren."
+  "storymaker.agent.restore_confirm": "Sprache wiederherstellen? Änderungen an der Geschichte seit dem Stummschalten gehen verloren.",
+  "storymaker.agent.narration_faults": "In Teilen der erzeugten Sprache gibt es Aussetzer oder Verzerrungen. Erzeuge die Sprache erneut, um sie neu zu versuchen."
 }

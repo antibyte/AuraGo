@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Ändrade: {scenes}",
   "storymaker.agent.unchanged_scenes": "Oförändrade: {scenes}",
   "storymaker.agent.removed_scenes": "Borttagna: {scenes}",
-  "storymaker.agent.restore_confirm": "Återställ tal? Ändringar i berättelsen sedan den gjordes tyst går förlorade."
+  "storymaker.agent.restore_confirm": "Återställ tal? Ändringar i berättelsen sedan den gjordes tyst går förlorade.",
+  "storymaker.agent.narration_faults": "Delar av det syntetiserade talet har avbrott eller distorsion. Generera berättelsen igen för att försöka på nytt."
 }

@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Modificadas: {scenes}",
   "storymaker.agent.unchanged_scenes": "Sin cambios: {scenes}",
   "storymaker.agent.removed_scenes": "Eliminadas: {scenes}",
-  "storymaker.agent.restore_confirm": "¿Restaurar el discurso? Se perderán los cambios hechos en la historia desde que se silenció."
+  "storymaker.agent.restore_confirm": "¿Restaurar el discurso? Se perderán los cambios hechos en la historia desde que se silenció.",
+  "storymaker.agent.narration_faults": "Partes del habla sintetizada tienen cortes o distorsión. Genera la narración de nuevo para reintentarlas."
 }

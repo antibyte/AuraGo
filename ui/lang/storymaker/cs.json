@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Změněno: {scenes}",
   "storymaker.agent.unchanged_scenes": "Beze změny: {scenes}",
   "storymaker.agent.removed_scenes": "Odebráno: {scenes}",
-  "storymaker.agent.restore_confirm": "Obnovit řeč? Změny příběhu od chvíle, kdy se řeč odebrala, se ztratí."
+  "storymaker.agent.restore_confirm": "Obnovit řeč? Změny příběhu od chvíle, kdy se řeč odebrala, se ztratí.",
+  "storymaker.agent.narration_faults": "Některé části syntetizované řeči mají výpadky nebo zkreslení. Vytvořte vyprávění znovu a zkuste je nahradit."
 }

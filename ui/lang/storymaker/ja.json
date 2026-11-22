@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "変更: {scenes}",
   "storymaker.agent.unchanged_scenes": "変更なし: {scenes}",
   "storymaker.agent.removed_scenes": "削除: {scenes}",
-  "storymaker.agent.restore_confirm": "音声を元に戻しますか？ 無音にしてからの物語の変更は失われます。"
+  "storymaker.agent.restore_confirm": "音声を元に戻しますか？ 無音にしてからの物語の変更は失われます。",
+  "storymaker.agent.narration_faults": "合成音声の一部に音切れや歪みがあります。ナレーションを再生成して、やり直してください。"
 }

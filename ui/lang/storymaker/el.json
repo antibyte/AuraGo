@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Τροποποιήθηκαν: {scenes}",
   "storymaker.agent.unchanged_scenes": "Δεν άλλαξαν: {scenes}",
   "storymaker.agent.removed_scenes": "Αφαιρέθηκαν: {scenes}",
-  "storymaker.agent.restore_confirm": "Επαναφορά της ομιλίας; Οι αλλαγές στην ιστορία από τότε που αφαιρέθηκε η ομιλία θα χαθούν."
+  "storymaker.agent.restore_confirm": "Επαναφορά της ομιλίας; Οι αλλαγές στην ιστορία από τότε που αφαιρέθηκε η ομιλία θα χαθούν.",
+  "storymaker.agent.narration_faults": "Μέρη της συνθετικής ομιλίας έχουν διακοπές ή παραμόρφωση. Δημιουργήστε ξανά την αφήγηση για να τα δοκιμάσετε εκ νέου."
 }

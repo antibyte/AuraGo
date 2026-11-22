@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Changed: {scenes}",
   "storymaker.agent.unchanged_scenes": "Unchanged: {scenes}",
   "storymaker.agent.removed_scenes": "Removed: {scenes}",
-  "storymaker.agent.restore_confirm": "Restore the speech? Changes made to the story since it was made silent are lost."
+  "storymaker.agent.restore_confirm": "Restore the speech? Changes made to the story since it was made silent are lost.",
+  "storymaker.agent.narration_faults": "Parts of the synthesized speech have dropouts or distortion. Generate the narration again to retry them."
 }

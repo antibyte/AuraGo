@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Endret: {scenes}",
   "storymaker.agent.unchanged_scenes": "Uendret: {scenes}",
   "storymaker.agent.removed_scenes": "Fjernet: {scenes}",
-  "storymaker.agent.restore_confirm": "Gjenopprette tale? Endringer i historien siden talen ble fjernet, går tapt."
+  "storymaker.agent.restore_confirm": "Gjenopprette tale? Endringer i historien siden talen ble fjernet, går tapt.",
+  "storymaker.agent.narration_faults": "Deler av den syntetiserte talen har avbrudd eller forvrengning. Generer fortellingen på nytt for å prøve dem igjen."
 }

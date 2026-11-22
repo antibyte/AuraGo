@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Zmienione: {scenes}",
   "storymaker.agent.unchanged_scenes": "Bez zmian: {scenes}",
   "storymaker.agent.removed_scenes": "Usunięte: {scenes}",
-  "storymaker.agent.restore_confirm": "Przywrócić mowę? Zmiany w historii wprowadzone od wyciszenia zostaną utracone."
+  "storymaker.agent.restore_confirm": "Przywrócić mowę? Zmiany w historii wprowadzone od wyciszenia zostaną utracone.",
+  "storymaker.agent.narration_faults": "Fragmenty syntetyzowanej mowy mają przerwy lub zniekształcenia. Wygeneruj narrację ponownie, aby spróbować jeszcze raz."
 }

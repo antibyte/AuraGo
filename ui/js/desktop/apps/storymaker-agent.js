@@ -396,6 +396,9 @@
                 const ids = job.agent && Array.isArray(job.agent[field]) ? job.agent[field] : [];
                 if (ids.length) outcomeCard.appendChild(el('p', { dataset: { stm: 'agent-scenes-list', list: field }, text: t(key, { scenes: sceneLabels(ids) }) }));
             });
+            if (job.agent && Array.isArray(job.agent.narration_faults) && job.agent.narration_faults.length) {
+                outcomeCard.appendChild(el('p', { dataset: { stm: 'agent-narration-faults' }, text: t('storymaker.agent.narration_faults') }));
+            }
             if (job.agent && job.agent.review && job.agent.review.sheet && inst.projectId) {
                 outcomeCard.appendChild(el('a', {
                     class: 'stm-agent-review', href: inst.api.reviewSheetUrl(inst.projectId), target: '_blank', rel: 'noopener',

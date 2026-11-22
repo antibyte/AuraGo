@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Gewijzigd: {scenes}",
   "storymaker.agent.unchanged_scenes": "Ongewijzigd: {scenes}",
   "storymaker.agent.removed_scenes": "Verwijderd: {scenes}",
-  "storymaker.agent.restore_confirm": "Spraak herstellen? Wijzigingen in het verhaal sinds het stil is gemaakt, gaan verloren."
+  "storymaker.agent.restore_confirm": "Spraak herstellen? Wijzigingen in het verhaal sinds het stil is gemaakt, gaan verloren.",
+  "storymaker.agent.narration_faults": "Delen van de gesynthetiseerde spraak hebben haperingen of vervorming. Genereer de vertelling opnieuw om ze opnieuw te proberen."
 }

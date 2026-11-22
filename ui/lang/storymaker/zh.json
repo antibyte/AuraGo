@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "已修改：{scenes}",
   "storymaker.agent.unchanged_scenes": "未修改：{scenes}",
   "storymaker.agent.removed_scenes": "已删除：{scenes}",
-  "storymaker.agent.restore_confirm": "恢复语音？自静音以来对故事所做的更改将会丢失。"
+  "storymaker.agent.restore_confirm": "恢复语音？自静音以来对故事所做的更改将会丢失。",
+  "storymaker.agent.narration_faults": "合成语音的部分内容有中断或失真。请重新生成旁白以重试。"
 }

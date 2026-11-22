@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Modificate: {scenes}",
   "storymaker.agent.unchanged_scenes": "Invariate: {scenes}",
   "storymaker.agent.removed_scenes": "Rimosse: {scenes}",
-  "storymaker.agent.restore_confirm": "Ripristinare il parlato? Le modifiche alla storia fatte da quando è stata resa muta andranno perse."
+  "storymaker.agent.restore_confirm": "Ripristinare il parlato? Le modifiche alla storia fatte da quando è stata resa muta andranno perse.",
+  "storymaker.agent.narration_faults": "Alcune parti del parlato sintetizzato hanno interruzioni o distorsione. Genera di nuovo la narrazione per riprovarle."
 }

@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "बदली गईं: {scenes}",
   "storymaker.agent.unchanged_scenes": "बिना बदलाव: {scenes}",
   "storymaker.agent.removed_scenes": "हटाई गईं: {scenes}",
-  "storymaker.agent.restore_confirm": "भाषण वापस लाएँ? भाषण हटाए जाने के बाद कहानी में किए गए बदलाव खो जाएँगे।"
+  "storymaker.agent.restore_confirm": "भाषण वापस लाएँ? भाषण हटाए जाने के बाद कहानी में किए गए बदलाव खो जाएँगे।",
+  "storymaker.agent.narration_faults": "संश्लेषित वाणी के कुछ हिस्सों में रुकावटें या विकृति है। उन्हें फिर से आज़माने के लिए नैरेशन दोबारा बनाएँ।"
 }

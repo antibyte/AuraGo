@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Ændret: {scenes}",
   "storymaker.agent.unchanged_scenes": "Uændret: {scenes}",
   "storymaker.agent.removed_scenes": "Fjernet: {scenes}",
-  "storymaker.agent.restore_confirm": "Gendan tale? Ændringer i historien siden talen blev fjernet, går tabt."
+  "storymaker.agent.restore_confirm": "Gendan tale? Ændringer i historien siden talen blev fjernet, går tabt.",
+  "storymaker.agent.narration_faults": "Dele af den syntetiserede tale har udfald eller forvrængning. Generer fortællingen igen for at prøve dem på ny."
 }

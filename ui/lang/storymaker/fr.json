@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Modifiées : {scenes}",
   "storymaker.agent.unchanged_scenes": "Inchangées : {scenes}",
   "storymaker.agent.removed_scenes": "Supprimées : {scenes}",
-  "storymaker.agent.restore_confirm": "Rétablir la parole ? Les modifications apportées à l'histoire depuis qu'elle est muette seront perdues."
+  "storymaker.agent.restore_confirm": "Rétablir la parole ? Les modifications apportées à l'histoire depuis qu'elle est muette seront perdues.",
+  "storymaker.agent.narration_faults": "Certains passages de la voix de synthèse présentent des coupures ou de la distorsion. Générez à nouveau la narration pour les refaire."
 }

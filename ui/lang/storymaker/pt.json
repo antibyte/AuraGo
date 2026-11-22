@@ -413,5 +413,6 @@
   "storymaker.agent.changed_scenes": "Alteradas: {scenes}",
   "storymaker.agent.unchanged_scenes": "Sem alterações: {scenes}",
   "storymaker.agent.removed_scenes": "Removidas: {scenes}",
-  "storymaker.agent.restore_confirm": "Repor a fala? As alterações feitas à história desde que ficou sem fala serão perdidas."
+  "storymaker.agent.restore_confirm": "Repor a fala? As alterações feitas à história desde que ficou sem fala serão perdidas.",
+  "storymaker.agent.narration_faults": "Partes da fala sintetizada têm cortes ou distorção. Gere a narração novamente para tentar de novo."
 }
