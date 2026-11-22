@@ -12,19 +12,20 @@ import (
 // desktopThemeAccentPresetPattern finds the accent presets of the Settings picker: ['teal', 'desktop.settings_accent_teal'].
 var desktopThemeAccentPresetPattern = regexp.MustCompile(`\['(\w+)', 'desktop\.settings_accent_\w+'\]`)
 
-// desktopThemeAccentPresets reads the accent preset ids from the Settings app, in picker order.
+// desktopThemeAccentPresets reads the fixed accent preset ids from the Settings catalog (js/desktop/core/settings-catalog-runtime.js),
+// in picker order. The leading 'theme' entry means "keep the theme's own accent" and is not a fixed preset, so it is skipped.
 func desktopThemeAccentPresets(t *testing.T) []string {
 	t.Helper()
 	var presets []string
 	seen := map[string]bool{}
-	for _, match := range desktopThemeAccentPresetPattern.FindAllStringSubmatch(readDesktopAssetText(t, "js/desktop/apps/settings.js"), -1) {
-		if !seen[match[1]] {
+	for _, match := range desktopThemeAccentPresetPattern.FindAllStringSubmatch(readDesktopAssetText(t, "js/desktop/core/settings-catalog-runtime.js"), -1) {
+		if match[1] != "theme" && !seen[match[1]] {
 			seen[match[1]] = true
 			presets = append(presets, match[1])
 		}
 	}
 	if len(presets) < 2 {
-		t.Fatalf("js/desktop/apps/settings.js lists %d accent presets %v, want at least 2", len(presets), presets)
+		t.Fatalf("js/desktop/core/settings-catalog-runtime.js lists %d accent presets %v, want at least 2", len(presets), presets)
 	}
 	return presets
 }
