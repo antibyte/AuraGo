@@ -183,7 +183,7 @@ func verifyWriterUndoStart(t *testing.T, page *rod.Page) {
         const text=editor.surface.session.bodyText(),paragraphs=JSON.stringify(editor.query({type:'paragraphs'}));
         if(!text.includes('Report') || !text.includes('Summary'))throw Error('report: template text is missing: '+JSON.stringify(text.slice(0,200)));
         const style=editor.query({type:'paragraphs'})[0].styleId;
-        if(style!=='Heading1')throw Error('report: first paragraph lost its heading style: '+JSON.stringify(style));
+        if(style!=='Title')throw Error('report: first paragraph lost its heading style: '+JSON.stringify(style));
         const pasted=editor.exec({type:'paste',text:'Draft '});
         if(!pasted.ok)throw Error('paste failed: '+JSON.stringify(pasted));
         if(editor.snapshot().canUndo!==true || editor.surface.session.bodyText()===text)
