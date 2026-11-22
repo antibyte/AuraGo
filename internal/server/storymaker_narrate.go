@@ -302,7 +302,6 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	// The caps of a cloud voice. The job cap counts what this job already sent. The daily count is
 	// written before the call, so a crash during the call cannot lose it.
 	provider := target.block.Voice.Provider
-	maxDaily := cfg.Storymaker.Narration.MaxDailyChars
 	charge, err := storymakerReserve(run, cfg, provider, target.piece.Text)
 	if err != nil {
 		return false, err
@@ -313,7 +312,7 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 		// No bytes: nothing to bill. Once the provider has answered it has billed, so a decode or
 		// write failure below keeps the reservation.
 		if charge > 0 && len(data) == 0 {
-			run.rt.usage.release(charge, maxDaily)
+			storymakerRelease(run, cfg, charge)
 		}
 		if ctx.Err() != nil {
 			return false, s.storymakerNarrateStopped()
@@ -340,6 +339,16 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	run.verified[target.hash] = true
 	run.h.SetPieces(done+1, total)
 	return true, nil
+}
+
+// storymakerRelease undoes a storymakerReserve whose provider call returned no bytes: the daily count and the count of
+// this job both go back, so nothing that was never billed stays against the job cap.
+func storymakerRelease(run *storymakerNarrateRun, cfg *config.Config, charge int) {
+	if charge <= 0 {
+		return
+	}
+	run.rt.usage.release(charge, cfg.Storymaker.Narration.MaxDailyChars)
+	run.sent = max(0, run.sent-charge)
 }
 
 // storymakerReserve charges the characters of one provider call to the job cap and the daily count. A local voice is
@@ -370,7 +379,7 @@ func (s *Server) storymakerSecondTake(ctx context.Context, run *storymakerNarrat
 	data, err := s.storymakerSynth(ctx, cfg, target.block.Voice, target.piece.Text)
 	if err != nil {
 		if charge > 0 && len(data) == 0 {
-			run.rt.usage.release(charge, cfg.Storymaker.Narration.MaxDailyChars)
+			storymakerRelease(run, cfg, charge)
 		}
 		return nil, "", storymaker.Envelope{}, false
 	}

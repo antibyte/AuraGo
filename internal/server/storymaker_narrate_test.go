@@ -585,3 +585,24 @@ func TestStorymakerNarrateChargesTheRetryToTheBudget(t *testing.T) {
 		t.Fatalf("a local voice is free: %d, %v", charge, err)
 	}
 }
+
+func TestStorymakerNarrateReleaseGivesTheCharactersBackToTheJob(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	run := &storymakerNarrateRun{rt: env.rt}
+	copied := *env.s.ConfigSnapshot()
+	cfg := &copied
+	cfg.Storymaker.Narration.MaxJobChars = 1000
+	cfg.Storymaker.Narration.MaxDailyChars = 5000
+	charge, err := storymakerReserve(run, cfg, "openai", strings.Repeat("a", 400))
+	if err != nil || charge != 400 {
+		t.Fatalf("reserve: %d, %v", charge, err)
+	}
+	// The call returned no bytes, so nothing was billed: the job count goes back with the daily count.
+	storymakerRelease(run, cfg, charge)
+	if run.sent != 0 {
+		t.Fatalf("sent = %d after the release", run.sent)
+	}
+	if _, err := storymakerReserve(run, cfg, "openai", strings.Repeat("b", 700)); err != nil {
+		t.Fatalf("a 700 character piece after a released 400: %v", err)
+	}
+}
