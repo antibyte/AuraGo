@@ -324,6 +324,7 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	found = append(found, checkCompileIssues(summary.Issues)...)
 	found = append(found, LayoutIssues(summary.Layout, StoryLayoutOptions(&story))...)
 	found = append(found, LookAlikeIssues(summary.Stills)...)
+	found = append(found, ContrastIssues(summary.Stills)...)
 	found = append(found, LintForJob(&story)...)
 	found = append(found, s.craftIssues(ctx, &story)...)
 	found = append(found, LintWords(&story, s.job.Language)...)

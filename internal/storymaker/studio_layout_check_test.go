@@ -155,3 +155,38 @@ func TestCheckCaptionRuleSkipsScenesWithTheirOwnCamera(t *testing.T) {
 		t.Error("a camera beat is exempt")
 	}
 }
+
+// A measured low contrast on a still is advice: it is listed for the model, never an issue that blocks, and a masked box
+// (a ratio under 1.15) is not reported at all.
+func TestCheckReportsTextContrastAsAdvice(t *testing.T) {
+	studio, ps, projectID := newStudioWriteRig(t, func(context.Context, string) (CompileSummary, error) {
+		return CompileSummary{
+			Available: true, DurationMS: 8000, StoryboardScenes: 2,
+			Layout: []LayoutScene{layoutScene("s1", 0), layoutScene("s2", 1)},
+			Stills: []StillInfo{
+				{SceneID: "s1", Index: 0, Hash: 1, Texts: []TextContrast{{ID: "title", Ratio: 1.8}}},
+				{SceneID: "s2", Index: 1, Hash: 0xFFFF0000FFFF0000, Texts: []TextContrast{{ID: "note", Ratio: 1.0}}},
+			},
+		}, nil
+	})
+	saveFixture(t, ps, projectID, "agent-varied")
+	report, err := studio.Check(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	contrast := func(list []Issue) (found []Issue) {
+		for _, is := range list {
+			if is.Code == CodeTextContrast {
+				found = append(found, is)
+			}
+		}
+		return found
+	}
+	advice := contrast(report.Advice)
+	if len(advice) != 1 || advice[0].SceneID != "s1" || advice[0].Path != "/scenes/0" {
+		t.Fatalf("advice %+v, want one text_contrast for s1 only", report.Advice)
+	}
+	if len(contrast(report.Issues)) != 0 || len(contrast(report.Environment)) != 0 {
+		t.Fatalf("a contrast finding is advice only: issues %+v, environment %+v", report.Issues, report.Environment)
+	}
+}
