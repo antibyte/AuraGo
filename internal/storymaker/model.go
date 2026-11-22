@@ -91,6 +91,18 @@ const (
 	CodeSceneStatic      = "scene_static"
 )
 
+// Issue codes of the measured picture checks (layout boxes, stills, frame probe, player lint). The check emits them, never
+// Validate. The two hard codes are model-fixable warnings that block an outcome while left; the others are advice or an open
+// check.
+const (
+	CodeTextOffframe    = "text_offframe"    // warning, hard: a text sticks out of the frame (layout)
+	CodeTextUnsafe      = "text_unsafe"      // warning, advice: a text or the caption lies in the aspect's safe zone (layout)
+	CodeTextContrast    = "text_contrast"    // warning, advice: contrast below 3:1 on the still
+	CodeFlash           = "flash"            // warning, hard: more than 3 flashes in a second (page probe)
+	CodeFlashUnverified = "flash_unverified" // warning, open check: the probe did not reach every frame
+	CodeSlowHook        = "slow_hook"        // warning, advice: scene 1 is silent or lands after 0.5 s (player lint)
+)
+
 // CodeScenesLookAlike is the layout finding of the stills: three or more consecutive scenes show nearly the same picture.
 const CodeScenesLookAlike = "scenes_look_alike"
 

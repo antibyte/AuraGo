@@ -59,7 +59,7 @@ func IssueModelFixable(i Issue) bool {
 		return true
 	}
 	switch i.Code {
-	case CodeSceneUnfilled:
+	case CodeSceneUnfilled, CodeTextOffframe, CodeFlash:
 		return true
 	case CodeCompileFailed:
 		return i.SceneID != ""
@@ -102,7 +102,8 @@ func HasBlockingIssue(issues []Issue) bool {
 func IssueAdvisory(code string) bool {
 	switch code {
 	case CodeFirstFrameEmpty, CodeDeadStretch, CodeFadeBetweenWorlds, CodeCueLate, CodeWordsTell,
-		CodeLineUnread, CodeTextTooSmall, CodeEntryMonotony, CodeOverBudget, CodeSpotOverlap:
+		CodeLineUnread, CodeTextTooSmall, CodeEntryMonotony, CodeOverBudget, CodeSpotOverlap,
+		CodeTextContrast, CodeTextUnsafe, CodeSlowHook:
 		return true
 	}
 	return false
