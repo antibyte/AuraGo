@@ -137,7 +137,9 @@ Run `go test ./internal/updater ./internal/upkeep ./internal/releaseverify`,
 `go test ./internal/audit -run 'Update|ReleaseSignature|ReleaseBootstrap|ReleaseVerifier'`
 and `bash -n update.sh install.sh repair-update.sh` after relevant changes.
 Run the updater's shell quotation and launch tests on Linux with Bash; Windows
-does not exercise those platform-specific tests.
+does not exercise those platform-specific tests. The same applies to
+`TestUpdateConfigFallbackOnlyTrustedTransactionBackups`: Git Bash's `noacl` mounts
+ignore `chmod` and `ln -s`, so it skips on Windows and only Linux proves the guard.
 
 ## Child DOX Index
 

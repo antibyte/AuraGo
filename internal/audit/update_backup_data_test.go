@@ -3,6 +3,7 @@ package audit
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -87,6 +88,9 @@ warn() { echo "WARN $*"; }; ok() { echo "OK $*"; }
 
 // U5: never fall back to /tmp; only trusted prior transaction backups count.
 func TestUpdateConfigFallbackOnlyTrustedTransactionBackups(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX behavioral test: Git Bash mounts noacl, so chmod and ln -s leave modes and symlinks unchanged")
+	}
 	root, out, err := runRecoveryBash(t, []string{"file_owner_uid() {", "copy_tree_merge() {"}, `
 T="$FIXTURE_ROOT/transactions"
 mkdir -p "$T/txn-cur" "$T/txn-old" "$T/txn-bad" "$T/txn-link"
