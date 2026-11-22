@@ -2,6 +2,7 @@ package storymaker
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -110,5 +111,45 @@ func TestResolveCuePhrasesLeavesOtherFieldsAlone(t *testing.T) {
 	fields := cueFields("Hello world.", map[string]any{"do": "emote", "cue": float64(1)})
 	if notes, refusal := resolveCuePhrases(fields); notes != nil || refusal != nil || fields["narration"] != "Hello world." {
 		t.Fatalf("notes %v, refusal %+v, fields %v", notes, refusal, fields)
+	}
+}
+
+func TestResolveCuePhrasesRefusals(t *testing.T) {
+	long := strings.Repeat("word ", 13)
+	cases := []struct {
+		name     string
+		fields   map[string]any
+		wantCode string
+		message  string // a text the message must hold
+		next     string // a text the next step must hold
+	}{
+		{"both cue and cue_phrase", cueFields("Hello world.", map[string]any{"do": "emote", "cue": float64(1), "cue_phrase": "hello"}),
+			"cue_phrase_conflict", "beats[0]", "only cue_phrase"},
+		{"empty", cueFields("Hello world.", map[string]any{"do": "emote", "cue_phrase": "  "}), "invalid_value", "1 to 60", "from the narration"},
+		{"too long", cueFields("Hello world.", map[string]any{"do": "emote", "cue_phrase": long}), "invalid_value", "has 64 characters", "Shorten"},
+		{"not text", cueFields("Hello world.", map[string]any{"do": "emote", "cue_phrase": float64(3)}), "invalid_value", "1 to 60", "narration"},
+		{"punctuation only", cueFields("Hello world.", map[string]any{"do": "emote", "cue_phrase": "?!"}), "invalid_value", "no words", "not only punctuation"},
+		{"not found names the closest words", cueFields("The firewall checks every packet.", map[string]any{"do": "emote", "cue_phrase": "evry pakket"}),
+			"cue_phrase_not_found", `closest wording there is "every packet"`, `"every packet"`},
+		{"closest has the same word count", cueFields("A firewall protects the net.", map[string]any{"do": "emote", "cue_phrase": "the network"}),
+			"cue_phrase_not_found", `"the net"`, "copied from the narration"},
+		{"no narration", cueFields("", map[string]any{"do": "emote", "cue_phrase": "hello"}),
+			"cue_phrase_not_found", "no narration", "Write the narration first"},
+		{"a later beat refuses the whole call", cueFields("Hello world.", map[string]any{"do": "emote", "cue_phrase": "hello"}, map[string]any{"do": "emote", "cue_phrase": "nowhere"}),
+			"cue_phrase_not_found", `"nowhere"`, "Send cue_phrase"},
+	}
+	for _, c := range cases {
+		narration := c.fields["narration"]
+		notes, refusal := resolveCuePhrases(c.fields)
+		if refusal == nil || notes != nil {
+			t.Errorf("%s: notes %v, refusal %+v", c.name, notes, refusal)
+			continue
+		}
+		if refusal.Code != c.wantCode || !strings.Contains(refusal.Message, c.message) || !strings.Contains(refusal.Next, c.next) {
+			t.Errorf("%s: refusal = %+v, want code %s, message with %q, next with %q", c.name, refusal, c.wantCode, c.message, c.next)
+		}
+		if c.fields["narration"] != narration || c.fields["beats"].([]any)[0].(map[string]any)["cue_phrase"] == nil {
+			t.Errorf("%s: a refusal changed the fields: %v", c.name, c.fields)
+		}
 	}
 }

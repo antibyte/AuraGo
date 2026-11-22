@@ -108,6 +108,13 @@ func resolveCuePhrases(fields map[string]any) (notes []string, refusal *cuePhras
 	if !slices.ContainsFunc(beats, func(b any) bool { m, ok := b.(map[string]any); return ok && m["cue_phrase"] != nil }) {
 		return nil, nil
 	}
+	for i, b := range beats {
+		if m, ok := b.(map[string]any); ok && m["cue_phrase"] != nil {
+			if refusal := checkCuePhraseBeat(i, m); refusal != nil {
+				return nil, refusal
+			}
+		}
+	}
 	narration, _ := fields["narration"].(string)
 	taken := map[int]bool{}
 	for _, m := range narrationMarker.FindAllStringSubmatch(narration, -1) {
@@ -127,13 +134,12 @@ func resolveCuePhrases(fields map[string]any) (notes []string, refusal *cuePhras
 			out[i] = b
 			continue
 		}
-		phrase, _ := m["cue_phrase"].(string)
+		phrase := strings.TrimSpace(m["cue_phrase"].(string))
 		tokens := cueTokens(narration)
-		hits := cuePhraseMatches(tokens, cueTokens(phrase))
+		phraseTokens := cueTokens(phrase)
+		hits := cuePhraseMatches(tokens, phraseTokens)
 		if len(hits) == 0 {
-			return nil, &cuePhraseRefusal{Code: "cue_phrase_not_found",
-				Message: fmt.Sprintf("The phrase %q is not in the narration of this scene.", phrase),
-				Next:    "Send a cue_phrase that stands in the narration."}
+			return nil, cuePhraseNotFound(phrase, narration, tokens, phraseTokens)
 		}
 		if len(hits) > 1 {
 			notes = append(notes, fmt.Sprintf("The phrase %q occurs %d times in the narration; the first one is cued.", phrase, len(hits)))
@@ -172,4 +178,82 @@ func cueNumber(v any) int {
 		return n
 	}
 	return 0
+}
+
+// checkCuePhraseBeat refuses a beat whose cue_phrase cannot be used: not text, empty, too long, without a word, or next
+// to a cue. beat is the index of the beat in the scene.
+func checkCuePhraseBeat(beat int, m map[string]any) *cuePhraseRefusal {
+	where := fmt.Sprintf("beats[%d]", beat)
+	phrase, isText := m["cue_phrase"].(string)
+	phrase = strings.TrimSpace(phrase)
+	switch {
+	case !isText || phrase == "":
+		return &cuePhraseRefusal{Code: "invalid_value", Message: where + ".cue_phrase must be text of 1 to 60 characters.",
+			Next: "Send a few words from the narration as cue_phrase, for example the words the beat should start on."}
+	case utf8.RuneCountInString(phrase) > cuePhraseMax:
+		return &cuePhraseRefusal{Code: "invalid_value", Message: fmt.Sprintf("%s.cue_phrase has %d characters; the limit is %d.", where, utf8.RuneCountInString(phrase), cuePhraseMax),
+			Next: "Shorten cue_phrase to the first few words of the passage."}
+	case len(cueTokens(phrase)) == 0:
+		return &cuePhraseRefusal{Code: "invalid_value", Message: where + ".cue_phrase has no words.",
+			Next: "Send words from the narration as cue_phrase, not only punctuation."}
+	case cueNumber(m["cue"]) != 0:
+		return &cuePhraseRefusal{Code: "cue_phrase_conflict", Message: where + " has both cue and cue_phrase.",
+			Next: "Keep only cue_phrase on this beat; the Studio sets the marker."}
+	}
+	return nil
+}
+
+// cuePhraseNotFound refuses a phrase that is not in the narration and names the closest wording that is.
+func cuePhraseNotFound(phrase, narration string, tokens, phraseTokens []cueToken) *cuePhraseRefusal {
+	if len(tokens) == 0 {
+		return &cuePhraseRefusal{Code: "cue_phrase_not_found", Message: "This scene has no narration, so cue_phrase has nothing to point at.",
+			Next: "Write the narration first with put_scene or patch_scene, then name a phrase of it."}
+	}
+	closest := closestCuePhrase(narration, tokens, len(phraseTokens), phraseTokens)
+	return &cuePhraseRefusal{Code: "cue_phrase_not_found",
+		Message: fmt.Sprintf("The phrase %q is not in the narration of this scene. The closest wording there is %q.", phrase, closest),
+		Next:    fmt.Sprintf("Send cue_phrase %q or another wording copied from the narration.", closest)}
+}
+
+// closestCuePhrase returns the text of the window of count tokens whose normalised words are the fewest edits away from
+// phrase. A window never outgrows the narration.
+func closestCuePhrase(narration string, tokens []cueToken, count int, phrase []cueToken) string {
+	count = min(count, len(tokens))
+	want := joinCueTokens(phrase)
+	best, bestAt := -1, 0
+	for i := 0; i+count <= len(tokens); i++ {
+		d := editDistance([]rune(joinCueTokens(tokens[i:i+count])), []rune(want))
+		if best < 0 || d < best {
+			best, bestAt = d, i
+		}
+	}
+	return StripMarkers(narration[tokens[bestAt].start:tokens[bestAt+count-1].end])
+}
+
+func joinCueTokens(tokens []cueToken) string {
+	words := make([]string, len(tokens))
+	for i, t := range tokens {
+		words[i] = t.text
+	}
+	return strings.Join(words, " ")
+}
+
+// editDistance is the Levenshtein distance of two rune slices.
+func editDistance(a, b []rune) int {
+	row := make([]int, len(b)+1)
+	for j := range row {
+		row[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		diag := row[0]
+		row[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			diag, row[j] = row[j], min(row[j]+1, row[j-1]+1, diag+cost)
+		}
+	}
+	return row[len(b)]
 }
