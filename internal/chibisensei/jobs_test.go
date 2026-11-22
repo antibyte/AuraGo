@@ -32,7 +32,10 @@ func TestRunnerLifecycleAndHub(t *testing.T) {
 		t.Fatal(err)
 	}
 	hub := NewHub()
-	events, cancelSub := hub.Subscribe(p.ID)
+	events, cancelSub, err := hub.Subscribe(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer cancelSub()
 	r := NewRunner(st, hub)
 	defer r.Close()
@@ -125,7 +128,10 @@ func TestRunnerLifecycleAndHub(t *testing.T) {
 		t.Fatalf("recover: %+v", j)
 	}
 
-	full, cancelFull := hub.Subscribe("other")
+	full, cancelFull, err := hub.Subscribe("other")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer cancelFull()
 	done := make(chan struct{})
 	go func() {

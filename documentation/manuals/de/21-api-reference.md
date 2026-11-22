@@ -1657,7 +1657,7 @@ POST /api/desktop/chibi-sensei/jobs/{jobId}/apply                # {"accept":"al
 GET  /api/desktop/chibi-sensei/projects/{id}/events              # Server-Sent Events: job, rows, checks
 ```
 
-Fehler sind flache Dokumente `{"error","code","message"}`. Generieren und Bereinigen antworten mit 503 `provider_unavailable`, 429 `budget_exceeded` und 429 `generator_daily_limit`; ein zweiter Job derselben Art im Projekt antwortet mit 409 `job_active`. Die vollständige Routenliste, das Datenmodell und die Limits stehen im [Chibi-Sensei-Handbuch](../../chibi-sensei.md); die Einstellungen in der [Konfiguration](../../configuration.md#chibi_sensei).
+Fehler sind flache Dokumente `{"error","code","message"}`. Generieren und Bereinigen antworten mit 503 `provider_unavailable`, 429 `budget_exceeded` und 429 `generator_daily_limit`; ein zweiter Job derselben Art im Projekt antwortet mit 409 `job_active`. Es laufen höchstens zwei Generierungs- oder Bereinigungsjobs gleichzeitig über alle Projekte; weitere bleiben `queued`. Ein Job, dem die Zeit ausgeht, endet `failed` mit dem `error_code` `timeout`; einer, der beim Hinzufügen von Zeilen den Speicher voll findet, endet `failed` mit `storage_full` (die bereits hinzugefügten Zeilen bleiben). Der Ereignisstrom erlaubt 16 Ströme je Projekt und 64 insgesamt; ein weiterer antwortet mit 429 `too_many_streams` (die Oberfläche fragt dann zyklisch ab). Die vollständige Routenliste, das Datenmodell und die Limits stehen im [Chibi-Sensei-Handbuch](../../chibi-sensei.md); die Einstellungen in der [Konfiguration](../../configuration.md#chibi_sensei).
 
 ---
 

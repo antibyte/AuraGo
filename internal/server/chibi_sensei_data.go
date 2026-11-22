@@ -193,7 +193,17 @@ func handleChibiDocuments(s *Server, w http.ResponseWriter, r *http.Request, id 
 			chibiDomainError(w, err)
 			return
 		}
-		data, err := chibiWorkspace{acc.svc}.ReadFile(ctx, req.WorkspacePath, int64(acc.cfg.ChibiSensei.Import.MaxFileMB)<<20)
+		releaseRead, ok := chibiAcquireRead(ctx)
+		if !ok {
+			return // the client left while waiting for a read slot
+		}
+		defer releaseRead()
+		// The read stops at the document limit (not the import file limit), so a big file is never loaded whole.
+		docLimit := int64(acc.cfg.ChibiSensei.Import.MaxFileMB) << 20
+		if docLimit > chibisensei.MaxDocumentBytes {
+			docLimit = chibisensei.MaxDocumentBytes
+		}
+		data, err := chibiWorkspace{acc.svc}.ReadFile(ctx, req.WorkspacePath, docLimit)
 		if err != nil {
 			chibiWorkspaceError(w, err)
 			return

@@ -30,6 +30,13 @@ const (
 // cancelWait bounds how long Cancel, CancelProject and Close wait for a job (a variable so a test can shorten it).
 var cancelWait = 10 * time.Second
 
+// llmJobSlots is how many generation or cleaning jobs run at once across all projects (a variable so a test can
+// change it before it creates a runner). Further ones stay queued until a slot frees.
+var llmJobSlots = 2
+
+// usesLLMSlot says whether a job kind calls a model and so needs one of the slots.
+func usesLLMSlot(kind string) bool { return kind == "generate" || kind == "clean" }
+
 // Progress is the progress of a job.
 type Progress struct {
 	Done  int    `json:"done"`
@@ -85,8 +92,9 @@ type activeJob struct {
 
 // Runner runs the jobs of all projects.
 type Runner struct {
-	st  *Store
-	hub *Hub
+	st    *Store
+	hub   *Hub
+	slots chan struct{} // generation and cleaning jobs hold one while they run
 
 	mu     sync.Mutex
 	active map[string]*activeJob
@@ -97,7 +105,7 @@ type Runner struct {
 
 // NewRunner returns a runner; hub may be nil.
 func NewRunner(st *Store, hub *Hub) *Runner {
-	return &Runner{st: st, hub: hub, active: map[string]*activeJob{}, log: slog.Default()}
+	return &Runner{st: st, hub: hub, slots: make(chan struct{}, llmJobSlots), active: map[string]*activeJob{}, log: slog.Default()}
 }
 
 // SetLogger sets the logger that receives the causes of failed jobs (they are never stored).
@@ -160,9 +168,22 @@ func (r *Runner) Start(parent context.Context, release func(), projectID, kind s
 	now := r.st.stamp()
 	job := Job{ID: uuid.NewString(), ProjectID: projectID, Kind: kind, State: JobRunning,
 		Progress: Progress{Total: total}, Created: now, Updated: now, Params: pj}
+	// A model job takes a free slot at once; without one it starts queued and the goroutine waits for a slot.
+	holdsSlot := false
+	if usesLLMSlot(kind) {
+		select {
+		case r.slots <- struct{}{}:
+			holdsSlot = true
+		default:
+			job.State = JobQueued
+		}
+	}
 	progJSON, _ := json.Marshal(job.Progress)
 	if _, err := r.st.db.ExecContext(parent, `INSERT INTO jobs(id,project_id,kind,state,params_json,progress_json,result_json,error_code,error,created,updated)
 		VALUES(?,?,?,?,?,?,'{}','','',?,?)`, job.ID, projectID, kind, job.State, string(pj), string(progJSON), now, now); err != nil {
+		if holdsSlot {
+			<-r.slots
+		}
 		r.mu.Unlock()
 		return fail(err)
 	}
@@ -172,11 +193,35 @@ func (r *Runner) Start(parent context.Context, release func(), projectID, kind s
 	r.wg.Add(1)
 	r.mu.Unlock()
 	r.publish(job)
-	go r.run(ctx, aj, release, job, fn)
+	go r.run(ctx, aj, release, job, fn, holdsSlot)
 	return job, nil
 }
 
-func (r *Runner) run(ctx context.Context, aj *activeJob, release func(), job Job, fn JobFunc) {
+// acquireSlot waits for an LLM slot or for ctx; a queued job turns running once it has one.
+func (r *Runner) acquireSlot(ctx context.Context, job Job) error {
+	select {
+	case r.slots <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	fctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	now := r.st.stamp()
+	if _, err := r.st.db.ExecContext(fctx, `UPDATE jobs SET state=?, updated=? WHERE id=? AND state=?`, JobRunning, now, job.ID, JobQueued); err == nil {
+		job.State, job.Updated = JobRunning, now
+		r.publish(job)
+	}
+	return nil
+}
+
+func (r *Runner) run(ctx context.Context, aj *activeJob, release func(), job Job, fn JobFunc, holdsSlot bool) {
+	freeSlot := func() {
+		if holdsSlot {
+			holdsSlot = false
+			<-r.slots
+		}
+	}
+	defer freeSlot()
 	defer r.wg.Done()
 	defer close(aj.done)
 	defer func() {
@@ -212,8 +257,15 @@ func (r *Runner) run(ctx context.Context, aj *activeJob, release func(), job Job
 				err = fmt.Errorf("job panicked: %v", v)
 			}
 		}()
+		if job.State == JobQueued {
+			if err = r.acquireSlot(ctx, job); err != nil {
+				return
+			}
+			holdsSlot = true
+		}
 		res, err = fn(ctx, report)
 	}()
+	freeSlot()
 
 	pmu.Lock()
 	final := last
@@ -223,6 +275,10 @@ func (r *Runner) run(ctx context.Context, aj *activeJob, release func(), job Job
 	switch {
 	case err == nil:
 		job.State = JobSucceeded
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		// the job's own time limit passed; a user cancel or a shutdown ends the context with Canceled
+		job.State = JobFailed
+		job.ErrorCode, job.Error = "timeout", "The job ran out of time."
 	case ctx.Err() != nil || errors.Is(err, context.Canceled):
 		job.State = JobCancelled
 	default:

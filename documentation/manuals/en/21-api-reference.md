@@ -1648,7 +1648,7 @@ POST /api/desktop/chibi-sensei/jobs/{jobId}/apply                # {"accept":"al
 GET  /api/desktop/chibi-sensei/projects/{id}/events              # server-sent events: job, rows, checks
 ```
 
-Errors are flat `{"error","code","message"}` documents. Generation and cleaning answer 503 `provider_unavailable`, 429 `budget_exceeded` and 429 `generator_daily_limit`; a second job of the same kind in a project answers 409 `job_active`. The full route list, the data model and the limits are in the [Chibi Sensei guide](../../chibi-sensei.md); the settings are in [configuration](../../configuration.md#chibi_sensei).
+Errors are flat `{"error","code","message"}` documents. Generation and cleaning answer 503 `provider_unavailable`, 429 `budget_exceeded` and 429 `generator_daily_limit`; a second job of the same kind in a project answers 409 `job_active`. At most two generation or cleaning jobs run at once across all projects; further ones stay `queued`. A job that runs out of time ends `failed` with `error_code` `timeout`, one that finds the storage full while adding rows ends `failed` with `storage_full` (it keeps the rows it added). The event stream allows 16 streams per project and 64 in total; one more answers 429 `too_many_streams` (the UI then polls). The full route list, the data model and the limits are in the [Chibi Sensei guide](../../chibi-sensei.md); the settings are in [configuration](../../configuration.md#chibi_sensei).
 
 ---
 

@@ -14,13 +14,14 @@ import (
 
 // AddOptions controls AddRows.
 type AddOptions struct {
-	Source         string // manual|file|generated|cleaned|hf|sensei
-	BatchID        string // "" = new uuid; a running job passes the same id for every call
-	BatchKind      string // add|import|generate|clean
-	MaxRows        int    // chibi_sensei.dataset.max_rows
-	Partial        bool   // imports and generation: skip invalid rows and stop at MaxRows instead of refusing
-	SkipDuplicates bool   // skip rows whose content_hash exists in the project or earlier in this call
-	Strict         bool   // also skip rows with StructureProblems (imports, generation)
+	Source         string      // manual|file|generated|cleaned|hf|sensei
+	BatchID        string      // "" = new uuid; a running job passes the same id for every call
+	BatchKind      string      // add|import|generate|clean
+	MaxRows        int         // chibi_sensei.dataset.max_rows
+	Partial        bool        // imports and generation: skip invalid rows and stop at MaxRows instead of refusing
+	SkipDuplicates bool        // skip rows whose content_hash exists in the project or earlier in this call
+	Strict         bool        // also skip rows with StructureProblems (imports, generation)
+	Full           func() bool // jobs: reports that the storage limit is reached; checked before the batch, ErrStorageFull
 }
 
 // AddResult reports what AddRows did.
@@ -145,6 +146,9 @@ func prefixIssues(prefix string, in []Issue) []Issue {
 
 // AddRows adds rows to a project in one transaction.
 func (s *Store) AddRows(ctx context.Context, projectID string, in []RowInput, o AddOptions) (AddResult, error) {
+	if o.Full != nil && o.Full() {
+		return AddResult{}, ErrStorageFull
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return AddResult{}, err

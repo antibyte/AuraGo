@@ -14,6 +14,10 @@ import (
 // chibiEventHeartbeat is the interval of the SSE comment ping.
 const chibiEventHeartbeat = 15 * time.Second
 
+// chibiEventWriteTimeout is how long one write of the stream may take before the stream ends (a variable so a
+// test can shorten it).
+var chibiEventWriteTimeout = 30 * time.Second
+
 func chibiJobNotFound(w http.ResponseWriter) {
 	writeChibiError(w, http.StatusNotFound, "job_not_found", "Job not found.", nil)
 }
@@ -92,13 +96,16 @@ func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id str
 	if !ok {
 		return
 	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	if _, ok := w.(http.Flusher); !ok {
 		writeChibiError(w, http.StatusInternalServerError, "streaming_unsupported", "Streaming is not supported.", nil)
 		return
 	}
 	ctx := r.Context()
-	events, unsubscribe := acc.rt.hub.Subscribe(id)
+	events, unsubscribe, err := acc.rt.hub.Subscribe(id)
+	if err != nil {
+		writeChibiError(w, http.StatusTooManyRequests, "too_many_streams", "Too many open event streams.", nil)
+		return
+	}
 	defer unsubscribe()
 	project, err := acc.rt.store.GetProject(ctx, id)
 	if err != nil {
@@ -110,10 +117,12 @@ func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id str
 		chibiDomainError(w, err)
 		return
 	}
-	// A stream outlives the server's usual write window.
+	// A stream outlives the server's usual window, but every write gets its own deadline: a dead connection
+	// ends the stream at the next write and frees its slot.
 	rc := http.NewResponseController(w)
-	_ = rc.SetWriteDeadline(time.Time{})
 	_ = rc.SetReadDeadline(time.Time{})
+	arm := func() { _ = rc.SetWriteDeadline(time.Now().Add(chibiEventWriteTimeout)) }
+	flush := func() bool { return rc.Flush() == nil }
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream; charset=utf-8")
 	h.Set("Cache-Control", "no-cache, no-store")
@@ -128,6 +137,7 @@ func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id str
 		_, err = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", name, raw)
 		return err == nil
 	}
+	arm()
 	if _, err := io.WriteString(w, ": chibi-sensei events\n\n"); err != nil {
 		return
 	}
@@ -136,10 +146,9 @@ func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id str
 			return
 		}
 	}
-	if !send("rows", map[string]any{"data_rev": project.DataRev}) {
+	if !send("rows", map[string]any{"data_rev": project.DataRev}) || !flush() {
 		return
 	}
-	flusher.Flush()
 
 	var serverDone <-chan struct{}
 	if s.integrationCtx != nil {
@@ -156,15 +165,18 @@ func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id str
 		case <-serverDone:
 			return
 		case ev, open := <-events:
-			if !open || !send(ev.Name, ev.Data) {
+			if !open {
 				return
 			}
-			flusher.Flush()
+			arm()
+			if !send(ev.Name, ev.Data) || !flush() {
+				return
+			}
 		case <-heartbeat.C:
-			if _, err := io.WriteString(w, ": ping\n\n"); err != nil {
+			arm()
+			if _, err := io.WriteString(w, ": ping\n\n"); err != nil || !flush() {
 				return
 			}
-			flusher.Flush()
 		}
 	}
 }

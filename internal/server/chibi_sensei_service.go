@@ -413,9 +413,15 @@ func chibiIfMatch(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	return rev, true
 }
 
+// chibiStoreFull reports that the store reached chibi_sensei.storage.max_gb; running jobs check it again before
+// every batch of rows they add.
+func chibiStoreFull(acc *chibiSenseiAccess) bool {
+	return acc.rt.store.SizeBytes() >= int64(acc.cfg.ChibiSensei.Storage.MaxGB)<<30
+}
+
 // chibiStorageFull answers 409 storage_full when the store reached chibi_sensei.storage.max_gb.
 func chibiStorageFull(w http.ResponseWriter, acc *chibiSenseiAccess) bool {
-	if acc.rt.store.SizeBytes() >= int64(acc.cfg.ChibiSensei.Storage.MaxGB)<<30 {
+	if chibiStoreFull(acc) {
 		writeChibiError(w, http.StatusConflict, "storage_full", "The Chibi Sensei storage limit is reached.", nil)
 		return true
 	}

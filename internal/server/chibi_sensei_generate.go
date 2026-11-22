@@ -133,7 +133,7 @@ func handleChibiGenerate(s *Server, w http.ResponseWriter, r *http.Request, id s
 	}
 	datasetMax := acc.cfg.ChibiSensei.Dataset.MaxRows
 	in := chibiGenerateJob{project: project, seeds: seeds, docs: docs, count: req.Count, instructions: req.Instructions,
-		language: req.Language, datasetMax: datasetMax, day: day}
+		language: req.Language, datasetMax: datasetMax, day: day, full: func() bool { return chibiStoreFull(acc) }}
 	params := map[string]any{"count": req.Count, "seed_row_ids": req.SeedRowIDs, "document_ids": req.DocumentIDs, "language": req.Language}
 	job, err := acc.rt.jobs.Start(ctx, release, id, "generate", params, req.Count,
 		func(jctx context.Context, report func(chibisensei.Progress)) (chibisensei.JobResult, error) {
@@ -203,6 +203,7 @@ type chibiGenerateJob struct {
 	language     string
 	datasetMax   int
 	day          string
+	full         func() bool // storage limit reached; checked before every batch of rows (nil: never)
 }
 
 // runChibiGenerate is the body of a generation job. It asks for at most 10 rows per call, makes at most
@@ -223,7 +224,7 @@ func (s *Server) runChibiGenerate(ctx context.Context, st *chibisensei.Store, rt
 	free := in.project.Recipe == chibisensei.RecipeFree
 	chunks := chibisensei.ChunkText(in.docs, chibisensei.ChunkRunes)
 	maxCalls := (in.count+chibisensei.GenerateBatch-1)/chibisensei.GenerateBatch + 2
-	calls, parseFailures := 0, 0
+	calls, limitHit := 0, false
 	for res.RowsAdded < in.count && calls < maxCalls {
 		if ctx.Err() != nil {
 			return res, ctx.Err()
@@ -246,17 +247,18 @@ func (s *Server) runChibiGenerate(ctx context.Context, st *chibisensei.Store, rt
 		}
 		rows, rejected, perr := chibisensei.ParseGenerated(out, in.project, in.seeds, want)
 		if perr != nil {
-			parseFailures++
 			res.RowsSkipped += want
 			continue
 		}
 		res.RowsSkipped += rejected
 		if len(rows) > 0 {
 			added, aerr := st.AddRows(ctx, in.project.ID, rows, chibisensei.AddOptions{Source: "generated", BatchID: batch, BatchKind: "generate",
-				MaxRows: in.datasetMax, Partial: true, SkipDuplicates: true, Strict: true})
+				MaxRows: in.datasetMax, Partial: true, SkipDuplicates: true, Strict: true, Full: in.full})
 			switch {
 			case errors.Is(aerr, chibisensei.ErrAlreadyUndone):
 				return res, context.Canceled // the user undid the batch: stop, this is a cancel and not a failure
+			case errors.Is(aerr, chibisensei.ErrStorageFull):
+				return res, chibisensei.StorageFullError() // keeps the rows added so far
 			case aerr != nil && ctx.Err() != nil:
 				return res, ctx.Err()
 			case aerr != nil:
@@ -265,6 +267,7 @@ func (s *Server) runChibiGenerate(ctx context.Context, st *chibisensei.Store, rt
 			res.RowsAdded += added.Added
 			res.RowsSkipped += added.Skipped
 			if added.LimitReached {
+				limitHit = true
 				report(chibisensei.Progress{Done: res.RowsAdded, Total: in.count, Phase: "generating"})
 				break
 			}
@@ -274,15 +277,19 @@ func (s *Server) runChibiGenerate(ctx context.Context, st *chibisensei.Store, rt
 	if err := ctx.Err(); err != nil {
 		return res, err
 	}
-	if res.RowsAdded == 0 && calls > 0 {
-		switch calls {
-		case res.Withheld:
-			return res, &chibisensei.JobError{Code: "prompt_withheld", Message: "The security scan withheld the request."}
-		case parseFailures:
-			return res, &chibisensei.JobError{Code: "invalid_answer", Message: "The model returned an answer that could not be used."}
-		}
+	if res.RowsAdded == 0 && calls > 0 && !limitHit {
+		return res, chibiNothingUsable(calls, res.Withheld)
 	}
 	return res, nil
+}
+
+// chibiNothingUsable is the failure of a job that made calls and produced nothing: every call withheld by the
+// security scan, or an answer that could not be used (unparsable, or every row or item rejected).
+func chibiNothingUsable(calls, withheld int) error {
+	if withheld == calls {
+		return &chibisensei.JobError{Code: "prompt_withheld", Message: "The security scan withheld the request."}
+	}
+	return &chibisensei.JobError{Code: "invalid_answer", Message: "The model returned an answer that could not be used."}
 }
 
 // handleChibiClean starts a cleaning job over at most 500 selected rows.
@@ -391,7 +398,7 @@ func (s *Server) runChibiClean(ctx context.Context, st *chibisensei.Store, rt *c
 		return res, ctx.Err()
 	}
 	free := in.project.Recipe == chibisensei.RecipeFree
-	calls, parseFailures := 0, 0
+	calls := 0
 	total := len(in.ids)
 	for start := 0; start < total; start += chibisensei.CleanBatch {
 		if ctx.Err() != nil {
@@ -425,7 +432,6 @@ func (s *Server) runChibiClean(ctx context.Context, st *chibisensei.Store, rt *c
 				sent += len(send)
 				items, invalid, perr := chibisensei.ParseClean(out, send)
 				if perr != nil {
-					parseFailures++
 					res.RowsSkipped += len(send)
 					break
 				}
@@ -446,12 +452,7 @@ func (s *Server) runChibiClean(ctx context.Context, st *chibisensei.Store, rt *c
 		report(chibisensei.Progress{Done: min(start+chibisensei.CleanBatch, total), Total: total, Phase: "cleaning"})
 	}
 	if res.Suggestions == 0 && calls > 0 {
-		switch calls {
-		case res.Withheld:
-			return res, &chibisensei.JobError{Code: "prompt_withheld", Message: "The security scan withheld the request."}
-		case parseFailures:
-			return res, &chibisensei.JobError{Code: "invalid_answer", Message: "The model returned an answer that could not be used."}
-		}
+		return res, chibiNothingUsable(calls, res.Withheld)
 	}
 	return res, nil
 }
@@ -541,7 +542,8 @@ func handleChibiApply(s *Server, w http.ResponseWriter, r *http.Request, jobID s
 		chibiValidation(w, "job", "apply.not_a_clean_job", "Only a cleaning job has suggestions.")
 		return
 	}
-	if job.State != chibisensei.JobSucceeded && job.State != chibisensei.JobCancelled {
+	// A failed job keeps the suggestions it saved before it stopped, so every finished state may apply them.
+	if job.State == chibisensei.JobQueued || job.State == chibisensei.JobRunning {
 		writeChibiError(w, http.StatusConflict, "job_not_finished", "The cleaning job is not finished.", nil)
 		return
 	}

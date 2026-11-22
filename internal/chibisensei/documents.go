@@ -28,6 +28,9 @@ type Document struct {
 const (
 	MaxDocuments     = 20
 	MaxDocumentChars = 1_000_000
+	// MaxDocumentBytes is the largest file a document can come from (UTF-8 takes at most 4 bytes per character);
+	// the workspace read stops there instead of loading a bigger file.
+	MaxDocumentBytes = 4 * MaxDocumentChars
 )
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}

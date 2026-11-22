@@ -23,21 +23,51 @@ type chibiWorkspace struct{ svc *desktop.Service }
 
 // ReadFile reads a workspace file. A file over maxBytes is ErrFileTooLarge; a missing file wraps
 // os.ErrNotExist.
+//
+// The file is opened and read through a limit of maxBytes (and the desktop's own file size budget): a bigger
+// file is refused from its size, or while reading when it grows, and never loaded whole.
 func (w chibiWorkspace) ReadFile(ctx context.Context, p string, maxBytes int64) ([]byte, error) {
-	data, _, err := w.svc.ReadFileBytes(ctx, p)
+	file, entry, _, err := w.svc.OpenPreviewFile(ctx, p)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, os.ErrNotExist
 		}
-		if strings.Contains(err.Error(), "exceeds max size") {
-			return nil, chibisensei.ErrFileTooLarge
-		}
 		return nil, err
 	}
-	if int64(len(data)) > maxBytes {
+	defer file.Close()
+	limit := maxBytes
+	desktopMax := int64(w.svc.Config().MaxFileSizeMB) * 1024 * 1024
+	if desktopMax <= 0 {
+		desktopMax = 50 * 1024 * 1024
+	}
+	if desktopMax < limit {
+		limit = desktopMax
+	}
+	if entry.Size > limit {
+		return nil, chibisensei.ErrFileTooLarge
+	}
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
 		return nil, chibisensei.ErrFileTooLarge
 	}
 	return data, nil
+}
+
+// chibiReadSlots bounds the file reads of previews, imports and document uploads that run at once.
+var chibiReadSlots = make(chan struct{}, 2)
+
+// chibiAcquireRead waits for a read slot or the request context; the caller calls the returned func when it no
+// longer holds the file data.
+func chibiAcquireRead(ctx context.Context) (func(), bool) {
+	select {
+	case chibiReadSlots <- struct{}{}:
+		return func() { <-chibiReadSlots }, true
+	case <-ctx.Done():
+		return nil, false
+	}
 }
 
 // WriteFile streams r into a workspace file. Without overwrite it only creates: an existing target is
@@ -150,6 +180,11 @@ func handleChibiImportPreview(s *Server, w http.ResponseWriter, r *http.Request,
 	if !chibiDecode(w, r, &req, chibiJSONLimit) {
 		return
 	}
+	releaseRead, ok := chibiAcquireRead(r.Context())
+	if !ok {
+		return // the client left while waiting for a read slot
+	}
+	defer releaseRead()
 	format, recipe, data, ok := chibiReadImportFile(w, r, acc, id, req)
 	if !ok {
 		return
@@ -188,6 +223,11 @@ func handleChibiImport(s *Server, w http.ResponseWriter, r *http.Request, id str
 	if chibiStorageFull(w, acc) {
 		return
 	}
+	releaseRead, ok := chibiAcquireRead(r.Context())
+	if !ok {
+		return // the client left while waiting for a read slot
+	}
+	defer releaseRead()
 	format, recipe, data, ok := chibiReadImportFile(w, r, acc, id, req)
 	if !ok {
 		return
@@ -201,9 +241,10 @@ func handleChibiImport(s *Server, w http.ResponseWriter, r *http.Request, id str
 		chibiDomainError(w, &chibisensei.ValidationError{Issues: fatal})
 		return
 	}
-	params := chibisensei.ImportParams{WorkspacePath: strings.TrimSpace(req.WorkspacePath), Format: format, Mapping: req.Mapping}
-	ws := &chibiPreloaded{Workspace: chibiWorkspace{acc.svc}, path: params.WorkspacePath, data: data}
 	store := acc.rt.store
+	params := chibisensei.ImportParams{WorkspacePath: strings.TrimSpace(req.WorkspacePath), Format: format, Mapping: req.Mapping,
+		Full: func() bool { return chibiStoreFull(acc) }}
+	ws := &chibiPreloaded{Workspace: chibiWorkspace{acc.svc}, path: params.WorkspacePath, data: data}
 	maxFile := int64(acc.cfg.ChibiSensei.Import.MaxFileMB) << 20
 	importMax, datasetMax := acc.cfg.ChibiSensei.Import.MaxRows, acc.cfg.ChibiSensei.Dataset.MaxRows
 	ctx, release, err := s.beginDesktopBackgroundRun(chibiJobTimeout)

@@ -148,6 +148,9 @@ func (s *Server) chibiBudgetBlocked() bool {
 // The error is one of the errChibi* values, ctx's own error, or an error whose text is scrubbed and bounded.
 func (c chibiLLM) Complete(ctx context.Context, rt *chibiRoute, system, user string, schema map[string]any, temp float32, maxTokens int) (string, error) {
 	s := c.s
+	// This only checks the budget before a call. Reserving budget inside the tracker (so that parallel jobs
+	// cannot overshoot it together) is a general AuraGo matter in internal/budget and out of scope here; the
+	// number of concurrent model jobs is bounded by the runner's two job slots instead.
 	if s.chibiBudgetBlocked() {
 		return "", errChibiBudget
 	}

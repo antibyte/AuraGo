@@ -59,7 +59,17 @@ type ImportParams struct {
 	WorkspacePath string   `json:"workspace_path"`
 	Format        string   `json:"format"`
 	Mapping       *Mapping `json:"mapping"`
+	// Full reports that the storage limit is reached; the job checks it before every chunk it adds.
+	Full func() bool `json:"-"`
 }
+
+// StorageFullError is the job error of a job that stopped because the storage limit was reached.
+func StorageFullError() *JobError {
+	return &JobError{Code: "storage_full", Message: "The Chibi Sensei storage limit is reached."}
+}
+
+// importLineMax caps one JSONL line and one CSV record.
+const importLineMax = 1 << 20
 
 const (
 	importChunk         = 500
@@ -434,6 +444,10 @@ func (s *importState) parseJSONL(data []byte, m Mapping) (Mapping, []string, err
 		} else {
 			raw, pos = data[pos:pos+i], pos+i+1
 		}
+		if len(raw) > importLineMax {
+			s.problem(line, "import.line_too_long", "The line is longer than 1 MiB and was skipped.")
+			continue
+		}
 		raw = bytes.TrimSpace(raw)
 		if len(raw) == 0 {
 			continue
@@ -492,14 +506,60 @@ func detectDelimiter(data []byte) rune {
 	return best
 }
 
+var errCSVRecordTooLong = errors.New("chibisensei: csv record too long")
+
+// csvLimitReader fails once more than importLineMax (plus the parser's read-ahead) was delivered since the
+// start of the record the parser is on; recStart is set by the caller after every record.
+type csvLimitReader struct {
+	r                   io.Reader
+	delivered, recStart int64
+}
+
+func (l *csvLimitReader) Read(p []byte) (int, error) {
+	if l.delivered-l.recStart > importLineMax+8192 {
+		return 0, errCSVRecordTooLong
+	}
+	n, err := l.r.Read(p)
+	l.delivered += int64(n)
+	return n, err
+}
+
+// csvRecordEnd returns the offset after the record that starts at start: the first newline with a balanced
+// number of quotes, or the end of the data.
+func csvRecordEnd(data []byte, start int) int {
+	quotes := 0
+	for i := start; i < len(data); i++ {
+		switch data[i] {
+		case '"':
+			quotes++
+		case '\n':
+			if quotes%2 == 0 {
+				return i + 1
+			}
+		}
+	}
+	return len(data)
+}
+
 func (s *importState) parseCSV(data []byte, m Mapping) (Mapping, []string, error) {
 	if m.Shape != "" && !validShape(m.Shape, true) {
 		return m, nil, importIssue("mapping.shape", "import.bad_mapping", "Unknown mapping shape.")
 	}
-	r := csv.NewReader(bytes.NewReader(data))
-	r.Comma = detectDelimiter(data)
-	r.LazyQuotes = true
-	r.FieldsPerRecord = -1
+	// The reader stops a record that grows past importLineMax (an open quote would otherwise pull the rest of the
+	// file into one field); the parser then skips that record and goes on after it.
+	comma := detectDelimiter(data)
+	var r *csv.Reader
+	var lim *csvLimitReader
+	base, lineBase := 0, 0 // offset of the reader's first byte in data and the lines before it
+	newReader := func(from int) {
+		base, lineBase = from, bytes.Count(data[:from], []byte{'\n'})
+		lim = &csvLimitReader{r: bytes.NewReader(data[from:])}
+		r = csv.NewReader(lim)
+		r.Comma = comma
+		r.LazyQuotes = true
+		r.FieldsPerRecord = -1
+	}
+	newReader(0)
 	header, err := r.Read()
 	if errors.Is(err, io.EOF) {
 		return m, nil, importIssue("file", "import.empty", "The file is empty.")
@@ -507,6 +567,7 @@ func (s *importState) parseCSV(data []byte, m Mapping) (Mapping, []string, error
 	if err != nil {
 		return m, nil, importIssue("file", "import.bad_csv", "The file is not valid CSV.")
 	}
+	lim.recStart = r.InputOffset()
 	cols := make([]string, len(header))
 	idx := map[string]int{}
 	for i, h := range header {
@@ -545,20 +606,37 @@ func (s *importState) parseCSV(data []byte, m Mapping) (Mapping, []string, error
 		if errors.Is(err, io.EOF) {
 			break
 		}
+		if errors.Is(err, errCSVRecordTooLong) {
+			start := base + int(lim.recStart)
+			line := lineBase + bytes.Count(data[base:start], []byte{'\n'}) + 1
+			if s.opts.maxLine > 0 && line > s.opts.maxLine {
+				break
+			}
+			s.problem(line, "import.line_too_long", "The record is longer than 1 MiB and was skipped.")
+			newReader(csvRecordEnd(data, start))
+			continue
+		}
+		size := r.InputOffset() - lim.recStart
+		lim.recStart = r.InputOffset()
 		if err != nil {
 			var pe *csv.ParseError
 			if errors.As(err, &pe) {
-				if s.opts.maxLine > 0 && pe.StartLine > s.opts.maxLine {
+				if s.opts.maxLine > 0 && lineBase+pe.StartLine > s.opts.maxLine {
 					break
 				}
-				s.problem(pe.StartLine, "import.bad_csv", "The line is not valid CSV.")
+				s.problem(lineBase+pe.StartLine, "import.bad_csv", "The line is not valid CSV.")
 				continue
 			}
 			return m, cols, err
 		}
 		line, _ := r.FieldPos(0)
+		line += lineBase
 		if s.opts.maxLine > 0 && line > s.opts.maxLine {
 			break
+		}
+		if size > importLineMax {
+			s.problem(line, "import.line_too_long", "The record is longer than 1 MiB and was skipped.")
+			continue
 		}
 		in, key, msg := s.fromFields(m, func(k string) (string, bool) {
 			i, ok := idx[strings.ToLower(strings.TrimSpace(k))]
@@ -713,7 +791,7 @@ func RunImport(ctx context.Context, st *Store, ws Workspace, projectID string, p
 			return nil
 		}
 		ar, err := st.AddRows(ctx, projectID, chunk, AddOptions{Source: "file", BatchID: batchID, BatchKind: "import",
-			MaxRows: datasetMaxRows, Partial: true, Strict: true})
+			MaxRows: datasetMaxRows, Partial: true, Strict: true, Full: p.Full})
 		if err != nil {
 			return err
 		}
@@ -767,6 +845,8 @@ func RunImport(ctx context.Context, st *Store, ws Workspace, projectID string, p
 		return res, ctx.Err()
 	case perr != nil:
 		return res, jobErrorFrom(perr)
+	case errors.Is(failure, ErrStorageFull):
+		return res, StorageFullError()
 	case failure != nil:
 		return res, failure
 	}

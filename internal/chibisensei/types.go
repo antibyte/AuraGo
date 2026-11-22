@@ -175,14 +175,16 @@ func (e *ValidationError) Error() string {
 }
 
 var (
-	ErrNotFound      = errors.New("chibisensei: not found")
-	ErrConflict      = errors.New("chibisensei: revision conflict")
-	ErrDatasetFull   = errors.New("chibisensei: dataset full")
-	ErrNotArchived   = errors.New("chibisensei: project is not archived")
-	ErrAlreadyUndone = errors.New("chibisensei: batch already undone")
-	ErrJobActive     = errors.New("chibisensei: a job of this kind is active")
-	ErrDataChanged   = errors.New("chibisensei: data changed during the computation")
-	ErrUndoConflict  = errors.New("chibisensei: a later change touched the rows of this batch")
+	ErrNotFound       = errors.New("chibisensei: not found")
+	ErrConflict       = errors.New("chibisensei: revision conflict")
+	ErrDatasetFull    = errors.New("chibisensei: dataset full")
+	ErrNotArchived    = errors.New("chibisensei: project is not archived")
+	ErrAlreadyUndone  = errors.New("chibisensei: batch already undone")
+	ErrJobActive      = errors.New("chibisensei: a job of this kind is active")
+	ErrDataChanged    = errors.New("chibisensei: data changed during the computation")
+	ErrUndoConflict   = errors.New("chibisensei: a later change touched the rows of this batch")
+	ErrStorageFull    = errors.New("chibisensei: storage limit reached")
+	ErrTooManyStreams = errors.New("chibisensei: too many event streams")
 )
 
 // Flag is a row flag; flags are stored as a bit mask in dataset_rows.flags.
