@@ -76,6 +76,9 @@ window.renderFirewallSection = function (sectionParam) {
                     toggle.disabled = true;
                     toggle.classList.add('cfg-toggle-disabled');
                     if (typeof syncToggleA11y === 'function') syncToggleA11y(toggle);
+                    // The label reports the host (cannot run the firewall), the switch the saved value.
+                    const label = document.getElementById('fwEnabledLabel');
+                    if (label) label.textContent = t('config.firewall.inactive');
                 }
                 if (options) {
                     options.classList.add('is-disabled', 'is-locked');
