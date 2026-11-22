@@ -148,7 +148,7 @@ fetch('/lang/desktop/de.json').then(r=>r.json()).then(lang=>{window.fixtureLang=
 	if got.Call.Resume {
 		t.Fatalf("expected resume=false, got true")
 	}
-	if got.Call.Prompt == "" || len(got.Call.PreviewDiagnostics) != 1 || got.Call.PreviewDiagnostics[0].Message != wantErr {
+	if got.Call.Prompt != "Bitte behebe die gemeldeten Fehler im Spiel." || len(got.Call.PreviewDiagnostics) != 1 || got.Call.PreviewDiagnostics[0].Message != wantErr {
 		t.Fatalf("unexpected startJob payload: %+v", got.Call)
 	}
 	if !got.Open {

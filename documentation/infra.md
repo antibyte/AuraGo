@@ -95,8 +95,8 @@ Two sources feed the state:
   when the echo is blocked by a firewall.
 
 The probe runs with every source refresh, at most once per minute, and covers at most 64 addresses within a
-twelve-second budget. The addresses of the AuraGo host itself are never probed, and a place (site, room, rack,
-group) is never probed. A provider that knows the state of an asset wins over the probe, except when the asset
+twelve-second budget. The probe skips the AuraGo host, loopback, link-local and unspecified addresses, and
+places (sites, rooms, racks, groups). A provider that knows the state of an asset wins over the probe, except when the asset
 answers: an asset that answers is live.
 
 The probe sends read-only network requests to the addresses of your own inventory. It needs no extra grant and

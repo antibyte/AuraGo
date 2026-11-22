@@ -5131,7 +5131,7 @@
   "game_maker.details": "Dettagli",
   "game_maker.diagnostics": "Diagnostica",
   "game_maker.fix_diagnostics": "Invia all'agente per la correzione",
-  "game_maker.fix_diagnostics_prompt": "Correggi questo errore nel gioco:\n{{errors}}",
+  "game_maker.fix_diagnostics_prompt": "Correggi gli errori segnalati nel gioco.",
   "game_maker.dimension": "Tipo di gioco",
   "game_maker.disabled_notice": "Game Maker Studio è disattivato o in sola lettura. Un amministratore può abilitarlo nella configurazione.",
   "game_maker.empty_hint": "Descrivi un gioco o una modifica. L’agente sceglie l’approccio e il framework.",

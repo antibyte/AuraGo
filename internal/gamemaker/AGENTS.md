@@ -32,6 +32,8 @@ use optional local frameworks/assets and explicitly finish.
   procedural local `sfx` generation (`vendor/zzfx.js` / `.wav`) and asset packs
   are optional. Their helper contracts apply when used, never as publication
   criteria. Preserve existing runtime versions, source, asset licenses and exports.
+  `add_library` reuses byte-identical files and rejects conflicting paths,
+  including the notices file, before replacing the draft snapshot.
 - Explicit finish builds and requests publication of that exact snapshot.
   Publication rechecks active ownership, permissions, cancellation and public
   source/build hashes under source/build locks. Private conversation changes
@@ -46,15 +48,18 @@ use optional local frameworks/assets and explicitly finish.
   enter the browser. Keep proxy, SSRF, CSP and private-file isolation.
 - Open/reload build current files. Errors and source maps belong to the loaded
   snapshot's build ID. Diagnostics are untrusted, bounded and host-path redacted.
+  Studio repair sends a fixed localized request and carries errors only through
+  `preview_diagnostics`, which the server isolates as external data.
 - Screenshots include the rendered HTML viewport and preserve running state.
   No capture count quota: bound each image to 2 MiB, pending images to 8 MiB,
   and retained UI images to three. Keyboard/mouse/touch/wait actions, inline
   `capture` contact sheets (2–6 frames), `viewport` presets (`landscape`,
   `hd`, `portrait`, `tablet`, `WIDTHxHEIGHT`) and read-only `probe` telemetry
-  (`window.__gameDebug`) are voluntary tools.
-- Technical learnings extracted without file/condition bindings from a
-  `game-maker:<project>` run also share into `game-maker:studio` so craft tips
-  can carry across projects within existing memory/learning controls.
+  (`window.__gameDebug`) are voluntary tools. Limit the title and HUD to 512
+  UTF-16 code units each before reading them from the browser.
+- Technical learnings stay in the originating `game-maker:<project>` scope.
+  The old `game-maker:studio` scope is retired from Game Maker recall and its
+  stored entries are preserved.
 - Browser/vision failures are recoverable tool errors. Multimodal coding models
   receive pixels before context fitting; text models use the configured vision
   provider. All model calls retain normal total-budget accounting.
@@ -77,6 +82,10 @@ use optional local frameworks/assets and explicitly finish.
   source preservation, explicit finish, restore and immutable export.
 - TestFreeAgentDraftAndCompilerFailures covers compiler locations, drafts,
   continuation, conflicts and path confinement.
+- TestAddLibraryInstallsVendorFilesWithoutOverwritingSource covers identical
+  files and conflicting bundle paths with no partial install.
+- TestLearningGameMakerKeepsProjectsIsolated covers recall with existing old
+  studio entries.
 - TestFreeAgentBrowserPreservesState with AURAGO_RUN_BROWSER_SMOKE=1 exercises
   twelve captures/input rounds without Studio, errors and build isolation.
 - TestPreviewBootHTMLBrowser uses the same browser opt-in (legacy

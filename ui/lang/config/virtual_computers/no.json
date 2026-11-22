@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Standard levetid for maskinen. boringd støtter 15 til 900 sekunder.",
   "help.virtual_computers.max_ttl_seconds": "Maksimal TTL som AuraGo vil be om; begrenset til 900 sekunder.",
   "help.virtual_computers.max_running_machines": "Policygrense for samtidige maskiner som vises til brukergrensesnittet og verktøyene.",
-  "help.virtual_computers.max_forks": "Policygrense for maskinforgreninger.",
+  "help.virtual_computers.max_forks": "Høyeste antall maskinforgreninger per operasjon. Verdien 0 bruker standardgrensen på 3.",
   "help.virtual_computers.allow_internet": "Tillater oppstarter som ber om internettilgang.",
   "help.virtual_computers.allow_persistent": "Tillater vedvarende maskiner. Hold den avslått med mindre verten er klarert.",
   "help.virtual_computers.allow_publish": "Tillater publiser-/lagreoperasjoner som boringd eksponerer.",

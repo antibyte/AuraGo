@@ -5131,7 +5131,7 @@
   "game_maker.details": "Details",
   "game_maker.diagnostics": "Diagnose",
   "game_maker.fix_diagnostics": "An Agenten zur Korrektur senden",
-  "game_maker.fix_diagnostics_prompt": "Bitte behebe diesen Fehler im Spiel:\n{{errors}}",
+  "game_maker.fix_diagnostics_prompt": "Bitte behebe die gemeldeten Fehler im Spiel.",
   "game_maker.dimension": "Spieltyp",
   "game_maker.disabled_notice": "Game Maker Studio ist deaktiviert oder schreibgeschützt. Ein Administrator kann es in der Konfiguration freigeben.",
   "game_maker.empty_hint": "Beschreibe ein Spiel oder eine Änderung. Der Agent wählt Vorgehen und Framework.",

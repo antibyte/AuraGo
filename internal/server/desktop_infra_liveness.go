@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -212,23 +213,30 @@ func desktopInfraLivenessAddresses(ctx context.Context, store *infra.Store) []st
 func desktopInfraLocalAddressSet() map[string]bool {
 	local := map[string]bool{"127.0.0.1": true, "::1": true}
 	for _, address := range desktopInfraLocalAddresses() {
-		local[address.String()] = true
+		local[address.Unmap().String()] = true
 	}
 	return local
 }
 
 // desktopInfraNodeAddress returns the first usable address of a node.
 func desktopInfraNodeAddress(node infra.Node) string {
-	if address := desktopInfraValidIP(node.Profile.IPAddress); address != "" {
+	probeIP := func(value string) string {
+		ip := net.ParseIP(strings.TrimSpace(value))
+		if !ip.IsGlobalUnicast() {
+			return ""
+		}
+		return ip.String()
+	}
+	if address := probeIP(node.Profile.IPAddress); address != "" {
 		return address
 	}
 	for _, iface := range node.Profile.Interfaces {
-		if address := desktopInfraValidIP(iface.IPAddress); address != "" {
+		if address := probeIP(iface.IPAddress); address != "" {
 			return address
 		}
 	}
 	for _, source := range node.Sources {
-		if address := desktopInfraValidIP(source.Observed.IPAddress); address != "" {
+		if address := probeIP(source.Observed.IPAddress); address != "" {
 			return address
 		}
 	}

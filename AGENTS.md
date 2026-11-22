@@ -54,6 +54,7 @@ Production releases must use `./scripts/make_deploy.sh` (Linux/macOS) or `script
 ### Verification and editing
 
 - Subagents use Luna (`gpt-6-luna`) at Extra High.
+- Cursor project hooks run from the repository root. Keep commands in `.cursor/hooks.json` relative to that root so checked-in hooks work across machines.
 
 - `.gitnexusignore` owns code-index scope: exclude runtime/scratch data, generated resource copies, binary assets and vendored payloads; retain maintained source/tests, including both versioned training utilities under `disposable/`. Validate exclusions and retained paths with the installed GitNexus ignore filter and path walker before rebuilding; avoid broad negations that re-admit dependencies or binaries.
 - With ignored scratch Go files use `./scripts/go-test-with-cache.ps1` (also accepts `./...`): production roots and both versioned training utilities, excluding scratch directories. Literal `go test ./...` is for clean checkouts. Temporary Go files belong in `disposable/_<task>/` (Go skips underscore directories); never add a module boundary above tracked `disposable/export_tools` or `disposable/import_training_traces`.

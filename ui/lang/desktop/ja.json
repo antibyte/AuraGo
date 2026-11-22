@@ -5131,7 +5131,7 @@
   "game_maker.details": "詳細",
   "game_maker.diagnostics": "診断",
   "game_maker.fix_diagnostics": "修正のためエージェントに送信",
-  "game_maker.fix_diagnostics_prompt": "ゲーム内の次のエラーを修正してください:\n{{errors}}",
+  "game_maker.fix_diagnostics_prompt": "ゲームで報告されたエラーを修正してください。",
   "game_maker.dimension": "ゲームの種類",
   "game_maker.disabled_notice": "Game Maker Studio は無効、または読み取り専用です。管理者が設定で有効にできます。",
   "game_maker.empty_hint": "ゲームや変更内容を説明してください。エージェントが進め方とフレームワークを選びます。",

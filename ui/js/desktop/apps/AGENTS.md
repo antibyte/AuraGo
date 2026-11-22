@@ -4382,6 +4382,9 @@ registration lives in `internal/desktop/types.go`.
   Their lifetime and state are independent of iframe reload/visibility.
 - Browser diagnostics are build-scoped. No gameplay driver or automatic visual
   review runs in the iframe. Loading settles for arbitrary HTML, without a canvas.
+- The repair button submits a fixed localized request. Include actual error
+  messages and paths through `preview_diagnostics` only. The browser test
+  verifies the request, diagnostics and preservation of the draft text.
 - Continue/stop/provider/model selection and usage remain. Provider context/output
   limits are informational; no Game Maker minimum or compact editing mode.
 - Failed/cancelled jobs retain drafts and the last revision. Retry restores the

@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "मशीन का डिफ़ॉल्ट जीवनकाल। boringd 15 से 900 सेकंड का समर्थन करता है।",
   "help.virtual_computers.max_ttl_seconds": "AuraGo द्वारा अनुरोध किया जाने वाला अधिकतम TTL; 900 सेकंड तक सीमित।",
   "help.virtual_computers.max_running_machines": "समवर्ती मशीनों के लिए यूआई और टूल को दिखाई जाने वाली नीति सीमा।",
-  "help.virtual_computers.max_forks": "मशीन फ़ॉर्क की नीति सीमा।",
+  "help.virtual_computers.max_forks": "हर कार्रवाई में मशीन फ़ॉर्क की अधिकतम संख्या। 0 देने पर 3 की डिफ़ॉल्ट सीमा लागू होती है।",
   "help.virtual_computers.allow_internet": "इंटरनेट पहुँच का अनुरोध करने वाले लॉन्च की अनुमति देता है।",
   "help.virtual_computers.allow_persistent": "स्थायी मशीनों की अनुमति देता है। होस्ट विश्वसनीय न हो, तो इसे बंद रखें।",
   "help.virtual_computers.allow_publish": "boringd द्वारा उपलब्ध कराए गए प्रकाशन/सहेजने के संचालन की अनुमति देता है।",

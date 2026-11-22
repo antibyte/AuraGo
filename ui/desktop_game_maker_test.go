@@ -223,13 +223,15 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 			"game_maker.check_prompt_role":        {"{{id}}"},
 			"game_maker.revision_paths_truncated": {"{{count}}"},
 			"game_maker.deleted_notice":           {"{{name}}"},
-			"game_maker.fix_diagnostics_prompt":   {"{{errors}}"},
 		} {
 			for _, placeholder := range placeholders {
 				if !strings.Contains(values[key], placeholder) {
 					t.Errorf("%s %s missing %s", file, key, placeholder)
 				}
 			}
+		}
+		if strings.Contains(values["game_maker.fix_diagnostics_prompt"], "{") {
+			t.Errorf("%s game_maker.fix_diagnostics_prompt must be fixed text", file)
 		}
 	}
 }

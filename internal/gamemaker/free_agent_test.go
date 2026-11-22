@@ -163,7 +163,7 @@ func TestFreeAgentBrowserPreservesState(t *testing.T) {
 	project := createTestProject(t, s, "2d")
 	var snapshotDir string
 	s.SetRunner(freeAgentRunner(func(ctx context.Context, run JobRun) error {
-		page := `<!doctype html><html><body style="background:#156;color:white;font:40px sans-serif"><h1 id="count">0</h1><script>window.count=0;addEventListener('keydown',()=>document.getElementById('count').textContent=String(++window.count)); console.error('first-build-only'); Promise.reject(new Error('promise-feedback'));</script><img src="missing.png"></body></html>`
+		page := `<!doctype html><html><title>` + strings.Repeat("t", 4096) + `</title><body style="background:#156;color:white;font:40px sans-serif"><h1 id="count">0</h1><script>window.count=0;addEventListener('keydown',()=>document.getElementById('count').textContent=String(++window.count)); console.error('first-build-only'); Promise.reject(new Error('promise-feedback'));</script><img src="missing.png"></body></html>`
 		if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "index.html", page, ""); err != nil {
 			return err
 		}
@@ -174,6 +174,14 @@ func TestFreeAgentBrowserPreservesState(t *testing.T) {
 		firstID := opened["build_id"]
 		if firstID == nil {
 			return fmt.Errorf("open did not build: %+v", opened)
+		}
+		result, err := s.AgentPreview(ctx, run.Job.ID, "probe", nil)
+		if err != nil {
+			return err
+		}
+		probe, ok := result["probe"].(map[string]any)
+		if !ok || probe["title"] != strings.Repeat("t", 512) {
+			return fmt.Errorf("probe did not bound the page title")
 		}
 		for i := 1; i <= 12; i++ {
 			_, err = s.AgentPreview(ctx, run.Job.ID, "input", []PreviewInput{{Type: "key_press", Key: "a"}, {Type: "wait", Milliseconds: 30}})

@@ -1,6 +1,7 @@
 package gamemaker
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -124,16 +125,28 @@ func bundledRuntimeFileAny(preferredDimension, projectPath string) ([]byte, bool
 }
 
 func installRuntime(projectDir, dimension string, variant ...string) error {
-	return installRuntimeAssets(projectDir, bundledRuntimeAssets(dimension, variant...))
+	return installRuntimeAssets(projectDir, bundledRuntimeAssets(dimension, variant...), false)
 }
 
-func installRuntimeAssets(projectDir string, assets []runtimeAsset) error {
+func installRuntimeAssets(projectDir string, assets []runtimeAsset, preserveExisting bool) error {
 	for _, asset := range assets {
 		data, err := readRuntimeAsset(asset.embeddedPath)
 		if err != nil {
 			return fmt.Errorf("read embedded game runtime %s: %w", asset.embeddedPath, err)
 		}
 		target := filepath.Join(projectDir, filepath.FromSlash(asset.projectPath))
+		if preserveExisting {
+			existing, err := os.ReadFile(target)
+			switch {
+			case err == nil:
+				if !bytes.Equal(existing, data) {
+					return fmt.Errorf("library file conflicts with existing %s", asset.projectPath)
+				}
+				continue
+			case !os.IsNotExist(err):
+				return fmt.Errorf("read existing library file %s: %w", asset.projectPath, err)
+			}
+		}
 		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 			return fmt.Errorf("create game runtime directory: %w", err)
 		}
@@ -229,8 +242,7 @@ func resolveLibraryBundle(library string) (string, []runtimeAsset, string, error
 	}
 }
 
-// AddLibrary copies bundled local runtime files into vendor/ without
-// overwriting existing source files such as index.html or src/main.ts.
+// AddLibrary installs bundled runtime files without replacing existing files.
 func (s *Service) AddLibrary(ctx context.Context, jobID, library string) (map[string]any, error) {
 	key, assets, usage, err := resolveLibraryBundle(library)
 	if err != nil {
@@ -259,7 +271,7 @@ func (s *Service) AddLibrary(ctx context.Context, jobID, library string) (map[st
 	if err := copyTree(stage, candidate, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes); err != nil {
 		return nil, err
 	}
-	if err := installRuntimeAssets(candidate, assets); err != nil {
+	if err := installRuntimeAssets(candidate, assets, true); err != nil {
 		return nil, err
 	}
 	if err := validateTreeLimits(candidate, s.opts.MaxFilesPerProject, s.opts.MaxProjectBytes); err != nil {

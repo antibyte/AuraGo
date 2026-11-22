@@ -2187,6 +2187,44 @@ func TestDockerEntrypointMinimalConfigWritesDockerHostAccessFalse(t *testing.T) 
 	}
 }
 
+func TestDockerEntrypointPublishesPrivateConfig(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("requires Linux file permissions and GNU mv")
+	}
+	entrypoint := strings.ReplaceAll(readRepoFile(t, "deploy/docker/docker-entrypoint.sh"), "\r\n", "\n")
+	_, normalize, foundNormalize := strings.Cut(entrypoint, "\nnormalize_file() {\n")
+	normalize, _, endedNormalize := strings.Cut(normalize, "\n}\n")
+	_, publish, foundPublish := strings.Cut(entrypoint, "\npublish_initial_config() (\n")
+	publish, _, endedPublish := strings.Cut(publish, "\n)\n")
+	if !foundNormalize || !endedNormalize || !foundPublish || !endedPublish {
+		t.Fatal("cannot locate entrypoint config functions")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "user.yaml"), []byte("server: {}\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	script := "normalize_file() {\n" + normalize + "\n}\npublish_initial_config() (\n" + publish + "\n)\n" + `
+set -e
+umask 022
+USER_CONFIG="$1/user.yaml"
+CONFIG_FILE="$1/config.yaml"
+FRESH_CONFIG=false
+publish_initial_config
+`
+	cmd := exec.CommandContext(t.Context(), "bash", "-c", script, "entrypoint-test", dir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("publish initial config: %v\n%s", err, out)
+	}
+	info, err := os.Stat(filepath.Join(dir, "config.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("published config permissions = %o, want 600", got)
+	}
+}
+
 func TestLocalWikipediaManifestsStayReadOnly(t *testing.T) {
 	t.Parallel()
 

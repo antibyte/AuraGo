@@ -244,7 +244,19 @@ func virtualComputersMachineDestroy(s *Server, w http.ResponseWriter, r *http.Re
 	if !virtualComputersMutationAllowed(s, w) {
 		return
 	}
-	if owner, ok := virtualComputersMachineOwner(s, r, machineID); ok {
+	// Opening a new ledger here could mistake a missing ownership database for an empty one.
+	ledger := s.VirtualComputersDB
+	if ledger == nil {
+		writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	owner, found, err := ledger.ActiveWorkspaceForMachine(r.Context(), machineID)
+	if err != nil {
+		virtualComputersLogLedgerError(s, err)
+		writeVirtualComputersAPIError(w, "storage_unavailable", "virtual computer ledger is unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if found {
 		writeVirtualComputersAPIErrorDetails(w, "machine_owned_by_workspace",
 			"this computer belongs to an agent workspace; close or release the workspace instead", http.StatusConflict,
 			map[string]interface{}{"workspace_id": owner.ID, "origin": owner.Origin})

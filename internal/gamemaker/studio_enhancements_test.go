@@ -30,6 +30,32 @@ func TestAddLibraryInstallsVendorFilesWithoutOverwritingSource(t *testing.T) {
 		if _, err := s.WriteJobFileChecked(ctx, run.Job.ID, "src/main.ts", customTS, ""); err != nil {
 			return err
 		}
+		stage, err := s.JobDirectory(run.Job.ID)
+		if err != nil {
+			return err
+		}
+		for _, rel := range []string{"vendor/game-flow.js", "THIRD_PARTY_NOTICES.md"} {
+			path := filepath.Join(stage, filepath.FromSlash(rel))
+			if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+				return err
+			}
+			const existing = "Project-owned file\n"
+			if err := os.WriteFile(path, []byte(existing), 0o640); err != nil {
+				return err
+			}
+			if _, err := s.AddLibrary(ctx, run.Job.ID, "effects-2d"); err == nil || !strings.Contains(err.Error(), rel) {
+				t.Errorf("AddLibrary conflict for %s = %v", rel, err)
+			}
+			if got, err := os.ReadFile(path); err != nil || string(got) != existing {
+				t.Errorf("AddLibrary did not preserve %s: %q, %v", rel, got, err)
+			}
+			if _, err := os.Stat(filepath.Join(stage, "vendor", "zzfx.js")); !os.IsNotExist(err) {
+				t.Errorf("AddLibrary left a partial install: %v", err)
+			}
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+		}
 		for _, lib := range []string{"zzfx", "phaser", "three"} {
 			res, err := s.AddLibrary(ctx, run.Job.ID, lib)
 			if err != nil {

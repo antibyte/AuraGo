@@ -5132,7 +5132,7 @@
   "game_maker.details": "Details",
   "game_maker.diagnostics": "Diagnostics",
   "game_maker.fix_diagnostics": "Send to agent to fix",
-  "game_maker.fix_diagnostics_prompt": "Please fix this error in the game:\n{{errors}}",
+  "game_maker.fix_diagnostics_prompt": "Please fix the errors reported in the game.",
   "game_maker.dimension": "Game type",
   "game_maker.disabled_notice": "Game Maker Studio is disabled or read-only. An administrator can enable it in the configuration.",
   "game_maker.empty_hint": "Describe a game or an edit. The agent chooses its approach and framework.",

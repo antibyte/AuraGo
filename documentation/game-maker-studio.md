@@ -25,8 +25,9 @@ npm infrastructure are not supported.
 
 Writes save the draft. An explicit build, preview reload or finish processes the
 current files. `add_library` copies bundled `phaser`, `three`, `voxel`,
-`effects-2d`, `effects-3d` or `zzfx` helpers into `vendor/` without overwriting
-existing source; `use_template` installs optional starters including a
+`effects-2d`, `effects-3d` or `zzfx` helpers into `vendor/`. Identical existing
+files are reused. A conflicting file stops the entire installation and the error
+names the path. `use_template` installs optional starters including a
 framework-free HTML5 `canvas` starter; `reference` also supplies optional craft
 recipes (`juice`, `particles`, `procedural-audio`, `procgen`, `pathfinding`, `save`,
 `tweening`, `ui-hud`); and `game_maker_asset` `generate` supports local
@@ -37,6 +38,7 @@ are observations, never publication gates. Cancelled, exhausted, incomplete or
 failed runs publish nothing. Try again resumes the saved draft and conversation.
 Workspace adoption builds and publishes saved edits without calling a model.
 Restore and ZIP export retain source/build integrity checks and historical revisions.
+Technical learnings, when enabled, stay with the game project that produced them.
 
 ## Preview and images
 
@@ -45,6 +47,7 @@ Chrome or Chromium on the backend host; no additional browser service is needed.
 open/reload build and load files; logs returns exceptions, rejected promises,
 console errors and failed resources with the build identity and source positions
 when source maps exist. Browser failure is a tool error that can be retried.
+The Studio repair button sends a fixed request with error details attached as diagnostics.
 
 Screenshots show the rendered viewport, including HTML controls. They neither
 reload nor reset the game. The agent can request as many as useful within the job's

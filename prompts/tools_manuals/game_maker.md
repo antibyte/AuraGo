@@ -10,7 +10,7 @@ The Studio binds the active project/job. Operations: `inspect`, `list_files`, `b
 - `build`: bundles `src/main.ts` (when present) to `dist/game.js` and reports compiler/import diagnostics with build IDs and file positions.
 - `finish`: ends the run and publishes only a successfully built, unchanged snapshot. No design, gameplay scenarios or runtime pass is required.
 - `reference`: retrieves optional framework documentation (`framework`: `phaser`, `three` or `voxel`) or copy-pasteable craft recipes (`topic`: `juice`, `particles`, `procedural-audio`, `procgen`, `pathfinding`, `save`, `tweening`, `ui-hud`). Omitting both lists installed helpers and available templates/libraries/topics.
-- `add_library`: copies local bundled runtime files (`phaser`, `three`, `voxel`, `effects-2d`, `effects-3d`, `zzfx` or `all`) into `vendor/` without overwriting `index.html`, `game.json` or `src/` files.
+- `add_library` copies local bundled runtime files (`phaser`, `three`, `voxel`, `effects-2d`, `effects-3d`, `zzfx` or `all`) into `vendor/`. Identical files are reused. Any conflicting bundle path, including `THIRD_PARTY_NOTICES.md`, stops installation and is reported.
 - `use_template`: explicitly replaces entry files; read current work first. Templates: `canvas`, `minimal`, `shooter`, `platformer`, `topdown`, `blocks`, `board`, `three`, `fps`, `exploration`, `transport`, `flight`, `space`, `voxel`. Existing local libraries are supported; no CDN/npm installation.
 
 

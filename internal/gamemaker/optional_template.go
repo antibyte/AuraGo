@@ -233,7 +233,7 @@ func installCanvasTemplate(candidate string, project Project) error {
 	if err := installRuntimeAssets(candidate, []runtimeAsset{
 		{embeddedPath: "runtime/THIRD_PARTY_NOTICES.md", projectPath: "THIRD_PARTY_NOTICES.md"},
 		{embeddedPath: "runtime/zzfx.js", projectPath: "vendor/zzfx.js"},
-	}); err != nil {
+	}, false); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(candidate, "src"), 0o750); err != nil {

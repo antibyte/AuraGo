@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "既定のマシン存続時間。boringd は 15 秒から 900 秒までに対応しています。",
   "help.virtual_computers.max_ttl_seconds": "AuraGo が要求する最大 TTL。900 秒が上限です。",
   "help.virtual_computers.max_running_machines": "同時実行マシンについて UI とツールに表示するポリシー上限。",
-  "help.virtual_computers.max_forks": "マシンのフォークに対するポリシー上限です。",
+  "help.virtual_computers.max_forks": "1 回の操作で作成できるマシンのフォークの最大数です。0 を指定すると、既定の上限である 3 が適用されます。",
   "help.virtual_computers.allow_internet": "インターネットアクセスを要求する起動を許可します。",
   "help.virtual_computers.allow_persistent": "永続マシンを許可します。ホストが信頼できる場合を除き、オフのままにしてください。",
   "help.virtual_computers.allow_publish": "boringd が公開する publish/save 操作を許可します。",

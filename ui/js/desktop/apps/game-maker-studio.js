@@ -1609,20 +1609,8 @@
     async function fixDiagnostics(state) {
         const otherBusy = typeof otherProjectBusy === 'function' ? otherProjectBusy(state) : false;
         if (!state.project || state.jobActive || !state.capabilities?.allow_edit || otherBusy) return;
-        const errors = errorDiagnostics(state);
-        if (!errors.length) return;
-        const seen = new Set();
-        const lines = [];
-        errors.forEach(item => {
-            const msg = String(item.message || '').trim();
-            const file = String(item.file || '').trim();
-            const line = file && !msg.includes(file) ? `${msg} (${file})` : msg;
-            if (!line || seen.has(line)) return;
-            seen.add(line);
-            lines.push(line);
-        });
-        if (!lines.length) return;
-        const prompt = state.context.t('game_maker.fix_diagnostics_prompt', { errors: lines.join('\n') });
+        if (!errorDiagnostics(state).length) return;
+        const prompt = state.context.t('game_maker.fix_diagnostics_prompt');
         if (stepBarShown(state)) await setStudioStep(state, 'agent');
         return submitChange(state, false, prompt);
     }

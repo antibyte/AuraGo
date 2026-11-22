@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Standardlebensdauer eines virtuellen Computers. boringd unterstützt 15 bis 900 Sekunden.",
   "help.virtual_computers.max_ttl_seconds": "Maximale Lebensdauer, die AuraGo anfordert; begrenzt auf 900 Sekunden.",
   "help.virtual_computers.max_running_machines": "Grenze für gleichzeitig laufende virtuelle Computer, die in Oberfläche und Tools angezeigt wird.",
-  "help.virtual_computers.max_forks": "Richtlinienlimit für Maschinen-Forks.",
+  "help.virtual_computers.max_forks": "Maximale Anzahl an Maschinen-Forks pro Vorgang. Bei 0 gilt der Standardwert 3.",
   "help.virtual_computers.allow_internet": "Erlaubt den Start virtueller Computer mit Internetzugriff.",
   "help.virtual_computers.allow_persistent": "Erlaubt dauerhafte virtuelle Computer. Lass dies deaktiviert, wenn du dem Host nicht vertraust.",
   "help.virtual_computers.allow_publish": "Erlaubt die von boringd angebotenen Veröffentlichungs- und Speichervorgänge.",

@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Domyślny czas życia maszyny. boringd obsługuje od 15 do 900 sekund.",
   "help.virtual_computers.max_ttl_seconds": "Maksymalny TTL, o jaki AuraGo poprosi; ograniczony do 900 sekund.",
   "help.virtual_computers.max_running_machines": "Limit polityki pokazywany interfejsowi i narzędziom dla równoczesnych maszyn.",
-  "help.virtual_computers.max_forks": "Limit polityki dla rozwidleń maszyn.",
+  "help.virtual_computers.max_forks": "Maksymalna liczba rozwidleń maszyn na operację. Wartość 0 oznacza domyślny limit 3.",
   "help.virtual_computers.allow_internet": "Zezwala na uruchomienia, które żądają dostępu do internetu.",
   "help.virtual_computers.allow_persistent": "Zezwala na trwałe maszyny. Pozostaw wyłączone, chyba że host jest zaufany.",
   "help.virtual_computers.allow_publish": "Zezwala na operacje publikowania/zapisu wystawiane przez boringd.",

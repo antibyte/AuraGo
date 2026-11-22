@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Standaardlevensduur van de machine. boringd ondersteunt 15 tot 900 seconden.",
   "help.virtual_computers.max_ttl_seconds": "Maximale TTL die AuraGo aanvraagt; begrensd tot 900 seconden.",
   "help.virtual_computers.max_running_machines": "Beleidslimiet die aan de UI en tools wordt getoond voor gelijktijdige machines.",
-  "help.virtual_computers.max_forks": "Beleidslimiet voor machinevertakkingen.",
+  "help.virtual_computers.max_forks": "Maximumaantal machinevertakkingen per bewerking. De waarde 0 gebruikt de standaardlimiet van 3.",
   "help.virtual_computers.allow_internet": "Staat lanceringen toe die internettoegang aanvragen.",
   "help.virtual_computers.allow_persistent": "Staat persistente machines toe. Houd dit uitgeschakeld, tenzij de host vertrouwd is.",
   "help.virtual_computers.allow_publish": "Staat bewerkingen voor publiceren/opslaan toe die door boringd beschikbaar worden gesteld.",

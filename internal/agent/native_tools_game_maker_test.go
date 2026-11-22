@@ -167,23 +167,38 @@ func TestGameMakerEnhancementsDispatchAndSchemas(t *testing.T) {
 	t.Fatal("job did not reach terminal status")
 }
 
-func TestLearningSharedGameMakerStudioScope(t *testing.T) {
+func TestLearningGameMakerKeepsProjectsIsolated(t *testing.T) {
 	s, dc, _ := correctionAgentFixture(t)
 	dc.Cfg.Learnings.Enabled = true
 	const quote = "Phaser StaticBody has no setVelocity; keep moving paddles dynamic."
+	draft := memory.LearningDraft{Statement: quote, Rationale: "keep moving paddles dynamic", Kind: "technical", Confidence: .99}
 	scopeA := learningAnalysisScope{Scope: memory.LearningScope{Project: "game-maker:proj-a"}, HumanText: strPtr(quote)}
 	applyExtractedLearnings(t.Context(), dc.Cfg, dc.ShortTermMem, "s1", quote, []extractedLearning{{
-		LearningDraft: memory.LearningDraft{Statement: quote, Rationale: "keep moving paddles dynamic", Kind: "technical", Confidence: .99},
+		LearningDraft: draft,
 		Quote:         quote,
 	}}, scopeA)
 
-	// Project B should inherit the shared technical craft learning via SharedLearningScopes.
-	s.runCfg.LearningScope = memory.LearningScope{Project: "game-maker:proj-b"}
-	s.runCfg.SharedLearningScopes = []memory.LearningScope{{Project: "game-maker:studio"}}
+	retired := memory.LearningScope{Project: "game-maker:studio"}
+	if entries, err := dc.ShortTermMem.ListLearnings(t.Context(), retired, "", "", 10); err != nil || len(entries) != 0 {
+		t.Fatalf("automatic extraction copied project learning: %v, %v", entries, err)
+	}
+	source, err := learningSourceFromEvidence("s1", memory.CorrectionEvidence{Reference: "user:current", Kind: "user", Quote: quote}, quote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := dc.ShortTermMem.ObserveLearning(t.Context(), draft, retired, source, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	const query = "Phaser StaticBody setVelocity"
 	s.runCfg.AllowProjectLearnings = true
-	got := learningPromptContext(t.Context(), s.runCfg, "Phaser StaticBody setVelocity", "gpt-4o")
-	if !strings.Contains(got, "StaticBody has no setVelocity") || !strings.Contains(got, "shared studio craft") {
-		t.Fatalf("shared game-maker:studio learning not retrieved for project B: %q", got)
+	s.runCfg.LearningScope = scopeA.Scope
+	if got := learningPromptContext(t.Context(), s.runCfg, query, "gpt-4o"); !strings.Contains(got, quote) {
+		t.Fatalf("project A did not recall its own learning: %q", got)
+	}
+	s.runCfg.LearningScope = memory.LearningScope{Project: "game-maker:proj-b"}
+	if got := learningPromptContext(t.Context(), s.runCfg, query, "gpt-4o"); got != "" {
+		t.Fatalf("project B recalled another project's learning: %q", got)
 	}
 }
 

@@ -263,13 +263,13 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		"selected_assets":       run.AssetSelections,
 		"presentation":          run.Presentation,
 		"capabilities": map[string]any{
-			"sfx_generation_ready":    true,
+			"sfx_generation_ready":     true,
 			"media_generation_allowed": cfg.GameMaker.AllowMediaGeneration,
-			"image_generation_ready":  cfg.GameMaker.AllowMediaGeneration && run.Project.UseImageGeneration && cfg.ImageGeneration.Enabled && cfg.ImageGeneration.APIKey != "",
-			"music_generation_ready":  cfg.GameMaker.AllowMediaGeneration && run.Project.UseMusicGeneration && cfg.MusicConfigured(),
-			"available_templates":     gamemaker.StudioTemplateNames(),
-			"available_libraries":     []string{"phaser", "three", "voxel", "effects-2d", "effects-3d", "zzfx", "all"},
-			"available_topics":        gamemaker.CraftRecipeTopics(),
+			"image_generation_ready":   cfg.GameMaker.AllowMediaGeneration && run.Project.UseImageGeneration && cfg.ImageGeneration.Enabled && cfg.ImageGeneration.APIKey != "",
+			"music_generation_ready":   cfg.GameMaker.AllowMediaGeneration && run.Project.UseMusicGeneration && cfg.MusicConfigured(),
+			"available_templates":      gamemaker.StudioTemplateNames(),
+			"available_libraries":      []string{"phaser", "three", "voxel", "effects-2d", "effects-3d", "zzfx", "all"},
+			"available_topics":         gamemaker.CraftRecipeTopics(),
 		},
 	}
 	requests, err := r.service.PreviousJobRequests(ctx, run.Job.ID)

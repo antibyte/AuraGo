@@ -207,4 +207,16 @@ func TestDesktopInfraLivenessAddressesSkipsLocalHostsAndPlaces(t *testing.T) {
 	if !found {
 		t.Fatalf("the device address is missing from %v", addresses)
 	}
+
+	for _, unusable := range []string{"127.0.0.2", "::1", "0.0.0.0", "::", "169.254.169.254", "fe80::1", "ff02::1", "::ffff:127.0.0.2"} {
+		node := infra.Node{Profile: infra.Profile{IPAddress: unusable}}
+		if got := desktopInfraNodeAddress(node); got != "" {
+			t.Errorf("%s selected for probing as %s", unusable, got)
+		}
+	}
+	node := infra.Node{Profile: infra.Profile{IPAddress: "0.0.0.0"}}
+	node.Sources = []infra.Source{{Observed: infra.SourceObserved{IPAddress: "::ffff:192.168.1.40"}}}
+	if got := desktopInfraNodeAddress(node); got != "192.168.1.40" {
+		t.Errorf("valid LAN source fallback = %q", got)
+	}
 }

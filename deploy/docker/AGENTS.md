@@ -19,7 +19,7 @@ This folder owns the Ansible, Browser Automation and browser-egress Dockerfiles,
 - The base Compose file starts without Docker API access. `compose.docker-access.yml`
   provides the opt-in socket proxy, private control network and AuraGo dependency.
   Keep proxy permissions, image pins and the operator migration guide in sync.
-- Publish fresh container configs and fallback keys by same-directory replacement.
+- Publish fresh container configs and fallback keys in mode 0600 by same-directory replacement.
   Recover empty configs with container HTTPS port 8443, preserving explicit
   settings in existing deployments. Read external key files as the container UID
   and report access errors without printing the key.
@@ -31,7 +31,7 @@ Update Compose, native build resolution, documentation and audit contracts toget
 
 ## Verification
 
-`bash -n deploy/docker/docker-entrypoint.sh`; relevant `go test ./internal/audit` Docker/build/install contracts and `go test ./internal/tools` sidecar build tests. Use `docker compose config --quiet` when Docker is available.
+`bash -n deploy/docker/docker-entrypoint.sh`; relevant `go test ./internal/audit` Docker/build/install contracts (including `TestDockerEntrypointPublishesPrivateConfig` on Linux) and `go test ./internal/tools` sidecar build tests. Use `docker compose config --quiet` when Docker is available.
 
 ## Child DOX Index
 

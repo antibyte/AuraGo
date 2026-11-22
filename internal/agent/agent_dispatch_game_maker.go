@@ -86,13 +86,13 @@ func dispatchGameMaker(ctx context.Context, tc ToolCall, dc *DispatchContext) (o
 			imageReady := mediaAllowed && project.UseImageGeneration && dc.Cfg.ImageGeneration.Enabled && dc.Cfg.ImageGeneration.APIKey != ""
 			musicReady := mediaAllowed && project.UseMusicGeneration && dc.Cfg.MusicConfigured()
 			capabilities := map[string]any{
-				"sfx_generation_ready":    true,
+				"sfx_generation_ready":     true,
 				"media_generation_allowed": mediaAllowed,
-				"image_generation_ready":  imageReady,
-				"music_generation_ready":  musicReady,
-				"available_templates":     gamemaker.StudioTemplateNames(),
-				"available_libraries":     []string{"phaser", "three", "voxel", "effects-2d", "effects-3d", "zzfx", "all"},
-				"available_topics":        gamemaker.CraftRecipeTopics(),
+				"image_generation_ready":   imageReady,
+				"music_generation_ready":   musicReady,
+				"available_templates":      gamemaker.StudioTemplateNames(),
+				"available_libraries":      []string{"phaser", "three", "voxel", "effects-2d", "effects-3d", "zzfx", "all"},
+				"available_topics":         gamemaker.CraftRecipeTopics(),
 			}
 			return gameMakerToolJSON(map[string]any{"status": "ok", "project": project, "job": job, "manifest": manifest, "capabilities": capabilities}), true
 		case "get_plan":

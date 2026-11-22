@@ -4,22 +4,22 @@
     "postToolUse": [
       {
         "matcher": "Read|Grep|Glob|Search|Shell",
-        "command": "node \"C:\\Users\\Andi\\Documents\\repo\\AuraGo\\.cursor\\hooks\\graft-hooks.cjs\" cursor-post-tool || exit 0"
+        "command": "node \".cursor/hooks/graft-hooks.cjs\" cursor-post-tool"
       }
     ],
     "afterMCPExecution": [
       {
-        "command": "node \"C:\\Users\\Andi\\Documents\\repo\\AuraGo\\.cursor\\hooks\\graft-hooks.cjs\" cursor-mcp || exit 0"
+        "command": "node \".cursor/hooks/graft-hooks.cjs\" cursor-mcp"
       }
     ],
     "sessionEnd": [
       {
-        "command": "node \"C:\\Users\\Andi\\Documents\\repo\\AuraGo\\.cursor\\hooks\\graft-hooks.cjs\" cursor-session-end || exit 0"
+        "command": "node \".cursor/hooks/graft-hooks.cjs\" cursor-session-end"
       }
     ],
     "sessionStart": [
       {
-        "command": "node \"C:\\Users\\Andi\\Documents\\repo\\AuraGo\\.cursor\\hooks\\graft-hooks.cjs\" cursor-session-start || exit 0"
+        "command": "node \".cursor/hooks/graft-hooks.cjs\" cursor-session-start"
       }
     ]
   }

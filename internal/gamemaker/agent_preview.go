@@ -346,7 +346,7 @@ func (s *Service) recordAgentCapture(ctx context.Context, jobID string, p *agent
 
 func (s *Service) probeAgentPage(ctx context.Context, page *rod.Page) (map[string]any, error) {
 	res, err := page.Context(ctx).Eval(`() => {
-		const out = { title: document.title || '', hud: '', canvasCount: 0, canvas: null, debug: null, debugError: '' };
+		const out = { title: (document.title || '').slice(0, 512), hud: '', canvasCount: 0, canvas: null, debug: null, debugError: '' };
 		const hud = document.getElementById('hud') || document.querySelector('[data-hud="true"], .aurago-player-hud');
 		if (hud) out.hud = String(hud.textContent || '').trim().slice(0, 512);
 		const canvases = document.querySelectorAll('canvas');

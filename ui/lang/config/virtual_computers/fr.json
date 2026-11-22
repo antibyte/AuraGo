@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Durée de vie par défaut de la machine. boringd prend en charge de 15 à 900 secondes.",
   "help.virtual_computers.max_ttl_seconds": "TTL maximal qu'AuraGo demandera ; plafonné à 900 secondes.",
   "help.virtual_computers.max_running_machines": "Limite de politique indiquée à l'interface et aux outils pour les machines simultanées.",
-  "help.virtual_computers.max_forks": "Limite de politique pour les forks de machines.",
+  "help.virtual_computers.max_forks": "Nombre maximal de forks de machines par opération. La valeur 0 applique la limite par défaut de 3.",
   "help.virtual_computers.allow_internet": "Autorise les lancements qui demandent un accès à internet.",
   "help.virtual_computers.allow_persistent": "Autorise les machines persistantes. Laissez désactivé sauf si l'hôte est de confiance.",
   "help.virtual_computers.allow_publish": "Autorise les opérations de publication/enregistrement exposées par boringd.",

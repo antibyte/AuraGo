@@ -5131,7 +5131,7 @@
   "game_maker.details": "Detaljer",
   "game_maker.diagnostics": "Diagnostikk",
   "game_maker.fix_diagnostics": "Send til agenten for å rette",
-  "game_maker.fix_diagnostics_prompt": "Vennligst rett denne feilen i spillet:\n{{errors}}",
+  "game_maker.fix_diagnostics_prompt": "Rett de rapporterte feilene i spillet.",
   "game_maker.dimension": "Spilltype",
   "game_maker.disabled_notice": "Game Maker Studio er deaktivert eller skrivebeskyttet. En administrator kan aktivere det i konfigurasjonen.",
   "game_maker.empty_hint": "Beskriv et spill eller en endring. Agenten velger fremgangsmåte og rammeverk.",

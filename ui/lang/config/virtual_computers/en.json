@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Default machine lifetime. boringd supports 15 to 900 seconds.",
   "help.virtual_computers.max_ttl_seconds": "Maximum TTL AuraGo will request; capped to 900 seconds.",
   "help.virtual_computers.max_running_machines": "Policy limit shown to UI and tools for concurrent machines.",
-  "help.virtual_computers.max_forks": "Policy limit for machine forks.",
+  "help.virtual_computers.max_forks": "Maximum number of machine forks per operation. A value of 0 uses the default limit of 3.",
   "help.virtual_computers.allow_internet": "Allows launches that request internet access.",
   "help.virtual_computers.allow_persistent": "Allows persistent machines. Keep off unless the host is trusted.",
   "help.virtual_computers.allow_publish": "Allows publish/save operations exposed by boringd.",

@@ -5131,7 +5131,7 @@
   "game_maker.details": "Λεπτομέρειες",
   "game_maker.diagnostics": "Διαγνωστικά",
   "game_maker.fix_diagnostics": "Αποστολή στον πράκτορα για διόρθωση",
-  "game_maker.fix_diagnostics_prompt": "Παρακαλώ διόρθωσε αυτό το σφάλμα στο παιχνίδι:\n{{errors}}",
+  "game_maker.fix_diagnostics_prompt": "Διόρθωσε τα αναφερόμενα σφάλματα στο παιχνίδι.",
   "game_maker.dimension": "Τύπος παιχνιδιού",
   "game_maker.disabled_notice": "Το Game Maker Studio είναι απενεργοποιημένο ή μόνο για ανάγνωση. Ένας διαχειριστής μπορεί να το ενεργοποιήσει στη διαμόρφωση.",
   "game_maker.empty_hint": "Περιέγραψε ένα παιχνίδι ή μια αλλαγή. Ο πράκτορας επιλέγει προσέγγιση και πλαίσιο ανάπτυξης.",

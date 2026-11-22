@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -246,6 +247,37 @@ func TestVirtualComputersMachineDeleteRefusesWorkspaceOwned(t *testing.T) {
 	}
 	if rec := machineTestRequest(mux, http.MethodDelete, "/api/virtual-computers/machines/vm-free", ""); rec.Code != http.StatusOK || fake.count("DELETE /v1/machines/vm-free") != 1 {
 		t.Fatalf("free delete status=%d", rec.Code)
+	}
+}
+
+func TestVirtualComputersMachineDeleteFailsClosedWithoutLedger(t *testing.T) {
+	for _, failure := range []string{"missing path", "missing file", "cannot open", "cannot read"} {
+		t.Run(failure, func(t *testing.T) {
+			fake, upstream := newFakeMachinesBoringd(t)
+			s, ledger, mux := newMachineTestServer(t, upstream.URL)
+			switch failure {
+			case "missing path":
+				s.VirtualComputersDB = nil
+				s.Cfg.SQLite.VirtualComputersPath = ""
+			case "missing file":
+				s.VirtualComputersDB = nil
+				s.Cfg.SQLite.VirtualComputersPath = filepath.Join(t.TempDir(), "missing.db")
+			case "cannot open":
+				s.VirtualComputersDB = nil
+				s.Cfg.SQLite.VirtualComputersPath = t.TempDir()
+			case "cannot read":
+				if err := ledger.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			rec := machineTestRequest(mux, http.MethodDelete, "/api/virtual-computers/machines/vm-1", "")
+			if payload := decodeVolumeTestBody(t, rec); rec.Code != http.StatusServiceUnavailable || payload["code"] != "storage_unavailable" {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			if fake.count("DELETE") != 0 {
+				t.Fatal("destroy reached boringd without a verified owner lookup")
+			}
+		})
 	}
 }
 

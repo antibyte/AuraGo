@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "Výchozí životnost stroje. boringd podporuje 15 až 900 sekund.",
   "help.virtual_computers.max_ttl_seconds": "Maximální TTL, které bude AuraGo požadovat; shora omezeno na 900 sekund.",
   "help.virtual_computers.max_running_machines": "Limit daný zásadou pro souběžné stroje, zobrazovaný UI a nástrojům.",
-  "help.virtual_computers.max_forks": "Limit zásady pro forky strojů.",
+  "help.virtual_computers.max_forks": "Nejvyšší počet forků stroje na jednu operaci. Hodnota 0 použije výchozí limit 3.",
   "help.virtual_computers.allow_internet": "Povoluje spuštění, která požadují přístup k internetu.",
   "help.virtual_computers.allow_persistent": "Povoluje perzistentní stroje. Ponechte vypnuté, pokud hostitel není důvěryhodný.",
   "help.virtual_computers.allow_publish": "Povoluje operace publikování/uložení vystavené službou boringd.",

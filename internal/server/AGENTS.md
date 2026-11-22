@@ -379,8 +379,8 @@ Server-owned HTTP and cross-component integration contracts.
   one refresh: it probes the addresses of the visible devices, guests and
   services (ICMP echo, then a TCP connect on 22/80/443) and caches the verdict
   per address for 60 s. It is bounded (64 addresses, 8 workers, 12 s budget),
-  skips the addresses of the AuraGo host itself and never probes a place. A
-  provider that already knows the state of an asset wins over the probe except
+  skips local host, loopback, unspecified, link-local and multicast addresses.
+  Places are never probed. A provider that knows the asset state wins except
   when the asset answers. `Node.Live` projects `live`, `offline`, `unknown` or
   nothing; it is a runtime projection and never stored.
 - `Snapshot` and `Candidates` never expose provider payloads. `source_errors`
@@ -573,7 +573,9 @@ Server-owned HTTP and cross-component integration contracts.
   ordinary budget-aware minimal loop. Failure is a tool error, not a quality gate.
 - Agent image HTTP routes require Desktop read permission and matching project,
   job and capture IDs. Images are bounded, private, no-store and job-lifetime only.
-- Context source/error data is isolated. Conversation checkpoints discard pixels.
+- Context source/error data, including `preview_diagnostics`, is isolated.
+  Learning recall uses the current project scope. Conversation checkpoints
+  discard pixels.
 
 ### Game Maker Voxel persistence
 

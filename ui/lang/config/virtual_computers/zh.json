@@ -60,7 +60,7 @@
   "help.virtual_computers.default_ttl_seconds": "默认机器存活时间。boringd 支持 15 到 900 秒。",
   "help.virtual_computers.max_ttl_seconds": "AuraGo 将请求的最大 TTL；上限为 900 秒。",
   "help.virtual_computers.max_running_machines": "向 UI 和工具展示的并发机器策略上限。",
-  "help.virtual_computers.max_forks": "机器分叉的策略上限。",
+  "help.virtual_computers.max_forks": "每次操作可创建的机器分叉上限。设为 0 时使用默认上限 3。",
   "help.virtual_computers.allow_internet": "允许请求互联网访问的启动。",
   "help.virtual_computers.allow_persistent": "允许持久机器。除非宿主机受信任，否则请保持关闭。",
   "help.virtual_computers.allow_publish": "允许 boringd 所暴露的发布/保存操作。",
