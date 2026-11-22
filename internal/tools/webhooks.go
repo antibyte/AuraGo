@@ -173,7 +173,14 @@ func ManageOutgoingWebhooks(tcOperation, webhookID, name, description, method, u
 		BodyTemplate: bodyTemplate,
 	}
 	if newHook.ID == "" {
-		newHook.ID = fmt.Sprintf("hook_%d", time.Now().UnixNano())
+		newHook.ID = freeNanoID("hook_", time.Now(), func(id string) bool {
+			for _, hook := range cfg.Webhooks.Outgoing {
+				if hook.ID == id {
+					return true
+				}
+			}
+			return false
+		})
 	}
 
 	outgoing := append([]config.OutgoingWebhook{}, cfg.Webhooks.Outgoing...)

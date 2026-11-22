@@ -42,6 +42,7 @@ type CronManager struct {
 	callback           func(prompt string)
 	runners            map[string]func(jobID, prompt string)
 	started            bool
+	now                func() time.Time
 	// runtimeJobs holds the ids of jobs that live in memory only (AddRuntimeJob,
 	// MakeRuntimeOnly); saveLocked leaves them out of the persisted job list.
 	runtimeJobs map[string]bool
@@ -58,6 +59,7 @@ func NewCronManager(dataDir string) *CronManager {
 		registrationErrors: make(map[string]string),
 		runners:            make(map[string]func(jobID, prompt string)),
 		runtimeJobs:        make(map[string]bool),
+		now:                time.Now,
 	}
 }
 
@@ -369,6 +371,23 @@ func (m *CronManager) jobsWithRuntimeStatusLocked() []CronJobRuntimeStatus {
 	return out
 }
 
+// jobIDTakenLocked reports whether a persisted, registered or runtime job uses
+// id. Must be called with m.mu held.
+func (m *CronManager) jobIDTakenLocked(id string) bool {
+	if _, registered := m.cronEntryIDs[id]; registered {
+		return true
+	}
+	if m.runtimeJobs[id] {
+		return true
+	}
+	for _, job := range m.jobs {
+		if job.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func (m *CronManager) removeJobLocked(id string) bool {
 	found := false
 	if entryID, hasEntry := m.cronEntryIDs[id]; hasEntry {
@@ -421,7 +440,7 @@ func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt strin
 
 		jobID := id
 		if jobID == "" {
-			jobID = fmt.Sprintf("%d", time.Now().UnixNano())
+			jobID = freeNanoID("", m.now(), m.jobIDTakenLocked)
 		}
 
 		if !m.canAddJobLocked(jobID) {

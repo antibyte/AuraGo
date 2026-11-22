@@ -305,7 +305,9 @@ func recordHuggingFaceJob(ctx context.Context, dataDir, operation, hardware stri
 	defer store.Close()
 	jobID := hf.ExtractJobID(result)
 	if jobID == "" {
-		jobID = "local-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+		// The ledger upserts by job ID, so a repeated clock reading would
+		// overwrite the previous local record.
+		jobID = "local-" + strconv.FormatInt(processUniqueNano(time.Now()), 10)
 	}
 	rec := hf.JobRecord{
 		HFJobID:      jobID,
