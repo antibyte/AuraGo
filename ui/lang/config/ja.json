@@ -758,7 +758,7 @@
   "config.infra.source_edit": "ソースの編集を許可",
   "config.infra.source_edit_help": "対応するメタデータの変更を許可します。ソースの権限と書き込み保護は引き続き適用されます。",
   "config.infra.control": "デバイスの制御を許可",
-  "config.infra.control_help": "明示的な起動、停止、再起動、Wake-on-LAN を許可します。ソースの権限は引き続き適用されます。",
+  "config.infra.control_help": "明示的な起動、停止、再起動、Wake-on-LAN に加えて、Proxmox ではシャットダウンとリブートを許可します。ソースの権限は引き続き適用されます。",
   "config.decisions.setup_action": "Decisionsをセットアップ",
   "config.decisions.setup_help": "AuraGoが必要なコンポーネントをダウンロードし、Decisionsを自動起動します。モデルには約2 GBの追加空き容量が必要です。",
   "config.decisions.setup_cancel": "キャンセル",

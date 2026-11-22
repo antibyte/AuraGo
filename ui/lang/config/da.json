@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Tillad kildeændringer",
   "config.infra.source_edit_help": "Tillad understøttede ændringer af metadata. Kildernes tilladelser og skrivebeskyttelse gælder stadig.",
   "config.infra.control": "Tillad enhedsstyring",
-  "config.infra.control_help": "Tillad udtrykkelig start, stop, genstart og Wake-on-LAN. Kildernes tilladelser gælder stadig.",
+  "config.infra.control_help": "Tillad eksplicitte start-, stop-, genstart- og Wake-on-LAN-handlinger samt nedlukning og reboot for Proxmox. Kildetilladelser gælder stadig.",
   "config.decisions.setup_action": "Opsæt Decisions",
   "config.decisions.setup_help": "AuraGo henter de nødvendige komponenter og starter Decisions automatisk. Modellen kræver cirka 2 GB ekstra diskplads.",
   "config.decisions.setup_cancel": "Annuller",

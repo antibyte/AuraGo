@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Bronwijzigingen toestaan",
   "config.infra.source_edit_help": "Staat ondersteunde wijzigingen van metadata toe. Bronrechten en schrijfbeveiliging blijven gelden.",
   "config.infra.control": "Apparaatbediening toestaan",
-  "config.infra.control_help": "Staat uitdrukkelijk starten, stoppen, herstarten en Wake-on-LAN toe. Bronrechten blijven gelden.",
+  "config.infra.control_help": "Sta expliciete start-, stop-, herstart- en Wake-on-LAN-acties toe, plus afsluiten en rebooten voor Proxmox. Bronrechten blijven gelden.",
   "config.decisions.setup_action": "Decisions instellen",
   "config.decisions.setup_help": "AuraGo downloadt de benodigde onderdelen en start Decisions automatisch. Het model heeft ongeveer 2 GB extra schijfruimte nodig.",
   "config.decisions.setup_cancel": "Annuleren",

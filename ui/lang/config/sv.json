@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Tillåt källändringar",
   "config.infra.source_edit_help": "Tillåt metadataändringar som stöds. Källornas behörigheter och skrivskydd gäller fortfarande.",
   "config.infra.control": "Tillåt enhetsstyrning",
-  "config.infra.control_help": "Tillåt uttrycklig start, stopp, omstart och Wake-on-LAN. Källornas behörigheter gäller fortfarande.",
+  "config.infra.control_help": "Tillåt explicita start-, stopp-, omstarts- och Wake-on-LAN-åtgärder samt avstängning och reboot för Proxmox. Källbehörigheter gäller fortfarande.",
   "config.decisions.setup_action": "Konfigurera Decisions",
   "config.decisions.setup_help": "AuraGo hämtar nödvändiga komponenter och startar Decisions automatiskt. Modellen behöver ungefär 2 GB extra diskutrymme.",
   "config.decisions.setup_cancel": "Avbryt",

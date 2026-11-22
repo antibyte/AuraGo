@@ -75,7 +75,7 @@ Das Fenster hat oben eine Befehlsleiste, links die **Bibliothek**, in der Mitte 
   - Ansicht umschalten: **Karte**, **Topologie** und **Liste**.
   - Suche: **Suchen oder springen…** (Strg+K). Unter 560 px Breite klappt die Suche zu einem Symbol zusammen, das das
     Feld über der Leiste öffnet.
-  - **Filter** nach Typ, Quelle und Lauf. Aktive Filter erscheinen als Chips, die du entfernen kannst. Passen sie nicht
+  - **Filter** nach Typ, Quelle und Betriebszustand. Aktive Filter erscheinen als Chips, die du entfernen kannst. Passen sie nicht
     mehr alle in die Leiste, zeigt ein **+N**-Chip die restlichen.
   - Der Statuspunkt zeigt **Live**, **Synchronisiere…**, **Nicht aktuell** oder **Pausiert**.
   - **Rückgängig** und **Wiederholen**.
@@ -194,7 +194,7 @@ Die Zuordnung geschieht automatisch. Ziehst du ein Asset in eine andere Spur, bl
 **Liste** zeigt dieselben Assets als sortierbare Tabelle:
 
 - Klicke einen Spaltenkopf an, um nach ihm zu sortieren (**Nach {column} sortieren**). Die Spalten sind **Name**, **Typ**,
-  **Ort**, **Adresse**, **Hardware**, **Quelle**, **Status** und **Lauf**.
+  **Ort**, **Adresse**, **Hardware**, **Quelle**, **Status** und **Betriebszustand**.
 - Hosts klappen ihre Gäste auf (**Gäste von {name} anzeigen**).
 - Markierst du Zeilen, erscheint die Leiste **Aktionen für die Auswahl** mit **An einen Ort verschieben…**,
   **Entfernen und ignorieren**, **Aus Infra entfernen** und **Auswahl aufheben**.
@@ -222,7 +222,7 @@ Die Zuordnung geschieht automatisch. Ziehst du ein Asset in eine andere Spur, bl
 ## Assets bearbeiten und speichern
 
 - Wenn du ein Asset auswählst, öffnet sich sein Detailbereich. Der Kopf zeigt das Symbol (**Symbol ändern**), den Namen
-  (anklicken, um ihn umzubenennen), den Ortspfad, Zustand und Lauf sowie die Hauptaktion: **In {app} öffnen** bei einer
+  (anklicken, um ihn umzubenennen), den Ortspfad, Zustand und Betriebszustand sowie die Hauptaktion: **In {app} öffnen** bei einer
   verknüpften App, sonst **Bearbeiten**.
 - Der Detailbereich hat vier Reiter: **Übersicht**, **Details**, **Quellen** und **Verbindungen**.
 - **Gruppen im Reiter Details:** **Identität**, **Netzwerk**, **Hardware**, **Links und Apps**, **Notizen** und
@@ -334,7 +334,7 @@ Strg ist ⌘ auf dem Mac. Die Liste findest du auch unter **⋯** → **Tastenk�
   Instanz. Zoom, gewählte Ansicht und offene Fenster gehören jedem Fenster.
 - **Positionen werden je Ansicht gespeichert.** Die Topologie wird für alle gleich berechnet. Das Öffnen der Topologie
   speichert nichts.
-- **Der Lauf ist die letzte Beobachtung.** Eine veraltete Quelle hält keinen alten Laufwert fest. Bei FRITZ!Box heißt
+- **Der Betriebszustand ist die letzte Beobachtung.** Eine veraltete Quelle hält keinen alten Betriebszustand fest. Bei FRITZ!Box heißt
   *Läuft*, dass der Host im LAN aktiv war, nicht dass Wake-on-LAN abgeschlossen ist.
 - **Fehlen heißt nicht weg.** Nicht erreichbare oder nur teilweise antwortende Quellen machen Assets *Veraltet*. Nur eine
   vollständige Antwort markiert ein Asset als *Entfernt*.
@@ -370,7 +370,7 @@ aktualisiert etwa alle 30 Sekunden. **Aktualisieren** wartet auf frische Ergebni
 
 **Was das Gerät verlässt.** Infra hat keinen eigenen externen Dienst. Der einzige Datenverkehr sind die Aufrufe, die die
 Integrationen Docker, Proxmox und FRITZ!Box ohnehin an die von dir konfigurierten Endpunkte machen. Infra speichert eine
-verkürzte Kopie: Namen, Typen, Zustand, Adressen, Hardware-Werte, Laufzustand, Tags, Container-Image-Namen, Proxmox-VM-IDs
+verkürzte Kopie: Namen, Typen, Zustand, Adressen, Hardware-Werte, Betriebszustand, Tags, Container-Image-Namen, Proxmox-VM-IDs
 und Proxmox-Hosts. Zugangsdaten, rohe Antworten der Anbieter und Docker-Umgebungsvariablen fehlen. Links müssen HTTP- oder
 HTTPS-Adressen ohne Benutzername und Passwort sein.
 
@@ -385,7 +385,8 @@ die Karte nicht lesen oder ändern. Seine Docker- und Proxmox-Werkzeuge behalten
 
 | Meldung | Was hilft |
 |---|---|
-| „Infra ist deaktiviert oder nicht verfügbar. Eine Administration kann es in den Desktop-Einstellungen aktivieren.“ | Infra öffnen können nur Administratoren. Ein Admin schaltet **Virtuellen Desktop aktivieren** und **Infra aktivieren** unter **Config → Virtueller Desktop** ein. Die Meldung spricht von „Desktop-Einstellungen“, die Schalter stehen aber dort. |
+| „Infra ist deaktiviert oder nicht verfügbar. Ein Administrator kann es unter Konfiguration → Virtueller Desktop → Infra aktivieren.“ | Infra ist ausgeschaltet. Ein Admin schaltet **Virtuellen Desktop aktivieren** und **Infra aktivieren** unter **Config → Virtueller Desktop** ein. |
+| „Infra steht nur Administratoren zur Verfügung.“ | Deine Browser-Sitzung ist abgelaufen, oder das verwendete API-Token hat nicht den Scope `desktop:admin`. Melde dich neu an oder nutze ein Token mit diesem Scope. |
 | „Infra ist schreibgeschützt.“ | Ein Admin schaltet **Schreibgeschützt** unter **Config → Virtueller Desktop** aus und prüft, dass **Schreibgeschützter Modus** ebenfalls aus ist. |
 | „Der Infra-Speicher ist nicht verfügbar.“ | Die Inventar-Datenbank lässt sich nicht nutzen. Ein Admin prüft `sqlite.inventory_path` und das AuraGo-Protokoll. |
 | „Dieses Asset wurde anderswo geändert. Dein Entwurf ist noch da; aktualisiere, um die neueste Version zu prüfen.“ | **Aktualisieren** klicken, unter **Aktuelle Asset-Werte prüfen** vergleichen, dann **Entwurf behalten und erneut anwenden** wählen. |

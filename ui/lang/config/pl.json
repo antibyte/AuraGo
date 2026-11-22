@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Zezwalaj na edycję źródeł",
   "config.infra.source_edit_help": "Zezwala na obsługiwane zmiany metadanych. Uprawnienia i ochrona przed zapisem źródeł nadal obowiązują.",
   "config.infra.control": "Zezwalaj na sterowanie urządzeniami",
-  "config.infra.control_help": "Zezwala na jawne uruchamianie, zatrzymywanie, ponowne uruchamianie i Wake-on-LAN. Uprawnienia źródeł nadal obowiązują.",
+  "config.infra.control_help": "Zezwala na jawne akcje uruchamiania, zatrzymywania, restartu i Wake-on-LAN oraz na wyłączanie i reboot dla Proxmoxa. Uprawnienia źródeł nadal obowiązują.",
   "config.decisions.setup_action": "Skonfiguruj Decisions",
   "config.decisions.setup_help": "AuraGo pobierze potrzebne składniki i automatycznie uruchomi Decisions. Model potrzebuje około 2 GB dodatkowego miejsca.",
   "config.decisions.setup_cancel": "Anuluj",

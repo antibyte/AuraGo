@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Permitir editar fuentes",
   "config.infra.source_edit_help": "Permite cambios de metadatos compatibles. Se mantienen los permisos y la protección de escritura de cada fuente.",
   "config.infra.control": "Permitir controlar dispositivos",
-  "config.infra.control_help": "Permite iniciar, detener, reiniciar y enviar Wake-on-LAN de forma explícita. Se mantienen los permisos de cada fuente.",
+  "config.infra.control_help": "Permite acciones explícitas de inicio, parada, reinicio y Wake-on-LAN, además de apagado y reboot para Proxmox. Los permisos de las fuentes siguen aplicándose.",
   "config.decisions.setup_action": "Configurar Decisions",
   "config.decisions.setup_help": "AuraGo descarga los componentes necesarios e inicia Decisions automáticamente. El modelo necesita unos 2 GB de espacio adicional.",
   "config.decisions.setup_cancel": "Cancelar",

@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Quellenänderungen erlauben",
   "config.infra.source_edit_help": "Erlaubt unterstützte Stammdatenänderungen. Quellenberechtigungen und Schreibschutz gelten weiterhin.",
   "config.infra.control": "Gerätesteuerung erlauben",
-  "config.infra.control_help": "Erlaubt ausdrückliches Starten, Stoppen, Neustarten und Wake-on-LAN. Quellenberechtigungen gelten weiterhin.",
+  "config.infra.control_help": "Erlaubt ausdrückliches Starten, Stoppen, Neustarten und Wake-on-LAN, bei Proxmox auch Herunterfahren und Reboot. Quellenberechtigungen gelten weiterhin.",
   "config.decisions.setup_action": "Entscheidungen einrichten",
   "config.decisions.setup_help": "AuraGo lädt die benötigten Komponenten herunter und startet Entscheidungen automatisch. Das Modell benötigt etwa 2 GB zusätzlichen Speicherplatz.",
   "config.decisions.setup_cancel": "Abbrechen",

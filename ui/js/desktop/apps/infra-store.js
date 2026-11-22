@@ -90,7 +90,7 @@
             histories[view] = model.createHistory(50);
         }
         const state = {
-            disposed: false, epoch: 1, visible: false, inView: true, pollPaused: false, timer: 0, writeSeq: 0, repollTimer: 0, repollExplicit: false,
+            disposed: false, epoch: 1, visible: false, inView: true, pollPaused: false, accessKey: '', timer: 0, writeSeq: 0, repollTimer: 0, repollExplicit: false,
             requests: new Set(), controller: new AbortController(), manifestController: null, manifestLoaded: false, manifestLoading: false,
             caps: { write: false, source_edit: false, control: false },
             nodes: [], edges: [], sources: [], sourceHosts: [], candidates: [],
@@ -183,6 +183,8 @@
             const code = String(error?.body?.error || '').toLowerCase();
             return [401, 403].includes(Number(error?.status)) || ['disabled', 'desktop_disabled', 'infra_disabled', 'forbidden', 'unauthorized'].includes(code);
         };
+        // A switched-off Infra answers 503 desktop_disabled / infra_disabled; any other access error is a missing admin session or token scope.
+        const isAdminRequired = error => isAccessError(error) && !['disabled', 'desktop_disabled', 'infra_disabled'].includes(String(error?.body?.error || '').toLowerCase());
 
         // ---- derived indexes (keyed by array identity; every change replaces the array)
         const nodeIndexCache = new WeakMap(), childrenCache = new WeakMap(), guestCache = new WeakMap();
@@ -280,7 +282,7 @@
             setBusy('snapshot', true);
             try {
                 const data = await request(`/snapshot?${explicit ? 'refresh=1&' : ''}include_ignored=1`, {}, generation);
-                state.pollPaused = false;
+                state.pollPaused = false; state.accessKey = '';
                 // A write was applied while this answer was on its way. The answer may predate it,
                 // and applying it would roll back the committed versions and positions.
                 if (writes !== state.writeSeq) { scheduleRepoll(explicit); return; }
@@ -292,7 +294,8 @@
                     if (isAccessError(error)) {
                         state.caps = { write: false, source_edit: false, control: false };
                         state.pollPaused = true; abortRequests(); emit({ type: 'caps' });
-                        notify(t('desktop.infra_access_unavailable'), 'error'); setSync('paused');
+                        state.accessKey = isAdminRequired(error) ? 'desktop.infra_access_admin_required' : 'desktop.infra_access_unavailable';
+                        notify(t(state.accessKey), 'error'); setSync('paused');
                     } else {
                         // One notice when the outage starts (recovery announces itself); a refresh the user asked for always answers.
                         const entering = state.sync !== 'error';

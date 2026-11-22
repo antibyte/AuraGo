@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Povolit změny zdrojů",
   "config.infra.source_edit_help": "Povolí podporované změny metadat. Oprávnění zdrojů a režim pouze pro čtení nadále platí.",
   "config.infra.control": "Povolit ovládání zařízení",
-  "config.infra.control_help": "Povolí výslovné spuštění, zastavení, restart a Wake-on-LAN. Oprávnění zdrojů nadále platí.",
+  "config.infra.control_help": "Povolí výslovné akce spuštění, zastavení, restartu a Wake-on-LAN, u Proxmoxu také vypnutí a reboot. Oprávnění zdrojů platí i nadále.",
   "config.decisions.setup_action": "Nastavit Decisions",
   "config.decisions.setup_help": "AuraGo stáhne potřebné součásti a automaticky spustí Decisions. Model potřebuje přibližně 2 GB volného místa navíc.",
   "config.decisions.setup_cancel": "Zrušit",

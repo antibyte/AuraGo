@@ -758,7 +758,7 @@
   "config.infra.source_edit": "允许编辑来源",
   "config.infra.source_edit_help": "允许受支持的元数据更改。来源权限和写入保护仍然生效。",
   "config.infra.control": "允许控制设备",
-  "config.infra.control_help": "允许明确执行启动、停止、重启和网络唤醒。来源权限仍然生效。",
+  "config.infra.control_help": "允许显式的启动、停止、重启和 Wake-on-LAN 操作，以及针对 Proxmox 的关机和重新引导。来源权限仍然适用。",
   "config.decisions.setup_action": "设置 Decisions",
   "config.decisions.setup_help": "AuraGo 会下载所需组件并自动启动 Decisions。模型大约需要额外 2 GB 磁盘空间。",
   "config.decisions.setup_cancel": "取消",

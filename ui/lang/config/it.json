@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Consenti modifiche alle fonti",
   "config.infra.source_edit_help": "Consente le modifiche dei metadati supportate. Restano validi i permessi e la protezione da scrittura delle fonti.",
   "config.infra.control": "Consenti controllo dei dispositivi",
-  "config.infra.control_help": "Consente avvio, arresto, riavvio e Wake-on-LAN espliciti. Restano validi i permessi delle fonti.",
+  "config.infra.control_help": "Consente azioni esplicite di avvio, arresto, riavvio e Wake-on-LAN, oltre a spegnimento e reboot per Proxmox. I permessi delle sorgenti restano validi.",
   "config.decisions.setup_action": "Configura Decisions",
   "config.decisions.setup_help": "AuraGo scarica i componenti necessari e avvia Decisions automaticamente. Il modello richiede circa 2 GB di spazio aggiuntivo.",
   "config.decisions.setup_cancel": "Annulla",

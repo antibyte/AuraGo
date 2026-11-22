@@ -758,7 +758,7 @@
   "config.infra.source_edit": "स्रोत संपादन की अनुमति दें",
   "config.infra.source_edit_help": "समर्थित मेटाडेटा बदलाव की अनुमति देता है। स्रोत की अनुमतियाँ और लेखन सुरक्षा लागू रहती हैं।",
   "config.infra.control": "डिवाइस नियंत्रण की अनुमति दें",
-  "config.infra.control_help": "स्पष्ट रूप से चालू करने, रोकने, पुनः आरंभ करने और Wake-on-LAN की अनुमति देता है। स्रोत की अनुमतियाँ लागू रहती हैं।",
+  "config.infra.control_help": "स्पष्ट स्टार्ट, स्टॉप, रीस्टार्ट और Wake-on-LAN क्रियाओं के साथ Proxmox के लिए शटडाउन और रीबूट की अनुमति देता है। स्रोत की अनुमतियाँ फिर भी लागू रहती हैं।",
   "config.decisions.setup_action": "Decisions सेट अप करें",
   "config.decisions.setup_help": "AuraGo ज़रूरी घटक डाउनलोड करके Decisions को अपने आप शुरू करता है। मॉडल के लिए लगभग 2 GB अतिरिक्त जगह चाहिए।",
   "config.decisions.setup_cancel": "रद्द करें",

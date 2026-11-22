@@ -367,7 +367,8 @@ map; its Docker and Proxmox tools keep their own settings ([Chapter 8](./08-inte
 
 | Message | What helps |
 |---|---|
-| "Infra is disabled or unavailable. An administrator can enable it in Desktop settings." | Only administrators can open Infra. An administrator turns on **Enable Virtual Desktop** and **Enable Infra** under **Config → Virtual Desktop**. The message says "Desktop settings", but the switches are there. |
+| "Infra is disabled or unavailable. An administrator can enable it under Configuration → Virtual Desktop → Infra." | Infra is switched off. An administrator turns on **Enable Virtual Desktop** and **Enable Infra** under **Config → Virtual Desktop**. |
+| "Infra is available to administrators only." | Your browser session has expired, or the API token in use lacks the `desktop:admin` scope. Sign in again, or use a token with that scope. |
 | "Infra is read-only." | An administrator clears **Read-only** under **Config → Virtual Desktop** and checks that **Read-only mode** is off. |
 | "Infra storage is unavailable." | The inventory database cannot be used. An administrator checks `sqlite.inventory_path` and the AuraGo log. |
 | "This asset changed elsewhere. Your draft is still here; refresh to review the latest version." | Click **Refresh**, compare under **Review current asset values**, then choose **Keep and reapply my draft**. |

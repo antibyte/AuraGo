@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Allow source edits",
   "config.infra.source_edit_help": "Allow supported metadata changes. Source permissions and read-only settings still apply.",
   "config.infra.control": "Allow device control",
-  "config.infra.control_help": "Allow explicit start, stop, restart and Wake-on-LAN actions. Source permissions still apply.",
+  "config.infra.control_help": "Allow explicit start, stop, restart and Wake-on-LAN actions, plus shutdown and reboot for Proxmox. Source permissions still apply.",
   "config.decisions.setup_action": "Set up Decisions",
   "config.decisions.setup_help": "AuraGo downloads the required components and starts Decisions automatically. The model needs about 2 GB of additional disk space.",
   "config.decisions.setup_cancel": "Cancel",

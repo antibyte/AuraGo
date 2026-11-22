@@ -758,7 +758,7 @@
   "config.infra.source_edit": "Autoriser la modification des sources",
   "config.infra.source_edit_help": "Autorise les modifications de métadonnées prises en charge. Les droits et la protection en écriture des sources restent applicables.",
   "config.infra.control": "Autoriser le contrôle des appareils",
-  "config.infra.control_help": "Autorise explicitement le démarrage, l’arrêt, le redémarrage et Wake-on-LAN. Les droits des sources restent applicables.",
+  "config.infra.control_help": "Autorise les actions explicites de démarrage, d’arrêt, de redémarrage et de Wake-on-LAN, ainsi que l’extinction et le reboot pour Proxmox. Les permissions des sources restent applicables.",
   "config.decisions.setup_action": "Configurer Decisions",
   "config.decisions.setup_help": "AuraGo télécharge les composants nécessaires et démarre Decisions automatiquement. Le modèle nécessite environ 2 Go supplémentaires.",
   "config.decisions.setup_cancel": "Annuler",

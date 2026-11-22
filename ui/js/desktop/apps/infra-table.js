@@ -120,7 +120,7 @@
             if (emptyEl.hidden) return;
             const waiting = !loaded && (loading || state.sync === 'syncing');
             el.querySelector('[data-table-message]').textContent = !loaded
-                ? t(waiting ? 'desktop.infra_sync_syncing' : state.sync === 'paused' ? 'desktop.infra_access_unavailable' : 'desktop.infra_sync_error')
+                ? t(waiting ? 'desktop.infra_sync_syncing' : state.sync === 'paused' ? (state.accessKey || 'desktop.infra_access_unavailable') : 'desktop.infra_sync_error')
                 : t(query || filters ? 'desktop.infra_no_match' : 'desktop.infra_list_none');
             resetButton.hidden = !loaded || !(query || filters);
             resetButton.dataset.action = query ? (filters ? 'clear-search-filters' : 'clear-search') : 'reset-filters';
