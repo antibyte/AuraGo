@@ -157,3 +157,53 @@ func verifyWriterTableDialog(t *testing.T, page *rod.Page) {
         } finally { AuraFormDialog.open=open; }
     }`)
 }
+
+// verifyWriterUndoStart checks that the document a user sees after New, after a template and
+// after an import is the start of the undo history: Undo is unavailable until the user edits,
+// and no Undo can change the paper size or remove template content.
+func verifyWriterUndoStart(t *testing.T, page *rod.Page) {
+	t.Helper()
+	page.MustEval(`async()=>{
+        const wait=ms=>new Promise(r=>setTimeout(r,ms));
+        const check=(label,editor)=>{
+            const s=editor.snapshot();
+            if(s.canUndo!==false || s.pageSetup.pageWidthTwips!==11906 || s.pageSetup.pageHeightTwips!==16838)
+                throw Error(label+': undo history or paper size is wrong: '+JSON.stringify({canUndo:s.canUndo,pageSetup:s.pageSetup}));
+        };
+        const app=WriterApp.instances.get('test');
+        await app.act('blank');await wait(200);
+        let editor=WriterApp.instances.get('test').editor;
+        check('blank',editor);
+        if(app.session.dirty!==true)throw Error('blank: a new document must stay marked unsaved');
+        const undo=document.querySelector('[data-tool="undo"]');
+        if(!undo || undo.disabled!==true)throw Error('blank: the undo control must be disabled: '+(undo?undo.outerHTML.slice(0,200):'missing'));
+        await app.act('report');await wait(200);
+        editor=WriterApp.instances.get('test').editor;
+        check('report',editor);
+        const text=editor.surface.session.bodyText(),paragraphs=JSON.stringify(editor.query({type:'paragraphs'}));
+        if(!text.includes('Report') || !text.includes('Summary'))throw Error('report: template text is missing: '+JSON.stringify(text.slice(0,200)));
+        const style=editor.query({type:'paragraphs'})[0].styleId;
+        if(style!=='Heading1')throw Error('report: first paragraph lost its heading style: '+JSON.stringify(style));
+        const pasted=editor.exec({type:'paste',text:'Draft '});
+        if(!pasted.ok)throw Error('paste failed: '+JSON.stringify(pasted));
+        if(editor.snapshot().canUndo!==true || editor.surface.session.bodyText()===text)
+            throw Error('a user edit must be undoable: '+JSON.stringify({canUndo:editor.snapshot().canUndo}));
+        editor.exec({type:'undo'});
+        if(editor.surface.session.bodyText()!==text || JSON.stringify(editor.query({type:'paragraphs'}))!==paragraphs)
+            throw Error('undo did not restore the template exactly: '+JSON.stringify(editor.surface.session.bodyText().slice(0,200)));
+        check('after undo',editor);
+        const host=document.createElement('div');host.id='undo-import-host';host.style.cssText='position:absolute;left:20px;top:20px;width:800px;height:600px';
+        document.body.appendChild(host);
+        WriterApp.render(host,'undo-import',{...writerContext,path:'Documents/import.md'});
+    }`)
+	page.Timeout(20 * time.Second).MustWait(`()=>!!WriterApp.instances.get('undo-import')?.editor && document.querySelector('#undo-import-host [data-loading]').hidden`)
+	page.MustEval(`()=>{
+        const editor=WriterApp.instances.get('undo-import').editor,s=editor.snapshot();
+        if(s.canUndo!==false || s.pageSetup.pageWidthTwips!==11906 || s.pageSetup.pageHeightTwips!==16838)
+            throw Error('import: undo history or paper size is wrong: '+JSON.stringify({canUndo:s.canUndo,pageSetup:s.pageSetup}));
+        const text=editor.surface.session.bodyText();
+        if(!text.includes('Imported heading') || !(editor.getOutline().length>0))
+            throw Error('import: content or outline is missing: '+JSON.stringify({text:text.slice(0,200),outline:editor.getOutline().length}));
+        WriterApp.dispose('undo-import');document.getElementById('undo-import-host').remove();
+    }`)
+}

@@ -99,6 +99,7 @@ func TestDesktopWriterAppBrowser(t *testing.T) {
 	page.MustWaitLoad()
 	page.Timeout(90 * time.Second).MustWait(`()=>WriterApp.instances.get('test')?.editor && !document.querySelector('[data-loading]').offsetHeight`)
 	verifyWriterDocumentStart(t, page, "test")
+	verifyWriterUndoStart(t, page)
 	page.MustEval(`async()=>await WriterApp.instances.get('test').act('report')`)
 	verifyWriterDocumentStart(t, page, "test")
 	page.MustEval(`async()=>await WriterApp.instances.get('test').act('blank')`)

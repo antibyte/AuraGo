@@ -232,6 +232,15 @@
                     if(!ctx.readonly) {
                         run({type:'setPageSetup',pageWidth:11906,pageHeight:16838,marginTop:1417,marginBottom:1417,marginLeft:1417,marginRight:1417});
                         if(imported){const html=sanitize(imported.html || '');run({type:'paste',text:imported.text || '',html});restoreHTMLHeadings(editor,html);}
+                        // The prepared document is where the undo history starts: loading its own bytes
+                        // empties the history, so Undo cannot take the paper size or the template away.
+                        loading=true;
+                        const prepared=await editor.save();
+                        if(disposed || token!==generation || editor!==mounted)return;
+                        editor.load(prepared);
+                        if(editor.snapshot().isOpening)await editor.save();
+                        if(disposed || token!==generation || editor!==mounted)return;
+                        loading=false;
                     }
                     if(imported)notice(tr('import_copy'));
                 }

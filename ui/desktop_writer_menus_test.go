@@ -16,11 +16,8 @@ const writerWave1Prelude = `
         const body=()=>editor.surface.session.bodyText();
         const failed=()=>{const n=document.querySelector('[data-notice]');return !n.hidden&&n.dataset.error==='true'?document.querySelector('[data-notice-text]').textContent:'';};
         const paper=JSON.stringify(editor.snapshot().pageSetup);
-        // Undo everything, then redo what the load itself did, until the page setup is the original again.
-        const rewind=()=>{
-            for(let i=0;i<80&&editor.snapshot().canUndo;i++)editor.exec({type:'undo'});
-            for(let i=0;i<20&&JSON.stringify(editor.snapshot().pageSetup)!==paper&&editor.snapshot().canRedo;i++)editor.exec({type:'redo'});
-        };
+        // The loaded document is the start of the undo history, so undoing everything returns to it.
+        const rewind=()=>{for(let i=0;i<80&&editor.snapshot().canUndo;i++)editor.exec({type:'undo'});};
 `
 
 // verifyWriterDialogs drives the Wave 1a dialogs on the blank document and leaves it blank.
