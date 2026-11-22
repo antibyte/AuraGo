@@ -207,3 +207,65 @@ check('host frameStats: uniform means every channel of every pixel is within 1 %
     for (let i = 0; i < split.length / 8; i++) split.set([255, 255, 255, 255], i * 4);
     assert.equal(H.frameStats(split, null).uniform, false);
 });
+
+// ---- Task C6: the probe loop renders every frame at 64 px width in film order, until the deadline.
+// A fake engine: frame n is the colour colours[n] as a 64 x 36 bitmap; the fake canvas reads that bitmap back.
+function probeRig(colours, over = {}) {
+    const closed = [], widths = [];
+    const engine = {
+        render: async (n, opts) => {
+            widths.push(opts.width);
+            if (over.failAt === n) throw new Error('frame ' + n + ' failed');
+            const [r, g, b] = colours[n];
+            return { pixels: frame(r, g, b), close: () => closed.push(n) };
+        }
+    };
+    const makeCanvas = (w, h) => {
+        let last = null;
+        return { width: w, height: h, getContext: () => ({ clearRect() {}, drawImage: bmp => { last = bmp; }, getImageData: () => ({ data: last.pixels }) }) };
+    };
+    let clock = 0;
+    const now = () => { const v = clock; clock += over.step || 0; return v; };
+    const schedule = {
+        fps: 30, frame_count: colours.length,
+        scenes: [
+            { id: 'a', kind: 'storyboard', start_frame: 0, end_frame: 3, tf: 0, transition: 'cut' },
+            { id: 'b', kind: 'code', start_frame: 3, end_frame: colours.length, tf: 1, transition: 'fade' }
+        ]
+    };
+    return { closed, widths, opts: { engine, schedule, width: 1920, height: 1080, makeCanvas, now, deadlineMs: over.deadlineMs || 20000 } };
+}
+const SIX = [[0, 0, 0], [0, 0, 0], [255, 255, 255], [90, 90, 90], [90, 90, 90], [255, 0, 0]];
+
+check('host runProbe: every frame at 64 px width in film order, y and d per frame, uniform at the settled frame of a code scene', async () => {
+    const rig = probeRig(SIX);
+    const probe = plain(await H.runProbe(rig.opts));
+    assert.equal(probe.fps, 30);
+    assert.equal(probe.frame_count, 6);
+    assert.deepEqual(rig.widths, [64, 64, 64, 64, 64, 64]);
+    assert.deepEqual(rig.closed, [0, 1, 2, 3, 4, 5]);
+    assert.equal(probe.y.length, 6);
+    assert.equal(probe.d.length, 6);
+    near(probe.y[0], 0, 1e-12); near(probe.y[2], 1, 1e-9); near(probe.y[5], 0.2126, 1e-9);
+    assert.equal(probe.d[0], 0);
+    near(probe.d[2], 1, 1e-12);
+    assert.equal(probe.d[4], 0);
+    // scene b (index 1) starts at frame 3 and its fade lasts 1 frame, so frame 4 is the first one after it: flat grey
+    assert.deepEqual(probe.uniform, { 1: true });
+});
+
+check('host runProbe: it stops at the deadline and reports only the frames it reached', async () => {
+    const rig = probeRig(SIX, { step: 100, deadlineMs: 250 });
+    const probe = plain(await H.runProbe(rig.opts));
+    assert.equal(probe.y.length, 2);
+    assert.equal(probe.d.length, 2);
+    assert.equal(probe.frame_count, 6);
+    assert.deepEqual(probe.uniform, {});
+});
+
+check('host runProbe: a frame that fails ends the probe there instead of failing the check', async () => {
+    const rig = probeRig(SIX, { failAt: 4 });
+    const probe = plain(await H.runProbe(rig.opts));
+    assert.equal(probe.y.length, 4);
+    assert.deepEqual(probe.uniform, {});
+});

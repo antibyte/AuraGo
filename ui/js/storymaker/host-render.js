@@ -26,6 +26,7 @@
         var cs = li / 255;
         LINEAR[li] = cs <= 0.04045 ? cs / 12.92 : Math.pow((cs + 0.055) / 1.055, 2.4);
     }
+    var PROBE_WIDTH = 64, PROBE_DEADLINE_MS = 20000;
     var UNIFORM_SPREAD = 0.01 * 255;   // every channel within 1 % of full scale of the frame mean
 
     // frameStats(px, prev) = {y, d, uniform} of one probed frame: px and prev are RGBA bytes of the same size (prev may be
@@ -43,6 +44,34 @@
             if (Math.abs(px[i] - mr) > UNIFORM_SPREAD || Math.abs(px[i + 1] - mg) > UNIFORM_SPREAD || Math.abs(px[i + 2] - mb) > UNIFORM_SPREAD) uniform = false;
         }
         return { y: n ? lum / n : 0, d: prev && n ? diff / (n * 3 * 255) : 0, uniform: uniform };
+    }
+
+    // runProbe(o) = the frame probe of the compile check: o = {engine, schedule, width, height, makeCanvas(w, h), now(), deadlineMs}.
+    // Every frame of the film is rendered in order at PROBE_WIDTH and reduced to y and d (frameStats), until the deadline or
+    // the first frame that fails; the frames it did not reach are simply missing from y and d, and checks.js reports that.
+    // uniform[i] holds the flat-frame test of the first frame after the entry transition of code scene i, when it was reached.
+    async function runProbe(o) {
+        var sched = o.schedule, total = sched.frame_count, pw = PROBE_WIDTH, ph = Math.max(1, Math.round(pw * o.height / o.width));
+        var canvas = o.makeCanvas(pw, ph), cx = canvas.getContext('2d', { willReadFrequently: true });
+        var settled = {}, y = [], d = [], uniform = {}, prev = null, started = o.now();
+        (sched.scenes || []).forEach(function (sc, i) {
+            if (sc.kind === 'code') settled[root.StorymakerCore.schedule.settledFrame(sched, i)] = i;
+        });
+        for (var n = 0; n < total; n++) {
+            if (o.now() - started >= o.deadlineMs) break;
+            try {
+                var bmp = await o.engine.render(n, { width: pw });
+                cx.clearRect(0, 0, pw, ph);
+                cx.drawImage(bmp, 0, 0, pw, ph);
+                if (typeof bmp.close === 'function') bmp.close();
+            } catch (e) { break; }
+            var px = cx.getImageData(0, 0, pw, ph).data, st = frameStats(px, prev);
+            y.push(st.y);
+            d.push(st.d);
+            if (settled[n] !== undefined) uniform[settled[n]] = st.uniform;
+            prev = px;
+        }
+        return { fps: sched.fps, frame_count: total, y: y, d: d, uniform: uniform };
     }
 
     // mountRender(opts): opts = {canvas, base, fetch?, window?, env?}. Resolves when the job is over (done, stopped,
@@ -305,4 +334,5 @@
 
     H.mountRender = mountRender;
     H.frameStats = frameStats;
+    H.runProbe = runProbe;
 })(typeof globalThis !== 'undefined' ? globalThis : self);
