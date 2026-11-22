@@ -21,6 +21,7 @@ import (
 	"aurago/internal/httporigin"
 	"aurago/internal/phonon"
 	"aurago/internal/sanotts"
+	"aurago/internal/security"
 	"aurago/internal/speechlab"
 )
 
@@ -113,6 +114,10 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	if err := ttsRequestContext(cfg).Err(); err != nil {
 		return "", err
 	}
+	// The text becomes audio that leaves AuraGo (a cloud provider, a voice note,
+	// a speaker, a phone call), so a registered secret must not be spoken. Scrub
+	// here, not per caller, and before the cache key so a secret never names a file.
+	text = security.Scrub(text)
 	if text == "" {
 		return "", fmt.Errorf("text is required")
 	}

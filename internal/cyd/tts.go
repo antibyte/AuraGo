@@ -20,6 +20,7 @@ import (
 
 	"aurago/internal/i18n"
 	"aurago/internal/sanotts"
+	"aurago/internal/security"
 )
 
 // SpeechSynth renders the active AuraGo voice. The bytes are a WAV or MP3;
@@ -143,6 +144,10 @@ func (s *Speaker) warnUnavailable() {
 }
 
 func (s *Speaker) render(id, text string) {
+	// The text becomes audio that leaves AuraGo through the glass speaker. The
+	// injected synth ends in the scrubbed tools.TTSSynthesize; the local sanoTTS
+	// fallback does not, so scrub here to cover both.
+	text = security.Scrub(text)
 	s.mu.Lock()
 	synth := s.synth
 	bin, voice, cacheDir := s.bin, s.voice, s.cacheDir

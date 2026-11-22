@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"aurago/internal/phonon"
+	"aurago/internal/security"
 )
 
 // TTSSynthesizeInMemory uses the configured TTS provider without creating a
@@ -18,6 +19,10 @@ func TTSSynthesizeInMemory(cfg TTSConfig, text string) ([]byte, string, error) {
 // TTSSynthesizeInMemoryContext is the cancellable variant used by live voice
 // sessions so barge-in terminates in-flight provider work.
 func TTSSynthesizeInMemoryContext(ctx context.Context, cfg TTSConfig, text string) ([]byte, string, error) {
+	// The text becomes audio that leaves AuraGo (a cloud provider, a voice note,
+	// a speaker, a phone call), so a registered secret must not be spoken. Scrub
+	// here, not per caller.
+	text = security.Scrub(text)
 	if text == "" {
 		return nil, "", fmt.Errorf("text is required")
 	}

@@ -25,6 +25,7 @@ providers and fallback remain owned by `internal/tools` and `internal/phonon`.
   4 seconds.
 - Reuse the configured synthesis hook, cancellation, serialization, bounded
   audio and existing PCM decoding. Do not provision another TTS runtime here.
+- `Speaker.render` runs `security.Scrub` on the text first, so the injected synth and the local sanoTTS fallback never speak a registered secret. Verify `TestSpeakerRenderScrubsRegisteredSecrets`.
 
 ## Work Guidance
 
