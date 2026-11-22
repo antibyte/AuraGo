@@ -138,6 +138,9 @@ Match each node's `pointAction` from the catalog to the live pricing response.
 Check `availableToTier`, `blockedReason`, counts and the total intended work.
 Do not hardcode prices or infer capabilities from a tier's display name.
 The user's task must authorize the billable generation being started.
+`availableToTier` is not a remaining-points balance. If the task requires a
+balance check, use a current account source that actually returns remaining
+points; do not claim it was verified from a pricing-only response.
 
 Start only the intended action with `run_flow`:
 
@@ -256,6 +259,39 @@ checks and visually inspect the delivered model. Commit only intended paths.
 Report local preparation, commit, push, packaging and deployment separately.
 Version-bound web resources and their matching binary must be activated
 together; changing a source file alone does not update `aurago-test`.
+
+## Troubleshooting OAuth response-decoding errors
+
+An error such as `failed to resolve OAuth metadata before using stored
+credentials` followed by `error decoding response body` happens before tool
+discovery. It does not establish that the stored token or account is invalid.
+Do not upload images, start jobs, discard credentials or repeat authorization
+while the metadata transport is still broken.
+
+For this endpoint, compare both protected-resource metadata routes:
+
+- `https://3d.varco.ai/.well-known/oauth-protected-resource/api/mcp`
+- `https://3d.varco.ai/.well-known/oauth-protected-resource`
+
+Check HTTP status, content type, transfer encoding and whether an ordinary
+strict HTTP client can read and parse the entire response. HTTP 200 alone is
+insufficient. A response labelled `Transfer-Encoding: chunked` whose body starts
+directly with JSON instead of a chunk length is malformed at the receiving end.
+On Windows, inspect the TLS certificate issuer for local HTTPS inspection.
+AVG/Avast Web Shield is a documented source of this exact failure pattern;
+an observed inspection certificate is evidence of interception, not by itself
+a completed A/B confirmation of the cause.
+
+If local inspection is implicated, have the owner decide whether to test a
+website exception limited to `3d.varco.ai`. AVG's website exception excludes the
+domain from its scans/shields; it is broader than fixing a JSON parser. Never
+disable protection globally or add an exception without the owner's approval.
+Repeat the same HTTP and Codex MCP discovery tests after the approved change.
+Only call the connection repaired after catalog and read-only account/flow
+calls succeed. Keep model-generation jobs out of this diagnostic test.
+
+References: [reported Codex/Avast decoding failure](https://github.com/openai/codex/issues/48504)
+and [AVG website exceptions](https://support.avg.com/SupportArticleView?l=en&urlname=avg-antivirus-scan-exclusions).
 
 ## Resume note for the next agent
 
