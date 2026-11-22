@@ -285,11 +285,18 @@ func (s *Server) createMailerAccount(ctx context.Context, b mailerCreateAccountR
 		if b.ReceiveProtocol == "pop3" && (!validMailerHost(b.POP3Host) || b.POP3Port < 1 || b.POP3Port > 65535) {
 			return mailer.ErrInvalid
 		}
+		b.SMTPAuthMethod = normalizeEmailSMTPAuthMethod(strings.ToLower(strings.TrimSpace(b.SMTPAuthMethod)))
 		if b.SMTPAuthMethod == "" {
 			b.SMTPAuthMethod = "plain"
 		}
-		if b.SMTPAuthMethod != "plain" && b.SMTPAuthMethod != "login" && !(oauth && b.SMTPAuthMethod == "xoauth2") {
-			return mailer.ErrInvalid
+		switch b.SMTPAuthMethod {
+		case "plain", "login":
+		case "xoauth2":
+			if !oauth {
+				return fmt.Errorf("%w: smtp_auth_method xoauth2 requires a Google or Microsoft account", mailer.ErrInvalid)
+			}
+		default:
+			return fmt.Errorf("%w: unsupported smtp_auth_method", mailer.ErrInvalid)
 		}
 		if !oauth && b.Password == "" {
 			return mailer.ErrInvalid

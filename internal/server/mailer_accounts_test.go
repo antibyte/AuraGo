@@ -382,3 +382,30 @@ func TestEmailAccountLegacyPasswordAuthRoundTripsAsPlainAndKeepsAgentGrant(t *te
 		t.Fatalf("legacy account changed unexpectedly: %#v", account)
 	}
 }
+
+func TestMailerCreateClassicAccountNormalizesSMTPAuthMethod(t *testing.T) {
+	for _, tc := range []struct {
+		method, want string
+		reject       bool
+	}{{"password", "plain", false}, {"login", "login", false}, {"xoauth2", "", true}} {
+		t.Run(tc.method, func(t *testing.T) {
+			s := newMailerAccountTestServer(t)
+			body := mailerCreateAccountRequest{Type: "email", ID: "auth-" + tc.method, Address: "owner@example.test", Password: "mailer-fixture-password",
+				ReceiveProtocol: "imap", IMAPHost: "imap.example.test", SMTPHost: "smtp.example.test", SMTPAuthMethod: tc.method}
+			_, oauth, err := s.createMailerAccount(context.Background(), body)
+			account := s.ConfigSnapshot().FindEmailAccount(body.ID)
+			if tc.reject {
+				if !errors.Is(err, mailer.ErrInvalid) || account != nil {
+					t.Fatalf("classic xoauth2 accepted: err=%v account=%#v", err, account)
+				}
+				return
+			}
+			if err != nil || oauth || account == nil {
+				t.Fatalf("classic account rejected: err=%v oauth=%v account=%#v", err, oauth, account)
+			}
+			if transport := mailerClassicTransport(*account); account.SMTPAuthMethod != tc.want || transport.SMTPAuthMethod != tc.want || transport.OAuthSource != "" {
+				t.Fatalf("stored %q, transport %q/%q, want password auth %q", account.SMTPAuthMethod, transport.SMTPAuthMethod, transport.OAuthSource, tc.want)
+			}
+		})
+	}
+}

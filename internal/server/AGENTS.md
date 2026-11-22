@@ -94,6 +94,8 @@ Server-owned HTTP and cross-component integration contracts.
 
 ## Local Contracts
 
+- Mailer (`createMailerAccount`) and Config (`handleEmailAccounts`) email-account writes both run `normalizeEmailSMTPAuthMethod`, so `password` is stored as `plain` and both accept `plain` or `login`. `createMailerAccount` accepts `xoauth2` only for Google or Microsoft accounts. Verify with `TestMailerCreateClassicAccountNormalizesSMTPAuthMethod` and `TestEmailAccountLegacyPasswordAuthRoundTripsAsPlainAndKeepsAgentGrant`.
+
 - System backup exports existing required SQLite databases as consistent snapshots. An unreadable required store, including Retro Games, aborts the export. Hugging Face job records remain best effort. A missing database is permitted before an optional store has initialized. For databases outside the legacy restore layout, archive stable names under `data/.sqlite/` and use only the active configuration to resolve them on import. Keep the approved local locations in staged config and pin their destinations until startup. Scrub generated Store credentials from the private export snapshot before writing it to the archive. Verify the external SQLite round trip and the unreadable Retro Games and legacy Store export regressions.
 
 - Ziro Store exports require the verified binding's execute grant plus live and

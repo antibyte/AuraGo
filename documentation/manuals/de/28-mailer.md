@@ -75,9 +75,6 @@ samt Port und **Verschlüsselung beim Versand** sowie **Benutzername** und **Pas
 - Das neue Konto startet ohne Agentenzugriff und ohne Posteingangs-Watcher. Kann Mailer nicht verbinden, bleibt das Konto
   gespeichert: „Das Konto wurde angelegt, aber die Verbindung konnte nicht abgeschlossen werden.“
 
-**Bekanntes Problem in dieser Version:** Das Formular schickt **Passwort** als SMTP-Anmeldung, die der Server für klassische
-Konten noch nicht annimmt. Bis das behoben ist, lege das Konto unter **Config → E-Mail** mit denselben Angaben an.
-
 ### Google-Konten
 
 **Google-Konto hinzufügen** bietet **Gmail API** (der Standard), IMAP und POP3. Wähle in der Liste eine vorhandene GoG- oder
@@ -236,7 +233,7 @@ dem Zertifikat.
 |---|---|
 | „E-Mails konnten nicht geladen werden.“ | Klicke auf **Erneut versuchen**. Hilft das nicht, teste das Konto unter **Einstellungen → Konten**. |
 | „Mailer ist schreibgeschützt. Änderungen sind deaktiviert.“ | Der schreibgeschützte Modus des Desktops oder ein Konto „nur lesen“ blockiert die Änderung. Dieselbe Meldung erscheint, wenn **Im Hintergrund synchronisieren** aus ist. Prüfe diesen Schalter zuerst. |
-| „Die Aktion konnte nicht abgeschlossen werden.“ | Prüfe den Kontostatus unter **Einstellungen → Konten** und versuche es erneut. Bei einem klassischen Konto siehe das bekannte Problem oben. |
+| „Die Aktion konnte nicht abgeschlossen werden.“ | Prüfe den Kontostatus unter **Einstellungen → Konten** und versuche es erneut. |
 | „Hintergrundsynchronisierung pausiert“ | Schalte **Im Hintergrund synchronisieren** unter **Einstellungen → Konten** ein. |
 | „Verbindungstest fehlgeschlagen“ | Prüfe Server, Port, Verschlüsselung, Benutzername und Passwort. Die Meldung nennt einen Fehlercode, der die Ursache verrät. |
 | „Verbindungstest teilweise erfolgreich“ | Empfang oder Versand funktioniert, aber nicht beides. Teste jede Richtung einzeln. |

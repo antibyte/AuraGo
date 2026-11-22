@@ -74,9 +74,6 @@ its port and **Sending security**, plus **Username** and **Password**.
 - The new account starts with agent access and the inbox watcher off. If Mailer cannot connect, the account stays saved
   with the message "The account was created, but its connection could not be completed."
 
-**Known issue in this build:** the form sends **Password** as the SMTP authentication, which the server does not accept
-for classic accounts yet. Until this is fixed, add the account under **Config → Email** with the same details.
-
 ### Google accounts
 
 **Add Google account** offers **Gmail API** (the default), IMAP and POP3. Pick an existing GoG or Google Workspace source in
@@ -230,7 +227,7 @@ forward or permanently delete. If a server's certificate fails the check, fix th
 |---|---|
 | "Could not load mail" | Click **Retry**. If it keeps failing, test the account under **Settings → Accounts**. |
 | "Mailer is read-only. Changes are disabled." | Desktop read-only mode or a read-only account blocks the change. The same text appears when **Sync in the background** is off, so check that first. |
-| "The action could not be completed" | Check the account status under **Settings → Accounts**, then try again. For a classic account, see the known issue above. |
+| "The action could not be completed" | Check the account status under **Settings → Accounts**, then try again. |
 | "Background synchronization paused" | Turn on **Sync in the background** under **Settings → Accounts**. |
 | "Connection test failed" | Check host, port, security mode, username and password. The message shows an error code; use it to find the cause. |
 | "Connection test partly passed" | Receiving or sending works, but not both. Test each direction on its own. |
