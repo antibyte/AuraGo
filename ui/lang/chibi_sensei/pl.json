@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importuj",
   "chibi_sensei.import.started": "Rozpoczęto import.",
   "chibi_sensei.import.done": "Zaimportowano przykłady: {added}, pominięto: {skipped}.",
+  "chibi_sensei.import.line_too_long": "Ten wiersz jest dłuższy niż 1 MB i został pominięty.",
   "chibi_sensei.documents.title": "Dokumenty źródłowe",
   "chibi_sensei.documents.intro": "Pliki tekstowe i Markdown, z których Sensei może korzystać przy generowaniu przykładów. Nigdy nie są dodawane jako wiersze.",
   "chibi_sensei.documents.add": "Dodaj z obszaru roboczego",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "Zadanie nie powiodło się.",
   "chibi_sensei.job.cancelled": "Anulowano.",
   "chibi_sensei.job.strip_label": "Działające zadania",
+  "chibi_sensei.job.queued_hint": "Czeka na wolne miejsce…",
   "chibi_sensei.table.sort_label": "Sortuj według",
   "chibi_sensei.editor.issue_generic": "Sprawdź to pole.",
   "chibi_sensei.import.format_text": "Plik tekstowy (jeden przykład na akapit)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Zastosuj zaznaczone ({count})",
   "chibi_sensei.review.applied": "Zastosowano propozycje: {count}.",
   "chibi_sensei.review.skipped": "Pominięte propozycje: {count}, ponieważ ich przykłady w międzyczasie się zmieniły.",
+  "chibi_sensei.review.partial": "Sensei zatrzymał się wcześniej. To sugestie, które zdążył przygotować.",
   "chibi_sensei.training.title": "Plan treningu",
   "chibi_sensei.training.intro": "To ustawienia, których użyłby Sensei. Sam trening pojawi się w jednej z kolejnych wersji.",
   "chibi_sensei.training.preset_quick": "Szybki",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Ten krok został przerwany przez restart. Uruchom go ponownie.",
   "chibi_sensei.error.internal": "W tym kroku coś poszło nie tak. Uruchom go ponownie.",
   "chibi_sensei.error.too_many_rows": "To więcej, niż może przyjąć jeden krok. Wybierz mniej przykładów.",
-  "chibi_sensei.error.job_not_finished": "Ten krok czyszczenia jeszcze trwa. Poczekaj, aż się zakończy."
+  "chibi_sensei.error.job_not_finished": "Ten krok czyszczenia jeszcze trwa. Poczekaj, aż się zakończy.",
+  "chibi_sensei.error.timeout": "Ten krok trwał zbyt długo i został zatrzymany. Spróbuj z mniejszą liczbą przykładów.",
+  "chibi_sensei.error.too_many_streams": "Zbyt wiele okien śledzi ten projekt. Aktualizacje na żywo są tu wstrzymane; widok nadal odświeża się co kilka sekund."
 }

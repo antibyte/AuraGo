@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Import",
   "chibi_sensei.import.started": "Import started.",
   "chibi_sensei.import.done": "{added} examples imported, {skipped} skipped.",
+  "chibi_sensei.import.line_too_long": "This line is longer than 1 MB and was skipped.",
   "chibi_sensei.documents.title": "Source documents",
   "chibi_sensei.documents.intro": "Text and Markdown files that Sensei can use when it generates examples. They are never added as rows.",
   "chibi_sensei.documents.add": "Add from workspace",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "The job failed.",
   "chibi_sensei.job.cancelled": "Cancelled.",
   "chibi_sensei.job.strip_label": "Running jobs",
+  "chibi_sensei.job.queued_hint": "Waiting for a free slot…",
   "chibi_sensei.table.sort_label": "Sort by",
   "chibi_sensei.editor.issue_generic": "Check this field.",
   "chibi_sensei.import.format_text": "Text file (one example per paragraph)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Apply selected ({count})",
   "chibi_sensei.review.applied": "{count} suggestions applied.",
   "chibi_sensei.review.skipped": "{count} suggestions were skipped, because their examples changed in the meantime.",
+  "chibi_sensei.review.partial": "Sensei stopped early. These are the suggestions it had finished by then.",
   "chibi_sensei.training.title": "Training plan",
   "chibi_sensei.training.intro": "These are the settings Sensei would use. Training itself arrives in a later version.",
   "chibi_sensei.training.preset_quick": "Quick",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "This step was interrupted by a restart. Start it again.",
   "chibi_sensei.error.internal": "Something went wrong in this step. Start it again.",
   "chibi_sensei.error.too_many_rows": "That is more than one step may take. Choose fewer examples.",
-  "chibi_sensei.error.job_not_finished": "This cleaning step is still running. Wait until it has finished."
+  "chibi_sensei.error.job_not_finished": "This cleaning step is still running. Wait until it has finished.",
+  "chibi_sensei.error.timeout": "This step took too long and was stopped. Try it with fewer examples.",
+  "chibi_sensei.error.too_many_streams": "Too many windows are following this project. Live updates are paused here; the view still refreshes every few seconds."
 }

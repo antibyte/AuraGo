@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importieren",
   "chibi_sensei.import.started": "Import gestartet.",
   "chibi_sensei.import.done": "{added} Beispiele importiert, {skipped} übersprungen.",
+  "chibi_sensei.import.line_too_long": "Diese Zeile ist länger als 1 MB und wurde übersprungen.",
   "chibi_sensei.documents.title": "Quelldokumente",
   "chibi_sensei.documents.intro": "Text- und Markdown-Dateien, die Sensei beim Erzeugen von Beispielen nutzen kann. Die Dateien werden nie als Zeilen hinzugefügt.",
   "chibi_sensei.documents.add": "Aus dem Arbeitsbereich hinzufügen",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "Der Auftrag ist fehlgeschlagen.",
   "chibi_sensei.job.cancelled": "Abgebrochen.",
   "chibi_sensei.job.strip_label": "Laufende Aufträge",
+  "chibi_sensei.job.queued_hint": "Wartet auf einen freien Platz…",
   "chibi_sensei.table.sort_label": "Sortieren nach",
   "chibi_sensei.editor.issue_generic": "Prüfe dieses Feld.",
   "chibi_sensei.import.format_text": "Textdatei (ein Beispiel pro Absatz)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Auswahl übernehmen ({count})",
   "chibi_sensei.review.applied": "{count} Vorschläge übernommen.",
   "chibi_sensei.review.skipped": "{count} Vorschläge wurden übersprungen, weil sich ihre Beispiele inzwischen geändert haben.",
+  "chibi_sensei.review.partial": "Sensei hat vorzeitig aufgehört. Das sind die Vorschläge, die bis dahin fertig waren.",
   "chibi_sensei.training.title": "Trainingsplan",
   "chibi_sensei.training.intro": "Das sind die Einstellungen, die Sensei verwenden würde. Das Training selbst kommt in einer späteren Version.",
   "chibi_sensei.training.preset_quick": "Schnell",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Dieser Schritt wurde durch einen Neustart unterbrochen. Starte ihn erneut.",
   "chibi_sensei.error.internal": "In diesem Schritt ist etwas schiefgelaufen. Starte ihn erneut.",
   "chibi_sensei.error.too_many_rows": "Das sind mehr Beispiele, als ein Schritt verarbeiten darf. Wähle weniger Beispiele.",
-  "chibi_sensei.error.job_not_finished": "Dieser Bereinigungsschritt läuft noch. Warte, bis er fertig ist."
+  "chibi_sensei.error.job_not_finished": "Dieser Bereinigungsschritt läuft noch. Warte, bis er fertig ist.",
+  "chibi_sensei.error.timeout": "Dieser Schritt hat zu lange gedauert und wurde gestoppt. Versuche es mit weniger Beispielen.",
+  "chibi_sensei.error.too_many_streams": "Zu viele Fenster verfolgen dieses Projekt. Live-Updates sind hier pausiert; die Ansicht aktualisiert sich weiterhin alle paar Sekunden."
 }

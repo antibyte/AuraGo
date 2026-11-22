@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "इंपोर्ट करें",
   "chibi_sensei.import.started": "इंपोर्ट शुरू हो गया।",
   "chibi_sensei.import.done": "{added} उदाहरण इंपोर्ट हुए, {skipped} छोड़े गए।",
+  "chibi_sensei.import.line_too_long": "यह पंक्ति 1 MB से लंबी है और छोड़ दी गई।",
   "chibi_sensei.documents.title": "स्रोत दस्तावेज़",
   "chibi_sensei.documents.intro": "टेक्स्ट और Markdown फ़ाइलें, जिन्हें Sensei उदाहरण बनाते समय इस्तेमाल कर सकता है। इन्हें कभी पंक्तियों के रूप में नहीं जोड़ा जाता।",
   "chibi_sensei.documents.add": "वर्कस्पेस से जोड़ें",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "जॉब विफल रहा।",
   "chibi_sensei.job.cancelled": "रद्द किया गया।",
   "chibi_sensei.job.strip_label": "चल रहे जॉब",
+  "chibi_sensei.job.queued_hint": "खाली स्लॉट की प्रतीक्षा है…",
   "chibi_sensei.table.sort_label": "इसके अनुसार क्रम में रखें",
   "chibi_sensei.editor.issue_generic": "इस फ़ील्ड को जाँचें।",
   "chibi_sensei.import.format_text": "टेक्स्ट फ़ाइल (हर अनुच्छेद एक उदाहरण)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "चुने हुए लागू करें ({count})",
   "chibi_sensei.review.applied": "{count} सुझाव लागू किए गए।",
   "chibi_sensei.review.skipped": "{count} सुझाव छोड़ दिए गए, क्योंकि इस बीच उनके उदाहरण बदल गए।",
+  "chibi_sensei.review.partial": "Sensei जल्दी रुक गया। ये वे सुझाव हैं जो वह तब तक पूरे कर चुका था।",
   "chibi_sensei.training.title": "ट्रेनिंग योजना",
   "chibi_sensei.training.intro": "ये वे सेटिंग हैं जो Sensei इस्तेमाल करेगा। ट्रेनिंग खुद आगामी संस्करण में आएगी।",
   "chibi_sensei.training.preset_quick": "तेज़",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "यह चरण पुनः आरंभ होने से बाधित हो गया। इसे फिर से शुरू करें।",
   "chibi_sensei.error.internal": "इस चरण में कुछ गड़बड़ हो गई। इसे फिर से शुरू करें।",
   "chibi_sensei.error.too_many_rows": "यह एक चरण की सीमा से अधिक है। कम उदाहरण चुनें।",
-  "chibi_sensei.error.job_not_finished": "यह सफ़ाई चरण अभी चल रहा है। इसके पूरा होने तक प्रतीक्षा करें।"
+  "chibi_sensei.error.job_not_finished": "यह सफ़ाई चरण अभी चल रहा है। इसके पूरा होने तक प्रतीक्षा करें।",
+  "chibi_sensei.error.timeout": "इस चरण में बहुत समय लगा और इसे रोक दिया गया। कम उदाहरणों के साथ कोशिश करो।",
+  "chibi_sensei.error.too_many_streams": "बहुत सारी विंडो इस प्रोजेक्ट को देख रही हैं। यहाँ लाइव अपडेट रुके हुए हैं; दृश्य फिर भी हर कुछ सेकंड में ताज़ा होता है।"
 }

@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importar",
   "chibi_sensei.import.started": "Importação iniciada.",
   "chibi_sensei.import.done": "{added} exemplos importados, {skipped} ignorados.",
+  "chibi_sensei.import.line_too_long": "Esta linha tem mais de 1 MB e foi ignorada.",
   "chibi_sensei.documents.title": "Documentos de origem",
   "chibi_sensei.documents.intro": "Ficheiros de texto e Markdown que o Sensei pode usar ao gerar exemplos. Nunca são adicionados como linhas.",
   "chibi_sensei.documents.add": "Adicionar da área de trabalho",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "A tarefa falhou.",
   "chibi_sensei.job.cancelled": "Cancelado.",
   "chibi_sensei.job.strip_label": "Tarefas em curso",
+  "chibi_sensei.job.queued_hint": "A aguardar uma vaga livre…",
   "chibi_sensei.table.sort_label": "Ordenar por",
   "chibi_sensei.editor.issue_generic": "Verifica este campo.",
   "chibi_sensei.import.format_text": "Ficheiro de texto (um exemplo por parágrafo)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Aplicar selecionadas ({count})",
   "chibi_sensei.review.applied": "{count} sugestões aplicadas.",
   "chibi_sensei.review.skipped": "{count} sugestões foram ignoradas, porque os seus exemplos mudaram entretanto.",
+  "chibi_sensei.review.partial": "O Sensei parou antes do tempo. Estas são as sugestões que ele tinha concluído até então.",
   "chibi_sensei.training.title": "Plano de treino",
   "chibi_sensei.training.intro": "Estas são as definições que o Sensei usaria. O treino em si chega numa versão futura.",
   "chibi_sensei.training.preset_quick": "Rápido",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Este passo foi interrompido por um reinício. Inicia-o novamente.",
   "chibi_sensei.error.internal": "Algo correu mal neste passo. Inicia-o novamente.",
   "chibi_sensei.error.too_many_rows": "Isso é mais do que um passo pode processar. Escolhe menos exemplos.",
-  "chibi_sensei.error.job_not_finished": "Este passo de limpeza ainda está em curso. Aguarda até terminar."
+  "chibi_sensei.error.job_not_finished": "Este passo de limpeza ainda está em curso. Aguarda até terminar.",
+  "chibi_sensei.error.timeout": "Este passo demorou demasiado e foi interrompido. Tenta com menos exemplos.",
+  "chibi_sensei.error.too_many_streams": "Demasiadas janelas estão a seguir este projeto. As atualizações em direto estão em pausa aqui; a vista continua a atualizar-se a cada poucos segundos."
 }

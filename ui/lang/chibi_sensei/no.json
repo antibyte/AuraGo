@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importer",
   "chibi_sensei.import.started": "Importen er startet.",
   "chibi_sensei.import.done": "{added} eksempler importert, {skipped} hoppet over.",
+  "chibi_sensei.import.line_too_long": "Denne linjen er lengre enn 1 MB og ble hoppet over.",
   "chibi_sensei.documents.title": "Kildedokumenter",
   "chibi_sensei.documents.intro": "Tekst- og Markdown-filer som Sensei kan bruke når den lager eksempler. De legges aldri til som rader.",
   "chibi_sensei.documents.add": "Legg til fra arbeidsområdet",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "Jobben mislyktes.",
   "chibi_sensei.job.cancelled": "Avbrutt.",
   "chibi_sensei.job.strip_label": "Pågående jobber",
+  "chibi_sensei.job.queued_hint": "Venter på en ledig plass…",
   "chibi_sensei.table.sort_label": "Sorter etter",
   "chibi_sensei.editor.issue_generic": "Sjekk dette feltet.",
   "chibi_sensei.import.format_text": "Tekstfil (ett eksempel per avsnitt)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Bruk valgte ({count})",
   "chibi_sensei.review.applied": "{count} forslag brukt.",
   "chibi_sensei.review.skipped": "{count} forslag ble hoppet over, fordi eksemplene deres er endret i mellomtiden.",
+  "chibi_sensei.review.partial": "Sensei stoppet tidlig. Dette er forslagene den var ferdig med til da.",
   "chibi_sensei.training.title": "Treningsplan",
   "chibi_sensei.training.intro": "Dette er innstillingene Sensei ville brukt. Selve treningen kommer i en senere versjon.",
   "chibi_sensei.training.preset_quick": "Rask",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Dette trinnet ble avbrutt av en omstart. Start det på nytt.",
   "chibi_sensei.error.internal": "Noe gikk galt i dette trinnet. Start det på nytt.",
   "chibi_sensei.error.too_many_rows": "Det er mer enn et trinn kan ta. Velg færre eksempler.",
-  "chibi_sensei.error.job_not_finished": "Dette oppryddingstrinnet kjører fortsatt. Vent til det er ferdig."
+  "chibi_sensei.error.job_not_finished": "Dette oppryddingstrinnet kjører fortsatt. Vent til det er ferdig.",
+  "chibi_sensei.error.timeout": "Dette trinnet tok for lang tid og ble stoppet. Prøv med færre eksempler.",
+  "chibi_sensei.error.too_many_streams": "For mange vinduer følger dette prosjektet. Live-oppdateringer er satt på pause her; visningen oppdateres fortsatt hvert par sekunder."
 }

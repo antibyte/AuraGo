@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importeren",
   "chibi_sensei.import.started": "Import gestart.",
   "chibi_sensei.import.done": "{added} voorbeelden geïmporteerd, {skipped} overgeslagen.",
+  "chibi_sensei.import.line_too_long": "Deze regel is langer dan 1 MB en is overgeslagen.",
   "chibi_sensei.documents.title": "Brondocumenten",
   "chibi_sensei.documents.intro": "Tekst- en Markdown-bestanden die Sensei kan gebruiken bij het genereren van voorbeelden. Ze worden nooit als rijen toegevoegd.",
   "chibi_sensei.documents.add": "Toevoegen vanuit werkruimte",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "De taak is mislukt.",
   "chibi_sensei.job.cancelled": "Geannuleerd.",
   "chibi_sensei.job.strip_label": "Lopende taken",
+  "chibi_sensei.job.queued_hint": "Wacht op een vrije plek…",
   "chibi_sensei.table.sort_label": "Sorteren op",
   "chibi_sensei.editor.issue_generic": "Controleer dit veld.",
   "chibi_sensei.import.format_text": "Tekstbestand (één voorbeeld per alinea)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Geselecteerde toepassen ({count})",
   "chibi_sensei.review.applied": "{count} suggesties toegepast.",
   "chibi_sensei.review.skipped": "{count} suggesties zijn overgeslagen, omdat hun voorbeelden intussen zijn gewijzigd.",
+  "chibi_sensei.review.partial": "Sensei is eerder gestopt. Dit zijn de suggesties die al klaar waren.",
   "chibi_sensei.training.title": "Trainingsplan",
   "chibi_sensei.training.intro": "Dit zijn de instellingen die Sensei zou gebruiken. Het trainen zelf komt in een latere versie.",
   "chibi_sensei.training.preset_quick": "Snel",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Deze stap is onderbroken door een herstart. Start hem opnieuw.",
   "chibi_sensei.error.internal": "Er ging iets mis in deze stap. Start hem opnieuw.",
   "chibi_sensei.error.too_many_rows": "Dat zijn er meer dan één stap aankan. Kies minder voorbeelden.",
-  "chibi_sensei.error.job_not_finished": "Deze opschoonstap loopt nog. Wacht tot hij klaar is."
+  "chibi_sensei.error.job_not_finished": "Deze opschoonstap loopt nog. Wacht tot hij klaar is.",
+  "chibi_sensei.error.timeout": "Deze stap duurde te lang en is gestopt. Probeer het met minder voorbeelden.",
+  "chibi_sensei.error.too_many_streams": "Te veel vensters volgen dit project. Live-updates staan hier op pauze; het beeld ververst nog steeds om de paar seconden."
 }

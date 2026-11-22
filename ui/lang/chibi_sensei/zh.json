@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "导入",
   "chibi_sensei.import.started": "已开始导入。",
   "chibi_sensei.import.done": "已导入 {added} 个示例，跳过 {skipped} 个。",
+  "chibi_sensei.import.line_too_long": "这一行超过 1 MB，已被跳过。",
   "chibi_sensei.documents.title": "来源文档",
   "chibi_sensei.documents.intro": "Sensei 生成示例时可以参考的文本和 Markdown 文件。它们不会被添加为数据行。",
   "chibi_sensei.documents.add": "从工作区添加",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "任务失败。",
   "chibi_sensei.job.cancelled": "已取消。",
   "chibi_sensei.job.strip_label": "正在运行的任务",
+  "chibi_sensei.job.queued_hint": "正在等待空闲名额…",
   "chibi_sensei.table.sort_label": "排序方式",
   "chibi_sensei.editor.issue_generic": "请检查此字段。",
   "chibi_sensei.import.format_text": "文本文件（每段一个示例）",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "应用所选（{count}）",
   "chibi_sensei.review.applied": "已应用 {count} 条建议。",
   "chibi_sensei.review.skipped": "已跳过 {count} 条建议，因为它们的示例在此期间发生了变化。",
+  "chibi_sensei.review.partial": "Sensei 提前停止了。以下是它在此之前已完成的建议。",
   "chibi_sensei.training.title": "训练计划",
   "chibi_sensei.training.intro": "这些是 Sensei 将使用的设置。训练本身将在后续版本中推出。",
   "chibi_sensei.training.preset_quick": "快速",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "此步骤因重启而中断。请重新开始。",
   "chibi_sensei.error.internal": "此步骤出了点问题。请重新开始。",
   "chibi_sensei.error.too_many_rows": "这超出了单个步骤可处理的数量。请选择更少的示例。",
-  "chibi_sensei.error.job_not_finished": "此清理步骤仍在运行。请等待其完成。"
+  "chibi_sensei.error.job_not_finished": "此清理步骤仍在运行。请等待其完成。",
+  "chibi_sensei.error.timeout": "这一步耗时过长，已被停止。请减少示例数量后再试。",
+  "chibi_sensei.error.too_many_streams": "正在跟踪此项目的窗口太多。此处的实时更新已暂停；视图仍会每隔几秒刷新一次。"
 }

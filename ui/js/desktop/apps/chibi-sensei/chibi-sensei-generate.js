@@ -100,8 +100,16 @@
             reportBatch(inst, result.batch_id, 'generate', added);
             refreshRows(inst);
         } else if (job.kind === 'clean') {
-            if (!mine && job.state !== 'succeeded') return;
+            const stopped = job.state === 'failed' || job.state === 'cancelled';
+            const saved = Number(result.suggestions);
+            const partial = stopped && Number.isFinite(saved) && saved > 0;
+            if (!mine && job.state !== 'succeeded' && !partial) return;
             s.handled.add(job.id);
+            if (partial) {
+                const note = mine ? (job.state === 'failed' ? failText(inst, job) : t('chibi_sensei.job.cancelled')) : '';
+                addEntry(inst, job.id, { type: 'review', job, count: saved, note });
+                return;
+            }
             if (job.state === 'failed') { if (mine) addEntry(inst, job.id, { type: 'failed', text: failText(inst, job) }); return; }
             if (job.state !== 'succeeded') return;
             const count = Number(result.suggestions);
@@ -155,6 +163,7 @@
                 const row = el('div', { class: 'csn-gen-note', dataset: { csn: 'generate-note', type: entry.type } });
                 if (entry.type === 'review') {
                     row.appendChild(el('span', { text: t('chibi_sensei.clean.ready', { count: P.format.number(entry.count) }) }));
+                    if (entry.note) row.appendChild(el('span', { class: 'csn-muted', text: entry.note }));
                     row.appendChild(button('clean-review', 'chibi_sensei.clean.review', () => openReview(inst, entry.job)));
                 } else if (entry.type === 'generated') {
                     row.appendChild(el('span', { text: entry.text }));
@@ -419,6 +428,7 @@
         });
 
         dlg.content.appendChild(el('p', { class: 'csn-muted', text: t('chibi_sensei.review.intro') }));
+        if (job.state === 'failed' || job.state === 'cancelled') dlg.content.appendChild(el('p', { class: 'csn-muted', role: 'status', dataset: { csn: 'review-partial' }, text: t('chibi_sensei.review.partial') }));
         dlg.content.appendChild(body);
         dlg.content.appendChild(err.node);
         dlg.content.appendChild(el('div', { class: 'csn-actions' }, selectFixes, selectNone, el('span', { class: 'csn-spacer' }), apply, close));

@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importera",
   "chibi_sensei.import.started": "Importen startade.",
   "chibi_sensei.import.done": "{added} exempel importerades, {skipped} hoppades över.",
+  "chibi_sensei.import.line_too_long": "Den här raden är längre än 1 MB och hoppades över.",
   "chibi_sensei.documents.title": "Källdokument",
   "chibi_sensei.documents.intro": "Text- och Markdown-filer som Sensei kan använda när den genererar exempel. De läggs aldrig till som rader.",
   "chibi_sensei.documents.add": "Lägg till från arbetsytan",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "Jobbet misslyckades.",
   "chibi_sensei.job.cancelled": "Avbrutet.",
   "chibi_sensei.job.strip_label": "Pågående jobb",
+  "chibi_sensei.job.queued_hint": "Väntar på en ledig plats…",
   "chibi_sensei.table.sort_label": "Sortera efter",
   "chibi_sensei.editor.issue_generic": "Kontrollera det här fältet.",
   "chibi_sensei.import.format_text": "Textfil (ett exempel per stycke)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Tillämpa markerade ({count})",
   "chibi_sensei.review.applied": "{count} förslag tillämpades.",
   "chibi_sensei.review.skipped": "{count} förslag hoppades över, eftersom deras exempel har ändrats under tiden.",
+  "chibi_sensei.review.partial": "Sensei avbröt i förtid. Det här är förslagen som var klara fram till dess.",
   "chibi_sensei.training.title": "Träningsplan",
   "chibi_sensei.training.intro": "Det här är inställningarna som Sensei skulle använda. Själva träningen kommer i en senare version.",
   "chibi_sensei.training.preset_quick": "Snabb",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Det här steget avbröts av en omstart. Starta det igen.",
   "chibi_sensei.error.internal": "Något gick fel i det här steget. Starta det igen.",
   "chibi_sensei.error.too_many_rows": "Det är fler än ett steg kan ta. Välj färre exempel.",
-  "chibi_sensei.error.job_not_finished": "Det här rensningssteget pågår fortfarande. Vänta tills det är klart."
+  "chibi_sensei.error.job_not_finished": "Det här rensningssteget pågår fortfarande. Vänta tills det är klart.",
+  "chibi_sensei.error.timeout": "Det här steget tog för lång tid och stoppades. Försök med färre exempel.",
+  "chibi_sensei.error.too_many_streams": "För många fönster följer det här projektet. Liveuppdateringar är pausade här; vyn uppdateras fortfarande var några sekunder."
 }

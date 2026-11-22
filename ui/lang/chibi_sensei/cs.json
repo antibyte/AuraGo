@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Importovat",
   "chibi_sensei.import.started": "Import byl zahájen.",
   "chibi_sensei.import.done": "Importováno příkladů: {added}, přeskočeno: {skipped}.",
+  "chibi_sensei.import.line_too_long": "Tento řádek je delší než 1 MB a byl přeskočen.",
   "chibi_sensei.documents.title": "Zdrojové dokumenty",
   "chibi_sensei.documents.intro": "Textové soubory a soubory Markdown, které může Sensei použít při generování příkladů. Nikdy se nepřidávají jako řádky.",
   "chibi_sensei.documents.add": "Přidat z pracovního prostoru",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "Úloha selhala.",
   "chibi_sensei.job.cancelled": "Zrušeno.",
   "chibi_sensei.job.strip_label": "Běžící úlohy",
+  "chibi_sensei.job.queued_hint": "Čeká na volné místo…",
   "chibi_sensei.table.sort_label": "Seřadit podle",
   "chibi_sensei.editor.issue_generic": "Zkontroluj toto pole.",
   "chibi_sensei.import.format_text": "Textový soubor (jeden příklad na odstavec)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Použít vybrané ({count})",
   "chibi_sensei.review.applied": "Použité návrhy: {count}.",
   "chibi_sensei.review.skipped": "Přeskočené návrhy: {count}, protože se jejich příklady mezitím změnily.",
+  "chibi_sensei.review.partial": "Sensei se zastavil předčasně. Toto jsou návrhy, které do té doby dokončil.",
   "chibi_sensei.training.title": "Plán tréninku",
   "chibi_sensei.training.intro": "Toto jsou nastavení, která by Sensei použil. Samotný trénink přijde v pozdější verzi.",
   "chibi_sensei.training.preset_quick": "Rychlý",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Tento krok byl přerušen restartem. Spusť ho znovu.",
   "chibi_sensei.error.internal": "V tomto kroku se něco pokazilo. Spusť ho znovu.",
   "chibi_sensei.error.too_many_rows": "To je víc, než může jeden krok zpracovat. Vyber méně příkladů.",
-  "chibi_sensei.error.job_not_finished": "Tento krok čištění stále běží. Počkej, až skončí."
+  "chibi_sensei.error.job_not_finished": "Tento krok čištění stále běží. Počkej, až skončí.",
+  "chibi_sensei.error.timeout": "Tento krok trval příliš dlouho a byl zastaven. Zkus to s menším počtem příkladů.",
+  "chibi_sensei.error.too_many_streams": "Tento projekt sleduje příliš mnoho oken. Živé aktualizace jsou tu pozastaveny; zobrazení se stále obnovuje každých pár sekund."
 }

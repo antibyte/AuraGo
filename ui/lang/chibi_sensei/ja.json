@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "インポート",
   "chibi_sensei.import.started": "インポートを開始しました。",
   "chibi_sensei.import.done": "{added} 件の例をインポートし、{skipped} 件をスキップしました。",
+  "chibi_sensei.import.line_too_long": "この行は 1 MB を超えているため、スキップしました。",
   "chibi_sensei.documents.title": "元ドキュメント",
   "chibi_sensei.documents.intro": "Sensei が例を生成するときに使えるテキストと Markdown のファイルです。行として追加されることはありません。",
   "chibi_sensei.documents.add": "ワークスペースから追加",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "ジョブが失敗しました。",
   "chibi_sensei.job.cancelled": "キャンセルしました。",
   "chibi_sensei.job.strip_label": "実行中のジョブ",
+  "chibi_sensei.job.queued_hint": "空きスロットを待っています…",
   "chibi_sensei.table.sort_label": "並べ替え",
   "chibi_sensei.editor.issue_generic": "この項目を確認してください。",
   "chibi_sensei.import.format_text": "テキストファイル（1段落につき1つの例）",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "選択した提案を適用（{count}）",
   "chibi_sensei.review.applied": "{count} 件の提案を適用しました。",
   "chibi_sensei.review.skipped": "例がその間に変更されたため、{count} 件の提案をスキップしました。",
+  "chibi_sensei.review.partial": "Sensei は途中で止まりました。それまでに完成していた提案です。",
   "chibi_sensei.training.title": "トレーニング計画",
   "chibi_sensei.training.intro": "Sensei が使う予定の設定です。トレーニング自体は今後のバージョンで利用できるようになります。",
   "chibi_sensei.training.preset_quick": "クイック",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "このステップは再起動により中断されました。もう一度開始してください。",
   "chibi_sensei.error.internal": "このステップで問題が発生しました。もう一度開始してください。",
   "chibi_sensei.error.too_many_rows": "1ステップで扱える数を超えています。例の数を減らしてください。",
-  "chibi_sensei.error.job_not_finished": "このクリーニングはまだ実行中です。完了するまでお待ちください。"
+  "chibi_sensei.error.job_not_finished": "このクリーニングはまだ実行中です。完了するまでお待ちください。",
+  "chibi_sensei.error.timeout": "この手順に時間がかかりすぎたため、停止しました。例を減らして試してください。",
+  "chibi_sensei.error.too_many_streams": "このプロジェクトを見ているウィンドウが多すぎます。ここではライブ更新を一時停止しています。表示は数秒ごとに更新されます。"
 }

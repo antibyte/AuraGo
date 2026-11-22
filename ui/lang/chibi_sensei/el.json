@@ -282,6 +282,7 @@
   "chibi_sensei.import.start": "Εισαγωγή",
   "chibi_sensei.import.started": "Η εισαγωγή ξεκίνησε.",
   "chibi_sensei.import.done": "Εισήχθησαν {added} παραδείγματα, παραλείφθηκαν {skipped}.",
+  "chibi_sensei.import.line_too_long": "Αυτή η γραμμή είναι μεγαλύτερη από 1 MB και παραλείφθηκε.",
   "chibi_sensei.documents.title": "Έγγραφα πηγής",
   "chibi_sensei.documents.intro": "Αρχεία κειμένου και Markdown που μπορεί να χρησιμοποιήσει ο Sensei όταν δημιουργεί παραδείγματα. Δεν προστίθενται ποτέ ως γραμμές.",
   "chibi_sensei.documents.add": "Προσθήκη από τον χώρο εργασίας",
@@ -335,6 +336,7 @@
   "chibi_sensei.job.failed": "Η εργασία απέτυχε.",
   "chibi_sensei.job.cancelled": "Ακυρώθηκε.",
   "chibi_sensei.job.strip_label": "Εργασίες σε εξέλιξη",
+  "chibi_sensei.job.queued_hint": "Αναμονή για ελεύθερη θέση…",
   "chibi_sensei.table.sort_label": "Ταξινόμηση κατά",
   "chibi_sensei.editor.issue_generic": "Ελέγξτε αυτό το πεδίο.",
   "chibi_sensei.import.format_text": "Αρχείο κειμένου (ένα παράδειγμα ανά παράγραφο)",
@@ -398,6 +400,7 @@
   "chibi_sensei.review.apply": "Εφαρμογή επιλεγμένων ({count})",
   "chibi_sensei.review.applied": "Εφαρμόστηκαν {count} προτάσεις.",
   "chibi_sensei.review.skipped": "Παραλείφθηκαν {count} προτάσεις, επειδή τα παραδείγματά τους άλλαξαν στο μεταξύ.",
+  "chibi_sensei.review.partial": "Ο Sensei σταμάτησε νωρίς. Αυτές είναι οι προτάσεις που είχε ολοκληρώσει μέχρι τότε.",
   "chibi_sensei.training.title": "Πλάνο εκπαίδευσης",
   "chibi_sensei.training.intro": "Αυτές είναι οι ρυθμίσεις που θα χρησιμοποιούσε ο Sensei. Η ίδια η εκπαίδευση θα έρθει σε μεταγενέστερη έκδοση.",
   "chibi_sensei.training.preset_quick": "Γρήγορο",
@@ -446,5 +449,7 @@
   "chibi_sensei.error.interrupted": "Αυτό το βήμα διακόπηκε από επανεκκίνηση. Ξεκίνα το ξανά.",
   "chibi_sensei.error.internal": "Κάτι πήγε στραβά σε αυτό το βήμα. Ξεκίνα το ξανά.",
   "chibi_sensei.error.too_many_rows": "Αυτά είναι περισσότερα από όσα επιτρέπεται να δεχτεί ένα βήμα. Επίλεξε λιγότερα παραδείγματα.",
-  "chibi_sensei.error.job_not_finished": "Αυτό το βήμα καθαρισμού εκτελείται ακόμη. Περίμενε μέχρι να ολοκληρωθεί."
+  "chibi_sensei.error.job_not_finished": "Αυτό το βήμα καθαρισμού εκτελείται ακόμη. Περίμενε μέχρι να ολοκληρωθεί.",
+  "chibi_sensei.error.timeout": "Αυτό το βήμα κράτησε πολύ και διακόπηκε. Δοκίμασε με λιγότερα παραδείγματα.",
+  "chibi_sensei.error.too_many_streams": "Πάρα πολλά παράθυρα παρακολουθούν αυτό το έργο. Οι ζωντανές ενημερώσεις είναι σε παύση εδώ· η προβολή εξακολουθεί να ανανεώνεται κάθε λίγα δευτερόλεπτα."
 }

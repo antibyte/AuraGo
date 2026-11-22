@@ -177,7 +177,8 @@
             const line = el('div', { class: 'csn-job', dataset: { csn: 'job', kind: job.kind, state: job.state, phase: job.progress && job.progress.phase ? job.progress.phase : '' } },
                 el('span', { class: 'csn-job-kind', text: t(JOB_KIND_KEYS[job.kind] || JOB_KIND_KEYS.generate) }),
                 done ? el('span', { class: 'csn-job-result', text: t(JOB_STATE_KEYS[job.state]) }) : bar,
-                !done && total > 0 ? el('span', { class: 'csn-muted', text: t('chibi_sensei.job.progress', { done: P.format.number(value), total: P.format.number(total) }) }) : null);
+                !done && total > 0 ? el('span', { class: 'csn-muted', text: t('chibi_sensei.job.progress', { done: P.format.number(value), total: P.format.number(total) }) }) : null,
+                job.state === 'queued' ? el('span', { class: 'csn-muted', dataset: { csn: 'job-queued' }, text: t('chibi_sensei.job.queued_hint') }) : null);
             if (!done) {
                 const stop = el('button', { type: 'button', class: 'csn-btn csn-btn-quiet', dataset: { csn: 'job-cancel' }, text: t('chibi_sensei.job.cancel'), onClick: () => cancel(job) });
                 stop.disabled = inst.readonly;
