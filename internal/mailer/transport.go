@@ -41,6 +41,7 @@ type TransportConfig struct {
 	OAuthClientSecret                          string
 	AgentMailInboxID                           string
 	AgentMailBaseURL, AgentMailAPIKey          string
+	AgentMailMaxAttachmentMB                   int
 	Token                                      func(context.Context, string, bool) (string, error)
 	HTTPClient                                 *http.Client
 	TLSConfig                                  *tls.Config

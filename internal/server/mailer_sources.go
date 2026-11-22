@@ -239,6 +239,7 @@ func (s *Server) resolveMailerAdapter(ctx context.Context, id string) (mailer.Ad
 		transport.AgentMailInboxID = cfg.AgentMail.InboxID
 		transport.AgentMailBaseURL = cfg.AgentMail.BaseURL
 		transport.AgentMailAPIKey = s.mailerSecret("agentmail_api_key", cfg.AgentMail.APIKey)
+		transport.AgentMailMaxAttachmentMB = cfg.AgentMail.MaxAttachmentMB
 	default:
 		return nil, account, mailer.ErrNotFound
 	}

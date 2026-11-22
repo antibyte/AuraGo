@@ -16,7 +16,23 @@ import (
 	"aurago/internal/agentmail"
 )
 
+// maxAgentMailAttachmentBytes is AgentMail's provider ceiling for attachments.
+// It caps downloads and bounds the configured send limit from above.
 const maxAgentMailAttachmentBytes = 25 << 20
+
+// agentMailAttachmentLimitBytes returns the total outgoing attachment size
+// allowed for the account: agentmail.max_attachment_mb, falling back to the
+// AgentMail default when unset, and never above the provider ceiling.
+func agentMailAttachmentLimitBytes(cfg TransportConfig) int64 {
+	mb := cfg.AgentMailMaxAttachmentMB
+	if mb <= 0 {
+		mb = agentmail.DefaultMaxAttachMB
+	}
+	if mb >= maxAgentMailAttachmentBytes>>20 {
+		return maxAgentMailAttachmentBytes
+	}
+	return int64(mb) << 20
+}
 
 type agentMailAdapter struct {
 	cfg    TransportConfig
@@ -224,9 +240,10 @@ func (a *agentMailAdapter) Send(ctx context.Context, out Outgoing) (SendResult, 
 	}
 	attachments := make([]agentmail.OutgoingAttachment, 0, len(out.Draft.Attachments))
 	var total int64
+	attachmentLimit := agentMailAttachmentLimitBytes(a.cfg)
 	for _, att := range out.Draft.Attachments {
 		total += int64(len(att.Data))
-		if total > maxAgentMailAttachmentBytes {
+		if total > attachmentLimit {
 			return SendResult{Rejected: true}, fmt.Errorf("attachments exceed size limit")
 		}
 		attachment := agentmail.OutgoingAttachment{Filename: safeFilename(att.Filename), ContentType: att.ContentType, ContentBase64: base64.StdEncoding.EncodeToString(att.Data)}

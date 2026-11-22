@@ -194,7 +194,8 @@ macht das Konto schreibgeschützt.
 | Klassische E-Mail-Konten in Mailer | 100 |
 | GoG-Konten insgesamt | 20 |
 | IMAP-Nachricht, die sich laden lässt | 16 MiB |
-| AgentMail-Anhänge (gesendet oder geladen) | 25 MiB, unabhängig von `agentmail.max_attachment_mb` |
+| AgentMail-Anhänge, gesendet | `agentmail.max_attachment_mb` insgesamt (standardmäßig 10 MiB, höchstens die 25 MiB des Anbieters) |
+| AgentMail-Anhänge, geladen | 25 MiB (Grenze des Anbieters) |
 
 - **POP3-Post liegt auf deinem Rechner.** Ordner und Lesestatus sind lokal, und die Synchronisierung löscht nie Nachrichten auf
   dem Server.

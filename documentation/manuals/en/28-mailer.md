@@ -191,7 +191,8 @@ read-only.
 | Classic email accounts in Mailer | 100 |
 | GoG accounts in total | 20 |
 | IMAP message that can be loaded | 16 MiB |
-| AgentMail attachments (sent or downloaded) | 25 MiB, regardless of `agentmail.max_attachment_mb` |
+| AgentMail attachments, sent | `agentmail.max_attachment_mb` in total (10 MiB by default, at most the 25 MiB provider limit) |
+| AgentMail attachments, downloaded | 25 MiB (provider limit) |
 
 - **POP3 mail lives on your computer.** Folders and read state are local, and sync never deletes messages on the server.
 - **Not in this version:** calendar, PGP and S/MIME, and autonomous mailbox actions by the assistant.

@@ -912,6 +912,7 @@ server:
     debug_pprof: false                              # expose /debug/pprof endpoints for profiling
     preview_domain: ""                            # separate registrable site; wildcard DNS/TLS must reach this server
     preview_enabled: false                        # activate only after staged app/login/WebSocket acceptance
+    oauth_redirect_base_url: ""                   # public origin for OAuth callbacks, e.g. https://aurago.example.com (http/https, no credentials, query or fragment; any path is replaced by the callback path); empty derives it from host/port, never from request headers
     https:
         enabled: true                       # Fresh installs only; upgrades preserve the existing transport
         cert_mode: selfsigned               # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
