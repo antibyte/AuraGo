@@ -24,7 +24,7 @@
         holder.innerHTML = `<section class="infra-table-view" data-table-view hidden aria-label="${esc(t('desktop.infra_inventory'))}"><div class="infra-table-head"><h2>${esc(t('desktop.infra_inventory'))}</h2><span data-table-total></span></div>`
             + `<div class="infra-bulkbar" data-bulkbar role="group" aria-label="${esc(t('desktop.infra_bulk_actions'))}" hidden><span class="infra-bulkbar-count" data-bulk-count></span><button type="button" class="infra-button" data-action="bulk-move" aria-haspopup="dialog">${esc(t('desktop.infra_move_to_place'))}</button><button type="button" class="infra-button infra-danger-button" data-action="bulk-ignore">${esc(t('desktop.infra_remove_and_ignore'))}</button><button type="button" class="infra-button infra-danger-button" data-action="bulk-remove">${esc(t('desktop.infra_remove_node'))}</button><button type="button" class="infra-button" data-action="bulk-clear">${esc(t('desktop.infra_clear_selection'))}</button></div>`
             + `<div class="infra-table-scroll" data-table-scroll tabindex="0"><table class="infra-table"><thead><tr><th class="infra-col-check" scope="col"><input type="checkbox" data-table-check-all aria-label="${esc(model.countText(0, t('desktop.infra_select_all_rows_one'), t('desktop.infra_select_all_rows')))}"></th>${heads}</tr></thead><tbody data-table-body></tbody></table>
-              <div class="infra-table-empty" data-table-empty hidden><p data-table-message></p><div class="infra-empty-actions">
+              <div class="infra-table-empty" data-table-empty hidden><span class="infra-table-empty-icon" aria-hidden="true">${app.glyph('search')}</span><p data-table-message></p><div class="infra-empty-actions">
                 <button type="button" class="infra-button infra-button-primary" data-table-reset hidden></button>
                 <button type="button" class="infra-button infra-button-primary" data-action="refresh" hidden>${esc(t('desktop.infra_retry'))}</button>
                 <button type="button" class="infra-button infra-button-primary" data-action="import-empty" hidden>${esc(t('desktop.infra_import_discoveries'))}</button>
@@ -68,10 +68,10 @@
             const disclosure = row.guests
                 ? `<button type="button" class="infra-library-disclosure" data-row-expand="${id}" aria-expanded="${row.expanded}" aria-label="${esc(model.fill(row.expanded ? t('desktop.infra_hide_guests') : t('desktop.infra_show_guests'), { name: node.name }))}">${app.glyph('chevron')}</button>`
                 : '<span class="infra-disclosure-spacer" aria-hidden="true"></span>';
-            return `<tr data-row="${id}" data-depth="${row.depth}" class="${selected ? 'is-selected' : ''}${row.context ? ' is-context' : ''}">`
+            return `<tr data-row="${id}" data-depth="${row.depth}" data-kind="${esc(node.kind)}" data-state="${esc(nodeState)}"${live ? ` data-reach="${esc(live)}"` : ''} class="${selected ? 'is-selected' : ''}${row.context ? ' is-context' : ''}">`
                 + `<td class="infra-col-check"><input type="checkbox" data-row-check="${id}" aria-label="${esc(model.fill(t('desktop.infra_select_row'), { name: node.name }))}"${selected ? ' checked' : ''}></td>`
                 + `<td class="infra-col-name"><div class="infra-table-name-cell" style="--infra-depth:${row.depth}">${disclosure}<button type="button" class="infra-table-name" data-select="${id}" aria-current="${selected ? 'true' : 'false'}" title="${name}"><i class="infra-table-icon" aria-hidden="true">${app.icon(node.icon)}${live ? `<i class="infra-live-dot" data-live="${esc(live)}"></i>` : ''}</i><span>${name}</span>${row.guests ? `<small class="infra-library-count">${row.guests}</small>` : ''}</button>${liveLabel ? `<span class="infra-sr-only">· ${esc(liveLabel)}</span>` : ''}</div></td>`
-                + `<td>${esc(app.labelForKind(node.kind))}</td><td title="${esc(place)}">${esc(place)}</td><td class="infra-col-address">${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td>`
+                + `<td><span class="infra-kind-tag" data-kind="${esc(node.kind)}"><i aria-hidden="true"></i>${esc(app.labelForKind(node.kind))}</span></td><td title="${esc(place)}">${esc(place)}</td><td class="infra-col-address">${esc(node.profile?.ip_address || node.profile?.mac_address || '—')}</td>`
                 + `<td>${esc([node.profile?.vendor, node.profile?.model].filter(Boolean).join(' · ') || '—')}</td><td>${esc(memo.sourceOf(node) || t('desktop.infra_manual'))}</td>`
                 + `<td><span class="infra-state-pill" data-state="${esc(nodeState)}"><i></i>${esc(app.statusLabel(nodeState))}</span></td><td>${power}</td></tr>`;
         }
@@ -200,11 +200,23 @@
             event.preventDefault();
             void app.dialogs.deleteNodes(state.selection.has(id) && state.selection.size > 1 ? selectedIds() : [id]);
         };
+        const onDblClick = event => {
+            const select = event.target.closest('[data-select]');
+            if (!select) return;
+            const id = select.dataset.select, hostId = store.guests().hostOf.get(id);
+            if (!store.effectivePlacement(id, 'atlas') && !(hostId && store.effectivePlacement(hostId, 'atlas'))) return;
+            store.select([id]);
+            app.ensureMapView();
+            app.canvas?.renderNow();
+            app.canvas?.centerOn(id, { animate: true });
+        };
         el.addEventListener('click', onClick);
+        el.addEventListener('dblclick', onDblClick);
         body.addEventListener('keydown', onKeyDown);
         scroll.addEventListener('scroll', render, { passive: true });
         function dispose() {
             el.removeEventListener('click', onClick);
+            el.removeEventListener('dblclick', onDblClick);
             body.removeEventListener('keydown', onKeyDown);
             scroll.removeEventListener('scroll', render);
             el.remove();

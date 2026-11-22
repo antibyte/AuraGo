@@ -294,7 +294,7 @@
                 : (running ? t('desktop.infra_guests_badge') : t('desktop.infra_guests_badge_stopped'));
             const names = sorted.slice(0, 5).map(guest => guest.name || guest.id).join(', ') + (sorted.length > 5 ? ` ${model.fill(t('desktop.infra_more_guests'), { count: sorted.length - 5 })}` : '');
             html += `<button type="button" class="infra-card-badge" data-toggle-host-services="${id}" tabindex="-1" aria-expanded="${expanded}" aria-controls="infra-guests-${S}-${safe}" aria-label="${esc(model.fill(toggleLabel, { name: node.name || node.id }))}" title="${esc(model.fill(t('desktop.infra_guests_badge_title'), { names }))}">`
-                + `<span aria-hidden="true">▣</span> ${esc(model.fill(summary, { count: guestList.length, running }))}</button>`;
+                + `<span class="infra-badge-glyph" aria-hidden="true">${model.glyph('stack')}</span>${esc(model.fill(summary, { count: guestList.length, running }))}</button>`;
             const chips = sorted.slice(0, MAX_CHIPS).map(guest => `<button type="button" class="infra-guest-chip" data-hosted-service="${esc(guest.id)}" data-power="${esc(powerOf(guest))}" tabindex="-1" title="${esc(guest.name)}"><i aria-hidden="true"></i><span>${esc(guest.name)}</span></button>`).join('');
             const more = sorted.length > MAX_CHIPS ? `<button type="button" class="infra-guest-more" data-guest-more="${id}" tabindex="-1">${esc(model.fill(t('desktop.infra_more_guests'), { count: sorted.length - MAX_CHIPS }))}</button>` : '';
             return `${html}<div class="infra-guest-shelf" id="infra-guests-${S}-${safe}" data-guest-shelf="${id}" role="group" aria-label="${esc(model.fill(t('desktop.infra_guests_of'), { name: node.name || node.id }))}"${expanded ? '' : ' hidden'}>${chips}${more}</div>`;
@@ -682,8 +682,11 @@
 
         // ---- minimap -------------------------------------------------------------------
         function rebuildMinimap() {
-            const regionRects = last.regions.map(region => `<rect class="region" x="${round1(region.rect.x)}" y="${round1(region.rect.y)}" width="${round1(region.rect.w)}" height="${round1(region.rect.h)}"/>`).join('');
-            const cardRects = last.cards.map(card => `<rect class="card" x="${card.x - model.CARD_W / 2}" y="${card.y - model.CARD_H / 2}" width="${model.CARD_W}" height="${model.CARD_H}"/>`).join('');
+            const regionRects = last.regions.map(region => `<rect class="region" rx="16" x="${round1(region.rect.x)}" y="${round1(region.rect.y)}" width="${round1(region.rect.w)}" height="${round1(region.rect.h)}"/>`).join('');
+            const cardRects = last.cards.map(card => {
+                const node = store.nodeById(card.id), live = model.liveState(node);
+                return `<rect class="card" rx="14" x="${card.x - model.CARD_W / 2}" y="${card.y - model.CARD_H / 2}" width="${model.CARD_W}" height="${model.CARD_H}"${live ? ` data-reach="${esc(live)}"` : ''}/>`;
+            }).join('');
             minimapRegions.innerHTML = regionRects;
             minimapCards.innerHTML = cardRects;
             mmCardEls.clear(); mmSelected = new Set();

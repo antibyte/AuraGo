@@ -581,6 +581,13 @@
         minimap: '<rect x="2" y="2" width="12" height="12" rx="1.5"/><rect x="8" y="8" width="4" height="4"/>',
         chevron: '<path d="M4.5 6.5L8 10l3.5-3.5"/>',
         close: '<path d="M4 4l8 8M12 4l-8 8"/>',
+        copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.4"/><path d="M3.5 10.5H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h6.5a1 1 0 0 1 1 1v.5"/>',
+        check: '<path d="M3.2 8.4l3.1 3.1L13 4.8"/>',
+        stack: '<path d="M2.5 5.4L8 2.6l5.5 2.8L8 8.2z"/><path d="M2.5 8.5L8 11.3l5.5-2.8"/><path d="M2.5 11.5L8 14.3l5.5-2.8"/>',
+        info: '<circle cx="8" cy="8" r="5.8"/><path d="M8 7.3v3.5M8 5.2h.01"/>',
+        external: '<path d="M6.5 3.5H3.5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V9.5M9.5 2.5h4v4M13.3 2.7L7.5 8.5"/>',
+        locate: '<circle cx="8" cy="8" r="3.1"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2"/>',
+        chevronRight: '<path d="M6.2 4.2L10 8l-3.8 3.8"/>',
     };
     const glyph = name => `<svg class="infra-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[name] || ''}</svg>`;
 

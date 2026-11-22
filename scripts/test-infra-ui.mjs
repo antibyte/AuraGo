@@ -79,7 +79,7 @@ assert.ok(world.x < -330 && world.x + world.w > 5200 && world.y + world.h > 2910
 const locales = ['cs', 'da', 'de', 'el', 'en', 'es', 'fr', 'hi', 'it', 'ja', 'nl', 'no', 'pl', 'pt', 'sv', 'zh'];
 const required = new Set();
 for (const match of source.matchAll(/t\('(desktop\.(?:app_infra|infra_[a-zA-Z0-9_]+))'/g)) required.add(match[1]);
-for (const key of ['desktop.qc_target_selected', 'desktop.qc_no_connection']) required.add(key);
+for (const key of ['desktop.qc_target_selected', 'desktop.qc_no_connection', 'desktop.copy', 'desktop.copied']) required.add(key);
 for (const icon of model.iconIds()) required.add(`desktop.infra_icon_${icon.replaceAll('-', '_')}`);
 for (const key of ['desktop.infra_access_unavailable', 'desktop.infra_action_unavailable', 'desktop.infra_saved_newer_draft', 'desktop.infra_source_saved_newer_draft', 'desktop.infra_position', 'desktop.infra_source_compare', 'desktop.infra_node_compare', 'desktop.infra_current_source', 'desktop.infra_current_inventory', 'desktop.infra_your_draft', 'desktop.infra_no_field_differences', 'desktop.infra_reapply_draft', 'desktop.infra_reapply_ready', 'desktop.infra_node_conflict_review', 'desktop.infra_target_unavailable', 'desktop.infra_action_outcome_unknown', 'desktop.infra_pve_tags_hint', 'desktop.infra_error_timeout', 'desktop.infra_field_app_bindings']) required.add(key);
 for (const [family, values] of Object.entries({
@@ -2051,6 +2051,16 @@ const cssRule = selector => { const at = canvasCSS.indexOf(`${selector} {`); ret
     // a connection with a dimmed (filtered out) end is dimmed like the cards, whichever end it is
     assert.equal(state({}, { dimmed: new Set(['b']) }).dimmed, true);
     assert.equal(state({}, { dimmed: new Set(['z']) }).dimmed, false);
+}
+
+// ---- every glyph referenced in Infra JS resolves to an SVG icon --------------------------------------------------------
+{
+    const usedGlyphs = new Set();
+    for (const match of source.matchAll(/(?:app|model)\.glyph\('([a-zA-Z0-9_-]+)'\)/g)) usedGlyphs.add(match[1]);
+    for (const name of ['copy', 'check', 'stack', 'info', 'external', 'locate', 'chevronRight', ...usedGlyphs]) {
+        const svg = model.glyph(name);
+        assert.ok(svg && svg.startsWith('<svg ') && svg.includes('aria-hidden="true"'), `missing or invalid Infra glyph: ${name}`);
+    }
 }
 
 console.log(`Infra UI model, grouped virtualization, and ${required.size} translation keys passed for ${locales.length} locales.`);

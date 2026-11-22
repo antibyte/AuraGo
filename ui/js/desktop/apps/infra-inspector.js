@@ -25,9 +25,11 @@
         const $ = selector => el.querySelector(selector);
         const titleId = `infra-inspector-title-${S}`;
         let stale = false, prefs = model.readInspectorPrefs(app.readStorage(PREFS_KEY)), activeTab = 'overview', pendingTab = '', lastId = '', renaming = false, renameBefore = '', edgeDirty = false;
+        const copyTimers = new Set();
 
+        const clearCopyTimers = () => { for (const timer of copyTimers) clearTimeout(timer); copyTimers.clear(); };
         const show = () => { el.hidden = false; root.dataset.inspectorOpen = 'true'; };
-        const hide = () => { forms.detach(); el.hidden = true; el.innerHTML = ''; root.dataset.inspectorOpen = 'false'; lastId = ''; renaming = false; edgeDirty = false; };
+        const hide = () => { clearCopyTimers(); forms.detach(); el.hidden = true; el.innerHTML = ''; root.dataset.inspectorOpen = 'false'; lastId = ''; renaming = false; edgeDirty = false; };
         const appLabel = appId => t(`desktop.infra_app_${String(appId).replaceAll('-', '_')}`);
         const closeButton = () => `<button type="button" class="infra-cmd-icon infra-detail-close" data-action="close-inspector" aria-label="${esc(t('desktop.close'))}" title="${esc(t('desktop.close'))}">${app.glyph('close')}</button>`;
         const selectButton = id => `<button type="button" data-inspector-select="${esc(id)}">${esc(store.nodeById(id)?.name || id)}</button>`;
@@ -37,24 +39,46 @@
         function overviewHTML(node) {
             const guestIndex = store.guests(), hostId = guestIndex.hostOf.get(node.id), guests = (guestIndex.guestsOf.get(node.id) || []).map(id => store.nodeById(id)).filter(Boolean);
             const profile = node.profile || {}, none = '—';
-            const place = model.placePath(node.id, store.nodeById).map(item => item.name).join(' › ') || t('desktop.infra_no_place');
+            const crumbs = model.placePath(node.id, store.nodeById);
+            const place = crumbs.map(item => item.name).join(' › ') || t('desktop.infra_no_place');
             const placement = store.effectivePlacement(node.id, app.mapView());
+            const autoPlaced = app.canvas.isAutoPlaced(node.id);
             const seen = (node.sources || []).map(source => Date.parse(source.fetched_at)).filter(Number.isFinite).sort((a, b) => b - a)[0];
             const row = (label, value) => `<dt>${esc(label)}</dt><dd>${value}</dd>`;
-            let facts = row(t('desktop.infra_address'), esc(profile.ip_address || none)) + row(t('desktop.infra_field_mac_address'), esc(profile.mac_address || none))
+            const copyBtn = value => `<button type="button" class="infra-fact-copy" data-copy-value="${esc(value)}" aria-label="${esc(t('desktop.copy'))}" title="${esc(t('desktop.copy'))}">${app.glyph('copy')}</button>`;
+            const copyable = value => (value ? `<span class="infra-fact-inline"><span class="infra-fact-num">${esc(value)}</span>${copyBtn(value)}</span>` : esc(none));
+            const placeValue = crumbs.length ? `<button type="button" class="infra-fact-link" data-crumb="${esc(crumbs.at(-1).id)}">${esc(place)}</button>` : esc(place);
+            let facts = row(t('desktop.infra_address'), copyable(profile.ip_address)) + row(t('desktop.infra_field_mac_address'), copyable(profile.mac_address))
                 + row(t('desktop.infra_fact_hardware'), esc([profile.vendor, profile.model].filter(Boolean).join(' · ') || none))
-                + row(t('desktop.infra_place'), esc(place));
+                + row(t('desktop.infra_place'), placeValue);
             // The Overview only says whether the asset is on the map; the coordinates are in the Details tab.
-            if (!hostId) facts += row(t('desktop.infra_placement'), esc(app.canvas.isAutoPlaced(node.id) ? t('desktop.infra_topology_auto') : placement ? t('desktop.infra_on_map') : t('desktop.infra_unplaced')));
+            if (!hostId) {
+                const placeText = autoPlaced ? t('desktop.infra_topology_auto') : placement ? t('desktop.infra_on_map') : t('desktop.infra_unplaced');
+                const placeCell = placement || autoPlaced
+                    ? `<button type="button" class="infra-fact-link" data-action="locate-selected" title="${esc(t('desktop.infra_view_map'))}">${esc(placeText)}${app.glyph('locate')}</button>`
+                    : esc(placeText);
+                facts += row(t('desktop.infra_placement'), placeCell);
+            }
             if (hostId && store.nodeById(hostId)) facts += row(t('desktop.infra_fact_host'), `${selectButton(hostId)}${node.host_inferred ? ` <small>· ${esc(t('desktop.infra_host_inferred'))}</small>` : ''}`);
             if (guests.length) {
                 const more = guests.length > LIST_LIMIT ? `<li><button type="button" data-guest-more="${esc(node.id)}">${esc(model.fill(t('desktop.infra_more_guests'), { count: guests.length - LIST_LIMIT }))}</button></li>` : '';
                 facts += row(t('desktop.infra_fact_guests'), `<ul class="infra-overview-guests">${guests.slice(0, LIST_LIMIT).map(guest => `<li><button type="button" data-inspector-select="${esc(guest.id)}">${app.icon(guest.icon)}<span>${esc(guest.name)}</span></button></li>`).join('')}${more}</ul>`);
             }
-            facts += row(t('desktop.infra_tab_connections'), esc(model.countText(edgesOf(node).length, t('desktop.infra_connections_summary_one'), t('desktop.infra_connections_summary'))))
+            const connText = model.countText(edgesOf(node).length, t('desktop.infra_connections_summary_one'), t('desktop.infra_connections_summary'));
+            facts += row(t('desktop.infra_tab_connections'), `<button type="button" class="infra-fact-link" data-jump-tab="connections">${esc(connText)}${app.glyph('chevronRight')}</button>`)
                 + row(t('desktop.infra_fact_last_seen'), esc(seen ? new Date(seen).toLocaleString() : t('desktop.infra_no_observation')));
+            const specTiles = [['os', 'desktop.infra_field_os'], ['cpu', 'desktop.infra_field_cpu'], ['ram', 'desktop.infra_field_ram'], ['storage', 'desktop.infra_field_storage'], ['firmware', 'desktop.infra_field_firmware'], ['rack_position', 'desktop.infra_field_rack_position']]
+                .filter(([key]) => String(profile[key] || '').trim())
+                .map(([key, labelKey]) => `<div class="infra-spec-tile"><span>${esc(t(labelKey))}</span><strong>${esc(profile[key])}</strong></div>`).join('');
+            const specs = specTiles ? `<div class="infra-overview-block"><h3 class="infra-overview-heading">${esc(t('desktop.infra_group_hardware'))}</h3><div class="infra-spec-grid">${specTiles}</div></div>` : '';
+            const tags = (profile.tags || []).filter(Boolean);
+            const tagsBlock = tags.length ? `<div class="infra-overview-block"><h3 class="infra-overview-heading">${esc(t('desktop.infra_tags'))}</h3><ul class="infra-tag-chips">${tags.map(tag => `<li>${esc(tag)}</li>`).join('')}</ul></div>` : '';
             const links = (node.app_links || []).filter(link => model.APP_LINK_TARGETS.has(link.app));
-            const apps = links.length ? `<div class="infra-form-section"><h3>${esc(t('desktop.infra_fact_apps'))}</h3><div class="infra-app-links">${links.map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(appLabel(link.app))}<span aria-hidden="true">↗</span></button>`).join('')}</div></div>` : '';
+            const apps = links.length ? `<div class="infra-overview-block"><h3 class="infra-overview-heading">${esc(t('desktop.infra_fact_apps'))}</h3><div class="infra-app-links">${links.map(link => `<button type="button" class="infra-app-link" data-open-app="${esc(link.app)}" data-target-id="${esc(link.target_id)}">${esc(appLabel(link.app))}<span aria-hidden="true">↗</span></button>`).join('')}</div></div>` : '';
+            const webLinks = (profile.links || []).filter(item => item?.url && model.validHTTPLink(item.url));
+            const webLinksBlock = webLinks.length ? `<div class="infra-overview-block"><h3 class="infra-overview-heading">${esc(t('desktop.infra_links'))}</h3><div class="infra-ext-links">${webLinks.map(item => `<a class="infra-ext-link" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer"><span>${esc(item.label || item.url)}</span>${app.glyph('external')}</a>`).join('')}</div></div>` : '';
+            const notesText = String(profile.notes || '').trim();
+            const notesBlock = notesText ? `<div class="infra-overview-block"><h3 class="infra-overview-heading">${esc(t('desktop.infra_notes'))}</h3><p class="infra-notes-preview">${esc(notesText)}</p></div>` : '';
             // Topology lays assets out by itself; only a guest without a host is placed by hand there, places are not drawn.
             const canPlace = !placement && !hostId && canWrite() && (app.mapView() !== 'topology' || node.kind === 'vm' || node.kind === 'container');
             const logical = node.kind === 'service' ? edgesOf(node).filter(edge => ['runs_on', 'depends_on', 'powered_by'].includes(edge.kind)) : [];
@@ -62,7 +86,7 @@
                 const other = store.nodeById(edge.from === node.id ? edge.to : edge.from);
                 return other ? `<button type="button" data-inspector-select="${esc(other.id)}">${esc(t(`desktop.infra_edge_${edge.kind}`))} · ${esc(other.name)}</button>` : '';
             }).join('')}</div></details>` : '';
-            return `<dl class="infra-facts">${facts}</dl>${apps}${components}${canPlace ? `<button type="button" class="infra-button" data-action="place-selected">${esc(t('desktop.infra_place_on_map'))}</button>` : ''}<p class="infra-hint">${esc(t('desktop.infra_move_hint'))}</p>`;
+            return `<dl class="infra-facts infra-facts-card">${facts}</dl>${specs}${tagsBlock}${apps}${webLinksBlock}${notesBlock}${components}${canPlace ? `<button type="button" class="infra-button" data-action="place-selected">${esc(t('desktop.infra_place_on_map'))}</button>` : ''}<p class="infra-hint infra-overview-tip">${app.glyph('info')}<span>${esc(t('desktop.infra_move_hint'))}</span></p>`;
         }
 
         // ---- Connections ----------------------------------------------------------------------------
@@ -95,7 +119,7 @@
             const name = write
                 ? `<button type="button" class="infra-head-name" data-action="rename" title="${esc(t('desktop.infra_rename'))}">${esc(draft.name)}</button>`
                 : `<span class="infra-head-name">${esc(node.name)}</span>`;
-            return `<div class="infra-inspector-top">
+            return `<div class="infra-inspector-top" data-kind="${esc(node.kind)}">
   <header class="infra-inspector-head" data-inspector-head>
     <button type="button" class="infra-head-icon" data-action="pick-icon" aria-haspopup="dialog" aria-label="${esc(t('desktop.infra_change_icon'))}" title="${esc(t('desktop.infra_change_icon'))}"${write ? '' : ' disabled'}>${app.icon(draft.icon)}</button>
     <div class="infra-head-main">
@@ -297,10 +321,31 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
                 : app.canvas?.cardEl(id) || app.canvas?.regionEl(id)?.querySelector('[data-region-header]') || app.canvas?.viewport;
             target?.focus({ preventScroll: true });
         }
+        const copyText = async (button, value) => {
+            if (!value) return;
+            try {
+                if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+            } catch (_) { /* clipboard may be blocked in headless/non-secure contexts */ }
+            if (!button.isConnected) return;
+            button.dataset.copied = 'true';
+            button.innerHTML = app.glyph('check');
+            const timer = setTimeout(() => {
+                copyTimers.delete(timer);
+                if (!button.isConnected) return;
+                delete button.dataset.copied;
+                button.innerHTML = app.glyph('copy');
+            }, 1400);
+            copyTimers.add(timer);
+            app.toast(t('desktop.copied'), 'success');
+        };
         const selectedIds = () => [...state.selection].filter(id => store.nodeById(id));
         const onClick = event => {
             if (forms.onClick(event)) return;
             const target = event.target;
+            const copy = target.closest('[data-copy-value]');
+            if (copy) { void copyText(copy, copy.dataset.copyValue); return; }
+            const jumpTab = target.closest('[data-jump-tab]');
+            if (jumpTab) { showTab(jumpTab.dataset.jumpTab, { focus: true, persist: true }); return; }
             const tab = target.closest('[data-inspector-tab]');
             if (tab) { showTab(tab.dataset.inspectorTab, { persist: true }); return; }
             const jump = target.closest('[data-crumb], [data-inspector-select]');
@@ -328,6 +373,11 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
                 case 'edit-details': showTab('details', { persist: true }); $('[data-node-field="kind"]')?.focus(); break;
                 case 'node-more': app.menus.openNodeMenu(id, button); break;
                 case 'place-selected': void app.gestures.placeAtCenter([id], { moveMode: true }); break;
+                case 'locate-selected':
+                    if (state.view === 'table') app.ensureMapView();
+                    app.canvas?.renderNow();
+                    app.canvas?.centerOn(id, { animate: true });
+                    break;
                 case 'add-edge': app.picker.openAssetPicker({ anchor: button, label: t('desktop.infra_connect_to'), accept: other => other.id !== id, onPick: option => app.dialogs.openEdgeDialog('', id, option.id) }); break;
                 case 'delete-edge': void app.dialogs.removeEdge(state.selectedEdge); break;
                 case 'move-selection': app.picker.openPlacePicker({ anchor: button, exclude: ids, onPick: placeId => { void app.gestures.moveIntoPlace(ids, placeId); } }); break;
@@ -392,6 +442,7 @@ ${panel('overview', overviewHTML(node))}${panel('details', forms.detailsHTML(nod
             startRename();
         }
         function dispose() {
+            clearCopyTimers();
             el.removeEventListener('click', onClick);
             el.removeEventListener('input', onInput);
             el.removeEventListener('change', onInput);

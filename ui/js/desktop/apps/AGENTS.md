@@ -440,6 +440,16 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   `[data-layout-chip]`, the draft and review banners (`role="status"`) and the inline errors (`role="alert"`); `[data-live]`
   has none, so a poll never speaks. A failing poll reports once (`loadSnapshot`, `explicit` always reports). The only
   `role="toolbar"` is the canvas tools, with a roving tab stop and arrows, Home and End.
+- UI/UX polish invariants: semantic kind accents (`--infra-kind`, derived strictly from theme tokens) tint map cards,
+  library thumbnails, list type tags and the inspector header; `.infra-card:hover` must never alter `transform`
+  (shifted bounding boxes break `TestDesktopInfraTopologyCurvesBrowser` and edge anchoring). Library thumbnails
+  (`.infra-library-live-dot`, `.infra-library-power-dot`), list rows and minimap cards reflect reachability via
+  `data-reach` (never add bare `data-live` to new elements, since `[data-live]` targets the footer sync indicator).
+  Inspector Overview renders interactive facts inside `.infra-facts-card` (icon-only IP/MAC copy buttons reusing
+  `desktop.copy`/`desktop.copied` so `<dd>` text stays exact for `TestDesktopInfraInspectorOverviewBrowser`, clickable
+  place/locate/connections actions, plus hardware specs, tags, validated HTTP links and notes preview when populated).
+  Double-clicking an `on-map` library row or a placed/hosted list row switches to the Map view centered on that asset.
+  `scripts/test-infra-ui.mjs` guards every `glyph(...)` call across `infra*.js`.
 
 ## Docker Manager
 

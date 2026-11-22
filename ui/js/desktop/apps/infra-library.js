@@ -21,7 +21,7 @@
         const S = app.safeId;
         const byName = (a, b) => String(a.name).localeCompare(String(b.name));
         const sectionHTML = (id, title, { emptyText = '', role = '', hidden = false, listClass = 'infra-library-list', head = '', after = '' } = {}) => `<section class="infra-library-section" data-library-section="${id}"${hidden ? ' hidden' : ''}>
-      <h2 class="infra-library-heading"><button type="button" class="infra-library-toggle" data-section-toggle="${id}" aria-expanded="true" aria-controls="infra-lib-${id}-${S}"><span class="infra-library-title">${esc(title)}</span><span class="infra-library-count" data-section-count="${id}">0</span></button>${head}</h2>
+      <h2 class="infra-library-heading"><button type="button" class="infra-library-toggle" data-section-toggle="${id}" aria-expanded="true" aria-controls="infra-lib-${id}-${S}"><span class="infra-section-chevron" aria-hidden="true">${app.glyph('chevron')}</span><span class="infra-library-title">${esc(title)}</span><span class="infra-library-count" data-section-count="${id}">0</span></button>${head}</h2>
       <ul class="${listClass}" id="infra-lib-${id}-${S}" data-section-list="${id}"${role ? ` role="${role}" aria-multiselectable="true"` : ''} aria-label="${esc(title)}"></ul>${after}${emptyText ? `
       <p class="infra-library-empty" data-section-empty="${id}" hidden>${esc(emptyText)}</p>` : ''}
     </section>`;
@@ -128,9 +128,11 @@
             const treeAttrs = tree ? ` aria-level="${level}"${hasGuests ? ` aria-expanded="${open}"` : row.kind === 'region' && row.children.length ? ' aria-expanded="true"' : ''}` : '';
             const attention = row.reasons ? ` data-attention-tab="${ATTENTION_TABS[row.reasons[0].code] || 'overview'}"` : '';
             const shortcut = sectionId === 'to-place' && write ? ' aria-keyshortcuts="P"' : '';
-            return `<li class="infra-library-row" role="none" data-library-item="${id}" data-section="${sectionId}" data-row-kind="${esc(row.kind)}"${draggable}${drop}>`
-                + `<button type="button" class="infra-library-row-main" role="${tree ? 'treeitem' : 'option'}" aria-selected="${state.selection.has(node.id)}"${treeAttrs}${shortcut} data-library-select="${id}"${attention} tabindex="-1" title="${name}"><img class="infra-library-row-icon" src="${esc(model.iconURL(node.icon))}" alt="" draggable="false">`
-                + `<span class="infra-library-row-text"><span class="infra-library-row-name">${name}</span><span class="${metaClass}">${meta}</span></span></button>${action}`
+            const live = model.liveState(node), power = node && model.powerLabel(node.power) ? node.power : '';
+            const thumb = `<span class="infra-library-row-thumb" aria-hidden="true"><img class="infra-library-row-icon" src="${esc(model.iconURL(node.icon))}" alt="" draggable="false">${live ? `<i class="infra-library-live-dot" data-reach="${esc(live)}"></i>` : ''}${power ? `<i class="infra-library-power-dot" data-power="${esc(power)}"></i>` : ''}</span>`;
+            return `<li class="infra-library-row" role="none" data-library-item="${id}" data-section="${sectionId}" data-row-kind="${esc(row.kind)}" data-node-kind="${esc(node.kind)}"${draggable}${drop}>`
+                + `<button type="button" class="infra-library-row-main" role="${tree ? 'treeitem' : 'option'}" aria-selected="${state.selection.has(node.id)}"${treeAttrs}${shortcut} data-library-select="${id}"${attention} tabindex="-1" title="${name}">${thumb}`
+                + `<span class="infra-library-row-text"><span class="infra-library-row-name">${name}</span><span class="${metaClass}">${meta}</span></span>${hasGuests ? `<span class="infra-library-guest-pill" aria-hidden="true">${row.children.length}</span>` : ''}</button>${action}`
                 + (kids.length ? `<ul class="infra-library-children" role="group">${kids.map(kid => rowHTML(kid, sectionId, level + 1)).join('')}</ul>` : '') + '</li>';
         }
 
@@ -347,7 +349,17 @@
             if (!button || button.dataset.librarySelect === rovingId) return;
             rovingId = button.dataset.librarySelect; applyRoving();
         };
+        const onDblClick = event => {
+            const select = event.target.closest('[data-library-select]');
+            const item = select?.closest('[data-library-item]');
+            if (!select || item?.dataset.section !== 'on-map') return;
+            const id = select.dataset.librarySelect;
+            if (state.view === 'table') app.ensureMapView();
+            app.canvas?.renderNow();
+            app.canvas?.centerOn(id, { animate: true });
+        };
         el.addEventListener('click', onClick);
+        el.addEventListener('dblclick', onDblClick);
         el.addEventListener('pointerdown', onPointerDown);
         el.addEventListener('keydown', onKeyDown);
         el.addEventListener('focusin', onFocusIn);
@@ -393,6 +405,7 @@
             disposed = true;
             if (frameId) cancelAnimationFrame(frameId);
             clearTimeout(suppressTimer);
+            el.removeEventListener('dblclick', onDblClick);
             root.classList.remove('is-resizing');
             el.remove(); splitter.remove();
         }
