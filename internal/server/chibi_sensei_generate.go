@@ -220,6 +220,9 @@ func (s *Server) runChibiGenerate(ctx context.Context, st *chibisensei.Store, rt
 			res.BatchID = batch
 		}
 	}()
+	if err := ctx.Err(); err != nil {
+		return res, err // cancelled while queued: only the defers run
+	}
 
 	free := in.project.Recipe == chibisensei.RecipeFree
 	chunks := chibisensei.ChunkText(in.docs, chibisensei.ChunkRunes)
@@ -391,6 +394,9 @@ func (s *Server) runChibiClean(ctx context.Context, st *chibisensei.Store, rt *c
 	sent := 0
 	defer rt.release()
 	defer func() { _ = st.ReleaseDaily(context.Background(), in.day, len(in.ids)-sent) }()
+	if err := ctx.Err(); err != nil {
+		return res, err // cancelled while queued: only the defers run
+	}
 	var jobID string
 	select {
 	case jobID = <-in.jobID:

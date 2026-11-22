@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -229,6 +230,82 @@ func TestDeleteProjectRemovesRunData(t *testing.T) {
 		var n int
 		if err := st.db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&n); err != nil || n != 0 {
 			t.Errorf("%s keeps %d rows (%v)", table, n, err)
+		}
+	}
+}
+
+func TestUndoOfRunningImportCancelsTheJob(t *testing.T) {
+	ctx := context.Background()
+	st := newTestStore(t)
+	p, _ := st.CreateProject(ctx, ProjectInput{Name: "Bot", Recipe: RecipeAssistant})
+	var sb strings.Builder
+	for i := 0; i < 600; i++ {
+		fmt.Fprintf(&sb, `{"prompt":"question %d","completion":"a sufficiently long answer %d"}`+"\n", i, i)
+	}
+	ws := newFakeWS()
+	ws.files["Imports/big.jsonl"] = []byte(sb.String())
+	r := NewRunner(st, nil)
+	defer r.Close()
+	// Full is checked before every chunk; before the second one the user undoes the open batch of the import.
+	checks := 0
+	full := func() bool {
+		checks++
+		if checks == 2 {
+			var batch string
+			if err := st.db.QueryRow(`SELECT batch_id FROM batches WHERE project_id=?`, p.ID).Scan(&batch); err != nil {
+				t.Errorf("batch of the import: %v", err)
+				return false
+			}
+			if _, err := st.Undo(ctx, p.ID, batch); err != nil {
+				t.Errorf("undo: %v", err)
+			}
+		}
+		return false
+	}
+	j, err := r.Start(ctx, nil, p.ID, "import_file", nil, 0, func(jctx context.Context, report func(Progress)) (JobResult, error) {
+		return RunImport(jctx, st, ws, p.ID, ImportParams{WorkspacePath: "Imports/big.jsonl", Format: "auto", Full: full}, 1<<24, 1000, 1000, report)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := waitJob(t, st, j.ID); got.State != JobCancelled || got.ErrorCode != "" || got.Result.RowsAdded != 0 || got.Result.BatchID != "" {
+		t.Fatalf("job after the undo: %+v", got)
+	}
+	if n, _ := st.CountRows(ctx, p.ID); n != 0 {
+		t.Fatalf("rows kept of the undone batch = %d", n)
+	}
+}
+
+func TestUndoRecomputesDerivedFieldsUnderCurrentTaskKind(t *testing.T) {
+	ctx := context.Background()
+	st := newTestStore(t)
+	p, err := st.CreateProject(ctx, ProjectInput{Name: "Bot", Recipe: RecipeSpecialist, TaskKind: "classify", Labels: []string{"cat", "dog"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AddRows(ctx, p.ID, []RowInput{chatInput("one", "cat"), chatInput("two", "dog")}, AddOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	rows := allRows(t, st, p.ID)
+	if rows[0].Label != "cat" {
+		t.Fatalf("label under classify = %q", rows[0].Label)
+	}
+	bulk, err := st.Bulk(ctx, p.ID, []int64{rows[0].ID, rows[1].ID}, "set_split", "eval")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The task kind changes: labels and local flags are recomputed (without a new rev), then the older batch is undone.
+	kind, labels := "to_json", []string{}
+	if _, err := st.UpdateProject(ctx, p.ID, p.Rev, ProjectPatch{TaskKind: &kind, Labels: &labels}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Undo(ctx, p.ID, bulk.BatchID); err != nil {
+		t.Fatalf("undo: %v", err)
+	}
+	wantFlags := FlagInvalidJSON.Names()
+	for _, row := range allRows(t, st, p.ID) {
+		if row.Split != "auto" || row.Label != "" || fmt.Sprint(row.Flags) != fmt.Sprint(wantFlags) {
+			t.Fatalf("restored row %d: split %q label %q flags %v, want auto, no label, %v", row.ID, row.Split, row.Label, row.Flags, wantFlags)
 		}
 	}
 }

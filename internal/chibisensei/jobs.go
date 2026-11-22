@@ -257,13 +257,18 @@ func (r *Runner) run(ctx context.Context, aj *activeJob, release func(), job Job
 				err = fmt.Errorf("job panicked: %v", v)
 			}
 		}()
+		var waitErr error
 		if job.State == JobQueued {
-			if err = r.acquireSlot(ctx, job); err != nil {
-				return
+			// A wait that ended with the context still runs the function, without a slot: it returns at once
+			// and only its defers run (refund of the reservation, release of the route).
+			if waitErr = r.acquireSlot(ctx, job); waitErr == nil {
+				holdsSlot = true
 			}
-			holdsSlot = true
 		}
 		res, err = fn(ctx, report)
+		if err == nil && waitErr != nil {
+			err = waitErr
+		}
 	}()
 	freeSlot()
 

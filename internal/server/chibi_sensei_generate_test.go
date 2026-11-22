@@ -192,6 +192,50 @@ func TestChibiSenseiGenerateCancel(t *testing.T) {
 	}
 }
 
+// A generation job cancelled while it waits for a model slot still runs its cleanup: the daily reservation comes back.
+func TestChibiSenseiQueuedGenerateCancelRefundsReservation(t *testing.T) {
+	s, _, token := chibiAPIFixture(t)
+	s.Cfg.ChibiSensei.Generator.MaxDailyRows = 100
+	fake := &chibiFakeLLM{block: true}
+	chibiUseFake(s, fake)
+	start := func(name string, count int) (string, int) {
+		pid := chibiNewProject(t, s, token, map[string]any{"name": name, "recipe": "assistant"})
+		w := chibiDo(t, s, token, http.MethodPost, "/projects/"+pid+"/generate", map[string]any{"count": count})
+		return chibiBody(t, w)["job"].(map[string]any)["id"].(string), w.Code
+	}
+	if _, code := start("A", 40); code != http.StatusAccepted {
+		t.Fatalf("first job = %d", code)
+	}
+	if _, code := start("B", 40); code != http.StatusAccepted {
+		t.Fatalf("second job = %d", code)
+	}
+	for deadline := time.Now().Add(3 * time.Second); len(fake.seen()) < 2; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("the first two jobs never called the model")
+		}
+	}
+	queued, code := start("C", 20)
+	if code != http.StatusAccepted {
+		t.Fatalf("third job = %d", code)
+	}
+	if st := chibiBody(t, chibiDo(t, s, token, http.MethodGet, "/jobs/"+queued, nil))["job"].(map[string]any)["state"]; st != "queued" {
+		t.Fatalf("third job state = %v", st)
+	}
+	// 100 of 100 rows are reserved now.
+	pid := chibiNewProject(t, s, token, map[string]any{"name": "D", "recipe": "assistant"})
+	chibiWant(t, chibiDo(t, s, token, http.MethodPost, "/projects/"+pid+"/generate", map[string]any{"count": 10}), http.StatusTooManyRequests, "generator_daily_limit")
+	chibiWant(t, chibiDo(t, s, token, http.MethodPost, "/jobs/"+queued+"/cancel", nil), http.StatusOK, "")
+	if job := waitChibiJob(t, s, token, queued); job.State != "cancelled" {
+		t.Fatalf("queued job state = %s", job.State)
+	}
+	if n := len(fake.seen()); n != 2 {
+		t.Fatalf("model calls = %d, the cancelled queued job must not call the model", n)
+	}
+	// The 20 reserved rows of the cancelled job are back: 20 more fit, 21 do not.
+	chibiWant(t, chibiDo(t, s, token, http.MethodPost, "/projects/"+pid+"/generate", map[string]any{"count": 21}), http.StatusTooManyRequests, "generator_daily_limit")
+	chibiWant(t, chibiDo(t, s, token, http.MethodPost, "/projects/"+pid+"/generate", map[string]any{"count": 20}), http.StatusAccepted, "")
+}
+
 func TestChibiSenseiCleanReviewApply(t *testing.T) {
 	s, _, token := chibiAPIFixture(t)
 	pid := chibiNewProject(t, s, token, map[string]any{"name": "Bot", "recipe": "assistant", "goal_text": "Answer shop questions"})

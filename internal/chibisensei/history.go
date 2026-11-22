@@ -44,7 +44,20 @@ type UndoResult struct {
 }
 
 // restoreSnapshot overwrites a row with a snapshot, re-inserting it with the same id when it is gone.
-func restoreSnapshot(ctx context.Context, tx *sql.Tx, projectID string, snap rowSnapshot) error {
+//
+// Label, the local flags and the token estimate are derived data: they are recomputed from the restored content under
+// the project's current recipe and task kind (the same deriveFields as AddRows and UpdateRow), never taken from the
+// snapshot, which may predate a recipe change. The cross-row flags are cleared; the next check run sets them again.
+func restoreSnapshot(ctx context.Context, tx *sql.Tx, p Project, projectID string, snap rowSnapshot) error {
+	in := RowInput{Text: snap.Text}
+	if snap.Kind != rowKindText {
+		in.Text = nil
+		if snap.MessagesJSON != nil {
+			_ = json.Unmarshal([]byte(*snap.MessagesJSON), &in.Messages)
+		}
+	}
+	f := deriveFields(in, p)
+	snap.Label, snap.EstTokens, snap.Flags = f.label, f.est, int64(f.flags)
 	var exists int
 	err := tx.QueryRowContext(ctx, `SELECT 1 FROM dataset_rows WHERE id=? AND project_id=?`, snap.ID, projectID).Scan(&exists)
 	found := err == nil
@@ -204,7 +217,7 @@ func (s *Store) Undo(ctx context.Context, projectID, batchID string) (UndoResult
 			if err := json.Unmarshal([]byte(o.before.String), &snap); err != nil {
 				return UndoResult{}, err
 			}
-			if err := restoreSnapshot(ctx, tx, projectID, snap); err != nil {
+			if err := restoreSnapshot(ctx, tx, p, projectID, snap); err != nil {
 				return UndoResult{}, err
 			}
 			restored++

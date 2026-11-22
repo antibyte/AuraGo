@@ -82,6 +82,9 @@ func TestRunnerQueuesThirdModelJobAndStorageRecheckStopsImport(t *testing.T) {
 	started := make(chan string, 4)
 	hold := func(name string) JobFunc {
 		return func(ctx context.Context, _ func(Progress)) (JobResult, error) {
+			if ctx.Err() != nil { // a job cancelled while queued is entered with a done context and must do no work
+				return JobResult{}, ctx.Err()
+			}
 			started <- name
 			<-ctx.Done()
 			return JobResult{}, ctx.Err()
@@ -186,5 +189,42 @@ func TestImportSkipsOverlongLines(t *testing.T) {
 	}
 	if res.RowsAdded != 2 || len(res.Issues) != 1 || res.Issues[0].MessageKey != "chibi_sensei.import.line_too_long" || res.Issues[0].Line != 3 {
 		t.Fatalf("csv: %+v", res)
+	}
+}
+
+func TestImportCSVStrictQuotingSkipsBadRecords(t *testing.T) {
+	ctx := context.Background()
+	st := newTestStore(t)
+	ws := newFakeWS()
+	huge := strings.Repeat("x", 2<<20)
+	ws.files["Imports/q.csv"] = []byte("question,answer\n" +
+		"q1,a sufficiently long answer 1\n" + // line 2
+		`5" screen,a sufficiently long answer bare` + "\n" + // line 3: a bare quote
+		"q2,a sufficiently long answer 2\n" + // line 4
+		`"` + huge + `",x` + "\n" + // line 5: over 1 MiB
+		"\"q3\nsecond line\",a sufficiently long answer 3\n" + // lines 6-7
+		"q4,a sufficiently long answer 4\n") // line 8
+	p, _ := st.CreateProject(ctx, ProjectInput{Name: "Csv", Recipe: RecipeAssistant})
+	res, err := RunImport(ctx, st, ws, p.ID, ImportParams{WorkspacePath: "Imports/q.csv", Format: "auto"}, 1<<24, 100, 100, func(Progress) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RowsAdded != 4 || res.RowsSkipped != 2 || len(res.Issues) != 2 {
+		t.Fatalf("result: %+v", res)
+	}
+	if is := res.Issues[0]; is.MessageKey != "chibi_sensei.import.bad_csv" || is.Line != 3 {
+		t.Fatalf("bare quote issue: %+v", is)
+	}
+	if is := res.Issues[1]; is.MessageKey != "chibi_sensei.import.line_too_long" || is.Line != 5 {
+		t.Fatalf("long record issue: %+v", is)
+	}
+	var got []string
+	for _, r := range allRows(t, st, p.ID) {
+		got = append(got, r.Messages[0].Content+"|"+r.Messages[1].Content)
+	}
+	want := []string{"q1|a sufficiently long answer 1", "q2|a sufficiently long answer 2",
+		"q3\nsecond line|a sufficiently long answer 3", "q4|a sufficiently long answer 4"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("rows = %q, want %q", got, want)
 	}
 }

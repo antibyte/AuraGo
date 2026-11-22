@@ -556,7 +556,7 @@ func (s *importState) parseCSV(data []byte, m Mapping) (Mapping, []string, error
 		lim = &csvLimitReader{r: bytes.NewReader(data[from:])}
 		r = csv.NewReader(lim)
 		r.Comma = comma
-		r.LazyQuotes = true
+		r.LazyQuotes = false // strict: a bad record is skipped and reported, and the quote parity of csvRecordEnd stays right
 		r.FieldsPerRecord = -1
 	}
 	newReader(0)
@@ -841,6 +841,10 @@ func RunImport(ctx context.Context, st *Store, ws Workspace, projectID string, p
 		res.BatchID = batchID
 	}
 	switch {
+	case errors.Is(failure, ErrAlreadyUndone):
+		// the user undid the open batch: stop, this is a cancel and not a failure; nothing of the batch is kept
+		res.RowsAdded, res.BatchID = 0, ""
+		return res, context.Canceled
 	case ctx.Err() != nil:
 		return res, ctx.Err()
 	case perr != nil:
