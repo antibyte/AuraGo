@@ -92,7 +92,7 @@
   "ruview.storage": "Límite de almacenamiento (MiB)",
   "ruview.save_first": "Guarda antes de probar o configurar placas.",
   "ruview.open": "Abrir RuView",
-  "ruview.quality": "Detección experimental de movimiento por Wi-Fi (radar, incluso a través de paredes). RSSI requiere un adaptador compatible; CSI, placas ESP32 opcionales. Los datos de demostración se identifican. El cambio de modelos y LoRA no está disponible.",
+  "ruview.quality": "Detección experimental de movimiento por Wi-Fi. RSSI requiere un adaptador compatible; CSI, placas ESP32 opcionales. Los datos de demostración se identifican. El cambio de modelos y LoRA no está disponible.",
   "ruview.prerequisites": "Usa HTTPS o localhost y un navegador con Web Serial. Cierra otras herramientas serie y usa un cable USB de datos. Mantén BOOT al reconectar si falla la detección.",
   "ruview.privacy": "Las credenciales Wi-Fi solo permanecen en la memoria del navegador y se envían directamente a la placa. Se conservan durante la configuración, los reintentos y las comprobaciones. Se borran al cerrar el diálogo.",
   "ruview.board_mismatch": "El chip, tamaño de flash y consola USB deben coincidir con el perfil. Elige S3 de 4/8/16 MiB o C6 de 4 MiB.",

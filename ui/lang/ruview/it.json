@@ -92,7 +92,7 @@
   "ruview.storage": "Limite di archiviazione (MiB)",
   "ruview.save_first": "Salva prima di provare o configurare le schede.",
   "ruview.open": "Apri RuView",
-  "ruview.quality": "Rilevamento sperimentale del movimento tramite Wi-Fi (radar, anche attraverso le pareti). RSSI richiede un adattatore supportato; CSI schede ESP32 opzionali. I dati demo sono contrassegnati. Cambio modelli e LoRA non disponibile.",
+  "ruview.quality": "Rilevamento sperimentale del movimento tramite Wi-Fi. RSSI richiede un adattatore supportato; CSI schede ESP32 opzionali. I dati demo sono contrassegnati. Cambio modelli e LoRA non disponibile.",
   "ruview.prerequisites": "Usa HTTPS o localhost e un browser con Web Serial. Chiudi altri strumenti seriali e usa un cavo USB dati. Tieni BOOT alla riconnessione se il rilevamento fallisce.",
   "ruview.privacy": "Le credenziali Wi-Fi restano solo nella memoria del browser e vengono inviate direttamente alla scheda. La configurazione, i nuovi tentativi e le verifiche mantengono i dati inseriti. Chiudendo la finestra, i dati vengono cancellati.",
   "ruview.board_mismatch": "Chip, memoria flash e console USB devono corrispondere al profilo. Scegli S3 4/8/16 MiB o C6 4 MiB.",

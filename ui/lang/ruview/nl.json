@@ -92,7 +92,7 @@
   "ruview.storage": "Opslaglimiet (MiB)",
   "ruview.save_first": "Sla wijzigingen op vóór een test of bordconfiguratie.",
   "ruview.open": "RuView openen",
-  "ruview.quality": "Experimentele bewegingsdetectie via Wi-Fi (radar, ook door muren). RSSI vereist een ondersteunde adapter; CSI optionele ESP32-borden. Demogegevens zijn gemarkeerd. Model- en LoRA-wissels zijn niet beschikbaar.",
+  "ruview.quality": "Experimentele bewegingsdetectie via Wi-Fi. RSSI vereist een ondersteunde adapter; CSI optionele ESP32-borden. Demogegevens zijn gemarkeerd. Model- en LoRA-wissels zijn niet beschikbaar.",
   "ruview.prerequisites": "Gebruik HTTPS of localhost en een browser met Web Serial. Sluit andere seriële tools en gebruik een USB-datakabel. Houd BOOT ingedrukt bij opnieuw aansluiten als detectie mislukt.",
   "ruview.privacy": "Wifi-inloggegevens blijven alleen in het browsergeheugen en worden rechtstreeks naar het bord gestuurd. Ze blijven behouden tijdens het instellen, opnieuw proberen en controleren. Bij het sluiten van het dialoogvenster worden ze gewist.",
   "ruview.board_mismatch": "Chip, flashgrootte en USB-console moeten bij het profiel passen. Kies S3 4/8/16 MiB of C6 4 MiB.",
