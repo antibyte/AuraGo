@@ -75,6 +75,61 @@ func restoreSnapshot(ctx context.Context, tx *sql.Tx, projectID string, snap row
 	return err
 }
 
+// checkUndoable verifies that no later change touched a row of the batch: a row the batch inserted or updated must
+// still have the revision the batch left, a row the batch deleted must still be gone.
+func checkUndoable(ctx context.Context, tx *sql.Tx, projectID, batchID string) error {
+	type entry struct {
+		id, rowID, afterRev int64
+		op                  string
+	}
+	seen := map[int64]bool{}
+	last := int64(math.MaxInt64)
+	for {
+		rows, err := tx.QueryContext(ctx, `SELECT id,row_id,op,after_rev FROM row_history WHERE batch_id=? AND project_id=? AND id<?
+			ORDER BY id DESC LIMIT 1000`, batchID, projectID, last)
+		if err != nil {
+			return err
+		}
+		var page []entry
+		for rows.Next() {
+			var e entry
+			if err := rows.Scan(&e.id, &e.rowID, &e.op, &e.afterRev); err != nil {
+				rows.Close()
+				return err
+			}
+			page = append(page, e)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
+		if len(page) == 0 {
+			return nil
+		}
+		last = page[len(page)-1].id
+		for _, e := range page {
+			if seen[e.rowID] {
+				continue // only the newest entry of a row says what the batch left behind
+			}
+			seen[e.rowID] = true
+			var rev int64
+			err := tx.QueryRowContext(ctx, `SELECT rev FROM dataset_rows WHERE id=?`, e.rowID).Scan(&rev)
+			exists := err == nil
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return err
+			}
+			if e.op == "delete" {
+				if exists {
+					return ErrUndoConflict
+				}
+			} else if !exists || rev != e.afterRev {
+				return ErrUndoConflict
+			}
+		}
+	}
+}
+
 // Undo replays row_history of the batch in descending id order and marks the batch undone.
 func (s *Store) Undo(ctx context.Context, projectID, batchID string) (UndoResult, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -96,6 +151,9 @@ func (s *Store) Undo(ctx context.Context, projectID, batchID string) (UndoResult
 	}
 	if undone != 0 {
 		return UndoResult{}, ErrAlreadyUndone
+	}
+	if err := checkUndoable(ctx, tx, projectID, batchID); err != nil {
+		return UndoResult{}, err
 	}
 	type op struct {
 		id, rowID int64
@@ -242,7 +300,7 @@ func (s *Store) Dedupe(ctx context.Context, projectID string) (BulkResult, error
 
 // pruneHistory keeps the newest 50 batches of the project and deletes older ones with their row_history.
 func pruneHistory(ctx context.Context, tx *sql.Tx, projectID string) error {
-	const old = `SELECT batch_id FROM batches WHERE project_id=? AND batch_id NOT IN (
+	const old = `SELECT batch_id FROM batches WHERE project_id=? AND open=0 AND batch_id NOT IN (
 		SELECT batch_id FROM batches WHERE project_id=? ORDER BY created DESC, rowid DESC LIMIT 50)`
 	if _, err := tx.ExecContext(ctx, `DELETE FROM row_history WHERE project_id=? AND batch_id IN (`+old+`)`, projectID, projectID, projectID); err != nil {
 		return err

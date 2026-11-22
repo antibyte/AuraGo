@@ -40,8 +40,12 @@ func handleChibiChecksRun(s *Server, w http.ResponseWriter, r *http.Request, id 
 		srows = append(srows, chibisensei.SplitRow{ID: cr.ID, Split: cr.Split, Label: cr.Label, EstTokens: cr.EstTokens})
 	}
 	split := chibiSplitOf(srows, proj)
-	plan := chibisensei.ComputePlan(chibisensei.PlanInput{Project: proj, Profile: prof, Rows: srows, Split: split,
+	plan, err := chibisensei.ComputePlan(chibisensei.PlanInput{Project: proj, Profile: prof, Rows: srows, Split: split,
 		RemoteTimeoutMinutes: acc.cfg.Kaggle.RemoteTimeoutMinutes, NeedBaseGGUF: true})
+	if err != nil {
+		chibiDomainError(w, err)
+		return
+	}
 	res, flags := chibisensei.RunChecks(chibisensei.CheckInput{Project: proj, Profile: prof, Rows: rows, Split: split,
 		MaxSeqLen: plan.Hyper.MaxSeqLen}, time.Now().UTC())
 	if err := acc.rt.store.SaveChecks(ctx, res, flags); err != nil {
@@ -135,9 +139,13 @@ func handleChibiPlan(s *Server, w http.ResponseWriter, r *http.Request, id strin
 		chibiProfileUnknown(w)
 		return
 	}
-	plan := chibisensei.ComputePlan(chibisensei.PlanInput{Project: proj, Profile: prof, Rows: rows,
+	plan, err := chibisensei.ComputePlan(chibisensei.PlanInput{Project: proj, Profile: prof, Rows: rows,
 		Split: chibiSplitOf(rows, proj), Preset: preset,
 		RemoteTimeoutMinutes: acc.cfg.Kaggle.RemoteTimeoutMinutes, NeedBaseGGUF: true})
+	if err != nil {
+		chibiDomainError(w, err)
+		return
+	}
 	writeChibiJSON(w, http.StatusOK, plan)
 }
 

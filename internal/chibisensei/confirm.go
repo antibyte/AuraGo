@@ -73,6 +73,17 @@ func (d *DeleteTokens) Issue(projectID string, sel Select, dataRev int64) (strin
 	return token, DeleteTokenTTL
 }
 
+// Lookup returns the data_rev a valid token was issued for, without consuming it.
+func (d *DeleteTokens) Lookup(token, projectID string, sel Select) (int64, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	t, ok := d.items[token]
+	if !ok || d.now().After(t.expires) || t.project != projectID || t.sel != canonicalSelect(sel) {
+		return 0, false
+	}
+	return t.dataRev, true
+}
+
 // Consume reports whether token matches all three and has not expired; it removes the token either way.
 func (d *DeleteTokens) Consume(token, projectID string, sel Select, dataRev int64) bool {
 	d.mu.Lock()

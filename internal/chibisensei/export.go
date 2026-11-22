@@ -105,6 +105,14 @@ func RunExport(ctx context.Context, st *Store, ws Workspace, projectID string, p
 	if eachErr == nil {
 		eachErr = bw.Flush()
 	}
+	if eachErr == nil {
+		// the pipe is still open, so a failed check keeps the writer from publishing a file the split disagrees with
+		if now, err := st.GetProject(ctx, projectID); err != nil {
+			eachErr = err
+		} else if now.DataRev != proj.DataRev {
+			eachErr = ErrDataChanged
+		}
+	}
 	if eachErr != nil {
 		pw.CloseWithError(eachErr)
 	} else {
@@ -114,6 +122,9 @@ func RunExport(ctx context.Context, st *Store, ws Workspace, projectID string, p
 	res := JobResult{Rows: written, Path: p.WorkspacePath}
 	if err := ctx.Err(); err != nil {
 		return res, err
+	}
+	if errors.Is(eachErr, ErrDataChanged) {
+		return res, &JobError{Code: "data_changed", Message: "The rows changed during the export."}
 	}
 	if werr != nil {
 		switch {

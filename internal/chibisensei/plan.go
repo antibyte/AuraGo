@@ -31,9 +31,13 @@ type PlanInput struct {
 	NeedBaseGGUF         bool
 }
 
-// ComputePlan derives the training plan. Training is not available in P1, so Trainable is false.
-func ComputePlan(in PlanInput) Plan {
+// ComputePlan derives the training plan. Training is not available in P1, so Trainable is false. Overrides that
+// do not fit the profile are a *ValidationError.
+func ComputePlan(in PlanInput) (Plan, error) {
 	p := in.Profile
+	if is := ValidateOverrides(in.Project.Overrides, p); len(is) > 0 {
+		return Plan{}, &ValidationError{Issues: is}
+	}
 	preset := in.Preset
 	if preset == "" {
 		preset = in.Project.Preset
@@ -44,6 +48,9 @@ func ComputePlan(in PlanInput) Plan {
 	method := in.Project.Overrides.Method
 	if method == "" {
 		method = p.Training.MethodDefault
+	}
+	if p.Training.LR[method] <= 0 && in.Project.Overrides.LearningRate <= 0 {
+		return Plan{}, &ValidationError{Issues: []Issue{badOverride("method", "The profile does not support this method.")}}
 	}
 	var trainEst []int
 	for _, r := range in.Rows {
@@ -82,5 +89,5 @@ func ComputePlan(in PlanInput) Plan {
 	return Plan{Preset: preset, ProfileID: p.ID, Method: method, Hyper: hyper,
 		Split:           PlanSplit{Train: in.Split.Counts.Train, Val: in.Split.Counts.Val, Eval: in.Split.Counts.Eval},
 		EstimateMinutes: estimate, SessionTimeoutMinutes: session, DataRev: in.Project.DataRev,
-		Trainable: false, ReasonKey: "chibi_sensei.plan.training_later"}
+		Trainable: false, ReasonKey: "chibi_sensei.plan.training_later"}, nil
 }

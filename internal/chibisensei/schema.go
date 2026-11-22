@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY, name TEXT NOT NULL, rec
   split_seed INTEGER NOT NULL, data_rev INTEGER NOT NULL DEFAULT 0, rev INTEGER NOT NULL DEFAULT 1,
   created TEXT NOT NULL, updated TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS projects_list ON projects(archived, updated);
-CREATE TABLE IF NOT EXISTS dataset_rows(id INTEGER PRIMARY KEY, project_id TEXT NOT NULL, seq INTEGER NOT NULL,
+CREATE TABLE IF NOT EXISTS dataset_rows(id INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT NOT NULL, seq INTEGER NOT NULL,
   kind TEXT NOT NULL, messages_json TEXT, text TEXT, label TEXT NOT NULL DEFAULT '', split TEXT NOT NULL DEFAULT 'auto',
   source TEXT NOT NULL, source_ref TEXT NOT NULL DEFAULT '', batch_id TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '[]',
   content_hash TEXT NOT NULL, prompt_hash TEXT NOT NULL DEFAULT '', est_tokens INTEGER NOT NULL,
@@ -24,10 +24,10 @@ CREATE INDEX IF NOT EXISTS rows_split ON dataset_rows(project_id, split);
 CREATE INDEX IF NOT EXISTS rows_batch ON dataset_rows(project_id, batch_id);
 CREATE INDEX IF NOT EXISTS rows_tokens ON dataset_rows(project_id, est_tokens);
 CREATE TABLE IF NOT EXISTS row_history(id INTEGER PRIMARY KEY, project_id TEXT NOT NULL, row_id INTEGER NOT NULL,
-  batch_id TEXT NOT NULL, op TEXT NOT NULL, before_json TEXT, created TEXT NOT NULL);
+  batch_id TEXT NOT NULL, op TEXT NOT NULL, before_json TEXT, after_rev INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS history_batch ON row_history(batch_id, id);
 CREATE TABLE IF NOT EXISTS batches(batch_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, kind TEXT NOT NULL,
-  row_count INTEGER NOT NULL DEFAULT 0, undone INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL);
+  row_count INTEGER NOT NULL DEFAULT 0, undone INTEGER NOT NULL DEFAULT 0, open INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS batches_project ON batches(project_id, created);
 CREATE TABLE IF NOT EXISTS documents(id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL,
   workspace_path TEXT NOT NULL, sha256 TEXT NOT NULL, text TEXT NOT NULL, chars INTEGER NOT NULL, created TEXT NOT NULL);

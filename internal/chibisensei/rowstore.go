@@ -157,11 +157,24 @@ func (s *Store) AddRows(ctx context.Context, projectID string, in []RowInput, o 
 	if o.Source == "" {
 		o.Source = "manual"
 	}
+	callerBatch := o.BatchID != ""
 	if o.BatchID == "" {
 		o.BatchID = uuid.NewString()
 	}
 	if o.BatchKind == "" {
 		o.BatchKind = "add"
+	}
+	openBatch := 0
+	if callerBatch {
+		openBatch = 1
+		var undone int
+		err := tx.QueryRowContext(ctx, `SELECT undone FROM batches WHERE batch_id=?`, o.BatchID).Scan(&undone)
+		if err == nil && undone != 0 {
+			return AddResult{}, ErrAlreadyUndone
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return AddResult{}, err
+		}
 	}
 	res := AddResult{BatchID: o.BatchID, DataRev: p.DataRev}
 	var maxSeq int64
@@ -249,7 +262,7 @@ func (s *Store) AddRows(ctx context.Context, projectID string, in []RowInput, o 
 			return AddResult{}, err
 		}
 		id, _ := r.LastInsertId()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO row_history(project_id,row_id,batch_id,op,before_json,created) VALUES(?,?,?,'insert',NULL,?)`,
+		if _, err := tx.ExecContext(ctx, `INSERT INTO row_history(project_id,row_id,batch_id,op,before_json,after_rev,created) VALUES(?,?,?,'insert',NULL,1,?)`,
 			projectID, id, o.BatchID, now); err != nil {
 			return AddResult{}, err
 		}
@@ -262,8 +275,8 @@ func (s *Store) AddRows(ctx context.Context, projectID string, in []RowInput, o 
 	}
 	res.Added = len(valid)
 	res.Rows = added
-	if _, err := tx.ExecContext(ctx, `INSERT INTO batches(batch_id,project_id,kind,row_count,undone,created) VALUES(?,?,?,?,0,?)
-		ON CONFLICT(batch_id) DO UPDATE SET row_count=row_count+excluded.row_count`, o.BatchID, projectID, o.BatchKind, res.Added, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO batches(batch_id,project_id,kind,row_count,undone,open,created) VALUES(?,?,?,?,0,?,?)
+		ON CONFLICT(batch_id) DO UPDATE SET row_count=row_count+excluded.row_count`, o.BatchID, projectID, o.BatchKind, res.Added, openBatch, now); err != nil {
 		return AddResult{}, err
 	}
 	res.DataRev = p.DataRev + 1
@@ -326,8 +339,8 @@ func (s *Store) UpdateRow(ctx context.Context, projectID string, rowID, rev int6
 		next.ContentHash, next.PromptHash, next.EstTokens, next.Flags, next.Rev, now, rowID); err != nil {
 		return Row{}, 0, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO row_history(project_id,row_id,batch_id,op,before_json,created) VALUES(?,?,?,'update',?,?)`,
-		projectID, rowID, batchID, string(before), now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO row_history(project_id,row_id,batch_id,op,before_json,after_rev,created) VALUES(?,?,?,'update',?,?,?)`,
+		projectID, rowID, batchID, string(before), next.Rev, now); err != nil {
 		return Row{}, 0, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO batches(batch_id,project_id,kind,row_count,undone,created) VALUES(?,?,'edit',1,0,?)`,
@@ -543,10 +556,10 @@ func snapshotsByIDs(ctx context.Context, q queryer, projectID string, ids []int6
 	return out, rows.Err()
 }
 
-func insertHistory(ctx context.Context, tx *sql.Tx, projectID, batchID, op string, snap rowSnapshot, now string) error {
+func insertHistory(ctx context.Context, tx *sql.Tx, projectID, batchID, op string, snap rowSnapshot, afterRev int64, now string) error {
 	before, _ := json.Marshal(snap)
-	_, err := tx.ExecContext(ctx, `INSERT INTO row_history(project_id,row_id,batch_id,op,before_json,created) VALUES(?,?,?,?,?,?)`,
-		projectID, snap.ID, batchID, op, string(before), now)
+	_, err := tx.ExecContext(ctx, `INSERT INTO row_history(project_id,row_id,batch_id,op,before_json,after_rev,created) VALUES(?,?,?,?,?,?,?)`,
+		projectID, snap.ID, batchID, op, string(before), afterRev, now)
 	return err
 }
 
@@ -565,7 +578,7 @@ func (s *Store) finishBatch(ctx context.Context, tx *sql.Tx, p Project, batchID,
 
 func deleteSnapshots(ctx context.Context, tx *sql.Tx, projectID, batchID string, snaps []rowSnapshot, now string) error {
 	for _, snap := range snaps {
-		if err := insertHistory(ctx, tx, projectID, batchID, "delete", snap, now); err != nil {
+		if err := insertHistory(ctx, tx, projectID, batchID, "delete", snap, 0, now); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM dataset_rows WHERE id=?`, snap.ID); err != nil {
@@ -655,7 +668,7 @@ func (s *Store) Bulk(ctx context.Context, projectID string, ids []int64, action,
 				}
 				tags = encodeJSON(list)
 			}
-			if err := insertHistory(ctx, tx, projectID, batchID, "update", snap, now); err != nil {
+			if err := insertHistory(ctx, tx, projectID, batchID, "update", snap, snap.Rev+1, now); err != nil {
 				return BulkResult{}, err
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE dataset_rows SET split=?, tags=?, rev=rev+1, updated=? WHERE id=?`, split, tags, now, snap.ID); err != nil {
@@ -676,6 +689,65 @@ func (s *Store) Bulk(ctx context.Context, projectID string, ids []int64, action,
 	}
 	s.changed(projectID, dataRev)
 	return BulkResult{Affected: affected, BatchID: batchID, DataRev: dataRev}, nil
+}
+
+// AnyDataRev passed to DeleteSelected skips the data_rev comparison (a delete that needs no preview token).
+const AnyDataRev int64 = -1
+
+// DeleteSelected resolves the selection and deletes the rows in one transaction. When expectedDataRev is not
+// AnyDataRev and the project's data_rev differs, nothing is deleted and ErrDataChanged is returned.
+func (s *Store) DeleteSelected(ctx context.Context, projectID string, sel Select, expectedDataRev int64) (BulkResult, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return BulkResult{}, err
+	}
+	defer tx.Rollback()
+	p, err := loadProject(ctx, tx, projectID)
+	if err != nil {
+		return BulkResult{}, err
+	}
+	if expectedDataRev != AnyDataRev && p.DataRev != expectedDataRev {
+		return BulkResult{}, ErrDataChanged
+	}
+	ids, err := s.resolveSelect(ctx, tx, projectID, sel)
+	if err != nil {
+		return BulkResult{}, err
+	}
+	batchID := uuid.NewString()
+	now := s.stamp()
+	affected := 0
+	for start := 0; start < len(ids); start += 500 {
+		end := start + 500
+		if end > len(ids) {
+			end = len(ids)
+		}
+		snaps, err := snapshotsByIDs(ctx, tx, projectID, ids[start:end])
+		if err != nil {
+			return BulkResult{}, err
+		}
+		if err := deleteSnapshots(ctx, tx, projectID, batchID, snaps, now); err != nil {
+			return BulkResult{}, err
+		}
+		affected += len(snaps)
+	}
+	if affected == 0 {
+		return BulkResult{DataRev: p.DataRev}, nil
+	}
+	dataRev, err := s.finishBatch(ctx, tx, p, batchID, "bulk_delete", affected, now)
+	if err != nil {
+		return BulkResult{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return BulkResult{}, err
+	}
+	s.changed(projectID, dataRev)
+	return BulkResult{Affected: affected, BatchID: batchID, DataRev: dataRev}, nil
+}
+
+// CloseBatch marks a caller-named batch as finished, so history pruning may remove it again.
+func (s *Store) CloseBatch(ctx context.Context, batchID string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE batches SET open=0 WHERE batch_id=?`, batchID)
+	return err
 }
 
 // EachRow calls fn for every row ordered by seq, with no open cursor across fn.

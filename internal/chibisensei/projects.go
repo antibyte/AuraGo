@@ -9,11 +9,15 @@ import (
 	"math/big"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
+
+// embeddedCatalog is the profile catalog, loaded once; UpdateProject validates overrides against it.
+var embeddedCatalog = sync.OnceValues(LoadCatalog)
 
 var profileIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,40}$`)
 
@@ -274,6 +278,19 @@ func (s *Store) UpdateProject(ctx context.Context, id string, rev int64, patch P
 	if issues := validateProject(&next); len(issues) > 0 {
 		return Project{}, &ValidationError{Issues: issues}
 	}
+	if next.ProfileID != cur.ProfileID || next.Preset != cur.Preset || next.Overrides != cur.Overrides {
+		if next.ProfileID != "" {
+			cat, err := embeddedCatalog()
+			if err != nil {
+				return Project{}, err
+			}
+			if prof, ok := cat.Get(next.ProfileID); ok {
+				if issues := ValidateOverrides(next.Overrides, prof); len(issues) > 0 {
+					return Project{}, &ValidationError{Issues: issues}
+				}
+			}
+		}
+	}
 	dataChanged := next.Recipe != cur.Recipe || next.TaskKind != cur.TaskKind || next.ProfileID != cur.ProfileID ||
 		next.Preset != cur.Preset || next.Overrides != cur.Overrides || encodeJSON(next.Labels) != encodeJSON(cur.Labels)
 	if next.Recipe != cur.Recipe || next.TaskKind != cur.TaskKind {
@@ -385,6 +402,11 @@ func (s *Store) DeleteProject(ctx context.Context, id, confirmName string) error
 		return &ValidationError{Issues: []Issue{issue("confirm_name", "project.confirm_name", "The confirmation name does not match.")}}
 	}
 	stmts := []string{
+		`DELETE FROM run_events WHERE run_id IN (SELECT id FROM runs WHERE project_id=?)`,
+		`DELETE FROM metrics WHERE run_id IN (SELECT id FROM runs WHERE project_id=?)`,
+		`DELETE FROM eval_reports WHERE run_id IN (SELECT id FROM runs WHERE project_id=?)`,
+		`DELETE FROM artifacts WHERE project_id=? OR run_id IN (SELECT id FROM runs WHERE project_id=?)`,
+		`DELETE FROM runs WHERE project_id=?`,
 		`DELETE FROM suggestions WHERE job_id IN (SELECT id FROM jobs WHERE project_id=?)`,
 		`DELETE FROM dataset_rows WHERE project_id=?`,
 		`DELETE FROM row_history WHERE project_id=?`,
@@ -395,7 +417,11 @@ func (s *Store) DeleteProject(ctx context.Context, id, confirmName string) error
 		`DELETE FROM projects WHERE id=?`,
 	}
 	for _, q := range stmts {
-		if _, err := tx.ExecContext(ctx, q, id); err != nil {
+		args := []any{id}
+		if strings.Count(q, "?") == 2 {
+			args = append(args, id)
+		}
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
 			return err
 		}
 	}

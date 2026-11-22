@@ -347,7 +347,7 @@ func chibiSenseiAuthorize(s *Server, w http.ResponseWriter, r *http.Request, sco
 //
 //	*ValidationError → 422 validation_failed (+issues; unsupported_file for an unsupported file type);
 //	ErrNotFound → 404 not_found; ErrConflict → 412 conflict; ErrDatasetFull → 409 dataset_full;
-//	ErrNotArchived → 409 not_archived; ErrAlreadyUndone → 409 already_undone; ErrJobActive → 409 job_active;
+//	ErrNotArchived → 409 not_archived; ErrAlreadyUndone → 409 already_undone; ErrUndoConflict → 409 undo_conflict; ErrJobActive → 409 job_active;
 //	ErrDataChanged → 409 data_changed; ErrFileTooLarge → 413 file_too_large;
 //	other → 500 storage_failed (logged, never the error text).
 func chibiDomainError(w http.ResponseWriter, err error) {
@@ -369,6 +369,8 @@ func chibiDomainError(w http.ResponseWriter, err error) {
 		writeChibiError(w, http.StatusConflict, "not_archived", "Only an archived project can be deleted.", nil)
 	case errors.Is(err, chibisensei.ErrAlreadyUndone):
 		writeChibiError(w, http.StatusConflict, "already_undone", "This change was already undone.", nil)
+	case errors.Is(err, chibisensei.ErrUndoConflict):
+		writeChibiError(w, http.StatusConflict, "undo_conflict", "Rows of this change were changed later; it cannot be undone.", nil)
 	case errors.Is(err, chibisensei.ErrJobActive):
 		writeChibiError(w, http.StatusConflict, "job_active", "A job of this kind is already running.", nil)
 	case errors.Is(err, chibisensei.ErrDataChanged):

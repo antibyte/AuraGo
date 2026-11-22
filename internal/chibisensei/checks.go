@@ -317,7 +317,7 @@ func RunChecks(in CheckInput, now time.Time) (CheckResult, map[int64]Flag) {
 					}
 				}
 				checks = append(checks, b.fill(Check{ID: "label_balance", Level: "warn", Value: ratio, Threshold: 5,
-					MessageKey: checkPrefix + "label_balance", Args: map[string]any{"labels": counts, "min_count": minC, "ratio": ratio}}))
+					MessageKey: checkPrefix + "label_balance", Args: labelArgs(counts, p.Labels, minC, ratio)}))
 			} else {
 				checks = append(checks, okCheck("label_balance", ratio, 5))
 			}
@@ -511,4 +511,40 @@ func (s *Store) GetChecks(ctx context.Context, projectID string) (*CheckResult, 
 		return nil, false, err
 	}
 	return &res, res.DataRev != p.DataRev, nil
+}
+
+// maxOtherLabels bounds the labels beyond the declared ones that label_balance reports.
+const maxOtherLabels = 50
+
+// labelArgs lists the declared labels plus the most frequent other labels; the rest is only counted.
+func labelArgs(counts map[string]int, declared []string, minC int, ratio float64) map[string]any {
+	isDeclared := map[string]bool{}
+	out := map[string]int{}
+	for _, l := range declared {
+		isDeclared[l] = true
+		if c, ok := counts[l]; ok {
+			out[l] = c
+		}
+	}
+	var others []string
+	for l := range counts {
+		if !isDeclared[l] {
+			others = append(others, l)
+		}
+	}
+	sort.Slice(others, func(i, j int) bool {
+		if counts[others[i]] != counts[others[j]] {
+			return counts[others[i]] > counts[others[j]]
+		}
+		return others[i] < others[j]
+	})
+	rest := 0
+	if len(others) > maxOtherLabels {
+		rest = len(others) - maxOtherLabels
+		others = others[:maxOtherLabels]
+	}
+	for _, l := range others {
+		out[l] = counts[l]
+	}
+	return map[string]any{"labels": out, "other_labels": rest, "min_count": minC, "ratio": ratio}
 }

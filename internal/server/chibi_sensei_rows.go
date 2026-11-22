@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -144,20 +145,33 @@ func handleChibiRowsBulk(s *Server, w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	ctx := r.Context()
-	if req.Action == "delete" && (req.Select.Filter != nil || len(req.Select.IDs) > chibiBulkTokenIDs) {
-		if req.Token == "" {
-			writeChibiError(w, http.StatusPreconditionRequired, "confirmation_required", "Preview the delete and send its token.", nil)
-			return
+	if req.Action == "delete" {
+		// The token is only looked up here; the store compares its data_rev inside the delete transaction and
+		// the token is consumed after the commit.
+		expected := chibisensei.AnyDataRev
+		needsToken := req.Select.Filter != nil || len(req.Select.IDs) > chibiBulkTokenIDs
+		if needsToken {
+			if req.Token == "" {
+				writeChibiError(w, http.StatusPreconditionRequired, "confirmation_required", "Preview the delete and send its token.", nil)
+				return
+			}
+			rev, valid := acc.rt.deletes.Lookup(req.Token, id, req.Select)
+			if !valid {
+				writeChibiError(w, http.StatusConflict, "confirmation_invalid", "The confirmation is wrong or expired; preview the delete again.", nil)
+				return
+			}
+			expected = rev
 		}
-		p, err := acc.rt.store.GetProject(ctx, id)
+		res, err := acc.rt.store.DeleteSelected(ctx, id, req.Select, expected)
+		if needsToken && (err == nil || errors.Is(err, chibisensei.ErrDataChanged)) {
+			acc.rt.deletes.Consume(req.Token, id, req.Select, expected)
+		}
 		if err != nil {
 			chibiDomainError(w, err)
 			return
 		}
-		if !acc.rt.deletes.Consume(req.Token, id, req.Select, p.DataRev) {
-			writeChibiError(w, http.StatusConflict, "confirmation_invalid", "The confirmation is wrong or expired; preview the delete again.", nil)
-			return
-		}
+		writeChibiJSON(w, http.StatusOK, res)
+		return
 	}
 	ids, err := acc.rt.store.ResolveSelect(ctx, id, req.Select)
 	if err != nil {

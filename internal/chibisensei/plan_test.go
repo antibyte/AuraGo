@@ -17,7 +17,11 @@ func TestPresetsAndPlan(t *testing.T) {
 	proj := Project{ProjectSummary: ProjectSummary{ID: "p", Recipe: RecipeAssistant, DataRev: 5}}
 	plan := func(preset string) Plan {
 		proj.Preset = preset
-		return ComputePlan(PlanInput{Project: proj, Profile: qwen, Rows: rows, Split: split, RemoteTimeoutMinutes: 60, NeedBaseGGUF: true})
+		pl, err := ComputePlan(PlanInput{Project: proj, Profile: qwen, Rows: rows, Split: split, RemoteTimeoutMinutes: 60, NeedBaseGGUF: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return pl
 	}
 	b := plan("balanced")
 	h := b.Hyper

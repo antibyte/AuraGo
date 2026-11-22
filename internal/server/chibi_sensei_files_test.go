@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -162,5 +163,33 @@ func TestChibiSenseiImportExportDocuments(t *testing.T) {
 	}
 	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
 		t.Fatalf("content type = %q", ct)
+	}
+}
+
+// failingReader delivers some bytes and then fails, like an export whose data changed halfway.
+type failingReader struct{ sent bool }
+
+func (f *failingReader) Read(p []byte) (int, error) {
+	if !f.sent {
+		f.sent = true
+		return copy(p, "partial\n"), nil
+	}
+	return 0, errors.New("stream aborted")
+}
+
+// The desktop service stages a stream in a temporary file and renames it only after success
+// (internal/desktop/service_file_stream.go), so a failed export keeps the user's previous file.
+func TestChibiSenseiFailedWriteKeepsPreviousFile(t *testing.T) {
+	s, _, _ := chibiAPIFixture(t)
+	chibiWriteFile(t, s, "Exports/keep.jsonl", "previous\n")
+	svc, _, err := s.getDesktopService(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (chibiWorkspace{svc}).WriteFile(context.Background(), "Exports/keep.jsonl", &failingReader{}, 64<<20, true); err == nil {
+		t.Fatal("a failing stream was reported as written")
+	}
+	if got := chibiReadFile(t, s, "Exports/keep.jsonl"); got != "previous\n" {
+		t.Fatalf("file after a failed write = %q", got)
 	}
 }

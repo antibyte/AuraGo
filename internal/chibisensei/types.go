@@ -182,6 +182,7 @@ var (
 	ErrAlreadyUndone = errors.New("chibisensei: batch already undone")
 	ErrJobActive     = errors.New("chibisensei: a job of this kind is active")
 	ErrDataChanged   = errors.New("chibisensei: data changed during the computation")
+	ErrUndoConflict  = errors.New("chibisensei: a later change touched the rows of this batch")
 )
 
 // Flag is a row flag; flags are stored as a bit mask in dataset_rows.flags.

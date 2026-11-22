@@ -700,6 +700,7 @@ func RunImport(ctx context.Context, st *Store, ws Workspace, projectID string, p
 	}
 
 	batchID := uuid.NewString()
+	defer st.CloseBatch(context.Background(), batchID) // the batch stays unprunable while the import runs
 	var res JobResult
 	var addIssues []Issue
 	addSkipped, seen, submitted := 0, 0, 0

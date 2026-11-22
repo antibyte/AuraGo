@@ -24,9 +24,11 @@ const (
 
 const (
 	progressInterval = 500 * time.Millisecond
-	cancelWait       = 10 * time.Second
 	maxListedJobs    = 50
 )
+
+// cancelWait bounds how long Cancel, CancelProject and Close wait for a job (a variable so a test can shorten it).
+var cancelWait = 10 * time.Second
 
 // Progress is the progress of a job.
 type Progress struct {
@@ -118,6 +120,10 @@ func (r *Runner) publish(j Job) {
 func (r *Runner) Recover(ctx context.Context) error {
 	_, err := r.st.db.ExecContext(ctx, `UPDATE jobs SET state=?, error_code='interrupted', error=?, updated=? WHERE state IN (?,?)`,
 		JobFailed, "The job was interrupted by a restart.", r.st.stamp(), JobQueued, JobRunning)
+	if err != nil {
+		return err
+	}
+	_, err = r.st.db.ExecContext(ctx, `UPDATE batches SET open=0 WHERE open=1`)
 	return err
 }
 
@@ -309,15 +315,26 @@ func (r *Runner) CancelProject(projectID string) {
 	}
 }
 
-// Close cancels all jobs and waits for their goroutines.
+// Close cancels all jobs and waits for their goroutines, at most cancelWait.
 func (r *Runner) Close() {
 	r.mu.Lock()
 	r.closed = true
 	for _, aj := range r.active {
 		aj.cancel()
 	}
+	l := r.log
 	r.mu.Unlock()
-	r.wg.Wait()
+	done := make(chan struct{})
+	go func() { r.wg.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(cancelWait):
+		r.mu.Lock()
+		for id := range r.active {
+			l.Warn("Chibi Sensei job still running at close", "job", id)
+		}
+		r.mu.Unlock()
+	}
 }
 
 const jobCols = `id,project_id,kind,state,params_json,progress_json,result_json,error_code,error,created,updated`
