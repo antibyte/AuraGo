@@ -475,3 +475,113 @@ func TestStorymakerUsageResetsOnANewLocalDate(t *testing.T) {
 		t.Fatalf("usage.json = %+v", cur)
 	}
 }
+
+// narrateJobDropoutWAV is narrateJobWAV with 100 ms of digital silence in the middle of the tone.
+func narrateJobDropoutWAV() []byte {
+	data := narrateJobWAV()
+	const rate = 24000
+	zero := data[44+2*rate/2 : 44+2*(rate/2+rate/10)]
+	for i := range zero {
+		zero[i] = 0
+	}
+	return data
+}
+
+// narrateJobStoredFaults reads the faults of the stored envelope of one piece.
+func narrateJobStoredFaults(t *testing.T, env *narrateJobEnv, text string) []string {
+	t.Helper()
+	hash := storymaker.PieceKey(storymaker.Voice{Provider: "phonon", Voice: phonon.DefaultVoiceForGender("de", ""), Language: "de"}, text)
+	rc, _, err := env.rt.projects.OpenAudio(context.Background(), env.id, "narration", hash+".env.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rc.Close()
+	data, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := storymaker.ParseEnvelope(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return stored.Faults
+}
+
+func TestStorymakerNarrateRetriesAFaultyPieceOnce(t *testing.T) {
+	env := newNarrateJobEnv(t)
+	env.mustSave(t, narrateJobStory(narrateJobSano, narrateJobFirst))
+	var calls []string
+	env.s.storymakerSynthOverride = func(_ context.Context, _ tools.TTSConfig, text string) ([]byte, string, error) {
+		calls = append(calls, text)
+		if len(calls) == 1 {
+			return narrateJobDropoutWAV(), "wav", nil
+		}
+		return narrateJobWAV(), "wav", nil
+	}
+	job := env.run(t)
+	if job.Status != render.StatusSucceeded || len(calls) != 2 {
+		t.Fatalf("job = %+v, calls = %q", job, calls)
+	}
+	if faults := narrateJobStoredFaults(t, env, narrateJobFirst); len(faults) != 0 {
+		t.Errorf("the clean second take is stored, but its faults are %v", faults)
+	}
+}
+
+func TestStorymakerNarrateKeepsASecondTakeThatStillFails(t *testing.T) {
+	env := newNarrateJobEnv(t)
+	env.mustSave(t, narrateJobStory(narrateJobSano, narrateJobFirst))
+	var calls []string
+	env.s.storymakerSynthOverride = func(_ context.Context, _ tools.TTSConfig, text string) ([]byte, string, error) {
+		calls = append(calls, text)
+		return narrateJobDropoutWAV(), "wav", nil
+	}
+	job := env.run(t)
+	// One retry and no more, however faulty the takes are, and the job still succeeds.
+	if job.Status != render.StatusSucceeded || len(calls) != 2 {
+		t.Fatalf("job = %+v, calls = %q", job, calls)
+	}
+	if faults := narrateJobStoredFaults(t, env, narrateJobFirst); !slices.Equal(faults, []string{"dropout"}) {
+		t.Errorf("stored faults = %v", faults)
+	}
+}
+
+func TestStorymakerNarrateKeepsTheFirstTakeWhenTheRetryFails(t *testing.T) {
+	env := newNarrateJobEnv(t)
+	env.mustSave(t, narrateJobStory(narrateJobSano, narrateJobFirst))
+	calls := 0
+	env.s.storymakerSynthOverride = func(context.Context, tools.TTSConfig, string) ([]byte, string, error) {
+		calls++
+		if calls == 1 {
+			return narrateJobDropoutWAV(), "wav", nil
+		}
+		return nil, "", errors.New("provider down")
+	}
+	job := env.run(t)
+	if job.Status != render.StatusSucceeded || calls != 2 {
+		t.Fatalf("job = %+v, calls = %d", job, calls)
+	}
+	if faults := narrateJobStoredFaults(t, env, narrateJobFirst); !slices.Equal(faults, []string{"dropout"}) {
+		t.Errorf("stored faults = %v", faults)
+	}
+}
+
+func TestStorymakerNarrateChargesTheRetryToTheBudget(t *testing.T) {
+	env := newNarrateUsageEnv(t)
+	run := &storymakerNarrateRun{rt: env.rt}
+	copied := *env.s.ConfigSnapshot()
+	cfg := &copied
+	cfg.Storymaker.Narration.MaxJobChars = 100
+	cfg.Storymaker.Narration.MaxDailyChars = 1000
+	text := strings.Repeat("a", 60)
+	// A cloud voice is charged each time; the second take of 60 characters goes over the job cap of 100.
+	if charge, err := storymakerReserve(run, cfg, "openai", text); err != nil || charge != 60 {
+		t.Fatalf("first take: %d, %v", charge, err)
+	}
+	var refused *render.JobError
+	if _, err := storymakerReserve(run, cfg, "openai", text); !errors.As(err, &refused) || refused.Code != render.CodeBudgetExceeded {
+		t.Fatalf("second take: %v", err)
+	}
+	if charge, err := storymakerReserve(run, cfg, "phonon", text); err != nil || charge != 0 {
+		t.Fatalf("a local voice is free: %d, %v", charge, err)
+	}
+}

@@ -303,16 +303,9 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	// written before the call, so a crash during the call cannot lose it.
 	provider := target.block.Voice.Provider
 	maxDaily := cfg.Storymaker.Narration.MaxDailyChars
-	charge := 0
-	if !storymaker.LocalVoiceProvider(provider) {
-		charge = utf8.RuneCountInString(target.piece.Text)
-		if maxJob := cfg.Storymaker.Narration.MaxJobChars; run.sent+charge > maxJob {
-			return false, render.Fail(render.CodeBudgetExceeded, "This job would send %d characters to %s; one job may send %d.", run.sent+charge, provider, maxJob)
-		}
-		if err := run.rt.usage.reserve(charge, maxDaily); err != nil {
-			return false, err
-		}
-		run.sent += charge
+	charge, err := storymakerReserve(run, cfg, provider, target.piece.Text)
+	if err != nil {
+		return false, err
 	}
 	// One provider call. The stored format is the detected one, never the provider's claim.
 	data, err := s.storymakerSynth(ctx, cfg, target.block.Voice, target.piece.Text)
@@ -331,6 +324,13 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	if err != nil {
 		return false, render.Fail(render.CodeNarrationFailed, "The voice provider %s returned audio that could not be decoded.", provider)
 	}
+	// A faulty take is made once more, only here: a stored file that is verified is never made again. The second take
+	// is kept even when it fails too, and its faults stay in the envelope.
+	if len(env.Faults) > 0 {
+		if data2, ext2, env2, ok := s.storymakerSecondTake(ctx, run, cfg, target); ok {
+			data, ext, env = data2, ext2, env2
+		}
+	}
 	// The envelope names the words of the piece: a voice that changes later must still find them.
 	env.Text = target.piece.Text
 	env.Language = target.block.Voice.Language
@@ -340,6 +340,45 @@ func (s *Server) storymakerNarrateStep(ctx context.Context, run *storymakerNarra
 	run.verified[target.hash] = true
 	run.h.SetPieces(done+1, total)
 	return true, nil
+}
+
+// storymakerReserve charges the characters of one provider call to the job cap and the daily count. A local voice is
+// free. It returns the charge, so the caller can release it when the provider sent nothing.
+func storymakerReserve(run *storymakerNarrateRun, cfg *config.Config, provider, text string) (int, error) {
+	if storymaker.LocalVoiceProvider(provider) {
+		return 0, nil
+	}
+	charge := utf8.RuneCountInString(text)
+	if maxJob := cfg.Storymaker.Narration.MaxJobChars; run.sent+charge > maxJob {
+		return 0, render.Fail(render.CodeBudgetExceeded, "This job would send %d characters to %s; one job may send %d.", run.sent+charge, provider, maxJob)
+	}
+	if err := run.rt.usage.reserve(charge, cfg.Storymaker.Narration.MaxDailyChars); err != nil {
+		return 0, err
+	}
+	run.sent += charge
+	return charge, nil
+}
+
+// storymakerSecondTake synthesizes a piece once more after a fault, through the same budget. It reports false, and the
+// caller keeps the first take, when the budget refuses, the provider fails or the answer does not decode.
+func (s *Server) storymakerSecondTake(ctx context.Context, run *storymakerNarrateRun, cfg *config.Config, target *storymakerNarrateTarget) ([]byte, string, storymaker.Envelope, bool) {
+	provider := target.block.Voice.Provider
+	charge, err := storymakerReserve(run, cfg, provider, target.piece.Text)
+	if err != nil {
+		return nil, "", storymaker.Envelope{}, false
+	}
+	data, err := s.storymakerSynth(ctx, cfg, target.block.Voice, target.piece.Text)
+	if err != nil {
+		if charge > 0 && len(data) == 0 {
+			run.rt.usage.release(charge, cfg.Storymaker.Narration.MaxDailyChars)
+		}
+		return nil, "", storymaker.Envelope{}, false
+	}
+	ext, env, err := storymakerDecodePiece(data)
+	if err != nil {
+		return nil, "", storymaker.Envelope{}, false
+	}
+	return data, ext, env, true
 }
 
 // storymakerNarrateRead reads the story, the audio answer and the piece list of this moment.
@@ -467,6 +506,8 @@ func storymakerDecodePiece(data []byte) (string, storymaker.Envelope, error) {
 	if env.DurationMS <= 0 {
 		return "", storymaker.Envelope{}, errors.New("storymaker: the audio is empty")
 	}
+	// The samples are held only for this check; the envelope keeps the verdict.
+	env.Faults = storymaker.CheckPiece(decoded, env)
 	return ext, env, nil
 }
 
