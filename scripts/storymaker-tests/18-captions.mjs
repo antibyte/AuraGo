@@ -124,3 +124,26 @@ s9.check('captions: a Latin story with narration and no on-screen text needs the
     s9Assert.ok(!needs({ ...narrated, style: { captions: false } }).includes('font:default/400'), 'captions off: nothing draws');
     s9Assert.ok(!needs({ scenes: [{ id: 'a' }] }).includes('font:default/400'), 'no narration: no caption to draw');
 });
+
+// ---- Task C14: in 9:16 the whole caption box, one line or two, lies inside the platform zone (layout.go SafeZone).
+s9.check('captions: a one-line and a two-line 9:16 caption box lie inside the zone, bottom at most 0.781 of the height', () => {
+    const entries = s9.catalog.entries.map(e => e.id === 'text.subtitle' ? { ...e, box: { fill: '$bg2', pad: 0.01, radius: 0.01 } } : e);
+    const boxed = { ...s9.catalog, entries };
+    const lines = [];
+    for (const narration of ['hallo liebe welt heute', 'Eine Firewall prueft jedes einzelne Paket am Eingang deines Netzwerks, bevor es weiterkommt.']) {
+        const tl = S9.compile({ format: { aspect: '9:16', fps: 30 }, scenes: [{ id: 'a', narration }] }, {}, boxed).timeline;
+        const cv = new S9Canvas(tl.width, tl.height);
+        S9.renderFrame(tl, 10, cv.ctx, s9Assets());
+        // the four corners of the rounded box are the first control point of each arcTo
+        const corners = cv.ctx.log.filter(l => l.startsWith('arcTo(')).map(l => l.slice(6, -1).split(',').map(Number));
+        s9Assert.equal(corners.length, 4, 'one box with four corners');
+        const xs = corners.map(p => p[0]), ys = corners.map(p => p[1]);
+        const left = Math.min(...xs), right = Math.max(...xs), top = Math.min(...ys), bottom = Math.max(...ys);
+        s9Assert.ok(bottom <= 0.781 * tl.height + 0.001 * tl.height, narration + ': bottom ' + bottom / tl.height);
+        s9Assert.ok(left >= 0.056 * tl.width - 0.001 * tl.width, narration + ': left ' + left / tl.width);
+        s9Assert.ok(right <= 0.870 * tl.width + 0.001 * tl.width, narration + ': right ' + right / tl.width);
+        s9Assert.ok(top >= 0.115 * tl.height, narration + ': top ' + top / tl.height);
+        lines.push(cv.ctx.log.filter(l => l.startsWith('fillText(')).length);
+    }
+    s9Assert.ok(lines.some(n => n >= 2), 'one of the captions has two lines: ' + lines);
+});
