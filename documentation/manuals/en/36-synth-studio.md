@@ -81,9 +81,11 @@ default. The designer edits a browser-local draft, so a fader drag changes the d
 creates a project undo step.
 
 The sound panel offers **Design sound**, which turns the panel into a full synthesizer over the patch model of
-the voice engine: oscillators, sub oscillator and noise, three FM modulators, the filter, the amplitude
-envelope, the pitch sweep and an LFO. Every change re-registers a runtime preview instrument, so the audition
-keys always play the current draft.
+the voice engine: 14 oscillator waveforms (including drawbar organ, metallic chime, warm vintage saw and hollow
+reed), sub oscillator and noise, three FM modulators, the filter, the amplitude envelope, the pitch sweep and an
+LFO. **Mutate** nudges the current draft into nearby sonic variations, and **Randomize** generates playable
+patches from six curated synthesizer archetypes. Every change re-registers a runtime preview instrument, so the
+audition keys always play the current draft.
 
 ## The Master Strip
 
@@ -101,11 +103,14 @@ The EQ group shows the live frequency response of the three bands, and the sound
 of the voice filter (type, cutoff, resonance) with a cutoff marker. The curves are pure SVG computed from the
 same filter types, frequencies and cutoff mapping the audio engine uses.
 
-Every track carries an ordered chain of up to four effect inserts plus two sends. The available inserts are
-chorus, phaser, tremolo, flanger, rotary, bitcrush, soft clip, three-band EQ, stereo width, cabinet, delay,
-reverb, tape, auto pan and ring mod. Each insert exposes its own character parameters — mix, rate, depth,
-feedback, tone and type-specific values — instead of a single fixed sound. The chain runs after the track pan,
-and the reverb and delay sends leave the fader, so the track volume also controls its own tails.
+Every track carries an ordered chain of up to four effect inserts plus two sends. Twenty-one inserts are
+available: chorus, phaser, tremolo, flanger, rotary, bitcrush, soft clip, three-band EQ, stereo width, cabinet,
+delay, reverb, tape, auto pan, ring mod, **shimmer reverb**, **ping-pong delay**, **wavefolder**, **formant
+filter** (A–U vowel morphing), **comb resonator** and **auto-filter**. Slots can be reordered with ↑/↓ or loaded
+from curated **FX chains** in a single undo step. Each insert exposes its own character parameters. The chain
+runs after the track pan, and the reverb and delay sends leave the fader, so the track volume also controls its
+own tails. Clicking the transport analyser cycles between **Spectrum** (with peak hold), **Oscilloscope** and
+**Mirror** views.
 
 ## Strudel Live Coding
 
@@ -133,9 +138,11 @@ are AGPL-3.0-or-later.
 
 ## Musical Tools
 
-The Perform mode provides eight diatonic chord pads, major/natural-minor scale assistance, a live/printable
-arpeggiator, seeded melodic/rhythmic variations and a Euclidean drum generator. Hold pads or use the
-screen/typing/MIDI keyboard for live arpeggios; the latch switch keeps the last chord running after release.
+The Perform mode provides eight diatonic chord pads, scale assistance across nine scales and modes (major,
+natural minor, Dorian, Phrygian, Lydian, Mixolydian, harmonic minor, minor pentatonic and Hirajoshi), a
+live/printable arpeggiator (including converge, diverge and top pedal orders), seeded melodic/rhythmic
+variations and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard for live arpeggios;
+the latch switch keeps the last chord running after release.
 
 Every generator follows the same flow: choose a clip, prepare a preview, compare Original/Variation in a loop,
 then Apply or Cancel. Apply writes ordinary notes as one undo step, and the visible seed, input notes and
@@ -145,13 +152,18 @@ with constraints off.
 | Tool | What it does |
 |------|--------------|
 | **Groove lab** | Quantizes, swings, humanizes and transposes an existing clip in one deterministic, seeded pass. |
-| **Chord-progression generator** | Writes a whole diatonic progression into the clip: pop, ballad, jazz, minor, epic or canon. |
-| **Bassline generator** | Follows the same progression with root, octave, walking or driving-eighth patterns. |
+| **Chord-progression generator** | Writes a whole diatonic progression into the clip: pop, ballad, jazz, minor, epic, canon, dreamy, darkwave or trance. |
+| **Bassline generator** | Follows the same progression with root, octave, walking, driving-eighth or Acid 303 bounce patterns. |
+| **Melody generator** | Composes a deterministic, seeded motif melody locked to the active key and scale. |
+| **Harmonizer** | Adds a parallel scale-locked harmony voice (third, fifth, sixth, octave, power fifth or lower third) to existing clip notes. |
 | **Reverse clip** | Mirrors the selected clip in time. |
 
-Live FX sit after the master strip and are momentary: **Filter drop** sweeps the master low-pass down and back
-over 1.5 beats, and **Stutter** gates the mix sixteen times over one bar. They follow the current tempo, are
-performance-only, and never enter the project, the WAV mixdown or the stem export.
+Six momentary Live FX sit before the master limiter ceiling: **Filter drop** sweeps the master low-pass down
+and back over 1.5 beats, **HP riser** builds tension with a resonant high-pass sweep over 2 beats, **Stutter**
+gates the mix sixteen times over one bar, **Tape stop** brakes pitch downward like a turntable power-off,
+**Dub throw** launches a tempo-synced resonant echo burst, and **Beat roll** loops a captured 1/8-note slice
+in time. They follow the current tempo, are performance-only, and never enter the project, the WAV mixdown or
+the stem export.
 
 Create up to eight named scenes from the current loop boundaries. A scene repeats that range; pressing another
 pad queues it for the next bar, and pressing more pads replaces that pending choice. Stop is immediate and

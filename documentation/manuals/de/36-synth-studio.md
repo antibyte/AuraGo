@@ -80,8 +80,11 @@ Designer bearbeitet einen Browser-Entwurf, ein Faderzug ändert also den Entwurf
 Undo-Schritt im Projekt.
 
 Das Klangpanel bietet **Design sound** an und macht daraus einen vollen Synthesizer über dem Patch-Modell der Stimmen-Engine:
-Oszillatoren, Sub-Oszillator und Rauschen, drei FM-Modulatoren, das Filter, die Lautstärkehüllkurve, die Tonhöhenkurve und ein
-LFO. Jede Änderung meldet sofort ein Vorschaumodul neu an, sodass die Anhörtasten immer den aktuellen Entwurf spielen.
+14 Oszillator-Wellenformen (inklusive Zugriegel-Orgel, Metall-Glockenspiel, warmem Analog-Sägezahn und hohlem Rohrblatt),
+Sub-Oszillator und Rauschen, drei FM-Modulatoren, das Filter, die Lautstärkehüllkurve, die Tonhöhenkurve und ein
+LFO. Mit **Mutieren** variierst du den aktuellen Entwurf behutsam, und **Zufallsklang** erzeugt auf Knopfdruck spielbare
+Patches aus sechs musikalischen Archetypen. Jede Änderung meldet sofort ein Vorschaumodul neu an, sodass die Anhörtasten
+immer den aktuellen Entwurf spielen.
 
 ## Der Master-Streifen
 
@@ -99,11 +102,13 @@ Die EQ-Gruppe zeigt den live berechneten Frequenzgang der drei Bänder, und der 
 Stimmenfilters (Typ, Grenzfrequenz, Resonanz) mit einer Grenzfrequenzmarke. Die Kurven sind reines SVG, berechnet aus
 denselben Filtertypen, Frequenzen und Grenzfrequenzabbildungen, die auch die Audio-Engine nutzt.
 
-Jede Spur trägt eine geordnete Kette aus bis zu vier Effekt-Einschüben plus zwei Sends. Zur Auswahl stehen Chorus, Phaser,
-Tremolo, Flanger, Rotary, Bitcrush, Soft Clip, dreikanalige EQ, Stereo-Breite, Cabinet, Delay, Reverb, Tape, Auto Pan und Ring
-Mod. Jeder Einschub stellt seine eigenen Charakterparameter — Mix, Rate, Tiefe, Feedback, Ton und typabhängige Werte — statt
-eines einzigen festen Klangs. Die Kette läuft nach dem Spur-Pan, und die Reverb- und Delay-Sends verlassen den Fader, weshalb
-die Spurlautstärke auch ihre eigenen Ausklänge regelt.
+Jede Spur trägt eine geordnete Kette aus bis zu vier Effekt-Einschüben plus zwei Sends. Zur Auswahl stehen 21 Effekte:
+Chorus, Phaser, Tremolo, Flanger, Rotary, Bitcrush, Soft Clip, dreikanalige EQ, Stereo-Breite, Cabinet, Delay, Reverb,
+Tape, Auto Pan, Ring Mod, **Shimmer-Hall**, **Ping-Pong-Delay**, **Wavefolder**, **Formantfilter** (Vokal-Morphing A–U),
+**Kammresonator** und **Auto-Filter**. Einschübe lassen sich per ↑/↓ umsortieren oder über kuratierte **Effektketten** mit
+einem Klick laden. Jeder Einschub stellt seine eigenen Charakterparameter bereit. Die Kette läuft nach dem Spur-Pan, und
+die Reverb- und Delay-Sends verlassen den Fader, weshalb die Spurlautstärke auch ihre eigenen Ausklänge regelt. Ein Klick auf
+den Analyser in der Transportleiste schaltet zwischen **Spektrum** (mit Peak-Hold), **Oszilloskop** und **Spiegel** um.
 
 ## Strudel-Livecoding
 
@@ -131,10 +136,11 @@ lesen. Strudel und seine Integration stehen unter AGPL-3.0-or-later.
 
 ## Musikalische Werkzeuge
 
-Der Modus Spielen bietet acht diatonische Akkordpads, Tonleitenhilfe für Dur und Moll, einen live spielbaren und druckbaren
-Arpeggiator, gesetzte melodische und rhythmische Variationen und einen euklidischen Schlaggenerator. Halte die Pads oder
-benutze die Bildschirm-, Tastatur- oder MIDI-Tastatur für live gespielte Arpeggios; der Latch-Schalter lässt den letzten
-Akkord nach dem Loslassen weiterlaufen.
+Der Modus Spielen bietet acht diatonische Akkordpads, Tonleitenhilfe für neun Tonleitern und Modi (Dur, Natürliches Moll,
+Dorisch, Phrygisch, Lydisch, Mixolydisch, Harmonisch Moll, Moll-Pentatonik und Hirajoshi), einen live spielbaren und
+druckbaren Arpeggiator (inklusive Konvergierend, Divergierend und Oberton-Pedal), gesetzte melodische und rhythmische
+Variationen sowie einen euklidischen Schlaggenerator. Halte die Pads oder benutze die Bildschirm-, Tastatur- oder
+MIDI-Tastatur für live gespielte Arpeggios; der Latch-Schalter lässt den letzten Akkord nach dem Loslassen weiterlaufen.
 
 Alle Generatoren folgen demselben Ablauf: Clip wählen, Vorschau vorbereiten, Original und Variante in einer Schleife
 vergleichen, dann Apply oder Cancel. Apply schreibt gewöhnliche Noten als einen Undo-Schritt. Der sichtbare Startwert, die
@@ -144,13 +150,17 @@ Neue Projekte starten in C-Dur ohne Beschränkungen.
 | Werkzeug | Was es tut |
 |----------|------------|
 | **Groove-Labor** | Quantisiert, swingt, humanisiert und transponiert einen vorhandenen Clip in einem deterministischen, gesetzten Durchgang. |
-| **Akkordfolge-Generator** | Schreibt eine ganze diatonische Akkordfolge in den Clip: Pop, Ballade, Jazz, Moll, Episch oder Kanon. |
-| **Basslinien-Generator** | Folgt derselben Akkordfolge mit Root-, Oktav-, Walking- oder Driving-Eighth-Mustern. |
+| **Akkordfolge-Generator** | Schreibt eine ganze diatonische Akkordfolge in den Clip: Pop, Ballade, Jazz, Moll, Episch, Kanon, Verträumt, Darkwave oder Trance. |
+| **Basslinien-Generator** | Folgt derselben Akkordfolge mit Root-, Oktav-, Walking-, Driving-Eighth- oder Acid-303-Bounce-Mustern. |
+| **Melodiegenerator** | Komponiert eine deterministische Motiv-Melodie passend zu Tonart und Tonleiter. |
+| **Harmonisierer** | Ergänzt bestehende Clip-Noten um eine parallele, tonleitergebundene Harmoniestimme (Terz, Quinte, Sexte, Oktave, Power-Quinte oder Unterterz). |
 | **Clip umkehren** | Spiegelt den gewählten Clip in der Zeit. |
 
-Die Live FX liegen hinter dem Master-Streifen und sind momentan: **Filter-Drop** zieht den Master-Tiefpass über 1,5 Beats nach
-unten und wieder zurück, **Stutter** zerhackt den Mix sechzehnmal über einen Takt. Sie folgen dem aktuellen Tempo, sind reine
-Performance und kommen weder ins Projekt noch in den WAV-Mixdown noch in den Spur-Export.
+Die sechs momentanen Live FX liegen vor der Limiter-Grenze des Master-Streifens: **Filter-Drop** zieht den Master-Tiefpass
+über 1,5 Beats nach unten und zurück, **Hochpass-Riser** baut über 2 Beats Spannung auf, **Stutter** zerhackt den Mix
+sechzehnmal über einen Takt, **Tape-Stopp** bremst die Tonhöhe wie ein Plattenspieler herunter, **Dub-Echo** wirft einen
+rhythmischen Bandpass-Echo-Impuls ein und **Beat-Roll** wiederholt einen Achtel-Ausschnitt im Takt. Sie folgen dem aktuellen
+Tempo, sind reine Performance und kommen weder ins Projekt noch in den WAV-Mixdown noch in den Spur-Export.
 
 Lege bis zu acht benannte Szenen aus den aktuellen Loop-Grenzen an. Eine Szene wiederholt diesen Arrangierungsbereich; ein
 weiteres Pad reiht sie für den nächsten Takt ein, und weitere Pads ersetzen diese wartende Wahl. Stopp wirkt sofort und

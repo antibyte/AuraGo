@@ -167,4 +167,25 @@ assert.equal(runtime.SynthStudioVoices.operatorsFor({ instrument: stored.id, par
 const missing = runtime.SynthStudioVoices.operatorsFor({ instrument: 'user-gone-with-the-wind', params: {} }, 60);
 assert.equal(missing[0].w, 'sawtooth', 'a missing user synth falls back to a plain wave');
 
+// --- new periodic waveforms, mutate & musical randomize ----------------------
+Designer.remove(stored.id);
+for (const wave of ['organ', 'metallic', 'warm_saw', 'hollow']) {
+    const normalized = Designer.normalize({ wave });
+    assert.equal(normalized.wave, wave, `waveform ${wave} normalizes cleanly`);
+    const created = Designer.create(`Wave ${wave}`, normalized);
+    assert.ok(created, `waveform ${wave} saves to user bank`);
+    const ops = runtime.SynthStudioVoices.operatorsFor({ instrument: created.id, params: {} }, 60);
+    assert.equal(ops[0].w, wave, `voice engine resolves waveform ${wave}`);
+    Designer.remove(created.id);
+}
+let seed = 1337;
+const detRng = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+const basePatch = Designer.normalize({ wave: 'sawtooth', cutoff: 0.5, filterQ: 3, mod: 'sine', depth: 2, lfo: { target: 'filter', wave: 'sine', rate: 2, depth: 0.3, delay: 0.1 } });
+const mutated = Designer.mutatePatch(basePatch, detRng);
+assert.notEqual(JSON.stringify(mutated), JSON.stringify(basePatch), 'mutatePatch explores a distinct sonic neighbor');
+assert.deepEqual(mutated, Designer.normalize(mutated), 'mutated patch stays within engine bounds');
+const randomPatches = Array.from({ length: 12 }, () => Designer.randomPatch(detRng));
+assert.ok(randomPatches.every(p => JSON.stringify(p) === JSON.stringify(Designer.normalize(p))), 'randomPatch always returns normalized engine-safe patches');
+assert.ok(new Set(randomPatches.map(p => p.wave)).size >= 3, 'randomPatch explores multiple synthesizer timbres');
+
 console.log('Synth Studio designer checks passed.');

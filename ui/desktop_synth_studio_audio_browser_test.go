@@ -177,6 +177,13 @@ func TestDesktopSynthStudioAudioBrowser(t *testing.T) {
   const fxRendered=await readPCM(await window.SynthStudioAudio.renderWav(fxProj));
   check(fxRendered.rms(0.05,0.18)>0.01,'new supersaw preset and full FX chain render audible output');
 
+  for(const fxType of ['shimmer','pingpong','wavefold','formant','resonator','autofilter']){
+   const pFx=makeProject('lead-supersaw',one);
+   pFx.tracks[0].fx={inserts:[SynthStudioModel.insertSpec(fxType,{mix:0.7})]};
+   const outFx=await readPCM(await window.SynthStudioAudio.renderWav(pFx));
+   check(outFx.rms(0.04,0.22)>0.005,'new insert '+fxType+' renders audible stereo PCM output');
+  }
+
   // Dense projects must export with their peaks intact: the exporter scales
   // the mixdown to its ceiling instead of hard-clipping at the PCM rails.
   const hot=makeProject('lead-saw',Array.from({length:16},(_,i)=>({id:'h'+i,pitch:60+i%3,start:i*120,duration:120,velocity:0.95})));

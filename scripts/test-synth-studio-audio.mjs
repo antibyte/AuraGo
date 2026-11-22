@@ -95,8 +95,13 @@ await synth.unlock();
 assert.equal(contexts[0].nodes[0].gain.value, 1, 'the app volume multiplier starts at unity');
 assert.equal(contexts[0].nodes[1].gain.value, 0.78, 'the master strip keeps its default level');
 assert.ok(Array.isArray(synth.spectrum(32)) && synth.spectrum(32).length === 32, 'the master analyser reports a spectrum');
+assert.ok(Array.isArray(synth.waveform(128)) && synth.waveform(128).length === 128, 'the master analyser reports a triggered oscilloscope waveform');
 assert.equal(synth.performance('stutter'), true, 'the live stutter effect is available');
 assert.equal(synth.performance('filter'), true, 'the live filter drop is available');
+assert.equal(synth.performance('riser'), true, 'the live HP riser effect is available');
+assert.equal(synth.performance('tapestop'), true, 'the live tape stop effect is available');
+assert.equal(synth.performance('dub'), true, 'the live dub throw effect is available');
+assert.equal(synth.performance('roll'), true, 'the live beat roll effect is available');
 assert.equal(synth.performance('no-such-effect'), false, 'unknown performance effects are ignored');
 synth.dispose();
 const mutedSynth = audioSandbox.SynthStudioAudio.create();
@@ -115,14 +120,15 @@ mutedSynth.dispose();
 // silences the whole insert in a real browser.
 const FX=audioSandbox.SynthStudioFX;
 const insertTypes=FX.types();
-assert.ok(insertTypes.length>=15,'the effect rack offers at least fifteen insert types');
-for(const type of ['tape','autopan','ringmod'])assert.ok(insertTypes.includes(type),'the effect rack offers '+type);
+assert.ok(insertTypes.length>=21,'the effect rack offers at least twenty-one insert types');
+for(const type of ['tape','autopan','ringmod','shimmer','pingpong','wavefold','formant','resonator','autofilter'])assert.ok(insertTypes.includes(type),'the effect rack offers '+type);
 for (const type of insertTypes) {
   const ctx=new RecordingAudioContext();
   const processor=FX.createInsert(ctx,{type,mix:.5});
   assert.ok(processor,'the insert '+type+' builds a processor');
   assert.ok(reachable(processor.input,processor.output),'the insert '+type+' routes its dry path to the output');
   assert.ok(reachable(processor.input,processor.wet),'the insert '+type+' routes its wet path');
+  processor.dispose();
 }
 const stripContext=new RecordingAudioContext();
 const strip=FX.createMaster(stripContext,undefined);
@@ -158,8 +164,18 @@ assert.equal(strip.perform('stutter',.5),true,'the master strip schedules a stut
 assert.ok(strip.perfGate.gain.events.length>=17,'the stutter gate schedules every step and its release');
 assert.equal(strip.perform('filter',.5),true,'the master strip schedules a filter drop');
 assert.ok(strip.perfFilter.frequency.events.some(event=>event[0]==='exp'),'the filter sweep uses exponential ramps');
+assert.equal(strip.perform('riser',.5),true,'the master strip schedules a high-pass riser');
+assert.ok(strip.perfHighpass.frequency.events.some(event=>event[0]==='exp'),'the riser sweeps the high-pass filter');
+assert.equal(strip.perform('tapestop',.5),true,'the master strip schedules a tape stop');
+assert.ok(strip.perfTapeDelay.delayTime.events.filter(event=>event[0]==='ramp').length>=16,'the tape stop ramps delay quadratically');
+assert.equal(strip.perform('dub',.5),true,'the master strip schedules a dub echo throw');
+assert.ok(strip.perfDubSend.gain.events.some(event=>event[0]==='ramp'&&event[1]>0.5),'the dub throw pulses its echo send');
+assert.equal(strip.perform('roll',.5),true,'the master strip schedules a beat roll');
+assert.ok(strip.perfRollWet.gain.events.some(event=>event[0]==='ramp'&&event[1]===1),'the beat roll switches into its captured loop');
 strip.resetPerformance();
 assert.equal(strip.perfGate.gain.value,1,'resetting performance effects opens the gate');
+assert.equal(strip.perfDubSend.gain.value,0,'resetting performance effects closes the dub send');
+assert.equal(strip.perfRollWet.gain.value,0,'resetting performance effects closes the beat roll');
 
 const stopped=[],detune=new FakeParam(),voice={sources:[{stop:at=>stopped.push(at),detune}],envelopes:[],releaseSeconds:.3,startTime:0,endTime:Infinity};
 audioSandbox.SynthStudioVoices.releaseVoice(voice,4);

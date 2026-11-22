@@ -294,10 +294,12 @@ body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
 .ss-app .ss-loop-range input { font-family: var(--ss-mono-font); }
 .ss-app .ss-time-signature { font: 13px var(--ss-mono-font); color: var(--ss-phosphor-dim); }
 .ss-app .ss-analyser {
-    border: 0; border-radius: 6px; background: var(--ss-scope-bg);
+    border: 0; border-radius: 6px; background: var(--ss-scope-bg); cursor: pointer;
     box-shadow: inset 0 0 0 1px rgba(134, 243, 223, .16), inset 0 0 22px #000;
     outline: 1px solid rgba(134, 243, 223, .16); outline-offset: -1px; /* the canvas paints over an inset shadow */
+    transition: outline-color .15s, box-shadow .15s;
 }
+.ss-app .ss-analyser:hover { outline-color: rgba(134, 243, 223, .45); }
 
 /* toggle keys with an LED: metronome, loop, macro and generator switches */
 .ss-app :is(.ss-transport > label, .ss-macro-controls label, .ss-generator-controls label):has(> input[type=checkbox]) {
@@ -377,7 +379,18 @@ body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
 .ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack,
 .ss-app .ss-sound-workbench .ss-insp-card .ss-fx-rack:empty { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; align-items: start; }
 .ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-slot { margin: 0; border-radius: 7px; background: var(--ss-nest); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
-.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-add { margin-top: 14px; }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-actions { margin-top: 14px; }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-add { margin-top: 0; min-height: 36px; }
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-preset {
+    appearance: none; -webkit-appearance: none; min-height: 36px; padding: 0 28px 0 12px; cursor: pointer;
+    color: var(--ss-ink); border: 1px solid #08090a; border-radius: var(--ss-key-radius); box-shadow: var(--ss-key-shadow);
+    font-family: var(--ss-label-font); font-weight: 600; letter-spacing: .09em; text-transform: uppercase;
+    background:
+        linear-gradient(45deg, transparent 50%, var(--ss-ink-soft) 50%) calc(100% - 15px) 50% / 5px 5px no-repeat,
+        linear-gradient(-45deg, transparent 50%, var(--ss-ink-soft) 50%) calc(100% - 10px) 50% / 5px 5px no-repeat,
+        var(--ss-key);
+}
+.ss-app .ss-sound-workbench .ss-insp-fx .ss-fx-preset:hover:not(:disabled) { filter: brightness(1.14); }
 /* knobs sit directly on the card instead of in a second card */
 .ss-app .ss-sound-workbench :is(.ss-insp-card, .ss-designer-group, .ss-fx-slot) :is(.ss-parameter, .ss-designer-field):has(.ss-ctl-knob) {
     background: none; border: 0; box-shadow: none; padding: 4px 2px;
@@ -486,7 +499,26 @@ body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
     font: 12px/1.2 var(--ss-mono-font); color: var(--ss-phosphor); background: var(--ss-screen);
     box-shadow: inset 0 0 14px rgba(0, 0, 0, .85), 0 1px 0 rgba(255, 255, 255, .07); text-shadow: 0 0 8px var(--ss-phosphor-glow);
 }
-.ss-app .ss-performance-fx button { flex: 1 1 130px; min-height: 58px; font-size: 14px; }
+.ss-app .ss-performance-fx {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-content: start;
+}
+.ss-app .ss-performance-fx > strong { grid-column: 1 / -1; }
+.ss-app .ss-performance-fx button {
+    position: relative; min-width: 0; min-height: 48px; padding: 0 12px 0 24px; font-size: 12.5px;
+}
+.ss-app .ss-performance-fx button::before {
+    content: ''; position: absolute; left: 10px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%;
+    background: #14171a; box-shadow: inset 0 1px 2px #000, 0 0 0 1px rgba(0, 0, 0, .6);
+    transition: background .12s, box-shadow .12s;
+}
+.ss-app .ss-performance-fx button.is-triggered {
+    color: #f3fffc; background: var(--ss-key-sel);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(134, 243, 223, .45), 0 0 12px rgba(134, 243, 223, .16);
+}
+.ss-app .ss-performance-fx button.is-triggered::before {
+    background: radial-gradient(circle at 35% 30%, #fff, var(--ss-amber) 55%, #b86a12);
+    box-shadow: 0 0 8px var(--ss-amber), 0 0 0 1px rgba(0, 0, 0, .6);
+}
 
 /* automation editor */
 .ss-app .ss-automation-editor summary { list-style: none; display: flex; align-items: center; gap: 10px; }
@@ -708,6 +740,7 @@ body[data-theme="fruity"] .ss-app { --ss-key-radius: 7px; }
     .ss-app .ss-macro { grid-template-columns: minmax(0, 1fr); }
     .ss-app .ss-xy { min-height: 150px; }
     .ss-app :is(.ss-scene-pads, .ss-chord-pads) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ss-app .ss-performance-fx { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ss-app .ss-strudel-tools a { margin-left: 0; }
     .ss-app .ss-brand strong { font-size: 14px; letter-spacing: .16em; }
     .ss-app .ss-transport-buttons button { width: 34px; }

@@ -3,8 +3,19 @@
     function create(host,options){
         const {tr,esc,signal,audio}=options,M=window.SynthStudioModel,P=window.SynthStudioPerformance,BAR=1920;
         const section=document.createElement('section');section.className='ss-stage';host.prepend(section);
-        section.innerHTML='<div class="ss-stage-scenes"><div class="ss-stage-heading"><strong>'+esc(tr('scenes'))+'</strong><button data-stage="sceneCreate">'+esc(tr('scene_from_loop'))+'</button><button data-stage="sceneRename">'+esc(tr('name'))+'</button><button data-stage="sceneDelete">'+esc(tr('delete'))+'</button></div><div class="ss-scene-pads"></div></div><div class="ss-macro"><div data-xy class="ss-xy" role="group" aria-label="'+esc(tr('xy_hint'))+'"><span class="ss-xy-dot"></span><span class="ss-xy-label">'+esc(tr('tone'))+' →<br>'+esc(tr('reverb'))+' ↑</span></div><div class="ss-macro-controls">'+['tone','reverb'].map(key=>'<label>'+esc(tr(key))+'<input data-macro="'+key+'" type="range" min="0" max="1" step=".01" value=".5"><output>.50</output></label>').join('')+'<label><input data-automation-record type="checkbox"> '+esc(tr('automation_record'))+'</label><button data-stage="clearAutomation">'+esc(tr('automation_clear'))+'</button></div></div><details class="ss-automation-editor"><summary>'+esc(tr('automation_edit'))+'</summary><div class="ss-automation-fields"><select data-automation-parameter aria-label="'+esc(tr('automation_edit'))+'">'+['tone','resonance','drive','reverb','delay'].map(key=>'<option value="'+key+'">'+esc(tr(key))+'</option>').join('')+'</select><label>'+esc(tr('automation_point'))+'<input data-automation-index type="number" min="1" step="1" value="1"><output data-automation-count></output></label><label>'+esc(tr('bar_position'))+'<input data-automation-time type="number" min="1" step=".0625"></label><label>'+esc(tr('value'))+'<input data-automation-value type="number" min="0" max="1" step=".01"></label><button data-stage="automationApply">'+esc(tr('apply'))+'</button><button data-stage="automationDelete">'+esc(tr('delete'))+'</button></div></details><div class="ss-take-controls"><strong>'+esc(tr('take'))+'</strong><button data-stage="takeRecord">'+esc(tr('take_record'))+'</button><button data-stage="takeStop">'+esc(tr('stop'))+'</button><span data-take-status role="status"></span><button data-stage="takeAdopt">'+esc(tr('take_adopt'))+'</button><button data-stage="takeDiscard">'+esc(tr('cancel'))+'</button></div><div class="ss-performance-fx"><strong>'+esc(tr('performance_fx'))+'</strong><button data-stage="fxFilter">'+esc(tr('fx_filter_drop'))+'</button><button data-stage="fxStutter">'+esc(tr('fx_stutter'))+'</button></div>';
+        section.innerHTML='<div class="ss-stage-scenes"><div class="ss-stage-heading"><strong>'+esc(tr('scenes'))+'</strong><button data-stage="sceneCreate">'+esc(tr('scene_from_loop'))+'</button><button data-stage="sceneRename">'+esc(tr('name'))+'</button><button data-stage="sceneDelete">'+esc(tr('delete'))+'</button></div><div class="ss-scene-pads"></div></div><div class="ss-macro"><div data-xy class="ss-xy" role="group" aria-label="'+esc(tr('xy_hint'))+'"><span class="ss-xy-dot"></span><span class="ss-xy-label">'+esc(tr('tone'))+' →<br>'+esc(tr('reverb'))+' ↑</span></div><div class="ss-macro-controls">'+['tone','reverb'].map(key=>'<label>'+esc(tr(key))+'<input data-macro="'+key+'" type="range" min="0" max="1" step=".01" value=".5"><output>.50</output></label>').join('')+'<label><input data-automation-record type="checkbox"> '+esc(tr('automation_record'))+'</label><button data-stage="clearAutomation">'+esc(tr('automation_clear'))+'</button></div></div><details class="ss-automation-editor"><summary>'+esc(tr('automation_edit'))+'</summary><div class="ss-automation-fields"><select data-automation-parameter aria-label="'+esc(tr('automation_edit'))+'">'+['tone','resonance','drive','reverb','delay'].map(key=>'<option value="'+key+'">'+esc(tr(key))+'</option>').join('')+'</select><label>'+esc(tr('automation_point'))+'<input data-automation-index type="number" min="1" step="1" value="1"><output data-automation-count></output></label><label>'+esc(tr('bar_position'))+'<input data-automation-time type="number" min="1" step=".0625"></label><label>'+esc(tr('value'))+'<input data-automation-value type="number" min="0" max="1" step=".01"></label><button data-stage="automationApply">'+esc(tr('apply'))+'</button><button data-stage="automationDelete">'+esc(tr('delete'))+'</button></div></details><div class="ss-take-controls"><strong>'+esc(tr('take'))+'</strong><button data-stage="takeRecord">'+esc(tr('take_record'))+'</button><button data-stage="takeStop">'+esc(tr('stop'))+'</button><span data-take-status role="status"></span><button data-stage="takeAdopt">'+esc(tr('take_adopt'))+'</button><button data-stage="takeDiscard">'+esc(tr('cancel'))+'</button></div><div class="ss-performance-fx"><strong>'+esc(tr('performance_fx'))+'</strong><button data-stage="fxFilter">'+esc(tr('fx_filter_drop'))+'</button><button data-stage="fxRiser">'+esc(tr('fx_riser'))+'</button><button data-stage="fxStutter">'+esc(tr('fx_stutter'))+'</button><button data-stage="fxTapeStop">'+esc(tr('fx_tape_stop'))+'</button><button data-stage="fxDub">'+esc(tr('fx_dub_throw'))+'</button><button data-stage="fxRoll">'+esc(tr('fx_beat_roll'))+'</button></div>';
         let active='',queued='',selected='',take=null,pendingTake=null,takeTick=0,gesture=null,epoch=0,levelTimer=null,draftWrite=Promise.resolve(),lastSceneMarkup='',automationTrack='',draftSaved=false,draftError=false,lastDisplay=-Infinity;
+        const fxTimers=new Map();
+        const clearFxFlashes=()=>{for(const timer of fxTimers.values())clearTimeout(timer);fxTimers.clear();section.querySelectorAll('.ss-performance-fx button.is-triggered').forEach(b=>b.classList.remove('is-triggered'));};
+        const triggerPerfFx=(stageKey,kind,beats)=>{
+            if(!options.canPlay())return;
+            if(!options.audio.performance(kind))return;
+            const btn=q('[data-stage="'+stageKey+'"]');if(!btn)return;
+            if(fxTimers.has(stageKey))clearTimeout(fxTimers.get(stageKey));
+            btn.classList.add('is-triggered');
+            const ms=Math.max(200,Math.min(4000,Math.round((60/(options.project()?.tempo||120))*beats*1000)));
+            fxTimers.set(stageKey,setTimeout(()=>{fxTimers.delete(stageKey);btn.classList.remove('is-triggered');},ms));
+        };
         const draftKey=location.origin+':synth-studio:take:'+options.sessionKey;
         const q=s=>section.querySelector(s),track=()=>options.track(),playing=()=>options.playing();
         const editable=()=>options.editable();
@@ -75,7 +86,7 @@
             const until=Math.max(1,Math.min(current.limit,Math.round(Math.max(takeTick,audio.elapsed()*options.project().tempo/60*480))));
             try{pendingTake=current.render(until);pendingTake.name=(options.project().name+' · '+tr('take')).slice(0,96);window.SynthStudioAudio.prepareRender(pendingTake);saveDraft();}catch(error){options.fail(error);}
         }
-        function stop(){epoch++;end(false);finishTake();active='';queued='';refresh();}
+        function stop(){epoch++;clearFxFlashes();end(false);finishTake();active='';queued='';refresh();}
         function onTick(tick,meta){
             const t=track(),now=audio.clock();if(t&&!gesture&&now-lastDisplay>=.1){lastDisplay=now;showValues({tone:P.valueAt(t,'tone',tick),reverb:P.valueAt(t,'reverb',tick)});}
             if(take){takeTick=Math.min(take.limit,Math.max(0,meta.elapsedSeconds*options.project().tempo/60*480));q('[data-take-status]').textContent=tr('remaining')+' '+Math.max(0,Math.ceil((take.limit-takeTick)/BAR))+' '+tr('bars');}
@@ -134,8 +145,12 @@
             takeStop(){options.stop();},
             async takeAdopt(){if(!pendingTake||!editable()||take)return;const snapshot=pendingTake;if(await options.adopt(M.clone(snapshot))){if(pendingTake===snapshot)pendingTake=null;await clearDraft(snapshot);refresh();}},
             async takeDiscard(){if(!editable()||take)return;const snapshot=pendingTake;pendingTake=null;await clearDraft(snapshot);refresh();},
-            fxFilter(){if(options.canPlay())options.audio.performance('filter');},
-            fxStutter(){if(options.canPlay())options.audio.performance('stutter');}
+            fxFilter(){triggerPerfFx('fxFilter','filter',1.5);},
+            fxRiser(){triggerPerfFx('fxRiser','riser',2);},
+            fxStutter(){triggerPerfFx('fxStutter','stutter',4);},
+            fxTapeStop(){triggerPerfFx('fxTapeStop','tapestop',1.5);},
+            fxDub(){triggerPerfFx('fxDub','dub',2);},
+            fxRoll(){triggerPerfFx('fxRoll','roll',3);}
         };
         section.addEventListener('click',e=>{const scene=e.target.closest('[data-scene]');if(scene){launch(scene.dataset.scene).catch(options.fail);return;}const action=e.target.closest('[data-stage]')?.dataset.stage;if(action)Promise.resolve().then(()=>actions[action]?.()).catch(options.fail);},{signal});
         let pointer=null;
@@ -160,7 +175,8 @@
             if(markup!==lastSceneMarkup){const focus=document.activeElement?.dataset.scene;lastSceneMarkup=markup;q('.ss-scene-pads').innerHTML=markup;if(focus)q('[data-scene="'+focus+'"]')?.focus({preventScroll:true});}
             for(const name of ['sceneCreate','sceneRename','sceneDelete','clearAutomation'])q('[data-stage="'+name+'"]').disabled=!editable()||!!take||(name==='sceneCreate'&&p.scenes.length>=8);
             q('[data-stage=takeRecord]').disabled=!editable()||!!take;q('[data-stage=takeStop]').disabled=!take;
-            q('[data-stage=takeAdopt]').disabled=!pendingTake||!editable()||!!take;q('[data-stage=takeDiscard]').disabled=!pendingTake||!editable()||!!take;q('[data-stage=fxFilter]').disabled=!options.canPlay();q('[data-stage=fxStutter]').disabled=!options.canPlay();
+            q('[data-stage=takeAdopt]').disabled=!pendingTake||!editable()||!!take;q('[data-stage=takeDiscard]').disabled=!pendingTake||!editable()||!!take;
+            for(const fxBtn of ['fxFilter','fxRiser','fxStutter','fxTapeStop','fxDub','fxRoll'])q('[data-stage="'+fxBtn+'"]').disabled=!options.canPlay();
             q('[data-automation-record]').disabled=!editable()||!!take;
             q('[data-xy]').setAttribute('aria-disabled',String(!t||!editable()));
             q('[data-take-status]').textContent=take?tr('recording'):pendingTake?tr(draftError?'save_error':draftSaved?'take_ready':'saving'):tr('stopped');

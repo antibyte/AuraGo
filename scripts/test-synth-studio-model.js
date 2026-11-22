@@ -245,10 +245,29 @@ async function main() {
     expectCode(()=>Model.validate({...v2,harmony:{root:12,scale:'major',snap:false}}),'E_PROJECT_TICK');
     expectCode(()=>Model.validate({...v2,scenes:[{id:'bad',name:'Bad',start:1,end:1920}]}),'E_PROJECT_TICK');
     const over=Model.clone(animated);over.tracks[0].automation=Array.from({length:50000},(_,tick)=>({tick,parameter:'tone',value:.5}));expectCode(()=>Model.validate(over),'E_PROJECT_LIMIT');
-    for(const scale of ['major','minor'])for(let root=0;root<12;root++)for(let degree=0;degree<8;degree++){
+    for(const scale of ['major','minor','dorian','phrygian','lydian','mixolydian','harmonic_minor','pentatonic_minor','hirajoshi'])for(let root=0;root<12;root++)for(let degree=0;degree<8;degree++){
         const harmony={root,scale,snap:false},chord=Music.chord(harmony,degree,true);assert.equal(chord.length,4);assert.ok(chord.every(p=>Music.inScale(p,harmony)&&p<=127));
         for(let pitch=0;pitch<128;pitch++)assert.ok(Music.inScale(Music.fit(pitch,harmony),harmony));
     }
+    for(const scale of Model.SCALES)assert.equal(Model.validate({...v2,harmony:{root:2,scale,snap:true}}).harmony.scale,scale,'all musical scales validate in project harmony');
+    expectCode(()=>Model.validate({...v2,harmony:{root:0,scale:'unknown-mode',snap:false}}),'E_PROJECT_TYPE');
+    equalJSON(Music.arpPitches([60,64,67,72],{order:'converge',octaves:1}),[60,72,64,67],'converge arpeggiates outside in');
+    equalJSON(Music.arpPitches([60,64,67,72],{order:'diverge',octaves:1}),[67,64,72,60],'diverge arpeggiates inside out');
+    equalJSON(Music.arpPitches([60,64,67,72],{order:'pinky',octaves:1}),[60,72,64,72,67,72],'top pedal alternates each lower note with the top note');
+    const melHarmony={root:9,scale:'lydian',snap:true};
+    const melA=Music.melody(melHarmony,1920*4,{melody_density:0.7,melody_range:2,melody_seed:'aurora'});
+    assert.ok(melA.length>=4,'melody generator writes a multi-note motif');
+    equalJSON(melA,Music.melody(melHarmony,1920*4,{melody_density:0.7,melody_range:2,melody_seed:'aurora'}),'melody generator is deterministic for a seed');
+    assert.ok(melA.every(n=>Music.inScale(n.pitch,melHarmony)&&n.start>=0&&n.start+n.duration<=1920*4),'melody stays inside key, scale and clip');
+    const harmSrc=[{id:'h1',pitch:60,start:0,duration:240,velocity:.8},{id:'h2',pitch:64,start:240,duration:240,velocity:.75}];
+    const harmThird=Music.harmonize(harmSrc,1920,{root:0,scale:'major',snap:false},{harmony_interval:'third'});
+    assert.equal(harmThird.length,4,'harmonizer adds a scale-locked harmony voice');
+    assert.ok(harmThird.every(n=>Music.inScale(n.pitch,{root:0,scale:'major',snap:false})),'harmonized pitches stay in scale');
+    const harmOct=Music.harmonize(harmSrc,1920,{root:0,scale:'major',snap:false},{harmony_interval:'octave'});
+    assert.ok(harmOct.some(n=>n.pitch===72)&&harmOct.some(n=>n.pitch===76),'octave harmonizer adds +12 semitones');
+    for(const prog of ['dreamy','darkwave','trance'])assert.ok(Music.progression({root:0,scale:'minor',snap:false},1920*4,{progression:prog,progression_rate:1,seventh:false,song_gate:.9}).length>=12,'new progression '+prog+' writes chords');
+    const acidBass=Music.bassline({root:0,scale:'minor',snap:false},1920*2,{progression:'darkwave',progression_rate:1,bass_style:'acid',bass_gate:.8});
+    assert.ok(acidBass.length>=16&&acidBass.every(n=>n.start+n.duration<=3840),'acid bass writes syncopated 16th-note bounce');
     const notes=[{id:'input',pitch:61,start:1800,duration:120,velocity:1}],before=JSON.stringify(notes),settings={seed:'audible',density:2,swing:.6,humanize:1,lockPitch:false,lockRhythm:false};
     const variant=Music.variation(notes,1920,v2.harmony,settings);equalJSON(variant,Music.variation(notes,1920,v2.harmony,settings));assert.equal(JSON.stringify(notes),before);
     assert.ok(variant.every(n=>n.start>=0&&n.start+n.duration<=1920&&n.velocity<=1&&n.pitch<=127));
@@ -334,6 +353,11 @@ async function main() {
     assert.equal(validatedChain.tracks[0].fx.inserts.length, 1);
     legacyTrack.fx = { inserts: [Model.insertSpec('tape', { mix: 0.4 })] };
     assert.equal(Model.validate(legacyProject).tracks[0].fx.inserts[0].type, 'tape', 'the creative tape insert validates');
+    for (const newFx of ['shimmer', 'pingpong', 'wavefold', 'formant', 'resonator', 'autofilter']) {
+        legacyTrack.fx = { inserts: [Model.insertSpec(newFx)] };
+        assert.equal(Model.validate(legacyProject).tracks[0].fx.inserts[0].type, newFx, `the ${newFx} insert validates with defaults`);
+    }
+    expectCode(() => Model.validate({ ...legacyProject, tracks: [{ ...legacyTrack, fx: { inserts: [{ ...Model.insertSpec('resonator'), freq: 2000 }] } }] }), 'E_PROJECT_NUMBER');
     expectCode(() => Model.validate({ ...legacyProject, tracks: [{ ...legacyTrack, fx: { inserts: [{ type: 'no-such-fx' }] } }] }), 'E_PROJECT_FX');
     expectCode(() => Model.validate({ ...legacyProject, tracks: [{ ...legacyTrack, fx: { inserts: [{ type: 'chorus', mix: 2 }] } }] }), 'E_PROJECT_NUMBER');
     expectCode(() => Model.validate({ ...legacyProject, tracks: [{ ...legacyTrack, fx: { inserts: new Array(5).fill(Model.insertSpec('chorus')) } }] }), 'E_PROJECT_LIMIT');

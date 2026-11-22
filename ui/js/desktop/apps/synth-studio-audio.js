@@ -944,9 +944,24 @@
     function setAutomation(project){const next=normalizeProject(project);playback?.automation?.(next);}
     function setManual(id,parameter,active){const key=id+':'+parameter;if(active)manual.add(key);else{manual.delete(key);playback?.restore?.();}}
     function meter(){if(!analyser)return 0;analyser.getFloatTimeDomainData(meterSamples);return meterSamples.reduce((peak,v)=>Math.max(peak,Math.abs(v)),0);}
-    // The master spectrum for the workbench analyser. Feedback only: it never
-    // influences the audio path.
+    // The master spectrum and oscilloscope trace for the workbench analyser.
+    // Feedback only: they never influence the audio path.
     function spectrum(bins = 64){if(!analyser||!spectrumSamples)return null;analyser.getByteFrequencyData(spectrumSamples);const out=new Array(bins).fill(0);const step=spectrumSamples.length/bins;for(let i=0;i<bins;i++){let sum=0;const from=Math.floor(i*step);const to=Math.max(from+1,Math.floor((i+1)*step));for(let j=from;j<to&&j<spectrumSamples.length;j++)sum+=spectrumSamples[j];out[i]=sum/(to-from);}return out;}
+    function waveform(samples = 160){
+      if(!analyser||!meterSamples)return null;
+      analyser.getFloatTimeDomainData(meterSamples);
+      const count=Math.max(16,Math.min(samples,meterSamples.length));
+      // Trigger on the first rising zero-crossing in the first half so periodic
+      // synth waves lock steady on screen like a hardware CRT scope.
+      let start=0;
+      const searchEnd=Math.max(1,meterSamples.length-count);
+      for(let i=1;i<searchEnd;i++){
+        if(meterSamples[i-1]<=0&&meterSamples[i]>0){start=i;break;}
+      }
+      const out=new Array(count);
+      for(let i=0;i<count;i++)out[i]=meterSamples[start+i]||0;
+      return out;
+    }
 
     function performance(kind) {
       if (!mix || !context || !mix.masterStrip) return false;
@@ -954,7 +969,7 @@
       return mix.masterStrip.perform ? mix.masterStrip.perform(kind, secondsPerBeat) : false;
     }
 
-    return { unlock, play, stop, currentTick, meter, spectrum, performance, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
+    return { unlock, play, stop, currentTick, meter, spectrum, waveform, performance, setManual, setAutomation, running:()=>!!playback, elapsed:()=>playback?Math.max(0,context.currentTime-playback.transportStart):0, setStopAfter:seconds=>playback?.stopAfter(seconds), clock:()=>ensureContext().currentTime, scheduleNote, noteOn, addController, panic, setVolume, updateTracks, queueProject, pendingChange, dispose };
   }
 
   function checkRenderBudget(info, events, startTick, endTick, durationSeconds, secPerTick, seedEvents = events) {

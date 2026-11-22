@@ -158,14 +158,17 @@ Keyboard arrows move loop handles by one bar.
 
 The sound panel of a melodic track offers "Design sound". It turns the panel
 into a full synthesizer over the patch model of the voice engine: oscillators
-(waveform, level, unison, detune, a second oscillator, pulse width), sub
-oscillator and noise, three FM modulators with ratio, depth and decay, the
+(14 waveforms including drawbar organ, metallic chime, warm vintage saw and
+hollow reed, plus level, unison, detune, a second oscillator and pulse width),
+sub oscillator and noise, three FM modulators with ratio, depth and decay, the
 filter (type, cutoff, resonance, envelope, decay), the amplitude envelope,
 the pitch sweep and an LFO with target, waveform, rate, depth and start delay.
-Every change immediately re-registers a runtime preview instrument, so the
-audition keys always play the current draft. Track parameters (tone, resonance,
-drive, attack, release, sends) and the effect chain keep shaping the sound on
-top of the patch, exactly as with a factory preset.
+**Mutate** nudges the active draft into nearby sonic variations and **Randomize**
+generates a playable patch from six curated synthesizer archetypes without
+creating project undo steps. Every change immediately re-registers a runtime
+preview instrument, so the audition keys always play the current draft. Track
+parameters (tone, resonance, drive, attack, release, sends) and the effect chain
+keep shaping the sound on top of the patch, exactly as with a factory preset.
 
 A design started from a track saves as a new synth and assigns it to that
 track as one undoable project step; starting from a GM program or a factory
@@ -242,13 +245,15 @@ notice explains that sound automation remains in WAV.
 
 ## Musical tools
 
-The Perform mode provides eight diatonic chord pads, major/natural-minor
-scale assistance, a live/printable arpeggiator, seeded melodic/rhythmic variations
-and a Euclidean drum generator. Hold pads or use the screen/typing/MIDI keyboard
-for live arpeggios; the latch switch keeps the last chord running after release
-and starts a new one on the next key. The arpeggiator order also offers chord
-stabs and strummed chords, with the same note output printed or played live.
-Choose a clip, prepare a preview, compare
+The Perform mode provides eight diatonic chord pads, scale assistance across
+nine musical scales and modes (major, natural minor, Dorian, Phrygian, Lydian,
+Mixolydian, harmonic minor, minor pentatonic and Hirajoshi), a live/printable
+arpeggiator, seeded melodic/rhythmic variations and a Euclidean drum generator.
+Hold pads or use the screen/typing/MIDI keyboard for live arpeggios; the latch
+switch keeps the last chord running after release and starts a new one on the
+next key. The arpeggiator order offers up, down, pendulum, converge, diverge,
+top pedal, random, chord stabs and strummed chords, with the same note output
+printed or played live. Choose a clip, prepare a preview, compare
 Original/Variation in a loop, then Apply or Cancel. Apply writes ordinary notes
 as one undo step. The visible seed, input notes and controls determine repeatable
 results. Scale constraints affect new notes only; fitting existing notes requires
@@ -257,10 +262,14 @@ constraints off.
 
 The Groove lab quantizes, swings, humanizes and transposes an existing clip with
 one deterministic, seeded pass. The chord-progression generator writes a whole
-diatonic progression (pop, ballad, jazz, minor, epic or canon) into the clip, and
-the bassline generator follows the same progression with root, octave, walking or
-driving-eighth patterns. Reverse clip mirrors the selected clip in time. All four
-use the same preview, comparison and one-step Apply flow as the other tools.
+diatonic progression (pop, ballad, jazz, minor, epic, canon, dreamy, darkwave or
+trance) into the clip, and the bassline generator follows the same progression
+with root, octave, walking, driving-eighth or Acid 303 bounce patterns. The
+**Melody generator** composes a deterministic, seeded motif melody in the active
+key and scale, **Harmonizer** adds a parallel scale-locked harmony voice (third,
+fifth, sixth, octave, power fifth or lower third) to existing clip notes, and
+Reverse clip mirrors the selected clip in time. All generators use the same
+preview, comparison and one-step Apply flow.
 
 ## Scenes, automation and performance takes
 
@@ -322,20 +331,30 @@ output ceiling stays active and keeps a hot stem below full scale.
 ## Effect chain and master strip
 
 Every track carries an ordered chain of up to four effect inserts plus two sends.
-The available inserts are chorus, phaser, tremolo, flanger, rotary, bitcrush,
-soft clip, three-band EQ, stereo width, cabinet, delay, reverb, tape, auto pan
-and ring mod. Tape adds wow/flutter and soft saturation, auto pan moves the
-signal across the stereo field, and ring mod blends in a carrier-modulated
-metallic layer. Each insert
-exposes its own character parameters — mix, rate, depth, feedback, tone and
-type-specific values — instead of a single fixed sound. The chain runs after the
+The twenty-one available inserts are chorus, phaser, tremolo, flanger, rotary,
+bitcrush, soft clip, three-band EQ, stereo width, cabinet, delay, reverb, tape,
+auto pan, ring mod, shimmer reverb, ping-pong delay, wavefolder, formant filter,
+comb resonator and auto-filter. Shimmer reverb blends a diffuse hall with an
+octave-up crystalline sheen; ping-pong delay bounces damped echoes across the
+stereo field; wavefolder applies West-Coast harmonic folding with symmetry
+control; formant filter shapes three parallel vocal-tract bands across A–E–I–O–U
+with optional LFO morphing; comb resonator adds pitched metallic/string
+resonance; and auto-filter sweeps a resonant low-pass filter logarithmically in
+octaves. Each insert exposes its own character parameters — mix, rate, depth,
+feedback, tone and type-specific values — instead of a single fixed sound.
+Insert slots can be reordered directly in the rack (↑ / ↓) or populated from
+curated multi-FX chain presets as a single undo step. The chain runs after the
 track pan, so stereo effects work on a real stereo signal, and the reverb and
 delay sends leave the fader, so the track volume also controls its own tails.
 
-The Perform mode also carries two momentary Live FX after the master
-strip: Filter drop sweeps the master low-pass down and back over 1.5 beats, and
-Stutter gates the mix sixteen times over one bar. They follow the current tempo,
-are performance-only, and never enter the project, WAV mixdown or stem export.
+The Perform mode also carries six momentary Live FX after the master strip:
+**Filter drop** sweeps the master low-pass down and back over 1.5 beats,
+**HP riser** builds tension with a resonant high-pass sweep over 2 beats,
+**Stutter** gates the mix sixteen times over one bar, **Tape stop** brakes pitch
+smoothly downward like a turntable power-off, **Dub throw** launches a
+tempo-synced resonant echo burst, and **Beat roll** captures and repeats a
+1/8-note slice in time. They follow the current tempo, are performance-only, and
+never enter the project, WAV mixdown or stem export.
 
 The Master button in the transport opens the master strip: output level, the
 compressor with threshold, ratio, knee, attack and release, a three-band EQ, a
@@ -344,11 +363,12 @@ buses. The limiter is a transparent output ceiling at −0.3 dBFS: levels below 
 knee pass unchanged, louder peaks ease onto the ceiling instead of clipping, and
 live playback and WAV export share the same constant. It sits after the stereo
 width matrix and the momentary Live FX, so neither can push the mix past full
-scale. The echo time follows
-the project tempo when a division is selected, so a one-eighth delay stays in
-time when the tempo changes. The analyser in the transport shows the master
-output and is visual feedback only; musical timing does not depend on its
-refresh rate.
+scale. The echo time follows the project tempo when a division is selected, so a
+one-eighth delay stays in time when the tempo changes. The analyser in the
+transport shows the master output and can be clicked (or toggled via keyboard)
+to cycle between **Spectrum** (with peak hold), **Oscilloscope** (zero-crossing
+triggered waveform) and **Mirror** views; it is visual feedback only and musical
+timing does not depend on its refresh rate.
 
 In the master strip the output level is a large VFO-style tuning knob with a decibel read-out
 (20 x log10 of the gain, `-inf` at zero) and a 16 segment LED meter beside it

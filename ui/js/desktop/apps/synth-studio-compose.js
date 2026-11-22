@@ -9,7 +9,7 @@
         const range=(key,min,max,step,value)=>'<input data-music="'+key+'" data-ss-kind="knob" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+value+'"><output>'+value+'</output>';
         const check=key=>'<label><input data-music="'+key+'" type="checkbox"> '+esc(tr(key))+'</label>';
         const button=(key)=>'<button type="button" data-compose="'+key+'">'+esc(tr(key))+'</button>';
-        host.innerHTML='<div class="ss-compose"><div class="ss-harmony">'+label('key',select('root',['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'].map((n,i)=>[i,n])))+label('scale',select('scale',[['major',tr('major')],['minor',tr('minor')]]))+check('scale_snap')+label('chord',select('seventh',[[0,tr('triad')],[1,tr('seventh')]]))+'</div><div class="ss-chord-pads"></div><details open><summary>'+esc(tr('arpeggiator'))+'</summary><div class="ss-generator-controls">'+check('arp_live')+check('arp_latch')+label('order',select('order',['up','down','pendulum','random','chord','strum'].map(s=>[s,tr(s)])))+label('grid',select('division',[8,16,32].map(n=>[n,'1/'+n])))+label('octaves',select('octaves',[1,2,3].map(n=>[n,String(n)])))+label('gate',range('gate',.1,1,.05,.7))+label('seed','<input data-music="seed" type="text" maxlength="64" value="1">')+'</div></details><details><summary>'+esc(tr('variation_lab'))+'</summary><div class="ss-generator-controls">'+label('density',range('density',0,2,.1,1))+label('swing',range('swing',0,.6,.05,0))+label('humanize',range('humanize',0,1,.05,.2))+check('lock_pitch')+check('lock_rhythm')+'</div></details><details><summary>'+esc(tr('rhythm_generator'))+'</summary><div class="ss-generator-controls">'+label('steps',select('steps',[[16,'16'],[32,'32']]))+label('hits','<input data-music="hits" type="number" min="0" max="32" value="5">')+label('rotation','<input data-music="rotation" type="number" min="0" max="31" value="0">')+label('accent',select('accent',[1,2,3,4,8].map(n=>[n,String(n)])))+label('pitch',select('pitch',window.SynthStudioPresets.drums.map(d=>[d.drumNote,d.name])))+'</div></details>'+
+        host.innerHTML='<div class="ss-compose"><div class="ss-harmony">'+label('key',select('root',['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'].map((n,i)=>[i,n])))+label('scale',select('scale',['major','minor','dorian','phrygian','lydian','mixolydian','harmonic_minor','pentatonic_minor','hirajoshi'].map(s=>[s,tr(s)])))+check('scale_snap')+label('chord',select('seventh',[[0,tr('triad')],[1,tr('seventh')]]))+'</div><div class="ss-chord-pads"></div><details open><summary>'+esc(tr('arpeggiator'))+'</summary><div class="ss-generator-controls">'+check('arp_live')+check('arp_latch')+label('order',select('order',['up','down','pendulum','converge','diverge','pinky','random','chord','strum'].map(s=>[s,tr(s)])))+label('grid',select('division',[8,16,32].map(n=>[n,'1/'+n])))+label('octaves',select('octaves',[1,2,3].map(n=>[n,String(n)])))+label('gate',range('gate',.1,1,.05,.7))+label('seed','<input data-music="seed" type="text" maxlength="64" value="1">')+'</div></details><details><summary>'+esc(tr('variation_lab'))+'</summary><div class="ss-generator-controls">'+label('density',range('density',0,2,.1,1))+label('swing',range('swing',0,.6,.05,0))+label('humanize',range('humanize',0,1,.05,.2))+check('lock_pitch')+check('lock_rhythm')+'</div></details><details><summary>'+esc(tr('rhythm_generator'))+'</summary><div class="ss-generator-controls">'+label('steps',select('steps',[[16,'16'],[32,'32']]))+label('hits','<input data-music="hits" type="number" min="0" max="32" value="5">')+label('rotation','<input data-music="rotation" type="number" min="0" max="31" value="0">')+label('accent',select('accent',[1,2,3,4,8].map(n=>[n,String(n)])))+label('pitch',select('pitch',window.SynthStudioPresets.drums.map(d=>[d.drumNote,d.name])))+'</div></details>'+
             '<details><summary>'+esc(tr('groove_lab'))+'</summary><div class="ss-generator-controls">'+
             label('grid',select('groove_grid',[8,16,32].map(n=>[n,'1/'+n])))+
             label('quantize_strength',range('quantize',0,1,.05,0))+
@@ -19,17 +19,25 @@
             label('seed','<input data-music="groove_seed" type="text" maxlength="64" value="1">')+
             '</div></details>'+
             '<details><summary>'+esc(tr('progression'))+'</summary><div class="ss-generator-controls">'+
-            label('progression',select('progression',[['pop',tr('progression_pop')],['ballad',tr('progression_ballad')],['jazz',tr('progression_jazz')],['minor',tr('progression_minor')],['epic',tr('progression_epic')],['canon',tr('progression_canon')]]))+
+            label('progression',select('progression',['pop','ballad','jazz','minor','epic','canon','dreamy','darkwave','trance'].map(p=>[p,tr('progression_'+p)])))+
             label('progression_rate',select('progression_rate',[[1,'1'],[2,'2'],[4,'4']]))+
             label('gate',range('song_gate',.1,1,.05,.9))+
             '</div></details>'+
             '<details><summary>'+esc(tr('bassline'))+'</summary><div class="ss-generator-controls">'+
-            label('bass_style',select('bass_style',[['root',tr('bass_root')],['octave',tr('bass_octave')],['walk',tr('bass_walk')],['pulse',tr('bass_pulse')]]))+
+            label('bass_style',select('bass_style',['root','octave','walk','pulse','acid'].map(b=>[b,tr('bass_'+b)])))+
             label('gate',range('bass_gate',.1,1,.05,.8))+
             '</div></details>'+
-            '<div class="ss-generator-actions">'+label('generator',select('generator',[['chord',tr('chord')],['arp',tr('arpeggiator')],['variation',tr('variation_lab')],['rhythm',tr('rhythm_generator')],['progression',tr('progression')],['bassline',tr('bassline')],['groove',tr('groove_lab')],['reverse',tr('reverse_notes')],['scale',tr('scale_apply')]]))+button('generate')+'<span data-compose-target></span></div><div class="ss-preview" hidden role="group" aria-label="'+esc(tr('preview'))+'">'+button('original')+button('variant')+button('apply')+button('cancel')+'<span data-preview-state role="status"></span></div></div>';
+            '<details><summary>'+esc(tr('melody_generator'))+'</summary><div class="ss-generator-controls">'+
+            label('density',range('melody_density',.2,1,.05,.65))+
+            label('melody_range',select('melody_range',[[1,'1'],[2,'2']]))+
+            label('seed','<input data-music="melody_seed" type="text" maxlength="64" value="1">')+
+            '</div></details>'+
+            '<details><summary>'+esc(tr('harmonizer'))+'</summary><div class="ss-generator-controls">'+
+            label('harmony_interval',select('harmony_interval',['third','fifth','sixth','octave','power','below'].map(i=>[i,tr('interval_'+i)])))+
+            '</div></details>'+
+            '<div class="ss-generator-actions">'+label('generator',select('generator',[['chord',tr('chord')],['arp',tr('arpeggiator')],['variation',tr('variation_lab')],['rhythm',tr('rhythm_generator')],['progression',tr('progression')],['bassline',tr('bassline')],['melody',tr('melody_generator')],['harmonize',tr('harmonizer')],['groove',tr('groove_lab')],['reverse',tr('reverse_notes')],['scale',tr('scale_apply')]]))+button('generate')+'<span data-compose-target></span></div><div class="ss-preview" hidden role="group" aria-label="'+esc(tr('preview'))+'">'+button('original')+button('variant')+button('apply')+button('cancel')+'<span data-preview-state role="status"></span></div></div>';
         const q=key=>host.querySelector('[data-music="'+key+'"]');
-        const settings=()=>Object.fromEntries([...host.querySelectorAll('[data-music]')].map(e=>[e.dataset.music,e.type==='checkbox'?e.checked:e.type==='number'||e.type==='range'||['root','seventh','division','octaves','steps','accent','pitch','groove_grid','progression_rate'].includes(e.dataset.music)?Number(e.value):e.value]));
+        const settings=()=>Object.fromEntries([...host.querySelectorAll('[data-music]')].map(e=>[e.dataset.music,e.type==='checkbox'?e.checked:e.type==='number'||e.type==='range'||['root','seventh','division','octaves','steps','accent','pitch','groove_grid','progression_rate','melody_range'].includes(e.dataset.music)?Number(e.value):e.value]));
         function selection(){const p=options.project(),s=options.selection(),track=p.tracks.find(t=>t.id===s.trackId);const clip=track?.clips.find(c=>c.id===s.clipId);return {p,track,clip:clip&&!clip.audio?clip:undefined};}
         function cancel(){epoch++;previewAudio.stop();preview=null;host.querySelector('.ss-preview').hidden=true;}
         function stopLive(){epoch++;clearInterval(timer);timer=null;held.clear();physical.clear();for(const v of scheduled)v.cancel();scheduled=[];padReleases.forEach(fn=>fn());padReleases=[];}
@@ -73,6 +81,8 @@
             else if(s.generator==='rhythm'){if(!isDrum(track))throw Error('invalid_project');notes=G.rhythm(clip.length,s);}
             else if(s.generator==='progression'){if(isDrum(track))throw Error('invalid_project');notes=G.progression(p.harmony,clip.length,s);}
             else if(s.generator==='bassline'){if(isDrum(track))throw Error('invalid_project');notes=G.bassline(p.harmony,clip.length,s);}
+            else if(s.generator==='melody'){if(isDrum(track))throw Error('invalid_project');notes=G.melody(p.harmony,clip.length,s);}
+            else if(s.generator==='harmonize'){if(isDrum(track))throw Error('invalid_project');notes=G.harmonize(clip.notes,clip.length,p.harmony,s);}
             else if(s.generator==='groove')notes=G.groove(clip.notes,clip.length,s);
             else if(s.generator==='reverse')notes=G.reverseNotes(clip.notes,clip.length);
             else notes=clip.notes.map(n=>({...n,pitch:G.fit(n.pitch,p.harmony)}));
@@ -129,7 +139,7 @@
             if(lastTrack!==track?.id){epoch++;stopLive();lastTrack=track?.id;}
             q('root').value=p.harmony.root;q('scale').value=p.harmony.scale;q('scale_snap').checked=p.harmony.snap;
             host.querySelector('[data-compose-target]').textContent=clip?.name||tr('select_clip');
-            const generator=q('generator').value,noSource=(generator==='groove'||generator==='reverse')&&!clip?.notes.length,tonalOnly=(generator==='progression'||generator==='bassline')&&isDrum(track);
+            const generator=q('generator').value,noSource=(generator==='groove'||generator==='reverse'||generator==='harmonize')&&!clip?.notes.length,tonalOnly=(generator==='progression'||generator==='bassline'||generator==='melody'||generator==='harmonize')&&isDrum(track);
             host.querySelector('[data-compose=generate]').disabled=options.blocked()||!clip||noSource||(generator==='rhythm'&&!isDrum(track))||tonalOnly;
             host.querySelector('[data-compose=apply]').disabled=options.blocked();
             host.querySelectorAll('input,select').forEach(e=>e.disabled=options.blocked());

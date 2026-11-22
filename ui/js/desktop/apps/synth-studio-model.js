@@ -25,6 +25,7 @@
     const masterKeys = ['volume', 'low', 'mid', 'high', 'threshold', 'ratio', 'knee', 'attack', 'release', 'width', 'plateSize', 'plateDecay', 'echoTime', 'echoFeedback', 'echoSync'];
     const MAX_INSERTS = 4;
     const ECHO_DIVISIONS = ['off', '1/4', '1/8', '1/8T', '1/16', '1/16T'];
+    const SCALES = ['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'harmonic_minor', 'pentatonic_minor', 'hirajoshi'];
 
     // The effect rack schema. The audio implementation lives in
     // synth-studio-fx.js; this table is the single source of truth for
@@ -117,6 +118,46 @@
             { key: 'freq', min: 20, max: 4000, step: 1, def: 440 },
             { key: 'depth', min: 0, max: 1, step: 0.01, def: 0.6 },
             { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.5 }
+        ] },
+        { id: 'shimmer', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.35 },
+            { key: 'size', min: 0, max: 1, step: 0.01, def: 0.7 },
+            { key: 'decay', min: 0, max: 1, step: 0.01, def: 0.75 },
+            { key: 'shimmer', min: 0, max: 1, step: 0.01, def: 0.55 },
+            { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.65 }
+        ] },
+        { id: 'pingpong', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.35 },
+            { key: 'time', min: 0.04, max: 1.2, step: 0.005, def: 0.28 },
+            { key: 'feedback', min: 0, max: 0.88, step: 0.01, def: 0.42 },
+            { key: 'spread', min: 0, max: 1, step: 0.01, def: 0.85 },
+            { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.55 }
+        ] },
+        { id: 'wavefold', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.55 },
+            { key: 'drive', min: 0, max: 1, step: 0.01, def: 0.45 },
+            { key: 'symmetry', min: 0, max: 1, step: 0.01, def: 0.5 },
+            { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.65 }
+        ] },
+        { id: 'formant', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.7 },
+            { key: 'vowel', min: 0, max: 1, step: 0.01, def: 0.25 },
+            { key: 'resonance', min: 0, max: 1, step: 0.01, def: 0.55 },
+            { key: 'rate', min: 0.05, max: 8, step: 0.01, def: 0.6 },
+            { key: 'depth', min: 0, max: 1, step: 0.01, def: 0.3 }
+        ] },
+        { id: 'resonator', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.45 },
+            { key: 'freq', min: 40, max: 1000, step: 1, def: 220 },
+            { key: 'feedback', min: 0, max: 0.92, step: 0.01, def: 0.72 },
+            { key: 'tone', min: 0, max: 1, step: 0.01, def: 0.55 }
+        ] },
+        { id: 'autofilter', params: [
+            { key: 'mix', min: 0, max: 1, step: 0.01, def: 0.75 },
+            { key: 'rate', min: 0.08, max: 16, step: 0.02, def: 1.8 },
+            { key: 'depth', min: 0, max: 1, step: 0.01, def: 0.65 },
+            { key: 'freq', min: 120, max: 6000, step: 10, def: 900 },
+            { key: 'resonance', min: 0, max: 1, step: 0.01, def: 0.5 }
         ] }
     ];
     const FX_BY_ID = new Map(FX_TYPES.map(type => [type.id, type]));
@@ -463,7 +504,7 @@
         const totals = { events: 0 };
         if (version >= 2) {
             const h = plainObject(required(project, 'harmony', 'project'), 'harmony', ['root','scale','snap']);
-            if (!['major','minor'].includes(h.scale)) throw error('E_PROJECT_TYPE', 'Invalid scale.');
+            if (!SCALES.includes(h.scale)) throw error('E_PROJECT_TYPE', 'Invalid scale.');
             result.harmony = {root:number(h.root,'harmony.root',0,11,true),scale:h.scale,snap:bool(h.snap,'harmony.snap')};
             result.scenes = list(required(project,'scenes','project'),'scenes',8).map(s => {
                 plainObject(s,'scene',['id','name','start','end']);
@@ -1051,5 +1092,5 @@
         };
     }
 
-    return { PPQ, BAR, newID: randomId, create, validate, upgrade, addTrack, defaultParamsFor, defaultInsertsFor, createClip, patterns, patternById, demo, template, events, endTick, clone, cloneClip, history, FX_TYPES, MASTER_DEFAULTS, MAX_INSERTS, insertSpec };
+    return { PPQ, BAR, SCALES, newID: randomId, create, validate, upgrade, addTrack, defaultParamsFor, defaultInsertsFor, createClip, patterns, patternById, demo, template, events, endTick, clone, cloneClip, history, FX_TYPES, MASTER_DEFAULTS, MAX_INSERTS, insertSpec };
 });

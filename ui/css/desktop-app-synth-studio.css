@@ -332,13 +332,26 @@
 .ss-app [data-fx=eq3] {--ss-fx-color:var(--ss-color-5)}
 .ss-app [data-fx=width] {--ss-fx-color:var(--ss-color-2)}
 .ss-app [data-fx=cabinet] {--ss-fx-color:var(--ss-color-1)}
+.ss-app [data-fx=tape] {--ss-fx-color:var(--ss-color-3)}
+.ss-app [data-fx=autopan] {--ss-fx-color:var(--ss-color-4)}
+.ss-app [data-fx=ringmod] {--ss-fx-color:var(--ss-color-0)}
+.ss-app [data-fx=shimmer] {--ss-fx-color:var(--ss-color-7)}
+.ss-app [data-fx=pingpong] {--ss-fx-color:var(--ss-color-2)}
+.ss-app [data-fx=wavefold] {--ss-fx-color:var(--ss-color-0)}
+.ss-app [data-fx=formant] {--ss-fx-color:var(--ss-color-6)}
+.ss-app [data-fx=resonator] {--ss-fx-color:var(--ss-color-5)}
+.ss-app [data-fx=autofilter] {--ss-fx-color:var(--ss-color-1)}
 .ss-fx-slot header {display:flex;align-items:center;gap:6px;margin-bottom:8px}
 .ss-fx-slot header select {flex:1;min-width:0;font-size:11px!important;padding:4px 6px!important}
 .ss-fx-slot header button {width:26px;height:26px;padding:0;font-size:13px;line-height:1;color:var(--ss-muted)}
-.ss-fx-slot header button:hover {color:#e6868b}
+.ss-fx-slot header button[data-fx-move]:hover:not(:disabled) {color:var(--ss-accent)}
+.ss-fx-slot header button[data-fx-remove]:hover:not(:disabled) {color:var(--ss-danger,var(--ss-hot))}
 .ss-fx-params {display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px 8px}
 .ss-fx-params .ss-parameter {padding:6px 8px;border:1px solid var(--ss-border);border-radius:7px;background:color-mix(in srgb,var(--ss-card-color) 80%,var(--ss-well-color))}
 .ss-fx-params .ss-parameter output {font:11px ui-monospace,monospace;font-family:var(--vd-mat-mono-font,ui-monospace,monospace);color:var(--ss-text)}
+.ss-fx-actions {display:flex;flex-wrap:wrap;gap:8px;align-items:stretch}
+.ss-fx-actions .ss-fx-add {flex:1 1 150px;width:auto}
+.ss-fx-preset {flex:1 1 160px;min-width:0;font-size:11px!important}
 .ss-fx-add {width:100%;border:1px dashed var(--ss-border)!important;font-size:11px!important;color:var(--ss-muted)}
 .ss-fx-add:hover {color:var(--ss-accent);border-color:var(--ss-accent)!important}
 .ss-tour {position:absolute;left:50%;bottom:74px;transform:translateX(-50%);z-index:14;max-width:min(440px,90vw)}

@@ -682,7 +682,9 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   programs and percussion bank local. See `documentation/synth-studio.md` for
   supported music formats, controls and resource limits.
 - `synth-studio-designer.js` owns the programmable synthesizer: it normalizes
-  drafts against the voice-engine bounds, keeps the browser-local user patch
+  drafts against the voice-engine bounds (including the fourteen periodic/base
+  waveforms `organ`, `metallic`, `warm_saw`, `hollow`), provides browser-local
+  draft `mutatePatch`/`randomPatch` helpers, keeps the browser-local user patch
   bank (max twenty-four, `aurago:synth-studio:patches:1`), registers the stored
   synths into `synth-studio-presets.js` (category `user` plus a runtime-only
   preview entry that never lists) and renders the parameter editor inside the
@@ -698,21 +700,33 @@ after the built-in installers and before the markup exists. DOM work belongs in 
   inside look-ahead. Stop/deadline takes priority over queued changes. Verify scheduler tests
   and responsive browser flows when changing these contracts.
 - `synth-studio-music.js` owns deterministic scale/chord/arp/variation/rhythm,
-  groove, transpose, reverse, chord-progression and bassline transforms;
-  `synth-studio-compose.js` owns preview/apply, held live inputs and the arp
-  latch. Preview/cancel never changes the project; Apply commits ordinary notes
-  once. Groove humanisation is seeded and repeatable; progression and bassline
-  follow the selected harmony rather than fixed pitches. The arpeggiator's chord
-  and strum orders schedule every chord voice per step; live and printed output
-  share `arpPitches`/`arpeggio`.
+  groove, transpose, reverse, chord-progression, bassline, motif `melody` and
+  scale-locked `harmonize` transforms across all nine supported scales (`major`,
+  `minor`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `harmonic_minor`,
+  `pentatonic_minor`, `hirajoshi`); `synth-studio-compose.js` owns
+  preview/apply, held live inputs and the arp latch. Preview/cancel never
+  changes the project; Apply commits ordinary notes once. Groove humanisation
+  and melody generation are seeded and repeatable; progression, bassline,
+  melody and harmonizer follow the selected harmony rather than fixed pitches.
+  The arpeggiator supports `up`, `down`, `pendulum`, `converge`, `diverge`,
+  `pinky`, `random`, `chord` and `strum` orders; live and printed output share
+  `arpPitches`/`arpeggio`.
   Format v2 stores harmony, bar-range scenes and track automation; all automation
   counts toward the event/byte limits. v1 validation preserves v1. Upgrade in
   memory and require a create-only v2 copy before enabling autosave.
 - `synth-studio-fx.js` and the `FX_TYPES` table in `synth-studio-model.js` share
-  one 15-insert rack, including tape, auto pan and ring mod. Every builder routes
-  its wet path and works identically in live playback and offline WAV rendering.
-  The master strip also owns the momentary Live FX nodes (filter drop, stutter);
-  they are performance-only and must stay out of project data and offline renders.
+  one 21-insert rack, including `tape`, `autopan`, `ringmod`, `shimmer`,
+  `pingpong`, `wavefold`, `formant`, `resonator` and `autofilter`. Every builder
+  routes its wet path with zero idle DC/noise floor and works identically in
+  live playback and offline WAV rendering. The inspector also supports single-undo
+  insert reordering (`data-fx-move`) and curated multi-FX chain presets
+  (`data-fx-preset`). The master strip owns the six momentary Live FX nodes
+  (`filter`, `riser`, `stutter`, `tapestop`, `dub`, `roll`); idle bypass routes
+  unity dry straight to `perfGate -> limiterPre`, and Live FX remain
+  performance-only outside project data and offline renders. The transport
+  analyser cycles between `spectrum` (with peak hold), triggered `scope`
+  (`audio.waveform`) and `mirror` views (`aura:synth-studio:scope`) as visual
+  feedback only.
 - The inspector's add-effect control is a valueless `data-fx-add` marker. The
   delegated click handler in `synth-studio.js` must detect it with
   `hasAttribute`, never a truthy `dataset.fxAdd`: an empty dataset value is

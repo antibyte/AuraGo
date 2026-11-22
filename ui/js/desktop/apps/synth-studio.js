@@ -20,8 +20,20 @@
         let libraryPrefs={favourites:[],recent:[]};
         try{const stored=JSON.parse(localStorage.getItem(LIBRARY_KEY)||'{}');if(stored&&typeof stored==='object'){if(Array.isArray(stored.favourites))libraryPrefs.favourites=stored.favourites;if(Array.isArray(stored.recent))libraryPrefs.recent=stored.recent;}}catch(_){}
         const saveLibraryPrefs=()=>{try{localStorage.setItem(LIBRARY_KEY,JSON.stringify(libraryPrefs));}catch(_){}};
-        const FX_LABELS={chorus:'chorus',phaser:'phaser',delay:'delay',reverb:'reverb',gate:'gate',tremolo:'fx_tremolo',flanger:'fx_flanger',rotary:'fx_rotary',bitcrush:'fx_bitcrush',softclip:'fx_softclip',eq3:'fx_eq3',width:'fx_width',cabinet:'fx_cabinet',tape:'fx_tape',autopan:'fx_autopan',ringmod:'fx_ringmod'};
-        const FX_PARAM_LABELS={mix:'fx_mix',rate:'fx_rate',depth:'fx_depth',feedback:'fx_feedback',amount:'fx_amount',freq:'fx_freq',low:'fx_low',mid:'fx_mid',high:'fx_high',bits:'fx_bits',time:'fx_time',size:'fx_size',decay:'fx_decay',model:'fx_model',tone:'tone'};
+        const FX_LABELS={chorus:'chorus',phaser:'phaser',delay:'delay',reverb:'reverb',gate:'gate',tremolo:'fx_tremolo',flanger:'fx_flanger',rotary:'fx_rotary',bitcrush:'fx_bitcrush',softclip:'fx_softclip',eq3:'fx_eq3',width:'fx_width',cabinet:'fx_cabinet',tape:'fx_tape',autopan:'fx_autopan',ringmod:'fx_ringmod',shimmer:'fx_shimmer',pingpong:'fx_pingpong',wavefold:'fx_wavefold',formant:'fx_formant',resonator:'fx_resonator',autofilter:'fx_autofilter'};
+        const FX_PARAM_LABELS={mix:'fx_mix',rate:'fx_rate',depth:'fx_depth',feedback:'fx_feedback',amount:'fx_amount',freq:'fx_freq',low:'fx_low',mid:'fx_mid',high:'fx_high',bits:'fx_bits',time:'fx_time',size:'fx_size',decay:'fx_decay',model:'fx_model',tone:'tone',drive:'drive',resonance:'resonance',shimmer:'fx_shimmer_amt',spread:'fx_spread',symmetry:'fx_symmetry',vowel:'fx_vowel'};
+        const FX_CHAIN_PRESETS={
+            ethereal:[['chorus',{mix:.32,rate:.55,depth:.4}],['shimmer',{mix:.48,size:.82,decay:.8,shimmer:.68,tone:.7}],['pingpong',{mix:.28,time:.34,feedback:.44,spread:.9,tone:.55}]],
+            cyber_acid:[['wavefold',{mix:.62,drive:.58,symmetry:.68,tone:.6}],['autofilter',{mix:.8,rate:2.4,depth:.72,freq:760,resonance:.68}],['delay',{mix:.26,time:.24,feedback:.38,tone:.48}]],
+            talking:[['formant',{mix:.82,vowel:.3,resonance:.68,rate:.85,depth:.48}],['chorus',{mix:.34,rate:.6,depth:.42}],['pingpong',{mix:.28,time:.3,feedback:.4,spread:.85,tone:.6}]],
+            lofi:[['tape',{mix:.55,rate:.7,depth:.52,drive:.32,tone:.38}],['bitcrush',{mix:.32,bits:8,tone:.42}],['reverb',{mix:.28,size:.45,decay:.55,tone:.45}]],
+            metallic:[['resonator',{mix:.55,freq:260,feedback:.78,tone:.62}],['flanger',{mix:.38,rate:.28,depth:.5,feedback:.45,tone:.55}],['shimmer',{mix:.36,size:.65,decay:.7,shimmer:.52,tone:.68}]],
+            dub:[['autofilter',{mix:.65,rate:.45,depth:.58,freq:680,resonance:.55}],['pingpong',{mix:.48,time:.375,feedback:.62,spread:.95,tone:.42}],['reverb',{mix:.32,size:.72,decay:.7,tone:.48}]]
+        };
+        const SCOPE_KEY='aura:synth-studio:scope',SCOPE_MODES=['spectrum','scope','mirror'];
+        let scopeMode='spectrum';
+        try{const savedScope=localStorage.getItem(SCOPE_KEY);if(SCOPE_MODES.includes(savedScope))scopeMode=savedScope;}catch(_){}
+        const scopePeaks=new Float32Array(48);
         const TOUR_STEPS=[{panel:'notes',key:'tour_arrange'},{panel:'sound',key:'tour_sound'},{panel:'performance',key:'tour_performance'},{key:'tour_record'},{key:'tour_export'}];
         let workspace, composer, stage, strudel, rb338, parameterGesture=null;
         let live=new Map(), storageState={}, midiState={}, generation=0, ready=false;
@@ -37,7 +49,7 @@
         const fail=error=>{if(disposed)return;let code=typeof error==='string'?error:error?.code;if(code?.startsWith('E_PROJECT_'))code=code==='E_PROJECT_LIMIT'?'too_many_tracks':'invalid_project';else if(code==='E_MIDI_DENIED')code='denied';else if(code==='E_MIDI_UNSUPPORTED')code='unsupported';else if(code?.startsWith('E_MIDI_DEVICE'))code='no_device';else if(code?.startsWith('E_MIDI_'))code='unsupported_midi';else if(code==='SYNTH_STUDIO_RENDER_BUDGET')code='export_limit';notice(tr(['unsupported','denied','no_device','invalid_project','unsupported_midi','too_many_tracks','export_limit','readonly'].includes(code)?code:'error'));};
         function notice(text){const n=host.querySelector('[data-notice]');if(n){n.textContent=text||'';n.hidden=!text;}}
         host.innerHTML='<div class="ss-app" tabindex="0"><header class="ss-header"><div class="ss-brand"><span class="ss-brand-mark" aria-hidden="true">≋</span><div><strong>Synth Studio</strong><button class="ss-project-name" data-action="rename" data-project-name></button></div></div><nav class="ss-file-actions">'+button('new','new',icon('file-plus','＋'))+button('open','open',icon('folder-open','▱'))+button('save','save',icon('save','▣'))+button('saveAs','save_as',icon('copy','⧉'))+'<select data-export aria-label="'+esc(tr('export'))+'"><option value="">'+esc(tr('export'))+'</option><option value="wav">WAV</option><option value="midi">MIDI</option><option value="stems">'+esc(tr('stems'))+'</option></select>'+button('demo','demo',tr('demo'))+'</nav></header>'+
-            '<div class="ss-transport"><div class="ss-transport-buttons">'+button('play','play','▶','class="ss-play"')+button('pause','pause','Ⅱ')+button('stop','stop','■')+button('record','record','●','class="ss-record"')+'</div><output class="ss-position" data-position>01 : 01</output><label class="ss-tempo"><input data-tempo type="number" inputmode="numeric" enterkeyhint="done" min="40" max="240" value="120" aria-label="'+esc(tr('tempo'))+'"><span>BPM</span></label><span class="ss-time-signature">4/4</span><label><input data-metronome type="checkbox"> '+esc(tr('metronome'))+'</label><label><input data-loop type="checkbox"> '+esc(tr('loop'))+'</label><label class="ss-loop-range"><input data-loop-start type="number" inputmode="numeric" enterkeyhint="done" min="1" value="1" aria-label="'+esc(tr('loop_start'))+'"> — <input data-loop-end type="number" inputmode="numeric" enterkeyhint="done" min="2" value="5" aria-label="'+esc(tr('loop_end'))+'"></label><div class="ss-history">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><button type="button" class="ss-master-toggle" data-action="master" title="'+esc(tr('fx_master'))+'" aria-label="'+esc(tr('fx_master'))+'" aria-expanded="false" aria-controls="ss-master-panel">'+esc(tr('fx_master'))+'</button><canvas class="ss-analyser" data-analyser width="320" height="54" role="img" aria-label="'+esc(tr('analyser'))+'"></canvas></div>'+
+            '<div class="ss-transport"><div class="ss-transport-buttons">'+button('play','play','▶','class="ss-play"')+button('pause','pause','Ⅱ')+button('stop','stop','■')+button('record','record','●','class="ss-record"')+'</div><output class="ss-position" data-position>01 : 01</output><label class="ss-tempo"><input data-tempo type="number" inputmode="numeric" enterkeyhint="done" min="40" max="240" value="120" aria-label="'+esc(tr('tempo'))+'"><span>BPM</span></label><span class="ss-time-signature">4/4</span><label><input data-metronome type="checkbox"> '+esc(tr('metronome'))+'</label><label><input data-loop type="checkbox"> '+esc(tr('loop'))+'</label><label class="ss-loop-range"><input data-loop-start type="number" inputmode="numeric" enterkeyhint="done" min="1" value="1" aria-label="'+esc(tr('loop_start'))+'"> — <input data-loop-end type="number" inputmode="numeric" enterkeyhint="done" min="2" value="5" aria-label="'+esc(tr('loop_end'))+'"></label><div class="ss-history">'+button('undo','undo','↶')+button('redo','redo','↷')+'</div><button type="button" class="ss-master-toggle" data-action="master" title="'+esc(tr('fx_master'))+'" aria-label="'+esc(tr('fx_master'))+'" aria-expanded="false" aria-controls="ss-master-panel">'+esc(tr('fx_master'))+'</button><canvas class="ss-analyser" data-analyser data-scope-mode="'+esc(scopeMode)+'" width="320" height="54" role="button" tabindex="0" title="'+esc(tr('scope_hint'))+'" aria-label="'+esc(tr('analyser')+' · '+tr(scopeMode==='scope'?'scope_waveform':scopeMode==='mirror'?'scope_mirror':'scope_spectrum'))+'"></canvas></div>'+
             '<section class="ss-master-panel" id="ss-master-panel" data-master-panel hidden aria-label="'+esc(tr('fx_master'))+'"></section>'+
             '<div class="ss-notice" data-notice role="status" hidden></div><div class="ss-workspace"><aside class="ss-library"><div class="ss-library-tabs"><button data-library-mode="instruments" aria-pressed="true">'+esc(tr('instruments'))+'</button><button data-library-mode="patterns" aria-pressed="false">'+esc(tr('patterns'))+'</button></div><input class="ss-search" data-search type="search" inputmode="search" enterkeyhint="search" placeholder="'+esc(tr('search'))+'" aria-label="'+esc(tr('search'))+'"><div class="ss-categories" data-categories></div><div class="ss-library-tags" data-library-tags></div><div class="ss-library-list" data-library-list></div><button class="ss-midi-toggle" data-action="midi">⌨ '+esc(tr('midi_connect'))+'</button></aside><main class="ss-main"><div class="ss-arrange-tools"><span>'+esc(tr('arrangement'))+'</span><label>'+esc(tr('snap'))+' <select data-snap><option value="480">1/4</option><option value="240">1/8</option><option value="120" selected>1/16</option><option value="60">1/32</option></select></label><label>'+esc(tr('zoom'))+' <input type="range" data-zoom min="20" max="100" value="40" aria-label="'+esc(tr('zoom'))+'"></label>'+button('inspector','your_sound','☷','class="ss-inspector-toggle"')+button('library','library','♫','class="ss-compact-only"')+'</div><div class="ss-editor-host" data-editor-host></div></main><aside class="ss-inspector" data-inspector></aside></div>'+
             '<section class="ss-midi-panel" data-midi-panel hidden><strong>'+esc(tr('midi_title'))+'</strong><button data-action="connect">'+esc(tr('midi_connect'))+'</button><select data-midi-input aria-label="'+esc(tr('midi_device'))+'"><option value="">'+esc(tr('midi_device'))+'</option></select><span data-midi-state role="status"></span><label><input data-count-in type="checkbox" checked> '+esc(tr('count_in'))+'</label><label>'+esc(tr('latency'))+' <input data-latency type="number" inputmode="numeric" enterkeyhint="done" min="-200" max="200" step="1" value="0"> ms</label><label><input data-record-quantize type="checkbox" checked> '+esc(tr('quantize'))+'</label>'+button('importMidi','import_midi',tr('import_midi'))+'</section>'+
@@ -199,16 +211,18 @@
             const rack=inserts.map((insert,index)=>{
                 const def=M.FX_TYPES.find(x=>x.id===insert.type);if(!def)return '';
                 const rows=def.params.map(p=>{const label=FX_PARAM_LABELS[p.key]||p.key;return '<label class="ss-parameter"><span>'+esc(tr(label))+'</span><input data-fx-param="'+index+':'+p.key+'" type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+insert[p.key]+'" aria-label="'+esc(tr(label))+'"><output>'+Number(insert[p.key]).toFixed(2)+'</output></label>';}).join('');
-                return '<section class="ss-fx-slot" data-fx-slot="'+index+'" data-fx="'+esc(insert.type)+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
+                return '<section class="ss-fx-slot" data-fx-slot="'+index+'" data-fx="'+esc(insert.type)+'"><header><select data-fx-type="'+index+'" aria-label="'+esc(tr('fx_chain'))+'">'+M.FX_TYPES.map(x=>'<option value="'+x.id+'"'+(x.id===insert.type?' selected':'')+'>'+esc(tr(FX_LABELS[x.id]||x.id))+'</option>').join('')+'</select><button type="button" data-fx-move="'+index+':-1" aria-label="'+esc(tr('fx_move_up'))+'" title="'+esc(tr('fx_move_up'))+'"'+(index===0?' disabled':'')+'>↑</button><button type="button" data-fx-move="'+index+':1" aria-label="'+esc(tr('fx_move_down'))+'" title="'+esc(tr('fx_move_down'))+'"'+(index===inserts.length-1?' disabled':'')+'>↓</button><button type="button" data-fx-remove="'+index+'" aria-label="'+esc(tr('fx_remove'))+'">✕</button></header><div class="ss-fx-params">'+rows+'</div></section>';
             }).join('');
+            const fxPresetOpts=['ethereal','cyber_acid','talking','lofi','metallic','dub'].map(id=>'<option value="'+id+'">'+esc(tr('fx_preset_'+id))+'</option>').join('')+(inserts.length?'<option value="clear">'+esc(tr('fx_preset_clear'))+'</option>':'');
             pane.innerHTML='<section class="ss-insp-card ss-insp-track"><h3>'+esc(tr('track'))+'</h3><input data-track-name type="text" inputmode="text" enterkeyhint="done" maxlength="80" value="'+esc(t.name)+'" aria-label="'+esc(tr('name'))+'">'+(audioTrack?'':'<label>'+esc(tr('instrument'))+'<select data-instrument>'+items.map(i=>'<option value="'+esc(i.id)+'"'+(i.id===t.instrument?' selected':'')+'>'+esc(i.name)+'</option>').join('')+'</select></label>')+
                 (!drum&&!audioTrack?'<button type="button" data-action="design" class="ss-design-open">'+esc(tr('designer_open'))+'</button>':'')+'</section>'+
                 '<section class="ss-insp-card ss-insp-sound"><h4>'+esc(tr('your_sound'))+'</h4><div class="ss-param-grid">'+sound.map(p=>slider(...p)).join('')+'</div></section>'+
                 '<section class="ss-insp-card ss-insp-sends"><h4>'+esc(tr('fx_send'))+'</h4><div class="ss-param-grid">'+sends.map(p=>slider(...p)).join('')+'</div></section>'+
                 '<section class="ss-insp-card ss-insp-fx"><h4>'+esc(tr('fx_chain'))+'</h4><div class="ss-fx-rack">'+(rack||'<p class="ss-muted">'+esc(tr('fx_empty'))+'</p>')+'</div>'+
-                (inserts.length<M.MAX_INSERTS?'<button type="button" data-fx-add class="ss-fx-add">＋ '+esc(tr('fx_add'))+'</button>':'')+'</section>'+
+                '<div class="ss-fx-actions">'+(inserts.length<M.MAX_INSERTS?'<button type="button" data-fx-add class="ss-fx-add">＋ '+esc(tr('fx_add'))+'</button>':'')+'<select data-fx-preset class="ss-fx-preset" aria-label="'+esc(tr('fx_presets'))+'"><option value="">'+esc(tr('fx_presets'))+'</option>'+fxPresetOpts+'</select></div></section>'+
                 (audioTrack?'':'<div class="ss-mini-keys">'+[60,62,64,65,67,69,71,72].map((p,i)=>'<button data-audition="'+(drum?P.drums[i].drumNote:p)+'" aria-label="'+esc(tr('preview'))+'">'+(drum?'•':['C','D','E','F','G','A','B','C'][i])+'</button>').join('')+'</div>')+'<button data-action="deleteTrack" class="ss-delete-track">'+esc(tr('delete_track'))+'</button><p class="ss-help">'+esc(tr('edit_hint'))+'</p>';
             pane.querySelectorAll('input,select,[data-reset-param],[data-action="deleteTrack"],[data-action="design"],[data-fx-add],[data-fx-remove]').forEach(el=>el.disabled=blocked()&&!(stage?.active()&&['tone','reverb'].includes(el.dataset.param)));
+            if(blocked())pane.querySelectorAll('[data-fx-move]').forEach(el=>el.disabled=true);
         }
         // The programmable synthesizer edits a draft patch browser-local. Every
         // control refreshes the preview instrument immediately; a track that
@@ -240,6 +254,11 @@
             const d=designer;
             if(!d||!D)return;
             if(action==='close'){designer=null;D.setPreview(null);refresh();return;}
+            if(action==='mutate'||action==='randomize'){
+                d.patch=action==='mutate'?D.mutatePatch(d.patch):D.randomPatch();
+                D.setPreview(d.patch);if(d.isUser)D.live(d.sourceId,d.patch);
+                refresh();audition(60,D.PREVIEW_ID);return;
+            }
             if(blocked()&&action!=='reset')return;
             if(action==='reset'){d.patch=D.normalize(d.base);d.name=d.isUser?d.name:d.sourceName;D.setPreview(d.patch);if(d.isUser)D.live(d.sourceId,d.patch);refresh();return;}
             if(action==='save'&&d.isUser){
@@ -461,27 +480,70 @@
         }
 
         // The master analyser is feedback only: it never influences the audio.
+        function cycleScopeMode(){
+            scopeMode=SCOPE_MODES[(SCOPE_MODES.indexOf(scopeMode)+1)%SCOPE_MODES.length];
+            try{localStorage.setItem(SCOPE_KEY,scopeMode);}catch(_){}
+            const canvas=find('[data-analyser]');
+            if(canvas){
+                canvas.dataset.scopeMode=scopeMode;
+                canvas.setAttribute('aria-label',tr('analyser')+' · '+tr(scopeMode==='scope'?'scope_waveform':scopeMode==='mirror'?'scope_mirror':'scope_spectrum'));
+            }
+        }
         let meterColor='',meterFrames=0;const meterRgb=canvas=>{if(!meterColor||++meterFrames>=30){meterColor=getComputedStyle(canvas).getPropertyValue('--ss-meter').trim()||'#3fe0b0';meterFrames=0;}const hex=meterColor.replace('#',''),full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex,n=parseInt(full,16);return Number.isFinite(n)?[(n>>16)&255,(n>>8)&255,n&255]:[63,224,176];};function drawAnalyser(){
             if(disposed)return;
             const canvas=find('[data-analyser]');
             if(canvas&&canvas.isConnected){
                 const ctx2d=canvas.getContext?.('2d');
                 if(ctx2d){
-                    const data=audio.spectrum(48),bins=data?data.length:0;const tint=meterRgb(canvas);
-                    const width=canvas.width,height=canvas.height;
+                    const tint=meterRgb(canvas),width=canvas.width,height=canvas.height;
                     ctx2d.clearRect(0,0,width,height);
-                    if(bins){
-                        const step=width/bins;
-                        for(let i=0;i<bins;i++){
-                            const value=data[i]/255;
-                            const bar=Math.max(1,value*height);
-                            ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
-                            ctx2d.fillRect(i*step,height-bar,Math.max(1,step-1),bar);
-                        }
+                    if(scopeMode==='scope'){
+                        const wave=audio.waveform?.(160);
+                        ctx2d.strokeStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.14)';
+                        ctx2d.lineWidth=1;
+                        ctx2d.beginPath();ctx2d.moveTo(0,height/2);ctx2d.lineTo(width,height/2);ctx2d.stroke();
+                        ctx2d.strokeStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.92)';
+                        ctx2d.lineWidth=1.6;
+                        ctx2d.beginPath();
+                        if(wave&&wave.length){
+                            for(let i=0;i<wave.length;i++){
+                                const x=(i/(wave.length-1))*width;
+                                const y=height/2-Math.max(-1,Math.min(1,wave[i]))*(height*0.44);
+                                if(i===0)ctx2d.moveTo(x,y);else ctx2d.lineTo(x,y);
+                            }
+                        }else{ctx2d.moveTo(0,height/2);ctx2d.lineTo(width,height/2);}
+                        ctx2d.stroke();
                     }else{
-                        ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.4)';
-                        ctx2d.fillRect(0,height-1,width,1);
+                        const data=audio.spectrum(48),bins=data?data.length:0;
+                        if(bins){
+                            const step=width/bins,mid=height/2;
+                            for(let i=0;i<bins;i++){
+                                const value=data[i]/255;
+                                if(scopeMode==='mirror'){
+                                    const half=Math.max(1,value*(mid-2));
+                                    ctx2d.fillStyle=value>.82?'rgba(255,180,84,'+(0.5+value*0.5).toFixed(3)+')':'rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
+                                    ctx2d.fillRect(i*step,mid-half,Math.max(1,step-1),half*2);
+                                }else{
+                                    const bar=Math.max(1,value*height);
+                                    scopePeaks[i]=value>=scopePeaks[i]?value:Math.max(0,scopePeaks[i]-0.012);
+                                    ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+','+(0.25+value*0.75).toFixed(3)+')';
+                                    ctx2d.fillRect(i*step,height-bar,Math.max(1,step-1),bar);
+                                    if(scopePeaks[i]>0.03){
+                                        const py=Math.max(0,height-scopePeaks[i]*height-2);
+                                        ctx2d.fillStyle=scopePeaks[i]>.82?'rgba(255,180,84,.92)':'rgba('+tint[0]+','+tint[1]+','+tint[2]+',.9)';
+                                        ctx2d.fillRect(i*step,py,Math.max(1,step-1),2);
+                                    }
+                                }
+                            }
+                        }else{
+                            ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.4)';
+                            ctx2d.fillRect(0,scopeMode==='mirror'?height/2:height-1,width,1);
+                        }
                     }
+                    ctx2d.fillStyle='rgba('+tint[0]+','+tint[1]+','+tint[2]+',.55)';
+                    ctx2d.font='9px monospace';
+                    ctx2d.textAlign='right';
+                    ctx2d.fillText(scopeMode==='scope'?'OSC':scopeMode==='mirror'?'SYM':'RTA',width-4,10);
                 }
             }
             drawLedMeter();
@@ -501,6 +563,7 @@
         actions.library=()=>workspace.toggleLibrary();
         actions.inspector=()=>workspace.panel('sound');
         root.addEventListener('click',e=>{
+            if(e.target.closest('[data-analyser]')){cycleScopeMode();return;}
             const target=e.target.closest('button');if(!target)return;
             if(target.dataset.template){replaceProject(M.template(target.dataset.template,tr('template_'+target.dataset.template))).catch(fail);return;}
             if(target.dataset.resetParam){const key=target.dataset.resetParam,t=track();if(t)mutate(p=>setParameter(p,{id:t.id,key,value:key==='pan'?0:M.defaultParamsFor(t.instrument)[key]}),'mix');return;}
@@ -510,6 +573,7 @@
             // data-fx-add is a valueless marker, so its dataset value is an
             // empty string: test for the attribute, not for a truthy value.
             if(target.hasAttribute('data-fx-add')){mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(!t)return;if(!t.fx)t.fx={inserts:[]};if(t.fx.inserts.length>=M.MAX_INSERTS)return;t.fx.inserts.push(M.insertSpec('chorus',{mix:.3}));},'mix');return;}
+            if(target.dataset.fxMove){const [idxStr,dirStr]=target.dataset.fxMove.split(':'),index=Number(idxStr),to=index+Number(dirStr);mutate(p=>{const list=p.tracks.find(t=>t.id===track()?.id)?.fx?.inserts;if(!list||index<0||to<0||index>=list.length||to>=list.length)return;const [item]=list.splice(index,1);list.splice(to,0,item);},'mix');return;}
             if(target.dataset.fxRemove){const index=Number(target.dataset.fxRemove);mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t?.fx?.inserts)t.fx.inserts.splice(index,1);},'mix');return;}
             if(target.dataset.choose){selectedInstrument=target.dataset.choose;markRecent(target.dataset.choose);renderLibrary();return;}
             if(target.dataset.action){Promise.resolve().then(()=>actions[target.dataset.action]?.()).catch(fail);return;}
@@ -532,6 +596,7 @@
             if(el.hasAttribute('data-track-name'))mutate(p=>{p.tracks.find(t=>t.id===track().id).name=el.value;});
             if(el.hasAttribute('data-instrument'))mutate(p=>{const t=p.tracks.find(t=>t.id===track().id);t.instrument=el.value;if(M.defaultParamsFor)t.params=M.defaultParamsFor(el.value);});
             if(el.hasAttribute('data-fx-type')){const index=Number(el.dataset.fxType),type=el.value;mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t?.fx?.inserts?.[index])t.fx.inserts[index]=M.insertSpec(type,{});},'mix');}
+            if(el.hasAttribute('data-fx-preset')){const presetId=el.value;el.value='';if(presetId==='clear')mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t)t.fx={inserts:[]};},'mix');else if(FX_CHAIN_PRESETS[presetId])mutate(p=>{const t=p.tracks.find(t=>t.id===track()?.id);if(t)t.fx={inserts:FX_CHAIN_PRESETS[presetId].slice(0,M.MAX_INSERTS).map(([type,ov])=>M.insertSpec(type,ov))};},'mix');}
             if(el.hasAttribute('data-master-select')){const key=el.dataset.masterSelect;mutate(p=>{p.master={...(p.master||{}),[key]:el.value};},'mix');}
             const parameter=controlTarget(el);if(parameter&&(parameter.master||parameter.id)&&!parameterGesture)mutate(p=>setParameter(p,parameter),'mix');
             if(el.hasAttribute('data-midi-input')){panic();midi.select(el.value).catch(fail);}
@@ -547,6 +612,7 @@
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();storage.save(e.shiftKey).catch(fail);return;}
             if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();updatedHistory(e.shiftKey?'redo':'undo');return;}
             if(e.ctrlKey||e.metaKey||e.altKey)return;
+            if(e.target.hasAttribute('data-analyser')&&(e.code==='Space'||e.key==='Enter')){e.preventDefault();cycleScopeMode();return;}
             if(e.code==='Space'&&!e.target.closest('button')){e.preventDefault();actions.play();return;}
             if(keyboard[e.key.toLowerCase()]!=null){e.preventDefault();noteOn(keyboard[e.key.toLowerCase()],.8);}
         },{signal});

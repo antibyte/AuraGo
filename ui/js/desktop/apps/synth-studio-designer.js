@@ -14,10 +14,10 @@
     const MAX_NAME = 60;
     const USER_ID = /^user-[A-Za-z0-9_-]{1,95}$/;
 
-    const WAVES = ["sine", "triangle", "sawtooth", "square", "pulse25", "pulse12", "supersaw", "w9999", "formant", "bell"];
+    const WAVES = ["sine", "triangle", "sawtooth", "square", "pulse25", "pulse12", "supersaw", "w9999", "formant", "bell", "organ", "metallic", "warm_saw", "hollow"];
     const SUB_WAVES = ["sine", "triangle", "sawtooth", "square"];
     const NOISES = ["n0", "n1", "n2", "n3"];
-    const MOD_WAVES = ["sine", "triangle", "sawtooth", "square", "pulse25", "formant", "bell"];
+    const MOD_WAVES = ["sine", "triangle", "sawtooth", "square", "pulse25", "formant", "bell", "organ", "metallic"];
     const FILTER_TYPES = ["lowpass", "highpass", "bandpass", "notch"];
     const LFO_TARGETS = ["pitch", "amp", "filter", "pulse"];
     const LFO_WAVES = ["sine", "triangle", "sawtooth", "square"];
@@ -107,6 +107,107 @@
         return out;
     }
     function clone(value) { return JSON.parse(JSON.stringify(value)); }
+
+    // Musical patch exploration: mutate gently nudges the active patch into
+    // nearby sonic territory; randomize draws from curated synthesizer
+    // archetypes so every surprise stays playable and well-balanced.
+    function mutatePatch(source, rng = Math.random) {
+        const rand = typeof rng === "function" ? rng : Math.random;
+        const p = normalize(source);
+        const nudge = (value, span, min, max) => clampTo(value + (rand() * 2 - 1) * span, min, max, value);
+        const pick = list => list[Math.floor(rand() * list.length) % list.length];
+        if (rand() < 0.22) p.wave = pick(WAVES);
+        p.detune = nudge(p.detune, 14, 0, 120);
+        if (p.second > 0) p.second = nudge(p.second, 0.18, 0, 1);
+        if (p.pulseWidth > 0) p.pulseWidth = nudge(p.pulseWidth, 0.16, 0.08, 0.92);
+        if (p.sub > 0) p.sub = nudge(p.sub, 0.12, 0, 0.6);
+        if (p.noise > 0) p.noise = nudge(p.noise, 0.08, 0, 0.5);
+        p.cutoff = nudge(p.cutoff, 0.18, 0.08, 1);
+        p.filterQ = nudge(p.filterQ, 2.2, 0.7, 12);
+        p.filterEnv = nudge(p.filterEnv, 0.25, -1, 1);
+        p.filterDecay = nudge(p.filterDecay, 0.25, 0.04, 2.5);
+        p.attack = nudge(p.attack, Math.max(0.015, p.attack * 0.35), 0.002, 4);
+        p.decay = nudge(p.decay, Math.max(0.05, p.decay * 0.3), 0.02, 6);
+        p.sustain = nudge(p.sustain, 0.18, 0, 1.2);
+        p.release = nudge(p.release, Math.max(0.04, p.release * 0.3), 0.03, 6);
+        if (p.mod) {
+            p.depth = nudge(p.depth, 1.4, 0, 12);
+            if (rand() < 0.3) p.ratio = pick([0.5, 1, 1.5, 2, 3, 4, 5, 7]);
+        }
+        if (p.lfo.depth > 0) {
+            p.lfo.rate = nudge(p.lfo.rate, Math.max(0.4, p.lfo.rate * 0.35), 0.05, 16);
+            p.lfo.depth = nudge(p.lfo.depth, 0.16, 0.04, 1);
+        }
+        return normalize(p);
+    }
+
+    function randomPatch(rng = Math.random) {
+        const rand = typeof rng === "function" ? rng : Math.random;
+        const pick = list => list[Math.floor(rand() * list.length) % list.length];
+        const between = (min, max) => min + rand() * (max - min);
+        const archetype = pick(["pad", "acid", "bell", "lead", "pluck", "vocal"]);
+        if (archetype === "pad") {
+            return normalize({
+                wave: pick(["supersaw", "warm_saw", "hollow", "organ"]),
+                level: between(0.22, 0.34), unison: pick([3, 5]), detune: between(12, 32),
+                sub: between(0.08, 0.25), subWave: "sine", subOctave: 1,
+                noise: between(0, 0.06), noiseWave: "n2",
+                attack: between(0.25, 1.3), decay: between(0.5, 2.2), sustain: between(0.65, 1.0), release: between(0.6, 2.4),
+                cutoff: between(0.3, 0.72), filterType: "lowpass", filterEnv: between(0.1, 0.45), filterDecay: between(0.4, 1.8), filterQ: between(1, 3.5),
+                lfo: { target: pick(["filter", "pitch", "amp"]), wave: "sine", rate: between(0.18, 1.8), depth: between(0.15, 0.5), delay: between(0.1, 0.8) }
+            });
+        }
+        if (archetype === "acid") {
+            return normalize({
+                wave: pick(["sawtooth", "square", "pulse25", "warm_saw"]),
+                level: between(0.28, 0.42), unison: 1, detune: between(2, 10), pulseWidth: rand() < 0.4 ? between(0.18, 0.55) : 0,
+                sub: between(0.15, 0.4), subWave: pick(["sine", "square"]), subOctave: 1,
+                attack: 0.004, decay: between(0.12, 0.35), sustain: between(0.2, 0.55), release: between(0.06, 0.22),
+                cutoff: between(0.14, 0.42), filterType: "lowpass", filterEnv: between(0.45, 0.95), filterDecay: between(0.09, 0.36), filterQ: between(5.5, 11.5),
+                lfo: { target: "filter", wave: "triangle", rate: between(1.5, 6), depth: rand() < 0.5 ? between(0.15, 0.45) : 0, delay: 0 }
+            });
+        }
+        if (archetype === "bell") {
+            return normalize({
+                wave: pick(["sine", "bell", "metallic", "triangle"]),
+                level: between(0.24, 0.36), unison: pick([1, 3]), detune: between(4, 14),
+                mod: pick(["sine", "bell", "metallic"]), ratio: pick([1.5, 2, 2.5, 3, 3.5, 5, 7]), depth: between(1.8, 7.5),
+                mod2: rand() < 0.55 ? "sine" : "", ratio2: pick([4, 6, 8, 11]), depth2: between(1, 4.5), decay2: between(0.08, 0.5),
+                attack: 0.003, decay: between(0.35, 1.6), sustain: between(0.05, 0.25), release: between(0.35, 1.8),
+                cutoff: between(0.55, 0.95), filterType: "lowpass", filterEnv: between(0.1, 0.5), filterDecay: between(0.15, 0.7), filterQ: between(0.9, 3),
+                lfo: { target: "pitch", wave: "sine", rate: between(3.5, 6.5), depth: between(0.04, 0.16), delay: 0.15 }
+            });
+        }
+        if (archetype === "pluck") {
+            return normalize({
+                wave: pick(["sawtooth", "pulse12", "w9999", "warm_saw", "hollow"]),
+                level: between(0.26, 0.38), unison: pick([1, 3]), detune: between(6, 20),
+                mod: rand() < 0.4 ? "triangle" : "", ratio: pick([2, 3, 4]), depth: between(0.8, 3.5),
+                attack: 0.003, decay: between(0.14, 0.45), sustain: between(0.05, 0.25), release: between(0.12, 0.45),
+                cutoff: between(0.2, 0.5), filterType: "lowpass", filterEnv: between(0.4, 0.85), filterDecay: between(0.08, 0.35), filterQ: between(1.5, 5.5),
+                lfo: { ...DEFAULT_LFO }
+            });
+        }
+        if (archetype === "vocal") {
+            return normalize({
+                wave: pick(["formant", "organ", "hollow", "w9999"]),
+                level: between(0.24, 0.36), unison: pick([3, 5]), detune: between(10, 26),
+                sub: between(0.05, 0.2), subWave: "triangle", subOctave: 1,
+                attack: between(0.08, 0.55), decay: between(0.3, 1.2), sustain: between(0.55, 0.9), release: between(0.35, 1.4),
+                cutoff: between(0.35, 0.75), filterType: pick(["bandpass", "lowpass"]), filterEnv: between(-0.35, 0.45), filterDecay: between(0.25, 1.2), filterQ: between(2.5, 7.5),
+                lfo: { target: "filter", wave: "sine", rate: between(0.4, 3.5), depth: between(0.2, 0.65), delay: 0.08 }
+            });
+        }
+        return normalize({
+            wave: pick(["supersaw", "sawtooth", "pulse25", "square", "organ"]),
+            level: between(0.25, 0.38), unison: pick([3, 5]), detune: between(8, 24),
+            second: between(0.1, 0.4),
+            attack: between(0.005, 0.04), decay: between(0.2, 0.7), sustain: between(0.55, 0.85), release: between(0.16, 0.55),
+            pitchEnv: rand() < 0.35 ? between(1.06, 1.25) : 1, pitchTime: between(0.025, 0.09),
+            cutoff: between(0.45, 0.88), filterType: "lowpass", filterEnv: between(0.15, 0.6), filterDecay: between(0.12, 0.55), filterQ: between(1.2, 5),
+            lfo: { target: "pitch", wave: "sine", rate: between(4.5, 6.8), depth: between(0.06, 0.2), delay: between(0.15, 0.5) }
+        });
+    }
 
     let patches = [];
     function cleanName(value, fallback) {
@@ -346,6 +447,8 @@
                 (state.isUser ? `<button type="button" data-designer-action="save"${disabled ? " disabled" : ""}>${esc(tr("designer_update"))}</button>` : "") +
                 `<button type="button" data-designer-action="saveAs"${disabled ? " disabled" : ""}>${esc(tr("designer_save_as"))}</button>` +
                 (state.isUser ? `<button type="button" data-designer-action="remove"${disabled ? " disabled" : ""}>${esc(tr("designer_delete"))}</button>` : "") +
+                `<button type="button" data-designer-action="mutate">${esc(tr("designer_mutate"))}</button>` +
+                `<button type="button" data-designer-action="randomize">${esc(tr("designer_randomize"))}</button>` +
                 `<button type="button" data-designer-action="reset">${esc(tr("designer_reset"))}</button>` +
                 `<button type="button" data-designer-action="close">${esc(tr("designer_close"))}</button>` +
                 `</footer></section>`;
@@ -429,6 +532,8 @@
         live,
         normalize,
         compact,
+        mutatePatch,
+        randomPatch,
         createEditor
     };
 })(typeof window !== "undefined" ? window : globalThis);
