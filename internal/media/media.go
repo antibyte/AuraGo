@@ -38,6 +38,11 @@ const maxAttachmentSize = 100 << 20
 // maxDownloadSize is the maximum download size for temporary files (50 MB).
 const maxDownloadSize = 50 << 20
 
+// maxImagePixels is the largest decoded image (width x height) SanitizeImageFile
+// accepts. A small file can declare a huge canvas; decoding it allocates memory
+// in proportion to the pixels, not the bytes.
+const maxImagePixels = 40_000_000
+
 func rejectOversizedResponse(resp *http.Response, limit int64, kind string) error {
 	if resp.ContentLength > limit {
 		return fmt.Errorf("%s exceeds maximum size of %d bytes", kind, limit)
@@ -600,6 +605,21 @@ func SanitizeImageFile(srcPath, destDir string) (string, error) {
 	_ = jpeg.DefaultQuality // ensure jpeg package is referenced
 	_ = png.DefaultCompression
 	_ = gif.DisposalNone
+
+	// Refuse an oversized canvas from the header alone: decoding allocates by
+	// pixel count, so a few bytes can otherwise claim gigabytes. WebP has no
+	// registered decoder and stays copy-only.
+	cfg, _, cfgErr := image.DecodeConfig(f)
+	if cfgErr != nil {
+		if imgFmt != "webp" {
+			return "", fmt.Errorf("image decode failed (corrupt or unsupported codec): %w", cfgErr)
+		}
+	} else if int64(cfg.Width)*int64(cfg.Height) > maxImagePixels {
+		return "", fmt.Errorf("image dimensions %dx%d exceed the limit of %d pixels", cfg.Width, cfg.Height, maxImagePixels)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("seek failed: %w", err)
+	}
 
 	img, _, decodeErr := image.Decode(f)
 	if decodeErr != nil && imgFmt != "webp" {
