@@ -14,8 +14,8 @@ Use appointments for structured calendar entries. For quick notes without a fixe
 | `id` | string | for `get`, `update`, `delete`, `complete`, `cancel` | Appointment ID (UUID) |
 | `title` | string | for `add` | Appointment title |
 | `description` | string | no | Optional description |
-| `date_time` | string | for `add` | ISO 8601 datetime (e.g. `2025-03-15T14:00:00Z`) |
-| `notification_at` | string | no | ISO 8601 datetime for notification |
+| `date_time` | string | for `add` | RFC3339 datetime with `Z` or a UTC offset (e.g. `2025-03-15T14:00:00Z`, `2025-03-15T15:00:00+01:00`); results show it in the server's local time with its UTC offset, like `Current time`, and that form can be passed back as is |
+| `notification_at` | string | no | RFC3339 datetime for notification, same format as `date_time` |
 | `wake_agent` | boolean | no | Wake agent at notification time (default: false) |
 | `agent_instruction` | string | no | Instruction for the agent when woken up |
 | `contact_ids` | string array | no | Contact IDs linked to the appointment. For `update`, an empty array clears participants. |

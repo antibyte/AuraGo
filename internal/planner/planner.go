@@ -101,6 +101,8 @@ type PromptSnapshot struct {
 	Todos             []Todo        `json:"todos"`
 	Appointments      []Appointment `json:"appointments"`
 	AppointmentWindow time.Duration `json:"appointment_window"`
+	// Location is the zone BuildPromptContextText renders times in.
+	Location *time.Location `json:"-"`
 }
 
 // DailyReminderSnapshot is the planner summary used for the once-per-day proactive reminder.
@@ -110,6 +112,8 @@ type DailyReminderSnapshot struct {
 	OverdueTodoCount int          `json:"overdue_todo_count"`
 	Todos            []Todo       `json:"todos"`
 	NextAppointment  *Appointment `json:"next_appointment,omitempty"`
+	// Location is the zone BuildDailyPlannerReminderText renders times in.
+	Location *time.Location `json:"-"`
 }
 
 const dailyTodoReminderMetaKey = "daily_todo_reminder_last_seen"
@@ -156,6 +160,72 @@ func validRFC3339(s string) bool {
 	}
 	_, err := time.Parse(time.RFC3339, s)
 	return err == nil
+}
+
+// localPlannerTimestamp renders a stored UTC timestamp in loc as RFC 3339 with
+// its UTC offset (e.g. 2026-10-05T09:00:00+02:00), so the value stays
+// unambiguous when the agent copies it back into a tool call. A nil loc and
+// malformed or date-only values are returned unchanged.
+func localPlannerTimestamp(s string, loc *time.Location) string {
+	if loc == nil {
+		return s
+	}
+	ts, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return s
+	}
+	return ts.In(loc).Format(time.RFC3339)
+}
+
+// localTodoDue renders a stored todo due date for display. Date-only due dates
+// are stored as UTC midnight and mean a civil day (see civilDueDate), so they
+// are shown as YYYY-MM-DD instead of being shifted into the local zone; the
+// date form is accepted as input again. Other values render like
+// localPlannerTimestamp.
+func localTodoDue(s string, loc *time.Location) string {
+	if year, month, day, ok := civilDueDate(s); ok {
+		return fmt.Sprintf("%04d-%02d-%02d", year, int(month), day)
+	}
+	return localPlannerTimestamp(s, loc)
+}
+
+// LocalizeAppointment returns a copy of a for display with date_time and
+// notification_at rendered in loc. Storage always keeps UTC.
+func LocalizeAppointment(a Appointment, loc *time.Location) Appointment {
+	a.DateTime = localPlannerTimestamp(a.DateTime, loc)
+	a.NotificationAt = localPlannerTimestamp(a.NotificationAt, loc)
+	return a
+}
+
+// LocalizeAppointments returns display copies of list; see LocalizeAppointment.
+func LocalizeAppointments(list []Appointment, loc *time.Location) []Appointment {
+	if list == nil {
+		return nil
+	}
+	localized := make([]Appointment, len(list))
+	for i, a := range list {
+		localized[i] = LocalizeAppointment(a, loc)
+	}
+	return localized
+}
+
+// LocalizeTodo returns a copy of t for display with due_date rendered in loc
+// (date-only due dates stay a plain day, see localTodoDue).
+func LocalizeTodo(t Todo, loc *time.Location) Todo {
+	t.DueDate = localTodoDue(t.DueDate, loc)
+	return t
+}
+
+// LocalizeTodos returns display copies of list; see LocalizeTodo.
+func LocalizeTodos(list []Todo, loc *time.Location) []Todo {
+	if list == nil {
+		return nil
+	}
+	localized := make([]Todo, len(list))
+	for i, t := range list {
+		localized[i] = LocalizeTodo(t, loc)
+	}
+	return localized
 }
 
 // normalizeDateInput converts a date-only string (YYYY-MM-DD) to RFC3339 by appending T00:00:00Z.
@@ -334,7 +404,7 @@ func collectUpcomingAppointments(list []Appointment, start, end time.Time, limit
 
 // BuildPromptSnapshot returns a compact planner snapshot for prompt injection.
 func BuildPromptSnapshot(db *sql.DB, now time.Time, opts PromptSnapshotOptions) (PromptSnapshot, error) {
-	snapshot := PromptSnapshot{GeneratedAt: now.UTC()}
+	snapshot := PromptSnapshot{GeneratedAt: now.UTC(), Location: now.Location()}
 	if db == nil {
 		return snapshot, nil
 	}
@@ -378,7 +448,7 @@ func BuildPromptContextText(snapshot PromptSnapshot) string {
 			}
 			if todo.DueDate != "" {
 				builder.WriteString(" (due: ")
-				builder.WriteString(todo.DueDate)
+				builder.WriteString(localTodoDue(todo.DueDate, snapshot.Location))
 				builder.WriteString(")")
 			}
 			builder.WriteString("\n")
@@ -396,7 +466,7 @@ func BuildPromptContextText(snapshot PromptSnapshot) string {
 		builder.WriteString(fmt.Sprintf("Upcoming appointments (next %dh):\n", hours))
 		for _, appointment := range snapshot.Appointments {
 			builder.WriteString("- ")
-			builder.WriteString(strings.TrimSpace(appointment.DateTime))
+			builder.WriteString(localPlannerTimestamp(strings.TrimSpace(appointment.DateTime), snapshot.Location))
 			builder.WriteString(": ")
 			builder.WriteString(strings.TrimSpace(appointment.Title))
 			builder.WriteString("\n")
@@ -1009,7 +1079,7 @@ func CompleteTodo(db *sql.DB, todoID string, completeItems bool) error {
 
 // ClaimDailyReminderSnapshot returns the planner summary for the once-per-day proactive reminder.
 func ClaimDailyReminderSnapshot(db *sql.DB, now time.Time) (DailyReminderSnapshot, error) {
-	snapshot := DailyReminderSnapshot{GeneratedAt: now.UTC()}
+	snapshot := DailyReminderSnapshot{GeneratedAt: now.UTC(), Location: now.Location()}
 	if db == nil {
 		return snapshot, nil
 	}
@@ -1150,7 +1220,7 @@ func BuildDailyPlannerReminderText(snapshot DailyReminderSnapshot) string {
 				builder.WriteString(strings.TrimSpace(todo.Title))
 				if todo.DueDate != "" {
 					builder.WriteString(" (due: ")
-					builder.WriteString(todo.DueDate)
+					builder.WriteString(localTodoDue(todo.DueDate, snapshot.Location))
 					builder.WriteString(")")
 				}
 				if todo.Status == "in_progress" {
@@ -1166,7 +1236,7 @@ func BuildDailyPlannerReminderText(snapshot DailyReminderSnapshot) string {
 			builder.WriteString("\n")
 		}
 		builder.WriteString("Next appointment within 24h:\n- ")
-		builder.WriteString(strings.TrimSpace(snapshot.NextAppointment.DateTime))
+		builder.WriteString(localPlannerTimestamp(strings.TrimSpace(snapshot.NextAppointment.DateTime), snapshot.Location))
 		builder.WriteString(": ")
 		builder.WriteString(strings.TrimSpace(snapshot.NextAppointment.Title))
 		builder.WriteString("\n")

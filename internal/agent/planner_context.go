@@ -334,5 +334,7 @@ func searchPlannerMemory(db *sql.DB, query, timeRange string, now time.Time, tod
 	if todoOverview || appointmentOverview || timeRange != "" {
 		result.Summary = buildPlannerSummary(result)
 	}
+	result.Todos = planner.LocalizeTodos(result.Todos, now.Location())
+	result.Appointments = planner.LocalizeAppointments(result.Appointments, now.Location())
 	return result, nil
 }

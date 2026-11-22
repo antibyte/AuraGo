@@ -13,7 +13,7 @@ Use this for the structured planner system. For temporary scratch reminders, boo
 | `title` | string | for `add` | Todo title |
 | `description` | string | no | Optional description |
 | `priority` | string | no | `low`, `medium`, `high` (default: `medium`) |
-| `due_date` | string | no | RFC3339 datetime (e.g. `2025-03-15T00:00:00Z`) or date-only (e.g. `2025-03-15`) |
+| `due_date` | string | no | RFC3339 datetime with `Z` or a UTC offset (e.g. `2025-03-15T18:00:00+01:00`) or date-only (e.g. `2025-03-15`); results show timed values in the server's local time with its UTC offset, like `Current time`, and date-only values as a plain day |
 | `status` | string | for `set_status`; optional filter for `list` | `open`, `in_progress`, `done` |
 | `query` | string | no | Search query for `list` operation |
 

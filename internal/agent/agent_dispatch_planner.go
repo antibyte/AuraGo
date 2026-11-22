@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"aurago/internal/planner"
 )
@@ -43,7 +44,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, contactsDB *sql.DB, kg 
 				logger.Warn("Failed to enrich appointment contacts", "error", err)
 			}
 		}
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointments": list, "count": len(list)})
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointments": planner.LocalizeAppointments(list, time.Local), "count": len(list)})
 
 	case "get":
 		id, _ := tc.Params["id"].(string)
@@ -59,7 +60,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, contactsDB *sql.DB, kg 
 				logger.Warn("Failed to enrich appointment contacts", "appointment_id", id, "error", err)
 			}
 		}
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointment": a})
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointment": planner.LocalizeAppointment(*a, time.Local)})
 
 	case "add":
 		title, _ := tc.Params["title"].(string)
@@ -206,7 +207,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if err != nil {
 			return plannerError(err)
 		}
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "todos": list, "count": len(list)})
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "todos": planner.LocalizeTodos(list, time.Local), "count": len(list)})
 
 	case "get":
 		id, _ := tc.Params["id"].(string)
@@ -217,7 +218,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if err != nil {
 			return plannerError(err)
 		}
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "todo": t})
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "todo": planner.LocalizeTodo(*t, time.Local)})
 
 	case "add":
 		title, _ := tc.Params["title"].(string)

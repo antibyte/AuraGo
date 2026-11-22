@@ -151,9 +151,9 @@ func (n *Notifier) checkDue() {
 			destinations++
 			err := n.dispatchAppointment(a, "agent", func(eventID string) error {
 				if durableExecutor != nil {
-					return durableExecutor(eventID, buildNotificationPrompt(a))
+					return durableExecutor(eventID, buildNotificationPrompt(a, time.Local))
 				}
-				executor(buildNotificationPrompt(a))
+				executor(buildNotificationPrompt(a, time.Local))
 				return nil
 			})
 			if err != nil {
@@ -211,8 +211,8 @@ func (n *Notifier) checkOverdueTodos() {
 	}
 }
 
-func buildNotificationPrompt(a Appointment) string {
-	prompt := fmt.Sprintf("⏰ APPOINTMENT REMINDER: \"%s\" scheduled for %s.", a.Title, a.DateTime)
+func buildNotificationPrompt(a Appointment, loc *time.Location) string {
+	prompt := fmt.Sprintf("⏰ APPOINTMENT REMINDER: \"%s\" scheduled for %s.", a.Title, localPlannerTimestamp(a.DateTime, loc))
 	if a.Description != "" {
 		prompt += fmt.Sprintf(" Details: %s", a.Description)
 	}
