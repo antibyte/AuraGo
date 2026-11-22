@@ -41,7 +41,7 @@ const maxDownloadSize = 50 << 20
 // maxImagePixels is the largest decoded image (width x height) SanitizeImageFile
 // accepts. A small file can declare a huge canvas; decoding it allocates memory
 // in proportion to the pixels, not the bytes.
-const maxImagePixels = 40_000_000
+const maxImagePixels = 100_000_000
 
 func rejectOversizedResponse(resp *http.Response, limit int64, kind string) error {
 	if resp.ContentLength > limit {

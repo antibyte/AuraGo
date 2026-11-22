@@ -69,11 +69,11 @@ func TestSanitizeImageFilePixelCap(t *testing.T) {
 
 	t.Run("oversized canvas is refused before decode", func(t *testing.T) {
 		destDir := t.TempDir()
-		_, err := SanitizeImageFile(write(t, headerOnlyPNG(10000, 10000)), destDir)
+		_, err := SanitizeImageFile(write(t, headerOnlyPNG(20000, 10000)), destDir)
 		if err == nil {
-			t.Fatal("a 10000x10000 PNG header was accepted")
+			t.Fatal("a 20000x10000 PNG header was accepted")
 		}
-		if !strings.Contains(err.Error(), "10000x10000") || !strings.Contains(err.Error(), "40000000") {
+		if !strings.Contains(err.Error(), "20000x10000") || !strings.Contains(err.Error(), "100000000") {
 			t.Fatalf("error = %q, want the dimensions and the limit", err)
 		}
 		if strings.Contains(err.Error(), "decode failed") {
@@ -83,9 +83,9 @@ func TestSanitizeImageFilePixelCap(t *testing.T) {
 	})
 
 	t.Run("limit is inclusive", func(t *testing.T) {
-		// 8000x5000 is exactly maxImagePixels: it passes the cap and then fails
+		// 10000x10000 is exactly maxImagePixels: it passes the cap and then fails
 		// to decode (no image data), which proves the cap did not fire.
-		_, err := SanitizeImageFile(write(t, headerOnlyPNG(8000, 5000)), t.TempDir())
+		_, err := SanitizeImageFile(write(t, headerOnlyPNG(10000, 10000)), t.TempDir())
 		if err == nil {
 			t.Fatal("a header-only PNG decoded")
 		}
@@ -95,7 +95,7 @@ func TestSanitizeImageFilePixelCap(t *testing.T) {
 	})
 
 	t.Run("one pixel over the limit", func(t *testing.T) {
-		_, err := SanitizeImageFile(write(t, headerOnlyPNG(8001, 5000)), t.TempDir())
+		_, err := SanitizeImageFile(write(t, headerOnlyPNG(10001, 10000)), t.TempDir())
 		if err == nil || !strings.Contains(err.Error(), "exceed") {
 			t.Fatalf("error = %v, want the pixel cap", err)
 		}

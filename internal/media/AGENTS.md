@@ -23,8 +23,8 @@ delivery. `../security/AGENTS.md` owns public HTTP address and redirect policy.
 - Provider attachments use their own client. Local `/files/` answer images use
   rooted workspace staging.
 - Preserve content/size validation, image sanitization, caller cancellation and
-- `SanitizeImageFile` refuses images over 40 Mpx (`maxImagePixels`, checked with `image.DecodeConfig` before decoding). Verify `TestSanitizeImageFilePixelCap`.
   removal of partial files. Never accept a response merely because it is an image.
+- `SanitizeImageFile` refuses images over 100 Mpx (`maxImagePixels`, checked with `image.DecodeConfig` before decoding), which still admits 48/50 MP phone photos. WebP is copy-only (no decoder is linked), so it is neither decoded nor pixel-capped. Verify `TestSanitizeImageFilePixelCap`.
 
 ## Work Guidance
 
