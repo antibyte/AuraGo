@@ -5,9 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"aurago/internal/chibisensei"
 	"aurago/internal/config"
@@ -19,10 +23,28 @@ const (
 	chibiRowsJSONLimit = 16 << 20
 )
 
-// chibiSenseiRuntime is the lazily opened state of the app: the dataset store of one data directory.
+// chibiSenseiRuntime is the lazily opened state of the app for one data directory: the dataset store, the
+// profile catalog, the event hub, the job runner and the delete-preview tokens.
+//
+// A handler holds the runtime through acquireChibiSensei until it is done. A runtime that is replaced
+// (data directory change) or shut down is retired: no new handler gets it, its job runner stops at once,
+// and its store is closed only after the last holder released it.
 type chibiSenseiRuntime struct {
 	dataDir string
 	store   *chibisensei.Store
+	catalog *chibisensei.Catalog
+	hub     *chibisensei.Hub
+	jobs    *chibisensei.Runner
+	deletes *chibisensei.DeleteTokens
+
+	retiring chan struct{} // closed when the runtime is retired; long streams end on it
+	drained  chan struct{} // closed after the store is closed
+
+	// guarded by Server.chibiSenseiMu
+	users      int
+	retired    bool
+	jobsClosed bool
+	closed     bool
 }
 
 // chibiSenseiAccess is what a handler gets after the gates passed.
@@ -32,39 +54,130 @@ type chibiSenseiAccess struct {
 	svc *desktop.Service
 }
 
-// chibiSenseiRuntime returns the runtime for the current data directory, opening
-// <data_dir>/chibi_sensei.db on first use.
-func (s *Server) chibiSenseiRuntime() (*chibiSenseiRuntime, error) {
-	if s == nil {
-		return nil, errors.New("chibi sensei unavailable")
-	}
-	s.chibiSenseiMu.Lock()
-	defer s.chibiSenseiMu.Unlock()
-	if s.chibiSenseiClosed {
-		return nil, errors.New("chibi sensei is shutting down")
-	}
-	cfg := s.ConfigSnapshot()
-	if cfg == nil || strings.TrimSpace(cfg.Directories.DataDir) == "" {
-		return nil, errors.New("the data directory is unavailable")
-	}
-	dataDir := normalizedVideoStudioRoot(cfg.Directories.DataDir)
-	if s.chibiSensei != nil {
-		if s.chibiSensei.dataDir == dataDir {
-			return s.chibiSensei, nil
-		}
-		old := s.chibiSensei
-		s.chibiSensei = nil
-		_ = old.store.Close()
+// chibiLease carries the release of the runtime a request holds. handleChibiSensei puts one into the
+// request context and releases it when the handler returns, so no route can leak a holder.
+type chibiLease struct{ release func() }
+
+type chibiLeaseKey struct{}
+
+// openChibiRuntime opens the store of dataDir and everything that hangs on it.
+func (s *Server) openChibiRuntime(dataDir string) (*chibiSenseiRuntime, error) {
+	catalog, err := chibisensei.LoadCatalog()
+	if err != nil {
+		return nil, err
 	}
 	store, err := chibisensei.OpenStore(filepath.Join(dataDir, config.ChibiSenseiDBFilename))
 	if err != nil {
 		return nil, err
 	}
-	s.chibiSensei = &chibiSenseiRuntime{dataDir: dataDir, store: store}
-	return s.chibiSensei, nil
+	hub := chibisensei.NewHub()
+	store.SetNotifier(hub.DataChanged)
+	jobs := chibisensei.NewRunner(store, hub)
+	if s.Logger != nil {
+		jobs.SetLogger(s.Logger)
+	}
+	if err := jobs.Recover(context.Background()); err != nil {
+		_ = store.Close()
+		return nil, err
+	}
+	return &chibiSenseiRuntime{
+		dataDir: dataDir, store: store, catalog: catalog, hub: hub, jobs: jobs,
+		deletes:  chibisensei.NewDeleteTokens(nil),
+		retiring: make(chan struct{}), drained: make(chan struct{}),
+	}, nil
 }
 
-// closeChibiSensei closes the store and refuses to reopen it.
+// acquireChibiSensei returns the runtime for the current data directory, opening
+// <data_dir>/chibi_sensei.db on first use, and a release func the caller must call exactly when it no
+// longer touches the runtime. A data directory change retires the old runtime.
+func (s *Server) acquireChibiSensei() (*chibiSenseiRuntime, func(), error) {
+	if s == nil {
+		return nil, nil, errors.New("chibi sensei unavailable")
+	}
+	s.chibiSenseiMu.Lock()
+	if s.chibiSenseiClosed {
+		s.chibiSenseiMu.Unlock()
+		return nil, nil, errors.New("chibi sensei is shutting down")
+	}
+	cfg := s.ConfigSnapshot()
+	if cfg == nil || strings.TrimSpace(cfg.Directories.DataDir) == "" {
+		s.chibiSenseiMu.Unlock()
+		return nil, nil, errors.New("the data directory is unavailable")
+	}
+	dataDir := normalizedVideoStudioRoot(cfg.Directories.DataDir)
+	var old *chibiSenseiRuntime
+	if s.chibiSensei != nil {
+		if s.chibiSensei.dataDir == dataDir {
+			rt := s.chibiSensei
+			rt.users++
+			s.chibiSenseiMu.Unlock()
+			return rt, s.chibiLeaseRelease(rt), nil
+		}
+		old = s.chibiSensei
+		s.chibiSensei = nil
+		old.retired = true
+		close(old.retiring)
+	}
+	rt, err := s.openChibiRuntime(dataDir)
+	if err == nil {
+		rt.users++
+		s.chibiSensei = rt
+	}
+	s.chibiSenseiMu.Unlock()
+	if old != nil {
+		s.finishChibiRetire(old)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	return rt, s.chibiLeaseRelease(rt), nil
+}
+
+// chibiLeaseRelease returns the one-shot release of a holder of rt.
+func (s *Server) chibiLeaseRelease(rt *chibiSenseiRuntime) func() {
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			s.chibiSenseiMu.Lock()
+			rt.users--
+			closeNow := rt.retired && rt.jobsClosed && rt.users == 0 && !rt.closed
+			if closeNow {
+				rt.closed = true
+			}
+			s.chibiSenseiMu.Unlock()
+			if closeNow {
+				rt.closeStore()
+			}
+		})
+	}
+}
+
+// finishChibiRetire stops the job runner of a retired runtime (before its store goes) and closes the
+// store when no handler holds the runtime any more; otherwise the last release closes it.
+func (s *Server) finishChibiRetire(rt *chibiSenseiRuntime) {
+	rt.jobs.Close()
+	s.chibiSenseiMu.Lock()
+	rt.jobsClosed = true
+	closeNow := rt.users == 0 && !rt.closed
+	if closeNow {
+		rt.closed = true
+	}
+	s.chibiSenseiMu.Unlock()
+	if closeNow {
+		rt.closeStore()
+	}
+}
+
+func (rt *chibiSenseiRuntime) closeStore() {
+	_ = rt.store.Close()
+	close(rt.drained)
+}
+
+// chibiShutdownWait bounds how long closeChibiSensei waits for running handlers to let go.
+const chibiShutdownWait = 15 * time.Second
+
+// closeChibiSensei retires the runtime, refuses to reopen it and returns when its store is closed (or
+// after chibiShutdownWait). The job runner stops first; the store closes after the last handler left.
 func (s *Server) closeChibiSensei() {
 	if s == nil {
 		return
@@ -73,9 +186,18 @@ func (s *Server) closeChibiSensei() {
 	s.chibiSenseiClosed = true
 	rt := s.chibiSensei
 	s.chibiSensei = nil
-	s.chibiSenseiMu.Unlock()
 	if rt != nil {
-		_ = rt.store.Close()
+		rt.retired = true
+		close(rt.retiring)
+	}
+	s.chibiSenseiMu.Unlock()
+	if rt == nil {
+		return
+	}
+	s.finishChibiRetire(rt)
+	select {
+	case <-rt.drained:
+	case <-time.After(chibiShutdownWait):
 	}
 }
 
@@ -85,9 +207,14 @@ func (s *Server) initChibiSensei(ctx context.Context) {
 	if s == nil || ctx.Err() != nil || !s.chibiSenseiAvailable() {
 		return
 	}
-	if _, err := s.chibiSenseiRuntime(); err != nil && s.Logger != nil {
-		s.Logger.Warn("[ChibiSensei] Store initialization failed")
+	_, release, err := s.acquireChibiSensei()
+	if err != nil {
+		if s.Logger != nil {
+			s.Logger.Warn("[ChibiSensei] Store initialization failed")
+		}
+		return
 	}
+	release()
 }
 
 // chibiSenseiAvailable is the "chibi_sensei" capability of the desktop app list.
@@ -193,7 +320,7 @@ func chibiSenseiAuthorize(s *Server, w http.ResponseWriter, r *http.Request, sco
 		writeChibiError(w, http.StatusServiceUnavailable, "desktop_disabled", "The virtual desktop is disabled in the configuration.", nil)
 		return nil, false
 	}
-	rt, err := s.chibiSenseiRuntime()
+	rt, release, err := s.acquireChibiSensei()
 	if err != nil {
 		writeChibiError(w, http.StatusServiceUnavailable, "storage_unavailable", "Chibi Sensei storage is unavailable.", nil)
 		return nil, false
@@ -202,12 +329,95 @@ func chibiSenseiAuthorize(s *Server, w http.ResponseWriter, r *http.Request, sco
 	if withService {
 		svc, _, err := s.getDesktopService(r.Context())
 		if err != nil {
+			release()
 			writeChibiError(w, http.StatusServiceUnavailable, "desktop_unavailable", "The virtual desktop storage is unavailable.", nil)
 			return nil, false
 		}
 		acc.svc = svc
 	}
+	if lease, _ := r.Context().Value(chibiLeaseKey{}).(*chibiLease); lease != nil {
+		lease.release = release
+	} else {
+		release() // called outside the router: nothing would release it later
+	}
 	return acc, true
+}
+
+// chibiDomainError answers a domain error:
+//
+//	*ValidationError → 422 validation_failed (+issues; unsupported_file for an unsupported file type);
+//	ErrNotFound → 404 not_found; ErrConflict → 412 conflict; ErrDatasetFull → 409 dataset_full;
+//	ErrNotArchived → 409 not_archived; ErrAlreadyUndone → 409 already_undone; ErrJobActive → 409 job_active;
+//	ErrDataChanged → 409 data_changed; ErrFileTooLarge → 413 file_too_large;
+//	other → 500 storage_failed (logged, never the error text).
+func chibiDomainError(w http.ResponseWriter, err error) {
+	var ve *chibisensei.ValidationError
+	switch {
+	case errors.As(err, &ve):
+		code := "validation_failed"
+		if len(ve.Issues) > 0 && strings.HasSuffix(ve.Issues[0].MessageKey, ".unsupported_file") {
+			code = "unsupported_file"
+		}
+		writeChibiError(w, http.StatusUnprocessableEntity, code, "The request is not valid.", ve.Issues)
+	case errors.Is(err, chibisensei.ErrNotFound):
+		writeChibiError(w, http.StatusNotFound, "not_found", "Not found.", nil)
+	case errors.Is(err, chibisensei.ErrConflict):
+		writeChibiError(w, http.StatusPreconditionFailed, "conflict", "The item changed since it was loaded.", nil)
+	case errors.Is(err, chibisensei.ErrDatasetFull):
+		writeChibiError(w, http.StatusConflict, "dataset_full", "The dataset reached its row limit.", nil)
+	case errors.Is(err, chibisensei.ErrNotArchived):
+		writeChibiError(w, http.StatusConflict, "not_archived", "Only an archived project can be deleted.", nil)
+	case errors.Is(err, chibisensei.ErrAlreadyUndone):
+		writeChibiError(w, http.StatusConflict, "already_undone", "This change was already undone.", nil)
+	case errors.Is(err, chibisensei.ErrJobActive):
+		writeChibiError(w, http.StatusConflict, "job_active", "A job of this kind is already running.", nil)
+	case errors.Is(err, chibisensei.ErrDataChanged):
+		writeChibiError(w, http.StatusConflict, "data_changed", "The rows changed during the check.", nil)
+	case errors.Is(err, chibisensei.ErrFileTooLarge):
+		writeChibiError(w, http.StatusRequestEntityTooLarge, "file_too_large", "The file is too large.", nil)
+	default:
+		if !errors.Is(err, context.Canceled) {
+			slog.Warn("[ChibiSensei] Request failed", "error", err)
+		}
+		writeChibiError(w, http.StatusInternalServerError, "storage_failed", "The Chibi Sensei storage failed.", nil)
+	}
+}
+
+// chibiValidation answers 422 validation_failed with one issue.
+func chibiValidation(w http.ResponseWriter, field, key, message string) {
+	chibiDomainError(w, &chibisensei.ValidationError{Issues: []chibisensei.Issue{
+		{Field: field, MessageKey: "chibi_sensei." + key, Message: message}}})
+}
+
+// chibiProfileUnknown answers 422 profile_unknown.
+func chibiProfileUnknown(w http.ResponseWriter) {
+	writeChibiError(w, http.StatusUnprocessableEntity, "profile_unknown", "The profile is not in the catalog.",
+		[]chibisensei.Issue{{Field: "profile_id", MessageKey: "chibi_sensei.profile_unknown", Message: "The profile is not in the catalog."}})
+}
+
+// chibiIfMatch reads If-Match as an integer revision (quotes allowed): missing → 428 precondition_required,
+// malformed → 400 precondition_invalid.
+func chibiIfMatch(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	raw := strings.TrimSpace(r.Header.Get("If-Match"))
+	if raw == "" {
+		writeChibiError(w, http.StatusPreconditionRequired, "precondition_required", "Send the current revision in If-Match.", nil)
+		return 0, false
+	}
+	rev, err := strconv.ParseInt(strings.Trim(raw, `"`), 10, 64)
+	if err != nil || rev < 0 {
+		writeChibiError(w, http.StatusBadRequest, "precondition_invalid", "If-Match must be a revision taken from an earlier answer.", nil)
+		return 0, false
+	}
+	return rev, true
+}
+
+// chibiStorageFull answers 409 storage_full when the store reached chibi_sensei.storage.max_gb.
+func chibiStorageFull(w http.ResponseWriter, acc *chibiSenseiAccess) bool {
+	if acc.rt.store.SizeBytes() >= int64(acc.cfg.ChibiSensei.Storage.MaxGB)<<30 {
+		writeChibiError(w, http.StatusConflict, "storage_full", "The Chibi Sensei storage limit is reached.", nil)
+		return true
+	}
+	return false
 }
 
 // chibiGeneratorStatus reports whether generation jobs can run and which model they would use.
@@ -240,8 +450,13 @@ func handleChibiMeta(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	available, model := s.chibiGeneratorStatus(acc.cfg)
+	profiles := []chibisensei.ProfileSummary{}
+	for _, p := range acc.rt.catalog.List() {
+		profiles = append(profiles, p.Summary())
+	}
 	writeChibiJSON(w, http.StatusOK, map[string]any{
 		"readonly": acc.cfg.VirtualDesktop.ReadOnly,
+		"admin":    chibiRequestIsAdmin(s, r),
 		"limits": map[string]any{
 			"max_rows":                   acc.cfg.ChibiSensei.Dataset.MaxRows,
 			"max_message_chars":          chibisensei.MaxMessageChars,
@@ -251,7 +466,7 @@ func handleChibiMeta(s *Server, w http.ResponseWriter, r *http.Request) {
 			"page_max":                   chibisensei.PageMax,
 		},
 		"recipes":   chibisensei.Recipes(),
-		"profiles":  []any{},
+		"profiles":  profiles,
 		"generator": map[string]any{"available": available, "model": model},
 	})
 }

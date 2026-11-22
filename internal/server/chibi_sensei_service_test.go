@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
@@ -142,11 +144,105 @@ func TestChibiSenseiMetaLimits(t *testing.T) {
 	if len(meta.Recipes) != 3 || strings.Join(meta.Recipes[1].TaskKinds, " ") != "classify extract rewrite to_json" {
 		t.Fatalf("recipes = %+v", meta.Recipes)
 	}
-	if meta.Profiles == nil || len(meta.Profiles) != 0 {
-		t.Fatalf("profiles = %v, want an empty array", meta.Profiles)
+	if len(meta.Profiles) != 3 {
+		t.Fatalf("profiles = %v, want the three catalog profiles", meta.Profiles)
 	}
 	if meta.Generator.Available {
 		t.Fatal("generator available without an LLM client")
+	}
+}
+
+// R1: /meta reports whether the caller is an administrator.
+func TestChibiSenseiMetaAdminField(t *testing.T) {
+	s, readToken, _ := chibiAPIFixture(t)
+	admin := func(token string) bool {
+		t.Helper()
+		w := chibiRequest(s, token, http.MethodGet, "/meta", nil, nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("/meta = %d %s", w.Code, w.Body.String())
+		}
+		var meta map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &meta); err != nil {
+			t.Fatal(err)
+		}
+		v, present := meta["admin"].(bool)
+		if !present {
+			t.Fatalf("/meta has no admin field: %s", w.Body.String())
+		}
+		return v
+	}
+	if admin(readToken) {
+		t.Error("a desktop-read token is reported as admin")
+	}
+	cfg := *s.ConfigSnapshot()
+	cfg.Auth.Enabled = false
+	s.replaceConfigSnapshot(&cfg)
+	if !admin("") {
+		t.Error("the built-in admin (auth disabled) is not reported as admin")
+	}
+}
+
+// R2: a runtime that was replaced or shut down closes its store only after its last holder let go,
+// and its job runner stops before that.
+func TestChibiSenseiRuntimeOutlivesDataDirChange(t *testing.T) {
+	s, _, _ := chibiAPIFixture(t)
+	ctx := context.Background()
+	old, releaseOld, err := s.acquireChibiSensei()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := *s.ConfigSnapshot()
+	cfg.Directories.DataDir = filepath.Join(t.TempDir(), "data2")
+	s.replaceConfigSnapshot(&cfg)
+	fresh, releaseFresh, err := s.acquireChibiSensei()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fresh == old {
+		t.Fatal("a changed data directory kept the old runtime")
+	}
+	if _, err := old.store.ListProjects(ctx, false); err != nil {
+		t.Fatalf("the old store was closed while a handler held it: %v", err)
+	}
+	select {
+	case <-old.retiring:
+	default:
+		t.Fatal("the old runtime was not retired")
+	}
+	if _, err := old.jobs.Start(ctx, nil, "p", "export", nil, 0, nil); err == nil {
+		t.Fatal("the job runner of a retired runtime still accepts jobs")
+	}
+	releaseOld()
+	select {
+	case <-old.drained:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the old store stayed open after its last holder let go")
+	}
+	if _, err := old.store.ListProjects(ctx, false); err == nil {
+		t.Fatal("the old store is still open")
+	}
+
+	done := make(chan struct{})
+	go func() { s.closeChibiSensei(); close(done) }()
+	select {
+	case <-done:
+		t.Fatal("shutdown closed the store while a handler held it")
+	case <-time.After(100 * time.Millisecond):
+	}
+	if _, err := fresh.store.ListProjects(ctx, false); err != nil {
+		t.Fatalf("the store was closed while a handler held it: %v", err)
+	}
+	releaseFresh()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("shutdown did not finish after the last holder let go")
+	}
+	if _, err := fresh.store.ListProjects(ctx, false); err == nil {
+		t.Fatal("the store is still open after shutdown")
+	}
+	if _, _, err := s.acquireChibiSensei(); err == nil {
+		t.Fatal("a runtime was handed out after shutdown")
 	}
 }
 
