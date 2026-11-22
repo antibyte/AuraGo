@@ -7453,6 +7453,8 @@
   "personalRadio.volume": "Volume",
   "personalRadio.minutes": "min",
   "personalRadio.prepared": "Music ready to play",
+  "personalRadio.sections": "Sections",
+  "personalRadio.playback_position": "Playback position",
   "personalRadio.program": "Programme",
   "personalRadio.library": "Music library",
   "personalRadio.news": "News",

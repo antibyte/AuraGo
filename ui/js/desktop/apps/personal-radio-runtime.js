@@ -17,7 +17,7 @@
         for (const listener of listeners) listener(snapshot, lastError);
         if (!badge && ctx) {
             badge = document.createElement('div'); badge.className = 'pr-mini'; badge.hidden = true;
-            badge.innerHTML = '<button type="button" data-pr-mini="open"></button><button type="button" data-pr-mini="pause">Ⅱ</button><button type="button" data-pr-mini="stop">■</button>';
+            badge.innerHTML = '<button type="button" data-pr-mini="open"><span class="pr-live-dot" data-pr-mini-dot></span><span data-pr-mini-title></span></button><button type="button" data-pr-mini="pause">Ⅱ</button><button type="button" data-pr-mini="stop">■</button>';
             badge.addEventListener('click', e => {
                 const button = e.target.closest('[data-pr-mini]'); if (!button) return;
                 if (button.dataset.prMini === 'open') ctx.openApp('personal-radio');
@@ -29,7 +29,9 @@
             badge.hidden = !owned();
             if (owned()) {
                 const station = snapshot.stations.find(x => x.id === snapshot.state.station_id);
-                badge.querySelector('[data-pr-mini="open"]').textContent = '◉ ' + (station ? station.name : 'Personal Radio');
+                badge.querySelector('[data-pr-mini-title]').textContent = station ? station.name : 'Personal Radio';
+                const dot = badge.querySelector('[data-pr-mini-dot]');
+                if (dot) dot.className = 'pr-live-dot' + (snapshot.state.status === 'paused' ? ' is-paused' : snapshot.state.status === 'playing' || snapshot.state.status === 'ready' ? '' : ' is-stopped');
                 const pause = badge.querySelector('[data-pr-mini="pause"]');
                 pause.textContent = snapshot.state.status === 'paused' ? '▶' : 'Ⅱ'; pause.title = tr(snapshot.state.status === 'paused' ? 'resume' : 'pause');
                 pause.setAttribute('aria-label', pause.title);

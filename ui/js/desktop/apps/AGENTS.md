@@ -1095,6 +1095,19 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   and playback position.
 - Keep Standard/Fruity tokens, reduced motion and all 16 locale dictionaries.
   The original Radio app, Noisemaker and Webamp retain their own lifecycles.
+- The player window is a card deck: a state pill with the record, the current
+  title with its playback position, the music reserve and three real tabs
+  (`role="tablist"`, roving `tabindex`, arrow-key navigation, one
+  `tabpanel`). The app shell never scrolls; only the tab content does, so the
+  transport and the startup panel stay reachable in a short window. The
+  transport offers start, pause, skip and stop; Space/K, N and S are the
+  playback shortcuts and must not fire inside a field. The library keeps the
+  import genre across re-renders, filters by name and restores the focus of
+  the action that changed a track. Settings is a four-step form with the
+  voice preview and the station delete in a separate danger area.
+  `personalRadio.sections` labels the tab list and
+  `personalRadio.playback_position` labels the scrub bar; both exist in all
+  16 locale dictionaries.
 - Verify `TestPersonalRadioBrowser`, `TestPersonalRadioAudioContinuityBrowser`,
   `TestPersonalRadioVoiceMixBrowser`
   and `TestPersonalRadioTranslations`. Backend: `internal/personalradio/AGENTS.md`.

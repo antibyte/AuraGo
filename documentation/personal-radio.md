@@ -5,6 +5,28 @@ plays imported and/or generated music, prepares themed moderation with the
 configured LLM, and optionally researches and speaks news through the active
 speech output. The existing Internet Radio app remains available separately.
 
+## The player window
+
+The window shows the station header, the live deck and three tabs. The deck
+carries the current state, the title that is on air with its playback
+position, and the music reserve; the tabs cover the programme, the music
+library and the news bulletins.
+
+- The status pill names the current state: on air, buffering, preparing, paused
+  or stopped. The record turns only while music plays.
+- The transport offers start, pause, skip and stop. Pause doubles as resume
+  while the station is paused, and the start button reports a pending start.
+- The volume slider keeps its level between sessions and shows its percentage.
+- The programme tab lists the upcoming segments and marks the one on air.
+- The library tab imports files, desktop files, generated music or a desktop
+  folder, filters the tracks by name and manages favourites, play frequency,
+  blocks and removals. The import genre stays selected across imports.
+- The news tab keeps the recent bulletins with their sources.
+
+Keyboard: Space or K toggles playback, N skips, S stops, and the arrow keys
+move between the tabs. Settings opens a four-step form with a separate danger
+area for the voice preview and for deleting the station.
+
 ## Set up a station
 
 Open **Personal Radio** from the desktop launcher and choose **New station**.
