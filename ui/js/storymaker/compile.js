@@ -210,7 +210,7 @@
             frame_count: frameCount, fps: fps, width: fmt.width, height: fmt.height,
             duration_ms: Math.round(frameCount * 1000 / fps), catalog_version: cat.version,
             scenes: scenes.map(function (s) { return { id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: s.kind, cues: s.narration.cueList }; }),
-            audio_events: audioEvents, captions: SM.captions.settle(captionList, filmMs), cue_precision: cuePrecision(scenes), checks: SM.checks.run(scenes), unverified: SM.checks.unverified(scenes), issues: issues
+            audio_events: audioEvents, captions: SM.captions.settle(captionList, filmMs), cue_precision: cuePrecision(scenes), checks: SM.checks.run(null, null), unverified: SM.checks.unverified(scenes), issues: issues
         };
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,

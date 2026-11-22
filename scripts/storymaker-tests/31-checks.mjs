@@ -269,3 +269,18 @@ check('host runProbe: a frame that fails ends the probe there instead of failing
     assert.equal(probe.y.length, 4);
     assert.deepEqual(probe.uniform, {});
 });
+
+// ---- Task C7: the player worker answers the host's probe with the findings of checks.run on its own timeline.
+check('worker player: the checks message runs the probe through checks.run on the compiled timeline', async () => {
+    const player = new SM.workerPlayer.Runtime({});
+    await assert.rejects(player.handle({ type: 'checks', probe: probeOf(calm(120)) }), { code: 'code_error', message: /before compile/ });
+    player.timeline = film(120);
+    const calmAnswer = await player.handle({ type: 'checks', probe: probeOf(calm(120)) });
+    assert.deepEqual(plain(calmAnswer.payload.checks), []);
+    const strobing = await player.handle({ type: 'checks', probe: probeOf(strobe(120, 70, 110, 0.4)) });
+    assert.deepEqual(plain(strobing.payload.checks.map(i => i.code)), ['flash']);
+});
+
+check('compile: the report keeps an empty checks list, because only the probe fills it', () => {
+    assert.deepEqual(plain(t.compiled().report.checks), []);
+});

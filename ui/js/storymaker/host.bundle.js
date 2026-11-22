@@ -1189,6 +1189,20 @@
                     rep.layout_error = String(layoutErr && layoutErr.message || layoutErr).slice(0, 200);
                 }
             }
+            if (boot.layout === true) {
+                // The compile check also probes every frame for flashing and frozen code scenes (checks.js). Like the layout,
+                // a failure here costs the findings, never the report.
+                try {
+                    var probe = await runProbe({
+                        engine: engine, schedule: engine.schedule, width: boot.width, height: boot.height, deadlineMs: PROBE_DEADLINE_MS,
+                        makeCanvas: env.makeCanvas, now: env.now
+                    });
+                    var judged = await engine.send({ type: 'checks', probe: probe }, 15000);
+                    rep.checks = (rep.checks || []).concat(judged.checks || []);
+                } catch (probeErr) {
+                    rep.probe_error = String(probeErr && probeErr.message || probeErr).slice(0, 200);
+                }
+            }
             // Parallel path: only PNG is encoded in the worker, and a main engine in the document-realm fallback stays serial.
             // The helpers start before the report, so their start-up cannot trip the 10 s frame watchdog of Go.
             var parallel = boot.transport === 'png' && boot.workers > 1 && boot.chunk > 0 && engine.mode === 'workers';

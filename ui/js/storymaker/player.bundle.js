@@ -3796,7 +3796,7 @@
             frame_count: frameCount, fps: fps, width: fmt.width, height: fmt.height,
             duration_ms: Math.round(frameCount * 1000 / fps), catalog_version: cat.version,
             scenes: scenes.map(function (s) { return { id: s.id, start_frame: s.start_frame, end_frame: s.end_frame, kind: s.kind, cues: s.narration.cueList }; }),
-            audio_events: audioEvents, captions: SM.captions.settle(captionList, filmMs), cue_precision: cuePrecision(scenes), checks: SM.checks.run(scenes), unverified: SM.checks.unverified(scenes), issues: issues
+            audio_events: audioEvents, captions: SM.captions.settle(captionList, filmMs), cue_precision: cuePrecision(scenes), checks: SM.checks.run(null, null), unverified: SM.checks.unverified(scenes), issues: issues
         };
         var timeline = {
             version: 1, fps: fps, width: fmt.width, height: fmt.height, aspect: fmt.aspect, frame_count: frameCount,
@@ -4950,7 +4950,7 @@
 ;
 /* ui/js/storymaker/worker-player.js */
 // Storymaker player: the player runtime (trusted, our code only). It holds the compiled timeline and the loaded assets
-// and answers the host's messages: plan (timing facts for code scenes), compile (timeline + compile report), assets
+// and answers the host's messages: plan (timing facts for code scenes), compile (timeline + compile report), checks (the findings of the frame probe), assets
 // (catalog JSON and fonts, the readiness barrier) and render (one frame as an ImageBitmap). The same Runtime serves the
 // player worker and, when workers are unavailable, the host realm (storyboard fallback). Classic script; publishes
 // StorymakerCore.workerPlayer.
@@ -5083,6 +5083,10 @@
                     codeFrames: {}, codeErrors: {}, canvas: function (name, w, h) { return lself.canvas(name, w, h); }
                 };
                 return { payload: { layout: SM.layout.measure(ltl, lassets) } };
+            }
+            case 'checks': {
+                if (!this.timeline) throw fail('code_error', 'checks before compile');
+                return { payload: { checks: SM.checks.run(msg.probe, this.timeline) } };
             }
             case 'dispose':
                 this.disposeGraphics();
