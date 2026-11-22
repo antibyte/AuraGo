@@ -132,6 +132,8 @@ const (
 	warnSubtitleFailed = "subtitle_failed"
 	warnLibraryFailed  = "library_failed"
 	warnMusicSilent    = "music_silent"
+	warnBedTooLoud     = "bed_too_loud"
+	warnBedGap         = "bed_gap"
 )
 
 // JobWarning is a problem that did not fail the job.
