@@ -60,19 +60,19 @@ check('checks.flashes: short and empty series are safe', () => {
 
 // ---- Task C3: SM.checks.run turns the probe into flash and flash_unverified issues.
 // film(frames) = a timeline of two scenes, a storyboard scene "a" over frames 0..59 and a code scene "b" over 60..frames-1.
-const film = frames => ({
+const film = (frames, tf = 0, transition = 'cut') => ({
     fps: FPS,
     schedule: {
         fps: FPS, frame_count: frames,
         scenes: [
             { id: 'a', kind: 'storyboard', start_frame: 0, end_frame: 60, tf: 0, transition: 'cut' },
-            { id: 'b', kind: 'code', start_frame: 60, end_frame: frames, tf: 0, transition: 'cut' }
+            { id: 'b', kind: 'code', start_frame: 60, end_frame: frames, tf, transition }
         ]
     }
 });
 // strobe(from, to, level) = a series of `to` frames at `level`, with 0.1 / 0.9 alternating every 2 frames from `from` to `to`.
 const strobe = (n, from, to, level) => Array.from({ length: n }, (_, i) => i >= from && i < to ? (Math.floor((i - from) / 2) % 2 ? 0.9 : 0.1) : level);
-const probeOf = (y, extra) => ({ fps: FPS, frame_count: 120, y, d: y.map(() => 1), uniform: {}, ...extra });
+const probeOf = (y, extra) => ({ fps: FPS, frame_count: y.length, y, d: y.map(() => 1), uniform: {}, ...extra });
 
 check('checks.run: no probe, no findings', () => {
     assert.deepEqual(plain(SM.checks.run(null, film(120))), []);
@@ -113,4 +113,51 @@ check('checks.run: frames the probe did not reach give one flash_unverified in t
     // what was reached is still judged
     const flashing = plain(SM.checks.run(probeOf(strobe(90, 10, 40, 0.4)), film(120)));
     assert.deepEqual(flashing.map(i => i.code).sort(), ['flash', 'flash_unverified']);
+});
+
+// ---- Task C4: code scenes are judged on every probed frame: dead_stretch (d below 0.01 for more than 3 s) and first_frame_empty.
+const calm = n => new Array(n).fill(0.4);
+// still(n, from, count) = a d series of n frames, all moving (0.2) except `count` frames from `from` that do not (0).
+const still = (n, from, count) => Array.from({ length: n }, (_, i) => i >= from && i < from + count ? 0 : 0.2);
+
+check('checks.run: a code scene that holds one picture for more than 3 s is a dead_stretch at its scene-local start', () => {
+    const list = plain(SM.checks.run(probeOf(calm(260), { d: still(260, 80, 91) }), film(260)));
+    assert.equal(list.length, 1, JSON.stringify(list));
+    const f = list[0];
+    assert.equal(f.code, 'dead_stretch');
+    assert.equal(f.severity, 'warning');
+    assert.equal(f.scene_id, 'b');
+    assert.equal(f.path, '/scenes/1');
+    near(f.at_seconds, (80 - 60) / FPS, 1e-9);
+    assert.match(f.message, /3\.\d s/);
+    assert.ok(f.fix.length > 20);
+});
+
+check('checks.run: exactly 3 s of stillness, a still storyboard scene and unreached frames are no dead_stretch', () => {
+    assert.deepEqual(plain(SM.checks.run(probeOf(calm(260), { d: still(260, 80, 90) }), film(260))), []);
+    // storyboard scenes keep their timeline lint, never the probe: the whole of scene a is still here
+    assert.deepEqual(plain(SM.checks.run(probeOf(calm(260), { d: still(260, 0, 59) }), film(260))), []);
+    // a stretch that runs into frames the probe never reached is judged on what it measured
+    const y = calm(200);
+    assert.deepEqual(plain(SM.checks.run({ fps: FPS, frame_count: 260, y, d: still(200, 80, 200), uniform: {} }, film(260)).map(i => i.code)), ['dead_stretch', 'flash_unverified']);
+});
+
+check('checks.run: a uniform first frame after the entry transition of a code scene is first_frame_empty, at the end of the transition', () => {
+    const list = plain(SM.checks.run(probeOf(calm(260), { uniform: { 1: true } }), film(260, 15, 'fade')));
+    assert.equal(list.length, 1, JSON.stringify(list));
+    assert.equal(list[0].code, 'first_frame_empty');
+    assert.equal(list[0].scene_id, 'b');
+    assert.equal(list[0].severity, 'warning');
+    near(list[0].at_seconds, 15 / FPS, 1e-9);
+    assert.deepEqual(plain(SM.checks.run(probeOf(calm(260), { uniform: { 1: false } }), film(260, 15, 'fade'))), []);
+    // a storyboard scene keeps its timeline lint
+    assert.deepEqual(plain(SM.checks.run(probeOf(calm(260), { uniform: { 0: true } }), film(260))), []);
+});
+
+check('checks.schedule.settledFrame: the first frame after the entry transition, and the start frame without one', () => {
+    const sched = film(260, 15, 'fade').schedule;
+    assert.equal(SM.schedule.settledFrame(sched, 0), 0);
+    assert.equal(SM.schedule.settledFrame(sched, 1), 75);
+    assert.equal(SM.schedule.settledFrame(film(260, 15, 'cut').schedule, 1), 60);
+    assert.equal(SM.schedule.settledFrame(film(260, 0, 'fade').schedule, 1), 60);
 });

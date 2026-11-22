@@ -939,7 +939,13 @@
     function frameToSeconds(fps, n) { return n / fps; }
     function secondsToFrames(fps, s) { return Math.round(s * fps + 1e-9); }
 
-    SM.schedule = { framePlan: framePlan, frameToSeconds: frameToSeconds, secondsToFrames: secondsToFrames };
+    // settledFrame(sched, i) = the first film frame of scene i after its entry transition (its start frame when it has none).
+    function settledFrame(sched, i) {
+        var sc = sched.scenes[i];
+        return sc.start_frame + (i > 0 && sc.tf > 0 && sc.transition && sc.transition !== 'cut' ? sc.tf : 0);
+    }
+
+    SM.schedule = { framePlan: framePlan, settledFrame: settledFrame, frameToSeconds: frameToSeconds, secondsToFrames: secondsToFrames };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
 
 ;
@@ -3457,7 +3463,7 @@
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
 
-    var FLASH_STEP = 0.10, FLASH_BRIGHT = 0.80, FLASH_MAX = 3, LEVEL_NOISE = 0.002;
+    var FLASH_STEP = 0.10, FLASH_BRIGHT = 0.80, FLASH_MAX = 3, LEVEL_NOISE = 0.002, DEAD_DIFF = 0.01, DEAD_SECONDS = 3;
 
     // transitions(y) = the monotone runs of the luminance series whose total change is at least 0.10 and whose darker end is
     // below 0.80, as {from, to, dir} (dir 1 brightens). A run ends at its first extreme frame and the next one starts on the
@@ -3528,6 +3534,31 @@
             reported[index] = true;
             add(index, 'flash', 'The picture flashes more than 3 times in one second here.',
                 'Slow the change down: keep big brightness jumps at least a third of a second apart and avoid blinking full-screen colours. Rewrite this scene with patch_scene or put_scene, then check again.', frame);
+        });
+
+        var d = probe.d || [], reach = Math.min(y.length, d.length);
+        scenes.forEach(function (sc, index) {
+            if (sc.kind !== 'code') return;
+            // dead_stretch: a run of frames equal to the one before them. The first frame of the scene differs from the last
+            // frame of the scene before it, so the run is counted from the second.
+            var run = 0, last = Math.min(sc.end_frame, reach);
+            function stretch(end) {
+                if (run / fps > DEAD_SECONDS) {
+                    var secs = (run / fps).toFixed(1);
+                    add(index, 'dead_stretch', 'The picture barely changes for ' + secs + ' s in this code scene.',
+                        'Add motion in this stretch (a tween, a gesture, a new element) or make the scene shorter. Rewrite this scene with patch_scene or put_scene, then check again.', end - run);
+                }
+                run = 0;
+            }
+            for (var n = sc.start_frame + 1; n < last; n++) {
+                if (d[n] < DEAD_DIFF) run++; else stretch(n);
+            }
+            stretch(last);
+            var settled = SM.schedule.settledFrame(sched, index);
+            if (probe.uniform && probe.uniform[index] === true && settled < reach) {
+                add(index, 'first_frame_empty', 'The first frame after the transition is one flat colour.',
+                    'Draw something at the very start of this code scene: a background, an actor or a text. Rewrite this scene with patch_scene or put_scene, then check again.', settled);
+            }
         });
 
         if (y.length < sched.frame_count && scenes.length) {

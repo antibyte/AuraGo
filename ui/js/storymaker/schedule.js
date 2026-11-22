@@ -30,5 +30,11 @@
     function frameToSeconds(fps, n) { return n / fps; }
     function secondsToFrames(fps, s) { return Math.round(s * fps + 1e-9); }
 
-    SM.schedule = { framePlan: framePlan, frameToSeconds: frameToSeconds, secondsToFrames: secondsToFrames };
+    // settledFrame(sched, i) = the first film frame of scene i after its entry transition (its start frame when it has none).
+    function settledFrame(sched, i) {
+        var sc = sched.scenes[i];
+        return sc.start_frame + (i > 0 && sc.tf > 0 && sc.transition && sc.transition !== 'cut' ? sc.tf : 0);
+    }
+
+    SM.schedule = { framePlan: framePlan, settledFrame: settledFrame, frameToSeconds: frameToSeconds, secondsToFrames: secondsToFrames };
 })(typeof globalThis !== 'undefined' ? globalThis : self);
