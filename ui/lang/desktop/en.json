@@ -8739,7 +8739,7 @@
   "videoStudio.addTrack": "Track",
   "videoStudio.aiBudget": "The video generation budget is used up for now.",
   "videoStudio.aiIntro": "Describe a scene and the configured provider creates a short clip. It appears in your media library when it is ready.",
-  "videoStudio.aiNotConfigured": "AI video generation is not set up. An administrator can enable it under Configuration → Video generation.",
+  "videoStudio.aiNotConfigured": "AI video generation is not set up. An administrator can enable it under Configuration → Video Generation.",
   "videoStudio.aiTab": "AI",
   "videoStudio.applyTextNow": "Apply now",
   "videoStudio.bold": "Bold",

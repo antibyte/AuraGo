@@ -7419,7 +7419,7 @@
   "videoStudio.addTrack": "Spur",
   "videoStudio.aiBudget": "Das Budget für die Videoerzeugung ist vorerst aufgebraucht.",
   "videoStudio.aiIntro": "Beschreibe eine Szene, und der eingerichtete Anbieter erzeugt einen kurzen Clip. Er erscheint in deinen Medien, sobald er fertig ist.",
-  "videoStudio.aiNotConfigured": "Die KI-Videoerzeugung ist nicht eingerichtet. Ein Administrator kann sie unter Konfiguration → Videoerzeugung aktivieren.",
+  "videoStudio.aiNotConfigured": "Die KI-Videogenerierung ist nicht eingerichtet. Ein Administrator kann sie unter Konfiguration → Videogenerierung aktivieren.",
   "videoStudio.aiTab": "KI",
   "videoStudio.applyTextNow": "Jetzt übernehmen",
   "videoStudio.bold": "Fett",
