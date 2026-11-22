@@ -1048,6 +1048,9 @@ func (run *renderRun) startAfterReport() {
 			if res.BedDropped {
 				run.warn(warnMusicSilent, "The music track is silent, so the film has no music.")
 			}
+			for _, code := range res.Warnings {
+				run.warn(code, mixWarningMessage(code, res.WarningAt[code]))
+			}
 		}
 	}
 

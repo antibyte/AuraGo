@@ -1,6 +1,9 @@
 package render
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 // The mix checks measure the pass-3 stem blocks, after all gains, in steps of 10 ms. They only detect: the mix is never
 // changed, because the stems must sum to it exactly.
@@ -126,4 +129,27 @@ func (c *mixCheck) bedGap() (float64, bool) {
 		}
 	}
 	return 0, false
+}
+
+// mixWarnings returns the warning codes of a mix in the order bed_too_loud, bed_gap, mix_clipped, each at most once, and
+// the second of the first finding of each bed check.
+func mixWarnings(c *mixCheck, clamps int64) ([]string, map[string]float64) {
+	codes, at := c.bedWarnings()
+	if clamps > 0 {
+		codes = append(codes, warnMixClipped)
+	}
+	return codes, at
+}
+
+// mixWarningMessage is the one sentence of a mix warning for the export record. at is the second of the first finding.
+func mixWarningMessage(code string, at float64) string {
+	switch code {
+	case warnBedTooLoud:
+		return fmt.Sprintf("The music is loud under the narration (first at %.1f s), so speech may be hard to follow.", at)
+	case warnBedGap:
+		return fmt.Sprintf("The music stops abruptly at %.1f s.", at)
+	case warnMixClipped:
+		return "The final mix clipped at least one sample, so it may sound distorted."
+	}
+	return code
 }

@@ -100,6 +100,10 @@ type MixResult struct {
 	StemPeak                                               [3]float64 // narration, music, sfx after the master gain, linear
 	Clamps                                                 int64
 	BedDropped                                             bool // the bed read silent
+	// Warnings are the codes of the mix checks (bed_too_loud, bed_gap, mix_clipped); WarningAt is the second of the
+	// first finding of each bed check.
+	Warnings  []string
+	WarningAt map[string]float64
 }
 
 // mixPass selects what one run over the film computes.
@@ -1043,6 +1047,7 @@ func Mix(ctx context.Context, in *MixInput, newMeter func(context.Context) (*Met
 	if len(usableClips(in.SFX, in.Frames)) == 0 {
 		stems.SFX = ""
 	}
+	check := newMixCheck(working.Frames)
 	writer, err := newStemWriter(stems)
 	if err != nil {
 		return res, err
@@ -1050,6 +1055,7 @@ func Mix(ctx context.Context, in *MixInput, newMeter func(context.Context) (*Met
 	defer func() { _ = writer.close() }()
 	err = runMixPass(ctx, &working, mixPass{bedGainDB: levels.bedGainDB, masterDB: master}, func(b *mixBlock) error {
 		prog.step(int64(b.frames))
+		check.observe(b)
 		return writer.write(b)
 	})
 	if err != nil {
@@ -1070,6 +1076,7 @@ func Mix(ctx context.Context, in *MixInput, newMeter func(context.Context) (*Met
 	res.BedGainDB, res.MasterGainDB = levels.bedGainDB, master
 	res.BedDropped = levels.bedDropped
 	res.StemPeak, res.Clamps = writer.peak, writer.clamps
+	res.Warnings, res.WarningAt = mixWarnings(check, res.Clamps)
 	return res, nil
 }
 

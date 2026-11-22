@@ -134,6 +134,7 @@ const (
 	warnMusicSilent    = "music_silent"
 	warnBedTooLoud     = "bed_too_loud"
 	warnBedGap         = "bed_gap"
+	warnMixClipped     = "mix_clipped"
 )
 
 // JobWarning is a problem that did not fail the job.

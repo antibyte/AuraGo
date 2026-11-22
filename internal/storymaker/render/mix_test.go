@@ -551,8 +551,8 @@ func TestMixPassesApplyTheGains(t *testing.T) {
 	if last != 1 {
 		t.Errorf("progress ended at %.3f", last)
 	}
-	if res.Clamps != 0 || res.BedDropped {
-		t.Errorf("clamps %d, dropped %v", res.Clamps, res.BedDropped)
+	if res.Clamps != 0 || res.BedDropped || len(res.Warnings) != 0 {
+		t.Errorf("clamps %d, dropped %v, warnings %v", res.Clamps, res.BedDropped, res.Warnings)
 	}
 	if res.VoiceGainDB["p|v"] != 0 {
 		t.Errorf("a single voice got %.3f dB", res.VoiceGainDB["p|v"])

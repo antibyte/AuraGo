@@ -110,3 +110,43 @@ func TestMixCheckBedGapIgnoresNormalMusic(t *testing.T) {
 		}
 	}
 }
+
+func TestMixWarningsAreInTheOrderOfTheSpec(t *testing.T) {
+	// Speech from 1 s to 9 s over a bed at 6 dB under it that stops dead at 5 s: too loud, then a gap, and a clamp.
+	bed := func(sec float64) float64 {
+		if sec < 5 {
+			return 0.05
+		}
+		return 0
+	}
+	c := mixCheckRun(12*MixRate, mixCheckSpeech, bed)
+	warnings, at := mixWarnings(c, 3)
+	if want := []string{"bed_too_loud", "bed_gap", "mix_clipped"}; !reflect.DeepEqual(warnings, want) {
+		t.Fatalf("warnings %v, want %v", warnings, want)
+	}
+	if at["bed_gap"] < 4.99 || at["bed_gap"] > 5.01 {
+		t.Errorf("bed_gap at %v", at["bed_gap"])
+	}
+}
+
+func TestMixWarningsClampsAloneGiveMixClipped(t *testing.T) {
+	c := mixCheckRun(12*MixRate, mixCheckSpeech, mixCheckConst(0.0125))
+	if warnings, _ := mixWarnings(c, 1); !reflect.DeepEqual(warnings, []string{"mix_clipped"}) {
+		t.Errorf("one clamp: %v", warnings)
+	}
+	if warnings, _ := mixWarnings(c, 0); len(warnings) != 0 {
+		t.Errorf("no clamp: %v", warnings)
+	}
+}
+
+func TestMixWarningMessages(t *testing.T) {
+	for code, want := range map[string]string{
+		warnBedTooLoud: "The music is loud under the narration (first at 12.5 s), so speech may be hard to follow.",
+		warnBedGap:     "The music stops abruptly at 12.5 s.",
+		warnMixClipped: "The final mix clipped at least one sample, so it may sound distorted.",
+	} {
+		if got := mixWarningMessage(code, 12.5); got != want {
+			t.Errorf("%s: %q", code, got)
+		}
+	}
+}
