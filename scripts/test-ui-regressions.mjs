@@ -5751,7 +5751,32 @@ function testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload() {
   assert.equal(state.jobActive, true);
 }
 
+function testKnowledgeTodoKeepsUnchangedDueTime() {
+  const source = read('ui/js/knowledge/todos.js');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(`${sourceBetween(source, 'function toLocalDateInput(', 'function quoteJS(')}
+globalThis.helpers = { toLocalDateInput, fromLocalDateInput, todoDueDateForSave };`, context);
+  const { todoDueDateForSave } = context.helpers;
+  const previousTZ = process.env.TZ;
+  process.env.TZ = 'America/New_York';
+  try {
+    const timed = { due_date: '2026-10-05T16:00:00Z' };
+    assert.equal(todoDueDateForSave('2026-10-05', timed), undefined, 'an unchanged day keeps the stored due time');
+    assert.equal(todoDueDateForSave('2026-10-06', timed), '2026-10-06', 'a changed day is sent as a plain day');
+    assert.equal(todoDueDateForSave('', timed), '', 'clearing the day clears the due date');
+    assert.equal(todoDueDateForSave('2026-10-05', null), '2026-10-05', 'new todos send the plain day');
+    assert.equal(todoDueDateForSave('2026-10-05', { due_date: '2026-10-05T00:00:00Z' }), undefined, 'a stored civil day is unchanged in any zone');
+  } finally {
+    if (previousTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTZ;
+  }
+  assert.match(source, /const dueDate = todoDueDateForSave\(dueVal, existing\);/);
+  assert.match(source, /if \(dueDate !== undefined\) data\.due_date = dueDate;/);
+}
+
 const tests = [
+  ['Knowledge todo editor keeps an unchanged due time', testKnowledgeTodoKeepsUnchangedDueTime],
   ['Quick Connect SFTP mutations bind the authorized device', testQuickConnectSFTPMutationsBindDevice],
   ['Desktop recent files exclude directory contexts', testDesktopRecentFilesExcludeDirectoryContexts],
   ['Store operation failures survive rollback and bootstrap errors', testStoreOperationFailuresRemainVisible],

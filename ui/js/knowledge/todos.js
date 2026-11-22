@@ -325,14 +325,16 @@ async function saveTodo() {
     const id = document.getElementById('todo-id').value;
     const dueVal = document.getElementById('todo-due-date').value;
     const remindDailyInput = document.getElementById('todo-remind-daily');
+    const existing = id ? allTodos.find(entry => entry.id === id) : null;
     const data = {
         title: document.getElementById('todo-title').value.trim(),
         description: document.getElementById('todo-description').value.trim(),
         priority: document.getElementById('todo-priority').value,
-        due_date: fromLocalDateInput(dueVal),
         remind_daily: !!(remindDailyInput && remindDailyInput.checked),
         items: collectTodoDraftItems(),
     };
+    const dueDate = todoDueDateForSave(dueVal, existing);
+    if (dueDate !== undefined) data.due_date = dueDate;
 
     if (!data.title) {
         showToast(t('knowledge.todos_title_required'), 'error');
@@ -343,7 +345,6 @@ async function saveTodo() {
         return;
     }
 
-    const existing = id ? allTodos.find(entry => entry.id === id) : null;
     data.status = existing ? existing.status : 'open';
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
@@ -552,6 +553,13 @@ function toLocalDateInput(iso) {
 function fromLocalDateInput(value) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return '';
     return value;
+}
+
+// Returns the due_date to send, or undefined when an existing todo keeps its
+// day: re-sending the bare day would drop a stored time of day.
+function todoDueDateForSave(inputValue, existing) {
+    if (existing && existing.due_date && inputValue === toLocalDateInput(existing.due_date)) return undefined;
+    return fromLocalDateInput(inputValue);
 }
 
 function quoteJS(value) {
