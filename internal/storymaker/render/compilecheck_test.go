@@ -232,3 +232,48 @@ func TestCompileCheckFlashBrowser(t *testing.T) {
 		t.Errorf("flash = %+v", f)
 	}
 }
+
+func TestCompileCheckReportsAFailedProbe(t *testing.T) {
+	run := func(mutate func(rep map[string]any)) []storymaker.Issue {
+		page := &fakePage{crashed: make(chan struct{})}
+		page.script = play(t, playOptions{frames: 60, mutateRep: mutate})
+		runner, id := compileCheckRunner(t, page)
+		got, err := runner.CompileCheck(context.Background(), id, Settings{Limits: storymaker.DefaultLimits()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got.Issues
+	}
+	count := func(list []storymaker.Issue) (n int) {
+		for _, is := range list {
+			if is.Code == storymaker.CodeFlashUnverified {
+				n++
+			}
+		}
+		return n
+	}
+	t.Run("a probe error with no checks is flash_unverified", func(t *testing.T) {
+		list := run(func(rep map[string]any) { rep["probe_error"] = "the probe threw" })
+		if count(list) != 1 {
+			t.Fatalf("issues = %+v", list)
+		}
+		is := list[len(list)-1]
+		if is.Severity != storymaker.SeverityWarning || is.Path != "/scenes/0" || is.SceneID != "s1" || is.Message == "" {
+			t.Errorf("issue = %+v", is)
+		}
+	})
+	t.Run("a flash_unverified from the page is not doubled", func(t *testing.T) {
+		list := run(func(rep map[string]any) {
+			rep["probe_error"] = "late"
+			rep["checks"] = []any{map[string]any{"severity": "warning", "scene_id": "s1", "path": "/scenes/0", "code": "flash_unverified", "message": "not checked"}}
+		})
+		if count(list) != 1 {
+			t.Fatalf("issues = %+v", list)
+		}
+	})
+	t.Run("no probe error, no issue", func(t *testing.T) {
+		if n := count(run(func(map[string]any) {})); n != 0 {
+			t.Errorf("flash_unverified count = %d", n)
+		}
+	})
+}

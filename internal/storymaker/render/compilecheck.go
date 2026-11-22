@@ -44,6 +44,7 @@ type compileCheckReport struct {
 	Checks      []storymaker.Issue       `json:"checks"`
 	Layout      []storymaker.LayoutScene `json:"layout"`
 	LayoutError string                   `json:"layout_error"`
+	ProbeError  string                   `json:"probe_error"`
 }
 
 type compileCheckScene struct {
@@ -243,7 +244,20 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 			Fix:     "Shorten the narration or remove a scene.",
 		})
 	}
-	issues = storymaker.CapIssues(append(issues, cleanProbeFindings(rep.Checks, want)...), storymaker.MaxHTTPIssues)
+	probe := cleanProbeFindings(rep.Checks, want)
+	if rep.ProbeError != "" && !slices.ContainsFunc(probe, func(is storymaker.Issue) bool { return is.Code == storymaker.CodeFlashUnverified }) {
+		// The probe or its judging threw: flashing was not checked, which is the open check flash_unverified and never a pass.
+		first := ""
+		if len(want.SceneIDs) > 0 {
+			first = want.SceneIDs[0]
+		}
+		probe = append(probe, storymaker.Issue{
+			Severity: storymaker.SeverityWarning, SceneID: first, Path: "/scenes/0", Code: storymaker.CodeFlashUnverified,
+			Message: "The flash probe failed, so flashing was not checked: " + want.clean(clip(rep.ProbeError, 200), 200),
+			Fix:     "Nothing to fix in the story; check again.",
+		})
+	}
+	issues = storymaker.CapIssues(append(issues, probe...), storymaker.MaxHTTPIssues)
 	scenes := make([]storymaker.CompileScene, 0, len(rep.Scenes))
 	storyboard, code := 0, 0
 	for _, sc := range rep.Scenes {
