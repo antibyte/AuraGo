@@ -145,10 +145,19 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 				add(CodeOffscreen, fmt.Sprintf("The prop %s is partly outside the frame in scene %s.", p.ID, sc.ID), `Show it at a spot inside the frame such as "center" or "right".`)
 			}
 		}
+		zone := SafeZone(opts.Aspect)
 		for _, tx := range sc.Texts {
+			if outsideShare(tx.Box) <= layoutTextOutside && zoneShare(tx.Box, zone) > layoutZoneShare {
+				add(CodeTextUnsafe, fmt.Sprintf("The text %s lies in the margin that platform overlays cover in scene %s.", tx.ID, sc.ID),
+					`Show the text at "center" or "board", or shorten it, so it keeps clear of the frame edges.`)
+			}
 			if outsideShare(tx.Box) > layoutTextOutside {
 				add(CodeTextOffframe, fmt.Sprintf("The text %s sticks out of the frame in scene %s.", tx.ID, sc.ID), `Shorten the text to five words or fewer, or show it at "center".`)
 			}
+		}
+		if sc.Caption != nil && zoneShare(*sc.Caption, zone) > layoutZoneShare {
+			add(CodeTextUnsafe, fmt.Sprintf("The caption lies in the margin that platform overlays cover in scene %s.", sc.ID),
+				`Shorten the narration of the scene so the caption has fewer lines.`)
 		}
 		for _, a := range sc.Actors {
 			for _, p := range sc.Props {
@@ -197,6 +206,16 @@ func outsideShare(b LayoutBox) float64 {
 		return 0
 	}
 	return 1 - intersection(b, LayoutBox{0, 0, 1, 1})/area(b)
+}
+
+// zoneShare is the share of a box's area that lies inside the frame but within the safe zone's margins. The part outside the
+// frame is not counted: it is text_offframe's business.
+func zoneShare(b LayoutBox, z LayoutZone) float64 {
+	if area(b) == 0 {
+		return 0
+	}
+	safe := LayoutBox{z.Left, z.Top, 1 - z.Left - z.Right, 1 - z.Top - z.Bottom}
+	return (intersection(b, LayoutBox{0, 0, 1, 1}) - intersection(b, safe)) / area(b)
 }
 
 // overlapShare is the overlap as a share of the smaller box.
