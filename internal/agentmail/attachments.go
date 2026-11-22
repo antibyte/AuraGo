@@ -92,11 +92,20 @@ func attachmentDownloadURL(raw string, base *url.URL) (*url.URL, error) {
 	return u, nil
 }
 
+// MaxAttachmentCeilingMB is AgentMail's provider ceiling for outgoing attachments
+// (the mailer adapter applies the same 25 MiB bound), so no configured limit can exceed it.
+const MaxAttachmentCeilingMB = 25
+
 // PrepareAttachments encodes bounded attachments. The trusted caller supplies
 // the workspace-rooted opener, including its protected-system-path policy.
 func PrepareAttachments(maxAttachmentMB int, inputs []AttachmentInput, openFile func(string) (*os.File, error)) ([]OutgoingAttachment, error) {
 	if len(inputs) == 0 {
 		return nil, nil
+	}
+	// The config only rejects negative values, so clamp before multiplying: an absurd
+	// size would overflow int64 and turn the limit negative.
+	if maxAttachmentMB > MaxAttachmentCeilingMB {
+		maxAttachmentMB = MaxAttachmentCeilingMB
 	}
 	maxBytes := int64(maxAttachmentMB) * 1024 * 1024
 	if maxBytes < 0 {

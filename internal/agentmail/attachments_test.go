@@ -164,3 +164,20 @@ func attachmentTestOpener(t *testing.T, workspace string) func(string) (*os.File
 		return root.Open(path)
 	}
 }
+
+func TestPrepareAttachmentsClampsAbsurdSizeLimit(t *testing.T) {
+	t.Parallel()
+
+	inline := func(size int) []AttachmentInput {
+		return []AttachmentInput{{Filename: "big.bin", ContentType: "application/octet-stream", Base64: base64.StdEncoding.EncodeToString(make([]byte, size))}}
+	}
+	// int64(math.MaxInt) * 1024 * 1024 would wrap negative; the clamp keeps the limit at the provider ceiling.
+	for _, mb := range []int{MaxAttachmentCeilingMB + 1, int(^uint(0) >> 1)} {
+		if _, err := PrepareAttachments(mb, inline(1024), nil); err != nil {
+			t.Fatalf("limit %d MB rejected a small attachment: %v", mb, err)
+		}
+		if _, err := PrepareAttachments(mb, inline((MaxAttachmentCeilingMB+1)<<20), nil); err == nil || !strings.Contains(err.Error(), "exceeds max size") {
+			t.Fatalf("limit %d MB: err = %v, want the attachment refused above the ceiling", mb, err)
+		}
+	}
+}
