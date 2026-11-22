@@ -139,3 +139,49 @@ Set-Alias gh -Value $env:AURAGO_FIXTURE_GO_EXE
 		}
 	}
 }
+
+func TestReleasePowerShellStagesResourcesWithoutNesting(t *testing.T) {
+	ps, err := exec.LookPath("pwsh")
+	if err != nil {
+		ps, err = exec.LookPath("powershell")
+		if err != nil {
+			t.Skip("PowerShell is unavailable")
+		}
+	}
+	source := strings.ReplaceAll(readRepoFile(t, "scripts/make_release.ps1"), "\r\n", "\n")
+	start := strings.Index(source, "$stagingDirs = @(")
+	end := strings.Index(source, "# Copy data/vectordb")
+	if start < 0 || end <= start {
+		t.Fatal("resource staging block missing")
+	}
+	stage := filepath.Join(t.TempDir(), "stage")
+	script := "$ErrorActionPreference = 'Stop'\n$tmpStage = $env:AURAGO_FIXTURE_STAGE\n" + source[start:end]
+	path := filepath.Join(t.TempDir(), "stage.ps1")
+	if err := os.WriteFile(path, []byte(script), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path)
+	cmd.Dir = repoPath()
+	cmd.Env = append(os.Environ(), "AURAGO_FIXTURE_STAGE="+stage)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("run resource staging fixture: %v %s", err, output)
+	}
+	// The first-run seeders read these exact paths after resources.dat is extracted.
+	for _, rel := range []string{
+		"assets/media_samples/metadata.json",
+		"assets/mission_samples/metadata.json",
+		"assets/cheatsheet_samples/metadata.json",
+		"assets/skill_samples/metadata.json",
+		"agent_workspace/skills/aurago_tools.py",
+		"prompts/identity.md",
+	} {
+		if _, err := os.Stat(filepath.Join(stage, filepath.FromSlash(rel))); err != nil {
+			t.Errorf("staged resources lack %s: %v", rel, err)
+		}
+	}
+	for _, rel := range []string{"assets/media_samples/media_samples", "agent_workspace/skills/skills", "prompts/prompts"} {
+		if _, err := os.Stat(filepath.Join(stage, filepath.FromSlash(rel))); err == nil {
+			t.Errorf("staged resources nested %s", rel)
+		}
+	}
+}

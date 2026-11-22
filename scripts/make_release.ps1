@@ -141,46 +141,53 @@ foreach ($dir in $stagingDirs) {
     $null = New-Item -ItemType Directory -Force -Path $path
 }
 
-# Copy skills (excluding credentials)
-if (Test-Path "agent_workspace\skills") {
-    Copy-Item -Path "agent_workspace\skills" -Destination (Join-Path $tmpStage "agent_workspace\skills") -Recurse -Force
-    # Strip credential files
-    $creds = @("client_secret.json", "client_secrets.json", "token.json")
-    foreach ($f in $creds) {
-        $path = Join-Path $tmpStage "agent_workspace\skills\$f"
-        if (Test-Path $path) {
-            Remove-Item -Force $path
-        }
+# Copy each source directory's contents into its pre-created staging directory.
+# Copy-Item "dir" onto an existing "dir" nests it (dir\dir\...), so copy "dir\*".
+$stagedSources = @(
+    "agent_workspace\skills",
+    "agent_workspace\tools",
+    "agent_workspace\workdir\attachments",
+    "assets\media_samples",
+    "assets\mission_samples",
+    "assets\cheatsheet_samples",
+    "assets\skill_samples",
+    "prompts"
+)
+foreach ($dir in $stagedSources) {
+    if (Test-Path -LiteralPath $dir) {
+        Copy-Item -Path (Join-Path $dir '*') -Destination (Join-Path $tmpStage $dir) -Recurse -Force
     }
 }
 
-# Copy prompts
-if (Test-Path "prompts") {
-    Copy-Item -Path "prompts" -Destination (Join-Path $tmpStage "prompts") -Recurse -Force
+# Strip skill credential files
+$creds = @("client_secret.json", "client_secrets.json", "token.json")
+foreach ($f in $creds) {
+    $path = Join-Path $tmpStage "agent_workspace\skills\$f"
+    if (Test-Path $path) {
+        Remove-Item -Force $path
+    }
 }
 
-# Copy agent_workspace/tools
-if (Test-Path "agent_workspace\tools") {
-    Copy-Item -Path "agent_workspace\tools" -Destination (Join-Path $tmpStage "agent_workspace\tools") -Recurse -Force
+# Fail before packaging if the first-run seeders would not find their manifests
+# or any staged directory was nested into itself.
+$requiredStagedFiles = @(
+    "assets\media_samples\metadata.json",
+    "assets\mission_samples\metadata.json",
+    "assets\cheatsheet_samples\metadata.json",
+    "assets\skill_samples\metadata.json",
+    "agent_workspace\skills\aurago_tools.py",
+    "prompts\tools_manuals"
+)
+foreach ($file in $requiredStagedFiles) {
+    if (!(Test-Path -LiteralPath (Join-Path $tmpStage $file))) {
+        throw "Staged resources are missing $file; resources.dat would not seed sample content."
+    }
 }
-
-# Copy agent_workspace/workdir/attachments
-if (Test-Path "agent_workspace\workdir\attachments") {
-    Copy-Item -Path "agent_workspace\workdir\attachments" -Destination (Join-Path $tmpStage "agent_workspace\workdir\attachments") -Recurse -Force
-}
-
-# Copy bundled sample media
-if (Test-Path "assets\media_samples") {
-    Copy-Item -Path "assets\media_samples" -Destination (Join-Path $tmpStage "assets\media_samples") -Recurse -Force
-}
-if (Test-Path "assets\mission_samples") {
-    Copy-Item -Path "assets\mission_samples" -Destination (Join-Path $tmpStage "assets\mission_samples") -Recurse -Force
-}
-if (Test-Path "assets\cheatsheet_samples") {
-    Copy-Item -Path "assets\cheatsheet_samples" -Destination (Join-Path $tmpStage "assets\cheatsheet_samples") -Recurse -Force
-}
-if (Test-Path "assets\skill_samples") {
-    Copy-Item -Path "assets\skill_samples" -Destination (Join-Path $tmpStage "assets\skill_samples") -Recurse -Force
+foreach ($dir in $stagedSources) {
+    $leaf = Split-Path $dir -Leaf
+    if ((Test-Path -LiteralPath (Join-Path $tmpStage "$dir\$leaf")) -and !(Test-Path -LiteralPath (Join-Path $dir $leaf))) {
+        throw "Staged resources nested $dir into $dir\$leaf."
+    }
 }
 
 # Copy data/vectordb and log (empty dirs already created)
