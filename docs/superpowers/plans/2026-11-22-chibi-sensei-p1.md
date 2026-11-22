@@ -219,3 +219,10 @@ All of these are additive except item 3, which only fills in codes the contract 
    - `file_too_large` 413, `unsupported_file` 422, `profile_unknown` 422, `job_not_found` 404.
 4. **Row filter `flag`** accepts a flag name (`duplicate`) or a check ID (`duplicates`). The spec says `flag=<check id>`, and the contract's Row example uses flag names.
 5. **`GET /meta` returns `"profiles": []` after B1** until B5 wires the profile catalog. F1 must tolerate an empty list.
+
+### Contract notes from the frontend plan
+
+None. The UI uses every P1 route of `C:\disposable\chibi-sensei\p1-api-contract.md` as written. Two clarifications for the backend chain. Neither changes a route or a payload:
+
+- **Check texts.** The UI words check findings itself, from `chibi_sensei.check.<id>` with the generic `value`, `threshold` and `row_count` fields of each check. It ignores `message_key` and `args`. The backend may keep emitting them.
+- **Server reason keys.** `suggested_profile.reason_key`, the plan `reason_key` and import `issues[].message_key` are shown only when the key exists in the locale files. Otherwise the UI shows a fallback. The UI ships these keys: `chibi_sensei.suggest.{specialist_short_inputs, assistant_other_language, assistant_lfm_language, default}`, `chibi_sensei.plan.training_later` and `chibi_sensei.import.issue_generic`. B3 should emit exactly these suggest and plan keys.
