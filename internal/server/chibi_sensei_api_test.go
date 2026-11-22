@@ -131,6 +131,9 @@ func TestChibiSenseiReadOnlyRefusesWrites(t *testing.T) {
 		{http.MethodPost, base + "/documents", `{"workspace_path":"a.md"}`},
 		{http.MethodPost, base + "/imports", `{}`},
 		{http.MethodPost, base + "/exports", `{}`},
+		{http.MethodPost, base + "/generate", `{}`},
+		{http.MethodPost, base + "/clean", `{}`},
+		{http.MethodPost, "/jobs/" + chibiFakeID + "/apply", `{}`},
 	}
 	for _, c := range writes {
 		var body any

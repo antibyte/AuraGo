@@ -55,6 +55,16 @@ func handleChibiSensei(s *Server) http.HandlerFunc {
 				return
 			}
 			handleChibiJobCancel(s, w, r, parts[1])
+		case len(parts) == 3 && parts[0] == "jobs" && (parts[2] == "suggestions" || parts[2] == "apply"):
+			if !chibisensei.ValidID(parts[1]) {
+				writeChibiError(w, http.StatusNotFound, "job_not_found", "Job not found.", nil)
+				return
+			}
+			if parts[2] == "apply" {
+				handleChibiApply(s, w, r, parts[1])
+			} else {
+				handleChibiSuggestions(s, w, r, parts[1])
+			}
 		default:
 			chibiNotFound(w)
 		}
@@ -88,6 +98,10 @@ func handleChibiProjectRoute(s *Server, w http.ResponseWriter, r *http.Request, 
 			handleChibiImport(s, w, r, id)
 		case "exports":
 			handleChibiExport(s, w, r, id)
+		case "generate":
+			handleChibiGenerate(s, w, r, id)
+		case "clean":
+			handleChibiClean(s, w, r, id)
 		case "jobs":
 			handleChibiProjectJobs(s, w, r, id)
 		case "events":

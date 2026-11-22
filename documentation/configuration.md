@@ -608,7 +608,7 @@ The Storymaker video studio and its AI author. See the [Storymaker guide](storym
 
 ## `chibi_sensei`
 
-The Chibi Sensei training studio. P1 is the local dataset studio; nothing leaves the machine.
+The Chibi Sensei training studio. P1 is the dataset studio. Only generation and cleaning call a model, the configured generator route; see [Chibi Sensei](chibi-sensei.md).
 
 | Key | Default | Description |
 |---|---|---|

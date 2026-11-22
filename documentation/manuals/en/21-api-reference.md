@@ -21,7 +21,7 @@ First things first: [Authentication](#authentication). Ten domain groups, one se
 | [Memory & Knowledge APIs](#memory--knowledge-apis) | [Memory](#memory-api), [Knowledge](#knowledge-api), [Knowledge Graph](#knowledge-graph-api), [Cheat Sheets](#cheat-sheets-api), [Indexing](#indexing-api), [SQL Connections](#sql-connections-api), [Local Wikipedia](#local-wikipedia-api) |
 | [Missions & Automation APIs](#missions--automation-apis) | [Mission Control](#mission-control-api), [Invasion Control](#invasion-control-api), [Cron](#cron-api), [Background Tasks](#background-tasks-api), [Webhook](#webhook-api) |
 | [People & Organization](#people--organization) | [People](#people-api), [Contacts](#contacts-api), [Appointments](#appointments-api), [Todos](#todos-api), [Preferences](#preferences-api), [Space Agent](#space-agent-api), [Warnings](#warnings-api) |
-| [Media & Creativity](#media--creativity) | [Upload](#upload-api), [Pixel Image Editor](#pixel-image-editor-api), [Music Generation](#music-generation-api), [Video Generation](#video-generation-api), [Document Creator](#document-creator-api), [Game Maker](#game-maker-api), [Newspaper](#newspaper-api), [Detective](#detective-api), [Personal Radio](#personal-radio-api), [Radio Browser](#radio-browser-api), [RTL-SDR](#rtl-sdr-api), [Noisemaker](#noisemaker-api), [Storymaker](#storymaker-api), [ECalc](#ecalc-api), [Kaggle](#kaggle-api) |
+| [Media & Creativity](#media--creativity) | [Upload](#upload-api), [Pixel Image Editor](#pixel-image-editor-api), [Music Generation](#music-generation-api), [Video Generation](#video-generation-api), [Document Creator](#document-creator-api), [Game Maker](#game-maker-api), [Newspaper](#newspaper-api), [Detective](#detective-api), [Personal Radio](#personal-radio-api), [Radio Browser](#radio-browser-api), [RTL-SDR](#rtl-sdr-api), [Noisemaker](#noisemaker-api), [Storymaker](#storymaker-api), [ECalc](#ecalc-api), [Chibi Sensei](#chibi-sensei-api), [Kaggle](#kaggle-api) |
 | [Devices & Messengers](#devices--messengers) | [Device](#device-api-device-registry), [3D Printer](#3d-printer-api), [Bluetooth](#bluetooth-api), [go2rtc](#go2rtc-api), [CYD](#cheap-yellow-display-api), [MeshCore](#meshcore-api), [Native SIP](#native-sip-api), [Realtime Speech](#realtime-speech-api), [Speech Lab](#speech-lab-api), [AgentMail](#agentmail-api), [Notification](#notification-api), [Push (PWA)](#push-api-pwa), [here.now](#herenow-api), [Manus](#manus-api), [OmniRoute](#omniroute-api) |
 | [Configuration & Security](#configuration--security) | [Config](#config-api), [Config Rules](#config-rules-api), [Vault](#vault-api), [Credentials](#credentials-api), [Token](#token-api), [Security](#security-api), [Personality](#personality-api), [Budget](#budget-api), [i18n](#i18n-api), [Setup](#setup-api), [Update](#update-api) |
 | [System & Operations](#system--operations) | [Dashboard](#dashboard-api), [Container](#container-api), [Backup](#backup-api), [Network Shares](#network-shares-api), [System](#system-api), [Health Check](#health-check), [SSE Events](#sse-events), [Operational Issues](#operational-issues-api) |
@@ -1628,6 +1628,27 @@ GET  /api/ecalc/catalog?lang=de          # the localized catalog; an unknown lan
 ```
 
 The answer carries the calculators, tables, component codes and pinouts with their units, defaults and formulas. The same catalog backs the ECalc desktop app and the `ecalc` agent tool ([Chapter 32](32-ecalc.md)).
+
+---
+
+### Chibi Sensei API
+
+The Chibi Sensei training studio (datasets for small language models). Reads need `desktop:read`, writes `desktop:write`; a job cancel is a stop operation and also works while the desktop is read-only. The routes need `chibi_sensei.enabled`; generation and cleaning also need a usable generator model (`GET /meta` reports `generator.available`).
+
+```http
+GET  /api/desktop/chibi-sensei/meta                              # limits, recipes, profiles, generator availability
+GET  /api/desktop/chibi-sensei/projects                          # and POST; one project: GET/PATCH (If-Match) .../projects/{id}
+GET  /api/desktop/chibi-sensei/projects/{id}/rows                # paged, filtered rows; POST adds, PUT .../rows/{rowId} edits (If-Match)
+POST /api/desktop/chibi-sensei/projects/{id}/imports             # 202 job; .../imports/preview parses the first rows
+POST /api/desktop/chibi-sensei/projects/{id}/exports             # 202 job; canonical JSONL into the workspace
+POST /api/desktop/chibi-sensei/projects/{id}/generate            # 202 job; one-shot LLM row generation
+POST /api/desktop/chibi-sensei/projects/{id}/clean               # 202 job; LLM review of at most 500 rows
+GET  /api/desktop/chibi-sensei/jobs/{jobId}/suggestions          # the review list of a cleaning job
+POST /api/desktop/chibi-sensei/jobs/{jobId}/apply                # {"accept":"all"} (fixes only) or {"accept":[rowIds]}
+GET  /api/desktop/chibi-sensei/projects/{id}/events              # server-sent events: job, rows, checks
+```
+
+Errors are flat `{"error","code","message"}` documents. Generation and cleaning answer 503 `provider_unavailable`, 429 `budget_exceeded` and 429 `generator_daily_limit`; a second job of the same kind in a project answers 409 `job_active`. The full route list, the data model and the limits are in the [Chibi Sensei guide](../../chibi-sensei.md); the settings are in [configuration](../../configuration.md#chibi_sensei).
 
 ---
 

@@ -394,6 +394,8 @@ type Server struct {
 	chibiSenseiMu     sync.Mutex
 	chibiSensei       *chibiSenseiRuntime
 	chibiSenseiClosed bool
+	// chibiSenseiLLMOverride replaces the generator client in tests.
+	chibiSenseiLLMOverride llm.ChatClient
 
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
 	// DockerHosts stays nil when the store could not be opened; DockerStacks (the

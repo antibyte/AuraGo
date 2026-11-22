@@ -422,25 +422,6 @@ func chibiStorageFull(w http.ResponseWriter, acc *chibiSenseiAccess) bool {
 	return false
 }
 
-// chibiGeneratorStatus reports whether generation jobs can run and which model they would use.
-// A configured provider must exist and allow general chat; otherwise the main LLM client counts.
-func (s *Server) chibiGeneratorStatus(cfg *config.Config) (available bool, model string) {
-	model = cfg.ChibiSensei.Generator.Model
-	if id := cfg.ChibiSensei.Generator.Provider; id != "" {
-		p := cfg.FindProvider(id)
-		available = p != nil && config.ProviderUsageAllowsGeneralChat(p)
-		if model == "" && p != nil {
-			model = p.Model
-		}
-	} else {
-		available = s.LLMClient != nil
-	}
-	if model == "" {
-		model = cfg.LLM.Model
-	}
-	return available, model
-}
-
 // handleChibiMeta answers GET /meta: the limits, recipes and generator state the UI needs.
 func handleChibiMeta(s *Server, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
