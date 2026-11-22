@@ -151,6 +151,11 @@ func (s *Server) createMailerAccount(ctx context.Context, b mailerCreateAccountR
 		b.Name = b.Address
 	}
 	oauth := b.Type != "email"
+	if oauth {
+		// OAuth accounts authenticate with tokens; a submitted password must
+		// neither reach the vault nor the account.
+		b.Password, b.SMTPPassword = "", ""
+	}
 	googleProtocol := b.Type == "google" && (b.ReceiveProtocol == "imap" || b.ReceiveProtocol == "pop3")
 	if oauth && !(googleProtocol && b.GogAccountID != "") && (b.OAuthClientID == "" || len(b.OAuthClientID) > 256 || b.OAuthClientSecret == "") {
 		return "", false, mailer.ErrInvalid

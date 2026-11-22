@@ -95,6 +95,26 @@ func TestMailerCreateGoogleUsesCanonicalGoGWithoutExpandingExistingPermissions(t
 	}
 }
 
+func TestMailerCreateOAuthAccountDropsSubmittedPasswords(t *testing.T) {
+	s := newMailerAccountTestServer(t)
+	body := mailerCreateAccountRequest{Type: "microsoft", ID: "ms-oauth", Address: "owner@example.test", OAuthClientID: "fixture-client", OAuthClientSecret: "fixture-client-secret", Password: "submitted-password", SMTPPassword: "submitted-smtp-password"}
+	if _, oauth, err := s.createMailerAccount(context.Background(), body); err != nil || !oauth {
+		t.Fatalf("create Microsoft account: oauth=%v err=%v", oauth, err)
+	}
+	a := s.ConfigSnapshot().FindEmailAccount("ms-oauth")
+	if a == nil {
+		t.Fatal("account not persisted")
+	}
+	if a.Password != "" || a.SMTPPassword != "" {
+		t.Fatalf("OAuth account kept a submitted password: %q / %q", a.Password, a.SMTPPassword)
+	}
+	for _, key := range []string{"email_ms-oauth_password", "email_ms-oauth_smtp_password"} {
+		if value, err := s.Vault.ReadSecret(key); err == nil && value != "" {
+			t.Fatalf("vault stored %s for an OAuth account", key)
+		}
+	}
+}
+
 func TestMailerAccountSetupRejectsReadOnlyAndPlaintextTransport(t *testing.T) {
 	s := newMailerAccountTestServer(t)
 	b := mailerCreateAccountRequest{Type: "email", ID: "fixture", Address: "owner@example.test", Password: "fixture-password", IMAPHost: "imap.example.test", SMTPHost: "smtp.example.test", ReceiveTLS: "none"}
