@@ -168,3 +168,59 @@ func TestCompileCheckWithoutStillsTakesNone(t *testing.T) {
 		t.Fatalf("captured %d, summary %+v", captured, got)
 	}
 }
+
+// lowContrastStill is a 64x36 picture of grey strokes on a slightly lighter grey: a text box over it measures about 1.4:1.
+func lowContrastStill(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 36))
+	for y := 0; y < 36; y++ {
+		for x := 0; x < 64; x++ {
+			v := uint8(150)
+			if x%4 < 2 {
+				v = 128
+			}
+			img.Set(x, y, color.RGBA{v, v, v, 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// The stills carry the contrast of the text boxes of their own scene, measured before the PNG bytes are dropped.
+func TestCompileCheckMeasuresTheTextContrastOfEachStill(t *testing.T) {
+	const twoScenes = `{"schema":"storymaker/1","title":"Stills","scenes":[{"id":"s1","narration":"One."},{"id":"s2","narration":"Two."}]}`
+	page := &fakePage{crashed: make(chan struct{})}
+	page.capture = func(n int) []byte { return lowContrastStill(t) }
+	page.script = play(t, playOptions{frames: 90, mutateRep: func(rep map[string]any) {
+		withText := map[string]any{"id": "s1", "index": 0, "hold_s": 1.0, "actors": []any{}, "props": []any{}, "missing": 0, "static": false,
+			"texts": []any{map[string]any{"id": "title", "box": []any{0.1, 0.1, 0.8, 0.3}}}, "caption": []any{0.1, 0.6, 0.8, 0.3}}
+		plain := map[string]any{"id": "s2", "index": 1, "hold_s": 1.0, "actors": []any{}, "props": []any{}, "texts": []any{}, "caption": nil, "missing": 0, "static": false}
+		rep["layout"] = []any{withText, plain}
+	}})
+	runner, id := compileCheckRunner(t, page)
+	if _, err := runner.deps.Projects.SaveStory(context.Background(), id, []byte(twoScenes), ""); err != nil {
+		t.Fatal(err)
+	}
+	got, err := runner.CompileCheck(context.Background(), id, Settings{Limits: storymaker.DefaultLimits(), Stills: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Stills) != 2 {
+		t.Fatalf("stills %+v", got.Stills)
+	}
+	texts := got.Stills[0].Texts
+	if len(texts) != 2 || texts[0].ID != "title" || texts[1].ID != "caption" {
+		t.Fatalf("the first still measured %+v, want title and caption", texts)
+	}
+	for _, text := range texts {
+		if text.Ratio < 1.15 || text.Ratio >= 3 {
+			t.Errorf("%s measured %.2f, want a low but drawn contrast", text.ID, text.Ratio)
+		}
+	}
+	if len(got.Stills[1].Texts) != 0 {
+		t.Errorf("a scene without texts measures none: %+v", got.Stills[1].Texts)
+	}
+}

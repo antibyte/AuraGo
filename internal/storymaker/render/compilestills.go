@@ -74,5 +74,19 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 	if len(sheet) == 0 {
 		r.deps.Logger.Warn("[Storymaker] The contact sheet would be too large and was left out; the hashes stay", "stills", len(stills))
 	}
+	// The contrast of the text boxes is measured here, because the PNG bytes are gone after this function. A measuring error drops
+	// the ratios of that one still and nothing else.
+	layoutByID := make(map[string]storymaker.LayoutScene, len(summary.Layout))
+	for _, scene := range summary.Layout {
+		layoutByID[scene.ID] = scene
+	}
+	for i := range stills {
+		texts, err := storymaker.MeasureStillContrast(pngs[i], layoutByID[stills[i].SceneID])
+		if err != nil {
+			r.deps.Logger.Warn("[Storymaker] The text contrast of a still could not be measured", "scene", stills[i].SceneID, "error", err)
+			continue
+		}
+		stills[i].Texts = texts
+	}
 	summary.Sheet, summary.Stills = sheet, stills
 }
