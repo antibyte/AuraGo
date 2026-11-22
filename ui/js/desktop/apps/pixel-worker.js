@@ -14,7 +14,8 @@
         'pixel-lib-cutout.js',
         'pixel-lib-inpaint.js',
         'pixel-lib-paint.js',
-        'pixel-lib-wet.js'
+        'pixel-lib-wet.js',
+        'pixel-lib-text3d.js'
     ].forEach(file => importScripts(file + search));
 
     function reply(res) {

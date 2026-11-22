@@ -30,6 +30,7 @@ func TestDesktopCameraHandoffIntegrationBrowser(t *testing.T) {
 		"css/pixel-tools-pro.css",
 		"css/pixel-paint.css",
 		"css/pixel-smart.css",
+		"css/pixel-text3d.css",
 		"css/desktop-app-common.css",
 		"css/desktop-app-video-studio.css",
 	} {
@@ -227,6 +228,7 @@ var handoffAppScripts = []string{
 	"js/desktop/apps/pixel-lib-inpaint.js",
 	"js/desktop/apps/pixel-lib-paint.js",
 	"js/desktop/apps/pixel-lib-wet.js",
+	"js/desktop/apps/pixel-lib-text3d.js",
 	"js/desktop/apps/pixel-core.js",
 	"js/desktop/apps/pixel-view.js",
 	"js/desktop/apps/pixel-canvas.js",
@@ -247,6 +249,9 @@ var handoffAppScripts = []string{
 	"js/desktop/apps/pixel-smart.js",
 	"js/desktop/apps/pixel-commands.js",
 	"js/desktop/apps/pixel-ora.js",
+	"js/desktop/apps/pixel-text3d-gl.js",
+	"js/desktop/apps/pixel-text3d.js",
+	"js/desktop/apps/pixel-text3d-ui.js",
 	"js/desktop/apps/pixel.js",
 	"js/desktop/apps/camera.js",
 }

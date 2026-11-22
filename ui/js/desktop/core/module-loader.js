@@ -486,7 +486,8 @@
                 '/css/pixel-selection.css',
                 '/css/pixel-tools-pro.css',
                 '/css/pixel-paint.css',
-                '/css/pixel-smart.css'
+                '/css/pixel-smart.css',
+                '/css/pixel-text3d.css'
             ),
             scripts: [
                 '/js/desktop/shared/sticker-catalog.js',
@@ -499,6 +500,7 @@
                 '/js/desktop/apps/pixel-lib-inpaint.js',
                 '/js/desktop/apps/pixel-lib-paint.js',
                 '/js/desktop/apps/pixel-lib-wet.js',
+                '/js/desktop/apps/pixel-lib-text3d.js',
                 '/js/desktop/apps/pixel-core.js',
                 '/js/desktop/apps/pixel-qrcode.js',
                 '/js/desktop/apps/pixel-view.js',
@@ -520,6 +522,9 @@
                 '/js/desktop/apps/pixel-smart.js',
                 '/js/desktop/apps/pixel-commands.js',
                 '/js/desktop/apps/pixel-ora.js',
+                '/js/desktop/apps/pixel-text3d-gl.js',
+                '/js/desktop/apps/pixel-text3d.js',
+                '/js/desktop/apps/pixel-text3d-ui.js',
                 '/js/desktop/apps/pixel-email.js',
                 '/js/desktop/apps/pixel.js'
             ]
