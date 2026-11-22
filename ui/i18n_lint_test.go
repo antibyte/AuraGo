@@ -1110,6 +1110,16 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/docker-manager-newstack.js": {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/detective.js":              {name: "tr", prefix: "desktop.detective_"},
 	"js/desktop/apps/detective-views.js":        {name: "tr", prefix: "desktop.detective_"},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-core.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-api.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-mascot.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-projects.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-steps.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-table.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-data.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-generate.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei-training.js": {name: "t", prefix: "chibi_sensei."},
+	"js/desktop/apps/chibi-sensei/chibi-sensei.js": {name: "t", prefix: "chibi_sensei."},
 	"cfg/ruview.js":                            {name: "tr", prefix: "ruview."},
 }
 

@@ -170,6 +170,10 @@
     "provider_ref": true,
     "empty_label_key": "config.cyd_creator.model_main"
   },
+  "help.chibi_sensei.generator.provider": {
+    "provider_ref": true,
+    "empty_label_key": "config.chibi_sensei.generator_provider_main"
+  },
   "help.agent.core_memory_cap_mode": {
     "options": [
       "soft",

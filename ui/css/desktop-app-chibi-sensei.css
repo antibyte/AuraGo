@@ -164,6 +164,12 @@
     .csn-title { display: none; }
 }
 
+/* Touch: controls grow to a finger-sized target */
+@media (pointer: coarse) {
+    .csn-app .csn-btn, .csn-app .csn-input, .csn-app .csn-select { min-height: 40px; height: auto; }
+    .csn-app .csn-row-edit { min-height: 36px; }
+}
+
 /* Motion: only where the user allows it and the desktop has animations on */
 @media (prefers-reduced-motion: no-preference) {
     body:not([data-animations="false"]) .csn-app .csn-btn,

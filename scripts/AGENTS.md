@@ -117,6 +117,7 @@ Use the existing helper for each job. Check release scripts with harmless fixtur
 - Run `node scripts/test-easydrag.mjs` for EasyDrag UI module and pack wire-contract checks.
 - Run `node scripts/test-easydrag-approvals.mjs` for approval DTO, bounds, review-safety and blocked-reason checks.
 - `python scripts/test-prepare-phonon.py` covers archive integrity, API routing, bounds and GitHub/Hugging Face credential separation. Run it with relevant `go test ./internal/audit` release/install/build contracts.
+- Chibi Sensei: `test-chibi-sensei-model.mjs` runs the pure readiness, primary-action, table-reducer and mood logic of the desktop app in a vm.
 
 ## Child DOX Index
 

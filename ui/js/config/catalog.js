@@ -141,7 +141,13 @@
         'flows.max_parallel_runs': { type: 'number', min: 1, max: 32, changedOnly: true },
         'flows.max_parallel_nodes_per_run': { type: 'number', min: 1, max: 16, changedOnly: true },
         'flows.run_retention_days': { type: 'number', min: 1, max: 365, changedOnly: true },
-        'flows.max_runs_per_flow': { type: 'number', min: 10, max: 5000, changedOnly: true }
+        'flows.max_runs_per_flow': { type: 'number', min: 10, max: 5000, changedOnly: true },
+        'chibi_sensei.storage.max_gb': { type: 'number', min: 1, max: 500, integer: true, changedOnly: true },
+        'chibi_sensei.dataset.max_rows': { type: 'number', min: 1000, max: 50000, integer: true, changedOnly: true },
+        'chibi_sensei.import.max_rows': { type: 'number', min: 100, max: 50000, integer: true, changedOnly: true },
+        'chibi_sensei.import.max_file_mb': { type: 'number', min: 1, max: 500, integer: true, changedOnly: true },
+        'chibi_sensei.generator.max_rows_per_job': { type: 'number', min: 10, max: 5000, integer: true, changedOnly: true },
+        'chibi_sensei.generator.max_daily_rows': { type: 'number', min: 100, max: 100000, integer: true, changedOnly: true }
     });
 
     // State of a Config section for the sidebar dot (js/config/section_state.js).
