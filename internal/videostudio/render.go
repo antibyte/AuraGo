@@ -582,8 +582,9 @@ func runFFmpeg(ctx context.Context, ffmpeg string, args []string, seconds float6
 
 // runFFmpegIn runs FFmpeg with dir as its working directory ("" keeps the current one), reports progress from
 // -progress pipe:1 and removes output on failure. Video processes run in their vsg-* staging directory, where the
-// graph names command files by bare name; every path in args and the binary must then be absolute (resolveBinary
-// returns absolute paths). A dir too long for a Windows working directory runs in its volume root instead
+// graph names command files (sendcmd, LUT) by bare name, which resolves inside that directory by design. Only the
+// binary, the inputs and the output must then be absolute: a relative one would resolve against the staging
+// directory, so the call refuses it (resolveBinary returns absolute paths). A dir too long for a Windows working directory runs in its volume root instead
 // (ffmpegWorkDir): stageVideoGraph applies the same rule to the same path, so the graph names its files by absolute
 // path exactly when the working directory is not dir.
 func runFFmpegIn(ctx context.Context, dir, ffmpeg string, args []string, seconds float64, progress func(float64), inputs []string, output string) error {
