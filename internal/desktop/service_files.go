@@ -575,7 +575,7 @@ func (s *Service) CreateDirectory(ctx context.Context, rawPath, source string) e
 	if err != nil {
 		return err
 	}
-	if err := validateWorkspaceDeviceNames(s.Config().WorkspaceDir, path); err != nil {
+	if err := validateWorkspaceDeviceNames(s.Config().WorkspaceDir, path, false); err != nil {
 		return err
 	}
 	if err := s.guardNoteMutation(path, source); err != nil {
@@ -775,7 +775,7 @@ func (s *Service) CopyPathConditional(ctx context.Context, srcPath, dstPath, sou
 	if err != nil {
 		return err
 	}
-	to, err := s.resolveWorkspacePathNoSymlinks(dstPath, true)
+	to, err := s.resolveWorkspacePathNoSymlinksFor(dstPath, true, true)
 	if err != nil {
 		return err
 	}
@@ -995,7 +995,7 @@ func (s *Service) CreateSymlink(ctx context.Context, targetPath, linkPath string
 	if err != nil {
 		return fmt.Errorf("resolve symlink destination: %w", err)
 	}
-	if err := validateWorkspaceDeviceNames(s.Config().WorkspaceDir, resolvedLink); err != nil {
+	if err := validateWorkspaceDeviceNames(s.Config().WorkspaceDir, resolvedLink, true); err != nil {
 		return err
 	}
 

@@ -2,7 +2,9 @@ package desktop
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -31,8 +33,7 @@ func isWindowsReservedDeviceName(segment string) bool {
 }
 
 // validateNoReservedDeviceNames refuses a workspace-relative path when any
-// segment is a Windows device name. Workspaces may be synced to Windows, so the
-// rule applies on every platform, and both separators split segments.
+// segment is a Windows device name; both separators split segments.
 func validateNoReservedDeviceNames(rel string) error {
 	for _, part := range strings.FieldsFunc(rel, func(r rune) bool { return r == '/' || r == '\\' }) {
 		if isWindowsReservedDeviceName(part) {
@@ -42,8 +43,16 @@ func validateNoReservedDeviceNames(rel string) error {
 	return nil
 }
 
+// desktopDevicePlatform is the GOOS the device-name rule applies for; tests
+// override it to exercise both platforms.
+var desktopDevicePlatform = runtime.GOOS
+
 // validateWorkspaceDeviceNames checks the segments of candidate below root.
-func validateWorkspaceDeviceNames(root, candidate string) error {
+// On Windows such paths are devices, and existence checks are unreliable, so
+// they are always refused. Elsewhere an existing entry stays readable,
+// writable and deletable; only creating a new entry (the target does not exist)
+// and move/copy/rename/symlink destinations (destination true) are refused.
+func validateWorkspaceDeviceNames(root, candidate string, destination bool) error {
 	rootAbs, err := filepath.Abs(root)
 	if err != nil {
 		return fmt.Errorf("resolve desktop root: %w", err)
@@ -55,6 +64,11 @@ func validateWorkspaceDeviceNames(root, candidate string) error {
 	rel, err := filepath.Rel(rootAbs, candidateAbs)
 	if err != nil {
 		return fmt.Errorf("resolve desktop relative path: %w", err)
+	}
+	if desktopDevicePlatform != "windows" && !destination {
+		if _, statErr := os.Lstat(candidateAbs); statErr == nil {
+			return nil
+		}
 	}
 	return validateNoReservedDeviceNames(rel)
 }

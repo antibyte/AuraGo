@@ -9,6 +9,12 @@ import (
 )
 
 func (s *Service) resolveWorkspacePathNoSymlinks(rawPath string, allowMissing bool) (string, error) {
+	return s.resolveWorkspacePathNoSymlinksFor(rawPath, allowMissing, false)
+}
+
+// resolveWorkspacePathNoSymlinksFor is resolveWorkspacePathNoSymlinks with the
+// device-name rule told whether the path is a move/copy destination.
+func (s *Service) resolveWorkspacePathNoSymlinksFor(rawPath string, allowMissing, destination bool) (string, error) {
 	cfg := s.Config()
 	cleaned := cleanDesktopPath(rawPath)
 	var candidate string
@@ -28,7 +34,7 @@ func (s *Service) resolveWorkspacePathNoSymlinks(rawPath string, allowMissing bo
 	if !isWithinPath(rootAbs, candidateAbs) {
 		return "", fmt.Errorf("desktop path escapes workspace")
 	}
-	if err := validateWorkspaceDeviceNames(rootAbs, candidateAbs); err != nil {
+	if err := validateWorkspaceDeviceNames(rootAbs, candidateAbs, destination); err != nil {
 		return "", err
 	}
 	if err := validateNoSymlinkComponents(rootAbs, candidateAbs, allowMissing); err != nil {
@@ -57,7 +63,7 @@ func (s *Service) resolveWorkspaceRenameDestinationNoSymlinkParent(rawPath strin
 	if !isWithinPath(rootAbs, candidateAbs) {
 		return "", fmt.Errorf("desktop path escapes workspace")
 	}
-	if err := validateWorkspaceDeviceNames(rootAbs, candidateAbs); err != nil {
+	if err := validateWorkspaceDeviceNames(rootAbs, candidateAbs, true); err != nil {
 		return "", err
 	}
 	if err := validateNoSymlinkComponents(rootAbs, filepath.Dir(candidateAbs), true); err != nil {
