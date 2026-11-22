@@ -97,3 +97,21 @@ func TestStorymakerAppTranslationsAreTranslated(t *testing.T) {
 		}
 	}
 }
+
+// The measured picture checks name their findings in every language, each in its own words.
+func TestStorymakerMeasuredIssueKeysAreTranslated(t *testing.T) {
+	t.Parallel()
+	english := storymakerLocale(t, "storymaker", "en")
+	for _, code := range strings.Fields("text_offframe text_unsafe text_contrast flash flash_unverified slow_hook") {
+		key := "storymaker.issue." + code
+		if strings.TrimSpace(english[key]) == "" {
+			t.Errorf("lang/storymaker/en.json lacks %s", key)
+		}
+		for _, lang := range storymakerLanguages {
+			text := strings.TrimSpace(storymakerLocale(t, "storymaker", lang)[key])
+			if text == "" || (lang != "en" && text == english[key]) {
+				t.Errorf("%s lacks a translated %s (%q)", lang, key, text)
+			}
+		}
+	}
+}
