@@ -606,6 +606,24 @@ The Storymaker video studio and its AI author. See the [Storymaker guide](storym
 
 ---
 
+## `chibi_sensei`
+
+The Chibi Sensei training studio. P1 is the local dataset studio; nothing leaves the machine.
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Off: the app is hidden and the API answers `chibi_disabled`. |
+| `storage.max_gb` | `20` | 1–500. |
+| `dataset.max_rows` | `50000` | 1000–50000. |
+| `import.max_rows` | `20000` | 100–50000. |
+| `import.max_file_mb` | `50` | 1–500. |
+| `generator.provider` | `""` | Empty: main route. |
+| `generator.model` | `""` | Empty: the provider's model. |
+| `generator.max_rows_per_job` | `500` | 10–5000. |
+| `generator.max_daily_rows` | `5000` | 100–100000; cleaning counts its rows too. |
+
+---
+
 ## `findit`
 
 Inventory of parts, equipment and storage locations. See [FindIt](findit.md).

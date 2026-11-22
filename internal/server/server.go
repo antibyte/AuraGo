@@ -390,6 +390,11 @@ type Server struct {
 	// storymakerMusicOverride replaces the provider call of a generated music job in tests.
 	storymakerMusicOverride *storymakerMusicSeam
 
+	// Chibi Sensei: the lazily opened dataset store (chibi_sensei.db).
+	chibiSenseiMu     sync.Mutex
+	chibiSensei       *chibiSenseiRuntime
+	chibiSenseiClosed bool
+
 	// Docker Manager: the host registry and its SQLite store (docker_manager.db).
 	// DockerHosts stays nil when the store could not be opened; DockerStacks (the
 	// stacks service on the same database) stays nil when it could not be opened.
@@ -952,6 +957,8 @@ func Start(opts StartOptions) error {
 	}
 	defer s.closeKaggleServices()
 	defer s.closeFindIt()
+	s.initChibiSensei(serverCtx)
+	defer s.closeChibiSensei()
 	s.InjectionGuard = injectionguard.NewManager(serverCtx, cfg.Directories.DataDir, "")
 	s.InjectionGuard.Configure(cfg.Guardian.InjectionGuard.Enabled, cfg.Guardian.InjectionGuard.Action)
 	queueOptionalInjectionGuardNotice(s)

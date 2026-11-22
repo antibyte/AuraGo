@@ -574,6 +574,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `flows` | Visuelle EasyDrag-Flows: Missionen mit eigener Engine ([Kapitel 11](11-missions.md#flow-missionen-easydrag)). Grenzen: Läufe 1–32, Zweige pro Lauf 1–16, Aufbewahrung 1–365 Tage, 10–5000 Läufe pro Flow; `ai_provider` leer = Hauptmodell. Änderungen an einer Grenze brauchen einen Neustart. `enabled` aus sperrt EasyDrag und die API sofort; veröffentlichte Flows laufen bis zum Neustart weiter, und einen schon laufenden Lauf kann man weiter stoppen. `ai_provider` gilt sofort. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 | `local_wikipedia` | Offline-Wikipedia (Kiwix-ZIM), Agenten-Tool und Desktop-App | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
 | `storymaker` | Storymaker-Videostudio und KI-Autor | `storymaker:`<br>`  enabled: true`<br>`  agent:`<br>`    enabled: true`<br>`    max_daily_jobs: 10`<br>`  render:`<br>`    timeout_seconds: 3600`<br>`    max_duration_seconds: 900` |
+| `chibi_sensei` | Chibi Sensei Trainingsstudio für kleine Modelle | `chibi_sensei:`<br>`  enabled: true`<br>`  dataset:`<br>`    max_rows: 50000`<br>`  generator:`<br>`    max_daily_rows: 5000` |
 | `findit` | Inventar, Lagerorte und Bestandsprojekte | `findit:`<br>`  enabled: false`<br>`  agent_access: false`<br>`  readonly: false` |
 | `kaggle` | Kaggle-Workspace und Notebook-IDE | `kaggle:`<br>`  enabled: false`<br>`  read_only: true`<br>`  allow_download: false`<br>`  allow_remote_execute: false` |
 
@@ -899,6 +900,27 @@ storymaker:
 ```
 
 Cloud-Stimmen kosten Geld; lokale Provider sind von den Zeich limits ausgenommen. Ein Export braucht FFmpeg und einen Browser. Siehe [Kapitel 34](34-storymaker.md) und das [Storymaker-Handbuch](../../storymaker.md).
+
+### Chibi Sensei — Trainingsstudio für kleine Modelle
+
+`chibi_sensei` steuert die Desktop-App **Chibi Sensei**, ein geführtes Studio zum Feintuning kleiner Modelle. P1 ist das lokale Datensatz-Studio: Projekte, Zeilen, Importe, Prüfungen und JSONL-Export. Nichts verlässt den Rechner.
+
+```yaml
+chibi_sensei:
+    enabled: true
+    storage:
+        max_gb: 20                  # alles, was Chibi Sensei im Datenverzeichnis speichert (1-500)
+    dataset:
+        max_rows: 50000             # Zeilen pro Projekt (1000-50000)
+    import:
+        max_rows: 20000             # Zeilen pro Import (100-50000)
+        max_file_mb: 50             # größte Workspace-Datei, die ein Import liest (1-500)
+    generator:
+        provider: ""                # Provider-ID für Erzeugen und Bereinigen; leer = Hauptroute
+        model: ""                   # Modell-Override; leer = das Modell des Providers
+        max_rows_per_job: 500       # Zeilen, die ein Erzeugungsjob hinzufügen darf (10-5000)
+        max_daily_rows: 5000        # erzeugte plus bereinigte Zeilen pro lokalem Tag (100-100000)
+```
 
 ### FindIt – Inventar und Lagerorte
 

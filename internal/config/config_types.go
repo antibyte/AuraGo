@@ -2210,6 +2210,7 @@ type Config struct {
 	Flows             FlowsConfig             `yaml:"flows"`
 	VideoStudio       VideoStudioConfig       `yaml:"video_studio"`
 	Storymaker        StorymakerConfig        `yaml:"storymaker" json:"storymaker"`
+	ChibiSensei       ChibiSenseiConfig       `yaml:"chibi_sensei" json:"chibi_sensei"`
 	VirtualComputers  VirtualComputersConfig  `yaml:"virtual_computers"`
 	SecurityProxy     struct {
 		Enabled      bool   `yaml:"enabled"`

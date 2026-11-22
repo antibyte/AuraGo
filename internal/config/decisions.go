@@ -157,6 +157,7 @@ func validateDecisionsOnlyProviderReferences(cfg *Config) error {
 		{"flows.ai_provider", cfg.Flows.AIProvider},
 		{"cyd_creator.model", cfg.CYDCreator.Model},
 		{"storymaker.agent.provider", cfg.Storymaker.Agent.Provider},
+		{"chibi_sensei.generator.provider", cfg.ChibiSensei.Generator.Provider},
 		{"image_generation.provider", cfg.ImageGeneration.Provider},
 		{"music_generation.provider", cfg.MusicGeneration.Provider},
 		{"video_generation.provider", cfg.VideoGeneration.Provider},

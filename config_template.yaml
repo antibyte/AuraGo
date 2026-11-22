@@ -2419,6 +2419,22 @@ storymaker:
         max_daily_chars: 100000     # cloud TTS characters per local day (1000-100000000); local providers are exempt
         max_job_chars: 20000        # cloud TTS characters per narrate job (100-10000000); local providers are exempt
 
+# Chibi Sensei: train a small AI model on your own examples, guided step by step (desktop app).
+chibi_sensei:
+    enabled: true
+    storage:
+        max_gb: 20                  # everything Chibi Sensei stores under the data directory (1-500)
+    dataset:
+        max_rows: 50000             # rows per project (1000-50000)
+    import:
+        max_rows: 20000             # rows per import (100-50000)
+        max_file_mb: 50             # largest workspace file an import reads (1-500)
+    generator:
+        provider: ""                # provider id for generation and cleaning; empty = main route
+        model: ""                   # model override; empty = the provider's model
+        max_rows_per_job: 500       # rows one generation job may add (10-5000)
+        max_daily_rows: 5000        # generated plus cleaned rows per local day (100-100000)
+
 journal:
     auto_entries: true                      # matches loader default; tools.journal controls tool access
     daily_summary: true                     # generated during maintenance

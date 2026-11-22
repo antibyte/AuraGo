@@ -26,6 +26,8 @@ func (c desktopCapabilities) HasCapability(name string) bool {
 		return c.s.retroGamesAvailable()
 	case "storymaker":
 		return c.s.storymakerAvailable()
+	case "chibi_sensei":
+		return c.s.chibiSenseiAvailable()
 	case "bookshelf":
 		cfg := c.s.ConfigSnapshot()
 		return cfg != nil && cfg.VirtualDesktop.Enabled && cfg.VirtualDesktop.BookshelfEnabled

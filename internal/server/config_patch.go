@@ -115,6 +115,9 @@ func applyConfigPatch(s *Server, patch map[string]interface{}) (*config.Config, 
 	if err := config.NormalizeStorymakerConfig(&validateCfg.Storymaker); err != nil {
 		return nil, err
 	}
+	if err := config.NormalizeChibiSenseiConfig(&validateCfg.ChibiSensei); err != nil {
+		return nil, err
+	}
 	if err := validateCYDCreatorSave(previousCYDCreator, validateCfg.CYDCreator); err != nil {
 		return nil, err
 	}

@@ -67,6 +67,7 @@ config_debug.yaml    # Debug/testing configuration (optional)
 | `logging` | Log file settings |
 | `auth` | Web UI authentication |
 | `storymaker` | Storymaker video studio and its AI author |
+| `chibi_sensei` | Chibi Sensei small-model training studio |
 | `findit` | Inventory of parts, equipment and storage locations |
 | `kaggle` | Kaggle workspace and notebook IDE |
 
@@ -1338,6 +1339,27 @@ storymaker:
 
 Cloud voices cost money; local providers are exempt from the character limits. An export needs FFmpeg and a browser. See [Chapter 34](34-storymaker.md) and the [Storymaker guide](../../storymaker.md).
 
+### Chibi Sensei — Small-Model Training Studio
+
+`chibi_sensei` controls the **Chibi Sensei** desktop app, a guided studio for fine-tuning small models. P1 is the local dataset studio: projects, rows, imports, checks and JSONL export. Nothing leaves the machine.
+
+```yaml
+chibi_sensei:
+    enabled: true
+    storage:
+        max_gb: 20                  # everything Chibi Sensei stores under the data directory (1-500)
+    dataset:
+        max_rows: 50000             # rows per project (1000-50000)
+    import:
+        max_rows: 20000             # rows per import (100-50000)
+        max_file_mb: 50             # largest workspace file an import reads (1-500)
+    generator:
+        provider: ""                # provider id for generation and cleaning; empty = main route
+        model: ""                   # model override; empty = the provider's model
+        max_rows_per_job: 500       # rows one generation job may add (10-5000)
+        max_daily_rows: 5000        # generated plus cleaned rows per local day (100-100000)
+```
+
 ### FindIt — Inventory and Storage Locations
 
 `findit` keeps parts, equipment and storage locations with stock levels and project reservations. It is off by default. The agent may read it only with `agent_access`, and it stays read-only then.
@@ -1441,6 +1463,7 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `flows` | EasyDrag visual flows: missions with their own engine ([chapter 11](11-missions.md#flow-missions-easydrag)). Limits: runs 1–32, branches per run 1–16, retention 1–365 days, 10–5000 runs per flow; `ai_provider` empty = main model. Changing a limit needs a restart. Switching `enabled` off turns EasyDrag and the API off at once; published flows keep running until the restart, and a run that is already going can still be stopped. `ai_provider` applies at once. | `flows:`<br>`  enabled: true`<br>`  max_parallel_runs: 8`<br>`  max_parallel_nodes_per_run: 4`<br>`  run_retention_days: 30`<br>`  max_runs_per_flow: 200`<br>`  ai_provider: ""` |
 | `local_wikipedia` | Offline Wikipedia edition (Kiwix ZIM), agent tool and desktop app. | `local_wikipedia:`<br>`  enabled: false`<br>`  agent_access: true`<br>`  language: ""`<br>`  variant: nopic`<br>`  data_dir: ""`<br>`  update_check: true` |
 | `storymaker` | Storymaker video studio and its AI author. | `storymaker:`<br>`  enabled: true`<br>`  agent:`<br>`    enabled: true`<br>`    max_daily_jobs: 10`<br>`  render:`<br>`    timeout_seconds: 3600`<br>`    max_duration_seconds: 900` |
+| `chibi_sensei` | Chibi Sensei training studio. | `chibi_sensei:`<br>`  enabled: true`<br>`  dataset:`<br>`    max_rows: 50000`<br>`  generator:`<br>`    max_daily_rows: 5000` |
 | `findit` | Inventory, storage locations and stock projects. | `findit:`<br>`  enabled: false`<br>`  agent_access: false`<br>`  readonly: false` |
 | `kaggle` | Kaggle workspace and notebook IDE. | `kaggle:`<br>`  enabled: false`<br>`  read_only: true`<br>`  allow_download: false`<br>`  allow_remote_execute: false` |
 

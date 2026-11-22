@@ -598,6 +598,9 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	cfg.Storymaker.Enabled = true
 	cfg.Storymaker.Agent.Enabled = true
 
+	// Chibi Sensei is on by default: local dataset studio; never widens other permissions.
+	cfg.ChibiSensei.Enabled = true
+
 	// Space Agent defaults: disabled by default, managed Docker sidecar when enabled.
 	cfg.SpaceAgent.AutoStart = true
 	cfg.SpaceAgent.RepoURL = "https://github.com/agent0ai/space-agent"
@@ -1128,6 +1131,9 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 		return nil, err
 	}
 	if err := NormalizeStorymakerConfig(&cfg.Storymaker); err != nil {
+		return nil, err
+	}
+	if err := NormalizeChibiSenseiConfig(&cfg.ChibiSensei); err != nil {
 		return nil, err
 	}
 	if err := NormalizeNewspaperConfig(&cfg.Newspaper); err != nil {
