@@ -106,6 +106,19 @@ Kompilierprüfung übersprungen und als `compile_unverified` gemeldet; der Auftr
 Ergebniskarte einer Überarbeitung listet die Szenen, die sich geändert haben, die geblieben sind und die entfernt
 wurden; die Chat-Antwort auf `status` nennt dieselben drei Listen.
 
+**Zeitpunkte.** Der Autor kann ein Bild auf eine Wortgruppe des Sprechtexts setzen statt auf eine Markierungsnummer. Die App findet die Wortgruppe und setzt die Markierung selbst. Steht die Wortgruppe nicht im Sprechtext, bekommt der Autor die nächstliegende Formulierung aus diesem Sprechtext und versucht es erneut.
+
+**Bildprüfung.** Die Kompilierprüfung sieht sich auch das Bild an. Sie meldet diese Befunde:
+
+- Text, der über den Bildrand ragt (`text_offframe`). Der Agent muss ihn beheben. Ein Film, der das beim Ende des Auftrags noch hat, ist `teilweise fertig`.
+- Flackern: mehr als drei Blitze in einer Sekunde (`flash`). Auch das muss der Agent beheben.
+- Text in den Bereichen, die Handy-Apps mit ihren Schaltflächen und Untertiteln überdecken (`text_unsafe`). Hinweis.
+- Text, der sich schlecht vom Hintergrund abhebt, mit einem Kontrast unter 3 zu 1 (`text_contrast`). Hinweis.
+- Ein langsamer Start: Szene 1 hat keinen Sprechtext, oder die erste Veränderung im Bild kommt erst nach einer halben Sekunde (`slow_hook`). Hinweis.
+- In Code-Szenen: mehr als 3 Sekunden ohne sichtbare Veränderung (`dead_stretch`) oder ein leeres erstes Bild (`first_frame_empty`). Hinweis.
+
+Hinweise blockieren das Ergebnis nie. Die Flackerprüfung hat eine Zeitgrenze. Kann sie nicht jedes Bild rechtzeitig prüfen, bleibt die Prüfung offen (`flash_unverified`), und der Film gilt nicht als `ready`. Exportierst du selbst, ist jeder Bildbefund eine Warnung; keiner davon stoppt den Export.
+
 **Keine Stimme.** Ein Auftrag auf einer Maschine ohne fertige Stimme läuft trotzdem fertig. Der Sprechtext bleibt in
 der Geschichte, und jede Szene bekommt einen kurzen Text im Bild. Um zu exportieren, richte eine Stimme ein und drücke
 **Sprachausgabe erzeugen**, oder drücke **Ohne Stimme exportieren**. Diese Schaltfläche markiert die Szenen als stumm,
@@ -166,6 +179,8 @@ Ein Export öffnet einen Dialog mit diesen Wahlmöglichkeiten:
 | Getrennte Tonspuren | Schreibt eine WAV je Audioebene: Sprechtext, Musik, Soundeffekte. Eine stumme Ebene bleibt weg. |
 | In Video Studio öffnen | Schaltet die getrennten Tonspuren an, damit der fertige Export in Video Studio weitergehen kann. |
 
+Die eingebrannten Untertitel sitzen in einem 9:16-Film höher als in einem Querformat-Film, damit sie vom unteren Bildrand fernbleiben, wo Handy-Apps ihre Schaltflächen zeichnen. Bestehende 9:16-Filme zeigen die Untertitel beim nächsten Export etwas höher.
+
 Die Dateien eines Exports:
 
 ```
@@ -178,6 +193,13 @@ Videos/Storymaker/<slug>.mp4, <slug>-2.mp4, ...
 Die Kopie in `Videos/Storymaker/` macht den Film leicht auffindbar. Eine fehlgeschlagene Zusatzdatei lässt das MP4
 stehen und zeigt eine Warnung beim fertigen Export. Die Tonspuren ergeben zusammen genau den Mix, der vor dem Kodieren
 daraus gemacht wird; die AAC-Spur im MP4 unterscheidet sich leicht, etwa 23 dB unter dem Mix.
+
+**Tonwarnungen.** Der Export hört auch auf den Ton und listet, was er findet, als Warnungen am fertigen Export. Eine Warnung stoppt nie einen Export.
+
+- `narration_dropout` oder `narration_clipped`: Ein Satz des Sprechtexts fiel mitten im Satz aus oder ist verzerrt (übersteuert). Die App erzeugt diesen Satz von selbst noch einmal. Hat die neue Aufnahme denselben Fehler, bleibt die Warnung. Formuliere den Satz um, oder wähle eine andere Stimme und drücke **Sprachausgabe erzeugen**.
+- `bed_too_loud`: Die Musik ist beim Sprechen fast so laut wie die Stimme. Wähle im Musik-Reiter eine leisere Musikdatei.
+- `bed_gap`: Die Musik fällt plötzlich um 12 dB oder mehr ab, sodass der Wechsel wie ein Schnitt klingt. Wähle eine Musikdatei ohne abrupte Enden.
+- `mix_clipped`: Der gemischte Ton war mindestens einmal zu laut und wurde abgeschnitten. Meist hilft eine leisere Musikdatei.
 
 ## In Video Studio weiterschneiden
 
@@ -203,6 +225,7 @@ offenen Video-Studio-Projekt wird zuerst gesichert.
 | Der Export ist sehr langsam oder wurde vom Timeout gestoppt | Der Export zeichnet jedes Bild in einem Headless-Browser. Auf einer reinen CPU-Maschine ist ein aktuell installiertes Chrome schneller als das mitgelieferte Chromium. Längere Videos bekommen automatisch mehr Zeit, ein höheres `storymaker.render.timeout_seconds` ist also die Lösung. |
 | Der KI-Autor startet nicht | `storymaker.agent.enabled` ist aus, es ist kein KI-Modell verfügbar, oder das Modell ist zu klein. Die Karte nennt den Grund. Ist das Tageslimit `storymaker.agent.max_daily_jobs` aufgebraucht, versuche es morgen noch einmal oder erhöhe das Limit. |
 | „Es warten schon acht Agenten-Aufträge“ | Die Auftragswarteschlange ist voll. Warte, bis einer fertig ist. |
+| Der fertige Export zeigt eine Tonwarnung | Warnungen stoppen nie einen Export. Die Liste am fertigen Export sagt, was zu ändern ist; die Tonwarnungen oben erklären jede einzelne. |
 | Der Sprechtext hört nach einer Weile auf | Das Zeichenlimit für den Tag oder den Auftrag ist erreicht. Cloud-Stimmen sind begrenzt, lokale nicht. |
 | Der Sprechtext wurde nicht erzeugt oder ein Zeichen fehlt | Für diese Sprache ist keine Stimme bereit, oder der Anbieter hat versagt: richte eine Stimme ein und drücke **Sprachausgabe erzeugen**, oder drücke **Ohne Stimme exportieren**. Fehlt ein Zeichen, nennt der Fehler `glyph_missing` die Stelle; es steckt in keiner mitgelieferten Schrift, also schreibe das Wort um oder wähle eine andere Sprache. |
 | Die Musik oder der Ton fehlt im Export | Die Musikdatei oder der Titel ist weg, oder es wurde nichts vorbereitet; wähle im Musik-Reiter wieder eine Quelle. Ein Film ohne Sprechtext, Musik und Soundeffekte wird mit einer stummen Spur exportiert, und das Export-Panel sagt das vorher. |

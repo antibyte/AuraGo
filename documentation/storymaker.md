@@ -59,6 +59,37 @@ Code writes require a current revision, stay within 8 KiB and preserve saved sou
 
 Watch every film once: when the compile check runs, the layout run flags captions over an actor's feet, props that are too small, boxes outside the frame and an actor that hides a prop or a text. A film reads `ready` only when no check is left open. Scenes that look alike (three or more in a row) are flagged as `scenes_look_alike`. The job card links the contact sheet of the last check. A film may run a little longer than asked, which is listed and is not a failure. Without a browser the compile check is skipped and reported as `compile_unverified`. The job still finishes.
 
+**Measured checks.** The compile check measures picture findings without a vision model. Each finding names a scene and a path, and its class decides what happens to it:
+
+| Code | Measured in | Rule | Class |
+| --- | --- | --- | --- |
+| `text_offframe` | Go, layout text boxes | More than 1 % of a text's box lies outside the frame. Texts get this code instead of `offscreen`; actors and props keep `offscreen`. | hard |
+| `text_unsafe` | Go, layout text boxes | More than 2 % of a text or the caption box lies in the aspect's safe zone. A text that has `text_offframe` is not reported here too. | advice |
+| `text_contrast` | Go, the still of each storyboard scene | Contrast below 3:1 inside a text or caption box, from the 3rd and 97th percentile of relative luminance over a grid of at most about 20 000 samples. A ratio of 1.15:1 or less means the text is masked or not drawn, and is not reported. | advice |
+| `flash` | Page frame probe | More than 3 flashes in any 1 s window. | hard |
+| `flash_unverified` | Page frame probe | The probe did not reach every frame within its deadline. | open check |
+| `slow_hook` | Player lint | Scene 1 has no narration, or its first show beat lands after 0.5 s. | advice |
+| `dead_stretch` (code scene) | Page frame probe | More than 3 s of frames whose mean difference per colour channel to the previous frame stays below 1 % of full scale. | advice |
+| `first_frame_empty` (code scene) | Page frame probe | The first frame after the entry transition is one colour. | advice |
+
+Hard codes are model-fixable. The agent gets them as issues and spends check rounds on them, and a hard code left at the end makes the job `incomplete`. Advice gets one optional fix loop and never blocks. `flash_unverified` is listed as an open check, so a film reads `ready_unverified`, and it never blocks. In a person's own export every new code is a warning, so no export is refused for a picture finding.
+
+Safe zones are fractions of the frame, measured from each edge:
+
+| Aspect | Top | Right | Bottom | Left |
+| --- | --- | --- | --- | --- |
+| 9:16 | 11.5 % | 13 % | 21.9 % | 5.6 % |
+| 16:9 | 5 % | 5 % | 5 % | 5 % |
+| 1:1 | 5 % | 5 % | 5 % | 5 % |
+
+The 9:16 zone is the union of the TikTok, Reels and Shorts overlays. The 16:9 and 1:1 zones equal the stage's safe area.
+
+**Frame probe.** In the agent's check run only, never in an export, the check's browser page renders every frame of the film at 64 px width, in film order, within 20 s (`PROBE_DEADLINE_MS`). The probe runs only when the compile run sets `boot.layout`, and inside the compile deadline. Per frame it keeps the mean relative luminance and the mean difference per colour channel to the previous frame. A transition is a monotone run of luminance with a total change of at least 0.10 whose darker end is below 0.80. A flash is two transitions in opposite directions in a row. More than 3 flashes that start in any one second give one `flash` per scene, at the start of that second. On a fast PC a storyboard frame takes about 3 to 5 ms and a code-scene frame about 30 to 40 ms, so a long film with many code scenes can run out of the 20 s on a slower machine. Frames it does not reach give `flash_unverified`. The page may add a `probe_error` field to its report; Go ignores it. Go keeps only the four probe codes from the page's `checks` list, forces them to warnings and caps the list.
+
+**Caption in 9:16.** The burned caption ends at 78 % of the frame height (it was 82 %) and is centred in the band from 5.6 % to 87 % of the width. Existing 9:16 films show the caption a little higher on their next export. 16:9 and 1:1 keep 92 %.
+
+**Cue phrases.** A beat in `put_scene`, `patch_scene` or `dry_run` may carry `cue_phrase` (1 to 60 characters) instead of `cue`. Both on one beat are refused (`cue_phrase_conflict`). The Studio finds the phrase in the scene's narration. Case, punctuation and repeated spaces are ignored, and the phrase must start and end at word boundaries, except in CJK text. The first match wins, and the answer says so when the phrase occurs more than once. The Studio inserts a `{n}` marker before the match, reusing a marker that already stands there, and sets `cue: n`. A phrase that is not found is refused with `cue_phrase_not_found`; the answer names the closest word sequence of the same word count in that narration. A refusal counts as a write. The saved story stays plain `storymaker/1`, and code scenes keep `api.cue(n)`.
+
 **No voice.** A job on a box with no ready voice still finishes. The narration text stays in the story, and each scene gets a short on-screen text. To export, either repair the Phonon resources/select a supported speech language and press **Generate narration**, or press **Export without voice**. That button marks the scenes silent, gives each a reading time and turns speech bubbles into on-screen text. **Restore speech** undoes it while its copy, `story.before-silent.json`, exists. From chat, `render` with `silent: true` does the same and says that speech was removed.
 
 **Narration and cost.** A job narrates by itself at its end, under the character limits above, so a finished job can export. Cloud voices can cost money. **Music** is not part of the agent: a request for music gets an answer that it cannot do this, and the Music tab stays with you.
@@ -75,7 +106,7 @@ Every project is a folder in the desktop workspace, `Documents/Storymaker/<proje
 story.json        the story document (the editor saves it with If-Match, so two windows cannot overwrite each other)
 project.json      title, format and timestamps
 scenes/<id>.js    code scenes (and <id>.bundle.js, the bundled copy the player runs)
-audio/narration/  one audio file per sentence (<hash>.wav or .mp3) with its level curve (<hash>.env.json)
+audio/narration/  one audio file per sentence (<hash>.wav or .mp3) with its level curve and any audio faults (<hash>.env.json)
 exports/          the exported videos and their records
 ```
 
@@ -160,6 +191,16 @@ The export mixes narration, music and sound effects in AuraGo itself and writes 
 An export is refused while narration audio or the music file is missing. The export panel says what is missing and opens the panel that fixes it. A scene marked as silent on the Scene tab exports without its narration and keeps the text, while a `say` with its own text still needs audio. A film without narration, music and sound effects exports with a silent track, and the panel says so before you start.
 
 `POST /api/desktop/storymaker/projects/{id}/render` takes an optional body `{burn_in_captions, srt, vtt, stems, quality}`. Stems and subtitles land in `exports/<title>-<job>/`, and a copy of the MP4 lands in `Videos/Storymaker/`. A failed extra leaves the MP4 and adds a warning to the job. The export dialog below sets these options.
+
+**Audio checks.** Each freshly synthesized narration piece is checked for dropouts and clipping. A dropout is a speech run whose level falls by 35 dB or more in one 10 ms step, from at least -45 dBFS to below -80 dBFS, and stays below -80 dBFS for 50 ms to 3 s. Clipping is a run of at least 3 samples at or above 0.999 in magnitude, or of at least 4 equal samples at or above 0.05; a piece with 3 or more such runs in one second counts as clipped. A faulty piece is synthesized once more, and the retry is charged to the daily character budget. A fault that stays is kept in the piece's envelope (`faults`) and shown as `narration_dropout` or `narration_clipped` in the export and as `narration_faults` on the agent job card.
+
+The export mix adds three detect-only warnings. None of them changes the mix:
+
+- `bed_too_loud`: in a 6 s window in which the narration is active for at least half the time, the music is less than 12 dB below the voice, measured over the speaking moments only. One warning, with the time of the first such window.
+- `bed_gap`: a steady bed (its level stays within 3 dB for at least 1 s) falls by 12 dB or more within 10 ms, outside the last 1.5 s.
+- `mix_clipped`: the mix clamped at least one sample.
+
+These are export job warnings, like `music_silent`. Audio findings never change the agent outcome and never refuse an export.
 
 ## Export options and extras
 

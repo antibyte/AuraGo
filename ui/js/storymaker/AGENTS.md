@@ -34,6 +34,7 @@ catalog index are `../../../internal/storymaker/AGENTS.md`, the generated catalo
   cut fade slide-left wipe (others fall back to fade with a `not_supported_yet` note); everything else the validator accepts is ignored.
 - Motion: `motion.js` holds rhythm factors, beat defaults, lead fractions and holds; `beats.js` runs the scheduler; `lint.js` holds the
   static lint, which reads `built.log` and never blocks a render. Code-scene API defaults are not scaled.
+- `checks.js` (`SM.checks`) holds the frame probe rules (flash, code-scene `dead_stretch` and `first_frame_empty`). The probe runs in `host-render.js` only when `boot.layout` is set, under `PROBE_DEADLINE_MS` (20 s). The 9:16 caption bottom (0.78) and its band (0.056 to 0.870) copy `layout.go SafeZone` and must follow it.
 - `compose.js` holds the composition v2 rules (hero scale, push-in, camera test); `stage.js` applies the caption-safe floor. Both are inert without `style.compose: "v2"`.
 - Text: compile never measures. Shrink to fit and balance run in `text.layout`. The layout memo is keyed on text, style name, canvas
   size, family and `maxWidth`, because `maxWidth` follows the anchor, so frame n stays a pure function of n.

@@ -107,6 +107,19 @@ check is skipped and reported as `compile_unverified`; the job still finishes. T
 revision lists the scenes that changed, that stayed and that were removed; the chat `status` answer
 gives the same three lists.
 
+**Timing.** The author can time a picture to a phrase of the narration instead of a marker number. The app finds the phrase and places the marker itself. If the phrase is not in the narration, the author gets the closest wording of that narration and tries again.
+
+**Picture checks.** The compile check also looks at the picture. It reports these findings:
+
+- Text that sticks out of the frame (`text_offframe`). The agent must fix it. A film that still has it when the job ends is `partly done`.
+- Flashing: more than three flashes in one second (`flash`). The agent must fix this too, for the same reason.
+- Text in the areas that phone apps cover with their buttons and captions (`text_unsafe`). Advice.
+- Text that is hard to read against its background, with a contrast below 3 to 1 (`text_contrast`). Advice.
+- A slow start: scene 1 has no narration, or its first change on screen comes after half a second (`slow_hook`). Advice.
+- In code scenes: more than 3 seconds without any visible change (`dead_stretch`), or an empty first frame (`first_frame_empty`). Advice.
+
+Advice never blocks the outcome. The flash check has a time limit. If it cannot test every frame in time, the check stays open (`flash_unverified`) and the film does not read `ready`. When you export yourself, every picture finding is a warning, so none of them stops the export.
+
 **No voice.** A job on a box with no ready voice still finishes. The narration text stays in the
 story, and each scene gets a short on-screen text. To export, either install a voice and press
 **Generate narration**, or press **Export without voice**. That button marks the scenes silent, gives
@@ -169,6 +182,8 @@ Starting an export opens a dialog with these choices:
 | Stems | Writes one WAV per audio layer: narration, music, sound effects. A silent layer is left out. |
 | Open in Video Studio | Turns stems on, so the finished export can continue in Video Studio. |
 
+In a 9:16 film the burned-in caption sits higher than in a wide film, so it stays clear of the bottom of the screen, where phone apps draw their buttons. Existing 9:16 films show the caption a little higher the next time they are exported.
+
 The files of one export:
 
 ```
@@ -181,6 +196,13 @@ Videos/Storymaker/<slug>.mp4, <slug>-2.mp4, ...
 The copy in `Videos/Storymaker/` makes the film easy to find. A failed extra leaves the MP4 in place
 and shows a warning on the finished export. The stems add up to the mix exactly before encoding; the
 AAC track in the MP4 differs slightly, about 23 dB below the mix.
+
+**Sound warnings.** The export also listens to the sound and lists what it finds as warnings on the finished export. A warning never stops an export.
+
+- `narration_dropout` or `narration_clipped`: a sentence of the narration went silent in the middle or is distorted. The app makes that sentence once more by itself. If the new take has the same fault, the warning stays. Rewrite the sentence, or choose another voice and press **Generate narration**.
+- `bed_too_loud`: the music is nearly as loud as the voice while someone speaks. Choose a quieter music file in the Music tab.
+- `bed_gap`: the music drops suddenly by 12 dB or more, so the change is heard as a cut. Choose a music file without abrupt endings.
+- `mix_clipped`: the mixed sound was too loud at least once and was cut. A quieter music file usually helps.
 
 ## Continue in Video Studio
 
@@ -205,6 +227,7 @@ new one is created, so your edits stay. Unsaved work is saved first.
 | The export is very slow or stopped by the timeout | The export draws every frame in a headless browser. On a CPU-only machine an installed Chrome is faster than the provisioned Chromium. Longer videos get more time automatically, so a higher `storymaker.render.timeout_seconds` is the fix. |
 | The AI author does not start | `storymaker.agent.enabled` is off, no AI model is available, or the model is too small. The card names the reason. If the daily limit `storymaker.agent.max_daily_jobs` is used up, try again tomorrow or raise the limit. |
 | "Eight agent jobs are already waiting" | The agent queue is full. Wait for one to finish. |
+| The finished export shows a sound warning | Warnings never stop an export. The list on the finished export says what to change, and the sound warnings above explain each one. |
 | The narration stops after a while or was never generated | The character limit for the day or the job is reached, or no voice is ready for that language, or the provider failed. Cloud voices are limited, local ones are not. Set up a voice and press **Generate narration**, or press **Export without voice**. |
 | The narration is missing a character | The error `glyph_missing` names the text. That character is in no bundled font; rewrite the word or choose another language. |
 | The music or the sound is missing in the export | The music file or track is gone, or nothing was prepared; choose a source again in the Music tab. A film without narration, music and sound effects exports with a silent track, and the export panel says so before you start. |

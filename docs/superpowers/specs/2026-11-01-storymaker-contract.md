@@ -170,6 +170,13 @@ Issue codes (fixed; the desktop app has a localised heading for each):
 | `layout_unverified` | minor | Player compile report: one per code scene (layout inside code is not checked) |
 | `glyph_missing` | error | Go Validate: a character no face covers, at the text path |
 | `line_unread`, `dead_stretch`, `first_frame_empty`, `text_too_small`, `fade_between_worlds`, `cue_late` | warning | Player compile report, storyboard scenes |
+| `dead_stretch`, `first_frame_empty` | warning | Player compile report `checks` (frame probe), code scenes. Model-fixable advice; never blocks. |
+| `text_offframe` | warning | Go `LayoutIssues`, layout text boxes: more than 1 % of a text's box lies outside the frame. Hard: the agent must fix it, and a left one makes the job `incomplete`. A person's export is never refused. |
+| `text_unsafe` | warning | Go `LayoutIssues`, texts and the caption box: more than 2 % of the box lies in the aspect's safe zone. Advice only. |
+| `text_contrast` | warning | Go, the stills of the compile check: contrast below 3:1 inside a text or caption box. Ratios of 1.15:1 and below are not reported. Advice only. |
+| `flash` | warning | Player compile report `checks` (frame probe): more than 3 flashes in any one second. Hard, like `text_offframe`. |
+| `flash_unverified` | warning | Player compile report `checks` (frame probe): the probe did not reach every frame within its 20 s deadline. Open check (`ready_unverified`); never blocks. |
+| `slow_hook` | warning | Player compile report (film lint of scene 1): scene 1 has no narration, or its first show beat lands after 0.5 s. Advice only. |
 | `entry_monotony`, `transition_variety` | minor | Player compile report |
 
 Go constants are `Code<CamelCase>` (for example `CodeInvalidValue`). `DecodeStory` failures always return at least one issue, so a 422 response carries `issues`.
@@ -604,7 +611,7 @@ The loader calls `NormalizeStorymakerConfig` (`config.go:1091`). The configurati
 - Agent: `StorymakerPhaseToolSchemas`, `canonicalizeStorymakerOperationCall` and `RunConfig.RecoveryNudge`.
 - Files under `<data>/storymaker/agent/`: `jobs.json`, `usage.json` (fails closed) and `events/<job id>.jsonl` (at most 500 lines per job, newest 200 files kept, no arguments and no model text).
 - Issue codes for the job only: `scene_unfilled`, `over_target`, `over_budget`, `compile_failed`, `over_export_limit`, `words_tell`. Tool refusals: `operation_not_in_phase`, `outline_locked`, `corrections_exhausted`, `dry_runs_exhausted`, `check_rounds_exhausted`, `rev_mismatch`, `scene_not_found`, `invalid_data`.
-- Open checks: `layout_unverified` (always), `compile_unverified`, `narration_unavailable`, `narration_failed`, `narration_budget`, `narration_pending`, `corrections_exhausted`, `model_error`.
+- Open checks: `layout_unverified` (always), `compile_unverified`, `flash_unverified`, `narration_unavailable`, `narration_failed`, `narration_budget`, `narration_pending`, `corrections_exhausted`, `model_error`.
 
 ---
 
@@ -826,8 +833,8 @@ No template string with data, no `innerHTML` and no `eval` in the player source.
 
 - `end_frame` is exclusive. `frame_count` is the largest `end_frame`. `duration_ms = round(frame_count × 1000 / fps)`.
 - Transitions overlap: `start_frame[i] < end_frame[i-1]` is allowed.
-- `checks` is empty until phase 3. `unverified` holds one minor `layout_unverified` per code scene. `captions` is always filled, measured or estimated. Compile drops audio events at or past `duration_ms` and cuts captions at it.
-- `issues` holds the player's issues (`narration_missing`, `not_supported_yet`, `unknown_cue`, `unknown_spot`, `unknown_cast`, `unknown_asset`, `unknown_name`, `missing_field`, `duplicate_id`, `invalid_value` (warnings, tolerant fallbacks), and `code_error` or `deadline` (errors)). An error issue blocks the render job.
+- `checks` lists the frame probe's findings from `checks.js`: `flash`, `flash_unverified`, and the code-scene `dead_stretch` and `first_frame_empty`. The probe runs only when the compile run sets `boot.layout`; otherwise `checks` is empty. It has a 20 s deadline (`PROBE_DEADLINE_MS`) inside the compile deadline. Go keeps only those four codes from `checks`, forces them to severity `warning`, caps the list and ignores any `probe_error` field. `unverified` holds one minor `layout_unverified` per code scene. `captions` is always filled, measured or estimated. Compile drops audio events at or past `duration_ms` and cuts captions at it.
+- `issues` holds the player's issues (`narration_missing`, `not_supported_yet`, `unknown_cue`, `unknown_spot`, `unknown_cast`, `unknown_asset`, `unknown_name`, `missing_field`, `duplicate_id`, `invalid_value` (warnings, tolerant fallbacks), `slow_hook` (warning), and `code_error` or `deadline` (errors)). An error issue blocks the render job.
 - `audio_events` has one entry per piece and one per sound; Go owns the gain, so there is no `gain` field. For `sfx`, `ref` is the catalog id and `take` is a 0-based index into its `takes`. `start_ms` is always film-global: for `sfx` it is `Math.round((sceneBase + eventTime)*1000)`, where `eventTime` is scene-local, the `start` of scheduling step 7 for a plain sfx and the key's event time for a typing key. `cue_precision` is the share of cues placed by a span, or null without cues. `scenes[].cues[].at_ms` is scene-local.
 
 ### Timing rules (summary)
