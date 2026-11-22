@@ -22,7 +22,7 @@ func (s *Service) ExportRevision(ctx context.Context, key string, revision int, 
 		return Artifact{}, ctx.Err()
 	}
 	if format != "md" && format != "pdf" && format != "docx" {
-		return Artifact{}, errors.New("unsupported export format")
+		return Artifact{}, ErrExportFormat
 	}
 	if revision < 1 {
 		return Artifact{}, ErrNotFound
@@ -51,7 +51,7 @@ func (s *Service) ExportRevision(ctx context.Context, key string, revision int, 
 		return a, err
 	}
 	if len(a.Data) > 32<<20 {
-		return Artifact{}, errors.New("export exceeds 32 MiB")
+		return Artifact{}, ErrExportTooLarge
 	}
 	if err = ctx.Err(); err != nil {
 		return Artifact{}, err

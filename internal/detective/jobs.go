@@ -2,7 +2,6 @@ package detective
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -112,10 +111,6 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 	}
 	c.UpdatedAt = s.now().UTC()
 	c.Run.UpdatedAt = c.UpdatedAt
-	b, err := json.Marshal(c)
-	if err != nil {
-		return c, err
-	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return c, err
@@ -126,7 +121,9 @@ func (s *Service) startLocked(key, action, effort, requestKey string, answers ..
 			return c, err
 		}
 	}
-	if _, err = tx.Exec("UPDATE detective_cases SET body=?,status=?,updated=?,active_ms=? WHERE id=?", b, c.Run.Status, c.UpdatedAt.Format(time.RFC3339Nano), c.Run.Usage.ActiveMS, key); err != nil {
+	// saveCaseTx also refreshes the summary the live view and the case list read, so a
+	// queued start is visible immediately while the worker is bound to another case.
+	if err = saveCaseTx(tx, &c); err != nil {
 		return c, err
 	}
 	if _, err = tx.Exec("INSERT INTO detective_keys(case_id,key,run_id) VALUES(?,?,?)", key, requestKey, c.Run.ID); err != nil {

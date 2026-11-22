@@ -112,7 +112,9 @@ the focused Detective tests first. Browser tests use the production app modules.
 summary equality, second open does not migrate again), `TestSetAutoUpdateMatrix` pins
 the scheduling rule per status, and `TestLiveUnderAutomaticUpdate` asserts the live
 transitions queued/running/completed and that `no_changes` changes neither revision nor
-report. The opt-in browser fixture stays focused on rendering; the revision switch, the
+report. `TestQueuedStartRefreshesLiveSummary` keeps the summary fresh on a queued start
+while the worker is bound to another case, and `TestExportRefusalsCarryStableSentinels`
+keeps the service-level export refusals on the sentinel errors the API maps to codes The opt-in browser fixture stays focused on rendering; the revision switch, the
 lazy excerpt and the provisional marking are covered without a DOM by the node suite.
 
 ## Child DOX Index

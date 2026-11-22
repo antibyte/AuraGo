@@ -630,3 +630,60 @@ func TestPermissionRevokedRunStaysResumable(t *testing.T) {
 		t.Fatalf("a revoked permission must not publish a revision (latest=%d reports=%d)", got.LatestRevision, len(got.Reports))
 	}
 }
+
+// A queued start refreshes the summary the live view and the case list read, so the
+// bounded poll reflects it immediately even while the single worker is bound to
+// another case (audit 2026-11-22 F5).
+func TestQueuedStartRefreshesLiveSummary(t *testing.T) {
+	s := newTestService(t)
+	blocked := make(chan struct{}, 1)
+	release := make(chan struct{})
+	defer close(release)
+	s.SetRunner(testRunner(func(ctx context.Context, _ *Session) error {
+		select {
+		case blocked <- struct{}{}:
+		default:
+		}
+		<-release
+		return nil
+	}))
+	bound, err := s.Create(Request{Topic: "bound", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Start(bound.ID, "start", "", "bound-1"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-blocked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("worker did not claim the first case")
+	}
+	queued, err := s.Create(Request{Topic: "queued", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Start(queued.ID, "start", "", "queued-1"); err != nil {
+		t.Fatal(err)
+	}
+	view, err := s.Live(queued.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Status != "queued" || view.Topic != "queued" || view.Effort != "quick" {
+		t.Fatalf("live view kept the pre-start summary: %+v", view)
+	}
+	summaries, err := s.ListSummaries()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range summaries {
+		if c.ID == queued.ID {
+			if c.Run.Status != "queued" {
+				t.Fatalf("case list kept the pre-start status: %s", c.Run.Status)
+			}
+			return
+		}
+	}
+	t.Fatal("queued case missing from the summary list")
+}

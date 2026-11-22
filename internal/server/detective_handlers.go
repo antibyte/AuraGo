@@ -27,6 +27,7 @@ func detectiveJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
+
 // errDetectiveCopyExists marks the create-only Autor copy collision, so the API can
 // answer with a code the app translates instead of an English sentence.
 var errDetectiveCopyExists = errors.New("export copy already exists")
@@ -56,6 +57,12 @@ func detectiveError(w http.ResponseWriter, err error) {
 		status, code = http.StatusServiceUnavailable, "unavailable"
 	}
 	detectiveJSON(w, status, map[string]string{"error": err.Error(), "code": code})
+}
+
+// detectiveRefusal keeps the documented {error, code} envelope on the coarse gates
+// (unavailable, read-only, method), so the app can translate the reason too.
+func detectiveRefusal(w http.ResponseWriter, status int, message, code string) {
+	detectiveJSON(w, status, map[string]string{"error": message, "code": code})
 }
 func detectiveDecode(w http.ResponseWriter, r *http.Request, v any) error {
 	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
@@ -144,7 +151,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg := s.ConfigSnapshot()
 	if cfg == nil || !cfg.VirtualDesktop.Enabled {
-		jsonError(w, "Desktop unavailable", 503)
+		detectiveRefusal(w, 503, "Desktop unavailable", "unavailable")
 		return
 	}
 	if path == "read-operations" && r.Method == http.MethodGet {
@@ -193,11 +200,11 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.Detective == nil || !cfg.Detective.Enabled {
-		jsonError(w, "Detective unavailable", 503)
+		detectiveRefusal(w, 503, "Detective unavailable", "unavailable")
 		return
 	}
 	if operation != desktopRead && operation != desktopStop && (cfg.Detective.ReadOnly || !cfg.VirtualDesktop.AllowAgentControl) {
-		jsonError(w, "Detective is read-only", 403)
+		detectiveRefusal(w, 403, "Detective is read-only", "read_only")
 		return
 	}
 	if parts[0] != "cases" {
@@ -250,7 +257,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			}
 			detectiveJSON(w, 201, c)
 		default:
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 		}
 		return
 	}
@@ -271,7 +278,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 			}
 			detectiveJSON(w, 200, map[string]bool{"deleted": true})
 		default:
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 		}
 		return
 	}
@@ -282,7 +289,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 	switch parts[2] {
 	case "auto-update":
 		if r.Method != http.MethodPut {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		var c detective.Case
@@ -310,7 +317,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, c)
 	case "reports", "sources", "findings":
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		before, err := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
@@ -337,7 +344,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, page)
 	case "report":
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		revision, err := strconv.Atoi(r.URL.Query().Get("revision"))
@@ -353,7 +360,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, report)
 	case "source":
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		source, err := s.Detective.Source(key, r.URL.Query().Get("id"))
@@ -364,7 +371,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, source)
 	case "events":
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		ok, err := s.Detective.Exists(key)
@@ -385,7 +392,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, map[string]any{"events": events})
 	case "live":
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		view, err := s.Detective.Live(key)
@@ -396,7 +403,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, view)
 	case "state":
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		after, _ := strconv.ParseInt(r.URL.Query().Get("after"), 10, 64)
@@ -421,7 +428,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		detectiveJSON(w, 200, map[string]any{"live": view, "events": events, "next": next})
 	case "run":
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		req := runRequest
@@ -443,7 +450,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 	case "export", "autor":
 		autor := parts[2] == "autor"
 		if (!autor && r.Method != http.MethodGet) || (autor && r.Method != http.MethodPost) {
-			jsonError(w, "Method not allowed", 405)
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
 			return
 		}
 		revision, err := strconv.Atoi(r.URL.Query().Get("revision"))
@@ -464,7 +471,7 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		}
 		if autor {
 			if s.DesktopService == nil {
-				jsonError(w, "Desktop files unavailable", 503)
+				detectiveRefusal(w, 503, "Desktop files unavailable", "unavailable")
 				return
 			}
 			path := fmt.Sprintf("Documents/Detective/%s-r%d-%d.docx", key, revision, time.Now().UnixNano())

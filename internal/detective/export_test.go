@@ -147,8 +147,17 @@ func TestResearchExportsLongTableAndScripts(t *testing.T) {
 }
 
 // An export refusal names its reason through a sentinel, so the API can answer with a
-// code the app translates (audit 4.14).
+// code the app translates (audit 4.14). The service-level guards must return the same
+// sentinels, because the HTTP layer maps only through errors.Is (audit 2026-11-22 F2).
 func TestExportRefusalsCarryStableSentinels(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "sentinels", Effort: "quick"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ExportRevision(context.Background(), c.ID, 1, "xls"); !errors.Is(err, ErrExportFormat) {
+		t.Fatalf("service path kept its error identity: %v", err)
+	}
 	if _, err := Export(Report{Revision: 1, Title: "Detective", CreatedAt: time.Now()}, "xls"); !errors.Is(err, ErrExportFormat) {
 		t.Fatalf("unknown format: %v", err)
 	}

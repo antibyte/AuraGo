@@ -43,14 +43,14 @@ provider/spending limits still apply.
 - Closing the window leaves the server job running. Reopening restores the case.
   An open window polls status and new activity in one request — every 3 seconds
   while the case is queued, running or waiting for an answer, every 10 seconds
-  otherwise — and reloads the report only when its revision changes. A hidden or
-  minimized window does not poll at all and refreshes as soon as it is visible
-  again; source text loads when a source is opened.
+  otherwise — and reloads the report only when its revision changes. A window whose
+  browser tab is hidden does not poll at all and refreshes as soon as the tab is
+  visible again; source text loads when a source is opened.
 
-One case runs at a time; additional cases queue. The app shows actual tool, token and
-time counters; tokens appear as input, output and cached counts, and a clarification
-answer appears in the activity feed.
-source and time counters, concise plans, retrieved sources and recorded findings.
+One case runs at a time; additional cases queue. The app shows actual tool, source and
+time counters; tokens appear as input, output and cached counts, concise plans,
+retrieved sources and recorded findings — and a clarification answer appears in the
+activity feed.
 Private model continuation never appears in the activity feed or exports.
 
 ## Automatic Update
@@ -210,9 +210,10 @@ their meaning. All routes retain the Desktop administrator boundary.
 Every refusal answers `{"error": "<server text>", "code": "<stable code>"}`, so the
 app can show a translated sentence instead of the English text. Codes: `not_found`
 (404), `conflict` (409), `budget_exhausted` (409), `copy_exists` (409),
-`permission_revoked` (403), `unavailable` (503), `unsupported_format`,
-`export_too_large`, `pdf_unsupported_font` and `invalid_request` (400). An unknown
-code falls back to the server text.
+`permission_revoked` (403), `read_only` (403), `unavailable` (503),
+`method_not_allowed` (405), `unsupported_format`, `export_too_large`,
+`pdf_unsupported_font` and `invalid_request` (400). An unknown code falls back to
+the server text.
 
 ## Verification
 
