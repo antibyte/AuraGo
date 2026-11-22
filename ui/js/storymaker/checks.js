@@ -52,8 +52,40 @@
         return out;
     }
 
-    // run(probe, timeline) = the findings of the measured series. Without a probe there is nothing to say.
-    function run() { return []; }
+    // sceneAt(sched, frame) = the index of the scene that owns a film frame: the last scene that has started.
+    function sceneAt(sched, frame) {
+        var scenes = sched.scenes || [], at = 0;
+        for (var i = 0; i < scenes.length; i++) if (scenes[i].start_frame <= frame) at = i; else break;
+        return at;
+    }
+
+    // run(probe, timeline) = the findings of the measured series. Times in at_seconds are scene-local, like the lint's. The
+    // probe is {fps, frame_count, y, d, uniform}: one y and one d per frame it reached, in order; without a probe there is
+    // nothing to say.
+    function run(probe, timeline) {
+        var out = [];
+        if (!probe || !timeline || !timeline.schedule) return out;
+        var sched = timeline.schedule, scenes = sched.scenes || [], fps = probe.fps > 0 ? probe.fps : timeline.fps;
+        var y = probe.y || [];
+        function add(index, code, message, fix, frame) {
+            out.push(SM.plan.issue('warning', scenes[index].id, '/scenes/' + index, code, message, { at_seconds: (frame - scenes[index].start_frame) / fps, fix: fix }));
+        }
+
+        var reported = {};
+        flashWindows(flashes(y), fps).forEach(function (frame) {
+            var index = sceneAt(sched, frame);
+            if (reported[index]) return;
+            reported[index] = true;
+            add(index, 'flash', 'The picture flashes more than 3 times in one second here.',
+                'Slow the change down: keep big brightness jumps at least a third of a second apart and avoid blinking full-screen colours. Rewrite this scene with patch_scene or put_scene, then check again.', frame);
+        });
+
+        if (y.length < sched.frame_count && scenes.length) {
+            add(sceneAt(sched, y.length), 'flash_unverified', 'Flashing was not checked from here: the check ran out of time.',
+                'Nothing to fix; a shorter film or fewer code scenes can be checked completely.', y.length);
+        }
+        return out;
+    }
 
     // unverified(scenes) = one minor layout_unverified issue per code scene.
     function unverified(scenes) {

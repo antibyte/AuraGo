@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { plain } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
-const { check } = t;
+const { check, near } = t;
 const SM = t.core();
 const FPS = 30;
 
@@ -56,4 +56,61 @@ check('checks.flashes: a slow ramp is one transition, not a flash, and a ramp sp
 check('checks.flashes: short and empty series are safe', () => {
     assert.deepEqual(plain(SM.checks.flashes([], FPS)), []);
     assert.deepEqual(plain(SM.checks.flashes([0.5], FPS)), []);
+});
+
+// ---- Task C3: SM.checks.run turns the probe into flash and flash_unverified issues.
+// film(frames) = a timeline of two scenes, a storyboard scene "a" over frames 0..59 and a code scene "b" over 60..frames-1.
+const film = frames => ({
+    fps: FPS,
+    schedule: {
+        fps: FPS, frame_count: frames,
+        scenes: [
+            { id: 'a', kind: 'storyboard', start_frame: 0, end_frame: 60, tf: 0, transition: 'cut' },
+            { id: 'b', kind: 'code', start_frame: 60, end_frame: frames, tf: 0, transition: 'cut' }
+        ]
+    }
+});
+// strobe(from, to, level) = a series of `to` frames at `level`, with 0.1 / 0.9 alternating every 2 frames from `from` to `to`.
+const strobe = (n, from, to, level) => Array.from({ length: n }, (_, i) => i >= from && i < to ? (Math.floor((i - from) / 2) % 2 ? 0.9 : 0.1) : level);
+const probeOf = (y, extra) => ({ fps: FPS, frame_count: 120, y, d: y.map(() => 1), uniform: {}, ...extra });
+
+check('checks.run: no probe, no findings', () => {
+    assert.deepEqual(plain(SM.checks.run(null, film(120))), []);
+    assert.deepEqual(plain(SM.checks.run(undefined, film(120))), []);
+});
+
+check('checks.run: a calm film raises nothing', () => {
+    assert.deepEqual(plain(SM.checks.run(probeOf(new Array(120).fill(0.4)), film(120))), []);
+});
+
+check('checks.run: a strobing code scene raises one flash issue for that scene at its scene-local window start', () => {
+    const list = plain(SM.checks.run(probeOf(strobe(120, 70, 110, 0.4)), film(120)));
+    assert.equal(list.length, 1, JSON.stringify(list));
+    const f = list[0];
+    assert.equal(f.code, 'flash');
+    assert.equal(f.severity, 'warning');
+    assert.equal(f.scene_id, 'b');
+    assert.equal(f.path, '/scenes/1');
+    near(f.at_seconds, (69 - 60) / FPS, 1e-9);   // the dip starts on the last bright frame before the first dark one
+    assert.match(f.message, /flash/i);
+    assert.match(f.fix, /third of a second/);
+});
+
+check('checks.run: many flashes in a scene stay one finding, and a second scene gets its own', () => {
+    const both = strobe(120, 10, 100, 0.4);
+    const list = plain(SM.checks.run(probeOf(both), film(120)));
+    assert.deepEqual(list.map(i => i.scene_id), ['a', 'b']);
+});
+
+check('checks.run: frames the probe did not reach give one flash_unverified in the scene of the first unreached frame', () => {
+    const list = plain(SM.checks.run(probeOf(new Array(90).fill(0.4)), film(120)));
+    assert.equal(list.length, 1, JSON.stringify(list));
+    assert.equal(list[0].code, 'flash_unverified');
+    assert.equal(list[0].severity, 'warning');
+    assert.equal(list[0].scene_id, 'b');
+    assert.equal(list[0].path, '/scenes/1');
+    near(list[0].at_seconds, (90 - 60) / FPS, 1e-9);
+    // what was reached is still judged
+    const flashing = plain(SM.checks.run(probeOf(strobe(90, 10, 40, 0.4)), film(120)));
+    assert.deepEqual(flashing.map(i => i.code).sort(), ['flash', 'flash_unverified']);
 });
