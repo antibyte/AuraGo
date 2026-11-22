@@ -32,12 +32,13 @@
     }
 
     // flashes(y) = the start frames of the flashes in a luminance series: two consecutive transitions in opposite
-    // directions, paired from the front, so four transitions are two flashes.
+    // directions, paired from the front, so four transitions are two flashes. A flash starts at the first frame that differs
+    // from the one before it, so a flash that begins with a cut belongs to the scene the cut leads into.
     function flashes(y) {
         var runs = transitions(y || []), out = [];
         for (var i = 0; i + 1 < runs.length; i++) {
             if (runs[i].dir === runs[i + 1].dir) continue;
-            out.push(runs[i].from);
+            out.push(runs[i].from + 1);
             i++;
         }
         return out;
