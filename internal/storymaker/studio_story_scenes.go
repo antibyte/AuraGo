@@ -113,6 +113,11 @@ func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[st
 		return *refused
 	}
 	s.repairSceneFields(fields)
+	cueNotes, cueRefusal := resolveCuePhrases(fields)
+	if cueRefusal != nil {
+		s.writes[sceneID]++
+		return sceneWriteRefused(op, sceneID, cueRefusal.Code, cueRefusal.Message, cueRefusal.Next, nil)
+	}
 	ev := s.evaluateSceneWrite(story, sceneID, fields)
 	if ev.errors == 0 {
 		if ev.scene.Kind == "code" {
@@ -135,7 +140,7 @@ func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[st
 				next = "The scene is saved but nothing is on stage. Add actors and beats with patch_scene."
 			}
 		}
-		return sceneWriteOK(op, sceneID, newETag, ev.issues, next)
+		return sceneWriteOK(op, sceneID, newETag, ev.issues, withCueNotes(next, cueNotes))
 	}
 	free := s.writes[sceneID] == 0 || ev.errors < s.lastIssueCount[sceneID]
 	if !free && s.charged[sceneID] >= StudioSceneChargedLimit {
@@ -154,7 +159,7 @@ func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[st
 		next = "Fix the listed issues with patch_scene and the same scene_id. Only a patch that removes an issue is still accepted."
 	}
 	return sceneWriteAnswer(op, "draft", sceneID, map[string]any{
-		"draft": true, "scene_id": sceneID, "issues": sceneWriteIssues(ev.issues, false), "corrections_left": left, "next_action": next,
+		"draft": true, "scene_id": sceneID, "issues": sceneWriteIssues(ev.issues, false), "corrections_left": left, "next_action": withCueNotes(next, cueNotes),
 	})
 }
 
@@ -189,10 +194,17 @@ func (s *Studio) dryRunScene(ctx context.Context, sceneID string, args map[strin
 	}
 	s.dryRunsJob++
 	s.dryRunsScene[target]++
+	cueNotes, cueRefusal := resolveCuePhrases(fields)
+	if cueRefusal != nil {
+		return sceneWriteRefused(op, sceneID, cueRefusal.Code, cueRefusal.Message, cueRefusal.Next, nil)
+	}
 	ev := s.evaluateSceneWrite(story, target, fields)
 	body := map[string]any{
 		"issues":           sceneWriteIssues(ev.issues, false),
 		"defaults_applied": append([]DefaultApplied{}, ev.defaults...),
+	}
+	if next := withCueNotes("", cueNotes); next != "" {
+		body["next_action"] = next
 	}
 	if sceneID != "" {
 		body["scene_id"] = sceneID
@@ -405,6 +417,11 @@ func (s *Studio) saveSceneStory(ctx context.Context, story *Story, etag string) 
 		return "", err
 	}
 	return s.deps.Projects.SaveStory(ctx, s.job.ProjectID, data, etag)
+}
+
+// withCueNotes appends the notes of resolveCuePhrases to the next_action text of an answer.
+func withCueNotes(next string, notes []string) string {
+	return strings.TrimSpace(next + " " + strings.Join(notes, " "))
 }
 
 func sceneWriteArg(args map[string]any, key string) string {
