@@ -230,6 +230,8 @@
 
         // ---- snapshot ----------------------------------------------------------
         function setSync(next) {
+            // The access notice belongs to a pause caused by an access error; any other state drops it.
+            if (next !== 'paused') state.accessKey = '';
             const previous = state.sync;
             if (previous === next) return;
             state.sync = next;
@@ -832,6 +834,7 @@
                     ctx.readonly = true;
                     state.caps = { write: false, source_edit: false, control: false };
                     state.pollPaused = true;
+                    state.accessKey = '';
                     abortRequests();
                     notify(t('desktop.infra_readonly_revoked'), 'info'); setSync('paused'); emit({ type: 'caps' });
                 } else if (detail.readonly === false || detail.read_only === false || detail.enabled === true) {
