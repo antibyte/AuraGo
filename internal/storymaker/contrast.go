@@ -1,9 +1,11 @@
 package storymaker
 
 import (
+	"fmt"
 	"image"
 	"math"
 	"sort"
+	"strconv"
 )
 
 const (
@@ -82,4 +84,27 @@ func MeasureStillContrast(data []byte, scene LayoutScene) ([]TextContrast, error
 		}
 	}
 	return out, nil
+}
+
+// ContrastIssues turns the measured ratios into text_contrast warnings: a ratio from contrastMasked up to contrastMin. A lower
+// one means the box is empty (the text is masked or not drawn), which is not a contrast problem of the picture.
+func ContrastIssues(stills []StillInfo) []Issue {
+	var out []Issue
+	for _, still := range stills {
+		for _, text := range still.Texts {
+			if text.Ratio < contrastMasked || text.Ratio >= contrastMin {
+				continue
+			}
+			name := "the text " + strconv.Quote(text.ID)
+			if text.ID == "caption" {
+				name = "the caption"
+			}
+			out = append(out, Issue{
+				Severity: SeverityWarning, SceneID: still.SceneID, Path: jp("scenes", still.Index), Code: CodeTextContrast,
+				Message: fmt.Sprintf("In scene %s %s has a contrast of %.1f:1 against the picture behind it, under the %.0f:1 a viewer needs.", still.SceneID, name, text.Ratio, contrastMin),
+				Fix:     "Put the text on a calmer, darker or lighter area of the picture, or change the environment or the actors so the background behind it is calm.",
+			})
+		}
+	}
+	return out
 }

@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"strings"
 	"testing"
 )
 
@@ -110,5 +111,29 @@ func TestMeasureStillContrastSkipsATinyBoxAndRefusesANonPNG(t *testing.T) {
 	}
 	if _, err := MeasureStillContrast([]byte("not a png"), scene); err == nil {
 		t.Error("a non-PNG must be refused")
+	}
+}
+
+func TestContrastIssuesReportsLowButNotMaskedTexts(t *testing.T) {
+	stills := []StillInfo{
+		{SceneID: "s1", Index: 0, Texts: []TextContrast{{ID: "title", Ratio: 4.2}, {ID: "note", Ratio: 1.0}}},
+		{SceneID: "s2", Index: 3, Texts: []TextContrast{{ID: "claim", Ratio: 2.04}, {ID: "caption", Ratio: 1.15}, {ID: "edge", Ratio: 3.0}}},
+	}
+	got := ContrastIssues(stills)
+	if len(got) != 2 {
+		t.Fatalf("want the claim and the caption, got %+v", got)
+	}
+	claim, caption := got[0], got[1]
+	if claim.Severity != SeverityWarning || claim.Code != CodeTextContrast || claim.SceneID != "s2" || claim.Path != "/scenes/3" {
+		t.Errorf("claim issue %+v", claim)
+	}
+	if !strings.Contains(claim.Message, "claim") || !strings.Contains(claim.Message, "2.0") || claim.Fix == "" {
+		t.Errorf("claim message %q fix %q", claim.Message, claim.Fix)
+	}
+	if !strings.Contains(caption.Message, "the caption") || !strings.Contains(caption.Message, "1.1") {
+		t.Errorf("caption message %q", caption.Message)
+	}
+	if ContrastIssues(nil) != nil {
+		t.Error("no stills, no issues")
 	}
 }

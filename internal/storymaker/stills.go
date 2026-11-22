@@ -41,11 +41,13 @@ const (
 	lookAlikeMaxDistance = 16
 )
 
-// StillInfo is one captured still: the scene, its index in the story and the difference hash of the picture.
+// StillInfo is one captured still: the scene, its index in the story, the difference hash of the picture and the measured
+// contrast of its text boxes (empty when none was measured).
 type StillInfo struct {
 	SceneID string
 	Index   int
 	Hash    uint64
+	Texts   []TextContrast
 }
 
 // ErrSheetTooLarge says that a contact sheet would exceed the pixel budget even with the narrowest thumbnails.
