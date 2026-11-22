@@ -253,7 +253,7 @@
         };
     }
 
-    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found'];
+    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response'];
     const CHECK_IDS = ['count_min', 'structure', 'short_answer', 'duplicates', 'conflicts', 'too_long', 'label_balance', 'json_valid', 'split_sizes', 'language_fit'];
 
     function describeError(t, err) {
@@ -270,6 +270,13 @@
         if (code) return t('chibi_sensei.error.' + code);
         const base = t('chibi_sensei.error.generic');
         return e.message ? base + ' ' + e.message.slice(0, 200) : base;
+    }
+
+    // A job that the server no longer knows (404 or job_not_found) leaves the map; true when it was dropped.
+    function pruneMissingJob(jobs, id, err) {
+        const e = normalizeError(err);
+        if (e.status !== 404 && e.code !== 'job_not_found') return false;
+        return jobs.delete(id);
     }
 
     // A server-issued key is used only when the locale has it; otherwise the fallback key.
@@ -331,6 +338,7 @@
     P.errors = { normalize: normalizeError, fromResponse: errorFromResponse, describe: describeError, knownKey };
     P.checkText = checkText;
     P.ERROR_CODES = ERROR_CODES;
+    P.pruneMissingJob = pruneMissingJob;
     P.CHECK_IDS = CHECK_IDS;
     P.UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
     P.STEP_IDS = STEP_IDS;

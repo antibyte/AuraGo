@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "Lunghezza",
   "chibi_sensei.table.prev": "Pagina precedente",
   "chibi_sensei.table.next": "Pagina successiva",
+  "chibi_sensei.table.batch_filter": "Vengono mostrati gli esempi di un solo passaggio",
+  "chibi_sensei.table.batch_clear": "Mostra tutti gli esempi",
   "chibi_sensei.table.page": "{from}–{to} di {total}",
   "chibi_sensei.source.manual": "Manuale",
   "chibi_sensei.source.file": "Da file",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "Il file è troppo grande.",
   "chibi_sensei.error.unsupported_file": "Questo tipo di file non è supportato.",
   "chibi_sensei.error.profile_unknown": "Questo modello di base non è riconosciuto.",
-  "chibi_sensei.error.job_not_found": "Questo lavoro non esiste più."
+  "chibi_sensei.error.job_not_found": "Questo lavoro non esiste più.",
+  "chibi_sensei.error.undo_conflict": "Questo passaggio non può più essere annullato, perché alcuni dei suoi esempi sono stati modificati in seguito.",
+  "chibi_sensei.error.bad_response": "Il server ha risposto con qualcosa di inatteso."
 }

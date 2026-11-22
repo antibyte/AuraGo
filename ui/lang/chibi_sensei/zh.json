@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "长度",
   "chibi_sensei.table.prev": "上一页",
   "chibi_sensei.table.next": "下一页",
+  "chibi_sensei.table.batch_filter": "正在显示某一步骤的示例",
+  "chibi_sensei.table.batch_clear": "显示所有示例",
   "chibi_sensei.table.page": "第 {from}–{to} 项，共 {total} 项",
   "chibi_sensei.source.manual": "手动",
   "chibi_sensei.source.file": "文件",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "文件太大。",
   "chibi_sensei.error.unsupported_file": "不支持此类文件。",
   "chibi_sensei.error.profile_unknown": "未知的基础模型。",
-  "chibi_sensei.error.job_not_found": "此任务已不存在。"
+  "chibi_sensei.error.job_not_found": "此任务已不存在。",
+  "chibi_sensei.error.undo_conflict": "此步骤已无法撤销，因为其中一些示例在之后被修改过。",
+  "chibi_sensei.error.bad_response": "服务器返回了意外的内容。"
 }

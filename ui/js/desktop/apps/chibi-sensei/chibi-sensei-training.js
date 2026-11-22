@@ -58,10 +58,11 @@
             const mine = inst.projectSeq;
             try {
                 const updated = await inst.api.patchProject(inst.project.id, inst.project.rev, { preset });
-                if (disposed || mine !== inst.projectSeq) return;
+                if (mine !== inst.projectSeq || inst.disposed) return;
                 inst.project = updated;
                 inst.bus.emit('project', updated);
                 inst.recompute();
+                if (disposed) return;
                 inst.notify(t('chibi_sensei.saved'), 'info');
             } catch (err) {
                 if (disposed || (err && err.aborted)) return;

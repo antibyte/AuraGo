@@ -98,7 +98,7 @@
             try {
                 return await response.json();
             } catch (_) {
-                throw P.errors.normalize({ message: 'The server answered with something that is not JSON.' });
+                throw P.errors.normalize({ code: 'bad_response' });
             }
         }
 

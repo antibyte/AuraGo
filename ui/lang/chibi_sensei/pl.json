@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "Długość",
   "chibi_sensei.table.prev": "Poprzednia strona",
   "chibi_sensei.table.next": "Następna strona",
+  "chibi_sensei.table.batch_filter": "Wyświetlane są przykłady z jednego kroku",
+  "chibi_sensei.table.batch_clear": "Pokaż wszystkie przykłady",
   "chibi_sensei.table.page": "{from}–{to} z {total}",
   "chibi_sensei.source.manual": "Ręcznie",
   "chibi_sensei.source.file": "Plik",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "Plik jest za duży.",
   "chibi_sensei.error.unsupported_file": "Ten rodzaj pliku nie jest obsługiwany.",
   "chibi_sensei.error.profile_unknown": "Ten model bazowy nie jest znany.",
-  "chibi_sensei.error.job_not_found": "To zadanie już nie istnieje."
+  "chibi_sensei.error.job_not_found": "To zadanie już nie istnieje.",
+  "chibi_sensei.error.undo_conflict": "Tego kroku nie można już cofnąć, ponieważ niektóre jego przykłady zostały później zmienione.",
+  "chibi_sensei.error.bad_response": "Serwer odpowiedział czymś nieoczekiwanym."
 }

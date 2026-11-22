@@ -26,7 +26,7 @@
             checks: null, checksStale: true, checksRunning: false,
             split: null, documents: [], jobs: new Map(), lastJobFailed: false,
             lastBatch: null,
-            events: null, pollTimer: 0, liveTimer: 0, refresh: null,
+            busOffs: [], events: null, pollTimer: 0, liveTimer: 0, refresh: null,
             content: null, root: null,
             parts: {}
         };
@@ -39,6 +39,7 @@
         inst.showProjects = () => showProjects(inst);
         inst.showStep = step => showStep(inst, step);
         inst.recompute = () => recompute(inst);
+        inst.listen = (name, fn) => { inst.busOffs.push(inst.bus.on(name, fn)); };
         inst.runPrimary = action => runPrimary(inst, action);
         inst.applyJob = job => applyJob(inst, job);
         return inst;
@@ -109,6 +110,13 @@
         showRoot(inst, card);
     }
 
+    // The bus listeners of the current view layer; they go away with the layer, so a visit never adds to an earlier one.
+    function dropListeners(inst) {
+        const offs = inst.busOffs;
+        inst.busOffs = [];
+        offs.forEach(off => { if (typeof off === 'function') off(); });
+    }
+
     function disposeView(inst) {
         const view = inst.parts.view;
         inst.parts.view = null;
@@ -143,6 +151,7 @@
 
     async function showProjects(inst) {
         closeProject(inst);
+        dropListeners(inst);
         inst.view = 'projects';
         if (!P.need(inst, 'projects')) return;
         const shell = P.el('div', { class: 'csn-start', dataset: { csn: 'start' } });
@@ -155,7 +164,7 @@
         shell.appendChild(banners);
         shell.appendChild(view.el);
         showRoot(inst, shell);
-        inst.bag.add(inst.bus.on('readonly', () => { if (inst.view === 'projects') paintBanners(); }));
+        inst.listen('readonly', () => { if (inst.view === 'projects') paintBanners(); });
         if (typeof view.focus === 'function') view.focus();
     }
 
@@ -163,6 +172,7 @@
 
     function closeProject(inst) {
         inst.projectSeq++;
+        dropListeners(inst);
         if (inst.events) { inst.events.close(); inst.events = null; }
         clearTimeout(inst.pollTimer);
         inst.pollTimer = 0;
@@ -261,8 +271,8 @@
             if (inst.readonly) banners.appendChild(readonlyBanner(inst));
         };
         paintTop();
-        inst.bag.add(inst.bus.on('readonly', () => { if (inst.view === 'project') paintTop(); }));
-        inst.bag.add(inst.bus.on('project', () => { if (inst.view === 'project') paintTop(); }));
+        inst.listen('readonly', () => { if (inst.view === 'project') paintTop(); });
+        inst.listen('project', () => { if (inst.view === 'project') paintTop(); });
     }
 
     async function leaveToProjects(inst) {
@@ -440,7 +450,13 @@
             active.forEach(job => { listed.add(job.id); applyJob(inst, job); });
             for (const id of known) {
                 if (listed.has(id)) continue;
-                const job = await inst.api.getJob(id);
+                let job;
+                try { job = await inst.api.getJob(id); } catch (err) {
+                    if (inst.disposed || seq !== inst.projectSeq || (err && err.aborted)) return;
+                    // A job the server no longer knows leaves the list, so the spinner and the poll stop.
+                    if (P.pruneMissingJob(inst.jobs, id, err)) { inst.bus.emit('job', null); recompute(inst); continue; }
+                    throw err;
+                }
                 if (inst.disposed || seq !== inst.projectSeq) return;
                 applyJob(inst, job);
             }

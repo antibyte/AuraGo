@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "Længde",
   "chibi_sensei.table.prev": "Forrige side",
   "chibi_sensei.table.next": "Næste side",
+  "chibi_sensei.table.batch_filter": "Viser eksemplerne fra ét trin",
+  "chibi_sensei.table.batch_clear": "Vis alle eksempler",
   "chibi_sensei.table.page": "{from}–{to} af {total}",
   "chibi_sensei.source.manual": "Manuel",
   "chibi_sensei.source.file": "Fil",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "Filen er for stor.",
   "chibi_sensei.error.unsupported_file": "Denne filtype understøttes ikke.",
   "chibi_sensei.error.profile_unknown": "Denne basismodel er ikke kendt.",
-  "chibi_sensei.error.job_not_found": "Dette job findes ikke længere."
+  "chibi_sensei.error.job_not_found": "Dette job findes ikke længere.",
+  "chibi_sensei.error.undo_conflict": "Dette trin kan ikke længere fortrydes, fordi nogle af dets eksempler er blevet ændret bagefter.",
+  "chibi_sensei.error.bad_response": "Serveren svarede noget uventet."
 }

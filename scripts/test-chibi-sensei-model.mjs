@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js'];
+const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js'];
 const read = file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps/chibi-sensei', file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 let checks = 0;
@@ -118,12 +118,28 @@ ok(saved.editor.state === 'closed' && saved.rows[0].rev === 6, 'edit_save_ok rep
 const created = reduce(reduce(s, { type: 'edit_new', kind: 'chat' }), { type: 'edit_save_ok', row: { id: 77, rev: 1 } });
 ok(created.needsReload, 'a new row reloads the page');
 
+// I6: a late save reply for another row leaves the open editor alone
+const lateOther = reduce(reduce(s, { type: 'edit_open', row: rowNine }), { type: 'edit_save_ok', rowId: 4, row: { id: 4, rev: 2 } });
+ok(lateOther.editor.state === 'editing' && lateOther.editor.rowId === 9, 'a late save of another row keeps the editor open');
+eq(reduce(s, { type: 'edit_open', row: rowNine }).editor.rowId, 9, 'editor opened on row 9');
+
 eq(reduce(Object.assign({}, s, { dataRev: 7, needsReload: false }), { type: 'remote_rev', data_rev: 8 }).needsReload, true, 'remote_rev ahead reloads');
 const calm = Object.assign({}, s, { dataRev: 7, needsReload: false });
 eq(reduce(calm, { type: 'remote_rev', data_rev: 9 }).needsReload, true, 'remote_rev newer reloads');
 eq(reduce(Object.assign({}, calm, { dataRev: 9 }), { type: 'remote_rev', data_rev: 9 }), Object.assign({}, calm, { dataRev: 9 }), 'remote_rev at the same revision changes nothing');
 eq([T.lastOffset(0, 50), T.lastOffset(50, 50), T.lastOffset(51, 50)], [0, 0, 50], 'lastOffset');
 eq(T.query(Object.assign({}, s, { filter: Object.assign({}, s.filter, { q: 'x' }) })), { offset: 0, limit: 50, sort: 'seq', dir: 'asc', q: 'x' }, 'query drops empty filters');
+
+// ---- goal patch (C1) and a missing job (I3) -------------------------------------------------------------------------------
+const baseGoal = P.projects.draftOf({ recipe: 'assistant', goal_text: 'old', profile_id: 'p', labels: [] });
+const myDraft = Object.assign({}, baseGoal, { profile_id: 'q' });
+const refreshed = P.projects.draftOf({ recipe: 'assistant', goal_text: 'changed elsewhere', profile_id: 'p', labels: [] });
+eq(P.projects.goalPatch(baseGoal, myDraft), { profile_id: 'q' }, 'the patch is computed against the base values');
+eq(P.projects.goalPatch(refreshed, myDraft), { goal_text: 'old', profile_id: 'q' }, 'against the refreshed project the same draft would revert the other change');
+const jobs = new Map([['a', { id: 'a', state: 'running' }], ['b', { id: 'b', state: 'running' }]]);
+ok(!P.pruneMissingJob(jobs, 'a', { status: 500 }) && jobs.size === 2, 'a server error keeps the job');
+ok(P.pruneMissingJob(jobs, 'a', { status: 404 }) && !jobs.has('a'), 'a 404 drops the job');
+ok(P.pruneMissingJob(jobs, 'b', { status: 400, body: { code: 'job_not_found' } }) && jobs.size === 0, 'job_not_found drops the job');
 
 // ---- rowPreview -----------------------------------------------------------------------------------------------------------
 eq(T.rowPreview({ kind: 'chat', messages: [

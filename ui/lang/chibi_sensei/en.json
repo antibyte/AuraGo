@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "Length",
   "chibi_sensei.table.prev": "Previous page",
   "chibi_sensei.table.next": "Next page",
+  "chibi_sensei.table.batch_filter": "Showing the examples from one step",
+  "chibi_sensei.table.batch_clear": "Show all examples",
   "chibi_sensei.table.page": "{from}–{to} of {total}",
   "chibi_sensei.source.manual": "Manual",
   "chibi_sensei.source.file": "File",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "The file is too large.",
   "chibi_sensei.error.unsupported_file": "This kind of file is not supported.",
   "chibi_sensei.error.profile_unknown": "This base model is not known.",
-  "chibi_sensei.error.job_not_found": "This job no longer exists."
+  "chibi_sensei.error.job_not_found": "This job no longer exists.",
+  "chibi_sensei.error.undo_conflict": "This step can no longer be undone, because some of its examples were changed afterwards.",
+  "chibi_sensei.error.bad_response": "The server answered with something unexpected."
 }

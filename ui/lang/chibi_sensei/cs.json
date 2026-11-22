@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "Délka",
   "chibi_sensei.table.prev": "Předchozí stránka",
   "chibi_sensei.table.next": "Další stránka",
+  "chibi_sensei.table.batch_filter": "Zobrazují se příklady z jednoho kroku",
+  "chibi_sensei.table.batch_clear": "Zobrazit všechny příklady",
   "chibi_sensei.table.page": "{from}–{to} z {total}",
   "chibi_sensei.source.manual": "Ručně",
   "chibi_sensei.source.file": "Soubor",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "Soubor je příliš velký.",
   "chibi_sensei.error.unsupported_file": "Tento druh souboru není podporován.",
   "chibi_sensei.error.profile_unknown": "Tento základní model není známý.",
-  "chibi_sensei.error.job_not_found": "Tato úloha už neexistuje."
+  "chibi_sensei.error.job_not_found": "Tato úloha už neexistuje.",
+  "chibi_sensei.error.undo_conflict": "Tento krok už nelze vrátit zpět, protože některé jeho příklady byly poté změněny.",
+  "chibi_sensei.error.bad_response": "Server odpověděl něčím neočekávaným."
 }

@@ -174,6 +174,8 @@
   "chibi_sensei.table.sort_tokens": "Μήκος",
   "chibi_sensei.table.prev": "Προηγούμενη σελίδα",
   "chibi_sensei.table.next": "Επόμενη σελίδα",
+  "chibi_sensei.table.batch_filter": "Εμφανίζονται τα παραδείγματα από ένα βήμα",
+  "chibi_sensei.table.batch_clear": "Εμφάνιση όλων των παραδειγμάτων",
   "chibi_sensei.table.page": "{from}–{to} από {total}",
   "chibi_sensei.source.manual": "Χειροκίνητα",
   "chibi_sensei.source.file": "Αρχείο",
@@ -433,5 +435,7 @@
   "chibi_sensei.error.file_too_large": "Το αρχείο είναι πολύ μεγάλο.",
   "chibi_sensei.error.unsupported_file": "Αυτό το είδος αρχείου δεν υποστηρίζεται.",
   "chibi_sensei.error.profile_unknown": "Αυτό το βασικό μοντέλο δεν είναι γνωστό.",
-  "chibi_sensei.error.job_not_found": "Αυτή η εργασία δεν υπάρχει πια."
+  "chibi_sensei.error.job_not_found": "Αυτή η εργασία δεν υπάρχει πια.",
+  "chibi_sensei.error.undo_conflict": "Αυτό το βήμα δεν μπορεί πλέον να αναιρεθεί, επειδή ορισμένα από τα παραδείγματά του άλλαξαν στη συνέχεια.",
+  "chibi_sensei.error.bad_response": "Ο διακομιστής απάντησε με κάτι μη αναμενόμενο."
 }

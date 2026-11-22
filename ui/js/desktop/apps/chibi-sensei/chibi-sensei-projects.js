@@ -291,6 +291,14 @@
         return { recipe: p.recipe || '', task_kind: p.task_kind || '', labels: Array.isArray(p.labels) ? p.labels.slice() : [], goal_text: p.goal_text || '', profile_id: p.profile_id || '' };
     }
 
+    // The fields where the draft differs from the values it started from.
+    function goalPatch(from, draft) {
+        const patch = {};
+        ['recipe', 'task_kind', 'goal_text', 'profile_id'].forEach(key => { if (draft[key] !== from[key]) patch[key] = draft[key]; });
+        if (JSON.stringify(draft.labels) !== JSON.stringify(from.labels)) patch.labels = draft.labels;
+        return patch;
+    }
+
     function createGoal(inst) {
         const { el } = P;
         const t = inst.t;
@@ -301,6 +309,8 @@
         let issues = [];
         let errorText = '';
         let disposed = false;
+        // The project values and rev the draft started from (set at the first edit); the patch and If-Match use them, not the refreshed project.
+        let base = null;
 
         const message = el('p', { class: 'csn-error', role: 'alert', dataset: { csn: 'goal-error' } });
         message.hidden = true;
@@ -375,13 +385,7 @@
         const node = el('section', { class: 'csn-goal', ariaLabel: t('chibi_sensei.goal.title'), dataset: { csn: 'goal' } },
             el('h2', { text: t('chibi_sensei.goal.title') }), conflictBox, form, message, issueList);
 
-        function patchOf() {
-            const base = draftOf(inst.project);
-            const patch = {};
-            ['recipe', 'task_kind', 'goal_text', 'profile_id'].forEach(key => { if (draft[key] !== base[key]) patch[key] = draft[key]; });
-            if (JSON.stringify(draft.labels) !== JSON.stringify(base.labels)) patch.labels = draft.labels;
-            return patch;
-        }
+        const patchOf = () => goalPatch(base ? base.values : draftOf(inst.project), draft);
         const isDirty = () => !!inst.project && Object.keys(patchOf()).length > 0;
         const isValid = () => P.steps ? P.steps.goalComplete(draft) : false;
 
@@ -421,7 +425,12 @@
         }
 
         function changed() {
+            if (!base && inst.project) {
+                // The first edit: the draft was equal to the project until now, so the project is the base.
+                base = { values: draftOf(inst.project), rev: inst.project.rev };
+            }
             inst.goalDirty = isDirty();
+            if (!inst.goalDirty) base = null;
             setMessage('', []);
             paint();
             inst.recompute();
@@ -433,6 +442,7 @@
             labelText = draft.labels.join(', ');
             inst.goalDirty = false;
             conflict = false;
+            base = null;
         }
 
         async function reloadProject() {
@@ -455,6 +465,7 @@
                 const fresh = await inst.api.getProject(inst.project.id);
                 if (disposed || inst.disposed) return;
                 inst.project = fresh;
+                base = { values: draftOf(fresh), rev: fresh.rev };
                 conflict = false;
                 await save();
             } catch (err) {
@@ -469,12 +480,19 @@
             if (saving) return false;
             const patch = patchOf();
             if (!Object.keys(patch).length) return true;
+            const mine = inst.projectSeq;
+            const rev = base ? base.rev : inst.project.rev;
             saving = true;
             setMessage('', []);
             paint();
             try {
-                const updated = await inst.api.patchProject(inst.project.id, inst.project.rev, patch);
-                if (disposed || inst.disposed) return true;
+                const updated = await inst.api.patchProject(inst.project.id, rev, patch);
+                if (inst.disposed) return true;
+                if (disposed) {
+                    // The view is gone; the saved project is still adopted while the same project is open.
+                    if (mine === inst.projectSeq) { inst.project = updated; inst.bus.emit('project', updated); inst.recompute(); }
+                    return true;
+                }
                 adopt(updated);
                 saving = false;
                 inst.bus.emit('project', updated);
@@ -511,5 +529,5 @@
         };
     }
 
-    P.projects = { createList, createProjectDialog, createGoal };
+    P.projects = { createList, createProjectDialog, createGoal, goalPatch, draftOf };
 })();

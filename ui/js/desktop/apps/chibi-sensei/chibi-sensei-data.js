@@ -29,6 +29,8 @@
     const FORMAT_KEYS = {
         auto: 'chibi_sensei.import.format_auto', jsonl: 'chibi_sensei.import.format_jsonl', csv: 'chibi_sensei.import.format_csv', text: 'chibi_sensei.import.format_text'
     };
+    // The free recipe's text files (.txt, .md, .markdown) are imported as format text; everything else is detected.
+    const formatForPath = path => (/\.(txt|md|markdown)$/i.test(String(path || '')) ? 'text' : 'auto');
     const WHICH_IDS = ['all', 'train', 'val', 'eval'];
     const WHICH_KEYS = {
         all: 'chibi_sensei.export.which_all', train: 'chibi_sensei.export.which_train', val: 'chibi_sensei.export.which_val', eval: 'chibi_sensei.export.which_eval'
@@ -239,7 +241,8 @@
             COLUMN_IDS.forEach(id => { mapping[id] = ctl.cols[id].value; });
             return mapping;
         }
-        const resolvedFormat = () => (ctl.format.value === 'auto' ? preview.format : ctl.format.value);
+        const requestFormat = () => (ctl.format.value === 'auto' ? formatForPath(path) : ctl.format.value);
+        const resolvedFormat = () => (requestFormat() === 'auto' ? preview.format : requestFormat());
 
         function render() {
             P.clear(body);
@@ -287,7 +290,7 @@
             againBtn.disabled = importBtn.disabled = true;
             showError('');
             try {
-                const next = await inst.api.importPreview(pid, { workspace_path: path, format: ctl.format.value, mapping: readMapping() });
+                const next = await inst.api.importPreview(pid, { workspace_path: path, format: requestFormat(), mapping: readMapping() });
                 if (inst.disposed) return;
                 preview = next;
             } catch (err) {
@@ -489,7 +492,7 @@
             } catch (_) { path = ''; }
             if (!path || disposed) return;
             try {
-                const preview = await inst.api.importPreview(inst.project.id, { workspace_path: path, format: 'auto' });
+                const preview = await inst.api.importPreview(inst.project.id, { workspace_path: path, format: formatForPath(path) });
                 if (!disposed) openImportDialog(inst, ui, path, preview);
             } catch (err) {
                 if (!disposed && !(err && err.aborted)) showError(inst.handleError(err));

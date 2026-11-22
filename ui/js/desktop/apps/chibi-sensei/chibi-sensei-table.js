@@ -58,8 +58,11 @@
         case 'edit_change': return s.editor.state === 'closed' || s.editor.state === 'saving' ? s : set({ editor: Object.assign({}, s.editor, { draft: a.draft, dirty: true, state: s.editor.state === 'conflict' ? 'conflict' : 'editing', issues: [] }) });
         case 'edit_save_start': return set({ editor: Object.assign({}, s.editor, { state: 'saving', error: null }) });
         case 'edit_save_ok': {
-            const rows = a.row && s.editor.rowId !== 'new' ? s.rows.map(r => (r.id === a.row.id ? a.row : r)) : s.rows;
-            return set({ rows, dataRev: Number(a.data_rev) || s.dataRev, needsReload: s.editor.rowId === 'new', editor: closedEditor() });
+            // The editor closes only when it is still the one that was saved; a late reply must not close another row's editor.
+            const isNew = a.rowId === 'new' || (a.rowId === undefined && s.editor.rowId === 'new');
+            const savedId = isNew ? 'new' : (a.rowId !== undefined ? a.rowId : (a.row ? a.row.id : null));
+            const rows = a.row && !isNew ? s.rows.map(r => (r.id === a.row.id ? a.row : r)) : s.rows;
+            return set({ rows, dataRev: Number(a.data_rev) || s.dataRev, needsReload: isNew, editor: s.editor.rowId === savedId ? closedEditor() : s.editor });
         }
         case 'edit_conflict': return set({ editor: Object.assign({}, s.editor, { state: 'conflict', serverRow: a.row || null }) });
         case 'edit_take_server': return s.editor.serverRow ? set({ editor: Object.assign({}, s.editor, { state: 'editing', draft: draftFromRow(s.editor.serverRow), baseRev: s.editor.serverRow.rev, serverRow: null, dirty: false }) }) : s;
@@ -199,6 +202,10 @@
         flagFilter.addEventListener('change', () => dispatch({ type: 'filter', patch: { flag: flagFilter.value } }));
         sortSelect.addEventListener('change', () => dispatch({ type: 'sort', sort: sortSelect.value, dir: sortSelect.value === 'est_tokens' ? 'desc' : 'asc' }));
         const head = el('div', { class: 'csn-table-head' }, search, splitFilter, sourceFilter, flagFilter, sortSelect);
+        const batchChip = el('div', { class: 'csn-chip csn-batch-chip', role: 'status', dataset: { csn: 'batch-chip' } },
+            el('span', { text: t('chibi_sensei.table.batch_filter') }),
+            el('button', { type: 'button', class: 'csn-btn csn-btn-quiet', dataset: { csn: 'batch-clear' }, text: t('chibi_sensei.table.batch_clear'), onClick: () => dispatch({ type: 'filter', patch: { batch: '' } }) }));
+        batchChip.hidden = true;
 
         // selection bar and undo bar
         const selCount = el('span', { class: 'csn-selcount', dataset: { csn: 'sel-count' } });
@@ -252,7 +259,7 @@
         sheet.hidden = true;
         sheet.addEventListener('keydown', event => { if (event.key === 'Escape') { event.stopPropagation(); closeEditor(); } });
 
-        const area = el('div', { class: 'csn-table-area' }, el('div', { class: 'csn-table-main' }, head, selbar, undoBar, errorNote, wrap, pager), sheet);
+        const area = el('div', { class: 'csn-table-area' }, el('div', { class: 'csn-table-main' }, head, batchChip, selbar, undoBar, errorNote, wrap, pager), sheet);
         const node = el('section', { class: 'csn-table-view', ariaLabel: t('chibi_sensei.table.label'), dataset: { csn: 'table-view' } }, area);
 
         // ---- state plumbing ----
@@ -283,6 +290,7 @@
             sourceFilter.value = state.filter.source;
             flagFilter.value = state.filter.flag;
             sortSelect.value = state.sort;
+            batchChip.hidden = !state.filter.batch;
         }
 
         async function reload() {
@@ -598,7 +606,7 @@
             try {
                 const res = isNew ? await api.addRows(pid, [rowInput(ed.draft)]) : await api.putRow(pid, ed.rowId, ed.baseRev, rowInput(ed.draft));
                 if (disposed) return;
-                dispatch({ type: 'edit_save_ok', row: res.row, data_rev: res.data_rev });
+                dispatch({ type: 'edit_save_ok', rowId: ed.rowId, row: res.row, data_rev: res.data_rev });
                 inst.notify(t(isNew ? 'chibi_sensei.editor.added' : 'chibi_sensei.editor.saved'), 'info');
                 inst.lastBatch = null;
                 inst.bus.emit('batch', null);
