@@ -1,8 +1,7 @@
 // Chibi Sensei window: the composition root. It owns the per-window instance (the state the other modules read and the bus they
 // listen to), the start (meta call, state cards), the project list mount, the project layout (top bar, banners, step rail, main
 // area, Sensei panel), step routing, the project event stream with its fan-out, the 2.5 s poll of active jobs, the read-only
-// policy and the close guard. The step rail and the Sensei panel are painted by P.steps when that part is loaded; until then a
-// plain rail and panel stand in. Loaded last; publishes window.ChibiSenseiApp = {render, dispose, open}. Classic script.
+// policy and the close guard. The step rail and the Sensei panel come from P.steps (derive, createRail, createPanel). Loaded last; publishes window.ChibiSenseiApp = {render, dispose, open}. Classic script.
 (function () {
     'use strict';
 
@@ -22,7 +21,7 @@
             view: 'loading',
             launchProjectId: P.UUID_RE.test(c.projectId || '') ? c.projectId : '',
             projectSeq: 0, project: null,
-            step: 'goal', derived: null,
+            step: 'goal', derived: null, primary: null,
             goalDirty: false, editorDirty: false,
             checks: null, checksStale: true, checksRunning: false,
             split: null, documents: [], jobs: new Map(), lastJobFailed: false,
@@ -40,7 +39,7 @@
         inst.showProjects = () => showProjects(inst);
         inst.showStep = step => showStep(inst, step);
         inst.recompute = () => recompute(inst);
-        inst.runPrimary = () => runPrimary(inst);
+        inst.runPrimary = action => runPrimary(inst, action);
         inst.applyJob = job => applyJob(inst, job);
         return inst;
     }
@@ -181,12 +180,14 @@
         inst.lastBatch = null;
         inst.goalDirty = false;
         inst.editorDirty = false;
-        inst.parts.rail = inst.parts.main = inst.parts.panel = inst.parts.mascot = inst.parts.banners = inst.parts.topbar = null;
+        inst.parts.rail = inst.parts.railView = inst.parts.main = inst.parts.panel = inst.parts.panelView = inst.parts.banners = inst.parts.topbar = null;
+        inst.primary = null;
     }
 
     // Loads everything one project needs in parallel. A project that cannot be loaded leaves the current view as it is and says why.
     async function openProject(inst, id) {
         if (!P.UUID_RE.test(String(id || ''))) return false;
+        if (!P.need(inst, 'steps')) return false;
         let seq = ++inst.projectSeq;
         let loaded;
         try {
@@ -217,7 +218,7 @@
         buildLayout(inst);
         openEvents(inst);
         recompute(inst);
-        const first = P.steps && typeof P.steps.firstOpen === 'function' ? P.steps.firstOpen(inst.derived) : 'goal';
+        const first = P.steps.firstOpen(inst.derived);
         showStep(inst, P.STEP_IDS.indexOf(first) >= 0 ? first : 'goal');
         syncPoll(inst);
         inst.bus.emit('project', inst.project);
@@ -241,12 +242,11 @@
         const topbar = el('header', { class: 'csn-topbar', dataset: { csn: 'topbar' } },
             back, el('h1', { class: 'csn-title', text: t('chibi_sensei.title') }), name, rename, el('span', { class: 'csn-spacer' }), chip, badge);
         const banners = el('div', { class: 'csn-banners', dataset: { csn: 'banners' } });
-        const rail = el('nav', { class: 'csn-rail', dataset: { csn: 'rail' }, ariaLabel: t('chibi_sensei.title') });
+        const railView = P.steps.createRail(inst);
+        const panelView = P.steps.createPanel(inst);
         const main = el('main', { class: 'csn-main', dataset: { csn: 'main' } });
-        const panel = el('aside', { class: 'csn-panel', dataset: { csn: 'panel' }, ariaLabel: t('chibi_sensei.panel.title') });
-        const body = el('div', { class: 'csn-body' }, rail, main, panel);
-        Object.assign(inst.parts, { topbar, banners, rail, main, panel, name, rename, chip, badge, back });
-        if (P.mascot) inst.parts.mascot = P.mascot.create({ size: 72, mood: 'idle' });
+        const body = el('div', { class: 'csn-body' }, railView.el, main, panelView.el);
+        Object.assign(inst.parts, { topbar, banners, rail: railView.el, railView, main, panel: panelView.el, panelView, name, rename, chip, badge, back });
         showRoot(inst, el('div', { class: 'csn-project', dataset: { csn: 'project' } }, topbar, banners, body));
         const paintTop = () => {
             const profile = profileOf(inst);
@@ -291,11 +291,27 @@
 
     // ---- steps -----------------------------------------------------------------------------------------------------------------
 
+    // Leaving a goal with unsaved changes asks first, so the draft is never dropped silently. Returns a promise only in that case.
     function showStep(inst, step) {
-        if (inst.disposed || inst.view !== 'project' || !inst.parts.main) return;
+        if (inst.disposed || inst.view !== 'project' || !inst.parts.main) return undefined;
         const id = P.STEP_IDS.indexOf(step) >= 0 ? step : 'goal';
+        if (inst.goalDirty && inst.step === 'goal' && id === 'goal') return undefined;
+        if (inst.goalDirty && inst.step === 'goal' && id !== 'goal' && inst.parts.view) {
+            return askConfirm(inst, inst.t('chibi_sensei.leave_title'), inst.t('chibi_sensei.leave_text')).then(ok => {
+                if (!ok || inst.disposed) return;
+                inst.goalDirty = false;
+                enterStep(inst, id);
+            });
+        }
+        enterStep(inst, id);
+        return undefined;
+    }
+
+    function enterStep(inst, id) {
+        if (inst.disposed || inst.view !== 'project' || !inst.parts.main) return;
         disposeView(inst);
         P.clear(inst.parts.main);
+        if (inst.parts.panelView) inst.parts.panelView.setExtra(null);
         inst.step = id;
         let view = null;
         if (id === 'goal') { if (P.need(inst, 'projects')) view = P.projects.createGoal(inst); }
@@ -311,82 +327,36 @@
     }
 
     function derive(inst) {
-        if (P.steps && typeof P.steps.derive === 'function') {
-            return P.steps.derive({
-                project: inst.project, checks: inst.checks, checksStale: inst.checksStale, checksRunning: inst.checksRunning, split: inst.split,
-                documents: inst.documents, jobs: Array.from(inst.jobs.values()), meta: inst.meta, readonly: inst.readonly, lastJobFailed: inst.lastJobFailed
-            });
-        }
-        const steps = inst.project && inst.project.steps ? inst.project.steps : {};
-        return { steps: P.STEP_IDS.map(id => ({ id, state: steps[id] || 'todo' })), primary: null };
-    }
-
-    function stepStateOf(inst, id) {
-        const d = inst.derived;
-        const list = d && Array.isArray(d.steps) ? d.steps : [];
-        const found = list.find(s => s && s.id === id);
-        return found && P.READINESS.indexOf(found.state) >= 0 ? found.state : 'todo';
-    }
-
-    // Plain rail used until P.steps paints its own: one button per step, roving tabindex, Arrow Up and Down move.
-    function paintPlainRail(inst) {
-        const rail = inst.parts.rail;
-        P.clear(rail);
-        const buttons = P.STEP_IDS.map(id => {
-            const state = stepStateOf(inst, id);
-            return P.el('button', {
-                type: 'button', class: 'csn-step', tabindex: id === inst.step ? '0' : '-1',
-                ariaCurrent: id === inst.step ? 'step' : null, dataset: { csn: 'step', step: id, state }
-            }, P.el('span', { class: 'csn-step-name', text: inst.t(P.stepKey(id)) }), P.el('span', { class: 'csn-step-state', text: inst.t('chibi_sensei.readiness.' + state) }));
-        });
-        buttons.forEach((button, index) => {
-            button.addEventListener('click', () => showStep(inst, P.STEP_IDS[index]));
-            button.addEventListener('keydown', event => {
-                const delta = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
-                if (!delta) return;
-                event.preventDefault();
-                const next = buttons[(index + delta + buttons.length) % buttons.length];
-                buttons.forEach(b => { b.tabIndex = b === next ? 0 : -1; });
-                next.focus();
-            });
-            rail.appendChild(button);
+        return P.steps.derive({
+            project: inst.project, goalDirty: inst.goalDirty, checks: inst.checks, checksStale: inst.checksStale,
+            jobs: Array.from(inst.jobs.values())
         });
     }
 
-    function paintPlainPanel(inst) {
-        const panel = inst.parts.panel;
-        P.clear(panel);
-        panel.appendChild(P.el('h2', { class: 'csn-panel-title', text: inst.t('chibi_sensei.panel.title') }));
-        if (inst.parts.mascot) panel.appendChild(P.el('div', { class: 'csn-mascot-wrap' }, inst.parts.mascot.el));
-        panel.appendChild(P.el('p', { class: 'csn-muted', text: inst.t('chibi_sensei.panel.chat_later') }));
-    }
-
-    function updateMascot(inst) {
-        if (!inst.parts.mascot || !P.mascot) return;
-        const state = stepStateOf(inst, inst.step);
-        const active = Array.from(inst.jobs.values()).some(job => job.state === 'queued' || job.state === 'running');
-        inst.parts.mascot.setMood(P.mascot.moodFor({
-            disabled: false, jobsActive: active, checksRunning: inst.checksRunning,
-            blocked: state === 'blocked', jobFailed: inst.lastJobFailed, stepState: state
-        }));
+    // The goal step is valid when its draft is; every other step reads the saved project.
+    function goalValid(inst) {
+        const view = inst.parts.view;
+        if (inst.step === 'goal' && view && typeof view.isValid === 'function') return !!view.isValid();
+        return P.steps.goalComplete(inst.project);
     }
 
     function recompute(inst) {
-        if (inst.disposed || inst.view !== 'project' || !inst.parts.rail) return;
+        if (inst.disposed || inst.view !== 'project' || !inst.parts.railView || !inst.parts.panelView) return;
         inst.derived = derive(inst);
-        if (P.steps && typeof P.steps.paintRail === 'function') P.steps.paintRail(inst); else paintPlainRail(inst);
-        if (P.steps && typeof P.steps.paintPanel === 'function') P.steps.paintPanel(inst); else paintPlainPanel(inst);
-        updateMascot(inst);
+        inst.primary = P.steps.primaryFor(inst.step, inst.derived, {
+            readonly: inst.readonly, goalValid: goalValid(inst), checksRunning: inst.checksRunning, rows: inst.project ? inst.project.rows : 0
+        });
+        inst.parts.railView.paint(inst.derived, inst.step);
+        inst.parts.panelView.paint({ step: inst.step, derived: inst.derived, primary: inst.primary });
         inst.bus.emit('steps', inst.derived);
     }
 
     // The primary action of the step panel: save the goal and go on, run the checks, or go to training.
-    async function runPrimary(inst) {
-        const primary = inst.derived && inst.derived.primary;
-        const id = primary && typeof primary === 'object' ? primary.id : primary;
+    async function runPrimary(inst, action) {
+        const id = action || (inst.primary && inst.primary.action) || '';
         if (id === 'goal_continue') {
             const view = inst.parts.view;
-            if (!inst.readonly && view && typeof view.save === 'function') {
+            if (!inst.readonly && inst.step === 'goal' && view && typeof view.save === 'function') {
                 const ok = await view.save();
                 if (ok === false || inst.disposed) return;
             }

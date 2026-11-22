@@ -95,6 +95,63 @@
 .csn-mascot-spark { fill: var(--vd-accent); }
 .csn-mascot-zzz { fill: none; stroke: var(--vd-theme-muted); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 
+/* Project list (start screen) */
+.csn-start-view { display: grid; align-content: start; gap: var(--ds-space-3); }
+.csn-start-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-3); }
+.csn-start-copy h2, .csn-goal h2 { margin: 0 0 2px; color: var(--vd-mat-heading-color, var(--vd-text)); font-family: var(--vd-mat-heading-font, inherit); font-size: 18px; font-weight: var(--vd-mat-heading-weight, 600); letter-spacing: var(--vd-mat-heading-tracking, normal); text-transform: var(--vd-mat-heading-transform, none); }
+.csn-start-copy p { margin: 0; }
+.csn-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--ds-space-3); margin: 0; padding: 0; list-style: none; }
+.csn-project-card { display: grid; align-content: space-between; gap: var(--ds-space-2); min-width: 0; padding: var(--ds-space-3); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); box-shadow: var(--vd-mat-card-shadow, none); }
+.csn-project-card[data-archived="1"] { opacity: .85; }
+.csn-project-open { display: grid; gap: 2px; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.csn-project-card-name { overflow: hidden; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.csn-project-card-meta { font-size: 12px; }
+.csn-project-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-1); }
+.csn-progress { display: flex; gap: 4px; margin-top: var(--ds-space-1); }
+.csn-progress span { flex: 1 1 0; height: 6px; border-radius: var(--ds-radius-full); background: var(--csn-line); }
+.csn-progress span[data-state="in_progress"] { background: color-mix(in srgb, var(--vd-accent) 50%, var(--csn-line)); }
+.csn-progress span[data-state="ready"], .csn-progress span[data-state="done"] { background: var(--csn-ok); }
+.csn-progress span[data-state="blocked"] { background: var(--csn-bad); }
+.csn-empty { display: grid; justify-items: center; gap: var(--ds-space-2); padding: var(--ds-space-5, 32px) var(--ds-space-3); text-align: center; }
+.csn-empty h3, .csn-empty p { margin: 0; }
+
+/* Dialog, recipe cards */
+.csn-dialog { width: min(520px, calc(100vw - 32px)); padding: var(--ds-space-4); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); color: var(--vd-text); font: 14px/1.45 var(--vd-font-ui, system-ui, sans-serif); }
+.csn-dialog::backdrop { background: color-mix(in srgb, var(--vd-text) 40%, transparent); }
+.csn-dialog h3 { margin: 0 0 var(--ds-space-3); }
+.csn-recipe-cards { display: grid; gap: var(--ds-space-2); }
+.csn-recipe-cards legend { padding: 0; margin-bottom: 4px; }
+.csn-recipe-card { display: grid; grid-template-columns: auto 1fr; column-gap: var(--ds-space-2); align-items: start; padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-well, var(--vd-theme-control-bg)); cursor: pointer; }
+.csn-recipe-card:has(input:checked) { border-color: var(--vd-mat-selected-color, var(--vd-theme-accent-border)); background: var(--vd-mat-selected, var(--vd-theme-accent-soft)); }
+.csn-recipe-card input { grid-row: 1 / span 2; margin-top: 3px; }
+.csn-recipe-name { font-weight: 600; }
+.csn-recipe-desc { grid-column: 2; font-size: 12px; }
+
+/* Goal step */
+.csn-goal { display: grid; gap: var(--ds-space-3); max-width: 880px; }
+.csn-goal-form { display: grid; gap: var(--ds-space-1); }
+.csn-profile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--ds-space-2); }
+.csn-profile-card { display: grid; align-content: start; justify-items: start; gap: 2px; padding: var(--ds-space-3); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); text-align: left; cursor: pointer; }
+.csn-profile-card:hover:not(:disabled) { background: var(--vd-mat-hover, var(--vd-theme-control-hover)); }
+.csn-profile-card[aria-pressed="true"] { border-color: var(--vd-mat-selected-color, var(--vd-theme-accent-border)); background: var(--vd-mat-selected, var(--vd-theme-accent-soft)); box-shadow: var(--vd-mat-selected-edge, none); color: var(--vd-mat-selected-text, inherit); }
+.csn-profile-name { font-weight: 600; }
+.csn-profile-line { font-size: 12px; }
+.csn-badge-accent { border-color: var(--vd-mat-selected-color, var(--vd-theme-accent-border)); color: var(--vd-text); }
+.csn-advanced summary { cursor: pointer; font-weight: 600; }
+.csn-issues { margin: 0; padding-left: 18px; }
+.csn-banner[data-tone="warn"] { flex-wrap: wrap; justify-content: space-between; border: 1px solid var(--csn-warn); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); }
+
+/* Rail details, guidance panel */
+.csn-step-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.csn-step-list > li { display: grid; }
+.csn-step { grid-template-columns: 22px minmax(0, 1fr); column-gap: var(--ds-space-1); align-items: baseline; width: 100%; }
+.csn-step-num { grid-row: 1 / span 2; color: var(--vd-theme-muted); font-weight: 600; }
+.csn-step-name, .csn-step-state { grid-column: 2; }
+.csn-step[data-state="blocked"] .csn-step-num { color: var(--csn-bad-text); }
+.csn-tip { padding: var(--ds-space-2) var(--ds-space-3); border: 1px solid var(--csn-line); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-well, var(--vd-theme-control-bg)); }
+.csn-panel-extra:empty { display: none; }
+.csn-panel-extra { min-width: 0; }
+
 /* Narrow windows: the panel folds under the main area, the rail becomes a row */
 @container csn (max-width: 1100px) {
     .csn-body { grid-template-columns: 160px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
