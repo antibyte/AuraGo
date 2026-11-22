@@ -167,7 +167,9 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 		case "cases/case_fixture/export":
 			if failExport {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": "The selected PDF font cannot display this script."})
+				// The documented {error, code} refusal: the app translates the code
+				// instead of the English sentence.
+				json.NewEncoder(w).Encode(map[string]string{"error": "The selected PDF font cannot display this script.", "code": "pdf_unsupported_font"})
 				return
 			}
 			a, err := detective.Export(c.Reports[0], r.URL.Query().Get("format"))
@@ -434,7 +436,7 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	mu.Unlock()
 	page.MustElement(`a.dt-download[href*="format=pdf"]`).MustClick()
 	page.MustElement(`.dt-error:not([hidden])`)
-	if !strings.Contains(page.MustElement(`.dt-error`).MustText(), "PDF font") || !strings.HasSuffix(page.MustInfo().URL, "/detective-fixture") {
+	if !strings.Contains(page.MustElement(`.dt-error`).MustText(), "PDF kann einen Teil dieses Berichts nicht darstellen") || !strings.HasSuffix(page.MustInfo().URL, "/detective-fixture") {
 		t.Fatal("failed download replaced the Desktop or hid its error")
 	}
 	mu.Lock()
@@ -624,6 +626,16 @@ func TestDesktopDetectiveOpensTheNotifiedCase(t *testing.T) {
 	if !strings.Contains(shell, "window.DetectiveApp.open(existing.id, context)") {
 		t.Fatal("the shell does not call DetectiveApp.open")
 	}
+	// The context must survive both launch-context sanitizers on its way through the
+	// notification center, or the recorded entry and the click carry none (audit 2026-11-22 F1).
+	center := read(filepath.Join("core", "notification-center-runtime.js"))
+	if !strings.Contains(center, "appId === 'detective' && typeof context.case_id === 'string' && /^case_[a-z0-9]{1,64}$/.test(context.case_id)") {
+		t.Fatal("the notification center record path drops the detective case context")
+	}
+	chrome := read(filepath.Join("core", "shell-chrome-runtime.js"))
+	if !strings.Contains(chrome, "payload.appId === 'detective' && /^case_[a-z0-9]{1,64}$/.test(c.case_id || '')") {
+		t.Fatal("the notification click path drops the detective case context")
+	}
 	app := read(filepath.Join("apps", "detective.js"))
 	for _, want := range []string{
 		"async function selectCase(id)",
@@ -631,6 +643,11 @@ func TestDesktopDetectiveOpensTheNotifiedCase(t *testing.T) {
 		"typeof st.selectCase !== 'function'",
 		"window.DetectiveApp = {render, dispose, open}",
 		"ctx.context?.case_id || ctx.launch?.case_id",
+		// The raw export download bypasses ctx.api, so its refusal body travels on the
+		// error itself and v.errorText can translate the code (audit 2026-11-22 F4).
+		"throw Object.assign(new Error((problem && problem.error) || tr('error')), {body: problem || {}})",
+		// The visible time unit is translated like every other visible string (audit 2026-11-22 F6).
+		"tr('minutes')",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("detective.js lacks %q", want)

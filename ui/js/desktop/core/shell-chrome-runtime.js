@@ -15,6 +15,7 @@
                 ? { event_id: c.event_id, camera_id: c.camera_id }
                 : { event_id: c.event_id };
         }
+        if (payload.appId === 'detective' && /^case_[a-z0-9]{1,64}$/.test(c.case_id || '')) return { case_id: c.case_id };
         return undefined;
     }
 

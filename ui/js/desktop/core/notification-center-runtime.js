@@ -99,6 +99,9 @@
                 ? { event_id: context.event_id, camera_id: context.camera_id }
                 : { event_id: context.event_id };
         }
+        if (appId === 'detective' && typeof context.case_id === 'string' && /^case_[a-z0-9]{1,64}$/.test(context.case_id)) {
+            return { case_id: context.case_id };
+        }
         return undefined;
     }
 

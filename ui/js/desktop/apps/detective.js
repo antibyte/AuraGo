@@ -129,7 +129,7 @@
         function statusInner(c, ro) {
             const r = c.run || {}, usage = r.usage || {}, p = r.profile || {};
             const reason = reasonText(r.reason);
-            return `<h1>${e(c.request.topic)}</h1><div aria-live="polite"><span class="dt-chip" data-status="${e(r.status || '')}"><span class="dt-dot" aria-hidden="true"></span><strong>${e(tr(r.status))}</strong></span><span class="dt-phase">${e(tr(r.phase || 'research'))}</span><span class="dt-usage">${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span>${v.tokenText(usage, tr)}</div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
+            return `<h1>${e(c.request.topic)}</h1><div aria-live="polite"><span class="dt-chip" data-status="${e(r.status || '')}"><span class="dt-dot" aria-hidden="true"></span><strong>${e(tr(r.status))}</strong></span><span class="dt-phase">${e(tr(r.phase || 'research'))}</span><span class="dt-usage">${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} ${e(tr('minutes'))} · ${usage.tools || 0}/${p.tools || 0} ${e(tr('tools'))} · ${usage.pages || 0} ${e(tr('sources'))}</span>${v.tokenText(usage, tr)}</div>${reason ? `<p>${e(reason)}</p>` : ''}<div class="dt-actions"${blockText() ? ` title="${e(blockText())}"` : ''}>${actionsHTML(c, ro)}</div>${r.status === 'waiting_for_user' ? answerFieldHTML() : ''}`;
         }
         function provisionalNotice() {
             const report = chosenReport();
@@ -220,7 +220,7 @@
             const missingProvider = selectedProvider && !eligibleProviders.some(provider => String(provider.id) === selectedProvider)
                 ? `<option value="${e(selectedProvider)}" selected disabled>${e(selectedProvider)} — ${e(tr('provider_unavailable'))}</option>` : '';
             const providerOptions = missingProvider + eligibleProviders.map(p => `<option value="${e(p.id)}" ${p.id === caps.provider_id ? 'selected' : ''}>${e(p.name || p.id)} · ${e(p.model)}</option>`).join('');
-            main.innerHTML = `<form class="dt-form"><h1>${e(tr('new'))}</h1><p>${e(tr('intro'))}</p><label>${e(tr('topic'))}<textarea name="topic" required maxlength="8000" rows="3"></textarea></label><fieldset><legend>${e(tr('effort'))}</legend><div class="dt-profiles">${['quick', 'normal', 'maximum'].map(level => { const p = caps.profiles?.[level] || {}; return `<label><input type="radio" name="effort" value="${level}" ${level === 'normal' ? 'checked' : ''}><b>${e(tr(level))}</b><small>${Math.ceil((p.seconds || 0) / 60)} min · ${p.tools || 0} ${e(tr('tools'))}</small></label>`; }).join('')}</div></fieldset><details><summary>${e(tr('advanced'))}</summary><label>${e(tr('scope'))}<textarea name="scope" maxlength="8000"></textarea></label><label>${e(tr('language'))}<input name="language" value="${e(document.documentElement.lang || 'de')}" maxlength="30"></label><label>${e(tr('source_urls'))}<textarea name="source_urls" rows="2"></textarea></label><label>${e(tr('provider'))}<select name="provider_id">${providerOptions}</select></label><label>${e(tr('model'))}<input name="model" placeholder="${e(caps.model || '')}" maxlength="200"></label>${(caps.private_sources || []).length ? `<fieldset><legend>${e(tr('private_sources'))}</legend>${caps.private_sources.map(name => `<label><input type="checkbox" name="private_sources" value="${e(name)}">${e(name)}</label>`).join('')}</fieldset>` : ''}</details><p class="dt-capabilities">${e(tr('available'))}: ${e((caps.tools || []).filter(x => !['detective_report', 'invoke_tool', 'discover_tools', 'execute_skill', 'list_skills'].includes(x)).join(', '))}</p>${ro ? `<p role="status">${e(tr('unavailable'))}${blockText() ? ' ' + e(blockText()) : ''}</p>` : ''}<button type="submit" ${ro || state.busy ? 'disabled' : ''}>${e(tr('start'))}</button></form>`;
+            main.innerHTML = `<form class="dt-form"><h1>${e(tr('new'))}</h1><p>${e(tr('intro'))}</p><label>${e(tr('topic'))}<textarea name="topic" required maxlength="8000" rows="3"></textarea></label><fieldset><legend>${e(tr('effort'))}</legend><div class="dt-profiles">${['quick', 'normal', 'maximum'].map(level => { const p = caps.profiles?.[level] || {}; return `<label><input type="radio" name="effort" value="${level}" ${level === 'normal' ? 'checked' : ''}><b>${e(tr(level))}</b><small>${Math.ceil((p.seconds || 0) / 60)} ${e(tr('minutes'))} · ${p.tools || 0} ${e(tr('tools'))}</small></label>`; }).join('')}</div></fieldset><details><summary>${e(tr('advanced'))}</summary><label>${e(tr('scope'))}<textarea name="scope" maxlength="8000"></textarea></label><label>${e(tr('language'))}<input name="language" value="${e(document.documentElement.lang || 'de')}" maxlength="30"></label><label>${e(tr('source_urls'))}<textarea name="source_urls" rows="2"></textarea></label><label>${e(tr('provider'))}<select name="provider_id">${providerOptions}</select></label><label>${e(tr('model'))}<input name="model" placeholder="${e(caps.model || '')}" maxlength="200"></label>${(caps.private_sources || []).length ? `<fieldset><legend>${e(tr('private_sources'))}</legend>${caps.private_sources.map(name => `<label><input type="checkbox" name="private_sources" value="${e(name)}">${e(name)}</label>`).join('')}</fieldset>` : ''}</details><p class="dt-capabilities">${e(tr('available'))}: ${e((caps.tools || []).filter(x => !['detective_report', 'invoke_tool', 'discover_tools', 'execute_skill', 'list_skills'].includes(x)).join(', '))}</p>${ro ? `<p role="status">${e(tr('unavailable'))}${blockText() ? ' ' + e(blockText()) : ''}</p>` : ''}<button type="submit" ${ro || state.busy ? 'disabled' : ''}>${e(tr('start'))}</button></form>`;
             main.querySelector('.dt-profiles')?.closest('fieldset')?.insertAdjacentHTML('afterend', v.autoSettings(null, tr, ro));
         }
         function rewriteList() {
@@ -312,7 +312,7 @@
                 if (strong && strong.textContent !== statusText) strong.textContent = statusText;
             }
             const phaseText = tr(r.phase || 'research');
-            const usageText = `${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} min · ${usage.tools || 0}/${p.tools || 0} ${tr('tools')} · ${usage.pages || 0} ${tr('sources')}`;
+            const usageText = `${Math.floor((usage.active_ms || 0) / 60000)} / ${Math.ceil((p.seconds || 0) / 60)} ${tr('minutes')} · ${usage.tools || 0}/${p.tools || 0} ${tr('tools')} · ${usage.pages || 0} ${tr('sources')}`;
             const phase = section.querySelector('.dt-phase');
             if (phase && phase.textContent !== phaseText) phase.textContent = phaseText;
             const usageNode = section.querySelector('.dt-usage');
@@ -454,8 +454,8 @@
             catch (err) { error(err); }
             if (!state.disposed) state.timer = setTimeout(poll, v.pollDelay(state.current?.run?.status));
         }
-        // A hidden tab or minimized Desktop window does no work at all; becoming visible
-        // polls immediately instead of waiting for the next interval.
+        // A hidden document (the browser tab is hidden) does no work at all; becoming
+        // visible polls immediately instead of waiting for the next interval.
         const onVisibility = () => {
             if (state.disposed) return;
             clearTimeout(state.timer);
@@ -552,7 +552,14 @@
                 state.busy = true;
                 try {
                     const response = await fetch(el.href, {signal: controller.signal, credentials: 'same-origin'});
-                    if (!response.ok) { const problem = await response.json(); throw new Error(problem.error || tr('error')); }
+                    // This download bypasses ctx.api, so the refusal body must travel on the
+                    // thrown error itself: v.errorText translates body.code, and a non-JSON
+                    // answer falls back to the generic notice.
+                    if (!response.ok) {
+                        let problem = null;
+                        try { problem = await response.json(); } catch (_) { problem = null; }
+                        throw Object.assign(new Error((problem && problem.error) || tr('error')), {body: problem || {}});
+                    }
                     const blob = await response.blob();
                     if (state.disposed) return;
                     const url = URL.createObjectURL(blob), link = document.createElement('a');

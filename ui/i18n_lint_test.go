@@ -1108,7 +1108,9 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 	"js/desktop/apps/docker-manager-terminal.js": {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-panes.js":    {name: "t", prefix: "docker_manager."},
 	"js/desktop/apps/docker-manager-newstack.js": {name: "t", prefix: "docker_manager."},
-	"cfg/ruview.js":                              {name: "tr", prefix: "ruview."},
+	"js/desktop/apps/detective.js":              {name: "tr", prefix: "desktop.detective_"},
+	"js/desktop/apps/detective-views.js":        {name: "tr", prefix: "desktop.detective_"},
+	"cfg/ruview.js":                            {name: "tr", prefix: "ruview."},
 }
 
 // desktopDynamicI18nPrefixes registers locale key prefixes that the Desktop
@@ -1118,6 +1120,7 @@ var desktopLocalI18nHelpers = map[string]localI18nHelper{
 // guarantee.
 var desktopDynamicI18nPrefixes = []string{
 	"desktop.qr_",
+	"desktop.detective_",
 	"homepage_studio.sites_drift_",
 	"homepage_studio.sites_origin_",
 	"homepage_studio.sites_target_",
