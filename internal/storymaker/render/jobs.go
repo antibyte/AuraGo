@@ -128,13 +128,15 @@ type Output struct {
 
 // Warning codes of a job that still succeeded.
 const (
-	warnStemFailed     = "stem_failed"
-	warnSubtitleFailed = "subtitle_failed"
-	warnLibraryFailed  = "library_failed"
-	warnMusicSilent    = "music_silent"
-	warnBedTooLoud     = "bed_too_loud"
-	warnBedGap         = "bed_gap"
-	warnMixClipped     = "mix_clipped"
+	warnStemFailed       = "stem_failed"
+	warnSubtitleFailed   = "subtitle_failed"
+	warnLibraryFailed    = "library_failed"
+	warnMusicSilent      = "music_silent"
+	warnBedTooLoud       = "bed_too_loud"
+	warnBedGap           = "bed_gap"
+	warnMixClipped       = "mix_clipped"
+	warnNarrationDropout = "narration_dropout"
+	warnNarrationClipped = "narration_clipped"
 )
 
 // JobWarning is a problem that did not fail the job.

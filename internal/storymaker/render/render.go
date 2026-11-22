@@ -1051,6 +1051,9 @@ func (run *renderRun) startAfterReport() {
 			for _, code := range res.Warnings {
 				run.warn(code, mixWarningMessage(code, res.WarningAt[code]))
 			}
+			for _, code := range narrationFaults(run.plan) {
+				run.warn(code, narrationFaultMessage(code))
+			}
 		}
 	}
 

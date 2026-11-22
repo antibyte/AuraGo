@@ -153,3 +153,33 @@ func mixWarningMessage(code string, at float64) string {
 	}
 	return code
 }
+
+// narrationFaults lists the faults of the narration pieces the plan uses, as warning codes in the order
+// narration_dropout, narration_clipped, each once.
+func narrationFaults(plan *Plan) []string {
+	var dropout, clipped bool
+	for _, scene := range plan.AudioInfo.Narration {
+		for _, block := range scene.Blocks {
+			for _, fault := range block.Faults {
+				dropout = dropout || fault == "dropout"
+				clipped = clipped || fault == "clipped"
+			}
+		}
+	}
+	var codes []string
+	if dropout {
+		codes = append(codes, warnNarrationDropout)
+	}
+	if clipped {
+		codes = append(codes, warnNarrationClipped)
+	}
+	return codes
+}
+
+// narrationFaultMessage is the one sentence of a narration fault warning.
+func narrationFaultMessage(code string) string {
+	if code == warnNarrationDropout {
+		return "A synthesized narration piece has a dropout, a short hole inside speech. Generate the narration again."
+	}
+	return "A synthesized narration piece is clipped, so the voice may sound distorted. Generate the narration again."
+}
