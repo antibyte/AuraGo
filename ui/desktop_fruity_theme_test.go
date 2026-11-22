@@ -32,7 +32,7 @@ func TestDesktopFruityThemeSettingAssets(t *testing.T) {
 		"btn.className = 'vd-dock-button';",
 		"btn.dataset.appId = app.id",
 		"const runningWindows = [...state.windows.values()]",
-		"runningWindows.some(win => win.appId === app.id)",
+		"runningWindows.filter(win => win.appId === app.id).length",
 		"win.appId === app.id && win.id === state.activeWindowId",
 	} {
 		if !strings.Contains(shellText, want) {

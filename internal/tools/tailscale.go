@@ -59,7 +59,7 @@ func tailscaleRequest(cfg TailscaleConfig, method, endpoint, body string) ([]byt
 	}
 	resp, err := tailscaleHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("request failed: %s", security.Scrub(err.Error()))
+		return nil, 0, toolHTTPRequestError(req, "request failed", err)
 	}
 	defer resp.Body.Close()
 	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)

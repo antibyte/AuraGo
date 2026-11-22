@@ -79,6 +79,7 @@
   "config.home_assistant.allowed_services_label": "Dozwolone usługi",
   "config.home_assistant.blocked_services_label": "Zablokowane usługi",
   "config.home_assistant.enabled_label": "Home Assistant włączony",
+  "config.home_assistant.readonly_label": "Tylko do odczytu",
   "config.home_assistant.url_label": "URL Home Assistant",
   "config.llm.anthropic_thinking.budget_tokens_label": "Budżet myślenia (tokeny)",
   "config.llm.anthropic_thinking.enabled_label": "Myślenie Anthropic",

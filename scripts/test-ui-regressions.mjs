@@ -1239,7 +1239,7 @@ function testVirtualComputersVNCPreferencesSurviveReconnect() {
 }
 
 function testVirtualComputersVNCExpansionUsesAppContentOnly() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function setVNCExpanded', 'function openVNC');
   const classes = new Set();
   const root = {
@@ -1398,7 +1398,7 @@ function testVirtualComputersTerminalBinaryLifecycle() {
 }
 
 function testVirtualComputersTerminalSessionReconciliation() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const permissionSource = sourceBetween(app, 'function canUseVNC', 'function isHealthy');
   const lifecycleSource = sourceBetween(app, 'function disconnectVNC', 'async function launch');
   let terminalDisconnects = 0;
@@ -1446,7 +1446,7 @@ function testVirtualComputersTerminalSessionReconciliation() {
 }
 
 function testVirtualComputersTerminalActionGating() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const detailSource = sourceBetween(app, 'function detailPane', 'function workspacePane');
   const context = {
     Array,
@@ -1488,7 +1488,7 @@ function testVirtualComputersTerminalActionGating() {
 }
 
 function testVirtualComputersExpiryCountdownFormatting() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function formatExpiryCountdown', 'function expiryCountdownMarkup');
   const context = { Date, Number, Math, String };
   vm.createContext(context);
@@ -1506,7 +1506,7 @@ function testVirtualComputersExpiryCountdownFormatting() {
 }
 
 function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function isCurrentScreenshotRequest', 'async function screenshot');
   const context = {};
   vm.createContext(context);
@@ -1530,7 +1530,7 @@ function testVirtualComputersScreenshotSettlementIgnoresStaleRequests() {
 }
 
 function testVirtualComputersResourceFailuresStayIsolated() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const machineHelpers = sourceBetween(app, 'function normalizeMachineList', 'function isMachinePollingVisible');
   const helperSource = sourceBetween(app, 'function applyResourceResult', 'async function refresh');
   const context = {};
@@ -1560,7 +1560,7 @@ function testVirtualComputersResourceFailuresStayIsolated() {
 }
 
 function testVirtualComputersSelectionSurvivesRefresh() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function reconcileSelection', 'function showOverview');
   const context = {};
   vm.createContext(context);
@@ -1585,7 +1585,7 @@ function testVirtualComputersSelectionSurvivesRefresh() {
 }
 
 function testVirtualComputersHidesUnavailableCapabilitySections() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function reconcileSection', 'function showOverview');
   let disconnected = 0;
   const context = {
@@ -1606,7 +1606,7 @@ function testVirtualComputersHidesUnavailableCapabilitySections() {
 }
 
 function testVirtualComputersMutationLocksAreIdempotent() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function isPending', 'function formatDate');
   const context = {};
   vm.createContext(context);
@@ -1651,7 +1651,7 @@ function testVirtualComputersMobileLayoutUsesAvailableWindowHeight() {
 }
 
 function loadVirtualComputersMachinePollingRuntime() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function normalizeMachineList', 'function scheduleWorkspaceRefresh');
   const requests = [];
   const scheduled = [];
@@ -1787,7 +1787,7 @@ async function testVirtualComputersMachinePollingLifecycle() {
 }
 
 function testVirtualComputersMachinePollingDisposeClearsTimer() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const disposeSource = sourceBetween(app, 'function dispose(windowId)', 'window.VirtualComputersApp');
   const cleared = [];
   const state = {
@@ -1819,7 +1819,7 @@ function testVirtualComputersMachinePollingDisposeClearsTimer() {
 }
 
 function testVirtualComputersWorkspacePolling() {
-  const app = read('ui/js/desktop/apps/virtual-computers.js');
+  const app = read('ui/js/desktop/bundles/virtual-computers.bundle.js');
   const helperSource = sourceBetween(app, 'function scheduleWorkspaceRefresh', 'function dispose');
   const scheduled = [];
   const refreshed = [];

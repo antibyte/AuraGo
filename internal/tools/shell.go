@@ -43,7 +43,7 @@ func ApplyShellSandboxDockerGrant(ctx context.Context, cmd *exec.Cmd) {
 	host := currentShellSandboxDockerHost()
 	perms, configured := EffectiveRuntimePermissions(ctx)
 	if !configured || !perms.DockerEnabled || perms.DockerReadOnly {
-		ensureFilteredEnv(cmd)
+		ensureFilteredShellEnv(cmd)
 		cmd.Env = withoutDockerClientEnv(cmd.Env)
 		return
 	}

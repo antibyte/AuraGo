@@ -100,6 +100,7 @@ if publish_initial_config; then exit 10; fi
 fail_init=false
 publish_initial_config
 grep -qx 'https_port: 8443' "$CONFIG_FILE"
+[ "$(stat -c %a "$CONFIG_FILE")" = 600 ]
 persist_master_key_fallback "fixture-key"
 [ "$(stat -c %a "$ENV_FILE")" = 600 ]
 mv() { return 1; }

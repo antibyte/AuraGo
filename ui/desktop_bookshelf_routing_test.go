@@ -30,7 +30,7 @@ func TestDesktopBookshelfAssociations(t *testing.T) {
 		}
 	}
 
-	for _, path := range []string{"js/desktop/core/menus-and-routing.js", "js/desktop/file-manager/actions-operations.js"} {
+	for _, path := range []string{"js/desktop/core/file-associations-runtime.js", "js/desktop/file-manager/actions-operations.js"} {
 		source := read(path)
 		for _, format := range []string{`fb2(?:\.zip)?`, `txt(?:\.gz)?`, `djvu`, `lit`, `pdb`, `lrf`} {
 			if !strings.Contains(source, format) {
@@ -40,8 +40,14 @@ func TestDesktopBookshelfAssociations(t *testing.T) {
 	}
 
 	menus := read("js/desktop/core/menus-and-routing.js")
-	if !strings.Contains(menus, `? 'fb2.zip' : /\.txt\.gz$/i.test(String(name || '')) ? 'txt.gz' : desktopFileExtension(name)`) {
-		t.Error("Open with must keep compound book formats separate from generic ZIP/GZIP defaults")
+	associations := read("js/desktop/core/file-associations-runtime.js")
+	for _, marker := range []string{"if (value.endsWith('.fb2.zip')) return 'fb2.zip';", "if (value.endsWith('.txt.gz')) return 'txt.gz';"} {
+		if !strings.Contains(associations, marker) {
+			t.Errorf("Open with must keep compound book formats separate from generic ZIP/GZIP defaults: %s", marker)
+		}
+	}
+	if !strings.Contains(menus, "window.AuraDesktopFileAssociations.extensionForName(entry.name || entry.path)") {
+		t.Error("Open with must use the shared association extension")
 	}
 
 	app := read("js/desktop/apps/bookshelf.js")

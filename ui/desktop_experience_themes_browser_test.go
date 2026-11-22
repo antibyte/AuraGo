@@ -265,9 +265,15 @@ func TestDesktopExperienceStaticAndFallbackBrowser(t *testing.T) {
 			s.waitFor(t, "no-WebGL fallback", 30*time.Second, `()=>AuraDesktopThemeFx.inspect().renderer==='fallback'`)
 		}
 		s.settle(t)
-		if got := s.eval(t, `async()=>{const before=AuraDesktopThemeFx.inspect();await new Promise(r=>setTimeout(r,200));const after=AuraDesktopThemeFx.inspect();return {motion:after.motion,frames:after.frameCount-before.frameCount,windows:after.windowCount,pointer:getComputedStyle(document.querySelector('.vd-theme-fx-layer')).pointerEvents};}`).Value; got.Get("motion").Bool() || got.Get("frames").Int() > 1 || got.Get("windows").Int() != 1 || got.Get("pointer").Str() != "none" {
-			t.Fatalf("%s static contract failed: %s", id, got.String())
-		}
+		// Initial wallpaper, mask and resize updates can each request a static frame.
+		// Once those changes settle, reduced motion must leave no running frame loop.
+		s.waitFor(t, id+" static renderer to remain idle", 6*time.Second, `async()=>{
+            const before=AuraDesktopThemeFx.inspect();
+            await new Promise(resolve=>setTimeout(resolve,300));
+            const after=AuraDesktopThemeFx.inspect();
+            return !after.motion && !after.rafPending && after.frameCount===before.frameCount &&
+                after.windowCount===1 && getComputedStyle(document.querySelector('.vd-theme-fx-layer')).pointerEvents==='none';
+        }`)
 	}
 	// Repeated switching must leave exactly one owner/layer and no stale renderer resurrection.
 	for i := 0; i < 3; i++ {
@@ -310,8 +316,8 @@ func TestDesktopExperienceVoxelSceneStaticBrowser(t *testing.T) {
 
 func TestDesktopExperienceWindowOperationsBrowser(t *testing.T) {
 	s := newThemeSweepSession(t, "reduce")
-	s.openApps(t, "calculator")
-	s.eval(t, `()=>{window.operationWindow=[...auditTest.state.windows.values()].find(w=>w.appId==='calculator');}`)
+	s.openApps(t, "files")
+	s.eval(t, `()=>{window.operationWindow=[...auditTest.state.windows.values()].find(w=>w.appId==='files');}`)
 	for _, id := range []string{"electronic_dreams", "windows_xp", "green_slime", "voxel_world"} {
 		t.Run(id, func(t *testing.T) {
 			s.store.set(map[string]string{"appearance.theme": id, "windows.animations": "false"})
@@ -320,7 +326,7 @@ func TestDesktopExperienceWindowOperationsBrowser(t *testing.T) {
 			if !s.eval(t, `()=>operationWindow.maximized`).Value.Bool() {
 				t.Fatal("maximize failed")
 			}
-			s.eval(t, `()=>{auditTest.toggleMaximizeWindow(operationWindow.id);auditTest.applyWindowSnap(operationWindow.element,'right-half');}`)
+			s.eval(t, `()=>{auditTest.toggleMaximizeWindow(operationWindow.id);auditTest.applyWindowSnap(operationWindow.element,'right-half',{showPartnerChooser:false});}`)
 			if !s.eval(t, `()=>{const r=operationWindow.element.getBoundingClientRect();return operationWindow.snapped==='right-half' && r.right<=innerWidth+1;}`).Value.Bool() {
 				t.Fatal("snap escaped workspace")
 			}

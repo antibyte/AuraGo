@@ -54,7 +54,7 @@ func TestDesktopAppsDoNotFallBackToNativeDialogs(t *testing.T) {
 
 func TestVirtualComputersPreservesTextErrorBodies(t *testing.T) {
 	t.Parallel()
-	source := rawDesktopAssetText(t, "js/desktop/apps/virtual-computers.js")
+	source := rawDesktopAssetText(t, "js/desktop/bundles/virtual-computers.bundle.js")
 	body := jsFunctionBodyInWindowMenuTest(t, source, "async function request(path, options)")
 	for _, want := range []string{"const raw = await resp.text()", "JSON.parse(raw)", "textBody", ".slice(0, 4096)", "resp.statusText", "'HTTP ' + resp.status"} {
 		if !strings.Contains(body, want) {

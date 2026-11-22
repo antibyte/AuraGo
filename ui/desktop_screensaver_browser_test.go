@@ -333,13 +333,15 @@ window.WebSocket=class extends EventTarget { close(){} };
 			})
 		case "/api/desktop/settings":
 			if r.Method == http.MethodPut {
-				var update struct{ Key, Value string }
-				if err := json.NewDecoder(r.Body).Decode(&update); err != nil || update.Key == "" {
+				var update struct{ Settings map[string]string }
+				if err := json.NewDecoder(r.Body).Decode(&update); err != nil || len(update.Settings) == 0 {
 					http.Error(w, `{"error":"invalid setting"}`, http.StatusBadRequest)
 					return
 				}
-				settings[update.Key] = update.Value
-				puts = append(puts, update.Key+"="+update.Value)
+				for key, value := range update.Settings {
+					settings[key] = value
+					puts = append(puts, key+"="+value)
+				}
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{"settings": settings})
 		default:

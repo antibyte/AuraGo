@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -97,7 +98,7 @@ func TestRegressionMCPInFlightReconnectSurvivesClose(t *testing.T) {
 		return "executed after shutdown", nil
 	}
 	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{}, configs: map[string]MCPServerConfig{
-		"fixture": {Name: "fixture", Transport: "streamable_http", Enabled: true},
+		"fixture": {Name: "fixture", Transport: "streamable_http", Enabled: true, AllowedTools: []string{"read"}},
 	}}
 	done := make(chan string, 1)
 	go func() {
@@ -107,11 +108,22 @@ func TestRegressionMCPInFlightReconnectSurvivesClose(t *testing.T) {
 		}
 		done <- result
 	}()
-	<-entered
+	select {
+	case <-entered:
+	case result := <-done:
+		t.Fatalf("call ended before reconnect: %s", result)
+	case <-time.After(2 * time.Second):
+		t.Fatal("reconnect did not start")
+	}
 	mgr.Close()
 	close(release)
-	if result := <-done; result == "executed after shutdown" {
-		t.Fatalf("unexpected result %s", result)
+	select {
+	case result := <-done:
+		if result == "executed after shutdown" {
+			t.Fatalf("unexpected result %s", result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("reconnect did not end after shutdown")
 	}
 }
 
@@ -140,19 +152,26 @@ func (*auditMCPEOFTransport) Send(context.Context, string, interface{}) (*jsonRP
 func (*auditMCPEOFTransport) Notify(context.Context, string, interface{}) error { return nil }
 func (*auditMCPEOFTransport) Close()                                            {}
 
-func TestRegressionMCPCatalogFailureNeverReconnects(t *testing.T) {
+func TestRegressionMCPCatalogFailureRequiresNewCallToReconnect(t *testing.T) {
 	old := startManagedMCPConn
 	defer func() { startManagedMCPConn = old }()
 	starts := 0
 	startManagedMCPConn = func(context.Context, MCPServerConfig, *slog.Logger) (*mcpConn, error) { starts++; return nil, io.EOF }
 	conn := &mcpConn{name: "fixture", ready: true, transport: &auditMCPEOFTransport{}, toolsRefreshed: time.Now().Add(-2 * time.Minute)}
-	mgr := &MCPManager{logger: testLogger(), conns: map[string]*mcpConn{"fixture": conn}, configs: map[string]MCPServerConfig{"fixture": {Name: "fixture", Enabled: true, Transport: "streamable_http"}}}
-	for i := 0; i < 2; i++ {
-		if _, err := mgr.CallTool(context.Background(), "fixture", "read", nil); err == nil {
-			t.Fatal("expected EOF")
-		}
+	mgr := &MCPManager{
+		logger: testLogger(),
+		conns:  map[string]*mcpConn{"fixture": conn},
+		configs: map[string]MCPServerConfig{
+			"fixture": {Name: "fixture", Enabled: true, Transport: "streamable_http", AllowedTools: []string{"read"}},
+		},
 	}
-	if starts != 1 || mgr.conns["fixture"] != nil {
-		t.Fatal("discovery failure did not invalidate the connection")
+	if _, err := mgr.CallTool(context.Background(), "fixture", "read", nil); !errors.Is(err, io.EOF) {
+		t.Fatalf("first call: got %v, want discovery EOF", err)
+	}
+	if starts != 0 || mgr.conns["fixture"] != nil {
+		t.Fatal("discovery failure must invalidate the connection without reconnecting")
+	}
+	if _, err := mgr.CallTool(context.Background(), "fixture", "read", nil); !errors.Is(err, io.EOF) || starts != 1 {
+		t.Fatalf("next call: got %v after %d reconnections, want EOF after one reconnection", err, starts)
 	}
 }

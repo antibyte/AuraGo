@@ -8,7 +8,7 @@ import (
 func TestDesktopVirtualComputersVolumeTtlI18n(t *testing.T) {
 	t.Parallel()
 
-	source := readDesktopAssetText(t, "js/desktop/apps/virtual-computers.js")
+	source := readDesktopAssetText(t, "js/desktop/bundles/virtual-computers.bundle.js")
 	for _, want := range []string{
 		"formatDuration(86400, c)",
 		"formatDuration(604800, c)",

@@ -79,7 +79,7 @@ func TestDesktopTrashCanSupportsDropAndEmptyMenu(t *testing.T) {
 		"desktop.context_empty_trash",
 		"api('/api/desktop/trash'",
 		"body: JSON.stringify({ paths: cleanPaths })",
-		"cleanPaths.forEach(path => removeIconPosition('desktop-entry-' + path))",
+		"moves.forEach(move => removeIconPosition('desktop-entry-' + move.from))",
 		"await removeDesktopShortcut(btn.dataset.id || '')",
 		"await api('/api/desktop/file?path=' + encodeURIComponent(entry.path), { method: 'DELETE' })",
 		"function restorePathsFromTrash(",
@@ -256,7 +256,7 @@ func TestDesktopBuiltInAppsDeclareContextMenuPolicy(t *testing.T) {
 		{
 			name:      "calculator",
 			source:    calcText,
-			signature: "function renderCalculator(id)",
+			signature: "function renderCalculator(id, renderCtx)",
 			markers: []string{
 				"wireContextMenuBoundary(root",
 				"showCalculatorContextMenu",

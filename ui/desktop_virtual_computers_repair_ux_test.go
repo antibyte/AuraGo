@@ -68,7 +68,7 @@ func TestVirtualComputersConfigResumesRunningSetup(t *testing.T) {
 func TestVirtualComputersRepairUXStaticContract(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, want := range []string{
 		`role="status" data-role="setup-banner"`,
 		`role="alert" data-role="repair-banner"`,
@@ -108,7 +108,7 @@ func loadRepairUXApp(t *testing.T, windowID string, status string) *rod.Page {
 	page.MustEval(virtualComputersRepairFixture)
 	page.MustEval(`s => { Object.assign(window.fixtureStatus, JSON.parse(s)); }`, status)
 	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers-workspaces.js")))
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`id => window.VirtualComputersApp.render(document.querySelector('#app'), id, {t: window.repairDict})`, windowID)
 	return page
 }

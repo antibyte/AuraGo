@@ -33,12 +33,12 @@ func TestDesktopMeshCoreTranslationsAndIntegration(t *testing.T) {
 		}
 	}
 	for file, want := range map[string]string{
-		"js/desktop/core/module-loader.js":        "apps/meshcore.js",
-		"js/desktop/core/desktop-foundation.js":   "MeshCoreApp",
-		"js/desktop/core/menus-and-routing.js":    "MeshCoreApp.render",
-		"js/desktop/core/session-runtime.js":      "conversation_id",
-		"js/desktop/core/sdk-events-bootstrap.js": "meshcore_changed",
-		"js/desktop/core/shell-chrome-runtime.js": "entry?.context",
+		"js/desktop/core/module-loader.js":               "apps/meshcore.js",
+		"js/desktop/core/desktop-foundation.js":          "MeshCoreApp",
+		"js/desktop/core/menus-and-routing.js":           "MeshCoreApp.render",
+		"js/desktop/core/session-runtime.js":             "conversation_id",
+		"js/desktop/core/sdk-events-bootstrap.js":        "meshcore_changed",
+		"js/desktop/core/notification-center-runtime.js": "context: entry.context",
 	} {
 		b, err := Content.ReadFile(file)
 		if err != nil || !strings.Contains(string(b), want) {

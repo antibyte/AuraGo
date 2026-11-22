@@ -22,7 +22,6 @@ const (
 // still follow redirects to any origin. It may only shrink: bind a client,
 // then delete its entry. New files are never added here.
 var credentialedRedirectPending = map[string]string{
-	"internal/discord/connection.go":                  credentialedRedirectVendorReason,
 	"internal/embeddings/llama_docker.go":             credentialedRedirectPendingReason,
 	"internal/embeddings/llama_embedder.go":           credentialedRedirectPendingReason,
 	"internal/evomap/client.go":                       credentialedRedirectPendingReason,

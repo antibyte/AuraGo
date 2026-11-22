@@ -620,9 +620,9 @@ func TestDesktopNetworkCamerasDetectionLaunchBrowser(t *testing.T) {
 	}
 
 	// A click in the notification center opens the event of that notification.
-	page.MustEval(`id=>{const a=auditTest;a.state.notificationHistory.unshift({id:'n-launch',title:'Person erkannt – Garage',message:'Garage (Tor), 08:00, 91 %',appId:'network-cameras',context:{event_id:id,camera_id:'garage'},ts:Date.now(),read:false});document.getElementById('vd-notification-button').click()}`, ncdEventGarage)
-	page.MustWait(`()=>!!document.querySelector('[data-notification-id="n-launch"]')`)
-	page.MustEval(`()=>document.querySelector('[data-notification-id="n-launch"]').click()`)
+	record := page.MustEval(`id=>auditTest.pushNotificationRecord({title:'Person erkannt – Garage',message:'Garage (Tor), 08:00, 91 %',appId:'network-cameras',context:{event_id:id,camera_id:'garage'}}).id`, ncdEventGarage).Str()
+	page.MustElement("#vd-notification-button").MustClick()
+	page.MustElement(fmt.Sprintf("[data-notification-id=%q]", record)).MustClick()
 	page.MustWait(`cover=>document.querySelector('[data-ncd-filter="camera"]')?.value==='garage'&&(document.querySelector('.ncd-frame img')?.getAttribute('src')||'').endsWith('/detection/images/'+cover)`, garageCover)
 
 	// A launch for an event deleted meanwhile ends with a notice instead of a broken detail.

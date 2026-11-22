@@ -36,7 +36,7 @@ func TestMiniMaxM3PreparedToolsReachAgentRequest(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(client.lastReq.Tools) != 3 || !reflect.DeepEqual(client.lastReq.Tools, profile.Tools()) {
+			if len(client.lastReq.Tools) == 0 || !reflect.DeepEqual(client.lastReq.Tools, profile.Tools()) {
 				t.Fatalf("planning tools changed or missing: got %d tools", len(client.lastReq.Tools))
 			}
 		})

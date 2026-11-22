@@ -169,6 +169,7 @@ func TestUpdaterNoOpDoesNotInvokeSystemctlOrSudo(t *testing.T) {
 if [ "${1:-}" = "-C" ]; then shift 2; fi
 case "${1:-}" in
   fetch) exit 0 ;;
+  rev-parse) [ "$2" = "--show-toplevel" ] && pwd -P; exit ;;
   rev-list) printf '%s\n' "$AURAGO_TEST_COUNTS"; exit 0 ;;
   log) echo "same-commit already current"; exit 0 ;;
   remote) echo "https://example.invalid/AuraGo.git"; exit 0 ;;
@@ -208,15 +209,7 @@ func TestUpdaterFailedStopRestartHonorsPreviousStartModeAndFailures(t *testing.T
 	}
 
 	update := readRepoFile(t, "update.sh")
-	start := strings.Index(update, "restart_unchanged_after_failed_stop() {")
-	if start < 0 {
-		t.Fatal("could not find restart_unchanged_after_failed_stop in update.sh")
-	}
-	end := strings.Index(update[start:], "\n# Stop systemd first.")
-	if end < 0 {
-		t.Fatal("could not extract restart_unchanged_after_failed_stop from update.sh")
-	}
-	functions := update[start : start+end]
+	functions := shellSection(t, update, "restart_unchanged_after_failed_stop() {", "\nabort_before_file_changes() {")
 
 	for _, test := range []struct {
 		name          string
@@ -646,7 +639,8 @@ func TestUpdaterGitFailuresAfterShutdownUseRollback(t *testing.T) {
 	for _, required := range []string{
 		`abort_update "Update aborted safely because conflicting local and remote edits require review."`,
 		`abort_update "Update aborted safely; local commits were not discarded."`,
-		`abort_update "Cannot continue update while tracked files are locked/unwritable. Fix permissions or run with sudo."`,
+		`abort_before_file_changes "The checkout changed after shutdown."`,
+		`abort_update "Update aborted safely because the local checkout and origin/main have no common ancestor."`,
 		`abort_update "Could not restore config.yaml (permission denied)."`,
 		"restore_untracked_merge_collisions_after_failure",
 	} {

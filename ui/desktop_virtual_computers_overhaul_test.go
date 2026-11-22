@@ -9,7 +9,7 @@ import (
 func TestVirtualComputersModalAndConfirmContract(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, marker := range []string{
 		`function openConfirmModal(state`,
 		`data-autofocus`,
@@ -68,7 +68,7 @@ func TestVirtualComputersModalSurvivesPollBrowser(t *testing.T) {
 	page := newSmokeBrowser(t).MustPage("about:blank").Timeout(40 * time.Second)
 	page.MustWaitLoad()
 	page.MustEval(virtualComputersOverhaulFixture)
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'poll-fixture',{t:k=>k})`)
 	page.MustElement(`[data-action="new-machine"]:not([disabled])`).MustClick()
 	input := page.MustElement(`[data-role="launch-name"]`)
@@ -112,7 +112,7 @@ func TestVirtualComputersVolumesPageBrowser(t *testing.T) {
    {id:'vol-busy', name:'', locked:false, persistent:false, expires_at:soon, availability:'available', format:'legacy_root', used_bytes:1024, quota_mb:100, attached_to:[{kind:'workspace', id:'ws-1'}]},
    {id:'vol-old', name:'Old', locked:false, persistent:false, expires_at:soon, availability:'previous_store', format:'workspace_v2', used_bytes:0, attached_to:[]}];
  }`)
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'volumes-fixture',{t:k=>k})`)
 	page.MustElement(`[data-action="refresh"]:not([disabled])`)
 	page.MustEval(`() => document.querySelector('[data-action="section"][data-section="volumes"]').click()`)
@@ -171,7 +171,7 @@ func TestVirtualComputersOwnedMachineDestroyDisabledBrowser(t *testing.T) {
    {id:'vm-owned', label:'Build box', name:'vm-owned', template:'desktop', status:'running', display:true, workspace_id:'ws-9', workspace_origin:'adopted'},
    {id:'vm-free', name:'free-machine', template:'custom_tpl', status:'starting', display:false}];
  }`)
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'owned-fixture',{t:k=>k})`)
 	page.MustElement(`.vc-machine[data-id="vm-owned"]`)
 	if !page.MustEval(`() => {
@@ -221,7 +221,7 @@ func TestVirtualComputersMachineActionsBrowser(t *testing.T) {
    return base(path, options);
  };
  }`)
-	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js")))
+	page.MustEval(`source => { (0,eval)(source); }`, string(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js")))
 	page.MustEval(`() => window.VirtualComputersApp.render(document.querySelector('#app'),'actions-fixture',{t:k=>k,openApp:(app,context)=>{window.launched={app,context};}})`)
 	page.MustElement(`[data-action="refresh"]:not([disabled])`)
 	page.MustEval(`() => document.querySelector('[data-action="new-machine"]').click()`)

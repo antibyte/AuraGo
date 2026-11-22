@@ -79,6 +79,7 @@
   "config.home_assistant.allowed_services_label": "允许的服务",
   "config.home_assistant.blocked_services_label": "已阻止的服务",
   "config.home_assistant.enabled_label": "启用 Home Assistant",
+  "config.home_assistant.readonly_label": "只读",
   "config.home_assistant.url_label": "Home Assistant URL",
   "config.llm.anthropic_thinking.budget_tokens_label": "思考预算（令牌）",
   "config.llm.anthropic_thinking.enabled_label": "Anthropic 思考",

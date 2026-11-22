@@ -289,18 +289,19 @@ export async function run(env) {
         const entries = () => Array.from(pop().querySelectorAll('[data-ed-pop]')).map(b => b.getAttribute('data-ed-pop'));
         const gets = () => h.requests.filter(r => r.method === 'GET' && r.url === '/api/desktop/flows/f1').length;
         const getsBefore = gets();
-        world.next = '2026-11-17T12:00:00Z';
+        const upcoming = new Date(Date.now() + 3600000).toISOString();
+        world.next = upcoming;
         pill.fire('click');
         const opened = [!!pop(), pill.getAttribute('aria-expanded'), pop().getAttribute('role'), h.dom.document.activeElement === pop().querySelector('[data-ed-pop="active"]'), entries(),
             pop().querySelector('[data-ed-next-run]').textContent, pop().querySelector('[data-ed-pop="active"]').getAttribute('aria-checked')];
         await settle();
         // The read that came with the open brought the next run; the popover shows it as weekday and time, and keeps the focus.
         const next = pop().querySelector('[data-ed-next-run]').textContent;
-        const nextOk = /^Tue/.test(next) && /\d:\d\d/.test(next);
+        const nextOk = next === ED.format.nextRun(upcoming) && /\d:\d\d/.test(next);
         const later = ED.format.nextRun('2026-11-27T12:00:00Z', new Date('2026-11-16T10:00:00Z'));
         const soon = ED.format.nextRun('2026-11-17T12:00:00Z', new Date('2026-11-16T10:00:00Z'));
         eq('w1c B.3 popover contents and the read on open', [opened, gets() - getsBefore, nextOk, /Nov/.test(later) && !/Tue|Fri/.test(later), /^Tue/.test(soon), ED.format.nextRun('nope'), editor.ed.flow.next_run.at, h.dom.document.activeElement === pop().querySelector('[data-ed-pop="active"]')], [
-            [true, 'true', 'dialog', true, ['active', 'run-now', 'runs'], 'pill_next_none', 'true'], 1, true, true, true, '', '2026-11-17T12:00:00Z', true
+            [true, 'true', 'dialog', true, ['active', 'run-now', 'runs'], 'pill_next_none', 'true'], 1, true, true, true, '', upcoming, true
         ]);
         pill.fire('click');
         eq('w1c B.3 a second click on the pill closes the popover and gives the focus back', [!!pop(), pill.getAttribute('aria-expanded'), h.dom.document.activeElement === pill], [false, 'false', true]);

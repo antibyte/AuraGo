@@ -480,8 +480,9 @@
             // Without a summary the second line names the type, or, while the step still carries the
             // type's own label, describes it: the card does not say the same thing twice.
             const typeLine = !i ? n.type : n.label && n.label !== i.label ? i.label : (i.description || '');
+            const label = esc(n.label || (i && i.label) || n.type);
             return '<div class="ed-node-tile">' + core.icon(i ? i.icon : 'tool') + '</div>' +
-                '<div class="ed-node-body"><div class="ed-node-label">' + esc(n.label || (i && i.label) || n.type) + '</div>' +
+                '<div class="ed-node-body"><div class="ed-node-label" title="' + label + '">' + label + '</div>' +
                 (sum ? '<div class="ed-node-summary"' + (whole && whole !== sum ? ' title="' + esc(whole) + '"' : '') + '>' + esc(sum) + '</div>' : typeLine ? '<div class="ed-node-summary ed-node-summary--muted" title="' + esc(typeLine) + '">' + esc(typeLine) + '</div>' : '') + '</div>' +
                 '<div class="ed-node-badges"></div>' + inPorts + outPorts + tools;
         }

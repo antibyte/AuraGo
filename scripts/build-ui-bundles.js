@@ -127,6 +127,21 @@ const chatRuntimeParts = [
 ];
 
 const jsBundles = [
+  {
+    out: 'ui/js/desktop/bundles/virtual-computers.bundle.js',
+    parts: [
+      'ui/js/desktop/apps/virtual-computers-view.js',
+      'ui/js/desktop/apps/virtual-computers-controls.js',
+      'ui/js/desktop/apps/virtual-computers-operations.js'
+    ]
+  },
+  {
+    out: 'ui/js/desktop/bundles/synth-studio-rb338.bundle.js',
+    parts: [
+      'ui/js/desktop/apps/synth-studio-rb338-rack.js',
+      'ui/js/desktop/apps/synth-studio-rb338-sequencer.js'
+    ]
+  },
   { out: 'ui/js/desktop/aura-desktop-sdk.js', parts: ['ui/js/desktop/icon-theme-resolver.js', 'ui/js/desktop/sdk-runtime.js'] },
   {
     out: 'ui/js/desktop/bundles/main.bundle.js',

@@ -114,7 +114,7 @@
     function nextRun(value, now) {
         const d = toDate(value);
         if (!d) return '';
-        const from = now instanceof Date ? now : new Date();
+        const from = now == null ? new Date() : new Date(now);
         const soon = d.getTime() - from.getTime() < 6 * 86400000;
         const opts = soon ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
         try { return intl('DateTimeFormat', locale(), opts).format(d); } catch (err) { return d.toISOString(); }

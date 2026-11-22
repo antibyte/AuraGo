@@ -25,5 +25,5 @@ export async function writeContract(source, destination) {
   contract.export_model = { description:'Export to a Desktop path; existing files cause a conflict.', schema:{ ...object({path:file,format:{type:'string',enum:['stl','obj','3mf','step','png']}}), required:['path','format'] } };
   for (const operation of supported) if (!contract[operation]) throw Error('Missing supported Layerling operation: ' + operation);
   fs.mkdirSync(destination, {recursive:true});
-  fs.writeFileSync(destination + '/contract.json', JSON.stringify(contract, null, 2) + '\n');
+  fs.writeFileSync(destination + '/contract.json', JSON.stringify(contract, null, 1) + '\n');
 }

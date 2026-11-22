@@ -89,7 +89,7 @@ func vercelRequest(cfg VercelConfig, method, endpoint string, body interface{}) 
 
 	resp, err := vercelHTTPClient.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("execute request: %s", security.Scrub(err.Error()))
+		return nil, 0, toolHTTPRequestError(req, "execute request", err)
 	}
 	defer resp.Body.Close()
 

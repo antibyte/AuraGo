@@ -77,7 +77,7 @@ let seed=23;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
 	if !ok {
 		browserSmokeUnavailable(t, "Chrome or Edge required")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
 	defer cancel()
 	launch := launcher.New().Context(ctx).Bin(bin).Headless(true).NoSandbox(true).Set("enable-unsafe-swiftshader")
 	url := launch.MustLaunch()
@@ -88,7 +88,8 @@ let seed=23;Math.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/429
 		t.Run(mode, func(t *testing.T) {
 			page := browser.MustPage("about:blank")
 			defer page.Close()
-			page.MustSetViewport(1280, 800, 1, false)
+			// Keep scripted frames affordable in software WebGL. The HiDPI case below covers the full pixel cap.
+			page.MustSetViewport(1024, 640, 1, false)
 			page.MustNavigate(server.URL + "/?" + mode).MustWaitLoad()
 			result := page.MustEval(`() => {
                 const s=__ds, now=performance.now();

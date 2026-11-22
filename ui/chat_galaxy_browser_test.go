@@ -225,12 +225,11 @@ SessionDrawer.init();initTheme();initChatThemePicker();
 	p.MustReload().MustWaitLoad()
 	ready()
 	check(`() => document.documentElement.dataset.theme==='galaxy' && __pending.size===1`, "reload failed or duplicated scheduler")
+	p.MustElement("#chat-box").MustHover()
+	p.Timeout(5 * time.Second).MustWait(`() => !document.querySelector('#chat-theme-btn:hover')`)
 	color := p.MustEval(`() => getComputedStyle(document.getElementById('chat-theme-btn')).backgroundColor`).Str()
 	p.MustElement("#chat-theme-btn").MustHover()
-	p.MustEval(`() => new Promise(resolve=>setTimeout(resolve,200))`)
-	if p.MustEval(`() => getComputedStyle(document.getElementById('chat-theme-btn')).backgroundColor`).Str() == color {
-		t.Fatal("Galaxy button hover state is overridden")
-	}
+	p.Timeout(5 * time.Second).MustWait(fmt.Sprintf(`() => getComputedStyle(document.getElementById('chat-theme-btn')).backgroundColor !== %q`, color))
 	p.MustElement("#chat-box").MustHover()
 	// Read real GPU pixels with only the star layer visible, so background drift
 	// cannot masquerade as twinkling. Exercise several independently timed pulses.

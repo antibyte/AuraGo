@@ -248,9 +248,8 @@ func TestHomepageAliasPreparationNamesTheFocusedTool(t *testing.T) {
 	}
 }
 
-// TestHomepageAliasNamesAreNoToolOfTheirOwn guards the early rewrite: an alias name
-// must belong to no real tool, no dispatcher and no Game Maker operation, or the
-// rewrite would take the name from its owner.
+// TestHomepageAliasNamesAreNoToolOfTheirOwn checks that an alias cannot steal
+// a real tool name. Shared operation names prefer the bound Game Maker job.
 func TestHomepageAliasNamesAreNoToolOfTheirOwn(t *testing.T) {
 	dc, _ := aliasRunFixture(t)
 	builtin := allBuiltinToolNameSet()
@@ -258,8 +257,21 @@ func TestHomepageAliasNamesAreNoToolOfTheirOwn(t *testing.T) {
 		if _, real := builtin[name]; real {
 			t.Errorf("%s is a builtin tool", name)
 		}
-		if gameMakerOperationOwners()[name] != "" {
-			t.Errorf("%s is a Game Maker operation", name)
+		switch name {
+		case "build", "screenshot":
+			studio := prepareToolCall(ToolCall{Action: name}, gameMakerAliasContext(nil))
+			want := map[string]string{"build": "game_maker_project", "screenshot": "game_maker_preview"}[name]
+			if studio.Action != want || studio.Operation != name {
+				t.Errorf("bound %s routed to %s/%s", name, studio.Action, studio.Operation)
+			}
+			homepage := prepareToolCall(ToolCall{Action: name}, dc)
+			if !strings.HasPrefix(homepage.Action, "homepage_") || homepage.Operation != name {
+				t.Errorf("unbound %s routed to %s/%s", name, homepage.Action, homepage.Operation)
+			}
+		default:
+			if gameMakerOperationOwners()[name] != "" {
+				t.Errorf("unreviewed Game Maker operation also used as an alias: %s", name)
+			}
 		}
 		owners := 0
 		for tool, operations := range focusedHomepageToolOperations {

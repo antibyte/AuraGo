@@ -63,11 +63,15 @@ func TestAudioPlayerAssets(t *testing.T) {
 	for _, want := range []string{
 		"appId === 'audio-player'",
 		"window.AudioPlayerApp.render",
-		"desktop.app_audio_player",
 	} {
 		if !strings.Contains(routing, want) {
 			t.Fatalf("desktop routing missing audio player marker %q", want)
 		}
+	}
+
+	associations := readDesktopAssetText(t, "js/desktop/core/file-associations-runtime.js")
+	if !strings.Contains(associations, "add('audio-player', 'desktop.app_audio_player')") {
+		t.Fatal("file associations must offer the audio player for audio files")
 	}
 
 	shell := readDesktopAssetText(t, "js/desktop/core/window-shell-runtime.js")

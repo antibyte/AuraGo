@@ -59,12 +59,17 @@ func TestVirtualDesktopShowDesktopButtonUsesDesktopIcon(t *testing.T) {
 func TestVirtualDesktopMaximizeUsesFullWorkspace(t *testing.T) {
 	t.Parallel()
 
-	js := readDesktopAssetText(t, "js/desktop/main.js")
+	layout := readDesktopAssetText(t, "js/desktop/core/window-layouts-runtime.js")
+	if !strings.Contains(layout, "maximize: { left: 0, top: 0, width: w, height: h }") {
+		t.Fatal("maximize must use the entire available workspace")
+	}
+	js := readDesktopAssetText(t, "js/desktop/core/window-interactions-runtime.js")
 	for _, marker := range []string{
-		"win.style.left = '0';",
-		"win.style.top = '0';",
-		"win.style.width = bounds.width + 'px';",
-		"win.style.height = bounds.height + 'px';",
+		"desktopWindowLayoutRect('maximize', bounds.width, bounds.height)",
+		"win.style.left = rect.left + 'px';",
+		"win.style.top = rect.top + 'px';",
+		"win.style.width = rect.width + 'px';",
+		"win.style.height = rect.height + 'px';",
 	} {
 		if !strings.Contains(js, marker) {
 			t.Fatalf("desktop maximize logic is missing full-workspace marker %q", marker)

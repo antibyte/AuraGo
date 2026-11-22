@@ -38,9 +38,9 @@ game_maker_file:
 game_maker_project:
   en: ["game design plan", "game project overview", "list game files", "plan game", "set game design", "inspect game scene", "game examples", "game project structure"]
   de: ["Spielentwurf", "Spiel planen", "Spielprojekt Übersicht", "Spieldateien auflisten", "Spiel Szene prüfen", "Spieldesign festlegen", "Beispiele fürs Spiel", "Projektplan Spiel"]
-game_maker_validate:
-  en: ["test game build", "validate game", "check game loads", "game preview check", "playtest game", "verify game works", "game startup check", "game quality check"]
-  de: ["Spiel testen", "Spiel prüfen", "Spiel validieren", "Spielvorschau prüfen", "startet das Spiel", "Spielbarkeit testen", "Spiel Build prüfen", "Spiel veröffentlichen prüfen"]
+game_maker_preview:
+  en: ["build game", "open game preview", "game screenshot", "game preview check", "playtest game", "inspect preview diagnostics", "game startup check", "build game for browser"]
+  de: ["Spiel bauen", "Spielvorschau öffnen", "Screenshot vom Spiel", "Spielvorschau prüfen", "Spiel ausprobieren", "Vorschaufehler prüfen", "startet das Spiel", "Spiel für Browser bauen"]
 get_skill_documentation:
   en: ["read skill manual", "skill documentation", "how to use skill", "skill markdown manual", "show skill docs", "skill usage instructions"]
   de: ["Skill Dokumentation lesen", "Skill Handbuch", "Skill Anleitung anzeigen", "wie benutze ich Skill", "Skill Doku", "Bedienungsanleitung Skill"]

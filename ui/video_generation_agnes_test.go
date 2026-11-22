@@ -15,8 +15,8 @@ func TestVideoGenerationConfigUsesAgnesSpecificOptions(t *testing.T) {
 	source := string(body)
 	for _, expected := range []string{
 		"videoGenerationProviderType(curProvider) === 'agnes'",
-		"['480p','720p','768P','1080p']",
-		"['16:9','9:16','1:1','4:3','3:4']",
+		"agnesLimited ? ['720P'] : ['720P','1080P','1K','2K']",
+		"['16:9','9:16','1:1','4:3','3:4','21:9']",
 		"['768P','1080P','720p','4k']",
 		"videoGenerationProviderChanged(this)",
 		"markDirty()",

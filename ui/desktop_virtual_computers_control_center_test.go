@@ -10,7 +10,7 @@ import (
 func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, marker := range []string{
 		`activeSection: 'machines'`,
 		`templates: []`,
@@ -56,7 +56,7 @@ func TestVirtualComputersDesktopRendersControlCenter(t *testing.T) {
 func TestVirtualComputersMachineListPollingContract(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, marker := range []string{
 		`const machinePollIntervalMs = 5000;`,
 		`machineSnapshot: JSON.stringify([])`,
@@ -104,7 +104,7 @@ func TestVirtualComputersMachineListPollingContract(t *testing.T) {
 func TestVirtualComputersExpiryCountdownContract(t *testing.T) {
 	t.Parallel()
 
-	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/apps/virtual-computers.js"))
+	app := normalizeAssetText(mustReadUIFile(t, "js/desktop/bundles/virtual-computers.bundle.js"))
 	for _, marker := range []string{
 		`const expiryCountdownIntervalMs = 1000;`,
 		`expiryCountdownTimer: null`,
