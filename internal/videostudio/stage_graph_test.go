@@ -119,6 +119,24 @@ func TestResolveBinaryReturnsAbsolutePaths(t *testing.T) {
 	}
 }
 
+func TestRunFFmpegInRejectsRelativePathsInStagingDirectory(t *testing.T) {
+	root := t.TempDir()
+	ffmpeg := filepath.Join(root, "ffmpeg")
+	absolute := filepath.Join(root, "clip.mp4")
+	for name, call := range map[string]func() error{
+		"relative input": func() error {
+			return runFFmpegIn(context.Background(), root, ffmpeg, nil, 0, nil, []string{"clip.mp4"}, absolute)
+		},
+		"relative output": func() error {
+			return runFFmpegIn(context.Background(), root, ffmpeg, nil, 0, nil, []string{absolute}, "out.mp4")
+		},
+	} {
+		if err := call(); err == nil || !strings.Contains(err.Error(), "absolute") {
+			t.Errorf("%s in a staging directory = %v, want an absolute-path error", name, err)
+		}
+	}
+}
+
 // LUT files are staged next to the graph (index §4.11, §4.20):
 //   - names vs_lut_<n>.cube (one per distinct table), mode 0600;
 //   - Go-written without TITLE or DOMAIN lines, with any domain resampled onto [0, 1];

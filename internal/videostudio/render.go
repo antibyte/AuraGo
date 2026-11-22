@@ -590,6 +590,14 @@ func runFFmpegIn(ctx context.Context, dir, ffmpeg string, args []string, seconds
 	if dir != "" && !filepath.IsAbs(ffmpeg) {
 		return fmt.Errorf("FFmpeg binary %q must be an absolute path when it runs in a staging directory", ffmpeg)
 	}
+	if dir != "" {
+		// A relative path would resolve against the staging directory, not the caller's working directory.
+		for _, path := range append(append([]string{}, inputs...), output) {
+			if path != "" && !filepath.IsAbs(path) {
+				return fmt.Errorf("FFmpeg input or output %q must be an absolute path when it runs in a staging directory", path)
+			}
+		}
+	}
 	cmd := exec.CommandContext(ctx, ffmpeg, args...)
 	if dir != "" {
 		cmd.Dir, _ = ffmpegWorkDir(dir)
