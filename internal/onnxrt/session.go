@@ -52,8 +52,8 @@ const allowSpinningConfigKey = "session.intra_op.allow_spinning"
 
 // appendProviderName is the name passed to SessionOptionsAppendExecutionProvider.
 // ORT 1.26/1.27 accept the short or the canonical name for WebGPU and CoreML.
-// CUDA keeps the canonical name embeddings always passed; ORT's generic append
-// does not register CUDA under either spelling.
+// CUDA never reaches the generic append: ORT's generic append rejects it under
+// either spelling, so appendCUDAProvider registers it through the V2 API.
 func appendProviderName(provider string) string {
 	if provider == ProviderWebGPU {
 		return "WebGPU"
@@ -223,6 +223,16 @@ func (r *Runtime) appendProvider(options uintptr, provider string, providerOptio
 	if !containsFold(providers, provider) {
 		return fmt.Errorf("%s is not available in this ONNX Runtime bundle (available: %s)", provider, strings.Join(providers, ", "))
 	}
+	return r.registerProvider(options, provider, providerOptions)
+}
+
+// registerProvider appends an available provider to options: CUDA through its
+// V2 API, every other provider through the generic append.
+func (r *Runtime) registerProvider(options uintptr, provider string, providerOptions map[string]string) error {
+	if provider == ProviderCUDA {
+		return r.appendCUDAProvider(options, providerOptions)
+	}
+	var err error
 	keys := sortedKeys(providerOptions)
 	keyData := make([][]byte, len(keys))
 	valueData := make([][]byte, len(keys))
@@ -255,6 +265,63 @@ func (r *Runtime) appendProvider(options uintptr, provider string, providerOptio
 	goruntime.KeepAlive(valuePointers)
 	if err := r.statusError(status); err != nil {
 		return fmt.Errorf("enable %s: %w", provider, err)
+	}
+	return nil
+}
+
+// cudaDefaultOptions are applied to every CUDA registration; device 0 is
+// CUDA's default device, stated explicitly. Caller options override them.
+var cudaDefaultOptions = map[string]string{"device_id": "0"}
+
+// appendCUDAProvider registers CUDA through CreateCUDAProviderOptions,
+// UpdateCUDAProviderOptions, SessionOptionsAppendExecutionProvider_CUDA_V2 and
+// ReleaseCUDAProviderOptions; the generic append rejects CUDA.
+func (r *Runtime) appendCUDAProvider(options uintptr, providerOptions map[string]string) error {
+	merged := make(map[string]string, len(cudaDefaultOptions)+len(providerOptions))
+	for key, value := range cudaDefaultOptions {
+		merged[key] = value
+	}
+	for key, value := range providerOptions {
+		merged[key] = value
+	}
+	keys := sortedKeys(merged)
+	keyData := make([][]byte, len(keys))
+	valueData := make([][]byte, len(keys))
+	keyPointers := make([]*byte, len(keys))
+	valuePointers := make([]*byte, len(keys))
+	for i, key := range keys {
+		var err error
+		if keyData[i], err = cBytes(key); err != nil {
+			return fmt.Errorf("enable %s: provider option: %w", ProviderCUDA, err)
+		}
+		if valueData[i], err = cBytes(merged[key]); err != nil {
+			return fmt.Errorf("enable %s: provider option %s: %w", ProviderCUDA, key, err)
+		}
+		keyPointers[i] = &keyData[i][0]
+		valuePointers[i] = &valueData[i][0]
+	}
+
+	var cudaOptions uintptr
+	if err := r.statusError(r.functions.createCUDAProviderOptions(&cudaOptions)); err != nil {
+		return fmt.Errorf("enable %s: create CUDA provider options: %w", ProviderCUDA, err)
+	}
+	if cudaOptions == 0 {
+		return fmt.Errorf("enable %s: create CUDA provider options: ONNX Runtime returned no options", ProviderCUDA)
+	}
+	// The appended provider factory copies the options, so they are released
+	// once registration has finished, whether it succeeded or not.
+	defer r.functions.releaseCUDAProviderOptions(cudaOptions)
+
+	status := r.functions.updateCUDAProviderOptions(cudaOptions, &keyPointers[0], &valuePointers[0], uintptr(len(keys)))
+	goruntime.KeepAlive(keyData)
+	goruntime.KeepAlive(valueData)
+	goruntime.KeepAlive(keyPointers)
+	goruntime.KeepAlive(valuePointers)
+	if err := r.statusError(status); err != nil {
+		return fmt.Errorf("enable %s: configure CUDA provider options: %w", ProviderCUDA, err)
+	}
+	if err := r.statusError(r.functions.appendExecutionProviderCUDAV2(options, cudaOptions)); err != nil {
+		return fmt.Errorf("enable %s: %w", ProviderCUDA, err)
 	}
 	return nil
 }

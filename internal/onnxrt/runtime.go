@@ -53,6 +53,13 @@ const (
 	indexReleaseAvailableProviders             = 126
 	indexAddSessionConfigEntry                 = 130
 	indexSessionOptionsAppendExecutionProvider = 216
+
+	// CUDA registers through its dedicated V2 entries (see appendCUDAProvider).
+	// Counted in the OrtApi struct of the bundled v1.26.0 header (ORT_API_VERSION 26).
+	indexSessionOptionsAppendExecutionProviderCUDAV2 = 204
+	indexCreateCUDAProviderOptions                   = 205
+	indexUpdateCUDAProviderOptions                   = 206
+	indexReleaseCUDAProviderOptions                  = 208
 )
 
 const (
@@ -86,6 +93,11 @@ type functions struct {
 	addSessionConfigEntry            func(uintptr, *byte, *byte) uintptr
 	appendExecutionProvider          func(uintptr, *byte, **byte, **byte, uintptr) uintptr
 	releaseSessionOptions            func(uintptr)
+
+	createCUDAProviderOptions     func(*uintptr) uintptr
+	updateCUDAProviderOptions     func(uintptr, **byte, **byte, uintptr) uintptr
+	appendExecutionProviderCUDAV2 func(uintptr, uintptr) uintptr
+	releaseCUDAProviderOptions    func(uintptr)
 
 	createSessionFromArray func(uintptr, unsafe.Pointer, uintptr, uintptr, *uintptr) uintptr
 	run                    func(uintptr, uintptr, **byte, *uintptr, uintptr, **byte, uintptr, *uintptr) uintptr
@@ -201,6 +213,10 @@ func bindFunctions(apiPointer unsafe.Pointer) functions {
 	purego.RegisterFunc(&f.addSessionConfigEntry, table[indexAddSessionConfigEntry])
 	purego.RegisterFunc(&f.appendExecutionProvider, table[indexSessionOptionsAppendExecutionProvider])
 	purego.RegisterFunc(&f.releaseSessionOptions, table[indexReleaseSessionOptions])
+	purego.RegisterFunc(&f.createCUDAProviderOptions, table[indexCreateCUDAProviderOptions])
+	purego.RegisterFunc(&f.updateCUDAProviderOptions, table[indexUpdateCUDAProviderOptions])
+	purego.RegisterFunc(&f.appendExecutionProviderCUDAV2, table[indexSessionOptionsAppendExecutionProviderCUDAV2])
+	purego.RegisterFunc(&f.releaseCUDAProviderOptions, table[indexReleaseCUDAProviderOptions])
 	purego.RegisterFunc(&f.createSessionFromArray, table[indexCreateSessionFromArray])
 	purego.RegisterFunc(&f.run, table[indexRun])
 	purego.RegisterFunc(&f.releaseSession, table[indexReleaseSession])

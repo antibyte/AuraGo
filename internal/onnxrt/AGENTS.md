@@ -31,9 +31,10 @@ adapts D-FINE). The audit `NetworkClientInventory` lists `internal/onnxrt/` as t
 - C API version 26 (`APIVersion`) is served by the ORT 1.26.0 CPU/CUDA bundles and the 1.27.0 WebGPU wheels.
   The `struct OrtApi` indices in `runtime.go` count members from 0 in `onnxruntime_c_api.h` of the pinned
   release; verify any new index there before adding it.
-- `SessionOptionsAppendExecutionProvider` gets `"WebGPU"` for `ProviderWebGPU` and the canonical names for
-  CUDA and CoreML, exactly what embeddings always passed (ORT 1.26's generic append does not register CUDA
-  under either spelling, an existing embeddings limit). `ProviderCPU` is `""`; `"CPUExecutionProvider"` is
+- `SessionOptionsAppendExecutionProvider` gets `"WebGPU"` for `ProviderWebGPU` and the canonical name for
+  CoreML. CUDA never uses it (ORT 1.26's generic append rejects CUDA under either spelling): `appendCUDAProvider`
+  goes through Create/UpdateCUDAProviderOptions, `..._CUDA_V2` and ReleaseCUDAProviderOptions (indices
+  204/205/206/208, `device_id` 0 unless `ProviderOptions` overrides). `ProviderCPU` is `""`; `"CPUExecutionProvider"` is
   treated as CPU and `ProviderOptions` need a non-CPU provider. `NewSession` fails with the available list
   when `Runtime.Providers()` lacks the requested provider.
 - `FindLibrary` returns an absolute path below the runtime root (versioned names such as
