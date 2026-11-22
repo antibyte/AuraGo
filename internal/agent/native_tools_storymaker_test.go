@@ -251,3 +251,17 @@ func TestStorymakerToolsStayOutOfTheStrictProjection(t *testing.T) {
 		t.Fatalf("%s missing from the revise schemas", storymaker.ToolStory)
 	}
 }
+
+func TestStorymakerBeatSchemaOffersCuePhrase(t *testing.T) {
+	names := storymakerCatalogNames(t)
+	for _, compact := range []bool{false, true} {
+		story := storymakerToolParams(StorymakerPhaseToolSchemas(storymaker.PhaseFill, compact, names), storymaker.ToolStory)
+		phrase := storymakerSchemaAt(story, "data", "beats", "[]", "cue_phrase")
+		if phrase == nil || phrase["type"] != "string" || phrase["maxLength"] != 60 || phrase["description"] == "" {
+			t.Errorf("compact=%v cue_phrase = %v, want a described string of at most 60 characters", compact, phrase)
+		}
+		if storymakerSchemaAt(story, "data", "beats", "[]", "cue") == nil {
+			t.Errorf("compact=%v beat lost cue", compact)
+		}
+	}
+}

@@ -197,7 +197,7 @@ func storymakerSceneProperties(compact bool, names StorymakerNames) map[string]i
 	}
 	return map[string]interface{}{
 		"kind":        storymakerEnum("storyboard", "code"),
-		"source":      map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only; first read get_code and the code reference"},
+		"source":      map[string]interface{}{"type": "string", "maxLength": storymaker.StudioCodeBytes, "description": "put_code only"},
 		"environment": environment,
 		"variant":     storymakerEnum("day", "night"),
 		"narration":   storymakerTyped("string"),
@@ -247,6 +247,7 @@ func storymakerBeatSchema(compact bool, names StorymakerNames) map[string]interf
 		"seconds":    storymakerTyped("number"),
 		"with":       storymakerEnum("prev"),
 		"cue":        storymakerTyped("integer"),
+		"cue_phrase": map[string]interface{}{"type": "string", "maxLength": 60, "description": "narration words to cue on"},
 	}
 	properties["count"] = storymakerTyped("integer")
 	properties["id"] = storymakerTyped("string")
