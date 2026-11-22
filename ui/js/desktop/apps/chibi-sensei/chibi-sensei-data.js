@@ -443,6 +443,7 @@
         inst.parts.table = table;
         const checks = createChecksList(inst);
         const strip = createJobStrip(inst);
+        const notes = P.generate && P.generate.createResults ? P.generate.createResults(inst) : null;
         if (inst.parts.panelView) inst.parts.panelView.setExtra(checks.el);
         let disposed = false;
         const expected = new Set();
@@ -564,7 +565,7 @@
             inst.api.getSplit(inst.project.id).then(split => { if (!disposed && seq === inst.projectSeq) { inst.split = split; paintFooter(); } }).catch(() => {});
         }
 
-        const node = el('div', { class: 'csn-data', dataset: { csn: 'data' } }, toolbar, error, exportNote, strip.el, table.el, footer);
+        const node = el('div', { class: 'csn-data', dataset: { csn: 'data' } }, toolbar, error, exportNote, strip.el, notes ? notes.el : null, table.el, footer);
         return {
             el: node,
             focus() { table.focus(); },
@@ -573,6 +574,7 @@
                 offs.forEach(off => { if (typeof off === 'function') off(); });
                 checks.dispose();
                 strip.dispose();
+                if (notes) notes.dispose();
                 table.dispose();
                 if (inst.parts.table === table) inst.parts.table = null;
                 if (inst.parts.panelView) inst.parts.panelView.setExtra(null);
