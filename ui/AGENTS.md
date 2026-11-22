@@ -1017,6 +1017,10 @@ New app-scoped prefixes must contain no `ad` substring; verify
   `Seleccione`). Tests that pin Spanish strings use the same register.
 - `TestTranslationsHaveNoMergedLineArtifacts` rejects values that carry a
   neighbouring key's text on an extra line, `[NNNN]` prefixes or tool markers.
+- Config renderer wrappers around fields (toolbar, settings grid) are named topics
+  (`.cfg-card` + `.cfg-card-title`) or carry `data-config-fields`; at 390px help
+  text breaks long tokens and toolbars with a primary button stack below 768px
+  (`TestConfigRefreshPopulatedBrowser`).
 - File Manager undo/redo error translations must interpolate `{{error}}` in
   every locale so the failure details passed by the action remain visible.
 - God's Eye View uses the regular container-app window, starts maximized, and

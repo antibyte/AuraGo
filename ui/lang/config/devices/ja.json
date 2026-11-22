@@ -3,6 +3,7 @@
   "config.devices.filter_label": "デバイスを絞り込む",
   "config.devices.filter_help": "名前、種類、アドレス、ユーザー、MACアドレス、タグのいずれかにこのテキストを含むデバイスだけを表示します。",
   "config.devices.add_device": "デバイスの追加",
+  "config.devices.list_title": "登録済みデバイス",
   "config.devices.col_name": "名前",
   "config.devices.col_type": "タイプ",
   "config.devices.col_user": "ユーザー",

@@ -1,5 +1,6 @@
 {
   "config.devices.add_device": "Lägg till enhet",
+  "config.devices.list_title": "Registrerade enheter",
   "config.devices.edit_device": "Redigera enhet",
   "config.devices.username": "Användarnamn",
   "config.devices.save": "Spara",

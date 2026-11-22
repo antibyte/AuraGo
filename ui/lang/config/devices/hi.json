@@ -1,5 +1,6 @@
 {
   "config.devices.add_device": "उपकरण जोड़ें",
+  "config.devices.list_title": "पंजीकृत डिवाइस",
   "config.devices.edit_device": "डिवाइस संपादित करें",
   "config.devices.username": "उपयोगकर्ता नाम",
   "config.devices.save": "सहेजें",

@@ -2556,6 +2556,25 @@ transform:none; filter:none;
     font-size: 0.82rem;
 }
 
+/* The filter belongs to the toolbar, not to the divided field flow. On phones the toolbar stacks so
+   the add button keeps its label instead of shrinking beside the filter. */
+.pw-page[data-workspace-page="config"] .devices-toolbar .devices-filter-group {
+    padding: 0;
+    border-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .pw-page[data-workspace-page="config"] .devices-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    .pw-page[data-workspace-page="config"] :is(.devices-filter-input, .devices-add-btn) {
+        width: 100%;
+    }
+}
+
 .pw-page[data-workspace-page="config"] .devices-table {
     width: 100%;
     table-layout: fixed;

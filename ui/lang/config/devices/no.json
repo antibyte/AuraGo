@@ -1,5 +1,6 @@
 {
   "config.devices.add_device": "Legg til enhet",
+  "config.devices.list_title": "Registrerte enheter",
   "config.devices.edit_device": "Rediger enhet",
   "config.devices.username": "Brukernavn",
   "config.devices.save": "Lagre",

@@ -1,5 +1,6 @@
 {
   "config.devices.add_device": "Προσθηκη συσκευης",
+  "config.devices.list_title": "Καταχωρημένες συσκευές",
   "config.devices.edit_device": "Επεξεργασια συσκευης",
   "config.devices.username": "Ονομα χρηστη",
   "config.devices.save": "Αποθήκευση",

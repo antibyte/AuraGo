@@ -3,6 +3,7 @@
   "config.devices.filter_label": "Filtrar dispositivos",
   "config.devices.filter_help": "Mostra apenas os dispositivos cujo nome, tipo, endereço, utilizador, endereço MAC ou etiquetas contêm este texto.",
   "config.devices.add_device": "Adicionar dispositivo",
+  "config.devices.list_title": "Dispositivos registrados",
   "config.devices.col_name": "Nome",
   "config.devices.col_type": "Tipo",
   "config.devices.col_user": "Usuário",

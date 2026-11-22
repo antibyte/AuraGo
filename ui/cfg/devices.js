@@ -9,8 +9,11 @@ function renderDevicesSection(section) {
     html += '<div class="section-header">' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
+    // One named topic holds the filter, the list and its states.
     html += `
-    <div class="devices-toolbar" data-config-fields>
+    <div class="cfg-card devices-list-card">
+    <div class="cfg-card-title">${t('config.devices.list_title')}</div>
+    <div class="devices-toolbar">
         <div class="devices-toolbar-left">
             <div class="field-group devices-filter-group">
                 <label class="field-label" for="devices-filter">${t('config.devices.filter_label')}</label>
@@ -40,7 +43,8 @@ function renderDevicesSection(section) {
         </table>
     </div>
     ${cfgActionResult.html('devices-list-result')}
-    <div id="devices-state"></div>`;
+    <div id="devices-state"></div>
+    </div>`;
 
     html += '</div>';
     document.getElementById('content').innerHTML = html;

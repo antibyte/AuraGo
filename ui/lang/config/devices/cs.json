@@ -1,5 +1,6 @@
 {
   "config.devices.add_device": "Přidat zařízení",
+  "config.devices.list_title": "Registrovaná zařízení",
   "config.devices.edit_device": "Upravit zařízení",
   "config.devices.username": "Uživatelské jméno",
   "config.devices.save": "Uložit",

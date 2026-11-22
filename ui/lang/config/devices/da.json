@@ -1,5 +1,6 @@
 {
   "config.devices.add_device": "Tilføj enhed",
+  "config.devices.list_title": "Registrerede enheder",
   "config.devices.edit_device": "Rediger enhed",
   "config.devices.username": "Brugernavn",
   "config.devices.save": "Gem",
