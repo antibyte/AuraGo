@@ -303,6 +303,14 @@
                 enterStep(inst, id);
             });
         }
+        if (inst.editorDirty && inst.step === 'data') {
+            if (id === 'data') return undefined;
+            return askConfirm(inst, inst.t('chibi_sensei.leave_title'), inst.t('chibi_sensei.editor.leave_text')).then(ok => {
+                if (!ok || inst.disposed) return;
+                inst.editorDirty = false;
+                enterStep(inst, id);
+            });
+        }
         enterStep(inst, id);
         return undefined;
     }
