@@ -841,6 +841,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 			return
 		}
+		config.NormalizeRuViewConfig(&validateCfg.RuView)
 		if err := config.ValidateRuViewConfig(validateCfg.RuView, runtimeSnapshot.IsDocker); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return

@@ -31,6 +31,35 @@ func DefaultRuViewConfig() RuViewConfig {
 	return RuViewConfig{ReadOnly: true, Mode: "docker", Source: "esp32", HTTPPort: 3022, UDPPort: 5005, StorageMB: 1024, UDPAllow: []string{}}
 }
 
+// NormalizeRuViewConfig fills the blank or zero values that a config saved
+// without RuView defaults persists (Save writes the whole section, and the
+// explicit empty YAML values override the defaults Load seeds). Mode and
+// source are trimmed and lowercased. Any other value is left untouched for
+// ValidateRuViewConfig to judge.
+func NormalizeRuViewConfig(c *RuViewConfig) {
+	defaults := DefaultRuViewConfig()
+	c.Mode = strings.ToLower(strings.TrimSpace(c.Mode))
+	if c.Mode == "" {
+		c.Mode = defaults.Mode
+	}
+	c.Source = strings.ToLower(strings.TrimSpace(c.Source))
+	if c.Source == "" {
+		c.Source = defaults.Source
+	}
+	if c.HTTPPort == 0 {
+		c.HTTPPort = defaults.HTTPPort
+	}
+	if c.UDPPort == 0 {
+		c.UDPPort = defaults.UDPPort
+	}
+	if c.StorageMB == 0 {
+		c.StorageMB = defaults.StorageMB
+	}
+	if c.UDPAllow == nil {
+		c.UDPAllow = defaults.UDPAllow
+	}
+}
+
 func ValidateRuViewConfig(c RuViewConfig, inDocker bool) error {
 	if c.Mode != "docker" && c.Mode != "external" && c.Mode != "native" {
 		return fmt.Errorf("RuView mode must be docker, external or native")

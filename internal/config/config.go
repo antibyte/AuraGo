@@ -1262,6 +1262,7 @@ func load(path string, diagnosticBackup bool) (*Config, error) {
 	if strings.TrimSpace(cfg.Tools.DocumentCreator.Gotenberg.URL) == "" {
 		cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)
 	}
+	NormalizeRuViewConfig(&cfg.RuView)
 	if err := ValidateRuViewConfig(cfg.RuView, runningInDocker); err != nil {
 		return nil, fmt.Errorf("invalid ruview configuration: %w", err)
 	}

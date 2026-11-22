@@ -397,3 +397,4 @@ re-read whole files.
 After big code changes, refresh the graph with `graft build` (deterministic,
 no API key, $0).
 <!-- graft:end -->
+- RuView config is normalized (blank/zero values take defaults, `mode`/`source` trimmed and lowercased) by `NormalizeRuViewConfig` in `Load` and the Config UI preflight before validation; explicit invalid values stay rejected. Verify `TestLoadRuViewWithoutExplicitModeRoundTrips`.

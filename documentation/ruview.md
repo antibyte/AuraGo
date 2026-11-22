@@ -52,6 +52,8 @@ If starting Docker fails, Status keeps the failure as its headline until the nex
 
 Containerized AuraGo must use an external native instance for host Wi-Fi. Linux has no native RSSI scanner in this integration: the pinned server does not connect its Linux adapter to that runtime path. Select `esp32` for real CSI or `simulated` explicitly for a demo; there is no automatic demo fallback.
 
+In `config.yaml`, an empty `mode`, `source`, `http_port`, `udp_port` or `storage_mb` selects its default (`docker`, `esp32`, 3022, 5005, 1024 MiB), and `mode` and `source` ignore surrounding spaces and letter case. Any other unsupported value is rejected when AuraGo loads or saves the configuration.
+
 Disable read-only to install/start a runtime, provision a board, calibrate, record or train. The agent is independently enabled with `agent_access` and always has only `status`, `nodes`, `sensing`, `model_info`, `recordings`, and `presence`. `nodes` stays the live list. `presence` also includes saved offline IDs for this receiver and reports the same `live_state`. `fresh: false` does not prove presence, and a simulation is not a sensor. RSSI is included only for a board that is live in that reply; an offline board has no RSSI. Responses include source, time and data freshness. A successful data read is kept when the following status probe fails, with `fresh: false` and a short `status_error`. A failed data read is an error and has no invented payload. Tokens use Vault keys `ruview_api_token` and `ruview_managed_token`; both are denied to Python/agent secret export and are scrubbed before network operations.
 
 ## Network and storage
