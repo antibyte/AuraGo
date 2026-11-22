@@ -61,6 +61,9 @@ func TestStorymakerProfilesNamesToolsAndTextGuide(t *testing.T) {
 							t.Errorf("%s lacks animation instruction %q", wantName, instruction)
 						}
 					}
+					if !strings.Contains(system, "cue_phrase") || strings.Contains(system, `"cue":1`) || strings.Contains(system, "write {1}") {
+						t.Errorf("%s must teach cue_phrase and never the numbered marker", wantName)
+					}
 				}
 				if !strings.Contains(system, "Plan a meaningful visual for each idea") || strings.Contains(system, "use the nearest alternative, or a show beat") {
 					t.Errorf("%s lacks catalog-first visual planning or retains the text-only fallback", wantName)

@@ -24,7 +24,7 @@ const storymakerGroundRules = `You are Storymaker, an isolated agent that writes
 const storymakerHouseRules = `## House rules
 1. Open on a person: the first scene has an actor on stage in its first frame.
 2. One idea per scene, within the word budget. A scene is about 8 seconds of speech.
-3. Reveal each thing when it is named: write {1} in the narration before that word and set "cue":1 on the beat that shows it. Pair reveals with a simultaneous reaction ("with":"prev") such as gesture, expression, look, highlight or sfx.
+3. Reveal each thing when it is named: set "cue_phrase" on the beat that shows it to the words of the narration that name it. The Studio sets the marker. Pair reveals with a simultaneous reaction ("with":"prev") such as gesture, expression, look, highlight or sfx.
 4. When an on-stage cast member speaks the scene narration, set "speaker" to their cast id so their mouth lip-syncs automatically.
 5. Never place a prop or text card on the same spot ("at") as an on-stage actor; use a free spot (for example actor at "left" or "desk", prop/text at "right", "center" or "board").
 6. On-screen text is at most five words and never repeats the narration. No bullet lists, no three equal cards in a row.
@@ -48,7 +48,7 @@ const storymakerOutlineWorkflow = `## Outline
 1. Choose one template: product_explainer, how_to, concept_explainer, dialogue_story, data_story or onboarding.
 2. Build the arc hook, problem, solution, how, benefit, close, using suggested_scenes. The context lists the environments with a line about each in environment_guide. The dialogue_story template uses one scene per speaker turn.
 - Write the narration of the last scene first, so that the first scenes set up the ending.
-- Narration adds what the picture cannot show. It never describes what is on screen, and you may place {1} markers before key reveal words.
+- Narration adds what the picture cannot show. It never describes what is on screen. Write it as plain text; a later beat names its words with cue_phrase.
 - Read it once more and cut every word the film does not need.
 3. Call storymaker_story with operation outline once: data has template, target_seconds and scenes, each with a short id such as s1 and its narration.
 4. If the answer says the text is too long, shorten it and call outline again. An accepted outline ends this phase: stop.`
@@ -61,7 +61,7 @@ An accepted set_meta ends this phase: stop.`
 
 const storymakerFillWorkflow = `## Fill one scene
 The context names one scene, plus previous_scene, next_scene, suggested_props and used_entries when available. Call storymaker_story with operation put_scene, its scene_id and data.
-- data needs environment, actors and beats. Send narration with {1}, {2} markers before the key words that trigger beats, or leave narration out if it already has markers.
+- data needs environment, actors and beats. Send narration as plain text, or leave it out to keep the saved one. A beat that starts on a word of the narration gets "cue_phrase" with those words, 1 to 60 characters copied from the narration; the Studio sets the marker. Markers like {1} that you see in a narration are the Studio's: keep them when you resend it.
 - Set speaker to an on-stage actor's cast id when that character speaks the narration (enabling automatic lip-sync).
 - The context has a direction for this scene: its role, a suggested environment, framing, pose, gesture, entry, actor and the spots of the actor and the prop. Follow it unless the narration needs something else. The example in the context is built from it.
 - Keep the same environment only while the scene's role stays the same, and do not repeat the gesture of previous_scene. The server checks the whole film: at least three environments in a long film, a framing other than wide in at least one scene, varied gestures, and every cast member on stage in some scene.
@@ -73,7 +73,7 @@ A saved scene ends this phase: stop.`
 
 const storymakerAnimationGuide = `## Animation and custom effects
 - Read storymaker_catalog operation reference, topic animation before filling or revising visuals. It describes actual beat fields, timing, cues, easing, camera, highlights, sound and aspect-safe staging. Search/describe the live catalog for exact assets and usage examples.
-- Explain through motion: walk for people, move for props; pair a gesture with a fitting expression and look. Use cue markers to align reveals with words; with prev overlaps actions. Control delay, duration, ease and count deliberately. A camera move should direct attention, not decorate every scene.
+- Explain through motion: walk for people, move for props; pair a gesture with a fitting expression and look. Use cue_phrase to align reveals with words; with prev overlaps actions. Control delay, duration, ease and count deliberately. A camera move should direct attention, not decorate every scene.
 - Characters, environments and props are illustrated fixed identities. Rig articulation, breathing, blinking, planted walking and storyboard lip-sync are automatic. Environment layers supply parallax during camera movement. No unsupported view, clothing, shader or filter parameters.
 - In cast/revise, set_meta supports style.rhythm calm/standard/lively and style.auto_sfx. Keep text short and check portrait/square composition. The check measures the layout of every storyboard scene: fix the layout findings it reports.
 - Prefer storyboard for dialogue. For a missing visual motif, custom diagram or repeated drawing effect, read reference topic code: it includes an executable SVG asset example combining catalog props with g.path SVG path data (not raw SVG markup or an imported .svg file). Use coherent colours, readable silhouettes, layered detail and cue-bound motion. Keep labels as real text. Do not replace a speaking-actor scene merely to add decoration; code scenes support off-screen narration but have no dialogue/lip-sync binding.
@@ -125,7 +125,7 @@ var storymakerToolExamples = map[string][]string{
 	},
 	storymaker.PhaseFill: {
 		`{"action":"storymaker_catalog","operation":"search","kind":"prop","query":"lock"}`,
-		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"narration":"Eine {1}Firewall prüft jedes Paket.","speaker":"anna","environment":"env.server-room","actors":[{"cast":"anna","at":"left","pose":"stand","expression":"neutral"}],"beats":[{"do":"show","item":"prop.lock","at":"center","entry":"fade","cue":1},{"do":"gesture","who":"anna","gesture":"wave","with":"prev"}]}}`,
+		`{"action":"storymaker_story","operation":"put_scene","scene_id":"s1","data":{"narration":"Eine Firewall prüft jedes Paket.","speaker":"anna","environment":"env.server-room","actors":[{"cast":"anna","at":"left","pose":"stand","expression":"neutral"}],"beats":[{"do":"show","item":"prop.lock","at":"center","entry":"fade","cue_phrase":"Firewall"},{"do":"gesture","who":"anna","gesture":"wave","with":"prev"}]}}`,
 	},
 	storymaker.PhaseCheck: {
 		`{"action":"storymaker_check","operation":"validate"}`,

@@ -39,7 +39,7 @@ Never substitute move for a person's walk. Combine a meaningful gesture with a m
 
 ## Timing
 
-- Scene narration normally determines duration. Mark a spoken word with {1}, then use cue:1 on its beat. A cue must exist in that scene's narration. Keep narration when putting a scene, or resend it with the markers inserted.
+- Scene narration normally determines duration. To start a beat on a spoken word, give the beat cue_phrase: 1 to 60 characters copied from that scene's narration (case and punctuation do not matter, umlauts do). The Studio finds the first match, sets the marker and cue itself, and refuses a phrase it cannot find with the closest wording. Write narration as plain text. Markers like {1} that you see in a saved narration are the Studio's: keep them when you resend the narration.
 - Without cue, actions follow the previous beat. with:"prev" starts together with the previous beat. delay offsets that start; duration controls the motion. Use count for repeated gestures.
 - Eases: linear, ease-in, ease-out, ease-in-out, back-out, bounce-out. Use linear for constant travel, ease-in-out for camera/repositioning, back-out or bounce-out sparingly for emphasis. Text stops moving when it lands.
 - In cast/revise, set_meta accepts style.rhythm calm/standard/lively and style.auto_sfx true/false. Rhythm changes default timings; explicit beat durations remain deliberate. Automatic sound effects require auto_sfx; music stays the user's choice in the app.
@@ -48,7 +48,7 @@ Never substitute move for a person's walk. Combine a meaningful gesture with a m
 Example scene payload (cast member anna must exist):
 
 ```json
-{"environment":"env.office","speaker":"anna","actors":[{"cast":"anna","at":"left","pose":"present","expression":"neutral"}],"narration":"Eine {1}Verschlüsselung schützt Deine Daten.","beats":[{"do":"show","id":"lock","item":"prop.lock","at":"right","entry":"pop","cue":1},{"do":"gesture","who":"anna","gesture":"point","with":"prev"},{"do":"emote","who":"anna","expression":"happy","with":"prev"},{"do":"highlight","target":"lock","style":"pulse","duration":0.8},{"do":"camera","op":"focus","target":"anna","duration":0.8,"ease":"ease-in-out"}]}
+{"environment":"env.office","speaker":"anna","actors":[{"cast":"anna","at":"left","pose":"present","expression":"neutral"}],"narration":"Eine Verschlüsselung schützt Deine Daten.","beats":[{"do":"show","id":"lock","item":"prop.lock","at":"right","entry":"pop","cue_phrase":"Verschlüsselung"},{"do":"gesture","who":"anna","gesture":"point","with":"prev"},{"do":"emote","who":"anna","expression":"happy","with":"prev"},{"do":"highlight","target":"lock","style":"pulse","duration":0.8},{"do":"camera","op":"focus","target":"anna","duration":0.8,"ease":"ease-in-out"}]}
 ```
 
 Use custom code when storyboard controls or catalog assets cannot express the explanation, for example a missing visual motif, repeated data-flow particles or a bespoke diagram. Read topic code before writing it. Charts/icons/diagrams that report not_supported_yet are not rendered: use actual props/text/shapes or a code scene instead. Validate with storymaker_check and fix errors; do not claim unsupported effects or verified layout.
