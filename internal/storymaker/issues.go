@@ -21,12 +21,21 @@ func CapIssues(issues []Issue, n int) []Issue {
 	}
 	keep := make([]bool, len(issues))
 	left := n
-	for _, sev := range []string{SeverityError, SeverityWarning, SeverityMinor} {
+	// Order of preference: errors, hard warnings (they block the outcome), other warnings, minor notes.
+	tiers := []func(Issue) bool{
+		func(is Issue) bool { return is.Severity == SeverityError },
+		func(is Issue) bool {
+			return is.Severity == SeverityWarning && (is.Code == CodeTextOffframe || is.Code == CodeFlash)
+		},
+		func(is Issue) bool { return is.Severity == SeverityWarning },
+		func(is Issue) bool { return is.Severity == SeverityMinor },
+	}
+	for _, match := range tiers {
 		for i, is := range issues {
 			if left == 0 {
 				break
 			}
-			if is.Severity == sev && !keep[i] {
+			if !keep[i] && match(is) {
 				keep[i] = true
 				left--
 			}

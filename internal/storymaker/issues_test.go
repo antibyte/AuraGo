@@ -83,3 +83,27 @@ func TestIssueCraftIsModelFixableAndWarningOnly(t *testing.T) {
 		}
 	}
 }
+
+func TestCapIssuesKeepsHardWarnings(t *testing.T) {
+	var issues []Issue
+	for i := 0; i < 9; i++ {
+		issues = append(issues, Issue{Severity: SeverityWarning, Code: CodeCaptionOverlap, Path: fmt.Sprintf("/o%d", i)})
+	}
+	issues = append(issues, Issue{Severity: SeverityWarning, Code: CodeTextOffframe, Path: "/off"},
+		Issue{Severity: SeverityWarning, Code: CodeFlash, Path: "/flash"})
+	got := CapIssues(issues, MaxModelIssues)
+	if len(got) != MaxModelIssues {
+		t.Fatalf("cap: %d", len(got))
+	}
+	var haveOff, haveFlash bool
+	for _, is := range got {
+		haveOff = haveOff || is.Code == CodeTextOffframe
+		haveFlash = haveFlash || is.Code == CodeFlash
+	}
+	if !haveOff || !haveFlash {
+		t.Fatalf("hard warnings must survive the cap: %+v", got)
+	}
+	if got[len(got)-2].Code != CodeTextOffframe || got[len(got)-1].Code != CodeFlash {
+		t.Fatalf("document order is kept: %+v", got)
+	}
+}
