@@ -165,6 +165,8 @@
                     undoBtn.disabled = undoBtn.disabled || !entry.batchId;
                     row.appendChild(show);
                     row.appendChild(undoBtn);
+                } else if (entry.type === 'note') {
+                    row.appendChild(el('span', { text: entry.text }));
                 } else {
                     row.setAttribute('role', 'alert');
                     row.appendChild(el('span', { class: 'csn-error', text: entry.text }));
@@ -399,6 +401,14 @@
                 inst.notify(t('chibi_sensei.review.applied', { count: P.format.number(applied) }), 'info');
                 reportBatch(inst, res && res.batch_id, 'clean', applied);
                 refreshRows(inst);
+                const skipped = res && Array.isArray(res.skipped) ? res.skipped.length : 0;
+                if (skipped > 0) {
+                    const note = t('chibi_sensei.review.skipped', { count: P.format.number(skipped) });
+                    addEntry(inst, 'applied-' + job.id, { type: 'note', text: note });
+                    dlg.content.insertBefore(el('p', { class: 'csn-muted', role: 'status', dataset: { csn: 'review-skipped' }, text: note }), body);
+                    sync();
+                    return;
+                }
                 dlg.close();
             } catch (e) {
                 if (inst.disposed || (e && e.aborted)) return;

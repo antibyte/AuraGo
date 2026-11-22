@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "選択を解除",
   "chibi_sensei.review.apply": "選択した提案を適用（{count}）",
   "chibi_sensei.review.applied": "{count} 件の提案を適用しました。",
+  "chibi_sensei.review.skipped": "例がその間に変更されたため、{count} 件の提案をスキップしました。",
   "chibi_sensei.training.title": "トレーニング計画",
   "chibi_sensei.training.intro": "Sensei が使う予定の設定です。トレーニング自体は今後のバージョンで利用できるようになります。",
   "chibi_sensei.training.preset_quick": "クイック",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "このベースモデルは認識できません。",
   "chibi_sensei.error.job_not_found": "このジョブは存在しなくなりました。",
   "chibi_sensei.error.undo_conflict": "このステップの一部の例があとから変更されたため、元に戻せなくなりました。",
-  "chibi_sensei.error.bad_response": "サーバーから予期しない応答が返されました。"
+  "chibi_sensei.error.bad_response": "サーバーから予期しない応答が返されました。",
+  "chibi_sensei.error.prompt_withheld": "安全チェックで保留されたため、Sensei はこれらの例をモデルに送信しませんでした。例やドキュメントに、モデルへの指示が含まれていないか確認してください。",
+  "chibi_sensei.error.output_cut": "モデルの回答が途中で途切れました。1回あたりの例の数を減らして試してください。",
+  "chibi_sensei.error.invalid_answer": "モデルが利用できる形式で回答しませんでした。もう一度試すか、設定で Sensei 用に別のモデルを選んでください。",
+  "chibi_sensei.error.model_error": "モデルに接続できないか、エラーが返されました。しばらくしてからもう一度お試しください。",
+  "chibi_sensei.error.interrupted": "このステップは再起動により中断されました。もう一度開始してください。",
+  "chibi_sensei.error.internal": "このステップで問題が発生しました。もう一度開始してください。",
+  "chibi_sensei.error.too_many_rows": "1ステップで扱える数を超えています。例の数を減らしてください。",
+  "chibi_sensei.error.job_not_finished": "このクリーニングはまだ実行中です。完了するまでお待ちください。"
 }

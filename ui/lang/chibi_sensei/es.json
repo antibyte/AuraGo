@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "No seleccionar ninguna",
   "chibi_sensei.review.apply": "Aplicar seleccionadas ({count})",
   "chibi_sensei.review.applied": "{count} sugerencias aplicadas.",
+  "chibi_sensei.review.skipped": "Se omitieron {count} sugerencias porque sus ejemplos cambiaron entretanto.",
   "chibi_sensei.training.title": "Plan de entrenamiento",
   "chibi_sensei.training.intro": "Estos son los ajustes que usaría Sensei. El entrenamiento en sí llegará en una versión posterior.",
   "chibi_sensei.training.preset_quick": "Rápido",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Este modelo base no se conoce.",
   "chibi_sensei.error.job_not_found": "Esta tarea ya no existe.",
   "chibi_sensei.error.undo_conflict": "Este paso ya no se puede deshacer, porque algunos de sus ejemplos se cambiaron después.",
-  "chibi_sensei.error.bad_response": "El servidor respondió con algo inesperado."
+  "chibi_sensei.error.bad_response": "El servidor respondió con algo inesperado.",
+  "chibi_sensei.error.prompt_withheld": "Sensei no envió estos ejemplos al modelo porque la comprobación de seguridad los retuvo. Revisa si los ejemplos o documentos contienen instrucciones dirigidas al modelo.",
+  "chibi_sensei.error.output_cut": "La respuesta del modelo se cortó. Prueba con menos ejemplos por ejecución.",
+  "chibi_sensei.error.invalid_answer": "El modelo no respondió en un formato utilizable. Inténtalo de nuevo o elige otro modelo para Sensei en los ajustes.",
+  "chibi_sensei.error.model_error": "No se pudo contactar con el modelo o devolvió un error. Inténtalo de nuevo más tarde.",
+  "chibi_sensei.error.interrupted": "Un reinicio interrumpió este paso. Vuelve a iniciarlo.",
+  "chibi_sensei.error.internal": "Algo salió mal en este paso. Vuelve a iniciarlo.",
+  "chibi_sensei.error.too_many_rows": "Son más ejemplos de los que admite un paso. Elige menos ejemplos.",
+  "chibi_sensei.error.job_not_finished": "Este paso de limpieza sigue en curso. Espera a que termine."
 }

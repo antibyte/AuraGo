@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Select none",
   "chibi_sensei.review.apply": "Apply selected ({count})",
   "chibi_sensei.review.applied": "{count} suggestions applied.",
+  "chibi_sensei.review.skipped": "{count} suggestions were skipped, because their examples changed in the meantime.",
   "chibi_sensei.training.title": "Training plan",
   "chibi_sensei.training.intro": "These are the settings Sensei would use. Training itself arrives in a later version.",
   "chibi_sensei.training.preset_quick": "Quick",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "This base model is not known.",
   "chibi_sensei.error.job_not_found": "This job no longer exists.",
   "chibi_sensei.error.undo_conflict": "This step can no longer be undone, because some of its examples were changed afterwards.",
-  "chibi_sensei.error.bad_response": "The server answered with something unexpected."
+  "chibi_sensei.error.bad_response": "The server answered with something unexpected.",
+  "chibi_sensei.error.prompt_withheld": "Sensei did not send these examples to the model, because the safety check held them back. Check the examples or documents for instructions aimed at the model.",
+  "chibi_sensei.error.output_cut": "The model's answer was cut off. Try fewer examples per run.",
+  "chibi_sensei.error.invalid_answer": "The model did not answer in a usable form. Try again, or choose another model for Sensei in the settings.",
+  "chibi_sensei.error.model_error": "The model could not be reached or returned an error. Try again later.",
+  "chibi_sensei.error.interrupted": "This step was interrupted by a restart. Start it again.",
+  "chibi_sensei.error.internal": "Something went wrong in this step. Start it again.",
+  "chibi_sensei.error.too_many_rows": "That is more than one step may take. Choose fewer examples.",
+  "chibi_sensei.error.job_not_finished": "This cleaning step is still running. Wait until it has finished."
 }

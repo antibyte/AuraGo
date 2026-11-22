@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "कुछ न चुनें",
   "chibi_sensei.review.apply": "चुने हुए लागू करें ({count})",
   "chibi_sensei.review.applied": "{count} सुझाव लागू किए गए।",
+  "chibi_sensei.review.skipped": "{count} सुझाव छोड़ दिए गए, क्योंकि इस बीच उनके उदाहरण बदल गए।",
   "chibi_sensei.training.title": "ट्रेनिंग योजना",
   "chibi_sensei.training.intro": "ये वे सेटिंग हैं जो Sensei इस्तेमाल करेगा। ट्रेनिंग खुद आगामी संस्करण में आएगी।",
   "chibi_sensei.training.preset_quick": "तेज़",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "यह बेस मॉडल पहचाना नहीं गया।",
   "chibi_sensei.error.job_not_found": "यह जॉब अब मौजूद नहीं है।",
   "chibi_sensei.error.undo_conflict": "इस चरण को अब पूर्ववत नहीं किया जा सकता, क्योंकि इसके कुछ उदाहरण बाद में बदल दिए गए थे।",
-  "chibi_sensei.error.bad_response": "सर्वर ने कुछ अप्रत्याशित उत्तर दिया।"
+  "chibi_sensei.error.bad_response": "सर्वर ने कुछ अप्रत्याशित उत्तर दिया।",
+  "chibi_sensei.error.prompt_withheld": "सुरक्षा जाँच ने इन उदाहरणों को रोक लिया, इसलिए Sensei ने इन्हें मॉडल को नहीं भेजा। जाँचें कि उदाहरणों या दस्तावेज़ों में मॉडल को संबोधित निर्देश तो नहीं हैं।",
+  "chibi_sensei.error.output_cut": "मॉडल का उत्तर बीच में कट गया। प्रति रन कम उदाहरण आज़माएँ।",
+  "chibi_sensei.error.invalid_answer": "मॉडल ने उपयोग योग्य रूप में उत्तर नहीं दिया। फिर से कोशिश करें, या सेटिंग्स में Sensei के लिए कोई दूसरा मॉडल चुनें।",
+  "chibi_sensei.error.model_error": "मॉडल तक पहुँचा नहीं जा सका या उसने त्रुटि लौटाई। बाद में फिर कोशिश करें।",
+  "chibi_sensei.error.interrupted": "यह चरण पुनः आरंभ होने से बाधित हो गया। इसे फिर से शुरू करें।",
+  "chibi_sensei.error.internal": "इस चरण में कुछ गड़बड़ हो गई। इसे फिर से शुरू करें।",
+  "chibi_sensei.error.too_many_rows": "यह एक चरण की सीमा से अधिक है। कम उदाहरण चुनें।",
+  "chibi_sensei.error.job_not_finished": "यह सफ़ाई चरण अभी चल रहा है। इसके पूरा होने तक प्रतीक्षा करें।"
 }

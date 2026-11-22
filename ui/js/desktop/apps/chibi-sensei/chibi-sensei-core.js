@@ -253,7 +253,7 @@
         };
     }
 
-    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response'];
+    const ERROR_CODES = ['network', 'unauthorized', 'desktop_scope_required', 'desktop_readonly', 'chibi_disabled', 'desktop_disabled', 'not_found', 'conflict', 'validation_failed', 'dataset_full', 'import_failed', 'job_active', 'not_archived', 'budget_exceeded', 'provider_unavailable', 'too_large', 'busy', 'precondition_required', 'confirmation_required', 'confirmation_invalid', 'generator_daily_limit', 'storage_full', 'data_changed', 'already_undone', 'file_too_large', 'unsupported_file', 'profile_unknown', 'job_not_found', 'undo_conflict', 'bad_response', 'prompt_withheld', 'output_cut', 'invalid_answer', 'model_error', 'interrupted', 'internal', 'too_many_rows', 'job_not_finished'];
     const CHECK_IDS = ['count_min', 'structure', 'short_answer', 'duplicates', 'conflicts', 'too_long', 'label_balance', 'json_valid', 'split_sizes', 'language_fit'];
 
     function describeError(t, err) {

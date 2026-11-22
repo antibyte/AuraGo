@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Não selecionar nenhuma",
   "chibi_sensei.review.apply": "Aplicar selecionadas ({count})",
   "chibi_sensei.review.applied": "{count} sugestões aplicadas.",
+  "chibi_sensei.review.skipped": "{count} sugestões foram ignoradas, porque os seus exemplos mudaram entretanto.",
   "chibi_sensei.training.title": "Plano de treino",
   "chibi_sensei.training.intro": "Estas são as definições que o Sensei usaria. O treino em si chega numa versão futura.",
   "chibi_sensei.training.preset_quick": "Rápido",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Este modelo base não é conhecido.",
   "chibi_sensei.error.job_not_found": "Esta tarefa já não existe.",
   "chibi_sensei.error.undo_conflict": "Este passo já não pode ser desfeito, porque alguns dos seus exemplos foram alterados depois.",
-  "chibi_sensei.error.bad_response": "O servidor respondeu com algo inesperado."
+  "chibi_sensei.error.bad_response": "O servidor respondeu com algo inesperado.",
+  "chibi_sensei.error.prompt_withheld": "O Sensei não enviou estes exemplos ao modelo, porque a verificação de segurança os reteve. Verifica se os exemplos ou documentos contêm instruções dirigidas ao modelo.",
+  "chibi_sensei.error.output_cut": "A resposta do modelo foi cortada. Tenta com menos exemplos por execução.",
+  "chibi_sensei.error.invalid_answer": "O modelo não respondeu de forma utilizável. Tenta novamente ou escolhe outro modelo para o Sensei nas definições.",
+  "chibi_sensei.error.model_error": "Não foi possível contactar o modelo ou este devolveu um erro. Tenta novamente mais tarde.",
+  "chibi_sensei.error.interrupted": "Este passo foi interrompido por um reinício. Inicia-o novamente.",
+  "chibi_sensei.error.internal": "Algo correu mal neste passo. Inicia-o novamente.",
+  "chibi_sensei.error.too_many_rows": "Isso é mais do que um passo pode processar. Escolhe menos exemplos.",
+  "chibi_sensei.error.job_not_finished": "Este passo de limpeza ainda está em curso. Aguarda até terminar."
 }

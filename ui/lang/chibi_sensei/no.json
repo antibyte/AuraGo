@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Velg ingen",
   "chibi_sensei.review.apply": "Bruk valgte ({count})",
   "chibi_sensei.review.applied": "{count} forslag brukt.",
+  "chibi_sensei.review.skipped": "{count} forslag ble hoppet over, fordi eksemplene deres er endret i mellomtiden.",
   "chibi_sensei.training.title": "Treningsplan",
   "chibi_sensei.training.intro": "Dette er innstillingene Sensei ville brukt. Selve treningen kommer i en senere versjon.",
   "chibi_sensei.training.preset_quick": "Rask",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Denne basismodellen er ikke kjent.",
   "chibi_sensei.error.job_not_found": "Denne jobben finnes ikke lenger.",
   "chibi_sensei.error.undo_conflict": "Dette trinnet kan ikke lenger angres, fordi noen av eksemplene er endret etterpå.",
-  "chibi_sensei.error.bad_response": "Tjeneren svarte med noe uventet."
+  "chibi_sensei.error.bad_response": "Tjeneren svarte med noe uventet.",
+  "chibi_sensei.error.prompt_withheld": "Sensei sendte ikke disse eksemplene til modellen, fordi sikkerhetskontrollen holdt dem tilbake. Sjekk eksemplene eller dokumentene for instruksjoner rettet mot modellen.",
+  "chibi_sensei.error.output_cut": "Modellens svar ble avkortet. Prøv med færre eksempler per kjøring.",
+  "chibi_sensei.error.invalid_answer": "Modellen svarte ikke i en brukbar form. Prøv igjen, eller velg en annen modell for Sensei i innstillingene.",
+  "chibi_sensei.error.model_error": "Modellen kunne ikke nås eller returnerte en feil. Prøv igjen senere.",
+  "chibi_sensei.error.interrupted": "Dette trinnet ble avbrutt av en omstart. Start det på nytt.",
+  "chibi_sensei.error.internal": "Noe gikk galt i dette trinnet. Start det på nytt.",
+  "chibi_sensei.error.too_many_rows": "Det er mer enn et trinn kan ta. Velg færre eksempler.",
+  "chibi_sensei.error.job_not_finished": "Dette oppryddingstrinnet kjører fortsatt. Vent til det er ferdig."
 }

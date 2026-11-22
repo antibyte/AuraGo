@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Ne rien sélectionner",
   "chibi_sensei.review.apply": "Appliquer la sélection ({count})",
   "chibi_sensei.review.applied": "{count} suggestions appliquées.",
+  "chibi_sensei.review.skipped": "{count} suggestions ont été ignorées, car leurs exemples ont changé entre-temps.",
   "chibi_sensei.training.title": "Plan d'entraînement",
   "chibi_sensei.training.intro": "Voici les réglages que Sensei utiliserait. L'entraînement lui-même arrivera dans une version ultérieure.",
   "chibi_sensei.training.preset_quick": "Rapide",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Ce modèle de base est inconnu.",
   "chibi_sensei.error.job_not_found": "Cette tâche n'existe plus.",
   "chibi_sensei.error.undo_conflict": "Cette étape ne peut plus être annulée, car certains de ses exemples ont été modifiés depuis.",
-  "chibi_sensei.error.bad_response": "Le serveur a répondu par quelque chose d'inattendu."
+  "chibi_sensei.error.bad_response": "Le serveur a répondu par quelque chose d'inattendu.",
+  "chibi_sensei.error.prompt_withheld": "Sensei n'a pas envoyé ces exemples au modèle, car le contrôle de sécurité les a retenus. Vérifie si les exemples ou documents contiennent des instructions destinées au modèle.",
+  "chibi_sensei.error.output_cut": "La réponse du modèle a été coupée. Essaie avec moins d'exemples par exécution.",
+  "chibi_sensei.error.invalid_answer": "Le modèle n'a pas répondu sous une forme exploitable. Réessaie ou choisis un autre modèle pour Sensei dans les paramètres.",
+  "chibi_sensei.error.model_error": "Le modèle est injoignable ou a renvoyé une erreur. Réessaie plus tard.",
+  "chibi_sensei.error.interrupted": "Un redémarrage a interrompu cette étape. Relance-la.",
+  "chibi_sensei.error.internal": "Une erreur s'est produite pendant cette étape. Relance-la.",
+  "chibi_sensei.error.too_many_rows": "C'est plus qu'une étape ne peut en traiter. Choisis moins d'exemples.",
+  "chibi_sensei.error.job_not_finished": "Cette étape de nettoyage est encore en cours. Attends qu'elle soit terminée."
 }

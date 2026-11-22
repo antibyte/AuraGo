@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Nichts auswählen",
   "chibi_sensei.review.apply": "Auswahl übernehmen ({count})",
   "chibi_sensei.review.applied": "{count} Vorschläge übernommen.",
+  "chibi_sensei.review.skipped": "{count} Vorschläge wurden übersprungen, weil sich ihre Beispiele inzwischen geändert haben.",
   "chibi_sensei.training.title": "Trainingsplan",
   "chibi_sensei.training.intro": "Das sind die Einstellungen, die Sensei verwenden würde. Das Training selbst kommt in einer späteren Version.",
   "chibi_sensei.training.preset_quick": "Schnell",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Dieses Basismodell ist nicht bekannt.",
   "chibi_sensei.error.job_not_found": "Dieser Auftrag existiert nicht mehr.",
   "chibi_sensei.error.undo_conflict": "Dieser Schritt kann nicht mehr rückgängig gemacht werden, weil einige seiner Beispiele danach geändert wurden.",
-  "chibi_sensei.error.bad_response": "Der Server hat mit etwas Unerwartetem geantwortet."
+  "chibi_sensei.error.bad_response": "Der Server hat mit etwas Unerwartetem geantwortet.",
+  "chibi_sensei.error.prompt_withheld": "Sensei hat diese Beispiele nicht an das Modell geschickt, weil die Sicherheitsprüfung sie zurückgehalten hat. Prüfe die Beispiele oder Dokumente auf Anweisungen, die sich an das Modell richten.",
+  "chibi_sensei.error.output_cut": "Die Antwort des Modells wurde abgeschnitten. Versuche es mit weniger Beispielen pro Durchlauf.",
+  "chibi_sensei.error.invalid_answer": "Das Modell hat nicht in einer brauchbaren Form geantwortet. Versuche es erneut oder wähle in den Einstellungen ein anderes Modell für Sensei.",
+  "chibi_sensei.error.model_error": "Das Modell war nicht erreichbar oder hat einen Fehler zurückgegeben. Versuche es später erneut.",
+  "chibi_sensei.error.interrupted": "Dieser Schritt wurde durch einen Neustart unterbrochen. Starte ihn erneut.",
+  "chibi_sensei.error.internal": "In diesem Schritt ist etwas schiefgelaufen. Starte ihn erneut.",
+  "chibi_sensei.error.too_many_rows": "Das sind mehr Beispiele, als ein Schritt verarbeiten darf. Wähle weniger Beispiele.",
+  "chibi_sensei.error.job_not_finished": "Dieser Bereinigungsschritt läuft noch. Warte, bis er fertig ist."
 }

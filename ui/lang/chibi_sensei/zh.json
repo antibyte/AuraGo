@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "全部不选",
   "chibi_sensei.review.apply": "应用所选（{count}）",
   "chibi_sensei.review.applied": "已应用 {count} 条建议。",
+  "chibi_sensei.review.skipped": "已跳过 {count} 条建议，因为它们的示例在此期间发生了变化。",
   "chibi_sensei.training.title": "训练计划",
   "chibi_sensei.training.intro": "这些是 Sensei 将使用的设置。训练本身将在后续版本中推出。",
   "chibi_sensei.training.preset_quick": "快速",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "未知的基础模型。",
   "chibi_sensei.error.job_not_found": "此任务已不存在。",
   "chibi_sensei.error.undo_conflict": "此步骤已无法撤销，因为其中一些示例在之后被修改过。",
-  "chibi_sensei.error.bad_response": "服务器返回了意外的内容。"
+  "chibi_sensei.error.bad_response": "服务器返回了意外的内容。",
+  "chibi_sensei.error.prompt_withheld": "安全检查拦下了这些示例，因此 Sensei 没有把它们发送给模型。请检查示例或文档中是否含有针对模型的指令。",
+  "chibi_sensei.error.output_cut": "模型的回答被截断了。请减少每次运行的示例数量。",
+  "chibi_sensei.error.invalid_answer": "模型没有给出可用的回答。请重试，或在设置中为 Sensei 选择其他模型。",
+  "chibi_sensei.error.model_error": "无法连接到模型，或模型返回了错误。请稍后重试。",
+  "chibi_sensei.error.interrupted": "此步骤因重启而中断。请重新开始。",
+  "chibi_sensei.error.internal": "此步骤出了点问题。请重新开始。",
+  "chibi_sensei.error.too_many_rows": "这超出了单个步骤可处理的数量。请选择更少的示例。",
+  "chibi_sensei.error.job_not_finished": "此清理步骤仍在运行。请等待其完成。"
 }

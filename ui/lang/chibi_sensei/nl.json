@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Niets selecteren",
   "chibi_sensei.review.apply": "Geselecteerde toepassen ({count})",
   "chibi_sensei.review.applied": "{count} suggesties toegepast.",
+  "chibi_sensei.review.skipped": "{count} suggesties zijn overgeslagen, omdat hun voorbeelden intussen zijn gewijzigd.",
   "chibi_sensei.training.title": "Trainingsplan",
   "chibi_sensei.training.intro": "Dit zijn de instellingen die Sensei zou gebruiken. Het trainen zelf komt in een latere versie.",
   "chibi_sensei.training.preset_quick": "Snel",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Dit basismodel is onbekend.",
   "chibi_sensei.error.job_not_found": "Deze taak bestaat niet meer.",
   "chibi_sensei.error.undo_conflict": "Deze stap kan niet meer ongedaan worden gemaakt, omdat sommige voorbeelden ervan daarna zijn gewijzigd.",
-  "chibi_sensei.error.bad_response": "De server antwoordde met iets onverwachts."
+  "chibi_sensei.error.bad_response": "De server antwoordde met iets onverwachts.",
+  "chibi_sensei.error.prompt_withheld": "Sensei heeft deze voorbeelden niet naar het model gestuurd, omdat de veiligheidscontrole ze heeft tegengehouden. Controleer de voorbeelden of documenten op instructies die op het model gericht zijn.",
+  "chibi_sensei.error.output_cut": "Het antwoord van het model is afgekapt. Probeer minder voorbeelden per run.",
+  "chibi_sensei.error.invalid_answer": "Het model antwoordde niet in een bruikbare vorm. Probeer het opnieuw of kies in de instellingen een ander model voor Sensei.",
+  "chibi_sensei.error.model_error": "Het model was niet bereikbaar of gaf een fout terug. Probeer het later opnieuw.",
+  "chibi_sensei.error.interrupted": "Deze stap is onderbroken door een herstart. Start hem opnieuw.",
+  "chibi_sensei.error.internal": "Er ging iets mis in deze stap. Start hem opnieuw.",
+  "chibi_sensei.error.too_many_rows": "Dat zijn er meer dan één stap aankan. Kies minder voorbeelden.",
+  "chibi_sensei.error.job_not_finished": "Deze opschoonstap loopt nog. Wacht tot hij klaar is."
 }

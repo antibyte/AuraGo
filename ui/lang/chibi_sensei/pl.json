@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Odznacz wszystko",
   "chibi_sensei.review.apply": "Zastosuj zaznaczone ({count})",
   "chibi_sensei.review.applied": "Zastosowano propozycje: {count}.",
+  "chibi_sensei.review.skipped": "Pominięte propozycje: {count}, ponieważ ich przykłady w międzyczasie się zmieniły.",
   "chibi_sensei.training.title": "Plan treningu",
   "chibi_sensei.training.intro": "To ustawienia, których użyłby Sensei. Sam trening pojawi się w jednej z kolejnych wersji.",
   "chibi_sensei.training.preset_quick": "Szybki",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Ten model bazowy nie jest znany.",
   "chibi_sensei.error.job_not_found": "To zadanie już nie istnieje.",
   "chibi_sensei.error.undo_conflict": "Tego kroku nie można już cofnąć, ponieważ niektóre jego przykłady zostały później zmienione.",
-  "chibi_sensei.error.bad_response": "Serwer odpowiedział czymś nieoczekiwanym."
+  "chibi_sensei.error.bad_response": "Serwer odpowiedział czymś nieoczekiwanym.",
+  "chibi_sensei.error.prompt_withheld": "Sensei nie wysłał tych przykładów do modelu, ponieważ zatrzymała je kontrola bezpieczeństwa. Sprawdź, czy przykłady lub dokumenty nie zawierają instrukcji skierowanych do modelu.",
+  "chibi_sensei.error.output_cut": "Odpowiedź modelu została ucięta. Spróbuj z mniejszą liczbą przykładów na uruchomienie.",
+  "chibi_sensei.error.invalid_answer": "Model nie odpowiedział w użytecznej formie. Spróbuj ponownie lub wybierz w ustawieniach inny model dla Senseia.",
+  "chibi_sensei.error.model_error": "Nie udało się połączyć z modelem albo zwrócił błąd. Spróbuj ponownie później.",
+  "chibi_sensei.error.interrupted": "Ten krok został przerwany przez restart. Uruchom go ponownie.",
+  "chibi_sensei.error.internal": "W tym kroku coś poszło nie tak. Uruchom go ponownie.",
+  "chibi_sensei.error.too_many_rows": "To więcej, niż może przyjąć jeden krok. Wybierz mniej przykładów.",
+  "chibi_sensei.error.job_not_finished": "Ten krok czyszczenia jeszcze trwa. Poczekaj, aż się zakończy."
 }

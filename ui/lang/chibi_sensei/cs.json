@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Nevybrat nic",
   "chibi_sensei.review.apply": "Použít vybrané ({count})",
   "chibi_sensei.review.applied": "Použité návrhy: {count}.",
+  "chibi_sensei.review.skipped": "Přeskočené návrhy: {count}, protože se jejich příklady mezitím změnily.",
   "chibi_sensei.training.title": "Plán tréninku",
   "chibi_sensei.training.intro": "Toto jsou nastavení, která by Sensei použil. Samotný trénink přijde v pozdější verzi.",
   "chibi_sensei.training.preset_quick": "Rychlý",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Tento základní model není známý.",
   "chibi_sensei.error.job_not_found": "Tato úloha už neexistuje.",
   "chibi_sensei.error.undo_conflict": "Tento krok už nelze vrátit zpět, protože některé jeho příklady byly poté změněny.",
-  "chibi_sensei.error.bad_response": "Server odpověděl něčím neočekávaným."
+  "chibi_sensei.error.bad_response": "Server odpověděl něčím neočekávaným.",
+  "chibi_sensei.error.prompt_withheld": "Sensei tyto příklady neposlal modelu, protože je zadržela bezpečnostní kontrola. Zkontroluj příklady nebo dokumenty, zda neobsahují pokyny určené modelu.",
+  "chibi_sensei.error.output_cut": "Odpověď modelu byla useknuta. Zkus méně příkladů na jedno spuštění.",
+  "chibi_sensei.error.invalid_answer": "Model neodpověděl v použitelné podobě. Zkus to znovu nebo v nastavení vyber pro Senseie jiný model.",
+  "chibi_sensei.error.model_error": "Model není dostupný nebo vrátil chybu. Zkus to později.",
+  "chibi_sensei.error.interrupted": "Tento krok byl přerušen restartem. Spusť ho znovu.",
+  "chibi_sensei.error.internal": "V tomto kroku se něco pokazilo. Spusť ho znovu.",
+  "chibi_sensei.error.too_many_rows": "To je víc, než může jeden krok zpracovat. Vyber méně příkladů.",
+  "chibi_sensei.error.job_not_finished": "Tento krok čištění stále běží. Počkej, až skončí."
 }

@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Καμία επιλογή",
   "chibi_sensei.review.apply": "Εφαρμογή επιλεγμένων ({count})",
   "chibi_sensei.review.applied": "Εφαρμόστηκαν {count} προτάσεις.",
+  "chibi_sensei.review.skipped": "Παραλείφθηκαν {count} προτάσεις, επειδή τα παραδείγματά τους άλλαξαν στο μεταξύ.",
   "chibi_sensei.training.title": "Πλάνο εκπαίδευσης",
   "chibi_sensei.training.intro": "Αυτές είναι οι ρυθμίσεις που θα χρησιμοποιούσε ο Sensei. Η ίδια η εκπαίδευση θα έρθει σε μεταγενέστερη έκδοση.",
   "chibi_sensei.training.preset_quick": "Γρήγορο",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Αυτό το βασικό μοντέλο δεν είναι γνωστό.",
   "chibi_sensei.error.job_not_found": "Αυτή η εργασία δεν υπάρχει πια.",
   "chibi_sensei.error.undo_conflict": "Αυτό το βήμα δεν μπορεί πλέον να αναιρεθεί, επειδή ορισμένα από τα παραδείγματά του άλλαξαν στη συνέχεια.",
-  "chibi_sensei.error.bad_response": "Ο διακομιστής απάντησε με κάτι μη αναμενόμενο."
+  "chibi_sensei.error.bad_response": "Ο διακομιστής απάντησε με κάτι μη αναμενόμενο.",
+  "chibi_sensei.error.prompt_withheld": "Το Sensei δεν έστειλε αυτά τα παραδείγματα στο μοντέλο, επειδή ο έλεγχος ασφαλείας τα απέκλεισε. Έλεγξε τα παραδείγματα ή τα έγγραφα για οδηγίες που απευθύνονται στο μοντέλο.",
+  "chibi_sensei.error.output_cut": "Η απάντηση του μοντέλου κόπηκε. Δοκίμασε λιγότερα παραδείγματα ανά εκτέλεση.",
+  "chibi_sensei.error.invalid_answer": "Το μοντέλο δεν απάντησε σε χρησιμοποιήσιμη μορφή. Δοκίμασε ξανά ή επίλεξε άλλο μοντέλο για το Sensei στις ρυθμίσεις.",
+  "chibi_sensei.error.model_error": "Δεν ήταν δυνατή η σύνδεση με το μοντέλο ή επέστρεψε σφάλμα. Δοκίμασε ξανά αργότερα.",
+  "chibi_sensei.error.interrupted": "Αυτό το βήμα διακόπηκε από επανεκκίνηση. Ξεκίνα το ξανά.",
+  "chibi_sensei.error.internal": "Κάτι πήγε στραβά σε αυτό το βήμα. Ξεκίνα το ξανά.",
+  "chibi_sensei.error.too_many_rows": "Αυτά είναι περισσότερα από όσα επιτρέπεται να δεχτεί ένα βήμα. Επίλεξε λιγότερα παραδείγματα.",
+  "chibi_sensei.error.job_not_finished": "Αυτό το βήμα καθαρισμού εκτελείται ακόμη. Περίμενε μέχρι να ολοκληρωθεί."
 }

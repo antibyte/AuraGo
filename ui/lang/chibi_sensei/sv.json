@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Markera ingen",
   "chibi_sensei.review.apply": "Tillämpa markerade ({count})",
   "chibi_sensei.review.applied": "{count} förslag tillämpades.",
+  "chibi_sensei.review.skipped": "{count} förslag hoppades över, eftersom deras exempel har ändrats under tiden.",
   "chibi_sensei.training.title": "Träningsplan",
   "chibi_sensei.training.intro": "Det här är inställningarna som Sensei skulle använda. Själva träningen kommer i en senare version.",
   "chibi_sensei.training.preset_quick": "Snabb",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Den här basmodellen är okänd.",
   "chibi_sensei.error.job_not_found": "Det här jobbet finns inte längre.",
   "chibi_sensei.error.undo_conflict": "Det här steget kan inte längre ångras, eftersom några av dess exempel har ändrats efteråt.",
-  "chibi_sensei.error.bad_response": "Servern svarade med något oväntat."
+  "chibi_sensei.error.bad_response": "Servern svarade med något oväntat.",
+  "chibi_sensei.error.prompt_withheld": "Sensei skickade inte dessa exempel till modellen, eftersom säkerhetskontrollen höll tillbaka dem. Kontrollera om exemplen eller dokumenten innehåller instruktioner riktade till modellen.",
+  "chibi_sensei.error.output_cut": "Modellens svar avbröts. Försök med färre exempel per körning.",
+  "chibi_sensei.error.invalid_answer": "Modellen svarade inte i en användbar form. Försök igen eller välj en annan modell för Sensei i inställningarna.",
+  "chibi_sensei.error.model_error": "Modellen kunde inte nås eller returnerade ett fel. Försök igen senare.",
+  "chibi_sensei.error.interrupted": "Det här steget avbröts av en omstart. Starta det igen.",
+  "chibi_sensei.error.internal": "Något gick fel i det här steget. Starta det igen.",
+  "chibi_sensei.error.too_many_rows": "Det är fler än ett steg kan ta. Välj färre exempel.",
+  "chibi_sensei.error.job_not_finished": "Det här rensningssteget pågår fortfarande. Vänta tills det är klart."
 }

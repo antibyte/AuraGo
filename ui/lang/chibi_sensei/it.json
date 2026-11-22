@@ -397,6 +397,7 @@
   "chibi_sensei.review.select_none": "Deseleziona tutto",
   "chibi_sensei.review.apply": "Applica selezionati ({count})",
   "chibi_sensei.review.applied": "{count} suggerimenti applicati.",
+  "chibi_sensei.review.skipped": "{count} suggerimenti sono stati saltati, perché nel frattempo i loro esempi sono cambiati.",
   "chibi_sensei.training.title": "Piano di addestramento",
   "chibi_sensei.training.intro": "Queste sono le impostazioni che Sensei userebbe. L'addestramento vero e proprio arriverà in una versione successiva.",
   "chibi_sensei.training.preset_quick": "Veloce",
@@ -437,5 +438,13 @@
   "chibi_sensei.error.profile_unknown": "Questo modello di base non è riconosciuto.",
   "chibi_sensei.error.job_not_found": "Questo lavoro non esiste più.",
   "chibi_sensei.error.undo_conflict": "Questo passaggio non può più essere annullato, perché alcuni dei suoi esempi sono stati modificati in seguito.",
-  "chibi_sensei.error.bad_response": "Il server ha risposto con qualcosa di inatteso."
+  "chibi_sensei.error.bad_response": "Il server ha risposto con qualcosa di inatteso.",
+  "chibi_sensei.error.prompt_withheld": "Sensei non ha inviato questi esempi al modello, perché il controllo di sicurezza li ha trattenuti. Controlla se gli esempi o i documenti contengono istruzioni rivolte al modello.",
+  "chibi_sensei.error.output_cut": "La risposta del modello è stata troncata. Prova con meno esempi per esecuzione.",
+  "chibi_sensei.error.invalid_answer": "Il modello non ha risposto in una forma utilizzabile. Riprova oppure scegli un altro modello per Sensei nelle impostazioni.",
+  "chibi_sensei.error.model_error": "Il modello non è raggiungibile o ha restituito un errore. Riprova più tardi.",
+  "chibi_sensei.error.interrupted": "Questo passaggio è stato interrotto da un riavvio. Avvialo di nuovo.",
+  "chibi_sensei.error.internal": "Qualcosa è andato storto in questo passaggio. Avvialo di nuovo.",
+  "chibi_sensei.error.too_many_rows": "Sono più esempi di quanti un passaggio possa gestirne. Scegli meno esempi.",
+  "chibi_sensei.error.job_not_finished": "Questo passaggio di pulizia è ancora in corso. Attendi che sia terminato."
 }
