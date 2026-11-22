@@ -104,6 +104,17 @@ func TestRegisterProviderCUDAUsesDedicatedAPI(t *testing.T) {
 	}
 }
 
+func TestRegisterProviderCUDAMatchesNameCaseInsensitively(t *testing.T) {
+	fake := &fakeProviderAPI{}
+	if err := fake.runtime().registerProvider(fakeSessionOptions, "cudaexecutionprovider", nil); err != nil {
+		t.Fatalf("register lower-case CUDA: %v", err)
+	}
+	wantCalls := []string{"createCUDA", "updateCUDA", "appendCUDAV2", "releaseCUDA"}
+	if !slices.Equal(fake.calls, wantCalls) {
+		t.Fatalf("lower-case CUDA registration calls = %v, want %v", fake.calls, wantCalls)
+	}
+}
+
 func TestRegisterProviderCUDACallerOptionsOverrideDefaults(t *testing.T) {
 	fake := &fakeProviderAPI{}
 	opts := map[string]string{"device_id": "1", "arena_extend_strategy": "kSameAsRequested"}

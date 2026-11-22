@@ -229,7 +229,7 @@ func (r *Runtime) appendProvider(options uintptr, provider string, providerOptio
 // registerProvider appends an available provider to options: CUDA through its
 // V2 API, every other provider through the generic append.
 func (r *Runtime) registerProvider(options uintptr, provider string, providerOptions map[string]string) error {
-	if provider == ProviderCUDA {
+	if strings.EqualFold(provider, ProviderCUDA) {
 		return r.appendCUDAProvider(options, providerOptions)
 	}
 	var err error
