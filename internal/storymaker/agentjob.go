@@ -57,6 +57,9 @@ type AgentJobInfo struct {
 	ChangedScenes   []string     `json:"changed_scenes,omitempty"`
 	UnchangedScenes []string     `json:"unchanged_scenes,omitempty"`
 	RemovedScenes   []string     `json:"removed_scenes,omitempty"`
+	// NarrationFaults are the faults the synthesis checks found in the story's pieces ("clipped", "dropout", sorted). They
+	// are shown on the job card and never change the outcome.
+	NarrationFaults []string `json:"narration_faults,omitempty"`
 }
 
 // OutcomeInput is what a finished job knows. Narration is "", narration_unavailable, narration_failed,

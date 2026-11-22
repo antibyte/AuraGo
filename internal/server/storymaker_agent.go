@@ -156,6 +156,8 @@ type storymakerAgentJob struct {
 	adviceDone bool
 	summary    string
 	before     *storymaker.Story
+	// narrationFaults are the faults of the story's stored pieces, read after the narration step.
+	narrationFaults []string
 
 	browserReady    bool // the browser for the compile check answered ready
 	browserAttempts int  // Ensure calls of this job, at most storymakerBrowserMaxAttempts
@@ -835,6 +837,7 @@ func (j *storymakerAgentJob) publishOutcome(ctx context.Context, in storymaker.O
 	j.update(func(info *storymaker.AgentJobInfo) {
 		info.Outcome, info.OpenChecks = outcome, checks
 		info.Repairs = j.studio.Repairs()
+		info.NarrationFaults = j.narrationFaults
 		info.Phase, info.SceneID = "", ""
 		info.ScenesTotal, info.ScenesDone, info.StoryETag = progress.ScenesTotal, progress.ScenesDone, progress.ETag
 		info.DurationSeconds = in.Check.TotalSeconds
@@ -1004,6 +1007,29 @@ func (j *storymakerAgentJob) finalCheck(ctx context.Context) (storymaker.CheckRe
 	return report, nil
 }
 
+// readNarrationFaults collects the faults of the stored pieces of the story, "clipped" and "dropout", sorted. A story
+// that cannot be read has none: the faults are a note on the job card and never fail a job.
+func (j *storymakerAgentJob) readNarrationFaults(ctx context.Context) []string {
+	story := j.readStory(ctx)
+	if story == nil {
+		return nil
+	}
+	storymaker.ApplyDefaults(story)
+	storymaker.ApplyPhononVoices(story, j.rt.catalog)
+	answer, err := j.rt.projects.AudioAnswerExact(ctx, j.job.ProjectID, story, nil)
+	if err != nil {
+		return nil
+	}
+	var all []string
+	for _, scene := range answer.Narration {
+		for _, block := range scene.Blocks {
+			all = append(all, block.Faults...)
+		}
+	}
+	slices.Sort(all)
+	return slices.Compact(all)
+}
+
 // readStory reads the saved story. It returns nil when the story cannot be read or decoded.
 func (j *storymakerAgentJob) readStory(ctx context.Context) *storymaker.Story {
 	data, _, err := j.rt.projects.LoadStory(ctx, j.job.ProjectID)
@@ -1047,6 +1073,7 @@ func (j *storymakerAgentJob) finish(runCtx, jobCtx context.Context) (render.Outp
 		j.logger.Warn("[Storymaker] The final agent check failed", "job_id", j.job.ID, "error", err)
 		j.noteModelError(err)
 	}
+	j.narrationFaults = j.readNarrationFaults(final)
 	return j.publishOutcome(final, storymaker.OutcomeInput{
 		Progress:   open,
 		Check:      report,
