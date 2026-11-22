@@ -205,6 +205,8 @@ type AudioBlock struct {
 	Levels     Levels       `json:"levels"`
 	Pieces     []AudioPiece `json:"pieces"`
 	SpeechOK   bool         `json:"speech_ok"`
+	// Faults is the union of the faults of the pieces ("clipped", "dropout", sorted). The page never sees it.
+	Faults []string `json:"-"`
 }
 
 func joinPauseMS(join string) int {
@@ -229,7 +231,9 @@ func AssembleBlock(b NarrationBlock, pieces []AudioPieceInput, fps int) AudioBlo
 		out.Beat = &beat
 	}
 	at, pause := 0, 0
+	var faults []string
 	for _, p := range pieces {
+		faults = append(faults, p.Env.Faults...)
 		at += pause
 		in, end := 0, p.Env.DurationMS
 		runs := p.Env.SpeechRuns()
@@ -250,6 +254,7 @@ func AssembleBlock(b NarrationBlock, pieces []AudioPieceInput, fps int) AudioBlo
 		pause = joinPauseMS(p.Join)
 	}
 	out.DurationMS = at
+	out.Faults = knownPieceFaults(faults)
 	out.Levels = blockLevels(out, pieces, fps)
 	return out
 }

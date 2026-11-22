@@ -210,3 +210,26 @@ func TestEnvelopeFaultsRoundTrip(t *testing.T) {
 		t.Errorf("odd faults %v, %v", got.Faults, err)
 	}
 }
+
+func TestAssembleBlockCollectsThePieceFaults(t *testing.T) {
+	block := NarrationBlock{ID: "s1:n", Kind: BlockKindNarration, Beat: -1, Speaker: "narrator"}
+	dropout := envelopeOfRuns(1000, [2]int{100, 800})
+	dropout.Faults = []string{"dropout"}
+	both := envelopeOfRuns(500, [2]int{50, 400})
+	both.Faults = []string{"clipped", "dropout"}
+	got := AssembleBlock(block, []AudioPieceInput{
+		{Hash: "a", Ext: "wav", Env: dropout, Join: JoinSentence},
+		{Hash: "b", Ext: "wav", Env: both},
+	}, 30)
+	if !reflect.DeepEqual(got.Faults, []string{"clipped", "dropout"}) {
+		t.Errorf("faults %v", got.Faults)
+	}
+	if clean := AssembleBlock(block, []AudioPieceInput{{Hash: "a", Ext: "wav", Env: envelopeOfRuns(1000, [2]int{100, 800})}}, 30); clean.Faults != nil {
+		t.Errorf("a clean block has faults %v", clean.Faults)
+	}
+	// The page never sees them: the answer of /narration and boot.audio_info stay as they were.
+	data, err := json.Marshal(got)
+	if err != nil || strings.Contains(string(data), "fault") {
+		t.Errorf("block JSON %s, %v", data, err)
+	}
+}
