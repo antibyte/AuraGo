@@ -293,6 +293,44 @@ check('readonly and empty text refuse commit; no-document commit creates canvas'
     window.PixelApp.dispose('t3d-empty');
 });
 
+check('projectBox shadow rect encloses full cast shadow without edge clipping', () => {
+    const p = T.normalizeParams({
+        text: 'AURAGO', fontSize: 96, pitch: -12, yaw: 18, roll: -2, depth: 36,
+        lightAzimuth: -35, lightElevation: 42, shadow: true, shadowOpacity: 60, shadowBlur: 65,
+        posX: 0.5, posY: 0.42
+    });
+    const proj = T.projectBox(p, 4.2, 1000, 700, 1);
+    const projNoShadow = T.projectBox({ ...p, shadow: false }, 4.2, 1000, 700, 1);
+    assert.ok(proj.backPlaneZ > -2.5 && proj.backPlaneZ < -0.2, 'backPlaneZ stays tightly behind rotated box: ' + proj.backPlaneZ);
+    assert.ok(proj.rect.y + proj.rect.h > projNoShadow.rect.y + projNoShadow.rect.h + 20, 'shadow expands bottom render rect');
+    assert.ok(proj.rect.x + proj.rect.w > projNoShadow.rect.x + projNoShadow.rect.w + 15, 'shadow expands right render rect');
+    // Verify CPU fallback renders unclipped shadow with zero alpha on interior rect borders.
+    const w = 140, h = 44;
+    const alpha = new Uint8ClampedArray(w * h);
+    for (let y = 12; y < 32; y++) for (let x = 14; x < 126; x++) alpha[y * w + x] = 255;
+    const sdf = T.computeSDF(alpha, w, h, 24);
+    const tex = T.generateTexture('gold', 64, p);
+    const out = T.renderCPU(sdf, tex, p, 120, 84, {
+        docW: 1000, docH: 700, viewX: proj.rect.x, viewY: proj.rect.y, viewW: proj.rect.w, viewH: proj.rect.h,
+        aspect: 4.2, texHalfX: 4.6, texHalfY: 1.4, lineCount: 1, draft: true
+    });
+    let borderMaxA = 0, leftSh = 0, rightSh = 0;
+    for (let x = 0; x < out.width; x++) {
+        borderMaxA = Math.max(borderMaxA, out.data[x * 4 + 3], out.data[((out.height - 1) * out.width + x) * 4 + 3]);
+    }
+    for (let y = 0; y < out.height; y++) {
+        borderMaxA = Math.max(borderMaxA, out.data[(y * out.width) * 4 + 3], out.data[(y * out.width + out.width - 1) * 4 + 3]);
+        for (let x = 0; x < out.width; x++) {
+            const a = out.data[(y * out.width + x) * 4 + 3];
+            if (a > 10 && a < 245) {
+                if (x < out.width / 2) leftSh++; else rightSh++;
+            }
+        }
+    }
+    assert.equal(borderMaxA, 0, 'cast shadow must fade out cleanly before the render rect border');
+    assert.ok(leftSh > 15 && rightSh > 15, 'cast shadow must span both left and right halves of wide text');
+});
+
 check('new 3D text scripts stay under line budget and lib stays DOM-free', () => {
     const libSrc = fs.readFileSync(path.join(appDir, 'pixel-lib-text3d.js'), 'utf8');
     for (const forbidden of ['document.', 'window.', 'localStorage', 'createElement', 'Math.random']) {

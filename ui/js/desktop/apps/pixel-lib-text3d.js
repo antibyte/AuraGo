@@ -707,6 +707,23 @@
         return [px, py, pz];
     }
 
+    function lightDirWorld(p) {
+        const az = p.lightAzimuth * DEG, el = p.lightElevation * DEG;
+        const lx = Math.cos(el) * Math.sin(az);
+        const ly = Math.sin(el);
+        const lz = Math.cos(el) * Math.cos(az);
+        const lLen = Math.hypot(lx, ly, lz) || 1;
+        return [lx / lLen, ly / lLen, lz / lLen];
+    }
+
+    function shadowLightDir(lw) {
+        const sx = lw[0] * 0.65;
+        const sy = lw[1] * 0.65;
+        const sz = Math.max(0.55, Math.abs(lw[2]));
+        const sl = Math.hypot(sx, sy, sz) || 1;
+        return [sx / sl, sy / sl, sz / sl];
+    }
+
     // Projects the 8 corners of the 3D text bounding box into document pixels for rendering crops & the interactive 3D gizmo.
     function projectBox(params, aspect, docW, docH, lineCount) {
         const p = normalizeParams(params);
@@ -720,6 +737,9 @@
         // Text height spans local [-1, 1] -> baseScale = total text block pixel height / 2.
         const totalTextH = p.fontSize * (1 + (lines - 1) * p.lineHeight);
         const baseScale = Math.max(8, totalTextH * 0.56);
+        // Tight back-most world Z of the rotated bounding box so cast shadows stay grounded behind every letter.
+        const maxWorldZ = Math.abs(R[6]) * bounds.hx + Math.abs(R[7]) * bounds.hy + Math.abs(R[8]) * bounds.hz;
+        const backPlaneZ = -maxWorldZ - 0.18;
 
         const project = (lx, ly, lz) => {
             const w = mulMat3Vec(R, lx, ly, lz);
@@ -748,12 +768,35 @@
             if (corners[i].x > maxX) maxX = corners[i].x;
             if (corners[i].y > maxY) maxY = corners[i].y;
         }
-        const shadowPad = p.shadow ? Math.ceil(baseScale * (0.45 + (p.shadowBlur / 100) * 0.35)) : 12;
-        const pad = Math.max(16, shadowPad);
-        const x0 = Math.max(0, Math.floor(minX - pad));
-        const y0 = Math.max(0, Math.floor(minY - pad));
-        const x1 = Math.min(docW, Math.ceil(maxX + pad));
-        const y1 = Math.min(docH, Math.ceil(maxY + pad));
+        let rectMinX = minX, rectMinY = minY, rectMaxX = maxX, rectMaxY = maxY;
+        if (p.shadow && p.shadowOpacity > 0) {
+            const shL = shadowLightDir(lightDirWorld(p));
+            const blurK = mix(14.0, 2.2, p.shadowBlur / 100);
+            const penumbraPad = Math.min(1.05, 2.05 / blurK + 0.10);
+            const shx = bounds.hx + penumbraPad;
+            const shy = bounds.hy + penumbraPad;
+            const shz = bounds.hz + penumbraPad;
+            const sPlaneScale = (camDist / Math.max(0.35, camDist - backPlaneZ)) * baseScale;
+            for (let sxSign = -1; sxSign <= 1; sxSign += 2) {
+                for (let sySign = -1; sySign <= 1; sySign += 2) {
+                    for (let szSign = -1; szSign <= 1; szSign += 2) {
+                        const w = mulMat3Vec(R, sxSign * shx, sySign * shy, szSign * shz);
+                        const ts = Math.max(0, (w[2] - backPlaneZ) / shL[2]);
+                        const px = cx + (w[0] - shL[0] * ts) * sPlaneScale;
+                        const py = cy - (w[1] - shL[1] * ts) * sPlaneScale;
+                        if (px < rectMinX) rectMinX = px;
+                        if (py < rectMinY) rectMinY = py;
+                        if (px > rectMaxX) rectMaxX = px;
+                        if (py > rectMaxY) rectMaxY = py;
+                    }
+                }
+            }
+        }
+        const pad = 16;
+        const x0 = Math.max(0, Math.floor(rectMinX - pad));
+        const y0 = Math.max(0, Math.floor(rectMinY - pad));
+        const x1 = Math.min(docW, Math.ceil(rectMaxX + pad));
+        const y1 = Math.min(docH, Math.ceil(rectMaxY + pad));
         const boxW = Math.max(1, maxX - minX), boxH = Math.max(1, maxY - minY);
         const orbitR = Math.max(36, Math.hypot(boxW, boxH) * 0.56);
         const topMid = project(0, bounds.hy, 0);
@@ -761,7 +804,7 @@
         const rollLen = Math.hypot(rollDirX, rollDirY) || 1;
         const rollHandle = { x: topMid.x + (rollDirX / rollLen) * 26, y: topMid.y + (rollDirY / rollLen) * 26 };
         return {
-            R, Rt: transposeMat3(R), camDist, baseScale, cx, cy, aspect: a, halfDepth, bounds,
+            R, Rt: transposeMat3(R), camDist, baseScale, cx, cy, aspect: a, halfDepth, bounds, backPlaneZ,
             front, back, corners, minX, minY, maxX, maxY,
             rect: { x: x0, y: y0, w: Math.max(0, x1 - x0), h: Math.max(0, y1 - y0) },
             orbitR, rollHandle
@@ -879,10 +922,11 @@
             warpCode: warpDef.code, warpStrength: p.warpStrength, warpFreq: p.warpFreq,
             texHalfX, texHalfY
         };
-        const az = p.lightAzimuth * DEG, el = p.lightElevation * DEG;
-        const lw = [Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)];
-        const lLen = Math.hypot(lw[0], lw[1], lw[2]) || 1;
-        lw[0] /= lLen; lw[1] /= lLen; lw[2] /= lLen;
+        const lw = lightDirWorld(p);
+        const shL = shadowLightDir(lw);
+        const lLocShadow = mulMat3Vec(proj.Rt, shL[0], shL[1], shL[2]);
+        const blurK = mix(14.0, 2.2, p.shadowBlur / 100);
+        const penumbraPad = Math.min(1.05, 2.05 / blurK + 0.10);
         const sideRgb = parseHex(p.sideColor, [0.22, 0.28, 0.42]);
         const primRgb = parseHex(p.color, [0.95, 0.72, 0.24]);
         const texScale = (p.texScale || 100) / 100;
@@ -894,7 +938,7 @@
         const out = new Uint8ClampedArray(outW * outH * 4);
         const ro = mulMat3Vec(proj.Rt, 0, 0, proj.camDist);
         const b = proj.bounds;
-        const backPlaneZ = -Math.max(b.hx, b.hy, b.hz) - 0.15;
+        const backPlaneZ = proj.backPlaneZ;
 
         for (let py = 0; py < outH; py++) {
             if (o.progress && (py & 15) === 0) o.progress(py / outH);
@@ -994,15 +1038,24 @@
                     out[idx + 3] = 255;
                 } else if (p.shadow && p.shadowOpacity > 0 && rdw[2] < -0.05) {
                     const tPlane = (backPlaneZ - proj.camDist) / rdw[2];
-                    const wx = rdw[0] * tPlane, wy = rdw[1] * tPlane;
-                    const shift = (proj.halfDepth + 0.35) / Math.max(0.25, lw[2]);
-                    const pLoc = mulMat3Vec(proj.Rt, wx + lw[0] * shift * 0.45, wy + lw[1] * shift * 0.45, 0);
-                    const dS = eval3DSDF(pLoc[0], pLoc[1], pLoc[2], sdfObj, ctx);
-                    const blurR = 0.06 + (p.shadowBlur / 100) * 0.38;
-                    const sh = clamp01(1 - smoothstep(-0.02, blurR, dS)) * (p.shadowOpacity / 100);
-                    if (sh > 0.005) {
-                        out[idx] = 8; out[idx + 1] = 10; out[idx + 2] = 18;
-                        out[idx + 3] = Math.round(sh * 255);
+                    const pLoc = mulMat3Vec(proj.Rt, rdw[0] * tPlane, rdw[1] * tPlane, backPlaneZ);
+                    const sBox = intersectAABB(pLoc, lLocShadow, b.hx + penumbraPad, b.hy + penumbraPad, b.hz + penumbraPad);
+                    if (sBox) {
+                        let res = 1;
+                        let st = Math.max(0.02, sBox[0]);
+                        const stEnd = sBox[1];
+                        for (let j = 0; j < 20 && st <= stEnd; j++) {
+                            const ds = eval3DSDF(pLoc[0] + lLocShadow[0] * st, pLoc[1] + lLocShadow[1] * st, pLoc[2] + lLocShadow[2] * st, sdfObj, ctx);
+                            if (ds < 0.002) { res = 0; break; }
+                            const pen = blurK * ds / clamp(st, 0.25, 2.0);
+                            if (pen < res) res = pen;
+                            st += clamp(ds * warpDef.lip, 0.03, 0.55);
+                        }
+                        const sh = clamp01(1 - res) * (p.shadowOpacity / 100);
+                        if (sh > 0.005) {
+                            out[idx] = 8; out[idx + 1] = 10; out[idx + 2] = 18;
+                            out[idx + 3] = Math.round(sh * 255);
+                        }
                     }
                 }
             }

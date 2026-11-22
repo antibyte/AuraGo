@@ -183,18 +183,22 @@ vec4 shadeRay(vec2 px) {
         if (uShadowCfg.x < 0.5 || uShadowCfg.y <= 0.001 || rdW.z >= -0.05) return vec4(0.0);
         float tPlane = (uBackPlaneZ - uCamDist) / rdW.z;
         vec3 pPlaneW = roW + rdW * tPlane;
-        vec3 shLightW = normalize(vec3(uLightDir.x * 0.7, uLightDir.y * 0.7, max(0.45, abs(uLightDir.z))));
+        vec3 shLightW = normalize(vec3(uLightDir.x * 0.65, uLightDir.y * 0.65, max(0.55, abs(uLightDir.z))));
         vec3 lLoc = uInvRot * shLightW;
         vec3 pLoc = uInvRot * pPlaneW;
-        float res = 1.0;
         float blurK = mix(14.0, 2.2, uShadowCfg.z);
-        float st = 0.06;
-        for (int j = 0; j < 14; j++) {
+        float penumbraPad = min(1.05, 2.05 / blurK + 0.10);
+        vec2 sBox = intersectBox(pLoc, lLoc, uBoxHalf + vec3(penumbraPad));
+        if (sBox.x > sBox.y) return vec4(0.0);
+        float res = 1.0;
+        float st = max(0.02, sBox.x);
+        float stEnd = sBox.y;
+        for (int j = 0; j < 26; j++) {
+            if (st > stEnd) break;
             float ds = mapSDF(pLoc + lLoc * st);
             if (ds < 0.0015) { res = 0.0; break; }
-            res = min(res, blurK * ds / max(0.08, st));
-            st += clamp(ds * uLipschitz, 0.04, 0.36);
-            if (st > 5.0) break;
+            res = min(res, blurK * ds / clamp(st, 0.25, 2.0));
+            st += clamp(ds * uLipschitz, 0.03, 0.60);
         }
         return vec4(0.03, 0.04, 0.08, clamp(1.0 - res, 0.0, 1.0) * uShadowCfg.y);
     }
@@ -422,7 +426,7 @@ void main() {
                 const bumpAmp = (p.bumpStrength / 100) * texDef.bump;
                 const tRad = p.texRotate * Math.PI / 180;
                 const b = proj.bounds;
-                const backPlaneZ = -Math.max(b.hx, b.hy, b.hz) - 0.14;
+                const backPlaneZ = typeof proj.backPlaneZ === 'number' ? proj.backPlaneZ : (-Math.max(b.hx, b.hy, b.hz) - 0.18);
                 const U = entry.U;
 
                 gl.viewport(0, 0, w, h);

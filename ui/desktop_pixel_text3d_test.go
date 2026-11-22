@@ -335,6 +335,72 @@ func TestDesktopPixelText3DBrowser(t *testing.T) {
 		}
 	}
 
+	// Regression: wide single-line text ('AURAGO') with angled light & soft blur must cast a complete, unclipped shadow.
+	shadowRes := page.MustEval(`() => {
+		const rt = window.__rt;
+		const st = rt.text3DState();
+		AuraPixelApp.text3d.updateParams(rt, st, {
+			text: 'AURAGO',
+			font: 'oxanium',
+			fontSize: 92,
+			texture: 'gold',
+			warp: 'none',
+			pitch: -12,
+			yaw: 18,
+			roll: -2,
+			depth: 34,
+			bevel: 30,
+			bevelStyle: 'round',
+			lightAzimuth: -35,
+			lightElevation: 42,
+			shadow: true,
+			shadowOpacity: 60,
+			shadowBlur: 55,
+			posX: 0.5,
+			posY: 0.42
+		}, { immediate: true, highQuality: true });
+		const proj = st.proj;
+		const rect = proj.rect;
+		const pv = st.previewCanvas;
+		const d = pv.getContext('2d').getImageData(0, 0, pv.width, pv.height).data;
+		const alphaAt = (x, y) => d[(y * pv.width + x) * 4 + 3];
+		let borderMaxA = 0;
+		if (rect.y > 0) {
+			for (let x = rect.x; x < rect.x + rect.w; x++) borderMaxA = Math.max(borderMaxA, alphaAt(x, rect.y));
+		}
+		if (rect.y + rect.h < pv.height) {
+			for (let x = rect.x; x < rect.x + rect.w; x++) borderMaxA = Math.max(borderMaxA, alphaAt(x, rect.y + rect.h - 1));
+		}
+		if (rect.x > 0) {
+			for (let y = rect.y; y < rect.y + rect.h; y++) borderMaxA = Math.max(borderMaxA, alphaAt(rect.x, y));
+		}
+		if (rect.x + rect.w < pv.width) {
+			for (let y = rect.y; y < rect.y + rect.h; y++) borderMaxA = Math.max(borderMaxA, alphaAt(rect.x + rect.w - 1, y));
+		}
+		let leftShadow = 0, rightShadow = 0;
+		const midX = Math.round(proj.cx);
+		for (let y = rect.y; y < rect.y + rect.h; y++) {
+			for (let x = rect.x; x < rect.x + rect.w; x++) {
+				const a = alphaAt(x, y);
+				if (a > 12 && a < 220) {
+					if (x < midX) leftShadow++; else rightShadow++;
+				}
+			}
+		}
+		return { borderMaxA, leftShadow, rightShadow, rect };
+	}`)
+	if shadowRes.Get("borderMaxA").Int() > 3 {
+		t.Fatalf("cast shadow clipped against render rect border: %s", shadowRes.Raw())
+	}
+	if shadowRes.Get("leftShadow").Int() < 300 || shadowRes.Get("rightShadow").Int() < 300 {
+		t.Fatalf("cast shadow must span both left and right halves of wide single-line text, got %s", shadowRes.Raw())
+	}
+	if artifactDir != "" {
+		if data, err := page.Screenshot(false, nil); err == nil {
+			_ = os.WriteFile(filepath.Join(artifactDir, "pixel-text3d-wide-shadow.png"), data, 0o644)
+		}
+	}
+
 	// Switch to Molten Lava + 3D Twist + different angle, verify pixels change distinctly, then Place & Undo/Redo.
 	res2 := page.MustEval(`() => {
 		const rt = window.__rt;
