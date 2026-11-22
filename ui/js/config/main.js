@@ -3427,6 +3427,22 @@ function attachChangeListeners() {
 }
 
 // ── Save ────────────────────────────────────────────
+// Status text for a successful PUT /api/config. The server reports stable
+// restart reason IDs (restart_reasons); its message and restart_reason labels
+// stay English for other API consumers, so the message is never shown here.
+function configSaveStatusText(result) {
+    if (!result || !result.needs_restart) return t('config.save_bar.saved_applied');
+    const ids = Array.isArray(result.restart_reasons) ? result.restart_reasons : [];
+    const labels = Array.isArray(result.restart_reason) ? result.restart_reason : [];
+    const names = ids.map((id, i) => tOr('config.save_bar.restart_reason.' + id, labels[i] || String(id)));
+    if (!names.length) return t('config.save_bar.restart_needed');
+    let list = names.join(', ');
+    try {
+        list = new Intl.ListFormat(document.documentElement.lang || undefined, { type: 'conjunction' }).format(names);
+    } catch (_) { /* keep the comma-separated list */ }
+    return t('config.save_bar.restart_needed_for', { reasons: list });
+}
+
 async function saveConfig() {
     if (configSaveInFlight) return;
     const sipDirty = typeof window.sipHasUnsavedChanges === 'function' && window.sipHasUnsavedChanges();
@@ -3537,18 +3553,14 @@ async function saveConfig() {
             }
 
             if (result.needs_restart) {
-                if (Array.isArray(result.restart_reason) && result.restart_reason.includes('embeddings.corpus_max_size_mb')) {
-                    result.message = t('config.save_bar.restart_needed') + ' ' + result.restart_reason.map(reason =>
-                        reason === 'embeddings.corpus_max_size_mb' ? t('config.embeddings.corpus_max_size_mb_label') : reason).join(', ');
-                }
                 status.className = 'save-status warning';
-                status.textContent = '⚠ ' + (result.message || t('config.save_bar.restart_needed'));
+                status.textContent = '⚠ ' + configSaveStatusText(result);
                 rememberConfigRestart(result);
                 if (window.AuraConfigSectionState) window.AuraConfigSectionState.rememberRestart(patchPaths, result.server_started_at).catch(() => {});
                 appendConfigRestartLink(status);
             } else {
                 status.className = 'save-status success';
-                status.textContent = result.message || t('config.save_bar.saved');
+                status.textContent = configSaveStatusText(result);
             }
             // Refresh config data and reset dirty state
             // Use a retry loop so a briefly-restarting tunnel (e.g. Cloudflare hot-reload)

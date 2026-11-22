@@ -1002,7 +1002,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		s.CfgMu.Lock()
 
 		needsRestart := false
-		restartReasons := []string{}
+		restartReasons := []configRestartReason{}
 		embeddingsChanged := false
 		discordChanged := false
 		rocketChatChanged := false
@@ -1024,7 +1024,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		if loadErr != nil {
 			s.Logger.Warn("[Config UI] Hot-reload failed, changes saved but require restart", "error", loadErr)
 			needsRestart = true
-			restartReasons = append(restartReasons, "Parse-Fehler beim Reload")
+			restartReasons = append(restartReasons, restartReasonReloadFailed)
 		} else {
 			// Apply vault secrets before comparison so vault-only fields match
 			newCfg.ApplyVaultSecrets(s.Vault)
@@ -1048,16 +1048,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Detect sections that need restart
 			if oldCfg.Agent.MaxConcurrentLoops != newCfg.Agent.MaxConcurrentLoops {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Agent concurrency")
+				restartReasons = append(restartReasons, restartReasonAgentConcurrency)
 			}
 			if oldCfg.Tools.SkillManager.Enabled != newCfg.Tools.SkillManager.Enabled {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Skill Manager")
+				restartReasons = append(restartReasons, restartReasonSkillManager)
 			}
 
 			if !reflect.DeepEqual(oldCfg.Server, newCfg.Server) {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Server (Host/Port)")
+				restartReasons = append(restartReasons, restartReasonServer)
 			}
 			// reflect.DeepEqual instead of == : the Discord section carries a
 			// []string (allowed_channel_ids), which makes the struct non-comparable.
@@ -1069,53 +1069,53 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 			if oldCfg.SQLite != newCfg.SQLite {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Datenbanken")
+				restartReasons = append(restartReasons, restartReasonDatabases)
 			}
 			if oldCfg.Directories != newCfg.Directories {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Verzeichnisse")
+				restartReasons = append(restartReasons, restartReasonDirectories)
 			}
 			if gameMakerRuntimeConfigChanged(oldCfg.GameMaker, newCfg.GameMaker) {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Game Maker runtime")
+				restartReasons = append(restartReasons, restartReasonGameMakerRuntime)
 			}
 			if s.GameMaker == nil && newCfg.GameMaker.Enabled {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Game Maker service")
+				restartReasons = append(restartReasons, restartReasonGameMakerService)
 			}
-			if reason := s.cydCreatorRestartReason(&oldCfg, newCfg); reason != "" {
+			if reason := s.cydCreatorRestartReason(&oldCfg, newCfg); reason.ID != "" {
 				needsRestart = true
 				restartReasons = append(restartReasons, reason)
 			}
 			if flowsRuntimeConfigChanged(oldCfg.Flows, newCfg.Flows) {
 				needsRestart = true
-				restartReasons = append(restartReasons, "EasyDrag flows")
+				restartReasons = append(restartReasons, restartReasonFlows)
 			}
 			if embeddingsConfigChanged(oldCfg, *newCfg) {
 				embeddingsChanged = true
 				needsRestart = true
-				restartReasons = append(restartReasons, "Embeddings / Langzeitgedächtnis")
+				restartReasons = append(restartReasons, restartReasonEmbeddings)
 			}
 			if oldCfg.Embeddings.CorpusMaxSizeMB != newCfg.Embeddings.CorpusMaxSizeMB {
 				needsRestart = true
-				restartReasons = append(restartReasons, "embeddings.corpus_max_size_mb")
+				restartReasons = append(restartReasons, restartReasonCorpusMaxSize)
 			}
 			if !reflect.DeepEqual(oldCfg.Chromecast, newCfg.Chromecast) {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Chromecast/TTS Server")
+				restartReasons = append(restartReasons, restartReasonChromecast)
 			}
 			if oldCfg.Webhooks.Enabled != newCfg.Webhooks.Enabled {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Webhooks (enabled/disabled)")
+				restartReasons = append(restartReasons, restartReasonWebhooks)
 			}
 			if oldCfg.Tools.DaemonSkills != newCfg.Tools.DaemonSkills {
 				needsRestart = true
-				restartReasons = append(restartReasons, "Daemon Skills")
+				restartReasons = append(restartReasons, restartReasonDaemonSkills)
 			}
 			if oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted {
 				if newCfg.Agent.SudoUnrestricted && newCfg.Runtime.ProtectSystemStrict {
 					needsRestart = true
-					restartReasons = append(restartReasons, "Sudo system-wide write access (systemd unit update required)")
+					restartReasons = append(restartReasons, restartReasonSudoUnrestricted)
 				}
 			}
 
@@ -1822,14 +1822,15 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			w.Header().Set("Strict-Transport-Security", "max-age=0")
 		}
 		if needsRestart {
-			msg := fmt.Sprintf("Gespeichert. Neustart nötig für: %s", strings.Join(restartReasons, ", "))
+			reasonIDs, reasonLabels, msg := configRestartAnswer(restartReasons)
 			response := map[string]interface{}{
 				"status":             "saved",
 				"message":            msg,
 				"needs_restart":      true,
 				"restart_url":        configRestartURL(r, &oldCfg, newCfg),
 				"restart_from":       configRequestOrigin(r),
-				"restart_reason":     restartReasons,
+				"restart_reason":     reasonLabels,
+				"restart_reasons":    reasonIDs,
 				"embeddings_changed": embeddingsChanged,
 			}
 			if started := serverStartedAtMillis(s); started > 0 {
@@ -1839,7 +1840,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 		} else {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":             "saved",
-				"message":            "Konfiguration gespeichert und sofort angewendet.",
+				"message":            "Configuration saved and applied.",
 				"needs_restart":      false,
 				"embeddings_changed": embeddingsChanged,
 			})

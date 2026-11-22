@@ -4921,6 +4921,46 @@ async function testInvasionNestFormSendsExportNestSecret() {
   assert.match(source, /setChk\('nest-export-secret', isEdit && nest\?\.export_nest_secret === true\)/);
 }
 
+function testConfigSaveStatusTranslatesRestartReasons() {
+  const shared = sourceBetween(read('ui/js/shared/shared-core.js'), 'function t(k, p)', '// ═══');
+  const main = read('ui/js/config/main.js');
+  const helper = sourceBetween(main, 'function configSaveStatusText(', 'async function saveConfig()');
+  const run = (lang, dict, result) => {
+    const context = { I18N: dict, document: { documentElement: { lang } } };
+    vm.createContext(context);
+    vm.runInContext(`${shared}\n${helper}\nglobalThis.out = configSaveStatusText(${JSON.stringify(result)});`, context);
+    return context.out;
+  };
+  const de = JSON.parse(read('ui/lang/config/common/de.json'));
+  const reason = id => de[`config.save_bar.restart_reason.${id}`];
+  const sentence = reasons => de['config.save_bar.restart_needed_for'].replace('{{reasons}}', reasons);
+
+  assert.equal(run('de', de, { status: 'saved', needs_restart: false, message: 'Configuration saved and applied.' }),
+    de['config.save_bar.saved_applied']);
+  assert.equal(run('de', de, {
+    status: 'saved', needs_restart: true,
+    restart_reasons: ['agent_concurrency', 'databases'],
+    restart_reason: ['Agent concurrency', 'Databases'],
+    message: 'Saved. Restart required for: Agent concurrency, Databases'
+  }), sentence(`${reason('agent_concurrency')} und ${reason('databases')}`));
+  // The corpus limit reason runs through the same mechanism as every other reason.
+  assert.equal(run('de', de, {
+    needs_restart: true, restart_reasons: ['embeddings_corpus_max_size_mb'], restart_reason: ['Embeddings corpus limit']
+  }), sentence(reason('embeddings_corpus_max_size_mb')));
+  // A reason this UI cannot translate shows the server's English label, never a raw key.
+  assert.equal(run('de', de, {
+    needs_restart: true, restart_reasons: ['flows', 'future_reason'], restart_reason: ['EasyDrag flows', 'Future thing']
+  }), sentence(`${reason('flows')} und Future thing`));
+  // Without reason IDs the UI still shows its own text instead of the server message.
+  assert.equal(run('de', de, { needs_restart: true, message: 'Saved. Restart required for: X' }),
+    de['config.save_bar.restart_needed']);
+
+  const save = sourceBetween(main, 'async function saveConfig()', 'async function checkSecurityAfterSave()');
+  assert.doesNotMatch(save, /result\.message \|\| t\('config\.save_bar\.(restart_needed|saved)'\)/);
+  assert.doesNotMatch(save, /corpus_max_size_mb/);
+  assert.equal((save.match(/configSaveStatusText\(result\)/g) || []).length, 2);
+}
+
 function testInvasionNestSecretFieldHidesOnlyWithoutEffect() {
   const source = read('ui/js/invasion/main.js');
   const helpers = sourceBetween(source, 'function setHiddenById(', 'function onDeployMethodChange()') +
@@ -5808,7 +5848,8 @@ const tests = [
   ['Orbit: choreography, schedules and particle system', testOrbitChoreoAndParticles],
   ['Chat defers the optional PromptSec advisory until the conversation is under way', testChatOptionalAdvisoryWaitsForConversation],
   ['Setup wizard batch 4: badges, advanced step 0, passwords, personalities, local Ollama plan', testSetupWizardBatch4],
-  ['Game Maker waiting_preview keeps the job active and replays a missed preview reload', testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload]
+  ['Game Maker waiting_preview keeps the job active and replays a missed preview reload', testGameMakerWaitingPreviewKeepsJobAliveAndCatchesUpReload],
+  ['Config save status translates restart reasons', testConfigSaveStatusTranslatesRestartReasons]
 ];
 
 for (const name of [

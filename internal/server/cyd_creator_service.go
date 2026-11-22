@@ -128,25 +128,25 @@ func cydPathWithin(root, candidate string) bool {
 const cydCreatorStartFailed = "CYD Creator could not start; the server log has the details"
 
 // cydCreatorRestartReason is the restart reason a config save adds for CYD
-// Creator, "" for none. While the service runs, the builder settings and
+// Creator, the zero value for none. While the service runs, the builder settings and
 // docker.host are read only at startup. Without a service, switching the
 // feature on needs a restart, unless the new configuration would be refused
 // again (cydCreatorStorageProblem): a restart cannot help then, and the
 // capabilities report cydCreatorProblem instead.
-func (s *Server) cydCreatorRestartReason(oldCfg, newCfg *config.Config) string {
+func (s *Server) cydCreatorRestartReason(oldCfg, newCfg *config.Config) configRestartReason {
 	if s == nil || oldCfg == nil || newCfg == nil {
-		return ""
+		return configRestartReason{}
 	}
 	if s.CYDCreator != nil {
 		if cydCreatorRuntimeConfigChanged(oldCfg.CYDCreator, newCfg.CYDCreator) || oldCfg.Docker.Host != newCfg.Docker.Host {
-			return "CYD Creator builder"
+			return restartReasonCYDBuilder
 		}
-		return ""
+		return configRestartReason{}
 	}
 	if newCfg.CYDCreator.Enabled && cydCreatorStorageProblem(newCfg, desktop.ConfigFromAuraConfig(newCfg).WorkspaceDir) == "" {
-		return "CYD Creator service"
+		return restartReasonCYDService
 	}
-	return ""
+	return configRestartReason{}
 }
 
 // initCYDCreator creates the CYD Creator service when cyd_creator.enabled is

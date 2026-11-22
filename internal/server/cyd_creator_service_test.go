@@ -495,16 +495,16 @@ func TestCYDCreatorRestartReasons(t *testing.T) {
 	} {
 		newCfg := oldCfg
 		mutate(&newCfg)
-		if got := f.s.cydCreatorRestartReason(&oldCfg, &newCfg); got != "CYD Creator builder" {
+		if got := f.s.cydCreatorRestartReason(&oldCfg, &newCfg).Label; got != "CYD Creator builder" {
 			t.Errorf("%s change with a running service: reason %q", name, got)
 		}
-		if got := (&Server{}).cydCreatorRestartReason(&oldCfg, &newCfg); got == "CYD Creator builder" {
+		if got := (&Server{}).cydCreatorRestartReason(&oldCfg, &newCfg).Label; got == "CYD Creator builder" {
 			t.Errorf("%s change without a service asks to restart the builder", name)
 		}
 	}
 	live := oldCfg
 	live.CYDCreator.KeepBuildsPerProject = 7
-	if got := f.s.cydCreatorRestartReason(&oldCfg, &live); got != "" {
+	if got := f.s.cydCreatorRestartReason(&oldCfg, &live).Label; got != "" {
 		t.Errorf("live change: reason %q", got)
 	}
 
@@ -514,12 +514,12 @@ func TestCYDCreatorRestartReasons(t *testing.T) {
 	off := *cfg
 	off.CYDCreator.Enabled = false
 	none := &Server{Cfg: cfg}
-	if got := none.cydCreatorRestartReason(&off, cfg); got != "CYD Creator service" {
+	if got := none.cydCreatorRestartReason(&off, cfg).Label; got != "CYD Creator service" {
 		t.Errorf("switching on with a usable database path: reason %q", got)
 	}
 	refused := *cfg
 	refused.SQLite.CYDCreatorPath = filepath.Join(cfg.Directories.WorkspaceDir, "cyd.db")
-	if got := none.cydCreatorRestartReason(&off, &refused); got != "" {
+	if got := none.cydCreatorRestartReason(&off, &refused).Label; got != "" {
 		t.Errorf("switching on with an agent-writable database path: reason %q", got)
 	}
 
