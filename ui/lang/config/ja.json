@@ -264,7 +264,7 @@
   "config.output_compression.python_desc": "Pythonフィルター",
   "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, ls/tree フィルター。",
   "config.output_compression.shell_desc": "Shellフィルター",
-  "config.output_compression.shell_label": "アクティブなフィルターカテゴリを選択してください。",
+  "config.output_compression.shell_label": "有効にするフィルターカテゴリを選択してください。無効なカテゴリには汎用フィルターが使われます。",
   "config.save_bar.restarting": "再起動中…",
   "config.section.output_compression.desc": "ツール出力をフィルタリング・重複排除してトークン消費を削減します。",
   "config.section.output_compression.label": "出力圧縮",

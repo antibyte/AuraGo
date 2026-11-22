@@ -264,7 +264,7 @@
   "config.output_compression.python_desc": "Python फ़िल्टर",
   "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, ls/tree फ़िल्टर।",
   "config.output_compression.shell_desc": "Shell फ़िल्टर",
-  "config.output_compression.shell_label": "चुनें कौन सी फ़िल्टर श्रेणियाँ सक्रिय हैं।",
+  "config.output_compression.shell_label": "चुनें कि कौन सी फ़िल्टर श्रेणियाँ सक्रिय हैं। अक्षम श्रेणियाँ सामान्य फ़िल्टर का उपयोग करती हैं।",
   "config.save_bar.restarting": "पुनः आरंभ हो रहा है…",
   "config.section.output_compression.desc": "टूल आउटपुट को फ़िल्टर और डीडुप्लिकेट करके टोकन खपत कम करता है।",
   "config.section.output_compression.label": "आउटपुट संपीड़न",

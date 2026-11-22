@@ -210,7 +210,7 @@
   "config.providers.oauth_field_client_id": "क्लाइंट ID",
   "config.providers.oauth_connect_unavailable": "कनेक्ट करने से पहले OAuth फ़ील्ड पूरे करें.",
   "config.providers.oauth_endpoint_required_error": "OAuth2: कस्टम endpoints के लिए Auth URL और Token URL आवश्यक हैं.",
-  "config.providers.oauth_browser_hint": "AuraGo इस provider के ज्ञात OAuth endpoints का उपयोग करता है. Client विवरण जोड़ो, फिर save करके browser में connect करो.",
+  "config.providers.oauth_browser_hint": "AuraGo इस provider के ज्ञात OAuth endpoints का उपयोग करता है. Client विवरण जोड़ें, फिर save करके browser में connect करें.",
   "config.providers.oauth_advanced_toggle": "उन्नत OAuth endpoints",
   "config.providers.oauth_advanced_help": "इन मानों को केवल कस्टम OAuth ऐप या बिना बिल्ट-इन प्रीसेट वाले प्रदाताओं के लिए बदलो.",
   "config.providers.oauth_preset_google": "Google OAuth प्रीसेट",

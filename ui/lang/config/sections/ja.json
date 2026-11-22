@@ -484,7 +484,7 @@
   "config.omniroute.port_label": "コンテナポート",
   "config.omniroute.secrets_desc": "これらの値は暗号化 Vault のみに保存され、config.yaml には保存されません。",
   "config.omniroute.secrets_title": "Vault シークレット",
-  "config.omniroute.sidecar_note": "管理モードでは /app/data を永続化した OmniRoute sidecar を 1 つ実行します。",
+  "config.omniroute.sidecar_note": "管理モードでは /app/data を永続化した OmniRoute sidecar を 1 つ実行し、外部モードでは既存のエンドポイントを使用します。",
   "config.omniroute.start_button": "起動",
   "config.omniroute.starting": "OmniRoute を起動中...",
   "config.omniroute.status_error": "OmniRoute チェックに失敗しました:",

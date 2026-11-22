@@ -32,7 +32,7 @@
   "config.manus.permissions_title": "एजेंट अनुमतियाँ",
   "config.manus.poll_interval_seconds": "स्थिति जाँच अंतराल (सेकंड)",
   "config.manus.read_only": "केवल-पढ़ने का मोड",
-  "config.manus.read_only_disable_confirm": "केवल-पढ़ने का मोड बंद करने पर नीचे चालू की गई सभी बदलाव अनुमतियाँ सक्रिय हो जाएँगी। क्या तुम जारी रखना चाहते हो?",
+  "config.manus.read_only_disable_confirm": "केवल-पढ़ने का मोड बंद करने पर नीचे चालू की गई सभी बदलाव अनुमतियाँ सक्रिय हो जाएँगी। क्या आप जारी रखना चाहते हैं?",
   "config.manus.read_only_disable_confirm_title": "केवल-पढ़ने का मोड बंद करें?",
   "config.manus.request_timeout_seconds": "अनुरोध समय सीमा (सेकंड)",
   "config.manus.save_api_key": "API कुंजी सहेजें",

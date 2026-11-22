@@ -479,7 +479,7 @@
   "config.omniroute.port_label": "容器端口",
   "config.omniroute.secrets_desc": "这些值只保存在加密 Vault 中，绝不会写入 config.yaml。",
   "config.omniroute.secrets_title": "Vault 机密",
-  "config.omniroute.sidecar_note": "托管模式会运行一个 OmniRoute sidecar，并持久化 /app/data。",
+  "config.omniroute.sidecar_note": "托管模式会运行一个 OmniRoute sidecar，并持久化 /app/data；外部模式则使用现有端点。",
   "config.omniroute.start_button": "启动",
   "config.omniroute.starting": "OmniRoute 正在启动...",
   "config.omniroute.status_error": "OmniRoute 检查失败:",

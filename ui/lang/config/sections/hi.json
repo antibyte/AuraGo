@@ -484,7 +484,7 @@
   "config.omniroute.port_label": "कंटेनर पोर्ट",
   "config.omniroute.secrets_desc": "ये मान केवल encrypted Vault में सहेजे जाते हैं, config.yaml में कभी नहीं।",
   "config.omniroute.secrets_title": "Vault सीक्रेट",
-  "config.omniroute.sidecar_note": "Managed mode एक OmniRoute sidecar चलाता है और /app/data persistent रखता है।",
+  "config.omniroute.sidecar_note": "Managed mode एक OmniRoute sidecar चलाता है और /app/data persistent रखता है; external mode किसी मौजूदा endpoint का उपयोग करता है।",
   "config.omniroute.start_button": "शुरू करें",
   "config.omniroute.starting": "OmniRoute शुरू हो रहा है...",
   "config.omniroute.status_error": "OmniRoute जांच विफल:",

@@ -1015,6 +1015,8 @@ New app-scoped prefixes must contain no `ad` substring; verify
 - Spanish addresses the user with informal `tú` imperatives (`Elige`,
   `Introduce`, `Selecciona`), never `usted` (`Elija`, `Introduzca`,
   `Seleccione`). Tests that pin Spanish strings use the same register.
+- `TestTranslationsHaveNoMergedLineArtifacts` rejects values that carry a
+  neighbouring key's text on an extra line, `[NNNN]` prefixes or tool markers.
 - File Manager undo/redo error translations must interpolate `{{error}}` in
   every locale so the failure details passed by the action remain visible.
 - God's Eye View uses the regular container-app window, starts maximized, and

@@ -507,7 +507,7 @@
   "help.omniroute.host_port": "Port published on the host for dashboard/API access.",
   "help.omniroute.image": "Docker image for the managed sidecar. Pin a version such as diegosouzapw/omniroute:3.8.39.",
   "help.omniroute.initial_password": "Initial admin password required before the first managed start. It is stored in the Vault and not written to config.yaml.",
-  "help.omniroute.jwt_secret": "generated secret for OmniRoute sessions. It is stored in the Vault and should stay stable.",
+  "help.omniroute.jwt_secret": "Automatically generated secret for OmniRoute sessions. It is stored in the Vault and should stay stable.",
   "help.omniroute.memory_mb": "Memory limit for the managed container in MiB.",
   "help.omniroute.mode": "Managed mode starts the Docker sidecar; external mode uses an existing OmniRoute endpoint.",
   "help.omniroute.network_name": "Private Docker network used when AuraGo is running outside Docker.",

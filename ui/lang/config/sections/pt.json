@@ -484,7 +484,7 @@
   "config.omniroute.port_label": "Porta do container",
   "config.omniroute.secrets_desc": "Estes valores ficam apenas no Vault criptografado, nunca em config.yaml.",
   "config.omniroute.secrets_title": "Segredos do Vault",
-  "config.omniroute.sidecar_note": "O modo gerenciado executa um unico sidecar OmniRoute com /app/data persistente.",
+  "config.omniroute.sidecar_note": "O modo gerenciado executa um único sidecar OmniRoute com /app/data persistente; o modo externo usa um endpoint existente.",
   "config.omniroute.start_button": "Iniciar",
   "config.omniroute.starting": "OmniRoute está iniciando...",
   "config.omniroute.status_error": "Falha na verificacao do OmniRoute:",

@@ -264,7 +264,7 @@
   "config.output_compression.python_desc": "Python-filter",
   "config.output_compression.python_label": "Git, Docker, kubectl, go test, pytest, grep, find, ls/tree filter.",
   "config.output_compression.shell_desc": "Skalfilter",
-  "config.output_compression.shell_label": "Välj vilka filterkategorier som är aktiva.",
+  "config.output_compression.shell_label": "Välj vilka filterkategorier som är aktiva. Inaktiverade kategorier använder det generiska filtret.",
   "config.save_bar.restarting": "Startar om…",
   "config.section.output_compression.desc": "Minskar tokenförbrukning genom att filtrera och deduplicera verktygsutdata.",
   "config.section.output_compression.label": "Utdatakomprimering",

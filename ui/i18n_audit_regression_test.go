@@ -1,11 +1,46 @@
 package ui
 
 import (
+	"io/fs"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 )
+
+// Machine-translation batches once glued the following keys' values onto a
+// value ("Ekonomika\n[0014] Kultura") or left tool markers ("@ info: whatsthis").
+func TestTranslationsHaveNoMergedLineArtifacts(t *testing.T) {
+	t.Parallel()
+	artifact := regexp.MustCompile(`(^|\n)\[\d{4}\] |^@ ?info\b`)
+	err := filepath.WalkDir("lang", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || filepath.Ext(path) != ".json" || entry.Name() == "en.json" {
+			return err
+		}
+		en, err := readJSONFileMap(filepath.Join(filepath.Dir(path), "en.json"))
+		if err != nil {
+			return nil // not a locale section (e.g. lang/meta.json)
+		}
+		values, err := readJSONFileMap(path)
+		if err != nil {
+			t.Errorf("%s: %v", path, err)
+			return nil
+		}
+		for key, raw := range values {
+			value, _ := raw.(string)
+			source, _ := en[key].(string)
+			if artifact.MatchString(value) {
+				t.Errorf("%s %s contains a translation-tool artifact: %q", path, key, value)
+			} else if strings.Contains(value, "\n") && !strings.Contains(source, "\n") {
+				t.Errorf("%s %s has a line break the English source lacks: %q", path, key, value)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestTranslationsAuditCorrections(t *testing.T) {
 	t.Parallel()

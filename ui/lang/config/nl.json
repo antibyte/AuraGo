@@ -264,7 +264,7 @@
   "config.output_compression.python_desc": "Python-filters",
   "config.output_compression.python_label": "Git, Docker, kubectl, ga testen, pytest, grep, vinden, ls/tree filters.",
   "config.output_compression.shell_desc": "Shell-filters",
-  "config.output_compression.shell_label": "Selecteer welke filtercategorieën actief zijn.",
+  "config.output_compression.shell_label": "Selecteer welke filtercategorieën actief zijn. Uitgeschakelde categorieën gebruiken het generieke filter.",
   "config.save_bar.restarting": "Opnieuw opstarten…",
   "config.section.output_compression.desc": "Vermindert tokenverbruik door tool-outputs te filteren en te dedupliceren.",
   "config.section.output_compression.label": "Outputcompressie",

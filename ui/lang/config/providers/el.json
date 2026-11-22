@@ -88,7 +88,7 @@
   "config.providers.id_exists": "Υπάρχει ήδη πάροχος με αυτό το ID.",
   "config.providers.id_invalid_error": "Το ID παρόχου \"{id}\" δεν είναι έγκυρο. Χρησιμοποίησε μόνο πεζά, αριθμούς, τελείες, παύλες ή κάτω παύλες. Παράδειγμα: agnesai, llama-3.1-8b, crof.ai",
   "config.providers.id_help": "Μοναδικό αναγνωριστικό (π.χ. main, vision-ollama, llama-3.1-8b). Πεζά· επιτρέπονται τελείες, παύλες και κάτω παύλες.",
-  "config.providers.id_placeholder": "ο-παροχος-μου",
+  "config.providers.id_placeholder": "o-parochos-mou",
   "config.providers.input_cost": "Είσοδος $/M",
   "config.providers.input_label": "Είσοδος",
   "config.providers.keep_existing_key": "Αφήστε κενό για να διατηρήσετε το υπάρχον κλειδί.",

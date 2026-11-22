@@ -3982,7 +3982,7 @@
   "desktop.teevee_stop": "Stoppa",
   "desktop.teevee_stream_stalled": "Strömmen har stannat. Försöker igen...",
   "desktop.teevee_stream_unavailable": "Strömmen är inte tillgänglig",
-  "desktop.teevee_timeout": "Katalogbegäran timed out",
+  "desktop.teevee_timeout": "Tidsgränsen för katalogbegäran överskreds",
   "desktop.teevee_unmute": "Slå på ljud",
   "desktop.teevee_unsupported_badge": "Huvuden",
   "desktop.teevee_unsupported_hint": "Denna ström kräver anpassade rubriker blockerade av webbläsaren",

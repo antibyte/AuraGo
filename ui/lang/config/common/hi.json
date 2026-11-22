@@ -128,7 +128,7 @@
   "config.docker_mode_banner": "AuraGo एक Docker कंटेनर के अंदर चल रहा है। कुछ सुविधाएँ सीमित हो सकती हैं।",
   "config.firewall.docker_blocked": "Docker कंटेनर के अंदर फ़ायरवॉल प्रबंधन उपलब्ध नहीं है।",
   "config.unsaved_changes.title": "सहेजे नहीं गए बदलाव",
-  "config.unsaved_changes.message": "तुम्हारे पास सहेजे नहीं गए बदलाव हैं। क्या इन्हें छोड़कर सेक्शन बदलना है?",
+  "config.unsaved_changes.message": "आपके पास सहेजे नहीं गए बदलाव हैं। क्या इन्हें छोड़कर सेक्शन बदलना है?",
   "config.unsaved_changes.discard": "बदलाव छोड़ें",
   "config.unsaved_changes.stay": "यहीं रहें",
   "config.common.clear": "साफ़ करें",

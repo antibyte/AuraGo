@@ -484,7 +484,7 @@
   "config.omniroute.port_label": "Θύρα κοντέινερ",
   "config.omniroute.secrets_desc": "Οι τιμές αποθηκεύονται μόνο στο κρυπτογραφημένο Vault, ποτέ στο config.yaml.",
   "config.omniroute.secrets_title": "Μυστικά Vault",
-  "config.omniroute.sidecar_note": "Η διαχειριζόμενη λειτουργία τρέχει ένα OmniRoute sidecar με μόνιμο /app/data.",
+  "config.omniroute.sidecar_note": "Η διαχειριζόμενη λειτουργία τρέχει ένα OmniRoute sidecar με μόνιμο /app/data· η εξωτερική λειτουργία χρησιμοποιεί ένα υπάρχον endpoint.",
   "config.omniroute.start_button": "Εκκίνηση",
   "config.omniroute.starting": "Το OmniRoute εκκινεί...",
   "config.omniroute.status_error": "Ο έλεγχος OmniRoute απέτυχε:",
