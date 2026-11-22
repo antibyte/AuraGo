@@ -368,6 +368,13 @@ type DockerImageBuilder interface {
 	BuildImage(ctx context.Context, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string) error
 }
 
+// DockerImageProber is an optional DockerAdapter extension that runs a short
+// command inside an image and reports its exit code and output. The Store
+// uses it to prove that an image really works before it installs it.
+type DockerImageProber interface {
+	RunImageCommand(ctx context.Context, image string, command []string, timeout time.Duration) (exitCode int, output string, err error)
+}
+
 // DesktopAdapter isolates virtual desktop mutations.
 type DesktopAdapter interface {
 	InstallApp(ctx context.Context, manifest desktop.AppManifest, files map[string]string, source string) error

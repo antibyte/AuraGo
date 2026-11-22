@@ -34,22 +34,27 @@ Store app configuration, runtime, assets, and publication.
 
 ### CommandCode Image
 
-- `commandcode_assets/Dockerfile` pins `command-code@1.74.1` and
-  `@opentelemetry/semantic-conventions` 1.43.0 on Node 22. The CLI
-  default-imports that package; from 1.44.0 its import entry is native ESM with
-  named exports only and the CLI aborts on start with "does not provide an
-  export named 'default'". 1.43.0 is the newest release whose import entry
-  still has a default export and it satisfies the CLI's `^1.30.0` range, so one
-  hoisted copy serves the whole global tree.
-  Request both versions in the same `npm install -g` call; a later global
-  install can re-resolve the range to the newest 1.x and break the CLI again.
+- `commandcode_assets/Dockerfile` installs `command-code` as the updatable range
+  `^1.93.0` on Node 22 and lets npm resolve
+  `@opentelemetry/semantic-conventions` itself; neither package is pinned to a
+  fixed version. The CLI up to 1.88.0 default-imports that OTel package, whose
+  import entry is native ESM with named exports only from 1.44.0 on, so those
+  CLI releases abort on start with "does not provide an export named
+  'default'". From 1.89.0 the CLI imports the named exports instead and starts
+  with every 1.x of that package, so the floor keeps a resolution below that
+  switch out while npm installs the newest matching 1.x. A manual downgrade
+  below 1.89.0 needs `@opentelemetry/semantic-conventions@1.43.0` again.
   The release workflow and embedded fallback build share this build context;
-  update the exact package versions here to invalidate Docker's install cache.
+  update the floor here to invalidate Docker's install cache.
   The build runs `command-code --version` as the unprivileged image user, so a
   broken resolution fails the image build instead of the first start. Verify
   `command-code --version` as the unprivileged image user after updates.
-- The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest`. Source updates
-  require image publication and a Store update before installed apps change.
+- The Store pulls `ghcr.io/antibyte/aurago-commandcode:latest` and probes the
+  CLI in the image before it installs it: an image whose dependency tree cannot
+  start the CLI is rebuilt from the embedded build context, and an image that
+  still cannot start the CLI fails the install with a clear error. Source
+  updates require image publication and a Store update before installed apps
+  change.
 - The entrypoint adds one absolute import of image-owned
   `/usr/local/share/aurago/commandcode-preview.md` to user memory
   `~/.commandcode/AGENTS.md`, including existing home volumes. Preserve all

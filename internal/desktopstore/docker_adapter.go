@@ -13,8 +13,18 @@ import (
 	pathpkg "path"
 	"strconv"
 	"strings"
+	"time"
 
 	"aurago/internal/tools"
+)
+
+// imageProbeTimeout bounds a probe command inside an image, imageProbePollInterval
+// is the gap between two container state checks and imageProbeCleanupTimeout
+// bounds the removal of the probe container.
+const (
+	imageProbeTimeout        = 90 * time.Second
+	imageProbePollInterval   = 500 * time.Millisecond
+	imageProbeCleanupTimeout = 30 * time.Second
 )
 
 // errContainerNotFound marks an Engine 404 for a container. Wrapped as
@@ -41,6 +51,62 @@ func NewToolsDockerAdapter(host, workspaceDir string, logger *slog.Logger) Tools
 
 func (a ToolsDockerAdapter) PullImage(ctx context.Context, image string) error {
 	return tools.PullImageForce(ctx, a.Config, image, a.Logger)
+}
+
+// imageProbeEntrypoint wraps the probe command in a shell. Docker can append
+// the image's own CMD to an overridden entrypoint, and the shell keeps the
+// extra words as positional parameters instead of passing them to the command.
+func imageProbeEntrypoint(command []string) []string {
+	parts := make([]string, 0, len(command))
+	for _, arg := range command {
+		parts = append(parts, "'"+strings.ReplaceAll(arg, "'", `'\''`)+"'")
+	}
+	return []string{"/bin/sh", "-c", strings.Join(parts, " ")}
+}
+
+// RunImageCommand runs a short command inside a throwaway container of the
+// given image and reports its exit code and output. The container is removed
+// afterwards, so the probe leaves nothing behind.
+func (a ToolsDockerAdapter) RunImageCommand(ctx context.Context, image string, command []string, timeout time.Duration) (int, string, error) {
+	if len(command) == 0 {
+		return 0, "", fmt.Errorf("probe command is required")
+	}
+	if timeout <= 0 {
+		timeout = imageProbeTimeout
+	}
+	name := fmt.Sprintf("aurago-image-probe-%d", time.Now().UnixNano())
+	// The probe must not restart on failure: a container that cannot run the
+	// command has to reach its exit code so the probe can report it.
+	containerID, err := a.CreateContainer(ctx, ContainerSpec{Name: name, Image: image, Entrypoint: imageProbeEntrypoint(command), Restart: "no"})
+	if err != nil {
+		return 0, "", fmt.Errorf("create probe container for %s: %w", image, err)
+	}
+	defer func() {
+		removeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), imageProbeCleanupTimeout)
+		defer cancel()
+		_ = a.RemoveContainer(removeCtx, name, true)
+	}()
+	if err := a.StartContainer(ctx, name); err != nil {
+		return 0, "", fmt.Errorf("start probe container for %s: %w", image, err)
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		state, err := a.InspectContainer(ctx, name)
+		if err != nil {
+			return 0, "", fmt.Errorf("inspect probe container for %s: %w", image, err)
+		}
+		if !state.Running && state.Status != "created" && state.Status != "restarting" {
+			return state.ExitCode, tools.DockerContainerLogs(a.Config, containerID, 40), nil
+		}
+		if time.Now().After(deadline) {
+			return 0, "", fmt.Errorf("probe command in %s did not finish within %s", image, timeout)
+		}
+		select {
+		case <-ctx.Done():
+			return 0, "", ctx.Err()
+		case <-time.After(imageProbePollInterval):
+		}
+	}
 }
 
 func (a ToolsDockerAdapter) BuildImage(ctx context.Context, image, dockerfileName string, dockerfile []byte, files map[string][]byte, buildArgs map[string]string) error {

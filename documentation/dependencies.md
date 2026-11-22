@@ -50,17 +50,30 @@ FindIt and CYD icon authoring pin Pillow 13.0.0 in their respective
 and `scripts/test_export_cyd_icons.py` in that environment before changing them.
 Pillow is an authoring dependency, not part of the Go runtime.
 
-The CommandCode image installs `command-code` 1.74.1 with
-`@opentelemetry/semantic-conventions` pinned to 1.43.0. The CLI
-default-imports that package; from 1.44.0 its import entry is native ESM with
-named exports only and the CLI aborts on start with "does not provide an export
-named 'default'". 1.43.0 is the newest release whose import entry still has a
-default export and it satisfies the CLI's `^1.30.0` range, so one hoisted copy
-serves the whole global tree. Request both
-versions in the same `npm install -g` call in
-`internal/desktopstore/commandcode_assets/Dockerfile`; the image build runs
-`command-code --version` as the unprivileged user and fails on a broken
+The CommandCode image installs `command-code` as an updatable range
+(`^1.93.0`), never as a fixed version, and lets npm resolve
+`@opentelemetry/semantic-conventions` itself. Up to command-code 1.88.0 the
+CLI default-imports that package; from 1.44.0 its import entry is native ESM
+with named exports only, so those CLI releases abort on start with "does not
+provide an export named 'default'". From 1.89.0 the CLI imports the named
+exports instead and works with every 1.x of that package, so the floor in
+`internal/desktopstore/commandcode_assets/Dockerfile` keeps a resolution below
+that switch out while npm installs the newest matching 1.x. The image build
+runs `command-code --version` as the unprivileged user and fails on a broken
 resolution.
+
+The Store probes the CLI in the image before it installs it, by running
+`command-code --version` in a throwaway container. A published image whose
+dependency tree cannot start the CLI is rebuilt from the bundled Dockerfile
+instead of being installed, and an image that still cannot start the CLI
+fails the install with a clear error. This keeps the Store working while the
+published `:latest` tag is only refreshed on release tags.
+
+Updating the CLI inside the container stays possible: `npm install -g
+command-code@latest` keeps the resolved `@opentelemetry/semantic-conventions`
+in the range the CLI declares, and every CLI from 1.89.0 on starts with every
+1.x of that package. A manual downgrade below 1.89.0 brings the default import
+back and has to be paired with `@opentelemetry/semantic-conventions@1.43.0`.
 
 The root npm lock retains `deepmerge` 4.3.1 through
 `@rollup/plugin-node-resolve` 16.0.3. [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)

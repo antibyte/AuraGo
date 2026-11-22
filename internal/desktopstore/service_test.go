@@ -351,6 +351,79 @@ func TestCommandCodeInstallBuildsBundledImageWhenPullFails(t *testing.T) {
 	}
 }
 
+// The probe runs the command through a shell, so Docker appending the image's
+// own CMD to the overridden entrypoint cannot change what the command gets.
+func TestImageProbeEntrypointQuotesTheCommand(t *testing.T) {
+	entrypoint := imageProbeEntrypoint([]string{"command-code", "--version"})
+	if len(entrypoint) != 3 || entrypoint[0] != "/bin/sh" || entrypoint[1] != "-c" {
+		t.Fatalf("probe entrypoint = %#v, want a shell that runs the command", entrypoint)
+	}
+	if entrypoint[2] != "'command-code' '--version'" {
+		t.Fatalf("probe script = %q, want the quoted command", entrypoint[2])
+	}
+	if quoted := imageProbeEntrypoint([]string{"echo", "it's"}); quoted[2] != `'echo' 'it'\''s'` {
+		t.Fatalf("probe script = %q, want the quote inside the argument escaped", quoted[2])
+	}
+}
+
+// A published image whose CLI aborts on start must not be installed. The
+// Store probes the image and rebuilds it from the bundled Dockerfile.
+func TestCommandCodeInstallRebuildsImageWhenThePublishedCLIDoesNotStart(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	docker.probeHook = func(_ string, attempt int) (int, string, error) {
+		if attempt == 1 {
+			return 1, "SyntaxError: The requested default '@opentelemetry/semantic-conventions' does not provide an export named 'default'", nil
+		}
+		return 0, "1.93.0", nil
+	}
+	svc := newTestService(t, docker, nil, nil, fixedPorts(18081))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "commandcode", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	if err := svc.RunOperation(ctx, op.ID); err != nil {
+		t.Fatalf("run install: %v", err)
+	}
+
+	if len(docker.builtImages) != 1 || docker.builtImages[0] != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("built images = %#v, want a rebuild of the CommandCode image", docker.builtImages)
+	}
+	if len(docker.probes) != 2 {
+		t.Fatalf("probes = %#v, want the published image and the rebuilt one to be probed", docker.probes)
+	}
+	if len(docker.created) != 1 || docker.created[0].Image != "ghcr.io/antibyte/aurago-commandcode:latest" {
+		t.Fatalf("created containers = %#v, want the rebuilt CommandCode container", docker.created)
+	}
+}
+
+// When neither the published nor the rebuilt image starts the CLI, the
+// install fails with a clear error instead of installing a broken container.
+func TestCommandCodeInstallFailsWhenTheCLIStillDoesNotStart(t *testing.T) {
+	ctx := context.Background()
+	docker := &fakeDockerAdapter{}
+	docker.probeHook = func(_ string, _ int) (int, string, error) {
+		return 1, "SyntaxError: The requested default '@opentelemetry/semantic-conventions' does not provide an export named 'default'", nil
+	}
+	svc := newTestService(t, docker, nil, nil, fixedPorts(18082))
+
+	op, err := svc.StartInstall(ctx, InstallRequest{AppID: "commandcode", BindMode: BindModeLocal})
+	if err != nil {
+		t.Fatalf("start install: %v", err)
+	}
+	runErr := svc.RunOperation(ctx, op.ID)
+	if runErr == nil {
+		t.Fatal("expected the install to fail when the CLI cannot start")
+	}
+	if !strings.Contains(runErr.Error(), "cannot start the CLI") {
+		t.Fatalf("install error = %v, want a clear report that the CLI does not start", runErr)
+	}
+	if len(docker.created) != 0 {
+		t.Fatalf("created containers = %#v, want none for a broken image", docker.created)
+	}
+}
+
 func TestCommandCodeDockerfileInstallsJustOutsideBookwormApt(t *testing.T) {
 	embeddedDockerfile, _, err := commandCodeBuildContext()
 	if err != nil {
@@ -365,11 +438,13 @@ func TestCommandCodeDockerfileInstallsJustOutsideBookwormApt(t *testing.T) {
 	}
 }
 
-// command-code default-imports @opentelemetry/semantic-conventions, which has
-// no default export from 1.44.0 on. A global install that resolves the newest
-// 1.x aborts the CLI on start, so the 1.43.0 pin must ride in the same install
-// as command-code and the build must start the CLI as the image user.
-func TestCommandCodeDockerfilePinsSemanticConventionsAndChecksCLIStarts(t *testing.T) {
+// command-code has to stay updatable, so the image must install it as a range
+// and never as a fixed version. Up to 1.88.0 the CLI default-imports
+// @opentelemetry/semantic-conventions, which is native ESM with named exports
+// only from 1.44.0 on, so such a CLI aborts on start. The floor keeps a
+// resolution below that switch out and the build must start the CLI as the
+// image user.
+func TestCommandCodeDockerfileKeepsCommandCodeUpdatableAndChecksCLIStarts(t *testing.T) {
 	embeddedDockerfile, _, err := commandCodeBuildContext()
 	if err != nil {
 		t.Fatalf("load embedded CommandCode Dockerfile: %v", err)
@@ -384,9 +459,12 @@ func TestCommandCodeDockerfilePinsSemanticConventionsAndChecksCLIStarts(t *testi
 	if end := strings.Index(install, "\n\n"); end >= 0 {
 		install = install[:end]
 	}
-	for _, want := range []string{"command-code@1.74.1", "@opentelemetry/semantic-conventions@1.43.0"} {
-		if !strings.Contains(install, want) {
-			t.Fatalf("CommandCode global npm install must request %q in the same call:\n%s", want, install)
+	if !strings.Contains(install, `"command-code@^1.93.0"`) {
+		t.Fatalf("CommandCode global npm install must request the updatable command-code range:\n%s", install)
+	}
+	for _, unwanted := range []string{"command-code@1.", "@opentelemetry/semantic-conventions@"} {
+		if strings.Contains(install, unwanted) {
+			t.Fatalf("CommandCode global npm install must not pin %q:\n%s", unwanted, install)
 		}
 	}
 
@@ -2525,6 +2603,10 @@ type fakeDockerAdapter struct {
 	startHook      func(name string)
 	pullHook       func(image string)
 	stoppedNames   map[string]bool // tracked containers that are not running
+	// probeHook models the image probe the Store runs before it installs a
+	// CommandCode image. A nil hook means the CLI starts.
+	probeHook func(image string, attempt int) (exitCode int, output string, err error)
+	probes    []string // every probed image, in order
 }
 
 // ctxErr returns ctx.Err() when honourContext is set, like a real engine call
@@ -2671,6 +2753,16 @@ func (f *fakeDockerAdapter) BuildImage(_ context.Context, image, dockerfileName 
 	f.builtImages = append(f.builtImages, image)
 	f.events = append(f.events, "build:"+image)
 	return nil
+}
+
+// RunImageCommand models the probe the Store runs inside an image. The CLI
+// starts unless a probe hook says otherwise.
+func (f *fakeDockerAdapter) RunImageCommand(_ context.Context, image string, command []string, _ time.Duration) (int, string, error) {
+	f.probes = append(f.probes, image)
+	if f.probeHook == nil {
+		return 0, strings.Join(command, " "), nil
+	}
+	return f.probeHook(image, len(f.probes))
 }
 
 func (f *fakeDockerAdapter) CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {

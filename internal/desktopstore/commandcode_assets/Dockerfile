@@ -75,15 +75,16 @@ RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --p
     && /usr/local/cargo/bin/cargo install just --locked \
     && chmod -R a+rX "$RUSTUP_HOME" "$CARGO_HOME"
 
-# command-code default-imports @opentelemetry/semantic-conventions. From 1.44.0
-# the package's import entry is native ESM with named exports only, so the CLI
-# aborts on start with "does not provide an export named 'default'". 1.43.0 is
-# the newest release whose import entry still has a default export and it
-# satisfies the CLI's ^1.30.0 range. Request it in the same install so the
-# global tree keeps one hoisted copy that command-code resolves.
+# command-code must stay updatable, so it is installed as a range and never as
+# a fixed version. Up to 1.88.0 the CLI default-imports
+# @opentelemetry/semantic-conventions; that package is native ESM with named
+# exports only from 1.44.0 on, so those releases abort on start with "does not
+# provide an export named 'default'". From 1.89.0 the CLI imports the named
+# exports instead and works with every 1.x of that package. The floor keeps a
+# resolution below that switch out, npm installs the newest matching 1.x, and
+# the build gate below proves that the resolved CLI really starts.
 RUN npm install -g --force \
-        command-code@1.74.1 \
-        @opentelemetry/semantic-conventions@1.43.0 \
+        "command-code@^1.93.0" \
         http-server \
         nodemon \
         pnpm \
