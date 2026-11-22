@@ -121,14 +121,14 @@ func packetFillExample(cast []CastMember, dir SceneDirection) map[string]any {
 		entry = "pop"
 	}
 	example := map[string]any{
-		"narration":   "Eine {1}Firewall prüft jedes Paket am Eingang.",
+		"narration":   "Eine Firewall prüft jedes Paket am Eingang.",
 		"environment": environment,
 		"transition":  "wipe",
 	}
 	if dir.Framing != "" && dir.Framing != "wide" {
 		example["camera"] = map[string]any{"framing": dir.Framing}
 	}
-	beats := []any{map[string]any{"do": "show", "item": prop, "at": propAt, "entry": entry, "cue": 1}}
+	beats := []any{map[string]any{"do": "show", "item": prop, "at": propAt, "entry": entry, "cue_phrase": "Firewall"}}
 	if len(cast) > 0 {
 		who := cast[0].ID
 		if dir.Actor != "" {

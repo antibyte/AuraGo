@@ -3,6 +3,7 @@ package storymaker
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -11,7 +12,16 @@ func TestFillExamplesValidate(t *testing.T) {
 	cat := loadReal(t)
 	s := loadAgentFixture(t, "agent-varied")
 	for i, d := range DirectionPlan(&s, "", cat) {
-		raw, err := json.Marshal(packetFillExample(s.Cast, d))
+		example := packetFillExample(s.Cast, d)
+		// The example teaches cue_phrase, never a numbered cue, and its phrase must resolve like a model's would.
+		beat := example["beats"].([]any)[0].(map[string]any)
+		if beat["cue_phrase"] == nil || beat["cue"] != nil || strings.Contains(example["narration"].(string), "{") {
+			t.Errorf("example %d (%s) must use cue_phrase and a plain narration: %v", i+1, d.Role, example)
+		}
+		if _, refusal := resolveCuePhrases(example); refusal != nil {
+			t.Fatalf("example %d (%s): %+v", i+1, d.Role, refusal)
+		}
+		raw, err := json.Marshal(example)
 		if err != nil {
 			t.Fatal(err)
 		}
