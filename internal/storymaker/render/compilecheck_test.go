@@ -178,3 +178,57 @@ func TestCompileCheckKeepsTheProbeFindings(t *testing.T) {
 		t.Errorf("a probe finding must never be an error: %+v", got.Issues)
 	}
 }
+
+// TestCompileCheckFlashBrowser runs the frame probe in the real page: a code scene that alternates a black and a white frame
+// every two frames raises flash for its scene, and a calm story raises none.
+func TestCompileCheckFlashBrowser(t *testing.T) {
+	chrome := browserSmoke(t)
+	fx := newRealFixture(t, chrome)
+	fx.rebuild(t)
+	ctx := context.Background()
+	check := func(doc string) []storymaker.Issue {
+		t.Helper()
+		if _, err := fx.projects.SaveStory(ctx, fx.projectID, []byte(doc), ""); err != nil {
+			t.Fatal(err)
+		}
+		got, err := fx.runner.CompileCheck(ctx, fx.projectID, fx.settings)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !got.Available || storymaker.HasErrors(got.Issues) {
+			t.Fatalf("summary = %+v", got)
+		}
+		return got.Issues
+	}
+	calm := `{"schema":"storymaker/1","title":"Calm","scenes":[
+	 {"id":"s1","environment":"env.office","beats":[{"do":"show","item":"prop.lock","at":"right","entry":"pop"}]}]}`
+	for _, is := range check(calm) {
+		if is.Code == storymaker.CodeFlash || is.Code == storymaker.CodeFlashUnverified {
+			t.Errorf("a calm story raised %+v", is)
+		}
+	}
+	strobing := `{"schema":"storymaker/1","title":"Strobe","scenes":[
+	 {"id":"s1","environment":"env.office","beats":[{"do":"show","item":"prop.lock","at":"right","entry":"pop"}]},
+	 {"id":"c1","kind":"code"}]}`
+	// 15 flashes per second: the picture flips between black and white every second frame
+	src := "export default function scene(api) {\n  api.duration(3);\n  api.onFrame(function (t, g) {\n    g.fill(Math.floor(t * 15) % 2 ? '#ffffff' : '#000000');\n    g.rect(0, 0, 1920, 1080);\n  });\n}\n"
+	if _, res, err := fx.projects.SaveCodeScene(ctx, fx.projectID, "c1", []byte(src), ""); err != nil || len(res.Errors) != 0 {
+		t.Fatalf("SaveCodeScene: %v %+v", err, res)
+	}
+	var flashes []storymaker.Issue
+	for _, is := range check(strobing) {
+		if is.Code == storymaker.CodeFlash {
+			flashes = append(flashes, is)
+		}
+		if is.Code == storymaker.CodeFlashUnverified {
+			t.Errorf("the probe must reach every frame of a 4 s film: %+v", is)
+		}
+	}
+	if len(flashes) != 1 {
+		t.Fatalf("flash issues = %+v", flashes)
+	}
+	f := flashes[0]
+	if f.SceneID != "c1" || f.Path != "/scenes/1" || f.Severity != storymaker.SeverityWarning || f.AtSeconds == nil || !storymaker.IssueModelFixable(f) {
+		t.Errorf("flash = %+v", f)
+	}
+}
