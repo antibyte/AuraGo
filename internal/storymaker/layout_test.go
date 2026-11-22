@@ -133,12 +133,42 @@ func TestLayoutIssuesOffscreenAndOverlap(t *testing.T) {
 	}
 	sc.Texts = []LayoutText{{ID: "t", Box: LayoutBox{0.7, 0.2, 0.35, 0.1}}} // sticks out of the frame
 	got := LayoutIssues([]LayoutScene{sc}, LayoutOptions{})
-	want := []string{CodeOffscreen, CodeOffscreen, CodeActorPropOverlap}
+	want := []string{CodeOffscreen, CodeTextOffframe, CodeActorPropOverlap} // the text has its own code, the prop keeps offscreen
 	slices.Sort(want)
 	have := layoutCodes(got)
 	slices.Sort(have)
 	if !slices.Equal(have, want) {
 		t.Fatalf("issues = %v, want %v", have, want)
+	}
+}
+
+// A text that sticks out of the frame by more than 1 percent is text_offframe, with the text and the scene named; a text that
+// is inside, or out by a hair, is not.
+func TestLayoutIssuesTextOffframe(t *testing.T) {
+	sc := layoutScene("s3", 2)
+	sc.Texts = []LayoutText{
+		{ID: "title", Box: LayoutBox{0.7, 0.2, 0.35, 0.1}},  // a seventh outside to the right
+		{ID: "fine", Box: LayoutBox{0.3, 0.2, 0.3, 0.1}},    // inside
+		{ID: "hair", Box: LayoutBox{0.7, 0.2, 0.3005, 0.1}}, // 0.17 percent outside
+	}
+	var got []Issue
+	for _, is := range LayoutIssues([]LayoutScene{sc}, LayoutOptions{}) {
+		if is.Code != CodeTextUnsafe { // a text at the frame edge may also lie in the margin; that is another rule
+			got = append(got, is)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("issues = %v, want one text_offframe", layoutCodes(got))
+	}
+	is := got[0]
+	if is.Code != CodeTextOffframe || is.Severity != SeverityWarning || is.SceneID != "s3" || is.Path != "/scenes/2" {
+		t.Errorf("issue = %+v", is)
+	}
+	if !strings.Contains(is.Message, "title") || !strings.Contains(is.Message, "s3") || !strings.Contains(is.Fix, `"center"`) {
+		t.Errorf("message %q, fix %q", is.Message, is.Fix)
+	}
+	if IssueLayout(is.Code) || !IssueModelFixable(is) {
+		t.Errorf("text_offframe is model-fixable and not a layout code")
 	}
 }
 

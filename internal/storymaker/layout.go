@@ -147,7 +147,7 @@ func LayoutIssues(scenes []LayoutScene, opts LayoutOptions) []Issue {
 		}
 		for _, tx := range sc.Texts {
 			if outsideShare(tx.Box) > layoutTextOutside {
-				add(CodeOffscreen, fmt.Sprintf("The text %s sticks out of the frame in scene %s.", tx.ID, sc.ID), `Shorten the text to five words or fewer, or show it at "center".`)
+				add(CodeTextOffframe, fmt.Sprintf("The text %s sticks out of the frame in scene %s.", tx.ID, sc.ID), `Shorten the text to five words or fewer, or show it at "center".`)
 			}
 		}
 		for _, a := range sc.Actors {
