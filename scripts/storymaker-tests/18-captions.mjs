@@ -101,12 +101,12 @@ import { t as s9 } from '../storymaker-test-context.mjs';
 
 const S9 = s9.core();
 
-s9.check('captions: the box bottom sits at 92 % of the height in 16:9 and 1:1, and at 82 % in 9:16', () => {
+s9.check('captions: the box bottom sits at 92 % of the height in 16:9 and 1:1, and at 78 % in 9:16', () => {
     // a boxed text.subtitle, so the bottom edge can be read from the call log
     const entries = s9.catalog.entries.map(e => e.id === 'text.subtitle' ? { ...e, box: { fill: '$bg2', pad: 0.01, radius: 0.01 } } : e);
     s9Assert.ok(entries.some(e => e.id === 'text.subtitle'), 'S5 added the style to the mini catalog');
     const boxed = { ...s9.catalog, entries };
-    for (const [aspect, share] of [['16:9', 0.92], ['1:1', 0.92], ['9:16', 0.82]]) {
+    for (const [aspect, share] of [['16:9', 0.92], ['1:1', 0.92], ['9:16', 0.78]]) {
         const tl = S9.compile({ format: { aspect, fps: 30 }, scenes: [{ id: 'a', narration: 'hallo liebe welt heute' }] }, {}, boxed).timeline;
         const cv = new S9Canvas(tl.width, tl.height);
         S9.renderFrame(tl, 10, cv.ctx, s9Assets());

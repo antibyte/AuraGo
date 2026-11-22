@@ -67,3 +67,19 @@ check('layout: the compile report is unchanged by the layout run (the golden sta
     assert.equal(out.report.layout, undefined);
     assert.equal(out.timeline.scenes[0].entities.some(e => e.type === 'prop' && e.hero), true);
 });
+
+// ---- Task C10: in 9:16 the burned caption keeps out of the platform overlays: bottom at 78 % and centred in the zone band.
+// The zone is internal/storymaker/layout.go SafeZone: top 0.115, right 0.130, bottom 0.219, left 0.056.
+check('layout: a two-line 9:16 caption lies inside the safe zone, centred in its band; 16:9 keeps 92 %', () => {
+    const long = 'Eine Firewall prueft jedes einzelne Paket am Eingang deines Netzwerks, bevor es weiterkommt.';
+    const portrait = measure({ ...film({}, { narration: long }), format: { aspect: '9:16', fps: 30 } })[0].caption;
+    assert.ok(portrait, 'the caption is on screen');
+    const [x, y, w, h] = portrait;
+    assert.ok(x >= 0.056 - 1e-9 && x + w <= 1 - 0.130 + 1e-9, 'inside the left and right zone: ' + portrait);
+    assert.ok(y >= 0.115 && y + h <= 1 - 0.219 + 1e-9, 'inside the top and bottom zone: ' + portrait);
+    near(y + h, 0.78, 0.01, 'the box bottom');
+    near(x + w / 2, (0.056 + 0.870) / 2, 0.002, 'centred in the zone band');
+    const wide = measure(film({}, { narration: long }))[0].caption;
+    near(wide[1] + wide[3], 0.92, 0.01, '16:9 bottom');
+    near(wide[0] + wide[2] / 2, 0.5, 0.002, '16:9 stays centred');
+});

@@ -4209,7 +4209,7 @@
     }
 
     // drawCaptions(ctx, timeline, n, rc): the burned caption of frame n in screen space, over whatever the frame drew. The
-    // box bottom sits at 92 % of the height, 82 % in 9:16. The caption time comes from n alone.
+    // box bottom sits at 92 % of the height, 78 % in 9:16. The caption time comes from n alone.
     function drawCaptions(ctx, timeline, n, rc) {
         if (!timeline.style.captions || !timeline.captions || !timeline.captions.length) return;
         var cap = SM.captions.at(timeline.captions, n * 1000 / timeline.fps);
@@ -4220,14 +4220,28 @@
         ctx.globalAlpha = 1;
     }
 
+    // The 9:16 caption keeps out of the overlays of TikTok, Reels and Shorts: its box bottom sits at 78 % of the height and its
+    // width is the band between the left and right zone, centred in that band. The numbers repeat the 9:16 row of
+    // internal/storymaker/layout.go SafeZone (top 0.115, right 0.130, bottom 0.219, left 0.056); change both together.
+    var PORTRAIT_CAPTION = { bottom: 0.78, left: 0.056, right: 0.130 };
+
     // captionLayout(ctx, cap, rc): the layout, the style and the anchor (x, y of the block centre) of a burned caption. The box
-    // bottom sits at 92 % of the height, 82 % in 9:16. drawCaptions draws it and the layout run measures it.
+    // bottom sits at 92 % of the height, 78 % in 9:16 (see PORTRAIT_CAPTION). drawCaptions draws it and the layout run measures it.
     function captionLayout(ctx, cap, rc) {
         var style = rc.cat.textStyles.subtitle || rc.cat.textStyles.title || FALLBACK_TEXT_STYLE;
-        var x = rc.W / 2, bottom = rc.H * (rc.aspect === '9:16' ? 0.82 : 0.92);
-        var lay = SM.text.layout(ctx, cap.lines.join('\n'), style, {
-            canvasH: rc.H, short: Math.min(rc.W, rc.H), maxWidth: SM.text.maxWidthFor(rc.W, rc.safe, x, style.align || 'center'), family: familyOf(rc, style)
-        });
+        var portrait = rc.aspect === '9:16', x = rc.W / 2, bottom = rc.H * 0.92, band = 0;
+        if (portrait) {
+            var left = rc.W * PORTRAIT_CAPTION.left, right = rc.W * (1 - PORTRAIT_CAPTION.right);
+            x = (left + right) / 2;
+            bottom = rc.H * PORTRAIT_CAPTION.bottom;
+            band = right - left;
+        }
+        function layoutAt(maxWidth) {
+            return SM.text.layout(ctx, cap.lines.join('\n'), style, { canvasH: rc.H, short: Math.min(rc.W, rc.H), maxWidth: maxWidth, family: familyOf(rc, style) });
+        }
+        var lay = layoutAt(portrait ? band : SM.text.maxWidthFor(rc.W, rc.safe, x, style.align || 'center'));
+        // the padding of the box is outside the text width, so the box must be narrowed once more to stay in the band
+        if (portrait && lay.width + lay.pad * 2 > band) lay = layoutAt(Math.max(band * 0.25, band - lay.pad * 2));
         return { style: style, lay: lay, x: x, y: bottom - lay.height / 2 - lay.pad };
     }
 
