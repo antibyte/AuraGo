@@ -41,6 +41,7 @@ type compileCheckReport struct {
 	FrameCount  int                      `json:"frame_count"`
 	Scenes      []compileCheckScene      `json:"scenes"`
 	Issues      []storymaker.Issue       `json:"issues"`
+	Checks      []storymaker.Issue       `json:"checks"`
 	Layout      []storymaker.LayoutScene `json:"layout"`
 	LayoutError string                   `json:"layout_error"`
 }
@@ -242,6 +243,7 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 			Fix:     "Shorten the narration or remove a scene.",
 		})
 	}
+	issues = storymaker.CapIssues(append(issues, cleanProbeFindings(rep.Checks, want)...), storymaker.MaxHTTPIssues)
 	scenes := make([]storymaker.CompileScene, 0, len(rep.Scenes))
 	storyboard, code := 0, 0
 	for _, sc := range rep.Scenes {
@@ -301,6 +303,23 @@ func cleanLayoutScene(block storymaker.LayoutScene, want reportExpect) storymake
 		block.Texts[i].ID = want.clean(block.Texts[i].ID, 60)
 	}
 	return block
+}
+
+// probeCodes are the codes the frame probe of the page may report. The page is trusted for measurements only: any other
+// code is dropped, and a probe finding is always a warning, never an error that fails the check.
+var probeCodes = []string{storymaker.CodeFlash, storymaker.CodeFlashUnverified, storymaker.CodeDeadStretch, storymaker.CodeFirstFrameEmpty}
+
+// cleanProbeFindings keeps the page's probe findings that have a probe code, as warnings, cleaned like the other issues.
+func cleanProbeFindings(list []storymaker.Issue, want reportExpect) []storymaker.Issue {
+	kept := make([]storymaker.Issue, 0, len(list))
+	for _, is := range list {
+		if !slices.Contains(probeCodes, is.Code) {
+			continue
+		}
+		is.Severity = storymaker.SeverityWarning
+		kept = append(kept, is)
+	}
+	return cleanCompileIssues(kept, want)
 }
 
 // cleanCompileIssues removes the render secrets from the page's text and bounds it. An error issue becomes compile_failed

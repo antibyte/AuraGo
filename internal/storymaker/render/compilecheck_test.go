@@ -138,3 +138,43 @@ func TestCompileCheckBrowser(t *testing.T) {
 		t.Errorf("a compile check published %v", fx.pub.names())
 	}
 }
+
+func TestCompileCheckKeepsTheProbeFindings(t *testing.T) {
+	page := &fakePage{crashed: make(chan struct{})}
+	page.script = play(t, playOptions{frames: 60, mutateRep: func(rep map[string]any) {
+		rep["issues"] = []any{map[string]any{"severity": "warning", "scene_id": "s1", "path": "/scenes/0", "code": "dead_stretch", "message": "nothing moves"}}
+		rep["checks"] = []any{
+			map[string]any{"severity": "warning", "scene_id": "s1", "path": "/scenes/0", "code": "flash", "message": "flashes", "at_seconds": 0.3, "fix": "slow it down"},
+			map[string]any{"severity": "warning", "scene_id": "s1", "path": "/scenes/0", "code": "flash_unverified", "message": "not checked"},
+			// the page is trusted for these four codes only, and only as warnings
+			map[string]any{"severity": "error", "scene_id": "s1", "path": "/scenes/0", "code": "flash", "message": "an error"},
+			map[string]any{"severity": "warning", "scene_id": "s1", "path": "/scenes/0", "code": "compile_failed", "message": "not a probe code"},
+			map[string]any{"severity": "warning", "scene_id": "elsewhere", "path": "/scenes/7", "code": "first_frame_empty", "message": "unknown scene"},
+		}
+	}})
+	runner, id := compileCheckRunner(t, page)
+	got, err := runner.CompileCheck(context.Background(), id, Settings{Limits: storymaker.DefaultLimits()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var codes []string
+	for _, is := range got.Issues {
+		codes = append(codes, is.Code)
+		if is.Code == storymaker.CodeFlash && is.Severity != storymaker.SeverityWarning {
+			t.Errorf("a probe finding is a warning: %+v", is)
+		}
+		if is.Message == "flashes" && (is.Severity != storymaker.SeverityWarning || is.SceneID != "s1" || is.Fix != "slow it down" || is.AtSeconds == nil) {
+			t.Errorf("flash = %+v", is)
+		}
+		if is.Code == storymaker.CodeFirstFrameEmpty && is.SceneID != "" {
+			t.Errorf("a scene the story does not have must be dropped: %+v", is)
+		}
+	}
+	want := []string{storymaker.CodeDeadStretch, storymaker.CodeFlash, storymaker.CodeFlashUnverified, storymaker.CodeFlash, storymaker.CodeFirstFrameEmpty}
+	if !reflect.DeepEqual(codes, want) {
+		t.Errorf("issue codes = %v, want %v", codes, want)
+	}
+	if storymaker.HasErrors(got.Issues) {
+		t.Errorf("a probe finding must never be an error: %+v", got.Issues)
+	}
+}
