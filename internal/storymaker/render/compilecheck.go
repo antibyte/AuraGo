@@ -253,7 +253,7 @@ func summarizeCompileReport(body []byte, want reportExpect, frameLimit int) stor
 		}
 		probe = append(probe, storymaker.Issue{
 			Severity: storymaker.SeverityWarning, SceneID: first, Path: "/scenes/0", Code: storymaker.CodeFlashUnverified,
-			Message: "The flash probe failed, so flashing was not checked: " + want.clean(clip(rep.ProbeError, 200), 200),
+			Message: "The flash probe failed, so flashing was not checked: " + want.clean(rep.ProbeError, 200),
 			Fix:     "Nothing to fix in the story; check again.",
 		})
 	}
