@@ -1454,6 +1454,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   fixtures, every section at five widths in both themes/densities, plus draft,
   failure, search, disclosure and dialog interactions. Run an individual matrix
   section with `-run 'TestConfigRefreshRealSectionsBrowser/matrix/server$'`.
+- Config browser tests settle styles with the bounded `waitForRenderedAnimations`, never an unfiltered `document.getAnimations()` wait: Chrome never settles `finished` for transitions a geometry probe starts inside a closed `<details>`. `TestConfigSpacingBrowser` pins `prefers-reduced-motion: no-preference`.
 - Static spacing matrices finish finite running animations before geometry checks;
   bound each asynchronous layout evaluation rather than awaiting paused animation promises.
 - Aura Drift browser journeys advance countdowns and driving through the existing

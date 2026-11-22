@@ -11,7 +11,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/proto"
 	"gopkg.in/yaml.v3"
 )
@@ -327,6 +329,38 @@ func configRefreshFixtureOriginWith(t *testing.T, locale string, populated bool,
 	return server.URL
 }
 
+// waitForRenderedAnimations waits two frames, then for the finite animations of rendered
+// content, so geometry and screenshots see settled styles. It skips content that is not
+// rendered: a geometry probe inside a closed <details> forces a style update there, and
+// Chrome never settles the finished promise of the transitions that update starts.
+func waitForRenderedAnimations(t *testing.T, page *rod.Page) {
+	t.Helper()
+	const limit = 10 * time.Second
+	waiter := page.Timeout(limit + 5*time.Second)
+	defer waiter.CancelTimeout()
+	result, err := waiter.Eval(`async limit => {
+	 let stage = 'two animation frames';
+	 const pending = new Set();
+	 const describe = a => { const el = a.effect?.target; return (a.animationName || a.transitionProperty || a.id || a.constructor.name) + ' on ' + (el ? el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + [...el.classList].map(name => '.' + name).join('') : 'no target'); };
+	 const settled = (async () => {
+	   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+	   stage = 'animations';
+	   const running = document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity && a.effect?.target?.checkVisibility?.({contentVisibilityAuto: true}) !== false);
+	   running.forEach(a => pending.add(a));
+	   await Promise.all(running.map(a => a.finished.catch(() => {}).then(() => pending.delete(a))));
+	   return '';
+	 })();
+	 const expired = new Promise(resolve => setTimeout(() => resolve(stage === 'animations' ? pending.size + ' still running: ' + [...pending].slice(0, 6).map(describe).join(', ') : stage + ' never ran'), limit));
+	 return Promise.race([settled, expired]);
+	}`, limit.Milliseconds())
+	if err != nil {
+		t.Fatalf("wait for rendered animations: %v", err)
+	}
+	if message := result.Value.Str(); message != "" {
+		t.Fatalf("rendered animations did not settle within %s: %s", limit, message)
+	}
+}
+
 func TestConfigRefreshRealSectionsBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	origin := configRefreshOrigin(t)
@@ -369,7 +403,7 @@ func TestConfigRefreshRealSectionsBrowser(t *testing.T) {
 							t.Errorf("%s %s %s %d: %v; overflow elements: %s", key, theme, density, width, result, page.MustEval(`() => [...document.querySelectorAll('#content *')].filter(el=>el.getBoundingClientRect().right>innerWidth).map(el=>({tag:el.tagName,cls:el.className,text:el.innerText?.slice(0,90)})).slice(0,12)`).String())
 						}
 						if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" && density == "comfortable" && (width == 1440 || width == 390) && strings.Contains("|overview|server|providers|adguard|space_agent|sip|local_llm|", "|"+key+"|") {
-							page.MustEval(`() => Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {})))`)
+							waitForRenderedAnimations(t, page)
 							if err := os.MkdirAll(dir, 0o755); err != nil {
 								t.Fatal(err)
 							}

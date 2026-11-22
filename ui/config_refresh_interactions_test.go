@@ -24,7 +24,7 @@ func TestConfigNavigationOverlayBrowser(t *testing.T) {
 			for _, density := range []string{"comfortable", "compact"} {
 				page.MustEval(`(theme,density) => {document.documentElement.dataset.theme=theme; document.body.dataset.theme=theme; AuraPrecisionWorkspace.setDensity(density); window.navigationClicked=false;}`, theme, density)
 				page.MustElement("#radialTrigger").MustClick()
-				page.MustEval(`async () => await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})))`)
+				waitForRenderedAnimations(t, page)
 				if dir := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR"); dir != "" {
 					if err := os.MkdirAll(dir, 0o755); err != nil {
 						t.Fatal(err)

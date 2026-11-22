@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/go-rod/rod/lib/proto"
 )
 
 // Exercise the reported layouts through their real lazy renderers, including
@@ -14,6 +16,10 @@ func TestConfigSpacingBrowser(t *testing.T) {
 	requirePrecisionBrowserSmoke(t)
 	page := newSmokeBrowser(t).MustPage(configRefreshFixtureOrigin(t, "de", true) + "/config#overview")
 	defer page.MustClose()
+	// Measure after the real transitions, independent of the host's animation setting.
+	if err := (proto.EmulationSetEmulatedMedia{Features: []*proto.EmulationMediaFeature{{Name: "prefers-reduced-motion", Value: "no-preference"}}}).Call(page); err != nil {
+		t.Fatal(err)
+	}
 	waitForJSBool(t, page, `() => !!document.querySelector('.pw-overview-card')`)
 	page.MustEval(`() => { configData.github = {enabled:true, owner:'home-lab', token:'••••••••', allowed_repos:['home-lab/aurago','home-lab/automation']}; AuraConfigState.init(configData); resetDirtySnapshot(); }`)
 	page.MustEval(`() => { configData.browser_automation.enabled=true; AuraConfigState.init(configData); resetDirtySnapshot(); }`)
