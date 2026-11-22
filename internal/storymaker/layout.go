@@ -56,6 +56,7 @@ const (
 	layoutHeroTarget    = 0.20 // the share the fix text asks for
 	layoutOutsideShare  = 0.25 // actors and props: this share of the box outside the frame is too much
 	layoutTextOutside   = 0.01 // texts must lie inside the frame
+	layoutZoneShare     = 0.02 // texts and the caption: this share of the box inside the safe zone is too much
 	layoutOverlapShare  = 0.35 // of the smaller box
 	layoutScaleMax      = 2.0  // the validated range of a beat scale
 )
@@ -65,9 +66,24 @@ const (
 // true) whose camera the player does not make caption-safe: a close framing, a camera target or a camera beat. Their feet and
 // bases may stand in the caption band, so the caption rule skips them. A medium framing is adjusted by the player and is not
 // exempt.
+//
+// Aspect is the story's format aspect; it picks the safe zone of the text rules.
 type LayoutOptions struct {
 	CaptionRule   bool
 	CaptionExempt map[string]bool
+	Aspect        string
+}
+
+// LayoutZone is the safe zone of an aspect: fractions of the frame measured from each edge.
+type LayoutZone struct{ Top, Right, Bottom, Left float64 }
+
+// SafeZone returns the zone of an aspect; any value other than "9:16" gets the 5 % margin. The 9:16 numbers are the union of
+// the TikTok, Reels and Shorts overlays. The player's caption layout (render.js captionLayout) repeats them.
+func SafeZone(aspect string) LayoutZone {
+	if aspect == "9:16" {
+		return LayoutZone{Top: 0.115, Right: 0.130, Bottom: 0.219, Left: 0.056}
+	}
+	return LayoutZone{Top: 0.05, Right: 0.05, Bottom: 0.05, Left: 0.05}
 }
 
 // IssueLayout says whether a code is a finding of the layout run. Like the craft codes they are model-fixable and never

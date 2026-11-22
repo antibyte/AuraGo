@@ -359,6 +359,7 @@ func StoryLayoutOptions(story *Story) LayoutOptions {
 	return LayoutOptions{
 		CaptionRule:   story.Style.Compose == "v2" && story.Style.Captions && story.Format.Aspect != "9:16",
 		CaptionExempt: captionExemptScenes(story),
+		Aspect:        story.Format.Aspect,
 	}
 }
 
