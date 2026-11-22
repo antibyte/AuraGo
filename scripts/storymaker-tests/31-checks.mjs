@@ -1,6 +1,6 @@
 // Task C2 and following: the measured checks of checks.js, pure functions on the series the frame probe records.
 import assert from 'node:assert/strict';
-import { plain } from '../storymaker-test-support.mjs';
+import { plain, loadHost } from '../storymaker-test-support.mjs';
 import { t } from '../storymaker-test-context.mjs';
 
 const { check, near } = t;
@@ -160,4 +160,50 @@ check('checks.schedule.settledFrame: the first frame after the entry transition,
     assert.equal(SM.schedule.settledFrame(sched, 1), 75);
     assert.equal(SM.schedule.settledFrame(film(260, 15, 'cut').schedule, 1), 60);
     assert.equal(SM.schedule.settledFrame(film(260, 0, 'fade').schedule, 1), 60);
+});
+
+// ---- Task C5: the per-frame numbers of the probe: mean luminance y, difference d to the previous frame, uniform.
+const H = loadHost().StorymakerHost;
+// frame(r, g, b, n) = n RGBA pixels of one colour
+const frame = (r, g, b, n = 64 * 36) => {
+    const px = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) px.set([r, g, b, 255], i * 4);
+    return px;
+};
+
+check('host frameStats: y is the mean relative luminance of the linearised sRGB channels', () => {
+    near(H.frameStats(frame(0, 0, 0), null).y, 0, 1e-12);
+    near(H.frameStats(frame(255, 255, 255), null).y, 1, 1e-9);
+    near(H.frameStats(frame(128, 128, 128), null).y, 0.2159, 1e-3);
+    near(H.frameStats(frame(255, 0, 0), null).y, 0.2126, 1e-9);
+    near(H.frameStats(frame(0, 255, 0), null).y, 0.7152, 1e-9);
+    // half black, half white
+    const half = frame(0, 0, 0);
+    for (let i = 0; i < half.length / 8; i++) half.set([255, 255, 255, 255], i * 4);
+    near(H.frameStats(half, null).y, 0.5, 1e-9);
+});
+
+check('host frameStats: d is the mean absolute difference per colour channel to the previous frame, 0 for the first', () => {
+    assert.equal(H.frameStats(frame(10, 20, 30), null).d, 0);
+    assert.equal(H.frameStats(frame(10, 20, 30), frame(10, 20, 30)).d, 0);
+    near(H.frameStats(frame(255, 255, 255), frame(0, 0, 0)).d, 1, 1e-12);
+    near(H.frameStats(frame(51, 0, 0), frame(0, 0, 0)).d, 0.2 / 3, 1e-12);
+    // the alpha channel is not a colour channel
+    const clear = frame(0, 0, 0);
+    for (let i = 0; i < clear.length; i += 4) clear[i + 3] = 0;
+    assert.equal(H.frameStats(frame(0, 0, 0), clear).d, 0);
+});
+
+check('host frameStats: uniform means every channel of every pixel is within 1 % of full scale of the frame mean', () => {
+    assert.equal(H.frameStats(frame(40, 90, 200), null).uniform, true);
+    const off = frame(100, 100, 100);
+    off.set([103, 100, 100, 255], 40);   // 3/255 from the mean is over 1 %
+    assert.equal(H.frameStats(off, null).uniform, false);
+    const near1 = frame(100, 100, 100);
+    near1.set([102, 100, 100, 255], 40);   // 2/255 is under 1 %
+    assert.equal(H.frameStats(near1, null).uniform, true);
+    // a two-tone frame is not uniform
+    const split = frame(0, 0, 0);
+    for (let i = 0; i < split.length / 8; i++) split.set([255, 255, 255, 255], i * 4);
+    assert.equal(H.frameStats(split, null).uniform, false);
 });

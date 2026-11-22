@@ -20,6 +20,31 @@
         return out;
     }
 
+    // sRGB channel (0..255) to linear light, built once.
+    var LINEAR = new Float64Array(256);
+    for (var li = 0; li < 256; li++) {
+        var cs = li / 255;
+        LINEAR[li] = cs <= 0.04045 ? cs / 12.92 : Math.pow((cs + 0.055) / 1.055, 2.4);
+    }
+    var UNIFORM_SPREAD = 0.01 * 255;   // every channel within 1 % of full scale of the frame mean
+
+    // frameStats(px, prev) = {y, d, uniform} of one probed frame: px and prev are RGBA bytes of the same size (prev may be
+    // null). y is the mean relative luminance (0.2126 R + 0.7152 G + 0.0722 B of the linearised channels), d the mean absolute
+    // difference per colour channel to prev (0..1, 0 without prev), uniform whether every pixel is within 1 % of the mean.
+    function frameStats(px, prev) {
+        var n = px.length >> 2, i, r = 0, g = 0, b = 0, lum = 0, diff = 0;
+        for (i = 0; i < px.length; i += 4) {
+            r += px[i]; g += px[i + 1]; b += px[i + 2];
+            lum += 0.2126 * LINEAR[px[i]] + 0.7152 * LINEAR[px[i + 1]] + 0.0722 * LINEAR[px[i + 2]];
+            if (prev) diff += Math.abs(px[i] - prev[i]) + Math.abs(px[i + 1] - prev[i + 1]) + Math.abs(px[i + 2] - prev[i + 2]);
+        }
+        var mr = r / n, mg = g / n, mb = b / n, uniform = true;
+        for (i = 0; i < px.length && uniform; i += 4) {
+            if (Math.abs(px[i] - mr) > UNIFORM_SPREAD || Math.abs(px[i + 1] - mg) > UNIFORM_SPREAD || Math.abs(px[i + 2] - mb) > UNIFORM_SPREAD) uniform = false;
+        }
+        return { y: n ? lum / n : 0, d: prev && n ? diff / (n * 3 * 255) : 0, uniform: uniform };
+    }
+
     // mountRender(opts): opts = {canvas, base, fetch?, window?, env?}. Resolves when the job is over (done, stopped,
     // refused, failed) or, in screenshot mode, when the page is ready for __smRenderFrame calls.
     async function mountRender(opts) {
@@ -279,4 +304,5 @@
     }
 
     H.mountRender = mountRender;
+    H.frameStats = frameStats;
 })(typeof globalThis !== 'undefined' ? globalThis : self);
