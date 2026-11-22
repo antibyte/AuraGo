@@ -78,6 +78,7 @@
         if (glyphIdx) needGlyphs(String.fromCharCode(0x2026));
         var rhythmFactor = SM.motion.factor(story.style);
 
+        var firstScene = null;
         scenesIn.forEach(function (sc, i) {
             var plan = plans[i], isCode = sc.kind === 'code';
             var envId = sc.environment || envPrev || 'env.plain-stage';
@@ -138,6 +139,7 @@
                 code: codeInfo ? { error: codeInfo.error || null, duration: codeInfo.duration || null } : null, stages: {}
             };
             scenes.push(scene);
+            if (i === 0) firstScene = { id: sc.id, narrated: n.words > 0, log: built.log || [] };
             issues.push.apply(issues, SM.lint.scene({ scene: scene, index: i, plan: plan, built: built, stage: stage, cat: cat, fmt: fmt, envChanged: envChanged, factor: rhythmFactor }));
 
             // narration windows (global seconds) and, with measured audio, one audio event per piece
@@ -196,7 +198,7 @@
         });
         if (scenes.some(function (s) { return s.kind === 'code'; }) && catalog && catalog.rig && catalog.rig.file) needs['catalog:' + catalog.rig.file] = true;
 
-        issues.push.apply(issues, SM.lint.film({ scenesIn: scenesIn, plans: plans }));
+        issues.push.apply(issues, SM.lint.film({ scenesIn: scenesIn, plans: plans, first: firstScene }));
 
         var frameCount = 0;
         scenes.forEach(function (s) { if (s.end_frame > frameCount) frameCount = s.end_frame; });

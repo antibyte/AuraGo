@@ -125,3 +125,39 @@ s11.check('lint: dialogue suppresses dead_stretch, also when the say beat ends b
     // control: a 6 s wait has no narration, no dialogue and no beat in progress
     s11Assert.ok(s11Dead({ scenes: [{ id: 'a', beats: [{ do: 'wait', seconds: 6 }] }] }, {}).length > 0, 'a wait still counts as dead');
 });
+
+// ---- Task C9: slow_hook, a film lint on scene 1: no narration, or the first show beat lands after 0.5 s. The other lint
+// fixtures above stay free of it, because LINT does not name it.
+const hookOf = (story, cat) => plain(SM.compile(story, {}, cat || catalog).report.issues).filter(i => i.code === 'slow_hook');
+check('lint: slow_hook fires on a silent first scene, once, at the film start', () => {
+    const list = hookOf({ cast, scenes: [{ id: 'a', actors, beats: [{ do: 'show', text: 'Hallo', entry: 'none' }] }, { id: 'b', actors, beats: [{ do: 'show', text: 'Welt', entry: 'none' }] }] });
+    const hook = one(list, 'slow_hook');
+    assert.equal(hook.severity, 'warning');
+    assert.equal(hook.scene_id, 'a');
+    assert.equal(hook.path, '/scenes/0');
+    near(hook.at_seconds, 0, 1e-9);
+    assert.ok(hook.fix && hook.fix.length > 20);
+});
+
+check('lint: slow_hook fires when the first show beat of a narrated first scene lands after 0.5 s, at its landing', () => {
+    const late = one(hookOf({ cast, scenes: [{ id: 'a', actors, narration: 'Hallo Welt, schön dass du da bist.', beats: [{ do: 'show', text: 'Hallo', entry: 'none', delay: 1 }] }] }), 'slow_hook');
+    assert.equal(late.path, '/scenes/0');
+    near(late.at_seconds, 1, 1e-6);
+    // the first show beat counts, so a later one does not rescue a slow opening
+    const rescued = hookOf({ cast, scenes: [{ id: 'a', actors, narration: 'Hallo Welt, schön dass du da bist.', beats: [{ do: 'show', text: 'Hallo', entry: 'none', delay: 1 }, { do: 'show', text: 'Welt', entry: 'none', delay: 0 }] }] });
+    assert.equal(rescued.length, 1);
+});
+
+check('lint: slow_hook stays quiet for a narrated first scene that shows something at once, or shows nothing, and for later scenes', () => {
+    const quick = { id: 'a', actors, narration: 'Hallo Welt, schön dass du da bist.', beats: [{ do: 'show', text: 'Hallo', entry: 'none' }] };
+    assert.deepEqual(hookOf({ cast, scenes: [quick] }), []);
+    assert.deepEqual(hookOf({ cast, scenes: [{ id: 'a', actors, narration: 'Hallo Welt, schön dass du da bist.' }] }), []);
+    assert.deepEqual(hookOf({ cast, scenes: [quick, { id: 'b', actors, beats: [{ do: 'show', text: 'Welt', entry: 'none', delay: 2 }] }] }), []);
+});
+
+check('lint: slow_hook on a first code scene looks at its narration only', () => {
+    const code = narration => ({ cast, scenes: [{ id: 'c', kind: 'code', ...(narration ? { narration } : {}) }] });
+    const compiled = story => plain(SM.compile(story, {}, catalog, { codeScenes: { c: { duration: 5 } } }).report.issues).filter(i => i.code === 'slow_hook');
+    assert.equal(compiled(code('')).length, 1);
+    assert.equal(compiled(code('Hallo Welt, schön dass du da bist.')).length, 0);
+});

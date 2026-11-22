@@ -3349,7 +3349,7 @@
     'use strict';
     var SM = root.StorymakerCore || (root.StorymakerCore = {});
 
-    var DEAD_STRETCH_SECONDS = 3, FONT_FLOOR = 0.026, MONOTONY_SHOWS = 3, MAX_TRANSITION_KINDS = 5, EPSILON = 1e-6;
+    var DEAD_STRETCH_SECONDS = 3, HOOK_SECONDS = 0.5, FONT_FLOOR = 0.026, MONOTONY_SHOWS = 3, MAX_TRANSITION_KINDS = 5, EPSILON = 1e-6;
     var SECONDARY_STYLES = { caption: true, label: true };
 
     function seconds(v) { return v.toFixed(1); }
@@ -3429,9 +3429,24 @@
         return out;
     }
 
-    // film(c): c = {scenesIn, plans}. The first scene plays no transition (plan.js transitionFor), so it does not count as a kind.
+    // film(c): c = {scenesIn, plans, first}. first = {id, narrated, log} describes scene 1 (its schedule log is empty for a code
+    // scene). The first scene plays no transition (plan.js transitionFor), so it does not count as a kind.
     function film(c) {
         var out = [], entries = [], kinds = {};
+        if (c.first) {
+            var landing = null;
+            (c.first.log || []).forEach(function (l) {
+                if (l.kind === 'show' && (landing === null || landingOf(l) < landing)) landing = landingOf(l);
+            });
+            var hookPath = '/scenes/0';
+            if (!c.first.narrated) {
+                out.push(SM.plan.issue('warning', c.first.id, hookPath, 'slow_hook', 'The first scene has no narration, so the film opens in silence.',
+                    { at_seconds: 0, fix: 'Give the first scene a narration that starts the film with its key point.' }));
+            } else if (landing !== null && landing > HOOK_SECONDS + EPSILON) {
+                out.push(SM.plan.issue('warning', c.first.id, hookPath, 'slow_hook', 'The first thing appears after ' + seconds(landing) + ' s; the film should show something within ' + HOOK_SECONDS + ' s.',
+                    { at_seconds: landing, fix: 'Show the first item or text at the start of the first scene, with no delay or entry that takes long.' }));
+            }
+        }
         c.scenesIn.forEach(function (sc, i) {
             if (i > 0 && c.plans[i]) kinds[c.plans[i].requested] = true;
             if (!sc || sc.kind === 'code') return;
@@ -3664,6 +3679,7 @@
         if (glyphIdx) needGlyphs(String.fromCharCode(0x2026));
         var rhythmFactor = SM.motion.factor(story.style);
 
+        var firstScene = null;
         scenesIn.forEach(function (sc, i) {
             var plan = plans[i], isCode = sc.kind === 'code';
             var envId = sc.environment || envPrev || 'env.plain-stage';
@@ -3724,6 +3740,7 @@
                 code: codeInfo ? { error: codeInfo.error || null, duration: codeInfo.duration || null } : null, stages: {}
             };
             scenes.push(scene);
+            if (i === 0) firstScene = { id: sc.id, narrated: n.words > 0, log: built.log || [] };
             issues.push.apply(issues, SM.lint.scene({ scene: scene, index: i, plan: plan, built: built, stage: stage, cat: cat, fmt: fmt, envChanged: envChanged, factor: rhythmFactor }));
 
             // narration windows (global seconds) and, with measured audio, one audio event per piece
@@ -3782,7 +3799,7 @@
         });
         if (scenes.some(function (s) { return s.kind === 'code'; }) && catalog && catalog.rig && catalog.rig.file) needs['catalog:' + catalog.rig.file] = true;
 
-        issues.push.apply(issues, SM.lint.film({ scenesIn: scenesIn, plans: plans }));
+        issues.push.apply(issues, SM.lint.film({ scenesIn: scenesIn, plans: plans, first: firstScene }));
 
         var frameCount = 0;
         scenes.forEach(function (s) { if (s.end_frame > frameCount) frameCount = s.end_frame; });

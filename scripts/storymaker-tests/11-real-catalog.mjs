@@ -258,15 +258,16 @@ check('real catalog: every character x view x expression resolves every slot to 
 
 check('real catalog: firewall, minimal and the cast sheet compile with only the issues of a silent film and the lint they earn', () => {
     // firewall s2 fades into another environment, minimal shows nothing on its first frame, the cast sheet: see below
-    const allowed = new Set(['narration_missing', 'not_supported_yet', 'layout_unverified', 'fade_between_worlds', 'first_frame_empty', 'line_unread', 'entry_monotony']);
+    const allowed = new Set(['narration_missing', 'not_supported_yet', 'layout_unverified', 'fade_between_worlds', 'first_frame_empty', 'line_unread', 'entry_monotony', 'slow_hook']);
     for (const [name, s] of [['firewall', firewall], ['minimal', story('minimal')], ['castsheet', castsheet]]) {
         const out = compileReal(s), report = out.report, codes = [...report.issues, ...report.unverified].map(i => i.code);
         assert.deepEqual(codes.filter(c => !allowed.has(c)), [], name + ': ' + JSON.stringify(report.issues.filter(i => !allowed.has(i.code))));
         assert.equal(report.catalog_version, catalog.version);
         assert.ok(out.needs.includes('catalog:rig/human.json') || name === 'minimal', name + ' needs the rig');
     }
-    // A 4-word label holds 1.7 s in the sheet's 1.2 s scenes, and every show has entry none, so only these two codes fire.
-    assert.deepEqual([...new Set(plain(compileReal(castsheet).report.issues).map(i => i.code))].sort(), ['entry_monotony', 'line_unread']);
+    // A 4-word label holds 1.7 s in the sheet's 1.2 s scenes, and every show has entry none, so only these two codes fire, and
+    // slow_hook because the sheet's first scene has no narration.
+    assert.deepEqual([...new Set(plain(compileReal(castsheet).report.issues).map(i => i.code))].sort(), ['entry_monotony', 'line_unread', 'slow_hook']);
     const ranges = compiled.report.scenes;
     assert.deepEqual(plain(ranges.map(s => s.id)), ['s1', 's2', 's3']);
     assert.ok(ranges.every((s, i) => s.end_frame > s.start_frame && (i === 0 || s.start_frame < ranges[i - 1].end_frame)), 'scenes follow each other, transitions overlap');
