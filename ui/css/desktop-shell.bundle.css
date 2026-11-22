@@ -486,6 +486,9 @@
     --vd-accent-r: 233;
     --vd-accent-g: 84;
     --vd-accent-b: 32;
+    /* Text on the accent: the dark ink reads on the orange (5.2:1, white only 3.65:1); the accent itself stays bright,
+       because it is also text on the dark panels. */
+    --vd-accent-contrast: #0c1016;
     --vd-coral: #f97362;
     --vd-amber: #f59e0b;
     --vd-shadow: 0 18px 52px rgba(0, 0, 0, 0.5), 0 4px 14px rgba(0, 0, 0, 0.28);
@@ -658,10 +661,11 @@
     --vd-border-bright: rgba(49, 66, 94, 0.38);
     --vd-text: #192334;
     --vd-muted: #43516a;
-    --vd-accent: #0a84ff;
-    --vd-accent-r: 10;
-    --vd-accent-g: 132;
-    --vd-accent-b: 255;
+    /* Deep system blue: white reads on it (5.6:1; #0a84ff only 3.65:1). Fruity dark keeps #0a84ff (rule below). */
+    --vd-accent: #0066cc;
+    --vd-accent-r: 0;
+    --vd-accent-g: 102;
+    --vd-accent-b: 204;
     --vd-coral: #ff5f57;
     --vd-amber: #ffbd2e;
     --vd-shadow: 0 28px 66px rgba(24, 38, 60, 0.3);
@@ -704,6 +708,12 @@
     --ds-color-control-hover: #e2e9f3;
     --ds-color-control-active: rgba(var(--vd-accent-r), var(--vd-accent-g), var(--vd-accent-b), 0.2);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.6);
+
+    /* Status text on the light panels: at least 5:1 on --vd-theme-panel-bg (#d8e0eb). */
+    --ds-color-success-fg: #026b26;
+    --ds-color-warning-fg: #894e04;
+    --ds-color-danger-fg: #bc0307;
+    --ds-color-info-fg: #0058bd;
 
     --ds-elevation-1: 0 1px 2px rgba(52, 64, 84, 0.08);
     --ds-elevation-2: 0 4px 12px rgba(52, 64, 84, 0.12);
@@ -784,6 +794,19 @@
     --ds-color-border-subtle: rgba(255, 255, 255, 0.12);
     --ds-color-border-default: rgba(255, 255, 255, 0.18);
     --ds-color-border-strong: rgba(255, 255, 255, 0.28);
+
+    /* Status text: back to the dark-tuned defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
+}
+
+/* Fruity dark keeps the bright system blue; the dark ink reads on it (5.3:1, white only 3.65:1). :where() keeps the
+   selector at the specificity of the accent presets ([data-accent], later in this file), so a chosen accent still wins. */
+.desktop-body[data-theme="fruity"]:where([data-fruity-mode="dark"]) {
+    --vd-accent: #0a84ff;
+    --vd-accent-contrast: #0d0f14;
 }
 
 /* Fruity dark mode - explicit component-level overrides (OS-independent) */
@@ -1924,6 +1947,16 @@
         --ds-color-surface-1: #1b1e26;
         --ds-color-surface-2: #202631;
         --ds-color-surface-3: #262e3c;
+
+        --ds-color-success-fg: #4ad29c;
+        --ds-color-warning-fg: #f2b84b;
+        --ds-color-danger-fg: #ff7a72;
+        --ds-color-info-fg: #5aa9ff;
+    }
+
+    .desktop-body[data-theme="fruity"]:where(:not([data-fruity-mode="light"])) {
+        --vd-accent: #0a84ff;
+        --vd-accent-contrast: #0d0f14;
     }
 
     .desktop-body[data-theme="fruity"]:not([data-fruity-mode="light"])[data-wallpaper="aurora"] {
@@ -2105,13 +2138,17 @@
     --vd-accent-r: 39;
     --vd-accent-g: 199;
     --vd-accent-b: 166;
+    --vd-accent-contrast: #0c1016;
 }
 
+/* The accent presets are light colours: a dark ink reads on each of them (7.9:1 and more). A skin's root rule, later
+   in the bundle, still sets its own --vd-accent-contrast. */
 .desktop-body[data-accent="orange"] {
     --vd-accent: #ff9d4d;
     --vd-accent-r: 255;
     --vd-accent-g: 157;
     --vd-accent-b: 77;
+    --vd-accent-contrast: #0c1016;
 }
 
 .desktop-body[data-accent="blue"] {
@@ -2119,6 +2156,7 @@
     --vd-accent-r: 99;
     --vd-accent-g: 179;
     --vd-accent-b: 255;
+    --vd-accent-contrast: #0c1016;
 }
 
 .desktop-body[data-accent="violet"] {
@@ -2126,6 +2164,7 @@
     --vd-accent-r: 183;
     --vd-accent-g: 148;
     --vd-accent-b: 255;
+    --vd-accent-contrast: #0c1016;
 }
 
 .desktop-body[data-accent="green"] {
@@ -2133,6 +2172,7 @@
     --vd-accent-r: 72;
     --vd-accent-g: 213;
     --vd-accent-b: 151;
+    --vd-accent-contrast: #0c1016;
 }
 
 /* A picked accent also replaces the darker step a theme pairs with its own colour. Fixed-accent skins have the same
@@ -2141,7 +2181,7 @@
     --ds-color-accent-600: color-mix(in srgb, var(--vd-accent) 78%, #000);
 }
 
-/* Text colour that sits on the accent: white by default (Standard, Fruity and the user accents); fixed-accent skins override it. */
+/* Text colour that sits on the accent: white by default (Fruity light); Standard, Fruity dark, the accent presets and the skins set their own. */
 .desktop-body {
     --vd-accent-contrast: #fff;
     /* Declared here, not on :root, so it follows the accent on this element. Black Gloss uses it; Standard and Fruity set their own strength. */
@@ -12689,6 +12729,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(102, 136, 187, 0);
     --ds-color-control-active: #999999;
     --ds-color-inner-highlight: #ffffff;
+    /* Status text: at least 5:1 on the #aaaaaa app and panel backgrounds. */
+    --ds-color-success-fg: #004300;
+    --ds-color-warning-fg: #5b2c00;
+    --ds-color-danger-fg: #780100;
+    --ds-color-info-fg: #003773;
     --ds-elevation-1: none;
     --ds-elevation-2: none;
     --ds-elevation-3: none;
@@ -13499,6 +13544,7 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-control-active: rgba(0, 240, 255, 0.24);
     --ds-color-inner-highlight: rgba(0, 240, 255, 0.06);
     --ds-color-success-fg: #0DF272;
+    --ds-color-warning-fg: #F2B84B;
     --ds-color-danger-fg: #FF3D7F;
     --ds-color-info-fg: #00F0FF;
     --ds-elevation-1: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6);
@@ -14279,8 +14325,9 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --vd-window-radius: 10px;
     --vd-font-ui: 'Inter', 'Geist', system-ui, sans-serif;
 
-    /* Text on the user's accent (the accent itself stays the user's; white is the shared default) */
-    --vd-accent-contrast: #fff;
+    /* Text on the user's accent: the default teal and every accent preset are light, so a dark ink reads on each of
+       them (8:1 and more; white only 1.9–2.4:1). The accent itself stays the user's. */
+    --vd-accent-contrast: #0c0c0e;
 
     /* Theme bridge */
     --vd-theme-app-bg: #0c0c0e;
@@ -14328,6 +14375,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(var(--vd-accent-r, 39), var(--vd-accent-g, 199), var(--vd-accent-b, 166), 0.14);
     --ds-color-control-active: rgba(255, 255, 255, 0.16);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.1);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
     --ds-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.5);
     --ds-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.55);
     --ds-elevation-3: 0 12px 32px rgba(0, 0, 0, 0.6);
@@ -15040,6 +15092,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(255, 43, 214, 0.32);
     --ds-color-control-active: rgba(255, 43, 214, 0.34);
     --ds-color-inner-highlight: rgba(255, 255, 255, 0.1);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4AD29C;
+    --ds-color-warning-fg: #F2B84B;
+    --ds-color-danger-fg: #FF7A72;
+    --ds-color-info-fg: #5AA9FF;
     --ds-elevation-1: 0 1px 2px rgba(8, 0, 22, 0.4);
     --ds-elevation-2: 0 4px 12px rgba(8, 0, 22, 0.46);
     --ds-elevation-3: 0 12px 32px rgba(8, 0, 22, 0.54);
@@ -15872,8 +15929,8 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     /* Light-surface semantics (the shared dark-tuned values fail contrast here), rounder corners, display font */
     --vd-coral: #C42B52;
     --vd-amber: #9A5B00;
-    --ds-color-success-fg: #0B7A53;
-    --ds-color-warning-fg: #9A5B00;
+    --ds-color-success-fg: #03714C;
+    --ds-color-warning-fg: #905502;
     --ds-color-danger-fg: #B3261E;
     --ds-color-info-fg: #1B5FB0;
     --ds-radius-xs: 6px;
@@ -16707,6 +16764,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(236, 196, 104, 0.3);
     --ds-color-control-active: rgba(223, 180, 88, 0.28);
     --ds-color-inner-highlight: rgba(255, 242, 204, 0.24);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4AD29C;
+    --ds-color-warning-fg: #F2B84B;
+    --ds-color-danger-fg: #FF7A72;
+    --ds-color-info-fg: #5AA9FF;
     --ds-elevation-1: 0 2px 4px rgba(8, 4, 2, 0.55);
     --ds-elevation-2: 0 6px 16px rgba(8, 4, 2, 0.6);
     --ds-elevation-3: 0 14px 36px rgba(8, 4, 2, 0.66);
@@ -17618,6 +17680,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(230, 168, 58, .2);
     --ds-color-control-active: #33463a;
     --ds-color-inner-highlight: rgba(255, 255, 255, .07);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
     --ds-elevation-1: 0 2px 5px rgba(0, 0, 0, .3);
     --ds-elevation-2: 0 5px 14px rgba(0, 0, 0, .36);
     --ds-elevation-3: 0 12px 28px rgba(0, 0, 0, .44);
@@ -18088,6 +18155,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(29, 95, 175, .16);
     --ds-color-control-active: #d1def0;
     --ds-color-inner-highlight: #ffffff;
+    /* Status text: at least 5:1 on the app and panel backgrounds. */
+    --ds-color-success-fg: #1d710b;
+    --ds-color-warning-fg: #815b01;
+    --ds-color-danger-fg: #be2315;
+    --ds-color-info-fg: #1d5faf;
     --ds-elevation-1: 0 1px 3px rgba(34, 62, 99, .12);
     --ds-elevation-2: 0 4px 10px rgba(34, 62, 99, .16);
     --ds-elevation-3: 0 10px 24px rgba(34, 62, 99, .2);
@@ -18517,6 +18589,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(165, 217, 65, .2);
     --ds-color-control-active: #3b4c23;
     --ds-color-inner-highlight: rgba(239, 255, 189, .16);
+    /* Status text: the dark defaults, with danger and info a little lighter for the lighter green panels. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff887f;
+    --ds-color-info-fg: #66afff;
     --ds-elevation-1: 0 2px 4px rgba(0, 0, 0, .3);
     --ds-elevation-2: 0 6px 14px rgba(0, 0, 0, .36);
     --ds-elevation-3: 0 14px 30px rgba(0, 0, 0, .44);
@@ -18824,6 +18901,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(71, 107, 60, .14);
     --ds-color-control-active: #d2dec6;
     --ds-color-inner-highlight: #fff9e4;
+    /* Status text: at least 5:1 on the app and panel backgrounds. */
+    --ds-color-success-fg: #2d6902;
+    --ds-color-warning-fg: #7d5402;
+    --ds-color-danger-fg: #af271b;
+    --ds-color-info-fg: #1558b8;
     --ds-elevation-1: 0 2px 0 rgba(0, 0, 0, .14);
     --ds-elevation-2: 0 3px 0 rgba(0, 0, 0, .16);
     --ds-elevation-3: 0 4px 0 rgba(0, 0, 0, .2);
@@ -19435,6 +19517,11 @@ body.vd-spaces-overview-open .vd-taskbar-thumbnail {
     --ds-color-accent-glow: rgba(92, 225, 255, .3);
     --ds-color-control-active: rgba(92, 225, 255, .24);
     --ds-color-inner-highlight: rgba(210, 235, 255, .1);
+    /* Status text: the dark defaults. */
+    --ds-color-success-fg: #4ad29c;
+    --ds-color-warning-fg: #f2b84b;
+    --ds-color-danger-fg: #ff7a72;
+    --ds-color-info-fg: #5aa9ff;
     --ds-elevation-1: 0 0 0 1px rgba(92, 225, 255, .1), 0 2px 6px rgba(0, 0, 8, .5);
     --ds-elevation-2: 0 0 0 1px rgba(92, 225, 255, .12), 0 6px 16px rgba(0, 0, 8, .55);
     --ds-elevation-3: 0 0 0 1px rgba(92, 225, 255, .14), 0 12px 32px rgba(0, 0, 8, .6);
