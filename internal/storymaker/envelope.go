@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 )
 
@@ -62,6 +63,9 @@ type Envelope struct {
 	// through them. Envelopes written before this field stay valid: they have no text.
 	Text     string `json:"text,omitempty"`
 	Language string `json:"language,omitempty"`
+	// Faults names what CheckPiece found in the synthesized audio: "clipped" and "dropout", sorted. A piece with none
+	// writes no key.
+	Faults []string `json:"faults,omitempty"`
 }
 
 // levelByte is round((clamp(dBFS,-60,0)+60)*255/60), silence 0.
@@ -168,6 +172,7 @@ func ParseEnvelope(data []byte) (Envelope, error) {
 	if n := len(e.Levels); n < want-1 || n > want+1 {
 		return Envelope{}, fmt.Errorf("storymaker: envelope has %d levels, want %d", n, want)
 	}
+	e.Faults = knownPieceFaults(e.Faults)
 	return e, nil
 }
 
@@ -293,4 +298,15 @@ func binLevel(p AudioPiece, levels Levels, t int) uint8 {
 		return 0
 	}
 	return levels[i]
+}
+
+// knownPieceFaults keeps the faults CheckPiece can name, each once, sorted: an env.json is an ordinary workspace file.
+func knownPieceFaults(in []string) []string {
+	var out []string
+	for _, f := range []string{"clipped", "dropout"} {
+		if slices.Contains(in, f) {
+			out = append(out, f)
+		}
+	}
+	return out
 }

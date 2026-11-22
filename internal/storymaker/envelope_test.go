@@ -184,3 +184,29 @@ func TestParseEnvelope(t *testing.T) {
 		}
 	}
 }
+
+func TestEnvelopeFaultsRoundTrip(t *testing.T) {
+	env := envelopeOfRuns(600, [2]int{0, 500})
+	env.Faults = []string{"clipped", "dropout"}
+	data, err := json.Marshal(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ParseEnvelope(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got.Faults, []string{"clipped", "dropout"}) {
+		t.Errorf("faults %v", got.Faults)
+	}
+	clean, _ := json.Marshal(envelopeOfRuns(600, [2]int{0, 500}))
+	if strings.Contains(string(clean), "faults") {
+		t.Errorf("a clean envelope names no faults: %s", clean)
+	}
+	// A workspace file is not trusted: only the two known faults survive, each once, sorted.
+	odd := strings.Replace(string(data), `["clipped","dropout"]`, `["dropout","x","dropout","clipped"]`, 1)
+	got, err = ParseEnvelope([]byte(odd))
+	if err != nil || !reflect.DeepEqual(got.Faults, []string{"clipped", "dropout"}) {
+		t.Errorf("odd faults %v, %v", got.Faults, err)
+	}
+}
