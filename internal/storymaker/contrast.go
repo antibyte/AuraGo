@@ -55,3 +55,31 @@ func boxContrast(img image.Image, box LayoutBox) (ratio float64, ok bool) {
 	high := lum[int(math.Round(0.97*float64(last)))]
 	return (high + 0.05) / (low + 0.05), true
 }
+
+// TextContrast is the measured contrast of one text box on a still; ID is the text id or "caption".
+type TextContrast struct {
+	ID    string  `json:"id"`
+	Ratio float64 `json:"ratio"`
+}
+
+// MeasureStillContrast decodes one still (through stillConfig and decodeStill, so the size caps hold) and measures every text
+// box and the caption box of its layout scene. Boxes are fractions of the frame, as in LayoutScene. A box too small to measure
+// is left out.
+func MeasureStillContrast(data []byte, scene LayoutScene) ([]TextContrast, error) {
+	img, err := decodeStill(data)
+	if err != nil {
+		return nil, err
+	}
+	var out []TextContrast
+	for _, text := range scene.Texts {
+		if ratio, ok := boxContrast(img, text.Box); ok {
+			out = append(out, TextContrast{ID: text.ID, Ratio: ratio})
+		}
+	}
+	if scene.Caption != nil {
+		if ratio, ok := boxContrast(img, *scene.Caption); ok {
+			out = append(out, TextContrast{ID: "caption", Ratio: ratio})
+		}
+	}
+	return out, nil
+}

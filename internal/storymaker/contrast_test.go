@@ -69,3 +69,46 @@ func TestBoxContrastClampsTheBoxAndSkipsATinyOne(t *testing.T) {
 		t.Error("a box outside the frame must be skipped")
 	}
 }
+
+func TestMeasureStillContrastMeasuresTextsAndCaption(t *testing.T) {
+	// Left half: black strokes on white (the text "title"); right half uniform grey (the text "note"); the caption band is striped
+	// grey on slightly lighter grey.
+	img := stripedImage(200, 100, image.Rect(0, 0, 100, 60), 255, 0)
+	for y := 0; y < 60; y++ {
+		for x := 100; x < 200; x++ {
+			img.Set(x, y, color.RGBA{128, 128, 128, 255})
+		}
+	}
+	band := stripedImage(200, 100, image.Rect(0, 70, 200, 100), 150, 128)
+	for y := 70; y < 100; y++ {
+		for x := 0; x < 200; x++ {
+			img.Set(x, y, band.At(x, y))
+		}
+	}
+	scene := layoutScene("s1", 0)
+	scene.Texts = []LayoutText{{ID: "title", Box: LayoutBox{0, 0, 0.5, 0.6}}, {ID: "note", Box: LayoutBox{0.5, 0, 0.5, 0.6}}}
+	caption := LayoutBox{0, 0.7, 1, 0.3}
+	scene.Caption = &caption
+	got, err := MeasureStillContrast(encodePNG(t, img), scene)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 || got[0].ID != "title" || got[1].ID != "note" || got[2].ID != "caption" {
+		t.Fatalf("measured %+v, want title, note, caption in order", got)
+	}
+	if got[0].Ratio < 15 || got[1].Ratio > 1.0001 || got[2].Ratio < 1.15 || got[2].Ratio >= contrastMin {
+		t.Errorf("ratios %+v", got)
+	}
+}
+
+func TestMeasureStillContrastSkipsATinyBoxAndRefusesANonPNG(t *testing.T) {
+	scene := layoutScene("s1", 0)
+	scene.Texts = []LayoutText{{ID: "dot", Box: LayoutBox{0.5, 0.5, 0.001, 0.001}}}
+	got, err := MeasureStillContrast(encodePNG(t, stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)), scene)
+	if err != nil || len(got) != 0 {
+		t.Errorf("a tiny box: %+v, %v", got, err)
+	}
+	if _, err := MeasureStillContrast([]byte("not a png"), scene); err == nil {
+		t.Error("a non-PNG must be refused")
+	}
+}
