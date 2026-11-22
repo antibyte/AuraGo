@@ -340,6 +340,9 @@ func (s *Studio) runCheck(ctx context.Context) (CheckReport, string, error) {
 	}
 	for _, is := range found {
 		switch {
+		case is.Code == CodeFlashUnverified:
+			// An open check: listed by DecideOutcome, never blocking, and nothing the model can fix.
+			report.Environment = append(report.Environment, is)
 		case is.Code == CodeOverTarget, is.Code == CodeCompileFailed && is.SceneID == "", is.Severity == SeverityError && !IssueModelFixable(is):
 			report.Environment = append(report.Environment, is)
 		case IssueModelFixable(is):
