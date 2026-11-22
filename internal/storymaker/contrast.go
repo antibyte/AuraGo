@@ -1,10 +1,10 @@
 package storymaker
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"math"
-	"sort"
 	"strconv"
 )
 
@@ -15,24 +15,48 @@ const (
 	contrastMasked = 1.15
 	// contrastMaxSamples bounds the sample grid inside one box.
 	contrastMaxSamples = 20000
+	// maxMeasuredBoxes bounds the boxes measured on one still, so a crafted project cannot burn CPU with 65 boxes on each of 200
+	// scenes.
+	maxMeasuredBoxes = 16
+	// lumBins is the resolution of the luminance histogram the percentiles are read from.
+	lumBins = 4096
 )
 
-// linearChannel turns an sRGB channel (0..1) into linear light.
-func linearChannel(c float64) float64 {
-	if c <= 0.04045 {
-		return c / 12.92
+// linearLUT is the sRGB-to-linear step of every 8 bit channel value.
+var linearLUT = func() (t [256]float64) {
+	for i := range t {
+		c := float64(i) / 255
+		if c <= 0.04045 {
+			t[i] = c / 12.92
+		} else {
+			t[i] = math.Pow((c+0.055)/1.055, 2.4)
+		}
 	}
-	return math.Pow((c+0.055)/1.055, 2.4)
+	return t
+}()
+
+// lumBin is the histogram bin of the relative luminance of an 8 bit sRGB colour.
+func lumBin(r, g, b uint8) int {
+	l := 0.2126*linearLUT[r] + 0.7152*linearLUT[g] + 0.0722*linearLUT[b]
+	return int(math.Round(l * (lumBins - 1)))
 }
 
-// relativeLuminance is the WCAG relative luminance of a 16 bit sRGB colour.
-func relativeLuminance(r, g, b uint32) float64 {
-	return 0.2126*linearChannel(float64(r)/65535) + 0.7152*linearChannel(float64(g)/65535) + 0.0722*linearChannel(float64(b)/65535)
+// percentileBin returns the bin of the element at rank round(p*(total-1)) of the sorted samples.
+func percentileBin(hist *[lumBins]int, total int, p float64) int {
+	rank := int(math.Round(p * float64(total-1)))
+	seen := 0
+	for i, n := range hist {
+		seen += n
+		if rank < seen {
+			return i
+		}
+	}
+	return lumBins - 1
 }
 
 // boxContrast measures the contrast inside a box given as fractions of the picture: the 3rd and 97th percentile of the relative
-// luminance over an evenly spaced grid of at most contrastMaxSamples samples give (L97 + 0.05) / (L3 + 0.05). The box is clamped
-// to the picture; ok is false when less than 2 x 2 pixels of it lie inside.
+// luminance over an evenly spaced grid of at most contrastMaxSamples samples give (L97 + 0.05) / (L3 + 0.05). The percentiles come
+// from a histogram, not a sort. The box is clamped to the picture; ok is false when less than 2 x 2 pixels of it lie inside.
 func boxContrast(img image.Image, box LayoutBox) (ratio float64, ok bool) {
 	b := img.Bounds()
 	w, h := float64(b.Dx()), float64(b.Dy())
@@ -44,17 +68,39 @@ func boxContrast(img image.Image, box LayoutBox) (ratio float64, ok bool) {
 		return 0, false
 	}
 	step := max(1, int(math.Ceil(math.Sqrt(float64(x1-x0)*float64(y1-y0)/contrastMaxSamples))))
-	var lum []float64
+	var hist [lumBins]int
+	total := 0
+	nrgba, isNRGBA := img.(*image.NRGBA)
+	rgba, isRGBA := img.(*image.RGBA)
 	for y := y0; y < y1; y += step {
 		for x := x0; x < x1; x += step {
-			r, g, bl, _ := img.At(x, y).RGBA()
-			lum = append(lum, relativeLuminance(r, g, bl))
+			var bin int
+			switch {
+			case isRGBA:
+				// An RGBA pixel is premultiplied; only an opaque one is the colour itself.
+				if p := rgba.Pix[rgba.PixOffset(x, y):]; p[3] == 255 {
+					bin = lumBin(p[0], p[1], p[2])
+					break
+				}
+				r, g, bl, _ := img.At(x, y).RGBA()
+				bin = lumBin(uint8(r>>8), uint8(g>>8), uint8(bl>>8))
+			case isNRGBA:
+				if p := nrgba.Pix[nrgba.PixOffset(x, y):]; p[3] == 255 {
+					bin = lumBin(p[0], p[1], p[2])
+					break
+				}
+				r, g, bl, _ := img.At(x, y).RGBA()
+				bin = lumBin(uint8(r>>8), uint8(g>>8), uint8(bl>>8))
+			default:
+				r, g, bl, _ := img.At(x, y).RGBA()
+				bin = lumBin(uint8(r>>8), uint8(g>>8), uint8(bl>>8))
+			}
+			hist[bin]++
+			total++
 		}
 	}
-	sort.Float64s(lum)
-	last := len(lum) - 1
-	low := lum[int(math.Round(0.03*float64(last)))]
-	high := lum[int(math.Round(0.97*float64(last)))]
+	low := float64(percentileBin(&hist, total, 0.03)) / (lumBins - 1)
+	high := float64(percentileBin(&hist, total, 0.97)) / (lumBins - 1)
 	return (high + 0.05) / (low + 0.05), true
 }
 
@@ -64,21 +110,37 @@ type TextContrast struct {
 	Ratio float64 `json:"ratio"`
 }
 
-// MeasureStillContrast decodes one still (through stillConfig and decodeStill, so the size caps hold) and measures every text
-// box and the caption box of its layout scene. Boxes are fractions of the frame, as in LayoutScene. A box too small to measure
-// is left out.
-func MeasureStillContrast(data []byte, scene LayoutScene) ([]TextContrast, error) {
+// MeasureStillContrast decodes one still (through stillConfig and decodeStill, so the size caps hold) and measures the text
+// boxes and the caption box of its layout scene. Boxes are fractions of the frame, as in LayoutScene. A box too small to measure
+// is left out. At most maxMeasuredBoxes boxes are measured: the caption always counts, so when there are more boxes the texts
+// are cut (the first ones, in order, are kept) and the caption keeps its place at the end. ctx is checked between boxes; a
+// cancelled context returns ctx.Err() and no ratios.
+func MeasureStillContrast(ctx context.Context, data []byte, scene LayoutScene) ([]TextContrast, error) {
 	img, err := decodeStill(data)
 	if err != nil {
 		return nil, err
 	}
+	texts := scene.Texts
+	budget := maxMeasuredBoxes
+	if scene.Caption != nil {
+		budget--
+	}
+	if len(texts) > budget {
+		texts = texts[:budget]
+	}
 	var out []TextContrast
-	for _, text := range scene.Texts {
+	for _, text := range texts {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if ratio, ok := boxContrast(img, text.Box); ok {
 			out = append(out, TextContrast{ID: text.ID, Ratio: ratio})
 		}
 	}
 	if scene.Caption != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if ratio, ok := boxContrast(img, *scene.Caption); ok {
 			out = append(out, TextContrast{ID: "caption", Ratio: ratio})
 		}

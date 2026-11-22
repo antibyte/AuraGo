@@ -81,7 +81,7 @@ func (r *Runner) captureStills(ctx context.Context, page browserPage, summary *s
 		layoutByID[scene.ID] = scene
 	}
 	for i := range stills {
-		texts, err := storymaker.MeasureStillContrast(pngs[i], layoutByID[stills[i].SceneID])
+		texts, err := storymaker.MeasureStillContrast(ctx, pngs[i], layoutByID[stills[i].SceneID])
 		if err != nil {
 			r.deps.Logger.Warn("[Storymaker] The text contrast of a still could not be measured", "scene", stills[i].SceneID, "error", err)
 			continue

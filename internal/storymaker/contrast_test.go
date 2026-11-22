@@ -2,6 +2,8 @@ package storymaker
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -90,7 +92,7 @@ func TestMeasureStillContrastMeasuresTextsAndCaption(t *testing.T) {
 	scene.Texts = []LayoutText{{ID: "title", Box: LayoutBox{0, 0, 0.5, 0.6}}, {ID: "note", Box: LayoutBox{0.5, 0, 0.5, 0.6}}}
 	caption := LayoutBox{0, 0.7, 1, 0.3}
 	scene.Caption = &caption
-	got, err := MeasureStillContrast(encodePNG(t, img), scene)
+	got, err := MeasureStillContrast(context.Background(), encodePNG(t, img), scene)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,11 +107,11 @@ func TestMeasureStillContrastMeasuresTextsAndCaption(t *testing.T) {
 func TestMeasureStillContrastSkipsATinyBoxAndRefusesANonPNG(t *testing.T) {
 	scene := layoutScene("s1", 0)
 	scene.Texts = []LayoutText{{ID: "dot", Box: LayoutBox{0.5, 0.5, 0.001, 0.001}}}
-	got, err := MeasureStillContrast(encodePNG(t, stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)), scene)
+	got, err := MeasureStillContrast(context.Background(), encodePNG(t, stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)), scene)
 	if err != nil || len(got) != 0 {
 		t.Errorf("a tiny box: %+v, %v", got, err)
 	}
-	if _, err := MeasureStillContrast([]byte("not a png"), scene); err == nil {
+	if _, err := MeasureStillContrast(context.Background(), []byte("not a png"), scene); err == nil {
 		t.Error("a non-PNG must be refused")
 	}
 }
@@ -135,5 +137,53 @@ func TestContrastIssuesReportsLowButNotMaskedTexts(t *testing.T) {
 	}
 	if ContrastIssues(nil) != nil {
 		t.Error("no stills, no issues")
+	}
+}
+
+func TestMeasureStillContrastStopsOnACancelledContext(t *testing.T) {
+	scene := layoutScene("s1", 0)
+	scene.Texts = []LayoutText{{ID: "a", Box: LayoutBox{0, 0, 1, 1}}, {ID: "b", Box: LayoutBox{0, 0, 1, 1}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got, err := MeasureStillContrast(ctx, encodePNG(t, stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)), scene)
+	if err != context.Canceled || len(got) != 0 {
+		t.Errorf("a cancelled context: %+v, %v", got, err)
+	}
+}
+
+func TestMeasureStillContrastMeasuresAtMostSixteenBoxesAndKeepsTheCaption(t *testing.T) {
+	scene := layoutScene("s1", 0)
+	for i := 0; i < 40; i++ {
+		scene.Texts = append(scene.Texts, LayoutText{ID: fmt.Sprintf("t%d", i), Box: LayoutBox{0, 0, 1, 1}})
+	}
+	caption := LayoutBox{0, 0, 1, 1}
+	scene.Caption = &caption
+	got, err := MeasureStillContrast(context.Background(), encodePNG(t, stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)), scene)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != maxMeasuredBoxes || got[0].ID != "t0" || got[len(got)-1].ID != "caption" {
+		t.Errorf("measured %d boxes, first %q, last %q", len(got), got[0].ID, got[len(got)-1].ID)
+	}
+	scene.Caption = nil
+	got, _ = MeasureStillContrast(context.Background(), encodePNG(t, stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)), scene)
+	if len(got) != maxMeasuredBoxes {
+		t.Errorf("without a caption: %d boxes", len(got))
+	}
+}
+
+func TestBoxContrastReadsNRGBAAndRGBAAlike(t *testing.T) {
+	src := stripedImage(200, 100, image.Rect(0, 0, 200, 100), 255, 0)
+	nrgba := image.NewNRGBA(src.Bounds())
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 200; x++ {
+			nrgba.Set(x, y, src.At(x, y))
+		}
+	}
+	box := LayoutBox{0, 0, 1, 1}
+	a, _ := boxContrast(src, box)
+	b, _ := boxContrast(nrgba, box)
+	if a != b || a < 15 {
+		t.Errorf("RGBA %.3f vs NRGBA %.3f", a, b)
 	}
 }
