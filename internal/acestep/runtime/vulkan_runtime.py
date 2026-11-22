@@ -29,6 +29,8 @@ WORKER = None
 JOB = None
 LOGS = deque(maxlen=32)
 MAX_AUDIO = 64 << 20
+# Mirrors ACE-Step 1.5's turbo default (DCW on for turbo models), which acestep.cpp leaves off.
+TURBO_DCW = {'dcw_mode': 'double', 'dcw_scaler': 0.05, 'dcw_high_scaler': 0.02}
 BIN = Path('/opt/acestep')
 AUDIO = common.CACHE / 'acestep/tmp/api_audio'
 FILES = {
@@ -136,11 +138,13 @@ def generation_request(body, profile):
     if not isinstance(language, str) or language and not re.fullmatch(r'[a-z]{2,3}(-[A-Za-z]{2,4})?', language):
         raise ValueError('invalid_vocal_language')
     if not lyrics.strip() and not profile['lm_model']: raise ValueError('lyrics_required')
-    return {'caption': prompt, 'lyrics': lyrics, 'duration': duration, 'bpm': bpm,
-            'vocal_language': language, 'seed': seed, 'lm_seed': seed,
-            'lm_batch_size': 1, 'synth_batch_size': 1, 'inference_steps': 8,
-            'use_cot_caption': False, 'task_type': 'text2music', 'output_format': 'mp3',
-            'synth_model': profile['model'], 'lm_model': profile['lm_model'], 'vae': FILES['vae']}
+    request = {'caption': prompt, 'lyrics': lyrics, 'duration': duration, 'bpm': bpm,
+               'vocal_language': language, 'seed': seed, 'lm_seed': seed,
+               'lm_batch_size': 1, 'synth_batch_size': 1, 'inference_steps': 8,
+               'use_cot_caption': False, 'task_type': 'text2music', 'output_format': 'mp3',
+               'synth_model': profile['model'], 'lm_model': profile['lm_model'], 'vae': FILES['vae']}
+    if 'turbo' in profile['model']: request.update(TURBO_DCW)
+    return request
 
 
 def render(request):

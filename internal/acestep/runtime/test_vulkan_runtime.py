@@ -47,6 +47,11 @@ class VulkanContract(unittest.TestCase):
         self.assertEqual(request['lm_seed'], 0)
         self.assertEqual(request['bpm'], 90)
         self.assertEqual(request['vocal_language'], 'de')
+        self.assertEqual(request['dcw_mode'], 'double')
+        self.assertEqual(request['dcw_scaler'], 0.05)
+        self.assertEqual(request['dcw_high_scaler'], 0.02)
+        base = runtime.generation_request({'prompt': 'Piano', 'lyrics': '[Instrumental]'}, dict(profile, model='acestep-v15-base-Q8_0.gguf'))
+        self.assertFalse([key for key in base if key.startswith('dcw_')])
         for field, value in [('audio_duration', 601), ('audio_duration', float('nan')), ('bpm', 301), ('seed', True), ('vocal_language', '../../en')]:
             with self.assertRaises(ValueError):
                 runtime.generation_request({'prompt': 'Piano', 'lyrics': 'Hello', 'use_random_seed': False, 'seed': 0, field: value}, profile)

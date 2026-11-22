@@ -45,6 +45,11 @@ coherent text with FP32. Model weights remain Q8/Q4 as selected and inference
 stays GPU-accelerated. Status exposes `compute_precision`; it is included in the
 profile fingerprint so older qualification results cannot certify this setting.
 
+Vulkan synthesis requests the same DCW sampler correction (`double`, 0.05/0.02)
+that ACE-Step 1.5 enables by default for turbo models. acestep.cpp leaves it
+off, which produced dull, band-limited output (most energy below ~700 Hz) for
+soft prompts.
+
 Vulkan starts with Q8 2B Turbo (Q4 below 6 GiB usable memory), selecting XL Turbo
 at 20 GiB. The local LM is omitted below 8 GiB, uses 0.6B from 8 GiB and 1.7B
 from 12 GiB. The conservative retry uses Q4 2B without LM. Duration limits are
