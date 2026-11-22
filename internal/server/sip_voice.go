@@ -114,6 +114,9 @@ func (s *sipSpeechSynthesizer) SynthesizeStream(ctx context.Context, text, langu
 		if language == "auto" {
 			language = ""
 		}
+		// Scrub the whole text first: each chunk is scrubbed again on its own, which
+		// cannot see a registered secret that straddles a chunk boundary.
+		text = security.Scrub(text)
 		chunks := splitTelephoneTTSChunks(text, tools.TTSSpeechChunkLimit(s.chunkTTSConfig(language).Provider))
 		if len(chunks) == 0 {
 			send(voice.SpeechSynthesisChunk{Err: fmt.Errorf("text is required")})

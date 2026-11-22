@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/speechlab"
 	"aurago/internal/tools"
 	"aurago/internal/voice"
@@ -407,5 +409,50 @@ func TestSpeechSynthesizerKeepsRadioOnTheChatRoute(t *testing.T) {
 	phone := (&sipSpeechSynthesizer{cfg: cfg, route: tools.TTSRouteTool}).chunkTTSConfig("de")
 	if phone.Provider != "speech_lab" {
 		t.Fatalf("telephone provider = %q, want speech_lab", phone.Provider)
+	}
+}
+
+func TestSIPSpeechSynthesisStreamScrubsSecretsAcrossChunkBoundaries(t *testing.T) {
+	const secret = "sip-tts-chunk-boundary-synthetic-secret-value"
+	security.RegisterSensitive(secret)
+	var mu sync.Mutex
+	var spoken []string
+	synthesizer := &sipSpeechSynthesizer{
+		cfg: &config.Config{},
+		synthesizeForTest: func(_ context.Context, text, _ string) ([]int16, int, error) {
+			mu.Lock()
+			spoken = append(spoken, text)
+			mu.Unlock()
+			return make([]int16, 160), 8000, nil
+		},
+	}
+	limit := tools.TTSSpeechChunkLimit(synthesizer.chunkTTSConfig("de").Provider)
+	if limit < len(secret)+20 {
+		t.Skipf("chunk limit %d is too small to place the secret across it", limit)
+	}
+	// No spaces or sentence ends: the splitter must cut hard at the limit, in the middle of the secret.
+	text := strings.Repeat("x", limit-len(secret)/2) + secret + strings.Repeat("y", 40)
+	if chunks := splitTelephoneTTSChunks(text, limit); len(chunks) < 2 || strings.Contains(chunks[0], secret) || strings.Contains(chunks[1], secret) {
+		t.Fatalf("fixture does not straddle the chunk limit: %d chunks", len(chunks))
+	}
+	for chunk := range synthesizer.SynthesizeStream(context.Background(), text, "de") {
+		if chunk.Err != nil {
+			t.Fatalf("stream error: %v", chunk.Err)
+		}
+		if chunk.Release != nil {
+			chunk.Release()
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(spoken) < 2 {
+		t.Fatalf("spoken chunks = %d, want the text split", len(spoken))
+	}
+	for index, part := range spoken {
+		for _, fragment := range []string{secret[:12], secret[len(secret)-12:]} {
+			if strings.Contains(part, fragment) {
+				t.Fatalf("chunk %d still speaks a fragment %q of the registered secret", index, fragment)
+			}
+		}
 	}
 }
