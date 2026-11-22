@@ -1,5 +1,10 @@
 package storymaker
 
+import (
+	"math"
+	"sort"
+)
+
 const (
 	// A dropout is a fall from at least dropoutFromPower to below dropoutToPower in one 10 ms step inside speech,
 	// followed by dropoutMinWindows to dropoutMaxWindows of silence and then speech again.
@@ -7,12 +12,23 @@ const (
 	dropoutToPower    = 1e-8                  // -80 dBFS
 	dropoutMinWindows = 5                     // 50 ms
 	dropoutMaxWindows = 300                   // 3 s
+
+	// A clipped piece has clipRunsPerSecond runs of clipRunHard samples at or above clipFull, or of clipRunFlat equal
+	// samples at or above clipFlatFloor, inside one second.
+	clipFull          = 0.999
+	clipFlatFloor     = 0.05
+	clipRunHard       = 3
+	clipRunFlat       = 4
+	clipRunsPerSecond = 3
 )
 
 // CheckPiece reports the faults of one synthesized piece: "clipped", "dropout" (sorted, each at most once). env is the
 // envelope of the same audio; its speech runs say where a fall counts as a hole and not as the end of the speech.
 func CheckPiece(audio DecodedAudio, env Envelope) []string {
 	var faults []string
+	if pieceClipped(audio) {
+		faults = append(faults, "clipped")
+	}
 	if pieceDropout(audio, env) {
 		faults = append(faults, "dropout")
 	}
@@ -72,6 +88,61 @@ func pieceDropout(audio DecodedAudio, env Envelope) bool {
 			return true
 		}
 		i = j
+	}
+	return false
+}
+
+// pieceClipped finds runs of consecutive samples of one channel: at least clipRunHard at full scale, or at least
+// clipRunFlat equal ones above clipFlatFloor. A sample can belong to both kinds, so a run is a maximal stretch of
+// flagged samples and counts once. The piece is clipped with clipRunsPerSecond runs inside one second.
+func pieceClipped(a DecodedAudio) bool {
+	if a.Rate <= 0 || a.Channels <= 0 {
+		return false
+	}
+	frames := len(a.Samples) / a.Channels
+	var starts []int
+	for ch := 0; ch < a.Channels; ch++ {
+		at := func(f int) float32 { return a.Samples[f*a.Channels+ch] }
+		flagged := make([]bool, frames)
+		for i := 0; i < frames; {
+			j := i + 1
+			for j < frames && at(j) == at(i) {
+				j++
+			}
+			if j-i >= clipRunFlat && math.Abs(float64(at(i))) >= clipFlatFloor {
+				for k := i; k < j; k++ {
+					flagged[k] = true
+				}
+			}
+			i = j
+		}
+		for i := 0; i < frames; {
+			if math.Abs(float64(at(i))) < clipFull {
+				i++
+				continue
+			}
+			j := i
+			for j < frames && math.Abs(float64(at(j))) >= clipFull {
+				j++
+			}
+			if j-i >= clipRunHard {
+				for k := i; k < j; k++ {
+					flagged[k] = true
+				}
+			}
+			i = j
+		}
+		for i := 0; i < frames; i++ {
+			if flagged[i] && (i == 0 || !flagged[i-1]) {
+				starts = append(starts, i)
+			}
+		}
+	}
+	sort.Ints(starts)
+	for k := 0; k+clipRunsPerSecond <= len(starts); k++ {
+		if starts[k+clipRunsPerSecond-1]-starts[k] < a.Rate {
+			return true
+		}
 	}
 	return false
 }

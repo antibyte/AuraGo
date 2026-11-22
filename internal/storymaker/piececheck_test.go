@@ -57,3 +57,60 @@ func TestCheckPieceDropoutIgnoresWhatSpeechDoesNaturally(t *testing.T) {
 		}
 	}
 }
+
+// pieceTestBurst overwrites count samples from startMS with v.
+func pieceTestBurst(a DecodedAudio, startMS, count int, v float32) {
+	for i := 0; i < count; i++ {
+		a.Samples[startMS*pieceTestRate/1000+i] = v
+	}
+}
+
+func TestCheckPieceClipping(t *testing.T) {
+	hard := pieceTestSpeech(3, 0.3)
+	for _, ms := range []int{200, 500, 800} {
+		pieceTestBurst(hard, ms, 3, 1) // three samples at full scale, three times inside one second
+	}
+	flat := pieceTestSpeech(3, 0.3)
+	for _, ms := range []int{200, 500, 800} {
+		pieceTestBurst(flat, ms, 4, 0.25) // four equal samples: a flat top that was scaled down
+	}
+	for name, a := range map[string]DecodedAudio{"hard": hard, "flat": flat} {
+		if got := pieceTestCheck(a); !reflect.DeepEqual(got, []string{"clipped"}) {
+			t.Errorf("%s: %v", name, got)
+		}
+	}
+}
+
+func TestCheckPieceClippingNeedsThreeRunsInOneSecond(t *testing.T) {
+	two := pieceTestSpeech(3, 0.3)
+	pieceTestBurst(two, 200, 3, 1)
+	pieceTestBurst(two, 500, 3, 1)
+	spread := pieceTestSpeech(3, 0.3)
+	for _, ms := range []int{200, 1200, 2200} {
+		pieceTestBurst(spread, ms, 3, 1) // three runs, but each a second apart
+	}
+	short := pieceTestSpeech(3, 0.3)
+	for _, ms := range []int{200, 500, 800} {
+		pieceTestBurst(short, ms, 2, 1) // two samples are a peak, not a run
+	}
+	quietFlat := pieceTestSpeech(3, 0.3)
+	for _, ms := range []int{200, 500, 800} {
+		pieceTestBurst(quietFlat, ms, 6, 0.01) // equal samples below 0.05 are silence, not a flat top
+	}
+	for name, a := range map[string]DecodedAudio{"two runs": two, "spread runs": spread, "short runs": short, "quiet flat": quietFlat} {
+		if got := pieceTestCheck(a); len(got) != 0 {
+			t.Errorf("%s: %v", name, got)
+		}
+	}
+}
+
+func TestCheckPieceReportsBothFaultsSorted(t *testing.T) {
+	a := pieceTestSpeech(3, 0.3)
+	for _, ms := range []int{200, 500, 800} {
+		pieceTestBurst(a, ms, 3, 1)
+	}
+	pieceTestZero(a, 1500, 100)
+	if got := pieceTestCheck(a); !reflect.DeepEqual(got, []string{"clipped", "dropout"}) {
+		t.Errorf("both: %v", got)
+	}
+}
