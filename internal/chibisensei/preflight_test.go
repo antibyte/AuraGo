@@ -185,6 +185,7 @@ func TestParseGPUQuota(t *testing.T) {
 		want float64
 		ok   bool
 	}{
+		{"fake builder", string(fakeJSON(fakeQuotaJSON(27.5))), 27.5, true},
 		{"remaining hours", `{"gpu":{"remainingHours":12.5,"totalHours":30}}`, 12.5, true},
 		{"duration seconds", `{"gpuQuotaRemaining":99000}`, 27.5, true},
 		{"overused", `{"quotas":[{"type":"GPU","limitSeconds":108000,"usedSeconds":120000}]}`, 0, true},
