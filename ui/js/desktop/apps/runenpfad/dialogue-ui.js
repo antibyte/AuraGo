@@ -124,7 +124,8 @@
         function paintPortrait(npcId, mood) {
             const A = art();
             const atlas = A ? A.current() : null;
-            const sheetId = 'portrait-' + npcId;
+            const portraitDef = npcs() && npcs().NPCS[npcId];
+            const sheetId = 'portrait-' + ((portraitDef && portraitDef.portrait) || npcId);
             const ready = !!(atlas && atlas.sheets[sheetId]);
             const npcClip = 'npc-' + npcId + '.talk';
             const mode = ready ? 'p' : (atlas && A.has(atlas, npcClip) ? 'n' : 'm');

@@ -9,11 +9,16 @@
         bard: ['td-folk-guests', 0], patron: ['td-folk-guests', 1], child: ['td-folk-guests', 2], hermit: ['td-folk-guests', 3],
         barkeep: ['td-folk-world', 0], scribe: ['td-folk-world', 1], climber: ['td-folk-world', 2], automaton: ['td-folk-world', 3],
         witch: ['td-folk-story-a', 0], wizard: ['td-folk-story-a', 1], merchant: ['td-folk-story-a', 2], chief: ['td-folk-story-a', 3],
-        seer: ['td-folk-story-b', 0], alchemist: ['td-folk-story-b', 1], villager_f: ['td-folk-story-b', 2], villager_m: ['td-folk-story-b', 3]
+        seer: ['td-folk-story-b', 0], alchemist: ['td-folk-story-b', 1], villager_f: ['td-folk-story-b', 2], villager_m: ['td-folk-story-b', 3],
+        // Epilogue sheet: Edda, the two recruits and Gundar (the NPC definitions of Edda and Gundar live in journal-story.js).
+        edda: ['td-folk-epilogue', 0], recruit_f: ['td-folk-epilogue', 1], recruit_m: ['td-folk-epilogue', 2], gambler: ['td-folk-epilogue', 3]
     };
 
     // Ids that stand around without a dialogue (no talk prompt).
     const AMBIENT = ['patron', 'child', 'villager_f', 'villager_m'];
+
+    // Epilogue recruits: stand around like the other ambient villagers, but are not part of AMBIENT (a pinned list of the first four).
+    const RECRUITS = ['recruit_f', 'recruit_m'];
 
     const HUMAN = { pack: 'human-characters-animated', anim: 'ranger_idle' };
 
@@ -31,7 +36,7 @@
         automaton: { faction: 'coven', color: '#d6a35c', offers: [], fallback: { pack: 'robots-drones-animated', anim: 'service_robot_idle' } }
     };
 
-    const AMBIENT_COLORS = { patron: '#d6a35c', child: '#fde68a', villager_f: '#f9a8d4', villager_m: '#93c5fd' };
+    const AMBIENT_COLORS = { patron: '#d6a35c', child: '#fde68a', villager_f: '#f9a8d4', villager_m: '#93c5fd', recruit_f: '#fda4af', recruit_m: '#a5b4fc' };
 
     function build() {
         const defs = {};
@@ -43,7 +48,7 @@
                 fallback: { pack: fb.pack, anim: fb.anim, tint: f.fallback ? null : f.color }, offers: f.offers.slice(), duelCoins: 0
             };
         });
-        AMBIENT.forEach(function (id) {
+        AMBIENT.concat(RECRUITS).forEach(function (id) {
             defs[id] = {
                 faction: null, nameKey: 'runenpfad.npc.ambient.name', titleKey: 'runenpfad.npc.ambient.title', color: AMBIENT_COLORS[id], height: id === 'child' ? 58 : 74,
                 fallback: { pack: HUMAN.pack, anim: HUMAN.anim, tint: AMBIENT_COLORS[id] }, offers: [], duelCoins: 0
@@ -52,12 +57,12 @@
         return defs;
     }
 
-    const IDS = Object.keys(FOLK).concat(AMBIENT);
+    const IDS = Object.keys(FOLK).concat(AMBIENT, RECRUITS);
     const defs = build();
     const npcs = root.RunenpfadNpcs;
     if (npcs && npcs.NPCS) {
         Object.keys(defs).forEach(function (id) { npcs.NPCS[id] = defs[id]; });
     }
 
-    root.RunenpfadFolk = { SPRITES: SPRITES, AMBIENT: AMBIENT, IDS: IDS, DEFS: defs };
+    root.RunenpfadFolk = { SPRITES: SPRITES, AMBIENT: AMBIENT, RECRUITS: RECRUITS, IDS: IDS, DEFS: defs };
 })(typeof window !== 'undefined' ? window : globalThis);

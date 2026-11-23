@@ -1,5 +1,6 @@
 /* Runenpfad folk story data: meetings and dialogue graphs of the Pathrest villagers (elder, innkeeper, smith, shopkeeper, bard), the
- * hermit, kobold barkeep, desert scribe, mountaineer and brass helper, plus one tavern node for each story NPC. DOM-free data only.
+ * hermit, kobold barkeep, desert scribe, mountaineer and brass helper, plus one tavern node for each story NPC and the journal-page
+ * entries (Edda's pages) of the residents. DOM-free data only.
  * Comments hold the English source text for the i18n files. Appends to RunenpfadNpcStory (npc-story.js, npc-story-late.js);
  * interpreted by dialogue.js. Meetings have levels: [] and are picked through the meeting id the rooms hand to the NPC. */
 (function (root) {
@@ -11,9 +12,15 @@
     const FAREWELL = 'runenpfad.npc.c.farewell';
     const THANKS = 'runenpfad.npc.c.thanks';
     const TRADE = 'runenpfad.npc.c.trade';
+    const TAKE_PAGE = 'runenpfad.npc.c.take_page';
+    const PLAY = 'runenpfad.npc.c.play';
+    // Entry choices into the journal-page nodes are shown while the page is missing (Edda's chronicle, chronicle.js).
+    const noPage = function (n) { return { not: { loot: 'page_' + (n < 10 ? '0' : '') + n } }; };
 
     // ---- elder ----
     MEETINGS.push({ id: 'elder_home', npcId: 'elder', levels: [], starts: [
+        { if: { flag: 'obs.done', notFlag: 'elder.home' }, to: 'home' },
+        { if: { pages: 1, notFlag: 'elder.pages' }, to: 'pages' },
         { if: { flag: 'epilogue.paid' }, to: 'epilogue' },
         { if: { notFlag: 'elder.met' }, to: 'hello' },
         { if: { progress: 21 }, to: 'p21' },
@@ -63,6 +70,12 @@
             // "The path is open again. Travellers cross it, the waystones sing, and Pathrest has not been this loud in a hundred years. Thank you, from all of us."
             epilogue: { mood: 'happy', marker: 'heart', choices: [
                 { text: 'runenpfad.npc.elder.again.c1', effects: [{ ui: 'chronicle' }] },   // "Open the chronicle."
+                { text: FAREWELL, to: null }] },
+            // "That is Edda's hand. She walked out weeks before the road broke, counting waystones, and never came back. Keep every page you find, child."
+            pages: { enter: [{ flag: 'elder.pages' }], choices: [
+                { text: FAREWELL, to: null }] },
+            // "The bell rang, and I dropped a whole tray of cups."
+            home: { mood: 'happy', marker: 'heart', enter: [{ flag: 'elder.home' }], choices: [
                 { text: FAREWELL, to: null }] }
         }
     };
@@ -145,6 +158,7 @@
 
     // ---- bard ----
     MEETINGS.push({ id: 'bard_home', npcId: 'bard', levels: [], starts: [
+        { if: { flag: 'obs.done', notFlag: 'bard.verse' }, to: 'verse' },
         { if: { flag: 'epilogue.paid' }, to: 'song' },
         { if: { progress: 21 }, to: 'r5' },
         { if: { progress: 16 }, to: 'r4' },
@@ -155,32 +169,48 @@
         nodes: {
             // "Finn, bard of the Rusty Rune. Gather round for a rumour: a boar roams Whisperwood with a brass gear wedged in its side, ticking like a clock. Not natural, that."
             r1: { mood: 'happy', choices: [
-                { text: THANKS, to: null }] },
+                { text: THANKS, to: null },
+                { text: 'runenpfad.npc.bard.ask_song', to: 'songs' }] },   // "Play me something."
             // "The goblin warlord of the Fungal Grotto wears a crown that ticks. Ticks! They say he has not slept since the path broke. Nobody dares to ask whether the crown does the thinking."
             r2: { mood: 'happy', choices: [
                 { to: 'r1' },   // "And the older rumours?"
+                { text: 'runenpfad.npc.bard.ask_song', to: 'songs' },   // "Play me something."
                 { text: THANKS, to: null }] },
             // "Out in the dunes an orb hangs over the old observatory and watches everything that moves. Merchants swear it blinked at them. I have decided not to go there, on principle."
             r3: { mood: 'happy', choices: [
                 { text: 'runenpfad.npc.bard.r2.c1', to: 'r2' },   // "And the older rumours?"
+                { text: 'runenpfad.npc.bard.ask_song', to: 'songs' },   // "Play me something."
                 { text: THANKS, to: null }] },
             // "In the Frozen Pass time has frozen: a waterfall hangs mid-fall, and a dragon sleeps in the peaks with its breath held. The icicles drip once an hour. I counted."
             r4: { mood: 'happy', choices: [
                 { text: 'runenpfad.npc.bard.r2.c1', to: 'r3' },   // "And the older rumours?"
+                { text: 'runenpfad.npc.bard.ask_song', to: 'songs' },   // "Play me something."
                 { text: THANKS, to: null }] },
             // "Brass is working late in the foundry. They say he built the Chronos core to keep the path from ever running down, and now it will not stop counting. I am saving that verse for your return."
             r5: { choices: [
                 { text: 'runenpfad.npc.bard.r2.c1', to: 'r4' },   // "And the older rumours?"
+                { text: 'runenpfad.npc.bard.ask_song', to: 'songs' },   // "Play me something."
                 { text: THANKS, to: null }] },
             // "I wrote a ballad about you. Fourteen verses, and nobody has asked me to stop yet. Sit down, this will take a while. Berta, more ale!"
             song: { mood: 'happy', marker: 'heart', choices: [
                 { to: null },   // "Maybe a shorter version?"
+                { text: 'runenpfad.npc.bard.ask_song', to: 'songs' },   // "Play me something."
+                { text: FAREWELL, to: null }] },
+            // "A song? Five coins buy a verse, and the verse buys you a moment's peace."
+            songs: { mood: 'happy', choices: [
+                { if: { coinsMin: 5 }, effects: [{ coins: -5 }, { ui: 'song:village' }] },   // "The road song."
+                { if: { coinsMin: 5 }, effects: [{ coins: -5 }, { ui: 'song:in_cave' }] },   // "The cavern drum."
+                { if: { coinsMin: 5 }, effects: [{ coins: -5 }, { ui: 'song:story_triumph' }] },   // "The victory march."
+                { text: FAREWELL, to: null }] },
+            // "Here is the verse I was saving. 'Two wardens under ...'"
+            verse: { mood: 'happy', marker: 'heart', enter: [{ flag: 'bard.verse' }], choices: [
                 { text: FAREWELL, to: null }] }
         }
     };
 
     // ---- hermit ----
     MEETINGS.push({ id: 'hermit_home', npcId: 'hermit', levels: [], starts: [
+        { if: { loot: 'page_01', notFlag: 'hermit.box_done' }, to: 'box_done' },
         { if: { notFlag: 'hermit.met' }, to: 'hello' },
         { to: 'again' }] });
     GRAPHS.hermit = {
@@ -188,6 +218,7 @@
             // "Hm? A visitor. Oswin. I kept the wardens' lamps for forty years, until the night the path broke. Nobody has come up here since."
             hello: { enter: [{ flag: 'hermit.met' }], choices: [
                 { to: 'night' },   // "What happened that night?"
+                { text: 'runenpfad.npc.hermit.ask_box', if: noPage(1), to: 'box' },   // "Did Edda leave anything with you?"
                 { text: FAREWELL, to: null }] },
             // "A hum, then a crack, like a giant breaking a bone. The waystones went dark one by one. I stayed. Somebody has to trim the lamps."
             night: { choices: [
@@ -203,12 +234,21 @@
             // "Still on your feet? Good. The lamps need keepers, and so do the roads."
             again: { choices: [
                 { to: 'night' },   // "Tell me about that night again."
+                { text: 'runenpfad.npc.hermit.ask_box', if: noPage(1), to: 'box' },   // "Did Edda leave anything with you?"
+                { text: FAREWELL, to: null }] },
+            // "Edda left a page with me the night before she set out. I put it somewhere safe: in the nook behind that crate. Push it aside, would you?"
+            box: { choices: [
+                { to: null }] },   // "I will."
+            // "There. Her handwriting was always better than her temper. Read it slowly."
+            box_done: { enter: [{ flag: 'hermit.box_done' }], choices: [
                 { text: FAREWELL, to: null }] }
         }
     };
 
     // ---- barkeep ----
     MEETINGS.push({ id: 'barkeep_home', npcId: 'barkeep', levels: [], starts: [
+        { if: { flag: 'barkeep.dice_won', not: { loot: 'page_03' } }, to: 'mat_won' },
+        { if: { loot: 'page_03' }, to: 'mat_done' },
         { if: { notFlag: 'barkeep.met' }, to: 'hello' },
         { to: 'again' }] });
     GRAPHS.barkeep = {
@@ -221,9 +261,23 @@
             // "Krax guards the gate and counts his coins every night. The warlord down the tunnel, though... his crown ticks. Snik hears it through the walls. Tick, tick, tick. Bad for business."
             gossip: { choices: [
                 { text: TRADE, effects: [{ trade: true }] },
+                { text: 'runenpfad.npc.barkeep.ask_mat', if: noPage(3), to: 'mat' },   // "What is that old beer mat?"
                 { text: THANKS, to: null }] },
             // "Snik remembers you! Pay, drink, go. In that order."
             again: { marker: 'trade', choices: [
+                { text: TRADE, effects: [{ trade: true }] },
+                { text: 'runenpfad.npc.barkeep.ask_mat', if: noPage(3), to: 'mat' },   // "What is that old beer mat?"
+                { text: FAREWELL, to: null }] },
+            // "That beer mat? Old paper. A warden lady left it. Beat Snik once and the mat is yours. Or pay twenty-five coins, also fine."
+            mat: { choices: [
+                { text: PLAY, effects: [{ ui: 'dice:barkeep' }] },
+                { if: { coinsMin: 25 }, effects: [{ coins: -25 }, { page: 3 }], to: 'mat_done' },   // "Here, twenty-five coins."
+                { text: FAREWELL, to: null }] },
+            // "Snik lost. Snik pays. Here: one beer mat, slightly sticky."
+            mat_won: { mood: 'happy', choices: [
+                { text: TAKE_PAGE, effects: [{ page: 3 }], to: 'mat_done' }] },
+            // "Snik lost a beer mat and won a story. Fair trade."
+            mat_done: { mood: 'happy', marker: 'trade', choices: [
                 { text: TRADE, effects: [{ trade: true }] },
                 { text: FAREWELL, to: null }] }
         }
@@ -231,6 +285,7 @@
 
     // ---- scribe ----
     MEETINGS.push({ id: 'scribe_home', npcId: 'scribe', levels: [], starts: [
+        { if: { loot: 'page_05' }, to: 'stars_done' },
         { if: { notFlag: 'scribe.met' }, to: 'hello' },
         { to: 'again' }] });
     GRAPHS.scribe = {
@@ -243,9 +298,30 @@
             // "It turns to whatever moves. I have written eleven scrolls on how not to be seen, and I am fairly sure the orb has read them all. Shatter its eye, and the dunes sleep again."
             orb: { choices: [
                 { text: TRADE, effects: [{ trade: true }] },
+                { text: 'runenpfad.npc.scribe.ask_stars', if: noPage(5), to: 'stars' },   // "Did the warden Edda pass through here?"
                 { text: THANKS, to: null }] },
             // "Back from the dunes? Sit. The ink is dry, but the tea is warm."
             again: { marker: 'trade', choices: [
+                { text: TRADE, effects: [{ trade: true }] },
+                { text: 'runenpfad.npc.scribe.ask_stars', if: noPage(5), to: 'stars' },   // "Did the warden Edda pass through here?"
+                { text: FAREWELL, to: null }] },
+            // "The warden Edda paid for a night's lodging with a page of her journal. My three star scrolls lie in this tent. Read them, then answer one question."
+            stars: { choices: [
+                { to: 'ask' },   // "Ask me."
+                { to: null }] },   // "I will read first."
+            // "Which sign never sets?"
+            ask: { choices: [
+                { to: 'wrong' },   // "The Boar."
+                { to: 'wrong' },   // "The Crown."
+                { to: 'right' }] },   // "The Eye."
+            // "No. The scrolls are patient. So am I."
+            wrong: { choices: [
+                { text: FAREWELL, to: null }] },
+            // "The Eye. It turns toward whatever moves, and it has never closed."
+            right: { mood: 'happy', choices: [
+                { text: TAKE_PAGE, effects: [{ page: 5 }], to: 'stars_done' }] },
+            // "Edda read the sky better than I do, and trusted it more."
+            stars_done: { marker: 'trade', choices: [
                 { text: TRADE, effects: [{ trade: true }] },
                 { text: FAREWELL, to: null }] }
         }
@@ -253,6 +329,7 @@
 
     // ---- climber ----
     MEETINGS.push({ id: 'climber_home', npcId: 'climber', levels: [], starts: [
+        { if: { loot: 'page_07' }, to: 'lamps_done' },
         { if: { notFlag: 'climber.met' }, to: 'hello' },
         { to: 'again' }] });
     GRAPHS.climber = {
@@ -260,19 +337,30 @@
             // "Mind the door, it sticks in the cold. I am Yrsa. I climb these peaks, or I did, until time froze up there. A dragon sleeps in the ice. There is a fire here. Rest if you must."
             hello: { enter: [{ flag: 'climber.met' }], choices: [
                 { to: 'frozen' },   // "What do you mean, frozen?"
+                { text: 'runenpfad.npc.climber.ask_lamps', if: noPage(7), to: 'lamps' },   // "Did Edda leave a page up here?"
                 { text: FAREWELL, to: null }] },
             // "The wind stops mid-gust. Icicles hang and never melt. The dragon over the pass does not breathe, or once a night, no more. I do not trust anything that quiet."
             frozen: { choices: [
+                { text: 'runenpfad.npc.climber.ask_lamps', if: noPage(7), to: 'lamps' },   // "Did Edda leave a page up here?"
                 { text: THANKS, to: null }] },
             // "The fire is warm, the soup is hot and the dragon is still up there. Rest while you can."
             again: { choices: [
                 { to: 'frozen' },   // "Tell me about the frozen peaks."
+                { text: 'runenpfad.npc.climber.ask_lamps', if: noPage(7), to: 'lamps' },   // "Did Edda leave a page up here?"
+                { text: FAREWELL, to: null }] },
+            // "Edda's page is in the storm locker. The locker opens when all three storm lamps burn at once. The draught blows them out in a few breaths."
+            lamps: { choices: [
+                { to: null }] },   // "I will try."
+            // "Three lamps! The hut has not been this bright since the path broke."
+            lamps_done: { mood: 'happy', choices: [
+                { text: 'runenpfad.npc.climber.hello.c1', to: 'frozen' },   // "What do you mean, frozen?"
                 { text: FAREWELL, to: null }] }
         }
     };
 
     // ---- automaton ----
     MEETINGS.push({ id: 'automaton_home', npcId: 'automaton', levels: [], starts: [
+        { if: { loot: 'page_09' }, to: 'drawer_done' },
         { if: { notFlag: 'automaton.met' }, to: 'hello' },
         { to: 'again' }] });
     GRAPHS.automaton = {
@@ -280,6 +368,7 @@
             // "Click. Hello. Cog is helper. Cog is brass. Whirr. Master Brass writes notes about the core. Cog keeps the notes. Click."
             hello: { enter: [{ flag: 'automaton.met' }], choices: [
                 { to: 'notes' },   // "What do the notes say?"
+                { text: 'runenpfad.npc.automaton.ask_drawer', if: noPage(9), to: 'drawer' },   // "Does Brass keep a page of Edda's?"
                 { text: FAREWELL, to: null }] },
             // "Click. The Chronos core never stops counting. Brass built it to keep the path young. Whirr. Now the path does not move. Cog does not understand. Cog is worried. Click."
             notes: { choices: [
@@ -299,6 +388,14 @@
                 { text: THANKS, to: null }] },
             // "Click. Welcome back. Cog is polishing. Whirr. The core still counts. Brass still worries. Click."
             again: { choices: [
+                { text: 'runenpfad.npc.automaton.hello.c1', to: 'notes' },   // "What do the notes say?"
+                { text: 'runenpfad.npc.automaton.ask_drawer', if: noPage(9), to: 'drawer' },   // "Does Brass keep a page of Edda's?"
+                { text: FAREWELL, to: null }] },
+            // "Click. Brass keeps Edda's page in the pressure drawer. The drawer opens when all three gauges show green. Whirr. The levers are stiff."
+            drawer: { choices: [
+                { to: null }] },   // "I have thumbs."
+            // "Click. Drawer open. Brass read that page every night."
+            drawer_done: { choices: [
                 { text: 'runenpfad.npc.automaton.hello.c1', to: 'notes' },   // "What do the notes say?"
                 { text: FAREWELL, to: null }] }
         }

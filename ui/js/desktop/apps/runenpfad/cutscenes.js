@@ -11,6 +11,8 @@
     const FG_IDS = ['cutfg-woodland', 'cutfg-cavern', 'cutfg-desert', 'cutfg-glacier', 'cutfg-citadel'];
     const FX_KINDS = ['motes', 'embers', 'snow', 'mist', 'sand', 'sparks', 'rain'];
     const END_PREFIX = 'end_';
+    // Chapter scenes: not level-triggered (app.js plays them for the ui request scene:<id>); the chronicle lists them once seen.
+    const CHAPTER_IDS = ['obs_intro', 'true_end'];
 
     const SCENES = Object.create(null);
     const IDS = [];
@@ -116,6 +118,16 @@
         panel('cut-end-feared', null, [[0.5, 0.45, 1], [0.5, 0.62, 1.16]], ['mist'], [light(0.2, 0.4, 0.05, AMBER, false), light(0.75, 0.36, 0.05, AMBER, false)], [])
     ]);
 
+    scene('obs_intro', 'story_dark', [
+        panel('cut-obs-1', 'cutfg-desert', [[0.5, 0.6, 1], [0.5, 0.42, 1.18]], ['sand', 'motes'], [light(0.5, 0.45, 0.2, AMBER, true), light(0.5, 0.2, 0.14, ICE, true)], [])
+    ]);
+
+    scene('true_end', 'story_triumph', [
+        panel('cut-trueend-1', 'cutfg-glacier', [[0.5, 0.3, 1.16], [0.5, 0.6, 1]], ['snow'], [light(0.5, 0.35, 0.1, ICE, true), light(0.3, 0.6, 0.08, BLUE, false)], []),
+        panel('cut-trueend-2', 'cutfg-glacier', [[0.35, 0.55, 1.1], [0.62, 0.45, 1.1]], ['snow', 'motes'], [light(0.55, 0.45, 0.16, ICE, true), light(0.8, 0.3, 0.1, GOLD, true)], []),
+        panel('cut-trueend-3', null, [[0.5, 0.6, 1.14], [0.5, 0.48, 1]], ['motes'], [light(0.5, 0.3, 0.2, '#ffe9a8', true), light(0.2, 0.55, 0.1, AMBER, true), light(0.8, 0.55, 0.1, AMBER, true)], [])
+    ]);
+
     // ---- triggers ----
     const START_TRIGGERS = { 1: 'prologue', 6: 'intro_2', 11: 'intro_3', 16: 'intro_4', 21: 'intro_5' };
     const WON_TRIGGERS = { 5: 'after_1', 10: 'after_2', 15: 'after_3', 20: 'after_4', 25: 'finale' };
@@ -161,13 +173,13 @@
         return 0;
     }
 
-    // The 10 main scenes plus the end scene the player has seen (the first one found, in table order).
+    // The 10 main scenes, the end scene the player has seen (the first one found, in table order) and the chapter scenes seen.
     function chronicle(profile) {
         const seen = seenList(profile);
         const unlocked = profile && +profile.unlockedLevel > 0 ? +profile.unlockedLevel : 0;
         const list = [];
         IDS.forEach(function (id) {
-            if (id.indexOf(END_PREFIX) === 0) return;
+            if (id.indexOf(END_PREFIX) === 0 || CHAPTER_IDS.indexOf(id) >= 0) return;
             // Old saves: progress beyond the trigger level means the player has passed the scene.
             const trigger = triggerLevel(id);
             list.push({ id: id, titleKey: SCENES[id].titleKey, seen: seen.indexOf(id) >= 0 || (trigger > 0 && unlocked > trigger) });
@@ -178,6 +190,9 @@
                 break;
             }
         }
+        CHAPTER_IDS.forEach(function (id) {
+            if (seen.indexOf(id) >= 0) list.push({ id: id, titleKey: SCENES[id].titleKey, seen: true });
+        });
         return list;
     }
 
@@ -286,6 +301,7 @@
         FX_KINDS: FX_KINDS,
         SCENES: SCENES,
         IDS: IDS,
+        CHAPTER_IDS: CHAPTER_IDS,
         endingFor: endingFor,
         pending: pending,
         chronicle: chronicle,

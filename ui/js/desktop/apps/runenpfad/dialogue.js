@@ -3,13 +3,15 @@
     'use strict';
 
     const SHARED_CHOICES = ['farewell', 'thanks', 'trade', 'leave', 'fight', 'back'];
-    const EFFECT_OPS = ['rep', 'coins', 'item', 'give', 'flag', 'unflag', 'quest', 'questDone', 'trade', 'duel', 'provoke', 'gate', 'leave', 'confront', 'ui'];
-    const COND_KEYS = ['repMin', 'repMax', 'coinsMin', 'flag', 'notFlag', 'flagMin', 'item', 'hero', 'quest', 'questDone', 'notQuest', 'world', 'feature', 'any', 'not', 'progress', 'loot'];
+    const EFFECT_OPS = ['rep', 'coins', 'item', 'give', 'flag', 'unflag', 'quest', 'questDone', 'trade', 'duel', 'provoke', 'gate', 'leave', 'confront', 'ui', 'page', 'notice'];
+    const COND_KEYS = ['repMin', 'repMax', 'coinsMin', 'flag', 'notFlag', 'flagMin', 'item', 'hero', 'quest', 'questDone', 'notQuest', 'world', 'feature', 'any', 'not', 'progress', 'loot', 'pages'];
     const TIP_KINDS = ['key_dir', 'gems_left', 'secret_wall', 'chest_dir', 'puzzle_hint', 'boss_weakness'];
     const MOODS = ['neutral', 'happy', 'angry'];
     const MARKERS = ['talk', 'quest', 'duel', 'trade', 'heart'];
     const WORLD_BOSSES = ['boss_boar', 'boss_goblin', 'boss_orb', 'boss_quad', 'boss_mech'];
     const TIP_PREFIX = 'runenpfad.npc.tip.';
+    const UI_RE = /^(board|dice:[a-z_]+|song:[a-z_]+|scene:[a-z_]+)$/;
+    const NOTICE_RE = /^runenpfad\.notice\.[a-z_]+$/;
 
     function P() { return root.RunenpfadPhysics; }
     function N() { return root.RunenpfadNpcs; }
@@ -24,6 +26,8 @@
     function nodeKey(npcId, local) { return 'runenpfad.npc.' + npcId + '.' + local; }
     function asList(v) { return Array.isArray(v) ? v : [v]; }
     function findNpc(sim, ref) {
+        const enc = sim.encounter;
+        if (enc && enc.virtual && enc.virtual.ref === ref) return enc.virtual;
         const inside = ((sim.interior && sim.interior.npcs) || []).filter(function (n) { return n.ref === ref; })[0];
         return inside || ((sim.stage && sim.stage.npcs) || []).filter(function (n) { return n.ref === ref; })[0] || null;
     }
@@ -56,9 +60,16 @@
             else if (key === 'not') ok = !evalCond(v, sim);
             else if (key === 'progress') ok = pr.unlockedLevel >= v;
             else if (key === 'loot') ok = (pr.loot || []).indexOf(v) >= 0;
+            else if (key === 'pages') ok = pageCount(pr) >= v;
             if (!ok) return false;
         }
         return true;
+    }
+
+    function pageCount(pr) {
+        const C = root.RunenpfadChronicle;
+        if (C) return C.count(pr);
+        return (pr.loot || []).filter(function (id) { return /^page_(0[1-9]|10)$/.test(id); }).length;
     }
 
     // ---- effects ----
@@ -112,7 +123,10 @@
                 } else if (op === 'ui') {
                     sim.uiRequest = v;
                     close(sim);
-                } else if (op === 'gate') openGate(sim, npc);
+                } else if (op === 'page') {
+                    if (root.RunenpfadChronicle) root.RunenpfadChronicle.give(sim, v);
+                } else if (op === 'notice') sim.notice = v;
+                else if (op === 'gate') openGate(sim, npc);
                 else if (op === 'leave') {
                     npc.state = 'gone';
                     npc.near = false;
@@ -279,9 +293,19 @@
         return true;
     }
 
+    // Opens a dialogue with a speaker that has no body in the room (journal, lore, core). The speaker lives on the encounter.
+    function openVirtual(sim, npcId, nodeId) {
+        if (!sim || sim.encounter || !npcId || !nodeId || !nodeOf(npcId, nodeId)) return false;
+        const npc = { ref: 'virtual_' + npcId, npcId: npcId, x: 0, y: 0, meetingId: null, facing: 1, state: 'idle', mood: 'neutral', near: false, marker: null, provoked: false, sold: {}, hurtT: 0, virtual: true };
+        sim.encounter = { kind: 'dialogue', npcRef: npc.ref, npcId: npcId, nodeId: npcId + '.' + nodeId, panel: 'talk', returnNode: npcId + '.' + nodeId, seq: 0, openedTick: sim.stepCount, virtual: npc };
+        pushOpen(sim, npc);
+        gotoNode(sim, sim.encounter, npc, nodeId);
+        return true;
+    }
+
     function pushOpen(sim, npc) {
         // Inside an interior the NPC position is in room pixels: no x/y, so the audio does not pan by the world camera.
-        if (sim.interior) P().pushEvent(sim, 'npc_talk', { npcId: npc.npcId });
+        if (sim.interior || npc.virtual) P().pushEvent(sim, 'npc_talk', { npcId: npc.npcId });
         else P().pushEvent(sim, 'npc_talk', { npcId: npc.npcId, x: npc.x, y: npc.y });
     }
 
@@ -395,7 +419,9 @@
                 }
                 if (op === 'unflag') asList(v).forEach(function (k) { if (!prof().FLAG_RE.test(k)) probs.push(where + ': bad flag ' + k); });
                 if ((op === 'quest' || op === 'questDone') && prof().QUEST_IDS.indexOf(v) < 0) probs.push(where + ': bad quest ' + v);
-                if (op === 'ui' && v !== 'workshop' && v !== 'chronicle') probs.push(where + ': bad ui ' + v);
+                if (op === 'ui' && v !== 'workshop' && v !== 'chronicle' && !(typeof v === 'string' && UI_RE.test(v))) probs.push(where + ': bad ui ' + v);
+                if (op === 'page' && !(Number.isInteger(v) && v >= 1 && v <= 10)) probs.push(where + ': bad page ' + v);
+                if (op === 'notice' && !(typeof v === 'string' && NOTICE_RE.test(v))) probs.push(where + ': bad notice ' + v);
                 if (op === 'gate' && v !== 'open') probs.push(where + ': bad gate');
             });
         });
@@ -413,6 +439,7 @@
             if ((k === 'quest' || k === 'questDone' || k === 'notQuest') && prof().QUEST_IDS.indexOf(v) < 0) probs.push(where + ': bad quest ' + v);
             if (k === 'progress' && !(Number.isInteger(v) && v >= 1 && v <= 25)) probs.push(where + ': bad progress ' + v);
             if (k === 'loot' && !prof().LOOT_RE.test(v)) probs.push(where + ': bad loot ' + v);
+            if (k === 'pages' && !(Number.isInteger(v) && v >= 1 && v <= 10)) probs.push(where + ': bad pages ' + v);
             if (k === 'any') v.forEach(function (x) { checkCond(x, where, probs); });
             if (k === 'not') checkCond(v, where, probs);
         });
@@ -447,6 +474,7 @@
         Object.keys(s.GRAPHS).forEach(function (npcId) {
             const g = s.GRAPHS[npcId];
             const hooks = g.hooks || {};
+            if (g.virtual === true && g.nodes) Object.keys(g.nodes).forEach(function (id) { mark(npcId, id, npcId); });
             checkEffects(hooks.onAttack, npcId + '.onAttack', null, probs);
             ['onDuelWon', 'onDuelLost'].forEach(function (h) {
                 (hooks[h] || []).forEach(function (e) {
@@ -520,6 +548,7 @@
 
     root.RunenpfadDialogue = {
         open: open,
+        openVirtual: openVirtual,
         view: view,
         choose: choose,
         close: close,

@@ -36,15 +36,15 @@ const locales = {};
     locales[loc] = JSON.parse(fs.readFileSync(path.join(rootDir, 'ui/lang/runenpfad', loc + '.json'), 'utf8'));
 });
 
-const EXPECTED_IDS = ['prologue', 'intro_2', 'intro_3', 'intro_4', 'intro_5', 'after_1', 'after_2', 'after_3', 'after_4', 'finale', 'end_friend', 'end_neutral', 'end_feared'];
-const ART_RE = /^cut-(prologue-[1-5]|intro[2-5]-[12]|after[1-4]-[12]|finale-[1-3]|end-(friend|neutral|feared))$/;
+const EXPECTED_IDS = ['prologue', 'intro_2', 'intro_3', 'intro_4', 'intro_5', 'after_1', 'after_2', 'after_3', 'after_4', 'finale', 'end_friend', 'end_neutral', 'end_feared', 'obs_intro', 'true_end'];
+const ART_RE = /^cut-(prologue-[1-5]|intro[2-5]-[12]|after[1-4]-[12]|finale-[1-3]|end-(friend|neutral|feared)|obs-1|trueend-[1-3])$/;
 const FG_FROM_CONTRACT = ['cutfg-woodland', 'cutfg-cavern', 'cutfg-desert', 'cutfg-glacier', 'cutfg-citadel'];
 const FX = ['motes', 'embers', 'snow', 'mist', 'sand', 'sparks', 'rain'];
 const MUSIC = ['story_dawn', 'story_dark', 'story_triumph'];
 
 test('scene table is valid', () => {
     assert.deepEqual(Array.from(Cut.IDS), EXPECTED_IDS);
-    assert.equal(Object.keys(Cut.SCENES).length, 13);
+    assert.equal(Object.keys(Cut.SCENES).length, 15);
     let panels = 0;
     const arts = new Set();
     for (const id of Cut.IDS) {
@@ -76,7 +76,7 @@ test('scene table is valid', () => {
             assert.ok(p.lines.length >= 1 && p.lines.length <= 2, id + ' lines');
         }
     }
-    assert.equal(panels, 27);
+    assert.equal(panels, 31);
 });
 
 test('every sprite clip of the table exists in the atlas', () => {
@@ -114,7 +114,7 @@ test('titles and lines exist in en and de with sane lengths', () => {
 });
 
 test('no orphan runenpfad.cut line keys', () => {
-    const known = new Set(['next', 'skip', 'locked', 'chronicle', 'replay']);
+    const known = new Set(['next', 'skip', 'locked', 'chronicle', 'replay', 'journal', 'pages_count', 'page_missing', 'page_read']);
     Cut.IDS.forEach((id) => {
         known.add('title.' + id);
         Cut.SCENES[id].panels.forEach((p) => p.lines.forEach((k) => known.add(k.slice('runenpfad.cut.'.length))));
