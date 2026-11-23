@@ -295,6 +295,7 @@
         const dirPath = !file ? state.currentPath : (isDir ? file.path : codeStudioParentPath(file.path));
         const items = [];
         if (file && !isDir) items.push({ id: 'open', label: tr('desktop.file_dialog_open', 'Open'), icon: 'file', action: bind(() => openFile(file.path)) });
+        if (file && !isDir) items.push({ id: 'open-to-side', label: tr('codeStudio.openToSide', 'Open to the Side'), icon: 'columns', action: bind(() => openToSide(file.path)) }); // IDE package 1A
         if (file && isDir) items.push({ id: 'open-folder', label: tr('desktop.file_dialog_open', 'Open'), icon: 'folder-open', action: bind(() => refreshFiles(file.path)) });
         items.push({ id: 'new-file', label: tr('codeStudio.newFile', 'New File'), icon: 'file-plus', action: bind(() => {
             state.selectedDir = dirPath;

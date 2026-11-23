@@ -3429,3 +3429,23 @@ button.cs-sidebar-crumb:focus-visible {
     outline: 2px solid var(--cs-accent);
     outline-offset: 1px;
 }
+
+/* Split view with two different files (A4): the focused pane carries an accent line on top. */
+.code-studio-split-pane.cs-split-pane-focused::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 2px;
+    background: var(--cs-accent);
+    pointer-events: none;
+    z-index: 4;
+}
+
+/* Command palette (A3): the go-to-line and symbol hints are not commands. */
+.cs-cp-item.cs-cp-hint,
+.cs-cp-item.cs-cp-hint.selected {
+    color: var(--cs-muted);
+    cursor: default;
+}

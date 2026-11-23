@@ -105,6 +105,21 @@
             { id: 'run-checks', label: tr('codeStudio.runDiagnostics', 'Run Checks'), icon: 'info', run: 'runDiagnostics' },
             { id: 'find', label: tr('codeStudio.findInFile', 'Find in File'), shortcut: 'Ctrl+F', icon: 'search', run: 'openFindWidget', args: [false], disabled: !hasTab },
             { id: 'replace', label: tr('codeStudio.replaceInFile', 'Replace in File'), shortcut: 'Ctrl+H', icon: 'edit', run: 'openFindWidget', args: [true], disabled: !hasTab },
+            // IDE package 1A
+            { id: 'go-to-line', label: tr('codeStudio.goToLine', 'Go to Line...'), shortcut: 'Ctrl+G', icon: 'search', run: 'openGoToLine', disabled: !sourceTab },
+            { id: 'go-to-symbol', label: tr('codeStudio.goToSymbol', 'Go to Symbol...'), shortcut: '@', icon: 'list', run: 'openGoToSymbol', disabled: !sourceTab },
+            { id: 'format-document', label: tr('codeStudio.formatDocument', 'Format Document'), shortcut: 'Shift+Alt+F', icon: 'edit', run: 'formatActiveDocument', disabled: !sourceTab || state.readOnly },
+            { id: 'open-settings', label: tr('codeStudio.openSettings', 'Preferences: Open Settings'), icon: 'settings', run: 'openEditorSettings' },
+            { id: 'toggle-split', label: tr('codeStudio.toggleSplit', 'Toggle Split Editor'), shortcut: 'Ctrl+\\', icon: 'columns', run: 'toggleSplitEditor', disabled: !sourceTab },
+            { id: 'fold', label: tr('codeStudio.foldRegion', 'Fold'), shortcut: 'Ctrl+Shift+[', icon: 'list', run: 'runEditorCommand', args: ['foldCode'], disabled: !sourceTab },
+            { id: 'unfold', label: tr('codeStudio.unfoldRegion', 'Unfold'), shortcut: 'Ctrl+Shift+]', icon: 'list', run: 'runEditorCommand', args: ['unfoldCode'], disabled: !sourceTab },
+            { id: 'select-next-occurrence', label: tr('codeStudio.selectNextOccurrence', 'Add Selection to Next Match'), shortcut: 'Ctrl+D', icon: 'search', run: 'runEditorCommand', args: ['selectNextOccurrence'], disabled: !sourceTab },
+            { id: 'move-line-up', label: tr('codeStudio.moveLineUp', 'Move Line Up'), shortcut: 'Alt+Up', icon: 'code', run: 'runEditorCommand', args: ['moveLineUp'], disabled: !sourceTab || state.readOnly },
+            { id: 'move-line-down', label: tr('codeStudio.moveLineDown', 'Move Line Down'), shortcut: 'Alt+Down', icon: 'code', run: 'runEditorCommand', args: ['moveLineDown'], disabled: !sourceTab || state.readOnly },
+            { id: 'copy-line-up', label: tr('codeStudio.copyLineUp', 'Copy Line Up'), shortcut: 'Shift+Alt+Up', icon: 'copy', run: 'runEditorCommand', args: ['copyLineUp'], disabled: !sourceTab || state.readOnly },
+            { id: 'copy-line-down', label: tr('codeStudio.copyLineDown', 'Copy Line Down'), shortcut: 'Shift+Alt+Down', icon: 'copy', run: 'runEditorCommand', args: ['copyLineDown'], disabled: !sourceTab || state.readOnly },
+            { id: 'toggle-comment', label: tr('codeStudio.toggleComment', 'Toggle Line Comment'), shortcut: 'Ctrl+/', icon: 'code', run: 'runEditorCommand', args: ['toggleComment'], disabled: !sourceTab || state.readOnly },
+            { id: 'delete-line', label: tr('codeStudio.deleteLine', 'Delete Line'), shortcut: 'Ctrl+Shift+K', icon: 'trash', run: 'runEditorCommand', args: ['deleteLine'], disabled: !sourceTab || state.readOnly },
             { id: 'toggle-agent', label: tr('codeStudio.agentChat', 'Agent Chat'), shortcut: 'Ctrl+Shift+A', icon: 'chat', run: 'toggleAgentPanel' },
             { id: 'toggle-git', label: tr('codeStudio.gitPanel', 'Source Control'), icon: 'network', run: 'toggleGitPanel' },
             { id: 'toggle-search', label: tr('codeStudio.searchFiles', 'Search in Files'), shortcut: 'Ctrl+Shift+F', icon: 'search', run: 'toggleSearch' },
@@ -140,15 +155,79 @@
         return items;
     }
 
+    // IDE package 1A: ':' and '@' modes. The active tab is a file tab when it has no kind (Git diffs have one).
+    function activePaletteTab() {
+        const state = getState();
+        const tab = state && state.openTabs ? state.openTabs[state.activeTabIndex] : null;
+        return tab && !tab.kind ? tab : null;
+    }
+
+    function activeLineCount(tab) {
+        const view = tab.focusedView || tab.view;
+        if (view && view.state && view.state.doc) return view.state.doc.lines;
+        return String(tab.content || '').split('\n').length;
+    }
+
+    function goToLineItems(rest) {
+        const tab = activePaletteTab();
+        if (!tab) return [{ type: 'hint', id: 'hint', icon: 'search', label: tr('codeStudio.noFileOpen', 'No file open') }];
+        const count = activeLineCount(tab);
+        const match = /^\s*(\d+)\s*(?:[:,]\s*(\d+)\s*)?$/.exec(rest);
+        if (!match) {
+            return [{ type: 'hint', id: 'hint', icon: 'search', label: tr('codeStudio.goToLineHint', 'Type a line number between 1 and {{count}}. Add :column to jump to a column.', { count }) }];
+        }
+        const line = Math.min(Math.max(1, Number(match[1])), count);
+        const column = match[2] ? Math.max(1, Number(match[2])) : 0;
+        return [{
+            type: 'goto-line',
+            id: 'goto-line',
+            icon: 'search',
+            line,
+            column: column || 1,
+            label: column
+                ? tr('codeStudio.goToLineColumnItem', 'Go to line {{line}}, column {{column}}', { line, column })
+                : tr('codeStudio.goToLineItem', 'Go to line {{line}}', { line })
+        }];
+    }
+
+    function symbolItems(rest) {
+        const app = getApp();
+        if (!activePaletteTab() || !owner) return [{ type: 'hint', id: 'hint', icon: 'list', label: tr('codeStudio.noFileOpen', 'No file open') }];
+        const symbols = app && typeof app.documentSymbols === 'function' ? app.documentSymbols(owner.windowId) : [];
+        const query = String(rest || '').trim();
+        const items = symbols.map((symbol, index) => ({
+            type: 'symbol',
+            id: 'symbol:' + index,
+            icon: 'list',
+            label: symbol.name,
+            detail: symbol.kind + ' · ' + tr('codeStudio.cursorPosition', 'Ln {{line}}, Col {{column}}', { line: symbol.line, column: symbol.column }),
+            line: symbol.line,
+            column: symbol.column,
+            score: query ? fuzzyMatch(query, symbol.name) : { match: true, score: 1 }
+        })).filter(item => item.score.match);
+        if (query) items.sort((a, b) => b.score.score - a.score.score);
+        return items.length ? items : [{ type: 'hint', id: 'hint', icon: 'list', label: tr('codeStudio.noOutline', 'No symbols found in this file.') }];
+    }
+
     function getAllItems() {
         const commands = getCommands().map(cmd => ({ ...cmd, type: 'command' }));
         return [...commands, ...getFileItems()];
     }
 
-    function executeItem(item, origin) {
+    function executeItem(item, origin, toSide) {
         const app = getApp();
         if (!app || !item || (!origin || app.instances.get(origin.windowId) !== origin)) return;
+        // IDE package 1A: line and symbol targets jump in the active editor; hints do nothing.
+        if (item.type === 'hint') return;
+        if (item.type === 'goto-line' || item.type === 'symbol') {
+            if (typeof app.command === 'function') app.command('jumpToLine', [item.line, item.column], origin.windowId);
+            return;
+        }
         if (item.type === 'file' || item.type === 'recent') {
+            if (toSide && typeof app.command === 'function') {
+                app.command('openToSide', [item.path], origin.windowId);
+                return;
+            }
             if (typeof app.command === 'function') app.command('openFile', [item.path], origin.windowId);
             else if (typeof app.openFile === 'function') app.openFile(item.path, true, origin.windowId);
             return;
@@ -158,7 +237,7 @@
         }
     }
 
-    function renderPalette(windowId) {
+    function renderPalette(windowId, initialQuery) {
         if (backdrop) closePalette();
         const app = getApp();
         owner = app && (windowId ? app.instances.get(windowId) : app.state);
@@ -180,9 +259,11 @@
         const resultsEl = backdrop.querySelector('[data-cp-results]');
 
         selectedIndex = 0;
-        lastQuery = '';
-        filteredItems = getAllItems();
-        renderResults(resultsEl, '');
+        // IDE package 1A: Ctrl+G opens the palette with ':' and Go to Symbol with '@'.
+        lastQuery = typeof initialQuery === 'string' ? initialQuery : '';
+        input.value = lastQuery;
+        filteredItems = lastQuery ? filterItems(lastQuery) : getAllItems();
+        renderResults(resultsEl, lastQuery);
 
         input.addEventListener('input', () => {
             lastQuery = input.value.trim();
@@ -204,11 +285,12 @@
                 scrollToSelected(resultsEl);
             } else if (event.key === 'Enter') {
                 event.preventDefault();
-                if (filteredItems[selectedIndex]) {
-                    const item = filteredItems[selectedIndex];
+                const item = filteredItems[selectedIndex];
+                if (item && item.type !== 'hint') {
                     const origin = owner;
                     closePalette();
-                    executeItem(item, origin);
+                    // IDE package 1A: Ctrl+Enter opens a file in the other split pane.
+                    executeItem(item, origin, event.ctrlKey || event.metaKey);
                 }
             } else if (event.key === 'Escape') {
                 event.preventDefault();
@@ -220,10 +302,17 @@
             if (event.target === backdrop) closePalette();
         });
 
-        requestAnimationFrame(() => { if (input.isConnected) input.focus(); });
+        requestAnimationFrame(() => {
+            if (!input.isConnected) return;
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        });
     }
 
     function filterItems(query) {
+        // IDE package 1A: ':' goes to a line of the active file, '@' to one of its symbols.
+        if (query.startsWith(':')) return goToLineItems(query.slice(1));
+        if (query.startsWith('@')) return symbolItems(query.slice(1));
         const items = getAllItems();
         if (!query) return items;
         return items
@@ -245,8 +334,17 @@
 
         const commands = filteredItems.filter(i => i.type === 'command');
         const files = filteredItems.filter(i => i.type === 'file' || i.type === 'recent');
+        // IDE package 1A: results of the ':' and '@' modes
+        const targets = filteredItems.filter(i => i.type === 'goto-line' || i.type === 'symbol' || i.type === 'hint');
 
         let html = '';
+        if (targets.length) {
+            const symbolMode = String(query || '').startsWith('@');
+            html += `<div class="cs-cp-section-label">${esc(symbolMode ? tr('codeStudio.symbols', 'Symbols') : tr('codeStudio.goToLine', 'Go to Line...'))}</div>`;
+            targets.forEach(item => {
+                html += renderItem(item, filteredItems.indexOf(item), item.type === 'symbol' ? String(query || '').slice(1).trim() : '');
+            });
+        }
         if (commands.length) {
             html += `<div class="cs-cp-section-label">${esc(tr('codeStudio.commands', 'Commands'))}</div>`;
             commands.forEach(item => {
@@ -264,7 +362,7 @@
         container.querySelectorAll('.cs-cp-item').forEach(el => {
             el.addEventListener('click', () => {
                 const idx = Number(el.dataset.index);
-                if (filteredItems[idx]) {
+                if (filteredItems[idx] && filteredItems[idx].type !== 'hint') {
                     const item = filteredItems[idx];
                     const origin = owner;
                     closePalette();
@@ -283,8 +381,9 @@
         const glyph = item.icon === 'file' ? '{ }' : item.icon === 'clock' ? '⏱' : '>';
         const iconHtml = `<span class="cs-cp-item-icon">${iconMarkup(item.icon || 'tools', glyph)}</span>`;
         const shortcutHtml = item.shortcut ? `<span class="cs-cp-item-shortcut">${esc(item.shortcut)}</span>` : '';
-        const pathHtml = item.path ? `<span class="cs-cp-item-path">${esc(item.path)}</span>` : '';
-        return `<button type="button" class="cs-cp-item${isSelected ? ' selected' : ''}" data-index="${index}" role="option" aria-selected="${isSelected ? 'true' : 'false'}">
+        const detail = item.path || item.detail;
+        const pathHtml = detail ? `<span class="cs-cp-item-path">${esc(detail)}</span>` : '';
+        return `<button type="button" class="cs-cp-item${isSelected ? ' selected' : ''}${item.type === 'hint' ? ' cs-cp-hint' : ''}" data-index="${index}" role="option" aria-selected="${isSelected ? 'true' : 'false'}">
             ${iconHtml}
             <span class="cs-cp-item-label">${highlightMatch(item.label, query)}</span>
             ${pathHtml}

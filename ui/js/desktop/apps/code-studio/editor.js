@@ -2,6 +2,7 @@
         const editor = shellPart('[data-editor]');
         if (!editor) return;
         const tab = activeTab();
+        pruneClosedSplitPane(); // IDE package 1A: a closed secondary tab ends the split
         state.openTabs.forEach(openTab => destroyTabView(openTab));
         editor.classList.remove('code-studio-split', 'split-right', 'split-down');
         editor.style.gridTemplateColumns = '';
@@ -341,4 +342,16 @@
             updateSuggestionStatus();
             scheduleDocumentCheck();
         }
+    }
+
+    // IDE package 1A: CodeMirror commands the palette and the shortcut sheet offer (folding, multi-cursor, lines).
+    const EDITOR_COMMANDS = ['foldCode', 'unfoldCode', 'selectNextOccurrence', 'moveLineUp', 'moveLineDown', 'copyLineUp', 'copyLineDown', 'toggleComment', 'deleteLine'];
+
+    function runEditorCommand(name) {
+        const tab = activeTab();
+        const view = focusedEditorView(tab);
+        const cm = state.cmModule;
+        if (!isSourceTab(tab) || !view || !view.state || !cm || !EDITOR_COMMANDS.includes(name) || typeof cm[name] !== 'function') return false;
+        view.focus();
+        return cm[name](view);
     }

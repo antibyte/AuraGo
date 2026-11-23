@@ -80,6 +80,11 @@
             gitIdentityEmail: '',
             splitMode: null,
             splitRatio: 0.5,
+            // IDE package 1A: the tab of each split pane, the focused pane and the paths saved for the next start.
+            splitPrimaryTab: null,
+            splitSecondaryTab: null,
+            splitFocus: 'primary',
+            splitRestore: null,
             selectedDir: WORKSPACE_ROOT,
             searchPerformed: false,
             searchTruncated: false,
@@ -442,6 +447,7 @@
             state.sidebarView = saved.sidebarView === 'outline' ? 'outline' : 'explorer';
             state.terminalHeight = clampDimension(saved.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220);
             state.recentFiles = normalizePersistedPaths(saved.recentFiles);
+            restoreSplitPreference(saved.split); // IDE package 1A
             state.openTabs = savedOpenPaths.map(path => ({
                 path,
                 content: '',
@@ -471,7 +477,8 @@
             activePanel: state.activePanel,
             sidebarView: state.sidebarView,
             terminalHeight: clampDimension(state.terminalHeight, MIN_TERMINAL_HEIGHT, MAX_TERMINAL_HEIGHT, 220),
-            recentFiles: recentPaths
+            recentFiles: recentPaths,
+            split: splitStatePayload() // IDE package 1A
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(payload));
     }
@@ -853,6 +860,11 @@
                     { id: 'find', label: tr('codeStudio.findInFile', 'Find in File'), icon: 'search', shortcut: 'Ctrl+F', action: bind(() => openFindWidget(false)) },
                     { id: 'replace', label: tr('codeStudio.replaceInFile', 'Replace in File'), icon: 'edit', shortcut: 'Ctrl+H', action: bind(() => openFindWidget(true)) },
                     { id: 'command-palette', label: tr('codeStudio.commandPalette', 'Command Palette'), icon: 'search', shortcut: 'Ctrl+Shift+P', action: bind(openCommandPalette) },
+                    // IDE package 1A
+                    { id: 'go-to-line', label: tr('codeStudio.goToLine', 'Go to Line...'), icon: 'search', shortcut: 'Ctrl+G', disabled: !isSourceTab(activeTab()), action: bind(openGoToLine) },
+                    { id: 'go-to-symbol', label: tr('codeStudio.goToSymbol', 'Go to Symbol...'), icon: 'list', disabled: !isSourceTab(activeTab()), action: bind(openGoToSymbol) },
+                    { id: 'format-document', label: tr('codeStudio.formatDocument', 'Format Document'), icon: 'edit', shortcut: 'Shift+Alt+F', disabled: !isSourceTab(activeTab()) || !canWrite(), action: bind(formatActiveDocument) },
+                    { id: 'open-settings', label: tr('codeStudio.openSettings', 'Preferences: Open Settings'), icon: 'settings', action: bind(openEditorSettings) },
                     { type: 'separator' },
                     { id: 'shortcuts', label: tr('codeStudio.keyboardShortcuts', 'Keyboard Shortcuts'), icon: 'help', shortcut: '?', action: bind(showShortcutOverlay) }
                 ]
@@ -1022,6 +1034,7 @@
             { id: 'save', label: tr('codeStudio.save', 'Save'), icon: 'save', shortcut: 'Ctrl+S', disabled: !tab.modified, action: bind(() => { activateTab(index); saveCurrentFile(); }) },
             { id: 'copy-path', label: tr('codeStudio.copyPath', 'Copy path'), icon: 'copy', action: bind(() => copyTextToClipboard(tab.path)) },
             { separator: true },
+            { id: 'open-to-side', label: tr('codeStudio.openToSide', 'Open to the Side'), icon: 'columns', hidden: !isSourceTab(tab), action: bind(() => openToSide(tab.path)) }, // IDE package 1A
             { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', checked: state.splitMode === 'right', action: bind(() => { activateTab(index); splitEditor('right'); }) },
             { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', checked: state.splitMode === 'down', action: bind(() => { activateTab(index); splitEditor('down'); }) }
         ];
@@ -1230,12 +1243,8 @@
     }
 
     function refreshActiveEditorZoomLayout() {
-        const tab = activeTab();
-        if (!tab) return;
-        (tab.views || []).forEach(view => {
-            if (view.requestMeasure) view.requestMeasure();
-            if (view.textarea) view.textarea.getBoundingClientRect();
-        });
+        // IDE package 1A: both split panes can show different tabs, so every mounted editor is measured.
+        measureVisibleEditors();
     }
 
     function adjustEditorZoom(delta) {
@@ -1380,6 +1389,7 @@
         }
         if (!isLiveInstance(target)) return;
         runWithInstance(target, () => {
+            restoreSplitTabs(); // IDE package 1A: before the remembered tab lands in the focused pane
             if (state.openTabs.length) {
                 activateTab(Math.min(Math.max(desiredActive, 0), state.openTabs.length - 1));
             } else {
@@ -1499,9 +1509,12 @@
         }
         runWithInstance(target, () => {
             const wasActive = state.activeTabIndex === index;
+            // IDE package 1A: closing the secondary pane's tab closes the split; the primary pane's tab stays active.
+            const splitKeep = closeSplitForTab(tab);
             destroyTabView(tab, true);
             state.openTabs.splice(index, 1);
-            if (wasActive) state.activeTabIndex = Math.min(index, state.openTabs.length - 1);
+            if (splitKeep) state.activeTabIndex = state.openTabs.indexOf(splitKeep);
+            else if (wasActive) state.activeTabIndex = Math.min(index, state.openTabs.length - 1);
             else if (state.activeTabIndex > index) state.activeTabIndex -= 1;
             if (state.activeTabIndex >= state.openTabs.length) state.activeTabIndex = state.openTabs.length - 1;
             renderTabs();

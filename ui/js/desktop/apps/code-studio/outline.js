@@ -145,20 +145,37 @@
         if (!tab) return;
         const lineNumber = Math.max(1, Number(line) || 1);
         const columnNumber = Math.max(1, Number(column) || 1);
-        if (tab.view && tab.view.state && tab.view.state.doc && state.cmModule && state.cmModule.EditorView) {
-            const doc = tab.view.state.doc;
+        // IDE package 1A: jump in the editor pane the user worked in last (a linked split keeps two views).
+        const view = focusedEditorView(tab);
+        if (view && view.state && view.state.doc && state.cmModule && state.cmModule.EditorView) {
+            const doc = view.state.doc;
             const docLine = doc.line(Math.min(lineNumber, doc.lines));
             const pos = Math.min(docLine.to, docLine.from + columnNumber - 1);
-            tab.view.dispatch({
+            view.dispatch({
                 selection: { anchor: pos },
                 effects: state.cmModule.EditorView.scrollIntoView(pos, { y: 'center' })
             });
-            tab.view.focus();
-        } else if (tab.view && tab.view.textarea) {
-            const rows = tab.view.textarea.value.split('\n');
-            const offset = rows.slice(0, lineNumber - 1).join('\n').length + (lineNumber > 1 ? 1 : 0);
-            tab.view.textarea.focus();
-            tab.view.textarea.setSelectionRange(offset, offset);
+            view.focus();
+        } else if (view && view.textarea) {
+            const rows = view.textarea.value.split('\n');
+            const row = Math.min(lineNumber, rows.length);
+            const base = rows.slice(0, row - 1).join('\n').length + (row > 1 ? 1 : 0);
+            const offset = base + Math.min(columnNumber - 1, (rows[row - 1] || '').length);
+            view.textarea.focus();
+            view.textarea.setSelectionRange(offset, offset);
         }
         renderStatus();
+    }
+
+    // IDE package 1A: Go to Line (Ctrl+G) and Go to Symbol open the command palette in their prefix mode.
+    function openGoToLine() {
+        if (window.CodeStudioCommandPalette && typeof window.CodeStudioCommandPalette.open === 'function') {
+            window.CodeStudioCommandPalette.open(state.windowId, ':');
+        }
+    }
+
+    function openGoToSymbol() {
+        if (window.CodeStudioCommandPalette && typeof window.CodeStudioCommandPalette.open === 'function') {
+            window.CodeStudioCommandPalette.open(state.windowId, '@');
+        }
     }

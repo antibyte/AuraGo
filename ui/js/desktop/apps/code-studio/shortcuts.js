@@ -69,6 +69,16 @@
             } else if (event.key === 'F3' && !inTerminal) {
                 event.preventDefault();
                 if (state.findOpen) refreshFindMatches(event.shiftKey ? 'previous' : 'next');
+            } else if (mod && !event.shiftKey && !event.altKey && key === 'g' && !inTerminal) {
+                // IDE package 1A: Ctrl+G Go to Line, Ctrl+Backslash toggles the split, Shift+Alt+F Format Document
+                event.preventDefault();
+                openGoToLine();
+            } else if (mod && !event.shiftKey && !event.altKey && (key === '\\' || event.code === 'Backslash') && !inTerminal) {
+                event.preventDefault();
+                toggleSplitEditor();
+            } else if (!mod && event.shiftKey && event.altKey && (key === 'f' || event.code === 'KeyF') && !inTerminal) {
+                event.preventDefault();
+                formatActiveDocument();
             } else if (mod && event.shiftKey && key === 'a') {
                 event.preventDefault();
                 if (!state.agentVisible) toggleAgentPanel();
@@ -140,6 +150,24 @@
                 { label: tr('codeStudio.zoomOut', 'Zoom Out'), keys: 'Ctrl+-' },
                 { label: tr('codeStudio.zoomReset', 'Reset Zoom'), keys: 'Ctrl+0' }
             ]},
+            // IDE package 1A
+            { title: tr('codeStudio.shortcutsEditing', 'Editing'), items: [
+                { label: tr('codeStudio.goToLine', 'Go to Line...'), keys: 'Ctrl+G' },
+                { label: tr('codeStudio.goToSymbol', 'Go to Symbol...'), keys: 'Ctrl+P @' },
+                { label: tr('codeStudio.formatDocument', 'Format Document'), keys: 'Shift+Alt+F' },
+                { label: tr('codeStudio.selectNextOccurrence', 'Add Selection to Next Match'), keys: 'Ctrl+D' },
+                { label: tr('codeStudio.addCursor', 'Add Cursor'), keys: 'Ctrl+Click' },
+                { label: tr('codeStudio.moveLineUp', 'Move Line Up'), keys: 'Alt+↑' },
+                { label: tr('codeStudio.moveLineDown', 'Move Line Down'), keys: 'Alt+↓' },
+                { label: tr('codeStudio.copyLineUp', 'Copy Line Up'), keys: 'Shift+Alt+↑' },
+                { label: tr('codeStudio.copyLineDown', 'Copy Line Down'), keys: 'Shift+Alt+↓' },
+                { label: tr('codeStudio.toggleComment', 'Toggle Line Comment'), keys: 'Ctrl+/' },
+                { label: tr('codeStudio.deleteLine', 'Delete Line'), keys: 'Ctrl+Shift+K' },
+                { label: tr('codeStudio.foldRegion', 'Fold'), keys: 'Ctrl+Shift+[' },
+                { label: tr('codeStudio.unfoldRegion', 'Unfold'), keys: 'Ctrl+Shift+]' },
+                { label: tr('codeStudio.toggleSplit', 'Toggle Split Editor'), keys: 'Ctrl+\\' },
+                { label: tr('codeStudio.openToSide', 'Open to the Side'), keys: 'Ctrl+P, Ctrl+Enter' }
+            ]},
             { title: tr('codeStudio.shortcutsView', 'View'), items: [
                 { label: tr('codeStudio.sidebar', 'Sidebar'), keys: 'Ctrl+B' },
                 { label: tr('codeStudio.panelProblems', 'Problems'), keys: 'Ctrl+Shift+M' },
@@ -198,6 +226,15 @@
 
     function studioCommandTable() {
         return {
+            // IDE package 1A
+            openToSide,
+            toggleSplitEditor,
+            openGoToLine,
+            openGoToSymbol,
+            jumpToLine,
+            formatActiveDocument,
+            openEditorSettings,
+            runEditorCommand,
             toggleZenMode,
             adjustEditorZoom,
             resetEditorZoom,
@@ -293,6 +330,14 @@
         }) || [];
     }
 
+    // IDE package 1A: the outline symbols of the active file tab, for the palette's '@' mode.
+    function exposedDocumentSymbols(windowId) {
+        return runOnWindow(windowId, () => {
+            const tab = activeTab();
+            return isSourceTab(tab) ? scanDocumentSymbols(tab) : [];
+        }) || [];
+    }
+
     window.CodeStudioApp = {
         render,
         dispose,
@@ -302,6 +347,7 @@
         api: apiClient,
         command: exposedCommand,
         knownFiles: exposedKnownFiles,
+        documentSymbols: exposedDocumentSymbols,
         loadState: exposedLoadState,
         saveState: exposedSaveState,
         refreshFiles: exposedRefreshFiles,
