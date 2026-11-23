@@ -204,8 +204,8 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	page := browser.MustPage(srv.URL + "/newspaper-fixture").Timeout(110 * time.Second)
 	defer page.Close()
 	page.MustSetViewport(1440, 900, 1, false)
-	page.MustElement(".np-teaser")
-	if got := page.MustEval(`()=>document.querySelectorAll('.np-teaser[data-story]').length`).Int(); got != 31 {
+	page.MustElement(".np-teaser [data-story]")
+	if got := page.MustEval(`()=>document.querySelectorAll('.np-teaser [data-story]').length`).Int(); got != 31 {
 		t.Fatalf("edition rendered %d story links, want 31", got)
 	}
 	page.MustWait(`()=>document.querySelector('.np-broadcast [role=status]')?.textContent.includes('Kostenlimit')`)
@@ -234,7 +234,14 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if title := page.MustElement(".np-article h2").MustText(); !strings.Contains(title, "Bezirk 30") {
 		t.Fatalf("last story did not open from a 31-story edition: %q", title)
 	}
-	page.MustElement(".np-article-paper .np-back").MustClick()
+	if !page.MustEval(`()=>document.querySelector('.np-article-nav button:last-child').disabled`).Bool() {
+		t.Fatal("next article button was enabled on the last story")
+	}
+	page.MustElement(`.np-article-nav [data-story="story-29"]`).MustClick()
+	if title := page.MustElement(".np-article h2").MustText(); !strings.Contains(title, "Bezirk 29") {
+		t.Fatalf("previous article did not open: %q", title)
+	}
+	page.MustElement(".np-article-desk .np-back").MustClick()
 	page.MustElement(".np-tools summary").MustClick()
 	if text := page.MustElement(".np-tools").MustText(); !strings.Contains(text, "Brave-API-Schlüssel") || !strings.Contains(text, "DuckDuckGo") || !strings.Contains(text, "Letzter Versuch") {
 		t.Fatalf("missing capability guidance: %s", text)
@@ -276,7 +283,7 @@ func TestDesktopNewspaperBrowser(t *testing.T) {
 	if !correctionSent {
 		t.Fatal("correction note was not sent with the new revision")
 	}
-	page.MustElement(".np-teaser").MustClick()
+	page.MustElement(".np-front [data-story]").MustClick()
 	page.MustElement(".np-source summary").MustClick()
 	if page.MustEval(`()=>!!window.injected`).Bool() {
 		t.Fatal("untrusted article content executed")

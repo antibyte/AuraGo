@@ -1086,6 +1086,7 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
 - A redraw must not steal reader input: restore focus, text selection and the confirmation code across repaints, and keep the unsaved-changes hint in step with the draft. Cite sources as numbered markers that match the numbered source list, and report delivery status as a coloured chip. Run counters stay visible after completion or failure. Verify with `TestDesktopNewspaperBrowser`.
 - Show localized email-confirmation bounce suppression, rejection, configuration failure, uncertainty and cooldown messages from structured API codes. Send code first saves the selected sender account and recipient address, without saving unrelated draft preferences; never send through a stale stored account. Do not render raw AgentMail response text or repeat a blocked send automatically.
 - Load `desktop-app-newspaper.css` lazily, use both Desktop themes, all 16 `newspaper.*` locale entries and the Papirus/WhiteSur Newspaper icons. Verify with `TestDesktopNewspaperBrowser` and `TestNewspaperTranslations`.
+- The paper surface is print-like (masthead with ears and folio line, column rules, justified hyphenated excerpts with drop caps, Ressort flow, colophon); app controls (publish meta, PDF, revision, audio/Cast, delivery, research tools) live in desk cards outside `.np-paper`. Teasers are articles whose headline button carries `data-story` (stretched click area). Articles offer previous/next navigation (Alt+←/→). Verify with `TestDesktopNewspaperBrowser`.
 
 ## Personal Radio
 
