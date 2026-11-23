@@ -84,6 +84,35 @@ var studioPhaseOperations = map[string]map[string][]string{
 	},
 }
 
+// studioFreePhaseTools and studioFreePhaseOperations are the tables of a free project. Its scenes are code scenes that draw
+// everything, so the catalog offers its reference only, and there is no cast phase.
+var studioFreePhaseTools = map[string][]string{
+	PhaseOutline: {ToolStory},
+	PhaseFill:    {ToolCatalog, ToolStory},
+	PhaseCheck:   {ToolCheck, ToolStory, ToolCatalog},
+	PhaseRevise:  {ToolCatalog, ToolStory, ToolCheck},
+}
+
+var studioFreePhaseOperations = map[string]map[string][]string{
+	PhaseOutline: {
+		ToolStory: {"outline", "get"},
+	},
+	PhaseFill: {
+		ToolCatalog: {"reference"},
+		ToolStory:   {"put_scene", "patch_scene", "dry_run", "get", "get_code", "put_code"},
+	},
+	PhaseCheck: {
+		ToolCheck:   {"validate"},
+		ToolStory:   {"patch_scene", "get", "get_code", "put_code"},
+		ToolCatalog: {"reference"},
+	},
+	PhaseRevise: {
+		ToolCatalog: {"reference"},
+		ToolStory:   {"get", "put_scene", "patch_scene", "remove_scene", "move_scene", "set_meta", "dry_run", "get_code", "put_code"},
+		ToolCheck:   {"validate"},
+	},
+}
+
 // studioWriteOps change the story, so a read-only desktop refuses them.
 var studioWriteOps = nameSet("outline", "set_meta", "put_scene", "patch_scene", "remove_scene", "move_scene", "put_code")
 
@@ -95,6 +124,22 @@ func PhaseTools(phase string) []string {
 // PhaseOperations returns the operations of a tool in a phase, or nil when the phase does not offer the tool.
 func PhaseOperations(phase, tool string) []string {
 	return append([]string(nil), studioPhaseOperations[phase][tool]...)
+}
+
+// PhaseToolsFor is PhaseTools for the mode of a project. An empty or unknown mode is the catalog mode.
+func PhaseToolsFor(mode, phase string) []string {
+	if EffectiveMode(mode) == ModeFree {
+		return append([]string(nil), studioFreePhaseTools[phase]...)
+	}
+	return PhaseTools(phase)
+}
+
+// PhaseOperationsFor is PhaseOperations for the mode of a project.
+func PhaseOperationsFor(mode, phase, tool string) []string {
+	if EffectiveMode(mode) == ModeFree {
+		return append([]string(nil), studioFreePhaseOperations[phase][tool]...)
+	}
+	return PhaseOperations(phase, tool)
 }
 
 // OperationOwners maps every operation to its tool. The operation sets of the tools are disjoint.
@@ -126,6 +171,7 @@ type StudioDeps struct {
 // StudioJob is what the server binds to a job. The model never names any of it.
 type StudioJob struct {
 	JobID, ProjectID, Kind string // Kind is AgentKindCreate or AgentKindRevise
+	Mode                   string // ModeCatalog, ModeFree or empty (catalog); the server takes it from the project
 	Language, Audience     string
 	TargetSeconds          int
 	VoiceAvailable         bool
@@ -223,6 +269,11 @@ func NewStudio(deps StudioDeps, job StudioJob) (*Studio, error) {
 	if job.Kind != AgentKindCreate && job.Kind != AgentKindRevise {
 		return nil, fmt.Errorf("%w: job kind %q", ErrInvalidArgument, clip(job.Kind, 40))
 	}
+	mode, err := NormalizeMode(job.Mode)
+	if err != nil {
+		return nil, err
+	}
+	job.Mode = mode
 	if deps.Limits == (Limits{}) {
 		deps.Limits = DefaultLimits()
 	}
@@ -280,11 +331,11 @@ func (s *Studio) Call(ctx context.Context, call StudioCall) StudioResult {
 }
 
 func (s *Studio) route(ctx context.Context, tool, operation string, args map[string]any) StudioResult {
-	allowed := PhaseOperations(s.phase, tool)
+	allowed := PhaseOperationsFor(s.job.Mode, s.phase, tool)
 	if len(allowed) == 0 {
 		return studioRefused("operation_not_in_phase",
 			fmt.Sprintf("The tool %q is not available in the %s phase.", clip(tool, 40), s.phase),
-			"Use one of these tools: "+listOf(PhaseTools(s.phase))+".")
+			"Use one of these tools: "+listOf(PhaseToolsFor(s.job.Mode, s.phase))+".")
 	}
 	if !containsName(allowed, operation) {
 		return studioRefused("operation_not_in_phase",
