@@ -148,6 +148,18 @@ SHEETS["fx-projectiles"] = (4, 2, "center", "fx")
 SHEETS["fx-telegraph"] = (2, 2, "center", "fx")
 SHEETS["fx-pickup"] = (4, 2, "center", "fx")
 MAX_CELL_BY_ID = {"fx-telegraph": 384}   # thin rune lines need the larger cell to survive the downscale
+# chronicle round: interior mechanics props, room guardians, the observatory, Edda and the true ending
+for _p in ("mech", "lore", "stars"):
+    SHEETS["tdp-%s" % _p] = (4, 4, "self", "td-props")
+for _g in ("brood", "weaver", "tombward", "frostheart", "boilerward", "counter"):
+    SHEETS["td-boss-%s" % _g] = (4, 2, "feet", "td-mob")
+    MAX_CELL_BY_ID["td-boss-%s" % _g] = 384   # guardians are drawn about twice as large as normal room monsters
+SHEETS["td-folk-epilogue"] = (4, 4, "feet", "td-folk")
+for _n in ("edda", "core"):
+    SHEETS["portrait-%s" % _n] = (3, 1, "bottom", "portrait")
+SHEETS["fac-observatory"] = (2, 2, "self", "facade")
+for _c in ("obs-1", "trueend-1", "trueend-2", "trueend-3"):
+    SHEETS["cut-%s" % _c] = (1, 1, "corner", "cut")
 
 
 def is_npc_sheet(sheet_id, kind):

@@ -7540,6 +7540,987 @@
    "tool": "Codex image generation",
    "source": "fx-pickup.png",
    "sourceSha256": "02631c07e80b29e37e3cbd57a0fd16ba8b5cdfce9087d80d3817d908a21065a8"
+  },
+  {
+   "id": "tdp-mech",
+   "file": "tdp-mech.webp",
+   "cols": 4,
+   "rows": 4,
+   "pivot": "self",
+   "kind": "td-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p8": {
+     "frames": [
+      8
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p9": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p10": {
+     "frames": [
+      10
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p11": {
+     "frames": [
+      11
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p12": {
+     "frames": [
+      12
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p13": {
+     "frames": [
+      13
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p14": {
+     "frames": [
+      14
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p15": {
+     "frames": [
+      15
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN INTERIOR PROPS, sixteen separate pieces. The attached reference image shows props that already exist in the game: match their camera, pixel size, outline and shading exactly, but draw the new pieces listed here. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees, so each piece shows its top surface and its front face. Exactly 16 cells, precisely arranged in a regular 4-column by 4-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 2048 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. One distinct piece per cell, in reading order: 1 a round clay pot with a painted rune band; 2 a small wooden crate with iron corners; 3 an upright wooden barrel with iron hoops; 4 a flat scatter of clay shards and wood splinters lying on the floor; 5 a heavy square stone block for pushing, with a softly glowing cyan rune carved on its top and worn edges; 6 a heavy square block of blue crystal for pushing; 7 a square stone pressure plate set flat in the floor, raised a little, with a dim grey rune; 8 the same pressure plate pressed down with the rune glowing bright cyan; 9 a floor lever on an iron base with its handle tilted to the LEFT and a small red lamp; 10 the same floor lever with its handle tilted to the RIGHT and a small green lamp; 11 a closed iron portcullis gate of thick vertical bars in a stone frame, seen from the front; 12 the same gate lowered into a slot in the floor so that only the tips of the bars show, lying flat; 13 a square stone floor trap with nine small round holes, the spikes retracted, lying flat; 14 the same floor trap with nine sharp iron spikes standing up; 15 a bronze fire bowl on a short stone pedestal, unlit, with cold grey ash; 16 the same fire bowl burning with a bright orange flame. Each piece is horizontally centred in its cell and rests on an invisible common baseline about 8 percent above the cell's bottom edge; each piece fits within 76 percent of its cell with fully transparent padding on all sides; pieces never touch each other or the sheet edge. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. No characters, no creatures, no floor, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "tdp-mech.png",
+   "sourceSha256": "84dee14f692d1057026120898eb59f4ce4cbf9a3dcac165b807c69149a3aaaea"
+  },
+  {
+   "id": "tdp-lore",
+   "file": "tdp-lore.webp",
+   "cols": 4,
+   "rows": 4,
+   "pivot": "self",
+   "kind": "td-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p8": {
+     "frames": [
+      8
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p9": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p10": {
+     "frames": [
+      10
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p11": {
+     "frames": [
+      11
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p12": {
+     "frames": [
+      12
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p13": {
+     "frames": [
+      13
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p14": {
+     "frames": [
+      14
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p15": {
+     "frames": [
+      15
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN INTERIOR PROPS, sixteen separate pieces. The attached reference image shows props that already exist in the game: match their camera, pixel size, outline and shading exactly, but draw the new pieces listed here. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees, so each piece shows its top surface and its front face. Exactly 16 cells, precisely arranged in a regular 4-column by 4-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 2048 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. One distinct piece per cell, in reading order: 1 a wooden lectern holding a thick open journal whose pages glow softly golden; 2 the same wooden lectern, empty; 3 a single loose handwritten parchment page lying flat (scribbled lines, no readable letters); 4 a small brass key lying flat; 5 a block of cracked stone wall with a deep fissure and loose stones, seen from the front; 6 a low heap of broken stone rubble lying flat; 7 a square stone wall block carved as a grim face with a dark round hole for a mouth, seen from the front; 8 a round iron floor grate lying flat; 9 a short rising burst of white steam; 10 a wide wooden notice board on two posts with pinned parchment notes and one red wax seal (blank notes, no writing); 11 a small round gaming table with a leather dice cup and two bone dice on it; 12 a large round brass star chart inlaid flat in the floor, with five star points joined by one line; 13 a stone wall plaque with engraved wavy lines (no readable letters), seen from the front; 14 an iron storm lantern on a short post, unlit; 15 the same storm lantern lit with a warm yellow flame; 16 a round floor emblem of blue and silver inlay showing a simple gateway arch, lying flat. Each piece is horizontally centred in its cell and rests on an invisible common baseline about 8 percent above the cell's bottom edge; each piece fits within 76 percent of its cell with fully transparent padding on all sides; pieces never touch each other or the sheet edge. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. No characters, no creatures, no floor, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "tdp-lore.png",
+   "sourceSha256": "7f554ea71cb3bdc6fabad00c4319772a4a3873470fd8b4cde310fe035ce36ca2"
+  },
+  {
+   "id": "tdp-stars",
+   "file": "tdp-stars.webp",
+   "cols": 4,
+   "rows": 4,
+   "pivot": "self",
+   "kind": "td-props",
+   "default": "p0",
+   "clips": {
+    "p0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p4": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p5": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p6": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p7": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p8": {
+     "frames": [
+      8
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p9": {
+     "frames": [
+      9
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p10": {
+     "frames": [
+      10
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p11": {
+     "frames": [
+      11
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p12": {
+     "frames": [
+      12
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p13": {
+     "frames": [
+      13
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p14": {
+     "frames": [
+      14
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "p15": {
+     "frames": [
+      15
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN INTERIOR PROPS, sixteen separate pieces. The attached reference image shows props that already exist in the game: match their camera, pixel size, outline and shading exactly, but draw the new pieces listed here. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees, so each piece shows its top surface and its front face. Exactly 16 cells, precisely arranged in a regular 4-column by 4-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 2048 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. One distinct piece per cell, in reading order: 1 a square stone floor plate, lying flat, engraved with a constellation shaped like a BOAR head with two tusks, made of star points joined by thin lines; 2 the same kind of floor plate with a CROWN constellation; 3 the same kind of floor plate with an EYE constellation; 4 the same kind of floor plate with a coiled DRAGON constellation; 5 the same kind of floor plate with a GEAR (cogwheel) constellation; 6 a large empty brass ring on a heavy stand, the mount of a missing giant lens, with broken clamps; 7 a brass gear as big as a cartwheel standing on a stone pedestal, glowing amber, with small motion ticks around it as if turning; 8 the same big gear on its pedestal, dark and still; 9 a brass telescope on a tripod pointing up; 10 a small orrery of brass rings with a softly glowing blue stone at its centre; 11 a low shelf stuffed with rolled scrolls; 12 a brass console with round dials and two small levers; 13 an upright brass pipe with a round valve wheel; 14 a cube of clear blue ice with a frosted top, for pushing; 15 a cluster of snowflakes and tiny ice crystals hanging frozen in mid-air; 16 a flat sheet of glittering crystal spider web lying on the floor. Each piece is horizontally centred in its cell and rests on an invisible common baseline about 8 percent above the cell's bottom edge; each piece fits within 76 percent of its cell with fully transparent padding on all sides; pieces never touch each other or the sheet edge. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds. No characters, no creatures, no floor, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "tdp-stars.png",
+   "sourceSha256": "a3c1a6755cf050e81ae00d5816a1bc2d13f3d9f39cf1c393d7c77e40b3b7f706"
+  },
+  {
+   "id": "td-boss-brood",
+   "file": "td-boss-brood.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "td-mob",
+   "default": "move",
+   "clips": {
+    "move": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "tell": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN guardian monster sprite sheet: BROOD MOTHER SLIME, a huge glossy moss-green slime queen, four times the size of a normal forest slime, with a crown of red-capped mushrooms and leaves on her head, two big round white eyes, a wide mouth, and several tiny baby slimes visible inside her translucent jelly body. The attached reference image shows a small monster that already exists in the game: match its camera, pixel size, outline and shading style, but draw this much larger and more detailed guardian. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees; the creature faces the viewer (front three-quarter view). Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Frames in reading order: 1-4 movement cycle (heavy squash-and-stretch hopping); 5 attack wind-up warning pose (flattening very wide and trembling, eyes narrowed); 6 attack (a tall stretched leap crashing down); 7 hurt flinch, squashed and recoiling; 8 defeated (burst into green puddles with only the mushroom crown left). The creature sits on an invisible common baseline about 10 percent above the bottom edge of the cell, horizontally centred, and fills about 72 percent of the cell height. Exactly the same creature design, size, colours and outline in all eight frames; only the pose changes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette. Each frame fits within 88 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No duplicate frames, no extra creatures, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-boss-brood.png",
+   "sourceSha256": "3c45b6dec2ffeed79469d7a4828102cda6b9b6c3875f340480a3fbae06a97e52"
+  },
+  {
+   "id": "td-boss-weaver",
+   "file": "td-boss-weaver.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "td-mob",
+   "default": "move",
+   "clips": {
+    "move": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "tell": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN guardian monster sprite sheet: CRYSTAL WEAVER, a giant dark-teal cave spider with eight long crystal-tipped legs, a cluster of eight glowing cyan eyes and a big abdomen overgrown with blue and amber crystal spikes. The attached reference image shows a small monster that already exists in the game: match its camera, pixel size, outline and shading style, but draw this much larger and more detailed guardian. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees; the creature faces the viewer (front three-quarter view). Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Frames in reading order: 1-4 movement cycle (eight-legged stalking); 5 attack wind-up warning pose (rearing up high on its hind legs with fangs spread and all crystals glowing); 6 attack (spitting three globs of green venom forward); 7 hurt flinch, squashed and recoiling; 8 defeated (collapsed on its back with folded legs and dim crystals). The creature sits on an invisible common baseline about 10 percent above the bottom edge of the cell, horizontally centred, and fills about 72 percent of the cell height. Exactly the same creature design, size, colours and outline in all eight frames; only the pose changes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette. Each frame fits within 88 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No duplicate frames, no extra creatures, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-boss-weaver.png",
+   "sourceSha256": "db79e6f0990c95e6e80601de1efb99d39ef3b8cbc2dda048f96104e6603253f5"
+  },
+  {
+   "id": "td-boss-tombward",
+   "file": "td-boss-tombward.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "td-mob",
+   "default": "move",
+   "clips": {
+    "move": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "tell": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN guardian monster sprite sheet: TOMB WARDEN, a towering mummified warden king wrapped in sand-coloured bandages with loose trailing strips, a golden sun-disc crown, a broad gold collar, two glowing amber eyes and a heavy bronze sickle-sword staff held in both hands. The attached reference image shows a small monster that already exists in the game: match its camera, pixel size, outline and shading style, but draw this much larger and more detailed guardian. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees; the creature faces the viewer (front three-quarter view). Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Frames in reading order: 1-4 movement cycle (slow heavy striding); 5 attack wind-up warning pose (raising the staff high above his head with blazing eyes); 6 attack (a two-handed downward slam that cracks the ground); 7 hurt flinch, squashed and recoiling; 8 defeated (crumbled into a heap of bandages and sand with the fallen crown on top). The creature sits on an invisible common baseline about 10 percent above the bottom edge of the cell, horizontally centred, and fills about 72 percent of the cell height. Exactly the same creature design, size, colours and outline in all eight frames; only the pose changes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette. Each frame fits within 88 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No duplicate frames, no extra creatures, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-boss-tombward.png",
+   "sourceSha256": "e7d23200edb10fbbca09c2b480b2891c59f285a16afd582d7f6767cf0727e1d8"
+  },
+  {
+   "id": "td-boss-frostheart",
+   "file": "td-boss-frostheart.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "td-mob",
+   "default": "move",
+   "clips": {
+    "move": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "tell": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN guardian monster sprite sheet: FROSTHEART, a large floating frost spirit: a tall pale-blue flame-shaped body of ice mist around a glowing blue heart-shaped crystal core, a white horned skull-like mask face with two cyan eyes, and a ring of sharp ice shards orbiting it. The attached reference image shows a small monster that already exists in the game: match its camera, pixel size, outline and shading style, but draw this much larger and more detailed guardian. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees; the creature faces the viewer (front three-quarter view). Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Frames in reading order: 1-4 movement cycle (hovering bob with the shards circling); 5 attack wind-up warning pose (swelling bright white with long ice spikes forming all around); 6 attack (bursting outward into a ring of flying ice shards); 7 hurt flinch, squashed and recoiling; 8 defeated (the mask cracked in two, the crystal heart dim, the mist fading). The creature sits on an invisible common baseline about 10 percent above the bottom edge of the cell, horizontally centred, and fills about 72 percent of the cell height. Exactly the same creature design, size, colours and outline in all eight frames; only the pose changes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette. Each frame fits within 88 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No duplicate frames, no extra creatures, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-boss-frostheart.png",
+   "sourceSha256": "2e9a0212d02766b8ed3cd562476fe258ec875a977ab833a5e94793f7816efcbb"
+  },
+  {
+   "id": "td-boss-boilerward",
+   "file": "td-boss-boilerward.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "td-mob",
+   "default": "move",
+   "clips": {
+    "move": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "tell": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN guardian monster sprite sheet: BOILER WARDEN, a squat hulking clockwork golem built from a round riveted copper boiler, with a glowing orange furnace grate for a mouth, one round lens eye, two thick piston arms ending in flat ram fists, short legs and a steaming chimney on its back. The attached reference image shows a small monster that already exists in the game: match its camera, pixel size, outline and shading style, but draw this much larger and more detailed guardian. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees; the creature faces the viewer (front three-quarter view). Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Frames in reading order: 1-4 movement cycle (stomping walk with puffs of steam); 5 attack wind-up warning pose (hunching forward with the furnace glowing white-hot and steam venting from every seam); 6 attack (a ramming charge with both fists forward and sparks); 7 hurt flinch, squashed and recoiling; 8 defeated (fallen apart into boiler plates, pipes, gears and a dark furnace). The creature sits on an invisible common baseline about 10 percent above the bottom edge of the cell, horizontally centred, and fills about 72 percent of the cell height. Exactly the same creature design, size, colours and outline in all eight frames; only the pose changes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette. Each frame fits within 88 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No duplicate frames, no extra creatures, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-boss-boilerward.png",
+   "sourceSha256": "7a74c1be45c99951c7070cf564f0e96476a133d39935bd2d683b5cdced9fbed1"
+  },
+  {
+   "id": "td-boss-counter",
+   "file": "td-boss-counter.webp",
+   "cols": 4,
+   "rows": 2,
+   "pivot": "feet",
+   "kind": "td-mob",
+   "default": "move",
+   "clips": {
+    "move": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 120,
+     "loop": true
+    },
+    "tell": {
+     "frames": [
+      4
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "attack": {
+     "frames": [
+      5
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "hurt": {
+     "frames": [
+      6
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "death": {
+     "frames": [
+      7
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN guardian monster sprite sheet: THE COUNTER, a floating clockwork guardian: a large round brass clock face with one glowing amber eye lens in its centre and two sword-like clock hands, surrounded by a hoop carrying twelve small brass counting beads, with two pendulum weights dangling below. The attached reference image shows a small monster that already exists in the game: match its camera, pixel size, outline and shading style, but draw this much larger and more detailed guardian. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees; the creature faces the viewer (front three-quarter view). Exactly 8 cells, precisely arranged in a regular 4-column by 2-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 1024 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Frames in reading order: 1-4 movement cycle (hovering while the bead hoop turns); 5 attack wind-up warning pose (both hands snapping straight up and the eye flaring white); 6 attack (firing glowing beads outward with the hands spread wide); 7 hurt flinch, squashed and recoiling; 8 defeated (the clock face cracked, the hands fallen off, the beads scattered). The creature sits on an invisible common baseline about 10 percent above the bottom edge of the cell, horizontally centred, and fills about 72 percent of the cell height. Exactly the same creature design, size, colours and outline in all eight frames; only the pose changes. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouette. Each frame fits within 88 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No duplicate frames, no extra creatures, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-boss-counter.png",
+   "sourceSha256": "4f4d6b0cbe7594d6fee9a3e7923642158f62159a15f12c8fa22ca2ace127daba"
+  },
+  {
+   "id": "td-folk-epilogue",
+   "file": "td-folk-epilogue.webp",
+   "cols": 4,
+   "rows": 4,
+   "pivot": "feet",
+   "kind": "td-folk",
+   "default": "r0_idle",
+   "clips": {
+    "r0_idle": {
+     "frames": [
+      0,
+      1
+     ],
+     "ms": 420,
+     "loop": true
+    },
+    "r0_talk": {
+     "frames": [
+      2,
+      3
+     ],
+     "ms": 220,
+     "loop": true
+    },
+    "r1_idle": {
+     "frames": [
+      4,
+      5
+     ],
+     "ms": 420,
+     "loop": true
+    },
+    "r1_talk": {
+     "frames": [
+      6,
+      7
+     ],
+     "ms": 220,
+     "loop": true
+    },
+    "r2_idle": {
+     "frames": [
+      8,
+      9
+     ],
+     "ms": 420,
+     "loop": true
+    },
+    "r2_talk": {
+     "frames": [
+      10,
+      11
+     ],
+     "ms": 220,
+     "loop": true
+    },
+    "r3_idle": {
+     "frames": [
+      12,
+      13
+     ],
+     "ms": 420,
+     "loop": true
+    },
+    "r3_talk": {
+     "frames": [
+      14,
+      15
+     ],
+     "ms": 220,
+     "loop": true
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: TOP-DOWN character sheet with FOUR different characters, one character per ROW, standing and facing DOWN toward the viewer (front view). The attached reference image shows characters that already exist in the game: match their camera, pixel size, proportions, outline and shading exactly, but draw the four new characters listed here. Camera: classic top-down action adventure view, a three-quarter overhead camera looking down at about 45 degrees, so the whole body from head to feet is visible; chunky proportions about 2.5 heads tall. Exactly 16 cells, precisely arranged in a regular 4-column by 4-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 2048 x 2048 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Row 1: EDDA the old path warden: a lean, wiry woman of about seventy with a weathered tanned face, a long silver braid hanging over one shoulder, sharp kind grey eyes, a weathered grey-blue hooded warden cloak with a small glowing cyan rune clasp, a dark-blue tunic, worn travelling boots and a tall walking staff with a small lantern hanging from its top. Row 2: a village girl of about twelve with two brown braids, a much too big dark-blue warden cloak with a small cyan rune clasp, and a wooden practice staff. Row 3: a village boy of about twelve with messy blond hair, a red scarf, a much too big dark-blue warden cloak with a small cyan rune clasp, and a small lantern on a stick. Row 4: GUNDAR the old dice player, a wiry grinning old man with a grey moustache, a battered green felt hat with a feather, a patched brown coat and a leather dice cup in his hand. In every row: cell 1 idle pose A; cell 2 idle pose B (a small breathing bob, slightly lower shoulders); cell 3 talking with one hand raised and the mouth open; cell 4 talking with the mouth closed and the hand a little lower. The same character looks identical across the four cells of its row (same design, size, colours and outline); only the pose changes. Every character stands on an invisible common baseline about 12 percent above the bottom edge of its cell, horizontally centred, and fills about 62 percent of the cell height. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds; bold readable silhouettes that still read clearly at 64 pixels tall. Each frame fits within 84 percent of its cell with fully transparent padding; no frame touches another frame or the sheet edge. No extra characters, no ground shadow.",
+   "tool": "Codex image generation",
+   "source": "td-folk-epilogue.png",
+   "sourceSha256": "ec20d7c28cc37f1e9413943ee7a6b6e48e51fc9b0955a25cfb982093cdff0a71"
+  },
+  {
+   "id": "portrait-edda",
+   "file": "portrait-edda.webp",
+   "cols": 3,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "portrait",
+   "default": "neutral",
+   "clips": {
+    "neutral": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "happy": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "angry": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG illustration sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: dialogue portraits of EDDA the old path warden: a lean, wiry woman of about seventy with a weathered tanned face, a long silver braid hanging over one shoulder, sharp kind grey eyes, a weathered grey-blue hooded warden cloak with a small glowing cyan rune clasp, a dark-blue tunic, worn travelling boots and a tall walking staff with a small lantern hanging from its top. The attached reference image shows a portrait that already exists in the game: match its framing, pixel size and shading style. Exactly 3 cells, precisely arranged in a regular 3-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 1536 x 512 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Each cell shows a large, detailed chest-up bust (head, shoulders and upper torso, hood down so the silver braid is visible) in three-quarter view with the face turned towards the RIGHT, like an RPG dialogue portrait; the bust is centered horizontally and its cut-off bottom edge sits flat at the bottom of the cell, filling about 92 percent of the cell height. Same character, design, colours and proportions in all three cells; only the expression changes: 1 neutral, calm and attentive; 2 a dry crooked smile with crinkled eyes; 3 worried and stern, brows drawn together and lips pressed thin. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds, but with much more fine detail and shading than a tiny sprite (large pixel art portrait, soft but clean dithering, highlights in the eyes). No frame touches another frame; nothing cropped except the flat bottom cut. No extra characters.",
+   "tool": "Codex image generation",
+   "source": "portrait-edda.png",
+   "sourceSha256": "13709050fe916298403aedbffb0aad2577d977805496ca0484cb11df03e016af"
+  },
+  {
+   "id": "portrait-core",
+   "file": "portrait-core.webp",
+   "cols": 3,
+   "rows": 1,
+   "pivot": "bottom",
+   "kind": "portrait",
+   "default": "neutral",
+   "clips": {
+    "neutral": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "happy": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "angry": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG illustration sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: dialogue portraits of a machine, the CHRONOS CORE: a large round brass clock face set in a ring of interlocking gears, with one glowing eye-like lens at its centre and two thin clock hands. The attached reference image shows a portrait that already exists in the game: match its framing, pixel size and shading style. Exactly 3 cells, precisely arranged in a regular 3-column by 1-row grid, read left to right then top to bottom, every cell exactly the same size, no visible cell borders. 1536 x 512 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. Each cell shows a large, detailed close-up of the device, turned slightly towards the RIGHT, centered horizontally, its lower edge cut off flat at the bottom of the cell, filling about 92 percent of the cell height. Same device, design, colours and proportions in all three cells; only its state changes: 1 a steady amber glow, hands at ten and two; 2 a soft golden glow, both hands at rest pointing straight up, calm; 3 a harsh white glow with the hands spun into a blur and a few sparks. Crisp 16-bit era pixel-art clusters with clean dark outlines, light fixed from the upper left, rich but limited palette, readable on both dark and light backgrounds, but with much more fine detail and shading than a tiny sprite (large pixel art portrait, soft but clean dithering, highlights in the eyes). No frame touches another frame; nothing cropped except the flat bottom cut. No extra characters.",
+   "tool": "Codex image generation",
+   "source": "portrait-core.png",
+   "sourceSha256": "1abce0bdd6c8debb649e85ff06d6adf6643e1a0d00abf01cff1e9e5293de0f9b"
+  },
+  {
+   "id": "fac-observatory",
+   "file": "fac-observatory.webp",
+   "cols": 2,
+   "rows": 2,
+   "pivot": "self",
+   "kind": "facade",
+   "default": "f0",
+   "clips": {
+    "f0": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "f1": {
+     "frames": [
+      1
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "f2": {
+     "frames": [
+      2
+     ],
+     "ms": 200,
+     "loop": false
+    },
+    "f3": {
+     "frames": [
+      3
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG sprite sheet for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: four pieces for the side-scrolling desert levels, each seen straight from the front (orthographic, no perspective), detailed 16-bit era pixel art with rich hand-placed shading and crisp chunky pixels. The attached reference image shows building fronts that already exist in the game: match their pixel size, outline and shading. Exactly 4 pieces in a regular 2-column by 2-row grid of equal cells, 2048 x 2048 target sheet. genuinely transparent alpha background (a real alpha channel with alpha exactly 0 everywhere outside the artwork, not a painted checkerboard, not white, not black, no solid colour). No mist, no glow backdrop, no fog, no gradient, no wall, no floor plate, no ground strip, no shadow plate, no frame or border, no grid lines; no text, labels, letters, numbers or watermarks. At least 60 percent of the pixels of the sheet must have alpha 0. (1) top-left: the front of an old sandstone observatory, a round tower base with star and moon carvings and a brass-ribbed dome on top, with a tall arched doorway at ground level standing OPEN, dark inside. (2) top-right: exactly the same observatory front, but the doorway is CLOSED by a heavy stone door bearing a large softly glowing blue rune seal. (3) bottom-left: a toppled brass telescope half buried in a small sand drift. (4) bottom-right: a broken sandstone star pillar with a carved sun disc. Every piece stands on the bottom baseline of its cell, is centred and fits within 85 percent of the cell. In pieces 1 and 2 the doorway is in the middle at ground level. No characters, no sky, no ground strip.",
+   "tool": "Codex image generation",
+   "source": "fac-observatory.png",
+   "sourceSha256": "478eb1d45f719af571289dc8e8b88d1787e9c53f309700215b460087493135fd"
+  },
+  {
+   "id": "cut-obs-1",
+   "file": "cut-obs-1.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "corner",
+   "kind": "cut",
+   "default": "full",
+   "clips": {
+    "full": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG story illustration for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: a full-screen cutscene panel, 16:9 landscape, 1920 x 1080 target image (a single image, not a sheet). A detailed 16-bit era pixel-art cinematic story screen with rich hand-placed shading, crisp chunky pixels and a limited, moody palette. The attached reference image shows this observatory by day with a golden orb floating above it; paint the same building at night, with the orb gone. Scene: night in the desert under a huge starry sky. An old sandstone observatory stands on a rocky rise: a round tower with a brass-ribbed dome that is split open, and in the opening a giant empty brass ring where a great lens once hung. Its tall arched doorway stands open, and a faint amber glow comes from deep inside. Rune pillars half buried in the dunes lead toward it. No people. Quiet and mysterious, deep blues with one warm amber accent. Composition: strong silhouettes and clear depth layers (foreground, middle distance, far distance). Keep the lower quarter of the picture calm and dark so subtitle text can sit on it. No text, no letters, no numbers, no UI, no border, no watermark. Fully opaque image, no transparency.",
+   "tool": "Codex image generation",
+   "source": "cut-obs-1.png",
+   "sourceSha256": "6f4c151407af56a69c9e28473e74eeab67471d1027e89d1f269f045a6bfdb02d"
+  },
+  {
+   "id": "cut-trueend-1",
+   "file": "cut-trueend-1.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "corner",
+   "kind": "cut",
+   "default": "full",
+   "clips": {
+    "full": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG story illustration for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: a full-screen cutscene panel, 16:9 landscape, 1920 x 1080 target image (a single image, not a sheet). A detailed 16-bit era pixel-art cinematic story screen with rich hand-placed shading, crisp chunky pixels and a limited, moody palette. The attached reference image shows this frost dragon and these mountains; keep the same dragon design and painting style. Scene: a high mountain pass at night with snow falling. A bridge of floating blue-glowing rune stones across a deep chasm is breaking apart, its stones dropping away. Below the broken bridge a small figure falls through the air: an old woman with a long silver braid in a weathered grey-blue hooded cloak with a small glowing cyan rune clasp, arms spread. Beneath her a large pale-blue frost dragon with icy white horns, frosted wing membranes and a long tail dives steeply with wings swept back and its neck stretched toward her. Snowflakes streak downward. Tense and cold, blues and whites with cyan glow. Composition: strong silhouettes and clear depth layers (foreground, middle distance, far distance). Keep the lower quarter of the picture calm and dark so subtitle text can sit on it. No text, no letters, no numbers, no UI, no border, no watermark. Fully opaque image, no transparency.",
+   "tool": "Codex image generation",
+   "source": "cut-trueend-1.png",
+   "sourceSha256": "e033790a74bc0422310bc8e29ed889a8eefbafa3fb5a4b90ffa608a1c7af736f"
+  },
+  {
+   "id": "cut-trueend-2",
+   "file": "cut-trueend-2.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "corner",
+   "kind": "cut",
+   "default": "full",
+   "clips": {
+    "full": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG story illustration for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: a full-screen cutscene panel, 16:9 landscape, 1920 x 1080 target image (a single image, not a sheet). A detailed 16-bit era pixel-art cinematic story screen with rich hand-placed shading, crisp chunky pixels and a limited, moody palette. The attached reference image shows this frost dragon; keep the same dragon design and painting style. Scene: the dawn sky above the clouds. A large pale-blue frost dragon with icy white horns, frosted wing membranes and a long tail flies with wide wings and carries on its back a small rider, an old woman with a long silver braid in a weathered grey-blue hooded cloak with a small glowing cyan rune clasp, who holds on to its neck ridge. Far below, a luminous road of floating blue-glowing rune stones arcs whole across snowy mountains toward distant green lands. Warm gold sunrise on cold blue, joyful and wide. Composition: strong silhouettes and clear depth layers (foreground, middle distance, far distance). Keep the lower quarter of the picture calm and dark so subtitle text can sit on it. No text, no letters, no numbers, no UI, no border, no watermark. Fully opaque image, no transparency.",
+   "tool": "Codex image generation",
+   "source": "cut-trueend-2.png",
+   "sourceSha256": "e052ef9e97e3a420e9aa51b9e1db2299de1255dd42c61d935466dd7f14ff312e"
+  },
+  {
+   "id": "cut-trueend-3",
+   "file": "cut-trueend-3.webp",
+   "cols": 1,
+   "rows": 1,
+   "pivot": "corner",
+   "kind": "cut",
+   "default": "full",
+   "clips": {
+    "full": {
+     "frames": [
+      0
+     ],
+     "ms": 200,
+     "loop": false
+    }
+   },
+   "prompt": "Create an original production PNG story illustration for Runenpfad (rune path), an original 2D fantasy pixel-art action adventure with Nordic rune magic, enchanted forests, crystal caverns, desert ruins, glaciers and a clockwork citadel. Asset: a full-screen cutscene panel, 16:9 landscape, 1920 x 1080 target image (a single image, not a sheet). A detailed 16-bit era pixel-art cinematic story screen with rich hand-placed shading, crisp chunky pixels and a limited, moody palette. The attached reference image shows this village and its arch; keep the same place and painting style. Scene: a village gateway arch at sunrise, its blue runes glowing steady and bright. Under the arch stand two path wardens side by side, both seen from behind: an old woman with a long silver braid in a weathered grey-blue hooded cloak with a small glowing cyan rune clasp, leaning on a staff with a small lantern, and beside her a lone path warden in a hooded dark-blue travelling cloak with a small glowing cyan rune clasp, seen from behind so the face is never visible. On the slate roof of the stone hall behind them a large pale-blue frost dragon with icy white horns, frosted wing membranes and a long tail lies curled up like a cat. A bronze bell swings in the hall's small bell tower. Villagers gather in the street with lanterns. Warm and peaceful, golds and blues. Composition: strong silhouettes and clear depth layers (foreground, middle distance, far distance). Keep the lower quarter of the picture calm and dark so subtitle text can sit on it. No text, no letters, no numbers, no UI, no border, no watermark. Fully opaque image, no transparency.",
+   "tool": "Codex image generation",
+   "source": "cut-trueend-3.png",
+   "sourceSha256": "cb5f8a05366752ab0debf9cc6aae3d5775b4fb7bb52ec7156f965d428528d967"
   }
  ]
 }
