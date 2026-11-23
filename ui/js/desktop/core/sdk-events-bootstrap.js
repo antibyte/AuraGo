@@ -493,16 +493,22 @@
         return false;
     }
 
+    // MeshCore messages are conversations; otherwise the payload type picks the notice (unknown types are info).
+    function notificationSoundEvent(payload) {
+        if (payload.appId === 'meshcore') return 'notify.message';
+        const type = String(payload.type || '').toLowerCase();
+        if (type === 'error') return 'notify.error';
+        if (type === 'warning' || type === 'warn') return 'notify.warning';
+        if (type === 'success') return 'notify.success';
+        return 'notify.info';
+    }
+
     function showDesktopNotification(payload) {
         payload = payload || {};
         const policy = window.AuraDesktopNotificationCenter;
         const delivery = policy && typeof policy.delivery === 'function' ? policy.delivery(payload) : { toast: true, sound: true };
         pushNotificationRecord(payload);
-        if (delivery.sound) {
-            if (payload.appId === 'meshcore') desktopSound('notify.message');
-            else if (payload.type === 'error') desktopSound('notify.error');
-            else desktopSound('notify.info');
-        }
+        if (delivery.sound) desktopSound(notificationSoundEvent(payload));
         if (!delivery.toast) return;
         ringNotificationBell();
         return showDesktopToast(payload);
@@ -1018,6 +1024,7 @@
         mark('first-render');
         await restoreDesktopSession();
         openInitialDesktopApp();
+        desktopSound('session.start');
         if (state.bootstrap && state.bootstrap.enabled) connectWS();
         if (window.PetRuntime && typeof window.PetRuntime.init === 'function') {
             window.PetRuntime.init();
