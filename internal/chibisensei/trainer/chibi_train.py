@@ -1532,9 +1532,13 @@ def converter_help(ctx, env):
     return ctx.help_cache[key]
 
 
-def converter_flags(help_text, model_dir):
-    """--no-mtp when the converter knows it and the checkpoint carries no MTP tensors."""
-    if "--no-mtp" not in help_text:
+# The converter accepts --mtp / --no-mtp only for these architectures and fails for every other one.
+MTP_ARCHS = ("qwen35", "qwen35moe")
+
+
+def converter_flags(ctx, help_text, model_dir):
+    """--no-mtp for a Qwen3.5 checkpoint without MTP tensors, when the converter knows the flag."""
+    if jget(ctx.profile, "gguf.expected_arch") not in MTP_ARCHS or "--no-mtp" not in help_text:
         return []
     try:
         keys = model_dir_keys(model_dir)
@@ -1560,7 +1564,7 @@ def convert(ctx, src, dst, label, vocab_only=False):
         if help_text is None:
             attempts.append("%s: the converter does not start" % env["name"])
             continue
-        flags = converter_flags(help_text, src) + (["--vocab-only"] if vocab_only else [])
+        flags = converter_flags(ctx, help_text, src) + (["--vocab-only"] if vocab_only else [])
         timeout = max(120, min(1800, int(ctx.budget.remaining()) - 60))
         cmd = [env["python"], script, src, "--outtype", ctx.outtype, "--outfile", dst] + flags
         rc, out, secs = run_cmd(cmd, cwd=ctx.llama_root, env_extra=env["env"], timeout=timeout)
