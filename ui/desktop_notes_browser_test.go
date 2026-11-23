@@ -287,7 +287,7 @@ const labels={...await(await fetch('/notes-extra-labels')).json(),...await(await
 	browser := rod.New().ControlURL(launch.MustLaunch()).MustConnect()
 	defer launch.Cleanup()
 	defer browser.Close()
-	page := browser.MustPage(srv.URL + "/notes-fixture").Timeout(90 * time.Second)
+	page := browser.MustPage(srv.URL + "/notes-fixture").Timeout(6 * time.Minute)
 	defer page.Close()
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustWaitLoad()
@@ -338,6 +338,11 @@ const labels={...await(await fetch('/notes-extra-labels')).json(),...await(await
 		t.Fatal(err)
 	}
 	t.Log("Notes writing workflows:", page.MustEval(string(writingScript)).JSON("", ""))
+	reviewScript, err := os.ReadFile("testdata/notes-review-functional.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Notes review workflows:", page.MustEval(string(reviewScript)).JSON("", ""))
 	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if out == "" {
 		out = filepath.Join("..", "reports", "notes")

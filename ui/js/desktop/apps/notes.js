@@ -67,7 +67,7 @@
             '<section class="notes-graph" data-graph hidden aria-label="'+esc(tr('graph'))+'"><div class="notes-graph-bar" role="toolbar" aria-label="'+esc(tr('graph'))+'"><input type="search" data-graph-filter autocomplete="off" spellcheck="false" placeholder="'+esc(tr('graph_filter'))+'" aria-label="'+esc(tr('graph_filter'))+'"><span class="notes-graph-toggles">'+['tags','unresolved','orphans'].map(key=>'<button type="button" data-graph-toggle="'+key+'" aria-pressed="false">'+esc(tr(key==='tags'?'tags':'graph_'+key))+'</button>').join('')+'</span><span class="notes-graph-actions">'+button('graphFit','graph_fit')+button('graphClose','graph_close')+'</span></div><div class="notes-graph-host" data-graph-host></div><p class="notes-graph-empty" data-graph-empty hidden>'+esc(tr('graph_empty'))+'</p></section></main><aside class="notes-right" data-right hidden></aside></div>'+
             '<footer class="notes-statusbar"><button type="button" data-action="backlinks" data-backlinks disabled></button><span data-count></span><span class="notes-spacer"></span><span data-mode></span>'+button('focus','focus_mode')+'<button data-action="zoomOut" aria-label="'+esc(tr('zoom_out'))+'">−</button><button data-action="zoomReset" data-zoom>100%</button><button data-action="zoomIn" aria-label="'+esc(tr('zoom_in'))+'">+</button></footer><div class="notes-popup" data-popup hidden></div><div class="notes-preview" data-preview hidden role="dialog" aria-label="'+esc(tr('preview'))+'"></div><input data-upload type="file" multiple hidden><input data-import type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden></div>';
         const root=host.firstElementChild, find=selector=>root.querySelector(selector), life=new AbortController();
-        let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, zoom=100, right=stored.open&&TABS.includes(stored.tab)?stored.tab:'', lastTab=TABS.includes(stored.tab)?stored.tab:'backlinks', updateTimer, draftTimer, draftDeadline, sseTimer;
+        let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, navigating=false, navTask=null, zoom=100, right=stored.open&&TABS.includes(stored.tab)?stored.tab:'', lastTab=TABS.includes(stored.tab)?stored.tab:'backlinks', updateTimer, draftTimer, draftDeadline, sseTimer;
         let meta={version:1,pinned:[],sort:'modified',last_note:'',recent:[]}, list=[], trashNotes=[], trash=false, listGeneration=0, currentDraft, assistController, proposal;
         let sidebar, sidebarFrame=0, contextTarget=null, findCase=false;
         let graph=null, localGraph=null, graphOpen=false, graphPointer=false, graphFilter='', graphLabels=new Map(), localLabels=new Map(), graphPrefs=readGraphPrefs();
@@ -175,8 +175,19 @@
                 return !!(await ctx.confirmDialog?.(tr('unsaved'),tr('leave_draft')));
             }
         }
-        async function loadNote(path, supplied, options={}) {
-            if(disposed||busy||!await guard())return;
+        // Navigations (open, new, move, history) run one at a time: the slot is claimed before the first await,
+        // so a second request that arrives while guard() is still saving or asking is dropped instead of interleaving.
+        async function navigate(task){
+            if(disposed||busy||navigating)return;
+            navigating=true;
+            return navTask=(async()=>{
+                try{return await task();}
+                finally{navigating=false;if(!disposed)syncChrome();}
+            })();
+        }
+        const loadNote=(path,supplied,options)=>navigate(()=>loadInner(path,supplied,options));
+        async function loadInner(path, supplied, options={}) {
+            if(disposed||!await guard())return;
             busy=true;loading=true;find('[data-loading]').hidden=false;syncChrome();
             try {
                 const note=supplied||await request(endpoint(path),{signal:life.signal});
@@ -225,10 +236,14 @@
         }
         function noteFolder(){const path=current?.path||'';return path.startsWith(DIR+'/')?dirname(path):DIR;}
         async function createNote(kind='blank',content,folder){
-            if(ctx.readonly||busy||!await guard())return;
+            if(ctx.readonly)return;
+            return navigate(()=>createInner(kind,content,folder));
+        }
+        async function createInner(kind,content,folder){
+            if(!await guard())return;
             busy=true;syncChrome();
             try{const text=content??template(kind);const note=await request(endpoint(),{method:'POST',signal:life.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({title:NotesFrontmatter.deriveTitle(text,tr('new_note')),content:text,folder:folder||noteFolder()})});
-                busy=false;trash=false;await index.load().catch(()=>{});await refreshList();await loadNote(note.path,note);editor?.focus();
+                busy=false;trash=false;await index.load().catch(()=>{});await refreshList();await loadInner(note.path,note);editor?.focus();
             }catch(error){fail(error);}finally{busy=false;syncChrome();}
         }
         // Plain list (initial note choice) and trash list (sidebar), paged 200 at a time.
@@ -279,18 +294,32 @@
             if([...(meta.pinned||[]),...(meta.recent||[])].includes(oldPath)||meta.last_note===oldPath)updateMeta({pinned:swap(meta.pinned||[]),recent:swap(meta.recent||[]),...(meta.last_note===oldPath?{last_note:newPath}:{})});
         }
         async function moveToFolder(path,folder){
+            // A drop is a deliberate request: it waits for a running navigation instead of being dropped.
+            while(navigating&&navTask&&!disposed)await navTask.catch(()=>{});
             if(ctx.readonly||busy||path.startsWith('Trash/'))return;
             const target=folder+'/'+basename(path);
             if(target===path)return;
             if(path===current?.path)return await moveNote('move',target);
-            try{
-                const old=await request(endpoint(path),{signal:life.signal});
-                const moved=await request(endpoint(),{method:'PATCH',signal:life.signal,headers:{'Content-Type':'application/json','If-Match':old.version},body:JSON.stringify({path,new_path:target,operation:'move',update_links:true})});
-                renameHistory(path,moved.path);renameMeta(path,moved.path);
-                await index.load().catch(()=>{});await refreshList();sidebar?.revealPath(moved.path);
+            await navigate(async()=>{
+                // The server may rewrite links inside the open note: save it first so nothing is lost, reload it afterwards.
+                if(!await guard())return;
+                busy=true;syncChrome();
+                let moved;
+                try{
+                    const old=await request(endpoint(path),{signal:life.signal});
+                    moved=await request(endpoint(),{method:'PATCH',signal:life.signal,headers:{'Content-Type':'application/json','If-Match':old.version},body:JSON.stringify({path,new_path:target,operation:'move',update_links:true})});
+                    renameHistory(path,moved.path);renameMeta(path,moved.path);
+                    await index.load().catch(()=>{});await refreshList();sidebar?.revealPath(moved.path);
+                    if(current&&!queue?.dirty){
+                        const fresh=await request(endpoint(current.path),{signal:life.signal});
+                        if(fresh.version!==current.version){busy=false;await loadInner(current.path,fresh,{push:false});}
+                    }
+                }catch(error){fail(error);}
+                finally{busy=false;syncChrome();}
+                if(!moved)return;
                 if(moved.link_update_failed?.length)notice(tr('links_update_failed',{paths:moved.link_update_failed.join(', ')}),true);
                 else if(moved.updated_links>0)notice(tr('links_updated',{count:moved.updated_links}));
-            }catch(error){fail(error);}
+            });
         }
         function openContextMenu(path,kind,event){
             if(disposed)return;
@@ -330,14 +359,21 @@
             if(!chosen?.path||chosen.canceled||disposed)return;
             if(!chosen.path.startsWith(DIR+'/')||!chosen.path.toLowerCase().endsWith('.md')){notice(tr('notes_location'),true);return;}
             if(chosen.path===current.path)return queue.save();
+            return navigate(()=>saveAsInner(chosen));
+        }
+        async function saveAsInner(chosen){
             busy=true;syncChrome();queue.suspend();
             try{await queue.pending?.catch(()=>{});const text=await editor.relocateLinks(editor.content(),url=>relocatedURL(url,current.path,chosen.path));
                 const note=await request(endpoint(chosen.path),{method:'PUT',signal:life.signal,headers:{'Content-Type':'application/json','If-None-Match':'*'},body:JSON.stringify({path:chosen.path,content:text})});
-                queue.dispose();queue=null;busy=false;await index.load().catch(()=>{});await loadNote(note.path,note);await refreshList();
+                queue.dispose();queue=null;busy=false;await index.load().catch(()=>{});await loadInner(note.path,note);await refreshList();
             }finally{busy=false;queue?.resume();syncChrome();}
         }
         async function moveNote(operation,preset){
-            if(!current||ctx.readonly||busy||!await guard())return;
+            if(!current||ctx.readonly)return;
+            return navigate(()=>moveInner(operation,preset));
+        }
+        async function moveInner(operation,preset){
+            if(!current||!await guard())return;
             let target='';
             if(operation==='trash'&&!await ctx.confirmDialog?.(tr('trash'),tr('trash_confirm')))return;
             if(operation==='move'){
@@ -348,7 +384,7 @@
             busy=true;syncChrome();
             try{const oldPath=current.path,note=await request(endpoint(),{method:'PATCH',signal:life.signal,headers:{'Content-Type':'application/json','If-Match':current.version},body:JSON.stringify({path:current.path,new_path:target,operation,...(operation==='move'?{update_links:true}:{})})});
                 renameHistory(oldPath,note.path);renameMeta(oldPath,note.path);
-                queue.dispose();queue=null;await editor.destroy();editor=null;current=null;busy=false;trash=operation==='trash';await index.load().catch(()=>{});await refreshList();await loadNote(note.path,note,{push:false});
+                queue.dispose();queue=null;await editor.destroy();editor=null;current=null;busy=false;trash=operation==='trash';await index.load().catch(()=>{});await refreshList();await loadInner(note.path,note,{push:false});
                 if(note.link_update_failed?.length)notice(tr('links_update_failed',{paths:note.link_update_failed.join(', ')}),true);
                 else if(note.updated_links>0)notice(tr('links_updated',{count:note.updated_links}));
             }finally{busy=false;syncChrome();}
@@ -387,10 +423,12 @@
         }
         function renameHistory(oldPath,newPath){stack=stack.map(path=>path===oldPath?newPath:path);}
         async function go(delta){
-            const target=stack[stackPos+delta];
-            if(target===undefined||busy||loading)return;
-            await loadNote(target,undefined,{push:false});
-            if(current?.path===target){stackPos+=delta;syncChrome();}
+            await navigate(async()=>{
+                const target=stack[stackPos+delta];
+                if(target===undefined)return;
+                await loadInner(target,undefined,{push:false});
+                if(current?.path===target){stackPos+=delta;syncChrome();}
+            });
         }
         function headingsOf(text){
             const headings=[];let fence='';
@@ -1025,7 +1063,7 @@
             if(event?.type!=='desktop_changed')return;
             const payload=event.payload||{};if(![payload.path,payload.old_path,payload.new_path].some(path=>path?.startsWith(DIR+'/')||path?.startsWith('Trash/Notes/')))return;
             index.refresh().catch(()=>{});
-            clearTimeout(sseTimer);sseTimer=setTimeout(async()=>{try{await refreshList();if(current&&!queue?.dirty&&!queue?.pending&&!busy){const updated=await request(endpoint(current.path),{signal:life.signal});if(updated.version!==current.version)await loadNote(updated.path,updated);}}catch(error){fail(error);}},500);
+            clearTimeout(sseTimer);sseTimer=setTimeout(async()=>{try{await refreshList();if(current&&!queue?.dirty&&!queue?.pending&&!busy&&!navigating){const updated=await request(endpoint(current.path),{signal:life.signal});if(updated.version!==current.version)await loadNote(updated.path,updated);}}catch(error){fail(error);}},500);
         };
         window.AuraSSE?.on?.('virtual_desktop_event',desktopEvent);
         function cleanup(){

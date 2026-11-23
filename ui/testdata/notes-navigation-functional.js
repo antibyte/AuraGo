@@ -48,6 +48,7 @@ async () => {
     check(app.index.note(DIR+'/Projekte/einkauf.md'),'Index lacks the moved note');
     dragStep(row(DIR+'/Projekte/einkauf.md'),document.querySelector('.notes-tree'));
     await until(()=>row(DIR+'/einkauf.md')&&!row(DIR+'/Projekte/einkauf.md'),'einkauf back at the root');
+    await until(()=>!document.querySelector('[data-action="new"]').disabled,'drop finished');
     await app.act('dismiss');
     result.dragDrop=true;
 
