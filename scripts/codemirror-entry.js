@@ -13,7 +13,7 @@ export {
   gutter,
   GutterMarker,
 } from '@codemirror/view';
-export { EditorState, Prec, Compartment } from '@codemirror/state';
+export { EditorState, Prec, Compartment, Text, ChangeSet } from '@codemirror/state';
 export {
   defaultKeymap,
   history,
@@ -69,3 +69,17 @@ export {
 } from '@codemirror/language';
 export { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
 export { lintKeymap, linter, lintGutter, setDiagnostics } from '@codemirror/lint';
+// Code Studio IDE package 2b: the LSP client core (ui/js/desktop/apps/code-studio/lsp.js). References, rename and
+// formatting of the library stay out; package 2c brings its own UI for them.
+export {
+  LSPClient,
+  LSPPlugin,
+  Workspace,
+  serverCompletion,
+  hoverTooltips,
+  signatureHelp,
+  showSignatureHelp,
+  serverDiagnostics,
+  jumpToDefinition,
+  jumpToDefinitionKeymap,
+} from '@codemirror/lsp-client';

@@ -36,6 +36,7 @@ const expectedExports = [
   '@codemirror/language',
   '@codemirror/autocomplete',
   '@codemirror/lint',
+  '@codemirror/lsp-client',
 ];
 
 console.log(`Building CodeMirror bundle from ${entryFile}`);

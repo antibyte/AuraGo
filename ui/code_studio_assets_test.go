@@ -117,6 +117,9 @@ func TestCodeMirrorBundleExportsYAMLAndLint(t *testing.T) {
 		"foldGutter", "foldKeymap", "codeFolding", "foldCode", "unfoldCode", "bracketMatching", "indentOnInput", "StreamLanguage",
 		"gutter", "GutterMarker", "isolateHistory", "selectNextOccurrence", "moveLineUp", "moveLineDown", "copyLineUp", "copyLineDown", "toggleComment", "deleteLine",
 		"sql", "java", "php", "xml", "shell", "dockerFile", "toml",
+		// Code Studio IDE package 2b: the LSP client core and the state pieces its workspace needs.
+		"LSPClient", "LSPPlugin", "Workspace", "serverCompletion", "hoverTooltips", "signatureHelp", "showSignatureHelp",
+		"serverDiagnostics", "jumpToDefinition", "jumpToDefinitionKeymap", "Text", "ChangeSet",
 	} {
 		if !exported[want] {
 			t.Errorf("CodeMirror bundle does not export %q", want)
