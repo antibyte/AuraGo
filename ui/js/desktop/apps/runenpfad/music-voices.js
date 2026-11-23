@@ -40,12 +40,12 @@
         presence.type = 'peaking';
         presence.frequency.value = 3400;
         presence.Q.value = 0.85;
-        presence.gain.value = 2.0;
+        presence.gain.value = 2.5;
 
         const air = keep(ctx.createBiquadFilter());
         air.type = 'highshelf';
         air.frequency.value = 7200;
-        air.gain.value = 2.0;
+        air.gain.value = 4.0;
 
         const duckGain = keep(ctx.createGain());
         duckGain.gain.value = 1.0;
@@ -164,8 +164,8 @@
             const u = Math.max(0, Math.min(1, urgency || 0));
             lastDrama = d;
             const now = ctx.currentTime;
-            presence.gain.setTargetAtTime(2.0 + 1.8 * d, now, 0.35);
-            air.gain.setTargetAtTime(2.0 + 1.6 * d, now, 0.35);
+            presence.gain.setTargetAtTime(2.5 + 1.8 * d, now, 0.35);
+            air.gain.setTargetAtTime(4.0 + 1.6 * d, now, 0.35);
             revSend.gain.setTargetAtTime(Math.max(0.14, Math.min(0.56, baseWet * (1.12 - 0.36 * d))), now, 0.35);
             if (preSat) preSat.gain.setTargetAtTime(0.50 + 0.24 * d + 0.06 * u, now, 0.35);
         }

@@ -67,7 +67,7 @@
     const BOSS_TELEGRAPHS = {
         charge: { synth: 'charge', sg: 0.35, sr: 0.8, voice: { gain: 0.3, sr: 1.1, short: true } },
         pound: { synth: 'charge', sg: 0.4, sr: 0.55 },
-        leap: { synth: 'creak', sg: 0.5, sr: 1.3 },
+        leap: { synth: 'charge', sg: 0.35, sr: 1.1, also: [{ synth: 'creak', sg: 0.5, sr: 1.3 }] },
         volley: { synth: 'charge', sg: 0.3, sr: 1.6 },
         summon: { synth: 'shimmer', sg: 0.35, sr: 0.55, also: [{ synth: 'hum', sg: 0.3, sr: 0.6 }] },
         ring: { synth: 'charge', sg: 0.35, sr: 2 },
@@ -152,7 +152,7 @@
 
     const CUE_MAP = {
         step: { sound: null, gain: 0.38, cooldown: 220, vary: 0.14 },
-        jump: { sound: 'jump', gain: 0.54, cooldown: 90, vary: 0.1, synth: 'whoosh', sg: 0.24, sr: 1.35 },
+        jump: { sound: false, gain: 0.14, cooldown: 90, vary: 0.1, synth: 'hop', sg: 0.5 },
         sky_ray_board: { sound: false, gain: 0.55, cooldown: 300, synth: 'ray_board', sg: 0.58, themeIndex: 4, also: [{ synth: 'ray_glint', sg: 0.25, delay: 0.05 }] },
         sky_ray_leap: { sound: false, gain: 0.55, cooldown: 200, synth: 'ray_leap', sg: 0.62, themeIndex: 5, also: [{ synth: 'ray_glint', sg: 0.3, delay: 0.025 }] },
         dash: { sound: 'jump', gain: 0.34, cooldown: 140, rate: 1.32, vary: 0.08, synth: 'whoosh', sg: 0.44, sr: 1.3 },
@@ -174,7 +174,7 @@
         },
         slam: { sound: 'impact-stone', gain: 0.72, cooldown: 120, rate: 0.85, also: [{ synth: 'boom', sg: 0.65, sr: 0.9 }] },
         slam_land: { sound: 'impact-stone', gain: 0.74, cooldown: 120, rate: 0.95, also: [{ synth: 'impact', sg: 0.7, sr: 0.9 }, { synth: 'boom', sg: 0.45, sr: 1.3 }] },
-        attack_melee: { sound: false, gain: 0.5, cooldown: 110, vary: 0.12, synth: 'whoosh', sg: 0.22, also: [{ synth: 'sword', sg: 1.28 }] },
+        attack_melee: { sound: false, gain: 0.5, cooldown: 110, vary: 0.12, synth: 'whoosh', sg: 0.04, also: [{ synth: 'sword2', sg: 1.0 }] },
         attack_ranged: { sound: 'laser', gain: 0.24, cooldown: 90, rate: 1.05, vary: 0.1, synth: 'zap', sg: 0.26, also: [{ synth: 'twang', sg: 0.82 }] },
         crate_break: { sound: 'crate-break', gain: 0.65, cooldown: 80, vary: 0.16, also: [{ synth: 'impact', sg: 0.4, sr: 1.2 }] },
         enemy_hit: { sound: null, gain: 0.6, cooldown: 70, vary: 0.16, synth: 'impact', sg: 0.45, sr: 1.1 },
@@ -328,7 +328,14 @@
         in_clear: { sound: false, gain: 0.6, cooldown: 500, synth: 'fanfare3', sg: 0.6 },
         in_locked: { sound: false, gain: 0.5, cooldown: 300, synth: 'knock2', sg: 0.5 }
     };
-    const UI_CUES = { cut_open: { cooldown: 300, synth: 'cutswell', sg: 0.4, sr: 1 }, cut_next: { cooldown: 80, synth: 'cuttick', sg: 0.25 }, cut_close: { cooldown: 300, synth: 'cutswell', sg: 0.35, sr: 0.9 } };
+    const UI_CUES = {
+        cut_open: { cooldown: 300, synth: 'cutswell', sg: 0.4, sr: 1 }, cut_next: { cooldown: 80, synth: 'cuttick', sg: 0.25 }, cut_close: { cooldown: 300, synth: 'cutswell', sg: 0.35, sr: 0.9 },
+        ui_select: { cooldown: 50, synth: 'ui_select', sg: 0.5 }, ui_back: { cooldown: 80, synth: 'ui_back', sg: 0.5 },
+        ui_deny: { cooldown: 150, synth: 'ui_deny', sg: 0.5 }, ui_buy: { cooldown: 120, synth: 'ui_buy', sg: 0.5 },
+        ui_pause: { cooldown: 200, synth: 'ui_sweep', sg: 0.45, sr: 0.8 }, ui_resume: { cooldown: 200, synth: 'ui_sweep', sg: 0.45, sr: 1 },
+        ui_star_1: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1 }, ui_star_2: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1.26 },
+        ui_star_3: { cooldown: 120, synth: 'ui_star', sg: 0.5, sr: 1.5874 }, ui_unlock: { cooldown: 300, synth: 'ui_unlock', sg: 0.5 }
+    };
 
     function validateSoundManifest(manifest) {
         if (!manifest || !Array.isArray(manifest.assets)) throw new Error('runenpfad audio manifest missing');
@@ -353,6 +360,14 @@
         h = Math.imul(h, 2246822519) >>> 0;
         h ^= h >>> 13;
         return (h >>> 0) / 4294967296;
+    }
+
+    function mixOf() { return root.RunenpfadAudioMix || null; }
+    function busNum(name, fallback) { const m = mixOf(); return m && m.BUS && typeof m.BUS[name] === 'number' ? m.BUS[name] : fallback; }
+    function mixGainFor(type, variant, x, camera) {
+        const m = mixOf();
+        if (!m) return 1;
+        return (typeof m.trimFor === 'function' ? m.trimFor(type, variant) : 1) * (typeof m.distanceGain === 'function' ? m.distanceGain(x, camera) : 1);
     }
 
     function panFor(x, camera) {
@@ -531,7 +546,10 @@
         let noiseBuf = null;
         let duckMusicFn = null;
         let biome = 'woodland';
-        let ambienceSpec = { primary: '', secondary: '', tertiary: '' };
+        let ambienceSpec = { primary: '', secondary: '', tertiary: '', level: 1 };
+        let sfxVol = 1;
+        let musicVol = 1;
+        let musicRevIn = null;
         let ambienceDuck = 1;
         let liveSynths = 0;
         let coinStep = -1;
@@ -550,23 +568,27 @@
                 if (!AudioCtx) return null;
                 ctx = new AudioCtx();
                 master = ctx.createGain();
-                master.gain.value = 0.92;
+                master.gain.value = busNum('master', 0.92);
                 let busOut = ctx.destination;
                 if (typeof ctx.createDynamicsCompressor === 'function') {
                     const glue = ctx.createDynamicsCompressor();
                     glue.threshold.value = -12; glue.knee.value = 16; glue.ratio.value = 3.5; glue.attack.value = 0.008; glue.release.value = 0.18;
                     const limiter = ctx.createDynamicsCompressor();
-                    limiter.threshold.value = -2.2; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.05;
+                    limiter.threshold.value = busNum('limiterThreshold', -2.2); limiter.knee.value = 0; limiter.ratio.value = busNum('limiterRatio', 20); limiter.attack.value = busNum('limiterAttack', 0.001); limiter.release.value = busNum('limiterRelease', 0.05);
+                    const outGain = ctx.createGain();
+                    outGain.gain.value = busNum('outGain', 1);
                     master.connect(glue);
                     glue.connect(limiter);
-                    limiter.connect(ctx.destination);
+                    limiter.connect(outGain);
+                    outGain.connect(ctx.destination);
                 } else {
                     master.connect(busOut);
                 }
                 sfxBus = ctx.createGain();
                 ambBus = ctx.createGain();
                 musicBus = ctx.createGain();
-                musicBus.gain.value = 0.48;
+                musicBus.gain.value = busNum('music', 0.48) * musicVol;
+                sfxBus.gain.value = sfxVol; ambBus.gain.value = sfxVol;
                 [sfxBus, ambBus, musicBus].forEach(function (b) { b.connect(master); });
                 reverbIn = ctx.createGain();
                 reverbOut = ctx.createGain();
@@ -581,6 +603,9 @@
                     reverbIn.connect(reverbOut);
                 }
                 reverbOut.connect(master);
+                musicRevIn = ctx.createGain();
+                musicRevIn.gain.value = musicVol;
+                musicRevIn.connect(reverbIn);
                 const sfxSend = ctx.createGain();
                 sfxSend.gain.value = 0.48;
                 sfxBus.connect(sfxSend);
@@ -648,7 +673,7 @@
         }
 
         function stopAmbience() { layers.splice(0).forEach(killLayer); }
-        function ambienceLevel(id, scale) { return (!id || !assetsById[id]) ? 0 : (Number(assetsById[id].gain) || 0.6) * 0.42 * scale; }
+        function ambienceLevel(id, scale) { return (!id || !assetsById[id]) ? 0 : (Number(assetsById[id].gain) || 0.6) * 0.42 * scale * (ambienceSpec.level || 1); }
         function applyAmbienceGain() {
             if (!ctx) return;
             layers.forEach(function (layer) {
@@ -678,12 +703,16 @@
 
         async function setAmbience(spec) {
             const next = typeof spec === 'string' || !spec ? { primary: spec || '', secondary: '' } : { primary: spec.primary || '', secondary: spec.secondary || '', tertiary: spec.tertiary || '' };
+            next.level = spec && typeof spec.level === 'number' && spec.level >= 0 ? spec.level : 1;
             if (!next.tertiary && DRIP_BEDS[BIOME_BY_AMBIENCE[next.primary]]) next.tertiary = DRIP_BEDS[BIOME_BY_AMBIENCE[next.primary]];
             next.tertiary = next.tertiary || '';
             const prev = ambienceSpec;
             ambienceSpec = next;
             if (BIOME_BY_AMBIENCE[next.primary] && BIOME_BY_AMBIENCE[next.primary] !== biome) applyBiome(BIOME_BY_AMBIENCE[next.primary]);
-            if (next.primary === prev.primary && next.secondary === prev.secondary && next.tertiary === prev.tertiary) return;
+            if (next.primary === prev.primary && next.secondary === prev.secondary && next.tertiary === prev.tertiary) {
+                if (next.level !== prev.level) applyAmbienceGain();
+                return;
+            }
             layers.slice().forEach(function (layer) { if (layer.id !== next.primary && layer.id !== next.secondary && layer.id !== next.tertiary) fadeOutLayer(layer); });
             if (!enabled || !active || disposed || !next.primary) return;
             const has = function (id, slot) { return layers.some(function (l) { return l.id === id && l.slot === slot; }); };
@@ -712,12 +741,12 @@
             }
         }
 
-        function playBuffer(audioCtx, buffer, id, gainScale, rate, pan) {
+        function playBuffer(audioCtx, buffer, id, gainScale, rate, pan, trim) {
             const source = audioCtx.createBufferSource();
             source.buffer = buffer;
             if (rate && rate > 0) source.playbackRate.value = rate;
             const gain = audioCtx.createGain();
-            gain.gain.value = Math.min(1, (Number(assetsById[id].gain) || 0.75) * (gainScale || 0.75));
+            gain.gain.value = Math.min(1, (Number(assetsById[id].gain) || 0.75) * (gainScale || 0.75)) * (trim || 1);
             const dest = route(pan);
             source.connect(gain); gain.connect(dest);
             source.onended = function () { try { source.disconnect(); gain.disconnect(); } catch (err) {} releaseRoute(dest); };
@@ -731,15 +760,15 @@
             return true;
         }
 
-        function playSample(id, gainScale, rate, pan) {
+        function playSample(id, gainScale, rate, pan, trim) {
             const audioCtx = ctx;
             const cached = buffers.get(id);
-            if (cached) { playBuffer(audioCtx, cached, id, gainScale, rate, pan); return; }
+            if (cached) { playBuffer(audioCtx, cached, id, gainScale, rate, pan, trim); return; }
             const t0 = audioCtx.currentTime;
             playFallbackTone(audioCtx, id, gainScale, outNode());
             loadBuffer(id).then(function (buffer) {
                 if (!buffer || disposed || !enabled || !ctx) return;
-                if (ctx.currentTime - t0 < 0.25) playBuffer(ctx, buffer, id, gainScale, rate, pan);
+                if (ctx.currentTime - t0 < 0.25) playBuffer(ctx, buffer, id, gainScale, rate, pan, trim);
             });
         }
 
@@ -776,7 +805,7 @@
         function play(cueId) {
             const cue = UI_CUES[cueId];
             if (!cue || disposed || !enabled || !ensureContext() || !gate('ui:' + cueId, cue.cooldown)) return;
-            playSynth(cue.synth, { gain: cue.sg, sr: cue.sr || 1, v: hashUnit(cueId, 0) }, 0, true);
+            playSynth(cue.synth, { gain: cue.sg * mixGainFor('ui', cueId), sr: cue.sr || 1, v: hashUnit(cueId, 0) }, 0, true);
         }
 
         function unlock() {
@@ -792,7 +821,7 @@
 
         function restartAmbience() {
             const spec = ambienceSpec;
-            ambienceSpec = { primary: '', secondary: '', tertiary: '' };
+            ambienceSpec = { primary: '', secondary: '', tertiary: '', level: 1 };
             setAmbience(spec);
         }
 
@@ -818,15 +847,16 @@
             return /frost/i.test(id) || d.kind === 'frost' ? DRAGON_VOICES.frost : DRAGON_VOICES.ember;
         }
 
-        function playExtras(cue, key, d, pan, tuned) {
+        function playExtras(cue, key, d, pan, tuned, mix) {
+            mix = mix || 1;
             if (liveSynths >= SYNTH_CAP) return;
             const v = hashUnit(key, counters.get(key) || 0);
             (cue.also || []).forEach(function (a) {
-                playSynth(a.synth, { gain: a.sg || 0.4, sr: a.sr || 1, v: v, delay: a.delay || 0, count: d && d.count, freq: a.freq || (tuned && tuned.freq) || cue.freq || 0 }, pan);
+                playSynth(a.synth, { gain: (a.sg || 0.4) * mix, sr: a.sr || 1, v: v, delay: a.delay || 0, count: d && d.count, freq: a.freq || (tuned && tuned.freq) || cue.freq || 0 }, pan);
             });
             if (cue.voice) {
                 (dragonVoice(d) || BOSS_VOICES[biome] || BOSS_VOICES.woodland).forEach(function (bv) {
-                    playSynth(bv.synth, { gain: cue.voice.gain || 0.5, sr: bv.sr * (cue.voice.sr || 1), v: v, short: !!cue.voice.short }, pan);
+                    playSynth(bv.synth, { gain: (cue.voice.gain || 0.5) * mix, sr: bv.sr * (cue.voice.sr || 1), v: v, short: !!cue.voice.short }, pan);
                 });
             }
         }
@@ -854,7 +884,10 @@
                         if (!id && ev.type === 'land') id = 'land';
                         if (!id && ev.type === 'player_hurt') id = 'impact-flesh';
                     }
-                    const pan = panFor(d && (d.x !== undefined ? d.x : d.x1), camera);
+                    const evX = d && (d.x !== undefined ? d.x : d.x1);
+                    const pan = panFor(evX, camera);
+                    const bk = baseCue.by && baseCue.by.key;
+                    const mix = mixGainFor(ev.type, bk === '@biome' ? biome : (bk && d ? d[bk] : undefined), evX, camera);
                     let rate = (cue.rate || 1) * variation(key, cue.vary);
                     let sr = cue.sr || 1;
                     if (cue.ladder) {
@@ -873,14 +906,14 @@
                     const duck = DUCK_EVENTS[ev.type];
                     if (duck && duckMusicFn) duckMusicFn(duck[0], duck[1], duck[2]);
                     const tuned = root.RunenpfadSfx && root.RunenpfadSfx.cueTuning(root.RunenpfadMusic && root.RunenpfadMusic.THEMES && root.RunenpfadMusic.THEMES[biome], cue, d);
-                    if (id && assetsById[id]) playSample(id, cue.gain, rate, pan);
-                    if (cue.synth) playSynth(cue.synth, { gain: sg, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: tuned ? tuned.freq : (cue.freq || (cue.ladder ? 1046 : 0)), notes: tuned && tuned.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
-                    if (cue.also || cue.voice) playExtras(cue, key, d, pan, tuned);
+                    if (id && assetsById[id]) playSample(id, cue.gain, rate, pan, mix);
+                    if (cue.synth) playSynth(cue.synth, { gain: sg * mix, sr: sr, v: hashUnit(key, counters.get(key) || 0), count: d && d.count, freq: tuned ? tuned.freq : (cue.freq || (cue.ladder ? 1046 : 0)), notes: tuned && tuned.notes, speed: cue.speed && d ? d[cue.speed] : 0 }, pan, /^(boss_|dragon_)/.test(ev.type) || ev.type === 'player_hurt' || ev.type === 'enemy_kill');
+                    if (cue.also || cue.voice) playExtras(cue, key, d, pan, tuned, mix);
                 }
             }
             if (worldAmbience) {
                 const spec = typeof worldAmbience === 'string' ? { primary: worldAmbience, secondary: '' } : worldAmbience;
-                if ((spec.primary !== ambienceSpec.primary || spec.secondary !== ambienceSpec.secondary) && enabled && active) setAmbience(spec);
+                if ((spec.primary !== ambienceSpec.primary || spec.secondary !== ambienceSpec.secondary || (typeof spec.level === 'number' ? spec.level : 1) !== ambienceSpec.level) && enabled && active) setAmbience(spec);
             }
         }
 
@@ -895,27 +928,38 @@
             enabled = !!next; syncPlaybackState();
             if (enabled) { unlock(); playCue('ui-click', 0.5, 50, true); }
         }
+        function applyVolumes() {
+            if (!ctx || !sfxBus) return;
+            const t = ctx.currentTime;
+            sfxBus.gain.setTargetAtTime(sfxVol, t, 0.05);
+            ambBus.gain.setTargetAtTime(sfxVol, t, 0.05);
+            musicBus.gain.setTargetAtTime(busNum('music', 0.48) * musicVol, t, 0.05);
+            if (musicRevIn) musicRevIn.gain.setTargetAtTime(musicVol, t, 0.05);
+        }
+        function clampVol(v) { const n = Number(v); return isFinite(n) ? Math.max(0, Math.min(1, n)) : 1; }
+        function setSfxVolume(v) { sfxVol = clampVol(v); applyVolumes(); }
+        function setMusicVolume(v) { musicVol = clampVol(v); applyVolumes(); }
         function setActive(next) { active = !!next; syncPlaybackState(); }
         function dispose() {
             if (disposed) return;
             disposed = true; liveSynths = 0; stopAmbience();
             buffers.clear(); pendingLoads.clear(); impulses.clear();
             const closing = ctx; ctx = null; duckMusicFn = null;
-            sfxBus = ambBus = musicBus = reverbIn = reverbOut = convolver = master = noiseBuf = null;
+            sfxBus = ambBus = musicBus = musicRevIn = reverbIn = reverbOut = convolver = master = noiseBuf = null;
             if (closing) closing.close().catch(function () {});
         }
 
         const port = {
             get ctx() { return ctx; },
             get bus() { return musicBus; },
-            get reverb() { return reverbIn; },
+            get reverb() { return musicRevIn || reverbIn; },
             registerDuck: function (fn) { duckMusicFn = typeof fn === 'function' ? fn : null; }
         };
 
         return {
             isEnabled: function () { return enabled; },
             setEnabled: setEnabled, setActive: setActive, unlock: unlock,
-            setAmbience: setAmbience, setAmbienceDuck: setAmbienceDuck,
+            setAmbience: setAmbience, setAmbienceDuck: setAmbienceDuck, setSfxVolume: setSfxVolume, setMusicVolume: setMusicVolume,
             playUiClick: function () { playCue('ui-click', 0.5, 50, true); },
             play: play, handleEvents: handleEvents,
             liveSynths: function () { return liveSynths; },

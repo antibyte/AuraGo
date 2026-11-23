@@ -649,6 +649,127 @@
                 b.n(t + dt, 0.026, g * (0.13 - i * 0.02), { color: 'pink', type: 'lowpass', f0: 1800 * sr, f1: 900 * sr, q: 0.75, atk: 0.004 });
             });
             b.o('sine', 130 * sr, 72 * sr, t + 0.24, 0.2, g * 0.26, { atk: 0.008 });
+        }),
+        // Blade swing "fwhip": a 0.30 s air swish, band-passed noise (Q 1.4) whose centre goes 400 -> 2400 Hz at the amplitude peak (0.10 s) -> 700 Hz at the end,
+        // then a 5 kHz low-pass. Amplitude rises linearly over 100 ms and decays smoothly to silence at 0.30 s. A quiet narrow 6 kHz noise band (Q 6, 30 ms attack,
+        // 0.10 s, from the peak, about a sixth of the swish) is the blade edge. No sine partials, no click.
+        sword2: wrap(function (b, t, g, sr) {
+            const src = b.keep(b.ac.createBufferSource());
+            src.buffer = (b.dsp && b.dsp.getNoise(b.ac, 'white')) || b.noise;
+            src.loop = true;
+            const f = b.keep(b.ac.createBiquadFilter());
+            f.type = 'bandpass';
+            f.Q.value = 1.4;
+            f.frequency.setValueAtTime(400 * sr, t);
+            f.frequency.exponentialRampToValueAtTime(2400 * sr, t + 0.1);
+            f.frequency.exponentialRampToValueAtTime(700 * sr, t + 0.3);
+            const lp = b.keep(b.ac.createBiquadFilter());
+            lp.type = 'lowpass';
+            lp.frequency.value = 5000;
+            lp.Q.value = 0.7;
+            const env = b.keep(b.ac.createGain());
+            env.gain.setValueAtTime(0.0001, t);
+            env.gain.linearRampToValueAtTime(Math.max(0.0002, g * 0.5), t + 0.1);
+            env.gain.exponentialRampToValueAtTime(Math.max(0.0002, g * 0.25), t + 0.19);
+            env.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+            env.connect(b.sat('warm'));
+            b.touch(t + 0.34);
+            src.connect(f);
+            f.connect(lp);
+            lp.connect(env);
+            src.start(t, 0.11);
+            src.stop(t + 0.32);
+            b.n(t + 0.1, 0.1, g * 0.083, { color: 'white', f0: 6000 * sr, q: 6, atk: 0.03 });
+        }),
+        // Soft jump "hup": clean sine glide 300 -> 620 Hz over 0.16 s (8 ms attack) with a quieter triangle on the same glide, and a faint low-passed (800 Hz) noise puff.
+        hop: wrap(function (b, t, g, sr) {
+            b.o('sine', 300 * sr, 620 * sr, t, 0.16, g * 0.6, { atk: 0.008 });
+            b.o('triangle', 300 * sr, 620 * sr, t, 0.16, g * 0.12, { atk: 0.008 });
+            b.n(t, 0.1, g * 0.1, { color: 'pink', type: 'lowpass', f0: 800, q: 0.6, atk: 0.01 });
+        }),
+        // Skid scrape (0.18 s): band-passed pink noise sliding down, crackle grit, rubbery saw undertone, three grit ticks.
+        skid: wrap(function (b, t, g, sr, o) {
+            b.n(t, 0.18, g * 0.55, { color: 'pink', f0: 1900 * sr, f1: 900 * sr, q: 1.6, atk: 0.012 });
+            b.n(t, 0.14, g * 0.3, { color: 'crackle', type: 'highpass', f0: 2600 * sr, q: 0.8, atk: 0.01 });
+            b.o('sawtooth', 190 * sr, 120 * sr, t, 0.16, g * 0.1, { filter: 'lowpass', ff: 600, atk: 0.01 });
+            for (let i = 0; i < 3; i++) b.n(t + 0.03 + i * 0.045 + jit(o, i) * 0.015, 0.02, g * 0.25, { color: 'crackle', f0: (1500 + jit(o, i + 5) * 1200) * sr, q: 2 });
+        }),
+        // Ladder step: wooden tick (sine 210 -> 150 Hz) + noise knock + faint band-passed creak.
+        climb: wrap(function (b, t, g, sr, o) {
+            b.o('sine', 210 * sr, 150 * sr, t, 0.06, g * 0.55, { atk: 0.003 });
+            b.n(t, 0.03, g * 0.35, { color: 'pink', f0: 1100 * sr, q: 2.5 });
+            b.o('triangle', 520 * sr * (0.95 + jit(o, 0) * 0.1), 380 * sr, t + 0.015, 0.09, g * 0.1, { filter: 'bandpass', ff: 700, q: 3, atk: 0.015 });
+        }),
+        // Rope pull: narrow fibre creak (700 -> 1100 Hz noise, 0.11 s), three grit ticks, soft low thud.
+        climb_rope: wrap(function (b, t, g, sr) {
+            b.n(t, 0.11, g * 0.5, { color: 'pink', f0: 700 * sr, f1: 1100 * sr, q: 4.5, atk: 0.03 });
+            for (let i = 0; i < 3; i++) b.n(t + i * 0.03, 0.012, g * 0.25, { color: 'crackle', f0: 1600 * sr, q: 2 });
+            b.o('sine', 130 * sr, 95 * sr, t, 0.07, g * 0.3, { atk: 0.004 });
+        }),
+        // Heartbeat: two low sine thumps (70 -> 55 Hz and 62 -> 50 Hz, 0.11 s apart) with a short chest knock and brown noise tap.
+        heartbeat: wrap(function (b, t, g, sr) {
+            [[0, 70, 55, 1], [0.11, 62, 50, 0.8]].forEach(function (p) {
+                b.o('sine', p[1] * sr, p[2] * sr, t + p[0], 0.16, g * 0.9 * p[3], { atk: 0.006 });
+                b.o('sine', p[1] * 2.2 * sr, p[2] * 1.8 * sr, t + p[0], 0.05, g * 0.18 * p[3], { atk: 0.003 });
+            });
+            b.n(t, 0.04, g * 0.2, { color: 'brown', type: 'lowpass', f0: 260, f1: 120, q: 0.7, atk: 0.004 });
+        }),
+        // Revive: warm sine swell 196 -> 392 Hz over 0.7 s, soft triangle octave, rising pink-noise air, four celesta bells (C5 E5 G5 C6) 0.09 s apart.
+        revive: wrap(function (b, t, g, sr) {
+            b.o('sine', 196 * sr, 392 * sr, t, 0.7, g * 0.3, { atk: 0.25 });
+            b.o('triangle', 392 * sr, 784 * sr, t + 0.05, 0.6, g * 0.08, { filter: 'lowpass', ff: 1800, atk: 0.25 });
+            b.n(t, 0.7, g * 0.12, { color: 'pink', f0: 500 * sr, f1: 3200 * sr, q: 1.2, atk: 0.3 });
+            [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) { b.bell(f * sr, t + 0.12 + i * 0.09, 0.4, g * 0.2); });
+        }),
+        // UI: soft wooden click (sine 560 -> 300 Hz) + noise tick + tiny 1.57 kHz chime.
+        ui_select: wrap(function (b, t, g, sr) {
+            b.o('sine', 560 * sr, 300 * sr, t, 0.04, g * 0.6, { atk: 0.002 });
+            b.n(t, 0.018, g * 0.4, { color: 'pink', f0: 1400 * sr, q: 2.2 });
+            b.o('sine', 1568 * sr, 0, t + 0.025, 0.2, g * 0.14, { atk: 0.004 });
+        }),
+        // UI: lower click (sine 380 -> 200 Hz) + dull tick + faint 784 Hz chime.
+        ui_back: wrap(function (b, t, g, sr) {
+            b.o('sine', 380 * sr, 200 * sr, t, 0.05, g * 0.6, { atk: 0.002 });
+            b.n(t, 0.02, g * 0.35, { color: 'pink', f0: 800 * sr, q: 2 });
+            b.o('sine', 784 * sr, 0, t + 0.03, 0.15, g * 0.1, { atk: 0.004 });
+        }),
+        // UI: dull double knock (sine 130 -> 75 Hz, 0.12 s apart) with low-passed brown ticks.
+        ui_deny: wrap(function (b, t, g, sr) {
+            [0, 0.12].forEach(function (dt) {
+                b.o('sine', 130 * sr, 75 * sr, t + dt, 0.09, g * 0.8, { atk: 0.003 });
+                b.n(t + dt, 0.03, g * 0.3, { color: 'brown', type: 'lowpass', f0: 500, q: 0.8 });
+            });
+        }),
+        // UI: coin clink (coin model at 1.57 kHz, sine pair fallback) + celesta chime at 1318 Hz a beat later.
+        ui_buy: wrap(function (b, t, g, sr) {
+            const s = b.dsp && b.dsp.getSample(b.ac, 'coin');
+            if (!b.model('coin', t, (1568 * sr) / (s ? s.refHz : 1318.51), g * 0.55, 0.4)) {
+                [2400, 3300].forEach(function (hz, i) { b.o('sine', hz * sr, 0, t, 0.09, g * 0.2 / (1 + i * 0.5), { atk: 0.002 }); });
+            }
+            b.bell(1318.5 * sr, t + 0.07, 0.45, g * 0.22);
+        }),
+        // UI: short sweep (0.16 s); sr below 1 falls 900 -> 320 Hz (pause), otherwise rises 320 -> 900 Hz (resume); triangle octave + air.
+        ui_sweep: wrap(function (b, t, g, sr) {
+            const up = sr >= 1;
+            b.o('sine', up ? 320 : 900, up ? 900 : 320, t, 0.16, g * 0.4, { atk: 0.02 });
+            b.o('triangle', up ? 640 : 1800, up ? 1800 : 640, t, 0.14, g * 0.1, { atk: 0.02 });
+            b.n(t, 0.16, g * 0.12, { color: 'pink', f0: up ? 600 : 2400, f1: up ? 2400 : 600, q: 1.1, atk: 0.03 });
+        }),
+        // UI: celesta-like star chime at 1046 Hz times sr (+ octave sparkle); ui_star_1..3 use sr 1, 1.26, 1.587 (major thirds).
+        ui_star: wrap(function (b, t, g, sr) {
+            b.bell(1046.5 * sr, t, 0.7, g * 0.42);
+            b.bell(2093 * sr, t + 0.015, 0.45, g * 0.14);
+            b.n(t, 0.015, g * 0.12, { color: 'crackle', type: 'highpass', f0: 5000 });
+        }),
+        // UI: three-note rising fanfare A4 - D5 - A5, 0.15 s apart, bell + triangle support, sparkle on top (about 0.7 s).
+        ui_unlock: wrap(function (b, t, g, sr) {
+            [440, 587.33, 880].forEach(function (f, i) {
+                const tt = t + i * 0.15;
+                const last = i === 2;
+                b.bell(f * sr, tt, last ? 0.4 : 0.3, g * 0.34);
+                b.o('triangle', f * sr, 0, tt, last ? 0.4 : 0.2, g * 0.1, { atk: 0.01 });
+            });
+            b.bell(1760 * sr, t + 0.32, 0.4, g * 0.14);
         })
     };
 
@@ -696,6 +817,11 @@
         toad_tell: { sound: false, gain: 0.48, cooldown: 850, synth: 'toad_bellow', sg: 0.58, sr: 0.9, also: [{ synth: 'clank', sg: 0.22, sr: 0.62, delay: 0.08 }] },
         toad_wave: { sound: false, gain: 0.58, cooldown: 450, synth: 'toad_roll', sg: 0.56, sr: 1, also: [{ synth: 'hollow', sg: 0.19, sr: 0.65, delay: 0.12 }] },
         roller_turn: { sound: false, gain: 0.44, cooldown: 420, synth: 'roller_turn', sg: 0.35, sr: 0.82, also: [{ synth: 'clank', sg: 0.18, sr: 0.7, delay: 0.14 }] },
+        skid: { sound: false, gain: 0.4, cooldown: 200, synth: 'skid', sg: 2.5 },
+        climb_step: { sound: false, gain: 0.3, cooldown: 120, synth: 'climb', sg: 0.5, by: { key: 'kind', map: { ladder: { synth: 'climb' }, rope: { synth: 'climb_rope' }, '*': {} } } },
+        heart_beat: { sound: false, gain: 0.4, cooldown: 300, synth: 'heartbeat', sg: 0.6 },
+        revive: { sound: false, gain: 0.5, cooldown: 600, synth: 'revive', sg: 0.5 },
+        gust_end: { sound: false, gain: 0.3, cooldown: 1500, synth: 'whoosh', sg: 1.0, sr: 0.55 },
         moon_step: { sound: 'step-stone', gain: 0.26, cooldown: 170, synth: 'landing', sg: 0.42, speed: 'impactSpeed', also: [{ synth: 'hollow', sg: 0.16, sr: 0.72, delay: 0.035 }] }
     };
 

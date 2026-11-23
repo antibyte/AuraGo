@@ -11,7 +11,8 @@ sandbox.globalThis = sandbox;
 sandbox.fetch = () => Promise.reject(new Error('offline test'));
 vm.createContext(sandbox);
 const load = (rel) => vm.runInContext(fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8'), sandbox, { filename: rel });
-['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
+['biomes.js', 'fx.js', 'physics.js', 'behaviors.js', 'bosses.js', 'audio-dsp.js', 'sfx.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach(load);
+const Mix = sandbox.RunenpfadAudioMix;
 const Audio = sandbox.RunenpfadAudio;
 const Sfx = sandbox.RunenpfadSfx;
 const Music = sandbox.RunenpfadMusic;
@@ -62,7 +63,56 @@ const CONTRACT_EVENTS = [
     'boss_intro', 'boss_phase', 'boss_defeat', 'boss_slam', 'boss_telegraph', 'boss_attack', 'enemy_attack', 'enemy_dive'
 ];
 CONTRACT_EVENTS.forEach((type) => assert.ok(Audio.CUE_MAP[type] || Sfx.CUES[type], `cue missing for ${type}`));
-assert.equal(Audio.CUE_MAP.jump.synth, 'whoosh', 'the common jump keeps its sample and adds a soft lift layer');
+assert.equal(Audio.CUE_MAP.jump.synth, 'hop', 'the common jump is a soft pitched hop, with only a quiet sample under it');
+assert.ok(Audio.CUE_MAP.jump.gain <= 0.2 && Audio.hasSynth('hop'), 'the jump sample layer is quieter than the hop');
+assert.ok(Audio.CUE_MAP.attack_melee.also.some((a) => a.synth === 'sword2') && Audio.hasSynth('sword2'), 'the hero sword uses the blade recipe');
+assert.ok(Audio.CUE_MAP.in_attack.by.map.knight.synth === 'sword', 'the old sword recipe stays for in_attack');
+['skid', 'climb_step', 'heart_beat', 'revive', 'gust_end'].forEach((type) => {
+    const cue = Audio.CUE_MAP[type] || Sfx.CUES[type];
+    assert.ok(cue, `cue missing for new event ${type}`);
+});
+assert.ok(Sfx.CUES.climb_step.by.map.ladder && Sfx.CUES.climb_step.by.map.rope, 'climb_step has a ladder and a rope variant');
+['ui_select', 'ui_back', 'ui_deny', 'ui_buy', 'ui_pause', 'ui_resume', 'ui_star_1', 'ui_star_2', 'ui_star_3', 'ui_unlock'].forEach((id) => {
+    assert.ok(Audio.UI_CUES[id] && Audio.hasSynth(Audio.UI_CUES[id].synth), `UI cue ${id} has a synth`);
+});
+assert.ok(Math.abs(Audio.UI_CUES.ui_star_2.sr / Audio.UI_CUES.ui_star_1.sr - Math.pow(2, 4 / 12)) < 0.01 && Math.abs(Audio.UI_CUES.ui_star_3.sr / Audio.UI_CUES.ui_star_2.sr - Math.pow(2, 4 / 12)) < 0.01, 'ui_star rises by a major third each');
+
+// ---- audio mix: trim table, distance, room tones ----
+assert.ok(Mix && Object.keys(Mix.TRIM).length >= 250, 'trim table is embedded');
+Object.keys(Mix.TRIM).forEach((key) => {
+    assert.ok(Number.isFinite(Mix.TRIM[key]), `trim ${key} is a number`);
+    const at = key.indexOf(':');
+    const type = at < 0 ? key : key.slice(0, at);
+    const variant = at < 0 ? null : key.slice(at + 1);
+    if (type === 'ui') { assert.ok(Audio.UI_CUES[variant], `trim ${key} names a UI cue`); return; }
+    const cue = Audio.CUE_MAP[type] || Sfx.CUES[type];
+    assert.ok(cue, `trim ${key} refers to a cue`);
+    if (variant !== null) {
+        assert.ok(cue.by && (Object.prototype.hasOwnProperty.call(cue.by.map, variant) || cue.by.map['*']), `trim ${key} refers to a variant of the cue`);
+    }
+});
+const db = (x) => 20 * Math.log10(x);
+assert.ok(Math.abs(db(Mix.trimFor('boss_telegraph', 'leap')) - Mix.TRIM['boss_telegraph:leap']) < 1e-6, 'type:variant lookup');
+assert.ok(Math.abs(db(Mix.trimFor('boss_telegraph', 'nope')) - Mix.TRIM.boss_telegraph) < 1e-6, 'unknown variant falls back to the type');
+assert.equal(Mix.trimFor('totally_unknown', 'x'), 1, 'unknown cue has unit gain');
+assert.equal(Mix.trimFor('step'), Mix.trimFor('step', undefined), 'no variant uses the type key');
+assert.ok(Mix.trimFor('duel_attack', 'witch_a') <= Math.pow(10, 24 / 20) + 1e-9 && Mix.trimFor('duel_block', 'npc') >= Math.pow(10, -14 / 20) - 1e-9, 'trim stays inside -14 .. +16 dB');
+const cam = { x: 1000, w: 800 };
+assert.equal(Mix.distanceGain(1400, cam), 1, 'in view');
+assert.equal(Mix.distanceGain(undefined, cam), 1, 'no x');
+assert.equal(Mix.distanceGain(5, null), 1, 'no camera');
+assert.ok(Math.abs(Mix.distanceGain(1800 + 800 * 1.2, cam) - 0.3) < 1e-9 && Math.abs(Mix.distanceGain(-9000, cam) - 0.3) < 1e-9, 'far away is 0.3');
+let lastDist = 1;
+for (let x = 1800; x < 3000; x += 40) { const gx = Mix.distanceGain(x, cam); assert.ok(gx <= lastDist + 1e-12, 'distance gain falls monotonically'); lastDist = gx; }
+lastDist = 1;
+for (let x = 1000; x > -400; x -= 40) { const gx = Mix.distanceGain(x, cam); assert.ok(gx <= lastDist + 1e-12, 'distance gain falls monotonically to the left'); lastDist = gx; }
+const outdoor = { stage: { ambience: { primary: 'forest-day', secondary: 'stream' } } };
+assert.deepEqual(Mix.ambienceFor(outdoor), outdoor.stage.ambience, 'outdoors keeps the stage ambience');
+['wood', 'cave', 'tomb', 'ice', 'works'].forEach((theme) => {
+    const spec = Mix.ambienceFor({ stage: outdoor.stage, interior: { room: { def: { theme } } } });
+    assert.ok(Audio.REQUIRED_SOUNDS.includes(spec.primary) && (!spec.secondary || Audio.REQUIRED_SOUNDS.includes(spec.secondary)), `room tone for ${theme} uses known sounds`);
+    assert.ok(spec.level > 0 && spec.level <= 1, 'room tone has a level');
+});
 assert.notEqual(Sfx.CUES.moth_tell.synth, Sfx.CUES.moth_dive.synth, 'moth warning differs from its dive');
 assert.notEqual(Sfx.CUES.toad_tell.synth, Sfx.CUES.toad_wave.synth, 'toad warning differs from its wave');
 assert.ok(Sfx.CUES.moth_tell.cooldown >= Sfx.CUES.moth_dive.cooldown && Sfx.CUES.toad_tell.cooldown >= Sfx.CUES.toad_wave.cooldown, 'enemy tells have deliberate cooldowns');
@@ -132,7 +182,22 @@ const before = nodeCount;
 controller.handleEvents([{ type: 'totally_unknown_event', detail: { x: 1 } }, null, {}], null, null);
 assert.equal(nodeCount, before, 'unknown events are silent');
 assert.ok(controller.liveSynths() > 0 && controller.liveSynths() <= 40, 'live synth voices stay under the hard cap: ' + controller.liveSynths());
+controller.setSfxVolume(0.5); controller.setMusicVolume(0.25); controller.setSfxVolume('bad');
+controller.setAmbience({ primary: 'fire', secondary: '', level: 0.5 });
 controller.dispose();
+const uiCtl = Audio.createAudioController({ manifest });
+uiCtl.unlock();
+['ui_select', 'ui_back', 'ui_deny', 'ui_buy', 'ui_pause', 'ui_resume', 'ui_star_1', 'ui_star_2', 'ui_star_3', 'ui_unlock', 'cut_open'].forEach((id) => {
+    sandbox.__t += 1;
+    const n0 = nodeCount;
+    uiCtl.play(id);
+    assert.ok(nodeCount > n0, `UI cue ${id} builds nodes`);
+});
+assert.ok(typeof uiCtl.musicPort().reverb !== 'undefined' && uiCtl.musicPort().reverb !== uiCtl.musicPort().bus, 'music reverb send enters through its own gain');
+uiCtl.dispose();
+// the volume setters are valid before any audio context exists
+const early = Audio.createAudioController({ manifest });
+early.setSfxVolume(0.3); early.setMusicVolume(0.6); early.dispose();
 
 // Cues kept in sfx.js resolve at event time even though audio.js loaded first.
 Object.keys(Sfx.CUES).forEach((type) => {
@@ -658,8 +723,9 @@ assert.ok(MusicScores && typeof MusicScores.compose === 'function' && typeof Mus
     mCtrl.dispose();
     aCtrl.dispose();
 }
-['audio-dsp.js', 'sfx.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((rel) => {
+['audio-dsp.js', 'sfx.js', 'audio-mix.js', 'audio.js', 'music-voices.js', 'music.js', 'music-scores.js', 'duel-music.js', 'place-music.js', 'story-music.js'].forEach((rel) => {
     const src = fs.readFileSync(path.join(root, 'ui/js/desktop/apps/runenpfad', rel), 'utf8');
     assert.ok(!src.includes('Math.random') && !src.includes('Date.now'), rel + ' stays deterministic');
+    assert.ok(!/https?:\/\//.test(src), rel + ' has no URL strings');
 });
 console.log('Runenpfad audio checks passed: ' + (Object.keys(Audio.CUE_MAP).length + Object.keys(Sfx.CUES).length) + ' cues, ' + Object.keys(Sfx.SYNTHS).length + ' synth recipes, ' + themeIds.length + ' music themes.');
