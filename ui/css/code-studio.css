@@ -3449,3 +3449,294 @@ button.cs-sidebar-crumb:focus-visible {
     color: var(--cs-muted);
     cursor: default;
 }
+
+/* === IDE package 1B: git === */
+
+/* Branch button at the top of the Source Control panel. */
+button.cs-git-branch {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--cs-line);
+    background: transparent;
+    font: 12px var(--cs-ui-font);
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-git-branch + .cs-git-commit-area {
+    border-top: 0;
+}
+
+button.cs-git-branch:hover,
+.cs-git-history-toggle:hover,
+.cs-git-history-entry:hover {
+    background: var(--cs-hover);
+}
+
+.cs-git-section-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-git-section-actions {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+/* Stage, unstage and discard: shown on hover and keyboard focus, always on touch screens. */
+.cs-git-row-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: 2px;
+    padding-right: 6px;
+    opacity: 0;
+    transition: opacity var(--cs-transition-fast);
+}
+
+.cs-git-change-row:hover .cs-git-row-actions,
+.cs-git-change-row:focus-within .cs-git-row-actions {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .cs-git-row-actions {
+        opacity: 1;
+    }
+}
+
+.cs-git-row-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--ds-radius-xs);
+    background: transparent;
+    color: var(--cs-muted);
+    font: 600 14px/1 var(--cs-ui-font);
+    letter-spacing: 0;
+    text-transform: none;
+    cursor: pointer;
+}
+
+.cs-git-row-action:hover:not(:disabled),
+.cs-git-row-action:focus-visible {
+    background: var(--cs-hover);
+    color: var(--cs-text);
+}
+
+.cs-git-row-action:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.cs-git-dir {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+.cs-git-init {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px 12px;
+    color: var(--cs-muted);
+    font-size: 12px;
+}
+
+.cs-git-init p {
+    margin: 0;
+}
+
+/* History */
+.cs-git-history-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--vd-mat-label-color, var(--cs-muted));
+    font: 700 11px var(--vd-mat-label-font, var(--cs-ui-font));
+    letter-spacing: var(--vd-mat-label-tracking, 0.5px);
+    text-transform: var(--vd-mat-label-transform, uppercase);
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-git-chevron {
+    display: inline-block;
+    transition: transform var(--cs-transition-fast);
+}
+
+.cs-git-history-toggle[aria-expanded="false"] .cs-git-chevron {
+    transform: rotate(-90deg);
+}
+
+.cs-git-history-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 10px 4px;
+    padding: 2px 4px 2px 8px;
+    border: 1px solid var(--cs-border);
+    border-radius: 999px;
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+.cs-git-history-filter span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-git-history-filter button {
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.cs-git-history-list {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 8px;
+}
+
+.cs-git-history-entry {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 6px;
+    width: 100%;
+    padding: 4px 10px;
+    border: 0;
+    background: transparent;
+    color: var(--cs-text);
+    font: 12px var(--cs-ui-font);
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-git-history-subject,
+.cs-git-history-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-git-history-meta {
+    grid-column: 2;
+    color: var(--cs-muted);
+    font-size: 11px;
+}
+
+/* Commit tab */
+.cs-git-commit-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--cs-line);
+}
+
+.cs-git-commit-subject {
+    color: var(--cs-text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cs-git-commit-body {
+    margin: 0;
+    color: var(--cs-text);
+    font: 12px/1.5 var(--cs-mono-font);
+    white-space: pre-wrap;
+}
+
+.cs-git-commit-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    color: var(--cs-muted);
+    font-size: 12px;
+}
+
+.cs-git-commit-files {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cs-git-commit-files-head {
+    color: var(--cs-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cs-git-commit-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--cs-text);
+    font-size: 12px;
+}
+
+/* Light themes: the warning colour tinted into the ink, as the diff lines do with accent and danger. */
+.cs-git-truncated {
+    padding: 6px 8px;
+    color: light-dark(color-mix(in srgb, var(--cs-warning) 30%, var(--vd-text)), var(--cs-warning));
+    font: 12px var(--cs-ui-font);
+}
+
+/* Blame gutter (git-history.js) */
+.code-studio .cm-gutter.cs-blame-gutter {
+    width: 220px;
+    border-right: 1px solid var(--cs-border-subtle);
+    cursor: pointer;
+}
+
+.code-studio .cm-gutter.cs-blame-gutter .cm-gutterElement:hover {
+    background: var(--cs-hover);
+}
+
+.cs-blame-entry {
+    overflow: hidden;
+    padding: 0 8px;
+    color: var(--cs-muted);
+    font-family: var(--cs-ui-font);
+    font-size: 0.9em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-blame-entry.first {
+    color: var(--cs-text);
+}
+
+.cs-blame-entry.uncommitted {
+    color: var(--cs-muted);
+    font-style: italic;
+}
+
+/* Branch item in the status bar */
+.code-studio-statusbar .cs-status-branch svg {
+    flex: 0 0 auto;
+    opacity: 0.8;
+}
