@@ -32,12 +32,27 @@ func TestKaggleLocalesComplete(t *testing.T) {
 				}
 			}
 			if locale != "en" {
-				for _, key := range []string{"config.kaggle.policy_help", "config.kaggle.local_help", "kaggle.state_lost", "kaggle.cancel_on_site"} {
+				for _, key := range []string{"config.kaggle.policy_help", "config.kaggle.local_help", "config.kaggle.allowed_machine_shapes_help", "kaggle.state_lost", "kaggle.cancel_on_site"} {
 					if values[key] == base[key] {
 						t.Error("untranslated help", key)
 					}
 				}
 			}
 		})
+	}
+}
+
+// The Kaggle form offers the two known machine shapes as a checkbox list saved through one hidden array field.
+func TestKaggleConfigMachineShapeChoices(t *testing.T) {
+	module := normalizeAssetText(mustReadUIFile(t, "cfg/kaggle.js"))
+	for _, marker := range []string{
+		"const KAGGLE_MACHINE_SHAPES = ['NvidiaTeslaT4', 'NvidiaL4'];",
+		`data-path="kaggle.allowed_machine_shapes" data-type="array"`,
+		"data-cfg-choice data-kaggle-shape=",
+		"shapeField.dispatchEvent(new Event('input', { bubbles: true }));",
+	} {
+		if !strings.Contains(module, marker) {
+			t.Fatalf("cfg/kaggle.js misses %q", marker)
+		}
 	}
 }

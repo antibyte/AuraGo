@@ -30,6 +30,7 @@ func TestConfigChibiSenseiSection(t *testing.T) {
 		"cfgChoiceOptionsHTML('providers', helpTexts['chibi_sensei.generator.provider'] || {}, data.generator.provider || '')",
 		"window.AuraConfigState.set('chibi_sensei.enabled', next)",
 		"/desktop?app=chibi-sensei",
+		"'chibi_sensei.training.machine_shape'", "'chibi_sensei.training.delete_remote_after_run'", "CHIBI_SENSEI_MACHINE_SHAPES",
 	} {
 		if !strings.Contains(module, marker) {
 			t.Fatalf("cfg/chibi_sensei.js misses %q", marker)
@@ -73,7 +74,7 @@ func TestConfigChibiSenseiSection(t *testing.T) {
 	if err := json.Unmarshal(mustReadUIFile(t, "lang/config/chibi_sensei/en.json"), &en); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"config.section.chibi_sensei.label", "config.section.chibi_sensei.desc", "config.chibi_sensei.generator_provider_main", "config.chibi_sensei.later_note"} {
+	for _, key := range []string{"config.section.chibi_sensei.label", "config.section.chibi_sensei.desc", "config.chibi_sensei.generator_provider_main", "config.chibi_sensei.later_note", "config.chibi_sensei.training_title", "config.chibi_sensei.training_delete_remote_help"} {
 		if en[key] == "" {
 			t.Fatalf("lang/config/chibi_sensei/en.json misses %s", key)
 		}

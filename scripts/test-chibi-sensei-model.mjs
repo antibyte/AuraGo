@@ -247,6 +247,10 @@ eq(R.eventText(tt, { kind: 'error', data: { code: 'oom' } }), 'chibi_sensei.even
 eq(R.eventText(tt, { kind: 'error', data: { code: 'train_failed' } }), 'chibi_sensei.event.error{"text":"chibi_sensei.fail.train_failed"}', 'event: new failure code');
 eq(R.eventText(tt, { kind: 'warn', data: { code: 'time_budget' } }), 'chibi_sensei.event.warn{"text":"chibi_sensei.warning.time_budget"}', 'event: warning');
 eq(R.eventText(tt, { kind: 'state', data: { to: 'running' } }), 'chibi_sensei.event.state{"state":"chibi_sensei.run_state.running"}', 'event: state');
+eq([['running', 'verifying'], ['running', 'cleaning'], ['verifying', 'cleaning'], ['downloading', 'succeeded'], ['verifying', 'failed'], ['running', 'downloading'], ['starting', 'running'], ['cleaning', 'succeeded'], ['succeeded', 'running']].map(x => R.metricsReloadDue(x[0], x[1])),
+    [false, true, true, true, true, false, false, false, false], 'metricsReloadDue');
+eq(['remote_timeout', 'data_changed', 'internal_error', 'storage_full'].map(c => R.failText(tt, c).fix), ['chibi_sensei.fail.remote_timeout_fix', 'chibi_sensei.fail.data_changed_fix', 'chibi_sensei.fail.internal_fix', 'chibi_sensei.fail.storage_full_fix'], 'failText: orchestrator codes');
+eq(R.eventText(tt, { kind: 'warn', data: { code: 'cleanup_failed' } }), 'chibi_sensei.event.warn{"text":"chibi_sensei.warning.cleanup_failed"}', 'event: log highlight warning');
 eq(R.eventText(tt, { kind: 'mystery', data: { x: 1 } }), '', 'event: unknown kinds are skipped');
 eq(R.failText(tt, 'env_low_disk'), { title: 'chibi_sensei.fail.env_low_disk', fix: 'chibi_sensei.fail.env_low_disk_fix' }, 'failText: known code');
 eq(R.failText(tt, 'something_new'), { title: 'chibi_sensei.fail.unknown', fix: 'chibi_sensei.fail.unknown_fix' }, 'failText: unknown code is generic');

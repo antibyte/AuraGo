@@ -64,10 +64,26 @@
         desktop_readonly: { title: 'chibi_sensei.fail.desktop_readonly', fix: 'chibi_sensei.fail.desktop_readonly_fix' },
         interrupted: { title: 'chibi_sensei.fail.interrupted', fix: 'chibi_sensei.fail.interrupted_fix' },
         internal: { title: 'chibi_sensei.fail.internal', fix: 'chibi_sensei.fail.internal_fix' },
+        data_changed: { title: 'chibi_sensei.fail.data_changed', fix: 'chibi_sensei.fail.data_changed_fix' },
+        packaging_failed: { title: 'chibi_sensei.fail.packaging_failed', fix: 'chibi_sensei.fail.packaging_failed_fix' },
+        profile_changed: { title: 'chibi_sensei.fail.profile_changed', fix: 'chibi_sensei.fail.profile_changed_fix' },
+        upload_failed: { title: 'chibi_sensei.fail.upload_failed', fix: 'chibi_sensei.fail.upload_failed_fix' },
+        dataset_failed: { title: 'chibi_sensei.fail.dataset_failed', fix: 'chibi_sensei.fail.dataset_failed_fix' },
+        dataset_timeout: { title: 'chibi_sensei.fail.dataset_timeout', fix: 'chibi_sensei.fail.dataset_timeout_fix' },
+        submit_failed: { title: 'chibi_sensei.fail.submit_failed', fix: 'chibi_sensei.fail.submit_failed_fix' },
+        kaggle_slot_busy: { title: 'chibi_sensei.fail.kaggle_slot_busy', fix: 'chibi_sensei.fail.kaggle_slot_busy_fix' },
+        manifest_invalid: { title: 'chibi_sensei.fail.manifest_invalid', fix: 'chibi_sensei.fail.manifest_invalid_fix' },
+        artifact_too_large: { title: 'chibi_sensei.fail.artifact_too_large', fix: 'chibi_sensei.fail.artifact_too_large_fix' },
+        storage_full: { title: 'chibi_sensei.fail.storage_full', fix: 'chibi_sensei.fail.storage_full_fix' },
+        trainer_failed: { title: 'chibi_sensei.fail.trainer_failed', fix: 'chibi_sensei.fail.trainer_failed_fix' },
+        kaggle_unavailable: { title: 'chibi_sensei.fail.kaggle_unavailable', fix: 'chibi_sensei.fail.kaggle_unavailable_fix' },
+        internal_error: { title: 'chibi_sensei.fail.internal', fix: 'chibi_sensei.fail.internal_fix' },
         unknown: { title: 'chibi_sensei.fail.unknown', fix: 'chibi_sensei.fail.unknown_fix' }
     };
     const WARNING_KEYS = {
-        time_budget: 'chibi_sensei.warning.time_budget', base_gguf_skipped: 'chibi_sensei.warning.base_gguf_skipped', unknown: 'chibi_sensei.warning.unknown'
+        time_budget: 'chibi_sensei.warning.time_budget', base_gguf_skipped: 'chibi_sensei.warning.base_gguf_skipped',
+        base_gguf_invalid: 'chibi_sensei.warning.base_gguf_invalid', remote_timeout: 'chibi_sensei.warning.remote_timeout',
+        manifest_missing: 'chibi_sensei.warning.manifest_missing', cleanup_failed: 'chibi_sensei.warning.cleanup_failed', unknown: 'chibi_sensei.warning.unknown'
     };
     const ARTIFACT_KEYS = {
         gguf_tuned: 'chibi_sensei.artifact.gguf_tuned', gguf_base: 'chibi_sensei.artifact.gguf_base', adapter: 'chibi_sensei.artifact.adapter',
@@ -119,6 +135,14 @@
             if (m && Number.isFinite(Number(m.step))) map.set((m.kind === 'eval' ? 'eval' : 'train') + ':' + Number(m.step), m);
         });
         return Array.from(map.values()).sort((a, b) => (Number(a.step) - Number(b.step)) || ((a.kind === 'eval') - (b.kind === 'eval')));
+    }
+
+    // metricsReloadDue: the server sends no metric event when it swaps the live numbers for the final metrics file, so the monitor
+    // reloads them once when the run leaves running, downloading or verifying for a later state.
+    const METRICS_LIVE = ['running', 'downloading', 'verifying'];
+    const STATE_ORDER = ['queued', 'packaging', 'uploading', 'creating_dataset', 'waiting_dataset', 'starting', 'running', 'downloading', 'verifying', 'cleaning', 'succeeded', 'failed', 'cancelled'];
+    function metricsReloadDue(prev, next) {
+        return METRICS_LIVE.indexOf(prev) >= 0 && METRICS_LIVE.indexOf(next) < 0 && STATE_ORDER.indexOf(next) > STATE_ORDER.indexOf(prev);
     }
 
     function elapsedSeconds(run, now) {
@@ -322,6 +346,16 @@
             }, METRICS_DEBOUNCE_MS);
         }
 
+        async function reloadMetrics(id) {
+            const mine = detailSeq;
+            try {
+                const body = await inst.api.runMetrics(id, 0);
+                if (stale(mine)) return;
+                applyMetricsBody(body, true);
+                scheduleChart();
+            } catch (_) { /* the end of the run loads them again */ }
+        }
+
         function scheduleChart() {
             if (chartTimer) return;
             chartTimer = setTimeout(() => { chartTimer = 0; if (!disposed) paintChart(); }, CHART_DEBOUNCE_MS);
@@ -332,8 +366,10 @@
             sync();
             if (!detail || run.id !== detail.id) return;
             const was = P.runTerminal(detail.run && detail.run.state);
+            const before = detail.run && detail.run.state;
             detail.run = Object.assign({}, detail.run || {}, run);
             if (!was && P.runTerminal(detail.run.state)) { paintDetail(); finishDetail(detail.id); return; }
+            if (metricsReloadDue(before, detail.run.state)) reloadMetrics(detail.id);
             maybeFetchMetrics();
             paintDetail();
         }
@@ -661,5 +697,5 @@
         };
     }
 
-    P.run = { createArea, timeline, reachedPhase, mergeMetrics, elapsedSeconds, liveNote, eventText, failText, confusion, PHASES, STAGES };
+    P.run = { createArea, timeline, reachedPhase, mergeMetrics, elapsedSeconds, liveNote, metricsReloadDue, eventText, failText, confusion, PHASES, STAGES };
 })();

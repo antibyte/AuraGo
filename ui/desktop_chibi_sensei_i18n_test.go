@@ -63,6 +63,8 @@ func TestChibiSenseiTranslationsAreTranslated(t *testing.T) {
 			"chibi_sensei.training.batch": true, "chibi_sensei.footer.train": true, "chibi_sensei.step.test": true,
 			"chibi_sensei.editor.role_system": true, "chibi_sensei.table.col_text": true, "chibi_sensei.editor.tags_label": true,
 		},
+		// Danish uses the English word for a download.
+		"da": {"chibi_sensei.run.download": true},
 		"pl": {"chibi_sensei.table.col_prompt": true},
 		"pt": {"chibi_sensei.table.col_prompt": true},
 		"sv": {"chibi_sensei.table.col_prompt": true},

@@ -137,7 +137,7 @@ New app-scoped prefixes must contain no `ad` substring; verify
   Operator guide: `../documentation/runenpfad.md`. Verify `node scripts/test-runenpfad-sim.mjs`,
   `TestRunenpfadRegistration` and `TestDesktopRunenpfadBrowser`.
 
-- Chibi Sensei (`chibi-sensei`, category `ai`) is the small-model training studio; P1 ships projects, the Goal step and the dataset studio. Runtime: `js/desktop/apps/AGENTS.md` (Chibi Sensei); backend: `../internal/chibisensei/AGENTS.md`. Verify `go test ./ui -run '(?i)ChibiSensei'` and `node scripts/test-chibi-sensei-model.mjs`.
+- Chibi Sensei (`chibi-sensei`, category `ai`) is the small-model training studio; P1 ships projects, the Goal step and the dataset studio; P2 adds Kaggle training (preflight with admin enabling, license acceptance, confirmation with plan token, run monitor with loss chart, downloads). Runtime: `js/desktop/apps/AGENTS.md` (Chibi Sensei); backend: `../internal/chibisensei/AGENTS.md`. Verify `go test ./ui -run '(?i)ChibiSensei'`, `node scripts/test-chibi-sensei-model.mjs` and `AURAGO_RUN_BROWSER_SMOKE=1 go test ./internal/server -run TestChibiSenseiAppRealServerBrowser -count=1 -timeout 15m`.
 
 - AgentMail exposes default-off `allow_delete` separately from readonly. Connection
   tests render only translated fixed error codes, with all sixteen email/AgentMail
