@@ -301,7 +301,13 @@
         }
         m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(str);
         if (m) return [+m[1], +m[2], +m[3]];
+        m = /^color\(\s*srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/i.exec(str);
+        if (m) return [Math.round(+m[1] * 255), Math.round(+m[2] * 255), Math.round(+m[3] * 255)];
         return null;
+    }
+
+    function luminance(c) {
+        return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
     }
 
     function mixToTeal(base, amount) {
@@ -360,15 +366,29 @@
             var cs = win.getComputedStyle(host);
             fontFamily = cs.fontFamily || 'sans-serif';
             function v(name, fb) { var s = cs.getPropertyValue(name); return s && s.trim() ? s.trim() : fb; }
+            // Custom properties come back unresolved (color-mix(), gradients); a probe element yields a real rgb colour.
+            function solid(expr) {
+                var probe = doc.createElement('span');
+                probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;color:' + expr;
+                host.appendChild(probe);
+                var out = parseColor(win.getComputedStyle(probe).color);
+                host.removeChild(probe);
+                return out;
+            }
             var muted = v('--notes-muted', '#8a8f98');
+            var ink = v('--notes-ink', '#d8dae0');
+            var bgRGB = solid('var(--notes-paper-color, var(--notes-well, #1c1d21))') || solid(v('--notes-well', '#1c1d21')) || [28, 29, 33];
+            var light = luminance(bgRGB) > 0.55;
             var d = {
                 node: muted,
                 current: v('--notes-accent', '#7c6cf0'),
                 tag: mixToTeal(muted, 0.6),
-                unresolved: muted,
+                unresolved: light ? ink : muted,
                 link: muted,
-                text: v('--notes-ink', '#d8dae0'),
-                background: v('--notes-well', '#1c1d21')
+                text: ink,
+                background: 'rgba(' + bgRGB.map(Math.round).join(',') + ',0.75)',
+                linkAlpha: light ? 0.6 : 0.4,
+                linkAlphaDim: light ? 0.16 : 0.1
             };
             if (typeof options.colors === 'function') {
                 var c = options.colors() || {};
@@ -396,7 +416,7 @@
             var links = sim ? sim.links : [];
             ctx.lineWidth = 1;
             ctx.strokeStyle = colors.link;
-            ctx.globalAlpha = focus ? 0.1 : 0.4;
+            ctx.globalAlpha = focus ? colors.linkAlphaDim : colors.linkAlpha;
             ctx.beginPath();
             for (i = 0; i < links.length; i++) {
                 var l = links[i];
@@ -457,7 +477,7 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 2;
             for (i = 0; i < nodes.length; i++) {
                 nd = nodes[i];
                 var special = nd.id === focus || nd.id === kbId || (nb && nb.has(nd.id));

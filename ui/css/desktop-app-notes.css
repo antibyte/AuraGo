@@ -292,3 +292,21 @@ mark.notes-highlight{background:color-mix(in srgb,#f5d547 42%,transparent);color
 @container(max-width:600px){.notes-prop-row{grid-template-columns:62px minmax(0,1fr);gap:6px}.notes-daily-nav [data-daily-date]{display:none}.notes-daily-nav{margin-left:2px}}
 @media(pointer:coarse){.vd-notes-app .notes-props-toggle,.vd-notes-app .notes-props-add{height:40px;min-height:40px}.vd-notes-app .notes-chip button{width:32px;height:32px;min-width:32px;min-height:32px}.vd-notes-app .notes-chips input{height:36px;min-height:36px;font-size:14px}.notes-chip{line-height:32px}.vd-notes-app .notes-daily-nav button{width:36px;height:36px}}
 @media(prefers-reduced-motion:reduce){.notes-props-twist{transition:none}}
+/* Theme survey fixes (2026-11-23): light schemes, candy/wood/brick skins, tag chips, callouts, highlights. */
+.vd-notes-app{--notes-highlight:#f5d547;--notes-highlight-mix:42%}
+:is(.desktop-body[data-scheme="light"],.desktop-body[data-theme=fruity][data-fruity-mode=light],.desktop-body[data-theme=amiga],.desktop-body[data-theme=windows_xp],.desktop-body[data-theme=lollipop],.desktop-body[data-theme=voxel_world]) .vd-notes-app{--notes-highlight-mix:62%}
+mark.notes-highlight{background:color-mix(in srgb,var(--notes-highlight) var(--notes-highlight-mix),transparent)}
+:is(.desktop-body[data-scheme="light"],.desktop-body[data-theme=fruity][data-fruity-mode=light],.desktop-body[data-theme=amiga],.desktop-body[data-theme=windows_xp],.desktop-body[data-theme=lollipop],.desktop-body[data-theme=voxel_world]) .vd-notes-app :is(.notes-wikilink[data-unresolved],.notes-link-row[data-unresolved-link] strong){color:color-mix(in srgb,var(--notes-muted) 75%,var(--notes-ink));text-decoration-color:color-mix(in srgb,var(--notes-muted) 80%,var(--notes-ink))}
+:is(.desktop-body[data-scheme="light"],.desktop-body[data-theme=fruity][data-fruity-mode=light],.desktop-body[data-theme=amiga],.desktop-body[data-theme=windows_xp],.desktop-body[data-theme=lollipop],.desktop-body[data-theme=voxel_world]) .vd-notes-app .notes-wikilink:not([data-unresolved]){text-decoration-color:color-mix(in srgb,var(--notes-accent) 75%,var(--notes-ink))}
+:is(.desktop-body[data-scheme="light"],.desktop-body[data-theme=fruity][data-fruity-mode=light],.desktop-body[data-theme=amiga],.desktop-body[data-theme=windows_xp],.desktop-body[data-theme=lollipop],.desktop-body[data-theme=voxel_world]) .vd-notes-app :is(.notes-hashtag,.notes-chip:not([data-chip=aliases]),.notes-tag-chip,.notes-context-tag){background:color-mix(in srgb,var(--notes-accent) 20%,transparent);color:color-mix(in srgb,var(--notes-accent) 55%,var(--notes-ink))}
+:is(.desktop-body[data-scheme="light"],.desktop-body[data-theme=fruity][data-fruity-mode=light],.desktop-body[data-theme=amiga],.desktop-body[data-theme=windows_xp],.desktop-body[data-theme=lollipop],.desktop-body[data-theme=voxel_world]) .vd-notes-app .notes-callout-marker{color:color-mix(in srgb,var(--callout,#5b8def) 68%,var(--notes-ink))}
+:is(.desktop-body[data-scheme="light"],.desktop-body[data-theme=fruity][data-fruity-mode=light]) .vd-notes-app .notes-palette-row.is-active{background:color-mix(in srgb,var(--notes-accent) 20%,var(--notes-surface));border-color:color-mix(in srgb,var(--notes-accent) 60%,transparent);box-shadow:inset 3px 0 0 var(--notes-accent)}
+.vd-notes-app .notes-chips input::placeholder{color:color-mix(in srgb,var(--notes-muted) 72%,var(--notes-ink));opacity:1}
+.vd-notes-app .notes-documentbar button:disabled{opacity:.5}
+/* Lollipop: the candy stripes belong to the window skin, not behind the app bars. */
+.desktop-body[data-theme=lollipop] .vd-notes-app :is(.notes-documentbar,.vd-notes-toolbar){background:var(--vd-mat-bar-color,#ffddee)}
+/* Brick and wood skins: the file tree sits on a calm, opaque side surface. */
+.desktop-body[data-theme=voxel_world] .vd-notes-app .notes-library,.desktop-body[data-theme=organic] .vd-notes-app .notes-library{background:var(--vd-mat-side-color,var(--notes-panel))}
+/* Organic: readable status bar and placeholders on dark wood. */
+.desktop-body[data-theme=organic] .vd-notes-app .notes-statusbar{background:var(--vd-mat-bar-color,var(--notes-bar));color:color-mix(in srgb,var(--notes-muted) 45%,var(--notes-ink))}
+.desktop-body[data-theme=organic] .vd-notes-app .notes-chips input::placeholder{color:color-mix(in srgb,var(--notes-muted) 40%,var(--notes-ink))}
