@@ -821,5 +821,139 @@
         };
     }
 
-    return { createSimulation: createSimulation, create: create };
+    // --------------------------------------------------------------- graph data
+
+    var ATTACHMENT_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|avif|ico|pdf|mp3|wav|ogg|m4a|flac|mp4|webm|mov|mkv|zip|csv|json|txt)$/i;
+
+    function wikiTarget(value) {
+        var v = String(value == null ? '' : value);
+        var bar = -1;
+        for (var i = 0; i < v.length; i++) {
+            if (v.charAt(i) === '\\' && v.charAt(i + 1) === '|') { i++; continue; }
+            if (v.charAt(i) === '|') { bar = i; break; }
+        }
+        if (bar >= 0) v = v.slice(0, bar);
+        var hash = v.indexOf('#');
+        if (hash >= 0) v = v.slice(0, hash);
+        return v.split('\\|').join('|').trim();
+    }
+
+    function baseTitle(path) {
+        return String(path || '').split('/').pop().replace(/\.md$/i, '');
+    }
+
+    // Pure: builds {nodes, links} from the notes index.
+    // options: linkPath(note, link) -> resolved path or '', tags, unresolved, orphans (default true),
+    // filter, fuzzy(query, text) -> score, current (path).
+    function fromIndex(notes, options) {
+        options = options || {};
+        notes = notes || [];
+        var linkPath = options.linkPath || function (n, l) { return l.path || ''; };
+        var withTags = !!options.tags, withUnresolved = !!options.unresolved, withOrphans = options.orphans !== false;
+        var match = options.fuzzy || function (q, text) {
+            return String(text).toLowerCase().indexOf(String(q).toLowerCase()) >= 0 ? 1 : 0;
+        };
+
+        var noteById = new Map(), order = [], i, j;
+        for (i = 0; i < notes.length; i++) {
+            var n = notes[i];
+            if (!n || !n.path || noteById.has(n.path)) continue;
+            noteById.set(n.path, n);
+            order.push(n);
+        }
+
+        var edgeSeen = new Set(), edges = [], degree = new Map();
+        var extra = new Map(); // tag and unresolved nodes
+        function addEdge(a, b) {
+            if (a === b) return;
+            var key = a < b ? a + '\n' + b : b + '\n' + a;
+            if (edgeSeen.has(key)) return;
+            edgeSeen.add(key);
+            edges.push({ source: a, target: b });
+            degree.set(a, (degree.get(a) || 0) + 1);
+            degree.set(b, (degree.get(b) || 0) + 1);
+        }
+        for (i = 0; i < order.length; i++) {
+            var note = order[i], links = note.links || [];
+            for (j = 0; j < links.length; j++) {
+                var link = links[j], path = linkPath(note, link) || '';
+                if (path) {
+                    if (/\.md$/i.test(path) && noteById.has(path)) addEdge(note.path, path);
+                    continue;
+                }
+                if (!withUnresolved || link.embed || (link.kind && link.kind !== 'wiki')) continue;
+                var target = wikiTarget(link.target != null ? link.target : link.value);
+                if (!target || ATTACHMENT_EXT.test(target)) continue;
+                target = target.replace(/\.md$/i, '');
+                if (!target) continue;
+                var uid = 'unresolved:' + target.toLowerCase();
+                if (!extra.has(uid)) extra.set(uid, { id: uid, label: target, kind: 'unresolved' });
+                addEdge(note.path, uid);
+            }
+            if (withTags) {
+                var seenTags = {}, tags = note.tags || [];
+                for (j = 0; j < tags.length; j++) {
+                    var tag = String(tags[j] || '').trim();
+                    if (!tag || seenTags[tag]) continue;
+                    seenTags[tag] = true;
+                    var tid = 'tag:' + tag;
+                    if (!extra.has(tid)) extra.set(tid, { id: tid, label: '#' + tag, kind: 'tag' });
+                    addEdge(note.path, tid);
+                }
+            }
+        }
+
+        var keep = new Set(), nodes = [];
+        var filter = String(options.filter || '').trim();
+        for (i = 0; i < order.length; i++) {
+            var cand = order[i];
+            if (!withOrphans && !degree.get(cand.path)) continue;
+            if (filter && !(match(filter, cand.title || baseTitle(cand.path)) > 0)) continue;
+            keep.add(cand.path);
+        }
+        // tag and unresolved nodes stay while they touch a kept note
+        for (i = 0; i < edges.length; i++) {
+            var ed = edges[i];
+            if (extra.has(ed.target) && keep.has(ed.source)) keep.add(ed.target);
+            else if (extra.has(ed.source) && keep.has(ed.target)) keep.add(ed.source);
+        }
+        for (i = 0; i < order.length; i++) {
+            if (!keep.has(order[i].path)) continue;
+            nodes.push({ id: order[i].path, label: order[i].title || baseTitle(order[i].path), kind: 'note', current: options.current === order[i].path });
+        }
+        extra.forEach(function (v, id) { if (keep.has(id)) nodes.push(v); });
+        var out = [];
+        for (i = 0; i < edges.length; i++) if (keep.has(edges[i].source) && keep.has(edges[i].target)) out.push(edges[i]);
+        return { nodes: nodes, links: out };
+    }
+
+    // Pure: the part of a graph within `depth` hops of `centerId`.
+    function neighborhood(graph, centerId, depth) {
+        var nodes = (graph && graph.nodes) || [], links = (graph && graph.links) || [];
+        var byId = new Map(), adj = new Map(), i;
+        for (i = 0; i < nodes.length; i++) byId.set(nodes[i].id, nodes[i]);
+        if (!byId.has(centerId)) return { nodes: [], links: [] };
+        for (i = 0; i < links.length; i++) {
+            var a = links[i].source, b = links[i].target;
+            if (!adj.has(a)) adj.set(a, []);
+            if (!adj.has(b)) adj.set(b, []);
+            adj.get(a).push(b);
+            adj.get(b).push(a);
+        }
+        var seen = new Set([centerId]), frontier = [centerId];
+        for (var d = 0; d < Math.max(1, depth | 0); d++) {
+            var next = [];
+            for (i = 0; i < frontier.length; i++) {
+                var list = adj.get(frontier[i]) || [];
+                for (var k = 0; k < list.length; k++) if (!seen.has(list[k])) { seen.add(list[k]); next.push(list[k]); }
+            }
+            frontier = next;
+        }
+        return {
+            nodes: nodes.filter(function (nd) { return seen.has(nd.id); }),
+            links: links.filter(function (l) { return seen.has(l.source) && seen.has(l.target); })
+        };
+    }
+
+    return { createSimulation: createSimulation, create: create, fromIndex: fromIndex, neighborhood: neighborhood };
 });
