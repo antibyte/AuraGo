@@ -1290,6 +1290,17 @@ func TestServiceSettingsUseDefaultsAndValidateWrites(t *testing.T) {
 	if bootstrap.Settings["sound.volume"] != "0.6" {
 		t.Fatalf("default sound.volume = %q", bootstrap.Settings["sound.volume"])
 	}
+	for _, key := range []string{"sound.interface", "sound.startup"} {
+		if bootstrap.Settings[key] != "true" {
+			t.Fatalf("default %s = %q", key, bootstrap.Settings[key])
+		}
+		if err := svc.SetSetting(ctx, key, "false", SourceUser); err != nil {
+			t.Fatalf("SetSetting %s false: %v", key, err)
+		}
+		if err := svc.SetSetting(ctx, key, "maybe", SourceUser); err == nil {
+			t.Fatalf("SetSetting %s accepted an invalid value", key)
+		}
+	}
 	workspaceState, err := svc.GetWorkspaceState(ctx)
 	if err != nil {
 		t.Fatalf("GetWorkspaceState: %v", err)

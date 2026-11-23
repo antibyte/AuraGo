@@ -289,6 +289,8 @@ func DesktopSettingDefinitions() []SettingDefinition {
 		{Key: "sound.notifications", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.navigation", Default: "true", Values: []string{"true", "false"}},
 		{Key: "sound.files", Default: "true", Values: []string{"true", "false"}},
+		{Key: "sound.interface", Default: "true", Values: []string{"true", "false"}},
+		{Key: "sound.startup", Default: "true", Values: []string{"true", "false"}},
 		{Key: "screensaver.enabled", Default: "false", Values: []string{"true", "false"}},
 		{Key: "screensaver.theme", Default: "abyss", Values: []string{"abyss", "event_horizon", "aurora", "ink", "stardust", "random"}},
 		{Key: "screensaver.idle_minutes", Default: "5", Values: []string{"1", "2", "3", "5", "10", "15", "30", "60"}},

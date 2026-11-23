@@ -344,6 +344,8 @@
         'sound.notifications': 'true',
         'sound.navigation': 'true',
         'sound.files': 'true',
+        'sound.interface': 'true',
+        'sound.startup': 'true',
         'screensaver.enabled': 'false',
         'screensaver.theme': 'abyss',
         'screensaver.idle_minutes': '5',
