@@ -341,7 +341,16 @@ export function obsidian(options = {}) {
         });
     });
 
+    // Input rules see inline atoms as U+FFFC and cannot rebuild them from the matched text: a match that holds one
+    // (or sits in inline code) must leave the document alone.
+    const OBJECT_REPLACEMENT = String.fromCharCode(0xfffc);
+    const inInlineCode = (state, from, to) => {
+        const code = state.schema.marks.inlineCode;
+        return !!code && state.doc.rangeHasMark(from, to, code);
+    };
+
     const wikiRule = $inputRule(ctx => new InputRule(/(!?)\[\[([^\[\]\n]{1,500})\]\]$/, (state, match, start, end) => {
+        if (match[2].includes(OBJECT_REPLACEMENT) || inInlineCode(state, start, end)) return null;
         const node = wikiLink.type(ctx).create({value: match[2], embed: match[1] === '!'});
         return state.tr.replaceWith(start, end, node);
     }));
@@ -357,7 +366,12 @@ export function obsidian(options = {}) {
     const highlightRule = $inputRule(ctx => new InputRule(/(?:^|[^=])==([^=\s](?:[^=]*[^=\s])?)==$/, (state, match, start, end) => {
         const lead = match[0].length - match[1].length - 4;
         const type = highlight.type(ctx);
-        const tr = state.tr.replaceWith(start + lead, end, state.schema.text(match[1], [type.create()]));
+        const open = start + lead;
+        if (inInlineCode(state, open, end)) return null;
+        // Keep the typed content as it is (atoms, bold, links): drop the two "==" delimiters and mark what is between.
+        // The closing delimiter is one "=" in the document plus the "=" being typed.
+        const tr = state.tr.delete(end - 1, end).delete(open, open + 2);
+        tr.addMark(open, open + match[1].length, type.create());
         return tr.removeStoredMark(type);
     }));
 

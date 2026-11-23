@@ -147,6 +147,20 @@ async () => {
     check(obsEditor.content()===obsidianNote.replace('# Obsidian','# Obsidian!'),'Obsidian round trip changed text: '+JSON.stringify(obsEditor.content()));
     obsEditor.command('highlight');obsEditor.insertWiki('Neu');
     check(obsEditor.content().includes('[[Neu]]'),'insertWiki failed');
+    // Typing the closing "==" of a highlight must keep the chip and the bold text it wraps (the input rule used to flatten both).
+    obsEditor.setContent('==see [[Note]] **here**=\n');
+    {
+        const view=obsEditor.view,end=view.state.doc.child(0).nodeSize-1;
+        view.dispatch(view.state.tr.setSelection(view.state.selection.constructor.near(view.state.doc.resolve(end))));
+        view.someProp('handleTextInput',handle=>handle(view,end,end,'='));
+        let chip=0,boldHere=false;
+        view.state.doc.descendants(node=>{
+            if(node.type.name==='wiki_link')chip++;
+            if(node.isText&&node.text.includes('here'))boldHere=node.marks.some(mark=>mark.type.name==='strong')&&node.marks.some(mark=>mark.type.name==='highlight');
+        });
+        check(chip===1&&boldHere,'Highlight rule lost the chip or the bold mark: '+JSON.stringify(view.state.doc.toJSON()));
+        check(obsEditor.content().trim()==='==see [[Note]] **here**==','Highlight rule changed the text: '+JSON.stringify(obsEditor.content()));
+    }
     await obsEditor.destroy();obsHost.remove();
 
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
