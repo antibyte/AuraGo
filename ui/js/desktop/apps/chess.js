@@ -9,7 +9,6 @@
     }
 
     const PIECE_VALUES = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-    const PIECE_ORDER = ['q', 'r', 'b', 'n', 'p'];
     const PIECE_GLYPH = { q: '♛', r: '♜', b: '♝', n: '♞', p: '♟', k: '♚' };
 
     function render(container, windowId, context = {}) {
@@ -27,7 +26,7 @@
             searchToken: 0, hintToken: 0, agentComment: '',
             commentaryText: '', commentarySpeaking: false, commentaryAudioUnavailable: false,
             lastMove: null, reviewIndex: -1, reviewActive: false, reviewFen: '', reviewMove: null,
-            hintMove: null, clockTimer: null, whiteTime: 0, blackTime: 0, lastTickSecond: -1,
+            hintMove: null, selectedSquare: null, clockTimer: null, whiteTime: 0, blackTime: 0, lastTickSecond: -1,
             activeTab: 'moves', captured: { w: [], b: [] }, prevCapturedCounts: { w: 0, b: 0 },
             materialScore: 0, gameOver: false, endedReason: '', refs: {}
         };
@@ -36,6 +35,7 @@
             ? window.renderChessTemplate(ctx, PIECE_GLYPH)
             : '<div class="vd-chess is-error"><div class="vd-chess-ribbon"><div class="vd-chess-status" data-status>' + ctx.esc(ctx.t('desktop.chess_load_failed')) + '</div></div></div>';
         collectRefs(state);
+        window.ChessTable?.mount(state);
         state.audio = window.createChessAudio ? window.createChessAudio({ muted: state.soundMuted }) : null;
         state.commentary = window.createChessCommentary
             ? window.createChessCommentary({
@@ -129,9 +129,6 @@
             clockWrap: q('[data-clock-wrap]'),
             clockSelect: q('[data-clock-select]'),
             boardSkin: q('[data-board-skin]'),
-            clocks: q('[data-clocks]'),
-            whiteTime: q('[data-white-time]'),
-            blackTime: q('[data-black-time]'),
             moves: q('[data-moves]'),
             movesCount: q('[data-moves-count]'),
             tabs: q('[data-tabs]'),
@@ -186,8 +183,7 @@
             refs.boardSkin.addEventListener('change', () => {
                 const skinApi = window.ChessBoardSkin;
                 state.boardSkin = skinApi ? skinApi.normalize(refs.boardSkin.value) : 'green';
-                if (skinApi) skinApi.save(state.boardSkin);
-                if (skinApi) skinApi.apply(state);
+                if (skinApi) { skinApi.save(state.boardSkin); skinApi.apply(state); }
                 updateLastMoveMarkers(state);
                 updateCheckMarkers(state);
                 if (window.ChessView3D) window.ChessView3D.sync(state);
@@ -284,13 +280,15 @@
             assetsCache: true,
             style: {
                 cssClass: (window.ChessBoardSkin ? window.ChessBoardSkin.normalize(state.boardSkin) : 'green'),
-                showCoordinates: true,
+                /* The coordinates are engraved in the wood rim (chess-table.js), not inside the squares. */
+                showCoordinates: false,
                 borderType: BORDER_TYPE.thin,
                 pieces: { file: 'standard.svg', tileSize: 40 },
                 animationDuration: 280
             },
             extensions: [{ class: Markers, props: { autoMarkers: null, sprite: 'markers.svg' } }]
         });
+        window.ChessBoardSkin?.apply(state);
     }
 
     function attachBoardResizeObserver(state) {
@@ -364,20 +362,13 @@
         if (!isPlayersTurn(state) && state.mode !== 'local') requestOpponentMove(state);
     }
 
+    /* The clocks live in the player plates; chess-table.js renders them from the state. */
     function initClocks(state) {
         stopClock(state);
         const base = state.clockBase;
-        if (base > 0) {
-            state.whiteTime = base;
-            state.blackTime = base;
-            state.refs.clocks.hidden = false;
-            formatClocks(state);
-            startClock(state);
-        } else {
-            state.whiteTime = 0;
-            state.blackTime = 0;
-            state.refs.clocks.hidden = true;
-        }
+        state.whiteTime = base > 0 ? base : 0;
+        state.blackTime = state.whiteTime;
+        if (base > 0) startClock(state);
     }
 
     function startClock(state) {
@@ -401,26 +392,10 @@
             state.lastTickSecond = sec;
             state.audio?.lowTime?.();
         }
-        formatClocks(state);
+        window.ChessTable?.update(state);
         if (state.whiteTime <= 0 || state.blackTime <= 0) {
             endGame(state, 'time', state.whiteTime <= 0 ? 'w' : 'b');
         }
-    }
-
-    function formatClocks(state) {
-        state.refs.whiteTime.textContent = formatTime(state.whiteTime);
-        state.refs.blackTime.textContent = formatTime(state.blackTime);
-        state.refs.clocks.querySelectorAll('[data-clock]').forEach(el => {
-            const side = el.dataset.clock;
-            const active = !state.gameOver && state.game && ((side === 'white' && state.game.turn() === 'w') || (side === 'black' && state.game.turn() === 'b'));
-            el.classList.toggle('is-active', active);
-            el.classList.toggle('is-low', active && ((side === 'white' ? state.whiteTime : state.blackTime) < 30));
-        });
-    }
-
-    function formatTime(seconds) {
-        const s = Math.max(0, Math.ceil(seconds));
-        return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     }
 
     function boardInputHandler(state, event) {
@@ -447,7 +422,11 @@
         clearMoveMarkers(state);
         if (state.hintMove) drawHintMarkers(state);
         const moves = state.game.moves({ square, verbose: true });
-        if (moves.length > 0) state.audio?.select?.();
+        if (moves.length > 0) {
+            state.audio?.select?.();
+            state.selectedSquare = square;
+            updateSelectMarker(state);
+        }
         if (state.board.addLegalMovesMarkers) state.board.addLegalMovesMarkers(moves);
         return moves.length > 0;
     }
@@ -782,9 +761,11 @@
 
     function updateOrientation(state, animated) {
         if (!state.board || !state.vendor) return;
-        const color = currentBoardOrientation(state) === 'black' ? state.vendor.COLOR.black : state.vendor.COLOR.white;
-        state.board.setOrientation(color, !!animated).catch(() => {});
+        const black = currentBoardOrientation(state) === 'black';
+        state.board.setOrientation(black ? state.vendor.COLOR.black : state.vendor.COLOR.white, !!animated).catch(() => {});
+        state.refs.root.classList.toggle('is-flipped', black);
         window.ChessView3D?.sync(state);
+        window.ChessTable?.update(state);
     }
 
     function updateLastMoveMarkers(state) {
@@ -792,11 +773,20 @@
         const MT = state.vendor.MARKER_TYPE;
         const target = state.reviewActive ? state.reviewMove : state.lastMove;
         try {
-            state.board.removeMarkers(MT.framePrimary);
+            state.board.removeMarkers(MT.square);
             if (target) {
-                state.board.addMarker(MT.framePrimary, target.from);
-                state.board.addMarker(MT.framePrimary, target.to);
+                state.board.addMarker(MT.square, target.from);
+                state.board.addMarker(MT.square, target.to);
             }
+        } catch (e) {}
+    }
+
+    function updateSelectMarker(state) {
+        if (!state.board || !state.vendor?.MARKER_TYPE) return;
+        const MT = state.vendor.MARKER_TYPE;
+        try {
+            state.board.removeMarkers(MT.circlePrimary);
+            if (state.selectedSquare) state.board.addMarker(MT.circlePrimary, state.selectedSquare);
         } catch (e) {}
     }
 
@@ -804,10 +794,10 @@
         if (!state.board || !state.vendor?.MARKER_TYPE) return;
         const MT = state.vendor.MARKER_TYPE;
         try {
-            state.board.removeMarkers(MT.frameDanger);
+            state.board.removeMarkers(MT.circleDangerFilled);
             if (!state.reviewActive && callBool(state.game, 'inCheck', 'in_check')) {
                 const king = findKing(state.game, state.game.turn());
-                if (king) state.board.addMarker(MT.frameDanger, king);
+                if (king) state.board.addMarker(MT.circleDangerFilled, king);
             }
         } catch (e) {}
     }
@@ -835,7 +825,6 @@
         updateCaptured(state);
         updateInfo(state);
         setWindowMenus(state);
-        formatClocks(state);
         updateReplayControls(state);
     }
 
@@ -915,22 +904,9 @@
         state.refs.draw.hidden = false;
     }
 
+    /* Captured material, the material balance and the player plates are painted by chess-table.js. */
     function updateCaptured(state) {
-        const renderPieces = (list, prevCount) => {
-            if (!list.length) return '<span class="vd-chess-captured-empty">—</span>';
-            const sorted = list.slice().sort((a, b) => PIECE_ORDER.indexOf(a) - PIECE_ORDER.indexOf(b));
-            const added = list.length > prevCount;
-            return sorted.map((p, idx) => `<span class="vd-chess-piece vd-chess-piece-${p}${added && idx === sorted.length - 1 ? ' is-new' : ''}">${PIECE_GLYPH[p]}</span>`).join('');
-        };
-        state.refs.capturedWhite.innerHTML = renderPieces(state.captured.b, state.prevCapturedCounts.b);
-        state.refs.capturedBlack.innerHTML = renderPieces(state.captured.w, state.prevCapturedCounts.w);
-        state.prevCapturedCounts.b = state.captured.b.length;
-        state.prevCapturedCounts.w = state.captured.w.length;
-        const wMat = state.captured.b.reduce((s, p) => s + (PIECE_VALUES[p] || 0), 0);
-        const bMat = state.captured.w.reduce((s, p) => s + (PIECE_VALUES[p] || 0), 0);
-        const diff = wMat - bMat;
-        state.refs.material.textContent = (diff > 0 ? '+' : '') + String(diff);
-        window.ChessMaterialBar?.update(state.refs, diff);
+        window.ChessTable?.update(state);
     }
 
     function updateInfo(state) {
@@ -974,7 +950,10 @@
         for (let i = 0; i <= idx; i++) tempGame.move(history[i]);
         state.reviewFen = tempGame.fen();
         state.reviewMove = history[idx] ? { from: history[idx].from, to: history[idx].to } : null;
-        state.board?.setPosition(state.reviewFen, true).catch(() => {});
+        /* Review snaps: the vendor queues animated position changes and does not
+           cancel them, so a backlog of review glides would delay the animation of
+           the next real move and keep the move input locked while it waits. */
+        state.board?.setPosition(state.reviewFen, false).catch(() => {});
         window.ChessView3D?.sync(state);
         state.audio?.select?.();
         updateLastMoveMarkers(state);
@@ -1036,6 +1015,10 @@
 
     function clearMoveMarkers(state) {
         state.board?.removeLegalMovesMarkers?.();
+        if (state.selectedSquare) {
+            state.selectedSquare = null;
+            updateSelectMarker(state);
+        }
         if (state.hintMove && state.board && state.vendor?.MARKER_TYPE) {
             try { state.board.removeMarkers(state.vendor.MARKER_TYPE.frame); } catch (e) {}
         }

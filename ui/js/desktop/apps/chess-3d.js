@@ -22,18 +22,24 @@
   const PIECE_LIFT = 0.0016;
   const SELECT_LIFT = 0.0065;
   const PIECE_TOP = 0.1;
-  const FIT_MARGIN = 1.12;
+  const FIT_MARGIN = 1.045;
 
+  /* Square, frame, brass, coordinate and floor colours mirror the skin
+     variable sets of css/desktop-app-chess.css. */
   const SKINS = {
-    green: { light: 0xe6e2d0, dark: 0x458b62, frame: 0x4f3520, frameHi: 0x7c5737, brass: 0xc9a45c, coord: '#efe4c8', floor: 0x0f1713 },
-    blue: { light: 0xdceefa, dark: 0x6f9ec2, frame: 0x303c4d, frameHi: 0x52657c, brass: 0x9fb8d4, coord: '#dbe9f6', floor: 0x0e141c },
-    'chess-club': { light: 0xead7b5, dark: 0xa46238, frame: 0x5d3d24, frameHi: 0x8b623f, brass: 0xd4ad63, coord: '#f4e4c3', floor: 0x17120e },
-    default: { light: 0xefe0c2, dark: 0xb99166, frame: 0x523924, frameHi: 0x7a5636, brass: 0xcba660, coord: '#f0e2c6', floor: 0x12161d }
+    green: { light: 0xececcf, dark: 0x6f9059, frame: 0x5d3d25, frameHi: 0x8a6239, brass: 0xdcbd7c, coord: '#efdcb0', floor: 0x0f1713 },
+    blue: { light: 0xdfe7ef, dark: 0x7391b3, frame: 0x33261e, frameHi: 0x55402f, brass: 0xd3dae3, coord: '#e3e9f1', floor: 0x0e141c },
+    'chess-club': { light: 0xe7d3ae, dark: 0x9b6641, frame: 0x4a2f1b, frameHi: 0x74502f, brass: 0xd7b877, coord: '#f1e0b9', floor: 0x17120e },
+    default: { light: 0xf0d9b5, dark: 0xb58863, frame: 0x523924, frameHi: 0x7a5636, brass: 0xd9ba7a, coord: '#f0dfb8', floor: 0x12161d },
+    marble: { light: 0xe7e5e0, dark: 0x2f3238, frame: 0x26232a, frameHi: 0x3a3540, brass: 0xe3e7ee, coord: '#d9dde6', floor: 0x0b0b0e },
+    slate: { light: 0xb8c0ca, dark: 0x4b5564, frame: 0x343941, frameHi: 0x4b515c, brass: 0xc8d0da, coord: '#e2e7ee', floor: 0x0c0e12 }
   };
 
+  /* Boxwood and ebony with a satin oil finish; the rougher values keep the
+     highlights soft instead of plastic. */
   const PIECE_MATERIALS = {
-    w: { color: 0xf6f0e2, roughness: 0.27, metalness: 0.03, pad: 0x265c42 },
-    b: { color: 0x22242c, roughness: 0.22, metalness: 0.14, pad: 0x6b2626 }
+    w: { color: 0xf6f0e2, roughness: 0.4, metalness: 0.02, pad: 0x265c42 },
+    b: { color: 0x24262e, roughness: 0.36, metalness: 0.06, pad: 0x6b2626 }
   };
   function squareName(file, rank) {
     return FILES[file] + (rank + 1);
@@ -73,104 +79,16 @@
     }
   }
 
-  function createGrainTexture(THREE, contrast, streaks) {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#f4f4f4';
-    ctx.fillRect(0, 0, 128, 128);
-    let seed = 0x9e3779b9;
-    const rnd = () => {
-      seed ^= seed << 13; seed >>>= 0;
-      seed ^= seed >> 17; seed >>>= 0;
-      seed ^= seed << 5; seed >>>= 0;
-      return (seed >>> 0) / 4294967296;
-    };
-    for (let y = 0; y < 128; y++) {
-      const wave = Math.sin((y / 128) * Math.PI * (streaks || 6)) * 0.5 + 0.5;
-      const shade = Math.round(244 - wave * contrast - rnd() * (contrast * 0.45));
-      ctx.fillStyle = 'rgb(' + shade + ',' + shade + ',' + shade + ')';
-      ctx.fillRect(0, y, 128, 1);
-    }
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
-
-  function createStudioEnvironment(THREE, renderer) {
-    if (!THREE.PMREMGenerator || typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    const bg = ctx.createLinearGradient(0, 0, 0, 128);
-    bg.addColorStop(0, '#2a3548');
-    bg.addColorStop(0.48, '#18202c');
-    bg.addColorStop(0.52, '#10131a');
-    bg.addColorStop(1, '#090b10');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, 256, 128);
-
-    // Warm key softbox + cool rim softbox for crisp Staunton collar highlights
-    const warm = ctx.createRadialGradient(74, 30, 4, 74, 30, 46);
-    warm.addColorStop(0, 'rgba(255, 244, 224, 0.92)');
-    warm.addColorStop(0.5, 'rgba(255, 226, 185, 0.28)');
-    warm.addColorStop(1, 'rgba(255, 226, 185, 0)');
-    ctx.fillStyle = warm;
-    ctx.fillRect(0, 0, 256, 90);
-
-    const cool = ctx.createRadialGradient(196, 38, 4, 196, 38, 40);
-    cool.addColorStop(0, 'rgba(185, 214, 255, 0.72)');
-    cool.addColorStop(1, 'rgba(185, 214, 255, 0)');
-    ctx.fillStyle = cool;
-    ctx.fillRect(120, 0, 136, 90);
-
-    const equirect = new THREE.CanvasTexture(canvas);
-    equirect.mapping = THREE.EquirectangularReflectionMapping;
-    if ('colorSpace' in equirect && THREE.SRGBColorSpace) equirect.colorSpace = THREE.SRGBColorSpace;
-    try {
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      pmrem.compileEquirectangularShader();
-      const target = pmrem.fromEquirectangular(equirect);
-      equirect.dispose();
-      pmrem.dispose();
-      return target;
-    } catch (e) {
-      equirect.dispose();
-      return null;
-    }
-  }
-
-  function createCoordTexture(THREE, text, color) {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, 64, 64);
-    ctx.fillStyle = color || '#efe4c8';
-    ctx.font = '700 34px system-ui, -apple-system, Segoe UI, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 32, 34);
-    const tex = new THREE.CanvasTexture(canvas);
-    if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }
+  const {
+    createGrainTexture, createGrainVariants, createStudioEnvironment, createCoordTexture, createPoolTexture
+  } = window.ChessStage3D || {};
 
   function createChess3D(config) {
     const options = config || {};
     const container = options.container;
     const app = options.app || {};
     const api = options.api || {};
-    if (!container || !window.THREE || !window.THREE.GLTFLoader) return null;
+    if (!container || !window.THREE || !window.THREE.GLTFLoader || !window.ChessStage3D) return null;
 
     const THREE = window.THREE;
     const t = typeof options.t === 'function' ? options.t : (key) => key;
@@ -210,7 +128,7 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap || THREE.PCFShadowMap;
     if ('toneMapping' in renderer && THREE.ACESFilmicToneMapping) {
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.06;
+      renderer.toneMappingExposure = 1.1;
     }
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.domElement.className = 'vd-chess-3d-canvas';
@@ -250,7 +168,8 @@
     const coordGroup = new THREE.Group();
     boardGroup.add(coordGroup);
 
-    const squareGrain = ownTex(createGrainTexture(THREE, 14, 5));
+    const squareGrain = createGrainVariants(THREE, 20, 5);
+    squareGrain.forEach(ownTex);
     const frameGrain = ownTex(createGrainTexture(THREE, 24, 9));
 
     const squareGeometry = new THREE.PlaneGeometry(SQUARE, SQUARE);
@@ -311,7 +230,12 @@
     frame.add(filletMesh);
     boardGroup.add(frame);
 
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x0f1713, roughness: 0.94, metalness: 0 });
+    /* The lamp pool is emissive, so it stays soft without another shadow pass. */
+    const poolTexture = ownTex(createPoolTexture(THREE));
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0f1713, roughness: 0.94, metalness: 0,
+      emissive: 0xffdca8, emissiveIntensity: 0.2, emissiveMap: poolTexture || null
+    });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), floorMaterial);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -BASE_THICKNESS - 0.0005;
@@ -323,7 +247,7 @@
         const name = squareName(file, rank);
         const material = new THREE.MeshStandardMaterial({
           color: 0xffffff,
-          map: squareGrain,
+          map: squareGrain[(rank * 3 + file * 5) % squareGrain.length] || null,
           roughness: 0.62,
           metalness: 0.02
         });
@@ -375,6 +299,7 @@
       }
     }
 
+    let introTween = null;
     const controls = window.THREE.OrbitControls
       ? new window.THREE.OrbitControls(camera, renderer.domElement)
       : null;
@@ -388,7 +313,10 @@
       controls.maxPolarAngle = 1.32;
       controls.target.set(0, 0.02, 0);
       controls.update();
-      controls.addEventListener('start', () => { state.userMoved = true; });
+      controls.addEventListener('start', () => {
+        state.userMoved = true;
+        if (introTween) { introTween.duration = 0; introTween = null; }
+      });
     }
 
     const state = {
@@ -410,7 +338,8 @@
       disposed: false,
       frame: 0,
       ready: false,
-      userMoved: false
+      userMoved: false,
+      introPending: false
     };
 
     function squarePosition(name) {
@@ -922,11 +851,27 @@
       }
     }
 
+    /* The camera glides in from a higher, wider stand when the view opens or resets. */
+    function intro() {
+      if (reduced || introTween) return;
+      const target = controls ? controls.target.clone() : new THREE.Vector3(0, 0.02, 0);
+      const endPos = camera.position.clone();
+      const startPos = endPos.clone().sub(target).multiplyScalar(1.5);
+      startPos.y = Math.max(startPos.y, 0.78);
+      startPos.add(target);
+      introTween = tween(820, (progress) => {
+        camera.position.lerpVectors(startPos, endPos, easeInOut(progress));
+        camera.lookAt(target);
+        if (progress >= 1) introTween = null;
+      });
+    }
+
     function resetCamera() {
       state.userMoved = false;
       if (controls) controls.target.set(0, 0.02, 0);
       applyDefaultAngle();
       fitCamera();
+      intro();
     }
 
     function resize() {
@@ -957,9 +902,16 @@
       });
       if (controls) controls.update();
       renderer.render(scene, camera);
+      /* The first frame compiles the shaders and can stall; the glide starts
+         once that frame is on screen so the stall cannot eat it. */
+      if (state.introPending) {
+        state.introPending = false;
+        intro();
+      }
     }
 
     resize();
+    state.introPending = true;
     loadPieces();
     state.ready = true;
     sync();

@@ -594,6 +594,8 @@
                 '/js/desktop/apps/chess-agent.js',
                 '/js/desktop/apps/chess-commentary.js',
                 '/js/desktop/apps/chess-fx.js',
+                '/js/desktop/apps/chess-table.js',
+                '/js/desktop/apps/chess-3d-stage.js',
                 '/js/desktop/apps/chess-3d.js',
                 '/js/desktop/apps/chess.js'
             ]

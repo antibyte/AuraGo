@@ -99,16 +99,14 @@
 
             let leftPct = 50;
             let topPct = 50;
-            if (square && frame) {
+            const inner = frame ? frame.querySelector('[data-chess-board]') : null;
+            if (square && inner) {
                 const shellRect = host.getBoundingClientRect();
-                const frameRect = frame.getBoundingClientRect();
-                if (shellRect.width > 0 && shellRect.height > 0 && frameRect.width > 0) {
+                const innerRect = inner.getBoundingClientRect();
+                if (shellRect.width > 0 && shellRect.height > 0 && innerRect.width > 0) {
                     const sq = squarePercent(square, orientation);
-                    const rim = 12;
-                    const innerW = Math.max(1, frameRect.width - rim * 2);
-                    const innerH = Math.max(1, frameRect.height - rim * 2);
-                    const px = (frameRect.left - shellRect.left) + rim + (sq.x / 100) * innerW;
-                    const py = (frameRect.top - shellRect.top) + rim + (sq.y / 100) * innerH;
+                    const px = innerRect.left - shellRect.left + (sq.x / 100) * innerRect.width;
+                    const py = innerRect.top - shellRect.top + (sq.y / 100) * innerRect.height;
                     leftPct = Math.max(8, Math.min(92, (px / shellRect.width) * 100));
                     topPct = Math.max(8, Math.min(92, (py / shellRect.height) * 100));
                 }
@@ -576,10 +574,11 @@
         };
     }
 
+    const BOARD_SKINS = ['green', 'blue', 'chess-club', 'default', 'marble', 'slate'];
+
     function normalizeBoardSkin(value) {
         const skin = String(value || 'green');
-        if (skin === 'blue' || skin === 'chess-club' || skin === 'default' || skin === 'green') return skin;
-        return 'green';
+        return BOARD_SKINS.indexOf(skin) !== -1 ? skin : 'green';
     }
 
     function loadBoardSkin() {
@@ -601,6 +600,8 @@
         const skin = normalizeBoardSkin(state.boardSkin);
         const border = state.board.props.style.borderType || 'thin';
         state.board.props.style.cssClass = skin;
+        /* The stylesheet derives squares, rim, inlay and markers from the skin attribute. */
+        if (state.refs && state.refs.root) state.refs.root.dataset.chessSkin = skin;
         try {
             const svg = state.refs && state.refs.board && state.refs.board.querySelector('svg.cm-chessboard');
             if (svg) svg.setAttribute('class', 'cm-chessboard border-type-' + border + ' ' + skin);
@@ -632,6 +633,16 @@
         const t = ctx.t;
         const king = (pieceGlyph && pieceGlyph.k) || '♚';
         const icon = (k, fb, cls) => ctx.iconMarkup(k, fb, cls || 'vd-chess-action-icon', 14);
+        /* One player plate: avatar, name, thinking dots, captured material, lead and clock. */
+        const plate = side =>
+            '<div class="vd-chess-plate" data-plate="' + side + '" role="group">' +
+            '<span class="vd-chess-plate-avatar" data-plate-avatar aria-hidden="true"></span>' +
+            '<span class="vd-chess-plate-name" data-plate-name></span>' +
+            '<span class="vd-chess-plate-thinking" aria-hidden="true"><i></i><i></i><i></i></span>' +
+            '<span class="vd-chess-plate-tray" data-plate-tray aria-hidden="true"></span>' +
+            '<span class="vd-chess-plate-lead" data-plate-lead title="' + esc(t('desktop.chess_material')) + '" hidden></span>' +
+            '<span class="vd-chess-plate-clock" data-plate-clock role="timer" aria-label="' + esc(t('desktop.chess_clock')) + '" hidden></span>' +
+            '</div>';
         return '' +
             '<div class="vd-chess" tabindex="-1">' +
             '<section class="vd-chess-board-pane">' +
@@ -654,20 +665,22 @@
             '<div class="vd-chess-material-track" title="' + esc(t('desktop.chess_material')) + '">' +
             '<div class="vd-chess-material-fill" data-material-fill></div></div>' +
             '<span class="vd-chess-material-score" data-material-bar-score>0</span></div></div>' +
+            '<div class="vd-chess-table">' +
+            plate('top') +
             '<div class="vd-chess-board-shell">' +
             '<div class="vd-chess-fx-layer" data-fx-layer aria-hidden="true"></div>' +
             '<div class="vd-chess-board-frame" data-chess-board-frame>' +
+            '<div class="vd-chess-rim-coords" data-rim-coords aria-hidden="true"></div>' +
             '<div class="vd-chess-board" data-chess-board></div>' +
-            '<div class="vd-chess-board-3d" data-chess-board-3d hidden></div></div></div>' +
+            '<div class="vd-chess-board-3d" data-chess-board-3d hidden></div>' +
+            '<div class="vd-chess-surface" aria-hidden="true"><i class="is-grain"></i><i class="is-bevel"></i><i class="is-light"></i></div>' +
+            '</div></div>' +
+            plate('bottom') +
+            '</div>' +
             '<div class="vd-chess-ribbon">' +
             '<div class="vd-chess-status" data-status role="status" aria-live="polite">' + esc(t('desktop.chess_loading')) + '</div>' +
             '<div class="vd-chess-comment" data-comment></div></div></section>' +
             '<aside class="vd-chess-side">' +
-            '<div class="vd-chess-clocks" data-clocks hidden>' +
-            '<div class="vd-chess-clock" data-clock="white"><span class="vd-chess-clock-side">' + king + '</span>' +
-            '<span class="vd-chess-clock-time" data-white-time>--:--</span></div>' +
-            '<div class="vd-chess-clock" data-clock="black"><span class="vd-chess-clock-side">' + king + '</span>' +
-            '<span class="vd-chess-clock-time" data-black-time>--:--</span></div></div>' +
             '<div class="vd-chess-controls">' +
             '<details class="vd-chess-settings" data-settings>' +
             '<summary class="vd-chess-settings-summary">' + icon('settings', '⚙', 'vd-chess-settings-icon') +
@@ -692,7 +705,9 @@
             '<option value="green">' + esc(t('desktop.chess_skin_green')) + '</option>' +
             '<option value="blue">' + esc(t('desktop.chess_skin_blue')) + '</option>' +
             '<option value="chess-club">' + esc(t('desktop.chess_skin_wood')) + '</option>' +
-            '<option value="default">' + esc(t('desktop.chess_skin_classic')) + '</option></select></div>' +
+            '<option value="default">' + esc(t('desktop.chess_skin_classic')) + '</option>' +
+            '<option value="marble">' + esc(t('desktop.chess_skin_marble')) + '</option>' +
+            '<option value="slate">' + esc(t('desktop.chess_skin_slate')) + '</option></select></div>' +
             '<div class="vd-chess-field"><span class="vd-chess-label">' + esc(t('desktop.chess_player_color')) + '</span>' +
             '<div class="vd-chess-segment" data-color-group>' +
             '<button type="button" data-color="white" class="active">' + esc(t('desktop.chess_color_white')) + '</button>' +
@@ -730,7 +745,15 @@
             '<button type="button" data-copy-pgn>' + icon('copy', '⧉') + '<span>' + esc(t('desktop.chess_copy_pgn')) + '</span></button>' +
             '<button type="button" data-copy-fen>' + icon('copy', '⧉') + '<span>' + esc(t('desktop.chess_copy_fen')) + '</span></button>' +
             '</div>' +
-            '</div></aside></div>';
+            '</div>' +
+            '<div class="vd-chess-keys">' +
+            '<span class="vd-chess-keys-title">' + esc(t('desktop.chess_shortcuts')) + '</span>' +
+            '<span><kbd>F</kbd>' + esc(t('desktop.chess_flip')) + '</span>' +
+            '<span><kbd>M</kbd>' + esc(t('desktop.chess_sound')) + '</span>' +
+            '<span><kbd>V</kbd>' + esc(t('desktop.chess_commentary')) + '</span>' +
+            '<span><kbd>←</kbd><kbd>→</kbd>' + esc(t('desktop.chess_tab_moves')) + '</span>' +
+            '</div>' +
+            '</aside></div>';
     }
 
     const SAN_FIGURINES = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘' };

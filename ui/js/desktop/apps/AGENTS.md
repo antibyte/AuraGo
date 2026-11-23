@@ -2990,6 +2990,11 @@ buttons and menu popovers remain excluded from those gestures.
   path and opponent-error mapper unchanged. The missing-template
   HTML fallback reuses the same key via `ctx.t` and `ctx.esc`.
   Do not hardcode English `Chess UI failed to load.` there.
+- Chess player plates and the keyboard legend use `desktop.chess_you`,
+  `desktop.chess_skin_marble`, `desktop.chess_skin_slate` and
+  `desktop.chess_shortcuts` in all sixteen locales; the engine plate composes
+  `desktop.chess_opponent_computer` and `desktop.chess_strength`, local play
+  the colour names. Clock digits, coordinates and material leads are numbers.
 - Homepage Studio local webhost name fallback uses
   `homepage_studio.default_name`. Do not hardcode English `Homepage`
   there.
@@ -3865,7 +3870,8 @@ buttons and menu popovers remain excluded from those gestures.
   retain the 1920x1440 buffer caps and native playback checks.
 - Chess chrome uses `--chess-*` aliases mapped to `--vd-theme-*`. The wood
   frame (`--chess-board-frame*`) and felt (`--chess-felt`) stay the board
-  surface. Warn/danger/good stay semantic.
+  surface; the six skins override them per `data-chess-skin`. Warn/danger/good
+  stay semantic.
 - Nasscad shell paints from `--vd-mat-canvas` with `--vd-theme-app-bg` as the fallback; the bundled iframe viewport stays
   `#111318`.
 - Wikipedia (`local-wikipedia`) chrome paints from `--vd-mat-*` with `--vd-theme-*` fallbacks; the article iframe
@@ -4175,22 +4181,26 @@ buttons and menu popovers remain excluded from those gestures.
 - `chess*.js` implements Chess, a desktop chess app using `cm-chessboard`,
   `chess.js`, a local Stockfish WebWorker, and the optional AuraGo agent move
   endpoint. Features three opponent modes (Computer, Agent, Local 2P),
-  optional chess clocks (3/5/10 min), captured-material tray, material balance
-  bar, board-skin selector (green/blue/wood/classic, persisted in
+  optional chess clocks (3/5/10 min) in the player plates, player plates with
+  captured-material trays and material lead, material balance bar, board-skin
+  selector (green/blue/wood/classic/marble/slate, persisted in
   `aurago.desktop.chess.boardSkin`), move-evaluation panel, hint engine
   (Stockfish), move-history click-to-review with first/prev/next/last scrubber,
-  last-move and check highlights, resign/draw confirmation modals with cancel,
-  game-over result overlay with win confetti, CSS move/capture/check/thinking
-  effects (`prefers-reduced-motion` aware), Web Audio Staunton wood/baize
-  move/capture/check/castle/promote/game-over sounds with a mute pill, and an
-  optional sarcastic Phonon TTS commentator (`chess-commentary.js` →
-  `POST /api/desktop/chess/commentary`, default off,
-  `aurago.desktop.chess.commentary`). Split across `chess.js` (core game loop),
-  `chess-fx.js` (template, effects, audio, chrome helpers via
+  last-move, selection and check markers, engraved rim coordinates, resign/draw
+  confirmation modals with cancel, game-over result overlay with win confetti,
+  CSS move/capture/check/thinking effects (`prefers-reduced-motion` aware), Web
+  Audio Staunton wood/baize move/capture/check/castle/promote/game-over sounds
+  with a mute pill, a keyboard legend, and an optional sarcastic Phonon TTS
+  commentator (`chess-commentary.js` → `POST /api/desktop/chess/commentary`,
+  default off, `aurago.desktop.chess.commentary`). Split across `chess.js`
+  (core game loop), `chess-fx.js` (template, effects, audio, chrome helpers via
   `window.ChessChrome`, skin helpers, the promotion dialog, the move list and
-  the tab strip), `chess-commentary.js` (situation classifier and TTS client),
-  `chess-engine.js` (Stockfish worker bridge), `chess-agent.js` (AuraGo agent
-  move API client) and `chess-3d.js` (the optional 3D board).
+  the tab strip), `chess-table.js` (`window.ChessTable`: player plates, clocks,
+  capture trays and rim coordinates), `chess-commentary.js` (situation
+  classifier and TTS client), `chess-engine.js` (Stockfish worker bridge),
+  `chess-agent.js` (AuraGo agent move API client), `chess-3d-stage.js`
+  (`window.ChessStage3D`: grain, studio environment, coordinate and lamp-pool
+  texture builders) and `chess-3d.js` (the optional 3D board).
 - `chess-3d.js` owns the optional 3D board mode of the Chess app. It renders
   the live position with the original AuraGo piece kit from `/3d/chess/v1/`
   through the vendored global Three.js, GLTFLoader and OrbitControls, and
@@ -4206,39 +4216,79 @@ buttons and menu popovers remain excluded from those gestures.
   path including the promotion dialog. The 2D board stays the default and
   stays mounted; switching modes hides one surface and shows the other, and
   the 3D view is disposed with the window. A missing WebGL context or a failed
-  asset load shows a localized note instead of a blank canvas. Verify with
-  `go test ./ui/ -run TestDesktopChess` and `node scripts/test-chess-assets.mjs`.
+  asset load shows a localized note instead of a blank canvas. Its textures and
+  the image-based lighting come from `chess-3d-stage.js` (no stage module, no
+  3D view); the floor carries an emissive lamp pool, the squares share four
+  offsets of one grain, and the camera glides in from a wider stand when the
+  view opens or resets (starting after the first rendered frame, never under
+  reduced motion). Verify with `go test ./ui/ -run TestDesktopChess` and
+  `node scripts/test-chess-assets.mjs`.
+- The chess board surface is skin-driven: `chess-fx.js` writes the normalized
+  skin to `data-chess-skin` on the app root, and `css/desktop-app-chess.css`
+  holds one variable set per skin (square colours, wood of the rim, metal
+  inlay, engraved coordinates, last-move tint, legal-move dots and the grain
+  of both square families). `chess-3d.js` mirrors the square, frame and brass
+  values of these sets in `SKINS`; add a skin to both, to the selector, to
+  `normalizeBoardSkin` and to all sixteen locales. The vendor square colours
+  stay overridden by the app stylesheet. The coordinates sit in the wood rim
+  (`data-rim-coords`, a 10x10 grid built by `chess-table.js`), not inside the
+  squares (`showCoordinates: false`), and `is-flipped` on the root swaps the
+  grain parity. Markers: the last move tints both squares (`marker-square`),
+  the selected piece carries `marker-circle-primary`, a checked king sits on
+  `marker-circle-danger-filled`, the hint is a marching `marker-frame`; the
+  vendor stylesheet dims every marker, so each app rule sets its own opacity.
 - Chess layout is one centered board column: the view switch and material score
-  share the pane head row, the board sits in a single square box, and the status
-  ribbon closes the column below it. The head and the ribbon follow the
-  measured board width (`--chess-frame-size`, written by `chess.js` on the app
-  root) and fall back to `--chess-column`, so head, board and ribbon share one
-  optical column at every window size; the ribbon uses `border-box`, so its
-  padding never widens it. The board box fits the pane height (`container-type:
-  size` on the shell plus `100cqh` in the frame width), so a tall window gets a
-  bigger board and a short one never clips it. The 2D board is that square box;
-  the 3D board is a perspective scene and takes the whole board area
-  (`.vd-chess.is-3d`), so a wide pane lets it spread into the free width and
-  head and ribbon follow the full width there. The right sidebar widens with the
-  window (`clamp(340px, 22vw, 420px)`), folds its settings away into a
-  disclosure, pairs the open fields in two columns and scrolls instead of
-  clipping when the window gets short. The panels carry their own display rule,
-  so the tab switch needs the explicit `[hidden]` reset. Never let a compact row
-  stretch across the full pane and never size the board from the browser
-  viewport (`vh`).
+  share the pane head row, the status ribbon closes the column below it, and
+  the table between them stacks the opponent plate, the board shell and the
+  player plate (`.vd-chess-table`). The head, the plates and the ribbon follow
+  the measured board width (`--chess-frame-size`, written by `chess.js` on the
+  app root) and fall back to `--chess-column`, so head, plates, board and
+  ribbon share one optical column at every window size; the ribbon uses
+  `border-box`, so its padding never widens it. The board box fits the pane
+  height (`container-type: size` on the shell plus `100cqh` in the frame
+  width), so a tall window gets a bigger board and a short one never clips it;
+  `chess.js` measures the shell only, so a taller plate costs board height.
+  The 2D board is that square box; the 3D board is a perspective scene and
+  takes the whole board area (`.vd-chess.is-3d`), so a wide pane lets it spread
+  into the free width and head, plates and ribbon follow the full width there.
+  The right sidebar widens with the window (`clamp(340px, 22vw, 420px)`),
+  folds its settings away into a disclosure, pairs the open fields in two
+  columns and scrolls instead of clipping when the window gets short. Up to
+  820px the app stacks: the sidebar takes `clamp(150px, 34%, 280px)` of the
+  window height and scrolls, both plates share one row under the board, and
+  head and ribbon span the pane (following the board width there would wrap
+  the head, shrink the shell and starve the board in a loop). The panels carry
+  their own display rule, so the tab switch needs the explicit `[hidden]`
+  reset. Never let a compact row stretch across the full pane and never size
+  the board from the browser viewport (`vh`).
+- `chess-table.js` renders from the state `chess.js` owns: `ChessTable.update`
+  paints both plates (name, captured tray, material lead, clock, active and
+  thinking state) and the sidebar's captured tab, and is called from
+  `updateCaptured` and every clock tick; `chess.js` no longer formats clocks.
+  `state.captured.w` lists the white pieces that were taken, so the tray of a
+  side is the list of the other colour. In local play the plates carry the
+  colour names; otherwise the human is `desktop.chess_you` and the engine is
+  `desktop.chess_opponent_computer` · `desktop.chess_strength` plus its level.
 - Chess keeps the board input in one state: `chess.js` disables the move input
   before it enables it again, because `cm-chessboard` refuses a second enable
-  and the local 2P mode keeps the input after every move. The move list is a
+  and the local 2P mode keeps the input after every move. Review jumps set the
+  position without animation: the vendor queues animated position changes
+  without cancelling them, so a backlog of review glides delayed the next
+  real move's animation and kept the move input locked in `moveDone` while a
+  quick click was dropped. The move list is a
   widget of `chess-fx.js` (`window.ChessMoveList`), the tab strip a second one
   (`window.ChessTabs`): a move is a real button and carries `aria-current` for
   the move the board shows, the tabs form a tablist with a roving tabindex and
-  arrow-key navigation, and the status line is a polite live region. Actions
+  arrow-key navigation, the status line is a polite live region and the
+  keyboard legend (`.vd-chess-keys`) names the F/M/V and arrow shortcuts.
+  Actions
   that do not apply rest instead of doing nothing: undo, hint, resign and draw
   are disabled while the opponent thinks or the game is over. The draw action
   ends the game, so it carries `desktop.chess_draw` and is confirmed with
   `desktop.chess_confirm_draw`; the offer wording stays unused. Verify with
   `go test ./ui/ -run TestDesktopChess`, `node scripts/test-chess-assets.mjs`
-  and `node scripts/test-chess-browser.mjs`.
+  and `node scripts/test-chess-browser.mjs` (plates, rim order and flip, skins,
+  clocks, selection and legal-move markers, capture trays, the stacked layout).
 - `writer.js` owns Autor's native DOCX document, file operations and lifecycle;
   `writer-commands.js` owns the command table every surface reads (menus,
   toolbar, shortcuts, tooltips), the one "blocked while suggesting" rule, the
@@ -4643,7 +4693,10 @@ registration lives in `internal/desktop/types.go`.
   board, Stockfish worker, Agent client, event handlers, and pending search
   token state.
 - Chess loads `ui/js/vendor/chess-vendor.esm.js` with dynamic `import()` from
-  `chess.js`; the lazy loader remains classic-script based.
+  `chess.js`; the lazy loader remains classic-script based. `chess-table.js`
+  and `chess-3d-stage.js` are classic scripts in the same lazy list, after
+  `chess-fx.js` and before `chess-3d.js`; neither owns timers, listeners or
+  GPU resources, so disposing the window state disposes them.
 - Chess engine code must load Stockfish only from
   `/js/vendor/stockfish/stockfish-19-lite-single.js` and browser-side agent
   moves must call `/api/desktop/chess/agent-move`.
@@ -5542,10 +5595,12 @@ registration lives in `internal/desktop/types.go`.
 - Galaxa canvas resource caches (`cachedRadialGradient`, `spriteAtlasCache`,
   `ensureNebulaCanvas`) must be reused; see
   `ui/desktop_runtime_performance_test.go` for enforced markers.
-- Keep Chess split across `chess.js`, `chess-fx.js`, `chess-commentary.js`,
-  `chess-engine.js`, `chess-agent.js` and `chess-3d.js`; do not fold worker,
-  API bridge, template, FX/audio, or commentary helpers into the main app
-  file. `chess-fx.js` and `chess-commentary.js` must load before `chess.js`.
+- Keep Chess split across `chess.js`, `chess-fx.js`, `chess-table.js`,
+  `chess-commentary.js`, `chess-engine.js`, `chess-agent.js`,
+  `chess-3d-stage.js` and `chess-3d.js`; do not fold worker,
+  API bridge, template, FX/audio, table, stage-texture or commentary helpers
+  into the main app file. `chess-fx.js`, `chess-table.js`,
+  `chess-3d-stage.js` and `chess-commentary.js` must load before `chess.js`.
 - Keep Cheater split across `cheater.js`, `cheater-toolbar.js`,
   `cheater-spotlight.js`, `cheater-templates.js`, and `cheater-attachments.js`;
   do not fold the toolbar, spotlight, or attachment logic into the main app
@@ -5997,8 +6052,9 @@ registration lives in `internal/desktop/types.go`.
   `TestContactPrivacyControlsBrowser` and
   `TestDesktopSIPPhoneLaunchDialBrowser`.
   No child DOX file needed.
-- `chess.js` / `chess-fx.js` / `chess-commentary.js` - Chess app, board FX
-  and optional Phonon commentary. Result-modal fallbacks use
+- `chess.js` / `chess-fx.js` / `chess-table.js` / `chess-commentary.js` -
+  Chess app, board FX, the table around the board and optional Phonon
+  commentary. Result-modal fallbacks use
   `desktop.chess_new_game` and `desktop.ok`; pass `t` into `createChessFx`.
   Opponent-move errors use `desktop.chess_*` codes via
   `window.ChessChrome.formatOpponentError`. Vendor-load status and the
@@ -6006,7 +6062,8 @@ registration lives in `internal/desktop/types.go`.
   action ends the game and uses `desktop.chess_draw` with
   `desktop.chess_confirm_draw`. Sound/commentary chrome, move audio and
   PGN/FEN copy live in `chess-fx.js` (`window.ChessChrome`,
-  `window.ChessInfoTools`, `window.ChessMoveList`, `window.ChessTabs`).
+  `window.ChessInfoTools`, `window.ChessMoveList`, `window.ChessTabs`);
+  `chess-table.js` exposes `window.ChessTable` (`mount`, `update`).
   Commentary phrases and Phonon synthesis stay server-owned. Exposes
   `window.ChessApp`, `window.createChessFx` and
   `window.createChessCommentary`. Verify `TestDesktopChess*` and

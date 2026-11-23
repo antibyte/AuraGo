@@ -21,6 +21,8 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"'/js/desktop/apps/chess-agent.js'",
 		"'/js/desktop/apps/chess-commentary.js'",
 		"'/js/desktop/apps/chess-fx.js'",
+		"'/js/desktop/apps/chess-table.js'",
+		"'/js/desktop/apps/chess-3d-stage.js'",
 		"'/js/desktop/apps/chess-3d.js'",
 		"'/js/desktop/apps/chess.js'",
 		"'/js/vendor/three.min.js'",
@@ -43,6 +45,11 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"ResizeObserver",
 		"fitBoardToShell",
 		"desktop.cancel",
+		/* the coordinates live in the wood rim and the plates paint the clocks */
+		"showCoordinates: false",
+		"window.ChessTable?.mount(state)",
+		"window.ChessTable?.update(state)",
+		"state.refs.root.classList.toggle('is-flipped', black)",
 	} {
 		if !strings.Contains(app, want) {
 			t.Fatalf("desktop chess app missing marker %q", want)
@@ -59,9 +66,47 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		"vd-chess-material-bar",
 		"data-board-skin",
 		"prefers-reduced-motion",
+		/* the table around the board and the lit playing surface */
+		"data-plate=\"' + side + '\"",
+		"data-plate-clock",
+		"data-rim-coords",
+		"vd-chess-surface",
+		"vd-chess-keys",
+		/* six skins: the vendor four plus marble and slate */
+		"'marble', 'slate'",
+		"state.refs.root.dataset.chessSkin = skin",
 	} {
 		if !strings.Contains(fx, want) {
 			t.Fatalf("desktop chess fx missing marker %q", want)
+		}
+	}
+
+	table := readEmbeddedText(t, "js/desktop/apps/chess-table.js")
+	for _, want := range []string{
+		"window.ChessTable = { mount, update }",
+		/* the plate on top belongs to the side that is not at the bottom */
+		"renderPlate(ui.top, state, blackAtBottom ? 'w' : 'b')",
+		"renderPlate(ui.bottom, state, blackAtBottom ? 'b' : 'w')",
+		/* the rim is a 10x10 grid: one rim cell around eight board cells */
+		"span.style.gridArea = row + ' / ' + col;",
+		"desktop.chess_you",
+		"desktop.chess_opponent_computer",
+	} {
+		if !strings.Contains(table, want) {
+			t.Fatalf("desktop chess table missing marker %q", want)
+		}
+	}
+
+	stage := readEmbeddedText(t, "js/desktop/apps/chess-3d-stage.js")
+	for _, want := range []string{
+		"window.ChessStage3D",
+		"createGrainVariants",
+		"createStudioEnvironment",
+		"createCoordTexture",
+		"createPoolTexture",
+	} {
+		if !strings.Contains(stage, want) {
+			t.Fatalf("desktop chess 3D stage missing marker %q", want)
 		}
 	}
 
@@ -100,6 +145,11 @@ func TestDesktopChessAppAssetsAreLocalAndLazy(t *testing.T) {
 		   entry instead of by square key. */
 		"const live = new Set();",
 		"if (!live.has(entry)) removePiece(entry);",
+		/* the lamp pool on the floor and the camera glide that starts after the first frame */
+		"createPoolTexture",
+		"createGrainVariants",
+		"state.introPending = false",
+		"!window.ChessStage3D",
 	} {
 		if !strings.Contains(view3d, want) {
 			t.Fatalf("desktop chess 3D board missing marker %q", want)
@@ -211,6 +261,13 @@ func TestDesktopChessBoardLayoutKeepsStatusVisible(t *testing.T) {
 		"overflow-y: auto;",
 		/* panels carry their own display rule and need the hidden reset */
 		".vd-chess-moves[hidden]",
+		/* the table stacks the plates around the board and the surface is lit above the squares */
+		".vd-chess-table",
+		".vd-chess-plate",
+		".vd-chess-rim-coords",
+		".vd-chess-surface",
+		/* the stacked layout gives the sidebar a share of the window height, never the viewport */
+		"grid-template-rows: minmax(0, 1fr) clamp(150px, 34%, 280px);",
 	} {
 		if !strings.Contains(css, want) {
 			t.Fatalf("desktop chess layout CSS missing marker %q", want)
@@ -259,6 +316,8 @@ func TestDesktopChessAppFilesStaySmall(t *testing.T) {
 		"js/desktop/apps/chess-agent.js",
 		"js/desktop/apps/chess-commentary.js",
 		"js/desktop/apps/chess-fx.js",
+		"js/desktop/apps/chess-table.js",
+		"js/desktop/apps/chess-3d-stage.js",
 		"js/desktop/apps/chess-3d.js",
 	} {
 		source := readEmbeddedText(t, path)
@@ -380,6 +439,10 @@ func TestDesktopChessCommentaryAndPolishContracts(t *testing.T) {
 		"desktop.chess_phase_opening",
 		"desktop.chess_phase_middlegame",
 		"desktop.chess_phase_endgame",
+		"desktop.chess_you",
+		"desktop.chess_skin_marble",
+		"desktop.chess_skin_slate",
+		"desktop.chess_shortcuts",
 	}
 	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
 		raw, err := Content.ReadFile("lang/desktop/" + lang + ".json")
