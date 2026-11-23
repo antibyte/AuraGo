@@ -54,4 +54,8 @@ CREATE TABLE IF NOT EXISTS artifacts(id TEXT PRIMARY KEY, run_id TEXT, project_i
   bytes INTEGER, sha256 TEXT, created TEXT);
 CREATE TABLE IF NOT EXISTS eval_reports(run_id TEXT, kind TEXT, result_json TEXT, created TEXT, PRIMARY KEY(run_id, kind));
 CREATE TABLE IF NOT EXISTS base_gguf(profile_id TEXT, base_revision TEXT, converter TEXT, rel_path TEXT, sha256 TEXT,
-  PRIMARY KEY(profile_id, base_revision, converter));`
+  PRIMARY KEY(profile_id, base_revision, converter));
+CREATE INDEX IF NOT EXISTS runs_project ON runs(project_id, created);
+CREATE INDEX IF NOT EXISTS runs_state ON runs(state);
+CREATE INDEX IF NOT EXISTS run_events_run ON run_events(run_id, id);
+CREATE INDEX IF NOT EXISTS artifacts_run ON artifacts(run_id, created);`

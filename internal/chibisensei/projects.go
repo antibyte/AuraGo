@@ -146,7 +146,7 @@ func (s *Store) CreateProject(ctx context.Context, in ProjectInput) (Project, er
 	if err != nil {
 		return Project{}, err
 	}
-	p.Steps = computeSteps(p, 0, sql.NullInt64{}, false)
+	p.Steps = computeSteps(p, 0, sql.NullInt64{}, false, projectRuns{})
 	return p, nil
 }
 
@@ -163,8 +163,10 @@ func scanProject(sc rowScanner) (Project, error) {
 	var rows int
 	var checkRev sql.NullInt64
 	var ready sql.NullInt64
+	var latest sql.NullString
+	var succeeded int
 	err := sc.Scan(&p.ID, &p.Name, &p.Recipe, &p.TaskKind, &labels, &p.GoalText, &p.ProfileID, &p.Preset, &overrides,
-		&p.SplitSeed, &p.DataRev, &p.Rev, &p.Created, &p.Updated, &archived, &rows, &checkRev, &ready)
+		&p.SplitSeed, &p.DataRev, &p.Rev, &p.Created, &p.Updated, &archived, &rows, &checkRev, &ready, &latest, &succeeded)
 	if err != nil {
 		return Project{}, err
 	}
@@ -176,11 +178,14 @@ func scanProject(sc rowScanner) (Project, error) {
 	_ = json.Unmarshal([]byte(overrides), &p.Overrides)
 	p.Archived = archived != 0
 	p.Rows = rows
-	p.Steps = computeSteps(p, rows, checkRev, ready.Valid && ready.Int64 != 0)
+	p.Steps = computeSteps(p, rows, checkRev, ready.Valid && ready.Int64 != 0,
+		projectRuns{Latest: latest.String, Succeeded: succeeded != 0})
 	return p, nil
 }
 
-const projectSelect = `SELECT ` + projectCols + `, (SELECT COUNT(*) FROM dataset_rows r WHERE r.project_id=p.id), c.data_rev, c.ready
+const projectSelect = `SELECT ` + projectCols + `, (SELECT COUNT(*) FROM dataset_rows r WHERE r.project_id=p.id), c.data_rev, c.ready,
+	(SELECT x.state FROM runs x WHERE x.project_id=p.id ORDER BY x.created DESC, x.rowid DESC LIMIT 1),
+	EXISTS(SELECT 1 FROM runs x WHERE x.project_id=p.id AND x.state='succeeded')
 	FROM projects p LEFT JOIN checks c ON c.project_id=p.id`
 
 func loadProject(ctx context.Context, q queryer, id string) (Project, error) {
@@ -218,7 +223,13 @@ func (s *Store) ListProjects(ctx context.Context, archived bool) ([]ProjectSumma
 	return out, rows.Err()
 }
 
-func computeSteps(p Project, rows int, checkRev sql.NullInt64, checkReady bool) Steps {
+// projectRuns are the run facts the training step needs: the state of the newest run and whether any succeeded.
+type projectRuns struct {
+	Latest    string
+	Succeeded bool
+}
+
+func computeSteps(p Project, rows int, checkRev sql.NullInt64, checkReady bool, runs projectRuns) Steps {
 	st := Steps{Goal: "in_progress", Data: "todo", Training: "todo", Test: "todo", Use: "todo"}
 	if p.GoalText != "" && p.ProfileID != "" && (p.Recipe != RecipeSpecialist || p.TaskKind != "") &&
 		(p.TaskKind != "classify" || len(p.Labels) >= 2) {
@@ -232,6 +243,17 @@ func computeSteps(p Project, rows int, checkRev sql.NullInt64, checkReady bool) 
 		st.Data = "blocked"
 	default:
 		st.Data = "in_progress"
+	}
+	// Precedence: an active run, then any success, then a failed or cancelled latest run, then the data state.
+	switch {
+	case runs.Latest != "" && !RunTerminal(runs.Latest):
+		st.Training = "in_progress"
+	case runs.Succeeded:
+		st.Training = "done"
+	case runs.Latest == RunFailed || runs.Latest == RunCancelled:
+		st.Training = "blocked"
+	case st.Data == "ready":
+		st.Training = "ready"
 	}
 	return st
 }
@@ -384,7 +406,8 @@ func (s *Store) SetArchived(ctx context.Context, id string, archived bool) (Proj
 	return s.GetProject(ctx, id)
 }
 
-// DeleteProject deletes an archived project and everything that belongs to it.
+// DeleteProject deletes an archived project and everything that belongs to it. It refuses with ErrRunActive while a
+// run of the project is not terminal. Files under data/chibi_sensei are the caller's (ListRunIDs before, RemoveRunFiles after).
 func (s *Store) DeleteProject(ctx context.Context, id, confirmName string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -400,6 +423,14 @@ func (s *Store) DeleteProject(ctx context.Context, id, confirmName string) error
 	}
 	if confirmName != p.Name {
 		return &ValidationError{Issues: []Issue{issue("confirm_name", "project.confirm_name", "The confirmation name does not match.")}}
+	}
+	var activeRuns int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM runs WHERE project_id=? AND state NOT IN `+terminalStatesSQL,
+		id).Scan(&activeRuns); err != nil {
+		return err
+	}
+	if activeRuns > 0 {
+		return ErrRunActive
 	}
 	stmts := []string{
 		`DELETE FROM run_events WHERE run_id IN (SELECT id FROM runs WHERE project_id=?)`,
