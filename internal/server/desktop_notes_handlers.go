@@ -20,6 +20,21 @@ func notesEditablePath(path string) bool {
 	return p == desktop.NotesDirectory+"/notes.meta.json" || strings.HasPrefix(p, desktop.NotesDirectory+"/") && strings.EqualFold(filepath.Ext(p), ".md")
 }
 
+// notesFolderPath validates a new folder: strictly inside Documents/Notes, no "..", no .attachments.
+func notesFolderPath(raw string) (string, bool) {
+	raw = strings.ReplaceAll(raw, "\\", "/")
+	for _, seg := range strings.Split(raw, "/") {
+		if seg == ".." || seg == "." || strings.EqualFold(seg, ".attachments") {
+			return "", false
+		}
+	}
+	p := filepath.ToSlash(filepath.Clean(raw))
+	if !strings.HasPrefix(p, desktop.NotesDirectory+"/") || len(p) > 500 {
+		return "", false
+	}
+	return p, true
+}
+
 func handleDesktopNotes(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !requireDesktopPermission(s, w, r, desktopMethodScope(r.Method)) {
@@ -47,6 +62,15 @@ func handleDesktopNotes(s *Server) http.HandlerFunc {
 		}
 		path := r.URL.Query().Get("path")
 		if r.Method == http.MethodGet {
+			if r.URL.Query().Get("index") == "1" {
+				index, err := svc.NotesIndex(r.Context())
+				if err != nil {
+					fail(err)
+					return
+				}
+				json.NewEncoder(w).Encode(index)
+				return
+			}
 			if path != "" {
 				if path == desktop.NotesDirectory+"/notes.meta.json" {
 					data, _, err := svc.ReadFileBytes(r.Context(), path)
@@ -93,6 +117,8 @@ func handleDesktopNotes(s *Server) http.HandlerFunc {
 			Folder    string `json:"folder"`
 			NewPath   string `json:"new_path"`
 			Operation string `json:"operation"`
+			// UpdateLinks rewrites wikilinks and Markdown links of other notes on "move".
+			UpdateLinks bool `json:"update_links"`
 		}
 		if err := decodeDesktopJSON(w, r, &body, 6<<20); err != nil {
 			jsonError(w, "Invalid note request", 400)
@@ -102,6 +128,20 @@ func handleDesktopNotes(s *Server) http.HandlerFunc {
 			path = body.Path
 		}
 		if r.Method == http.MethodPost {
+			if body.Operation == "mkdir" {
+				folder, ok := notesFolderPath(body.Folder)
+				if !ok {
+					jsonError(w, "Invalid note folder", 400)
+					return
+				}
+				if err := svc.CreateDirectory(r.Context(), folder, desktop.SourceUser); err != nil {
+					fail(err)
+					return
+				}
+				publish("create_directory", folder, "")
+				json.NewEncoder(w).Encode(map[string]string{"path": folder})
+				return
+			}
 			note, err := svc.CreateNote(r.Context(), body.Title, body.Content, body.Folder, desktop.SourceUser)
 			if err != nil {
 				fail(err)
@@ -184,18 +224,32 @@ func handleDesktopNotes(s *Server) http.HandlerFunc {
 				jsonError(w, "Invalid note destination", 400)
 				return
 			}
-			if err := svc.MovePathConditional(r.Context(), path, target, desktop.SourceUser, desktop.CheckNoteVersion(expected, false)); err != nil {
+			var updates desktop.NoteLinkUpdates
+			if body.UpdateLinks && body.Operation == "move" {
+				updates, err = svc.MoveNoteWithLinks(r.Context(), path, target, expected, desktop.SourceUser)
+				if err != nil {
+					fail(err)
+					return
+				}
+			} else if err := svc.MovePathConditional(r.Context(), path, target, desktop.SourceUser, desktop.CheckNoteVersion(expected, false)); err != nil {
 				fail(err)
 				return
 			}
 			publish("move_path", target, path)
+			for _, updated := range updates.Updated {
+				publish("write_file", updated, "")
+			}
 			note, err := svc.ReadNote(r.Context(), target)
 			if err != nil {
 				fail(err)
 				return
 			}
 			w.Header().Set("ETag", note.Version)
-			json.NewEncoder(w).Encode(note)
+			json.NewEncoder(w).Encode(struct {
+				desktop.Note
+				UpdatedLinks     int      `json:"updated_links"`
+				LinkUpdateFailed []string `json:"link_update_failed,omitempty"`
+			}{note, len(updates.Updated), updates.Failed})
 			return
 		}
 		jsonError(w, "Method not allowed", 405)

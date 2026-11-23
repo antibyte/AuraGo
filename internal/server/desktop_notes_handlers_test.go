@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"aurago/internal/desktop"
@@ -116,5 +117,61 @@ func TestDesktopNotesVersionsAndTrash(t *testing.T) {
 	json.Unmarshal(restored.Body.Bytes(), &restoredNote)
 	if restoredNote.Path != note.Path || restoredNote.Content != "# Edited" {
 		t.Fatal("restore lost folder or content", restored.Body.String())
+	}
+}
+
+func TestDesktopNotesIndexMkdirAndLinkUpdates(t *testing.T) {
+	s := newDesktopOfficeTestServer(t)
+	h := handleDesktopNotes(s)
+	request := func(method, url, header, version string, body interface{}) *httptest.ResponseRecorder {
+		data, _ := json.Marshal(body)
+		r := httptest.NewRequest(method, url, bytes.NewReader(data))
+		if header != "" {
+			r.Header.Set(header, version)
+		}
+		w := httptest.NewRecorder()
+		h(w, r)
+		return w
+	}
+	const url = "/api/desktop/notes"
+	linking := request("POST", url, "", "", map[string]interface{}{"title": "Linking", "content": "# Linking\n[[Target]] #idx"})
+	target := request("POST", url, "", "", map[string]interface{}{"title": "Target", "content": "# Target"})
+	if linking.Code != 200 || target.Code != 200 {
+		t.Fatal(linking.Code, target.Code, target.Body.String())
+	}
+	var targetNote desktop.Note
+	json.Unmarshal(target.Body.Bytes(), &targetNote)
+
+	index := request("GET", url+"?index=1", "", "", nil)
+	var indexed desktop.NotesIndexResult
+	if err := json.Unmarshal(index.Body.Bytes(), &indexed); err != nil || index.Code != 200 || len(indexed.Notes) != 2 {
+		t.Fatalf("index: %d %s", index.Code, index.Body.String())
+	}
+	if !strings.Contains(index.Body.String(), `"notes"`) || !strings.Contains(index.Body.String(), `"attachments"`) {
+		t.Fatalf("index fields: %s", index.Body.String())
+	}
+
+	if w := request("POST", url, "", "", map[string]interface{}{"operation": "mkdir", "folder": "Documents/Notes/Neu"}); w.Code != 200 || !strings.Contains(w.Body.String(), `"path":"Documents/Notes/Neu"`) {
+		t.Fatalf("mkdir: %d %s", w.Code, w.Body.String())
+	}
+	after := request("GET", url+"?index=1", "", "", nil)
+	if !strings.Contains(after.Body.String(), `"Documents/Notes/Neu"`) {
+		t.Fatalf("folder missing from index: %s", after.Body.String())
+	}
+	for _, bad := range []string{"Documents/Notes/../x", "Documents/Other", "Documents/Notes/.attachments/x", "Documents/Notes", "Documents/Notes/a/../b", ""} {
+		if w := request("POST", url, "", "", map[string]interface{}{"operation": "mkdir", "folder": bad}); w.Code != 400 {
+			t.Fatalf("mkdir %q: %d %s", bad, w.Code, w.Body.String())
+		}
+	}
+
+	moved := request("PATCH", url, "If-Match", targetNote.Version, map[string]interface{}{"path": targetNote.Path, "operation": "move", "new_path": "Documents/Notes/Neu/Renamed.md", "update_links": true})
+	if moved.Code != 200 || !strings.Contains(moved.Body.String(), `"updated_links":1`) {
+		t.Fatalf("move with links: %d %s", moved.Code, moved.Body.String())
+	}
+	var linkingNote desktop.Note
+	json.Unmarshal(linking.Body.Bytes(), &linkingNote)
+	read := request("GET", url+"?path="+linkingNote.Path, "", "", nil)
+	if !strings.Contains(read.Body.String(), "[[Renamed]]") {
+		t.Fatalf("link not rewritten: %s", read.Body.String())
 	}
 }
