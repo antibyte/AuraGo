@@ -2,6 +2,7 @@ package detective
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 )
@@ -78,6 +79,50 @@ func TestFailedDeepenKeepsCompleteAsDefault(t *testing.T) {
 	}
 	if !got.AutoUpdate.Enabled || got.AutoUpdate.NextRunAt.IsZero() {
 		t.Fatalf("auto-update not scheduled: %+v", got.AutoUpdate)
+	}
+}
+
+func TestModelChangeKeepsResearchOnContinue(t *testing.T) {
+	s := newTestService(t)
+	c, err := s.Create(Request{Topic: "Provider switch", Effort: "quick", ProviderID: "old", Model: "old-model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := provisionalSession(t, s, c.ID, 0)
+	if err = s.SetModel(c.ID, "replacement", ""); !errors.Is(err, ErrConflict) {
+		t.Fatalf("running case accepted a model change: %v", err)
+	}
+	if err = x.Iterate(); err != nil {
+		t.Fatal(err)
+	}
+	sampleEvidence(t, x)
+	if err = x.Checkpoint(Continuation{Provider: "old", Model: "old-model", Messages: json.RawMessage(`[{"role":"user","content":"test context"}]`)}); err != nil {
+		t.Fatal(err)
+	}
+	if err = x.complete(errors.New("provider failed")); err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.Get(c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.SetModel(c.ID, "replacement", ""); err != nil {
+		t.Fatal(err)
+	}
+	s.SetRunner(testRunner(func(context.Context, *Session) error { return nil }))
+	resumed, err := s.Start(c.ID, "continue", "maximum", "resume")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resumed.Request.ProviderID != "replacement" || resumed.Request.Model != "" || resumed.Run.ID != before.Run.ID || resumed.Run.Profile != before.Run.Profile || resumed.Run.Usage != before.Run.Usage {
+		t.Fatalf("continue lost the new selection or existing run state: %+v %+v", resumed.Request, resumed.Run)
+	}
+	if len(resumed.Sources) != 1 || len(resumed.Findings) != 1 || resumed.LatestRevision != before.LatestRevision {
+		t.Fatalf("continue lost case evidence: sources=%d findings=%d revision=%d", len(resumed.Sources), len(resumed.Findings), resumed.LatestRevision)
+	}
+	checkpoint, err := s.Continuation(c.ID)
+	if err != nil || checkpoint.Provider != "old" || checkpoint.Model != "old-model" {
+		t.Fatalf("checkpoint identity changed: %+v, %v", checkpoint, err)
 	}
 }
 

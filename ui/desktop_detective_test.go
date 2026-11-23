@@ -66,7 +66,8 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/desktop/detective/")
 		switch path {
 		case "capabilities":
-			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "ready": true, "read_only": readOnlyCaps, "profiles": detective.Profiles(), "tools": []string{"ddg_search", "web_scraper"}, "providers": []any{map[string]string{"id": "p", "name": "Fixture", "model": "model"}}, "provider_id": "p"})
+			providers := []map[string]string{{"id": "p", "name": "Fixture", "model": "model"}, {"id": "backup", "name": "Ersatzanbieter", "model": "backup-model"}}
+			json.NewEncoder(w).Encode(map[string]any{"enabled": true, "ready": true, "read_only": readOnlyCaps, "profiles": detective.Profiles(), "tools": []string{"ddg_search", "web_scraper"}, "providers": providers, "provider_id": "p"})
 		case "cases":
 			if r.Method == "POST" {
 				exists = true
@@ -103,6 +104,14 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{"events": events})
 		case "cases/case_fixture/live":
 			json.NewEncoder(w).Encode(fixtureLive(c))
+		case "cases/case_fixture/model":
+			var selection map[string]string
+			if r.Method != http.MethodPut || json.NewDecoder(r.Body).Decode(&selection) != nil {
+				http.Error(w, "invalid model request", http.StatusBadRequest)
+				return
+			}
+			c.Request.ProviderID, c.Request.Model = selection["provider_id"], selection["model"]
+			json.NewEncoder(w).Encode(selection)
 		case "cases/case_fixture/auto-update":
 			_ = json.NewDecoder(r.Body).Decode(&c.AutoUpdate.AutoUpdateSettings)
 			c.AutoUpdate.NextRunAt = time.Now().UTC().Add(time.Duration(c.AutoUpdate.IntervalHours) * time.Hour)
@@ -201,6 +210,24 @@ func TestDesktopDetectiveBrowser(t *testing.T) {
 	page.MustElement(`[name=auto_enabled]`).MustClick()
 	page.MustElement(`.dt-form [type=submit]`).MustClick()
 	page.MustElement(`[data-do=stop]`).MustClick()
+	mu.Lock()
+	c.Request.Model = "old-override"
+	mu.Unlock()
+	page.MustElement(`[data-do=change-model]`).MustClick()
+	page.MustElement(`.dt-model-dialog[open] [name=provider_id]`).MustSelect("Ersatzanbieter")
+	if !page.MustEval(`()=>{const model=document.querySelector('.dt-model-dialog [name=model]');return model.value===''&&model.placeholder==='backup-model'}`).Bool() {
+		t.Fatal("model switch kept the former provider's override")
+	}
+	page.MustElement(`.dt-model-dialog [type=submit]`).MustClick()
+	if !strings.Contains(page.MustElement(`.dt-model-feedback:not(:empty)`).MustText(), "Modell gespeichert") {
+		t.Fatal("case did not confirm the saved model")
+	}
+	mu.Lock()
+	providerSaved := c.Request.ProviderID == "backup" && c.Request.Model == "" && c.Run.Status == "cancelled"
+	mu.Unlock()
+	if !providerSaved {
+		t.Fatal("switch did not persist the provider on the stopped case")
+	}
 	page.MustElement(`[data-do=continue]`).MustClick()
 	page.MustElement(`[data-do=finish]`).MustClick()
 	page.MustElement(`.dt-report table`)

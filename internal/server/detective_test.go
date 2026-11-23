@@ -199,6 +199,45 @@ func TestDetectiveHTTPGates(t *testing.T) {
 	}
 }
 
+func TestDetectiveCaseModelHTTP(t *testing.T) {
+	cfg := &config.Config{Providers: decisionsProviderUsageFixture()}
+	cfg.Detective.Enabled, cfg.VirtualDesktop.Enabled, cfg.VirtualDesktop.AllowAgentControl = true, true, true
+	svc, err := detective.New(detective.Options{Path: filepath.Join(t.TempDir(), "detective.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	s := &Server{Cfg: cfg, Detective: svc}
+	c, err := svc.Create(detective.Request{Topic: "Existing case", ProviderID: "removed", Model: "old-model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/desktop/detective/cases/" + c.ID + "/model"
+	call := func(body string, status int) {
+		t.Helper()
+		w := httptest.NewRecorder()
+		s.handleDetective(w, httptest.NewRequest(http.MethodPut, path, strings.NewReader(body)))
+		if w.Code != status {
+			t.Fatalf("status = %d, want %d: %s", w.Code, status, w.Body.String())
+		}
+	}
+	call(`{"provider_id":"removed","model":""}`, http.StatusBadRequest)
+	call(`{"provider_id":"decision","model":"chat-model"}`, http.StatusBadRequest)
+	cfg.Detective.ReadOnly = true
+	call(`{"provider_id":"general","model":""}`, http.StatusForbidden)
+	cfg.Detective.ReadOnly = false
+	call(`{"provider_id":" general ","model":" replacement "}`, http.StatusOK)
+	got, err := svc.Get(c.ID)
+	if err != nil || got.Request.ProviderID != "general" || got.Request.Model != "replacement" || got.Run.Status != "draft" {
+		t.Fatalf("model setting did not persist on the idle case: %+v, %v", got, err)
+	}
+	call(`{"provider_id":"general","model":""}`, http.StatusOK)
+	got, err = svc.Get(c.ID)
+	if err != nil || got.Request.Model != "" || got.Request.ProviderID != "general" {
+		t.Fatalf("model override was not cleared: %+v, %v", got.Request, err)
+	}
+}
+
 func TestPromptFindingsKeepsOlderEvidence(t *testing.T) {
 	in := make([]detective.Finding, 41)
 	for i := range in {

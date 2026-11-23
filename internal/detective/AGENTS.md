@@ -12,6 +12,10 @@ and tool dispatch; Desktop adapters own UI state.
   the recorded profile and active time and ignores a posted effort. Only an
   explicit deepen request or a new scheduled update grants a new budget, and
   deepen on a draft returns `ErrConflict`. Closing the client never cancels a run.
+- `SetModel` changes the case provider and optional model override while the case
+  is idle. The next manual or automatic run uses the saved selection. Saving
+  preserves usage, evidence, revisions and the private checkpoint. The runner
+  reuses the checkpoint only when both effective provider and model match.
 - A finding quote needs at least 8 Unicode code points after trim and must be an
   exact substring of a source recorded as read.
 - Live status and existence checks do not load the evidence body. `Live` and
@@ -108,6 +112,8 @@ and tool dispatch; Desktop adapters own UI state.
 ## Verification
 Run `go test ./internal/detective ./internal/agent ./internal/server ./ui` with
 the focused Detective tests first. Browser tests use the production app modules.
+`TestModelChangeKeepsResearchOnContinue` pins the active-run guard and verifies
+that switching providers preserves the run budget and evidence on continuation.
 `TestMigrateV2ToV4KeepsCasesAndBacksUp` runs the whole v2 -> v3 -> v4 path (backup,
 summary equality, second open does not migrate again), `TestSetAutoUpdateMatrix` pins
 the scheduling rule per status, and `TestLiveUnderAutomaticUpdate` asserts the live

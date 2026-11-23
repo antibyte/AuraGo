@@ -1326,6 +1326,11 @@ depends on the API, SSE and error contracts below; its side is in `ui/js/desktop
   classified once; finish/resume/new execution remain writes. Turning Detective
   from allowed to denied revokes in-flight desktop runs on that transition.
   A later save while research is already denied does not cancel other desktop runs.
+- Detective `PUT /api/desktop/detective/cases/{id}/model` is an admin write and
+  requires Desktop publication admission. Accept a configured general-chat
+  provider with a default model or an explicit override. Saving never queues a
+  run and returns a conflict while the case is queued or running. Verify
+  `TestDetectiveCaseModelHTTP`.
 - Game Maker policy publication and agent phases, Detective reports, queued
   local missions, mission preparation and Virtual Computer tasks retain this
   ownership across HTTP completion. Server cancellation drains before stores close.

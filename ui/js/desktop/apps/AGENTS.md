@@ -1230,6 +1230,11 @@ Retained ImageGen artwork belongs to `assets/pinball/`.
   the effort control, not Deepen. Continue does not post `effort`. Start and
   Deepen do. Disabled actions name their reason from `caps.block_reason`
   (`disabled`, `read_only`, `initializing`) through `desktop.detective_block_*`.
+- An idle case offers **Change model** in its action row. The dialog reads the
+  current case and eligible providers when opened, drops the previous model
+  override when selecting a different provider, and shows that provider's
+  default. Saving applies to future runs and preserves the current report view.
+  Verify the provider switch and continuation in `TestDesktopDetectiveBrowser`.
 - The revision selection is view state: `knownReports`/`chosenReport` in
   `detective-views.js` merge current reports, history and the pinned report, and a
   revision that is not in that set falls back to the newest one. A provisional revision (the

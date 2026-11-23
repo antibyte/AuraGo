@@ -114,7 +114,68 @@
             const lead = r.status === 'draft' ? actionButton('start', 'play', tr('start'), ro) : r.status !== 'completed' ? actionButton('continue', 'play', tr('continue'), ro) : '';
             const effort = `<select class="dt-effort" aria-label="${e(tr('effort'))}" title="${e(tr('effort'))}">${['quick', 'normal', 'maximum'].map(x => `<option value="${x}" ${c.request.effort === x ? 'selected' : ''}>${e(tr(x))}</option>`).join('')}</select>`;
             const deepen = r.status === 'draft' ? '' : actionButton('deepen', 'deepen', tr('deepen'), ro);
-            return `${lead}${effort}${deepen}${actionButton('delete', 'trash', tr('delete'), ro)}`;
+            return `${lead}${effort}${deepen}${actionButton('change-model', 'pen', tr('change_model'), ro)}${actionButton('delete', 'trash', tr('delete'), ro)}<span class="dt-model-feedback" role="status"></span>`;
+        }
+        async function openModelDialog() {
+            const id = state.current.id, path = '/cases/' + encodeURIComponent(id);
+            const [c, caps] = await Promise.all([request(path), request('/capabilities')]);
+            if (state.disposed || state.current?.id !== id) return;
+            const currentProvider = c.request.provider_id || caps.provider_id || '';
+            const providers = (caps.providers || []).filter(p => p?.id && p.usage !== 'decisions');
+            const available = providers.some(p => p.id === currentProvider);
+            const options = providers.map(p => `<option value="${e(p.id)}"${p.id === currentProvider ? ' selected' : ''}>${e(p.name || p.id)}</option>`).join('');
+            const missing = `<option value="" disabled selected>${e(currentProvider || tr('provider'))}</option>`;
+            const dialog = host.ownerDocument.createElement('dialog');
+            dialog.className = 'dt-model-dialog';
+            dialog.setAttribute('aria-label', tr('change_model'));
+            dialog.innerHTML = `<form>
+                <h2>${e(tr('change_model'))}</h2>
+                <fieldset>
+                    <label>${e(tr('provider'))}<select name="provider_id" required>${available ? '' : missing}${options}</select></label>
+                    <label>${e(tr('model'))}<input name="model" maxlength="200" value="${e(c.request.model || '')}"></label>
+                    <small>${e(tr('model_default_help'))}</small>
+                    <p class="dt-model-error" role="alert" hidden></p>
+                    <footer>
+                        <button type="button">${e(ctx.t('desktop.cancel'))}</button>
+                        <button type="submit"${providers.length ? '' : ' disabled'}>${e(ctx.t('desktop.save'))}</button>
+                    </footer>
+                </fieldset>
+            </form>`;
+            const form = dialog.querySelector('form'), fields = form.querySelector('fieldset');
+            const provider = form.elements.namedItem('provider_id'), model = form.elements.namedItem('model');
+            const feedback = host.querySelector('.dt-model-feedback');
+            if (feedback) feedback.textContent = '';
+            const syncModel = () => { model.placeholder = providers.find(p => p.id === provider.value)?.model || ''; };
+            syncModel();
+            provider.addEventListener('change', () => {
+                model.value = provider.value === currentProvider ? c.request.model || '' : '';
+                syncModel();
+            });
+            form.querySelector('[type=button]').addEventListener('click', () => dialog.close());
+            dialog.addEventListener('close', () => dialog.remove(), {once: true});
+            dialog.addEventListener('cancel', ev => { if (fields.disabled) ev.preventDefault(); });
+            form.addEventListener('submit', async ev => {
+                ev.preventDefault();
+                if (fields.disabled || state.disposed || state.current?.id !== id) return;
+                const body = {provider_id: provider.value, model: model.value.trim()};
+                const notice = form.querySelector('.dt-model-error');
+                fields.disabled = true;
+                notice.hidden = true;
+                try {
+                    const saved = await request(path + '/model', {method: 'PUT', body});
+                    if (state.disposed || state.current?.id !== id) return;
+                    state.current.request.provider_id = saved.provider_id;
+                    state.current.request.model = saved.model;
+                    dialog.close();
+                    if (feedback) feedback.textContent = tr('model_saved');
+                } catch (err) {
+                    if (state.disposed || !dialog.isConnected) return;
+                    notice.hidden = false;
+                    notice.textContent = v.errorText(tr, err);
+                } finally { fields.disabled = false; }
+            });
+            host.querySelector('.dt-app').append(dialog);
+            dialog.showModal();
         }
         function reasonText(reason) {
             if (!reason) return '';
@@ -619,6 +680,7 @@
                 if (action === 'new') { state.notice = ''; state.current = null; resetArchive(); state.fresh = true; draw(); host.querySelector('[name=topic]')?.focus(); return; }
                 if (!action || !state.current) return;
                 state.busy = true;
+                if (action === 'change-model') { await openModelDialog(); return; }
                 if (action === 'history-more' || action === 'sources-more') {
                     const id = state.current.id, generation = viewGeneration, reports = action === 'history-more';
                     const page = await request('/cases/' + id + (reports ? '/reports?before=' + historyNext : '/sources?before=' + sourceNext));

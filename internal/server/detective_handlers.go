@@ -287,6 +287,49 @@ func (s *Server) handleDetective(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch parts[2] {
+	case "model":
+		if r.Method != http.MethodPut {
+			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")
+			return
+		}
+		var selection struct {
+			ProviderID string `json:"provider_id"`
+			Model      string `json:"model"`
+		}
+		if err := detectiveDecode(w, r, &selection); err != nil {
+			detectiveError(w, err)
+			return
+		}
+		selection.ProviderID = strings.TrimSpace(selection.ProviderID)
+		selection.Model = strings.TrimSpace(selection.Model)
+		ctx, release, err := s.beginDesktopRun(r.Context())
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		defer release()
+		current := s.ConfigSnapshot()
+		if !detectiveResearchAllowed(current) {
+			detectiveError(w, detective.ErrPermission)
+			return
+		}
+		provider := current.FindProvider(selection.ProviderID)
+		if selection.ProviderID == "" || provider == nil || !config.ProviderUsageAllowsGeneralChat(provider) {
+			detectiveError(w, errors.New("selected provider is unavailable for research"))
+			return
+		}
+		if selection.Model == "" && strings.TrimSpace(provider.Model) == "" {
+			detectiveError(w, errors.New("selected provider has no default model"))
+			return
+		}
+		err = publishDesktopResult(ctx, func() error {
+			return s.Detective.SetModel(key, selection.ProviderID, selection.Model)
+		})
+		if err != nil {
+			detectiveError(w, err)
+			return
+		}
+		detectiveJSON(w, 200, selection)
 	case "auto-update":
 		if r.Method != http.MethodPut {
 			detectiveRefusal(w, 405, "Method not allowed", "method_not_allowed")

@@ -36,6 +36,11 @@ provider/spending limits still apply.
   from the capabilities answer.
 - **Continue** resumes with the remaining recorded budget, including after a
   restart. It does not apply a new effort.
+- **Change model** saves a provider and an optional model override for an idle
+  case. Leave the model field empty to use the selected provider's default.
+  The next manual run or automatic update uses this selection. A different
+  provider or model starts its conversation from the saved case evidence, while
+  existing sources, findings, reports and remaining budget stay with the case.
 - **Deepen** explicitly grants a new effort budget to an existing case that has
   already left draft. A draft offers Start and the effort control, not Deepen.
   The effort control next to Deepen applies only to Deepen and to the first
@@ -199,6 +204,9 @@ response stays bounded: sources carry metadata only (no excerpt) and the case-le
 not touch the evidence. `GET .../state?after=<event id>` returns the live view, the new
 activity and the next cursor in one response; `GET .../live` and `GET .../events`
 remain available.
+`PUT /api/desktop/detective/cases/{id}/model` accepts `provider_id` and `model`.
+An empty `model` selects the configured provider's default. The provider must be
+eligible for general chat. A queued or running case returns `conflict`.
 `PUT /api/desktop/detective/cases/{id}/auto-update` accepts `enabled`,
 `interval_hours`, `report_style` (`append`/`rewrite`) and `effort`
 (`quick`/`normal`/`maximum`). GET `reports`, `sources` and `findings` below that case

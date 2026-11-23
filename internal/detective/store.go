@@ -499,6 +499,30 @@ func (s *Service) Create(req Request) (Case, error) {
 	return c, err
 }
 
+// SetModel configures future work on an idle case without starting a run.
+func (s *Service) SetModel(key, providerID, model string) error {
+	if providerID == "" || utf8.RuneCountInString(model) > 200 {
+		return errors.New("invalid research model selection")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return ErrClosed
+	}
+	c, err := s.getLocked(key)
+	if err != nil {
+		return err
+	}
+	if activeStatus(c.Run.Status) || (s.active != nil && s.active.CaseID == key) {
+		return ErrConflict
+	}
+	if c.Request.ProviderID == providerID && c.Request.Model == model {
+		return nil
+	}
+	c.Request.ProviderID, c.Request.Model = providerID, model
+	return s.saveLocked(&c)
+}
+
 func (s *Service) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
