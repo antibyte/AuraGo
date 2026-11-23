@@ -505,7 +505,7 @@ func (s *Service) StartJob(ctx context.Context, projectID string, req StartJobRe
 				return Job{}, fmt.Errorf("restore game maker working copy: %w", err)
 			}
 			if prompt == "" {
-				prompt = "Continue the previous task. Keep its original goal and completed work; fix the remaining failures."
+				prompt = ContinuationPrompt
 			}
 		}
 		if project.CurrentRevision > 0 {
@@ -669,7 +669,7 @@ func (s *Service) executeJob(ctx context.Context, job Job, project Project, diag
 	result, finished := s.finishedBuilds[job.ID]
 	s.mu.RUnlock()
 	if !finished {
-		s.terminateJob(job, ctx, fmt.Errorf("agent stopped without finish; draft retained"))
+		s.terminateJob(job, ctx, &JobError{Code: "unfinished", Err: fmt.Errorf("agent stopped without finish; draft retained")})
 		return
 	}
 	revision, err := s.publishValidated(ctx, stage, project, job, result)
@@ -1035,6 +1035,7 @@ func (s *Service) ListMessages(ctx context.Context, projectID string) ([]Message
 		if err := rows.Scan(&message.ID, &message.ProjectID, &message.JobID, &message.Role, &message.Content, &message.CreatedAt); err != nil {
 			return nil, err
 		}
+		message.Continuation = message.Role == "user" && message.Content == ContinuationPrompt
 		out = append(out, message)
 	}
 	return out, rows.Err()

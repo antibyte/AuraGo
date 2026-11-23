@@ -233,6 +233,7 @@ func scanRevision(row interface{ Scan(...any) error }) (Revision, error) {
 	var revision Revision
 	err := row.Scan(&revision.ID, &revision.ProjectID, &revision.Number, &revision.Parent,
 		&revision.Source, &revision.Summary, &revision.FileCount, &revision.TotalBytes, &revision.CreatedAt)
+	revision.SummaryKind = revisionSummaryKind(revision.Summary)
 	return revision, err
 }
 

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -353,10 +354,10 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 	callCtx := llm.WithStreamAttemptTimeout(gamemaker.WithJobContext(ctx, run.Job.ID), time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
 	response, err := agent.ExecuteAgentLoop(callCtx, req, runCfg, true, broker)
 	if err != nil {
-		return fmt.Errorf("Game Maker agent loop: %w", err)
+		return gameMakerLoopError(err)
 	}
 	if !r.service.JobFinished(run.Job.ID) {
-		return fmt.Errorf("agent stopped without finish; draft retained")
+		return &gamemaker.JobError{Code: "unfinished", Err: fmt.Errorf("agent stopped without finish; draft retained")}
 	}
 	answer := strings.TrimSpace(broker.text())
 	if answer == "" && len(response.Choices) > 0 {
@@ -366,6 +367,20 @@ func (r *gameMakerAgentRunner) RunGameMakerJob(ctx context.Context, run gamemake
 		r.service.HoldAgentSummary(run.Job.ID, answer)
 	}
 	return nil
+}
+
+// gameMakerLoopError wraps an agent-loop failure; the message text stays unchanged,
+// known failure classes get a stable job error code.
+func gameMakerLoopError(err error) error {
+	wrapped := fmt.Errorf("Game Maker agent loop: %w", err)
+	var incomplete *agent.IncompleteCompletionError
+	switch {
+	case errors.As(err, &incomplete):
+		return &gamemaker.JobError{Code: "model", Err: wrapped}
+	case errors.Is(err, agent.ErrToolLimitFinalResponseInvalid):
+		return &gamemaker.JobError{Code: "tool_limit", Err: wrapped}
+	}
+	return wrapped
 }
 
 func gameMakerDiagnosticContext(diagnostics []gamemaker.Diagnostic) string {
@@ -385,9 +400,16 @@ type gameMakerBroker struct {
 	response   strings.Builder
 	progress   string
 	progressAt time.Time
+	// pendingBreak is set by tool_start; the next model text opens a new paragraph.
+	pendingBreak bool
 }
 
 func (b *gameMakerBroker) Send(event, message string) {
+	if event == "tool_start" {
+		b.mu.Lock()
+		b.pendingBreak = true
+		b.mu.Unlock()
+	}
 	if strings.TrimSpace(message) == "" {
 		return
 	}
@@ -430,12 +452,34 @@ func (b *gameMakerBroker) SendJSON(string) {}
 func (b *gameMakerBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 	if content != "" {
 		b.mu.Lock()
-		b.response.WriteString(content)
+		b.appendTurnText(content)
 		b.mu.Unlock()
 	}
 	if toolName == "activate_agent_skill" {
 		_ = b.service.EmitAgentEvent(context.Background(), b.projectID, b.jobID, "skill_activation", map[string]any{"tool_id": toolID})
 	}
+}
+
+// appendTurnText adds streamed model text. After a tool call the next non-empty
+// text starts a new paragraph, so separate model turns do not run together.
+// Caller holds b.mu.
+func (b *gameMakerBroker) appendTurnText(content string) {
+	if b.pendingBreak {
+		if strings.TrimSpace(content) == "" {
+			b.response.WriteString(content)
+			return
+		}
+		b.pendingBreak = false
+		if b.response.Len() > 0 {
+			existing := b.response.String()
+			trailing := len(existing) - len(strings.TrimRight(existing, "\n"))
+			leading := len(content) - len(strings.TrimLeft(content, "\n"))
+			if need := 2 - trailing - leading; need > 0 {
+				b.response.WriteString(strings.Repeat("\n", need))
+			}
+		}
+	}
+	b.response.WriteString(content)
 }
 
 func (b *gameMakerBroker) SendLLMStreamDone(string) {}

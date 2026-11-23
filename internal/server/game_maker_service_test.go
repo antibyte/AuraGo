@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/gamemaker"
 )
@@ -311,5 +313,53 @@ func TestGameMakerBrokerPersistsBoundedTokenUsage(t *testing.T) {
 	}
 	if payload["estimated"] != true || payload["token_source"] != "unknown" {
 		t.Fatalf("token metadata = %+v", payload)
+	}
+}
+
+func TestGameMakerBrokerSeparatesModelTurns(t *testing.T) {
+	broker := &gameMakerBroker{}
+	broker.SendLLMStreamDelta("\n", "", "", 0, "")
+	broker.Send("tool_start", "game_maker_file") // pending break, nothing written yet
+	broker.SendLLMStreamDelta("First turn.", "", "", 0, "")
+	broker.SendLLMStreamDelta(" More.", "", "", 0, "")
+	broker.Send("tool_start", "game_maker_file")
+	broker.SendLLMStreamDelta("Second turn.", "", "", 0, "")
+	broker.Send("tool_start", "game_maker_file")
+	broker.SendLLMStreamDelta("\n\nThird turn.", "", "", 0, "")
+	got := broker.text()
+	want := "\n\nFirst turn. More.\n\nSecond turn.\n\nThird turn."
+	if got != want {
+		t.Fatalf("text = %q, want %q", got, want)
+	}
+	fresh := &gameMakerBroker{}
+	fresh.Send("tool_start", "x")
+	fresh.SendLLMStreamDelta("Hello", "", "", 0, "")
+	if fresh.text() != "Hello" {
+		t.Fatalf("break added at start: %q", fresh.text())
+	}
+}
+
+func TestGameMakerLoopErrorCodes(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		code string
+		msg  string
+	}{
+		{&agent.IncompleteCompletionError{FinishReason: "length"}, "model", "Game Maker agent loop: model response incomplete (length); output was not applied"},
+		{fmt.Errorf("x: %w", agent.ErrToolLimitFinalResponseInvalid), "tool_limit", "Game Maker agent loop: x: tool_limit_final_response_invalid"},
+		{fmt.Errorf("boom"), "", "Game Maker agent loop: boom"},
+	} {
+		got := gameMakerLoopError(tc.err)
+		if got.Error() != tc.msg {
+			t.Errorf("message = %q, want %q", got.Error(), tc.msg)
+		}
+		var coded *gamemaker.JobError
+		code := ""
+		if errors.As(got, &coded) {
+			code = coded.Code
+		}
+		if code != tc.code {
+			t.Errorf("code = %q, want %q", code, tc.code)
+		}
 	}
 }

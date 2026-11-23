@@ -12,6 +12,19 @@ import (
 
 const adoptPublicationSummary = "Checked workspace edits and published them."
 
+// ContinuationPrompt is the internal prompt stored when a job is resumed without a user prompt.
+const ContinuationPrompt = "Continue the previous task. Keep its original goal and completed work; fix the remaining failures."
+
+func revisionSummaryKind(summary string) string {
+	switch summary {
+	case ContinuationPrompt:
+		return "continuation"
+	case adoptPublicationSummary:
+		return "adopt"
+	}
+	return ""
+}
+
 // JobError carries a stable code. The message stays technical English.
 type JobError struct {
 	Code string

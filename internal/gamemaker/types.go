@@ -177,9 +177,13 @@ type Message struct {
 	Role      string    `json:"role"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
+	// Continuation marks the internal resume prompt so the UI can render it as a system line.
+	Continuation bool `json:"continuation,omitempty"`
 }
 
 type Revision struct {
+	// SummaryKind is "continuation" or "adopt" when Summary is an internal English marker.
+	SummaryKind  string    `json:"summary_kind,omitempty"`
 	ID           int64     `json:"id"`
 	ProjectID    string    `json:"project_id"`
 	Number       int64     `json:"number"`
