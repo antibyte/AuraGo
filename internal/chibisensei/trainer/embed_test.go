@@ -20,7 +20,7 @@ func TestLoadLockEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadLock: %v", err)
 	}
-	if len(l.Pip) != 1 || l.Pip[0] != "peft==0.21.3" || l.Transformers != "" || l.LlamaCppTag != "b9994" ||
+	if len(l.Pip) != 1 || l.Pip[0] != "peft==0.22.0" || l.Transformers != "" || l.LlamaCppTag != "b9994" ||
 		l.LlamaCppURL != LlamaCppURLPrefix+"b9994" {
 		t.Fatalf("lock = %+v", l)
 	}

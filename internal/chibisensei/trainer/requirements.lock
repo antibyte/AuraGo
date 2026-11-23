@@ -4,7 +4,7 @@
 # llama_cpp_tag <tag>     converter release; must match the local runtime build
 # llama_cpp_url <url>     the codeload tarball of that tag
 # llama_cpp_sha256 <hex>  sha256 of that tarball (35736748 bytes, measured 2026-11-23); empty = the trainer logs the measured value and warns
-pip peft==0.21.3
+pip peft==0.22.0
 transformers
 llama_cpp_tag b9994
 llama_cpp_url https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b9994
