@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Træn små modeller på dine egne eksempler.",
   "config.chibi_sensei.enabled_label": "Aktivér Chibi Sensei",
-  "help.chibi_sensei.enabled": "Viser Chibi Sensei-appen på skrivebordet. Datasætstudiet arbejder lokalt; træning kræver Kaggle-tilladelser.",
+  "help.chibi_sensei.enabled": "Viser Chibi Sensei-appen på skrivebordet. Datasætstudiet arbejder lokalt; træningen kører på Kaggle og kræver Kaggle-tilladelserne.",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei er slået fra",
   "config.chibi_sensei.disabled_desc": "Slå den til for at vise appen på skrivebordet.",
   "config.chibi_sensei.data_title": "Datasæt",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "Det højeste antal eksempler, en genereringskørsel må oprette.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Genererede eksempler pr. dag",
   "config.chibi_sensei.generator_max_daily_rows_help": "Daglig grænse på tværs af alle projekter.",
-  "config.chibi_sensei.later_note": "Træning, lokal test og Sensei-chatten får deres indstillinger i senere versioner.",
+  "config.chibi_sensei.training_title": "Træning på Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "GPU-type",
+  "config.chibi_sensei.training_machine_shape_help": "Det grafikkort, Kaggle bruger til træning. Det skal også være afkrydset under „Tilladte GPU-typer“ i Kaggle-indstillingerne.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA T4-grafikkort (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA L4-grafikkort (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Slet Kaggle-kopierne efter en kørsel",
+  "config.chibi_sensei.training_delete_remote_help": "Efter en kørsel sletter AuraGo det uploadede datasæt og notebooken på Kaggle. Det kræver tilladelsen til at slette i Kaggle-indstillingerne; uden den bliver begge liggende på Kaggle, og kørslen viser dem.",
+  "config.chibi_sensei.later_note": "Lokal test og Sensei-chatten får deres indstillinger i senere versioner.",
   "config.chibi_sensei.open_app": "Åbn Chibi Sensei"
 }

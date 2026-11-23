@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Train kleine modellen met je eigen voorbeelden.",
   "config.chibi_sensei.enabled_label": "Chibi Sensei inschakelen",
-  "help.chibi_sensei.enabled": "Toont de Chibi Sensei-app op het bureaublad. De datasetstudio werkt lokaal; voor training heb je Kaggle-rechten nodig.",
+  "help.chibi_sensei.enabled": "Toont de Chibi Sensei-app op het bureaublad. De datasetstudio werkt lokaal; de training draait op Kaggle en heeft de Kaggle-rechten nodig.",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei staat uit",
   "config.chibi_sensei.disabled_desc": "Zet het aan om de app op het bureaublad te tonen.",
   "config.chibi_sensei.data_title": "Datasets",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "Het maximale aantal voorbeelden dat één generatierun mag maken.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Gegenereerde voorbeelden per dag",
   "config.chibi_sensei.generator_max_daily_rows_help": "Daglimiet voor alle projecten samen.",
-  "config.chibi_sensei.later_note": "Training, lokaal testen en de Sensei-chat krijgen hun instellingen in latere versies.",
+  "config.chibi_sensei.training_title": "Training op Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "GPU-type",
+  "config.chibi_sensei.training_machine_shape_help": "De videokaart die Kaggle voor de training gebruikt. Hij moet ook zijn aangevinkt onder „Toegestane GPU-typen” in de Kaggle-instellingen.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA T4-videokaart (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA L4-videokaart (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Kaggle-kopieën na een run verwijderen",
+  "config.chibi_sensei.training_delete_remote_help": "Na een run verwijdert AuraGo de geüploade dataset en het notebook op Kaggle. Hiervoor is de verwijderrechten-instelling in de Kaggle-instellingen nodig; zonder blijven beide op Kaggle staan en toont de run ze in een lijst.",
+  "config.chibi_sensei.later_note": "Lokaal testen en de Sensei-chat krijgen hun instellingen in latere versies.",
   "config.chibi_sensei.open_app": "Chibi Sensei openen"
 }

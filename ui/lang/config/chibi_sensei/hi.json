@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "अपने उदाहरणों से छोटे मॉडल प्रशिक्षित करें।",
   "config.chibi_sensei.enabled_label": "Chibi Sensei चालू करें",
-  "help.chibi_sensei.enabled": "डेस्कटॉप पर Chibi Sensei ऐप दिखाता है। डेटासेट स्टूडियो स्थानीय रूप से काम करता है; प्रशिक्षण के लिए Kaggle अनुमतियाँ चाहिए होंगी।",
+  "help.chibi_sensei.enabled": "डेस्कटॉप पर Chibi Sensei ऐप दिखाता है। डेटासेट स्टूडियो स्थानीय रूप से काम करता है; प्रशिक्षण Kaggle पर चलता है और उसके लिए Kaggle अनुमतियाँ चाहिए।",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei बंद है",
   "config.chibi_sensei.disabled_desc": "ऐप को डेस्कटॉप पर दिखाने के लिए इसे चालू करें।",
   "config.chibi_sensei.data_title": "डेटासेट",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "एक जनरेशन रन अधिकतम इतने उदाहरण बना सकता है।",
   "config.chibi_sensei.generator_max_daily_rows_label": "प्रतिदिन बनाए गए उदाहरण",
   "config.chibi_sensei.generator_max_daily_rows_help": "सभी प्रोजेक्ट मिलाकर दैनिक सीमा।",
-  "config.chibi_sensei.later_note": "प्रशिक्षण, स्थानीय परीक्षण और Sensei चैट की सेटिंग्स बाद के संस्करणों में आएँगी।",
+  "config.chibi_sensei.training_title": "Kaggle पर प्रशिक्षण",
+  "config.chibi_sensei.training_machine_shape_label": "GPU प्रकार",
+  "config.chibi_sensei.training_machine_shape_help": "वह ग्राफ़िक्स कार्ड जिसे Kaggle प्रशिक्षण के लिए इस्तेमाल करता है। उसे Kaggle सेटिंग्स में “अनुमत GPU प्रकार” के अंतर्गत भी चुना होना चाहिए।",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA T4 ग्राफ़िक्स कार्ड (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA L4 ग्राफ़िक्स कार्ड (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "रन के बाद Kaggle की प्रतियाँ हटाएँ",
+  "config.chibi_sensei.training_delete_remote_help": "रन के बाद AuraGo Kaggle पर अपलोड किया गया डेटासेट और नोटबुक हटा देता है। इसके लिए Kaggle सेटिंग्स में हटाने की अनुमति चाहिए; उसके बिना दोनों Kaggle पर रहते हैं और रन उनकी सूची देता है।",
+  "config.chibi_sensei.later_note": "स्थानीय परीक्षण और Sensei चैट की सेटिंग्स बाद के संस्करणों में आएँगी।",
   "config.chibi_sensei.open_app": "Chibi Sensei खोलें"
 }

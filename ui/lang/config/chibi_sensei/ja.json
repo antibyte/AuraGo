@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "自分の例で小さなモデルを訓練します。",
   "config.chibi_sensei.enabled_label": "Chibi Sensei を有効にする",
-  "help.chibi_sensei.enabled": "デスクトップに Chibi Sensei アプリを表示します。データセットスタジオはローカルで動作します。訓練には Kaggle の権限が必要になります。",
+  "help.chibi_sensei.enabled": "デスクトップに Chibi Sensei アプリを表示します。データセットスタジオはローカルで動作します。訓練は Kaggle 上で実行され、Kaggle の権限が必要です。",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei はオフです",
   "config.chibi_sensei.disabled_desc": "オンにすると、アプリがデスクトップに表示されます。",
   "config.chibi_sensei.data_title": "データセット",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "1回の生成実行で作成できる例の最大数です。",
   "config.chibi_sensei.generator_max_daily_rows_label": "1日に生成する例の数",
   "config.chibi_sensei.generator_max_daily_rows_help": "すべてのプロジェクトを合わせた1日の上限です。",
-  "config.chibi_sensei.later_note": "訓練、ローカルテスト、Sensei チャットの設定は今後のバージョンで追加されます。",
+  "config.chibi_sensei.training_title": "Kaggleでの訓練",
+  "config.chibi_sensei.training_machine_shape_label": "GPUの種類",
+  "config.chibi_sensei.training_machine_shape_help": "Kaggleが訓練に使うグラフィックスカードです。Kaggle設定の「許可するGPUの種類」でもチェックされている必要があります。",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA T4グラフィックスカード（16 GB）",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA L4グラフィックスカード（24 GB）",
+  "config.chibi_sensei.training_delete_remote_label": "実行後にKaggle上のコピーを削除する",
+  "config.chibi_sensei.training_delete_remote_help": "実行後、AuraGoはKaggleにアップロードしたデータセットとノートブックを削除します。これにはKaggle設定の削除権限が必要です。権限がない場合、両方ともKaggleに残り、実行結果に一覧表示されます。",
+  "config.chibi_sensei.later_note": "ローカルテストと Sensei チャットの設定は今後のバージョンで追加されます。",
   "config.chibi_sensei.open_app": "Chibi Sensei を開く"
 }

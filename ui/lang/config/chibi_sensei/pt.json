@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Treine modelos pequenos com os seus próprios exemplos.",
   "config.chibi_sensei.enabled_label": "Ativar o Chibi Sensei",
-  "help.chibi_sensei.enabled": "Mostra a aplicação Chibi Sensei no ambiente de trabalho. O estúdio de conjuntos de dados funciona localmente; o treino vai precisar de permissões do Kaggle.",
+  "help.chibi_sensei.enabled": "Mostra a aplicação Chibi Sensei no ambiente de trabalho. O estúdio de conjuntos de dados funciona localmente; o treino corre no Kaggle e precisa das permissões do Kaggle.",
   "config.chibi_sensei.disabled_notice": "O Chibi Sensei está desativado",
   "config.chibi_sensei.disabled_desc": "Ative-o para mostrar a aplicação no ambiente de trabalho.",
   "config.chibi_sensei.data_title": "Conjuntos de dados",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "O máximo de exemplos que uma execução de geração pode criar.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Exemplos gerados por dia",
   "config.chibi_sensei.generator_max_daily_rows_help": "Limite diário para todos os projetos.",
-  "config.chibi_sensei.later_note": "O treino, os testes locais e o chat com o Sensei terão as suas definições em versões futuras.",
+  "config.chibi_sensei.training_title": "Treino no Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "Tipo de GPU",
+  "config.chibi_sensei.training_machine_shape_help": "A placa gráfica que o Kaggle usa para o treino. Também tem de estar marcada em «Tipos de GPU permitidos» nas definições do Kaggle.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "Placa gráfica NVIDIA T4 (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "Placa gráfica NVIDIA L4 (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Eliminar as cópias do Kaggle após uma execução",
+  "config.chibi_sensei.training_delete_remote_help": "Após uma execução, o AuraGo elimina o conjunto de dados enviado e o notebook no Kaggle. Para isso é preciso a permissão de eliminação nas definições do Kaggle; sem ela ambos ficam no Kaggle e a execução lista-os.",
+  "config.chibi_sensei.later_note": "Os testes locais e o chat com o Sensei terão as suas definições em versões futuras.",
   "config.chibi_sensei.open_app": "Abrir o Chibi Sensei"
 }

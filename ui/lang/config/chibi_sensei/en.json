@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Train small models on your own examples.",
   "config.chibi_sensei.enabled_label": "Enable Chibi Sensei",
-  "help.chibi_sensei.enabled": "Shows the Chibi Sensei app on the desktop. The dataset studio works locally; training will need Kaggle permissions.",
+  "help.chibi_sensei.enabled": "Shows the Chibi Sensei app on the desktop. The dataset studio works locally; training runs on Kaggle and needs the Kaggle permissions.",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei is off",
   "config.chibi_sensei.disabled_desc": "Switch it on to show the app on the desktop.",
   "config.chibi_sensei.data_title": "Datasets",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "The most examples one generation run may create.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Generated examples per day",
   "config.chibi_sensei.generator_max_daily_rows_help": "Daily limit across all projects.",
-  "config.chibi_sensei.later_note": "Training, local testing and the Sensei chat get their settings in later versions.",
+  "config.chibi_sensei.training_title": "Training on Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "GPU type",
+  "config.chibi_sensei.training_machine_shape_help": "The graphics card Kaggle uses for training. It must also be ticked under “Allowed GPU types” in the Kaggle settings.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA T4 graphics card (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA L4 graphics card (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Delete the Kaggle copies after a run",
+  "config.chibi_sensei.training_delete_remote_help": "After a run AuraGo deletes the uploaded dataset and the notebook on Kaggle. This needs the delete permission in the Kaggle settings; without it both stay on Kaggle and the run lists them.",
+  "config.chibi_sensei.later_note": "Local testing and the Sensei chat get their settings in later versions.",
   "config.chibi_sensei.open_app": "Open Chibi Sensei"
 }

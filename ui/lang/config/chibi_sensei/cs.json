@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Trénuj malé modely na vlastních příkladech.",
   "config.chibi_sensei.enabled_label": "Zapnout Chibi Sensei",
-  "help.chibi_sensei.enabled": "Zobrazí aplikaci Chibi Sensei na ploše. Studio datových sad pracuje lokálně; trénování bude potřebovat oprávnění Kaggle.",
+  "help.chibi_sensei.enabled": "Zobrazí aplikaci Chibi Sensei na ploše. Studio datových sad pracuje lokálně; trénování běží na Kaggle a potřebuje oprávnění Kaggle.",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei je vypnutý",
   "config.chibi_sensei.disabled_desc": "Zapni ho, aby se aplikace zobrazila na ploše.",
   "config.chibi_sensei.data_title": "Datové sady",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "Nejvíce příkladů, které může jeden běh generování vytvořit.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Vygenerované příklady za den",
   "config.chibi_sensei.generator_max_daily_rows_help": "Denní limit pro všechny projekty.",
-  "config.chibi_sensei.later_note": "Trénování, lokální testování a chat se Senseiem dostanou svá nastavení v pozdějších verzích.",
+  "config.chibi_sensei.training_title": "Trénování na Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "Typ GPU",
+  "config.chibi_sensei.training_machine_shape_help": "Grafická karta, kterou Kaggle používá k trénování. Musí být zaškrtnutá také v nastavení Kaggle pod „Povolené typy GPU“.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "Grafická karta NVIDIA T4 (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "Grafická karta NVIDIA L4 (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Po běhu smazat kopie na Kaggle",
+  "config.chibi_sensei.training_delete_remote_help": "Po běhu AuraGo smaže nahranou datovou sadu a notebook na Kaggle. K tomu je potřeba oprávnění ke smazání v nastavení Kaggle; bez něj obojí na Kaggle zůstane a běh je vypíše.",
+  "config.chibi_sensei.later_note": "Lokální testování a chat se Senseiem dostanou svá nastavení v pozdějších verzích.",
   "config.chibi_sensei.open_app": "Otevřít Chibi Sensei"
 }

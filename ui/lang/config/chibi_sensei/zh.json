@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "用你自己的示例训练小型模型。",
   "config.chibi_sensei.enabled_label": "启用 Chibi Sensei",
-  "help.chibi_sensei.enabled": "在桌面上显示 Chibi Sensei 应用。数据集工作室在本地运行；训练需要 Kaggle 权限。",
+  "help.chibi_sensei.enabled": "在桌面上显示 Chibi Sensei 应用。数据集工作室在本地运行；训练在 Kaggle 上进行，需要 Kaggle 权限。",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei 已关闭",
   "config.chibi_sensei.disabled_desc": "打开后，应用会显示在桌面上。",
   "config.chibi_sensei.data_title": "数据集",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "一次生成运行最多可以创建的示例数。",
   "config.chibi_sensei.generator_max_daily_rows_label": "每天生成的示例数",
   "config.chibi_sensei.generator_max_daily_rows_help": "所有项目合计的每日上限。",
-  "config.chibi_sensei.later_note": "训练、本地测试和 Sensei 聊天的设置将在后续版本中提供。",
+  "config.chibi_sensei.training_title": "在 Kaggle 上训练",
+  "config.chibi_sensei.training_machine_shape_label": "GPU 类型",
+  "config.chibi_sensei.training_machine_shape_help": "Kaggle 用于训练的显卡。它还必须在 Kaggle 设置的“允许的 GPU 类型”中勾选。",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA T4 显卡（16 GB）",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA L4 显卡（24 GB）",
+  "config.chibi_sensei.training_delete_remote_label": "运行后删除 Kaggle 上的副本",
+  "config.chibi_sensei.training_delete_remote_help": "运行结束后，AuraGo 会删除上传到 Kaggle 的数据集和笔记本。这需要 Kaggle 设置中的删除权限；没有该权限时两者会保留在 Kaggle 上，并由运行列出。",
+  "config.chibi_sensei.later_note": "本地测试和 Sensei 聊天的设置将在后续版本中提供。",
   "config.chibi_sensei.open_app": "打开 Chibi Sensei"
 }

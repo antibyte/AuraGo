@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Entrena modelos pequeños con tus propios ejemplos.",
   "config.chibi_sensei.enabled_label": "Activar Chibi Sensei",
-  "help.chibi_sensei.enabled": "Muestra la aplicación Chibi Sensei en el escritorio. El estudio de conjuntos de datos funciona en local; el entrenamiento necesitará permisos de Kaggle.",
+  "help.chibi_sensei.enabled": "Muestra la aplicación Chibi Sensei en el escritorio. El estudio de conjuntos de datos funciona en local; el entrenamiento se ejecuta en Kaggle y necesita los permisos de Kaggle.",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei está desactivado",
   "config.chibi_sensei.disabled_desc": "Actívalo para mostrar la aplicación en el escritorio.",
   "config.chibi_sensei.data_title": "Conjuntos de datos",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "El máximo de ejemplos que puede crear una ejecución de generación.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Ejemplos generados por día",
   "config.chibi_sensei.generator_max_daily_rows_help": "Límite diario para todos los proyectos.",
-  "config.chibi_sensei.later_note": "El entrenamiento, las pruebas locales y el chat con Sensei tendrán sus ajustes en versiones posteriores.",
+  "config.chibi_sensei.training_title": "Entrenamiento en Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "Tipo de GPU",
+  "config.chibi_sensei.training_machine_shape_help": "La tarjeta gráfica que Kaggle usa para el entrenamiento. También debe estar marcada en «Tipos de GPU permitidos» de los ajustes de Kaggle.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "Tarjeta gráfica NVIDIA T4 (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "Tarjeta gráfica NVIDIA L4 (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Borrar las copias de Kaggle tras una ejecución",
+  "config.chibi_sensei.training_delete_remote_help": "Tras una ejecución, AuraGo borra el conjunto de datos subido y el notebook en Kaggle. Para ello hace falta el permiso de borrado en los ajustes de Kaggle; sin él ambos permanecen en Kaggle y la ejecución los enumera.",
+  "config.chibi_sensei.later_note": "Las pruebas locales y el chat con Sensei tendrán sus ajustes en versiones posteriores.",
   "config.chibi_sensei.open_app": "Abrir Chibi Sensei"
 }

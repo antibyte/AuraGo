@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Εκπαίδευσε μικρά μοντέλα με τα δικά σου παραδείγματα.",
   "config.chibi_sensei.enabled_label": "Ενεργοποίηση του Chibi Sensei",
-  "help.chibi_sensei.enabled": "Εμφανίζει την εφαρμογή Chibi Sensei στην επιφάνεια εργασίας. Το στούντιο συνόλων δεδομένων λειτουργεί τοπικά· η εκπαίδευση θα χρειαστεί δικαιώματα Kaggle.",
+  "help.chibi_sensei.enabled": "Εμφανίζει την εφαρμογή Chibi Sensei στην επιφάνεια εργασίας. Το στούντιο συνόλων δεδομένων λειτουργεί τοπικά· η εκπαίδευση εκτελείται στο Kaggle και χρειάζεται τα δικαιώματα Kaggle.",
   "config.chibi_sensei.disabled_notice": "Το Chibi Sensei είναι απενεργοποιημένο",
   "config.chibi_sensei.disabled_desc": "Ενεργοποίησέ το για να εμφανιστεί η εφαρμογή στην επιφάνεια εργασίας.",
   "config.chibi_sensei.data_title": "Σύνολα δεδομένων",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "Τα περισσότερα παραδείγματα που μπορεί να δημιουργήσει μία εκτέλεση δημιουργίας.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Παραδείγματα που δημιουργούνται ανά ημέρα",
   "config.chibi_sensei.generator_max_daily_rows_help": "Ημερήσιο όριο για όλα τα έργα.",
-  "config.chibi_sensei.later_note": "Η εκπαίδευση, η τοπική δοκιμή και η συνομιλία με το Sensei θα έχουν ρυθμίσεις σε μελλοντικές εκδόσεις.",
+  "config.chibi_sensei.training_title": "Εκπαίδευση στο Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "Τύπος GPU",
+  "config.chibi_sensei.training_machine_shape_help": "Η κάρτα γραφικών που χρησιμοποιεί το Kaggle για την εκπαίδευση. Πρέπει να είναι επιλεγμένη και στις ρυθμίσεις Kaggle, στους «Επιτρεπόμενους τύπους GPU».",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "Κάρτα γραφικών NVIDIA T4 (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "Κάρτα γραφικών NVIDIA L4 (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Διαγραφή των αντιγράφων στο Kaggle μετά από μια εκτέλεση",
+  "config.chibi_sensei.training_delete_remote_help": "Μετά από μια εκτέλεση το AuraGo διαγράφει το σύνολο δεδομένων και το notebook που ανέβηκαν στο Kaggle. Για αυτό χρειάζεται το δικαίωμα διαγραφής στις ρυθμίσεις Kaggle· χωρίς αυτό μένουν και τα δύο στο Kaggle και η εκτέλεση τα απαριθμεί.",
+  "config.chibi_sensei.later_note": "Η τοπική δοκιμή και η συνομιλία με το Sensei θα έχουν ρυθμίσεις σε μελλοντικές εκδόσεις.",
   "config.chibi_sensei.open_app": "Άνοιγμα του Chibi Sensei"
 }

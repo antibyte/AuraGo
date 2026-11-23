@@ -2,7 +2,7 @@
   "config.section.chibi_sensei.label": "Chibi Sensei",
   "config.section.chibi_sensei.desc": "Kleine Modelle mit eigenen Beispielen trainieren.",
   "config.chibi_sensei.enabled_label": "Chibi Sensei aktivieren",
-  "help.chibi_sensei.enabled": "Zeigt die Chibi-Sensei-App auf dem Desktop. Das Datensatz-Studio arbeitet lokal; fürs Training brauchst Du Kaggle-Berechtigungen.",
+  "help.chibi_sensei.enabled": "Zeigt die Chibi-Sensei-App auf dem Desktop. Das Datensatz-Studio arbeitet lokal; das Training läuft auf Kaggle und braucht die Kaggle-Berechtigungen.",
   "config.chibi_sensei.disabled_notice": "Chibi Sensei ist aus",
   "config.chibi_sensei.disabled_desc": "Schalte es ein, um die App auf dem Desktop zu zeigen.",
   "config.chibi_sensei.data_title": "Datensätze",
@@ -24,6 +24,13 @@
   "config.chibi_sensei.generator_max_rows_per_job_help": "Die meisten Beispiele, die ein Erzeugungslauf anlegen darf.",
   "config.chibi_sensei.generator_max_daily_rows_label": "Erzeugte Beispiele pro Tag",
   "config.chibi_sensei.generator_max_daily_rows_help": "Tageslimit über alle Projekte.",
-  "config.chibi_sensei.later_note": "Training, lokales Testen und der Sensei-Chat bekommen ihre Einstellungen in späteren Versionen.",
+  "config.chibi_sensei.training_title": "Training auf Kaggle",
+  "config.chibi_sensei.training_machine_shape_label": "GPU-Typ",
+  "config.chibi_sensei.training_machine_shape_help": "Die Grafikkarte, die Kaggle fürs Training nutzt. Dieser Typ muss auch in den Kaggle-Einstellungen unter „Erlaubte GPU-Typen“ angehakt sein.",
+  "config.chibi_sensei.machine_shape_NvidiaTeslaT4": "NVIDIA-T4-Grafikkarte (16 GB)",
+  "config.chibi_sensei.machine_shape_NvidiaL4": "NVIDIA-L4-Grafikkarte (24 GB)",
+  "config.chibi_sensei.training_delete_remote_label": "Kaggle-Kopien nach einem Lauf löschen",
+  "config.chibi_sensei.training_delete_remote_help": "Nach einem Lauf löscht AuraGo den hochgeladenen Datensatz und das Notebook auf Kaggle. Dafür braucht AuraGo in den Kaggle-Einstellungen die Erlaubnis zum Löschen; sonst bleiben beide auf Kaggle und der Lauf listet sie auf.",
+  "config.chibi_sensei.later_note": "Lokales Testen und der Sensei-Chat bekommen ihre Einstellungen in späteren Versionen.",
   "config.chibi_sensei.open_app": "Chibi Sensei öffnen"
 }
