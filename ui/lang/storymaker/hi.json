@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "आपके हाल के बदलाव सहेजे नहीं जा सके, इसलिए कुछ शुरू नहीं हुआ।",
   "storymaker.agent.state_cancelled": "रोक दिया गया। मान्य दृश्य कहानी में बने रहते हैं।",
   "storymaker.agent.state_interrupted": "पुनरारंभ ने लेखक को रोक दिया। मान्य दृश्य बने रहते हैं, और एक संशोधन बाकी काम पूरा कर सकता है।",
+  "storymaker.agent.working": "एआई लेखक काम कर रहा है…",
   "storymaker.agent.phase_outline": "दृश्यों की योजना",
   "storymaker.agent.phase_cast": "लोगों का चयन",
   "storymaker.agent.phase_fill": "दृश्यों का मंचन",

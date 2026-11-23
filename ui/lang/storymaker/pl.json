@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Nie udało się zapisać ostatnich zmian, więc nic nie zostało uruchomione.",
   "storymaker.agent.state_cancelled": "Zatrzymano. Poprawne sceny pozostają w historii.",
   "storymaker.agent.state_interrupted": "Restart przerwał pracę autora. Poprawne sceny pozostają, a poprawka może dokończyć resztę.",
+  "storymaker.agent.working": "Autor AI pracuje…",
   "storymaker.agent.phase_outline": "Planowanie scen",
   "storymaker.agent.phase_cast": "Wybór postaci",
   "storymaker.agent.phase_fill": "Inscenizacja scen",

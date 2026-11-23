@@ -699,6 +699,11 @@ class FakeNode {
     if (name === 'hidden' || name === 'disabled' || name === 'checked') this[name] = true;
     if (name === 'value') this.value = String(value);
   }
+  getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
+  removeAttribute(name) {
+    delete this.attrs[name];
+    if (name === 'hidden' || name === 'disabled' || name === 'checked') this[name] = false;
+  }
   addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
   removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter(other => other !== fn); }
   fire(type, event) { (this.listeners[type] || []).forEach(fn => fn(Object.assign({ target: this }, event || {}))); }
@@ -1019,4 +1024,68 @@ for (const plain of [{ path: mp4, size: 10 }, { path: mp4, size: 10, stems: {} }
   eq(one(bare.root, 'export-path').textContent, mp4, 'only the MP4');
 }
 console.log('storymaker export finished ok');
+`
+
+// The agent panel's busy bar: it shows the whole run, indeterminate until the fill phase counts scenes, then a
+// real progressbar with aria values, and it disappears when the job ends.
+func TestStorymakerAgentBusyBarInNode(t *testing.T) {
+	t.Parallel()
+	out := runStorymakerExportScript(t, "storymaker-agent-busy.js", storymakerAgentBusyScript)
+	if !strings.Contains(out, "storymaker agent busy ok") {
+		t.Fatalf("unexpected output:\n%s", out)
+	}
+}
+
+const storymakerAgentBusyScript = `
+load(['storymaker-core.js', 'storymaker-model.js', 'storymaker-agent.js']);
+const S = context.StorymakerParts;
+function panel() {
+  const reloaded = [];
+  const bus = S.createBus();
+  const inst = {
+    t: key => key, domId: name => 'test-' + name, bus, parts: {}, readonly: false, dirty: false, conflict: false,
+    projectId: 'p1', etag: '"e1"', agentLocked: false, silentBackup: null,
+    status: { agent: { enabled: true, available: true } },
+    story: { scenes: [{ id: 's1', kind: 'stage', narration: 'Hello world', actors: [], props: [], beats: [] }] },
+    notify() {}, reloadProject() { reloaded.push(Date.now()); return Promise.resolve(); }, api: {}
+  };
+  return { view: S.createAgentPanel(inst), inst, bus, reloaded };
+}
+const job = (fields, ...patch) => {
+  const base = { id: 'job-1', kind: 'agent', project_id: 'p1', created_at: '2026-01-01T10:00:00Z', updated_at: '2026-01-01T10:00:30Z' };
+  return Object.assign(base, fields, ...patch);
+};
+
+// No job: no busy bar, no steps.
+const first = panel();
+const busy = () => one(first.view.el, 'agent-busy');
+eq(busy().hidden, true, 'the busy bar starts hidden');
+eq(byStm(first.view.el, 'agent-step').length, 0, 'no steps without a job');
+
+// A running job without scene counts: indeterminate, named, no value.
+first.bus.emit('job', job({ status: 'running', agent: { kind: 'create', phase: 'outline' } }));
+eq(busy().hidden, false, 'the busy bar shows while the job runs');
+eq([busy().dataset.mode, busy().getAttribute('role'), busy().getAttribute('aria-valuenow')], ['indeterminate', 'progressbar', null], 'an indeterminate progressbar has no value');
+eq(one(first.view.el, 'agent-busy-fill').style.width, '', 'the inner span keeps no width');
+eq(one(first.view.el, 'agent-busy').getAttribute('aria-label'), 'storymaker.agent.working', 'the bar stays named');
+eq(first.inst.agentLocked, true, 'the job locks the editor');
+
+// The fill phase counts scenes: a real progress bar with a value.
+first.bus.emit('job', job({ status: 'running', updated_at: '2026-01-01T10:01:00Z', agent: { kind: 'create', phase: 'fill', scenes_done: 2, scenes_total: 5 } }));
+eq([busy().dataset.mode, busy().getAttribute('aria-valuenow'), busy().getAttribute('aria-valuemin'), busy().getAttribute('aria-valuemax')], ['scenes', '2', '0', '5'], 'scene progress as aria values');
+eq(one(first.view.el, 'agent-busy-fill').style.width, '40%', 'the fill follows the scenes');
+eq(one(first.view.el, 'agent-state').hidden, true, 'the state line stays quiet while running');
+
+// More scenes done, still running.
+first.bus.emit('job', job({ status: 'running', updated_at: '2026-01-01T10:01:30Z', agent: { kind: 'create', phase: 'check', scenes_done: 5, scenes_total: 5 } }));
+eq(one(first.view.el, 'agent-busy-fill').style.width, '100%', 'a full fill');
+
+// The job ends: the bar and the lock go, and the story is read once more.
+first.bus.emit('job', job({ status: 'succeeded', updated_at: '2026-01-01T10:02:00Z', agent: { kind: 'create', outcome: 'ready' } }));
+eq(busy().hidden, true, 'the busy bar hides at the end');
+eq(first.inst.agentLocked, false, 'the editor unlocks');
+eq(first.reloaded.length, 1, 'the story is reloaded once');
+eq(byStm(first.view.el, 'agent-step').length, 0, 'the steps go');
+
+console.log('storymaker agent busy ok');
 `

@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Não foi possível guardar as últimas alterações, por isso nada foi iniciado.",
   "storymaker.agent.state_cancelled": "Parado. As cenas válidas ficam na história.",
   "storymaker.agent.state_interrupted": "Um reinício interrompeu o autor. As cenas válidas ficam, e uma revisão pode terminar o resto.",
+  "storymaker.agent.working": "O autor IA está a trabalhar…",
   "storymaker.agent.phase_outline": "A planear as cenas",
   "storymaker.agent.phase_cast": "A escolher as pessoas",
   "storymaker.agent.phase_fill": "A encenar as cenas",

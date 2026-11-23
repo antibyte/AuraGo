@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Dine seneste ændringer kunne ikke gemmes, så intet blev startet.",
   "storymaker.agent.state_cancelled": "Stoppet. Gyldige scener bliver i historien.",
   "storymaker.agent.state_interrupted": "En genstart afbrød forfatteren. Gyldige scener bliver, og en rettelse kan gøre resten færdig.",
+  "storymaker.agent.working": "AI-forfatteren arbejder …",
   "storymaker.agent.phase_outline": "Planlægger scenerne",
   "storymaker.agent.phase_cast": "Vælger personerne",
   "storymaker.agent.phase_fill": "Iscenesætter scenerne",

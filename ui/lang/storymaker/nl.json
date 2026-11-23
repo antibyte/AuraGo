@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Je laatste wijzigingen konden niet worden opgeslagen, dus er is niets gestart.",
   "storymaker.agent.state_cancelled": "Gestopt. Geldige scènes blijven in het verhaal.",
   "storymaker.agent.state_interrupted": "Een herstart heeft de auteur onderbroken. Geldige scènes blijven, en een herziening kan de rest afmaken.",
+  "storymaker.agent.working": "De AI-auteur is aan het werk…",
   "storymaker.agent.phase_outline": "Scènes plannen",
   "storymaker.agent.phase_cast": "Personen kiezen",
   "storymaker.agent.phase_fill": "Scènes uitwerken",

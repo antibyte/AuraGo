@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "最近的编辑未能保存，因此没有开始。",
   "storymaker.agent.state_cancelled": "已停止。有效的场景保留在故事中。",
   "storymaker.agent.state_interrupted": "重启中断了作者。有效的场景会保留，修改可以完成其余部分。",
+  "storymaker.agent.working": "AI 作者正在创作…",
   "storymaker.agent.phase_outline": "正在规划场景",
   "storymaker.agent.phase_cast": "正在选择人物",
   "storymaker.agent.phase_fill": "正在编排场景",

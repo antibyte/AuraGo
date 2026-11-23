@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "最新の編集を保存できなかったため、開始しませんでした。",
   "storymaker.agent.state_cancelled": "停止しました。有効なシーンはストーリーに残ります。",
   "storymaker.agent.state_interrupted": "再起動により作家が中断されました。有効なシーンは残り、修正で残りを仕上げられます。",
+  "storymaker.agent.working": "AI作家が作業中です…",
   "storymaker.agent.phase_outline": "シーンを計画中",
   "storymaker.agent.phase_cast": "人物を選択中",
   "storymaker.agent.phase_fill": "シーンを演出中",

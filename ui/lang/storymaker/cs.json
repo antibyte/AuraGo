@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Poslední úpravy se nepodařilo uložit, proto se nic nespustilo.",
   "storymaker.agent.state_cancelled": "Zastaveno. Platné scény v příběhu zůstávají.",
   "storymaker.agent.state_interrupted": "Autora přerušil restart. Platné scény zůstávají a zbytek může dokončit úprava.",
+  "storymaker.agent.working": "AI autor pracuje…",
   "storymaker.agent.phase_outline": "Plánování scén",
   "storymaker.agent.phase_cast": "Výběr postav",
   "storymaker.agent.phase_fill": "Inscenace scén",

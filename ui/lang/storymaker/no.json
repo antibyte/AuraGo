@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "De siste endringene dine kunne ikke lagres, så ingenting ble startet.",
   "storymaker.agent.state_cancelled": "Stoppet. Gyldige scener blir i historien.",
   "storymaker.agent.state_interrupted": "En omstart avbrøt forfatteren. Gyldige scener blir, og en revisjon kan fullføre resten.",
+  "storymaker.agent.working": "KI-forfatteren arbeider …",
   "storymaker.agent.phase_outline": "Planlegger scenene",
   "storymaker.agent.phase_cast": "Velger personene",
   "storymaker.agent.phase_fill": "Iscenesetter scenene",

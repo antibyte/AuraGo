@@ -145,6 +145,8 @@
         const errorLine = el('p', { class: 'stm-form-error', role: 'alert', hidden: true, dataset: { stm: 'agent-error' } });
         const routeLine = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'agent-route' } });
         const stateLine = el('p', { class: 'stm-hint', role: 'status', hidden: true, dataset: { stm: 'agent-state', state: 'idle' } });
+        const busyFill = el('span', { dataset: { stm: 'agent-busy-fill' } });
+        const busyBar = el('div', { class: 'stm-agent-progress', role: 'progressbar', hidden: true, ariaLabel: t('storymaker.agent.working'), dataset: { stm: 'agent-busy' } }, busyFill);
         const steps = el('ol', { class: 'stm-agent-steps', hidden: true, dataset: { stm: 'agent-progress' } });
         const scenesLine = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'agent-scenes' } });
         const retryLine = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'agent-retry' }, text: t('storymaker.agent.model_retry') });
@@ -153,7 +155,7 @@
         const silentButton = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'agent-make-silent' }, onClick: () => makeSilent() }, el('span', { text: t('storymaker.agent.make_silent') }));
         const restoreButton = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'agent-restore-speech' }, onClick: () => restoreSpeech() }, el('span', { text: t('storymaker.agent.restore_speech') }));
         const root = el('section', { class: 'stm-agent', ariaLabel: t('storymaker.side_agent'), dataset: { stm: 'agent' } },
-            offLine, unavailableLine, modeChip, form, errorLine, routeLine, stateLine, steps, scenesLine, retryLine, cancelButton, outcomeCard,
+            offLine, unavailableLine, modeChip, form, errorLine, routeLine, stateLine, busyBar, steps, scenesLine, retryLine, cancelButton, outcomeCard,
             el('div', { class: 'stm-actions' }, silentButton, restoreButton));
 
         function setError(text) {
@@ -342,6 +344,27 @@
             stateLine.hidden = !text;
         }
 
+        // The busy bar shows the whole run: indeterminate while the plan, the cast and the model work, a real progress bar with a
+        // value once the fill phase counts scenes. Without motion (reduced motion or animations off) it stays a quiet, static bar.
+        function paintBusy(active, agent) {
+            const total = Number(agent.scenes_total) || 0;
+            const done = Math.max(0, Math.min(Number(agent.scenes_done) || 0, total));
+            busyBar.hidden = !active;
+            if (!active) return;
+            const scenes = total > 0;
+            busyBar.dataset.mode = scenes ? 'scenes' : 'indeterminate';
+            busyFill.style.width = scenes ? Math.round((done / total) * 100) + '%' : '';
+            if (scenes) {
+                busyBar.setAttribute('aria-valuenow', String(done));
+                busyBar.setAttribute('aria-valuemin', '0');
+                busyBar.setAttribute('aria-valuemax', String(total));
+            } else {
+                busyBar.removeAttribute('aria-valuenow');
+                busyBar.removeAttribute('aria-valuemin');
+                busyBar.removeAttribute('aria-valuemax');
+            }
+        }
+
         function paintProgress() {
             const active = isActive(job);
             const agent = active && job.agent ? job.agent : {};
@@ -355,6 +378,7 @@
                     steps.appendChild(el('li', { class: 'stm-agent-step', dataset: { stm: 'agent-step', phase: name, state } }, icon(state === 'done' ? 'check' : 'info'), el('span', { text: t(PHASE_KEYS[name]) })));
                 });
             }
+            paintBusy(active, agent);
             const total = Number(agent.scenes_total) || 0;
             scenesLine.hidden = !total;
             scenesLine.textContent = total ? t('storymaker.agent.scenes', { done: Number(agent.scenes_done) || 0, total }) : '';

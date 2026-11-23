@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Οι τελευταίες αλλαγές σας δεν αποθηκεύτηκαν, οπότε δεν ξεκίνησε τίποτα.",
   "storymaker.agent.state_cancelled": "Διακόπηκε. Οι έγκυρες σκηνές μένουν στην ιστορία.",
   "storymaker.agent.state_interrupted": "Μια επανεκκίνηση διέκοψε τον συγγραφέα. Οι έγκυρες σκηνές μένουν και μια αναθεώρηση μπορεί να ολοκληρώσει τα υπόλοιπα.",
+  "storymaker.agent.working": "Ο συγγραφέας AI δουλεύει…",
   "storymaker.agent.phase_outline": "Σχεδιασμός σκηνών",
   "storymaker.agent.phase_cast": "Επιλογή προσώπων",
   "storymaker.agent.phase_fill": "Στήσιμο σκηνών",

@@ -263,6 +263,11 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
 .stm-agent-step { display: flex; align-items: center; gap: var(--ds-space-2); color: var(--vd-theme-muted); }
 .stm-agent-step[data-state="current"] { color: var(--vd-text); font-weight: 600; }
 .stm-agent-step[data-state="done"] { color: var(--stm-ok-text); }
+/* The busy bar of a running author job: quiet, static fill without motion, animated by the motion gate below. With scene counts it
+   turns into a real progress bar whose fill width comes from the app; until then it slides indeterminately. */
+.stm-agent-progress { position: relative; height: 4px; overflow: hidden; border-radius: var(--ds-radius-full); background: var(--vd-mat-well, var(--vd-theme-control-bg)); }
+.stm-agent-progress > span { display: block; height: 100%; width: 100%; border-radius: inherit; background: var(--vd-mat-primary, var(--vd-accent)); opacity: .5; }
+.stm-agent-progress[data-mode="scenes"] > span { opacity: 1; }
 .stm-agent-outcome { display: grid; gap: var(--ds-space-2); padding: var(--ds-space-3); border: 1px solid var(--vd-mat-card-border, var(--vd-theme-border)); border-radius: var(--vd-mat-card-radius, var(--ds-radius-md)); background: var(--vd-mat-card, var(--vd-theme-panel-bg)); }
 .stm-agent-outcome[data-outcome="ready"], .stm-agent-outcome[data-outcome="ready_unverified"] { border-color: var(--stm-ok); }
 .stm-agent-outcome[data-outcome="incomplete"] { border-color: var(--stm-warn); }
@@ -319,5 +324,9 @@ progress.stm-progress::-moz-progress-bar { background: var(--vd-mat-primary, var
     body:not([data-animations="false"]) .stm-app :is(.stm-btn, .stm-tab, .stm-chip, .stm-card, .stm-scene-btn, .stm-project, .stm-issue-go, .stm-problem-go, .stm-code-file-btn) { transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease; }
     body:not([data-animations="false"]) .stm-app .stm-export-panel, body:not([data-animations="false"]) .stm-app .stm-issues { animation: stm-rise .14s ease-out; }
     body:not([data-animations="false"]) .stm-app .stm-export-btn::before { transition: width .25s linear; }
+    body:not([data-animations="false"]) .stm-app .stm-agent-progress[data-mode="indeterminate"] > span { width: 35%; opacity: 1; animation: stm-agent-slide 1.4s ease-in-out infinite; }
+    body:not([data-animations="false"]) .stm-app .stm-agent-step[data-state="current"] .stm-icon { animation: stm-agent-pulse 1.4s ease-in-out infinite; }
     @keyframes stm-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes stm-agent-slide { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
+    @keyframes stm-agent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 }

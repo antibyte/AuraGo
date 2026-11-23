@@ -367,6 +367,7 @@
   "storymaker.agent.save_first": "Le ultime modifiche non sono state salvate, quindi non è partito nulla.",
   "storymaker.agent.state_cancelled": "Fermato. Le scene valide restano nella storia.",
   "storymaker.agent.state_interrupted": "Un riavvio ha interrotto l'autore. Le scene valide restano e una revisione può completare il resto.",
+  "storymaker.agent.working": "L'autore IA sta lavorando…",
   "storymaker.agent.phase_outline": "Pianificazione delle scene",
   "storymaker.agent.phase_cast": "Scelta delle persone",
   "storymaker.agent.phase_fill": "Messa in scena",
