@@ -45,6 +45,15 @@ errors and warnings; an error blocks the export and the list says where. The **C
 `export default function scene(api) { ... }`, that draws a scene itself; it cannot reach the network
 or the page. With `virtual_desktop.readonly` on, you can watch but not edit, save or export.
 
+### Two ways to create a film
+
+When you start a film, choose how its pictures come about:
+
+- **From templates** builds the film from the built-in catalog: people, props, environments and scenes with lip-sync.
+- **Create freely** lets the agent draw and animate everything itself in code scenes. There are no catalog people or props. The narrator speaks off-screen, a code scene has no lip-sync, and one scene's code is limited to 8 KiB.
+
+The choice is made when the project is created, on the start screen and in the chat tool (`mode`: `catalog` or `free`), and it stays with the project: "Revise" keeps working in the same way. Free projects carry a "Free" marker in the project list. A free film is reported as `ready_unverified` at best, because the layout inside code scenes is not measured.
+
 ## Settings
 
 **Configuration → Virtual Desktop → Storymaker** holds the settings:

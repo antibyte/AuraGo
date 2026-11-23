@@ -45,6 +45,15 @@ zählt Fehler und Warnungen; ein Fehler blockiert den Export, und die Liste sagt
 `export default function scene(api) { ... }`, das eine Szene selbst zeichnet; es erreicht weder das Netzwerk noch
 die Seite. Mit `virtual_desktop.readonly` an kannst du ansehen, aber nichts bearbeiten, speichern oder exportieren.
 
+### Zwei Wege, einen Film zu erstellen
+
+Beim Start eines Films wählst du, woher die Bilder kommen:
+
+- **Aus Vorlagen** baut den Film aus dem eingebauten Katalog: Figuren, Requisiten, Umgebungen und Szenen mit Lippen-Sync.
+- **Frei erstellen** lässt den Agenten alles selbst zeichnen und animieren, über Code-Szenen. Es gibt keine Katalog-Figuren oder -Requisiten. Die Erzählstimme spricht aus dem Off, eine Code-Szene hat kein Lippen-Sync, und der Code einer Szene ist auf 8 KiB begrenzt.
+
+Die Wahl fällt beim Anlegen des Projekts, auf dem Startbildschirm und im Chat-Werkzeug (`mode`: `catalog` oder `free`), und sie bleibt am Projekt: „Überarbeiten“ arbeitet auf dieselbe Weise weiter. Freie Projekte tragen in der Projektliste die Markierung „Frei“. Ein freier Film erreicht höchstens `ready_unverified`, weil das Layout in Code-Szenen nicht gemessen wird.
+
 ## Einstellungen
 
 Unter **Konfiguration → Virtual Desktop → Storymaker** liegen die Einstellungen:

@@ -9,6 +9,7 @@ Speech always uses bundled local Phonon, independently of chat TTS. Supported sp
 ## Operations
 
 - `create` with `topic` (1-2000 characters) starts a job and returns `project_id`, `job_id`, `state` and `eta_hint_seconds`. Optional: `audience` (at most 120 characters), `length_seconds` (default 60; the server clamps it), `format` (`16:9`, `9:16` or `1:1`), `language` (default is the UI language) and `voice` (`{provider, voice}`).
+  - `mode` (optional): `catalog` builds the film from the built-in catalog of people, props and environments (default). `free` lets the agent draw and animate everything itself in code scenes; there are no catalog people, the narrator speaks off-screen, and the result is `ready_unverified` at best. The mode is fixed when the project is created; `revise` keeps it.
 - `status` with `project_id` returns `state`, `phase`, `scenes_done`, `scenes_total`, `open_checks`, `error_code`, `next_action`, `poll_after_seconds` and, after an export, `output_path`. After a revise it also returns `changed_scenes`, `unchanged_scenes` and `removed_scenes`: the scene ids the revise changed, kept or removed.
 - `revise` with `project_id` and `instruction` (1-2000 characters) starts a job that changes the existing story.
 - `render` with `project_id` queues the MP4 export and returns `render_job_id`. With `silent: true` it first removes the speech, for a system with no working voice, and says so in its answer.
