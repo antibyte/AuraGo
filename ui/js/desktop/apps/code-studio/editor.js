@@ -343,6 +343,12 @@
             tab.revision = (tab.revision || 0) + 1;
             tab.content = content;
             tab.modified = true;
+            // Blame line numbers belong to the saved file; hide the gutter until the post-save refresh.
+            if (tab.blameOn && tab.blameLines) {
+                tab.blameLines = null;
+                tab.blameRequest = null;
+                applyGitBlame(tab);
+            }
             if (!tab.secondaryView) tab.secondaryEditorSnapshot = null;
             updateSuggestionStatus();
             scheduleDocumentCheck();

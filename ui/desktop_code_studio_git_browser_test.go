@@ -65,7 +65,14 @@ func TestDesktopCodeStudioGitWorkbenchBrowser(t *testing.T) {
             const firstEntry=root.querySelector('.cs-blame-gutter .cs-blame-entry.first'),box=firstEntry.getBoundingClientRect();
             firstEntry.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,clientX:box.left+box.width/2,clientY:box.top+box.height/2}));
             await csWait(()=>target.openTabs[target.activeTabIndex]?.kind==='commit');
-            return {bothGroups,staging,stagedOnly,history,commitTab,commitIsVirtual,blame,blameClick:true,errors:fixtureErrors};
+            step='blame hidden on edit';
+            await app.openFile('/workspace/main.go',true,id);
+            const mainTab=target.openTabs.find(item=>item.path==='/workspace/main.go');
+            await csWait(()=>mainTab.view&&root.querySelectorAll('.cs-blame-gutter .cs-blame-entry').length>0);
+            mainTab.view.dispatch({changes:{from:0,insert:'x'}});
+            await csWait(()=>mainTab.modified&&root.querySelectorAll('.cs-blame-entry').length===0);
+            const blameHidden=root.querySelectorAll('.cs-blame-entry').length===0;
+            return {bothGroups,staging,stagedOnly,history,commitTab,commitIsVirtual,blame,blameClick:true,blameHidden,errors:fixtureErrors};
         } catch (err) {
             return {step,error:String(err&&err.message||err),errors:fixtureErrors};
         } finally {window.fetch=fetchBefore;}
@@ -73,7 +80,7 @@ func TestDesktopCodeStudioGitWorkbenchBrowser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"bothGroups", "staging", "stagedOnly", "history", "commitTab", "commitIsVirtual", "blame", "blameClick"} {
+	for _, key := range []string{"bothGroups", "staging", "stagedOnly", "history", "commitTab", "commitIsVirtual", "blame", "blameClick", "blameHidden"} {
 		if !result.Value.Get(key).Bool() {
 			t.Fatalf("Git workbench check %q failed: %s", key, result.Value.JSON("", "  "))
 		}

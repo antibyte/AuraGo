@@ -3082,6 +3082,12 @@
             tab.revision = (tab.revision || 0) + 1;
             tab.content = content;
             tab.modified = true;
+            // Blame line numbers belong to the saved file; hide the gutter until the post-save refresh.
+            if (tab.blameOn && tab.blameLines) {
+                tab.blameLines = null;
+                tab.blameRequest = null;
+                applyGitBlame(tab);
+            }
             if (!tab.secondaryView) tab.secondaryEditorSnapshot = null;
             updateSuggestionStatus();
             scheduleDocumentCheck();
@@ -6568,7 +6574,8 @@
         const tab = activeTab();
         if (!tab || isVirtualTab(tab)) return undefined;
         tab.blameOn = !tab.blameOn;
-        if (tab.blameOn) return refreshGitBlame(tab);
+        // A modified buffer no longer matches the blamed lines: the gutter stays empty until the post-save refresh.
+        if (tab.blameOn) return tab.modified ? undefined : refreshGitBlame(tab);
         tab.blameRequest = null;
         tab.blameLines = null;
         applyGitBlame(tab);
@@ -6766,18 +6773,20 @@
         saveState();
     }
 
-    // Closing the secondary pane's tab ends the split. Returns the primary pane's tab, which then becomes active.
+    // Closing either pane's tab ends the split. Returns the other pane's tab, which then becomes active.
     function closeSplitForTab(tab) {
-        if (!state.splitMode || !tab || tab !== state.splitSecondaryTab) return null;
-        const primary = state.splitPrimaryTab;
-        const keep = primary && primary !== tab && state.openTabs.includes(primary) ? primary : null;
+        if (!state.splitMode || !tab || (tab !== state.splitSecondaryTab && tab !== state.splitPrimaryTab)) return null;
+        const other = tab === state.splitSecondaryTab ? state.splitPrimaryTab : state.splitSecondaryTab;
+        const keep = other && other !== tab && state.openTabs.includes(other) ? other : null;
         resetSplitState();
         return keep;
     }
 
-    // Close others, close all and delete remove tabs without closeTab; a missing secondary tab ends the split here.
+    // Close others, close all and delete remove tabs without closeTab; a missing pane tab ends the split here.
     function pruneClosedSplitPane() {
-        if (!state.splitMode || state.splitRestore || !state.splitSecondaryTab || state.openTabs.includes(state.splitSecondaryTab)) return;
+        if (!state.splitMode || state.splitRestore) return;
+        const missing = pane => pane && !state.openTabs.includes(pane);
+        if (!missing(state.splitSecondaryTab) && !missing(state.splitPrimaryTab)) return;
         resetSplitState();
         renderWindowMenus();
         saveState();

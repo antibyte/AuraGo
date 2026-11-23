@@ -253,7 +253,8 @@
         const tab = activeTab();
         if (!tab || isVirtualTab(tab)) return undefined;
         tab.blameOn = !tab.blameOn;
-        if (tab.blameOn) return refreshGitBlame(tab);
+        // A modified buffer no longer matches the blamed lines: the gutter stays empty until the post-save refresh.
+        if (tab.blameOn) return tab.modified ? undefined : refreshGitBlame(tab);
         tab.blameRequest = null;
         tab.blameLines = null;
         applyGitBlame(tab);

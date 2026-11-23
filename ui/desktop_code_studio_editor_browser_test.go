@@ -69,6 +69,10 @@ func TestDesktopCodeStudioEditorBrowser(t *testing.T) {
 	check("focusing the other pane makes its file the active tab", `()=>csState().openTabs[csState().activeTabIndex].path==='/workspace/main.go'&&csRoot().querySelectorAll('[data-editor] .cm-editor').length===2`)
 	page.MustEval(`()=>{const content=csRoot().querySelector('[data-split-pane="primary"] .cm-content');csKey(content,{key:'\\',code:'Backslash',ctrlKey:true});}`)
 	check("Ctrl+Backslash closes the split", `()=>csRoot().querySelectorAll('[data-editor] .cm-editor').length===1&&!csState().splitMode`)
+	// Closing the primary pane's tab while the secondary pane has focus ends the split and keeps the other file.
+	page.MustEval(`async()=>{await window.CodeStudioApp.command('openToSide',['/workspace/README.md'],csState().windowId);await csWait(()=>csRoot().querySelectorAll('[data-editor] .cm-editor').length===2,10000);const content=csRoot().querySelector('[data-split-pane="secondary"] .cm-content');content.focus();content.dispatchEvent(new FocusEvent('focusin',{bubbles:true}));await window.CodeStudioApp.command('closeTab',[csState().openTabs.findIndex(tab=>tab.path==='/workspace/main.go')],csState().windowId);}`)
+	check("closing the primary tab ends the split and keeps the other file", `async()=>{await csWait(()=>!csState().splitMode&&csRoot().querySelectorAll('[data-editor] .cm-editor').length===1,5000);return csState().openTabs[csState().activeTabIndex].path==='/workspace/README.md';}`)
+	page.MustEval(`async()=>{await window.CodeStudioApp.openFile('/workspace/main.go',true,csState().windowId);}`)
 
 	// A5: the gear opens the settings; tab size 2 reaches the open editor live and is stored.
 	page.MustEval(`()=>{csRoot().querySelector('[data-activity="settings"]').click();}`)
