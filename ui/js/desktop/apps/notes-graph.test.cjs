@@ -77,6 +77,26 @@ test('springs keep clusters together', () => {
     assert.ok(intra / ni < inter / nx, `intra ${intra / ni} inter ${inter / nx}`);
 });
 
+test('sparse graph: orphans stay close to the linked chain', () => {
+    const nodes = [];
+    const links = [];
+    for (let i = 0; i < 5; i++) {
+        nodes.push({ id: 'c' + i });
+        if (i > 0) links.push({ source: 'c' + i, target: 'c' + (i - 1) });
+    }
+    for (let i = 0; i < 5; i++) nodes.push({ id: 'o' + i });
+    const sim = NotesGraph.createSimulation({ nodes, links, seed: 4 });
+    sim.run();
+    const chain = nodes.slice(0, 5);
+    const cx = chain.reduce((a, n) => a + n.x, 0) / 5;
+    const cy = chain.reduce((a, n) => a + n.y, 0) / 5;
+    const chainR = Math.max(...chain.map(n => Math.hypot(n.x - cx, n.y - cy)));
+    const far = Math.max(...nodes.slice(5).map(n => Math.hypot(n.x - cx, n.y - cy)));
+    console.log('chain radius ' + chainR.toFixed(1) + ', farthest orphan ' + far.toFixed(1));
+    // Bound: orphans form a loose ring; 3x the chain radius keeps the fitted cluster large.
+    assert.ok(far < 3 * chainR, `orphan ${far} vs chain radius ${chainR}`);
+});
+
 test('cooling stops and reheat restarts', () => {
     const g = ring(20);
     const sim = NotesGraph.createSimulation({ nodes: g.nodes, links: g.links, seed: 1 });

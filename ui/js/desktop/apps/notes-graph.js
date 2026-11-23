@@ -40,9 +40,10 @@
         var velocityDecay = 0.45;
         var chargeStrength = -220;
         var theta2 = 0.9 * 0.9;
-        var distanceMax2 = 900 * 900;
+        var distanceMax2 = 400 * 400; // far nodes stop pushing, keeps orphans close to the cluster
         var linkDistance = 70;
         var centerStrength = 0.04;
+        var orphanCenterStrength = 0.12; // unlinked nodes are pulled in harder
         var alpha = config.alpha == null ? 1 : config.alpha;
 
         var byId = new Map();
@@ -193,8 +194,8 @@
         }
 
         function applyCenter() {
-            var k = centerStrength * alpha;
             for (var idx = 0; idx < n; idx++) {
+                var k = (degree[idx] === 0 ? orphanCenterStrength : centerStrength) * alpha;
                 nodes[idx].vx -= nodes[idx].x * k;
                 nodes[idx].vy -= nodes[idx].y * k;
             }
@@ -348,10 +349,12 @@
         var view = { k: 1, x: 0, y: 0 };
         var nodes = [], byId = new Map(), adj = new Map(), sim = null;
         var colors = null, fontFamily = 'sans-serif';
-        var hoverId = null, highlightId = null, kbId = null, kbOrder = [];
+        var hoverId = null, highlightId = null, kbId = null, kbOrder = [], kbNav = false;
         var drag = null;
         var raf = 0, destroyed = false;
         var autoFit = true, fitDone = false, tickCount = 0;
+        var moved = false; // user panned/zoomed/dragged since the last fit
+        var keyModality = false; // last input on the document was the keyboard
 
         function readColors() {
             var cs = win.getComputedStyle(host);
@@ -439,7 +442,7 @@
                         ctx.stroke();
                     }
                 }
-                if (nd.id === kbId) {
+                if (nd.id === kbId && kbNav) {
                     ctx.globalAlpha = 1;
                     ctx.lineWidth = 2;
                     ctx.strokeStyle = colors.text;
@@ -473,9 +476,8 @@
             }
             ctx.globalAlpha = 1;
 
-            var fv = false;
-            try { fv = canvas.matches(':focus-visible'); } catch (e) { /* unsupported */ }
-            if (fv) {
+            // only after keyboard focus, not when the app focuses the canvas programmatically
+            if (keyModality && doc.activeElement === canvas) {
                 ctx.strokeStyle = colors.current;
                 ctx.globalAlpha = 0.5;
                 ctx.lineWidth = 2;
@@ -503,10 +505,11 @@
             var t = fitTarget();
             if (t) { view.k = t.k; view.x = t.x; view.y = t.y; }
             autoFit = false;
+            moved = false;
             schedule();
         }
 
-        function userMoved() { autoFit = false; }
+        function userMoved() { autoFit = false; moved = true; }
 
         function frame() {
             raf = 0;
@@ -544,6 +547,7 @@
             var nw = Math.round(rect.width), nh = Math.round(rect.height);
             var nd = win.devicePixelRatio || 1;
             if (!nw || !nh) return;
+            var resized = !!w && (nw !== w || nh !== h);
             if (w) { view.x += (nw - w) / 2; view.y += (nh - h) / 2; } else { view.x = nw / 2; view.y = nh / 2; }
             var changed = nw !== w || nh !== h || nd !== dpr;
             w = nw; h = nh; dpr = nd;
@@ -552,7 +556,7 @@
                 canvas.height = Math.round(h * dpr);
             }
             readColors();
-            if (autoFit && reduced) {
+            if ((autoFit && reduced) || (resized && !autoFit && !moved)) {
                 var t = fitTarget();
                 if (t) { view.k = t.k; view.x = t.x; view.y = t.y; }
             }
@@ -656,6 +660,7 @@
             if (e.button !== 0 && e.pointerType === 'mouse') return;
             var p = pointer(e);
             var n = hit(p.x, p.y);
+            kbNav = false;
             drag = { id: e.pointerId, node: n, sx: p.x, sy: p.y, moved: false, vx: view.x, vy: view.y };
             try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
             if (!n) canvas.style.cursor = 'grabbing';
@@ -667,6 +672,7 @@
                 if (!drag.moved && Math.hypot(dx, dy) >= 4) drag.moved = true;
                 if (drag.moved) {
                     if (drag.node) {
+                        userMoved();
                         drag.node.fx = (p.x - view.x) / view.k;
                         drag.node.fy = (p.y - view.y) / view.k;
                         sim.reheat(0.3);
@@ -729,6 +735,7 @@
         }
         function setKb(id) {
             kbId = id;
+            kbNav = !!id;
             var n = id ? byId.get(id) : null;
             if (n) {
                 var x = sx(n), y = sy(n);
@@ -767,11 +774,16 @@
             }
         }
         function onBlur() {
+            kbNav = false;
             if (kbId) { kbId = null; onHover(null); }
             schedule();
         }
         function onFocus() { schedule(); }
 
+        function onDocKey() { if (!keyModality) { keyModality = true; schedule(); } }
+        function onDocPointer() { if (keyModality) { keyModality = false; schedule(); } }
+        doc.addEventListener('keydown', onDocKey, true);
+        doc.addEventListener('pointerdown', onDocPointer, true);
         canvas.addEventListener('pointerdown', onPointerDown);
         canvas.addEventListener('pointermove', onPointerMove);
         canvas.addEventListener('pointerup', onPointerUp);
@@ -810,6 +822,8 @@
                 if (raf) win.cancelAnimationFrame(raf);
                 raf = 0;
                 if (observer) observer.disconnect();
+                doc.removeEventListener('keydown', onDocKey, true);
+                doc.removeEventListener('pointerdown', onDocPointer, true);
                 canvas.removeEventListener('pointerdown', onPointerDown);
                 canvas.removeEventListener('pointermove', onPointerMove);
                 canvas.removeEventListener('pointerup', onPointerUp);
