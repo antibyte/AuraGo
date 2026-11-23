@@ -5,6 +5,8 @@ ARG GO_VERSION=1.27.4
 # Language servers for Code Studio code intelligence (LSP). Change a version
 # only together with a local build and TestCodeStudioLSPRealImage.
 ARG GOPLS_VERSION=v0.24.0
+# TypeScript 7 (native) has no tsserver.js or JS API, which typescript-language-server and Format Document need.
+ARG TYPESCRIPT_VERSION=5.9.3
 ARG TYPESCRIPT_LANGUAGE_SERVER_VERSION=6.1.0
 ARG PYRIGHT_VERSION=1.1.414
 
@@ -56,7 +58,7 @@ RUN set -eux; \
     rm -rf /tmp/gopls-build; \
     gopls version
 
-RUN npm install -g --force pnpm yarn typescript tsx
+RUN npm install -g --force pnpm yarn "typescript@${TYPESCRIPT_VERSION}" tsx
 
 # typescript-language-server 6.x needs Node 22.22.2 or newer. The base tag
 # floats, so the build stops here when it resolved to an older Node.
