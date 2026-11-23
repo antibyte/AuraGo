@@ -493,12 +493,18 @@
             return getLookup().resolve(from, kind || 'wiki', value, !!embed);
         };
         store.linkText = function (path) { return getLookup().linkText(path); };
+        // Servers may leave link.path empty; resolve it client-side with the same rules.
+        function linkPath(n, l) {
+            if (l.path) return l.path;
+            return getLookup().resolve(n.path, l.kind || 'wiki', l.target, !!l.embed);
+        }
+        store.linkPath = linkPath;
         store.backlinks = function (path) {
             var out = [];
             store.notes().forEach(function (n) {
                 if (n.path === path) return;
                 var count = 0;
-                (n.links || []).forEach(function (l) { if (l.path === path) count++; });
+                (n.links || []).forEach(function (l) { if (linkPath(n, l) === path) count++; });
                 if (count) out.push({ path: n.path, title: n.title || '', count: count });
             });
             return out.sort(function (a, b) { return a.title.localeCompare(b.title) || (a.path < b.path ? -1 : 1); });

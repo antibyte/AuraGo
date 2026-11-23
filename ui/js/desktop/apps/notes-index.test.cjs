@@ -115,3 +115,16 @@ test('refresh debounces and failures keep data', async () => {
     await assert.rejects(s2.load());
     assert.equal(s2.notes().length, 3);
 });
+
+test('backlinks resolve client-side when the server leaves link paths empty', async () => {
+    const empty = {
+        notes: INDEX.notes.map((n) => ({ ...n, links: n.links.map((l) => ({ ...l, path: '' })) })),
+        folders: INDEX.folders,
+        attachments: []
+    };
+    const store = N.create({ request: () => Promise.resolve(empty) });
+    await store.load();
+    assert.deepEqual(json(store.backlinks(P + 'Ideen.md')), [{ path: P + 'Plan.md', title: 'Plan', count: 2 }]);
+    // Archiv/Plan.md's [[Plan]] resolves to itself (same folder first), so only Ideen links to Plan.md.
+    assert.deepEqual(json(store.backlinks(P + 'Plan.md')).map((b) => b.path), [P + 'Ideen.md']);
+});
