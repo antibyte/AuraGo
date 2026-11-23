@@ -169,6 +169,11 @@ func TestGameMakerStudioTranslationsCoverEveryDesktopLocale(t *testing.T) {
 		"game_maker.retry_model_start", "game_maker.extend_repairs", "game_maker.extend_repairs_note",
 		"game_maker.open_checks_title", "game_maker.open_check_next",
 		"game_maker.job_feed_title", "game_maker.job_feed_empty",
+		// Studio polish: honest edit status, calm failure card, revisions and create dialog.
+		"game_maker.job_failed_edit_title", "game_maker.failure_hint_tool_limit", "game_maker.failure_hint_unfinished",
+		"game_maker.failure_live_unchanged", "game_maker.continued_job", "game_maker.job_feed_last_title", "game_maker.job_feed_dismiss",
+		"game_maker.status_edit_failed", "game_maker.status_edit_cancelled", "game_maker.revision_current", "game_maker.revision_adopted",
+		"game_maker.dimension_2d_hint", "game_maker.dimension_3d_hint", "game_maker.preview_version", "game_maker.preview_no_version",
 		"game_maker.check_help_required_controls", "game_maker.check_help_required_stages", "game_maker.check_help_generic",
 		"game_maker.check_help_outcome_goal", "game_maker.check_help_outcome_lives", "game_maker.check_help_effect_pickup", "game_maker.check_help_role",
 		"game_maker.check_prompt_required_controls", "game_maker.check_prompt_required_stages", "game_maker.check_prompt_generic",

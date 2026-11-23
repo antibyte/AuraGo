@@ -289,6 +289,17 @@ async function testGameMakerEventConnectionLifecycle() {
   const card = gameMakerOutcomeCard(context, state);
   assert.equal(card.className, 'gm-result-card is-cancelled');
   assert.ok(card.innerHTML.includes(state.latestJob.error), 'the result card retains the cancellation reason');
+  assert.ok(card.innerHTML.includes('<details class="gm-result-details">'), 'the raw reason sits behind a details control');
+  // Old jobs carry code "internal" with the raw message: the message decides the hint.
+  const code = (error, error_code, kind = 'error') => context.failureCode(kind, { error, error_code });
+  assert.equal(code('Game Maker agent loop: model response incomplete (length); output was not applied', 'internal'), 'model');
+  assert.equal(code('Game Maker agent loop: tool_limit_final_response_invalid', 'internal'), 'tool_limit');
+  assert.equal(code('agent stopped without finish; draft retained', 'internal'), 'unfinished');
+  assert.equal(code('build failed', 'unfinished'), 'unfinished');
+  assert.equal(code('boom', 'internal'), 'internal');
+  assert.equal(code('boom', '', 'cancelled'), 'cancelled');
+  const editCard = gameMakerOutcomeCard(context, { ...state, project: { id: 'bo', current_revision: 3 }, latestJob: { status: 'failed', error: 'x' } });
+  assert.ok(editCard.innerHTML.includes('game_maker.job_failed_edit_title') && editCard.innerHTML.includes('game_maker.failure_live_unchanged'), 'a failed edit names the unchanged live version');
   for (const status of ['cancelled', 'failed', 'ready']) {
     state.job.status = status;
     first.onerror(); first.onopen();

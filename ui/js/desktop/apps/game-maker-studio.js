@@ -162,9 +162,13 @@
                         </div>
                         <div class="gm-job-feed" data-gm-job-feed hidden>
                             <div class="gm-job-feed-head">
+                                <span class="gm-job-spinner" data-gm-job-feed-spinner aria-hidden="true"></span>
                                 <strong data-gm-job-feed-title></strong>
                                 <span class="gm-job-feed-elapsed" data-gm-job-feed-elapsed></span>
                                 <button type="button" class="gm-danger" data-gm-action="stop">${esc(t('game_maker.stop'))}</button>
+                                <button type="button" class="gm-job-feed-toggle" data-gm-job-feed-toggle aria-expanded="false" hidden>▾</button>
+                                <button type="button" class="gm-job-feed-dismiss" data-gm-job-feed-dismiss hidden
+                                    aria-label="${esc(t('game_maker.job_feed_dismiss'))}" title="${esc(t('game_maker.job_feed_dismiss'))}">×</button>
                             </div>
                             <ol data-gm-job-feed-lines></ol>
                         </div>
@@ -184,7 +188,7 @@
                                 <span class="gm-job-elapsed" data-gm-job-elapsed></span>
                                 <button type="button" class="gm-danger" data-gm-action="stop">${esc(t('game_maker.stop'))}</button>
                             </div>
-                            <ol class="gm-phases" data-gm-phases>${phaseMarkup(state, '')}</ol>
+                            <ol class="gm-phases" data-gm-phases hidden>${phaseMarkup(state, '')}</ol>
                             <div class="gm-capability-notice" data-gm-capability-notice role="status" hidden>
                                 <strong data-gm-capability-title></strong>
                                 <span data-gm-capability-message></span>
@@ -209,7 +213,7 @@
                         </section>
                         <section class="gm-preview-pane">
                             <div class="gm-pane-head">
-                                <div><span class="gm-kicker">${esc(t('game_maker.live_preview'))}</span><h2>${esc(t('game_maker.play_here'))}</h2></div>
+                                <div><span class="gm-kicker">${esc(t('game_maker.live_preview'))}</span><h2 data-gm-preview-title>${esc(t('game_maker.preview_no_version'))}</h2></div>
                                 <div class="gm-preview-tools">
                                     <button type="button" data-gm-action="scene_debug" aria-pressed="false" aria-label="${esc(t('game_maker.scene_debug'))}" title="${esc(t('game_maker.scene_debug'))}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
                                     <button type="button" data-gm-action="reload" disabled>${esc(t('game_maker.reload'))}</button>
@@ -341,6 +345,7 @@
         root.querySelector('[data-gm-mobile-projects]').addEventListener('change', event => {
             openProject(state, event.target.value);
         });
+        trackConversationScroll(state);
         const form = root.querySelector('[data-gm-change-form]');
         const textarea = form.querySelector('textarea');
         form.addEventListener('submit', event => {
@@ -477,7 +482,7 @@
             <button type="button" class="gm-project-card ${active ? 'is-active' : ''} ${running ? 'is-running' : ''}"
                 data-project-id="${esc(project.id)}"${active ? ' aria-current="true"' : ''}>
                 <span class="gm-project-dimension">${esc(project.variant === 'voxel' ? t('game_maker.voxel') : String(project.dimension).toUpperCase())}</span>
-                <span><strong title="${esc(project.name)}">${esc(project.name)}</strong><small>${esc(statusLabel(state, project.status))}${updated ? ' · ' + esc(updated) : ''}</small></span>
+                <span><strong title="${esc(project.name)}">${esc(project.name)}</strong><small>${esc(statusLabel(state, project.status, project))}${updated ? ' · ' + esc(updated) : ''}</small></span>
                 <span class="gm-project-revision">v${Number(project.current_revision || 0)}</span>
                 ${running ? `<span class="gm-project-running" title="${esc(t('game_maker.status_working'))}"></span>` : ''}
             </button>
@@ -504,9 +509,9 @@
         });
     }
 
-    function statusLabel(state, status) {
+    function statusLabel(state, status, project) {
         const raw = status === 'waiting_preview' ? 'validating' : String(status || 'draft');
-        const key = 'game_maker.status_' + raw.replaceAll('-', '_');
+        const key = editOutcomeKey(raw, project) || 'game_maker.status_' + raw.replaceAll('-', '_');
         const label = state.context.t(key);
         return label && label !== key ? label : raw;
     }
@@ -595,7 +600,7 @@
             } else if (state.latestJob && terminalStatuses.has(state.latestJob.status)) {
                 state.job = state.latestJob;
             }
-            renderProject(state);
+            renderProject(state, true);
             connectEvents(state);
             refreshWorkspaceDrift(state);
             if (state.project.current_revision) refreshPreview(state);
@@ -604,10 +609,10 @@
         }
     }
 
-    function renderProject(state) {
+    function renderProject(state, forceScroll) {
         renderProjectMeta(state);
         renderConversation(state);
-        scrollConversation(state);
+        scrollConversation(state, forceScroll);
     }
 
     function renderProjectMeta(state) {
@@ -617,6 +622,12 @@
             ? `${state.context.t('game_maker.voxel')} ${state.capabilities.voxel_version || 1} · Three.js ${state.capabilities.three_version}` : project.dimension === '3d'
             ? `Three.js ${state.capabilities.three_version}` : `Phaser ${state.capabilities.phaser_version}`;
         const revisionReady = Boolean(project.current_revision);
+        const previewTitle = state.container.querySelector('[data-gm-preview-title]');
+        if (previewTitle) {
+            previewTitle.textContent = revisionReady
+                ? state.context.t('game_maker.preview_version', { n: Number(project.current_revision) })
+                : state.context.t('game_maker.preview_no_version');
+        }
         setButton(state, 'revisions', true);
         setButton(state, 'knowledge', Boolean(window.AuraGoLearnings));
         setButton(state, 'rename', Boolean(state.capabilities.allow_edit), 'game_maker.readonly_notice');
@@ -642,6 +653,10 @@
     function messageMarkup(state, message) {
         const { esc, t } = state.context;
         const role = message.role === 'assistant' ? 'assistant' : 'user';
+        // The internal "continue" prompt is not something the user wrote.
+        if (role === 'user' && message.continuation === true) {
+            return `<div class="gm-activity gm-message-system">${esc(t('game_maker.continued_job'))}</div>`;
+        }
         return `<article class="gm-message gm-message-${role}">
             <span>${esc(role === 'assistant' ? t('game_maker.agent') : t('game_maker.you'))}${esc(formatTime(message.created_at))}</span>
             <p>${esc(message.content)}</p>
@@ -934,6 +949,26 @@
         scrollConversation(state);
     }
 
+    // Old jobs carry the code "internal" with the raw agent message, so the
+    // message decides when the code does not.
+    function failureCode(kind, job) {
+        const code = String(job && job.error_code || '');
+        if (code && code !== 'internal') return code;
+        const text = String(job && job.error || '');
+        if (text.includes('model response incomplete')) return 'model';
+        if (text.includes('tool_limit_final_response_invalid')) return 'tool_limit';
+        if (text.includes('agent stopped without finish')) return 'unfinished';
+        if (text.includes('exceeded its time limit')) return 'timeout';
+        return kind === 'cancelled' ? 'cancelled' : (code || 'generic');
+    }
+
+    function failureHint(state, kind, job) {
+        const { t } = state.context;
+        const key = 'game_maker.failure_hint_' + failureCode(kind, job);
+        const hint = t(key);
+        return hint && hint !== key ? hint : t('game_maker.failure_hint_generic');
+    }
+
     function outcomeCardElement(state, kind, message, job) {
         const { esc, t } = state.context;
         const card = document.createElement('div');
@@ -944,10 +979,19 @@
             card.innerHTML = `<strong>${esc(message)}</strong>${usage}<button type="button" class="gm-primary" data-gm-play>${esc(t('game_maker.play_now'))}</button>`;
         } else {
             card.setAttribute('role', 'alert');
-            card.innerHTML = `<strong>${esc(t(kind === 'cancelled' ? 'game_maker.status_cancelled' : 'game_maker.job_failed_title'))}</strong>${usage}
-                <p>${esc(message)}</p><p>${esc(t('game_maker.draft_retained'))}</p>
-                <button type="button" data-gm-retry>${esc(t('game_maker.retry'))}</button>
-                <button type="button" data-gm-retry-model>${esc(t('game_maker.retry_model'))}</button>`;
+            const live = Number(state.project && state.project.current_revision) || 0;
+            const titleKey = kind === 'cancelled' ? 'game_maker.status_cancelled'
+                : (live > 0 ? 'game_maker.job_failed_edit_title' : 'game_maker.job_failed_title');
+            const raw = job && job.error ? String(job.error) : '';
+            card.innerHTML = `<strong>${esc(t(titleKey))}</strong>${usage}
+                <p class="gm-result-hint">${esc(failureHint(state, kind, job))}</p>
+                ${raw ? `<details class="gm-result-details"><summary>${esc(t('game_maker.failure_details'))}</summary><p>${esc(raw)}</p></details>` : ''}
+                ${live > 0 ? `<p class="gm-result-note">${esc(t('game_maker.failure_live_unchanged', { n: live }))}</p>` : ''}
+                <p class="gm-result-note">${esc(t('game_maker.draft_retained'))}</p>
+                <div class="gm-result-actions">
+                    <button type="button" class="gm-primary" data-gm-retry>${esc(t('game_maker.retry'))}</button>
+                    <button type="button" data-gm-retry-model>${esc(t('game_maker.retry_model'))}</button>
+                </div>`;
         }
         return card;
     }
@@ -982,6 +1026,12 @@
         const root = state.container.querySelector('.gm-studio');
         if (!root) return false;
         root.setAttribute('data-gm-step', step);
+        // The agent pane may be display:none while the preview shows; its scroll is reset on return.
+        if (step === 'preview') state.stickBeforeHide = state.stickBottom !== false;
+        else if (state.stickBeforeHide) {
+            state.stickBeforeHide = false;
+            requestAnimationFrame(() => scrollConversation(state, true));
+        }
         state.container.querySelectorAll('[data-gm-steps] [data-gm-step]').forEach(button => {
             button.setAttribute('aria-pressed', button.dataset.gmStep === step ? 'true' : 'false');
         });
@@ -1092,7 +1142,7 @@
             }, route || {}));
             state.job = job;
             if (job && job.prompt) {
-                state.messages.push({ role: 'user', content: job.prompt });
+                state.messages.push({ role: 'user', content: job.prompt, continuation: true });
                 renderConversation(state);
                 scrollConversation(state);
             }
@@ -1409,9 +1459,10 @@
                 ${provider.id === cap.default_provider_id ? 'selected' : ''}>${esc(provider.name || provider.id)}</option>`
         ).join('');
         const examples = [['2d', [1, 2, 4, 5, 6, 7, 8]], ['3d', [3, 9, 10, 11, 12, 13]], ['voxel', [14, 15]]];
+        const startDimension = prefer3D ? '3d' : '2d';
         const chips = examples.map(([dimension, ideas]) => `
-            <div class="gm-idea-chips" role="group" aria-label="${esc(dimension === 'voxel' ? t('game_maker.voxel') : dimension.toUpperCase())}">
-                <span>${esc(dimension === 'voxel' ? t('game_maker.voxel') : dimension.toUpperCase())}</span>${ideas.map(n =>
+            <div class="gm-idea-chips" data-idea-group="${dimension}" ${dimension === startDimension ? '' : 'hidden'} role="group" aria-label="${esc(dimension === 'voxel' ? t('game_maker.voxel') : dimension.toUpperCase())}">
+                ${ideas.map(n =>
                     `<button type="button" data-idea="${n}" data-dimension="${dimension}">${esc(t('game_maker.example_idea_' + n))}</button>`
                 ).join('')}
             </div>`).join('');
@@ -1421,8 +1472,8 @@
                     <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
                 <label>${esc(t('game_maker.project_name'))}<input name="name" maxlength="120" required autofocus></label>
                 <fieldset><legend>${esc(t('game_maker.dimension'))}</legend>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${prefer3D ? '' : 'checked'}><strong>2D</strong><span>${esc(t('game_maker.framework_optional'))}</span></label>
-                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${prefer3D ? 'checked' : ''}><strong>3D</strong><span>${esc(t('game_maker.framework_optional'))}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="2d" ${prefer3D ? '' : 'checked'}><strong>2D</strong><span>${esc(t('game_maker.dimension_2d_hint'))}</span></label>
+                    <label class="gm-dimension-card"><input type="radio" name="dimension" value="3d" ${prefer3D ? 'checked' : ''}><strong>3D</strong><span>${esc(t('game_maker.dimension_3d_hint'))}</span></label>
                     <label class="gm-dimension-card"><input type="radio" name="dimension" value="voxel"><strong>${esc(t('game_maker.voxel'))}</strong><span>${esc(t('game_maker.voxel_description'))}</span></label>
                 </fieldset>
                 <label>${esc(t('game_maker.description'))}<textarea name="description" rows="5" maxlength="12000" required
@@ -1453,6 +1504,12 @@
                 if (model) form.elements.model.value = model;
             });
             bindModelLimits(state, layer, form, limitsState);
+            // Only the idea group of the chosen type is shown.
+            const showIdeaGroup = dimension => layer.querySelectorAll('[data-idea-group]').forEach(group => {
+                group.hidden = group.dataset.ideaGroup !== dimension;
+            });
+            layer.querySelectorAll('input[name="dimension"]').forEach(radio =>
+                radio.addEventListener('change', () => { if (radio.checked) showIdeaGroup(radio.value); }));
             layer.querySelectorAll('[data-idea]').forEach(chip => chip.addEventListener('click', async () => {
                 const idea = t('game_maker.example_idea_' + chip.dataset.idea);
                 const target = form.elements.description;
@@ -1463,6 +1520,7 @@
                 }
                 target.value = idea;
                 form.querySelector(`input[name="dimension"][value="${chip.dataset.dimension}"]`).checked = true;
+                showIdeaGroup(chip.dataset.dimension);
                 target.focus();
             }));
             let creating = false;
@@ -1565,7 +1623,7 @@
             }
             state.messages.push({ role: 'user', content: prompt });
             renderConversation(state);
-            scrollConversation(state);
+            scrollConversation(state, true);
         }
         try {
             finalizeStreaming(state);
@@ -1584,7 +1642,7 @@
                 model: state.project.model
             });
             if (resume && state.job.prompt) {
-                state.messages.push({ role: 'user', content: state.job.prompt });
+                state.messages.push({ role: 'user', content: state.job.prompt, continuation: true });
                 renderConversation(state);
                 scrollConversation(state);
             }
@@ -1801,7 +1859,8 @@
     // no project they step aside instead of showing an empty pipeline.
     function renderProjectContext(state) {
         const phases = state.container.querySelector('[data-gm-phases]');
-        if (phases) phases.hidden = !state.project;
+        // The two-step row carries no information; it stays in the DOM but never shows.
+        if (phases) phases.hidden = true;
         // Without a project the stage has nothing to show, and it says so
         // instead of promising a game that does not exist.
         const previewEmpty = state.container.querySelector('.gm-preview-empty');
@@ -1850,7 +1909,9 @@
     function updateJobBanner(state) {
         const banner = state.container.querySelector('[data-gm-job-banner]');
         if (!banner) return;
-        banner.hidden = !state.jobActive;
+        // The job feed already carries Stop and the timer while it is visible.
+        const feed = state.container.querySelector('[data-gm-job-feed]');
+        banner.hidden = !state.jobActive || Boolean(feed && !feed.hidden);
         if (!state.jobActive) {
             stopElapsed(state);
             return;
@@ -1905,9 +1966,16 @@
         const node = state.container.querySelector('[data-gm-status]');
         if (!node) return;
         const shown = status === 'waiting_preview' ? 'validating' : status;
-        const key = 'game_maker.status_' + String(shown || 'ready').replaceAll('-', '_');
-        node.className = 'gm-status is-' + String(shown || 'ready');
+        const editKey = editOutcomeKey(String(shown), state.project);
+        const key = editKey || 'game_maker.status_' + String(shown || 'ready').replaceAll('-', '_');
+        node.className = 'gm-status is-' + String(shown || 'ready') + (editKey ? ' is-edit-' + shown : '');
         node.textContent = state.context.t(key);
+    }
+
+    // A failed or cancelled edit of a playable game leaves its live version untouched.
+    function editOutcomeKey(raw, project) {
+        return Number(project && project.current_revision) > 0 && (raw === 'failed' || raw === 'cancelled')
+            ? 'game_maker.status_edit_' + raw : '';
     }
 
     function setButton(state, action, enabled, reasonKey) {
@@ -1933,9 +2001,42 @@
         showNotice(state, message, 'error');
     }
 
-    function scrollConversation(state) {
+    // The conversation follows new content only while the reader is at the
+    // bottom; scrolling up pauses it until they come back.
+    function scrollConversation(state, force) {
         const log = state.container.querySelector('[data-gm-conversation]');
-        if (log) log.scrollTop = log.scrollHeight;
+        if (!log) return;
+        if (force) state.stickBottom = true;
+        if (state.stickBottom === false) return;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function trackConversationScroll(state) {
+        const log = state.container.querySelector('[data-gm-conversation]');
+        state.conversationResize?.disconnect();
+        state.conversationResize = null;
+        if (!log) return;
+        state.stickBottom = true;
+        // Only real input pauses following; layout resets and clamping also fire
+        // scroll events and must not.
+        let userScrollAt = -Infinity;
+        const noteUser = () => { userScrollAt = performance.now(); };
+        ['wheel', 'touchmove', 'pointerdown', 'keydown'].forEach(type =>
+            log.addEventListener(type, noteUser, { passive: true }));
+        log.addEventListener('scroll', () => {
+            // A hidden pane (display:none) resets its scroll position; that is not the reader.
+            if (log.clientHeight === 0) return;
+            const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight <= 32;
+            if (nearBottom) state.stickBottom = true;
+            else if (performance.now() - userScrollAt < 1000) state.stickBottom = false;
+            else if (state.stickBottom !== false) log.scrollTop = log.scrollHeight;
+        });
+        if (typeof ResizeObserver === 'function') {
+            state.conversationResize = new ResizeObserver(() => {
+                if (state.stickBottom !== false) log.scrollTop = log.scrollHeight;
+            });
+            state.conversationResize.observe(log);
+        }
     }
 
     function closeEvents(state) {
@@ -1957,6 +2058,7 @@
         if (state.modalLifecycleCleanup) state.modalLifecycleCleanup();
         state.modalLifecycleCleanup = null;
         state.previewVisibility?.disconnect();
+        state.conversationResize?.disconnect();
         closeEvents(state);
         stopElapsed(state);
         if (window.GameMakerStudioPreview) {window.GameMakerStudioPreview.cancelVisual(state);window.GameMakerStudioPreview.clearLoading(state);}

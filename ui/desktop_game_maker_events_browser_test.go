@@ -83,7 +83,7 @@ GameMakerStudioApp.render(document.getElementById('app'),'fixture',{
 	}
 	// The card explains the stop in the user's language; the backend wording
 	// stays available as the technical report.
-	if got := page.MustEval(`()=>document.querySelector('.gm-result-card p').textContent`).Str(); got != "Game creation exceeded its time limit." {
+	if got := page.MustEval(`()=>document.querySelector('.gm-result-card .gm-result-details p').textContent`).Str(); got != "Game creation exceeded its time limit." {
 		t.Fatal(got)
 	}
 	if page.MustHas("[data-gm-phases] .is-current") {

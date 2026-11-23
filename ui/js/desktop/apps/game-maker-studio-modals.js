@@ -34,7 +34,13 @@
     function formatRevisionTime(iso) {
         const stamp = Date.parse(iso || '');
         if (!stamp) return '';
-        return ' · ' + new Date(stamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+        return new Date(stamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function revisionSummary(revision, t) {
+        if (revision.summary_kind === 'continuation') return t('game_maker.continued_job');
+        if (revision.summary_kind === 'adopt') return t('game_maker.revision_adopted');
+        return revision.summary || '';
     }
 
     function revisionPathsMarkup(revision, esc, t) {
@@ -63,12 +69,13 @@
                     <button type="button" data-modal-close aria-label="${esc(t('game_maker.close'))}">×</button></header>
                 ${restoreAllowed ? '' : `<p class="gm-readonly-notice" role="status">${esc(readonlyNotice)}</p>`}
                 <div class="gm-revision-list">${(body.revisions || []).map(revision => `<article>
-                    <div><strong>v${revision.number}</strong><span>${esc(revision.source)}${esc(formatRevisionTime(revision.created_at))}</span></div>
-                    <p>${esc(revision.summary)}</p><small>${revision.file_count} ${esc(t('game_maker.files'))}</small>
+                    <div><strong>v${revision.number}</strong><span>${esc(formatRevisionTime(revision.created_at))}</span></div>
+                    <p>${esc(revisionSummary(revision, t))}</p>${Number(revision.file_count) > 0 ? `<small>${Number(revision.file_count)} ${esc(t('game_maker.files'))}</small>` : ''}
                     ${revisionPathsMarkup(revision, esc, t)}
-                    <button type="button" data-restore="${revision.number}"
-                        ${revision.number === state.project.current_revision || !restoreAllowed ? 'disabled' : ''}
-                        ${restoreAllowed ? '' : `title="${esc(readonlyNotice)}" aria-label="${esc(t('game_maker.restore'))}: ${esc(readonlyNotice)}"`}>${esc(t('game_maker.restore'))}</button>
+                    ${revision.number === state.project.current_revision
+                        ? `<span class="gm-revision-current">${esc(t('game_maker.revision_current'))}</span>`
+                        : `<button type="button" data-restore="${revision.number}"
+                        ${restoreAllowed ? '' : `disabled title="${esc(readonlyNotice)}" aria-label="${esc(t('game_maker.restore'))}: ${esc(readonlyNotice)}"`}>${esc(t('game_maker.restore'))}</button>`}
                 </article>`).join('') || `<div class="gm-library-empty">${esc(t('game_maker.no_revisions'))}</div>`}</div>
                 <footer><button type="button" data-modal-close>${esc(t('game_maker.close'))}</button></footer>
             </section>`, layer => {

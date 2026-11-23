@@ -89,6 +89,11 @@ if(path.endsWith('/projects'))return {projects:[]};return {};
 	page.MustWait(`()=>!document.querySelector('[data-gm-action="new"]').disabled`)
 	page.MustElement(`[data-gm-action="new"]`).MustClick()
 	page.MustElement(`input[name="name"]`).MustInput("Voxel island")
+	if page.MustEval(`()=>document.querySelector('[data-idea="14"]').offsetParent!==null`).Bool() {
+		t.Fatal("voxel ideas must stay hidden while 2D is selected")
+	}
+	page.MustEval(`()=>document.querySelector('input[value="voxel"]').closest('label').click()`)
+	page.MustWait(`()=>document.querySelector('[data-idea="14"]').offsetParent!==null`)
 	page.MustElement(`[data-idea="14"]`).MustClick()
 	if !page.MustEval(`()=>document.querySelector('input[value="voxel"]').checked`).Bool() {
 		t.Fatal("voxel idea did not choose its variant")

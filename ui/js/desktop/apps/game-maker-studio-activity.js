@@ -23,6 +23,7 @@
         const reducedMotion = () => motion.matches || document.body.dataset.animations === 'false';
         let timer = null, disposed = false, visible = true, jobID = '', lastID = 0;
         let queue = [], history = [], current = null, lastText = '', lastPhase = '', sequence = 0, stoppedAt = '';
+        let feedExpanded = false, dismissedJob = '';
         const t = key => state.context.t(key);
         const text = value => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 240);
         const elapsed = () => {
@@ -55,8 +56,23 @@
             if (!feed) return;
             const status = state.job?.status || '';
             const active = running();
-            const show = !terminal.isConnected && (active || (history.length > 0 && ['failed', 'cancelled', 'ready'].includes(status)));
+            const finished = !active;
+            const show = !terminal.isConnected && (active || (history.length > 0 && ['failed', 'cancelled', 'ready'].includes(status)
+                && !(jobID && dismissedJob === jobID)));
             feed.hidden = !show;
+            // While the feed is up it carries Stop and the timer; the pane banner steps aside.
+            const banner = state.container.querySelector('[data-gm-job-banner]');
+            if (banner) banner.hidden = !state.jobActive || show;
+            const spinner = feed.querySelector('[data-gm-job-feed-spinner]');
+            if (spinner) spinner.hidden = !active;
+            const toggle = feed.querySelector('[data-gm-job-feed-toggle]');
+            if (toggle) {
+                toggle.hidden = !finished;
+                toggle.setAttribute('aria-expanded', String(feedExpanded));
+                toggle.classList.toggle('is-open', feedExpanded);
+            }
+            const dismiss = feed.querySelector('[data-gm-job-feed-dismiss]');
+            if (dismiss) dismiss.hidden = !finished;
             const title = feed.querySelector('[data-gm-job-feed-title]');
             if (title) {
                 const phase = state.job?.phase || status;
@@ -65,12 +81,24 @@
                 let phaseLabel = phase ? t(phaseKey) : '';
                 if (!phaseLabel || phaseLabel === phaseKey) phaseLabel = phase ? t(statusKey) : '';
                 if (!phaseLabel || phaseLabel === statusKey) phaseLabel = '';
-                title.textContent = phaseLabel ? t('game_maker.job_feed_title') + ' · ' + phaseLabel : t('game_maker.job_feed_title');
+                if (finished) {
+                    const statusKey = 'game_maker.status_' + String(status).replaceAll('-', '_');
+                    const statusLabel = t(statusKey);
+                    title.textContent = statusLabel && statusLabel !== statusKey
+                        ? t('game_maker.job_feed_last_title') + ' · ' + statusLabel : t('game_maker.job_feed_last_title');
+                } else {
+                    title.textContent = phaseLabel ? t('game_maker.job_feed_title') + ' · ' + phaseLabel : t('game_maker.job_feed_title');
+                }
+                if (toggle) toggle.setAttribute('aria-label', title.textContent);
             }
             const stop = feed.querySelector('[data-gm-action="stop"]');
-            if (stop) stop.disabled = !active || status === 'cancelling';
+            if (stop) {
+                stop.hidden = finished;
+                stop.disabled = !active || status === 'cancelling';
+            }
             const list = feed.querySelector('[data-gm-job-feed-lines]');
             if (!list) return;
+            list.hidden = finished && !feedExpanded;
             list.replaceChildren();
             const rows = history.slice(-8);
             if (!rows.length) {
@@ -128,7 +156,7 @@
         function sync() {
             if (disposed) return;
             const nextJob = state.job?.id || '';
-            if (nextJob !== jobID) { clear(); jobID = nextJob; }
+            if (nextJob !== jobID) { clear(); jobID = nextJob; feedExpanded = false; }
             const phase = state.job?.phase || state.job?.status;
             if (running() && phase !== lastPhase && phases.has(phase)) {
                 lastPhase = phase;
@@ -175,6 +203,15 @@
             shell.innerHTML = placeholder;
         }
 
+        const feedElement = state.container.querySelector('[data-gm-job-feed]');
+        feedElement?.querySelector('[data-gm-job-feed-toggle]')?.addEventListener('click', () => {
+            feedExpanded = !feedExpanded;
+            paintFeed();
+        });
+        feedElement?.querySelector('[data-gm-job-feed-dismiss]')?.addEventListener('click', () => {
+            dismissedJob = jobID;
+            paintFeed();
+        });
         const onVisibility = () => { clearTimer(); sync(); };
         const observer = new IntersectionObserver(entries => {
             visible = entries[0]?.isIntersecting === true;

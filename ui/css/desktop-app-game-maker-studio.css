@@ -226,6 +226,7 @@
     background: rgba(255, 85, 85, 0.13);
 }
 
+.gm-status.is-edit-failed,
 .gm-status.is-readonly,
 .gm-status.is-create-disabled,
 .gm-status.is-skills-blocked {
@@ -316,8 +317,8 @@
    require opening it first. The generic studio button rule adds 13 px of
    side padding, so this rule has to outrank it - with that padding the
    content box is narrower than the icon and the icon sits against the
-   border instead of in the middle. The button keeps the studio's own
-   frame and background. */
+   border instead of in the middle. At rest the control is only a muted
+   icon (no frame, no fill); it comes to full strength with the row. */
 .gm-studio .gm-project-delete {
     display: grid;
     place-items: center;
@@ -326,16 +327,35 @@
     min-height: 30px;
     padding: 0;
     color: var(--gm-muted);
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0.45;
     cursor: pointer;
+    transition: opacity 0.12s ease, color 0.12s ease, background-color 0.12s ease;
+}
+
+.gm-studio .gm-project-item:hover .gm-project-delete,
+.gm-studio .gm-project-item:focus-within .gm-project-delete,
+.gm-studio .gm-project-delete:focus-visible {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .gm-studio .gm-project-delete {
+        opacity: 1;
+    }
 }
 
 .gm-studio .gm-project-delete:hover:not(:disabled) {
+    opacity: 1;
     color: var(--gm-tone-bad);
-    border-color: var(--vd-mat-card-border, var(--gm-line));
-    background: var(--vd-mat-hover, rgba(139, 124, 246, 0.14));
+    border-color: transparent;
+    background: color-mix(in srgb, var(--gm-tone-bad) 14%, transparent);
 }
 
-.gm-studio .gm-project-delete:disabled {
+.gm-studio .gm-project-delete:disabled,
+.gm-studio .gm-project-item:hover .gm-project-delete:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
@@ -686,6 +706,16 @@
     margin-right: 7px;
     color: var(--gm-tone-accent-2);
     content: "•";
+}
+
+/* A continued job is a system note, not something the user wrote. */
+.gm-message-system {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.gm-message-system::before {
+    content: none;
 }
 
 .gm-change-form {
@@ -1287,6 +1317,16 @@
     color: var(--gm-text);
 }
 
+.gm-result-card .gm-result-note {
+    color: var(--gm-muted);
+}
+
+.gm-result-card .gm-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 /* Open checks and the model-limit warning sit above the technical details. */
 .gm-result-card .gm-open-checks {
     width: 100%;
@@ -1569,6 +1609,39 @@
     flex: none;
 }
 
+.gm-job-feed-head .gm-job-spinner[hidden] {
+    display: none;
+}
+
+.gm-studio .gm-job-feed-toggle,
+.gm-studio .gm-job-feed-dismiss {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+    color: var(--gm-muted);
+    border-color: transparent;
+    background: transparent;
+    line-height: 1;
+}
+
+.gm-studio .gm-job-feed-toggle[hidden],
+.gm-studio .gm-job-feed-dismiss[hidden],
+.gm-studio .gm-job-feed-head .gm-danger[hidden],
+.gm-job-feed ol[hidden] {
+    display: none;
+}
+
+.gm-job-feed-toggle {
+    transition: transform 0.12s ease;
+}
+
+.gm-job-feed-toggle.is-open {
+    transform: rotate(180deg);
+}
+
 .gm-job-feed-elapsed {
     color: var(--gm-muted);
     font-size: 12px;
@@ -1605,6 +1678,18 @@
 
 .gm-compact-mode[hidden] {
     display: none;
+}
+
+.gm-revision-current {
+    justify-self: start;
+    padding: 3px 9px;
+    color: var(--gm-tone-good);
+    border-radius: 99px;
+    background: rgba(79, 208, 177, 0.12);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .gm-revision-paths {
@@ -1695,14 +1780,8 @@
     gap: 7px;
 }
 
-.gm-idea-chips > span {
-    flex-basis: 100%;
-    color: var(--vd-mat-label-color, var(--gm-muted));
-    font-family: var(--vd-mat-label-font, inherit);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: var(--vd-mat-label-tracking, 0.08em);
-    text-transform: var(--vd-mat-label-transform, uppercase);
+.gm-idea-chips[hidden] {
+    display: none;
 }
 
 .gm-idea-chips button {
