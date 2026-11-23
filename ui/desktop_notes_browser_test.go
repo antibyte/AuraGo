@@ -324,6 +324,11 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("Notes navigation workflows:", page.MustEval(string(navigation)).JSON("", ""))
+	graphScript, err := os.ReadFile("testdata/notes-graph-functional.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Notes graph workflows:", page.MustEval(string(graphScript)).JSON("", ""))
 	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if out == "" {
 		out = filepath.Join("..", "reports", "notes")
@@ -410,6 +415,24 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	page.MustScreenshot(filepath.Join(out, "navigation-find-430x932.png"))
 	page.MustSetViewport(1366, 768, 1, false)
 	page.MustEval(`()=>document.querySelector('[data-action=findClose]').click()`)
+	// Graph scenes: global view with a hovered node, tags as nodes, local graph, fruity light.
+	graphScene := func(name string, script string) {
+		page.MustEval(script)
+		page.MustScreenshot(filepath.Join(out, name))
+	}
+	const graphHelpers = `const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));const until=async(fn,ms=8000)=>{const end=performance.now()+ms;while(!fn()){if(performance.now()>end)throw Error('timeout');await sleep(40);}};const positions=()=>JSON.stringify(app.graph?app.index.notes().map(n=>app.graph.screenPosition(n.path)):[]);const settle=async()=>{let prev='',stable=0;await until(()=>{const now=positions();stable=now===prev?stable+1:0;prev=now;return stable>=4;},12000);};const hub=()=>{const deg={};for(const n of app.index.notes())for(const l of n.links||[]){const t=app.index.linkPath(n,l);if(t&&t!==n.path&&app.index.note(t)){deg[n.path]=(deg[n.path]||0)+1;deg[t]=(deg[t]||0)+1;}}return Object.keys(deg).sort((a,b)=>deg[b]-deg[a]||(a<b?-1:1))[0];};const hover=id=>{const c=document.querySelector('[data-graph-host] canvas'),r=c.getBoundingClientRect(),p=app.graph.screenPosition(id);c.dispatchEvent(new PointerEvent('pointermove',{pointerId:7,pointerType:'mouse',bubbles:true,clientX:r.left+p.x,clientY:r.top+p.y}));};`
+	page.MustSetViewport(1366, 768, 1, false)
+	graphScene("graph-global-1366x768.png", `async()=>{`+graphHelpers+`document.querySelector('.vd-notes-app').classList.remove('notes-hide-library');if(!app.graphOpen)await app.act('graph');await until(()=>app.graph&&app.graph.nodeCount()>0);await settle();app.graph.fit();hover(hub());await sleep(250);}`)
+	graphScene("graph-tags-1366x768.png", `async()=>{`+graphHelpers+`document.querySelector('[data-graph-toggle=tags]').click();await sleep(300);await settle();app.graph.fit();hover(hub());await sleep(250);}`)
+	page.MustSetViewport(430, 932, 1, false)
+	time.Sleep(900 * time.Millisecond)
+	page.MustScreenshot(filepath.Join(out, "graph-tags-430x932.png"))
+	page.MustSetViewport(1366, 768, 1, false)
+	graphScene("graph-local-1366x768.png", `async()=>{`+graphHelpers+`document.querySelector('[data-graph-toggle=tags]').click();await app.act('graphClose');const id=hub();document.querySelector('.notes-tree-row[data-path="'+id+'"]')?.click();await until(()=>app.path===id);if(document.querySelector('[data-right]').hidden||document.querySelector('[data-right] [role=tab][aria-selected=true]')?.dataset.rightTab!=='localGraph'){if(!document.querySelector('[data-right]').hidden)await app.act('closePanel');await app.act('localGraph');}const sel=document.querySelector('[data-graph-depth]');sel.value='2';sel.dispatchEvent(new Event('change',{bubbles:true}));await until(()=>app.localGraph&&app.localGraph.nodeCount()>1);await sleep(2500);}`)
+	page.MustEval(`async()=>{const app=NotesApp.instances.get('test');await app.act('closePanel');localStorage.removeItem('aurago.notes.graph');}`)
+	page.MustEval(`()=>{document.body.dataset.theme='fruity';document.body.dataset.fruityMode='light';}`)
+	graphScene("graph-global-fruity-light-1366x768.png", `async()=>{`+graphHelpers+`await app.act('graph');await until(()=>app.graph&&app.graph.nodeCount()>0);await settle();app.graph.fit();hover(hub());await sleep(250);}`)
+	page.MustEval(`async()=>{const app=NotesApp.instances.get('test');await app.act('graphClose');document.body.dataset.theme='default';document.body.dataset.fruityMode='dark';}`)
 	for _, theme := range []string{"default", "fruity-dark", "fruity-light"} {
 		for _, density := range []string{"normal", "compact"} {
 			for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {430, 932}} {

@@ -54,7 +54,7 @@ async () => {
     await until(()=>app.path==='Documents/Notes/ideen.md','back to ideen');
     await app.act('backlinks');
     const tabs=document.querySelector('[data-right] [role=tablist]');
-    check(tabs&&tabs.querySelectorAll('[role=tab]').length===5&&tabs.querySelector('[role=tab][aria-selected=true]').dataset.rightTab==='backlinks','Tab strip missing or wrong tab');
+    check(tabs&&tabs.querySelectorAll('[role=tab]').length===6&&tabs.querySelector('[role=tab][aria-selected=true]').dataset.rightTab==='backlinks','Tab strip missing or wrong tab');
     const linked=await until(()=>[...document.querySelectorAll('.notes-link-row[data-note-path]')].map(row=>row.dataset.notePath),'backlink rows');
     check(linked.includes(home)||linked.includes('Documents/Notes/verweise.md'),'Backlinks missing the linking note: '+linked);
     await until(()=>[...document.querySelectorAll('.notes-link-context')].some(el=>el.textContent.includes('[[ideen]]')),'backlink context lines');

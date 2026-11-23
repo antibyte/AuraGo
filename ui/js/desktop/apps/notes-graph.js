@@ -363,7 +363,7 @@
                 current: v('--notes-accent', '#7c6cf0'),
                 tag: mixToTeal(muted, 0.6),
                 unresolved: muted,
-                link: v('--notes-border', muted),
+                link: muted,
                 text: v('--notes-ink', '#d8dae0'),
                 background: v('--notes-well', '#1c1d21')
             };
@@ -393,7 +393,7 @@
             var links = sim ? sim.links : [];
             ctx.lineWidth = 1;
             ctx.strokeStyle = colors.link;
-            ctx.globalAlpha = focus ? 0.06 : 0.25;
+            ctx.globalAlpha = focus ? 0.1 : 0.4;
             ctx.beginPath();
             for (i = 0; i < links.length; i++) {
                 var l = links[i];
@@ -491,7 +491,8 @@
                 minY = Math.min(minY, n.y - n.r); maxY = Math.max(maxY, n.y + n.r);
             }
             var bw = maxX - minX, bh = maxY - minY;
-            var k = Math.min(2, (w - 80) / Math.max(bw, 1), (h - 80) / Math.max(bh, 1));
+            var pad = Math.min(80, Math.min(w, h) * 0.2);
+            var k = Math.min(2, (w - pad) / Math.max(bw, 1), (h - pad) / Math.max(bh, 1));
             k = Math.max(0.1, Math.min(6, k));
             return { k: k, x: w / 2 - (minX + maxX) / 2 * k, y: h / 2 - (minY + maxY) / 2 * k };
         }

@@ -24,7 +24,13 @@
         return body;
     }
     const endpoint = path => '/api/desktop/notes' + (path?'?path='+encodeURIComponent(path):'');
-    const TABS=['backlinks','outgoing','outline','info','assist'], RIGHT_KEY='aurago.notes.right';
+    const TABS=['backlinks','outgoing','localGraph','outline','info','assist'], RIGHT_KEY='aurago.notes.right', GRAPH_KEY='aurago.notes.graph';
+    function readGraphPrefs(){
+        const prefs={tags:false,unresolved:true,orphans:true,depth:1};
+        try{const value=JSON.parse(localStorage.getItem(GRAPH_KEY)||'{}');if(value&&typeof value==='object'){for(const key of ['tags','unresolved','orphans'])if(typeof value[key]==='boolean')prefs[key]=value[key];if(value.depth===2)prefs.depth=2;}}catch(_){}
+        return prefs;
+    }
+    function writeGraphPrefs(prefs){try{localStorage.setItem(GRAPH_KEY,JSON.stringify(prefs));}catch(_){}}
     function readRight(){try{const value=JSON.parse(localStorage.getItem(RIGHT_KEY)||'{}');return value&&typeof value==='object'?{open:!!value.open,tab:String(value.tab||'')}:{open:false,tab:''};}catch(_){return {open:false,tab:''};}}
     function writeRight(open,tab){try{localStorage.setItem(RIGHT_KEY,JSON.stringify({open,tab}));}catch(_){}}
     const INVALID_NAME=/[\\:*?"<>|]/;
@@ -38,27 +44,29 @@
         const icons={library:'columns',new:'file-plus',search:'search',pin:'bookmark',info:'info',outline:'list',assist:'star',source:'file-code',focus:'maximize',insert:'plus',
             save:'save',saveAs:'copy',rename:'pencil',move:'folder',trash:'trash',restore:'undo',open:'folder-open',print:'printer',md:'notes',html:'file-code',txt:'file-text',
             undo:'undo',redo:'redo',bold:'format-bold',italic:'format-italic',strike:'format-strike',bullet:'list',ordered:'format-numbered',quote:'format-quote',code:'code',link:'link',close:'x',closePanel:'x',dismiss:'x',cancelAssist:'x',task:'check-square',
-            back:'chevron-left',forward:'chevron-right',sidebarRight:'columns',backlinks:'link',outgoing:'external',localGraph:'network',switcher:'search',highlight:'highlighter',wikilink:'brackets',findPrev:'chevron-up',findNext:'chevron-down',findClose:'x',commandPalette:'command'};
+            back:'chevron-left',forward:'chevron-right',sidebarRight:'columns',backlinks:'link',outgoing:'external',localGraph:'network',graph:'network',graphFit:'maximize',graphClose:'x',switcher:'search',highlight:'highlighter',wikilink:'brackets',findPrev:'chevron-up',findNext:'chevron-down',findClose:'x',commandPalette:'command'};
         const icon=key=>ctx.iconMarkup?.(icons[key]||key,'','notes-icon',18,'action')||'<span aria-hidden="true">•</span>';
         const button=(action,label=action,text=false)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label))+'" aria-label="'+esc(tr(label))+'">'+(text?esc(tr(label)):icon(action))+'</button>';
         host.innerHTML='<div class="vd-notes-app" data-notes="'+esc(windowId)+'">'+
-            '<header class="notes-documentbar"><div class="notes-document">'+button('library')+button('back','history_back')+button('forward','history_forward')+'<nav class="notes-crumbs" data-crumbs aria-label="'+esc(tr('breadcrumb'))+'" hidden></nav><button class="notes-name" data-action="document"><span data-name>'+esc(tr('title'))+'</span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite"></span></div><nav aria-label="'+esc(tr('panels'))+'">'+button('switcher')+button('pin')+button('sidebarRight','right_sidebar')+'</nav></header>'+
+            '<header class="notes-documentbar"><div class="notes-document">'+button('library')+button('back','history_back')+button('forward','history_forward')+'<nav class="notes-crumbs" data-crumbs aria-label="'+esc(tr('breadcrumb'))+'" hidden></nav><button class="notes-name" data-action="document"><span data-name>'+esc(tr('title'))+'</span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite"></span></div><nav aria-label="'+esc(tr('panels'))+'">'+button('switcher')+button('graph')+button('pin')+button('sidebarRight','right_sidebar')+'</nav></header>'+
             '<div class="vd-notes-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="notes-toolgroup">'+button('undo')+button('redo')+'</div><div class="notes-toolgroup"><select data-style aria-label="'+esc(tr('style'))+'"><option value="p">'+esc(tr('paragraph'))+'</option>'+[1,2,3].map(n=>'<option value="'+n+'">'+esc(tr('heading'))+' '+n+'</option>').join('')+'</select></div><div class="notes-toolgroup">'+button('bold')+button('italic')+button('strike')+'</div><div class="notes-toolgroup">'+button('bullet','bullets')+button('ordered','numbering')+button('task')+button('quote')+'</div><div class="notes-toolgroup">'+button('link')+button('wikilink')+button('highlight')+button('code')+button('insert')+'</div><span class="notes-spacer"></span>'+button('source','markdown_source')+'</div>'+
             '<div class="notes-findbar" data-findbar role="search" aria-label="'+esc(tr('find'))+'" hidden><input data-find type="text" autocomplete="off" spellcheck="false" placeholder="'+esc(tr('find'))+'" aria-label="'+esc(tr('find'))+'"><input data-replace type="text" autocomplete="off" spellcheck="false" placeholder="'+esc(tr('replace_placeholder'))+'" aria-label="'+esc(tr('replace'))+'"><span class="notes-find-count" data-find-count role="status" aria-live="polite"></span><span class="notes-find-buttons">'+button('findPrev','find_previous')+button('findNext','find_next')+'<button type="button" data-action="findCase" aria-pressed="false" title="'+esc(tr('case_sensitive'))+'" aria-label="'+esc(tr('case_sensitive'))+'">Aa</button>'+button('replaceOne','replace',true)+button('replaceAll','replace_all',true)+button('findClose','close')+'</span></div>'+
             '<div class="notes-notice" data-notice role="alert" hidden><span data-notice-text></span>'+button('retry','retry',true)+button('saveAs','save_as',true)+button('dismiss','close')+'</div>'+
             '<div class="notes-workspace"><aside class="notes-library" aria-label="'+esc(tr('library'))+'"><div class="notes-library-host" data-sidebar></div></aside>'+
-            '<main class="notes-main"><div class="notes-scroll" data-scroll><div class="notes-page"><div class="notes-note-meta" data-note-meta></div><div data-editor></div></div></div><div class="notes-empty" data-empty><div class="notes-empty-icon">'+icon('md')+'</div><h2>'+esc(tr('empty_title'))+'</h2><p>'+esc(tr('empty_description'))+'</p>'+button('new','new_note',true)+'</div><div class="notes-loading" data-loading hidden>'+esc(tr('loading'))+'</div></main><aside class="notes-right" data-right hidden></aside></div>'+
+            '<main class="notes-main"><div class="notes-scroll" data-scroll><div class="notes-page"><div class="notes-note-meta" data-note-meta></div><div data-editor></div></div></div><div class="notes-empty" data-empty><div class="notes-empty-icon">'+icon('md')+'</div><h2>'+esc(tr('empty_title'))+'</h2><p>'+esc(tr('empty_description'))+'</p>'+button('new','new_note',true)+'</div><div class="notes-loading" data-loading hidden>'+esc(tr('loading'))+'</div>'+
+            '<section class="notes-graph" data-graph hidden aria-label="'+esc(tr('graph'))+'"><div class="notes-graph-bar" role="toolbar" aria-label="'+esc(tr('graph'))+'"><input type="search" data-graph-filter autocomplete="off" spellcheck="false" placeholder="'+esc(tr('graph_filter'))+'" aria-label="'+esc(tr('graph_filter'))+'"><span class="notes-graph-toggles">'+['tags','unresolved','orphans'].map(key=>'<button type="button" data-graph-toggle="'+key+'" aria-pressed="false">'+esc(tr(key==='tags'?'tags':'graph_'+key))+'</button>').join('')+'</span><span class="notes-graph-actions">'+button('graphFit','graph_fit')+button('graphClose','graph_close')+'</span></div><div class="notes-graph-host" data-graph-host></div><p class="notes-graph-empty" data-graph-empty hidden>'+esc(tr('graph_empty'))+'</p></section></main><aside class="notes-right" data-right hidden></aside></div>'+
             '<footer class="notes-statusbar"><button type="button" data-action="backlinks" data-backlinks disabled></button><span data-count></span><span class="notes-spacer"></span><span data-mode></span>'+button('focus','focus_mode')+'<button data-action="zoomOut" aria-label="'+esc(tr('zoom_out'))+'">−</button><button data-action="zoomReset" data-zoom>100%</button><button data-action="zoomIn" aria-label="'+esc(tr('zoom_in'))+'">+</button></footer><div class="notes-popup" data-popup hidden></div><div class="notes-preview" data-preview hidden role="dialog" aria-label="'+esc(tr('preview'))+'"></div><input data-upload type="file" multiple hidden><input data-import type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden></div>';
         const root=host.firstElementChild, find=selector=>root.querySelector(selector), life=new AbortController();
         let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, zoom=100, right=stored.open&&TABS.includes(stored.tab)?stored.tab:'', lastTab=TABS.includes(stored.tab)?stored.tab:'backlinks', updateTimer, draftTimer, draftDeadline, sseTimer;
         let meta={version:1,pinned:[],sort:'modified',last_note:'',recent:[]}, list=[], trashNotes=[], trash=false, listGeneration=0, currentDraft, assistController, proposal;
         let sidebar, sidebarFrame=0, contextTarget=null, findCase=false;
+        let graph=null, localGraph=null, graphOpen=false, graphPointer=false, graphFilter='', graphLabels=new Map(), localLabels=new Map(), graphPrefs=readGraphPrefs();
         let metaTask=Promise.resolve(), sourceRequested=false;
         const draftKey=()=>location.origin+':'+current.path;
         let indexLoaded=false, indexSignature='', stack=[], stackPos=-1, previewTimer, previewToken=0, previewScroll=0;
         const excerpts=new Map();
         const index=NotesIndex.create({request:(url,options)=>request(url,{...options,signal:life.signal}),onChange:indexChanged});
-        const instance={act,commands:()=>commands(),openSwitcher:()=>openSwitcher(),openCommands:()=>openCommands(),get sidebar(){return sidebar;},get meta(){return meta;},get editor(){return editor;},get session(){return queue;},get path(){return current?.path;},get index(){return index;},get history(){return {stack:[...stack],position:stackPos};},dispose:cleanup};
+        const instance={act,commands:()=>commands(),openSwitcher:()=>openSwitcher(),openCommands:()=>openCommands(),get sidebar(){return sidebar;},get meta(){return meta;},get editor(){return editor;},get session(){return queue;},get path(){return current?.path;},get index(){return index;},get graph(){return graph;},get localGraph(){return localGraph;},get graphOpen(){return graphOpen;},get history(){return {stack:[...stack],position:stackPos};},dispose:cleanup};
         instances.set(windowId,instance);
         window.AuraDesktopEmail?.attach(windowId, '.notes-documentbar', () => ({
             key: docLife.signal, signal: docLife.signal, subject: current?.title || '',
@@ -99,6 +107,7 @@
             root.querySelectorAll('[data-action="back"]').forEach(el=>el.disabled=stackPos<=0||busy);
             root.querySelectorAll('[data-action="forward"]').forEach(el=>el.disabled=stackPos>=stack.length-1||busy);
             root.querySelectorAll('[data-action="sidebarRight"]').forEach(el=>el.setAttribute('aria-pressed',String(!!right)));
+            root.querySelectorAll('.notes-documentbar [data-action="graph"]').forEach(el=>el.setAttribute('aria-pressed',String(graphOpen)));
             renderCrumbs();updateBacklinkCount();
             menus();updateDetails();scheduleSidebar();
         }
@@ -171,7 +180,7 @@
                     tagClick:tag=>{showLibrary();sidebar?.focusSearch('tag:'+tag);}});
                 if(disposed){await next.destroy();return;}
                 queue?.dispose();docLife.abort();docLife=new AbortController();documentGeneration++;clearTimeout(draftTimer);clearTimeout(draftDeadline);
-                await editor?.destroy();editor=next;current=note;currentDraft=recovered?draft:null;
+                const previousPath=current?.path;await editor?.destroy();editor=next;current=note;if(graphOpen&&previousPath!==note.path)closeGraph(false);currentDraft=recovered?draft:null;
                 find('[data-editor]').replaceChildren(next.view.dom.closest('.notes-rich').parentElement);
                 if(sourceRequested&&!editor.sourceMode)await editor.mode(true);
                 if(recovered&&draft.etag!==note.version)current.version=draft.etag;
@@ -516,6 +525,7 @@
             const changedNames=signature!==indexSignature;indexSignature=signature;
             if(changedNames&&editor&&!disposed)editor.refreshDecorations();
             if(right==='backlinks'||right==='outgoing')renderPanelBody();
+            if(graphOpen)updateGraph();if(right==='localGraph')updateLocalGraph();
             updateBacklinkCount();scheduleSidebar();root.__notesPalette?.update();
         }
         async function uploadFile(file,imageOnly=false){
@@ -538,15 +548,17 @@
             el.querySelector('button')?.focus({preventScroll:true});
         }
         function renderRight(){
-            const panel=find('[data-right]'),open=!!right;panel.hidden=!open;
+            const panel=find('[data-right]'),open=!!right;destroyLocalGraph();panel.hidden=!open;
             root.querySelectorAll('[data-action="sidebarRight"]').forEach(el=>el.setAttribute('aria-pressed',String(open)));
             if(!open){panel.replaceChildren();return;}
-            panel.innerHTML='<div class="notes-tabs" role="tablist" aria-label="'+esc(tr('panels'))+'">'+TABS.map(tab=>'<button type="button" role="tab" id="'+esc(windowId)+'-tab-'+tab+'" data-right-tab="'+tab+'" aria-selected="'+String(tab===right)+'" aria-controls="'+esc(windowId)+'-panel" tabindex="'+(tab===right?'0':'-1')+'" title="'+esc(tr(tab))+'" aria-label="'+esc(tr(tab))+'">'+icon(tab)+'</button>').join('')+'</div><header class="notes-panel-heading"><h2>'+esc(tr(right))+'</h2>'+button('closePanel','close')+'</header><div class="notes-panel-content" data-panel-content role="tabpanel" id="'+esc(windowId)+'-panel" aria-labelledby="'+esc(windowId)+'-tab-'+right+'"></div>';
+            panel.innerHTML='<div class="notes-tabs" role="tablist" aria-label="'+esc(tr('panels'))+'">'+TABS.map(tab=>'<button type="button" role="tab" id="'+esc(windowId)+'-tab-'+tab+'" data-right-tab="'+tab+'" aria-selected="'+String(tab===right)+'" aria-controls="'+esc(windowId)+'-panel" tabindex="'+(tab===right?'0':'-1')+'" title="'+esc(tabLabel(tab))+'" aria-label="'+esc(tabLabel(tab))+'">'+icon(tab)+'</button>').join('')+'</div><header class="notes-panel-heading"><h2>'+esc(tabLabel(right))+'</h2>'+button('closePanel','close')+'</header><div class="notes-panel-content" data-panel-content role="tabpanel" id="'+esc(windowId)+'-panel" aria-labelledby="'+esc(windowId)+'-tab-'+right+'"></div>';
             renderPanelBody();
         }
+        const tabLabel=tab=>tr(tab==='localGraph'?'local_graph':tab);
         function renderPanelBody(){
             const content=find('[data-panel-content]');if(!content||!right)return;
             if(!editor||!current){content.textContent=tr('select_note');return;}
+            if(right==='localGraph'){renderLocalGraph(content);return;}
             if(right==='backlinks'||right==='outgoing'){
                 const options={tr,esc,index,path:current.path,title:current.title,content:editor.content(),request:(url,options)=>request(url,options),signal:life.signal};
                 (right==='backlinks'?NotesPanels.backlinks:NotesPanels.outgoing)(content,options);return;
@@ -607,6 +619,9 @@
                 if(action.startsWith('template:'))return await createNote(action.split(':')[1]);
                 if(action==='save')return await queue?.save();
                 if(action==='retry'){notice('');return queue?.error?await queue.save():await refreshList();}
+                if(action==='graph'){if(graphOpen)closeGraph();else openGraph();return;}
+                if(action==='graphFit'){graph?.fit();return;}
+                if(action==='graphClose')return closeGraph();
                 if(action==='switcher')return openSwitcher();
                 if(action==='commandPalette')return openCommands();
                 if(action==='search')return openFind();
@@ -659,7 +674,7 @@
                 ...['md','html','txt'].map(format=>c(format,'export_'+format,'file','',e)),c('print','print','file','',e),
                 c('undo','undo','edit','Ctrl+Z',w),c('redo','redo','edit','Ctrl+Y',w),c('search','find','edit','Ctrl+F',e),c('insert','insert','edit','',w,{palette:false}),c('trash','trash','edit','',w),
                 c('bold','bold','format','',w&&text),c('italic','italic','format','',w&&text),c('strike','strike','format','',w&&text),c('highlight','highlight','format','Ctrl+Shift+H',w),c('code','code','format','',w&&text),c('link','link','format','',w&&text),c('wikilink','wikilink','format','',w),
-                c('commandPalette','commands','view','Ctrl+P',true,{palette:false}),c('library','library','view'),c('sidebarRight','right_sidebar','view'),c('backlinks','backlinks','view'),c('outgoing','outgoing','view'),c('outline','outline','view'),c('info','info','view'),c('source','markdown_source','view','Ctrl+E',e),c('focus','focus_mode','view'),
+                c('commandPalette','commands','view','Ctrl+P',true,{palette:false}),c('library','library','view'),c('graph','graph','view','Ctrl+G'),c('sidebarRight','right_sidebar','view'),c('backlinks','backlinks','view'),c('outgoing','outgoing','view'),c('localGraph','local_graph','view'),c('outline','outline','view'),c('info','info','view'),c('source','markdown_source','view','Ctrl+E',e),c('focus','focus_mode','view'),
                 c('assist','assist','agent','',w)
             ];
         }
@@ -670,11 +685,77 @@
                 {id:'file',labelKey:'desktop.menu_file',items:entries(['new','templates','switcher','open','import','-','save','saveAs','rename','-','md','html','txt','print'])},
                 {id:'edit',labelKey:'desktop.menu_edit',items:entries(['undo','redo','search','insert','trash'])},
                 {id:'format',labelKey:'desktop.menu_format',items:entries(['bold','italic','strike','highlight','code','link','wikilink'])},
-                {id:'view',label:tr('view'),items:entries(['commandPalette','-','library','sidebarRight','backlinks','outgoing','outline','info','source','focus'])},
+                {id:'view',label:tr('view'),items:entries(['commandPalette','-','library','graph','sidebarRight','backlinks','outgoing','localGraph','outline','info','source','focus'])},
                 {id:'agent',labelKey:'desktop.menu_agent',items:entries(['assist'])}
             ]);
         }
         const groupLabel=group=>({file:ctx.t?.('desktop.menu_file')||'File',edit:ctx.t?.('desktop.menu_edit')||'Edit',format:ctx.t?.('desktop.menu_format')||'Format',view:tr('view'),agent:ctx.t?.('desktop.menu_agent')||'Agent'}[group]||group);
+        // ---- graph (global view and local tab)
+        function graphSource(options){
+            const notes=index.notes().map(note=>note.path===current?.path&&current.title?{...note,title:current.title}:note);
+            return NotesGraph.fromIndex(notes,{linkPath:(note,link)=>index.linkPath(note,link),fuzzy:NotesIndex.fuzzy,current:current?.path,...options});
+        }
+        function syncGraphToggles(){
+            for(const key of ['tags','unresolved','orphans'])find('[data-graph-toggle="'+key+'"]')?.setAttribute('aria-pressed',String(!!graphPrefs[key]));
+        }
+        function updateGraph(){
+            if(!graph||disposed)return;
+            const data=graphSource({tags:graphPrefs.tags,unresolved:graphPrefs.unresolved,orphans:graphPrefs.orphans,filter:graphFilter});
+            graphLabels=new Map(data.nodes.map(node=>[node.id,node.label]));
+            graph.setData(data);
+            find('[data-graph-empty]').hidden=data.nodes.length>0;
+        }
+        function openGraph(){
+            if(disposed||!window.NotesGraph)return;
+            if(graphOpen){find('[data-graph-host] canvas')?.focus({preventScroll:true});return;}
+            hidePreview();find('[data-popup]').hidden=true;
+            graphOpen=true;root.classList.add('notes-show-graph');find('[data-graph]').hidden=false;syncGraphToggles();
+            find('[data-graph-filter]').value=graphFilter;
+            const host=find('[data-graph-host]');
+            graph=NotesGraph.create(host,{label:tr('graph'),onOpen:id=>openGraphNode(id),onHover:id=>{host.dataset.hover=id||'';}});
+            if(!indexLoaded)index.load().catch(()=>{});
+            updateGraph();syncChrome();
+            host.querySelector('canvas')?.focus({preventScroll:true});
+        }
+        function closeGraph(focus=true){
+            if(!graphOpen)return;
+            graphOpen=false;graphPointer=false;graph?.destroy();graph=null;
+            find('[data-graph-host]').dataset.hover='';
+            find('[data-graph]').hidden=true;root.classList.remove('notes-show-graph');
+            syncChrome();
+            if(focus&&!disposed)editor?.focus();
+        }
+        async function openGraphNode(id){
+            if(disposed)return;
+            const label=graphLabels.get(id)||'';
+            if(id.startsWith('tag:')){closeGraph(false);showLibrary();sidebar?.focusSearch('tag:'+id.slice(4));return;}
+            if(id.startsWith('unresolved:')){closeGraph(false);await createWikiNote(label);return;}
+            const same=id===current?.path;
+            closeGraph(false);
+            if(!same)await loadNote(id);
+            if(current?.path===id)editor?.focus();
+        }
+        function destroyLocalGraph(){localGraph?.destroy();localGraph=null;}
+        function updateLocalGraph(){
+            if(disposed||right!=='localGraph'||!current)return;
+            const host=find('[data-local-graph]');if(!host)return;
+            if(!localGraph&&window.NotesGraph)localGraph=NotesGraph.create(host,{label:tr('local_graph'),onOpen:id=>openLocalNode(id),onHover:id=>{host.dataset.hover=id||'';}});
+            if(!localGraph)return;
+            const select=find('[data-graph-depth]');if(select)select.value=String(graphPrefs.depth);
+            const data=NotesGraph.neighborhood(graphSource({tags:graphPrefs.tags,unresolved:graphPrefs.unresolved,orphans:true}),current.path,graphPrefs.depth);
+            localLabels=new Map(data.nodes.map(node=>[node.id,node.label]));
+            localGraph.setData(data);
+        }
+        function renderLocalGraph(content){
+            destroyLocalGraph();
+            content.innerHTML='<div class="notes-localgraph"><label class="notes-graph-depth">'+esc(tr('graph_depth'))+'<select data-graph-depth><option value="1">1</option><option value="2">2</option></select></label><div class="notes-localgraph-host" data-local-graph></div></div>';
+            updateLocalGraph();
+        }
+        function openLocalNode(id){
+            if(id.startsWith('tag:')){showLibrary();sidebar?.focusSearch('tag:'+id.slice(4));return;}
+            if(id.startsWith('unresolved:')){createWikiNote(localLabels.get(id)||'');return;}
+            if(id!==current?.path)loadNote(id);
+        }
         // ---- quick switcher, command palette
         function noteItem(path){return {id:path,label:index.note(path)?.title||basename(path).replace(/\.md$/i,''),detail:folderLabel(path),icon:icon('md')};}
         function recentPaths(){return (meta.recent||[]).filter(path=>path!==current?.path&&(!indexLoaded||index.note(path))).slice(0,RECENT_MAX);}
@@ -739,6 +820,7 @@
         }
         on(window,'beforeunload',event=>{if(queue?.dirty){backup();event.preventDefault();event.returnValue='';}});
         on(root,'click',event=>{
+            const toggle=event.target.closest('[data-graph-toggle]');if(toggle){graphPrefs[toggle.dataset.graphToggle]=!graphPrefs[toggle.dataset.graphToggle];writeGraphPrefs(graphPrefs);syncGraphToggles();updateGraph();if(right==='localGraph')updateLocalGraph();return;}
             const tab=event.target.closest('[data-right-tab]');if(tab){setRight(tab.dataset.rightTab);find('[data-right-tab="'+tab.dataset.rightTab+'"]')?.focus();return;}
             const create=event.target.closest('[data-create-wiki]');if(create){hidePreview();openWiki(create.dataset.createWiki,event,current?.path);return;}
             const attachment=event.target.closest('[data-attachment-path]');if(attachment){window.open('/api/desktop/download?path='+encodeURIComponent(attachment.dataset.attachmentPath),'_blank','noopener,noreferrer');return;}
@@ -749,15 +831,19 @@
             else if(!event.target.closest('[data-popup]'))find('[data-popup]').hidden=true;
         });
         on(root,'change',event=>{
+            if(event.target.matches('[data-graph-depth]')){graphPrefs.depth=event.target.value==='2'?2:1;writeGraphPrefs(graphPrefs);updateLocalGraph();return;}
             if(event.target.matches('[data-style]'))editor?.command('style',event.target.value);
             if(event.target.matches('[data-tags]')&&writable())editor.setContent(NotesFrontmatter.updateTags(editor.content(),event.target.value.split(',').map(tag=>tag.trim()).filter(Boolean)));
         });
-        on(root,'input',event=>{if(event.target.matches('[data-find]'))runFind(0);});
+        on(root,'input',event=>{if(event.target.matches('[data-find]'))runFind(0);if(event.target.matches('[data-graph-filter]')){graphFilter=event.target.value;updateGraph();}});
+        on(find('[data-graph]'),'pointerenter',()=>{graphPointer=true;});on(find('[data-graph]'),'pointerleave',()=>{graphPointer=false;});
+        on(document,'keydown',event=>{if(event.key==='Escape'&&graphOpen&&graphPointer&&!event.defaultPrevented&&!root.contains(event.target)&&!root.__notesPalette){event.preventDefault();closeGraph();}});
         on(find('[data-upload]'),'change',async event=>{const files=[...event.target.files];event.target.value='';const active=editor;for(const file of files)try{const image=file.type.startsWith('image/'),url=await uploadFile(file,image);if(active!==editor||disposed)return;editor.insert((image?'!':'')+'['+file.name.replace(/[\[\]\\]/g,'')+']('+url+')');}catch(error){fail(error);}});
         on(find('[data-import]'),'change',async event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(file.size>2*1024*1024){notice(tr('note_too_large'),true);return;}try{await createNote('blank',await file.text());}catch(error){fail(error);}});
         on(root,'keydown',event=>{
             if(root.__notesPalette)return;
             if(event.key==='Escape')hidePreview();
+            if(event.key==='Escape'&&graphOpen&&!event.defaultPrevented&&(event.target.closest?.('[data-graph]')||graphPointer)){event.preventDefault();event.stopPropagation();closeGraph();return;}
             const bar=event.target.closest?.('[data-findbar]');
             if(bar&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
                 if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeFind();return;}
@@ -771,7 +857,7 @@
             if(tabs&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const all=[...tabs.querySelectorAll('[role=tab]')],at=all.indexOf(event.target),next=event.key==='Home'?0:event.key==='End'?all.length-1:(at+(event.key==='ArrowRight'?1:all.length-1))%all.length;setRight(all[next].dataset.rightTab);find('[data-right-tab="'+all[next].dataset.rightTab+'"]')?.focus();return;}
             const popup=find('[data-popup]');if(!popup.hidden&&['ArrowDown','ArrowUp','Escape'].includes(event.key)){event.preventDefault();const buttons=[...popup.querySelectorAll('button')];if(event.key==='Escape'){popup.hidden=true;editor?.focus();}else buttons[(buttons.indexOf(document.activeElement)+(event.key==='ArrowDown'?1:buttons.length-1))%buttons.length]?.focus();return;}
             if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
-            const key=event.key.toLowerCase(),action=event.shiftKey?(key==='h'?'highlight':''):{s:'save',o:'switcher',n:'new',p:'commandPalette',f:'search',e:'source'}[key];
+            const key=event.key.toLowerCase(),action=event.shiftKey?(key==='h'?'highlight':''):{s:'save',o:'switcher',n:'new',p:'commandPalette',f:'search',e:'source',g:'graph'}[key];
             if(action){event.preventDefault();event.stopPropagation();act(action);}
         });
         on(find('[data-preview]'),'mouseenter',()=>clearTimeout(previewTimer));
@@ -788,7 +874,7 @@
         function cleanup(){
             if(disposed)return;disposed=true;life.abort();docLife.abort();assistController?.abort();resize.disconnect();window.AuraSSE?.off?.('virtual_desktop_event',desktopEvent);
             for(const timer of [updateTimer,draftTimer,draftDeadline,sseTimer,previewTimer])clearTimeout(timer);
-            cancelAnimationFrame(sidebarFrame);root.__notesPalette?.close(true);clearFindMark();sidebar?.destroy();sidebar=null;
+            cancelAnimationFrame(sidebarFrame);graph?.destroy();graph=null;destroyLocalGraph();root.__notesPalette?.close(true);clearFindMark();sidebar?.destroy();sidebar=null;
             queue?.dispose();editor?.destroy();ctx.clearWindowMenus?.(windowId);instances.delete(windowId);
         }
         instance.ready=(async()=>{

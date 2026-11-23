@@ -210,3 +210,28 @@ mark.notes-highlight{background:color-mix(in srgb,#f5d547 42%,transparent);color
 .desktop-body[data-density=compact] .notes-findbar input,.desktop-body[data-density=compact] .vd-notes-app .notes-findbar button{height:26px}
 @container(max-width:600px){.notes-findbar{padding:5px 8px}.notes-findbar input{max-width:none}.notes-find-buttons{margin-left:0}}
 @media(pointer:coarse){.vd-notes-app .notes-findbar button,.notes-findbar input{min-height:44px}.notes-crumb{padding:6px 4px}}
+/* Graph: global view replaces the editor area, local graph lives in the right sidebar. */
+.notes-show-graph .notes-scroll,.notes-show-graph .notes-empty{display:none}
+.notes-graph{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;background:var(--notes-well)}
+.notes-graph-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 12px 0;padding:6px 8px;background:var(--notes-card);border:1px solid var(--vd-mat-card-border,var(--notes-border));border-radius:var(--vd-mat-card-radius,12px);box-shadow:var(--vd-mat-card-shadow,0 6px 20px #0003);flex-shrink:0}
+.notes-graph-bar input{flex:1 1 180px;min-width:120px;max-width:300px;height:30px;padding:3px 9px;font-size:12px}
+.notes-graph-toggles,.notes-graph-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.notes-graph-actions{margin-left:auto}
+.vd-notes-app .notes-graph-bar button{height:30px;min-width:30px;padding:3px 10px;font-size:12px;display:inline-grid;place-items:center}
+.vd-notes-app .notes-graph-actions button{padding:3px 6px}
+.notes-graph-host,.notes-localgraph-host{position:relative;flex:1;min-height:0;overflow:hidden}
+.notes-graph-host{margin-top:4px}
+.notes-graph-host canvas,.notes-localgraph-host canvas{border-radius:inherit}
+.notes-graph-empty{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:25px;text-align:center;font-size:13px;color:var(--notes-muted);pointer-events:none}
+.notes-localgraph{display:flex;flex-direction:column;gap:8px;height:100%;min-height:330px;padding-top:12px}
+.notes-panel-content>.notes-localgraph{margin-bottom:-12px}
+.notes-graph-depth{display:flex!important;align-items:center;justify-content:space-between;gap:10px;margin:0!important;flex-shrink:0}
+.notes-graph-depth select{width:72px!important}
+.notes-localgraph-host{min-height:280px;background:var(--notes-well);border:1px solid var(--notes-border);border-radius:var(--vd-mat-card-radius,10px)}
+.notes-narrow .notes-graph-bar{margin:8px 8px 0}
+.desktop-body[data-density=compact] .notes-graph-bar{padding:4px 6px;margin-top:6px}
+.desktop-body[data-density=compact] .notes-graph-bar input,.desktop-body[data-density=compact] .vd-notes-app .notes-graph-bar button{height:26px}
+@container(max-width:600px){.notes-graph-bar input{max-width:none}.notes-graph-actions{margin-left:0}}
+@media(pointer:coarse){.vd-notes-app .notes-graph-bar button,.notes-graph-bar input{min-height:44px}}
+.vd-notes-app .notes-graph-toggles button{border-color:var(--notes-border)}
+.vd-notes-app .notes-graph-toggles button[aria-pressed=true]{border-color:color-mix(in srgb,var(--notes-accent) 45%,transparent)}
