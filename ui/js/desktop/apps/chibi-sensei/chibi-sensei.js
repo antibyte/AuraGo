@@ -421,6 +421,13 @@
                 inst.checksStale = true;
                 inst.bus.emit('checks', { result: inst.checks, stale: true });
                 recompute(inst);
+            }),
+            onRun: live(run => applyRun(inst, run)),
+            onMetric: live(body => inst.bus.emit('metric', body)),
+            onStage: live(body => {
+                const prev = inst.runs.find(r => r.id === body.run_id);
+                if (prev) applyRun(inst, { id: prev.id, stage: Object.assign({}, prev.stage || {}, { name: String(body.stage || ''), state: String(body.state || '') }) });
+                inst.bus.emit('stage', body);
             })
         });
     }
@@ -484,7 +491,7 @@
     }
 
     function syncPoll(inst) {
-        const any = Array.from(inst.jobs.values()).some(isActive);
+        const any = Array.from(inst.jobs.values()).some(isActive) || !!P.activeRun(inst.runs);
         if (!any) { clearTimeout(inst.pollTimer); inst.pollTimer = 0; return; }
         if (inst.pollTimer) return;
         const seq = inst.projectSeq;
@@ -495,27 +502,45 @@
     async function pollJobs(inst, seq) {
         if (inst.disposed || seq !== inst.projectSeq || !inst.project) return;
         const known = Array.from(inst.jobs.values()).filter(isActive).map(job => job.id);
-        try {
-            const active = await inst.api.listJobs(inst.project.id, true);
-            if (inst.disposed || seq !== inst.projectSeq) return;
-            const listed = new Set();
-            active.forEach(job => { listed.add(job.id); applyJob(inst, job); });
-            for (const id of known) {
-                if (listed.has(id)) continue;
-                let job;
-                try { job = await inst.api.getJob(id); } catch (err) {
-                    if (inst.disposed || seq !== inst.projectSeq || (err && err.aborted)) return;
-                    // A job the server no longer knows leaves the list, so the spinner and the poll stop.
-                    if (P.pruneMissingJob(inst.jobs, id, err)) { inst.bus.emit('job', null); recompute(inst); continue; }
-                    throw err;
-                }
+        if (known.length) {
+            try {
+                const active = await inst.api.listJobs(inst.project.id, true);
                 if (inst.disposed || seq !== inst.projectSeq) return;
-                applyJob(inst, job);
+                const listed = new Set();
+                active.forEach(job => { listed.add(job.id); applyJob(inst, job); });
+                for (const id of known) {
+                    if (listed.has(id)) continue;
+                    let job;
+                    try { job = await inst.api.getJob(id); } catch (err) {
+                        if (inst.disposed || seq !== inst.projectSeq || (err && err.aborted)) return;
+                        // A job the server no longer knows leaves the list, so the spinner and the poll stop.
+                        if (P.pruneMissingJob(inst.jobs, id, err)) { inst.bus.emit('job', null); recompute(inst); continue; }
+                        throw err;
+                    }
+                    if (inst.disposed || seq !== inst.projectSeq) return;
+                    applyJob(inst, job);
+                }
+            } catch (err) {
+                if (inst.disposed || (err && err.aborted)) return;
             }
-        } catch (err) {
-            if (inst.disposed || (err && err.aborted)) return;
         }
+        await pollRun(inst, seq);
         if (!inst.disposed && seq === inst.projectSeq) syncPoll(inst);
+    }
+
+    // The safety poll of the active run (the event stream is the fast path; a missed event is caught here within 2.5 s).
+    async function pollRun(inst, seq) {
+        const active = P.activeRun(inst.runs);
+        if (!active || inst.disposed || seq !== inst.projectSeq) return;
+        try {
+            const run = await inst.api.getRun(active.id);
+            if (inst.disposed || seq !== inst.projectSeq) return;
+            applyRun(inst, run);
+        } catch (err) {
+            if (inst.disposed || seq !== inst.projectSeq || (err && err.aborted)) return;
+            const e = P.errors.normalize(err);
+            if (e.status === 404 || e.code === 'run_not_found') removeRun(inst, active.id);
+        }
     }
 
     // ---- window ----------------------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const root = path.resolve(import.meta.dirname, '..');
-const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js'];
+const files = ['chibi-sensei-core.js', 'chibi-sensei-mascot.js', 'chibi-sensei-steps.js', 'chibi-sensei-table.js', 'chibi-sensei-projects.js', 'chibi-sensei-training.js', 'chibi-sensei-chart.js', 'chibi-sensei-run.js'];
 const read = file => fs.readFileSync(path.join(root, 'ui/js/desktop/apps/chibi-sensei', file), 'utf8');
 const plain = value => JSON.parse(JSON.stringify(value));
 let checks = 0;
@@ -214,5 +214,61 @@ eq(v({ method: 'lora', lora_r: '999' }, gemma).issues.map(i => i.field), ['lora_
 eq(v({ max_seq_len: '300' }, { method_default: 'lora', context_max: 32768 }).issues.map(i => i.field), ['max_seq_len'], 'not a bucket');
 eq(P.training.seqOptions({ method_default: 'lora', context_max: 32768 }), [256, 512, 1024, 2048, 4096], 'no cap: buckets up to 4096');
 eq(P.mascot.MOODS.length, 6, 'six moods');
+
+// ---- run timeline, metrics, events ------------------------------------------------------------------------------------------
+const R = P.run, C = P.chart;
+const phases = run => plain(R.timeline(run).phases.map(x => x.status));
+eq(R.STAGES, ['boot', 'env_check', 'data', 'install', 'load_base', 'converter', 'base_eval', 'train', 'tuned_eval', 'save', 'gguf', 'manifest'], 'stages in run order');
+eq(phases({ state: 'uploading' }), ['done', 'active', 'todo', 'todo', 'todo', 'todo'], 'timeline: uploading');
+const tl = plain(R.timeline({ state: 'running', stage: { name: 'train', state: 'start' } }));
+eq(tl.phases.map(x => x.status), ['done', 'done', 'done', 'active', 'todo', 'todo'], 'timeline: running');
+eq(tl.stages.slice(6, 9).map(x => x.status), ['done', 'active', 'todo'], 'timeline: stages around train');
+eq(plain(R.timeline({ state: 'running', stage: { name: 'converter', state: 'done' } })).stages.slice(4, 8).map(x => x.status), ['done', 'done', 'todo', 'todo'], 'timeline: converter stage');
+eq(phases({ state: 'succeeded' }), ['done', 'done', 'done', 'done', 'done', 'done'], 'timeline: succeeded');
+eq(phases({ state: 'failed', last_state: 'waiting_dataset' }), ['done', 'failed', 'skipped', 'skipped', 'skipped', 'skipped'], 'timeline: failed while waiting');
+eq(phases({ state: 'cancelled', last_state: 'queued' }), ['stopped', 'skipped', 'skipped', 'skipped', 'skipped', 'skipped'], 'timeline: cancelled early');
+eq(phases({ state: 'failed', error_code: 'download_failed' }), ['done', 'done', 'done', 'done', 'failed', 'skipped'], 'timeline: fallback by code');
+const gg = plain(R.timeline({ state: 'failed', stage: { name: 'gguf', state: 'failed' } }));
+ok(gg.phases[3].status === 'failed' && gg.stages[10].status === 'failed' && gg.stages[11].status === 'skipped', 'timeline: failed in gguf');
+const unk = plain(R.timeline({ state: 'running', stage: { name: 'mystery', state: 'start' } }));
+ok(unk.stages.every(x => x.status === 'todo'), 'timeline: an unknown stage marks nothing');
+eq(plain(R.mergeMetrics([{ step: 20, kind: 'train', loss: 1 }], [{ step: 10, kind: 'train', loss: 2 }, { step: 20, kind: 'train', loss: 0.9 }, { step: 20, kind: 'eval', loss: 1.1 }]))
+    .map(m => m.kind + m.step + ':' + m.loss), ['train10:2', 'train20:0.9', 'eval20:1.1'], 'mergeMetrics');
+eq(R.elapsedSeconds({ state: 'running', created: '2026-11-23T10:00:00Z' }, Date.parse('2026-11-23T10:05:00Z')), 300, 'elapsed since creation');
+eq(R.elapsedSeconds({ state: 'succeeded', remote_started: '2026-11-23T10:00:00Z', finished: '2026-11-23T10:01:00Z' }, 0), 60, 'elapsed of a finished run');
+eq(R.elapsedSeconds({ state: 'succeeded', created: '2026-11-23T10:00:00Z', remote_started: '', finished: '', updated: '2026-11-23T10:02:00Z' }, 0), 120, 'empty strings fall back');
+eq([R.liveNote({ state: 'running', live: 'no' }, 0), R.liveNote({ state: 'running', live: 'unknown' }, 0), R.liveNote({ state: 'running', live: 'yes' }, 5), R.liveNote({ state: 'succeeded', live: 'no' }, 0)],
+    ['chibi_sensei.run.live_off', 'chibi_sensei.run.live_waiting', '', ''], 'liveNote');
+const tt = (k, vars) => k + (vars ? JSON.stringify(vars) : '');
+eq(R.eventText(tt, { kind: 'stage', data: { stage: 'train', state: 'start' } }), 'chibi_sensei.event.stage_start{"stage":"chibi_sensei.stage.train"}', 'event: stage');
+eq(R.eventText(tt, { kind: 'stage', data: { stage: 'converter', state: 'done' } }), 'chibi_sensei.event.stage_done{"stage":"chibi_sensei.stage.converter"}', 'event: converter stage');
+eq(R.eventText(tt, { kind: 'stage', data: { stage: 'brand_new', state: 'start' } }), 'chibi_sensei.event.stage_start{"stage":"chibi_sensei.stage.unknown"}', 'event: unknown stage');
+eq(R.eventText(tt, { kind: 'error', data: { code: 'oom' } }), 'chibi_sensei.event.error{"text":"chibi_sensei.fail.oom"}', 'event: error');
+eq(R.eventText(tt, { kind: 'error', data: { code: 'train_failed' } }), 'chibi_sensei.event.error{"text":"chibi_sensei.fail.train_failed"}', 'event: new failure code');
+eq(R.eventText(tt, { kind: 'warn', data: { code: 'time_budget' } }), 'chibi_sensei.event.warn{"text":"chibi_sensei.warning.time_budget"}', 'event: warning');
+eq(R.eventText(tt, { kind: 'state', data: { to: 'running' } }), 'chibi_sensei.event.state{"state":"chibi_sensei.run_state.running"}', 'event: state');
+eq(R.eventText(tt, { kind: 'mystery', data: { x: 1 } }), '', 'event: unknown kinds are skipped');
+eq(R.failText(tt, 'env_low_disk'), { title: 'chibi_sensei.fail.env_low_disk', fix: 'chibi_sensei.fail.env_low_disk_fix' }, 'failText: known code');
+eq(R.failText(tt, 'something_new'), { title: 'chibi_sensei.fail.unknown', fix: 'chibi_sensei.fail.unknown_fix' }, 'failText: unknown code is generic');
+const conf = plain(R.confusion({ labels: ['pos', 'neg'], confusion: { base: [[4, 5, 1], [6, 4, 0]], tuned: [[9, 1, 0], [1, 9, 0]] } }, 'base'));
+eq(conf.rows.map(r => r.label + ':' + r.cells.join('/')), ['pos:4/5/1', 'neg:6/4/0'], 'confusion: one column per label plus the no-label column');
+eq(plain(R.confusion({ labels: ['a'], confusion: { base: [[1]] } }, 'base')).rows[0].cells, [1, 0], 'confusion: a short row is padded');
+eq(R.confusion({ labels: ['a'], confusion: {} }, 'base'), null, 'confusion: missing grid');
+
+// ---- chart layout --------------------------------------------------------------------------------------------------------
+ok(C.layout([]).empty, 'chart: empty');
+const pts = Array.from({ length: 1000 }, (_, i) => ({ step: (i + 1) * 2, kind: 'train', loss: 3 - i / 1000 }));
+const L = plain(C.layout(pts.concat([{ step: 1000, kind: 'eval', loss: 2.4 }]), { maxSteps: 2000 }));
+eq(L.trainCount, 500, 'chart: downsampled in buckets of two');
+ok(L.path.charAt(0) === 'M' && (L.path.match(/L/g) || []).length === 499, 'chart: one command per point');
+ok(L.summary.first === 3 && L.summary.steps === 2000 && Math.abs(L.summary.last - 2.001) < 1e-9 && Math.abs(L.summary.min - 2.001) < 1e-9, 'chart: summary from raw points');
+eq(L.xTicks.map(x => x.value), [0, 500, 1000, 1500, 2000], 'chart: x ticks');
+eq(L.evalPoints.length, 1, 'chart: eval point');
+ok(L.yTicks.every(tk => tk.y >= L.plot.top && tk.y <= L.plot.bottom), 'chart: y ticks inside the plot');
+const flat = plain(C.layout([{ step: 1, kind: 'train', loss: 1 }, { step: 2, kind: 'train', loss: 1 }]));
+ok(!flat.empty && flat.yTicks[0].value < 1 && flat.yTicks[3].value > 1, 'chart: a flat line gets a range');
+ok(C.layout([{ step: 1, kind: 'train', loss: NaN }, { step: 'x', loss: 1 }]).empty, 'chart: non-numbers are dropped');
+ok(C.layout([{ step: 1, kind: 'eval', loss: null }]).empty, 'chart: a null loss is dropped');
+eq(plain(C.layout([{ step: 0, kind: 'train', loss: 1 }, { step: 2, kind: 'train', loss: 2 }], { maxSteps: 2 })).xTicks.map(x => x.value), [0, 1, 2], 'chart: small step counts dedupe ticks');
 
 console.log('chibi-sensei model: ok (' + checks + ' checks)');
