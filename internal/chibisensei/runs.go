@@ -133,16 +133,18 @@ type KaggleStep struct {
 	UploadRef string `json:"upload_ref,omitempty"` // upload steps: "upload:<job id>" from the completed receipt
 	File      string `json:"file,omitempty"`       // upload: staged project file; download: kernel output path
 	Error     string `json:"error,omitempty"`      // Job.Error (public text of the Kaggle package)
+	Refused   bool   `json:"refused,omitempty"`    // Execute refused this attempt before admission
 	Updated   string `json:"updated"`
 }
 
 // RunOutput is one file of the downloaded manifest.
 type RunOutput struct {
-	Path   string `json:"path"`
-	Kind   string `json:"kind"`
-	Bytes  int64  `json:"bytes"`
-	SHA256 string `json:"sha256"`
-	Copied bool   `json:"copied"` // verified and copied into Chibi storage
+	Path    string `json:"path"`
+	Kind    string `json:"kind"`
+	Bytes   int64  `json:"bytes"`
+	SHA256  string `json:"sha256"`
+	Copied  bool   `json:"copied"`            // verified and copied into Chibi storage
+	Missing bool   `json:"missing,omitempty"` // optional output not available after the attempt limit
 }
 
 // RunRemote holds everything of a run that has no column (runs.remote_json). Every field B4 needs to
@@ -201,6 +203,18 @@ type RunRemote struct {
 
 	// Attempts counts tries per state or step name (for example "downloading": at most 3).
 	Attempts map[string]int `json:"attempts"`
+
+	// Orchestrator facts (B4).
+	Plan           *Plan             `json:"plan,omitempty"`            // the confirmed plan, stored by Submit
+	EndState       string            `json:"end_state,omitempty"`       // succeeded | failed | cancelled once cleaning starts
+	BlockedSince   string            `json:"blocked_since,omitempty"`   // first refused driver call of the current wait
+	BlockedCode    string            `json:"blocked_code,omitempty"`    // desktop_readonly | kaggle_unavailable (one warn event per code)
+	CancelTried    bool              `json:"cancel_tried,omitempty"`    // the remote cancel was tried (once)
+	EmptyLogReads  int               `json:"empty_log_reads,omitempty"` // log reads without a @@chibi line in a row
+	FinalLogRead   bool              `json:"final_log_read,omitempty"`  // downloading read the log once more
+	OutputsPlanned bool              `json:"outputs_planned,omitempty"` // the manifest files are in Outputs
+	Cleanup        map[string]string `json:"cleanup,omitempty"`         // staged | dataset | notebook → done | deleted | absent | kept | failed
+	GGUF           *GGUFInfo         `json:"gguf,omitempty"`            // verified header of the tuned model
 }
 
 // Step returns the receipt of a step, or nil.

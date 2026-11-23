@@ -235,7 +235,6 @@ var trainerStages = []string{"boot", "env_check", "data", "install", "load_base"
 	"base_eval", "train", "tuned_eval", "save", "gguf", "manifest"}
 
 // checkDryRunOutputs parses every output of one dry run with the production parsers.
-// B4 extends this function with the ReadGGUFInfo assertions (see the B4 note in the plan).
 func checkDryRunOutputs(t *testing.T, c dryCase, dj dryJob, out string, stdout []byte) {
 	t.Helper()
 	read := func(name string) []byte {
@@ -332,5 +331,13 @@ func checkDryRunOutputs(t *testing.T, c dryCase, dj dryJob, out string, stdout [
 	if final == nil || final["state"] != "succeeded" {
 		t.Fatalf("done event: %v", final)
 	}
-	// B4: ReadGGUFInfo assertions go here.
+	cat, err := chibisensei.LoadCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	prof, ok := cat.Get(c.profile)
+	if !ok {
+		t.Fatalf("profile %s missing", c.profile)
+	}
+	assertDryRunGGUF(t, out, prof.GGUF.ExpectedArch)
 }
