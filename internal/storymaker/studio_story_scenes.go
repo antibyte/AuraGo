@@ -299,6 +299,9 @@ func (s *Studio) loadSceneStory(ctx context.Context, op, sceneID string, args ma
 // but keeps narration, kind and silent when data leaves them out. patch_scene merges into the
 // draft, else into the saved scene: top-level fields replace and null removes.
 func (s *Studio) sceneWriteFields(answerOp, mode, sceneID string, data map[string]any, story *Story) (map[string]any, *StudioResult) {
+	if refused := s.freeSceneRefusal(answerOp, sceneID, data); refused != nil {
+		return nil, refused
+	}
 	index := sceneWriteIndex(story, sceneID)
 	var saved map[string]any
 	if index >= 0 {
@@ -340,8 +343,34 @@ func (s *Studio) sceneWriteFields(answerOp, mode, sceneID string, data map[strin
 			}
 		}
 	}
+	if s.job.Mode == ModeFree {
+		fields["kind"] = "code" // every scene of a free project is a code scene, even when the model leaves kind out
+	}
 	fields["id"] = sceneID
 	return fields, nil
+}
+
+// freeSceneFields are the fields the scene of a free project never carries: its code draws everything on screen.
+var freeSceneFields = []string{"environment", "variant", "speaker", "actors", "props", "beats"}
+
+// freeSceneRefusal refuses scene data that a free project cannot hold. A null removes a field and is allowed.
+func (s *Studio) freeSceneRefusal(op, sceneID string, data map[string]any) *StudioResult {
+	if s.job.Mode != ModeFree {
+		return nil
+	}
+	const next = `Write the picture with put_code, then activate the scene with put_scene and data {"kind":"code"}. Send only kind, narration, transition and duration.`
+	for _, key := range freeSceneFields {
+		if value, present := data[key]; present && value != nil {
+			r := sceneWriteRefused(op, sceneID, "free_mode_code_only",
+				fmt.Sprintf("This project is drawn freely, so a scene has no %s: its code draws everything.", key), next, nil)
+			return &r
+		}
+	}
+	if kind, present := data["kind"]; present && kind != nil && kind != "code" {
+		r := sceneWriteRefused(op, sceneID, "free_mode_code_only", "This project is drawn freely, so every scene is a code scene.", next, nil)
+		return &r
+	}
+	return nil
 }
 
 // sceneWriteEval is the result of checking a candidate scene inside its story.

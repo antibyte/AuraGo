@@ -323,6 +323,10 @@ func studioSetMeta(ctx context.Context, s *Studio, args map[string]any) StudioRe
 	if in.Title == nil && in.Style == nil && in.Voice == nil && in.Cast == nil {
 		return studioRefused("invalid_data", "set_meta needs at least one of title, style, voice and cast.", "Example: "+metaExample)
 	}
+	if s.job.Mode == ModeFree && (in.Cast != nil || in.Voice != nil) {
+		return studioRefused("free_mode_code_only", "A freely drawn film has no cast, and the server owns its voice.",
+			`Send only title or style. Example: {"title":"Sicher im Netz"}`)
+	}
 	if in.Title != nil && !hasLetterOrDigit(*in.Title) {
 		return studioRefused("invalid_data", "The title has no letters or digits.", "Write a short title in real words, not dots or placeholders.")
 	}
