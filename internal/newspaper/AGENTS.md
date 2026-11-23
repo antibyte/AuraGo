@@ -10,7 +10,8 @@ Own the installation's personal daily publication, durable editions and delivery
 - `audio.go` owns recording generation and publication format overrides. `cast.go` owns durable one-time and daily Chromecast bookings.
 - `store.go` owns the versioned SQLite state under the configured data directory.
 - `types.go` validates profiles, source-backed drafts and immutable edition hashes.
-- `render.go` renders the saved edition for email and PDF.
+- `render.go` renders the plain text (`Text`, also Telegram and audio, keep it stable) and the print-style email HTML: nameplate, motto, folio line, Ressort heads, indented paragraphs with per-paragraph citations, boxed notices, sources and colophon. Inline styles and tables only, no external assets or web fonts; escape every edition string.
+- `render_pdf.go` lays out the two-column A4 PDF with the `pdfFonts` pair (Times only for the cp1252 nameplate and motto). Wrap text with `wrapText` and draw it line by line: gofpdf's `MultiCell` drops a CJK rune at every wrap. Pass every additionally drawn string to `pdfFonts` with `Text(e)`.
 - `pdf_fonts.go` selects a complete regular/bold pair for PDF download and Telegram. Keep local Go fonts for covered editions and the bundled Noto Sans SC fallback for mixed Chinese text, including source metadata. Preserve explicit rejection of unsupported glyphs/shaping and the Telegram text fallback. Font provenance, license, regeneration and visual checks live in `fonts/README.md`.
 - `skills/aurago-newspaper/SKILL.md` is the bundled editorial policy, registered through the Agent Skill Manager.
 
@@ -40,6 +41,7 @@ Own the installation's personal daily publication, durable editions and delivery
 ## Verification
 
 - Run `go test ./internal/newspaper` for validation, persistence, restart and DST behavior.
+- For renderer changes, write samples with `NEWSPAPER_SAMPLE_DIR=<dir> go test ./internal/newspaper -run TestWriteRenderSamples -count=1` and look at the email HTML (also at phone width) and every PDF page.
 - Run `go test ./internal/config -run Newspaper` for overview source IDs, defaults and load validation.
 - Run `go test ./internal/server -run TestNewspaper` for HTTP policy, guided research, yield/concurrency/budgets and delivery adapters; `go test ./internal/tools -run 'Brave|ExecuteDDG|Newspaper'` for search compatibility and bundled skill registration.
 - Run `go test ./ui -run 'TestNewspaperTranslations|TestNewspaperResearchTranslations|TestNewspaperConfigResearchBrowser|TestDesktopNewspaperBrowser'` with `AURAGO_RUN_BROWSER_SMOKE=1` for the reader, source selection and responsive settings.
