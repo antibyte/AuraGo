@@ -651,6 +651,37 @@
             return row;
         }
 
+        // On-screen touch buttons (moved out of app.js): `s` = { touchState, edgeState, unlock }; the button feeds the key state of the shell.
+        function paintTouch(left, right, s) {
+            left.replaceChildren();
+            right.replaceChildren();
+            [
+                { group: left, key: 'ArrowLeft', text: t('runenpfad.touch_left') },
+                { group: left, key: 'ArrowRight', text: t('runenpfad.touch_right') },
+                { group: left, key: 'ArrowUp', text: '↑' }, // up and down: only visible inside a building (CSS)
+                { group: left, key: 'ArrowDown', text: '↓' },
+                { group: right, key: 'Space', text: t('runenpfad.touch_jump'), edge: 'jumpPressed' },
+                { group: right, key: 'KeyJ', text: t('runenpfad.touch_attack'), edge: 'attackPressed' },
+                { group: right, key: 'KeyK', text: t('runenpfad.touch_special'), edge: 'dashPressed' },
+                { group: right, key: 'KeyE', text: t('runenpfad.npc.ui.touch_talk'), edge: 'talkPressed' }
+            ].forEach(function (spec) {
+                const b = el('button', 'rp-touch-btn', spec.text);
+                b.type = 'button';
+                b.dataset.rpKey = spec.key;
+                b.addEventListener('pointerdown', function (ev) {
+                    ev.preventDefault();
+                    s.unlock();
+                    s.touchState[spec.key] = true;
+                    if (spec.edge) s.edgeState[spec.edge] = true;
+                });
+                const release = function () { s.touchState[spec.key] = false; };
+                b.addEventListener('pointerup', release);
+                b.addEventListener('pointercancel', release);
+                b.addEventListener('pointerleave', release);
+                spec.group.append(b);
+            });
+        }
+
         function dispose() {
             root.clearTimeout(hintTimer);
             root.clearTimeout(heartsRow.__rpShake2);
@@ -663,7 +694,7 @@
             icon: icon, keycap: keycap, setButton: setButton, setSheets: setSheets, setArt: setArt, setText: setText,
             paint: paint, paintCopy: paintCopy, paintStars: paintStars, paintPlaques: paintPlaques,
             paintWinSummary: paintWinSummary, paintLegend: paintLegend, pips: pips, formatTime: formatTime,
-            showHint: showHint, dispose: dispose, createPause: createPause, onEvents: onEvents, cancelWin: cancelWin
+            showHint: showHint, paintTouch: paintTouch, dispose: dispose, createPause: createPause, onEvents: onEvents, cancelWin: cancelWin
         };
     }
 

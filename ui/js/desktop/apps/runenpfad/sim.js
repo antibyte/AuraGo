@@ -929,6 +929,7 @@
             sim.accum -= STEP;
             substeps += 1;
         }
+        if (root.RunenpfadBounties) root.RunenpfadBounties.track(sim, sim.events);
         return sim.events;
     }
 

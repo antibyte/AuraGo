@@ -2121,3 +2121,175 @@
         transition: none;
     }
 }
+
+/* ---- round 10: games window (dice table, task board) and the chronicle journal. Same panel and buttons as the dialogue window. ---- */
+.rp-games-panel {
+    grid-template-columns: minmax(0, 1fr);
+    width: min(580px, 100%);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.rp-games-body {
+    gap: 10px;
+}
+
+.rp-games-rules {
+    margin: 0;
+}
+
+.rp-games-canvas {
+    display: block;
+    width: min(340px, 100%);
+    height: auto;
+    margin: 0 auto;
+    background: radial-gradient(ellipse at 50% 50%, rgba(60, 90, 50, 0.55), rgba(18, 28, 16, 0.75));
+    border: 1px solid rgba(138, 106, 58, 0.75);
+    border-radius: 3px;
+}
+
+.rp-games-status {
+    text-align: center;
+}
+
+.rp-games-actions {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+}
+
+.rp-app .rp-games-stake.is-on {
+    border-color: var(--rp-gold);
+    color: var(--rp-gold);
+}
+
+.rp-app .rp-games-die .rp-btn-label {
+    font-size: 20px;
+}
+
+.rp-games-offers {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.rp-games-offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(138, 106, 58, 0.55);
+    border-radius: 2px;
+}
+
+.rp-games-offer.is-active {
+    border-color: var(--rp-gold-soft);
+}
+
+.rp-games-offer-tag {
+    flex: 1 1 100%;
+    color: var(--rp-gold);
+    font-size: 12px;
+}
+
+.rp-games-offer-text {
+    flex: 1 1 220px;
+    min-width: 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.rp-app .rp-games-offer .rp-talk-choice {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.rp-games-bar {
+    flex: 1 1 100%;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(138, 106, 58, 0.75);
+    border-radius: 2px;
+}
+
+.rp-games-bar i {
+    display: block;
+    height: 100%;
+    background: var(--rp-gold-soft);
+}
+
+.rp-games-progress {
+    flex: 1 1 auto;
+    color: var(--rp-parch-dim);
+    font-size: 13px;
+}
+
+.rp-app.rp-narrow .rp-games-panel {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.rp-app.rp-narrow .rp-games-body {
+    display: flex;
+}
+
+.rp-journal {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+    margin-top: 8px;
+}
+
+.rp-app.rp-narrow .rp-journal {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.rp-journal-head {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.rp-journal-title {
+    margin: 0;
+    font-family: var(--rp-title-font);
+    font-size: var(--rp-fs-hud);
+    letter-spacing: var(--rp-track);
+    font-weight: 400;
+    color: var(--rp-gold);
+}
+
+.rp-journal-count {
+    color: var(--rp-parch-dim);
+    font-size: 13px;
+}
+
+.rp-journal-row.is-open {
+    border-color: var(--rp-gold);
+}
+
+.rp-journal-reader {
+    grid-column: 1 / -1;
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.38);
+    border-left: 3px solid var(--rp-gold-soft);
+}
+
+.rp-journal-page {
+    margin: 0 0 6px;
+    color: var(--rp-gold);
+    font-size: 15px;
+}
+
+.rp-journal-text {
+    margin: 0 0 8px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--rp-parch);
+    overflow-wrap: anywhere;
+}

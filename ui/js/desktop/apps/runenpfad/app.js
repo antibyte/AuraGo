@@ -141,11 +141,16 @@
         const hudSoundBtn = hud.soundBtn;
         const pauseBtn = hud.pauseBtn;
         const healBtn = hud.healBtn;
-        // Dialogue and trade window (dialogue-ui.js); `emit` forwards events raised outside a simulation tick.
+        // Dialogue and trade window (dialogue-ui.js) and the games window (games-ui.js); `emit` forwards events raised outside a simulation tick.
+        function emitOutside(evs) { if (!sim) return; if (renderer) renderer.handleEvents(evs, sim); if (audio) audio.handleEvents(evs, amb(), renderer ? renderer.getCamera() : null); }
         const talk = root.RunenpfadDialogueUi ? root.RunenpfadDialogueUi.create({
             el: el, t: t, fill: fill, hud: hud, Sim: Sim, isBlocked: function () { return anyDialogOpen() || !!cardKind; },
-            flush: function () { flushStory(); },
-            emit: function (evs) { if (!sim) return; if (renderer) renderer.handleEvents(evs, sim); if (audio) audio.handleEvents(evs, amb(), renderer ? renderer.getCamera() : null); }
+            flush: function () { flushStory(); }, emit: emitOutside
+        }) : null;
+        const games = root.RunenpfadGamesUi ? root.RunenpfadGamesUi.create({
+            el: el, t: t, fill: fill, hud: hud, isBlocked: function () { return anyDialogOpen() || !!cardKind; },
+            flush: function () { flushStory(); }, emit: emitOutside, cue: cue,
+            onChange: function () { syncAudioActive(); if (!gamesOpen()) shell.focus({ preventScroll: true }); }
         }) : null;
 
         // Touch controls (visible when .rp-narrow is active)
@@ -228,6 +233,7 @@
 
         shell.append(stageWrap, hud.root, hud.bossCard, touch, loadingCard, errorCard, winCard, loseCard, pauseDialog, levelsDialog, shopDialog);
         if (talk) shell.append(talk.root);
+        if (games) shell.append(games.root);
         host.replaceChildren(shell);
 
         // Gamepad (gamepad.js): the pad feeds real key events into the shell; open dialogs get focus navigation instead.
@@ -235,7 +241,7 @@
         function padKey(type, code) { shell.dispatchEvent(new KeyboardEvent(type, { code: code, key: PAD_KEYS[code] || code, bubbles: true })); }
         const gamepad = root.RunenpfadGamepad ? root.RunenpfadGamepad.create({
             root: shell, press: function (c) { padKey('keydown', c); }, release: function (c) { padKey('keyup', c); }, reduced: reduced,
-            activeDialog: function () { return [pauseDialog, levelsDialog, shopDialog].find(function (d) { return d.open; }) || null; },
+            activeDialog: function () { return [pauseDialog, levelsDialog, shopDialog].find(function (d) { return d.open; }) || (gamesOpen() ? games.root : null); },
             cardOpen: function () { return !!cardKind; }
         }) : null;
 
@@ -244,15 +250,16 @@
         }
 
         function cutOpen() { return !!(cut && cut.isOpen()); }
+        function gamesOpen() { return !!(games && games.isOpen()); }
 
         function isPaused() {
             const winActive = !ctx.isActive || ctx.isActive();
-            return disposed || userPaused || !winActive || document.hidden || !loadingCard.hidden || !errorCard.hidden || anyDialogOpen() || cutOpen() || !sim || sim.state !== 'playing';
+            return disposed || userPaused || !winActive || document.hidden || !loadingCard.hidden || !errorCard.hidden || anyDialogOpen() || cutOpen() || gamesOpen() || !sim || sim.state !== 'playing';
         }
 
-        // The cutscene pauses the game but keeps audio and music active: the music override plays through them.
+        // The cutscene and the games window pause the game but keep audio and music active (override music, dice and board cues).
         function syncAudioActive() {
-            const active = !isPaused() || (cutOpen() && !disposed && !document.hidden && (!ctx.isActive || ctx.isActive()));
+            const active = !isPaused() || ((cutOpen() || gamesOpen()) && !disposed && !document.hidden && (!ctx.isActive || ctx.isActive()));
             if (audio) audio.setActive(active);
             if (music && typeof music.setActive === 'function') music.setActive(active);
         }
@@ -351,33 +358,7 @@
         }
 
         function paintTouchControls() {
-            touchLeftGroup.replaceChildren();
-            touchRightGroup.replaceChildren();
-            [
-                { group: touchLeftGroup, key: 'ArrowLeft', text: t('runenpfad.touch_left') },
-                { group: touchLeftGroup, key: 'ArrowRight', text: t('runenpfad.touch_right') },
-                { group: touchLeftGroup, key: 'ArrowUp', text: '↑' }, // up and down: only visible inside a building (CSS)
-                { group: touchLeftGroup, key: 'ArrowDown', text: '↓' },
-                { group: touchRightGroup, key: 'Space', text: t('runenpfad.touch_jump'), edge: 'jumpPressed' },
-                { group: touchRightGroup, key: 'KeyJ', text: t('runenpfad.touch_attack'), edge: 'attackPressed' },
-                { group: touchRightGroup, key: 'KeyK', text: t('runenpfad.touch_special'), edge: 'dashPressed' },
-                { group: touchRightGroup, key: 'KeyE', text: t('runenpfad.npc.ui.touch_talk'), edge: 'talkPressed' }
-            ].forEach(function (spec) {
-                const b = el('button', 'rp-touch-btn', spec.text);
-                b.type = 'button';
-                b.dataset.rpKey = spec.key;
-                b.addEventListener('pointerdown', function (ev) {
-                    ev.preventDefault();
-                    if (audio) audio.unlock();
-                    touchState[spec.key] = true;
-                    if (spec.edge) edgeState[spec.edge] = true;
-                });
-                const release = function () { touchState[spec.key] = false; };
-                b.addEventListener('pointerup', release);
-                b.addEventListener('pointercancel', release);
-                b.addEventListener('pointerleave', release);
-                spec.group.append(b);
-            });
+            hud.paintTouch(touchLeftGroup, touchRightGroup, { touchState: touchState, edgeState: edgeState, unlock: function () { if (audio) audio.unlock(); } });
         }
 
         function paintStaticCopy() {
@@ -472,6 +453,7 @@
         function startStage(options) {
             options = options || {};
             flushStory();
+            if (games) games.reset();
             userPaused = false;
             disarmHero();
             winCard.hidden = true;
@@ -541,6 +523,8 @@
             if (req === 'workshop') openShop();
             else if (req === 'chronicle') openLevels(root.RunenpfadWorldmapUi.VIEW_CHRONICLE, true);
             else if (req === 'worldmap') openLevels();
+            else if (/^scene:[a-z_]+$/.test(req)) playScenes([req.slice(6)]);
+            else if (games) games.request(req, { sim: sim, music: music });
         }
 
         function primaryCardButton() {
@@ -756,6 +740,7 @@
             if (audio) audio.unlock();
             if (cardKeys(ev)) return;
             if (talk && talk.handleKey(ev, sim)) return;
+            if (games && games.handleKey(ev)) return;
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(ev.code)) {
                 if (!anyDialogOpen()) ev.preventDefault();
             }
@@ -1072,6 +1057,7 @@
                 root.clearTimeout(heroArmTimer);
                 hud.dispose();
                 if (talk) talk.dispose();
+                if (games) games.dispose();
                 disposeVisuals();
                 if (audio) {
                     audio.dispose();

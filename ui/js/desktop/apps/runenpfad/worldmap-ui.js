@@ -15,6 +15,7 @@
         const hud = o.hud;
         const select = function () { if (typeof o.play === 'function') o.play('ui_select'); }; // enabled controls only
         let view = Math.max(0, Math.min(VIEW_CHRONICLE, Math.floor(Number(o.view) || 0)));
+        let readPage = 0; // journal page open in the chronicle tab (0 = none)
 
         const dialog = el('dialog', 'rp-dialog rp-levels-dialog');
         const head = el('div', 'rp-dialog-head');
@@ -90,6 +91,49 @@
                 box.append(row);
             });
             grid.append(box);
+            if (root.RunenpfadChronicle) renderJournal(profile);
+        }
+
+        // Edda's journal: ten rows (title and a read button, or where to look), the open page's text below them.
+        function renderJournal(profile) {
+            const Chr = root.RunenpfadChronicle;
+            const pages = Chr.list(profile, t) || [];
+            const box = el('div', 'rp-journal');
+            const have = typeof Chr.count === 'function' ? Chr.count(profile) : pages.filter(function (p) { return p.have; }).length;
+            const headRow = el('div', 'rp-journal-head');
+            headRow.append(el('h3', 'rp-journal-title', t('runenpfad.cut.journal')), el('span', 'rp-journal-count rp-num', fill('runenpfad.cut.pages_count', { count: have })));
+            box.append(headRow);
+            pages.forEach(function (p, i) {
+                const n = p.n || i + 1;
+                const row = el('div', 'rp-chron-row rp-journal-row' + (p.have ? ' is-seen' : '') + (readPage === n ? ' is-open' : ''));
+                row.dataset.rpPage = String(n);
+                row.append(el('span', 'rp-chron-no', String(n)));
+                if (p.have) {
+                    row.append(el('strong', 'rp-chron-title', p.title || t(p.titleKey || 'runenpfad.page.' + n + '.title')));
+                    const btn = el('button', 'rp-btn', t('runenpfad.cut.page_read'));
+                    btn.type = 'button';
+                    btn.dataset.rpReadPage = String(n);
+                    btn.addEventListener('click', function () {
+                        if (typeof o.play === 'function') o.play('ui_page');
+                        readPage = readPage === n ? 0 : n;
+                        render();
+                        const again = grid.querySelector('[data-rp-read-page="' + n + '"]');
+                        if (again) again.focus({ preventScroll: true });
+                    });
+                    row.append(btn);
+                } else {
+                    row.append(el('span', 'rp-chron-title is-locked', fill('runenpfad.cut.page_missing', { place: p.placeId ? t('runenpfad.place.' + p.placeId) : '' })));
+                }
+                box.append(row);
+            });
+            const open = pages.filter(function (p, i) { return p.have && (p.n || i + 1) === readPage; })[0];
+            if (open) {
+                const reader = el('article', 'rp-journal-reader');
+                reader.append(el('h4', 'rp-journal-page', open.title || t(open.titleKey || 'runenpfad.page.' + readPage + '.title')));
+                ['a', 'b'].forEach(function (part) { reader.append(el('p', 'rp-journal-text', t('runenpfad.npc.journal.p' + readPage + part))); });
+                box.append(reader);
+            }
+            grid.append(box);
         }
 
         function renderTiles(profile) {
@@ -143,6 +187,7 @@
             if (cutscenes()) addTab(VIEW_CHRONICLE, t('runenpfad.cut.chronicle'), '');
 
             grid.replaceChildren();
+            if (view !== VIEW_CHRONICLE) readPage = 0;
             if (view === VIEW_ENDLESS) renderEndless(profile);
             else if (view === VIEW_CHRONICLE && cutscenes()) renderChronicle(profile);
             else renderTiles(profile);
