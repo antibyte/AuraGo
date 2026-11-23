@@ -72,6 +72,7 @@
                 p.vy = 0;
                 p.invulnTimer = 1.6;
                 sim.notice = 'runenpfad.notice.respawn';
+                pushEvent(sim, 'revive', { x: p.x, y: p.y });
                 fxFlash(sim, '#7ee8fa', 0.3, 0.3);
                 fxBurst(sim, 'rune', p.x, p.y - 22, 12, { color: '#7ee8fa', speed: 150, life: 0.6 });
             } else {
@@ -83,6 +84,8 @@
                 fxShake(sim, 9);
                 fxBurst(sim, 'shard', p.x, p.y - 22, 16, { color: '#ff6b7d', speed: 240, life: 0.7 });
             }
+        } else if (sim.state === 'playing') {
+            fxHitstop(sim, 0.05);
         }
     }
 
@@ -241,15 +244,19 @@
                 angle: p.facing > 0 ? -0.35 : Math.PI + 0.35,
                 life: 0.24
             });
+            let meleeHit = 0;
             stage.enemies.forEach(function (e) {
                 if (!e.dead) {
                     const ew = 40 * e.def.scale;
                     const eh = 48 * e.def.scale;
                     if (rectOverlap(hx, hy, hw, hh, e.x - ew / 2, e.y - eh, ew, eh)) {
+                        const hpBefore = e.hp;
                         damageEnemy(sim, e, attackDamage, p.x);
+                        if (!e.dead && e.hp < hpBefore) meleeHit = Math.max(meleeHit, e.def.boss ? 0.04 : 0.03);
                     }
                 }
             });
+            if (meleeHit > 0) fxHitstop(sim, meleeHit);
             stage.crates.forEach(function (c) {
                 if (!c.broken && rectOverlap(hx, hy, hw, hh, c.x - c.w / 2, c.y + stage.tileSize - c.h, c.w, c.h)) {
                     breakCrate(sim, c);
@@ -366,7 +373,9 @@
                     const eh = 42 * e.def.scale;
                     if (rectOverlap(proj.x - 8, proj.y - 8, 16, 16, e.x - ew / 2, e.y - eh, ew, eh)) {
                         proj.dead = true;
+                        const hpBefore = e.hp;
                         damageEnemy(sim, e, proj.damage, proj.x);
+                        if (!e.dead && e.hp < hpBefore) fxHitstop(sim, 0.015);
                     }
                 });
                 stage.crates.forEach(function (c) {

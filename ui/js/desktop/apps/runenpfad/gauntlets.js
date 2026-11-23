@@ -199,6 +199,49 @@
         return width;
     }
 
+    // Walkable spans (tiles, [from, to)) a checkpoint must not sit in: camps, place zones, thorn rollers, flame jets, gates.
+    function blockedSpans(ctx) {
+        const T = ctx.TILE;
+        const spans = [];
+        (ctx.extras.npcs || []).forEach(function (n) { spans.push([n.campX0 / T, n.campX1 / T]); });
+        (ctx.extras.doors || []).forEach(function (d) { spans.push([d.zoneX0 / T, d.zoneX1 / T]); });
+        (ctx.thornRollers || []).forEach(function (r) { spans.push([(r.startX - r.r) / T, (r.endX + r.r) / T]); });
+        (ctx.flameJets || []).forEach(function (j) { spans.push([j.x / T - 1.5, j.x / T + 1.5]); });
+        (ctx.gates || []).forEach(function (g) { spans.push([g.x / T - 1, (g.x + g.w) / T + 1]); });
+        return spans;
+    }
+
+    // Row of the topmost solid tile of column x, or -1.
+    function topSolid(ctx, x) {
+        for (let y = 0; y < ctx.rows; y++) if (ctx.solidMap[x + ',' + y]) return y;
+        return -1;
+    }
+
+    // Called by levels.js right before a gauntlet is built: makes sure a checkpoint lies within 8 tiles before it, so the
+    // revive is re-armed. Reuses an existing checkpoint, else a flat tile within 6 tiles, else lays a 2-tile pad.
+    // Returns the number of tiles the cursor advances (0 or 2). Makes no rng draw. Campaign levels only.
+    function checkpointBefore(ctx, info) {
+        const mode = (ctx.cfg && ctx.cfg.mode) || 'campaign';
+        if (mode !== 'campaign' || (ctx.cfg && (ctx.cfg.hub || ctx.cfg.id === 0)) || !ctx.checkpoints) return 0;
+        const T = ctx.TILE;
+        const cx = ctx.cursorX;
+        const near = ctx.checkpoints.some(function (cp) { return cp.x >= (cx - 8) * T && cp.x <= cx * T; });
+        if (near) return 0;
+        const blocked = blockedSpans(ctx);
+        for (let x = cx - 1; x >= cx - 6 && x >= 1; x--) {
+            const g = topSolid(ctx, x);
+            if (g < 2 || topSolid(ctx, x - 1) !== g || (x + 1 < cx && topSolid(ctx, x + 1) !== g)) continue;
+            if (blocked.some(function (s) { return x + 1 > s[0] && x < s[1]; })) continue;
+            if (ctx.platforms.some(function (p) { return p.tx === x && p.ty >= g - 3 && p.ty < g; })) continue;
+            if (ctx.hazards.some(function (h) { return h.x < (x + 1) * T && h.x + h.w > x * T && h.y < g * T + T && h.y + h.h > (g - 2) * T; })) continue;
+            ctx.checkpoints.push({ id: 'cp_' + ctx.checkpoints.length, x: (x + 0.5) * T, y: (g - 1) * T, activated: false });
+            return 0;
+        }
+        ctx.fillGround(cx, 2, ctx.groundY);
+        ctx.checkpoints.push({ id: 'cp_' + ctx.checkpoints.length, x: (cx + 0.5) * T, y: (ctx.groundY - 1) * T, activated: false });
+        return 2;
+    }
+
     function parBonus(variant) {
         return PAR[variant] || 0;
     }
@@ -210,5 +253,5 @@
         }, 0);
     }
 
-    root.RunenpfadGauntlets = { ZONE_IDS: ZONE_IDS, VARIANTS: VARIANTS, WIDTHS: WIDTHS, PAR: PAR, has: has, build: build, parBonus: parBonus, parBonusFor: parBonusFor };
+    root.RunenpfadGauntlets = { ZONE_IDS: ZONE_IDS, VARIANTS: VARIANTS, WIDTHS: WIDTHS, PAR: PAR, has: has, build: build, checkpointBefore: checkpointBefore, parBonus: parBonus, parBonusFor: parBonusFor };
 })(typeof window !== 'undefined' ? window : globalThis);

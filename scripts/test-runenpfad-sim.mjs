@@ -2973,3 +2973,137 @@ console.log('Runenpfad round 5 checks passed: storm gusts.');
     });
 }
 console.log('Runenpfad round 6 checks passed: lantern moth, bell toad, and counters.');
+
+// ---- Round 9: variable jump, hit feedback, new events, checkpoint before the gauntlet ----
+{
+    const Combat = sandbox.RunenpfadCombat;
+    const STEP = Sim.STEP;
+    const mk = (levelId, hero) => {
+        const s = Sim.createSimulation({ mode: 'campaign', levelId, hero: hero || 'knight' });
+        s.stage.enemies.length = 0;
+        return s;
+    };
+    const tick = (s, inp) => Sim.stepSimulation(s, STEP, inp || {});
+    const settled = (levelId, hero) => {
+        const s = mk(levelId, hero);
+        for (let i = 0; i < 40; i++) tick(s);
+        assert.ok(s.player.onGround, 'hero settles on the ground');
+        return s;
+    };
+    // Apex height of a jump whose input per tick comes from fn(i).
+    const apexOf = (fn) => {
+        const s = settled(1);
+        const y0 = s.player.y;
+        let minY = y0;
+        for (let i = 0; i < 70; i++) {
+            tick(s, fn(i));
+            minY = Math.min(minY, s.player.y);
+        }
+        return y0 - minY;
+    };
+    const full = apexOf((i) => (i === 0 ? { jumpPressed: true, jump: true } : { jump: true }));
+    assert.ok(full > 90, 'the base knight jumps about 103 px, got ' + full);
+    assert.equal(apexOf((i) => ({ jumpCut: true, jumpPressed: i === 0, jump: i < 40 })), full, 'a held jump with jumpCut keeps the full arc');
+    assert.equal(apexOf((i) => (i === 0 ? { jumpPressed: true } : {})), full, 'without jumpCut a one-tick press still reaches the full apex');
+    const cut = apexOf((i) => ({ jumpCut: true, jumpPressed: i === 0, jump: i < 4 }));
+    assert.ok(cut > full * 0.25 && cut < full * 0.6, 'a short tap with jumpCut reaches 25-60 % of the arc, got ' + cut + ' of ' + full);
+    // Anything else that writes vy (spring, geyser, updraft, stomp, hurt) is never cut.
+    {
+        const s = settled(1);
+        tick(s, { jumpCut: true, jumpPressed: true, jump: true });
+        tick(s, { jumpCut: true, jump: true });
+        s.player.vy = -800;
+        tick(s, { jumpCut: true });
+        assert.ok(s.player.vy < -700, 'an external launch during a rising jump is not cut, vy ' + s.player.vy);
+        const t = settled(1);
+        t.player.onGround = false;
+        t.player.vy = -700;
+        tick(t, { jumpCut: true });
+        assert.ok(t.player.vy < -600, 'a launch without a jump is not cut');
+    }
+    // Hitstop on a non-lethal melee hit; a jump pressed during the freeze is buffered and launches afterwards.
+    {
+        const s = settled(1);
+        const foe = Levels.createEnemy('slime', s.player.x + 30, s.player.y, s.player.x - 200, s.player.x + 200, { id: 'e_t', hpScale: 1, dir: 1, shootTimer: 9 });
+        foe.hp = 9;
+        s.stage.enemies.push(foe);
+        tick(s, { attackPressed: true });
+        assert.ok(foe.hp < 9 && !foe.dead, 'the swing hurt the dummy');
+        assert.ok(s.fx.hitstop > 0, 'a non-lethal melee hit freezes the world');
+        tick(s, { jumpPressed: true });
+        assert.ok(s.player.onGround, 'the press arrives during the freeze');
+        let launched = false;
+        for (let i = 0; i < 12 && !launched; i++) { tick(s); launched = s.player.vy < -100; }
+        assert.ok(launched, 'the buffered jump launches when the freeze ends');
+    }
+    // New events.
+    {
+        const evs = (s, n, inp) => {
+            const out = [];
+            for (let i = 0; i < n; i++) out.push(...tick(s, inp));
+            return out;
+        };
+        const s = settled(1);
+        s.player.vx = 220;
+        let ev = evs(s, 3, { left: true }).filter((e) => e.type === 'skid');
+        assert.equal(ev.length, 1, 'a fast turn skids once');
+        assert.equal(ev[0].detail.dir, -1, 'skid carries the new facing');
+        const a = settled(1);
+        a.player.onGround = false;
+        a.player.y -= 120;
+        a.player.vy = 0;
+        a.player.vx = 220;
+        assert.equal(evs(a, 3, { left: true }).filter((e) => e.type === 'skid').length, 0, 'no skid in the air');
+        const c = settled(3);
+        const l = c.stage.ladders.filter((q) => q.x === c.stage.ladders[0].x).sort((q, r) => r.y - q.y)[0];
+        c.player.x = l.x + c.stage.tileSize / 2;
+        c.player.y = l.y + 30;
+        c.player.vx = 0;
+        ev = evs(c, 36, { up: true }).filter((e) => e.type === 'climb_step');
+        assert.ok(ev.length >= 2 && ev[0].detail.kind === 'ladder', 'climbing emits climb_step, got ' + ev.length);
+        const h = settled(1);
+        h.player.maxHp = 3;
+        h.player.hp = 1;
+        assert.ok(evs(h, 60, {}).filter((e) => e.type === 'heart_beat').length >= 1, 'heart_beat at one heart');
+        h.player.hp = 2;
+        assert.equal(evs(h, 120, {}).filter((e) => e.type === 'heart_beat').length, 0, 'no heart_beat at two hearts');
+        const r = settled(1);
+        r.checkpoint = { x: r.player.x - 40, y: r.player.y };
+        r.events = [];
+        Combat.hurtPlayer(r, 99, r.player.x + 5);
+        const rv = r.events.filter((e) => e.type === 'revive');
+        assert.equal(rv.length, 1, 'the checkpoint revive emits revive');
+        assert.equal(rv[0].detail.x, r.checkpoint.x, 'revive sits at the checkpoint');
+    }
+    // A checkpoint before every campaign gauntlet that re-arms the revive.
+    {
+        for (let id = 1; id <= 25; id++) {
+            const st = Levels.buildStage(id);
+            const gz = st.gauntlets[0];
+            const t = st.tileSize;
+            const cps = st.checkpoints.filter((cp) => cp.x >= gz.x0 - 8 * t && cp.x <= gz.x0);
+            assert.ok(cps.length >= 1, 'level ' + id + ' has a checkpoint within 8 tiles before the gauntlet');
+            cps.forEach((cp) => {
+                const tx = Math.floor(cp.x / t);
+                const ty = Math.round(cp.y / t);
+                assert.ok(st.solidMap[tx + ',' + (ty + 1)], 'level ' + id + ' checkpoint stands on solid ground');
+                assert.ok(!st.solidMap[tx + ',' + ty] && !st.solidMap[tx + ',' + (ty - 1)], 'level ' + id + ' checkpoint has two free tiles above');
+                assert.ok(!st.gauntlets.some((g) => cp.x >= g.x0 && cp.x < g.x1), 'level ' + id + ' checkpoint is outside the gauntlet');
+            });
+        }
+        const s = Sim.createSimulation({ mode: 'campaign', levelId: 8, hero: 'knight' });
+        const cp = s.stage.checkpoints.filter((c) => c.x < s.stage.gauntlets[0].x0).pop();
+        const p = s.player;
+        s.checkpointUsed = true;
+        p.x = cp.x;
+        p.y = cp.y + s.stage.tileSize;
+        tick(s);
+        assert.ok(cp.activated && s.checkpointUsed === false, 'activating the pre-gauntlet checkpoint re-arms the revive');
+        assert.equal(s.notice, 'runenpfad.notice.revive_ready', 'the re-arm shows the revive_ready notice');
+        p.invulnTimer = 0;
+        Combat.hurtPlayer(s, 99, p.x + 3);
+        assert.ok(s.state === 'playing' && Math.abs(p.x - cp.x) < 1, 'dying again revives at the pre-gauntlet checkpoint');
+        for (let floor = 1; floor <= 4; floor++) assert.equal((Levels.buildStage({ mode: 'endless', endlessFloor: floor, seed: 9001 }).gauntlets || []).length, 0, 'endless floor ' + floor + ' is unchanged');
+    }
+}
+console.log('Runenpfad round 9 checks passed: variable jump, hitstop, skid/climb/heart/revive events, checkpoint before the gauntlet.');

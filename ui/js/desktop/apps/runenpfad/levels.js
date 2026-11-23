@@ -680,6 +680,7 @@
                 zoneCtx.variant = slot[1] || '';
                 zoneCtx.cursorX = cursorX;
                 zoneCtx.zIdx = zIdx;
+                if (zone === 'gauntlet' && zonesRef.checkpointBefore) zoneCtx.cursorX = cursorX += zonesRef.checkpointBefore(zoneCtx);
                 cursorX += zonesRef.build(zone, zoneCtx);
             } else if (zone === 'meadow') {
                 fillGround(cursorX, 10, groundY);

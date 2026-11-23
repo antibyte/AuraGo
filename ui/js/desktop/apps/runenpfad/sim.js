@@ -115,6 +115,11 @@
                 coyotePlatformRide: null,
                 coyoteTimer: 0,
                 jumpBuffer: 0,
+                jumpRising: false,
+                jumpVyMark: 0,
+                skidTimer: 0,
+                climbStepTimer: 0,
+                heartTimer: 0,
                 airJumpsLeft: stats.maxAirJumps,
                 rune: null,
                 hp: stats.maxHp,
@@ -473,7 +478,8 @@
                 cp.activated = true;
                 sim.checkpoint = { x: cp.x, y: cp.y + TILE };
                 p.hp = Math.min(p.maxHp, p.hp + 1);
-                sim.notice = 'runenpfad.notice.checkpoint';
+                sim.notice = sim.checkpointUsed ? 'runenpfad.notice.revive_ready' : 'runenpfad.notice.checkpoint';
+                sim.checkpointUsed = false;
                 pushEvent(sim, 'checkpoint', { x: cp.x, y: cp.y });
                 fxBurst(sim, 'ember', cp.x, cp.y + 8, 14, { color: '#ffb347', speed: 110, life: 0.9 });
                 fxFlash(sim, '#ffb347', 0.14, 0.3);
@@ -570,6 +576,8 @@
         if (sim.fx && sim.fx.hitstop > 0) {
             sim.fx.hitstop = Math.max(0, sim.fx.hitstop - dt);
             if (input.healPressed) applyPotionHeal(sim);
+            if (input.jumpPressed) p.jumpBuffer = 0.11;
+            if (p.hurtTimer > 0) p.animState = 'hurt';
             if (input.attackPressed) performPlayerAttack(sim, input);
             abyssCheck(sim, 'impact-flesh');
             stepInteractables(sim, 0);
@@ -584,6 +592,15 @@
         if (p.attackCooldown > 0) p.attackCooldown = Math.max(0, p.attackCooldown - dt);
         if (p.dashCooldown > 0) p.dashCooldown = Math.max(0, p.dashCooldown - dt);
         if (p.hurtTimer > 0) p.hurtTimer = Math.max(0, p.hurtTimer - dt);
+        if (p.skidTimer > 0) p.skidTimer -= dt;
+        if (p.climbStepTimer > 0) p.climbStepTimer -= dt;
+        if (p.hp === 1 && p.maxHp > 1) {
+            p.heartTimer -= dt;
+            if (p.heartTimer <= 0) {
+                p.heartTimer = 0.85;
+                pushEvent(sim, 'heart_beat', { x: p.x, y: p.y });
+            }
+        } else p.heartTimer = 0;
         if (sim.blessing && sim.blessing.runePower > 0) {
             sim.blessing.runePower = Math.max(0, sim.blessing.runePower - dt);
         }
@@ -669,15 +686,22 @@
         const prevRopeId = p.climbRopeId;
         const prevRope = prevRopeId && stage.ropes ? stage.ropes.find(function (r) { return r.id === prevRopeId; }) : null;
         if (swung) {
+            p.jumpRising = false;
             p.climbDir = 0;
             p.climbRopeId = null;
             p.climbTilt = 0;
         } else if (p.dashTimer > 0) {
+            p.jumpRising = false;
             if (prevRope && swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, prevRope, p.y - 26, moveDir || p.facing, false);
             p.dashTimer -= dt;
             p.climbRopeId = null;
             p.climbTilt = 0;
         } else if (p.onLadder) {
+            p.jumpRising = false;
+            if (p.climbStepTimer <= 0 && (input.up || input.down || moveDir !== 0)) {
+                p.climbStepTimer = 0.24;
+                pushEvent(sim, 'climb_step', { x: p.x, y: p.y, kind: p.climbKind === 'rope' ? 'rope' : 'ladder' });
+            }
             const grabVx = p.vx;
             const grabVy = p.vy;
             p.vx = moveDir * stats.speed * (p.climbKind === 'rope' ? 0.4 : 0.65);
@@ -714,6 +738,16 @@
             if (prevRope && swingApi && swingApi.onClimbRelease) swingApi.onClimbRelease(sim, prevRope, p.y - 26, moveDir || p.facing, false);
             p.climbRopeId = null;
             p.climbTilt = 0;
+            if (p.jumpRising && (p.vy !== p.jumpVyMark || p.vy >= 0)) p.jumpRising = false;
+            if (input.jumpCut && !input.jump && p.jumpRising && p.vy < -stats.jumpVel * 0.45) {
+                p.vy = -stats.jumpVel * 0.45;
+                p.jumpVyMark = p.vy;
+                p.jumpRising = false;
+            }
+            if (p.onGround && p.skidTimer <= 0 && moveDir !== 0 && Math.abs(p.vx) > 150 && Math.sign(p.vx) === -moveDir) {
+                p.skidTimer = 0.35;
+                pushEvent(sim, 'skid', { x: p.x, y: p.y, dir: moveDir });
+            }
             const targetVx = moveDir * stats.speed * (runesApi() ? runesApi().speedMul(sim) : 1) + (varietyApi() ? varietyApi().windPush(sim, moveDir !== 0) : 0);
             const accel = p.onGround ? (stage.world.friction < 1 ? 650 : 2400) : 1400;
             const diff = targetVx - p.vx;
@@ -736,6 +770,8 @@
                 if (p.coyoteTimer > 0) {
                     const launchPlatform = p.onPlatformRide || p.coyotePlatformRide;
                     p.vy = -stats.jumpVel;
+                    p.jumpRising = true;
+                    p.jumpVyMark = p.vy;
                     p.onGround = false;
                     p.coyoteTimer = 0;
                     p.jumpBuffer = 0;
@@ -750,12 +786,15 @@
                 } else if (p.airJumpsLeft > 0) {
                     p.airJumpsLeft -= 1;
                     p.vy = -stats.jumpVel * 0.92;
+                    p.jumpRising = true;
+                    p.jumpVyMark = p.vy;
                     p.jumpBuffer = 0;
                     p.slamActive = false;
                     pushJump(sim);
                 }
             }
             p.vy = Math.min(MAX_FALL, p.vy + GRAVITY * dt);
+            p.jumpVyMark = p.vy;
         }
 
         if (input.attackPressed) {
