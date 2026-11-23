@@ -6,6 +6,7 @@
 
     const S = window.StorymakerParts = window.StorymakerParts || {};
     const ASPECTS = [['16:9', 'storymaker.aspect_16_9'], ['9:16', 'storymaker.aspect_9_16'], ['1:1', 'storymaker.aspect_1_1']];
+    const MODES = [['catalog', 'storymaker.mode.catalog', 'storymaker.mode.catalog_hint'], ['free', 'storymaker.mode.free', 'storymaker.mode.free_hint']];
 
     // inst: {t, readonly, language, agentStatus, createProject(spec), startAgent(spec), openProject(id), deleteProject(project), confirm(title, message)}
     function createProjects(inst) {
@@ -15,6 +16,7 @@
         let aspect = '16:9';
         let busy = false;
         let message = '';
+        let mode = 'catalog';
 
         const title = el('input', { class: 'stm-input', type: 'text', id: inst.domId('new-title'), maxlength: '120', required: true, autocomplete: 'off', placeholder: t('storymaker.projects.new_title_placeholder'), dataset: { stm: 'new-title' } });
         const errorLine = el('p', { class: 'stm-form-error', role: 'alert', hidden: true, dataset: { stm: 'projects-error' } });
@@ -24,6 +26,15 @@
             type: 'button', class: 'stm-chip', dataset: { stm: 'aspect', aspect: value }, ariaPressed: String(value === aspect),
             onClick: () => { aspect = value; syncAspect(); }
         }, t(key)));
+        const modeButtons = MODES.map(([value, key]) => el('button', {
+            type: 'button', class: 'stm-chip', dataset: { stm: 'mode-' + value, mode: value }, ariaPressed: String(value === mode),
+            onClick: () => { mode = value; syncMode(); }
+        }, t(key)));
+        const modeHint = el('p', { class: 'stm-hint', dataset: { stm: 'mode-hint' } });
+        const picker = el('div', { class: 'stm-field stm-mode', dataset: { stm: 'mode-picker' } },
+            el('span', { class: 'stm-label', text: t('storymaker.mode.label') }),
+            el('div', { class: 'stm-chips', role: 'group', ariaLabel: t('storymaker.mode.label') }, modeButtons),
+            modeHint);
         const create = el('button', { type: 'submit', class: 'stm-btn stm-btn-primary', dataset: { stm: 'create-project' } }, icon('plus'), el('span', { text: t('storymaker.projects.create') }));
         const form = el('form', { class: 'stm-new', onSubmit: event => { event.preventDefault(); submit(); } },
             el('label', { class: 'stm-field', for: inst.domId('new-title') }, el('span', { class: 'stm-label', text: t('storymaker.projects.new_title_label') }), title),
@@ -36,21 +47,27 @@
             el('h3', { text: t('storymaker.projects.empty_title') }),
             el('p', { text: t('storymaker.projects.empty_text') }));
         const loading = el('p', { class: 'stm-muted', role: 'status', text: t('storymaker.loading') });
-        const agentStart = S.createAgentStart(inst);
+        const agentStart = S.createAgentStart(inst, () => mode);
         const root = el('section', { class: 'stm-projects', ariaLabel: t('storymaker.projects.title') },
             el('header', { class: 'stm-projects-head' },
                 el('h2', { text: t('storymaker.projects.title') }),
                 el('p', { class: 'stm-muted', text: t('storymaker.projects.intro') })),
-            agentStart.el, form, loading, empty, list);
+            picker, agentStart.el, form, loading, empty, list);
 
         function syncAspect() {
             aspectButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.aspect === aspect)));
+        }
+
+        function syncMode() {
+            modeButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode === mode)));
+            modeHint.textContent = t(MODES.find(entry => entry[0] === mode)[2]);
         }
 
         function syncDisabled() {
             const off = inst.readonly || busy;
             title.disabled = inst.readonly;
             aspectButtons.forEach(button => { button.disabled = off; });
+            modeButtons.forEach(button => { button.disabled = off; });
             create.disabled = off;
             offerButton.disabled = off;
             create.title = inst.readonly ? t('storymaker.banner.readonly') : '';
@@ -68,6 +85,7 @@
             const spec = { title: value, aspect };
             if (withoutVoice) spec.silent = true;
             if (!withoutVoice && inst.language) spec.language = inst.language;
+            if (mode === 'free') spec.mode = 'free';
             try {
                 await inst.createProject(spec);
             } catch (err) {
@@ -98,9 +116,10 @@
 
         function card(project) {
             const meta = [project.aspect, project.fps ? project.fps + ' fps' : '', S.format.dateTime(project.updated_at)].filter(Boolean).join(' · ');
-            const open = el('button', { type: 'button', class: 'stm-project-open', dataset: { stm: 'open-project', id: project.id }, onClick: () => inst.openProject(project.id) },
-                el('span', { class: 'stm-project-title', text: project.title || project.id }),
-                el('span', { class: 'stm-project-meta', text: meta }));
+            const children = [el('span', { class: 'stm-project-title', text: project.title || project.id })];
+            if (project.mode === 'free') children.push(el('span', { class: 'stm-badge', dataset: { stm: 'project-mode' }, text: t('storymaker.mode.badge_free') }));
+            children.push(el('span', { class: 'stm-project-meta', text: meta }));
+            const open = el('button', { type: 'button', class: 'stm-project-open', dataset: { stm: 'open-project', id: project.id }, onClick: () => inst.openProject(project.id) }, ...children);
             const remove = el('button', {
                 type: 'button', class: 'stm-btn stm-btn-quiet stm-btn-icon', dataset: { stm: 'delete-project', id: project.id },
                 ariaLabel: t('storymaker.projects.delete_label', { title: project.title || project.id }), title: t('storymaker.delete'),
@@ -131,9 +150,11 @@
             syncDisabled();
         }
 
+        syncMode();
         paint();
         return {
             el: root,
+            mode: () => mode,
             setProjects(next) { projects = Array.isArray(next) ? next : []; paint(); },
             setError(text) { setMessage(text); },
             refresh() { syncDisabled(); agentStart.refresh(); },

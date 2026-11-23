@@ -632,6 +632,29 @@ function open(results) {
   eq(plain.f('projects-error').textContent, 'storymaker.error.generic boom', 'a plain failure');
   eq(plain.f('projects-offer').hidden, true, 'no offer for a plain failure');
 
+  // The mode picker: catalog is the default and adds nothing to the spec; free adds mode "free".
+  const picked = open([null, null]);
+  eq(picked.f('mode-catalog').getAttribute('aria-pressed'), 'true', 'catalog is the default');
+  eq(picked.f('mode-hint').textContent, 'storymaker.mode.catalog_hint', 'the hint names the default');
+  picked.view.el.findTag('form').fire('submit');
+  await flush();
+  eq(picked.calls[0], { title: 'Film', aspect: '16:9', language: 'de' }, 'the catalog mode adds nothing to the spec');
+  picked.f('mode-free').click();
+  eq([picked.f('mode-free').getAttribute('aria-pressed'), picked.f('mode-catalog').getAttribute('aria-pressed')], ['true', 'false'], 'free is pressed');
+  eq(picked.f('mode-hint').textContent, 'storymaker.mode.free_hint', 'the hint follows the choice');
+  picked.view.el.findTag('form').fire('submit');
+  await flush();
+  eq(picked.calls[1], { title: 'Film', aspect: '16:9', language: 'de', mode: 'free' }, 'the free mode is sent');
+
+  // The agent form reads the choice through the getter it is given.
+  let asked = 0;
+  const seen = [];
+  S.createAgentStart = (inst, getMode) => { seen.push(typeof getMode); asked = getMode(); return { el: document.createElement('div'), refresh() {} }; };
+  const agentView = S.createProjects({ t, readonly: false, language: 'de', domId: suffix => 'stm-test-' + suffix, createProject() { return Promise.resolve(); }, openProject() {}, deleteProject() {}, confirm: async () => false });
+  eq([seen, asked], [['function'], 'catalog'], 'the agent form gets the getter and starts on catalog');
+  agentView.el.find('mode-free').click();
+  eq(agentView.mode(), 'free', 'the picker state is shared and readable');
+
   console.log('storymaker new project ok');
 })().catch(err => { console.error(err.stack || err); process.exit(1); });
 `

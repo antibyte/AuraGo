@@ -133,6 +133,7 @@
         const fields = createFields(inst, 'agent', agentBlock(inst));
         const offLine = el('p', { class: 'stm-hint', dataset: { stm: 'agent-off' }, text: t('storymaker.agent.off') });
         const unavailableLine = el('p', { class: 'stm-hint', hidden: true, dataset: { stm: 'agent-unavailable' }, text: t('storymaker.agent.unavailable') });
+        const modeChip = el('p', { class: 'stm-hint stm-mode-chip', hidden: true, dataset: { stm: 'agent-mode' } });
         const promptId = inst.domId('agent-prompt');
         const promptLabel = el('label', { class: 'stm-label', for: promptId });
         const promptBox = el('textarea', { class: 'stm-textarea', id: promptId, rows: '4', maxlength: MAX_TEXT, dataset: { stm: 'agent-prompt' } });
@@ -152,11 +153,17 @@
         const silentButton = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'agent-make-silent' }, onClick: () => makeSilent() }, el('span', { text: t('storymaker.agent.make_silent') }));
         const restoreButton = el('button', { type: 'button', class: 'stm-btn', hidden: true, dataset: { stm: 'agent-restore-speech' }, onClick: () => restoreSpeech() }, el('span', { text: t('storymaker.agent.restore_speech') }));
         const root = el('section', { class: 'stm-agent', ariaLabel: t('storymaker.side_agent'), dataset: { stm: 'agent' } },
-            offLine, unavailableLine, form, errorLine, routeLine, stateLine, steps, scenesLine, retryLine, cancelButton, outcomeCard,
+            offLine, unavailableLine, modeChip, form, errorLine, routeLine, stateLine, steps, scenesLine, retryLine, cancelButton, outcomeCard,
             el('div', { class: 'stm-actions' }, silentButton, restoreButton));
 
         function setError(text) {
             errorText = text || '';
+        }
+
+        function syncModeChip() {
+            const free = !!(inst.project && inst.project.mode === 'free');
+            modeChip.textContent = t('storymaker.mode.label') + ': ' + t(free ? 'storymaker.mode.free' : 'storymaker.mode.catalog');
+            modeChip.hidden = false;
         }
 
         function refusalText(err) {
@@ -417,6 +424,7 @@
         }
 
         function paint() {
+            syncModeChip();
             if (disposed) return;
             const info = agentBlock(inst) || {};
             const enabled = info.enabled === true;
@@ -463,8 +471,8 @@
     }
 
     // The start card of the project list: a topic becomes a new project with a running agent job. It stays hidden while the agent is
-    // switched off. inst: {t, domId(name), readonly, agentStatus, startAgent(spec)}
-    function createAgentStart(inst) {
+    // switched off. inst: {t, domId(name), readonly, agentStatus, startAgent(spec)}; getMode() returns the picked mode
+    function createAgentStart(inst, getMode) {
         const { el, icon } = S;
         const t = inst.t;
         let busy = false;
@@ -511,7 +519,9 @@
             setError('');
             refresh();
             try {
-                await inst.startAgent({ topic: text, length_seconds: fields.seconds(), language: fields.language(), aspect: aspect.value });
+                const spec = { topic: text, length_seconds: fields.seconds(), language: fields.language(), aspect: aspect.value };
+                if (typeof getMode === 'function' && getMode() === 'free') spec.mode = 'free';
+                await inst.startAgent(spec);
             } catch (err) {
                 if (!(err && err.aborted)) setError(S.errors.describe(t, err));
             } finally {
