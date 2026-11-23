@@ -1958,8 +1958,11 @@
     }
 
     function languageForPath(path) {
+        // IDE package 1A: a Dockerfile is recognised by its name (Dockerfile, Dockerfile.dev, app.dockerfile).
+        const name = String(path || '').split('/').pop();
+        if (/^dockerfile(\.|$)/i.test(name) || /\.dockerfile$/i.test(name)) return 'dockerfile';
         const ext = String(path || '').split('.').pop().toLowerCase();
-        return ({ js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx', py: 'python', go: 'go', c: 'c', h: 'c', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown' })[ext] || '';
+        return ({ js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx', py: 'python', go: 'go', c: 'c', h: 'c', rs: 'rust', json: 'json', html: 'html', htm: 'html', css: 'css', md: 'markdown', yml: 'yaml', yaml: 'yaml', sql: 'sql', java: 'java', php: 'php', xml: 'xml', svg: 'xml', sh: 'shell', bash: 'shell', toml: 'toml' })[ext] || '';
     }
 
     function languageExtension(cm, language) {
@@ -1977,12 +1980,30 @@
             json: () => cm.json && cm.json(),
             html: () => cm.html && cm.html(),
             css: () => cm.css && cm.css(),
-            markdown: () => cm.markdown && cm.markdown()
+            markdown: () => cm.markdown && cm.markdown(),
+            // IDE package 1A
+            yaml: () => cm.yaml && cm.yaml(),
+            sql: () => cm.sql && cm.sql(),
+            java: () => cm.java && cm.java(),
+            php: () => cm.php && cm.php(),
+            xml: () => cm.xml && cm.xml(),
+            shell: () => streamLanguageSupport(cm, cm.shell),
+            dockerfile: () => streamLanguageSupport(cm, cm.dockerFile),
+            toml: () => streamLanguageSupport(cm, cm.toml)
         };
         const factory = map[language];
         if (typeof factory !== 'function') return [];
         const support = factory();
         return support ? [support] : [];
+    }
+
+    // IDE package 1A: legacy modes (shell, Dockerfile, TOML) become a language through StreamLanguage, once per page.
+    const streamLanguageCache = new Map();
+
+    function streamLanguageSupport(cm, parser) {
+        if (!cm.StreamLanguage || !parser) return null;
+        if (!streamLanguageCache.has(parser)) streamLanguageCache.set(parser, cm.StreamLanguage.define(parser));
+        return streamLanguageCache.get(parser);
     }
 
     function runCommandFor(path) {
@@ -2809,13 +2830,21 @@
             cm.rectangularSelection && cm.rectangularSelection(),
             cm.crosshairCursor && cm.crosshairCursor(),
             cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
+            // IDE package 1A: code folding with a fold gutter, bracket matching and indentation on input.
+            cm.codeFolding && cm.codeFolding(),
+            cm.foldGutter && cm.foldGutter(),
+            cm.bracketMatching && cm.bracketMatching(),
+            cm.indentOnInput && cm.indentOnInput(),
             languageExtension(cm, tab.language),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
                 ...(cm.closeBracketsKeymap || []),
                 ...(cm.defaultKeymap || []),
+                // IDE package 1A: Ctrl+Shift+[ folds, Ctrl+Shift+] unfolds.
+                ...(cm.foldKeymap || []),
                 // The studio ships its own find widget, so CodeMirror's search panel is skipped.
-                ...(cm.searchKeymap || []).filter(binding => binding.key !== 'Mod-f'),
+                // Ctrl+G belongs to the studio's Go to Line, so CodeMirror's find-next binding is skipped too.
+                ...(cm.searchKeymap || []).filter(binding => binding.key !== 'Mod-f' && binding.key !== 'Mod-g'),
                 ...(cm.historyKeymap || []).map(binding => index ? { ...binding,
                     run: () => binding.run(tab.view),
                     shift: binding.shift ? () => binding.shift(tab.view) : undefined

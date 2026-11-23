@@ -3341,3 +3341,26 @@ button.cs-sidebar-crumb:focus-visible {
         height: 120px;
     }
 }
+
+/* === IDE package 1A: editor === */
+
+/* Fold gutter and the placeholder of a folded range follow the studio palette in light and dark themes. The
+   .cm-editor step outranks CodeMirror's own theme rules. */
+.code-studio .cm-editor .cm-foldGutter .cm-gutterElement {
+    padding: 0 4px;
+    color: var(--cs-muted);
+    cursor: pointer;
+}
+
+.code-studio .cm-editor .cm-foldGutter .cm-gutterElement:hover {
+    color: var(--cs-accent);
+}
+
+.code-studio .cm-editor .cm-foldPlaceholder {
+    margin: 0 2px;
+    padding: 0 6px;
+    border: 1px solid var(--cs-accent-border);
+    border-radius: var(--cs-radius-sm);
+    color: var(--cs-text);
+    background: var(--cs-accent-soft);
+}

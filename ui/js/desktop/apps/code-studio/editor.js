@@ -152,13 +152,21 @@
             cm.rectangularSelection && cm.rectangularSelection(),
             cm.crosshairCursor && cm.crosshairCursor(),
             cm.highlightSelectionMatches && cm.highlightSelectionMatches(),
+            // IDE package 1A: code folding with a fold gutter, bracket matching and indentation on input.
+            cm.codeFolding && cm.codeFolding(),
+            cm.foldGutter && cm.foldGutter(),
+            cm.bracketMatching && cm.bracketMatching(),
+            cm.indentOnInput && cm.indentOnInput(),
             languageExtension(cm, tab.language),
             cm.keymap && cm.keymap.of([
                 cm.indentWithTab,
                 ...(cm.closeBracketsKeymap || []),
                 ...(cm.defaultKeymap || []),
+                // IDE package 1A: Ctrl+Shift+[ folds, Ctrl+Shift+] unfolds.
+                ...(cm.foldKeymap || []),
                 // The studio ships its own find widget, so CodeMirror's search panel is skipped.
-                ...(cm.searchKeymap || []).filter(binding => binding.key !== 'Mod-f'),
+                // Ctrl+G belongs to the studio's Go to Line, so CodeMirror's find-next binding is skipped too.
+                ...(cm.searchKeymap || []).filter(binding => binding.key !== 'Mod-f' && binding.key !== 'Mod-g'),
                 ...(cm.historyKeymap || []).map(binding => index ? { ...binding,
                     run: () => binding.run(tab.view),
                     shift: binding.shift ? () => binding.shift(tab.view) : undefined
