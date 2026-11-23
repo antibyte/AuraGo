@@ -312,38 +312,3 @@ func (s *Store) deleteArtifact(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM artifacts WHERE id=?`, id)
 	return err
 }
-
-// jobFacts are the job.json fields the later states need (read from runs.job_json, never from the catalog).
-// B4.2 moves this type, parseJobFacts and the methods to reconcile_outputs.go.
-type jobFacts struct {
-	Recipe   string   `json:"recipe"`
-	TaskKind *string  `json:"task_kind"`
-	Labels   []string `json:"labels"`
-	Profile  struct {
-		Base struct {
-			Revision string `json:"revision"`
-		} `json:"base"`
-	} `json:"profile"`
-	Deps struct {
-		LlamaCpp struct {
-			Tag string `json:"tag"`
-		} `json:"llama_cpp"`
-	} `json:"deps"`
-}
-
-func parseJobFacts(b []byte) (jobFacts, error) {
-	var f jobFacts
-	if err := json.Unmarshal(b, &f); err != nil {
-		return jobFacts{}, fmt.Errorf("job facts: %w", err)
-	}
-	return f, nil
-}
-
-func (f jobFacts) converter() string { return BaseGGUFConverter(f.Deps.LlamaCpp.Tag) }
-
-func (f jobFacts) taskKind() string {
-	if f.TaskKind == nil {
-		return ""
-	}
-	return *f.TaskKind
-}
