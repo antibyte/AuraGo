@@ -1,0 +1,136 @@
+package chibisensei
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func loadLogFixture(t *testing.T, name string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", "logs", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bytes.ReplaceAll(b, []byte("{{PAD4200}}"), []byte(strings.Repeat("a", 4200)))
+}
+
+func seqsOf(ev []LogEvent) []int64 {
+	out := make([]int64, len(ev))
+	for i, e := range ev {
+		out[i] = e.Seq
+	}
+	return out
+}
+
+func sameSeqs(got []LogEvent, want ...int64) bool {
+	g := seqsOf(got)
+	if len(g) != len(want) {
+		return false
+	}
+	for i := range g {
+		if g[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestParseKernelLogPlainText(t *testing.T) {
+	ev := ParseKernelLog(loadLogFixture(t, "kernel-log.txt"))
+	if !sameSeqs(ev, 1, 2, 3, 7, 8, ExitSeq) {
+		t.Fatalf("seqs %v", seqsOf(ev))
+	}
+	want := Metric{Step: 10, MaxSteps: 40, Kind: "train", Epoch: 0.25, Loss: 2.5, LR: 0.0002, GradNorm: 1.5, TokS: 2400,
+		ElapsedS: 30, EtaS: 90, VRAMGB: 6.1, TS: "2026-11-23T12:00:03Z"}
+	if m, ok := ev[2].Metric(); !ok || m != want {
+		t.Errorf("metric %+v %v", m, ok)
+	}
+	if m, ok := ev[4].Metric(); !ok || m.Kind != "eval" || m.Step != 20 || m.Loss != 2.1 {
+		t.Errorf("eval metric %+v %v", m, ok)
+	}
+	if e, ok := ev[3].Error(); !ok || e != (ErrorEvent{Stage: "train", Code: "oom", Message: "CUDA out of memory"}) {
+		t.Errorf("error %+v %v", e, ok)
+	}
+	if s, ok := ev[0].Stage(); !ok || s != (StageEvent{Stage: "boot", State: "start"}) {
+		t.Errorf("stage %+v %v", s, ok)
+	}
+	if c, ok := ev[5].ExitCode(); !ok || c != 0 {
+		t.Errorf("exit %d %v", c, ok)
+	}
+	if _, ok := ev[0].Metric(); ok {
+		t.Error("a stage event must not decode as a metric")
+	}
+}
+
+func TestParseKernelLogJSONArray(t *testing.T) {
+	ev := ParseKernelLog(loadLogFixture(t, "kernel-log.json"))
+	if !sameSeqs(ev, 1, 2, 3, ExitSeq) {
+		t.Fatalf("seqs %v", seqsOf(ev))
+	}
+	if s, ok := ev[1].Stage(); !ok || s != (StageEvent{Stage: "boot", State: "done"}) {
+		t.Errorf("reassembled stage %+v %v", s, ok)
+	}
+	if m, ok := ev[2].Metric(); !ok || m.Loss != 2.5 {
+		t.Errorf("first seq 3 must win: %+v", m)
+	}
+}
+
+func TestParseKernelLogTailCut(t *testing.T) {
+	body := loadLogFixture(t, "kernel-log.json")
+	key := []byte(`{"stream_name"`)
+	off, n := 0, 0
+	for ; n < 3; n++ {
+		i := bytes.Index(body[off:], key)
+		if i < 0 {
+			t.Fatal("fixture too short")
+		}
+		off += i + len(key)
+	}
+	cut := body[off-len(key)-3:]
+	if ev := ParseKernelLog(cut); !sameSeqs(ev, 2, 3, ExitSeq) {
+		t.Fatalf("seqs %v", seqsOf(ev))
+	}
+}
+
+func TestParseKernelLogLines(t *testing.T) {
+	const head = `{"v":1,"seq":1,"t":"info","pad":"`
+	padded := func(total int) string {
+		return "@@chibi " + head + strings.Repeat("a", total-8-len(head)-2) + `"}`
+	}
+	cases := []struct {
+		name string
+		body string
+		want int
+	}{
+		{"crlf", "@@chibi {\"v\":1,\"seq\":1,\"t\":\"info\"}\r\n@@chibi {\"v\":1,\"seq\":2,\"t\":\"info\"}\r\n", 2},
+		{"4096 bytes", padded(4096), 1},
+		{"4097 bytes", padded(4097), 0},
+		{"negative seq", `@@chibi {"v":1,"seq":-1,"t":"info"}`, 0},
+		{"no seq", `@@chibi {"v":1,"t":"info"}`, 0},
+		{"trailing garbage", `@@chibi {"v":1,"seq":1,"t":"info"} x`, 0},
+		{"empty", "", 0},
+	}
+	for _, tc := range cases {
+		ev := ParseKernelLog([]byte(tc.body))
+		if ev == nil || len(ev) != tc.want {
+			t.Errorf("%s: got %d events (nil=%v), want %d", tc.name, len(ev), ev == nil, tc.want)
+		}
+	}
+	ev := ParseKernelLog([]byte(`@@chibi {"v":1,"seq":1,"t":"stage","stage":"compile","state":"start"}`))
+	if len(ev) != 1 {
+		t.Fatalf("unknown stage event dropped: %d", len(ev))
+	}
+	if _, ok := ev[0].Stage(); ok {
+		t.Error("stage compile accepted")
+	}
+	ev = ParseKernelLog([]byte(`@@chibi {"v":1,"seq":1,"t":"error","code":"Bad Code","message":"x"}`))
+	if len(ev) != 1 {
+		t.Fatal("error event dropped")
+	}
+	if _, ok := ev[0].Error(); ok {
+		t.Error("error code with a space accepted")
+	}
+}

@@ -1,0 +1,8 @@
+[{"stream_name":"stderr","time":1.2,"data":"Collecting peft==0.21.3\n"}
+,{"stream_name":"stdout","time":3.4,"data":"@@chibi {\"v\":1,\"seq\":1,\"ts\":\"2026-11-23T12:00:01Z\",\"t\":\"stage\",\"stage\":\"boot\",\"state\":\"start\"}\n"}
+,{"stream_name":"stdout","time":3.5,"data":"@@chibi {\"v\":1,\"seq\":2,\"ts\":\"2026-11-23T12:00:02Z\",\"t\":\"stage\","}
+,{"stream_name":"stderr","time":3.55,"data":"warning: noise\n"}
+,{"stream_name":"stdout","time":3.6,"data":"\"stage\":\"boot\",\"state\":\"done\"}\n"}
+,{"stream_name":"stdout","time":4.0,"data":"@@chibi {\"v\":1,\"seq\":3,\"ts\":\"2026-11-23T12:00:03Z\",\"t\":\"metric\",\"step\":10,\"max_steps\":40,\"epoch\":0.25,\"kind\":\"train\",\"loss\":2.5}\n@@chibi {\"v\":1,\"seq\":3,\"ts\":\"2026-11-23T12:00:03Z\",\"t\":\"metric\",\"step\":10,\"max_steps\":40,\"epoch\":0.25,\"kind\":\"train\",\"loss\":9.9}\n"}
+,{"stream_name":"stdout","time":4.6,"data":"@@chibi {\"v\":1,\"t\":\"exit\",\"code\":0}\n"}
+]

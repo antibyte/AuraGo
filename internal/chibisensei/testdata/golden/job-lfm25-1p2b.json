@@ -1,0 +1,172 @@
+{
+ "v": 1,
+ "run_id": "0123abcd-4567-4890-abcd-ef0123456789",
+ "created": "2026-11-23T12:00:00Z",
+ "aurago_version": "test",
+ "profile": {
+  "id": "lfm25-1p2b",
+  "display_name": "LFM2.5 1.2B",
+  "schema": 1,
+  "status": "experimental",
+  "verified": null,
+  "unverified": [
+   "base.revision",
+   "license.url",
+   "training.lora.target_modules",
+   "training.batch_tokens",
+   "training.t4_tokens_per_second",
+   "training.t4_gen_tokens_per_second",
+   "training.min_vram_gb",
+   "gguf.estimated_mb"
+  ],
+  "license": {
+   "id": "lfm-open-1.0",
+   "name": "LFM Open License v1.0",
+   "url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct/blob/main/LICENSE",
+   "version": "1.0",
+   "requires_consent": true,
+   "note_key": "chibi_sensei.license.lfm"
+  },
+  "base": {
+   "source": "hf",
+   "repo": "LiquidAI/LFM2.5-1.2B-Instruct",
+   "revision": "b9d816ab510f9a28dca37cb182e9da8b0226e13c",
+   "auto_class": "AutoModelForCausalLM",
+   "gated": false
+  },
+  "arch": {
+   "llama_cpp_arch": "lfm2",
+   "context_max": 32768,
+   "params_b": 1.2,
+   "text_only": true,
+   "languages": [
+    "en",
+    "ar",
+    "zh",
+    "fr",
+    "de",
+    "ja",
+    "ko",
+    "es"
+   ]
+  },
+  "chat": {
+   "system_role": "native",
+   "stop": [
+    "<|im_end|>"
+   ]
+  },
+  "training": {
+   "method_default": "lora",
+   "methods": [
+    "lora"
+   ],
+   "dtype": "float32",
+   "lora": {
+    "r": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "target_modules": [
+     "q_proj",
+     "k_proj",
+     "v_proj",
+     "out_proj",
+     "w1",
+     "w2",
+     "w3",
+     "in_proj"
+    ]
+   },
+   "lr": {
+    "lora": 0.0002
+   },
+   "max_seq_cap": 2048,
+   "batch_tokens": 4096,
+   "grad_checkpointing": true,
+   "t4_tokens_per_second": 1800,
+   "t4_gen_tokens_per_second": 25,
+   "min_gpu_capability": "7.0",
+   "min_vram_gb": 15,
+   "extra_pip": []
+  },
+  "sampling": {
+   "temperature": 0.1,
+   "top_p": 1,
+   "top_k": 50,
+   "repeat_penalty": 1.05,
+   "presence_penalty": 0
+  },
+  "eval": {
+   "max_new_tokens_assistant": 256,
+   "max_new_tokens_specialist": 64
+  },
+  "gguf": {
+   "out_type": "q8_0",
+   "expected_arch": "lfm2",
+   "estimated_mb": 1250
+  }
+ },
+ "profile_sha": "dc5bac77d5f2716f9f60ef8a9316390649a17955b50465ec4d33df8e760ed45d",
+ "recipe": "free",
+ "task_kind": null,
+ "labels": [],
+ "method": "lora",
+ "data": {
+  "marker": "r0123abcd4567-marker.json",
+  "format": "text"
+ },
+ "hyper": {
+  "epochs": 2,
+  "learning_rate": 0.0002,
+  "lr_scheduler": "cosine",
+  "warmup_ratio": 0.03,
+  "weight_decay": 0,
+  "per_device_batch": 8,
+  "grad_accum": 2,
+  "max_seq_len": 256,
+  "seed": 42,
+  "gradient_checkpointing": true,
+  "loss_on": "all",
+  "lora": {
+   "r": 16,
+   "alpha": 32,
+   "dropout": 0.05,
+   "target_modules": [
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "out_proj",
+    "w1",
+    "w2",
+    "w3",
+    "in_proj"
+   ]
+  }
+ },
+ "budget": {
+  "session_timeout_s": 3540,
+  "max_train_s": 1125,
+  "eval_max_samples": 20,
+  "max_new_tokens": 256
+ },
+ "outputs": {
+  "emit_base_gguf": true,
+  "gguf_outtype": "q8_0",
+  "prefix": "chibi-"
+ },
+ "deps": {
+  "pip": [
+   "peft==0.21.3"
+  ],
+  "transformers": "",
+  "llama_cpp": {
+   "tag": "b9994",
+   "url": "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b9994",
+   "sha256": ""
+  }
+ },
+ "log": {
+  "prefix": "@@chibi",
+  "metric_every_steps": 10
+ }
+}

@@ -1,0 +1,5 @@
+{"v":1,"run_id":"0123abcd-4567-4890-abcd-ef0123456789","profile_id":"gemma3-270m",
+ "profile_sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+ "files":[{"path":"chibi-model-q8_0.gguf","kind":"gguf_tuned","bytes":291234567,"sha256":"1111111111111111111111111111111111111111111111111111111111111111"},
+  {"path":"chibi-metrics.jsonl","kind":"metrics","bytes":4096,"sha256":"2222222222222222222222222222222222222222222222222222222222222222"},
+  {"path":"chibi-eval_samples.jsonl","kind":"eval_samples","bytes":2048,"sha256":"3333333333333333333333333333333333333333333333333333333333333333"}]}

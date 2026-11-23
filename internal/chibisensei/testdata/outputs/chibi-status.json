@@ -1,0 +1,6 @@
+{"v":1,"run_id":"0123abcd-4567-4890-abcd-ef0123456789","state":"succeeded","stage":"manifest","code":"","message":"",
+ "warning_code":"base_gguf_skipped","started":"2026-11-23T12:00:00Z","finished":"2026-11-23T12:31:00Z",
+ "gpu":{"name":"Tesla T4","capability":"7.5","vram_gb":14.6},
+ "versions":{"python":"3.13.5","torch":"2.9.0","transformers":"5.2.0","peft":"0.21.3","llama_cpp":"b9994"},
+ "train":{"steps":40,"epochs":1,"train_loss":0.92,"eval_loss_base":2.31,"eval_loss_tuned":1.12,"stop_reason":"done","truncated_rows":2},
+ "discovery":{"base_class":"Gemma3ForCausalLM","lora_targets":[],"converter_env":"system"}}

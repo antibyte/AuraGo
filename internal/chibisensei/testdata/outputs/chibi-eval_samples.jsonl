@@ -1,0 +1,4 @@
+{"id":"0","prompt_messages":[{"role":"system","content":"Classify the customer message."},{"role":"user","content":"I was charged twice for the travel mug."}],"expected":"billing","base_output":"payment","tuned_output":"billing","base_ms":812,"tuned_ms":640,"truncated":false}
+{"id":1,"prompt_text":"Day 12 at the Gull Point lighthouse.","expected":"The sea was calm.","base_output":"It rained.","tuned_output":"The sea was calm.","base_ms":1500,"tuned_ms":1400,"truncated":true}
+{"id":"2","expected":"x","base_output":"y","tuned_output":"z"}
+{broken

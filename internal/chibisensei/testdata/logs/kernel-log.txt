@@ -1,0 +1,12 @@
+3.1s    1 Collecting peft==0.21.3
+3.4s    2 @@chibi {"v":1,"seq":1,"ts":"2026-11-23T12:00:01Z","t":"stage","stage":"boot","state":"start"}
+3.5s    3 noise on stderr @@chibi without json
+3.6s    4 @@chibi {"v":1,"seq":2,"ts":"2026-11-23T12:00:02Z","t":"stage","stage":"boot","state":"done"}
+3.7s    5 @@chibi {"v":1,"seq":2,"ts":"2026-11-23T12:00:02Z","t":"stage","stage":"boot","state":"done"}
+4.0s    6 @@chibi {"v":1,"seq":3,"ts":"2026-11-23T12:00:03Z","t":"metric","step":10,"max_steps":40,"epoch":0.25,"kind":"train","loss":2.5,"lr":0.0002,"grad_norm":1.5,"tok_s":2400,"elapsed_s":30,"eta_s":90,"vram_gb":6.1}
+4.1s    7 @@chibi {"v":1,"seq":4,"ts":"2026-11-23T12:00:04Z","t":"bogus"}
+4.2s    8 @@chibi {"v":2,"seq":5,"ts":"2026-11-23T12:00:05Z","t":"warn"}
+4.3s    9 @@chibi {"v":1,"seq":6,"ts":"2026-11-23T12:00:06Z","t":"info","pad":"{{PAD4200}}"}
+4.4s   10 @@chibi {"v":1,"seq":8,"ts":"2026-11-23T12:00:08Z","t":"metric","step":20,"max_steps":40,"epoch":0.5,"kind":"eval","loss":2.1}
+4.5s   11 @@chibi {"v":1,"seq":7,"ts":"2026-11-23T12:00:07Z","t":"error","stage":"train","code":"oom","message":"CUDA out of memory"}
+4.6s   12 @@chibi {"v":1,"t":"exit","code":0}
