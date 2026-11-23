@@ -75,6 +75,7 @@ type Project struct {
 	TargetSeconds int       `json:"target_seconds,omitempty"`
 	Audience      string    `json:"audience,omitempty"`
 	Template      string    `json:"template,omitempty"`
+	Mode          string    `json:"mode,omitempty"` // "free" or empty (catalog); set at creation only
 }
 
 // CodeSceneStatus is the bundle state of one code scene.

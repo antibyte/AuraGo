@@ -169,6 +169,7 @@ func (p *ProjectStore) CreateWithVoice(ctx context.Context, title, aspect string
 // agent sets "v2", the editor leaves it empty, so existing and hand-made films keep their look.
 type CreateOptions struct {
 	Compose string
+	Mode    string // ModeCatalog, ModeFree or empty (catalog)
 }
 
 // CreateWithOptions is CreateWithVoice with options.
@@ -189,6 +190,10 @@ func (p *ProjectStore) CreateWithOptions(ctx context.Context, title, aspect stri
 	if fps != 24 && fps != 25 && fps != 30 {
 		return Project{}, Story{}, "", fmt.Errorf("%w: fps must be 24, 25 or 30", ErrInvalidArgument)
 	}
+	mode, err := NormalizeMode(opts.Mode)
+	if err != nil {
+		return Project{}, Story{}, "", err
+	}
 
 	id := p.newID()
 	now := p.now()
@@ -208,7 +213,7 @@ func (p *ProjectStore) CreateWithOptions(ctx context.Context, title, aspect stri
 	if err != nil {
 		return Project{}, Story{}, "", err
 	}
-	proj := Project{ID: id, Title: title, Aspect: aspect, FPS: fps, CreatedAt: now, UpdatedAt: now}
+	proj := Project{ID: id, Title: title, Aspect: aspect, FPS: fps, CreatedAt: now, UpdatedAt: now, Mode: storedMode(mode)}
 	projBytes, err := encodeProject(proj)
 	if err != nil {
 		return Project{}, Story{}, "", err
