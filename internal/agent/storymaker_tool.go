@@ -27,6 +27,7 @@ type storymakerChatArgs struct {
 	LengthSeconds int
 	Format        string
 	Language      string
+	Mode          string
 	Voice         *storymaker.Voice
 	ProjectID     string
 	Instruction   string
@@ -43,6 +44,7 @@ func decodeStorymakerArgs(tc ToolCall) storymakerChatArgs {
 		LengthSeconds: toolArgInt(tc.Params, 0, "length_seconds"),
 		Format:        strings.TrimSpace(toolArgString(tc.Params, "format", "aspect")),
 		Language:      strings.TrimSpace(toolArgString(tc.Params, "language")),
+		Mode:          strings.TrimSpace(toolArgString(tc.Params, "mode")),
 		ProjectID:     strings.TrimSpace(toolArgString(tc.Params, "project_id")),
 		Instruction:   toolArgString(tc.Params, "instruction"),
 	}
@@ -123,6 +125,7 @@ func storymakerToolCreate(ctx context.Context, facade storymaker.AgentFacade, ar
 		Audience:      args.Audience,
 		Aspect:        args.Format,
 		Language:      args.Language,
+		Mode:          args.Mode,
 		LengthSeconds: args.LengthSeconds,
 		Voice:         args.Voice,
 	})

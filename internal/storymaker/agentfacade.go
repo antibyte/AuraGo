@@ -8,6 +8,7 @@ import (
 // AgentCreateRequest is a chat request for a new story.
 type AgentCreateRequest struct {
 	Topic, Audience, Aspect, Language string
+	Mode                              string // ModeCatalog, ModeFree or empty (catalog)
 	LengthSeconds                     int
 	Voice                             *Voice
 }

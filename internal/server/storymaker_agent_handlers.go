@@ -213,13 +213,13 @@ func (s *Server) storymakerStartAgentJob(ctx context.Context, acc *storymakerAcc
 }
 
 // storymakerAgentCreateProject makes the project of a new job, titled after the topic.
-func storymakerAgentCreateProject(ctx context.Context, acc *storymakerAccess, topic, aspect string) (string, error) {
+func storymakerAgentCreateProject(ctx context.Context, acc *storymakerAccess, topic, aspect, mode string) (string, error) {
 	title := strings.Join(strings.Fields(topic), " ")
 	if utf8.RuneCountInString(title) > storymakerStartTitleRunes {
 		title = strings.TrimSpace(string([]rune(title)[:storymakerStartTitleRunes]))
 	}
 	// An agent project gets the composition rules of the player: captions clear of the floor, a readable hero prop, a slow push-in.
-	project, _, _, err := acc.rt.projects.CreateWithOptions(ctx, title, aspect, 0, nil, storymaker.CreateOptions{Compose: "v2"})
+	project, _, _, err := acc.rt.projects.CreateWithOptions(ctx, title, aspect, 0, nil, storymaker.CreateOptions{Compose: "v2", Mode: mode})
 	if err != nil {
 		return "", err
 	}
@@ -245,6 +245,7 @@ type storymakerAgentStartRequest struct {
 	Language      string            `json:"language"`
 	Voice         *storymaker.Voice `json:"voice"`
 	ProjectID     string            `json:"project_id"`
+	Mode          string            `json:"mode"`
 }
 
 // handleStorymakerAgentJobs answers POST /agent/jobs. Without project_id it creates the project and
@@ -259,12 +260,18 @@ func handleStorymakerAgentJobs(s *Server, w http.ResponseWriter, r *http.Request
 		return
 	}
 	var req storymakerAgentStartRequest
-	if !decodeStorymakerAgentBody(w, r, &req, `{"topic": ..., "audience"?: ..., "length_seconds"?: ..., "aspect"?: ..., "language"?: ..., "voice"?: ..., "project_id"?: ...}`) {
+	if !decodeStorymakerAgentBody(w, r, &req, `{"topic": ..., "audience"?: ..., "length_seconds"?: ..., "aspect"?: ..., "language"?: ..., "voice"?: ..., "project_id"?: ..., "mode"?: ...}`) {
 		return
 	}
 	topic := strings.TrimSpace(req.Topic)
 	if topic == "" || utf8.RuneCountInString(topic) > storymakerStartTopicRunes {
 		writeStorymakerError(w, http.StatusBadRequest, "invalid_topic", "The topic must be 1 to 2000 characters.", nil)
+		return
+	}
+	requestedMode := strings.TrimSpace(req.Mode)
+	mode, err := storymaker.NormalizeMode(requestedMode)
+	if err != nil {
+		writeStorymakerError(w, http.StatusBadRequest, "invalid_mode", "The mode must be catalog or free.", nil)
 		return
 	}
 	if err := s.storymakerAgentReady(acc); err != nil {
@@ -275,13 +282,13 @@ func handleStorymakerAgentJobs(s *Server, w http.ResponseWriter, r *http.Request
 	projectID := strings.TrimSpace(req.ProjectID)
 	created := false
 	if projectID == "" {
-		id, err := storymakerAgentCreateProject(ctx, acc, topic, req.Aspect)
+		id, err := storymakerAgentCreateProject(ctx, acc, topic, req.Aspect, mode)
 		if err != nil {
 			mapStorymakerError(w, err, "project_not_found")
 			return
 		}
 		projectID, created = id, true
-	} else if !storymakerAgentProjectAcceptsCreate(ctx, w, acc, projectID) {
+	} else if !storymakerAgentProjectAcceptsCreate(ctx, w, acc, projectID, requestedMode) {
 		return
 	}
 	audience := strings.TrimSpace(req.Audience)
@@ -312,16 +319,24 @@ func handleStorymakerAgentJobs(s *Server, w http.ResponseWriter, r *http.Request
 	writeStorymakerJSON(w, http.StatusAccepted, map[string]any{"project_id": projectID, "job": job})
 }
 
-// storymakerAgentProjectAcceptsCreate checks a named project in the order 404, busy, story_not_empty;
-// on a refusal it has answered.
-func storymakerAgentProjectAcceptsCreate(ctx context.Context, w http.ResponseWriter, acc *storymakerAccess, projectID string) bool {
+// storymakerAgentProjectAcceptsCreate checks a named project in the order 404, mode_mismatch, busy, story_not_empty;
+// on a refusal it has answered. A requested mode (already validated by the caller) must be the project's own.
+func storymakerAgentProjectAcceptsCreate(ctx context.Context, w http.ResponseWriter, acc *storymakerAccess, projectID, requestedMode string) bool {
 	if !storymaker.ValidProjectID(projectID) {
 		writeStorymakerError(w, http.StatusNotFound, "project_not_found", "Project not found.", nil)
 		return false
 	}
-	if _, err := acc.rt.projects.Get(ctx, projectID); err != nil {
+	project, err := acc.rt.projects.Get(ctx, projectID)
+	if err != nil {
 		mapStorymakerError(w, err, "project_not_found")
 		return false
+	}
+	if requestedMode != "" {
+		want, _ := storymaker.NormalizeMode(requestedMode) // the caller validated it
+		if storymaker.EffectiveMode(project.Mode) != want {
+			writeStorymakerError(w, http.StatusUnprocessableEntity, "mode_mismatch", "This project was created in the other mode; a project keeps its mode.", nil)
+			return false
+		}
 	}
 	if active, busy := storymakerProjectActiveJob(acc.rt, projectID); busy {
 		writeStorymakerAgentStartError(w, storymakerAgentBusy(active.ID))

@@ -184,10 +184,14 @@ func (f *storymakerAgentFacade) Create(ctx context.Context, req storymaker.Agent
 	if n := utf8.RuneCountInString(topic); n == 0 || n > storymakerFacadeMaxText {
 		return storymaker.AgentJobRef{}, storymakerFacadeRefusal("invalid_topic", "topic must have 1 to 2000 characters.", "Send a shorter topic.")
 	}
+	mode, err := storymaker.NormalizeMode(strings.TrimSpace(req.Mode))
+	if err != nil {
+		return storymaker.AgentJobRef{}, storymakerFacadeRefusal("invalid_mode", "mode must be catalog or free.", "Send catalog or free, or leave mode out.")
+	}
 	if err := f.reserveDaily(acc); err != nil {
 		return storymaker.AgentJobRef{}, err
 	}
-	projectID, err := storymakerAgentCreateProject(ctx, acc, topic, req.Aspect)
+	projectID, err := storymakerAgentCreateProject(ctx, acc, topic, req.Aspect, mode)
 	if err != nil {
 		f.releaseDaily(acc)
 		return storymaker.AgentJobRef{}, storymakerFacadeStoreError(err)

@@ -18,6 +18,11 @@ func storymakerChatSchema() openai.Tool {
 				"enum":        []string{"16:9", "9:16", "1:1"},
 			},
 			"language": prop("string", "create: language of the film, such as de; default is the UI language"),
+			"mode": map[string]interface{}{
+				"type":        "string",
+				"description": "create: catalog builds the film from the built-in catalog of people, props and environments (default); free lets the agent draw and animate everything itself in code",
+				"enum":        []string{"catalog", "free"},
+			},
 			"voice": map[string]interface{}{
 				"type":        "object",
 				"description": "create: optional voice; leave it out to use the configured one",

@@ -76,12 +76,12 @@ func TestStorymakerChatToolDispatchesAndOpens(t *testing.T) {
 
 	created := storymakerToolCall(t, dc, map[string]interface{}{
 		"operation": "create", "topic": "Was ist Phishing?", "format": "9:16", "length_seconds": float64(45),
-		"language": "de", "voice": map[string]interface{}{"provider": "piper", "voice": "de-1"},
+		"language": "de", "mode": "free", "voice": map[string]interface{}{"provider": "piper", "voice": "de-1"},
 	})
 	if created["status"] != "success" || created["project_id"] != storymakerToolTestProject || created["job_id"] != "job-1" || created["state"] != "queued" || created["eta_hint_seconds"] != float64(235) {
 		t.Fatalf("create = %v", created)
 	}
-	if fake.created.Topic != "Was ist Phishing?" || fake.created.Aspect != "9:16" || fake.created.LengthSeconds != 45 || fake.created.Voice == nil || fake.created.Voice.Provider != "piper" {
+	if fake.created.Topic != "Was ist Phishing?" || fake.created.Aspect != "9:16" || fake.created.LengthSeconds != 45 || fake.created.Voice == nil || fake.created.Voice.Provider != "piper" || fake.created.Mode != "free" {
 		t.Fatalf("create request = %+v", fake.created)
 	}
 
