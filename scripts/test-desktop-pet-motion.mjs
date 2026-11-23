@@ -93,4 +93,78 @@ for (const model of [false, true]) {
     f.settings['pet.enabled'] = 'false'; pet.load();
     assert.equal(f.context.PetRuntime.inspect3D(), null);
 }
+
+// Verify 3D activity hooks: expanded ambient pool (no duplicate running), 2D roam interpolation, and onActivity wakeup.
+{
+    let now = 0, next = 0, observedStates = null, onActivityCb = null, lastState = 'idle';
+    const tasks = new Map();
+    const schedule = (fn, ms) => { const id = ++next; tasks.set(id, { at: now + ms, fn }); return id; };
+    const cancel = id => tasks.delete(id);
+    const advance = ms => {
+        const end = now + ms;
+        for (;;) {
+            const task = [...tasks].sort((a, b) => a[1].at - b[1].at)[0];
+            if (!task || task[1].at > end) break;
+            tasks.delete(task[0]); now = task[1].at; task[1].fn(now);
+        }
+        now = end;
+    };
+    class Element {
+        style = { setProperty() {} };
+        dataset = {};
+        classList = { add() {}, remove() {} };
+        get offsetLeft() { return parseFloat(this.style.left) || 0; }
+        get offsetTop() { return parseFloat(this.style.top) || 0; }
+        getBoundingClientRect() { return { left: this.offsetLeft, top: this.offsetTop, width: 192, height: 208, right: this.offsetLeft + 192, bottom: this.offsetTop + 208 }; }
+        setAttribute() {}
+        removeAttribute() {}
+        addEventListener() {}
+        appendChild() {}
+        remove() {}
+        querySelector(selector) { return selector === '.vd-pet-sprite' ? sprite : bubble; }
+    }
+    const layer = new Element(), sprite = new Element(), bubble = new Element();
+    bubble.hidden = true;
+    const settings = { 'pet.enabled': 'true', 'pet.scale': '1', 'pet.position_x': '400', 'pet.position_y': '300', 'pet.gravity': 'false' };
+    const id = catalog.rexi.id;
+    const document = {
+        hidden: false, body: Object.assign(new Element(), { dataset: { animations: 'true' } }),
+        createElement: () => layer, getElementById: () => null, querySelector: () => null, addEventListener() {}
+    };
+    const context = vm.createContext({
+        document, innerWidth: 1280, innerHeight: 850, AbortController,
+        state: { bootstrap: { pets: [{ id, subcategory: '3d', spritesheet: 'spritesheet.webp' }], active_pet_id: id, settings } },
+        settingValue: key => settings[key], t: key => key, shellLayout: () => 'taskbar',
+        setTimeout: schedule, clearTimeout: cancel, requestAnimationFrame: fn => schedule(fn, 16), cancelAnimationFrame: cancel,
+        addEventListener() {}, matchMedia: () => ({ matches: false, addEventListener() {} }),
+        Date: class extends Date { static now() { return now; } }, performance: { now: () => now },
+        Math: Object.assign(Object.create(Math), { random: () => 0.4 }),
+        AuraLazyAssets: { loadScript: async () => {}, versionedURL: url => url },
+        AuraPunkPet3D: {
+            create: async (_host, opts) => {
+                onActivityCb = opts.onActivity;
+                return {
+                    setState(s) { lastState = s; },
+                    duration: () => 1800,
+                    dispose() {},
+                    pickAmbientState(states) { observedStates = [...states]; return 'dancing'; },
+                    planRoam({ startX, startY }) { return { startX, startY, targetX: startX + 180, targetY: startY - 60, deltaX: 180 }; }
+                };
+            }
+        }
+    });
+    context.window = context;
+    for (const file of ['pet-model-catalog.js', 'pet-runtime.js']) vm.runInContext(readFileSync(new URL('ui/js/desktop/core/' + file, root), 'utf8'), context);
+    for (let i = 0; i < 12; i++) await Promise.resolve();
+    advance(12000);
+    assert.equal(layer.offsetLeft, 580, '3D planRoam horizontal destination must be reached');
+    assert.equal(layer.offsetTop, 240, '3D planRoam vertical destination must interpolate when gravity is off');
+    advance(12000);
+    assert.ok(Array.isArray(observedStates) && !observedStates.includes('running'), '3D odd ambient actions must avoid duplicate running entries');
+    for (const expected of ['dancing', 'playing', 'celebrating', 'sitting', 'stretching', 'thinking', 'working', 'editing']) {
+        assert.ok(observedStates.includes(expected), '3D ambient pool must include ' + expected);
+    }
+    onActivityCb('celebrating');
+    assert.equal(lastState, 'celebrating', '3D petting/activity callback must trigger the requested motion');
+}
 console.log('Desktop pet roaming: sprite and 3D cadence, refresh continuity, preferences, settings and teardown passed.');

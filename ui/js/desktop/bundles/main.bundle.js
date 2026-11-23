@@ -6799,7 +6799,7 @@
     let modelAbort = null;
     let modelEpoch = 0;
     let modelState = 'idle';
-    const modelAmbientStates = ['waving', 'jumping', 'running', 'running', 'dancing', 'sitting', 'sleeping', 'nodding', 'playing', 'clapping'];
+    const modelAmbientStates = ['waving', 'dancing', 'playing', 'celebrating', 'jumping', 'clapping', 'sitting', 'stretching', 'thinking', 'working', 'editing', 'nodding', 'sleeping'];
 
     function isModelPet(pet) {
         return pet && pet.subcategory === '3d' && !!petModelAssetFolder(pet.id);
@@ -6832,7 +6832,8 @@
             .then(() => window.AuraLazyAssets.loadScript('/js/desktop/core/pet-3d.js'))
             .then(() => {
                 signal.throwIfAborted();
-                return window.AuraPunkPet3D.create(host, { petId, signal, versionedURL, scale: petScale, onFailure: failed });
+                const onActivity = motion => { if (layer && !drag && currentState !== 'dragging') performModelAction(motion); };
+                return window.AuraPunkPet3D.create(host, { petId, signal, versionedURL, scale: petScale, onFailure: failed, onActivity });
             }).then(controller => {
                 if (signal.aborted || epoch !== modelEpoch || host !== spriteEl) { controller.dispose(); return; }
                 modelPet = controller;
@@ -7127,25 +7128,13 @@
     }
 
     function clearAmbientTimers() {
-        if (ambientTimer) {
-            window.clearTimeout(ambientTimer);
-            ambientTimer = null;
-        }
-        if (ambientReturnTimer) {
-            window.clearTimeout(ambientReturnTimer);
-            ambientReturnTimer = null;
-        }
-        if (ambientMoveFrame) {
-            window.cancelAnimationFrame(ambientMoveFrame);
-            ambientMoveFrame = null;
-        }
+        if (ambientTimer) { window.clearTimeout(ambientTimer); ambientTimer = null; }
+        if (ambientReturnTimer) { window.clearTimeout(ambientReturnTimer); ambientReturnTimer = null; }
+        if (ambientMoveFrame) { window.cancelAnimationFrame(ambientMoveFrame); ambientMoveFrame = null; }
     }
 
     function clearReactionTimer() {
-        if (reactionTimer) {
-            window.clearTimeout(reactionTimer);
-            reactionTimer = null;
-        }
+        if (reactionTimer) { window.clearTimeout(reactionTimer); reactionTimer = null; }
     }
 
     function ambientMotionAllowed() {
@@ -7170,6 +7159,10 @@
         const startY = layer.offsetTop;
         const w = Math.round(PET_FRAME_W * scale);
         const h = Math.round(PET_FRAME_H * scale);
+        const planned = modelPet && typeof modelPet.planRoam === 'function'
+            ? modelPet.planRoam({ startX, startY, w, h, gravity: petGravity(), floorTop: petFloorTop(), clamp: clampToViewport })
+            : null;
+        if (planned) return planned;
         const distance = ambientRunDistance();
         let direction = Math.random() < 0.5 ? -1 : 1;
         let target = clampToViewport({ x: startX + direction * distance, y: startY, w, h });
@@ -7179,17 +7172,12 @@
         }
         // With gravity the pet runs along the dock bar, never away from it.
         if (petGravity()) target.y = startY;
-        return {
-            startX,
-            startY,
-            targetX: target.x,
-            targetY: target.y,
-            deltaX: target.x - startX
-        };
+        return { startX, startY, targetX: target.x, targetY: target.y, deltaX: target.x - startX };
     }
 
     function moveAmbientRun(runPlan, durationMs, done) {
-        if (!layer || !runPlan || Math.abs(runPlan.deltaX) < 12) {
+        const deltaY = runPlan ? (runPlan.targetY ?? runPlan.startY) - runPlan.startY : 0;
+        if (!layer || !runPlan || (Math.abs(runPlan.deltaX) < 12 && Math.abs(deltaY) < 12)) {
             if (typeof done === 'function') done();
             return;
         }
@@ -7205,7 +7193,8 @@
             const progress = Math.min(1, (Date.now() - startedAt) / duration);
             const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
             layer.style.left = Math.round(runPlan.startX + runPlan.deltaX * eased) + 'px';
-            layer.style.top = runPlan.startY + 'px';
+            layer.style.top = Math.round(runPlan.startY + deltaY * eased) + 'px';
+            positionBubbleInViewport();
             if (progress < 1 && !drag) {
                 ambientMoveFrame = window.requestAnimationFrame(tick);
                 return;
@@ -7214,6 +7203,7 @@
             if (layer && !drag) {
                 layer.style.left = runPlan.targetX + 'px';
                 layer.style.top = runPlan.targetY + 'px';
+                positionBubbleInViewport();
             }
             if (typeof done === 'function') done();
         };
@@ -7229,7 +7219,8 @@
             return;
         }
         const states = modelPet ? modelAmbientStates : ambientStates;
-        const ambientState = ambientStep++ % 2 === 0 ? 'running' : states[Math.floor(Math.random() * states.length)] || 'waving';
+        const pick = () => (modelPet && typeof modelPet.pickAmbientState === 'function' ? modelPet.pickAmbientState(states) : states[Math.floor(Math.random() * states.length)]) || 'waving';
+        const ambientState = ambientStep++ % 2 === 0 ? 'running' : pick();
         if (ambientState === 'running') {
             const runPlan = ambientRunPlan();
             if (!runPlan) {
@@ -7599,7 +7590,7 @@
         layer.classList.remove('dragging');
         if (drag.isModel && !drag.moved) {
             drag = null;
-            react('waving');
+            triggerModelTap();
             if (petGravity()) startGravityFall();
             return;
         }
@@ -7626,12 +7617,18 @@
         if (drag && !drag.released && drag.pointerId === event.pointerId) cancelPetDrag();
     }
 
+    function triggerModelTap() {
+        const next = modelPet && typeof modelPet.nextClickAction === 'function' ? modelPet.nextClickAction(currentState) : 'waving';
+        if (next && next !== 'waving') performModelAction(next);
+        else react('waving');
+    }
+
     function wireDrag() {
         if (!layer) return;
         spriteEl.addEventListener('keydown', event => {
             if (!isModelPet(activePet()) || !['Enter', ' '].includes(event.key)) return;
             event.preventDefault();
-            react('waving');
+            triggerModelTap();
         });
         spriteEl.addEventListener('dblclick', () => { if (modelPet) performModelAction('dancing'); });
         layer.addEventListener('pointerdown', event => {
@@ -7734,19 +7731,13 @@
                 loadPet();
                 return;
             case 'pet_reaction_changed':
-                if (event.payload && event.payload.reaction) {
-                    setReaction(event.payload.reaction);
-                }
+                if (event.payload && event.payload.reaction) setReaction(event.payload.reaction);
                 return;
             case 'pet_say':
-                if (event.payload && event.payload.message) {
-                    showBubble(event.payload.message, event.payload.type || 'info');
-                }
+                if (event.payload && event.payload.message) showBubble(event.payload.message, event.payload.type || 'info');
                 return;
             case 'pet_setting_changed':
-                if (event.payload) {
-                    syncPetBootstrap({ settings: { [event.payload.key]: event.payload.value } });
-                }
+                if (event.payload) syncPetBootstrap({ settings: { [event.payload.key]: event.payload.value } });
                 loadPet();
                 return;
         }
@@ -7771,18 +7762,10 @@
         };
         document.addEventListener('visibilitychange', refreshMotion);
         window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', refreshMotion);
-        window.addEventListener('resize', () => {
-            if (layer) applyPosition();
-        });
+        window.addEventListener('resize', () => { if (layer) applyPosition(); });
         watchDockFloor();
         // Re-render after bootstrap is ready.
-        const check = () => {
-            if (state.bootstrap) {
-                loadPet();
-            } else {
-                setTimeout(check, 100);
-            }
-        };
+        const check = () => { if (state.bootstrap) loadPet(); else setTimeout(check, 100); };
         check();
     }
 

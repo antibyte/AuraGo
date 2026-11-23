@@ -210,6 +210,8 @@ try{
     await evaluate(`until(()=>PetRuntime.inspect3D().gaze[0]<-.2,'left pointer gaze')`);const left=await evaluate('PetRuntime.inspect3D().gaze[0]');
     await call('Input.dispatchMouseEvent',{type:'mouseMoved',x:1250,y:150});
     await evaluate(`until(()=>PetRuntime.inspect3D().gaze[0]>.2,'right pointer gaze')`);const right=await evaluate('PetRuntime.inspect3D().gaze[0]');assert.ok(right-left>.3,'Head must follow live pointer position');
+    const activityBefore=await evaluate('PetRuntime.inspect3D().activityCount');
+    await evaluate(`until(()=>PetRuntime.inspect3D().state==='idle'&&PetRuntime.inspect3D().activityCount>${activityBefore},'autonomous 3D idle activity')`);
     for(const [reaction,file] of [['waving','wave'],['thinking','thinking'],['celebrating','celebrate'],['editing','working']]){
         await evaluate(`PetRuntime.setReaction(${JSON.stringify(reaction)})`);await new Promise(r=>setTimeout(r,750));const pose=await evaluate('PetRuntime.inspect3D()');assert.ok(pose.gazeAngle<.5,'Additive gaze must never accumulate on constant motion tracks');await shot(file);
     }
@@ -224,11 +226,19 @@ try{
     assert.equal(await evaluate(`document.querySelector('.vd-pet-bubble').hidden`),false);
     const rect=await evaluate(`(()=>{const r=document.querySelector('.vd-pet-sprite').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height*.55,left:document.querySelector('.vd-pet-layer').offsetLeft,top:document.querySelector('.vd-pet-layer').offsetTop};})()`);
     const mouse=(type,x,y,down=false)=>call('Input.dispatchMouseEvent',{type,x,y,button:type==='mouseMoved'?'none':'left',buttons:down?1:0,clickCount:type==='mouseMoved'?0:1});
+    const petBefore=await evaluate('PetRuntime.inspect3D().activityCount');
+    for(const dx of [-36,36,-36,36,-36]){await mouse('mouseMoved',rect.x+dx,rect.y);await new Promise(r=>setTimeout(r,45));}
+    const afterPetting=await evaluate('PetRuntime.inspect3D()');
+    assert.ok(afterPetting.activityCount>petBefore&&afterPetting.idlePhase==='beat'&&afterPetting.gazeAngle<.5,'Petting the 3D pet must trigger an expressive beat with bounded gaze');
     const inputChecks={};
     await mouse('mousePressed',rect.x,rect.y,true);
     inputChecks.clickDoesNotStartDrag=await evaluate(`!document.querySelector('.vd-pet-layer').classList.contains('dragging')&&PetRuntime.inspect3D().state!=='dragging'`);
     await mouse('mouseMoved',rect.x+2,rect.y+2,true);await mouse('mouseReleased',rect.x+2,rect.y+2);
+    assert.equal(await evaluate('PetRuntime.inspect3D().state'),'waving','First click must greet');
     assert.deepEqual(await evaluate(`({left:document.querySelector('.vd-pet-layer').offsetLeft,top:document.querySelector('.vd-pet-layer').offsetTop})`),{left:rect.left,top:rect.top},'A greeting click must not move the pet');
+    await mouse('mousePressed',rect.x,rect.y,true);await mouse('mouseMoved',rect.x+2,rect.y+2,true);await mouse('mouseReleased',rect.x+2,rect.y+2);
+    assert.equal(await evaluate('PetRuntime.inspect3D().state'),'celebrating','Follow-up click must vary the playful reaction');
+    assert.deepEqual(await evaluate(`({left:document.querySelector('.vd-pet-layer').offsetLeft,top:document.querySelector('.vd-pet-layer').offsetTop})`),{left:rect.left,top:rect.top},'A playful follow-up click must not move the pet');
     await mouse('mousePressed',rect.x,rect.y,true);await mouse('mouseMoved',rect.x+90,rect.y-120,true);
     await evaluate(`until(()=>PetRuntime.inspect3D().state==='dragging','pickup animation')`);await shot('drag');
     await mouse('mouseReleased',rect.x+90,rect.y-120);

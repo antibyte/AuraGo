@@ -91,15 +91,25 @@ New app-scoped prefixes must contain no `ad` substring; verify
   hit testing through off/on/off toggles for both renderers in Standard/Fruity.
   Play the 3D landing motion only after actual descent; grounded bootstrap
   refreshes and dock width changes must not trigger it. The same test covers both.
-  A 3D click greets; dragging starts only after pointer movement. Lost capture,
-  missing button release, blur and hidden tabs cancel the gesture. Stop drag
-  physics before release settling so a late frame cannot restore the hang pose.
+  A 3D click greets first, while rapid follow-up clicks cycle playful reactions
+  (and wake seated or sleeping pets) without moving the pet; dragging starts only
+  after pointer movement. Lost capture, missing button release, blur and hidden
+  tabs cancel the gesture. Stop drag physics before release settling so a late
+  frame cannot restore the hang pose.
+  In `pet-3d.js`, idle 3D pets run autonomous choreography (spontaneous expressive
+  beats, post-stroll flourishes, curious look-around scanning when the pointer
+  rests, hover dwell, petting/swoosh reactions, gentle body turning and
+  clip-aware multi-cycle durations) while keeping `state === 'idle'`, bounded
+  additive gaze and zero rendering/activity under reduced motion or hidden tabs.
   Ambient actions start after 6–12 idle seconds, with a stroll first and at least
-  every second action. Same-layout Desktop/bootstrap refreshes preserve the
-  countdown, active motion and current position; explicit pet/placement settings
-  still apply. Dock resizing re-seats only the vertical axis. Hidden tabs and
-  reduced/disabled animation stop roaming for sprites and models. Verify
-  `node scripts/test-desktop-pet-motion.mjs` and the native Rexi/Punk checks.
+  every second action; 3D odd ambient turns pick from non-walking expressive
+  states, and 3D roaming uses gait-matched walking/jogging/running with gentle 2D
+  wandering only when gravity is off. Same-layout Desktop/bootstrap refreshes
+  preserve the countdown, active motion and current position; explicit
+  pet/placement settings still apply. Dock resizing re-seats only the vertical
+  axis. Hidden tabs and reduced/disabled animation stop roaming for sprites and
+  models. Verify `node scripts/test-desktop-pet-motion.mjs` and the native
+  Rexi/Punk checks.
 
 - Synth Studio's optional Strudel workbench uses a locally bundled runtime and
   downloadable source archive under `js/vendor/strudel/`. Its evaluator runs in
