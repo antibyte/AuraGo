@@ -135,7 +135,9 @@
                 if(draft?.content===note.content){await OfficeSession.draft('delete',location.origin+':'+note.path,undefined,'notes').catch(()=>{});draft=null;}
                 const recovered=draft&&!ctx.readonly&&!note.path.startsWith('Trash/')&&await ctx.confirmDialog?.(tr('recover'),tr('recover_prompt'));
                 const next=await NotesEditor.create(document.createElement('div'),{content:recovered?draft.content:note.content,readonly:ctx.readonly||note.path.startsWith('Trash/'),tr,
-                    upload:file=>uploadFile(file,true),resolveURL:href=>resolveURL(href,note.path),openLink:openLink,changed});
+                    upload:file=>uploadFile(file,true),resolveURL:href=>resolveURL(href,note.path),openLink:openLink,changed,
+                    resolveWiki:value=>resolveWikiSimple(value),openWiki:value=>openWikiSimple(value),
+                    tagClick:tag=>{find('[data-tag]').value=tag;page=0;refreshList().catch(fail);}});
                 if(disposed){await next.destroy();return;}
                 queue?.dispose();docLife.abort();docLife=new AbortController();documentGeneration++;clearTimeout(draftTimer);clearTimeout(draftDeadline);
                 await editor?.destroy();editor=next;current=note;currentDraft=recovered?draft:null;
@@ -246,6 +248,17 @@
             const url=path?'/api/desktop/download?path='+encodeURIComponent(path):/^https?:\/\//i.test(href)?href:null;
             if(url)window.open(url,'_blank','noopener,noreferrer');
         }
+        // Phase 1 only; Phase 2 replaces these with NotesIndex.
+        function parseWikiValue(value){
+            const raw=String(value||''),cut=raw.search(/(?<!\\)\|/),left=(cut<0?raw:raw.slice(0,cut)).replace(/\\\|/g,'|'),hash=left.indexOf('#');
+            return {target:(hash<0?left:left.slice(0,hash)).trim(),subpath:hash<0?'':left.slice(hash+1).trim(),alias:cut<0?'':raw.slice(cut+1).trim()};
+        }
+        function wikiCandidates(value){
+            const name=parseWikiValue(value).target.split('/').pop().replace(/\.md$/i,'').toLowerCase();
+            return name?list.filter(note=>basename(note.path).replace(/\.md$/i,'').toLowerCase()===name||String(note.title||'').toLowerCase()===name):[];
+        }
+        function resolveWikiSimple(value){return {exists:!parseWikiValue(value).target||wikiCandidates(value).length>0};}
+        function openWikiSimple(value){const hit=wikiCandidates(value)[0];if(hit)loadNote(hit.path);}
         async function uploadFile(file,imageOnly=false){
             if(!writable())throw Error(tr('readonly'));
             if(file.size>20*1024*1024)throw Error(tr('attachment_too_large'));

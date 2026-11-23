@@ -169,6 +169,18 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	if err := os.MkdirAll(out, 0755); err != nil {
 		t.Fatal(err)
 	}
+	// Obsidian syntax demo: shown once in the main editor, then restored without saving.
+	page.MustSetViewport(1366, 768, 1, false)
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test');
+ window.obsidianPrevious=app.editor.content();
+ if(app.editor.sourceMode)await app.editor.mode(false);
+ app.editor.setContent('# Obsidian Syntax\n\nVerweis auf [[aurora|Aurora Ideen]] und die fehlende Seite [[Fehlt noch#Plan]] mit #projekt/alpha im Text.\n\n#idee steht am Zeilenanfang und ==wichtig== ist markiert.\n\n> [!info] Hinweis\n> Siehe ![[skizze.png]] und [[aurora]].\n\n> [!warning] Achtung\n> Das ist eine **Warnung** mit Text.\n');
+ app.editor.refreshDecorations();
+ await new Promise(r=>setTimeout(r,300));
+ }`)
+	page.MustScreenshot(filepath.Join(out, "obsidian-syntax-1366x768.png"))
+	page.MustEval(`()=>{const app=NotesApp.instances.get('test');app.editor.setContent(window.obsidianPrevious);}`)
 	for _, theme := range []string{"default", "fruity-dark", "fruity-light"} {
 		for _, density := range []string{"normal", "compact"} {
 			for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {430, 932}} {

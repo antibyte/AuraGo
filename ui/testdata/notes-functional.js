@@ -133,6 +133,21 @@ async () => {
     check(bigEditor.sourceMode&&bigEditor.content()===big,'Large note was lost or parsed into rich layout');
     check(performance.now()-start<10000,'Large source note is unresponsive');
     await bigEditor.destroy();bigHost.remove();
+    const obsidianNote='# Obsidian\n\nVerweis auf [[Ideen|meine Ideen]] und #projekt/alpha.\n\n> [!info] Hinweis\n> Siehe ==wichtig== und ![[skizze.png]]\n\n* [ ] Aufgabe mit [[Aufgaben#Heute]]\n';
+    let wikiExists=false;
+    const obsHost=document.createElement('div');document.body.append(obsHost);
+    const obsEditor=await NotesEditor.create(obsHost,{content:obsidianNote,readonly:false,tr:key=>key,changed:()=>{},resolveWiki:()=>({exists:wikiExists})});
+    check(!obsEditor.sourceMode,'Obsidian syntax forced source mode');
+    check(obsHost.querySelectorAll('.notes-wikilink').length===2&&obsHost.querySelector('.notes-hashtag')&&obsHost.querySelector('.notes-callout[data-callout=info]')&&obsHost.querySelector('mark.notes-highlight')&&obsHost.querySelector('.notes-embed'),'Obsidian syntax not rendered: '+obsHost.innerHTML.slice(0,400));
+    check(obsHost.querySelector('.notes-callout-icon svg'),'Callout icon missing');
+    check(obsHost.querySelectorAll('.notes-wikilink[data-unresolved]').length===2,'Unresolved wikilinks not marked');
+    wikiExists=true;obsEditor.refreshDecorations();
+    check(obsHost.querySelectorAll('.notes-wikilink[data-unresolved]').length===0,'refreshDecorations did not re-resolve chips');
+    obsEditor.view.dispatch(obsEditor.view.state.tr.insertText('!',obsEditor.view.state.doc.child(0).nodeSize-1));
+    check(obsEditor.content()===obsidianNote.replace('# Obsidian','# Obsidian!'),'Obsidian round trip changed text: '+JSON.stringify(obsEditor.content()));
+    obsEditor.command('highlight');obsEditor.insertWiki('Neu');
+    check(obsEditor.content().includes('[[Neu]]'),'insertWiki failed');
+    await obsEditor.destroy();obsHost.remove();
 
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
     return {imagePaste:true,imageUpload:true,attachmentUpload:true,serialSaves:true,conflictCopy:true,recovery:true,readonly:true,aiRevision:true,linkPreservation:true,largeNoteChars:big.length};
