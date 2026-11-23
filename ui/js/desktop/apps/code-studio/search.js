@@ -3,44 +3,37 @@
         return value.startsWith(WORKSPACE_ROOT + '/') ? value.slice(WORKSPACE_ROOT.length + 1) : value;
     }
 
+    // The search panel: a head with the VS Code style replace chevron, the search form and the replace
+    // row (replace.js), then the result list. renderSearchResults only redraws the list, so typing in
+    // the replace field keeps its caret.
     function renderSearchPanel() {
         const panel = shellPart('[data-search]');
         if (!panel) return;
         panel.hidden = !state.searchVisible;
         if (!state.searchVisible) return;
         const options = state.searchOptions || {};
-        let results;
-        if (!state.searchPerformed) {
-            results = `<div class="cs-empty">${esc(tr('codeStudio.searchPrompt', 'Enter a search term and press Enter'))}</div>`;
-        } else if (!state.searchResults.length) {
-            results = `<div class="cs-empty">${esc(tr('codeStudio.noResults', 'No results found'))}</div>`;
-        } else {
-            results = `<div class="cs-search-summary">${esc(tr('codeStudio.resultsCount', '{{count}} results', { count: state.searchResults.length }))}</div>` +
-                (state.searchTruncated ? `<div class="cs-search-summary">${esc(tr('codeStudio.resultsTruncated', 'Showing the first 200 results.'))}</div>` : '') +
-                state.searchResults.map(result => `
-                <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}" title="${esc(result.path)}">
-                    <span><strong>${esc(searchResultLabel(result.path))}</strong><em class="cs-search-line">${esc(result.line)}</em></span>
-                    <code>${esc(result.preview)}</code>
-                </button>`).join('');
-        }
-        panel.innerHTML = `<form class="cs-search-form" data-search-form>
-            <input name="q" value="${esc(state.searchQuery || '')}" placeholder="${esc(tr('codeStudio.searchFiles', 'Search in Files'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search">
-            <input name="include" value="${esc(options.include || '')}" placeholder="*.go" autocomplete="off" spellcheck="false">
-            <input name="exclude" value="${esc(options.exclude || '')}" placeholder="vendor/" autocomplete="off" spellcheck="false">
-            <label><input type="checkbox" name="case"${options.case ? ' checked' : ''}> Aa</label>
-            <label><input type="checkbox" name="whole"${options.whole ? ' checked' : ''}> Ab</label>
-            <label><input type="checkbox" name="regex"${options.regex ? ' checked' : ''}> .*</label>
-            <button type="submit" class="cs-button primary">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
-            <button type="button" class="cs-icon-button" data-search-close title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
-        </form><div class="cs-search-results">${results}</div>`;
+        const replaceOpen = !!state.searchReplaceOpen;
+        const toggleLabel = tr('codeStudio.findToggleReplace', 'Toggle replace');
+        panel.innerHTML = `<div class="cs-search-head" data-replace-open="${replaceOpen ? 'true' : 'false'}">
+            <button type="button" class="cs-search-replace-toggle" data-search-replace-toggle aria-expanded="${replaceOpen ? 'true' : 'false'}" title="${esc(toggleLabel)}" aria-label="${esc(toggleLabel)}"><span aria-hidden="true">›</span></button>
+            <form class="cs-search-form" data-search-form>
+                <input name="q" value="${esc(state.searchQuery || '')}" placeholder="${esc(tr('codeStudio.searchFiles', 'Search in Files'))}" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search">
+                <input name="include" value="${esc(options.include || '')}" placeholder="*.go" autocomplete="off" spellcheck="false">
+                <input name="exclude" value="${esc(options.exclude || '')}" placeholder="vendor/" autocomplete="off" spellcheck="false">
+                <label><input type="checkbox" name="case"${options.case ? ' checked' : ''}> Aa</label>
+                <label><input type="checkbox" name="whole"${options.whole ? ' checked' : ''}> Ab</label>
+                <label><input type="checkbox" name="regex"${options.regex ? ' checked' : ''}> .*</label>
+                <button type="submit" class="cs-button primary">${buttonIcon('search', 'S')}<span>${esc(tr('codeStudio.search', 'Search'))}</span></button>
+                <button type="button" class="cs-icon-button" data-search-close title="${esc(tr('desktop.close', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
+            </form>${replaceOpen ? projectReplaceRowMarkup() : ''}
+        </div><div class="cs-search-results" data-search-results></div>`;
         panel.querySelector('[data-search-form]').addEventListener('submit', bind(event => {
             event.preventDefault();
             runSearch(new FormData(event.currentTarget));
         }));
         panel.querySelector('[data-search-close]').addEventListener('click', bind(() => toggleSearch()));
-        panel.querySelectorAll('[data-search-path]').forEach(btn => {
-            btn.addEventListener('click', bind(() => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1))));
-        });
+        wireProjectReplaceControls(panel);
+        renderSearchResults();
         const input = panel.querySelector('input[name="q"]');
         if (input) {
             input.addEventListener('keydown', bind(event => {
@@ -54,6 +47,35 @@
                 input.select();
             }
         }
+    }
+
+    function renderSearchResults() {
+        const panel = shellPart('[data-search]');
+        const box = panel && panel.querySelector('[data-search-results]');
+        if (!box) {
+            if (panel && state.searchVisible) renderSearchPanel();
+            return;
+        }
+        let results;
+        if (!state.searchPerformed) {
+            results = `<div class="cs-empty">${esc(tr('codeStudio.searchPrompt', 'Enter a search term and press Enter'))}</div>`;
+        } else if (!state.searchResults.length) {
+            results = `<div class="cs-empty">${esc(tr('codeStudio.noResults', 'No results found'))}</div>`;
+        } else {
+            results = `<div class="cs-search-summary">${esc(tr('codeStudio.resultsCount', '{{count}} results', { count: state.searchResults.length }))}</div>` +
+                (state.searchTruncated ? `<div class="cs-search-summary">${esc(tr('codeStudio.resultsTruncated', 'Showing the first 200 results.'))}</div>` : '') +
+                (state.searchReplaceOpen ? projectReplaceResultsMarkup() : state.searchResults.map(result => `
+                <button type="button" class="cs-search-result" data-search-path="${esc(result.path)}" data-search-line="${esc(result.line)}" title="${esc(result.path)}">
+                    <span><strong>${esc(searchResultLabel(result.path))}</strong><em class="cs-search-line">${esc(result.line)}</em></span>
+                    <code>${esc(result.preview)}</code>
+                </button>`).join(''));
+        }
+        box.innerHTML = results;
+        box.querySelectorAll('[data-search-path]').forEach(btn => {
+            btn.addEventListener('click', bind(() => openSearchResult(btn.dataset.searchPath, Number(btn.dataset.searchLine || 1))));
+        });
+        if (state.searchReplaceOpen) wireProjectReplaceResults(box);
+        updateProjectReplaceControls();
     }
 
     function toggleSearch() {
@@ -98,10 +120,11 @@
             });
             if (!isLiveInstance(target) || target.searchRequest !== request) return;
             runWithInstance(target, () => {
-                state.searchResults = result.results || [];
-                state.searchTruncated = !!result.truncated;
+                // Open files are listed from their buffers (replace.js); the others as the server found them.
+                state.searchResults = overlayOpenTabResults(result.results || []);
+                state.searchTruncated = !!result.truncated || state.searchResults.length > 200;
                 state.searchPerformed = true;
-                renderSearchPanel();
+                renderSearchResults();
                 flashStatus(tr('codeStudio.resultsCount', '{{count}} results', { count: state.searchResults.length }));
             });
         } catch (err) {
@@ -110,7 +133,7 @@
                     state.searchResults = [];
                     state.searchTruncated = false;
                     state.searchPerformed = true;
-                    renderSearchPanel();
+                    renderSearchResults();
                     showOperationError(err);
                 });
             }

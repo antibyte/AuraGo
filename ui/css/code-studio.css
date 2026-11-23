@@ -3740,3 +3740,266 @@ button.cs-git-branch:hover,
     flex: 0 0 auto;
     opacity: 0.8;
 }
+
+/* === IDE package 1C: replace === */
+/* The search panel head: a VS Code style chevron toggles the replace row under the search form. */
+.cs-search-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px;
+    align-items: center;
+    min-width: 0;
+}
+
+.cs-search-head > .cs-search-form {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.cs-search-replace-toggle {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    min-height: 30px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--cs-radius-sm);
+    background: transparent;
+    color: var(--cs-muted);
+    font: inherit;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cs-search-head[data-replace-open="true"] .cs-search-replace-toggle {
+    grid-row: 1 / span 2;
+}
+
+.cs-search-replace-toggle:hover {
+    background: var(--cs-hover);
+    color: var(--cs-text);
+}
+
+.cs-search-replace-toggle:focus-visible,
+.cs-replace-action:focus-visible,
+.cs-replace-preview:focus-visible {
+    outline: 2px solid var(--cs-accent-border);
+    outline-offset: 1px;
+}
+
+.cs-search-replace-toggle span {
+    display: inline-block;
+    transition: transform var(--cs-transition-fast);
+}
+
+.cs-search-replace-toggle[aria-expanded="true"] span {
+    transform: rotate(90deg);
+}
+
+.cs-search-replace-row {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.cs-search-replace-row input[name="replace"] {
+    flex: 1 1 220px;
+    min-width: 0;
+    max-width: 520px;
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid var(--vd-mat-field-border, var(--cs-border));
+    border-radius: var(--vd-mat-field-radius, var(--ds-radius-sm));
+    color: var(--cs-text);
+    background: var(--vd-mat-field, var(--cs-panel-soft));
+    box-shadow: var(--vd-mat-field-shadow, none);
+    font: inherit;
+    font-size: 12px;
+}
+
+.cs-search-replace-row input[name="replace"]:focus {
+    outline: none;
+    border-color: var(--cs-accent-border);
+}
+
+.cs-search-replace-hint {
+    flex: 1 1 200px;
+    min-width: 0;
+    color: var(--cs-muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cs-search-replace-hint:empty {
+    display: none;
+}
+
+.code-studio-search .cs-button:disabled,
+.cs-search-replace-row input:disabled,
+.cs-replace-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Results in replace mode: one header per file, one row per match. */
+.cs-replace-file {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 26px;
+    margin-top: 4px;
+    padding: 2px 6px;
+    border-radius: var(--ds-radius-sm);
+    background: var(--cs-accent-faint);
+}
+
+.cs-replace-file-name {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--cs-muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.cs-replace-file-name strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--cs-text);
+    font-weight: 600;
+}
+
+.cs-replace-count {
+    flex: 0 0 auto;
+    min-width: 18px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: var(--cs-accent-soft);
+    color: var(--cs-text);
+    font-size: 10px;
+    font-style: normal;
+    line-height: 16px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.cs-replace-match {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding-left: 12px;
+}
+
+.cs-replace-preview {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    min-height: 24px;
+    padding: 2px 6px;
+    border: 1px solid transparent;
+    border-radius: var(--ds-radius-sm);
+    background: transparent;
+    color: var(--cs-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.cs-replace-preview:hover {
+    border-color: var(--cs-accent-border);
+    background: var(--cs-hover);
+}
+
+.cs-replace-preview code {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+    color: var(--cs-text);
+    font: 12px/1.4 var(--cs-mono-font);
+}
+
+/* Old text struck through, new text after it. The ink follows the diff colours, readable in light and dark themes. */
+.cs-replace-old {
+    border-radius: 2px;
+    background: var(--cs-danger-soft);
+    color: light-dark(color-mix(in srgb, var(--cs-danger) 18%, var(--vd-text)), var(--cs-danger));
+    text-decoration: line-through;
+}
+
+.cs-replace-new {
+    border-radius: 2px;
+    background: var(--cs-accent-soft);
+    color: light-dark(color-mix(in srgb, var(--cs-accent) 18%, var(--vd-text)), var(--cs-accent));
+    text-decoration: none;
+}
+
+.cs-replace-nomatch {
+    flex: 0 0 auto;
+    color: var(--cs-muted);
+    font-size: 10px;
+    font-style: italic;
+}
+
+.cs-replace-match.is-nomatch code {
+    color: var(--cs-muted);
+}
+
+.cs-replace-action {
+    flex: 0 0 auto;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--vd-mat-btn-border, var(--cs-border));
+    border-radius: var(--cs-radius-sm);
+    background: var(--vd-mat-btn, var(--cs-panel-soft));
+    color: var(--vd-mat-btn-text, var(--cs-text));
+    font: inherit;
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.cs-replace-action:hover:not(:disabled) {
+    border-color: var(--cs-accent-border);
+    background: var(--vd-mat-btn-hover, var(--cs-accent-soft));
+}
+
+/* The button for one match shows on hover and keyboard focus, like VS Code; touch screens always show it. */
+.cs-replace-match .cs-replace-action {
+    opacity: 0;
+}
+
+.cs-replace-match:hover .cs-replace-action,
+.cs-replace-match:focus-within .cs-replace-action {
+    opacity: 1;
+}
+
+.cs-replace-match:hover .cs-replace-action:disabled,
+.cs-replace-match:focus-within .cs-replace-action:disabled {
+    opacity: 0.5;
+}
+
+@media (hover: none) {
+    .cs-replace-match .cs-replace-action {
+        opacity: 1;
+    }
+}

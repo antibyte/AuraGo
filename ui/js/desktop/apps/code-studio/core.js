@@ -644,6 +644,7 @@
         if (message) message.readOnly = !canWrite();
         const knowledge = state.root.querySelector('[data-action="knowledge"]');
         if (knowledge) knowledge.disabled = !window.AuraGoLearnings || typeof window.AuraGoLearnings.open !== 'function';
+        updateProjectReplaceControls();
     }
 
     function trapDialogFocus(overlay) {

@@ -226,6 +226,7 @@ const jsBundles = [
       'ui/js/desktop/apps/code-studio/find.js',
       'ui/js/desktop/apps/code-studio/outline.js',
       'ui/js/desktop/apps/code-studio/search.js',
+      'ui/js/desktop/apps/code-studio/replace.js',
       'ui/js/desktop/apps/code-studio/agent.js',
       'ui/js/desktop/apps/code-studio/git.js',
       'ui/js/desktop/apps/code-studio/git-history.js',
