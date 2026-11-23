@@ -73,7 +73,11 @@
             gitBranch: '',
             gitChanges: [],
             gitLog: [],
-            gitSelected: new Set(),
+            gitIsRepo: null,
+            gitHistory: [],
+            gitHistoryOpen: true,
+            gitHistoryPath: '',
+            gitHistoryRequest: null,
             gitCommitMessage: '',
             gitIdentityPrompt: false,
             gitIdentityName: '',
@@ -410,9 +414,10 @@
         }),
         gitStatus: () => api('/api/code-studio/git/status'),
         gitDiff: (file, staged) => api('/api/code-studio/git/diff?file=' + encodeURIComponent(file || '') + '&staged=' + (staged ? 'true' : 'false')),
-        gitCommit: (message, paths) => api('/api/code-studio/git/commit', {
+        // Commits the index as it is; addAll stages every change first, after the user confirmed it.
+        gitCommit: (message, options) => api('/api/code-studio/git/commit', {
             method: 'POST',
-            body: JSON.stringify({ message, add_all: false, paths: paths || [] })
+            body: JSON.stringify({ message, add_all: !!(options && options.addAll), staged_only: !(options && options.addAll), paths: [] })
         }),
         gitIdentity: (name, email) => api('/api/code-studio/git/identity', {
             method: 'POST',
@@ -633,7 +638,7 @@
             control.setAttribute('aria-disabled', String(disabled));
             control.tabIndex = disabled ? -1 : 0;
         });
-        state.root.querySelectorAll('[data-terminal-add], [data-terminal-stop], [data-git-commit], [data-git-select], [data-git-identity] input, [data-git-identity] button').forEach(control => { control.disabled = !canWrite(); });
+        state.root.querySelectorAll('[data-terminal-add], [data-terminal-stop], [data-git-commit], [data-git-write], [data-git-identity] input, [data-git-identity] button').forEach(control => { control.disabled = !canWrite(); });
         state.root.querySelectorAll('[data-code-action]').forEach(button => { button.disabled = policyDisables(button.dataset.codeAction); });
         const message = state.root.querySelector('[data-git-commit-msg]');
         if (message) message.readOnly = !canWrite();
@@ -1177,6 +1182,7 @@
         const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
         leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        if (state.gitIsRepo === true) leftItems.push(`<span class="cs-status-item cs-status-branch" data-clickable data-status-branch title="${esc(tr('codeStudio.gitBranchMenu', 'Switch, create or delete branches'))}">${gitBranchIconMarkup(12)}<span>${esc(state.gitBranch || tr('codeStudio.gitDetached', 'Detached HEAD'))}</span></span>`);
         const info = state.containerInfo || {};
         if (info.read_only) leftItems.push(`<span class="cs-status-item">${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>`);
         if (info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
@@ -1203,6 +1209,11 @@
         if (indent) indent.addEventListener('click', bind(() => openEditorSettings())); // IDE package 1A
         const problems = statusEl.querySelector('[data-status-problems]');
         if (problems) problems.addEventListener('click', bind(() => setActivePanel('problems')));
+        const branch = statusEl.querySelector('[data-status-branch]');
+        if (branch) branch.addEventListener('click', bind(() => {
+            const rect = branch.getBoundingClientRect();
+            showGitBranchMenu(rect.left, rect.top - 4);
+        }));
     }
 
     function flashStatus(message, duration) {

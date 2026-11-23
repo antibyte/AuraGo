@@ -254,6 +254,8 @@
             nextProblem,
             toggleAgentPanel,
             toggleGitPanel,
+            toggleGitBlame,
+            showGitFileHistory,
             toggleSearch,
             createNewFile,
             createNewFolder,

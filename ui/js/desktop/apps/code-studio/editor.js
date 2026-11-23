@@ -24,8 +24,9 @@
             return;
         }
         editor.innerHTML = '';
-        if (tab.kind === 'diff') {
-            renderGitDiffTab(editor, tab);
+        if (isVirtualTab(tab)) {
+            if (tab.kind === 'commit') renderGitCommitTab(editor, tab);
+            else renderGitDiffTab(editor, tab);
             editor.oncontextmenu = null;
             editor.onwheel = null;
             return;
@@ -142,7 +143,10 @@
         const settingsCompartment = new cm.Compartment();
         const scheme = new cm.Compartment();
         const policy = new cm.Compartment();
+        // Blame gutter of git-history.js, switched per view without rebuilding the editor.
+        const blame = new cm.Compartment();
         const extensions = [
+            blame.of(gitBlameExtensions(cm, tab)),
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
             cm.highlightSpecialChars && cm.highlightSpecialChars(),
@@ -253,6 +257,7 @@
         view.csSettings = settingsCompartment;
         view.csScheme = scheme;
         view.csPolicy = policy;
+        view.csBlame = blame;
         view.csLight = light;
         watchEditorScheme();
         return view;

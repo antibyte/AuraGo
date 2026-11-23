@@ -78,7 +78,11 @@
             gitBranch: '',
             gitChanges: [],
             gitLog: [],
-            gitSelected: new Set(),
+            gitIsRepo: null,
+            gitHistory: [],
+            gitHistoryOpen: true,
+            gitHistoryPath: '',
+            gitHistoryRequest: null,
             gitCommitMessage: '',
             gitIdentityPrompt: false,
             gitIdentityName: '',
@@ -415,9 +419,10 @@
         }),
         gitStatus: () => api('/api/code-studio/git/status'),
         gitDiff: (file, staged) => api('/api/code-studio/git/diff?file=' + encodeURIComponent(file || '') + '&staged=' + (staged ? 'true' : 'false')),
-        gitCommit: (message, paths) => api('/api/code-studio/git/commit', {
+        // Commits the index as it is; addAll stages every change first, after the user confirmed it.
+        gitCommit: (message, options) => api('/api/code-studio/git/commit', {
             method: 'POST',
-            body: JSON.stringify({ message, add_all: false, paths: paths || [] })
+            body: JSON.stringify({ message, add_all: !!(options && options.addAll), staged_only: !(options && options.addAll), paths: [] })
         }),
         gitIdentity: (name, email) => api('/api/code-studio/git/identity', {
             method: 'POST',
@@ -638,7 +643,7 @@
             control.setAttribute('aria-disabled', String(disabled));
             control.tabIndex = disabled ? -1 : 0;
         });
-        state.root.querySelectorAll('[data-terminal-add], [data-terminal-stop], [data-git-commit], [data-git-select], [data-git-identity] input, [data-git-identity] button').forEach(control => { control.disabled = !canWrite(); });
+        state.root.querySelectorAll('[data-terminal-add], [data-terminal-stop], [data-git-commit], [data-git-write], [data-git-identity] input, [data-git-identity] button').forEach(control => { control.disabled = !canWrite(); });
         state.root.querySelectorAll('[data-code-action]').forEach(button => { button.disabled = policyDisables(button.dataset.codeAction); });
         const message = state.root.querySelector('[data-git-commit-msg]');
         if (message) message.readOnly = !canWrite();
@@ -1182,6 +1187,7 @@
         const modifiedCount = state.openTabs.filter(item => item.modified).length;
         const leftItems = [];
         leftItems.push(`<span class="cs-status-item cs-status-container" title="${esc(containerStatusLabel())}"><span class="cs-status-dot" data-status="${esc(state.containerStatus || 'unknown')}"></span>${esc(containerStatusLabel())}</span>`);
+        if (state.gitIsRepo === true) leftItems.push(`<span class="cs-status-item cs-status-branch" data-clickable data-status-branch title="${esc(tr('codeStudio.gitBranchMenu', 'Switch, create or delete branches'))}">${gitBranchIconMarkup(12)}<span>${esc(state.gitBranch || tr('codeStudio.gitDetached', 'Detached HEAD'))}</span></span>`);
         const info = state.containerInfo || {};
         if (info.read_only) leftItems.push(`<span class="cs-status-item">${esc(tr('codeStudio.readOnly', 'Read-only'))}</span>`);
         if (info.network === 'none') leftItems.push(`<span class="cs-status-item" data-network="none">${esc(tr('codeStudio.networkOff', 'Network off'))}</span>`);
@@ -1208,6 +1214,11 @@
         if (indent) indent.addEventListener('click', bind(() => openEditorSettings())); // IDE package 1A
         const problems = statusEl.querySelector('[data-status-problems]');
         if (problems) problems.addEventListener('click', bind(() => setActivePanel('problems')));
+        const branch = statusEl.querySelector('[data-status-branch]');
+        if (branch) branch.addEventListener('click', bind(() => {
+            const rect = branch.getBoundingClientRect();
+            showGitBranchMenu(rect.left, rect.top - 4);
+        }));
     }
 
     function flashStatus(message, duration) {
@@ -2751,8 +2762,9 @@
             return;
         }
         editor.innerHTML = '';
-        if (tab.kind === 'diff') {
-            renderGitDiffTab(editor, tab);
+        if (isVirtualTab(tab)) {
+            if (tab.kind === 'commit') renderGitCommitTab(editor, tab);
+            else renderGitDiffTab(editor, tab);
             editor.oncontextmenu = null;
             editor.onwheel = null;
             return;
@@ -2869,7 +2881,10 @@
         const settingsCompartment = new cm.Compartment();
         const scheme = new cm.Compartment();
         const policy = new cm.Compartment();
+        // Blame gutter of git-history.js, switched per view without rebuilding the editor.
+        const blame = new cm.Compartment();
         const extensions = [
+            blame.of(gitBlameExtensions(cm, tab)),
             cm.lineNumbers && cm.lineNumbers(),
             cm.highlightActiveLineGutter && cm.highlightActiveLineGutter(),
             cm.highlightSpecialChars && cm.highlightSpecialChars(),
@@ -2980,6 +2995,7 @@
         view.csSettings = settingsCompartment;
         view.csScheme = scheme;
         view.csPolicy = policy;
+        view.csBlame = blame;
         view.csLight = light;
         watchEditorScheme();
         return view;
@@ -5111,6 +5127,108 @@
 
 ;
 /* ui/js/desktop/apps/code-studio/git.js */
+    // Source Control panel of Code Studio: staged and unstaged groups, commit, repository init
+    // and the branch menu. History, the commit tab and the blame gutter live in git-history.js.
+
+    function gitBranchIconMarkup(size) {
+        const pixels = Number(size) || 14;
+        return `<svg viewBox="0 0 16 16" width="${pixels}" height="${pixels}" fill="currentColor" aria-hidden="true" focusable="false"><path d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6.5a2 2 0 01-2 2H7.5v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.878h3a.5.5 0 00.5-.5v-1.128A2.251 2.251 0 019.5 3.25zM4.25 3.5a.75.75 0 100 1.5.75.75 0 000-1.5zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>`;
+    }
+
+    function gitChangeIsStaged(change) {
+        return change.staged === true || change.staged === 'true';
+    }
+
+    // One status entry with the porcelain index (X) and worktree (Y) characters. Entries
+    // without them (older servers, test fixtures) are derived from status and staged.
+    function normalizeGitChange(raw) {
+        const change = raw || {};
+        const status = String(change.status || '');
+        let index = typeof change.index === 'string' && change.index.length === 1 ? change.index : '';
+        let worktree = typeof change.worktree === 'string' && change.worktree.length === 1 ? change.worktree : '';
+        if (!index || !worktree) {
+            if (status === '??') {
+                index = '?';
+                worktree = '?';
+            } else if (gitChangeIsStaged(change)) {
+                index = status.charAt(0) || 'M';
+                worktree = ' ';
+            } else {
+                index = ' ';
+                worktree = status.charAt(0) || 'M';
+            }
+        }
+        return { path: String(change.path || ''), status, index, worktree };
+    }
+
+    // A file that is staged and changed again in the work tree is listed in both groups.
+    function gitChangeGroups() {
+        const staged = [];
+        const changes = [];
+        (state.gitChanges || []).forEach(raw => {
+            const change = normalizeGitChange(raw);
+            if (!change.path) return;
+            if (change.index !== ' ' && change.index !== '?') staged.push(change);
+            if (change.worktree !== ' ') changes.push(change);
+        });
+        return { staged, changes };
+    }
+
+    function gitChangeUntracked(change) {
+        return change.index === '?' && change.worktree === '?';
+    }
+
+    function gitStatusCode(change, staged) {
+        if (gitChangeUntracked(change)) return 'U';
+        return staged ? change.index : change.worktree;
+    }
+
+    function gitStatusClass(code) {
+        if (code === 'U' || code === '??') return 'untracked';
+        if (code === 'M') return 'modified';
+        if (code === 'A') return 'added';
+        if (code === 'D') return 'deleted';
+        return 'renamed';
+    }
+
+    function gitRowButton(attribute, value, label, glyph) {
+        const valueHtml = value === null ? '' : `="${esc(value)}"`;
+        return `<button type="button" class="cs-git-row-action" ${attribute}${valueHtml} data-git-write title="${esc(label)}" aria-label="${esc(label)}">${esc(glyph)}</button>`;
+    }
+
+    function gitChangeRowHtml(change, staged) {
+        const code = gitStatusCode(change, staged);
+        const trimmed = change.path.replace(/\/+$/, '');
+        const slash = trimmed.lastIndexOf('/');
+        const name = trimmed.slice(slash + 1) + (trimmed.length < change.path.length ? '/' : '');
+        const dir = slash > 0 ? trimmed.slice(0, slash) : '';
+        const actions = staged
+            ? gitRowButton('data-git-unstage', change.path, tr('codeStudio.gitUnstage', 'Unstage Changes'), '−')
+            : gitRowButton('data-git-discard', change.path, tr('codeStudio.discardChanges', 'Discard Changes'), '↶')
+                + gitRowButton('data-git-stage', change.path, tr('codeStudio.gitStage', 'Stage Changes'), '+');
+        return `<div class="cs-git-change-row">
+                <button type="button" class="cs-git-change" data-git-file="${esc(change.path)}" data-git-staged="${staged ? 'true' : 'false'}" title="${esc(change.path)}">
+                    <span class="cs-git-status ${gitStatusClass(code)}">${esc(code)}</span>
+                    <span class="cs-git-filename">${esc(name)}</span>
+                    ${dir ? `<span class="cs-git-dir">${esc(dir)}</span>` : ''}
+                </button>
+                <span class="cs-git-row-actions">${actions}</span>
+            </div>`;
+    }
+
+    function gitGroupHtml(kind, title, changes, staged) {
+        const bulk = staged
+            ? gitRowButton('data-git-unstage-all', null, tr('codeStudio.gitUnstageAll', 'Unstage All Changes'), '−')
+            : gitRowButton('data-git-stage-all', null, tr('codeStudio.gitStageAll', 'Stage All Changes'), '+');
+        const rows = changes.length
+            ? changes.map(change => gitChangeRowHtml(change, staged)).join('')
+            : `<div class="cs-git-empty">${esc(tr('codeStudio.noChanges', 'No changes'))}</div>`;
+        return `<div class="cs-git-section" data-git-section="${kind}">
+                <div class="cs-git-section-head"><span class="cs-git-section-title">${esc(title)}</span><span class="cs-git-count">${changes.length}</span>${changes.length ? `<span class="cs-git-section-actions">${bulk}</span>` : ''}</div>
+                <div class="cs-git-changes">${rows}</div>
+            </div>`;
+    }
+
     function renderGitPanel() {
         const panel = shellPart('[data-git-panel]');
         if (!panel) return;
@@ -5119,77 +5237,94 @@
             return;
         }
         panel.hidden = false;
-        const branchHtml = state.gitBranch
-            ? `<div class="cs-git-branch"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6.5a2 2 0 01-2 2H7.5v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.878h3a.5.5 0 00.5-.5v-1.128A2.251 2.251 0 019.5 3.25zM4.25 3.5a.75.75 0 100 1.5.75.75 0 000-1.5zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg><span>${esc(state.gitBranch)}</span></div>`
-            : `<div class="cs-git-branch">${esc(tr('codeStudio.noRepo', 'No git repository'))}</div>`;
-
-        if (!(state.gitSelected instanceof Set)) state.gitSelected = new Set();
-        const changesHtml = state.gitChanges.length
-            ? state.gitChanges.map(change => {
-                const statusClass = change.status === '??' ? 'untracked' : change.status === 'M' ? 'modified' : change.status === 'A' ? 'added' : change.status === 'D' ? 'deleted' : 'renamed';
-                const statusLabel = change.status === '??' ? 'U' : change.status;
-                const checked = state.gitSelected.has(change.path) ? ' checked' : '';
-                return `<div class="cs-git-change-row">
-                    <input type="checkbox" class="cs-git-check" data-git-select="${esc(change.path)}"${checked} aria-label="${esc(tr('codeStudio.selectChange', 'Select {{path}}', { path: change.path }))}">
-                    <button type="button" class="cs-git-change" data-git-file="${esc(change.path)}" title="${esc(change.path)}">
-                        <span class="cs-git-status ${statusClass}">${esc(statusLabel)}</span>
-                        <span class="cs-git-filename">${esc(change.path.split('/').pop())}</span>
-                    </button>
-                </div>`;
-            }).join('')
-            : `<div class="cs-git-empty">${esc(tr('codeStudio.noChanges', 'No changes'))}</div>`;
-
-        const logHtml = state.gitLog.length
-            ? state.gitLog.slice(0, 10).map(entry => `<div class="cs-git-log-entry"><span class="cs-git-hash">${esc(entry.hash)}</span> <span>${esc(entry.message)}</span></div>`).join('')
-            : '';
-
-        panel.innerHTML = `<div class="cs-git-head">
+        // A refresh re-renders the panel: the commit message keeps focus and caret, the list its scroll position.
+        const focused = document.activeElement;
+        const keepFocus = !!focused && panel.contains(focused) && focused.matches('[data-git-commit-msg]');
+        const caret = keepFocus ? [focused.selectionStart, focused.selectionEnd] : null;
+        const scrollTop = panel.scrollTop;
+        const head = `<div class="cs-git-head">
             <strong>${esc(tr('codeStudio.gitPanel', 'Source Control'))}</strong>
             <button type="button" class="cs-icon-button" data-git-refresh title="${esc(tr('codeStudio.refresh', 'Refresh'))}">${iconMarkup('refresh', 'R', 'cs-icon-button-icon', 14)}</button>
             <button type="button" class="cs-icon-button" data-git-close title="${esc(tr('codeStudio.closeTab', 'Close'))}">${iconMarkup('x', 'X', 'cs-icon-button-icon', 14)}</button>
-        </div>
-        ${branchHtml}
-        <div class="cs-git-section">
-            <div class="cs-git-section-head">${esc(tr('codeStudio.changes', 'Changes'))} <span class="cs-git-count">${state.gitChanges.length}</span></div>
-            <div class="cs-git-changes">${changesHtml}</div>
-        </div>
-        <div class="cs-git-commit-area">
-            <textarea class="cs-git-commit-msg" data-git-commit-msg placeholder="${esc(tr('codeStudio.commitMessage', 'Commit message...'))}" rows="3">${esc(state.gitCommitMessage || '')}</textarea>
-            <div class="cs-git-commit-actions">
-                <button type="button" class="cs-button primary" data-git-commit>${esc(tr('codeStudio.commit', 'Commit'))}</button>
-            </div>
-            ${state.gitIdentityPrompt ? `<form class="cs-git-identity" data-git-identity>
-                <p>${esc(tr('codeStudio.gitIdentityHint', 'Git needs your name and email for this repository.'))}</p>
-                <input name="name" value="${esc(state.gitIdentityName || '')}" placeholder="${esc(tr('codeStudio.identityName', 'Your name'))}" autocomplete="name" maxlength="200">
-                <input name="email" type="email" value="${esc(state.gitIdentityEmail || '')}" placeholder="${esc(tr('codeStudio.identityEmail', 'Your email'))}" autocomplete="email" maxlength="200">
-                <button type="submit" class="cs-button">${esc(tr('codeStudio.saveIdentity', 'Save identity'))}</button>
-            </form>` : ''}
-        </div>
-        ${logHtml ? `<div class="cs-git-section"><div class="cs-git-section-head">${esc(tr('codeStudio.gitLog', 'Recent Commits'))}</div><div class="cs-git-log">${logHtml}</div></div>` : ''}`;
+        </div>`;
+        if (state.gitIsRepo === false) {
+            panel.innerHTML = `${head}
+                <div class="cs-git-init">
+                    <p>${esc(tr('codeStudio.noRepo', 'No git repository'))}</p>
+                    <button type="button" class="cs-button primary" data-git-init data-git-write>${esc(tr('codeStudio.gitInitRepo', 'Initialize Repository'))}</button>
+                </div>`;
+        } else {
+            const groups = gitChangeGroups();
+            const branchHtml = state.gitIsRepo === true
+                ? `<button type="button" class="cs-git-branch" data-git-branch title="${esc(tr('codeStudio.gitBranchMenu', 'Switch, create or delete branches'))}">${gitBranchIconMarkup(14)}<span>${esc(state.gitBranch || tr('codeStudio.gitDetached', 'Detached HEAD'))}</span></button>`
+                : '';
+            const identityHtml = state.gitIdentityPrompt ? `<form class="cs-git-identity" data-git-identity>
+                    <p>${esc(tr('codeStudio.gitIdentityHint', 'Git needs your name and email for this repository.'))}</p>
+                    <input name="name" value="${esc(state.gitIdentityName || '')}" placeholder="${esc(tr('codeStudio.identityName', 'Your name'))}" autocomplete="name" maxlength="200">
+                    <input name="email" type="email" value="${esc(state.gitIdentityEmail || '')}" placeholder="${esc(tr('codeStudio.identityEmail', 'Your email'))}" autocomplete="email" maxlength="200">
+                    <button type="submit" class="cs-button">${esc(tr('codeStudio.saveIdentity', 'Save identity'))}</button>
+                </form>` : '';
+            panel.innerHTML = `${head}
+                ${branchHtml}
+                <div class="cs-git-commit-area">
+                    <textarea class="cs-git-commit-msg" data-git-commit-msg placeholder="${esc(tr('codeStudio.commitMessage', 'Commit message...'))}" rows="3">${esc(state.gitCommitMessage || '')}</textarea>
+                    <div class="cs-git-commit-actions">
+                        <button type="button" class="cs-button primary" data-git-commit>${esc(tr('codeStudio.commit', 'Commit'))}</button>
+                    </div>
+                    ${identityHtml}
+                </div>
+                ${groups.staged.length ? gitGroupHtml('staged', tr('codeStudio.gitStagedChanges', 'Staged Changes'), groups.staged, true) : ''}
+                ${gitGroupHtml('changes', tr('codeStudio.changes', 'Changes'), groups.changes, false)}
+                ${state.gitIsRepo === true ? gitHistorySectionHtml() : ''}`;
+        }
+        wireGitPanel(panel);
+        panel.scrollTop = scrollTop;
+        const message = panel.querySelector('[data-git-commit-msg]');
+        if (keepFocus && message) {
+            message.focus();
+            message.setSelectionRange(caret[0], caret[1]);
+        }
+        updatePolicyControls();
+    }
 
-        panel.querySelector('[data-git-close]').addEventListener('click', bind(toggleGitPanel));
-        panel.querySelector('[data-git-refresh]').addEventListener('click', bind(refreshGitStatus));
-        panel.querySelector('[data-git-commit]').addEventListener('click', bind(commitGitChanges));
+    function wireGitPanel(panel) {
+        const onClick = (selector, handler) => {
+            const element = panel.querySelector(selector);
+            if (element) element.addEventListener('click', bind(handler));
+        };
+        onClick('[data-git-close]', toggleGitPanel);
+        onClick('[data-git-refresh]', refreshGitStatus);
+        onClick('[data-git-init]', initGitRepository);
+        onClick('[data-git-commit]', commitGitChanges);
+        onClick('[data-git-stage-all]', () => stageGitPaths(gitChangeGroups().changes.map(change => change.path)));
+        onClick('[data-git-unstage-all]', () => unstageGitPaths(gitChangeGroups().staged.map(change => change.path)));
+        const branch = panel.querySelector('[data-git-branch]');
+        if (branch) branch.addEventListener('click', bind(() => {
+            const rect = branch.getBoundingClientRect();
+            showGitBranchMenu(rect.left, rect.bottom + 2);
+        }));
         const messageBox = panel.querySelector('[data-git-commit-msg]');
         if (messageBox) messageBox.addEventListener('input', bind(() => {
             state.gitCommitMessage = messageBox.value;
         }));
-        panel.querySelectorAll('[data-git-select]').forEach(box => {
-            box.addEventListener('change', bind(() => {
-                if (!(state.gitSelected instanceof Set)) state.gitSelected = new Set();
-                if (box.checked) state.gitSelected.add(box.dataset.gitSelect);
-                else state.gitSelected.delete(box.dataset.gitSelect);
-            }));
-        });
-        updatePolicyControls();
         const identityForm = panel.querySelector('[data-git-identity]');
         if (identityForm) identityForm.addEventListener('submit', bind(event => {
             event.preventDefault();
             saveGitIdentity(new FormData(event.currentTarget));
         }));
         panel.querySelectorAll('[data-git-file]').forEach(btn => {
-            btn.addEventListener('click', bind(() => openGitDiff(btn.dataset.gitFile)));
+            btn.addEventListener('click', bind(() => openGitDiff(btn.dataset.gitFile, btn.dataset.gitStaged === 'true')));
         });
+        panel.querySelectorAll('[data-git-stage]').forEach(btn => {
+            btn.addEventListener('click', bind(() => stageGitPaths([btn.dataset.gitStage])));
+        });
+        panel.querySelectorAll('[data-git-unstage]').forEach(btn => {
+            btn.addEventListener('click', bind(() => unstageGitPaths([btn.dataset.gitUnstage])));
+        });
+        panel.querySelectorAll('[data-git-discard]').forEach(btn => {
+            btn.addEventListener('click', bind(() => discardGitChange(btn.dataset.gitDiscard)));
+        });
+        wireGitHistorySection(panel);
     }
 
     function toggleGitPanel() {
@@ -5219,22 +5354,30 @@
             const result = await apiClient.gitStatus();
             if (!isLiveInstance(target) || target.gitRequest !== request) return;
             runWithInstance(target, () => {
+                state.gitIsRepo = result.is_repo !== false;
                 state.gitBranch = result.branch || '';
-                state.gitChanges = result.changes || [];
-                state.gitLog = result.log || [];
-                rememberGitSelection(state.gitChanges);
+                state.gitChanges = Array.isArray(result.changes) ? result.changes : [];
+                state.gitLog = Array.isArray(result.log) ? result.log : [];
                 renderGitPanel();
                 renderActivityBar();
                 renderStatus();
+                if (!state.gitIsRepo) return;
+                refreshGitHistory();
+                // A refresh follows every save, stage, commit and checkout: blame is read again
+                // for each tab that shows it and has no unsaved edits.
+                state.openTabs.forEach(tab => {
+                    if (tab.blameOn && !tab.modified) refreshGitBlame(tab);
+                });
             });
         } catch (err) {
             if (isLiveInstance(target) && target.gitRequest === request) {
                 runWithInstance(target, () => {
+                    state.gitIsRepo = null;
                     state.gitBranch = '';
                     state.gitChanges = [];
                     state.gitLog = [];
-                    state.gitSelected = new Set();
                     renderGitPanel();
+                    renderStatus();
                 });
             }
         }
@@ -5271,11 +5414,15 @@
         }
     }
 
-    function renderGitDiffTab(editor, tab) {
-        const diffHtml = tab.content.split('\n').map(line => {
+    // The diff renderer of the diff tab and of the commit tab.
+    function diffLinesHtml(text) {
+        return String(text || '').split('\n').map(line => {
             const style = line.startsWith('+') && !line.startsWith('+++') ? 'added' : line.startsWith('-') && !line.startsWith('---') ? 'removed' : line.startsWith('@@') ? 'context' : '';
             return `<span class="cs-diff-line ${style}">${esc(line)}</span>`;
         }).join('');
+    }
+
+    function renderGitDiffTab(editor, tab) {
         editor.innerHTML = `<div class="cs-diff-view">
             <div class="cs-diff-view-head">
                 <span class="cs-diff-view-title"><strong>${esc(baseName(tab.path))}</strong><span class="cs-diff-badge">${esc(tr('codeStudio.gitDiff', 'Git Diff'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span></span>
@@ -5283,20 +5430,10 @@
                 <select data-diff-source aria-label="${esc(tr('codeStudio.gitDiff', 'Git Diff'))}"><option value="worktree"${tab.staged ? '' : ' selected'}>${esc(tr('codeStudio.diffWorktree', 'Working tree'))}</option><option value="index"${tab.staged ? ' selected' : ''}>${esc(tr('codeStudio.diffIndex', 'Index'))}</option></select>
                 <button type="button" class="cs-icon-button" data-diff-close aria-label="${esc(tr('desktop.close', 'Close'))}">×</button>
             </div>
-            <div class="cs-diff-content">${tab.loading ? esc(tr('codeStudio.starting', 'Starting...')) : tab.content ? diffHtml : esc(tr('codeStudio.noChanges', 'No changes'))}</div>
+            <div class="cs-diff-content">${tab.loading ? esc(tr('codeStudio.starting', 'Starting...')) : tab.content ? diffLinesHtml(tab.content) : esc(tr('codeStudio.noChanges', 'No changes'))}</div>
         </div>`;
         editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => closeTab(state.openTabs.indexOf(tab))));
         editor.querySelector('[data-diff-source]').addEventListener('change', bind(event => openGitDiff(tab.gitPath, event.target.value === 'index')));
-    }
-
-    function rememberGitSelection(changes) {
-        if (!(state.gitSelected instanceof Set)) state.gitSelected = new Set();
-        const live = new Set((changes || []).map(change => change.path));
-        state.gitSelected = new Set([...state.gitSelected].filter(path => live.has(path)));
-    }
-
-    function gitChangeIsStaged(change) {
-        return change.staged === true || change.staged === 'true';
     }
 
     async function commitGitChanges() {
@@ -5309,22 +5446,27 @@
             renderStatus(tr('codeStudio.commitMessage', 'Commit message...'));
             return;
         }
-        if (!(state.gitSelected instanceof Set)) state.gitSelected = new Set();
-        const paths = [...state.gitSelected];
-        const hasStaged = (state.gitChanges || []).some(gitChangeIsStaged);
-        if (!paths.length && !hasStaged) {
-            renderStatus(tr('codeStudio.commitNeedsSelection', 'Select at least one change, or commit files that are already staged.'));
+        const groups = gitChangeGroups();
+        if (!groups.staged.length && !groups.changes.length) {
+            flashStatus(tr('codeStudio.noChanges', 'No changes'));
             return;
         }
+        // Commit takes the index as it is. Only with nothing staged does it offer to stage everything first.
+        let addAll = false;
+        if (!groups.staged.length) {
+            const confirmed = await confirmValue(tr('codeStudio.gitStageAllAndCommit', 'Stage all changes and commit?'), { confirmLabel: tr('codeStudio.commit', 'Commit'), confirmIcon: 'check-square' });
+            if (!confirmed || !canWrite(target)) return;
+            addAll = true;
+        }
         try {
-            const result = await apiClient.gitCommit(message, paths);
+            const result = await apiClient.gitCommit(message, { addAll });
             if (!canWrite(target)) return;
             runWithInstance(target, () => {
                 flashStatus(tr('codeStudio.committed', 'Committed') + ': ' + (result.hash || '').slice(0, 7), 4000);
                 state.gitCommitMessage = '';
                 state.gitIdentityPrompt = false;
-                state.gitSelected = new Set();
-                if (msgInput) msgInput.value = '';
+                const box = shellPart('[data-git-commit-msg]');
+                if (box) box.value = '';
                 refreshGitStatus();
             });
         } catch (err) {
@@ -5335,7 +5477,7 @@
                     renderGitPanel();
                     return;
                 }
-                renderStatus(err.message || String(err));
+                showGitError(err);
             });
         }
     }
@@ -5361,6 +5503,458 @@
             });
         } catch (err) {
             if (isLiveInstance(target)) runWithInstance(target, () => renderStatus(err.message || String(err)));
+        }
+    }
+
+    async function runGitPathAction(action, paths) {
+        const target = state;
+        const list = (paths || []).filter(Boolean);
+        if (!canWrite(target) || !list.length) return false;
+        const request = action === 'stage' ? apiClient.gitStage : action === 'unstage' ? apiClient.gitUnstage : apiClient.gitDiscard;
+        try {
+            await request(list);
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => {
+                showGitError(err);
+                refreshGitStatus();
+            });
+            return false;
+        }
+        if (!isLiveInstance(target)) return false;
+        runWithInstance(target, () => {
+            refreshGitStatus();
+            if (action === 'discard') refreshGitWorkspaceView();
+        });
+        return true;
+    }
+
+    function stageGitPaths(paths) {
+        return runGitPathAction('stage', paths);
+    }
+
+    function unstageGitPaths(paths) {
+        return runGitPathAction('unstage', paths);
+    }
+
+    async function discardGitChange(path) {
+        const target = state;
+        if (!canWrite(target) || !path) return;
+        const change = gitChangeGroups().changes.find(item => item.path === path);
+        const message = change && gitChangeUntracked(change)
+            ? tr('codeStudio.gitDiscardUntrackedConfirm', 'The untracked file {{name}} will be deleted. This cannot be undone.', { name: path })
+            : tr('codeStudio.gitDiscardConfirm', 'Discard the changes in {{name}}? This cannot be undone.', { name: path });
+        const confirmed = await confirmValue(message, { confirmLabel: tr('codeStudio.discard', 'Discard'), confirmIcon: 'x' });
+        if (!confirmed || !canWrite(target)) return;
+        await runWithInstance(target, () => runGitPathAction('discard', [path]));
+    }
+
+    async function initGitRepository() {
+        const target = state;
+        if (!canWrite(target)) return;
+        try {
+            await apiClient.gitInit();
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => {
+                showGitError(err);
+                refreshGitStatus();
+            });
+            return;
+        }
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            flashStatus(tr('codeStudio.gitInitialized', 'Initialized an empty Git repository'), 4000);
+            refreshGitStatus();
+        });
+    }
+
+    // Git's own message is shown verbatim: in full in the Output panel, its first line in the status bar.
+    function showGitError(err) {
+        const message = String(err && err.message ? err.message : err || '').trim();
+        if (!message) return;
+        appendOutput(message, 'git');
+        setActivePanel('output');
+        flashStatus(message.split('\n')[0], 8000);
+    }
+
+    // After a checkout or a discard the files on disk changed. Clean tabs read their file
+    // again; reloadCleanTabFromDisk leaves tabs with unsaved edits alone. The tree is listed again.
+    async function refreshGitWorkspaceView() {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        target.openTabs.forEach(tab => { reloadCleanTabFromDisk(target, tab); });
+        await runAsyncStep(target, () => refreshFiles(target.currentPath));
+        for (const dir of [...target.expandedDirs]) {
+            if (!isLiveInstance(target)) return;
+            if (dir === target.currentPath) continue;
+            try {
+                const result = await apiClient.files(dir);
+                if (!isLiveInstance(target)) return;
+                target.treeCache[dir] = sortTreeEntries(result.files || []);
+            } catch (_) {
+                // The folder does not exist on this branch.
+                delete target.treeCache[dir];
+                target.expandedDirs.delete(dir);
+            }
+        }
+        if (isLiveInstance(target)) runWithInstance(target, renderSidebar);
+    }
+
+    async function showGitBranchMenu(x, y) {
+        const target = state;
+        if (!isLiveInstance(target)) return;
+        let result;
+        try {
+            result = await apiClient.gitBranch();
+        } catch (err) {
+            if (isLiveInstance(target)) runWithInstance(target, () => showGitError(err));
+            return;
+        }
+        if (!isLiveInstance(target)) return;
+        runWithInstance(target, () => {
+            const current = String(result && result.current || '');
+            const local = (result && Array.isArray(result.branches) ? result.branches : [])
+                .map(name => String(name || '').trim())
+                .filter(name => name && !name.startsWith('remotes/') && !name.startsWith('('));
+            const writable = canWrite();
+            const items = local.map((name, index) => ({
+                id: 'git-branch-switch-' + index, label: name, icon: 'network', checked: name === current,
+                disabled: !writable || name === current, action: bind(() => changeGitBranch(name, 'switch'))
+            }));
+            if (items.length) items.push({ separator: true });
+            items.push({ id: 'git-branch-create', label: tr('codeStudio.gitCreateBranch', 'Create new branch...'), icon: 'file-plus', disabled: !writable, action: bind(createGitBranch) });
+            // The current branch is never offered for deletion.
+            const removable = local.filter(name => name !== current);
+            if (removable.length) items.push({ separator: true });
+            removable.forEach((name, index) => items.push({
+                id: 'git-branch-delete-' + index, label: tr('codeStudio.gitDeleteBranch', 'Delete branch {{name}}', { name }), icon: 'trash',
+                disabled: !writable, action: bind(() => deleteGitBranch(name))
+            }));
+            showStudioContextMenu(x, y, items);
+        });
+    }
+
+    async function changeGitBranch(name, action) {
+        const target = state;
+        if (!canWrite(target) || !name) return false;
+        try {
+            const result = await apiClient.gitBranch(name, action);
+            if (!isLiveInstance(target)) return false;
+            runWithInstance(target, () => {
+                const message = action === 'delete'
+                    ? tr('codeStudio.gitBranchDeleted', 'Deleted branch {{name}}', { name })
+                    : tr('codeStudio.gitSwitchedBranch', 'Switched to {{name}}', { name: result && result.current || name });
+                flashStatus(message, 4000);
+                refreshGitStatus();
+                if (action !== 'delete') refreshGitWorkspaceView();
+            });
+            return true;
+        } catch (err) {
+            // Checkout errors such as "local changes would be overwritten" are shown verbatim.
+            if (isLiveInstance(target)) runWithInstance(target, () => showGitError(err));
+            return false;
+        }
+    }
+
+    async function createGitBranch() {
+        const target = state;
+        if (!canWrite(target)) return;
+        const name = String(await promptValue(tr('codeStudio.gitNewBranchName', 'New branch name'), '') || '').trim();
+        if (!name || !canWrite(target)) return;
+        await runWithInstance(target, () => changeGitBranch(name, 'create'));
+    }
+
+    async function deleteGitBranch(name) {
+        const target = state;
+        if (!canWrite(target) || !name || name === target.gitBranch) return;
+        const confirmed = await confirmValue(tr('codeStudio.gitDeleteBranchConfirm', 'Delete branch {{name}}? Git refuses to delete branches that are not merged.', { name }));
+        if (!confirmed || !canWrite(target)) return;
+        await runWithInstance(target, () => changeGitBranch(name, 'delete'));
+    }
+
+;
+/* ui/js/desktop/apps/code-studio/git-history.js */
+    // Git history list, read-only commit tab and blame gutter of Code Studio. The Source Control
+    // panel itself is in git.js; both fragments share the studio IIFE opened by core.js.
+
+    let gitBlameMarkerType = null;
+    let gitBlameMarkerBase = null;
+
+    function gitRelativeDate(value) {
+        const stamp = Date.parse(value || '');
+        if (!Number.isFinite(stamp)) return '';
+        const seconds = Math.round((stamp - Date.now()) / 1000);
+        const units = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
+        try {
+            const format = new Intl.RelativeTimeFormat(window.SYSTEM_LANG || document.documentElement.lang || undefined, { numeric: 'auto' });
+            for (const [unit, size] of units) {
+                if (Math.abs(seconds) >= size) return format.format(Math.round(seconds / size), unit);
+            }
+            return format.format(seconds, 'second');
+        } catch (_) {
+            return new Date(stamp).toLocaleDateString();
+        }
+    }
+
+    function gitAbsoluteDate(value) {
+        const stamp = Date.parse(value || '');
+        return Number.isFinite(stamp) ? new Date(stamp).toLocaleString() : String(value || '');
+    }
+
+    function gitHistorySectionHtml() {
+        const open = state.gitHistoryOpen !== false;
+        const showAll = tr('codeStudio.gitHistoryShowAll', 'Show all commits');
+        const filter = state.gitHistoryPath
+            ? `<div class="cs-git-history-filter"><span title="${esc(state.gitHistoryPath)}">${esc(tr('codeStudio.gitHistoryFor', 'History of {{name}}', { name: baseName(state.gitHistoryPath) }))}</span><button type="button" data-git-history-clear title="${esc(showAll)}" aria-label="${esc(showAll)}">×</button></div>`
+            : '';
+        const entries = (state.gitHistory || []).map(entry => {
+            const hash = String(entry.hash || '');
+            const meta = [entry.author || '', gitRelativeDate(entry.date)].filter(Boolean).join(' · ');
+            return `<button type="button" class="cs-git-history-entry" data-git-commit-hash="${esc(hash)}" title="${esc(entry.message || '')}">
+                    <span class="cs-git-hash">${esc(entry.short || hash.slice(0, 7))}</span>
+                    <span class="cs-git-history-subject">${esc(entry.message || '')}</span>
+                    <span class="cs-git-history-meta">${esc(meta)}</span>
+                </button>`;
+        }).join('');
+        const list = entries || `<div class="cs-git-empty">${esc(tr('codeStudio.gitNoCommits', 'No commits yet'))}</div>`;
+        return `<div class="cs-git-section" data-git-section="history">
+                <button type="button" class="cs-git-history-toggle" data-git-history-toggle aria-expanded="${open ? 'true' : 'false'}"><span class="cs-git-chevron" aria-hidden="true">▾</span><span>${esc(tr('codeStudio.gitHistory', 'History'))}</span></button>
+                ${open ? filter + `<div class="cs-git-history-list">${list}</div>` : ''}
+            </div>`;
+    }
+
+    function wireGitHistorySection(panel) {
+        const toggle = panel.querySelector('[data-git-history-toggle]');
+        if (toggle) toggle.addEventListener('click', bind(() => {
+            state.gitHistoryOpen = state.gitHistoryOpen === false;
+            renderGitPanel();
+            if (state.gitHistoryOpen) refreshGitHistory();
+        }));
+        const clear = panel.querySelector('[data-git-history-clear]');
+        if (clear) clear.addEventListener('click', bind(() => {
+            state.gitHistoryPath = '';
+            renderGitPanel();
+            refreshGitHistory();
+        }));
+        panel.querySelectorAll('[data-git-commit-hash]').forEach(btn => {
+            btn.addEventListener('click', bind(() => openGitCommit(btn.dataset.gitCommitHash)));
+        });
+    }
+
+    async function refreshGitHistory() {
+        const target = state;
+        if (!isLiveInstance(target) || !target.gitVisible || target.gitHistoryOpen === false || target.gitIsRepo !== true) return;
+        const request = target.gitHistoryRequest = Symbol();
+        try {
+            const result = await apiClient.gitLog(target.gitHistoryPath, 50);
+            if (!isLiveInstance(target) || target.gitHistoryRequest !== request) return;
+            runWithInstance(target, () => {
+                state.gitHistory = Array.isArray(result.log) ? result.log : [];
+                renderGitPanel();
+            });
+        } catch (_) {
+            if (!isLiveInstance(target) || target.gitHistoryRequest !== request) return;
+            runWithInstance(target, () => {
+                state.gitHistory = [];
+                renderGitPanel();
+            });
+        }
+    }
+
+    // Command "Git: File History": the History list shows the commits of the active file.
+    function showGitFileHistory() {
+        const tab = activeTab();
+        if (!tab || isVirtualTab(tab)) return;
+        state.gitHistoryPath = tab.path;
+        state.gitHistoryOpen = true;
+        if (!state.gitVisible) {
+            toggleGitPanel();
+            return;
+        }
+        renderGitPanel();
+        refreshGitHistory();
+    }
+
+    async function openGitCommit(hash) {
+        const target = state;
+        const id = String(hash || '').trim();
+        if (!isLiveInstance(target) || !/^[0-9a-fA-F]{4,40}$/.test(id) || /^0+$/.test(id)) return;
+        let tab = target.openTabs.find(item => item.kind === 'commit' && item.hash === id);
+        if (!tab) {
+            tab = { kind: 'commit', hash: id, short: id.slice(0, 7), path: 'commit ' + id.slice(0, 7), content: '', modified: false, commit: null, loading: true, error: '' };
+            target.openTabs.push(tab);
+        }
+        activateTab(target.openTabs.indexOf(tab));
+        if (tab.commit) return;
+        tab.loading = true;
+        const request = tab.commitRequest = Symbol();
+        try {
+            const result = await apiClient.gitShow(id);
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.commitRequest !== request) return;
+            runWithInstance(target, () => {
+                tab.commit = result;
+                tab.loading = false;
+                tab.short = result.short || tab.short;
+                if (activeTab() === tab) renderEditor();
+            });
+        } catch (err) {
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.commitRequest !== request) return;
+            runWithInstance(target, () => {
+                tab.loading = false;
+                tab.error = err.message || String(err);
+                if (activeTab() === tab) renderEditor();
+            });
+        }
+    }
+
+    function renderGitCommitTab(editor, tab) {
+        const commit = tab.commit;
+        const short = commit && commit.short || tab.short || String(tab.hash || '').slice(0, 7);
+        let body;
+        if (!commit) {
+            body = `<div class="cs-diff-content">${esc(tab.loading ? tr('codeStudio.gitLoadingCommit', 'Loading commit...') : tab.error || '')}</div>`;
+        } else {
+            const files = Array.isArray(commit.files) ? commit.files : [];
+            const filesHtml = files.map(file => `<div class="cs-git-commit-file"><span class="cs-git-status ${gitStatusClass(String(file.status || ''))}">${esc(file.status || '')}</span><span class="cs-git-filename">${esc(file.path || '')}</span></div>`).join('');
+            body = `<div class="cs-git-commit-meta">
+                    <div class="cs-git-commit-subject">${esc(commit.subject || '')}</div>
+                    ${commit.body ? `<pre class="cs-git-commit-body">${esc(commit.body)}</pre>` : ''}
+                    <div class="cs-git-commit-facts">
+                        <span class="cs-git-hash">${esc(commit.hash || '')}</span>
+                        <span>${esc(commit.author || '')}${commit.email ? ' &lt;' + esc(commit.email) + '&gt;' : ''}</span>
+                        <span title="${esc(commit.date || '')}">${esc(gitAbsoluteDate(commit.date))}</span>
+                    </div>
+                    <div class="cs-git-commit-files">
+                        <div class="cs-git-commit-files-head">${esc(tr('codeStudio.gitChangedFiles', 'Changed files ({{count}})', { count: files.length }))}</div>
+                        ${filesHtml}
+                    </div>
+                </div>
+                <div class="cs-diff-content">${commit.diff ? diffLinesHtml(commit.diff) : esc(tr('codeStudio.noChanges', 'No changes'))}${commit.truncated ? `<div class="cs-git-truncated">${esc(tr('codeStudio.gitDiffTruncated', 'The diff is too large and was cut off.'))}</div>` : ''}</div>`;
+        }
+        editor.innerHTML = `<div class="cs-diff-view" data-git-commit-view>
+            <div class="cs-diff-view-head">
+                <span class="cs-diff-view-title"><strong>${esc(short)}</strong><span class="cs-diff-badge">${esc(tr('codeStudio.commit', 'Commit'))} · ${esc(tr('codeStudio.readOnly', 'Read-only'))}</span></span>
+                <span class="cs-diff-view-spacer"></span>
+                <button type="button" class="cs-icon-button" data-diff-close aria-label="${esc(tr('desktop.close', 'Close'))}">×</button>
+            </div>
+            ${body}
+        </div>`;
+        editor.querySelector('[data-diff-close]').addEventListener('click', bind(() => closeTab(state.openTabs.indexOf(tab))));
+    }
+
+    function gitBlameUncommitted(entry) {
+        return !entry || /^0+$/.test(String(entry.hash || ''));
+    }
+
+    // GutterMarker comes from the dynamically imported CodeMirror bundle, so the subclass is built on first use.
+    function gitBlameMarkerClass(cm) {
+        if (gitBlameMarkerType && gitBlameMarkerBase === cm.GutterMarker) return gitBlameMarkerType;
+        gitBlameMarkerBase = cm.GutterMarker;
+        gitBlameMarkerType = class GitBlameMarker extends cm.GutterMarker {
+            constructor(entry, first) {
+                super();
+                this.entry = entry;
+                this.first = first;
+            }
+
+            eq(other) {
+                return other.entry === this.entry && other.first === this.first;
+            }
+
+            toDOM() {
+                const element = document.createElement('div');
+                const entry = this.entry;
+                element.className = 'cs-blame-entry' + (this.first ? ' first' : '');
+                const uncommitted = gitBlameUncommitted(entry);
+                if (uncommitted) element.classList.add('uncommitted');
+                element.title = uncommitted ? tr('codeStudio.gitNotCommitted', 'Not committed yet') : String(entry.summary || '');
+                if (this.first) {
+                    element.textContent = uncommitted
+                        ? tr('codeStudio.gitNotCommitted', 'Not committed yet')
+                        : [entry.author || '', gitRelativeDate(entry.date), entry.short || String(entry.hash || '').slice(0, 7)].filter(Boolean).join(' · ');
+                }
+                return element;
+            }
+        };
+        return gitBlameMarkerType;
+    }
+
+    // Content of the per-view blame compartment: a gutter that shows author, relative date and
+    // short hash on the first line of each run of lines from one commit; a click opens the commit.
+    function gitBlameExtensions(cm, tab) {
+        if (!cm || typeof cm.gutter !== 'function' || typeof cm.GutterMarker !== 'function') return [];
+        if (!tab || !tab.blameOn || !Array.isArray(tab.blameLines)) return [];
+        const Marker = gitBlameMarkerClass(cm);
+        const byLine = [];
+        tab.blameLines.forEach(entry => {
+            if (entry && entry.line > 0) byLine[entry.line] = entry;
+        });
+        const markers = [];
+        const markerAt = number => {
+            const entry = byLine[number];
+            if (!entry) return null;
+            if (!markers[number]) {
+                const previous = byLine[number - 1];
+                markers[number] = new Marker(entry, !previous || previous.hash !== entry.hash);
+            }
+            return markers[number];
+        };
+        const instance = state;
+        return [cm.gutter({
+            class: 'cs-blame-gutter',
+            lineMarker: (view, line) => markerAt(view.state.doc.lineAt(line.from).number),
+            lineMarkerChange: update => update.docChanged,
+            domEventHandlers: {
+                click: bindInstance(instance, (view, line) => {
+                    const entry = byLine[view.state.doc.lineAt(line.from).number];
+                    if (!entry || gitBlameUncommitted(entry)) return false;
+                    openGitCommit(entry.hash);
+                    return true;
+                })
+            }
+        })];
+    }
+
+    function applyGitBlame(tab) {
+        const cm = state.cmModule;
+        if (!cm || !tab) return;
+        (tab.views || []).forEach(view => {
+            if (!view || !view.csBlame) return;
+            try { view.dispatch({ effects: view.csBlame.reconfigure(gitBlameExtensions(cm, tab)) }); } catch (_) {}
+        });
+    }
+
+    // Command "Git: Toggle Blame" for the active editor.
+    function toggleGitBlame() {
+        const tab = activeTab();
+        if (!tab || isVirtualTab(tab)) return undefined;
+        tab.blameOn = !tab.blameOn;
+        if (tab.blameOn) return refreshGitBlame(tab);
+        tab.blameRequest = null;
+        tab.blameLines = null;
+        applyGitBlame(tab);
+        return undefined;
+    }
+
+    async function refreshGitBlame(tab) {
+        const target = state;
+        if (!isLiveInstance(target) || !tab || !tab.blameOn || isVirtualTab(tab)) return;
+        const path = tab.path;
+        const request = tab.blameRequest = Symbol();
+        try {
+            const result = await apiClient.gitBlame(path);
+            if (!isLiveInstance(target) || !target.openTabs.includes(tab) || tab.blameRequest !== request || tab.path !== path || !tab.blameOn) return;
+            runWithInstance(target, () => {
+                tab.blameLines = Array.isArray(result.lines) ? result.lines : [];
+                applyGitBlame(tab);
+            });
+        } catch (err) {
+            if (!isLiveInstance(target) || tab.blameRequest !== request) return;
+            runWithInstance(target, () => {
+                tab.blameOn = false;
+                tab.blameLines = null;
+                applyGitBlame(tab);
+                showGitError(err);
+            });
         }
     }
 
@@ -6298,6 +6892,8 @@
             nextProblem,
             toggleAgentPanel,
             toggleGitPanel,
+            toggleGitBlame,
+            showGitFileHistory,
             toggleSearch,
             createNewFile,
             createNewFolder,
@@ -6534,6 +7130,8 @@
             { id: 'delete-line', label: tr('codeStudio.deleteLine', 'Delete Line'), shortcut: 'Ctrl+Shift+K', icon: 'trash', run: 'runEditorCommand', args: ['deleteLine'], disabled: !sourceTab || state.readOnly },
             { id: 'toggle-agent', label: tr('codeStudio.agentChat', 'Agent Chat'), shortcut: 'Ctrl+Shift+A', icon: 'chat', run: 'toggleAgentPanel' },
             { id: 'toggle-git', label: tr('codeStudio.gitPanel', 'Source Control'), icon: 'network', run: 'toggleGitPanel' },
+            { id: 'git-toggle-blame', label: tr('codeStudio.gitToggleBlame', 'Git: Toggle Blame'), icon: 'info', run: 'toggleGitBlame', disabled: !sourceTab },
+            { id: 'git-file-history', label: tr('codeStudio.gitFileHistory', 'Git: File History'), icon: 'list', run: 'showGitFileHistory', disabled: !sourceTab },
             { id: 'toggle-search', label: tr('codeStudio.searchFiles', 'Search in Files'), shortcut: 'Ctrl+Shift+F', icon: 'search', run: 'toggleSearch' },
             { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', run: 'splitEditor', args: ['right'], disabled: !hasTab },
             { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', run: 'splitEditor', args: ['down'], disabled: !hasTab },

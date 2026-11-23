@@ -228,6 +228,7 @@ const jsBundles = [
       'ui/js/desktop/apps/code-studio/search.js',
       'ui/js/desktop/apps/code-studio/agent.js',
       'ui/js/desktop/apps/code-studio/git.js',
+      'ui/js/desktop/apps/code-studio/git-history.js',
       'ui/js/desktop/apps/code-studio/panels.js',
       // IDE package 1A fragments. They share the IIFE that core.js opens and shortcuts.js closes, so they sit
       // before shortcuts.js; they only declare functions and constants, nothing runs before render().

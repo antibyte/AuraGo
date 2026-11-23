@@ -122,6 +122,8 @@
             { id: 'delete-line', label: tr('codeStudio.deleteLine', 'Delete Line'), shortcut: 'Ctrl+Shift+K', icon: 'trash', run: 'runEditorCommand', args: ['deleteLine'], disabled: !sourceTab || state.readOnly },
             { id: 'toggle-agent', label: tr('codeStudio.agentChat', 'Agent Chat'), shortcut: 'Ctrl+Shift+A', icon: 'chat', run: 'toggleAgentPanel' },
             { id: 'toggle-git', label: tr('codeStudio.gitPanel', 'Source Control'), icon: 'network', run: 'toggleGitPanel' },
+            { id: 'git-toggle-blame', label: tr('codeStudio.gitToggleBlame', 'Git: Toggle Blame'), icon: 'info', run: 'toggleGitBlame', disabled: !sourceTab },
+            { id: 'git-file-history', label: tr('codeStudio.gitFileHistory', 'Git: File History'), icon: 'list', run: 'showGitFileHistory', disabled: !sourceTab },
             { id: 'toggle-search', label: tr('codeStudio.searchFiles', 'Search in Files'), shortcut: 'Ctrl+Shift+F', icon: 'search', run: 'toggleSearch' },
             { id: 'split-right', label: tr('codeStudio.splitRight', 'Split Right'), icon: 'columns', run: 'splitEditor', args: ['right'], disabled: !hasTab },
             { id: 'split-down', label: tr('codeStudio.splitDown', 'Split Down'), icon: 'layout', run: 'splitEditor', args: ['down'], disabled: !hasTab },
