@@ -105,7 +105,7 @@ func (d *chibiKaggleDriver) admit(op kaggle.Operation, req kaggle.Request) error
 	}
 	snap := d.s.kaggleSnapshot()
 	if err := kaggle.CheckGrants(snap.Config, snap.Access, op, params); err != nil {
-		return fmt.Errorf("kaggle %s refused: %w", op.Name, err)
+		return fmt.Errorf("kaggle %s refused: %w: %w", op.Name, chibisensei.ErrKaggleRefused, err)
 	}
 	return nil
 }

@@ -44,6 +44,8 @@ type runFixture struct {
 	o       *Orchestrator
 	run     Run
 	outputs map[string][]byte
+	submit  SubmitInput // the inputs of the run, reused by a second run on the same store
+	outOpts fakeRunOutputs
 }
 
 func newRunFixture(t *testing.T, opt fixtureOpts) *runFixture {
@@ -101,8 +103,9 @@ func newRunFixture(t *testing.T, opt fixtureOpts) *runFixture {
 	if opt.before != nil {
 		opt.before(fx)
 	}
-	fx.run, err = fx.o.Submit(ctx, SubmitInput{RunID: runID, Project: proj, Profile: prof, ProfileSHA: fx.cat.SHA(prof.ID),
-		Plan: plan, Owner: "tester"})
+	fx.submit = SubmitInput{RunID: runID, Project: proj, Profile: prof, ProfileSHA: fx.cat.SHA(prof.ID), Plan: plan, Owner: "tester"}
+	fx.outOpts = out
+	fx.run, err = fx.o.Submit(ctx, fx.submit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -725,7 +728,7 @@ func TestOrchestratorWaitsWhileBlocked(t *testing.T) {
 	block := func(t *testing.T) *runFixture {
 		fx := newRunFixture(t, fixtureOpts{profile: "gemma3-270m"})
 		fx.drive(fx.untilState(RunUploading))
-		fx.f.SetAccount("tester", fmt.Errorf("grant check: %w", ErrDesktopReadOnly))
+		fx.f.SetAccount("tester", errors.New("kaggle is down"))
 		return fx
 	}
 	t.Run("resumes when unblocked", func(t *testing.T) {
@@ -737,7 +740,7 @@ func TestOrchestratorWaitsWhileBlocked(t *testing.T) {
 			fx.clk.Advance(time.Minute)
 		}
 		r := fx.get()
-		if r.State != RunUploading || r.Remote.BlockedCode != "desktop_readonly" || r.Remote.BlockedSince == "" {
+		if r.State != RunUploading || r.Remote.BlockedCode != "kaggle_unavailable" || r.Remote.BlockedSince == "" {
 			t.Fatalf("state %s code %q since %q", r.State, r.Remote.BlockedCode, r.Remote.BlockedSince)
 		}
 		if n := countEvents(t, fx.st, r.ID, "warn"); n != 1 {
@@ -762,7 +765,7 @@ func TestOrchestratorWaitsWhileBlocked(t *testing.T) {
 			t.Fatal(err)
 		}
 		r := fx.get()
-		if r.State != RunCleaning || r.ErrorCode != "desktop_readonly" {
+		if r.State != RunCleaning || r.ErrorCode != "kaggle_unavailable" {
 			t.Fatalf("state %s code %s", r.State, r.ErrorCode)
 		}
 		if r.Remote.LastState != RunUploading {

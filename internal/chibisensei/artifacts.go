@@ -1,12 +1,10 @@
 package chibisensei
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -215,14 +213,7 @@ func RemoveRunFiles(dataDir, runID string) error {
 // it and keeps the last 64 KiB at a rune boundary.
 func logTailText(body []byte) []byte {
 	text := string(body)
-	var entries []kaggleLogEntry
-	if t := bytes.TrimSpace(body); len(t) > 0 && t[0] == '[' && json.Unmarshal(t, &entries) != nil {
-		entries = nil
-	}
-	if entries == nil {
-		entries = scanLogEntries(body)
-	}
-	if len(entries) > 0 {
+	if entries, _ := decodeLogEntries(body); len(entries) > 0 {
 		var b strings.Builder
 		for _, e := range entries {
 			b.WriteString(e.Data)
@@ -306,6 +297,15 @@ func (s *Store) deleteBaseGGUF(ctx context.Context, profileID, revision, convert
 	_, err := s.db.ExecContext(ctx, `DELETE FROM base_gguf WHERE profile_id=? AND base_revision=? AND converter=?`,
 		profileID, revision, converter)
 	return err
+}
+
+// otherRunsUse reports whether an artifact row of another run points at rel.
+func (s *Store) otherRunsUse(ctx context.Context, runID, rel string) (bool, error) {
+	var n int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM artifacts WHERE rel_path=? AND run_id<>?`, rel, runID).Scan(&n); err != nil {
+		return false, fmt.Errorf("artifact references: %w", err)
+	}
+	return n > 0, nil
 }
 
 func (s *Store) deleteArtifact(ctx context.Context, id string) error {

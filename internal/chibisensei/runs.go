@@ -145,6 +145,7 @@ type RunOutput struct {
 	SHA256  string `json:"sha256"`
 	Copied  bool   `json:"copied"`            // verified and copied into Chibi storage
 	Missing bool   `json:"missing,omitempty"` // optional output not available after the attempt limit
+	Reused  bool   `json:"reused,omitempty"`  // the shared base GGUF was already stored; this run did not write it
 }
 
 // RunRemote holds everything of a run that has no column (runs.remote_json). Every field B4 needs to
@@ -208,7 +209,7 @@ type RunRemote struct {
 	Plan           *Plan             `json:"plan,omitempty"`            // the confirmed plan, stored by Submit
 	EndState       string            `json:"end_state,omitempty"`       // succeeded | failed | cancelled once cleaning starts
 	BlockedSince   string            `json:"blocked_since,omitempty"`   // first refused driver call of the current wait
-	BlockedCode    string            `json:"blocked_code,omitempty"`    // desktop_readonly | kaggle_unavailable (one warn event per code)
+	BlockedCode    string            `json:"blocked_code,omitempty"`    // kaggle_unavailable | desktop_readonly | kaggle_refused (one warn event per code)
 	CancelTried    bool              `json:"cancel_tried,omitempty"`    // the remote cancel was tried (once)
 	EmptyLogReads  int               `json:"empty_log_reads,omitempty"` // log reads without a @@chibi line in a row
 	FinalLogRead   bool              `json:"final_log_read,omitempty"`  // downloading read the log once more

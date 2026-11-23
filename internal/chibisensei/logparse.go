@@ -48,45 +48,60 @@ type kaggleLogEntry struct {
 
 // ParseKernelLog accepts a JSON array of {stream_name, time, data} entries (also cut at the front by a tail
 // read) or plain text, extracts the "@@chibi " lines, drops malformed and over-long ones, dedupes by seq
-// (first wins) and returns them in seq order.
+// (first wins) and returns them in seq order. The work is linear in the body size.
 func ParseKernelLog(body []byte) []LogEvent {
 	if len(body) > maxLogBodyBytes {
 		body = body[len(body)-maxLogBodyBytes:]
 	}
-	texts := kaggleLogStreams(body)
-	if texts == nil {
-		texts = []string{string(body)}
+	entries, plainToo := decodeLogEntries(body)
+	var texts []string
+	if len(entries) > 0 {
+		texts = joinLogStreams(entries)
+	}
+	if plainToo {
+		texts = append(texts, string(body))
 	}
 	seen := map[int64]bool{}
 	out := []LogEvent{}
 	for _, text := range texts {
-		for _, line := range strings.Split(text, "\n") {
+		eachLogLine(text, func(line string) bool {
+			if len(out) >= maxLogEvents {
+				return false
+			}
 			ev, ok := parseLogLine(line)
-			if !ok || seen[ev.Seq] || len(out) >= maxLogEvents {
-				continue
+			if !ok || seen[ev.Seq] {
+				return true
 			}
 			seen[ev.Seq] = true
 			out = append(out, ev)
-		}
+			return true
+		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Seq < out[j].Seq })
 	return out
 }
 
-// kaggleLogStreams joins the data of each stream in first-seen order; nil when the body is not a Kaggle JSON log.
-func kaggleLogStreams(body []byte) []string {
-	var entries []kaggleLogEntry
-	if t := bytes.TrimSpace(body); len(t) > 0 && t[0] == '[' {
-		if err := json.Unmarshal(t, &entries); err != nil {
-			entries = nil
+// eachLogLine calls fn with every line of text without allocating per line; a line longer than a log line
+// (plus room for a prefix before the marker) is skipped. fn returns false to stop.
+func eachLogLine(text string, fn func(string) bool) {
+	for len(text) > 0 {
+		line := text
+		if i := strings.IndexByte(text, '\n'); i >= 0 {
+			line, text = text[:i], text[i+1:]
+		} else {
+			text = ""
+		}
+		if len(line) > maxLogLineBytes+maxLogLinePrefix {
+			continue
+		}
+		if !fn(line) {
+			return
 		}
 	}
-	if entries == nil {
-		entries = scanLogEntries(body)
-	}
-	if len(entries) == 0 {
-		return nil
-	}
+}
+
+// joinLogStreams joins the data of each stream in first-seen order.
+func joinLogStreams(entries []kaggleLogEntry) []string {
 	var order []string
 	joined := map[string]*strings.Builder{}
 	for _, e := range entries {
@@ -105,24 +120,61 @@ func kaggleLogStreams(body []byte) []string {
 	return out
 }
 
+// decodeLogEntries extracts the Kaggle log entries of a body: a complete JSON array is decoded whole; a body
+// that starts like an array or like the middle of one is scanned for entries; any other body (plain text) is
+// scanned only when it mentions a stream key. plainToo reports that the body's own lines must be parsed as
+// well: it is false only when the body is clearly a JSON log, so no "@@chibi" line of a plain log is lost.
+func decodeLogEntries(body []byte) (entries []kaggleLogEntry, plainToo bool) {
+	t := bytes.TrimSpace(body)
+	if len(t) == 0 {
+		return nil, true
+	}
+	arrayish := t[0] == '[' || t[0] == '{' || t[0] == ',' || t[0] == '}' || t[0] == ']' || t[0] == '"'
+	if t[0] == '[' {
+		var all []kaggleLogEntry
+		if json.Unmarshal(t, &all) == nil && len(all) > 0 {
+			return all, false
+		}
+	}
+	entries = scanLogEntries(body)
+	return entries, len(entries) == 0 || !arrayish
+}
+
+const (
+	maxLogLinePrefix = 256     // room before the marker on a line
+	maxLogEntryBytes = 1 << 20 // decode window of one embedded entry
+	maxScanEntries   = 200000
+)
+
 var streamKey = []byte(`"stream_name"`)
 
-// scanLogEntries decodes the entries of a JSON log whose head is missing, one object at a time.
+// scanLogEntries decodes the entries of a JSON log whose head is missing, one object at a time. Each decode
+// is bounded to the span that ends at the next stream key (or a fixed window), so the total work is linear.
 func scanLogEntries(body []byte) []kaggleLogEntry {
 	var out []kaggleLogEntry
-	for off := 0; off < len(body); {
+	off := 0
+	for off < len(body) && len(out) < maxScanEntries {
 		i := bytes.Index(body[off:], streamKey)
 		if i < 0 {
 			break
 		}
 		at := off + i
+		after := at + len(streamKey)
+		end := len(body)
+		if n := bytes.Index(body[after:], streamKey); n >= 0 {
+			end = after + n
+		}
 		if open := bytes.LastIndexByte(body[off:at], '{'); open >= 0 {
+			start := off + open
+			if end-start > maxLogEntryBytes {
+				end = start + maxLogEntryBytes
+			}
 			var e kaggleLogEntry
-			if err := json.NewDecoder(bytes.NewReader(body[off+open:])).Decode(&e); err == nil {
+			if err := json.NewDecoder(bytes.NewReader(body[start:end])).Decode(&e); err == nil {
 				out = append(out, e)
 			}
 		}
-		off = at + len(streamKey)
+		off = after
 	}
 	return out
 }

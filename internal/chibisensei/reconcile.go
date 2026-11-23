@@ -16,6 +16,9 @@ import (
 // ErrDesktopReadOnly marks a driver refusal caused by the read-only desktop (the driver adapter wraps it).
 var ErrDesktopReadOnly = errors.New("chibisensei: the desktop is read-only")
 
+// ErrKaggleRefused marks a driver refusal caused by a missing Kaggle permission (the driver adapter wraps it).
+var ErrKaggleRefused = errors.New("chibisensei: Kaggle refused the operation for a missing permission")
+
 // errRunMoved aborts an update whose run changed state since the step loaded it.
 var errRunMoved = errors.New("chibisensei: the run changed state")
 
@@ -229,15 +232,16 @@ func (o *Orchestrator) Submit(ctx context.Context, in SubmitInput) (Run, error) 
 }
 
 // Cancel marks the run cancel_requested in one transaction and wakes the loop; it never calls Kaggle. The returned
-// run shows cancel_requested and the cancel object at once. A terminal run is returned unchanged.
+// run shows cancel_requested and the cancel object at once. A terminal run and a run in cleaning (its end state is
+// already decided) are returned unchanged.
 func (o *Orchestrator) Cancel(ctx context.Context, runID string) (Run, error) {
 	r, err := o.st.GetRun(ctx, runID)
-	if err != nil || RunTerminal(r.State) || r.CancelRequested {
+	if err != nil || RunTerminal(r.State) || r.State == RunCleaning || r.CancelRequested {
 		return r, err
 	}
 	next, err := o.st.UpdateRun(ctx, runID, NewRunEvent("state", map[string]any{"to": r.State, "state": r.State, "cancel_requested": true}),
 		func(x *Run) error {
-			if RunTerminal(x.State) {
+			if RunTerminal(x.State) || x.State == RunCleaning {
 				return errRunMoved
 			}
 			x.CancelRequested = true
@@ -273,6 +277,10 @@ func (o *Orchestrator) step(ctx context.Context, runID string) (stepResult, erro
 	}
 	var res stepResult
 	handled := false
+	if r.State == RunCleaning && r.CancelRequested && r.Remote.EndState == RunSucceeded {
+		// A cancel stored before the run reached cleaning wins over the end state the last step committed.
+		return o.cancelWins(ctx, r)
+	}
 	if r.CancelRequested && r.State != RunCleaning {
 		res, handled, err = o.handleCancel(ctx, r)
 	}
@@ -306,6 +314,17 @@ func (o *Orchestrator) step(ctx context.Context, runID string) (stepResult, erro
 		return stepResult{progressed: true}, nil
 	}
 	return res, err
+}
+
+// cancelWins turns a run that reached cleaning for success, but holds a cancel request, into a cancelled run. Its
+// downloaded files and artifact rows stay as they are, as on the cancel path of verifying.
+func (o *Orchestrator) cancelWins(ctx context.Context, r Run) (stepResult, error) {
+	_, err := o.commit(ctx, r, NewRunEvent("state", map[string]any{"to": RunCleaning, "state": RunCleaning,
+		"end_state": RunCancelled, "error_code": codeCancelled}), func(x *Run) {
+		x.Remote.EndState, x.Remote.GGUF = RunCancelled, nil
+		x.ErrorCode, x.Error = codeCancelled, ""
+	})
+	return stepResult{progressed: true}, err
 }
 
 // handleCancel: before submission (and after the remote ended) the run goes to cleaning as cancelled. After
@@ -406,16 +425,30 @@ func (o *Orchestrator) fail(ctx context.Context, r Run, code, msg string, extra 
 }
 
 // blocked handles a refused driver call: the run waits. A new wait or a new code records one warn event. Before
-// submission and while downloading, a wait longer than blockedLimit fails the run with the code.
+// submission a read-only desktop or a refused permission fails the run at once; otherwise, before submission and
+// while downloading, a wait longer than blockedLimit fails the run with the code.
 func (o *Orchestrator) blocked(ctx context.Context, r Run, cause error) (stepResult, error) {
 	if err := ctx.Err(); err != nil {
 		return stepResult{}, err
 	}
 	code := "kaggle_unavailable"
-	if errors.Is(cause, ErrDesktopReadOnly) {
+	switch {
+	case errors.Is(cause, ErrDesktopReadOnly):
 		code = "desktop_readonly"
+	case errors.Is(cause, ErrKaggleRefused):
+		code = "kaggle_refused"
 	}
 	o.log.Warn("Chibi Sensei run waits for Kaggle", "run", r.ID, "state", r.State, "code", code, "error", cause)
+	// Before the notebook was submitted nothing is lost by stopping: a refusal that waiting does not lift fails the run
+	// at once instead of holding the single run slot. After submission the GPU time is spent, so the run waits.
+	if !submitted(r) && r.State != RunCleaning {
+		switch code {
+		case "desktop_readonly":
+			return o.fail(ctx, r, code, "The desktop is read-only, so AuraGo cannot start or continue the run.", nil)
+		case "kaggle_refused":
+			return o.fail(ctx, r, code, "A Kaggle permission is switched off, so AuraGo cannot start or continue the run.", nil)
+		}
+	}
 	now := o.now()
 	if since, err := time.Parse(time.RFC3339, r.Remote.BlockedSince); err == nil && now.Sub(since) > blockedLimit &&
 		r.State != RunRunning && r.State != RunCleaning {

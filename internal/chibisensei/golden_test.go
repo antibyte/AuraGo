@@ -17,7 +17,8 @@ const goldenRunID = "0123abcd-4567-4890-abcd-ef0123456789"
 
 // goldenLock is fixed so pin changes at the proof runs do not churn the golden files.
 var goldenLock = trainer.Lock{Pip: []string{"peft==0.21.3"}, LlamaCppTag: "b9994",
-	LlamaCppURL: trainer.LlamaCppURLPrefix + "b9994"}
+	LlamaCppURL:    trainer.LlamaCppURLPrefix + "b9994",
+	LlamaCppSHA256: "8e8873031f05ec06ebf464a66fa4295edcc449d3068f3e94c6be88be7f632390"}
 
 type goldenCase struct {
 	profile, recipe, taskKind string

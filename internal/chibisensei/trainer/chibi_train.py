@@ -2262,7 +2262,7 @@ def finalize(ctx):
         ctx.log.emit("done", state=st["state"], code=st["code"], message=st["message"], warning_code=st["warning_code"],
                      files=len(files), duration_s=st["discovery"]["total_s"])
     except BaseException as e:
-        ctx.log.emit("error", stage="finalize", code="output_failed", message=exc_summary(e))
+        ctx.log.emit("error", stage="manifest", code="output_failed", message=exc_summary(e))
         traceback.print_exc()
     finally:
         if ctx.fake:

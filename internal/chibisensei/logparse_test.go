@@ -2,10 +2,12 @@ package chibisensei
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func loadLogFixture(t *testing.T, name string) []byte {
@@ -132,5 +134,44 @@ func TestParseKernelLogLines(t *testing.T) {
 	}
 	if _, ok := ev[0].Error(); ok {
 		t.Error("error code with a space accepted")
+	}
+}
+
+func chibiLine(seq int) string {
+	return fmt.Sprintf(`@@chibi {"v":1,"seq":%d,"ts":"2026-11-23T12:00:00Z","t":"info"}`, seq)
+}
+
+func TestParseKernelLogPlainTextWithEmbeddedStreamObject(t *testing.T) {
+	body := chibiLine(1) + "\n" +
+		`{"stream_name":"stdout","time":1.5,"data":"` + chibiLine(2) + `\n"}` + "\n" +
+		chibiLine(3) + "\n"
+	ev := ParseKernelLog([]byte(body))
+	if !sameSeqs(ev, 1, 2, 3) && !sameSeqs(ev, 1, 3) {
+		t.Fatalf("seqs %v", seqsOf(ev))
+	}
+	if len(ev) < 2 || ev[0].Seq != 1 || ev[len(ev)-1].Seq != 3 {
+		t.Fatalf("the plain lines were lost: %v", seqsOf(ev))
+	}
+}
+
+func TestParseKernelLogStreamKeyFloodIsLinear(t *testing.T) {
+	body := []byte(strings.Repeat(`{"stream_name":`, (4<<20)/len(`{"stream_name":`)))
+	start := time.Now()
+	ev := ParseKernelLog(body)
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("parse took %v", d)
+	}
+	if len(ev) != 0 {
+		t.Fatalf("events %v", seqsOf(ev))
+	}
+	if len(logTailText(body)) == 0 {
+		t.Error("log tail empty")
+	}
+}
+
+func TestParseKernelLogBlankLines(t *testing.T) {
+	body := []byte(strings.Repeat("\n", 4<<20) + chibiLine(5) + "\n")
+	if ev := ParseKernelLog(body); !sameSeqs(ev, 5) {
+		t.Fatalf("seqs %v", seqsOf(ev))
 	}
 }

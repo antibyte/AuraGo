@@ -7,7 +7,12 @@ import (
 	"time"
 )
 
-const maxLogEventsPerRead = 200
+const (
+	maxLogEventsPerRead = 200
+	// lateReadGrace is how long past the deadline a failing status read keeps the run waiting before it times out:
+	// one refused or failed read says nothing about whether the session finished.
+	lateReadGrace = 30 * time.Minute
+)
 
 type remoteView struct {
 	status  string // upper-case Kaggle session status
@@ -64,7 +69,7 @@ func (o *Orchestrator) stepRunning(ctx context.Context, r Run) (stepResult, erro
 	switch {
 	case err != nil && ctx.Err() != nil:
 		return stepResult{}, ctx.Err()
-	case err != nil && late:
+	case err != nil && late && now.After(deadline.Add(lateReadGrace)):
 		return o.timedOut(ctx, r)
 	case err != nil:
 		return o.blocked(ctx, r, err)

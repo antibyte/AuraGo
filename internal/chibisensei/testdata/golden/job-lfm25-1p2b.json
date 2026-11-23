@@ -162,7 +162,7 @@
   "llama_cpp": {
    "tag": "b9994",
    "url": "https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b9994",
-   "sha256": ""
+   "sha256": "8e8873031f05ec06ebf464a66fa4295edcc449d3068f3e94c6be88be7f632390"
   }
  },
  "log": {

@@ -29,7 +29,7 @@ func TestScoreReportClassify(t *testing.T) {
 		[3]string{"pos", "pos", "pos"}, [3]string{"neg", "pos", "neg"},
 		[3]string{"pos", "Positive", "pos."}, [3]string{"neg", "neg", "NEG"}))
 	la := rep.LabelAccuracy
-	if la == nil || la.N != 4 || la.Base != 0.5 || la.Tuned != 1 || rep.ExactMatch != nil || rep.Perplexity != nil {
+	if la == nil || la.N != 4 || !scoreIs(la.Base, 0.5) || !scoreIs(la.Tuned, 1) || rep.ExactMatch != nil || rep.Perplexity != nil {
 		t.Fatalf("report: %+v", rep)
 	}
 	if !reflect.DeepEqual(la.Confusion.Base, [][]int{{1, 0, 1}, {1, 1, 0}}) ||
@@ -56,13 +56,13 @@ func TestScoreReportCases(t *testing.T) {
 	t.Run("extract", func(t *testing.T) {
 		rep := ScoreReport(RecipeSpecialist, "extract", nil, st, samples([3]string{"Berlin", " berlin", "Berlin  "}, [3]string{"Paris", "Paris", "Paris"}))
 		em := rep.ExactMatch
-		if em == nil || em.Base != 0.5 || em.Tuned != 1 || em.N != 2 || em.NBase != nil {
+		if em == nil || !scoreIs(em.Base, 0.5) || !scoreIs(em.Tuned, 1) || em.N != 2 || em.NBase != nil {
 			t.Fatalf("exact match: %+v", em)
 		}
 	})
 	t.Run("rewrite NFC", func(t *testing.T) {
 		rep := ScoreReport(RecipeSpecialist, "rewrite", nil, st, samples([3]string{"Café", "x", "Cafe" + string(rune(0x301))}))
-		if em := rep.ExactMatch; em == nil || em.Tuned != 1 || em.Base != 0 {
+		if em := rep.ExactMatch; em == nil || !scoreIs(em.Tuned, 1) || !scoreIs(em.Base, 0) {
 			t.Fatalf("exact match: %+v", em)
 		}
 	})
@@ -70,7 +70,7 @@ func TestScoreReportCases(t *testing.T) {
 		rep := ScoreReport(RecipeSpecialist, "to_json", nil, st, samples(
 			[3]string{`{"a":1,"b":[1,2]}`, `{"a":1}`, `{ "b": [1, 2], "a": 1.0 }`},
 			[3]string{"plain", "not json", " plain "}))
-		if em := rep.ExactMatch; em == nil || em.Base != 0 || em.Tuned != 1 || em.N != 2 {
+		if em := rep.ExactMatch; em == nil || !scoreIs(em.Base, 0) || !scoreIs(em.Tuned, 1) || em.N != 2 {
 			t.Fatalf("exact match: %+v", em)
 		}
 	})
@@ -130,7 +130,7 @@ func TestScoreReportNilAnswers(t *testing.T) {
 		})
 		em := rep.ExactMatch
 		// base scores a, c, d (1 correct); tuned scores a, b, d (all correct); equal counts omit n_base
-		if em == nil || em.N != 3 || em.NBase != nil || em.Tuned != 1 || em.Base != 0.3333 {
+		if em == nil || em.N != 3 || em.NBase != nil || !scoreIs(em.Tuned, 1) || !scoreIs(em.Base, 0.3333) {
 			t.Fatalf("exact match: %+v", em)
 		}
 		rep = ScoreReport(RecipeSpecialist, "extract", nil, st, []EvalSample{
@@ -139,7 +139,7 @@ func TestScoreReportNilAnswers(t *testing.T) {
 			{Expected: "c", BaseOutput: s("c"), TunedOutput: s("c")},
 		})
 		em = rep.ExactMatch
-		if em == nil || em.N != 3 || em.NBase == nil || *em.NBase != 1 || em.Base != 1 {
+		if em == nil || em.N != 3 || em.NBase == nil || *em.NBase != 1 || !scoreIs(em.Base, 1) {
 			t.Fatalf("exact match: %+v", em)
 		}
 		raw, _ := json.Marshal(rep.ExactMatch)
@@ -159,7 +159,7 @@ func TestScoreReportNilAnswers(t *testing.T) {
 			{Expected: "neg", BaseOutput: nil, TunedOutput: s("neg")},
 		})
 		la := rep.LabelAccuracy
-		if la == nil || la.N != 2 || la.NBase == nil || *la.NBase != 1 || la.Base != 0 || la.Tuned != 1 {
+		if la == nil || la.N != 2 || la.NBase == nil || *la.NBase != 1 || !scoreIs(la.Base, 0) || !scoreIs(la.Tuned, 1) {
 			t.Fatalf("label accuracy: %+v", la)
 		}
 		if !reflect.DeepEqual(la.Confusion.Base, [][]int{{0, 1, 0}, {0, 0, 0}}) ||
@@ -167,4 +167,20 @@ func TestScoreReportNilAnswers(t *testing.T) {
 			t.Fatalf("confusion: %+v", la.Confusion)
 		}
 	})
+}
+
+func scoreIs(p *float64, want float64) bool { return p != nil && *p == want }
+
+func TestScoreReportNoBaseAnswers(t *testing.T) {
+	st := testStatus(fp(2), fp(1))
+	a := "a"
+	rep := ScoreReport(RecipeSpecialist, "extract", nil, st, []EvalSample{{Expected: "a", TunedOutput: &a}})
+	em := rep.ExactMatch
+	if em == nil || em.Base != nil || !scoreIs(em.Tuned, 1) {
+		t.Fatalf("exact match: %+v", em)
+	}
+	b, err := json.Marshal(em)
+	if err != nil || !strings.Contains(string(b), `"base":null`) {
+		t.Fatalf("json %s %v", b, err)
+	}
 }

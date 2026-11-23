@@ -36,7 +36,7 @@ type Lock struct {
 	Transformers   string   // "" keeps the preinstalled version
 	LlamaCppTag    string
 	LlamaCppURL    string
-	LlamaCppSHA256 string // "" = not pinned yet: the trainer logs the measured value and warns
+	LlamaCppSHA256 string // mandatory: the trainer refuses an unverified tarball
 }
 
 var (
@@ -53,7 +53,7 @@ func ValidPin(s string) bool { return pinPattern.MatchString(s) }
 func LoadLock() (Lock, error) { return ParseLock(lockText) }
 
 // ParseLock parses the lock format. Keys: pip (repeatable), transformers, llama_cpp_tag, llama_cpp_url and
-// llama_cpp_sha256 (each exactly once; transformers and llama_cpp_sha256 may have an empty value).
+// llama_cpp_sha256 (each exactly once; transformers may have an empty value).
 func ParseLock(b []byte) (Lock, error) {
 	var l Lock
 	seen := map[string]bool{}
@@ -128,7 +128,7 @@ func (l Lock) Validate() error {
 	if l.LlamaCppURL != LlamaCppURLPrefix+l.LlamaCppTag {
 		return fmt.Errorf("llama_cpp_url must be %s%s", LlamaCppURLPrefix, l.LlamaCppTag)
 	}
-	if l.LlamaCppSHA256 != "" && !sha256Pattern.MatchString(l.LlamaCppSHA256) {
+	if !sha256Pattern.MatchString(l.LlamaCppSHA256) {
 		return fmt.Errorf("llama_cpp_sha256 is not 64 lower-case hex characters")
 	}
 	return nil

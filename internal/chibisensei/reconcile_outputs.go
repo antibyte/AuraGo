@@ -2,9 +2,12 @@ package chibisensei
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 
@@ -188,12 +191,17 @@ func (o *Orchestrator) fetch(ctx context.Context, r Run, facts jobFacts, out Run
 	if err := o.register(ctx, r, facts, got, rel); err != nil {
 		return o.localError(ctx, r, err)
 	}
+	// The copy is recorded before the staged file goes: a restart in between must not download the output again.
+	// A failed removal is harmless, cleaning removes the staged names.
+	_, err = o.commit(ctx, r, NewRunEvent("kaggle", map[string]any{"step": step, "status": KaggleJobCompleted, "bytes": n}),
+		func(x *Run) { t.save(x); putOutput(x, got) })
+	if err != nil {
+		return stepResult{progressed: true}, err
+	}
 	if err := o.drv.RemoveFile(rem.KaggleProject, staged); err != nil {
 		o.log.Warn("Chibi Sensei staged download not removed", "run", r.ID, "file", staged, "error", err)
 	}
-	_, err = o.commit(ctx, r, NewRunEvent("kaggle", map[string]any{"step": step, "status": KaggleJobCompleted, "bytes": n}),
-		func(x *Run) { t.save(x); putOutput(x, got) })
-	return stepResult{progressed: true}, err
+	return stepResult{progressed: true}, nil
 }
 
 func (o *Orchestrator) nextOutputAttempt(ctx context.Context, r Run, t kaggleTurn, step string, exhausted exhaustedFunc) (stepResult, error) {
@@ -258,11 +266,14 @@ func (o *Orchestrator) planOutputs(ctx context.Context, r Run, facts jobFacts, s
 			}
 			out := RunOutput{Path: f.Path, Kind: f.Kind, Bytes: f.Bytes, SHA256: f.SHA256}
 			if f.Kind == "gguf_base" {
-				reused, err := o.reuseBaseGGUF(ctx, r, facts, out)
+				reused, conflict, err := o.reuseBaseGGUF(ctx, r, facts, out)
 				if err != nil {
 					return o.localError(ctx, r, err)
 				}
-				out.Copied = reused
+				if conflict {
+					return o.fail(ctx, r, "checksum_mismatch", msgChecksum, nil)
+				}
+				out.Copied, out.Reused = reused, reused
 			}
 			list = append(list, out)
 		}
@@ -279,22 +290,44 @@ func (o *Orchestrator) planOutputs(ctx context.Context, r Run, facts jobFacts, s
 	return stepResult{progressed: true}, err
 }
 
-// reuseBaseGGUF registers an identical base GGUF that is already stored instead of downloading it again.
-func (o *Orchestrator) reuseBaseGGUF(ctx context.Context, r Run, facts jobFacts, out RunOutput) (bool, error) {
+// reuseBaseGGUF decides what a run does with the shared base GGUF of its profile revision. A stored file that
+// still matches its row's size and hash is authoritative: a manifest that declares the same size and hash reuses it
+// (the run gets its own artifact row), any other declaration is a conflict and leaves the shared file and row alone.
+// Without a row, or with a missing or damaged file, the run downloads and stores its own verified copy.
+func (o *Orchestrator) reuseBaseGGUF(ctx context.Context, r Run, facts jobFacts, out RunOutput) (reused, conflict bool, err error) {
 	b, found, err := o.st.GetBaseGGUF(ctx, r.ProfileID, facts.Profile.Base.Revision, facts.converter())
-	if err != nil || !found || b.SHA256 != out.SHA256 {
-		return false, err
+	if err != nil || !found {
+		return false, false, err
 	}
 	root, err := openChibiRoot(o.dataDir)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	defer root.Close()
-	if info, err := root.Stat(b.RelPath); err != nil || info.Size() != out.Bytes {
-		return false, nil
+	size, sum, err := hashRootFile(root, b.RelPath)
+	if err != nil || sum != b.SHA256 {
+		return false, false, nil
 	}
-	return true, o.st.AddArtifact(ctx, Artifact{RunID: r.ID, ProjectID: r.ProjectID, Kind: "gguf_base", RelPath: b.RelPath,
+	if b.SHA256 != out.SHA256 || size != out.Bytes {
+		return false, true, nil
+	}
+	return true, false, o.st.AddArtifact(ctx, Artifact{RunID: r.ID, ProjectID: r.ProjectID, Kind: "gguf_base", RelPath: b.RelPath,
 		Bytes: out.Bytes, SHA256: out.SHA256})
+}
+
+// hashRootFile returns the size and sha256 of a file under root; an unreadable file reports an error.
+func hashRootFile(root *os.Root, rel string) (int64, string, error) {
+	f, err := root.Open(rel)
+	if err != nil {
+		return 0, "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		return 0, "", err
+	}
+	return n, hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func (o *Orchestrator) finishDownloads(ctx context.Context, r Run, facts jobFacts, status Status) (stepResult, error) {
@@ -449,7 +482,7 @@ func (o *Orchestrator) stepVerifying(ctx context.Context, r Run) (stepResult, er
 			return o.localError(ctx, r, err)
 		}
 		if binfo, err := readGGUFInRoot(root, brel); err != nil || binfo.Architecture != prof.GGUF.ExpectedArch {
-			if err := o.dropBaseGGUF(ctx, r, facts, root, brel); err != nil {
+			if err := o.dropBaseGGUF(ctx, r, facts, root, brel, base.Reused); err != nil {
 				return o.localError(ctx, r, err)
 			}
 			if warning == "" {
@@ -462,12 +495,23 @@ func (o *Orchestrator) stepVerifying(ctx context.Context, r Run) (stepResult, er
 	})
 }
 
-func (o *Orchestrator) dropBaseGGUF(ctx context.Context, r Run, facts jobFacts, root *os.Root, rel string) error {
-	if err := removeQuiet(root, rel); err != nil {
-		return err
-	}
-	if err := o.st.deleteBaseGGUF(ctx, r.ProfileID, facts.Profile.Base.Revision, facts.converter()); err != nil {
-		return err
+// dropBaseGGUF removes a base GGUF this run found invalid. The shared file and its row go only when this run
+// stored them (it did not reuse them) and no other run's artifact points at the file; otherwise only this run's
+// own artifact row is removed.
+func (o *Orchestrator) dropBaseGGUF(ctx context.Context, r Run, facts jobFacts, root *os.Root, rel string, reused bool) error {
+	if !reused {
+		others, err := o.st.otherRunsUse(ctx, r.ID, rel)
+		if err != nil {
+			return err
+		}
+		if !others {
+			if err := removeQuiet(root, rel); err != nil {
+				return err
+			}
+			if err := o.st.deleteBaseGGUF(ctx, r.ProfileID, facts.Profile.Base.Revision, facts.converter()); err != nil {
+				return err
+			}
+		}
 	}
 	return o.st.deleteArtifact(ctx, ArtifactID(r.ID, "gguf_base"))
 }

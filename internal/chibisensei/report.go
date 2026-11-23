@@ -20,9 +20,9 @@ type LossPair struct {
 
 // ExactMatch is the share of eval samples whose answer equals the expected one.
 type ExactMatch struct {
-	Base  float64 `json:"base"`
-	Tuned float64 `json:"tuned"`
-	N     int     `json:"n"` // samples scored for the tuned model
+	Base  *float64 `json:"base"`  // null when no base sample was scored
+	Tuned *float64 `json:"tuned"` // null when no tuned sample was scored
+	N     int      `json:"n"`     // samples scored for the tuned model
 	// NBase is the number of samples scored for the base model; set only when it differs from N (a sample whose
 	// answer the trainer did not generate is left out).
 	NBase *int `json:"n_base,omitempty"`
@@ -36,8 +36,8 @@ type ConfusionPair struct {
 
 // LabelAccuracy is the classify score.
 type LabelAccuracy struct {
-	Base      float64       `json:"base"`
-	Tuned     float64       `json:"tuned"`
+	Base      *float64      `json:"base"`             // null when no base sample was scored
+	Tuned     *float64      `json:"tuned"`            // null when no tuned sample was scored
 	N         int           `json:"n"`                // samples scored for the tuned model
 	NBase     *int          `json:"n_base,omitempty"` // as ExactMatch.NBase
 	Labels    []string      `json:"labels"`
@@ -150,11 +150,13 @@ func exactMatch(taskKind string, samples []EvalSample) *ExactMatch {
 	return &ExactMatch{Base: ratio4(okBase, nb), Tuned: ratio4(okTuned, nt), N: nt, NBase: nBase(nb, nt)}
 }
 
-func ratio4(ok, n int) float64 {
+// ratio4 is ok/n rounded to four places, or nil when nothing was scored (a missing score is not 0 %).
+func ratio4(ok, n int) *float64 {
 	if n == 0 {
-		return 0
+		return nil
 	}
-	return round4(float64(ok) / float64(n))
+	v := round4(float64(ok) / float64(n))
+	return &v
 }
 
 func answerMatches(taskKind, want, got string) bool {

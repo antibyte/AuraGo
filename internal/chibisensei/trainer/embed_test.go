@@ -12,7 +12,7 @@ const validLock = `pip peft==0.21.3
 transformers
 llama_cpp_tag b9994
 llama_cpp_url https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b9994
-llama_cpp_sha256
+llama_cpp_sha256 8e8873031f05ec06ebf464a66fa4295edcc449d3068f3e94c6be88be7f632390
 `
 
 func TestLoadLockEmbedded(t *testing.T) {
@@ -44,7 +44,8 @@ func TestParseLockRejects(t *testing.T) {
 		{"pip twice", validLock + "pip peft==0.21.3\n", "twice"},
 		{"bad tag", strings.Replace(validLock, "llama_cpp_tag b9994", "llama_cpp_tag master", 1), "b<number>"},
 		{"url tag mismatch", strings.Replace(validLock, "refs/tags/b9994", "refs/tags/b9993", 1), "llama_cpp_url must be"},
-		{"bad sha", strings.Replace(validLock, "llama_cpp_sha256", "llama_cpp_sha256 XYZ", 1), "64 lower-case hex"},
+		{"bad sha", strings.Replace(validLock, "llama_cpp_sha256 8e88", "llama_cpp_sha256 XYZ8e88", 1), "64 lower-case hex"},
+		{"sha empty", strings.Replace(validLock, "llama_cpp_sha256 8e8873031f05ec06ebf464a66fa4295edcc449d3068f3e94c6be88be7f632390", "llama_cpp_sha256 ", 1), "64 lower-case hex"},
 		{"url missing", strings.Replace(validLock, "llama_cpp_url https://codeload.github.com/ggml-org/llama.cpp/tar.gz/refs/tags/b9994\n", "", 1), "missing key"},
 		{"three fields", validLock + "pip a b\n", `expected "key value"`},
 	}
