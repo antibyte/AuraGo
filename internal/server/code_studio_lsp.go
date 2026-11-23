@@ -13,9 +13,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"aurago/internal/desktop"
 	"aurago/internal/tools"
+
+	"github.com/gorilla/websocket"
 )
 
 // Code Studio LSP bridge. GET /api/code-studio/lsp?lang=go|typescript|python|cpp
@@ -385,4 +389,219 @@ func (a codeStudioDockerAdapter) EndLSP(ctx context.Context, containerID, nonce 
 		return fmt.Errorf("docker language server end start failed: %s", strings.TrimSpace(string(data)))
 	}
 	return nil
+}
+
+// handleLSP is GET /api/code-studio/lsp?lang=go|typescript|python|cpp, a
+// WebSocket to one language server in the Code Studio container. The gate
+// chain is handleTerminal's, in the same order. Step 1 names the execute
+// operation explicitly: requirePermission derives the operation from the
+// path, and only paths that end in /terminal count as execute there, so a
+// plain requirePermission would let a live session survive a switch to
+// read-only.
+func (h codeStudioHandlers) handleLSP(w http.ResponseWriter, r *http.Request) {
+	if !requireDesktopOperation(h.server, w, r, desktopScopeWrite, desktopExecute) {
+		return
+	}
+	if h.rejectReadOnly(w) {
+		return
+	}
+	done, admitted := h.server.admitDockerTerminal(w, r)
+	if !admitted {
+		return
+	}
+	defer done()
+	if !h.isAuthenticated(r) {
+		jsonError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if !desktop.SameHostWebSocketOrigin(r) {
+		jsonError(w, "forbidden websocket origin", http.StatusForbidden)
+		return
+	}
+	if r.Method != http.MethodGet {
+		jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	lsp, ok := codeStudioLSPServerFor(r.URL.Query().Get("lang"))
+	if !ok {
+		jsonError(w, "unknown language server", http.StatusBadRequest)
+		return
+	}
+	container, containerID, err := h.codeContainer(r.Context(), true)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	release, err := container.HoldTerminal(containerID)
+	if err != nil {
+		jsonError(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer release()
+	conn, err := codeStudioWSUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	h.serveCodeStudioLSP(r.Context(), conn, containerID, lsp)
+}
+
+// serveCodeStudioLSP runs one language-server session on an upgraded socket:
+// session slot, install check, start, the two pipes, then the cleanup.
+func (h codeStudioHandlers) serveCodeStudioLSP(ctx context.Context, conn *websocket.Conn, containerID string, lsp codeStudioLSPServer) {
+	logger := h.codeStudioLogger()
+	release, ok := codeStudioLSPSessions.acquire()
+	if !ok {
+		closeCodeStudioLSP(conn, codeStudioLSPCloseTooMany, "too many language servers")
+		return
+	}
+	defer release()
+	runner, ok := h.docker.(codeStudioLSPRunner)
+	if !ok {
+		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server runner is unavailable")
+		return
+	}
+	installed, err := h.codeStudioLSPInstalled(ctx, containerID, lsp.Binary)
+	if err != nil {
+		logger.Warn("code studio language server check failed", "lang", lsp.Lang, "error", err)
+		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server check failed")
+		return
+	}
+	if !installed {
+		closeCodeStudioLSP(conn, codeStudioLSPCloseNotInstalled, lsp.Binary+" is not installed")
+		return
+	}
+	nonce, err := newContainerTerminalNonce()
+	if err != nil {
+		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server start failed")
+		return
+	}
+	stream, err := runner.StartLSP(ctx, containerID, lsp.Command, nonce)
+	if err != nil {
+		logger.Warn("code studio language server start failed", "lang", lsp.Lang, "error", err)
+		closeCodeStudioLSP(conn, codeStudioLSPCloseStartFailed, "language server start failed")
+		// A start request that failed late may still have started the process.
+		h.endCodeStudioLSP(runner, containerID, nonce, lsp.Lang)
+		return
+	}
+	tail := &codeStudioLSPTail{}
+	serverDone := make(chan struct{})
+	h.pipeCodeStudioLSP(ctx, conn, stream, tail, serverDone)
+	// The page is gone: close stdin, give the server time to exit, then end
+	// whatever still carries the session tag.
+	_ = stream.CloseWrite()
+	select {
+	case <-serverDone:
+	case <-time.After(codeStudioLSPExitWait):
+	}
+	_ = stream.Close()
+	<-serverDone
+	h.endCodeStudioLSP(runner, containerID, nonce, lsp.Lang)
+	logger.Debug("code studio language server ended", "lang", lsp.Lang, "stderr_tail", tail.String())
+}
+
+// pipeCodeStudioLSP copies server messages to the page and page frames to the
+// server until the page leaves, the server exits or ctx ends. The server side
+// closes serverDone when it stops; the function returns when the page side
+// stops, with the socket closed.
+func (h codeStudioHandlers) pipeCodeStudioLSP(ctx context.Context, conn *websocket.Conn, stream codeStudioLSPStream, tail *codeStudioLSPTail, serverDone chan<- struct{}) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	conn.SetReadLimit(h.maxFileSizeBytes() + codeStudioLSPFrameSlack)
+	pongWait := dockerManagerTerminalServeOptions.PongWait
+	conn.SetPongHandler(func(string) error { return conn.SetReadDeadline(time.Now().Add(pongWait)) })
+	go func() {
+		ticker := time.NewTicker(dockerManagerTerminalServeOptions.PingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(containerTerminalPingWriteWait)); err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
+	var pageDone atomic.Bool
+	go func() {
+		defer close(serverDone)
+		reader := bufio.NewReaderSize(&codeStudioLSPDemux{src: stream, stderr: tail}, codeStudioLSPReadBuffer)
+		for {
+			body, err := readCodeStudioLSPMessage(reader)
+			if err != nil {
+				if !pageDone.Load() {
+					reason := "language server exited"
+					if !errors.Is(err, io.EOF) {
+						reason = "language server stream failed"
+					}
+					closeCodeStudioLSP(conn, websocket.CloseInternalServerErr, reason)
+				}
+				return
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, body); err != nil {
+				_ = conn.Close()
+				return
+			}
+		}
+	}()
+
+	for {
+		_ = conn.SetReadDeadline(time.Now().Add(pongWait))
+		messageType, payload, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+		if messageType != websocket.TextMessage {
+			closeCodeStudioLSP(conn, websocket.CloseUnsupportedData, "text frames only")
+			break
+		}
+		if !json.Valid(payload) {
+			closeCodeStudioLSP(conn, websocket.CloseInvalidFramePayloadData, "invalid JSON")
+			break
+		}
+		if deadliner, ok := stream.(containerTerminalWriteDeadliner); ok {
+			_ = deadliner.SetWriteDeadline(time.Now().Add(containerTerminalWriteTimeout))
+		}
+		if err := writeCodeStudioLSPMessage(stream, payload); err != nil {
+			closeCodeStudioLSP(conn, websocket.CloseInternalServerErr, "language server input failed")
+			break
+		}
+	}
+	pageDone.Store(true)
+	_ = conn.Close()
+}
+
+// codeStudioLSPInstalled runs `command -v` for the server binary with the
+// image PATH. Exit 0 means installed; another exit code means missing.
+func (h codeStudioHandlers) codeStudioLSPInstalled(ctx context.Context, containerID, name string) (bool, error) {
+	result, err := h.docker.Exec(ctx, containerID, []string{"sh", "-c", `command -v "$1" >/dev/null`, "sh", name}, codeStudioLSPCheckTimeout)
+	if err != nil {
+		return false, err
+	}
+	if result.ExitCode < 0 {
+		return false, errors.New("the exit code of the language server probe is unknown")
+	}
+	return result.ExitCode == 0, nil
+}
+
+// endCodeStudioLSP ends the tagged processes. It uses its own context: the
+// request context may already be canceled when the session ends.
+func (h codeStudioHandlers) endCodeStudioLSP(runner codeStudioLSPRunner, containerID, nonce, lang string) {
+	ctx, cancel := context.WithTimeout(context.Background(), containerTerminalEndTimeout)
+	defer cancel()
+	if err := runner.EndLSP(ctx, containerID, nonce); err != nil {
+		h.codeStudioLogger().Warn("code studio language server cleanup failed", "lang", lang, "error", err)
+	}
+}
+
+// closeCodeStudioLSP sends a close frame with code and reason, then closes the socket.
+func closeCodeStudioLSP(conn *websocket.Conn, code int, reason string) {
+	_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, reason), time.Now().Add(codeStudioLSPCloseWriteWait))
+	_ = conn.Close()
 }

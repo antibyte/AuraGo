@@ -89,6 +89,7 @@ func registerCodeStudioRoutes(mux *http.ServeMux, s *Server) {
 	mux.HandleFunc("/api/code-studio/exec", handlers.handleExec)
 	mux.HandleFunc("/api/code-studio/search", handlers.handleSearch)
 	mux.HandleFunc("/api/code-studio/terminal", handlers.handleTerminal)
+	mux.HandleFunc("/api/code-studio/lsp", handlers.handleLSP)
 	mux.HandleFunc("/api/code-studio/git/status", handlers.handleGitStatus)
 	mux.HandleFunc("/api/code-studio/git/diff", handlers.handleGitDiff)
 	mux.HandleFunc("/api/code-studio/git/commit", handlers.handleGitCommit)
