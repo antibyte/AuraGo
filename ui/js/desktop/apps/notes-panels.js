@@ -30,6 +30,32 @@
         return found;
     }
 
+    // One context line as safe HTML: everything is escaped; wikilinks show their display text, light inline marks are stripped,
+    // #tags become small chips. Links resolving to `target` (the note whose backlinks are shown) are emphasised.
+    const INLINE = /(!?)\[\[([^\[\]\n]{1,500})\]\]|(!?)\[([^\]\n]*)\]\(([^)\s]+)[^)]*\)|`([^`\n]+)`|\*\*([^*\n]+)\*\*|__([^_\n]+)__|~~([^~\n]+)~~|==([^=\n]+)==|\*([^*\n]+)\*|(^|[\s(])#([\p{L}\p{N}_\/-]*[\p{L}_\/-][\p{L}\p{N}_\/-]*)/gu;
+    function contextHtml(line, from, target, index, esc = escapeHTML) {
+        const text = String(line == null ? '' : line);
+        let out = '', pos = 0;
+        const resolves = (value, embed, kind) => { try { return !!index && !!target && index.resolve(from, value, !!embed, kind) === target; } catch (_) { return false; } };
+        for (const m of text.matchAll(INLINE)) {
+            out += esc(text.slice(pos, m.index));
+            pos = m.index + m[0].length;
+            if (m[2] !== undefined) {
+                const parsed = window.NotesIndex ? window.NotesIndex.parseWikiValue(m[2]) : {target: m[2], subpath: '', alias: ''};
+                const shown = (parsed.alias || (parsed.target ? parsed.target + (parsed.subpath ? ' › ' + parsed.subpath : '') : parsed.subpath) || m[2]).trim();
+                out += '<span class="notes-context-link' + (resolves(m[2], m[1], 'wiki') ? ' is-current' : '') + '">' + esc(shown) + '</span>';
+            } else if (m[5] !== undefined) {
+                const href = m[5].replace(/^<|>$/g, '');
+                out += '<span class="notes-context-link' + (resolves(href, m[3], 'markdown') ? ' is-current' : '') + '">' + esc(m[4] || href) + '</span>';
+            } else if (m[13] !== undefined) {
+                out += esc(m[12]) + '<span class="notes-context-tag">#' + esc(m[13]) + '</span>';
+            } else {
+                out += esc(m[6] ?? m[7] ?? m[8] ?? m[9] ?? m[10] ?? m[11]);
+            }
+        }
+        return out + esc(text.slice(pos));
+    }
+
     function row(esc, attrs, title, sub, extra = '') {
         return '<button type="button" class="notes-link-row" ' + attrs + '><span class="notes-link-main"><strong>' + esc(title) + '</strong>' + extra + '</span>' + (sub ? '<span class="notes-link-sub">' + esc(sub) + '</span>' : '') + '</button>';
     }
@@ -50,7 +76,7 @@
                     const note = await opts.request('/api/desktop/notes?path=' + encodeURIComponent(item.path), {signal: opts.signal});
                     if (!alive()) return;
                     const lines = contexts(note.content, item.path, path, index), host = [...container.querySelectorAll('[data-linked-item]')].find(el => el.dataset.linkedItem === item.path)?.querySelector('[data-contexts]');
-                    if (host) host.innerHTML = lines.map(line => '<p class="notes-link-context">' + esc(line) + '</p>').join('');
+                    if (host) host.innerHTML = lines.map(line => '<p class="notes-link-context">' + contextHtml(line, item.path, path, index, esc) + '</p>').join('');
                 } catch (error) { if (error?.name === 'AbortError') return; }
             }
         })();
@@ -99,5 +125,5 @@
                 missing.map(link => row(esc, 'data-unresolved-link data-create-wiki="' + esc(link.value) + '" title="' + esc(tr('create_note_hint')) + '"', label(link), tr('create_note'), embedTag(link))).join('') + '</section>' : '');
     }
 
-    window.NotesPanels = {backlinks, outgoing, contexts};
+    window.NotesPanels = {backlinks, outgoing, contexts, contextHtml};
 })();

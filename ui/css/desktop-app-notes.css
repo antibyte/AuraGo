@@ -123,6 +123,18 @@ mark.notes-highlight{background:color-mix(in srgb,#f5d547 42%,transparent);color
 .notes-callout[data-callout=abstract]{--callout:#2fb3c4}
 .notes-callout-marker{display:inline-flex;align-items:center;gap:6px;font-weight:650;color:var(--callout,#5b8def);margin-right:8px;vertical-align:baseline}
 .notes-callout-marker .notes-icon{width:16px;height:16px}
+/* Symmetric box: no margin above the first or below the last block, header line as tall as a text line. */
+.notes-rich .milkdown .ProseMirror blockquote.notes-callout{padding:12px 16px;margin-block:1em}
+.notes-rich .milkdown .ProseMirror blockquote.notes-callout>:first-child{margin-top:0}
+.notes-rich .milkdown .ProseMirror blockquote.notes-callout>:last-child{margin-bottom:0}
+.notes-rich .milkdown .ProseMirror blockquote.notes-callout>p{line-height:1.5}
+.notes-callout-marker{line-height:1.2;vertical-align:top}
+.notes-callout-marker .notes-icon{flex:0 0 auto}
+.notes-callout-title{line-height:1.5}
+/* Backlink context lines: rendered inline text, not raw Markdown. */
+.notes-context-link{color:var(--notes-accent)}
+.notes-context-link.is-current{font-weight:700}
+.notes-context-tag{display:inline-block;padding:0 5px;border-radius:999px;font-size:.88em;line-height:1.45;background:color-mix(in srgb,var(--notes-accent) 13%,transparent);color:color-mix(in srgb,var(--notes-accent) 85%,var(--notes-ink))}
 .notes-embed{display:inline-block;max-width:100%;border:1px dashed var(--notes-border);border-radius:6px;padding:0 8px;color:var(--notes-muted);font-size:.92em;line-height:1.6;vertical-align:baseline;overflow-wrap:anywhere}
 .notes-embed[data-unresolved]{border-color:color-mix(in srgb,var(--notes-muted) 55%,transparent)}
 .notes-embed img{display:block;max-width:100%;border-radius:6px}

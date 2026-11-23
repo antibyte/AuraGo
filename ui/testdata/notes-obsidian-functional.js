@@ -57,7 +57,8 @@ async () => {
     check(tabs&&tabs.querySelectorAll('[role=tab]').length===6&&tabs.querySelector('[role=tab][aria-selected=true]').dataset.rightTab==='backlinks','Tab strip missing or wrong tab');
     const linked=await until(()=>[...document.querySelectorAll('.notes-link-row[data-note-path]')].map(row=>row.dataset.notePath),'backlink rows');
     check(linked.includes(home)||linked.includes('Documents/Notes/verweise.md'),'Backlinks missing the linking note: '+linked);
-    await until(()=>[...document.querySelectorAll('.notes-link-context')].some(el=>el.textContent.includes('[[ideen]]')),'backlink context lines');
+    await until(()=>[...document.querySelectorAll('.notes-link-context')].some(el=>el.querySelector('.notes-context-link')&&el.textContent.includes('ideen')&&!el.textContent.includes('[[')),'backlink context lines');
+    check([...document.querySelectorAll('.notes-link-context .notes-context-link')].some(el=>el.textContent==='ideen'),'Context line shows no link text: '+document.querySelector('.notes-link-context')?.innerHTML);
     check(Number(document.querySelector('[data-backlinks]').dataset.count)>=1&&document.querySelector('[data-backlinks]').textContent,'Status bar backlink count missing');
     check(JSON.parse(localStorage.getItem('aurago.notes.right')).tab==='backlinks','Right sidebar state not persisted');
     document.querySelector('[data-unlinked]').open=true;
