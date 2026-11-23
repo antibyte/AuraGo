@@ -2,7 +2,10 @@ package agent
 
 import (
 	"slices"
+	"strings"
 	"testing"
+
+	openai "github.com/sashabaranov/go-openai"
 
 	"aurago/internal/storymaker"
 )
@@ -58,5 +61,38 @@ func TestStorymakerFreeSchemasOfferNoCatalogSearchNoCastAndCodeScenesOnly(t *tes
 	// The catalog mode keeps its schemas.
 	if got, want := len(StorymakerPhaseToolSchemasFor(storymaker.ModeCatalog, storymaker.PhaseFill, false, names)), len(StorymakerPhaseToolSchemas(storymaker.PhaseFill, false, names)); got != want {
 		t.Errorf("catalog schemas differ: %d vs %d", got, want)
+	}
+}
+
+func storymakerToolDescription(tools []openai.Tool, name string) string {
+	for _, definition := range tools {
+		if definition.Function.Name == name {
+			return definition.Function.Description
+		}
+	}
+	return ""
+}
+
+func TestStorymakerFreeStoryToolDescribesCodeScenes(t *testing.T) {
+	names := StorymakerNames{}
+	const catalogDescription = "Job storyboard via data; positions: spot or x,y 0..100."
+	for _, phase := range []string{storymaker.PhaseFill, storymaker.PhaseCheck, storymaker.PhaseRevise} {
+		for _, compact := range []bool{false, true} {
+			free := storymakerToolDescription(StorymakerPhaseToolSchemasFor(storymaker.ModeFree, phase, compact, names), storymaker.ToolStory)
+			catalog := storymakerToolDescription(StorymakerPhaseToolSchemasFor(storymaker.ModeCatalog, phase, compact, names), storymaker.ToolStory)
+			if catalog != catalogDescription {
+				t.Errorf("%s compact=%v: the catalog story tool description changed: %q", phase, compact, catalog)
+			}
+			if free == catalog || !strings.Contains(free, "code scene") || !strings.Contains(free, "put_code") {
+				t.Errorf("%s compact=%v: free story tool description = %q", phase, compact, free)
+			}
+			if strings.Contains(free, "storyboard") || strings.Contains(free, "positions") {
+				t.Errorf("%s compact=%v: the free description still talks about storyboards and positions: %q", phase, compact, free)
+			}
+		}
+	}
+	if got := storymakerToolDescription(StorymakerPhaseToolSchemasFor(storymaker.ModeFree, storymaker.PhaseFill, false, names), storymaker.ToolStory); got !=
+		"Job scenes via data: every scene is a code scene (kind, narration, transition, duration); put_code takes data.source." {
+		t.Errorf("free story tool description = %q", got)
 	}
 }

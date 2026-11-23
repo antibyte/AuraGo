@@ -94,11 +94,19 @@ func (s *Studio) sceneWriteTarget(op string, args map[string]any) (string, *Stud
 	return id, nil
 }
 
+// sceneDataExample is the example scene data the refusals show: a free project writes code scenes, the catalog mode an environment.
+func (s *Studio) sceneDataExample() string {
+	if s.job.Mode == ModeFree {
+		return `{"kind":"code"}`
+	}
+	return `{"environment":"env.office"}`
+}
+
 func (s *Studio) writeScene(ctx context.Context, op, sceneID string, args map[string]any) StudioResult {
 	data, ok := args["data"].(map[string]any)
 	if !ok {
 		return sceneWriteRefused(op, sceneID, "invalid_data", "data must be an object with the scene fields.",
-			`Send data as an object, for example {"environment":"env.office"}.`, nil)
+			"Send data as an object, for example "+s.sceneDataExample()+".", nil)
 	}
 	story, etag, refused := s.loadSceneStory(ctx, op, sceneID, args)
 	if refused != nil {
@@ -168,7 +176,7 @@ func (s *Studio) dryRunScene(ctx context.Context, sceneID string, args map[strin
 	data, ok := args["data"].(map[string]any)
 	if !ok {
 		return sceneWriteRefused(op, sceneID, "invalid_data", "data must be an object with the scene fields.",
-			`Send data as an object, for example {"environment":"env.office"}.`, nil)
+			"Send data as an object, for example "+s.sceneDataExample()+".", nil)
 	}
 	mode := sceneWriteArg(args, "op")
 	if mode == "" {
@@ -403,7 +411,7 @@ func (s *Studio) evaluateSceneWrite(story Story, sceneID string, fields map[stri
 		}
 		if ev.errors == 0 {
 			ev.issues = append(ev.issues, Issue{Severity: SeverityError, SceneID: sceneID, Code: CodeInvalidJSON, Message: "The scene could not be read.",
-				Fix: `Send the scene fields of the tool schema, for example {"environment":"env.office"}.`})
+				Fix: "Send the scene fields of the tool schema, for example " + s.sceneDataExample() + "."})
 			ev.errors = 1
 		}
 		return ev

@@ -86,10 +86,14 @@ func LintForJobMode(st *Story, mode string) []Issue {
 		// The streak of equal entries counts inside one scene: a new scene starts a new reveal sequence.
 		lastEntry, entryStreak := "", 0
 		if !studioSceneFilled(sc) {
+			fix := `Add actors and beats with patch_scene. Example: {"actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","text":"Kurz gesagt","at":"right","entry":"pop"}]}`
+			if mode == ModeFree {
+				fix = `A free scene is a code scene: call get_code, then put_code with the source, then patch_scene with {"kind":"code"}. It has no actors or beats.`
+			}
 			out = append(out, Issue{
 				Severity: SeverityError, SceneID: sc.ID, Path: jp("scenes", i), Code: CodeSceneUnfilled,
 				Message: fmt.Sprintf("Scene %s has nothing on stage.", sc.ID),
-				Fix:     `Add actors and beats with patch_scene. Example: {"actors":[{"cast":"anna","at":"left","pose":"present"}],"beats":[{"do":"show","text":"Kurz gesagt","at":"right","entry":"pop"}]}`,
+				Fix:     fix,
 			})
 		}
 		if i > 0 && sc.Transition == "fade" && sc.Environment != "" && st.Scenes[i-1].Environment != "" && sc.Environment != st.Scenes[i-1].Environment {

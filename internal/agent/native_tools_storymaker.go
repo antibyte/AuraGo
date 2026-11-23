@@ -94,9 +94,11 @@ func storymakerStoryTool(mode, phase string, compact bool, names StorymakerNames
 	if slices.Contains(operations, "dry_run") {
 		properties["op"] = storymakerEnum("put_scene", "patch_scene")
 	}
-	return tool(storymaker.ToolStory,
-		"Job storyboard via data; positions: spot or x,y 0..100.",
-		schema(properties, "operation"))
+	description := "Job storyboard via data; positions: spot or x,y 0..100."
+	if storymaker.EffectiveMode(mode) == storymaker.ModeFree {
+		description = "Job scenes via data: every scene is a code scene (kind, narration, transition, duration); put_code takes data.source."
+	}
+	return tool(storymaker.ToolStory, description, schema(properties, "operation"))
 }
 
 func storymakerCatalogTool(mode, phase string, compact bool) openai.Tool {

@@ -116,6 +116,10 @@ func (s *Studio) runCode(ctx context.Context, op string, args map[string]any) St
 	next := "The source is bundled. Run storymaker_check after editing."
 	if scene.Kind != "code" {
 		next = "Activate it with put_scene and data.kind code. Keep the narration; omit actors, props and beats."
+		if s.job.Mode == ModeFree {
+			// The free check phase has no put_scene, and a free scene has no actors, props or beats to omit.
+			next = `Activate it with patch_scene and data {"kind":"code"}. Keep the narration.`
+		}
 	}
 	return sceneWriteAnswer(op, "ok", id, map[string]any{"scene_id": id, "rev": studioRev(newETag), "next_action": next})
 }
