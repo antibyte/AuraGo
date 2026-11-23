@@ -14,7 +14,7 @@
     }
 
     function splitEditor(direction) {
-        if (!state || activeTab()?.kind === 'diff') return;
+        if (!state || isVirtualTab(activeTab())) return;
         const next = direction === 'down' ? 'down' : 'right';
         // IDE package 1A: switching between right and down keeps both pane tabs; the same direction closes the split.
         if (state.splitMode === next) resetSplitState();

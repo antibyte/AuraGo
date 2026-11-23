@@ -424,7 +424,7 @@
             body: JSON.stringify({ name, email })
         }),
         gitBranch: (name, action) => {
-            if (action === 'create' || action === 'switch') {
+            if (action === 'create' || action === 'switch' || action === 'delete') {
                 return api('/api/code-studio/git/branch', {
                     method: 'POST',
                     body: JSON.stringify({ name, action })
@@ -433,6 +433,12 @@
             return api('/api/code-studio/git/branch');
         },
         gitLog: (path, count) => api('/api/code-studio/git/log?' + new URLSearchParams({ path: path || '', count: String(count || 20) })),
+        gitStage: paths => api('/api/code-studio/git/stage', { method: 'POST', body: JSON.stringify({ paths }) }),
+        gitUnstage: paths => api('/api/code-studio/git/unstage', { method: 'POST', body: JSON.stringify({ paths }) }),
+        gitDiscard: paths => api('/api/code-studio/git/discard', { method: 'POST', body: JSON.stringify({ paths }) }),
+        gitInit: () => api('/api/code-studio/git/init', { method: 'POST' }),
+        gitShow: hash => api('/api/code-studio/git/show?hash=' + encodeURIComponent(hash)),
+        gitBlame: path => api('/api/code-studio/git/blame?path=' + encodeURIComponent(path)),
     };
 
     function loadState() {
@@ -469,7 +475,7 @@
     }
 
     function saveState() {
-        const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => tab.kind !== 'diff'));
+        const openPaths = normalizePersistedPaths(state.openTabs.filter(tab => !isVirtualTab(tab)));
         const recentPaths = normalizePersistedPaths(state.recentFiles);
         const payload = {
             openTabs: openPaths.map(path => ({ path })),
@@ -496,7 +502,7 @@
         registerSessionAction(instance);
         window.AuraDesktopEmail?.attach(windowId, '.code-studio-toolbar', () => {
             const tab = instance.openTabs[instance.activeTabIndex];
-            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary||tab.kind==='diff', subject:tab?.path.split('/').pop(),
+            return {key:tab, disabled:!isLiveInstance(instance)||!tab||tab.binary||isVirtualTab(tab), subject:tab?.path.split('/').pop(),
                 formats:tab?[{id:'source',label:tab.path.split('/').pop()}]:[],
                 createFiles:async()=>[new File([tab.content],tab.path.split('/').pop(),{type:'text/plain;charset=utf-8'})]};
         });
@@ -582,7 +588,7 @@
         if (id === 'run-current') id = 'run';
         const writes = ['new-file', 'new-folder', 'save', 'save-all', 'upload', 'rename', 'delete', 'run', 'new-terminal', 'comments', 'tests', 'refactor'];
         if (!canWrite() && writes.includes(id)) return true;
-        return ['save', 'run', 'split-right', 'split-down', 'explain', 'comments', 'tests', 'refactor'].includes(id) && (!tab || tab.kind === 'diff');
+        return ['save', 'run', 'split-right', 'split-down', 'explain', 'comments', 'tests', 'refactor'].includes(id) && (!tab || isVirtualTab(tab));
     }
 
     function watchStudioPolicy() {
@@ -959,7 +965,7 @@
         tabs.dataset.signature = signature;
         tabs.innerHTML = state.openTabs.length ? state.openTabs.map((tab, index) => `
             <button type="button" class="cs-tab ${index === state.activeTabIndex ? 'active' : ''}${tab.modified ? ' modified' : ''}" data-tab="${index}" draggable="true" role="tab" aria-selected="${index === state.activeTabIndex ? 'true' : 'false'}" title="${esc(tab.path)}${tab.modified ? ' \u2022 ' + esc(tr('codeStudio.unsavedChanges', 'Unsaved changes')) : ''}">
-                <span>${esc(baseName(tab.path))}${tab.kind === 'diff' ? ' · ' + esc(tr('codeStudio.gitDiff', 'Git Diff')) : ''}</span>
+                <span>${esc(studioTabLabel(tab))}</span>
                 ${tab.modified ? '<span class="cs-tab-modified"></span>' : ''}
                 <span class="cs-tab-close" data-close="${index}" title="${esc(tr('codeStudio.closeTab', 'Close tab'))}">${iconMarkup('x', 'X', 'cs-tab-close-icon', 12)}</span>
             </button>`).join('') : `<div class="cs-tabs-empty">${esc(tr('codeStudio.noFiles', 'No files open'))}</div>`;
@@ -1125,7 +1131,7 @@
         const bar = shellPart('[data-breadcrumbs]');
         if (!bar) return;
         const tab = activeTab();
-        if (!tab) {
+        if (!tab || tab.kind === 'commit') {
             bar.innerHTML = '';
             return;
         }
@@ -1405,7 +1411,7 @@
     }
 
     function tabHasLocalState(tab) {
-        return !tab || tab.kind === 'diff' || tab.modified || !!tab.pathMutation || !!tab.pendingSave;
+        return !tab || isVirtualTab(tab) || tab.modified || !!tab.pathMutation || !!tab.pendingSave;
     }
 
     // An open tab goes stale when something else (the agent) writes its file. A tab without
@@ -1445,7 +1451,7 @@
             await refreshFiles(WORKSPACE_ROOT);
             return;
         }
-        const existing = state.openTabs.findIndex(tab => tab.path === path && tab.kind !== 'diff');
+        const existing = state.openTabs.findIndex(tab => tab.path === path && !isVirtualTab(tab));
         if (existing >= 0) {
             const tab = state.openTabs[existing];
             activateTab(existing);
@@ -1588,7 +1594,7 @@
     }
 
     function saveTab(target, tab) {
-        if (!canWrite(target) || !tab || tab.kind === 'diff' || !target.openTabs.includes(tab) || tab.pathMutation) return Promise.resolve(false);
+        if (!canWrite(target) || !tab || isVirtualTab(tab) || !target.openTabs.includes(tab) || tab.pathMutation) return Promise.resolve(false);
         const content = editorValue(tab);
         const path = tab.path;
         const pending = (tab.pendingSave || Promise.resolve()).then(async () => {
@@ -1629,7 +1635,7 @@
     }
 
     async function mutatePath(target, file, operation) {
-        if (!canWrite(target) || file.kind === 'diff') return false;
+        if (!canWrite(target) || isVirtualTab(file)) return false;
         const tabs = target.openTabs.filter(tab => tab.path === file.path || tab.path.startsWith(file.path + '/'));
         if (tabs.some(tab => tab.pathMutation)) return false;
         tabs.forEach(tab => { tab.pathMutation = true; });
@@ -1705,7 +1711,7 @@
         if (!canWrite(target)) return;
         runWithInstance(target, () => {
             state.openTabs.forEach(tab => {
-                if (tab.kind === 'diff') return;
+                if (isVirtualTab(tab)) return;
                 if (tab.path === file.path) tab.path = newPath;
                 else if (file.type === 'directory' && tab.path.startsWith(file.path + '/')) {
                     tab.path = newPath + tab.path.slice(file.path.length);
@@ -1880,7 +1886,7 @@
         const target = state;
         if (!canWrite(target)) return;
         const tab = activeTab();
-        if (!tab || tab.kind === 'diff') return;
+        if (!tab || isVirtualTab(tab)) return;
         const path = tab.path;
         let content = editorValue(tab);
         const terminal = activeTerminalSession();
@@ -2060,6 +2066,17 @@
     function fileIcon(name) {
         const lang = languageForPath(name);
         return ({ javascript: 'JS', jsx: 'JS', typescript: 'TS', tsx: 'TS', python: 'PY', go: 'GO', c: 'C', rust: 'RS', json: '{}', html: '<>', css: '#', markdown: 'MD' })[lang] || '\u2022';
+    }
+
+    // Diff and commit tabs show git data, not a file: they are never saved, run, persisted,
+    // split, listed as files or sent to the agent.
+    function isVirtualTab(tab) {
+        return !!tab && (tab.kind === 'diff' || tab.kind === 'commit');
+    }
+
+    function studioTabLabel(tab) {
+        if (tab.kind === 'commit') return tr('codeStudio.gitCommitTab', 'Commit {{hash}}', { hash: tab.short || String(tab.hash || '').slice(0, 7) });
+        return baseName(tab.path) + (tab.kind === 'diff' ? ' · ' + tr('codeStudio.gitDiff', 'Git Diff') : '');
     }
 
     function editorValue(tab) {
@@ -3886,7 +3903,7 @@
     }
 
     function checkDocumentContent(tab) {
-        if (!tab || tab.kind === 'diff') return [];
+        if (!tab || isVirtualTab(tab)) return [];
         const code = editorValue(tab);
         if (!code) return [];
         const language = tab.language || languageForPath(tab.path);
@@ -4560,7 +4577,7 @@
         const sidebar = shellPart('[data-sidebar]');
         if (!sidebar) return;
         const tab = activeTab();
-        const symbols = tab && tab.kind !== 'diff' ? scanDocumentSymbols(tab) : [];
+        const symbols = tab && !isVirtualTab(tab) ? scanDocumentSymbols(tab) : [];
         const head = `<div class="cs-sidebar-head">
             <div class="cs-sidebar-title">
                 <strong>${esc(tr('codeStudio.outline', 'Outline'))}</strong>
@@ -4996,7 +5013,7 @@
 
     function runCodeAction(action) {
         const tab = activeTab();
-        if (!tab || tab.kind === 'diff' || action !== 'explain' && !canWrite()) return;
+        if (!tab || isVirtualTab(tab) || action !== 'explain' && !canWrite()) return;
         const selection = codeStudioSelection();
         const target = selection.text ? tr('codeStudio.promptSelection', 'selected code') : tr('codeStudio.promptFile', 'current file');
         const vars = { target, path: tab.path };
@@ -5016,13 +5033,13 @@
         const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
-            current_file: tab && tab.kind !== 'diff' ? tab.path : '',
+            current_file: tab && !isVirtualTab(tab) ? tab.path : '',
             current_language: tab ? tab.language : '',
             current_content: selection.text ? '' : content,
             cursor_line: cursor.line,
             cursor_column: cursor.column,
             selected_text: selection.text,
-            open_files: state.openTabs.filter(item => item.kind !== 'diff').map(item => item.path)
+            open_files: state.openTabs.filter(item => !isVirtualTab(item)).map(item => item.path)
         };
     }
 
@@ -5032,7 +5049,7 @@
     }
 
     function suggestionCanApply(suggestion) {
-        return canWrite() && activeTab()?.kind !== 'diff' && suggestion && suggestion.canReplace && suggestion.tab && suggestion.tab.kind !== 'diff' && suggestion.windowId === state.windowId &&
+        return canWrite() && !isVirtualTab(activeTab()) && suggestion && suggestion.canReplace && suggestion.tab && !isVirtualTab(suggestion.tab) && suggestion.windowId === state.windowId &&
             state.openTabs.includes(suggestion.tab) && suggestion.tab.path === suggestion.path &&
             !suggestion.tab.pathMutation && (suggestion.tab.revision || 0) === suggestion.revision;
     }
@@ -5365,7 +5382,7 @@
     }
 
     function splitEditor(direction) {
-        if (!state || activeTab()?.kind === 'diff') return;
+        if (!state || isVirtualTab(activeTab())) return;
         const next = direction === 'down' ? 'down' : 'right';
         // IDE package 1A: switching between right and down keeps both pane tabs; the same direction closes the split.
         if (state.splitMode === next) resetSplitState();
@@ -6372,6 +6389,7 @@
         instances,
         trapDialogFocus,
         api: apiClient,
+        isVirtualTab,
         command: exposedCommand,
         knownFiles: exposedKnownFiles,
         documentSymbols: exposedDocumentSymbols,
@@ -6476,7 +6494,7 @@
         const state = getState();
         if (!state) return [];
         const hasTab = !!(state.openTabs && state.openTabs.length);
-        const sourceTab = hasTab && state.openTabs[state.activeTabIndex]?.kind !== 'diff';
+        const sourceTab = hasTab && !getApp().isVirtualTab(state.openTabs[state.activeTabIndex]);
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
@@ -6542,7 +6560,7 @@
             seen.add(path);
             items.push({ id: type + ':' + path, label: fileLabel(path), path, icon, type });
         };
-        (state.openTabs || []).forEach(tab => push(tab.path, 'file', 'file'));
+        (state.openTabs || []).filter(tab => !app.isVirtualTab(tab)).forEach(tab => push(tab.path, 'file', 'file'));
         (state.recentFiles || []).slice(0, 8).forEach(path => push(path, 'recent', 'clock'));
         const known = app && typeof app.knownFiles === 'function' ? app.knownFiles(owner.windowId) : [];
         known.forEach(entry => push(entry.path, 'file', 'file'));

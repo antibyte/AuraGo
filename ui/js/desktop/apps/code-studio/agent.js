@@ -219,7 +219,7 @@
 
     function runCodeAction(action) {
         const tab = activeTab();
-        if (!tab || tab.kind === 'diff' || action !== 'explain' && !canWrite()) return;
+        if (!tab || isVirtualTab(tab) || action !== 'explain' && !canWrite()) return;
         const selection = codeStudioSelection();
         const target = selection.text ? tr('codeStudio.promptSelection', 'selected code') : tr('codeStudio.promptFile', 'current file');
         const vars = { target, path: tab.path };
@@ -239,13 +239,13 @@
         const content = tab ? editorValue(tab) : '';
         return {
             source: 'code-studio',
-            current_file: tab && tab.kind !== 'diff' ? tab.path : '',
+            current_file: tab && !isVirtualTab(tab) ? tab.path : '',
             current_language: tab ? tab.language : '',
             current_content: selection.text ? '' : content,
             cursor_line: cursor.line,
             cursor_column: cursor.column,
             selected_text: selection.text,
-            open_files: state.openTabs.filter(item => item.kind !== 'diff').map(item => item.path)
+            open_files: state.openTabs.filter(item => !isVirtualTab(item)).map(item => item.path)
         };
     }
 
@@ -255,7 +255,7 @@
     }
 
     function suggestionCanApply(suggestion) {
-        return canWrite() && activeTab()?.kind !== 'diff' && suggestion && suggestion.canReplace && suggestion.tab && suggestion.tab.kind !== 'diff' && suggestion.windowId === state.windowId &&
+        return canWrite() && !isVirtualTab(activeTab()) && suggestion && suggestion.canReplace && suggestion.tab && !isVirtualTab(suggestion.tab) && suggestion.windowId === state.windowId &&
             state.openTabs.includes(suggestion.tab) && suggestion.tab.path === suggestion.path &&
             !suggestion.tab.pathMutation && (suggestion.tab.revision || 0) === suggestion.revision;
     }

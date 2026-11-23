@@ -328,7 +328,7 @@
     }
 
     function checkDocumentContent(tab) {
-        if (!tab || tab.kind === 'diff') return [];
+        if (!tab || isVirtualTab(tab)) return [];
         const code = editorValue(tab);
         if (!code) return [];
         const language = tab.language || languageForPath(tab.path);

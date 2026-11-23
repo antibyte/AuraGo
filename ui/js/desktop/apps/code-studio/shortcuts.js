@@ -345,6 +345,7 @@
         instances,
         trapDialogFocus,
         api: apiClient,
+        isVirtualTab,
         command: exposedCommand,
         knownFiles: exposedKnownFiles,
         documentSymbols: exposedDocumentSymbols,

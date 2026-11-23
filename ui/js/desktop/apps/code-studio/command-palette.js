@@ -82,7 +82,7 @@
         const state = getState();
         if (!state) return [];
         const hasTab = !!(state.openTabs && state.openTabs.length);
-        const sourceTab = hasTab && state.openTabs[state.activeTabIndex]?.kind !== 'diff';
+        const sourceTab = hasTab && !getApp().isVirtualTab(state.openTabs[state.activeTabIndex]);
         const modified = !!(state.openTabs || []).some(tab => tab.modified);
         return [
             { id: 'new-file', label: tr('codeStudio.newFile', 'New File'), shortcut: 'Ctrl+N', icon: 'file-plus', run: 'createNewFile' },
@@ -148,7 +148,7 @@
             seen.add(path);
             items.push({ id: type + ':' + path, label: fileLabel(path), path, icon, type });
         };
-        (state.openTabs || []).forEach(tab => push(tab.path, 'file', 'file'));
+        (state.openTabs || []).filter(tab => !app.isVirtualTab(tab)).forEach(tab => push(tab.path, 'file', 'file'));
         (state.recentFiles || []).slice(0, 8).forEach(path => push(path, 'recent', 'clock'));
         const known = app && typeof app.knownFiles === 'function' ? app.knownFiles(owner.windowId) : [];
         known.forEach(entry => push(entry.path, 'file', 'file'));

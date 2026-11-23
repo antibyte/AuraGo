@@ -114,7 +114,7 @@
         const sidebar = shellPart('[data-sidebar]');
         if (!sidebar) return;
         const tab = activeTab();
-        const symbols = tab && tab.kind !== 'diff' ? scanDocumentSymbols(tab) : [];
+        const symbols = tab && !isVirtualTab(tab) ? scanDocumentSymbols(tab) : [];
         const head = `<div class="cs-sidebar-head">
             <div class="cs-sidebar-title">
                 <strong>${esc(tr('codeStudio.outline', 'Outline'))}</strong>
