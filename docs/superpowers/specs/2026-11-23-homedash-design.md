@@ -133,7 +133,7 @@ renderings with a full specification (visual part section 4.1). Sizes are grid c
 
 | Type | Variants | Min / default | Binds |
 | --- | --- | --- | --- |
-| `switch` | pill, rocker, push, tile | 1×1 / 2×1 (rocker 1×2 / 2×2) | switch, light, fan, humidifier |
+| `switch` | pill, rocker, push, tile | 1×1 / 2×1 (rocker 1×2 / 2×2; tile 1×1 / 2×2) | switch, light, fan, humidifier |
 | `light` | slider, fader, dial, tile | 2×1 / 4×1; 1×2 / 1×3; 2×2 / 2×2; 1×1 / 2×2 | light |
 | `climate` | dial, stepper, scale | 2×2 / 3×3; 2×1 / 2×1; 1×2 / 1×3 | climate |
 | `temperature` | numeral, thermometer, comfort | 1×1 / 2×1; 1×2 / 1×2; 2×2 / 2×2 | sensor (+ humidity) |
@@ -235,7 +235,8 @@ The detail is in the visual part. The essentials:
 - **Minimal.** Type and hairlines; no shadows, no gradients.
 - **Instrument.** A calm dark HUD: segmented arcs, seven-segment numerals, one glow colour.
 - **Shared rules.** A state is never shown by colour alone (position, glyph and word). Text contrast 4.5:1,
-  graphics 3:1. Hit targets at least 44 px. Only `transform` and `opacity` animate. One line-icon set of about
+  graphics 3:1. Hit targets at least 44 px. Keyframe animations use only `transform` and `opacity`; transitions
+  may also change `stroke-dasharray` on SVG arcs, so value arcs sweep with their handle. One line-icon set of about
   70 glyphs, drawn for HomeDash. Editor chrome follows the desktop theme and never competes with the canvas.
 - **Theme behaviour.** Glass and Minimal take surfaces, ink and radii from the desktop theme. Tactile and
   Instrument keep their own materials and take accent and status colours.
