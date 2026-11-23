@@ -74,6 +74,7 @@ const desktopMainParts = [
   'ui/js/desktop/core/clock-calendar-runtime.js',
   'ui/js/desktop/apps/calendar-editor.js',
   'ui/js/desktop/apps/calendar.js',
+  'ui/js/desktop/apps/quickconnect-console.js',
   'ui/js/desktop/apps/quickconnect-sftp-navigator.js',
   'ui/js/desktop/apps/quickconnect-serial-model.js',
   'ui/js/desktop/apps/quickconnect-serial-views.js',

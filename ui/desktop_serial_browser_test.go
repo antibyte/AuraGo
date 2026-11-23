@@ -535,6 +535,10 @@ window.RFB=class extends EventTarget{constructor(_el,url){super();this.url=url;t
 	if err := page.AddScriptTag("", normalizeAssetText([]byte(module))); err != nil {
 		t.Fatalf("load Quick Connect serial module: %v", err)
 	}
+	consoleModule := readDesktopAssetText(t, "js/desktop/apps/quickconnect-console.js")
+	if err := page.AddScriptTag("", normalizeAssetText([]byte(consoleModule))); err != nil {
+		t.Fatalf("load Quick Connect console module: %v", err)
+	}
 	launchpad := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js") + "\nwindow.__renderQuickConnect=renderQuickConnect;"
 	if err := page.AddScriptTag("", normalizeAssetText([]byte(launchpad))); err != nil {
 		t.Fatalf("load Quick Connect shell source: %v; browser errors: %s", err, page.MustEval(`()=>window.__shellErrors`).JSON("", ""))

@@ -112,6 +112,10 @@
             }
             function serialErrorText(code, fallback) { return tr(errorKey(code, fallback)); }
             function setStatus(message, kind) {
+                if (typeof opts.onStatus === 'function') {
+                    const profile = connection && connection.profile || profiles.find(item => item.id === selectedId);
+                    try { opts.onStatus(kind || 'ready', message || '', { profileId: profile && profile.id || '', profileName: profile && profile.name || '' }); } catch (_) {}
+                }
                 const status = content && content.querySelector('[data-serial-status]');
                 if (!status) return;
                 status.textContent = message || '';
@@ -243,7 +247,7 @@
                 const mount = content.querySelector('[data-serial-terminal]');
                 if (!mount) return;
                 terminal = new TerminalCtor({
-                    theme: { background: '#0d1117', foreground: '#c9d1d9', cursor: '#58a6ff', selectionBackground: 'rgba(88, 166, 255, 0.3)' },
+                    theme: typeof opts.terminalTheme === 'function' ? opts.terminalTheme() : { background: '#0d1117', foreground: '#c9d1d9', cursor: '#58a6ff', selectionBackground: 'rgba(88, 166, 255, 0.3)' },
                     fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
                     fontSize: 13,
                     cursorBlink: true,
@@ -282,6 +286,10 @@
                 ownerWindow.setTimeout(() => fitTerminal(), 0);
             }
 
+            function refreshTheme() {
+                if (terminal && terminal.options && typeof opts.terminalTheme === 'function') terminal.options.theme = opts.terminalTheme();
+            }
+
             function fitTerminal() {
                 if (fitAddon) { try { fitAddon.fit(); } catch (_) {} }
             }
@@ -315,7 +323,7 @@
                 if (!list) return;
                 const query = String(searchInput && searchInput.value || '').trim().toLowerCase();
                 const filtered = profiles.filter(profile => !query || `${profile.name} ${profile.source} ${profile.port}`.toLowerCase().includes(query));
-                list.innerHTML = profileListMarkup({ profiles: filtered, selectedId, loading, readonly: readonly(), isConnectable: profile => allowed(profile.source) && !readonly(), diagnose: sourceDiagnostic, tr });
+                list.innerHTML = profileListMarkup({ profiles: filtered, total: profiles.length, selectedId, loading, readonly: readonly(), isConnectable: profile => allowed(profile.source) && !readonly(), diagnose: sourceDiagnostic, tr });
                 list.querySelector('[data-serial-create]')?.addEventListener('click', () => { selectedId = ''; renderEditor(); });
                 list.querySelectorAll('[data-serial-profile]').forEach(button => button.addEventListener('click', () => { selectedId = button.dataset.serialProfile; renderList(); renderEditor(); }));
                 list.querySelectorAll('[data-serial-connect]').forEach(button => button.addEventListener('click', () => { void connectProfile(button.dataset.serialConnect); }));
@@ -982,6 +990,7 @@
                 connectProfile,
                 disconnect,
                 dispose,
+                refreshTheme,
                 get connected() { return !!connection; }
             };
         }

@@ -40,9 +40,10 @@
 
         // isConnectable and diagnose apply the controller's live grants, port
         // availability and browser capability checks to one profile.
-        function profileListMarkup({ profiles, selectedId, loading, readonly, isConnectable, diagnose, tr }) {
-            return `<div class="vd-qc-serial-list-head"><span>${esc(tr('desktop.qc_serial_select_profile'))}</span><button class="vd-qc-btn vd-qc-btn-sm" type="button" data-serial-create ${readonly ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(tr('desktop.qc_serial_create_profile'))}</span></button></div>` +
-                (loading ? `<div class="vd-empty">${esc(tr('desktop.loading'))}</div>` : !profiles.length ? `<div class="vd-empty">${esc(tr('desktop.qc_serial_no_profiles'))}</div>` : profiles.map(profile => {
+        function profileListMarkup({ profiles, total, selectedId, loading, readonly, isConnectable, diagnose, tr }) {
+            const createLabel = esc(tr('desktop.qc_serial_create_profile'));
+            return `<div class="vd-qc-section-head vd-qc-serial-list-head"><span>${esc(tr('desktop.qc_serial_filter'))}</span><span class="vd-qc-section-count">${String(profiles.length).padStart(2, '0')}</span><button class="vd-qc-btn vd-qc-btn-sm vd-qc-icon-only" type="button" data-serial-create title="${createLabel}" aria-label="${createLabel}" ${readonly ? 'disabled' : ''}>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}</button></div>` +
+                (loading ? `<div class="vd-empty">${esc(tr('desktop.loading'))}</div>` : !profiles.length ? (total > 0 ? '' : `<div class="vd-empty">${esc(tr('desktop.qc_serial_no_profiles'))}</div>`) : profiles.map(profile => {
                     const detail = profile.source === 'host' ? profile.port : tr('desktop.qc_serial_browser');
                     const canConnect = isConnectable(profile);
                     const diagnostic = diagnose(profile);

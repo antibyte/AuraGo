@@ -41,7 +41,7 @@ func TestDesktopLoadFailedI18n(t *testing.T) {
 	if strings.Contains(generated, "deviceList.innerHTML = `<div class=\"vd-empty\">${esc(err.message)}</div>`") {
 		t.Fatal("quick connect device list still dumps err.message")
 	}
-	if !strings.Contains(generated, "deviceList.innerHTML = `<div class=\"vd-empty\">${esc(t('desktop.load_failed'))}</div>`") {
+	if !strings.Contains(generated, "deviceList.innerHTML = emptyStateHTML('desktop.load_failed', 'data-qc-retry', 'desktop.retry')") {
 		t.Fatal("quick connect device list empty state must localize desktop.load_failed")
 	}
 

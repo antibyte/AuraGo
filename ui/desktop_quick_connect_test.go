@@ -189,3 +189,115 @@ func TestDesktopQuickConnectVNCPreservesErrorOnDisconnectMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestDesktopQuickConnectConsoleContract(t *testing.T) {
+	t.Parallel()
+
+	consoleText := readDesktopAssetText(t, "js/desktop/apps/quickconnect-console.js")
+	shellText := readDesktopAssetText(t, "js/desktop/apps/quickconnect-launchpad-chat.js")
+	for _, marker := range []string{
+		"data-qc-statusbar", "data-qc-status-label", "data-qc-status-proto", "data-qc-status-target",
+		"data-qc-status-time", "data-qc-status-size", "data-qc-phosphor-toggle", "data-qc-phosphor-label",
+		"'role', 'dialog'", "aria-modal", "aurago.quickConnect.phosphor", "function quickConnectTerminalTheme(",
+	} {
+		if !strings.Contains(consoleText, marker) {
+			t.Errorf("quickconnect-console.js missing marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		`aria-pressed="true"`, "data-conn=", "data-qc-add-server", "data-qc-clear-search", "data-qc-retry",
+		`role="tablist"`, `role="tab"`, "data-qc-session-name", "data-qc-devices-head", "data-qc-device-count",
+		"QuickConnectConsole.openDialog", "cursorStyle: 'block'",
+	} {
+		if !strings.Contains(shellText, marker) {
+			t.Errorf("quickconnect-launchpad-chat.js missing marker %q", marker)
+		}
+	}
+	if strings.Contains(shellText, "data-qc-new-serial") {
+		t.Error("the sidebar no longer has a New serial connection button")
+	}
+
+	newKeys := []string{
+		"section_targets", "status_ready", "status_connecting", "status_connected", "status_disconnected",
+		"status_error", "no_results", "clear_search", "hint_navigate", "hint_search", "badge_no_credential",
+		"phosphor_label", "phosphor_auto", "phosphor_green", "phosphor_amber", "phosphor_ice",
+		"session_time", "terminal_size",
+	}
+	for _, lang := range []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"} {
+		var values map[string]string
+		if err := json.Unmarshal([]byte(readDesktopAssetText(t, "lang/desktop/"+lang+".json")), &values); err != nil {
+			t.Fatalf("parse %s: %v", lang, err)
+		}
+		for _, key := range newKeys {
+			if strings.TrimSpace(values["desktop.qc_"+key]) == "" {
+				t.Errorf("%s: desktop.qc_%s is empty", lang, key)
+			}
+		}
+		if !strings.Contains(values["desktop.qc_phosphor_label"], "{{name}}") {
+			t.Errorf("%s: phosphor label lost its {{name}} placeholder", lang)
+		}
+	}
+}
+
+func TestDesktopQuickConnectConsoleBehaviourBrowser(t *testing.T) {
+	requirePrecisionBrowserSmoke(t)
+	browser := newSmokeBrowser(t)
+	page := newQuickConnectShellPage(t, browser, "standard", 1200, 800)
+	defer page.Close()
+	result := page.MustEval(`async()=>{
+        const key=(target,value)=>target.dispatchEvent(new KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true}));
+        const search=()=>document.querySelector('.vd-qc-search input');
+        const root=()=>document.querySelector('.vd-quick-connect');
+        await serialShell.wait(()=>document.querySelector('[data-device-id="ssh-lab"]'));
+        const out={};
+        // (a) slash focuses the search, ArrowDown reaches the first row
+        document.querySelector('[data-device-id]').focus();
+        key(document.activeElement,'/');
+        out.slashFocusesSearch=document.activeElement===search();
+        key(search(),'ArrowDown');
+        out.arrowReachesRow=document.activeElement===document.querySelector('[data-device-id]');
+        // (b) no results and the clear button
+        search().value='zzz-none';search().dispatchEvent(new Event('input'));
+        out.noResults=!!document.querySelector('[data-device-list] .vd-empty')&&document.querySelector('[data-qc-device-count]').textContent==='00';
+        document.querySelector('[data-qc-clear-search]').click();
+        out.clearWorks=search().value===''&&document.activeElement===search()&&!!document.querySelector('[data-device-id="ssh-lab"]');
+        // (c) server dialog
+        const add=document.querySelector('[data-qc-add-server]');
+        add.focus();add.click();
+        const dialog=document.querySelector('.vd-qc-modal-overlay .vd-qc-modal');
+        out.dialogRole=!!dialog&&dialog.getAttribute('role')==='dialog'&&dialog.getAttribute('aria-modal')==='true'&&!!document.getElementById(dialog.getAttribute('aria-labelledby'))&&dialog.contains(document.activeElement);
+        key(document.activeElement,'Escape');
+        out.escapeClosesAndRestoresFocus=!document.querySelector('.vd-qc-modal-overlay')&&document.activeElement===add;
+        // (d) phosphor cycle survives a re-render
+        const toggle=()=>document.querySelector('[data-qc-phosphor-toggle]');
+        const seen=[root().dataset.qcPhosphor];
+        toggle().click();seen.push(root().dataset.qcPhosphor);
+        toggle().click();seen.push(root().dataset.qcPhosphor);
+        serialShell.cleanup();
+        serialShell.app=window.__renderQuickConnect('qc');
+        await serialShell.wait(()=>document.querySelector('[data-device-id="ssh-lab"]'));
+        out.phosphorSeen=seen.join(',');
+        out.phosphorSurvives=root().dataset.qcPhosphor==='amber';
+        toggle().click();toggle().click();
+        out.phosphorBackToAuto=root().dataset.qcPhosphor==='auto';
+        // (e) SSH row marking survives typing into the search field
+        document.querySelector('[data-device-id="ssh-lab"]').click();
+        await serialShell.wait(()=>serialShell.sockets.length===1);
+        const row=()=>document.querySelector('[data-device-id="ssh-lab"]');
+        out.connecting=row().classList.contains('active')&&row().dataset.conn==='connecting'&&document.querySelector('[data-qc-statusbar]').dataset.state==='connecting';
+        await serialShell.sockets[0].onmessage({data:new Uint8Array([65]).buffer});
+        search().value='ssh';search().dispatchEvent(new Event('input'));
+        out.markSurvivesSearch=row().classList.contains('active')&&row().dataset.conn==='connected'&&document.querySelector('[data-qc-statusbar]').dataset.state==='connected';
+        serialShell.cleanup();
+        out.errors=window.__shellErrors;
+        return out;
+    }`)
+	for _, key := range []string{"slashFocusesSearch", "arrowReachesRow", "noResults", "clearWorks", "dialogRole", "escapeClosesAndRestoresFocus", "phosphorSurvives", "phosphorBackToAuto", "connecting", "markSurvivesSearch"} {
+		if !result.Get(key).Bool() {
+			t.Errorf("%s failed: %s", key, result.JSON("", ""))
+		}
+	}
+	if len(result.Get("errors").Arr()) != 0 {
+		t.Errorf("browser errors: %s", result.Get("errors").JSON("", ""))
+	}
+}

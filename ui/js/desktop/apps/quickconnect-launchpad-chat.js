@@ -20,43 +20,56 @@
         host.innerHTML = `<div class="vd-quick-connect">
             <div class="vd-qc-sidebar">
                 <div class="vd-qc-sidebar-header">
-                    <span class="vd-qc-title">${esc(t('desktop.qc_title'))}</span>
-                </div>
-                <div class="vd-qc-search">
-                    <input type="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="desktop.qc_search_placeholder">
-                </div>
-                <div class="vd-qc-filters" role="group" aria-label="${esc(t('desktop.qc_filter_protocol'))}">
-                    <button class="vd-qc-filter active" type="button" data-qc-filter="all">${iconMarkup('server', 'A', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_filter_all'))}</span></button>
-                    <button class="vd-qc-filter" type="button" data-qc-filter="ssh">${iconMarkup('terminal', 'T', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
-                    <button class="vd-qc-filter" type="button" data-qc-filter="vnc">${iconMarkup('monitor', 'V', 'vd-qc-filter-icon', 13)}<span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
-                    <button class="vd-qc-filter" type="button" data-qc-filter="serial"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
-                </div>
-                <button class="vd-qc-btn vd-qc-serial-new" type="button" data-qc-new-serial>${iconMarkup('plus', '+', 'vd-qc-btn-icon', 13)}<span>${esc(t('desktop.qc_serial_new_connection'))}</span></button>
-                <div class="vd-qc-target" data-qc-target hidden></div>
-                <div class="vd-qc-lists"><div class="vd-qc-device-list" data-device-list>${esc(t('desktop.loading'))}</div><div data-serial-list></div></div>
-            </div>
-            <div class="vd-qc-terminal-area" data-terminal-area>
-                <div class="vd-qc-tabs" data-qc-tabs hidden>
-                    <button class="vd-qc-tab active" data-tab="terminal">${iconMarkup('terminal', 'T', 'vd-qc-tab-icon', 14)}<span>${esc(t('desktop.qc_tab_terminal'))}</span></button>
-                    <button class="vd-qc-tab" data-tab="files">${iconMarkup('folder', 'F', 'vd-qc-tab-icon', 14)}<span>${esc(t('desktop.qc_tab_files'))}</span></button>
-                </div>
-                <div class="vd-qc-tab-content" data-tab-content>
-                    <div class="vd-qc-placeholder">
-                        <span class="vd-qc-placeholder-icon">${iconMarkup('server', 'S', 'vd-qc-placeholder-papirus-icon', 42)}</span>
-                        <span class="vd-qc-placeholder-text">${esc(t('desktop.qc_select_device'))}</span>
+                    <span class="vd-qc-title"><span class="vd-qc-title-glyph" aria-hidden="true">&gt;_</span><span>${esc(t('desktop.qc_title'))}</span></span>
+                    <div class="vd-qc-header-actions">
+                        <button class="vd-qc-btn vd-qc-btn-sm vd-qc-icon-only" type="button" data-qc-add-server title="${esc(t('desktop.qc_add_server'))}" aria-label="${esc(t('desktop.qc_add_server'))}">${iconMarkup('plus', '+', 'vd-qc-btn-icon', 14)}</button>
                     </div>
                 </div>
+                <div class="vd-qc-search">
+                    <span class="vd-qc-search-glyph" aria-hidden="true">/</span>
+                    <input type="search" autocomplete="off" spellcheck="false" aria-label="${esc(t('desktop.qc_search_placeholder'))}" data-i18n-placeholder="desktop.qc_search_placeholder">
+                </div>
+                <div class="vd-qc-filters" role="group" aria-label="${esc(t('desktop.qc_filter_protocol'))}">
+                    <button class="vd-qc-filter active" type="button" data-qc-filter="all" aria-pressed="true"><span>${esc(t('desktop.qc_filter_all'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="ssh" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_ssh'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="vnc" aria-pressed="false"><span>${esc(t('desktop.qc_protocol_vnc'))}</span></button>
+                    <button class="vd-qc-filter" type="button" data-qc-filter="serial" aria-pressed="false"><span>${esc(t('desktop.qc_serial_filter'))}</span></button>
+                </div>
+                <div class="vd-qc-target" data-qc-target hidden></div>
+                <div class="vd-qc-lists">
+                    <div class="vd-qc-section-head" data-qc-devices-head><span>${esc(t('desktop.qc_section_targets'))}</span><span class="vd-qc-section-count" data-qc-device-count>00</span></div>
+                    <div class="vd-qc-device-list" data-device-list><div class="vd-empty">${esc(t('desktop.loading'))}</div></div>
+                    <div data-serial-list></div>
+                </div>
+            </div>
+            <div class="vd-qc-terminal-area" data-terminal-area>
+                <div class="vd-qc-tabs" data-qc-tabs role="tablist" hidden>
+                    <button class="vd-qc-tab active" type="button" role="tab" aria-selected="true" data-tab="terminal"><span>${esc(t('desktop.qc_tab_terminal'))}</span></button>
+                    <button class="vd-qc-tab" type="button" role="tab" aria-selected="false" data-tab="files"><span>${esc(t('desktop.qc_tab_files'))}</span></button>
+                    <span class="vd-qc-session-name" data-qc-session-name></span>
+                </div>
+                <div class="vd-qc-tab-content" data-tab-content>${QuickConnectConsole.bootMarkup(t)}</div>
                 <div class="vd-qc-serial-content" data-serial-content hidden></div>
+                ${QuickConnectConsole.statusBarMarkup(t)}
             </div>
         </div>`;
         wireContextMenuBoundary(host);
 
+        const quickRoot = host.querySelector('.vd-quick-connect');
         const searchInput = host.querySelector('.vd-qc-search input');
         searchInput.placeholder = t('desktop.qc_search_placeholder');
         const deviceList = host.querySelector('[data-device-list]');
+        const devicesHead = host.querySelector('[data-qc-devices-head]');
+        const deviceCount = host.querySelector('[data-qc-device-count]');
         const terminalArea = host.querySelector('[data-terminal-area]');
         const tabContent = host.querySelector('[data-tab-content]');
         const qcTabs = host.querySelector('[data-qc-tabs]');
+        const sessionName = host.querySelector('[data-qc-session-name]');
+        const statusBar = QuickConnectConsole.createStatusBar(host.querySelector('[data-qc-statusbar]'), t);
+        let sessionState = 'idle';
+        let sessionDeviceId = '';
+        let sessionProtocol = '';
+        let sessionTarget = '';
         const serialList = host.querySelector('[data-serial-list]');
         const serialContent = host.querySelector('[data-serial-content]');
         const filterButtons = Array.from(host.querySelectorAll('[data-qc-filter]'));
@@ -78,6 +91,14 @@
         const pendingConfirmations = new Set();
         let targetDeviceId = '';
         let focusTarget = false;
+        function setFilterButtons(value) {
+            activeProtocolFilter = value;
+            filterButtons.forEach(button => {
+                const on = button.dataset.qcFilter === value;
+                button.classList.toggle('active', on);
+                button.setAttribute('aria-pressed', on ? 'true' : 'false');
+            });
+        }
         const targetPanel = host.querySelector('[data-qc-target]');
         function targetID(launch) {
             return launch && typeof launch.device_id === 'string' && launch.device_id.length <= 128 ? launch.device_id : '';
@@ -115,8 +136,7 @@
             targetDeviceId = next;
             focusTarget = true;
             searchInput.value = '';
-            activeProtocolFilter = 'all';
-            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'all'));
+            setFilterButtons('all');
             if (!cachedDevices || !cachedDevices.some(item => item.id === next)) { loadAll(); return; }
             filterDevices();
             renderTarget();
@@ -134,9 +154,50 @@
             },
             onSessionEnd: owner => {
                 if (typeof owner === 'function' && owner()) connectedProtocol = null;
+            },
+            terminalTheme: () => QuickConnectConsole.quickConnectTerminalTheme(quickRoot),
+            onStatus: (kind, message, info) => {
+                if (disposed || connectedProtocol !== 'serial') return;
+                setSessionStatus({ state: kind === 'ready' ? 'idle' : kind, protocol: t('desktop.qc_serial_filter'), target: info && info.profileName || sessionTarget, name: info && info.profileName || sessionName.textContent });
             }
         });
         serialTerminal.render();
+
+        // One source of truth for the status bar, the timer, the session name and
+        // the active device row; SSH, VNC and serial all report through it.
+        function deviceUsername(device) {
+            const cred = device && device.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === device.credential_id) : null;
+            return cred && cred.username || '';
+        }
+
+        function deviceTarget(device, withPort) {
+            const user = deviceUsername(device);
+            const port = device.port || (device.protocol === 'vnc' ? 5900 : 22);
+            return `${user ? user + '@' : ''}${device.ip_address || ''}${withPort ? ':' + port : ''}`;
+        }
+
+        function markSessionRows() {
+            deviceList.querySelectorAll('.vd-qc-device').forEach(row => {
+                const mine = !!sessionDeviceId && row.dataset.deviceId === sessionDeviceId && sessionState !== 'idle';
+                row.classList.toggle('active', mine);
+                row.dataset.conn = mine ? (sessionState === 'disconnected' ? 'idle' : sessionState) : 'idle';
+            });
+        }
+
+        function setSessionStatus(next) {
+            sessionState = next.state || 'idle';
+            if (sessionState === 'idle') {
+                sessionDeviceId = ''; sessionProtocol = ''; sessionTarget = '';
+                sessionName.textContent = '';
+            } else {
+                if ('deviceId' in next) sessionDeviceId = next.deviceId || '';
+                if (next.protocol) sessionProtocol = next.protocol;
+                if (next.target) sessionTarget = next.target;
+                if (next.name) sessionName.textContent = next.name;
+            }
+            statusBar.set({ state: sessionState, protocol: sessionProtocol, target: sessionTarget });
+            markSessionRows();
+        }
 
         function showSerialView() {
             if (disposed) return;
@@ -147,8 +208,7 @@
         }
 
         function newSerialConnection() {
-            activeProtocolFilter = 'serial';
-            filterButtons.forEach(button => button.classList.toggle('active', button.dataset.qcFilter === 'serial'));
+            setFilterButtons('serial');
             filterDevices();
             showSerialView();
             serialList.querySelector('[data-serial-create]')?.click();
@@ -161,6 +221,7 @@
             activeFitAddon = null;
             disconnectActiveResizeObserver();
             closeSFTPPanel(tabContent);
+            setSessionStatus({ state: 'idle' });
         }
 
         async function beginRemoteSession() {
@@ -173,10 +234,15 @@
             return generation;
         }
 
+        function markTab(btn, on) {
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        }
+
         function switchTab(tab) {
             if (tab === 'files' && connectedProtocol !== 'ssh') return;
             activeTab = tab;
-            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === tab));
             if (tab === 'files' && connectedDeviceId && connectedProtocol === 'ssh') {
                 openSFTPPanel(connectedDeviceId, tabContent);
             } else if (tab === 'terminal') {
@@ -186,6 +252,18 @@
 
         qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => {
             btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+        QuickConnectConsole.wireTabs(qcTabs, switchTab);
+        QuickConnectConsole.wireKeyboard({ root: quickRoot, searchInput, deviceList, serialList, getFilter: () => activeProtocolFilter });
+        function refreshTerminalThemes() {
+            if (activeTerm && activeTerm.options) activeTerm.options.theme = { ...QuickConnectConsole.ANSI_PALETTE, ...QuickConnectConsole.quickConnectTerminalTheme(quickRoot) };
+            serialTerminal.refreshTheme();
+        }
+        QuickConnectConsole.wirePhosphor(quickRoot, host.querySelector('[data-qc-statusbar]'), t, refreshTerminalThemes);
+        quickRoot.addEventListener('click', event => {
+            if (event.target.closest('[data-qc-add-server]')) showServerModal();
+            else if (event.target.closest('[data-qc-retry]')) loadAll();
+            else if (event.target.closest('[data-qc-clear-search]')) { searchInput.value = ''; filterDevices(); searchInput.focus(); }
         });
 
         registerWindowCleanup(id, () => {
@@ -197,6 +275,7 @@
             loadController?.abort();
             for (const cancel of pendingConfirmations) cancel();
             serialTerminal.dispose();
+            statusBar.dispose();
             if (activeSFTPNav) { activeSFTPNav.dispose(); activeSFTPNav = null; }
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
@@ -205,7 +284,6 @@
         });
 
         setQuickConnectMenus(id, host, loadAll, showServerModal, () => switchTab('files'), newSerialConnection);
-        host.querySelector('[data-qc-new-serial]').addEventListener('click', newSerialConnection);
         serialList.addEventListener('click', event => {
             if (event.target.closest('[data-serial-profile], [data-serial-create], [data-serial-connect]')) showSerialView();
         }, true);
@@ -214,8 +292,7 @@
         searchInput.addEventListener('input', () => filterDevices());
         filterButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                activeProtocolFilter = btn.dataset.qcFilter || 'all';
-                filterButtons.forEach(item => item.classList.toggle('active', item === btn));
+                setFilterButtons(btn.dataset.qcFilter || 'all');
                 filterDevices();
                 if (activeProtocolFilter === 'serial') showSerialView();
             });
@@ -226,7 +303,7 @@
             loadController?.abort();
             loadController = new AbortController();
             const options = { signal: loadController.signal };
-            deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.loading'))}</div>`;
+            deviceList.innerHTML = emptyStateHTML('desktop.loading');
             try {
                 const [devBody, credBody] = await Promise.all([
                     api('/api/desktop/integrations/devices?quick_connect=1', options),
@@ -235,16 +312,18 @@
                 if (disposed || generation !== loadGeneration) return;
                 cachedDevices = withAuraGoHostDevice((devBody.devices || devBody || []).filter(d => d.id === targetDeviceId || canConnectDevice(d)));
                 cachedCredentials = credBody || [];
-                if (!cachedDevices.length) {
-                    deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
-                    return;
-                }
                 renderDeviceList(cachedDevices);
                 renderTarget();
             } catch (err) {
                 if (disposed || generation !== loadGeneration) return;
-                deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.load_failed'))}</div>`;
+                deviceList.innerHTML = emptyStateHTML('desktop.load_failed', 'data-qc-retry', 'desktop.retry');
+                deviceCount.textContent = '00';
             }
+        }
+
+        function emptyStateHTML(messageKey, buttonAttr, buttonKey) {
+            const button = buttonAttr ? `<button class="vd-qc-btn vd-qc-btn-sm" type="button" ${buttonAttr}>${esc(t(buttonKey))}</button>` : '';
+            return `<div class="vd-empty">${esc(t(messageKey))}${button}</div>`;
         }
 
         function auraGoHostName() {
@@ -281,25 +360,30 @@
                 (d.ip_address || '').toLowerCase().includes(query) ||
                 (d.description || '').toLowerCase().includes(query)
             ));
+            deviceCount.textContent = String(filtered.length).padStart(2, '0');
             if (!filtered.length) {
-                deviceList.innerHTML = `<div class="vd-empty">${esc(t('desktop.qc_no_devices'))}</div>`;
+                deviceList.innerHTML = !devices.length
+                    ? emptyStateHTML('desktop.qc_no_devices', 'data-qc-add-server', 'desktop.qc_add_server')
+                    : emptyStateHTML('desktop.qc_no_results', query ? 'data-qc-clear-search' : '', 'desktop.qc_clear_search');
                 return;
             }
             deviceList.innerHTML = filtered.map(d => {
-                const cred = d.credential_id && cachedCredentials ? cachedCredentials.find(c => c.id === d.credential_id) : null;
+                const user = deviceUsername(d);
                 const endpoint = `${d.ip_address || ''}${d.port && d.port !== 22 && d.port !== 5900 ? ':' + d.port : ''}`;
                 const protoLabel = !canConnectDevice(d) ? t('desktop.qc_no_connection') : (d.protocol === 'vnc' ? 'VNC' : 'SSH');
-                const protoIcon = d.protocol === 'vnc' ? 'monitor' : 'terminal';
-                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}">
-                    <span class="vd-qc-device-icon">${iconMarkup(d.is_template ? 'home' : protoIcon, 'S', 'vd-qc-device-papirus-icon', 22)}</span>
-                    <div class="vd-qc-device-main">
-                        <div class="vd-qc-device-name">${esc(d.name)}</div>
-                        <div class="vd-qc-device-meta">${esc(endpoint || '')}</div>
-                        ${d.description ? `<div class="vd-qc-device-desc">${esc(d.description)}</div>` : ''}
-                    </div>
-                    <div class="vd-qc-device-badges">
-                        ${d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>' : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>' : '<span class="vd-qc-badge vd-qc-badge-warn">?</span>')}
-                    </div>
+                const mine = !!sessionDeviceId && d.id === sessionDeviceId && sessionState !== 'idle';
+                const noCredential = esc(t('desktop.qc_badge_no_credential'));
+                const badge = d.is_template ? '<span class="vd-qc-badge vd-qc-badge-info">' + esc(t('desktop.qc_badge_setup')) + '</span>'
+                    : (d.credential_id ? '<span class="vd-qc-badge vd-qc-badge-ok">' + esc(protoLabel) + '</span>'
+                        : '<span class="vd-qc-badge vd-qc-badge-warn" title="' + noCredential + '" aria-label="' + noCredential + '">?</span>');
+                return `<button class="vd-qc-device${d.is_template ? ' template' : ''}${mine ? ' active' : ''}" type="button" data-device-id="${esc(d.id)}" aria-current="${d.id === targetDeviceId ? 'true' : 'false'}" data-conn="${mine ? (sessionState === 'disconnected' ? 'idle' : sessionState) : 'idle'}">
+                    <span class="vd-qc-device-led" aria-hidden="true"></span>
+                    <span class="vd-qc-device-main">
+                        <span class="vd-qc-device-name">${esc(d.name)}</span>
+                        <span class="vd-qc-device-meta">${esc((user ? user + '@' : '') + endpoint)}</span>
+                        ${d.description ? `<span class="vd-qc-device-desc">${esc(d.description)}</span>` : ''}
+                    </span>
+                    <span class="vd-qc-device-badges">${badge}</span>
                 </button>`;
             }).join('');
             deviceList.querySelectorAll('.vd-qc-device').forEach(btn => {
@@ -327,6 +411,7 @@
 
         function filterDevices() {
             deviceList.hidden = activeProtocolFilter === 'serial';
+            devicesHead.hidden = deviceList.hidden;
             serialList.hidden = activeProtocolFilter !== 'all' && activeProtocolFilter !== 'serial';
             if (cachedDevices) renderDeviceList(cachedDevices);
             serialTerminal.render();
@@ -339,7 +424,7 @@
                 { label: t('desktop.qc_edit'), icon: 'edit', fallback: 'E', action: () => showServerModal(device) }
             ];
             if (!device.is_template) {
-                items.push({ separator: true }, { label: t('desktop.qc_delete'), icon: 'trash', fallback: 'X', action: () => confirmDeleteDevice(device) });
+                items.push({ separator: true }, { label: t('desktop.qc_delete'), icon: 'trash', fallback: 'X', danger: true, action: () => confirmDeleteDevice(device) });
             }
             showContextMenu(x, y, items);
         }
@@ -388,9 +473,10 @@
                         <button class="vd-qc-btn ${esc(okClass)}" type="button" data-action="ok">${iconMarkup(okIcon, 'OK', 'vd-qc-btn-icon', 14)}<span>${esc(okLabel)}</span></button>
                     </div>
                 </div>`;
-                host.querySelector('.vd-quick-connect').appendChild(overlay);
+                quickRoot.appendChild(overlay);
+                const release = QuickConnectConsole.openDialog(overlay, { onCancel: () => finish(false), initialFocus: overlay.querySelector('[data-action="cancel"]') });
                 const cancel = () => finish(false);
-                const finish = value => { pendingConfirmations.delete(cancel); overlay.remove(); resolve(value); };
+                const finish = value => { pendingConfirmations.delete(cancel); release(); overlay.remove(); resolve(value); };
                 pendingConfirmations.add(cancel);
                 overlay.querySelector('[data-action="cancel"]').addEventListener('click', cancel);
                 overlay.querySelector('[data-action="ok"]').addEventListener('click', () => finish(true));
@@ -408,7 +494,7 @@
             overlay.innerHTML = `<div class="vd-qc-modal">
                 <div class="vd-qc-modal-header">
                     <span class="vd-qc-modal-title">${esc(isEdit ? t('desktop.qc_edit_server') : t('desktop.qc_add_server'))}</span>
-                    <button class="vd-qc-modal-close" type="button" data-action="close" title="${esc(t('desktop.close'))}">${iconMarkup('x', 'X', 'vd-qc-close-icon', 14)}</button>
+                    <button class="vd-qc-modal-close" type="button" data-action="close" title="${esc(t('desktop.close'))}" aria-label="${esc(t('desktop.close'))}">${iconMarkup('x', 'X', 'vd-qc-close-icon', 14)}</button>
                 </div>
                 <div class="vd-qc-modal-body">
                     <div class="vd-qc-form-section">
@@ -442,7 +528,7 @@
                         <label class="vd-qc-label">${esc(t('desktop.qc_password'))}
                             <div class="vd-qc-input-group">
                                 <input class="vd-qc-input" type="password" name="password" placeholder="${isEdit && existingCred && existingCred.has_password ? t('desktop.qc_password_stored') : ''}">
-                                <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw" title="${esc(t('desktop.qc_password'))}">${iconMarkup('key', 'K', 'vd-qc-input-icon', 14)}</button>
+                                <button class="vd-qc-input-toggle" type="button" data-action="toggle-pw" aria-pressed="false" title="${esc(t('desktop.qc_password'))}" aria-label="${esc(t('desktop.qc_password'))}">${iconMarkup('key', 'K', 'vd-qc-input-icon', 14)}</button>
                                 ${isEdit && existingCred && existingCred.has_password ? `<button class="vd-qc-btn vd-qc-btn-sm vd-qc-icon-only" type="button" data-action="download-pw" title="${esc(t('desktop.qc_password'))}">${iconMarkup('download', 'D', 'vd-qc-btn-icon', 14)}</button>` : ''}
                             </div>
                         </label>
@@ -467,7 +553,15 @@
                 </div>
             </div>`;
 
-            host.querySelector('.vd-quick-connect').appendChild(overlay);
+            quickRoot.appendChild(overlay);
+            const release = QuickConnectConsole.openDialog(overlay, { onCancel: closeModal, initialFocus: overlay.querySelector('input[name="name"]') });
+            function closeModal() { release(); overlay.remove(); }
+            overlay.addEventListener('keydown', event => {
+                if (event.key === 'Enter' && !event.isComposing && event.target.matches('input:not([type="file"]):not([type="checkbox"])')) {
+                    event.preventDefault();
+                    overlay.querySelector('[data-action="save"]').click();
+                }
+            });
 
             const certFileInput = overlay.querySelector('input[name="certificate_file"]');
             const certTextarea = overlay.querySelector('textarea[name="certificate_text"]');
@@ -494,9 +588,10 @@
             protocolSelect.addEventListener('change', updateModalForProtocol);
             updateModalForProtocol();
 
-            overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', () => {
+            overlay.querySelector('[data-action="toggle-pw"]').addEventListener('click', event => {
                 const pwInput = overlay.querySelector('input[name="password"]');
                 pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
+                event.currentTarget.setAttribute('aria-pressed', pwInput.type === 'text' ? 'true' : 'false');
             });
 
             const dlPwBtn = overlay.querySelector('[data-action="download-pw"]');
@@ -520,8 +615,8 @@
             }
 
             // Close / Cancel
-            overlay.querySelector('[data-action="close"]').addEventListener('click', () => overlay.remove());
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
+            overlay.querySelector('[data-action="close"]').addEventListener('click', closeModal);
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', closeModal);
 
             // Save
             overlay.querySelector('[data-action="save"]').addEventListener('click', async () => {
@@ -573,7 +668,7 @@
                         // Create device linked to credential
                         await api('/api/desktop/integrations/devices', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, type: 'server', protocol, ip_address: hostVal, port, description, credential_id: created.id }) });
                     }
-                    overlay.remove();
+                    closeModal();
                     await loadAll();
                 } catch (err) {
                     showNotify(t('desktop.qc_save_error') + ': ' + err.message);
@@ -604,7 +699,9 @@
         function disconnectPlaceholderHTML(messageKey, deviceId, isVNC, messageText) {
             const reconnectBtn = `<button class="vd-qc-btn vd-qc-btn-primary vd-qc-reconnect-btn" type="button" data-action="reconnect">${iconMarkup('refresh', 'R', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_reconnect'))}</span></button>`;
             const newTermBtn = isVNC ? '' : `<button class="vd-qc-btn vd-qc-btn-secondary vd-qc-reconnect-btn" type="button" data-action="new-terminal">${iconMarkup('terminal', 'T', 'vd-qc-btn-icon', 14)}<span>${esc(t('desktop.qc_new_terminal'))}</span></button>`;
-            return `<div class="vd-qc-placeholder vd-qc-disconnected">
+            const bannerState = /error/.test(messageKey) ? 'error' : 'disconnected';
+            return `<div class="vd-qc-placeholder vd-qc-disconnected" data-state="${bannerState}">
+                <span class="vd-qc-led" aria-hidden="true"></span>
                 <span class="vd-qc-placeholder-text">${esc(messageText || t(messageKey))}</span>
                 <div class="vd-qc-reconnect-actions">${reconnectBtn}${newTermBtn}</div>
             </div>`;
@@ -634,6 +731,7 @@
             };
             status.dataset.state = state;
             status.textContent = detail || t(keys[state] || keys.error);
+            if (connectedProtocol === 'vnc') setSessionStatus({ state: keys[state] ? state : 'error', protocol: 'VNC', deviceId: connectedDeviceId });
         }
 
         function vncErrorText(code, fallback) {
@@ -687,7 +785,6 @@
             const generation = await beginRemoteSession();
             if (generation === null) return;
             const isCurrent = () => !disposed && generation === connectionGeneration;
-            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             disconnectActiveResizeObserver();
@@ -696,22 +793,15 @@
             activeTab = 'terminal';
             qcTabs.hidden = false;
             qcTabs.querySelector('[data-tab="files"]').hidden = false;
-            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === 'terminal'));
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === 'terminal'));
             closeSFTPPanel(tabContent);
-            tabContent.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_connecting'))}</span></div>`;
+            const device = cachedDevices && cachedDevices.find(d => d.id === deviceId) || {};
+            setSessionStatus({ state: 'connecting', protocol: 'SSH', deviceId, target: deviceTarget(device, true), name: device.name || '' });
 
             const term = new Terminal({
-                theme: {
-                    background: '#0d1117', foreground: '#c9d1d9', cursor: '#58a6ff',
-                    selectionBackground: 'rgba(88, 166, 255, 0.3)',
-                    black: '#0d1117', red: '#ff7b72', green: '#3fb950', yellow: '#d29922',
-                    blue: '#58a6ff', magenta: '#bc8cff', cyan: '#39c5cf', white: '#c9d1d9',
-                    brightBlack: '#484f58', brightRed: '#ffa198', brightGreen: '#56d364',
-                    brightYellow: '#e3b341', brightBlue: '#79c0ff', brightMagenta: '#d2a8ff',
-                    brightCyan: '#56d4dd', brightWhite: '#f0f6fc'
-                },
+                theme: { ...QuickConnectConsole.ANSI_PALETTE, ...QuickConnectConsole.quickConnectTerminalTheme(quickRoot) },
                 fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-                fontSize: 14, cursorBlink: true, cursorStyle: 'bar', scrollback: 5000, convertEol: true
+                fontSize: 14, cursorBlink: true, cursorStyle: 'block', scrollback: 5000, convertEol: true
             });
             const fitAddon = new FitAddon.FitAddon();
             term.loadAddon(fitAddon);
@@ -721,7 +811,9 @@
             term.open(termContainer);
             activeTerm = term;
             activeFitAddon = fitAddon;
-            setTimeout(() => { if (isCurrent()) { try { fitAddon.fit(); } catch(_) {} } }, 50);
+            term.write('\x1b[2m› ' + t('desktop.qc_connecting') + ' ' + (device.name || deviceId) + (device.ip_address ? ' (' + device.ip_address + ')' : '') + '\x1b[0m\r\n');
+            const showSize = () => { if (isCurrent() && activeTerm === term) statusBar.setSize(term.cols, term.rows); };
+            setTimeout(() => { if (isCurrent()) { try { fitAddon.fit(); } catch(_) {} showSize(); } }, 50);
             const resizeObserver = new ResizeObserver(() => {
                 if (activeTerm === term) { try { fitAddon.fit(); } catch(_) {} }
             });
@@ -738,6 +830,7 @@
                 if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(new TextEncoder().encode(data));
             });
             term.onResize(({ cols, rows }) => {
+                showSize();
                 if (isCurrent() && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'resize', cols, rows }));
             });
             ws.onmessage = async (event) => {
@@ -745,7 +838,7 @@
                 if (typeof event.data === 'string') {
                     try {
                         const msg = JSON.parse(event.data);
-                        if (msg.type === 'error') term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n');
+                        if (msg.type === 'error') { term.write('\r\n\x1b[31m' + msg.message + '\x1b[0m\r\n'); setSessionStatus({ state: 'error' }); }
                         else if (msg.type === 'warning' && msg.code === 'insecure_host_key') {
                             const warning = t('desktop.qc_host_key_warning');
                             term.write('\r\n\x1b[33m' + warning + '\x1b[0m\r\n');
@@ -773,42 +866,37 @@
                         else if (msg.type === 'disconnected') term.write('\r\n\x1b[33m' + msg.message + '\x1b[0m\r\n');
                     } catch(_) {}
                 } else {
+                    if (sessionState === 'connecting') { setSessionStatus({ state: 'connected' }); showSize(); }
                     const bytes = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : new TextEncoder().encode(event.data);
                     term.write(bytes);
                 }
             };
+            // A banner over the last output replaces the old placeholder screens.
+            const showBanner = messageKey => {
+                activeWS = null;
+                const placeholder = document.createElement('div');
+                placeholder.innerHTML = disconnectPlaceholderHTML(messageKey, deviceId, false);
+                const reconnectActions = placeholder.querySelector('.vd-qc-reconnect-actions');
+                if (reconnectActions) {
+                    reconnectActions.querySelector('[data-action="reconnect"]').addEventListener('click', () => connectSSH(deviceId));
+                    const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
+                    if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
+                }
+                (tabContent.querySelector('.vd-qc-term-container') || tabContent).appendChild(placeholder.firstElementChild);
+            };
             ws.onclose = () => {
                 if (isCurrent() && activeWS === ws) {
+                    const failed = sessionState === 'error';
                     term.write('\r\n\x1b[33m' + t('desktop.qc_disconnected') + '\x1b[0m\r\n');
-                    activeWS = null;
-                    const placeholder = document.createElement('div');
-                    placeholder.innerHTML = disconnectPlaceholderHTML('desktop.qc_disconnected', deviceId, false);
-                    const reconnectActions = placeholder.querySelector('.vd-qc-reconnect-actions');
-                    if (reconnectActions) {
-                        reconnectActions.querySelector('[data-action="reconnect"]').addEventListener('click', () => connectSSH(deviceId));
-                        const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
-                        if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
-                    }
-                    const termContainer = tabContent.querySelector('.vd-qc-term-container');
-                    if (termContainer) termContainer.appendChild(placeholder.firstElementChild);
-                    else tabContent.appendChild(placeholder.firstElementChild);
+                    if (!failed) setSessionStatus({ state: 'disconnected' });
+                    showBanner(failed ? 'desktop.qc_connection_error' : 'desktop.qc_disconnected');
                 }
             };
             ws.onerror = () => {
                 if (isCurrent() && activeWS === ws) {
                     term.write('\r\n\x1b[31m' + t('desktop.qc_connection_error') + '\x1b[0m\r\n');
-                    activeWS = null;
-                    const placeholder = document.createElement('div');
-                    placeholder.innerHTML = disconnectPlaceholderHTML('desktop.qc_connection_error', deviceId, false);
-                    const reconnectActions = placeholder.querySelector('.vd-qc-reconnect-actions');
-                    if (reconnectActions) {
-                        reconnectActions.querySelector('[data-action="reconnect"]').addEventListener('click', () => connectSSH(deviceId));
-                        const newTermBtn = reconnectActions.querySelector('[data-action="new-terminal"]');
-                        if (newTermBtn) newTermBtn.addEventListener('click', () => connectSSH(deviceId));
-                    }
-                    const termContainer = tabContent.querySelector('.vd-qc-term-container');
-                    if (termContainer) termContainer.appendChild(placeholder.firstElementChild);
-                    else tabContent.appendChild(placeholder.firstElementChild);
+                    setSessionStatus({ state: 'error' });
+                    showBanner('desktop.qc_connection_error');
                 }
             };
         }
@@ -817,17 +905,19 @@
             const generation = await beginRemoteSession();
             if (generation === null) return;
             const isCurrent = () => !disposed && generation === connectionGeneration;
-            deviceList.querySelectorAll('.vd-qc-device').forEach(btn => btn.classList.toggle('active', btn.dataset.deviceId === deviceId));
             if (activeWS) { try { activeWS.close(); } catch(_) {} activeWS = null; }
             if (activeTerm) { activeTerm.dispose(); activeTerm = null; }
             disconnectActiveResizeObserver();
             connectedDeviceId = deviceId;
             connectedProtocol = 'vnc';
             activeTab = 'terminal';
-            qcTabs.hidden = false;
+            // The VNC toolbar is the session bar, so the tab strip stays hidden.
+            qcTabs.hidden = true;
             qcTabs.querySelector('[data-tab="files"]').hidden = true;
-            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === 'terminal'));
+            qcTabs.querySelectorAll('.vd-qc-tab').forEach(btn => markTab(btn, btn.dataset.tab === 'terminal'));
             closeSFTPPanel(tabContent);
+            const vncDevice = cachedDevices && cachedDevices.find(d => d.id === deviceId) || {};
+            setSessionStatus({ state: 'connecting', protocol: 'VNC', deviceId, target: deviceTarget({ ...vncDevice, credential_id: '' }, true), name: vncDevice.name || '' });
             tabContent.innerHTML = `<div class="vd-qc-placeholder vd-qc-connecting"><div class="vd-qc-spinner fm-spinner"></div><span class="vd-qc-placeholder-text">${esc(t('desktop.qc_vnc_connecting'))}</span></div>`;
 
             const sessionEl = document.createElement('div');
@@ -861,7 +951,6 @@
                 if (!isCurrent()) return;
                 lastVNCError = null;
                 setVNCStatus(sessionEl, 'connected');
-                showNotify(t('desktop.qc_vnc_connected'));
             });
             rfb.addEventListener('disconnect', () => {
                 if (!isCurrent()) return;
@@ -1099,7 +1188,7 @@
                     formData.append('file', file);
                     const resp = await fetch('/api/desktop/sftp/upload?device_id=' + encodeURIComponent(deviceId), { method: 'POST', body: formData });
                     if (!resp.ok) {
-                        const err = await resp.json().catch(() => ({ error: 'Upload failed' }));
+                        const err = await resp.json().catch(() => ({}));
                         showNotify(err.error || t('desktop.qc_sftp_error'));
                     }
                 } catch (err) {
