@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "De Kaggle-log hieronder toont wat er gebeurde. Start opnieuw.",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle was niet bereikbaar.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Probeer het zo meteen opnieuw. Blijft het mislukken, test dan de verbinding in de Kaggle-instellingen.",
+  "chibi_sensei.fail.kaggle_refused": "Een Kaggle-instelling die deze run nodig heeft, staat uit, dus de run is gestopt.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Open de trainingsstap, zet de ontbrekende instelling aan in de lijst „Voor je begint” en start opnieuw.",
   "chibi_sensei.warning.base_gguf_invalid": "Het basismodelbestand voor vergelijkingen kon niet worden gebruikt. Je getrainde model is in orde.",
   "chibi_sensei.warning.remote_timeout": "De notebook liep tot de tijdslimiet voordat hij stopte.",
   "chibi_sensei.warning.manifest_missing": "Kaggle stuurde geen lijst met resultaatbestanden.",
-  "chibi_sensei.warning.cleanup_failed": "Opruimen op Kaggle is niet gelukt. Mogelijk zijn er items in je account achtergebleven."
+  "chibi_sensei.warning.cleanup_failed": "Opruimen op Kaggle is niet gelukt. Mogelijk zijn er items in je account achtergebleven.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle is op dit moment niet bereikbaar. AuraGo blijft het proberen.",
+  "chibi_sensei.warning.desktop_readonly": "De desktop staat in alleen-lezen-modus. De run wacht tot wijzigingen weer zijn toegestaan.",
+  "chibi_sensei.warning.kaggle_refused": "Een Kaggle-instelling die deze run nodig heeft, staat uit. De run wacht tot die weer aan staat.",
+  "chibi_sensei.warning.staged_left": "Enkele tijdelijke bestanden van deze run konden niet worden verwijderd uit de Kaggle-map van AuraGo op deze computer."
 }

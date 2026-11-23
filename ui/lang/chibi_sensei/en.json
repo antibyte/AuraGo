@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "The Kaggle log below shows what happened. Start again.",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle could not be reached.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Try again in a moment. If it keeps failing, test the connection in the Kaggle settings.",
+  "chibi_sensei.fail.kaggle_refused": "A Kaggle setting this run needs is switched off, so the run was stopped.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Open the Training step, switch the missing setting on in the list “Before you start” and start again.",
   "chibi_sensei.warning.base_gguf_invalid": "The base model file for comparisons could not be used. Your trained model is fine.",
   "chibi_sensei.warning.remote_timeout": "The notebook ran until its time limit before it stopped.",
   "chibi_sensei.warning.manifest_missing": "Kaggle sent no list of result files.",
-  "chibi_sensei.warning.cleanup_failed": "Cleaning up on Kaggle did not work. Some items may have stayed on your account."
+  "chibi_sensei.warning.cleanup_failed": "Cleaning up on Kaggle did not work. Some items may have stayed on your account.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle cannot be reached right now. AuraGo keeps trying.",
+  "chibi_sensei.warning.desktop_readonly": "The desktop is in read-only mode. The run waits until changes are allowed again.",
+  "chibi_sensei.warning.kaggle_refused": "A Kaggle setting this run needs is switched off. The run waits until it is switched on again.",
+  "chibi_sensei.warning.staged_left": "Some temporary files of this run could not be removed from AuraGo's Kaggle folder on this computer."
 }

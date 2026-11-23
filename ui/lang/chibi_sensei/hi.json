@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "नीचे Kaggle लॉग बताता है कि क्या हुआ। दोबारा शुरू करें।",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle तक नहीं पहुँचा जा सका।",
   "chibi_sensei.fail.kaggle_unavailable_fix": "थोड़ी देर बाद फिर कोशिश करें। फिर भी विफल हो, तो Kaggle सेटिंग में कनेक्शन टेस्ट करें।",
+  "chibi_sensei.fail.kaggle_refused": "इस रन को जिस Kaggle सेटिंग की ज़रूरत है, वह बंद है, इसलिए रन रोक दिया गया।",
+  "chibi_sensei.fail.kaggle_refused_fix": "ट्रेनिंग वाला चरण खोलें, “शुरू करने से पहले” सूची में छूटी हुई सेटिंग चालू करें और फिर से शुरू करें।",
   "chibi_sensei.warning.base_gguf_invalid": "तुलना के लिए बेस मॉडल की फ़ाइल इस्तेमाल नहीं हो सकी। आपका ट्रेन किया मॉडल ठीक है।",
   "chibi_sensei.warning.remote_timeout": "नोटबुक अपनी समय-सीमा तक चलती रही, फिर रुकी।",
   "chibi_sensei.warning.manifest_missing": "Kaggle ने नतीजे की फ़ाइलों की कोई सूची नहीं भेजी।",
-  "chibi_sensei.warning.cleanup_failed": "Kaggle पर सफ़ाई नहीं हो सकी। कुछ चीज़ें आपके खाते पर रह गई हो सकती हैं।"
+  "chibi_sensei.warning.cleanup_failed": "Kaggle पर सफ़ाई नहीं हो सकी। कुछ चीज़ें आपके खाते पर रह गई हो सकती हैं।",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle तक अभी नहीं पहुँचा जा सकता। AuraGo कोशिश करता रहता है।",
+  "chibi_sensei.warning.desktop_readonly": "डेस्कटॉप केवल पढ़ने वाले मोड में है। रन तब तक रुका रहता है जब तक बदलाव फिर से अनुमत नहीं हो जाते।",
+  "chibi_sensei.warning.kaggle_refused": "इस रन को जिस Kaggle सेटिंग की ज़रूरत है, वह बंद है। रन तब तक रुका रहता है जब तक वह फिर से चालू नहीं हो जाती।",
+  "chibi_sensei.warning.staged_left": "इस रन की कुछ अस्थायी फ़ाइलें इस कंप्यूटर पर AuraGo के Kaggle फ़ोल्डर से हटाई नहीं जा सकीं।"
 }

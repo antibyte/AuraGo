@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "下方的 Kaggle 日志会显示发生了什么。请重新开始。",
   "chibi_sensei.fail.kaggle_unavailable": "无法连接 Kaggle。",
   "chibi_sensei.fail.kaggle_unavailable_fix": "请稍后再试。如果一直失败，请在 Kaggle 设置中测试连接。",
+  "chibi_sensei.fail.kaggle_refused": "此运行所需的某项 Kaggle 设置已关闭，因此运行被停止。",
+  "chibi_sensei.fail.kaggle_refused_fix": "打开“训练”步骤，在“开始之前”列表中开启缺少的设置，然后重新开始。",
   "chibi_sensei.warning.base_gguf_invalid": "用于对比的基础模型文件无法使用。你训练好的模型没有问题。",
   "chibi_sensei.warning.remote_timeout": "这个 notebook 一直运行到时间上限才停止。",
   "chibi_sensei.warning.manifest_missing": "Kaggle 没有发送结果文件列表。",
-  "chibi_sensei.warning.cleanup_failed": "清理 Kaggle 上的内容没有成功。部分项目可能还留在你的账号中。"
+  "chibi_sensei.warning.cleanup_failed": "清理 Kaggle 上的内容没有成功。部分项目可能还留在你的账号中。",
+  "chibi_sensei.warning.kaggle_unavailable": "目前无法连接 Kaggle。AuraGo 会继续尝试。",
+  "chibi_sensei.warning.desktop_readonly": "桌面处于只读模式。运行会等待，直到再次允许更改。",
+  "chibi_sensei.warning.kaggle_refused": "此运行所需的某项 Kaggle 设置已关闭。运行会等待，直到它再次开启。",
+  "chibi_sensei.warning.staged_left": "此运行的部分临时文件无法从本机上 AuraGo 的 Kaggle 文件夹中删除。"
 }

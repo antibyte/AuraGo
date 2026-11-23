@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "Das Kaggle-Protokoll unten zeigt, was passiert ist. Starte erneut.",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle war nicht erreichbar.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Versuche es gleich noch einmal. Klappt es weiter nicht, teste die Verbindung in den Kaggle-Einstellungen.",
+  "chibi_sensei.fail.kaggle_refused": "Eine Kaggle-Einstellung, die dieser Lauf braucht, ist ausgeschaltet. Deshalb wurde der Lauf beendet.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Öffne den Trainingsschritt, schalte die fehlende Einstellung in der Liste „Bevor es losgeht“ ein und starte neu.",
   "chibi_sensei.warning.base_gguf_invalid": "Die Basismodell-Datei für Vergleiche konnte nicht verwendet werden. Dein trainiertes Modell ist in Ordnung.",
   "chibi_sensei.warning.remote_timeout": "Das Notebook lief bis zu seinem Zeitlimit, bevor es endete.",
   "chibi_sensei.warning.manifest_missing": "Kaggle hat keine Liste der Ergebnisdateien geschickt.",
-  "chibi_sensei.warning.cleanup_failed": "Das Aufräumen auf Kaggle hat nicht geklappt. Einige Einträge können auf Deinem Konto geblieben sein."
+  "chibi_sensei.warning.cleanup_failed": "Das Aufräumen auf Kaggle hat nicht geklappt. Einige Einträge können auf Deinem Konto geblieben sein.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle ist gerade nicht erreichbar. AuraGo versucht es weiter.",
+  "chibi_sensei.warning.desktop_readonly": "Der Desktop ist im Nur-Lesen-Modus. Der Lauf wartet, bis Änderungen wieder erlaubt sind.",
+  "chibi_sensei.warning.kaggle_refused": "Eine Kaggle-Einstellung, die dieser Lauf braucht, ist ausgeschaltet. Der Lauf wartet, bis sie wieder eingeschaltet ist.",
+  "chibi_sensei.warning.staged_left": "Einige temporäre Dateien dieses Laufs konnten nicht aus AuraGos Kaggle-Ordner auf diesem Rechner entfernt werden."
 }

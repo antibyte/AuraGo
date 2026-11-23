@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "Dziennik Kaggle poniżej pokazuje, co się stało. Zacznij ponownie.",
   "chibi_sensei.fail.kaggle_unavailable": "Nie udało się połączyć z Kaggle.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Spróbuj ponownie za chwilę. Jeśli nadal się nie udaje, przetestuj połączenie w ustawieniach Kaggle.",
+  "chibi_sensei.fail.kaggle_refused": "Ustawienie Kaggle, którego potrzebuje ten przebieg, jest wyłączone, więc przebieg został zatrzymany.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Otwórz krok Trening, włącz brakujące ustawienie na liście „Zanim zaczniesz” i zacznij od nowa.",
   "chibi_sensei.warning.base_gguf_invalid": "Nie udało się użyć pliku modelu bazowego do porównań. Twój wytrenowany model jest w porządku.",
   "chibi_sensei.warning.remote_timeout": "Notebook działał aż do limitu czasu, zanim się zatrzymał.",
   "chibi_sensei.warning.manifest_missing": "Kaggle nie przysłał listy plików wynikowych.",
-  "chibi_sensei.warning.cleanup_failed": "Sprzątanie na Kaggle się nie udało. Niektóre elementy mogły zostać na Twoim koncie."
+  "chibi_sensei.warning.cleanup_failed": "Sprzątanie na Kaggle się nie udało. Niektóre elementy mogły zostać na Twoim koncie.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle jest teraz niedostępny. AuraGo próbuje dalej.",
+  "chibi_sensei.warning.desktop_readonly": "Pulpit jest w trybie tylko do odczytu. Przebieg czeka, aż zmiany będą znów dozwolone.",
+  "chibi_sensei.warning.kaggle_refused": "Ustawienie Kaggle, którego potrzebuje ten przebieg, jest wyłączone. Przebieg czeka, aż zostanie znów włączone.",
+  "chibi_sensei.warning.staged_left": "Nie udało się usunąć niektórych plików tymczasowych tego przebiegu z folderu Kaggle programu AuraGo na tym komputerze."
 }

@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "O registo do Kaggle abaixo mostra o que aconteceu. Começa de novo.",
   "chibi_sensei.fail.kaggle_unavailable": "Não foi possível contactar o Kaggle.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Tenta de novo daqui a pouco. Se continuar a falhar, testa a ligação nas definições do Kaggle.",
+  "chibi_sensei.fail.kaggle_refused": "Uma definição do Kaggle de que esta execução precisa está desativada, por isso a execução foi parada.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Abre o passo Treino, ativa a definição em falta na lista «Antes de começares» e começa de novo.",
   "chibi_sensei.warning.base_gguf_invalid": "O ficheiro do modelo base para comparações não pôde ser usado. O teu modelo treinado está bem.",
   "chibi_sensei.warning.remote_timeout": "O notebook correu até ao limite de tempo antes de parar.",
   "chibi_sensei.warning.manifest_missing": "O Kaggle não enviou uma lista de ficheiros de resultado.",
-  "chibi_sensei.warning.cleanup_failed": "A limpeza no Kaggle não funcionou. Alguns itens podem ter ficado na tua conta."
+  "chibi_sensei.warning.cleanup_failed": "A limpeza no Kaggle não funcionou. Alguns itens podem ter ficado na tua conta.",
+  "chibi_sensei.warning.kaggle_unavailable": "Não é possível contactar o Kaggle neste momento. O AuraGo continua a tentar.",
+  "chibi_sensei.warning.desktop_readonly": "O ambiente de trabalho está no modo só de leitura. A execução espera até as alterações voltarem a ser permitidas.",
+  "chibi_sensei.warning.kaggle_refused": "Uma definição do Kaggle de que esta execução precisa está desativada. A execução espera até ela voltar a ser ativada.",
+  "chibi_sensei.warning.staged_left": "Não foi possível remover alguns ficheiros temporários desta execução da pasta do Kaggle do AuraGo neste computador."
 }

@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "El registro de Kaggle de abajo muestra lo que pasó. Vuelve a iniciar.",
   "chibi_sensei.fail.kaggle_unavailable": "No se pudo acceder a Kaggle.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Inténtalo de nuevo en un momento. Si sigue fallando, prueba la conexión en los ajustes de Kaggle.",
+  "chibi_sensei.fail.kaggle_refused": "Un ajuste de Kaggle que necesita esta ejecución está desactivado, así que la ejecución se detuvo.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Abre el paso Entrenamiento, activa el ajuste que falta en la lista «Antes de empezar» y empieza de nuevo.",
   "chibi_sensei.warning.base_gguf_invalid": "No se pudo usar el archivo del modelo base para las comparaciones. Tu modelo entrenado está bien.",
   "chibi_sensei.warning.remote_timeout": "El notebook se ejecutó hasta su límite de tiempo antes de detenerse.",
   "chibi_sensei.warning.manifest_missing": "Kaggle no envió ninguna lista de archivos de resultados.",
-  "chibi_sensei.warning.cleanup_failed": "La limpieza en Kaggle no funcionó. Es posible que algunos elementos se hayan quedado en tu cuenta."
+  "chibi_sensei.warning.cleanup_failed": "La limpieza en Kaggle no funcionó. Es posible que algunos elementos se hayan quedado en tu cuenta.",
+  "chibi_sensei.warning.kaggle_unavailable": "No se puede acceder a Kaggle ahora mismo. AuraGo sigue intentándolo.",
+  "chibi_sensei.warning.desktop_readonly": "El escritorio está en modo de solo lectura. La ejecución espera hasta que se vuelvan a permitir los cambios.",
+  "chibi_sensei.warning.kaggle_refused": "Un ajuste de Kaggle que necesita esta ejecución está desactivado. La ejecución espera hasta que se vuelva a activar.",
+  "chibi_sensei.warning.staged_left": "No se pudieron eliminar algunos archivos temporales de esta ejecución de la carpeta de Kaggle de AuraGo en este equipo."
 }

@@ -77,13 +77,17 @@
         storage_full: { title: 'chibi_sensei.fail.storage_full', fix: 'chibi_sensei.fail.storage_full_fix' },
         trainer_failed: { title: 'chibi_sensei.fail.trainer_failed', fix: 'chibi_sensei.fail.trainer_failed_fix' },
         kaggle_unavailable: { title: 'chibi_sensei.fail.kaggle_unavailable', fix: 'chibi_sensei.fail.kaggle_unavailable_fix' },
+        kaggle_refused: { title: 'chibi_sensei.fail.kaggle_refused', fix: 'chibi_sensei.fail.kaggle_refused_fix' },
         internal_error: { title: 'chibi_sensei.fail.internal', fix: 'chibi_sensei.fail.internal_fix' },
         unknown: { title: 'chibi_sensei.fail.unknown', fix: 'chibi_sensei.fail.unknown_fix' }
     };
     const WARNING_KEYS = {
         time_budget: 'chibi_sensei.warning.time_budget', base_gguf_skipped: 'chibi_sensei.warning.base_gguf_skipped',
         base_gguf_invalid: 'chibi_sensei.warning.base_gguf_invalid', remote_timeout: 'chibi_sensei.warning.remote_timeout',
-        manifest_missing: 'chibi_sensei.warning.manifest_missing', cleanup_failed: 'chibi_sensei.warning.cleanup_failed', unknown: 'chibi_sensei.warning.unknown'
+        manifest_missing: 'chibi_sensei.warning.manifest_missing', cleanup_failed: 'chibi_sensei.warning.cleanup_failed',
+        kaggle_unavailable: 'chibi_sensei.warning.kaggle_unavailable', desktop_readonly: 'chibi_sensei.warning.desktop_readonly',
+        kaggle_refused: 'chibi_sensei.warning.kaggle_refused', staged_left: 'chibi_sensei.warning.staged_left',
+        unknown: 'chibi_sensei.warning.unknown'
     };
     const ARTIFACT_KEYS = {
         gguf_tuned: 'chibi_sensei.artifact.gguf_tuned', gguf_base: 'chibi_sensei.artifact.gguf_base', adapter: 'chibi_sensei.artifact.adapter',

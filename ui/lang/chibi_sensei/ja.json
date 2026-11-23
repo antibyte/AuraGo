@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "何が起きたかは、下の Kaggle のログで確認できます。もう一度開始してください。",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle に接続できませんでした。",
   "chibi_sensei.fail.kaggle_unavailable_fix": "しばらくしてからもう一度お試しください。失敗が続く場合は、Kaggle 設定で接続をテストしてください。",
+  "chibi_sensei.fail.kaggle_refused": "この実行に必要な Kaggle 設定がオフになっているため、実行を停止しました。",
+  "chibi_sensei.fail.kaggle_refused_fix": "トレーニングのステップを開き、「開始する前に」のリストで足りない設定をオンにして、もう一度開始してください。",
   "chibi_sensei.warning.base_gguf_invalid": "比較用のベースモデルのファイルを使えませんでした。トレーニング後のモデルには問題ありません。",
   "chibi_sensei.warning.remote_timeout": "ノートブックは、時間制限に達するまで動き続けてから止まりました。",
   "chibi_sensei.warning.manifest_missing": "Kaggle から結果ファイルの一覧が届きませんでした。",
-  "chibi_sensei.warning.cleanup_failed": "Kaggle の後片付けがうまくいきませんでした。一部の項目が、あなたのアカウントに残っている可能性があります。"
+  "chibi_sensei.warning.cleanup_failed": "Kaggle の後片付けがうまくいきませんでした。一部の項目が、あなたのアカウントに残っている可能性があります。",
+  "chibi_sensei.warning.kaggle_unavailable": "現在 Kaggle に接続できません。AuraGo は接続を試み続けます。",
+  "chibi_sensei.warning.desktop_readonly": "デスクトップは読み取り専用モードです。変更が再び許可されるまで、実行は待機します。",
+  "chibi_sensei.warning.kaggle_refused": "この実行に必要な Kaggle 設定がオフになっています。再びオンになるまで、実行は待機します。",
+  "chibi_sensei.warning.staged_left": "このコンピューター上の AuraGo の Kaggle フォルダーから、この実行の一時ファイルの一部を削除できませんでした。"
 }

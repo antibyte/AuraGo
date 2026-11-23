@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "Il log di Kaggle qui sotto mostra cos'è successo. Avvia di nuovo.",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle non era raggiungibile.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Riprova tra un attimo. Se continua a fallire, prova la connessione nelle impostazioni Kaggle.",
+  "chibi_sensei.fail.kaggle_refused": "Un'impostazione Kaggle di cui questa esecuzione ha bisogno è disattivata, quindi l'esecuzione è stata fermata.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Apri il passaggio Addestramento, attiva l'impostazione mancante nell'elenco «Prima di iniziare» e ricomincia.",
   "chibi_sensei.warning.base_gguf_invalid": "Il file del modello di base per i confronti non ha potuto essere usato. Il tuo modello addestrato è a posto.",
   "chibi_sensei.warning.remote_timeout": "Il notebook è andato avanti fino al suo limite di tempo prima di fermarsi.",
   "chibi_sensei.warning.manifest_missing": "Kaggle non ha inviato alcun elenco dei file dei risultati.",
-  "chibi_sensei.warning.cleanup_failed": "La pulizia su Kaggle non ha funzionato. Alcuni elementi potrebbero essere rimasti sul tuo account."
+  "chibi_sensei.warning.cleanup_failed": "La pulizia su Kaggle non ha funzionato. Alcuni elementi potrebbero essere rimasti sul tuo account.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle al momento non è raggiungibile. AuraGo continua a riprovare.",
+  "chibi_sensei.warning.desktop_readonly": "Il desktop è in sola lettura. L'esecuzione aspetta finché le modifiche non sono di nuovo consentite.",
+  "chibi_sensei.warning.kaggle_refused": "Un'impostazione Kaggle di cui questa esecuzione ha bisogno è disattivata. L'esecuzione aspetta finché non viene riattivata.",
+  "chibi_sensei.warning.staged_left": "Alcuni file temporanei di questa esecuzione non sono stati rimossi dalla cartella Kaggle di AuraGo su questo computer."
 }

@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "Co se stalo, ukazuje záznam Kaggle níže. Spusť znovu.",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle se nepodařilo zastihnout.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Zkus to za chvíli znovu. Pokud to stále selhává, otestuj spojení v nastavení Kaggle.",
+  "chibi_sensei.fail.kaggle_refused": "Nastavení Kaggle, které tento běh potřebuje, je vypnuté, a proto byl běh zastaven.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Otevři krok Trénink, v seznamu „Než začneš“ zapni chybějící nastavení a začni znovu.",
   "chibi_sensei.warning.base_gguf_invalid": "Soubor základního modelu pro porovnání nešlo použít. Tvůj natrénovaný model je v pořádku.",
   "chibi_sensei.warning.remote_timeout": "Notebook běžel až do svého časového limitu, než se zastavil.",
   "chibi_sensei.warning.manifest_missing": "Kaggle neposlal seznam výsledných souborů.",
-  "chibi_sensei.warning.cleanup_failed": "Úklid na Kaggle se nepodařil. Některé položky mohly na tvém účtu zůstat."
+  "chibi_sensei.warning.cleanup_failed": "Úklid na Kaggle se nepodařil. Některé položky mohly na tvém účtu zůstat.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle teď není dostupný. AuraGo to zkouší dál.",
+  "chibi_sensei.warning.desktop_readonly": "Plocha je v režimu jen pro čtení. Běh počká, dokud nebudou změny znovu povoleny.",
+  "chibi_sensei.warning.kaggle_refused": "Nastavení Kaggle, které tento běh potřebuje, je vypnuté. Běh počká, dokud se znovu nezapne.",
+  "chibi_sensei.warning.staged_left": "Některé dočasné soubory tohoto běhu se nepodařilo odstranit ze složky Kaggle programu AuraGo v tomto počítači."
 }

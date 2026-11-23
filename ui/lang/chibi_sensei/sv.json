@@ -827,8 +827,14 @@
   "chibi_sensei.fail.trainer_failed_fix": "Kaggle-loggen nedan visar vad som hände. Starta igen.",
   "chibi_sensei.fail.kaggle_unavailable": "Kaggle kunde inte nås.",
   "chibi_sensei.fail.kaggle_unavailable_fix": "Försök igen om en stund. Om det fortsätter misslyckas, testa anslutningen i Kaggle-inställningarna.",
+  "chibi_sensei.fail.kaggle_refused": "En Kaggle-inställning som den här körningen behöver är avstängd, så körningen stoppades.",
+  "chibi_sensei.fail.kaggle_refused_fix": "Öppna träningssteget, slå på den inställning som saknas i listan ”Innan du börjar” och starta om.",
   "chibi_sensei.warning.base_gguf_invalid": "Basmodellfilen för jämförelser gick inte att använda. Din tränade modell är i ordning.",
   "chibi_sensei.warning.remote_timeout": "Notebooken kördes till sin tidsgräns innan den stannade.",
   "chibi_sensei.warning.manifest_missing": "Kaggle skickade ingen lista över resultatfiler.",
-  "chibi_sensei.warning.cleanup_failed": "Städningen på Kaggle fungerade inte. Vissa objekt kan ha blivit kvar på ditt konto."
+  "chibi_sensei.warning.cleanup_failed": "Städningen på Kaggle fungerade inte. Vissa objekt kan ha blivit kvar på ditt konto.",
+  "chibi_sensei.warning.kaggle_unavailable": "Kaggle kan inte nås just nu. AuraGo fortsätter att försöka.",
+  "chibi_sensei.warning.desktop_readonly": "Skrivbordet är i skrivskyddat läge. Körningen väntar tills ändringar tillåts igen.",
+  "chibi_sensei.warning.kaggle_refused": "En Kaggle-inställning som den här körningen behöver är avstängd. Körningen väntar tills den slås på igen.",
+  "chibi_sensei.warning.staged_left": "Vissa tillfälliga filer från den här körningen kunde inte tas bort från AuraGos Kaggle-mapp på den här datorn."
 }
