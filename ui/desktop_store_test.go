@@ -311,18 +311,98 @@ func TestSoftwareStoreActionButtonsUseStableGridLayout(t *testing.T) {
 
 	source := strings.ReplaceAll(readAllDesktopAppCSS(t), "\r\n", "\n")
 	for _, want := range []string{
-		".vd-store-card {\n    display: grid;",
-		"grid-template-rows: auto minmax(64px, auto) auto auto 1fr;",
-		".vd-store-actions {\n    display: grid;",
-		"grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));",
-		"align-items: stretch;",
-		".vd-store-btn {\n    width: 100%;",
+		"container-type: inline-size;",
+		"@container vd-store (max-width: 720px)",
+		".vd-store-actions {\n    display: flex;\n    flex-wrap: wrap;",
+		"margin-top: auto;",
 		".vd-store-btn span {\n    min-width: 0;",
 		"text-overflow: ellipsis;",
+		"-webkit-line-clamp: 3;",
 	} {
 		if !strings.Contains(source, want) {
-			t.Fatalf("software store action layout missing marker %q", want)
+			t.Fatalf("software store layout missing marker %q", want)
 		}
+	}
+	store := strings.ReplaceAll(readDesktopAssetText(t, "css/desktop-app-software-store.css"), "\r\n", "\n")
+	if strings.Contains(store, "@media (max-width: 720px)") {
+		t.Fatal("software store must size itself with the vd-store container query, not the viewport")
+	}
+}
+
+// The Store browses by search text and a nav selection (all, installed,
+// updates, category); every state keeps focus and scroll on re-render.
+func TestSoftwareStoreBrowsesBySearchAndCategory(t *testing.T) {
+	t.Parallel()
+
+	source := readDesktopAssetText(t, "js/desktop/apps/software-store.js")
+	for _, want := range []string{
+		"data-store-search",
+		"data-store-search-clear",
+		"'data-store-filter', 'installed'",
+		"data-store-category",
+		"desktop.store.no_results",
+		"desktop.store.reset_filters",
+		"data-store-reset",
+		"data-store-retry",
+		"normalize('NFD')",
+		"function captureGridFocus()",
+		"restoreGridFocus(savedFocus);",
+		"grid.scrollTop = options && options.resetScroll ? 0 : savedScroll;",
+		"if (!initialCatalogLoaded) showSkeleton();",
+		"function revealTarget()",
+		"event.key !== '/'",
+		"instance.host.removeEventListener('keydown', instance.hostKeydown)",
+	} {
+		if !strings.Contains(source, want) {
+			t.Fatalf("software store missing search/category marker %q", want)
+		}
+	}
+	required := []string{
+		"desktop.store.search_placeholder",
+		"desktop.store.search_clear",
+		"desktop.store.filter_label",
+		"desktop.store.filter_all",
+		"desktop.store.filter_installed",
+		"desktop.store.filter_updates",
+		"desktop.store.categories_label",
+		"desktop.store.no_results",
+		"desktop.store.no_results_filtered",
+		"desktop.store.reset_filters",
+		"desktop.store.result_count",
+		"desktop.store.result_count_one",
+		"desktop.store.show_more",
+		"desktop.store.show_less",
+	}
+	entries, err := Content.ReadDir("lang/desktop")
+	if err != nil {
+		t.Fatalf("read desktop translations: %v", err)
+	}
+	checked := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		path := "lang/desktop/" + entry.Name()
+		raw, err := Content.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var values map[string]string
+		if err := json.Unmarshal(raw, &values); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for _, key := range required {
+			if strings.TrimSpace(values[key]) == "" {
+				t.Fatalf("%s missing non-empty translation for %s", path, key)
+			}
+		}
+		if !strings.Contains(values["desktop.store.no_results"], "{{query}}") || !strings.Contains(values["desktop.store.result_count"], "{{count}}") {
+			t.Fatalf("%s lost the {{query}}/{{count}} placeholders", path)
+		}
+		checked++
+	}
+	if checked != 16 {
+		t.Fatalf("checked %d desktop locales, want 16", checked)
 	}
 }
 

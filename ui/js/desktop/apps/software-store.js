@@ -5,6 +5,14 @@
     const retiredStoreAppIDs = new Set(['emulatorjs']);
     const integrationApps = new Set(['adguard-home', 'uptime-kuma', 'n8n', 'node-red', 'olivetin', 'open-webui', 'bytestash', 'beszel', 'filebrowser-quantum', 'stirling-pdf', 'ziro-designer', 'velxio']);
 
+    // Same order and icons as the start menu categories.
+    const storeCategories = [['office', 'writer'], ['media', 'audio-player'], ['creative', 'pixel'], ['ai', 'agent-chat'], ['dev', 'code'], ['system', 'settings'], ['comms', 'phone'], ['games', 'chess']];
+    const storeCategoryIDs = new Set(storeCategories.map(item => item[0]));
+
+    function searchKey(value) {
+        return String(value == null ? '' : value).normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    }
+
     function activeStoreCatalogEntries(items) {
         return (Array.isArray(items) ? items : []).filter(entry => !retiredStoreAppIDs.has(String(entry && entry.id || '').toLowerCase()));
     }
@@ -42,6 +50,14 @@
         instances.set(windowId, instance);
         let targetAppID = '';
         let focusTarget = false;
+        // Browse state lives on the closure only (in memory).
+        let selection = 'all';
+        let searchText = '';
+        const expandedDescriptions = new Set();
+        let lastGridMarkup = '';
+        let lastNavMarkup = '';
+        let userLoadPending = false;
+        const categoriesLabelID = 'vd-store-categories-' + windowId;
         instance.selectTarget = context => {
             const value = context && context.app_id;
             if (instance.disposed || typeof value !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,127}$/.test(value)) return;
@@ -68,31 +84,166 @@
             instance.overlays.delete(overlay);
         }
 
+        // Shared dialog behaviour: Escape closes, the first control takes focus,
+        // and focus returns to the opener (or its re-rendered twin) on close.
+        function mountDialog(overlay, firstSelector) {
+            const previousFocus = document.activeElement;
+            const savedFocus = captureGridFocus();
+            const close = () => {
+                closeOverlay(overlay);
+                if (instance.disposed) return;
+                if (previousFocus && previousFocus.isConnected && previousFocus !== document.body) previousFocus.focus({ preventScroll: true });
+                else restoreGridFocus(savedFocus);
+            };
+            overlay.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    close();
+                }
+            });
+            overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+            trackOverlay(overlay);
+            const first = overlay.querySelector(firstSelector || 'input, textarea, select, button');
+            if (first) first.focus();
+            return close;
+        }
+
         host.innerHTML = `
             <div class="vd-store">
-                <div class="vd-store-toolbar">
-                    <div class="vd-store-heading">
-                        <div class="vd-store-title">${esc(t('desktop.store.title'))}</div>
-                        <div class="vd-store-subtitle">${esc(t('desktop.store.subtitle'))}</div>
+                <nav class="vd-store-nav" aria-label="${esc(t('desktop.store.filter_label'))}"></nav>
+                <section class="vd-store-main">
+                    <div class="vd-store-toolbar">
+                        <label class="vd-store-search">
+                            ${iconMarkup('search', 'S', 'vd-store-search-icon', 15)}
+                            <input type="search" class="vd-store-search-input" data-store-search placeholder="${esc(t('desktop.store.search_placeholder'))}" aria-label="${esc(t('desktop.store.search_placeholder'))}" autocomplete="off" spellcheck="false">
+                            <button type="button" class="vd-store-search-clear" data-store-search-clear aria-label="${esc(t('desktop.store.search_clear'))}" title="${esc(t('desktop.store.search_clear'))}" hidden>${iconMarkup('x', 'x', 'vd-store-btn-icon', 14)}</button>
+                        </label>
+                        <div class="vd-store-count" aria-live="polite"></div>
+                        <button type="button" class="vd-store-btn vd-store-icon-btn" data-action="refresh" aria-label="${esc(t('desktop.context_refresh'))}" title="${esc(t('desktop.context_refresh'))}">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 16)}</button>
                     </div>
-                    <button type="button" class="vd-store-btn" data-action="refresh">${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.context_refresh'))}</span></button>
-                </div>
-                <div class="vd-store-warning" hidden></div>
-                <div class="vd-store-grid"></div>
+                    <div class="vd-store-warning" hidden>${iconMarkup('info', '!', 'vd-store-warning-icon', 16)}<span class="vd-store-warning-text"></span></div>
+                    <div class="vd-store-grid"></div>
+                </section>
             </div>`;
 
         const grid = host.querySelector('.vd-store-grid');
         const warning = host.querySelector('.vd-store-warning');
-        host.querySelector('[data-action="refresh"]').addEventListener('click', () => scheduleLoad(true, true));
+        const warningText = host.querySelector('.vd-store-warning-text');
+        const nav = host.querySelector('.vd-store-nav');
+        const searchInput = host.querySelector('[data-store-search]');
+        const searchClear = host.querySelector('[data-store-search-clear]');
+        const countEl = host.querySelector('.vd-store-count');
+        const refreshButton = host.querySelector('[data-action="refresh"]');
+        refreshButton.addEventListener('click', () => userReload());
+
+        nav.addEventListener('scroll', () => syncNavFade(), { passive: true });
+        nav.addEventListener('click', event => {
+            const item = event.target.closest('[data-store-filter], [data-store-category]');
+            if (!item || !nav.contains(item)) return;
+            focusTarget = false;
+            selection = item.hasAttribute('data-store-filter') ? item.dataset.storeFilter : 'category:' + item.dataset.storeCategory;
+            renderNav();
+            const chip = nav.querySelector('.vd-store-nav-item.is-active');
+            if (chip) chip.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+            renderCards({ resetScroll: true });
+        });
+
+        searchInput.addEventListener('input', () => {
+            focusTarget = false; // user intent supersedes a pending deep link
+            searchText = searchInput.value;
+            searchClear.hidden = !searchText;
+            renderCards({ resetScroll: true });
+        });
+        searchInput.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && searchInput.value) {
+                event.preventDefault();
+                event.stopPropagation();
+                setSearch('');
+            }
+        });
+        searchClear.addEventListener('click', () => {
+            setSearch('');
+            searchInput.focus();
+        });
+
+        grid.addEventListener('click', event => {
+            const button = event.target.closest('button');
+            if (!button || !grid.contains(button)) return;
+            if (button.hasAttribute('data-store-more')) return toggleDescription(button);
+            if (button.hasAttribute('data-store-retry')) return userReload();
+            if (button.hasAttribute('data-store-reset')) return resetFilters();
+            const card = button.closest('.vd-store-card');
+            if (card && button.dataset.action) handleAction(card.dataset.appId, button.dataset.action, button.dataset.portId);
+        });
+
+        // "/" focuses the search unless the user is already typing somewhere.
+        const onHostKeydown = event => {
+            if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+            const target = event.target;
+            if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return;
+            event.preventDefault();
+            searchInput.focus();
+        };
+        host.addEventListener('keydown', onHostKeydown);
+        instance.host = host;
+        instance.hostKeydown = onHostKeydown;
+        if (typeof ResizeObserver === 'function') {
+            instance.resizeObserver = new ResizeObserver(() => {
+                if (instance.resizeFrame || instance.disposed) return;
+                instance.resizeFrame = requestAnimationFrame(() => {
+                    instance.resizeFrame = 0;
+                    if (storeGridReady()) { syncDescriptionToggles(); syncNavFade(); }
+                });
+            });
+            instance.resizeObserver.observe(grid);
+        }
 
         function storeGridReady() {
             return !instance.disposed && grid && grid.isConnected;
         }
 
+        function setSearch(value) {
+            focusTarget = false;
+            searchText = value;
+            searchInput.value = value;
+            searchClear.hidden = !value;
+            renderCards({ resetScroll: true });
+        }
+
+        function resetFilters() {
+            selection = 'all';
+            setSearch('');
+            renderNav();
+            searchInput.focus();
+        }
+
+        function setRefreshBusy(on) {
+            refreshButton.classList.toggle('is-busy', !!on);
+            if (on) refreshButton.setAttribute('aria-busy', 'true');
+            else refreshButton.removeAttribute('aria-busy');
+        }
+
+        function showSkeleton() {
+            if (!storeGridReady()) return;
+            lastGridMarkup = '';
+            grid.setAttribute('aria-busy', 'true');
+            const card = '<div class="vd-store-skeleton"><div class="vd-store-skeleton-head"><span class="vd-store-skeleton-logo"></span><span class="vd-store-skeleton-lines"><span></span><span></span></span></div><span class="vd-store-skeleton-text"></span><span class="vd-store-skeleton-btn"></span></div>';
+            grid.innerHTML = `<div class="vd-store-loading"><span class="vd-store-sr">${esc(t('desktop.loading'))}</span><div class="vd-store-cards" aria-hidden="true">${card.repeat(8)}</div></div>`;
+        }
+
         function showStoreError(err, fallbackKey, fallbackText) {
             if (!storeGridReady()) return;
-            const message = err && err.message ? err.message : t(fallbackKey, fallbackText);
-            grid.innerHTML = `<div class="vd-store-empty">${esc(message || t('desktop.store.load_failed'))}</div>`;
+            const title = t(fallbackKey || 'desktop.store.load_failed', fallbackText);
+            const message = err && err.message ? err.message : '';
+            lastGridMarkup = '';
+            grid.removeAttribute('aria-busy');
+            grid.innerHTML = `<div class="vd-store-empty vd-store-error" role="alert">
+                ${iconMarkup('info', 'i', 'vd-store-empty-icon', 28)}
+                <div class="vd-store-empty-title">${esc(title)}</div>
+                ${message && message !== title ? `<div class="vd-store-empty-text">${esc(message)}</div>` : ''}
+                <button type="button" class="vd-store-btn vd-store-primary" data-store-retry>${iconMarkup('refresh', 'R', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.retry'))}</span></button>
+            </div>`;
         }
 
         function storeEntryUsesThemeIcon(entry) {
@@ -126,6 +277,12 @@
             return pendingCatalogRequest;
         }
 
+        // Refresh and retry buttons mark their load as user-started: only those toast on failure.
+        function userReload() {
+            userLoadPending = true;
+            scheduleLoad(true, true);
+        }
+
         function scheduleLoad(immediate, forceRefresh) {
             if (instance.disposed) return;
             if (instance.loadDebounceTimer) {
@@ -143,9 +300,13 @@
         }
 
         async function loadCatalog(forceRefresh) {
+            const userInitiated = userLoadPending;
+            userLoadPending = false;
             const token = ++loadToken;
             if (!storeGridReady()) return;
-            grid.innerHTML = `<div class="vd-store-loading">${esc(t('desktop.loading'))}</div>`;
+            setRefreshBusy(true);
+            // The skeleton only shows before the first catalog; later loads keep the current cards.
+            if (!initialCatalogLoaded) showSkeleton();
             try {
                 const body = await fetchCatalog(forceRefresh);
                 const allowSupersededInitialRender = token !== loadToken && !initialCatalogLoaded;
@@ -158,7 +319,7 @@
                 mutationDisabledReason = body.mutation_disabled_reason || '';
                 if (warning) {
                     warning.hidden = mutationsAllowed;
-                    warning.textContent = mutationsAllowed ? '' : mutationDisabledText();
+                    warningText.textContent = mutationsAllowed ? '' : mutationDisabledText();
                 }
                 renderCards();
                 resumeActiveOperationPolling();
@@ -173,7 +334,15 @@
             } catch (err) {
                 if (token !== loadToken || !storeGridReady()) return;
                 console.error('Software store catalog load failed', err);
-                showStoreError(err, 'desktop.store.load_failed', 'Could not load the software store.');
+                if (!initialCatalogLoaded) {
+                    showStoreError(err, 'desktop.store.load_failed', 'Could not load the software store.');
+                } else {
+                    // Keep the cards that are already on screen; only a user-started load toasts.
+                    if (!userInitiated) console.warn('Software store background reload failed', err);
+                    else notify({ title: t('desktop.store.title'), message: (err && err.message) || t('desktop.store.load_failed') });
+                }
+            } finally {
+                if (token === loadToken) setRefreshBusy(false);
             }
         }
 
@@ -229,67 +398,302 @@
             return '';
         }
 
-        function renderCards() {
+        function entryIsInstalled(entry) {
+            if (installedFor(entry.id)) return true;
+            const operation = busy.get(entry.id);
+            return !!(operation && operation.type === 'install' && operation.status !== 'succeeded' && operation.status !== 'failed');
+        }
+
+        function entryNeedsUpdate(entry) {
+            const app = installedFor(entry.id);
+            return !!app && app.update_required === true;
+        }
+
+        function entryDescription(entry) {
+            return entry.metadata && entry.metadata.description_key ? t(entry.metadata.description_key) : entry.description;
+        }
+
+        function categoryLabel(entry) {
+            return entry && storeCategoryIDs.has(entry.category) ? t('desktop.category_' + entry.category) : '';
+        }
+
+        function storeCounts() {
+            const counts = { all: catalog.length, installed: 0, updates: 0, categories: new Map() };
+            catalog.forEach(entry => {
+                if (entryIsInstalled(entry)) counts.installed++;
+                if (entryNeedsUpdate(entry)) counts.updates++;
+                if (storeCategoryIDs.has(entry.category)) counts.categories.set(entry.category, (counts.categories.get(entry.category) || 0) + 1);
+            });
+            return counts;
+        }
+
+        function entryMatchesSelection(entry) {
+            if (selection === 'installed') return entryIsInstalled(entry);
+            if (selection === 'updates') return entryNeedsUpdate(entry);
+            if (selection.startsWith('category:')) return entry.category === selection.slice('category:'.length);
+            return true;
+        }
+
+        function entryMatchesSearch(entry, terms) {
+            if (!terms.length) return true;
+            const haystack = searchKey([entry.name, entryDescription(entry), categoryLabel(entry), entry.id, entry.image].join(' '));
+            return terms.every(term => haystack.includes(term));
+        }
+
+        function searchTerms() {
+            return searchKey(searchText).split(/\s+/).filter(Boolean);
+        }
+
+        // Falls back to "all" when the selected view no longer exists.
+        function normalizeSelection(counts) {
+            if (selection === 'updates' && !counts.updates) selection = 'all';
+            else if (selection.startsWith('category:') && !counts.categories.has(selection.slice('category:'.length))) selection = 'all';
+            else if (selection !== 'all' && selection !== 'installed' && selection !== 'updates' && !selection.startsWith('category:')) selection = 'all';
+        }
+
+        function syncNavFade() {
+            if (!nav) return;
+            nav.classList.toggle('can-scroll-right', nav.scrollWidth > nav.clientWidth + 1 && nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
+        }
+
+        function renderNav() {
+            if (!nav || instance.disposed) return;
+            const counts = storeCounts();
+            normalizeSelection(counts);
+            const item = (attr, value, iconKey, glyph, label, count) => {
+                const usage = attr === 'data-store-filter' ? 'action' : undefined;
+                const active = (attr === 'data-store-filter' ? value : 'category:' + value) === selection;
+                return `<button type="button" class="vd-store-nav-item${active ? ' is-active' : ''}" ${attr}="${esc(value)}" aria-pressed="${active ? 'true' : 'false'}">${iconMarkup(iconKey, glyph, 'vd-store-nav-icon', 16, usage)}<span class="vd-store-nav-text">${esc(label)}</span><span class="vd-store-nav-count">${count}</span></button>`;
+            };
+            const heading = `<div class="vd-store-heading"><div class="vd-store-title">${esc(t('desktop.store.title'))}</div><div class="vd-store-subtitle">${esc(t('desktop.store.subtitle'))}</div></div>`;
+            let body = '';
+            if (catalog.length) {
+                body = `<div class="vd-store-nav-group" role="group" aria-label="${esc(t('desktop.store.filter_label'))}">
+                    ${item('data-store-filter', 'all', 'package', 'A', t('desktop.store.filter_all'), counts.all)}
+                    ${item('data-store-filter', 'installed', 'check', 'I', t('desktop.store.filter_installed'), counts.installed)}
+                    ${counts.updates > 0 ? item('data-store-filter', 'updates', 'download', 'U', t('desktop.store.filter_updates'), counts.updates) : ''}
+                </div>
+                <div class="vd-store-nav-label" id="${esc(categoriesLabelID)}">${esc(t('desktop.store.categories_label'))}</div>
+                <div class="vd-store-nav-group" role="group" aria-labelledby="${esc(categoriesLabelID)}">
+                    ${storeCategories.filter(([id]) => counts.categories.has(id)).map(([id, icon]) => item('data-store-category', id, icon, id.charAt(0).toUpperCase(), t('desktop.category_' + id), counts.categories.get(id))).join('')}
+                </div>`;
+            }
+            const markup = heading + body;
+            if (markup === lastNavMarkup) return;
+            lastNavMarkup = markup;
+            const active = document.activeElement;
+            let refocus = '';
+            if (active && nav.contains(active)) {
+                if (active.hasAttribute('data-store-filter')) refocus = '[data-store-filter="' + active.dataset.storeFilter + '"]';
+                else if (active.hasAttribute('data-store-category')) refocus = '[data-store-category="' + active.dataset.storeCategory + '"]';
+            }
+            nav.innerHTML = markup;
+            const activeChip = nav.querySelector('.vd-store-nav-item.is-active');
+            if (activeChip && !refocus) activeChip.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+            syncNavFade();
+            if (refocus) {
+                const target = nav.querySelector(refocus);
+                if (target) target.focus({ preventScroll: true });
+            }
+        }
+
+        function browseSections() {
+            const terms = searchTerms();
+            const visible = catalog.filter(entry => entryMatchesSelection(entry) && entryMatchesSearch(entry, terms));
+            if (selection === 'installed') return [{ id: 'installed', title: t('desktop.store.filter_installed'), entries: visible }];
+            if (selection === 'updates') return [{ id: 'updates', title: t('desktop.store.filter_updates'), entries: visible }];
+            return [
+                { id: 'installed', title: t('desktop.store.filter_installed'), entries: visible.filter(entryIsInstalled) },
+                { id: 'available', title: t('desktop.store.status_available'), entries: visible.filter(entry => !entryIsInstalled(entry)) }
+            ].filter(section => section.entries.length);
+        }
+
+        // The deep-link target must be visible, otherwise the focus logic cannot find its card.
+        function revealTarget() {
+            const entry = catalog.find(item => item.id === targetAppID);
+            if (!entry) return;
+            if (entryMatchesSelection(entry) && entryMatchesSearch(entry, searchTerms())) return;
+            selection = 'all';
+            searchText = '';
+            searchInput.value = '';
+            searchClear.hidden = true;
+        }
+
+        function captureGridFocus() {
+            const active = document.activeElement;
+            if (!active || active === grid || !grid.contains(active)) return null;
+            const card = active.closest('.vd-store-card');
+            return {
+                appId: card ? card.dataset.appId : '',
+                isCard: active === card,
+                action: active.dataset.action || '',
+                portId: active.dataset.portId || '',
+                more: active.hasAttribute('data-store-more'),
+                reset: active.hasAttribute('data-store-reset'),
+                retry: active.hasAttribute('data-store-retry')
+            };
+        }
+
+        function restoreGridFocus(saved) {
+            if (!saved) return;
+            let target = null;
+            if (saved.reset) target = grid.querySelector('[data-store-reset]');
+            else if (saved.retry) target = grid.querySelector('[data-store-retry]');
+            else {
+                const card = [...grid.querySelectorAll('.vd-store-card')].find(item => item.dataset.appId === saved.appId);
+                if (card && saved.more) target = card.querySelector('[data-store-more]');
+                else if (card && saved.action) target = [...card.querySelectorAll('[data-action]')].find(button => button.dataset.action === saved.action && (button.dataset.portId || '') === saved.portId);
+                else if (card && saved.isCard) target = card;
+            }
+            if (target && target !== document.activeElement && !target.disabled) target.focus({ preventScroll: true });
+        }
+
+        function toggleDescription(button) {
+            const card = button.closest('.vd-store-card');
+            if (!card) return;
+            const id = card.dataset.appId;
+            if (expandedDescriptions.has(id)) expandedDescriptions.delete(id);
+            else expandedDescriptions.add(id);
+            syncDescriptionToggles();
+        }
+
+        // Adds the "More"/"Less" text button to cards whose clamped description overflows.
+        function syncDescriptionToggles() {
+            if (!storeGridReady()) return;
+            grid.querySelectorAll('.vd-store-card').forEach(card => {
+                const desc = card.querySelector('.vd-store-card-desc');
+                if (!desc) return;
+                const expanded = expandedDescriptions.has(card.dataset.appId);
+                desc.classList.toggle('is-expanded', expanded);
+                let button = card.querySelector('[data-store-more]');
+                const needed = expanded || desc.scrollHeight > desc.clientHeight + 1;
+                if (!needed) {
+                    if (button) button.remove();
+                    return;
+                }
+                if (!button) {
+                    button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'vd-store-more';
+                    button.setAttribute('data-store-more', '');
+                    desc.after(button);
+                }
+                button.textContent = t(expanded ? 'desktop.store.show_less' : 'desktop.store.show_more');
+                button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            });
+        }
+
+        function logoMarkup(entry) {
+            const themedStoreIcon = storeEntryUsesThemeIcon(entry);
+            const logo = !themedStoreIcon && entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
+            const fallback = `<div class="vd-store-logo-fallback"${!themedStoreIcon && entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
+            return `<div class="vd-store-logo-wrap">${logo}${fallback}</div>`;
+        }
+
+        function cardMarkup(entry) {
+            const app = installedFor(entry.id);
+            const operation = busy.get(entry.id) || activeOperationForApp(app);
+            const status = operation && operation.type === 'install' && operation.status !== 'succeeded' && operation.status !== 'failed'
+                ? 'installing'
+                : app ? (app.status || 'installed') : 'available';
+            const running = app && app.status === 'running';
+            const stopped = app && app.status === 'stopped';
+            const mutationDisabled = mutationsAllowed ? '' : mutationDisabledText();
+            const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;
+            const disabledAttrs = actionDisabled ? `disabled title="${esc(actionDisabled)}"` : '';
+            const access = app ? accessLabel(app) : '';
+            const warningText = hostAccessWarning(entry);
+            const operationError = operationErrors.get(entry.id) || (app && app.error);
+            const installedCard = !!app;
+            const categoryText = categoryLabel(entry);
+            const imageText = String(entry.image || '');
+            const subText = [categoryText, imageText].filter(Boolean).join(' · ');
+            const iconButton = (action, iconKey, glyph, label, guarded, extraClass) => `<button type="button" class="vd-store-btn vd-store-icon-btn${extraClass ? ' ' + extraClass : ''}" data-action="${action}" aria-label="${esc(label)}" ${guarded && disabledAttrs ? disabledAttrs : `title="${esc(label)}"`}>${iconMarkup(iconKey, glyph, 'vd-store-btn-icon', 16)}</button>`;
+            const igState = integrationStates.get(entry.id) || 'setup_required';
+            const igLabel = t('desktop.store.ig_' + igState);
+            const igTone = igState === 'connected' ? 'is-connected' : igState === 'error' ? 'is-error' : 'is-setup';
+            const needsUpdate = !!app && app.update_required === true;
+            const updateButton = needsUpdate ? '' : iconButton('update', 'download', 'U', t('desktop.store.update'), true);
+            const showStatus = !!(app || operation);
+            return `<article class="vd-store-card ${installedCard ? 'is-installed' : 'is-available'} status-${esc(status)}" data-app-id="${esc(entry.id)}" tabindex="-1" aria-current="${entry.id === targetAppID ? 'true' : 'false'}">
+                <div class="vd-store-card-head">
+                    ${logoMarkup(entry)}
+                    <div class="vd-store-card-title-wrap">
+                        <div class="vd-store-card-title">${esc(entry.name)}${storeUiBadge(entry)}</div>
+                        <div class="vd-store-card-sub" title="${esc(imageText)}">${esc(subText)}</div>
+                    </div>
+                    ${showStatus ? `<span class="vd-store-status status-${esc(status)}"><i class="vd-store-status-dot" aria-hidden="true"></i>${esc(statusLabel(status, operation))}</span>` : ''}
+                </div>
+                <div class="vd-store-card-desc${expandedDescriptions.has(entry.id) ? ' is-expanded' : ''}">${esc(entryDescription(entry))}</div>
+                ${warningText ? `<div class="vd-store-card-warning">${esc(warningText)}</div>` : ''}
+                ${needsUpdate ? `<div class="vd-store-card-warning vd-store-update-warning" role="status"><span>${esc(t('desktop.store.update_required'))}</span><button type="button" class="vd-store-btn vd-store-update" data-action="update" ${disabledAttrs}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update'))}</span></button></div>` : ''}
+                ${operationError ? `<div class="vd-store-card-warning" role="alert">${esc(operationError)}</div>` : ''}
+                ${operation ? `<div class="vd-store-progress"><div class="vd-store-progress-bar" role="progressbar" aria-label="${esc(statusLabel(status, operation))}"></div><span>${esc(statusLabel(operation.status, operation))}</span></div>` : ''}
+                ${app ? `<div class="vd-store-meta">
+                    <span class="vd-store-chip">${esc(access)}</span>
+                    ${integrationApps.has(entry.id) ? `<button type="button" class="vd-store-chip vd-store-chip-btn ${igTone}" data-action="integration" title="${esc(t('desktop.store.ig_connect'))} · ${esc(igLabel)}" aria-label="${esc(t('desktop.store.ig_connect'))} · ${esc(igLabel)}">${iconMarkup('link', 'L', 'vd-store-btn-icon', 13)}<span>${esc(igLabel)}</span></button>` : ''}
+                </div>` : ''}
+                <div class="vd-store-actions">
+                    ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(storeOpenLabel(entry))}</span></button>` : ''}
+                    ${extraPortButtons(entry, app, actionDisabled)}
+                    ${app && stopped ? iconButton('start', 'run', 'S', t('desktop.store.start'), true) : ''}
+                    ${app && running ? iconButton('stop', 'stop', 'S', t('desktop.store.stop'), true) : ''}
+                    ${app ? `${updateButton}
+                        ${entry.id === 'gods-eye-view' ? iconButton('configure-gev', 'settings', 'S', t('desktop.store.gev_configure'), true) : ''}
+                        ${entry.id === 'printguard' ? iconButton('configure-pg', 'settings', 'S', t('desktop.store.pg_setup'), true) : ''}
+                        ${hasExposedCredentials(entry) ? iconButton('credentials', 'key', 'K', t('desktop.store.credentials'), false) : ''}
+                        ${entry.id === 'beszel' ? iconButton('configure-agent', 'settings', 'A', t('desktop.store.configure_agent'), true) : ''}
+                        ${iconButton('uninstall', 'trash', 'X', t('desktop.store.uninstall'), true, 'vd-store-danger vd-store-uninstall')}` : `<button type="button" class="vd-store-btn vd-store-install" data-action="install" ${disabledAttrs}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install'))}</span></button>`}
+                </div>
+            </article>`;
+        }
+
+        function sectionMarkup(section) {
+            return `<section class="vd-store-section" data-store-section="${esc(section.id)}">
+                <h3 class="vd-store-section-title">${esc(section.title)}<span class="vd-store-section-count">${section.entries.length}</span></h3>
+                <div class="vd-store-cards">${section.entries.map(cardMarkup).join('')}</div>
+            </section>`;
+        }
+
+        function emptyMarkup() {
+            const query = searchText.trim();
+            return `<div class="vd-store-empty">
+                ${iconMarkup('search', '?', 'vd-store-empty-icon', 28)}
+                <div class="vd-store-empty-title">${esc(query ? t('desktop.store.no_results', { query }) : t('desktop.store.no_results_filtered'))}</div>
+                <button type="button" class="vd-store-btn" data-store-reset>${esc(t('desktop.store.reset_filters'))}</button>
+            </div>`;
+        }
+
+        function renderCards(options) {
             if (!storeGridReady()) return;
             try {
                 if (!catalog.length) {
-                    grid.innerHTML = `<div class="vd-store-empty">${esc(t('desktop.store.empty'))}</div>`;
+                    renderNav();
+                    lastGridMarkup = '';
+                    grid.removeAttribute('aria-busy');
+                    countEl.textContent = '';
+                    grid.innerHTML = `<div class="vd-store-empty">${iconMarkup('package', 'A', 'vd-store-empty-icon', 28)}<div class="vd-store-empty-title">${esc(t('desktop.store.empty'))}</div></div>`;
                     return;
                 }
-                grid.innerHTML = catalog.map(entry => {
-                const app = installedFor(entry.id);
-                const operation = busy.get(entry.id) || activeOperationForApp(app);
-                const status = operation && operation.type === 'install' && operation.status !== 'succeeded' && operation.status !== 'failed'
-                    ? 'installing'
-                    : app ? (app.status || 'installed') : 'available';
-                const running = app && app.status === 'running';
-                const stopped = app && app.status === 'stopped';
-                const mutationDisabled = mutationsAllowed ? '' : mutationDisabledText();
-                const actionDisabled = operation ? statusLabel(status, operation) : mutationDisabled;
-                const themedStoreIcon = storeEntryUsesThemeIcon(entry);
-                const logo = !themedStoreIcon && entry.logo_url ? `<img class="vd-store-logo" src="${esc(entry.logo_url)}" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false">` : '';
-                const fallback = `<div class="vd-store-logo-fallback"${!themedStoreIcon && entry.logo_url ? ' hidden' : ''}>${iconMarkup(entry.icon || 'package', entry.name || 'A', 'vd-store-logo-icon', 30)}</div>`;
-                const access = app ? accessLabel(app) : t('desktop.store.not_installed');
-                const warningText = hostAccessWarning(entry);
-                const operationError = operationErrors.get(entry.id) || (app && app.error);
-                return `<article class="vd-store-card" data-app-id="${esc(entry.id)}" tabindex="-1" aria-current="${entry.id === targetAppID ? 'true' : 'false'}">
-                    <div class="vd-store-card-head">
-                        <div class="vd-store-logo-wrap">${logo}${fallback}</div>
-                        <div class="vd-store-card-title-wrap">
-                            <div class="vd-store-card-title">${esc(entry.name)}${storeUiBadge(entry)}</div>
-                            <div class="vd-store-card-image">${esc(entry.image)}</div>
-                        </div>
-                    </div>
-                    <div class="vd-store-card-desc">${esc(entry.metadata && entry.metadata.description_key ? t(entry.metadata.description_key) : entry.description)}</div>
-                    ${warningText ? `<div class="vd-store-card-warning">${esc(warningText)}</div>` : ''}
-                    ${app && app.update_required === true ? `<div class="vd-store-card-warning" role="status">${esc(t('desktop.store.update_required'))}</div>` : ''}
-                    ${operationError ? `<div class="vd-store-card-warning" role="alert">${esc(operationError)}</div>` : ''}
-                    <div class="vd-store-meta">
-                        <span class="vd-store-status status-${esc(status)}">${esc(statusLabel(status, operation))}</span>
-                        <span>${esc(access)}</span>
-                    </div>
-                    ${operation ? `<div class="vd-store-progress">${esc(statusLabel(operation.status, operation))}</div>` : ''}
-                    <div class="vd-store-actions">
-                        ${app ? `<button type="button" class="vd-store-btn vd-store-primary" data-action="open">${iconMarkup('browser', 'O', 'vd-store-btn-icon', 15)}<span>${esc(storeOpenLabel(entry))}</span></button>` : ''}
-                        ${app && integrationApps.has(entry.id) ? `<button type="button" class="vd-store-btn" data-action="integration"><span>${esc(t('desktop.store.ig_connect'))} · ${esc(t('desktop.store.ig_' + (integrationStates.get(entry.id) || 'setup_required')))}</span></button>` : ''}
-                        ${extraPortButtons(entry, app, actionDisabled)}
-                        ${app && stopped ? `<button type="button" class="vd-store-btn" data-action="start" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('run', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.start'))}</span></button>` : ''}
-                        ${app && running ? `<button type="button" class="vd-store-btn" data-action="stop" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('stop', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.stop'))}</span></button>` : ''}
-                        ${app ? `<button type="button" class="vd-store-btn" data-action="update" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'U', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.update'))}</span></button>
-                            ${entry.id === 'gods-eye-view' ? `<button type="button" class="vd-store-btn" data-action="configure-gev" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.gev_configure'))}</span></button>` : ''}
-                            ${entry.id === 'printguard' ? `<button type="button" class="vd-store-btn" data-action="configure-pg" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'S', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.pg_setup'))}</span></button>` : ''}
-                            ${hasExposedCredentials(entry) ? `<button type="button" class="vd-store-btn" data-action="credentials">${iconMarkup('key', 'K', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.credentials'))}</span></button>` : ''}
-                            ${entry.id === 'beszel' ? `<button type="button" class="vd-store-btn" data-action="configure-agent" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('settings', 'A', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.configure_agent'))}</span></button>` : ''}
-                            <button type="button" class="vd-store-btn vd-store-danger" data-action="uninstall" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('trash', 'X', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.uninstall'))}</span></button>` : `<button type="button" class="vd-store-btn vd-store-primary" data-action="install" ${actionDisabled ? `disabled title="${esc(actionDisabled)}"` : ''}>${iconMarkup('download', 'I', 'vd-store-btn-icon', 15)}<span>${esc(t('desktop.store.install'))}</span></button>`}
-                    </div>
-                </article>`;
-                }).join('');
+                if (focusTarget && targetAppID) revealTarget();
+                renderNav();
+                const sections = browseSections();
+                const total = sections.reduce((sum, section) => sum + section.entries.length, 0);
+                countEl.textContent = total === 1 ? t('desktop.store.result_count_one') : t('desktop.store.result_count', { count: total });
+                const savedScroll = grid.scrollTop;
+                const savedFocus = captureGridFocus();
+                const markup = total ? sections.map(sectionMarkup).join('') : emptyMarkup();
+                if (markup !== lastGridMarkup || grid.querySelector('.vd-store-loading, .vd-store-error')) {
+                    grid.removeAttribute('aria-busy');
+                    grid.innerHTML = markup;
+                    lastGridMarkup = markup;
+                }
+                syncDescriptionToggles();
+                grid.scrollTop = options && options.resetScroll ? 0 : savedScroll;
+                restoreGridFocus(savedFocus);
 
                 grid.querySelectorAll('.vd-store-card').forEach(card => {
                     const appId = card.dataset.appId;
-                    card.querySelectorAll('[data-action]').forEach(button => {
-                        button.addEventListener('click', () => handleAction(appId, button.dataset.action, button.dataset.portId));
-                    });
                     if (focusTarget && appId === targetAppID) {
                         requestAnimationFrame(() => {
                             if (instance.disposed || !card.isConnected || appId !== targetAppID) return;
@@ -411,26 +815,33 @@
             const overlay = document.createElement('div');
             overlay.className = 'vd-modal-backdrop';
             overlay.innerHTML = `<form class="vd-modal vd-store-modal" role="dialog" aria-modal="true">
-                <div class="vd-modal-title">${esc(t('desktop.store.install_title'))}: ${esc(entry.name)}</div>
+                <div class="vd-store-modal-head">
+                    ${logoMarkup(entry)}
+                    <div class="vd-store-modal-head-text">
+                        <div class="vd-modal-title">${esc(t('desktop.store.install_title'))}: ${esc(entry.name)}</div>
+                        ${categoryLabel(entry) ? `<div class="vd-store-modal-sub">${esc(categoryLabel(entry))}</div>` : ''}
+                    </div>
+                </div>
                 ${appId === 'gods-eye-view' ? `<p class="vd-store-modal-copy">${esc(t('desktop.store.gev_lan_warning'))}</p>` : ''}
                 <div class="vd-store-modal-copy">${esc(t('desktop.store.install_copy'))}</div>
-                <label class="vd-store-choice"><input type="radio" name="bind" value="local" checked><span><b>${esc(t('desktop.store.bind_local'))}</b><small>127.0.0.1</small></span></label>
-                <label class="vd-store-choice"><input type="radio" name="bind" value="lan"><span><b>${esc(t('desktop.store.bind_lan'))}</b><small>0.0.0.0</small></span></label>
+                <div class="vd-store-choice-group">
+                    <label class="vd-store-choice vd-store-choice-card"><input type="radio" name="bind" value="local" checked><span><b>${esc(t('desktop.store.bind_local'))}</b><small>127.0.0.1</small></span></label>
+                    <label class="vd-store-choice vd-store-choice-card"><input type="radio" name="bind" value="lan"><span><b>${esc(t('desktop.store.bind_lan'))}</b><small>0.0.0.0</small></span></label>
+                </div>
                 <label class="vd-store-choice"><input type="checkbox" name="tailscale"><span><b>${esc(t('desktop.store.tailscale'))}</b><small>${esc(t('desktop.store.tailscale_hint'))}</small></span></label>
                 <div class="vd-modal-actions">
                     <button type="button" class="vd-button" data-action="cancel">${esc(t('desktop.cancel'))}</button>
                     <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.store.install'))}</button>
                 </div>
             </form>`;
-            trackOverlay(overlay);
             const form = overlay.querySelector('form');
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => closeOverlay(overlay));
-            overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
+            const close = mountDialog(overlay, 'input[name="bind"]:checked');
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 const bind = form.querySelector('input[name="bind"]:checked').value;
                 const tailscale = form.querySelector('input[name="tailscale"]').checked;
-                closeOverlay(overlay);
+                close();
                 startOperation(appId, 'install', '/api/desktop/store/install', 'POST', {
                     app_id: appId,
                     bind_mode: bind,
@@ -454,14 +865,13 @@
                     <button type="submit" class="vd-button vd-button-danger">${esc(t('desktop.store.uninstall'))}</button>
                 </div>
             </form>`;
-            trackOverlay(overlay);
             const form = overlay.querySelector('form');
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => closeOverlay(overlay));
-            overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
+            const close = mountDialog(overlay);
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 const deleteData = form.querySelector('input[name="delete-data"]').checked;
-                closeOverlay(overlay);
+                close();
                 startOperation(appId, 'uninstall', '/api/desktop/store/apps/' + encodeURIComponent(appId) + '?delete_data=' + encodeURIComponent(deleteData), 'DELETE');
             });
         }
@@ -517,9 +927,8 @@
                         <button type="button" class="vd-button vd-button-primary" data-action="close">${esc(t('desktop.close'))}</button>
                     </div>
                 </div>`;
-                trackOverlay(overlay);
-                overlay.querySelector('[data-action="close"]').addEventListener('click', () => closeOverlay(overlay));
-                overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
+                const close = mountDialog(overlay);
+                overlay.querySelector('[data-action="close"]').addEventListener('click', close);
             } catch (err) {
                 if (!instance.disposed) notify({ title: t('desktop.store.title'), message: err.message });
             }
@@ -538,10 +947,9 @@
                     <button type="submit" class="vd-button vd-button-primary">${esc(t('desktop.save'))}</button>
                 </div>
             </form>`;
-            trackOverlay(overlay);
             const form = overlay.querySelector('form');
-            overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => closeOverlay(overlay));
-            overlay.addEventListener('click', event => { if (event.target === overlay) closeOverlay(overlay); });
+            const close = mountDialog(overlay);
+            overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
             form.addEventListener('submit', async event => {
                 event.preventDefault();
                 try {
@@ -554,7 +962,7 @@
                         })
                     });
                     if (instance.disposed) return;
-                    closeOverlay(overlay);
+                    close();
                     scheduleLoad(true, true);
                     notify({ title: t('desktop.store.title'), message: t('desktop.store.agent_configured') });
                 } catch (err) {
@@ -956,6 +1364,8 @@
             window.AuraSSE.on('virtual_desktop_event', instance.onDesktopEvent);
         }
 
+        renderNav();
+
         if (typeof requestAnimationFrame === 'function') {
             requestAnimationFrame(() => scheduleLoad(true));
         } else {
@@ -977,6 +1387,9 @@
         if (window.AuraSSE && typeof window.AuraSSE.off === 'function' && instance.onDesktopEvent) {
             window.AuraSSE.off('virtual_desktop_event', instance.onDesktopEvent);
         }
+        if (instance.host && instance.hostKeydown) instance.host.removeEventListener('keydown', instance.hostKeydown);
+        if (instance.resizeObserver) instance.resizeObserver.disconnect();
+        if (instance.resizeFrame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(instance.resizeFrame);
         if (instance.pollingOperations && typeof instance.pollingOperations.clear === 'function') {
             instance.pollingOperations.clear();
         }
