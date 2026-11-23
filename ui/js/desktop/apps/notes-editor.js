@@ -299,18 +299,20 @@
             else view.dispatch(view.state.tr.setSelection(lib.TextSelection.near(view.state.doc.resolve(pos+1))).scrollIntoView());
             focus();
         }
-        function findText(query, replacement, all = false, caseSensitive = false) {
+        // Forward search starts after the selection, backward ends before it (both wrap); incremental keeps the current match.
+        function findText(query, replacement, all = false, caseSensitive = false, backward = false, incremental = false) {
             if(!query)return 0;
             const matches=[],pattern=new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),caseSensitive?'gu':'giu');
             const scan=(text,start)=>{for(const match of text.matchAll(pattern))matches.push({from:start+match.index,to:start+match.index+match[0].length});};
             if(sourceMode)scan(source.state.doc.toString(),0);
-            else view.state.doc.descendants((node,pos)=>{if(node.isTextblock){scan(node.textBetween(0,node.content.size,'','\ufffc'),pos+1);return false;}});
+            else view.state.doc.descendants((node,pos)=>{if(node.isTextblock){scan(node.textBetween(0,node.content.size,'',String.fromCharCode(0xfffc)),pos+1);return false;}});
+            const range=selection();
             if(replacement!==undefined&&!options.readonly){
-                const chosen=all?matches:matches.slice(0,1);
+                const chosen=all?matches:[matches.find(m=>m.from>=range.from)||matches[0]].filter(Boolean);
                 if(sourceMode)source.dispatch({changes:chosen.map(m=>({...m,insert:replacement}))});
                 else {let tr=lib.closeHistory(view.state.tr);for(const m of chosen.toReversed())tr=tr.insertText(replacement,m.from,m.to);view.dispatch(tr);}
             }else if(matches.length){
-                const current=selection().to,match=matches.find(m=>m.from>=current)||matches[0];
+                const match=backward?matches.findLast(m=>m.to<=range.from)||matches[matches.length-1]:matches.find(m=>m.from>=(incremental?range.from:range.to))||matches[0];
                 if(sourceMode)source.dispatch({selection:{anchor:match.from,head:match.to},scrollIntoView:true});
                 else view.dispatch(view.state.tr.setSelection(lib.TextSelection.create(view.state.doc,match.from,match.to)).scrollIntoView());
             }

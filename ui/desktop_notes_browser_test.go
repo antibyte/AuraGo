@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -26,7 +28,8 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 	}
 	var mu sync.Mutex
 	content := "---\ntags: [design, aurora]\nowner: Preserve this field\n---\n# Kleine Ideen, große Möglichkeiten\n\nEin ruhiger Ort für Gedanken, Projekte und alles, was noch wachsen darf.\n\n## Der nächste Schritt\n\n- [x] Die Idee festhalten\n- [ ] Gemeinsam etwas Besonderes entwickeln\n- [ ] Die kleinen Details nicht vergessen\n\n## Werkstattnotizen\n\nGute Werkzeuge lassen uns **konzentriert arbeiten**. Der Inhalt steht im Mittelpunkt — die Oberfläche hält sich zurück.\n\n> Eine gute Idee beginnt oft mit einer kleinen Notiz.\n\n| Projekt | Status |\n| --- | --- |\n| Aurora Workstation | In Arbeit |\n| Leafy | Wächst weiter |\n\n## Später weiterdenken\n\nMit Notizen, die sich leicht wiederfinden lassen.\n"
-	files := map[string]string{"Documents/Notes/aurora.md": content, "Documents/Notes/ideen.md": "# Ideen\n\nEine neue Perspektive. Mehr dazu in [[aurora]].", "Documents/Notes/verweise.md": "# Verweise\n\nSiehe [[ideen]] und [[Ideen#Plan|noch einmal]].\n", "Documents/Notes/einkauf.md": "# Für die Werkstatt\n\n- [ ] Kaffee\n- [ ] Pflanzen"}
+	files := map[string]string{"Documents/Notes/aurora.md": content, "Documents/Notes/ideen.md": "# Ideen\n\nEine neue Perspektive. Mehr dazu in [[aurora]].", "Documents/Notes/verweise.md": "# Verweise\n\nSiehe [[ideen]] und [[Ideen#Plan|noch einmal]].\n", "Documents/Notes/einkauf.md": "# Für die Werkstatt\n\n- [ ] Kaffee\n- [ ] Pflanzen", "Documents/Notes/Projekte/plan.md": "# Projektplan\n\nMeilensteine für das Aurora-Vorhaben #aurora.\n"}
+	extraFolders := map[string]bool{}
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(".")))
 	mux.HandleFunc("/api/desktop/upload", func(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +84,9 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 			result := desktop.NotesIndexResult{Notes: []desktop.NoteIndexEntry{}, Folders: []string{}, Attachments: []string{}}
 			seen := map[string]bool{}
 			for notePath, raw := range files {
+				if strings.HasPrefix(notePath, "Trash/") {
+					continue
+				}
 				if !strings.HasSuffix(notePath, ".md") {
 					if strings.HasPrefix(notePath, "Documents/Notes/") && !strings.HasSuffix(notePath, ".json") {
 						result.Attachments = append(result.Attachments, notePath)
@@ -104,6 +110,12 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 				}
 				result.Notes = append(result.Notes, entry)
 				if dir := notePath[:strings.LastIndex(notePath, "/")]; dir != "Documents/Notes" && !seen[dir] {
+					seen[dir] = true
+					result.Folders = append(result.Folders, dir)
+				}
+			}
+			for dir := range extraFolders {
+				if !seen[dir] {
 					seen[dir] = true
 					result.Folders = append(result.Folders, dir)
 				}
@@ -151,13 +163,22 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 			return
 		}
 		if r.Method == "PUT" || r.Method == "POST" {
-			var body struct{ Path, Content, Title, Folder string }
+			var body struct{ Path, Content, Title, Folder, Operation string }
 			json.NewDecoder(r.Body).Decode(&body)
+			if r.Method == "POST" && body.Operation == "mkdir" {
+				extraFolders[body.Folder] = true
+				json.NewEncoder(w).Encode(map[string]string{"path": body.Folder})
+				return
+			}
 			if body.Path != "" {
 				path = body.Path
 			}
 			if r.Method == "POST" {
-				path = fmt.Sprintf("Documents/Notes/new-%d.md", len(files))
+				folder := body.Folder
+				if folder == "" {
+					folder = "Documents/Notes"
+				}
+				path = fmt.Sprintf("%s/new-%d.md", folder, len(files))
 			}
 			previous, exists := files[path]
 			if exists && r.Header.Get("If-Match") != desktop.NoteVersion([]byte(previous)) || !exists && r.Method == "PUT" && r.Header.Get("If-None-Match") != "*" {
@@ -177,26 +198,84 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 			json.NewEncoder(w).Encode(desktop.Note{Path: path, Title: title, Content: raw, Version: desktop.NoteVersion([]byte(raw)), Modified: time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)})
 			return
 		}
+		query := r.URL.Query()
+		words := strings.Fields(strings.ToLower(query.Get("q")))
+		wantTag, wantFolder, wantTrash := strings.ToLower(query.Get("tag")), query.Get("folder"), query.Get("trash") == "true"
+		paths := []string{}
+		for path := range files {
+			if strings.HasSuffix(path, ".md") {
+				paths = append(paths, path)
+			}
+		}
+		sort.Strings(paths)
 		notes := []desktop.Note{}
-		for path, raw := range files {
-			if !strings.HasSuffix(path, ".md") {
+		for _, path := range paths {
+			raw := files[path]
+			if strings.HasPrefix(path, "Trash/") != wantTrash {
 				continue
 			}
 			title := strings.TrimPrefix(strings.Split(raw, "\n")[0], "# ")
 			if strings.HasSuffix(path, "aurora.md") {
 				title = "Kleine Ideen, große Möglichkeiten"
 			}
-			notes = append(notes, desktop.Note{Path: path, Title: title, Snippet: "Gedanken, Projekte und neue Perspektiven.", Tags: []string{"aurora"}, Version: desktop.NoteVersion([]byte(raw)), Modified: time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)})
+			if wantFolder != "" && path[:strings.LastIndex(path, "/")] != wantFolder {
+				continue
+			}
+			tags := desktop.ExtractNoteRefs(raw).Tags
+			if wantTag != "" {
+				found := false
+				for _, tag := range tags {
+					if strings.ToLower(tag) == wantTag {
+						found = true
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+			haystack := strings.ToLower(title + "\n" + raw)
+			matched := true
+			for _, word := range words {
+				if !strings.Contains(haystack, word) {
+					matched = false
+				}
+			}
+			if !matched {
+				continue
+			}
+			if tags == nil {
+				tags = []string{}
+			}
+			notes = append(notes, desktop.Note{Path: path, Title: title, Snippet: "Gedanken, Projekte und neue Perspektiven.", Tags: tags, Version: desktop.NoteVersion([]byte(raw)), Modified: time.Date(2026, 9, 10, 10, 0, 0, 0, time.UTC)})
 		}
-		json.NewEncoder(w).Encode(desktop.NotesResult{Notes: notes, Total: len(notes), Folders: []string{}})
+		total := len(notes)
+		if offset, err := strconv.Atoi(query.Get("offset")); err == nil && offset > 0 {
+			if offset > len(notes) {
+				offset = len(notes)
+			}
+			notes = notes[offset:]
+		}
+		if limit, err := strconv.Atoi(query.Get("limit")); err == nil && limit > 0 && limit < len(notes) {
+			notes = notes[:limit]
+		}
+		json.NewEncoder(w).Encode(desktop.NotesResult{Notes: notes, Total: total, Folders: []string{}})
+	})
+	// Strings of this round that are not in the locale files yet: AURAGO_NOTES_EXTRA_LABELS points to a JSON object of desktop keys.
+	mux.HandleFunc("/notes-extra-labels", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if data, err := os.ReadFile(os.Getenv("AURAGO_NOTES_EXTRA_LABELS")); err == nil {
+			w.Write(data)
+			return
+		}
+		fmt.Fprint(w, "{}")
 	})
 	mux.HandleFunc("/notes-fixture", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/js/vendor/notes/engine.css"><link rel="stylesheet" href="/css/desktop-app-notes.css"><link rel="stylesheet" href="/css/desktop-icons.css">
+		fmt.Fprint(w, `<!doctype html><html lang="de"><head><meta charset="utf-8"><link rel="stylesheet" href="/js/vendor/notes/engine.css"><link rel="stylesheet" href="/css/desktop-app-notes.css"><link rel="stylesheet" href="/css/desktop-app-notes-nav.css"><link rel="stylesheet" href="/css/desktop-icons.css">
 <style>@font-face{font-family:Geist;src:url('/fonts/geist/Geist-Variable.woff2')}html,body{margin:0;height:100%;font-family:Geist,system-ui}body{--vd-text:#e4e8f0;--vd-theme-app-bg:#11161d;--vd-theme-panel-bg:#1b202a;--vd-theme-chrome-bg:#1d2430;--vd-theme-control-bg:#252d3a;--vd-theme-border:#ffffff1a;--vd-theme-muted:#a7b1c3;--vd-accent:#f3b676}body[data-fruity-mode=light]{--vd-text:#212b3c;--vd-theme-app-bg:#e2e7ee;--vd-theme-panel-bg:#e5e9ef;--vd-theme-chrome-bg:#d7dfe9;--vd-theme-control-bg:#f8fafc;--vd-theme-border:#65748c40;--vd-theme-muted:#536279;--vd-accent:#996419}#host{height:100%}</style></head><body class="desktop-body" data-theme="default"><div id="host"></div>
 <script>window.errors=[];addEventListener('error',e=>errors.push(e.error?.stack||e.message));addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));</script>
-<script src="/js/vendor/marked.min.js"></script><script src="/js/vendor/purify.min.js"></script><script src="/js/desktop/apps/notes-frontmatter.js"></script><script src="/js/desktop/apps/notes-index.js"></script><script src="/js/desktop/apps/notes-templates.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/notes-editor.js"></script><script src="/js/desktop/apps/notes-panels.js"></script><script src="/js/desktop/apps/notes-graph.js"></script><script src="/js/desktop/apps/notes.js"></script>
-<script>window.ready=(async()=>{const labels=await(await fetch('/lang/desktop/de.json')).json();window.notesContext={path:'Documents/Notes/aurora.md',iconMarkup:name=>'<span class="notes-icon" aria-hidden="true" style="display:inline-grid;place-items:center;font-size:11px;font-weight:700">'+String(name||'?').charAt(0).toUpperCase()+'</span>',t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>false,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/Notes/copy.md'}),openFileDialog:async()=>({path:'Documents/Notes/aurora.md'})};await NotesApp.render(document.getElementById('host'),'test',notesContext).ready;})();</script></body></html>`)
+<script src="/js/vendor/marked.min.js"></script><script src="/js/vendor/purify.min.js"></script><script src="/js/desktop/apps/notes-frontmatter.js"></script><script src="/js/desktop/apps/notes-index.js"></script><script src="/js/desktop/apps/notes-templates.js"></script><script src="/js/desktop/apps/writer-session.js"></script><script src="/js/desktop/apps/notes-editor.js"></script><script src="/js/desktop/apps/notes-panels.js"></script><script src="/js/desktop/apps/notes-sidebar.js"></script><script src="/js/desktop/apps/notes-palette.js"></script><script src="/js/desktop/apps/notes-graph.js"></script><script src="/js/desktop/apps/notes.js"></script>
+<script>window.ready=(async()=>{const labels={...await(await fetch('/notes-extra-labels')).json(),...await(await fetch('/lang/desktop/de.json')).json()};window.notesContext={path:'Documents/Notes/aurora.md',iconMarkup:name=>'<span class="notes-icon" aria-hidden="true" style="display:inline-grid;place-items:center;font-size:11px;font-weight:700">'+String(name||'?').charAt(0).toUpperCase()+'</span>',t:(key,params)=>String(labels[key]||key).replace(/\{\{(\w+)\}\}/g,(_,x)=>params?.[x]??''),promptDialog:async(title,value)=>value,confirmDialog:async()=>false,setWindowBeforeClose:(id,fn)=>window.closeGuard=fn,setWindowMenus:(id,menus)=>window.menus=menus,saveFileDialog:async()=>({path:'Documents/Notes/copy.md'}),openFileDialog:async()=>({path:'Documents/Notes/aurora.md'})};await NotesApp.render(document.getElementById('host'),'test',notesContext).ready;})();</script></body></html>`)
 	})
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -240,6 +319,11 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log("Notes linking workflows:", page.MustEval(string(obsidian)).JSON("", ""))
+	navigation, err := os.ReadFile("testdata/notes-navigation-functional.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Notes navigation workflows:", page.MustEval(string(navigation)).JSON("", ""))
 	out := os.Getenv("AURAGO_BROWSER_ARTIFACT_DIR")
 	if out == "" {
 		out = filepath.Join("..", "reports", "notes")
@@ -266,7 +350,7 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
  window.linkingPrevious=app.editor.content();
  app.editor.setContent('# Ideen\n\nEine neue Perspektive. Mehr dazu in [[einkauf]] und [[aurora|Aurora Ideen]].\n\n> [!tip] Verknüpfen\n> Mit doppelten eckigen Klammern entstehen Verweise, zum Beispiel [[Neue Idee]].\n');
  app.editor.refreshDecorations();
- const open=!document.querySelector('[data-right]').hidden&&document.querySelector('[role=tab][aria-selected=true]')?.dataset.rightTab==='backlinks';
+ const open=!document.querySelector('[data-right]').hidden&&document.querySelector('[data-right] [role=tab][aria-selected=true]')?.dataset.rightTab==='backlinks';
  if(!open){if(!document.querySelector('[data-right]').hidden)await app.act('closePanel');await app.act('backlinks');}
  await sleep(700);
  const chip=[...document.querySelectorAll('.notes-wikilink')].find(el=>el.textContent.includes('einkauf'));
@@ -275,6 +359,57 @@ func TestDesktopNotesAppBrowser(t *testing.T) {
  }`)
 	page.MustScreenshot(filepath.Join(out, "linking-1366x768.png"))
 	page.MustEval(`()=>{const app=NotesApp.instances.get('test');document.querySelectorAll('.notes-wikilink').forEach(el=>el.dispatchEvent(new MouseEvent('mouseleave')));app.editor.setContent(window.linkingPrevious);}`)
+	// Navigation scenes: Files tab with the current note highlighted, quick switcher with a query, command palette.
+	page.MustSetViewport(1366, 768, 1, false)
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms)),root=document.querySelector('.vd-notes-app');
+ root.classList.remove('notes-hide-library');
+ if(!document.querySelector('[data-right]').hidden)await app.act('closePanel');
+ app.sidebar.setTab('files');
+ await sleep(200);
+ const target=document.querySelector('.notes-tree-row[data-path="Documents/Notes/Projekte/plan.md"]')||document.querySelector('.notes-tree-row[data-kind=note]');
+ target.click();
+ await sleep(900);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "navigation-files-1366x768.png"))
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ app.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'o',ctrlKey:true,bubbles:true,cancelable:true}));
+ await sleep(200);
+ const input=document.querySelector('.notes-palette-input');input.value='ide';input.dispatchEvent(new Event('input',{bubbles:true}));
+ await sleep(300);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "navigation-switcher-1366x768.png"))
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ document.querySelector('.notes-palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ await sleep(100);
+ app.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'p',ctrlKey:true,bubbles:true,cancelable:true}));
+ await sleep(200);
+ const input=document.querySelector('.notes-palette-input');input.value='';input.dispatchEvent(new Event('input',{bubbles:true}));
+ await sleep(300);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "navigation-palette-1366x768.png"))
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ document.querySelector('.notes-palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+ await sleep(100);
+ const aurora=document.querySelector('.notes-tree-row[data-path="Documents/Notes/aurora.md"]');
+ if(aurora)aurora.click();
+ await sleep(900);
+ }`)
+	// Find bar scene: Ctrl+F with a query, closed again before the theme matrix.
+	page.MustEval(`async()=>{
+ const app=NotesApp.instances.get('test'),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+ app.editor.view.dom.dispatchEvent(new KeyboardEvent('keydown',{key:'f',ctrlKey:true,bubbles:true,cancelable:true}));
+ const input=document.querySelector('[data-find]');input.value='o';input.dispatchEvent(new Event('input',{bubbles:true}));
+ await sleep(300);
+ }`)
+	page.MustScreenshot(filepath.Join(out, "navigation-find-1366x768.png"))
+	page.MustSetViewport(430, 932, 1, false)
+	page.MustScreenshot(filepath.Join(out, "navigation-find-430x932.png"))
+	page.MustSetViewport(1366, 768, 1, false)
+	page.MustEval(`()=>document.querySelector('[data-action=findClose]').click()`)
 	for _, theme := range []string{"default", "fruity-dark", "fruity-light"} {
 		for _, density := range []string{"normal", "compact"} {
 			for _, size := range [][2]int{{1920, 1080}, {1366, 768}, {430, 932}} {

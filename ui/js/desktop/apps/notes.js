@@ -2,6 +2,9 @@
     'use strict';
     const instances = new Map(), DIR = 'Documents/Notes', META = DIR + '/notes.meta.json';
     const basename = path => String(path || '').split('/').pop();
+    const dirname = path => String(path || '').split('/').slice(0, -1).join('/');
+    const RECENT_MAX = 20;
+    const storage = {get: key => {try{return localStorage.getItem(key);}catch(_){return null;}}, set: (key, value) => {try{localStorage.setItem(key, value);}catch(_){}}};
     function resolveNoteLinkPath(href, from) {
         if (!href || /^[a-z][a-z\d+.-]*:/i.test(href) || href.startsWith('/') || href.startsWith('#')) return null;
         if (from?.startsWith('Trash/Notes/')) from = DIR + '/' + from.split('/').slice(3).join('/');
@@ -35,25 +38,27 @@
         const icons={library:'columns',new:'file-plus',search:'search',pin:'bookmark',info:'info',outline:'list',assist:'star',source:'file-code',focus:'maximize',insert:'plus',
             save:'save',saveAs:'copy',rename:'pencil',move:'folder',trash:'trash',restore:'undo',open:'folder-open',print:'printer',md:'notes',html:'file-code',txt:'file-text',
             undo:'undo',redo:'redo',bold:'format-bold',italic:'format-italic',strike:'format-strike',bullet:'list',ordered:'format-numbered',quote:'format-quote',code:'code',link:'link',close:'x',closePanel:'x',dismiss:'x',cancelAssist:'x',task:'check-square',
-            back:'chevron-left',forward:'chevron-right',sidebarRight:'columns',backlinks:'link',outgoing:'external',localGraph:'network'};
+            back:'chevron-left',forward:'chevron-right',sidebarRight:'columns',backlinks:'link',outgoing:'external',localGraph:'network',switcher:'search',highlight:'highlighter',wikilink:'brackets',findPrev:'chevron-up',findNext:'chevron-down',findClose:'x',commandPalette:'command'};
         const icon=key=>ctx.iconMarkup?.(icons[key]||key,'','notes-icon',18,'action')||'<span aria-hidden="true">•</span>';
         const button=(action,label=action,text=false)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label))+'" aria-label="'+esc(tr(label))+'">'+(text?esc(tr(label)):icon(action))+'</button>';
         host.innerHTML='<div class="vd-notes-app" data-notes="'+esc(windowId)+'">'+
-            '<header class="notes-documentbar"><div class="notes-document">'+button('library')+button('back','history_back')+button('forward','history_forward')+'<nav class="notes-crumbs" data-crumbs aria-label="'+esc(tr('breadcrumb'))+'" hidden></nav><button class="notes-name" data-action="document"><span data-name>'+esc(tr('title'))+'</span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite"></span></div><nav aria-label="'+esc(tr('panels'))+'">'+button('pin')+button('sidebarRight','right_sidebar')+'</nav></header>'+
-            '<div class="vd-notes-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="notes-toolgroup">'+button('undo')+button('redo')+'</div><div class="notes-toolgroup"><select data-style aria-label="'+esc(tr('style'))+'"><option value="p">'+esc(tr('paragraph'))+'</option>'+[1,2,3].map(n=>'<option value="'+n+'">'+esc(tr('heading'))+' '+n+'</option>').join('')+'</select></div><div class="notes-toolgroup">'+button('bold')+button('italic')+button('strike')+'</div><div class="notes-toolgroup">'+button('bullet','bullets')+button('ordered','numbering')+button('task')+button('quote')+'</div><div class="notes-toolgroup">'+button('link')+button('code')+button('insert')+'</div><span class="notes-spacer"></span>'+button('source','markdown_source')+'</div>'+
+            '<header class="notes-documentbar"><div class="notes-document">'+button('library')+button('back','history_back')+button('forward','history_forward')+'<nav class="notes-crumbs" data-crumbs aria-label="'+esc(tr('breadcrumb'))+'" hidden></nav><button class="notes-name" data-action="document"><span data-name>'+esc(tr('title'))+'</span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite"></span></div><nav aria-label="'+esc(tr('panels'))+'">'+button('switcher')+button('pin')+button('sidebarRight','right_sidebar')+'</nav></header>'+
+            '<div class="vd-notes-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="notes-toolgroup">'+button('undo')+button('redo')+'</div><div class="notes-toolgroup"><select data-style aria-label="'+esc(tr('style'))+'"><option value="p">'+esc(tr('paragraph'))+'</option>'+[1,2,3].map(n=>'<option value="'+n+'">'+esc(tr('heading'))+' '+n+'</option>').join('')+'</select></div><div class="notes-toolgroup">'+button('bold')+button('italic')+button('strike')+'</div><div class="notes-toolgroup">'+button('bullet','bullets')+button('ordered','numbering')+button('task')+button('quote')+'</div><div class="notes-toolgroup">'+button('link')+button('wikilink')+button('highlight')+button('code')+button('insert')+'</div><span class="notes-spacer"></span>'+button('source','markdown_source')+'</div>'+
+            '<div class="notes-findbar" data-findbar role="search" aria-label="'+esc(tr('find'))+'" hidden><input data-find type="text" autocomplete="off" spellcheck="false" placeholder="'+esc(tr('find'))+'" aria-label="'+esc(tr('find'))+'"><input data-replace type="text" autocomplete="off" spellcheck="false" placeholder="'+esc(tr('replace_placeholder'))+'" aria-label="'+esc(tr('replace'))+'"><span class="notes-find-count" data-find-count role="status" aria-live="polite"></span><span class="notes-find-buttons">'+button('findPrev','find_previous')+button('findNext','find_next')+'<button type="button" data-action="findCase" aria-pressed="false" title="'+esc(tr('case_sensitive'))+'" aria-label="'+esc(tr('case_sensitive'))+'">Aa</button>'+button('replaceOne','replace',true)+button('replaceAll','replace_all',true)+button('findClose','close')+'</span></div>'+
             '<div class="notes-notice" data-notice role="alert" hidden><span data-notice-text></span>'+button('retry','retry',true)+button('saveAs','save_as',true)+button('dismiss','close')+'</div>'+
-            '<div class="notes-workspace"><aside class="notes-library" aria-label="'+esc(tr('library'))+'"><div class="notes-library-head"><strong>'+esc(tr('title'))+'</strong>'+button('new','new_note')+'</div><div class="notes-library-filters"><input type="search" data-search placeholder="'+esc(tr('search_all'))+'" aria-label="'+esc(tr('search_all'))+'"><div class="notes-filter-row"><select data-folder aria-label="'+esc(tr('folder'))+'"><option value="">'+esc(tr('all_notes'))+'</option></select><select data-sort aria-label="'+esc(tr('sort'))+'"><option value="modified">'+esc(tr('recent'))+'</option><option value="name">'+esc(tr('name'))+'</option></select></div><input data-tag placeholder="'+esc(tr('filter_tag'))+'" aria-label="'+esc(tr('filter_tag'))+'"></div><div class="notes-list" data-list role="list" aria-label="'+esc(tr('title'))+'"></div><div class="notes-library-footer"><button data-action="showTrash">'+icon('trash')+' '+esc(tr('trash'))+'</button><span data-total></span></div></aside>'+
+            '<div class="notes-workspace"><aside class="notes-library" aria-label="'+esc(tr('library'))+'"><div class="notes-library-host" data-sidebar></div></aside>'+
             '<main class="notes-main"><div class="notes-scroll" data-scroll><div class="notes-page"><div class="notes-note-meta" data-note-meta></div><div data-editor></div></div></div><div class="notes-empty" data-empty><div class="notes-empty-icon">'+icon('md')+'</div><h2>'+esc(tr('empty_title'))+'</h2><p>'+esc(tr('empty_description'))+'</p>'+button('new','new_note',true)+'</div><div class="notes-loading" data-loading hidden>'+esc(tr('loading'))+'</div></main><aside class="notes-right" data-right hidden></aside></div>'+
             '<footer class="notes-statusbar"><button type="button" data-action="backlinks" data-backlinks disabled></button><span data-count></span><span class="notes-spacer"></span><span data-mode></span>'+button('focus','focus_mode')+'<button data-action="zoomOut" aria-label="'+esc(tr('zoom_out'))+'">−</button><button data-action="zoomReset" data-zoom>100%</button><button data-action="zoomIn" aria-label="'+esc(tr('zoom_in'))+'">+</button></footer><div class="notes-popup" data-popup hidden></div><div class="notes-preview" data-preview hidden role="dialog" aria-label="'+esc(tr('preview'))+'"></div><input data-upload type="file" multiple hidden><input data-import type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden></div>';
         const root=host.firstElementChild, find=selector=>root.querySelector(selector), life=new AbortController();
-        let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, zoom=100, right=stored.open&&TABS.includes(stored.tab)?stored.tab:'', lastTab=TABS.includes(stored.tab)?stored.tab:'backlinks', searchTimer, updateTimer, draftTimer, draftDeadline, sseTimer;
-        let meta={version:1,pinned:[],sort:'modified',last_note:''}, list=[], total=0, trash=false, page=0, listGeneration=0, currentDraft, assistController, proposal;
+        let docLife=new AbortController(), editor, queue, current, documentGeneration=0, disposed=false, busy=false, loading=false, zoom=100, right=stored.open&&TABS.includes(stored.tab)?stored.tab:'', lastTab=TABS.includes(stored.tab)?stored.tab:'backlinks', updateTimer, draftTimer, draftDeadline, sseTimer;
+        let meta={version:1,pinned:[],sort:'modified',last_note:'',recent:[]}, list=[], trashNotes=[], trash=false, listGeneration=0, currentDraft, assistController, proposal;
+        let sidebar, sidebarFrame=0, contextTarget=null, findCase=false;
         let metaTask=Promise.resolve(), sourceRequested=false;
         const draftKey=()=>location.origin+':'+current.path;
         let indexLoaded=false, indexSignature='', stack=[], stackPos=-1, previewTimer, previewToken=0, previewScroll=0;
         const excerpts=new Map();
         const index=NotesIndex.create({request:(url,options)=>request(url,{...options,signal:life.signal}),onChange:indexChanged});
-        const instance={act,get editor(){return editor;},get session(){return queue;},get path(){return current?.path;},get index(){return index;},get history(){return {stack:[...stack],position:stackPos};},dispose:cleanup};
+        const instance={act,commands:()=>commands(),openSwitcher:()=>openSwitcher(),openCommands:()=>openCommands(),get sidebar(){return sidebar;},get meta(){return meta;},get editor(){return editor;},get session(){return queue;},get path(){return current?.path;},get index(){return index;},get history(){return {stack:[...stack],position:stackPos};},dispose:cleanup};
         instances.set(windowId,instance);
         window.AuraDesktopEmail?.attach(windowId, '.notes-documentbar', () => ({
             key: docLife.signal, signal: docLife.signal, subject: current?.title || '',
@@ -87,7 +92,7 @@
             find('[data-empty]').hidden=!!editor;find('[data-scroll]').hidden=!editor;
             find('[data-mode]').textContent=editor?tr(editor.sourceMode?'markdown_source':'formatted'):'';
             find('[data-style]').disabled=!writable()||!!editor?.sourceMode;
-            root.querySelectorAll('.vd-notes-toolbar [data-action]').forEach(el=>{el.disabled=!editor || (el.dataset.action!=='source'&&(!writable()||(editor.sourceMode&&!['undo','redo'].includes(el.dataset.action))));});
+            root.querySelectorAll('.vd-notes-toolbar [data-action]').forEach(el=>{el.disabled=!editor || (el.dataset.action!=='source'&&(!writable()||(editor.sourceMode&&!['undo','redo','highlight','wikilink'].includes(el.dataset.action))));});
             root.querySelectorAll('[data-action="pin"]').forEach(el=>{el.disabled=!current||ctx.readonly||trash;el.setAttribute('aria-pressed',String(meta.pinned.includes(current?.path)));});
             find('[data-action="source"]').setAttribute('aria-pressed',String(!!editor?.sourceMode));
             root.querySelectorAll('[data-action="new"]').forEach(el=>el.disabled=!!ctx.readonly||busy);
@@ -95,13 +100,13 @@
             root.querySelectorAll('[data-action="forward"]').forEach(el=>el.disabled=stackPos>=stack.length-1||busy);
             root.querySelectorAll('[data-action="sidebarRight"]').forEach(el=>el.setAttribute('aria-pressed',String(!!right)));
             renderCrumbs();updateBacklinkCount();
-            menus();updateDetails();
+            menus();updateDetails();scheduleSidebar();
         }
         function renderCrumbs(){
             const nav=find('[data-crumbs]'),path=current?.path||'',trashed=path.startsWith('Trash/Notes/'),base=trashed?'Trash/Notes':DIR,folders=path.startsWith(base+'/')?path.slice(base.length+1).split('/').slice(0,-1):[];
             const segments=trashed?[tr('trash'),...folders]:folders;
             nav.hidden=!segments.length;
-            nav.innerHTML=segments.map((name,i)=>'<span class="notes-crumb" data-crumb="'+esc((trashed?'Trash/Notes':DIR)+(trashed?folders.slice(0,i).map(f=>'/'+f).join(''):'/'+folders.slice(0,i+1).join('/')))+'">'+esc(name)+'</span><span class="notes-crumb-sep" aria-hidden="true">›</span>').join('');
+            nav.innerHTML=segments.map((name,i)=>'<span class="notes-crumb" role="button" tabindex="0" data-crumb="'+esc((trashed?'Trash/Notes':DIR)+(trashed?folders.slice(0,i).map(f=>'/'+f).join(''):'/'+folders.slice(0,i+1).join('/')))+'">'+esc(name)+'</span><span class="notes-crumb-sep" aria-hidden="true">›</span>').join('');
         }
         function updateBacklinkCount(){
             const button=find('[data-backlinks]');if(!button)return;
@@ -112,7 +117,7 @@
             if(!editor||disposed)return;
             const text=editor.text,words=text.match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)||[];
             find('[data-count]').textContent=tr('counts',{words:words.length,chars:[...text].length});
-            if(current) {current.title=NotesFrontmatter.deriveTitle(editor.content(),basename(current.path));find('[data-name]').textContent=current.title;const row=find('[data-list]').querySelector('[aria-current="true"] strong');if(row)row.textContent=current.title;}
+            if(current) {const title=NotesFrontmatter.deriveTitle(editor.content(),basename(current.path));if(title!==current.title){current.title=title;scheduleSidebar();}find('[data-name]').textContent=current.title;}
             if(right==='outline'||right==='outgoing')renderPanelBody();
             if(proposal&&proposal.revision!==queue?.revision){find('[data-apply]')?.setAttribute('disabled','');find('[data-ai-state]')?.replaceChildren(document.createTextNode(tr('stale_suggestion')));}
         }
@@ -163,7 +168,7 @@
                     upload:file=>uploadFile(file,true),resolveURL:href=>resolveURL(href,note.path),openLink:openLink,changed,popupHost:root,
                     resolveWiki:value=>resolveWiki(value,note.path),openWiki:(value,event)=>openWiki(value,event,note.path),embedWiki:(value,element,parsed)=>embedWiki(value,element,note.path,parsed),previewWiki:(value,anchor)=>previewWiki(value,anchor,note.path),
                     suggest:(query,suggestOptions)=>suggest(query,suggestOptions,note.path),
-                    tagClick:tag=>{find('[data-tag]').value=tag;page=0;refreshList().catch(fail);}});
+                    tagClick:tag=>{showLibrary();sidebar?.focusSearch('tag:'+tag);}});
                 if(disposed){await next.destroy();return;}
                 queue?.dispose();docLife.abort();docLife=new AbortController();documentGeneration++;clearTimeout(draftTimer);clearTimeout(draftDeadline);
                 await editor?.destroy();editor=next;current=note;currentDraft=recovered?draft:null;
@@ -176,10 +181,11 @@
                 ctx.updateWindowContext?.(windowId,{path:note.path});ctx.recordRecentFile?.(note.path,'notes');
                 if(editor.sourceMode&&NotesEditor.needsSource(editor.content()))notice(tr('source_preserved'));
                 else notice(recovered?tr('recovered'):'');
-                if(!trash)updateMeta({last_note:note.path});
+                trash=note.path.startsWith('Trash/');
+                if(!trash)updateMeta({last_note:note.path,recent:[note.path,...(meta.recent||[]).filter(path=>path!==note.path)].slice(0,RECENT_MAX)});
                 if(options.push!==false)pushHistory(note.path);
-                hidePreview();
-                renderList();renderRight();if(root.classList.contains('notes-narrow'))root.classList.add('notes-hide-library');
+                hidePreview();clearFindMark();
+                scheduleSidebar();renderRight();if(root.classList.contains('notes-narrow'))root.classList.add('notes-hide-library');
             }catch(error){fail(error);}
             finally{loading=false;busy=false;if(!disposed){find('[data-loading]').hidden=true;syncChrome();}}
         }
@@ -197,28 +203,98 @@
             if(kind==='journal')return '# '+new Date().toLocaleDateString()+'\n\n## '+tr('thoughts')+'\n\n## '+tr('next_steps')+'\n';
             return '# '+tr('new_note')+'\n\n';
         }
-        async function createNote(kind='blank',content){
+        function noteFolder(){const path=current?.path||'';return path.startsWith(DIR+'/')?dirname(path):DIR;}
+        async function createNote(kind='blank',content,folder){
             if(ctx.readonly||busy||!await guard())return;
             busy=true;syncChrome();
-            try{const text=content??template(kind);const note=await request(endpoint(),{method:'POST',signal:life.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({title:NotesFrontmatter.deriveTitle(text,tr('new_note')),content:text,folder:find('[data-folder]').value||DIR})});
-                busy=false;trash=false;index.refresh().catch(()=>{});await refreshList();await loadNote(note.path,note);editor?.focus();
+            try{const text=content??template(kind);const note=await request(endpoint(),{method:'POST',signal:life.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({title:NotesFrontmatter.deriveTitle(text,tr('new_note')),content:text,folder:folder||noteFolder()})});
+                busy=false;trash=false;await index.load().catch(()=>{});await refreshList();await loadNote(note.path,note);editor?.focus();
             }catch(error){fail(error);}finally{busy=false;syncChrome();}
         }
-        async function refreshList(append=false){
-            const gen=++listGeneration,query=new URLSearchParams({q:find('[data-search]').value,tag:find('[data-tag]').value,folder:find('[data-folder]').value,trash:String(trash),offset:String(page*200),limit:'200'});
-            const result=await request(endpoint()+'?'+query,{signal:life.signal});
-            if(disposed||gen!==listGeneration)return;
-            list=append?list.concat(result.notes||[]):result.notes||[];total=result.total;
-            const folder=find('[data-folder]'),old=folder.value;folder.innerHTML='<option value="">'+esc(tr('all_notes'))+'</option>'+(result.folders||[]).map(path=>'<option value="'+esc(path)+'">'+esc(path.slice(DIR.length+1))+'</option>').join('');folder.value=old;
-            find('[data-total]').textContent=String(total);find('[data-action="showTrash"]').setAttribute('aria-pressed',String(trash));renderList();
+        // Plain list (initial note choice) and trash list (sidebar), paged 200 at a time.
+        async function listAll(flag){
+            const all=[];
+            for(let offset=0;offset<2000;offset+=200){
+                const result=await request(endpoint()+'?'+new URLSearchParams({trash:String(flag),offset:String(offset),limit:'200'}),{signal:life.signal});
+                all.push(...(result.notes||[]));
+                if(!result.notes?.length||all.length>=(result.total||0))break;
+            }
+            return all;
         }
-        function renderList(){
-            const rows=[...list].sort((a,b)=>Number(meta.pinned.includes(b.path))-Number(meta.pinned.includes(a.path))||(meta.sort==='name'?a.title.localeCompare(b.title):new Date(b.modified)-new Date(a.modified)));
-            find('[data-list]').innerHTML=rows.map(note=>'<button class="notes-list-row" role="listitem" data-note-path="'+esc(note.path)+'" aria-current="'+String(note.path===current?.path)+'"><span class="notes-list-title"><strong>'+esc(note.title)+'</strong>'+(meta.pinned.includes(note.path)?icon('pin'):'')+'</span><span class="notes-list-snippet">'+esc(note.snippet||tr('empty_note'))+'</span><span class="notes-list-meta"><time>'+esc(new Date(note.modified).toLocaleDateString(document.documentElement.lang||'en',{month:'short',day:'numeric'}))+'</time><span>'+esc((note.tags||[]).map(tag=>'#'+tag).join(' '))+'</span></span></button>').join('')+(list.length<total?button('more','load_more',true):!rows.length?'<p class="notes-list-empty">'+esc(tr('no_results'))+'</p>':'');
+        async function refreshList(){
+            const gen=++listGeneration,[plain,trashed]=await Promise.all([listAll(false),listAll(true)]);
+            if(disposed||gen!==listGeneration)return;
+            list=plain;trashNotes=trashed;scheduleSidebar();
+        }
+        function scheduleSidebar(){
+            if(sidebarFrame||disposed||!sidebar)return;
+            sidebarFrame=requestAnimationFrame(()=>{sidebarFrame=0;if(!disposed)sidebar?.render();});
+        }
+        const stamp=value=>Date.parse(value)||0;
+        function sidebarState(){
+            return {notes:index.notes().map(note=>({path:note.path,title:note.path===current?.path&&current.title?current.title:note.title,modified:stamp(note.modified),tags:note.tags||[]})),
+                folders:index.data.folders||[],current:current?.path,pinned:meta.pinned,sort:meta.sort,trash,
+                trashNotes:trashNotes.map(note=>({path:note.path,title:note.title,modified:stamp(note.modified)})),tagCounts:index.tags()};
+        }
+        function showLibrary(){root.classList.remove('notes-hide-library');}
+        async function searchNotes(text){
+            const parsed=NotesSidebar.parseQuery(text),result=await request(endpoint()+'?'+new URLSearchParams({q:parsed.q,tag:parsed.tag,folder:parsed.folder,trash:'false',offset:'0',limit:'50'}),{signal:life.signal});
+            return {notes:(result.notes||[]).map(note=>({...note,modified:stamp(note.modified)})),total:result.total};
+        }
+        function validFolderName(name){return name&&!INVALID_NAME.test(name)&&name.split('/').every(part=>part.trim()&&part!=='.'&&part!=='..'&&!part.startsWith('.'));}
+        async function newFolder(parent){
+            if(ctx.readonly||busy)return;
+            const value=await ctx.promptDialog?.(tr('new_folder'),'');
+            const name=String(value||'').trim().replace(/^\/+|\/+$/g,'');
+            if(!name)return;
+            if(!validFolderName(name)){notice(tr('invalid_name',{name}),true);return;}
+            try{
+                const folder=(parent||DIR)+'/'+name;
+                await request(endpoint(),{method:'POST',signal:life.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'mkdir',folder})});
+                await index.load().catch(()=>{});showLibrary();sidebar?.revealPath(folder);
+            }catch(error){fail(error);}
+        }
+        function renameMeta(oldPath,newPath){
+            const swap=paths=>paths.map(path=>path===oldPath?newPath:path);
+            if([...(meta.pinned||[]),...(meta.recent||[])].includes(oldPath)||meta.last_note===oldPath)updateMeta({pinned:swap(meta.pinned||[]),recent:swap(meta.recent||[]),...(meta.last_note===oldPath?{last_note:newPath}:{})});
+        }
+        async function moveToFolder(path,folder){
+            if(ctx.readonly||busy||path.startsWith('Trash/'))return;
+            const target=folder+'/'+basename(path);
+            if(target===path)return;
+            if(path===current?.path)return await moveNote('move',target);
+            try{
+                const old=await request(endpoint(path),{signal:life.signal});
+                const moved=await request(endpoint(),{method:'PATCH',signal:life.signal,headers:{'Content-Type':'application/json','If-Match':old.version},body:JSON.stringify({path,new_path:target,operation:'move',update_links:true})});
+                renameHistory(path,moved.path);renameMeta(path,moved.path);
+                await index.load().catch(()=>{});await refreshList();sidebar?.revealPath(moved.path);
+                if(moved.link_update_failed?.length)notice(tr('links_update_failed',{paths:moved.link_update_failed.join(', ')}),true);
+                else if(moved.updated_links>0)notice(tr('links_updated',{count:moved.updated_links}));
+            }catch(error){fail(error);}
+        }
+        function openContextMenu(path,kind,event){
+            if(disposed)return;
+            contextTarget={path,kind};
+            const pinned=meta.pinned.includes(path);
+            let items=kind==='folder'?[['ctx:newNote','new_note'],['ctx:newFolder','new_folder']]:kind==='trash'?[['ctx:open','open'],['ctx:restore','restore']]:
+                [['ctx:open','open'],['ctx:rename','rename'],['ctx:move','move'],['ctx:pin',pinned?'unpin':'pin'],['ctx:trash','trash']];
+            if(ctx.readonly)items=items.filter(([action])=>action==='ctx:open');
+            if(items.length)popup(items,{x:event?.clientX??0,y:event?.clientY??0});
+        }
+        async function contextAction(name){
+            const target=contextTarget;contextTarget=null;
+            if(!target||disposed)return;
+            const {path,kind}=target;
+            if(name==='open'){await loadNote(path);return;}
+            if(name==='newNote'){await createNote('blank',undefined,kind==='folder'?path:dirname(path));return;}
+            if(name==='newFolder'){await newFolder(kind==='folder'?path:dirname(path));return;}
+            if(name==='pin'){if(!ctx.readonly)updateMeta({pinned:meta.pinned.includes(path)?meta.pinned.filter(p=>p!==path):[...meta.pinned,path]});return;}
+            if(path!==current?.path){await loadNote(path);if(current?.path!==path)return;}
+            await moveNote(name==='rename'?'move':name);
         }
         function updateMeta(change){
             if(ctx.readonly)return;
-            Object.assign(meta,change);renderList();syncChrome();
+            Object.assign(meta,change);syncChrome();
             metaTask=metaTask.catch(()=>{}).then(async()=>{
                 for(let attempt=0;attempt<2;attempt++){
                     const currentMeta=await request(endpoint(META),{signal:life.signal}).catch(error=>{if(error.status===404)return null;throw error;});
@@ -237,22 +313,22 @@
             busy=true;syncChrome();queue.suspend();
             try{await queue.pending?.catch(()=>{});const text=await editor.relocateLinks(editor.content(),url=>relocatedURL(url,current.path,chosen.path));
                 const note=await request(endpoint(chosen.path),{method:'PUT',signal:life.signal,headers:{'Content-Type':'application/json','If-None-Match':'*'},body:JSON.stringify({path:chosen.path,content:text})});
-                queue.dispose();queue=null;busy=false;index.refresh().catch(()=>{});await loadNote(note.path,note);await refreshList();
+                queue.dispose();queue=null;busy=false;await index.load().catch(()=>{});await loadNote(note.path,note);await refreshList();
             }finally{busy=false;queue?.resume();syncChrome();}
         }
-        async function moveNote(operation){
+        async function moveNote(operation,preset){
             if(!current||ctx.readonly||busy||!await guard())return;
             let target='', relocated;
             if(operation==='trash'&&!await ctx.confirmDialog?.(tr('trash'),tr('trash_confirm')))return;
             if(operation==='move'){
-                target=await ctx.promptDialog?.(tr('move_prompt'),current.path);
+                target=preset||await ctx.promptDialog?.(tr('move_prompt'),current.path);
                 if(!target||target===current.path)return;
                 relocated=await editor.relocateLinks(editor.content(),url=>relocatedURL(url,current.path,target));
             }
             busy=true;syncChrome();
             try{const oldPath=current.path,note=await request(endpoint(),{method:'PATCH',signal:life.signal,headers:{'Content-Type':'application/json','If-Match':current.version},body:JSON.stringify({path:current.path,new_path:target,operation,...(operation==='move'?{update_links:true}:{})})});
-                renameHistory(oldPath,note.path);
-                queue.dispose();queue=null;await editor.destroy();editor=null;current=null;busy=false;trash=operation==='trash';index.refresh().catch(()=>{});await refreshList();await loadNote(note.path,note,{push:false});
+                renameHistory(oldPath,note.path);renameMeta(oldPath,note.path);
+                queue.dispose();queue=null;await editor.destroy();editor=null;current=null;busy=false;trash=operation==='trash';await index.load().catch(()=>{});await refreshList();await loadNote(note.path,note,{push:false});
                 if(relocated!==undefined&&relocated!==note.content){editor.setContent(relocated);await queue.save();}
                 if(note.link_update_failed?.length)notice(tr('links_update_failed',{paths:note.link_update_failed.join(', ')}),true);
                 else if(note.updated_links>0)notice(tr('links_updated',{count:note.updated_links}));
@@ -333,11 +409,11 @@
             await createWikiNote(parsed.target);
         }
         async function createWikiNote(target){
-            if(ctx.readonly||!current||current.path.startsWith('Trash/')||busy)return;
+            if(ctx.readonly||busy)return;
             const name=String(target||'').trim().replace(/\.md$/i,'');
             if(!name)return;
             if(INVALID_NAME.test(name)||name.split('/').some(part=>!part.trim()||part==='.'||part==='..')){notice(tr('invalid_name',{name}),true);return;}
-            const folder=name.includes('/')?DIR:current.path.split('/').slice(0,-1).join('/'),path=folder+'/'+name+'.md';
+            const folder=name.includes('/')?DIR:noteFolder(),path=folder+'/'+name+'.md';
             try{
                 let note;
                 try{note=await request(endpoint(path),{method:'PUT',signal:life.signal,headers:{'Content-Type':'application/json','If-None-Match':'*'},body:JSON.stringify({path,content:'# '+name.split('/').pop()+'\n\n'})});}
@@ -440,7 +516,7 @@
             const changedNames=signature!==indexSignature;indexSignature=signature;
             if(changedNames&&editor&&!disposed)editor.refreshDecorations();
             if(right==='backlinks'||right==='outgoing')renderPanelBody();
-            updateBacklinkCount();
+            updateBacklinkCount();scheduleSidebar();root.__notesPalette?.update();
         }
         async function uploadFile(file,imageOnly=false){
             if(!writable())throw Error(tr('readonly'));
@@ -452,14 +528,20 @@
         }
         function popup(items,anchor){
             const el=find('[data-popup]');el.innerHTML=items.map(([action,label])=>button(action,label,true)).join('');el.hidden=false;
-            const box=anchor?.getBoundingClientRect(),bounds=root.getBoundingClientRect();el.style.top=Math.min((box?.bottom||bounds.top+48)-bounds.top+4,bounds.height-220)+'px';el.style.left=Math.min(Math.max(8,(box?.left||bounds.left+12)-bounds.left),Math.max(8,bounds.width-230))+'px';
+            const bounds=root.getBoundingClientRect();
+            if(typeof anchor?.x==='number'){
+                const width=el.offsetWidth,height=el.offsetHeight;
+                el.style.left=Math.round(Math.max(8,Math.min(anchor.x-bounds.left,bounds.width-width-8)))+'px';el.style.top=Math.round(Math.max(8,Math.min(anchor.y-bounds.top,bounds.height-height-8)))+'px';
+                el.querySelector('button')?.focus({preventScroll:true});return;
+            }
+            const box=anchor?.getBoundingClientRect();el.style.top=Math.min((box?.bottom||bounds.top+48)-bounds.top+4,bounds.height-220)+'px';el.style.left=Math.min(Math.max(8,(box?.left||bounds.left+12)-bounds.left),Math.max(8,bounds.width-230))+'px';
             el.querySelector('button')?.focus({preventScroll:true});
         }
         function renderRight(){
             const panel=find('[data-right]'),open=!!right;panel.hidden=!open;
             root.querySelectorAll('[data-action="sidebarRight"]').forEach(el=>el.setAttribute('aria-pressed',String(open)));
             if(!open){panel.replaceChildren();return;}
-            panel.innerHTML='<div class="notes-tabs" role="tablist" aria-label="'+esc(tr('panels'))+'">'+TABS.map(tab=>'<button type="button" role="tab" id="'+esc(windowId)+'-tab-'+tab+'" data-right-tab="'+tab+'" aria-selected="'+String(tab===right)+'" aria-controls="'+esc(windowId)+'-panel" tabindex="'+(tab===right?'0':'-1')+'" title="'+esc(tr(tab))+'" aria-label="'+esc(tr(tab))+'">'+icon(tab)+'</button>').join('')+'</div><header class="notes-panel-heading"><h2>'+esc(tr(right==='search'?'find':right))+'</h2>'+button('closePanel','close')+'</header><div class="notes-panel-content" data-panel-content role="tabpanel" id="'+esc(windowId)+'-panel" aria-labelledby="'+esc(windowId)+'-tab-'+right+'"></div>';
+            panel.innerHTML='<div class="notes-tabs" role="tablist" aria-label="'+esc(tr('panels'))+'">'+TABS.map(tab=>'<button type="button" role="tab" id="'+esc(windowId)+'-tab-'+tab+'" data-right-tab="'+tab+'" aria-selected="'+String(tab===right)+'" aria-controls="'+esc(windowId)+'-panel" tabindex="'+(tab===right?'0':'-1')+'" title="'+esc(tr(tab))+'" aria-label="'+esc(tr(tab))+'">'+icon(tab)+'</button>').join('')+'</div><header class="notes-panel-heading"><h2>'+esc(tr(right))+'</h2>'+button('closePanel','close')+'</header><div class="notes-panel-content" data-panel-content role="tabpanel" id="'+esc(windowId)+'-panel" aria-labelledby="'+esc(windowId)+'-tab-'+right+'"></div>';
             renderPanelBody();
         }
         function renderPanelBody(){
@@ -474,8 +556,6 @@
             }else if(right==='info'){
                 const tags=NotesFrontmatter.parse(editor.content()).tags;
                 content.innerHTML='<label>'+esc(tr('tags'))+'<input data-tags value="'+esc(tags.join(', '))+'" '+(!writable()?'disabled':'')+'></label><p class="notes-muted">'+esc(tr('tags_hint'))+'</p><dl><dt>'+esc(tr('location'))+'</dt><dd>'+esc(current.path)+'</dd><dt>'+esc(tr('modified'))+'</dt><dd>'+esc(new Date(current.modified).toLocaleString())+'</dd></dl><div class="notes-permissions">'+icon('info')+'<p>'+esc(tr('agent_permissions'))+'</p></div>'+button(trash?'restore':'move',trash?'restore':'move',true)+button('trash','trash',true);
-            }else if(right==='search'){
-                content.innerHTML='<label>'+esc(tr('find'))+'<input data-find></label><label>'+esc(tr('replace'))+'<input data-replace></label><label class="notes-checkbox"><input type="checkbox" data-case>'+esc(tr('case_sensitive'))+'</label>'+button('findNext','find_next',true)+button('replaceOne','replace',true)+button('replaceAll','replace_all',true)+'<p data-find-count role="status"></p>';
             }else if(right==='assist'){
                 content.innerHTML='<p class="notes-muted">'+esc(tr('assist_hint'))+'</p><label>'+esc(tr('selection_scope'))+'<select data-ai-scope><option value="selection">'+esc(tr('selection'))+'</option><option value="paragraph">'+esc(tr('current_paragraph'))+'</option></select></label><label>'+esc(tr('action'))+'<select data-ai-action>'+['rewrite','shorten','expand','correct','translate','custom'].map(action=>'<option value="'+action+'">'+esc(tr(action))+'</option>').join('')+'</select></label><label>'+esc(tr('instruction'))+'<textarea data-instruction rows="3"></textarea></label><label>'+esc(tr('target_language'))+'<input data-language value="'+esc(document.documentElement.lang||'en')+'"></label><div class="notes-panel-actions">'+button('generate','generate',true)+button('cancelAssist','cancel',true)+'</div><p data-ai-state role="status"></p><div data-proposal></div>';
             }
@@ -527,19 +607,27 @@
                 if(action.startsWith('template:'))return await createNote(action.split(':')[1]);
                 if(action==='save')return await queue?.save();
                 if(action==='retry'){notice('');return queue?.error?await queue.save():await refreshList();}
+                if(action==='switcher')return openSwitcher();
+                if(action==='commandPalette')return openCommands();
+                if(action==='search')return openFind();
+                if(action==='findNext'||action==='findPrev'){runFind(action==='findNext'?1:-1);return;}
+                if(action==='findCase'){findCase=!findCase;find('[data-action="findCase"]').setAttribute('aria-pressed',String(findCase));runFind(0);return;}
+                if(action==='findClose')return closeFind();
+                if(action==='replaceOne'||action==='replaceAll')return replaceMatches(action==='replaceAll');
+                if(action.startsWith('ctx:'))return await contextAction(action.slice(4));
                 if(action==='saveAs')return await saveAs();
                 if(action==='open'){const selected=await ctx.openFileDialog?.({title:tr('open'),initialPath:DIR,filters:[{label:'Markdown',extensions:['.md']}]});if(selected?.path&&!selected.canceled){if(selected.path.startsWith(DIR+'/'))await loadNote(selected.path);else await importDesktopFile(selected.path);}return;}
                 if(action==='import'){find('[data-import]').click();return;}
                 if(action==='source'){if(editor){const ok=await editor.mode(!editor.sourceMode);sourceRequested=editor.sourceMode;if(!ok)notice(tr('source_preserved'));syncChrome();}return;}
                 if(action==='library'){root.classList.toggle('notes-hide-library');return;}
+                if(action==='wikilink'&&writable()){const range=editor.selection();editor.replaceSelection('[[',{...range,from:range.to,to:range.to});editor.focus();return;}
                 if(action==='focus'){root.classList.toggle('notes-focus');return;}
-                if([...TABS,'search'].includes(action)){setRight(right===action?'':action);return;}
+                if(TABS.includes(action)){setRight(right===action?'':action);return;}
                 if(action==='sidebarRight'){setRight(right?'':lastTab);return;}
                 if(action==='closePanel'){setRight('');return;}
                 if(action==='back'||action==='forward'){await go(action==='back'?-1:1);return;}
                 if(action==='dismiss'){notice('');return;}
-                if(action==='showTrash'){trash=!trash;page=0;await refreshList();return;}
-                if(action==='more'){page++;await refreshList(true);return;}
+                if(action==='showTrash'){trash=!trash;scheduleSidebar();return;}
                 if(action==='pin'&&writable()){updateMeta({pinned:meta.pinned.includes(current.path)?meta.pinned.filter(p=>p!==current.path):[...meta.pinned,current.path]});return;}
                 if(['trash','move','restore','rename'].includes(action))return await moveNote(action==='rename'?'move':action);
                 if(action==='document'){popup([['rename','rename'],['move','move'],['saveAs','save_as'],['save','save'],['templates','templates']],event?.target||find('[data-action="document"]'));return;}
@@ -556,26 +644,105 @@
                     if(action==='cancelAssist'){assistController?.abort();if(find('[data-ai-state]'))find('[data-ai-state]').textContent=tr('cancelled');return;}
                     if(proposal&&proposal.revision===queue?.revision&&proposal.path===current?.path&&writable()){editor.replaceSelection(proposal.text,proposal.selected);proposal=null;renderRight();}else notice(tr('stale_suggestion'),true);return;
                 }
-                if(['findNext','replaceOne','replaceAll'].includes(action)&&editor){const count=editor.findText(find('[data-find]').value,action==='findNext'?undefined:find('[data-replace]').value,action==='replaceAll',find('[data-case]').checked);find('[data-find-count]').textContent=tr('matches',{count});return;}
-                if(['md','txt','html','print'].includes(action))return await exportNote(action);
+                                if(['md','txt','html','print'].includes(action))return await exportNote(action);
                 if(['zoomOut','zoomIn','zoomReset'].includes(action)){zoom=action==='zoomReset'?100:Math.min(180,Math.max(70,zoom+(action==='zoomIn'?10:-10)));root.style.setProperty('--notes-zoom',zoom/100);find('[data-zoom]').textContent=zoom+'%';return;}
                 if(editor&&!busy)editor.command(action);
             }catch(error){fail(error);}
         }
+        // One list drives the menu bar and the command palette (Phase 5/6 append their commands here).
+        function commands(){
+            const ro=!!ctx.readonly,w=!!writable(),e=!!editor,text=!!editor&&!editor.sourceMode;
+            const c=(id,label,group,shortcut,enabled=true,extra={})=>({id,label:tr(label),group,shortcut:shortcut||'',enabled:!!enabled,...extra});
+            return [
+                c('new','new_note','file','Ctrl+N',!ro&&!busy),c('templates','templates','file','',!ro,{palette:false}),c('switcher','switcher','file','Ctrl+O'),c('open','open','file','',true),c('import','import','file','',!ro),
+                c('save','save','file','Ctrl+S',w),c('saveAs','save_as','file','',w),c('rename','rename','file','',w),
+                ...['md','html','txt'].map(format=>c(format,'export_'+format,'file','',e)),c('print','print','file','',e),
+                c('undo','undo','edit','Ctrl+Z',w),c('redo','redo','edit','Ctrl+Y',w),c('search','find','edit','Ctrl+F',e),c('insert','insert','edit','',w,{palette:false}),c('trash','trash','edit','',w),
+                c('bold','bold','format','',w&&text),c('italic','italic','format','',w&&text),c('strike','strike','format','',w&&text),c('highlight','highlight','format','Ctrl+Shift+H',w),c('code','code','format','',w&&text),c('link','link','format','',w&&text),c('wikilink','wikilink','format','',w),
+                c('commandPalette','commands','view','Ctrl+P',true,{palette:false}),c('library','library','view'),c('sidebarRight','right_sidebar','view'),c('backlinks','backlinks','view'),c('outgoing','outgoing','view'),c('outline','outline','view'),c('info','info','view'),c('source','markdown_source','view','Ctrl+E',e),c('focus','focus_mode','view'),
+                c('assist','assist','agent','',w)
+            ];
+        }
         function menus(){
-            const item=(id,label,shortcut,disabled=false)=>({id,label:tr(label),icon:icons[id]||'notes',shortcut,disabled,action:()=>act(id)});
+            const all=commands(),by=Object.fromEntries(all.map(command=>[command.id,command]));
+            const entries=ids=>ids.map(id=>id==='-'?{type:'separator'}:{id,label:by[id].label,icon:icons[id]||'notes',shortcut:by[id].shortcut||null,disabled:!by[id].enabled,action:()=>act(id)});
             ctx.setWindowMenus?.(windowId,[
-                {id:'file',labelKey:'desktop.menu_file',items:[item('new','new_note','Ctrl+N',ctx.readonly),item('templates','templates',null,ctx.readonly),item('open','open','Ctrl+O'),item('import','import',null,ctx.readonly),{type:'separator'},item('save','save','Ctrl+S',!writable()),item('saveAs','save_as',null,!writable()),item('rename','rename',null,!writable()),{type:'separator'},...['md','html','txt'].map(format=>item(format,'export_'+format,null,!editor)),item('print','print','Ctrl+P',!editor)]},
-                {id:'edit',labelKey:'desktop.menu_edit',items:[item('undo','undo','Ctrl+Z',!writable()),item('redo','redo','Ctrl+Y',!writable()),item('search','find','Ctrl+F',!editor),item('insert','insert',null,!writable()),item('trash','trash',null,!writable())]},
-                {id:'view',label:tr('view'),items:[item('library','library'),item('sidebarRight','right_sidebar'),item('backlinks','backlinks'),item('outgoing','outgoing'),item('outline','outline'),item('info','info'),item('source','markdown_source',null,!editor),item('focus','focus_mode')]},
-                {id:'agent',labelKey:'desktop.menu_agent',items:[item('assist','assist',null,!writable())]}
+                {id:'file',labelKey:'desktop.menu_file',items:entries(['new','templates','switcher','open','import','-','save','saveAs','rename','-','md','html','txt','print'])},
+                {id:'edit',labelKey:'desktop.menu_edit',items:entries(['undo','redo','search','insert','trash'])},
+                {id:'format',labelKey:'desktop.menu_format',items:entries(['bold','italic','strike','highlight','code','link','wikilink'])},
+                {id:'view',label:tr('view'),items:entries(['commandPalette','-','library','sidebarRight','backlinks','outgoing','outline','info','source','focus'])},
+                {id:'agent',labelKey:'desktop.menu_agent',items:entries(['assist'])}
             ]);
+        }
+        const groupLabel=group=>({file:ctx.t?.('desktop.menu_file')||'File',edit:ctx.t?.('desktop.menu_edit')||'Edit',format:ctx.t?.('desktop.menu_format')||'Format',view:tr('view'),agent:ctx.t?.('desktop.menu_agent')||'Agent'}[group]||group);
+        // ---- quick switcher, command palette
+        function noteItem(path){return {id:path,label:index.note(path)?.title||basename(path).replace(/\.md$/i,''),detail:folderLabel(path),icon:icon('md')};}
+        function recentPaths(){return (meta.recent||[]).filter(path=>path!==current?.path&&(!indexLoaded||index.note(path))).slice(0,RECENT_MAX);}
+        function exactNote(query){
+            const wanted=query.trim().toLowerCase().replace(/\.md$/i,'');
+            return index.notes().some(note=>String(note.title||'').toLowerCase()===wanted||basename(note.path).replace(/\.md$/i,'').toLowerCase()===wanted);
+        }
+        function openSwitcher(){
+            if(disposed||!window.NotesPalette)return;
+            if(!indexLoaded)index.load().catch(()=>{});
+            NotesPalette.open(root,{placeholder:tr('switcher_placeholder'),ariaLabel:tr('switcher'),emptyText:tr('no_results'),
+                items:query=>query.trim()?index.search(query,50).map(hit=>noteItem(hit.path)):recentPaths().map(noteItem),
+                onPick:async item=>{await loadNote(item.id);if(current?.path===item.id)editor?.focus();},
+                createLabel:query=>!ctx.readonly&&query.trim()&&!exactNote(query)?tr('create_note_named',{name:query.trim()}):null,
+                onCreate:query=>createWikiNote(query),
+                footer:[{keys:'↑↓',label:tr('palette_navigate')},{keys:'↵',label:tr('palette_open')},{keys:'⇧↵',label:tr('palette_create')},{keys:'Esc',label:tr('palette_close')}]});
+        }
+        function openCommands(){
+            if(disposed||!window.NotesPalette)return;
+            NotesPalette.open(root,{placeholder:tr('command_placeholder'),ariaLabel:tr('commands'),emptyText:tr('no_results'),
+                items:query=>{
+                    const list=commands().filter(command=>command.enabled&&command.palette!==false).map(command=>({id:command.id,label:command.label,detail:groupLabel(command.group),hint:command.shortcut,score:query.trim()?NotesIndex.fuzzy(query,command.label):1}));
+                    return query.trim()?list.filter(item=>item.score>0).sort((a,b)=>b.score-a.score):list;
+                },
+                onPick:item=>{act(item.id);},
+                footer:[{keys:'↑↓',label:tr('palette_navigate')},{keys:'↵',label:tr('palette_run')},{keys:'Esc',label:tr('palette_close')}]});
+        }
+        // ---- find bar
+        function clearFindMark(){try{CSS.highlights?.delete('notes-find');}catch(_){}}
+        function markFind(){
+            clearFindMark();
+            if(!editor||editor.sourceMode||find('[data-findbar]').hidden||typeof Highlight==='undefined'||!CSS.highlights)return;
+            const {from,to}=editor.selection();if(from===to)return;
+            try{const start=editor.view.domAtPos(from),end=editor.view.domAtPos(to),range=document.createRange();range.setStart(start.node,start.offset);range.setEnd(end.node,end.offset);CSS.highlights.set('notes-find',new Highlight(range));}catch(_){}
+        }
+        function openFind(){
+            if(!editor)return;
+            const bar=find('[data-findbar]'),input=find('[data-find]'),selected=editor.selection().text;
+            bar.hidden=false;
+            if(selected&&!selected.includes('\n')&&selected.length<=120)input.value=selected;
+            input.focus();input.select();
+            if(input.value)runFind(0);
+        }
+        function closeFind(){
+            find('[data-findbar]').hidden=true;clearFindMark();find('[data-find-count]').textContent='';
+            editor?.focus();
+        }
+        // direction 0 = incremental (keeps the current match), 1 = next, -1 = previous
+        function runFind(direction){
+            const query=find('[data-find]').value,out=find('[data-find-count]');
+            if(!editor||!query){out.textContent='';clearFindMark();return 0;}
+            const count=editor.findText(query,undefined,false,findCase,direction<0,direction===0);
+            out.textContent=tr('matches',{count});out.dataset.count=String(count);
+            markFind();return count;
+        }
+        function replaceMatches(all){
+            const query=find('[data-find]').value;
+            if(!editor||!writable()||!query)return;
+            const count=editor.findText(query,find('[data-replace]').value,all,findCase);
+            if(all){find('[data-find-count]').textContent=tr('replaced_count',{count});find('[data-find-count]').dataset.count='0';clearFindMark();}
+            else runFind(1);
         }
         on(window,'beforeunload',event=>{if(queue?.dirty){backup();event.preventDefault();event.returnValue='';}});
         on(root,'click',event=>{
             const tab=event.target.closest('[data-right-tab]');if(tab){setRight(tab.dataset.rightTab);find('[data-right-tab="'+tab.dataset.rightTab+'"]')?.focus();return;}
             const create=event.target.closest('[data-create-wiki]');if(create){hidePreview();openWiki(create.dataset.createWiki,event,current?.path);return;}
             const attachment=event.target.closest('[data-attachment-path]');if(attachment){window.open('/api/desktop/download?path='+encodeURIComponent(attachment.dataset.attachmentPath),'_blank','noopener,noreferrer');return;}
+            const crumb=event.target.closest('[data-crumb]');if(crumb){showLibrary();sidebar?.setTab('files');sidebar?.revealPath(crumb.dataset.crumb);const folder=find('.notes-tree-row[data-kind=folder][data-path="'+crumb.dataset.crumb+'"]');if(folder?.getAttribute('aria-expanded')==='false')folder.click();return;}
             const row=event.target.closest('[data-note-path]');if(row){hidePreview();loadNote(row.dataset.notePath);return;}
             const jump=event.target.closest('[data-jump]');if(jump){editor?.jump(Number(jump.dataset.jump));return;}
             const target=event.target.closest('[data-action]');if(target&&!target.disabled)act(target.dataset.action,event);
@@ -584,20 +751,27 @@
         on(root,'change',event=>{
             if(event.target.matches('[data-style]'))editor?.command('style',event.target.value);
             if(event.target.matches('[data-tags]')&&writable())editor.setContent(NotesFrontmatter.updateTags(editor.content(),event.target.value.split(',').map(tag=>tag.trim()).filter(Boolean)));
-            if(event.target.matches('[data-folder]')){page=0;refreshList().catch(fail);}
-            if(event.target.matches('[data-sort]'))updateMeta({sort:event.target.value});
         });
-        on(root,'input',event=>{if(event.target.matches('[data-search],[data-tag]')){clearTimeout(searchTimer);searchTimer=setTimeout(()=>{page=0;refreshList().catch(fail);},250);}});
+        on(root,'input',event=>{if(event.target.matches('[data-find]'))runFind(0);});
         on(find('[data-upload]'),'change',async event=>{const files=[...event.target.files];event.target.value='';const active=editor;for(const file of files)try{const image=file.type.startsWith('image/'),url=await uploadFile(file,image);if(active!==editor||disposed)return;editor.insert((image?'!':'')+'['+file.name.replace(/[\[\]\\]/g,'')+']('+url+')');}catch(error){fail(error);}});
         on(find('[data-import]'),'change',async event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(file.size>2*1024*1024){notice(tr('note_too_large'),true);return;}try{await createNote('blank',await file.text());}catch(error){fail(error);}});
         on(root,'keydown',event=>{
+            if(root.__notesPalette)return;
             if(event.key==='Escape')hidePreview();
+            const bar=event.target.closest?.('[data-findbar]');
+            if(bar&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
+                if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeFind();return;}
+                if(event.key==='Enter'&&event.target.matches('[data-find]')){event.preventDefault();runFind(event.shiftKey?-1:1);return;}
+                if(event.key==='Enter'&&event.target.matches('[data-replace]')){event.preventDefault();replaceMatches(false);return;}
+            }
+            const crumbKey=event.target.closest?.('[data-crumb]');
+            if(crumbKey&&(event.key==='Enter'||event.key===' ')){event.preventDefault();crumbKey.click();return;}
             if(event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();act(event.key==='ArrowLeft'?'back':'forward');return;}
             const tabs=event.target.closest?.('[role=tablist]');
             if(tabs&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const all=[...tabs.querySelectorAll('[role=tab]')],at=all.indexOf(event.target),next=event.key==='Home'?0:event.key==='End'?all.length-1:(at+(event.key==='ArrowRight'?1:all.length-1))%all.length;setRight(all[next].dataset.rightTab);find('[data-right-tab="'+all[next].dataset.rightTab+'"]')?.focus();return;}
             const popup=find('[data-popup]');if(!popup.hidden&&['ArrowDown','ArrowUp','Escape'].includes(event.key)){event.preventDefault();const buttons=[...popup.querySelectorAll('button')];if(event.key==='Escape'){popup.hidden=true;editor?.focus();}else buttons[(buttons.indexOf(document.activeElement)+(event.key==='ArrowDown'?1:buttons.length-1))%buttons.length]?.focus();return;}
             if(!(event.ctrlKey||event.metaKey)||event.altKey)return;
-            const action={s:'save',o:'open',n:'new',p:'print',f:'search'}[event.key.toLowerCase()];
+            const key=event.key.toLowerCase(),action=event.shiftKey?(key==='h'?'highlight':''):{s:'save',o:'switcher',n:'new',p:'commandPalette',f:'search',e:'source'}[key];
             if(action){event.preventDefault();event.stopPropagation();act(action);}
         });
         on(find('[data-preview]'),'mouseenter',()=>clearTimeout(previewTimer));
@@ -613,18 +787,22 @@
         window.AuraSSE?.on?.('virtual_desktop_event',desktopEvent);
         function cleanup(){
             if(disposed)return;disposed=true;life.abort();docLife.abort();assistController?.abort();resize.disconnect();window.AuraSSE?.off?.('virtual_desktop_event',desktopEvent);
-            for(const timer of [searchTimer,updateTimer,draftTimer,draftDeadline,sseTimer,previewTimer])clearTimeout(timer);
+            for(const timer of [updateTimer,draftTimer,draftDeadline,sseTimer,previewTimer])clearTimeout(timer);
+            cancelAnimationFrame(sidebarFrame);root.__notesPalette?.close(true);clearFindMark();sidebar?.destroy();sidebar=null;
             queue?.dispose();editor?.destroy();ctx.clearWindowMenus?.(windowId);instances.delete(windowId);
         }
         instance.ready=(async()=>{
             try{const saved=await request(endpoint(META),{signal:life.signal}).catch(error=>{if(error.status!==404)throw error;return null;});
-                if(saved){try{const data=JSON.parse(saved.content);if(data&&typeof data==='object')meta={...meta,...data,sort:data.sort==='name'?'name':'modified',pinned:Array.isArray(data.pinned)?data.pinned.filter(path=>typeof path==='string'&&path.startsWith(DIR+'/')):[]};}catch(_){notice(tr('request_failed'),true);}}
-                if(disposed)return;find('[data-sort]').value=meta.sort;await Promise.all([refreshList(),index.load().catch(()=>{})]);const initial=ctx.path||meta.last_note;
+                if(saved){try{const data=JSON.parse(saved.content);if(data&&typeof data==='object')meta={...meta,...data,sort:data.sort==='name'?'name':'modified',pinned:Array.isArray(data.pinned)?data.pinned.filter(path=>typeof path==='string'&&path.startsWith(DIR+'/')):[],recent:Array.isArray(data.recent)?data.recent.filter(path=>typeof path==='string'&&path.startsWith(DIR+'/')).slice(0,RECENT_MAX):[]};}catch(_){notice(tr('request_failed'),true);}}
+                if(disposed)return;await Promise.all([refreshList(),index.load().catch(()=>{})]);if(indexLoaded)meta.recent=meta.recent.filter(path=>index.note(path));const initial=ctx.path||meta.last_note;
                 if(initial&&list.some(note=>note.path===initial))await loadNote(initial);
                 else if(ctx.path){if(ctx.path.startsWith(DIR+'/'))await loadNote(ctx.path);else await importDesktopFile(ctx.path);}
                 else if(list.length)await loadNote(list[0].path);
             }catch(error){fail(error);}finally{if(!disposed)syncChrome();}
         })();
+        sidebar=NotesSidebar.create(find('[data-sidebar]'),{tr,icon:name=>ctx.iconMarkup?.(name,'','notes-icon',16,'action')||'',storage,getState:sidebarState,root:DIR,
+            onOpen:path=>{hidePreview();loadNote(path);},onMove:moveToFolder,onNewNote:folder=>createNote('blank',undefined,folder),onNewFolder:newFolder,onContextMenu:openContextMenu,
+            onToggleTrash:()=>act('showTrash'),onSort:sort=>updateMeta({sort}),onSearch:searchNotes});
         syncChrome();
         return instance;
     }

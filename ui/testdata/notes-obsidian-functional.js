@@ -53,7 +53,7 @@ async () => {
     chips()[0].click();
     await until(()=>app.path==='Documents/Notes/ideen.md','back to ideen');
     await app.act('backlinks');
-    const tabs=document.querySelector('[role=tablist]');
+    const tabs=document.querySelector('[data-right] [role=tablist]');
     check(tabs&&tabs.querySelectorAll('[role=tab]').length===5&&tabs.querySelector('[role=tab][aria-selected=true]').dataset.rightTab==='backlinks','Tab strip missing or wrong tab');
     const linked=await until(()=>[...document.querySelectorAll('.notes-link-row[data-note-path]')].map(row=>row.dataset.notePath),'backlink rows');
     check(linked.includes(home)||linked.includes('Documents/Notes/verweise.md'),'Backlinks missing the linking note: '+linked);
@@ -65,7 +65,7 @@ async () => {
     await app.act('outgoing');
     check(document.querySelector('.notes-link-row[data-note-path$="aurora.md"]'),'Outgoing links miss aurora');
     await app.act('sidebarRight');check(document.querySelector('[data-right]').hidden,'Sidebar toggle did not close');
-    await app.act('sidebarRight');check(!document.querySelector('[data-right]').hidden&&document.querySelector('[role=tab][aria-selected=true]').dataset.rightTab==='outgoing','Sidebar toggle did not reopen on the last tab');
+    await app.act('sidebarRight');check(!document.querySelector('[data-right]').hidden&&document.querySelector('[data-right] [role=tab][aria-selected=true]').dataset.rightTab==='outgoing','Sidebar toggle did not reopen on the last tab');
     await app.act('outgoing');check(document.querySelector('[data-right]').hidden,'act(tab) did not close the open tab');
     await app.act('backlinks');
     result.backlinks=true;

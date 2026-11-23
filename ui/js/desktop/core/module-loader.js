@@ -292,7 +292,7 @@
             ]
         },
         'notes': {
-            styles: appStyles('/js/vendor/notes/engine.css', '/css/desktop-app-notes.css', '/css/hljs-github.min.css'),
+            styles: appStyles('/js/vendor/notes/engine.css', '/css/desktop-app-notes.css', '/css/desktop-app-notes-nav.css', '/css/hljs-github.min.css'),
             scripts: [
                 '/js/vendor/marked.min.js',
                 '/js/vendor/purify.min.js',
@@ -303,6 +303,8 @@
                 '/js/desktop/apps/writer-session.js',
                 '/js/desktop/apps/notes-editor.js',
                 '/js/desktop/apps/notes-panels.js',
+                '/js/desktop/apps/notes-sidebar.js',
+                '/js/desktop/apps/notes-palette.js',
                 '/js/desktop/apps/notes-graph.js',
                 '/js/desktop/apps/notes.js'
             ]
