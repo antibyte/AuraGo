@@ -90,6 +90,13 @@ type Service struct {
 
 	fileUndoMu sync.Mutex
 	fileUndo   map[string]*fileUndoReceipt
+
+	// Notes index: per-file parse cache (see service_notes_index.go).
+	notesIndexMu        sync.Mutex
+	notesIndexCache     map[string]notesIndexCacheEntry
+	notesIndexCacheHits int
+	// beforeNoteLinkWrite is a test hook run between reading and rewriting a referencing note.
+	beforeNoteLinkWrite func(path string)
 }
 
 type listCacheEntry struct {

@@ -16,7 +16,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v3"
 )
 
 const NotesDirectory = "Documents/Notes"
@@ -133,46 +132,14 @@ func noteSummary(data []byte, entry FileEntry) Note {
 	text := string(data)
 	note := Note{Path: entry.Path, Title: strings.TrimSuffix(entry.Name, filepath.Ext(entry.Name)), Tags: []string{}, Size: entry.Size, Modified: entry.ModTime, Version: NoteVersion(data)}
 	body := text
-	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	if len(lines) > 1 && strings.TrimSpace(lines[0]) == "---" {
-		for i := 1; i < len(lines); i++ {
-			if strings.TrimSpace(lines[i]) != "---" {
-				continue
-			}
-			var meta struct {
-				Title string      `yaml:"title"`
-				Tags  interface{} `yaml:"tags"`
-			}
-			if yaml.Unmarshal([]byte(strings.Join(lines[1:i], "\n")), &meta) == nil {
-				if meta.Title != "" {
-					note.Title = meta.Title
-				}
-				switch tags := meta.Tags.(type) {
-				case []interface{}:
-					for _, tag := range tags {
-						if value, ok := tag.(string); ok {
-							note.Tags = append(note.Tags, value)
-						}
-					}
-				case string:
-					for _, tag := range strings.Split(tags, ",") {
-						if tag = strings.TrimSpace(tag); tag != "" {
-							note.Tags = append(note.Tags, tag)
-						}
-					}
-				}
-				body = strings.Join(lines[i+1:], "\n")
-			}
-			break
-		}
+	if _, start, ok := splitFrontmatter(text); ok {
+		body = text[start:]
 	}
-	if note.Title == strings.TrimSuffix(entry.Name, filepath.Ext(entry.Name)) {
-		for _, line := range strings.Split(body, "\n") {
-			if strings.HasPrefix(line, "# ") {
-				note.Title = strings.TrimSpace(line[2:])
-				break
-			}
-		}
+	// Frontmatter and inline #tags count; a title needs frontmatter or a heading, else the file name stays.
+	refs := ExtractNoteRefs(text)
+	note.Tags = refs.Tags
+	if refs.TitleSource == "frontmatter" || refs.TitleSource == "heading" {
+		note.Title = refs.Title
 	}
 	note.Snippet = stringLimit(strings.Join(strings.Fields(body), " "), 180)
 	note.Title = stringLimit(note.Title, 160)
