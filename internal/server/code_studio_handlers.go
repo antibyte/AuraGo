@@ -516,9 +516,15 @@ func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
 		Args       []string `json:"args"`
 		CWD        string   `json:"cwd"`
 		TimeoutSec int      `json:"timeout_seconds"`
+		Stdin      *string  `json:"stdin"`
 	}
 	if err := decodeJSONRequest(w, r, &body, h.server); err != nil {
 		jsonError(w, "Invalid JSON", jsonDecodeStatus(err))
+		return
+	}
+	// A stdin payload is a whole file (Format Document), so it shares the configured file size cap.
+	if body.Stdin != nil && int64(len(*body.Stdin)) > h.maxFileSizeBytes() {
+		jsonError(w, "stdin exceeds configured maximum size", http.StatusRequestEntityTooLarge)
 		return
 	}
 	cmd, err := normalizeCodeStudioExecCommand(body.Command, body.Args, body.CWD)
@@ -532,12 +538,23 @@ func (h codeStudioHandlers) handleExec(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	result, err := h.docker.Exec(r.Context(), containerID, cmd, timeout)
+	var result codeStudioExecResult
+	if body.Stdin != nil {
+		execer, ok := h.docker.(codeStudioStdinExecer)
+		if !ok {
+			jsonError(w, "stdin is not supported by this docker client", http.StatusNotImplemented)
+			return
+		}
+		result, err = execer.ExecWithStdin(r.Context(), containerID, cmd, []byte(*body.Stdin), timeout)
+	} else {
+		result, err = h.docker.Exec(r.Context(), containerID, cmd, timeout)
+	}
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	writeJSON(w, map[string]interface{}{"status": "ok", "exit_code": result.ExitCode, "output": result.Output})
+	output, truncated := capCodeStudioExecOutput(result.Output, codeStudioExecOutputLimit)
+	writeJSON(w, map[string]interface{}{"status": "ok", "exit_code": result.ExitCode, "output": output, "truncated": truncated})
 }
 
 func (h codeStudioHandlers) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -648,6 +665,9 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 	changes := []map[string]string{}
 	branch := ""
 	logEntries := []map[string]string{}
+	// Only git's own "not a git repository" answer clears is_repo, so another failure
+	// (for example dubious ownership) never offers to initialize over a repository.
+	isRepo := true
 	if statusResult.ExitCode == 0 {
 		changes = parseGitPorcelain(statusResult.Output)
 		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, "branch", "--show-current"); err == nil && result.ExitCode == 0 {
@@ -655,9 +675,11 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 		}
 		// A new repository has no log yet. Neither that error nor a missing
 		// repository should appear as a branch, file change or commit.
-		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, "log", "--oneline", "-10"); err == nil && result.ExitCode == 0 {
+		if result, err := h.execGit(r.Context(), containerID, 10*time.Second, codeStudioGitLogArgs(10)...); err == nil && result.ExitCode == 0 {
 			logEntries = parseGitLog(result.Output)
 		}
+	} else if codeStudioGitNotRepository(statusResult.Output) {
+		isRepo = false
 	}
 
 	writeJSON(w, map[string]interface{}{
@@ -665,6 +687,7 @@ func (h codeStudioHandlers) handleGitStatus(w http.ResponseWriter, r *http.Reque
 		"branch":  branch,
 		"changes": changes,
 		"log":     logEntries,
+		"is_repo": isRepo,
 	})
 }
 
@@ -1020,10 +1043,14 @@ func (h codeStudioHandlers) handleGitLog(w http.ResponseWriter, r *http.Request)
 	if count > 100 {
 		count = 100
 	}
-	file := r.URL.Query().Get("path")
-	args := []string{"log", "--oneline", "-n", strconv.Itoa(count)}
-	if file != "" {
-		args = append(args, "--", file)
+	args := codeStudioGitLogArgs(count)
+	if file := r.URL.Query().Get("path"); file != "" {
+		rel, err := codeStudioGitAddPath(file)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		args = append(args, "--", rel)
 	}
 	_, containerID, err := h.codeContainer(r.Context(), true)
 	if err != nil {
@@ -1070,33 +1097,9 @@ func parseGitPorcelain(output string) []map[string]string {
 		if line[0] != ' ' && line[0] != '?' {
 			staged = "true"
 		}
-		changes = append(changes, map[string]string{"path": path, "status": status, "staged": staged})
+		changes = append(changes, map[string]string{"path": path, "status": status, "staged": staged, "index": line[:1], "worktree": line[1:2]})
 	}
 	return changes
-}
-
-func parseGitLog(output string) []map[string]string {
-	output = strings.TrimSpace(output)
-	if output == "" {
-		return []map[string]string{}
-	}
-	lines := strings.Split(output, "\n")
-	entries := make([]map[string]string, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		parts := strings.SplitN(line, " ", 2)
-		entry := map[string]string{"hash": parts[0]}
-		if len(parts) > 1 {
-			entry["message"] = strings.TrimSpace(parts[1])
-		} else {
-			entry["message"] = ""
-		}
-		entries = append(entries, entry)
-	}
-	return entries
 }
 
 func parseGitBranches(output string) []string {

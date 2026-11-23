@@ -18,11 +18,15 @@ import (
 func TestCodeStudioGitPorcelainPreservesPaths(t *testing.T) {
 	input := " M main.go\x00M  staged.go\x00 D deleted.go\x00?? -option.txt\x00??  spaced name \x00?? Grüße\n文.txt\x00R  renamed.go\x00old.go\x00 C copied.go\x00original.go\x00?? last.txt\x00"
 	want := []map[string]string{
-		{"path": "main.go", "status": "M", "staged": "false"}, {"path": "staged.go", "status": "M", "staged": "true"},
-		{"path": "deleted.go", "status": "D", "staged": "false"}, {"path": "-option.txt", "status": "??", "staged": "false"},
-		{"path": " spaced name ", "status": "??", "staged": "false"}, {"path": "Grüße\n文.txt", "status": "??", "staged": "false"},
-		{"path": "renamed.go", "status": "R", "staged": "true"}, {"path": "copied.go", "status": "C", "staged": "false"},
-		{"path": "last.txt", "status": "??", "staged": "false"},
+		{"path": "main.go", "status": "M", "staged": "false", "index": " ", "worktree": "M"},
+		{"path": "staged.go", "status": "M", "staged": "true", "index": "M", "worktree": " "},
+		{"path": "deleted.go", "status": "D", "staged": "false", "index": " ", "worktree": "D"},
+		{"path": "-option.txt", "status": "??", "staged": "false", "index": "?", "worktree": "?"},
+		{"path": " spaced name ", "status": "??", "staged": "false", "index": "?", "worktree": "?"},
+		{"path": "Grüße\n文.txt", "status": "??", "staged": "false", "index": "?", "worktree": "?"},
+		{"path": "renamed.go", "status": "R", "staged": "true", "index": "R", "worktree": " "},
+		{"path": "copied.go", "status": "C", "staged": "false", "index": " ", "worktree": "C"},
+		{"path": "last.txt", "status": "??", "staged": "false", "index": "?", "worktree": "?"},
 	}
 	if got := parseGitPorcelain(input); !reflect.DeepEqual(got, want) {
 		t.Fatalf("parsed changes=%#v; want=%#v", got, want)
