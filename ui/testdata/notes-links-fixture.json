@@ -1,0 +1,29 @@
+{
+  "extract": [
+    {"name": "frontmatter and inline", "content": "---\ntitle: Projekt Alpha\naliases: [Alpha, \"P-A\"]\ntags: [Work]\n---\n# Heading\nText #todo and #work [[Ideen|meine]] ![[bild.png]] [md](sub/Other.md#x) [web](https://x.y/a.md)\n```\n[[code]] #code\n```\n`[[inline]]` #fine/sub\n",
+     "title": "Projekt Alpha", "aliases": ["Alpha", "P-A"], "tags": ["work", "todo", "fine/sub"],
+     "links": [{"kind": "wiki", "value": "Ideen|meine", "embed": false}, {"kind": "wiki", "value": "bild.png", "embed": true}, {"kind": "markdown", "value": "sub/Other.md#x", "embed": false}]},
+    {"name": "heading title", "content": "Intro\n\n# Real Title\n", "title": "Real Title", "aliases": [], "tags": [], "links": []},
+    {"name": "digits are not tags", "content": "Issue #123 and #12a, a#b\n", "title": "Issue #123 and #12a, a#b", "aliases": [], "tags": ["12a"], "links": []}
+  ],
+  "resolve": {
+    "notes": ["Documents/Notes/Ideen.md", "Documents/Notes/Projekte/Ideen.md", "Documents/Notes/Projekte/Plan.md", "Documents/Notes/Archiv/2025/Plan.md", "Documents/Notes/Daily/2026-11-23.md", "Documents/Notes/sub/Other.md"],
+    "aliases": {"Documents/Notes/Projekte/Plan.md": ["Masterplan"]},
+    "attachments": ["Documents/Notes/.attachments/bild.png", "Documents/Notes/Projekte/skizze.png"],
+    "cases": [
+      {"from": "Documents/Notes/Projekte/Plan.md", "value": "Ideen", "path": "Documents/Notes/Projekte/Ideen.md"},
+      {"from": "Documents/Notes/Daily/2026-11-23.md", "value": "Ideen", "path": "Documents/Notes/Ideen.md"},
+      {"from": "Documents/Notes/Daily/2026-11-23.md", "value": "Plan", "path": "Documents/Notes/Projekte/Plan.md"},
+      {"from": "Documents/Notes/Ideen.md", "value": "Archiv/2025/Plan#Ziele|alt", "path": "Documents/Notes/Archiv/2025/Plan.md"},
+      {"from": "Documents/Notes/Ideen.md", "value": "2025/Plan", "path": "Documents/Notes/Archiv/2025/Plan.md"},
+      {"from": "Documents/Notes/Ideen.md", "value": "masterplan", "path": "Documents/Notes/Projekte/Plan.md"},
+      {"from": "Documents/Notes/Ideen.md", "value": "#Local", "path": "Documents/Notes/Ideen.md"},
+      {"from": "Documents/Notes/Ideen.md", "value": "Fehlt", "path": ""},
+      {"from": "Documents/Notes/Ideen.md", "value": "bild.png", "embed": true, "path": "Documents/Notes/.attachments/bild.png"},
+      {"from": "Documents/Notes/Projekte/Plan.md", "value": "skizze.png", "embed": true, "path": "Documents/Notes/Projekte/skizze.png"},
+      {"from": "Documents/Notes/Ideen.md", "kind": "markdown", "value": "sub/Other.md#x", "path": "Documents/Notes/sub/Other.md"},
+      {"from": "Documents/Notes/Ideen.md", "kind": "markdown", "value": "../../outside.md", "path": ""},
+      {"from": "Documents/Notes/Ideen.md", "kind": "markdown", "value": "https://x.y/a.md", "path": ""}
+    ]
+  }
+}
