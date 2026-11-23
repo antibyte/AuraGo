@@ -30,9 +30,9 @@ async () => {
     const stackLength=app.history.stack.length;
     await app.act('forward');
     check(app.path==='Documents/Notes/ideen.md'&&app.history.stack.length===stackLength,'Forward failed or pushed');
-    root.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',altKey:true,bubbles:true,cancelable:true}));
+    root.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',altKey:true,metaKey:/mac|iphone|ipad/i.test(String(navigator.userAgentData?.platform||navigator.platform||'')),bubbles:true,cancelable:true}));
     await until(()=>app.path===home,'Alt+Left');
-    root.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',altKey:true,bubbles:true,cancelable:true}));
+    root.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',altKey:true,metaKey:/mac|iphone|ipad/i.test(String(navigator.userAgentData?.platform||navigator.platform||'')),bubbles:true,cancelable:true}));
     await until(()=>app.path==='Documents/Notes/ideen.md','Alt+Right');
     await app.act('back');
     result.history=true;

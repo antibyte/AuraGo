@@ -35,6 +35,15 @@
     function writeRight(open,tab){try{localStorage.setItem(RIGHT_KEY,JSON.stringify({open,tab}));}catch(_){}}
     // "# ^ [ ]" cannot appear in a wikilink target (Obsidian forbids them in note names for that reason).
     const INVALID_NAME=/[\\:*?"<>|#^\[\]]/, PROPS_KEY='aurago.notes.properties', CALLOUTS=['note','info','tip','success','question','warning','danger','bug','example','quote'], RESERVED_PROPS=['tags','aliases','alias'];
+    // History shortcuts: Alt+Arrow (Cmd+Alt+Arrow on macOS, where Option+Arrow moves by word). They never fire from editable targets.
+    const IS_MAC = /mac|iphone|ipad/i.test(String(navigator.userAgentData?.platform || navigator.platform || ''));
+    const HISTORY_KEYS = {back: IS_MAC ? '⌘⌥←' : 'Alt+←', forward: IS_MAC ? '⌘⌥→' : 'Alt+→'};
+    const isEditableTarget = el => !!el?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable=false]),.cm-content');
+    function historyShortcut(event) {
+        if (event.defaultPrevented || event.ctrlKey || event.shiftKey || !event.altKey || event.metaKey !== IS_MAC) return '';
+        if (!['ArrowLeft', 'ArrowRight'].includes(event.key) || isEditableTarget(event.target)) return '';
+        return event.key === 'ArrowLeft' ? 'back' : 'forward';
+    }
     function render(host, windowId, ctx = {}) {
         dispose(windowId);
         const stored=readRight();
@@ -56,7 +65,7 @@
             tag:inlineSvg('<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8.5" cy="8.5" r="1.2"/>')
         };
         const icon=key=>{const name=icons[key]||key;return INLINE_ICONS[name]||ctx.iconMarkup?.(name,'','notes-icon',18,'action')||'<span aria-hidden="true">•</span>';};
-        const button=(action,label=action,text=false)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label))+'" aria-label="'+esc(tr(label))+'">'+(text?esc(tr(label)):icon(action))+'</button>';
+        const button=(action,label=action,text=false)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label)+(HISTORY_KEYS[action]?' ('+HISTORY_KEYS[action]+')':''))+'" aria-label="'+esc(tr(label))+'">'+(text?esc(tr(label)):icon(action))+'</button>';
         host.innerHTML='<div class="vd-notes-app" data-notes="'+esc(windowId)+'">'+
             '<header class="notes-documentbar"><div class="notes-document">'+button('library')+button('back','history_back')+button('forward','history_forward')+'<nav class="notes-crumbs" data-crumbs aria-label="'+esc(tr('breadcrumb'))+'" hidden></nav><span class="notes-daily-nav" data-daily-nav hidden>'+button('dailyPrev','daily_prev')+'<span data-daily-date></span>'+button('dailyNext','daily_next')+'</span><button class="notes-name" data-action="document"><span data-name>'+esc(tr('title'))+'</span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite"></span></div><nav aria-label="'+esc(tr('panels'))+'">'+button('switcher')+button('graph')+button('daily')+button('pin')+button('sidebarRight','right_sidebar')+'</nav></header>'+
             '<div class="vd-notes-toolbar" role="toolbar" aria-label="'+esc(tr('format'))+'"><div class="notes-toolgroup">'+button('undo')+button('redo')+'</div><div class="notes-toolgroup"><select data-style aria-label="'+esc(tr('style'))+'"><option value="p">'+esc(tr('paragraph'))+'</option>'+[1,2,3].map(n=>'<option value="'+n+'">'+esc(tr('heading'))+' '+n+'</option>').join('')+'</select></div><div class="notes-toolgroup">'+button('bold')+button('italic')+button('strike')+'</div><div class="notes-toolgroup">'+button('bullet','bullets')+button('ordered','numbering')+button('task')+button('quote')+'</div><div class="notes-toolgroup">'+button('link')+button('wikilink')+button('highlight')+button('code')+button('insert')+'</div><span class="notes-spacer"></span>'+button('source','markdown_source')+'</div>'+
@@ -1047,7 +1056,8 @@
             }
             const crumbKey=event.target.closest?.('[data-crumb]');
             if(crumbKey&&(event.key==='Enter'||event.key===' ')){event.preventDefault();crumbKey.click();return;}
-            if(event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();act(event.key==='ArrowLeft'?'back':'forward');return;}
+            const history=historyShortcut(event);
+            if(history){event.preventDefault();act(history);return;}
             const tabs=event.target.closest?.('[role=tablist]');
             if(tabs&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const all=[...tabs.querySelectorAll('[role=tab]')],at=all.indexOf(event.target),next=event.key==='Home'?0:event.key==='End'?all.length-1:(at+(event.key==='ArrowRight'?1:all.length-1))%all.length;setRight(all[next].dataset.rightTab);find('[data-right-tab="'+all[next].dataset.rightTab+'"]')?.focus();return;}
             const popup=find('[data-popup]');if(!popup.hidden&&['ArrowDown','ArrowUp','Escape'].includes(event.key)){event.preventDefault();const buttons=[...popup.querySelectorAll('button')];if(event.key==='Escape'){popup.hidden=true;editor?.focus();}else buttons[(buttons.indexOf(document.activeElement)+(event.key==='ArrowDown'?1:buttons.length-1))%buttons.length]?.focus();return;}

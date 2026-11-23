@@ -98,6 +98,30 @@ async () => {
     check(stored.content.includes('noch mehr')&&stored.content.includes('[[Projekte/rev-b]]'),'Server lost an edit: '+stored.content);
     await app.act('dismiss');
     result.dropKeepsOpenNoteSaveable=true;
+
+    // Alt+Arrow history shortcuts never fire from editable targets or after another handler took the key.
+    const mac=/mac|iphone|ipad/i.test(String(navigator.userAgentData?.platform||navigator.platform||''));
+    const arrow=(key,target)=>{const event=new KeyboardEvent('keydown',{key,altKey:true,metaKey:mac,bubbles:true,cancelable:true});target.dispatchEvent(event);return event;};
+    await open(DIR+'/einkauf.md');await open(DIR+'/rev-a.md');
+    const position=app.history.position;
+    check(position>=1,'history too short for the shortcut test');
+    check(arrow('ArrowLeft',app.editor.view.dom).defaultPrevented===false,'Alt+Arrow was swallowed in the editor');
+    await app.act('search');
+    const finder=document.querySelector('[data-find]');
+    check(arrow('ArrowLeft',finder).defaultPrevented===false,'Alt+Arrow was swallowed in an input');
+    const child=document.querySelector('[data-crumbs]')||document.querySelector('[data-name]');
+    const taken=e=>e.preventDefault();child.addEventListener('keydown',taken);
+    arrow('ArrowLeft',child);child.removeEventListener('keydown',taken);
+    await sleep(150);
+    check(app.history.position===position&&app.path===DIR+'/rev-a.md','A history shortcut ran from an editable or handled key');
+    await app.act('findClose');
+    check(arrow('ArrowLeft',document.querySelector('[data-action=forward]')).defaultPrevented===true,'Alt+Left from a button did not navigate');
+    await until(()=>app.history.position===position-1,'Alt+Left from a button');
+    arrow('ArrowRight',document.querySelector('[data-name]'));
+    await until(()=>app.history.position===position,'Alt+Right from the document bar');
+    const backTitle=document.querySelector('[data-action=back]').title;
+    check(/\((Alt\+←|⌘⌥←)\)/.test(backTitle),'Back button title has no shortcut: '+backTitle);
+    result.historyKeys=true;
     }finally{window.fetch=fetchOriginal;}
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
     await app.act('dismiss');
