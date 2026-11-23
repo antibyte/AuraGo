@@ -290,11 +290,11 @@
             for (let i = 0; i < d.torches.length; i++) {
                 const tc = d.torches[i];
                 if (!inView(tc.x, view, 200)) continue;
-                lights.push({ x: tc.x, y: tc.y - 62, radius: 120, intensity: 0.62 + 0.06 * Math.sin(t * 8 + tc.n), flicker: true });
+                lights.push({ x: tc.x, y: tc.y - 62, radius: 120, intensity: 0.62 + 0.06 * Math.sin(t * 8 + tc.n), flicker: true, color: '#ffb060' });
             }
             for (let i = 0; i < d.lanterns.length; i++) {
                 const l = d.lanterns[i];
-                if (inView(l.x, view, 200)) lights.push({ x: l.x + 14, y: l.y - 34, radius: 130, intensity: 0.58, flicker: true });
+                if (inView(l.x, view, 200)) lights.push({ x: l.x + 14, y: l.y - 34, radius: 130, intensity: 0.58, flicker: true, color: '#ffb060' });
             }
         }
 

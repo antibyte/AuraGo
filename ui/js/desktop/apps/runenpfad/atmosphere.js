@@ -617,6 +617,45 @@
             }
             lc.globalCompositeOperation = 'source-over';
             ctx.drawImage(lightCanvas, 0, 0, viewW, viewH);
+            paintLightTints(list, camX, camY, viewW, viewH, timeSec, amb);
+        }
+
+        // Coloured light: one additive radial tint per light that carries a css hex colour. Bright biomes (ambient <= 0.1) show none.
+        const tintRgb = {};
+        function hexRgb(hex) {
+            let v = tintRgb[hex];
+            if (v === undefined) {
+                const m = /^#([0-9a-f]{6})$/i.exec(hex);
+                v = m ? parseInt(m[1].slice(0, 2), 16) + ',' + parseInt(m[1].slice(2, 4), 16) + ',' + parseInt(m[1].slice(4, 6), 16) : '';
+                tintRgb[hex] = v;
+            }
+            return v;
+        }
+
+        function paintLightTints(list, camX, camY, viewW, viewH, timeSec, amb) {
+            const dark = clamp((amb - 0.1) / 0.35, 0, 1);
+            if (dark <= 0) return;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = 0; i < list.length; i++) {
+                const lt = list[i];
+                if (!lt.color) continue;
+                const rgb = hexRgb(lt.color);
+                if (!rgb) continue;
+                const sx = lt.x - camX;
+                const sy = lt.y - camY;
+                const r = Math.max(8, lt.radius || 100) * 0.9;
+                if (sx < -r || sx > viewW + r || sy < -r || sy > viewH + r) continue;
+                const flicker = lt.flicker ? 0.86 + Math.sin(timeSec * 9 + i * 2.1) * 0.09 + Math.sin(timeSec * 23 + i) * 0.05 : 1;
+                const a = 0.16 * (lt.tintScale == null ? 1 : lt.tintScale) * clamp((lt.intensity == null ? 0.8 : lt.intensity) * flicker, 0, 1) * dark;
+                if (a < 0.004) continue;
+                const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
+                g.addColorStop(0, 'rgba(' + rgb + ',' + a.toFixed(3) + ')');
+                g.addColorStop(1, 'rgba(' + rgb + ',0)');
+                ctx.fillStyle = g;
+                ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+            }
+            ctx.restore();
         }
 
         // Warm/cool colour grade plus a soft vignette to focus the play field.

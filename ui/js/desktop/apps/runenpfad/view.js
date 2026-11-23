@@ -87,7 +87,10 @@
         let lastStage = null;
         let cineFlash = 0;
         const artFx = root.RunenpfadArt && root.RunenpfadArt.createFx ? root.RunenpfadArt.createFx() : null;
+        const camRig = root.RunenpfadCameraRig && root.RunenpfadCameraRig.create ? root.RunenpfadCameraRig.create() : null;
+        const feelFx = root.RunenpfadFeelFx && root.RunenpfadFeelFx.create ? root.RunenpfadFeelFx.create({ getArt: function () { return art; } }) : null;
         const TARGET_WORLD_H = 576; // about 12 tiles of 48 px stay visible vertically
+        const RUNE_LIGHT = { fire: '#ff8a3d', frost: '#9be7ff', storm: '#c9a8ff', magnet: '#ffd65a' };
         const SHOCKWAVE_EVENTS = { bomb_blast: 1.0, slam_land: 0.8, boss_phase: 1.2, boss_defeat: 1.4, boss_slam: 1.1, portal_win: 1.0, dragon_roar: 1.1, dragon_breath: 0.7 };
 
         function triggerShake(amount) {
@@ -298,6 +301,8 @@
             if (stage !== lastStage) {
                 lastStage = stage;
                 camInitialized = false;
+                if (camRig) camRig.reset();
+                if (feelFx) feelFx.reset(sim);
                 cineT = 0;
                 cineFlash = 0;
                 if (artFx) artFx.clear();
@@ -354,13 +359,20 @@
             const minX = edge;
             const maxX = Math.max(minX, stage.width - vw - edge);
             const maxY = stage.height - vh;
-            const targetX = Math.max(minX, Math.min(maxX, sim.player.x - vw * 0.38));
-            const targetY = maxY <= 0 ? maxY : Math.max(0, Math.min(maxY, sim.player.y - vh * 0.62));
-            if (!camInitialized) {
-                camX = targetX;
-                camY = targetY;
+            const pp = sim.player;
+            if (camRig) {
+                // Look-ahead in the facing direction and a calm vertical follow (camera-rig.js); the old path below is the fallback.
+                const rc = camRig.update({ dt: dt, px: pp.x, py: pp.y, facing: pp.facing, vx: pp.vx, vy: pp.vy, grounded: !!pp.onGround, climbing: !!(pp.onLadder || pp.swing), vw: vw, vh: vh, minX: minX, maxX: maxX, maxY: maxY });
+                camX = rc.x;
+                camY = rc.y;
+                camInitialized = true;
+            } else if (!camInitialized) {
+                camX = Math.max(minX, Math.min(maxX, pp.x - vw * 0.38));
+                camY = maxY <= 0 ? maxY : Math.max(0, Math.min(maxY, pp.y - vh * 0.62));
                 camInitialized = true;
             } else {
+                const targetX = Math.max(minX, Math.min(maxX, pp.x - vw * 0.38));
+                const targetY = maxY <= 0 ? maxY : Math.max(0, Math.min(maxY, pp.y - vh * 0.62));
                 camX += (targetX - camX) * (1 - Math.exp(-dt * 10.5));
                 camY = maxY <= 0 ? targetY : camY + (targetY - camY) * (1 - Math.exp(-dt * 9));
             }
@@ -399,6 +411,7 @@
             // Pack sprites stay crisp when magnified; the painted atlas art smooths itself.
             ctx.imageSmoothingEnabled = dpr * z < 1.3;
             if (artFx && art) artFx.step(sim, dt, frameView, art);
+            if (feelFx) feelFx.step(dt, sim);
 
             callHook(decor, 'drawBehind', sim, frameView);
 
@@ -481,6 +494,7 @@
             const magicCrop = PLATFORM_CROPS.magic_platform;
             const magicH = Math.round(magicCrop.sh * (TILE / magicCrop.sw));
             const skyRays = stage.skyRays || [];
+            callHook(stageArt, 'drawTracks', sim, frameView);
             stage.movingPlatforms.forEach(function (mp) {
                 if (skyRays.indexOf(mp) >= 0) return;
                 drawCroppedAnimation('jump-and-run', 'magic_platform', nowSec, magicCrop.sx, magicCrop.sy, magicCrop.sw, magicCrop.sh, mp.x, mp.y - 1, TILE + 1, magicH);
@@ -642,6 +656,8 @@
             if (artFx && art) artFx.draw(ctx, art, frameView);
             drawParticles(sim);
 
+            if (feelFx) feelFx.drawWorld(ctx, frameView);
+
             callHook(stageArt, 'drawOverlay', sim, frameView);
             callHook(setPieces, 'drawOverlay', sim, frameView);
             callHook(npcView, 'drawOverlay', sim, frameView);
@@ -690,11 +706,12 @@
                 atmosphere.paintLighting(biome, 0, 0, viewW, viewH, lights, nowSec, ambient);
             }
             if (duelEnc && duelView) duelView.drawWipe(sim, viewW, viewH, frameView);
-            finishFrame(sim, biome, dt, nowSec, sunScreen, viewW, viewH, fx);
+            finishFrame(sim, biome, dt, nowSec, sunScreen, viewW, viewH, fx, reduced);
         }
 
         // Grade, screen flash and the GPU composite: the tail shared by the level and the duel arena.
-        function finishFrame(sim, biome, dt, nowSec, sunScreen, viewW, viewH, fx) {
+        // irisReduced is undefined for the duel and interior branches (no iris there) and a boolean for the level.
+        function finishFrame(sim, biome, dt, nowSec, sunScreen, viewW, viewH, fx, irisReduced) {
             const gpu = !!(postfx && postfx.isEnabled());
             if (atmosphere && !gpu) {
                 atmosphere.paintGrade(biome, viewW, viewH);
@@ -719,6 +736,8 @@
                 ctx.restore();
                 cineFlash *= Math.exp(-dt * 3.2);
             }
+
+            if (feelFx && typeof irisReduced === 'boolean') feelFx.drawScreen(ctx, viewW, viewH, sim, lastCam, irisReduced);
 
             if (gpu) {
                 const pl = sim.player;
@@ -792,6 +811,7 @@
                 if (ev.type === 'player_hurt' || ev.type === 'boss_defeat') triggerShake(7);
                 if (ev.type === 'boss_defeat' && !prefersReducedMotion()) { cineT = 1.6; cineFlash = 0.75; }
                 if (artFx && art) artFx.onEvent(ev, sim);
+                if (feelFx) feelFx.onEvent(ev, sim);
                 if (SHOCKWAVE_EVENTS[ev.type] && postfx) {
                     const sp = worldToScreen(wx, wy);
                     postfx.pushShockwave(sp.x, sp.y, SHOCKWAVE_EVENTS[ev.type]);
@@ -874,12 +894,14 @@
                     y: p.y - 22,
                     radius: biome.light.radius,
                     intensity: biome.light.player * 0.92,
-                    flicker: false
+                    flicker: false,
+                    color: biome.light.color,
+                    tintScale: 0.5
                 });
             }
             if (p.rune && p.rune.timeLeft > 0) {
                 const rk = p.rune.kind;
-                lights.push({ x: p.x, y: p.y - 24, radius: rk === 'fire' ? 150 : 120, intensity: rk === 'fire' ? 0.75 : 0.55, flicker: rk === 'fire' || rk === 'storm' });
+                lights.push({ x: p.x, y: p.y - 24, radius: rk === 'fire' ? 150 : 120, intensity: rk === 'fire' ? 0.75 : 0.55, flicker: rk === 'fire' || rk === 'storm', color: RUNE_LIGHT[rk] });
             }
             if (sim.blessing && sim.blessing.runePower > 0) {
                 lights.push({
@@ -892,29 +914,29 @@
             }
             stage.checkpoints.forEach(function (cp) {
                 if (cp.activated) {
-                    lights.push({ x: cp.x, y: cp.y + 6, radius: 132, intensity: 0.78, flicker: true });
+                    lights.push({ x: cp.x, y: cp.y + 6, radius: 132, intensity: 0.78, flicker: true, color: '#ffb060' });
                 }
             });
             const half = (stage.tileSize || 48) / 2;
             stage.hazards.forEach(function (h) {
                 if (h.assetId === 'lava' || h.assetId === 'fire') {
-                    lights.push({ x: h.x + half, y: h.y + half, radius: 104, intensity: 0.6, flicker: true });
+                    lights.push({ x: h.x + half, y: h.y + half, radius: 104, intensity: 0.6, flicker: true, color: '#ff7a2a' });
                 }
             });
             stage.collectibles.forEach(function (item) {
                 if (item.collected) return;
-                if (item.kind === 'gem') lights.push({ x: item.x, y: item.y, radius: 86, intensity: 0.42, flicker: false });
+                if (item.kind === 'gem') lights.push({ x: item.x, y: item.y, radius: 86, intensity: 0.42, flicker: false, color: '#7ee8fa' });
             });
             if (stage.key && !stage.key.collected && !stage.key.guardedByBoss) {
-                lights.push({ x: stage.key.x, y: stage.key.y, radius: 112, intensity: 0.6, flicker: true });
+                lights.push({ x: stage.key.x, y: stage.key.y, radius: 112, intensity: 0.6, flicker: true, color: '#ffd65a' });
             }
             if (stage.portal && sim.hasKey) {
-                lights.push({ x: stage.portal.x, y: stage.portal.y + 14, radius: 150, intensity: 0.7, flicker: true });
+                lights.push({ x: stage.portal.x, y: stage.portal.y + 14, radius: 150, intensity: 0.7, flicker: true, color: '#b78bff' });
             }
             stage.enemies.forEach(function (e) {
                 if (e.dead) return;
                 if (e.def.boss) {
-                    lights.push({ x: e.x, y: e.y - 26, radius: 150, intensity: e.phase === 2 ? 0.55 : 0.42, flicker: e.phase === 2 });
+                    lights.push({ x: e.x, y: e.y - 26, radius: 150, intensity: e.phase === 2 ? 0.55 : 0.42, flicker: e.phase === 2, color: e.phase === 2 ? '#ff5a5a' : undefined });
                 }
             });
             sim.projectiles.forEach(function (proj) {
