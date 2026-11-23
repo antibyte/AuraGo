@@ -211,7 +211,7 @@ Optional layers sit on top. The **LLM router** sends tasks to different models p
 | --- | --- |
 | Dual-core CPU | Quad-core CPU |
 | 2 GB RAM | 8 GB RAM |
-| 1 GB free storage | 20+ GB SSD |
+| 2 GB free storage | 20+ GB SSD |
 
 **Integrated and dedicated GPUs are supported for local LLMs and text-to-speech (TTS)** with compatible hardware and backends. The specs above cover AuraGo itself; local models and optional services need extra RAM, storage and, where applicable, GPU memory. Video Studio exports can use hardware encoding (VAAPI, QSV, NVENC, AMF) when present.
 
