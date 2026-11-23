@@ -213,6 +213,8 @@ Optional layers sit on top. The **LLM router** sends tasks to different models p
 | 2 GB RAM | 8 GB RAM |
 | 2 GB free storage | 20+ GB SSD |
 
+**A GPU is not strictly required but recommended.** A Ryzen Zen 2/3 generation iGPU or an older 6+ GB card may work for most features that need a GPU.
+
 **Integrated and dedicated GPUs are supported for local LLMs and text-to-speech (TTS)** with compatible hardware and backends. The specs above cover AuraGo itself; local models and optional services need extra RAM, storage and, where applicable, GPU memory. Video Studio exports can use hardware encoding (VAAPI, QSV, NVENC, AMF) when present.
 
 ## Quick start
