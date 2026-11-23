@@ -38,10 +38,12 @@ type NotesIndexResult struct {
 	Skipped     int              `json:"skipped"`
 }
 
-// NoteLinkUpdates reports which referencing notes MoveNoteWithLinks rewrote or could not rewrite.
+// NoteLinkUpdates reports which notes MoveNoteWithLinks rewrote (Updated: referencing notes, Relocated: the moved note)
+// or could not rewrite (Failed).
 type NoteLinkUpdates struct {
-	Updated []string
-	Failed  []string
+	Updated   []string
+	Failed    []string
+	Relocated bool // the moved note itself was rewritten so its relative links still point at the same targets
 }
 
 type notesIndexCacheEntry struct {
@@ -89,13 +91,15 @@ func (s *Service) NotesIndex(ctx context.Context) (NotesIndexResult, error) {
 			return nil
 		}
 		rel := s.relativePath(p)
+		underAttachments := inNoteAttachments(rel)
 		if entry.IsDir() {
-			if entry.Name() != ".attachments" && !strings.Contains(rel, "/.attachments") {
+			if !underAttachments {
 				result.Folders = append(result.Folders, rel)
 			}
 			return nil
 		}
-		if !strings.EqualFold(filepath.Ext(p), ".md") {
+		// Everything below ".attachments" is an attachment, even Markdown files (SearchNotes skips the folder too).
+		if underAttachments || !strings.EqualFold(filepath.Ext(p), ".md") {
 			if rel != NotesDirectory+"/notes.meta.json" {
 				result.Attachments = append(result.Attachments, rel)
 			}
@@ -118,7 +122,11 @@ func (s *Service) NotesIndex(ctx context.Context) (NotesIndexResult, error) {
 				seen[rel] = false
 				return nil
 			}
-			cached = notesIndexCacheEntry{mod: info.ModTime(), size: info.Size(), refs: ExtractNoteRefs(string(data))}
+			refs, err := ExtractNoteRefsContext(ctx, string(data))
+			if err != nil {
+				return err
+			}
+			cached = notesIndexCacheEntry{mod: info.ModTime(), size: info.Size(), refs: refs}
 			s.notesIndexCache[rel] = cached
 		}
 		title := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
@@ -158,6 +166,16 @@ func (s *Service) NotesIndex(ctx context.Context) (NotesIndexResult, error) {
 		result.Notes = append(result.Notes, n.entry)
 	}
 	return result, nil
+}
+
+// inNoteAttachments reports whether a workspace path is the ".attachments" folder or lies inside one.
+func inNoteAttachments(rel string) bool {
+	for _, segment := range strings.Split(filepath.ToSlash(rel), "/") {
+		if segment == ".attachments" {
+			return true
+		}
+	}
+	return false
 }
 
 // relativeNoteURL builds the URL-escaped relative path from the folder of note "from" to "to".
@@ -226,28 +244,51 @@ func (s *Service) MoveNoteWithLinks(ctx context.Context, from, to, expected, sou
 	}
 	newLookup := newNoteLookup(newPaths, newAliases, attachments)
 	linkText := newLookup.LinkText(to)
+	// "# | ^ [ ] \" and line breaks cannot be written inside a wikilink target (Obsidian forbids them in names too):
+	// such a note is not rewritten but reported in Failed, so its links stay visibly stale instead of silently broken.
+	wikiTextOK := !strings.ContainsAny(linkText, "#|^[]\\\r\n")
+	sameDir := path.Dir(from) == path.Dir(to)
 
-	for _, ref := range referencing {
-		if ctx.Err() != nil {
-			return updates, ctx.Err()
-		}
-		data, _, err := s.ReadFileBytes(ctx, ref)
+	// rewrite updates one note: a note that referenced the moved one (base == its own path) or the moved note
+	// itself (moved == true, read from "to" but resolved as it was at "from"). A note that cannot be rewritten
+	// safely is left untouched and reported in Failed.
+	rewrite := func(readPath, base string, moved bool) {
+		fail := func() { updates.Failed = append(updates.Failed, readPath) }
+		data, _, err := s.ReadFileBytes(ctx, readPath)
 		if err != nil || len(data) > MaxNoteBytes || !utf8.Valid(data) {
-			updates.Failed = append(updates.Failed, ref)
-			continue
+			fail()
+			return
 		}
 		version := NoteVersion(data)
 		content := string(data)
+		unsafeName := false
 		rewritten := RewriteNoteLinks(content, func(link NoteRefLink) (string, bool) {
 			if link.Kind == "markdown" {
-				if !strings.EqualFold(oldLookup.Resolve(ref, "markdown", link.Value, link.Embed), from) {
+				target := to
+				if moved {
+					target = oldLookup.Resolve(base, "markdown", link.Value, link.Embed)
+					if target == "" {
+						target = lexicalNoteTarget(base, link.Value)
+					}
+					if target == "" {
+						return "", false
+					}
+					if strings.EqualFold(target, from) {
+						target = to
+					} else if sameDir {
+						return "", false
+					}
+				} else if !strings.EqualFold(oldLookup.Resolve(base, "markdown", link.Value, link.Embed), from) {
 					return "", false
 				}
 				suffix := ""
 				if i := strings.IndexAny(link.Value, "#?"); i >= 0 {
 					suffix = link.Value[i:]
 				}
-				return relativeNoteURL(ref, to) + suffix, true
+				if replacement := relativeNoteURL(readPath, target) + suffix; replacement != link.Value {
+					return replacement, true
+				}
+				return "", false
 			}
 			target := normalizeWikiTarget(ParseWikiValue(link.Value).Target)
 			if target == "" {
@@ -259,7 +300,11 @@ func (s *Service) MoveNoteWithLinks(ctx context.Context, from, to, expected, sou
 				name = target[:len(target)-3]
 			}
 			// Only links that name the note (not its aliases) are rewritten.
-			if !strings.EqualFold(oldLookup.notes.find(ref, name), from) {
+			if !strings.EqualFold(oldLookup.notes.find(base, name), from) {
+				return "", false
+			}
+			if !wikiTextOK {
+				unsafeName = true
 				return "", false
 			}
 			text := linkText
@@ -268,20 +313,40 @@ func (s *Service) MoveNoteWithLinks(ctx context.Context, from, to, expected, sou
 			}
 			return ReplaceWikiTarget(link.Value, text), true
 		})
+		if unsafeName || len(rewritten) > MaxNoteBytes {
+			fail()
+			return
+		}
 		if rewritten == content {
-			continue
+			return
 		}
 		if s.beforeNoteLinkWrite != nil {
-			s.beforeNoteLinkWrite(ref)
+			s.beforeNoteLinkWrite(readPath)
 		}
-		if _, err := s.WriteFileBytesConditional(ctx, ref, []byte(rewritten), source, CheckNoteVersion(version, false)); err != nil {
-			updates.Failed = append(updates.Failed, ref)
-			continue
+		if _, err := s.WriteFileBytesConditional(ctx, readPath, []byte(rewritten), source, CheckNoteVersion(version, false)); err != nil {
+			fail()
+			return
 		}
-		updates.Updated = append(updates.Updated, ref)
+		if moved {
+			updates.Relocated = true
+		} else {
+			updates.Updated = append(updates.Updated, readPath)
+		}
 	}
-	if len(updates.Failed) > 0 {
-		sort.Strings(updates.Failed)
+
+	// The move already happened: a cancelled request must not hide it, so unfinished notes are reported in Failed.
+	todo := append([]string{to}, referencing...)
+	for i, ref := range todo {
+		if ctx.Err() != nil {
+			updates.Failed = append(updates.Failed, todo[i:]...)
+			break
+		}
+		if i == 0 {
+			rewrite(to, from, true)
+		} else {
+			rewrite(ref, ref, false)
+		}
 	}
+	sort.Strings(updates.Failed)
 	return updates, nil
 }

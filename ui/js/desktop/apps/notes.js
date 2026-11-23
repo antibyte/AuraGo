@@ -33,7 +33,8 @@
     function writeGraphPrefs(prefs){try{localStorage.setItem(GRAPH_KEY,JSON.stringify(prefs));}catch(_){}}
     function readRight(){try{const value=JSON.parse(localStorage.getItem(RIGHT_KEY)||'{}');return value&&typeof value==='object'?{open:!!value.open,tab:String(value.tab||'')}:{open:false,tab:''};}catch(_){return {open:false,tab:''};}}
     function writeRight(open,tab){try{localStorage.setItem(RIGHT_KEY,JSON.stringify({open,tab}));}catch(_){}}
-    const INVALID_NAME=/[\\:*?"<>|]/, PROPS_KEY='aurago.notes.properties', CALLOUTS=['note','info','tip','success','question','warning','danger','bug','example','quote'], RESERVED_PROPS=['tags','aliases','alias'];
+    // "# ^ [ ]" cannot appear in a wikilink target (Obsidian forbids them in note names for that reason).
+    const INVALID_NAME=/[\\:*?"<>|#^\[\]]/, PROPS_KEY='aurago.notes.properties', CALLOUTS=['note','info','tip','success','question','warning','danger','bug','example','quote'], RESERVED_PROPS=['tags','aliases','alias'];
     function render(host, windowId, ctx = {}) {
         dispose(windowId);
         const stored=readRight();
@@ -337,18 +338,17 @@
         }
         async function moveNote(operation,preset){
             if(!current||ctx.readonly||busy||!await guard())return;
-            let target='', relocated;
+            let target='';
             if(operation==='trash'&&!await ctx.confirmDialog?.(tr('trash'),tr('trash_confirm')))return;
             if(operation==='move'){
                 target=preset||await ctx.promptDialog?.(tr('move_prompt'),current.path);
                 if(!target||target===current.path)return;
-                relocated=await editor.relocateLinks(editor.content(),url=>relocatedURL(url,current.path,target));
+                if(!preset&&target.split('/').some(part=>INVALID_NAME.test(part))){notice(tr('invalid_name',{name:target}),true);return;}
             }
             busy=true;syncChrome();
             try{const oldPath=current.path,note=await request(endpoint(),{method:'PATCH',signal:life.signal,headers:{'Content-Type':'application/json','If-Match':current.version},body:JSON.stringify({path:current.path,new_path:target,operation,...(operation==='move'?{update_links:true}:{})})});
                 renameHistory(oldPath,note.path);renameMeta(oldPath,note.path);
                 queue.dispose();queue=null;await editor.destroy();editor=null;current=null;busy=false;trash=operation==='trash';await index.load().catch(()=>{});await refreshList();await loadNote(note.path,note,{push:false});
-                if(relocated!==undefined&&relocated!==note.content){editor.setContent(relocated);await queue.save();}
                 if(note.link_update_failed?.length)notice(tr('links_update_failed',{paths:note.link_update_failed.join(', ')}),true);
                 else if(note.updated_links>0)notice(tr('links_updated',{count:note.updated_links}));
             }finally{busy=false;syncChrome();}

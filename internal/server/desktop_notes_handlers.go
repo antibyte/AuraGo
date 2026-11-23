@@ -236,6 +236,9 @@ func handleDesktopNotes(s *Server) http.HandlerFunc {
 				return
 			}
 			publish("move_path", target, path)
+			if updates.Relocated {
+				publish("write_file", target, "")
+			}
 			for _, updated := range updates.Updated {
 				publish("write_file", updated, "")
 			}

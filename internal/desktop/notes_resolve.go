@@ -189,6 +189,27 @@ func (l *noteLookup) resolveMarkdown(from, value string) string {
 	return ""
 }
 
+// lexicalNoteTarget is the workspace path a relative Markdown URL names as seen from note "from", whether or not the
+// file exists ("" for URLs that leave Documents/Notes or cannot be decoded).
+func lexicalNoteTarget(from, value string) string {
+	if i := strings.IndexAny(value, "#?"); i >= 0 {
+		value = value[:i]
+	}
+	decoded, err := url.PathUnescape(value)
+	if err != nil || decoded == "" {
+		return ""
+	}
+	decoded = strings.ReplaceAll(decoded, "\\", "/")
+	if strings.HasPrefix(decoded, "/") {
+		return ""
+	}
+	joined := path.Join(path.Dir(strings.ReplaceAll(from, "\\", "/")), decoded)
+	if !strings.HasPrefix(strings.ToLower(joined), notesRootLower) {
+		return ""
+	}
+	return joined
+}
+
 // LinkText is the shortest unambiguous wikilink text for a note or attachment path:
 // the basename (without .md for notes) if unique, else the Notes-relative path.
 func (l *noteLookup) LinkText(p string) string {
