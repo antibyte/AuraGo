@@ -65,6 +65,12 @@ func handleChibiSensei(s *Server) http.HandlerFunc {
 			} else {
 				handleChibiSuggestions(s, w, r, parts[1])
 			}
+		case len(parts) >= 2 && parts[0] == "runs":
+			if !chibisensei.ValidID(parts[1]) {
+				chibiRunNotFound(w)
+				return
+			}
+			handleChibiRunRoute(s, w, r, parts[1], parts[2:])
 		case len(parts) == 1 && parts[0] == "consents":
 			handleChibiConsents(s, w, r)
 		case len(parts) == 2 && parts[0] == "preflight" && parts[1] == "enable":
@@ -112,6 +118,8 @@ func handleChibiProjectRoute(s *Server, w http.ResponseWriter, r *http.Request, 
 			handleChibiProjectJobs(s, w, r, id)
 		case "events":
 			handleChibiEvents(s, w, r, id)
+		case "runs":
+			handleChibiProjectRuns(s, w, r, id)
 		default:
 			chibiNotFound(w)
 		}
@@ -149,6 +157,43 @@ func handleChibiProjectRoute(s *Server, w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		handleChibiUndo(s, w, r, id, rest[1])
+	case len(rest) == 2 && rest[0] == "runs" && rest[1] == "prepare":
+		handleChibiRunPrepare(s, w, r, id)
+	default:
+		chibiNotFound(w)
+	}
+}
+
+// handleChibiRunRoute routes /runs/{runId}/<rest...>.
+func handleChibiRunRoute(s *Server, w http.ResponseWriter, r *http.Request, runID string, rest []string) {
+	switch {
+	case len(rest) == 0:
+		handleChibiRun(s, w, r, runID)
+	case len(rest) == 1:
+		switch rest[0] {
+		case "cancel":
+			handleChibiRunCancel(s, w, r, runID)
+		case "delete":
+			handleChibiRunDelete(s, w, r, runID)
+		case "metrics":
+			handleChibiRunMetrics(s, w, r, runID)
+		case "events":
+			handleChibiRunEvents(s, w, r, runID)
+		case "artifacts":
+			handleChibiRunArtifacts(s, w, r, runID)
+		case "report":
+			handleChibiRunReport(s, w, r, runID)
+		case "log":
+			handleChibiRunLog(s, w, r, runID)
+		default:
+			chibiNotFound(w)
+		}
+	case len(rest) == 3 && rest[0] == "artifacts" && rest[2] == "file":
+		if !chibisensei.ValidID(rest[1]) {
+			chibiArtifactNotFound(w)
+			return
+		}
+		handleChibiArtifactFile(s, w, r, runID, rest[1])
 	default:
 		chibiNotFound(w)
 	}

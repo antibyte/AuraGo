@@ -134,6 +134,11 @@ func TestChibiSenseiReadOnlyRefusesWrites(t *testing.T) {
 		{http.MethodPost, base + "/generate", `{}`},
 		{http.MethodPost, base + "/clean", `{}`},
 		{http.MethodPost, "/jobs/" + chibiFakeID + "/apply", `{}`},
+		{http.MethodPost, base + "/runs/prepare", `{"preset":"quick"}`},
+		{http.MethodPost, base + "/runs", `{"plan_token":"x"}`},
+		{http.MethodPost, "/consents", `{"profile_id":"qwen35-0p8b"}`},
+		{http.MethodPost, "/preflight/enable", `{"flags":["kaggle.enabled"]}`},
+		{http.MethodPost, "/runs/" + chibiFakeID + "/delete", ``},
 	}
 	for _, c := range writes {
 		var body any
@@ -142,12 +147,14 @@ func TestChibiSenseiReadOnlyRefusesWrites(t *testing.T) {
 		}
 		chibiWant(t, chibiDo(t, s, token, c.method, c.path, body, "If-Match", "1"), http.StatusForbidden, "desktop_readonly")
 	}
-	for _, p := range []string{"/projects", base, base + "/rows", base + "/checks", base + "/split", base + "/plan"} {
+	for _, p := range []string{"/projects", base, base + "/rows", base + "/checks", base + "/split", base + "/plan", base + "/preflight?preset=quick", base + "/runs"} {
 		chibiWant(t, chibiDo(t, s, token, http.MethodGet, p, nil), http.StatusOK, "")
 	}
 	// A cancel is a stop operation: the read-only desktop does not refuse it.
 	w = chibiDo(t, s, token, http.MethodPost, "/jobs/"+chibiFakeID+"/cancel", nil)
 	chibiWant(t, w, http.StatusNotFound, "job_not_found")
+	// A run cancel is a stop operation too.
+	chibiWant(t, chibiDo(t, s, token, http.MethodPost, "/runs/"+chibiFakeID+"/cancel", nil), http.StatusNotFound, "run_not_found")
 }
 
 func TestChibiSenseiProjectFlow(t *testing.T) {

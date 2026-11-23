@@ -84,8 +84,8 @@ func handleChibiJobCancel(s *Server, w http.ResponseWriter, r *http.Request, job
 }
 
 // handleChibiEvents streams the events of a project as server-sent events: on connect one "job" event
-// per unfinished job (oldest first) and the current "rows" revision, then every hub event
-// (job, rows, checks), with a comment ping every 15 s. The stream ends when the client leaves, the
+// per unfinished job (oldest first), the current "rows" revision and, when the project has a non-terminal run, that
+// run as a "run" event (RunSummary); then every hub event (job, rows, checks, run, metric, stage), with a comment ping every 15 s. The stream ends when the client leaves, the
 // runtime is retired (shutdown, data directory change) or the server stops.
 func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {
@@ -146,7 +146,17 @@ func handleChibiEvents(s *Server, w http.ResponseWriter, r *http.Request, id str
 			return
 		}
 	}
-	if !send("rows", map[string]any{"data_rev": project.DataRev}) || !flush() {
+	if !send("rows", map[string]any{"data_rev": project.DataRev}) {
+		return
+	}
+	if runs, err := acc.rt.store.ActiveRuns(ctx); err == nil {
+		for _, run := range runs {
+			if run.ProjectID == id && !send("run", run.Summary()) {
+				return
+			}
+		}
+	}
+	if !flush() {
 		return
 	}
 

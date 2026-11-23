@@ -428,6 +428,7 @@ func chibiSenseiAuthorize(s *Server, w http.ResponseWriter, r *http.Request, sco
 //	ErrNotFound → 404 not_found; ErrConflict → 412 conflict; ErrDatasetFull → 409 dataset_full;
 //	ErrNotArchived → 409 not_archived; ErrAlreadyUndone → 409 already_undone; ErrUndoConflict → 409 undo_conflict; ErrJobActive → 409 job_active;
 //	ErrDataChanged → 409 data_changed; ErrFileTooLarge → 413 file_too_large;
+//	ErrRunActive → 409 run_active; ErrRunNotTerminal → 409 run_not_terminal;
 //	other → 500 storage_failed (logged, never the error text).
 func chibiDomainError(w http.ResponseWriter, err error) {
 	var ve *chibisensei.ValidationError
@@ -456,6 +457,10 @@ func chibiDomainError(w http.ResponseWriter, err error) {
 		writeChibiError(w, http.StatusConflict, "data_changed", "The rows changed during the check.", nil)
 	case errors.Is(err, chibisensei.ErrFileTooLarge):
 		writeChibiError(w, http.StatusRequestEntityTooLarge, "file_too_large", "The file is too large.", nil)
+	case errors.Is(err, chibisensei.ErrRunActive):
+		writeChibiError(w, http.StatusConflict, "run_active", "A training run is active.", nil)
+	case errors.Is(err, chibisensei.ErrRunNotTerminal):
+		writeChibiError(w, http.StatusConflict, "run_not_terminal", "The training run has not ended.", nil)
 	default:
 		if !errors.Is(err, context.Canceled) {
 			slog.Warn("[ChibiSensei] Request failed", "error", err)

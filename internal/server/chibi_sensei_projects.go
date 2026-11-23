@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -196,8 +197,9 @@ func handleChibiProjectArchive(s *Server, w http.ResponseWriter, r *http.Request
 	writeChibiJSON(w, http.StatusOK, map[string]any{"project": chibiProjectAnswer(r.Context(), acc, p)})
 }
 
-// handleChibiProjectDelete deletes an archived project. The checks run before the jobs are cancelled,
-// so a refused delete leaves the running jobs alone.
+// handleChibiProjectDelete deletes an archived project. The checks (archive, name, no active run) run
+// before the jobs are cancelled, so a refused delete leaves the running jobs alone; after the store delete the files of
+// every run go.
 func handleChibiProjectDelete(s *Server, w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		writeChibiMethodError(w, http.MethodPost)
@@ -226,10 +228,32 @@ func handleChibiProjectDelete(s *Server, w http.ResponseWriter, r *http.Request,
 		chibiValidation(w, "confirm_name", "project.confirm_name", "The confirmation name does not match.")
 		return
 	}
-	acc.rt.jobs.CancelProject(id)
-	if err := acc.rt.store.DeleteProject(r.Context(), id, req.ConfirmName); err != nil {
+	ctx := r.Context()
+	active, err := acc.rt.store.ActiveRuns(ctx)
+	if err != nil {
 		chibiDomainError(w, err)
 		return
+	}
+	for _, run := range active {
+		if run.ProjectID == id {
+			chibiDomainError(w, chibisensei.ErrRunActive)
+			return
+		}
+	}
+	runIDs, err := acc.rt.store.ListRunIDs(ctx, id)
+	if err != nil {
+		chibiDomainError(w, err)
+		return
+	}
+	acc.rt.jobs.CancelProject(id)
+	if err := acc.rt.store.DeleteProject(ctx, id, req.ConfirmName); err != nil {
+		chibiDomainError(w, err)
+		return
+	}
+	for _, runID := range runIDs {
+		if err := chibisensei.RemoveRunFiles(acc.rt.dataDir, runID); err != nil {
+			slog.Warn("[ChibiSensei] Run files of a deleted project could not be removed", "run", runID, "error", err)
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

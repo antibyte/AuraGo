@@ -197,7 +197,17 @@ func TestChibiSenseiAppRealServerBrowser(t *testing.T) {
 	csnbWait(t, page, "the checks list shows at least one finding", `()=>document.querySelectorAll('[data-csn="check"]').length>=1`)
 	csnbWait(t, page, "the minimum-count check reports a problem", `()=>!!document.querySelector('[data-csn="check"][data-id="count_min"][data-level="block"]')`)
 
-	// 6. No script error and no failed request to the app's API during the whole run.
+	// 6. Training step: the preflight answers with Kaggle switched off; nothing is started.
+	csnbClick(t, page, "the training step opens", `[data-csn="step"][data-step="training"]`)
+	csnbWait(t, page, "the preflight has loaded", `()=>!!document.querySelector('[data-csn="preflight"][aria-busy="false"]')`)
+	csnbWait(t, page, "the preflight summary says blocked", `()=>!!document.querySelector('[data-csn="preflight-summary"][data-state="blocked"]')`)
+	csnbWait(t, page, "Kaggle is reported as switched off", `()=>!!document.querySelector('[data-csn="preflight-item"][data-id="kaggle_enabled"][data-ok="0"][data-level="block"]')`)
+	csnbWait(t, page, "the one-row dataset is reported as not ready", `()=>!!document.querySelector('[data-csn="preflight-item"][data-id="dataset_ready"][data-ok="0"]')`)
+	csnbWait(t, page, "the primary action is disabled with a hint", `()=>{const b=document.querySelector('[data-csn="primary"]');const h=document.querySelector('[data-csn="primary-hint"]');return !!b&&b.disabled&&!!h&&h.textContent.trim()!=='';}`)
+	csnbWait(t, page, "the enable button or the ask text is shown", `()=>!!document.querySelector('[data-csn="preflight-enable"],[data-csn="preflight-ask"]')`)
+	csnbWait(t, page, "three preset cards are shown", `()=>document.querySelectorAll('[data-csn="preset-card"]').length===3`)
+
+	// 7. No script error and no failed request to the app's API during the whole run.
 	if got := page.MustEval(`()=>JSON.stringify(window.fixtureErrors)`).String(); got != "[]" {
 		t.Fatalf("script errors in the page: %s\nstate: %s", got, csnbDump(page))
 	}
@@ -205,7 +215,7 @@ func TestChibiSenseiAppRealServerBrowser(t *testing.T) {
 		t.Fatalf("failed requests to /api/desktop/chibi-sensei/: %s\nstate: %s", got, csnbDump(page))
 	}
 
-	// 7. Cross-check through the API: the project exists with one row.
+	// 8. Cross-check through the API: the project exists with one row.
 	res, err := http.Get(origin + chibiSenseiAPIBase + "/projects")
 	if err != nil {
 		t.Fatal(err)
@@ -227,5 +237,16 @@ func TestChibiSenseiAppRealServerBrowser(t *testing.T) {
 	}
 	if len(list.Projects) != 1 || list.Projects[0].Name != "Smoke project" || list.Projects[0].Rows != 1 {
 		t.Fatalf("projects through the API = %+v, want one \"Smoke project\" with 1 row", list.Projects)
+	}
+
+	// 9. The smoke never started a run.
+	res, err = http.Get(origin + chibiSenseiAPIBase + "/projects/" + list.Projects[0].ID + "/runs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ = io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), `"runs":[]`) {
+		t.Fatalf("GET /runs = %d %s, want no run", res.StatusCode, body)
 	}
 }

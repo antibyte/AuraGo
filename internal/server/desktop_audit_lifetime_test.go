@@ -29,12 +29,12 @@ func TestDesktopReadonlyCleanupRoutes(t *testing.T) {
 			t.Fatalf("%s: %d %s", tc.path, w.Code, w.Body.String())
 		}
 	}
-	for _, path := range []string{"/api/game-maker/jobs/job/cancel", "/api/desktop/personal-radio/stations/id/stop", "/api/desktop/personal-radio/stations/id/pause", "/api/desktop/looper/stop", "/api/desktop/looper/pause"} {
+	for _, path := range []string{"/api/game-maker/jobs/job/cancel", "/api/desktop/personal-radio/stations/id/stop", "/api/desktop/personal-radio/stations/id/pause", "/api/desktop/looper/stop", "/api/desktop/looper/pause", "/api/desktop/chibi-sensei/runs/r/cancel"} {
 		if op := desktopRequestOperation(httptest.NewRequest("POST", path, nil)); op != desktopStop {
 			t.Errorf("%s classified %d", path, op)
 		}
 	}
-	for _, path := range []string{"/api/game-maker/jobs/job/cancel/extra", "/api/desktop/personal-radio/stations/id/resume"} {
+	for _, path := range []string{"/api/game-maker/jobs/job/cancel/extra", "/api/desktop/personal-radio/stations/id/resume", "/api/desktop/chibi-sensei/runs/r/cancel/extra", "/api/desktop/chibi-sensei/runs/r/delete", "/api/desktop/chibi-sensei/projects/p/runs"} {
 		if op := desktopRequestOperation(httptest.NewRequest("POST", path, nil)); op == desktopStop {
 			t.Errorf("unsafe cleanup alias %s", path)
 		}
