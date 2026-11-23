@@ -63,8 +63,15 @@ func TestChibiSenseiTranslationsAreTranslated(t *testing.T) {
 			"chibi_sensei.training.batch": true, "chibi_sensei.footer.train": true, "chibi_sensei.step.test": true,
 			"chibi_sensei.editor.role_system": true, "chibi_sensei.table.col_text": true, "chibi_sensei.editor.tags_label": true,
 		},
-		// Danish uses the English word for a download.
-		"da": {"chibi_sensei.run.download": true},
+		// Danish uses the English words for a download and an upload.
+		"da": {"chibi_sensei.run.download": true, "chibi_sensei.phase.upload": true},
+		// "Error" is the Spanish word too.
+		"es": {"chibi_sensei.event.error": true},
+		// "Preset" is the established word in Italian and Dutch; Dutch also says "epochs".
+		"it": {"chibi_sensei.training.preset_title": true},
+		"nl": {"chibi_sensei.training.preset_title": true, "chibi_sensei.overrides.epochs": true},
+		// Chinese keeps Kaggle's own product term.
+		"zh": {"chibi_sensei.leftover.notebook": true},
 		"pl": {"chibi_sensei.table.col_prompt": true},
 		"pt": {"chibi_sensei.table.col_prompt": true},
 		"sv": {"chibi_sensei.table.col_prompt": true},
