@@ -122,6 +122,37 @@ async () => {
     const backTitle=document.querySelector('[data-action=back]').title;
     check(/\((Alt\+←|⌘⌥←)\)/.test(backTitle),'Back button title has no shortcut: '+backTitle);
     result.historyKeys=true;
+
+    // Backlinks: an autosave of the open note does not rebuild the panel or refetch the linking notes.
+    await open(DIR+'/Projekte/rev-b.md').catch(()=>{});
+    if(app.path!==DIR+'/Projekte/rev-b.md'){app.sidebar.revealPath(DIR+'/Projekte/rev-b.md');await until(()=>row(DIR+'/Projekte/rev-b.md'),'rev-b row');await open(DIR+'/Projekte/rev-b.md');}
+    if(!document.querySelector('[data-right]').hidden)await app.act('closePanel');
+    await app.index.load();
+    const linkers=()=>app.index.backlinks(app.path).map(item=>item.path);
+    check(linkers().includes(DIR+'/rev-a.md'),'rev-a does not link rev-b in the index: '+linkers());
+    const rowGets=()=>log.filter(entry=>entry.method==='GET'&&entry.url.includes(encodeURIComponent(DIR+'/rev-a.md'))).length;
+    const base=rowGets();
+    await app.act('backlinks');
+    const item=await until(()=>document.querySelector('[data-linked-item="'+DIR+'/rev-a.md"]'),'backlinks row');
+    await until(()=>item.querySelector('.notes-link-context'),'backlink context');
+    const fetchedOnce=rowGets()-base;
+    check(fetchedOnce===1,'Backlink context fetched '+fetchedOnce+' times');
+    const link=item.querySelector('.notes-link-row');link.focus();
+    for(let i=0;i<3;i++){
+        app.editor.setContent('# Rev B\n\nrunde '+i+' '+Date.now()+'\n');
+        await app.session.save();await app.index.refresh();await sleep(60);
+    }
+    check(document.querySelector('[data-linked-item="'+DIR+'/rev-a.md"]')===item,'The backlinks panel was rebuilt by an autosave');
+    check(rowGets()-base===1,'Autosaves refetched the linking note: '+(rowGets()-base));
+    check(document.activeElement===link,'Keyboard focus left the backlink row');
+    // A new linking note changes the set: the panel rebuilds, contexts of known notes come from the cache.
+    await seed(DIR+'/rev-c.md','# Rev C\n\nAuch [[Projekte/rev-b]] hier.\n');
+    await app.index.load();
+    await until(()=>document.querySelector('[data-linked-item="'+DIR+'/rev-c.md"]'),'new backlink row');
+    await until(()=>document.querySelector('[data-linked-item="'+DIR+'/rev-c.md"] .notes-link-context'),'new backlink context');
+    check(rowGets()-base===1,'The cached note was fetched again: '+(rowGets()-base));
+    await app.act('closePanel');
+    result.backlinksStable=true;
     }finally{window.fetch=fetchOriginal;}
     check(errors.length===0,'Browser errors: '+errors.join('\n'));
     await app.act('dismiss');

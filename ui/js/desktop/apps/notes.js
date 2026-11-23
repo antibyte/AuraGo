@@ -84,6 +84,7 @@
         const draftKey=()=>location.origin+':'+current.path;
         let indexLoaded=false, indexSignature='', stack=[], stackPos=-1, previewTimer, previewToken=0, previewScroll=0;
         const excerpts=new Map();
+        const contextCache=new Map();
         const index=NotesIndex.create({request:(url,options)=>request(url,{...options,signal:life.signal}),onChange:indexChanged});
         const instance={act,commands:()=>commands(),openSwitcher:()=>openSwitcher(),openCommands:()=>openCommands(),get sidebar(){return sidebar;},get meta(){return meta;},get editor(){return editor;},get session(){return queue;},get path(){return current?.path;},get index(){return index;},get graph(){return graph;},get localGraph(){return localGraph;},get graphOpen(){return graphOpen;},get history(){return {stack:[...stack],position:stackPos};},dispose:cleanup};
         instances.set(windowId,instance);
@@ -614,11 +615,20 @@
         const tabLabel=tab=>tr(tab==='localGraph'?'local_graph':tab);
         function renderPanelBody(){
             const content=find('[data-panel-content]');if(!content||!right)return;
-            if(!editor||!current){content.textContent=tr('select_note');return;}
+            if(!editor||!current){delete content.dataset.backlinkSig;content.textContent=tr('select_note');return;}
             if(right==='localGraph'){renderLocalGraph(content);return;}
             if(right==='backlinks'||right==='outgoing'){
-                const options={tr,esc,index,path:current.path,title:current.title,content:editor.content(),request:(url,options)=>request(url,options),signal:life.signal};
-                (right==='backlinks'?NotesPanels.backlinks:NotesPanels.outgoing)(content,options);return;
+                const options={tr,esc,index,path:current.path,title:current.title,content:right==='outgoing'?editor.content():'',request:(url,options)=>request(url,options),signal:life.signal,cache:contextCache};
+                if(right==='outgoing'){NotesPanels.outgoing(content,options);return;}
+                // Every autosave refreshes the index: rebuild only when the list of linking notes changed, and keep scroll and focus when it does.
+                const signature=NotesPanels.backlinksSignature(index,current.path);
+                if(content.dataset.backlinkSig===signature)return;
+                const scroll=content.scrollTop,focused=content.contains(document.activeElement)?document.activeElement.dataset?.notePath:null;
+                content.dataset.backlinkSig=signature;
+                NotesPanels.backlinks(content,options);
+                content.scrollTop=scroll;
+                if(focused)[...content.querySelectorAll('[data-note-path]')].find(el=>el.dataset.notePath===focused)?.focus({preventScroll:true});
+                return;
             }
             if(right==='outline'){
                 const headings=editor.outline();content.innerHTML=headings.length?headings.map(h=>'<button class="notes-outline-item" data-jump="'+h.pos+'" style="--level:'+h.level+'">'+esc(h.text)+'</button>').join(''):'<p class="notes-muted">'+esc(tr('outline_empty'))+'</p>';
