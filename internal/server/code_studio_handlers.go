@@ -893,11 +893,11 @@ func (h codeStudioHandlers) mutateGitBranch(w http.ResponseWriter, r *http.Reque
 		jsonError(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	args := []string{"checkout", name}
-	fallback := "git checkout failed"
+	args := []string{"switch", name}
+	fallback := "git switch failed"
 	switch action {
 	case "create":
-		args = []string{"checkout", "-b", name}
+		args = []string{"switch", "-c", name}
 	case "delete":
 		current, err := h.execGit(r.Context(), containerID, 5*time.Second, "branch", "--show-current")
 		if err != nil {

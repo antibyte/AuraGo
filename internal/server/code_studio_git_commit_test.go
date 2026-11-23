@@ -35,8 +35,8 @@ func TestCodeStudioGitBranchGetDoesNotMutate(t *testing.T) {
 	}
 	for _, cmd := range docker.commands {
 		joined := strings.Join(cmd, " ")
-		if strings.Contains(joined, "checkout") {
-			t.Fatalf("list ran checkout: %#v", docker.commands)
+		if strings.Contains(joined, "checkout") || strings.Contains(joined, "switch") {
+			t.Fatalf("list ran checkout or switch: %#v", docker.commands)
 		}
 	}
 	if len(docker.commands) != 2 || !reflect.DeepEqual(docker.commands[0], []string{"git", "-C", "/workspace", "--literal-pathspecs", "branch", "-a"}) {
@@ -50,7 +50,7 @@ func TestCodeStudioGitBranchGetDoesNotMutate(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	want := []string{"git", "-C", "/workspace", "--literal-pathspecs", "checkout", "-b", "feature/one"}
+	want := []string{"git", "-C", "/workspace", "--literal-pathspecs", "switch", "-c", "feature/one"}
 	if !reflect.DeepEqual(docker.commands[0], want) {
 		t.Fatalf("create command=%#v", docker.commands[0])
 	}
@@ -152,5 +152,20 @@ func TestCodeStudioGitIdentityIsLocal(t *testing.T) {
 	h.handleGitIdentity(rec, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/identity", strings.NewReader(`{"name":"Ada","email":"ada\n@example.com"}`)))
 	if rec.Code != http.StatusBadRequest || len(docker.commands) != 0 {
 		t.Fatalf("control char status=%d commands=%#v body=%s", rec.Code, docker.commands, rec.Body.String())
+	}
+}
+
+func TestCodeStudioGitBranchSwitchUsesSwitchCommand(t *testing.T) {
+	s := testCodeStudioServerWithFakeCodeContainer(t, 1)
+	docker := &recordingCodeStudioDockerAPI{}
+	h := codeStudioHandlers{server: s, docker: docker}
+	rec := httptest.NewRecorder()
+	h.handleGitBranch(rec, httptest.NewRequest(http.MethodPost, "/api/code-studio/git/branch", strings.NewReader(`{"action":"switch","name":"notes.txt"}`)))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("switch status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	want := []string{"git", "-C", "/workspace", "--literal-pathspecs", "switch", "notes.txt"}
+	if len(docker.commands) == 0 || !reflect.DeepEqual(docker.commands[0], want) {
+		t.Fatalf("switch commands=%#v", docker.commands)
 	}
 }
