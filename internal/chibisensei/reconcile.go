@@ -235,7 +235,7 @@ func (o *Orchestrator) Cancel(ctx context.Context, runID string) (Run, error) {
 	if err != nil || RunTerminal(r.State) || r.CancelRequested {
 		return r, err
 	}
-	next, err := o.st.UpdateRun(ctx, runID, NewRunEvent("state", map[string]any{"state": r.State, "cancel_requested": true}),
+	next, err := o.st.UpdateRun(ctx, runID, NewRunEvent("state", map[string]any{"to": r.State, "state": r.State, "cancel_requested": true}),
 		func(x *Run) error {
 			if RunTerminal(x.State) {
 				return errRunMoved
