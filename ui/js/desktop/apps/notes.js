@@ -44,8 +44,17 @@
         const icons={library:'columns',new:'file-plus',search:'search',pin:'bookmark',info:'info',outline:'list',assist:'star',source:'file-code',focus:'maximize',insert:'plus',
             save:'save',saveAs:'copy',rename:'pencil',move:'folder',trash:'trash',restore:'undo',open:'folder-open',print:'printer',md:'notes',html:'file-code',txt:'file-text',
             undo:'undo',redo:'redo',bold:'format-bold',italic:'format-italic',strike:'format-strike',bullet:'list',ordered:'format-numbered',quote:'format-quote',code:'code',link:'link',close:'x',closePanel:'x',dismiss:'x',cancelAssist:'x',task:'check-square',
-            back:'chevron-left',forward:'chevron-right',sidebarRight:'columns',backlinks:'link',outgoing:'external',localGraph:'network',graph:'network',graphFit:'maximize',graphClose:'x',switcher:'search',highlight:'highlighter',wikilink:'brackets',findPrev:'chevron-up',findNext:'chevron-down',findClose:'x',commandPalette:'command',daily:'calendar',dailyPrev:'chevron-left',dailyNext:'chevron-right',callout:'quote',insertTemplate:'file-plus'};
-        const icon=key=>ctx.iconMarkup?.(icons[key]||key,'','notes-icon',18,'action')||'<span aria-hidden="true">•</span>';
+            back:'chevron-left',forward:'chevron-right',sidebarRight:'columns',backlinks:'link',outgoing:'external',localGraph:'network',graph:'network',graphFit:'maximize',graphClose:'x',switcher:'search',highlight:'highlighter',wikilink:'brackets',findPrev:'chevron-up',findNext:'chevron-down',findClose:'x',commandPalette:'command',daily:'calendar',dailyPrev:'chevron-left',dailyNext:'chevron-right',callout:'format-quote',insertTemplate:'file-plus'};
+        const menuIcons={highlight:'edit',wikilink:'link',commandPalette:'search'};
+        const inlineSvg=body=>'<svg class="notes-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'+body+'</svg>';
+        // Keys the desktop mini-icon set does not ship; drawn inline so they never fall back to the generic sprite.
+        const INLINE_ICONS={
+            highlighter:inlineSvg('<path d="M9 11l6 6"/><path d="M14.5 4.5l5 5-8.5 8.5-5-5z"/><path d="M6 13l-2.5 6.5L10 17.5"/><path d="M4 21h6"/>'),
+            brackets:inlineSvg('<path d="M9 4H5v16h4"/><path d="M15 4h4v16h-4"/><path d="M9.5 9v6M14.5 9v6"/>'),
+            command:inlineSvg('<path d="M9 9V6.5a2.5 2.5 0 1 0-2.5 2.5H9zm0 0h6m-6 0v6m6-6V6.5A2.5 2.5 0 1 1 17.5 9H15zm0 0v6m0 0h2.5a2.5 2.5 0 1 1-2.5 2.5V15zm0 0H9m0 0H6.5A2.5 2.5 0 1 0 9 17.5V15z"/>'),
+            tag:inlineSvg('<path d="M4 4h7l9 9-7 7-9-9z"/><circle cx="8.5" cy="8.5" r="1.2"/>')
+        };
+        const icon=key=>{const name=icons[key]||key;return INLINE_ICONS[name]||ctx.iconMarkup?.(name,'','notes-icon',18,'action')||'<span aria-hidden="true">•</span>';};
         const button=(action,label=action,text=false)=>'<button type="button" data-action="'+action+'" title="'+esc(tr(label))+'" aria-label="'+esc(tr(label))+'">'+(text?esc(tr(label)):icon(action))+'</button>';
         host.innerHTML='<div class="vd-notes-app" data-notes="'+esc(windowId)+'">'+
             '<header class="notes-documentbar"><div class="notes-document">'+button('library')+button('back','history_back')+button('forward','history_forward')+'<nav class="notes-crumbs" data-crumbs aria-label="'+esc(tr('breadcrumb'))+'" hidden></nav><span class="notes-daily-nav" data-daily-nav hidden>'+button('dailyPrev','daily_prev')+'<span data-daily-date></span>'+button('dailyNext','daily_next')+'</span><button class="notes-name" data-action="document"><span data-name>'+esc(tr('title'))+'</span><span aria-hidden="true">⌄</span></button><span data-save-state role="status" aria-live="polite"></span></div><nav aria-label="'+esc(tr('panels'))+'">'+button('switcher')+button('graph')+button('daily')+button('pin')+button('sidebarRight','right_sidebar')+'</nav></header>'+
@@ -671,9 +680,11 @@
             }catch(error){fail(error);}
         }
         // One list drives the menu bar and the command palette (Phase 5/6 append their commands here).
+        // Menu labels stay short under their menu; the palette lists commands without that context.
+        const PALETTE_LABELS={md:'export_as_md',html:'export_as_html',txt:'export_as_txt',trash:'palette_trash',link:'palette_link',callout:'palette_callout',info:'palette_info'};
         function commands(){
             const ro=!!ctx.readonly,w=!!writable(),e=!!editor,text=!!editor&&!editor.sourceMode;
-            const c=(id,label,group,shortcut,enabled=true,extra={})=>({id,label:tr(label),group,shortcut:shortcut||'',enabled:!!enabled,...extra});
+            const c=(id,label,group,shortcut,enabled=true,extra={})=>({id,label:tr(label),paletteLabel:PALETTE_LABELS[id]?tr(PALETTE_LABELS[id]):tr(label),group,shortcut:shortcut||'',enabled:!!enabled,...extra});
             return [
                 c('new','new_note','file','Ctrl+N',!ro&&!busy),c('templates','templates','file','',!ro,{palette:false}),c('daily','daily','file','',!busy),c('dailyPrev','daily_prev','file','',!!dailyNeighbor(-1)),c('dailyNext','daily_next','file','',!!dailyNeighbor(1)),c('switcher','switcher','file','Ctrl+O'),c('open','open','file','',true),c('import','import','file','',!ro),
                 c('save','save','file','Ctrl+S',w),c('saveAs','save_as','file','',w),c('rename','rename','file','',w),
@@ -686,7 +697,7 @@
         }
         function menus(){
             const all=commands(),by=Object.fromEntries(all.map(command=>[command.id,command]));
-            const entries=ids=>ids.map(id=>id==='-'?{type:'separator'}:{id,label:by[id].label,icon:icons[id]||'notes',shortcut:by[id].shortcut||null,disabled:!by[id].enabled,action:()=>act(id)});
+            const entries=ids=>ids.map(id=>id==='-'?{type:'separator'}:{id,label:by[id].label,icon:menuIcons[id]||icons[id]||'notes',shortcut:by[id].shortcut||null,disabled:!by[id].enabled,action:()=>act(id)});
             ctx.setWindowMenus?.(windowId,[
                 {id:'file',labelKey:'desktop.menu_file',items:entries(['new','templates','daily','dailyPrev','dailyNext','switcher','open','import','-','save','saveAs','rename','-','md','html','txt','print'])},
                 {id:'edit',labelKey:'desktop.menu_edit',items:entries(['undo','redo','search','insert','callout','insertTemplate','trash'])},
@@ -909,7 +920,7 @@
             if(disposed||!window.NotesPalette)return;
             NotesPalette.open(root,{placeholder:tr('command_placeholder'),ariaLabel:tr('commands'),emptyText:tr('no_results'),
                 items:query=>{
-                    const list=commands().filter(command=>command.enabled&&command.palette!==false).map(command=>({id:command.id,label:command.label,detail:groupLabel(command.group),hint:command.shortcut,score:query.trim()?NotesIndex.fuzzy(query,command.label):1}));
+                    const list=commands().filter(command=>command.enabled&&command.palette!==false).map(command=>({id:command.id,label:command.paletteLabel,detail:groupLabel(command.group),hint:command.shortcut,score:query.trim()?NotesIndex.fuzzy(query,command.paletteLabel):1}));
                     return query.trim()?list.filter(item=>item.score>0).sort((a,b)=>b.score-a.score):list;
                 },
                 onPick:item=>{act(item.id);},
@@ -1032,7 +1043,7 @@
                 else if(list.length)await loadNote(list[0].path);
             }catch(error){fail(error);}finally{if(!disposed)syncChrome();}
         })();
-        sidebar=NotesSidebar.create(find('[data-sidebar]'),{tr,icon:name=>ctx.iconMarkup?.(name,'','notes-icon',16,'action')||'',storage,getState:sidebarState,root:DIR,
+        sidebar=NotesSidebar.create(find('[data-sidebar]'),{tr,icon:name=>name==='tag'||name==='collapse'?'':ctx.iconMarkup?.(name,'','notes-icon',16,'action')||'',storage,getState:sidebarState,root:DIR,
             onOpen:path=>{hidePreview();loadNote(path);},onMove:moveToFolder,onNewNote:folder=>createNote('blank',undefined,folder),onNewFolder:newFolder,onContextMenu:openContextMenu,
             onToggleTrash:()=>act('showTrash'),onSort:sort=>updateMeta({sort}),onSearch:searchNotes});
         syncChrome();
